@@ -7,6 +7,7 @@ function fixture(
   options: {
     inactive?: boolean;
     hidden?: boolean;
+    ancestorHidden?: boolean;
     occluded?: boolean;
     nested?: boolean;
     pseudo?: boolean;
@@ -58,6 +59,11 @@ function fixture(
     fontWeight: "500",
     ...overrides,
   };
+  const ancestor = {
+    parentElement: null,
+    inert: false,
+    getAttribute: () => null,
+  };
   const element = {
     tagName: options.button ? "BUTTON" : "A",
     textContent: node.textContent,
@@ -66,7 +72,7 @@ function fixture(
       : options.nested
         ? [{ nodeType: 1, textContent: node.textContent }]
         : [node],
-    parentElement: null,
+    parentElement: options.ancestorHidden ? ancestor : null,
     disabled: options.inactive,
     inert: false,
     getBoundingClientRect: () => rect,
@@ -122,7 +128,10 @@ function fixture(
         ? { content: options.pseudo ? '"paint"' : "none" }
         : {
             ...style,
-            ...(options.hidden ? { visibility: "hidden" } : {}),
+            ...(options.hidden ||
+            (options.ancestorHidden && _element === ancestor)
+              ? { visibility: "hidden" }
+              : {}),
             ...(options.image
               ? { backgroundImage: "linear-gradient(red,blue)" }
               : {}),
@@ -191,8 +200,21 @@ describe("fixed read-only interactive text qualifiers", () => {
         .interactiveText.eligibility,
     ).toBe("excluded"),
   );
-  it("excludes hidden controls", () =>
-    expect(fixture({}, { hidden: true }).contrastCandidates).toHaveLength(0));
+  it("excludes hidden controls from the new sentinel and legacy contrast candidates", () => {
+    const facts = fixture({}, { hidden: true });
+    expect(facts.contrastCandidates).toHaveLength(0);
+    expect(facts.interactiveTextCandidates[0].interactiveText.eligibility).toBe(
+      "excluded",
+    );
+  });
+  it("excludes controls with a hidden ancestor even when their own style is visible", () => {
+    const facts = fixture({}, { ancestorHidden: true });
+    expect(facts.contrastCandidates).toHaveLength(1);
+    expect(facts.interactiveTextCandidates[0].interactiveText.eligibility).toBe(
+      "excluded",
+    );
+    expect(facts.interactiveTextScan.unknown).toBe(false);
+  });
   it("marks truncated discovery incomplete", () =>
     expect(fixture({}, { truncated: true }).interactiveTextScan.complete).toBe(
       false,

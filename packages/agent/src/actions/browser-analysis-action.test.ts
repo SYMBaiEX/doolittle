@@ -1,12 +1,27 @@
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { DOOLITTLE_BROWSER_SERVICE } from "@doolittle/contracts";
 import type { IAgentRuntime, Memory } from "@elizaos/core";
+import sharp from "sharp";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   getScopedTurnActionResults,
   runWithTurnRuntimeScope,
 } from "@/runtime/turn-runtime-scope";
 import type { AppServices } from "@/services";
+import { assessInteractiveText } from "@/services/web/interactive-text-check";
+import { createCaptureReadModel } from "@/services/web/read-model";
+import {
+  type RenderedPageFacts,
+  validateRenderedCapture,
+  writeRenderedInspection,
+} from "@/services/web/rendered-capture";
 import type { BrowserAnalysisBundle } from "@/services/web/service";
+import type {
+  BrowserCaptureBundle,
+  BrowserStatus,
+} from "@/services/web/service-types";
 import {
   createBrowserAnalysisAction,
   DOOLITTLE_BROWSER_ANALYZE_ACTION,
@@ -78,6 +93,114 @@ afterEach(() => {
 });
 
 describe("agent-invokable managed browser critique", () => {
+  it("retains interactive facts through real inspection/read-model seams into assessment and action receipts", async () => {
+    const outputDir = mkdtempSync(
+      join(tmpdir(), "doolittle-interactive-inspection-test-"),
+    );
+    try {
+      const url = "http://localhost:3000/story";
+      const captures: BrowserCaptureBundle[] = [];
+      const status: BrowserStatus = {
+        provider: "basic",
+        ready: true,
+        mode: "fallback",
+        detail: "Synthetic fixture",
+        artifacts: { snapshot: true, screenshot: false, comparison: false },
+        captureMode: "placeholder",
+        captureReady: false,
+      };
+      for (const [width, height] of [
+        [1280, 720],
+        [390, 844],
+      ]) {
+        const viewport = { width, height };
+        const png = await sharp({
+          create: { width, height, channels: 3, background: "#182d39" },
+        })
+          .png()
+          .toBuffer();
+        const facts: RenderedPageFacts = {
+          url,
+          title: "Synthetic control",
+          text: "private-control-canary",
+          viewport: { ...viewport, deviceScaleFactor: 1 },
+          horizontalOverflow: false,
+          counts: { main: 1, h1: 0, links: 1, images: 0, headings: 0 },
+          headings: [],
+          links: [],
+          images: [],
+          contrastCandidates: [],
+          limitations: ["Synthetic viewport-only fixture."],
+          interactiveTextScan: { version: 1, complete: true, unknown: false },
+          interactiveTextCandidates: [
+            {
+              text: "private-control-canary",
+              foreground: "rgb(24, 45, 57)",
+              background: "rgb(24, 45, 57)",
+              fontSize: "16px",
+              fontWeight: "500",
+              interactiveText: {
+                controlKind: "link",
+                eligibility: "eligible",
+                subject: ["id", "link", "private-control-canary"],
+                unambiguous: true,
+              },
+            },
+          ],
+        };
+        const rendered = validateRenderedCapture(
+          {
+            data: png.toString("base64"),
+            captureMode: "rendered-page",
+            captureProtocol: "doolittle-rendered-page-v1",
+            scope: "viewport-only-read-only",
+            viewport,
+            blockedRequests: 0,
+            facts,
+          },
+          url,
+          viewport,
+        );
+        const inspection = writeRenderedInspection(
+          rendered,
+          { provider: "basic", command: "", obeyRobots: true },
+          outputDir,
+          status,
+        );
+        const capture = createCaptureReadModel(outputDir, url, inspection);
+        expect(
+          capture.renderedEvidence?.facts.interactiveTextCandidates,
+        ).toEqual(facts.interactiveTextCandidates);
+        expect(capture.renderedEvidence?.facts.interactiveTextScan).toEqual(
+          facts.interactiveTextScan,
+        );
+        expect(readFileSync(capture.screenshotPath)).toEqual(png);
+        const manifest = JSON.parse(readFileSync(capture.manifestPath, "utf8"));
+        expect(
+          manifest.renderedEvidence.facts.interactiveTextCandidates,
+        ).toEqual(facts.interactiveTextCandidates);
+        expect(manifest.renderedEvidence.facts.interactiveTextScan).toEqual(
+          facts.interactiveTextScan,
+        );
+        captures.push(capture);
+      }
+      const assessment = assessInteractiveText(captures);
+      expect(assessment.status).toBe("blocked");
+      expect(assessment.blockers).toHaveLength(2);
+      const { analysis, run, analyze } = fixture();
+      analysis.capture = captures[0];
+      analysis.narrowCapture = captures[1];
+      const result = await run();
+      expect(analyze).toHaveBeenCalledOnce();
+      expect(result?.success).toBe(true);
+      expect(result?.data?.interactiveTextCheck).toEqual(assessment);
+      expect(JSON.stringify(result?.data?.interactiveTextCheck)).not.toContain(
+        "private-control-canary",
+      );
+    } finally {
+      rmSync(outputDir, { recursive: true, force: true });
+    }
+  });
   it.each([true, false])(
     "preserves captured blockers when critique succeeds=%s",
     async (criticAvailable) => {
