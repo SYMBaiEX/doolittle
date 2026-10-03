@@ -854,28 +854,35 @@ export async function runHeadlessEvalSuite(
       options.recordActionDiagnostics ? "unavailable" : "disabled";
     if (options.recordActionDiagnostics) {
       try {
-        const writeActions =
-          options.writeActionDiagnosticsReceipt ??
-          ((path: string, bytes: string) =>
-            writeFileSync(path, bytes, { mode: 0o600, flag: "wx" }));
-        const pending = writeActions(
-          `${reportPath}.actions.json`,
-          `${JSON.stringify({
-            schemaVersion: 1,
-            provenance: "headless-action-diagnostics",
-            reportSchemaVersion: report.schemaVersion,
-            evaluatorVersion: report.evaluatorVersion,
-            reportSha256: sha256(reportBytes),
-            mode: "opt-in-action-diagnostics",
-            runs: actionDiagnostics,
-          })}\n`,
-        );
+        const actionReceiptLeaf = `${reportLeaf}.actions.json`;
+        const actionReceiptBytes = `${JSON.stringify({
+          schemaVersion: 1,
+          provenance: "headless-action-diagnostics",
+          reportSchemaVersion: report.schemaVersion,
+          evaluatorVersion: report.evaluatorVersion,
+          reportSha256: sha256(reportBytes),
+          mode: "opt-in-action-diagnostics",
+          runs: actionDiagnostics,
+        })}\n`;
+        verifyPrivateReportDirectory(reportDirectory);
+        // Trusted injection seam; default persistence always uses descriptors.
+        const pending = options.writeActionDiagnosticsReceipt
+          ? options.writeActionDiagnosticsReceipt(
+              privateReportPath(reportDirectory, actionReceiptLeaf),
+              actionReceiptBytes,
+            )
+          : writePrivateReportFile(
+              reportDirectory,
+              actionReceiptLeaf,
+              actionReceiptBytes,
+            );
         // An async hook is unsupported: do not await a possibly never-settling
         // promise or claim a completed write. Observe late rejection safely.
         if (pending !== undefined) {
           void Promise.resolve(pending).catch(() => undefined);
           throw new Error("Unsupported asynchronous diagnostic writer.");
         }
+        verifyPrivateReportDirectory(reportDirectory);
         actionDiagnosticsReceiptStatus = "written";
       } catch {
         /* Optional diagnostics must not corrupt grading or expose errors. */

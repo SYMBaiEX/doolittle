@@ -1,5 +1,6 @@
 import {
   chmodSync,
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
@@ -34,6 +35,176 @@ afterEach(() => {
     const path = temporaryDirectories.pop();
     if (path) rmSync(path, { recursive: true, force: true });
   }
+});
+
+describe("private optional action receipt persistence", () => {
+  const suite: HeadlessEvalSuite = {
+    id: "action-persistence-test",
+    version: 1,
+    title: "Action receipt persistence",
+    tasks: [
+      {
+        id: "one",
+        domain: "conversation",
+        prompt: "synthetic",
+        checks: [{ id: "pass", evaluate: () => true }],
+        humanReviewRequired: false,
+      },
+    ],
+  };
+  const success = {
+    status: 0,
+    stdout: JSON.stringify({ ok: true, text: "PRIVATE_RESPONSE_CANARY" }),
+    stderr: "",
+    signal: null,
+    cleanupSafe: true,
+  };
+  it("writes default action receipts exclusively with owner-only permissions and exact report binding", async () => {
+    const reportDir = tempDirectory();
+    let taskRoot = "";
+    const result = await runHeadlessEvalSuite(suite, {
+      reportDir,
+      recordActionDiagnostics: true,
+      execute: (_command, _args, options) => {
+        const dataDir = options.env.DOOLITTLE_DATA_DIR;
+        if (!dataDir) throw new Error("Missing synthetic task directory.");
+        taskRoot = dirname(dataDir);
+        return success;
+      },
+    });
+    expect(result.exitCode).toBe(0);
+    expect(result.actionDiagnosticsReceiptStatus).toBe("written");
+    expect(existsSync(taskRoot)).toBe(false);
+    expect(dirname(result.reportPath)).toBe(reportDir);
+    const ownedReportPath = join(reportDir, basename(result.reportPath));
+    const reportBytes = readFileSync(ownedReportPath, "utf8");
+    const actionBytes = readFileSync(`${ownedReportPath}.actions.json`, "utf8");
+    expect(JSON.parse(actionBytes)).toMatchObject({
+      schemaVersion: 1,
+      reportSchemaVersion: 5,
+      evaluatorVersion: "0.2.11",
+      reportSha256: measurement.digest(reportBytes),
+      mode: "opt-in-action-diagnostics",
+    });
+    expect(statSync(`${ownedReportPath}.actions.json`).mode & 0o777).toBe(
+      0o600,
+    );
+    expect(actionBytes).not.toContain("PRIVATE_RESPONSE_CANARY");
+    expect(actionBytes).not.toContain(taskRoot);
+  });
+  it.each(["collision", "symlink"])(
+    "preserves a pre-existing %s action sidecar without changing grading",
+    async (kind) => {
+      const reportDir = tempDirectory();
+      const foreign = join(tempDirectory(), "foreign-sentinel");
+      writeFileSync(foreign, "PRIVATE_FOREIGN_CANARY", {
+        mode: 0o600,
+        flag: "wx",
+      });
+      const result = await runHeadlessEvalSuite(suite, {
+        reportDir,
+        recordActionDiagnostics: true,
+        execute: () => success,
+        writeMeasurementReceipt: (path) => {
+          expect(dirname(path)).toBe(reportDir);
+          const reportLeaf = basename(path).replace(
+            /\.measurement\.json$/u,
+            "",
+          );
+          const sidecar = join(reportDir, `${reportLeaf}.actions.json`);
+          if (kind === "symlink") symlinkSync(foreign, sidecar);
+          else
+            writeFileSync(sidecar, "PRIVATE_EXISTING_CANARY", {
+              mode: 0o600,
+              flag: "wx",
+            });
+        },
+      });
+      expect(result.exitCode).toBe(0);
+      expect(result.actionDiagnosticsReceiptStatus).toBe("unavailable");
+      expect(dirname(result.reportPath)).toBe(reportDir);
+      const sidecar = join(
+        reportDir,
+        `${basename(result.reportPath)}.actions.json`,
+      );
+      expect(readFileSync(sidecar, "utf8")).toBe(
+        kind === "symlink"
+          ? "PRIVATE_FOREIGN_CANARY"
+          : "PRIVATE_EXISTING_CANARY",
+      );
+      expect(readFileSync(foreign, "utf8")).toBe("PRIVATE_FOREIGN_CANARY");
+    },
+  );
+  it.each(["before-hook", "during-hook"])(
+    "refuses report-directory replacement %s without claiming action persistence",
+    async (when) => {
+      const parent = tempDirectory();
+      const reportDir = join(parent, "reports");
+      const original = join(parent, "reports-original");
+      mkdirSync(reportDir, { mode: 0o700 });
+      const replace = () => {
+        renameSync(reportDir, original);
+        mkdirSync(reportDir, { mode: 0o700 });
+        writeFileSync(
+          join(reportDir, "sentinel"),
+          "PRIVATE_REPLACEMENT_CANARY",
+          { mode: 0o600 },
+        );
+      };
+      const actionWriter = vi.fn((path: string) => {
+        expect(dirname(path)).toBe(reportDir);
+        expect(basename(path)).toMatch(/\.json\.actions\.json$/u);
+        replace();
+      });
+      const result = await runHeadlessEvalSuite(suite, {
+        reportDir,
+        recordActionDiagnostics: true,
+        execute: () => success,
+        writeMeasurementReceipt: when === "before-hook" ? replace : undefined,
+        writeActionDiagnosticsReceipt: actionWriter,
+      });
+      expect(actionWriter).toHaveBeenCalledTimes(
+        when === "before-hook" ? 0 : 1,
+      );
+      expect(result.exitCode).toBe(0);
+      expect(result.actionDiagnosticsReceiptStatus).toBe("unavailable");
+      expect(readdirSync(reportDir)).toEqual(["sentinel"]);
+      expect(readFileSync(join(reportDir, "sentinel"), "utf8")).toBe(
+        "PRIVATE_REPLACEMENT_CANARY",
+      );
+      expect(dirname(result.reportPath)).toBe(reportDir);
+      const stored = readFileSync(
+        join(original, basename(result.reportPath)),
+        "utf8",
+      );
+      expect(JSON.parse(stored).summary.completed).toBe(1);
+      expect(stored).not.toContain("PRIVATE_REPLACEMENT_CANARY");
+      expect(
+        readdirSync(original).some((leaf) => leaf.endsWith(".actions.json")),
+      ).toBe(false);
+    },
+  );
+  it.each(["reject", "never-settling"])(
+    "does not await unsupported %s action writer promises",
+    async (mode) => {
+      const reportDir = tempDirectory();
+      const result = await runHeadlessEvalSuite(suite, {
+        reportDir,
+        recordActionDiagnostics: true,
+        execute: () => success,
+        writeActionDiagnosticsReceipt: () =>
+          mode === "reject"
+            ? Promise.reject(new Error("PRIVATE_WRITER_ERROR"))
+            : new Promise<void>(() => undefined),
+      });
+      await Promise.resolve();
+      expect(result.exitCode).toBe(0);
+      expect(result.actionDiagnosticsReceiptStatus).toBe("unavailable");
+      expect(
+        readdirSync(reportDir).some((leaf) => leaf.endsWith(".actions.json")),
+      ).toBe(false);
+    },
+  );
 });
 
 describe("headless workflow evals", () => {

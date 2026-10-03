@@ -26,7 +26,9 @@ import { runHeadlessEvalSuite } from "./runner";
 const roots: string[] = [];
 const canary = "PRIVATE_LABEL_ARGUMENT_RESULT_ERROR_ID_COMMAND_URL_SECRET";
 function root(): string {
-  const dir = mkdtempSync(join(tmpdir(), "headless-action-outcomes-test-"));
+  const dir = realpathSync(
+    mkdtempSync(join(tmpdir(), "headless-action-outcomes-test-")),
+  );
   roots.push(dir);
   return dir;
 }
