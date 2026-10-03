@@ -10,7 +10,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { HeadlessEvalSuite } from "./cases";
 import { HEADLESS_EVAL_SUITES } from "./cases";
@@ -850,8 +850,10 @@ describe("headless workflow evals", () => {
       });
       expect(() => statSync(taskRoot)).toThrow();
       expect(() => statSync(dirname(taskRoot))).toThrow();
+      expect(dirname(result.reportPath)).toBe(reportDir);
+      const ownedReportPath = join(reportDir, basename(result.reportPath));
       expect(
-        JSON.parse(readFileSync(result.reportPath, "utf8")).runs[0],
+        JSON.parse(readFileSync(ownedReportPath, "utf8")).runs[0],
       ).toMatchObject({
         status: "failed",
         errorCode,

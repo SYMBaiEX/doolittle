@@ -50,16 +50,16 @@ describe("bounded headless child execution", () => {
     async () => {
       const directory = tempDirectory();
       const markerPath = join(directory, "descendant-survived.txt");
-      const descendant = `setTimeout(() => require("node:fs").writeFileSync(${JSON.stringify(markerPath)}, "survived"), 400);`;
-      const parent = [
-        'const { spawn } = require("node:child_process");',
-        `spawn(process.execPath, ["-e", ${JSON.stringify(descendant)}], { stdio: "inherit" });`,
-        "setInterval(() => {}, 1000);",
-      ].join("\n");
+      const parent = `
+        const { spawn } = require("node:child_process");
+        const descendant = 'setTimeout(() => require("node:fs").writeFileSync(process.env.DOOLITTLE_HEADLESS_TEST_MARKER, "survived"), 400);';
+        spawn(process.execPath, ["-e", descendant], { stdio: "inherit" });
+        setInterval(() => {}, 1000);
+      `;
       const startedAt = performance.now();
       const result = await executeHeadlessChild(execPath, ["-e", parent], {
         cwd: directory,
-        env: process.env,
+        env: { ...process.env, DOOLITTLE_HEADLESS_TEST_MARKER: markerPath },
         timeoutMs: 80,
         killGraceMs: 50,
       });
@@ -101,13 +101,17 @@ describe("bounded headless child execution", () => {
     async () => {
       const directory = tempDirectory();
       const markerPath = join(directory, "independent-descendant-survived.txt");
-      const descendant = `process.on("SIGTERM", () => {}); process.send("ready"); setTimeout(() => require("node:fs").writeFileSync(${JSON.stringify(markerPath)}, "survived"), 700); setInterval(() => {}, 1000);`;
-      const parent = `const child = require("node:child_process").spawn(process.execPath, ["-e", ${JSON.stringify(descendant)}], {stdio:["ignore","ignore","ignore","ipc"]}); child.on("message", () => { console.log(process.pid); child.disconnect(); }); setInterval(() => {}, 1000);`;
+      const parent = `
+        const descendant = 'process.on("SIGTERM", () => {}); process.send("ready"); setTimeout(() => require("node:fs").writeFileSync(process.env.DOOLITTLE_HEADLESS_TEST_MARKER, "survived"), 700); setInterval(() => {}, 1000);';
+        const child = require("node:child_process").spawn(process.execPath, ["-e", descendant], {stdio:["ignore","ignore","ignore","ipc"]});
+        child.on("message", () => { console.log(process.pid); child.disconnect(); });
+        setInterval(() => {}, 1000);
+      `;
       let ownedPid: number | undefined;
       try {
         const result = await executeHeadlessChild(execPath, ["-e", parent], {
           cwd: directory,
-          env: process.env,
+          env: { ...process.env, DOOLITTLE_HEADLESS_TEST_MARKER: markerPath },
           timeoutMs: 250,
           killGraceMs: 50,
           onStdoutChunk: (chunk) => {
