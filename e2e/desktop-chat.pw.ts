@@ -45,6 +45,12 @@ async function launchDesktop(profileDir: string, workspaceDir: string) {
   });
 }
 
+function focusedSessionPanel(page: Page) {
+  return page.locator("[data-session-panel]").filter({
+    has: page.locator('[data-session-focus][aria-pressed="true"]'),
+  });
+}
+
 async function waitForChat(page: Page, pageErrors: string[]): Promise<void> {
   await expect(page).toHaveTitle(/Doolittle$/);
   expect(pageErrors).toEqual([]);
@@ -57,8 +63,10 @@ async function waitForChat(page: Page, pageErrors: string[]): Promise<void> {
   );
   await expect(runtimeStatus).toHaveClass(/(?:^|\s)ready(?:\s|$)/);
   await expect(runtimeStatus).toContainText("Local runtime");
+  const panel = focusedSessionPanel(page);
+  await expect(panel).toHaveCount(1);
   await expect(
-    page.getByRole("textbox", { name: "Message Doolittle" }),
+    panel.getByRole("textbox", { name: "Message Doolittle" }),
   ).toBeEnabled();
 }
 
@@ -161,7 +169,9 @@ test.describe("Doolittle desktop offline chat", () => {
       page.on("pageerror", (error) => firstPageErrors.push(error.message));
       await waitForChat(page, firstPageErrors);
 
-      const composer = page.getByRole("textbox", { name: "Message Doolittle" });
+      const composer = focusedSessionPanel(page).getByRole("textbox", {
+        name: "Message Doolittle",
+      });
       await composer.focus();
       await page.keyboard.press(
         process.platform === "darwin" ? "Meta+J" : "Control+J",
@@ -294,6 +304,15 @@ test.describe("Doolittle desktop offline chat", () => {
       await waitForChat(restartedPage, restartedPageErrors);
       const restored = await persistedTranscript(restartedPage, prompt);
       expect(restored.session.sessionId).toBe(persisted.session.sessionId);
+      // Independent sessions may restore beside a new focused draft. Verify
+      // the exact persisted session itself rather than assuming one composer.
+      const restoredPanel = restartedPage.locator(
+        `[data-session-panel="${restored.session.sessionId}"]`,
+      );
+      await expect(restoredPanel).toHaveCount(1);
+      await expect(restoredPanel.locator(".chat-message.user")).toContainText(
+        prompt,
+      );
       expect(restored.messages).toEqual(
         expect.arrayContaining([
           expect.objectContaining({ role: "user", text: prompt }),
@@ -340,7 +359,9 @@ test.describe("Doolittle desktop offline chat", () => {
       page.on("pageerror", (error) => pageErrors.push(error.message));
       await waitForChat(page, pageErrors);
 
-      const composer = page.getByRole("textbox", { name: "Message Doolittle" });
+      const composer = focusedSessionPanel(page).getByRole("textbox", {
+        name: "Message Doolittle",
+      });
       await composer.fill(prompt);
       await composer.press("Enter");
       await expect(

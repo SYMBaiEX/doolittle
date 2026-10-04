@@ -182,6 +182,15 @@ test.describe("Doolittle desktop navigation", () => {
     const alternateWorkspace = realpathSync(
       mkdtempSync(join(tmpdir(), "doolittle-e2e-workspace-")),
     );
+    const reviewFixtureName = `.doolittle-e2e-review-${process.pid}-${Date.now()}.md`;
+    const reviewFixturePath = join(repoRoot, reviewFixtureName);
+    let reviewFixtureCreated = false;
+    let app: Awaited<ReturnType<typeof electron.launch>> | undefined;
+    testInfo.annotations.push({
+      type: "fixture",
+      description:
+        "Synthetic untracked Markdown exercises Review using real local Git/IPC. It is not completed agent work or provider output; the empty state uses an owned empty workspace.",
+    });
     writeFileSync(
       join(profileDir, "workspace-state.json"),
       `${JSON.stringify({
@@ -190,19 +199,26 @@ test.describe("Doolittle desktop navigation", () => {
       })}\n`,
       "utf8",
     );
-    const app = await electron.launch({
-      args: [desktopRoot, `--user-data-dir=${profileDir}`],
-      cwd: repoRoot,
-      env: {
-        ...process.env,
-        DOOLITTLE_DESKTOP_SOURCE_ROOT: repoRoot,
-        DOOLITTLE_DESKTOP_CWD: repoRoot,
-        DOOLITTLE_OFFLINE_BOOTSTRAP: "true",
-        ELIZA_ACCOUNT_POOL_KEEPALIVE: "false",
-      },
-    });
-
     try {
+      // A clean CI checkout must still exercise all populated Review controls.
+      // Exclusive creation never overwrites existing repository content.
+      writeFileSync(
+        reviewFixturePath,
+        "# Synthetic Review E2E fixture\n\nRenderer geometry fixture only; not agent work or a model/provider response.\n",
+        { encoding: "utf8", flag: "wx" },
+      );
+      reviewFixtureCreated = true;
+      app = await electron.launch({
+        args: [desktopRoot, `--user-data-dir=${profileDir}`],
+        cwd: repoRoot,
+        env: {
+          ...process.env,
+          DOOLITTLE_DESKTOP_SOURCE_ROOT: repoRoot,
+          DOOLITTLE_DESKTOP_CWD: repoRoot,
+          DOOLITTLE_OFFLINE_BOOTSTRAP: "true",
+          ELIZA_ACCOUNT_POOL_KEEPALIVE: "false",
+        },
+      });
       const page = await app.firstWindow();
       const pageErrors: string[] = [];
       page.on("pageerror", (error) => {
@@ -370,6 +386,39 @@ test.describe("Doolittle desktop navigation", () => {
         alternateWorkspace,
       );
       expect(liveWorkspaceHandoff.restoredHealth.workspaceDir).toBe(repoRoot);
+      // Independently cover the settled empty state, before any research task.
+      // This owned workspace has no repository changes, approvals, or checks.
+      try {
+        await page.evaluate(async (workspacePath) => {
+          await window.doolittle.switchWorkspace(workspacePath);
+          window.location.hash = "#/review";
+        }, alternateWorkspace);
+        const emptyReview = page.locator(".review-page");
+        await expect(emptyReview).toHaveAttribute(
+          "data-workspace-path",
+          alternateWorkspace,
+        );
+        await expect(
+          emptyReview.locator(".resource-status-bar"),
+        ).toHaveAttribute("aria-busy", "false", { timeout: 30_000 });
+        await expect(emptyReview.locator(".loading-block")).toHaveCount(0);
+        await expect(
+          emptyReview.getByRole("region", {
+            name: "Current agent work outcome",
+            exact: true,
+          }),
+        ).toHaveAttribute("data-review-empty", "true");
+        await expect(emptyReview).toContainText("No completed work yet");
+        await expect(emptyReview.locator(".review-workspace")).toHaveCount(0);
+        await expect(
+          emptyReview.getByRole("tablist", { name: "Review filters" }),
+        ).toHaveCount(0);
+      } finally {
+        await page.evaluate(async (workspacePath) => {
+          await window.doolittle.switchWorkspace(workspacePath);
+          window.location.hash = "#/chat";
+        }, repoRoot);
+      }
       await expect(
         page.getByRole("navigation", { name: "Workspace breadcrumb" }),
       ).toBeVisible();
@@ -674,6 +723,14 @@ test.describe("Doolittle desktop navigation", () => {
             await expect(
               viewContainer.locator(".resource-status-bar"),
             ).toHaveAttribute("aria-busy", "false", { timeout: 30_000 });
+            await expect(
+              viewContainer.getByRole("button").filter({
+                hasText: reviewFixtureName,
+              }),
+            ).toHaveCount(1);
+            await expect(
+              viewContainer.getByRole("tablist", { name: "Review filters" }),
+            ).toBeVisible();
             await expectReviewFilterGeometry(
               viewContainer.getByRole("tablist", { name: "Review filters" }),
             );
@@ -2232,9 +2289,13 @@ test.describe("Doolittle desktop navigation", () => {
       await page.keyboard.press("Escape");
       await expect(page.getByRole("dialog")).toHaveCount(0);
     } finally {
-      await app.close();
-      rmSync(profileDir, { force: true, recursive: true });
-      rmSync(alternateWorkspace, { force: true, recursive: true });
+      try {
+        await app?.close();
+      } finally {
+        if (reviewFixtureCreated) rmSync(reviewFixturePath, { force: true });
+        rmSync(profileDir, { force: true, recursive: true });
+        rmSync(alternateWorkspace, { force: true, recursive: true });
+      }
     }
   });
 });
