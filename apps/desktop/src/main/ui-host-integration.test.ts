@@ -89,6 +89,12 @@ function setup() {
       runOwners.set(runId, { botId, sessionId, runId });
     },
     assertRunOwner: async (botId, runId) => {
+      if (!runOwners.has(runId)) {
+        const actual = runs.get(runId);
+        if (actual?.botId === botId && typeof actual.sessionId === "string") {
+          runOwners.set(runId, { botId, sessionId: actual.sessionId, runId });
+        }
+      }
       if (runOwners.get(runId)?.botId !== botId)
         throw new Error("Run owner conflict.");
     },
@@ -192,6 +198,21 @@ function setup() {
 }
 
 describe("canonical native UI integration", () => {
+  it("derives bot activity from canonical receipts rather than stale catalog counts", async () => {
+    const { backend, registry, runs, runtimeFetch } = setup();
+    registry.bindRun(target.botId, target.sessionId, "active");
+    runs.set("active", {
+      runId: "active",
+      botId: target.botId,
+      sessionId: target.sessionId,
+      status: "thinking",
+      pendingApprovals: 1,
+    });
+    expect((await backend.getSnapshot()).bots[0]?.state).toBe("attention");
+    runtimeFetch.mockRejectedValueOnce(new Error("Offline"));
+    expect((await backend.getSnapshot()).bots[0]?.state).toBe("offline");
+    backend.dispose();
+  });
   it("requires the exact saved bot, session and project owner", async () => {
     const { backend } = setup();
     expect(await backend.ownsTarget(target)).toBe(true);
@@ -236,7 +257,7 @@ describe("canonical native UI integration", () => {
   });
 
   it("rechecks after all preparation and refuses POST on revoked authorization", async () => {
-    const { backend, runtimeFetch } = setup();
+    const { backend, runtimeFetch, runOwners } = setup();
     const denied = vi.fn(async () => {
       throw new Error("Grant was revoked.");
     });
@@ -254,6 +275,32 @@ describe("canonical native UI integration", () => {
     expect(
       runtimeFetch.mock.calls.some(([, init]) => init?.method === "POST"),
     ).toBe(false);
+    expect(runOwners.has("revoked")).toBe(false);
+  });
+
+  it("resolves an unledgered native collision to its real session without claiming it", async () => {
+    const { host, backend, runs, runOwners, runtimeFetch } = setup();
+    runs.set("legacy", {
+      runId: "legacy",
+      botId: target.botId,
+      sessionId: "other-session",
+      status: "thinking",
+      pendingApprovals: 0,
+    });
+    await expect(
+      host.dispatch({
+        type: "chat.send",
+        target,
+        submissionId: "collision",
+        runId: "legacy",
+        message: "hello",
+      }),
+    ).rejects.toThrow(/different conversation/u);
+    expect(runOwners.get("legacy")?.sessionId).toBe("other-session");
+    expect(
+      runtimeFetch.mock.calls.some(([, init]) => init?.method === "POST"),
+    ).toBe(false);
+    backend.dispose();
   });
 
   it("does not recover a definite HTTP rejection as an accepted run", async () => {

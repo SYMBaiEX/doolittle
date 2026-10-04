@@ -747,6 +747,15 @@ export class UiExtensionHost implements UiHostV1 {
     return this.execute(command);
   }
 
+  /** Native bridge supplies lifecycle/protected-dialog checks at every commit. */
+  async dispatchNative(
+    command: UiHostCommand,
+    recheck: () => void,
+  ): Promise<UiHostResult> {
+    recheck();
+    return this.execute(command, recheck);
+  }
+
   async dispatchCommunity(
     context: CommunityCallContext,
     command: UiHostCommand,

@@ -1,3 +1,4 @@
+import type { UiHostEvent } from "@doolittle/contracts/ui-host";
 import { contextBridge, ipcRenderer } from "electron";
 import type {
   AgentTransportRequest,
@@ -28,9 +29,15 @@ import {
   type DesktopIpcEventChannel,
   desktopIpcChannels,
 } from "../shared/ipc-channels";
+import {
+  type UiInterfaceState,
+  uiInterfaceChannels,
+} from "../shared/ui-interface";
 
 function subscribeToDesktopEvent<T>(
-  channel: DesktopIpcEventChannel,
+  channel:
+    | DesktopIpcEventChannel
+    | (typeof uiInterfaceChannels)[keyof typeof uiInterfaceChannels],
   listener: (value: T) => void,
 ): () => void {
   const wrapped = (_event: Electron.IpcRendererEvent, value: T) =>
@@ -46,6 +53,35 @@ if (platform !== "darwin" && platform !== "linux" && platform !== "win32") {
 
 const bridge: DoolittleDesktopBridge = {
   platform,
+  ui: {
+    getSnapshot: () => ipcRenderer.invoke(uiInterfaceChannels.snapshot),
+    dispatch: (command) =>
+      ipcRenderer.invoke(uiInterfaceChannels.dispatch, command),
+    subscribe: (id, after) =>
+      ipcRenderer.invoke(uiInterfaceChannels.subscribe, id, after),
+    unsubscribe: (id) =>
+      ipcRenderer.invoke(uiInterfaceChannels.unsubscribe, id),
+    onEvent: (listener) =>
+      subscribeToDesktopEvent<{ subscriptionId: string; value: UiHostEvent }>(
+        uiInterfaceChannels.event,
+        listener,
+      ),
+    getState: () => ipcRenderer.invoke(uiInterfaceChannels.state),
+    onState: (listener) =>
+      subscribeToDesktopEvent<UiInterfaceState>(
+        uiInterfaceChannels.stateChanged,
+        listener,
+      ),
+    install: () => ipcRenderer.invoke(uiInterfaceChannels.install),
+    activate: (request) =>
+      ipcRenderer.invoke(uiInterfaceChannels.activate, request),
+    restore: () => ipcRenderer.invoke(uiInterfaceChannels.restore),
+    revoke: (identity) =>
+      ipcRenderer.invoke(uiInterfaceChannels.revoke, identity),
+    stopAll: () => ipcRenderer.invoke(uiInterfaceChannels.stopAll),
+    onSurface: (listener) =>
+      subscribeToDesktopEvent(uiInterfaceChannels.surface, listener),
+  },
   getBackendState: () =>
     ipcRenderer.invoke(desktopIpcChannels.invoke.backendGetState),
   retryBackend: () =>

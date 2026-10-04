@@ -1,3 +1,4 @@
+import type { DesktopUiInterfaceBridge } from "../ui-interface";
 import type { BackendState } from "./backend";
 import type {
   AttachmentCleanupRequest,
@@ -52,6 +53,7 @@ import type {
 
 export interface DoolittleDesktopBridge {
   platform: "darwin" | "win32" | "linux";
+  ui?: DesktopUiInterfaceBridge;
   getBackendState(): Promise<BackendState>;
   retryBackend(): Promise<BackendState>;
   onBackendState(listener: (state: BackendState) => void): () => void;

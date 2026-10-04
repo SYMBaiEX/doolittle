@@ -12,6 +12,7 @@ vi.mock("electron", () => ({
   ipcMain: {},
   Menu: {},
   Notification: class {},
+  protocol: { registerSchemesAsPrivileged: vi.fn() },
   screen: {},
   shell: {},
   Tray: class {},

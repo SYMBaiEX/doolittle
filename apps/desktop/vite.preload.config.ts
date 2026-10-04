@@ -14,9 +14,12 @@ export default defineConfig({
   build: {
     emptyOutDir: true,
     lib: {
-      entry: "src/preload/index.ts",
+      entry: {
+        preload: "src/preload/index.ts",
+        "extension-bridge": "src/preload/extension-bridge.ts",
+      },
       formats: ["cjs"],
-      fileName: () => "preload.cjs",
+      fileName: (_format, entryName) => `${entryName}.cjs`,
     },
     outDir: "dist/preload",
     rolldownOptions: {

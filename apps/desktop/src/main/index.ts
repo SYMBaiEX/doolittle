@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { homedir } from "node:os";
 import { resolve } from "node:path";
 import {
@@ -9,12 +10,14 @@ import {
   Menu,
   type MenuItemConstructorOptions,
   Notification,
+  protocol,
   screen,
   shell,
   Tray,
 } from "electron";
 import type { DesktopCommand, WorkspacePickResult } from "../shared/contracts";
 import { desktopIpcChannels } from "../shared/ipc-channels";
+import { uiInterfaceChannels } from "../shared/ui-interface";
 import { importSelectedAttachments } from "./attachment-import";
 import {
   BackendManager,
@@ -39,6 +42,7 @@ import {
 } from "./desktop-lifecycle";
 import { DesktopPreferences } from "./desktop-preferences";
 import { type DesktopBackgroundNotification, registerIpc } from "./ipc";
+import { readBoundedResponseText } from "./ipc/runtime-http";
 import { ProviderAuthController } from "./provider-auth";
 import {
   discardRecordedAudioImport,
@@ -54,6 +58,10 @@ import {
   selectBackendLaunchTarget,
   sourceRootOverride,
 } from "./runtime-target-policy";
+import { registerUiExtensionScheme } from "./ui-extensions/community-view";
+import { UiExtensionHost } from "./ui-extensions/host";
+import { NativeUiBackend } from "./ui-host-integration";
+import { UiInterfaceController } from "./ui-interface-controller";
 import { configuredUpdater, DesktopUpdateController } from "./update-state";
 import { loadDesktopWindow } from "./window-loading";
 import {
@@ -81,7 +89,53 @@ let desktopPreferences: DesktopPreferences | null = null;
 let updates: DesktopUpdateController | null = null;
 let secondInstanceRequested = false;
 let desktopInitialized = false;
+let uiBackend: NativeUiBackend | null = null;
+let uiInterfaces: UiInterfaceController | null = null;
+let disposeUiWorkspace: (() => void) | null = null;
 const mainBundleDirectory = import.meta.dirname;
+registerUiExtensionScheme(protocol);
+
+function protectedNative<T>(operation: () => Promise<T>): Promise<T> {
+  return uiInterfaces
+    ? uiInterfaces.withProtectedDialog(operation)
+    : operation();
+}
+
+function nativeOpenDialog(options: Electron.OpenDialogOptions) {
+  return protectedNative(() =>
+    mainWindow && !mainWindow.isDestroyed()
+      ? dialog.showOpenDialog(mainWindow, options)
+      : dialog.showOpenDialog(options),
+  );
+}
+
+function nativeMessageBox(options: Electron.MessageBoxOptions) {
+  return protectedNative(() =>
+    mainWindow && !mainWindow.isDestroyed()
+      ? dialog.showMessageBox(mainWindow, options)
+      : dialog.showMessageBox(options),
+  );
+}
+
+async function nativeConfirm(options: {
+  title: string;
+  message: string;
+  detail: string;
+  confirmLabel: string;
+}) {
+  return (
+    (
+      await nativeMessageBox({
+        ...options,
+        type: "warning",
+        buttons: [options.confirmLabel, "Cancel"],
+        defaultId: 1,
+        cancelId: 1,
+        noLink: true,
+      })
+    ).response === 0
+  );
+}
 
 /**
  * Keeps backend workspace transitions and their persisted desktop state in the
@@ -103,6 +157,8 @@ export function createSerializedWorkspaceSwitchQueue() {
 const enqueueWorkspaceSwitch = createSerializedWorkspaceSwitchQueue();
 
 function sendAppCommand(command: DesktopCommand): void {
+  if (uiInterfaces?.getState().mode !== "default")
+    uiInterfaces?.restoreDefault();
   if (!mainWindow || mainWindow.isDestroyed()) return;
   if (!mainWindow.isVisible()) mainWindow.show();
   mainWindow.focus();
@@ -142,9 +198,7 @@ async function pickFiles() {
       "dontAddToRecent",
     ] as Electron.OpenDialogOptions["properties"],
   };
-  const result = mainWindow
-    ? await dialog.showOpenDialog(mainWindow, options)
-    : await dialog.showOpenDialog(options);
+  const result = await nativeOpenDialog(options);
   return {
     canceled: result.canceled,
     paths: result.canceled ? [] : result.filePaths,
@@ -158,9 +212,7 @@ async function pickProjectFiles() {
     defaultPath: currentWorkspaceDialogPath(),
     properties: ["openFile", "multiSelections", "dontAddToRecent"],
   };
-  const result = mainWindow
-    ? await dialog.showOpenDialog(mainWindow, options)
-    : await dialog.showOpenDialog(options);
+  const result = await nativeOpenDialog(options);
   return {
     canceled: result.canceled,
     kind: "file" as const,
@@ -175,9 +227,7 @@ async function pickProjectFolders() {
     defaultPath: currentWorkspaceDialogPath(),
     properties: ["openDirectory", "multiSelections", "dontAddToRecent"],
   };
-  const result = mainWindow
-    ? await dialog.showOpenDialog(mainWindow, options)
-    : await dialog.showOpenDialog(options);
+  const result = await nativeOpenDialog(options);
   return {
     canceled: result.canceled,
     kind: "folder" as const,
@@ -189,6 +239,7 @@ async function pickChatAttachments(
   runtimeDataDir: string,
   lifecycle: ChatAttachmentLifecycle,
   botId: string,
+  recheck?: () => Promise<void>,
 ) {
   const options = {
     title: "Attach files to this message",
@@ -200,12 +251,11 @@ async function pickChatAttachments(
       "dontAddToRecent",
     ] as Electron.OpenDialogOptions["properties"],
   };
-  const result = mainWindow
-    ? await dialog.showOpenDialog(mainWindow, options)
-    : await dialog.showOpenDialog(options);
+  const result = await nativeOpenDialog(options);
   if (result.canceled || result.filePaths.length === 0) {
     return { canceled: true, attachments: [] };
   }
+  await recheck?.();
   const attachments = importSelectedAttachments(
     result.filePaths,
     runtimeDataDir,
@@ -229,9 +279,7 @@ async function pickWorkspaceImpl(): Promise<WorkspacePickResult> {
     defaultPath: currentWorkspaceDialogPath(),
     properties: ["openDirectory", "dontAddToRecent"],
   };
-  const result = mainWindow
-    ? await dialog.showOpenDialog(mainWindow, options)
-    : await dialog.showOpenDialog(options);
+  const result = await nativeOpenDialog(options);
   if (result.canceled) {
     return workspaceState.applyPickerResult({
       canceled: true,
@@ -288,27 +336,16 @@ async function openWorkspacePathImpl(
     throw new Error("The desktop workspace manager is not ready.");
   }
   const normalizedPath = normalizeWorkspaceDirectory(requestedPath);
-  const result = mainWindow
-    ? await dialog.showMessageBox(mainWindow, {
-        type: "question",
-        title: "Open workspace",
-        message: "Open this worktree as the active Doolittle workspace?",
-        detail: normalizedPath,
-        buttons: ["Open workspace", "Cancel"],
-        defaultId: 0,
-        cancelId: 1,
-        noLink: true,
-      })
-    : await dialog.showMessageBox({
-        type: "question",
-        title: "Open workspace",
-        message: "Open this worktree as the active Doolittle workspace?",
-        detail: normalizedPath,
-        buttons: ["Open workspace", "Cancel"],
-        defaultId: 0,
-        cancelId: 1,
-        noLink: true,
-      });
+  const result = await nativeMessageBox({
+    type: "question",
+    title: "Open workspace",
+    message: "Open this worktree as the active Doolittle workspace?",
+    detail: normalizedPath,
+    buttons: ["Open workspace", "Cancel"],
+    defaultId: 0,
+    cancelId: 1,
+    noLink: true,
+  });
   if (result.response !== 0) {
     return {
       canceled: true,
@@ -446,6 +483,36 @@ function installApplicationMenu(): void {
       ],
     },
     {
+      label: "Interface",
+      submenu: [
+        {
+          label: "Restore default interface",
+          accelerator: "CommandOrControl+Shift+R",
+          click: () => uiInterfaces?.restoreDefault(),
+        },
+        {
+          label: "Install local interface…",
+          click: () =>
+            void uiInterfaces
+              ?.install()
+              .then(() => sendAppCommand("settings"))
+              .catch(reportInterfaceError),
+        },
+        {
+          label: "Manage interface access…",
+          click: () => sendAppCommand("settings"),
+        },
+        { type: "separator" },
+        {
+          label: "Stop all conversations",
+          click: () =>
+            void uiBackend
+              ?.stopAllOwnedConversations()
+              .catch(reportInterfaceError),
+        },
+      ],
+    },
+    {
       label: "Window",
       submenu: [
         { role: "minimize" },
@@ -459,6 +526,16 @@ function installApplicationMenu(): void {
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
+function reportInterfaceError(): void {
+  void nativeMessageBox({
+    type: "error",
+    title: "Interface operation unavailable",
+    message:
+      "The interface operation could not finish safely. Restore the default interface and review Settings. Running work and saved conversations are preserved.",
+    buttons: ["OK"],
+  });
+}
+
 function showMainWindow(): void {
   if (!mainWindow || mainWindow.isDestroyed()) return;
   if (!mainWindow.isVisible()) mainWindow.show();
@@ -469,6 +546,7 @@ function handleSecondInstance(): void {
   secondInstanceRequested = true;
   if (!desktopInitialized) return;
   mainWindow = ensureDesktopWindow(mainWindow, createWindow);
+  uiInterfaces?.attachWindow(mainWindow);
   showMainWindow();
 }
 
@@ -543,20 +621,18 @@ function createWindow(): BrowserWindow {
       } catch {
         // The invalid URL remains blocked below.
       }
-      void dialog
-        .showMessageBox(window, {
-          type: "question",
-          buttons: ["Open link", "Cancel"],
-          defaultId: 1,
-          cancelId: 1,
-          title: "Open external link?",
-          message: `Leave Doolittle and open ${destination}?`,
-          detail: url,
-          noLink: true,
-        })
-        .then((result) => {
-          if (result.response === 0) void shell.openExternal(url);
-        });
+      void nativeMessageBox({
+        type: "question",
+        buttons: ["Open link", "Cancel"],
+        defaultId: 1,
+        cancelId: 1,
+        title: "Open external link?",
+        message: `Leave Doolittle and open ${destination}?`,
+        detail: url,
+        noLink: true,
+      }).then((result) => {
+        if (result.response === 0) void shell.openExternal(url);
+      });
     }
     return { action: "deny" };
   });
@@ -568,17 +644,21 @@ function createWindow(): BrowserWindow {
     if (!isTrustedRendererNavigation(url, rendererUrl)) event.preventDefault();
   });
   window.webContents.on("will-prevent-unload", (event) => {
-    const result = dialog.showMessageBoxSync(window, {
-      type: "warning",
-      title: "Unsaved coding changes",
-      message: "This coding workspace has unsaved edits.",
-      detail:
-        "Stay to keep the draft, or leave to discard it and close Doolittle.",
-      buttons: ["Stay", "Leave"],
-      defaultId: 0,
-      cancelId: 0,
-      noLink: true,
-    });
+    const showDirtyPrompt = () =>
+      dialog.showMessageBoxSync(window, {
+        type: "warning",
+        title: "Unsaved coding changes",
+        message: "This coding workspace has unsaved edits.",
+        detail:
+          "Stay to keep the draft, or leave to discard it and close Doolittle.",
+        buttons: ["Stay", "Leave"],
+        defaultId: 0,
+        cancelId: 0,
+        noLink: true,
+      });
+    const result = uiInterfaces
+      ? uiInterfaces.withProtectedDialogSync(showDirtyPrompt)
+      : showDirtyPrompt();
     if (shouldStayOnDirtyClosePrompt(result)) event.preventDefault();
   });
 
@@ -742,6 +822,168 @@ if (ownsSingleInstance)
       openExternal: (url) => shell.openExternal(url),
       readClipboardText: () => clipboard.readText(),
     });
+    const uiBots = bots;
+    uiBackend = new NativeUiBackend({
+      registry: uiBots,
+      currentWorkspace: () => workspaceState?.getState().currentPath ?? "",
+      pickAttachments: async (target, recheck) => {
+        const { dataDirectory, lifecycle } = attachmentLifecycleFor(
+          target.botId,
+        );
+        const selection = await pickChatAttachments(
+          dataDirectory,
+          lifecycle,
+          target.botId,
+          recheck,
+        );
+        return selection.attachments.map((attachment) => ({
+          id: attachment.id,
+          name: attachment.name,
+          ...(selection.cleanupCapability
+            ? { cleanupCapability: selection.cleanupCapability }
+            : {}),
+        }));
+      },
+      commitAttachments: (target, attachments) => {
+        const grouped = new Map<string, string[]>();
+        for (const attachment of attachments) {
+          if (!attachment.cleanupCapability) continue;
+          const ids = grouped.get(attachment.cleanupCapability) ?? [];
+          ids.push(attachment.id);
+          grouped.set(attachment.cleanupCapability, ids);
+        }
+        for (const [capability, ids] of grouped)
+          attachmentLifecycleFor(target.botId).lifecycle.commit(
+            ids,
+            capability,
+          );
+      },
+      openSurface: (target, surface) => {
+        // The native renderer resolves this explicit owner; it must not retarget
+        // an extension's request to whichever conversation happens to be focused.
+        mainWindow?.webContents.send(uiInterfaceChannels.surface, {
+          target,
+          surface,
+        });
+      },
+      presentApproval: async (target, runId, approvalId, recheck) => {
+        await uiBots.assertRunOwner(target.botId, runId);
+        const state = (await uiBots.backendFor(target.botId)).getState();
+        if (state.phase !== "ready" || !state.url)
+          throw new Error("The bot is offline.");
+        const response = await fetch(
+          `${state.url}/execution/approvals?status=pending`,
+          { signal: AbortSignal.timeout(10_000) },
+        );
+        if (!response.ok) throw new Error("Native approvals are unavailable.");
+        const payload = JSON.parse(
+          await readBoundedResponseText(response, 1_000_000),
+        ) as {
+          approvals?: Array<{
+            id: string;
+            roomId: string;
+            runId?: string;
+            command: string;
+            reason: string;
+            status: string;
+          }>;
+        };
+        const approval = payload.approvals?.find(
+          (item) =>
+            item.id === approvalId &&
+            item.roomId === target.sessionId &&
+            item.runId === runId &&
+            item.status === "pending",
+        );
+        if (!approval)
+          throw new Error(
+            "This approval has no matching canonical run ownership.",
+          );
+        const decision = await nativeMessageBox({
+          type: "warning",
+          title: "Agent execution permission",
+          message: `${uiBots.get(target.botId).name} requests permission to run a command.`,
+          detail: `${approval.command.slice(0, 4096)}\n\n${approval.reason.slice(0, 2048)}`,
+          buttons: ["Approve", "Deny", "Cancel"],
+          defaultId: 2,
+          cancelId: 2,
+          noLink: true,
+        });
+        if (decision.response === 2) return;
+        await recheck();
+        const result = await fetch(
+          `${state.url}/execution/approvals/${encodeURIComponent(approvalId)}/${decision.response === 0 ? "approve" : "deny"}`,
+          { method: "POST", signal: AbortSignal.timeout(10_000) },
+        );
+        if (!result.ok)
+          throw new Error("The native approval could not be resolved.");
+      },
+    });
+    const interfaceRoot = resolve(app.getPath("userData"), "interfaces");
+    let uiHost: UiExtensionHost;
+    let corruptUiHost = false;
+    try {
+      uiHost = new UiExtensionHost(
+        uiBackend,
+        resolve(interfaceRoot, "host.json"),
+      );
+    } catch {
+      // Preserve the original ledger. A corrupt idempotency record must never
+      // become permission to resubmit an uncertain historical action.
+      corruptUiHost = true;
+      uiHost = new UiExtensionHost(
+        uiBackend,
+        resolve(interfaceRoot, `recovery-host-${randomUUID()}.json`),
+      );
+    }
+    uiBackend.attachHost(uiHost);
+    uiInterfaces = new UiInterfaceController({
+      host: uiHost,
+      artifactRoot: interfaceRoot,
+      statePath: resolve(interfaceRoot, "selection.json"),
+      extensionPreload: resolve(
+        mainBundleDirectory,
+        "../preload/extension-bridge.cjs",
+      ),
+      getWindow: () => mainWindow,
+      ipcMain,
+      protocol,
+      safeMode:
+        corruptUiHost ||
+        process.argv.includes("--safe-ui") ||
+        process.env.DOOLITTLE_SAFE_UI === "1",
+      commandsDisabled: corruptUiHost,
+      ...(corruptUiHost
+        ? {
+            initialRecovery:
+              "The interface host ledger needs recovery. Default UI is available; the original ledger and all running work are preserved. Extension commands are disabled.",
+          }
+        : {}),
+      pickArtifactDirectory: async () => {
+        const selected = await nativeOpenDialog({
+          title: "Install a Doolittle interface",
+          buttonLabel: "Inspect interface",
+          properties: ["openDirectory", "dontAddToRecent"],
+        });
+        return selected.canceled ? undefined : selected.filePaths[0];
+      },
+      confirm: nativeConfirm,
+      ownsTarget: (target) =>
+        uiBackend?.ownsTarget(target) ?? Promise.resolve(false),
+      stopAll: () =>
+        uiBackend?.stopAllOwnedConversations() ??
+        Promise.reject(
+          new Error("Native conversation control is unavailable."),
+        ),
+    });
+    await uiInterfaces.start();
+    if (!corruptUiHost) uiBackend.start();
+    let uiWorkspace = workspaceState.getState().currentPath;
+    disposeUiWorkspace = workspaceState.subscribe((state) => {
+      if (state.currentPath === uiWorkspace) return;
+      uiWorkspace = state.currentPath;
+      uiInterfaces?.workspaceChanged();
+    });
     installApplicationMenu();
     installTray();
     disposeIpc = registerIpc({
@@ -759,7 +1001,10 @@ if (ownsSingleInstance)
         subscribe: (listener) =>
           workspaceState?.subscribe(listener) ?? (() => undefined),
       },
-      sensitiveActionDependencies: { notify: showBackgroundNotification },
+      sensitiveActionDependencies: {
+        notify: showBackgroundNotification,
+        confirm: nativeConfirm,
+      },
       pickChatAttachments: (botId = "default") => {
         const { dataDirectory, lifecycle } = attachmentLifecycleFor(botId);
         return pickChatAttachments(dataDirectory, lifecycle, botId);
@@ -802,6 +1047,7 @@ if (ownsSingleInstance)
     });
     app.on("activate", () => {
       mainWindow = ensureDesktopWindow(mainWindow, createWindow);
+      uiInterfaces?.attachWindow(mainWindow);
       showMainWindow();
     });
   });
@@ -812,6 +1058,9 @@ app.on("before-quit", (event) => {
   quitting = true;
   tray?.destroy();
   tray = null;
+  disposeUiWorkspace?.();
+  uiInterfaces?.dispose();
+  uiBackend?.dispose();
   void Promise.all([backend.stop(), bots?.stopAll()]).finally(async () => {
     try {
       await browserRenderBridge?.dispose();

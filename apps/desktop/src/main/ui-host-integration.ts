@@ -229,6 +229,59 @@ export class NativeUiBackend implements UiHostBackend {
     return targetOf(owner);
   }
 
+  /** Host-owned emergency action. Detaching a view never calls this method. */
+  async stopAllOwnedConversations(): Promise<void> {
+    const failures: string[] = [];
+    for (const bot of this.options.registry.list().bots) {
+      if (!["ready", "busy", "waiting"].includes(bot.state)) continue;
+      try {
+        const backend = await this.options.registry.backendFor(bot.id);
+        const state = backend.getState();
+        if (state.phase !== "ready" || !state.url) continue;
+        const response = await this.json(`${state.url}/chat/runs?limit=100`);
+        if (
+          response.status !== 200 ||
+          !object(response.value) ||
+          !Array.isArray(response.value.runs)
+        )
+          throw new Error("Canonical run inventory is unavailable.");
+        for (const candidate of response.value.runs) {
+          if (
+            !object(candidate) ||
+            typeof candidate.runId !== "string" ||
+            typeof candidate.sessionId !== "string" ||
+            ["complete", "cancelled", "error"].includes(
+              String(candidate.status),
+            )
+          )
+            continue;
+          await this.options.registry.assertRunOwner(bot.id, candidate.runId);
+          const owner = this.options.registry.conversations.getRun(
+            candidate.runId,
+          );
+          if (
+            !owner ||
+            owner.botId !== bot.id ||
+            owner.sessionId !== candidate.sessionId
+          )
+            throw new Error("Canonical run owner is unavailable.");
+          await this.stopRun(targetOf(owner), candidate.runId, async () => {
+            await this.options.registry.assertRunOwner(
+              bot.id,
+              candidate.runId as string,
+            );
+          });
+        }
+      } catch {
+        failures.push(bot.name);
+      }
+    }
+    if (failures.length)
+      throw new Error(
+        `Some conversations could not be stopped: ${failures.join(", ")}.`,
+      );
+  }
+
   private async ready(
     target: UiTarget,
   ): Promise<{ backend: RuntimeBackend; url: string; workspace: string }> {
@@ -271,7 +324,9 @@ export class NativeUiBackend implements UiHostBackend {
   async getSnapshot(): Promise<UiSnapshot> {
     const catalog = this.options.registry.list();
     const conversations: UiConversation[] = [];
+    const botStates = new Map<string, UiSnapshot["bots"][number]["state"]>();
     for (const bot of catalog.bots.filter((item) => !item.archivedAt)) {
+      let live = false;
       const titles = new Map<string, string>();
       const states = new Map<string, UiRunState>();
       if (["ready", "busy", "waiting"].includes(bot.state)) {
@@ -326,6 +381,7 @@ export class NativeUiBackend implements UiHostBackend {
               object(runs.value) &&
               Array.isArray(runs.value.runs)
             ) {
+              live = true;
               for (const candidate of runs.value.runs) {
                 if (
                   !object(candidate) ||
@@ -355,17 +411,30 @@ export class NativeUiBackend implements UiHostBackend {
           /* Keep saved metadata and report offline; never redirect to another bot. */
         }
       }
+      const active = [...states.values()].filter(
+        (state) => !TERMINAL.has(state),
+      );
+      botStates.set(
+        bot.id,
+        !live
+          ? bot.state === "error"
+            ? "error"
+            : "offline"
+          : active.includes("attention")
+            ? "attention"
+            : active.includes("running")
+              ? "running"
+              : active.includes("waiting")
+                ? "waiting"
+                : "ready",
+      );
       for (const owner of this.options.registry.listConversations(bot.id)) {
         conversations.push({
           ...targetOf(owner),
           title: titles.get(owner.sessionId) ?? "Conversation",
           state:
             states.get(owner.sessionId) ??
-            (["ready", "busy", "waiting"].includes(bot.state)
-              ? "ready"
-              : bot.state === "error"
-                ? "error"
-                : "offline"),
+            (live ? "ready" : bot.state === "error" ? "error" : "offline"),
         });
       }
     }
@@ -380,16 +449,7 @@ export class NativeUiBackend implements UiHostBackend {
           name: bot.name,
           isDefault: bot.isDefault,
           ...(bot.avatar ? { avatar: bot.avatar } : {}),
-          state:
-            bot.state === "busy"
-              ? "running"
-              : bot.state === "waiting"
-                ? "waiting"
-                : bot.state === "error"
-                  ? "error"
-                  : bot.state === "ready"
-                    ? "ready"
-                    : "offline",
+          state: botStates.get(bot.id) ?? "offline",
         })),
       conversations,
     };
@@ -449,8 +509,39 @@ export class NativeUiBackend implements UiHostBackend {
   ): Promise<UiRunReceipt | undefined> {
     if (!(await this.ownsTarget(target)))
       throw new Error("Conversation owner is unavailable.");
-    const owner = this.options.registry.conversations.getRun(runId);
-    if (!owner) return undefined;
+    let owner = this.options.registry.conversations.getRun(runId);
+    if (!owner) {
+      // Legacy lead runs predate the desktop ownership ledger. Resolve the
+      // canonical receipt before treating an ID as unused; never bind it to the
+      // caller's requested session merely because that caller supplied the ID.
+      const ready = await this.ready(target);
+      const canonical = await this.json(
+        `${ready.url}/chat/runs/${encodeURIComponent(runId)}`,
+      );
+      if (canonical.status === 404) return undefined;
+      if (
+        canonical.status < 200 ||
+        canonical.status >= 300 ||
+        !object(canonical.value) ||
+        !object(canonical.value.run) ||
+        canonical.value.run.runId !== runId ||
+        typeof canonical.value.run.sessionId !== "string"
+      )
+        throw new Error("Canonical run identity is unavailable.");
+      const actualSession = canonical.value.run.sessionId;
+      if (this.options.registry.get(target.botId).isDefault) {
+        await this.options.registry.assertRunOwner(target.botId, runId);
+      } else {
+        const actual = this.options.registry.assertConversationOwner(
+          target.botId,
+          actualSession,
+        );
+        checkRun(canonical.value.run, actual, runId);
+        this.options.registry.bindRun(target.botId, actualSession, runId);
+      }
+      owner = this.options.registry.conversations.getRun(runId);
+      if (!owner) throw new Error("Canonical run owner could not be resolved.");
+    }
     if (
       owner.botId !== target.botId ||
       owner.sessionId !== target.sessionId ||
@@ -499,13 +590,8 @@ export class NativeUiBackend implements UiHostBackend {
       const prepared = await this.ready(input.target);
       if (input.workspace !== this.currentWorkspace())
         throw new Error("UI workspace changed before submission.");
-      if (this.options.registry.conversations.getRun(input.runId))
+      if (await this.readRun(input.target, input.runId))
         throw new Error("Canonical run identity already exists.");
-      this.options.registry.bindRun(
-        input.target.botId,
-        input.target.sessionId,
-        input.runId,
-      );
       const body = JSON.stringify({
         message: input.message.trim(),
         roomId: input.target.sessionId,
@@ -520,6 +606,11 @@ export class NativeUiBackend implements UiHostBackend {
         attachmentIds: input.attachments.map((attachment) => attachment.id),
       });
       await input.assertAuthorizedAtCommit();
+      this.options.registry.bindRun(
+        input.target.botId,
+        input.target.sessionId,
+        input.runId,
+      );
       // No preparation awaits after the grant/owner recheck and before POST.
       postStarted = true;
       const response = await this.fetch(`${prepared.url}/chat/runs`, {
