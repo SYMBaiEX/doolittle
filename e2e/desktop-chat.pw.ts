@@ -24,6 +24,14 @@ type InteractiveTerminalWorkspaceState = {
   activeTabId: string;
   tabs: { id: string; output?: string }[];
 };
+type NativeChatStartObservation = {
+  acceptedRequestId: string | null;
+  startedRequestId: string | null;
+  unsubscribe: () => void;
+};
+type ChatFixtureWindow = Window & {
+  __doolittleE2eChatStart?: NativeChatStartObservation;
+};
 
 function normalizeTranscriptText(value: string): string {
   return value.replace(/\s+/gu, " ").trim();
@@ -198,12 +206,18 @@ test.describe("Doolittle desktop offline chat", () => {
       await expect(chatTerminal).toHaveCount(0);
       await expect(composer).toBeFocused();
       await composer.fill(prompt);
-      await composer.press("Enter");
       await expect(
-        page.getByLabel("Conversation detail").getByText(prompt, {
+        focusedSessionPanel(page).getByRole("button", {
+          name: "Send message",
           exact: true,
         }),
-      ).toBeVisible();
+      ).toBeEnabled();
+      await composer.press("Enter");
+      await expect(
+        focusedSessionPanel(page)
+          .locator(".chat-message.user .chat-message-body")
+          .filter({ hasText: prompt }),
+      ).toHaveText(prompt);
       const assistantMessage = page.locator(".chat-message.assistant").last();
       await expect(assistantMessage).toBeVisible({ timeout: 45_000 });
       await expect(
@@ -282,12 +296,13 @@ test.describe("Doolittle desktop offline chat", () => {
           expect.objectContaining({ role: "user", text: prompt }),
         ]),
       );
-      expect(
-        normalizeTranscriptText(
-          persisted.messages.find((message) => message.role === "assistant")
-            ?.text ?? "",
-        ),
-      ).toContain(normalizeTranscriptText(assistantText));
+      // The API stores original Markdown; the message body renders it. Keep
+      // their separate persistence contracts rather than comparing raw syntax
+      // (for example inline-code backticks) against rendered textContent.
+      const persistedAssistantMarkdown = persisted.messages.find(
+        (message) => message.role === "assistant",
+      )?.text;
+      expect(persistedAssistantMarkdown?.trim()).toBeTruthy();
       await app.close();
       app = undefined;
 
@@ -315,11 +330,18 @@ test.describe("Doolittle desktop offline chat", () => {
         ]),
       );
       expect(
-        normalizeTranscriptText(
-          restored.messages.find((message) => message.role === "assistant")
-            ?.text ?? "",
-        ),
-      ).toContain(normalizeTranscriptText(assistantText));
+        restored.messages.find((message) => message.role === "assistant")?.text,
+      ).toBe(persistedAssistantMarkdown);
+      await expect
+        .poll(async () =>
+          normalizeTranscriptText(
+            (await restoredPanel
+              .locator(".chat-message.assistant .chat-message-body")
+              .last()
+              .textContent()) ?? "",
+          ),
+        )
+        .toBe(normalizeTranscriptText(assistantText));
       await expectNoDesktopRecovery(restartedPage);
       expect(restartedPageErrors).toEqual([]);
     } finally {
@@ -329,7 +351,7 @@ test.describe("Doolittle desktop offline chat", () => {
     }
   });
 
-  test("keeps an active response attached while visiting Settings", async ({
+  test("keeps a natively started response attached while visiting Settings", async ({
     browserName,
   }) => {
     test.setTimeout(90_000);
@@ -348,9 +370,11 @@ test.describe("Doolittle desktop offline chat", () => {
     );
 
     let app: Awaited<ReturnType<typeof launchDesktop>> | undefined;
+    let observedPage: Page | undefined;
     try {
       app = await launchDesktop(profileDir, workspaceDir);
       const page = await app.firstWindow();
+      observedPage = page;
       const pageErrors: string[] = [];
       page.on("pageerror", (error) => pageErrors.push(error.message));
       await waitForChat(page, pageErrors);
@@ -358,13 +382,78 @@ test.describe("Doolittle desktop offline chat", () => {
       const composer = focusedSessionPanel(page).getByRole("textbox", {
         name: "Message Doolittle",
       });
+      const sessionId =
+        await focusedSessionPanel(page).getAttribute("data-session-panel");
+      expect(sessionId).toBeTruthy();
+      await page.evaluate(
+        ({ message, roomId }) => {
+          const fixtureWindow = window as ChatFixtureWindow;
+          const observation: NativeChatStartObservation = {
+            acceptedRequestId: null,
+            startedRequestId: null,
+            unsubscribe: () => undefined,
+          };
+          fixtureWindow.__doolittleE2eChatStart = observation;
+          observation.unsubscribe = window.doolittle.onChatEvent((event) => {
+            if (!event.data || typeof event.data !== "object") return;
+            if (
+              event.event === "response.created" &&
+              "room_id" in event.data &&
+              event.data.room_id === roomId
+            ) {
+              observation.acceptedRequestId = event.requestId;
+            }
+            if (
+              event.event !== "agent.run" ||
+              !("type" in event.data) ||
+              event.data.type !== "started" ||
+              !("run" in event.data) ||
+              !event.data.run ||
+              typeof event.data.run !== "object"
+            )
+              return;
+            const run = event.data.run as Partial<ChatRun> & {
+              sessionId?: string;
+            };
+            if (
+              observation.acceptedRequestId === event.requestId &&
+              run.runId === event.requestId &&
+              run.sessionId === roomId &&
+              run.source === "desktop" &&
+              run.message === message
+            )
+              observation.startedRequestId = event.requestId;
+          });
+        },
+        { message: prompt, roomId: sessionId },
+      );
       await composer.fill(prompt);
-      await composer.press("Enter");
+      // An editable draft is not yet sendable while active-run recovery is
+      // checking. Await the real canSubmit control, not elapsed startup time.
       await expect(
-        page.getByLabel("Conversation detail").getByText(prompt, {
+        focusedSessionPanel(page).getByRole("button", {
+          name: "Send message",
           exact: true,
         }),
-      ).toBeVisible();
+      ).toBeEnabled();
+      await composer.press("Enter");
+      await expect(
+        focusedSessionPanel(page)
+          .locator(".chat-message.user .chat-message-body")
+          .filter({ hasText: prompt }),
+      ).toHaveText(prompt);
+      // Pending DOM appears before POST acceptance. The real native started
+      // event follows synchronous receipt storage; it is not a fake receipt.
+      // The no-provider fallback may finish immediately, so held-active states
+      // remain covered separately by the synthetic workbench lifecycle test.
+      await page.waitForFunction(() => {
+        const observation = (window as ChatFixtureWindow)
+          .__doolittleE2eChatStart;
+        return Boolean(
+          observation?.startedRequestId &&
+            observation.startedRequestId === observation.acceptedRequestId,
+        );
+      });
       await expect.poll(() => chatRunForPrompt(page, prompt)).not.toBeNull();
 
       await page.getByRole("button", { name: "Open settings" }).click();
@@ -379,10 +468,10 @@ test.describe("Doolittle desktop offline chat", () => {
         page.locator('.view-container[data-view="chat"]'),
       ).toBeVisible();
       await expect(
-        page.getByLabel("Conversation detail").getByText(prompt, {
-          exact: true,
-        }),
-      ).toBeVisible();
+        focusedSessionPanel(page)
+          .locator(".chat-message.user .chat-message-body")
+          .filter({ hasText: prompt }),
+      ).toHaveText(prompt);
       await expect(
         page
           .getByLabel("Conversation detail")
@@ -397,9 +486,19 @@ test.describe("Doolittle desktop offline chat", () => {
       expect(run?.status).not.toBe("error");
       expect(pageErrors).toEqual([]);
     } finally {
-      await app?.close();
-      rmSync(profileDir, { recursive: true, force: true });
-      rmSync(workspaceDir, { recursive: true, force: true });
+      try {
+        if (observedPage && !observedPage.isClosed()) {
+          await observedPage.evaluate(() => {
+            const fixtureWindow = window as ChatFixtureWindow;
+            fixtureWindow.__doolittleE2eChatStart?.unsubscribe();
+            delete fixtureWindow.__doolittleE2eChatStart;
+          });
+        }
+      } finally {
+        await app?.close();
+        rmSync(profileDir, { recursive: true, force: true });
+        rmSync(workspaceDir, { recursive: true, force: true });
+      }
     }
   });
 });
