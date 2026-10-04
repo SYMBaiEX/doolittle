@@ -136,6 +136,13 @@ is enabled only for the new coding strategy; legacy tasks explicitly disable it.
 This is original execution observation within a cooperative process boundary,
 not an OS sandbox or cryptographic attestation against malicious same-UID code.
 
+The first two frozen v7 coding diagnostics at revision `b3bc84d4` scored 3/4
+and 2/4: both created the correct scoped implementation, but original
+verification failed in both, and exact final JSON/receipt agreement failed
+in the second. Each action projection recorded two failed shell completions;
+it does not identify commands or establish their cause. Keep these failed
+samples, not replacements, when checking a native CLI/SHELL integration repair.
+
 ```sh
 nub run eval:headless -- --suite headless-workflows-v7 --task coding-original-verifier-v1
 ```

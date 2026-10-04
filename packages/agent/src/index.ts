@@ -68,6 +68,7 @@ async function main(): Promise<number> {
     commandPlan,
     shellIsInteractive,
     stdinIsTTY,
+    immediatePrompt,
     writeStderrLine,
     formatTopLevelError,
   });

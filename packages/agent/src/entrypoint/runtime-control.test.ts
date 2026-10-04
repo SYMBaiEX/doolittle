@@ -31,6 +31,33 @@ describe("resolveEntrypointCommandPlan", () => {
 });
 
 describe("resolveEntrypointRuntimePlan", () => {
+  it.each(["exec", "status", "start"] as const)(
+    "uses only the owned endpoint for a %s one-shot even in both mode",
+    (command) => {
+      expect(
+        resolveEntrypointRuntimePlan({
+          command,
+          shellIsInteractive: false,
+          mode: "both",
+          stdinIsTTY: false,
+          immediatePrompt: "real prompt",
+        }),
+      ).toMatchObject({
+        shouldStartApi: false,
+        shouldStartApiImmediately: false,
+      });
+    },
+  );
+  it("preserves empty noninteractive start API behavior", () => {
+    expect(
+      resolveEntrypointRuntimePlan({
+        command: "start",
+        shellIsInteractive: false,
+        mode: "both",
+        stdinIsTTY: false,
+      }),
+    ).toMatchObject({ shouldStartApi: true });
+  });
   it("keeps api startup eager for api commands", () => {
     expect(
       resolveEntrypointRuntimePlan({

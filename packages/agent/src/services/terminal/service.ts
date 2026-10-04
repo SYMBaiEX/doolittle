@@ -89,10 +89,16 @@ export class TerminalService {
     command: string,
     timeoutMs?: number,
     abortSignal?: AbortSignal,
+    options?: { requireCancellation?: boolean },
   ): Promise<TerminalCommandRecord> {
     const buildDirectories = this.productionBuildDirectories(command);
     if (buildDirectories.length === 0) {
-      return this.commandOrchestrator.run(command, timeoutMs, abortSignal);
+      return this.commandOrchestrator.run(
+        command,
+        timeoutMs,
+        abortSignal,
+        options,
+      );
     }
     const blocked = this.preflightProductionBuild(command);
     if (blocked) throw new Error(blocked);
@@ -103,6 +109,7 @@ export class TerminalService {
         command,
         timeoutMs,
         abortSignal,
+        options,
       );
     } finally {
       for (const directory of buildDirectories)

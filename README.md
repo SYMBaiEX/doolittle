@@ -124,6 +124,21 @@ Tagged releases build platform installers; Windows uses a per-user x64 NSIS inst
 | Operate transports | `doolittle gateway` |
 | Reconfigure or diagnose | `doolittle setup`, `doolittle doctor` |
 
+Real one-shot CLI prompts own a temporary, terminal-only `127.0.0.1` listener
+for Eliza's native `SHELL` action. It uses an OS-selected port and a fresh
+in-memory terminal capability, leaves configured API bearer credentials
+untouched, and does not start the public API or gateway ingress. This owned
+transport accepts captured commands only with the local backend in
+`local-yolo` mode. Other modes
+and backends fail closed before execution; they are never downgraded to host
+execution. Shutdown aborts active captured requests and waits for native
+request handlers to settle before the CLI returns. Real child termination is
+tested on the current macOS host; Windows `taskkill` is best-effort with mock
+coverage only. Request drain does not guarantee Windows process-tree
+termination or surface every adapter-level termination failure.
+Startup or unconfirmed request drain fails the invocation rather than borrowing an
+existing listener. Help and static shortcuts do not need this transport.
+
 The API is also useful for a local script or another UI:
 
 ```bash

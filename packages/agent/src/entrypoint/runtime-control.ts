@@ -58,6 +58,7 @@ export function resolveEntrypointRuntimePlan(options: {
   shellIsInteractive: boolean;
   mode: "cli" | "api" | "both";
   stdinIsTTY: boolean;
+  immediatePrompt?: string;
 }): EntrypointRuntimePlan {
   const commandPlan = resolveEntrypointCommandPlan(options.command);
   const wantsCli = options.mode === "cli" || options.mode === "both";
@@ -65,7 +66,13 @@ export function resolveEntrypointRuntimePlan(options: {
   const shouldStartCli =
     options.shellIsInteractive &&
     (commandPlan.shouldUseCliSurface || (wantsCli && options.stdinIsTTY));
-  const shouldStartApi = wantsApi || commandPlan.shouldUseApiSurface;
+  const isOneShot =
+    Boolean(options.immediatePrompt?.trim()) &&
+    (options.command === "exec" ||
+      isEntrypointAliasCommand(options.command) ||
+      !options.shellIsInteractive);
+  const shouldStartApi =
+    !isOneShot && (wantsApi || commandPlan.shouldUseApiSurface);
   const shouldStartApiImmediately =
     shouldStartApi && (commandPlan.shouldUseApiSurface || !shouldStartCli);
 

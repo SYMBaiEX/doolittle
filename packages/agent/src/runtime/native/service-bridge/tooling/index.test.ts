@@ -60,6 +60,12 @@ describe("tooling bridge helpers", () => {
       runEffectiveShellCommand(runtime, "pwd", 1_234, controller.signal),
     ).resolves.toEqual({ command: "pwd", exitCode: 0 });
     expect(run).toHaveBeenCalledWith("pwd", 1_234, controller.signal);
+    await runEffectiveShellCommand(runtime, "pwd", 1_234, controller.signal, {
+      requireCancellation: true,
+    });
+    expect(run).toHaveBeenLastCalledWith("pwd", 1_234, controller.signal, {
+      requireCancellation: true,
+    });
   });
 
   it("prefers native shell, mcp, workspace, and repository bridges", async () => {

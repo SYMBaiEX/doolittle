@@ -27,6 +27,7 @@ interface RuntimeProcessLifecycleOptions {
   onExit?: (exitCode: number) => void;
   writeError?: (message: string) => void;
   captureFatal?: (error: Error, origin: RuntimeFatalOrigin) => void;
+  beforeShutdown?: () => Promise<void>;
 }
 
 export interface RuntimeProcessLifecycle {
@@ -48,6 +49,7 @@ export function installRuntimeProcessLifecycle({
   shutdownRuntime = disposeRuntime,
   onExit = (exitCode) => process.exit(exitCode),
   writeError = (message) => process.stderr.write(`${message}\n`),
+  beforeShutdown,
   captureFatal = (error, origin) => {
     writeError(
       `[doolittle] runtime fatal (${origin}): ${error.stack || error.message}`,
@@ -65,14 +67,22 @@ export function installRuntimeProcessLifecycle({
   const shutdown = (signal: RuntimeShutdownSignal): Promise<void> => {
     if (!shutdownPromise) {
       dispose();
-      const exitCode = signal === "SIGINT" ? 130 : 0;
-      shutdownPromise = shutdownRuntime(
-        runtime,
-        `${label} received ${signal}`,
-        undefined,
-        { fast: true },
-      )
+      let exitCode = signal === "SIGINT" ? 130 : 0;
+      shutdownPromise = Promise.resolve()
+        .then(async () => {
+          try {
+            await beforeShutdown?.();
+          } finally {
+            await shutdownRuntime(
+              runtime,
+              `${label} received ${signal}`,
+              undefined,
+              { fast: true },
+            );
+          }
+        })
         .catch((error) => {
+          if (beforeShutdown) exitCode = 1;
           const detail = error instanceof Error ? error.message : String(error);
           writeError(`[doolittle] runtime shutdown failed: ${detail}`);
         })

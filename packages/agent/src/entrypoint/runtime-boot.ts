@@ -32,6 +32,7 @@ export interface EntrypointRuntimeBootOptions {
   commandPlan: EntrypointCommandPlan;
   shellIsInteractive: boolean;
   stdinIsTTY: boolean;
+  immediatePrompt?: string;
   writeStderrLine: (message: string) => void;
   formatTopLevelError: (error: unknown) => string;
 }
@@ -111,6 +112,7 @@ export async function prepareEntrypointRuntimeBoot(
     shellIsInteractive: options.shellIsInteractive,
     mode: context.config.mode,
     stdinIsTTY: options.stdinIsTTY,
+    immediatePrompt: options.immediatePrompt,
   });
   const runtimeLogger = context.services.logger.child("entrypoint.index");
   const { startServer, startServerWhenShellReady } = createStartupController({

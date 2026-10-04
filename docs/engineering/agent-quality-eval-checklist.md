@@ -219,6 +219,15 @@ versions rather than treating current alias ambiguity as desirable behavior.
   not an OS sandbox or cryptographic same-UID attestation. Actual human review
   and repeated live samples are still required; evaluator 0.2.12 is a new
   comparison baseline.
+- Two frozen v7 coding diagnostics at clean revision `b3bc84d4` scored 3/4
+  and 2/4. Both produced the correct scoped implementation, but neither
+  supplied successful original verification; the second also failed exact
+  final JSON/receipt agreement. Each cooperative action projection recorded
+  two failed shell completions. Raw commands/errors were not retained, so
+  those categories do not prove a particular failure cause. CLI durations
+  were 117.511s and 137.600s, with reported total tokens of 367,367 and 485,038.
+  Retain these failures when evaluating a CLI/SHELL integration repair;
+  correct grader-executed behavior is not proof of agent-run verification.
 - `coding-harness-v1` has one Next.js/shadcn/Bun build-and-launch task. It is a
   valuable end-to-end acceptance case, not representative coding coverage.
 - Deterministic checks cover observable contracts. Human coherence, grounding,
