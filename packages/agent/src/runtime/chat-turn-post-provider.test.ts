@@ -312,10 +312,10 @@ describe("ElizaOS-native post-provider seam", () => {
 
   // Regression: ActionResults reconstructed from a stream envelope carry a
   // synthesized `actionName` (the tool-call name) but no mutation receipt.
-  // Arming the contract from that field made every such turn fail, replacing
-  // the agent's real answer with "Native execution failed" even when the write
-  // succeeded — which read to users as "the agent cannot write code".
-  it("does not arm the mutation contract from a synthesized actionName", async () => {
+  // The name alone neither arms a selected-action obligation nor proves that
+  // the user's requested mutation succeeded. Preserve actual write receipts
+  // upstream instead of accepting an unverified terminal "Done" here.
+  it("refuses a requested mutation backed only by a synthesized actionName", async () => {
     const harness = createHarness();
     const message = "create a website file in this project";
 
@@ -333,8 +333,10 @@ describe("ElizaOS-native post-provider seam", () => {
       }),
     );
 
-    expect(result.runFailureMessage).toBeUndefined();
-    expect(harness.finishEvents[0]?.status).not.toBe("error");
+    expect(result.runFailureMessage).toContain(
+      "No verified local mutation receipt was recorded (REQUESTED_LOCAL_MUTATION)",
+    );
+    expect(harness.finishEvents[0]?.status).toBe("error");
   });
 
   it("rejects a progress-only terminal reply when an explicit mutation never ran", async () => {

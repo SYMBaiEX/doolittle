@@ -17,6 +17,10 @@ import {
   searchNativeWorkspaceFiles,
   writeNativeWorkspaceFileResult,
 } from "@/runtime/native/service-bridge/tooling";
+import {
+  getScopedTurnAbortSignal,
+  recordScopedTurnActionResult,
+} from "@/runtime/turn-runtime-scope";
 import type {
   WorkspaceFileSearchResult,
   WorkspaceReadLinesResult,
@@ -203,6 +207,27 @@ function handlerError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+/** Preserve committed work independently of fallible prose delivery. */
+async function deliverMutationResult(
+  runtime: IAgentRuntime,
+  result: ActionResult,
+  callback?: HandlerCallback,
+): Promise<ActionResult> {
+  if (result.success) recordScopedTurnActionResult(runtime, result);
+  const signal = getScopedTurnAbortSignal(runtime);
+  signal?.throwIfAborted();
+  try {
+    await callback?.({ text: result.text, source: "file-action" });
+  } catch {
+    // Cancellation must reach the SDK; the successful receipt still records
+    // work committed before abort. Other delivery failures are not write errors.
+    signal?.throwIfAborted();
+    result.data = { ...result.data, callbackDelivery: "failed" };
+  }
+  signal?.throwIfAborted();
+  return result;
+}
+
 function formatReadResult(result: WorkspaceReadLinesResult): string {
   return [
     `Read: ${result.path}`,
@@ -301,7 +326,9 @@ function createWriteFileAction(): Action {
       options: HandlerOptions | undefined,
       callback?: HandlerCallback,
     ) => {
+      getScopedTurnAbortSignal(runtime)?.throwIfAborted();
       let path = "";
+      let outcome: ActionResult;
       try {
         const params = validateParams(
           "WRITE_FILE",
@@ -327,8 +354,7 @@ function createWriteFileAction(): Action {
           message: `Wrote: ${result.path}`,
           bytes: result.bytes,
         };
-        await callback?.({ text: response, source: "file-action" });
-        return createActionResult(
+        outcome = createActionResult(
           true,
           response,
           buildActionResultData(
@@ -351,8 +377,7 @@ function createWriteFileAction(): Action {
           success: false,
           message: response,
         };
-        await callback?.({ text: response, source: "file-action" });
-        return createActionResult(
+        outcome = createActionResult(
           false,
           response,
           buildActionResultData({
@@ -361,6 +386,7 @@ function createWriteFileAction(): Action {
           }),
         );
       }
+      return deliverMutationResult(runtime, outcome, callback);
     },
   };
 }
@@ -385,7 +411,9 @@ function createDirectoryAction(): Action {
       options: HandlerOptions | undefined,
       callback?: HandlerCallback,
     ) => {
+      getScopedTurnAbortSignal(runtime)?.throwIfAborted();
       let path = "";
+      let outcome: ActionResult;
       try {
         const params = validateParams(
           "CREATE_DIRECTORY",
@@ -404,8 +432,7 @@ function createDirectoryAction(): Action {
           success: true,
           message: response,
         };
-        await callback?.({ text: response, source: "file-action" });
-        return createActionResult(
+        outcome = createActionResult(
           true,
           response,
           buildActionResultData(
@@ -424,8 +451,7 @@ function createDirectoryAction(): Action {
           success: false,
           message: response,
         };
-        await callback?.({ text: response, source: "file-action" });
-        return createActionResult(
+        outcome = createActionResult(
           false,
           response,
           buildActionResultData({
@@ -434,6 +460,7 @@ function createDirectoryAction(): Action {
           }),
         );
       }
+      return deliverMutationResult(runtime, outcome, callback);
     },
   };
 }
@@ -457,7 +484,9 @@ function createPatchFileAction(): Action {
       options: HandlerOptions | undefined,
       callback?: HandlerCallback,
     ) => {
+      getScopedTurnAbortSignal(runtime)?.throwIfAborted();
       let path = "";
+      let outcome: ActionResult;
       try {
         const params = validateParams(
           "PATCH_FILE",
@@ -485,8 +514,7 @@ function createPatchFileAction(): Action {
           message: `Patched: ${result.path}`,
           replacements: result.replacements,
         };
-        await callback?.({ text: response, source: "file-action" });
-        return createActionResult(
+        outcome = createActionResult(
           true,
           response,
           buildActionResultData(
@@ -509,8 +537,7 @@ function createPatchFileAction(): Action {
           success: false,
           message: response,
         };
-        await callback?.({ text: response, source: "file-action" });
-        return createActionResult(
+        outcome = createActionResult(
           false,
           response,
           buildActionResultData({
@@ -519,6 +546,7 @@ function createPatchFileAction(): Action {
           }),
         );
       }
+      return deliverMutationResult(runtime, outcome, callback);
     },
   };
 }

@@ -1,4 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
+import {
+  getScopedTurnActionResults,
+  runWithTurnRuntimeScope,
+} from "@/runtime/turn-runtime-scope";
 import { createFileActions } from "./file-action";
 
 function action(name: string) {
@@ -11,6 +15,7 @@ function action(name: string) {
 
 function runtimeWithCodingService(service: Record<string, unknown>) {
   return {
+    getSetting: () => undefined,
     getService(name: string) {
       return name === "doolittle_coding_agent" ? service : null;
     },
@@ -63,6 +68,225 @@ function codingService(overrides: Record<string, unknown> = {}) {
 }
 
 describe("file actions", () => {
+  describe("committed mutation receipts", () => {
+    const mutations: Array<{
+      name: string;
+      parameters: Record<string, string>;
+      serviceMethod: "writeFile" | "createDirectory" | "patch";
+    }> = [
+      {
+        name: "WRITE_FILE",
+        parameters: { path: "src/app.ts", content: "export {};\n" },
+        serviceMethod: "writeFile",
+      },
+      {
+        name: "CREATE_DIRECTORY",
+        parameters: { path: "src/new" },
+        serviceMethod: "createDirectory",
+      },
+      {
+        name: "PATCH_FILE",
+        parameters: { path: "src/app.ts", oldText: "old", newText: "new" },
+        serviceMethod: "patch",
+      },
+    ];
+
+    it.each(mutations)(
+      "retains $name before delivering its prose callback",
+      async ({ name, parameters }) => {
+        const runtime = runtimeWithCodingService(codingService());
+        await runWithTurnRuntimeScope(
+          runtime,
+          { settings: new Map(), settledActionResults: [] },
+          async () => {
+            const callback = vi.fn(async () => {
+              expect(getScopedTurnActionResults(runtime)).toEqual([
+                expect.objectContaining({
+                  success: true,
+                  data: expect.objectContaining({
+                    mutationAction: name,
+                    mutation: expect.objectContaining({
+                      action: name,
+                      success: true,
+                    }),
+                  }),
+                }),
+              ]);
+              return [];
+            });
+            const result = await action(name).handler(
+              runtime,
+              {
+                roomId: "room-1",
+                content: { text: "Synthetic mutation." },
+              } as never,
+              undefined,
+              { parameters },
+              callback,
+            );
+            expect(result?.success).toBe(true);
+            expect(callback).toHaveBeenCalledTimes(1);
+            expect(getScopedTurnActionResults(runtime)).toEqual([result]);
+          },
+        );
+      },
+    );
+
+    it.each(mutations)(
+      "does not relabel committed $name as failed when delivery throws",
+      async ({ name, parameters, serviceMethod }) => {
+        const service = codingService();
+        const runtime = runtimeWithCodingService(service);
+        await runWithTurnRuntimeScope(
+          runtime,
+          { settings: new Map(), settledActionResults: [] },
+          async () => {
+            const callback = vi.fn(async () => {
+              throw new Error("Synthetic delivery failure.");
+            });
+            const result = await action(name).handler(
+              runtime,
+              {
+                roomId: "room-1",
+                content: { text: "Synthetic mutation." },
+              } as never,
+              undefined,
+              { parameters },
+              callback,
+            );
+            expect(
+              service[serviceMethod as keyof typeof service],
+            ).toHaveBeenCalledTimes(1);
+            expect(callback).toHaveBeenCalledTimes(1);
+            expect(result).toMatchObject({
+              success: true,
+              data: {
+                mutationAction: name,
+                mutation: { action: name, success: true },
+                callbackDelivery: "failed",
+              },
+            });
+            expect(getScopedTurnActionResults(runtime)).toEqual([result]);
+          },
+        );
+      },
+    );
+
+    it.each(mutations)(
+      "keeps failed $name separate from a delivery failure",
+      async ({ name, parameters, serviceMethod }) => {
+        const service = codingService({
+          [serviceMethod]: vi.fn(() => {
+            throw new Error("Synthetic operation failure.");
+          }),
+        });
+        const runtime = runtimeWithCodingService(service);
+        await runWithTurnRuntimeScope(
+          runtime,
+          { settings: new Map(), settledActionResults: [] },
+          async () => {
+            const callback = vi.fn(async () => {
+              throw new Error("Synthetic delivery failure.");
+            });
+            const result = await action(name).handler(
+              runtime,
+              { content: { text: "Synthetic mutation." } } as never,
+              undefined,
+              { parameters },
+              callback,
+            );
+            expect(result).toMatchObject({
+              success: false,
+              text: `${name} failed: Synthetic operation failure.`,
+              data: {
+                mutation: { success: false },
+                callbackDelivery: "failed",
+              },
+            });
+            expect(callback).toHaveBeenCalledTimes(1);
+            expect(getScopedTurnActionResults(runtime)).toEqual([]);
+          },
+        );
+      },
+    );
+
+    it.each(mutations)(
+      "does not begin $name after scoped cancellation",
+      async ({ name, parameters, serviceMethod }) => {
+        const service = codingService();
+        const runtime = runtimeWithCodingService(service);
+        const abort = new AbortController();
+        const reason = new Error("Synthetic cancellation.");
+        abort.abort(reason);
+        await runWithTurnRuntimeScope(
+          runtime,
+          {
+            settings: new Map(),
+            settledActionResults: [],
+            abortSignal: abort.signal,
+          },
+          async () => {
+            const callback = vi.fn(async () => []);
+            await expect(
+              action(name).handler(
+                runtime,
+                { content: { text: "Synthetic mutation." } } as never,
+                undefined,
+                { parameters },
+                callback,
+              ),
+            ).rejects.toBe(reason);
+            expect(
+              service[serviceMethod as keyof typeof service],
+            ).not.toHaveBeenCalled();
+            expect(callback).not.toHaveBeenCalled();
+            expect(getScopedTurnActionResults(runtime)).toEqual([]);
+          },
+        );
+      },
+    );
+
+    it.each(mutations)(
+      "retains committed $name without swallowing cancellation during delivery",
+      async ({ name, parameters, serviceMethod }) => {
+        const service = codingService();
+        const runtime = runtimeWithCodingService(service);
+        const abort = new AbortController();
+        const reason = new Error("Synthetic cancellation.");
+        await runWithTurnRuntimeScope(
+          runtime,
+          {
+            settings: new Map(),
+            settledActionResults: [],
+            abortSignal: abort.signal,
+          },
+          async () => {
+            const callback = vi.fn(async () => {
+              abort.abort(reason);
+              throw new Error("Secondary delivery failure.");
+            });
+            await expect(
+              action(name).handler(
+                runtime,
+                { content: { text: "Synthetic mutation." } } as never,
+                undefined,
+                { parameters },
+                callback,
+              ),
+            ).rejects.toBe(reason);
+            expect(
+              service[serviceMethod as keyof typeof service],
+            ).toHaveBeenCalledTimes(1);
+            expect(callback).toHaveBeenCalledTimes(1);
+            expect(getScopedTurnActionResults(runtime)).toEqual([
+              expect.objectContaining({ success: true }),
+            ]);
+          },
+        );
+      },
+    );
+  });
+
   it("exposes every structured operation to the Eliza planner", async () => {
     const actions = createFileActions();
     const message = {

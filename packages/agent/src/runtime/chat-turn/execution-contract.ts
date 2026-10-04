@@ -1,6 +1,5 @@
 import type { ActionResult } from "@elizaos/core";
 import {
-  actionResultActionName,
   actionResultMutationActionName,
   extractVerifiedLocalMutationFromActionResult,
 } from "@/runtime/action-result-metadata";
@@ -42,19 +41,6 @@ function selectedLocalMutationActions(
     return actionName && LOCAL_MUTATION_ACTIONS.has(actionName)
       ? [actionName]
       : [];
-  });
-}
-
-function observedSuccessfulLocalMutationAction(
-  actionResults: readonly ActionResult[],
-): boolean {
-  return actionResults.some((result) => {
-    const actionName = actionResultActionName(result);
-    return (
-      result.success === true &&
-      typeof actionName === "string" &&
-      LOCAL_MUTATION_ACTIONS.has(actionName)
-    );
   });
 }
 
@@ -119,7 +105,7 @@ export function assessTurnExecutionContract(input: {
   if (
     input.contract.requestedLocalMutation &&
     successfulReceipts.size === 0 &&
-    !observedSuccessfulLocalMutationAction(input.actionResults ?? [])
+    missingReceipts.length === 0
   ) {
     missingReceipts.unshift("REQUESTED_LOCAL_MUTATION");
   }
@@ -136,7 +122,6 @@ export function assessTurnExecutionContract(input: {
     input.contract.requestedLocalMutation &&
     input.contract.selectedMutationActions.length === 0 &&
     successfulReceipts.size === 0 &&
-    !observedSuccessfulLocalMutationAction(input.actionResults ?? []) &&
     verifyWorkspaceNoopCompletion(
       input.actionResults ?? [],
       input.contract.noOpRequirements,

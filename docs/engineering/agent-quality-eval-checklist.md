@@ -681,6 +681,41 @@ neither establishes a graceful non-terminal yield. Do not infer an effective
 action bound, completion-preserving optimization, or speed gain from these
 options. Record actual calls, actions and completion separately.
 
+### Local-file completion evidence
+
+A successful tool-call name is not a verified file change. Local write, patch,
+and directory completion requires a successful mutation envelope for a supported
+operation, with consistent explicit action identities. Contradictory read/write
+identities, a name-only SDK projection, a failed action or mutation, and a
+successful shell command that merely displays the artifact cannot discharge the
+requested-mutation obligation. Preserve failed observations as diagnostics, not
+successful completion evidence. Fingerprint-backed delegated changes and an
+independently verified no-op retain their separate existing contracts.
+
+Product write, patch and directory handlers retain their successful result in
+the original turn scope before delivering prose. A non-cancellation callback
+failure is recorded as `callbackDelivery: "failed"`, not relabeled as a failed
+file operation; actual operation failures remain failures. Scoped cancellation
+is checked before execution and propagated during delivery, retaining only work
+already committed before abort. This does not retry the operation or attest
+that the callback reached the client.
+
+Network-free tests against the installed beta.7 message service exercise real
+product writes in private temporary workspaces. Normal execution preserves full
+metadata in public state and raw completion events. A later planner failure can
+return an error response with no action results, and a subplanner can project
+only its final inner action's data. The product's turn-scoped original receipt
+remains available in both cases. These controlled tests characterize supported
+transport and failure behavior, not a live model's choices or performance.
+
+The `local-json-receipt-boundary-v1` regressions exercise the unchanged synthetic
+reconciliation and fallback final-JSON contracts with valid, reduced, foreign,
+contradictory, failed and provisional receipts. They characterize admission and
+response selection without providers or actual benchmark tasks. They neither
+attest original source reads nor identify the cause of the earlier 300-second
+research/fallback timeouts. A repaired boundary still needs source-frozen live
+evaluations and genuine human review before claiming better quality or speed.
+
 - Do not call a run better because it completed, passed a few smoke checks, or
   used a preferred route. A reported `completed` status and objective checks
   are separate signals.
