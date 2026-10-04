@@ -696,9 +696,11 @@ Product write, patch and directory handlers retain their successful result in
 the original turn scope before delivering prose. A non-cancellation callback
 failure is recorded as `callbackDelivery: "failed"`, not relabeled as a failed
 file operation; actual operation failures remain failures. Scoped cancellation
-is checked before execution and propagated during delivery, retaining only work
-already committed before abort. This does not retry the operation or attest
-that the callback reached the client.
+is checked before execution and propagated during delivery. An operation already
+in flight can still commit after cancellation is requested; retain that actual
+receipt without presenting the cancelled turn as successful. This does not
+promise rollback, retry the operation, or attest that the callback reached the
+client.
 
 Network-free tests against the installed beta.7 message service exercise real
 product writes in private temporary workspaces. Normal execution preserves full

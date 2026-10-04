@@ -285,6 +285,64 @@ describe("file actions", () => {
         );
       },
     );
+
+    it.each(mutations.filter(({ name }) => name !== "CREATE_DIRECTORY"))(
+      "preserves in-flight $name evidence when cancellation precedes settlement",
+      async ({ name, parameters, serviceMethod }) => {
+        const original = codingService();
+        let release: () => void = () => {};
+        let started: () => void = () => {};
+        const pending = new Promise<void>((resolve) => {
+          release = resolve;
+        });
+        const entered = new Promise<void>((resolve) => {
+          started = resolve;
+        });
+        const operation = vi.fn(async () => {
+          started();
+          await pending;
+          return original[serviceMethod]();
+        });
+        const runtime = runtimeWithCodingService(
+          codingService({
+            [serviceMethod]: operation,
+          }),
+        );
+        const abort = new AbortController();
+        const reason = new Error("Synthetic in-flight cancellation.");
+        await runWithTurnRuntimeScope(
+          runtime,
+          {
+            settings: new Map(),
+            settledActionResults: [],
+            abortSignal: abort.signal,
+          },
+          async () => {
+            const callback = vi.fn(async () => []);
+            const result = action(name).handler(
+              runtime,
+              { content: { text: "Synthetic mutation." } } as never,
+              undefined,
+              { parameters },
+              callback,
+            );
+            await entered;
+            expect(getScopedTurnActionResults(runtime)).toEqual([]);
+            abort.abort(reason);
+            release();
+            await expect(result).rejects.toBe(reason);
+            expect(operation).toHaveBeenCalledTimes(1);
+            expect(callback).not.toHaveBeenCalled();
+            expect(getScopedTurnActionResults(runtime)).toEqual([
+              expect.objectContaining({
+                success: true,
+                data: expect.objectContaining({ mutationAction: name }),
+              }),
+            ]);
+          },
+        );
+      },
+    );
   });
 
   it("exposes every structured operation to the Eliza planner", async () => {
