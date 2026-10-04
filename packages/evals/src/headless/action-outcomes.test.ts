@@ -14,6 +14,7 @@ import {
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { EVALS_EVALUATOR_VERSION } from "../evaluator-version";
 import * as outcomesModule from "./action-outcomes";
 import {
   ACTION_DIAGNOSTIC_BYTE_LIMIT,
@@ -281,7 +282,7 @@ describe("content-free opt-in action diagnostics", () => {
     expect(result.actionDiagnosticsReceiptStatus).toBe("disabled");
     expect(result.report.executionOverrides).toEqual([]);
     expect(result.report.schemaVersion).toBe(5);
-    expect(result.report.evaluatorVersion).toBe("0.2.12");
+    expect(result.report.evaluatorVersion).toBe(EVALS_EVALUATOR_VERSION);
     expect(result.report).not.toHaveProperty("actionDiagnostics");
     expect(dirname(result.reportPath)).toBe(reportDir);
     const ownedReportPath = join(reportDir, basename(result.reportPath));
@@ -389,7 +390,7 @@ describe("content-free opt-in action diagnostics", () => {
     expect(receipt).toMatchObject({
       schemaVersion: 1,
       reportSchemaVersion: 5,
-      evaluatorVersion: "0.2.12",
+      evaluatorVersion: EVALS_EVALUATOR_VERSION,
       reportSha256: digest(reportBytes),
       mode: "opt-in-action-diagnostics",
       runs: [

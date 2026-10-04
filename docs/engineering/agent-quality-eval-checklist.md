@@ -146,13 +146,59 @@ Keep the v7 task and grader unchanged for any repeated live comparison.
 
 ## Current coverage and known limits
 
+### Representative suite
+
+`headless-representative-v1` selects canonical `headless-representative`,
+version 1: **5 tasks, 7 planned CLI turns, 18 deterministic checks**, with actual
+human review required for all 5 tasks. Failed execution can stop follow-ups;
+planned turns are not measured invocation counts. The
+[exact task/check table and run commands](../../packages/evals/README.md#representative-baseline)
+are in the eval workspace README. This is a new suite, not a change to the
+historical workflow prompts or grades.
+
+- `conversation-project-handoff-v1` exercises three turns of project handoff,
+  retained constraints and corrected facts with no recorded actions. It is a
+  bounded continuity case, not long-horizon conversation or semantic quality
+  coverage.
+- `coding-seeded-invoice-regression-v1` repairs a seeded multi-file project
+  while preserving its fixture inputs and regression test. The grader runs
+  trusted preserved behavioral tests; a pass does not prove that the agent ran
+  tests, chose safe tools or truthfully described its verification process.
+  `final-contract-unattested` requires `agentVerification: "UNATTESTED"` in
+  the structured final reply, not an original runtime test receipt.
+- `research-local-reconciliation-v1` reconciles two synthetic local sources
+  with conflicting date/authority signals and an unknown fact. Exact artifact,
+  citation and final-response contracts are content checks, not evidence that
+  either source was originally read or retrieved, or that the research is
+  complete. Its final reply must declare `readProof: "UNATTESTED"`.
+- `reliability-local-fallback-v1` writes a contained status artifact when a
+  primary fixture is absent and a fallback is provided. Its positive
+  `recorded-action-started` check requires an action-start count greater than
+  zero; it does not identify the action, prove missing-primary observation,
+  chronology or failure causality, or establish absence of global side effects.
+- `research-codex-web-search-options-v1` reuses the original SDK web task
+  unchanged, including its prompt, five check IDs and grounding strategy.
+  One exact query and one fetched source are not broad web-research coverage.
+
+Evaluator 0.2.13 forms a new comparison baseline; schema 5 remaining unchanged
+does not make older evaluator reports comparable. Use the source-frozen
+protocol below and retain failed attempts. Suite registration, synthetic tests
+and UI acceptance are not completed live evaluation runs or human reviews.
+Do not claim a quality, cost or speed improvement without compatible paired
+repetitions and the corresponding human and measurement evidence. Short blinded
+final-response-only review remains explicitly narrower than full evidence review.
+
+### Original SDK web evidence
+
 `headless-sdk-web-research-v1` is a separate, single-turn public synthetic task,
 not a replacement for the unchanged Cloud `/research` cases. It uses registered
 SDK `WEB_SEARCH` (Parallel's public search MCP, possibly Exa fallback), then
 `WEB_FETCH` of OpenAI's small Codex TypeScript source, followed by synthesis on
 the unchanged selected text route. Its prompt discloses those search endpoints;
 configured Cloud research opt-in is refused before credential resolution.
-No provider, action policy, default suite, schema or evaluator version changes.
+Its introduction changed no provider, action policy, default suite, schema or
+evaluator version. Adding it unchanged to the representative suite does not
+expand its evidence contract.
 
 Required grading reads only original `action.completed.metadata.actionResult`
 evidence after normal CLI completion and confirmed owned-child cleanup, before
@@ -423,6 +469,36 @@ versions rather than treating current alias ambiguity as desirable behavior.
       prove causality.
 - [ ] Run repeated, paired samples for stochastic workflows. Keep the same
       task IDs, check IDs, tools, and environment across candidate and baseline.
+
+### Source-frozen baseline protocol
+
+Before dispatch, freeze a clean source revision with the suite, evaluator,
+fixtures, graders, package patches and lockfile. Record the resolved client and
+tool executable identities; recheck those pins before each launch rather than
+assuming a setup-time hash still identifies the running binary. Predeclare task
+selection, repeat count, serial/order policy, time and resource limits, route
+expectations, diagnostic overrides, and the policy for failures and unavailable
+evidence. Do not edit source or replace unsuccessful samples mid-baseline. A
+repair starts a separately identified source cohort, not a replacement run.
+
+Retain all attempted samples and their denominators, including timeouts,
+provider failures and failed checks. Keep unavailable effective-route and cost
+evidence explicit. Establish a new baseline after an evaluator change; compatible
+report schemas alone do not make different evaluator versions comparable.
+Regression tests and desktop navigation or visual acceptance establish their
+own product paths, not that the evaluated agent completed these tasks well.
+
+A short, blinded final-response-only review can assess the visible answer's
+instruction following, clarity, usefulness and expressed uncertainty. It cannot
+verify tool chronology, agent-run tests, workspace preservation, full multi-turn
+continuity, source retrieval or failure recovery without the corresponding
+evidence. Mark those dimensions unverified; do not fabricate six complete
+sidecar ratings from answer-only inspection. Keep reviewer identity and coverage
+notes in a separately secured review record, not unsupported sidecar fields;
+human attestation requires a person, not model-generated ratings. Randomize
+anonymized answers where practical and state this narrow coverage separately
+from a full trajectory/artifact review. Never recover or unblind discarded
+private answers merely to fill a review gap.
 
 ## Separate the evidence
 

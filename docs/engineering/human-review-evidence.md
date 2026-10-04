@@ -17,6 +17,51 @@ double-scoring. The CLI cannot verify who actually reviewed the run. Set
 `humanReviewAttested` only after a person has inspected the evidence; never
 turn model-generated scores into human evidence.
 
+## Synthetic final-response capture
+
+For a predeclared source-frozen public synthetic evaluation, opt in prospectively:
+
+```sh
+nub run eval:headless -- --suite headless-representative-v1 \
+  --capture-synthetic-responses --report-dir /private/eval-evidence
+```
+
+The flag is off by default and rejects simultaneous `--show-responses` to avoid
+raw answer echo. Existing task/configuration flags remain available. The CLI
+uses `runSyntheticReviewEval`, which observes actual final responses silently,
+then binds them to its original returned report after closure. It prints only
+capture status/path metadata. A separate exclusive `0600` `*.responses.json`
+sidecar binds every declared turn to the exact report SHA-256 and task identities,
+with caps of 8 KiB of UTF-8 response bytes per turn and 64 KiB total, excluding
+JSON framing. Completed executions with failed objective checks remain eligible
+for review capture. Refused unsafe, incomplete,
+conflicting or over-cap captures do not change grades; volatile response bytes
+are cleared on refusal or error. There is no retrospective recovery of discarded
+responses. The `synthetic-review-capture-v1` execution override makes capture
+and default runs incompatible for comparison or pooling.
+
+This privileged sidecar intentionally retains bounded public synthetic final
+responses, unlike the content-free scored report and human-rating sidecar.
+Prompts, tool logs and credentials are not intentionally retained; unexpected
+secrets inside an answer are not sanitized. Restrict access and do not publish
+the capture or treat it as automatically blinded or human-rated. The low-level
+factory proves content/report binding, not unique invocation identity; the
+integrated wrapper directly associates the original runner return. Storage
+assumes quiescent owned paths and trusted same-UID writers, not tamper-proof
+provenance or an OS sandbox.
+
+A short blinded final-response-only review can assess visible clarity,
+instruction following, usefulness and uncertainty. It cannot establish tool
+chronology, agent-run verification, original source reads, failure recovery,
+global side-effect safety or complete trajectories. Even all captured turns
+are final answers, not tool traces. Keep those dimensions unverified and record
+the narrow review coverage separately; do not manufacture complete six-dimension
+human ratings from model-generated or answer-only judgments. An actual person
+must review the appropriate evidence before attesting a full review. The JSON
+format below remains a separate human-rating contract, not the capture format.
+
+## Human-rating sidecar format
+
 Create a local JSON input (example for one headless task; include every task
 listed in the report):
 

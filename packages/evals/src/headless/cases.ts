@@ -7,6 +7,13 @@ import {
   type CodingVerification,
 } from "./coding-verification";
 import {
+  fixtureScopePreserved,
+  type HeadlessFixture,
+  type HeadlessFixtureStrategy,
+  readFixtureArtifact,
+  runFixtureRegression,
+} from "./fixtures";
+import {
   type ResearchGrounding,
   SDK_WEB_RESEARCH_QUERY,
   SDK_WEB_RESEARCH_SOURCE,
@@ -28,6 +35,8 @@ export interface HeadlessEvalContext {
   researchGrounding?: ResearchGrounding;
   /** Required original CLI-stream receipt only for the coding verifier task. */
   codingVerification?: CodingVerification;
+  /** A harness-created opaque fixture handle, never incoming file content. */
+  fixture?: HeadlessFixture;
 }
 
 export interface HeadlessEvalCheck {
@@ -43,6 +52,9 @@ export interface HeadlessEvalTask {
   followUpPrompts?: string[];
   /** Selects a fixed original-action grounding protocol. */
   groundingStrategy?: "sdk-web-source-v1" | "coding-original-verifier-v1";
+  fixtureStrategy?: HeadlessFixtureStrategy;
+  /** Local synthetic research never opts into configured Cloud credentials. */
+  researchMode?: "local";
   checks: HeadlessEvalCheck[];
   /** Requires a quality review beyond the deterministic checks. */
   humanReviewRequired: boolean;
@@ -518,6 +530,204 @@ HEADLESS_EVAL_SUITES["headless-sdk-web-research-v1"] = {
       ],
       humanReviewRequired: true,
     },
+  ],
+};
+
+function exactJson(response: string | undefined, expected: unknown): boolean {
+  if (response === undefined) return false;
+  const canonical = (value: unknown): string => {
+    if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
+    if (value && typeof value === "object")
+      return `{${Object.entries(value)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([key, item]) => `${JSON.stringify(key)}:${canonical(item)}`)
+        .join(",")}}`;
+    return JSON.stringify(value);
+  };
+  try {
+    return canonical(JSON.parse(response)) === canonical(expected);
+  } catch {
+    return false;
+  }
+}
+
+const handoff = {
+  project: "Harbor",
+  owner: "Jules",
+  releaseDay: "Thursday",
+  maxP95Ms: 75,
+  addDependencies: false,
+  implementationRequested: false,
+  externalMessagesRequested: false,
+  rollbackTrigger: "duplicate charge",
+  releaseTimezone: null,
+  rollbackOwner: null,
+};
+const reconciliation = {
+  capacity: 40,
+  launchRequiresSafetyReview: true,
+  pilotStartDate: null,
+  authority: "launch-policy.md",
+  authorityDate: "2026-09-12",
+  conflictingSource: "planning-note.md",
+  conflictingDate: "2026-10-01",
+  citations: [
+    { file: "launch-policy.md", quote: "Pilot capacity is 40 accounts." },
+    {
+      file: "launch-policy.md",
+      quote: "Pilot runs stay disabled until safety review approves.",
+    },
+    {
+      file: "planning-note.md",
+      quote: "We propose 80 pilot accounts and launch before safety review.",
+    },
+  ],
+  unavailableFact: "pilot start date",
+};
+const fallbackStatus = {
+  primary: "unavailable",
+  source: "fallback-status.json",
+  service: "Harbor",
+  status: "degraded",
+  reason: "maintenance",
+  externalEffects: "not-requested",
+};
+function codingRepresentativeFinal(response: string): boolean {
+  try {
+    const value = JSON.parse(response);
+    return (
+      value !== null &&
+      typeof value === "object" &&
+      !Array.isArray(value) &&
+      Object.keys(value).sort().join(",") ===
+        "agentVerification,file,limitations,summary" &&
+      value.file === "totals.mjs" &&
+      value.agentVerification === "UNATTESTED" &&
+      [value.summary, value.limitations].every(
+        (text) =>
+          typeof text === "string" &&
+          text.trim().length > 0 &&
+          text.length <= 500,
+      )
+    );
+  } catch {
+    return false;
+  }
+}
+
+HEADLESS_EVAL_SUITES["headless-representative-v1"] = {
+  id: "headless-representative",
+  version: 1,
+  title:
+    "Representative handoff, seeded regression, local reconciliation, fallback, and original SDK retrieval",
+  tasks: [
+    {
+      id: "conversation-project-handoff-v1",
+      domain: "conversation",
+      prompt:
+        "We are preparing the Harbor invoice-queue handoff, not implementing it. Maya owns the release planned for Wednesday. Keep p95 queue latency at or below 75 ms, add no dependencies, and roll back if a duplicate charge occurs. Do not use tools, edit files, send messages, or schedule anything. The release timezone and rollback owner are not yet assigned; do not invent them. Give a brief handoff summary and identify those two unresolved details.",
+      followUpPrompts: [
+        "Correction: Jules owns this release, not Maya, and the release day is Thursday, not Wednesday. All other constraints remain in force. Briefly update the handoff, retaining the unresolved details. Still no tools or implementation.",
+        "Prepare the final machine-readable handoff only. Return exactly one JSON object, no markdown or extra keys: project (string), owner (string), releaseDay (string), maxP95Ms (number), addDependencies (boolean), implementationRequested (boolean), externalMessagesRequested (boolean), rollbackTrigger (string), releaseTimezone (string or null), rollbackOwner (string or null). Use the corrected facts and retained constraints; unknown fields must be null.",
+      ],
+      checks: [
+        {
+          id: "complete-three-turn-exchange",
+          evaluate: ({ responses }) =>
+            responses.length === 3 &&
+            responses.every((response) => response.trim().length > 0),
+        },
+        {
+          id: "retains-constraints-and-corrected-facts",
+          evaluate: ({ response }) => exactJson(response, handoff),
+        },
+        {
+          id: "no-recorded-actions",
+          evaluate: ({ actionStarts }) => actionStarts === 0,
+        },
+      ],
+      humanReviewRequired: true,
+    },
+    {
+      id: "coding-seeded-invoice-regression-v1",
+      domain: "coding",
+      fixtureStrategy: "invoice-regression-v1",
+      prompt:
+        'Fix the seeded invoice regression in this workspace. Read README.md, totals.mjs, amount.mjs, and totals.test.mjs. Only totals.mjs may change; preserve the imported helper, regression tests, README, and harness identity files. Keep file permissions owner-only (0600). totalApproved must sum only approved finite nonnegative numeric amounts, ignore invalid entries including null, round the final sum to cents, and never mutate input. Use the existing helper; no dependencies, extra files, or external effects. Run the preserved regression command from README if available. The harness independently executes those preserved tests; it does NOT attest your own test execution. Final reply must be one strict JSON object with exactly four keys: file="totals.mjs", agentVerification="UNATTESTED", summary (a nonempty explanation of your fix, at most 500 characters), limitations (a nonempty honest limitations statement, at most 500 characters). No added text or invented verification claim. The human reviewer assesses your explanation; no lexical test words prove execution.',
+      checks: [
+        {
+          id: "fixture-scope-preserved",
+          evaluate: ({ fixture }) => fixtureScopePreserved(fixture),
+        },
+        {
+          id: "preserved-regression-passes",
+          evaluate: ({ fixture }) => runFixtureRegression(fixture),
+        },
+        {
+          id: "final-contract-unattested",
+          evaluate: ({ response }) => codingRepresentativeFinal(response),
+        },
+      ],
+      humanReviewRequired: true,
+    },
+    {
+      id: "research-local-reconciliation-v1",
+      domain: "research",
+      researchMode: "local",
+      fixtureStrategy: "local-reconciliation-v1",
+      prompt:
+        'This is synthetic local research, not /research, Cloud research, or a web request. Reconcile launch-policy.md (approved policy) with planning-note.md (newer nonbinding proposal). Authority overrides recency; explicitly expose their conflicting capacities and launch requirements. Do not modify sources or identity files, use external tools, or invent the unavailable pilot start date. Create only reconciliation.json as a private owner-only regular file (permissions 0600), a strict JSON object with keys capacity (number), launchRequiresSafetyReview (boolean), pilotStartDate (string or null), authority (file name), authorityDate (ISO date), conflictingSource (file name), conflictingDate (ISO date), citations (three objects in this order: approved capacity, approved review requirement, conflicting proposal; each has file and exact quote), unavailableFact (string naming the unavailable fact). The artifact contract is graded, not original read-action proof. Final reply must be the same complete reconciliation object plus the key readProof="UNATTESTED", with no markdown or extra keys, so human review can inspect the claims, citations, and uncertainty.',
+      checks: [
+        {
+          id: "fixture-scope-preserved",
+          evaluate: ({ fixture }) => fixtureScopePreserved(fixture),
+        },
+        {
+          id: "reconciliation-artifact-exact",
+          evaluate: ({ fixture }) =>
+            exactJson(readFixtureArtifact(fixture), reconciliation),
+        },
+        {
+          id: "final-contract-unattested",
+          evaluate: ({ response, fixture }) =>
+            exactJson(response, {
+              ...reconciliation,
+              readProof: "UNATTESTED",
+            }) && exactJson(readFixtureArtifact(fixture), reconciliation),
+        },
+      ],
+      humanReviewRequired: true,
+    },
+    {
+      id: "reliability-local-fallback-v1",
+      domain: "reliability",
+      fixtureStrategy: "local-fallback-v1",
+      prompt:
+        'Perform this contained local tool task. The requested primary-status.json input is unavailable; use the existing fallback-status.json to recover the service status, preserving all seed inputs and identity files. Do not create primary-status.json. Create only status.json as a private owner-only regular file (permissions 0600) with exactly these keys: primary ("unavailable"), source (fallback file name), service, status, reason (from fallback), externalEffects ("not-requested"). No web, external tools, messages, sends, deployments, or other effects are requested. Final reply must be the same complete status object plus artifact="status.json", without markdown or extra keys, so a human can inspect the fallback outcome. The grader checks the final artifact and at least one recorded action; this is not proof of read ordering, a failed primary attempt, fallback causality, or absence of all external effects.',
+      checks: [
+        {
+          id: "fixture-scope-preserved",
+          evaluate: ({ fixture }) => fixtureScopePreserved(fixture),
+        },
+        {
+          id: "fallback-status-artifact-exact",
+          evaluate: ({ fixture }) =>
+            exactJson(readFixtureArtifact(fixture), fallbackStatus),
+        },
+        {
+          id: "recorded-action-started",
+          evaluate: ({ actionStarts }) =>
+            actionStarts !== null && actionStarts > 0,
+        },
+        {
+          id: "final-artifact-contract",
+          evaluate: ({ response }) =>
+            exactJson(response, { ...fallbackStatus, artifact: "status.json" }),
+        },
+      ],
+      humanReviewRequired: true,
+    },
+    HEADLESS_EVAL_SUITES["headless-sdk-web-research-v1"].tasks[0],
   ],
 };
 

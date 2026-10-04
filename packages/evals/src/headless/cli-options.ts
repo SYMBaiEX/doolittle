@@ -4,6 +4,7 @@ export interface HeadlessEvalCliOptions {
   routeLabel?: string;
   taskIds: string[];
   showResponses: boolean;
+  captureSyntheticResponses: boolean;
   showActionLabels: boolean;
   enableConfiguredCloudResearch: boolean;
   recordActionDiagnostics: boolean;
@@ -18,6 +19,7 @@ export function parseHeadlessEvalCliOptions(
     suiteId: "headless-workflows-v2",
     taskIds: [],
     showResponses: false,
+    captureSyntheticResponses: false,
     showActionLabels: false,
     enableConfiguredCloudResearch: false,
     recordActionDiagnostics: false,
@@ -30,6 +32,10 @@ export function parseHeadlessEvalCliOptions(
     if (value === "--help" || value === "-h") return undefined;
     if (value === "--show-responses") {
       options.showResponses = true;
+      continue;
+    }
+    if (value === "--capture-synthetic-responses") {
+      options.captureSyntheticResponses = true;
       continue;
     }
     if (value === "--show-action-labels") {
@@ -70,6 +76,11 @@ export function parseHeadlessEvalCliOptions(
       continue;
     }
     throw new Error(`Unknown headless evaluation option: ${value}`);
+  }
+  if (options.captureSyntheticResponses && options.showResponses) {
+    throw new Error(
+      "--capture-synthetic-responses cannot be combined with --show-responses.",
+    );
   }
   return options;
 }

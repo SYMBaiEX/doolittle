@@ -7,6 +7,7 @@ import {
   readFileSync,
   realpathSync,
   renameSync,
+  rmdirSync,
   rmSync,
   statSync,
   symlinkSync,
@@ -28,12 +29,313 @@ import {
   PLANNER_ALIAS_TOOL_DEDUPLICATION_FLAG,
   PLANNER_ALIAS_TOOL_DEDUPLICATION_OVERRIDE,
 } from "./execution-overrides";
+import * as fixtures from "./fixtures";
 import * as measurement from "./measurement";
 import * as modelInputObservations from "./model-input-observations";
 import * as researchGrounding from "./research-grounding";
-import { runHeadlessEvalSuite } from "./runner";
+import {
+  runHeadlessEvalSuite,
+  SYNTHETIC_REVIEW_CAPTURE_OVERRIDE,
+} from "./runner";
 
 const temporaryDirectories: string[] = [];
+
+describe("representative fixture runner setup and preflight", () => {
+  const representative = HEADLESS_EVAL_SUITES["headless-representative-v1"];
+  const success = (text: string) => ({
+    status: 0,
+    stdout: JSON.stringify({ ok: true, text }),
+    stderr: "",
+    signal: null,
+    cleanupSafe: true,
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllEnvs();
+  });
+  it("rejects unknown fixture strategies before persistence or provider dispatch", async () => {
+    const task = {
+      ...representative.tasks[1],
+      fixtureStrategy: "incoming-content" as never,
+    };
+    const reportDir = join(tempDirectory(), "not-created");
+    const execute = vi.fn();
+    await expect(
+      runHeadlessEvalSuite(
+        { ...representative, tasks: [task] },
+        { reportDir, execute },
+      ),
+    ).rejects.toThrow("Unknown headless fixture strategy");
+    expect(execute).not.toHaveBeenCalled();
+    expect(existsSync(reportDir)).toBe(false);
+  });
+  it("rejects unknown local research modes before persistence or provider dispatch", async () => {
+    const task = {
+      ...representative.tasks[2],
+      researchMode: "incoming-provider" as never,
+    };
+    const reportDir = join(tempDirectory(), "not-created");
+    const execute = vi.fn();
+    await expect(
+      runHeadlessEvalSuite(
+        { ...representative, tasks: [task] },
+        { reportDir, execute },
+      ),
+    ).rejects.toThrow("Unknown headless research mode");
+    expect(execute).not.toHaveBeenCalled();
+    expect(existsSync(reportDir)).toBe(false);
+  });
+  it("does not dispatch when fixture setup refuses a substituted workspace", async () => {
+    const prepare = fixtures.prepareHeadlessFixture;
+    const foreign = tempDirectory();
+    const execute = vi.fn();
+    vi.spyOn(fixtures, "prepareHeadlessFixture").mockImplementation(
+      (strategy, workspace) => {
+        rmdirSync(workspace);
+        symlinkSync(foreign, workspace);
+        return prepare(strategy, workspace);
+      },
+    );
+    await expect(
+      runHeadlessEvalSuite(representative, {
+        taskIds: [representative.tasks[1].id],
+        reportDir: tempDirectory(),
+        execute,
+      }),
+    ).rejects.toThrow("Unsafe headless fixture root");
+    expect(execute).not.toHaveBeenCalled();
+    expect(readdirSync(foreign)).toEqual([]);
+  });
+  it("seeds a real multi-file fixture before dispatch and independently grades the corrected source", async () => {
+    const result = await runHeadlessEvalSuite(representative, {
+      taskIds: [representative.tasks[1].id],
+      reportDir: tempDirectory(),
+      execute: (_command, _args, options) => {
+        const workspace = options.env.DOOLITTLE_WORKSPACE_DIR;
+        if (!workspace) throw new Error("Missing synthetic workspace");
+        expect(readdirSync(workspace).sort()).toEqual([
+          "AGENTS.md",
+          "CLAUDE.md",
+          "README.md",
+          "amount.mjs",
+          "totals.mjs",
+          "totals.test.mjs",
+        ]);
+        writeFileSync(
+          join(workspace, "totals.mjs"),
+          "import { isFiniteAmount } from './amount.mjs'; export function totalApproved(items) { return Math.round(items.reduce((sum, item) => item?.status === 'approved' && isFiniteAmount(item.amount) ? sum + item.amount : sum, 0) * 100) / 100; }",
+        );
+        return success(
+          JSON.stringify({
+            file: "totals.mjs",
+            agentVerification: "UNATTESTED",
+            summary:
+              "Filter approved amounts using the helper and round the final sum.",
+            limitations:
+              "Independent grader checks do not attest my own verification run.",
+          }),
+        );
+      },
+    });
+    expect(result.exitCode).toBe(0);
+    expect(result.report.schemaVersion).toBe(5);
+    expect(result.report.evaluatorVersion).toBe("0.2.13");
+    expect(result.report.runs[0].checks.every((check) => check.passed)).toBe(
+      true,
+    );
+  });
+  it("does not certify forged test claims or protected-file tampering", async () => {
+    const result = await runHeadlessEvalSuite(representative, {
+      taskIds: [representative.tasks[1].id],
+      reportDir: tempDirectory(),
+      execute: (_command, _args, options) => {
+        const workspace = options.env.DOOLITTLE_WORKSPACE_DIR;
+        if (!workspace) throw new Error("Missing synthetic workspace");
+        writeFileSync(
+          join(workspace, "totals.test.mjs"),
+          "export function runRegression() {}\n",
+        );
+        return success(
+          '{"file":"totals.mjs","agentVerification":"passed","summary":"All tests passed","limitations":"none"}',
+        );
+      },
+    });
+    expect(result.exitCode).toBe(1);
+    expect(result.report.runs[0].checks.every((check) => !check.passed)).toBe(
+      true,
+    );
+  });
+  it("keeps local research off Cloud without resolving credentials, even with broad opt-in enabled", async () => {
+    const credentials = vi.spyOn(accountAuth, "getLinkedElizaCloudCredentials");
+    const result = await runHeadlessEvalSuite(representative, {
+      taskIds: [representative.tasks[2].id],
+      enableConfiguredCloudResearch: true,
+      reportDir: tempDirectory(),
+      execute: (_command, _args, options) => {
+        expect(options.env.ELIZAOS_CLOUD_ENABLED).toBe("false");
+        expect(options.env.ELIZAOS_CLOUD_API_KEY).toBeUndefined();
+        return success("Synthetic local failure, no fabricated source report.");
+      },
+    });
+    expect(credentials).not.toHaveBeenCalled();
+    expect(result.report.executionOverrides).toEqual([]);
+  });
+  it("rejects Cloud opt-in for the full representative suite before dispatch", async () => {
+    const execute = vi.fn();
+    const reportDir = join(tempDirectory(), "not-created");
+    await expect(
+      runHeadlessEvalSuite(representative, {
+        reportDir,
+        execute,
+        enableConfiguredCloudResearch: true,
+      }),
+    ).rejects.toThrow("SDK-web research cannot enable");
+    expect(execute).not.toHaveBeenCalled();
+    expect(existsSync(reportDir)).toBe(false);
+  });
+  it("requires available action telemetry for a correct fallback artifact", async () => {
+    const status = {
+      primary: "unavailable",
+      source: "fallback-status.json",
+      service: "Harbor",
+      status: "degraded",
+      reason: "maintenance",
+      externalEffects: "not-requested",
+    };
+    const result = await runHeadlessEvalSuite(representative, {
+      taskIds: [representative.tasks[3].id],
+      reportDir: tempDirectory(),
+      execute: (_command, _args, options) => {
+        const workspace = options.env.DOOLITTLE_WORKSPACE_DIR;
+        if (!workspace) throw new Error("Missing synthetic workspace");
+        expect(existsSync(join(workspace, "primary-status.json"))).toBe(false);
+        writeFileSync(join(workspace, "status.json"), JSON.stringify(status), {
+          mode: 0o600,
+        });
+        return success(JSON.stringify({ ...status, artifact: "status.json" }));
+      },
+    });
+    expect(result.report.runs[0].checks).toEqual([
+      { id: "fixture-scope-preserved", passed: true },
+      { id: "fallback-status-artifact-exact", passed: true },
+      { id: "recorded-action-started", passed: false },
+      { id: "final-artifact-contract", passed: true },
+    ]);
+    expect(result.exitCode).toBe(1);
+  });
+  it("runs all three handoff turns in the same isolated session and refuses incomplete responses", async () => {
+    const sessions: string[] = [];
+    let turn = 0;
+    const response = JSON.stringify({
+      project: "Harbor",
+      owner: "Jules",
+      releaseDay: "Thursday",
+      maxP95Ms: 75,
+      addDependencies: false,
+      implementationRequested: false,
+      externalMessagesRequested: false,
+      rollbackTrigger: "duplicate charge",
+      releaseTimezone: null,
+      rollbackOwner: null,
+    });
+    const result = await runHeadlessEvalSuite(representative, {
+      taskIds: [representative.tasks[0].id],
+      reportDir: tempDirectory(),
+      execute: (_command, args, options) => {
+        const index = args.indexOf("--session-id");
+        sessions.push(args[index + 1]);
+        const data = options.env.DOOLITTLE_DATA_DIR;
+        if (!data) throw new Error("Missing synthetic data");
+        mkdirSync(join(data, "trajectories"), { recursive: true });
+        writeFileSync(
+          join(data, "trajectories", "trajectory-events.jsonl"),
+          "",
+        );
+        turn += 1;
+        return success(
+          turn === 3 ? response : `Synthetic handoff turn ${turn}`,
+        );
+      },
+    });
+    expect(result.report.summary.objectiveChecksPassed).toBe(3);
+    expect(new Set(sessions).size).toBe(1);
+    expect(result.report.runs[0].timing.execInvocations).toBe(3);
+    let attempts = 0;
+    const failed = await runHeadlessEvalSuite(representative, {
+      taskIds: [representative.tasks[0].id],
+      reportDir: tempDirectory(),
+      execute: () => {
+        attempts++;
+        return success("");
+      },
+    });
+    expect(attempts).toBe(1);
+    expect(failed.report.runs[0].status).toBe("failed");
+    expect(failed.report.runs[0].checks.every((check) => !check.passed)).toBe(
+      true,
+    );
+  });
+  it.each([
+    {
+      responseObserverMode: "unknown",
+      showResponses: true,
+      onResponse: () => undefined,
+    },
+    {
+      responseObserverMode: "synthetic-review-capture-v1",
+      showResponses: false,
+      onResponse: () => undefined,
+    },
+    {
+      responseObserverMode: "synthetic-review-capture-v1",
+      showResponses: true,
+    },
+  ])(
+    "rejects invalid synthetic observer shapes before persistence/dispatch",
+    async (observer) => {
+      const execute = vi.fn();
+      const reportDir = join(tempDirectory(), "not-created");
+      await expect(
+        runHeadlessEvalSuite(
+          { ...representative, tasks: [representative.tasks[0]] },
+          { ...observer, reportDir, execute } as never,
+        ),
+      ).rejects.toThrow(
+        "Invalid synthetic review response observer configuration",
+      );
+      expect(execute).not.toHaveBeenCalled();
+      expect(existsSync(reportDir)).toBe(false);
+    },
+  );
+  it("marks only opted-in synthetic response observers in the ordered compatibility overrides", async () => {
+    const tiny = {
+      ...representative,
+      tasks: [{ ...representative.tasks[0], followUpPrompts: [], checks: [] }],
+    };
+    const observer = vi.fn();
+    const enabled = await runHeadlessEvalSuite(tiny, {
+      reportDir: tempDirectory(),
+      showResponses: true,
+      onResponse: observer,
+      responseObserverMode: "synthetic-review-capture-v1",
+      execute: () => success("Synthetic final response"),
+    });
+    const baseline = await runHeadlessEvalSuite(tiny, {
+      reportDir: tempDirectory(),
+      execute: () => success("Synthetic final response"),
+    });
+    expect(observer).toHaveBeenCalledWith(
+      tiny.tasks[0].id,
+      "Synthetic final response",
+      1,
+      1,
+    );
+    expect(enabled.report.executionOverrides).toEqual([
+      SYNTHETIC_REVIEW_CAPTURE_OVERRIDE,
+    ]);
+    expect(baseline.report.executionOverrides).toEqual([]);
+  });
+});
 
 describe("optional first-runtime model input receipts", () => {
   const suite: HeadlessEvalSuite = {
@@ -205,7 +507,7 @@ describe("optional first-runtime model input receipts", () => {
     expect(receipt).toMatchObject({
       schemaVersion: 1,
       reportSchemaVersion: 5,
-      evaluatorVersion: "0.2.12",
+      evaluatorVersion: "0.2.13",
       reportSha256: measurement.digest(readFileSync(path, "utf8")),
       coverage: "first-creating-runtime-only",
     });
@@ -611,7 +913,7 @@ describe("separately identified SDK-web research grading", () => {
     expect(result.report.summary.objectiveChecksPassed).toBe(5);
     expect(result.report.runs[0].humanReviewRequired).toBe(true);
     expect(result.report.schemaVersion).toBe(5);
-    expect(result.report.evaluatorVersion).toBe("0.2.12");
+    expect(result.report.evaluatorVersion).toBe("0.2.13");
     expect(result.report.executionOverrides).toEqual([]);
     expect(
       result.report.runs[0].diagnosticFlags.some((flag) =>
@@ -940,7 +1242,7 @@ describe("original coding verifier CLI-stream grading", () => {
     expect(observedFlag).toBe("true");
     expect(result.exitCode).toBe(0);
     expect(result.report.schemaVersion).toBe(5);
-    expect(result.report.evaluatorVersion).toBe("0.2.12");
+    expect(result.report.evaluatorVersion).toBe("0.2.13");
     expect(result.report.summary.objectiveChecksPassed).toBe(4);
     expect(result.report.summary.objectiveChecksTotal).toBe(4);
     expect(result.report.runs[0].checks.map((check) => check.passed)).toEqual([
@@ -1125,7 +1427,7 @@ describe("private optional action receipt persistence", () => {
     expect(JSON.parse(actionBytes)).toMatchObject({
       schemaVersion: 1,
       reportSchemaVersion: 5,
-      evaluatorVersion: "0.2.12",
+      evaluatorVersion: "0.2.13",
       reportSha256: measurement.digest(reportBytes),
       mode: "opt-in-action-diagnostics",
     });

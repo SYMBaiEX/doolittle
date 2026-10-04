@@ -33,6 +33,7 @@ import {
   PLANNER_ALIAS_TOOL_DEDUPLICATION_FLAG,
   PLANNER_ALIAS_TOOL_DEDUPLICATION_OVERRIDE,
 } from "./execution-overrides";
+import { prepareHeadlessFixture, validateFixtureStrategy } from "./fixtures";
 import {
   type AdvertisedRoute,
   advertisedRoute,
@@ -76,6 +77,8 @@ import {
 } from "./trace-summary";
 
 export type { HeadlessModelUsage } from "./model-usage";
+export const SYNTHETIC_REVIEW_CAPTURE_OVERRIDE =
+  "Bounded synthetic review observer captured final responses only; response processing includes callback overhead, without trajectory or human-review attestation.";
 
 export interface HeadlessEvalCheckResult {
   id: string;
@@ -147,6 +150,7 @@ export interface RunHeadlessEvalOptions {
   /** Explicitly opts this run into planner duplicate-alias suppression. */
   deduplicatePlannerAliasTools?: boolean;
   showResponses?: boolean;
+  responseObserverMode?: "synthetic-review-capture-v1";
   /** Diagnostic observers must return promptly. Async completion is not awaited. */
   onActionLabels?: (
     taskId: string,
@@ -432,6 +436,20 @@ export async function runHeadlessEvalSuite(
       "Headless evaluation task IDs must be safe path components.",
     );
   }
+  for (const task of selectedTasks) {
+    validateFixtureStrategy(task.fixtureStrategy);
+    if (task.researchMode !== undefined && task.researchMode !== "local")
+      throw new Error("Unknown headless research mode.");
+  }
+  if (
+    options.responseObserverMode !== undefined &&
+    (options.responseObserverMode !== "synthetic-review-capture-v1" ||
+      options.showResponses !== true ||
+      typeof options.onResponse !== "function")
+  )
+    throw new Error(
+      "Invalid synthetic review response observer configuration.",
+    );
   if (
     selectedTasks.some((task) => task.groundingStrategy === "sdk-web-source-v1")
   ) {
@@ -477,7 +495,9 @@ export async function runHeadlessEvalSuite(
   const sourceAtStart = readSourceIdentity(repoRoot);
   const cloudResearchOptedIn = Boolean(
     options.enableConfiguredCloudResearch &&
-      selectedTasks.some((task) => task.domain === "research"),
+      selectedTasks.some(
+        (task) => task.domain === "research" && task.researchMode !== "local",
+      ),
   );
   const cloudCredentials = cloudResearchOptedIn
     ? configuredElizaCloudCredentials()
@@ -516,6 +536,9 @@ export async function runHeadlessEvalSuite(
       taskIdentities.set(taskRoot, taskIdentity);
       mkdirSync(dataDir, { recursive: true, mode: 0o700 });
       mkdirSync(workspaceDir, { recursive: true, mode: 0o700 });
+      const fixture = task.fixtureStrategy
+        ? prepareHeadlessFixture(task.fixtureStrategy, workspaceDir)
+        : undefined;
       writeFileSync(join(dataDir, "onboarding.json"), "{}\n", {
         mode: 0o600,
       });
@@ -543,6 +566,7 @@ export async function runHeadlessEvalSuite(
       const diagnosticFlags = new Set<string>();
       if (
         task.domain === "research" &&
+        task.researchMode !== "local" &&
         cloudResearchOptedIn &&
         !cloudCredentials?.apiKey
       ) {
@@ -600,6 +624,7 @@ export async function runHeadlessEvalSuite(
             : "false";
         if (
           task.domain === "research" &&
+          task.researchMode !== "local" &&
           cloudResearchOptedIn &&
           cloudCredentials?.apiKey
         ) {
@@ -841,6 +866,7 @@ export async function runHeadlessEvalSuite(
       }
       const gradingContext = {
         ...checkContext,
+        ...(fixture && childCleanupSafe ? { fixture } : {}),
         ...(researchGrounding ? { researchGrounding } : {}),
         ...(codingVerification ? { codingVerification } : {}),
       };
@@ -978,6 +1004,8 @@ export async function runHeadlessEvalSuite(
       );
     if (options.deduplicatePlannerAliasTools)
       report.executionOverrides.push(PLANNER_ALIAS_TOOL_DEDUPLICATION_OVERRIDE);
+    if (options.responseObserverMode === "synthetic-review-capture-v1")
+      report.executionOverrides.push(SYNTHETIC_REVIEW_CAPTURE_OVERRIDE);
     const reportLeaf = privateReportFilename(
       createdAt,
       suite.id,

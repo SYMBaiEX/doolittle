@@ -1,7 +1,11 @@
 import { formatActionCounts } from "./action-counts-format";
 import { findHeadlessEvalSuite } from "./cases";
 import { parseHeadlessEvalCliOptions } from "./cli-options";
-import { runHeadlessEvalSuite } from "./runner";
+import {
+  type ResponseCaptureResult,
+  runSyntheticReviewEval,
+} from "./response-capture";
+import { type RunHeadlessEvalOptions, runHeadlessEvalSuite } from "./runner";
 
 function printHelp(): void {
   console.log(
@@ -12,6 +16,7 @@ function printHelp(): void {
       "  --route-label NAME  Label this run for comparison",
       "  --report-dir PATH   Private output directory (defaults under local state)",
       "  --show-responses    Print raw responses locally; reports never contain them",
+      "  --capture-synthetic-responses  Silently write bounded synthetic final responses to a private sidecar; incompatible with --show-responses; not blinded or human-rated",
       "  --show-action-labels  Print bounded action labels locally; non-allowlisted labels are redacted and reports never contain labels",
       "  --record-action-diagnostics  Write an opt-in private content-free action-event category receipt; not distinct commands or causal failure evidence",
       "  --record-model-inputs  Retain private content-free first-creating-runtime input observations; phase/worker/wire-byte/full-overhead coverage unavailable",
@@ -32,19 +37,14 @@ async function main(): Promise<number> {
     if (!suite) {
       throw new Error(`Unknown headless evaluation suite: ${options.suiteId}`);
     }
-    const {
-      report,
-      reportPath,
-      exitCode,
-      measurementReceiptStatus,
-      actionDiagnosticsReceiptStatus,
-      modelInputReceiptStatus,
-    } = await runHeadlessEvalSuite(suite, {
+    const runOptions: Omit<
+      RunHeadlessEvalOptions,
+      "onResponse" | "showResponses" | "responseObserverMode"
+    > = {
       reportDir: options.reportDir,
       routeLabel: options.routeLabel,
       enableConfiguredCloudResearch: options.enableConfiguredCloudResearch,
       taskIds: options.taskIds,
-      showResponses: options.showResponses,
       recordActionDiagnostics: options.recordActionDiagnostics,
       recordModelInputs: options.recordModelInputs,
       deduplicatePlannerAliasTools: options.deduplicatePlannerAliasTools,
@@ -58,12 +58,34 @@ async function main(): Promise<number> {
             );
           }
         : undefined,
-      onResponse: (taskId, response, turnNumber, turnTotal) => {
-        const turnLabel =
-          turnTotal > 1 ? ` · turn ${turnNumber}/${turnTotal}` : "";
-        console.log(`\n--- ${taskId}${turnLabel} response ---\n${response}\n`);
-      },
-    });
+    };
+    let responseCapture: ResponseCaptureResult | undefined;
+    const result = options.captureSyntheticResponses
+      ? await runSyntheticReviewEval(options.suiteId, runOptions).then(
+          (captured) => {
+            responseCapture = captured.responseCapture;
+            return captured;
+          },
+        )
+      : await runHeadlessEvalSuite(suite, {
+          ...runOptions,
+          showResponses: options.showResponses,
+          onResponse: (taskId, response, turnNumber, turnTotal) => {
+            const turnLabel =
+              turnTotal > 1 ? ` · turn ${turnNumber}/${turnTotal}` : "";
+            console.log(
+              `\n--- ${taskId}${turnLabel} response ---\n${response}\n`,
+            );
+          },
+        });
+    const {
+      report,
+      reportPath,
+      exitCode,
+      measurementReceiptStatus,
+      actionDiagnosticsReceiptStatus,
+      modelInputReceiptStatus,
+    } = result;
     console.log(
       `${report.suite.id} v${report.suite.version} · schema v${report.schemaVersion} · evaluator ${report.evaluatorVersion} · route label ${report.routeLabel} · advertised product default ${report.route.provider ?? "unknown"}/sha256:${report.route.modelSha256} (${report.route.reasoningEffort ?? "unknown"}); expected fresh Settings configuration, not effective-route attestation`,
     );
@@ -127,6 +149,14 @@ async function main(): Promise<number> {
       `Objective checks: ${report.summary.objectiveChecksPassed}/${report.summary.objectiveChecksTotal}; human review required for ${report.summary.humanReviewRequired} task(s); suite eval wall time ${report.summary.suiteWallTimeMs}ms (setup + doolittle exec + grading; excludes report I/O).`,
     );
     console.log(`Private report: ${reportPath}`);
+    if (responseCapture) {
+      const capture = responseCapture;
+      console.log(
+        capture.status === "written"
+          ? `Private synthetic response capture: written · ${capture.path}; final responses only, not blinded or human-rated.`
+          : `Private synthetic response capture: unavailable (${capture.reason}); objective grade unchanged.`,
+      );
+    }
     if (options.recordActionDiagnostics)
       console.log(
         `Content-free action diagnostics receipt: ${actionDiagnosticsReceiptStatus}; event counts only, not failure causes or worker-command attribution.`,
