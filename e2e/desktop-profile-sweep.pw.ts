@@ -241,6 +241,15 @@ async function auditInterfaceModes(
     await expectElectronViewport(page, desktopViewport);
   }
   expect(auditedControls).toBeGreaterThan(0);
+  console.log(
+    `DOOLITTLE_INTERFACE_MODES=${JSON.stringify({
+      routes: routes.length,
+      modes: interfaceModes.length,
+      viewports: 2,
+      geometryChecks: routes.length * interfaceModes.length * 2,
+      auditedControls,
+    })}`,
+  );
 }
 
 async function setNativeTheme(
@@ -490,6 +499,15 @@ async function auditThemeResponsiveness(
     require: ["shell", "composer", "terminal"],
   });
   await setNativeTheme(app, "system");
+  console.log(
+    "DOOLITTLE_THEME_RESPONSIVENESS=" +
+      JSON.stringify({
+        explicitAppearances: 2,
+        nativeSystemTransitions: 2,
+        importedThemeApplied: true,
+        surfaces: ["shell", "composer", "editor", "terminal"],
+      }),
+  );
 }
 
 async function auditResponsiveRoutes(
@@ -556,6 +574,14 @@ async function auditResponsiveRoutes(
 
   await resizeElectronWindow(app, desktopViewport);
   await waitForViewportLayout(page);
+  console.log(
+    `DOOLITTLE_RESPONSIVE_ROUTES=${JSON.stringify({
+      routes: routes.length,
+      viewports: responsiveAuditViewports.length,
+      geometryChecks: routes.length * responsiveAuditViewports.length,
+      mode: `${mode.appearance}/${mode.density}`,
+    })}`,
+  );
 }
 
 function normalizeScreenshotDir(
@@ -724,10 +750,31 @@ async function expectViewportGeometry(
   mode: (typeof interfaceModes)[number],
   viewport: { height: number; width: number },
 ): Promise<void> {
+  if (route === "chat") {
+    const activeConversation = page
+      .locator(
+        '.view-container[data-view="chat"] [data-session-panel]:not([hidden]) .chat-conversation',
+      )
+      .first();
+    // These controls are unconditional, even when Send is legitimately
+    // disabled. Optional-action filtering must never hide their disappearance.
+    await expect(
+      activeConversation.getByRole("button", {
+        name: "Attach multiple files",
+        exact: true,
+      }),
+    ).toBeVisible();
+    await expect(
+      activeConversation.locator(".chat-composer-submit"),
+    ).toBeVisible();
+    await expect(
+      activeConversation.locator(".composer-model-trigger"),
+    ).toBeVisible();
+  }
   const geometry = await page.evaluate(
     ({ route, viewport }) => {
-      const readBox = (selector: string) => {
-        const element = document.querySelector<HTMLElement>(selector);
+      const readBox = (selector: string, root: ParentNode = document) => {
+        const element = root.querySelector<HTMLElement>(selector);
         if (!element) return null;
         const rect = element.getBoundingClientRect();
         return {
@@ -743,6 +790,134 @@ async function expectViewportGeometry(
       const view = document.querySelector<HTMLElement>(
         `.view-container[data-view="${route}"]`,
       );
+      // A retained chat tree is not the active route/pane. Measure the real
+      // visible conversation, whose named session container owns its controls.
+      const conversation = view?.querySelector<HTMLElement>(
+        "[data-session-panel]:not([hidden]) .chat-conversation",
+      );
+      const composer =
+        conversation?.querySelector<HTMLElement>(".chat-composer");
+      const composerActions = composer
+        ? Array.from(
+            composer.querySelectorAll<HTMLElement>(
+              ".chat-composer-tools button, .chat-composer-routing button, .chat-composer-meta-toggle, .chat-composer-submit",
+            ),
+          )
+            .filter((element) => {
+              const style = getComputedStyle(element);
+              const rect = element.getBoundingClientRect();
+              return (
+                style.display !== "none" &&
+                style.visibility !== "hidden" &&
+                rect.width > 0 &&
+                rect.height > 0
+              );
+            })
+            .map((element) => {
+              const rect = element.getBoundingClientRect();
+              return {
+                bottom: rect.bottom,
+                height: rect.height,
+                label: element.getAttribute("aria-label") ?? "composer action",
+                left: rect.left,
+                right: rect.right,
+                top: rect.top,
+                width: rect.width,
+              };
+            })
+        : [];
+      // The form's one-column auto rows must shrink-wrap their content, not
+      // stretch the composer into the transcript's minmax(0,1fr) row. Derive
+      // the required footer from its controls rather than a possibly stretched
+      // footer box; include legitimate normal-flow optional rows separately.
+      const normalFlowBox = (element: HTMLElement) => {
+        const style = getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        if (
+          style.display === "none" ||
+          style.visibility === "hidden" ||
+          style.position === "absolute" ||
+          style.position === "fixed" ||
+          rect.height === 0
+        )
+          return null;
+        return {
+          height: rect.height,
+          margin:
+            (Number.parseFloat(style.marginTop) || 0) +
+            (Number.parseFloat(style.marginBottom) || 0),
+        };
+      };
+      const intrinsicComposer = composer
+        ? (() => {
+            const rows = Array.from(composer.children).filter(
+              (element): element is HTMLElement =>
+                element instanceof HTMLElement &&
+                normalFlowBox(element) !== null,
+            );
+            const optionalRows = rows.filter(
+              (element) =>
+                !element.matches(".chat-composer-main, .chat-composer-footer"),
+            );
+            const optionalHeight = optionalRows.reduce((sum, element) => {
+              const box = normalFlowBox(element);
+              return sum + (box ? box.height + box.margin : 0);
+            }, 0);
+            const tools = composer.querySelector<HTMLElement>(
+              ".chat-composer-tools",
+            );
+            const right = composer.querySelector<HTMLElement>(
+              ".chat-composer-footer-right",
+            );
+            const toolsHeight = Math.max(
+              0,
+              ...Array.from(
+                tools?.querySelectorAll<HTMLElement>("button") ?? [],
+              ).map((element) => normalFlowBox(element)?.height ?? 0),
+            );
+            const rightRows = Array.from(right?.children ?? []).filter(
+              (element): element is HTMLElement =>
+                element instanceof HTMLElement &&
+                normalFlowBox(element) !== null,
+            );
+            const status = rightRows.find((element) =>
+              element.matches(".chat-composer-status"),
+            );
+            const controlRowHeight = Math.max(
+              0,
+              ...rightRows
+                .filter((element) => element !== status)
+                .map((element) => normalFlowBox(element)?.height ?? 0),
+            );
+            const statusHeight = status
+              ? (normalFlowBox(status)?.height ?? 0)
+              : 0;
+            const constrained =
+              (conversation?.getBoundingClientRect().width ?? 0) < 640;
+            // chat/layout.ts: footer top pad1, two-band gap6, right-grid gap4;
+            // form row gap4, border2, padding7+6 (or mobile5+4).
+            const rightHeight = constrained
+              ? controlRowHeight + (status ? statusHeight + 4 : 0)
+              : Math.max(controlRowHeight, statusHeight);
+            const footerHeight = constrained
+              ? toolsHeight + rightHeight + 6 + 1
+              : Math.max(toolsHeight, rightHeight) + 1;
+            const inputHeight =
+              composer
+                .querySelector<HTMLElement>(".chat-composer-input")
+                ?.getBoundingClientRect().height ?? 0;
+            return {
+              ceiling:
+                inputHeight +
+                footerHeight +
+                optionalHeight +
+                Math.max(0, rows.length - 1) * 4 +
+                (viewport.width < 480 ? 5 + 4 : 7 + 6) +
+                2,
+              optionalRows: optionalRows.length,
+            };
+          })()
+        : null;
       const rootStyle = getComputedStyle(document.documentElement);
       const sidebar = document.querySelector<HTMLElement>(".app-sidebar");
       const sidebarBox = readBox(".app-sidebar");
@@ -776,19 +951,43 @@ async function expectViewportGeometry(
         });
 
       return {
-        composer: readBox(".chat-composer"),
+        attach: conversation
+          ? readBox('button[aria-label="Attach multiple files"]', conversation)
+          : null,
+        composer: conversation ? readBox(".chat-composer", conversation) : null,
+        composerActions,
+        intrinsicComposer,
+        composerInput: conversation
+          ? readBox(".chat-composer-input", conversation)
+          : null,
+        composerTools: conversation
+          ? readBox(".chat-composer-tools", conversation)
+          : null,
+        conversation: view
+          ? readBox(
+              "[data-session-panel]:not([hidden]) .chat-conversation",
+              view,
+            )
+          : null,
         documentOverflow:
           document.documentElement.scrollWidth - window.innerWidth,
         dragbar: readBox(".window-dragbar--chat"),
         headerActions,
-        modelTrigger: readBox(".composer-model-trigger"),
+        modelTrigger: conversation
+          ? readBox(".composer-model-trigger", conversation)
+          : null,
         platformDarwin: document
           .querySelector(".desktop-shell")
           ?.classList.contains("platform-darwin"),
-        routingHasProject:
-          document
-            .querySelector<HTMLElement>(".chat-composer-routing")
-            ?.getAttribute("data-has-project") === "true",
+        routing: conversation
+          ? readBox(".chat-composer-routing", conversation)
+          : null,
+        submit: conversation
+          ? readBox(".chat-composer-submit", conversation)
+          : null,
+        transcript: conversation
+          ? readBox(".chat-messages", conversation)
+          : null,
         sidebar: sidebarBox
           ? {
               ...sidebarBox,
@@ -867,26 +1066,37 @@ async function expectViewportGeometry(
   if (route !== "chat") return;
 
   expect(geometry.dragbar, `${label} chat dragbar`).not.toBeNull();
+  expect(geometry.conversation, `${label} active conversation`).not.toBeNull();
   expect(geometry.composer, `${label} chat composer`).not.toBeNull();
+  expect(geometry.composerInput, `${label} composer input`).not.toBeNull();
+  expect(geometry.composerTools, `${label} composer tools`).not.toBeNull();
+  expect(
+    geometry.intrinsicComposer,
+    `${label} intrinsic composer budget`,
+  ).not.toBeNull();
+  expect(geometry.transcript, `${label} mounted transcript`).not.toBeNull();
+  expect(geometry.routing, `${label} composer routing`).not.toBeNull();
+  expect(geometry.submit, `${label} send/stop action`).not.toBeNull();
   expect(geometry.modelTrigger, `${label} model selector`).not.toBeNull();
 
   const controlHeight = geometry.tokens.controlHeight;
   const spacing = geometry.tokens.space || 8;
-  expect(controlHeight, `${label} control-height token`).toBeGreaterThan(0);
+  expect(controlHeight, `${label} control-height token`).toBe(
+    mode.controlHeight,
+  );
+  // shell-layout.ts and chat-chrome-layout.test.ts declare one 40px wide
+  // row, two bands below 1180px, and the native title inset below 480px.
+  // Tailwind's max-[...] boundaries are strict, including exactly 1180px.
+  const expectedDragbarHeight =
+    viewport.width < 480
+      ? 80 + spacing + (geometry.platformDarwin ? 36 : 0)
+      : viewport.width < 1180
+        ? controlHeight + 40 + spacing
+        : 40;
   expect(
     geometry.dragbar?.height ?? 0,
-    `${label} chat dragbar density range`,
-  ).toBeGreaterThanOrEqual(controlHeight + spacing);
-  expect(
-    geometry.dragbar?.height ?? Number.POSITIVE_INFINITY,
-    `${label} chat dragbar density range`,
-  ).toBeLessThanOrEqual(
-    viewport.width <= 480
-      ? 80 + spacing + (geometry.platformDarwin ? 36 : 0)
-      : viewport.width <= 760
-        ? controlHeight + 40 + spacing
-        : controlHeight + spacing * 3,
-  );
+    `${label} declared chat masthead bands`,
+  ).toBeCloseTo(expectedDragbarHeight, 1);
   for (const action of geometry.headerActions) {
     expect(
       action.top,
@@ -905,50 +1115,184 @@ async function expectViewportGeometry(
       `${label} ${action.label} stays inside the dragbar right edge`,
     ).toBeLessThanOrEqual((geometry.dragbar?.right ?? viewport.width) + 1);
   }
+  for (let index = 0; index < geometry.headerActions.length; index += 1) {
+    const action = geometry.headerActions[index];
+    if (!action) continue;
+    for (const sibling of geometry.headerActions.slice(index + 1)) {
+      const overlapWidth =
+        Math.min(action.right, sibling.right) -
+        Math.max(action.left, sibling.left);
+      const overlapHeight =
+        Math.min(action.bottom, sibling.bottom) -
+        Math.max(action.top, sibling.top);
+      expect(
+        overlapWidth > 1 && overlapHeight > 1,
+        `${label} ${action.label} does not overlap ${sibling.label}`,
+      ).toBeFalsy();
+    }
+  }
+  // The composer responds to its conversation's inline-size container, not
+  // the window. chat/layout.ts declares two 44px control bands below 640px;
+  // composer-selectors/layout.ts declares a 30px selector in wider sessions.
+  const conversationWidth = geometry.conversation?.width ?? 0;
+  const constrainedSession = conversationWidth < 640;
+  for (const [name, control] of [
+    ["Attach", geometry.attach],
+    ["Send/stop", geometry.submit],
+    ["Model selector", geometry.modelTrigger],
+  ] as const) {
+    expect(control, `${label} mandatory ${name}`).not.toBeNull();
+    expect(
+      control?.width ?? 0,
+      `${label} ${name} visible width`,
+    ).toBeGreaterThan(0);
+    expect(
+      control?.height ?? 0,
+      `${label} ${name} visible height`,
+    ).toBeGreaterThan(0);
+    if (constrainedSession) {
+      expect(
+        control?.width ?? 0,
+        `${label} ${name} touch width`,
+      ).toBeGreaterThanOrEqual(44);
+      expect(
+        control?.height ?? 0,
+        `${label} ${name} touch height`,
+      ).toBeGreaterThanOrEqual(44);
+    }
+  }
+  // The compiled pane query follows (and overrides) the legacy viewport
+  // width rules. An unconstrained 640–720px conversation still uses 12px.
+  const expectedComposerWidth = constrainedSession
+    ? conversationWidth - 16
+    : viewport.width < 720
+      ? conversationWidth - 12
+      : Math.min(conversationWidth - 24, 880);
   expect(
-    geometry.composer?.width ?? Number.POSITIVE_INFINITY,
-    `${label} composer fits route view`,
-  ).toBeLessThanOrEqual(
-    (geometry.view?.clientWidth ?? 0) -
-      (viewport.width <= 480 ? 8 : viewport.width <= 720 ? 12 : 24) +
-      1,
-  );
+    geometry.composer?.width ?? 0,
+    `${label} pane-local composer width`,
+  ).toBeCloseTo(expectedComposerWidth, 1);
   expect(
     geometry.composer?.width ?? 0,
     `${label} composer remains usefully wide`,
   ).toBeGreaterThan(Math.min(320, (geometry.view?.clientWidth ?? 0) * 0.45));
+  for (const edge of ["left", "top"] as const) {
+    expect(
+      geometry.composer?.[edge] ?? -1,
+      `${label} composer ${edge}`,
+    ).toBeGreaterThanOrEqual((geometry.conversation?.[edge] ?? 0) - 1);
+  }
+  for (const edge of ["right", "bottom"] as const) {
+    expect(
+      geometry.composer?.[edge] ?? Number.POSITIVE_INFINITY,
+      `${label} composer ${edge}`,
+    ).toBeLessThanOrEqual((geometry.conversation?.[edge] ?? 0) + 1);
+  }
   expect(
     geometry.composer?.height ?? 0,
     `${label} composer retains input and controls`,
   ).toBeGreaterThanOrEqual(controlHeight * 2.5);
-  if (viewport.width <= 480) {
+  expect(
+    geometry.composer?.height ?? Number.POSITIVE_INFINITY,
+    `${label} composer shrink-wraps input, controls and ${geometry.intrinsicComposer?.optionalRows ?? 0} optional rows`,
+  ).toBeLessThanOrEqual((geometry.intrinsicComposer?.ceiling ?? 0) + 1);
+  // This scrubbed fixture has no queued drafts/attachments/approval requests.
+  // When the declared intrinsic content fits, the transcript must not collapse.
+  if (
+    (geometry.conversation?.height ?? 0) >
+    (geometry.intrinsicComposer?.ceiling ?? 0) + 4
+  ) {
     expect(
-      geometry.composer?.height ?? Number.POSITIVE_INFINITY,
-      `${label} composer stays compact`,
-    ).toBeLessThanOrEqual(Math.max(108, controlHeight * 3.5 + spacing));
+      geometry.transcript?.height ?? 0,
+      `${label} transcript retains space`,
+    ).toBeGreaterThan(0);
+  }
+  // Preserve bounded composition instead of the obsolete single-footer cap.
+  // ChatComposer's input remains 40/46px minimum and 112/132/156px maximum;
+  // both control bands must fit inside the actual pane, without hiding actions.
+  const minimumInputHeight = viewport.width < 480 ? 40 : 46;
+  const maximumInputHeight =
+    viewport.width < 480 ? 112 : viewport.width < 720 ? 132 : 156;
+  expect(
+    geometry.composerInput?.height ?? 0,
+    `${label} readable input minimum`,
+  ).toBeGreaterThanOrEqual(minimumInputHeight);
+  expect(
+    geometry.composerInput?.height ?? Number.POSITIVE_INFINITY,
+    `${label} bounded input maximum`,
+  ).toBeLessThanOrEqual(maximumInputHeight);
+  expect(
+    geometry.composerActions.length,
+    `${label} real composer actions`,
+  ).toBeGreaterThan(0);
+  for (const action of geometry.composerActions) {
+    expect(action.left, `${label} ${action.label} left`).toBeGreaterThanOrEqual(
+      (geometry.composer?.left ?? 0) - 1,
+    );
+    expect(action.right, `${label} ${action.label} right`).toBeLessThanOrEqual(
+      (geometry.composer?.right ?? 0) + 1,
+    );
+    expect(action.top, `${label} ${action.label} top`).toBeGreaterThanOrEqual(
+      (geometry.composer?.top ?? 0) - 1,
+    );
+    expect(
+      action.bottom,
+      `${label} ${action.label} bottom`,
+    ).toBeLessThanOrEqual((geometry.composer?.bottom ?? 0) + 1);
+    if (constrainedSession) {
+      expect(
+        action.height,
+        `${label} ${action.label} touch height`,
+      ).toBeGreaterThanOrEqual(44);
+      expect(
+        action.width,
+        `${label} ${action.label} touch width`,
+      ).toBeGreaterThanOrEqual(44);
+    }
+  }
+  for (let index = 0; index < geometry.composerActions.length; index += 1) {
+    const action = geometry.composerActions[index];
+    if (!action) continue;
+    for (const sibling of geometry.composerActions.slice(index + 1)) {
+      const overlapWidth =
+        Math.min(action.right, sibling.right) -
+        Math.max(action.left, sibling.left);
+      const overlapHeight =
+        Math.min(action.bottom, sibling.bottom) -
+        Math.max(action.top, sibling.top);
+      expect(
+        overlapWidth > 1 && overlapHeight > 1,
+        `${label} ${action.label} does not overlap ${sibling.label}`,
+      ).toBeFalsy();
+    }
   }
   expect(
     geometry.modelTrigger?.height ?? 0,
-    `${label} model selector follows density`,
-  ).toBeGreaterThanOrEqual(controlHeight - spacing);
+    `${label} pane-local model selector height`,
+  ).toBeCloseTo(constrainedSession ? 44 : 30, 1);
   expect(
-    geometry.modelTrigger?.height ?? Number.POSITIVE_INFINITY,
-    `${label} model selector follows density`,
-  ).toBeLessThanOrEqual(
-    viewport.width <= 480
-      ? Math.max(44, controlHeight + spacing)
-      : controlHeight + spacing,
-  );
-  const containedModelWidth =
-    viewport.width <= 720
-      ? geometry.routingHasProject
-        ? ((geometry.composer?.width ?? viewport.width) - spacing) / 2 + 1
-        : (geometry.composer?.width ?? viewport.width)
-      : Math.min(310 + spacing * 2, viewport.width * 0.42);
+    geometry.modelTrigger?.left ?? -1,
+    `${label} model selector routing left`,
+  ).toBeGreaterThanOrEqual((geometry.routing?.left ?? 0) - 1);
   expect(
-    geometry.modelTrigger?.width ?? Number.POSITIVE_INFINITY,
-    `${label} model selector remains contained`,
-  ).toBeLessThanOrEqual(containedModelWidth);
+    geometry.modelTrigger?.right ?? Number.POSITIVE_INFINITY,
+    `${label} model selector routing right`,
+  ).toBeLessThanOrEqual((geometry.routing?.right ?? 0) + 1);
+  if (constrainedSession) {
+    expect(
+      geometry.composerTools?.bottom ?? Number.POSITIVE_INFINITY,
+      `${label} tools precede routing band`,
+    ).toBeLessThanOrEqual((geometry.routing?.top ?? 0) + 1);
+    expect(
+      geometry.composer?.height ?? 0,
+      `${label} two touch bands and input remain present`,
+    ).toBeGreaterThanOrEqual(minimumInputHeight + 44 * 2);
+  } else {
+    expect(
+      geometry.modelTrigger?.width ?? Number.POSITIVE_INFINITY,
+      `${label} wide model selector cap`,
+    ).toBeLessThanOrEqual(Math.min(210, viewport.width * 0.3) + 1);
+  }
 }
 
 async function captureRouteScreenshots(
