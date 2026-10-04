@@ -18,6 +18,11 @@ vi.mock("./lib", async () => {
   };
 });
 
+import {
+  announceAppearanceApplied,
+  announceDensity,
+  applyDesktopAppearance,
+} from "./desktop-theme";
 import { KeysPage } from "./KeysPage";
 import { SettingsPage } from "./SettingsPage";
 
@@ -123,6 +128,92 @@ describe("configuration route density", () => {
       "Revealing a key copies its current value into the desktop renderer.",
     );
     expect(container.textContent).not.toContain("No stored keys yet");
+  });
+
+  it("keeps the settings rail and local appearance controls available during runtime loading", () => {
+    useApiResourceMock.mockImplementation((path: string | null) =>
+      path === "/settings"
+        ? { ...resource(null), loading: true }
+        : resource(null),
+    );
+    act(() => root.render(<SettingsPage active />));
+    expect(
+      container.querySelector('aside[aria-label="Settings categories"]'),
+    ).not.toBeNull();
+    expect(
+      container.querySelector('button[aria-label="Light: Light surfaces"]'),
+    ).not.toBeNull();
+    expect(container.textContent).not.toContain(
+      "Loading runtime configuration…",
+    );
+    const advanced = [...container.querySelectorAll("button")].find(
+      (button) => button.textContent === "Advanced",
+    );
+    act(() => advanced?.click());
+    expect(container.textContent).toContain("Loading runtime configuration…");
+    expect(container.querySelector(".settings-group-heading")).toBeNull();
+    expect(
+      container.querySelector('aside[aria-label="Settings categories"]'),
+    ).not.toBeNull();
+  });
+
+  it("allows leaving a failed runtime settings category without losing navigation", () => {
+    useApiResourceMock.mockImplementation((path: string | null) =>
+      path === "/settings"
+        ? { ...resource(null), error: "Runtime settings unavailable" }
+        : resource(null),
+    );
+    act(() => root.render(<SettingsPage active section="advanced" />));
+    expect(container.textContent).toContain("Runtime settings unavailable");
+    const appearance = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Appearance: Theme and display"]',
+    );
+    act(() => appearance?.click());
+    expect(container.textContent).not.toContain("Runtime settings unavailable");
+    expect(
+      container.querySelector('button[aria-label="Light: Light surfaces"]'),
+    ).not.toBeNull();
+  });
+
+  it("synchronizes mounted appearance controls with the shell toggle and preserves System preference", () => {
+    useApiResourceMock.mockReturnValue(resource(null));
+    act(() => root.render(<SettingsPage active />));
+    const choice = (label: string) =>
+      container.querySelector<HTMLButtonElement>(
+        `button[aria-label="${label}"]`,
+      );
+    expect(choice("Dark: Dark surfaces")?.getAttribute("aria-pressed")).toBe(
+      "true",
+    );
+    act(() => {
+      applyDesktopAppearance("light", false);
+      announceAppearanceApplied("light");
+    });
+    expect(document.documentElement.dataset.appearance).toBe("light");
+    expect(choice("Light: Light surfaces")?.getAttribute("aria-pressed")).toBe(
+      "true",
+    );
+    expect(choice("Dark: Dark surfaces")?.getAttribute("aria-pressed")).toBe(
+      "false",
+    );
+    expect(
+      choice("Light: Light surfaces")?.classList.contains("selected"),
+    ).toBe(true);
+    act(() => {
+      applyDesktopAppearance("system", true);
+      announceAppearanceApplied("dark");
+    });
+    expect(
+      choice("System: Match this device")?.getAttribute("aria-pressed"),
+    ).toBe("true");
+    expect(choice("Dark: Dark surfaces")?.getAttribute("aria-pressed")).toBe(
+      "false",
+    );
+    act(() => announceDensity("compact"));
+    const compact = [...container.querySelectorAll("button")].find(
+      (button) => button.textContent === "Compact",
+    );
+    expect(compact?.getAttribute("aria-pressed")).toBe("true");
   });
 
   it("keeps stored values concealed until an explicit reveal", async () => {

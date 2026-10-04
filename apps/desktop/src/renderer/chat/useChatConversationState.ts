@@ -30,6 +30,10 @@ import {
 } from "../conversation-persistence";
 import { desktopRequest, errorMessage } from "../lib";
 import {
+  useWorkspaceRef,
+  useWorkspaceState,
+} from "../session-workspace/chat-workspace-store";
+import {
   canRestoreRejectedDispatch,
   type DraftDispatchRecovery,
 } from "./draft-dispatch-recovery";
@@ -514,6 +518,7 @@ export function useChatConversationState({
   remoteSessions,
   requestSession,
   selectedId,
+  persistenceOwner = true,
 }: {
   activeRequest: string | null;
   backendReady: boolean;
@@ -521,44 +526,69 @@ export function useChatConversationState({
   remoteSessions: readonly SessionSummary[];
   requestSession: MutableRefObject<Record<string, string>>;
   selectedId: string;
+  persistenceOwner?: boolean;
 }) {
   const initialId = useMemo(
     () => selectedId || newConversationId(),
     [selectedId],
   );
-  const [messages, setMessages] = useState<ConversationStore>(() => {
-    const stored = loadStoredChatMessages(localStorage);
-    return Object.hasOwn(stored, initialId)
-      ? stored
-      : { ...stored, [initialId]: [] };
-  });
-  const draftSessionId = selectedId || initialId;
-  const [conversationDrafts, setConversationDrafts] = useState(() =>
-    loadConversationDrafts(localStorage),
+  const [messages, setMessages] = useWorkspaceState<ConversationStore>(
+    "conversation.messages",
+    () => {
+      const stored = loadStoredChatMessages(localStorage);
+      return Object.hasOwn(stored, initialId)
+        ? stored
+        : { ...stored, [initialId]: [] };
+    },
   );
-  const [pinnedSessions, setPinnedSessions] = useState(() =>
-    loadConversationPins(localStorage),
+  const draftSessionId = selectedId || initialId;
+  const [conversationDrafts, setConversationDrafts] = useWorkspaceState(
+    "conversation.drafts",
+    () => loadConversationDrafts(localStorage),
+  );
+  const [pinnedSessions, setPinnedSessions] = useWorkspaceState(
+    "conversation.pins",
+    () => loadConversationPins(localStorage),
   );
   const [sessionSearch, setSessionSearch] = useState("");
-  const [historyErrors, setHistoryErrors] = useState<Record<string, string>>(
+  const [historyErrors, setHistoryErrors] = useWorkspaceState<
+    Record<string, string>
+  >("conversation.history-errors", {});
+  const [historyPages, setHistoryPages] = useWorkspaceState<
+    Record<string, HistoryPageState>
+  >("conversation.history-pages", {});
+  const [transcriptStorageWarning, setTranscriptStorageWarning] =
+    useWorkspaceState("conversation.transcript-warning", "");
+  const [draftStorageWarning, setDraftStorageWarning] = useWorkspaceState(
+    "conversation.draft-warning",
+    "",
+  );
+  const [loadingHistory, setLoadingHistory] = useWorkspaceState(
+    `conversation.loading.${selectedId}`,
+    "",
+  );
+  const [loadingEarlierHistory, setLoadingEarlierHistory] = useWorkspaceState(
+    `conversation.earlier.${selectedId}`,
+    "",
+  );
+  const [historyRetryVersion, setHistoryRetryVersion] = useWorkspaceState(
+    `conversation.retry.${selectedId}`,
+    0,
+  );
+  const requestedHistory = useRef(new Set<string>());
+  const draftRevisions = useWorkspaceRef<Record<string, number>>(
+    "conversation.draft-revisions",
     {},
   );
-  const [historyPages, setHistoryPages] = useState<
-    Record<string, HistoryPageState>
-  >({});
-  const [transcriptStorageWarning, setTranscriptStorageWarning] = useState("");
-  const [draftStorageWarning, setDraftStorageWarning] = useState("");
-  const [loadingHistory, setLoadingHistory] = useState("");
-  const [loadingEarlierHistory, setLoadingEarlierHistory] = useState("");
-  const [historyRetryVersion, setHistoryRetryVersion] = useState(0);
-  const requestedHistory = useRef(new Set<string>());
-  const draftRevisions = useRef<Record<string, number>>({});
 
-  const bumpDraftRevision = useCallback((sessionId: string) => {
-    const revision = (draftRevisions.current[sessionId] ?? 0) + 1;
-    draftRevisions.current[sessionId] = revision;
-    return revision;
-  }, []);
+  const bumpDraftRevision = useCallback(
+    (sessionId: string) => {
+      const revision = (draftRevisions.current[sessionId] ?? 0) + 1;
+      draftRevisions.current[sessionId] = revision;
+      return revision;
+    },
+    [draftRevisions],
+  );
 
   const draftState = conversationDrafts[draftSessionId] ?? {
     text: "",
@@ -599,7 +629,7 @@ export function useChatConversationState({
         };
       });
     },
-    [bumpDraftRevision, draftSessionId],
+    [bumpDraftRevision, draftSessionId, setConversationDrafts],
   );
 
   const setDraftForSession = useCallback(
@@ -629,7 +659,7 @@ export function useChatConversationState({
         },
       }));
     },
-    [bumpDraftRevision],
+    [bumpDraftRevision, setConversationDrafts],
   );
 
   const setChatContextCapsule = useCallback(
@@ -654,7 +684,7 @@ export function useChatConversationState({
         };
       });
     },
-    [bumpDraftRevision, draftSessionId],
+    [bumpDraftRevision, draftSessionId, setConversationDrafts],
   );
 
   const setDraftAttachments = useCallback(
@@ -692,7 +722,7 @@ export function useChatConversationState({
         };
       });
     },
-    [bumpDraftRevision, draftSessionId],
+    [bumpDraftRevision, draftSessionId, setConversationDrafts],
   );
 
   const clearDraftForDispatch = useCallback(
@@ -706,7 +736,7 @@ export function useChatConversationState({
       });
       return revision;
     },
-    [bumpDraftRevision],
+    [bumpDraftRevision, setConversationDrafts],
   );
 
   const restoreDraftAfterRejectedDispatch = useCallback(
@@ -726,25 +756,29 @@ export function useChatConversationState({
       }));
       return true;
     },
-    [bumpDraftRevision],
+    [bumpDraftRevision, setConversationDrafts, draftRevisions],
   );
 
-  const togglePin = useCallback((sessionId: string) => {
-    setPinnedSessions((current) => {
-      const next = { ...current };
-      if (next[sessionId]) delete next[sessionId];
-      else next[sessionId] = true;
-      saveConversationPins(localStorage, next);
-      window.dispatchEvent(new Event(CONVERSATION_PINS_EVENT));
-      return next;
-    });
-  }, []);
+  const togglePin = useCallback(
+    (sessionId: string) => {
+      setPinnedSessions((current) => {
+        const next = { ...current };
+        if (next[sessionId]) delete next[sessionId];
+        else next[sessionId] = true;
+        saveConversationPins(localStorage, next);
+        window.dispatchEvent(new Event(CONVERSATION_PINS_EVENT));
+        return next;
+      });
+    },
+    [setPinnedSessions],
+  );
 
   useEffect(() => {
     if (!selectedId) onSelect(initialId);
   }, [initialId, onSelect, selectedId]);
 
   useEffect(() => {
+    if (!persistenceOwner) return;
     const persisted = saveStoredChatMessages(
       localStorage,
       messages,
@@ -755,31 +789,34 @@ export function useChatConversationState({
         ? ""
         : "Local transcript cache is unavailable. Your conversation remains active, and server history is unaffected.",
     );
-  }, [messages, selectedId]);
+  }, [messages, selectedId, setTranscriptStorageWarning, persistenceOwner]);
 
   useEffect(() => {
+    if (!persistenceOwner) return;
     saveConversationPins(localStorage, pinnedSessions);
-  }, [pinnedSessions]);
+  }, [pinnedSessions, persistenceOwner]);
 
   useEffect(() => {
+    if (!persistenceOwner) return;
     const persisted = saveConversationDrafts(localStorage, conversationDrafts);
     setDraftStorageWarning(
       persisted
         ? ""
         : "Local draft cache is unavailable. Your unsent draft remains active, and server history is unaffected.",
     );
-  }, [conversationDrafts]);
+  }, [conversationDrafts, setDraftStorageWarning, persistenceOwner]);
 
   const storageWarning = [transcriptStorageWarning, draftStorageWarning]
     .filter(Boolean)
     .join(" ");
 
   useEffect(() => {
+    if (!persistenceOwner) return;
     const syncPins = () =>
       setPinnedSessions(loadConversationPins(localStorage));
     window.addEventListener(CONVERSATION_PINS_EVENT, syncPins);
     return () => window.removeEventListener(CONVERSATION_PINS_EVENT, syncPins);
-  }, []);
+  }, [setPinnedSessions, persistenceOwner]);
 
   useEffect(() => {
     const selectedIsRemote = remoteSessions.some(
@@ -791,7 +828,7 @@ export function useChatConversationState({
         ? current
         : { ...current, [selectedId]: [] },
     );
-  }, [remoteSessions, selectedId]);
+  }, [remoteSessions, selectedId, setMessages]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: retry nonce intentionally re-runs the same history request after an error.
   useEffect(() => {
@@ -929,7 +966,7 @@ export function useChatConversationState({
       });
       setHistoryRetryVersion((current) => current + 1);
     },
-    [loadingHistory, remoteSessions],
+    [loadingHistory, remoteSessions, setHistoryErrors, setHistoryRetryVersion],
   );
 
   const loadEarlierHistory = useCallback(
@@ -1004,7 +1041,15 @@ export function useChatConversationState({
         );
       }
     },
-    [backendReady, historyPages, loadingEarlierHistory],
+    [
+      backendReady,
+      historyPages,
+      loadingEarlierHistory,
+      setMessages,
+      setLoadingEarlierHistory,
+      setHistoryPages,
+      setHistoryErrors,
+    ],
   );
 
   const allSessions = useMemo(

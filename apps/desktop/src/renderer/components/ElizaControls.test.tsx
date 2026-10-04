@@ -18,7 +18,7 @@ describe("Doolittle Eliza control density adapter", () => {
     );
 
     expect(markup).toContain("!h-[var(--control-height)]");
-    expect(markup).toContain("max-[760px]:!h-9");
+    expect(markup).toContain("max-[760px]:!h-11");
     expect(markup).toContain("!min-h-[var(--control-height)]");
     expect(markup).toContain("!text-[length:var(--text-control)]");
   });
@@ -36,8 +36,36 @@ describe("Doolittle Eliza control density adapter", () => {
     );
   });
 
+  it("uses one visible keyboard focus ring for standalone SDK controls", () => {
+    const markup = renderToStaticMarkup(
+      <>
+        <Button>Save</Button>
+        <Input aria-label="Name" />
+        <Textarea aria-label="Notes" />
+      </>,
+    );
+    expect(
+      markup.match(/focus-visible:outline-\[var\(--focus-ring\)\]/gu),
+    ).toHaveLength(3);
+    expect(markup).toContain("motion-reduce:transition-none");
+    expect(markup).toContain("active:shadow-none");
+    expect(markup).toContain("text-[var(--accent-ink)]");
+  });
+
   it("keeps select menus on the compact control scale", () => {
     expect(ELIZA_SELECT_TEXT_CLASS).toBe("!text-[length:var(--text-control)]");
+  });
+
+  it("preserves SDK error styling and exposes invalid fields semantically", () => {
+    const markup = renderToStaticMarkup(
+      <>
+        <Input aria-label="Name" hasError />
+        <Textarea aria-label="Notes" hasError />
+      </>,
+    );
+    expect(markup.match(/aria-invalid="true"/gu)).toHaveLength(2);
+    expect(markup.match(/ border-\[var\(--bad\)\]/gu)).toHaveLength(2);
+    expect(markup.match(/bg-\[var\(--bad-soft\)\]/gu)).toHaveLength(2);
   });
 
   it("does not override explicit icon or large button sizes", () => {

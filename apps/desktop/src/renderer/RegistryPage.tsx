@@ -179,7 +179,7 @@ export function RegistryPage({
           runtime is ready.
         </OfflineRouteState>
       ) : registry.loading ? (
-        <LoadingBlock />
+        <LoadingBlock label="Searching the Eliza plugin registry…" />
       ) : registry.error ? (
         <ErrorBlock error={registry.error} retry={registry.reload} />
       ) : entries.length ? (

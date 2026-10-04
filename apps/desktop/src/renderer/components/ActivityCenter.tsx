@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 
 const TEXT_BUTTON_CLASS =
-  "w-fit border-0 bg-transparent px-1.5 py-1 font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--muted)] hover:text-[var(--text)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-[var(--accent-border)] disabled:cursor-not-allowed disabled:opacity-50";
+  "min-h-[var(--control-height)] min-w-[var(--control-height)] w-fit border-0 bg-transparent px-1.5 py-1 font-[var(--font-mono)] text-[length:var(--text-control)] text-[var(--muted)] hover:text-[var(--text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--focus-ring)] disabled:cursor-not-allowed disabled:opacity-50 max-[760px]:min-h-11 max-[760px]:min-w-11";
 
 export type ActivityCenterKind =
   | "chat-run"
@@ -175,7 +175,7 @@ export function ActivityCenter({
     <section
       aria-busy={active && loading}
       aria-labelledby="activity-center-heading"
-      className="grid min-w-0 gap-[7px] rounded-md border border-[color-mix(in_srgb,var(--border)_78%,transparent)] bg-[linear-gradient(120deg,color-mix(in_srgb,var(--accent)_5%,transparent),transparent_58%),color-mix(in_srgb,var(--surface-raised)_58%,transparent)] p-[9px]"
+      className="grid min-w-0 gap-2 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] p-2.5"
       data-active={active}
     >
       <header className="flex items-start justify-between gap-3">
@@ -184,7 +184,7 @@ export function ActivityCenter({
             aria-hidden="true"
             className="relative grid size-[25px] place-items-center rounded-[var(--radius-xs)] border border-[color-mix(in_srgb,var(--accent)_20%,var(--border))] bg-[color-mix(in_srgb,var(--accent)_8%,var(--surface))]"
           >
-            <i className="size-[5px] rounded-full bg-[var(--accent)] shadow-[0_0_8px_color-mix(in_srgb,var(--accent)_72%,transparent)]" />
+            <i className="size-[5px] rounded-full bg-[var(--accent)]" />
             <i className="absolute size-[13px] rounded-full border border-[color-mix(in_srgb,var(--accent)_25%,transparent)]" />
           </span>
           <div className="grid gap-px">
@@ -251,7 +251,7 @@ export function ActivityCenter({
                 />
                 <div className="flex min-w-0 flex-col gap-0.5">
                   <div className="flex min-w-0 items-baseline gap-1.5">
-                    <strong className="overflow-hidden text-ellipsis whitespace-nowrap text-[11px] font-semibold text-[var(--text)]">
+                    <strong className="overflow-hidden text-ellipsis whitespace-nowrap text-[length:var(--text-control)] font-semibold text-[var(--text)]">
                       {event.title}
                     </strong>
                     <span className="overflow-hidden text-ellipsis whitespace-nowrap font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--faint)]">

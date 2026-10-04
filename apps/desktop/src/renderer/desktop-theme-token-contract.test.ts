@@ -117,7 +117,8 @@ describe("desktop theme token contract", () => {
       "utf8",
     );
     expect(themeSource).toContain('"--text-meta": "11px"');
-    expect(themeSource).toContain('"--line-meta": "15px"');
+    expect(themeSource).toContain('"--line-meta": "17px"');
+    expect(themeSource).toContain('"--focus-ring": "var(--accent-text)"');
     expect(themeSource).toContain('"--line-body": "21px"');
   });
 
@@ -132,14 +133,14 @@ describe("desktop theme token contract", () => {
     expect(violations).toEqual([]);
   });
 
-  it("maps browser traffic-light affordances to semantic theme tokens", () => {
+  it("keeps browser status truthful and free of ornamental traffic lights", () => {
     const browserSource = readFileSync(
       join(RENDERER_ROOT, "BrowserPage.tsx"),
       "utf8",
     );
-    expect(browserSource).toContain("bg-[var(--bad)]");
-    expect(browserSource).toContain("bg-[var(--warn)]");
-    expect(browserSource).toContain("bg-[var(--good)]");
+    expect(browserSource).toContain("Live localhost");
+    expect(browserSource).toContain("Capture mode");
+    expect(browserSource).not.toContain("browser-traffic-lights");
     expect(browserSource).not.toMatch(/bg-\[#(?:ff5d56|ffbd2e|27c840)\]/u);
   });
 

@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { relative } from "node:path";
 import type { AppContext } from "@/runtime/bootstrap";
 import { executeAgentTurnWithProgress } from "@/runtime/turn-stream";
 import { readJsonObjectBody } from "@/server/request-body";
@@ -109,6 +110,42 @@ function assignProjectForNewSession(
   return context.services.sessions.assignSessionProject(sessionId, projectId);
 }
 
+function validateSessionProjectWorkspace(
+  context: AppContext,
+  projectId: string,
+  workspaceDir: string,
+): Response | undefined {
+  let projectWorkspaceDir: string;
+  try {
+    const project = context.services.sessions.getProject(projectId);
+    if (!project || project.archivedAt || !project.primaryPath) {
+      throw new Error("Session project workspace is unavailable.");
+    }
+    projectWorkspaceDir = resolveRuntimeWorkspacePath(project.primaryPath);
+  } catch {
+    return json(
+      {
+        error:
+          "This session's project workspace is unavailable. Restore the project and its workspace, or explicitly move the session to an available project before sending a message.",
+        code: "session_project_unavailable",
+      },
+      409,
+    );
+  }
+  // Both paths are real directories; native path comparison also accounts for
+  // Windows drive/path casing without folding case-sensitive Unix paths.
+  if (relative(workspaceDir, projectWorkspaceDir) !== "") {
+    return json(
+      {
+        error:
+          "This session belongs to a different project workspace. Switch to that project's workspace before sending a message.",
+        code: "session_workspace_mismatch",
+      },
+      409,
+    );
+  }
+}
+
 function resolveChatWorkspace(
   context: AppContext,
   requestedWorkspaceDir: string | undefined,
@@ -212,7 +249,15 @@ async function prepareChatRun(
   const workspaceDir = resolveChatWorkspace(context, body.workspaceDir);
   if (workspaceDir instanceof Response) return workspaceDir;
   const roomId = resolveRoomId(body);
-  if (!assignProjectForNewSession(context, roomId, body.projectId)) {
+  const boundProjectId = context.services.sessions.projectIdForSession(roomId);
+  if (boundProjectId !== undefined) {
+    const conflict = validateSessionProjectWorkspace(
+      context,
+      boundProjectId,
+      workspaceDir,
+    );
+    if (conflict) return conflict;
+  } else if (!assignProjectForNewSession(context, roomId, body.projectId)) {
     return json({ error: "project not found or archived" }, 404);
   }
   return {

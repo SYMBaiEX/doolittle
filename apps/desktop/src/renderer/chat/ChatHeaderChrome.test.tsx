@@ -77,6 +77,43 @@ describe("ChatHeaderChrome", () => {
     expect(container.textContent).toContain("Workspace");
   });
 
+  it("keeps a long loading route inspectable without changing surface actions", () => {
+    const modelRouteLabel =
+      "Loading provider · Loading an unusually long model route";
+    render({ modelRouteLabel });
+
+    const route =
+      container.querySelector<HTMLButtonElement>(".chat-model-route");
+    expect(route?.getAttribute("aria-label")).toBe(
+      `Open route controls. Current route ${modelRouteLabel}.`,
+    );
+    expect(route?.title).toBe(modelRouteLabel);
+    expect(route?.querySelector("strong")?.textContent).toBe(modelRouteLabel);
+    act(() => route?.click());
+    expect(handlers.onOpenRouteControls).toHaveBeenCalledTimes(1);
+
+    for (const [label, surface] of [
+      ["Chat", "conversation"],
+      ["History", "history"],
+      ["Media", "media"],
+    ] as const) {
+      const button = Array.from(
+        container.querySelectorAll<HTMLButtonElement>(
+          ".chat-surface-controls button",
+        ),
+      ).find((control) => control.textContent === label);
+      expect(button).toBeDefined();
+      act(() => button?.click());
+      expect(handlers.onSurfaceChange).toHaveBeenLastCalledWith(surface);
+    }
+    act(() =>
+      container
+        .querySelector<HTMLButtonElement>(".chat-workbench-toggle")
+        ?.click(),
+    );
+    expect(handlers.onToggleInspector).toHaveBeenCalledTimes(1);
+  });
+
   it("exposes desktop chat surfaces with their current state", () => {
     render({ surface: "history" });
 

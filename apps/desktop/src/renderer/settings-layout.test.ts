@@ -24,9 +24,9 @@ describe("settings layout density", () => {
     expect(SETTINGS_PAGE_CLASS).toContain("[&>.page-header]:!min-h-12");
   });
 
-  it("keeps category headers, rows, and panels on the compact rhythm", () => {
+  it("keeps category headers compact and field rows comfortably readable", () => {
     expect(SETTINGS_CONTENT_HEADER_CLASS).toContain("min-h-8");
-    expect(SETTINGS_ROW_LAYOUT_CLASS).toContain("min-h-8");
+    expect(SETTINGS_ROW_LAYOUT_CLASS).toContain("min-h-10");
     expect(SETTINGS_ROW_LAYOUT_CLASS).toContain("py-1.25");
   });
 

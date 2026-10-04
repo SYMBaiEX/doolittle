@@ -609,6 +609,20 @@ describe("parseApiPath", () => {
     expect(parseApiPath("/chat/runs?limit=20", "GET")).toBe(
       "/chat/runs?limit=20",
     );
+    expect(
+      parseApiPath("/chat/runs?limit=50&include_updates=true", "GET"),
+    ).toBe("/chat/runs?limit=50&include_updates=true");
+    expect(parseApiPath("/chat/runs?include_updates=false", "GET")).toBe(
+      "/chat/runs?include_updates=false",
+    );
+    for (const path of [
+      "/chat/runs?include_updates=1",
+      "/chat/runs?include_updates=arbitrary",
+      "/chat/runs?include_updates=true&unknown=true",
+      "/chat/runs?limit=101&include_updates=true",
+    ]) {
+      expect(() => parseApiPath(path, "GET")).toThrow();
+    }
     expect(parseApiPath("/chat/runs/chat:run-1/cancel", "POST")).toBe(
       "/chat/runs/chat:run-1/cancel",
     );

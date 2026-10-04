@@ -192,7 +192,7 @@ export function DesktopSidebar({
             </span>
             <span className={APP_BRAND_COPY_CLASS}>
               <strong>Doolittle</strong>
-              <span>{"ElizaOS // desktop"}</span>
+              <span>{"ElizaOS / operator"}</span>
             </span>
           </button>
           <button

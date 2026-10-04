@@ -1,4 +1,4 @@
-import { mkdtempSync, realpathSync, rmSync } from "node:fs";
+import { mkdtempSync, realpathSync, rmSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { RoomHandlerQueue } from "@elizaos/core";
@@ -6,9 +6,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AppContext } from "@/runtime/bootstrap";
 import type { RunSnapshot } from "@/services/run-controller-service";
 import { RunControllerService } from "@/services/run-controller-service";
+import { SessionService } from "@/services/session/service";
 import {
   handleChatRoute,
   handleChatRunEventsRoute,
+  handleChatSubmitRoute,
   summarizeChatRun,
 } from "./chat";
 
@@ -28,7 +30,15 @@ function createContext(): AppContext {
       workspaceDir: process.cwd(),
     },
     runtime: { roomHandlerQueue: new RoomHandlerQueue() },
-    services: { runController: new RunControllerService() },
+    services: {
+      runController: new RunControllerService(),
+      sessions: {
+        projectIdForSession: vi.fn(() => undefined),
+        getProject: vi.fn(() => undefined),
+        countBySessionRole: vi.fn(() => 0),
+        assignSessionProject: vi.fn(() => true),
+      },
+    },
   } as unknown as AppContext;
 }
 
@@ -298,12 +308,13 @@ describe("handleChatRoute turn lifecycle", () => {
     const assignSessionProject = vi.fn(() => true);
     const context = createContext();
     context.services.sessions = {
+      ...context.services.sessions,
       countBySessionRole: vi.fn(() => 0),
       assignSessionProject,
     } as never;
     executeAgentTurnWithProgress.mockResolvedValue({ response: "done" });
 
-    await handleChatRoute(
+    const response = await handleChatRoute(
       context,
       chatRequest({
         message: "new session",
@@ -312,6 +323,7 @@ describe("handleChatRoute turn lifecycle", () => {
       }),
     );
 
+    expect(response.status).toBe(200);
     expect(assignSessionProject).toHaveBeenCalledWith(
       "new-session",
       "project-new",
@@ -322,12 +334,13 @@ describe("handleChatRoute turn lifecycle", () => {
     const assignSessionProject = vi.fn(() => true);
     const context = createContext();
     context.services.sessions = {
+      ...context.services.sessions,
       countBySessionRole: vi.fn(() => 2),
       assignSessionProject,
     } as never;
     executeAgentTurnWithProgress.mockResolvedValue({ response: "done" });
 
-    await handleChatRoute(
+    const response = await handleChatRoute(
       context,
       chatRequest({
         message: "continue",
@@ -336,7 +349,252 @@ describe("handleChatRoute turn lifecycle", () => {
       }),
     );
 
+    expect(response.status).toBe(200);
+    expect(context.services.sessions.getProject).not.toHaveBeenCalled();
     expect(assignSessionProject).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { projectId: undefined, stream: false, submit: false },
+    { projectId: "spoofed-current-project", stream: true, submit: false },
+    { projectId: undefined, stream: false, submit: true },
+    { projectId: "spoofed-current-project", stream: false, submit: true },
+  ])(
+    "rejects a persisted foreign session omitted from recent summaries: %j",
+    async ({ projectId, stream, submit }) => {
+      const root = mkdtempSync(join(tmpdir(), "doolittle-chat-project-"));
+      const context = createContext();
+      const sessions = new SessionService(root);
+      context.services.sessions = sessions;
+      sessions.createProject({
+        id: "foreign-project",
+        name: "Foreign",
+        primaryPath: root,
+      });
+      sessions.assignSessionProject("older-session", "foreign-project");
+      for (const [sessionId, createdAt] of [
+        ["older-session", "2026-01-01T00:00:00.000Z"],
+        ["recent-session", "2026-10-03T00:00:00.000Z"],
+      ]) {
+        sessions.storeMessage({
+          id: sessionId,
+          sessionId,
+          roomId: sessionId,
+          entityId: "user",
+          role: "user",
+          text: "Earlier message",
+          createdAt,
+        });
+      }
+      const assign = vi.spyOn(sessions, "assignSessionProject");
+      const claim = vi.spyOn(context.services.runController, "claimTaskRun");
+      try {
+        expect(
+          sessions.listSessions(1).map((session) => session.sessionId),
+        ).not.toContain("older-session");
+        const response = await (submit
+          ? handleChatSubmitRoute
+          : handleChatRoute)(
+          context,
+          chatRequest({
+            message: "must stay in my project",
+            roomId: "older-session",
+            runId: "foreign-bound-run",
+            projectId,
+            workspaceDir: context.config.workspaceDir,
+            stream,
+          }),
+        );
+
+        expect(response.status).toBe(409);
+        await expect(response.json()).resolves.toEqual({
+          error:
+            "This session belongs to a different project workspace. Switch to that project's workspace before sending a message.",
+          code: "session_workspace_mismatch",
+        });
+        expect(executeAgentTurnWithProgress).not.toHaveBeenCalled();
+        expect(claim).not.toHaveBeenCalled();
+        expect(assign).not.toHaveBeenCalled();
+        expect(sessions.projectIdForSession("older-session")).toBe(
+          "foreign-project",
+        );
+        expect(sessions.countBySessionRole("older-session")).toBe(1);
+      } finally {
+        rmSync(root, { recursive: true, force: true });
+      }
+    },
+  );
+
+  it.each([undefined, "unrelated-project"])(
+    "allows a current-workspace binding without reassignment with request project %s",
+    async (projectId) => {
+      const root = mkdtempSync(join(tmpdir(), "doolittle-chat-current-"));
+      const context = createContext();
+      const sessions = new SessionService(root);
+      context.services.sessions = sessions;
+      sessions.createProject({
+        id: "canonical-project",
+        name: "Current",
+        primaryPath: context.config.workspaceDir,
+      });
+      // A binding can already exist before the first message is recorded.
+      sessions.assignSessionProject("prebound-session", "canonical-project");
+      const assign = vi.spyOn(sessions, "assignSessionProject");
+      executeAgentTurnWithProgress.mockResolvedValue({ response: "done" });
+      try {
+        const response = await handleChatRoute(
+          context,
+          chatRequest({
+            message: "continue the canonical session",
+            roomId: "prebound-session",
+            projectId,
+          }),
+        );
+        expect(response.status).toBe(200);
+        expect(executeAgentTurnWithProgress).toHaveBeenCalledTimes(1);
+        expect(assign).not.toHaveBeenCalled();
+        expect(sessions.projectIdForSession("prebound-session")).toBe(
+          "canonical-project",
+        );
+      } finally {
+        rmSync(root, { recursive: true, force: true });
+      }
+    },
+  );
+
+  it.each([
+    "missing",
+    "archived",
+    "no-workspace",
+    "unresolved",
+    "lookup-error",
+  ])(
+    "fails closed for a %s bound project before assignment or run acceptance",
+    async (state) => {
+      const context = createContext();
+      const assign = vi.fn(() => true);
+      context.services.sessions = {
+        ...context.services.sessions,
+        projectIdForSession: vi.fn(() => "canonical-project"),
+        getProject: vi.fn(() => {
+          if (state === "lookup-error")
+            throw new Error("private database path");
+          if (state === "missing") return undefined;
+          return {
+            primaryPath:
+              state === "no-workspace"
+                ? undefined
+                : state === "unresolved"
+                  ? join(tmpdir(), "doolittle-nonexistent", "workspace")
+                  : process.cwd(),
+            archivedAt: state === "archived" ? "2026-10-03" : undefined,
+          };
+        }),
+        assignSessionProject: assign,
+      } as never;
+      const claim = vi.spyOn(context.services.runController, "claimTaskRun");
+
+      const response = await handleChatRoute(
+        context,
+        chatRequest({
+          message: "do not rebind me",
+          roomId: "stale-session",
+          projectId: "replacement-project",
+        }),
+      );
+
+      expect(response.status).toBe(409);
+      await expect(response.json()).resolves.toEqual({
+        error:
+          "This session's project workspace is unavailable. Restore the project and its workspace, or explicitly move the session to an available project before sending a message.",
+        code: "session_project_unavailable",
+      });
+      expect(executeAgentTurnWithProgress).not.toHaveBeenCalled();
+      expect(claim).not.toHaveBeenCalled();
+      expect(assign).not.toHaveBeenCalled();
+    },
+  );
+
+  it.skipIf(process.platform === "win32")(
+    "accepts a bound project symlink to the canonical active workspace",
+    async () => {
+      const root = mkdtempSync(join(tmpdir(), "doolittle-chat-alias-"));
+      const alias = join(root, "workspace-alias");
+      const context = createContext();
+      symlinkSync(context.config.workspaceDir, alias, "dir");
+      context.services.sessions = {
+        ...context.services.sessions,
+        projectIdForSession: vi.fn(() => "aliased-project"),
+        getProject: vi.fn(() => ({ primaryPath: alias })),
+      } as never;
+      executeAgentTurnWithProgress.mockResolvedValue({ response: "done" });
+      try {
+        const response = await handleChatRoute(
+          context,
+          chatRequest({ message: "same workspace", roomId: "aliased-session" }),
+        );
+        expect(response.status).toBe(200);
+        expect(executeAgentTurnWithProgress).toHaveBeenCalledTimes(1);
+      } finally {
+        rmSync(root, { recursive: true, force: true });
+      }
+    },
+  );
+
+  it.skipIf(process.platform !== "win32")(
+    "accepts Windows casing differences for the same bound workspace",
+    async () => {
+      const context = createContext();
+      context.services.sessions = {
+        ...context.services.sessions,
+        projectIdForSession: vi.fn(() => "windows-project"),
+        getProject: vi.fn(() => ({ primaryPath: process.cwd().toUpperCase() })),
+      } as never;
+      executeAgentTurnWithProgress.mockResolvedValue({ response: "done" });
+      const response = await handleChatRoute(
+        context,
+        chatRequest({ message: "same workspace", roomId: "windows-session" }),
+      );
+      expect(response.status).toBe(200);
+      expect(executeAgentTurnWithProgress).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it("preserves an unbound new session without a requested project", async () => {
+    const context = createContext();
+    executeAgentTurnWithProgress.mockResolvedValue({ response: "done" });
+    const response = await handleChatRoute(
+      context,
+      chatRequest({
+        message: "new unbound session",
+        roomId: "unbound-session",
+      }),
+    );
+    expect(response.status).toBe(200);
+    expect(context.services.sessions.getProject).not.toHaveBeenCalled();
+    expect(
+      context.services.sessions.assignSessionProject,
+    ).not.toHaveBeenCalled();
+  });
+
+  it("still rejects an unavailable requested project for a new unbound session", async () => {
+    const context = createContext();
+    vi.mocked(context.services.sessions.assignSessionProject).mockReturnValue(
+      false,
+    );
+    const response = await handleChatRoute(
+      context,
+      chatRequest({
+        message: "new session",
+        roomId: "new-unbound-session",
+        projectId: "missing-project",
+      }),
+    );
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toEqual({
+      error: "project not found or archived",
+    });
+    expect(executeAgentTurnWithProgress).not.toHaveBeenCalled();
   });
 
   it.each([

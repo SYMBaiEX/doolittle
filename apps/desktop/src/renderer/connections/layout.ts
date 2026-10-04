@@ -18,7 +18,7 @@ export const PROVIDER_CONNECTION_DEFAULT_CLASS =
   "is-default bg-[color-mix(in_srgb,var(--accent)_4%,var(--surface))] before:absolute before:top-2.5 before:bottom-2.5 before:left-0 before:w-0.5 before:bg-[var(--accent)] before:content-['']";
 
 export const PROVIDER_IDENTITY_MARK_CLASS =
-  "provider-identity-mark grid size-8.5 place-items-center rounded-[4px] border border-[color-mix(in_srgb,var(--accent)_28%,var(--border))] bg-[color-mix(in_srgb,var(--accent)_7%,var(--surface-raised))] font-[var(--font-mono)] text-[10px] font-bold tracking-[0.08em] text-[var(--accent)]";
+  "provider-identity-mark grid size-8.5 place-items-center rounded-[4px] border border-[color-mix(in_srgb,var(--accent)_28%,var(--border))] bg-[color-mix(in_srgb,var(--accent)_7%,var(--surface-raised))] font-[var(--font-mono)] text-[length:var(--text-meta)] font-bold tracking-[0.08em] text-[var(--accent-text)]";
 
 export const PROVIDER_CONNECTION_COPY_CLASS =
   "provider-connection-copy grid min-w-0 gap-0.75";
@@ -42,7 +42,7 @@ export const PROVIDER_CONNECTION_MENU_CLASS =
   "provider-connection-menu min-w-34.5 [&_[role=menuitem]]:text-[length:var(--text-control)]";
 
 export const PROVIDER_ROUTING_DISCLOSURE_CLASS =
-  "provider-routing-disclosure overflow-hidden rounded-[5px] border border-[var(--border)] bg-[color-mix(in_srgb,var(--surface)_92%,transparent)] pt-0 [&>summary]:flex [&>summary]:min-h-14.5 [&>summary]:cursor-pointer [&>summary]:list-none [&>summary]:items-center [&>summary]:justify-between [&>summary]:gap-4.5 [&>summary]:px-3.25 [&>summary]:py-2.25 [&>summary::-webkit-details-marker]:hidden [&>summary>span:first-child]:grid [&>summary>span:first-child]:gap-0.5 [&>summary_strong]:font-[var(--font-display)] [&>summary_strong]:text-sm [&>summary_small]:text-[var(--muted)] [&>summary_small]:text-[length:var(--text-meta)] [&>summary>span:last-child]:font-[var(--font-mono)] [&>summary>span:last-child]:text-[var(--accent)] [&>summary>span:last-child]:text-[length:var(--text-meta)] [&>summary>span:last-child]:uppercase";
+  "provider-routing-disclosure overflow-hidden rounded-[5px] border border-[var(--border)] bg-[color-mix(in_srgb,var(--surface)_92%,transparent)] pt-0 [&>summary]:flex [&>summary]:min-h-14.5 [&>summary]:cursor-pointer [&>summary]:list-none [&>summary]:items-center [&>summary]:justify-between [&>summary]:gap-4.5 [&>summary]:px-3.25 [&>summary]:py-2.25 [&>summary::-webkit-details-marker]:hidden [&>summary>span:first-child]:grid [&>summary>span:first-child]:gap-0.5 [&>summary_strong]:font-[var(--font-display)] [&>summary_strong]:text-sm [&>summary_small]:text-[var(--muted)] [&>summary_small]:text-[length:var(--text-meta)] [&>summary>span:last-child]:font-[var(--font-mono)] [&>summary>span:last-child]:text-[var(--accent-text)] [&>summary>span:last-child]:text-[length:var(--text-meta)] [&>summary>span:last-child]:uppercase";
 
 export const PROVIDER_ROUTING_CONTENT_CLASS =
   "provider-routing-content border-[var(--line-subtle)] border-t p-2.5";
@@ -101,7 +101,7 @@ export const PROVIDER_ACCOUNT_PREVIEWED_CLASS =
   "provider-account-previewed outline outline-1 outline-offset-2 outline-[color-mix(in_srgb,var(--good)_55%,transparent)]";
 
 export const PROVIDER_IMPORT_DISCLOSURE_CLASS =
-  "provider-import-disclosure border-[var(--line-subtle)] border-t [&>summary]:flex [&>summary]:min-h-8 [&>summary]:cursor-pointer [&>summary]:list-none [&>summary]:items-center [&>summary]:justify-between [&>summary]:gap-3 [&>summary]:px-px [&>summary]:pt-1.5 [&>summary]:pb-0.5 [&>summary]:text-[var(--text-soft)] [&>summary::-webkit-details-marker]:hidden [&>summary>span:first-child]:grid [&>summary>span:first-child]:gap-0.5 [&>summary_strong]:text-[length:var(--text-control)] [&>summary>span:last-child]:grid [&>summary>span:last-child]:size-5.5 [&>summary>span:last-child]:place-items-center [&>summary>span:last-child]:rounded-[3px] [&>summary>span:last-child]:border [&>summary>span:last-child]:border-[var(--line-subtle)] [&>summary>span:last-child]:text-[15px] [&>summary>span:last-child]:text-[var(--accent)] [&[open]>summary>span:last-child]:rotate-45";
+  "provider-import-disclosure border-[var(--line-subtle)] border-t [&>summary]:flex [&>summary]:min-h-8 [&>summary]:cursor-pointer [&>summary]:list-none [&>summary]:items-center [&>summary]:justify-between [&>summary]:gap-3 [&>summary]:px-px [&>summary]:pt-1.5 [&>summary]:pb-0.5 [&>summary]:text-[var(--text-soft)] [&>summary::-webkit-details-marker]:hidden [&>summary>span:first-child]:grid [&>summary>span:first-child]:gap-0.5 [&>summary_strong]:text-[length:var(--text-control)] [&>summary>span:last-child]:grid [&>summary>span:last-child]:size-5.5 [&>summary>span:last-child]:place-items-center [&>summary>span:last-child]:rounded-[3px] [&>summary>span:last-child]:border [&>summary>span:last-child]:border-[var(--line-subtle)] [&>summary>span:last-child]:text-[15px] [&>summary>span:last-child]:text-[var(--accent-text)] [&[open]>summary>span:last-child]:rotate-45";
 
 export const PROVIDER_IMPORT_FORM_CLASS =
   "provider-import-form grid grid-cols-2 gap-2.25 px-0 pt-2 pb-0.5 max-[620px]:grid-cols-1 [&_.form-field]:grid [&_.form-field]:gap-1 [&_.form-field>span]:font-[var(--font-mono)] [&_.form-field>span]:text-[var(--muted)] [&_.form-field>span]:text-[length:var(--text-meta)] [&_.form-field>span]:tracking-[0.05em] [&_.form-field>span]:uppercase";

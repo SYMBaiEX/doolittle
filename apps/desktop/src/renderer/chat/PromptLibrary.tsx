@@ -31,6 +31,7 @@ import {
 } from "../conversation-persistence";
 
 export interface PromptLibraryProps {
+  namespace?: string;
   activeProject?: { id: string; name: string } | null;
   composerRef: RefObject<HTMLTextAreaElement | null>;
   draft: string;
@@ -43,12 +44,15 @@ function browserStorage(): StorageLike | null {
 }
 
 export function PromptLibrary({
+  namespace,
   activeProject,
   composerRef,
   draft,
   setAnnouncement,
   setDraft,
 }: PromptLibraryProps) {
+  const controlId = (name: string) =>
+    namespace ? `${name}-${namespace}` : name;
   const [entries, setEntries] = useState<PromptLibraryEntry[]>(() => {
     const storage = browserStorage();
     return storage ? loadPromptLibrary(storage) : [];
@@ -241,7 +245,7 @@ export function PromptLibrary({
   return (
     <Fragment>
       <button
-        aria-controls="chat-prompt-library"
+        aria-controls={controlId("chat-prompt-library")}
         aria-expanded={open}
         aria-label="Open prompt library"
         className="secondary-button !inline-flex !h-7.5 !min-h-7.5 !w-auto !flex-row !flex-nowrap !items-center !justify-center gap-1.25 !rounded-[7px] !border-transparent !bg-transparent !px-2 !py-0 text-[10px] font-semibold text-[var(--text-soft)] hover:!border-[var(--border)] hover:!bg-[var(--surface-soft)] hover:!text-[var(--text)] max-[480px]:!size-10 max-[480px]:!min-h-10 max-[480px]:!min-w-10 max-[480px]:!px-0"
@@ -263,9 +267,9 @@ export function PromptLibrary({
       </button>
       {open ? (
         <section
-          aria-labelledby="chat-prompt-library-title"
+          aria-labelledby={controlId("chat-prompt-library-title")}
           className="chat-prompt-library absolute bottom-[calc(100%+10px)] left-0 z-60 grid max-h-[min(440px,62vh)] w-[min(380px,calc(100vw-32px))] gap-2 overflow-auto rounded-[var(--radius-md)] border border-[var(--border-strong)] bg-[color-mix(in_srgb,var(--surface-raised)_98%,var(--bg))] p-3 text-[var(--text-soft)] shadow-[var(--shell-shadow-lg)]"
-          id="chat-prompt-library"
+          id={controlId("chat-prompt-library")}
           ref={panelRef}
           role="dialog"
           tabIndex={-1}
@@ -274,7 +278,7 @@ export function PromptLibrary({
             <div className="grid min-w-0 gap-0.5">
               <strong
                 className="text-xs font-semibold text-[var(--text)]"
-                id="chat-prompt-library-title"
+                id={controlId("chat-prompt-library-title")}
               >
                 Prompt library
               </strong>
@@ -427,7 +431,7 @@ export function PromptLibrary({
       ) : null}
       <Dialog open={manageOpen} onOpenChange={setManageOpen}>
         <DialogContent
-          aria-describedby="prompt-library-manager-description"
+          aria-describedby={controlId("prompt-library-manager-description")}
           className="!grid !max-h-[min(720px,calc(100svh-40px))] !w-[min(720px,calc(100vw-32px))] !max-w-none !grid-rows-[auto_auto_minmax(0,1fr)] !gap-3 !overflow-hidden !rounded-[var(--radius-lg)] !border-[var(--border-strong)] !bg-[var(--surface-raised)] !p-4 !shadow-[var(--shell-shadow-lg)]"
           showCloseButton={false}
           onOpenAutoFocus={(event) => {
@@ -450,7 +454,7 @@ export function PromptLibrary({
               </DialogTitle>
               <p
                 className="text-[length:var(--text-meta)] text-[var(--muted)]"
-                id="prompt-library-manager-description"
+                id={controlId("prompt-library-manager-description")}
               >
                 {entries.length} saved{" "}
                 {entries.length === 1 ? "prompt" : "prompts"}. Use $ in chat to
@@ -470,13 +474,13 @@ export function PromptLibrary({
           </header>
           <label
             className="grid grid-cols-[16px_minmax(0,1fr)] items-center gap-2 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-soft)] px-2.5 text-[var(--muted)]"
-            htmlFor="prompt-library-manager-search"
+            htmlFor={controlId("prompt-library-manager-search")}
           >
             <UiIcon icon={Search} size="sm" />
             <ElizaInput
               aria-label="Search saved prompts"
               className="!h-9 !min-h-9 !border-0 !bg-transparent !px-0 !shadow-none focus-visible:!ring-0"
-              id="prompt-library-manager-search"
+              id={controlId("prompt-library-manager-search")}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search saved prompts"
               type="search"

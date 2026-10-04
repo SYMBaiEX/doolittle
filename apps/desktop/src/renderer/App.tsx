@@ -1284,6 +1284,7 @@ export function App() {
       tasksResource={tasksResource}
       backend={backend}
       chatChromeHost={chatChromeHost}
+      chatRouteActive={chatRouteActive}
       codeEditingLocked={codeEditingLocked}
       navigation={{
         chooseRepositoryForConversation,
@@ -1313,6 +1314,7 @@ export function App() {
       runtime={runtime}
       runningTasks={runningTasks}
       scopedSessions={scopedSessions}
+      sessionMetadata={sessions}
       selectedSession={selectedSession}
       view={routeView}
       workspacePath={workspace.currentPath}

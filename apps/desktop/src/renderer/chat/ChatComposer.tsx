@@ -11,13 +11,15 @@ import {
   X,
 } from "lucide-react";
 import type {
+  CSSProperties,
   Dispatch,
   FormEvent,
   KeyboardEvent,
+  ReactNode,
   RefObject,
   SetStateAction,
 } from "react";
-import { useEffect, useLayoutEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type {
   BackendState,
   CommandCatalogItem,
@@ -61,6 +63,35 @@ import {
 export const CHAT_COMPOSER_MIN_HEIGHT = 42;
 export const CHAT_COMPOSER_MAX_HEIGHT = 156;
 
+/** Reserve transcript space from this pane's actual geometry, not window height. */
+export function chatApprovalHeightBudget(
+  paneHeight: number,
+  composerHeight: number,
+  approvalHeight: number,
+  transcriptHeight: number,
+): number | null {
+  if (
+    ![paneHeight, composerHeight, approvalHeight, transcriptHeight].every(
+      (height) => Number.isFinite(height) && height >= 0,
+    ) ||
+    paneHeight === 0 ||
+    approvalHeight === 0
+  )
+    return null;
+  const otherChrome = Math.max(
+    0,
+    paneHeight - composerHeight - transcriptHeight,
+  );
+  const composerControls = Math.max(0, composerHeight - approvalHeight);
+  return Math.max(
+    0,
+    Math.min(
+      280,
+      Math.floor(paneHeight - otherChrome - composerControls - 128),
+    ),
+  );
+}
+
 /** Keep the composer readable while preventing a long draft from taking over the chat view. */
 export function chatComposerHeight(scrollHeight: number): number {
   const measuredHeight = Number.isFinite(scrollHeight) ? scrollHeight : 0;
@@ -71,6 +102,8 @@ export function chatComposerHeight(scrollHeight: number): number {
 }
 
 export interface ChatComposerProps {
+  approvalsVisible?: boolean;
+  workspaceNotice?: ReactNode;
   activeProject?: {
     id: string;
     name: string;
@@ -138,6 +171,8 @@ export interface ChatComposerProps {
 }
 
 export function ChatComposer({
+  approvalsVisible = true,
+  workspaceNotice,
   activeProject,
   projects,
   onChooseRepository,
@@ -193,6 +228,40 @@ export function ChatComposer({
   pendingApprovals,
   runningTasks,
 }: ChatComposerProps) {
+  const formRef = useRef<HTMLFormElement>(null);
+  const [approvalHeightBudget, setApprovalHeightBudget] = useState<
+    number | null
+  >(null);
+  useLayoutEffect(() => {
+    const form = formRef.current;
+    const pane = form?.closest<HTMLElement>(".chat-conversation");
+    const transcript = pane?.querySelector<HTMLElement>(".chat-messages");
+    if (!form || !pane || !transcript) return;
+    const measure = () => {
+      const approval = form.querySelector<HTMLElement>(
+        "[data-session-approval-surface]",
+      );
+      if (!approval) {
+        setApprovalHeightBudget(null);
+        return;
+      }
+      const budget = chatApprovalHeightBudget(
+        pane.getBoundingClientRect().height,
+        form.getBoundingClientRect().height,
+        approval.getBoundingClientRect().height,
+        transcript.getBoundingClientRect().height,
+      );
+      if (budget !== null) setApprovalHeightBudget(budget);
+    };
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(pane);
+    observer.observe(form);
+    observer.observe(transcript);
+    return () => observer.disconnect();
+  }, []);
+  const controlId = (name: string) => `${name}-${selectedId}`;
   const isCancellingActive = Boolean(
     activeRequest && cancellingRequest === activeRequest,
   );
@@ -299,7 +368,9 @@ export function ChatComposer({
     completionCount > 0 ? Math.min(commandSelection, completionCount - 1) : -1;
   const activeCommandId =
     activeCommandIndex >= 0
-      ? `${commandMenuOpen ? "chat-command" : "chat-reusable"}-option-${activeCommandIndex}`
+      ? controlId(
+          `${commandMenuOpen ? "chat-command" : "chat-reusable"}-option-${activeCommandIndex}`,
+        )
       : undefined;
   const selectReusableSuggestion = (suggestion: ReusableCompletion) => {
     setDraft(suggestion.insertText);
@@ -328,8 +399,24 @@ export function ChatComposer({
   };
 
   return (
-    <form className="chat-composer" onSubmit={onSubmit}>
-      <InlineApprovalPanel active={backend.phase === "ready"} />
+    <form
+      className="chat-composer"
+      onSubmit={onSubmit}
+      ref={formRef}
+      style={
+        approvalHeightBudget === null
+          ? undefined
+          : ({
+              "--session-approval-max-height": `${approvalHeightBudget}px`,
+            } as CSSProperties)
+      }
+    >
+      {workspaceNotice}
+      <InlineApprovalPanel
+        active={backend.phase === "ready" && approvalsVisible}
+        compact={approvalHeightBudget !== null && approvalHeightBudget < 144}
+        roomId={selectedId}
+      />
       {queuedMessages.length > 0 ? (
         <div className="chat-message-queue" ref={queueRef}>
           <div className="chat-message-queue-heading">
@@ -441,7 +528,7 @@ export function ChatComposer({
         <div
           aria-live="polite"
           className="chat-composer-validation"
-          id="chat-composer-validation"
+          id={controlId("chat-composer-validation")}
           role="alert"
         >
           {composerValidationError}
@@ -451,7 +538,7 @@ export function ChatComposer({
         <div
           aria-label="Chat commands"
           className="chat-command-completions absolute inset-x-0 bottom-[calc(100%+8px)] z-50 grid max-h-[min(360px,46vh)] overflow-y-auto rounded-[var(--radius-md)] border border-[var(--border-strong)] bg-[color-mix(in_srgb,var(--surface-raised)_98%,var(--bg))] p-1.5 shadow-[var(--shell-shadow-lg)]"
-          id="chat-command-completions"
+          id={controlId("chat-command-completions")}
           role="listbox"
         >
           {commandSuggestions.map((command, index) => (
@@ -459,7 +546,7 @@ export function ChatComposer({
               aria-disabled={command.disabledReason ? true : undefined}
               aria-selected={index === activeCommandIndex}
               className={`!grid !min-h-11 !min-w-0 grid-cols-[minmax(80px,auto)_minmax(0,1fr)_auto] items-center gap-3 !rounded-[var(--radius-sm)] !border-0 !bg-transparent px-2.5 py-2 !text-left text-[var(--text-soft)] hover:!bg-[color-mix(in_srgb,var(--accent)_8%,var(--surface-hover))] hover:!text-[var(--text)] ${index === activeCommandIndex ? "!bg-[color-mix(in_srgb,var(--accent)_8%,var(--surface-hover))] !text-[var(--text)]" : ""}`}
-              id={`chat-command-option-${index}`}
+              id={controlId(`chat-command-option-${index}`)}
               key={command.command}
               onClick={() => {
                 if (!command.disabledReason) selectCommandSuggestion(command);
@@ -500,7 +587,7 @@ export function ChatComposer({
         <div
           aria-label="Reusable prompts and skills"
           className="chat-reusable-completions absolute inset-x-0 bottom-[calc(100%+8px)] z-50 grid max-h-[min(360px,46vh)] overflow-y-auto rounded-[var(--radius-md)] border border-[var(--border-strong)] bg-[color-mix(in_srgb,var(--surface-raised)_98%,var(--bg))] p-1.5 shadow-[var(--shell-shadow-lg)]"
-          id="chat-reusable-completions"
+          id={controlId("chat-reusable-completions")}
           role="listbox"
         >
           <div className="flex items-center justify-between gap-3 px-2.5 py-1.5 font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--muted)]">
@@ -511,7 +598,7 @@ export function ChatComposer({
             <div
               aria-selected={index === activeCommandIndex}
               className={`!grid !min-h-11 !min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 !rounded-[var(--radius-sm)] !border-0 !bg-transparent px-2.5 py-2 !text-left text-[var(--text-soft)] hover:!bg-[color-mix(in_srgb,var(--accent)_8%,var(--surface-hover))] hover:!text-[var(--text)] ${index === activeCommandIndex ? "!bg-[color-mix(in_srgb,var(--accent)_8%,var(--surface-hover))] !text-[var(--text)]" : ""}`}
-              id={`chat-reusable-option-${index}`}
+              id={controlId(`chat-reusable-option-${index}`)}
               key={suggestion.id}
               onClick={() => selectReusableSuggestion(suggestion)}
               onKeyDown={(event) => {
@@ -554,22 +641,27 @@ export function ChatComposer({
           aria-activedescendant={activeCommandId}
           aria-autocomplete="list"
           aria-describedby={
-            composerValidationError ? "chat-composer-validation" : undefined
+            composerValidationError
+              ? controlId("chat-composer-validation")
+              : undefined
           }
           aria-controls={
             commandMenuOpen
-              ? "chat-command-completions"
+              ? controlId("chat-command-completions")
               : reusableMenuOpen
-                ? "chat-reusable-completions"
+                ? controlId("chat-reusable-completions")
                 : undefined
           }
           aria-errormessage={
-            composerValidationError ? "chat-composer-validation" : undefined
+            composerValidationError
+              ? controlId("chat-composer-validation")
+              : undefined
           }
           aria-expanded={commandMenuOpen || reusableMenuOpen}
           aria-haspopup="listbox"
           aria-invalid={composerValidationError ? true : undefined}
           aria-label="Message Doolittle"
+          id={controlId("chat-composer-input")}
           disabled={backend.phase !== "ready"}
           onChange={(event) => {
             setDraft(event.target.value);
@@ -674,6 +766,7 @@ export function ChatComposer({
             onTranscript={insertDictationTranscript}
           />
           <PromptLibrary
+            namespace={selectedId}
             activeProject={activeProject}
             composerRef={composerRef}
             draft={draft}
@@ -730,10 +823,15 @@ export function ChatComposer({
                 }
                 withDot
               />
-              {runningTasks > 0 ? <small>{runningTasks} active</small> : null}
+              {runningTasks > 0 ? (
+                <small>
+                  {runningTasks} runtime task{runningTasks === 1 ? "" : "s"}{" "}
+                  active
+                </small>
+              ) : null}
               {pendingApprovals > 0 ? (
                 <small className="warning">
-                  {pendingApprovals} approval
+                  {pendingApprovals} runtime approval
                   {pendingApprovals === 1 ? "" : "s"}
                 </small>
               ) : null}
@@ -741,7 +839,8 @@ export function ChatComposer({
           ) : null}
           {hasMemoryMatches || hasContextDetails ? (
             <ElizaButton
-              aria-controls="chat-composer-details"
+              aria-controls={controlId("chat-composer-details")}
+              aria-label={detailsLabel}
               aria-expanded={detailsOpen}
               className="chat-composer-meta-toggle !min-h-[30px] rounded-[7px] !border-transparent !bg-transparent px-2 py-1 text-[10px] font-semibold text-[var(--muted)] hover:!border-[var(--border)] hover:!bg-[var(--surface-soft)] hover:!text-[var(--text)]"
               onClick={() => setDetailsOpen((current) => !current)}
@@ -817,7 +916,10 @@ export function ChatComposer({
         · Shift Enter for a new line
       </small>
       {detailsOpen && (hasMemoryMatches || hasContextDetails) ? (
-        <div className="chat-composer-details" id="chat-composer-details">
+        <div
+          className="chat-composer-details"
+          id={controlId("chat-composer-details")}
+        >
           {hasMemoryMatches ? (
             <section
               aria-label={`${memoryMatches.matches.length} saved profile matches`}

@@ -57,10 +57,10 @@ describe("InteractiveTerminalHeader", () => {
     expect(markup).toContain("Open shell");
     expect(markup).toContain("~/repo");
     expect(markup).toContain("interactive-terminal-mode hidden");
-    expect(markup).toContain("max-[1180px]:col-span-full");
-    expect(markup.includes("min-[1280px]:inline-flex")).toBe(true);
-    expect(markup.includes("min-[1440px]:inline")).toBe(true);
-    expect(markup.includes("min-[1280px]:hidden")).toBe(true);
+    expect(markup).toContain("@max-[1180px]/terminal:col-span-full");
+    expect(markup.includes("@min-[1280px]/terminal:inline-flex")).toBe(true);
+    expect(markup.includes("@min-[1440px]/terminal:inline")).toBe(true);
+    expect(markup.includes("@min-[1280px]/terminal:hidden")).toBe(true);
     expect(markup).not.toContain("2xl:inline");
   });
 
@@ -152,9 +152,37 @@ describe("InteractiveTerminalHeader", () => {
     expect(markup).toContain('aria-label="Close terminal Terminal 1"');
     expect(markup).not.toContain('aria-label="Rename terminal Terminal 2"');
     expect(markup).not.toContain('aria-label="Close terminal Terminal 2"');
-    expect(markup.includes("size-5 min-h-5 min-w-5")).toBe(true);
-    expect(markup.includes("right-5.25")).toBe(true);
-    expect(markup.includes("pr-10")).toBe(true);
+    const host = document.createElement("div");
+    host.innerHTML = markup;
+    const selectedTab = host.querySelector(
+      '[role="tab"][aria-selected="true"]',
+    );
+    const rename = host.querySelector(
+      '[aria-label="Rename terminal Terminal 1"]',
+    );
+    const close = host.querySelector(
+      '[aria-label="Close terminal Terminal 1"]',
+    );
+    for (const action of [rename, close]) {
+      expect(action?.parentElement).toBe(selectedTab?.parentElement);
+      expect(selectedTab?.contains(action)).toBe(false);
+      expect(action?.className).toContain("size-[var(--control-height)]");
+      expect(action?.className).toContain("max-[760px]:min-h-11");
+      expect(action?.className).toContain("max-[760px]:min-w-11");
+      expect(action?.className).not.toContain("absolute");
+      expect(action?.className).not.toContain("opacity-0");
+    }
+    expect(selectedTab?.className).toContain("h-[var(--control-height)]");
+    expect(selectedTab?.className).toContain("max-[760px]:h-11");
+    const tablist = host.querySelector('[role="tablist"]');
+    const utilities = host.querySelector(
+      '[aria-label="Create terminal tab"]',
+    )?.parentElement;
+    expect(tablist?.className).toContain("@max-[1180px]/terminal:row-start-2");
+    expect(utilities?.className).toContain(
+      "@max-[1180px]/terminal:row-start-1",
+    );
+    expect(markup).not.toContain("shadow-[0_0_12px");
   });
 
   it("keeps the selected tab identity while its name is being edited", () => {

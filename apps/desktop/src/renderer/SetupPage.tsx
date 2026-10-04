@@ -1,8 +1,8 @@
-import { Button } from "@elizaos/ui/components/ui/button";
 import { ChevronRight } from "lucide-react";
 import { useState } from "react";
 import type { AccountPoolResponse } from "../shared/contracts";
 import { CompactStatStrip } from "./components/CompactStatStrip";
+import { Button } from "./components/ElizaControls";
 import { UiIcon } from "./components/UiIcon";
 import {
   DIAGNOSTICS_CHEVRON_CLASS,
@@ -129,7 +129,7 @@ export function SetupPage({
       ) : (
         <>
           {summary.loading ? (
-            <LoadingBlock />
+            <LoadingBlock label="Checking local setup readiness…" />
           ) : summary.error ? (
             <ErrorBlock error={summary.error} retry={summary.reload} />
           ) : readiness ? (
@@ -267,7 +267,7 @@ export function SetupPage({
                     ))}
                   </ol>
                 ) : checklist.loading ? (
-                  <LoadingBlock />
+                  <LoadingBlock label="Loading optional setup checklist…" />
                 ) : (
                   <EmptyBlock title="No checklist items">
                     No setup guidance was returned.

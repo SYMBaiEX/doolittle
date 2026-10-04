@@ -1,6 +1,6 @@
-import { Button } from "@elizaos/ui/components/ui/button";
 import { useMemo, useState } from "react";
 import { CompactStatStrip } from "./components/CompactStatStrip";
+import { Button } from "./components/ElizaControls";
 import { OfflineRouteState } from "./components/OfflineRouteState";
 import { ResourceStatusBar } from "./components/ResourceStatusBar";
 import { GatewayPairingPanel } from "./gateway/GatewayPairingPanel";
@@ -398,7 +398,7 @@ export function GatewayPage({
                   <ul className={GATEWAY_LIST_CLASS}>
                     {localSessions.slice(0, 12).map((session) => (
                       <li
-                        className="grid gap-1.25 border-[var(--border)] border-b py-2.25 last:border-b-0 [&_small]:font-mono [&_small]:text-[10px] [&_small]:text-[var(--muted)] [&_span]:font-mono [&_span]:text-[10px] [&_span]:text-[var(--muted)] [&_time]:font-mono [&_time]:text-[10px] [&_time]:text-[var(--muted)]"
+                        className="grid gap-1.25 border-[var(--border)] border-b py-2.25 last:border-b-0 [&_small]:font-mono [&_small]:text-[length:var(--text-meta)] [&_small]:text-[var(--muted)] [&_span]:font-mono [&_span]:text-[length:var(--text-meta)] [&_span]:text-[var(--muted)] [&_time]:font-mono [&_time]:text-[length:var(--text-meta)] [&_time]:text-[var(--muted)]"
                         key={session.id}
                       >
                         <Badge>{titleCase(session.platform)}</Badge>

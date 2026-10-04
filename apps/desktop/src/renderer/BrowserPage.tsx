@@ -1,4 +1,3 @@
-import { Button } from "@elizaos/ui/components/ui/button";
 import {
   ArrowLeft,
   ArrowRight,
@@ -33,6 +32,7 @@ import {
   useBrowserWorkspace,
 } from "./browser/useBrowserWorkspace";
 import { BrowserResultPanel } from "./components/BrowserResultPanel";
+import { Button, Input } from "./components/ElizaControls";
 import { OfflineRouteState } from "./components/OfflineRouteState";
 import { UiIcon } from "./components/UiIcon";
 import { Badge, Notice } from "./lib";
@@ -145,9 +145,7 @@ export function BrowserPage({
           <div className={BROWSER_STATUS_CLASS}>
             <i
               className={`size-1.75 rounded-full ${
-                status.error
-                  ? "bg-[var(--bad)]"
-                  : "bg-[var(--good)] shadow-[0_0_10px_color-mix(in_srgb,var(--good)_42%,transparent)]"
+                status.error ? "bg-[var(--bad)]" : "bg-[var(--good)]"
               }`}
             />
             <strong>{status.error ? "Unavailable" : statusLabel}</strong>
@@ -203,7 +201,7 @@ export function BrowserPage({
           icon={embedded ? Monitor : Globe2}
           size="sm"
         />
-        <input
+        <Input
           aria-describedby={
             error && errorField === "address" ? "browser-url-error" : undefined
           }
@@ -230,26 +228,12 @@ export function BrowserPage({
       <div className={BROWSER_WORKSPACE_CLASS}>
         <section className={BROWSER_CANVAS_CLASS}>
           <div className={BROWSER_CANVAS_TOOLBAR_CLASS}>
-            <div>
-              <span
-                aria-hidden="true"
-                className="size-2 rounded-full bg-[var(--bad)]"
-              />
-              <span
-                aria-hidden="true"
-                className="size-2 rounded-full bg-[var(--warn)]"
-              />
-              <span
-                aria-hidden="true"
-                className="size-2 rounded-full bg-[var(--good)]"
-              />
-            </div>
             <span>{currentUrl || "No preview loaded"}</span>
             <label>
               <span className="sr-only">Preview size</span>
               <select
                 aria-label="Preview size"
-                className="h-6.5 border-[var(--border)] bg-[var(--surface-soft)] py-0.75 pr-6 pl-1.75 font-mono text-[10px] text-[var(--text-soft)]"
+                className="min-h-[var(--control-height)] rounded-[var(--radius-xs)] border border-[var(--border-strong)] bg-[var(--surface-raised)] px-2 font-[var(--font-mono)] text-[length:var(--text-control)] text-[var(--text)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] max-[760px]:min-h-11"
                 onChange={(event) =>
                   setPreviewSize(event.target.value as BrowserPreviewSize)
                 }
@@ -362,16 +346,20 @@ export function BrowserPage({
               <small>Optional</small>
             </summary>
             <div className="grid gap-2 px-3.5 pb-3.5">
-              <label className="grid gap-1.25 font-mono text-[10px] text-[var(--muted)]">
+              <label
+                htmlFor="browser-compare-url"
+                className="grid gap-1.25 font-[var(--font-mono)] text-[length:var(--text-control)] text-[var(--muted)]"
+              >
                 Compare with
-                <input
+                <Input
+                  id="browser-compare-url"
                   aria-describedby={
                     error && errorField === "compare"
                       ? "browser-url-error"
                       : undefined
                   }
                   aria-invalid={errorField === "compare" ? true : undefined}
-                  className="h-8.75 rounded-[var(--radius-xs)] px-2.25 font-mono text-[10px]"
+                  className="font-[var(--font-mono)]"
                   onChange={(event) => updateCompareUrl(event.target.value)}
                   placeholder="https://staging.example.com"
                   spellCheck={false}

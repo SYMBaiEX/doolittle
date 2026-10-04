@@ -1,7 +1,24 @@
+import { compile } from "tailwindcss";
 import { describe, expect, it } from "vitest";
 import { VIEW_PRIMITIVES_CLASS } from "./view-layout";
 
 describe("shared view primitives", () => {
+  it("compiles readable page-description rules to the literal BEM class", async () => {
+    const compiler = await compile("@tailwind utilities;");
+    const candidates = VIEW_PRIMITIVES_CLASS.split(/\s+/u).filter((candidate) =>
+      candidate.includes("\\_\\_"),
+    );
+    expect(candidates).toHaveLength(6);
+    const css = compiler.build(candidates);
+    expect(css).toContain(".page-header .page-header__description");
+    expect(css).toContain("position: static");
+    expect(css).toContain("height: auto");
+    expect(css).toContain("width: auto");
+    expect(css).toContain("overflow: visible");
+    expect(css).toContain("white-space: normal");
+    expect(css).not.toContain(".page-header .page-header description");
+  });
+
   it("lets every route surface span the full viewport column", () => {
     expect(VIEW_PRIMITIVES_CLASS).toContain("[&_.page]:mx-0");
     expect(VIEW_PRIMITIVES_CLASS).toContain("[&_.page]:w-full");
@@ -71,6 +88,11 @@ describe("shared view primitives", () => {
     expect(VIEW_PRIMITIVES_CLASS).toContain(
       "[&_textarea:focus-visible]:outline-[var(--accent-text)]",
     );
+    for (const element of ["button", "a", "select"]) {
+      expect(VIEW_PRIMITIVES_CLASS).toContain(
+        `[&_${element}:focus-visible]:outline-[var(--focus-ring)]`,
+      );
+    }
     expect(VIEW_PRIMITIVES_CLASS).not.toContain(
       "[&_input:focus-visible]:outline-2",
     );

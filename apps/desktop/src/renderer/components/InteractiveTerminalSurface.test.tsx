@@ -54,5 +54,39 @@ describe("InteractiveTerminalSurface", () => {
     expect(markup).toContain(
       "Session ended on workspace change. Open a new shell to continue.",
     );
+    expect(markup).toContain("text-[length:var(--text-meta)]");
+    expect(markup).not.toContain("gradient(");
+    expect(markup).not.toContain("shadow-[0_0_");
+    expect(markup).not.toContain("text-[10px]");
+    expect(markup).toContain('role="status"');
   });
+
+  it.each([
+    { active: false, starting: false, label: "Open shell" },
+    { active: true, starting: true, label: "Opening…" },
+  ])(
+    "keeps the empty shell action disabled while unavailable or opening: $label",
+    ({ active, starting, label }) => {
+      const markup = renderToStaticMarkup(
+        <InteractiveTerminalSurface
+          active={active}
+          notice=""
+          onStart={vi.fn()}
+          running={false}
+          starting={starting}
+          viewportRef={{ current: null }}
+        />,
+      );
+      const host = document.createElement("div");
+      host.innerHTML = markup;
+      expect(host.querySelector("button")?.disabled).toBe(true);
+      expect(host.querySelector("button")?.textContent).toBe(label);
+      expect(host.querySelector("button")?.className).toContain(
+        "max-[760px]:min-h-11",
+      );
+      expect(markup).toContain("text-[length:var(--text-control)]");
+      expect(markup).not.toContain("gradient(");
+      expect(markup).not.toContain("shadow-[0_0_");
+    },
+  );
 });

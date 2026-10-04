@@ -384,7 +384,7 @@ export function RunReceiptView({
       {pending ? (
         <span
           aria-hidden="true"
-          className="block h-px w-full animate-pulse bg-[linear-gradient(90deg,transparent,var(--accent),transparent)] motion-reduce:animate-none"
+          className="block h-px w-full bg-[var(--border)]"
         />
       ) : null}
       {recoverable ? (

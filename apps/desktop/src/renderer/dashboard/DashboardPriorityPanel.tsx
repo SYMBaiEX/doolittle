@@ -1,5 +1,5 @@
-import { Button } from "@elizaos/ui/components/ui/button";
 import { CompactStatStrip } from "../components/CompactStatStrip";
+import { Button } from "../components/ElizaControls";
 import type {
   DashboardNextAction,
   DashboardRepoSnapshot,
@@ -64,10 +64,24 @@ export function DashboardPriorityPanel({
           { label: "Conversations", value: conversations },
           { label: "Runtime plugins", value: runtimePlugins },
           {
-            detail: repo.dirty ? `${repo.changedFiles} changed` : "Clean",
+            detail:
+              repoLoading || repoError
+                ? undefined
+                : repo.dirty
+                  ? `${repo.changedFiles} changed`
+                  : "Clean",
             label: "Workspace branch",
-            tone: repo.dirty ? "warn" : "good",
-            value: repo.branch,
+            tone:
+              repoLoading || repoError
+                ? "neutral"
+                : repo.dirty
+                  ? "warn"
+                  : "good",
+            value: repoLoading
+              ? "Loading…"
+              : repoError
+                ? "Unavailable"
+                : repo.branch,
           },
         ]}
       />
@@ -94,7 +108,9 @@ export function DashboardPriorityPanel({
                       ? onOpenSetup
                       : action.target === "providers"
                         ? onOpenProviders
-                        : () => onOpenChat?.(sessions[0]?.id);
+                        : onOpenChat
+                          ? () => onOpenChat(sessions[0]?.id)
+                          : undefined;
               return (
                 <article
                   className="grid grid-cols-[minmax(0,1fr)_auto] gap-1.5 rounded-[var(--radius-xs)] px-1 py-2.5"
@@ -108,6 +124,7 @@ export function DashboardPriorityPanel({
                     {action.description}
                   </p>
                   <Button
+                    aria-label={`Open ${action.title}`}
                     className="col-start-2 row-span-2 row-start-1 self-center"
                     disabled={!handler}
                     onClick={() => handler?.()}
@@ -129,63 +146,98 @@ export function DashboardPriorityPanel({
               <span className="eyebrow">Workspace pulse</span>
               <h2>Repository and setup</h2>
             </div>
-            <Badge tone={repo.dirty || repo.behind > 0 ? "warn" : "good"}>
-              {repo.dirty ? "dirty" : "stable"}
+            <Badge
+              tone={
+                repoLoading || repoError
+                  ? "neutral"
+                  : repo.dirty || repo.behind > 0
+                    ? "warn"
+                    : "good"
+              }
+            >
+              {repoLoading
+                ? "Loading…"
+                : repoError
+                  ? "Unavailable"
+                  : repo.dirty
+                    ? "dirty"
+                    : "stable"}
             </Badge>
           </div>
-          <div className="grid">
-            <div className={DASHBOARD_STATUS_ROW_CLASS}>
-              <div>
-                <strong>{repo.branch}</strong>
-                <small>
-                  {repo.upstream
-                    ? `${repo.upstream} · ${repo.ahead} ahead · ${repo.behind} behind`
-                    : "No upstream detected"}
-                </small>
+          {repoLoading ? (
+            <LoadingBlock label="Reading workspace status…" />
+          ) : repoError ? (
+            <ErrorBlock error={repoError} retry={reloadRepo} />
+          ) : (
+            <div className="grid">
+              <div className={DASHBOARD_STATUS_ROW_CLASS}>
+                <div>
+                  <strong>{repo.branch}</strong>
+                  <small>
+                    {repo.upstream
+                      ? `${repo.upstream} · ${repo.ahead} ahead · ${repo.behind} behind`
+                      : "No upstream detected"}
+                  </small>
+                </div>
+                <Badge tone={repo.dirty ? "warn" : "good"}>
+                  {repo.dirty ? `${repo.changedFiles} changed` : "Clean"}
+                </Badge>
               </div>
-              <Badge tone={repo.dirty ? "warn" : "good"}>
-                {repo.dirty ? `${repo.changedFiles} changed` : "Clean"}
-              </Badge>
             </div>
-          </div>
+          )}
           <details className="group mt-1.5 rounded-[var(--radius-xs)] bg-[color-mix(in_srgb,var(--surface-soft)_44%,transparent)] px-1">
             <summary className="flex min-h-8.5 cursor-pointer list-none items-center justify-between gap-2.5 px-0.5 text-[length:var(--text-control)] [&::-webkit-details-marker]:hidden">
               <span className="font-medium">Workspace diagnostics</span>
-              <Badge tone={setupWarnings ? "warn" : "good"}>
-                {setupWarnings ? `${setupWarnings} warnings` : "Ready"}
+              <Badge
+                tone={
+                  setupLoading || setupError
+                    ? "neutral"
+                    : setupWarnings
+                      ? "warn"
+                      : "good"
+                }
+              >
+                {setupLoading
+                  ? "Loading…"
+                  : setupError
+                    ? "Unavailable"
+                    : setupWarnings
+                      ? `${setupWarnings} warnings`
+                      : "Ready"}
               </Badge>
             </summary>
-            <div className="grid pb-1">
-              {setupEntries.slice(0, 4).map((entry) => (
-                <div className={DASHBOARD_STATUS_ROW_CLASS} key={entry.key}>
-                  <div>
-                    <strong>{entry.label}</strong>
-                    <small>{entry.value}</small>
-                  </div>
-                  <Badge tone={entry.tone}>{entry.tone}</Badge>
+            {setupLoading ? (
+              <LoadingBlock label="Checking workspace readiness…" />
+            ) : setupError ? (
+              <ErrorBlock error={setupError} retry={reloadSetup} />
+            ) : (
+              <>
+                <div className="grid pb-1">
+                  {setupEntries.slice(0, 4).map((entry) => (
+                    <div className={DASHBOARD_STATUS_ROW_CLASS} key={entry.key}>
+                      <div>
+                        <strong>{entry.label}</strong>
+                        <small>{entry.value}</small>
+                      </div>
+                      <Badge tone={entry.tone}>{entry.tone}</Badge>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-            {repo.lines.length > 0 ? (
-              <div className="mt-2 grid gap-1.5 pb-1">
-                {repo.lines.slice(0, 4).map((line) => (
-                  <code
-                    className="block overflow-hidden text-ellipsis whitespace-nowrap text-[var(--text-soft)]"
-                    key={line}
-                  >
-                    {line}
-                  </code>
-                ))}
-              </div>
-            ) : null}
+                {!repoLoading && !repoError && repo.lines.length > 0 ? (
+                  <div className="mt-2 grid gap-1.5 pb-1">
+                    {repo.lines.slice(0, 4).map((line) => (
+                      <code
+                        className="block overflow-hidden text-ellipsis whitespace-nowrap text-[var(--text-soft)]"
+                        key={line}
+                      >
+                        {line}
+                      </code>
+                    ))}
+                  </div>
+                ) : null}
+              </>
+            )}
           </details>
-          {repoLoading || setupLoading ? <LoadingBlock /> : null}
-          {repoError ? (
-            <ErrorBlock error={repoError} retry={reloadRepo} />
-          ) : null}
-          {setupError ? (
-            <ErrorBlock error={setupError} retry={reloadSetup} />
-          ) : null}
         </section>
       </div>
     </>

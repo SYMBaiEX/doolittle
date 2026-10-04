@@ -10,6 +10,7 @@ import type { SkillsResponse } from "../shared/contracts";
 import { buildSkillCatalogEntries } from "./catalog-entry-models";
 import { CatalogFilterBar } from "./components/CatalogFilterBar";
 import { CompactStatStrip } from "./components/CompactStatStrip";
+import { Button } from "./components/ElizaControls";
 import { OfflineRouteState } from "./components/OfflineRouteState";
 import { ResourceStatusBar } from "./components/ResourceStatusBar";
 import {
@@ -285,7 +286,21 @@ export function SkillsPage({
                 resetKey={query.trim().toLowerCase()}
               />
             ) : (
-              <EmptyBlock density="compact" title="No skills match">
+              <EmptyBlock
+                density="compact"
+                title={query.trim() ? "No skills match" : "No skills reported"}
+                actions={
+                  query.trim() ? (
+                    <Button
+                      onClick={() => setQuery("")}
+                      type="button"
+                      variant="secondary"
+                    >
+                      Clear search
+                    </Button>
+                  ) : undefined
+                }
+              >
                 Change the search, or add skills to the local skill workspace.
               </EmptyBlock>
             )}

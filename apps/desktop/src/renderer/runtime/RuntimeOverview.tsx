@@ -1,9 +1,9 @@
-import { Button } from "@elizaos/ui/components/ui/button";
 import type {
   AccountPoolResponse,
   RuntimeStatus,
 } from "../../shared/contracts";
 import { CompactStatStrip } from "../components/CompactStatStrip";
+import { Button } from "../components/ElizaControls";
 import {
   NativeAutonomyPanel,
   type NativeAutonomyResponse,
@@ -72,13 +72,33 @@ export function RuntimeOverview({
           { label: "Model", value: asString(runtime.data?.model, "Unknown") },
           {
             label: "Agent accounts",
-            tone: enabledAccounts.length ? "good" : "warn",
-            value: enabledAccounts.length,
+            tone:
+              accountPool.loading || accountPool.error
+                ? "neutral"
+                : enabledAccounts.length
+                  ? "good"
+                  : "warn",
+            value: accountPool.loading
+              ? "Loading…"
+              : accountPool.error
+                ? "Unavailable"
+                : enabledAccounts.length,
           },
           {
             label: "Autonomy",
-            tone: autonomyPayload.running === true ? "good" : "neutral",
-            value: autonomyPayload.running === true ? "Running" : "Manual",
+            tone:
+              autonomyPayload.running === true &&
+              !autonomy.loading &&
+              !autonomy.error
+                ? "good"
+                : "neutral",
+            value: autonomy.loading
+              ? "Loading…"
+              : autonomy.error
+                ? "Unavailable"
+                : autonomyPayload.running === true
+                  ? "Running"
+                  : "Manual",
           },
         ]}
       />

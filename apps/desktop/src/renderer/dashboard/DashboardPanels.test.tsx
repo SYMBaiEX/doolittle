@@ -119,4 +119,38 @@ describe("dashboard panels", () => {
     expect(container.textContent).toContain("main");
     expect(container.textContent).toContain("Clean");
   });
+
+  it("does not claim Clean or Ready while workspace checks are pending", () => {
+    act(() =>
+      root.render(
+        <DashboardPriorityPanel
+          agentAccounts={0}
+          conversations="0"
+          nextActions={[]}
+          repo={{
+            ahead: 0,
+            behind: 0,
+            branch: "unknown",
+            changedFiles: 0,
+            dirty: false,
+            lines: [],
+          }}
+          repoError=""
+          repoLoading
+          reloadRepo={vi.fn()}
+          reloadSetup={vi.fn()}
+          runtimePlugins="0"
+          sessions={[]}
+          setupEntries={[]}
+          setupError=""
+          setupLoading
+          setupWarnings={0}
+        />,
+      ),
+    );
+    expect(container.textContent).toContain("Reading workspace status…");
+    expect(container.textContent).not.toContain("Clean");
+    expect(container.textContent).not.toContain("Ready");
+    expect(container.textContent).not.toContain("stable");
+  });
 });

@@ -1,7 +1,12 @@
 import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { _electron as electron, expect, test } from "@playwright/test";
+import {
+  _electron as electron,
+  expect,
+  type Locator,
+  test,
+} from "@playwright/test";
 import { expectNoDesktopRecovery } from "./support/desktop-assertions";
 
 const repoRoot = process.cwd();
@@ -39,6 +44,133 @@ const routes = [
 
 const visualAuditRoutes = new Set(routes.map(([route]) => route));
 
+async function expectEditorToolbarGeometry(toolbar: Locator): Promise<void> {
+  const geometry = await toolbar.evaluate((element) => {
+    const rect = (target: Element) => {
+      const { left, right, top, bottom, width, height } =
+        target.getBoundingClientRect();
+      return { left, right, top, bottom, width, height };
+    };
+    return {
+      toolbar: rect(element),
+      parts: [
+        ...element.querySelectorAll(
+          ".coding-tabs button, .coding-breadcrumb small, .coding-editor-actions button",
+        ),
+      ]
+        .filter((part) => {
+          const bounds = part.getBoundingClientRect();
+          return bounds.width > 0 && bounds.height > 0;
+        })
+        .map((part) => ({
+          label: part.textContent?.trim() ?? "",
+          ...rect(part),
+        })),
+    };
+  });
+  expect(geometry.parts.map((part) => part.label)).toEqual(
+    expect.arrayContaining(["Markdown", "Discard", "Save"]),
+  );
+  for (const [index, part] of geometry.parts.entries()) {
+    expect(
+      part.left,
+      `${part.label} stays inside the editor toolbar`,
+    ).toBeGreaterThanOrEqual(geometry.toolbar.left - 1);
+    expect(
+      part.right,
+      `${part.label} stays inside the editor toolbar`,
+    ).toBeLessThanOrEqual(geometry.toolbar.right + 1);
+    expect(part.top).toBeGreaterThanOrEqual(geometry.toolbar.top - 1);
+    expect(part.bottom).toBeLessThanOrEqual(geometry.toolbar.bottom + 1);
+    for (const other of geometry.parts.slice(index + 1)) {
+      const overlapWidth =
+        Math.min(part.right, other.right) - Math.max(part.left, other.left);
+      const overlapHeight =
+        Math.min(part.bottom, other.bottom) - Math.max(part.top, other.top);
+      expect(
+        overlapWidth <= 1 || overlapHeight <= 1,
+        `${part.label} overlaps ${other.label}`,
+      ).toBe(true);
+    }
+  }
+}
+
+async function expectReviewFilterGeometry(tablist: Locator): Promise<void> {
+  const tabs = await tablist.getByRole("tab").evaluateAll((elements) =>
+    elements.map((element) => {
+      const rect = element.getBoundingClientRect();
+      const content = document.createRange();
+      content.selectNodeContents(element);
+      const contentRect = content.getBoundingClientRect();
+      return {
+        label: element.textContent?.trim() ?? "",
+        left: rect.left,
+        right: rect.right,
+        top: rect.top,
+        bottom: rect.bottom,
+        height: rect.height,
+        contentLeft: contentRect.left,
+        contentRight: contentRect.right,
+        contentTop: contentRect.top,
+        contentBottom: contentRect.bottom,
+      };
+    }),
+  );
+  expect(tabs).toHaveLength(4);
+  for (const [index, tab] of tabs.entries()) {
+    expect(tab.contentLeft).toBeGreaterThanOrEqual(tab.left - 1);
+    expect(
+      tab.contentRight,
+      `${tab.label} stays inside its filter tab`,
+    ).toBeLessThanOrEqual(tab.right + 1);
+    expect(tab.contentTop).toBeGreaterThanOrEqual(tab.top - 1);
+    expect(tab.contentBottom).toBeLessThanOrEqual(tab.bottom + 1);
+    for (const other of tabs.slice(index + 1)) {
+      const overlapWidth =
+        Math.min(tab.right, other.right) - Math.max(tab.left, other.left);
+      const overlapHeight =
+        Math.min(tab.bottom, other.bottom) - Math.max(tab.top, other.top);
+      expect(
+        overlapWidth <= 1 || overlapHeight <= 1,
+        `${tab.label} overlaps ${other.label}`,
+      ).toBe(true);
+    }
+  }
+  const narrow = await tablist.evaluate(() => window.innerWidth <= 620);
+  if (narrow) {
+    for (const tab of tabs) expect(tab.height).toBeGreaterThanOrEqual(44);
+  }
+}
+
+async function expectResourceStatusContentGeometry(
+  bar: Locator,
+): Promise<void> {
+  const geometry = await bar.evaluate((element) => {
+    const bounds = element.getBoundingClientRect();
+    return [...element.querySelectorAll("span")]
+      .filter((span) => Boolean(span.textContent?.trim()))
+      .map((span) => {
+        const content = document.createRange();
+        content.selectNodeContents(span);
+        const text = content.getBoundingClientRect();
+        return {
+          label: span.textContent?.trim(),
+          contained:
+            text.left >= bounds.left - 1 &&
+            text.right <= bounds.right + 1 &&
+            text.top >= bounds.top - 1 &&
+            text.bottom <= bounds.bottom + 1,
+        };
+      });
+  });
+  expect(geometry.length).toBeGreaterThanOrEqual(2);
+  for (const part of geometry) {
+    expect(part.contained, `${part.label} stays inside the status bar`).toBe(
+      true,
+    );
+  }
+}
+
 test.describe("Doolittle desktop navigation", () => {
   test("boots the real Electron shell and renders every application route", async ({
     browserName,
@@ -50,6 +182,15 @@ test.describe("Doolittle desktop navigation", () => {
     const alternateWorkspace = realpathSync(
       mkdtempSync(join(tmpdir(), "doolittle-e2e-workspace-")),
     );
+    const reviewFixtureName = `.doolittle-e2e-review-${process.pid}-${Date.now()}.md`;
+    const reviewFixturePath = join(repoRoot, reviewFixtureName);
+    let reviewFixtureCreated = false;
+    let app: Awaited<ReturnType<typeof electron.launch>> | undefined;
+    testInfo.annotations.push({
+      type: "fixture",
+      description:
+        "Synthetic untracked Markdown exercises Review using real local Git/IPC. It is not completed agent work or provider output; the empty state uses an owned empty workspace.",
+    });
     writeFileSync(
       join(profileDir, "workspace-state.json"),
       `${JSON.stringify({
@@ -58,19 +199,26 @@ test.describe("Doolittle desktop navigation", () => {
       })}\n`,
       "utf8",
     );
-    const app = await electron.launch({
-      args: [desktopRoot, `--user-data-dir=${profileDir}`],
-      cwd: repoRoot,
-      env: {
-        ...process.env,
-        DOOLITTLE_DESKTOP_SOURCE_ROOT: repoRoot,
-        DOOLITTLE_DESKTOP_CWD: repoRoot,
-        DOOLITTLE_OFFLINE_BOOTSTRAP: "true",
-        ELIZA_ACCOUNT_POOL_KEEPALIVE: "false",
-      },
-    });
-
     try {
+      // A clean CI checkout must still exercise all populated Review controls.
+      // Exclusive creation never overwrites existing repository content.
+      writeFileSync(
+        reviewFixturePath,
+        "# Synthetic Review E2E fixture\n\nRenderer geometry fixture only; not agent work or a model/provider response.\n",
+        { encoding: "utf8", flag: "wx" },
+      );
+      reviewFixtureCreated = true;
+      app = await electron.launch({
+        args: [desktopRoot, `--user-data-dir=${profileDir}`],
+        cwd: repoRoot,
+        env: {
+          ...process.env,
+          DOOLITTLE_DESKTOP_SOURCE_ROOT: repoRoot,
+          DOOLITTLE_DESKTOP_CWD: repoRoot,
+          DOOLITTLE_OFFLINE_BOOTSTRAP: "true",
+          ELIZA_ACCOUNT_POOL_KEEPALIVE: "false",
+        },
+      });
       const page = await app.firstWindow();
       const pageErrors: string[] = [];
       page.on("pageerror", (error) => {
@@ -87,6 +235,17 @@ test.describe("Doolittle desktop navigation", () => {
       );
       await expect(runtimeStatus).toHaveClass(/(?:^|\s)ready(?:\s|$)/);
       await expect(runtimeStatus).toContainText("Local runtime");
+      // This route/navigation smoke deliberately exercises one focused view;
+      // independent tiled sessions have their own workbench E2E coverage.
+      await page
+        .getByRole("button", { name: "Focus panel", exact: true })
+        .click();
+      await expect(
+        page.getByRole("button", { name: "Tile panels", exact: true }),
+      ).toBeVisible();
+      const focusedSessionPanel = page.locator("[data-session-panel]").filter({
+        has: page.locator('[data-session-focus][aria-pressed="true"]'),
+      });
       const shellBeforeCommandMenu = await page
         .locator(".desktop-shell")
         .boundingBox();
@@ -227,6 +386,39 @@ test.describe("Doolittle desktop navigation", () => {
         alternateWorkspace,
       );
       expect(liveWorkspaceHandoff.restoredHealth.workspaceDir).toBe(repoRoot);
+      // Independently cover the settled empty state, before any research task.
+      // This owned workspace has no repository changes, approvals, or checks.
+      try {
+        await page.evaluate(async (workspacePath) => {
+          await window.doolittle.switchWorkspace(workspacePath);
+          window.location.hash = "#/review";
+        }, alternateWorkspace);
+        const emptyReview = page.locator(".review-page");
+        await expect(emptyReview).toHaveAttribute(
+          "data-workspace-path",
+          alternateWorkspace,
+        );
+        await expect(
+          emptyReview.locator(".resource-status-bar"),
+        ).toHaveAttribute("aria-busy", "false", { timeout: 30_000 });
+        await expect(emptyReview.locator(".loading-block")).toHaveCount(0);
+        await expect(
+          emptyReview.getByRole("region", {
+            name: "Current agent work outcome",
+            exact: true,
+          }),
+        ).toHaveAttribute("data-review-empty", "true");
+        await expect(emptyReview).toContainText("No completed work yet");
+        await expect(emptyReview.locator(".review-workspace")).toHaveCount(0);
+        await expect(
+          emptyReview.getByRole("tablist", { name: "Review filters" }),
+        ).toHaveCount(0);
+      } finally {
+        await page.evaluate(async (workspacePath) => {
+          await window.doolittle.switchWorkspace(workspacePath);
+          window.location.hash = "#/chat";
+        }, repoRoot);
+      }
       await expect(
         page.getByRole("navigation", { name: "Workspace breadcrumb" }),
       ).toBeVisible();
@@ -298,9 +490,27 @@ test.describe("Doolittle desktop navigation", () => {
         .poll(() => page.evaluate(() => window.location.hash))
         .toBe("#/code");
       await expect(page.locator(".view-code .coding-grid")).toBeVisible();
-      const workspaceTree = page.getByRole("tree", {
+      const filesPane = page.getByRole("tabpanel", { name: "Files" });
+      const workspaceTree = filesPane.getByRole("tree", {
         name: "Workspace files",
       });
+      const workspaceTreeRetry = filesPane.getByRole("button", {
+        name: "Try again",
+      });
+      const emptyWorkspaceHeading = filesPane.getByRole("heading", {
+        name: "Workspace is empty",
+        exact: true,
+      });
+      // Switching workspaces and entering Code starts an async tree request.
+      // Wait for a terminal UI state; a populated repository must still render
+      // the tree (the error and empty states are not accepted as success).
+      await Promise.race([
+        workspaceTree.waitFor({ state: "visible", timeout: 30_000 }),
+        workspaceTreeRetry.waitFor({ state: "visible", timeout: 30_000 }),
+        emptyWorkspaceHeading.waitFor({ state: "visible", timeout: 30_000 }),
+      ]);
+      await expect(workspaceTreeRetry).toHaveCount(0);
+      await expect(emptyWorkspaceHeading).toHaveCount(0);
       await expect(workspaceTree).toBeVisible();
       const appsFolder = workspaceTree.getByRole("treeitem", {
         name: "apps",
@@ -463,7 +673,9 @@ test.describe("Doolittle desktop navigation", () => {
         .click();
       await expect(chatTerminal).toHaveAttribute("data-open", "false");
       await expect(chatTerminal).toHaveCount(0);
-      const terminalContextCapsule = page.locator(".chat-context-capsule");
+      const terminalContextCapsule = focusedSessionPanel.locator(
+        ".chat-context-capsule",
+      );
       await expect(terminalContextCapsule).toContainText("Terminal · Terminal");
       await expect(
         terminalContextCapsule.getByRole("button", {
@@ -471,7 +683,7 @@ test.describe("Doolittle desktop navigation", () => {
         }),
       ).toBeVisible();
       await expect(
-        page.getByRole("textbox", { name: "Message Doolittle" }),
+        focusedSessionPanel.getByRole("textbox", { name: "Message Doolittle" }),
       ).toBeFocused();
 
       // The terminal handoff deliberately proves that a General chat keeps an
@@ -496,10 +708,54 @@ test.describe("Doolittle desktop navigation", () => {
             page.locator('.window-dragbar [aria-live="polite"].sr-only'),
           ).toContainText(`${currentRouteLabel} opened for`);
           await expectNoDesktopRecovery(page);
-          const viewContainer = page.locator(
+          const routeContainer = page.locator(
             `.view-container[data-view="${route}"]`,
           );
+          await expect(routeContainer).toBeVisible();
+          const viewContainer =
+            route === "chat" || route === "sessions" || route === "media"
+              ? routeContainer.locator("[data-session-panel]").filter({
+                  has: page.locator(
+                    '[data-session-focus][aria-pressed="true"]',
+                  ),
+                })
+              : routeContainer;
           await expect(viewContainer).toBeVisible();
+          if (route === "code") {
+            await expectEditorToolbarGeometry(
+              viewContainer.locator(".coding-editor-toolbar"),
+            );
+          }
+          if (route === "review") {
+            await expect(
+              viewContainer.getByRole("region", {
+                name: "Current agent work outcome",
+                exact: true,
+              }),
+            ).toBeVisible();
+            await expect(
+              viewContainer.getByText("Assembling completed work…", {
+                exact: true,
+              }),
+            ).toHaveCount(0, { timeout: 30_000 });
+            await expect(
+              viewContainer.locator(".resource-status-bar"),
+            ).toHaveAttribute("aria-busy", "false", { timeout: 30_000 });
+            await expect(
+              viewContainer.getByRole("button").filter({
+                hasText: reviewFixtureName,
+              }),
+            ).toHaveCount(1);
+            await expect(
+              viewContainer.getByRole("tablist", { name: "Review filters" }),
+            ).toBeVisible();
+            await expectReviewFilterGeometry(
+              viewContainer.getByRole("tablist", { name: "Review filters" }),
+            );
+            await expectResourceStatusContentGeometry(
+              viewContainer.locator(".resource-status-bar"),
+            );
+          }
           await expect
             .poll(() =>
               viewContainer.evaluate(
@@ -819,6 +1075,15 @@ test.describe("Doolittle desktop navigation", () => {
                 .getComputedStyle(element)
                 .transitionDuration.split(",")
                 .some((duration) => Number.parseFloat(duration) > 0);
+            const hasLayoutTransition = (element: HTMLElement) =>
+              window
+                .getComputedStyle(element)
+                .transitionProperty.split(",")
+                .some((property) =>
+                  /^(?:all|(?:min-|max-)?(?:width|height)|padding(?:-.+)?|margin(?:-.+)?|(?:row-|column-)?gap|grid-template-.+|flex-basis|font-size|line-height)$/u.test(
+                    property.trim(),
+                  ),
+                );
             const hasDirectManipulation = (element: HTMLElement) => {
               const touchAction = window.getComputedStyle(element).touchAction;
               return (
@@ -835,6 +1100,12 @@ test.describe("Doolittle desktop navigation", () => {
               );
             return {
               controlsHaveMotion: controls.every(hasMotion),
+              layoutTransitionFailures: controls
+                .filter(hasLayoutTransition)
+                .map(
+                  (element) =>
+                    `${element.tagName.toLowerCase()}.${element.className}`,
+                ),
               directManipulationFailures: actions
                 .filter((element) => !hasDirectManipulation(element))
                 .map((element) => {
@@ -852,6 +1123,7 @@ test.describe("Doolittle desktop navigation", () => {
           });
           expect(actionMotion).toEqual({
             controlsHaveMotion: true,
+            layoutTransitionFailures: [],
             directManipulationFailures: [],
             unlabeledActionFailures: [],
           });
@@ -1494,6 +1766,58 @@ test.describe("Doolittle desktop navigation", () => {
         .toBe(true);
       if (await reviewWorkspace.isVisible()) {
         await page.setViewportSize({ width: 390, height: 844 });
+        const narrowReviewFilters = page.getByRole("tablist", {
+          name: "Review filters",
+        });
+        const firstReviewFilter = narrowReviewFilters.getByRole("tab").first();
+        const lastReviewFilter = narrowReviewFilters.getByRole("tab").last();
+        await firstReviewFilter.focus();
+        await firstReviewFilter.press("End");
+        await expect(lastReviewFilter).toBeFocused();
+        await expect(lastReviewFilter).toHaveAttribute("aria-selected", "true");
+        await lastReviewFilter.press("Home");
+        await expect(firstReviewFilter).toBeFocused();
+        await expect(firstReviewFilter).toHaveAttribute(
+          "aria-selected",
+          "true",
+        );
+        await narrowReviewFilters.scrollIntoViewIfNeeded();
+        await expectReviewFilterGeometry(narrowReviewFilters);
+        await expectResourceStatusContentGeometry(
+          page.locator(".review-page .resource-status-bar"),
+        );
+        const filterVisibility = await narrowReviewFilters.evaluate(
+          (element) => {
+            const pageRect = element
+              .closest(".review-page")
+              ?.getBoundingClientRect();
+            return [...element.querySelectorAll('[role="tab"]')].every(
+              (tab) => {
+                const bounds = tab.getBoundingClientRect();
+                return (
+                  Boolean(pageRect) &&
+                  bounds.top >= (pageRect?.top ?? 0) - 1 &&
+                  bounds.bottom <=
+                    (pageRect?.bottom ?? window.innerHeight) + 1 &&
+                  tab.contains(
+                    document.elementFromPoint(
+                      bounds.left + bounds.width / 2,
+                      bounds.top + bounds.height / 2,
+                    ),
+                  )
+                );
+              },
+            );
+          },
+        );
+        expect(filterVisibility).toBe(true);
+        await lastReviewFilter.click();
+        await expect(lastReviewFilter).toHaveAttribute("aria-selected", "true");
+        await firstReviewFilter.click();
+        await expect(firstReviewFilter).toHaveAttribute(
+          "aria-selected",
+          "true",
+        );
         const narrowReviewLayout = await page.evaluate(() => {
           const workspace = document.querySelector(".review-workspace");
           const rail = document.querySelector(".review-rail");
@@ -1635,7 +1959,9 @@ test.describe("Doolittle desktop navigation", () => {
       await expect(page.locator(".chat-sessions")).toHaveCount(0);
       await expect(page.locator(".window-status-strip")).toHaveCount(0);
       // A healthy, idle composer hides transient operational status.
-      await expect(page.locator(".chat-composer-status")).toHaveCount(0);
+      await expect(
+        focusedSessionPanel.locator(".chat-composer-status"),
+      ).toHaveCount(0);
       const historyScrollport = await page
         .locator(".sidebar-projects__list")
         .evaluate((element) => {
@@ -1655,7 +1981,9 @@ test.describe("Doolittle desktop navigation", () => {
         page.getByRole("button", { name: /^All conversations/ }),
       ).toBeVisible();
 
-      const composer = page.getByRole("textbox", { name: "Message Doolittle" });
+      const composer = focusedSessionPanel.getByRole("textbox", {
+        name: "Message Doolittle",
+      });
       const restingComposerStyle = await composer.evaluate((element) => {
         element.blur();
         const container = element.closest(".chat-composer");
@@ -1667,6 +1995,9 @@ test.describe("Doolittle desktop navigation", () => {
         return {
           borderColor: containerStyle.borderColor,
           boxShadow: containerStyle.boxShadow,
+          outline: containerStyle.outlineStyle,
+          outlineWidth: containerStyle.outlineWidth,
+          outlineOffset: containerStyle.outlineOffset,
           textareaBoxShadow: textareaStyle.boxShadow,
           textareaOutline: textareaStyle.outlineStyle,
           textareaFocusVisible: element.matches(":focus-visible"),
@@ -1683,6 +2014,9 @@ test.describe("Doolittle desktop navigation", () => {
         return {
           borderColor: containerStyle.borderColor,
           boxShadow: containerStyle.boxShadow,
+          outline: containerStyle.outlineStyle,
+          outlineWidth: containerStyle.outlineWidth,
+          outlineOffset: containerStyle.outlineOffset,
           textareaBoxShadow: textareaStyle.boxShadow,
           textareaOutline: textareaStyle.outlineStyle,
           textareaFocusVisible: element.matches(":focus-visible"),
@@ -1693,13 +2027,20 @@ test.describe("Doolittle desktop navigation", () => {
       expect(focusedComposerStyle.borderColor).not.toBe(
         restingComposerStyle.borderColor,
       );
-      expect(focusedComposerStyle.boxShadow).not.toBe(
+      // The operator system uses an explicit keyboard ring, not a focus glow.
+      expect(focusedComposerStyle.boxShadow).toBe(
         restingComposerStyle.boxShadow,
+      );
+      expect(focusedComposerStyle.outline).toBe("solid");
+      expect(focusedComposerStyle.outlineWidth).toBe("2px");
+      expect(focusedComposerStyle.outlineOffset).toBe("2px");
+      expect(focusedComposerStyle.outlineWidth).not.toBe(
+        restingComposerStyle.outlineWidth,
       );
       expect(focusedComposerStyle.textareaBoxShadow).toBe("none");
       expect(focusedComposerStyle.textareaOutline).toBe("none");
       await composer.fill("Draft survives project switching");
-      await page
+      await focusedSessionPanel
         .getByRole("button", {
           name: /Choose project\. Current project E2E repository\./,
         })
@@ -1730,7 +2071,7 @@ test.describe("Doolittle desktop navigation", () => {
         .getByRole("button", { name: /General/ })
         .click();
       await expect(composer).toHaveValue("Draft survives project switching");
-      await page
+      await focusedSessionPanel
         .getByRole("button", {
           name: /Choose project\. Current project General\./,
         })
@@ -1744,7 +2085,7 @@ test.describe("Doolittle desktop navigation", () => {
       await expect(composer).toHaveValue("Draft survives project switching");
       await composer.fill("");
 
-      await page
+      await focusedSessionPanel
         .getByRole("button", { name: /Choose model\. Current route/ })
         .click();
       await expect(
@@ -1793,7 +2134,7 @@ test.describe("Doolittle desktop navigation", () => {
       });
 
       await page.getByRole("button", { name: "Context", exact: true }).click();
-      const workbench = page.locator("#thread-workbench");
+      const workbench = focusedSessionPanel.locator(".chat-workbench-pane");
       const workbenchTree = workbench.getByRole("tree", {
         name: "Workspace files",
       });
@@ -1818,18 +2159,14 @@ test.describe("Doolittle desktop navigation", () => {
       );
       await workbenchTree.getByRole("treeitem", { name: /AGENTS\.md/ }).click();
       await expect(
-        page.locator(
-          "#thread-workbench .thread-workbench-monaco .monaco-editor",
-        ),
+        workbench.locator(".thread-workbench-monaco .monaco-editor"),
       ).toBeVisible();
       await expect(
-        page.locator("#thread-workbench .thread-workbench-code-preview"),
+        workbench.locator(".thread-workbench-code-preview"),
       ).toContainText("Markdown");
-      const workbenchEdges = await page.evaluate(() => {
-        const wrapper = document
-          .querySelector("#thread-workbench")
-          ?.getBoundingClientRect();
-        const panel = document
+      const workbenchEdges = await workbench.evaluate((element) => {
+        const wrapper = element.getBoundingClientRect();
+        const panel = element
           .querySelector(".thread-workbench")
           ?.getBoundingClientRect();
         return wrapper && panel
@@ -1851,10 +2188,9 @@ test.describe("Doolittle desktop navigation", () => {
         name: "Thread workbench",
       });
       await expect(narrowWorkbenchDialog).toHaveAttribute("aria-modal", "true");
-      await expect(page.locator(".chat-conversation")).toHaveAttribute(
-        "inert",
-        "",
-      );
+      await expect(
+        focusedSessionPanel.locator(".chat-conversation"),
+      ).toHaveAttribute("inert", "");
       await expect
         .poll(() =>
           narrowWorkbenchDialog.evaluate((dialog) =>
@@ -1862,14 +2198,12 @@ test.describe("Doolittle desktop navigation", () => {
           ),
         )
         .toBe(true);
-      const narrowWorkbenchLayout = await page.evaluate(() => {
-        const wrapper = document
-          .querySelector("#thread-workbench")
-          ?.getBoundingClientRect();
-        const panel = document
+      const narrowWorkbenchLayout = await workbench.evaluate((element) => {
+        const wrapper = element.getBoundingClientRect();
+        const panel = element
           .querySelector(".thread-workbench")
           ?.getBoundingClientRect();
-        const close = document
+        const close = element
           .querySelector('[aria-label="Close thread context"]')
           ?.getBoundingClientRect();
         return {
@@ -1973,9 +2307,13 @@ test.describe("Doolittle desktop navigation", () => {
       await page.keyboard.press("Escape");
       await expect(page.getByRole("dialog")).toHaveCount(0);
     } finally {
-      await app.close();
-      rmSync(profileDir, { force: true, recursive: true });
-      rmSync(alternateWorkspace, { force: true, recursive: true });
+      try {
+        await app?.close();
+      } finally {
+        if (reviewFixtureCreated) rmSync(reviewFixturePath, { force: true });
+        rmSync(profileDir, { force: true, recursive: true });
+        rmSync(alternateWorkspace, { force: true, recursive: true });
+      }
     }
   });
 });

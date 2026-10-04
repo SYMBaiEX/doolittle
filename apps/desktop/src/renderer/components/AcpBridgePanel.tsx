@@ -1,5 +1,3 @@
-import { Button } from "@elizaos/ui/components/ui/button";
-import { Input } from "@elizaos/ui/components/ui/input";
 import { type FormEvent, useState } from "react";
 import type {
   AcpBridgeSessionSummary,
@@ -19,9 +17,10 @@ import {
   Notice,
   useApiResource,
 } from "../lib";
+import { Button, Input } from "./ElizaControls";
 
 const PANEL_CLASS =
-  "grid gap-3.5 rounded-[var(--radius-sm)] border border-[color-mix(in_srgb,var(--accent)_42%,var(--border))] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--accent-soft)_48%,var(--surface-raised)),var(--surface-raised)_58%)] p-[18px]";
+  "grid gap-3.5 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] p-[18px]";
 const HEADER_CLASS =
   "flex items-start justify-between gap-4 max-[760px]:flex-col";
 const HEADING_CLASS = "mt-1 text-sm font-bold";
@@ -30,16 +29,17 @@ const DESCRIPTION_CLASS =
 const ACTIONS_CLASS = "flex items-center gap-2";
 const SUMMARY_CLASS = "grid grid-cols-3 gap-2.5 max-[760px]:grid-cols-1";
 const CARD_CLASS =
-  "min-w-0 rounded-[var(--radius-xs)] border border-[var(--border)] bg-[color-mix(in_srgb,var(--surface-raised)_88%,transparent)] p-[13px]";
+  "min-w-0 rounded-[var(--radius-xs)] border border-[var(--border)] bg-[var(--surface-raised)] p-[13px]";
 const SUMMARY_CARD_CLASS = `${CARD_CLASS} flex flex-col gap-[5px]`;
 const SUMMARY_LABEL_CLASS =
-  "font-[var(--font-mono)] text-[10px] uppercase tracking-[0.05em] text-[var(--muted)]";
-const MUTED_CLASS = "m-0 text-[11px] leading-[1.45] text-[var(--text-soft)]";
+  "font-[var(--font-mono)] text-[length:var(--text-meta)] uppercase tracking-[0.05em] text-[var(--muted)]";
+const MUTED_CLASS =
+  "m-0 text-[length:var(--text-control)] leading-[1.45] text-[var(--text-soft)]";
 const PROBE_CLASS =
-  "flex items-center justify-between gap-4 rounded-[var(--radius-xs)] border border-[var(--border)] bg-[color-mix(in_srgb,var(--surface-raised)_90%,transparent)] px-[13px] py-3 max-[760px]:flex-col max-[760px]:items-start";
+  "flex items-center justify-between gap-4 rounded-[var(--radius-xs)] border border-[var(--border)] bg-[var(--surface-raised)] px-[13px] py-3 max-[760px]:flex-col max-[760px]:items-start";
 const CARD_HEADING_CLASS = "mb-2.5 flex items-start justify-between gap-3";
 const EYEBROW_CLASS =
-  "font-[var(--font-mono)] text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--muted)]";
+  "font-[var(--font-mono)] text-[length:var(--text-meta)] font-bold uppercase tracking-[0.08em] text-[var(--muted)]";
 
 interface AcpStatusResponse {
   acp?: AcpBridgeStatus;
@@ -193,7 +193,7 @@ export function AcpBridgePanel({ active }: { active: boolean }) {
           <Badge tone={staticError ? "bad" : configured ? "good" : "warn"}>
             {staticError ? "Unavailable" : acpBridgeStatusLabel(bridge)}
           </Badge>
-          <Button onClick={refresh} size="sm" type="button" variant="outline">
+          <Button onClick={refresh} type="button" variant="outline">
             Refresh
           </Button>
         </div>
@@ -246,7 +246,6 @@ export function AcpBridgePanel({ active }: { active: boolean }) {
               <Button
                 disabled={probing}
                 onClick={() => void probe()}
-                size="sm"
                 type="button"
                 variant="outline"
               >
@@ -311,7 +310,7 @@ export function AcpBridgePanel({ active }: { active: boolean }) {
                   ? "A local registry path is available to the configured command."
                   : "No local editor-facing record is available yet."}
               </p>
-              <code className="mt-2.5 block overflow-hidden text-ellipsis whitespace-nowrap text-[10px] text-[var(--muted)]">
+              <code className="mt-2.5 block overflow-hidden text-ellipsis whitespace-nowrap text-[length:var(--text-meta)] text-[var(--muted)]">
                 {editor.data?.editor?.registryPath || "Not available"}
               </code>
             </article>
@@ -338,7 +337,7 @@ export function AcpBridgePanel({ active }: { active: boolean }) {
                 placeholder="Search by tool name, description, kind, or source"
                 value={draftQuery}
               />
-              <Button size="sm" type="submit" variant="outline">
+              <Button type="submit" variant="outline">
                 Search
               </Button>
             </form>
@@ -366,14 +365,14 @@ export function AcpBridgePanel({ active }: { active: boolean }) {
                     key={`${tool.source}:${tool.name}`}
                   >
                     <div className="flex min-w-0 flex-col gap-1">
-                      <code className="text-[11px] text-[var(--accent)]">
+                      <code className="text-[length:var(--text-control)] text-[var(--accent)]">
                         {tool.name}
                       </code>
                       <span className="text-xs leading-[1.4] text-[var(--text-soft)]">
                         {tool.description}
                       </span>
                     </div>
-                    <small className="shrink-0 text-[10px] text-[var(--muted)]">
+                    <small className="shrink-0 text-[length:var(--text-meta)] text-[var(--muted)]">
                       {tool.kind} · {tool.source}
                     </small>
                   </article>

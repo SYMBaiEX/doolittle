@@ -36,7 +36,7 @@ export const SETTINGS_APPEARANCE_CLASS =
   "appearance-segmented grid grid-cols-3 gap-1.5 max-[620px]:grid-cols-1";
 
 export const SETTINGS_APPEARANCE_BUTTON_CLASS =
-  "grid min-h-9 grid-cols-[auto_minmax(0,1fr)] items-center gap-1.5 rounded-[var(--radius-xs)] border border-[var(--line-subtle)] bg-[var(--surface-soft)] px-2 py-1.25 text-left text-[var(--text-soft)] hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] [&.selected]:border-[var(--accent-border)] [&.selected]:bg-[var(--accent-soft)] [&.selected]:text-[var(--text)] [&>svg]:mx-0.5 [&>svg]:text-[var(--muted)] [&.selected>svg]:text-[var(--accent)] [&>strong]:truncate [&>strong]:text-[length:var(--text-control)]";
+  "grid min-h-9 grid-cols-[auto_minmax(0,1fr)] items-center gap-1.5 rounded-[var(--radius-xs)] border border-[var(--line-subtle)] bg-[var(--surface-soft)] px-2 py-1.25 text-left text-[var(--text-soft)] hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] [&.selected]:border-[var(--accent-border)] [&.selected]:bg-[var(--accent-soft)] [&.selected]:text-[var(--text)] [&>svg]:mx-0.5 [&>svg]:text-[var(--muted)] [&.selected>svg]:text-[var(--accent-text)] [&>strong]:truncate [&>strong]:text-[length:var(--text-control)]";
 
 export const SETTINGS_INLINE_CHOICE_CLASS =
   "settings-inline-choice mt-0 flex min-h-9 items-center justify-between gap-2.5 rounded-[var(--radius-xs)] bg-[var(--surface-soft)] px-2 py-1.25 max-[620px]:items-stretch max-[620px]:flex-col [&>div:first-child]:grid [&>div:first-child]:gap-0.5 [&>div:first-child_small]:text-[length:var(--text-meta)] [&>div:first-child_small]:text-[var(--muted)] max-[620px]:[&>fieldset]:w-full [&>fieldset]:flex [&>fieldset]:gap-0.5 [&>fieldset]:rounded-[var(--radius-xs)] [&>fieldset]:bg-[var(--bg)] [&>fieldset]:p-0.5 [&>fieldset_button]:min-h-7 [&>fieldset_button]:rounded-[var(--radius-xs)] [&>fieldset_button]:px-2 [&>fieldset_button]:py-0.75 [&>fieldset_button]:text-[length:var(--text-meta)] [&>fieldset_button]:text-[var(--text-soft)] [&>fieldset_button:hover]:bg-[var(--surface-hover)] [&>fieldset_button.selected]:bg-[var(--accent-soft)] [&>fieldset_button.selected]:text-[var(--text)] max-[620px]:[&>fieldset_button]:flex-1";
@@ -45,13 +45,13 @@ export const SETTINGS_THEME_GRID_CLASS =
   "theme-grid grid grid-cols-4 gap-1.5 max-[1280px]:grid-cols-3 max-[760px]:grid-cols-2 max-[480px]:grid-cols-1";
 
 export const SETTINGS_THEME_BUTTON_CLASS =
-  "grid min-h-9 grid-cols-[24px_minmax(0,1fr)_12px] items-center gap-1.5 rounded-[var(--radius-xs)] border border-[var(--line-subtle)] bg-[var(--surface-soft)] px-1.75 py-1.25 text-left text-[var(--text-soft)] hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] [&.selected]:border-[var(--accent-border)] [&.selected]:bg-[var(--accent-soft)] [&.selected]:text-[var(--text)] [&.selected>svg]:text-[var(--accent)] [&>strong]:truncate [&>strong]:text-[length:var(--text-meta)]";
+  "grid min-h-9 grid-cols-[24px_minmax(0,1fr)_12px] items-center gap-1.5 rounded-[var(--radius-xs)] border border-[var(--line-subtle)] bg-[var(--surface-soft)] px-1.75 py-1.25 text-left text-[var(--text-soft)] hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] [&.selected]:border-[var(--accent-border)] [&.selected]:bg-[var(--accent-soft)] [&.selected]:text-[var(--text)] [&.selected>svg]:text-[var(--accent-text)] [&>strong]:truncate [&>strong]:text-[length:var(--text-meta)]";
 
 export const SETTINGS_THEME_SIGNAL_CLASS =
   "theme-card-signal grid size-6 grid-cols-3 gap-0.5 rounded-[var(--radius-xs)] border border-[color-mix(in_srgb,currentColor_14%,transparent)] p-1 [&>i]:h-2 [&>i]:w-1";
 
 export const SETTINGS_ROW_LAYOUT_CLASS =
-  "setting-row grid min-h-8 grid-cols-[minmax(150px,0.46fr)_minmax(240px,1fr)] gap-2 rounded-[var(--radius-xs)] px-0.5 py-1.25 max-[700px]:grid-cols-1";
+  "setting-row grid min-h-10 grid-cols-[minmax(150px,0.46fr)_minmax(240px,1fr)] gap-2 rounded-[var(--radius-xs)] px-0.5 py-1.25 max-[700px]:grid-cols-1";
 
 export const SETTINGS_SWITCH_CLASS =
   "switch flex min-h-7 cursor-pointer items-center gap-2";
@@ -59,7 +59,7 @@ export const SETTINGS_SWITCH_CLASS =
 export const SETTINGS_SWITCH_INPUT_CLASS = "peer absolute h-px w-px opacity-0";
 
 export const SETTINGS_SWITCH_TRACK_CLASS =
-  "relative h-4.25 w-7.75 rounded-full border border-[var(--border-strong)] bg-[var(--surface-hover)] after:absolute after:top-0.5 after:left-0.5 after:size-2.75 after:rounded-full after:bg-[var(--muted)] after:transition-transform after:duration-150 after:content-[''] peer-checked:border-[var(--accent)] peer-checked:bg-[var(--accent-soft)] peer-checked:after:translate-x-3.5 peer-checked:after:bg-[var(--accent)] peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-[var(--accent)]";
+  "relative h-4.25 w-7.75 rounded-full border border-[var(--border-strong)] bg-[var(--surface-hover)] after:absolute after:top-0.5 after:left-0.5 after:size-2.75 after:rounded-full after:bg-[var(--muted)] after:transition-transform after:duration-150 after:content-[''] peer-checked:border-[var(--accent)] peer-checked:bg-[var(--accent-soft)] peer-checked:after:translate-x-3.5 peer-checked:after:bg-[var(--accent)] peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-[var(--focus-ring)]";
 
 export const SETTINGS_SWITCH_LABEL_CLASS =
   "text-[var(--text-soft)] text-[length:var(--text-meta)]";

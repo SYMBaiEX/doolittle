@@ -7,7 +7,14 @@ import type {
   DesktopDensity,
   DesktopThemeProfile,
 } from "../desktop-theme";
-import { asRecord, asString, Badge, titleCase } from "../lib";
+import {
+  asRecord,
+  asString,
+  Badge,
+  ErrorBlock,
+  LoadingBlock,
+  titleCase,
+} from "../lib";
 import {
   SETTINGS_APPEARANCE_BUTTON_CLASS,
   SETTINGS_APPEARANCE_CLASS,
@@ -29,6 +36,9 @@ export function SettingsAppearancePanel({
   onThemeImport,
   onThemeChange,
   themes,
+  themesLoading = false,
+  themesError = "",
+  onThemeReload,
 }: {
   active: boolean;
   activeTheme: DesktopThemeProfile | null;
@@ -40,6 +50,9 @@ export function SettingsAppearancePanel({
   onThemeImport: (file: File) => void;
   onThemeChange: (theme: string) => void;
   themes: unknown[];
+  themesLoading?: boolean;
+  themesError?: string;
+  onThemeReload?: () => void;
 }) {
   const importInputRef = useRef<HTMLInputElement | null>(null);
   return (
@@ -155,7 +168,16 @@ export function SettingsAppearancePanel({
           Appearance and density remain available locally.
         </OfflineRouteState>
       ) : null}
-      <div className={SETTINGS_THEME_GRID_CLASS} hidden={!active}>
+      {active && themesLoading ? (
+        <LoadingBlock label="Loading runtime color themes…" />
+      ) : null}
+      {active && themesError ? (
+        <ErrorBlock error={themesError} retry={onThemeReload} />
+      ) : null}
+      <div
+        className={SETTINGS_THEME_GRID_CLASS}
+        hidden={!active || themesLoading || Boolean(themesError)}
+      >
         {themes.map((value, index) => {
           const entry = asRecord(value);
           const name = asString(entry.name, String(index));

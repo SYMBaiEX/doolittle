@@ -56,4 +56,25 @@ describe("SettingsNavigation", () => {
     expect(markup).toContain("Credentials");
     expect(markup).toContain("Logs");
   });
+
+  it("explains an empty section search while retaining the active destination", () => {
+    const markup = renderToStaticMarkup(
+      <SettingsNavigation
+        categories={[
+          {
+            id: "appearance",
+            label: "Appearance",
+            description: "Theme and display",
+          },
+        ]}
+        category="appearance"
+        query="nothing matches"
+        onSelect={vi.fn()}
+        onQueryChange={vi.fn()}
+      />,
+    );
+    expect(markup).toContain("No matching sections");
+    expect(markup).toContain("Clear search");
+    expect(markup).toContain('aria-current="page"');
+  });
 });

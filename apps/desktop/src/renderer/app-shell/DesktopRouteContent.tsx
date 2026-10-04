@@ -60,6 +60,7 @@ export interface DesktopRouteContentProps {
   projectLabels: Readonly<Record<string, string>>;
   projectScope: ProjectScope;
   scopedSessions: SessionSummary[];
+  sessionMetadata?: SessionSummary[];
   selectedSession: string;
   pendingApprovals: number;
   runningTasks: number;
@@ -71,6 +72,7 @@ export interface DesktopRouteContentProps {
   onCodeWorkspaceDirtyChange?: (dirty: boolean) => void;
   codeEditingLocked: boolean;
   chatChromeHost: HTMLElement | null;
+  chatRouteActive?: boolean;
   workspacePath: string;
   approvalsResource: ApiResource<{ approvals?: unknown[] }>;
   tasksResource: ApiResource<{ tasks?: unknown[] }>;
@@ -85,6 +87,7 @@ export function DesktopRouteContent({
   tasksResource,
   backend,
   chatChromeHost,
+  chatRouteActive = true,
   codeEditingLocked,
   navigation,
   onChooseWorkspace,
@@ -102,6 +105,7 @@ export function DesktopRouteContent({
   routeFocus,
   runningTasks,
   scopedSessions,
+  sessionMetadata,
   selectedSession,
   view,
   workspacePath,
@@ -142,11 +146,23 @@ export function DesktopRouteContent({
           <Route
             activeProject={activeProject}
             backend={backend}
-            onChooseRepository={() =>
-              navigation.chooseRepositoryForConversation(selectedSession)
+            onChooseRepository={(sessionId?: string) =>
+              navigation.chooseRepositoryForConversation(
+                sessionId ?? selectedSession,
+              )
             }
             onOpenProjectManager={navigation.openProjectManager}
             onRequestNewConversation={navigation.createConversation}
+            onActivateSessionProject={(
+              sessionId: string,
+              projectId: string,
+            ) => {
+              void navigation.transitionToProjectScope(
+                projectId,
+                sessionId,
+                "chat",
+              );
+            }}
             onSelectProjectForNewChat={(scope: ProjectScope) =>
               navigation.transitionToProjectScope(
                 scope,
@@ -165,6 +181,8 @@ export function DesktopRouteContent({
             projectLabels={projectLabels}
             refreshRuntime={refreshRuntime}
             remoteSessions={scopedSessions}
+            routeActive={chatRouteActive}
+            sessionMetadata={sessionMetadata}
             runningTasks={runningTasks}
             runtime={runtime}
             selectedId={selectedSession}

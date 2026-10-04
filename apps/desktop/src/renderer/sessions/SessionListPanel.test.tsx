@@ -4,8 +4,9 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { useApiResourceMock } = vi.hoisted(() => ({
+const { useApiResourceMock, useDebouncedValueMock } = vi.hoisted(() => ({
   useApiResourceMock: vi.fn(),
+  useDebouncedValueMock: vi.fn(),
 }));
 
 vi.mock("../lib", async () => {
@@ -13,7 +14,7 @@ vi.mock("../lib", async () => {
   return {
     ...actual,
     useApiResource: useApiResourceMock,
-    useDebouncedValue: (value: string) => value,
+    useDebouncedValue: useDebouncedValueMock,
   };
 });
 
@@ -41,6 +42,9 @@ describe("SessionListPanel", () => {
     document.body.append(container);
     root = createRoot(container);
     useApiResourceMock.mockReset();
+    useDebouncedValueMock
+      .mockReset()
+      .mockImplementation((value: string) => value);
   });
 
   afterEach(() => {
@@ -252,5 +256,86 @@ describe("SessionListPanel", () => {
     const row = container.querySelector('[data-session-row="true"]');
     expect(row?.textContent).toContain("page.tsx");
     expect(row?.textContent).not.toContain("/Users/");
+  });
+
+  it("does not display an older persisted result while a new query is debouncing", () => {
+    useDebouncedValueMock.mockReturnValue("older");
+    useApiResourceMock.mockReturnValue({
+      data: {
+        hits: [
+          {
+            sessionId: "older-result",
+            text: "Earlier transcript",
+            createdAt: "2026-08-12T10:00:00Z",
+          },
+        ],
+      },
+      error: "",
+      loading: false,
+      reload: vi.fn(),
+    });
+    act(() =>
+      root.render(
+        <SessionListPanel
+          active
+          sessions={sessions}
+          selectedId=""
+          onSelect={vi.fn()}
+        />,
+      ),
+    );
+    const input = container.querySelector("input");
+    act(() => {
+      if (!input) return;
+      Object.getOwnPropertyDescriptor(
+        HTMLInputElement.prototype,
+        "value",
+      )?.set?.call(input, "Session 4");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    expect(container.textContent).toContain("Session 4");
+    expect(container.textContent).not.toContain("Earlier transcript");
+    expect(container.textContent).not.toContain("Full-text search");
+  });
+
+  it("clears an empty search and restores focus and the local archive", () => {
+    useApiResourceMock.mockReturnValue({
+      data: null,
+      error: "",
+      loading: false,
+      reload: vi.fn(),
+    });
+    const onQueryChange = vi.fn();
+    act(() =>
+      root.render(
+        <SessionListPanel
+          active
+          sessions={sessions}
+          selectedId=""
+          onSelect={vi.fn()}
+          onQueryChange={onQueryChange}
+        />,
+      ),
+    );
+    const input = container.querySelector("input");
+    act(() => {
+      if (!input) return;
+      Object.getOwnPropertyDescriptor(
+        HTMLInputElement.prototype,
+        "value",
+      )?.set?.call(input, "no matching phrase");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    const clear = [...container.querySelectorAll("button")].find(
+      (button) => button.textContent === "Clear search",
+    );
+    expect(clear).toBeDefined();
+    act(() => clear?.click());
+    expect(onQueryChange).toHaveBeenLastCalledWith("");
+    expect(input?.value).toBe("");
+    expect(document.activeElement).toBe(input);
+    expect(
+      container.querySelectorAll('[data-session-row="true"]'),
+    ).toHaveLength(20);
   });
 });

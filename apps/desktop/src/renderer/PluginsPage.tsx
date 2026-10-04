@@ -1,16 +1,16 @@
 import { PagePanel } from "@elizaos/ui/components/composites/page-panel";
-import { Button } from "@elizaos/ui/components/ui/button";
-import { Input } from "@elizaos/ui/components/ui/input";
+import { useState } from "react";
+import type { PluginsResponse } from "../shared/contracts";
+import { CompactStatStrip } from "./components/CompactStatStrip";
 import {
+  Button,
+  Input,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@elizaos/ui/components/ui/select";
-import { useState } from "react";
-import type { PluginsResponse } from "../shared/contracts";
-import { CompactStatStrip } from "./components/CompactStatStrip";
+} from "./components/ElizaControls";
 import { OfflineRouteState } from "./components/OfflineRouteState";
 import {
   asArray,
@@ -180,7 +180,23 @@ export function PluginsPage({
             resetKey={`${category}:${query.trim().toLowerCase()}`}
           />
         ) : (
-          <EmptyBlock title="No plugins match">
+          <EmptyBlock
+            title="No plugins to show"
+            actions={
+              query.trim() || category !== "all" ? (
+                <Button
+                  onClick={() => {
+                    setQuery("");
+                    setCategory("all");
+                  }}
+                  type="button"
+                  variant="secondary"
+                >
+                  Clear filters
+                </Button>
+              ) : undefined
+            }
+          >
             Change the search or category filter.
           </EmptyBlock>
         )

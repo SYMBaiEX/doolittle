@@ -48,6 +48,7 @@ export function CodingWorkspaceUtility({
   utilityPane,
   onUtilityPaneChange,
   width,
+  resizeBounds = CODE_UTILITY_WIDTH,
   onResize,
   commits,
   changes,
@@ -67,6 +68,7 @@ export function CodingWorkspaceUtility({
   utilityPane: UtilityPane;
   onUtilityPaneChange: (value: UtilityPane) => void;
   width: number;
+  resizeBounds?: { default: number; min: number; max: number };
   onResize: (value: number) => void;
   commits: CommitRow[];
   changes: RepositoryChange[];
@@ -84,7 +86,7 @@ export function CodingWorkspaceUtility({
   return (
     <aside className={`${CODING_PANE_CLASS} ${CODING_UTILITY_CLASS}`}>
       <PanelResizeHandle
-        bounds={CODE_UTILITY_WIDTH}
+        bounds={resizeBounds}
         className={CODING_UTILITY_RESIZER_CLASS}
         direction="grow-left"
         label="Resize code utility panel"

@@ -112,7 +112,9 @@ describe("WorkbenchPanels", () => {
   it("defers secondary checkpoint and full-page navigation controls", () => {
     const changes = render("changes");
     const settings = render("settings");
-    expect(changes).toContain('data-thread-workbench="checkpoints"');
+    expect(changes).toContain("No Git repository");
+    expect(changes).not.toContain('data-thread-workbench="checkpoints"');
+    expect(changes).not.toContain("Working tree is clean");
     expect(changes).not.toContain(
       '<details data-thread-workbench="checkpoints" open=""',
     );

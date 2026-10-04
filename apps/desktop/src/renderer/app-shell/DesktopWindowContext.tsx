@@ -60,7 +60,12 @@ export function DesktopWindowContext({
       <nav aria-label="Workspace breadcrumb">
         <ol>
           <li className="window-breadcrumb-section">
-            <button onClick={onOpenSection} type="button">
+            <button
+              aria-label={`Open ${sectionLabel} section`}
+              onClick={onOpenSection}
+              title={`Open ${sectionLabel} section`}
+              type="button"
+            >
               {sectionLabel}
             </button>
           </li>

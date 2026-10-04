@@ -3,6 +3,8 @@
 Doolittle Desktop is a native operator surface over the same ElizaOS runtime
 used by the CLI, cockpit, gateway, and API. It keeps native machine lifecycle
 in Electron, presentation in React, and agent behavior in the shared runtime.
+The visual and interaction contracts are documented in the
+[operator workbench design guide](engineering/doolittle-interface-design.md).
 
 ## Architecture
 
@@ -72,10 +74,13 @@ imitating a stream through this adapter.
 The desktop organizes everyday agent work around three stable destinations
 while keeping Doolittle's native runtime and cross-platform Electron boundary:
 
-- **Chat:** streaming conversations, searchable history, queued follow-up
-  messages, managed attachments, inline tool/action/mutation receipts, and
-  contextual media tools. Conversation, History, and Media share one mounted
-  workspace so changing sections does not discard drafts or live run state.
+- **Chat:** an independent-session workbench for streaming conversations,
+  searchable history, queued follow-ups, managed attachments, and inline
+  tool/action/mutation receipts. Open sessions as panels, tile or focus them,
+  rearrange them, and resize the separators with a pointer or keyboard.
+  Narrow windows use an open-session tab strip and one focused conversation.
+  Conversation, History, and Media retain shared conversation and run state
+  across section changes.
 - **Code:** a conflict-aware editor, Git changes, local recovery checkpoints,
   confirmed create-only worktrees, and a sandboxed localhost Preview with
   responsive widths and structured browser evidence. Code and Preview share
@@ -105,6 +110,60 @@ reachable without expanding the Settings rail. Chat includes an in-context
 provider switcher for local and linked providers. Native completion notifications are shown only
 while the app is in the background and deliberately omit prompts, responses,
 paths, commands, and other private task content.
+
+Closing a session panel closes its view, not its agent run or stored draft.
+Stop a running turn with its explicit cancellation action. Separate sessions
+can run concurrently in the same active runtime workspace; each session still
+admits only one active turn. Panels do not create independent backend runtimes
+or permit concurrent work in different project workspaces. Existing workspace
+leases, approvals, provider capacity, and account policies remain authoritative.
+Run and attention labels come from runtime receipts; they are not simulated
+agent activity. Panel layout persistence is separate from conversation content.
+Provider/model selection is a shared runtime route for new messages in every
+session, not a per-panel account assignment. An existing turn keeps the provider
+and model selected when it began; this does not freeze an authentication account.
+
+The workbench admits up to twelve open panel views. This is a presentation
+limit, not an agent-capacity promise: closing a view retains its session and
+does not stop its run. The finder searches loaded session summaries, local
+conversation records and drafts, retained panel views, and known active sessions;
+use **Full history** for the complete History surface. A known session bound to
+another project explains
+the shared-workspace constraint and offers the existing guarded workspace
+activation flow rather than silently changing its repository.
+An unresolved project binding blocks sending until the repository is resolved.
+The server also checks the stored session-to-project binding against the active
+canonical workspace before accepting a turn, including sessions omitted from
+the desktop's bounded history list. A missing or unavailable bound project is
+a conflict, not permission to silently continue in a different repository.
+Active-run recovery also completes before direct or queued dispatch; a failed
+run-list read offers retry and does not report an invented idle state.
+
+Inline command approvals show only requests attributed to that conversation's
+original room label; an optional session key must agree. Requests with missing
+or conflicting attribution remain available in the global Review queue. This
+presentation filter does not replace the runtime's approval enforcement.
+Approval presentation budgets against the actual conversation pane. When
+expanded requests would crowd out the transcript or composer controls, a
+session-scoped review button opens an accessible scrolling dialog instead.
+The dialog closes when its panel, conversation surface, or Chat route is hidden.
+
+Open views stay mounted; the twelve most recently closed views are retained as
+a bounded warm cache. Older closed views release their components and listeners,
+while drafts, attachments, queues, run receipts, and lightweight in-memory scroll
+and inspector snapshots remain available on reopening. Temporary dialogs are
+not reopened after eviction. This is not a new cross-window or restart guarantee.
+
+Use `Cmd/Ctrl+Shift+O` to find a session and Escape to dismiss the finder.
+Panel headers expose focus, move-left, move-right, and close actions. Focus a
+resize separator and use Left/Right to adjust it or Home to reset the pair.
+On narrow screens, the open-session tabs use Left/Right/Home/End with roving
+keyboard focus; hidden panels remain inert rather than capturing input.
+Context uses the width of its session panel: in a small desktop tile it
+temporarily replaces that conversation's view, keeping neighboring panels
+usable. A narrow window uses the existing modal inspector. Closing Context
+returns focus to its trigger. Changes distinguishes a confirmed clean Git
+repository from a non-Git workspace, loading, or unavailable repository state.
 
 Registry search uses Eliza's official registry client. Every installable release,
 including first-party metadata, remains blocked unless its canonical package
@@ -451,6 +510,23 @@ hash matches its package manifest. Missing, stale, dirty, or modified packages
 fail before Electron launches instead of silently skipping the suite. Set
 `DOOLITTLE_DESKTOP_EXECUTABLE` to explicitly verify another installer output.
 Close an already-running installed app before explicitly selecting it.
+
+Run the isolated source-build session workbench journeys without an API test
+server or linked provider:
+
+```bash
+nub run test:e2e:desktop-workbench
+```
+
+This serial, no-retry suite launches the actual Electron interface with an
+owned empty workspace and scrubbed profile. It exercises panel arrangement,
+resizing, focus, draft retention, keyboard navigation, narrow layouts, and
+terminal controls. Synthetic IPC fixtures test chat lifecycle and approval
+presentation, attribution, loading, errors, and decisions; they do not prove
+provider throughput, backend approval enforcement, or command execution.
+Screenshots are written to `output/playwright/session-workbench/`, with test
+results under `var/playwright/workbench-test-results/`. The suite closes its
+Electron processes and removes only its owned temporary profiles/workspaces.
 
 Before creating a release tag, run the release-quality gate:
 

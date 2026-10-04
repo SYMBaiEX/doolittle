@@ -1,5 +1,5 @@
 import { Globe2 } from "lucide-react";
-import type { ReactNode } from "react";
+import { type ReactNode, useId } from "react";
 import { UiIcon } from "../components/UiIcon";
 import {
   asArray,
@@ -53,6 +53,7 @@ import { ResourceState } from "./ResourceState";
 
 export interface WorkbenchPanelsProps {
   controller: WorkbenchController;
+  idPrefix?: string;
   workspacePath: string;
   onOpenFullView: (view: ThreadWorkbenchFullView) => void;
 }
@@ -542,12 +543,16 @@ function PreviewPanel({ controller }: { controller: PreviewPanelController }) {
 
 export function WorkbenchPanels({
   controller,
+  idPrefix,
   workspacePath,
   onOpenFullView,
 }: WorkbenchPanelsProps) {
+  const instanceId = useId();
+  const panelPrefix =
+    idPrefix ?? `thread-workbench-${instanceId.replace(/:/g, "")}`;
   const { model } = controller;
-  const panelId = `thread-workbench-${model.selectedTab}-panel`;
-  const tabId = `thread-workbench-${model.selectedTab}-tab`;
+  const panelId = `${panelPrefix}-${model.selectedTab}-panel`;
+  const tabId = `${panelPrefix}-${model.selectedTab}-tab`;
   const previewRecord = asRecord(controller.preview.data?.browser);
   const previewMode =
     asString(previewRecord.mode) ||

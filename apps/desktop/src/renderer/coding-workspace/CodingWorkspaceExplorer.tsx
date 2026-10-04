@@ -39,6 +39,7 @@ const EXPLORER_PANEL_ID = "coding-explorer-panel";
 
 export function CodingWorkspaceExplorer({
   width,
+  resizeBounds = CODE_EXPLORER_WIDTH,
   onResize,
   leftPane,
   onLeftPaneChange,
@@ -56,6 +57,7 @@ export function CodingWorkspaceExplorer({
   onSubmitSearch,
 }: {
   width: number;
+  resizeBounds?: { default: number; min: number; max: number };
   onResize: (value: number) => void;
   leftPane: LeftPane;
   onLeftPaneChange: (value: LeftPane) => void;
@@ -75,7 +77,7 @@ export function CodingWorkspaceExplorer({
   return (
     <aside className={`${CODING_PANE_CLASS} ${CODING_EXPLORER_CLASS}`}>
       <PanelResizeHandle
-        bounds={CODE_EXPLORER_WIDTH}
+        bounds={resizeBounds}
         className={CODING_EXPLORER_RESIZER_CLASS}
         direction="grow-right"
         label="Resize code explorer"

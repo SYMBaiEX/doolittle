@@ -1,7 +1,7 @@
-import { Button } from "@elizaos/ui/components/ui/button";
 import { ArrowRight, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { CompactStatStrip } from "./components/CompactStatStrip";
+import { Button } from "./components/ElizaControls";
 import { OfflineRouteState } from "./components/OfflineRouteState";
 import { UiIcon } from "./components/UiIcon";
 import {
@@ -213,7 +213,7 @@ export function DocsPage({
               </small>
             </div>
           ) : resultState === "loading" ? (
-            <LoadingBlock />
+            <LoadingBlock label="Running local operator diagnostics…" />
           ) : resultState === "error" ? (
             <ErrorBlock error={doctor.error} retry={doctor.reload} />
           ) : resultState === "empty" ? (

@@ -4,6 +4,7 @@ import {
   type FormEvent,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -64,7 +65,9 @@ import {
 import type { ProjectScope } from "./project-manager/models";
 import { codingWorkspaceRequests } from "./resource-request-policy";
 import {
+  codeWorkspaceWidthBudget,
   loadCodeWorkspaceLayout,
+  resizeCodeWorkspaceWidths,
   saveCodeWorkspaceLayout,
   workspaceLayoutScope,
 } from "./workspace-layout-state";
@@ -132,6 +135,8 @@ export function CodingWorkspacePage({
     initialLayout.explorerWidth,
   );
   const [utilityWidth, setUtilityWidth] = useState(initialLayout.utilityWidth);
+  const codeGridRef = useRef<HTMLDivElement>(null);
+  const [codeGridWidth, setCodeGridWidth] = useState(0);
   const [localSurface, setLocalSurface] = useState<CodeSurface>("workspace");
   const surface = controlledSurface ?? localSurface;
   const setSurface = useCallback(
@@ -176,6 +181,38 @@ export function CodingWorkspacePage({
   const consumedNavigationIntents = useRef(new Set<string>());
   const hasWorkspace = Boolean(workspacePath.trim());
   const workspaceActive = active && hasWorkspace;
+  useLayoutEffect(() => {
+    const grid = codeGridRef.current;
+    if (!grid || !active || !hasWorkspace || surface !== "workspace") return;
+    const measure = () => {
+      if (grid.clientWidth > 0) setCodeGridWidth(grid.clientWidth);
+    };
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(grid);
+    return () => observer.disconnect();
+  }, [active, hasWorkspace, surface]);
+  const widthPreferences = {
+    explorerVisible,
+    utilityVisible,
+    explorerWidth,
+    utilityWidth,
+  };
+  const displayedWidths = codeWorkspaceWidthBudget(
+    codeGridWidth,
+    widthPreferences,
+  );
+  const resizeCodePane = (pane: "explorer" | "utility", value: number) => {
+    const next = resizeCodeWorkspaceWidths(
+      codeGridWidth,
+      widthPreferences,
+      pane,
+      value,
+    );
+    setExplorerWidth(next.explorerWidth);
+    setUtilityWidth(next.utilityWidth);
+  };
   const acpEditor = useDesktopAcpEditorBridge({
     active: workspaceActive,
     workspacePath,
@@ -697,7 +734,7 @@ export function CodingWorkspacePage({
           onToggleExplorer={() => setExplorerVisible((current) => !current)}
           onToggleUtility={() => setUtilityVisible((current) => !current)}
           onToggleZen={() => setZenMode((current) => !current)}
-          hasSummary={Boolean(summaryResource.data)}
+          hasSummary={Boolean(summaryResource.data?.summary)}
           summary={summary}
           summaryError={summaryResource.error}
           summaryLoading={summaryResource.loading}
@@ -710,13 +747,14 @@ export function CodingWorkspacePage({
         aria-hidden={surface !== "workspace"}
         hidden={surface !== "workspace"}
         id="coding-workspace-surface"
+        ref={codeGridRef}
         inert={surface !== "workspace"}
         role="tabpanel"
         className={codingGridClass(explorerVisible, utilityVisible, zenMode)}
         style={
           {
-            "--coding-explorer-width": `${explorerWidth}px`,
-            "--coding-utility-width": `${utilityWidth}px`,
+            "--coding-explorer-width": `${displayedWidths.explorerWidth}px`,
+            "--coding-utility-width": `${displayedWidths.utilityWidth}px`,
           } as CSSProperties
         }
       >
@@ -727,7 +765,8 @@ export function CodingWorkspacePage({
             leftPane={leftPane}
             onLeftPaneChange={setLeftPane}
             onOpenPath={openPath}
-            onResize={setExplorerWidth}
+            onResize={(value) => resizeCodePane("explorer", value)}
+            resizeBounds={displayedWidths.explorerBounds}
             onSearchDraftChange={setSearchDraft}
             onSubmitSearch={submitSearch}
             searchDraft={searchDraft}
@@ -737,7 +776,7 @@ export function CodingWorkspacePage({
             selectedPath={selectedPath}
             treeEntries={treeEntries}
             treeResource={treeResource}
-            width={explorerWidth}
+            width={displayedWidths.explorerWidth}
           />
         ) : null}
 
@@ -793,13 +832,14 @@ export function CodingWorkspacePage({
             onOpenWorkspacePath={onOpenWorkspacePath}
             onOpenTerminal={onOpenChatTerminal}
             onRefresh={refreshAll}
-            onResize={setUtilityWidth}
+            onResize={(value) => resizeCodePane("utility", value)}
+            resizeBounds={displayedWidths.utilityBounds}
             remotesResource={remotesResource}
             stashesResource={stashesResource}
             summary={summary}
             utilityPane={utilityPane}
             onUtilityPaneChange={handleUtilityPaneChange}
-            width={utilityWidth}
+            width={displayedWidths.utilityWidth}
             worktreeResource={worktreeResource}
           />
         ) : null}

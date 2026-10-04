@@ -29,12 +29,18 @@ import {
  * Desktop-only density bridge for the official Eliza controls.
  *
  * The upstream primitives default to 40px controls. Ordinary renderer
- * controls consume Doolittle's shared desktop control-height token (32px
- * comfortable / 28px compact) and retain a 36px mobile target. Explicit
+ * controls consume Doolittle's shared desktop control-height token (36px
+ * comfortable / 32px compact) and retain a 44px mobile target. Explicit
  * Eliza size/density variants keep their upstream geometry.
  */
 const standardControlClass =
-  "!h-[var(--control-height)] !min-h-[var(--control-height)] !text-[length:var(--text-control)] max-[760px]:!h-9 max-[760px]:!min-h-9";
+  "!h-[var(--control-height)] !min-h-[var(--control-height)] !text-[length:var(--text-control)] max-[760px]:!h-11 max-[760px]:!min-h-11";
+
+const focusControlClass =
+  "rounded-[var(--radius-xs)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] transition-[background-color,border-color,color,box-shadow] duration-150 ease-[var(--ease-out)] motion-reduce:transition-none disabled:cursor-not-allowed";
+
+const fieldControlClass =
+  "border-[var(--border-strong)] bg-[var(--surface-raised)] text-[var(--text)] placeholder:text-[var(--muted)] focus-visible:border-[var(--focus-ring)] aria-invalid:border-[var(--bad)]";
 
 // Text entry needs room to compose; do not collapse it to a one-line control.
 const textareaControlClass =
@@ -43,14 +49,26 @@ const textareaControlClass =
 export const ELIZA_SELECT_TEXT_CLASS = "!text-[length:var(--text-control)]";
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, size, ...props }, ref) => {
+  ({ className, size, variant = "default", ...props }, ref) => {
     const standard = size === undefined || size === "default";
+    const quiet = variant === "ghost" || variant === "link";
     return (
       <ElizaButton
         {...props}
-        className={cn(standard ? standardControlClass : undefined, className)}
+        className={cn(
+          focusControlClass,
+          standard ? standardControlClass : undefined,
+          !quiet &&
+            "border border-[var(--border)] shadow-[var(--control-contact)] active:shadow-none",
+          variant === "default" &&
+            "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-ink)] hover:bg-[var(--accent-hover)]",
+          variant === "destructive" &&
+            "bg-[var(--bad)] text-[var(--destructive-foreground)] hover:border-[var(--bad)] hover:bg-[var(--bad)]",
+          className,
+        )}
         ref={ref}
         size={size}
+        variant={variant}
       />
     );
   },
@@ -58,13 +76,21 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
 Button.displayName = "DoolittleButton";
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ className, density, ...props }, ref) => {
+  ({ className, density, hasError, ...props }, ref) => {
     const standard = density === undefined || density === "default";
     return (
       <ElizaInput
         {...props}
-        className={cn(standard ? standardControlClass : undefined, className)}
+        aria-invalid={props["aria-invalid"] ?? (hasError || undefined)}
+        className={cn(
+          focusControlClass,
+          fieldControlClass,
+          standard ? standardControlClass : undefined,
+          hasError && "border-[var(--bad)] bg-[var(--bad-soft)]",
+          className,
+        )}
         density={density}
+        hasError={hasError}
         ref={ref}
       />
     );
@@ -73,16 +99,21 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
 Input.displayName = "DoolittleInput";
 
 export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
-  ({ className, density, ...props }, ref) => (
+  ({ className, density, hasError, ...props }, ref) => (
     <ElizaTextarea
       {...props}
+      aria-invalid={props["aria-invalid"] ?? (hasError || undefined)}
       className={cn(
+        focusControlClass,
+        fieldControlClass,
         density === undefined || density === "default"
           ? textareaControlClass
           : undefined,
+        hasError && "border-[var(--bad)] bg-[var(--bad-soft)]",
         className,
       )}
       density={density}
+      hasError={hasError}
       ref={ref}
     />
   ),
@@ -95,7 +126,12 @@ export const SelectTrigger = forwardRef<
 >(({ className, ...props }, ref) => (
   <ElizaSelectTrigger
     {...props}
-    className={cn(standardControlClass, className)}
+    className={cn(
+      focusControlClass,
+      fieldControlClass,
+      standardControlClass,
+      className,
+    )}
     ref={ref}
   />
 ));

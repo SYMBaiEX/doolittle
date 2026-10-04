@@ -128,8 +128,10 @@ release artifacts remain release-pipeline checks rather than local IA gates.
 ## Decisions kept intentionally
 
 - The terminal remains a shared persistent surface, not a destination.
-- Compact and Comfortable density preferences remain; Compact is the desktop
-  default rather than a global reduction of every font and control.
+- Compact and Comfortable density preferences remain. The current theme
+  loader defaults unset or invalid preferences to Comfortable and preserves
+  an explicitly stored Compact choice; density comes from the shared tokens
+  rather than a global reduction of every font and control.
 - Route module and resource warming remains until measurements show it harms
   startup or navigation. Its dwell and cancellation behavior prevents pointer
   sweeps from producing API bursts.

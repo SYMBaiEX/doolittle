@@ -21,6 +21,10 @@ export function Welcome({
   ];
   return (
     <div className="chat-welcome">
+      <div className="chat-welcome-command" aria-hidden="true">
+        <span>~/doolittle</span>
+        <span>$ new session</span>
+      </div>
       <h1>Start a task</h1>
       <p>
         {projectName
@@ -28,8 +32,11 @@ export function Welcome({
           : "Choose a coding task to give Doolittle a clear starting point."}
       </p>
       <div className="starter-grid">
-        {prompts.map(({ prompt, detail }) => (
+        {prompts.map(({ prompt, detail }, index) => (
           <button key={prompt} onClick={() => onSelect(prompt)} type="button">
+            <span className="starter-index" aria-hidden="true">
+              {String(index + 1).padStart(2, "0")}
+            </span>
             <strong>{prompt}</strong>
             <small>{detail}</small>
             <UiIcon icon={ArrowUpRight} size="sm" />

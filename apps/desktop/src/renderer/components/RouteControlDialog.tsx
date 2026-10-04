@@ -241,9 +241,12 @@ export function RouteControlDialog({
       <div className={ROUTE_DIALOG_CLASS} ref={dialogRef} tabIndex={-1}>
         <div className={ROUTE_DIALOG_HEADER_CLASS}>
           <div>
-            <span className="eyebrow">Conversation route</span>
+            <span className="eyebrow">Shared runtime route</span>
             <h2 id="route-control-title">Choose model</h2>
-            <p>Switch the route for new messages in this conversation.</p>
+            <p>
+              Change the shared model route for new messages in every session.
+              Existing chat turns keep their provider/model route.
+            </p>
           </div>
           <button
             aria-label="Close route controls"

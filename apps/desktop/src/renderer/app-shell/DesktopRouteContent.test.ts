@@ -21,6 +21,10 @@ const routeContentSource = readFileSync(
   "utf8",
 );
 const appSource = readFileSync(new URL("../App.tsx", import.meta.url), "utf8");
+const chatPageSource = readFileSync(
+  new URL("../ChatPage.tsx", import.meta.url),
+  "utf8",
+);
 
 describe("desktop route preloaders", () => {
   test("covers every application route", () => {
@@ -129,6 +133,13 @@ describe("desktop route preloaders", () => {
     expect(routeContentSource).toContain("desktopRouteCapabilities");
     expect(routeContentSource).toContain(
       "const active = routeCapabilities.apiRead;",
+    );
+  });
+  test("closes scoped approval modals when the route, panel, surface or narrow conversation becomes inactive", () => {
+    expect(appSource).toContain("chatRouteActive={chatRouteActive}");
+    expect(routeContentSource).toContain("routeActive={chatRouteActive}");
+    expect(chatPageSource).toMatch(
+      /approvalsVisible=\{\s*routeActive &&\s*visible &&\s*surface === "conversation" &&\s*!\(inspectorVisible && isNarrowWorkbench\)\s*\}/,
     );
   });
 

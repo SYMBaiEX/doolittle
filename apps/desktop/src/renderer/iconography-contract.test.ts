@@ -83,7 +83,9 @@ describe("desktop iconography contract", () => {
       INTERACTIVE_TERMINAL_ICON_BUTTON_CLASS,
     ]) {
       expect(className).toContain("focus-visible:outline");
-      expect(className).toContain("outline-[var(--accent-border)]");
+      expect(className).toContain("focus-visible:outline-2");
+      expect(className).toContain("outline-[var(--focus-ring)]");
+      expect(className).not.toContain("outline-[var(--accent-border)]");
     }
   });
 });

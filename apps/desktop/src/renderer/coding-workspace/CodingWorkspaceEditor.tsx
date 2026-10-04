@@ -539,7 +539,13 @@ export function CodingWorkspaceEditor({
             Ask Doolittle
           </button>
         ) : null}
-        <span>{selectedChange ? statusLabel(selectedChange) : "TRACKED"}</span>
+        <span>
+          {!selectedPath
+            ? "No file selected"
+            : selectedChange
+              ? statusLabel(selectedChange)
+              : "File selected"}
+        </span>
       </footer>
     </main>
   );

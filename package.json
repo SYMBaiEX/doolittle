@@ -66,6 +66,7 @@
     "desktop:package:all": "nub run --cwd apps/desktop package:all",
     "test:e2e:desktop-packaged": "nub scripts/run-desktop-packaged-tests.ts",
     "test:e2e:desktop-visual": "nub scripts/capture-desktop-visual.ts",
+    "test:e2e:desktop-workbench": "nub run desktop:build && nubx playwright test --config playwright.workbench.config.ts",
     "lint": "nubx biome check --write .",
     "lint:check": "nubx biome check .",
     "knip:deps": "nubx knip --config knip.json --dependencies --no-progress --no-config-hints --no-tag-hints --workspace packages/agent --workspace apps/desktop --workspace packages/plugins --workspace packages/plugins/plugin-sql --workspace packages/plugins/provider-transport --workspace packages/plugins/plugin-claude-code --workspace packages/plugins/plugin-devin",
