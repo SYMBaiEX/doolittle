@@ -3,6 +3,28 @@ import { HEADLESS_EVAL_SUITES } from "../../../../evals/src/headless/cases";
 import { resolveExactOutputIntent } from "./exact-output-intent";
 
 describe("original user exact output intent", () => {
+  it.each(["[", "{", "[{"])(
+    "fails closed on aggregate masking exhaustion before a valid trailing directive: %s",
+    (opener) => {
+      const request = `Context: ${opener.repeat(500)}${"x".repeat(30_000)}. Return only JSON.`;
+      expect(request.length).toBeLessThan(32_000);
+      expect(resolveExactOutputIntent(request)).toBeUndefined();
+      expect(
+        resolveExactOutputIntent("Context: ordinary data. Return only JSON."),
+      ).toBe("json");
+    },
+  );
+
+  it("retains valid multiple small structured bodies under the shared budget", () => {
+    const context = Array.from({ length: 100 }, (_, index) =>
+      JSON.stringify({ example: index, nested: [1, 2] }),
+    ).join(" ");
+    expect(
+      resolveExactOutputIntent(
+        `Context: ${context}. If the check succeeds, return exactly {"state":"ready"}. Otherwise return exactly {"state":"unknown"}.`,
+      ),
+    ).toBe("json");
+  });
   it.each([
     "Return only JSON.",
     'Run the check. Return only the exact JSON {"status":"ready"}.',

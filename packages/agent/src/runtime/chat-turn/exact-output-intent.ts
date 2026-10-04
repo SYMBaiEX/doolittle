@@ -14,8 +14,11 @@ const FORMATTING_BAN = new RegExp(
 );
 
 // Keep JSON-body delivery syntax while discarding the literal's keys/values.
-function maskJsonBodies(input: string): string {
+function maskJsonBodies(input: string): string | undefined {
   let output = "";
+  // Shared across candidates: malformed nested openers must not each rescan
+  // the full body window. Exhaustion rejects the entire delivery instruction.
+  let remainingScanChars = 64_000;
   for (let index = 0; index < input.length; index += 1) {
     const first = input[index];
     if (first !== "{" && first !== "[") {
@@ -31,6 +34,8 @@ function maskJsonBodies(input: string): string {
       end < Math.min(input.length, index + 4_000);
       end += 1
     ) {
+      if (remainingScanChars === 0) return undefined;
+      remainingScanChars -= 1;
       const char = input[end];
       if (quoted) {
         if (escaped) escaped = false;
@@ -92,7 +97,9 @@ export function resolveExactOutputIntent(
 ): ExactOutputIntent | undefined {
   if (userRequest.length > 32_000 || userRequest.includes("\uE000"))
     return undefined;
-  const instructions = maskJsonBodies(userRequest)
+  const masked = maskJsonBodies(userRequest);
+  if (masked === undefined) return undefined;
+  const instructions = masked
     .replace(
       /```[\s\S]*?(?:```|$)|`[^`\n]*`|"(?:\\.|[^"\\])*"|“[^”]*”|(?:^|\s)'[^'\n]+'|‘[^’]*’/gu,
       " ",

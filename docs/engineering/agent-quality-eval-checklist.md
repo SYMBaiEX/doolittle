@@ -135,6 +135,10 @@ An actual pending frontend-review summary disables this exception during initial
 classification and post-synthesis validation. Its mandatory disclosure remains;
 an exact-format request never suppresses completion or review obligations.
 
+Cheap response checks precede intent parsing. JSON masking shares a 64,000-step
+scan budget across candidate bodies and fails closed on exhaustion; these input
+and scan limits are not a complete CPU or whole-workflow latency guarantee.
+
 Synthetic pinned-SDK and finalization regressions characterize this boundary.
 They do not identify the cause of a discarded historical response or establish
 live quality, latency, billing, human coherence, or installed-desktop behavior.

@@ -2,6 +2,7 @@ import type { ActionResult } from "@elizaos/core";
 import { describe, expect, it, vi } from "vitest";
 import type { AgentExecutionContext } from "@/runtime/chat";
 import { runModelAnalysis } from "@/runtime/model-analysis";
+import * as exactOutputIntent from "./exact-output-intent";
 import {
   buildToolResultSynthesisPrompt,
   isUnsynthesizedToolResponse,
@@ -52,6 +53,28 @@ function shellResult(
 }
 
 describe("tool result synthesis", () => {
+  it("skips intent parsing for cheaply ineligible candidate responses", () => {
+    const parseIntent = vi.spyOn(exactOutputIntent, "resolveExactOutputIntent");
+    try {
+      for (const text of [
+        "x".repeat(4_001),
+        Array(17).fill("x").join("\n"),
+        readResult().text ?? "",
+        ' {"ready":true}',
+      ]) {
+        expect(
+          isUnsynthesizedToolResponse(
+            text,
+            [shellResult(text)],
+            "Return only JSON.",
+          ),
+        ).toBe(true);
+      }
+      expect(parseIntent).not.toHaveBeenCalled();
+    } finally {
+      parseIntent.mockRestore();
+    }
+  });
   it("allows callers to disable exact output without changing shortcuts or normal synthesis", () => {
     const result = shellResult();
     const text = result.userFacingText ?? "";

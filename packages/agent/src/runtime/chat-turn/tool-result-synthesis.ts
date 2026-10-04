@@ -48,15 +48,15 @@ function exactOutputResult(
   actionResults: readonly ActionResult[],
   userRequest: string,
 ): ActionResult | undefined {
-  const intent = resolveExactOutputIntent(userRequest);
   if (
-    !intent ||
     response !== response.trim() ||
     response.length > MAX_EXACT_OUTPUT_CHARS ||
     response.split("\n").length > MAX_EXACT_OUTPUT_LINES ||
     isRawToolTranscript(response)
   )
     return undefined;
+  const intent = resolveExactOutputIntent(userRequest);
+  if (!intent) return undefined;
   if (intent !== "verbatim") {
     try {
       const value: unknown = JSON.parse(response);
