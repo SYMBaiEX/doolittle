@@ -444,8 +444,8 @@ export function ChatSessionPanel({
     observer.observe(panel);
     return () => observer.disconnect();
   }, []);
-  const isNarrowWorkbench =
-    useMediaQuery(NARROW_WORKBENCH_QUERY) || narrowPanel;
+  const isNarrowViewport = useMediaQuery(NARROW_WORKBENCH_QUERY);
+  const isNarrowWorkbench = isNarrowViewport || narrowPanel;
   const prefersReducedMotion = useMediaQuery(
     "(prefers-reduced-motion: reduce)",
   );
@@ -548,7 +548,7 @@ export function ChatSessionPanel({
   const workbenchDialogRef = useModalFocusBoundary({
     active:
       inspectorVisible &&
-      isNarrowWorkbench &&
+      isNarrowViewport &&
       visible &&
       focused &&
       !coordinator,
@@ -1842,7 +1842,7 @@ export function ChatSessionPanel({
     selectedMessages.length === 0 &&
     (selectedSession?.messageCount ?? 0) === 0 &&
     !activeRequest;
-  const workbenchAccessibilityProps = isNarrowWorkbench
+  const workbenchAccessibilityProps = isNarrowViewport
     ? {
         "aria-label": "Thread workbench",
         "aria-modal": true as const,

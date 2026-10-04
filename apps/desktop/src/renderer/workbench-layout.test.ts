@@ -48,9 +48,7 @@ describe("thread workbench viewport layout contract", () => {
     expect(chatPage).toMatch(
       /<section[\s\S]*?className="chat-conversation"[\s\S]*?<\/section>[\s\S]*?\{inspectorVisible \? \([\s\S]*?<div[\s\S]*?\{\.\.\.workbenchAccessibilityProps\}[\s\S]*?chat-workbench-pane[\s\S]*?id=\{`thread-workbench-\$\{selectedId\}`\}[\s\S]*?<CompanionInspector/s,
     );
-    expect(chatPage).toContain(
-      "import { CompanionInspector, type InspectorTab }",
-    );
+    expect(chatPage).toContain('from "./chat/CompanionInspector"');
     expect(chatPage).not.toContain(
       'ThreadWorkbenchRail,\n} from "./components/ThreadWorkbenchRail"',
     );
