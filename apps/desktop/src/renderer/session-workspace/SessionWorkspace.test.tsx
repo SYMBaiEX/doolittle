@@ -685,6 +685,22 @@ describe("shared session workbench behavior", () => {
     );
   });
 
+  it("holds a named bot draft when its owner is absent from the catalog", async () => {
+    await render({
+      bots: [],
+      defaultBotId: "lead-bot",
+      botIdForSession: () => namedBot.id,
+    });
+    await draft("a", "Keep this safe");
+    expect(panel("a").textContent).toContain("bot is unavailable");
+    expect(
+      [...panel("a").querySelectorAll("button")].find(
+        (button) => button.textContent === "Send test",
+      )?.disabled,
+    ).toBe(true);
+    expect(start).not.toHaveBeenCalled();
+  });
+
   it("claims a session synchronously so two immediate submits cannot overlap its run", async () => {
     await render();
     await draft("a", "One turn");

@@ -404,11 +404,9 @@ export function ChatSessionPanel({
   const currentBotId =
     botIdForSession?.(selectedId) || defaultBotId || selectedBotId;
   const currentBot = bots?.find((bot) => bot.id === currentBotId);
-  const botReady =
-    !currentBot ||
-    currentBot.state === "ready" ||
-    currentBot.state === "busy" ||
-    currentBot.state === "waiting";
+  const botReady = currentBot
+    ? ["ready", "busy", "waiting"].includes(currentBot.state)
+    : !currentBotId || currentBotId === defaultBotId;
   const [progressBySession, setProgressBySession] = useWorkspaceState<
     Record<string, string>
   >("run.progress", {});
@@ -1206,12 +1204,12 @@ export function ChatSessionPanel({
       activeRequestSessionsRef.current[sessionId] ||
       activeRequests[sessionId] ||
       (() => {
-        const owner = bots?.find(
-          (bot) =>
-            bot.id ===
-            (botIdForSession?.(sessionId) || defaultBotId || selectedBotId),
-        );
-        return owner && !["ready", "busy", "waiting"].includes(owner.state);
+        const ownerId =
+          botIdForSession?.(sessionId) || defaultBotId || selectedBotId;
+        const owner = bots?.find((bot) => bot.id === ownerId);
+        return owner
+          ? !["ready", "busy", "waiting"].includes(owner.state)
+          : Boolean(ownerId && ownerId !== defaultBotId);
       })() ||
       backend.phase !== "ready" ||
       runHydration !== "ready"
@@ -2056,6 +2054,15 @@ export function ChatSessionPanel({
                     </button>
                   ) : null}
                 </div>
+              ) : null}
+              {!botReady && !currentBot ? (
+                <p
+                  className="border-b border-[var(--border)] px-3 py-2 text-sm text-[var(--bad)]"
+                  role="alert"
+                >
+                  This conversation’s bot is unavailable. The draft is retained;
+                  refresh the bot list before sending.
+                </p>
               ) : null}
             </>
           }
