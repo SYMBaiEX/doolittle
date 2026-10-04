@@ -1,10 +1,13 @@
 import { readFileSync } from "node:fs";
+import { compile } from "tailwindcss";
 import { describe, expect, it } from "vitest";
 import { CHAT_WORKSPACE_CLASS } from "./chat/layout";
 import {
   WORKBENCH_CHANGES_BODY_CLASS,
+  WORKBENCH_CODE_PREVIEW_CLASS,
   WORKBENCH_COMMAND_BUTTON_CLASS,
   WORKBENCH_CONTEXT_COPY_CLASS,
+  WORKBENCH_FILE_EMPTY_CLASS,
   WORKBENCH_FILES_BODY_CLASS,
   WORKBENCH_LIST_BUTTON_CLASS,
   WORKBENCH_PANE_STACK_CLASS,
@@ -26,9 +29,24 @@ const chatPage = readFileSync(
 );
 
 describe("thread workbench viewport layout contract", () => {
+  it("keeps file-empty content out of the preview toolbar selector", async () => {
+    const compiler = await compile("@tailwind utilities;");
+    const css = compiler.build([
+      ...WORKBENCH_CODE_PREVIEW_CLASS.split(/\s+/u),
+      ...WORKBENCH_FILE_EMPTY_CLASS.split(/\s+/u),
+    ]);
+    expect(WORKBENCH_FILE_EMPTY_CLASS).toContain("row-span-full");
+    expect(WORKBENCH_FILE_EMPTY_CLASS).toContain("flex-col");
+    expect(css).toContain(
+      "> div:first-child:not(.thread-workbench-file-empty)",
+    );
+    expect(css).toContain("grid-row: 1 / -1");
+    expect(WORKBENCH_CODE_PREVIEW_CLASS).not.toContain("[&>div:first-child]:");
+  });
+
   it("mounts the workbench as a dedicated sibling pane beside chat", () => {
     expect(chatPage).toMatch(
-      /<section[\s\S]*?className="chat-conversation"[\s\S]*?<\/section>[\s\S]*?\{inspectorVisible \? \([\s\S]*?<div[\s\S]*?\{\.\.\.workbenchAccessibilityProps\}[\s\S]*?chat-workbench-pane[\s\S]*?id="thread-workbench"[\s\S]*?<Suspense[\s\S]*?<ThreadWorkbenchRail/s,
+      /<section[\s\S]*?className="chat-conversation"[\s\S]*?<\/section>[\s\S]*?\{inspectorVisible \? \([\s\S]*?<div[\s\S]*?\{\.\.\.workbenchAccessibilityProps\}[\s\S]*?chat-workbench-pane[\s\S]*?id=\{`thread-workbench-\$\{selectedId\}`\}[\s\S]*?<Suspense[\s\S]*?<ThreadWorkbenchRail/s,
     );
     expect(chatPage).toContain(
       "const ThreadWorkbenchRail = lazy(async () => {",
@@ -54,13 +72,17 @@ describe("thread workbench viewport layout contract", () => {
     expect(chatPage).toContain(
       "max-[720px]:fixed max-[720px]:inset-0 max-[720px]:z-120 max-[720px]:w-full",
     );
-    expect(CHAT_WORKSPACE_CLASS).toContain("[&>#thread-workbench]:col-start-2");
-    expect(CHAT_WORKSPACE_CLASS).toContain("[&>#thread-workbench]:row-start-1");
     expect(CHAT_WORKSPACE_CLASS).toContain(
-      "[&>#thread-workbench]:self-stretch",
+      "[&>.chat-workbench-pane]:col-start-2",
     );
     expect(CHAT_WORKSPACE_CLASS).toContain(
-      "[&>#thread-workbench]:overflow-hidden",
+      "[&>.chat-workbench-pane]:row-start-1",
+    );
+    expect(CHAT_WORKSPACE_CLASS).toContain(
+      "[&>.chat-workbench-pane]:self-stretch",
+    );
+    expect(CHAT_WORKSPACE_CLASS).toContain(
+      "[&>.chat-workbench-pane]:overflow-hidden",
     );
     expect(CHAT_WORKSPACE_CLASS).toContain("[&_.chat-conversation]:grid");
     expect(CHAT_WORKSPACE_CLASS).toContain(
@@ -126,7 +148,7 @@ describe("thread workbench viewport layout contract", () => {
     );
     expect(CHAT_WORKSPACE_CLASS).toContain("grid-rows-[minmax(0,1fr)]");
     expect(CHAT_WORKSPACE_CLASS).not.toContain(
-      "[&>#thread-workbench]:row-start-2",
+      "[&>.chat-workbench-pane]:row-start-2",
     );
   });
 
@@ -134,7 +156,9 @@ describe("thread workbench viewport layout contract", () => {
     expect(WORKBENCH_TABS_CLASS).toContain("flex");
     expect(WORKBENCH_TABS_CLASS).toContain("min-w-0");
     expect(WORKBENCH_TABS_CLASS).toContain("overflow-x-auto");
-    expect(WORKBENCH_TABS_CLASS).toContain("[scrollbar-width:none]");
+    expect(WORKBENCH_TABS_CLASS).toContain("[scrollbar-width:thin]");
+    expect(WORKBENCH_TABS_CLASS).toContain("overscroll-x-contain");
+    expect(WORKBENCH_TABS_CLASS).not.toContain("[&::-webkit-scrollbar]:hidden");
     expect(WORKBENCH_TAB_CLASS).toContain("min-w-[3rem]");
     expect(WORKBENCH_TAB_CLASS).toContain("flex-1");
     expect(WORKBENCH_TAB_CLASS).toContain("place-items-center");
@@ -158,7 +182,7 @@ describe("thread workbench viewport layout contract", () => {
       WORKBENCH_LIST_BUTTON_CLASS,
       WORKBENCH_COMMAND_BUTTON_CLASS,
     ]) {
-      expect(control).toContain("focus-visible:outline-[var(--accent-border)]");
+      expect(control).toContain("focus-visible:outline-[var(--focus-ring)]");
       expect(control).toContain("text-[length:var(--text-meta)]");
       expect(control).not.toContain("focus-visible:outline-none");
     }

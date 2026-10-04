@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
@@ -26,14 +27,25 @@ vi.mock("../thread-workbench-controller", () => ({
     },
     selectTab: vi.fn(),
     refreshCurrent: vi.fn(),
+    preview: { data: null, error: "", loading: false, reload: vi.fn() },
+    plans: { data: null, error: "", loading: false, reload: vi.fn() },
+    delegationTasks: { data: null, error: "", loading: false, reload: vi.fn() },
+    codegen: { data: null, error: "", loading: false, reload: vi.fn() },
+    approvals: { data: null, error: "", loading: false, reload: vi.fn() },
+    terminal: { data: null, error: "", loading: false, reload: vi.fn() },
+    briefPlanSummary: { activePlan: null, draftCount: 0 },
+    approvalEntries: [],
+    changeEntries: [],
+    commandEntries: [],
+    delegatedTaskEntries: [],
+    fileEntries: [],
+    planEntries: [],
+    settingEntries: [],
+    runEntries: [],
+    activeRunCount: 0,
+    failedRunCount: 0,
+    insert: vi.fn(),
   }),
-}));
-
-vi.mock("../thread-workbench/WorkbenchPanels", () => ({
-  WorkbenchPanels: () =>
-    createElement("div", {
-      className: "thread-workbench-panel-stub",
-    }),
 }));
 
 vi.mock("./PanelResizeHandle", () => ({
@@ -64,7 +76,61 @@ describe("ThreadWorkbenchRail", () => {
     expect(markup).toContain('role="tablist"');
     expect(markup).toContain('aria-label="Brief"');
     expect(markup).toContain('class="sr-only">Brief</small>');
-    expect(markup).toContain('aria-controls="thread-workbench-brief-panel"');
+    expect(markup).toMatch(
+      /aria-controls="thread-workbench-[\w-]+-brief-panel"/,
+    );
     expect(markup).not.toContain("thread-workbench-status-strip");
+  });
+
+  it("keeps tab and panel relationships unique and local across independent rails", () => {
+    const sessions = [
+      { key: "a", sessionId: "private/session [A]" },
+      { key: "b", sessionId: "private/session [B]" },
+      { key: "empty-a", sessionId: "" },
+      { key: "empty-b", sessionId: "" },
+    ];
+    const markup = renderToStaticMarkup(
+      sessions.map(({ key, sessionId }) => (
+        <ThreadWorkbenchRail
+          active
+          key={key}
+          onInsertContext={vi.fn()}
+          onOpenFullView={vi.fn()}
+          onRequestClose={vi.fn()}
+          sessionId={sessionId}
+          workspacePath="/work/doolittle"
+        />
+      )),
+    );
+    const document = new DOMParser().parseFromString(markup, "text/html");
+    const ids = [...document.querySelectorAll("[id]")].map((node) => node.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(ids.every((id) => /^thread-workbench-[\w-]+$/.test(id))).toBe(true);
+    expect(markup).not.toContain("private/session");
+    const rails = [
+      ...document.querySelectorAll('[data-thread-workbench="rail"]'),
+    ];
+    expect(rails).toHaveLength(4);
+    for (const rail of rails) {
+      const tabs = [...rail.querySelectorAll('[role="tab"]')];
+      expect(tabs).toHaveLength(7);
+      const selected = rail.querySelector('[role="tab"][aria-selected="true"]');
+      const panel = rail.querySelector('[role="tabpanel"]');
+      expect(selected).not.toBeNull();
+      expect(panel).not.toBeNull();
+      expect(selected?.getAttribute("aria-controls")).toBe(panel?.id);
+      expect(panel?.getAttribute("aria-labelledby")).toBe(selected?.id);
+      expect(
+        document.getElementById(selected?.getAttribute("aria-controls") ?? ""),
+      ).toBe(panel);
+      for (const tab of tabs) {
+        expect(tab.getAttribute("aria-controls")).toBe(
+          tab.id.replace(/-tab$/, "-panel"),
+        );
+        expect(tab.getAttribute("tabindex")).toBe(
+          tab === selected ? "0" : "-1",
+        );
+      }
+    }
   });
 });

@@ -1,6 +1,4 @@
-import { Button } from "@elizaos/ui/components/ui/button";
-import { Input } from "@elizaos/ui/components/ui/input";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import type {
   ActivityEventKind,
   ActivityExportResponse,
@@ -14,6 +12,7 @@ import {
   visibleActivityWindow,
 } from "./activity/activity-model";
 import { CompactStatStrip } from "./components/CompactStatStrip";
+import { Button, Input } from "./components/ElizaControls";
 import { OfflineRouteState } from "./components/OfflineRouteState";
 import {
   desktopRequest,
@@ -50,6 +49,7 @@ export function activityShowsEmptyState(
 
 export function ActivityPage({ active }: { active: boolean }) {
   const [query, setQuery] = useState("");
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [source, setSource] = useState<ActivitySource>("all");
   const [visibleCount, setVisibleCount] = useState(ACTIVITY_PAGE_SIZE);
   const [exporting, setExporting] = useState(false);
@@ -172,6 +172,7 @@ export function ActivityPage({ active }: { active: boolean }) {
         <label htmlFor="activity-query">
           <span className="sr-only">Search operator activity</span>
           <Input
+            ref={searchInputRef}
             className="h-[34px]"
             id="activity-query"
             type="search"
@@ -262,8 +263,32 @@ export function ActivityPage({ active }: { active: boolean }) {
           />
         </>
       ) : showEmptyState ? (
-        <EmptyBlock title="No matching events">
-          No activity matched the selected source and search.
+        <EmptyBlock
+          title={
+            query.trim() || source !== "all"
+              ? "No matching events"
+              : "No recorded activity yet"
+          }
+          actions={
+            query.trim() || source !== "all" ? (
+              <Button
+                onClick={() => {
+                  setQuery("");
+                  setSource("all");
+                  setVisibleCount(ACTIVITY_PAGE_SIZE);
+                  searchInputRef.current?.focus();
+                }}
+                type="button"
+                variant="secondary"
+              >
+                Clear filters
+              </Button>
+            ) : undefined
+          }
+        >
+          {query.trim() || source !== "all"
+            ? "No activity matched the selected source and search."
+            : "Conversation runs and workspace operations will appear here."}
         </EmptyBlock>
       ) : null}
     </div>

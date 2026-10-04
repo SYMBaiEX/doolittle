@@ -14,6 +14,7 @@ import type {
   Dispatch,
   FormEvent,
   KeyboardEvent,
+  ReactNode,
   RefObject,
   SetStateAction,
 } from "react";
@@ -71,6 +72,7 @@ export function chatComposerHeight(scrollHeight: number): number {
 }
 
 export interface ChatComposerProps {
+  workspaceNotice?: ReactNode;
   activeProject?: {
     id: string;
     name: string;
@@ -138,6 +140,7 @@ export interface ChatComposerProps {
 }
 
 export function ChatComposer({
+  workspaceNotice,
   activeProject,
   projects,
   onChooseRepository,
@@ -193,6 +196,7 @@ export function ChatComposer({
   pendingApprovals,
   runningTasks,
 }: ChatComposerProps) {
+  const controlId = (name: string) => `${name}-${selectedId}`;
   const isCancellingActive = Boolean(
     activeRequest && cancellingRequest === activeRequest,
   );
@@ -299,7 +303,9 @@ export function ChatComposer({
     completionCount > 0 ? Math.min(commandSelection, completionCount - 1) : -1;
   const activeCommandId =
     activeCommandIndex >= 0
-      ? `${commandMenuOpen ? "chat-command" : "chat-reusable"}-option-${activeCommandIndex}`
+      ? controlId(
+          `${commandMenuOpen ? "chat-command" : "chat-reusable"}-option-${activeCommandIndex}`,
+        )
       : undefined;
   const selectReusableSuggestion = (suggestion: ReusableCompletion) => {
     setDraft(suggestion.insertText);
@@ -329,6 +335,7 @@ export function ChatComposer({
 
   return (
     <form className="chat-composer" onSubmit={onSubmit}>
+      {workspaceNotice}
       <InlineApprovalPanel active={backend.phase === "ready"} />
       {queuedMessages.length > 0 ? (
         <div className="chat-message-queue" ref={queueRef}>
@@ -441,7 +448,7 @@ export function ChatComposer({
         <div
           aria-live="polite"
           className="chat-composer-validation"
-          id="chat-composer-validation"
+          id={controlId("chat-composer-validation")}
           role="alert"
         >
           {composerValidationError}
@@ -451,7 +458,7 @@ export function ChatComposer({
         <div
           aria-label="Chat commands"
           className="chat-command-completions absolute inset-x-0 bottom-[calc(100%+8px)] z-50 grid max-h-[min(360px,46vh)] overflow-y-auto rounded-[var(--radius-md)] border border-[var(--border-strong)] bg-[color-mix(in_srgb,var(--surface-raised)_98%,var(--bg))] p-1.5 shadow-[var(--shell-shadow-lg)]"
-          id="chat-command-completions"
+          id={controlId("chat-command-completions")}
           role="listbox"
         >
           {commandSuggestions.map((command, index) => (
@@ -459,7 +466,7 @@ export function ChatComposer({
               aria-disabled={command.disabledReason ? true : undefined}
               aria-selected={index === activeCommandIndex}
               className={`!grid !min-h-11 !min-w-0 grid-cols-[minmax(80px,auto)_minmax(0,1fr)_auto] items-center gap-3 !rounded-[var(--radius-sm)] !border-0 !bg-transparent px-2.5 py-2 !text-left text-[var(--text-soft)] hover:!bg-[color-mix(in_srgb,var(--accent)_8%,var(--surface-hover))] hover:!text-[var(--text)] ${index === activeCommandIndex ? "!bg-[color-mix(in_srgb,var(--accent)_8%,var(--surface-hover))] !text-[var(--text)]" : ""}`}
-              id={`chat-command-option-${index}`}
+              id={controlId(`chat-command-option-${index}`)}
               key={command.command}
               onClick={() => {
                 if (!command.disabledReason) selectCommandSuggestion(command);
@@ -500,7 +507,7 @@ export function ChatComposer({
         <div
           aria-label="Reusable prompts and skills"
           className="chat-reusable-completions absolute inset-x-0 bottom-[calc(100%+8px)] z-50 grid max-h-[min(360px,46vh)] overflow-y-auto rounded-[var(--radius-md)] border border-[var(--border-strong)] bg-[color-mix(in_srgb,var(--surface-raised)_98%,var(--bg))] p-1.5 shadow-[var(--shell-shadow-lg)]"
-          id="chat-reusable-completions"
+          id={controlId("chat-reusable-completions")}
           role="listbox"
         >
           <div className="flex items-center justify-between gap-3 px-2.5 py-1.5 font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--muted)]">
@@ -511,7 +518,7 @@ export function ChatComposer({
             <div
               aria-selected={index === activeCommandIndex}
               className={`!grid !min-h-11 !min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 !rounded-[var(--radius-sm)] !border-0 !bg-transparent px-2.5 py-2 !text-left text-[var(--text-soft)] hover:!bg-[color-mix(in_srgb,var(--accent)_8%,var(--surface-hover))] hover:!text-[var(--text)] ${index === activeCommandIndex ? "!bg-[color-mix(in_srgb,var(--accent)_8%,var(--surface-hover))] !text-[var(--text)]" : ""}`}
-              id={`chat-reusable-option-${index}`}
+              id={controlId(`chat-reusable-option-${index}`)}
               key={suggestion.id}
               onClick={() => selectReusableSuggestion(suggestion)}
               onKeyDown={(event) => {
@@ -554,22 +561,27 @@ export function ChatComposer({
           aria-activedescendant={activeCommandId}
           aria-autocomplete="list"
           aria-describedby={
-            composerValidationError ? "chat-composer-validation" : undefined
+            composerValidationError
+              ? controlId("chat-composer-validation")
+              : undefined
           }
           aria-controls={
             commandMenuOpen
-              ? "chat-command-completions"
+              ? controlId("chat-command-completions")
               : reusableMenuOpen
-                ? "chat-reusable-completions"
+                ? controlId("chat-reusable-completions")
                 : undefined
           }
           aria-errormessage={
-            composerValidationError ? "chat-composer-validation" : undefined
+            composerValidationError
+              ? controlId("chat-composer-validation")
+              : undefined
           }
           aria-expanded={commandMenuOpen || reusableMenuOpen}
           aria-haspopup="listbox"
           aria-invalid={composerValidationError ? true : undefined}
           aria-label="Message Doolittle"
+          id={controlId("chat-composer-input")}
           disabled={backend.phase !== "ready"}
           onChange={(event) => {
             setDraft(event.target.value);
@@ -674,6 +686,7 @@ export function ChatComposer({
             onTranscript={insertDictationTranscript}
           />
           <PromptLibrary
+            namespace={selectedId}
             activeProject={activeProject}
             composerRef={composerRef}
             draft={draft}
@@ -741,7 +754,8 @@ export function ChatComposer({
           ) : null}
           {hasMemoryMatches || hasContextDetails ? (
             <ElizaButton
-              aria-controls="chat-composer-details"
+              aria-controls={controlId("chat-composer-details")}
+              aria-label={detailsLabel}
               aria-expanded={detailsOpen}
               className="chat-composer-meta-toggle !min-h-[30px] rounded-[7px] !border-transparent !bg-transparent px-2 py-1 text-[10px] font-semibold text-[var(--muted)] hover:!border-[var(--border)] hover:!bg-[var(--surface-soft)] hover:!text-[var(--text)]"
               onClick={() => setDetailsOpen((current) => !current)}
@@ -817,7 +831,10 @@ export function ChatComposer({
         · Shift Enter for a new line
       </small>
       {detailsOpen && (hasMemoryMatches || hasContextDetails) ? (
-        <div className="chat-composer-details" id="chat-composer-details">
+        <div
+          className="chat-composer-details"
+          id={controlId("chat-composer-details")}
+        >
           {hasMemoryMatches ? (
             <section
               aria-label={`${memoryMatches.matches.length} saved profile matches`}

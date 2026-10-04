@@ -1,12 +1,11 @@
-import { Button } from "@elizaos/ui/components/ui/button";
-import { Input } from "@elizaos/ui/components/ui/input";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 import type {
   SessionMessagesResponse,
   SessionSummary,
   SessionUsageSummary,
   StoredMessage,
 } from "../../shared/contracts";
+import { Button, Input } from "../components/ElizaControls";
 import { MessageContent } from "../components/MessageContent";
 import {
   compactNumber,
@@ -94,6 +93,17 @@ export function SessionDetail({
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState("");
   const [mutationError, setMutationError] = useState("");
+  const [renaming, setRenaming] = useState(false);
+  const renameInFlight = useRef(false);
+  const titleInputRef = useRef<HTMLInputElement>(null);
+  const renameButtonRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (editing) titleInputRef.current?.focus();
+  }, [editing]);
+  const finishEditing = () => {
+    setEditing(false);
+    requestAnimationFrame(() => renameButtonRef.current?.focus());
+  };
   const [continuityOpen, setContinuityOpen] = useState(false);
   const requestPolicy = sessionDetailRequests({ active, continuityOpen });
   const transcript = useApiResource<SessionMessagesResponse>(
@@ -130,18 +140,23 @@ export function SessionDetail({
   const rename = async (event: FormEvent) => {
     event.preventDefault();
     const nextTitle = title.trim();
-    if (!nextTitle) return;
+    if (!nextTitle || renameInFlight.current || !active) return;
+    renameInFlight.current = true;
+    setRenaming(true);
     setMutationError("");
     try {
       await desktopRequest("/sessions/title", "POST", {
         sessionId: selected.sessionId,
         title: nextTitle,
       });
-      setEditing(false);
+      finishEditing();
       setTitle("");
       onRefresh();
     } catch (error) {
       setMutationError(error instanceof Error ? error.message : String(error));
+    } finally {
+      renameInFlight.current = false;
+      setRenaming(false);
     }
   };
 
@@ -158,6 +173,8 @@ export function SessionDetail({
         </div>
         <div className="flex flex-wrap items-center justify-end gap-1.5 max-[860px]:justify-start">
           <Button
+            disabled={!active || renaming}
+            ref={renameButtonRef}
             onClick={() => {
               setTitle(selected.title ?? "");
               setEditing(true);
@@ -169,7 +186,7 @@ export function SessionDetail({
             Rename
           </Button>
           <Button
-            disabled={transferring}
+            disabled={!active || transferring}
             onClick={onExport}
             size="sm"
             type="button"
@@ -178,11 +195,12 @@ export function SessionDetail({
             {transferring ? "Working…" : "Export"}
           </Button>
           <Button
+            disabled={!active}
             onClick={() => onOpenChat(selected.sessionId)}
             size="sm"
             type="button"
           >
-            Open in chat
+            Open in workspace
           </Button>
         </div>
       </div>
@@ -192,15 +210,18 @@ export function SessionDetail({
           onSubmit={rename}
         >
           <Input
+            ref={titleInputRef}
             aria-label="Session title"
+            disabled={renaming}
             value={title}
             onChange={(event) => setTitle(event.target.value)}
           />
-          <Button size="sm" type="submit">
-            Save
+          <Button disabled={renaming || !title.trim()} size="sm" type="submit">
+            {renaming ? "Saving…" : "Save"}
           </Button>
           <Button
-            onClick={() => setEditing(false)}
+            disabled={renaming}
+            onClick={finishEditing}
             size="sm"
             type="button"
             variant="ghost"
@@ -210,7 +231,9 @@ export function SessionDetail({
         </form>
       ) : null}
       {mutationError ? (
-        <div className="inline-error">{mutationError}</div>
+        <div className="inline-error" role="alert">
+          {mutationError}
+        </div>
       ) : null}
       <div
         className="flex min-h-8 flex-wrap items-center gap-x-3 gap-y-1 border-y border-[var(--border-subtle)] py-1.5 font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--text-muted)]"
@@ -234,7 +257,7 @@ export function SessionDetail({
         onToggle={(event) => setContinuityOpen(event.currentTarget.open)}
       >
         <summary className={SESSION_DISCLOSURE_SUMMARY_CLASS}>
-          <span className="grid min-w-0 gap-px [&_small]:text-[length:var(--text-meta)] [&_small]:text-[var(--text-muted)] [&_strong]:text-[10px] [&_strong]:text-[var(--text-strong)]">
+          <span className="grid min-w-0 gap-px [&_small]:text-[length:var(--text-meta)] [&_small]:text-[var(--text-muted)] [&_strong]:text-[length:var(--text-control)] [&_strong]:text-[var(--text-strong)]">
             <strong>Conversation details</strong>
             <small>Technical metadata and related conversations</small>
           </span>

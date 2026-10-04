@@ -60,6 +60,7 @@ export interface DesktopRouteContentProps {
   projectLabels: Readonly<Record<string, string>>;
   projectScope: ProjectScope;
   scopedSessions: SessionSummary[];
+  sessionMetadata?: SessionSummary[];
   selectedSession: string;
   pendingApprovals: number;
   runningTasks: number;
@@ -102,6 +103,7 @@ export function DesktopRouteContent({
   routeFocus,
   runningTasks,
   scopedSessions,
+  sessionMetadata,
   selectedSession,
   view,
   workspacePath,
@@ -142,11 +144,23 @@ export function DesktopRouteContent({
           <Route
             activeProject={activeProject}
             backend={backend}
-            onChooseRepository={() =>
-              navigation.chooseRepositoryForConversation(selectedSession)
+            onChooseRepository={(sessionId?: string) =>
+              navigation.chooseRepositoryForConversation(
+                sessionId ?? selectedSession,
+              )
             }
             onOpenProjectManager={navigation.openProjectManager}
             onRequestNewConversation={navigation.createConversation}
+            onActivateSessionProject={(
+              sessionId: string,
+              projectId: string,
+            ) => {
+              void navigation.transitionToProjectScope(
+                projectId,
+                sessionId,
+                "chat",
+              );
+            }}
             onSelectProjectForNewChat={(scope: ProjectScope) =>
               navigation.transitionToProjectScope(
                 scope,
@@ -165,6 +179,7 @@ export function DesktopRouteContent({
             projectLabels={projectLabels}
             refreshRuntime={refreshRuntime}
             remoteSessions={scopedSessions}
+            sessionMetadata={sessionMetadata}
             runningTasks={runningTasks}
             runtime={runtime}
             selectedId={selectedSession}

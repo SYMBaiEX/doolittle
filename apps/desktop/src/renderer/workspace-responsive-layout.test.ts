@@ -1,5 +1,12 @@
 import { readFileSync } from "node:fs";
+import { compile } from "tailwindcss";
 import { describe, expect, it } from "vitest";
+import {
+  CODING_BREADCRUMB_CLASS,
+  CODING_EDITOR_ACTIONS_CLASS,
+  CODING_EDITOR_CLASS,
+  CODING_EDITOR_TOOLBAR_CLASS,
+} from "./coding-workspace/layout";
 
 const codingWorkspaceLayout = readFileSync(
   new URL("./coding-workspace/layout.ts", import.meta.url),
@@ -11,6 +18,37 @@ const browserLayout = readFileSync(
 );
 
 describe("workspace responsive layout contracts", () => {
+  it("compiles editor-width toolbar bands and bounded language labels", async () => {
+    const compiler = await compile(
+      "@theme { --spacing: .25rem; } @tailwind utilities;",
+    );
+    const css = compiler.build(
+      [
+        CODING_EDITOR_CLASS,
+        CODING_EDITOR_TOOLBAR_CLASS,
+        CODING_BREADCRUMB_CLASS,
+        CODING_EDITOR_ACTIONS_CLASS,
+      ].flatMap((className) => className.split(/\s+/u)),
+    );
+
+    expect(css).toContain("container-type: inline-size");
+    expect(css).toContain("container-name: code");
+    expect(css).toContain("@container code (width < 480px)");
+    expect(css).toContain("grid-template-columns: auto minmax(0,1fr)");
+    expect(css).toContain("grid-column: 1 / -1");
+    expect(CODING_EDITOR_ACTIONS_CLASS).toContain("flex-wrap");
+    expect(CODING_EDITOR_ACTIONS_CLASS).toContain("[&_button]:shrink-0");
+    expect(CODING_EDITOR_ACTIONS_CLASS).not.toContain("hidden");
+    expect(CODING_BREADCRUMB_CLASS).toContain("[&>span]:flex-1");
+    expect(CODING_BREADCRUMB_CLASS).not.toContain("[&>small]:shrink-0");
+    expect(css).toContain("max-width: calc(1 / 2 * 100%)");
+    expect(css).toContain("text-overflow: ellipsis");
+    expect(css).toContain("> small {");
+    expect(css).toContain("flex-wrap: wrap");
+    expect(css).toContain("button {");
+    expect(css).toContain("flex-shrink: 0");
+  });
+
   it("keeps three coding panes at laptop widths and stacks them below 960px", () => {
     expect(codingWorkspaceLayout).not.toContain("min-h-[1080px]");
     expect(codingWorkspaceLayout).not.toContain("min-h-[300px]");

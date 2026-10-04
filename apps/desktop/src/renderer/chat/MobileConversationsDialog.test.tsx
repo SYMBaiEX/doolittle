@@ -109,10 +109,10 @@ describe("MobileConversationsDialog", () => {
   it("labels the modal dialog with its visible heading", () => {
     const dialog = container.querySelector('[role="dialog"]');
     expect(dialog?.getAttribute("aria-labelledby")).toBe(
-      "mobile-conversations-title",
+      "mobile-conversations-title-one",
     );
     expect(
-      container.querySelector("#mobile-conversations-title")?.textContent,
+      container.querySelector("#mobile-conversations-title-one")?.textContent,
     ).toBe("Conversations");
   });
 

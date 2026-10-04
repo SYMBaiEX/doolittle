@@ -1,6 +1,6 @@
-import { Button } from "@elizaos/ui/components/ui/button";
 import { useState } from "react";
 import type { SessionSummary } from "../../shared/contracts";
+import { Button } from "../components/ElizaControls";
 import { OfflineRouteState } from "../components/OfflineRouteState";
 import { EmptyBlock, PageHeader } from "../lib";
 import { SessionDetail } from "./SessionDetail";
@@ -95,9 +95,17 @@ export function SessionsPage({
       data-sessions-page="true"
     >
       {embedded ? (
-        <div className="flex justify-end gap-2 border-b border-[var(--border)] px-3 py-2">
-          {actions}
-        </div>
+        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] px-3 py-3">
+          <div className="grid gap-1">
+            <h2 className="text-[length:var(--text-section)] font-semibold">
+              Conversation history
+            </h2>
+            <p className="text-[length:var(--text-control)] text-[var(--muted)]">
+              Review a transcript, then open it in the workspace.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">{actions}</div>
+        </header>
       ) : (
         <PageHeader
           eyebrow="Chat"
@@ -118,7 +126,9 @@ export function SessionsPage({
         </div>
       ) : null}
       {active && transfer.mutationError ? (
-        <div className="inline-error">{transfer.mutationError}</div>
+        <div className="inline-error" role="alert">
+          {transfer.mutationError}
+        </div>
       ) : null}
       {!active ? (
         <OfflineRouteState>
@@ -136,7 +146,7 @@ export function SessionsPage({
           {showEmptyLanding ? (
             <section
               aria-labelledby="sessions-empty-title"
-              className="session-empty-landing flex min-h-0 items-center justify-between gap-4 bg-[linear-gradient(105deg,color-mix(in_srgb,var(--accent)_6%,transparent),transparent_42%)] px-4 py-3 max-[860px]:flex-col max-[860px]:items-stretch max-[860px]:gap-3"
+              className="session-empty-landing flex min-h-0 items-center justify-between gap-4 px-4 py-3 max-[860px]:flex-col max-[860px]:items-stretch max-[860px]:gap-3"
               data-session-empty-landing="true"
             >
               <div className="grid min-w-0 gap-[3px] [&_h2]:m-0 [&_h2]:text-sm [&_h2]:text-[var(--text-strong)] [&_p]:m-0 [&_p]:text-[length:var(--text-control)] [&_p]:text-[var(--text-muted)]">
@@ -179,6 +189,7 @@ export function SessionsPage({
                   </EmptyBlock>
                 ) : (
                   <SessionDetail
+                    key={selected.sessionId}
                     active={active}
                     onExport={() => void transfer.exportArchive()}
                     onOpenChat={openChat}

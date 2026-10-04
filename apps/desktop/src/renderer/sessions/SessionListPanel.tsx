@@ -1,10 +1,9 @@
-import { Button } from "@elizaos/ui/components/ui/button";
-import { Input } from "@elizaos/ui/components/ui/input";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import type {
   SessionSearchResponse,
   SessionSummary,
 } from "../../shared/contracts";
+import { Button, Input } from "../components/ElizaControls";
 import { progressiveWindow } from "../components/progressive-window";
 import {
   displayTimestamp,
@@ -41,6 +40,7 @@ export function SessionListPanel({
   onSelect: (session: SessionSummary) => void;
 }) {
   const [query, setQuery] = useState("");
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [page, setPage] = useState({ key: "", limit: SESSION_LIST_PAGE_SIZE });
   const debouncedQuery = useDebouncedValue(query.trim());
   const searchPath =
@@ -50,6 +50,10 @@ export function SessionListPanel({
   const search = useApiResource<SessionSearchResponse>(searchPath, [
     searchPath,
   ]);
+  // A debounced request belongs to its query, not the newest text being typed.
+  // Do not let an earlier full-text result replace current local matches.
+  const searchMatchesQuery =
+    Boolean(searchPath) && query.trim() === debouncedQuery;
   const filtered = useMemo(() => {
     const normalized = query.trim().toLowerCase();
     const local = !normalized
@@ -59,7 +63,8 @@ export function SessionListPanel({
             v?.toLowerCase().includes(normalized),
           ),
         );
-    if (!active || !query.trim() || !search.data?.hits?.length) return local;
+    if (!active || !searchMatchesQuery || !search.data?.hits?.length)
+      return local;
     const seen = new Set<string>();
     return search.data.hits
       .filter((hit) => {
@@ -78,7 +83,7 @@ export function SessionListPanel({
             preview: [hit.text],
           },
       );
-  }, [active, query, search.data, sessions]);
+  }, [active, query, search.data, searchMatchesQuery, sessions]);
   const filterKey = `${projectId ?? "all"}:${query.trim().toLocaleLowerCase()}`;
   const requested =
     page.key === filterKey ? page.limit : SESSION_LIST_PAGE_SIZE;
@@ -101,6 +106,7 @@ export function SessionListPanel({
       <label htmlFor="session-search-input">
         <span className="sr-only">Search sessions</span>
         <Input
+          ref={searchInputRef}
           id="session-search-input"
           aria-label="Search conversations"
           placeholder="Search conversations"
@@ -112,7 +118,7 @@ export function SessionListPanel({
           }}
         />
       </label>
-      {active && query.trim() ? (
+      {active && searchMatchesQuery ? (
         <div className="mb-1.5">
           {search.loading ? (
             <LoadingBlock label="Searching persisted sessions…" />
@@ -158,9 +164,34 @@ export function SessionListPanel({
             </span>
           </button>
         ))}
-        {!filtered.length ? (
-          <EmptyBlock title="No matching sessions">
-            Try another search, or begin a conversation from Chat.
+        {!filtered.length &&
+        (!searchPath ||
+          (searchMatchesQuery && !search.loading && !search.error)) ? (
+          <EmptyBlock
+            title={
+              query.trim()
+                ? "No matching conversations"
+                : "No saved conversations"
+            }
+            actions={
+              query.trim() ? (
+                <Button
+                  onClick={() => {
+                    setQuery("");
+                    onQueryChange?.("");
+                    searchInputRef.current?.focus();
+                  }}
+                  type="button"
+                  variant="secondary"
+                >
+                  Clear search
+                </Button>
+              ) : undefined
+            }
+          >
+            {query.trim()
+              ? "Try another phrase, or clear the search to see your history."
+              : "Your saved conversations will appear here."}
           </EmptyBlock>
         ) : null}
         {sessionWindow.remaining ? (

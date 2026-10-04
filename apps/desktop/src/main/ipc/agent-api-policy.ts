@@ -494,9 +494,10 @@ const API_ALLOWLIST: Record<HttpMethod, AllowedApiPath[]> = {
     { exact: "/runtime/codegen" },
     {
       exact: "/chat/runs",
-      allowedQueries: ["limit"],
+      allowedQueries: ["limit", "include_updates"],
       validateQuery: (query) =>
-        validateIntegerQuery(query, "limit", { min: 1, max: 100 }),
+        validateIntegerQuery(query, "limit", { min: 1, max: 100 }) &&
+        validateEnumQuery(query, "include_updates", ["true", "false"]),
     },
     {
       predicate: (pathname) => matchesResourcePath(pathname, "/chat/runs"),

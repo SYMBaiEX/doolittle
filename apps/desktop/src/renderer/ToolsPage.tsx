@@ -2,6 +2,7 @@ import { LoaderCircle } from "lucide-react";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { CatalogFilterBar } from "./components/CatalogFilterBar";
 import { CompactStatStrip } from "./components/CompactStatStrip";
+import { Button } from "./components/ElizaControls";
 import { OfflineRouteState } from "./components/OfflineRouteState";
 import { ResourceStatusBar } from "./components/ResourceStatusBar";
 import { UiIcon } from "./components/UiIcon";
@@ -317,7 +318,28 @@ export function ToolsPage({
           />
         </Suspense>
       ) : (
-        <EmptyBlock density="compact" title="No tools match">
+        <EmptyBlock
+          density="compact"
+          title={
+            query.trim() || category !== "all"
+              ? "No tools match"
+              : "No tools reported"
+          }
+          actions={
+            query.trim() || category !== "all" ? (
+              <Button
+                onClick={() => {
+                  setQuery("");
+                  setCategory("all");
+                }}
+                type="button"
+                variant="secondary"
+              >
+                Clear filters
+              </Button>
+            ) : undefined
+          }
+        >
           Change the search or category filter.
         </EmptyBlock>
       )}

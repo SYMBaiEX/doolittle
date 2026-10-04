@@ -5,8 +5,10 @@ import {
   announceAppearanceApplied,
   applyDesktopAppearance,
   applyDesktopDensity,
+  applyDesktopFoundationTokens,
   applyDesktopTheme,
   DENSITY_CHANGE_EVENT,
+  loadDensityPreference,
   loadDesktopThemeSource,
   loadStoredDesktopTheme,
   parseDesktopThemeProfile,
@@ -219,6 +221,16 @@ describe("desktop theme", () => {
     expect(resolveAppearance("light", true)).toBe("light");
   });
 
+  it("defaults new profiles to comfortable while retaining explicit compact", () => {
+    expect(loadDensityPreference()).toBe("comfortable");
+    storage.set("doolittle.desktop.density", "compact");
+    expect(loadDensityPreference()).toBe("compact");
+    storage.set("doolittle.desktop.density", "comfortable");
+    expect(loadDensityPreference()).toBe("comfortable");
+    storage.set("doolittle.desktop.density", "invalid");
+    expect(loadDensityPreference()).toBe("comfortable");
+  });
+
   it("applies appearance, density, and palette tokens to the root shell immediately", () => {
     const profile = parseDesktopThemeProfile({
       name: "ember",
@@ -264,9 +276,10 @@ describe("desktop theme", () => {
       "clamp(22px, 2vw, 28px)",
     );
     expect(storage.get("style:--text-body")).toBe("14px");
-    expect(storage.get("style:--text-control")).toBe("12px");
+    expect(storage.get("style:--text-control")).toBe("13px");
+    expect(storage.get("style:--text-meta")).toBe("12px");
     expect(storage.get("style:--card-pad")).toBe("12px");
-    expect(storage.get("style:--control-height")).toBe("32px");
+    expect(storage.get("style:--control-height")).toBe("36px");
 
     applyDesktopDensity("compact");
     expect(storage.get("style:--page-pad-block")).toBe("10px 14px");
@@ -277,10 +290,11 @@ describe("desktop theme", () => {
     expect(storage.get("style:--chat-welcome-title-size")).toBe(
       "clamp(20px, 1.7vw, 24px)",
     );
-    expect(storage.get("style:--text-body")).toBe("13px");
-    expect(storage.get("style:--text-control")).toBe("11px");
+    expect(storage.get("style:--text-body")).toBe("14px");
+    expect(storage.get("style:--text-control")).toBe("12px");
+    expect(storage.get("style:--text-meta")).toBe("11px");
     expect(storage.get("style:--card-pad")).toBe("10px");
-    expect(storage.get("style:--control-height")).toBe("28px");
+    expect(storage.get("style:--control-height")).toBe("32px");
   });
 
   it("restores the appearance palette before applying an accent-only theme", () => {
@@ -384,6 +398,33 @@ describe("desktop theme", () => {
     expect(contrastRatio(light.muted, light.surfaceHover)).toBeGreaterThan(
       contrastRatio(light.faint, light.surfaceHover),
     );
+  });
+
+  it("keeps base status text and primary button ink readable in both appearances", () => {
+    applyDesktopFoundationTokens();
+    for (const appearance of ["dark", "light"] as const) {
+      applyDesktopAppearance(appearance, false);
+      for (const tone of ["good", "warn", "bad"] as const) {
+        expect(
+          contrastRatio(
+            token(storage, `--${tone}`),
+            token(storage, `--${tone}-soft`),
+          ),
+        ).toBeGreaterThanOrEqual(4.5);
+      }
+      for (const fill of ["--accent", "--accent-hover"]) {
+        expect(
+          contrastRatio(token(storage, "--accent-ink"), token(storage, fill)),
+        ).toBeGreaterThanOrEqual(4.5);
+      }
+      expect(
+        contrastRatio(
+          token(storage, "--destructive-foreground"),
+          token(storage, "--bad"),
+        ),
+      ).toBeGreaterThanOrEqual(4.5);
+      expect(token(storage, "--focus-ring")).toBe("var(--accent-text)");
+    }
   });
 
   it("falls back from transparent or low-contrast imported semantics in both appearances", () => {

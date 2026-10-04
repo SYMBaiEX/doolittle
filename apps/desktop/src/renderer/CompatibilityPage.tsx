@@ -1,9 +1,9 @@
-import { Button } from "@elizaos/ui/components/ui/button";
 import { CircleDashed } from "lucide-react";
 import {
   type CompactCatalogEntry,
   CompactCatalogList,
 } from "./components/CompactCatalogList";
+import { Button } from "./components/ElizaControls";
 import { OfflineRouteState } from "./components/OfflineRouteState";
 import { UiIcon } from "./components/UiIcon";
 import { COMPATIBILITY_EMPTY_CLASS } from "./diagnostics-layout";
@@ -141,7 +141,7 @@ export function CompatibilityPage({
           Compatibility checks are unavailable until the local runtime is ready.
         </OfflineRouteState>
       ) : compatibility.loading ? (
-        <LoadingBlock />
+        <LoadingBlock label="Checking provider and runtime compatibility…" />
       ) : compatibility.error ? (
         <ErrorBlock error={compatibility.error} retry={compatibility.reload} />
       ) : checks.length ? (

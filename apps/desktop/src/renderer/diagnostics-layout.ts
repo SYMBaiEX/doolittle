@@ -17,7 +17,7 @@ export const DIAGNOSTICS_SUMMARY_CLASS =
   "flex min-h-9 cursor-pointer list-none items-center gap-2.5 px-[var(--card-pad)] py-1.75 text-[var(--text-soft)] [&::-webkit-details-marker]:hidden";
 
 export const DIAGNOSTICS_CHEVRON_CLASS =
-  "inline-block text-[var(--accent)] transition-transform duration-150 group-open:rotate-90 motion-reduce:transition-none";
+  "inline-block text-[var(--accent-text)] transition-transform duration-150 group-open:rotate-90 motion-reduce:transition-none";
 
 export const DIAGNOSTICS_IDLE_CLASS =
   "grid gap-[3px] pt-3 pb-1 [&_strong]:text-[length:var(--text-control)] [&_strong]:text-[var(--text-soft)] [&_small]:max-w-[52ch] [&_small]:text-[length:var(--text-meta)] [&_small]:leading-[1.45] [&_small]:text-[var(--muted)]";

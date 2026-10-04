@@ -8,7 +8,8 @@ export const GATEWAY_SECONDARY_GRID_CLASS =
 export const GATEWAY_DISCLOSURE_SUMMARY_CLASS =
   "relative flex min-h-10 cursor-pointer list-none items-center justify-between gap-3 py-1.5 pr-8 pl-3 [&::-webkit-details-marker]:hidden";
 
-export const GATEWAY_META_CLASS = "font-mono text-[10px] text-[var(--muted)]";
+export const GATEWAY_META_CLASS =
+  "font-mono text-[length:var(--text-meta)] text-[var(--muted)]";
 
 export const GATEWAY_FILTER_CONTROL_CLASS =
   "h-7.75 w-full min-w-0 rounded-[var(--radius-xs)] border border-[var(--border)] bg-[var(--surface)] px-2 text-[var(--text)]";

@@ -1313,6 +1313,7 @@ export function App() {
       runtime={runtime}
       runningTasks={runningTasks}
       scopedSessions={scopedSessions}
+      sessionMetadata={sessions}
       selectedSession={selectedSession}
       view={routeView}
       workspacePath={workspace.currentPath}

@@ -13,8 +13,9 @@ describe("media and browser workspace density", () => {
 
     expect(html).toContain(">Assets<");
     expect(html).toContain('aria-label="Generated assets"');
-    expect(html).toContain("Generated work, in one place");
-    expect(html).toContain("native actions record");
+    expect(html).toContain("Loading assets…");
+    expect(html).not.toContain("Generated work, in one place");
+    expect(html).not.toContain("No generated assets yet");
     expect(html).not.toContain('aria-label="Media tools"');
     expect(html).not.toContain("Inspect / Analyze");
   });

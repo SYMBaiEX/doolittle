@@ -4,6 +4,7 @@ import type {
   RepositoryRemote,
   RepositoryStash,
 } from "@doolittle/contracts/repository";
+import { Button } from "../components/ElizaControls";
 import { GitControlPanel } from "../components/GitControlPanel";
 import {
   asArray,
@@ -51,6 +52,7 @@ import { ResourceState } from "./ResourceState";
 type ChangesPanelController = Pick<
   WorkbenchController,
   | "repositorySummary"
+  | "summary"
   | "branches"
   | "changeEntries"
   | "conflicts"
@@ -86,6 +88,7 @@ export function ChangesPanel({
 }) {
   const {
     repositorySummary,
+    summary,
     branches,
     changeEntries,
     conflicts,
@@ -104,6 +107,45 @@ export function ChangesPanel({
     setSelectedChange,
     insert,
   } = controller;
+  // Empty changes also represent a non-repository workspace. Git controls
+  // and clean-state claims require a successful repository summary first.
+  if (
+    summary?.loading ||
+    summary?.error ||
+    repositorySummary?.isRepository !== true
+  ) {
+    return (
+      <div
+        className={WORKBENCH_CHANGES_BODY_CLASS}
+        data-thread-workbench-panel="changes"
+      >
+        {summary?.loading ? (
+          <LoadingBlock label="Checking Git repository…" />
+        ) : summary?.error ? (
+          <ErrorBlock error={summary.error} retry={refreshGit} />
+        ) : (
+          <section
+            aria-label="Repository availability"
+            className={WORKBENCH_PANE_STACK_CLASS}
+          >
+            <h3>
+              {repositorySummary?.isRepository === false
+                ? "No Git repository"
+                : "Repository status unavailable"}
+            </h3>
+            <p className="text-[length:var(--text-control)] text-[var(--muted)]">
+              {repositorySummary?.isRepository === false
+                ? "Open a Git repository using the workspace selector, then refresh. Files and terminal remain available in this workspace."
+                : "Refresh the repository status before using Git controls."}
+            </p>
+            <Button onClick={refreshGit} type="button" variant="secondary">
+              Refresh repository
+            </Button>
+          </section>
+        )}
+      </div>
+    );
+  }
   return (
     <div
       className={WORKBENCH_CHANGES_BODY_CLASS}

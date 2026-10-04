@@ -164,6 +164,10 @@ describe("RouteControlDialog reasoning effort", () => {
 
   it("selects and atomically saves a supported reasoning effort", async () => {
     renderDialog();
+    expect(container.textContent).toContain("Shared runtime route");
+    expect(container.textContent).toContain(
+      "Change the shared model route for new messages in every session.",
+    );
 
     const close = container.querySelector<HTMLButtonElement>(
       '[aria-label="Close route controls"]',

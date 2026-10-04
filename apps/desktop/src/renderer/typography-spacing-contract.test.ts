@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   COMMAND_PALETTE_ITEM_CLASS,
+  COMMAND_PALETTE_ITEM_DESCRIPTION_CLASS,
   ROUTE_DIALOG_CLASS,
   ROUTE_DIALOG_HEADER_CLASS,
 } from "./app-shell/overlay-layout";
@@ -54,9 +55,17 @@ describe("desktop typography and spacing rhythm", () => {
     expect(PROJECT_MANAGER_CLASS).not.toContain("100vh");
   });
 
-  it("keeps repeated controls and empty states dense without microtype", () => {
+  it("keeps repeated controls readable without wasting empty-state space", () => {
     expect(COMMAND_PALETTE_ITEM_CLASS).toContain("min-h-9.5");
-    expect(SETTINGS_ROW_LAYOUT_CLASS).toContain("min-h-8");
+    expect(SETTINGS_ROW_LAYOUT_CLASS).toContain("min-h-10");
+    expect(SETTINGS_ROW_LAYOUT_CLASS).not.toContain("min-h-8");
+    expect(COMMAND_PALETTE_ITEM_DESCRIPTION_CLASS).toContain(
+      "text-[length:var(--text-meta)]",
+    );
+    expect(SETTINGS_PAGE_CLASS).toContain(
+      "[&_.setting-copy_small]:text-[length:var(--text-meta)]",
+    );
+    expect(SETTINGS_PAGE_CLASS).not.toMatch(/text-\[(?:10|11)px\]/u);
     expect(SETTINGS_PAGE_CLASS).toContain(
       "[&_.settings-section-header]:min-h-8.5",
     );

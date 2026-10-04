@@ -129,6 +129,45 @@ function composerProps(
 }
 
 describe("chat presentation components", () => {
+  it("keeps two session composers' accessibility IDs and relationships independent", () => {
+    const html = renderToStaticMarkup(
+      ["panel-a", "panel-b"].map((selectedId) => (
+        <ChatComposer
+          key={selectedId}
+          {...composerProps({
+            selectedId,
+            draft: "/help",
+            composerValidationError: "Test validation",
+            commandSuggestions: [
+              { command: "/help", category: "general", description: "Help" },
+            ],
+          })}
+        />
+      )),
+    );
+    const host = document.createElement("div");
+    host.innerHTML = html;
+    const ids = [...host.querySelectorAll<HTMLElement>("[id]")].map(
+      (element) => element.id,
+    );
+    expect(new Set(ids).size).toBe(ids.length);
+    for (const input of host.querySelectorAll<HTMLTextAreaElement>(
+      "textarea",
+    )) {
+      for (const attribute of [
+        "aria-describedby",
+        "aria-errormessage",
+        "aria-controls",
+        "aria-activedescendant",
+      ]) {
+        const targetId = input.getAttribute(attribute);
+        if (!targetId) continue;
+        expect(
+          input.closest("form")?.querySelector(`[id="${targetId}"]`),
+        ).not.toBeNull();
+      }
+    }
+  });
   it("keeps background conversation progress isolated when another run completes", () => {
     const withFirstRun = setSessionProgress({}, "session-1", "Reading files…");
     const withBothRuns = setSessionProgress(
@@ -175,7 +214,7 @@ describe("chat presentation components", () => {
     expect(html).toContain("Attach files");
     expect(html).toContain('aria-label="Message Doolittle"');
     expect(html).not.toContain('class="chat-context-meter neutral"');
-    expect(html).not.toContain("chat-composer-details");
+    expect(html).not.toContain("chat-composer-details-session-1");
     expect(html).toContain("Prompts");
     expect(html).toContain(">$<");
     expect(html).toContain("!flex-row !flex-nowrap !items-center");
@@ -208,7 +247,7 @@ describe("chat presentation components", () => {
     );
 
     expect(html).toContain("0 / 1.1m · 1.1m left");
-    expect(html).toContain('aria-controls="chat-composer-details"');
+    expect(html).toContain('aria-controls="chat-composer-details-session-1"');
   });
 
   it("puts stop at the point of composition while a response is running", async () => {
@@ -297,18 +336,22 @@ describe("chat presentation components", () => {
     expect(container.textContent).toContain(
       "1 memory · 1.2k / 128k · 127k left",
     );
-    expect(container.querySelector("#chat-composer-details")).toBeNull();
+    expect(
+      container.querySelector("#chat-composer-details-session-1"),
+    ).toBeNull();
     expect(container.querySelector(".chat-context-meter")).toBeNull();
 
     const toggle = container.querySelector<HTMLButtonElement>(
-      '[aria-controls="chat-composer-details"]',
+      '[aria-controls="chat-composer-details-session-1"]',
     );
     expect(toggle?.getAttribute("aria-expanded")).toBe("false");
 
     act(() => toggle?.click());
 
     expect(toggle?.getAttribute("aria-expanded")).toBe("true");
-    expect(container.querySelector("#chat-composer-details")).not.toBeNull();
+    expect(
+      container.querySelector("#chat-composer-details-session-1"),
+    ).not.toBeNull();
     expect(
       container.querySelector(".chat-context-meter.neutral"),
     ).not.toBeNull();
@@ -588,13 +631,15 @@ describe("chat presentation components", () => {
 
     expect(attachmentOnly).toContain('aria-label="Send message"');
     expect(attachmentOnly).not.toContain('aria-label="Send message" disabled');
-    expect(commandConflict).toContain('id="chat-composer-validation"');
+    expect(commandConflict).toContain(
+      'id="chat-composer-validation-session-1"',
+    );
     expect(commandConflict).toContain('aria-invalid="true"');
     expect(commandConflict).toContain(
-      'aria-errormessage="chat-composer-validation"',
+      'aria-errormessage="chat-composer-validation-session-1"',
     );
     expect(commandConflict).toContain(
-      'aria-describedby="chat-composer-validation"',
+      'aria-describedby="chat-composer-validation-session-1"',
     );
   });
 
@@ -618,7 +663,9 @@ describe("chat presentation components", () => {
     );
 
     expect(slashMenu).toContain('aria-expanded="true"');
-    expect(slashMenu).toContain('aria-controls="chat-command-completions"');
+    expect(slashMenu).toContain(
+      'aria-controls="chat-command-completions-session-1"',
+    );
     expect(closedMenu).toContain('aria-expanded="false"');
   });
 
@@ -789,10 +836,14 @@ describe("chat presentation components", () => {
       commandSelection: 1,
     });
     const html = renderToStaticMarkup(<ChatComposer {...props} />);
-    expect(html).toContain('id="chat-command-completions"');
-    expect(html).toContain('id="chat-command-option-1"');
-    expect(html).toContain('aria-activedescendant="chat-command-option-1"');
-    expect(html).toContain('aria-controls="chat-command-completions"');
+    expect(html).toContain('id="chat-command-completions-session-1"');
+    expect(html).toContain('id="chat-command-option-1-session-1"');
+    expect(html).toContain(
+      'aria-activedescendant="chat-command-option-1-session-1"',
+    );
+    expect(html).toContain(
+      'aria-controls="chat-command-completions-session-1"',
+    );
     expect(html).toContain('aria-haspopup="listbox"');
   });
 
@@ -818,12 +869,14 @@ describe("chat presentation components", () => {
         })}
       />,
     );
-    expect(html).toContain('aria-activedescendant="chat-command-option-1"');
-    expect(html).toMatch(
-      /aria-selected="true"[^>]*id="chat-command-option-1"/s,
+    expect(html).toContain(
+      'aria-activedescendant="chat-command-option-1-session-1"',
     );
     expect(html).toMatch(
-      /aria-selected="false"[^>]*id="chat-command-option-0"/s,
+      /aria-selected="true"[^>]*id="chat-command-option-1-session-1"/s,
+    );
+    expect(html).toMatch(
+      /aria-selected="false"[^>]*id="chat-command-option-0-session-1"/s,
     );
   });
 

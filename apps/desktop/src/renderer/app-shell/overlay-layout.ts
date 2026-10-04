@@ -6,15 +6,15 @@ export const COMMAND_PALETTE_HEADER_CLASS =
 export const COMMAND_PALETTE_HEADING_CLASS =
   "command-palette__heading flex items-center gap-2";
 export const COMMAND_PALETTE_MARK_CLASS =
-  "command-palette__mark font-[var(--font-mono)] text-[13px] font-bold text-[var(--accent)]";
+  "command-palette__mark font-[var(--font-mono)] text-[13px] font-bold text-[var(--accent-text)]";
 export const COMMAND_PALETTE_TITLE_CLASS =
-  "command-palette__title m-0 text-[11px] font-semibold tracking-[0.02em] text-[var(--text-soft)]";
+  "command-palette__title m-0 text-[length:var(--text-control)] font-semibold tracking-[0.02em] text-[var(--text-soft)]";
 export const COMMAND_PALETTE_CLOSE_CLASS =
   "command-palette__close h-6 min-w-0 rounded-[5px] border border-[var(--border)] bg-[var(--surface)] px-1.75 font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--muted)] normal-case";
 export const COMMAND_PALETTE_LABEL_CLASS =
   "command-palette__label block px-2.5 pt-1 pb-2";
 export const COMMAND_PALETTE_SEARCH_SHELL_CLASS =
-  "command-palette__search-shell relative block rounded-[10px] border border-[var(--border)] bg-[var(--surface)] transition-[border-color,box-shadow] duration-150 focus-within:border-[var(--accent-border)] focus-within:shadow-[0_0_0_3px_color-mix(in_srgb,var(--accent)_9%,transparent)]";
+  "command-palette__search-shell relative block rounded-[var(--radius-xs)] border border-[var(--border)] bg-[var(--surface)] transition-[border-color,box-shadow] duration-150 focus-within:border-[var(--accent-border)] focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-[var(--focus-ring)]";
 export const COMMAND_PALETTE_SEARCH_ICON_CLASS =
   "command-palette__search-icon pointer-events-none absolute top-1/2 left-4.25 -translate-y-1/2 font-[var(--font-mono)] text-sm text-[var(--muted)]";
 export const COMMAND_PALETTE_SEARCH_CLASS =
@@ -56,7 +56,7 @@ export const ROUTE_DIALOG_STATUS_CLASS =
 export const ROUTE_PROVIDER_GRID_CLASS =
   "route-provider-grid grid grid-cols-3 gap-1.5 max-[620px]:grid-cols-2 max-[480px]:grid-cols-1";
 export const ROUTE_PROVIDER_CARD_CLASS =
-  "route-provider-card relative grid min-h-22 content-start gap-0.75 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-soft)] p-2.25 text-left text-[var(--text-soft)] transition-[color,background-color,border-color,transform] hover:-translate-y-px hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] [&>small]:line-clamp-1 [&>small]:text-[10px] [&>small]:leading-[1.35] [&>small]:text-[var(--muted)] [&>span]:font-[var(--font-mono)] [&>span]:text-[length:var(--text-meta)] [&>span]:tracking-[0.06em] [&>span]:text-[var(--accent)] [&>span]:uppercase [&>strong]:text-[12px]";
+  "route-provider-card relative grid min-h-22 content-start gap-0.75 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-soft)] p-2.25 text-left text-[var(--text-soft)] transition-[color,background-color,border-color,transform] hover:-translate-y-px hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] [&>small]:line-clamp-1 [&>small]:text-[length:var(--text-meta)] [&>small]:leading-[1.35] [&>small]:text-[var(--muted)] [&>span]:font-[var(--font-mono)] [&>span]:text-[length:var(--text-meta)] [&>span]:tracking-[0.06em] [&>span]:text-[var(--accent-text)] [&>span]:uppercase [&>strong]:text-[12px]";
 export const ROUTE_PROVIDER_CARD_SELECTED_CLASS =
   "selected border-[color-mix(in_srgb,var(--accent)_58%,var(--border))] bg-[color-mix(in_srgb,var(--accent)_10%,var(--surface-soft))] text-[var(--text)] shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--accent)_10%,transparent)]";
 export const ROUTE_PROVIDER_READINESS_CLASS =
@@ -68,7 +68,7 @@ export const ROUTE_PROVIDER_READINESS_TONE = {
   bad: "bad bg-[color-mix(in_srgb,var(--bad)_14%,transparent)] text-[var(--bad)]",
 } as const;
 export const ROUTE_FIELD_GRID_CLASS =
-  "field-grid grid grid-cols-2 gap-3 max-[760px]:grid-cols-1 [&_label]:grid [&_label]:gap-1.5 [&_label>span]:font-[var(--font-mono)] [&_label>span]:text-[10px] [&_label>span]:text-[var(--muted)] [&_label>span]:uppercase [&_input]:h-9 [&_input]:w-full [&_input]:rounded-[var(--radius-xs)] [&_input]:border [&_input]:border-[var(--border)] [&_input]:bg-[var(--surface)] [&_input]:px-2.5 [&_input]:text-[var(--text)] [&_input]:outline-none [&_input]:focus-visible:border-[var(--accent-border)] [&_input]:focus-visible:ring-2 [&_input]:focus-visible:ring-[color-mix(in_srgb,var(--accent)_12%,transparent)]";
+  "field-grid grid grid-cols-2 gap-3 max-[760px]:grid-cols-1 [&_label]:grid [&_label]:gap-1.5 [&_label>span]:font-[var(--font-mono)] [&_label>span]:text-[length:var(--text-meta)] [&_label>span]:text-[var(--muted)] [&_label>span]:uppercase [&_input]:h-9 [&_input]:w-full [&_input]:rounded-[var(--radius-xs)] [&_input]:border [&_input]:border-[var(--border)] [&_input]:bg-[var(--surface)] [&_input]:px-2.5 [&_input]:text-[var(--text)] [&_input]:outline-none [&_input]:focus-visible:border-[var(--accent-border)] [&_input]:focus-visible:ring-2 [&_input]:focus-visible:ring-[var(--focus-ring)]";
 export const ROUTE_FIELD_SPAN_CLASS =
   "field-span col-span-2 max-[760px]:col-span-1";
 export const ROUTE_DIALOG_ACTIONS_CLASS =

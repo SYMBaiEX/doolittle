@@ -8,6 +8,7 @@ import { CHAT_HEADER_CONTENT_CLASS } from "./layout";
 import type { ChatSessionForRender } from "./useChatConversationState";
 
 export interface ChatHeaderChromeProps {
+  selectedId?: string;
   inspectorVisible: boolean;
   isNewConversation: boolean;
   mobileConversationsButtonRef: RefObject<HTMLButtonElement | null>;
@@ -34,6 +35,7 @@ export interface ChatHeaderChromeProps {
 }
 
 export function ChatHeaderChrome({
+  selectedId,
   inspectorVisible,
   isNewConversation,
   mobileConversationsButtonRef,
@@ -58,6 +60,8 @@ export function ChatHeaderChrome({
   workbenchToggleRef,
   workspacePath,
 }: ChatHeaderChromeProps) {
+  const controlId = (name: string) =>
+    selectedId ? `${name}-${selectedId}` : name;
   const showConversationState = !isNewConversation;
   return (
     <div className={CHAT_HEADER_CONTENT_CLASS}>
@@ -164,7 +168,7 @@ export function ChatHeaderChrome({
                 ] as const
               ).map(([nextSurface, label]) => (
                 <button
-                  aria-controls={`chat-context-${nextSurface}`}
+                  aria-controls={controlId(`chat-context-${nextSurface}`)}
                   aria-pressed={surface === nextSurface}
                   className="secondary-button chat-surface-control"
                   key={nextSurface}
@@ -177,7 +181,7 @@ export function ChatHeaderChrome({
             </fieldset>
           ) : null}
           <button
-            aria-controls="mobile-conversations"
+            aria-controls={controlId("mobile-conversations")}
             aria-expanded={mobileConversationsOpen}
             className="chat-mobile-conversations-button secondary-button"
             onClick={onOpenMobileConversations}
@@ -191,8 +195,8 @@ export function ChatHeaderChrome({
             <button
               aria-controls={
                 surface === "media"
-                  ? "chat-context-conversation"
-                  : "chat-context-media"
+                  ? controlId("chat-context-conversation")
+                  : controlId("chat-context-media")
               }
               aria-pressed={surface === "media"}
               className="chat-mobile-media-button secondary-button"
@@ -205,7 +209,7 @@ export function ChatHeaderChrome({
             </button>
           ) : null}
           <button
-            aria-controls="thread-workbench"
+            aria-controls={controlId("thread-workbench")}
             aria-expanded={inspectorVisible}
             className={`secondary-button chat-workbench-toggle ${
               inspectorVisible ? "selected" : ""

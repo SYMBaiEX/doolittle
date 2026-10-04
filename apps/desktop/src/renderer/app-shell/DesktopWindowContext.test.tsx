@@ -23,6 +23,7 @@ describe("DesktopWindowContext", () => {
     expect(markup).toContain("Settings");
     expect(markup).toContain("doolittle");
     expect(markup).toContain('aria-label="Workspace breadcrumb"');
+    expect(markup).toContain('aria-label="Open Manage section"');
     expect(markup).toContain('aria-current="page"');
     expect(markup).toContain("Navigation history");
     expect(markup).toContain('aria-label="Back to Workspace"');

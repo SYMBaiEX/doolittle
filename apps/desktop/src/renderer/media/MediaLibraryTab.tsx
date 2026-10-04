@@ -1,8 +1,8 @@
-import { Button } from "@elizaos/ui/components/ui/button";
 import { Film, Image, Music2, RefreshCw } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Button, Input } from "../components/ElizaControls";
 import { UiIcon } from "../components/UiIcon";
-import { errorMessage, Notice, useApiResource } from "../lib";
+import { ErrorBlock, LoadingBlock, useApiResource } from "../lib";
 
 type AssetKind = "image" | "audio" | "video";
 
@@ -57,20 +57,26 @@ export function MediaLibraryTab({
   const [selectedId, setSelectedId] = useState("");
   const [filter, setFilter] = useState<"all" | AssetKind>("all");
   const [query, setQuery] = useState("");
-  const selectedAsset = assets.find((asset) => asset.id === selectedId);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const visibleAssets = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    return assets.filter(
+      (asset) =>
+        (filter === "all" || asset.kind === filter) &&
+        (!needle ||
+          asset.name.toLowerCase().includes(needle) ||
+          asset.prompt.toLowerCase().includes(needle) ||
+          asset.provider.toLowerCase().includes(needle)),
+    );
+  }, [assets, filter, query]);
+  const selectedAsset =
+    visibleAssets.find((asset) => asset.id === selectedId) ?? visibleAssets[0];
   const payload = useApiResource<AssetPayload>(
     active && selectedAsset
       ? `/media/library/${encodeURIComponent(selectedAsset.id)}`
       : null,
     [selectedAsset?.id],
   );
-
-  useEffect(() => {
-    if (assets.length === 0) setSelectedId("");
-    else if (!assets.some((asset) => asset.id === selectedId)) {
-      setSelectedId(assets[0]?.id ?? "");
-    }
-  }, [assets, selectedId]);
 
   useEffect(() => {
     if (!active) return;
@@ -87,18 +93,6 @@ export function MediaLibraryTab({
     };
   }, [active, library.reload]);
 
-  const visibleAssets = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    return assets.filter(
-      (asset) =>
-        (filter === "all" || asset.kind === filter) &&
-        (!needle ||
-          asset.name.toLowerCase().includes(needle) ||
-          asset.prompt.toLowerCase().includes(needle) ||
-          asset.provider.toLowerCase().includes(needle)),
-    );
-  }, [assets, filter, query]);
-
   return (
     <section
       aria-label="Generated assets"
@@ -110,11 +104,15 @@ export function MediaLibraryTab({
         <div className="grid gap-2 border-b border-[var(--border)] p-2.5">
           <div className="flex items-center justify-between gap-2">
             <strong className="font-[var(--font-mono)] text-[length:var(--text-meta)] tracking-[0.07em] text-[var(--text-soft)] uppercase">
-              {assets.length} {assets.length === 1 ? "asset" : "assets"}
+              {library.loading
+                ? "Loading library"
+                : library.error
+                  ? "Library unavailable"
+                  : `${assets.length} ${assets.length === 1 ? "asset" : "assets"}`}
             </strong>
             <Button
               aria-label="Refresh asset library"
-              className="size-7 min-h-7 p-0"
+              className="size-[var(--control-height)] p-0 max-[760px]:size-11"
               onClick={library.reload}
               size="icon"
               type="button"
@@ -123,9 +121,9 @@ export function MediaLibraryTab({
               <UiIcon icon={RefreshCw} size="xs" />
             </Button>
           </div>
-          <input
+          <Input
+            ref={searchInputRef}
             aria-label="Search generated assets"
-            className="min-h-7 w-full rounded-[var(--radius-xs)] border border-[var(--border)] bg-[var(--surface-soft)] px-2 text-[11px] text-[var(--text)]"
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search assets"
             type="search"
@@ -133,8 +131,10 @@ export function MediaLibraryTab({
           />
           <fieldset className="flex gap-1 border-0 p-0" aria-label="Asset type">
             {(["all", "image", "audio", "video"] as const).map((kind) => (
-              <button
-                className={`min-h-6 rounded-[var(--radius-xs)] border px-2 font-[var(--font-mono)] text-[length:var(--text-meta)] capitalize ${
+              <Button
+                aria-pressed={filter === kind}
+                variant="ghost"
+                className={`rounded-[var(--radius-xs)] border px-2 font-[var(--font-mono)] capitalize ${
                   filter === kind
                     ? "border-[var(--accent-border)] bg-[var(--accent-soft)] text-[var(--accent)]"
                     : "border-[var(--border)] bg-transparent text-[var(--muted)]"
@@ -144,27 +144,38 @@ export function MediaLibraryTab({
                 type="button"
               >
                 {kind === "all" ? "All" : `${kind}s`}
-              </button>
+              </Button>
             ))}
           </fieldset>
         </div>
         <div className="min-h-0 flex-1 overflow-auto p-1.5">
           {library.loading ? (
-            <p className="p-3 text-[11px] text-[var(--muted)]">
-              Loading assets…
-            </p>
+            <LoadingBlock label="Loading assets…" />
           ) : library.error ? (
-            <Notice tone="bad">{library.error}</Notice>
+            <ErrorBlock error={library.error} retry={library.reload} />
           ) : visibleAssets.length === 0 ? (
             <div className="grid gap-1 p-3">
-              <strong className="text-[11px] text-[var(--text)]">
+              <strong className="text-[length:var(--text-control)] text-[var(--text)]">
                 {assets.length === 0 ? "No generated assets yet" : "No matches"}
               </strong>
-              <span className="text-[10px] leading-[1.45] text-[var(--muted)]">
+              <span className="text-[length:var(--text-control)] leading-[1.45] text-[var(--muted)]">
                 {assets.length === 0
                   ? "Images, speech, and future generated media will appear here automatically."
                   : "Try another search or asset type."}
               </span>
+              {query.trim() || filter !== "all" ? (
+                <Button
+                  onClick={() => {
+                    setQuery("");
+                    setFilter("all");
+                    searchInputRef.current?.focus();
+                  }}
+                  type="button"
+                  variant="secondary"
+                >
+                  Clear filters
+                </Button>
+              ) : null}
             </div>
           ) : (
             <div className="grid gap-0.5">
@@ -172,9 +183,11 @@ export function MediaLibraryTab({
                 const Icon = assetIcon(asset.kind);
                 return (
                   <button
-                    aria-current={asset.id === selectedId ? "true" : undefined}
+                    aria-current={
+                      asset.id === selectedAsset?.id ? "true" : undefined
+                    }
                     className={`grid min-h-12 w-full grid-cols-[28px_minmax(0,1fr)] items-center gap-2 rounded-[var(--radius-xs)] border-0 px-2 py-1.5 text-left ${
-                      asset.id === selectedId
+                      asset.id === selectedAsset?.id
                         ? "bg-[var(--surface-hover)] text-[var(--text)] shadow-[inset_2px_0_var(--accent)]"
                         : "bg-transparent text-[var(--text-soft)] hover:bg-[var(--surface-hover)]"
                     }`}
@@ -186,7 +199,7 @@ export function MediaLibraryTab({
                       <UiIcon icon={Icon} size="sm" />
                     </span>
                     <span className="grid min-w-0 gap-0.5">
-                      <strong className="truncate text-[11px]">
+                      <strong className="truncate text-[length:var(--text-control)]">
                         {asset.name}
                       </strong>
                       <small className="truncate font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--muted)]">
@@ -201,14 +214,18 @@ export function MediaLibraryTab({
         </div>
       </aside>
       <div className="min-h-0 min-w-0 overflow-auto bg-[var(--bg)] p-4 max-[760px]:min-h-96">
-        {!selectedAsset ? (
+        {library.loading || library.error ? null : !selectedAsset ? (
           <div className="grid min-h-48 max-w-lg content-center gap-1">
             <span className="eyebrow">Asset library</span>
-            <h2 className="m-0 text-sm">Generated work, in one place</h2>
-            <p className="m-0 text-[11px] leading-[1.55] text-[var(--muted)]">
-              Ask Doolittle in chat to create an image or recording. Its native
-              actions record the prompt, model, provider, and durable output
-              here automatically.
+            <h2 className="m-0 text-sm">
+              {assets.length
+                ? "No assets match these filters"
+                : "Generated work, in one place"}
+            </h2>
+            <p className="m-0 text-[length:var(--text-body)] leading-[1.55] text-[var(--muted)]">
+              {assets.length
+                ? "Clear the search or choose another asset type to inspect an output."
+                : "Ask Doolittle in chat to create an image or recording. Its native actions record the prompt, model, provider, and durable output here automatically."}
             </p>
           </div>
         ) : (
@@ -216,18 +233,16 @@ export function MediaLibraryTab({
             <header className="grid gap-1 border-b border-[var(--border)] pb-3">
               <span className="eyebrow">{selectedAsset.kind} asset</span>
               <h2 className="m-0 text-base">{selectedAsset.name}</h2>
-              <p className="m-0 text-[11px] text-[var(--muted)]">
+              <p className="m-0 text-[length:var(--text-control)] text-[var(--muted)]">
                 {selectedAsset.provider} · {selectedAsset.model} ·{" "}
                 {compactBytes(selectedAsset.sizeBytes)}
               </p>
             </header>
             {payload.loading ? (
-              <p className="text-[11px] text-[var(--muted)]">
-                Loading preview…
-              </p>
+              <LoadingBlock label="Loading preview…" />
             ) : payload.error ? (
-              <Notice tone="bad">{errorMessage(payload.error)}</Notice>
-            ) : payload.data ? (
+              <ErrorBlock error={payload.error} retry={payload.reload} />
+            ) : payload.data?.asset.id === selectedAsset.id ? (
               selectedAsset.kind === "image" ? (
                 <img
                   alt={selectedAsset.prompt || selectedAsset.name}
@@ -257,7 +272,7 @@ export function MediaLibraryTab({
                 <strong className="font-[var(--font-mono)] text-[length:var(--text-meta)] tracking-[0.07em] text-[var(--muted)] uppercase">
                   Source prompt
                 </strong>
-                <p className="m-0 max-w-[760px] text-[11px] leading-[1.55] text-[var(--text-soft)]">
+                <p className="m-0 max-w-[760px] text-[length:var(--text-body)] leading-[1.55] text-[var(--text-soft)]">
                   {selectedAsset.prompt}
                 </p>
               </section>

@@ -42,7 +42,7 @@ export function CompactStatStrip({
             {stat.label}
           </span>
           <strong
-            className="truncate font-[var(--font-display)] text-sm tracking-[-0.015em] text-[var(--text)]"
+            className="truncate font-[var(--font-mono)] text-sm tabular-nums tracking-[-0.015em] text-[var(--text)]"
             title={
               typeof stat.value === "string" || typeof stat.value === "number"
                 ? String(stat.value)

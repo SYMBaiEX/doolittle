@@ -7,6 +7,7 @@ import {
   useCallback,
   useEffect,
   useEffectEvent,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -73,6 +74,13 @@ import {
   type MemoryMatchSnapshot,
 } from "./memory-matches";
 import type { ProjectLike, ProjectScope } from "./project-manager/models";
+import {
+  useWorkspaceRef,
+  useWorkspaceState,
+} from "./session-workspace/chat-workspace-store";
+import type { ChatPanelViewState } from "./session-workspace/panel-view-state";
+import { SessionWorkspace } from "./session-workspace/SessionWorkspace";
+import { sessionWorkspaceBinding } from "./session-workspace/session-workspace-binding";
 
 const INSPECTOR_STORAGE_KEY = "doolittle.desktop.chat-inspector-visible.v1";
 const RUN_CURSOR_STORAGE_KEY = "doolittle.desktop.chat-run-cursors.v1";
@@ -163,10 +171,12 @@ const MobileConversationsDialog = lazy(async () => {
 });
 
 function MobileConversationsDialogFallback({
+  selectedId,
   backdropRef,
   dialogRef,
   onClose,
 }: {
+  selectedId: string;
   backdropRef: RefObject<HTMLDivElement | null>;
   dialogRef: RefObject<HTMLDivElement | null>;
   onClose: () => void;
@@ -183,7 +193,7 @@ function MobileConversationsDialogFallback({
         aria-label="Conversations"
         aria-modal="true"
         className={MOBILE_CONVERSATIONS_DIALOG_CLASS}
-        id="mobile-conversations"
+        id={`mobile-conversations-${selectedId}`}
         ref={dialogRef}
         role="dialog"
         tabIndex={-1}
@@ -231,7 +241,50 @@ function eventText(data: unknown): string {
 function isCommandMessage(message: string): boolean {
   return message.startsWith("/") || message.startsWith("!");
 }
-export function ChatPage({
+export function ChatPage(props: ChatPageProps) {
+  return (
+    <SessionWorkspace
+      {...props}
+      renderPanel={(panelProps) => <ChatSessionPanel {...panelProps} />}
+    />
+  );
+}
+
+export interface ChatPageProps {
+  backend: BackendState;
+  runtime: RuntimeStatus | null;
+  remoteSessions: SessionSummary[];
+  sessionMetadata?: readonly SessionSummary[];
+  selectedId: string;
+  workspacePath: string;
+  onSelect: (sessionId: string) => void;
+  refreshRuntime: () => void;
+  onOpenModelsPage: () => void;
+  onOpenProvidersPage: () => void;
+  onOpenWorkspaceView: (view: ThreadWorkbenchFullView) => void;
+  onConsumeContextHandoff: (id: string) => void;
+  activeProject?: {
+    id: string;
+    name: string;
+    color?: string | null;
+    primaryPath?: string | null;
+  } | null;
+  projects?: readonly ProjectLike[];
+  projectLabels?: Readonly<Record<string, string>>;
+  onChooseRepository?: (sessionId?: string) => void | Promise<void>;
+  onOpenProjectManager?: () => void;
+  onSelectProjectForNewChat?: (scope: ProjectScope) => void;
+  onRequestNewConversation?: () => void;
+  onActivateSessionProject?: (sessionId: string, projectId: string) => void;
+  pendingApprovals: number;
+  pendingContextHandoff: ChatContextHandoff | null;
+  runningTasks: number;
+  chromeHost: HTMLElement | null;
+  surface?: ChatSurface;
+  onSurfaceChange?: (surface: ChatSurface) => void;
+}
+
+export function ChatSessionPanel({
   backend,
   runtime,
   remoteSessions,
@@ -250,49 +303,40 @@ export function ChatPage({
   onOpenProjectManager,
   onSelectProjectForNewChat,
   onRequestNewConversation,
+  onActivateSessionProject,
   pendingApprovals,
   pendingContextHandoff,
   runningTasks,
   chromeHost,
   surface = "conversation",
   onSurfaceChange,
-}: {
-  backend: BackendState;
-  runtime: RuntimeStatus | null;
-  remoteSessions: SessionSummary[];
-  selectedId: string;
-  workspacePath: string;
-  onSelect: (sessionId: string) => void;
-  refreshRuntime: () => void;
-  onOpenModelsPage: () => void;
-  onOpenProvidersPage: () => void;
-  onOpenWorkspaceView: (view: ThreadWorkbenchFullView) => void;
-  onConsumeContextHandoff: (id: string) => void;
-  activeProject?: {
-    id: string;
-    name: string;
-    color?: string | null;
-    primaryPath?: string | null;
-  } | null;
-  projects?: readonly ProjectLike[];
-  projectLabels?: Readonly<Record<string, string>>;
-  onChooseRepository?: () => void | Promise<void>;
-  onOpenProjectManager?: () => void;
-  onSelectProjectForNewChat?: (scope: ProjectScope) => void;
-  onRequestNewConversation?: () => void;
-  pendingApprovals: number;
-  pendingContextHandoff: ChatContextHandoff | null;
-  runningTasks: number;
-  chromeHost: HTMLElement | null;
-  surface?: ChatSurface;
-  onSurfaceChange?: (surface: ChatSurface) => void;
+  coordinator = false,
+  focused = true,
+  visible = true,
+}: ChatPageProps & {
+  coordinator?: boolean;
+  focused?: boolean;
+  visible?: boolean;
 }) {
-  const [activeRequests, setActiveRequests] = useState<Record<string, string>>(
+  const [activeRequests, setActiveRequests] = useWorkspaceState<
+    Record<string, string>
+  >("run.active-requests", {});
+  const activeRequestSessionsRef = useWorkspaceRef<Record<string, true>>(
+    "run.claims",
     {},
   );
-  const activeRequestSessionsRef = useRef<Record<string, true>>({});
-  const requestSession = useRef<Record<string, string>>({});
+  const requestSession = useWorkspaceRef<Record<string, string>>(
+    "run.sessions",
+    {},
+  );
   const activeRequest = activeRequests[selectedId] ?? null;
+  const [runHydration, setRunHydration] = useWorkspaceState<
+    "checking" | "ready" | "unavailable"
+  >("run.hydration", "checking");
+  const [runHydrationRetry, setRunHydrationRetry] = useWorkspaceState(
+    "run.hydration-retry",
+    0,
+  );
   const {
     draft,
     draftAttachments,
@@ -321,19 +365,45 @@ export function ChatPage({
     togglePin,
   } = useChatConversationState({
     activeRequest,
-    backendReady: backend.phase === "ready",
+    backendReady: backend.phase === "ready" && !coordinator && visible,
     onSelect,
     remoteSessions,
     requestSession,
     selectedId,
+    persistenceOwner: coordinator,
   });
   const latestSelectedMessage = selectedMessages.at(-1);
-  const [progressBySession, setProgressBySession] = useState<
+  const workspaceBinding = sessionWorkspaceBinding(
+    selectedSession,
+    projects,
+    workspacePath,
+    window.doolittle.platform,
+  );
+  const foreignProject =
+    workspaceBinding.kind === "foreign" ? workspaceBinding.project : undefined;
+  const workspaceBindingBlocked =
+    workspaceBinding.kind === "foreign" || workspaceBinding.kind === "unknown";
+  const [progressBySession, setProgressBySession] = useWorkspaceState<
     Record<string, string>
-  >({});
+  >("run.progress", {});
   const progress = progressBySession[selectedId] ?? "";
+  const panelViewSnapshots = useWorkspaceRef<
+    Record<string, ChatPanelViewState>
+  >("view.snapshots", {});
+  if (!coordinator && !panelViewSnapshots.current[selectedId]) {
+    panelViewSnapshots.current[selectedId] = {
+      scrollTop: 0,
+      follow: true,
+      inspectorVisible: loadInspectorVisibility(),
+      unreadMessageIds: [],
+      knownMessageIds: [],
+    };
+  }
+  const savedView = coordinator
+    ? undefined
+    : panelViewSnapshots.current[selectedId];
   const [inspectorVisible, setInspectorVisible] = useState(
-    loadInspectorVisibility,
+    () => savedView?.inspectorVisible ?? loadInspectorVisibility(),
   );
   const isNarrowWorkbench = useMediaQuery(NARROW_WORKBENCH_QUERY);
   const prefersReducedMotion = useMediaQuery(
@@ -341,55 +411,93 @@ export function ChatPage({
   );
   const attachedFiles = draftAttachments;
   const recoveredQueue = useMemo(() => loadConversationQueue(localStorage), []);
-  const [queuedMessages, setQueuedMessages] =
-    useState<PersistedQueuedMessage[]>(recoveredQueue);
-  const [queuePaused, setQueuePaused] = useState(recoveredQueue.length > 0);
-  const [queueAnnouncement, setQueueAnnouncement] = useState(
+  const [queuedMessages, setQueuedMessages] = useWorkspaceState<
+    PersistedQueuedMessage[]
+  >("run.queue", recoveredQueue);
+  const [queuePaused, setQueuePaused] = useWorkspaceState(
+    "run.queue-paused",
+    recoveredQueue.length > 0,
+  );
+  const [queueAnnouncement, setQueueAnnouncement] = useWorkspaceState(
+    "run.queue-announcement",
     recoveredQueue.length > 0
       ? `${recoveredQueue.length} queued ${
           recoveredQueue.length === 1 ? "message was" : "messages were"
         } recovered. Review and resume when ready.`
       : "",
   );
-  const [runReceipts, setRunReceipts] = useState<RunReceiptStore>({});
-  const [cancellingRequest, setCancellingRequest] = useState<string | null>(
-    null,
+  const [runReceipts, setRunReceipts] = useWorkspaceState<RunReceiptStore>(
+    "run.receipts",
+    {},
   );
-  const runCursors = useRef<Record<string, number>>(loadRunCursors());
-  const seenRunEvents = useRef<Record<string, Set<number>>>({});
-  const seenStreamParts = useRef<Record<string, Set<string>>>({});
-  const cancellationTimers = useRef<Record<string, number>>({});
-  const pendingDeltas = useRef<
+  const [cancellingRequests, setCancellingRequests] = useWorkspaceState<
+    Record<string, boolean>
+  >("run.cancelling", {});
+  const cancellingRequest =
+    activeRequest && cancellingRequests[activeRequest] ? activeRequest : null;
+  const clearCancellingRequest = (requestId: string) => {
+    setCancellingRequests((current) => {
+      if (!current[requestId]) return current;
+      const { [requestId]: _removed, ...remaining } = current;
+      return remaining;
+    });
+  };
+  const runCursors = useWorkspaceRef<Record<string, number>>(
+    "run.cursors",
+    loadRunCursors(),
+  );
+  const seenRunEvents = useWorkspaceRef<Record<string, Set<number>>>(
+    "run.seen-events",
+    {},
+  );
+  const seenStreamParts = useWorkspaceRef<Record<string, Set<string>>>(
+    "run.seen-parts",
+    {},
+  );
+  const cancellationTimers = useWorkspaceRef<Record<string, number>>(
+    "run.cancel-timers",
+    {},
+  );
+  const pendingDeltas = useWorkspaceRef<
     Record<string, { sessionId: string; delta: unknown }>
-  >({});
-  const deltaFrame = useRef<number | null>(null);
+  >("run.pending-deltas", {});
+  const deltaFrame = useWorkspaceRef<number | null>("run.delta-frame", null);
   const [forkingMessageId, setForkingMessageId] = useState("");
   const [routeDialogOpen, setRouteDialogOpen] = useState(false);
   const [attachmentValidationError, setAttachmentValidationError] =
-    useState("");
-  const [attachmentImportPending, setAttachmentImportPending] = useState(false);
+    useWorkspaceState(`view.attachment-error.${selectedId}`, "");
+  const [attachmentImportPending, setAttachmentImportPending] =
+    useWorkspaceState(`view.attachment-importing.${selectedId}`, false);
   const attachmentRevisionRef = useRef(0);
   const [unreadMessageIdsBySession, setUnreadMessageIdsBySession] = useState<
     Record<string, string[]>
-  >({});
+  >(() => (savedView ? { [selectedId]: savedView.unreadMessageIds } : {}));
   const [mobileConversationsOpen, setMobileConversationsOpen] = useState(false);
   const [commandSelection, setCommandSelection] = useState(0);
   const [commandMenuDismissed, setCommandMenuDismissed] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
-  const transcriptFollowRef = useRef(true);
+  const transcriptFollowRef = useRef(savedView?.follow ?? true);
   const forceTranscriptFollowRef = useRef(false);
   const scheduledForceTranscriptFollowRef = useRef(false);
   const selectedIdRef = useRef(selectedId);
   // A dialog can settle between this render and the selected-session effect.
   selectedIdRef.current = selectedId;
-  const knownMessageIdsBySession = useRef<Record<string, string[]>>({});
+  const knownMessageIdsBySession = useRef<Record<string, string[]>>(
+    savedView ? { [selectedId]: savedView.knownMessageIds } : {},
+  );
   const scheduleTranscriptScrollRef = useRef<(() => void) | null>(null);
   const composerRef = useRef<HTMLTextAreaElement>(null);
   const mobileConversationsButtonRef = useRef<HTMLButtonElement>(null);
   const mobileConversationsBackdropRef = useRef<HTMLDivElement>(null);
   const workbenchToggleRef = useRef<HTMLButtonElement>(null);
+  const closeInspector = useCallback(() => {
+    setInspectorVisible(false);
+    requestAnimationFrame(() =>
+      workbenchToggleRef.current?.focus({ preventScroll: true }),
+    );
+  }, []);
   const mobileConversationsDialogRef = useModalFocusBoundary({
-    active: mobileConversationsOpen,
+    active: mobileConversationsOpen && visible && focused && !coordinator,
     initialFocusSelector: "[data-mobile-conversations-search]",
     isolationBoundaryRef: mobileConversationsBackdropRef,
     isolateBackground: true,
@@ -398,15 +506,23 @@ export function ChatPage({
     restoreFocusRef: mobileConversationsButtonRef,
   });
   const workbenchDialogRef = useModalFocusBoundary({
-    active: inspectorVisible && isNarrowWorkbench,
+    active:
+      inspectorVisible &&
+      isNarrowWorkbench &&
+      visible &&
+      focused &&
+      !coordinator,
     initialFocusSelector: '[aria-label="Close thread context"]',
     isolateBackground: true,
-    onClose: () => setInspectorVisible(false),
+    onClose: closeInspector,
     restoreFocus: !inspectorVisible,
     restoreFocusRef: workbenchToggleRef,
   });
   const queueRef = useRef<HTMLDivElement>(null);
-  const queueDispatchRef = useRef<string | null>(null);
+  const queueDispatchRef = useWorkspaceRef<string | null>(
+    "run.queue-dispatch",
+    null,
+  );
   const previousSelectedId = useRef(selectedId);
   const consumedContextHandoffs = useRef(new Set<string>());
 
@@ -423,7 +539,7 @@ export function ChatPage({
     selectedUsageError,
     usageLoading,
   } = useChatComposerSupport({
-    backendReady: backend.phase === "ready",
+    backendReady: backend.phase === "ready" && !coordinator && visible,
     commandMenuDismissed,
     composerRef,
     draft,
@@ -433,6 +549,18 @@ export function ChatPage({
     setQueueAnnouncement,
     workspacePath,
   });
+  const previousActiveRequest = useRef(activeRequest);
+  useEffect(() => {
+    if (
+      previousActiveRequest.current &&
+      !activeRequest &&
+      !coordinator &&
+      visible
+    ) {
+      void refreshSessionUsage(selectedId);
+    }
+    previousActiveRequest.current = activeRequest;
+  }, [activeRequest, coordinator, refreshSessionUsage, selectedId, visible]);
   const {
     copyMessage,
     copyStates,
@@ -457,11 +585,26 @@ export function ChatPage({
   useEffect(() => {
     selectedIdRef.current = selectedId;
     attachmentRevisionRef.current += 1;
+  }, [selectedId]);
+
+  useLayoutEffect(() => {
+    if (coordinator || !visible) return;
     const container = endRef.current?.parentElement;
     if (!container) return;
-    transcriptFollowRef.current = isChatNearBottom(container);
+    const saved = panelViewSnapshots.current[selectedId];
+    if (saved) {
+      container.scrollTop = saved.scrollTop;
+      transcriptFollowRef.current = saved.follow;
+    } else {
+      transcriptFollowRef.current = isChatNearBottom(container);
+    }
     const handleScroll = () => {
       transcriptFollowRef.current = isChatNearBottom(container);
+      const snapshot = panelViewSnapshots.current[selectedId];
+      if (snapshot) {
+        snapshot.scrollTop = container.scrollTop;
+        snapshot.follow = transcriptFollowRef.current;
+      }
       if (transcriptFollowRef.current) {
         const sessionId = selectedIdRef.current;
         setUnreadMessageIdsBySession((current) =>
@@ -475,7 +618,7 @@ export function ChatPage({
     return () => {
       container.removeEventListener("scroll", handleScroll);
     };
-  }, [selectedId]);
+  }, [coordinator, panelViewSnapshots, selectedId, visible]);
 
   const cleanupManagedAttachments = async (
     ids: readonly string[],
@@ -520,6 +663,22 @@ export function ChatPage({
   }, [loadingHistory, selectedId, selectedMessages]);
 
   useEffect(() => {
+    if (coordinator) return;
+    const saved = panelViewSnapshots.current[selectedId];
+    if (!saved) return;
+    saved.inspectorVisible = inspectorVisible;
+    saved.unreadMessageIds = unreadMessageIdsBySession[selectedId] ?? [];
+    saved.knownMessageIds = selectedMessages.map((message) => message.id);
+  }, [
+    coordinator,
+    inspectorVisible,
+    panelViewSnapshots,
+    selectedId,
+    selectedMessages,
+    unreadMessageIdsBySession,
+  ]);
+
+  useEffect(() => {
     if (!latestSelectedMessage) return;
     if (forceTranscriptFollowRef.current) {
       scheduledForceTranscriptFollowRef.current = true;
@@ -562,9 +721,10 @@ export function ChatPage({
     if (!queueAnnouncement) return;
     const timeout = window.setTimeout(() => setQueueAnnouncement(""), 2_500);
     return () => window.clearTimeout(timeout);
-  }, [queueAnnouncement]);
+  }, [queueAnnouncement, setQueueAnnouncement]);
 
   useEffect(() => {
+    if (coordinator || !focused) return;
     const handleToggleInspector = () => {
       setInspectorVisible((current) => !current);
     };
@@ -577,10 +737,11 @@ export function ChatPage({
         "doolittle:toggle-inspector",
         handleToggleInspector,
       );
-  }, []);
+  }, [coordinator, focused]);
 
   useEffect(() => {
     if (
+      coordinator ||
       !pendingContextHandoff ||
       pendingContextHandoff.sessionId !== selectedId
     ) {
@@ -596,6 +757,7 @@ export function ChatPage({
     onConsumeContextHandoff(pendingContextHandoff.id);
   }, [
     insertChatContext,
+    coordinator,
     onConsumeContextHandoff,
     pendingContextHandoff,
     selectedId,
@@ -603,10 +765,10 @@ export function ChatPage({
   ]);
 
   useEffect(() => {
-    if (previousSelectedId.current === selectedId) return;
+    if (coordinator || previousSelectedId.current === selectedId) return;
     previousSelectedId.current = selectedId;
     setAttachmentValidationError("");
-  }, [selectedId]);
+  }, [coordinator, selectedId, setAttachmentValidationError]);
 
   const selectedUpdatedAt =
     selectedSession?.endedAt ??
@@ -658,7 +820,7 @@ export function ChatPage({
         ),
       }));
     }
-  }, [updateAssistant]);
+  }, [updateAssistant, pendingDeltas, deltaFrame]);
 
   const finishRequest = (requestId: string) => {
     const cancellationTimer = cancellationTimers.current[requestId];
@@ -666,7 +828,7 @@ export function ChatPage({
       window.clearTimeout(cancellationTimer);
       delete cancellationTimers.current[requestId];
     }
-    setCancellingRequest((current) => (current === requestId ? null : current));
+    clearCancellingRequest(requestId);
     delete seenStreamParts.current[requestId];
     const completedSessionId = requestSession.current[requestId];
     if (completedSessionId) {
@@ -692,26 +854,22 @@ export function ChatPage({
   };
 
   const cancelRequest = async (requestId: string) => {
-    if (cancellingRequest === requestId) return;
-    setCancellingRequest(requestId);
+    if (cancellingRequests[requestId]) return;
+    setCancellingRequests((current) => ({ ...current, [requestId]: true }));
     setQueueAnnouncement("Stopping the current response…");
     try {
       await window.doolittle.cancelChat(requestId);
       if (requestSession.current[requestId]) {
         cancellationTimers.current[requestId] = window.setTimeout(() => {
           delete cancellationTimers.current[requestId];
-          setCancellingRequest((current) =>
-            current === requestId ? null : current,
-          );
+          clearCancellingRequest(requestId);
           setQueueAnnouncement(
             "Stopping is taking longer than expected. You can try stopping again while the runtime reconnects.",
           );
         }, 8_000);
       }
     } catch (error) {
-      setCancellingRequest((current) =>
-        current === requestId ? null : current,
-      );
+      clearCancellingRequest(requestId);
       const sessionId = requestSession.current[requestId];
       if (!sessionId) return;
       updateAssistant(sessionId, requestId, (message) => ({
@@ -857,19 +1015,26 @@ export function ChatPage({
   });
 
   useEffect(() => {
+    if (!coordinator) return;
     const unsubscribe = window.doolittle.onChatEvent(handleChatEvent);
     return unsubscribe;
-  }, []);
+  }, [coordinator]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: retry nonce deliberately reruns run recovery without changing backend phase.
   useEffect(() => {
-    if (backend.phase !== "ready") return;
+    if (!coordinator || backend.phase !== "ready") return;
+    setRunHydration("checking");
     let disposed = false;
     void desktopRequest<{ runs?: unknown; updates?: unknown }>(
       "/chat/runs?limit=50&include_updates=true",
       "GET",
     )
       .then((payload) => {
-        if (disposed || !Array.isArray(payload.runs)) return;
+        if (disposed) return;
+        if (!Array.isArray(payload.runs)) {
+          setRunHydration("unavailable");
+          return;
+        }
         const persistedUpdates =
           payload.updates &&
           typeof payload.updates === "object" &&
@@ -932,12 +1097,26 @@ export function ChatPage({
             })
             .catch(() => undefined);
         }
+        setRunHydration("ready");
       })
-      .catch(() => undefined);
+      .catch(() => {
+        if (!disposed) setRunHydration("unavailable");
+      });
     return () => {
       disposed = true;
     };
-  }, [backend.phase, setMessages]);
+  }, [
+    backend.phase,
+    coordinator,
+    setMessages,
+    setRunHydration,
+    setRunReceipts,
+    activeRequestSessionsRef,
+    requestSession,
+    setActiveRequests,
+    runCursors,
+    runHydrationRetry,
+  ]);
 
   const sendMessage = async (
     input: string,
@@ -963,9 +1142,18 @@ export function ChatPage({
     if (
       !content ||
       !sessionId ||
+      ["foreign", "unknown"].includes(
+        sessionWorkspaceBinding(
+          remoteSessions.find((session) => session.sessionId === sessionId),
+          projects,
+          workspacePath,
+          window.doolittle.platform,
+        ).kind,
+      ) ||
       activeRequestSessionsRef.current[sessionId] ||
       activeRequests[sessionId] ||
-      backend.phase !== "ready"
+      backend.phase !== "ready" ||
+      runHydration !== "ready"
     ) {
       return false;
     }
@@ -981,7 +1169,8 @@ export function ChatPage({
       memoryMatchOverride ?? freezeMemoryMatchSnapshot(content, memoryMatches);
     const requestProjectId =
       projectIdOverride === undefined
-        ? activeProject?.id
+        ? (remoteSessions.find((session) => session.sessionId === sessionId)
+            ?.projectId ?? activeProject?.id)
         : (projectIdOverride ?? undefined);
     const requestId = crypto.randomUUID();
     const createdAt = new Date().toISOString();
@@ -1179,7 +1368,8 @@ export function ChatPage({
   // biome-ignore lint/correctness/useExhaustiveDependencies: sendMessage intentionally consumes the current request state after each queue transition.
   useEffect(() => {
     if (
-      activeRequest ||
+      !coordinator ||
+      runHydration !== "ready" ||
       backend.phase !== "ready" ||
       queuePaused ||
       queuedMessages.length === 0 ||
@@ -1189,6 +1379,11 @@ export function ChatPage({
     }
     const [next] = queuedMessages;
     if (!next) return;
+    if (
+      activeRequests[next.sessionId] ||
+      activeRequestSessionsRef.current[next.sessionId]
+    )
+      return;
     const workspaceStatus = queuedMessageWorkspaceStatus(
       next,
       workspacePath,
@@ -1233,6 +1428,8 @@ export function ChatPage({
       });
   }, [
     activeRequest,
+    coordinator,
+    runHydration,
     activeRequests,
     backend.phase,
     queuePaused,
@@ -1241,6 +1438,7 @@ export function ChatPage({
   ]);
 
   const queueCurrentDraft = async () => {
+    if (runHydration !== "ready" || workspaceBindingBlocked) return;
     if (attachmentImportPending) {
       setAttachmentValidationError(
         "Wait for file import to finish before queueing this message.",
@@ -1523,11 +1721,14 @@ export function ChatPage({
   };
 
   const clearQueuedMessages = () => {
-    const count = queuedMessages.length;
+    const removed = queuedMessages.filter(
+      (message) => message.sessionId === selectedId,
+    );
+    const count = removed.length;
     if (!count) return;
-    const removed = [...queuedMessages];
-    setQueuedMessages([]);
-    setQueuePaused(false);
+    setQueuedMessages((current) =>
+      current.filter((message) => message.sessionId !== selectedId),
+    );
     setQueueAnnouncement(
       `${count} queued ${count === 1 ? "message" : "messages"} cleared.`,
     );
@@ -1559,6 +1760,8 @@ export function ChatPage({
   const canSubmit =
     Boolean(draft.trim() || attachedFiles.length > 0) &&
     backend.phase === "ready" &&
+    !workspaceBindingBlocked &&
+    runHydration === "ready" &&
     !attachmentImportPending &&
     !composerValidationError;
   const isNewConversation =
@@ -1577,6 +1780,8 @@ export function ChatPage({
         role: "region" as const,
       };
 
+  if (coordinator) return null;
+
   return (
     <div
       className={`${CHAT_WORKSPACE_CLASS} ${
@@ -1586,6 +1791,7 @@ export function ChatPage({
       {chromeHost
         ? createPortal(
             <ChatHeaderChrome
+              selectedId={selectedId}
               inspectorVisible={inspectorVisible}
               isNewConversation={isNewConversation}
               mobileConversationsButtonRef={mobileConversationsButtonRef}
@@ -1627,7 +1833,7 @@ export function ChatPage({
         aria-label="Conversation detail"
         className="chat-conversation"
         hidden={surface !== "conversation"}
-        id="chat-context-conversation"
+        id={`chat-context-conversation-${selectedId}`}
         inert={
           (inspectorVisible && isNarrowWorkbench) || surface !== "conversation"
         }
@@ -1689,9 +1895,71 @@ export function ChatPage({
           {accessibilityStatus}
         </div>
         <ChatComposer
+          workspaceNotice={
+            <>
+              {runHydration !== "ready" ? (
+                <div
+                  className="flex items-center justify-between gap-2 pb-2 text-[length:var(--text-control)] text-[var(--muted)]"
+                  role="status"
+                >
+                  <span>
+                    {runHydration === "checking"
+                      ? "Checking active runs before sending…"
+                      : "Active run recovery is unavailable. Retry before sending; your draft is retained."}
+                  </span>
+                  {runHydration === "unavailable" ? (
+                    <button
+                      className="secondary-button"
+                      onClick={() =>
+                        setRunHydrationRetry((current) => current + 1)
+                      }
+                      type="button"
+                    >
+                      Retry run list
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
+              {workspaceBindingBlocked ? (
+                <div
+                  className="flex items-center justify-between gap-2 border-b border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[length:var(--text-control)] text-[var(--text-soft)]"
+                  role="status"
+                >
+                  <span>
+                    {foreignProject
+                      ? `This session belongs to ${foreignProject.name}. Activate its workspace before sending. Existing runs continue in their original workspace.`
+                      : "This session's project workspace binding is unavailable. Choose its repository before sending; its draft and history are retained."}
+                  </span>
+                  {foreignProject && onActivateSessionProject ? (
+                    <button
+                      className="secondary-button shrink-0"
+                      onClick={() =>
+                        onActivateSessionProject(selectedId, foreignProject.id)
+                      }
+                      type="button"
+                    >
+                      Activate workspace
+                    </button>
+                  ) : (
+                    <button
+                      className="secondary-button shrink-0"
+                      onClick={() =>
+                        onChooseRepository
+                          ? void onChooseRepository(selectedId)
+                          : onOpenProjectManager?.()
+                      }
+                      type="button"
+                    >
+                      Resolve repository
+                    </button>
+                  )}
+                </div>
+              ) : null}
+            </>
+          }
           activeProject={activeProject}
           projects={projects}
-          onChooseRepository={onChooseRepository}
+          onChooseRepository={() => onChooseRepository?.(selectedId)}
           onOpenProjectManager={onOpenProjectManager}
           onSelectProjectForNewChat={onSelectProjectForNewChat}
           isNewConversation={isNewConversation}
@@ -1709,7 +1977,9 @@ export function ChatPage({
           onSubmit={submit}
           composerRef={composerRef}
           queueRef={queueRef}
-          queuedMessages={queuedMessages}
+          queuedMessages={queuedMessages.filter(
+            (message) => message.sessionId === selectedId,
+          )}
           queuePaused={queuePaused}
           resumeQueuedMessages={resumeQueuedMessages}
           setQueueAnnouncement={setQueueAnnouncement}
@@ -1750,7 +2020,7 @@ export function ChatPage({
         aria-label="Conversation history"
         className="chat-context-surface"
         hidden={surface !== "history"}
-        id="chat-context-history"
+        id={`chat-context-history-${selectedId}`}
         inert={surface !== "history"}
       >
         <SessionsPage
@@ -1777,7 +2047,7 @@ export function ChatPage({
         aria-label="Media tools"
         className="chat-context-surface"
         hidden={surface !== "media"}
-        id="chat-context-media"
+        id={`chat-context-media-${selectedId}`}
         inert={surface !== "media"}
       >
         <MediaPage
@@ -1789,6 +2059,7 @@ export function ChatPage({
         <Suspense
           fallback={
             <MobileConversationsDialogFallback
+              selectedId={selectedId}
               backdropRef={mobileConversationsBackdropRef}
               dialogRef={mobileConversationsDialogRef}
               onClose={() => setMobileConversationsOpen(false)}
@@ -1818,7 +2089,7 @@ export function ChatPage({
         <div
           {...workbenchAccessibilityProps}
           className="chat-workbench-pane max-[720px]:fixed max-[720px]:inset-0 max-[720px]:z-120 max-[720px]:w-full"
-          id="thread-workbench"
+          id={`thread-workbench-${selectedId}`}
           ref={workbenchDialogRef}
         >
           <Suspense
@@ -1834,7 +2105,7 @@ export function ChatPage({
               active={backend.phase === "ready"}
               onInsertContext={insertChatContext}
               onOpenFullView={onOpenWorkspaceView}
-              onRequestClose={() => setInspectorVisible(false)}
+              onRequestClose={closeInspector}
               sessionId={selectedId}
               workspacePath={workspacePath}
             />
@@ -1842,7 +2113,7 @@ export function ChatPage({
         </div>
       ) : null}
       <RouteControlDialog
-        isOpen={routeDialogOpen}
+        isOpen={routeDialogOpen && visible && focused}
         onClose={() => setRouteDialogOpen(false)}
         onOpenModelsPage={() => {
           setRouteDialogOpen(false);

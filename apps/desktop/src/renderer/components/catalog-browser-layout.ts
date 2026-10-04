@@ -5,7 +5,7 @@ export const CATALOG_INDEX_CLASS =
 export const CATALOG_INDEX_HEADER_CLASS =
   "flex min-h-[51px] items-center justify-between gap-3 border-b border-[var(--border)] bg-[color-mix(in_srgb,var(--surface-soft)_70%,transparent)] px-2.5 py-2 [&>div]:grid [&>div]:gap-px [&_small]:font-[var(--font-mono)] [&_small]:text-[length:var(--text-meta)] [&_small]:text-[var(--muted)] [&_strong]:text-[length:var(--text-control)] [&_strong]:text-[var(--text)]";
 export const CATALOG_EYEBROW_CLASS =
-  "font-[var(--font-mono)] text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--muted)]";
+  "font-[var(--font-mono)] text-[length:var(--text-meta)] font-bold uppercase tracking-[0.08em] text-[var(--muted)]";
 export const CATALOG_INDEX_LIST_CLASS =
   "m-0 grid min-h-0 list-none content-start gap-px overflow-y-auto p-1 [scrollbar-gutter:stable]";
 export const CATALOG_INDEX_TITLE_CLASS =

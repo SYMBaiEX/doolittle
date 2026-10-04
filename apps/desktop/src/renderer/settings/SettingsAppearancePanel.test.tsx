@@ -62,4 +62,26 @@ describe("SettingsAppearancePanel", () => {
     expect(markup).toContain("theme-grid");
     expect(markup).toContain('hidden=""');
   });
+
+  it("keeps appearance controls while reporting a runtime theme failure with retry", () => {
+    const markup = renderToStaticMarkup(
+      <SettingsAppearancePanel
+        active
+        activeTheme={null}
+        appearance="dark"
+        density="comfortable"
+        themes={[]}
+        themesError="Theme store unavailable"
+        onThemeReload={noop}
+        onAppearanceChange={noop}
+        onDensityChange={noop}
+        onThemeExport={noop}
+        onThemeImport={noop}
+        onThemeChange={noop}
+      />,
+    );
+    expect(markup).toContain('aria-label="Application appearance"');
+    expect(markup).toContain("Theme store unavailable");
+    expect(markup).toContain("Try again");
+  });
 });

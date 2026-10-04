@@ -2,6 +2,7 @@
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
+import { compile } from "tailwindcss";
 import { describe, expect, it, vi } from "vitest";
 import type { ApiResource } from "../lib";
 import { ResourceStatusBar } from "./ResourceStatusBar";
@@ -21,6 +22,30 @@ function resource(
 }
 
 describe("ResourceStatusBar", () => {
+  it("preserves its wrapped count row without shrinking in a short flex page", async () => {
+    const host = document.createElement("div");
+    host.innerHTML = renderToStaticMarkup(
+      <ResourceStatusBar
+        resources={[
+          { label: "runtime", resource: resource() },
+          { label: "optional", required: false, resource: resource() },
+        ]}
+      />,
+    );
+    const bar = host.querySelector(".resource-status-bar");
+    const counts = host.querySelector(".resource-status-bar__counts");
+    expect(bar?.classList.contains("shrink-0")).toBe(true);
+    expect(bar?.classList.contains("flex-wrap")).toBe(true);
+    expect(counts?.textContent).toBe("1/1 required · 1/1 optional");
+    expect(counts?.classList.contains("max-[640px]:basis-full")).toBe(true);
+
+    const compiler = await compile("@tailwind utilities;");
+    const css = compiler.build(["shrink-0", "max-[640px]:basis-full"]);
+    expect(css).toMatch(/\.shrink-0 \{\s+flex-shrink: 0;/u);
+    expect(css).toContain("@media (width < 640px)");
+    expect(css).toContain("flex-basis: 100%");
+  });
+
   it("renders an accessible SSR status and fans retry out to every resource", () => {
     const reloadA = vi.fn();
     const reloadB = vi.fn();

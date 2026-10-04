@@ -43,7 +43,7 @@ export function ResourceStatusBar({
       aria-atomic="true"
       aria-busy={pending || summary.isValidating}
       aria-live={requiredUnavailable ? "assertive" : "polite"}
-      className="resource-status-bar flex min-h-8 flex-wrap items-center gap-[7px] rounded-[5px] border border-[var(--border)] bg-[color-mix(in_srgb,var(--surface-soft)_68%,transparent)] px-[9px] py-1.5 text-[11px] leading-[1.3] text-[var(--text-soft)] max-[640px]:items-start"
+      className="resource-status-bar flex min-h-8 shrink-0 flex-wrap items-center gap-[7px] rounded-[5px] border border-[var(--border)] bg-[color-mix(in_srgb,var(--surface-soft)_68%,transparent)] px-[9px] py-1.5 text-[length:var(--text-control)] leading-[1.3] text-[var(--text-soft)] max-[640px]:items-start"
       role={requiredUnavailable ? "alert" : "status"}
     >
       <span
@@ -55,7 +55,7 @@ export function ResourceStatusBar({
           ? "Partially available"
           : resourceStatusLabel(summary.status)}
       </span>
-      <span className="resource-status-bar__counts font-[var(--font-mono)] text-[10px] text-[var(--muted)] max-[640px]:basis-full max-[640px]:pl-[13px]">
+      <span className="resource-status-bar__counts font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--muted)] max-[640px]:basis-full max-[640px]:pl-[13px]">
         {summary.required.ready}/{summary.required.total} required
         {summary.optional.total
           ? ` · ${summary.optional.ready}/${summary.optional.total} optional`

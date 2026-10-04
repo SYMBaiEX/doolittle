@@ -11,7 +11,7 @@ import {
   SquareTerminal,
   X,
 } from "lucide-react";
-import { type CSSProperties, type KeyboardEvent, useRef } from "react";
+import { type CSSProperties, type KeyboardEvent, useId, useRef } from "react";
 import { asNumber, Badge } from "../lib";
 import {
   clampThreadWorkbenchWidth,
@@ -82,6 +82,8 @@ export function ThreadWorkbenchRail({
   onOpenFullView,
   onRequestClose,
 }: ThreadWorkbenchRailProps) {
+  const instanceId = useId();
+  const idPrefix = `thread-workbench-${instanceId.replace(/:/g, "")}`;
   const controller = useThreadWorkbenchRailController({
     active,
     sessionId,
@@ -234,9 +236,9 @@ export function ThreadWorkbenchRail({
         {THREAD_WORKBENCH_TABS.map((tab, index) => (
           <button
             aria-label={TAB_LABELS[tab]}
-            aria-controls={`thread-workbench-${tab}-panel`}
+            aria-controls={`${idPrefix}-${tab}-panel`}
             aria-selected={model.selectedTab === tab}
-            id={`thread-workbench-${tab}-tab`}
+            id={`${idPrefix}-${tab}-tab`}
             key={tab}
             className={`${WORKBENCH_TAB_CLASS} group ${
               model.selectedTab === tab ? WORKBENCH_TAB_SELECTED_CLASS : ""
@@ -262,6 +264,7 @@ export function ThreadWorkbenchRail({
 
       <WorkbenchPanels
         controller={controller}
+        idPrefix={idPrefix}
         onOpenFullView={onOpenFullView}
         workspacePath={workspacePath}
       />
