@@ -50,6 +50,12 @@ import {
 } from "./model-input-observations";
 import { readHeadlessModelUsage } from "./model-usage";
 import {
+  createOperationalFailureTracker,
+  emitOperationalFailure,
+  type OperationalFailureSink,
+  type OperationalFailureTracker,
+} from "./operational-failure";
+import {
   preparePrivateReportDirectory,
   privateReportFilename,
   privateReportPath,
@@ -140,6 +146,8 @@ export interface HeadlessEvalReport {
 }
 
 export interface RunHeadlessEvalOptions {
+  /** Trusted promptly-returning volatile sink. Never persisted or awaited. */
+  onOperationalFailure?: OperationalFailureSink;
   repoRoot?: string;
   reportDir?: string;
   routeLabel?: string;
@@ -308,7 +316,10 @@ interface OwnedDirectory {
   ino: bigint;
 }
 
-function ownedDirectory(path: string): OwnedDirectory {
+function ownedDirectory(
+  path: string,
+  failure?: OperationalFailureTracker,
+): OwnedDirectory {
   try {
     const stat = lstatSync(path, { bigint: true });
     if (!stat.isDirectory() || stat.isSymbolicLink()) throw new Error();
@@ -319,27 +330,34 @@ function ownedDirectory(path: string): OwnedDirectory {
       ino: stat.ino,
     };
   } catch {
+    failure?.refuseIdentity();
     // Keep private directory paths out of safety-abort diagnostics.
     throw new Error("Headless owned directory is not an ordinary directory.");
   }
 }
 
-function verifyOwnedDirectory(owned: OwnedDirectory): void {
-  const current = ownedDirectory(owned.path);
+function verifyOwnedDirectory(
+  owned: OwnedDirectory,
+  failure?: OperationalFailureTracker,
+): void {
+  const current = ownedDirectory(owned.path, failure);
   if (
     current.canonical !== owned.canonical ||
     current.dev !== owned.dev ||
     current.ino !== owned.ino
-  )
+  ) {
+    failure?.refuseIdentity();
     throw new Error("Refusing to remove a substituted headless directory.");
+  }
 }
 
 function verifyOwnedTaskRoot(
   runRoot: OwnedDirectory,
   taskRoot: OwnedDirectory,
+  failure?: OperationalFailureTracker,
 ): void {
-  verifyOwnedDirectory(runRoot);
-  verifyOwnedDirectory(taskRoot);
+  verifyOwnedDirectory(runRoot, failure);
+  verifyOwnedDirectory(taskRoot, failure);
   const taskId = basename(taskRoot.path);
   if (
     dirname(runRoot.canonical) !== realpathSync(tmpdir()) ||
@@ -348,6 +366,7 @@ function verifyOwnedTaskRoot(
     !isSafeTaskId(taskId) ||
     taskRoot.path !== join(runRoot.path, taskId)
   ) {
+    failure?.refuseIdentity();
     throw new Error(
       "Refusing to remove a task root outside the owned run root.",
     );
@@ -357,17 +376,23 @@ function verifyOwnedTaskRoot(
 function removeOwnedTaskRoot(
   runRoot: OwnedDirectory,
   taskRoot: OwnedDirectory,
+  failure?: OperationalFailureTracker,
 ): void {
-  verifyOwnedTaskRoot(runRoot, taskRoot);
+  verifyOwnedTaskRoot(runRoot, taskRoot, failure);
   rmSync(taskRoot.path, { recursive: true, force: false });
 }
 
-function verifyEmptyRunRoot(runRoot: OwnedDirectory): void {
-  verifyOwnedDirectory(runRoot);
-  if (readdirSync(runRoot.path).length !== 0)
+function verifyEmptyRunRoot(
+  runRoot: OwnedDirectory,
+  failure?: OperationalFailureTracker,
+): void {
+  verifyOwnedDirectory(runRoot, failure);
+  if (readdirSync(runRoot.path).length !== 0) {
+    failure?.refuseIdentity();
     throw new Error(
       "Headless run root contains unowned entries; owned state was retained.",
     );
+  }
 }
 
 function readSourceIdentity(repoRoot: string): {
@@ -401,6 +426,20 @@ function readSourceIdentity(repoRoot: string): {
 export async function runHeadlessEvalSuite(
   suite: HeadlessEvalSuite,
   options: RunHeadlessEvalOptions = {},
+) {
+  const failure = createOperationalFailureTracker();
+  try {
+    return await runHeadlessEvalSuiteAttempt(suite, options, failure);
+  } catch (error) {
+    emitOperationalFailure(options.onOperationalFailure, failure.receipt());
+    throw error;
+  }
+}
+
+async function runHeadlessEvalSuiteAttempt(
+  suite: HeadlessEvalSuite,
+  options: RunHeadlessEvalOptions,
+  failure: OperationalFailureTracker,
 ): Promise<{
   report: HeadlessEvalReport;
   reportPath: string;
@@ -471,10 +510,13 @@ export async function runHeadlessEvalSuite(
   }
 
   const suiteStartedAt = monotonicNow();
+  failure.enter("report-storage");
   // Refuse unsafe persistence before dispatching any provider-backed child.
   privateReportFilename("2000-01-01T00:00:00.000Z", suite.id, suite.version);
   const reportDirectory = preparePrivateReportDirectory(options.reportDir);
+  failure.enter("runner-preflight");
   const sourceAtStart = readSourceIdentity(repoRoot);
+  failure.setSource(sourceAtStart);
   const cloudResearchOptedIn = Boolean(
     options.enableConfiguredCloudResearch &&
       selectedTasks.some((task) => task.domain === "research"),
@@ -487,7 +529,7 @@ export async function runHeadlessEvalSuite(
   const runRoot = mkdtempSync(
     join(realpathSync(tmpdir()), "doolittle-headless-eval-"),
   );
-  const runIdentity = ownedDirectory(runRoot);
+  const runIdentity = ownedDirectory(runRoot, failure);
   const taskIdentities = new Map<string, OwnedDirectory>();
   const preflightMs = durationMs(suiteStartedAt, monotonicNow());
   let cleanupBlocked = false;
@@ -506,13 +548,14 @@ export async function runHeadlessEvalSuite(
   let cleanupDurationMs = 0;
   try {
     for (const task of selectedTasks) {
-      verifyEmptyRunRoot(runIdentity);
+      failure.enter("task-setup");
+      verifyEmptyRunRoot(runIdentity, failure);
       const taskSetupStartedAt = monotonicNow();
       const taskRoot = join(runRoot, task.id);
       const dataDir = join(taskRoot, "data");
       const workspaceDir = join(taskRoot, "workspace");
       mkdirSync(taskRoot, { mode: 0o700 });
-      const taskIdentity = ownedDirectory(taskRoot);
+      const taskIdentity = ownedDirectory(taskRoot, failure);
       taskIdentities.set(taskRoot, taskIdentity);
       mkdirSync(dataDir, { recursive: true, mode: 0o700 });
       mkdirSync(workspaceDir, { recursive: true, mode: 0o700 });
@@ -558,7 +601,8 @@ export async function runHeadlessEvalSuite(
       let completed = true;
 
       for (const [index, prompt] of prompts.entries()) {
-        verifyOwnedTaskRoot(runIdentity, taskIdentity);
+        failure.enter("task-setup");
+        verifyOwnedTaskRoot(runIdentity, taskIdentity, failure);
         const execStartedAt = monotonicNow();
         const execStartedWallAt = wallNow();
         const stdoutDecoder = new StringDecoder("utf8");
@@ -610,6 +654,8 @@ export async function runHeadlessEvalSuite(
           }
         }
         childCleanupSafe = false;
+        failure.enter("child-execution");
+        failure.beginChild();
         const child: HeadlessExecResult = await execute(
           "nub",
           [
@@ -631,6 +677,8 @@ export async function runHeadlessEvalSuite(
             },
           },
         );
+        failure.finishChild(child.cleanupSafe === true);
+        failure.enter("response-processing");
         const execEndedAt = monotonicNow();
         const responseProcessingStartedAt = execEndedAt;
         childCleanupSafe = child.cleanupSafe === true;
@@ -720,6 +768,7 @@ export async function runHeadlessEvalSuite(
         if (!completed) break;
       }
 
+      failure.enter("grading");
       const gradingStartedAt = monotonicNow();
       const response = responses.at(-1) ?? "";
       const modelUsageResult = readHeadlessModelUsage(dataDir);
@@ -892,12 +941,15 @@ export async function runHeadlessEvalSuite(
             }
           : {}),
       });
-      if (!childCleanupSafe)
+      failure.enter("task-cleanup");
+      if (!childCleanupSafe) {
+        failure.unconfirmedCleanup();
         throw new Error(
           "Headless child cleanup could not be confirmed; owned state was retained.",
         );
+      }
       const cleanupStartedAt = monotonicNow();
-      removeOwnedTaskRoot(runIdentity, taskIdentity);
+      removeOwnedTaskRoot(runIdentity, taskIdentity, failure);
       taskIdentities.delete(taskRoot);
       const taskCleanupMs = durationMs(cleanupStartedAt, monotonicNow());
       cleanupDurationMs += taskCleanupMs;
@@ -911,6 +963,7 @@ export async function runHeadlessEvalSuite(
       0,
       Math.round(monotonicNow() - suiteStartedAt - cleanupDurationMs),
     );
+    failure.enter("report-preparation");
     const reportPreparationStartedAt = monotonicNow();
     const sourceAtEnd = readSourceIdentity(repoRoot);
     const sourceRevisionMatches =
@@ -986,13 +1039,14 @@ export async function runHeadlessEvalSuite(
     const reportPath = privateReportPath(reportDirectory, reportLeaf);
     // Refuse persistence as well as deletion if the owned root was replaced
     // during callbacks/report preparation; never publish a shortened success.
-    verifyEmptyRunRoot(runIdentity);
+    verifyEmptyRunRoot(runIdentity, failure);
     report.harnessTiming.reportPreparationMs = durationMs(
       reportPreparationStartedAt,
       monotonicNow(),
     );
+    failure.enter("final-cleanup");
     const finalCleanupStartedAt = monotonicNow();
-    verifyOwnedDirectory(runIdentity);
+    verifyOwnedDirectory(runIdentity, failure);
     if (readdirSync(runRoot).length !== 0)
       throw new Error("Owned run root was not empty at final cleanup.");
     rmdirSync(runRoot);
@@ -1001,11 +1055,15 @@ export async function runHeadlessEvalSuite(
       finalCleanupStartedAt,
       monotonicNow(),
     );
+    failure.enter("report-preparation");
     const serializationStartedAt = monotonicNow();
     const reportBytes = `${JSON.stringify(report, null, 2)}\n`;
     const serializationMs = durationMs(serializationStartedAt, monotonicNow());
     const persistenceStartedAt = monotonicNow();
+    failure.enter("report-persistence");
+    failure.setPersistence("failed");
     writePrivateReportFile(reportDirectory, reportLeaf, reportBytes);
+    failure.setPersistence("written");
     const persistenceMs = durationMs(persistenceStartedAt, monotonicNow());
     let measurementReceiptStatus: "written" | "unavailable" = "unavailable";
     try {
@@ -1104,11 +1162,12 @@ export async function runHeadlessEvalSuite(
     throw error;
   } finally {
     if (!finalCleanupComplete && !cleanupBlocked && childCleanupSafe) {
-      verifyOwnedDirectory(runIdentity);
+      failure.enter("final-cleanup");
+      verifyOwnedDirectory(runIdentity, failure);
       for (const taskIdentity of taskIdentities.values())
-        verifyOwnedTaskRoot(runIdentity, taskIdentity);
+        verifyOwnedTaskRoot(runIdentity, taskIdentity, failure);
       for (const taskIdentity of taskIdentities.values())
-        removeOwnedTaskRoot(runIdentity, taskIdentity);
+        removeOwnedTaskRoot(runIdentity, taskIdentity, failure);
       // Never recursively delete unexpected entries in the run root.
       if (readdirSync(runRoot).length === 0) rmdirSync(runRoot);
     }
