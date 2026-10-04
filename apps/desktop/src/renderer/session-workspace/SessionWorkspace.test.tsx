@@ -1,4 +1,6 @@
 // @vitest-environment jsdom
+
+import type { BotSummary } from "@doolittle/contracts/bots";
 import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -131,6 +133,26 @@ const sessions: SessionSummary[] = ["a", "b"].map((sessionId) => ({
   participants: [],
   preview: [],
 }));
+const namedBot: BotSummary = {
+  id: "named-bot",
+  agentId: "named-agent",
+  name: "Researcher",
+  persona: "Research carefully",
+  model: { provider: "test", model: "test-model" },
+  permissions: {
+    connectionIds: [],
+    workspacePaths: ["/tmp/named"],
+    toolIds: [],
+    allowMutation: false,
+    allowDelegation: false,
+  },
+  workspacePath: "/tmp/named",
+  isDefault: false,
+  createdAt: "2026-10-04T00:00:00.000Z",
+  updatedAt: "2026-10-04T00:00:00.000Z",
+  state: "ready",
+  activeRunCount: 0,
+};
 let root: Root;
 let container: HTMLDivElement;
 let listener: ((event: ChatEvent) => void) | undefined;
@@ -147,6 +169,9 @@ function Harness({
   sessionMetadata,
   projects,
   workspacePath = "/tmp/shared",
+  bots,
+  botIdForSession,
+  defaultBotId,
 }: Partial<
   Pick<
     ChatPageProps,
@@ -155,12 +180,18 @@ function Harness({
     | "sessionMetadata"
     | "projects"
     | "workspacePath"
+    | "bots"
+    | "botIdForSession"
+    | "defaultBotId"
   >
 >) {
   const [selectedId, onSelect] = useState("a");
   selectExternal = onSelect;
   return (
     <ChatPage
+      bots={bots}
+      botIdForSession={botIdForSession}
+      defaultBotId={defaultBotId}
       backend={backend}
       chromeHost={null}
       onConsumeContextHandoff={vi.fn()}
@@ -190,6 +221,9 @@ async function render(
       | "sessionMetadata"
       | "projects"
       | "workspacePath"
+      | "bots"
+      | "botIdForSession"
+      | "defaultBotId"
     >
   > = {},
 ) {
@@ -352,7 +386,7 @@ describe("shared session workbench behavior", () => {
       );
       expect(panel("b").querySelector(".chat-workbench-pane")).toBeNull();
       const originalB = panel("b");
-      await click(panel("a"), "Close Session A");
+      await click(container, "Close Session A view");
       let subscriptionsAtCapacity = 0;
       for (let index = 0; index < 50; index += 1) {
         const id = `cycle-${index}`;
@@ -360,7 +394,7 @@ describe("shared session workbench behavior", () => {
         expect(
           container.querySelectorAll("[data-session-panel]").length,
         ).toBeLessThanOrEqual(MAX_RETAINED_CLOSED_PANELS + 2);
-        await click(panel(id), "Close New session");
+        await click(container, "Close New session view");
         expect(
           container.querySelectorAll("[data-session-panel]").length,
         ).toBeLessThanOrEqual(MAX_RETAINED_CLOSED_PANELS + 1);
@@ -625,11 +659,30 @@ describe("shared session workbench behavior", () => {
       [
         ...container.querySelectorAll<HTMLElement>("[data-session-panel]"),
       ].filter((value) => !value.hidden),
-    ).toHaveLength(2);
+    ).toHaveLength(1);
     expect(
       JSON.parse(required(localStorage.getItem(SESSION_WORKSPACE_STORAGE_KEY)))
         .openIds,
     ).toHaveLength(2);
+  });
+
+  it("routes a named bot panel to its own workspace even while the lead workspace is selected", async () => {
+    await render({
+      bots: [namedBot],
+      defaultBotId: "lead-bot",
+      botIdForSession: (id) => (id === "b" ? namedBot.id : "lead-bot"),
+      workspacePath: "/tmp/shared",
+    });
+    await openB();
+    await draft("b", "Research this");
+    await click(panel("b"), "Send test");
+    expect(start).toHaveBeenCalledWith(
+      expect.objectContaining({
+        botId: namedBot.id,
+        workspacePath: namedBot.workspacePath,
+        roomId: "b",
+      }),
+    );
   });
 
   it("claims a session synchronously so two immediate submits cannot overlap its run", async () => {
@@ -669,7 +722,7 @@ describe("shared session workbench behavior", () => {
     await act(async () => reject(new Error("Dispatch rejected")));
     expect(panel("a").querySelector("textarea")?.value).toBe("Newer A");
     expect(panel("b").querySelector("textarea")?.value).toBe("Unchanged B");
-    expect(panel("a").textContent).toContain("Failed");
+    expect(panel("a").textContent).toContain("Dispatch rejected");
   });
 
   it("streams two independent sessions through one coordinator and cancels only the requested run", async () => {
@@ -706,7 +759,7 @@ describe("shared session workbench behavior", () => {
     });
     expect(panel("a").textContent).not.toContain("Stop test");
     expect(panel("b").textContent).toContain("Stop test");
-    await click(panel("b"), "Close Session B");
+    await click(container, "Close Session B view");
     expect(panel("b").hidden).toBe(true);
     expect(cancel).toHaveBeenCalledTimes(1);
     await emit({
@@ -811,6 +864,10 @@ describe("shared session workbench behavior", () => {
   it("persists keyboard resize/order and switches to a deliberate roving tabbed narrow layout", async () => {
     await render();
     await openB();
+    await act(async () => {
+      required(container.querySelector<HTMLElement>("summary")).click();
+    });
+    await click(container, "Split right");
     const separator = required(
       container.querySelector<HTMLElement>("[data-session-resizer]"),
     );
@@ -822,8 +879,7 @@ describe("shared session workbench behavior", () => {
     const stored = JSON.parse(
       required(localStorage.getItem(SESSION_WORKSPACE_STORAGE_KEY)),
     );
-    expect(stored.weights.a).toBeCloseTo(1.15);
-    expect(stored.weights.b).toBeCloseTo(0.85);
+    expect(stored.tree.ratio).toBeCloseTo(0.55);
     await click(panel("b"), "Move Session B left");
     expect(
       JSON.parse(required(localStorage.getItem(SESSION_WORKSPACE_STORAGE_KEY)))
@@ -844,9 +900,9 @@ describe("shared session workbench behavior", () => {
         new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }),
       ),
     );
-    expect(panel("a").hidden).toBe(false);
-    expect(panel("b").hidden).toBe(true);
+    expect(panel("a").hidden).toBe(true);
+    expect(panel("b").hidden).toBe(false);
     expect(panel("a").querySelector("textarea")?.value).toBe("Narrow draft A");
-    expect(document.activeElement?.id).toBe("session-tab-a");
+    expect(document.activeElement?.id).toBe("session-tab-b");
   });
 });

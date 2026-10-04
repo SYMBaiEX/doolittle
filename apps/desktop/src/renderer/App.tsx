@@ -1,5 +1,7 @@
+import type { BotCatalogResponse, BotSummary } from "@doolittle/contracts/bots";
 import { useIntervalWhenDocumentVisible } from "@elizaos/ui/hooks/useDocumentVisibility";
 import { useMediaQuery } from "@elizaos/ui/hooks/useMediaQuery";
+import { ArrowLeft } from "lucide-react";
 import {
   type CSSProperties,
   type KeyboardEvent,
@@ -29,14 +31,12 @@ import {
 } from "./app-shell/command-palette-loading-layout";
 import { DesktopMobileMenuButton } from "./app-shell/DesktopMobileMenuButton";
 import { DesktopRouteLoadingFallback } from "./app-shell/DesktopRouteLoadingFallback";
-import { DesktopWindowContext } from "./app-shell/DesktopWindowContext";
 import {
   createDesktopNavigationHistory,
   desktopNavigationTarget,
   pushDesktopNavigationHistory,
 } from "./app-shell/desktop-navigation-history";
 import {
-  preloadDesktopRoute,
   resetDesktopRoute,
   warmDesktopRoute,
 } from "./app-shell/desktop-route-registry";
@@ -63,6 +63,12 @@ import {
   applyShellOverlayState,
   utilityReturnFocusTarget,
 } from "./app-shell/shell-overlay-state";
+import { BotCreationDialog } from "./bots/BotCreationDialog";
+import {
+  latestBotSession,
+  sessionBotId,
+  visibleBots,
+} from "./bots/bot-selection";
 import { DesktopRouteErrorBoundary } from "./components/DesktopRouteErrorBoundary";
 import { useToasts } from "./components/ToastRegion";
 import { useModalFocusBoundary } from "./components/useModalFocusBoundary";
@@ -352,7 +358,6 @@ export function App() {
   const [projectScope, setProjectScope] =
     useState<ProjectScope>(loadProjectScope);
   const [projectManagerOpen, setProjectManagerOpen] = useState(false);
-  const [newConversationMenuOpen, setNewConversationMenuOpen] = useState(false);
   const [workspace, setWorkspace] = useState<WorkspaceState>({
     currentPath: "",
     recentPaths: [],
@@ -364,6 +369,15 @@ export function App() {
     [codeWorkspaceDirty],
   );
   const [selectedSession, setSelectedSession] = useState(initialConversation);
+  const [selectedBotId, setSelectedBotId] = useState("");
+  const [pendingCreatedBot, setPendingCreatedBot] = useState<BotSummary | null>(
+    null,
+  );
+  const [localBotBindings, setLocalBotBindings] = useState<
+    Record<string, string>
+  >({});
+  const [botCreationOpen, setBotCreationOpen] = useState(false);
+  const botCreationTriggerRef = useRef<HTMLElement | null>(null);
   const [appearance, setAppearance] = useState<DesktopAppearance>(
     loadAppearancePreference,
   );
@@ -411,6 +425,36 @@ export function App() {
     setProjects,
     setSessions,
   } = useRuntimeWorkspaceData(pushToast);
+  const botResource = useApiResource<BotCatalogResponse>(
+    backend.phase === "ready" ? "/bots" : null,
+    [backend.phase],
+  );
+  const botCatalog = botResource.data;
+  const defaultBotId = botCatalog?.defaultBotId ?? "";
+  const bots = useMemo(() => {
+    const catalogBots = visibleBots(botCatalog);
+    return pendingCreatedBot &&
+      !catalogBots.some((bot) => bot.id === pendingCreatedBot.id)
+      ? [...catalogBots, pendingCreatedBot]
+      : catalogBots;
+  }, [botCatalog, pendingCreatedBot]);
+  const selectedBot =
+    bots.find((bot) => bot.id === selectedBotId) ??
+    bots.find((bot) => bot.id === defaultBotId) ??
+    null;
+  useEffect(() => {
+    if (!defaultBotId) return;
+    setSelectedBotId((current) =>
+      current && bots.some((bot) => bot.id === current)
+        ? current
+        : defaultBotId,
+    );
+    setLocalBotBindings((current) =>
+      current[initialConversation]
+        ? current
+        : { ...current, [initialConversation]: defaultBotId },
+    );
+  }, [bots, defaultBotId, initialConversation]);
   const approvalsResource = useApiResource<ApprovalListResponse>(
     backend.phase === "ready" ? "/execution/approvals?status=pending" : null,
     [backend.phase],
@@ -435,7 +479,18 @@ export function App() {
   const utilityReturnFocusRef = useRef<HTMLElement | null>(null);
   const paletteReturnFocusRef = useRef<HTMLElement | null>(null);
   const chatTerminalReturnFocusRef = useRef<HTMLElement | null>(null);
-  const isMobileSidebarMode = useMediaQuery(MOBILE_SIDEBAR_QUERY);
+  const [canvasLayout, setCanvasLayout] = useState(
+    () => document.documentElement.dataset.uiLayout === "canvas",
+  );
+  useEffect(() => {
+    const syncLayout = () =>
+      setCanvasLayout(document.documentElement.dataset.uiLayout === "canvas");
+    window.addEventListener("doolittle:ui-layout-change", syncLayout);
+    return () =>
+      window.removeEventListener("doolittle:ui-layout-change", syncLayout);
+  }, []);
+  const isMobileSidebarMode =
+    useMediaQuery(MOBILE_SIDEBAR_QUERY) || canvasLayout;
   const mobileSidebarOpen = sidebarOpen && isMobileSidebarMode;
   const minimumExpandedUtilityDockWidth = minimumDockedUtilityViewportWidth({
     navCollapsed: false,
@@ -712,9 +767,12 @@ export function App() {
   );
 
   const createConversation = useCallback(() => {
-    if (isMobileSidebarMode) openSidebarForMobile();
-    setNewConversationMenuOpen(true);
-  }, [isMobileSidebarMode, openSidebarForMobile]);
+    if (!selectedBot?.id) return;
+    const id = newConversationId();
+    setLocalBotBindings((current) => ({ ...current, [id]: selectedBot.id }));
+    setSelectedSession(id);
+    setView("chat");
+  }, [selectedBot?.id, setView]);
 
   const toggleAppearance = useCallback(() => {
     const nextAppearance = resolvedAppearance === "dark" ? "light" : "dark";
@@ -794,14 +852,97 @@ export function App() {
 
   const startConversation = useCallback(
     (scope: ProjectScope) => {
-      setNewConversationMenuOpen(false);
+      const id = newConversationId();
+      if (selectedBot?.id)
+        setLocalBotBindings((current) => ({
+          ...current,
+          [id]: selectedBot.id,
+        }));
       transitionToProjectScope(
         scope,
-        newConversationId(),
+        id,
         projectNavigationTarget("new-conversation"),
       );
     },
-    [transitionToProjectScope],
+    [selectedBot?.id, transitionToProjectScope],
+  );
+
+  const openBot = useCallback(
+    (botId: string) => {
+      if (!bots.some((bot) => bot.id === botId)) return;
+      setSelectedBotId(botId);
+      const latest = latestBotSession(sessions, botId, defaultBotId);
+      if (latest) {
+        void transitionToProjectScope(
+          latest.projectId ?? "unscoped",
+          latest.sessionId,
+          "chat",
+        );
+      } else {
+        const id = newConversationId();
+        setLocalBotBindings((current) => ({ ...current, [id]: botId }));
+        setSelectedSession(id);
+        setView("chat");
+      }
+    },
+    [bots, defaultBotId, sessions, setView, transitionToProjectScope],
+  );
+
+  const openCreateBot = useCallback(() => {
+    botCreationTriggerRef.current =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+    setBotCreationOpen(true);
+  }, []);
+
+  const onBotCreated = useCallback(
+    (bot: BotSummary) => {
+      setBotCreationOpen(false);
+      setPendingCreatedBot(bot);
+      botResource.reload();
+      setSelectedBotId(bot.id);
+      const id = newConversationId();
+      setLocalBotBindings((current) => ({ ...current, [id]: bot.id }));
+      setSelectedSession(id);
+      setView("chat");
+      pushToast({
+        tone: "success",
+        title: `${bot.name} saved`,
+        message:
+          bot.state === "ready"
+            ? "The bot is ready for a conversation."
+            : "This bot is stopped. Connect and activate it before sending.",
+      });
+    },
+    [botResource.reload, pushToast, setView],
+  );
+  const activateBot = useCallback(
+    async (botId: string) => {
+      try {
+        const activated = await desktopRequest<BotSummary>(
+          `/bots/${encodeURIComponent(botId)}/activate`,
+          "POST",
+        );
+        if (pendingCreatedBot?.id === botId) setPendingCreatedBot(activated);
+        await botResource.reload();
+        pushToast({
+          tone: "success",
+          title: `${activated.name} activated`,
+          message: "Ready for a conversation.",
+        });
+      } catch (error) {
+        pushToast({
+          tone: "error",
+          title: "Bot activation failed",
+          message:
+            error instanceof Error
+              ? error.message
+              : "Try again from this conversation.",
+        });
+      }
+    },
+    [botResource.reload, pendingCreatedBot?.id, pushToast],
   );
 
   const {
@@ -863,6 +1004,24 @@ export function App() {
     transitionToProjectScope,
     workspacePath: workspace.currentPath,
   });
+
+  const botIdForSession = useCallback(
+    (sessionId: string) =>
+      sessionBotId(sessionId, sessions, localBotBindings, defaultBotId),
+    [defaultBotId, localBotBindings, sessions],
+  );
+  const bindSessionBot = useCallback((sessionId: string, botId: string) => {
+    if (!sessionId || !botId) return;
+    setLocalBotBindings((current) =>
+      current[sessionId] === botId
+        ? current
+        : { ...current, [sessionId]: botId },
+    );
+  }, []);
+  useEffect(() => {
+    const owner = botIdForSession(selectedSession);
+    if (owner && owner !== selectedBotId) setSelectedBotId(owner);
+  }, [botIdForSession, selectedBotId, selectedSession]);
 
   useEffect(() => {
     applyDesktopAppearance(appearance, systemPrefersDark);
@@ -1172,9 +1331,6 @@ export function App() {
     projectScope === "all" || projectScope === "unscoped"
       ? null
       : (projects.find((project) => project.id === projectScope) ?? null);
-  const projectScopeLabel =
-    activeProject?.name ??
-    (projectScope === "unscoped" ? "General" : "All projects");
   const routeWarmReadyRef = useRef(false);
   useEffect(() => {
     const runtimeReady = backend.phase === "ready";
@@ -1193,14 +1349,16 @@ export function App() {
   }, [activeItem?.label]);
   const scopedSessions = useMemo(
     () =>
-      sessions.filter((session) =>
-        projectScope === "all"
-          ? true
-          : projectScope === "unscoped"
-            ? !session.projectId
-            : session.projectId === projectScope,
+      sessions.filter(
+        (session) =>
+          (projectScope === "all"
+            ? true
+            : projectScope === "unscoped"
+              ? !session.projectId
+              : session.projectId === projectScope) &&
+          (session.botId ?? defaultBotId) === (selectedBotId || defaultBotId),
       ),
-    [projectScope, sessions],
+    [defaultBotId, projectScope, selectedBotId, sessions],
   );
   const projectCards = useMemo<ProjectLike[]>(
     () =>
@@ -1316,6 +1474,12 @@ export function App() {
       scopedSessions={scopedSessions}
       sessionMetadata={sessions}
       selectedSession={selectedSession}
+      selectedBotId={selectedBot?.id ?? ""}
+      bots={bots}
+      defaultBotId={defaultBotId}
+      botIdForSession={botIdForSession}
+      onBindSessionBot={bindSessionBot}
+      onActivateBot={activateBot}
       view={routeView}
       workspacePath={workspace.currentPath}
     />
@@ -1328,7 +1492,7 @@ export function App() {
 
   return (
     <main
-      className={`${DESKTOP_SHELL_CLASS} platform-${window.doolittle.platform}${
+      className={`${DESKTOP_SHELL_CLASS} platform-${window.doolittle.platform}${canvasLayout ? " layout-canvas" : ""}${
         effectiveNavCollapsed ? " nav-collapsed" : ""
       }`}
       style={
@@ -1428,6 +1592,15 @@ export function App() {
           toasts={toasts}
         />
       </Suspense>
+      {botCreationOpen ? (
+        <BotCreationDialog
+          onClose={() => setBotCreationOpen(false)}
+          onCreated={onBotCreated}
+          returnFocusTarget={botCreationTriggerRef.current}
+          runtime={runtime}
+          workspacePath={workspace.currentPath}
+        />
+      ) : null}
       <Suspense
         fallback={
           <DesktopSidebarLoadingFallback
@@ -1444,14 +1617,15 @@ export function App() {
           navCollapsed={effectiveNavCollapsed}
           sidebarOpen={sidebarOpen}
           projectScope={projectScope}
-          newConversationMenuOpen={newConversationMenuOpen}
           sidebarWidth={sidebarWidth}
-          projectCards={projectCards}
+          selectedBotId={selectedBot?.id ?? ""}
+          defaultBotId={defaultBotId}
+          bots={bots}
+          botStatus={botResource.status ?? "loading"}
+          botError={botResource.error}
           sessions={sessions}
           selectedSession={selectedSession}
           navigationView={navigationView}
-          workspacePath={workspace.currentPath}
-          resolvedAppearance={resolvedAppearance}
           platform={window.doolittle.platform}
           sidebarRef={sidebarRef}
           onSidebarKeyDown={handleSidebarKeyDown}
@@ -1460,19 +1634,13 @@ export function App() {
           onToggleNavigation={
             navigationAutoCollapsed ? closeUtilities : toggleNavigation
           }
-          onSetNewConversationMenuOpen={setNewConversationMenuOpen}
           onOpenPalette={openCommandPalette}
-          onChooseRepository={chooseRepositoryForConversation}
-          onManageProjects={openProjectManager}
           onStartConversation={startConversation}
           onOpenSession={openSession}
-          onPreloadView={(next) =>
-            preloadDesktopRoute(next, backend.phase, workspace.currentPath)
-          }
-          onSelectScope={selectProjectScope}
-          onViewAll={() => setView("sessions")}
+          onSelectBot={openBot}
+          onAddBot={openCreateBot}
+          onRetryBots={botResource.reload}
           onSetView={setView}
-          onToggleAppearance={toggleAppearance}
         />
       </Suspense>
       <section
@@ -1485,32 +1653,38 @@ export function App() {
           }`}
         >
           <div className={WINDOW_DRAGBAR_PRIMARY_CLASS}>
-            <DesktopMobileMenuButton onOpen={openSidebarForMobile} />
-            <div className={WINDOW_CONTEXT_CLASS}>
-              <DesktopWindowContext
-                backLabel={labelForView(
-                  navigationHistory.entries[navigationHistory.index - 1],
-                )}
-                canGoBack={navigationHistory.index > 0}
-                canGoForward={
-                  navigationHistory.index < navigationHistory.entries.length - 1
-                }
-                forwardLabel={labelForView(
-                  navigationHistory.entries[navigationHistory.index + 1],
-                )}
-                itemLabel={currentRouteLabel}
-                onBack={() => traverseNavigationHistory(-1)}
-                onForward={() => traverseNavigationHistory(1)}
-                onOpenProjectManager={openProjectManager}
-                onOpenSection={() =>
-                  setView(activeSection?.items[0]?.id ?? "dashboard")
-                }
-                projectScopeLabel={projectScopeLabel}
-                sectionLabel={activeSection?.label ?? "Doolittle"}
-              />
+            <DesktopMobileMenuButton
+              forceVisible={canvasLayout}
+              onOpen={openSidebarForMobile}
+            />
+            <div
+              className={`${WINDOW_CONTEXT_CLASS} flex min-w-0 items-center gap-2 [-webkit-app-region:no-drag]`}
+            >
+              {renderedView !== "chat" && navigationHistory.index > 0 ? (
+                <button
+                  aria-label={`Back to ${labelForView(navigationHistory.entries[navigationHistory.index - 1]) ?? "previous view"}`}
+                  className="grid size-10 shrink-0 place-items-center rounded-[var(--radius-md)] text-[var(--muted)] hover:bg-[var(--surface-hover)]"
+                  onClick={() => traverseNavigationHistory(-1)}
+                  type="button"
+                >
+                  <ArrowLeft aria-hidden size={16} />
+                </button>
+              ) : null}
+              <div className="flex min-w-0 items-baseline gap-2">
+                <strong className="shrink-0 truncate text-sm font-semibold text-[var(--text)]">
+                  {renderedView === "chat"
+                    ? (selectedBot?.name ?? "Doolittle")
+                    : (activeItem?.label ?? "Doolittle")}
+                </strong>
+                {renderedView === "chat" ? (
+                  <span className="truncate text-sm text-[var(--muted)]">
+                    {currentRouteLabel}
+                  </span>
+                ) : null}
+              </div>
             </div>
             <span aria-live="polite" className="sr-only">
-              {`${currentRouteLabel} opened for ${projectScopeLabel}`}
+              {`${currentRouteLabel} opened`}
             </span>
             {renderedView === "chat" ? (
               <div
@@ -1520,19 +1694,21 @@ export function App() {
                 role="toolbar"
               />
             ) : null}
-            <div className={WINDOW_TOOLS_CLASS}>
-              <Suspense fallback={null}>
-                <DesktopWindowTools
-                  backend={backend}
-                  compactCommand={renderedView === "chat"}
-                  onOpenPalette={openCommandPalette}
-                  onRefresh={() => void refreshWithFeedback()}
-                  onToggleUtilities={toggleUtilities}
-                  platform={window.doolittle.platform}
-                  utilityOpen={utilityOpen}
-                />
-              </Suspense>
-            </div>
+            {renderedView !== "chat" ? (
+              <div className={WINDOW_TOOLS_CLASS}>
+                <Suspense fallback={null}>
+                  <DesktopWindowTools
+                    backend={backend}
+                    compactCommand={false}
+                    onOpenPalette={openCommandPalette}
+                    onRefresh={() => void refreshWithFeedback()}
+                    onToggleUtilities={toggleUtilities}
+                    platform={window.doolittle.platform}
+                    utilityOpen={utilityOpen}
+                  />
+                </Suspense>
+              </div>
+            ) : null}
           </div>
         </div>
         <Suspense fallback={null}>

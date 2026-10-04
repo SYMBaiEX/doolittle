@@ -24,7 +24,7 @@ function memoryStorage(initial: Record<string, string> = {}) {
 
 describe("panel layout persistence", () => {
   it("reserves most of the default viewport for the active workspace", () => {
-    expect(APP_SIDEBAR_WIDTH.default).toBe(264);
+    expect(APP_SIDEBAR_WIDTH.default).toBe(248);
     expect(UTILITY_DRAWER_WIDTH.default).toBe(360);
     expect(APP_SIDEBAR_WIDTH.default).toBeLessThan(
       UTILITY_DRAWER_WIDTH.default,
@@ -39,7 +39,7 @@ describe("panel layout persistence", () => {
         sidebarWidth: APP_SIDEBAR_WIDTH.default,
         utilityWidth: UTILITY_DRAWER_WIDTH.default,
       }),
-    ).toBe(1_584);
+    ).toBe(1_568);
     expect(
       minimumDockedUtilityViewportWidth({
         navCollapsed: true,
@@ -106,7 +106,7 @@ describe("panel layout persistence", () => {
     );
     expect(clampPanelWidth(100, APP_SIDEBAR_WIDTH)).toBe(APP_SIDEBAR_WIDTH.min);
     expect(clampPanelWidth(900, APP_SIDEBAR_WIDTH)).toBe(APP_SIDEBAR_WIDTH.max);
-    expect(clampPanelWidth(318.6, APP_SIDEBAR_WIDTH)).toBe(319);
+    expect(clampPanelWidth(318.6, APP_SIDEBAR_WIDTH)).toBe(300);
   });
 
   it("loads defaults and persists normalized widths", () => {
@@ -116,8 +116,8 @@ describe("panel layout persistence", () => {
     );
 
     savePanelWidth(storage, "sidebar", 315.8, APP_SIDEBAR_WIDTH);
-    expect(storage.values.get("sidebar")).toBe("316");
-    expect(loadPanelWidth(storage, "sidebar", APP_SIDEBAR_WIDTH)).toBe(316);
+    expect(storage.values.get("sidebar")).toBe("300");
+    expect(loadPanelWidth(storage, "sidebar", APP_SIDEBAR_WIDTH)).toBe(300);
   });
 
   it("normalizes corrupted stored values to the default", () => {

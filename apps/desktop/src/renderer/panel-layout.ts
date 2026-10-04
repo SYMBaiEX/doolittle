@@ -9,9 +9,9 @@ export const CHAT_TERMINAL_HEIGHT_KEY =
   "doolittle.desktop.chat.terminal-height.v1";
 
 export const APP_SIDEBAR_WIDTH = {
-  default: 264,
-  min: 232,
-  max: 328,
+  default: 248,
+  min: 220,
+  max: 300,
 } as const;
 
 export const UTILITY_DRAWER_WIDTH = {

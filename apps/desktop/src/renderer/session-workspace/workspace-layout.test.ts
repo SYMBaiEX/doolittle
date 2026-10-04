@@ -5,13 +5,16 @@ import {
   MAX_RETAINED_CLOSED_PANELS,
   moveWorkspaceSession,
   openWorkspaceSession,
-  resizeWorkspacePair,
+  resizeWorkspaceSplit,
   restoreWorkspaceLayout,
   retainWorkspacePanels,
+  splitWorkspaceSession,
+  workspaceGeometry,
+  workspaceRequiredSize,
 } from "./workspace-layout";
 
-describe("session workspace layout", () => {
-  it("bounds closed React views by recency without evicting any open view", () => {
+describe("session workspace split layout", () => {
+  it("bounds closed React views without evicting open views", () => {
     const open = Array.from(
       { length: MAX_OPEN_PANELS },
       (_, index) => `open-${index}`,
@@ -23,83 +26,71 @@ describe("session workspace layout", () => {
       ...closed.slice(-MAX_RETAINED_CLOSED_PANELS),
       ...open,
     ]);
-    const reopened = retainWorkspacePanels(retained, [closed[0] as string]);
-    const closedAgain = retainWorkspacePanels(reopened, []);
-    expect(closedAgain.at(-1)).toBe(closed[0]);
-    expect(closedAgain).toHaveLength(MAX_RETAINED_CLOSED_PANELS);
-  });
-  it("recovers malformed or incompatible storage without losing the selected session", () => {
-    for (const value of [
-      null,
-      "{broken",
-      "[]",
-      JSON.stringify({ version: 2, openIds: ["a"] }),
-    ]) {
-      expect(restoreWorkspaceLayout(value, "selected").openIds).toEqual([
-        "selected",
-      ]);
-    }
   });
 
-  it("validates IDs, deduplicates, clamps geometry and enforces the cap even when restoring a different selection", () => {
-    const restored = restoreWorkspaceLayout(
+  it("migrates v1 weighted tiles, validates IDs, and keeps the selected session", () => {
+    const layout = restoreWorkspaceLayout(
       JSON.stringify({
         version: 1,
-        openIds: [
-          "a",
-          "a",
-          'bad"id',
-          ...Array.from({ length: 20 }, (_, index) => `s-${index}`),
-        ],
-        weights: { a: 90, "s-0": -5, "s-1": "2" },
-        mode: "unknown",
+        openIds: ["a", "a", 'bad"id', "b"],
+        mode: "tiles",
+        weights: { a: 2 },
       }),
-      "selected",
-    );
-    expect(restored.openIds).toHaveLength(MAX_OPEN_PANELS);
-    expect(new Set(restored.openIds).size).toBe(MAX_OPEN_PANELS);
-    expect(restored.openIds).toContain("selected");
-    expect(restored.openIds).not.toContain('bad"id');
-    expect(restored.weights.a).toBe(4);
-    expect(restored.weights["s-0"]).toBe(0.5);
-    expect(restored.weights["s-1"]).toBe(1);
-    expect(restored.mode).toBe("tiles");
-  });
-
-  it("closes the final view without inventing a new session and can reopen the same identity", () => {
-    const closed = closeWorkspaceSession(
-      restoreWorkspaceLayout(null, "a"),
-      "a",
-    );
-    expect(closed.openIds).toEqual([]);
-    expect(closed.focusedId).toBe("");
-    expect(openWorkspaceSession(closed, "a").openIds).toEqual(["a"]);
-  });
-
-  it("focuses existing sessions without duplicating panels and refuses a thirteenth view", () => {
-    let layout = restoreWorkspaceLayout(null, "a");
-    layout = openWorkspaceSession(layout, "b");
-    expect(openWorkspaceSession(layout, "a").openIds).toEqual(["a", "b"]);
-    for (let index = 2; index < MAX_OPEN_PANELS; index += 1)
-      layout = openWorkspaceSession(layout, `s-${index}`);
-    expect(openWorkspaceSession(layout, "extra")).toBe(layout);
-  });
-
-  it("persists arrangement and focused/tabbed preference, with adjacent bounded keyboard/pointer resizing", () => {
-    const original = openWorkspaceSession(
-      restoreWorkspaceLayout(null, "a"),
       "b",
     );
-    const moved = moveWorkspaceSession(original, "b", -1);
-    expect(moved.openIds).toEqual(["b", "a"]);
-    const resized = resizeWorkspacePair(moved, "a", "b", 100);
-    expect(resized.weights).toEqual({ a: 1.5, b: 0.5 });
-    expect(resizeWorkspacePair(resized, "a", "b", -100).weights).toEqual({
-      a: 0.5,
-      b: 1.5,
+    expect(layout.version).toBe(2);
+    expect(layout.openIds).toEqual(["a", "b"]);
+    expect(layout.mode).toBe("split");
+    expect(layout.focusedId).toBe("b");
+    expect(workspaceGeometry(layout.tree).panels.b).toBeDefined();
+    expect(restoreWorkspaceLayout("{broken", "selected").openIds).toEqual([
+      "selected",
+    ]);
+  });
+
+  it("keeps tabs as default; explicit right/below splits nest and resize", () => {
+    let layout = restoreWorkspaceLayout(null, "a");
+    layout = openWorkspaceSession(layout, "b");
+    layout = openWorkspaceSession(layout, "c");
+    expect(layout.mode).toBe("tabs");
+    layout = splitWorkspaceSession(layout, "a", "b", "horizontal");
+    layout = splitWorkspaceSession(layout, "b", "c", "vertical");
+    expect(layout.mode).toBe("split");
+    expect(workspaceRequiredSize(layout.tree)).toEqual({
+      width: 720,
+      height: 560,
     });
-    expect(resizeWorkspacePair(resized, "a", "b", Number.NaN)).toBe(resized);
-    const stored = { ...resized, mode: "focus" as const };
-    expect(restoreWorkspaceLayout(JSON.stringify(stored), "b")).toEqual(stored);
+    const geometry = workspaceGeometry(layout.tree);
+    expect(geometry.dividers).toHaveLength(2);
+    expect(Object.keys(geometry.panels)).toEqual(
+      expect.arrayContaining(["a", "b", "c"]),
+    );
+    const divider = geometry.dividers.find((item) => item.axis === "vertical");
+    expect(divider).toBeDefined();
+    layout = resizeWorkspaceSplit(layout, divider?.path ?? "", 0.75);
+    expect(
+      workspaceGeometry(layout.tree).dividers.find(
+        (item) => item.path === divider?.path,
+      )?.ratio,
+    ).toBe(0.75);
+    expect(restoreWorkspaceLayout(JSON.stringify(layout), "c")).toEqual(layout);
+  });
+
+  it("closes a view without cancelling its run and collapses the tree", () => {
+    const first = openWorkspaceSession(restoreWorkspaceLayout(null, "a"), "b");
+    const split = splitWorkspaceSession(first, "a", "b", "vertical");
+    const closed = closeWorkspaceSession(split, "b");
+    expect(closed.openIds).toEqual(["a"]);
+    expect(closed.tree).toEqual({ type: "leaf", id: "a" });
+    expect(closed.mode).toBe("tabs");
+    expect(openWorkspaceSession(closed, "b").openIds).toEqual(["a", "b"]);
+  });
+
+  it("enforces twelve open views and supports keyboard reorder", () => {
+    let layout = restoreWorkspaceLayout(null, "a");
+    for (let index = 1; index < MAX_OPEN_PANELS; index++)
+      layout = openWorkspaceSession(layout, `s-${index}`);
+    expect(openWorkspaceSession(layout, "extra")).toBe(layout);
+    expect(moveWorkspaceSession(layout, "s-1", -1).openIds[0]).toBe("s-1");
   });
 });

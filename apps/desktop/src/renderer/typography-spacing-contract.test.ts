@@ -37,7 +37,7 @@ describe("desktop typography and spacing rhythm", () => {
     expect(VIEW_PRIMITIVES_CLASS).toContain("leading-[var(--line-body)]");
     expect(VIEW_PRIMITIVES_CLASS).toContain("leading-[var(--line-meta)]");
     expect(CHAT_WORKSPACE_CLASS).toContain(
-      "[&_.chat-message-body]:leading-[var(--line-body)]",
+      "[&_.chat-message-body]:leading-[1.55]",
     );
     expect(CHAT_WORKSPACE_CLASS).toContain(
       "[&_.chat-welcome>p]:leading-[var(--line-body)]",

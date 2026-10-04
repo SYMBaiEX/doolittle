@@ -5,13 +5,13 @@ export const APP_MAIN_CLASS =
   "app-main relative flex min-h-0 min-w-0 flex-col overflow-hidden";
 
 export const WINDOW_DRAGBAR_CLASS =
-  "window-dragbar relative flex min-h-10 shrink-0 flex-col items-stretch gap-0 border-b border-[var(--line-subtle)] bg-[color-mix(in_srgb,var(--bg)_97%,var(--surface))] text-[var(--muted)] [-webkit-app-region:drag]";
+  "window-dragbar relative flex h-12 min-h-12 shrink-0 flex-col items-stretch border-b border-[var(--border)] bg-[var(--bg)] text-[var(--muted)] [-webkit-app-region:drag]";
 
 export const WINDOW_DRAGBAR_CHAT_CLASS =
-  "window-dragbar--chat flex basis-10 border-[color-mix(in_srgb,var(--border)_64%,transparent)] bg-[color-mix(in_srgb,var(--bg)_98%,var(--surface))] max-[1180px]:basis-[calc(var(--control-height)+40px+var(--space-2))] max-[1180px]:min-h-[calc(var(--control-height)+40px+var(--space-2))] max-[1180px]:[&_.window-dragbar-primary]:grid max-[1180px]:[&_.window-dragbar-primary]:min-h-[calc(var(--control-height)+40px+var(--space-2))] max-[1180px]:[&_.window-dragbar-primary]:grid-cols-[auto_minmax(0,1fr)_auto] max-[1180px]:[&_.window-dragbar-primary]:grid-rows-[var(--control-height)_40px] max-[1180px]:[&_.window-dragbar-primary]:gap-x-1.5 max-[1180px]:[&_.window-dragbar-primary]:gap-y-[var(--space-2)] max-[1180px]:[&_.window-dragbar-primary]:px-2 max-[1180px]:[&_.menu-button]:col-start-1 max-[1180px]:[&_.menu-button]:row-start-1 max-[1180px]:[&_.window-context]:col-start-2 max-[1180px]:[&_.window-context]:row-start-1 max-[1180px]:[&_.window-tools]:col-start-3 max-[1180px]:[&_.window-tools]:row-start-1 max-[1180px]:[&_.chat-chrome-host]:col-span-full max-[1180px]:[&_.chat-chrome-host]:row-start-2 max-[480px]:basis-[calc(80px+var(--space-2))] max-[480px]:min-h-[calc(80px+var(--space-2))] max-[480px]:[&_.window-dragbar-primary]:min-h-[calc(80px+var(--space-2))] max-[480px]:[&_.window-dragbar-primary]:grid-rows-[40px_40px] max-[480px]:[.desktop-shell.platform-darwin_&]:basis-[calc(116px+var(--space-2))] max-[480px]:[.desktop-shell.platform-darwin_&]:min-h-[calc(116px+var(--space-2))] max-[480px]:[.desktop-shell.platform-darwin_&]:pt-9";
+  "window-dragbar--chat h-12 basis-12 bg-[var(--bg)]";
 
 export const WINDOW_DRAGBAR_PRIMARY_CLASS =
-  "window-dragbar-primary flex min-h-10 min-w-0 flex-1 items-center gap-2.5 px-3 pl-4";
+  "window-dragbar-primary flex min-h-12 min-w-0 flex-1 items-center gap-2 px-4";
 
 export const WINDOW_CONTEXT_CLASS =
   "window-context min-w-0 flex-[0_1_auto] overflow-hidden [&_.window-navigation]:flex [&_.window-navigation]:min-w-0 [&_.window-navigation]:items-center [&_.window-navigation]:gap-2 [&_nav]:min-w-0 [&_nav]:overflow-hidden [&_ol]:m-0 [&_ol]:flex [&_ol]:min-w-0 [&_ol]:list-none [&_ol]:items-center [&_ol]:gap-0 [&_ol]:p-0 [&_li]:flex [&_li]:min-w-0 [&_li]:items-center [&_li+li]:before:mx-1.5 [&_li+li]:before:text-[var(--border-strong)] [&_li+li]:before:content-['/'] [&_.window-breadcrumb-section]:shrink-0 [&_.window-breadcrumb-section_button]:border-0 [&_.window-breadcrumb-section_button]:bg-transparent [&_.window-breadcrumb-section_button]:p-0 [&_.window-breadcrumb-section_button]:font-[var(--font-mono)] [&_.window-breadcrumb-section_button]:text-[length:var(--text-meta)] [&_.window-breadcrumb-section_button]:font-bold [&_.window-breadcrumb-section_button]:tracking-[0.1em] [&_.window-breadcrumb-section_button]:text-[var(--text-soft)] [&_.window-breadcrumb-section_button]:uppercase [&_.window-breadcrumb-section_button:hover]:text-[var(--text-soft)] [&_.window-breadcrumb-current]:max-w-64 [&_.window-breadcrumb-current]:truncate [&_.window-breadcrumb-current]:text-[length:var(--text-control)] [&_.window-breadcrumb-current]:font-semibold [&_.window-breadcrumb-current]:text-[var(--text)] [&_.window-breadcrumb-project]:shrink-0 max-[1100px]:[&_.window-breadcrumb-current]:max-w-36 max-[720px]:[&_.window-breadcrumb-section]:hidden max-[560px]:[&_.window-breadcrumb-project]:hidden";
@@ -23,7 +23,7 @@ export const WINDOW_TOOLS_CLASS =
   "window-tools ml-auto flex shrink-0 items-center gap-1.25 [-webkit-app-region:no-drag] before:mr-1.25 before:h-4 before:w-px before:bg-[var(--line-subtle)] max-[760px]:before:hidden";
 
 export const CHAT_CHROME_HOST_CLASS =
-  "chat-chrome-host relative flex min-h-0 min-w-0 flex-[1_1_560px] gap-0 overflow-hidden pr-2 [-webkit-app-region:drag] max-[760px]:min-h-0 max-[760px]:p-0";
+  "chat-chrome-host relative ml-auto flex min-h-0 min-w-0 shrink-0 items-center [-webkit-app-region:no-drag]";
 
 export const VIEW_CONTAINER_CLASS = [
   "view-container min-h-0 min-w-0 flex-1 overflow-y-auto bg-[var(--bg)] [&.view-code]:[container-type:inline-size] [&.view-code]:[container-name:coding-route]",

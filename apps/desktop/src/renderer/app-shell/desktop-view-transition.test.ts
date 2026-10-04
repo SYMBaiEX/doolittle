@@ -60,8 +60,6 @@ describe("desktop view transitions", () => {
   it("marks the lazy sidebar ready for every mobile open path", () => {
     expect(appSource).toContain("void loadDesktopSidebar()");
     expect(appSource).toContain("if (!cancelled) setSidebarReady(true);");
-    expect(appSource).toContain(
-      "if (isMobileSidebarMode) openSidebarForMobile();",
-    );
+    expect(appSource).toContain("setMobileSidebarOpen(true);");
   });
 });

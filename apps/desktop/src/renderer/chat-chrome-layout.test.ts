@@ -70,125 +70,48 @@ describe("chat chrome density contract", () => {
     expect(CHAT_HEADER_CONTENT_CLASS).not.toContain("chat-header-toolbar");
   });
 
-  it("keeps wide shell navigation beside conversation controls in one 40px row", () => {
+  it("keeps identity and conversation controls in one 48px shell row", () => {
     expect(app).toContain("WINDOW_DRAGBAR_PRIMARY_CLASS");
     expect(app).toContain("WINDOW_CONTEXT_CLASS");
     expect(app).toContain("CHAT_CHROME_HOST_CLASS");
     expect(app).toContain("WINDOW_TOOLS_CLASS");
     expect(chatPage).toContain("createPortal(");
     expect(chatPage).not.toContain('className="chat-header"');
-    expect(chatHeader).toMatch(
-      /className="chat-session-meta"[\s\S]*?chat-meta-count[\s\S]*?chat-meta-workspace[\s\S]*?chat-meta-updated/,
-    );
-    expect(app).toContain("<DesktopWindowContext");
-    expect(app).toContain("canGoBack={navigationHistory.index > 0}");
-    expect(app).toContain("onBack={() => traverseNavigationHistory(-1)}");
+    expect(app).toContain('renderedView === "chat" ? selectedBot?.name');
+    expect(app).toContain("currentRouteLabel");
     expect(chatHeader).not.toContain("Conversation breadcrumb");
-    expect(chatHeader).toMatch(
-      /className="chat-model-route"[\s\S]*?onOpenRouteControls/,
-    );
-    expect(chatHeader).toMatch(
-      /chat-mobile-conversations-button[\s\S]*?History[\s\S]*?chat-workbench-toggle[\s\S]*?Context/,
-    );
-    expect(chatHeader).toContain("Chat surfaces");
+    expect(chatHeader).toContain('aria-label="Find conversation"');
+    expect(chatHeader).toContain('aria-label="Conversation options"');
+    expect(chatHeader).toContain("onOpenInspectorTab");
     expect(chatPage).toMatch(/id=\{`chat-context-history-\$\{selectedId\}`\}/);
     expect(chatPage).toMatch(/id=\{`chat-context-media-\$\{selectedId\}`\}/);
-    expect(chatHeader).toMatch(
-      /aria-controls=\{controlId\(`chat-context-\$\{nextSurface\}`\)\}/,
-    );
-    expect(chatHeader).toContain(
-      'aria-controls={controlId("thread-workbench")}',
-    );
     expect(chatPage).toContain('hidden={surface !== "conversation"}');
     expect(chatPage).toContain('inert={surface !== "history"}');
     expect(chatPage).toContain('inert={surface !== "media"}');
-    expect(WINDOW_DRAGBAR_CHAT_CLASS).toContain("basis-10");
-    expect(WINDOW_DRAGBAR_PRIMARY_CLASS).toContain("min-h-10");
+    expect(WINDOW_DRAGBAR_CHAT_CLASS).toContain("basis-12");
+    expect(WINDOW_DRAGBAR_PRIMARY_CLASS).toContain("min-h-12");
     expect(CHAT_CHROME_HOST_CLASS).toContain("min-w-0");
-    expect(CHAT_CHROME_HOST_CLASS).toContain("flex-[1_1_560px]");
-    expect(CHAT_HEADER_CONTENT_CLASS).toContain(
-      "grid-cols-[minmax(0,1fr)_auto]",
-    );
-    expect(CHAT_HEADER_CONTENT_CLASS).toContain("grid-rows-[40px]");
-    expect(CHAT_HEADER_CONTENT_CLASS).toContain("[-webkit-app-region:no-drag]");
+    expect(CHAT_CHROME_HOST_CLASS).toContain("[-webkit-app-region:no-drag]");
   });
 
-  it("uses a separate control band at intermediate widths and retains mobile geometry", () => {
-    expect(CHAT_HEADER_CONTENT_CLASS).toContain(
-      "max-[1320px]:[&_.chat-session-meta-wrap]:hidden",
-    );
+  it("keeps the same header geometry at intermediate widths", () => {
     expect(app).toContain("currentRouteLabel");
-    expect(app).toContain('compactCommand={renderedView === "chat"}');
-    expect(WINDOW_DRAGBAR_CHAT_CLASS).toContain(
-      "max-[1180px]:basis-[calc(var(--control-height)+40px+var(--space-2))]",
-    );
-    expect(WINDOW_DRAGBAR_CHAT_CLASS).toContain(
-      "max-[1180px]:[&_.window-dragbar-primary]:grid-rows-[var(--control-height)_40px]",
-    );
-    expect(WINDOW_DRAGBAR_CHAT_CLASS).toContain(
-      "max-[480px]:[&_.window-dragbar-primary]:grid-rows-[40px_40px]",
-    );
-    expect(WINDOW_DRAGBAR_CHAT_CLASS).toContain(
-      "max-[480px]:[.desktop-shell.platform-darwin_&]:pt-9",
-    );
+    expect(app).toContain("compactCommand={false}");
+    expect(WINDOW_DRAGBAR_CHAT_CLASS).toContain("h-12 basis-12");
+    expect(WINDOW_DRAGBAR_CHAT_CLASS).not.toContain("grid-rows-[40px_40px]");
     expect(app).toMatch(/platform-\$\{window\.doolittle\.platform\}/);
-    expect(CHAT_HEADER_CONTENT_CLASS).toContain(
-      "max-[480px]:[&_.chat-model-route]:hidden",
-    );
-    expect(CHAT_HEADER_CONTENT_CLASS).toContain(
-      "max-[480px]:[&_.chat-header-top-actions]:grid",
-    );
-    expect(CHAT_HEADER_CONTENT_CLASS).toContain(
-      "max-[480px]:[&_.chat-header-top-actions]:grid-cols-[repeat(3,minmax(0,1fr))]",
-    );
-    expect(CHAT_HEADER_CONTENT_CLASS).toContain(
-      "max-[480px]:[&_.secondary-button]:min-h-10",
-    );
-    expect(CHAT_HEADER_CONTENT_CLASS).toContain(
-      "max-[980px]:[&_.chat-surface-controls]:!hidden",
-    );
-    expect(CHAT_HEADER_CONTENT_CLASS).toContain("whitespace-nowrap");
+    expect(chatHeader).toContain("max-[760px]:size-11");
   });
 
-  it("compiles the intermediate band and protects actions from a long route", async () => {
+  it("compiles one chat header row with independently truncating identity", async () => {
     const compiler = await compile(
       "@theme { --spacing: .25rem; } @tailwind utilities;",
     );
-    const shellCss = compiler.build(
-      WINDOW_DRAGBAR_CHAT_CLASS.split(/\s+/u).filter((candidate) =>
-        candidate.startsWith("max-[1180px]:"),
-      ),
-    );
-    expect(shellCss).toContain("@media (width < 1180px)");
-    expect(shellCss).toContain(
-      "grid-template-rows: var(--control-height) 40px",
-    );
-    expect(shellCss).toContain(".chat-chrome-host");
-    expect(shellCss).toContain("grid-row-start: 2");
-    expect(shellCss).toContain("grid-column: 1 / -1");
-    expect(shellCss).not.toContain("display: none");
-
-    const headerCss = compiler.build(
-      CHAT_HEADER_CONTENT_CLASS.split(/\s+/u).filter((candidate) =>
-        /chat-header-top-actions|chat-model-route|chat-surface-controls/u.test(
-          candidate,
-        ),
-      ),
-    );
-    expect(headerCss).toContain("@media (width < 1320px)");
-    expect(headerCss).toContain("grid-column: 1 / -1");
-    expect(headerCss).toContain(".chat-model-route strong");
-    expect(headerCss).toContain("min-width: 0px");
-    expect(headerCss).toContain("flex: 1");
-    expect(headerCss).toContain("text-overflow: ellipsis");
-    expect(headerCss).toContain(".chat-surface-controls");
-    expect(headerCss).toContain("flex-shrink: 0");
-    expect(CHAT_HEADER_CONTENT_CLASS).toContain(
-      "[&_.chat-header-top-actions>.secondary-button]:shrink-0",
-    );
-    expect(CHAT_HEADER_CONTENT_CLASS).toContain(
-      "[&_.chat-surface-controls_.secondary-button]:shrink-0",
-    );
+    const shellCss = compiler.build(WINDOW_DRAGBAR_CHAT_CLASS.split(/\s+/u));
+    expect(shellCss).toContain("height: calc(var(--spacing) * 12)");
+    expect(shellCss).not.toContain("grid-row-start: 2");
+    expect(app).toContain("min-w-0 items-baseline gap-2");
+    expect(app).toContain("truncate text-sm");
   });
 
   it("compiles two pane-local composer bands with readable 44px targets", async () => {

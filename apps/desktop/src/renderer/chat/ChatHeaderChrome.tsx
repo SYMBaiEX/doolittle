@@ -1,10 +1,8 @@
-import { ChevronDown, Code2, PanelRight, Pin } from "lucide-react";
+import { MoreHorizontal, PanelRight, Search } from "lucide-react";
 import type { RefObject } from "react";
 import type { ChatSurface } from "../ChatPage";
 import { UiIcon } from "../components/UiIcon";
 import type { ContextPressureTone } from "../context-pressure";
-import { displayTimestamp } from "../lib";
-import { CHAT_HEADER_CONTENT_CLASS } from "./layout";
 import type { ChatSessionForRender } from "./useChatConversationState";
 
 export interface ChatHeaderChromeProps {
@@ -20,6 +18,7 @@ export interface ChatHeaderChromeProps {
   onPrepareCompression: () => void;
   onSurfaceChange?: (surface: ChatSurface) => void;
   onToggleInspector: () => void;
+  onOpenInspectorTab?: (tab: "details" | "library" | "computer") => void;
   onTogglePin: () => void;
   selectedContextLabel: string;
   selectedContextPercent: number;
@@ -34,196 +33,105 @@ export interface ChatHeaderChromeProps {
   workspacePath: string;
 }
 
+/** The app supplies identity and title; this portal supplies only conversation actions. */
 export function ChatHeaderChrome({
-  selectedId,
   inspectorVisible,
   isNewConversation,
-  mobileConversationsButtonRef,
-  mobileConversationsOpen,
   modelRouteLabel,
-  onOpenMobileConversations,
   onOpenRouteControls,
   onOpenWorkspace,
   onPrepareCompression,
   onSurfaceChange,
   onToggleInspector,
+  onOpenInspectorTab,
   onTogglePin,
-  selectedContextLabel,
-  selectedContextPercent,
-  selectedContextTone,
-  selectedMessageCount,
   selectedSession,
-  selectedUpdatedAt,
-  selectedUsageError,
-  sessionsCount,
-  surface,
   workbenchToggleRef,
-  workspacePath,
 }: ChatHeaderChromeProps) {
-  const controlId = (name: string) =>
-    selectedId ? `${name}-${selectedId}` : name;
-  const showConversationState = !isNewConversation;
   return (
-    <div className={CHAT_HEADER_CONTENT_CLASS}>
-      <div className="chat-header-mainline">
-        <div className="chat-session-meta-wrap">
-          <div className="chat-session-meta">
-            {selectedSession?.parentSessionId ? (
-              <span
-                className="chat-session-meta-pill chat-meta-branch"
-                title={`Forked from ${selectedSession.parentSessionId}`}
-              >
-                Branch
-              </span>
-            ) : null}
-            {showConversationState ? (
-              <span className="chat-session-meta-pill chat-meta-count">
-                {selectedMessageCount.toLocaleString()} messages
-              </span>
-            ) : null}
-            <button
-              className="chat-session-meta-pill chat-meta-workspace"
-              onClick={onOpenWorkspace}
-              title={workspacePath || "Open the current coding workspace"}
-              type="button"
-            >
-              <UiIcon icon={Code2} size="xs" />
-              Workspace
-            </button>
-            {selectedUpdatedAt ? (
-              <span className="chat-session-meta-pill chat-meta-updated">
-                Updated {displayTimestamp(selectedUpdatedAt)}
-              </span>
-            ) : null}
-          </div>
-        </div>
-        <div className="chat-header-top-actions">
-          {showConversationState ? (
-            selectedContextPercent >= 70 ? (
-              <button
-                aria-label={`${selectedContextLabel} context used. Prepare context compression.`}
-                className={`chat-context-compact context-${selectedContextTone}`}
-                onClick={onPrepareCompression}
-                title={`${selectedContextLabel} context used · Compress context`}
-                type="button"
-              >
-                {selectedContextLabel}
-              </button>
-            ) : (
-              <span
-                className={`chat-context-compact context-${selectedContextTone}`}
-                title={
-                  selectedUsageError
-                    ? "Context usage unavailable"
-                    : `${selectedContextLabel} context used`
-                }
-              >
-                {selectedContextLabel}
-              </span>
-            )
-          ) : null}
-          {showConversationState && selectedSession ? (
-            <button
-              aria-label={
-                selectedSession.pinned
-                  ? "Unpin conversation"
-                  : "Pin conversation"
-              }
-              aria-pressed={selectedSession.pinned}
-              className={`chat-session-meta-pill chat-meta-pin ${
-                selectedSession.pinned ? "selected" : ""
-              }`.trim()}
-              onClick={onTogglePin}
-              title={
-                selectedSession.pinned
-                  ? "Unpin conversation"
-                  : "Pin conversation"
-              }
-              type="button"
-            >
-              <UiIcon
-                className={selectedSession.pinned ? "fill-current" : ""}
-                icon={Pin}
-                size="xs"
-              />
+    <div className="flex h-full w-full items-center justify-end gap-1 [-webkit-app-region:no-drag]">
+      <button
+        aria-label="Find conversation"
+        className="grid size-10 place-items-center rounded-[var(--radius-md)] text-[var(--text-soft)] hover:bg-[var(--surface-hover)] max-[760px]:size-11"
+        onClick={() =>
+          window.dispatchEvent(new Event("doolittle:find-session"))
+        }
+        title="Find conversation"
+        type="button"
+      >
+        <UiIcon icon={Search} size="sm" />
+      </button>
+      <button
+        aria-expanded={inspectorVisible}
+        aria-label={inspectorVisible ? "Close details" : "Open details"}
+        className="flex min-h-10 items-center gap-1.5 rounded-[var(--radius-md)] px-2 text-sm text-[var(--text-soft)] hover:bg-[var(--surface-hover)] max-[760px]:min-h-11"
+        onClick={onToggleInspector}
+        ref={workbenchToggleRef}
+        type="button"
+      >
+        <UiIcon icon={PanelRight} size="sm" />
+        <span className="max-[640px]:sr-only">Details</span>
+      </button>
+      <details
+        className="relative"
+        onKeyDown={(event) => {
+          if (event.key === "Escape") {
+            event.preventDefault();
+            event.currentTarget.open = false;
+          }
+        }}
+      >
+        <summary
+          aria-label="Conversation options"
+          className="grid size-10 cursor-pointer list-none place-items-center rounded-[var(--radius-md)] text-[var(--text-soft)] hover:bg-[var(--surface-hover)] max-[760px]:size-11"
+        >
+          <UiIcon icon={MoreHorizontal} size="sm" />
+        </summary>
+        <div className="absolute right-0 z-70 mt-1 grid w-52 rounded-[var(--radius-md)] border border-[var(--border-strong)] bg-[var(--surface-raised)] p-1 shadow-[var(--shell-shadow-md)] [&>button]:min-h-10 [&>button]:rounded-[var(--radius-sm)] [&>button]:px-2 [&>button]:text-left [&>button]:text-sm [&>button:hover]:bg-[var(--surface-hover)]">
+          <button onClick={() => onSurfaceChange?.("history")} type="button">
+            Conversation history
+          </button>
+          <button onClick={() => onOpenInspectorTab?.("library")} type="button">
+            Library
+          </button>
+          <button
+            onClick={() => onOpenInspectorTab?.("computer")}
+            type="button"
+          >
+            Computer
+          </button>
+          <button onClick={onOpenWorkspace} type="button">
+            Open full workspace
+          </button>
+          {!isNewConversation && selectedSession ? (
+            <button onClick={onTogglePin} type="button">
+              {selectedSession.pinned
+                ? "Unpin conversation"
+                : "Pin conversation"}
             </button>
           ) : null}
           <button
-            aria-label={`Open route controls. Current route ${modelRouteLabel}.`}
-            className="chat-model-route"
+            onClick={() =>
+              window.dispatchEvent(
+                new Event("doolittle:close-conversation-view"),
+              )
+            }
+            type="button"
+          >
+            Close view
+          </button>
+          <button
+            aria-label={`Model options. Current route ${modelRouteLabel}`}
             onClick={onOpenRouteControls}
-            title={modelRouteLabel}
             type="button"
           >
-            <strong>{modelRouteLabel}</strong>
-            <UiIcon icon={ChevronDown} size="xs" />
+            Model options
           </button>
-          {onSurfaceChange ? (
-            <fieldset className="chat-surface-controls">
-              <legend className="sr-only">Chat surfaces</legend>
-              {(
-                [
-                  ["conversation", "Chat"],
-                  ["history", "History"],
-                  ["media", "Media"],
-                ] as const
-              ).map(([nextSurface, label]) => (
-                <button
-                  aria-controls={controlId(`chat-context-${nextSurface}`)}
-                  aria-pressed={surface === nextSurface}
-                  className="secondary-button chat-surface-control"
-                  key={nextSurface}
-                  onClick={() => onSurfaceChange(nextSurface)}
-                  type="button"
-                >
-                  {label}
-                </button>
-              ))}
-            </fieldset>
-          ) : null}
-          <button
-            aria-controls={controlId("mobile-conversations")}
-            aria-expanded={mobileConversationsOpen}
-            className="chat-mobile-conversations-button secondary-button"
-            onClick={onOpenMobileConversations}
-            ref={mobileConversationsButtonRef}
-            type="button"
-          >
-            <span>History</span>
-            <small>{sessionsCount}</small>
-          </button>
-          {onSurfaceChange ? (
-            <button
-              aria-controls={
-                surface === "media"
-                  ? controlId("chat-context-conversation")
-                  : controlId("chat-context-media")
-              }
-              aria-pressed={surface === "media"}
-              className="chat-mobile-media-button secondary-button"
-              onClick={() =>
-                onSurfaceChange(surface === "media" ? "conversation" : "media")
-              }
-              type="button"
-            >
-              {surface === "media" ? "Chat" : "Media"}
-            </button>
-          ) : null}
-          <button
-            aria-controls={controlId("thread-workbench")}
-            aria-expanded={inspectorVisible}
-            className={`secondary-button chat-workbench-toggle ${
-              inspectorVisible ? "selected" : ""
-            }`}
-            onClick={onToggleInspector}
-            ref={workbenchToggleRef}
-            type="button"
-          >
-            <UiIcon icon={PanelRight} size="xs" />
-            Context
+          <button onClick={onPrepareCompression} type="button">
+            Prepare context compression
           </button>
         </div>
-      </div>
+      </details>
     </div>
   );
 }

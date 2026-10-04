@@ -1,3 +1,4 @@
+import type { BotSummary } from "@doolittle/contracts/bots";
 import type { ReactNode } from "react";
 import type {
   BackendState,
@@ -62,6 +63,12 @@ export interface DesktopRouteContentProps {
   scopedSessions: SessionSummary[];
   sessionMetadata?: SessionSummary[];
   selectedSession: string;
+  selectedBotId: string;
+  bots: readonly BotSummary[];
+  defaultBotId: string;
+  botIdForSession: (sessionId: string) => string;
+  onBindSessionBot: (sessionId: string, botId: string) => void;
+  onActivateBot: (botId: string) => Promise<void>;
   pendingApprovals: number;
   runningTasks: number;
   pendingNavigationIntent: DesktopNavigationIntent | null;
@@ -107,6 +114,12 @@ export function DesktopRouteContent({
   scopedSessions,
   sessionMetadata,
   selectedSession,
+  selectedBotId,
+  bots,
+  defaultBotId,
+  botIdForSession,
+  onBindSessionBot,
+  onActivateBot,
   view,
   workspacePath,
 }: DesktopRouteContentProps): ReactNode {
@@ -186,6 +199,12 @@ export function DesktopRouteContent({
             runningTasks={runningTasks}
             runtime={runtime}
             selectedId={selectedSession}
+            selectedBotId={selectedBotId}
+            bots={bots}
+            defaultBotId={defaultBotId}
+            botIdForSession={botIdForSession}
+            onBindSessionBot={onBindSessionBot}
+            onActivateBot={onActivateBot}
             surface={
               view === "sessions"
                 ? "history"

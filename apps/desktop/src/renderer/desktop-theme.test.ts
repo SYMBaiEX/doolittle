@@ -276,10 +276,10 @@ describe("desktop theme", () => {
       "clamp(22px, 2vw, 28px)",
     );
     expect(storage.get("style:--text-body")).toBe("14px");
-    expect(storage.get("style:--text-control")).toBe("13px");
+    expect(storage.get("style:--text-control")).toBe("14px");
     expect(storage.get("style:--text-meta")).toBe("12px");
     expect(storage.get("style:--card-pad")).toBe("12px");
-    expect(storage.get("style:--control-height")).toBe("36px");
+    expect(storage.get("style:--control-height")).toBe("40px");
 
     applyDesktopDensity("compact");
     expect(storage.get("style:--page-pad-block")).toBe("10px 14px");
@@ -291,10 +291,10 @@ describe("desktop theme", () => {
       "clamp(20px, 1.7vw, 24px)",
     );
     expect(storage.get("style:--text-body")).toBe("14px");
-    expect(storage.get("style:--text-control")).toBe("12px");
+    expect(storage.get("style:--text-control")).toBe("14px");
     expect(storage.get("style:--text-meta")).toBe("11px");
     expect(storage.get("style:--card-pad")).toBe("10px");
-    expect(storage.get("style:--control-height")).toBe("32px");
+    expect(storage.get("style:--control-height")).toBe("36px");
   });
 
   it("restores the appearance palette before applying an accent-only theme", () => {

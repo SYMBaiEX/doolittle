@@ -1,13 +1,5 @@
 import { useMediaQuery } from "@elizaos/ui/hooks/useMediaQuery";
-import {
-  ArrowLeft,
-  ArrowRight,
-  Columns2,
-  Focus,
-  Plus,
-  Search,
-  X,
-} from "lucide-react";
+import { ArrowLeft, ArrowRight, Columns2, Plus, Search, X } from "lucide-react";
 import {
   type ReactNode,
   useCallback,
@@ -35,13 +27,17 @@ import {
 import { sessionPanelStatus } from "./session-status";
 import {
   closeWorkspaceSession,
+  LEGACY_SESSION_WORKSPACE_STORAGE_KEY,
   MAX_OPEN_PANELS,
   moveWorkspaceSession,
   openWorkspaceSession,
-  resizeWorkspacePair,
+  resizeWorkspaceSplit,
   restoreWorkspaceLayout,
   retainWorkspacePanels,
   SESSION_WORKSPACE_STORAGE_KEY,
+  splitWorkspaceSession,
+  workspaceGeometry,
+  workspaceRequiredSize,
 } from "./workspace-layout";
 
 type PanelProps = ChatPageProps & {
@@ -67,7 +63,8 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
   const [layout, setLayout] = useState(() => {
     try {
       return restoreWorkspaceLayout(
-        localStorage.getItem(SESSION_WORKSPACE_STORAGE_KEY),
+        localStorage.getItem(SESSION_WORKSPACE_STORAGE_KEY) ??
+          localStorage.getItem(LEGACY_SESSION_WORKSPACE_STORAGE_KEY),
         props.selectedId,
       );
     } catch {
@@ -86,9 +83,6 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
     "run.active-requests",
     {},
   );
-  const [runHydration] = useWorkspaceState<
-    "checking" | "ready" | "unavailable"
-  >("run.hydration", "checking");
   const [receipts] = useWorkspaceState<RunReceiptStore>("run.receipts", {});
   const [queuedMessages] = useWorkspaceState<PersistedQueuedMessage[]>(
     "run.queue",
@@ -107,12 +101,34 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
     () => loadConversationDrafts(localStorage),
   );
   const isNarrow = useMediaQuery("(max-width: 900px)");
-  const tabbed = isNarrow || layout.mode === "focus";
   const rootRef = useRef<HTMLElement>(null);
+  const panelsRef = useRef<HTMLDivElement>(null);
+  const [panelSize, setPanelSize] = useState({ width: 0, height: 0 });
+  const requiredSize = workspaceRequiredSize(layout.tree);
+  const tabbed =
+    isNarrow ||
+    layout.mode === "tabs" ||
+    (panelSize.width > 0 && panelSize.width < requiredSize.width) ||
+    (panelSize.height > 0 && panelSize.height < requiredSize.height);
+  const geometry = workspaceGeometry(layout.tree);
   const searchRef = useRef<HTMLInputElement>(null);
   const finderButtonRef = useRef<HTMLButtonElement>(null);
   const focusRequestedRef = useRef(false);
   const externalSelectionRef = useRef(props.selectedId);
+  useEffect(() => {
+    const element = panelsRef.current;
+    if (!element) return;
+    const update = () =>
+      setPanelSize({
+        width: element.clientWidth,
+        height: element.clientHeight,
+      });
+    update();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(update);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
   const knownSessions = useRef(new Map<string, SessionSummary>());
   for (const session of [
     ...(props.sessionMetadata ?? []),
@@ -148,6 +164,23 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
       queuePaused,
       messages: messages[id],
     });
+  const botScopeFor = (id: string) => {
+    const ownerId = props.botIdForSession?.(id) || props.defaultBotId;
+    const owner = props.bots?.find((bot) => bot.id === ownerId);
+    if (!owner || owner.isDefault) {
+      return {
+        workspacePath: props.workspacePath,
+        activeProject: props.activeProject,
+      };
+    }
+    const ownerProject = owner?.projectId
+      ? props.projects?.find((project) => project.id === owner.projectId)
+      : undefined;
+    return {
+      workspacePath: owner.workspacePath,
+      activeProject: ownerProject ?? null,
+    };
+  };
 
   const focusSession = useCallback(
     (id: string, restoreFocus = false) => {
@@ -234,6 +267,13 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
   }, [finderOpen]);
 
   useEffect(() => {
+    const openFinder = () => setFinderOpen(true);
+    window.addEventListener("doolittle:find-session", openFinder);
+    return () =>
+      window.removeEventListener("doolittle:find-session", openFinder);
+  }, []);
+
+  useEffect(() => {
     const shortcuts = (event: KeyboardEvent) => {
       if (
         event.defaultPrevented ||
@@ -265,9 +305,28 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
       const target = rootRef.current?.querySelector<HTMLElement>(
         `[data-session-focus="${next.focusedId}"]`,
       );
-      (target ?? finderButtonRef.current)?.focus({ preventScroll: true });
+      const panel = rootRef.current?.querySelector<HTMLElement>(
+        `[data-session-panel="${next.focusedId}"]`,
+      );
+      (
+        target ??
+        panel?.querySelector<HTMLElement>("textarea") ??
+        finderButtonRef.current
+      )?.focus({ preventScroll: true });
     });
   };
+
+  useEffect(() => {
+    const closeFocused = () => {
+      if (layout.focusedId) closePanel(layout.focusedId);
+    };
+    window.addEventListener("doolittle:close-conversation-view", closeFocused);
+    return () =>
+      window.removeEventListener(
+        "doolittle:close-conversation-view",
+        closeFocused,
+      );
+  });
 
   const createSession = () => {
     if (layout.openIds.length >= MAX_OPEN_PANELS) {
@@ -276,7 +335,9 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
       );
       return;
     }
-    focusSession(newConversationId(), true);
+    const id = newConversationId();
+    if (props.selectedBotId) props.onBindSessionBot?.(id, props.selectedBotId);
+    focusSession(id, true);
   };
 
   const focusedSession = layout.focusedId || props.selectedId;
@@ -292,6 +353,7 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
     >
       {renderPanel({
         ...props,
+        ...botScopeFor(focusedSession),
         remoteSessions: panelSessions,
         selectedId: focusedSession,
         chromeHost: null,
@@ -300,87 +362,6 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
         visible: false,
         pendingContextHandoff: null,
       })}
-      <div className="flex min-h-12 shrink-0 flex-wrap items-center justify-between gap-2 border-b border-[var(--border)] bg-[var(--surface)] px-3 py-2">
-        <div className="flex items-center gap-3">
-          <span className="font-[var(--font-mono)] text-[length:var(--text-meta)] uppercase tracking-[0.14em] text-[var(--accent-text)]">
-            Session workbench
-          </span>
-          <span className="text-[length:var(--text-control)] text-[var(--muted)]">
-            {layout.openIds.length} open ·{" "}
-            {props.backend.phase !== "ready"
-              ? "Runtime not connected"
-              : runHydration === "checking"
-                ? "Checking runs…"
-                : runHydration === "unavailable"
-                  ? "Run list unavailable"
-                  : `${Object.keys(activeRequests).length} running`}
-          </span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <Button
-            variant="ghost"
-            aria-label="Find session"
-            aria-expanded={finderOpen}
-            aria-controls="session-workspace-finder"
-            className={CONTROL}
-            onClick={() => setFinderOpen((value) => !value)}
-            ref={finderButtonRef}
-            title="Find session (⌘/Ctrl Shift O)"
-            type="button"
-          >
-            <Search aria-hidden size={14} />
-            <span>Find session</span>
-          </Button>
-          <Button
-            variant="ghost"
-            aria-label="New session"
-            className={CONTROL}
-            onClick={createSession}
-            title="New session (⌘/Ctrl N outside text fields)"
-            type="button"
-          >
-            <Plus aria-hidden size={14} />
-            <span>New session</span>
-          </Button>
-          {!isNarrow ? (
-            <Button
-              variant="ghost"
-              aria-label={
-                layout.mode === "tiles" ? "Focus panel" : "Tile panels"
-              }
-              aria-pressed={layout.mode === "focus"}
-              className={CONTROL}
-              onClick={() =>
-                setLayout((current) => ({
-                  ...current,
-                  mode: current.mode === "tiles" ? "focus" : "tiles",
-                }))
-              }
-              type="button"
-            >
-              {layout.mode === "tiles" ? (
-                <Focus aria-hidden size={14} />
-              ) : (
-                <Columns2 aria-hidden size={14} />
-              )}
-              <span className="max-[1100px]:sr-only">
-                {layout.mode === "tiles" ? "Focus" : "Tile"}
-              </span>
-            </Button>
-          ) : null}
-        </div>
-      </div>
-      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-[var(--border)] px-3 py-1.5 text-[length:var(--text-meta)] text-[var(--muted)]">
-        <span className="min-w-0 truncate" title={props.workspacePath}>
-          Shared runtime workspace ·{" "}
-          {props.activeProject?.name ||
-            props.workspacePath ||
-            "No workspace selected"}
-        </span>
-        <span className="shrink-0 font-[var(--font-mono)]">
-          {isNarrow ? "TABBED" : layout.mode === "focus" ? "FOCUSED" : "TILED"}
-        </span>
-      </div>
       {finderOpen ? (
         <section
           aria-label="Find a session"
@@ -468,55 +449,165 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
           {layoutWarning || announcement}
         </div>
       ) : null}
-      {tabbed && conversationSurface && layout.openIds.length > 0 ? (
-        <div
-          aria-label="Open sessions"
-          className="flex shrink-0 overflow-x-auto border-b border-[var(--border)]"
-          role="tablist"
-        >
-          {layout.openIds.map((id, index) => (
+      {conversationSurface && layout.openIds.length > 1 ? (
+        <div className="flex min-h-10 shrink-0 items-center border-b border-[var(--border)] bg-[var(--surface)] max-[760px]:min-h-11">
+          <div
+            aria-label="Open conversations"
+            className="flex min-w-0 flex-1 overflow-x-auto"
+            role="tablist"
+          >
+            {layout.openIds.map((id, index) => (
+              <div
+                className="flex shrink-0 border-r border-[var(--border)]"
+                key={id}
+                role="presentation"
+              >
+                <Button
+                  variant="ghost"
+                  aria-controls={`session-panel-${id}`}
+                  aria-selected={id === layout.focusedId}
+                  className="min-h-10 max-w-52 shrink-0 truncate border-r border-[var(--border)] px-3 text-[length:var(--text-control)] text-[var(--text-soft)] aria-selected:border-b-2 aria-selected:border-b-[var(--accent)] aria-selected:bg-[var(--surface)] focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)] max-[760px]:min-h-11"
+                  id={`session-tab-${id}`}
+                  onClick={() => focusSession(id)}
+                  onKeyDown={(event) => {
+                    const next =
+                      event.key === "ArrowRight"
+                        ? (index + 1) % layout.openIds.length
+                        : event.key === "ArrowLeft"
+                          ? (index + layout.openIds.length - 1) %
+                            layout.openIds.length
+                          : event.key === "Home"
+                            ? 0
+                            : event.key === "End"
+                              ? layout.openIds.length - 1
+                              : -1;
+                    if (next < 0) return;
+                    event.preventDefault();
+                    const nextId = layout.openIds[next];
+                    if (!nextId) return;
+                    focusSession(nextId);
+                    document.getElementById(`session-tab-${nextId}`)?.focus();
+                  }}
+                  role="tab"
+                  tabIndex={id === layout.focusedId ? 0 : -1}
+                  type="button"
+                >
+                  {titleFor(id)}{" "}
+                  <span className="ml-2 text-[length:var(--text-meta)] text-[var(--muted)]">
+                    {statusFor(id)}
+                  </span>
+                </Button>
+                <button
+                  aria-label={`Close ${titleFor(id)} view`}
+                  className="grid min-h-10 w-8 place-items-center text-[var(--muted)] hover:text-[var(--text)] max-[760px]:min-h-11 max-[760px]:w-11"
+                  onClick={() => closePanel(id)}
+                  title="Close view only; running work continues"
+                  type="button"
+                >
+                  <X aria-hidden size={14} />
+                </button>
+              </div>
+            ))}
+          </div>
+          <div className="flex shrink-0 items-center gap-1 px-1">
             <Button
-              variant="ghost"
-              aria-controls={`session-panel-${id}`}
-              aria-selected={id === layout.focusedId}
-              className="min-h-10 shrink-0 border-r border-[var(--border)] px-3 text-[length:var(--text-control)] text-[var(--text-soft)] aria-selected:border-b-2 aria-selected:border-b-[var(--accent)] aria-selected:bg-[var(--surface)] focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
-              id={`session-tab-${id}`}
-              key={id}
-              onClick={() => focusSession(id)}
-              onKeyDown={(event) => {
-                const next =
-                  event.key === "ArrowRight"
-                    ? (index + 1) % layout.openIds.length
-                    : event.key === "ArrowLeft"
-                      ? (index + layout.openIds.length - 1) %
-                        layout.openIds.length
-                      : event.key === "Home"
-                        ? 0
-                        : event.key === "End"
-                          ? layout.openIds.length - 1
-                          : -1;
-                if (next < 0) return;
-                event.preventDefault();
-                const nextId = layout.openIds[next];
-                if (!nextId) return;
-                focusSession(nextId);
-                document.getElementById(`session-tab-${nextId}`)?.focus();
-              }}
-              role="tab"
-              tabIndex={id === layout.focusedId ? 0 : -1}
+              aria-controls="session-workspace-finder"
+              aria-expanded={finderOpen}
+              aria-label="Find session"
+              className={CONTROL}
+              onClick={() => setFinderOpen((value) => !value)}
+              ref={finderButtonRef}
+              title="Find session"
               type="button"
+              variant="ghost"
             >
-              {titleFor(id)}{" "}
-              <span className="ml-2 text-[length:var(--text-meta)] text-[var(--muted)]">
-                {statusFor(id)}
-              </span>
+              <Search aria-hidden size={14} />
             </Button>
-          ))}
+            <Button
+              aria-label="New session"
+              className={CONTROL}
+              onClick={createSession}
+              title="New conversation view"
+              type="button"
+              variant="ghost"
+            >
+              <Plus aria-hidden size={14} />
+            </Button>
+            {!isNarrow ? (
+              <details
+                className="relative"
+                onKeyDown={(event) => {
+                  if (event.key === "Escape") {
+                    event.preventDefault();
+                    event.currentTarget.open = false;
+                  }
+                }}
+              >
+                <summary className={`${CONTROL} list-none cursor-pointer`}>
+                  <Columns2 aria-hidden size={14} />
+                  <span className="sr-only">Layout views</span>
+                </summary>
+                <div className="absolute right-0 z-40 mt-1 grid max-h-64 w-56 overflow-y-auto rounded-[var(--radius-md)] border border-[var(--border-strong)] bg-[var(--surface-raised)] p-1 shadow-[var(--shell-shadow-md)]">
+                  <button
+                    className="min-h-10 rounded px-2 text-left text-sm hover:bg-[var(--surface-hover)]"
+                    onClick={() =>
+                      setLayout((current) => ({ ...current, mode: "tabs" }))
+                    }
+                    type="button"
+                  >
+                    Show as tabs
+                  </button>
+                  {layout.openIds
+                    .filter((id) => id !== layout.focusedId)
+                    .map((id) => (
+                      <div className="grid" key={id}>
+                        <span className="truncate px-2 pt-2 text-xs text-[var(--muted)]">
+                          {titleFor(id)}
+                        </span>
+                        <button
+                          className="min-h-10 rounded px-2 text-left text-sm hover:bg-[var(--surface-hover)]"
+                          onClick={() =>
+                            setLayout((current) =>
+                              splitWorkspaceSession(
+                                current,
+                                current.focusedId,
+                                id,
+                                "horizontal",
+                              ),
+                            )
+                          }
+                          type="button"
+                        >
+                          Split right
+                        </button>
+                        <button
+                          className="min-h-10 rounded px-2 text-left text-sm hover:bg-[var(--surface-hover)]"
+                          onClick={() =>
+                            setLayout((current) =>
+                              splitWorkspaceSession(
+                                current,
+                                current.focusedId,
+                                id,
+                                "vertical",
+                              ),
+                            )
+                          }
+                          type="button"
+                        >
+                          Split below
+                        </button>
+                      </div>
+                    ))}
+                </div>
+              </details>
+            ) : null}
+          </div>
         </div>
       ) : null}
       <div
-        className="flex min-h-0 flex-1 overflow-x-auto overflow-y-hidden"
+        className="relative min-h-0 flex-1 overflow-hidden"
         data-session-panels
+        ref={panelsRef}
       >
         {layout.openIds.length === 0 ? (
           <div className="grid min-h-0 flex-1 content-center justify-items-center gap-3 p-6 text-center">
@@ -536,7 +627,7 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
               onClick={() => setFinderOpen(true)}
               type="button"
             >
-              Find a session
+              Find session
             </Button>
           </div>
         ) : null}
@@ -547,6 +638,7 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
             index >= 0 && (conversationSurface ? !tabbed || focused : focused);
           const title = titleFor(id);
           const nextId = layout.openIds[index + 1];
+          const rect = geometry.panels[id];
           return (
             <div className="contents" key={id}>
               <section
@@ -560,7 +652,7 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
                     ? `session-tab-${id}`
                     : undefined
                 }
-                className={`flex min-h-0 shrink-0 flex-col overflow-hidden border-[var(--border)] border-r bg-[var(--bg)] ${focused ? "border-t-2 border-t-[var(--accent)]" : "border-t-2 border-t-transparent"}`}
+                className={`absolute flex min-h-0 min-w-0 flex-col overflow-hidden bg-[var(--bg)] ${!tabbed && focused ? "ring-1 ring-inset ring-[var(--accent-border)]" : ""}`}
                 data-session-panel={id}
                 hidden={!visible}
                 inert={!visible}
@@ -568,87 +660,128 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
                 onFocusCapture={() => {
                   if (!focused) focusSession(id);
                 }}
-                role={tabbed && conversationSurface ? "tabpanel" : "region"}
+                role={
+                  tabbed && conversationSurface && layout.openIds.length > 1
+                    ? "tabpanel"
+                    : "region"
+                }
                 style={{
                   display: visible ? undefined : "none",
-                  flexBasis: 0,
-                  flexGrow:
+                  left: tabbed || !conversationSurface ? 0 : `${rect?.x ?? 0}%`,
+                  top: tabbed || !conversationSurface ? 0 : `${rect?.y ?? 0}%`,
+                  width:
                     tabbed || !conversationSurface
-                      ? 1
-                      : (layout.weights[id] ?? 1),
-                  minWidth:
+                      ? "100%"
+                      : `${rect?.width ?? 100}%`,
+                  height:
                     tabbed || !conversationSurface
-                      ? 0
-                      : layout.openIds.length > 1
-                        ? 360
-                        : 0,
+                      ? "100%"
+                      : `${rect?.height ?? 100}%`,
                 }}
                 tabIndex={-1}
               >
-                <div className="flex min-h-12 shrink-0 items-center justify-between gap-1 border-b border-[var(--border)] bg-[var(--surface)] px-2">
-                  <Button
-                    variant="ghost"
-                    aria-label={`Focus ${title}`}
-                    aria-pressed={focused}
-                    className="inline-flex min-h-9 min-w-0 flex-1 items-center justify-start truncate px-1 text-left text-sm font-medium text-[var(--text)] focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
-                    data-session-focus={id}
-                    onClick={() => focusSession(id, true)}
-                    title={id}
-                    type="button"
-                  >
-                    <span className="mr-2 font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--muted)]">
-                      {String(index + 1).padStart(2, "0")}
+                {conversationSurface && layout.openIds.length === 1 ? (
+                  <div className="flex min-h-10 shrink-0 items-center justify-end gap-1 border-b border-[var(--border)] px-2">
+                    <Button
+                      aria-controls="session-workspace-finder"
+                      aria-expanded={finderOpen}
+                      aria-label="Find session"
+                      className={CONTROL}
+                      onClick={() => setFinderOpen((value) => !value)}
+                      ref={finderButtonRef}
+                      type="button"
+                      variant="ghost"
+                    >
+                      <Search aria-hidden size={14} />
+                    </Button>
+                    <Button
+                      aria-label="New session"
+                      className={CONTROL}
+                      onClick={createSession}
+                      type="button"
+                      variant="ghost"
+                    >
+                      <Plus aria-hidden size={14} />
+                    </Button>
+                    <Button
+                      aria-label={`Close ${title}`}
+                      className={CONTROL}
+                      onClick={() => closePanel(id)}
+                      title="Close view only; running work continues"
+                      type="button"
+                      variant="ghost"
+                    >
+                      <X aria-hidden size={14} />
+                    </Button>
+                  </div>
+                ) : null}
+                {!tabbed && layout.openIds.length > 1 ? (
+                  <div className="flex min-h-10 shrink-0 items-center justify-between gap-1 border-b border-[var(--border)] bg-[var(--surface)] px-2">
+                    <Button
+                      variant="ghost"
+                      aria-label={`Focus ${title}`}
+                      aria-pressed={focused}
+                      className="inline-flex min-h-9 min-w-0 flex-1 items-center justify-start truncate px-1 text-left text-sm font-medium text-[var(--text)] focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
+                      data-session-focus={id}
+                      onClick={() => focusSession(id, true)}
+                      title={id}
+                      type="button"
+                    >
+                      <span className="mr-2 font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--muted)]">
+                        {String(index + 1).padStart(2, "0")}
+                      </span>
+                      {title}
+                    </Button>
+                    <span
+                      aria-live="polite"
+                      className={`shrink-0 font-[var(--font-mono)] text-[length:var(--text-meta)] ${activeRequests[id] ? "text-[var(--accent-text)]" : "text-[var(--muted)]"}`}
+                    >
+                      {statusFor(id)}
                     </span>
-                    {title}
-                  </Button>
-                  <span
-                    aria-live="polite"
-                    className={`shrink-0 font-[var(--font-mono)] text-[length:var(--text-meta)] ${activeRequests[id] ? "text-[var(--accent-text)]" : "text-[var(--muted)]"}`}
-                  >
-                    {statusFor(id)}
-                  </span>
-                  <Button
-                    variant="ghost"
-                    aria-label={`Move ${title} left`}
-                    className={CONTROL}
-                    disabled={index === 0}
-                    onClick={() =>
-                      setLayout((current) =>
-                        moveWorkspaceSession(current, id, -1),
-                      )
-                    }
-                    type="button"
-                  >
-                    <ArrowLeft aria-hidden size={13} />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    aria-label={`Move ${title} right`}
-                    className={CONTROL}
-                    disabled={!nextId}
-                    onClick={() =>
-                      setLayout((current) =>
-                        moveWorkspaceSession(current, id, 1),
-                      )
-                    }
-                    type="button"
-                  >
-                    <ArrowRight aria-hidden size={13} />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    aria-label={`Close ${title}`}
-                    className={CONTROL}
-                    onClick={() => closePanel(id)}
-                    title="Close view only. Running agents continue."
-                    type="button"
-                  >
-                    <X aria-hidden size={14} />
-                  </Button>
-                </div>
+                    <Button
+                      variant="ghost"
+                      aria-label={`Move ${title} left`}
+                      className={CONTROL}
+                      disabled={index === 0}
+                      onClick={() =>
+                        setLayout((current) =>
+                          moveWorkspaceSession(current, id, -1),
+                        )
+                      }
+                      type="button"
+                    >
+                      <ArrowLeft aria-hidden size={13} />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      aria-label={`Move ${title} right`}
+                      className={CONTROL}
+                      disabled={!nextId}
+                      onClick={() =>
+                        setLayout((current) =>
+                          moveWorkspaceSession(current, id, 1),
+                        )
+                      }
+                      type="button"
+                    >
+                      <ArrowRight aria-hidden size={13} />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      aria-label={`Close ${title}`}
+                      className={CONTROL}
+                      onClick={() => closePanel(id)}
+                      title="Close view only. Running agents continue."
+                      type="button"
+                    >
+                      <X aria-hidden size={14} />
+                    </Button>
+                  </div>
+                ) : null}
                 <div className="min-h-0 flex-1 overflow-hidden">
                   {renderPanel({
                     ...props,
+                    ...botScopeFor(id),
                     remoteSessions: panelSessions,
                     selectedId: id,
                     onSelect: focusSession,
@@ -660,79 +793,93 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
                   })}
                 </div>
               </section>
-              {visible && !tabbed && conversationSurface && nextId ? (
-                <hr
-                  aria-label="Resize session panels"
-                  aria-orientation="vertical"
-                  aria-valuemin={0.5}
-                  aria-valuemax={4}
-                  aria-valuenow={layout.weights[id] ?? 1}
-                  aria-controls={`session-panel-${id} session-panel-${nextId}`}
-                  className="relative z-10 m-0 h-auto w-2 shrink-0 self-stretch cursor-col-resize touch-none border-0 bg-[var(--surface-soft)] hover:bg-[var(--accent)] focus-visible:bg-[var(--accent)] focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
-                  onKeyDown={(event) => {
-                    if (
-                      !["ArrowLeft", "ArrowRight", "Home"].includes(event.key)
-                    )
-                      return;
-                    event.preventDefault();
-                    setLayout((current) =>
-                      event.key === "Home"
-                        ? {
-                            ...current,
-                            weights: {
-                              ...current.weights,
-                              [id]: 1,
-                              [nextId]: 1,
-                            },
-                          }
-                        : resizeWorkspacePair(
-                            current,
-                            id,
-                            nextId,
-                            event.key === "ArrowRight" ? 0.15 : -0.15,
-                          ),
-                    );
-                  }}
-                  onPointerDown={(event) => {
-                    event.preventDefault();
-                    event.currentTarget.setPointerCapture(event.pointerId);
-                    event.currentTarget.dataset.resizeX = String(event.clientX);
-                  }}
-                  onPointerMove={(event) => {
-                    if (!event.currentTarget.hasPointerCapture(event.pointerId))
-                      return;
-                    const previous = Number(
-                      event.currentTarget.dataset.resizeX,
-                    );
-                    const width = rootRef.current?.clientWidth ?? 1;
-                    const total = layout.openIds.reduce(
-                      (sum, value) => sum + (layout.weights[value] ?? 1),
-                      0,
-                    );
-                    setLayout((current) =>
-                      resizeWorkspacePair(
-                        current,
-                        id,
-                        nextId,
-                        ((event.clientX - previous) / width) * total,
-                      ),
-                    );
-                    event.currentTarget.dataset.resizeX = String(event.clientX);
-                  }}
-                  onPointerUp={(event) => {
-                    if (event.currentTarget.hasPointerCapture(event.pointerId))
-                      event.currentTarget.releasePointerCapture(
-                        event.pointerId,
-                      );
-                  }}
-                  data-session-resizer
-                  tabIndex={0}
-                  title="Drag to resize; arrow keys adjust; Home resets"
-                />
-              ) : null}
             </div>
           );
         })}
+        {!tabbed && conversationSurface
+          ? geometry.dividers.map((divider) => (
+              <hr
+                aria-label={`Resize ${divider.axis === "horizontal" ? "left and right" : "upper and lower"} conversations`}
+                aria-orientation={
+                  divider.axis === "horizontal" ? "vertical" : "horizontal"
+                }
+                aria-valuemin={20}
+                aria-valuemax={80}
+                aria-valuenow={Math.round(divider.ratio * 100)}
+                className={`absolute z-10 touch-none bg-[var(--border)] hover:bg-[var(--accent-border)] focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)] ${divider.axis === "horizontal" ? "w-2 -translate-x-1 cursor-col-resize" : "h-2 -translate-y-1 cursor-row-resize"}`}
+                data-session-resizer
+                key={divider.path}
+                onKeyDown={(event) => {
+                  const forward =
+                    divider.axis === "horizontal" ? "ArrowRight" : "ArrowDown";
+                  const backward =
+                    divider.axis === "horizontal" ? "ArrowLeft" : "ArrowUp";
+                  if (![forward, backward, "Home"].includes(event.key)) return;
+                  event.preventDefault();
+                  setLayout((current) =>
+                    resizeWorkspaceSplit(
+                      current,
+                      divider.path,
+                      event.key === "Home"
+                        ? 0.5
+                        : divider.ratio +
+                            (event.key === forward ? 0.05 : -0.05),
+                    ),
+                  );
+                }}
+                onPointerDown={(event) => {
+                  event.preventDefault();
+                  event.currentTarget.setPointerCapture(event.pointerId);
+                  event.currentTarget.dataset.start = String(
+                    divider.axis === "horizontal"
+                      ? event.clientX
+                      : event.clientY,
+                  );
+                }}
+                onPointerMove={(event) => {
+                  if (!event.currentTarget.hasPointerCapture(event.pointerId))
+                    return;
+                  const coordinate =
+                    divider.axis === "horizontal"
+                      ? event.clientX
+                      : event.clientY;
+                  const previous = Number(event.currentTarget.dataset.start);
+                  const size =
+                    divider.axis === "horizontal"
+                      ? panelSize.width
+                      : panelSize.height;
+                  const percent =
+                    divider.axis === "horizontal"
+                      ? divider.width || 100
+                      : divider.height || 100;
+                  setLayout((current) =>
+                    resizeWorkspaceSplit(
+                      current,
+                      divider.path,
+                      divider.ratio +
+                        (coordinate - previous) /
+                          Math.max(1, (size * percent) / 100),
+                    ),
+                  );
+                  event.currentTarget.dataset.start = String(coordinate);
+                }}
+                onPointerUp={(event) => {
+                  if (event.currentTarget.hasPointerCapture(event.pointerId))
+                    event.currentTarget.releasePointerCapture(event.pointerId);
+                }}
+                style={{
+                  left: `${divider.x}%`,
+                  top: `${divider.y}%`,
+                  width:
+                    divider.axis === "horizontal" ? 8 : `${divider.width}%`,
+                  height:
+                    divider.axis === "vertical" ? 8 : `${divider.height}%`,
+                }}
+                tabIndex={0}
+                title="Drag or use arrow keys to resize; Home resets"
+              />
+            ))
+          : null}
       </div>
     </section>
   );

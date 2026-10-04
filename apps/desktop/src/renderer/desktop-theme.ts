@@ -41,7 +41,7 @@ const BASE_DESKTOP_TOKENS: Readonly<Record<string, string>> = {
   "--radius-lg": "10px",
   "--radius-xl": "12px",
   "--text-meta": "12px",
-  "--text-control": "13px",
+  "--text-control": "14px",
   "--text-caption": "12px",
   "--text-body": "14px",
   "--line-meta": "17px",
@@ -49,7 +49,9 @@ const BASE_DESKTOP_TOKENS: Readonly<Record<string, string>> = {
   "--line-body": "21px",
   "--line-title": "1.2",
   "--ease-out": "cubic-bezier(0.23, 1, 0.32, 1)",
-  "--sidebar-width": "280px",
+  "--sidebar-width": "248px",
+  "--inspector-width": "320px",
+  "--conversation-width": "760px",
   "--sidebar-compact-width": "68px",
   "--page-gap": "12px",
   "--page-pad-block": "12px 18px",
@@ -60,7 +62,7 @@ const BASE_DESKTOP_TOKENS: Readonly<Record<string, string>> = {
   "--chat-welcome-title-size": "clamp(22px, 2vw, 28px)",
   "--card-pad": "12px",
   "--row-pad": "8px",
-  "--control-height": "36px",
+  "--control-height": "40px",
   "--page-readable-meta": "12px",
   "--space-hairline": "2px",
   "--space-tight": "6px",
@@ -215,7 +217,7 @@ const LIGHT_DESKTOP_TOKENS: Readonly<Record<string, string>> = {
 
 const COMPACT_DESKTOP_TOKENS: Readonly<Record<string, string>> = {
   "--text-meta": "11px",
-  "--text-control": "12px",
+  "--text-control": "14px",
   "--text-caption": "11px",
   "--text-body": "14px",
   "--line-meta": "16px",
@@ -230,12 +232,12 @@ const COMPACT_DESKTOP_TOKENS: Readonly<Record<string, string>> = {
   "--chat-welcome-title-size": "clamp(20px, 1.7vw, 24px)",
   "--card-pad": "10px",
   "--row-pad": "6px",
-  "--control-height": "32px",
+  "--control-height": "36px",
 };
 
 const COMFORTABLE_DESKTOP_TOKENS: Readonly<Record<string, string>> = {
   "--text-meta": "12px",
-  "--text-control": "13px",
+  "--text-control": "14px",
   "--text-caption": "12px",
   "--text-body": "14px",
   "--line-meta": "17px",
@@ -250,7 +252,7 @@ const COMFORTABLE_DESKTOP_TOKENS: Readonly<Record<string, string>> = {
   "--chat-welcome-title-size": "clamp(22px, 2vw, 28px)",
   "--card-pad": "12px",
   "--row-pad": "8px",
-  "--control-height": "36px",
+  "--control-height": "40px",
 };
 
 function setCssTokens(tokens: Readonly<Record<string, string>>): void {

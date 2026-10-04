@@ -7,6 +7,7 @@ import {
   FileText,
   LoaderCircle,
   Paperclip,
+  Plus,
   Square,
   X,
 } from "lucide-react";
@@ -760,19 +761,38 @@ export function ChatComposer({
           <span aria-live="polite" className="sr-only" role="status">
             {attachmentImporting ? "Importing file context…" : ""}
           </span>
-          <VoiceComposerButton
-            disabled={backend.phase !== "ready"}
-            importAndTranscribe={importAndTranscribeRecording}
-            onTranscript={insertDictationTranscript}
-          />
-          <PromptLibrary
-            namespace={selectedId}
-            activeProject={activeProject}
-            composerRef={composerRef}
-            draft={draft}
-            setAnnouncement={setQueueAnnouncement}
-            setDraft={setDraft}
-          />
+          <details
+            className="relative"
+            onKeyDown={(event) => {
+              if (event.key === "Escape") {
+                event.preventDefault();
+                event.currentTarget.open = false;
+                event.currentTarget.querySelector("summary")?.focus();
+              }
+            }}
+          >
+            <summary
+              aria-label="More composer tools"
+              className="grid size-10 cursor-pointer list-none place-items-center rounded-[var(--radius-md)] text-[var(--text-soft)] hover:bg-[var(--surface-hover)] max-[720px]:size-11"
+            >
+              <UiIcon icon={Plus} size="sm" />
+            </summary>
+            <div className="absolute bottom-full left-0 z-30 mb-2 flex min-w-52 items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-raised)] p-2 shadow-[var(--shell-shadow-md)]">
+              <VoiceComposerButton
+                disabled={backend.phase !== "ready"}
+                importAndTranscribe={importAndTranscribeRecording}
+                onTranscript={insertDictationTranscript}
+              />
+              <PromptLibrary
+                namespace={selectedId}
+                activeProject={activeProject}
+                composerRef={composerRef}
+                draft={draft}
+                setAnnouncement={setQueueAnnouncement}
+                setDraft={setDraft}
+              />
+            </div>
+          </details>
         </div>
         <div className="chat-composer-footer-right">
           <div

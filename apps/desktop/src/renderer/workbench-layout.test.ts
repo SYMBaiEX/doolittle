@@ -46,10 +46,10 @@ describe("thread workbench viewport layout contract", () => {
 
   it("mounts the workbench as a dedicated sibling pane beside chat", () => {
     expect(chatPage).toMatch(
-      /<section[\s\S]*?className="chat-conversation"[\s\S]*?<\/section>[\s\S]*?\{inspectorVisible \? \([\s\S]*?<div[\s\S]*?\{\.\.\.workbenchAccessibilityProps\}[\s\S]*?chat-workbench-pane[\s\S]*?id=\{`thread-workbench-\$\{selectedId\}`\}[\s\S]*?<Suspense[\s\S]*?<ThreadWorkbenchRail/s,
+      /<section[\s\S]*?className="chat-conversation"[\s\S]*?<\/section>[\s\S]*?\{inspectorVisible \? \([\s\S]*?<div[\s\S]*?\{\.\.\.workbenchAccessibilityProps\}[\s\S]*?chat-workbench-pane[\s\S]*?id=\{`thread-workbench-\$\{selectedId\}`\}[\s\S]*?<CompanionInspector/s,
     );
     expect(chatPage).toContain(
-      "const ThreadWorkbenchRail = lazy(async () => {",
+      "import { CompanionInspector, type InspectorTab }",
     );
     expect(chatPage).not.toContain(
       'ThreadWorkbenchRail,\n} from "./components/ThreadWorkbenchRail"',

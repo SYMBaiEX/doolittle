@@ -11,7 +11,13 @@ import {
   SquareTerminal,
   X,
 } from "lucide-react";
-import { type CSSProperties, type KeyboardEvent, useId, useRef } from "react";
+import {
+  type CSSProperties,
+  type KeyboardEvent,
+  useEffect,
+  useId,
+  useRef,
+} from "react";
 import { asNumber, Badge } from "../lib";
 import {
   clampThreadWorkbenchWidth,
@@ -56,6 +62,8 @@ import { UiIcon } from "./UiIcon";
 export type { ThreadWorkbenchFullView } from "../thread-workbench/models";
 
 export interface ThreadWorkbenchRailProps {
+  group?: "all" | "library" | "computer";
+  minimal?: boolean;
   active: boolean;
   sessionId: string;
   workspacePath: string;
@@ -75,6 +83,8 @@ const WORKBENCH_TAB_ICONS: Record<ThreadWorkbenchTab, LucideIcon> = {
 };
 
 export function ThreadWorkbenchRail({
+  group = "all",
+  minimal = false,
   active,
   sessionId,
   workspacePath,
@@ -98,6 +108,25 @@ export function ThreadWorkbenchRail({
     selectTab,
     refreshCurrent,
   } = controller;
+  const visibleTabs: ThreadWorkbenchTab[] =
+    group === "library"
+      ? ["files", "changes", "plans"]
+      : group === "computer"
+        ? ["terminal", "preview", "brief", "settings"]
+        : [...THREAD_WORKBENCH_TABS];
+  useEffect(() => {
+    const allowed: ThreadWorkbenchTab[] =
+      group === "library"
+        ? ["files", "changes", "plans"]
+        : group === "computer"
+          ? ["terminal", "preview", "brief", "settings"]
+          : [...THREAD_WORKBENCH_TABS];
+    setModel((current) =>
+      allowed.includes(current.selectedTab)
+        ? current
+        : { ...current, selectedTab: allowed[0] ?? "files" },
+    );
+  }, [group, setModel]);
   const tabRefs = useRef<Record<ThreadWorkbenchTab, HTMLButtonElement | null>>({
     files: null,
     changes: null,
@@ -114,20 +143,18 @@ export function ThreadWorkbenchRail({
   ) => {
     let target = index;
     if (event.key === "ArrowRight" || event.key === "ArrowDown") {
-      target = (index + 1) % THREAD_WORKBENCH_TABS.length;
+      target = (index + 1) % visibleTabs.length;
     } else if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
-      target =
-        (index - 1 + THREAD_WORKBENCH_TABS.length) %
-        THREAD_WORKBENCH_TABS.length;
+      target = (index - 1 + visibleTabs.length) % visibleTabs.length;
     } else if (event.key === "Home") {
       target = 0;
     } else if (event.key === "End") {
-      target = THREAD_WORKBENCH_TABS.length - 1;
+      target = visibleTabs.length - 1;
     } else {
       return;
     }
     event.preventDefault();
-    const tab = THREAD_WORKBENCH_TABS[target];
+    const tab = visibleTabs[target];
     if (!tab) return;
     selectTab(tab);
     requestAnimationFrame(() => tabRefs.current[tab]?.focus());
@@ -139,101 +166,117 @@ export function ThreadWorkbenchRail({
       className={WORKBENCH_RAIL_CLASS}
       data-thread-workbench="rail"
       style={
-        { "--thread-workbench-width": `${model.railWidth}px` } as CSSProperties
+        minimal
+          ? {
+              width: "100%",
+              minWidth: 0,
+              maxWidth: "none",
+              flex: "1 1 auto",
+              border: 0,
+              boxShadow: "none",
+              gridTemplateRows: "auto minmax(0,1fr)",
+            }
+          : ({
+              "--thread-workbench-width": `${model.railWidth}px`,
+            } as CSSProperties)
       }
     >
-      <PanelResizeHandle
-        bounds={{
-          default: THREAD_WORKBENCH_DEFAULT_WIDTH,
-          min: THREAD_WORKBENCH_MIN_WIDTH,
-          max: THREAD_WORKBENCH_MAX_WIDTH,
-        }}
-        className={WORKBENCH_RESIZER_CLASS}
-        direction="grow-left"
-        label="Resize thread context"
-        onResize={(railWidth) =>
-          setModel((current) => ({
-            ...current,
-            railWidth: clampThreadWorkbenchWidth(railWidth),
-          }))
-        }
-        value={model.railWidth}
-      />
+      {!minimal ? (
+        <PanelResizeHandle
+          bounds={{
+            default: THREAD_WORKBENCH_DEFAULT_WIDTH,
+            min: THREAD_WORKBENCH_MIN_WIDTH,
+            max: THREAD_WORKBENCH_MAX_WIDTH,
+          }}
+          className={WORKBENCH_RESIZER_CLASS}
+          direction="grow-left"
+          label="Resize thread context"
+          onResize={(railWidth) =>
+            setModel((current) => ({
+              ...current,
+              railWidth: clampThreadWorkbenchWidth(railWidth),
+            }))
+          }
+          value={model.railWidth}
+        />
+      ) : null}
 
-      <header className={WORKBENCH_HEADER_CLASS}>
-        <div className={WORKBENCH_HEADING_CLASS}>
-          <div className={WORKBENCH_LOCKUP_CLASS}>
-            <span aria-hidden="true" className={WORKBENCH_MARK_CLASS}>
-              <i />
-              <span>WB</span>
-            </span>
-            <div>
-              <span className={WORKBENCH_KICKER_CLASS}>Thread context</span>
-              <strong>{model.workspaceName}</strong>
-              <small>Files, changes, and run context</small>
+      {!minimal ? (
+        <header className={WORKBENCH_HEADER_CLASS}>
+          <div className={WORKBENCH_HEADING_CLASS}>
+            <div className={WORKBENCH_LOCKUP_CLASS}>
+              <span aria-hidden="true" className={WORKBENCH_MARK_CLASS}>
+                <i />
+                <span>WB</span>
+              </span>
+              <div>
+                <span className={WORKBENCH_KICKER_CLASS}>Thread context</span>
+                <strong>{model.workspaceName}</strong>
+                <small>Files, changes, and run context</small>
+              </div>
             </div>
-          </div>
-          <button
-            aria-label="Close thread context"
-            className={WORKBENCH_ICON_BUTTON_CLASS}
-            onClick={onRequestClose}
-            title="Close context"
-            type="button"
-          >
-            <UiIcon icon={X} size="sm" />
-          </button>
-        </div>
-        <div
-          className={WORKBENCH_CONTEXT_ROW_CLASS}
-          data-thread-workbench="context"
-        >
-          <div className={WORKBENCH_CONTEXT_PRIMARY_CLASS}>
-            <span className={WORKBENCH_REPO_MARK_CLASS} aria-hidden="true">
-              <UiIcon icon={GitBranch} size="sm" />
-            </span>
-            <div className={WORKBENCH_CONTEXT_COPY_CLASS}>
-              <strong>{branchHeadLabel(model.branch, model.head)}</strong>
-              <small title={model.worktreePath || model.workspacePath}>
-                {model.worktreePath
-                  ? `Worktree · ${compactRailLabel(model.worktreePath)}`
-                  : `Local · ${compactRailLabel(model.workspacePath)}`}
-              </small>
-            </div>
+            <button
+              aria-label="Close thread context"
+              className={WORKBENCH_ICON_BUTTON_CLASS}
+              onClick={onRequestClose}
+              title="Close context"
+              type="button"
+            >
+              <UiIcon icon={X} size="sm" />
+            </button>
           </div>
           <div
-            className={WORKBENCH_CONTEXT_META_CLASS}
-            data-thread-workbench="status"
-            aria-label="Thread context status"
-            role="status"
+            className={WORKBENCH_CONTEXT_ROW_CLASS}
+            data-thread-workbench="context"
           >
-            <Badge
-              tone={
-                repositorySummary?.dirty
-                  ? "warn"
-                  : repositorySummary?.isRepository
-                    ? "good"
-                    : "neutral"
-              }
+            <div className={WORKBENCH_CONTEXT_PRIMARY_CLASS}>
+              <span className={WORKBENCH_REPO_MARK_CLASS} aria-hidden="true">
+                <UiIcon icon={GitBranch} size="sm" />
+              </span>
+              <div className={WORKBENCH_CONTEXT_COPY_CLASS}>
+                <strong>{branchHeadLabel(model.branch, model.head)}</strong>
+                <small title={model.worktreePath || model.workspacePath}>
+                  {model.worktreePath
+                    ? `Worktree · ${compactRailLabel(model.worktreePath)}`
+                    : `Local · ${compactRailLabel(model.workspacePath)}`}
+                </small>
+              </div>
+            </div>
+            <div
+              className={WORKBENCH_CONTEXT_META_CLASS}
+              data-thread-workbench="status"
+              aria-label="Thread context status"
+              role="status"
             >
-              {repositorySummary?.dirty
-                ? `${asNumber(repositorySummary.changedFiles)} changed`
-                : repositorySummary?.isRepository
-                  ? "clean"
-                  : "workspace"}
-            </Badge>
-            <span>
-              <i aria-hidden="true" /> {model.lifecycle}
-            </span>
+              <Badge
+                tone={
+                  repositorySummary?.dirty
+                    ? "warn"
+                    : repositorySummary?.isRepository
+                      ? "good"
+                      : "neutral"
+                }
+              >
+                {repositorySummary?.dirty
+                  ? `${asNumber(repositorySummary.changedFiles)} changed`
+                  : repositorySummary?.isRepository
+                    ? "clean"
+                    : "workspace"}
+              </Badge>
+              <span>
+                <i aria-hidden="true" /> {model.lifecycle}
+              </span>
+            </div>
           </div>
-        </div>
-      </header>
+        </header>
+      ) : null}
 
       <div
         aria-label="Thread context views"
         className={WORKBENCH_TABS_CLASS}
         role="tablist"
       >
-        {THREAD_WORKBENCH_TABS.map((tab, index) => (
+        {visibleTabs.map((tab, index) => (
           <button
             aria-label={TAB_LABELS[tab]}
             aria-controls={`${idPrefix}-${tab}-panel`}
@@ -269,20 +312,22 @@ export function ThreadWorkbenchRail({
         workspacePath={workspacePath}
       />
 
-      <footer className={WORKBENCH_FOOTER_CLASS}>
-        <span aria-live="polite">
-          {copiedLabel || `${model.environment} · ${model.lifecycle}`}
-        </span>
-        <button
-          aria-label="Refresh current context view"
-          className={WORKBENCH_ICON_BUTTON_CLASS}
-          onClick={refreshCurrent}
-          title="Refresh"
-          type="button"
-        >
-          <UiIcon icon={RefreshCw} size="sm" />
-        </button>
-      </footer>
+      {!minimal ? (
+        <footer className={WORKBENCH_FOOTER_CLASS}>
+          <span aria-live="polite">
+            {copiedLabel || `${model.environment} · ${model.lifecycle}`}
+          </span>
+          <button
+            aria-label="Refresh current context view"
+            className={WORKBENCH_ICON_BUTTON_CLASS}
+            onClick={refreshCurrent}
+            title="Refresh"
+            type="button"
+          >
+            <UiIcon icon={RefreshCw} size="sm" />
+          </button>
+        </footer>
+      ) : null}
     </aside>
   );
 }

@@ -21,6 +21,10 @@ import type {
   SessionSummary,
 } from "../shared/contracts";
 import { ChatHeaderChrome } from "./chat/ChatHeaderChrome";
+import {
+  CompanionInspector,
+  type InspectorTab,
+} from "./chat/CompanionInspector";
 import { isChatNearBottom, scheduleChatScroll } from "./chat/chat-scroll";
 import { handleFailedChatTerminalEvent } from "./chat/chat-terminal-events";
 import { addUnreadMessageIds, appendedMessageIds } from "./chat/chat-unread";
@@ -145,10 +149,6 @@ function saveRunCursors(cursors: Record<string, number>): void {
     JSON.stringify(bounded),
   );
 }
-const ThreadWorkbenchRail = lazy(async () => {
-  const module = await import("./components/ThreadWorkbenchRail");
-  return { default: module.ThreadWorkbenchRail };
-});
 const ChatComposer = lazy(async () => {
   const module = await import("./chat/ChatComposer");
   return { default: module.ChatComposer };
@@ -251,6 +251,12 @@ export function ChatPage(props: ChatPageProps) {
 }
 
 export interface ChatPageProps {
+  bots?: readonly import("@doolittle/contracts/bots").BotSummary[];
+  selectedBotId?: string;
+  defaultBotId?: string;
+  botIdForSession?: (sessionId: string) => string;
+  onBindSessionBot?: (sessionId: string, botId: string) => void;
+  onActivateBot?: (botId: string) => Promise<void>;
   routeActive?: boolean;
   backend: BackendState;
   runtime: RuntimeStatus | null;
@@ -286,6 +292,12 @@ export interface ChatPageProps {
 }
 
 export function ChatSessionPanel({
+  bots,
+  selectedBotId = "",
+  defaultBotId = "",
+  botIdForSession,
+  onBindSessionBot,
+  onActivateBot,
   routeActive = true,
   backend,
   runtime,
@@ -329,6 +341,10 @@ export function ChatSessionPanel({
   );
   const requestSession = useWorkspaceRef<Record<string, string>>(
     "run.sessions",
+    {},
+  );
+  const requestBot = useWorkspaceRef<Record<string, string>>(
+    "run.bot-owners",
     {},
   );
   const activeRequest = activeRequests[selectedId] ?? null;
@@ -385,6 +401,14 @@ export function ChatSessionPanel({
     workspaceBinding.kind === "foreign" ? workspaceBinding.project : undefined;
   const workspaceBindingBlocked =
     workspaceBinding.kind === "foreign" || workspaceBinding.kind === "unknown";
+  const currentBotId =
+    botIdForSession?.(selectedId) || defaultBotId || selectedBotId;
+  const currentBot = bots?.find((bot) => bot.id === currentBotId);
+  const botReady =
+    !currentBot ||
+    currentBot.state === "ready" ||
+    currentBot.state === "busy" ||
+    currentBot.state === "waiting";
   const [progressBySession, setProgressBySession] = useWorkspaceState<
     Record<string, string>
   >("run.progress", {});
@@ -407,7 +431,21 @@ export function ChatSessionPanel({
   const [inspectorVisible, setInspectorVisible] = useState(
     () => savedView?.inspectorVisible ?? loadInspectorVisibility(),
   );
-  const isNarrowWorkbench = useMediaQuery(NARROW_WORKBENCH_QUERY);
+  const [inspectorTab, setInspectorTab] = useState<InspectorTab>("details");
+  const workspaceRef = useRef<HTMLDivElement>(null);
+  const [narrowPanel, setNarrowPanel] = useState(false);
+  useEffect(() => {
+    const panel = workspaceRef.current;
+    if (!panel || typeof ResizeObserver === "undefined") return;
+    const update = () =>
+      setNarrowPanel(panel.clientWidth > 0 && panel.clientWidth < 720);
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(panel);
+    return () => observer.disconnect();
+  }, []);
+  const isNarrowWorkbench =
+    useMediaQuery(NARROW_WORKBENCH_QUERY) || narrowPanel;
   const prefersReducedMotion = useMediaQuery(
     "(prefers-reduced-motion: reduce)",
   );
@@ -514,7 +552,7 @@ export function ChatSessionPanel({
       visible &&
       focused &&
       !coordinator,
-    initialFocusSelector: '[aria-label="Close thread context"]',
+    initialFocusSelector: '[aria-label="Close inspector"]',
     isolateBackground: true,
     onClose: closeInspector,
     restoreFocus: !inspectorVisible,
@@ -1050,6 +1088,10 @@ export function ChatSessionPanel({
           const sessionId =
             typeof run.sessionId === "string" ? run.sessionId : "";
           const status = typeof run.status === "string" ? run.status : "";
+          const botId =
+            typeof run.botId === "string"
+              ? run.botId
+              : botIdForSession?.(sessionId) || defaultBotId;
           if (run.source !== "desktop") continue;
           if (!runId || !sessionId) continue;
           if (["complete", "cancelled", "error"].includes(status)) {
@@ -1066,6 +1108,10 @@ export function ChatSessionPanel({
             continue;
           }
           requestSession.current[runId] = sessionId;
+          if (botId) {
+            requestBot.current[runId] = botId;
+            onBindSessionBot?.(sessionId, botId);
+          }
           activeRequestSessionsRef.current[sessionId] = true;
           setActiveRequests((current) =>
             current[sessionId] ? current : { ...current, [sessionId]: runId },
@@ -1096,7 +1142,8 @@ export function ChatSessionPanel({
             .subscribeChat({
               requestId: runId,
               after: runCursors.current[runId] ?? 0,
-            })
+              ...(botId ? { botId } : {}),
+            } as Parameters<typeof window.doolittle.subscribeChat>[0])
             .catch(() => undefined);
         }
         setRunHydration("ready");
@@ -1118,6 +1165,10 @@ export function ChatSessionPanel({
     setActiveRequests,
     runCursors,
     runHydrationRetry,
+    botIdForSession,
+    defaultBotId,
+    onBindSessionBot,
+    requestBot,
   ]);
 
   const sendMessage = async (
@@ -1154,6 +1205,14 @@ export function ChatSessionPanel({
       ) ||
       activeRequestSessionsRef.current[sessionId] ||
       activeRequests[sessionId] ||
+      (() => {
+        const owner = bots?.find(
+          (bot) =>
+            bot.id ===
+            (botIdForSession?.(sessionId) || defaultBotId || selectedBotId),
+        );
+        return owner && !["ready", "busy", "waiting"].includes(owner.state);
+      })() ||
       backend.phase !== "ready" ||
       runHydration !== "ready"
     ) {
@@ -1175,6 +1234,8 @@ export function ChatSessionPanel({
             ?.projectId ?? activeProject?.id)
         : (projectIdOverride ?? undefined);
     const requestId = crypto.randomUUID();
+    const botId = botIdForSession?.(sessionId) || defaultBotId || selectedBotId;
+    if (botId) onBindSessionBot?.(sessionId, botId);
     const createdAt = new Date().toISOString();
     const dispatchedDraft = clearComposer
       ? {
@@ -1185,6 +1246,7 @@ export function ChatSessionPanel({
         }
       : null;
     requestSession.current[requestId] = sessionId;
+    if (botId) requestBot.current[requestId] = botId;
     activeRequestSessionsRef.current[sessionId] = true;
     // A user's own dispatch should remain visible even if they were reading history.
     forceTranscriptFollowRef.current = true;
@@ -1242,6 +1304,7 @@ export function ChatSessionPanel({
         requestId,
         message: content,
         roomId: sessionId,
+        ...(botId ? { botId } : {}),
         workspacePath,
         attachmentIds: messageAttachments.map((attachment) => attachment.id),
         ...(Object.keys(attachmentCleanup).length > 0
@@ -1319,6 +1382,9 @@ export function ChatSessionPanel({
             },
       );
       const fork = response.fork;
+      const sourceBotId =
+        botIdForSession?.(selectedId) || defaultBotId || selectedBotId;
+      if (sourceBotId) onBindSessionBot?.(fork.sessionId, sourceBotId);
 
       if (mode === "edit") {
         setDraftForSession(
@@ -1744,7 +1810,12 @@ export function ChatSessionPanel({
   };
 
   const toggleInspector = () => {
+    if (!inspectorVisible) setInspectorTab("details");
     setInspectorVisible((current) => !current);
+  };
+  const openInspectorTab = (tab: InspectorTab) => {
+    setInspectorTab(tab);
+    setInspectorVisible(true);
   };
 
   const runtimeProvider = runtime?.provider ?? "Loading provider";
@@ -1763,6 +1834,7 @@ export function ChatSessionPanel({
     Boolean(draft.trim() || attachedFiles.length > 0) &&
     backend.phase === "ready" &&
     !workspaceBindingBlocked &&
+    botReady &&
     runHydration === "ready" &&
     !attachmentImportPending &&
     !composerValidationError;
@@ -1788,7 +1860,8 @@ export function ChatSessionPanel({
     <div
       className={`${CHAT_WORKSPACE_CLASS} ${
         inspectorVisible ? "inspector-open" : "inspector-closed"
-      }`}
+      }${inspectorVisible && isNarrowWorkbench ? " inspector-sheet" : ""}`}
+      ref={workspaceRef}
     >
       {chromeHost
         ? createPortal(
@@ -1809,6 +1882,7 @@ export function ChatSessionPanel({
                 requestAnimationFrame(() => composerRef.current?.focus());
               }}
               onToggleInspector={toggleInspector}
+              onOpenInspectorTab={openInspectorTab}
               onTogglePin={() => togglePin(selectedId)}
               onSurfaceChange={onSurfaceChange}
               selectedContextLabel={selectedContextLabel}
@@ -1963,6 +2037,26 @@ export function ChatSessionPanel({
                   )}
                 </div>
               ) : null}
+              {!botReady && currentBot ? (
+                <div
+                  className="flex items-center justify-between gap-3 border-b border-[var(--border)] px-3 py-2 text-sm text-[var(--text-soft)]"
+                  role="status"
+                >
+                  <span>
+                    {currentBot.name} is {currentBot.state}. Activate it before
+                    sending; this draft is retained.
+                  </span>
+                  {currentBot.state === "stopped" && onActivateBot ? (
+                    <button
+                      className="secondary-button shrink-0"
+                      onClick={() => void onActivateBot(currentBot.id)}
+                      type="button"
+                    >
+                      Activate bot
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
             </>
           }
           activeProject={activeProject}
@@ -2100,24 +2194,21 @@ export function ChatSessionPanel({
           id={`thread-workbench-${selectedId}`}
           ref={workbenchDialogRef}
         >
-          <Suspense
-            fallback={
-              <div
-                aria-label="Loading thread workbench"
-                className="grid h-full min-h-0 w-[var(--thread-workbench-width,420px)] max-w-[48vw] place-items-center overflow-hidden border-[var(--border)] border-l bg-[var(--surface)] text-[var(--muted)] max-[720px]:w-full max-[720px]:max-w-none"
-                role="status"
-              />
-            }
-          >
-            <ThreadWorkbenchRail
-              active={backend.phase === "ready"}
-              onInsertContext={insertChatContext}
-              onOpenFullView={onOpenWorkspaceView}
-              onRequestClose={closeInspector}
-              sessionId={selectedId}
-              workspacePath={workspacePath}
-            />
-          </Suspense>
+          <CompanionInspector
+            active={backend.phase === "ready"}
+            bot={currentBot}
+            contextLabel={selectedContextLabel}
+            fullWidth={isNarrowWorkbench}
+            messageCount={selectedMessageCount}
+            onClose={closeInspector}
+            onInsertContext={insertChatContext}
+            onOpenFullView={onOpenWorkspaceView}
+            onTabChange={setInspectorTab}
+            sessionId={selectedId}
+            tab={inspectorTab}
+            title={selectedSession?.title || "New conversation"}
+            workspacePath={workspacePath}
+          />
         </div>
       ) : null}
       <RouteControlDialog

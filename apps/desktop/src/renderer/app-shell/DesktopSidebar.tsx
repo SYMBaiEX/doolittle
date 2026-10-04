@@ -1,35 +1,17 @@
-import {
-  ChevronRight,
-  History,
-  Moon,
-  PanelLeftClose,
-  PanelLeftOpen,
-  Search,
-  Sun,
-} from "lucide-react";
+import type { BotSummary } from "@doolittle/contracts/bots";
+import { ContactRow, StateSurface } from "@doolittle/ui";
+import { PanelLeftClose, PanelLeftOpen, Plus, Search } from "lucide-react";
 import type { KeyboardEvent as ReactKeyboardEvent, RefObject } from "react";
 import type {
   DoolittleDesktopBridge,
   SessionSummary,
 } from "../../shared/contracts";
 import { PanelResizeHandle } from "../components/PanelResizeHandle";
-import { ProjectHistorySidebar } from "../components/ProjectHistorySidebar";
-import { NewConversationControl } from "../components/ProjectSidebarControls";
 import { UiIcon } from "../components/UiIcon";
-import {
-  PRIMARY_NAV_ITEMS,
-  type View,
-  workspaceName,
-} from "../desktop-navigation";
-import { Icon } from "../lib";
+import type { View } from "../desktop-navigation";
 import { APP_SIDEBAR_WIDTH } from "../panel-layout";
-import type { ProjectLike, ProjectScope } from "../project-manager/models";
+import type { ProjectScope } from "../project-manager/models";
 import {
-  APP_BRAND_CLASS,
-  APP_BRAND_COLLAPSED_CLASS,
-  APP_BRAND_COPY_CLASS,
-  APP_BRAND_HOME_CLASS,
-  APP_BRAND_MARK_CLASS,
   APP_SIDEBAR_CLASS,
   APP_SIDEBAR_COLLAPSED_CLASS,
   APP_SIDEBAR_DARWIN_CLASS,
@@ -37,61 +19,53 @@ import {
   APP_SIDEBAR_MOBILE_CLASS,
   APP_SIDEBAR_MOBILE_CLOSED_CLASS,
   APP_SIDEBAR_MOBILE_OPEN_CLASS,
-  ICON_BUTTON_CLASS,
-  SIDEBAR_ACCOUNT_ARROW_CLASS,
-  SIDEBAR_ACCOUNT_CLASS,
-  SIDEBAR_ACCOUNT_SELECTED_CLASS,
-  SIDEBAR_APPEARANCE_CLASS,
-  SIDEBAR_COLLAPSE_CLASS,
-  SIDEBAR_COLLAPSE_COLLAPSED_CLASS,
-  SIDEBAR_FOCUS_NAV_CLASS,
-  SIDEBAR_FOOTER_ACTIONS_CLASS,
-  SIDEBAR_FOOTER_CLASS,
-  SIDEBAR_MODE_BUTTON_CLASS,
-  SIDEBAR_MODE_BUTTON_SELECTED_CLASS,
-  SIDEBAR_MODE_SIGNAL_CLASS,
-  SIDEBAR_MODE_SIGNAL_SELECTED_CLASS,
-  SIDEBAR_MODE_SWITCH_CLASS,
-  SIDEBAR_QUICK_ACTIONS_CLASS,
-  SIDEBAR_QUICK_ACTIONS_COLLAPSED_CLASS,
   SIDEBAR_SCRIM_CLASS,
   SIDEBAR_SCRIM_HIDDEN_CLASS,
   SIDEBAR_SCRIM_VISIBLE_CLASS,
 } from "./shell-layout";
 
-type DesktopPlatform = DoolittleDesktopBridge["platform"];
+type BotCatalogStatus =
+  | "disabled"
+  | "loading"
+  | "ready"
+  | "refreshing"
+  | "error";
 
 export interface DesktopSidebarProps {
   isMobileSidebarMode: boolean;
   mobileSidebarOpen: boolean;
   navCollapsed: boolean;
   sidebarOpen: boolean;
-  projectScope: ProjectScope;
-  newConversationMenuOpen: boolean;
   sidebarWidth: number;
-  projectCards: readonly ProjectLike[];
+  selectedBotId: string;
+  defaultBotId: string;
+  bots: readonly BotSummary[];
+  botStatus: BotCatalogStatus;
+  botError: string;
   sessions: readonly SessionSummary[];
   selectedSession: string;
-  navigationView: View;
-  workspacePath: string;
-  resolvedAppearance: "dark" | "light";
-  platform: DesktopPlatform;
+  projectScope: ProjectScope;
+  platform: DoolittleDesktopBridge["platform"];
   sidebarRef: RefObject<HTMLElement | null>;
   onSidebarKeyDown: (event: ReactKeyboardEvent<HTMLElement>) => void;
   onClose: () => void;
   onResize: (width: number) => void;
   onToggleNavigation: () => void;
-  onSetNewConversationMenuOpen: (open: boolean) => void;
   onOpenPalette: () => void;
-  onChooseRepository: () => void | Promise<void>;
-  onManageProjects: () => void;
   onStartConversation: (scope: ProjectScope) => void;
   onOpenSession: (sessionId: string) => void;
-  onSelectScope: (scope: ProjectScope) => void;
-  onViewAll: () => void;
-  onPreloadView: (view: View) => void;
+  onSelectBot: (botId: string) => void;
+  onAddBot: () => void;
+  onRetryBots: () => void;
   onSetView: (view: View) => void;
-  onToggleAppearance: () => void;
+  navigationView: View;
+}
+
+function botRunState(bot: BotSummary) {
+  if (bot.state === "error") return "error" as const;
+  if (bot.state === "waiting") return "waiting" as const;
+  if (bot.activeRunCount > 0 || bot.state === "busy") return "running" as const;
+  return undefined;
 }
 
 export function DesktopSidebar({
@@ -99,248 +73,229 @@ export function DesktopSidebar({
   mobileSidebarOpen,
   navCollapsed,
   sidebarOpen,
-  projectScope,
-  newConversationMenuOpen,
   sidebarWidth,
-  projectCards,
+  selectedBotId,
+  defaultBotId,
+  bots,
+  botStatus,
+  botError,
   sessions,
   selectedSession,
-  navigationView,
-  workspacePath,
-  resolvedAppearance,
+  projectScope,
   platform,
   sidebarRef,
   onSidebarKeyDown,
   onClose,
   onResize,
   onToggleNavigation,
-  onSetNewConversationMenuOpen,
   onOpenPalette,
-  onChooseRepository,
-  onManageProjects,
   onStartConversation,
   onOpenSession,
-  onSelectScope,
-  onViewAll,
-  onPreloadView,
+  onSelectBot,
+  onAddBot,
+  onRetryBots,
   onSetView,
-  onToggleAppearance,
+  navigationView,
 }: DesktopSidebarProps) {
   const compact = navCollapsed && !isMobileSidebarMode;
-  const mobileSidebarDialogProps = mobileSidebarOpen
-    ? ({ "aria-modal": true, role: "dialog" } as const)
-    : {};
+  const selectedBotSessions = [...sessions]
+    .filter((session) => (session.botId ?? defaultBotId) === selectedBotId)
+    .sort((left, right) =>
+      (right.endedAt ?? right.startedAt ?? "").localeCompare(
+        left.endedAt ?? left.startedAt ?? "",
+      ),
+    )
+    .slice(0, 8);
 
   return (
     <>
       <button
         aria-label="Close navigation"
-        className={`${SIDEBAR_SCRIM_CLASS} ${
-          mobileSidebarOpen
-            ? SIDEBAR_SCRIM_VISIBLE_CLASS
-            : SIDEBAR_SCRIM_HIDDEN_CLASS
-        }`}
+        className={`${SIDEBAR_SCRIM_CLASS} ${mobileSidebarOpen ? SIDEBAR_SCRIM_VISIBLE_CLASS : SIDEBAR_SCRIM_HIDDEN_CLASS}`}
         onClick={onClose}
         tabIndex={sidebarOpen ? 0 : -1}
         type="button"
       />
       <aside
-        {...mobileSidebarDialogProps}
+        {...(mobileSidebarOpen
+          ? { "aria-modal": true as const, role: "dialog" as const }
+          : {})}
         aria-hidden={
           isMobileSidebarMode && !mobileSidebarOpen ? true : undefined
         }
-        aria-label={mobileSidebarOpen ? "Application navigation" : undefined}
-        className={`${APP_SIDEBAR_CLASS}${
-          platform === "darwin" ? ` ${APP_SIDEBAR_DARWIN_CLASS}` : ""
-        }${
-          isMobileSidebarMode
-            ? ` ${APP_SIDEBAR_MOBILE_CLASS} ${
-                mobileSidebarOpen
-                  ? APP_SIDEBAR_MOBILE_OPEN_CLASS
-                  : APP_SIDEBAR_MOBILE_CLOSED_CLASS
-              }`
-            : ` ${APP_SIDEBAR_DESKTOP_CLASS}`
-        }${compact ? ` ${APP_SIDEBAR_COLLAPSED_CLASS}` : ""}`}
+        aria-label="Navigation and bots"
+        className={`${APP_SIDEBAR_CLASS}${platform === "darwin" ? ` ${APP_SIDEBAR_DARWIN_CLASS}` : ""} ${isMobileSidebarMode ? `${APP_SIDEBAR_MOBILE_CLASS} ${mobileSidebarOpen ? APP_SIDEBAR_MOBILE_OPEN_CLASS : APP_SIDEBAR_MOBILE_CLOSED_CLASS}` : APP_SIDEBAR_DESKTOP_CLASS}${compact ? ` ${APP_SIDEBAR_COLLAPSED_CLASS}` : ""}`}
         onKeyDown={onSidebarKeyDown}
         ref={sidebarRef}
       >
-        {!navCollapsed && !isMobileSidebarMode ? (
+        {!compact && !isMobileSidebarMode ? (
           <PanelResizeHandle
             bounds={APP_SIDEBAR_WIDTH}
             className="app-sidebar-resizer"
             direction="grow-right"
-            label="Resize project navigation"
+            label="Resize bot navigation"
             onResize={onResize}
             value={sidebarWidth}
           />
         ) : null}
-        <div
-          className={`${APP_BRAND_CLASS}${
-            compact ? ` ${APP_BRAND_COLLAPSED_CLASS}` : ""
-          }`}
-        >
+        <div className="flex h-14 shrink-0 items-center gap-2 px-2 [-webkit-app-region:no-drag]">
           <button
-            aria-label="Go to Chat home"
-            className={APP_BRAND_HOME_CLASS}
+            aria-label="Doolittle home"
+            className="grid size-8 place-items-center rounded-[var(--radius-md)] bg-[var(--accent)] font-semibold text-[var(--accent-ink)]"
             onClick={() => onSetView("chat")}
-            title="Chat home"
             type="button"
           >
-            <span className={APP_BRAND_MARK_CLASS} aria-hidden="true">
-              <span>D</span>
-              <i />
-            </span>
-            <span className={APP_BRAND_COPY_CLASS}>
-              <strong>Doolittle</strong>
-              <span>{"ElizaOS / operator"}</span>
-            </span>
+            D
           </button>
-          <button
-            aria-label={
-              navCollapsed ? "Expand navigation" : "Collapse navigation"
-            }
-            className={`${SIDEBAR_COLLAPSE_CLASS}${
-              compact ? ` ${SIDEBAR_COLLAPSE_COLLAPSED_CLASS}` : ""
-            }`}
-            onClick={onToggleNavigation}
-            title={navCollapsed ? "Expand navigation" : "Collapse navigation"}
-            type="button"
-          >
-            <UiIcon
-              icon={navCollapsed ? PanelLeftOpen : PanelLeftClose}
-              size="md"
-            />
-          </button>
-        </div>
-        <div
-          className={`${SIDEBAR_QUICK_ACTIONS_CLASS}${
-            compact ? ` ${SIDEBAR_QUICK_ACTIONS_COLLAPSED_CLASS}` : ""
-          }`}
-        >
-          <NewConversationControl
-            activeScope={projectScope}
-            isOpen={newConversationMenuOpen}
-            onChooseRepository={onChooseRepository}
-            onManageProjects={onManageProjects}
-            onOpenChange={onSetNewConversationMenuOpen}
-            onStart={onStartConversation}
-            projects={projectCards}
-            shortcut={platform === "darwin" ? "⌘N" : "Ctrl N"}
-          />
-          <button
-            aria-label="Search pages and commands"
-            onClick={onOpenPalette}
-            title="Search"
-            type="button"
-          >
-            <UiIcon icon={Search} size="md" />
-            <strong>Search</strong>
-            <kbd>{platform === "darwin" ? "⌘K" : "Ctrl K"}</kbd>
-          </button>
-          {compact ? (
-            <button
-              aria-label="Open conversation history"
-              onClick={onViewAll}
-              title="Conversation history"
-              type="button"
-            >
-              <UiIcon icon={History} size="md" />
-              <strong>History</strong>
-            </button>
+          {!compact ? (
+            <strong className="min-w-0 flex-1 truncate text-sm font-semibold">
+              Doolittle
+            </strong>
           ) : null}
+          <button
+            aria-label={compact ? "Expand navigation" : "Collapse navigation"}
+            className="grid size-10 place-items-center rounded-[var(--radius-md)] text-[var(--muted)] hover:bg-[var(--surface-hover)]"
+            onClick={onToggleNavigation}
+            type="button"
+          >
+            <UiIcon icon={compact ? PanelLeftOpen : PanelLeftClose} size="sm" />
+          </button>
         </div>
-        <nav className={SIDEBAR_FOCUS_NAV_CLASS} aria-label="Primary workspace">
-          <fieldset className={SIDEBAR_MODE_SWITCH_CLASS}>
-            <legend className="sr-only">Workspace modes</legend>
-            {PRIMARY_NAV_ITEMS.map((item) => (
+        <div className="grid shrink-0 gap-1 px-1 pb-3 [-webkit-app-region:no-drag]">
+          <button
+            className="flex min-h-10 items-center gap-2 rounded-[var(--radius-md)] px-2 text-left text-sm hover:bg-[var(--surface-hover)] max-[760px]:min-h-11"
+            onClick={onOpenPalette}
+            type="button"
+          >
+            <UiIcon icon={Search} size="sm" />
+            <span className={compact ? "sr-only" : ""}>Search</span>
+          </button>
+          <button
+            className="flex min-h-10 items-center gap-2 rounded-[var(--radius-md)] px-2 text-left text-sm hover:bg-[var(--surface-hover)] max-[760px]:min-h-11"
+            disabled={!selectedBotId}
+            onClick={() => onStartConversation(projectScope)}
+            type="button"
+          >
+            <UiIcon icon={Plus} size="sm" />
+            <span className={compact ? "sr-only" : ""}>New conversation</span>
+          </button>
+        </div>
+        <nav
+          aria-label="Bots and conversations"
+          className="min-h-0 flex-1 overflow-y-auto [-webkit-app-region:no-drag]"
+        >
+          {!compact ? (
+            <h2 className="px-3 pb-1 text-xs font-medium text-[var(--muted)]">
+              Bots
+            </h2>
+          ) : null}
+          {botStatus === "loading" || botStatus === "disabled" ? (
+            <StateSurface
+              kind={botStatus === "disabled" ? "offline" : "loading"}
+              title={
+                botStatus === "disabled" ? "Runtime offline" : "Loading bots"
+              }
+            />
+          ) : botStatus === "error" && bots.length === 0 ? (
+            <StateSurface
+              action={
+                <button
+                  className="text-sm underline"
+                  onClick={onRetryBots}
+                  type="button"
+                >
+                  Retry
+                </button>
+              }
+              kind="error"
+              title="Bots unavailable"
+            >
+              {botError}
+            </StateSurface>
+          ) : bots.length === 0 ? (
+            <StateSurface kind="empty" title="No bots available">
+              The local runtime has not returned a bot catalog.
+            </StateSurface>
+          ) : (
+            <>
+              {bots.map((bot) => (
+                <div key={bot.id}>
+                  <ContactRow
+                    avatar={bot.name.slice(0, 1).toUpperCase()}
+                    detail={bot.isDefault ? "Lead" : undefined}
+                    name={bot.name}
+                    onSelect={() => onSelectBot(bot.id)}
+                    selected={bot.id === selectedBotId}
+                    state={botRunState(bot)}
+                  />
+                  {bot.id === selectedBotId && !compact ? (
+                    <div className="ml-4 border-l border-[var(--border)] pl-2">
+                      {selectedBotSessions.length ? (
+                        selectedBotSessions.map((session) => (
+                          <button
+                            aria-current={
+                              session.sessionId === selectedSession
+                                ? "page"
+                                : undefined
+                            }
+                            className="block min-h-10 w-full truncate rounded-[var(--radius-md)] px-2 text-left text-sm text-[var(--text-soft)] hover:bg-[var(--surface-hover)] aria-current:bg-[var(--surface-selected)] max-[760px]:min-h-11"
+                            key={session.sessionId}
+                            onClick={() => onOpenSession(session.sessionId)}
+                            title={session.title || "New conversation"}
+                            type="button"
+                          >
+                            {session.title || "New conversation"}
+                          </button>
+                        ))
+                      ) : (
+                        <p className="px-2 py-2 text-xs text-[var(--muted)]">
+                          No conversations yet.
+                        </p>
+                      )}
+                      <button
+                        className="min-h-10 px-2 text-left text-xs text-[var(--muted)] hover:text-[var(--text)]"
+                        onClick={() => onSetView("sessions")}
+                        type="button"
+                      >
+                        All conversations
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+              ))}
               <button
-                aria-label={item.label}
-                aria-current={navigationView === item.id ? "page" : undefined}
-                className={`${SIDEBAR_MODE_BUTTON_CLASS}${
-                  navigationView === item.id
-                    ? ` ${SIDEBAR_MODE_BUTTON_SELECTED_CLASS}`
-                    : ""
-                }`}
-                key={item.id}
-                onClick={() => onSetView(item.id)}
-                onFocus={() => onPreloadView(item.id)}
-                onPointerDown={() => onPreloadView(item.id)}
-                onPointerEnter={() => onPreloadView(item.id)}
-                title={item.description}
+                className="mt-2 flex min-h-10 w-full items-center gap-2 rounded-[var(--radius-md)] px-3 text-left text-sm text-[var(--text-soft)] hover:bg-[var(--surface-hover)] max-[760px]:min-h-11"
+                onClick={onAddBot}
                 type="button"
               >
-                <Icon name={item.id} />
-                <span>{item.label}</span>
-                <i
-                  aria-hidden="true"
-                  className={`${SIDEBAR_MODE_SIGNAL_CLASS}${
-                    navigationView === item.id
-                      ? ` ${SIDEBAR_MODE_SIGNAL_SELECTED_CLASS}`
-                      : ""
-                  }`}
-                />
+                <UiIcon icon={Plus} size="sm" />
+                <span className={compact ? "sr-only" : ""}>Add bot</span>
               </button>
-            ))}
-          </fieldset>
+            </>
+          )}
         </nav>
-        <ProjectHistorySidebar
-          activeScope={projectScope}
-          onChooseRepository={onChooseRepository}
-          onManageProjects={onManageProjects}
-          onOpenSession={onOpenSession}
-          onSelectScope={onSelectScope}
-          onStartConversation={onStartConversation}
-          onViewAll={onViewAll}
-          projects={projectCards}
-          selectedSessionId={selectedSession}
-          sessions={sessions}
-        />
-        <div className={SIDEBAR_FOOTER_CLASS}>
-          <div className={SIDEBAR_FOOTER_ACTIONS_CLASS}>
+        <nav
+          aria-label="Other areas"
+          className="grid shrink-0 gap-1 border-t border-[var(--border)] px-1 py-2 [-webkit-app-region:no-drag]"
+        >
+          {(
+            [
+              ["orchestration", "Team & work"],
+              ["connections", "Connections"],
+              ["settings", "Settings"],
+            ] as const
+          ).map(([target, label]) => (
             <button
-              aria-current={navigationView === "settings" ? "page" : undefined}
-              aria-label="Open settings"
-              className={`${SIDEBAR_ACCOUNT_CLASS}${
-                navigationView === "settings"
-                  ? ` ${SIDEBAR_ACCOUNT_SELECTED_CLASS}`
-                  : ""
-              }`}
-              onClick={() => onSetView("settings")}
-              onFocus={() => onPreloadView("settings")}
-              onPointerDown={() => onPreloadView("settings")}
-              onPointerEnter={() => onPreloadView("settings")}
-              title="Settings"
+              aria-current={navigationView === target ? "page" : undefined}
+              className="min-h-10 rounded-[var(--radius-md)] px-2 text-left text-sm text-[var(--text-soft)] hover:bg-[var(--surface-hover)] aria-current:bg-[var(--surface-selected)] max-[760px]:min-h-11"
+              key={target}
+              onClick={() => onSetView(target)}
               type="button"
             >
-              <span>DL</span>
-              <div>
-                <strong>Settings</strong>
-                <small title={workspacePath}>
-                  {workspaceName(workspacePath)}
-                </small>
-              </div>
-              <UiIcon
-                className={SIDEBAR_ACCOUNT_ARROW_CLASS}
-                icon={ChevronRight}
-                size="xs"
-              />
+              {compact ? <span className="sr-only">{label}</span> : label}
             </button>
-            <button
-              aria-label={`Use ${
-                resolvedAppearance === "dark" ? "light" : "dark"
-              } appearance`}
-              className={`${ICON_BUTTON_CLASS} ${SIDEBAR_APPEARANCE_CLASS}`}
-              onClick={onToggleAppearance}
-              title="Toggle appearance"
-              type="button"
-            >
-              <UiIcon
-                icon={resolvedAppearance === "dark" ? Sun : Moon}
-                size="sm"
-              />
-            </button>
-          </div>
-        </div>
+          ))}
+        </nav>
       </aside>
     </>
   );

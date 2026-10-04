@@ -14,6 +14,7 @@ const handlers = {
   onPrepareCompression: vi.fn(),
   onSurfaceChange: vi.fn(),
   onToggleInspector: vi.fn(),
+  onOpenInspectorTab: vi.fn(),
   onTogglePin: vi.fn(),
 };
 
@@ -57,9 +58,13 @@ describe("ChatHeaderChrome", () => {
   it("keeps a new draft quiet while retaining primary actions", () => {
     render();
 
-    expect(container.textContent).toContain("Workspace");
-    expect(container.textContent).toContain("ollama · granite4.1:3b");
-    expect(container.textContent).toContain("Context");
+    expect(container.textContent).toContain("Details");
+    expect(
+      container.querySelector('[aria-label="Find conversation"]'),
+    ).not.toBeNull();
+    expect(
+      container.querySelector('[aria-label="Conversation options"]'),
+    ).not.toBeNull();
     expect(container.textContent).not.toContain("0 messages");
     expect(container.textContent).not.toContain("Not started");
     expect(container.textContent).not.toContain("0%");
@@ -74,7 +79,7 @@ describe("ChatHeaderChrome", () => {
     expect(
       container.querySelector('nav[aria-label="Conversation breadcrumb"]'),
     ).toBeNull();
-    expect(container.textContent).toContain("Workspace");
+    expect(container.textContent).toContain("Open full workspace");
   });
 
   it("keeps a long loading route inspectable without changing surface actions", () => {
@@ -82,71 +87,39 @@ describe("ChatHeaderChrome", () => {
       "Loading provider · Loading an unusually long model route";
     render({ modelRouteLabel });
 
-    const route =
-      container.querySelector<HTMLButtonElement>(".chat-model-route");
-    expect(route?.getAttribute("aria-label")).toBe(
-      `Open route controls. Current route ${modelRouteLabel}.`,
+    const route = container.querySelector<HTMLButtonElement>(
+      '[aria-label^="Model options"]',
     );
-    expect(route?.title).toBe(modelRouteLabel);
-    expect(route?.querySelector("strong")?.textContent).toBe(modelRouteLabel);
+    expect(route?.getAttribute("aria-label")).toContain(modelRouteLabel);
     act(() => route?.click());
     expect(handlers.onOpenRouteControls).toHaveBeenCalledTimes(1);
-
-    for (const [label, surface] of [
-      ["Chat", "conversation"],
-      ["History", "history"],
-      ["Media", "media"],
-    ] as const) {
-      const button = Array.from(
-        container.querySelectorAll<HTMLButtonElement>(
-          ".chat-surface-controls button",
-        ),
-      ).find((control) => control.textContent === label);
-      expect(button).toBeDefined();
-      act(() => button?.click());
-      expect(handlers.onSurfaceChange).toHaveBeenLastCalledWith(surface);
-    }
     act(() =>
       container
-        .querySelector<HTMLButtonElement>(".chat-workbench-toggle")
+        .querySelector<HTMLButtonElement>('[aria-label="Open details"]')
         ?.click(),
     );
     expect(handlers.onToggleInspector).toHaveBeenCalledTimes(1);
   });
 
-  it("exposes desktop chat surfaces with their current state", () => {
+  it("keeps history available in the options menu", () => {
     render({ surface: "history" });
-
     const history = Array.from(container.querySelectorAll("button")).find(
-      (button) => button.textContent === "History",
+      (button) => button.textContent === "Conversation history",
     );
-    const media = container.querySelector<HTMLButtonElement>(
-      ".chat-mobile-media-button",
-    );
-    expect(history?.getAttribute("aria-pressed")).toBe("true");
-    expect(media?.getAttribute("aria-pressed")).toBe("false");
-
-    act(() => media?.click());
-    expect(handlers.onSurfaceChange).toHaveBeenCalledWith("media");
+    act(() => history?.click());
+    expect(handlers.onSurfaceChange).toHaveBeenCalledWith("history");
   });
 
-  it("keeps a narrow Media toggle beside History and returns to Chat", () => {
+  it("opens Library and Computer from the options menu", () => {
     render();
-
-    const media = container.querySelector<HTMLButtonElement>(
-      ".chat-mobile-media-button",
-    );
-    expect(media?.className).toContain("chat-mobile-media-button");
-    act(() => media?.click());
-    expect(handlers.onSurfaceChange).toHaveBeenCalledWith("media");
-
-    render({ surface: "media" });
-    const chat = container.querySelector<HTMLButtonElement>(
-      ".chat-mobile-media-button",
-    );
-    expect(chat?.className).toContain("chat-mobile-media-button");
-    act(() => chat?.click());
-    expect(handlers.onSurfaceChange).toHaveBeenLastCalledWith("conversation");
+    const button = (label: string) =>
+      Array.from(container.querySelectorAll("button")).find(
+        (entry) => entry.textContent === label,
+      );
+    act(() => button("Library")?.click());
+    act(() => button("Computer")?.click());
+    expect(handlers.onOpenInspectorTab).toHaveBeenNthCalledWith(1, "library");
+    expect(handlers.onOpenInspectorTab).toHaveBeenNthCalledWith(2, "computer");
   });
 
   it("reveals conversation state and forwards the compact actions", () => {
@@ -166,21 +139,20 @@ describe("ChatHeaderChrome", () => {
       selectedUpdatedAt: "2026-08-12T12:00:00.000Z",
     });
 
-    expect(container.textContent).toContain("6 messages");
-    expect(container.textContent).toContain("72%");
+    expect(container.textContent).toContain("Pin conversation");
     act(() =>
-      container
-        .querySelector<HTMLButtonElement>('[aria-label="Pin conversation"]')
+      Array.from(container.querySelectorAll("button"))
+        .find((button) => button.textContent === "Pin conversation")
         ?.click(),
     );
     act(() =>
       container
-        .querySelector<HTMLButtonElement>('[aria-label^="Open route controls"]')
+        .querySelector<HTMLButtonElement>('[aria-label^="Model options"]')
         ?.click(),
     );
     act(() =>
       Array.from(container.querySelectorAll("button"))
-        .find((button) => button.textContent?.includes("72%"))
+        .find((button) => button.textContent === "Prepare context compression")
         ?.click(),
     );
 
