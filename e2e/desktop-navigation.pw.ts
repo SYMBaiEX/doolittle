@@ -8,6 +8,7 @@ import {
   test,
 } from "@playwright/test";
 import { expectNoDesktopRecovery } from "./support/desktop-assertions";
+import { isolatedRuntimeEnvironment } from "./support/isolated-runtime-environment";
 
 const repoRoot = process.cwd();
 const desktopRoot = resolve(repoRoot, "apps/desktop");
@@ -212,11 +213,9 @@ test.describe("Doolittle desktop navigation", () => {
         args: [desktopRoot, `--user-data-dir=${profileDir}`],
         cwd: repoRoot,
         env: {
-          ...process.env,
+          ...isolatedRuntimeEnvironment(join(profileDir, "runtime")),
           DOOLITTLE_DESKTOP_SOURCE_ROOT: repoRoot,
           DOOLITTLE_DESKTOP_CWD: repoRoot,
-          DOOLITTLE_OFFLINE_BOOTSTRAP: "true",
-          ELIZA_ACCOUNT_POOL_KEEPALIVE: "false",
         },
       });
       const page = await app.firstWindow();
@@ -235,6 +234,26 @@ test.describe("Doolittle desktop navigation", () => {
       );
       await expect(runtimeStatus).toHaveClass(/(?:^|\s)ready(?:\s|$)/);
       await expect(runtimeStatus).toContainText("Local runtime");
+      // Real SDK/API isolation proof, not a mocked task-creation response.
+      const initialTaskCount = await page.evaluate(async () => {
+        const response = await window.doolittle.requestAgent({
+          requestId: crypto.randomUUID(),
+          path: "/delegation/tasks?limit=1",
+          method: "GET",
+          headers: { accept: "application/json" },
+        });
+        if (response.status !== 200) {
+          throw new Error(
+            `Task isolation probe failed with ${response.status}.`,
+          );
+        }
+        const result = JSON.parse(response.body) as { tasks: unknown[] };
+        return result.tasks.length;
+      });
+      expect(
+        initialTaskCount,
+        "a fresh fixture must not inherit SDK tasks",
+      ).toBe(0);
       // This route/navigation smoke deliberately exercises one focused view;
       // independent tiled sessions have their own workbench E2E coverage.
       await page

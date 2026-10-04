@@ -2,6 +2,7 @@ import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { _electron as electron, expect, type Page } from "@playwright/test";
+import { isolatedRuntimeEnvironment } from "./isolated-runtime-environment";
 
 const repoRoot = process.cwd();
 const desktopRoot = resolve(repoRoot, "apps/desktop");
@@ -35,15 +36,9 @@ export async function launchIsolatedDesktop(): Promise<IsolatedDesktop> {
       args: [desktopRoot, `--user-data-dir=${profileDir}`],
       cwd: repoRoot,
       env: {
-        ...process.env,
-        ANTHROPIC_API_KEY: "",
-        ELIZAOS_CLOUD_API_KEY: "",
-        FAL_API_KEY: "",
-        OPENAI_API_KEY: "",
+        ...isolatedRuntimeEnvironment(join(profileDir, "runtime")),
         DOOLITTLE_DESKTOP_CWD: workspaceDir,
         DOOLITTLE_DESKTOP_SOURCE_ROOT: repoRoot,
-        DOOLITTLE_OFFLINE_BOOTSTRAP: "true",
-        ELIZA_ACCOUNT_POOL_KEEPALIVE: "false",
       },
     });
 

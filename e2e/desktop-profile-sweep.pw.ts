@@ -20,6 +20,7 @@ import {
   type View,
   views,
 } from "../apps/desktop/src/renderer/desktop-navigation";
+import { isolatedRuntimeEnvironment } from "./support/isolated-runtime-environment";
 
 const executablePath = process.env.DOOLITTLE_DESKTOP_EXECUTABLE;
 const profileDir = process.env.DOOLITTLE_DESKTOP_PROFILE_DIR;
@@ -1098,10 +1099,9 @@ test.describe("Doolittle packaged-profile control sweep", () => {
         executablePath: resolve(executablePath as string),
         args: [`--user-data-dir=${activeProfileDir}`],
         env: {
-          ...process.env,
+          ...isolatedRuntimeEnvironment(join(activeProfileDir, "runtime")),
           DOOLITTLE_DESKTOP_CWD:
             generatedProfile?.workspaceDir ?? process.env.DOOLITTLE_DESKTOP_CWD,
-          DOOLITTLE_OFFLINE_BOOTSTRAP: "true",
         },
       });
       const page = await app.firstWindow();

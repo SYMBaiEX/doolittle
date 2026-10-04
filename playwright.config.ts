@@ -128,7 +128,11 @@ function profileRecallHits(query) {
   );
 }
 
+const { isolatedRuntimeEnvironment } = await import(
+  "../../e2e/support/isolated-runtime-environment.ts"
+);
 const applyE2eEnv = () => {
+  Object.assign(process.env, isolatedRuntimeEnvironment(dataDir));
   process.env.PATH = supportDir + ":" + (process.env.PATH ?? "");
   process.env.DOOLITTLE_NAME = "Doolittle E2E";
   process.env.DOOLITTLE_MODE = "api";
@@ -152,10 +156,10 @@ const applyE2eEnv = () => {
   process.env.ACP_SERVER_COMMAND = "";
 };
 
+applyE2eEnv();
 const { getAppContext } = await import(
   "../../packages/agent/src/runtime/bootstrap/index.ts"
 );
-applyE2eEnv();
 const context = await getAppContext({ startupMode: "api" });
 
 function json(body, status = 200) {

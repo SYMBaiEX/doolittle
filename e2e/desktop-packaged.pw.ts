@@ -8,6 +8,7 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { _electron as electron, expect, test } from "@playwright/test";
+import { isolatedRuntimeEnvironment } from "./support/isolated-runtime-environment";
 
 const executablePath = process.env.DOOLITTLE_DESKTOP_EXECUTABLE;
 const fallbackResponse =
@@ -58,13 +59,10 @@ test.describe("packaged Doolittle desktop", () => {
       executablePath,
       args: [`--user-data-dir=${profileDir}`],
       env: {
-        ...process.env,
+        ...isolatedRuntimeEnvironment(runtimeDir),
         // A packaged app must ignore this source-only override.
         DOOLITTLE_DESKTOP_SOURCE_ROOT: join(profileDir, "not-a-checkout"),
         DOOLITTLE_DESKTOP_CWD: workspaceDir,
-        DOOLITTLE_OFFLINE_BOOTSTRAP: "true",
-        ELIZA_HOME: runtimeDir,
-        ELIZA_ACCOUNT_POOL_KEEPALIVE: "false",
       },
     });
 

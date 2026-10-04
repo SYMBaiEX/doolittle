@@ -10,6 +10,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { _electron as electron, expect, test } from "@playwright/test";
 import { expectNoDesktopRecovery } from "./support/desktop-assertions";
+import { isolatedRuntimeEnvironment } from "./support/isolated-runtime-environment";
 
 const repoRoot = process.cwd();
 const desktopRoot = resolve(repoRoot, "apps/desktop");
@@ -92,10 +93,9 @@ test.describe("Doolittle editor project resolution", () => {
       args: [desktopRoot, `--user-data-dir=${profileDir}`],
       cwd: repoRoot,
       env: {
-        ...process.env,
+        ...isolatedRuntimeEnvironment(join(profileDir, "runtime")),
         DOOLITTLE_DESKTOP_CWD: workspaceDir,
         DOOLITTLE_DESKTOP_SOURCE_ROOT: repoRoot,
-        DOOLITTLE_OFFLINE_BOOTSTRAP: "true",
       },
     });
 

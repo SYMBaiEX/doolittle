@@ -8,6 +8,7 @@ import {
   test,
 } from "@playwright/test";
 import { expectNoDesktopRecovery } from "./support/desktop-assertions";
+import { isolatedRuntimeEnvironment } from "./support/isolated-runtime-environment";
 
 const repoRoot = process.cwd();
 const desktopRoot = resolve(repoRoot, "apps/desktop");
@@ -33,14 +34,9 @@ async function launchDesktop(profileDir: string, workspaceDir: string) {
     args: [desktopRoot, `--user-data-dir=${profileDir}`],
     cwd: repoRoot,
     env: {
-      ...process.env,
-      ANTHROPIC_API_KEY: "",
-      ELIZAOS_CLOUD_API_KEY: "",
-      FAL_API_KEY: "",
-      OPENAI_API_KEY: "",
+      ...isolatedRuntimeEnvironment(join(profileDir, "runtime")),
       DOOLITTLE_DESKTOP_CWD: workspaceDir,
       DOOLITTLE_DESKTOP_SOURCE_ROOT: repoRoot,
-      DOOLITTLE_OFFLINE_BOOTSTRAP: "true",
     },
   });
 }
