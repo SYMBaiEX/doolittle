@@ -3,6 +3,7 @@ import { compile } from "tailwindcss";
 import { describe, expect, it } from "vitest";
 import {
   CHAT_CHROME_HOST_CLASS,
+  VIEW_CONTAINER_CLASS,
   WINDOW_DRAGBAR_CHAT_CLASS,
   WINDOW_DRAGBAR_PRIMARY_CLASS,
 } from "./app-shell/shell-layout";
@@ -24,6 +25,28 @@ const chatHeader = readFileSync(
 );
 
 describe("chat chrome density contract", () => {
+  it("keeps short chat screens bounded while their session chrome scrolls", async () => {
+    const compiler = await compile("@tailwind utilities;");
+    const candidates = VIEW_CONTAINER_CLASS.split(/\s+/u).filter((candidate) =>
+      candidate.startsWith("[@media(max-height:640px)]:"),
+    );
+    const css = compiler.build(candidates);
+    expect(css).toContain("@media (max-height:640px)");
+    expect(css).toContain(".view-chat {");
+    expect(css).toContain("overflow-y: auto !important");
+    expect(css).toContain("[data-session-workbench]");
+    expect(css).toContain("height: auto !important");
+    expect(css).toContain("min-height: 100% !important");
+    expect(css).toContain("[data-session-panels]");
+    expect(css).toContain("flex: none !important");
+    expect(css).toContain(".chat-conversation");
+    expect(css).toContain("grid-template-rows: 128px auto !important");
+    expect(css).toContain("max-height: none !important");
+    expect(css).not.toContain("display: none");
+    expect(css).not.toContain("overflow-y: hidden");
+    expect(css).not.toContain("view-code");
+    expect(VIEW_CONTAINER_CLASS).toContain("min-h-0 min-w-0 flex-1");
+  });
   it("closes the same-render double-submit window synchronously", () => {
     expect(chatPage).toContain("activeRequestSessionsRef");
     expect(chatPage).toContain(

@@ -770,6 +770,119 @@ async function expectViewportGeometry(
     await expect(
       activeConversation.locator(".composer-model-trigger"),
     ).toBeVisible();
+    if (viewport.height <= 640) {
+      const composer = activeConversation.locator(".chat-composer");
+      await composer.scrollIntoViewIfNeeded();
+      const shortLayout = await composer.evaluate((form) => {
+        const route = form.closest<HTMLElement>(".view-container");
+        const transcript = form
+          .closest(".chat-conversation")
+          ?.querySelector(".chat-messages");
+        const formRect = form.getBoundingClientRect();
+        const routeRect = route?.getBoundingClientRect();
+        return {
+          overflowY: route ? getComputedStyle(route).overflowY : null,
+          shellHeight: document
+            .querySelector(".desktop-shell")
+            ?.getBoundingClientRect().height,
+          transcriptHeight: transcript?.getBoundingClientRect().height,
+          transcriptTop: transcript?.getBoundingClientRect().top,
+          transcriptBottom: transcript?.getBoundingClientRect().bottom,
+          formTop: formRect.top,
+          formBottom: formRect.bottom,
+          routeTop: routeRect?.top,
+          routeBottom: routeRect?.bottom,
+        };
+      });
+      expect(
+        shortLayout.overflowY,
+        "short Chat has an intentional scroll boundary",
+      ).toBe("auto");
+      expect(
+        shortLayout.shellHeight,
+        "short shell remains viewport bounded",
+      ).toBe(viewport.height);
+      expect(
+        shortLayout.transcriptHeight,
+        "short transcript retains readable scrolling space",
+      ).toBeGreaterThanOrEqual(128);
+      expect(
+        shortLayout.formTop,
+        "scrolled composer top stays inside Chat view",
+      ).toBeGreaterThanOrEqual((shortLayout.routeTop ?? Infinity) - 1);
+      expect(
+        shortLayout.formBottom,
+        "scrolled composer bottom stays inside Chat view",
+      ).toBeLessThanOrEqual((shortLayout.routeBottom ?? 0) + 1);
+      expect(
+        shortLayout.transcriptTop,
+        "readable transcript top stays inside Chat view",
+      ).toBeGreaterThanOrEqual((shortLayout.routeTop ?? Infinity) - 1);
+      expect(
+        shortLayout.transcriptBottom,
+        "readable transcript bottom stays inside Chat view",
+      ).toBeLessThanOrEqual((shortLayout.routeBottom ?? 0) + 1);
+
+      const opener = page.getByRole("button", { name: /^Open terminal/ });
+      await expect(opener).toBeVisible();
+      const openerBox = await opener.boundingBox();
+      expect(
+        openerBox?.height,
+        "terminal opener touch height",
+      ).toBeGreaterThanOrEqual(44);
+      expect(
+        openerBox?.width,
+        "terminal opener touch width",
+      ).toBeGreaterThanOrEqual(44);
+      const terminal = await page
+        .locator(
+          '[aria-label="Chat terminal panel"] [data-interactive-terminal]',
+        )
+        .elementHandle();
+      if (!terminal) throw new Error("Retained terminal is unavailable");
+      try {
+        await opener.click();
+        const dialog = page.getByRole("dialog", {
+          name: "Chat terminal",
+          exact: true,
+        });
+        await expect(dialog).toBeVisible();
+        const returnBox = await dialog
+          .getByRole("button", { name: "Back to workspace", exact: true })
+          .boundingBox();
+        expect(
+          returnBox?.height,
+          "terminal return touch height",
+        ).toBeGreaterThanOrEqual(44);
+        const bounds = await dialog.boundingBox();
+        expect(bounds).toEqual({
+          x: 0,
+          y: 0,
+          width: viewport.width,
+          height: viewport.height,
+        });
+        expect(
+          await terminal.evaluate(
+            (element) =>
+              element ===
+              document.querySelector(
+                '[aria-label="Chat terminal panel"] [data-interactive-terminal]',
+              ),
+          ),
+        ).toBe(true);
+        await page.keyboard.press("Escape");
+        await expect(dialog).toHaveCount(0);
+        await expect(opener).toBeFocused();
+        expect(
+          await terminal.evaluate(
+            (element) =>
+              element.isConnected && Boolean(element.closest("[inert]")),
+          ),
+        ).toBe(true);
+      } finally {
+        await terminal.dispose();
+      }
+    }
   }
   const geometry = await page.evaluate(
     ({ route, viewport }) => {

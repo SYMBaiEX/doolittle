@@ -147,6 +147,16 @@ request list or truncated command. The dialog closes when its panel, surface,
 or route is hidden; focus returns only to an available invoking control.
 
 Terminal utility controls use the same comfortable/compact control geometry.
+The shared dock fits its preferred height against actual chat chrome and
+composer geometry, reserving 128px of transcript space (roughly five readable
+lines plus padding). Viewport-only fitting does not overwrite the preference.
+When even the minimum usable terminal split cannot fit, a 44px Open terminal
+control exposes the same mounted PTY in a full-viewport focused dialog. Escape
+or Back to workspace restores the opener; folding does not stop the shell.
+On screens at most 640px high, Chat's route remains a bounded vertical scroller:
+session controls stay in normal flow, each transcript has a 128px scrolling
+row, and its complete intrinsic composer can be scrolled into view. The shell
+does not grow beyond the viewport, and actions are neither shrunk nor clipped.
 At narrow widths they retain 44px targets and a separate action band above the
 scrollable tab list. The output canvas is a real PTY surface, without scanline
 overlays or decorative glow; real health and attention indicators remain.
