@@ -94,13 +94,13 @@ export interface RegisterIpcDependencies {
   pickFiles: () => Promise<FileSelection>;
   workspace: WorkspaceIpcController;
   sensitiveActionDependencies?: SensitiveActionIpcDependencies;
-  pickChatAttachments?: () => Promise<AttachmentSelection>;
+  pickChatAttachments?: (botId?: string) => Promise<AttachmentSelection>;
   pickProjectFiles?: () => Promise<ProjectResourceSelection>;
   pickProjectFolders?: () => Promise<ProjectResourceSelection>;
   importRecordedAudio?: (
     request: RecordedAudioImportRequest,
   ) => AttachmentSelection["attachments"][number];
-  discardRecordedAudio?: (recordingId: string) => void;
+  discardRecordedAudio?: (recordingId: string, botId?: string) => void;
   discardChatAttachments?: (request: AttachmentCleanupRequest) => void;
   commitChatAttachments?: (request: AttachmentCleanupRequest) => void;
   desktopControls?: DesktopControlIpcDependencies;
@@ -121,7 +121,18 @@ export function validateAttachmentCleanupRequest(
   ) {
     throw new Error("Attachment cleanup capability is invalid.");
   }
-  return { attachmentIds, cleanupCapability: value.cleanupCapability };
+  if (
+    value.botId !== undefined &&
+    (typeof value.botId !== "string" ||
+      !/^[a-z0-9][a-z0-9_-]{0,63}$/u.test(value.botId))
+  ) {
+    throw new Error("Attachment bot identity is invalid.");
+  }
+  return {
+    attachmentIds,
+    cleanupCapability: value.cleanupCapability,
+    ...(value.botId === undefined ? {} : { botId: value.botId }),
+  };
 }
 
 function serializedByteLength(value: unknown): number {

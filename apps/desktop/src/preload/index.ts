@@ -99,8 +99,11 @@ const bridge: DoolittleDesktopBridge = {
     ipcRenderer.invoke(desktopIpcChannels.invoke.dialogPickProjectFiles),
   pickProjectFolders: () =>
     ipcRenderer.invoke(desktopIpcChannels.invoke.dialogPickProjectFolders),
-  pickChatAttachments: () =>
-    ipcRenderer.invoke(desktopIpcChannels.invoke.dialogPickChatAttachments),
+  pickChatAttachments: (botId?: string) =>
+    ipcRenderer.invoke(
+      desktopIpcChannels.invoke.dialogPickChatAttachments,
+      botId,
+    ),
   discardChatAttachments: (request) =>
     ipcRenderer.invoke(
       desktopIpcChannels.invoke.chatDiscardAttachments,
@@ -116,10 +119,11 @@ const bridge: DoolittleDesktopBridge = {
       desktopIpcChannels.invoke.chatImportRecordedAudio,
       request,
     ),
-  discardRecordedAudio: (recordingId: string) =>
+  discardRecordedAudio: (recordingId: string, botId?: string) =>
     ipcRenderer.invoke(
       desktopIpcChannels.invoke.chatDiscardRecordedAudio,
       recordingId,
+      botId,
     ),
   startProviderAuth: (
     provider: ProviderAuthProvider,

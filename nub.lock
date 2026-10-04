@@ -233,6 +233,9 @@ importers:
       '@doolittle/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@doolittle/plugin-claude-code':
+        specifier: workspace:*
+        version: link:../../packages/plugins/plugin-claude-code
       '@doolittle/ui':
         specifier: workspace:*
         version: link:../../packages/ui

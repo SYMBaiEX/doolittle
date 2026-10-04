@@ -17,6 +17,10 @@ import {
 import { SseParser } from "../shared/sse";
 import { handleBotApiRequest } from "./bot-api";
 import {
+  assertBotSessionRequest,
+  attributeBotSessionResponse,
+} from "./bot-session-routing";
+import {
   resolveEditorProjectContext,
   resolveEditorProjectRevision,
 } from "./editor-project-context";
@@ -304,7 +308,7 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
   );
   registerHandler(
     invokeChannels.chatDiscardRecordedAudio,
-    (_event, recordingId: unknown) => {
+    (_event, recordingId: unknown, unsafeBotId?: unknown) => {
       if (!discardRecordedAudio) {
         throw new Error("Recorded audio cleanup is unavailable.");
       }
@@ -314,7 +318,11 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
       ) {
         throw new Error("Recording ID is invalid.");
       }
-      discardRecordedAudio(recordingId);
+      const botId = targetBotId(unsafeBotId);
+      if (bots) bots.get(botId);
+      else if (botId !== "default")
+        throw new Error("Named bots are unavailable.");
+      discardRecordedAudio(recordingId, botId);
     },
   );
   registerHandler(
@@ -381,7 +389,13 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
   registerHandler(invokeChannels.dialogPickProjectFolders, pickProjectFolders);
   registerHandler(
     invokeChannels.dialogPickChatAttachments,
-    pickChatAttachments,
+    (_event, unsafeBotId?: unknown) => {
+      const botId = targetBotId(unsafeBotId);
+      if (bots) bots.get(botId);
+      else if (botId !== "default")
+        throw new Error("Named bots are unavailable.");
+      return pickChatAttachments(botId);
+    },
   );
   registerHandler(
     invokeChannels.chatImportRecordedAudio,
@@ -389,7 +403,11 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
       if (!importRecordedAudio) {
         throw new Error("Recorded audio import is unavailable.");
       }
-      return importRecordedAudio(request);
+      const botId = targetBotId(request?.botId);
+      if (bots) bots.get(botId);
+      else if (botId !== "default")
+        throw new Error("Named bots are unavailable.");
+      return { ...importRecordedAudio({ ...request, botId }), botId };
     },
   );
   registerTerminalIpcHandlers({
@@ -546,6 +564,7 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
       } else if (botId !== "default") {
         throw new Error("Named bots are unavailable.");
       }
+      if (bots) await assertBotSessionRequest(bots, request, botId);
       const targetBackend = bots ? await bots.backendFor(botId) : backend;
       const controller = new AbortController();
       activeAgentRequests.set(key, { controller, botId });
@@ -560,12 +579,15 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
         cleanupDestroyedSender,
       );
       try {
-        return await requestAgentTransport(
+        const response = await requestAgentTransport(
           targetBackend,
           sensitiveFetch,
           request,
           controller.signal,
         );
+        return bots
+          ? attributeBotSessionResponse(bots, request, botId, response)
+          : response;
       } finally {
         stopTrackingSender();
         activeAgentRequests.delete(key);
@@ -595,6 +617,16 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
     async (event, request: ChatRequest) => {
       assertChatRequest(request);
       const botId = targetBotId(request.botId);
+      const owner = bots?.assertConversationOwner(
+        botId,
+        request.roomId,
+        request.projectId,
+      );
+      if (owner?.projectId && owner.projectId !== request.projectId) {
+        throw new Error(
+          "Conversation project context does not match its saved owner.",
+        );
+      }
       const targetBackend = bots ? await bots.backendFor(botId) : backend;
       if (!bots && botId !== "default")
         throw new Error("Named bots are unavailable.");
@@ -602,7 +634,7 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
       const attachmentCleanup = validateChatAttachmentCleanup(
         request.attachmentCleanup,
         attachmentIds,
-      );
+      ).map((cleanup) => ({ ...cleanup, botId }));
       const state = targetBackend.getState();
       if (state.phase !== "ready" || !state.url) {
         throw new Error("The local runtime is not ready.");
@@ -649,6 +681,7 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
         }
         if (terminal) {
           terminalEventEmitted = true;
+          bots?.endRun(botId, request.requestId);
         }
         emitEvent(payload, eventId);
         return terminal;
@@ -756,6 +789,8 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
         if (!isRecord(submitted) || submitted.run_id !== request.requestId) {
           throw new Error("The runtime returned an invalid chat run receipt.");
         }
+        bots?.bindRun(botId, request.roomId, request.requestId);
+        bots?.beginRun(botId, request.requestId);
         // The runtime receives IDs only. Commit the local lease after its POST
         // receipt, so a desktop crash during streaming cannot orphan an import.
         if (commitChatAttachments) {
@@ -851,6 +886,7 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
       if (!/^[a-zA-Z0-9:_-]{1,128}$/u.test(requestId)) {
         throw new Error("Chat run subscription is invalid.");
       }
+      if (bots) await bots.assertRunOwner(botId, requestId);
       const after = unsafeRequest.after;
       if (
         after !== undefined &&
@@ -916,7 +952,10 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
             "error",
           ].includes(frame.event);
           if (terminal && terminalEventEmitted) return;
-          if (terminal) terminalEventEmitted = true;
+          if (terminal) {
+            terminalEventEmitted = true;
+            bots?.endRun(botId, requestId);
+          }
           if (!event.sender.isDestroyed())
             event.sender.send(eventChannels.chatEvent, {
               requestId,
@@ -1001,6 +1040,7 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
         throw new Error("Chat run ID is invalid.");
       }
       const botId = targetBotId(unsafeBotId);
+      if (bots) await bots.assertRunOwner(botId, requestId);
       const active = activeChats.get(chatKey(event, requestId));
       if (active && active.botId !== botId)
         throw new Error("Chat run belongs to a different bot.");

@@ -71,13 +71,13 @@ export interface DoolittleDesktopBridge {
   pickFiles(): Promise<FileSelection>;
   pickProjectFiles(): Promise<ProjectResourceSelection>;
   pickProjectFolders(): Promise<ProjectResourceSelection>;
-  pickChatAttachments(): Promise<AttachmentSelection>;
+  pickChatAttachments(botId?: string): Promise<AttachmentSelection>;
   discardChatAttachments(request: AttachmentCleanupRequest): Promise<void>;
   commitChatAttachments(request: AttachmentCleanupRequest): Promise<void>;
   importRecordedAudio(
     request: RecordedAudioImportRequest,
   ): Promise<ManagedAttachmentDescriptor>;
-  discardRecordedAudio(recordingId: string): Promise<void>;
+  discardRecordedAudio(recordingId: string, botId?: string): Promise<void>;
   startProviderAuth(
     provider: ProviderAuthProvider,
     options?: ProviderAuthStartOptions,

@@ -20,6 +20,7 @@ export interface ClaudeCodePluginOptions {
     systemPrompt?: string;
     effort?: string;
     jsonSchema?: Record<string, unknown>;
+    signal?: AbortSignal;
   }) => Promise<string>;
   refreshCredentials?: () => Promise<
     | {

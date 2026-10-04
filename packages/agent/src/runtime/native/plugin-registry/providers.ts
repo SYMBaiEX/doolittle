@@ -1,9 +1,15 @@
+import type { BotDefinition } from "@doolittle/contracts/bots";
 import type { IAgentRuntime, Plugin } from "@elizaos/core";
+import type { CodexAuth } from "@elizaos/plugin-codex-cli";
 import type { EnvConfig } from "../../../types/runtime";
+import { requestWorkerHost } from "../../bootstrap/worker-host-rpc";
 import { refreshLinkedClaudeCodeCredentials } from "../account-auth";
 import { getClaudeCodeAccountStatus } from "../account-auth/claude-code";
 import { getDevinAccountStatus } from "../account-auth/devin";
-import { createDoolittleCodexReasoningPlugin } from "./codex-reasoning";
+import {
+  createCodexReasoningBackend,
+  createDoolittleCodexReasoningPlugin,
+} from "./codex-reasoning";
 import {
   createEvalModelInputObservationsPlugin,
   observeEvalModelInputUsage,
@@ -19,6 +25,7 @@ import { normalizePlugin } from "./support";
 
 export async function loadProviderPlugins(
   config: EnvConfig,
+  workerBot?: BotDefinition | null,
 ): Promise<Plugin[]> {
   const enableCloudEmbeddings =
     Boolean(config.elizaCloudEmbeddingUrl?.trim()) ||
@@ -48,6 +55,75 @@ export async function loadProviderPlugins(
     normalizePlugin(sqlPlugin),
     normalizePlugin(pdfPlugin),
     createDoolittleCodexReasoningPlugin(normalizePlugin(codexCliPlugin), {
+      ...(workerBot?.model.provider === "codex"
+        ? {
+            forceBackend: true,
+            createBackend: (runtime: IAgentRuntime) =>
+              createCodexReasoningBackend(runtime, {
+                authPath: `${config.dataDir}/host-codex-auth-not-on-disk`,
+                loadAuth: async () => {
+                  const grant = await requestWorkerHost("codex.auth", null);
+                  if (
+                    !grant ||
+                    typeof grant !== "object" ||
+                    typeof (grant as Record<string, unknown>).accessToken !==
+                      "string" ||
+                    typeof (grant as Record<string, unknown>).accountId !==
+                      "string"
+                  ) {
+                    throw new Error(
+                      "The approved Codex account is unavailable.",
+                    );
+                  }
+                  const value = grant as {
+                    accessToken: string;
+                    accountId: string;
+                  };
+                  return {
+                    OPENAI_API_KEY: null,
+                    auth_mode: "chatgpt",
+                    last_refresh: new Date().toISOString(),
+                    tokens: {
+                      id_token: "",
+                      access_token: value.accessToken,
+                      refresh_token: "",
+                      account_id: value.accountId,
+                    },
+                  } satisfies CodexAuth;
+                },
+                refreshAuth: async () => {
+                  const grant = await requestWorkerHost("codex.auth", null);
+                  if (
+                    !grant ||
+                    typeof grant !== "object" ||
+                    typeof (grant as Record<string, unknown>).accessToken !==
+                      "string" ||
+                    typeof (grant as Record<string, unknown>).accountId !==
+                      "string"
+                  ) {
+                    throw new Error(
+                      "The approved Codex account is unavailable.",
+                    );
+                  }
+                  const value = grant as {
+                    accessToken: string;
+                    accountId: string;
+                  };
+                  return {
+                    OPENAI_API_KEY: null,
+                    auth_mode: "chatgpt",
+                    last_refresh: new Date().toISOString(),
+                    tokens: {
+                      id_token: "",
+                      access_token: value.accessToken,
+                      refresh_token: "",
+                      account_id: value.accountId,
+                    },
+                  } satisfies CodexAuth;
+                },
+              }),
+          }
+        : {}),
       observeUsage: recordEvalCodexModelCall,
       observeContext: observeEvalModelInputUsage,
     }),
@@ -56,9 +132,41 @@ export async function loadProviderPlugins(
     normalizePlugin(anthropicPlugin),
     createClaudeCodePlugin({
       enabled: true,
-      allowCliFallback: config.claudeCodeCliFallback,
-      getStatus: () => getClaudeCodeAccountStatus(),
-      refreshCredentials: () => refreshLinkedClaudeCodeCredentials(),
+      allowCliFallback:
+        workerBot?.model.provider === "claude-code" ||
+        config.claudeCodeCliFallback,
+      getStatus: workerBot
+        ? () => ({
+            provider: "claude-code",
+            available: workerBot.model.provider === "claude-code",
+            reusable: false,
+            fallbackReady: workerBot.model.provider === "claude-code",
+            detail: "Desktop-hosted Claude Code CLI",
+          })
+        : () => getClaudeCodeAccountStatus(),
+      refreshCredentials: workerBot
+        ? undefined
+        : () => refreshLinkedClaudeCodeCredentials(),
+      ...(workerBot?.model.provider === "claude-code"
+        ? {
+            invokeCliPrint: async (
+              params: Parameters<
+                typeof import("@doolittle/plugin-claude-code").invokeClaudeCodeCliPrint
+              >[0],
+            ) => {
+              const { signal, ...payload } = params;
+              const result = await requestWorkerHost("claude.invoke", payload, {
+                timeoutMs: 125_000,
+                signal,
+              });
+              if (typeof result !== "string")
+                throw new Error(
+                  "The Claude Code host returned an invalid response.",
+                );
+              return result;
+            },
+          }
+        : {}),
     }),
     createDevinPlugin({
       enabled: true,

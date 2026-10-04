@@ -1,5 +1,6 @@
 import type { AppLogger } from "@/logging/logger";
 import type { AppContext } from "@/runtime/bootstrap";
+import { readWorkerBotProfile } from "@/runtime/bootstrap/bot-profile";
 import type { ApiServerAddress } from "@/server";
 import {
   type EntrypointSubcommand,
@@ -126,7 +127,7 @@ export function createApiStartupController(
       if (!hydrateAfterListening) {
         await context.ensureDeferredHydration("api");
       }
-      context.gateway.startIngress();
+      if (!readWorkerBotProfile()) context.gateway.startIngress();
       let serverAddress: ApiServerAddress | undefined;
       if (!startApiServer) {
         const server = await import("@/server");

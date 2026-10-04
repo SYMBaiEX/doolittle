@@ -8,30 +8,72 @@ import type {
   UpdateBotInput,
 } from "@doolittle/contracts/bots";
 import {
+  invokeClaudeCodeCliPrint,
+  resolveClaudeCliModel,
+} from "@doolittle/plugin-claude-code";
+import {
+  getAccessToken,
+  getSubscriptionStatus,
+  type SubscriptionAccountStatus,
+} from "@elizaos/agent/auth/credentials";
+import {
   type BackendLaunchTarget,
   BackendManager,
   type BackendManagerOptions,
 } from "./backend";
 import { BotCatalog } from "./bot-catalog";
+import {
+  BotConversationLedger,
+  type BoundConversation,
+} from "./bot-conversation-ledger";
+import type { WorkerHostHandler } from "./worker-host-rpc";
 
 const CONNECTION_ID_PATTERN =
   /^(openai-api|anthropic-api|openai-codex|anthropic-subscription):([a-zA-Z0-9][a-zA-Z0-9._-]{0,119})$/u;
 
 type TokenResolver = (
-  provider: "openai-api" | "anthropic-api",
+  provider: "openai-api" | "anthropic-api" | "openai-codex",
   accountId: string,
 ) => Promise<string | null>;
 
 async function officialTokenResolver(
-  provider: "openai-api" | "anthropic-api",
+  provider: "openai-api" | "anthropic-api" | "openai-codex",
   accountId: string,
 ): Promise<string | null> {
-  const { getAccessToken } = await import("@elizaos/agent/auth/credentials");
   return getAccessToken(provider, accountId);
+}
+
+type ProviderGrant =
+  | { kind: "offline" }
+  | { kind: "direct"; provider: "openai-api" | "anthropic-api"; token: string }
+  | {
+      kind: "native";
+      provider: "openai-codex" | "anthropic-subscription";
+      accountId: string;
+    };
+
+function codexAccountId(accessToken: string): string {
+  try {
+    const payload = JSON.parse(
+      Buffer.from(accessToken.split(".")[1] ?? "", "base64url").toString(
+        "utf8",
+      ),
+    ) as Record<string, unknown>;
+    const auth = payload["https://api.openai.com/auth"];
+    if (auth && typeof auth === "object") {
+      const id = (auth as Record<string, unknown>).chatgpt_account_id;
+      if (typeof id === "string" && id.length > 0) return id;
+    }
+  } catch {
+    // A malformed token must never be used against an unscoped account.
+  }
+  throw new Error("The selected Codex account is unavailable.");
 }
 
 export interface BotProcessRegistryOptions {
   tokenResolver?: TokenResolver;
+  subscriptionStatus?: () => SubscriptionAccountStatus[];
+  invokeClaudeCli?: typeof invokeClaudeCodeCliPrint;
   runtimeFetch?: typeof fetch;
   createBackend?: (
     target: BackendLaunchTarget,
@@ -45,8 +87,12 @@ export interface BotProcessRegistryOptions {
 /** One child process and one SQL/PGlite manager per named bot. */
 export class BotProcessRegistry {
   readonly catalog: BotCatalog;
+  readonly conversations: BotConversationLedger;
   private readonly backends = new Map<string, BackendManager>();
+  private readonly activeRuns = new Map<string, Set<string>>();
   private readonly tokenResolver: TokenResolver;
+  private readonly subscriptionStatus: () => SubscriptionAccountStatus[];
+  private readonly invokeClaudeCli: typeof invokeClaudeCodeCliPrint;
   private readonly runtimeFetch: typeof fetch;
   private readonly createBackend: NonNullable<
     BotProcessRegistryOptions["createBackend"]
@@ -64,7 +110,11 @@ export class BotProcessRegistry {
       defaultBackend,
       defaultWorkspacePath,
     );
+    this.conversations = new BotConversationLedger(dataDir);
     this.tokenResolver = options.tokenResolver ?? officialTokenResolver;
+    this.subscriptionStatus =
+      options.subscriptionStatus ?? getSubscriptionStatus;
+    this.invokeClaudeCli = options.invokeClaudeCli ?? invokeClaudeCodeCliPrint;
     this.runtimeFetch = options.runtimeFetch ?? fetch;
     this.createBackend =
       options.createBackend ??
@@ -93,8 +143,362 @@ export class BotProcessRegistry {
     return definition;
   }
 
+  dataDirectory(botId?: string): string {
+    const definition = this.get(botId);
+    return definition.isDefault
+      ? this.dataDir
+      : resolve(this.dataDir, "bots", definition.id);
+  }
+
+  bindConversation(
+    botId: string,
+    sessionId: string,
+    projectId?: string,
+  ): BoundConversation {
+    const bot = this.get(botId);
+    const canonicalId = bot.isDefault
+      ? this.catalog.stableDefaultBotId()
+      : bot.id;
+    if (bot.projectId && bot.projectId !== projectId) {
+      throw new Error("Conversation project does not match its bot.");
+    }
+    return this.conversations.bind(canonicalId, sessionId, projectId);
+  }
+
+  resolveSavedConversationOwner(sessionId: string): BoundConversation | null {
+    return this.conversations.get(sessionId);
+  }
+
+  assertConversationOwner(
+    botId: string,
+    sessionId: string,
+    projectId?: string,
+  ): BoundConversation {
+    const bot = this.get(botId);
+    const canonicalId = bot.isDefault
+      ? this.catalog.stableDefaultBotId()
+      : bot.id;
+    const owner = this.conversations.get(sessionId);
+    if (!owner) {
+      throw new Error(
+        "This conversation is not bound to its bot. Restore or create its owner first.",
+      );
+    }
+    if (
+      owner.botId !== canonicalId ||
+      (projectId !== undefined && owner.projectId !== projectId)
+    ) {
+      throw new Error("Conversation belongs to a different bot or project.");
+    }
+    return owner;
+  }
+
+  async ensureConversationOwner(
+    botId: string,
+    sessionId: string,
+  ): Promise<BoundConversation> {
+    const existing = this.conversations.get(sessionId);
+    if (existing) return this.assertConversationOwner(botId, sessionId);
+    const bot = this.get(botId);
+    if (!bot.isDefault)
+      throw new Error("This named conversation is not bound to its bot.");
+    const summary = await this.readLeadSessionSummary(sessionId);
+    if (summary.messageCount === 0 && !summary.projectId && !summary.title) {
+      throw new Error("Conversation is not present in the lead runtime.");
+    }
+    return this.bindConversation("default", sessionId, summary.projectId);
+  }
+
+  private async readLeadSessionSummary(sessionId: string): Promise<{
+    sessionId: string;
+    projectId?: string;
+    title?: string;
+    messageCount: number;
+  }> {
+    const state = this.defaultBackend.getState();
+    if (state.phase !== "ready" || !state.url)
+      throw new Error("The lead runtime is not ready.");
+    const response = await this.runtimeFetch(
+      `${state.url}/sessions/summary?sessionId=${encodeURIComponent(sessionId)}`,
+      { signal: AbortSignal.timeout(10_000) },
+    );
+    if (!response.ok)
+      throw new Error("Conversation is unavailable in the lead runtime.");
+    const body = await response.text();
+    if (body.length > 2_000_000)
+      throw new Error("Conversation summary is invalid.");
+    const parsed = JSON.parse(body) as {
+      summary?: {
+        sessionId?: unknown;
+        projectId?: unknown;
+        title?: unknown;
+        messageCount?: unknown;
+      };
+    };
+    if (
+      parsed.summary?.sessionId !== sessionId ||
+      (parsed.summary.projectId !== undefined &&
+        typeof parsed.summary.projectId !== "string") ||
+      (parsed.summary.title !== undefined &&
+        typeof parsed.summary.title !== "string") ||
+      typeof parsed.summary.messageCount !== "number" ||
+      !Number.isSafeInteger(parsed.summary.messageCount) ||
+      parsed.summary.messageCount < 0
+    ) {
+      throw new Error("Conversation summary is invalid.");
+    }
+    return parsed.summary as {
+      sessionId: string;
+      projectId?: string;
+      title?: string;
+      messageCount: number;
+    };
+  }
+
+  bindProject(botId: string, projectId: string): void {
+    const bot = this.get(botId);
+    if (bot.projectId && bot.projectId !== projectId) {
+      throw new Error("Project does not match this bot's approved project.");
+    }
+    const canonicalId = bot.isDefault
+      ? this.catalog.stableDefaultBotId()
+      : bot.id;
+    this.conversations.bindProject(canonicalId, projectId);
+  }
+
+  assertProjectOwner(botId: string, projectId: string): void {
+    const bot = this.get(botId);
+    if (bot.projectId && bot.projectId !== projectId) {
+      throw new Error("Project does not match this bot's approved project.");
+    }
+    const canonicalId = bot.isDefault
+      ? this.catalog.stableDefaultBotId()
+      : bot.id;
+    const owner = this.conversations.getProject(projectId);
+    if (!owner || owner.botId !== canonicalId) {
+      throw new Error("Project is not owned by this bot.");
+    }
+  }
+
+  async ensureProjectOwner(botId: string, projectId: string): Promise<void> {
+    const owner = this.conversations.getProject(projectId);
+    if (owner) return this.assertProjectOwner(botId, projectId);
+    const bot = this.get(botId);
+    if (!bot.isDefault) throw new Error("Project is not owned by this bot.");
+    const state = this.defaultBackend.getState();
+    if (state.phase !== "ready" || !state.url)
+      throw new Error("The lead runtime is not ready.");
+    const response = await this.runtimeFetch(
+      `${state.url}/projects/${encodeURIComponent(projectId)}`,
+      { signal: AbortSignal.timeout(10_000) },
+    );
+    if (!response.ok)
+      throw new Error("Project is unavailable in the lead runtime.");
+    const body = await response.text();
+    if (body.length > 2_000_000) throw new Error("Project receipt is invalid.");
+    const payload = JSON.parse(body) as {
+      project?: { id?: unknown; resources?: unknown };
+    };
+    if (payload.project?.id !== projectId)
+      throw new Error("Project receipt is invalid.");
+    this.bindProject("default", projectId);
+    if (Array.isArray(payload.project.resources)) {
+      for (const entry of payload.project.resources) {
+        if (
+          entry &&
+          typeof entry === "object" &&
+          typeof (entry as { id?: unknown }).id === "string"
+        ) {
+          this.bindResource("default", projectId, (entry as { id: string }).id);
+        }
+      }
+    }
+  }
+
+  bindResource(botId: string, projectId: string, resourceId: string): void {
+    const bot = this.get(botId);
+    const canonicalId = bot.isDefault
+      ? this.catalog.stableDefaultBotId()
+      : bot.id;
+    this.assertProjectOwner(botId, projectId);
+    this.conversations.bindResource(canonicalId, projectId, resourceId);
+  }
+
+  async ensureResourceOwner(
+    botId: string,
+    projectId: string,
+    resourceId: string,
+  ): Promise<void> {
+    await this.ensureProjectOwner(botId, projectId);
+    const owner = this.conversations.getResource(resourceId);
+    if (owner) {
+      const bot = this.get(botId);
+      const canonicalId = bot.isDefault
+        ? this.catalog.stableDefaultBotId()
+        : bot.id;
+      if (owner.botId !== canonicalId || owner.projectId !== projectId) {
+        throw new Error("Resource belongs to a different bot or project.");
+      }
+      return;
+    }
+    const bot = this.get(botId);
+    if (!bot.isDefault) throw new Error("Resource is not owned by this bot.");
+    const state = this.defaultBackend.getState();
+    if (state.phase !== "ready" || !state.url)
+      throw new Error("The lead runtime is not ready.");
+    const response = await this.runtimeFetch(
+      `${state.url}/projects/${encodeURIComponent(projectId)}/resources`,
+      { signal: AbortSignal.timeout(10_000) },
+    );
+    if (!response.ok)
+      throw new Error("Resource is unavailable in the lead runtime.");
+    const body = await response.text();
+    if (body.length > 2_000_000) throw new Error("Resource list is invalid.");
+    const payload = JSON.parse(body) as { resources?: unknown };
+    if (
+      !Array.isArray(payload.resources) ||
+      !payload.resources.some(
+        (entry) =>
+          entry &&
+          typeof entry === "object" &&
+          (entry as { id?: unknown }).id === resourceId &&
+          (entry as { projectId?: unknown }).projectId === projectId,
+      )
+    ) {
+      throw new Error("Resource is not present in the lead project.");
+    }
+    this.bindResource("default", projectId, resourceId);
+  }
+
+  listConversations(botId: string): BoundConversation[] {
+    const bot = this.get(botId);
+    return this.conversations.list(
+      bot.isDefault ? this.catalog.defaultBot().id : bot.id,
+    );
+  }
+
+  bindRun(botId: string, sessionId: string, runId: string): void {
+    const owner = this.assertConversationOwner(botId, sessionId);
+    this.conversations.bindRun(owner.botId, sessionId, runId);
+    this.conversations.touch(owner.botId, sessionId);
+  }
+
+  async assertRunOwner(botId: string, runId: string): Promise<void> {
+    const bot = this.get(botId);
+    const canonicalId = bot.isDefault
+      ? this.catalog.stableDefaultBotId()
+      : bot.id;
+    const run = this.conversations.getRun(runId);
+    if (!run) {
+      if (!bot.isDefault)
+        throw new Error("This named run is not bound to its bot.");
+      const state = this.defaultBackend.getState();
+      if (state.phase !== "ready" || !state.url)
+        throw new Error("The lead runtime is not ready.");
+      const receiptResponse = await this.runtimeFetch(
+        `${state.url}/chat/runs/${encodeURIComponent(runId)}`,
+        { signal: AbortSignal.timeout(10_000) },
+      );
+      if (!receiptResponse.ok)
+        throw new Error("Run not found in the lead runtime.");
+      const receiptText = await receiptResponse.text();
+      if (receiptText.length > 2_000_000)
+        throw new Error("Run receipt is invalid.");
+      const receipt = JSON.parse(receiptText) as {
+        run?: { runId?: unknown; sessionId?: unknown };
+      };
+      if (
+        receipt.run?.runId !== runId ||
+        typeof receipt.run.sessionId !== "string"
+      ) {
+        throw new Error("Run receipt is invalid.");
+      }
+      const sessionId = receipt.run.sessionId;
+      const summary = await this.readLeadSessionSummary(sessionId);
+      if (this.conversations.get(sessionId)) {
+        this.assertConversationOwner("default", sessionId, summary.projectId);
+      } else {
+        this.bindConversation("default", sessionId, summary.projectId);
+      }
+      this.conversations.bindRun(canonicalId, sessionId, runId);
+      return;
+    }
+    if (run.botId !== canonicalId)
+      throw new Error("Run belongs to a different bot.");
+  }
+
   list(): BotCatalogResponse {
-    return this.catalog.list(this.backends);
+    const catalog = this.catalog.list(this.backends);
+    return {
+      ...catalog,
+      bots: catalog.bots.map((bot) => {
+        const activeRunCount = this.activeRuns.get(bot.id)?.size ?? 0;
+        return {
+          ...bot,
+          activeRunCount,
+          state:
+            activeRunCount > 0 && bot.state === "ready"
+              ? ("busy" as const)
+              : bot.state,
+        };
+      }),
+    };
+  }
+
+  /** Reconcile display counts from runtime receipts, never renderer subscriptions. */
+  async refreshActiveRuns(): Promise<void> {
+    for (const bot of this.catalog.list(this.backends).bots) {
+      const backend = bot.isDefault
+        ? this.defaultBackend
+        : this.backends.get(bot.id);
+      const state = backend?.getState();
+      if (state?.phase !== "ready" || !state.url) {
+        this.activeRuns.delete(bot.id);
+        continue;
+      }
+      const response = await this.runtimeFetch(
+        `${state.url}/chat/runs?limit=100`,
+        {
+          signal: AbortSignal.timeout(5_000),
+        },
+      );
+      if (!response.ok) throw new Error("Bot run status is unavailable.");
+      const payload: unknown = await response.json();
+      if (
+        !payload ||
+        typeof payload !== "object" ||
+        !Array.isArray((payload as { runs?: unknown }).runs)
+      ) {
+        throw new Error("Bot run status is invalid.");
+      }
+      const active = new Set<string>();
+      for (const row of (payload as { runs: unknown[] }).runs) {
+        if (!row || typeof row !== "object")
+          throw new Error("Bot run status is invalid.");
+        const run = row as { runId?: unknown; status?: unknown };
+        if (typeof run.runId !== "string" || typeof run.status !== "string") {
+          throw new Error("Bot run status is invalid.");
+        }
+        if (["thinking", "acting", "waiting"].includes(run.status))
+          active.add(run.runId);
+      }
+      if (active.size > 0) this.activeRuns.set(bot.id, active);
+      else this.activeRuns.delete(bot.id);
+    }
+  }
+
+  beginRun(botId: string, runId: string): void {
+    const bot = this.get(botId);
+    const active = this.activeRuns.get(bot.id) ?? new Set<string>();
+    active.add(runId);
+    this.activeRuns.set(bot.id, active);
+  }
+
+  endRun(botId: string, runId: string): void {
+    const id = this.catalog.get(botId)?.id ?? botId;
+    const active = this.activeRuns.get(id);
+    active?.delete(runId);
+    if (active?.size === 0) this.activeRuns.delete(id);
   }
 
   summary(botId: string): BotSummary {
@@ -168,6 +572,7 @@ export class BotProcessRegistry {
         isolatedEnvironment: environment,
         expectedBotId: definition.id,
         expectedAgentId: definition.agentId,
+        workerHostHandler: this.hostHandler(definition, grant, workspacePath),
       },
     );
     this.backends.set(botId, backend);
@@ -203,6 +608,7 @@ export class BotProcessRegistry {
       await backend.stop();
       this.backends.delete(id);
     }
+    this.activeRuns.delete(definition.id);
     return this.summary(id);
   }
 
@@ -211,20 +617,24 @@ export class BotProcessRegistry {
       [...this.backends.values()].map((backend) => backend.stop()),
     );
     this.backends.clear();
+    this.activeRuns.clear();
   }
 
-  private async resolveProviderGrant(definition: BotDefinition): Promise<{
-    envKey?: "OPENAI_API_KEY" | "ANTHROPIC_API_KEY";
-    token?: string;
-  }> {
+  private async resolveProviderGrant(
+    definition: BotDefinition,
+  ): Promise<ProviderGrant> {
     const provider = definition.model.provider;
-    if (provider === "offline") return {};
+    if (provider === "offline") return { kind: "offline" };
     const expectedProvider =
       provider === "openai"
         ? "openai-api"
         : provider === "anthropic"
           ? "anthropic-api"
-          : null;
+          : provider === "codex"
+            ? "openai-codex"
+            : provider === "claude-code"
+              ? "anthropic-subscription"
+              : null;
     if (!expectedProvider) {
       throw new Error(
         "This model route needs a scoped native provider grant before activation.",
@@ -243,6 +653,24 @@ export class BotProcessRegistry {
         "Select exactly one approved account for this bot's model provider.",
       );
     }
+    if (expectedProvider === "anthropic-subscription") {
+      const status = this.subscriptionStatus().find(
+        (row) =>
+          row.provider === "anthropic-subscription" &&
+          row.accountId === matches[0]?.accountId &&
+          row.source === "claude-code-cli" &&
+          row.configured &&
+          row.valid &&
+          row.available !== false,
+      );
+      if (!status)
+        throw new Error("The selected Claude Code CLI account is unavailable.");
+      return {
+        kind: "native",
+        provider: expectedProvider,
+        accountId: matches[0].accountId,
+      };
+    }
     const token = await this.tokenResolver(
       expectedProvider,
       matches[0].accountId,
@@ -252,19 +680,97 @@ export class BotProcessRegistry {
         "The selected bot connection is unavailable. Reconnect it and retry.",
       );
     }
-    return {
-      envKey:
-        expectedProvider === "openai-api"
-          ? "OPENAI_API_KEY"
-          : "ANTHROPIC_API_KEY",
-      token,
+    if (expectedProvider === "openai-codex") {
+      codexAccountId(token);
+      return {
+        kind: "native",
+        provider: expectedProvider,
+        accountId: matches[0].accountId,
+      };
+    }
+    return { kind: "direct", provider: expectedProvider, token };
+  }
+
+  private hostHandler(
+    definition: BotDefinition,
+    grant: ProviderGrant,
+    workspacePath: string,
+  ): WorkerHostHandler {
+    return async (request, signal) => {
+      const current = this.catalog.get(definition.id);
+      if (
+        !current ||
+        current.archivedAt ||
+        current.updatedAt !== definition.updatedAt
+      ) {
+        throw new Error("The bot configuration changed. Reactivate it.");
+      }
+      if (
+        request.operation === "codex.auth" &&
+        grant.kind === "native" &&
+        grant.provider === "openai-codex"
+      ) {
+        const token = await this.tokenResolver("openai-codex", grant.accountId);
+        if (signal.aborted || !token)
+          throw new Error("The selected Codex account is unavailable.");
+        return { accessToken: token, accountId: codexAccountId(token) };
+      }
+      if (
+        request.operation === "claude.invoke" &&
+        grant.kind === "native" &&
+        grant.provider === "anthropic-subscription"
+      ) {
+        const status = this.subscriptionStatus().find(
+          (row) =>
+            row.provider === "anthropic-subscription" &&
+            row.accountId === grant.accountId &&
+            row.source === "claude-code-cli" &&
+            row.configured &&
+            row.valid &&
+            row.available !== false,
+        );
+        if (!status)
+          throw new Error(
+            "The selected Claude Code CLI account is unavailable.",
+          );
+        const payload = request.payload;
+        if (!payload || typeof payload !== "object" || Array.isArray(payload))
+          throw new Error("Invalid Claude request.");
+        const input = payload as Record<string, unknown>;
+        if (
+          typeof input.prompt !== "string" ||
+          input.prompt.length > 250_000 ||
+          typeof input.model !== "string" ||
+          input.model !== resolveClaudeCliModel(definition.model.model) ||
+          (input.systemPrompt !== undefined &&
+            (typeof input.systemPrompt !== "string" ||
+              input.systemPrompt.length > 100_000)) ||
+          (input.effort !== undefined && typeof input.effort !== "string") ||
+          (input.jsonSchema !== undefined &&
+            (typeof input.jsonSchema !== "object" ||
+              input.jsonSchema === null ||
+              Array.isArray(input.jsonSchema)))
+        ) {
+          throw new Error("Invalid Claude request.");
+        }
+        return this.invokeClaudeCli({
+          prompt: input.prompt,
+          model: input.model,
+          systemPrompt: input.systemPrompt as string | undefined,
+          effort: input.effort as string | undefined,
+          jsonSchema: input.jsonSchema as Record<string, unknown> | undefined,
+          cwd: workspacePath,
+          signal,
+        });
+      }
+      throw new Error("The bot is not approved for this host operation.");
     };
   }
 
   private workerEnvironment(
     definition: BotDefinition,
     botDataDir: string,
-    grant: { envKey?: "OPENAI_API_KEY" | "ANTHROPIC_API_KEY"; token?: string },
+    grant: ProviderGrant,
   ): NodeJS.ProcessEnv {
     const source = process.env;
     const environment: NodeJS.ProcessEnv = {
@@ -279,6 +785,8 @@ export class BotProcessRegistry {
       HOME: botDataDir,
       USERPROFILE: botDataDir,
       ELIZA_HOME: botDataDir,
+      CODEX_HOME: resolve(botDataDir, "codex-home"),
+      CLAUDE_CONFIG_DIR: resolve(botDataDir, "claude-config"),
       DOOLITTLE_NAME: definition.name,
       DOOLITTLE_BOT_RUNTIME: "worker",
       DOOLITTLE_BOT_PROFILE: JSON.stringify(definition),
@@ -288,7 +796,11 @@ export class BotProcessRegistry {
         ? { ELECTRON_RUN_AS_NODE: this.target.environment.ELECTRON_RUN_AS_NODE }
         : {}),
     };
-    if (grant.envKey && grant.token) environment[grant.envKey] = grant.token;
+    if (grant.kind === "direct") {
+      environment[
+        grant.provider === "openai-api" ? "OPENAI_API_KEY" : "ANTHROPIC_API_KEY"
+      ] = grant.token;
+    }
     return environment;
   }
 }

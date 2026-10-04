@@ -231,6 +231,7 @@ function createReasoningModelHandler(
   createBackend: CodexBackendFactory = createCodexReasoningBackend,
   observeUsage?: CodexModelCallObserver,
   observeContext?: CodexModelObservationContext,
+  forceBackend = false,
 ): CodexModelHandler {
   const backends = new WeakMap<IAgentRuntime, CodexBackend>();
   const backendFor = (runtime: IAgentRuntime) => {
@@ -243,7 +244,7 @@ function createReasoningModelHandler(
   };
 
   return async (runtime, params) => {
-    if (!selectedCodexReasoningEffort(runtime))
+    if (!forceBackend && !selectedCodexReasoningEffort(runtime))
       return fallback(runtime, params);
     const request = __INTERNAL_buildCodexGenerateParams(runtime, params);
     const abortSignal = requestAbortSignal(params);
@@ -379,6 +380,7 @@ export function createDoolittleCodexReasoningPlugin(
     createBackend?: CodexBackendFactory;
     observeUsage?: CodexModelCallObserver;
     observeContext?: CodexModelObservationContext;
+    forceBackend?: boolean;
   } = {},
 ): Plugin {
   return {
@@ -391,6 +393,7 @@ export function createDoolittleCodexReasoningPlugin(
           dependencies.createBackend,
           dependencies.observeUsage,
           dependencies.observeContext,
+          dependencies.forceBackend,
         ),
       ]),
     ) as Plugin["models"],

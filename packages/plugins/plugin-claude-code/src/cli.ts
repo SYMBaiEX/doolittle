@@ -12,6 +12,8 @@ export async function invokeClaudeCodeCliPrint(params: {
   systemPrompt?: string;
   effort?: string;
   jsonSchema?: Record<string, unknown>;
+  cwd?: string;
+  signal?: AbortSignal;
 }): Promise<string> {
   const usesStructuredOutput = params.jsonSchema !== undefined;
   const args = [
@@ -43,6 +45,8 @@ export async function invokeClaudeCodeCliPrint(params: {
   const result = await runProviderCommand({
     command: "claude",
     args,
+    cwd: params.cwd,
+    signal: params.signal,
     timeoutMs: 120_000,
   });
 

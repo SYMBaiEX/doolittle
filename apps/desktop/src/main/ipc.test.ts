@@ -727,7 +727,7 @@ describe("sensitive desktop actions", () => {
       ),
     ).resolves.toBeUndefined();
     expect(commits).toEqual([
-      { attachmentIds: [attachmentId], cleanupCapability },
+      { botId: "default", attachmentIds: [attachmentId], cleanupCapability },
     ]);
     harness.dispose();
   });

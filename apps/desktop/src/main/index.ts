@@ -188,6 +188,7 @@ async function pickProjectFolders() {
 async function pickChatAttachments(
   runtimeDataDir: string,
   lifecycle: ChatAttachmentLifecycle,
+  botId: string,
 ) {
   const options = {
     title: "Attach files to this message",
@@ -208,7 +209,7 @@ async function pickChatAttachments(
   const attachments = importSelectedAttachments(
     result.filePaths,
     runtimeDataDir,
-  );
+  ).map((attachment) => ({ ...attachment, botId }));
   return {
     canceled: false,
     attachments,
@@ -669,7 +670,16 @@ if (ownsSingleInstance)
       // Text capture remains available; never report native rendering as ready.
       console.warn("Private rendered-page capture is unavailable.");
     }
-    const chatAttachmentLifecycle = new ChatAttachmentLifecycle(runtimeDataDir);
+    const chatAttachmentLifecycles = new Map<string, ChatAttachmentLifecycle>();
+    const attachmentLifecycleFor = (botId = "default") => {
+      const dataDirectory = bots?.dataDirectory(botId) ?? runtimeDataDir;
+      let lifecycle = chatAttachmentLifecycles.get(dataDirectory);
+      if (!lifecycle) {
+        lifecycle = new ChatAttachmentLifecycle(dataDirectory);
+        chatAttachmentLifecycles.set(dataDirectory, lifecycle);
+      }
+      return { dataDirectory, lifecycle };
+    };
     // Eliza's OAuth/account-storage helpers resolve their state root from
     // ELIZA_HOME. Bind the desktop main process to the same private data root
     // passed to the backend so newly saved accounts appear in the live pool.
@@ -750,18 +760,32 @@ if (ownsSingleInstance)
           workspaceState?.subscribe(listener) ?? (() => undefined),
       },
       sensitiveActionDependencies: { notify: showBackgroundNotification },
-      pickChatAttachments: () =>
-        pickChatAttachments(runtimeDataDir, chatAttachmentLifecycle),
+      pickChatAttachments: (botId = "default") => {
+        const { dataDirectory, lifecycle } = attachmentLifecycleFor(botId);
+        return pickChatAttachments(dataDirectory, lifecycle, botId);
+      },
       pickProjectFiles,
       pickProjectFolders,
       importRecordedAudio: (request) =>
-        importRecordedAudio(request, runtimeDataDir),
-      discardRecordedAudio: (recordingId) =>
-        discardRecordedAudioImport(runtimeDataDir, recordingId),
-      discardChatAttachments: ({ attachmentIds, cleanupCapability }) =>
-        chatAttachmentLifecycle.discard(attachmentIds, cleanupCapability),
-      commitChatAttachments: ({ attachmentIds, cleanupCapability }) =>
-        chatAttachmentLifecycle.commit(attachmentIds, cleanupCapability),
+        importRecordedAudio(
+          request,
+          attachmentLifecycleFor(request.botId).dataDirectory,
+        ),
+      discardRecordedAudio: (recordingId, botId) =>
+        discardRecordedAudioImport(
+          attachmentLifecycleFor(botId).dataDirectory,
+          recordingId,
+        ),
+      discardChatAttachments: ({ botId, attachmentIds, cleanupCapability }) =>
+        attachmentLifecycleFor(botId).lifecycle.discard(
+          attachmentIds,
+          cleanupCapability,
+        ),
+      commitChatAttachments: ({ botId, attachmentIds, cleanupCapability }) =>
+        attachmentLifecycleFor(botId).lifecycle.commit(
+          attachmentIds,
+          cleanupCapability,
+        ),
       desktopControls: {
         getLifecycleState: () =>
           desktopPreferences?.getState() ?? { keepRunningInBackground: false },
