@@ -2083,6 +2083,12 @@ export async function executeProviderMessageTurn(
                 ].join(" ");
           response = runFailureMessage;
         }
+        const pendingFrontendReview = mutationObligation
+          ? frontendReviewAttempt(actionResults, noOpRequirements, prompt)
+          : undefined;
+        // Mandatory review disclosure makes byte-exact final delivery ineligible.
+        // Keep both recovery checks consistent; never suppress the disclosure.
+        const allowExactOutput = pendingFrontendReview === undefined;
         if (!runFailureMessage && !response.trim() && mutationObligation) {
           const verifiedMutations = actionResults.flatMap((result) =>
             extractLocalMutationsFromActionResult(result).filter(
@@ -2097,6 +2103,7 @@ export async function executeProviderMessageTurn(
                 actionResults,
                 abortSignal: input.abortSignal,
                 runtimeOverrides: input.settingsDuring.model,
+                allowExactOutput,
               });
             } catch (error) {
               input.context.runtime.logger?.warn(
@@ -2118,7 +2125,12 @@ export async function executeProviderMessageTurn(
         }
         if (
           !runFailureMessage &&
-          isUnsynthesizedToolResponse(response, actionResults, prompt)
+          isUnsynthesizedToolResponse(
+            response,
+            actionResults,
+            prompt,
+            allowExactOutput,
+          )
         ) {
           input.context.runtime.logger?.warn(
             {
@@ -2145,18 +2157,12 @@ export async function executeProviderMessageTurn(
             actionResults,
             abortSignal: input.abortSignal,
             runtimeOverrides: input.settingsDuring.model,
+            allowExactOutput,
           });
         }
-        if (mutationObligation) {
-          const review = frontendReviewAttempt(
-            actionResults,
-            noOpRequirements,
-            prompt,
-          );
-          if (review)
-            response =
-              `${response.trim()}\n\n${frontendReviewSummary(review)}`.trim();
-        }
+        if (pendingFrontendReview)
+          response =
+            `${response.trim()}\n\n${frontendReviewSummary(pendingFrontendReview)}`.trim();
         input.streamState.setResponse(response);
       } catch (error) {
         if (input.abortSignal?.aborted) throw error;

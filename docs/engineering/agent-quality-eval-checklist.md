@@ -108,6 +108,38 @@ Research passed 8/10 checks per arm and failed exact citation grading in all
 four runs. This small descriptive pilot supports retaining the default-off
 policy, not a dependable speed, coherence or quality improvement claim.
 
+## Exact SDK final-output preservation
+
+The terminal-synthesis guard distinguishes a deliberately requested exact answer
+from a raw command receipt. It may preserve an already selected, bounded SDK
+`userFacingText` only when the current original user request supplies a supported
+exact-delivery contract and one unambiguous direct SHELL-family result proves
+clean execution: explicit success and verified delivery, exit zero, no stderr,
+timeout or truncation, and agreement with the SDK's trimmed stdout. It never
+constructs an answer from stdout or reserializes JSON. This preserves canonical
+SDK text, not raw stdout's trailing-newline fidelity.
+
+Supported delivery syntax is deliberately conservative. Exact JSON directives,
+paired command/check/test/verifier outcome branches with exact JSON on both
+branches, and explicit verbatim command-output directives express presentation
+intent. A linked final-output/preserve-bytes declaration does likewise. A JSON
+object shape condition additionally requires the selected candidate to parse as
+a non-null, non-array object. None proves the requested task's outcome or chooses
+a success branch. Existing verification, mutation and completion gates remain
+authoritative. No-tool/no-shell conflicts, quoted examples, unsupported conditions,
+duplicate or conflicting receipts, malformed metadata, and large/raw transcripts
+remain on the recovery path. Bare unverified stdout also requires recovery even
+when it differs from the SDK's diagnostic wrapper text.
+
+An actual pending frontend-review summary disables this exception during initial
+classification and post-synthesis validation. Its mandatory disclosure remains;
+an exact-format request never suppresses completion or review obligations.
+
+Synthetic pinned-SDK and finalization regressions characterize this boundary.
+They do not identify the cause of a discarded historical response or establish
+live quality, latency, billing, human coherence, or installed-desktop behavior.
+Keep the v7 task and grader unchanged for any repeated live comparison.
+
 ## Current coverage and known limits
 
 `headless-sdk-web-research-v1` is a separate, single-turn public synthetic task,

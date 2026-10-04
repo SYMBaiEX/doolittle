@@ -4,11 +4,15 @@ import type { AgentExecutionContext } from "@/runtime/chat";
 import { runModelAnalysis } from "@/runtime/model-analysis";
 import type { AutomationRuntimeOverrides } from "@/types/runtime";
 import { escapeXml } from "@/utils/eliza-compat";
+import { resolveExactOutputIntent } from "./exact-output-intent";
 
 const MAX_RESULT_CHARS = 6_000;
 const MAX_EVIDENCE_CHARS = 16_000;
 const LARGE_TOOL_TRANSCRIPT_CHARS = 2_000;
 const LARGE_TOOL_TRANSCRIPT_LINES = 20;
+const MAX_EXACT_OUTPUT_CHARS = 4_000;
+const MAX_EXACT_OUTPUT_LINES = 16;
+const SHELL_ACTIONS = new Set(["SHELL", "SHELL_COMMAND", "RUN_IN_TERMINAL"]);
 
 const RAW_FILE_READ =
   /^Read:\s+.+\nLines:\s+\d+-\d+\s+of\s+\d+\n(?:\d+\|[^\n]*(?:\n|$)){2,}/u;
@@ -30,6 +34,89 @@ function isRawToolTranscript(value: string): boolean {
   return value.split("\n").length >= LARGE_TOOL_TRANSCRIPT_LINES;
 }
 
+function dataRecord(result: ActionResult): Record<string, unknown> | undefined {
+  return result.data &&
+    typeof result.data === "object" &&
+    !Array.isArray(result.data)
+    ? result.data
+    : undefined;
+}
+
+/** Validate an already selected SDK answer; never construct one from stdout. */
+function exactOutputResult(
+  response: string,
+  actionResults: readonly ActionResult[],
+  userRequest: string,
+): ActionResult | undefined {
+  const intent = resolveExactOutputIntent(userRequest);
+  if (
+    !intent ||
+    response !== response.trim() ||
+    response.length > MAX_EXACT_OUTPUT_CHARS ||
+    response.split("\n").length > MAX_EXACT_OUTPUT_LINES ||
+    isRawToolTranscript(response)
+  )
+    return undefined;
+  if (intent !== "verbatim") {
+    try {
+      const value: unknown = JSON.parse(response);
+      if (!value || typeof value !== "object") return undefined;
+      if (intent === "json-object" && Array.isArray(value)) return undefined;
+    } catch {
+      return undefined;
+    }
+  }
+  // A malformed duplicate or another receipt with the same output is ambiguous,
+  // even if only one of them claims verified delivery.
+  const matches = actionResults.filter((result) => {
+    const stdout = dataRecord(result)?.stdout;
+    return (
+      resultTexts(result).includes(response) ||
+      (typeof stdout === "string" && stdout.trim() === response)
+    );
+  });
+  if (matches.length !== 1) return undefined;
+  const result = matches[0];
+  const data = dataRecord(result);
+  if (
+    !data ||
+    result.success !== true ||
+    result.verifiedUserFacing !== true ||
+    result.userFacingText !== response ||
+    result.error != null ||
+    typeof data.actionName !== "string" ||
+    !SHELL_ACTIONS.has(data.actionName) ||
+    typeof data.command !== "string" ||
+    !data.command.trim() ||
+    data.exitCode !== 0 ||
+    data.timedOut !== false ||
+    data.truncated !== false ||
+    data.stderr !== "" ||
+    typeof data.stdout !== "string" ||
+    data.stdout.trim() !== response ||
+    "commandResult" in data ||
+    ("success" in data && data.success !== true) ||
+    ("verifiedUserFacing" in data && data.verifiedUserFacing !== true) ||
+    ("userFacingText" in data && data.userFacingText !== response) ||
+    ("error" in data && data.error != null) ||
+    resultTexts(result).some(isRawToolTranscript) ||
+    actionResults.some((other) => {
+      const otherData = dataRecord(other);
+      const nested = otherData?.commandResult;
+      return (
+        other !== result &&
+        (otherData?.command === data.command ||
+          (nested &&
+            typeof nested === "object" &&
+            "command" in nested &&
+            nested.command === data.command))
+      );
+    })
+  )
+    return undefined;
+  return result;
+}
+
 /**
  * Detects an SDK terminal response that is actually an unsynthesized native
  * action receipt. Exact matching keeps normal answers containing short tool
@@ -39,24 +126,44 @@ export function isUnsynthesizedToolResponse(
   response: string,
   actionResults: readonly ActionResult[],
   userRequest = "",
+  allowExactOutput = true,
 ): boolean {
   const normalized = response.trim();
   if (!normalized || actionResults.length === 0) return false;
+  const exactResult = allowExactOutput
+    ? exactOutputResult(response, actionResults, userRequest)
+    : undefined;
 
-  return actionResults.some((result) =>
-    resultTexts(result).some((text) => {
+  return actionResults.some((result) => {
+    const data = dataRecord(result);
+    const commandReceipt = Boolean(
+      extractCommandResultFromActionResult(result) ||
+        (data &&
+          ("commandResult" in data ||
+            "command" in data ||
+            (typeof data.actionName === "string" &&
+              SHELL_ACTIONS.has(data.actionName)))),
+    );
+    const unqualifiedCommand =
+      commandReceipt &&
+      !userRequest.trimStart().startsWith("!") &&
+      result !== exactResult;
+    // SDK diagnostic wrapper text can differ from stdout. A bare stdout echo is
+    // still a raw receipt unless the same canonical delivery proof qualifies it.
+    if (
+      unqualifiedCommand &&
+      typeof data?.stdout === "string" &&
+      data.stdout.trim() === normalized
+    )
+      return true;
+    return resultTexts(result).some((text) => {
       if (text === normalized) {
-        if (
-          extractCommandResultFromActionResult(result) &&
-          !userRequest.trimStart().startsWith("!")
-        ) {
-          return true;
-        }
+        if (unqualifiedCommand) return true;
         return result.verifiedUserFacing !== true || isRawToolTranscript(text);
       }
       return isRawToolTranscript(text) && normalized.includes(text);
-    }),
-  );
+    });
+  });
 }
 
 function clipResult(value: string): string {
@@ -116,6 +223,7 @@ export async function synthesizeToolResultResponse(input: {
   actionResults: readonly ActionResult[];
   abortSignal?: AbortSignal;
   runtimeOverrides?: AutomationRuntimeOverrides;
+  allowExactOutput?: boolean;
 }): Promise<string> {
   const response = await runModelAnalysis(
     input.context,
@@ -133,6 +241,7 @@ export async function synthesizeToolResultResponse(input: {
       normalized,
       input.actionResults,
       input.userRequest,
+      input.allowExactOutput,
     )
   ) {
     throw new Error(
