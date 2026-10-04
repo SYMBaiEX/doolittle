@@ -44,42 +44,50 @@ const PROVIDERS = [
 ] as const;
 type Slot = (typeof SLOTS)[number];
 type Provider = (typeof PROVIDERS)[number];
-type Common = { version: 1; phase: "unknown"; priorSinkMs: number };
-export type ModelInputObservationRow = Common &
-  (
-    | {
-        kind: "input";
-        ordinal: number;
-        slot: Slot;
-        requestedSlot: Slot;
-        provider: Provider;
-        systemChars: number | null;
-        promptChars: number | null;
-        messageTextChars: number | null;
-        messageCount: number | null;
-        imageCount: number | null;
-        toolCount: number | null;
-        toolSchemaChars: number | null;
-        requestedStreaming: boolean | null;
-        partial: boolean;
-        projectionMs: number;
-      }
-    | {
-        kind: "settlement";
-        ordinal: number | null;
-        association: "same-params-object" | "unavailable";
-        consumedStreaming: boolean | null;
-      }
-    | {
-        kind: "provider-usage";
-        ordinal: number | null;
-        association: "same-params-object" | "unavailable";
-        completed: boolean;
-        inputTokens: number | null;
-        outputTokens: number | null;
-        totalTokens: number | null;
-      }
-  );
+type Common<Version extends 1 | 2 = 1 | 2> = {
+  version: Version;
+  phase: "unknown";
+  priorSinkMs: number;
+};
+type InputFields = {
+  kind: "input";
+  ordinal: number;
+  slot: Slot;
+  requestedSlot: Slot;
+  provider: Provider;
+  systemChars: number | null;
+  promptChars: number | null;
+  messageTextChars: number | null;
+  messageCount: number | null;
+  imageCount: number | null;
+  toolCount: number | null;
+  toolSchemaChars: number | null;
+  requestedStreaming: boolean | null;
+  partial: boolean;
+  projectionMs: number;
+};
+export type ModelInputObservationRow =
+  | (Common<1> & InputFields)
+  | (Common<2> &
+      InputFields & {
+        toolCallArgumentChars: number | null;
+        toolResultTextChars: number | null;
+      })
+  | (Common & {
+      kind: "settlement";
+      ordinal: number | null;
+      association: "same-params-object" | "unavailable";
+      consumedStreaming: boolean | null;
+    })
+  | (Common & {
+      kind: "provider-usage";
+      ordinal: number | null;
+      association: "same-params-object" | "unavailable";
+      completed: boolean;
+      inputTokens: number | null;
+      outputTokens: number | null;
+      totalTokens: number | null;
+    });
 export interface ModelInputObservations {
   coverage: "first-creating-runtime-only";
   status: "complete" | "partial" | "unavailable";
@@ -178,7 +186,10 @@ function nullableBoolean(value: unknown): value is boolean | null {
   return value === null || typeof value === "boolean";
 }
 const COMMON = ["version", "phase", "priorSinkMs", "kind", "ordinal"];
-type Associations = Map<number, { settled: boolean; usage: boolean }>;
+type Associations = Map<
+  number,
+  { version: 1 | 2; settled: boolean; usage: boolean }
+>;
 /** Called only on JSON.parse output; unknown keys are rejected, never copied. */
 function projectRow(
   value: unknown,
@@ -186,13 +197,13 @@ function projectRow(
 ): ModelInputObservationRow | undefined {
   if (
     !record(value) ||
-    value.version !== 1 ||
+    (value.version !== 1 && value.version !== 2) ||
     value.phase !== "unknown" ||
     !finite(value.priorSinkMs)
   )
     return undefined;
   const common: Common = {
-    version: 1,
+    version: value.version,
     phase: "unknown",
     priorSinkMs: value.priorSinkMs,
   };
@@ -206,6 +217,9 @@ function projectRow(
         "systemChars",
         "promptChars",
         "messageTextChars",
+        ...(value.version === 2
+          ? ["toolCallArgumentChars", "toolResultTextChars"]
+          : []),
         "messageCount",
         "imageCount",
         "toolCount",
@@ -228,6 +242,9 @@ function projectRow(
       !count(value.systemChars) ||
       !count(value.promptChars) ||
       !count(value.messageTextChars) ||
+      (value.version === 2 &&
+        (!count(value.toolCallArgumentChars, 65_536) ||
+          !count(value.toolResultTextChars))) ||
       !count(value.messageCount, 64) ||
       !count(value.imageCount, 4096) ||
       !count(value.toolCount, 64) ||
@@ -237,10 +254,14 @@ function projectRow(
       !finite(value.projectionMs)
     )
       return undefined;
-    inputs.set(value.ordinal, { settled: false, usage: false });
-    return {
+    inputs.set(value.ordinal, {
+      version: value.version,
+      settled: false,
+      usage: false,
+    });
+    const row = {
       ...common,
-      kind: "input",
+      kind: "input" as const,
       ordinal: value.ordinal,
       slot: value.slot as Slot,
       requestedSlot: value.requestedSlot as Slot,
@@ -256,6 +277,14 @@ function projectRow(
       partial: value.partial,
       projectionMs: value.projectionMs,
     };
+    return value.version === 2
+      ? {
+          ...row,
+          version: 2,
+          toolCallArgumentChars: value.toolCallArgumentChars as number | null,
+          toolResultTextChars: value.toolResultTextChars as number | null,
+        }
+      : { ...row, version: 1 };
   }
   if (value.kind !== "settlement" && value.kind !== "provider-usage")
     return undefined;
@@ -271,6 +300,7 @@ function projectRow(
   if (
     value.ordinal !== null &&
     (!input ||
+      input.version !== value.version ||
       input.settled ||
       (value.kind === "provider-usage" && input.usage))
   )

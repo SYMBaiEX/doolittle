@@ -79,13 +79,14 @@ function finite(value: unknown): number | null {
 }
 
 /** JSON character count for a small own-data JSON subset, without serialization. */
-function schemaChars(value: unknown): number | null {
-  let nodes = 0;
-  let scanned = 0;
+function schemaChars(
+  value: unknown,
+  budget = { nodes: 0, scanned: 0 },
+): number | null {
   const active = new Set<object>();
   const stringChars = (text: string) => {
-    scanned += text.length;
-    if (scanned > 65_536) throw MISSING;
+    budget.scanned += text.length;
+    if (budget.scanned > 65_536) throw MISSING;
     let count = 2;
     for (let index = 0; index < text.length; index++) {
       const code = text.charCodeAt(index);
@@ -104,7 +105,7 @@ function schemaChars(value: unknown): number | null {
     return count;
   };
   const visit = (entry: unknown, depth: number): number => {
-    if (++nodes > 512 || depth > 8) throw MISSING;
+    if (++budget.nodes > 512 || depth > 8) throw MISSING;
     if (entry === null) return 4;
     if (typeof entry === "string") return stringChars(entry);
     if (typeof entry === "boolean") return entry ? 4 : 5;
@@ -158,6 +159,8 @@ export function projectModelInput(params: unknown) {
     systemChars: null as number | null,
     promptChars: null as number | null,
     messageTextChars: null as number | null,
+    toolCallArgumentChars: null as number | null,
+    toolResultTextChars: null as number | null,
     messageCount: null as number | null,
     imageCount: null as number | null,
     toolCount: null as number | null,
@@ -186,6 +189,10 @@ export function projectModelInput(params: unknown) {
       else {
         result.messageCount = array.length;
         let chars = 0;
+        let argumentChars = 0;
+        let resultChars = 0;
+        // One shared traversal budget across native arguments, not per part.
+        const argumentBudget = { nodes: 0, scanned: 0 };
         let images = 0;
         let complete = true;
         for (const message of array) {
@@ -206,11 +213,28 @@ export function projectModelInput(params: unknown) {
               if (typeof text === "string") chars += text.length;
               else complete = false;
             } else if (type === "image") images++;
-            else complete = false;
+            else if (type === "tool-call") {
+              const size = schemaChars(data(part, "input"), argumentBudget);
+              if (size === null) complete = false;
+              else argumentChars += size;
+              if (argumentChars > 65_536) complete = false;
+            } else if (type === "tool-result") {
+              const output = data(part, "output");
+              const outputType = data(output, "type");
+              const value = data(output, "value");
+              if (
+                (outputType === "text" || outputType === "error-text") &&
+                typeof value === "string"
+              )
+                resultChars += value.length;
+              else complete = false;
+            } else complete = false;
           }
         }
         if (complete) {
           result.messageTextChars = chars;
+          result.toolCallArgumentChars = argumentChars;
+          result.toolResultTextChars = resultChars;
           result.imageCount = images;
         } else result.partial = true;
       }
@@ -362,7 +386,7 @@ function createObserver(sink: (row: object) => void) {
     if (rows++ >= MAX_ROWS) return;
     const started = performance.now();
     try {
-      sink({ version: 1, phase: "unknown", priorSinkMs, ...row });
+      sink({ version: 2, phase: "unknown", priorSinkMs, ...row });
     } catch {
       /* fail open */
     }

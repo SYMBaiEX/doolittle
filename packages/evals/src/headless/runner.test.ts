@@ -904,8 +904,8 @@ describe("optional first-runtime model input receipts", () => {
     vi.restoreAllMocks();
     vi.unstubAllEnvs();
   });
-  function writeObservation(dataDir: string) {
-    const bytes = `${JSON.stringify(row)}\n`;
+  function writeObservation(dataDir: string, observedRow: object = row) {
+    const bytes = `${JSON.stringify(observedRow)}\n`;
     writeFileSync(
       join(dataDir, modelInputObservations.MODEL_INPUT_FILE),
       bytes,
@@ -975,7 +975,16 @@ describe("optional first-runtime model input receipts", () => {
     expect(result.modelInputReceiptStatus).toBe("written");
     expect(result.exitCode).toBe(0);
   });
-  it("retains the first snapshot before cleanup, binds exact report SHA/index and excludes later shared-data invocations", async () => {
+  it("retains native version2 sizes before cleanup, binds exact report SHA/index and excludes later shared-data invocations", async () => {
+    const observedRow = {
+      ...row,
+      version: 2,
+      messageCount: 2,
+      messageTextChars: 10,
+      imageCount: 0,
+      toolCallArgumentChars: 20,
+      toolResultTextChars: 100_000,
+    };
     const reportDir = tempDirectory();
     const reader = vi.spyOn(
       modelInputObservations,
@@ -999,7 +1008,7 @@ describe("optional first-runtime model input receipts", () => {
           if (calls++ % 2 === 0) {
             expect(observedRoots.every((root) => !existsSync(root))).toBe(true);
             observedRoots.push(dirname(dataDir));
-            firstBytes.push(writeObservation(dataDir));
+            firstBytes.push(writeObservation(dataDir, observedRow));
           } else {
             // A later invocation must not be adopted as a new measured runtime,
             // even if it modifies shared bytes after the original snapshot.
@@ -1025,7 +1034,7 @@ describe("optional first-runtime model input receipts", () => {
     const receiptBytes = readFileSync(`${path}.model-inputs.json`, "utf8");
     const receipt = JSON.parse(receiptBytes);
     expect(receipt).toMatchObject({
-      schemaVersion: 1,
+      schemaVersion: 2,
       reportSchemaVersion: 5,
       evaluatorVersion: "0.2.15",
       reportSha256: measurement.digest(readFileSync(path, "utf8")),
@@ -1039,7 +1048,7 @@ describe("optional first-runtime model input receipts", () => {
           observations: expect.objectContaining({
             status: "complete",
             sourceSha256: measurement.digest(bytes),
-            rows: [row],
+            rows: [observedRow],
           }),
         }),
       ),

@@ -441,6 +441,8 @@ describe("optional resolved model input projection", () => {
       systemChars: 3,
       promptChars: 6,
       messageTextChars: 4,
+      toolCallArgumentChars: 0,
+      toolResultTextChars: 0,
       messageCount: 1,
       imageCount: 1,
       toolCount: 1,
@@ -449,6 +451,191 @@ describe("optional resolved model input projection", () => {
       partial: false,
     });
     expect(params.tools[0]?.function.parameters).toBe(schema);
+  });
+
+  it("counts native tool arguments and text results separately from conversation text", () => {
+    const input = Object.freeze({ query: "PRIVATE_ARGUMENT_CANARY", limit: 2 });
+    const params = Object.freeze({
+      messages: [
+        { role: "user", content: "hello" },
+        {
+          role: "assistant",
+          content: [
+            { type: "text", text: "plan" },
+            { type: "tool-call", toolName: "PRIVATE_NAME", input },
+          ],
+        },
+        {
+          role: "tool",
+          content: [
+            {
+              type: "tool-result",
+              toolName: "PRIVATE_NAME",
+              output: { type: "text", value: "PRIVATE_RESULT_CANARY" },
+            },
+            {
+              type: "tool-result",
+              output: { type: "error-text", value: "PRIVATE_ERROR_CANARY" },
+            },
+          ],
+        },
+      ],
+    });
+    const before = JSON.stringify(params);
+    const projected = projectModelInput(params);
+    expect(projected).toMatchObject({
+      messageCount: 3,
+      messageTextChars: 9,
+      toolCallArgumentChars: JSON.stringify(input).length,
+      toolResultTextChars:
+        "PRIVATE_RESULT_CANARY".length + "PRIVATE_ERROR_CANARY".length,
+      imageCount: 0,
+      partial: false,
+    });
+    expect(JSON.stringify(projected)).not.toContain("PRIVATE_");
+    expect(JSON.stringify(params)).toBe(before);
+  });
+
+  it("counts large result strings without scanning or serializing their contents", () => {
+    const value = "x".repeat(100_000);
+    expect(
+      projectModelInput({
+        messages: [
+          {
+            content: [{ type: "tool-result", output: { type: "text", value } }],
+          },
+        ],
+      }),
+    ).toMatchObject({
+      messageTextChars: 0,
+      toolCallArgumentChars: 0,
+      toolResultTextChars: 100_000,
+      partial: false,
+    });
+  });
+
+  it("keeps all message sizes unavailable when an unsupported part could hide payloads", () => {
+    for (const part of [
+      { type: "unknown", text: "PRIVATE_CANARY" },
+      {
+        type: "tool-result",
+        output: { type: "json", value: { text: "PRIVATE_CANARY" } },
+      },
+      { type: "tool-result", output: { type: "text", value: null } },
+      { type: "tool-call" },
+    ]) {
+      expect(
+        projectModelInput({
+          messages: [{ content: [{ type: "text", text: "known" }, part] }],
+        }),
+      ).toMatchObject({
+        messageTextChars: null,
+        toolCallArgumentChars: null,
+        toolResultTextChars: null,
+        imageCount: null,
+        partial: true,
+      });
+    }
+  });
+
+  it("never invokes native argument/result accessors or JSON conversion", () => {
+    const getter = vi.fn(() => {
+      throw new Error("PRIVATE_CANARY");
+    });
+    const inherited = Object.create({ input: { value: "PRIVATE_CANARY" } });
+    inherited.type = "tool-call";
+    const parts = [
+      {
+        type: "tool-call",
+        get input() {
+          return getter();
+        },
+      },
+      { type: "tool-call", input: { toJSON: getter } },
+      {
+        type: "tool-result",
+        get output() {
+          return getter();
+        },
+      },
+      {
+        type: "tool-result",
+        output: {
+          type: "text",
+          get value() {
+            return getter();
+          },
+        },
+      },
+      inherited,
+    ];
+    for (const part of parts) {
+      const projected = projectModelInput({ messages: [{ content: [part] }] });
+      expect(projected).toMatchObject({
+        toolCallArgumentChars: null,
+        toolResultTextChars: null,
+        partial: true,
+      });
+      expect(JSON.stringify(projected)).not.toContain("PRIVATE_CANARY");
+    }
+    expect(getter).not.toHaveBeenCalled();
+  });
+
+  it("bounds native argument traversal and combined JSON size without changing inputs", () => {
+    const cyclic: Record<string, unknown> = {};
+    cyclic.self = cyclic;
+    for (const input of [cyclic, { value: "x".repeat(65_537) }, new Date()]) {
+      expect(
+        projectModelInput({
+          messages: [{ content: [{ type: "tool-call", input }] }],
+        }),
+      ).toMatchObject({ toolCallArgumentChars: null, partial: true });
+    }
+    expect(
+      projectModelInput({
+        messages: [
+          {
+            content: [
+              { type: "tool-call", input: { value: "x".repeat(40_000) } },
+              { type: "tool-call", input: { value: "x".repeat(40_000) } },
+            ],
+          },
+        ],
+      }),
+    ).toMatchObject({ toolCallArgumentChars: null, partial: true });
+  });
+
+  it("shares the native node budget and caps escaped argument size", () => {
+    const input = Object.fromEntries(
+      Array.from({ length: 64 }, (_, index) => [`key${index}`, index]),
+    );
+    const parts = Array.from({ length: 8 }, () => ({
+      type: "tool-call",
+      input,
+    }));
+    expect(projectModelInput({ messages: [{ content: parts }] })).toMatchObject(
+      {
+        messageTextChars: null,
+        toolCallArgumentChars: null,
+        toolResultTextChars: null,
+        partial: true,
+      },
+    );
+    // Escaping exceeds the serialized-character cap before the scan cap.
+    expect(
+      projectModelInput({
+        messages: [
+          {
+            content: [
+              {
+                type: "tool-call",
+                input: { value: "\u0000".repeat(11_000) },
+              },
+            ],
+          },
+        ],
+      }),
+    ).toMatchObject({ toolCallArgumentChars: null, partial: true });
   });
 
   it("does not read getters, inherited content, image data, or toJSON", () => {

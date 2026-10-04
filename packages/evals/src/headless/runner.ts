@@ -1153,7 +1153,7 @@ async function runHeadlessEvalSuiteAttempt(
     if (options.recordModelInputs) {
       try {
         const leaf = `${reportLeaf}.model-inputs.json`;
-        const bytes = `${JSON.stringify({ schemaVersion: 1, provenance: "headless-model-input-observations", reportSchemaVersion: report.schemaVersion, evaluatorVersion: report.evaluatorVersion, reportSha256: sha256(reportBytes), mode: "opt-in-model-input-observations", coverage: "first-creating-runtime-only", runs: modelInputDiagnostics })}\n`;
+        const bytes = `${JSON.stringify({ schemaVersion: 2, provenance: "headless-model-input-observations", reportSchemaVersion: report.schemaVersion, evaluatorVersion: report.evaluatorVersion, reportSha256: sha256(reportBytes), mode: "opt-in-model-input-observations", coverage: "first-creating-runtime-only", runs: modelInputDiagnostics })}\n`;
         verifyPrivateReportDirectory(reportDirectory);
         const pending = options.writeModelInputReceipt
           ? options.writeModelInputReceipt(

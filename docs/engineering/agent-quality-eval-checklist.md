@@ -51,6 +51,18 @@ schema character counts cover only a conservative getter-free JSON subset;
 null/partial fields are unavailable, not zero. Counts are UTF-16 characters,
 not wire bytes, tokenizer measurements, or complete context attribution.
 
+Version-2 rows also separate native `tool-call.input` JSON character counts
+(`toolCallArgumentChars`) and native `tool-result.output` text/error-text string
+lengths (`toolResultTextChars`) from ordinary `messageTextChars`. Argument
+projection has one shared 512-node/65,536-character scan budget per input, a
+depth limit of eight and a 65,536 serialized-character total cap. Result strings
+are counted by length, not scanned or serialized. Unknown/unsupported parts,
+getters, inherited values, cycles and exhausted argument budgets leave message
+size fields null/partial; they are never treated as absent payloads. Names,
+arguments and result text are not stored. Legacy version-1 rows remain readable
+unchanged and do not acquire fabricated native-size values. Associations must
+match the originating row version as well as its parameter identity.
+
 The installed beta.7 hooks do not attest a planner/evaluator stage: every row
 has `phase: "unknown"`. Optional Codex token observations associate only by the
 same public parameter-object identity within that runtime, never order/time.
@@ -83,8 +95,9 @@ follow-ups. Later invocations cannot adopt the existing file as new measured
 inputs. Coverage is **first-creating-runtime-only**, not full multi-turn coverage.
 
 A separate owner-only exclusive `.model-inputs.json` receipt binds the exact
-finished schema-v5 report SHA and numeric report-run index, retaining only closed
-version-1 input/settlement/provider-usage rows and a bounded source SHA. Unknown
+finished schema-v5 report SHA and numeric report-run index. The receipt is now
+schema-version 2, retaining only closed version-1 or version-2
+input/settlement/provider-usage rows and a bounded source SHA. Unknown
 keys, unsafe/replaced roots or files, symlinks/hardlinks, invalid associations and
 malformed rows are unavailable/rejected, never copied. Reads are capped at 2 MiB,
 512 rows and 4096 bytes per row; those caps do not bound filesystem latency or
@@ -95,6 +108,14 @@ time; persistence remains outside suite time. An execution override separates
 opt-in samples from defaults in pooling/comparison. Phase is always unknown;
 character/count and partial projection/prior-sink clocks do not measure wire
 bytes, effective routes, cache/billing, worker inputs or full overhead.
+
+Network-free installed-SDK fixtures can establish that genuine native tool
+parts reach these hooks and that input-size observations grow with controlled
+result text. Fixed replies and synthetic tools cannot establish a live speed
+improvement, per-call planner/evaluator phase attestation, or causality for an
+older benchmark that did not record these fields. Do not change compaction
+settings or attribute extra provider generations to duplicate harness calls
+from aggregate counts alone.
 
 ## Planner alias exposure experiment
 
