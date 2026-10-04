@@ -1,6 +1,11 @@
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { expect, type Locator, test } from "@playwright/test";
+import {
+  loadCodeWorkspaceLayout,
+  saveCodeWorkspaceLayout,
+  WORKSPACE_LAYOUT_STATE_KEY,
+} from "../apps/desktop/src/renderer/workspace-layout-state";
 import { expectNoDesktopRecovery } from "./support/desktop-assertions";
 import {
   launchIsolatedDesktop,
@@ -222,15 +227,485 @@ test.describe("Doolittle desktop session workbench", () => {
     mkdirSync(screenshotRoot, { recursive: true });
     const desktop = await launchIsolatedDesktop();
     try {
-      const { app, page, pageErrors } = desktop;
+      const { app, page, pageErrors, workspaceDir } = desktop;
       expect(app.windows().length).toBe(1);
       const nativeWindow = await app.browserWindow(page);
+      await waitForDesktopReady(page);
+
+      const seededLayoutValues = new Map<string, string>();
+      const seededLayoutStorage = {
+        getItem: (key: string) => seededLayoutValues.get(key) ?? null,
+        setItem: (key: string, value: string) =>
+          seededLayoutValues.set(key, value),
+      };
+      saveCodeWorkspaceLayout(seededLayoutStorage, workspaceDir, {
+        explorerVisible: true,
+        utilityVisible: true,
+        zenMode: false,
+        explorerWidth: 520,
+        utilityWidth: 640,
+      });
+      const seededLayout = seededLayoutValues.get(WORKSPACE_LAYOUT_STATE_KEY);
+      expect(seededLayout).toBeTruthy();
+      expect(
+        loadCodeWorkspaceLayout(seededLayoutStorage, workspaceDir),
+      ).toMatchObject({ explorerWidth: 520, utilityWidth: 640 });
+      if (!seededLayout)
+        throw new Error("Maximum Code panel preferences were not serialized.");
+      await page.evaluate(
+        ({ key, value }) => localStorage.setItem(key, value),
+        { key: WORKSPACE_LAYOUT_STATE_KEY, value: seededLayout },
+      );
+      await page.reload();
       await waitForDesktopReady(page);
       await page.evaluate(() => {
         window.location.hash = "#/code";
       });
       const codeView = page.locator(".view-code");
       await expect(codeView).toBeVisible();
+      const repositoryHeader = codeView.locator(".coding-repo-header");
+      const repositoryStatus = repositoryHeader.getByRole("status", {
+        name: "Repository status",
+      });
+      const expectNeutralNonGitStatus = async () => {
+        await expect(
+          repositoryHeader.getByText("No Git repository", { exact: true }),
+        ).toBeVisible({ timeout: 30_000 });
+        await expect(
+          repositoryHeader.getByText("Clean", { exact: true }),
+        ).toHaveCount(0);
+        await expect(
+          repositoryStatus.locator(".coding-repo-state-value"),
+        ).toHaveText(["—", "—", "—"]);
+      };
+      const expectNonGitHeaderGeometry = async (viewportWidth: number) => {
+        await expectNeutralNonGitStatus();
+        const geometry = await repositoryHeader.evaluate((header) => {
+          const identity = header.querySelector<HTMLElement>(
+            ".coding-repo-identity",
+          );
+          const title = header.querySelector<HTMLElement>(".coding-repo-title");
+          const status = header.querySelector<HTMLElement>(
+            '[aria-label="Repository status"]',
+          );
+          if (!identity || !title || !status) return null;
+
+          const bounds = (element: HTMLElement) => {
+            const rect = element.getBoundingClientRect();
+            return {
+              left: rect.left,
+              top: rect.top,
+              right: rect.right,
+              bottom: rect.bottom,
+            };
+          };
+          const visibleDescendantBounds = (element: HTMLElement) =>
+            Array.from(element.querySelectorAll<HTMLElement>("*"))
+              .filter((child) => {
+                const style = getComputedStyle(child);
+                const rect = child.getBoundingClientRect();
+                return (
+                  style.display !== "none" &&
+                  style.visibility !== "hidden" &&
+                  rect.width > 0 &&
+                  rect.height > 0
+                );
+              })
+              .map(bounds);
+
+          return {
+            viewportWidth: innerWidth,
+            header: bounds(header),
+            identity: bounds(identity),
+            title: bounds(title),
+            status: bounds(status),
+            identityChildren: visibleDescendantBounds(identity),
+            titleChildren: visibleDescendantBounds(title),
+            statusChildren: visibleDescendantBounds(status),
+          };
+        });
+        expect(
+          geometry,
+          `repository header geometry at ${viewportWidth}px`,
+        ).not.toBeNull();
+        if (!geometry)
+          throw new Error("Repository header geometry is missing.");
+        expect(geometry.viewportWidth).toBe(viewportWidth);
+        const contained = (
+          child: typeof geometry.identity,
+          parent: typeof geometry.header,
+        ) =>
+          child.left >= parent.left - 1 &&
+          child.right <= parent.right + 1 &&
+          child.top >= parent.top - 1 &&
+          child.bottom <= parent.bottom + 1;
+        expect(contained(geometry.identity, geometry.header)).toBe(true);
+        expect(contained(geometry.title, geometry.identity)).toBe(true);
+        expect(contained(geometry.status, geometry.header)).toBe(true);
+        for (const child of geometry.identityChildren) {
+          expect(contained(child, geometry.identity)).toBe(true);
+          expect(contained(child, geometry.header)).toBe(true);
+        }
+        for (const child of geometry.titleChildren) {
+          expect(contained(child, geometry.title)).toBe(true);
+          expect(contained(child, geometry.header)).toBe(true);
+        }
+        for (const child of geometry.statusChildren) {
+          expect(contained(child, geometry.status)).toBe(true);
+          expect(contained(child, geometry.header)).toBe(true);
+        }
+        const overlaps =
+          geometry.identity.left < geometry.status.right &&
+          geometry.identity.right > geometry.status.left &&
+          geometry.identity.top < geometry.status.bottom &&
+          geometry.identity.bottom > geometry.status.top;
+        expect(
+          overlaps,
+          `repository identity must not overlap status/actions at ${viewportWidth}px`,
+        ).toBe(false);
+      };
+      const desktopViewportWidth = await page.evaluate(() => innerWidth);
+      expect(desktopViewportWidth).toBeGreaterThan(960);
+      await expectNonGitHeaderGeometry(desktopViewportWidth);
+      const codingPage = codeView.locator(".coding-workspace-page");
+      const codeWorkspace = codingPage.getByRole("tabpanel", {
+        name: "Code workspace",
+      });
+      const editorPane = codeWorkspace.locator(".coding-editor");
+      const utilityPane = codeWorkspace.locator(".coding-utility");
+      const expectUsableCodingPanes = async (
+        viewportWidth: number,
+        checkAcpTaskRow = false,
+      ) => {
+        const layout = await codingPage.evaluate((pageElement) => ({
+          viewportWidth: innerWidth,
+          clientWidth: pageElement.clientWidth,
+          scrollWidth: pageElement.scrollWidth,
+        }));
+        expect(layout.viewportWidth).toBe(viewportWidth);
+        expect(layout.clientWidth).toBeGreaterThan(0);
+        expect(
+          layout.scrollWidth,
+          `coding page should not require horizontal scrolling at ${viewportWidth}px`,
+        ).toBeLessThanOrEqual(layout.clientWidth + 1);
+
+        const expectUsefulPaneWidth = async (
+          pane: typeof editorPane,
+          label: string,
+          minimumWidth: number,
+        ) => {
+          await expect(pane).toBeVisible();
+          const bounds = await pane.boundingBox();
+          expect(
+            bounds,
+            `${label} geometry at ${viewportWidth}px`,
+          ).not.toBeNull();
+          if (!bounds) throw new Error(`${label} geometry is unavailable.`);
+          expect(
+            bounds.width,
+            `${label} must remain usable at ${viewportWidth}px (page client width ${layout.clientWidth}px)`,
+          ).toBeGreaterThanOrEqual(minimumWidth);
+          await pane.scrollIntoViewIfNeeded();
+          await expect(pane).toBeInViewport();
+        };
+
+        await expectUsefulPaneWidth(
+          editorPane,
+          "file editor",
+          Math.min(300, layout.clientWidth - 24),
+        );
+        await expectUsefulPaneWidth(
+          utilityPane,
+          "workspace utilities",
+          Math.min(240, layout.clientWidth - 24),
+        );
+
+        const footer = editorPane.locator(".coding-editor-status");
+        await footer.scrollIntoViewIfNeeded();
+        await expect(footer).toBeVisible();
+        const taskToggle = editorPane.locator(".coding-acp-task-toggle");
+        await expect(taskToggle).toBeVisible();
+        await expect(taskToggle).toBeEnabled();
+        await taskToggle.scrollIntoViewIfNeeded();
+        await expect(taskToggle).toBeInViewport();
+        const footerGeometry = await footer.evaluate((element) => {
+          const bounds = (node: Element) => {
+            const rect = node.getBoundingClientRect();
+            return {
+              left: rect.left,
+              right: rect.right,
+              top: rect.top,
+              bottom: rect.bottom,
+            };
+          };
+          const isVisible = (node: HTMLElement) => {
+            const style = getComputedStyle(node);
+            const rect = node.getBoundingClientRect();
+            return (
+              style.display !== "none" &&
+              style.visibility !== "hidden" &&
+              rect.width > 0 &&
+              rect.height > 0
+            );
+          };
+          const editor = element.closest<HTMLElement>(".coding-editor");
+          const visibleChildren = Array.from(element.children).filter(
+            (child): child is HTMLElement =>
+              child instanceof HTMLElement && isVisible(child),
+          );
+          const visibleButtons = Array.from(
+            element.querySelectorAll<HTMLElement>("button"),
+          ).filter(isVisible);
+          return {
+            footer: bounds(element),
+            editor: editor ? bounds(editor) : null,
+            clientWidth: element.clientWidth,
+            scrollWidth: element.scrollWidth,
+            children: visibleChildren.map((child) => bounds(child)),
+            buttons: visibleButtons.map((button) => bounds(button)),
+            taskToggle: (() => {
+              const toggle = element.querySelector<HTMLElement>(
+                ".coding-acp-task-toggle",
+              );
+              return toggle ? bounds(toggle) : null;
+            })(),
+            viewport: { width: innerWidth, height: innerHeight },
+          };
+        });
+        expect(
+          footerGeometry.editor,
+          `editor footer should belong to the editor at ${viewportWidth}px`,
+        ).not.toBeNull();
+        if (!footerGeometry.editor)
+          throw new Error("Editor footer geometry is unavailable.");
+        expect(footerGeometry.footer.left).toBeGreaterThanOrEqual(
+          footerGeometry.editor.left - 1,
+        );
+        expect(footerGeometry.footer.right).toBeLessThanOrEqual(
+          footerGeometry.editor.right + 1,
+        );
+        expect(
+          footerGeometry.scrollWidth,
+          `editor footer must not overflow horizontally at ${viewportWidth}px`,
+        ).toBeLessThanOrEqual(footerGeometry.clientWidth + 1);
+        for (const child of footerGeometry.children) {
+          expect(child.left).toBeGreaterThanOrEqual(
+            footerGeometry.footer.left - 1,
+          );
+          expect(child.right).toBeLessThanOrEqual(
+            footerGeometry.footer.right + 1,
+          );
+        }
+        for (const button of footerGeometry.buttons) {
+          expect(button.left).toBeGreaterThanOrEqual(
+            footerGeometry.footer.left - 1,
+          );
+          expect(button.right).toBeLessThanOrEqual(
+            footerGeometry.footer.right + 1,
+          );
+          expect(button.left).toBeGreaterThanOrEqual(-1);
+          expect(button.right).toBeLessThanOrEqual(
+            footerGeometry.viewport.width + 1,
+          );
+        }
+        expect(footerGeometry.taskToggle).not.toBeNull();
+        if (!footerGeometry.taskToggle)
+          throw new Error("ACP task toggle geometry is unavailable.");
+        expect(footerGeometry.taskToggle.left).toBeGreaterThanOrEqual(
+          footerGeometry.footer.left - 1,
+        );
+        expect(footerGeometry.taskToggle.right).toBeLessThanOrEqual(
+          footerGeometry.footer.right + 1,
+        );
+
+        if (checkAcpTaskRow) {
+          await expect(taskToggle).toHaveAttribute("aria-expanded", "false");
+          await taskToggle.click();
+          const taskRow = editorPane.locator(".coding-acp-task-row");
+          const closeTask = editorPane.getByRole("button", {
+            name: "Close ACP editor task",
+          });
+          try {
+            await expect(taskRow).toBeVisible();
+            const rowGeometry = await taskRow.evaluate((row) => {
+              const rect = row.getBoundingClientRect();
+              const editor = row.closest<HTMLElement>(".coding-editor");
+              const editorRect = editor?.getBoundingClientRect();
+              return {
+                left: rect.left,
+                right: rect.right,
+                width: rect.width,
+                clientWidth: row.clientWidth,
+                scrollWidth: row.scrollWidth,
+                editor: editorRect
+                  ? { left: editorRect.left, right: editorRect.right }
+                  : null,
+              };
+            });
+            expect(rowGeometry.editor).not.toBeNull();
+            if (!rowGeometry.editor)
+              throw new Error("ACP task editor geometry is unavailable.");
+            expect(rowGeometry.left).toBeGreaterThanOrEqual(
+              rowGeometry.editor.left - 1,
+            );
+            expect(rowGeometry.right).toBeLessThanOrEqual(
+              rowGeometry.editor.right + 1,
+            );
+            expect(
+              rowGeometry.scrollWidth,
+              `ACP task row must not overflow its pane at ${viewportWidth}px`,
+            ).toBeLessThanOrEqual(rowGeometry.clientWidth + 1);
+            const openedLayout = await codingPage.evaluate((pageElement) => ({
+              clientWidth: pageElement.clientWidth,
+              scrollWidth: pageElement.scrollWidth,
+            }));
+            expect(
+              openedLayout.scrollWidth,
+              `open ACP task must not create horizontal page overflow at ${viewportWidth}px`,
+            ).toBeLessThanOrEqual(openedLayout.clientWidth + 1);
+          } finally {
+            if (await closeTask.count()) await closeTask.click();
+          }
+          await expect(taskRow).toBeHidden();
+          await expect(taskToggle).toHaveAttribute("aria-expanded", "false");
+          const closedLayout = await codingPage.evaluate((pageElement) => ({
+            clientWidth: pageElement.clientWidth,
+            scrollWidth: pageElement.scrollWidth,
+          }));
+          expect(
+            closedLayout.scrollWidth,
+            `closed ACP task must not leave horizontal page overflow at ${viewportWidth}px`,
+          ).toBeLessThanOrEqual(closedLayout.clientWidth + 1);
+        }
+
+        await codingPage.evaluate((pageElement) => {
+          pageElement.scrollTo({ top: 0, left: 0 });
+        });
+      };
+      const resizeWindowForRouteWidth = async (targetWidth: number) => {
+        for (let attempt = 0; attempt < 4; attempt += 1) {
+          const current = await page.evaluate(() => ({
+            width: innerWidth,
+            height: innerHeight,
+          }));
+          const routeWidth = await codeView.evaluate(
+            (element) => element.clientWidth,
+          );
+          if (Math.abs(routeWidth - targetWidth) <= 2) return routeWidth;
+          const nextWindowWidth = Math.round(
+            current.width + targetWidth - routeWidth,
+          );
+          await nativeWindow.evaluate(
+            (window, size: { width: number; height: number }) =>
+              window.setContentSize(size.width, size.height),
+            { width: nextWindowWidth, height: current.height },
+          );
+          await expect
+            .poll(() => page.evaluate(() => innerWidth))
+            .toBe(nextWindowWidth);
+        }
+        return await codeView.evaluate((element) => element.clientWidth);
+      };
+      const expectBudgetedExtremeLayout = async () => {
+        const explorerPane = codeWorkspace.locator(".coding-explorer");
+        const editorPane = codeWorkspace.locator(".coding-editor");
+        const utilityPane = codeWorkspace.locator(".coding-utility");
+        await expect(explorerPane).toBeVisible();
+        await expect(editorPane).toBeVisible();
+        await expect(utilityPane).toBeVisible();
+        const geometry = await codingPage.evaluate((pageElement) => {
+          const grid = pageElement.querySelector<HTMLElement>(
+            "#coding-workspace-surface",
+          );
+          const rect = (element: Element) => {
+            const bounds = element.getBoundingClientRect();
+            return {
+              left: bounds.left,
+              right: bounds.right,
+              width: bounds.width,
+            };
+          };
+          const paneRect = (selector: string) => {
+            const pane = pageElement.querySelector<HTMLElement>(selector);
+            if (!pane) return null;
+            return { ...rect(pane), clientWidth: pane.clientWidth };
+          };
+          return {
+            routeWidth:
+              document.querySelector<HTMLElement>(".view-code")?.clientWidth ??
+              0,
+            page: {
+              clientWidth: pageElement.clientWidth,
+              scrollWidth: pageElement.scrollWidth,
+            },
+            grid: grid
+              ? {
+                  ...rect(grid),
+                  clientWidth: grid.clientWidth,
+                  scrollWidth: grid.scrollWidth,
+                }
+              : null,
+            explorer: paneRect(".coding-explorer"),
+            editor: paneRect(".coding-editor"),
+            utility: paneRect(".coding-utility"),
+          };
+        });
+        expect(geometry.routeWidth).toBeGreaterThan(960);
+        expect(geometry.routeWidth).toBeLessThan(1024);
+        expect(geometry.page.scrollWidth).toBeLessThanOrEqual(
+          geometry.page.clientWidth + 1,
+        );
+        expect(geometry.grid).not.toBeNull();
+        if (!geometry.grid)
+          throw new Error("Extreme Code grid geometry is unavailable.");
+        expect(geometry.grid.scrollWidth).toBeLessThanOrEqual(
+          geometry.grid.clientWidth + 1,
+        );
+        const explorer = geometry.explorer;
+        const editor = geometry.editor;
+        const utility = geometry.utility;
+        expect(explorer).not.toBeNull();
+        expect(editor).not.toBeNull();
+        expect(utility).not.toBeNull();
+        if (!explorer || !editor || !utility)
+          throw new Error("A visible Code pane is missing geometry.");
+        expect(editor.width).toBeGreaterThanOrEqual(300);
+        for (const pane of [explorer, editor, utility]) {
+          expect(pane.width).toBeGreaterThan(0);
+          expect(pane.left).toBeGreaterThanOrEqual(geometry.grid.left - 1);
+          expect(pane.right).toBeLessThanOrEqual(geometry.grid.right + 1);
+        }
+        expect(explorer.right).toBeLessThanOrEqual(editor.left + 1);
+        expect(editor.right).toBeLessThanOrEqual(utility.left + 1);
+      };
+      const readWorkspaceLayout = async () => {
+        const serialized = await page.evaluate(
+          (key) => localStorage.getItem(key),
+          WORKSPACE_LAYOUT_STATE_KEY,
+        );
+        if (!serialized) return null;
+        return loadCodeWorkspaceLayout(
+          {
+            getItem: (key) =>
+              key === WORKSPACE_LAYOUT_STATE_KEY ? serialized : null,
+          },
+          workspaceDir,
+        );
+      };
+      const dragCodeUtility = async (deltaX: number) => {
+        const separator = page.getByRole("separator", {
+          name: "Resize code utility panel",
+        });
+        const bounds = await separator.boundingBox();
+        expect(bounds).not.toBeNull();
+        if (!bounds) throw new Error("Code utility resizer is not measurable.");
+        const x = bounds.x + bounds.width / 2;
+        const y = bounds.y + bounds.height / 2;
+        await page.mouse.move(x, y);
+        await page.mouse.down();
+        await page.mouse.move(x + deltaX, y, { steps: 2 });
+        await page.mouse.up();
+      };
       const utilityToggle = codeView.getByRole("button", {
         exact: true,
         name: "Utility",
@@ -251,6 +726,106 @@ test.describe("Doolittle desktop session workbench", () => {
         name: "Clear terminal view",
       });
       await expect(clearTerminal).toBeEnabled({ timeout: 45_000 });
+      await expectUsableCodingPanes(desktopViewportWidth);
+
+      const fittedRouteWidth = await resizeWindowForRouteWidth(980);
+      expect(fittedRouteWidth).toBeGreaterThan(960);
+      expect(fittedRouteWidth).toBeLessThan(1024);
+      const fittedViewportWidth = await page.evaluate(() => innerWidth);
+      await expectUsableCodingPanes(fittedViewportWidth);
+      const persistedLayout = await page.evaluate(
+        (key) => localStorage.getItem(key),
+        WORKSPACE_LAYOUT_STATE_KEY,
+      );
+      expect(persistedLayout).toBeTruthy();
+      if (!persistedLayout)
+        throw new Error("Saved Code layout preferences disappeared on resize.");
+      expect(
+        loadCodeWorkspaceLayout(
+          {
+            getItem: (key) =>
+              key === WORKSPACE_LAYOUT_STATE_KEY ? persistedLayout : null,
+          },
+          workspaceDir,
+        ),
+      ).toMatchObject({ explorerWidth: 520, utilityWidth: 640 });
+      await expectBudgetedExtremeLayout();
+
+      const explorerResize = page.getByRole("separator", {
+        name: "Resize code explorer",
+      });
+      const utilityResize = page.getByRole("separator", {
+        name: "Resize code utility panel",
+      });
+      await expect(explorerResize).toBeVisible();
+      await expect(utilityResize).toBeVisible();
+      const fittedExplorerWidth = Number(
+        await explorerResize.getAttribute("aria-valuenow"),
+      );
+      expect(Number.isFinite(fittedExplorerWidth)).toBe(true);
+      await explorerResize.focus();
+      await page.keyboard.press("ArrowLeft");
+      await expect
+        .poll(async () =>
+          Number(await explorerResize.getAttribute("aria-valuenow")),
+        )
+        .toBeLessThan(fittedExplorerWidth);
+      await expectBudgetedExtremeLayout();
+      const materializedExplorerWidth = Number(
+        await explorerResize.getAttribute("aria-valuenow"),
+      );
+      const materializedUtilityWidth = Number(
+        await utilityResize.getAttribute("aria-valuenow"),
+      );
+      await expect.poll(readWorkspaceLayout).toMatchObject({
+        explorerWidth: materializedExplorerWidth,
+        utilityWidth: materializedUtilityWidth,
+      });
+      await page.keyboard.press("ArrowRight");
+      await expect(explorerResize).toHaveAttribute(
+        "aria-valuenow",
+        String(fittedExplorerWidth),
+      );
+      await page.keyboard.press("ArrowRight");
+      await expect(explorerResize).toHaveAttribute(
+        "aria-valuenow",
+        String(fittedExplorerWidth),
+      );
+      await expectBudgetedExtremeLayout();
+
+      const fittedUtilityWidth = Number(
+        await utilityResize.getAttribute("aria-valuenow"),
+      );
+      expect(Number.isFinite(fittedUtilityWidth)).toBe(true);
+      await dragCodeUtility(16);
+      await expect
+        .poll(async () =>
+          Number(await utilityResize.getAttribute("aria-valuenow")),
+        )
+        .toBeLessThan(fittedUtilityWidth);
+      await expectBudgetedExtremeLayout();
+      const materializedExplorerWidthAfterDrag = Number(
+        await explorerResize.getAttribute("aria-valuenow"),
+      );
+      const materializedUtilityWidthAfterDrag = Number(
+        await utilityResize.getAttribute("aria-valuenow"),
+      );
+      await expect.poll(readWorkspaceLayout).toMatchObject({
+        explorerWidth: materializedExplorerWidthAfterDrag,
+        utilityWidth: materializedUtilityWidthAfterDrag,
+      });
+      await dragCodeUtility(-16);
+      await expect(utilityResize).toHaveAttribute(
+        "aria-valuenow",
+        String(fittedUtilityWidth),
+      );
+      await dragCodeUtility(-16);
+      await expect(utilityResize).toHaveAttribute(
+        "aria-valuenow",
+        String(fittedUtilityWidth),
+      );
+      await expectBudgetedExtremeLayout();
+      await expectUsableCodingPanes(fittedViewportWidth);
 
       const ownedWindowId = await nativeWindow.evaluate((window) => window.id);
       const displayScaleFactor = await app.evaluate(
@@ -355,7 +930,14 @@ test.describe("Doolittle desktop session workbench", () => {
         expect(metrics.fontProbe?.wWidth ?? 0).toBeGreaterThan(0);
         expect(metrics.canvasRatio).toBeCloseTo(displayScaleFactor, 1);
         expect(metrics.canvasHeightRatio).toBeCloseTo(displayScaleFactor, 1);
-        const target = width === 390 ? "mobile" : "narrow";
+        const target =
+          width === 390
+            ? "mobile"
+            : width === 960
+              ? "boundary"
+              : width === 1024
+                ? "neighbor"
+                : "narrow";
         await page.screenshot({
           animations: "disabled",
           fullPage: false,
@@ -368,7 +950,17 @@ test.describe("Doolittle desktop session workbench", () => {
       };
 
       await resizeAndAssert(390, 844);
+      await expectNonGitHeaderGeometry(390);
+      await expectUsableCodingPanes(390, true);
       await resizeAndAssert(760, 960);
+      await expectNonGitHeaderGeometry(760);
+      await expectUsableCodingPanes(760);
+      await resizeAndAssert(960, 960);
+      await expectNonGitHeaderGeometry(960);
+      await expectUsableCodingPanes(960, true);
+      await resizeAndAssert(1024, 960);
+      await expectNonGitHeaderGeometry(1024);
+      await expectUsableCodingPanes(1024);
       expect(pageErrors).toEqual([]);
     } finally {
       await desktop.dispose();

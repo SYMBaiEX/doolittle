@@ -26,7 +26,7 @@ export const CHAT_CHROME_HOST_CLASS =
   "chat-chrome-host relative flex min-h-0 min-w-0 flex-[1_1_560px] gap-0 overflow-hidden pr-2 [-webkit-app-region:drag] max-[760px]:min-h-0 max-[760px]:p-0";
 
 export const VIEW_CONTAINER_CLASS =
-  "view-container min-h-0 min-w-0 flex-1 overflow-y-auto bg-[var(--bg)]";
+  "view-container min-h-0 min-w-0 flex-1 overflow-y-auto bg-[var(--bg)] [&.view-code]:[container-type:inline-size] [&.view-code]:[container-name:coding-route]";
 
 export const VIEW_CONTAINER_WORKSPACE_CLASS = "overflow-hidden bg-[var(--bg)]";
 

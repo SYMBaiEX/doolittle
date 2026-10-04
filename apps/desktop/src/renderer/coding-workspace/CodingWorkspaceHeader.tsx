@@ -53,6 +53,8 @@ export function CodingWorkspaceHeader({
   onRetrySummary: () => void;
   onSurfaceChange: (surface: CodeSurface) => void;
 }) {
+  const hasRepository = hasSummary && summary.isRepository;
+  const repositoryReady = hasRepository && !summaryLoading && !summaryError;
   return (
     <>
       <header className={CODING_REPO_HEADER_CLASS}>
@@ -63,12 +65,18 @@ export function CodingWorkspaceHeader({
           <div>
             <span className="eyebrow">Workspace</span>
             <div className={CODING_REPO_TITLE_CLASS}>
-              <h1>{summary.branch || "Workspace"}</h1>
-              {summary.head ? <code>{summary.head}</code> : null}
+              <h1>{(hasRepository && summary.branch) || "Workspace"}</h1>
+              {hasRepository && summary.head ? (
+                <code>{summary.head}</code>
+              ) : null}
               {summaryLoading ? (
                 <Badge>Syncing</Badge>
-              ) : summaryError ? (
-                <Badge tone="bad">Unavailable</Badge>
+              ) : summaryError || !hasSummary ? (
+                <Badge tone={summaryError ? "bad" : "neutral"}>
+                  Unavailable
+                </Badge>
+              ) : !summary.isRepository ? (
+                <Badge>No Git repository</Badge>
               ) : (
                 <Badge tone={summary.dirty ? "warn" : "good"}>
                   {summary.dirty ? "Changes" : "Clean"}
@@ -87,21 +95,21 @@ export function CodingWorkspaceHeader({
         >
           <span>
             <strong className={CODING_REPO_STATE_VALUE_CLASS}>
-              {summaryLoading ? "—" : summary.changedFiles}
+              {repositoryReady ? summary.changedFiles : "—"}
             </strong>{" "}
             changed
           </span>
           <span>
             <strong className={CODING_REPO_STATE_VALUE_CLASS}>
               <UiIcon icon={ArrowUp} size="xs" />
-              {summaryLoading ? "—" : summary.ahead}
+              {repositoryReady ? summary.ahead : "—"}
             </strong>{" "}
             ahead
           </span>
           <span>
             <strong className={CODING_REPO_STATE_VALUE_CLASS}>
               <UiIcon icon={ArrowDown} size="xs" />
-              {summaryLoading ? "—" : summary.behind}
+              {repositoryReady ? summary.behind : "—"}
             </strong>{" "}
             behind
           </span>

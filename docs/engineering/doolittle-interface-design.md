@@ -91,6 +91,10 @@ focus; empty file preview content stays stacked in normal flow.
 - Disabled: keep the label visible, block the action semantically, and explain
   unmet prerequisites near the control. Hover and pressed styling must not
   imply disabled controls are operable.
+- Repository state: show Clean/Changes and branch counts only after a real
+  Git summary loads. A non-Git workspace says No Git repository; loading or
+  unavailable summaries never imply a clean repository or zero changes.
+  File status is neutral until a selected file has verified change data.
 - Motion: 150ms background/border/color changes with the shared easing; no
   layout jumps on hover. Honor reduced motion, including loading indicators.
 
@@ -103,6 +107,20 @@ context disclosure and send/stop action. Controls have 44px minimum targets;
 long selector names truncate inside their own bounds, not over other controls.
 Operational status stays visible on a separate row. This applies to narrow
 desktop tiles as well as mobile, without changing DOM or keyboard focus order.
+
+The Code repository header wraps by available content width, not a single
+viewport breakpoint. Identity and status/action bands must never overlap;
+long branch names truncate while truthful state labels remain readable.
+The Code page and its explorer/editor/utility grid query the route's available
+content width, including the sidebar. When three panes would crowd the editor,
+they stack in the route's bounded scroll area; editor and utility controls
+remain reachable even while the shared terminal dock is open.
+Editor status and delegated-task controls wrap within the pane's own width;
+do not hide controls or mask page overflow to make narrow layouts appear valid.
+In split mode, side-pane preferences fit a joint width budget that reserves
+320px for the editor. Window resizing preserves preferred widths; explicit
+pointer or keyboard resizing starts from the currently displayed widths and
+respects the space needed by the opposite pane and editor.
 
 The shared chat masthead uses a second control band in intermediate and narrow
 windows, rather than squeezing surface tabs and Context between breadcrumbs

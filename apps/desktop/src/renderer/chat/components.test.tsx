@@ -942,6 +942,7 @@ describe("chat presentation components", () => {
     expect(html).toContain("Run complete");
     expect(html).not.toContain("Doolittle");
     expect(html).toContain("1 action · 1s");
+    expect(html).not.toContain("block h-px w-full");
     expect(
       runActivityItems({ latest: completed, events: [heartbeat, completed] }),
     ).toHaveLength(0);
@@ -1035,7 +1036,10 @@ describe("chat presentation components", () => {
     expect(html).toContain('aria-live="polite"');
     expect(html).toContain('data-pending="true"');
     expect(html).toContain("Working");
-    expect(html).toContain("animate-pulse");
+    expect(html).toContain("animate-spin motion-reduce:animate-none");
+    expect(html).toContain("block h-px w-full bg-[var(--border)]");
+    expect(html).not.toContain("animate-pulse");
+    expect(html).not.toContain("linear-gradient");
   });
 
   it("surfaces a quiet stalled state without treating heartbeats as progress", () => {

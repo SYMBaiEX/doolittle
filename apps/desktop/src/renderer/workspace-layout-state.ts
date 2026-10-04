@@ -31,6 +31,102 @@ export interface CodeWorkspaceLayout {
   utilityWidth: number;
 }
 
+export const CODE_EDITOR_MIN_WIDTH = 320;
+
+type CodeWidthPreferences = Pick<
+  CodeWorkspaceLayout,
+  "explorerVisible" | "utilityVisible" | "explorerWidth" | "utilityWidth"
+>;
+
+interface CodeResizeBounds {
+  default: number;
+  min: number;
+  max: number;
+}
+
+/** Fit the current viewport without overwriting the operator's preferred widths. */
+export function codeWorkspaceWidthBudget(
+  gridWidth: number,
+  layout: CodeWidthPreferences,
+) {
+  let explorerWidth = clampPanelWidth(
+    layout.explorerWidth,
+    CODE_EXPLORER_WIDTH,
+  );
+  let utilityWidth = clampPanelWidth(layout.utilityWidth, CODE_UTILITY_WIDTH);
+  const explorerMin = layout.explorerVisible ? CODE_EXPLORER_WIDTH.min : 0;
+  const utilityMin = layout.utilityVisible ? CODE_UTILITY_WIDTH.min : 0;
+  // Below these minima CSS stacks the panes and hides horizontal handles.
+  // Unmeasured/hidden grids use valid minima until their first visible layout.
+  const sideBudget = Math.max(
+    explorerMin + utilityMin,
+    Number.isFinite(gridWidth)
+      ? Math.floor(gridWidth) - CODE_EDITOR_MIN_WIDTH
+      : 0,
+  );
+  const requested =
+    (layout.explorerVisible ? explorerWidth : 0) +
+    (layout.utilityVisible ? utilityWidth : 0);
+  if (requested > sideBudget) {
+    const explorerExtra = layout.explorerVisible
+      ? explorerWidth - explorerMin
+      : 0;
+    const utilityExtra = layout.utilityVisible ? utilityWidth - utilityMin : 0;
+    const extraBudget = sideBudget - explorerMin - utilityMin;
+    const totalExtra = explorerExtra + utilityExtra;
+    const fittedExplorerExtra =
+      totalExtra > 0
+        ? Math.floor((extraBudget * explorerExtra) / totalExtra)
+        : 0;
+    if (layout.explorerVisible)
+      explorerWidth = explorerMin + fittedExplorerExtra;
+    if (layout.utilityVisible)
+      utilityWidth = utilityMin + extraBudget - fittedExplorerExtra;
+  }
+  const bounds = (
+    base: CodeResizeBounds,
+    oppositeWidth: number,
+  ): CodeResizeBounds => {
+    const max = Math.max(
+      base.min,
+      Math.min(base.max, sideBudget - oppositeWidth),
+    );
+    return { min: base.min, max, default: Math.min(base.default, max) };
+  };
+  return {
+    explorerWidth,
+    utilityWidth,
+    explorerBounds: bounds(
+      CODE_EXPLORER_WIDTH,
+      layout.utilityVisible ? utilityWidth : 0,
+    ),
+    utilityBounds: bounds(
+      CODE_UTILITY_WIDTH,
+      layout.explorerVisible ? explorerWidth : 0,
+    ),
+  };
+}
+
+/** Explicit resizing starts at displayed sizes, never at hidden oversized preferences. */
+export function resizeCodeWorkspaceWidths(
+  gridWidth: number,
+  layout: CodeWidthPreferences,
+  pane: "explorer" | "utility",
+  value: number,
+) {
+  const fitted = codeWorkspaceWidthBudget(gridWidth, layout);
+  return {
+    explorerWidth:
+      pane === "explorer"
+        ? clampPanelWidth(value, fitted.explorerBounds)
+        : fitted.explorerWidth,
+    utilityWidth:
+      pane === "utility"
+        ? clampPanelWidth(value, fitted.utilityBounds)
+        : fitted.utilityWidth,
+  };
+}
+
 interface StoredCodeWorkspaceLayout extends CodeWorkspaceLayout {
   updatedAt: number;
 }
