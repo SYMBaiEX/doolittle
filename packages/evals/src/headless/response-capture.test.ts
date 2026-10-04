@@ -17,6 +17,10 @@ import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { findHeadlessEvalSuite } from "./cases";
 import {
+  formatOperationalFailure,
+  type HeadlessOperationalFailure,
+} from "./operational-failure";
+import {
   createSyntheticResponseCapture,
   runSyntheticReviewEval,
   SYNTHETIC_RESPONSE_TOTAL_BYTE_LIMIT,
@@ -346,10 +350,16 @@ describe("prospective bounded synthetic response capture", () => {
   it("discards a captured first turn when the original runner throws later", async () => {
     const reportDir = root();
     let calls = 0;
+    const events: HeadlessOperationalFailure[] = [];
+    const stdout = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    const stderr = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
     await expect(
       runSyntheticReviewEval(selector, {
         reportDir,
         taskIds: ["conversation-session-memory-v7"],
+        onOperationalFailure: (receipt) => events.push(receipt),
         execute: (_command, _args, options) => {
           const dataDir = options.env.DOOLITTLE_DATA_DIR;
           if (calls === 0 && dataDir) roots.push(dirname(dirname(dataDir)));
@@ -371,6 +381,17 @@ describe("prospective bounded synthetic response capture", () => {
     ).rejects.toThrow("Synthetic second-turn executor failure");
     expect(calls).toBe(2);
     expect(readdirSync(reportDir)).toEqual([]);
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({
+      phase: "child-execution",
+      code: "executor-threw",
+      childCleanup: "unknown",
+      persistence: "not-attempted",
+      eligibleForEvaluationComparison: false,
+    });
+    expect(formatOperationalFailure(events[0])).not.toContain("CANARY");
+    expect(stdout).not.toHaveBeenCalled();
+    expect(stderr).not.toHaveBeenCalled();
   });
 
   it("rejects unsafe storage before dispatch in the programmatic review path", async () => {

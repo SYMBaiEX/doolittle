@@ -684,6 +684,46 @@ describe("volatile closed operational failures", () => {
       persistence: "not-attempted",
     });
   });
+  it.each(["ETIMEDOUT", "ENOBUFS"])(
+    "keeps an unsafe %s child ungraded without leaking its process error",
+    async (code) => {
+      const events: HeadlessOperationalFailure[] = [];
+      const reportDir = tempDirectory();
+      let runRoot = "";
+      await expect(
+        runHeadlessEvalSuite(suite, {
+          reportDir,
+          execute: (_command, _args, { env }) => {
+            runRoot = rememberRun(env);
+            return {
+              ...success,
+              status: null,
+              cleanupSafe: false,
+              error: Object.assign(new Error("PRIVATE_PROCESS_CANARY"), {
+                code,
+              }),
+              stderr: "PRIVATE_STDERR_CANARY",
+            };
+          },
+          onOperationalFailure: sink(events),
+        }),
+      ).rejects.toThrow("cleanup could not be confirmed");
+      expect(existsSync(runRoot)).toBe(true);
+      expect(readdirSync(reportDir)).toEqual([]);
+      expect(events).toHaveLength(1);
+      expect(events[0]).toMatchObject({
+        phase: "task-cleanup",
+        code: "child-cleanup-unconfirmed",
+        childCleanup: "unconfirmed",
+        persistence: "not-attempted",
+        eligibleForEvaluationComparison: false,
+      });
+      const line = formatOperationalFailure(events[0]);
+      expect(line).not.toContain(code);
+      expect(line).not.toContain("PRIVATE_");
+      expect(line).not.toContain(runRoot);
+    },
+  );
   it.each(["grading", "response-processing"] as const)(
     "captures %s failures without raw exception data",
     async (phase) => {
