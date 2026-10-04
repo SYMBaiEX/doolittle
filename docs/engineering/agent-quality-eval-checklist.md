@@ -4,6 +4,42 @@ Use evaluations as evidence about specific Doolittle workflows, not as a
 standalone proof that the agent is generally intelligent or ready for every
 daily task. Report deterministic outcomes, human ratings, and speed separately.
 
+The [representative headless cohort draft](./representative-headless-cohort-draft.md)
+maps the next conversation/research/reliability scope. It is planning only,
+not a frozen predeclaration, executed cohort or quality result.
+
+## No-report operational diagnostics
+
+The headless runner's optional `onOperationalFailure` callback emits a volatile
+`operational-failure-v1` event when an exception aborts an attempt. The CLI
+renders one closed `HEADLESS_OPERATIONAL_FAILURE ` JSON line on caught failure
+instead of echoing arbitrary exception text. There is no persistent event sink
+or fallback report directory. The callback is trusted and must return promptly;
+throwing or rejected async results are isolated, but a blocking synchronous
+callback cannot be interrupted.
+
+The package runner can separately echo its invocation: use Nub's `--silent`
+when a wrapper must not print arguments. That wrapper behavior is not CLI error
+serialization. An abrupt termination before the catch cannot guarantee an event.
+
+These events are explicitly ineligible for evaluation comparison. Phase/code
+values are authored control-flow categories, not decoded exception causes.
+Child cleanup, owned-directory refusal and primary report persistence are
+separate states; unknown is not success. A source snapshot is start-only, not
+current cleanliness or effective-route attestation. Child elapsed time covers
+only the last attempted invocation when observed, not aggregate model time.
+The event contains no task text, commands, paths, arbitrary errors or content
+digests. Existing cleanup/storage refusals still stop without unsafe deletion
+or fallback writes.
+Persistence `failed` means the primary write contract failed, not that a partial
+file is absent. Validate report bytes and identity independently before use.
+
+A safe failed execution with confirmed cleanup still writes a normal graded
+report. No report remains an operationally incomplete observation, not a made-up
+task grade. An absent event cannot establish inner cleanup or a failure cause;
+outer process closure alone is not inner-runner cleanup. This contract does not
+recover diagnostics from earlier attempts whose raw output was discarded.
+
 ## Optional resolved-input observations
 
 `DOOLITTLE_EVAL_CAPTURE_MODEL_INPUTS=true` opts into a separate private

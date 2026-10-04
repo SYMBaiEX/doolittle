@@ -32,6 +32,11 @@ import {
 import * as fixtures from "./fixtures";
 import * as measurement from "./measurement";
 import * as modelInputObservations from "./model-input-observations";
+import {
+  formatOperationalFailure,
+  type HeadlessOperationalFailure,
+  isHeadlessOperationalFailure,
+} from "./operational-failure";
 import * as researchGrounding from "./research-grounding";
 import {
   runHeadlessEvalSuite,
@@ -513,6 +518,303 @@ describe("representative fixture runner setup and preflight", () => {
     ]);
     expect(baseline.report.executionOverrides).toEqual([]);
   });
+});
+
+describe("volatile closed operational failures", () => {
+  const suite: HeadlessEvalSuite = {
+    id: "operational-test",
+    version: 1,
+    title: "Synthetic",
+    tasks: [
+      {
+        id: "one",
+        domain: "conversation",
+        prompt: "PRIVATE_PROMPT_CANARY",
+        checks: [{ id: "pass", evaluate: () => true }],
+        humanReviewRequired: false,
+      },
+    ],
+  };
+  const success = {
+    status: 0,
+    stdout: JSON.stringify({ ok: true, text: "PRIVATE_RESPONSE_CANARY" }),
+    stderr: "",
+    signal: null,
+    cleanupSafe: true,
+  };
+  function sink(events: HeadlessOperationalFailure[]) {
+    return (receipt: HeadlessOperationalFailure) => {
+      expect(isHeadlessOperationalFailure(receipt)).toBe(true);
+      const line = formatOperationalFailure(receipt);
+      expect(line).not.toContain("PRIVATE_");
+      expect(line).not.toContain(tmpdir());
+      expect(receipt.eligibleForEvaluationComparison).toBe(false);
+      events.push(receipt);
+    };
+  }
+  function rememberRun(env: NodeJS.ProcessEnv) {
+    if (!env.DOOLITTLE_DATA_DIR)
+      throw new Error("Missing synthetic data root.");
+    const runRoot = dirname(dirname(env.DOOLITTLE_DATA_DIR));
+    temporaryDirectories.push(runRoot);
+    return runRoot;
+  }
+  it("captures selection preflight before storage or execution", async () => {
+    const events: HeadlessOperationalFailure[] = [];
+    const reportDir = join(tempDirectory(), "not-created");
+    const execute = vi.fn();
+    await expect(
+      runHeadlessEvalSuite(suite, {
+        taskIds: ["PRIVATE_UNKNOWN_TASK"],
+        reportDir,
+        execute,
+        onOperationalFailure: sink(events),
+      }),
+    ).rejects.toThrow("Unknown task ID");
+    expect(execute).not.toHaveBeenCalled();
+    expect(existsSync(reportDir)).toBe(false);
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({
+      phase: "runner-preflight",
+      code: "runner-preflight-failed",
+      childCleanup: "not-started",
+      persistence: "not-attempted",
+    });
+  });
+  it("captures unsafe report storage without dispatch or fallback writes", async () => {
+    const events: HeadlessOperationalFailure[] = [];
+    const reportDir = tempDirectory();
+    chmodSync(reportDir, 0o755);
+    const execute = vi.fn();
+    await expect(
+      runHeadlessEvalSuite(suite, {
+        reportDir,
+        execute,
+        onOperationalFailure: sink(events),
+      }),
+    ).rejects.toThrow();
+    expect(execute).not.toHaveBeenCalled();
+    expect(readdirSync(reportDir)).toEqual([]);
+    expect(events[0]).toMatchObject({
+      phase: "report-storage",
+      code: "report-storage-refused",
+      childCleanup: "not-started",
+    });
+  });
+  it("does not inspect an unknown executor exception and retains owned state", async () => {
+    const events: HeadlessOperationalFailure[] = [];
+    const reportDir = tempDirectory();
+    let runRoot = "";
+    let reads = 0;
+    const unknown = new Proxy(
+      {},
+      {
+        get() {
+          reads++;
+          throw new Error("PRIVATE_ERROR_CANARY");
+        },
+      },
+    );
+    const caught = await runHeadlessEvalSuite(suite, {
+      reportDir,
+      execute: (_command, _args, { env }) => {
+        runRoot = rememberRun(env);
+        throw unknown;
+      },
+      onOperationalFailure: sink(events),
+    }).catch((error) => error === unknown);
+    expect(caught).toBe(true);
+    expect(reads).toBe(0);
+    expect(existsSync(runRoot)).toBe(true);
+    expect(readdirSync(reportDir)).toEqual([]);
+    expect(events[0]).toMatchObject({
+      phase: "child-execution",
+      code: "executor-threw",
+      childCleanup: "unknown",
+      ownedDirectoryIdentity: "unknown",
+    });
+  });
+  it("retains known cleanup if a post-child timing seam throws", async () => {
+    const events: HeadlessOperationalFailure[] = [];
+    let completed = false;
+    const reportDir = tempDirectory();
+    await expect(
+      runHeadlessEvalSuite(suite, {
+        reportDir,
+        monotonicNow: () => {
+          if (completed) throw new Error("PRIVATE_CLOCK_CANARY");
+          return 1;
+        },
+        execute: (_command, _args, { env }) => {
+          rememberRun(env);
+          completed = true;
+          return success;
+        },
+        onOperationalFailure: sink(events),
+      }),
+    ).rejects.toThrow("PRIVATE_CLOCK_CANARY");
+    expect(events[0]?.childCleanup).toBe("confirmed");
+    expect(events[0]?.phase).toBe("response-processing");
+    expect(events[0]?.timing.childElapsedMs).toEqual(expect.any(Number));
+    expect(readdirSync(reportDir)).toEqual([]);
+  });
+  it("safety aborts unconfirmed cleanup even if the volatile sink throws", async () => {
+    const events: HeadlessOperationalFailure[] = [];
+    const reportDir = tempDirectory();
+    let runRoot = "";
+    await expect(
+      runHeadlessEvalSuite(suite, {
+        reportDir,
+        execute: (_command, _args, { env }) => {
+          runRoot = rememberRun(env);
+          return { ...success, cleanupSafe: false };
+        },
+        onOperationalFailure: (receipt) => {
+          sink(events)(receipt);
+          throw new Error("PRIVATE_SINK_CANARY");
+        },
+      }),
+    ).rejects.toThrow("cleanup could not be confirmed");
+    expect(existsSync(runRoot)).toBe(true);
+    expect(readdirSync(reportDir)).toEqual([]);
+    expect(events[0]).toMatchObject({
+      phase: "task-cleanup",
+      code: "child-cleanup-unconfirmed",
+      childCleanup: "unconfirmed",
+      persistence: "not-attempted",
+    });
+  });
+  it.each(["grading", "response-processing"] as const)(
+    "captures %s failures without raw exception data",
+    async (phase) => {
+      const events: HeadlessOperationalFailure[] = [];
+      const reportDir = tempDirectory();
+      const error = new Error("PRIVATE_CALLBACK_CANARY");
+      const task = suite.tasks[0];
+      if (!task) throw new Error("Missing synthetic task.");
+      const failingSuite =
+        phase === "grading"
+          ? {
+              ...suite,
+              tasks: [
+                {
+                  ...task,
+                  checks: [
+                    {
+                      id: "pass",
+                      evaluate: () => {
+                        throw error;
+                      },
+                    },
+                  ],
+                },
+              ],
+            }
+          : suite;
+      const caught = await runHeadlessEvalSuite(failingSuite, {
+        reportDir,
+        showResponses: true,
+        onResponse: () => {
+          if (phase === "response-processing") throw error;
+        },
+        execute: (_command, _args, { env }) => {
+          rememberRun(env);
+          return success;
+        },
+        onOperationalFailure: sink(events),
+      }).catch((caughtError) => caughtError === error);
+      expect(caught).toBe(true);
+      expect(events[0]).toMatchObject({
+        phase,
+        code: `${phase}-failed`,
+        childCleanup: "confirmed",
+        ownedDirectoryIdentity: "unknown",
+      });
+      expect(readdirSync(reportDir)).toEqual([]);
+    },
+  );
+  it("refuses substituted task state without deleting either identity", async () => {
+    const events: HeadlessOperationalFailure[] = [];
+    const reportDir = tempDirectory();
+    let taskRoot = "";
+    await expect(
+      runHeadlessEvalSuite(suite, {
+        reportDir,
+        execute: (_command, _args, { env }) => {
+          rememberRun(env);
+          if (!env.DOOLITTLE_DATA_DIR)
+            throw new Error("Missing synthetic data root.");
+          taskRoot = dirname(env.DOOLITTLE_DATA_DIR);
+          renameSync(taskRoot, `${taskRoot}.original`);
+          mkdirSync(taskRoot, { mode: 0o700 });
+          writeFileSync(join(taskRoot, "foreign"), "PRIVATE_FOREIGN_CANARY");
+          return success;
+        },
+        onOperationalFailure: sink(events),
+      }),
+    ).rejects.toThrow();
+    expect(existsSync(`${taskRoot}.original`)).toBe(true);
+    expect(existsSync(join(taskRoot, "foreign"))).toBe(true);
+    expect(readdirSync(reportDir)).toEqual([]);
+    expect(events[0]).toMatchObject({
+      phase: "task-cleanup",
+      code: "owned-directory-refused",
+      ownedDirectoryIdentity: "refused",
+      childCleanup: "confirmed",
+    });
+  });
+  it("refuses substituted report storage without a fallback write", async () => {
+    const events: HeadlessOperationalFailure[] = [];
+    const parent = tempDirectory();
+    const reportDir = join(parent, "reports");
+    mkdirSync(reportDir, { mode: 0o700 });
+    await expect(
+      runHeadlessEvalSuite(suite, {
+        reportDir,
+        now: () => {
+          renameSync(reportDir, join(parent, "original"));
+          mkdirSync(reportDir, { mode: 0o700 });
+          return new Date("2000-01-01T00:00:00.000Z");
+        },
+        execute: (_command, _args, { env }) => {
+          rememberRun(env);
+          return success;
+        },
+        onOperationalFailure: sink(events),
+      }),
+    ).rejects.toThrow();
+    expect(readdirSync(reportDir)).toEqual([]);
+    expect(readdirSync(join(parent, "original"))).toEqual([]);
+    expect(events[0]).toMatchObject({
+      phase: "report-persistence",
+      code: "report-persistence-failed",
+      persistence: "failed",
+      childCleanup: "confirmed",
+    });
+  });
+  it.each(["timeout", "nonzero"] as const)(
+    "keeps safe %s task failures as ordinary graded reports",
+    async (kind) => {
+      const events: HeadlessOperationalFailure[] = [];
+      const timeout = Object.assign(new Error("PRIVATE_TIMEOUT_CANARY"), {
+        code: "ETIMEDOUT",
+      });
+      const result = await runHeadlessEvalSuite(suite, {
+        reportDir: tempDirectory(),
+        execute: () => ({
+          ...success,
+          status: kind === "timeout" ? null : 1,
+          stdout: "",
+          error: kind === "timeout" ? timeout : undefined,
+        }),
+        onOperationalFailure: sink(events),
+      });
+      expect(result.exitCode).toBe(1);
+      expect(existsSync(result.reportPath)).toBe(true);
+      expect(events).toEqual([]);
+      expect(result.report.summary.completed).toBe(0);
+    },
+  );
 });
 
 describe("optional first-runtime model input receipts", () => {
