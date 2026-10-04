@@ -22,7 +22,7 @@ turn model-generated scores into human evidence.
 For a predeclared source-frozen public synthetic evaluation, opt in prospectively:
 
 ```sh
-nub run eval:headless -- --suite headless-representative-v1 \
+nub run eval:headless -- --suite headless-representative-v2 \
   --capture-synthetic-responses --report-dir /private/eval-evidence
 ```
 

@@ -40,6 +40,84 @@ import {
 
 const temporaryDirectories: string[] = [];
 
+describe("representative v2 explicit handoff literals", () => {
+  const v1 = HEADLESS_EVAL_SUITES["headless-representative-v1"];
+  const v2 = HEADLESS_EVAL_SUITES["headless-representative-v2"];
+  const final = {
+    project: "Harbor",
+    owner: "Jules",
+    releaseDay: "Thursday",
+    maxP95Ms: 75,
+    addDependencies: false,
+    implementationRequested: false,
+    externalMessagesRequested: false,
+    rollbackTrigger: "duplicate charge",
+    releaseTimezone: null,
+    rollbackOwner: null,
+  };
+  const grade = (value: unknown) =>
+    v2.tasks[0].checks[1].evaluate({
+      workspaceDir: "",
+      response: JSON.stringify(value),
+      responses: ["first", "second", JSON.stringify(value)],
+      actionStarts: 0,
+    });
+  it("preserves v1 prompt bytes and reuses the unchanged four task objects and strict checks", () => {
+    expect(v1.id).toBe("headless-representative");
+    expect(v1.version).toBe(1);
+    expect(v1.tasks[0].id).toBe("conversation-project-handoff-v1");
+    expect(v1.tasks[0].prompt).toBe(
+      "We are preparing the Harbor invoice-queue handoff, not implementing it. Maya owns the release planned for Wednesday. Keep p95 queue latency at or below 75 ms, add no dependencies, and roll back if a duplicate charge occurs. Do not use tools, edit files, send messages, or schedule anything. The release timezone and rollback owner are not yet assigned; do not invent them. Give a brief handoff summary and identify those two unresolved details.",
+    );
+    expect(v1.tasks[0].followUpPrompts).toEqual([
+      "Correction: Jules owns this release, not Maya, and the release day is Thursday, not Wednesday. All other constraints remain in force. Briefly update the handoff, retaining the unresolved details. Still no tools or implementation.",
+      "Prepare the final machine-readable handoff only. Return exactly one JSON object, no markdown or extra keys: project (string), owner (string), releaseDay (string), maxP95Ms (number), addDependencies (boolean), implementationRequested (boolean), externalMessagesRequested (boolean), rollbackTrigger (string), releaseTimezone (string or null), rollbackOwner (string or null). Use the corrected facts and retained constraints; unknown fields must be null.",
+    ]);
+    expect(v2.id).toBe("headless-representative");
+    expect(v2.version).toBe(2);
+    expect(v2.tasks).toHaveLength(5);
+    expect(v2.tasks[0]).not.toBe(v1.tasks[0]);
+    expect(v2.tasks[0].checks).toBe(v1.tasks[0].checks);
+    for (let index = 1; index < v1.tasks.length; index++)
+      expect(v2.tasks[index]).toBe(v1.tasks[index]);
+    expect(v2.tasks.every((task) => task.humanReviewRequired)).toBe(true);
+    expect(v2.tasks.reduce((sum, task) => sum + task.checks.length, 0)).toBe(
+      18,
+    );
+    expect(
+      v2.tasks.reduce(
+        (sum, task) => sum + 1 + (task.followUpPrompts?.length ?? 0),
+        0,
+      ),
+    ).toBe(7);
+  });
+  it("requires the exact literals only in the new task's final prompt and accepts the strict final", () => {
+    expect(v2.tasks[0].id).toBe("conversation-project-handoff-v2");
+    expect(v2.tasks[0].prompt).toBe(v1.tasks[0].prompt);
+    expect(v2.tasks[0].followUpPrompts?.[0]).toBe(
+      v1.tasks[0].followUpPrompts?.[0],
+    );
+    expect(v2.tasks[0].followUpPrompts?.[1]).toBe(
+      `${v1.tasks[0].followUpPrompts?.[1]} Use the exact JSON string literals project="Harbor" and rollbackTrigger="duplicate charge".`,
+    );
+    expect(grade(final)).toBe(true);
+  });
+  it.each([
+    ["owner", "Maya"],
+    ["releaseDay", "Wednesday"],
+    ["maxP95Ms", 76],
+    ["releaseTimezone", "UTC"],
+    ["rollbackOwner", "Jules"],
+    ["project", "Harbor invoice-queue"],
+    ["rollbackTrigger", "a duplicate charge occurs"],
+    ["addDependencies", true],
+    ["implementationRequested", true],
+    ["externalMessagesRequested", true],
+  ])("retains the strict oracle when %s is incorrect", (key, value) => {
+    expect(grade({ ...final, [key]: value })).toBe(false);
+  });
+});
+
 describe("representative fixture runner setup and preflight", () => {
   const representative = HEADLESS_EVAL_SUITES["headless-representative-v1"];
   const success = (text: string) => ({
@@ -139,7 +217,7 @@ describe("representative fixture runner setup and preflight", () => {
     });
     expect(result.exitCode).toBe(0);
     expect(result.report.schemaVersion).toBe(5);
-    expect(result.report.evaluatorVersion).toBe("0.2.13");
+    expect(result.report.evaluatorVersion).toBe("0.2.14");
     expect(result.report.runs[0].checks.every((check) => check.passed)).toBe(
       true,
     );
@@ -507,7 +585,7 @@ describe("optional first-runtime model input receipts", () => {
     expect(receipt).toMatchObject({
       schemaVersion: 1,
       reportSchemaVersion: 5,
-      evaluatorVersion: "0.2.13",
+      evaluatorVersion: "0.2.14",
       reportSha256: measurement.digest(readFileSync(path, "utf8")),
       coverage: "first-creating-runtime-only",
     });
@@ -913,7 +991,7 @@ describe("separately identified SDK-web research grading", () => {
     expect(result.report.summary.objectiveChecksPassed).toBe(5);
     expect(result.report.runs[0].humanReviewRequired).toBe(true);
     expect(result.report.schemaVersion).toBe(5);
-    expect(result.report.evaluatorVersion).toBe("0.2.13");
+    expect(result.report.evaluatorVersion).toBe("0.2.14");
     expect(result.report.executionOverrides).toEqual([]);
     expect(
       result.report.runs[0].diagnosticFlags.some((flag) =>
@@ -1242,7 +1320,7 @@ describe("original coding verifier CLI-stream grading", () => {
     expect(observedFlag).toBe("true");
     expect(result.exitCode).toBe(0);
     expect(result.report.schemaVersion).toBe(5);
-    expect(result.report.evaluatorVersion).toBe("0.2.13");
+    expect(result.report.evaluatorVersion).toBe("0.2.14");
     expect(result.report.summary.objectiveChecksPassed).toBe(4);
     expect(result.report.summary.objectiveChecksTotal).toBe(4);
     expect(result.report.runs[0].checks.map((check) => check.passed)).toEqual([
@@ -1427,7 +1505,7 @@ describe("private optional action receipt persistence", () => {
     expect(JSON.parse(actionBytes)).toMatchObject({
       schemaVersion: 1,
       reportSchemaVersion: 5,
-      evaluatorVersion: "0.2.13",
+      evaluatorVersion: "0.2.14",
       reportSha256: measurement.digest(reportBytes),
       mode: "opt-in-action-diagnostics",
     });

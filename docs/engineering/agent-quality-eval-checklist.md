@@ -148,15 +148,15 @@ Keep the v7 task and grader unchanged for any repeated live comparison.
 
 ### Representative suite
 
-`headless-representative-v1` selects canonical `headless-representative`,
-version 1: **5 tasks, 7 planned CLI turns, 18 deterministic checks**, with actual
+`headless-representative-v2` selects canonical `headless-representative`,
+version 2: **5 tasks, 7 planned CLI turns, 18 deterministic checks**, with actual
 human review required for all 5 tasks. Failed execution can stop follow-ups;
 planned turns are not measured invocation counts. The
 [exact task/check table and run commands](../../packages/evals/README.md#representative-baseline)
 are in the eval workspace README. This is a new suite, not a change to the
 historical workflow prompts or grades.
 
-- `conversation-project-handoff-v1` exercises three turns of project handoff,
+- `conversation-project-handoff-v2` exercises three turns of project handoff,
   retained constraints and corrected facts with no recorded actions. It is a
   bounded continuity case, not long-horizon conversation or semantic quality
   coverage.
@@ -180,7 +180,17 @@ historical workflow prompts or grades.
   unchanged, including its prompt, five check IDs and grounding strategy.
   One exact query and one fetched source are not broad web-research coverage.
 
-Evaluator 0.2.13 forms a new comparison baseline; schema 5 remaining unchanged
+The v1 suite and task remain unchanged. Two conversation pilots at `2acdcc6`
+each recorded 2/3 checks because the final prompt did not specify the strict
+oracle's exact project/rollback strings. Their semantic variants do not establish
+an agent-quality defect. Preserve the frozen failures and blinded packet;
+do not retroactively regrade them. V2 specifies the exact literals instead of
+relaxing the oracle and reuses the other four tasks unchanged. The completed
+pilots are conversation-only baseline observations, not a full representative
+cohort or improvement comparison. Short answer-only human ratings are pending;
+tool trajectory, billing and effective/worker route attestation remain unavailable.
+
+Evaluator 0.2.14 forms a new comparison baseline; schema 5 remaining unchanged
 does not make older evaluator reports comparable. Use the source-frozen
 protocol below and retain failed attempts. Suite registration, synthetic tests
 and UI acceptance are not completed live evaluation runs or human reviews.

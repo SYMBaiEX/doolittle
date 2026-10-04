@@ -85,8 +85,8 @@ report schemas. A sidecar is not an automatic score or a quality conclusion.
 
 ### Representative baseline
 
-`headless-representative-v1` is a separate suite (canonical ID
-`headless-representative`, version 1), not a rewrite of the historical workflow
+`headless-representative-v2` is a separate suite (canonical ID
+`headless-representative`, version 2), not a rewrite of the historical workflow
 suites. It broadens coverage to project continuity over three turns, a seeded
 multi-file regression repair, conflicting local research sources, a contained
 fallback artifact, and the unchanged original SDK web-source task. Every task
@@ -99,15 +99,15 @@ follow-up turns; report actual invocation counts separately:
 
 | Task ID | CLI turns | Check IDs |
 | --- | --- | --- |
-| `conversation-project-handoff-v1` | 3 | `complete-three-turn-exchange`, `retains-constraints-and-corrected-facts`, `no-recorded-actions` |
+| `conversation-project-handoff-v2` | 3 | `complete-three-turn-exchange`, `retains-constraints-and-corrected-facts`, `no-recorded-actions` |
 | `coding-seeded-invoice-regression-v1` | 1 | `fixture-scope-preserved`, `preserved-regression-passes`, `final-contract-unattested` |
 | `research-local-reconciliation-v1` | 1 | `fixture-scope-preserved`, `reconciliation-artifact-exact`, `final-contract-unattested` |
 | `reliability-local-fallback-v1` | 1 | `fixture-scope-preserved`, `fallback-status-artifact-exact`, `recorded-action-started`, `final-artifact-contract` |
 | `research-codex-web-search-options-v1` | 1 | `original-search-returned-data`, `original-primary-source-retrieved`, `literal-answer-agrees-with-retrieval`, `citation-agrees-with-retrieval`, `original-execution-integrity` |
 
 ```sh
-nub run eval:headless -- --suite headless-representative-v1
-nub run eval:headless -- --suite headless-representative-v1 \
+nub run eval:headless -- --suite headless-representative-v2
+nub run eval:headless -- --suite headless-representative-v2 \
   --task coding-seeded-invoice-regression-v1
 ```
 
@@ -137,9 +137,25 @@ in a bounded Node VM subprocess with permissions enabled, not by trusting a
 replacement test file. This grader containment is not an OS sandbox or proof of
 the agent's own tests or global side-effect safety.
 
-Evaluator 0.2.13 requires a new source-frozen baseline; do not compare or pool it
-with 0.2.12 or earlier reports. Freeze source and executable identities before
-dispatch, predeclare repetitions and limits, and retain failures. No new live
+The preserved `headless-representative-v1` conversation prompt did not specify
+the exact `project` and `rollbackTrigger` strings required by its strict oracle.
+Two source-frozen conversation pilots at `2acdcc6` each recorded 2/3 checks:
+completion and no recorded actions passed, while semantic string variants
+failed exact equality. Preserve those original grades; this is an underspecified
+benchmark contract, not a demonstrated agent-quality defect. Version 2 specifies
+the exact literals and keeps strict grading; the other four tasks are reused
+unchanged. Do not pool v1 and v2, or retroactively rescore captured v1 answers.
+
+The two conversation pilots took 17.6s and 19.8s launcher wall time for three
+turns each. Provider-reported totals were 9,157 and 9,159 tokens; USD cost and
+effective/worker routes were unavailable. These are descriptive baseline
+observations, not a speed, overhead, billing or quality improvement. The short
+blinded final-response review is awaiting actual human ratings; complete
+trajectory review and the full five-task live cohort remain pending.
+
+Evaluator 0.2.14 requires a new source-frozen baseline; do not compare or pool it
+with 0.2.13 or earlier reports. Freeze source and executable identities before
+dispatch, predeclare repetitions and limits, and retain failures. No v2 live
 runs or human ratings are established by adding the suite or by green unit/UI
 tests. Quality, cost and speed improvements require compatible paired repeats
 and the corresponding human and measurement evidence. See the checklist's
@@ -149,7 +165,7 @@ including the limits of short blinded final-response-only review.
 ### Optional synthetic final-response capture
 
 ```sh
-nub run eval:headless -- --suite headless-representative-v1 \
+nub run eval:headless -- --suite headless-representative-v2 \
   --capture-synthetic-responses --report-dir /private/eval-evidence
 ```
 

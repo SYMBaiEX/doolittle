@@ -731,6 +731,25 @@ HEADLESS_EVAL_SUITES["headless-representative-v1"] = {
   ],
 };
 
+const representativeV1 = HEADLESS_EVAL_SUITES["headless-representative-v1"];
+const handoffV1 = representativeV1.tasks[0];
+HEADLESS_EVAL_SUITES["headless-representative-v2"] = {
+  ...representativeV1,
+  version: 2,
+  tasks: [
+    {
+      ...handoffV1,
+      id: "conversation-project-handoff-v2",
+      followUpPrompts: handoffV1.followUpPrompts?.map((prompt, index) =>
+        index === 1
+          ? `${prompt} Use the exact JSON string literals project="Harbor" and rollbackTrigger="duplicate charge".`
+          : prompt,
+      ),
+    },
+    ...representativeV1.tasks.slice(1),
+  ],
+};
+
 export function findHeadlessEvalSuite(
   suiteId: string,
 ): HeadlessEvalSuite | undefined {
