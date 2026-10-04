@@ -7,9 +7,14 @@ import type {
   UiTarget,
 } from "@doolittle/contracts/ui-host";
 import type { UiPluginGrant } from "@doolittle/contracts/ui-plugin";
+import { AgUiHostAdapter } from "@doolittle/ui/ag-ui";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { VerifiedUiArtifact } from "./artifact";
-import { UiExtensionHost, type UiHostBackend } from "./host";
+import {
+  UiExtensionHost,
+  type UiHostBackend,
+  UiSubmissionRejectedError,
+} from "./host";
 
 const roots: string[] = [];
 afterEach(() => {
@@ -135,6 +140,102 @@ function deferred<T>() {
 }
 
 describe("community UI broker", () => {
+  it("preserves the optional canonical AG-UI identity through the actual host", async () => {
+    const { host, backend } = setup();
+    const adapter = new AgUiHostAdapter(host);
+    const submitted = await adapter.submit(
+      {
+        threadId: target.sessionId,
+        runId: "agui-native-run",
+        messages: [{ id: "user-message", role: "user", content: "hello" }],
+      },
+      target,
+    );
+    expect(submitted.runId).toBe("agui-native-run");
+    expect(backend.sendChat).toHaveBeenCalledWith(
+      expect.objectContaining({ runId: "agui-native-run" }),
+    );
+    host.publish({
+      type: "run.state",
+      target,
+      runId: submitted.runId,
+      state: "complete",
+    });
+    const events = [];
+    for await (const event of submitted.events) events.push(event.type);
+    expect(events).toEqual(["RUN_STARTED", "CUSTOM", "RUN_FINISHED"]);
+  });
+
+  it("never treats a definitive POST rejection as an accepted preexisting run", async () => {
+    const { host, backend, run } = setup();
+    vi.mocked(backend.sendChat).mockRejectedValueOnce(
+      new UiSubmissionRejectedError("Run identity conflict."),
+    );
+    const command = {
+      type: "chat.send",
+      target,
+      submissionId: "collision",
+      runId: "collision",
+      message: "new text",
+    } as const;
+    const rejected = await host.dispatch(command);
+    expect(rejected).toMatchObject({
+      accepted: false,
+      error: "Run identity conflict.",
+    });
+    vi.mocked(backend.readRun).mockResolvedValue({
+      ...run,
+      runId: "collision",
+    });
+    expect(await host.dispatch(command)).toMatchObject({ accepted: false });
+    expect(backend.sendChat).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects a collision before recording or submitting new content", async () => {
+    const { host, backend, run } = setup();
+    vi.mocked(backend.readRun).mockResolvedValue({ ...run, runId: "existing" });
+    await expect(
+      host.dispatch({
+        type: "chat.send",
+        target,
+        submissionId: "fresh",
+        runId: "existing",
+        message: "different",
+      }),
+    ).rejects.toThrow(/already exists/u);
+    expect(backend.sendChat).not.toHaveBeenCalled();
+  });
+
+  it("atomically persists source replay cursors and the full projection across host restart", () => {
+    const { host, backend, path } = setup();
+    const key = "c".repeat(64);
+    const observed: number[] = [];
+    host.subscribe((event) => observed.push(event.sequence));
+    const batch = [
+      {
+        type: "message.delta",
+        target,
+        runId: "native",
+        messageId: "m1",
+        text: "hello",
+      },
+      { type: "message.completed", target, runId: "native", messageId: "m1" },
+    ] as const;
+    host.publishCanonical(key, 7, [...batch]);
+    host.publishCanonical(key, 7, [...batch]);
+    expect(observed).toEqual([1, 2]);
+    const restored = new UiExtensionHost(backend, path);
+    expect(restored.canonicalCursor(key)).toEqual({
+      cursor: 7,
+      sequence: 2,
+      textStarted: true,
+    });
+    restored.publishCanonical(key, 7, [...batch]);
+    const replay: number[] = [];
+    restored.subscribe((event) => replay.push(event.sequence), 0);
+    expect(replay).toEqual([1, 2]);
+  });
+
   it("defaults deny, filters snapshots, and enforces capability and target", async () => {
     const { host, context, grant, backend } = setup();
     host.setVisible(true);
@@ -438,6 +539,8 @@ describe("community UI broker", () => {
       message: "hello",
     });
     await atPreparation;
+    // A collision read occurred before preparation; no read may occur after revoke.
+    vi.mocked(backend.readRun).mockClear();
     host.revoke(artifact.identity);
     prepared.resolve();
     await expect(command).rejects.toThrow(/inactive/u);

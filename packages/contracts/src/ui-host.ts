@@ -66,6 +66,8 @@ export type UiHostCommand =
       type: "chat.send";
       target: UiTarget;
       submissionId: string;
+      /** Optional protocol-native identity. The host rejects existing run collisions. */
+      runId?: string;
       message: string;
       attachmentIds?: string[];
     }

@@ -490,6 +490,7 @@ export class AgUiHostAdapter {
         type: "chat.send",
         target: owned,
         submissionId: runId,
+        runId,
         message,
       });
       if (

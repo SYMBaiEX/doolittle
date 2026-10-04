@@ -34,7 +34,8 @@ interface Submission {
   target: UiTarget;
   workspace: string;
   messageDigest: string;
-  state: "reserved" | "accepted" | "uncertain";
+  state: "reserved" | "accepted" | "uncertain" | "rejected";
+  rejection?: string;
 }
 
 interface PersistedState {
@@ -49,6 +50,24 @@ interface PersistedState {
   drafts: Record<string, string>;
   selected?: UiTarget;
   submissions: Submission[];
+  canonicalCursors?: Record<
+    string,
+    { cursor: number; sequence: number; textStarted?: boolean }
+  >;
+}
+
+export type UiHostEventInput = UiHostEvent extends infer Event
+  ? Event extends UiHostEvent
+    ? Omit<Event, "sequence">
+    : never
+  : never;
+
+/** Only a known pre-commit rejection or explicit non-success HTTP receipt. */
+export class UiSubmissionRejectedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "UiSubmissionRejectedError";
+  }
 }
 
 export interface PickedUiAttachment {
@@ -235,7 +254,24 @@ function readState(path: string): PersistedState {
       !Array.isArray(value.trusted) ||
       !value.drafts ||
       typeof value.drafts !== "object" ||
-      !Array.isArray(value.submissions)
+      !Array.isArray(value.submissions) ||
+      (value.canonicalCursors !== undefined &&
+        (typeof value.canonicalCursors !== "object" ||
+          value.canonicalCursors === null ||
+          Array.isArray(value.canonicalCursors) ||
+          Object.keys(value.canonicalCursors).length > 256 ||
+          Object.entries(value.canonicalCursors).some(
+            ([key, item]) =>
+              !SHA.test(key) ||
+              !item ||
+              !Number.isSafeInteger(item.cursor) ||
+              item.cursor < 0 ||
+              !Number.isSafeInteger(item.sequence) ||
+              item.sequence < 0 ||
+              item.sequence > Number(value.sequence) ||
+              (item.textStarted !== undefined &&
+                typeof item.textStarted !== "boolean"),
+          )))
     ) {
       throw new Error("UI host state is invalid.");
     }
@@ -289,9 +325,9 @@ export interface CommunityCallContext {
 export class UiExtensionHost implements UiHostV1 {
   readonly version = 1 as const;
   private readonly path: string;
-  private readonly state: PersistedState;
+  private state: PersistedState;
   private readonly listeners = new Set<(event: UiHostEvent) => void>();
-  private readonly journal: UiHostEvent[];
+  private journal: UiHostEvent[];
   private readonly attachments = new Map<string, PickedUiAttachment>();
   private readonly inFlightSubmissions = new Map<
     string,
@@ -475,10 +511,9 @@ export class UiExtensionHost implements UiHostV1 {
       sequence: this.sequence,
       bots,
       conversations,
-      selected:
-        selected && conversations.some((item) => sameTarget(item, selected))
-          ? selected
-          : undefined,
+      ...(selected && conversations.some((item) => sameTarget(item, selected))
+        ? { selected }
+        : {}),
     };
   }
 
@@ -629,15 +664,83 @@ export class UiExtensionHost implements UiHostV1 {
     }, after);
   }
 
-  publish(event: Omit<UiHostEvent, "sequence">): void {
-    if (Buffer.byteLength(JSON.stringify(event)) > 16 * 1024)
+  publish(event: UiHostEventInput): void {
+    this.publishBatch([event]);
+  }
+
+  canonicalCursor(sourceKey: string): {
+    cursor: number;
+    sequence: number;
+    textStarted?: boolean;
+  } {
+    if (!SHA.test(sourceKey))
+      throw new Error("Invalid canonical event identity.");
+    return (
+      this.state.canonicalCursors?.[sourceKey] ?? { cursor: 0, sequence: 0 }
+    );
+  }
+
+  /** Persist native replay acknowledgement and its entire projection together. */
+  publishCanonical(
+    sourceKey: string,
+    cursor: number,
+    events: UiHostEventInput[],
+  ): void {
+    if (!SHA.test(sourceKey) || !Number.isSafeInteger(cursor) || cursor < 1)
+      throw new Error("Invalid canonical event identity.");
+    if (cursor <= this.canonicalCursor(sourceKey).cursor) return;
+    this.publishBatch(events, { sourceKey, cursor });
+  }
+
+  private publishBatch(
+    events: UiHostEventInput[],
+    source?: { sourceKey: string; cursor: number },
+  ): void {
+    if (
+      events.length > 64 ||
+      events.some(
+        (event) => Buffer.byteLength(JSON.stringify(event)) > 16 * 1024,
+      )
+    )
       throw new Error("UI event exceeds journal limit.");
-    const next = { ...event, sequence: ++this.sequence } as UiHostEvent;
-    this.journal.push(next);
-    if (this.journal.length > 64) this.journal.shift();
-    this.state.sequence = this.sequence;
-    this.persist();
-    for (const listener of this.listeners) listener(next);
+    let sequence = this.sequence;
+    const projected = events.map(
+      (event) => ({ ...event, sequence: ++sequence }) as UiHostEvent,
+    );
+    const cursors = { ...this.state.canonicalCursors };
+    if (source)
+      cursors[source.sourceKey] = {
+        cursor: source.cursor,
+        sequence,
+        ...(cursors[source.sourceKey]?.textStarted ||
+        events.some((event) => event.type === "message.delta")
+          ? { textStarted: true }
+          : {}),
+      };
+    // Bounded per-run replay cursors. A terminal run outside this window requires
+    // an explicit canonical transcript boundary instead of guessed replay.
+    const entries = Object.entries(cursors)
+      .sort((a, b) => b[1].sequence - a[1].sequence)
+      .slice(0, 256);
+    const state: PersistedState = {
+      ...this.state,
+      sequence,
+      journal: [...this.journal, ...projected].slice(-64),
+      canonicalCursors: Object.fromEntries(entries),
+    };
+    writeState(this.path, state);
+    this.state = state;
+    this.journal = state.journal;
+    this.sequence = sequence;
+    for (const event of projected) {
+      for (const listener of this.listeners) {
+        try {
+          listener(event);
+        } catch {
+          /* A failed observer may replay; never cancel a run. */
+        }
+      }
+    }
   }
 
   async dispatch(command: UiHostCommand): Promise<UiHostResult> {
@@ -748,7 +851,10 @@ export class UiExtensionHost implements UiHostV1 {
           requestId,
           accepted: true,
           messages: result.messages,
-          transcriptThroughRunId: result.transcriptThroughRunId,
+          target,
+          ...(result.transcriptThroughRunId
+            ? { transcriptThroughRunId: result.transcriptThroughRunId }
+            : {}),
         };
       }
       case "run.read": {
@@ -863,6 +969,7 @@ export class UiExtensionHost implements UiHostV1 {
   ): Promise<UiHostResult> {
     if (
       !ID.test(command.submissionId) ||
+      (command.runId !== undefined && !ID.test(command.runId)) ||
       typeof command.message !== "string" ||
       !command.message.trim() ||
       command.message.length > 50_000 ||
@@ -878,7 +985,13 @@ export class UiExtensionHost implements UiHostV1 {
     const workspace = this.backend.currentWorkspace();
     const key = `${targetKey(target)}:${command.submissionId}`;
     const digest = createHash("sha256")
-      .update(JSON.stringify([command.message, command.attachmentIds ?? []]))
+      .update(
+        JSON.stringify([
+          command.message,
+          command.attachmentIds ?? [],
+          command.runId ?? null,
+        ]),
+      )
       .digest("hex");
     const inFlight = this.inFlightSubmissions.get(key);
     if (inFlight) {
@@ -920,6 +1033,14 @@ export class UiExtensionHost implements UiHostV1 {
         throw new Error(
           "Submission ID reused with different content or workspace.",
         );
+      if (previous.state === "rejected")
+        return {
+          requestId,
+          accepted: false,
+          runId: previous.runId,
+          target,
+          error: previous.rejection ?? "Submission was rejected.",
+        };
       const receipt = await this.backend.readRun(target, previous.runId);
       recheck();
       if (!(await this.backend.ownsTarget(target)))
@@ -949,7 +1070,13 @@ export class UiExtensionHost implements UiHostV1 {
       if (!item) throw new Error("Attachment was not picked for this target.");
       return item;
     });
-    const runId = `ui-${createHash("sha256").update(key).digest("hex").slice(0, 48)}`;
+    const runId =
+      command.runId ??
+      `ui-${createHash("sha256").update(key).digest("hex").slice(0, 48)}`;
+    if (await this.backend.readRun(target, runId)) {
+      recheck();
+      throw new Error("Canonical run identity already exists.");
+    }
     if (this.state.submissions.length >= 4096)
       throw new Error("UI submission journal is full.");
     recheck();
@@ -980,7 +1107,19 @@ export class UiExtensionHost implements UiHostV1 {
         workspace,
         assertAuthorizedAtCommit,
       });
-    } catch {
+    } catch (error) {
+      if (error instanceof UiSubmissionRejectedError) {
+        record.state = "rejected";
+        record.rejection = error.message;
+        this.persist();
+        return {
+          requestId,
+          accepted: false,
+          runId,
+          target,
+          error: error.message,
+        };
+      }
       record.state = "uncertain";
       this.persist();
       recheck();
