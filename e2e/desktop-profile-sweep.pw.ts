@@ -105,10 +105,10 @@ type RouteAudit = {
 };
 
 const interfaceModes = [
-  { appearance: "dark", density: "comfortable", controlHeight: 32 },
-  { appearance: "dark", density: "compact", controlHeight: 28 },
-  { appearance: "light", density: "comfortable", controlHeight: 32 },
-  { appearance: "light", density: "compact", controlHeight: 28 },
+  { appearance: "dark", density: "comfortable", controlHeight: 36 },
+  { appearance: "dark", density: "compact", controlHeight: 32 },
+  { appearance: "light", density: "comfortable", controlHeight: 36 },
+  { appearance: "light", density: "compact", controlHeight: 32 },
 ] as const;
 
 const importedThemeBundle = {
