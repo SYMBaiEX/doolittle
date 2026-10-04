@@ -83,6 +83,17 @@ function settlement(ordinal: number | null = 1) {
     consumedStreaming: true,
   };
 }
+function nativeInput(ordinal = 1) {
+  return {
+    ...input(ordinal),
+    version: 2,
+    messageCount: 2,
+    messageTextChars: 10,
+    imageCount: 0,
+    toolCallArgumentChars: 20,
+    toolResultTextChars: 100_000,
+  };
+}
 function usage(ordinal: number | null = 1) {
   return {
     version: 1,
@@ -106,6 +117,79 @@ function write(path: string, rows: unknown[]) {
   return bytes;
 }
 describe("bounded private model-input projection", () => {
+  it("retains closed native size version2 rows alongside unchanged legacy version1 rows", () => {
+    const path = directory();
+    const identity = pinModelInputDataRoot(path);
+    const rows = [
+      input(),
+      usage(),
+      settlement(),
+      nativeInput(2),
+      { ...usage(2), version: 2 },
+      { ...settlement(2), version: 2 },
+    ];
+    write(path, rows);
+    expect(readModelInputObservations(identity)).toMatchObject({
+      status: "complete",
+      rejectedRows: 0,
+      rows,
+    });
+  });
+
+  it.each([
+    { toolCallArgumentChars: -1 },
+    { toolCallArgumentChars: 65_537 },
+    { toolResultTextChars: 1.5 },
+    { toolResultTextChars: "PRIVATE_CANARY" },
+    { toolResultTextChars: Number.MAX_SAFE_INTEGER + 1 },
+    { version: 3 },
+    { extra: canary },
+  ])("rejects unbounded or unknown native size fields: %#", (patch) => {
+    const path = directory();
+    const identity = pinModelInputDataRoot(path);
+    write(path, [{ ...nativeInput(), ...patch }]);
+    const output = readModelInputObservations(identity);
+    expect(output).toMatchObject({
+      status: "partial",
+      rejectedRows: 1,
+      rows: [],
+    });
+    expect(JSON.stringify(output)).not.toContain(canary);
+    expect(JSON.stringify(output)).not.toContain("PRIVATE_CANARY");
+  });
+
+  it("keeps native null sizes unavailable and rejects cross-version identity joins", () => {
+    const path = directory();
+    const identity = pinModelInputDataRoot(path);
+    const row = {
+      ...nativeInput(),
+      messageTextChars: null,
+      toolCallArgumentChars: null,
+      toolResultTextChars: null,
+      partial: true,
+    };
+    const matchedUsage = { ...usage(), version: 2 };
+    const matchedSettlement = { ...settlement(), version: 2 };
+    write(path, [row, usage(), matchedUsage, settlement(), matchedSettlement]);
+    expect(readModelInputObservations(identity)).toMatchObject({
+      status: "partial",
+      rejectedRows: 2,
+      rows: [row, matchedUsage, matchedSettlement],
+    });
+  });
+
+  it("does not accept native fields added to a legacy row", () => {
+    const path = directory();
+    const identity = pinModelInputDataRoot(path);
+    write(path, [
+      { ...input(), toolCallArgumentChars: 0, toolResultTextChars: 0 },
+    ]);
+    expect(readModelInputObservations(identity)).toMatchObject({
+      rejectedRows: 1,
+      rows: [],
+    });
+  });
+
   it("retains exact closed rows, nullable observations and full bounded source SHA", () => {
     const path = directory();
     const identity = pinModelInputDataRoot(path);

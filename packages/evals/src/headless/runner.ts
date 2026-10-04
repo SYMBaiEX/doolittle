@@ -33,6 +33,7 @@ import {
   PLANNER_ALIAS_TOOL_DEDUPLICATION_FLAG,
   PLANNER_ALIAS_TOOL_DEDUPLICATION_OVERRIDE,
 } from "./execution-overrides";
+import { prepareHeadlessFixture, validateFixtureStrategy } from "./fixtures";
 import {
   type AdvertisedRoute,
   advertisedRoute,
@@ -82,6 +83,8 @@ import {
 } from "./trace-summary";
 
 export type { HeadlessModelUsage } from "./model-usage";
+export const SYNTHETIC_REVIEW_CAPTURE_OVERRIDE =
+  "Bounded synthetic review observer captured final responses only; response processing includes callback overhead, without trajectory or human-review attestation.";
 
 export interface HeadlessEvalCheckResult {
   id: string;
@@ -155,6 +158,7 @@ export interface RunHeadlessEvalOptions {
   /** Explicitly opts this run into planner duplicate-alias suppression. */
   deduplicatePlannerAliasTools?: boolean;
   showResponses?: boolean;
+  responseObserverMode?: "synthetic-review-capture-v1";
   /** Diagnostic observers must return promptly. Async completion is not awaited. */
   onActionLabels?: (
     taskId: string,
@@ -471,6 +475,20 @@ async function runHeadlessEvalSuiteAttempt(
       "Headless evaluation task IDs must be safe path components.",
     );
   }
+  for (const task of selectedTasks) {
+    validateFixtureStrategy(task.fixtureStrategy);
+    if (task.researchMode !== undefined && task.researchMode !== "local")
+      throw new Error("Unknown headless research mode.");
+  }
+  if (
+    options.responseObserverMode !== undefined &&
+    (options.responseObserverMode !== "synthetic-review-capture-v1" ||
+      options.showResponses !== true ||
+      typeof options.onResponse !== "function")
+  )
+    throw new Error(
+      "Invalid synthetic review response observer configuration.",
+    );
   if (
     selectedTasks.some((task) => task.groundingStrategy === "sdk-web-source-v1")
   ) {
@@ -519,7 +537,9 @@ async function runHeadlessEvalSuiteAttempt(
   failure.setSource(sourceAtStart);
   const cloudResearchOptedIn = Boolean(
     options.enableConfiguredCloudResearch &&
-      selectedTasks.some((task) => task.domain === "research"),
+      selectedTasks.some(
+        (task) => task.domain === "research" && task.researchMode !== "local",
+      ),
   );
   const cloudCredentials = cloudResearchOptedIn
     ? configuredElizaCloudCredentials()
@@ -559,6 +579,9 @@ async function runHeadlessEvalSuiteAttempt(
       taskIdentities.set(taskRoot, taskIdentity);
       mkdirSync(dataDir, { recursive: true, mode: 0o700 });
       mkdirSync(workspaceDir, { recursive: true, mode: 0o700 });
+      const fixture = task.fixtureStrategy
+        ? prepareHeadlessFixture(task.fixtureStrategy, workspaceDir)
+        : undefined;
       writeFileSync(join(dataDir, "onboarding.json"), "{}\n", {
         mode: 0o600,
       });
@@ -586,6 +609,7 @@ async function runHeadlessEvalSuiteAttempt(
       const diagnosticFlags = new Set<string>();
       if (
         task.domain === "research" &&
+        task.researchMode !== "local" &&
         cloudResearchOptedIn &&
         !cloudCredentials?.apiKey
       ) {
@@ -644,6 +668,7 @@ async function runHeadlessEvalSuiteAttempt(
             : "false";
         if (
           task.domain === "research" &&
+          task.researchMode !== "local" &&
           cloudResearchOptedIn &&
           cloudCredentials?.apiKey
         ) {
@@ -890,6 +915,7 @@ async function runHeadlessEvalSuiteAttempt(
       }
       const gradingContext = {
         ...checkContext,
+        ...(fixture && childCleanupSafe ? { fixture } : {}),
         ...(researchGrounding ? { researchGrounding } : {}),
         ...(codingVerification ? { codingVerification } : {}),
       };
@@ -1031,6 +1057,8 @@ async function runHeadlessEvalSuiteAttempt(
       );
     if (options.deduplicatePlannerAliasTools)
       report.executionOverrides.push(PLANNER_ALIAS_TOOL_DEDUPLICATION_OVERRIDE);
+    if (options.responseObserverMode === "synthetic-review-capture-v1")
+      report.executionOverrides.push(SYNTHETIC_REVIEW_CAPTURE_OVERRIDE);
     const reportLeaf = privateReportFilename(
       createdAt,
       suite.id,
@@ -1125,7 +1153,7 @@ async function runHeadlessEvalSuiteAttempt(
     if (options.recordModelInputs) {
       try {
         const leaf = `${reportLeaf}.model-inputs.json`;
-        const bytes = `${JSON.stringify({ schemaVersion: 1, provenance: "headless-model-input-observations", reportSchemaVersion: report.schemaVersion, evaluatorVersion: report.evaluatorVersion, reportSha256: sha256(reportBytes), mode: "opt-in-model-input-observations", coverage: "first-creating-runtime-only", runs: modelInputDiagnostics })}\n`;
+        const bytes = `${JSON.stringify({ schemaVersion: 2, provenance: "headless-model-input-observations", reportSchemaVersion: report.schemaVersion, evaluatorVersion: report.evaluatorVersion, reportSha256: sha256(reportBytes), mode: "opt-in-model-input-observations", coverage: "first-creating-runtime-only", runs: modelInputDiagnostics })}\n`;
         verifyPrivateReportDirectory(reportDirectory);
         const pending = options.writeModelInputReceipt
           ? options.writeModelInputReceipt(

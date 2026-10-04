@@ -51,6 +51,18 @@ schema character counts cover only a conservative getter-free JSON subset;
 null/partial fields are unavailable, not zero. Counts are UTF-16 characters,
 not wire bytes, tokenizer measurements, or complete context attribution.
 
+Version-2 rows also separate native `tool-call.input` JSON character counts
+(`toolCallArgumentChars`) and native `tool-result.output` text/error-text string
+lengths (`toolResultTextChars`) from ordinary `messageTextChars`. Argument
+projection has one shared 512-node/65,536-character scan budget per input, a
+depth limit of eight and a 65,536 serialized-character total cap. Result strings
+are counted by length, not scanned or serialized. Unknown/unsupported parts,
+getters, inherited values, cycles and exhausted argument budgets leave message
+size fields null/partial; they are never treated as absent payloads. Names,
+arguments and result text are not stored. Legacy version-1 rows remain readable
+unchanged and do not acquire fabricated native-size values. Associations must
+match the originating row version as well as its parameter identity.
+
 The installed beta.7 hooks do not attest a planner/evaluator stage: every row
 has `phase: "unknown"`. Optional Codex token observations associate only by the
 same public parameter-object identity within that runtime, never order/time.
@@ -83,8 +95,9 @@ follow-ups. Later invocations cannot adopt the existing file as new measured
 inputs. Coverage is **first-creating-runtime-only**, not full multi-turn coverage.
 
 A separate owner-only exclusive `.model-inputs.json` receipt binds the exact
-finished schema-v5 report SHA and numeric report-run index, retaining only closed
-version-1 input/settlement/provider-usage rows and a bounded source SHA. Unknown
+finished schema-v5 report SHA and numeric report-run index. The receipt is now
+schema-version 2, retaining only closed version-1 or version-2
+input/settlement/provider-usage rows and a bounded source SHA. Unknown
 keys, unsafe/replaced roots or files, symlinks/hardlinks, invalid associations and
 malformed rows are unavailable/rejected, never copied. Reads are capped at 2 MiB,
 512 rows and 4096 bytes per row; those caps do not bound filesystem latency or
@@ -95,6 +108,14 @@ time; persistence remains outside suite time. An execution override separates
 opt-in samples from defaults in pooling/comparison. Phase is always unknown;
 character/count and partial projection/prior-sink clocks do not measure wire
 bytes, effective routes, cache/billing, worker inputs or full overhead.
+
+Network-free installed-SDK fixtures can establish that genuine native tool
+parts reach these hooks and that input-size observations grow with controlled
+result text. Fixed replies and synthetic tools cannot establish a live speed
+improvement, per-call planner/evaluator phase attestation, or causality for an
+older benchmark that did not record these fields. Do not change compaction
+settings or attribute extra provider generations to duplicate harness calls
+from aggregate counts alone.
 
 ## Planner alias exposure experiment
 
@@ -182,13 +203,76 @@ Keep the v7 task and grader unchanged for any repeated live comparison.
 
 ## Current coverage and known limits
 
+### Representative suite
+
+`headless-representative-v3` selects canonical `headless-representative`,
+version 3: **5 tasks, 7 planned CLI turns, 18 deterministic checks**, with actual
+human review required for all 5 tasks. Failed execution can stop follow-ups;
+planned turns are not measured invocation counts. The
+[exact task/check table and run commands](../../packages/evals/README.md#representative-baseline)
+are in the eval workspace README. This is a new suite, not a change to the
+historical workflow prompts or grades.
+
+- `conversation-project-handoff-v2` exercises three turns of project handoff,
+  retained constraints and corrected facts with no recorded actions. It is a
+  bounded continuity case, not long-horizon conversation or semantic quality
+  coverage.
+- `coding-seeded-invoice-regression-v1` repairs a seeded multi-file project
+  while preserving its fixture inputs and regression test. The grader runs
+  trusted preserved behavioral tests; a pass does not prove that the agent ran
+  tests, chose safe tools or truthfully described its verification process.
+  `final-contract-unattested` requires `agentVerification: "UNATTESTED"` in
+  the structured final reply, not an original runtime test receipt.
+- `research-local-reconciliation-v2` reconciles two synthetic local sources
+  with conflicting date/authority signals and an unknown fact. Exact artifact,
+  citation and final-response contracts are content checks, not evidence that
+  either source was originally read or retrieved, or that the research is
+  complete. Its final reply must declare `readProof: "UNATTESTED"`.
+- `reliability-local-fallback-v1` writes a contained status artifact when a
+  primary fixture is absent and a fallback is provided. Its positive
+  `recorded-action-started` check requires an action-start count greater than
+  zero; it does not identify the action, prove missing-primary observation,
+  chronology or failure causality, or establish absence of global side effects.
+- `research-codex-web-search-options-v1` reuses the original SDK web task
+  unchanged, including its prompt, five check IDs and grounding strategy.
+  One exact query and one fetched source are not broad web-research coverage.
+
+The v1 suite and task remain unchanged. Two conversation pilots at `2acdcc6`
+each recorded 2/3 checks because the final prompt did not specify the strict
+oracle's exact project/rollback strings. Their semantic variants do not establish
+an agent-quality defect. Preserve the frozen failures and blinded packet;
+do not retroactively regrade them. V2 specifies the exact literals instead of
+relaxing the oracle and reuses the other four tasks unchanged. The completed
+pilots are conversation-only baseline observations, not a full representative
+cohort or improvement comparison. Short answer-only human ratings are pending;
+tool trajectory, billing and effective/worker route attestation remain unavailable.
+
+Before full-cohort launch, the local-research task was also found to permit
+unknown-date strings and arbitrary unavailable-fact wording, despite an exact
+oracle. V3 adds only the explicitly constrained research-v2 task (`null` and
+`"pilot start date"`), keeping its strict checks and the other four v2 tasks
+unchanged. V1/v2 task definitions remain available without edits; no prior
+research grades or samples are replaced or reinterpreted.
+
+Evaluator 0.2.15 forms a new comparison baseline; schema 5 remaining unchanged
+does not make older evaluator reports comparable. Use the source-frozen
+protocol below and retain failed attempts. Suite registration, synthetic tests
+and UI acceptance are not completed live evaluation runs or human reviews.
+Do not claim a quality, cost or speed improvement without compatible paired
+repetitions and the corresponding human and measurement evidence. Short blinded
+final-response-only review remains explicitly narrower than full evidence review.
+
+### Original SDK web evidence
+
 `headless-sdk-web-research-v1` is a separate, single-turn public synthetic task,
 not a replacement for the unchanged Cloud `/research` cases. It uses registered
 SDK `WEB_SEARCH` (Parallel's public search MCP, possibly Exa fallback), then
 `WEB_FETCH` of OpenAI's small Codex TypeScript source, followed by synthesis on
 the unchanged selected text route. Its prompt discloses those search endpoints;
 configured Cloud research opt-in is refused before credential resolution.
-No provider, action policy, default suite, schema or evaluator version changes.
+Its introduction changed no provider, action policy, default suite, schema or
+evaluator version. Adding it unchanged to the representative suite does not
+expand its evidence contract.
 
 Required grading reads only original `action.completed.metadata.actionResult`
 evidence after normal CLI completion and confirmed owned-child cleanup, before
@@ -460,6 +544,36 @@ versions rather than treating current alias ambiguity as desirable behavior.
 - [ ] Run repeated, paired samples for stochastic workflows. Keep the same
       task IDs, check IDs, tools, and environment across candidate and baseline.
 
+### Source-frozen baseline protocol
+
+Before dispatch, freeze a clean source revision with the suite, evaluator,
+fixtures, graders, package patches and lockfile. Record the resolved client and
+tool executable identities; recheck those pins before each launch rather than
+assuming a setup-time hash still identifies the running binary. Predeclare task
+selection, repeat count, serial/order policy, time and resource limits, route
+expectations, diagnostic overrides, and the policy for failures and unavailable
+evidence. Do not edit source or replace unsuccessful samples mid-baseline. A
+repair starts a separately identified source cohort, not a replacement run.
+
+Retain all attempted samples and their denominators, including timeouts,
+provider failures and failed checks. Keep unavailable effective-route and cost
+evidence explicit. Establish a new baseline after an evaluator change; compatible
+report schemas alone do not make different evaluator versions comparable.
+Regression tests and desktop navigation or visual acceptance establish their
+own product paths, not that the evaluated agent completed these tasks well.
+
+A short, blinded final-response-only review can assess the visible answer's
+instruction following, clarity, usefulness and expressed uncertainty. It cannot
+verify tool chronology, agent-run tests, workspace preservation, full multi-turn
+continuity, source retrieval or failure recovery without the corresponding
+evidence. Mark those dimensions unverified; do not fabricate six complete
+sidecar ratings from answer-only inspection. Keep reviewer identity and coverage
+notes in a separately secured review record, not unsupported sidecar fields;
+human attestation requires a person, not model-generated ratings. Randomize
+anonymized answers where practical and state this narrow coverage separately
+from a full trajectory/artifact review. Never recover or unblind discarded
+private answers merely to fill a review gap.
+
 ## Separate the evidence
 
 1. **Execution completion:** the one-shot CLI returned a successful, non-empty
@@ -587,6 +701,43 @@ refusal, while an actual `continueChain: false` terminal receipt stops normally;
 neither establishes a graceful non-terminal yield. Do not infer an effective
 action bound, completion-preserving optimization, or speed gain from these
 options. Record actual calls, actions and completion separately.
+
+### Local-file completion evidence
+
+A successful tool-call name is not a verified file change. Local write, patch,
+and directory completion requires a successful mutation envelope for a supported
+operation, with consistent explicit action identities. Contradictory read/write
+identities, a name-only SDK projection, a failed action or mutation, and a
+successful shell command that merely displays the artifact cannot discharge the
+requested-mutation obligation. Preserve failed observations as diagnostics, not
+successful completion evidence. Fingerprint-backed delegated changes and an
+independently verified no-op retain their separate existing contracts.
+
+Product write, patch and directory handlers retain their successful result in
+the original turn scope before delivering prose. A non-cancellation callback
+failure is recorded as `callbackDelivery: "failed"`, not relabeled as a failed
+file operation; actual operation failures remain failures. Scoped cancellation
+is checked before execution and propagated during delivery. An operation already
+in flight can still commit after cancellation is requested; retain that actual
+receipt without presenting the cancelled turn as successful. This does not
+promise rollback, retry the operation, or attest that the callback reached the
+client.
+
+Network-free tests against the installed beta.7 message service exercise real
+product writes in private temporary workspaces. Normal execution preserves full
+metadata in public state and raw completion events. A later planner failure can
+return an error response with no action results, and a subplanner can project
+only its final inner action's data. The product's turn-scoped original receipt
+remains available in both cases. These controlled tests characterize supported
+transport and failure behavior, not a live model's choices or performance.
+
+The `local-json-receipt-boundary-v1` regressions exercise the unchanged synthetic
+reconciliation and fallback final-JSON contracts with valid, reduced, foreign,
+contradictory, failed and provisional receipts. They characterize admission and
+response selection without providers or actual benchmark tasks. They neither
+attest original source reads nor identify the cause of the earlier 300-second
+research/fallback timeouts. A repaired boundary still needs source-frozen live
+evaluations and genuine human review before claiming better quality or speed.
 
 - Do not call a run better because it completed, passed a few smoke checks, or
   used a preferred route. A reported `completed` status and objective checks

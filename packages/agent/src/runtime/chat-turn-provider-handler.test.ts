@@ -3489,6 +3489,317 @@ describe("chat turn provider handler", () => {
     });
   });
 
+  describe("local-json-receipt-boundary-v1", () => {
+    // Frozen public contracts from headless/cases.ts; no agent -> eval dependency.
+    // These synthetic SDK passes test receipt admission, not provider behavior or
+    // the original timed-out runs' emitted JSON, read ordering, or disk artifacts.
+    const reconciliation = {
+      capacity: 40,
+      launchRequiresSafetyReview: true,
+      pilotStartDate: null,
+      authority: "launch-policy.md",
+      authorityDate: "2026-09-12",
+      conflictingSource: "planning-note.md",
+      conflictingDate: "2026-10-01",
+      citations: [
+        { file: "launch-policy.md", quote: "Pilot capacity is 40 accounts." },
+        {
+          file: "launch-policy.md",
+          quote: "Pilot runs stay disabled until safety review approves.",
+        },
+        {
+          file: "planning-note.md",
+          quote:
+            "We propose 80 pilot accounts and launch before safety review.",
+        },
+      ],
+      unavailableFact: "pilot start date",
+    };
+    const fallbackStatus = {
+      primary: "unavailable",
+      source: "fallback-status.json",
+      service: "Harbor",
+      status: "degraded",
+      reason: "maintenance",
+      externalEffects: "not-requested",
+    };
+    const fixtures = [
+      {
+        id: "research-local-reconciliation-v2",
+        artifact: "reconciliation.json",
+        artifactJson: JSON.stringify(reconciliation),
+        finalJson: JSON.stringify({
+          ...reconciliation,
+          readProof: "UNATTESTED",
+        }),
+        request:
+          'This is synthetic local research, not /research, Cloud research, or a web request. Reconcile launch-policy.md (approved policy) with planning-note.md (newer nonbinding proposal). Authority overrides recency; explicitly expose their conflicting capacities and launch requirements. Do not modify sources or identity files, use external tools, or invent the unavailable pilot start date. Create only reconciliation.json as a private owner-only regular file (permissions 0600), a strict JSON object with keys capacity (number), launchRequiresSafetyReview (boolean), pilotStartDate (string or null), authority (file name), authorityDate (ISO date), conflictingSource (file name), conflictingDate (ISO date), citations (three objects in this order: approved capacity, approved review requirement, conflicting proposal; each has file and exact quote), unavailableFact (string naming the unavailable fact). The artifact contract is graded, not original read-action proof. Final reply must be the same complete reconciliation object plus the key readProof="UNATTESTED", with no markdown or extra keys, so human review can inspect the claims, citations, and uncertainty. In both the artifact and final reply, use the exact JSON literals pilotStartDate=null and unavailableFact="pilot start date".',
+      },
+      {
+        id: "reliability-local-fallback-v1",
+        artifact: "status.json",
+        artifactJson: JSON.stringify(fallbackStatus),
+        finalJson: JSON.stringify({
+          ...fallbackStatus,
+          artifact: "status.json",
+        }),
+        request:
+          'Perform this contained local tool task. The requested primary-status.json input is unavailable; use the existing fallback-status.json to recover the service status, preserving all seed inputs and identity files. Do not create primary-status.json. Create only status.json as a private owner-only regular file (permissions 0600) with exactly these keys: primary ("unavailable"), source (fallback file name), service, status, reason (from fallback), externalEffects ("not-requested"). No web, external tools, messages, sends, deployments, or other effects are requested. Final reply must be the same complete status object plus artifact="status.json", without markdown or extra keys, so a human can inspect the fallback outcome. The grader checks the final artifact and at least one recorded action; this is not proof of read ordering, a failed primary attempt, fallback causality, or absence of all external effects.',
+      },
+    ];
+
+    describe.each(fixtures)("$id", (fixture) => {
+      const workdir = `/workspace/local-json-receipt-boundary-v1/${fixture.id}`;
+      const writeReceipt = (): ActionResult => ({
+        success: true,
+        text: `Created ${fixture.artifact}.`,
+        data: {
+          actionName: "WRITE_FILE",
+          mutationKind: "local-file",
+          mutationAction: "WRITE_FILE",
+          mutation: {
+            action: "WRITE_FILE",
+            success: true,
+            requestedPath: fixture.artifact,
+            resolvedPath: `${workdir}/${fixture.artifact}`,
+            bytes: fixture.artifactJson.length,
+          },
+        },
+      });
+      const executeFixtureTurn = (context: AgentExecutionContext) => {
+        context.config.workspaceDir = workdir;
+        return runWithTurnRuntimeScope(
+          context.runtime,
+          { settings: new Map(), settledActionResults: [] },
+          () => executeTestTurn(context, "codex", fixture.request),
+        );
+      };
+
+      it.each(["direct", "SDK projection"] as const)(
+        "completes in one pass with exact final JSON and a %s mutation receipt",
+        async (receiptSource) => {
+          const receipt = writeReceipt();
+          let calls = 0;
+          let context: AgentExecutionContext;
+          const created = createContext({
+            onHandleMessage: async () => {
+              calls += 1;
+              if (receiptSource === "SDK projection") {
+                recordScopedTurnActionResult(context.runtime, receipt);
+              }
+              const actionResult =
+                receiptSource === "direct"
+                  ? receipt
+                  : {
+                      success: true,
+                      text: `Created ${fixture.artifact}.`,
+                      data: {
+                        actionName: "WRITE_FILE",
+                        doolittleTurnReceiptId:
+                          receipt.data?.doolittleTurnReceiptId,
+                      },
+                    };
+              return {
+                responseContent: { text: fixture.finalJson },
+                responseMessages: [],
+                actionResults: [actionResult],
+              };
+            },
+          });
+          context = created.context;
+
+          const result = await executeFixtureTurn(context);
+
+          expect(calls).toBe(1);
+          expect(result.runFailureMessage).toBeUndefined();
+          expect(result.response).toBe(fixture.finalJson);
+          expect(result.streamState.getResponse()).toBe(fixture.finalJson);
+          expect(result.actionResults).toEqual([receipt]);
+          expect(created.useModel).not.toHaveBeenCalled();
+          expect(
+            created.traceEvents.filter(
+              (event) => event.event === "model.continuation",
+            ),
+          ).toEqual([]);
+        },
+      );
+
+      it.each([
+        "successful SHELL with the exact artifact",
+        "absent mutation receipt",
+        "failed action",
+        "failed mutation",
+        "mismatched mutation action",
+      ] as const)("refuses exact final JSON with %s", async (receiptSource) => {
+        const receipt = writeReceipt();
+        const mutation = receipt.data?.mutation as Record<string, unknown>;
+        let actionResults: ActionResult[] = [receipt];
+        if (receiptSource === "successful SHELL with the exact artifact") {
+          actionResults = [
+            {
+              success: true,
+              text: fixture.artifactJson,
+              data: {
+                actionName: "SHELL",
+                command: `node inspect-artifact.mjs ${fixture.artifact}`,
+                cwd: workdir,
+                stdout: fixture.artifactJson,
+                stderr: "",
+                exitCode: 0,
+                timedOut: false,
+                truncated: false,
+              },
+            },
+          ];
+        } else if (receiptSource === "absent mutation receipt") {
+          actionResults = [];
+        } else if (receiptSource === "failed action") {
+          receipt.success = false;
+        } else if (receiptSource === "failed mutation") {
+          mutation.success = false;
+        } else {
+          receipt.data = {
+            ...receipt.data,
+            mutationAction: "READ_FILE",
+            mutation: { ...mutation, action: "READ_FILE" },
+          };
+        }
+        let calls = 0;
+        const { context, traceEvents, useModel } = createContext({
+          onHandleMessage: async () => {
+            calls += 1;
+            return {
+              responseContent: { text: fixture.finalJson },
+              responseMessages: [],
+              actionResults,
+            };
+          },
+        });
+
+        const result = await executeFixtureTurn(context);
+
+        expect(calls).toBe(
+          receiptSource === "absent mutation receipt" ? 2 : 12,
+        );
+        expect(result.runFailureMessage).toContain(
+          "No verified file changes were recorded",
+        );
+        expect(result.response).toBe(result.runFailureMessage);
+        expect(result.response).not.toBe(fixture.finalJson);
+        expect(useModel).not.toHaveBeenCalled();
+        const continuations = traceEvents.filter(
+          (event) => event.event === "model.continuation",
+        );
+        expect(continuations).toHaveLength(calls - 1);
+        expect(continuations[0]?.metadata).toMatchObject({
+          reason: "unverified-terminal-response",
+          verifiedMutation: false,
+          continuationDiagnostics: {
+            responseOrigin: "current-response-content",
+            currentExplicitlyIncomplete: false,
+            currentIncompleteKind: null,
+            retainedIncompleteKind: null,
+            verifiedWorkspaceCompletion: false,
+            frontendReviewComplete: true,
+          },
+        });
+      });
+
+      it("does not restore an SDK projection from a foreign turn's mutation receipt", async () => {
+        const receipt = writeReceipt();
+        let calls = 0;
+        const { context, traceEvents, useModel } = createContext({
+          onHandleMessage: async () => {
+            calls += 1;
+            return {
+              responseContent: { text: fixture.finalJson },
+              responseMessages: [],
+              actionResults: [
+                {
+                  success: true,
+                  text: `Created ${fixture.artifact}.`,
+                  data: {
+                    actionName: "WRITE_FILE",
+                    doolittleTurnReceiptId:
+                      receipt.data?.doolittleTurnReceiptId,
+                  },
+                },
+              ],
+            };
+          },
+        });
+        runWithTurnRuntimeScope(
+          context.runtime,
+          { settings: new Map(), settledActionResults: [] },
+          () => recordScopedTurnActionResult(context.runtime, receipt),
+        );
+        expect(receipt.data?.doolittleTurnReceiptId).toEqual(
+          expect.any(String),
+        );
+
+        const result = await executeFixtureTurn(context);
+
+        expect(calls).toBe(12);
+        expect(result.runFailureMessage).toContain(
+          "No verified file changes were recorded",
+        );
+        expect(result.response).toBe(result.runFailureMessage);
+        expect(result.actionResults).not.toContain(receipt);
+        expect(useModel).not.toHaveBeenCalled();
+        expect(
+          traceEvents.filter((event) => event.event === "model.continuation"),
+        ).toHaveLength(11);
+      });
+
+      it.each(["early response message", "provisional stream"] as const)(
+        "does not treat exact JSON only in an %s as terminal after a mutation",
+        async (responseSource) => {
+          const receipt = writeReceipt();
+          let calls = 0;
+          const { context, traceEvents, useModel } = createContext({
+            onHandleMessage: async ({ onStreamChunk }) => {
+              calls += 1;
+              if (responseSource === "provisional stream") {
+                await onStreamChunk?.(fixture.finalJson);
+              }
+              return {
+                responseContent: null,
+                responseMessages:
+                  responseSource === "early response message"
+                    ? [{ content: { text: fixture.finalJson } }]
+                    : [],
+                actionResults: [receipt],
+              };
+            },
+            // Provider-free empty synthesis must not promote an early reply.
+            onUseModel: async () => "",
+          });
+
+          const result = await executeFixtureTurn(context);
+
+          expect(calls).toBe(12);
+          expect(result.runFailureMessage).toBeDefined();
+          expect(result.response).toBe(result.runFailureMessage);
+          expect(result.response).not.toBe(fixture.finalJson);
+          expect(useModel).toHaveBeenCalledTimes(1);
+          const continuations = traceEvents.filter(
+            (event) => event.event === "model.continuation",
+          );
+          expect(continuations).toHaveLength(11);
+          expect(continuations[0]?.metadata).toMatchObject({
+            reason: "empty-terminal-response",
+            verifiedMutation: true,
+            continuationDiagnostics: {
+              responseOrigin: "empty-after-actions",
+              currentExplicitlyIncomplete: false,
+              verifiedWorkspaceCompletion: true,
+            },
+          });
+        },
+      );
+    });
+  });
+
   it("restores a scoped no-op delegation receipt before parent verification", async () => {
     const workdir = "/workspace/blog";
     const sdkProjection = {

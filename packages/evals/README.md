@@ -83,6 +83,132 @@ report schemas. A sidecar is not an automatic score or a quality conclusion.
 
 ## Headless workflow evaluations
 
+### Representative baseline
+
+`headless-representative-v3` is a separate suite (canonical ID
+`headless-representative`, version 3), not a rewrite of the historical workflow
+suites. It broadens coverage to project continuity over three turns, a seeded
+multi-file regression repair, conflicting local research sources, a contained
+fallback artifact, and the unchanged original SDK web-source task. Every task
+requires actual human review; the suite name does not establish general agent
+quality.
+
+The full suite defines **5 tasks, 7 planned CLI turns and 18 deterministic
+checks**, with human review required for all 5 tasks. Failed execution can stop
+follow-up turns; report actual invocation counts separately:
+
+| Task ID | CLI turns | Check IDs |
+| --- | --- | --- |
+| `conversation-project-handoff-v2` | 3 | `complete-three-turn-exchange`, `retains-constraints-and-corrected-facts`, `no-recorded-actions` |
+| `coding-seeded-invoice-regression-v1` | 1 | `fixture-scope-preserved`, `preserved-regression-passes`, `final-contract-unattested` |
+| `research-local-reconciliation-v2` | 1 | `fixture-scope-preserved`, `reconciliation-artifact-exact`, `final-contract-unattested` |
+| `reliability-local-fallback-v1` | 1 | `fixture-scope-preserved`, `fallback-status-artifact-exact`, `recorded-action-started`, `final-artifact-contract` |
+| `research-codex-web-search-options-v1` | 1 | `original-search-returned-data`, `original-primary-source-retrieved`, `literal-answer-agrees-with-retrieval`, `citation-agrees-with-retrieval`, `original-execution-integrity` |
+
+```sh
+nub run eval:headless -- --suite headless-representative-v3
+nub run eval:headless -- --suite headless-representative-v3 \
+  --task coding-seeded-invoice-regression-v1
+```
+
+Do not enable configured Cloud research for the full suite: its SDK-web task
+uses the original `WEB_SEARCH`/`WEB_FETCH` protocol and refuses that opt-in.
+The local tasks use synthetic fixtures, not private project or research data.
+Default reports still omit raw prompts, responses, commands and workspace paths.
+
+Deterministic code behavior is grader-executed evidence, not proof that the
+agent ran verification. Local citation/content and artifact checks do not attest
+tool chronology or an original failure-and-recovery sequence. A positive
+recorded-action count is only a proxy, not proof of a particular action. The
+SDK task proves its bounded one-source contract, not broad current-web research.
+Keep these limits separate from full trajectory/artifact human review.
+
+`final-contract-unattested` requires the coding reply's
+`agentVerification: "UNATTESTED"` or local research reply's
+`readProof: "UNATTESTED"`, respectively. These explicit response fields are not
+execution receipts. Coding also requires a nonempty summary and limitations
+(each at most 500 characters). Local research returns the complete reconciled
+claims, dates, three quotes and unknown fact plus `readProof`, matching its
+artifact. Fallback returns the complete status fields plus `artifact`, not a
+tiny receipt-only answer. Seeded tasks use closed code-defined fixtures; scope
+checks preserve the protected inputs and identity files and allow only the task's
+named writable file. Coding behavior is evaluated from the preserved test graph
+in a bounded Node VM subprocess with permissions enabled, not by trusting a
+replacement test file. This grader containment is not an OS sandbox or proof of
+the agent's own tests or global side-effect safety.
+
+The preserved `headless-representative-v1` conversation prompt did not specify
+the exact `project` and `rollbackTrigger` strings required by its strict oracle.
+Two source-frozen conversation pilots at `2acdcc6` each recorded 2/3 checks:
+completion and no recorded actions passed, while semantic string variants
+failed exact equality. Preserve those original grades; this is an underspecified
+benchmark contract, not a demonstrated agent-quality defect. Version 2 specifies
+the exact literals and keeps strict grading; the other four tasks are reused
+unchanged. Do not pool v1 and v2, or retroactively rescore captured v1 answers.
+
+The full-cohort preflight found the analogous local-research ambiguity before
+launch: its v1 task allowed an unknown date as a string or null and any phrase
+naming the unavailable fact, while the strict oracle required `null` and
+`"pilot start date"`. Version 3 adds `research-local-reconciliation-v2` with
+those literal constraints explicit in both artifact and reply. Its checks
+remain strict; the other four v2 task objects and both earlier suites remain
+unchanged. No v1 research grade is retrospectively changed. A new source-frozen
+cohort is required; do not pool across suite or task versions.
+
+The two conversation pilots took 17.6s and 19.8s launcher wall time for three
+turns each. Provider-reported totals were 9,157 and 9,159 tokens; USD cost and
+effective/worker routes were unavailable. These are descriptive baseline
+observations, not a speed, overhead, billing or quality improvement. The short
+blinded final-response review is awaiting actual human ratings; complete
+trajectory review and the full five-task live cohort remain pending.
+
+Evaluator 0.2.15 requires a new source-frozen baseline; do not compare or pool it
+with 0.2.14 or earlier reports. Freeze source and executable identities before
+dispatch, predeclare repetitions and limits, and retain failures. No v3 live
+runs or human ratings are established by adding the suite or by green unit/UI
+tests. Quality, cost and speed improvements require compatible paired repeats
+and the corresponding human and measurement evidence. See the checklist's
+[source-frozen baseline protocol](../../docs/engineering/agent-quality-eval-checklist.md#source-frozen-baseline-protocol),
+including the limits of short blinded final-response-only review.
+
+### Optional synthetic final-response capture
+
+```sh
+nub run eval:headless -- --suite headless-representative-v3 \
+  --capture-synthetic-responses --report-dir /private/eval-evidence
+```
+
+`--capture-synthetic-responses` is an explicit default-off review option and
+cannot be combined with `--show-responses`. It uses the integrated
+`runSyntheticReviewEval` wrapper to observe actual responses silently and bind
+the capture to that original runner return after closure. CLI output contains
+capture status/path metadata, never capture contents. Task selection and other
+configuration flags retain their existing meaning.
+
+The separate privileged `*.responses.json` sidecar intentionally contains
+bounded final responses from code-defined public synthetic tasks: at most
+8 KiB of UTF-8 response bytes per turn and 64 KiB total, excluding JSON framing,
+with all declared turns matched to the exact report hash. It is exclusively
+created with mode `0600` in private storage. Prompts,
+tool logs and credentials are not intentionally retained, but unexpected secrets
+in an answer are **not sanitized**. Keep the capture private; it is not an
+ordinary content-free report, automatically blinded review, human rating or
+tool chronology. Unsafe, incomplete, oversized or conflicting capture evidence
+is refused and cleared without changing objective grades; runner errors discard
+the capture. Completed executions with failed objective checks remain eligible
+for review capture. Do not recover historical discarded answers to fill missing data.
+
+Capture adds the `synthetic-review-capture-v1` execution override, so capture
+and default runs are incompatible for pooling/comparison. The low-level capture
+factory binds content to a report, not a unique invocation; use the integrated
+wrapper for direct association with the original returned run. The private
+storage boundary assumes trusted same-UID writers and quiescent owned paths,
+not tamper-proof provenance. See
+[human-review evidence](../../docs/engineering/human-review-evidence.md#synthetic-final-response-capture)
+for review coverage limits and the separate ratings format.
+
+### Historical workflow suites
+
 `headless-workflows-v2` dispatches isolated Doolittle CLI runs without opening
 the desktop app. It covers clarification and response formatting, workspace
 file mutation, cited research, and draft-only behavior. `headless-workflows-v3`

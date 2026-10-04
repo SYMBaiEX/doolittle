@@ -7,6 +7,7 @@ describe("headless evaluation CLI options", () => {
       suiteId: "headless-workflows-v2",
       taskIds: [],
       showResponses: false,
+      captureSyntheticResponses: false,
       showActionLabels: false,
       enableConfiguredCloudResearch: false,
       recordActionDiagnostics: false,
@@ -30,6 +31,7 @@ describe("headless evaluation CLI options", () => {
       suiteId: "headless-workflows-v3",
       taskIds: ["conversation-format-v3"],
       showResponses: false,
+      captureSyntheticResponses: false,
       showActionLabels: false,
       enableConfiguredCloudResearch: false,
       recordActionDiagnostics: false,
@@ -37,6 +39,43 @@ describe("headless evaluation CLI options", () => {
       deduplicatePlannerAliasTools: true,
       routeLabel: "planner-dedup-candidate",
     });
+  });
+
+  it("enables silent synthetic response capture without consuming selection or configuration", () => {
+    expect(
+      parseHeadlessEvalCliOptions([
+        "--suite",
+        "headless-representative-v1",
+        "--capture-synthetic-responses",
+        "--task",
+        "conversation-project-handoff-v1",
+        "--report-dir",
+        "/private/eval-evidence",
+        "--route-label",
+        "frozen-baseline",
+      ]),
+    ).toEqual({
+      suiteId: "headless-representative-v1",
+      taskIds: ["conversation-project-handoff-v1"],
+      showResponses: false,
+      captureSyntheticResponses: true,
+      showActionLabels: false,
+      enableConfiguredCloudResearch: false,
+      recordActionDiagnostics: false,
+      recordModelInputs: false,
+      deduplicatePlannerAliasTools: false,
+      reportDir: "/private/eval-evidence",
+      routeLabel: "frozen-baseline",
+    });
+  });
+
+  it.each([
+    ["--capture-synthetic-responses", "--show-responses"],
+    ["--show-responses", "--capture-synthetic-responses"],
+  ])("rejects raw-response echo with capture: %s %s", (...flags) => {
+    expect(() => parseHeadlessEvalCliOptions(flags)).toThrow(
+      "--capture-synthetic-responses cannot be combined with --show-responses.",
+    );
   });
 
   it("returns help without parsing later arguments", () => {

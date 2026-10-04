@@ -13,6 +13,13 @@ import { isRecord } from "@/utils/records";
 type RecordLike = Record<string, unknown>;
 type CommandResultSource = RecordLike & { command: unknown; exitCode: unknown };
 
+const LOCAL_MUTATION_OPERATION_TYPES = new Map([
+  ["WRITE_FILE", "write"],
+  ["PATCH_FILE", "edit"],
+  ["CREATE_DIRECTORY", "write"],
+  ["TASKS_SPAWN_AGENT", "write"],
+]);
+
 export interface ActionResultMetadata {
   mutation?: LocalMutationInput;
   fileOperation?: FileOperation;
@@ -96,6 +103,35 @@ export function actionResultMutationActionName(
   return isRecord(data) ? asNonEmptyString(data.mutationAction) : undefined;
 }
 
+function consistentSuccessfulLocalMutation(
+  data: RecordLike,
+  mutation: RecordLike,
+  action: string,
+): boolean {
+  const canonicalAction = action.toUpperCase();
+  const operationType = LOCAL_MUTATION_OPERATION_TYPES.get(canonicalAction);
+  if (!operationType) return false;
+  // SDK projections may omit identity fields, but an explicit conflicting or
+  // malformed identity cannot turn a read (or a different mutation) into proof.
+  for (const identity of [
+    data.actionName,
+    data.mutationAction,
+    mutation.action,
+  ]) {
+    if (
+      identity !== undefined &&
+      asNonEmptyString(identity)?.toUpperCase() !== canonicalAction
+    )
+      return false;
+  }
+  if (mutation.success !== undefined && mutation.success !== true) return false;
+  const operation = data.fileOperation;
+  return (
+    operation === undefined ||
+    (isRecord(operation) && operation.type === operationType)
+  );
+}
+
 export function extractLocalMutationFromActionResult(
   actionResult: ActionResult | undefined,
 ): LocalMutationInput | undefined {
@@ -114,6 +150,14 @@ export function extractLocalMutationFromActionResult(
   if (!action || typeof success !== "boolean") {
     return undefined;
   }
+  // Keep failed observations reportable. Every successful local receipt must
+  // cross this shared boundary, including the plural extractor used by chat.
+  if (
+    actionResult?.success === true &&
+    success === true &&
+    !consistentSuccessfulLocalMutation(data, mutation, action)
+  )
+    return undefined;
 
   return {
     action,

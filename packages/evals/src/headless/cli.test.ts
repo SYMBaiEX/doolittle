@@ -93,6 +93,44 @@ describe("headless CLI closed operational failures", () => {
     expect(error).toHaveBeenCalledOnce();
   });
 
+  it("forwards runner failures through silent synthetic capture without echoing a captured turn", async () => {
+    const { error, log } = capture();
+    const tracker = createOperationalFailureTracker("child-execution");
+    tracker.beginChild();
+    vi.mocked(runHeadlessEvalSuite).mockImplementationOnce(
+      async (suite, options) => {
+        expect(options?.responseObserverMode).toBe(
+          "synthetic-review-capture-v1",
+        );
+        options?.onResponse?.(
+          suite.tasks[0].id,
+          "PRIVATE_CAPTURE_CANARY",
+          1,
+          3,
+        );
+        options?.onOperationalFailure?.(tracker.receipt());
+        throw new Error("PRIVATE_RUNNER_CANARY");
+      },
+    );
+    expect(
+      await main([
+        "--suite",
+        "headless-representative-v3",
+        "--capture-synthetic-responses",
+      ]),
+    ).toBe(1);
+    expect(runHeadlessEvalSuite).toHaveBeenCalledOnce();
+    expect(log).not.toHaveBeenCalled();
+    expect(error).toHaveBeenCalledOnce();
+    expect(error.mock.calls[0]?.[0]).not.toContain("PRIVATE_");
+    expect(decoded(error.mock.calls[0]?.[0])).toMatchObject({
+      phase: "child-execution",
+      code: "executor-threw",
+      childCleanup: "unknown",
+      persistence: "not-attempted",
+    });
+  });
+
   it("keeps child cleanup/timing unknown when printing fails after the runner returned", async () => {
     const { error, log } = capture();
     log.mockImplementation(() => {

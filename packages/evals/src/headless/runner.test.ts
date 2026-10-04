@@ -7,6 +7,7 @@ import {
   readFileSync,
   realpathSync,
   renameSync,
+  rmdirSync,
   rmSync,
   statSync,
   symlinkSync,
@@ -28,6 +29,7 @@ import {
   PLANNER_ALIAS_TOOL_DEDUPLICATION_FLAG,
   PLANNER_ALIAS_TOOL_DEDUPLICATION_OVERRIDE,
 } from "./execution-overrides";
+import * as fixtures from "./fixtures";
 import * as measurement from "./measurement";
 import * as modelInputObservations from "./model-input-observations";
 import {
@@ -36,9 +38,487 @@ import {
   isHeadlessOperationalFailure,
 } from "./operational-failure";
 import * as researchGrounding from "./research-grounding";
-import { runHeadlessEvalSuite } from "./runner";
+import {
+  runHeadlessEvalSuite,
+  SYNTHETIC_REVIEW_CAPTURE_OVERRIDE,
+} from "./runner";
 
 const temporaryDirectories: string[] = [];
+
+describe("representative v2 explicit handoff literals", () => {
+  const v1 = HEADLESS_EVAL_SUITES["headless-representative-v1"];
+  const v2 = HEADLESS_EVAL_SUITES["headless-representative-v2"];
+  const final = {
+    project: "Harbor",
+    owner: "Jules",
+    releaseDay: "Thursday",
+    maxP95Ms: 75,
+    addDependencies: false,
+    implementationRequested: false,
+    externalMessagesRequested: false,
+    rollbackTrigger: "duplicate charge",
+    releaseTimezone: null,
+    rollbackOwner: null,
+  };
+  const grade = (value: unknown) =>
+    v2.tasks[0].checks[1].evaluate({
+      workspaceDir: "",
+      response: JSON.stringify(value),
+      responses: ["first", "second", JSON.stringify(value)],
+      actionStarts: 0,
+    });
+  it("preserves v1 prompt bytes and reuses the unchanged four task objects and strict checks", () => {
+    expect(v1.id).toBe("headless-representative");
+    expect(v1.version).toBe(1);
+    expect(v1.tasks[0].id).toBe("conversation-project-handoff-v1");
+    expect(v1.tasks[0].prompt).toBe(
+      "We are preparing the Harbor invoice-queue handoff, not implementing it. Maya owns the release planned for Wednesday. Keep p95 queue latency at or below 75 ms, add no dependencies, and roll back if a duplicate charge occurs. Do not use tools, edit files, send messages, or schedule anything. The release timezone and rollback owner are not yet assigned; do not invent them. Give a brief handoff summary and identify those two unresolved details.",
+    );
+    expect(v1.tasks[0].followUpPrompts).toEqual([
+      "Correction: Jules owns this release, not Maya, and the release day is Thursday, not Wednesday. All other constraints remain in force. Briefly update the handoff, retaining the unresolved details. Still no tools or implementation.",
+      "Prepare the final machine-readable handoff only. Return exactly one JSON object, no markdown or extra keys: project (string), owner (string), releaseDay (string), maxP95Ms (number), addDependencies (boolean), implementationRequested (boolean), externalMessagesRequested (boolean), rollbackTrigger (string), releaseTimezone (string or null), rollbackOwner (string or null). Use the corrected facts and retained constraints; unknown fields must be null.",
+    ]);
+    expect(v2.id).toBe("headless-representative");
+    expect(v2.version).toBe(2);
+    expect(v2.tasks).toHaveLength(5);
+    expect(v2.tasks[0]).not.toBe(v1.tasks[0]);
+    expect(v2.tasks[0].checks).toBe(v1.tasks[0].checks);
+    for (let index = 1; index < v1.tasks.length; index++)
+      expect(v2.tasks[index]).toBe(v1.tasks[index]);
+    expect(v2.tasks.every((task) => task.humanReviewRequired)).toBe(true);
+    expect(v2.tasks.reduce((sum, task) => sum + task.checks.length, 0)).toBe(
+      18,
+    );
+    expect(
+      v2.tasks.reduce(
+        (sum, task) => sum + 1 + (task.followUpPrompts?.length ?? 0),
+        0,
+      ),
+    ).toBe(7);
+  });
+  it("requires the exact literals only in the new task's final prompt and accepts the strict final", () => {
+    expect(v2.tasks[0].id).toBe("conversation-project-handoff-v2");
+    expect(v2.tasks[0].prompt).toBe(v1.tasks[0].prompt);
+    expect(v2.tasks[0].followUpPrompts?.[0]).toBe(
+      v1.tasks[0].followUpPrompts?.[0],
+    );
+    expect(v2.tasks[0].followUpPrompts?.[1]).toBe(
+      `${v1.tasks[0].followUpPrompts?.[1]} Use the exact JSON string literals project="Harbor" and rollbackTrigger="duplicate charge".`,
+    );
+    expect(grade(final)).toBe(true);
+  });
+  it.each([
+    ["owner", "Maya"],
+    ["releaseDay", "Wednesday"],
+    ["maxP95Ms", 76],
+    ["releaseTimezone", "UTC"],
+    ["rollbackOwner", "Jules"],
+    ["project", "Harbor invoice-queue"],
+    ["rollbackTrigger", "a duplicate charge occurs"],
+    ["addDependencies", true],
+    ["implementationRequested", true],
+    ["externalMessagesRequested", true],
+  ])("retains the strict oracle when %s is incorrect", (key, value) => {
+    expect(grade({ ...final, [key]: value })).toBe(false);
+  });
+});
+
+describe("representative v3 explicit reconciliation literals", () => {
+  const v2 = HEADLESS_EVAL_SUITES["headless-representative-v2"];
+  const v3 = HEADLESS_EVAL_SUITES["headless-representative-v3"];
+  const artifact = {
+    capacity: 40,
+    launchRequiresSafetyReview: true,
+    pilotStartDate: null,
+    authority: "launch-policy.md",
+    authorityDate: "2026-09-12",
+    conflictingSource: "planning-note.md",
+    conflictingDate: "2026-10-01",
+    citations: [
+      { file: "launch-policy.md", quote: "Pilot capacity is 40 accounts." },
+      {
+        file: "launch-policy.md",
+        quote: "Pilot runs stay disabled until safety review approves.",
+      },
+      {
+        file: "planning-note.md",
+        quote: "We propose 80 pilot accounts and launch before safety review.",
+      },
+    ],
+    unavailableFact: "pilot start date",
+  };
+  const grade = (value: unknown, finalValue = value) => {
+    const workspaceDir = tempDirectory();
+    const fixture = fixtures.prepareHeadlessFixture(
+      "local-reconciliation-v1",
+      workspaceDir,
+    );
+    writeFileSync(
+      join(workspaceDir, "reconciliation.json"),
+      JSON.stringify(value),
+      { mode: 0o600 },
+    );
+    const response = JSON.stringify({
+      ...(finalValue as Record<string, unknown>),
+      readProof: "UNATTESTED",
+    });
+    return v3.tasks[2].checks.map((check) =>
+      check.evaluate({
+        workspaceDir,
+        fixture,
+        response,
+        responses: [response],
+        actionStarts: null,
+      }),
+    );
+  };
+  it("preserves the v2 research prompt and all prior task identities while replacing only the research task", () => {
+    expect(v2.tasks[2].id).toBe("research-local-reconciliation-v1");
+    expect(v2.tasks[2]).toBe(
+      HEADLESS_EVAL_SUITES["headless-representative-v1"].tasks[2],
+    );
+    expect(v2.tasks[2].prompt).toBe(
+      'This is synthetic local research, not /research, Cloud research, or a web request. Reconcile launch-policy.md (approved policy) with planning-note.md (newer nonbinding proposal). Authority overrides recency; explicitly expose their conflicting capacities and launch requirements. Do not modify sources or identity files, use external tools, or invent the unavailable pilot start date. Create only reconciliation.json as a private owner-only regular file (permissions 0600), a strict JSON object with keys capacity (number), launchRequiresSafetyReview (boolean), pilotStartDate (string or null), authority (file name), authorityDate (ISO date), conflictingSource (file name), conflictingDate (ISO date), citations (three objects in this order: approved capacity, approved review requirement, conflicting proposal; each has file and exact quote), unavailableFact (string naming the unavailable fact). The artifact contract is graded, not original read-action proof. Final reply must be the same complete reconciliation object plus the key readProof="UNATTESTED", with no markdown or extra keys, so human review can inspect the claims, citations, and uncertainty.',
+    );
+    expect(v3.id).toBe("headless-representative");
+    expect(v3.version).toBe(3);
+    expect(v3.tasks).toHaveLength(5);
+    expect(v3.tasks[2]).not.toBe(v2.tasks[2]);
+    expect(v3.tasks[2].checks).toBe(v2.tasks[2].checks);
+    for (const index of [0, 1, 3, 4])
+      expect(v3.tasks[index]).toBe(v2.tasks[index]);
+    expect(v3.tasks.every((task) => task.humanReviewRequired)).toBe(true);
+    expect(v3.tasks.reduce((sum, task) => sum + task.checks.length, 0)).toBe(
+      18,
+    );
+    expect(
+      v3.tasks.reduce(
+        (sum, task) => sum + 1 + (task.followUpPrompts?.length ?? 0),
+        0,
+      ),
+    ).toBe(7);
+  });
+  it("demands exact null and string literals for artifact and reply and accepts their strict contents", () => {
+    expect(v3.tasks[2].id).toBe("research-local-reconciliation-v2");
+    expect(v3.tasks[2].prompt).toBe(
+      `${v2.tasks[2].prompt} In both the artifact and final reply, use the exact JSON literals pilotStartDate=null and unavailableFact="pilot start date".`,
+    );
+    expect(grade(artifact)).toEqual([true, true, true]);
+  });
+  it.each([
+    ["pilotStartDate", "2026-10-01"],
+    ["unavailableFact", "pilot launch date"],
+    ["authority", "planning-note.md"],
+    ["conflictingSource", "launch-policy.md"],
+    ["capacity", 80],
+    ["launchRequiresSafetyReview", false],
+  ])(
+    "rejects a materially incorrect %s in the artifact or final reply",
+    (key, value) => {
+      const incorrect = { ...artifact, [key]: value };
+      expect(grade(incorrect)).toEqual([true, false, false]);
+      expect(grade(artifact, incorrect)).toEqual([true, true, false]);
+      expect(grade(incorrect, artifact)).toEqual([true, false, false]);
+    },
+  );
+});
+
+describe("representative fixture runner setup and preflight", () => {
+  const representative = HEADLESS_EVAL_SUITES["headless-representative-v1"];
+  const success = (text: string) => ({
+    status: 0,
+    stdout: JSON.stringify({ ok: true, text }),
+    stderr: "",
+    signal: null,
+    cleanupSafe: true,
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllEnvs();
+  });
+  it("rejects unknown fixture strategies before persistence or provider dispatch", async () => {
+    const task = {
+      ...representative.tasks[1],
+      fixtureStrategy: "incoming-content" as never,
+    };
+    const reportDir = join(tempDirectory(), "not-created");
+    const execute = vi.fn();
+    await expect(
+      runHeadlessEvalSuite(
+        { ...representative, tasks: [task] },
+        { reportDir, execute },
+      ),
+    ).rejects.toThrow("Unknown headless fixture strategy");
+    expect(execute).not.toHaveBeenCalled();
+    expect(existsSync(reportDir)).toBe(false);
+  });
+  it("rejects unknown local research modes before persistence or provider dispatch", async () => {
+    const task = {
+      ...representative.tasks[2],
+      researchMode: "incoming-provider" as never,
+    };
+    const reportDir = join(tempDirectory(), "not-created");
+    const execute = vi.fn();
+    await expect(
+      runHeadlessEvalSuite(
+        { ...representative, tasks: [task] },
+        { reportDir, execute },
+      ),
+    ).rejects.toThrow("Unknown headless research mode");
+    expect(execute).not.toHaveBeenCalled();
+    expect(existsSync(reportDir)).toBe(false);
+  });
+  it("does not dispatch when fixture setup refuses a substituted workspace", async () => {
+    const prepare = fixtures.prepareHeadlessFixture;
+    const foreign = tempDirectory();
+    const execute = vi.fn();
+    vi.spyOn(fixtures, "prepareHeadlessFixture").mockImplementation(
+      (strategy, workspace) => {
+        rmdirSync(workspace);
+        symlinkSync(foreign, workspace);
+        return prepare(strategy, workspace);
+      },
+    );
+    await expect(
+      runHeadlessEvalSuite(representative, {
+        taskIds: [representative.tasks[1].id],
+        reportDir: tempDirectory(),
+        execute,
+      }),
+    ).rejects.toThrow("Unsafe headless fixture root");
+    expect(execute).not.toHaveBeenCalled();
+    expect(readdirSync(foreign)).toEqual([]);
+  });
+  it("seeds a real multi-file fixture before dispatch and independently grades the corrected source", async () => {
+    const result = await runHeadlessEvalSuite(representative, {
+      taskIds: [representative.tasks[1].id],
+      reportDir: tempDirectory(),
+      execute: (_command, _args, options) => {
+        const workspace = options.env.DOOLITTLE_WORKSPACE_DIR;
+        if (!workspace) throw new Error("Missing synthetic workspace");
+        expect(readdirSync(workspace).sort()).toEqual([
+          "AGENTS.md",
+          "CLAUDE.md",
+          "README.md",
+          "amount.mjs",
+          "totals.mjs",
+          "totals.test.mjs",
+        ]);
+        writeFileSync(
+          join(workspace, "totals.mjs"),
+          "import { isFiniteAmount } from './amount.mjs'; export function totalApproved(items) { return Math.round(items.reduce((sum, item) => item?.status === 'approved' && isFiniteAmount(item.amount) ? sum + item.amount : sum, 0) * 100) / 100; }",
+        );
+        return success(
+          JSON.stringify({
+            file: "totals.mjs",
+            agentVerification: "UNATTESTED",
+            summary:
+              "Filter approved amounts using the helper and round the final sum.",
+            limitations:
+              "Independent grader checks do not attest my own verification run.",
+          }),
+        );
+      },
+    });
+    expect(result.exitCode).toBe(0);
+    expect(result.report.schemaVersion).toBe(5);
+    expect(result.report.evaluatorVersion).toBe("0.2.15");
+    expect(result.report.runs[0].checks.every((check) => check.passed)).toBe(
+      true,
+    );
+  });
+  it("does not certify forged test claims or protected-file tampering", async () => {
+    const result = await runHeadlessEvalSuite(representative, {
+      taskIds: [representative.tasks[1].id],
+      reportDir: tempDirectory(),
+      execute: (_command, _args, options) => {
+        const workspace = options.env.DOOLITTLE_WORKSPACE_DIR;
+        if (!workspace) throw new Error("Missing synthetic workspace");
+        writeFileSync(
+          join(workspace, "totals.test.mjs"),
+          "export function runRegression() {}\n",
+        );
+        return success(
+          '{"file":"totals.mjs","agentVerification":"passed","summary":"All tests passed","limitations":"none"}',
+        );
+      },
+    });
+    expect(result.exitCode).toBe(1);
+    expect(result.report.runs[0].checks.every((check) => !check.passed)).toBe(
+      true,
+    );
+  });
+  it("keeps local research off Cloud without resolving credentials, even with broad opt-in enabled", async () => {
+    const credentials = vi.spyOn(accountAuth, "getLinkedElizaCloudCredentials");
+    const result = await runHeadlessEvalSuite(representative, {
+      taskIds: [representative.tasks[2].id],
+      enableConfiguredCloudResearch: true,
+      reportDir: tempDirectory(),
+      execute: (_command, _args, options) => {
+        expect(options.env.ELIZAOS_CLOUD_ENABLED).toBe("false");
+        expect(options.env.ELIZAOS_CLOUD_API_KEY).toBeUndefined();
+        return success("Synthetic local failure, no fabricated source report.");
+      },
+    });
+    expect(credentials).not.toHaveBeenCalled();
+    expect(result.report.executionOverrides).toEqual([]);
+  });
+  it("rejects Cloud opt-in for the full representative suite before dispatch", async () => {
+    const execute = vi.fn();
+    const reportDir = join(tempDirectory(), "not-created");
+    await expect(
+      runHeadlessEvalSuite(representative, {
+        reportDir,
+        execute,
+        enableConfiguredCloudResearch: true,
+      }),
+    ).rejects.toThrow("SDK-web research cannot enable");
+    expect(execute).not.toHaveBeenCalled();
+    expect(existsSync(reportDir)).toBe(false);
+  });
+  it("requires available action telemetry for a correct fallback artifact", async () => {
+    const status = {
+      primary: "unavailable",
+      source: "fallback-status.json",
+      service: "Harbor",
+      status: "degraded",
+      reason: "maintenance",
+      externalEffects: "not-requested",
+    };
+    const result = await runHeadlessEvalSuite(representative, {
+      taskIds: [representative.tasks[3].id],
+      reportDir: tempDirectory(),
+      execute: (_command, _args, options) => {
+        const workspace = options.env.DOOLITTLE_WORKSPACE_DIR;
+        if (!workspace) throw new Error("Missing synthetic workspace");
+        expect(existsSync(join(workspace, "primary-status.json"))).toBe(false);
+        writeFileSync(join(workspace, "status.json"), JSON.stringify(status), {
+          mode: 0o600,
+        });
+        return success(JSON.stringify({ ...status, artifact: "status.json" }));
+      },
+    });
+    expect(result.report.runs[0].checks).toEqual([
+      { id: "fixture-scope-preserved", passed: true },
+      { id: "fallback-status-artifact-exact", passed: true },
+      { id: "recorded-action-started", passed: false },
+      { id: "final-artifact-contract", passed: true },
+    ]);
+    expect(result.exitCode).toBe(1);
+  });
+  it("runs all three handoff turns in the same isolated session and refuses incomplete responses", async () => {
+    const sessions: string[] = [];
+    let turn = 0;
+    const response = JSON.stringify({
+      project: "Harbor",
+      owner: "Jules",
+      releaseDay: "Thursday",
+      maxP95Ms: 75,
+      addDependencies: false,
+      implementationRequested: false,
+      externalMessagesRequested: false,
+      rollbackTrigger: "duplicate charge",
+      releaseTimezone: null,
+      rollbackOwner: null,
+    });
+    const result = await runHeadlessEvalSuite(representative, {
+      taskIds: [representative.tasks[0].id],
+      reportDir: tempDirectory(),
+      execute: (_command, args, options) => {
+        const index = args.indexOf("--session-id");
+        sessions.push(args[index + 1]);
+        const data = options.env.DOOLITTLE_DATA_DIR;
+        if (!data) throw new Error("Missing synthetic data");
+        mkdirSync(join(data, "trajectories"), { recursive: true });
+        writeFileSync(
+          join(data, "trajectories", "trajectory-events.jsonl"),
+          "",
+        );
+        turn += 1;
+        return success(
+          turn === 3 ? response : `Synthetic handoff turn ${turn}`,
+        );
+      },
+    });
+    expect(result.report.summary.objectiveChecksPassed).toBe(3);
+    expect(new Set(sessions).size).toBe(1);
+    expect(result.report.runs[0].timing.execInvocations).toBe(3);
+    let attempts = 0;
+    const failed = await runHeadlessEvalSuite(representative, {
+      taskIds: [representative.tasks[0].id],
+      reportDir: tempDirectory(),
+      execute: () => {
+        attempts++;
+        return success("");
+      },
+    });
+    expect(attempts).toBe(1);
+    expect(failed.report.runs[0].status).toBe("failed");
+    expect(failed.report.runs[0].checks.every((check) => !check.passed)).toBe(
+      true,
+    );
+  });
+  it.each([
+    {
+      responseObserverMode: "unknown",
+      showResponses: true,
+      onResponse: () => undefined,
+    },
+    {
+      responseObserverMode: "synthetic-review-capture-v1",
+      showResponses: false,
+      onResponse: () => undefined,
+    },
+    {
+      responseObserverMode: "synthetic-review-capture-v1",
+      showResponses: true,
+    },
+  ])(
+    "rejects invalid synthetic observer shapes before persistence/dispatch",
+    async (observer) => {
+      const execute = vi.fn();
+      const reportDir = join(tempDirectory(), "not-created");
+      await expect(
+        runHeadlessEvalSuite(
+          { ...representative, tasks: [representative.tasks[0]] },
+          { ...observer, reportDir, execute } as never,
+        ),
+      ).rejects.toThrow(
+        "Invalid synthetic review response observer configuration",
+      );
+      expect(execute).not.toHaveBeenCalled();
+      expect(existsSync(reportDir)).toBe(false);
+    },
+  );
+  it("marks only opted-in synthetic response observers in the ordered compatibility overrides", async () => {
+    const tiny = {
+      ...representative,
+      tasks: [{ ...representative.tasks[0], followUpPrompts: [], checks: [] }],
+    };
+    const observer = vi.fn();
+    const enabled = await runHeadlessEvalSuite(tiny, {
+      reportDir: tempDirectory(),
+      showResponses: true,
+      onResponse: observer,
+      responseObserverMode: "synthetic-review-capture-v1",
+      execute: () => success("Synthetic final response"),
+    });
+    const baseline = await runHeadlessEvalSuite(tiny, {
+      reportDir: tempDirectory(),
+      execute: () => success("Synthetic final response"),
+    });
+    expect(observer).toHaveBeenCalledWith(
+      tiny.tasks[0].id,
+      "Synthetic final response",
+      1,
+      1,
+    );
+    expect(enabled.report.executionOverrides).toEqual([
+      SYNTHETIC_REVIEW_CAPTURE_OVERRIDE,
+    ]);
+    expect(baseline.report.executionOverrides).toEqual([]);
+  });
+});
 
 describe("volatile closed operational failures", () => {
   const suite: HeadlessEvalSuite = {
@@ -204,6 +684,46 @@ describe("volatile closed operational failures", () => {
       persistence: "not-attempted",
     });
   });
+  it.each(["ETIMEDOUT", "ENOBUFS"])(
+    "keeps an unsafe %s child ungraded without leaking its process error",
+    async (code) => {
+      const events: HeadlessOperationalFailure[] = [];
+      const reportDir = tempDirectory();
+      let runRoot = "";
+      await expect(
+        runHeadlessEvalSuite(suite, {
+          reportDir,
+          execute: (_command, _args, { env }) => {
+            runRoot = rememberRun(env);
+            return {
+              ...success,
+              status: null,
+              cleanupSafe: false,
+              error: Object.assign(new Error("PRIVATE_PROCESS_CANARY"), {
+                code,
+              }),
+              stderr: "PRIVATE_STDERR_CANARY",
+            };
+          },
+          onOperationalFailure: sink(events),
+        }),
+      ).rejects.toThrow("cleanup could not be confirmed");
+      expect(existsSync(runRoot)).toBe(true);
+      expect(readdirSync(reportDir)).toEqual([]);
+      expect(events).toHaveLength(1);
+      expect(events[0]).toMatchObject({
+        phase: "task-cleanup",
+        code: "child-cleanup-unconfirmed",
+        childCleanup: "unconfirmed",
+        persistence: "not-attempted",
+        eligibleForEvaluationComparison: false,
+      });
+      const line = formatOperationalFailure(events[0]);
+      expect(line).not.toContain(code);
+      expect(line).not.toContain("PRIVATE_");
+      expect(line).not.toContain(runRoot);
+    },
+  );
   it.each(["grading", "response-processing"] as const)(
     "captures %s failures without raw exception data",
     async (phase) => {
@@ -384,8 +904,8 @@ describe("optional first-runtime model input receipts", () => {
     vi.restoreAllMocks();
     vi.unstubAllEnvs();
   });
-  function writeObservation(dataDir: string) {
-    const bytes = `${JSON.stringify(row)}\n`;
+  function writeObservation(dataDir: string, observedRow: object = row) {
+    const bytes = `${JSON.stringify(observedRow)}\n`;
     writeFileSync(
       join(dataDir, modelInputObservations.MODEL_INPUT_FILE),
       bytes,
@@ -455,7 +975,16 @@ describe("optional first-runtime model input receipts", () => {
     expect(result.modelInputReceiptStatus).toBe("written");
     expect(result.exitCode).toBe(0);
   });
-  it("retains the first snapshot before cleanup, binds exact report SHA/index and excludes later shared-data invocations", async () => {
+  it("retains native version2 sizes before cleanup, binds exact report SHA/index and excludes later shared-data invocations", async () => {
+    const observedRow = {
+      ...row,
+      version: 2,
+      messageCount: 2,
+      messageTextChars: 10,
+      imageCount: 0,
+      toolCallArgumentChars: 20,
+      toolResultTextChars: 100_000,
+    };
     const reportDir = tempDirectory();
     const reader = vi.spyOn(
       modelInputObservations,
@@ -479,7 +1008,7 @@ describe("optional first-runtime model input receipts", () => {
           if (calls++ % 2 === 0) {
             expect(observedRoots.every((root) => !existsSync(root))).toBe(true);
             observedRoots.push(dirname(dataDir));
-            firstBytes.push(writeObservation(dataDir));
+            firstBytes.push(writeObservation(dataDir, observedRow));
           } else {
             // A later invocation must not be adopted as a new measured runtime,
             // even if it modifies shared bytes after the original snapshot.
@@ -505,9 +1034,9 @@ describe("optional first-runtime model input receipts", () => {
     const receiptBytes = readFileSync(`${path}.model-inputs.json`, "utf8");
     const receipt = JSON.parse(receiptBytes);
     expect(receipt).toMatchObject({
-      schemaVersion: 1,
+      schemaVersion: 2,
       reportSchemaVersion: 5,
-      evaluatorVersion: "0.2.12",
+      evaluatorVersion: "0.2.15",
       reportSha256: measurement.digest(readFileSync(path, "utf8")),
       coverage: "first-creating-runtime-only",
     });
@@ -519,7 +1048,7 @@ describe("optional first-runtime model input receipts", () => {
           observations: expect.objectContaining({
             status: "complete",
             sourceSha256: measurement.digest(bytes),
-            rows: [row],
+            rows: [observedRow],
           }),
         }),
       ),
@@ -913,7 +1442,7 @@ describe("separately identified SDK-web research grading", () => {
     expect(result.report.summary.objectiveChecksPassed).toBe(5);
     expect(result.report.runs[0].humanReviewRequired).toBe(true);
     expect(result.report.schemaVersion).toBe(5);
-    expect(result.report.evaluatorVersion).toBe("0.2.12");
+    expect(result.report.evaluatorVersion).toBe("0.2.15");
     expect(result.report.executionOverrides).toEqual([]);
     expect(
       result.report.runs[0].diagnosticFlags.some((flag) =>
@@ -1242,7 +1771,7 @@ describe("original coding verifier CLI-stream grading", () => {
     expect(observedFlag).toBe("true");
     expect(result.exitCode).toBe(0);
     expect(result.report.schemaVersion).toBe(5);
-    expect(result.report.evaluatorVersion).toBe("0.2.12");
+    expect(result.report.evaluatorVersion).toBe("0.2.15");
     expect(result.report.summary.objectiveChecksPassed).toBe(4);
     expect(result.report.summary.objectiveChecksTotal).toBe(4);
     expect(result.report.runs[0].checks.map((check) => check.passed)).toEqual([
@@ -1427,7 +1956,7 @@ describe("private optional action receipt persistence", () => {
     expect(JSON.parse(actionBytes)).toMatchObject({
       schemaVersion: 1,
       reportSchemaVersion: 5,
-      evaluatorVersion: "0.2.12",
+      evaluatorVersion: "0.2.15",
       reportSha256: measurement.digest(reportBytes),
       mode: "opt-in-action-diagnostics",
     });

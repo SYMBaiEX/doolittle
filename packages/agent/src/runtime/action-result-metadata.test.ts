@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildActionResultData,
   buildCodingIterationFromActionResults,
   extractLocalMutationFromActionResult,
   extractLocalMutationsFromActionResult,
@@ -108,6 +109,135 @@ describe("action result metadata helpers", () => {
     expect(
       extractVerifiedLocalMutationFromActionResult(actionResult),
     ).toBeUndefined();
+  });
+
+  describe("successful local mutation receipt boundary", () => {
+    function receipt(action = "WRITE_FILE", type: "write" | "edit" = "write") {
+      return {
+        success: true,
+        data: buildActionResultData(
+          {
+            mutation: {
+              action,
+              requestedPath: "artifact.json",
+              resolvedPath: "/workspace/artifact.json",
+              success: true,
+            },
+            fileOperation: { type, target: "artifact.json" },
+          },
+          { actionName: action },
+        ),
+      };
+    }
+
+    it.each([
+      ["WRITE_FILE", "write"],
+      ["PATCH_FILE", "edit"],
+      ["CREATE_DIRECTORY", "write"],
+      ["TASKS_SPAWN_AGENT", "write"],
+    ] as const)("preserves supported %s / %s receipts", (action, type) => {
+      const result = receipt(action, type);
+      const mutation = extractVerifiedLocalMutationFromActionResult(result);
+      expect(mutation).toMatchObject({ action, success: true });
+      expect(extractLocalMutationsFromActionResult(result)).toEqual([mutation]);
+    });
+
+    it.each(["actionName", "mutationAction", "fileOperation"])(
+      "preserves a full mutation envelope without optional %s",
+      (field) => {
+        const result = receipt();
+        delete result.data[field];
+        expect(
+          extractVerifiedLocalMutationFromActionResult(result),
+        ).toMatchObject({
+          action: "WRITE_FILE",
+          success: true,
+        });
+        expect(extractLocalMutationsFromActionResult(result)).toHaveLength(1);
+      },
+    );
+
+    it.each(["action", "success"])(
+      "preserves the existing legacy %s fallback when all identities agree",
+      (field) => {
+        const result = receipt();
+        delete (result.data.mutation as Record<string, unknown>)[field];
+        expect(
+          extractVerifiedLocalMutationFromActionResult(result),
+        ).toMatchObject({
+          action: "WRITE_FILE",
+          success: true,
+        });
+        expect(extractLocalMutationsFromActionResult(result)).toHaveLength(1);
+      },
+    );
+
+    it.each([
+      ["outer read identity", { actionName: "READ_FILE" }],
+      ["outer different mutation", { actionName: "PATCH_FILE" }],
+      ["receipt read identity", { mutationAction: "READ_FILE" }],
+      ["receipt different mutation", { mutationAction: "CREATE_DIRECTORY" }],
+      ["malformed outer identity", { actionName: 17 }],
+      ["malformed receipt identity", { mutationAction: null }],
+      [
+        "read operation",
+        { fileOperation: { type: "read", target: "artifact.json" } },
+      ],
+      [
+        "different write operation",
+        { fileOperation: { type: "edit", target: "artifact.json" } },
+      ],
+      ["malformed operation", { fileOperation: null }],
+    ])("rejects a successful receipt with %s", (_label, extra) => {
+      const result = receipt();
+      Object.assign(result.data, extra);
+      expect(extractLocalMutationFromActionResult(result)).toBeUndefined();
+      expect(
+        extractVerifiedLocalMutationFromActionResult(result),
+      ).toBeUndefined();
+      expect(extractLocalMutationsFromActionResult(result)).toEqual([]);
+    });
+
+    it.each(["READ_FILE", "SEARCH_FILES", "SHELL", "UNKNOWN_MUTATION"])(
+      "rejects internally consistent non-receipt action %s",
+      (action) => {
+        const result = receipt(action);
+        expect(extractLocalMutationFromActionResult(result)).toBeUndefined();
+        expect(
+          extractVerifiedLocalMutationFromActionResult(result),
+        ).toBeUndefined();
+        expect(extractLocalMutationsFromActionResult(result)).toEqual([]);
+      },
+    );
+
+    it.each([
+      ["read action", "action", "READ_FILE"],
+      ["different mutation action", "action", "PATCH_FILE"],
+      ["malformed action", "action", null],
+      ["non-boolean success", "success", "true"],
+    ])("rejects a mutation with %s", (_label, field, value) => {
+      const result = receipt();
+      (result.data.mutation as Record<string, unknown>)[field] = value;
+      expect(extractLocalMutationFromActionResult(result)).toBeUndefined();
+      expect(
+        extractVerifiedLocalMutationFromActionResult(result),
+      ).toBeUndefined();
+      expect(extractLocalMutationsFromActionResult(result)).toEqual([]);
+    });
+
+    it("retains failed mutation observations without promoting completion", () => {
+      const result = receipt();
+      (result.data.mutation as Record<string, unknown>).success = false;
+      result.data.actionName = "READ_FILE";
+      expect(extractLocalMutationFromActionResult(result)).toMatchObject({
+        action: "WRITE_FILE",
+        success: false,
+      });
+      expect(extractLocalMutationsFromActionResult(result)).toHaveLength(1);
+      expect(
+        extractVerifiedLocalMutationFromActionResult(result),
+      ).toBeUndefined();
+    });
   });
 
   it("projects every fingerprint-verified delegated file into the run receipt", () => {
