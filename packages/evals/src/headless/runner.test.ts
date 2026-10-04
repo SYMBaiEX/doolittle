@@ -118,6 +118,106 @@ describe("representative v2 explicit handoff literals", () => {
   });
 });
 
+describe("representative v3 explicit reconciliation literals", () => {
+  const v2 = HEADLESS_EVAL_SUITES["headless-representative-v2"];
+  const v3 = HEADLESS_EVAL_SUITES["headless-representative-v3"];
+  const artifact = {
+    capacity: 40,
+    launchRequiresSafetyReview: true,
+    pilotStartDate: null,
+    authority: "launch-policy.md",
+    authorityDate: "2026-09-12",
+    conflictingSource: "planning-note.md",
+    conflictingDate: "2026-10-01",
+    citations: [
+      { file: "launch-policy.md", quote: "Pilot capacity is 40 accounts." },
+      {
+        file: "launch-policy.md",
+        quote: "Pilot runs stay disabled until safety review approves.",
+      },
+      {
+        file: "planning-note.md",
+        quote: "We propose 80 pilot accounts and launch before safety review.",
+      },
+    ],
+    unavailableFact: "pilot start date",
+  };
+  const grade = (value: unknown, finalValue = value) => {
+    const workspaceDir = tempDirectory();
+    const fixture = fixtures.prepareHeadlessFixture(
+      "local-reconciliation-v1",
+      workspaceDir,
+    );
+    writeFileSync(
+      join(workspaceDir, "reconciliation.json"),
+      JSON.stringify(value),
+      { mode: 0o600 },
+    );
+    const response = JSON.stringify({
+      ...(finalValue as Record<string, unknown>),
+      readProof: "UNATTESTED",
+    });
+    return v3.tasks[2].checks.map((check) =>
+      check.evaluate({
+        workspaceDir,
+        fixture,
+        response,
+        responses: [response],
+        actionStarts: null,
+      }),
+    );
+  };
+  it("preserves the v2 research prompt and all prior task identities while replacing only the research task", () => {
+    expect(v2.tasks[2].id).toBe("research-local-reconciliation-v1");
+    expect(v2.tasks[2]).toBe(
+      HEADLESS_EVAL_SUITES["headless-representative-v1"].tasks[2],
+    );
+    expect(v2.tasks[2].prompt).toBe(
+      'This is synthetic local research, not /research, Cloud research, or a web request. Reconcile launch-policy.md (approved policy) with planning-note.md (newer nonbinding proposal). Authority overrides recency; explicitly expose their conflicting capacities and launch requirements. Do not modify sources or identity files, use external tools, or invent the unavailable pilot start date. Create only reconciliation.json as a private owner-only regular file (permissions 0600), a strict JSON object with keys capacity (number), launchRequiresSafetyReview (boolean), pilotStartDate (string or null), authority (file name), authorityDate (ISO date), conflictingSource (file name), conflictingDate (ISO date), citations (three objects in this order: approved capacity, approved review requirement, conflicting proposal; each has file and exact quote), unavailableFact (string naming the unavailable fact). The artifact contract is graded, not original read-action proof. Final reply must be the same complete reconciliation object plus the key readProof="UNATTESTED", with no markdown or extra keys, so human review can inspect the claims, citations, and uncertainty.',
+    );
+    expect(v3.id).toBe("headless-representative");
+    expect(v3.version).toBe(3);
+    expect(v3.tasks).toHaveLength(5);
+    expect(v3.tasks[2]).not.toBe(v2.tasks[2]);
+    expect(v3.tasks[2].checks).toBe(v2.tasks[2].checks);
+    for (const index of [0, 1, 3, 4])
+      expect(v3.tasks[index]).toBe(v2.tasks[index]);
+    expect(v3.tasks.every((task) => task.humanReviewRequired)).toBe(true);
+    expect(v3.tasks.reduce((sum, task) => sum + task.checks.length, 0)).toBe(
+      18,
+    );
+    expect(
+      v3.tasks.reduce(
+        (sum, task) => sum + 1 + (task.followUpPrompts?.length ?? 0),
+        0,
+      ),
+    ).toBe(7);
+  });
+  it("demands exact null and string literals for artifact and reply and accepts their strict contents", () => {
+    expect(v3.tasks[2].id).toBe("research-local-reconciliation-v2");
+    expect(v3.tasks[2].prompt).toBe(
+      `${v2.tasks[2].prompt} In both the artifact and final reply, use the exact JSON literals pilotStartDate=null and unavailableFact="pilot start date".`,
+    );
+    expect(grade(artifact)).toEqual([true, true, true]);
+  });
+  it.each([
+    ["pilotStartDate", "2026-10-01"],
+    ["unavailableFact", "pilot launch date"],
+    ["authority", "planning-note.md"],
+    ["conflictingSource", "launch-policy.md"],
+    ["capacity", 80],
+    ["launchRequiresSafetyReview", false],
+  ])(
+    "rejects a materially incorrect %s in the artifact or final reply",
+    (key, value) => {
+      const incorrect = { ...artifact, [key]: value };
+      expect(grade(incorrect)).toEqual([true, false, false]);
+      expect(grade(artifact, incorrect)).toEqual([true, true, false]);
+      expect(grade(incorrect, artifact)).toEqual([true, false, false]);
+    },
+  );
+});
+
 describe("representative fixture runner setup and preflight", () => {
   const representative = HEADLESS_EVAL_SUITES["headless-representative-v1"];
   const success = (text: string) => ({
@@ -217,7 +317,7 @@ describe("representative fixture runner setup and preflight", () => {
     });
     expect(result.exitCode).toBe(0);
     expect(result.report.schemaVersion).toBe(5);
-    expect(result.report.evaluatorVersion).toBe("0.2.14");
+    expect(result.report.evaluatorVersion).toBe("0.2.15");
     expect(result.report.runs[0].checks.every((check) => check.passed)).toBe(
       true,
     );
@@ -585,7 +685,7 @@ describe("optional first-runtime model input receipts", () => {
     expect(receipt).toMatchObject({
       schemaVersion: 1,
       reportSchemaVersion: 5,
-      evaluatorVersion: "0.2.14",
+      evaluatorVersion: "0.2.15",
       reportSha256: measurement.digest(readFileSync(path, "utf8")),
       coverage: "first-creating-runtime-only",
     });
@@ -991,7 +1091,7 @@ describe("separately identified SDK-web research grading", () => {
     expect(result.report.summary.objectiveChecksPassed).toBe(5);
     expect(result.report.runs[0].humanReviewRequired).toBe(true);
     expect(result.report.schemaVersion).toBe(5);
-    expect(result.report.evaluatorVersion).toBe("0.2.14");
+    expect(result.report.evaluatorVersion).toBe("0.2.15");
     expect(result.report.executionOverrides).toEqual([]);
     expect(
       result.report.runs[0].diagnosticFlags.some((flag) =>
@@ -1320,7 +1420,7 @@ describe("original coding verifier CLI-stream grading", () => {
     expect(observedFlag).toBe("true");
     expect(result.exitCode).toBe(0);
     expect(result.report.schemaVersion).toBe(5);
-    expect(result.report.evaluatorVersion).toBe("0.2.14");
+    expect(result.report.evaluatorVersion).toBe("0.2.15");
     expect(result.report.summary.objectiveChecksPassed).toBe(4);
     expect(result.report.summary.objectiveChecksTotal).toBe(4);
     expect(result.report.runs[0].checks.map((check) => check.passed)).toEqual([
@@ -1505,7 +1605,7 @@ describe("private optional action receipt persistence", () => {
     expect(JSON.parse(actionBytes)).toMatchObject({
       schemaVersion: 1,
       reportSchemaVersion: 5,
-      evaluatorVersion: "0.2.14",
+      evaluatorVersion: "0.2.15",
       reportSha256: measurement.digest(reportBytes),
       mode: "opt-in-action-diagnostics",
     });

@@ -750,6 +750,22 @@ HEADLESS_EVAL_SUITES["headless-representative-v2"] = {
   ],
 };
 
+const representativeV2 = HEADLESS_EVAL_SUITES["headless-representative-v2"];
+const reconciliationV1 = representativeV2.tasks[2];
+HEADLESS_EVAL_SUITES["headless-representative-v3"] = {
+  ...representativeV2,
+  version: 3,
+  tasks: representativeV2.tasks.map((task, index) =>
+    index === 2
+      ? {
+          ...reconciliationV1,
+          id: "research-local-reconciliation-v2",
+          prompt: `${reconciliationV1.prompt} In both the artifact and final reply, use the exact JSON literals pilotStartDate=null and unavailableFact="pilot start date".`,
+        }
+      : task,
+  ),
+};
+
 export function findHeadlessEvalSuite(
   suiteId: string,
 ): HeadlessEvalSuite | undefined {

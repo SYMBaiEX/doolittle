@@ -85,8 +85,8 @@ report schemas. A sidecar is not an automatic score or a quality conclusion.
 
 ### Representative baseline
 
-`headless-representative-v2` is a separate suite (canonical ID
-`headless-representative`, version 2), not a rewrite of the historical workflow
+`headless-representative-v3` is a separate suite (canonical ID
+`headless-representative`, version 3), not a rewrite of the historical workflow
 suites. It broadens coverage to project continuity over three turns, a seeded
 multi-file regression repair, conflicting local research sources, a contained
 fallback artifact, and the unchanged original SDK web-source task. Every task
@@ -101,13 +101,13 @@ follow-up turns; report actual invocation counts separately:
 | --- | --- | --- |
 | `conversation-project-handoff-v2` | 3 | `complete-three-turn-exchange`, `retains-constraints-and-corrected-facts`, `no-recorded-actions` |
 | `coding-seeded-invoice-regression-v1` | 1 | `fixture-scope-preserved`, `preserved-regression-passes`, `final-contract-unattested` |
-| `research-local-reconciliation-v1` | 1 | `fixture-scope-preserved`, `reconciliation-artifact-exact`, `final-contract-unattested` |
+| `research-local-reconciliation-v2` | 1 | `fixture-scope-preserved`, `reconciliation-artifact-exact`, `final-contract-unattested` |
 | `reliability-local-fallback-v1` | 1 | `fixture-scope-preserved`, `fallback-status-artifact-exact`, `recorded-action-started`, `final-artifact-contract` |
 | `research-codex-web-search-options-v1` | 1 | `original-search-returned-data`, `original-primary-source-retrieved`, `literal-answer-agrees-with-retrieval`, `citation-agrees-with-retrieval`, `original-execution-integrity` |
 
 ```sh
-nub run eval:headless -- --suite headless-representative-v2
-nub run eval:headless -- --suite headless-representative-v2 \
+nub run eval:headless -- --suite headless-representative-v3
+nub run eval:headless -- --suite headless-representative-v3 \
   --task coding-seeded-invoice-regression-v1
 ```
 
@@ -146,6 +146,15 @@ benchmark contract, not a demonstrated agent-quality defect. Version 2 specifies
 the exact literals and keeps strict grading; the other four tasks are reused
 unchanged. Do not pool v1 and v2, or retroactively rescore captured v1 answers.
 
+The full-cohort preflight found the analogous local-research ambiguity before
+launch: its v1 task allowed an unknown date as a string or null and any phrase
+naming the unavailable fact, while the strict oracle required `null` and
+`"pilot start date"`. Version 3 adds `research-local-reconciliation-v2` with
+those literal constraints explicit in both artifact and reply. Its checks
+remain strict; the other four v2 task objects and both earlier suites remain
+unchanged. No v1 research grade is retrospectively changed. A new source-frozen
+cohort is required; do not pool across suite or task versions.
+
 The two conversation pilots took 17.6s and 19.8s launcher wall time for three
 turns each. Provider-reported totals were 9,157 and 9,159 tokens; USD cost and
 effective/worker routes were unavailable. These are descriptive baseline
@@ -153,9 +162,9 @@ observations, not a speed, overhead, billing or quality improvement. The short
 blinded final-response review is awaiting actual human ratings; complete
 trajectory review and the full five-task live cohort remain pending.
 
-Evaluator 0.2.14 requires a new source-frozen baseline; do not compare or pool it
-with 0.2.13 or earlier reports. Freeze source and executable identities before
-dispatch, predeclare repetitions and limits, and retain failures. No v2 live
+Evaluator 0.2.15 requires a new source-frozen baseline; do not compare or pool it
+with 0.2.14 or earlier reports. Freeze source and executable identities before
+dispatch, predeclare repetitions and limits, and retain failures. No v3 live
 runs or human ratings are established by adding the suite or by green unit/UI
 tests. Quality, cost and speed improvements require compatible paired repeats
 and the corresponding human and measurement evidence. See the checklist's
@@ -165,7 +174,7 @@ including the limits of short blinded final-response-only review.
 ### Optional synthetic final-response capture
 
 ```sh
-nub run eval:headless -- --suite headless-representative-v2 \
+nub run eval:headless -- --suite headless-representative-v3 \
   --capture-synthetic-responses --report-dir /private/eval-evidence
 ```
 

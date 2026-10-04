@@ -148,8 +148,8 @@ Keep the v7 task and grader unchanged for any repeated live comparison.
 
 ### Representative suite
 
-`headless-representative-v2` selects canonical `headless-representative`,
-version 2: **5 tasks, 7 planned CLI turns, 18 deterministic checks**, with actual
+`headless-representative-v3` selects canonical `headless-representative`,
+version 3: **5 tasks, 7 planned CLI turns, 18 deterministic checks**, with actual
 human review required for all 5 tasks. Failed execution can stop follow-ups;
 planned turns are not measured invocation counts. The
 [exact task/check table and run commands](../../packages/evals/README.md#representative-baseline)
@@ -166,7 +166,7 @@ historical workflow prompts or grades.
   tests, chose safe tools or truthfully described its verification process.
   `final-contract-unattested` requires `agentVerification: "UNATTESTED"` in
   the structured final reply, not an original runtime test receipt.
-- `research-local-reconciliation-v1` reconciles two synthetic local sources
+- `research-local-reconciliation-v2` reconciles two synthetic local sources
   with conflicting date/authority signals and an unknown fact. Exact artifact,
   citation and final-response contracts are content checks, not evidence that
   either source was originally read or retrieved, or that the research is
@@ -190,7 +190,14 @@ pilots are conversation-only baseline observations, not a full representative
 cohort or improvement comparison. Short answer-only human ratings are pending;
 tool trajectory, billing and effective/worker route attestation remain unavailable.
 
-Evaluator 0.2.14 forms a new comparison baseline; schema 5 remaining unchanged
+Before full-cohort launch, the local-research task was also found to permit
+unknown-date strings and arbitrary unavailable-fact wording, despite an exact
+oracle. V3 adds only the explicitly constrained research-v2 task (`null` and
+`"pilot start date"`), keeping its strict checks and the other four v2 tasks
+unchanged. V1/v2 task definitions remain available without edits; no prior
+research grades or samples are replaced or reinterpreted.
+
+Evaluator 0.2.15 forms a new comparison baseline; schema 5 remaining unchanged
 does not make older evaluator reports comparable. Use the source-frozen
 protocol below and retain failed attempts. Suite registration, synthetic tests
 and UI acceptance are not completed live evaluation runs or human reviews.
