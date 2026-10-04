@@ -1,6 +1,6 @@
 import { join } from "node:path";
 
-import { bindPluginStorage } from "@doolittle/contracts";
+import { type BotDefinition, bindPluginStorage } from "@doolittle/contracts";
 import { memoryAction } from "@elizaos/agent/actions/memories";
 import { triggerAction } from "@elizaos/agent/actions/trigger";
 import { webFetch } from "@elizaos/agent/runtime/actions/web-fetch";
@@ -69,8 +69,9 @@ function withToolPolicyOwnership(actions: Action[]): Action[] {
 export function createDoolittleProductPlugin(
   services: AppServices,
   config: EnvConfig,
+  workerBot?: BotDefinition | null,
 ): Plugin {
-  const actions = withToolPolicyOwnership([
+  const availableActions = withToolPolicyOwnership([
     createCodingAction(),
     createAppServerAction(services),
     createBrowserAnalysisAction(services),
@@ -88,6 +89,14 @@ export function createDoolittleProductPlugin(
     createResearchAction(),
     ...createMediaActions(services),
   ]);
+  const actions = workerBot
+    ? availableActions.filter(
+        (action) =>
+          workerBot.permissions.allowMutation &&
+          workerBot.permissions.toolIds.includes(action.name) &&
+          action !== triggerAction,
+      )
+    : availableActions;
   const providers: Provider[] = [
     ...getSessionProviders(),
     ...createAgentContextProviders(services),
@@ -134,15 +143,23 @@ export function createDoolittleProductPlugin(
       services: [
         createMemoryStorageService(services.sessions, config.dataDir),
         createAwarenessRuntimeService(services),
-        createBrowserRuntimeService(services),
-        gateway,
-        createMcpRuntimeService(services),
-        createSchedulerRuntimeService(services),
+        ...(workerBot
+          ? []
+          : [
+              createBrowserRuntimeService(services),
+              gateway,
+              createMcpRuntimeService(services),
+              createSchedulerRuntimeService(services),
+            ]),
         createShellRuntimeService(services),
         createRunProgressRuntimeService(services),
         createSdkCapabilitiesRuntimeService(),
-        createSecretsVaultPersistenceService(secretsVaultStorage.rootDir),
-        ...triggerRuntimeServices,
+        ...(workerBot
+          ? []
+          : [
+              createSecretsVaultPersistenceService(secretsVaultStorage.rootDir),
+              ...triggerRuntimeServices,
+            ]),
       ],
     },
     config,

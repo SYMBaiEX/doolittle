@@ -20,6 +20,7 @@ import { getNativeServices } from "@/runtime/native/service-bridge/runtime";
 import { getRuntimeToolProjection } from "@/runtime/native/service-bridge/service-resolution";
 import type { AppServices } from "@/services";
 import { createAcpProtocolHost } from "@/services/acp/host";
+import { readWorkerBotProfile } from "./bot-profile";
 
 type RuntimeBindableServices = AppServices & {
   __bindRuntime?: (nextRuntime: AgentRuntime) => void;
@@ -39,14 +40,18 @@ export async function configureBootstrapContext({
   services.nativeOwnership.attachRuntime(runtime, services);
   (services as RuntimeBindableServices).__bindRuntime?.(runtime);
 
-  const schedulerService = requireRuntimeService<{
-    startScheduler(): Promise<void>;
-  }>(runtime, DOOLITTLE_SCHEDULER_SERVICE, ["startScheduler"]);
+  const workerBot = readWorkerBotProfile();
+
+  const schedulerService = workerBot
+    ? null
+    : requireRuntimeService<{
+        startScheduler(): Promise<void>;
+      }>(runtime, DOOLITTLE_SCHEDULER_SERVICE, ["startScheduler"]);
   const gateway = createGatewayAccessor({
     services,
     runtime,
   });
-  const ensureDeferredHydration = createDeferredHydrator({
+  const hostDeferredHydration = createDeferredHydrator({
     services,
     loadDeferredPlugins,
     registerPlugin: async (plugin) => {
@@ -62,7 +67,7 @@ export async function configureBootstrapContext({
       gateway.get();
     },
     startScheduler: async () => {
-      await schedulerService.startScheduler();
+      await schedulerService?.startScheduler();
     },
     warmSupportServices: () => {
       services.diagnostics;
@@ -71,6 +76,9 @@ export async function configureBootstrapContext({
       services.skills;
     },
   });
+  const ensureDeferredHydration = workerBot
+    ? async () => undefined
+    : hostDeferredHydration;
   gateway.setDeferredHydration(ensureDeferredHydration);
 
   services.startupState.markReady("runtime", "runtime ready");
@@ -83,10 +91,12 @@ export async function configureBootstrapContext({
     },
     ensureDeferredHydration,
   } as BootstrapContext;
-  services.acp.bindProtocolHost(createAcpProtocolHost(context));
-  services.acp.bindRuntimeTools(() =>
-    getRuntimeToolProjection(runtime).tools.filter((tool) => tool.enabled),
-  );
+  if (!workerBot) {
+    services.acp.bindProtocolHost(createAcpProtocolHost(context));
+    services.acp.bindRuntimeTools(() =>
+      getRuntimeToolProjection(runtime).tools.filter((tool) => tool.enabled),
+    );
+  }
 
   if (eagerDeferredHydration) {
     appendBootstrapTrace("phase:deferredHydration:start");

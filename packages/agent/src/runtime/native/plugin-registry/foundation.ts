@@ -61,14 +61,14 @@ const MediaGenerationServiceClass =
  * classes keeps Doolittle on SDK primitives without copying, wrapping, or
  * introducing those desktop/API-incompatible aggregate-plugin side effects.
  */
-export function loadFoundationPlugins(): Plugin[] {
+export function loadFoundationPlugins(worker = false): Plugin[] {
   return [
     {
       name: "doolittle-eliza-foundation",
       description:
         "Official ElizaOS knowledge, hooks, approval, policy, plugin-management, and autonomy capabilities.",
-      actions: autonomyCapabilities.actions,
-      providers: autonomyCapabilities.providers,
+      actions: worker ? [] : autonomyCapabilities.actions,
+      providers: worker ? [] : autonomyCapabilities.providers,
       schema: knowledgeGraphSchema,
       services: [
         AgentEventService,
@@ -79,16 +79,16 @@ export function loadFoundationPlugins(): Plugin[] {
         GlobalPauseServiceClass,
         HandoffServiceClass,
         ApprovalService,
-        PairingServiceClass,
+        ...(worker ? [] : [PairingServiceClass]),
         ToolPolicyService,
         PluginManagerService,
         CharacterPersistenceServiceClass,
         LocalFileStorageServiceClass,
         MediaGenerationServiceClass,
-        ...autonomyCapabilities.services,
+        ...(worker ? [] : autonomyCapabilities.services),
       ],
-      routes: autonomyRoutes,
+      routes: worker ? [] : autonomyRoutes,
     },
-    browserPlugin,
+    ...(worker ? [] : [browserPlugin]),
   ];
 }

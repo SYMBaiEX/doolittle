@@ -22,6 +22,7 @@ import {
   findRepoRoot,
   sourceRuntimeTarget,
 } from "./backend";
+import { BotProcessRegistry } from "./bot-process-registry";
 import { isActiveManagedRenderUrl } from "./browser-render-targets";
 import {
   type BrowserRenderBridge,
@@ -69,6 +70,7 @@ import {
 
 let mainWindow: BrowserWindow | null = null;
 let backend: BackendManager | null = null;
+let bots: BotProcessRegistry | null = null;
 let browserRenderBridge: BrowserRenderBridge | null = null;
 let workspaceState: WorkspaceStateManager | null = null;
 let workspacePickInFlight: Promise<WorkspacePickResult> | null = null;
@@ -708,6 +710,12 @@ if (ownsSingleInstance)
       runtimeDataDir,
       workspaceState.getState().currentPath || fallbackWorkspace,
     );
+    bots = new BotProcessRegistry(
+      target,
+      runtimeDataDir,
+      backend,
+      workspaceState.getState().currentPath || fallbackWorkspace,
+    );
     // Start the bundled Eliza runtime as soon as its immutable launch inputs
     // are ready. Window construction, menus, tray wiring, and IPC registration
     // do not depend on the listener, so let that UI work overlap the backend's
@@ -729,6 +737,7 @@ if (ownsSingleInstance)
     disposeIpc = registerIpc({
       ipcMain,
       backend,
+      bots,
       getMainWindow: () => mainWindow,
       pickFiles,
       workspace: {
@@ -779,7 +788,7 @@ app.on("before-quit", (event) => {
   quitting = true;
   tray?.destroy();
   tray = null;
-  void backend.stop().finally(async () => {
+  void Promise.all([backend.stop(), bots?.stopAll()]).finally(async () => {
     try {
       await browserRenderBridge?.dispose();
     } finally {

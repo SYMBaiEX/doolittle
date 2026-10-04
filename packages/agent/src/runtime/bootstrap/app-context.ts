@@ -1,4 +1,4 @@
-import { AgentRuntime } from "@elizaos/core";
+import { AgentRuntime, type UUID } from "@elizaos/core";
 import character from "@/character";
 import { configureBootstrapContext } from "@/runtime/bootstrap/context";
 import {
@@ -21,14 +21,33 @@ import {
 } from "@/runtime/native/account-pool";
 import { buildNativePluginAssembly } from "@/runtime/native/plugin-registry";
 import { createServices } from "@/services";
+import { readWorkerBotProfile } from "./bot-profile";
 
 export async function buildAppContext({
   startupMode,
   eagerDeferredHydration,
 }: AppContextBuildOptions): Promise<AppContext> {
   const config = loadBootstrapConfig();
+  const workerBot = readWorkerBotProfile();
+  if (workerBot && config.agentName !== workerBot.name) {
+    throw new Error("The named bot identity does not match its runtime name.");
+  }
   appendBootstrapTrace("phase:createServices:start");
   const services = createServices(config);
+  if (workerBot) {
+    services.settings.setMany([
+      { path: "model.provider", value: workerBot.model.provider },
+      { path: "model.model", value: workerBot.model.model },
+      ...(workerBot.model.reasoningEffort
+        ? [
+            {
+              path: "model.reasoningEffort",
+              value: workerBot.model.reasoningEffort,
+            },
+          ]
+        : []),
+    ]);
+  }
   appendBootstrapTrace("phase:createServices:done");
   services.startupState.markWarming("runtime", "initializing core runtime");
   services.startupState.markDeferred(
@@ -40,18 +59,21 @@ export async function buildAppContext({
     "will hydrate after the shell is interactive",
   );
   const runtimeSettings = services.settings.get();
-  initializeDoolittleAccountPool(config.dataDir);
-  // Materialize any SDK-owned direct API account before provider assembly so
-  // auto-enable sees the native credential and registers the official plugin.
-  await applyAccountPoolApiCredentials({
-    activeBackend: runtimeSettings.model.provider,
-  });
+  if (!workerBot) {
+    initializeDoolittleAccountPool(config.dataDir);
+    // The lead alone owns account selection, refresh, and the credential
+    // catalog. Workers receive one approved provider grant from their host.
+    await applyAccountPoolApiCredentials({
+      activeBackend: runtimeSettings.model.provider,
+    });
+  }
   appendBootstrapTrace("phase:buildNativePluginAssembly:start");
   const nativePluginAssembly = await buildNativePluginAssembly(
     services,
     config,
     {
       hotOnly: !eagerDeferredHydration,
+      workerBot,
     },
   );
   appendBootstrapTrace(
@@ -67,9 +89,9 @@ export async function buildAppContext({
       return nativePluginAssembly.deferred;
     }
     if (!deferredPluginsPromise) {
-      const attempt = buildNativePluginAssembly(services, config).then(
-        (assembly) => assembly.deferred,
-      );
+      const attempt = buildNativePluginAssembly(services, config, {
+        workerBot,
+      }).then((assembly) => assembly.deferred);
       const retryableAttempt = attempt.catch((error) => {
         if (deferredPluginsPromise === retryableAttempt) {
           deferredPluginsPromise = undefined;
@@ -85,7 +107,13 @@ export async function buildAppContext({
     new AgentRuntime({
       character: {
         ...character,
+        ...(workerBot ? { id: workerBot.agentId as UUID } : {}),
         name: config.agentName,
+        ...(workerBot
+          ? {
+              system: `${character.system ?? ""}\n\nNamed bot persona: ${workerBot.persona}`,
+            }
+          : {}),
         advancedMemory: true,
         advancedPlanning: true,
         templates: {

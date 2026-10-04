@@ -146,8 +146,12 @@ const bridge: DoolittleDesktopBridge = {
     ),
   requestAgent: (request: AgentTransportRequest) =>
     ipcRenderer.invoke(desktopIpcChannels.invoke.agentRequest, request),
-  cancelAgentRequest: (requestId: string) =>
-    ipcRenderer.invoke(desktopIpcChannels.invoke.agentRequestCancel, requestId),
+  cancelAgentRequest: (requestId: string, botId?: string) =>
+    ipcRenderer.invoke(
+      desktopIpcChannels.invoke.agentRequestCancel,
+      requestId,
+      botId,
+    ),
   runCommand: (request: DesktopCommandRequest) =>
     ipcRenderer.invoke(desktopIpcChannels.invoke.terminalRunConfirmed, request),
   startTerminalRun: (request: TerminalStreamRequest) =>
@@ -213,8 +217,8 @@ const bridge: DoolittleDesktopBridge = {
     ipcRenderer.invoke(desktopIpcChannels.invoke.chatStart, request),
   subscribeChat: (request: ChatRunSubscription) =>
     ipcRenderer.invoke(desktopIpcChannels.invoke.chatSubscribe, request),
-  cancelChat: (requestId: string) =>
-    ipcRenderer.invoke(desktopIpcChannels.invoke.chatCancel, requestId),
+  cancelChat: (requestId: string, botId?: string) =>
+    ipcRenderer.invoke(desktopIpcChannels.invoke.chatCancel, requestId, botId),
   onChatEvent: (listener) =>
     subscribeToDesktopEvent<ChatEvent>(
       desktopIpcChannels.event.chatEvent,

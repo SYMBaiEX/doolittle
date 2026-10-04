@@ -62,6 +62,14 @@ export function loadLocalRuntimeEnv(): void {
 
   mkdirSync(process.env.PGLITE_DATA_DIR, { recursive: true });
 
+  if (process.env.DOOLITTLE_BOT_RUNTIME === "worker") {
+    // A worker must not inspect the repository .env, and may never attach to
+    // an operator's external Postgres connection through an inherited URL.
+    delete process.env.DATABASE_URL;
+    delete process.env.POSTGRES_URL;
+    return;
+  }
+
   const envFile = resolve(root, ".env");
   if (existsSync(envFile)) {
     try {

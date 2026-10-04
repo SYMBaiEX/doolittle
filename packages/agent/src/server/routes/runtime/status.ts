@@ -1,4 +1,5 @@
 import type { AppContext } from "@/runtime/bootstrap";
+import { readWorkerBotProfile } from "@/runtime/bootstrap/bot-profile";
 import {
   getCommandCatalogEntries,
   normalizeSlashCommandSyntax,
@@ -16,6 +17,15 @@ export async function handleRuntimeStatusRoutes(
   request: Request,
   url: URL,
 ): Promise<Response | null> {
+  if (request.method === "GET" && url.pathname === "/runtime/bot-identity") {
+    const workerBot = readWorkerBotProfile();
+    return json({
+      botId: workerBot?.id ?? context.runtime.agentId,
+      agentId: context.runtime.agentId,
+      name: context.config.agentName,
+      isDefault: !workerBot,
+    });
+  }
   if (request.method === "GET" && url.pathname === "/commands/catalog") {
     return json({
       commands: getCommandCatalogEntries(context.config.workspaceDir).map(

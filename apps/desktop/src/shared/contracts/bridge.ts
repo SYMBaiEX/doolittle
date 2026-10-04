@@ -95,7 +95,7 @@ export interface DoolittleDesktopBridge {
     provider: ProviderAuthProvider,
   ): Promise<ProviderAuthState>;
   requestAgent(request: AgentTransportRequest): Promise<AgentTransportResponse>;
-  cancelAgentRequest(requestId: string): Promise<void>;
+  cancelAgentRequest(requestId: string, botId?: string): Promise<void>;
   runCommand(request: DesktopCommandRequest): Promise<DesktopCommandResult>;
   startTerminalRun(request: TerminalStreamRequest): Promise<void>;
   cancelTerminalRun(requestId: string): Promise<void>;
@@ -136,6 +136,6 @@ export interface DoolittleDesktopBridge {
   ): Promise<RepositoryMutationDesktopResult>;
   startChat(request: ChatRequest): Promise<void>;
   subscribeChat(request: ChatRunSubscription): Promise<void>;
-  cancelChat(requestId: string): Promise<void>;
+  cancelChat(requestId: string, botId?: string): Promise<void>;
   onChatEvent(listener: (event: ChatEvent) => void): () => void;
 }

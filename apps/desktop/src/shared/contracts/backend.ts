@@ -3,6 +3,9 @@ export type BackendPhase = "booting" | "ready" | "degraded" | "stopped";
 export interface BackendState {
   phase: BackendPhase;
   url?: string;
+  /** Public runtime identity; the loopback URL remains main-process-only. */
+  agentId?: string;
+  name?: string;
   message: string;
   detail?: string;
 }
