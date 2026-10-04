@@ -8,6 +8,8 @@
     "./browser": "./src/types/browser.ts",
     "./bots": "./src/bots.ts",
     "./ui-host": "./src/ui-host.ts",
+    "./theme": "./src/theme.ts",
+    "./ui-plugin": "./src/ui-plugin.ts",
     "./model-route": "./src/model-route.ts",
     "./repository": "./src/repository.ts"
   },

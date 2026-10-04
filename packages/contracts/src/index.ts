@@ -4,5 +4,7 @@ export * from "./coding-verification";
 export * from "./coding-workspace";
 export * from "./model-route";
 export * from "./repository";
+export * from "./theme";
 export * from "./types";
 export * from "./ui-host";
+export * from "./ui-plugin";
