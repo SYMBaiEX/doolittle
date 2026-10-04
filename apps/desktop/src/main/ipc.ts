@@ -15,10 +15,12 @@ import {
   desktopIpcChannels,
 } from "../shared/ipc-channels";
 import { SseParser } from "../shared/sse";
+import { handleBotApiRequest } from "./bot-api";
 import {
   resolveEditorProjectContext,
   resolveEditorProjectRevision,
 } from "./editor-project-context";
+import { validateAgentTransportRequest } from "./ipc/agent-api-policy";
 import { requestAgentTransport } from "./ipc/agent-transport";
 import { isRecord } from "./ipc/input-validation";
 import type {
@@ -102,10 +104,20 @@ export function isTrustedDesktopIpcSender(
 
 interface ActiveChat {
   controller: AbortController;
+  botId: string;
 }
 
 interface ActiveAgentRequest {
   controller: AbortController;
+  botId: string;
+}
+
+function targetBotId(value: unknown): string {
+  if (value === undefined) return "default";
+  if (typeof value !== "string" || !/^[a-z0-9][a-z0-9_-]{0,63}$/u.test(value)) {
+    throw new Error("Bot target is invalid.");
+  }
+  return value;
 }
 
 function chatKey(event: IpcMainInvokeEvent, requestId: string): string {
@@ -154,6 +166,7 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
   const {
     ipcMain,
     backend,
+    bots,
     getMainWindow,
     pickFiles,
     workspace,
@@ -521,16 +534,21 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
   registerHandler(
     invokeChannels.agentRequest,
     async (event: IpcMainInvokeEvent, unsafeRequest: unknown) => {
-      if (!isRecord(unsafeRequest)) {
-        throw new Error("Eliza desktop transport request ID is invalid.");
-      }
-      assertAgentRequestId(unsafeRequest.requestId);
-      const key = agentRequestKey(event, unsafeRequest.requestId);
+      const request = validateAgentTransportRequest(unsafeRequest);
+      const botId = targetBotId(request.botId);
+      const key = agentRequestKey(event, request.requestId);
       if (activeAgentRequests.has(key)) {
         throw new Error("This desktop transport request is already running.");
       }
+      if (bots) {
+        const catalogResponse = await handleBotApiRequest(bots, request);
+        if (catalogResponse) return catalogResponse;
+      } else if (botId !== "default") {
+        throw new Error("Named bots are unavailable.");
+      }
+      const targetBackend = bots ? await bots.backendFor(botId) : backend;
       const controller = new AbortController();
-      activeAgentRequests.set(key, { controller });
+      activeAgentRequests.set(key, { controller, botId });
       const cleanupDestroyedSender = () => {
         controller.abort(
           new DOMException("Desktop renderer closed.", "AbortError"),
@@ -543,9 +561,9 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
       );
       try {
         return await requestAgentTransport(
-          backend,
+          targetBackend,
           sensitiveFetch,
-          unsafeRequest,
+          request,
           controller.signal,
         );
       } finally {
@@ -556,12 +574,19 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
   );
   registerHandler(
     invokeChannels.agentRequestCancel,
-    (event: IpcMainInvokeEvent, unsafeRequestId: unknown) => {
+    (
+      event: IpcMainInvokeEvent,
+      unsafeRequestId: unknown,
+      unsafeBotId?: unknown,
+    ) => {
       assertAgentRequestId(unsafeRequestId);
-      // The sender-specific key prevents one renderer from cancelling another.
-      activeAgentRequests
-        .get(agentRequestKey(event, unsafeRequestId))
-        ?.controller.abort();
+      const botId = targetBotId(unsafeBotId);
+      const active = activeAgentRequests.get(
+        agentRequestKey(event, unsafeRequestId),
+      );
+      if (active && active.botId !== botId)
+        throw new Error("Request belongs to a different bot.");
+      active?.controller.abort();
     },
   );
 
@@ -569,16 +594,20 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
     invokeChannels.chatStart,
     async (event, request: ChatRequest) => {
       assertChatRequest(request);
+      const botId = targetBotId(request.botId);
+      const targetBackend = bots ? await bots.backendFor(botId) : backend;
+      if (!bots && botId !== "default")
+        throw new Error("Named bots are unavailable.");
       const attachmentIds = validateChatAttachmentIds(request.attachmentIds);
       const attachmentCleanup = validateChatAttachmentCleanup(
         request.attachmentCleanup,
         attachmentIds,
       );
-      const state = backend.getState();
+      const state = targetBackend.getState();
       if (state.phase !== "ready" || !state.url) {
         throw new Error("The local runtime is not ready.");
       }
-      if (request.workspacePath !== backend.getWorkspaceDirectory()) {
+      if (request.workspacePath !== targetBackend.getWorkspaceDirectory()) {
         throw new Error(
           "The selected workspace changed before this chat started. Switch back before sending it.",
         );
@@ -599,6 +628,7 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
         if (!event.sender.isDestroyed()) {
           event.sender.send(eventChannels.chatEvent, {
             requestId: request.requestId,
+            ...(request.botId ? { botId } : {}),
             ...payload,
             ...(eventId === undefined ? {} : { eventId }),
           });
@@ -644,7 +674,7 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
           controller.abort();
         }
       };
-      activeChats.set(key, { controller });
+      activeChats.set(key, { controller, botId });
       stopTrackingSender = trackSenderCleanup(event.sender, cleanup);
 
       const streamEvents = async () => {
@@ -814,6 +844,10 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
         throw new Error("Chat run subscription is invalid.");
       }
       const { requestId } = unsafeRequest;
+      const botId = targetBotId(unsafeRequest.botId);
+      const targetBackend = bots ? await bots.backendFor(botId) : backend;
+      if (!bots && botId !== "default")
+        throw new Error("Named bots are unavailable.");
       if (!/^[a-zA-Z0-9:_-]{1,128}$/u.test(requestId)) {
         throw new Error("Chat run subscription is invalid.");
       }
@@ -824,12 +858,17 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
       ) {
         throw new Error("Chat run subscription cursor is invalid.");
       }
-      const state = backend.getState();
+      const state = targetBackend.getState();
       if (state.phase !== "ready" || !state.url) {
         throw new Error("The local runtime is not ready.");
       }
       const key = chatKey(event, requestId);
-      if (activeChats.has(key)) return;
+      const existingChat = activeChats.get(key);
+      if (existingChat) {
+        if (existingChat.botId !== botId)
+          throw new Error("Chat run belongs to a different bot.");
+        return;
+      }
       const controller = new AbortController();
       let terminalEventEmitted = false;
       let lastReceivedEventId = typeof after === "number" ? after : 0;
@@ -839,7 +878,7 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
         stopTrackingSender();
         if (!controller.signal.aborted) controller.abort();
       };
-      activeChats.set(key, { controller });
+      activeChats.set(key, { controller, botId });
       stopTrackingSender = trackSenderCleanup(event.sender, cleanup);
       const streamEvents = async () => {
         const response = await sensitiveFetch(
@@ -881,6 +920,7 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
           if (!event.sender.isDestroyed())
             event.sender.send(eventChannels.chatEvent, {
               requestId,
+              ...(unsafeRequest.botId ? { botId } : {}),
               ...frame,
               ...(eventId === undefined ? {} : { eventId }),
             });
@@ -940,6 +980,7 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
         ) {
           event.sender.send(eventChannels.chatEvent, {
             requestId,
+            ...(unsafeRequest.botId ? { botId } : {}),
             event: "error",
             data: {
               message: error instanceof Error ? error.message : String(error),
@@ -955,10 +996,19 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
 
   registerHandler(
     invokeChannels.chatCancel,
-    async (event, requestId: string) => {
+    async (event, requestId: string, unsafeBotId?: unknown) => {
+      if (!/^[a-zA-Z0-9:_-]{1,128}$/u.test(requestId)) {
+        throw new Error("Chat run ID is invalid.");
+      }
+      const botId = targetBotId(unsafeBotId);
       const active = activeChats.get(chatKey(event, requestId));
+      if (active && active.botId !== botId)
+        throw new Error("Chat run belongs to a different bot.");
+      const targetBackend = bots ? await bots.backendFor(botId) : backend;
+      if (!bots && botId !== "default")
+        throw new Error("Named bots are unavailable.");
       try {
-        const state = backend.getState();
+        const state = targetBackend.getState();
         if (state.phase !== "ready" || !state.url) {
           throw new Error("The local runtime is not ready.");
         }
@@ -984,6 +1034,7 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
         if (run && !event.sender.isDestroyed()) {
           event.sender.send(eventChannels.chatEvent, {
             requestId,
+            ...(unsafeBotId ? { botId } : {}),
             event: "agent.run",
             data: { type: "cancelled", sessionId: run.sessionId, run },
           });

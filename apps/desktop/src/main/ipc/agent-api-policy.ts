@@ -125,6 +125,7 @@ const ACTIVITY_TARGETS = [
 
 const API_ALLOWLIST: Record<HttpMethod, AllowedApiPath[]> = {
   GET: [
+    { exact: "/bots" },
     { exact: "/health" },
     { exact: "/commands/catalog" },
     {
@@ -515,6 +516,15 @@ const API_ALLOWLIST: Record<HttpMethod, AllowedApiPath[]> = {
     },
   ],
   POST: [
+    { exact: "/bots" },
+    {
+      predicate: (pathname) =>
+        matchesResourceActionPath(pathname, "/bots", [
+          "archive",
+          "activate",
+          "stop",
+        ]),
+    },
     { exact: "/settings" },
     { exact: "/autonomy/enable" },
     { exact: "/autonomy/disable" },
@@ -675,6 +685,9 @@ const API_ALLOWLIST: Record<HttpMethod, AllowedApiPath[]> = {
     },
   ],
   PATCH: [
+    {
+      predicate: (pathname) => matchesResourcePath(pathname, "/bots"),
+    },
     {
       predicate: (pathname) => matchesAccountPoolAccountPath(pathname),
     },
@@ -1091,6 +1104,13 @@ export function validateAgentTransportRequest(
   ) {
     throw new Error("Eliza desktop transport request ID is invalid.");
   }
+  const botId = unsafeRequest.botId;
+  if (
+    botId !== undefined &&
+    (typeof botId !== "string" || !/^[a-z0-9][a-z0-9_-]{0,63}$/u.test(botId))
+  ) {
+    throw new Error("Eliza desktop bot target is invalid.");
+  }
   const method = unsafeRequest.method;
   if (
     method !== "GET" &&
@@ -1135,6 +1155,7 @@ export function validateAgentTransportRequest(
     headers[name] = unsafeValue;
   }
   return {
+    ...(botId === undefined ? {} : { botId }),
     requestId,
     path: unsafeRequest.path,
     method,

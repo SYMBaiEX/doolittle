@@ -12,7 +12,9 @@ import { parseEnv } from "./schema";
 
 const repoRoot = getDefaultRepoRoot();
 
-loadProcessEnv(repoRoot);
+// Worker processes receive only their approved settings from the desktop
+// host. Import-time dotenv would silently reintroduce every host credential.
+if (process.env.DOOLITTLE_BOT_RUNTIME !== "worker") loadProcessEnv(repoRoot);
 
 // Preserve the original Doolittle names as input-only compatibility aliases;
 // Eliza's canonical environment becomes authoritative after this boundary.

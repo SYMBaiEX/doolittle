@@ -178,7 +178,8 @@ export function buildBackendEnvironment(
     // Desktop provider sign-in explicitly supports the official Claude CLI
     // session. Do not let a project-local .env disable that app capability
     // merely because Doolittle was launched from the project directory.
-    DOOLITTLE_CLAUDE_CODE_CLI_FALLBACK: "true",
+    DOOLITTLE_CLAUDE_CODE_CLI_FALLBACK:
+      baseEnvironment.DOOLITTLE_BOT_RUNTIME === "worker" ? "false" : "true",
     DOOLITTLE_DATA_DIR: runtimeDataDir,
     // Generated skills and their metadata are mutable. Keep them in the
     // desktop data directory so a packaged, signed application never writes
@@ -216,6 +217,13 @@ export interface BackendLaunchTarget {
   args: string[];
   repoRoot: string;
   environment?: NodeJS.ProcessEnv;
+}
+
+export interface BackendManagerOptions {
+  /** An exact worker environment, never merged with desktop process.env. */
+  isolatedEnvironment?: NodeJS.ProcessEnv;
+  expectedBotId?: string;
+  expectedAgentId?: string;
 }
 
 export function findPackagedRuntime(
@@ -257,6 +265,7 @@ export class BackendManager {
     private readonly runtimeDataDir: string,
     private workspaceDir: string,
     private readonly runtimeFetch: typeof fetch = fetch,
+    private readonly options: BackendManagerOptions = {},
   ) {}
 
   getState(): BackendState {
@@ -375,7 +384,7 @@ export class BackendManager {
       this.runtimeDataDir,
       this.target.repoRoot,
       this.workspaceDir,
-      {
+      this.options.isolatedEnvironment ?? {
         ...process.env,
         ...this.target.environment,
       },
@@ -422,9 +431,12 @@ export class BackendManager {
     try {
       const url = await urlPromise;
       await this.waitForHealth(url);
+      const identity = await this.readBotIdentity(url);
       const next: BackendState = {
         phase: "ready",
         url,
+        agentId: identity.agentId,
+        name: identity.name,
         message: "Local runtime ready",
       };
       this.update(next);
@@ -471,6 +483,34 @@ export class BackendManager {
     } finally {
       clearTimeout(timeout);
     }
+  }
+
+  private async readBotIdentity(
+    url: string,
+  ): Promise<{ botId: string; agentId: string; name: string }> {
+    const response = await this.runtimeFetch(`${url}/runtime/bot-identity`, {
+      signal: AbortSignal.timeout(5_000),
+    });
+    if (!response.ok) {
+      throw new Error("The local runtime did not confirm its bot identity.");
+    }
+    const value = (await response.json()) as {
+      botId?: unknown;
+      agentId?: unknown;
+      name?: unknown;
+    };
+    if (
+      typeof value.botId !== "string" ||
+      typeof value.agentId !== "string" ||
+      typeof value.name !== "string" ||
+      (this.options.expectedBotId &&
+        value.botId !== this.options.expectedBotId) ||
+      (this.options.expectedAgentId &&
+        value.agentId !== this.options.expectedAgentId)
+    ) {
+      throw new Error("The local runtime reported a different bot identity.");
+    }
+    return { botId: value.botId, agentId: value.agentId, name: value.name };
   }
 
   private async waitForHealth(url: string): Promise<void> {

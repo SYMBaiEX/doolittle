@@ -1,6 +1,7 @@
 import { EventEmitter } from "node:events";
 import type { BrowserWindow, IpcMain, IpcMainInvokeEvent } from "electron";
 import { describe, expect, it, vi } from "vitest";
+import type { BotProcessRegistry } from "./bot-process-registry";
 import {
   isTrustedDesktopIpcSender,
   registerIpc,
@@ -61,6 +62,128 @@ describe("desktop IPC sender authorization", () => {
   });
 });
 
+describe("named bot request ownership", () => {
+  it("rejects unknown and stopped bot targets without falling back to the lead runtime", async () => {
+    const registry = {
+      backendFor: vi.fn(async (id: string) => {
+        throw new Error(
+          id === "missing"
+            ? "Bot not found or archived."
+            : "The named bot is stopped.",
+        );
+      }),
+    } as unknown as BotProcessRegistry;
+    const requests = vi.fn(async () => new Response("{}"));
+    const harness = createBotOwnershipHarness(registry, requests);
+    const handler = harness.handlers.get("agent:request");
+    for (const botId of ["missing", "stopped"]) {
+      await expect(
+        handler?.(harness.event, {
+          botId,
+          requestId: `request_${botId}`,
+          path: "/sessions",
+          method: "GET",
+          headers: {},
+        }),
+      ).rejects.toThrow(botId === "missing" ? /not found/i : /stopped/i);
+    }
+    expect(requests).not.toHaveBeenCalled();
+    harness.dispose();
+  });
+
+  it("does not let a bot cancel another bot's in-flight request", async () => {
+    let abortRequest: (() => void) | undefined;
+    const requests = vi.fn(
+      (_input: RequestInfo | URL, init?: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          abortRequest = () =>
+            reject(new DOMException("Cancelled", "AbortError"));
+          init?.signal?.addEventListener("abort", abortRequest, { once: true });
+        }),
+    );
+    const runtime = {
+      getState: () => ({ phase: "ready", url: "http://127.0.0.1:4556" }),
+      getWorkspaceDirectory: () => "/workspace",
+      subscribe: () => () => undefined,
+    };
+    const registry = {
+      backendFor: vi.fn(async () => runtime),
+    } as unknown as BotProcessRegistry;
+    const harness = createBotOwnershipHarness(
+      registry,
+      requests as typeof fetch,
+    );
+    const pending = harness.handlers.get("agent:request")?.(harness.event, {
+      botId: "bot-a",
+      requestId: "same-request",
+      path: "/sessions",
+      method: "GET",
+      headers: {},
+    }) as Promise<unknown>;
+    await vi.waitFor(() => expect(requests).toHaveBeenCalledOnce());
+    expect(() =>
+      harness.handlers.get("agent:request-cancel")?.(
+        harness.event,
+        "same-request",
+        "bot-b",
+      ),
+    ).toThrow(/different bot/i);
+    expect(abortRequest).toBeDefined();
+    harness.handlers.get("agent:request-cancel")?.(
+      harness.event,
+      "same-request",
+      "bot-a",
+    );
+    await expect(pending).rejects.toThrow(/abort/i);
+    harness.dispose();
+  });
+});
+
+function createBotOwnershipHarness(
+  registry: BotProcessRegistry,
+  requestFetch: typeof fetch,
+) {
+  const handlers = new Map<string, (...args: unknown[]) => unknown>();
+  const ipcMain = {
+    handle: (channel: string, handler: (...args: unknown[]) => unknown) =>
+      handlers.set(channel, handler),
+    removeHandler: (channel: string) => handlers.delete(channel),
+  } as unknown as IpcMain;
+  const sender = Object.assign(new EventEmitter(), {
+    id: 22,
+    isDestroyed: () => false,
+    send: () => undefined,
+  });
+  const event = { sender } as unknown as IpcMainInvokeEvent;
+  const backend = {
+    getState: () => ({ phase: "ready", url: "http://127.0.0.1:4555" }),
+    getWorkspaceDirectory: () => "/workspace",
+    subscribe: () => () => undefined,
+  } as unknown as BackendManager;
+  const dispose = registerIpc({
+    ipcMain,
+    backend,
+    bots: registry,
+    getMainWindow: () => null,
+    authorizeSender: () => true,
+    pickFiles: async () => ({ canceled: true, paths: [] }),
+    workspace: {
+      getState: () => ({ currentPath: "/workspace", recentPaths: [] }),
+      pickWorkspace: async () => ({
+        canceled: true,
+        state: { currentPath: "/workspace", recentPaths: [] },
+      }),
+      switchWorkspace: async () => ({
+        canceled: true,
+        state: { currentPath: "/workspace", recentPaths: [] },
+      }),
+      subscribe: () => () => undefined,
+    },
+    sensitiveActionDependencies: { fetch: requestFetch },
+  });
+  return { handlers, event, dispose };
+}
+
 describe("sensitive desktop actions", () => {
   function createHarness(options: {
     confirmed: boolean | (() => Promise<boolean>);
@@ -72,6 +195,7 @@ describe("sensitive desktop actions", () => {
       cleanupCapability: string;
     }) => void;
     senderAuthorized?: boolean;
+    bots?: BotProcessRegistry;
   }) {
     const confirmations: unknown[] = [];
     const handlers = new Map<
@@ -126,6 +250,7 @@ describe("sensitive desktop actions", () => {
     const dispose = registerIpc({
       ipcMain,
       backend,
+      bots: options.bots,
       getMainWindow: () => null,
       authorizeSender: () => options.senderAuthorized ?? true,
       pickFiles: async () => ({ canceled: true, paths: [] }),

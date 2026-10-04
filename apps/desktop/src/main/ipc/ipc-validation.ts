@@ -21,6 +21,7 @@ import type {
   WorkspaceState,
 } from "../../shared/contracts";
 import type { BackendManager } from "../backend";
+import type { BotProcessRegistry } from "../bot-process-registry";
 import type { ProviderAuthController } from "../provider-auth";
 import type { DesktopUpdateController } from "../update-state";
 import {
@@ -87,6 +88,7 @@ export interface WorkspaceIpcController {
 export interface RegisterIpcDependencies {
   ipcMain: IpcMain;
   backend: BackendManager;
+  bots?: BotProcessRegistry;
   getMainWindow: () => BrowserWindow | null;
   authorizeSender?: (event: IpcMainInvokeEvent) => boolean;
   pickFiles: () => Promise<FileSelection>;

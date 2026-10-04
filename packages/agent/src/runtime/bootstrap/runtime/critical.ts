@@ -9,7 +9,9 @@ import {
   DOOLITTLE_OPERATOR_PLANNING_SERVICE,
   DOOLITTLE_PERSONALITY_SERVICE,
   DOOLITTLE_ROLODEX_SERVICE,
+  DOOLITTLE_RUN_PROGRESS_SERVICE,
   DOOLITTLE_SCHEDULER_SERVICE,
+  DOOLITTLE_SDK_CAPABILITIES_SERVICE,
   DOOLITTLE_SECRETS_VAULT_SERVICE,
   DOOLITTLE_SHELL_SERVICE,
   DOOLITTLE_WORKFLOW_DISPATCH_SERVICE,
@@ -28,6 +30,7 @@ import {
   TrajectoriesService,
 } from "@elizaos/core";
 import { AgentSkillsService } from "@elizaos/plugin-agent-skills";
+import { readWorkerBotProfile } from "@/runtime/bootstrap/bot-profile";
 import { appendBootstrapTrace } from "@/runtime/bootstrap/trace";
 import { PDF_SERVICE } from "@/runtime/native/service-bridge/runtime-contracts";
 
@@ -69,10 +72,22 @@ const CRITICAL_RUNTIME_SERVICES = [
   DOOLITTLE_AUTOMATION_SERVICE,
 ] as const;
 
+const WORKER_CRITICAL_RUNTIME_SERVICES = [
+  DocumentService.serviceType,
+  RelationshipsService.serviceType,
+  TrajectoriesService.serviceType,
+  "memoryStorage",
+  DOOLITTLE_RUN_PROGRESS_SERVICE,
+  DOOLITTLE_SDK_CAPABILITIES_SERVICE,
+] as const;
+
 export async function validateCriticalRuntimeServices(
   runtime: AgentRuntime,
 ): Promise<void> {
-  for (const serviceType of CRITICAL_RUNTIME_SERVICES) {
+  const requiredServices = readWorkerBotProfile()
+    ? WORKER_CRITICAL_RUNTIME_SERVICES
+    : CRITICAL_RUNTIME_SERVICES;
+  for (const serviceType of requiredServices) {
     appendBootstrapTrace(`phase:${serviceType}:load:start`);
     await runtime.getServiceLoadPromise(serviceType);
     appendBootstrapTrace(`phase:${serviceType}:load:done`);
