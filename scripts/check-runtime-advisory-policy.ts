@@ -33,6 +33,18 @@ export const REVIEWED_RUNTIME_HIGH_ADVISORIES = new Map([
   ["GHSA-VXPW-J846-P89Q", "<6.27.0"],
   ["GHSA-W3RX-R6R6-PGPR", "<=2.0.2"],
   ["GHSA-XCPC-8H2W-3J85", "<0.6.0"],
+  ["GHSA-58MR-GQGX-XQ4G", "=3.1.6"],
+  ["GHSA-7Q85-XJ36-VMFC", "<0.6.1"],
+  ["GHSA-8238-W5PM-2374", "<=0.6.0"],
+  ["GHSA-J5F4-CC29-5X44", "<=0.6.0"],
+  ["GHSA-QW65-CVWX-89V3", ">=3.0.0 <3.1.7"],
+  ["GHSA-RCW4-F5RP-G42V", "<=0.6.0"],
+  ["GHSA-RFGV-XXQX-MFG5", ">=8.0.0 <8.10.2"],
+  ["GHSA-RGJ7-G3M4-5G8C", "<0.35.4"],
+  ["GHSA-VFJ7-8CJW-P6XM", "<=3.0.3"],
+  ["GHSA-VP8M-P9JH-Q5PM", ">=8.10.0 <8.10.2"],
+  ["GHSA-W293-VG96-WGC3", ">=8.0.0 <8.10.2"],
+  ["GHSA-X8MW-P69M-V3MX", ">=1.0.0 <3.2.1"],
 ]);
 
 function advisoryId(url: string): string | undefined {

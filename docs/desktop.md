@@ -339,6 +339,10 @@ nub run desktop:build
 
 Build a runnable unpacked app for the current machine:
 
+The [dependency policy](engineering/local-install-dependency-policy.md) distinguishes
+the complete source dependency graph from the emitted desktop runtime. Both the
+reviewed-advisory gate and immutable artifact inventory must pass before installation.
+
 ```bash
 nub run desktop:package:dir
 ```

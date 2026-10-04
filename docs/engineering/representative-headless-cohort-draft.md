@@ -83,7 +83,8 @@ manifest and content digests; no free-text notes in the official review sidecar.
 Reconcile captured bytes, counts and turn order with the report's
 `responseSha256s` before accepting the capture. The official sidecar binds
 report/task identity but does not validate this separate response manifest.
-Keep the report itself content-free. Use private owned directories (`0700`) and
+Keep the report itself content-free. Use directories owned by the current OS
+account with mode `0700` and
 exclusive no-follow files (`0600`), refuse substitution or unsafe ownership, and
 do not use fallback locations. Capturing a response must not change its grade.
 

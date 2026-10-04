@@ -56,8 +56,12 @@ const MINIMUM_RUNTIME_DEPENDENCY_VERSIONS: Readonly<
   Record<string, MinimumRuntimeDependencyVersion>
 > = {
   "adm-zip": {
-    minimum: "0.6.0",
-    url: "https://github.com/advisories/GHSA-xcpc-8h2w-3j85",
+    minimum: "0.6.1",
+    url: "https://github.com/advisories/GHSA-7q85-xj36-vmfc",
+  },
+  "@fastify/busboy": {
+    minimum: "3.2.1",
+    url: "https://github.com/advisories/GHSA-x8mw-p69m-v3mx",
   },
   axios: {
     minimum: "1.18.0",
@@ -84,8 +88,8 @@ const MINIMUM_RUNTIME_DEPENDENCY_VERSIONS: Readonly<
     url: "https://github.com/advisories/GHSA-5c6j-r48x-rmvq",
   },
   sharp: {
-    minimum: "0.35.0",
-    url: "https://github.com/advisories/GHSA-f88m-g3jw-g9cj",
+    minimum: "0.35.4",
+    url: "https://github.com/advisories/GHSA-rgj7-g3m4-5g8c",
   },
   tmp: {
     minimum: "0.2.6",
@@ -128,10 +132,19 @@ function runtimeVersionAtLeast(version: string, minimum: string): boolean {
 function safeUndiciVersion(version: string): boolean {
   const parsed = parsedRuntimeVersion(version);
   if (!parsed) return false;
-  if (parsed.major === 6) return runtimeVersionAtLeast(version, "6.27.0");
-  if (parsed.major === 7) return runtimeVersionAtLeast(version, "7.29.0");
-  if (parsed.major === 8) return runtimeVersionAtLeast(version, "8.9.0");
+  if (parsed.major === 6) return runtimeVersionAtLeast(version, "6.28.1");
+  if (parsed.major === 7) return runtimeVersionAtLeast(version, "7.29.1");
+  if (parsed.major === 8) return runtimeVersionAtLeast(version, "8.10.2");
   return parsed.major > 8;
+}
+
+function safeFastUriVersion(version: string): boolean {
+  const parsed = parsedRuntimeVersion(version);
+  if (!parsed) return false;
+  if (parsed.major === 2) return runtimeVersionAtLeast(version, "2.4.6");
+  if (parsed.major === 3) return runtimeVersionAtLeast(version, "3.1.7");
+  if (parsed.major === 4) return runtimeVersionAtLeast(version, "4.1.4");
+  return parsed.major > 4;
 }
 
 function safeWsVersion(version: string): boolean {
@@ -160,7 +173,23 @@ export function validateRuntimeDependencySecurityPolicy(
       !safeUndiciVersion(dependency.version)
     ) {
       rejected.push(
-        `${dependency.name}@${dependency.version} (https://github.com/advisories/GHSA-4cwx-7wf7-3272)`,
+        `${dependency.name}@${dependency.version} (https://github.com/advisories/GHSA-rfgv-xxqx-mfg5)`,
+      );
+      continue;
+    }
+    if (
+      (dependency.name === "fast-uri" &&
+        !safeFastUriVersion(dependency.version)) ||
+      dependency.name === "braces"
+    ) {
+      // Braces has no reviewed patched release. Keep it out of emitted bytes
+      // and the copied native closure instead of inventing a safe floor.
+      const advisory =
+        dependency.name === "braces"
+          ? "GHSA-vfj7-8cjw-p6xm"
+          : "GHSA-qw65-cvwx-89v3";
+      rejected.push(
+        `${dependency.name}@${dependency.version} (https://github.com/advisories/${advisory})`,
       );
       continue;
     }

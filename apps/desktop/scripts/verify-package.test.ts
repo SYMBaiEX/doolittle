@@ -183,8 +183,9 @@ describe("packaged runtime dependency inventory", () => {
     manifest.bundledPackages = [
       { name: "axios", version: "1.19.0" },
       { name: "lodash", version: "4.18.1" },
-      { name: "undici", version: "6.28.0" },
-      { name: "undici", version: "8.10.0" },
+      { name: "undici", version: "6.28.1" },
+      { name: "undici", version: "7.29.1" },
+      { name: "undici", version: "8.10.2" },
       { name: "ws", version: "8.21.3" },
     ];
     expect(() =>
@@ -198,6 +199,19 @@ describe("packaged runtime dependency inventory", () => {
       { name: "undici", version: "8.5.0" },
       { name: "ws", version: "8.20.0" },
       { name: "sharp", version: "0.34.5" },
+      { name: "sharp", version: "0.35.3" },
+      { name: "undici", version: "6.28.0" },
+      { name: "undici", version: "7.29.0" },
+      { name: "undici", version: "8.10.1" },
+      { name: "undici", version: "8.10.2-rc.1" },
+      { name: "fast-uri", version: "2.4.5" },
+      { name: "fast-uri", version: "3.1.6" },
+      { name: "fast-uri", version: "4.1.3" },
+      { name: "fast-uri", version: "3.1.7-rc.1" },
+      { name: "adm-zip", version: "0.6.0" },
+      { name: "@fastify/busboy", version: "3.2.0" },
+      { name: "braces", version: "3.0.3" },
+      { name: "braces", version: "999.0.0" },
     ]) {
       const manifest = validRuntimeManifest();
       manifest.bundledPackages = [dependency];
@@ -206,6 +220,29 @@ describe("packaged runtime dependency inventory", () => {
       );
     }
   });
+
+  it.each([
+    { name: "fast-uri", version: "2.4.6" },
+    { name: "fast-uri", version: "3.1.7" },
+    { name: "fast-uri", version: "4.1.4" },
+    { name: "adm-zip", version: "0.6.1" },
+    { name: "@fastify/busboy", version: "3.2.1" },
+    { name: "sharp", version: "0.35.4" },
+  ])(
+    "accepts reviewed patched $name@$version in both artifact inventories",
+    (dependency) => {
+      for (const inventory of [
+        "bundledPackages",
+        "nativePackageClosure",
+      ] as const) {
+        const manifest = validRuntimeManifest();
+        manifest[inventory] = [dependency];
+        expect(() =>
+          validateRuntimeDependencySecurityPolicy(manifest),
+        ).not.toThrow();
+      }
+    },
+  );
 
   it("fails closed on an unreviewed version for a guarded package", () => {
     const manifest = validRuntimeManifest();
