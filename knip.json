@@ -1,5 +1,14 @@
 {
   "workspaces": {
+    "packages/ui": {
+      "entry": [
+        "src/index.ts",
+        "src/controls.tsx",
+        "src/surfaces.tsx",
+        "src/host.ts"
+      ],
+      "project": ["src/**/*.ts", "src/**/*.tsx"]
+    },
     "packages/agent": {
       "ignoreBinaries": ["const"]
     },

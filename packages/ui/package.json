@@ -1,0 +1,31 @@
+{
+  "name": "@doolittle/ui",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./controls": "./src/controls.tsx",
+    "./surfaces": "./src/surfaces.tsx",
+    "./host": "./src/host.ts",
+    "./styles.css": "./src/styles.css"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run src"
+  },
+  "dependencies": {
+    "@doolittle/contracts": "workspace:*",
+    "@elizaos/ui": "2.0.3-beta.7"
+  },
+  "peerDependencies": {
+    "react": "19.3.0"
+  },
+  "devDependencies": {
+    "react-dom": "19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@types/react": "^19.3.0",
+    "typescript": "^7.0.2",
+    "vitest": "5.0.3"
+  }
+}

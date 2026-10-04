@@ -14,6 +14,7 @@ export interface ProjectResourceSelection extends FileSelection {
 }
 export type ManagedAttachmentKind = "audio" | "document" | "image" | "video";
 export interface ManagedAttachmentDescriptor {
+  botId?: string;
   id: string;
   name: string;
   kind: ManagedAttachmentKind;
@@ -28,6 +29,7 @@ export interface AttachmentSelection {
   cleanupCapability?: string;
 }
 export interface AttachmentCleanupRequest {
+  botId?: string;
   attachmentIds: string[];
   cleanupCapability: string;
 }
@@ -38,6 +40,7 @@ export type SupportedRecordedAudioMime =
   | "audio/wav"
   | "audio/webm";
 export interface RecordedAudioImportRequest {
+  botId?: string;
   bytes: Uint8Array;
   mimeType: SupportedRecordedAudioMime;
   name: string;

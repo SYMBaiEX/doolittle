@@ -1,6 +1,7 @@
 import type { ManagedAttachmentDescriptor } from "./desktop";
 
 export interface SessionSummary {
+  botId?: string;
   sessionId: string;
   projectId?: string;
   title?: string;
@@ -20,6 +21,7 @@ export interface SessionsResponse {
 }
 
 export interface StoredMessage {
+  botId?: string;
   id: string;
   originMessageId?: string;
   sessionId: string;
@@ -36,6 +38,7 @@ export interface SessionMessagesResponse {
 }
 
 export interface SessionForkRequest {
+  botId?: string;
   sourceSessionId: string;
   throughMessageId?: string;
   beforeMessageId?: string;
@@ -95,6 +98,7 @@ export type ActivityEventTarget =
   | "operations";
 
 export interface ActivityEvent {
+  botId?: string;
   id: string;
   kind: ActivityEventKind;
   sourceId: string;

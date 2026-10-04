@@ -6,6 +6,9 @@
 @import "tailwindcss";
 @import "@elizaos/ui/styles/base.css";
 @import "@elizaos/ui/styles/tailwind-theme.css";
+@import "@doolittle/ui/styles.css";
+
+@source "../../../../packages/ui/src";
 
 @source "../../../../node_modules/@elizaos/ui/components/accounts";
 @source "../../../../node_modules/@elizaos/ui/components/composites/page-panel";

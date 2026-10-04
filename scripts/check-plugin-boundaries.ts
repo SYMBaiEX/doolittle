@@ -19,6 +19,7 @@ const NATIVE_RUNTIME_ROOT = join(
   "native",
 );
 const CONTRACTS_ROOT = join(ROOT, "packages", "contracts", "src");
+const UI_ROOT = join(ROOT, "packages", "ui", "src");
 const BOOTSTRAP_SCRIPTS_ROOT = join(ROOT, "scripts", "bootstrap");
 const AGENT_SRC_ROOT = join(ROOT, "packages", "agent", "src");
 const ACTIONS_ROOT = join(AGENT_SRC_ROOT, "actions");
@@ -74,6 +75,23 @@ const INTERNAL_FACADE_GUARDS: Array<{
   include: RegExp;
   patterns: Array<{ pattern: RegExp; reason: string }>;
 }> = [
+  {
+    root: UI_ROOT,
+    include: /packages\/ui\/src\/(?!.+\.test\.[cm]?tsx?$).+\.(?:[cm]?ts|tsx)$/u,
+    patterns: [
+      {
+        pattern:
+          /(?:from\s+|import\s*\()["'](?:node:|electron(?:["'/])|@doolittle\/agent(?:["'/])|@\/)/u,
+        reason:
+          "imports privileged application or Node code into the browser-only UI package",
+      },
+      {
+        pattern:
+          /window\.doolittle\b|process\.env\b|(?:from\s+|import\s*\()["'][^"']*apps\/desktop\//u,
+        reason: "couples reusable UI to the privileged desktop host",
+      },
+    ],
+  },
   {
     root: NATIVE_TOOLS_ROOT,
     include:

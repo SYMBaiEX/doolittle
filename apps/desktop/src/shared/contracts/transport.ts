@@ -52,6 +52,8 @@ export function desktopRequestTimeoutMs(path: string): number {
  * only this serializable representation across the process boundary.
  */
 export interface AgentTransportRequest {
+  /** Immutable request owner; omitted only for legacy default-bot callers. */
+  botId?: string;
   /** Sender-scoped identifier used for cancellation and lifecycle cleanup. */
   requestId: string;
   path: string;
@@ -66,6 +68,7 @@ export interface AgentTransportResponse {
   body: string;
 }
 export interface ChatRequest {
+  botId?: string;
   requestId: string;
   message: string;
   roomId: string;
@@ -78,6 +81,7 @@ export interface ChatRequest {
 
 /** Resume the event feed for an already-submitted, server-owned chat run. */
 export interface ChatRunSubscription {
+  botId?: string;
   requestId: string;
   /** The last durable event id rendered by this desktop window. */
   after?: number;
@@ -93,6 +97,7 @@ export interface LocalMutation {
   recordedAt: string;
 }
 export interface RunSnapshot {
+  botId?: string;
   runId: string;
   sessionId: string;
   roomId: string;
