@@ -3041,6 +3041,259 @@ describe("chat turn provider handler", () => {
     expect(streamState.getResponse()).toBe(result.response);
   });
 
+  it.each([
+    { request: "Return only exact JSON.", text: '{ "status": "ready" }' },
+    {
+      request:
+        "Run this exact command: `node check.mjs`. Return only its JSON output byte-for-byte; do not add prose or Markdown.",
+      text: '{"ready":true}',
+    },
+    {
+      request:
+        'On check success, the final response must be exactly its success JSON body with no code fence or added text: {"ready":true}. Otherwise return exactly {"ready":false} with no other text. Do not claim verification based on another command.',
+      text: '{"ready":true}',
+    },
+    { request: "Return command output verbatim.", text: "first\nsecond" },
+    {
+      request:
+        "The output is the final answer; preserve its exact bytes and formatting.",
+      text: "first\nsecond",
+    },
+    {
+      request:
+        "If the output is a JSON object, make that object your final response.",
+      text: '{ "nested": { "ready": true } }',
+    },
+  ])(
+    "keeps the SDK-selected exact answer and memory without recovery: $request",
+    async ({ request, text }) => {
+      const sdkResult: ActionResult = {
+        success: true,
+        text: "Command completed successfully.",
+        userFacingText: text,
+        verifiedUserFacing: true,
+        data: {
+          actionName: "SHELL",
+          command: "node check.mjs",
+          stdout: `${text}\n`,
+          stderr: "",
+          exitCode: 0,
+          timedOut: false,
+          truncated: false,
+        },
+      };
+      const responseMemory = {
+        id: "exact-response-memory" as UUID,
+        content: { text },
+      };
+      const { context, deleteMemory, useModel } = createContext({
+        onHandleMessage: async () => ({
+          responseContent: { text },
+          responseMessages: [responseMemory],
+          state: { data: { actionResults: [sdkResult] } },
+        }),
+      });
+      const result = await executeTestTurn(context, "provider-name", request);
+      expect(useModel).not.toHaveBeenCalled();
+      expect(deleteMemory).not.toHaveBeenCalled();
+      expect(result.response).toBe(text);
+      expect(result.responseMessages).toEqual([responseMemory]);
+      expect(result.streamState.getResponse()).toBe(text);
+    },
+  );
+
+  it("recovers exact SDK output before appending a mandatory completed frontend review disclosure", async () => {
+    const { page, build, ready } = frontendReceipts();
+    const text = '{"status":"ready"}';
+    const sdkResult: ActionResult = {
+      success: true,
+      text: "Command completed successfully.",
+      userFacingText: text,
+      verifiedUserFacing: true,
+      data: {
+        actionName: "SHELL",
+        command: "node check.mjs",
+        stdout: `${text}\n`,
+        stderr: "",
+        exitCode: 0,
+        timedOut: false,
+        truncated: false,
+      },
+    };
+    const { context, useModel, deleteMemory } = createContext({
+      onHandleMessage: async ({ onSettledActionResult }) => {
+        for (const receipt of [
+          page,
+          build,
+          ready,
+          interactiveReview("no-blocker-detected"),
+          sdkResult,
+        ])
+          onSettledActionResult?.(receipt);
+        return {
+          responseContent: { text },
+          responseMessages: [
+            { id: "frontend-exact-memory" as UUID, content: { text } },
+          ],
+        };
+      },
+    });
+    const result = await executeTestTurn(
+      context,
+      "codex",
+      "Update the frontend heading in this workspace. Return only JSON.",
+    );
+    expect(result.runFailureMessage).toBeUndefined();
+    expect(useModel).toHaveBeenCalledTimes(1);
+    expect(deleteMemory).toHaveBeenCalledWith("frontend-exact-memory");
+    expect(result.responseMessages).toEqual([]);
+    expect(result.response).toContain("Synthesized tool response.");
+    expect(result.response).toContain(
+      "Browser analysis used rendered viewport pixels.",
+    );
+    expect(result.response).toContain(
+      "does not prove that reported defects were corrected",
+    );
+    expect(result.response).not.toContain(text);
+    expect(result.streamState.getResponse()).toBe(result.response);
+  });
+
+  it.each([
+    { request: "Check the project", exitCode: 0 },
+    { request: "Return only JSON.", exitCode: 1 },
+    { request: "Do not run shell commands. Return only JSON.", exitCode: 0 },
+    { request: "Return only JSON without tools.", exitCode: 0 },
+    {
+      request:
+        "If the output is a JSON object, make that object your final response.",
+      exitCode: 0,
+      text: '[{"ready":true}]',
+    },
+    {
+      request:
+        "If the output is a JSON object, make that object your final response.",
+      exitCode: 0,
+      text: '"ready"',
+    },
+    {
+      request:
+        "Do not run shell commands. The output is the final answer; preserve its exact bytes and formatting.",
+      exitCode: 0,
+    },
+    {
+      request:
+        "The output is the final answer; preserve its exact bytes and formatting.",
+      exitCode: 1,
+    },
+  ])(
+    "still recovers command receipts without clean exact-output authority: $request / $exitCode",
+    async (input) => {
+      const { request, exitCode } = input;
+      const text = "text" in input ? input.text : '{"status":"ready"}';
+      const sdkResult: ActionResult = {
+        success: true,
+        text,
+        userFacingText: text,
+        verifiedUserFacing: true,
+        data: {
+          actionName: "SHELL",
+          command: "node check.mjs",
+          stdout: `${text}\n`,
+          stderr: "",
+          exitCode,
+          timedOut: false,
+          truncated: false,
+        },
+      };
+      const { context, deleteMemory, useModel } = createContext({
+        onHandleMessage: async () => ({
+          responseContent: { text },
+          responseMessages: [
+            { id: "receipt-response-memory" as UUID, content: { text } },
+          ],
+          state: { data: { actionResults: [sdkResult] } },
+        }),
+      });
+      const result = await executeTestTurn(context, "provider-name", request);
+      expect(useModel).toHaveBeenCalledTimes(1);
+      expect(deleteMemory).toHaveBeenCalledWith("receipt-response-memory");
+      expect(result.response).toBe("Synthesized tool response.");
+      expect(result.responseMessages).toEqual([]);
+    },
+  );
+
+  it("rejects the same ordinary command echo after recovery instead of bypassing the shared guard", async () => {
+    const text = "ready";
+    const sdkResult: ActionResult = {
+      success: true,
+      text,
+      userFacingText: text,
+      verifiedUserFacing: true,
+      data: {
+        actionName: "SHELL",
+        command: "node check.mjs",
+        stdout: `${text}\n`,
+        stderr: "",
+        exitCode: 0,
+        timedOut: false,
+        truncated: false,
+      },
+    };
+    const { context, deleteMemory, useModel } = createContext({
+      onHandleMessage: async () => ({
+        responseContent: { text },
+        responseMessages: [
+          { id: "retry-response-memory" as UUID, content: { text } },
+        ],
+        state: { data: { actionResults: [sdkResult] } },
+      }),
+      onUseModel: async () => text,
+    });
+    const result = await executeTestTurn(
+      context,
+      "provider-name",
+      "Check the project",
+    );
+    expect(useModel).toHaveBeenCalledTimes(1);
+    expect(deleteMemory).toHaveBeenCalledWith("retry-response-memory");
+    expect(result.response).not.toBe(text);
+    expect(result.response).toContain("without a terminal synthesis");
+  });
+
+  it("recovers bare unsuccessful SDK stdout even when no verified field or matching wrapper exists", async () => {
+    const text = '{"state":"failed"}';
+    const sdkResult: ActionResult = {
+      success: true,
+      text: "Command exited with status 1.",
+      data: {
+        actionName: "SHELL",
+        command: "node check.mjs",
+        stdout: `${text}\n`,
+        stderr: "",
+        exitCode: 1,
+        timedOut: false,
+        truncated: false,
+      },
+    };
+    const { context, deleteMemory, useModel } = createContext({
+      onHandleMessage: async () => ({
+        responseContent: { text },
+        responseMessages: [
+          { id: "bare-stdout-memory" as UUID, content: { text } },
+        ],
+        state: { data: { actionResults: [sdkResult] } },
+      }),
+    });
+    const result = await executeTestTurn(
+      context,
+      "provider-name",
+      "Return only its JSON output byte-for-byte; do not add prose or Markdown.",
+    );
+    expect(useModel).toHaveBeenCalledTimes(1);
+    expect(deleteMemory).toHaveBeenCalledWith("bare-stdout-memory");
+    expect(result.response).toBe("Synthesized tool response.");
+  });
+
   it("continues an explicit file task once after a silent exploratory terminal without duplicating the user memory", async () => {
     const memoryIds: unknown[] = [];
     const memoryTexts: string[] = [];
