@@ -178,12 +178,20 @@ describe("coding workspace presentational sections", () => {
         new RegExp(`class="[^"]*badge ${tone}[^"]*"[^>]*>${label}</div>`, "u"),
       );
       expect(
-        markup
-          .match(
-            /<strong class="coding-repo-state-value[^>]*>[\s\S]*?<\/strong>/gu,
-          )
-          ?.map((value) => value.replace(/<[^>]*>/gu, "")),
-      ).toEqual(metrics);
+        markup.match(/<strong class="coding-repo-state-value\b/gu),
+      ).toHaveLength(metrics.length);
+      expect(
+        Array.from(
+          markup.matchAll(
+            /<strong class="coding-repo-state-value[^"]*">(?:<svg\b[^>]*>[\s\S]*?<\/svg>)?([0-9]+|—)<\/strong> (changed|ahead|behind)<\/span>/gu,
+          ),
+          ([, value, metric]) => [metric, value],
+        ),
+      ).toEqual([
+        ["changed", metrics[0]],
+        ["ahead", metrics[1]],
+        ["behind", metrics[2]],
+      ]);
       expect(markup).toContain(">Refresh</button>");
       expect(markup).toContain('aria-label="Workspace layout"');
       if (label !== "Clean") expect(markup).not.toContain(">Clean</div>");
