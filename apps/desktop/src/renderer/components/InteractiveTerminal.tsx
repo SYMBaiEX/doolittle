@@ -416,7 +416,9 @@ export function InteractiveTerminal({
       cursorStyle: "block",
       convertEol: false,
       fastScrollSensitivity: 5,
-      fontFamily: "var(--font-mono)",
+      // Canvas font setters reject unresolved CSS variables; use the browser's
+      // resolved mono stack so glyph atlases do not fall back to 10px sans-serif.
+      fontFamily: getComputedStyle(viewport).fontFamily.trim() || "monospace",
       fontSize: 11.25,
       fontWeight: 500,
       letterSpacing: 0,
@@ -441,7 +443,6 @@ export function InteractiveTerminal({
     terminal.write(tab.output);
     requestAnimationFrame(() => {
       fitTerminalToViewport();
-      terminal.focus();
     });
     void acceleration.ready.then((enabled) => {
       if (!enabled || xtermRef.current !== terminal) return;
@@ -810,7 +811,9 @@ export function InteractiveTerminal({
     activeTabIdRef.current = tabId;
     setActiveTabId(tabId);
     setNotice("");
-    requestAnimationFrame(() => tabRefs.current[tabId]?.focus());
+    // Every tab already exists in the DOM. Move focus with selection so the
+    // next key reaches that tab; xterm recreation must not claim toolbar focus.
+    tabRefs.current[tabId]?.focus();
   };
 
   const beginRename = (tabId: string) => {

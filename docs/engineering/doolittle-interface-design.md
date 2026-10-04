@@ -54,6 +54,15 @@ Show real run state as text, never infer activity from panel focus. A one-pixel
 separator plus the active panel leading edge is sufficient; do not nest another
 card around transcript and composer.
 
+Inline command approvals belong to the conversation's original room label,
+the same label sent by desktop chat dispatch and projected in approval records.
+Match that label exactly; an optional session key must agree. Never derive it
+from the native runtime UUID or infer ownership from the focused panel.
+Unattributed or conflicting records remain in the runtime-wide Review queue.
+This is presentation attribution, not a replacement for runtime permission
+checks. Pending commands and reasons wrap within the composer, with readable
+feedback, explicit retry on load failure, and 44px decision targets.
+
 At narrow widths, show one selected panel and an accessible session switcher.
 Hidden panels retain state but must be inert and excluded from keyboard focus.
 Do not squeeze two composers into the same 390px viewport. Preserve access to
@@ -95,6 +104,11 @@ long selector names truncate inside their own bounds, not over other controls.
 Operational status stays visible on a separate row. This applies to narrow
 desktop tiles as well as mobile, without changing DOM or keyboard focus order.
 
+The shared chat masthead uses a second control band in intermediate and narrow
+windows, rather than squeezing surface tabs and Context between breadcrumbs
+and runtime tools. Loading or long provider labels stay bounded; sibling
+controls must never overlap.
+
 Natural focus order is shell controls → session switcher/header actions →
 transcript actions → composer controls → active supporting panel. Independent
 panel headers expose an accessible session name and selected state. Switching
@@ -107,6 +121,20 @@ Content tabs implement arrows/Home/End and roving focus; simple navigation
 buttons do not pretend to be ARIA tabs. Dialogs trap focus, dismiss on Escape,
 and restore the invoking control. Native details retain Enter/Space behavior.
 Resizable boundaries retain their accessible label and keyboard adjustments.
+
+Approval height is budgeted against the actual pane, reserving conversation
+space and the complete composer action band. A constrained pane uses a 44px
+session-scoped review trigger and the SDK scrolling dialog, not a zero-height
+request list or truncated command. The dialog closes when its panel, surface,
+or route is hidden; focus returns only to an available invoking control.
+
+Terminal utility controls use the same comfortable/compact control geometry.
+At narrow widths they retain 44px targets and a separate action band above the
+scrollable tab list. The output canvas is a real PTY surface, without scanline
+overlays or decorative glow; real health and attention indicators remain.
+Tab selection keeps focus on the selected tab, including successive arrow
+keys; fitting or recreating xterm must not steal that focus. Explicit terminal
+activation and shell-start actions retain their existing input focus behavior.
 
 Every interactive surface uses a two-pixel `--focus-ring` derived from the
 contrast-protected `--accent-text`, including standalone SDK adapters and

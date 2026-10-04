@@ -16,6 +16,7 @@ import {
   CHAT_COMPOSER_MIN_HEIGHT,
   ChatComposer,
   type ChatComposerProps,
+  chatApprovalHeightBudget,
   chatComposerHeight,
 } from "./ChatComposer";
 import { ChatMessage, messageContentAfterReceipt } from "./ChatMessage";
@@ -129,6 +130,39 @@ function composerProps(
 }
 
 describe("chat presentation components", () => {
+  it("reserves transcript space using actual pane and intrinsic composer geometry", () => {
+    // The failed390px stress layout had a382.5px conversation, a280px
+    // approval surface, and12px of transcript. Its footer was clipped below
+    // the pane. Model overflowing intrinsic composer chrome at480px: the
+    // full form, not only its visible portion, counts toward the budget.
+    const budget = chatApprovalHeightBudget(382.5, 480, 280, 12);
+    expect(budget).toBe(54);
+    expect(budget).toBeLessThan(144);
+    // A44px disclosure replaces280px of inline approval detail; composer
+    // controls stay in flow and the pane recovers more than100px transcript.
+    expect(382.5 - (480 - 280 + 44)).toBeGreaterThan(100);
+    expect(chatApprovalHeightBudget(800, 460, 280, 340)).toBe(280);
+    expect(chatApprovalHeightBudget(540, 420, 280, 100)).toBe(252);
+    expect(chatApprovalHeightBudget(0, 420, 280, 100)).toBeNull();
+    expect(chatApprovalHeightBudget(Number.NaN, 420, 280, 100)).toBeNull();
+    expect(chatApprovalHeightBudget(540, 140, 0, 380)).toBeNull();
+  });
+  it("labels shared runtime counts separately from the session's working state", () => {
+    const markup = renderToStaticMarkup(
+      <ChatComposer
+        {...composerProps({
+          activeRequest: "run-session-1",
+          pendingApprovals: 2,
+          runningTasks: 3,
+        })}
+      />,
+    );
+    const host = document.createElement("div");
+    host.innerHTML = markup;
+    expect(host.textContent).toContain("Working");
+    expect(host.textContent).toContain("3 runtime tasks active");
+    expect(host.textContent).toContain("2 runtime approvals");
+  });
   it("keeps two session composers' accessibility IDs and relationships independent", () => {
     const html = renderToStaticMarkup(
       ["panel-a", "panel-b"].map((selectedId) => (

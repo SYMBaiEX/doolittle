@@ -1284,6 +1284,7 @@ export function App() {
       tasksResource={tasksResource}
       backend={backend}
       chatChromeHost={chatChromeHost}
+      chatRouteActive={chatRouteActive}
       codeEditingLocked={codeEditingLocked}
       navigation={{
         chooseRepositoryForConversation,

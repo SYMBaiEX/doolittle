@@ -1,11 +1,25 @@
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import {
+  AcpBridgePanel,
   acpBridgeStatusLabel,
   acpBridgeSummary,
   normalizeAcpTools,
 } from "./AcpBridgePanel";
 
 describe("ACP bridge panel helpers", () => {
+  it("uses solid bridge surfaces and density-aware SDK controls", () => {
+    const markup = renderToStaticMarkup(
+      createElement(AcpBridgePanel, { active: true }),
+    );
+    expect(markup).not.toContain("gradient(");
+    expect(markup).not.toContain("text-[10px]");
+    expect(markup).not.toContain("text-[11px]");
+    expect(markup).toContain("!h-[var(--control-height)]");
+    expect(markup).toContain("max-[760px]:!min-h-11");
+    expect(markup).toContain('id="acp-bridge-heading"');
+  });
   it("keeps only display-safe discovered tool fields", () => {
     expect(
       normalizeAcpTools([

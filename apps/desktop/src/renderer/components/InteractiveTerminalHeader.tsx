@@ -103,9 +103,9 @@ export function InteractiveTerminalHeader({
 
   return (
     <header
-      className={`${INTERACTIVE_TERMINAL_CHROME_CLASS} grid min-h-7.5 min-w-0 grid-cols-[minmax(0,auto)_minmax(0,1fr)_auto] items-center gap-x-1 gap-y-0.75 border-b px-1 py-0.75 shadow-[inset_0_1px_color-mix(in_srgb,var(--accent)_18%,transparent)] max-[1180px]:grid-cols-[minmax(0,1fr)_auto] max-[1180px]:grid-rows-[auto_auto]`}
+      className={`${INTERACTIVE_TERMINAL_CHROME_CLASS} grid min-w-0 grid-cols-[minmax(0,auto)_minmax(0,1fr)_auto] items-center gap-x-1 gap-y-1 border-b p-1 @max-[1180px]/terminal:grid-cols-[minmax(0,1fr)_auto] @max-[1180px]/terminal:grid-rows-[auto_auto]`}
     >
-      <div className="flex min-w-0 items-center gap-1 px-0.5 max-[1180px]:col-span-full">
+      <div className="flex min-w-0 items-center gap-1 px-0.5">
         <UiIcon
           className="shrink-0 text-[var(--accent)]"
           icon={Terminal}
@@ -114,7 +114,7 @@ export function InteractiveTerminalHeader({
         <i
           className={`size-1.5 shrink-0 rounded-full ${
             running
-              ? "bg-[var(--accent)] shadow-[0_0_12px_color-mix(in_srgb,var(--accent)_55%,transparent)]"
+              ? "bg-[var(--accent)]"
               : "bg-[color-mix(in_srgb,var(--muted)_65%,transparent)]"
           }`}
         />
@@ -122,7 +122,7 @@ export function InteractiveTerminalHeader({
           {activeShell}
         </span>
         <strong
-          className="min-w-0 truncate text-[10px] text-[var(--text)] tracking-[0.025em] max-[1180px]:hidden"
+          className="min-w-0 truncate text-[length:var(--text-meta)] text-[var(--text)] tracking-[0.025em] @max-[1180px]/terminal:hidden"
           title={activeCwdTitle}
         >
           {activeCwdLabel}
@@ -131,7 +131,7 @@ export function InteractiveTerminalHeader({
 
       <div
         aria-label="Interactive terminal tabs"
-        className="flex min-w-24 flex-1 flex-nowrap items-center gap-0.75 overflow-x-auto overscroll-x-contain [scrollbar-color:var(--accent-border)_transparent] [scrollbar-width:thin] max-[1180px]:col-span-full max-[1180px]:row-start-2"
+        className="flex min-w-24 flex-1 flex-nowrap items-center gap-0.75 overflow-x-auto overscroll-x-contain [scrollbar-color:var(--accent-border)_transparent] [scrollbar-width:thin] @max-[1180px]/terminal:col-span-full @max-[1180px]/terminal:row-start-2"
         role="tablist"
       >
         {tabs.map((tab, index) => {
@@ -140,7 +140,7 @@ export function InteractiveTerminalHeader({
           const tabLabelId = terminalTabLabelId(tab.id);
           return (
             <div
-              className="group relative inline-flex shrink-0 items-center"
+              className="relative inline-flex shrink-0 items-center gap-0.5"
               key={tab.id}
             >
               <span className="sr-only" id={tabLabelId}>
@@ -150,10 +150,10 @@ export function InteractiveTerminalHeader({
                 aria-controls={`interactive-terminal-${tab.id}-panel`}
                 aria-labelledby={tabLabelId}
                 aria-selected={isActive}
-                className={`inline-flex h-5.5 min-w-18 max-w-30 items-center gap-1 rounded-[var(--radius-xs)] border py-0.5 pl-1.5 text-[var(--text-soft)] transition-colors hover:border-[color-mix(in_srgb,var(--accent)_30%,var(--border))] ${
+                className={`inline-flex h-[var(--control-height)] min-h-[var(--control-height)] min-w-18 max-w-30 items-center gap-1 rounded-[var(--radius-xs)] border px-2 py-1 text-[length:var(--text-control)] text-[var(--text-soft)] transition-colors motion-reduce:transition-none hover:border-[var(--accent-border)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--focus-ring)] max-[760px]:h-11 max-[760px]:min-h-11 ${
                   isActive
-                    ? "border-[color-mix(in_srgb,var(--accent)_48%,var(--border))] bg-[color-mix(in_srgb,var(--accent)_7%,var(--surface-raised))] pr-10 text-[var(--text)] shadow-[inset_0_-1px_var(--accent)]"
-                    : "border-[color-mix(in_srgb,var(--border)_60%,transparent)] bg-[color-mix(in_srgb,var(--surface-raised)_72%,transparent)] pr-1.5"
+                    ? "border-[var(--accent-border)] bg-[var(--accent-soft)] text-[var(--text)] shadow-[inset_0_-1px_var(--accent)]"
+                    : "border-[var(--border)] bg-[var(--surface-raised)]"
                 } ${isRenaming ? "pointer-events-none opacity-0" : ""}`}
                 id={`interactive-terminal-${tab.id}-tab`}
                 onClick={() => onSelectTab(tab.id)}
@@ -179,7 +179,7 @@ export function InteractiveTerminalHeader({
               {isRenaming ? (
                 <input
                   aria-label={`Rename terminal ${tab.name}`}
-                  className="absolute inset-0 z-3 h-5.5 min-w-18 max-w-30 rounded-[var(--radius-xs)] border border-[var(--accent-border)] bg-[var(--surface-soft)] px-1.5 text-[var(--text)]"
+                  className="absolute inset-0 z-3 h-[var(--control-height)] min-h-[var(--control-height)] min-w-18 max-w-30 rounded-[var(--radius-xs)] border border-[var(--accent-border)] bg-[var(--surface-soft)] px-2 text-[length:var(--text-control)] text-[var(--text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--focus-ring)] max-[760px]:h-11 max-[760px]:min-h-11"
                   onBlur={onSaveRename}
                   onChange={(event) => onRenameChange(event.target.value)}
                   onKeyDown={(event) => {
@@ -206,7 +206,7 @@ export function InteractiveTerminalHeader({
                 <>
                   <button
                     aria-label={`Rename terminal ${tab.name}`}
-                    className={`${INTERACTIVE_TERMINAL_ICON_BUTTON_CLASS} absolute top-0 right-5.25 z-2 size-5 min-h-5 min-w-5 opacity-0 group-hover:opacity-100 focus-visible:opacity-100`}
+                    className={INTERACTIVE_TERMINAL_ICON_BUTTON_CLASS}
                     onClick={() => onBeginRename(tab.id)}
                     type="button"
                   >
@@ -214,7 +214,7 @@ export function InteractiveTerminalHeader({
                   </button>
                   <button
                     aria-label={`Close terminal ${tab.name}`}
-                    className={`${INTERACTIVE_TERMINAL_ICON_BUTTON_CLASS} absolute top-0 right-0 z-2 size-5 min-h-5 min-w-5 opacity-0 group-hover:opacity-100 focus-visible:opacity-100`}
+                    className={INTERACTIVE_TERMINAL_ICON_BUTTON_CLASS}
                     disabled={isClosingTab[tab.id]}
                     onClick={() => void onCloseTab(tab.id)}
                     type="button"
@@ -228,7 +228,7 @@ export function InteractiveTerminalHeader({
         })}
       </div>
 
-      <div className="flex shrink-0 items-center justify-end gap-0.75 max-[1180px]:col-start-2 max-[1180px]:row-start-2">
+      <div className="flex shrink-0 items-center justify-end gap-1 @max-[1180px]/terminal:col-start-2 @max-[1180px]/terminal:row-start-1">
         <button
           aria-label="Create terminal tab"
           className={INTERACTIVE_TERMINAL_ICON_BUTTON_CLASS}
@@ -239,7 +239,7 @@ export function InteractiveTerminalHeader({
           <UiIcon icon={Plus} size="sm" />
         </button>
         <span
-          className={`hidden items-center rounded-[var(--radius-xs)] border px-1 py-0.5 text-[length:var(--text-meta)] font-bold tracking-[0.08em] min-[1280px]:inline-flex min-[1280px]:max-[1439px]:hidden ${
+          className={`hidden items-center rounded-[var(--radius-xs)] border px-1 py-0.5 text-[length:var(--text-meta)] font-bold tracking-[0.08em] @min-[1440px]/terminal:inline-flex ${
             running
               ? "border-[color-mix(in_srgb,var(--accent)_34%,transparent)] bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] text-[var(--accent)]"
               : "border-[color-mix(in_srgb,var(--border)_60%,transparent)] text-[var(--faint)]"
@@ -247,7 +247,7 @@ export function InteractiveTerminalHeader({
         >
           {running ? "LIVE" : "IDLE"}
         </span>
-        <span className="interactive-terminal-mode hidden whitespace-nowrap text-[length:var(--text-meta)] text-[var(--faint)] tracking-[0.05em] min-[1440px]:inline">
+        <span className="interactive-terminal-mode hidden whitespace-nowrap text-[length:var(--text-meta)] text-[var(--faint)] tracking-[0.05em] @min-[1440px]/terminal:inline">
           {currentStatus}
         </span>
         {running ? (
@@ -260,7 +260,9 @@ export function InteractiveTerminalHeader({
               type="button"
             >
               <UiIcon icon={CircleStop} size="xs" />
-              <span className="hidden min-[1280px]:inline">Ctrl+C</span>
+              <span className="hidden @min-[1280px]/terminal:inline">
+                Ctrl+C
+              </span>
             </button>
             <button
               aria-label="Stop terminal session"
@@ -270,7 +272,7 @@ export function InteractiveTerminalHeader({
               type="button"
             >
               <UiIcon icon={Square} size="xs" />
-              <span className="hidden min-[1280px]:inline">Stop</span>
+              <span className="hidden @min-[1280px]/terminal:inline">Stop</span>
             </button>
           </>
         ) : (
@@ -283,14 +285,14 @@ export function InteractiveTerminalHeader({
             type="button"
           >
             <UiIcon icon={Play} size="xs" />
-            <span className="hidden min-[1280px]:inline">
+            <span className="hidden @min-[1280px]/terminal:inline">
               {starting ? "Opening…" : startActionLabel}
             </span>
           </button>
         )}
         <button
           aria-label="Clear terminal view"
-          className={`${INTERACTIVE_TERMINAL_ICON_BUTTON_CLASS} hidden min-[1280px]:inline-flex`}
+          className={`${INTERACTIVE_TERMINAL_ICON_BUTTON_CLASS} hidden @min-[1280px]/terminal:inline-flex`}
           disabled={!outputAvailable}
           onClick={onClearOutput}
           title="Clear terminal view"
@@ -300,7 +302,7 @@ export function InteractiveTerminalHeader({
         </button>
         <button
           aria-label="Add terminal output to chat"
-          className={`${INTERACTIVE_TERMINAL_ICON_BUTTON_CLASS} hidden min-[1280px]:inline-flex`}
+          className={`${INTERACTIVE_TERMINAL_ICON_BUTTON_CLASS} hidden @min-[1280px]/terminal:inline-flex`}
           disabled={!outputAvailable}
           onClick={onSendOutputToChat}
           title="Add terminal output to chat"
@@ -311,28 +313,28 @@ export function InteractiveTerminalHeader({
         {onDismiss ? (
           <button
             aria-label={hideLabel}
-            className={`${INTERACTIVE_TERMINAL_BUTTON_CLASS} hidden min-[1280px]:inline-flex min-[1280px]:items-center min-[1280px]:gap-1.25`}
+            className={`${INTERACTIVE_TERMINAL_BUTTON_CLASS} hidden @min-[1280px]/terminal:inline-flex @min-[1280px]/terminal:items-center @min-[1280px]/terminal:gap-1.25`}
             onClick={onDismiss}
             title={hideLabel}
             type="button"
           >
             <UiIcon icon={PanelBottomClose} size="xs" />
-            <span className="hidden min-[1440px]:inline">Hide</span>
+            <span className="hidden @min-[1440px]/terminal:inline">Hide</span>
             {dismissShortcut ? (
-              <kbd className="hidden font-inherit text-[var(--faint)] tracking-normal min-[1440px]:inline">
+              <kbd className="hidden font-inherit text-[var(--faint)] tracking-normal @min-[1440px]/terminal:inline">
                 {dismissShortcut}
               </kbd>
             ) : null}
           </button>
         ) : null}
-        <details className="relative min-[1280px]:hidden">
+        <details className="relative @min-[1280px]/terminal:hidden">
           <summary
             aria-label="More terminal actions"
             className={`${INTERACTIVE_TERMINAL_ICON_BUTTON_CLASS} flex cursor-pointer list-none items-center justify-center [&::-webkit-details-marker]:hidden`}
           >
             <UiIcon icon={MoreHorizontal} size="xs" />
           </summary>
-          <div className="absolute top-[calc(100%+6px)] right-0 z-10 grid min-w-42 gap-1 rounded-[var(--radius-sm)] border border-[color-mix(in_srgb,var(--border)_84%,transparent)] bg-[color-mix(in_srgb,var(--surface-raised)_97%,var(--canvas-bg))] p-1 shadow-[0_16px_40px_color-mix(in_srgb,var(--shadow)_32%,transparent)]">
+          <div className="absolute top-[calc(100%+6px)] right-0 z-10 grid min-w-42 gap-1 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] p-1 shadow-[var(--shell-shadow-md)]">
             <span className="px-1.5 pt-0.75 pb-0.25 font-mono text-[length:var(--text-meta)] tracking-[0.05em] text-[var(--faint)]">
               {running ? "LIVE" : "IDLE"} · {currentStatus}
             </span>

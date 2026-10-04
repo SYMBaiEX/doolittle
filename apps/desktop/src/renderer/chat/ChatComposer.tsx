@@ -11,6 +11,7 @@ import {
   X,
 } from "lucide-react";
 import type {
+  CSSProperties,
   Dispatch,
   FormEvent,
   KeyboardEvent,
@@ -18,7 +19,7 @@ import type {
   RefObject,
   SetStateAction,
 } from "react";
-import { useEffect, useLayoutEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type {
   BackendState,
   CommandCatalogItem,
@@ -62,6 +63,35 @@ import {
 export const CHAT_COMPOSER_MIN_HEIGHT = 42;
 export const CHAT_COMPOSER_MAX_HEIGHT = 156;
 
+/** Reserve transcript space from this pane's actual geometry, not window height. */
+export function chatApprovalHeightBudget(
+  paneHeight: number,
+  composerHeight: number,
+  approvalHeight: number,
+  transcriptHeight: number,
+): number | null {
+  if (
+    ![paneHeight, composerHeight, approvalHeight, transcriptHeight].every(
+      (height) => Number.isFinite(height) && height >= 0,
+    ) ||
+    paneHeight === 0 ||
+    approvalHeight === 0
+  )
+    return null;
+  const otherChrome = Math.max(
+    0,
+    paneHeight - composerHeight - transcriptHeight,
+  );
+  const composerControls = Math.max(0, composerHeight - approvalHeight);
+  return Math.max(
+    0,
+    Math.min(
+      280,
+      Math.floor(paneHeight - otherChrome - composerControls - 128),
+    ),
+  );
+}
+
 /** Keep the composer readable while preventing a long draft from taking over the chat view. */
 export function chatComposerHeight(scrollHeight: number): number {
   const measuredHeight = Number.isFinite(scrollHeight) ? scrollHeight : 0;
@@ -72,6 +102,7 @@ export function chatComposerHeight(scrollHeight: number): number {
 }
 
 export interface ChatComposerProps {
+  approvalsVisible?: boolean;
   workspaceNotice?: ReactNode;
   activeProject?: {
     id: string;
@@ -140,6 +171,7 @@ export interface ChatComposerProps {
 }
 
 export function ChatComposer({
+  approvalsVisible = true,
   workspaceNotice,
   activeProject,
   projects,
@@ -196,6 +228,39 @@ export function ChatComposer({
   pendingApprovals,
   runningTasks,
 }: ChatComposerProps) {
+  const formRef = useRef<HTMLFormElement>(null);
+  const [approvalHeightBudget, setApprovalHeightBudget] = useState<
+    number | null
+  >(null);
+  useLayoutEffect(() => {
+    const form = formRef.current;
+    const pane = form?.closest<HTMLElement>(".chat-conversation");
+    const transcript = pane?.querySelector<HTMLElement>(".chat-messages");
+    if (!form || !pane || !transcript) return;
+    const measure = () => {
+      const approval = form.querySelector<HTMLElement>(
+        "[data-session-approval-surface]",
+      );
+      if (!approval) {
+        setApprovalHeightBudget(null);
+        return;
+      }
+      const budget = chatApprovalHeightBudget(
+        pane.getBoundingClientRect().height,
+        form.getBoundingClientRect().height,
+        approval.getBoundingClientRect().height,
+        transcript.getBoundingClientRect().height,
+      );
+      if (budget !== null) setApprovalHeightBudget(budget);
+    };
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(pane);
+    observer.observe(form);
+    observer.observe(transcript);
+    return () => observer.disconnect();
+  }, []);
   const controlId = (name: string) => `${name}-${selectedId}`;
   const isCancellingActive = Boolean(
     activeRequest && cancellingRequest === activeRequest,
@@ -334,9 +399,24 @@ export function ChatComposer({
   };
 
   return (
-    <form className="chat-composer" onSubmit={onSubmit}>
+    <form
+      className="chat-composer"
+      onSubmit={onSubmit}
+      ref={formRef}
+      style={
+        approvalHeightBudget === null
+          ? undefined
+          : ({
+              "--session-approval-max-height": `${approvalHeightBudget}px`,
+            } as CSSProperties)
+      }
+    >
       {workspaceNotice}
-      <InlineApprovalPanel active={backend.phase === "ready"} />
+      <InlineApprovalPanel
+        active={backend.phase === "ready" && approvalsVisible}
+        compact={approvalHeightBudget !== null && approvalHeightBudget < 144}
+        roomId={selectedId}
+      />
       {queuedMessages.length > 0 ? (
         <div className="chat-message-queue" ref={queueRef}>
           <div className="chat-message-queue-heading">
@@ -743,10 +823,15 @@ export function ChatComposer({
                 }
                 withDot
               />
-              {runningTasks > 0 ? <small>{runningTasks} active</small> : null}
+              {runningTasks > 0 ? (
+                <small>
+                  {runningTasks} runtime task{runningTasks === 1 ? "" : "s"}{" "}
+                  active
+                </small>
+              ) : null}
               {pendingApprovals > 0 ? (
                 <small className="warning">
-                  {pendingApprovals} approval
+                  {pendingApprovals} runtime approval
                   {pendingApprovals === 1 ? "" : "s"}
                 </small>
               ) : null}

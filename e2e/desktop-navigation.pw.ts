@@ -490,9 +490,27 @@ test.describe("Doolittle desktop navigation", () => {
         .poll(() => page.evaluate(() => window.location.hash))
         .toBe("#/code");
       await expect(page.locator(".view-code .coding-grid")).toBeVisible();
-      const workspaceTree = page.getByRole("tree", {
+      const filesPane = page.getByRole("tabpanel", { name: "Files" });
+      const workspaceTree = filesPane.getByRole("tree", {
         name: "Workspace files",
       });
+      const workspaceTreeRetry = filesPane.getByRole("button", {
+        name: "Try again",
+      });
+      const emptyWorkspaceHeading = filesPane.getByRole("heading", {
+        name: "Workspace is empty",
+        exact: true,
+      });
+      // Switching workspaces and entering Code starts an async tree request.
+      // Wait for a terminal UI state; a populated repository must still render
+      // the tree (the error and empty states are not accepted as success).
+      await Promise.race([
+        workspaceTree.waitFor({ state: "visible", timeout: 30_000 }),
+        workspaceTreeRetry.waitFor({ state: "visible", timeout: 30_000 }),
+        emptyWorkspaceHeading.waitFor({ state: "visible", timeout: 30_000 }),
+      ]);
+      await expect(workspaceTreeRetry).toHaveCount(0);
+      await expect(emptyWorkspaceHeading).toHaveCount(0);
       await expect(workspaceTree).toBeVisible();
       const appsFolder = workspaceTree.getByRole("treeitem", {
         name: "apps",

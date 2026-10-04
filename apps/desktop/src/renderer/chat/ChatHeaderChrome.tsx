@@ -152,6 +152,7 @@ export function ChatHeaderChrome({
             aria-label={`Open route controls. Current route ${modelRouteLabel}.`}
             className="chat-model-route"
             onClick={onOpenRouteControls}
+            title={modelRouteLabel}
             type="button"
           >
             <strong>{modelRouteLabel}</strong>

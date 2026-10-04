@@ -139,6 +139,15 @@ a conflict, not permission to silently continue in a different repository.
 Active-run recovery also completes before direct or queued dispatch; a failed
 run-list read offers retry and does not report an invented idle state.
 
+Inline command approvals show only requests attributed to that conversation's
+original room label; an optional session key must agree. Requests with missing
+or conflicting attribution remain available in the global Review queue. This
+presentation filter does not replace the runtime's approval enforcement.
+Approval presentation budgets against the actual conversation pane. When
+expanded requests would crowd out the transcript or composer controls, a
+session-scoped review button opens an accessible scrolling dialog instead.
+The dialog closes when its panel, conversation surface, or Chat route is hidden.
+
 Open views stay mounted; the twelve most recently closed views are retained as
 a bounded warm cache. Older closed views release their components and listeners,
 while drafts, attachments, queues, run receipts, and lightweight in-memory scroll
@@ -501,6 +510,23 @@ hash matches its package manifest. Missing, stale, dirty, or modified packages
 fail before Electron launches instead of silently skipping the suite. Set
 `DOOLITTLE_DESKTOP_EXECUTABLE` to explicitly verify another installer output.
 Close an already-running installed app before explicitly selecting it.
+
+Run the isolated source-build session workbench journeys without an API test
+server or linked provider:
+
+```bash
+nub run test:e2e:desktop-workbench
+```
+
+This serial, no-retry suite launches the actual Electron interface with an
+owned empty workspace and scrubbed profile. It exercises panel arrangement,
+resizing, focus, draft retention, keyboard navigation, narrow layouts, and
+terminal controls. Synthetic IPC fixtures test chat lifecycle and approval
+presentation, attribution, loading, errors, and decisions; they do not prove
+provider throughput, backend approval enforcement, or command execution.
+Screenshots are written to `output/playwright/session-workbench/`, with test
+results under `var/playwright/workbench-test-results/`. The suite closes its
+Electron processes and removes only its owned temporary profiles/workspaces.
 
 Before creating a release tag, run the release-quality gate:
 

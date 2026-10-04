@@ -47,7 +47,7 @@ describe("chat chrome density contract", () => {
     expect(CHAT_HEADER_CONTENT_CLASS).not.toContain("chat-header-toolbar");
   });
 
-  it("keeps stable shell navigation beside conversation controls in one 40px row", () => {
+  it("keeps wide shell navigation beside conversation controls in one 40px row", () => {
     expect(app).toContain("WINDOW_DRAGBAR_PRIMARY_CLASS");
     expect(app).toContain("WINDOW_CONTEXT_CLASS");
     expect(app).toContain("CHAT_CHROME_HOST_CLASS");
@@ -90,17 +90,17 @@ describe("chat chrome density contract", () => {
     expect(CHAT_HEADER_CONTENT_CLASS).toContain("[-webkit-app-region:no-drag]");
   });
 
-  it("progressively hides secondary controls and only falls back to two rows on mobile", () => {
+  it("uses a separate control band at intermediate widths and retains mobile geometry", () => {
     expect(CHAT_HEADER_CONTENT_CLASS).toContain(
       "max-[1320px]:[&_.chat-session-meta-wrap]:hidden",
     );
     expect(app).toContain("currentRouteLabel");
     expect(app).toContain('compactCommand={renderedView === "chat"}');
     expect(WINDOW_DRAGBAR_CHAT_CLASS).toContain(
-      "max-[760px]:basis-[calc(var(--control-height)+40px+var(--space-2))]",
+      "max-[1180px]:basis-[calc(var(--control-height)+40px+var(--space-2))]",
     );
     expect(WINDOW_DRAGBAR_CHAT_CLASS).toContain(
-      "max-[760px]:[&_.window-dragbar-primary]:grid-rows-[var(--control-height)_40px]",
+      "max-[1180px]:[&_.window-dragbar-primary]:grid-rows-[var(--control-height)_40px]",
     );
     expect(WINDOW_DRAGBAR_CHAT_CLASS).toContain(
       "max-[480px]:[&_.window-dragbar-primary]:grid-rows-[40px_40px]",
@@ -125,6 +125,47 @@ describe("chat chrome density contract", () => {
       "max-[980px]:[&_.chat-surface-controls]:!hidden",
     );
     expect(CHAT_HEADER_CONTENT_CLASS).toContain("whitespace-nowrap");
+  });
+
+  it("compiles the intermediate band and protects actions from a long route", async () => {
+    const compiler = await compile(
+      "@theme { --spacing: .25rem; } @tailwind utilities;",
+    );
+    const shellCss = compiler.build(
+      WINDOW_DRAGBAR_CHAT_CLASS.split(/\s+/u).filter((candidate) =>
+        candidate.startsWith("max-[1180px]:"),
+      ),
+    );
+    expect(shellCss).toContain("@media (width < 1180px)");
+    expect(shellCss).toContain(
+      "grid-template-rows: var(--control-height) 40px",
+    );
+    expect(shellCss).toContain(".chat-chrome-host");
+    expect(shellCss).toContain("grid-row-start: 2");
+    expect(shellCss).toContain("grid-column: 1 / -1");
+    expect(shellCss).not.toContain("display: none");
+
+    const headerCss = compiler.build(
+      CHAT_HEADER_CONTENT_CLASS.split(/\s+/u).filter((candidate) =>
+        /chat-header-top-actions|chat-model-route|chat-surface-controls/u.test(
+          candidate,
+        ),
+      ),
+    );
+    expect(headerCss).toContain("@media (width < 1320px)");
+    expect(headerCss).toContain("grid-column: 1 / -1");
+    expect(headerCss).toContain(".chat-model-route strong");
+    expect(headerCss).toContain("min-width: 0px");
+    expect(headerCss).toContain("flex: 1");
+    expect(headerCss).toContain("text-overflow: ellipsis");
+    expect(headerCss).toContain(".chat-surface-controls");
+    expect(headerCss).toContain("flex-shrink: 0");
+    expect(CHAT_HEADER_CONTENT_CLASS).toContain(
+      "[&_.chat-header-top-actions>.secondary-button]:shrink-0",
+    );
+    expect(CHAT_HEADER_CONTENT_CLASS).toContain(
+      "[&_.chat-surface-controls_.secondary-button]:shrink-0",
+    );
   });
 
   it("compiles two pane-local composer bands with readable 44px targets", async () => {

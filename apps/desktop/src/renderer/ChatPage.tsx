@@ -251,6 +251,7 @@ export function ChatPage(props: ChatPageProps) {
 }
 
 export interface ChatPageProps {
+  routeActive?: boolean;
   backend: BackendState;
   runtime: RuntimeStatus | null;
   remoteSessions: SessionSummary[];
@@ -285,6 +286,7 @@ export interface ChatPageProps {
 }
 
 export function ChatSessionPanel({
+  routeActive = true,
   backend,
   runtime,
   remoteSessions,
@@ -1895,6 +1897,12 @@ export function ChatSessionPanel({
           {accessibilityStatus}
         </div>
         <ChatComposer
+          approvalsVisible={
+            routeActive &&
+            visible &&
+            surface === "conversation" &&
+            !(inspectorVisible && isNarrowWorkbench)
+          }
           workspaceNotice={
             <>
               {runHydration !== "ready" ? (

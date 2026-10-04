@@ -72,6 +72,7 @@ export interface DesktopRouteContentProps {
   onCodeWorkspaceDirtyChange?: (dirty: boolean) => void;
   codeEditingLocked: boolean;
   chatChromeHost: HTMLElement | null;
+  chatRouteActive?: boolean;
   workspacePath: string;
   approvalsResource: ApiResource<{ approvals?: unknown[] }>;
   tasksResource: ApiResource<{ tasks?: unknown[] }>;
@@ -86,6 +87,7 @@ export function DesktopRouteContent({
   tasksResource,
   backend,
   chatChromeHost,
+  chatRouteActive = true,
   codeEditingLocked,
   navigation,
   onChooseWorkspace,
@@ -179,6 +181,7 @@ export function DesktopRouteContent({
             projectLabels={projectLabels}
             refreshRuntime={refreshRuntime}
             remoteSessions={scopedSessions}
+            routeActive={chatRouteActive}
             sessionMetadata={sessionMetadata}
             runningTasks={runningTasks}
             runtime={runtime}
