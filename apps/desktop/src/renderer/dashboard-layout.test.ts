@@ -1,6 +1,11 @@
 import { readFileSync } from "node:fs";
+import { compile } from "tailwindcss";
 import { describe, expect, it } from "vitest";
 import { VIEW_PRIMITIVES_CLASS } from "./app-shell/view-layout";
+import {
+  DASHBOARD_CARD_HEADING_CLASS,
+  DASHBOARD_STATUS_ROW_CLASS,
+} from "./dashboard/dashboard-layout";
 
 const dashboardPage = readFileSync(
   new URL("./DashboardPage.tsx", import.meta.url),
@@ -77,5 +82,44 @@ describe("dashboard operator metric layout", () => {
     expect(activityPanels).toContain('"Sessions" : "No saved sessions"');
     expect(activityPanels).toContain('"Approvals and tasks" : "Queue clear"');
     expect(activityPanels).toContain("flex min-h-[72px] items-center");
+  });
+
+  it("wraps intrinsically sized heading actions instead of shrinking their group past its buttons", async () => {
+    const compiler = await compile(
+      "@theme { --spacing: .25rem; } @tailwind utilities;",
+    );
+    const css = compiler.build(DASHBOARD_CARD_HEADING_CLASS.split(/\s+/u));
+    expect(css).toContain("flex-wrap: wrap");
+    expect(css).toContain("> div:last-child:not(:first-child)");
+    expect(css).toContain("flex-shrink: 0");
+    expect(css).toContain("max-width: 100%");
+    expect(css).toContain("white-space: normal !important");
+    expect(css).toContain("overflow-wrap: anywhere");
+    expect(DASHBOARD_CARD_HEADING_CLASS.split(/\s+/u)).not.toContain(
+      "overflow-hidden",
+    );
+    expect(DASHBOARD_CARD_HEADING_CLASS).not.toContain(
+      "[&>div:last-child:not(:first-child)]:overflow-hidden",
+    );
+    expect(activityPanels).toContain("Review");
+    expect(activityPanels).toContain("Tasks");
+  });
+
+  it("preserves complete status badges alongside wrapping readable metadata", async () => {
+    const compiler = await compile(
+      "@theme { --spacing: .25rem; } @tailwind utilities;",
+    );
+    const css = compiler.build(DASHBOARD_STATUS_ROW_CLASS.split(/\s+/u));
+    expect(css).toContain("flex-wrap: wrap");
+    expect(css).toContain("> div:not(.badge)");
+    expect(css).toContain("flex: 1 1 180px");
+    expect(css).toContain("> .badge");
+    expect(css).toContain("flex-shrink: 0");
+    expect(css).toContain("max-width: 100%");
+    expect(css).toContain("white-space: normal !important");
+    expect(css).toContain("overflow-wrap: anywhere");
+    expect(DASHBOARD_STATUS_ROW_CLASS).not.toContain(
+      "[&>.badge]:overflow-hidden",
+    );
   });
 });
