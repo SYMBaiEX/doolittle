@@ -83,7 +83,8 @@ export type UiHostCommand =
       target: UiTarget;
       surface: "details" | "library" | "computer";
     }
-  | { type: "draft.update"; target: UiTarget; text: string };
+  | { type: "draft.update"; target: UiTarget; text: string }
+  | { type: "draft.read"; target: UiTarget };
 
 export type UiHostEvent =
   | { type: "snapshot"; sequence: number; snapshot: UiSnapshot }
@@ -137,6 +138,7 @@ export interface UiHostResult {
   /** Required acknowledgement when an as-of transcript was requested. */
   transcriptThroughRunId?: string;
   attachments?: Array<{ id: string; name: string }>;
+  draft?: { target: UiTarget; text: string };
   error?: string;
 }
 
