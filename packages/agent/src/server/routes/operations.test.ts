@@ -1,5 +1,5 @@
 import { DOOLITTLE_SHELL_SERVICE } from "@doolittle/contracts";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { AppLogRecord } from "@/logging/logger";
 import type { AppContext } from "@/runtime/bootstrap";
 import { handleOperationsRoutes } from "./operations";
@@ -68,6 +68,65 @@ function createContext(): AppContext {
 }
 
 describe("handleOperationsRoutes", () => {
+  it.each([
+    { profile: "public captured", captureOutput: true, privateProfile: false },
+    { profile: "public detached", captureOutput: false, privateProfile: false },
+    { profile: "private captured", captureOutput: true, privateProfile: true },
+  ])(
+    "limits native cancellation forwarding to $profile",
+    async ({ captureOutput, privateProfile }) => {
+      const previousToken = process.env.ELIZA_TERMINAL_RUN_TOKEN;
+      process.env.ELIZA_TERMINAL_RUN_TOKEN = "synthetic-route-capability";
+      const run = vi.fn(async (..._args: unknown[]) => ({
+        command: "probe",
+        exitCode: 0,
+        stdout: "ok",
+        stderr: "",
+        durationMs: 1,
+        timedOut: false,
+      }));
+      const context = createContext();
+      context.runtime.getService = ((name: string) =>
+        name === DOOLITTLE_SHELL_SERVICE
+          ? { run }
+          : null) as typeof context.runtime.getService;
+      const controller = new AbortController();
+      const request = new Request("http://localhost/api/terminal/run", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-eliza-terminal-token": "synthetic-route-capability",
+        },
+        body: JSON.stringify({ command: "probe", captureOutput }),
+        signal: controller.signal,
+      });
+      try {
+        const response = await handleOperationsRoutes(
+          context,
+          request,
+          new URL(request.url),
+          privateProfile ? { captureOutputRequired: true } : undefined,
+        );
+        expect(response?.status).toBe(200);
+        expect(run).toHaveBeenCalledOnce();
+        if (privateProfile) {
+          expect(run).toHaveBeenCalledWith("probe", 30_000, request.signal, {
+            requireCancellation: true,
+          });
+          expect(request.signal.aborted).toBe(false);
+          controller.abort();
+          expect(request.signal.aborted).toBe(true);
+        } else {
+          expect(run).toHaveBeenCalledWith("probe", 30_000, undefined);
+          expect(run.mock.calls[0]?.[3]).toBeUndefined();
+        }
+      } finally {
+        if (previousToken === undefined)
+          delete process.env.ELIZA_TERMINAL_RUN_TOKEN;
+        else process.env.ELIZA_TERMINAL_RUN_TOKEN = previousToken;
+      }
+    },
+  );
   it("returns research, deliveries, and terminal history payloads", async () => {
     const context = createContext();
     const research = await handleOperationsRoutes(

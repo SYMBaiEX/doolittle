@@ -147,8 +147,13 @@ function makeSettings(
   } as RuntimeSettings;
 }
 
-function commandFor(script: string): string {
-  return `${shellQuote(process.execPath)} -e ${shellQuote(script)}`;
+function commandFor(script: string, args: readonly string[] = []): string {
+  return [
+    shellQuote(process.execPath),
+    "-e",
+    shellQuote(script),
+    ...args.map(shellQuote),
+  ].join(" ");
 }
 
 function makeContext(terminal: TerminalService, workspace: string): AppContext {
@@ -466,7 +471,8 @@ describe("pinned Eliza SHELL through Doolittle's native listener", () => {
         endpoint = await acquireCliTerminalEndpoint(context);
         const endpointUrl = endpoint.address.url;
         const longCommand = commandFor(
-          `require('node:fs').writeFileSync(${JSON.stringify(readyFile)}, String(process.pid)); setTimeout(() => process.exit(0), 10000); void ${JSON.stringify(childIdentity)};`,
+          "require('node:fs').writeFileSync(process.argv[1], String(process.pid)); setTimeout(() => process.exit(0), 10000); void process.argv[2];",
+          [readyFile, childIdentity],
         );
         actionStartedAt = Date.now();
         capturedRequest = action.handler(context.runtime, message, undefined, {

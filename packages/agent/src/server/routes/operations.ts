@@ -339,7 +339,7 @@ export async function handleOperationsRoutes(
       context.runtime,
       input.command,
       input.timeoutMs,
-      body.captureOutput === true ? request.signal : undefined,
+      options.captureOutputRequired ? request.signal : undefined,
       options.captureOutputRequired ? { requireCancellation: true } : undefined,
     );
     if (body.captureOutput !== true) {
