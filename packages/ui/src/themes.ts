@@ -197,6 +197,7 @@ export function themeCssVariables(
   const p = theme.colors[appearance];
   const t = theme.typography;
   const g = theme.geometry;
+  const compact = density === "compact";
   const variables: Record<string, string> = {
     "--bg": p.background,
     "--surface": p.navigation,
@@ -221,7 +222,7 @@ export function themeCssVariables(
     "--font-mono": fonts.monospace,
     "--text-body": `${t.conversationSize}px`,
     "--text-control": `${t.controlSize}px`,
-    "--text-meta": `${t.metadataSize}px`,
+    "--text-meta": `${compact ? Math.max(11, t.metadataSize - 1) : t.metadataSize}px`,
     "--text-caption": `${t.metadataSize}px`,
     "--line-body": String(t.lineHeight),
     "--line-control": "1.4",
@@ -229,14 +230,16 @@ export function themeCssVariables(
     "--sidebar-width": `${g.navigationWidth}px`,
     "--inspector-width": `${g.inspectorWidth}px`,
     "--reading-width": `${g.readingWidth}px`,
-    "--control-height": `${g.controlHeight}px`,
+    "--conversation-width": `${g.readingWidth}px`,
+    "--control-height": `${compact ? Math.max(36, g.controlHeight - 4) : g.controlHeight}px`,
     "--touch-height": `${g.touchHeight}px`,
-    "--page-header-min-height": `${g.headerHeight}px`,
+    "--page-header-min-height": `${compact ? Math.max(40, g.headerHeight - 8) : g.headerHeight}px`,
     "--radius-md": `${g.controlRadius}px`,
     "--radius-lg": `${g.composerRadius}px`,
     "--radius-xl": `${g.composerRadius}px`,
-    "--page-gap": `${theme.spacing.page}px`,
-    "--row-pad": `${density === "compact" ? Math.max(6, theme.spacing.row - 2) : theme.spacing.row}px`,
+    "--page-gap": `${compact ? Math.max(8, theme.spacing.page - 4) : theme.spacing.page}px`,
+    "--card-pad": `${compact ? Math.max(8, theme.spacing.page - 4) : theme.spacing.page}px`,
+    "--row-pad": `${compact ? Math.max(6, theme.spacing.row - 2) : theme.spacing.row}px`,
     "--motion-duration": `${theme.motion.durationMs}ms`,
     "--focus-ring": p.accentText,
     "--canvas-bg": theme.codeColors?.[appearance].background ?? p.background,

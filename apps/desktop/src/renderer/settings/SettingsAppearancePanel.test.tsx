@@ -39,6 +39,7 @@ describe("SettingsAppearancePanel", () => {
     expect(markup).toContain(".doolittle-theme.json,application/json");
     expect(markup).toContain("Warm operator signal");
     expect(markup).toContain("selected");
+    expect(markup).toContain('aria-pressed="true"');
   });
 
   it("keeps local controls available while runtime themes are offline", () => {
@@ -53,14 +54,14 @@ describe("SettingsAppearancePanel", () => {
         onThemeExport={noop}
         onThemeImport={noop}
         onThemeChange={noop}
-        themes={[]}
+        themes={[emberTheme]}
       />,
     );
 
     expect(markup).toContain("Unavailable");
     expect(markup).toContain("Appearance and density remain available locally");
     expect(markup).toContain("theme-grid");
-    expect(markup).toContain('hidden=""');
+    expect(markup).not.toContain('hidden=""');
   });
 
   it("keeps appearance controls while reporting a runtime theme failure with retry", () => {
@@ -83,5 +84,25 @@ describe("SettingsAppearancePanel", () => {
     expect(markup).toContain('aria-label="Application appearance"');
     expect(markup).toContain("Theme store unavailable");
     expect(markup).toContain("Try again");
+  });
+
+  it("surfaces a preserved legacy-theme migration error", () => {
+    const markup = renderToStaticMarkup(
+      <SettingsAppearancePanel
+        active
+        activeTheme={emberTheme}
+        appearance="dark"
+        density="comfortable"
+        themeMigrationError="Your previous theme is still preserved."
+        onAppearanceChange={noop}
+        onDensityChange={noop}
+        onThemeExport={noop}
+        onThemeImport={noop}
+        onThemeChange={noop}
+        themes={[emberTheme]}
+      />,
+    );
+    expect(markup).toContain('role="alert"');
+    expect(markup).toContain("Your previous theme is still preserved.");
   });
 });

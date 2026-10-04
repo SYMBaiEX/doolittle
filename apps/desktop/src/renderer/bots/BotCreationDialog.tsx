@@ -51,6 +51,7 @@ export function BotCreationDialog({
   const titleId = useId();
   const dialogRef = useModalFocusBoundary({
     active: true,
+    initialFocusSelector: "[data-dialog-initial-focus]",
     isolationBoundaryRef: backdropRef,
     isolateBackground: true,
     onClose: () => {
@@ -94,6 +95,17 @@ export function BotCreationDialog({
     setError("");
     if (validation) {
       setError(validation);
+      const invalidField =
+        step === 0
+          ? "bot-create-name"
+          : step === 1
+            ? "bot-create-persona"
+            : step === 2
+              ? !provider.trim()
+                ? "bot-create-provider"
+                : "bot-create-model"
+              : null;
+      if (invalidField) document.getElementById(invalidField)?.focus();
       return;
     }
     if (step < STEP_LABELS.length - 1) {
@@ -126,6 +138,8 @@ export function BotCreationDialog({
       setSaving(false);
     }
   };
+  const validationVisible = Boolean(error && validation);
+  const validationId = "bot-create-validation";
 
   return (
     <div
@@ -165,7 +179,17 @@ export function BotCreationDialog({
               <label className="grid gap-1.5 text-sm" htmlFor="bot-create-name">
                 Name
                 <Input
-                  autoFocus
+                  data-dialog-initial-focus
+                  aria-invalid={
+                    validationVisible && step === 0 && !name.trim()
+                      ? true
+                      : undefined
+                  }
+                  aria-describedby={
+                    validationVisible && step === 0 && !name.trim()
+                      ? validationId
+                      : undefined
+                  }
                   id="bot-create-name"
                   maxLength={80}
                   onChange={(event) => setName(event.target.value)}
@@ -197,6 +221,16 @@ export function BotCreationDialog({
               Purpose and working style
               <Textarea
                 autoFocus
+                aria-invalid={
+                  validationVisible && step === 1 && !persona.trim()
+                    ? true
+                    : undefined
+                }
+                aria-describedby={
+                  validationVisible && step === 1 && !persona.trim()
+                    ? validationId
+                    : undefined
+                }
                 id="bot-create-persona"
                 maxLength={4000}
                 onChange={(event) => setPersona(event.target.value)}
@@ -213,6 +247,16 @@ export function BotCreationDialog({
                 Provider
                 <Input
                   autoFocus
+                  aria-invalid={
+                    validationVisible && step === 2 && !provider.trim()
+                      ? true
+                      : undefined
+                  }
+                  aria-describedby={
+                    validationVisible && step === 2 && !provider.trim()
+                      ? validationId
+                      : undefined
+                  }
                   id="bot-create-provider"
                   onChange={(event) => setProvider(event.target.value)}
                   value={provider}
@@ -224,6 +268,16 @@ export function BotCreationDialog({
               >
                 Model
                 <Input
+                  aria-invalid={
+                    validationVisible && step === 2 && !model.trim()
+                      ? true
+                      : undefined
+                  }
+                  aria-describedby={
+                    validationVisible && step === 2 && !model.trim()
+                      ? validationId
+                      : undefined
+                  }
                   id="bot-create-model"
                   onChange={(event) => setModel(event.target.value)}
                   value={model}
@@ -330,7 +384,11 @@ export function BotCreationDialog({
           )}
         </div>
         {error ? (
-          <p className="mt-3 text-sm text-[var(--bad)]" role="alert">
+          <p
+            className="mt-3 text-sm text-[var(--bad)]"
+            id={validationVisible ? validationId : undefined}
+            role="alert"
+          >
             {error}
           </p>
         ) : null}

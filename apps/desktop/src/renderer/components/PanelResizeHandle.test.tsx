@@ -49,6 +49,7 @@ describe("PanelResizeHandle", () => {
             <PanelResizeHandle
               bounds={{ default: 260, min: 180, max: 520 }}
               className="left-0"
+              controls="resize-test-panel"
               direction={direction}
               label="Resize panel"
               onResize={onResize}
@@ -63,6 +64,7 @@ describe("PanelResizeHandle", () => {
         expect(document.activeElement).toBe(handle);
         expect(handle.tabIndex).toBe(0);
         expect(handle.getAttribute("aria-valuenow")).toBe("260");
+        expect(handle.getAttribute("aria-controls")).toBe("resize-test-panel");
         expect(handle.getAttribute("aria-orientation")).toBe(
           direction === "grow-up" || direction === "grow-down"
             ? "horizontal"
@@ -130,6 +132,7 @@ describe("PanelResizeHandle", () => {
         <PanelResizeHandle
           bounds={{ default: 260, min: 180, max: 520 }}
           className="left-0"
+          controls="resize-test-panel"
           direction="grow-right"
           label="Resize project rail"
           onResize={onResize}
@@ -176,6 +179,7 @@ describe("PanelResizeHandle", () => {
         <PanelResizeHandle
           bounds={{ default: 260, min: 180, max: 520 }}
           className="left-0"
+          controls="resize-test-panel"
           direction="grow-right"
           label="Resize project rail"
           onResize={onResize}
@@ -252,4 +256,43 @@ describe("PanelResizeHandle", () => {
 
     host.remove();
   });
+
+  it.each([
+    { key: "Home", expected: 180 },
+    { key: "End", expected: 520 },
+  ])(
+    "supports $key to resize to the corresponding bound",
+    ({ key, expected }) => {
+      const host = document.createElement("div");
+      document.body.append(host);
+      const root = createRoot(host);
+      const onResize = vi.fn();
+      try {
+        act(() => {
+          root.render(
+            <PanelResizeHandle
+              bounds={{ default: 260, min: 180, max: 520 }}
+              className="left-0"
+              controls="resize-test-panel"
+              direction="grow-right"
+              label="Resize panel"
+              onResize={onResize}
+              value={260}
+            />,
+          );
+        });
+        const handle = host.querySelector("hr");
+        if (!handle) throw new Error("Resize control not rendered");
+        act(() =>
+          handle.dispatchEvent(
+            new KeyboardEvent("keydown", { bubbles: true, key }),
+          ),
+        );
+        expect(onResize).toHaveBeenCalledWith(expected);
+      } finally {
+        act(() => root.unmount());
+        host.remove();
+      }
+    },
+  );
 });

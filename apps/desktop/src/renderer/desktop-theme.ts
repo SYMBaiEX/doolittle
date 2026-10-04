@@ -1,3 +1,14 @@
+import {
+  parseThemeManifestV2,
+  type ThemeManifestV2,
+} from "@doolittle/contracts/theme";
+import {
+  COMPANION_THEME,
+  migrateLegacyThemeBundle,
+  themeCssVariables,
+  validateThemeAccessibility,
+} from "@doolittle/ui/themes";
+
 export type DesktopAppearance = "dark" | "light" | "system";
 export type DesktopDensity = "compact" | "comfortable";
 
@@ -20,11 +31,17 @@ export interface DesktopThemeProfile {
 export const APPEARANCE_STORAGE_KEY = "doolittle.desktop.appearance";
 export const DENSITY_STORAGE_KEY = "doolittle.desktop.density";
 export const THEME_STORAGE_KEY = "doolittle.desktop.theme";
+export const THEME_V2_STORAGE_KEY = "doolittle.desktop.theme.v2";
+export const THEME_V1_BACKUP_STORAGE_KEY = "doolittle.desktop.theme.v1-backup";
+export const UI_LAYOUT_STORAGE_KEY = "doolittle.desktop.layout";
 export const THEME_SOURCE_STORAGE_KEY = "doolittle.desktop.theme-source";
 export const APPEARANCE_CHANGE_EVENT = "doolittle:appearance-change";
 export const APPEARANCE_APPLIED_EVENT = "doolittle:appearance-applied";
 export const DENSITY_CHANGE_EVENT = "doolittle:density-change";
 export const THEME_CHANGE_EVENT = "doolittle:theme-change";
+export const THEME_MANIFEST_CHANGE_EVENT = "doolittle:theme-manifest-change";
+
+let themeMigrationError = "";
 
 const cssVariable = (name: string): string => `var(--${name})`;
 
@@ -560,24 +577,128 @@ export function applyDesktopTheme(
   profile: DesktopThemeProfile,
   source?: "imported" | "runtime",
 ): void {
+  const bundle = migrateLegacyThemeBundle({
+    kind: "doolittle.theme",
+    version: 1,
+    theme: { ...profile },
+    appearance: loadAppearancePreference(),
+    density: loadDensityPreference(),
+  });
+  applyThemeManifest(bundle.theme, source);
+}
+
+export function applyThemeManifest(
+  value: ThemeManifestV2,
+  source?: "imported" | "runtime" | "builtin",
+): void {
+  const theme = parseThemeManifestV2(value);
+  validateThemeAccessibility(theme);
   const root = document.documentElement;
-  root.dataset.theme = profile.name;
-  // Restore the selected appearance before applying a new profile so moving
-  // from a full workbench theme to an accent-only theme cannot leave stale
-  // shell colors behind.
-  setCssTokens(
-    root.dataset.appearance === "light"
-      ? LIGHT_DESKTOP_TOKENS
-      : DARK_DESKTOP_TOKENS,
-  );
   const appearance = root.dataset.appearance === "light" ? "light" : "dark";
-  for (const [property, value] of Object.entries(
-    themeCssTokens(profile, appearance),
-  )) {
-    root.style.setProperty(property, value);
+  root.dataset.theme = theme.id;
+  root.dataset.uiLayout = theme.layout;
+  setCssTokens(themeCssVariables(theme, appearance, loadDensityPreference()));
+  const legacyRaw = localStorage.getItem(THEME_STORAGE_KEY);
+  const hasBackup = localStorage.getItem(THEME_V1_BACKUP_STORAGE_KEY) !== null;
+  if (legacyRaw && !hasBackup) {
+    try {
+      localStorage.setItem(THEME_V1_BACKUP_STORAGE_KEY, legacyRaw);
+    } catch {
+      themeMigrationError =
+        "Your previous theme is still preserved, but its backup could not be saved. Check local storage space and try again.";
+      window.dispatchEvent(new Event("doolittle:ui-layout-change"));
+      window.dispatchEvent(
+        new CustomEvent<ThemeManifestV2>(THEME_MANIFEST_CHANGE_EVENT, {
+          detail: theme,
+        }),
+      );
+      return;
+    }
   }
-  localStorage.setItem(THEME_STORAGE_KEY, JSON.stringify(profile));
+  localStorage.setItem(THEME_V2_STORAGE_KEY, JSON.stringify(theme));
+  localStorage.setItem(UI_LAYOUT_STORAGE_KEY, theme.layout);
+  window.dispatchEvent(new Event("doolittle:ui-layout-change"));
+  window.dispatchEvent(
+    new CustomEvent<ThemeManifestV2>(THEME_MANIFEST_CHANGE_EVENT, {
+      detail: theme,
+    }),
+  );
   if (source) localStorage.setItem(THEME_SOURCE_STORAGE_KEY, source);
+}
+
+function migrateLegacyStoredTheme(raw: string): ThemeManifestV2 | null {
+  let migrated: ThemeManifestV2;
+  try {
+    const profile = parseDesktopThemeProfile(JSON.parse(raw));
+    if (!profile) return null;
+    migrated = migrateLegacyThemeBundle({
+      kind: "doolittle.theme",
+      version: 1,
+      theme: { ...profile },
+      appearance: loadAppearancePreference(),
+      density: loadDensityPreference(),
+    }).theme;
+  } catch {
+    return null;
+  }
+  try {
+    // Preserve the byte-exact legacy value before writing the v2 preference.
+    localStorage.setItem(THEME_V1_BACKUP_STORAGE_KEY, raw);
+    localStorage.setItem(THEME_V2_STORAGE_KEY, JSON.stringify(migrated));
+    localStorage.setItem(UI_LAYOUT_STORAGE_KEY, migrated.layout);
+    themeMigrationError = "";
+    return migrated;
+  } catch {
+    themeMigrationError =
+      "Your previous theme is still preserved, but its backup could not be saved. Check local storage space and try again.";
+    return migrated;
+  }
+}
+
+export function loadStoredThemeManifest(): ThemeManifestV2 {
+  themeMigrationError = "";
+  const stored = localStorage.getItem(THEME_V2_STORAGE_KEY);
+  if (stored) {
+    try {
+      const theme = parseThemeManifestV2(JSON.parse(stored));
+      validateThemeAccessibility(theme);
+      return theme;
+    } catch {
+      themeMigrationError =
+        "The saved theme was invalid; Companion was loaded.";
+    }
+  }
+  const legacy = localStorage.getItem(THEME_STORAGE_KEY);
+  if (legacy) {
+    const migrated = migrateLegacyStoredTheme(legacy);
+    if (migrated) return migrated;
+  }
+  return COMPANION_THEME;
+}
+
+export function getThemeMigrationError(): string {
+  return themeMigrationError;
+}
+
+export function legacyThemeProfile(
+  theme: ThemeManifestV2,
+): DesktopThemeProfile {
+  const palette = theme.colors.dark;
+  return {
+    name: theme.id,
+    label: theme.name,
+    tagline: theme.description,
+    primary: palette.accent,
+    secondary: palette.accentHover ?? palette.accent,
+    amberGlow: palette.warning,
+    greenGlow: palette.success,
+    cyanGlow: theme.terminalColors?.cyan,
+    magentaGlow: theme.terminalColors?.magenta,
+    muted: palette.mutedText,
+    baseBg: theme.codeColors?.dark.background,
+    baseFg: theme.codeColors?.dark.text,
+    panelBg: theme.codeColors?.dark.background,
+  };
 }
 
 export function applyDesktopAppearance(
@@ -590,8 +711,10 @@ export function applyDesktopAppearance(
   setCssTokens(
     resolved === "dark" ? DARK_DESKTOP_TOKENS : LIGHT_DESKTOP_TOKENS,
   );
-  const selectedTheme = loadStoredDesktopTheme();
-  if (selectedTheme) setCssTokens(themeCssTokens(selectedTheme, resolved));
+  const selectedTheme = loadStoredThemeManifest();
+  setCssTokens(
+    themeCssVariables(selectedTheme, resolved, loadDensityPreference()),
+  );
   root.style.colorScheme = resolved;
   root.classList.toggle("dark", resolved === "dark");
   root.dataset.appearancePreference = preference;
@@ -604,21 +727,34 @@ export function applyDesktopDensity(density: DesktopDensity): void {
   );
   document.documentElement.dataset.density = density;
   localStorage.setItem(DENSITY_STORAGE_KEY, density);
+  setCssTokens(
+    themeCssVariables(
+      loadStoredThemeManifest(),
+      document.documentElement.dataset.appearance === "light"
+        ? "light"
+        : "dark",
+      density,
+    ),
+  );
 }
 
 export function loadStoredDesktopTheme(): DesktopThemeProfile | null {
   try {
-    return parseDesktopThemeProfile(
-      JSON.parse(localStorage.getItem(THEME_STORAGE_KEY) ?? "null"),
-    );
+    return legacyThemeProfile(loadStoredThemeManifest());
   } catch {
     return null;
   }
 }
 
-export function loadDesktopThemeSource(): "imported" | "runtime" | null {
+export function loadDesktopThemeSource():
+  | "builtin"
+  | "imported"
+  | "runtime"
+  | null {
   const source = localStorage.getItem(THEME_SOURCE_STORAGE_KEY);
-  return source === "imported" || source === "runtime" ? source : null;
+  return source === "builtin" || source === "imported" || source === "runtime"
+    ? source
+    : null;
 }
 
 export function loadAppearancePreference(): DesktopAppearance {

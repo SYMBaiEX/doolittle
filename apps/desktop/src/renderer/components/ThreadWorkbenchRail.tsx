@@ -162,6 +162,7 @@ export function ThreadWorkbenchRail({
 
   return (
     <aside
+      id={`${idPrefix}-rail`}
       aria-label="Thread context"
       className={WORKBENCH_RAIL_CLASS}
       data-thread-workbench="rail"
@@ -189,6 +190,7 @@ export function ThreadWorkbenchRail({
             max: THREAD_WORKBENCH_MAX_WIDTH,
           }}
           className={WORKBENCH_RESIZER_CLASS}
+          controls={`${idPrefix}-rail`}
           direction="grow-left"
           label="Resize thread context"
           onResize={(railWidth) =>

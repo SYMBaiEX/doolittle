@@ -77,6 +77,23 @@ export function useModalFocusBoundary({
   const wasActive = useRef(false);
   const close = useEffectEvent(onClose);
 
+  const restorePreviousFocus = () => {
+    const previousFocus = previousFocusRef.current;
+    previousFocusRef.current = null;
+    const restoreTarget =
+      restoreFocusTarget ?? restoreFocusRef?.current ?? previousFocus;
+    if (restoreFocus && restoreTarget?.isConnected) {
+      requestAnimationFrame(() => restoreTarget.focus());
+    }
+  };
+  const restoreOnUnmount = useEffectEvent(restorePreviousFocus);
+
+  useEffect(() => {
+    return () => {
+      if (wasActive.current) restoreOnUnmount();
+    };
+  }, []);
+
   useEffect(() => {
     if (!active) return;
 
@@ -139,10 +156,11 @@ export function useModalFocusBoundary({
     if (active || !wasActive.current) return;
     wasActive.current = false;
 
-    const previousFocus = previousFocusRef.current;
-    previousFocusRef.current = null;
     const restoreTarget =
-      restoreFocusTarget ?? restoreFocusRef?.current ?? previousFocus;
+      restoreFocusTarget ??
+      restoreFocusRef?.current ??
+      previousFocusRef.current;
+    previousFocusRef.current = null;
     if (restoreFocus && restoreTarget?.isConnected) {
       requestAnimationFrame(() => restoreTarget.focus());
     }

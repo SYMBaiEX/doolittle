@@ -6,10 +6,11 @@ import {
   applyDesktopAppearance,
   applyDesktopDensity,
   applyDesktopFoundationTokens,
-  applyDesktopTheme,
+  applyThemeManifest,
   loadAppearancePreference,
   loadDensityPreference,
-  loadStoredDesktopTheme,
+  loadDesktopThemeSource,
+  loadStoredThemeManifest,
 } from "./desktop-theme";
 import { ElizaUiBridge } from "./ElizaUiBridge";
 import "./eliza-tailwind.css";
@@ -18,8 +19,10 @@ document.documentElement.dataset.platform = window.doolittle.platform;
 applyDesktopFoundationTokens();
 applyDesktopAppearance(loadAppearancePreference());
 applyDesktopDensity(loadDensityPreference());
-const storedTheme = loadStoredDesktopTheme();
-if (storedTheme) applyDesktopTheme(storedTheme);
+applyThemeManifest(
+  loadStoredThemeManifest(),
+  loadDesktopThemeSource() ?? "builtin",
+);
 
 document.documentElement.classList.add("h-full", "w-full", "overflow-hidden");
 document.body.classList.add(

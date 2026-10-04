@@ -38,6 +38,7 @@ export function SettingsAppearancePanel({
   themes,
   themesLoading = false,
   themesError = "",
+  themeMigrationError = "",
   onThemeReload,
 }: {
   active: boolean;
@@ -52,6 +53,7 @@ export function SettingsAppearancePanel({
   themes: unknown[];
   themesLoading?: boolean;
   themesError?: string;
+  themeMigrationError?: string;
   onThemeReload?: () => void;
 }) {
   const importInputRef = useRef<HTMLInputElement | null>(null);
@@ -168,26 +170,43 @@ export function SettingsAppearancePanel({
           Appearance and density remain available locally.
         </OfflineRouteState>
       ) : null}
+      {themeMigrationError ? (
+        <p className="m-0 text-sm text-[var(--bad)]" role="alert">
+          {themeMigrationError}
+        </p>
+      ) : null}
       {active && themesLoading ? (
         <LoadingBlock label="Loading runtime color themes…" />
       ) : null}
       {active && themesError ? (
         <ErrorBlock error={themesError} retry={onThemeReload} />
       ) : null}
-      <div
-        className={SETTINGS_THEME_GRID_CLASS}
-        hidden={!active || themesLoading || Boolean(themesError)}
-      >
+      <div className={SETTINGS_THEME_GRID_CLASS}>
         {themes.map((value, index) => {
           const entry = asRecord(value);
-          const name = asString(entry.name, String(index));
-          const primary = asString(entry.primary, "var(--accent)");
-          const secondary = asString(entry.secondary, primary);
-          const label = asString(entry.label, titleCase(name));
-          const tagline = asString(entry.tagline, "Desktop color system");
+          const name = asString(entry.id, asString(entry.name, String(index)));
+          const colors = asRecord(entry.colors);
+          const darkColors = asRecord(colors.dark);
+          const primary = asString(
+            entry.primary,
+            asString(darkColors.accent, "var(--accent)"),
+          );
+          const secondary = asString(
+            entry.secondary,
+            asString(darkColors.accentHover, primary),
+          );
+          const label = asString(
+            entry.label,
+            asString(entry.name, titleCase(name)),
+          );
+          const tagline = asString(
+            entry.tagline,
+            asString(entry.description, "Desktop color system"),
+          );
           return (
             <button
               aria-label={`${label}: ${tagline}`}
+              aria-pressed={activeTheme?.name === name}
               className={`${SETTINGS_THEME_BUTTON_CLASS} ${
                 activeTheme?.name === name ? "selected" : ""
               }`}
@@ -206,7 +225,10 @@ export function SettingsAppearancePanel({
                 <i style={{ background: secondary }} />
                 <i
                   style={{
-                    background: asString(entry.greenGlow, "var(--good)"),
+                    background: asString(
+                      entry.greenGlow,
+                      asString(darkColors.success, "var(--good)"),
+                    ),
                   }}
                 />
               </span>

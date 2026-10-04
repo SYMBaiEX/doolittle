@@ -72,7 +72,6 @@ export function DesktopSidebar({
   isMobileSidebarMode,
   mobileSidebarOpen,
   navCollapsed,
-  sidebarOpen,
   sidebarWidth,
   selectedBotId,
   defaultBotId,
@@ -110,13 +109,14 @@ export function DesktopSidebar({
   return (
     <>
       <button
-        aria-label="Close navigation"
+        aria-hidden="true"
         className={`${SIDEBAR_SCRIM_CLASS} ${mobileSidebarOpen ? SIDEBAR_SCRIM_VISIBLE_CLASS : SIDEBAR_SCRIM_HIDDEN_CLASS}`}
         onClick={onClose}
-        tabIndex={sidebarOpen ? 0 : -1}
+        tabIndex={-1}
         type="button"
       />
       <aside
+        id="desktop-sidebar"
         {...(mobileSidebarOpen
           ? { "aria-modal": true as const, role: "dialog" as const }
           : {})}
@@ -132,6 +132,7 @@ export function DesktopSidebar({
           <PanelResizeHandle
             bounds={APP_SIDEBAR_WIDTH}
             className="app-sidebar-resizer"
+            controls="desktop-sidebar"
             direction="grow-right"
             label="Resize bot navigation"
             onResize={onResize}

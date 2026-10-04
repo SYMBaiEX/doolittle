@@ -7,9 +7,11 @@ import { useModalFocusBoundary } from "./useModalFocusBoundary";
 
 function FocusBoundaryProbe({
   active,
+  mounted = true,
   onClose,
 }: {
   active: boolean;
+  mounted?: boolean;
   onClose: () => void;
 }) {
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -27,12 +29,40 @@ function FocusBoundaryProbe({
       <button ref={triggerRef} type="button">
         Open
       </button>
-      <div ref={dialogRef} tabIndex={-1}>
-        <button data-initial type="button">
-          First
-        </button>
-        <button type="button">Last</button>
-      </div>
+      {mounted ? (
+        <div ref={dialogRef} tabIndex={-1}>
+          <button data-initial type="button">
+            First
+          </button>
+          <button type="button">Last</button>
+        </div>
+      ) : null}
+    </>
+  );
+}
+
+function UnmountingModal({ trigger }: { trigger: HTMLButtonElement | null }) {
+  const dialogRef = useModalFocusBoundary({
+    active: true,
+    onClose: () => {},
+    restoreFocus: true,
+    restoreFocusTarget: trigger,
+  });
+  return (
+    <div ref={dialogRef} tabIndex={-1}>
+      <button type="button">Inside modal</button>
+    </div>
+  );
+}
+
+function ConditionalModalHost({ mounted }: { mounted: boolean }) {
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  return (
+    <>
+      <button ref={triggerRef} type="button">
+        Open
+      </button>
+      {mounted ? <UnmountingModal trigger={triggerRef.current} /> : null}
     </>
   );
 }
@@ -100,5 +130,16 @@ describe("useModalFocusBoundary", () => {
     expect(document.activeElement).toBe(trigger);
     expect(trigger.inert).not.toBe(true);
     expect(trigger.hasAttribute("aria-hidden")).toBe(false);
+  });
+
+  it("restores focus when an active modal is conditionally unmounted", () => {
+    act(() => root.render(<ConditionalModalHost mounted={false} />));
+    const trigger = container.querySelector("button");
+    trigger?.focus();
+    act(() => root.render(<ConditionalModalHost mounted />));
+    expect(document.activeElement).not.toBe(trigger);
+
+    act(() => root.render(<ConditionalModalHost mounted={false} />));
+    expect(document.activeElement).toBe(trigger);
   });
 });

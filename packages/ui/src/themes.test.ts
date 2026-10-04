@@ -39,11 +39,11 @@ describe("versioned themes", () => {
       expect(canvas[token]).not.toBe(companion[token]);
   });
 
-  it("keeps compact density legible and targets full-sized", () => {
+  it("keeps compact density legible with reduced control geometry", () => {
     const compact = themeCssVariables(COMPANION_THEME, "dark", "compact");
     expect(compact["--row-pad"]).toBe("6px");
-    expect(compact["--control-height"]).toBe("40px");
-    expect(compact["--text-meta"]).toBe("12px");
+    expect(compact["--control-height"]).toBe("36px");
+    expect(compact["--text-meta"]).toBe("11px");
   });
 
   it("rejects code, URLs, arbitrary layouts and undeclared manifest keys", () => {

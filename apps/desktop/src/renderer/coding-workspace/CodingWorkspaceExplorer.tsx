@@ -1,5 +1,5 @@
 import { FileStack, GitCompareArrows, Search } from "lucide-react";
-import type { FormEvent } from "react";
+import { type FormEvent, useId } from "react";
 import { PanelResizeHandle } from "../components/PanelResizeHandle";
 import { WorkspaceFileTree } from "../components/WorkspaceFileTree";
 import { type ApiResource, EmptyBlock, ErrorBlock, LoadingBlock } from "../lib";
@@ -34,8 +34,6 @@ import type {
 } from "./models";
 import { fileName, statusLabel } from "./models";
 import { PaneTabs, paneTabId } from "./PaneTabs";
-
-const EXPLORER_PANEL_ID = "coding-explorer-panel";
 
 export function CodingWorkspaceExplorer({
   width,
@@ -74,11 +72,16 @@ export function CodingWorkspaceExplorer({
   onSearchDraftChange: (value: string) => void;
   onSubmitSearch: (event: FormEvent<HTMLFormElement>) => void;
 }) {
+  const panelId = `coding-explorer-${useId().replace(/:/gu, "")}`;
   return (
-    <aside className={`${CODING_PANE_CLASS} ${CODING_EXPLORER_CLASS}`}>
+    <aside
+      id={panelId}
+      className={`${CODING_PANE_CLASS} ${CODING_EXPLORER_CLASS}`}
+    >
       <PanelResizeHandle
         bounds={resizeBounds}
         className={CODING_EXPLORER_RESIZER_CLASS}
+        controls={panelId}
         direction="grow-right"
         label="Resize code explorer"
         onResize={onResize}
@@ -96,15 +99,15 @@ export function CodingWorkspaceExplorer({
           },
           { id: "search", label: "Search", icon: Search },
         ]}
-        panelId={EXPLORER_PANEL_ID}
+        panelId={panelId}
         value={leftPane}
         onChange={onLeftPaneChange}
       />
 
       <div
-        aria-labelledby={paneTabId(EXPLORER_PANEL_ID, leftPane)}
+        aria-labelledby={paneTabId(panelId, leftPane)}
         className={CODING_PANE_BODY_CLASS}
-        id={EXPLORER_PANEL_ID}
+        id={panelId}
         role="tabpanel"
       >
         {leftPane === "files" ? (

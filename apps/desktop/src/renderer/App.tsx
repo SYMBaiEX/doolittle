@@ -91,15 +91,17 @@ import {
   applyDesktopAppearance,
   applyDesktopDensity,
   applyDesktopTheme,
+  applyThemeManifest,
   type DesktopAppearance,
   type DesktopDensity,
   loadAppearancePreference,
   loadDensityPreference,
   loadDesktopThemeSource,
-  loadStoredDesktopTheme,
+  loadStoredThemeManifest,
   parseDesktopThemeProfile,
   resolveAppearance,
   subscribeToDesktopThemeChanges,
+  THEME_MANIFEST_CHANGE_EVENT,
 } from "./desktop-theme";
 import { confirmDirtyNavigation } from "./dirty-navigation";
 import { asArray, desktopRequest, useApiResource } from "./lib";
@@ -343,18 +345,32 @@ export function App() {
     () => localStorage.getItem(NAV_COLLAPSED_KEY) === "true",
   );
   const [sidebarWidth, setSidebarWidth] = useState(() =>
-    loadPanelWidth(localStorage, APP_SIDEBAR_WIDTH_KEY, APP_SIDEBAR_WIDTH),
+    loadPanelWidth(localStorage, APP_SIDEBAR_WIDTH_KEY, {
+      ...APP_SIDEBAR_WIDTH,
+      default: loadStoredThemeManifest().geometry.navigationWidth,
+    }),
   );
   const [utilityDrawerWidth, setUtilityDrawerWidth] = useState(() =>
-    loadPanelWidth(
-      localStorage,
-      UTILITY_DRAWER_WIDTH_KEY,
-      UTILITY_DRAWER_WIDTH,
-    ),
+    loadPanelWidth(localStorage, UTILITY_DRAWER_WIDTH_KEY, {
+      ...UTILITY_DRAWER_WIDTH,
+      default: loadStoredThemeManifest().geometry.inspectorWidth,
+    }),
   );
   const [chatTerminalHeight, setChatTerminalHeight] = useState(() =>
     loadPanelSize(localStorage, CHAT_TERMINAL_HEIGHT_KEY, CHAT_TERMINAL_HEIGHT),
   );
+  const explicitPanelSizesRef = useRef({
+    sidebar: localStorage.getItem(APP_SIDEBAR_WIDTH_KEY) !== null,
+    utility: localStorage.getItem(UTILITY_DRAWER_WIDTH_KEY) !== null,
+  });
+  const resizeSidebar = useCallback((width: number) => {
+    explicitPanelSizesRef.current.sidebar = true;
+    setSidebarWidth(width);
+  }, []);
+  const resizeUtilityDrawer = useCallback((width: number) => {
+    explicitPanelSizesRef.current.utility = true;
+    setUtilityDrawerWidth(width);
+  }, []);
   const [projectScope, setProjectScope] =
     useState<ProjectScope>(loadProjectScope);
   const [projectManagerOpen, setProjectManagerOpen] = useState(false);
@@ -398,7 +414,26 @@ export function App() {
       cancelled = true;
     };
   }, []);
-
+  useEffect(() => {
+    const syncThemeGeometryDefaults = () => {
+      const { geometry } = loadStoredThemeManifest();
+      if (!explicitPanelSizesRef.current.sidebar) {
+        setSidebarWidth(geometry.navigationWidth);
+      }
+      if (!explicitPanelSizesRef.current.utility) {
+        setUtilityDrawerWidth(geometry.inspectorWidth);
+      }
+    };
+    window.addEventListener(
+      THEME_MANIFEST_CHANGE_EVENT,
+      syncThemeGeometryDefaults,
+    );
+    return () =>
+      window.removeEventListener(
+        THEME_MANIFEST_CHANGE_EVENT,
+        syncThemeGeometryDefaults,
+      );
+  }, []);
   useEffect(() => {
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
       guardDirtyCodeWorkspaceClose(event, codeWorkspaceDirty);
@@ -1033,8 +1068,10 @@ export function App() {
   }, [density]);
 
   useEffect(() => {
-    const stored = loadStoredDesktopTheme();
-    if (stored) applyDesktopTheme(stored);
+    applyThemeManifest(
+      loadStoredThemeManifest(),
+      loadDesktopThemeSource() ?? "builtin",
+    );
   }, []);
 
   useEffect(() => {
@@ -1043,7 +1080,8 @@ export function App() {
     void desktopRequest<ThemeResponse>("/theme")
       .then((response) => {
         if (disposed) return;
-        if (loadDesktopThemeSource() === "imported") return;
+        if (["imported", "builtin"].includes(loadDesktopThemeSource() ?? ""))
+          return;
         const profile = parseDesktopThemeProfile(response.profile);
         if (profile) applyDesktopTheme(profile, "runtime");
       })
@@ -1630,7 +1668,7 @@ export function App() {
           sidebarRef={sidebarRef}
           onSidebarKeyDown={handleSidebarKeyDown}
           onClose={() => setMobileSidebarOpen(false)}
-          onResize={setSidebarWidth}
+          onResize={resizeSidebar}
           onToggleNavigation={
             navigationAutoCollapsed ? closeUtilities : toggleNavigation
           }
@@ -1817,7 +1855,7 @@ export function App() {
             }
             onClose={closeUtilities}
             onKeyDown={handleUtilityKeyDown}
-            onResize={setUtilityDrawerWidth}
+            onResize={resizeUtilityDrawer}
             utilityDrawerWidth={utilityDrawerWidth}
             utilityRef={utilityRef}
             mobileModal={utilityModalMode}

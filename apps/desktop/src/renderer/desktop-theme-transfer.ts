@@ -1,28 +1,52 @@
 import {
+  parseThemeBundleV2,
+  parseThemeManifestV2,
+  type ThemeBundleV2,
+  type ThemeManifestV2,
+} from "@doolittle/contracts/theme";
+import { migrateLegacyThemeBundle } from "@doolittle/ui/themes";
+import {
   type DesktopAppearance,
   type DesktopDensity,
   type DesktopThemeProfile,
   parseDesktopThemeProfile,
 } from "./desktop-theme";
 
-export const DESKTOP_THEME_BUNDLE_KIND = "doolittle.theme";
-export const DESKTOP_THEME_BUNDLE_VERSION = 1;
+export const DESKTOP_THEME_BUNDLE_KIND = "doolittle.theme.bundle";
+export const DESKTOP_THEME_BUNDLE_VERSION = 2;
 export const DESKTOP_THEME_IMPORT_MAX_BYTES = 64 * 1024;
 
-export interface DesktopThemeBundle {
-  kind: typeof DESKTOP_THEME_BUNDLE_KIND;
-  version: typeof DESKTOP_THEME_BUNDLE_VERSION;
-  theme: DesktopThemeProfile;
-  appearance: DesktopAppearance;
-  density: DesktopDensity;
-}
+export type DesktopThemeBundle = ThemeBundleV2;
 
-function isAppearance(value: unknown): value is DesktopAppearance {
-  return value === "dark" || value === "light" || value === "system";
-}
-
-function isDensity(value: unknown): value is DesktopDensity {
-  return value === "compact" || value === "comfortable";
+function parseLegacyThemeBundle(value: unknown): DesktopThemeBundle | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const bundle = value as Record<string, unknown>;
+  if (bundle.kind !== "doolittle.theme" || bundle.version !== 1) return null;
+  const theme = parseDesktopThemeProfile(
+    bundle.theme,
+  ) as DesktopThemeProfile | null;
+  if (!theme) return null;
+  if (
+    bundle.appearance !== "dark" &&
+    bundle.appearance !== "light" &&
+    bundle.appearance !== "system"
+  ) {
+    return null;
+  }
+  if (bundle.density !== "compact" && bundle.density !== "comfortable") {
+    return null;
+  }
+  try {
+    return migrateLegacyThemeBundle({
+      kind: "doolittle.theme",
+      version: 1,
+      theme: { ...theme },
+      appearance: bundle.appearance,
+      density: bundle.density,
+    });
+  } catch {
+    return null;
+  }
 }
 
 export function parseDesktopThemeBundle(source: string): DesktopThemeBundle {
@@ -37,44 +61,37 @@ export function parseDesktopThemeBundle(source: string): DesktopThemeBundle {
   } catch {
     throw new Error("Theme file is not valid JSON.");
   }
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    throw new Error("Theme file must contain a Doolittle theme bundle.");
-  }
-  const bundle = value as Record<string, unknown>;
-  if (
-    bundle.kind !== DESKTOP_THEME_BUNDLE_KIND ||
-    bundle.version !== DESKTOP_THEME_BUNDLE_VERSION
-  ) {
-    throw new Error("Theme file uses an unsupported Doolittle theme format.");
-  }
-  const theme = parseDesktopThemeProfile(bundle.theme);
-  if (!theme) throw new Error("Theme file contains an invalid color profile.");
-  if (!isAppearance(bundle.appearance) || !isDensity(bundle.density)) {
+  const legacy = parseLegacyThemeBundle(value);
+  if (legacy) return legacy;
+  try {
+    return parseThemeBundleV2(source);
+  } catch {
     throw new Error(
-      "Theme file contains invalid appearance or density settings.",
+      "Theme file uses an unsupported or invalid Doolittle theme format.",
     );
   }
-  return {
-    kind: DESKTOP_THEME_BUNDLE_KIND,
-    version: DESKTOP_THEME_BUNDLE_VERSION,
-    theme,
-    appearance: bundle.appearance,
-    density: bundle.density,
-  };
 }
 
 export function serializeDesktopThemeBundle(
-  theme: DesktopThemeProfile,
+  theme: DesktopThemeProfile | ThemeManifestV2,
   appearance: DesktopAppearance,
   density: DesktopDensity,
 ): string {
-  const parsed = parseDesktopThemeProfile(theme);
-  if (!parsed) throw new Error("A valid theme profile is required for export.");
+  const isManifest = "version" in theme && theme.version === 2;
+  const manifest = isManifest
+    ? parseThemeManifestV2(theme)
+    : migrateLegacyThemeBundle({
+        kind: "doolittle.theme",
+        version: 1,
+        theme: { ...theme },
+        appearance,
+        density,
+      }).theme;
   return `${JSON.stringify(
     {
       kind: DESKTOP_THEME_BUNDLE_KIND,
       version: DESKTOP_THEME_BUNDLE_VERSION,
-      theme: parsed,
+      theme: manifest,
       appearance,
       density,
     } satisfies DesktopThemeBundle,
@@ -83,23 +100,25 @@ export function serializeDesktopThemeBundle(
   )}\n`;
 }
 
-export function desktopThemeBundleFilename(theme: DesktopThemeProfile): string {
-  const name = theme.name
+export function desktopThemeBundleFilename(
+  theme: DesktopThemeProfile | ThemeManifestV2,
+): string {
+  const label = "version" in theme ? theme.name : theme.label;
+  const id = label
+    .toLowerCase()
     .replace(/[^a-z0-9._-]+/giu, "-")
     .replace(/^-|-$/gu, "");
-  return `${name || "doolittle"}.doolittle-theme.json`;
+  return `${id || "doolittle"}.doolittle-theme.json`;
 }
 
 export function downloadDesktopThemeBundle(
-  theme: DesktopThemeProfile,
+  theme: DesktopThemeProfile | ThemeManifestV2,
   appearance: DesktopAppearance,
   density: DesktopDensity,
 ): void {
   const blob = new Blob(
     [serializeDesktopThemeBundle(theme, appearance, density)],
-    {
-      type: "application/json",
-    },
+    { type: "application/json" },
   );
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");

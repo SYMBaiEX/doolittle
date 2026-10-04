@@ -5,6 +5,7 @@ import type {
   RepositoryStash,
 } from "@doolittle/contracts/repository";
 import { GitBranch, GitCommit, GitFork, SquareTerminal } from "lucide-react";
+import { useId } from "react";
 import type { WorkspacePickResult } from "../../shared/contracts";
 import { ExecutionEnvironmentPanel } from "../components/ExecutionEnvironmentPanel";
 import { GitControlPanel } from "../components/GitControlPanel";
@@ -39,8 +40,6 @@ import type {
 } from "./models";
 import { controlChanges, records } from "./models";
 import { PaneTabs, paneTabId } from "./PaneTabs";
-
-const UTILITY_PANEL_ID = "coding-utility-panel";
 
 export function CodingWorkspaceUtility({
   active,
@@ -83,11 +82,16 @@ export function CodingWorkspaceUtility({
   onOpenWorkspacePath: (path: string) => Promise<WorkspacePickResult>;
   onOpenTerminal: () => void;
 }) {
+  const panelId = `coding-utility-${useId().replace(/:/gu, "")}`;
   return (
-    <aside className={`${CODING_PANE_CLASS} ${CODING_UTILITY_CLASS}`}>
+    <aside
+      id={panelId}
+      className={`${CODING_PANE_CLASS} ${CODING_UTILITY_CLASS}`}
+    >
       <PanelResizeHandle
         bounds={resizeBounds}
         className={CODING_UTILITY_RESIZER_CLASS}
+        controls={panelId}
         direction="grow-left"
         label="Resize code utility panel"
         onResize={onResize}
@@ -116,14 +120,14 @@ export function CodingWorkspaceUtility({
             icon: GitFork,
           },
         ]}
-        panelId={UTILITY_PANEL_ID}
+        panelId={panelId}
         value={utilityPane}
         onChange={onUtilityPaneChange}
       />
       <div
-        aria-labelledby={paneTabId(UTILITY_PANEL_ID, utilityPane)}
+        aria-labelledby={paneTabId(panelId, utilityPane)}
         className={CODING_PANE_BODY_CLASS}
-        id={UTILITY_PANEL_ID}
+        id={panelId}
         role="tabpanel"
       >
         {utilityPane === "terminal" ? (

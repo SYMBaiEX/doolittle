@@ -17,6 +17,7 @@ export function PanelResizeHandle({
   className,
   direction,
   label,
+  controls,
   onResize,
   value,
 }: {
@@ -24,6 +25,7 @@ export function PanelResizeHandle({
   className: string;
   direction: PanelResizeDirection;
   label: string;
+  controls: string;
   onResize: (value: number) => void;
   value: number;
 }) {
@@ -123,6 +125,16 @@ export function PanelResizeHandle({
   };
 
   const resizeWithKeyboard = (event: KeyboardEvent<HTMLHRElement>) => {
+    if (event.key === "Home") {
+      event.preventDefault();
+      onResize(bounds.min);
+      return;
+    }
+    if (event.key === "End") {
+      event.preventDefault();
+      onResize(bounds.max);
+      return;
+    }
     const pointerDelta = resizesHeight
       ? event.key === "ArrowUp"
         ? -16
@@ -150,6 +162,7 @@ export function PanelResizeHandle({
     >
       <hr
         aria-label={label}
+        aria-controls={controls}
         aria-orientation={resizesHeight ? "horizontal" : "vertical"}
         aria-valuemax={bounds.max}
         aria-valuemin={bounds.min}

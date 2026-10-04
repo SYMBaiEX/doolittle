@@ -51,6 +51,7 @@ export function DesktopUtilityLayer({
         data-utility-layer=""
       >
         <aside
+          id="activity-panel"
           aria-label="Activity"
           className={`relative flex h-full min-w-0 flex-col bg-[var(--surface)] text-[var(--text)] ${
             mobileModal
@@ -93,6 +94,7 @@ export function DesktopUtilityLayer({
           <PanelResizeHandle
             bounds={UTILITY_DRAWER_WIDTH}
             className="inset-y-0 -left-1.25 z-4 max-[700px]:hidden"
+            controls="activity-panel"
             direction="grow-left"
             label="Resize Activity panel"
             onResize={onResize}

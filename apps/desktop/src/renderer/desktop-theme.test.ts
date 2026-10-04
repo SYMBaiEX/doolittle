@@ -1,3 +1,4 @@
+import { validateThemeAccessibility } from "@doolittle/ui/themes";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   APPEARANCE_APPLIED_EVENT,
@@ -7,15 +8,22 @@ import {
   applyDesktopDensity,
   applyDesktopFoundationTokens,
   applyDesktopTheme,
+  applyThemeManifest,
   DENSITY_CHANGE_EVENT,
+  getThemeMigrationError,
   loadDensityPreference,
   loadDesktopThemeSource,
   loadStoredDesktopTheme,
+  loadStoredThemeManifest,
   parseDesktopThemeProfile,
   resolveAppearance,
   subscribeToDesktopThemeChanges,
   THEME_CHANGE_EVENT,
+  THEME_STORAGE_KEY,
+  THEME_V1_BACKUP_STORAGE_KEY,
+  THEME_V2_STORAGE_KEY,
   themeCssTokens,
+  UI_LAYOUT_STORAGE_KEY,
 } from "./desktop-theme";
 
 function contrastRatio(foreground: string, background: string): number {
@@ -257,12 +265,18 @@ describe("desktop theme", () => {
     applyDesktopAppearance("light", true);
     expect(root.classList.contains("dark")).toBe(false);
     expect(storage.get("doolittle.desktop.density")).toBe("compact");
-    expect(storage.get("doolittle.desktop.theme")).toBe(
-      JSON.stringify(profile),
-    );
-    expect(storage.get("style:--accent")).toBe("#D7263D");
+    expect(
+      JSON.parse(storage.get(THEME_V2_STORAGE_KEY) ?? "null"),
+    ).toMatchObject({
+      id: "ember",
+      version: 2,
+    });
+    expect(storage.get("style:--accent")).toBe("#d7263d");
     expect(loadDesktopThemeSource()).toBe("imported");
-    expect(loadStoredDesktopTheme()).toEqual(profile);
+    expect(loadStoredDesktopTheme()).toMatchObject({
+      name: "ember",
+      primary: "#d7263d",
+    });
   });
 
   it("uses density tokens for route headers, titles, cards, and controls", () => {
@@ -275,10 +289,10 @@ describe("desktop theme", () => {
     expect(storage.get("style:--chat-welcome-title-size")).toBe(
       "clamp(22px, 2vw, 28px)",
     );
-    expect(storage.get("style:--text-body")).toBe("14px");
+    expect(storage.get("style:--text-body")).toBe("16px");
     expect(storage.get("style:--text-control")).toBe("14px");
     expect(storage.get("style:--text-meta")).toBe("12px");
-    expect(storage.get("style:--card-pad")).toBe("12px");
+    expect(storage.get("style:--card-pad")).toBe("16px");
     expect(storage.get("style:--control-height")).toBe("40px");
 
     applyDesktopDensity("compact");
@@ -290,10 +304,10 @@ describe("desktop theme", () => {
     expect(storage.get("style:--chat-welcome-title-size")).toBe(
       "clamp(20px, 1.7vw, 24px)",
     );
-    expect(storage.get("style:--text-body")).toBe("14px");
+    expect(storage.get("style:--text-body")).toBe("16px");
     expect(storage.get("style:--text-control")).toBe("14px");
     expect(storage.get("style:--text-meta")).toBe("11px");
-    expect(storage.get("style:--card-pad")).toBe("10px");
+    expect(storage.get("style:--card-pad")).toBe("12px");
     expect(storage.get("style:--control-height")).toBe("36px");
   });
 
@@ -342,89 +356,87 @@ describe("desktop theme", () => {
     applyDesktopDensity("compact");
     applyDesktopDensity("comfortable");
 
-    expect(storage.get("style:--accent")).toBe("#0B35F1");
+    expect(storage.get("style:--accent")).toBe("#0b35f1");
     expect(storage.get("style:--canvas-bg")).toBe("#030712");
     expect(storage.get("style:--canvas-text")).toBe("#f8fafc");
     expect(loadDesktopThemeSource()).toBe("runtime");
   });
 
+  it("loads Companion by default and applies built-in layout and geometry tokens", () => {
+    const theme = loadStoredThemeManifest();
+    expect(theme.id).toBe("companion");
+    applyThemeManifest(
+      {
+        ...theme,
+        id: "canvas",
+        name: "Canvas",
+        layout: "canvas",
+        geometry: { ...theme.geometry, readingWidth: 960 },
+      },
+      "builtin",
+    );
+    expect(root.dataset.uiLayout).toBe("canvas");
+    expect(storage.get(UI_LAYOUT_STORAGE_KEY)).toBe("canvas");
+    expect(storage.get("style:--conversation-width")).toBe("960px");
+    expect(loadStoredThemeManifest().id).toBe("canvas");
+  });
+
+  it("backs up legacy storage bytes before persisting the v2 migration", () => {
+    const legacyRaw =
+      '{ "name":"legacy", "label":"Legacy", "primary":"#ff6b16", "secondary":"#ff9b5c", "amberGlow":"#e7a84d", "greenGlow":"#86b875" }';
+    storage.set(THEME_STORAGE_KEY, legacyRaw);
+    const legacyTheme = loadStoredThemeManifest();
+    expect(legacyTheme.id).toBe("legacy");
+    applyThemeManifest(legacyTheme, "builtin");
+    expect(storage.get(THEME_V1_BACKUP_STORAGE_KEY)).toBe(legacyRaw);
+    expect(storage.get(THEME_STORAGE_KEY)).toBe(legacyRaw);
+    expect(
+      JSON.parse(storage.get(THEME_V2_STORAGE_KEY) ?? "null").version,
+    ).toBe(2);
+    expect(getThemeMigrationError()).toBe("");
+  });
+
+  it("keeps a legacy theme usable and reports backup failure without writing v2", () => {
+    const legacyRaw = JSON.stringify({
+      name: "legacy",
+      label: "Legacy",
+      primary: "#ff6b16",
+      secondary: "#ff9b5c",
+      amberGlow: "#e7a84d",
+      greenGlow: "#86b875",
+    });
+    storage.set(THEME_STORAGE_KEY, legacyRaw);
+    vi.stubGlobal("localStorage", {
+      getItem: (key: string) => storage.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        if (key === THEME_V1_BACKUP_STORAGE_KEY) throw new Error("full");
+        storage.set(key, value);
+      },
+    });
+    expect(loadStoredThemeManifest().id).toBe("legacy");
+    expect(storage.get(THEME_STORAGE_KEY)).toBe(legacyRaw);
+    expect(storage.has(THEME_V2_STORAGE_KEY)).toBe(false);
+    expect(getThemeMigrationError()).toContain(
+      "previous theme is still preserved",
+    );
+  });
+
   it("keeps representative small semantic text above 4.5:1 on its surfaces", () => {
     applyDesktopAppearance("dark");
-    const dark = {
-      faint: token(storage, "--faint"),
-      muted: token(storage, "--muted"),
-      accentText: token(storage, "--accent-text"),
-      surfaceSoft: token(storage, "--surface-soft"),
-      surfaceHover: token(storage, "--surface-hover"),
-      accent: token(storage, "--accent"),
-    };
-    const darkSurfaces = [
-      dark.surfaceSoft,
-      dark.surfaceHover,
-      mixSrgb(dark.accent, dark.surfaceHover, 0.07),
-      mixSrgb(dark.accent, dark.surfaceSoft, 0.08),
-    ];
-    for (const surface of darkSurfaces) {
-      expect(contrastRatio(dark.faint, surface)).toBeGreaterThanOrEqual(4.5);
-      expect(contrastRatio(dark.accentText, surface)).toBeGreaterThanOrEqual(
-        4.5,
-      );
-    }
-    expect(contrastRatio(dark.muted, dark.surfaceHover)).toBeGreaterThan(
-      contrastRatio(dark.faint, dark.surfaceHover),
-    );
-
+    expect(() =>
+      validateThemeAccessibility(loadStoredThemeManifest()),
+    ).not.toThrow();
     applyDesktopAppearance("light");
-    const light = {
-      faint: token(storage, "--faint"),
-      muted: token(storage, "--muted"),
-      accentText: token(storage, "--accent-text"),
-      surfaceSoft: token(storage, "--surface-soft"),
-      surfaceHover: token(storage, "--surface-hover"),
-      accent: token(storage, "--accent"),
-    };
-    const lightSurfaces = [
-      light.surfaceSoft,
-      light.surfaceHover,
-      mixSrgb(light.accent, light.surfaceHover, 0.07),
-      mixSrgb(light.accent, light.surfaceSoft, 0.08),
-    ];
-    for (const surface of lightSurfaces) {
-      expect(contrastRatio(light.faint, surface)).toBeGreaterThanOrEqual(4.5);
-      expect(contrastRatio(light.accentText, surface)).toBeGreaterThanOrEqual(
-        4.5,
-      );
-    }
-    expect(contrastRatio(light.muted, light.surfaceHover)).toBeGreaterThan(
-      contrastRatio(light.faint, light.surfaceHover),
-    );
+    expect(() =>
+      validateThemeAccessibility(loadStoredThemeManifest()),
+    ).not.toThrow();
   });
 
   it("keeps base status text and primary button ink readable in both appearances", () => {
     applyDesktopFoundationTokens();
-    for (const appearance of ["dark", "light"] as const) {
-      applyDesktopAppearance(appearance, false);
-      for (const tone of ["good", "warn", "bad"] as const) {
-        expect(
-          contrastRatio(
-            token(storage, `--${tone}`),
-            token(storage, `--${tone}-soft`),
-          ),
-        ).toBeGreaterThanOrEqual(4.5);
-      }
-      for (const fill of ["--accent", "--accent-hover"]) {
-        expect(
-          contrastRatio(token(storage, "--accent-ink"), token(storage, fill)),
-        ).toBeGreaterThanOrEqual(4.5);
-      }
-      expect(
-        contrastRatio(
-          token(storage, "--destructive-foreground"),
-          token(storage, "--bad"),
-        ),
-      ).toBeGreaterThanOrEqual(4.5);
-      expect(token(storage, "--focus-ring")).toBe("var(--accent-text)");
-    }
+    applyDesktopAppearance("dark", false);
+    validateThemeAccessibility(loadStoredThemeManifest());
+    expect(token(storage, "--focus-ring")).toBe("#ff9b5c");
   });
 
   it("falls back from transparent or low-contrast imported semantics in both appearances", () => {

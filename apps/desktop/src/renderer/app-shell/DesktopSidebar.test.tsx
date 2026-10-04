@@ -156,4 +156,15 @@ describe("DesktopSidebar companion navigation", () => {
     );
     expect(props.onRetryBots).toHaveBeenCalledOnce();
   });
+
+  it("keeps the mobile scrim pointer-only and outside the focus order", () => {
+    act(() =>
+      root.render(
+        <DesktopSidebar {...props} isMobileSidebarMode mobileSidebarOpen />,
+      ),
+    );
+    const scrim = container.querySelector<HTMLButtonElement>(".sidebar-scrim");
+    expect(scrim?.tabIndex).toBe(-1);
+    expect(scrim?.getAttribute("aria-hidden")).toBe("true");
+  });
 });

@@ -1,3 +1,4 @@
+import { BUILT_IN_THEMES } from "@doolittle/ui/themes";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import type {
   DesktopLifecycleState,
@@ -13,12 +14,16 @@ import {
   applyDesktopAppearance,
   applyDesktopDensity,
   applyDesktopTheme,
+  applyThemeManifest,
   type DesktopAppearance,
   type DesktopDensity,
+  getThemeMigrationError,
+  legacyThemeProfile,
   loadAppearancePreference,
   loadDensityPreference,
   loadDesktopThemeSource,
   loadStoredDesktopTheme,
+  loadStoredThemeManifest,
   parseDesktopThemeProfile,
   subscribeToDesktopThemeChanges,
 } from "./desktop-theme";
@@ -156,6 +161,7 @@ export function SettingsPage({
   const [activeThemeProfile, setActiveThemeProfile] = useState(
     loadStoredDesktopTheme,
   );
+  const [themeMigrationError] = useState(getThemeMigrationError);
   const [lifecycle, setLifecycle] = useState<DesktopLifecycleState | null>(
     null,
   );
@@ -211,7 +217,8 @@ export function SettingsPage({
     };
   }, [resourcePolicy.desktop]);
   useEffect(() => {
-    if (loadDesktopThemeSource() === "imported") return;
+    if (["imported", "builtin"].includes(loadDesktopThemeSource() ?? ""))
+      return;
     const profile = parseDesktopThemeProfile(themes.data?.profile);
     if (profile) setActiveThemeProfile(profile);
   }, [themes.data?.profile]);
@@ -266,6 +273,15 @@ export function SettingsPage({
     !isEmbeddedSettingsFeature(category);
 
   const changeTheme = async (theme: string) => {
+    const builtIn = BUILT_IN_THEMES.find((candidate) => candidate.id === theme);
+    if (builtIn) {
+      applyThemeManifest(builtIn, "builtin");
+      const profile = legacyThemeProfile(builtIn);
+      setActiveThemeProfile(profile);
+      announceTheme(profile);
+      setSavedMessage(`${builtIn.name} layout is now active.`);
+      return;
+    }
     if (!active) return;
     try {
       const response = await desktopRequest<ThemeResponse>("/theme", "POST", {
@@ -313,27 +329,21 @@ export function SettingsPage({
       setDensity(bundle.density);
       applyDesktopDensity(bundle.density);
       announceDensity(bundle.density);
-      applyDesktopTheme(bundle.theme, "imported");
-      setActiveThemeProfile(bundle.theme);
-      announceTheme(bundle.theme);
-      setSavedMessage(`${bundle.theme.label} was imported and applied.`);
+      applyThemeManifest(bundle.theme, "imported");
+      const profile = legacyThemeProfile(bundle.theme);
+      setActiveThemeProfile(profile);
+      announceTheme(profile);
+      setSavedMessage(`${bundle.theme.name} was imported and applied.`);
     } catch (error) {
       setSavedMessage(errorMessage(error));
     }
   };
 
   const exportTheme = () => {
-    const profile =
-      activeThemeProfile ?? parseDesktopThemeProfile(themes.data?.profile);
-    if (!profile) {
-      setSavedMessage("Choose a valid theme before exporting it.");
-      return;
-    }
+    const theme = loadStoredThemeManifest();
     try {
-      downloadDesktopThemeBundle(profile, appearance, density);
-      setSavedMessage(
-        `${profile.label} was exported as a Doolittle theme file.`,
-      );
+      downloadDesktopThemeBundle(theme, appearance, density);
+      setSavedMessage(`${theme.name} was exported as a Doolittle theme file.`);
     } catch (error) {
       setSavedMessage(errorMessage(error));
     }
@@ -451,6 +461,7 @@ export function SettingsPage({
             <SettingsAppearancePanel
               active={active}
               activeTheme={activeThemeProfile}
+              themeMigrationError={themeMigrationError}
               appearance={appearance}
               density={density}
               onAppearanceChange={changeAppearance}
@@ -458,7 +469,7 @@ export function SettingsPage({
               onThemeExport={exportTheme}
               onThemeImport={(file) => void importTheme(file)}
               onThemeChange={(theme) => void changeTheme(theme)}
-              themes={asArray(themes.data?.themes)}
+              themes={[...BUILT_IN_THEMES, ...asArray(themes.data?.themes)]}
               themesLoading={themes.loading}
               themesError={themes.error}
               onThemeReload={themes.reload}

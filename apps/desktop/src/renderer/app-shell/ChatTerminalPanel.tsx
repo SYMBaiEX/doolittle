@@ -230,6 +230,7 @@ export function ChatTerminalPanel({
         <PanelResizeHandle
           bounds={heightBounds}
           className="-top-[5px] inset-x-0"
+          controls="chat-terminal-panel"
           direction="grow-up"
           label="Resize chat terminal"
           onResize={onResize}
@@ -237,6 +238,7 @@ export function ChatTerminalPanel({
         />
       )}
       <div
+        id="chat-terminal-panel"
         {...(modalOpen
           ? {
               "aria-label": "Chat terminal",
