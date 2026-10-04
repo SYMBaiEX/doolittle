@@ -126,6 +126,11 @@ const ACTIVITY_TARGETS = [
 const API_ALLOWLIST: Record<HttpMethod, AllowedApiPath[]> = {
   GET: [
     { exact: "/bots" },
+    { exact: "/bots/conversations/owner", allowedQueries: ["sessionId"] },
+    {
+      predicate: (pathname) =>
+        matchesResourceActionPath(pathname, "/bots", ["conversations"]),
+    },
     { exact: "/health" },
     { exact: "/commands/catalog" },
     {
@@ -523,6 +528,7 @@ const API_ALLOWLIST: Record<HttpMethod, AllowedApiPath[]> = {
           "archive",
           "activate",
           "stop",
+          "conversations",
         ]),
     },
     { exact: "/settings" },

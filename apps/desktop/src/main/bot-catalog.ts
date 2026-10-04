@@ -1,11 +1,5 @@
 import { randomUUID } from "node:crypto";
-import {
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  renameSync,
-  writeFileSync,
-} from "node:fs";
+import { chmodSync, existsSync, mkdirSync, readFileSync } from "node:fs";
 import { isAbsolute, resolve } from "node:path";
 import {
   type BotCatalogResponse,
@@ -17,6 +11,7 @@ import {
   DEFAULT_MODEL_ROUTE,
   type UpdateBotInput,
 } from "@doolittle/contracts";
+import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
 import type { BackendManager } from "./backend";
 
 const BOT_ID_PATTERN = /^[a-z0-9][a-z0-9_-]{0,63}$/u;
@@ -29,6 +24,7 @@ const MAX_CATALOG_BYTES = 2_000_000;
 interface StoredBotCatalog {
   version: 1;
   defaultName?: string;
+  defaultAgentId?: string;
   bots: BotDefinition[];
 }
 
@@ -224,6 +220,10 @@ export class BotCatalog {
     const value = JSON.parse(raw) as StoredBotCatalog;
     if (
       value.version !== 1 ||
+      (value.defaultAgentId !== undefined &&
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu.test(
+          value.defaultAgentId,
+        )) ||
       !Array.isArray(value.bots) ||
       value.bots.some((bot) => !isStoredBotDefinition(bot)) ||
       new Set(value.bots.map((bot) => bot.id)).size !== value.bots.length
@@ -235,14 +235,18 @@ export class BotCatalog {
 
   private save(): void {
     mkdirSync(resolve(this.filePath, ".."), { recursive: true, mode: 0o700 });
-    const temporary = `${this.filePath}.${randomUUID()}.tmp`;
-    writeFileSync(temporary, JSON.stringify(this.stored), { mode: 0o600 });
-    renameSync(temporary, this.filePath);
+    writeJsonAtomicSync(this.filePath, this.stored, { trailingNewline: true });
+    chmodSync(this.filePath, 0o600);
   }
 
   defaultBot(): BotDefinition {
     const state = this.defaultBackend.getState();
-    const agentId = state.agentId ?? LEGACY_AGENT_ID;
+    if (state.agentId && !this.stored.defaultAgentId) {
+      this.stored.defaultAgentId = state.agentId;
+      this.save();
+    }
+    const agentId =
+      this.stored.defaultAgentId ?? state.agentId ?? LEGACY_AGENT_ID;
     const workspacePath =
       this.defaultBackend.getWorkspaceDirectory() || this.defaultWorkspacePath;
     return {
@@ -263,6 +267,25 @@ export class BotCatalog {
       createdAt: "",
       updatedAt: "",
     };
+  }
+
+  stableDefaultBotId(): string {
+    const state = this.defaultBackend.getState();
+    if (
+      this.stored.defaultAgentId &&
+      state.agentId &&
+      this.stored.defaultAgentId !== state.agentId
+    ) {
+      throw new Error(
+        "The lead runtime identity changed. Conversation ownership cannot be assumed.",
+      );
+    }
+    if (!this.stored.defaultAgentId && !state.agentId) {
+      throw new Error(
+        "The lead runtime identity is not ready. Retry after startup.",
+      );
+    }
+    return this.defaultBot().id;
   }
 
   get(id: string): BotDefinition | undefined {

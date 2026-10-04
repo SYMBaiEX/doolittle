@@ -1,4 +1,5 @@
 import type { AppContext } from "@/runtime/bootstrap";
+import { readWorkerBotProfile } from "@/runtime/bootstrap/bot-profile";
 import { readJsonObjectBody } from "@/server/request-body";
 import { json } from "@/server/responses";
 import { SessionForkError } from "@/services/session/service";
@@ -40,8 +41,11 @@ export async function handleSessionRoutes(
       Number.isInteger(limitRaw) && limitRaw > 0 ? Math.min(limitRaw, 100) : 20;
     const projectId = optionalProjectId(url);
     if (projectId instanceof Response) return projectId;
+    const botId = readWorkerBotProfile()?.id;
     return json({
-      hits: context.services.sessions.search(query, limit, projectId),
+      hits: context.services.sessions
+        .search(query, limit, projectId)
+        .map((hit) => (botId ? { ...hit, botId } : hit)),
     });
   }
 
@@ -50,11 +54,11 @@ export async function handleSessionRoutes(
     const limit = limitRaw ? Number(limitRaw) : 20;
     const projectId = optionalProjectId(url);
     if (projectId instanceof Response) return projectId;
+    const botId = readWorkerBotProfile()?.id;
     return json({
-      sessions: context.services.sessions.listSessions(
-        !Number.isNaN(limit) && limit > 0 ? limit : 20,
-        projectId,
-      ),
+      sessions: context.services.sessions
+        .listSessions(!Number.isNaN(limit) && limit > 0 ? limit : 20, projectId)
+        .map((session) => (botId ? { ...session, botId } : session)),
     });
   }
 

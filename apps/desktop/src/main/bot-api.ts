@@ -1,3 +1,4 @@
+import type { CreateBotInput } from "@doolittle/contracts/bots";
 import type {
   AgentTransportRequest,
   AgentTransportResponse,
@@ -12,7 +13,8 @@ export function isBotApiPath(path: string, method: string): boolean {
   ).split("?", 1)[0];
   return (
     pathname === "/bots" ||
-    /^\/bots\/[a-z0-9][a-z0-9_-]{0,63}(?:\/(?:archive|activate|stop))?$/u.test(
+    pathname === "/bots/conversations/owner" ||
+    /^\/bots\/[a-z0-9][a-z0-9_-]{0,63}(?:\/(?:archive|activate|stop|conversations))?$/u.test(
       pathname,
     )
   );
@@ -53,25 +55,72 @@ export async function handleBotApiRequest(
   if (!isBotApiPath(request.path, request.method)) {
     return null;
   }
-  if (request.botId && !registry.get(request.botId).isDefault) {
+  const targetedConversationPath =
+    /^\/bots\/([a-z0-9][a-z0-9_-]{0,63})\/conversations$/u.exec(
+      path.split("?", 1)[0] ?? "",
+    );
+  if (
+    request.botId &&
+    !registry.get(request.botId).isDefault &&
+    request.botId !== targetedConversationPath?.[1]
+  ) {
     return jsonResponse(400, {
       error: "Bot catalog operations are application-global.",
       code: "bot_target_not_allowed",
     });
   }
   try {
+    if (
+      request.method === "GET" &&
+      path.startsWith("/bots/conversations/owner?")
+    ) {
+      const sessionId = new URL(path, "http://desktop.local").searchParams.get(
+        "sessionId",
+      );
+      if (!sessionId)
+        return jsonResponse(400, { error: "sessionId is required." });
+      return jsonResponse(200, {
+        conversation: registry.resolveSavedConversationOwner(sessionId),
+      });
+    }
     if (path === "/bots" && request.method === "GET") {
+      await registry.refreshActiveRuns();
       return jsonResponse(200, registry.list());
     }
     if (path === "/bots" && request.method === "POST") {
       return jsonResponse(
         201,
-        registry.create(parseInput(request.body) as never),
+        registry.create(parseInput(request.body) as unknown as CreateBotInput),
       );
     }
     const segments = path.split("/");
     const botId = segments[2];
     if (!botId) return jsonResponse(404, { error: "Bot not found." });
+    if (segments[3] === "conversations") {
+      if (request.method === "GET") {
+        return jsonResponse(200, {
+          conversations: registry.listConversations(botId),
+        });
+      }
+      if (request.method === "POST") {
+        const input = parseInput(request.body);
+        if (
+          typeof input.sessionId !== "string" ||
+          (input.projectId !== undefined && typeof input.projectId !== "string")
+        ) {
+          return jsonResponse(400, {
+            error: "sessionId or projectId is invalid.",
+          });
+        }
+        return jsonResponse(201, {
+          conversation: registry.bindConversation(
+            botId,
+            input.sessionId,
+            input.projectId,
+          ),
+        });
+      }
+    }
     if (request.method === "PATCH" && segments.length === 3) {
       return jsonResponse(
         200,
@@ -91,9 +140,10 @@ export async function handleBotApiRequest(
     }
     return jsonResponse(404, { error: "Bot route not found." });
   } catch (error) {
-    return jsonResponse(409, {
+    const unavailable = path === "/bots" && request.method === "GET";
+    return jsonResponse(unavailable ? 503 : 409, {
       error: error instanceof Error ? error.message : "Bot operation failed.",
-      code: "bot_operation_failed",
+      code: unavailable ? "bot_status_unavailable" : "bot_operation_failed",
     });
   }
 }

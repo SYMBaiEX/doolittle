@@ -5,6 +5,7 @@ import { delimiter, dirname, resolve } from "node:path";
 import type { BackendState } from "../shared/contracts";
 import { BackendUrlParser } from "./backend-url";
 import { providerAuthExecutableCandidates } from "./provider-auth";
+import { attachWorkerHostRpc, type WorkerHostHandler } from "./worker-host-rpc";
 
 const STARTUP_TIMEOUT_MS = 45_000;
 const HEALTH_POLL_MS = 250;
@@ -224,6 +225,7 @@ export interface BackendManagerOptions {
   isolatedEnvironment?: NodeJS.ProcessEnv;
   expectedBotId?: string;
   expectedAgentId?: string;
+  workerHostHandler?: WorkerHostHandler;
 }
 
 export function findPackagedRuntime(
@@ -393,9 +395,19 @@ export class BackendManager {
       cwd: this.target.repoRoot,
       env: environment,
       shell: false,
-      stdio: ["ignore", "pipe", "pipe"],
+      stdio: this.options.workerHostHandler
+        ? ["ignore", "pipe", "pipe", "ipc"]
+        : ["ignore", "pipe", "pipe"],
     });
     this.child = child;
+    const detachWorkerHost =
+      this.options.workerHostHandler && this.options.expectedBotId
+        ? attachWorkerHostRpc(
+            child,
+            this.options.expectedBotId,
+            this.options.workerHostHandler,
+          )
+        : () => undefined;
 
     const consume = (chunk: Buffer) => {
       const text = chunk.toString("utf8");
@@ -403,10 +415,11 @@ export class BackendManager {
       const parsed = urlParser.push(text);
       if (parsed) resolveUrl?.(parsed);
     };
-    child.stdout.on("data", consume);
-    child.stderr.on("data", consume);
+    child.stdout?.on("data", consume);
+    child.stderr?.on("data", consume);
     child.once("error", (error) => rejectUrl?.(error));
     child.once("exit", (code, signal) => {
+      detachWorkerHost();
       if (this.child === child) this.child = null;
       const detail = backendExitDetail(code, signal, recentOutput, environment);
       rejectUrl?.(new Error(detail));

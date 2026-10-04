@@ -15,6 +15,7 @@ import {
 import { syncResolvedApiPort } from "@elizaos/shared";
 import { formatLoggerError } from "@/logging/logger";
 import type { AppContext } from "@/runtime/bootstrap";
+import { readWorkerBotProfile } from "@/runtime/bootstrap/bot-profile";
 import {
   applyDoolittleCors,
   isProviderAuthenticatedWebhookRequest,
@@ -33,6 +34,7 @@ import { json, runResponsePostCommit } from "@/server/responses";
 import { dispatchRouteHandlers } from "@/server/router";
 import { apiRouteHandlers } from "@/server/routes";
 import { handleOperationsRoutes } from "@/server/routes/operations";
+import { isWorkerApiRouteAllowed } from "@/server/worker-route-policy";
 
 let activeApiServer: Server | null = null;
 let activeApiServerAddress: string | null = null;
@@ -266,6 +268,17 @@ export async function createApiServer(
 
           let response: Response;
           const method = incoming.method ?? "GET";
+          if (
+            readWorkerBotProfile() &&
+            !isWorkerApiRouteAllowed(method, requestPath)
+          ) {
+            await writeEarlyResponse(
+              json({ error: "Not found" }, 404),
+              incoming,
+              outgoing,
+            );
+            return;
+          }
           if (security.terminalOnly) {
             if (requestPath !== "/api/terminal/run" || method !== "POST") {
               await writeEarlyResponse(

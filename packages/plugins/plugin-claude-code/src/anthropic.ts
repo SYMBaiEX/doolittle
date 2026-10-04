@@ -24,7 +24,7 @@ function resolveClaudeReasoningEffort(
   return effort && CLAUDE_REASONING_EFFORTS.has(effort) ? effort : undefined;
 }
 
-function resolveClaudeCliModel(model: string): string {
+export function resolveClaudeCliModel(model: string): string {
   const normalized = model.trim().toLowerCase();
   if (normalized.includes("sonnet")) return "sonnet";
   if (normalized.includes("opus")) return "opus";
@@ -71,6 +71,9 @@ export async function runClaudeCodeTextGeneration(
     params.toolChoice !== "none" && params.tools?.length === 1
       ? params.tools[0]
       : undefined;
+  const signal =
+    params.signal ??
+    (params as GenerateTextParams & { abortSignal?: AbortSignal }).abortSignal;
 
   try {
     const output = await (options.invokeCliPrint ?? invokeClaudeCodeCliPrint)({
@@ -78,6 +81,7 @@ export async function runClaudeCodeTextGeneration(
       model: resolveClaudeCliModel(model),
       systemPrompt: withClaudeCodeSystemPrefix(),
       ...(effort ? { effort } : {}),
+      ...(signal ? { signal } : {}),
       ...(requiredSingleTool?.parameters
         ? {
             jsonSchema: requiredSingleTool.parameters as Record<

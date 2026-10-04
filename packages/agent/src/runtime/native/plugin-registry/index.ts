@@ -46,7 +46,7 @@ export async function buildNativePluginAssembly(
   const catalog = getNativePluginCatalog(config);
   const groupedCatalog = groupNativePluginCatalog(catalog);
   const foundation = loadFoundationPlugins(Boolean(options.workerBot));
-  const providers = await loadProviderPlugins(config);
+  const providers = await loadProviderPlugins(config, options.workerBot);
   const identity = await loadHotIdentityPlugins(services);
   const execution = options.workerBot
     ? []

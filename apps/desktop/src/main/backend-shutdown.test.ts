@@ -50,7 +50,14 @@ describe("BackendManager shutdown during startup", () => {
       { executable: "unused", args: [], repoRoot: resolve("/tmp") },
       runtimeDataDir,
       resolve("/tmp/workspace"),
-      (async () => new Response(null, { status: 200 })) as typeof fetch,
+      (async (input) =>
+        String(input).includes("/runtime/bot-identity")
+          ? Response.json({
+              botId: "9f21e797-127f-0eba-b547-92f9b113fb1e",
+              agentId: "9f21e797-127f-0eba-b547-92f9b113fb1e",
+              name: "Doolittle",
+            })
+          : new Response(null, { status: 200 })) as typeof fetch,
     );
 
     try {
@@ -189,7 +196,14 @@ describe("BackendManager shutdown during startup", () => {
       { executable: "unused", args: [], repoRoot: resolve("/tmp") },
       runtimeDataDir,
       resolve("/tmp/workspace"),
-      (async () => new Response(null, { status: 200 })) as typeof fetch,
+      (async (input) =>
+        String(input).includes("/runtime/bot-identity")
+          ? Response.json({
+              botId: "9f21e797-127f-0eba-b547-92f9b113fb1e",
+              agentId: "9f21e797-127f-0eba-b547-92f9b113fb1e",
+              name: "Doolittle",
+            })
+          : new Response(null, { status: 200 })) as typeof fetch,
     );
 
     try {
