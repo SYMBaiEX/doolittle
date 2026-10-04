@@ -145,9 +145,7 @@ export function BrowserPage({
           <div className={BROWSER_STATUS_CLASS}>
             <i
               className={`size-1.75 rounded-full ${
-                status.error
-                  ? "bg-[var(--bad)]"
-                  : "bg-[var(--good)] shadow-[0_0_10px_color-mix(in_srgb,var(--good)_42%,transparent)]"
+                status.error ? "bg-[var(--bad)]" : "bg-[var(--good)]"
               }`}
             />
             <strong>{status.error ? "Unavailable" : statusLabel}</strong>

@@ -61,11 +61,11 @@ export function ReviewQueue({
     if (!next) return;
     const tablist = event.currentTarget.parentElement;
     onFilterChange(next.id);
-    requestAnimationFrame(() => {
-      tablist
-        ?.querySelectorAll<HTMLButtonElement>('button[role="tab"]')
-        [index]?.focus();
-    });
+    // Filter selection keeps these keyed tabs mounted. Move focus as part of
+    // this keyboard event instead of depending on a later animation frame.
+    tablist
+      ?.querySelectorAll<HTMLButtonElement>('button[role="tab"]')
+      [index]?.focus();
   };
 
   return (

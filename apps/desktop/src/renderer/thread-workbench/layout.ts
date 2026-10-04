@@ -50,7 +50,7 @@ export const WORKBENCH_TAB_MARK_CLASS =
   "thread-workbench-tab-mark grid size-5 place-items-center rounded-[3px] border border-[color-mix(in_srgb,currentColor_12%,transparent)] bg-[color-mix(in_srgb,currentColor_5%,transparent)]";
 
 export const WORKBENCH_TAB_SIGNAL_CLASS =
-  "thread-workbench-tab-signal absolute right-1 bottom-1 size-0.75 rounded-full bg-transparent group-aria-selected:bg-[var(--accent)] group-aria-selected:shadow-[0_0_6px_color-mix(in_srgb,var(--accent)_72%,transparent)]";
+  "thread-workbench-tab-signal absolute right-1 bottom-1 size-0.75 rounded-full bg-transparent group-aria-selected:bg-[var(--accent)]";
 
 export const WORKBENCH_PANEL_CLASS =
   "thread-workbench-panel grid min-h-0 min-w-0 flex-1 grid-rows-[auto_minmax(0,1fr)] gap-0.75 overflow-hidden p-1 focus:outline-none";

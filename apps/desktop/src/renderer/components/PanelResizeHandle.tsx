@@ -154,7 +154,7 @@ export function PanelResizeHandle({
         aria-valuemax={bounds.max}
         aria-valuemin={bounds.min}
         aria-valuenow={value}
-        className="absolute inset-0 m-0 size-full cursor-inherit border-0 bg-transparent p-0 outline-none touch-none [-webkit-app-region:no-drag]"
+        className="peer absolute inset-0 m-0 size-full cursor-inherit border-0 bg-transparent p-0 outline-none touch-none [-webkit-app-region:no-drag] focus-visible:outline-solid focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
         onDoubleClick={() => onResize(bounds.default)}
         onKeyDown={resizeWithKeyboard}
         onPointerDown={resizeStart}
@@ -165,7 +165,7 @@ export function PanelResizeHandle({
       />
       <span
         aria-hidden="true"
-        className={`absolute bg-transparent transition-[background,box-shadow] duration-120 group-hover:bg-[var(--accent)] group-hover:shadow-[0_0_12px_color-mix(in_srgb,var(--accent)_42%,transparent)] group-focus-visible:bg-[var(--accent)] group-focus-visible:shadow-[0_0_12px_color-mix(in_srgb,var(--accent)_42%,transparent)] motion-reduce:transition-none ${
+        className={`pointer-events-none absolute bg-transparent transition-colors duration-150 group-hover:bg-[var(--accent)] peer-focus-visible:bg-[var(--focus-ring)] motion-reduce:transition-none ${
           resizesHeight ? "top-1 right-0 left-0 h-px" : "inset-y-0 left-1 w-px"
         }`}
       />

@@ -765,6 +765,29 @@ test.describe("Doolittle desktop session workbench", () => {
       expect(Number.isFinite(fittedExplorerWidth)).toBe(true);
       await explorerResize.focus();
       await page.keyboard.press("ArrowLeft");
+      await expect(explorerResize).toBeFocused();
+      await expect(explorerResize).toHaveCSS("outline-width", "2px");
+      await expect(explorerResize).toHaveCSS("outline-style", "solid");
+      await expect(explorerResize).toHaveCSS("outline-offset", "-2px");
+      await expect
+        .poll(() =>
+          explorerResize.evaluate((handle) => {
+            const signal = handle.nextElementSibling;
+            if (!signal) throw new Error("Resize focus signal is missing.");
+            const outline = getComputedStyle(handle).outlineColor;
+            const signalColor = getComputedStyle(signal).backgroundColor;
+            return {
+              keyboardVisible: handle.matches(":focus-visible"),
+              matchesSignal: outline === signalColor,
+              solidSignal: signalColor !== "rgba(0, 0, 0, 0)",
+            };
+          }),
+        )
+        .toEqual({
+          keyboardVisible: true,
+          matchesSignal: true,
+          solidSignal: true,
+        });
       await expect
         .poll(async () =>
           Number(await explorerResize.getAttribute("aria-valuenow")),

@@ -116,8 +116,7 @@ export const WINDOW_UTILITY_BUTTON_CLASS =
 export const WINDOW_RUNTIME_STATUS_CLASS =
   "window-runtime-status flex min-h-6.5 items-center gap-1.5 rounded-[var(--radius-xs)] px-1.5 py-1 font-[var(--font-mono)] text-[length:var(--text-meta)] tracking-[0.08em] text-[var(--muted)] uppercase [&>i]:size-1.25 [&>i]:rounded-full [&>i]:bg-[var(--muted)] max-[480px]:size-10 max-[480px]:justify-center max-[480px]:p-0 max-[480px]:[&>span]:sr-only";
 export const WINDOW_RUNTIME_STATUS_TONE = {
-  ready:
-    "ready [&>i]:bg-[var(--good)] [&>i]:shadow-[0_0_8px_color-mix(in_srgb,var(--good)_60%,transparent)]",
+  ready: "ready [&>i]:bg-[var(--good)]",
   booting: "booting [&>i]:bg-[var(--warn)]",
   degraded: "degraded [&>i]:bg-[var(--bad)]",
   stopped: "stopped",

@@ -2,7 +2,10 @@
 
 import { act } from "react";
 import { createRoot } from "react-dom/client";
+import { compile } from "tailwindcss";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { WINDOW_RUNTIME_STATUS_TONE } from "../app-shell/shell-layout";
+import { WORKBENCH_TAB_SIGNAL_CLASS } from "../thread-workbench/layout";
 import { PanelResizeHandle } from "./PanelResizeHandle";
 
 function dispatchPointerEvent(
@@ -26,6 +29,94 @@ describe("PanelResizeHandle", () => {
     document.body.style.cursor = "";
     document.body.style.userSelect = "";
     delete document.documentElement.dataset.panelResizing;
+  });
+
+  it.each([
+    { direction: "grow-right", key: "ArrowRight", next: 276 },
+    { direction: "grow-left", key: "ArrowLeft", next: 276 },
+    { direction: "grow-down", key: "ArrowDown", next: 276 },
+    { direction: "grow-up", key: "ArrowUp", next: 276 },
+  ] as const)(
+    "puts solid keyboard focus on the interactive separator for $direction",
+    async ({ direction, key, next }) => {
+      const host = document.createElement("div");
+      document.body.append(host);
+      const root = createRoot(host);
+      const onResize = vi.fn();
+      try {
+        act(() => {
+          root.render(
+            <PanelResizeHandle
+              bounds={{ default: 260, min: 180, max: 520 }}
+              className="left-0"
+              direction={direction}
+              label="Resize panel"
+              onResize={onResize}
+              value={260}
+            />,
+          );
+        });
+        const handle = host.querySelector<HTMLHRElement>("hr");
+        const signal = host.querySelector<HTMLSpanElement>("span");
+        if (!handle || !signal) throw new Error("Resize controls not rendered");
+        handle.focus();
+        expect(document.activeElement).toBe(handle);
+        expect(handle.tabIndex).toBe(0);
+        expect(handle.getAttribute("aria-valuenow")).toBe("260");
+        expect(handle.getAttribute("aria-orientation")).toBe(
+          direction === "grow-up" || direction === "grow-down"
+            ? "horizontal"
+            : "vertical",
+        );
+        act(() => {
+          handle.dispatchEvent(
+            new KeyboardEvent("keydown", { key, bubbles: true }),
+          );
+        });
+        expect(onResize).toHaveBeenCalledWith(next);
+        expect(handle.className).toContain("focus-visible:outline-2");
+        expect(handle.className).toContain(
+          "focus-visible:outline-[var(--focus-ring)]",
+        );
+        expect(signal.className).toContain(
+          "peer-focus-visible:bg-[var(--focus-ring)]",
+        );
+        expect(signal.className).toContain("pointer-events-none");
+        expect(host.innerHTML).not.toMatch(/group-focus-visible|shadow-\[/u);
+
+        const compiler = await compile("@tailwind utilities;");
+        const css = compiler.build(
+          [handle.className, signal.className].flatMap((value) =>
+            value.split(/\s+/u),
+          ),
+        );
+        expect(css).toContain(":focus-visible {");
+        expect(css).toContain("outline-style: solid");
+        expect(css).toContain("outline-width: 2px");
+        expect(css).toContain("outline-color: var(--focus-ring)");
+        expect(css).toContain("outline-offset: calc(2px * -1)");
+        expect(css).toContain(":where(.peer):focus-visible ~ *");
+        expect(css).toContain("background-color: var(--focus-ring)");
+        expect(css).toContain("@media (prefers-reduced-motion: reduce)");
+        expect(css).toContain("transition-property: none");
+        expect(css).not.toContain("box-shadow");
+      } finally {
+        act(() => root.unmount());
+        host.remove();
+      }
+    },
+  );
+
+  it("retains real shell and selected-tab signals without blurred bloom", async () => {
+    const compiler = await compile("@tailwind utilities;");
+    const css = compiler.build(
+      [WINDOW_RUNTIME_STATUS_TONE.ready, WORKBENCH_TAB_SIGNAL_CLASS].flatMap(
+        (value) => value.split(/\s+/u),
+      ),
+    );
+    expect(css).toContain("background-color: var(--good)");
+    expect(css).toContain("background-color: var(--accent)");
+    expect(css).not.toContain("box-shadow");
   });
 
   it("owns pointer resize feedback without a stylesheet and restores document state", () => {

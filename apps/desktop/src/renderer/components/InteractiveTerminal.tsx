@@ -2,6 +2,7 @@ import { FitAddon } from "@xterm/addon-fit";
 import { type ITheme, Terminal } from "@xterm/xterm";
 import {
   type KeyboardEvent,
+  type MouseEvent,
   useCallback,
   useEffect,
   useMemo,
@@ -223,6 +224,17 @@ export function InteractiveTerminal({
   const [isClosingTab, setIsClosingTab] = useState<Record<string, boolean>>({});
   const loadedWorkspaceRef = useRef(workspacePath);
   const autoStartedTabRef = useRef<string | null>(null);
+  const focusContextRef = useRef({ active, workspacePath });
+  focusContextRef.current = { active, workspacePath };
+  const startRequestRef = useRef(0);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!active) return;
@@ -317,6 +329,8 @@ export function InteractiveTerminal({
 
   useEffect(() => {
     if (loadedWorkspaceRef.current === workspacePath) return;
+    // Pending startup callbacks no longer own this workspace's presentation.
+    startRequestRef.current++;
     const previousWorkspacePath = loadedWorkspaceRef.current;
     loadedWorkspaceRef.current = workspacePath;
     const loadedState = resolveInteractiveTerminalWorkspaceState({
@@ -636,48 +650,91 @@ export function InteractiveTerminal({
     };
   }, [pollOutput]);
 
-  const onStart = useCallback(async () => {
-    if (!activeTab || starting || !active) return;
-    setStarting(true);
-    setNotice("Opening workspace shell…");
-    try {
-      const dimensions = fitTerminalToViewport();
-      const result =
-        await window.doolittle.startInteractiveTerminal(dimensions);
-      const session = result.session;
-      updateTab(activeTab.id, (tab) => ({
-        ...tab,
-        cursor: 0,
-        sessionId: session.id,
-        state: session.state,
-        shell: session.shell,
-        cwd: session.cwd,
-        cols: session.cols,
-        rows: session.rows,
-        startedAt: session.startedAt,
-        completedAt: session.completedAt ?? null,
-        exitCode: session.exitCode ?? null,
-        pty: session.pty,
-        supportsResize: session.supportsResize,
-        outputBytes: session.outputBytes,
-        stale: false,
-      }));
-      setNotice("");
-      xtermRef.current?.focus();
-      void pollOutput(activeTab.id, session.id, 0);
-    } catch (error) {
-      setNotice(errorMessage(error));
-    } finally {
-      setStarting(false);
-    }
-  }, [
-    active,
-    activeTab,
-    fitTerminalToViewport,
-    pollOutput,
-    starting,
-    updateTab,
-  ]);
+  const onStart = useCallback(
+    async (event?: MouseEvent<HTMLButtonElement>) => {
+      if (!activeTab || starting || !active) return;
+      const startControl = event?.currentTarget;
+      const focusAtStart = document.activeElement;
+      const terminalAtStart = xtermRef.current;
+      const requestId = ++startRequestRef.current;
+      const ownsStart = () =>
+        mountedRef.current &&
+        startRequestRef.current === requestId &&
+        focusContextRef.current.workspacePath === workspacePath;
+      setStarting(true);
+      setNotice("Opening workspace shell…");
+      try {
+        const dimensions = fitTerminalToViewport();
+        const result =
+          await window.doolittle.startInteractiveTerminal(dimensions);
+        if (!ownsStart()) return;
+        const session = result.session;
+        updateTab(activeTab.id, (tab) =>
+          ownsStart()
+            ? {
+                ...tab,
+                cursor: 0,
+                sessionId: session.id,
+                state: session.state,
+                shell: session.shell,
+                cwd: session.cwd,
+                cols: session.cols,
+                rows: session.rows,
+                startedAt: session.startedAt,
+                completedAt: session.completedAt ?? null,
+                exitCode: session.exitCode ?? null,
+                pty: session.pty,
+                supportsResize: session.supportsResize,
+                outputBytes: session.outputBytes,
+                stale: false,
+              }
+            : tab,
+        );
+        setNotice((current) => (ownsStart() ? "" : current));
+        const viewport = viewportRef.current;
+        const focusNow = document.activeElement;
+        // A late start must not reclaim another view, tab, or toolbar control.
+        // Native disabling of the explicit start button may blur it to body.
+        const startStillOwnsFocus =
+          startControl &&
+          (focusNow === focusAtStart ||
+            (focusAtStart === startControl &&
+              startControl.disabled &&
+              focusNow === document.body));
+        if (
+          focusContextRef.current.active &&
+          focusContextRef.current.workspacePath === workspacePath &&
+          activeTabIdRef.current === activeTab.id &&
+          xtermTabIdRef.current === activeTab.id &&
+          xtermRef.current === terminalAtStart &&
+          viewport?.isConnected &&
+          !viewport.closest('[inert], [hidden], [aria-hidden="true"]') &&
+          document.visibilityState !== "hidden" &&
+          (viewport.contains(focusNow) || startStillOwnsFocus)
+        ) {
+          terminalAtStart?.focus();
+        }
+        void pollOutput(activeTab.id, session.id, 0);
+      } catch (error) {
+        if (ownsStart()) {
+          setNotice((current) => (ownsStart() ? errorMessage(error) : current));
+        }
+      } finally {
+        if (ownsStart()) {
+          setStarting((current) => (ownsStart() ? false : current));
+        }
+      }
+    },
+    [
+      active,
+      activeTab,
+      fitTerminalToViewport,
+      pollOutput,
+      starting,
+      updateTab,
+      workspacePath,
+    ],
+  );
 
   useEffect(() => {
     if (!autoStart || !active || !activeTab || running || starting) return;

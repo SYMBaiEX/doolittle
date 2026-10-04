@@ -154,6 +154,12 @@ Tab selection keeps focus on the selected tab, including successive arrow
 keys; fitting or recreating xterm must not steal that focus. Explicit terminal
 activation and shell-start actions retain their existing input focus behavior.
 
+Pending shell startup must not take focus back from another view, terminal tab,
+or toolbar control. Completion and error feedback belong to the initiating
+workspace and current request; a stale result cannot replace another workspace's
+session data or clear a newer shell's loading state. These presentation guards
+do not stop background PTY sessions or introduce history/reattachment guarantees.
+
 Every interactive surface uses a two-pixel `--focus-ring` derived from the
 contrast-protected `--accent-text`, including standalone SDK adapters and
 disclosure summaries. Selection also has a structural edge, so it is not
