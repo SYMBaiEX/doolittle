@@ -81,9 +81,14 @@ const INTERNAL_FACADE_GUARDS: Array<{
     patterns: [
       {
         pattern:
-          /(?:from\s+|import\s*\()["'](?:node:|electron(?:["'/])|@doolittle\/agent(?:["'/])|@\/)/u,
+          /(?:from\s+|import\s*\(|require\s*\()["'](?:node:|(?:fs|path|child_process|os|net|tls|http|https|crypto|worker_threads|vm|module|process)(?:["'/])|electron(?:["'/])|@doolittle\/agent(?:["'/])|@\/)/u,
         reason:
           "imports privileged application or Node code into the browser-only UI package",
+      },
+      {
+        pattern:
+          /(?:from\s+|import\s*\()["']@elizaos\/(?:core|agent|skills|server|plugin-[^"']+)(?:["'/])|\b(?:fetch|WebSocket|XMLHttpRequest)\s*\(/u,
+        reason: "adds runtime coordination or fetching to presentation-only UI",
       },
       {
         pattern:

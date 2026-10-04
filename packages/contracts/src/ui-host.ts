@@ -45,10 +45,23 @@ export interface UiSnapshot {
   selected?: UiTarget;
 }
 
+export interface UiRunReceipt {
+  target: UiTarget;
+  runId: string;
+  state: UiRunState;
+  /** Cursor in the host event stream; not a second execution identity. */
+  sequence: number;
+}
+
 export type UiHostCommand =
   | { type: "conversation.select"; target: UiTarget }
   | { type: "conversation.create"; botId: string }
-  | { type: "transcript.read"; target: UiTarget }
+  | {
+      type: "transcript.read";
+      target: UiTarget;
+      /** Canonical transcript as of this run, excluding subsequent turns. */
+      throughRunId?: string;
+    }
   | {
       type: "chat.send";
       target: UiTarget;
@@ -57,6 +70,13 @@ export type UiHostCommand =
       attachmentIds?: string[];
     }
   | { type: "run.stop"; target: UiTarget; runId: string }
+  | { type: "run.read"; target: UiTarget; runId: string }
+  | {
+      type: "approval.present";
+      target: UiTarget;
+      runId: string;
+      approvalId: string;
+    }
   | { type: "attachments.pick"; target: UiTarget }
   | {
       type: "surface.open";
@@ -74,6 +94,14 @@ export type UiHostEvent =
       runId: string;
       messageId: string;
       text: string;
+      sourceBotId?: string;
+    }
+  | {
+      type: "message.completed";
+      sequence: number;
+      target: UiTarget;
+      runId: string;
+      messageId: string;
     }
   | {
       type: "run.state";
@@ -89,14 +117,25 @@ export type UiHostEvent =
       runId: string;
       approvalId: string;
       summary: string;
+    }
+  | {
+      type: "custom";
+      sequence: number;
+      target: UiTarget;
+      runId: string;
+      name: string;
+      value: unknown;
     };
 
 export interface UiHostResult {
   requestId: string;
   accepted: boolean;
   runId?: string;
+  run?: UiRunReceipt;
   target?: UiTarget;
   messages?: UiMessage[];
+  /** Required acknowledgement when an as-of transcript was requested. */
+  transcriptThroughRunId?: string;
   attachments?: Array<{ id: string; name: string }>;
   error?: string;
 }

@@ -70,7 +70,7 @@
     "test:e2e:desktop-workbench": "nub run desktop:build && nubx playwright test --config playwright.workbench.config.ts",
     "lint": "nubx biome check --write .",
     "lint:check": "nubx biome check .",
-    "knip:deps": "nubx knip --config knip.json --dependencies --no-progress --no-config-hints --no-tag-hints --workspace packages/agent --workspace apps/desktop --workspace packages/plugins --workspace packages/plugins/plugin-sql --workspace packages/plugins/provider-transport --workspace packages/plugins/plugin-claude-code --workspace packages/plugins/plugin-devin",
+    "knip:deps": "nubx knip --config knip.json --dependencies --no-progress --no-config-hints --no-tag-hints --workspace packages/ui --workspace packages/agent --workspace apps/desktop --workspace packages/plugins --workspace packages/plugins/plugin-sql --workspace packages/plugins/provider-transport --workspace packages/plugins/plugin-claude-code --workspace packages/plugins/plugin-devin",
     "audit:production:critical": "nub audit --production --audit-level critical --fetch-timeout 15000 --fetch-retries 2 --fetch-retry-factor 2 --fetch-retry-mintimeout 250 --fetch-retry-maxtimeout 1000",
     "audit:production:high": "nub audit --production --audit-level high --fetch-timeout 15000 --fetch-retries 2 --fetch-retry-factor 2 --fetch-retry-mintimeout 250 --fetch-retry-maxtimeout 1000",
     "typecheck": "nubx tsc --noEmit && nub run ui:typecheck",

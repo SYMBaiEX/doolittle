@@ -5,7 +5,9 @@
         "src/index.ts",
         "src/controls.tsx",
         "src/surfaces.tsx",
-        "src/host.ts"
+        "src/host.ts",
+        "src/themes.ts",
+        "src/ag-ui.ts"
       ],
       "project": ["src/**/*.ts", "src/**/*.tsx"]
     },

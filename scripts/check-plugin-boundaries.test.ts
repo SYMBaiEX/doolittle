@@ -32,6 +32,7 @@ function createBoundaryFixture(options: {
   includeRetiredSecretsManager?: boolean;
   includeUnnamespacedProductService?: boolean;
   includeNativeElizaImport?: boolean;
+  uiSource?: string;
 }): string {
   const root = mkdtempSync(join(tmpdir(), "doolittle-boundary-"));
 
@@ -56,6 +57,7 @@ function createBoundaryFixture(options: {
     join(packagesDir, "agent", "src", "actions"),
     join(packagesDir, "agent", "src", "native-tools"),
     join(packagesDir, "contracts", "src"),
+    join(packagesDir, "ui", "src"),
     join(root, "apps", "desktop", "src", "main"),
     join(root, "apps", "desktop", "src", "renderer"),
     join(root, "scripts", "bootstrap", "provider"),
@@ -65,6 +67,12 @@ function createBoundaryFixture(options: {
   for (const dir of requiredDirs) {
     mkdirSync(dir, { recursive: true });
   }
+
+  writeFileSync(
+    join(packagesDir, "ui", "src", "probe.ts"),
+    options.uiSource ?? "export type Control = { label: string };\n",
+    "utf8",
+  );
 
   writeFileSync(
     join(packagesDir, "agent", "src", "native-tools", "probe.ts"),
@@ -270,6 +278,26 @@ describe("check-plugin-boundaries", () => {
     );
     expect(result.stderr).toContain("native-tools/probe.ts");
   });
+
+  it.each([
+    'import { readFileSync } from "fs";',
+    'import fs from "node:fs";',
+    'const fs = require("fs");',
+    'import { ipcRenderer } from "electron";',
+    'import { AgentRuntime } from "@elizaos/core";',
+    'import { start } from "@doolittle/agent";',
+    "window.doolittle.chatStart({});",
+    'fetch("/api/runtime");',
+    'new WebSocket("ws://localhost");',
+  ])(
+    "keeps reusable UI presentation outside privileged coordination: %s",
+    (uiSource) => {
+      fixture = createBoundaryFixture({ uiSource });
+      const result = runScript(fixture);
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("packages/ui/src/probe.ts");
+    },
+  );
 
   it("rejects reusable plugins that import the host application", () => {
     fixture = createBoundaryFixture({ includeHostApplicationImport: true });

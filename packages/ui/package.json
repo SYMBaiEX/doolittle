@@ -8,6 +8,8 @@
     "./controls": "./src/controls.tsx",
     "./surfaces": "./src/surfaces.tsx",
     "./host": "./src/host.ts",
+    "./themes": "./src/themes.ts",
+    "./ag-ui": "./src/ag-ui.ts",
     "./styles.css": "./src/styles.css"
   },
   "scripts": {
