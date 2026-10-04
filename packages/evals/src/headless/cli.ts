@@ -1,6 +1,13 @@
 import { formatActionCounts } from "./action-counts-format";
 import { findHeadlessEvalSuite } from "./cases";
 import { parseHeadlessEvalCliOptions } from "./cli-options";
+import {
+  createOperationalFailureTracker,
+  emitOperationalFailure,
+  formatOperationalFailure,
+  type HeadlessOperationalFailure,
+  isHeadlessOperationalFailure,
+} from "./operational-failure";
 import { runHeadlessEvalSuite } from "./runner";
 
 function printHelp(): void {
@@ -21,9 +28,11 @@ function printHelp(): void {
   );
 }
 
-async function main(): Promise<number> {
+export async function main(args = process.argv.slice(2)): Promise<number> {
+  const failure = createOperationalFailureTracker("cli-preflight");
+  let runnerFailure: HeadlessOperationalFailure | undefined;
   try {
-    const options = parseHeadlessEvalCliOptions(process.argv.slice(2));
+    const options = parseHeadlessEvalCliOptions(args);
     if (!options) {
       printHelp();
       return 0;
@@ -32,6 +41,9 @@ async function main(): Promise<number> {
     if (!suite) {
       throw new Error(`Unknown headless evaluation suite: ${options.suiteId}`);
     }
+    failure.enter("runner-preflight");
+    // CLI does not observe inner child lifecycle or time the runner as a child.
+    failure.unavailableChild();
     const {
       report,
       reportPath,
@@ -40,6 +52,10 @@ async function main(): Promise<number> {
       actionDiagnosticsReceiptStatus,
       modelInputReceiptStatus,
     } = await runHeadlessEvalSuite(suite, {
+      onOperationalFailure: (receipt) => {
+        if (!runnerFailure && isHeadlessOperationalFailure(receipt))
+          runnerFailure = receipt;
+      },
       reportDir: options.reportDir,
       routeLabel: options.routeLabel,
       enableConfiguredCloudResearch: options.enableConfiguredCloudResearch,
@@ -64,6 +80,8 @@ async function main(): Promise<number> {
         console.log(`\n--- ${taskId}${turnLabel} response ---\n${response}\n`);
       },
     });
+    failure.enter("cli-output");
+    failure.setPersistence("written");
     console.log(
       `${report.suite.id} v${report.suite.version} · schema v${report.schemaVersion} · evaluator ${report.evaluatorVersion} · route label ${report.routeLabel} · advertised product default ${report.route.provider ?? "unknown"}/sha256:${report.route.modelSha256} (${report.route.reasoningEffort ?? "unknown"}); expected fresh Settings configuration, not effective-route attestation`,
     );
@@ -139,13 +157,18 @@ async function main(): Promise<number> {
       `Completed report serialization/persistence timing receipt: ${measurementReceiptStatus}; not self-described in the report. Harness phase coverage is partial; child exec/startup/model/tool time is a separate composite.`,
     );
     return exitCode;
-  } catch (error) {
-    console.error(error instanceof Error ? error.message : String(error));
-    printHelp();
+  } catch {
+    // Emit once, even if the trusted output sink itself throws. Never inspect
+    // caught exceptions or print arguments, paths, messages, names or causes.
+    emitOperationalFailure(
+      (receipt) => console.error(formatOperationalFailure(receipt)),
+      runnerFailure ?? failure.receipt(),
+    );
     return 1;
   }
 }
 
-void main().then((exitCode) => {
-  process.exitCode = exitCode;
-});
+if (import.meta.main)
+  void main().then((exitCode) => {
+    process.exitCode = exitCode;
+  });
