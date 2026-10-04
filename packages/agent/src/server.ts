@@ -4,11 +4,13 @@ import {
   type Server,
   type ServerResponse,
 } from "node:http";
+import type { Socket } from "node:net";
 import { Readable } from "node:stream";
 import {
   ensureApiTokenForBindHost,
   isAllowedHost,
   isAuthorized,
+  resolveTerminalRunRejection,
 } from "@elizaos/agent/api/server-helpers-auth";
 import { syncResolvedApiPort } from "@elizaos/shared";
 import { formatLoggerError } from "@/logging/logger";
@@ -30,6 +32,7 @@ import { createRequestAbortController } from "@/server/request-lifecycle";
 import { json, runResponsePostCommit } from "@/server/responses";
 import { dispatchRouteHandlers } from "@/server/router";
 import { apiRouteHandlers } from "@/server/routes";
+import { handleOperationsRoutes } from "@/server/routes/operations";
 
 let activeApiServer: Server | null = null;
 let activeApiServerAddress: string | null = null;
@@ -44,6 +47,11 @@ export interface ApiServerSecurityOptions {
   headersTimeoutMs?: number;
   maxRequestBodyBytes?: number;
   requestTimeoutMs?: number;
+}
+
+export interface OwnedApiServer {
+  address: ApiServerAddress;
+  close(): Promise<void>;
 }
 
 export function internalServerErrorResponse(): Response {
@@ -180,167 +188,269 @@ export async function startApiServer(
 
   await stopApiServer();
 
+  const owned = await createApiServer(context, security);
+  activeApiServer = owned.server;
+  activeApiServerAddress = address;
+  activeApiServerInfo = owned.address;
+  syncResolvedApiPort(process.env, owned.address.port);
+  return owned.address;
+}
+
+/** Independent listener ownership; the CLI profile never dispatches plugins. */
+export async function createApiServer(
+  context: AppContext,
+  security: ApiServerSecurityOptions & {
+    terminalOnly?: boolean;
+    shutdownTimeoutMs?: number;
+  } = {},
+): Promise<OwnedApiServer & { server: Server }> {
+  const address = `${context.config.host}:${context.config.port}`;
+  const inFlight = new Set<Promise<void>>();
+  const requestControllers = new Set<AbortController>();
+  const connections = new Set<Socket>();
+  const terminalCapability = security.terminalOnly
+    ? process.env.ELIZA_TERMINAL_RUN_TOKEN
+    : undefined;
+  if (
+    security.terminalOnly &&
+    (context.config.host !== "127.0.0.1" ||
+      context.config.port !== 0 ||
+      !process.env.ELIZA_TERMINAL_RUN_TOKEN?.trim())
+  ) {
+    throw new Error(
+      "Private terminal transport requires an owned loopback listener and capability.",
+    );
+  }
+
   // The actual listener configuration is authoritative for Eliza's native
   // host, auth, and CORS helpers even when a caller constructs AppContext
   // directly instead of going through loadConfig().
   process.env.ELIZA_API_BIND = context.config.host;
-  ensureApiTokenForBindHost(context.config.host);
+  if (!security.terminalOnly) ensureApiTokenForBindHost(context.config.host);
 
   const server = createServer(
     {
       headersTimeout: security.headersTimeoutMs ?? 60_000,
       requestTimeout: security.requestTimeoutMs ?? 120_000,
     },
-    async (incoming, outgoing) => {
-      const requestLifecycle = createRequestAbortController(incoming, outgoing);
-      try {
-        const requestPath = new URL(incoming.url ?? "/", "http://localhost")
-          .pathname;
-        assertDeclaredRequestBodyLimit(incoming, security.maxRequestBodyBytes);
-        if (!isAllowedHost(incoming)) {
-          await writeEarlyResponse(
-            json({ error: "Forbidden host" }, 403),
+    (incoming, outgoing) => {
+      const pending = (async () => {
+        const requestLifecycle = createRequestAbortController(
+          incoming,
+          outgoing,
+        );
+        requestControllers.add(requestLifecycle.controller);
+        try {
+          const requestPath = new URL(incoming.url ?? "/", "http://localhost")
+            .pathname;
+          assertDeclaredRequestBodyLimit(
             incoming,
-            outgoing,
+            security.maxRequestBodyBytes,
           );
-          return;
-        }
-        if (!applyDoolittleCors(incoming, outgoing, requestPath)) {
-          await writeEarlyResponse(
-            json({ error: "Forbidden origin" }, 403),
-            incoming,
-            outgoing,
-          );
-          return;
-        }
-
-        let response: Response;
-        const method = incoming.method ?? "GET";
-        const authorized = isAuthorized(incoming);
-        const providerAuthenticatedWebhook =
-          isProviderAuthenticatedWebhookRequest(requestPath, method);
-        const bodyFraming = requestBodyFraming(incoming);
-        if (
-          bodyFraming.hasBody &&
-          (method === "GET" || method === "HEAD" || method === "OPTIONS")
-        ) {
-          await writeEarlyResponse(
-            json({ error: `${method} requests must not include a body.` }, 400),
-            incoming,
-            outgoing,
-            true,
-          );
-          return;
-        }
-        if (method === "OPTIONS") {
-          response = json({ ok: true });
-        } else if (!authorized && !providerAuthenticatedWebhook) {
-          await writeEarlyResponse(
-            json({ error: "Unauthorized" }, 401),
-            incoming,
-            outgoing,
-          );
-          return;
-        } else {
-          const terminalTokenError = remoteTerminalMutationTokenError(
-            incoming,
-            requestPath,
-            method,
-          );
-          if (terminalTokenError) {
+          if (!isAllowedHost(incoming)) {
             await writeEarlyResponse(
-              json(
-                { error: terminalTokenError.reason },
-                terminalTokenError.status,
-              ),
+              json({ error: "Forbidden host" }, 403),
               incoming,
               outgoing,
             );
             return;
           }
-          const body = await readBoundedRequestBody(
-            incoming,
-            security.maxRequestBodyBytes,
-            security.requestTimeoutMs,
-          );
-          if (requestPath === "/chat" || requestPath === "/v1/responses") {
-            incoming.setTimeout(0);
-            outgoing.setTimeout(0);
+          if (!applyDoolittleCors(incoming, outgoing, requestPath)) {
+            await writeEarlyResponse(
+              json({ error: "Forbidden origin" }, 403),
+              incoming,
+              outgoing,
+            );
+            return;
           }
-          const request = toWebRequest(
-            incoming,
-            address,
-            requestLifecycle.controller.signal,
-            body,
+
+          let response: Response;
+          const method = incoming.method ?? "GET";
+          if (security.terminalOnly) {
+            if (requestPath !== "/api/terminal/run" || method !== "POST") {
+              await writeEarlyResponse(
+                json({ error: "Not found" }, 404),
+                incoming,
+                outgoing,
+              );
+              return;
+            }
+            if (
+              !terminalCapability ||
+              process.env.ELIZA_TERMINAL_RUN_TOKEN !== terminalCapability
+            ) {
+              await writeEarlyResponse(
+                json(
+                  { error: "Terminal capability is no longer available." },
+                  401,
+                ),
+                incoming,
+                outgoing,
+              );
+              return;
+            }
+            // SHELL sends its dedicated capability, not an API bearer token.
+            const rejection = resolveTerminalRunRejection(incoming, {});
+            if (rejection) {
+              await writeEarlyResponse(
+                json({ error: rejection.reason }, rejection.status),
+                incoming,
+                outgoing,
+              );
+              return;
+            }
+          }
+          const authorized = isAuthorized(incoming);
+          const providerAuthenticatedWebhook =
+            isProviderAuthenticatedWebhookRequest(requestPath, method);
+          const bodyFraming = requestBodyFraming(incoming);
+          if (
+            bodyFraming.hasBody &&
+            (method === "GET" || method === "HEAD" || method === "OPTIONS")
+          ) {
+            await writeEarlyResponse(
+              json(
+                { error: `${method} requests must not include a body.` },
+                400,
+              ),
+              incoming,
+              outgoing,
+              true,
+            );
+            return;
+          }
+          if (method === "OPTIONS") {
+            response = json({ ok: true });
+          } else if (
+            !security.terminalOnly &&
+            !authorized &&
+            !providerAuthenticatedWebhook
+          ) {
+            await writeEarlyResponse(
+              json({ error: "Unauthorized" }, 401),
+              incoming,
+              outgoing,
+            );
+            return;
+          } else {
+            const terminalTokenError = remoteTerminalMutationTokenError(
+              incoming,
+              requestPath,
+              method,
+            );
+            if (terminalTokenError) {
+              await writeEarlyResponse(
+                json(
+                  { error: terminalTokenError.reason },
+                  terminalTokenError.status,
+                ),
+                incoming,
+                outgoing,
+              );
+              return;
+            }
+            const body = await readBoundedRequestBody(
+              incoming,
+              security.maxRequestBodyBytes,
+              security.requestTimeoutMs,
+            );
+            if (requestPath === "/chat" || requestPath === "/v1/responses") {
+              incoming.setTimeout(0);
+              outgoing.setTimeout(0);
+            }
+            const request = toWebRequest(
+              incoming,
+              address,
+              requestLifecycle.controller.signal,
+              body,
+            );
+            const url = new URL(request.url);
+            // Provider callbacks authenticate using their own signed payload or
+            // verification token. Route them straight to Doolittle's webhook
+            // handlers so a runtime plugin cannot intercept a public endpoint
+            // or observe a synthetic API authorization result.
+            response = security.terminalOnly
+              ? ((await handleOperationsRoutes(context, request, url, {
+                  captureOutputRequired: true,
+                  expectedTerminalToken: terminalCapability,
+                })) ?? json({ error: "Not found" }, 404))
+              : providerAuthenticatedWebhook
+                ? ((await dispatchRouteHandlers(
+                    context,
+                    request,
+                    url,
+                    apiRouteHandlers,
+                  )) ?? json({ error: "Not found" }, 404))
+                : ((await dispatchRuntimePluginRoute({
+                    runtime: context.runtime,
+                    request,
+                    url,
+                    isAuthorized: () => authorized,
+                  })) ??
+                  (await dispatchRouteHandlers(
+                    context,
+                    request,
+                    url,
+                    apiRouteHandlers,
+                  )) ??
+                  json({ error: "Not found" }, 404));
+          }
+          if (security.terminalOnly)
+            requestLifecycle.controller.signal.throwIfAborted();
+          await writeResponseAndRunPostCommit(response, () =>
+            writeWebResponse(response, outgoing),
           );
-          const url = new URL(request.url);
-          // Provider callbacks authenticate using their own signed payload or
-          // verification token. Route them straight to Doolittle's webhook
-          // handlers so a runtime plugin cannot intercept a public endpoint
-          // or observe a synthetic API authorization result.
-          response = providerAuthenticatedWebhook
-            ? ((await dispatchRouteHandlers(
-                context,
-                request,
-                url,
-                apiRouteHandlers,
-              )) ?? json({ error: "Not found" }, 404))
-            : ((await dispatchRuntimePluginRoute({
-                runtime: context.runtime,
-                request,
-                url,
-                isAuthorized: () => authorized,
-              })) ??
-              (await dispatchRouteHandlers(
-                context,
-                request,
-                url,
-                apiRouteHandlers,
-              )) ??
-              json({ error: "Not found" }, 404));
+        } catch (error) {
+          if (
+            isRequestCancellation(error, requestLifecycle.controller.signal)
+          ) {
+            if (!outgoing.destroyed) outgoing.destroy();
+            return;
+          }
+          if (error instanceof RequestBodyTooLargeError) {
+            await writeEarlyResponse(
+              json({ error: error.message }, 413),
+              incoming,
+              outgoing,
+              true,
+            );
+            return;
+          }
+          if (error instanceof RequestBodyTimeoutError) {
+            await writeEarlyResponse(
+              json({ error: error.message }, 408),
+              incoming,
+              outgoing,
+              true,
+            );
+            return;
+          }
+          if (outgoing.headersSent) {
+            outgoing.destroy(error instanceof Error ? error : undefined);
+            return;
+          }
+          context.services.logger.error("api-request-failed", {
+            detail: formatLoggerError(error),
+            method: incoming.method ?? "GET",
+            path: new URL(incoming.url ?? "/", `http://${address}`).pathname,
+          });
+          await writeWebResponse(internalServerErrorResponse(), outgoing);
+        } finally {
+          requestControllers.delete(requestLifecycle.controller);
+          requestLifecycle.dispose();
         }
-        await writeResponseAndRunPostCommit(response, () =>
-          writeWebResponse(response, outgoing),
-        );
-      } catch (error) {
-        if (isRequestCancellation(error, requestLifecycle.controller.signal)) {
-          if (!outgoing.destroyed) outgoing.destroy();
-          return;
-        }
-        if (error instanceof RequestBodyTooLargeError) {
-          await writeEarlyResponse(
-            json({ error: error.message }, 413),
-            incoming,
-            outgoing,
-            true,
-          );
-          return;
-        }
-        if (error instanceof RequestBodyTimeoutError) {
-          await writeEarlyResponse(
-            json({ error: error.message }, 408),
-            incoming,
-            outgoing,
-            true,
-          );
-          return;
-        }
-        if (outgoing.headersSent) {
-          outgoing.destroy(error instanceof Error ? error : undefined);
-          return;
-        }
-        context.services.logger.error("api-request-failed", {
-          detail: formatLoggerError(error),
-          method: incoming.method ?? "GET",
-          path: new URL(incoming.url ?? "/", `http://${address}`).pathname,
-        });
-        await writeWebResponse(internalServerErrorResponse(), outgoing);
-      } finally {
-        requestLifecycle.dispose();
-      }
+      })();
+      inFlight.add(pending);
+      void pending
+        .finally(() => inFlight.delete(pending))
+        .catch(() => undefined);
     },
   );
 
+  server.on("connection", (socket) => {
+    connections.add(socket);
+    socket.once("close", () => connections.delete(socket));
+  });
   await new Promise<void>((resolve, reject) => {
     const onError = (error: Error) => reject(error);
     server.once("error", onError);
@@ -356,18 +466,49 @@ export async function startApiServer(
     throw new Error("Doolittle API server did not expose a TCP address.");
   }
 
-  activeApiServer = server;
-  activeApiServerAddress = address;
   const host = context.config.host;
   const port = bound.port;
-  // Publish the operating-system-selected port through Eliza's canonical
-  // runtime environment contract.
-  syncResolvedApiPort(process.env, port);
   const serverInfo: ApiServerAddress = {
     host,
     port,
     url: `http://${host}:${port}`,
   };
-  activeApiServerInfo = serverInfo;
-  return serverInfo;
+  let closing: Promise<void> | undefined;
+  return {
+    server,
+    address: serverInfo,
+    close() {
+      closing ??= (async () => {
+        const closed = new Promise<void>((resolve, reject) => {
+          server.close((error) => (error ? reject(error) : resolve()));
+        });
+        for (const controller of requestControllers) controller.abort();
+        for (const socket of connections) socket.destroy();
+        server.closeAllConnections();
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        try {
+          await Promise.race([
+            (async () => {
+              await closed;
+              while (inFlight.size) await Promise.all([...inFlight]);
+            })(),
+            new Promise<never>((_, reject) => {
+              timer = setTimeout(
+                () =>
+                  reject(
+                    new Error(
+                      "Owned terminal endpoint cleanup could not be confirmed.",
+                    ),
+                  ),
+                security.shutdownTimeoutMs ?? 10_000,
+              );
+            }),
+          ]);
+        } finally {
+          if (timer) clearTimeout(timer);
+        }
+      })();
+      return closing;
+    },
+  };
 }

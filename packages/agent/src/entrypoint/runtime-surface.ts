@@ -2,9 +2,15 @@ import type { AgentRuntime } from "@elizaos/core";
 import type { AppLogger } from "@/logging/logger";
 import type { AppContext } from "@/runtime/bootstrap";
 import { shutdownElizaRuntime } from "@/runtime/lifecycle/shutdown";
+import { acquireCliTerminalEndpoint } from "./cli-terminal-endpoint";
 import { handleRuntimePromptCommand } from "./prompt-command";
 import type { EntrypointRuntimePlan } from "./runtime-control";
-import type { EntrypointSubcommand, OneShotOptions } from "./subcommand";
+import { installRuntimeProcessLifecycle } from "./runtime-process-lifecycle";
+import {
+  type EntrypointSubcommand,
+  isEntrypointAliasCommand,
+  type OneShotOptions,
+} from "./subcommand";
 
 type BootLogEntry = { source: "stdout" | "stderr"; text: string };
 
@@ -46,6 +52,7 @@ export async function handleEntrypointRuntimeSurface(input: {
   pushArg?: (arg: string) => void;
   shutdownRuntime?: typeof shutdownElizaRuntime;
   exit?: (code: number) => void;
+  acquireTerminalEndpoint?: typeof acquireCliTerminalEndpoint;
 }): Promise<EntrypointRuntimeSurfaceResult> {
   const printLine = input.printLine ?? console.log;
   const pushArg = input.pushArg ?? ((arg: string) => process.argv.push(arg));
@@ -58,16 +65,67 @@ export async function handleEntrypointRuntimeSurface(input: {
     printLine(`${input.context.config.agentName} gateway started.`);
   }
 
-  const handledPrompt = await handleRuntimePromptCommand({
-    command: input.command,
-    shellIsInteractive: input.shellIsInteractive,
-    immediatePrompt: input.immediatePrompt,
-    oneShot: input.oneShot,
-    jobControlDir: input.jobControlDir,
-    context: input.context,
-    runCliPrompt: input.runCliPrompt,
-    runCliPromptWithEvents: input.runCliPromptWithEvents,
-  });
+  const needsTerminalEndpoint =
+    Boolean(input.immediatePrompt?.trim()) &&
+    (input.command === "exec" ||
+      isEntrypointAliasCommand(input.command) ||
+      !input.shellIsInteractive);
+  let endpoint:
+    | Awaited<ReturnType<typeof acquireCliTerminalEndpoint>>
+    | undefined;
+  try {
+    endpoint = needsTerminalEndpoint
+      ? await (input.acquireTerminalEndpoint ?? acquireCliTerminalEndpoint)(
+          input.context,
+        )
+      : undefined;
+  } catch (error) {
+    await (input.shutdownRuntime ?? shutdownElizaRuntime)(
+      input.context.runtime as AgentRuntime,
+      "Doolittle one-shot startup failure",
+      { fast: true },
+    );
+    throw error;
+  }
+  const ownedEndpoint = endpoint;
+  const signalLifecycle = ownedEndpoint
+    ? installRuntimeProcessLifecycle({
+        runtime: input.context.runtime as AgentRuntime,
+        label: "Doolittle one-shot",
+        beforeShutdown: () => ownedEndpoint.close(),
+        onExit: input.exit,
+      })
+    : undefined;
+  let handledPrompt: boolean;
+  let requestedExitCode: number | undefined;
+  try {
+    try {
+      handledPrompt = await handleRuntimePromptCommand({
+        command: input.command,
+        shellIsInteractive: input.shellIsInteractive,
+        immediatePrompt: input.immediatePrompt,
+        oneShot: input.oneShot,
+        jobControlDir: input.jobControlDir,
+        context: input.context,
+        runCliPrompt: input.runCliPrompt,
+        runCliPromptWithEvents: input.runCliPromptWithEvents,
+        exit: (code) => {
+          requestedExitCode = code;
+        },
+      });
+    } finally {
+      await endpoint?.close();
+    }
+  } catch (error) {
+    await (input.shutdownRuntime ?? shutdownElizaRuntime)(
+      input.context.runtime as AgentRuntime,
+      "Doolittle one-shot failure",
+      { fast: true },
+    );
+    throw error;
+  } finally {
+    signalLifecycle?.dispose();
+  }
   if (handledPrompt) {
     await (input.shutdownRuntime ?? shutdownElizaRuntime)(
       input.context.runtime as AgentRuntime,
@@ -75,9 +133,10 @@ export async function handleEntrypointRuntimeSurface(input: {
       { fast: true },
     );
     const exitCode =
-      typeof process.exitCode === "number"
+      requestedExitCode ??
+      (typeof process.exitCode === "number"
         ? process.exitCode
-        : Number(process.exitCode ?? 0);
+        : Number(process.exitCode ?? 0));
     (input.exit ?? process.exit)(exitCode);
     return { handled: true };
   }

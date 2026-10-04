@@ -6,8 +6,12 @@ export async function runEffectiveShellCommand(
   command: string,
   timeoutMs?: number,
   abortSignal?: AbortSignal,
+  options?: { requireCancellation?: boolean },
 ) {
-  return requireNativeShell(runtime).run(command, timeoutMs, abortSignal);
+  const shell = requireNativeShell(runtime);
+  return options
+    ? shell.run(command, timeoutMs, abortSignal, options)
+    : shell.run(command, timeoutMs, abortSignal);
 }
 
 export function getEffectiveShellHistory(runtime: RuntimeLike, limit = 10) {

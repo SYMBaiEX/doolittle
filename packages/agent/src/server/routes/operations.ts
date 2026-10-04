@@ -8,6 +8,7 @@ import {
 import { sdkTerminalRunTokenError } from "@/server/auth";
 import { readJsonObjectBody } from "@/server/request-body";
 import { json, streamSse } from "@/server/responses";
+import { TerminalCancellationUnavailableError } from "@/services/terminal/command/orchestrator";
 
 const MAX_WORKSPACE_FILE_BYTES = 1_000_000;
 const MAX_WORKSPACE_PATH_LENGTH = 4_096;
@@ -178,6 +179,10 @@ export async function handleOperationsRoutes(
   context: AppContext,
   request: Request,
   url: URL,
+  options: {
+    captureOutputRequired?: boolean;
+    expectedTerminalToken?: string;
+  } = {},
 ): Promise<Response | null> {
   if (request.method === "GET" && url.pathname === "/runtime/research") {
     return json({
@@ -300,9 +305,24 @@ export async function handleOperationsRoutes(
     const parsed = await readBody(request);
     if ("response" in parsed) return parsed.response;
     const { body } = parsed;
+    if (
+      options.expectedTerminalToken !== undefined &&
+      process.env.ELIZA_TERMINAL_RUN_TOKEN !== options.expectedTerminalToken
+    ) {
+      return json(
+        { error: "Terminal capability is no longer available." },
+        401,
+      );
+    }
     const tokenError = sdkTerminalRunTokenError(request, body);
     if (tokenError) {
       return json({ error: tokenError.reason }, tokenError.status);
+    }
+    if (options.captureOutputRequired && body.captureOutput !== true) {
+      return json(
+        { error: "Owned terminal requests must capture output." },
+        400,
+      );
     }
     const input = parseTerminalCommandInput(body);
     if ("error" in input) {
@@ -319,6 +339,8 @@ export async function handleOperationsRoutes(
       context.runtime,
       input.command,
       input.timeoutMs,
+      options.captureOutputRequired ? request.signal : undefined,
+      options.captureOutputRequired ? { requireCancellation: true } : undefined,
     );
     if (body.captureOutput !== true) {
       void run.catch((error) => {
@@ -330,7 +352,17 @@ export async function handleOperationsRoutes(
       });
       return json({ ok: true });
     }
-    return json(sdkTerminalRunResult(await run, input.timeoutMs));
+    try {
+      return json(sdkTerminalRunResult(await run, input.timeoutMs));
+    } catch (error) {
+      if (
+        options.captureOutputRequired &&
+        error instanceof TerminalCancellationUnavailableError
+      ) {
+        return json({ error: error.message }, 501);
+      }
+      throw error;
+    }
   }
 
   if (request.method === "POST" && url.pathname === "/terminal/run/stream") {

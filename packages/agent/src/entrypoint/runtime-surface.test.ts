@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { resolveEntrypointRuntimePlan } from "./runtime-control";
 import { handleEntrypointRuntimeSurface } from "./runtime-surface";
 
 function createContext() {
@@ -22,10 +23,100 @@ function createLogger() {
 }
 
 describe("handleEntrypointRuntimeSurface", () => {
+  it.each([
+    "missing-handler",
+    "missing-result",
+    "throw",
+    "startup-failure",
+    "cleanup-failure",
+  ])("cleans up before exit or rejection for %s", async (failure) => {
+    const context = createContext();
+    const order: string[] = [];
+    const close = vi.fn(async () => {
+      order.push("close");
+      if (failure === "cleanup-failure") throw new Error("cleanup failed");
+    });
+    const acquireTerminalEndpoint = vi.fn(async () => {
+      order.push("acquire");
+      if (failure === "startup-failure") throw new Error("startup failed");
+      return {
+        address: {
+          host: "127.0.0.1",
+          port: 12345,
+          url: "http://127.0.0.1:12345",
+        },
+        close,
+      };
+    });
+    const runCliPrompt = vi.fn(async () => {
+      order.push("prompt");
+      if (failure === "throw") throw new Error("runner failed");
+      return undefined;
+    });
+    const shutdownRuntime = vi.fn(async () => {
+      order.push("shutdown");
+    });
+    const exit = vi.fn(() => {
+      order.push("exit");
+    });
+    const input = {
+      command: "exec" as const,
+      shellIsInteractive: false,
+      immediatePrompt: "real prompt",
+      oneShot: failure === "missing-handler" ? { jsonStream: true } : undefined,
+      context: context as never,
+      runtimePlan: resolveEntrypointRuntimePlan({
+        command: "exec",
+        shellIsInteractive: false,
+        mode: "cli",
+        stdinIsTTY: false,
+      }),
+      runtimeLogger: createLogger() as never,
+      startServerWhenShellReady: () => {},
+      bootLogs: [],
+      acquireTerminalEndpoint,
+      runCliPrompt,
+      shutdownRuntime,
+      exit,
+    };
+    if (["throw", "startup-failure", "cleanup-failure"].includes(failure)) {
+      await expect(
+        handleEntrypointRuntimeSurface(
+          input as Parameters<typeof handleEntrypointRuntimeSurface>[0],
+        ),
+      ).rejects.toThrow();
+      expect(exit).not.toHaveBeenCalled();
+    } else {
+      await expect(
+        handleEntrypointRuntimeSurface(
+          input as Parameters<typeof handleEntrypointRuntimeSurface>[0],
+        ),
+      ).resolves.toEqual({ handled: true });
+      expect(exit).toHaveBeenCalledWith(1);
+      expect(order.at(-1)).toBe("exit");
+    }
+    expect(shutdownRuntime).toHaveBeenCalledOnce();
+    if (failure === "startup-failure") {
+      expect(runCliPrompt).not.toHaveBeenCalled();
+      expect(close).not.toHaveBeenCalled();
+    } else {
+      expect(close).toHaveBeenCalledOnce();
+      expect(order.indexOf("close")).toBeLessThan(order.indexOf("shutdown"));
+    }
+  });
   it("shuts down the runtime after a one-shot status result", async () => {
     const context = createContext();
     const shutdownRuntime = vi.fn(async () => {});
     const exit = vi.fn(() => {});
+    const closeEndpoint = vi.fn(async () => {});
+    const acquireTerminalEndpoint = vi.fn(async () => ({
+      address: {
+        host: "127.0.0.1",
+        port: 12345,
+        url: "http://127.0.0.1:12345",
+      },
+      close: closeEndpoint,
+    }));
     const runCliPrompt = vi.fn(async () => ({
       text: "status ok",
       tone: "success" as const,
@@ -53,6 +144,7 @@ describe("handleEntrypointRuntimeSurface", () => {
         },
         runtimeLogger: createLogger() as never,
         runCliPrompt,
+        acquireTerminalEndpoint,
         startServerWhenShellReady: () => {},
         bootLogs: [],
         shutdownRuntime,
@@ -61,6 +153,12 @@ describe("handleEntrypointRuntimeSurface", () => {
     ).resolves.toEqual({ handled: true });
 
     expect(runCliPrompt).toHaveBeenCalledOnce();
+    expect(acquireTerminalEndpoint.mock.invocationCallOrder[0]).toBeLessThan(
+      runCliPrompt.mock.invocationCallOrder[0] ?? 0,
+    );
+    expect(closeEndpoint.mock.invocationCallOrder[0]).toBeLessThan(
+      shutdownRuntime.mock.invocationCallOrder[0] ?? 0,
+    );
     expect(shutdownRuntime).toHaveBeenCalledWith(
       context.runtime,
       "Doolittle one-shot completion",

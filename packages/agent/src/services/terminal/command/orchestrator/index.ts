@@ -1,3 +1,4 @@
+import { resolveShellExecutionMode } from "@elizaos/agent/services/shell-execution-router";
 import * as processExecution from "@/services/process-execution";
 import type { TerminalCommandRecord } from "@/types/execution";
 import {
@@ -19,6 +20,31 @@ import type {
 
 const ROUTER_TIMEOUT_MARKER = "[shell-router] command timed out";
 
+export class TerminalCancellationUnavailableError extends Error {
+  constructor() {
+    super(
+      "Owned CLI terminal cancellation is unavailable for this execution capability. Only the local backend in SDK local-yolo mode supports captured-command cancellation; execution policy was not changed.",
+    );
+    this.name = "TerminalCancellationUnavailableError";
+  }
+}
+
+function requireCancellation(
+  backend: { name: string },
+  configuredBackend: string,
+  signal?: AbortSignal,
+): void {
+  signal?.throwIfAborted();
+  if (
+    !signal ||
+    configuredBackend !== "local" ||
+    backend.name !== "local" ||
+    resolveShellExecutionMode() !== "local-yolo"
+  ) {
+    throw new TerminalCancellationUnavailableError();
+  }
+}
+
 export class TerminalServiceCommandOrchestrator {
   constructor(
     private readonly options: TerminalServiceCommandOrchestratorOptions,
@@ -28,6 +54,7 @@ export class TerminalServiceCommandOrchestrator {
     command: string,
     timeoutMs?: number,
     abortSignal?: AbortSignal,
+    options?: { requireCancellation?: boolean },
   ): Promise<TerminalCommandRecord> {
     const workspaceDir = this.workspaceDir();
     this.options.onMutation?.();
@@ -38,6 +65,8 @@ export class TerminalServiceCommandOrchestrator {
         getSettings: this.options.getSettings,
       });
     const backend = resolveConfiguredBackend(this.options.backends, settings);
+    if (options?.requireCancellation)
+      requireCancellation(backend, settings.execution.backend, abortSignal);
     const preview = previewWithBackend({
       backend,
       command: safeCommand,
@@ -46,6 +75,10 @@ export class TerminalServiceCommandOrchestrator {
       workspaceDir,
     });
     const startedAt = new Date().toISOString();
+    // No await separates this check from the actual local backend's router
+    // dispatch. Recheck after preview in case callbacks changed SDK policy.
+    if (options?.requireCancellation)
+      requireCancellation(backend, settings.execution.backend, abortSignal);
     const result = await backend.run(safeCommand, {
       cwd: workspaceDir,
       timeoutMs: effectiveTimeoutMs,

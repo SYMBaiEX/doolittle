@@ -136,6 +136,30 @@ is enabled only for the new coding strategy; legacy tasks explicitly disable it.
 This is original execution observation within a cooperative process boundary,
 not an OS sandbox or cryptographic attestation against malicious same-UID code.
 
+The first two frozen v7 coding diagnostics at revision `b3bc84d4` scored 3/4
+and 2/4: both created the correct scoped implementation, but original
+verification failed in both, and exact final JSON/receipt agreement failed
+in the second. Each action projection recorded two failed shell completions;
+it does not identify commands or establish their cause. Keep these failed
+samples, not replacements, when checking a native CLI/SHELL integration repair.
+
+Two predeclared serial samples at CLI/SHELL repair revision `24c21810` scored
+2/4 and 3/4. Both passed behavior and file scope. The first timed out at the
+300-second child bound, leaving original verification and final agreement
+unconfirmed. The second supplied successful original verification but failed
+exact final JSON/receipt agreement. Raw discarded responses were not recovered;
+action-category counts cannot identify commands or establish a failure cause.
+Across the two baseline and two candidate samples, checks remained 5/8, while
+mean CLI time increased from 127.5555s to 193.9865s and mean reported tokens from
+426,202.5 to 843,609. Keep these negative outcomes; they do not demonstrate a
+speed, billing or overall-quality improvement. A separate post-run audit found
+matching advertised and requested routes within each pair, but the frozen helper
+did not enforce advertised-route equality or recheck binary pins per launch.
+Current binaries matching setup are not per-launch or effective-route attestation.
+Keep source revisions separate when pooling repetitions. Source inspection also
+identified verified terminal-result re-synthesis as an independent preservation
+conflict, not a proven cause of either live failure. Human review remains pending.
+
 ```sh
 nub run eval:headless -- --suite headless-workflows-v7 --task coding-original-verifier-v1
 ```

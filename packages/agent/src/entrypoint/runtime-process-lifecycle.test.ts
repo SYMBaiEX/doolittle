@@ -8,6 +8,50 @@ vi.mock("@/runtime/bootstrap/runtime/initialization", () => ({
 import { installRuntimeProcessLifecycle } from "./runtime-process-lifecycle";
 
 describe("installRuntimeProcessLifecycle", () => {
+  it.each(["SIGINT", "SIGTERM"] as const)(
+    "drains the owned endpoint before runtime shutdown for %s",
+    async (signal) => {
+      const order: string[] = [];
+      const lifecycle = installRuntimeProcessLifecycle({
+        runtime: {} as never,
+        label: "CLI",
+        signalHost: new EventEmitter(),
+        beforeShutdown: async () => {
+          order.push("endpoint");
+        },
+        shutdownRuntime: vi.fn(async () => {
+          order.push("runtime");
+        }),
+        onExit: () => {
+          order.push("exit");
+        },
+      });
+      await lifecycle.shutdown(signal);
+      expect(order).toEqual(["endpoint", "runtime", "exit"]);
+    },
+  );
+  it("reports unconfirmed owned cleanup, still stops runtime and exits nonzero", async () => {
+    const shutdownRuntime = vi.fn(async () => {});
+    const onExit = vi.fn();
+    const writeError = vi.fn();
+    const lifecycle = installRuntimeProcessLifecycle({
+      runtime: {} as never,
+      label: "CLI",
+      signalHost: new EventEmitter(),
+      beforeShutdown: async () => {
+        throw new Error("cleanup unconfirmed");
+      },
+      shutdownRuntime,
+      onExit,
+      writeError,
+    });
+    await lifecycle.shutdown("SIGTERM");
+    expect(shutdownRuntime).toHaveBeenCalledOnce();
+    expect(onExit).toHaveBeenCalledWith(1);
+    expect(writeError).toHaveBeenCalledWith(
+      expect.stringContaining("cleanup unconfirmed"),
+    );
+  });
   it("hands SIGTERM to the official runtime shutdown boundary once", async () => {
     const signalHost = new EventEmitter();
     const shutdownRuntime = vi.fn().mockResolvedValue(undefined);

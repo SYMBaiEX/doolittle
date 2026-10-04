@@ -25,6 +25,7 @@ describe("createShellRuntimeService", () => {
         command: string,
         timeoutMs?: number,
         abortSignal?: AbortSignal,
+        options?: { requireCancellation?: boolean },
       ): Promise<unknown>;
       history(limit?: number): unknown[];
       status(): Promise<unknown>;
@@ -45,6 +46,12 @@ describe("createShellRuntimeService", () => {
 
     await service.stop();
     expect(run).toHaveBeenCalledWith("pwd", 1_234, controller.signal);
+    await service.run("pwd", 1_234, controller.signal, {
+      requireCancellation: true,
+    });
+    expect(run).toHaveBeenLastCalledWith("pwd", 1_234, controller.signal, {
+      requireCancellation: true,
+    });
     expect(recent).toHaveBeenCalledWith(3);
     expect(status).toHaveBeenCalledTimes(1);
     expect(disposeInteractiveSessions).toHaveBeenCalledTimes(1);

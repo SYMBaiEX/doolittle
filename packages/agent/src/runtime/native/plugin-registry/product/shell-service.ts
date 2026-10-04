@@ -27,8 +27,11 @@ export function createShellRuntimeService(services: AppServices): ServiceClass {
       command: string,
       timeoutMs?: number,
       abortSignal?: AbortSignal,
+      options?: { requireCancellation?: boolean },
     ): Promise<unknown> {
-      return services.terminal.run(command, timeoutMs, abortSignal);
+      return options
+        ? services.terminal.run(command, timeoutMs, abortSignal, options)
+        : services.terminal.run(command, timeoutMs, abortSignal);
     }
 
     history(limit = 10): unknown[] {

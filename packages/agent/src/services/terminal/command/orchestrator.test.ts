@@ -1,7 +1,7 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import * as processExecution from "@/services/process-execution";
 import type {
   ExecutionBackendName,
@@ -12,6 +12,7 @@ import type { ExecutionBackend } from "../contracts/backend";
 import { localShellInvocation } from "../execution/subprocess";
 import { TerminalCommandHistoryStore } from "../records/history";
 import {
+  TerminalCancellationUnavailableError,
   type TerminalCommandUpdateEvent,
   TerminalServiceCommandOrchestrator,
 } from "./orchestrator";
@@ -164,6 +165,185 @@ function createFakeBackend(input: {
 }
 
 describe("command orchestrator", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+  it.each([
+    { mode: "local-safe", name: "local" },
+    { mode: "cloud", name: "local" },
+    { mode: "local-yolo", name: "docker" },
+    { mode: "local-yolo", name: "ssh" },
+  ] as const)(
+    "refuses owned cancellation before preview/run for $mode/$name without changing public behavior",
+    async ({ mode, name }) => {
+      vi.stubEnv("ELIZA_RUNTIME_MODE", mode);
+      const baseDir = mkdtempSync(
+        join(tmpdir(), "doolittle-cancellation-capability-"),
+      );
+      const settings = makeSettings();
+      settings.execution.backend = name;
+      const backend = createFakeBackend({
+        name,
+        mode:
+          name === "local"
+            ? "local"
+            : name === "docker"
+              ? "container"
+              : "remote",
+      });
+      const preview = vi.spyOn(backend, "preview");
+      const run = vi.spyOn(backend, "run");
+      const orchestrator = new TerminalServiceCommandOrchestrator({
+        getWorkspaceDir: () => baseDir,
+        getSettings: () => settings,
+        backends: new Map([[name, backend]]),
+        historyStore: new TerminalCommandHistoryStore(
+          join(baseDir, "terminal-history.json"),
+        ),
+      });
+      try {
+        await expect(
+          orchestrator.run("probe", 1000, new AbortController().signal, {
+            requireCancellation: true,
+          }),
+        ).rejects.toBeInstanceOf(TerminalCancellationUnavailableError);
+        expect(preview).not.toHaveBeenCalled();
+        expect(run).not.toHaveBeenCalled();
+        expect(process.env.ELIZA_RUNTIME_MODE === mode).toBe(true);
+        await orchestrator.run("probe", 1000);
+        expect(run).toHaveBeenCalledOnce();
+      } finally {
+        rmSync(baseDir, { recursive: true, force: true });
+      }
+    },
+  );
+  it("rechecks mutable SDK policy after preview before any backend work", async () => {
+    vi.stubEnv("ELIZA_RUNTIME_MODE", "local-yolo");
+    const baseDir = mkdtempSync(
+      join(tmpdir(), "doolittle-cancellation-policy-"),
+    );
+    const backend = createFakeBackend({ name: "local", mode: "local" });
+    const originalPreview = backend.preview.bind(backend);
+    vi.spyOn(backend, "preview").mockImplementation((command, options) => {
+      process.env.ELIZA_RUNTIME_MODE = "local-safe";
+      return originalPreview(command, options);
+    });
+    const run = vi.spyOn(backend, "run");
+    const orchestrator = new TerminalServiceCommandOrchestrator({
+      getWorkspaceDir: () => baseDir,
+      getSettings: makeSettings,
+      backends: new Map([["local", backend]]),
+      historyStore: new TerminalCommandHistoryStore(
+        join(baseDir, "terminal-history.json"),
+      ),
+    });
+    try {
+      await expect(
+        orchestrator.run("probe", 1000, new AbortController().signal, {
+          requireCancellation: true,
+        }),
+      ).rejects.toBeInstanceOf(TerminalCancellationUnavailableError);
+      expect(run).not.toHaveBeenCalled();
+    } finally {
+      rmSync(baseDir, { recursive: true, force: true });
+    }
+  });
+  it.each(["docker", "unknown-backend"])(
+    "does not admit configured %s through the existing public local fallback",
+    async (configured) => {
+      vi.stubEnv("ELIZA_RUNTIME_MODE", "local-yolo");
+      const baseDir = mkdtempSync(
+        join(tmpdir(), "doolittle-cancellation-fallback-"),
+      );
+      const settings = makeSettings();
+      settings.execution.backend =
+        configured as RuntimeSettings["execution"]["backend"];
+      const backend = createFakeBackend({ name: "local", mode: "local" });
+      const preview = vi.spyOn(backend, "preview");
+      const run = vi.spyOn(backend, "run");
+      const orchestrator = new TerminalServiceCommandOrchestrator({
+        getWorkspaceDir: () => baseDir,
+        getSettings: () => settings,
+        backends: new Map([["local", backend]]),
+        historyStore: new TerminalCommandHistoryStore(
+          join(baseDir, "terminal-history.json"),
+        ),
+      });
+      try {
+        await expect(
+          orchestrator.run("probe", 1000, new AbortController().signal, {
+            requireCancellation: true,
+          }),
+        ).rejects.toBeInstanceOf(TerminalCancellationUnavailableError);
+        expect(preview).not.toHaveBeenCalled();
+        expect(run).not.toHaveBeenCalled();
+        await orchestrator.run("probe", 1000);
+        expect(run).toHaveBeenCalledOnce();
+      } finally {
+        rmSync(baseDir, { recursive: true, force: true });
+      }
+    },
+  );
+  it("rechecks configured backend mutations after preview", async () => {
+    vi.stubEnv("ELIZA_RUNTIME_MODE", "local-yolo");
+    const baseDir = mkdtempSync(
+      join(tmpdir(), "doolittle-cancellation-settings-"),
+    );
+    const settings = makeSettings();
+    const backend = createFakeBackend({ name: "local", mode: "local" });
+    const originalPreview = backend.preview.bind(backend);
+    vi.spyOn(backend, "preview").mockImplementation((command, options) => {
+      settings.execution.backend = "docker";
+      return originalPreview(command, options);
+    });
+    const run = vi.spyOn(backend, "run");
+    const orchestrator = new TerminalServiceCommandOrchestrator({
+      getWorkspaceDir: () => baseDir,
+      getSettings: () => settings,
+      backends: new Map([["local", backend]]),
+      historyStore: new TerminalCommandHistoryStore(
+        join(baseDir, "terminal-history.json"),
+      ),
+    });
+    try {
+      await expect(
+        orchestrator.run("probe", 1000, new AbortController().signal, {
+          requireCancellation: true,
+        }),
+      ).rejects.toBeInstanceOf(TerminalCancellationUnavailableError);
+      expect(run).not.toHaveBeenCalled();
+    } finally {
+      rmSync(baseDir, { recursive: true, force: true });
+    }
+  });
+  it("permits the explicitly abortable local-yolo capability with the supplied signal", async () => {
+    vi.stubEnv("ELIZA_RUNTIME_MODE", "local-yolo");
+    const baseDir = mkdtempSync(
+      join(tmpdir(), "doolittle-cancellation-local-"),
+    );
+    const backend = createFakeBackend({ name: "local", mode: "local" });
+    const run = vi.spyOn(backend, "run");
+    const controller = new AbortController();
+    const orchestrator = new TerminalServiceCommandOrchestrator({
+      getWorkspaceDir: () => baseDir,
+      getSettings: makeSettings,
+      backends: new Map([["local", backend]]),
+      historyStore: new TerminalCommandHistoryStore(
+        join(baseDir, "terminal-history.json"),
+      ),
+    });
+    try {
+      await orchestrator.run("probe", 1000, controller.signal, {
+        requireCancellation: true,
+      });
+      expect(run).toHaveBeenCalledWith(
+        "probe",
+        expect.objectContaining({ abortSignal: controller.signal }),
+      );
+    } finally {
+      rmSync(baseDir, { recursive: true, force: true });
+    }
+  });
   it("resolves the workspace each time a command is prepared", () => {
     const first = mkdtempSync(
       join(tmpdir(), "doolittle-terminal-orchestrator-first-"),

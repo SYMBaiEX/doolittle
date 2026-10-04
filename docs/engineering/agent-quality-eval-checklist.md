@@ -219,6 +219,38 @@ versions rather than treating current alias ambiguity as desirable behavior.
   not an OS sandbox or cryptographic same-UID attestation. Actual human review
   and repeated live samples are still required; evaluator 0.2.12 is a new
   comparison baseline.
+- Two frozen v7 coding diagnostics at clean revision `b3bc84d4` scored 3/4
+  and 2/4. Both produced the correct scoped implementation, but neither
+  supplied successful original verification; the second also failed exact
+  final JSON/receipt agreement. Each cooperative action projection recorded
+  two failed shell completions. Raw commands/errors were not retained, so
+  those categories do not prove a particular failure cause. CLI durations
+  were 117.511s and 137.600s, with reported total tokens of 367,367 and 485,038.
+  Retain these failures when evaluating a CLI/SHELL integration repair;
+  correct grader-executed behavior is not proof of agent-run verification.
+- Two predeclared, serial v7 coding samples at clean CLI/SHELL repair revision
+  `24c21810` scored 2/4 and 3/4. Both passed behavior and file scope. The first
+  reached the 300-second child timeout, leaving execution and receipt agreement
+  unconfirmed; four successful shell-action completions do not identify the
+  verifier or prove its outcome. The second completed and supplied successful
+  original verification, but failed exact final JSON/receipt agreement. Its
+  discarded response cannot be retrospectively classified as a formatting or
+  honesty failure. Keep both samples; no replacement invocations were run.
+  Relative to the two `b3bc84d4` samples, checks remained 5/8, completed executions
+  decreased from 2/2 to 1/2, and original verification increased from 0/2 to 1/2.
+  Mean CLI time increased from 127.5555s to 193.9865s; mean reported total tokens
+  increased from 426,202.5 to 843,609. These are small descriptive diagnostics,
+  not evidence of a speedup, lower billed cost or improved overall quality.
+  The frozen helper did not enforce advertised-route equality or recheck tool
+  binary pins at every launch. A separate post-run audit found equal advertised
+  routes and requested-route signatures in each pair, and current tool hashes
+  still matched setup. This does not retrospectively attest per-launch binaries,
+  effective execution or worker routes. Pool only same-source repetitions.
+  Source review separately found that verified terminal results can be rejected
+  as unsynthesized for ordinary requests and sent through another model call.
+  This is a preservation conflict to test independently, not proof of either
+  sample's actual failure branch. Human ratings and installed-desktop execution
+  remain unverified.
 - `coding-harness-v1` has one Next.js/shadcn/Bun build-and-launch task. It is a
   valuable end-to-end acceptance case, not representative coding coverage.
 - Deterministic checks cover observable contracts. Human coherence, grounding,
