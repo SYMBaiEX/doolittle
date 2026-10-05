@@ -60,7 +60,7 @@ describe("configuration route density", () => {
     vi.unstubAllGlobals();
   });
 
-  it("keeps appearance compact and reveals search only for field categories", () => {
+  it("keeps appearance compact and exposes every runtime field through static Advanced navigation", async () => {
     useApiResourceMock.mockImplementation((path: string | null) => {
       if (path === "/settings") {
         return resource({
@@ -98,16 +98,34 @@ describe("configuration route density", () => {
     expect(theme?.title).toBe("Warm operator signal");
     expect(theme?.querySelector("small")).toBeNull();
 
-    const agentCategory = container.querySelector<HTMLButtonElement>(
-      'button[aria-label="Agent: Runtime preferences"]',
+    expect(
+      container.querySelector('button[data-settings-section="advanced"]'),
+    ).not.toBeNull();
+    expect(
+      container.querySelector(
+        'button[aria-label="Agent: Runtime preferences"]',
+      ),
+    ).toBeNull();
+    act(() =>
+      container
+        .querySelector<HTMLButtonElement>(
+          'button[data-settings-section="advanced"]',
+        )
+        ?.click(),
     );
-    act(() => agentCategory?.click());
 
     expect(
       container
         .querySelector<HTMLInputElement>(".settings-search input")
         ?.getAttribute("placeholder"),
-    ).toBe("Search agent");
+    ).toBe("Search advanced");
+    expect(container.textContent).toContain("Complete configuration");
+    await act(async () => {
+      [...container.querySelectorAll<HTMLElement>("summary")]
+        .find((summary) => summary.textContent?.includes("Agent"))
+        ?.click();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
     expect(container.textContent).toContain("Max Iterations");
     expect(container.textContent).toContain("Run Depth");
   });
@@ -146,9 +164,10 @@ describe("configuration route density", () => {
     expect(container.textContent).not.toContain(
       "Loading runtime configuration…",
     );
-    const advanced = [...container.querySelectorAll("button")].find(
-      (button) => button.textContent === "Advanced",
+    const advanced = container.querySelector<HTMLButtonElement>(
+      'button[data-settings-section="advanced"]',
     );
+    expect(advanced).not.toBeNull();
     act(() => advanced?.click());
     expect(container.textContent).toContain("Loading runtime configuration…");
     expect(container.querySelector(".settings-group-heading")).toBeNull();

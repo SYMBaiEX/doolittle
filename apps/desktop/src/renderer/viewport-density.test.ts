@@ -48,14 +48,20 @@ describe("wide route viewport density", () => {
     expect(observabilityLayout).not.toContain("max-w-");
   });
 
-  it("keeps settings compact and profile choices side by side until mobile", () => {
-    const settingsLayout = source("./settings/settings-layout.ts");
+  it("keeps a fixed settings menu until its own container narrows, while profiles stay side by side", () => {
+    const settingsStyles = source("../../../../packages/ui/src/styles.css");
     const settingsPage = source("./SettingsPage.tsx");
     const profilesPage = source("./ProfilesPage.tsx");
 
     expect(settingsPage).toContain("SETTINGS_PAGE_CLASS");
-    expect(settingsLayout).toContain("grid-cols-[190px_minmax(0,1fr)]");
-    expect(settingsLayout).toContain("max-[1180px]:grid-cols-1");
+    expect(settingsStyles).toContain(
+      "grid-template-columns: 224px minmax(0, 1fr)",
+    );
+    expect(settingsStyles).toContain(
+      "@container dl-settings (max-width: 760px)",
+    );
+    expect(settingsStyles).toContain("grid-template-columns: minmax(0, 1fr)");
+    expect(settingsStyles).toContain(".dl-settings-mobile-select");
     expect(profilesPage).toContain(
       "min-[701px]:grid-cols-[minmax(18rem,0.42fr)_minmax(0,0.58fr)]",
     );

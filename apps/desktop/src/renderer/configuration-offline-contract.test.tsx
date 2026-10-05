@@ -114,7 +114,7 @@ describe("configuration routes when the local runtime is inactive", () => {
     expect(markup).not.toContain("Connecting terminal to workspace");
   });
 
-  it("keeps only local appearance and desktop controls visible offline", () => {
+  it("keeps local appearance, themes, and desktop controls available offline", () => {
     expect(settingsCategoryOffline("model", false)).toBe(true);
     expect(settingsCategoryOffline("execution", false)).toBe(true);
     expect(settingsCategoryOffline("advanced", false)).toBe(true);
@@ -144,8 +144,12 @@ describe("configuration routes when the local runtime is inactive", () => {
     expect(markup).toContain('aria-label="Light: Light surfaces"');
     expect(markup).toContain('aria-label="System: Match this device"');
     expect(markup).toContain(
-      "Saved color themes are unavailable until the local runtime is ready",
+      "Runtime theme sync is unavailable until the local runtime is ready",
     );
+    expect(markup).toContain("local color themes remain available");
+    expect(markup).toContain('aria-label="Companion:');
+    expect(markup).toContain('aria-label="Canvas:');
+    expect(markup).toContain('type="button">Import</button>');
     expect(markup).not.toContain("Provider connections");
   });
 });

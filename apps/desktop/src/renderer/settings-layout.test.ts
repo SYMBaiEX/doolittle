@@ -1,71 +1,32 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
-  SETTINGS_CONTENT_CLASS,
   SETTINGS_CONTENT_HEADER_CLASS,
-  SETTINGS_LAYOUT_CLASS,
-  SETTINGS_NAV_BUTTON_CLASS,
-  SETTINGS_NAV_GROUP_CLASS,
-  SETTINGS_NAV_SEARCH_CLASS,
   SETTINGS_PAGE_CLASS,
   SETTINGS_ROW_LAYOUT_CLASS,
 } from "./settings/settings-layout";
 
-const read = (path: string) =>
-  readFileSync(new URL(path, import.meta.url), "utf8");
-
-describe("settings layout density", () => {
-  it("pins every category to the top of the settings workspace", () => {
-    expect(SETTINGS_LAYOUT_CLASS).toContain("content-start");
-    expect(SETTINGS_LAYOUT_CLASS).toContain("items-start");
-    expect(SETTINGS_CONTENT_CLASS).toContain("content-start");
-    expect(SETTINGS_CONTENT_CLASS).toContain("self-start");
-    expect(SETTINGS_PAGE_CLASS).toContain("!gap-1.5");
-    expect(SETTINGS_PAGE_CLASS).toContain("[&>.page-header]:!min-h-12");
+const css = readFileSync(
+  new URL("../../../../packages/ui/src/styles.css", import.meta.url),
+  "utf8",
+);
+describe("stable shared settings layout", () => {
+  it("uses a fixed menu column and independently scrollable page", () => {
+    expect(css).toContain("grid-template-columns: 224px minmax(0, 1fr)");
+    expect(css).toContain(".dl-settings-content");
+    expect(css).toContain("scrollbar-gutter: stable");
+    expect(SETTINGS_PAGE_CLASS).toContain("!min-h-0 !p-0 !gap-0");
   });
-
-  it("keeps category headers compact and field rows comfortably readable", () => {
-    expect(SETTINGS_CONTENT_HEADER_CLASS).toContain("min-h-8");
+  it("responds to available settings space, without a clipped horizontal rail", () => {
+    expect(css).toContain("@container dl-settings (max-width: 760px)");
+    expect(css).toContain(".dl-settings-mobile-select");
+    expect(css).not.toContain("grid-auto-flow: column");
+  });
+  it("uses one title hierarchy and accessible form targets", () => {
+    expect(SETTINGS_CONTENT_HEADER_CLASS).toContain("dl-settings-page-heading");
     expect(SETTINGS_ROW_LAYOUT_CLASS).toContain("min-h-10");
-    expect(SETTINGS_ROW_LAYOUT_CLASS).toContain("py-1.25");
-  });
-
-  it("keeps the settings rail vertical, readable, and independently sized", () => {
-    expect(SETTINGS_LAYOUT_CLASS).toContain("grid-cols-[190px_minmax(0,1fr)]");
-    expect(SETTINGS_NAV_GROUP_CLASS).toContain("grid");
-    expect(SETTINGS_NAV_GROUP_CLASS).toContain(
-      "max-[1180px]:[&:not([open])>div]:grid",
-    );
-    expect(SETTINGS_NAV_BUTTON_CLASS).toContain("w-full");
-    expect(SETTINGS_NAV_BUTTON_CLASS).toContain("[&.selected]:bg-");
-    expect(SETTINGS_NAV_SEARCH_CLASS).toContain("min-w-0");
-  });
-
-  it("keeps embedded section headings below the page hierarchy", () => {
-    const layout = read("./settings/settings-layout.ts");
-
-    expect(layout).toContain("[&_.settings-section-header_h2]:text-sm");
-    expect(layout).not.toContain("[&_.settings-section-header_h2]:text-base");
-    expect(layout).not.toContain("[&_.settings-section-header_h2]:text-xl");
-  });
-
-  it("uses the shared meta scale for inline descriptions", () => {
-    const layout = read("./settings/settings-layout.ts");
-
-    expect(layout).toContain(
-      "[&>div:first-child_small]:text-[length:var(--text-meta)]",
-    );
-    expect(layout).not.toContain("[&>div:first-child_small]:text-[8px]");
-  });
-
-  it("keeps every visible settings label at or above the meta scale", () => {
-    for (const path of [
-      "./settings/settings-layout.ts",
-      "./settings/SettingsAppearancePanel.tsx",
-      "./settings/SettingsExecutionStatusPanel.tsx",
-    ]) {
-      const source = read(path);
-      expect(source).not.toMatch(/text-\[(?:8|9)px\]/);
-    }
+    expect(SETTINGS_ROW_LAYOUT_CLASS).toContain("minmax(0,0.9fr)");
+    expect(css).toContain(".setting-copy small");
+    expect(css).toContain("min-height: 44px");
   });
 });

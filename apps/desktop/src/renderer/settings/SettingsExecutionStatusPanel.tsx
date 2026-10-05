@@ -38,7 +38,7 @@ export function SettingsExecutionStatusPanel({
           <span className="eyebrow">Readiness</span>
           <h2>Execution backends</h2>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 [&_.badge]:!text-sm">
           <Badge
             tone={
               error || (backends.length > 0 && readyCount < backends.length)
@@ -50,9 +50,16 @@ export function SettingsExecutionStatusPanel({
           >
             {status}
           </Badge>
-          <button className="text-button" onClick={onReload} type="button">
-            Recheck
-          </button>
+          {!error ? (
+            <button
+              className="text-button min-h-10 px-2 text-sm max-[760px]:min-h-11"
+              disabled={loading}
+              onClick={onReload}
+              type="button"
+            >
+              Recheck
+            </button>
+          ) : null}
         </div>
       </div>
       {loading ? (
@@ -61,25 +68,27 @@ export function SettingsExecutionStatusPanel({
         <ErrorBlock error={error} retry={onReload} />
       ) : backends.length > 0 ? (
         <div
-          className={SETTINGS_EXECUTION_GRID_CLASS}
+          className={`${SETTINGS_EXECUTION_GRID_CLASS} border-t border-[var(--line-subtle)]`}
           data-settings-execution-backends="true"
         >
           {backends.map((backend, index) => (
             <div
-              className="grid min-h-9.5 min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-[var(--radius-xs)] border border-[var(--border)] bg-[var(--surface-soft)] px-2 py-1.25"
+              className="grid min-h-12 min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-[var(--line-subtle)] px-0.5 py-2"
               key={asString(backend.backend, String(index))}
             >
-              <div className="grid min-w-0 gap-0.5">
-                <strong className="truncate text-[10px]">
+              <div className="grid min-w-0 gap-1">
+                <strong className="text-sm font-semibold leading-snug [overflow-wrap:anywhere]">
                   {titleCase(asString(backend.backend, "Backend"))}
                 </strong>
-                <small className="truncate text-[length:var(--text-meta)] text-[var(--muted)]">
+                <small className="min-w-0 text-sm leading-snug text-[var(--text-soft)] [overflow-wrap:anywhere]">
                   {asString(backend.detail, "No health detail")}
                 </small>
               </div>
-              <Badge tone={backend.ready ? "good" : "warn"}>
-                {backend.ready ? "Ready" : "Unavailable"}
-              </Badge>
+              <span className="[&_.badge]:!text-sm">
+                <Badge tone={backend.ready ? "good" : "warn"}>
+                  {backend.ready ? "Ready" : "Unavailable"}
+                </Badge>
+              </span>
             </div>
           ))}
         </div>

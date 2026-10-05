@@ -619,6 +619,9 @@ export function App() {
     navCollapsed,
     canDockWithExpandedNavigation,
     canDockWithCollapsedNavigation,
+    // Settings keeps its geometry; utilities become a sheet before borrowing
+    // navigation width from an active settings form.
+    allowNavigationAutoCollapse: primaryViewForView(view) !== "settings",
   });
 
   const setMobileSidebarOpen = useCallback(
@@ -1519,7 +1522,12 @@ export function App() {
     toggleNavigation,
   ]);
 
-  const openInterfaceSettings = useEffectEvent(() => setView("settings"));
+  const openInterfaceSettings = useEffectEvent(() => {
+    // Interface recovery may request Settings before the shell mounts. Consume
+    // that one-shot request here so the URL and selected section stay aligned.
+    delete document.documentElement.dataset.interfaceSettings;
+    setView("interfaces");
+  });
   const revealNativeSurface = useEffectEvent(
     (target: { botId: string; sessionId: string; projectId?: string }) => {
       bindSessionBot(target.sessionId, target.botId);
@@ -1532,6 +1540,9 @@ export function App() {
   useEffect(() => {
     const openInterfaces = () => openInterfaceSettings();
     window.addEventListener("doolittle:interface-settings", openInterfaces);
+    if (document.documentElement.dataset.interfaceSettings === "true") {
+      openInterfaces();
+    }
     const detach = window.doolittle.ui?.onSurface(({ target }) => {
       revealNativeSurface(target);
     });
@@ -2099,6 +2110,7 @@ export function App() {
               <div className={WINDOW_TOOLS_CLASS}>
                 <Suspense fallback={null}>
                   <DesktopWindowTools
+                    onOpenSettings={() => setView("settings")}
                     backend={backend}
                     compactCommand={false}
                     onOpenPalette={openCommandPalette}

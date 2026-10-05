@@ -204,6 +204,7 @@ export function DesktopRouteContent({
             }
             onSelect={navigation.selectSession}
             onOpenModelsPage={() => navigation.setView("models")}
+            onOpenSettings={() => navigation.setView("settings")}
             onOpenProvidersPage={() => navigation.setView("connections")}
             onOpenWorkspaceView={
               navigation.openComputerView ?? navigation.setView
@@ -336,6 +337,10 @@ export function DesktopRouteContent({
           />
         );
       case "settings":
+      case "interfaces":
+      case "desktop":
+      case "execution":
+      case "advanced":
       case "models":
       case "connections":
       case "keys":

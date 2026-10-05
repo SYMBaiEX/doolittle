@@ -1,4 +1,281 @@
 /* Browser-only composition. The application supplies semantic theme tokens. */
+.dl-settings-frame {
+  container-type: inline-size;
+  container-name: dl-settings;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  background: var(--bg);
+}
+.dl-settings-layout {
+  display: grid;
+  grid-template-columns: 224px minmax(0, 1fr);
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+}
+.dl-settings-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-height: 0;
+  min-width: 0;
+  padding: 24px 16px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-gutter: stable;
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+}
+.dl-settings-menu-heading h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.dl-settings-menu-heading p {
+  margin: 4px 0 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.dl-settings-menu-search input {
+  min-height: 40px;
+  font-size: 14px;
+}
+.dl-settings-menu-sections {
+  display: grid;
+  gap: 20px;
+}
+.dl-settings-menu-group {
+  min-width: 0;
+}
+.dl-settings-menu-group h3 {
+  margin: 0 0 4px;
+  padding: 0 8px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+.dl-settings-menu-group button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: 40px;
+  padding: 8px;
+  border: 0;
+  border-radius: var(--radius-sm, 6px);
+  background: transparent;
+  color: var(--text-soft);
+  font-size: 14px;
+  line-height: 1.4;
+  text-align: left;
+}
+.dl-settings-menu-group button:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+.dl-settings-menu-group button[aria-current] {
+  color: var(--text);
+  font-weight: 600;
+}
+.dl-settings-current {
+  flex: none;
+  visibility: hidden;
+  color: var(--accent-text);
+  font-size: 8px;
+}
+.dl-settings-menu-group button[aria-current] .dl-settings-current {
+  visibility: visible;
+}
+.dl-settings-menu-group button:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+.dl-settings-mobile-select {
+  display: none;
+}
+.dl-settings-search-empty {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.dl-settings-search-empty button {
+  min-height: 40px;
+  color: var(--text);
+}
+.dl-settings-content {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 20px;
+  min-width: 0;
+  min-height: 0;
+  padding: 32px clamp(20px, 4vw, 48px) 48px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-gutter: stable;
+}
+.dl-settings-content > * {
+  flex-shrink: 0;
+  width: 100%;
+  max-width: 960px;
+}
+.dl-settings-page-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 64px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+.dl-settings-page-heading h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: -0.02em;
+}
+.dl-settings-page-heading p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.dl-settings-content .settings-section-header,
+.dl-settings-content .settings-group-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.dl-settings-content
+  :where(.settings-section-header, .settings-group-heading)
+  h2 {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.5;
+  font-weight: 600;
+}
+.dl-settings-content .settings-section-header p,
+.dl-settings-content .settings-group-heading p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.dl-settings-content .settings-section-header .eyebrow,
+.dl-settings-content .settings-group-heading .eyebrow {
+  display: none;
+}
+.dl-settings-content .settings-rows,
+.dl-settings-content .settings-field-groups {
+  display: grid;
+  min-width: 0;
+  gap: 16px;
+}
+.dl-settings-content .setting-copy {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+.dl-settings-content .setting-copy strong {
+  font-size: 14px;
+  line-height: 1.5;
+}
+.dl-settings-content .setting-copy small {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.dl-settings-content .setting-copy code {
+  overflow-wrap: anywhere;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.dl-settings-content .setting-control {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 8px;
+}
+.dl-settings-content .field-error {
+  grid-column: 1 / -1;
+  font-size: 14px;
+  color: var(--bad);
+}
+.dl-settings-content .settings-field-disclosure {
+  border-top: 1px solid var(--border);
+}
+.dl-settings-content .settings-field-disclosure > summary {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  cursor: pointer;
+}
+.dl-settings-content .settings-field-disclosure > summary strong {
+  font-size: 14px;
+}
+.dl-settings-content .settings-field-disclosure > summary small {
+  display: block;
+  font-size: 14px;
+  color: var(--muted);
+}
+@container dl-settings (max-width: 760px) {
+  .dl-settings-layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+  .dl-settings-menu {
+    gap: 12px;
+    padding: 16px;
+    overflow: visible;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .dl-settings-menu-heading,
+  .dl-settings-menu-search,
+  .dl-settings-menu-sections {
+    display: none;
+  }
+  .dl-settings-mobile-select {
+    display: grid;
+    gap: 6px;
+    min-width: 0;
+    font-size: 14px;
+    color: var(--muted);
+  }
+  .dl-settings-mobile-select select {
+    min-height: 44px;
+    max-width: 100%;
+    font-size: 14px;
+    color: var(--text);
+  }
+  .dl-settings-content {
+    gap: 20px;
+    padding: 24px 16px 40px;
+  }
+  .dl-settings-content button,
+  .dl-settings-content input:not([type="checkbox"]):not([type="radio"]),
+  .dl-settings-content select {
+    min-height: 44px;
+  }
+  .dl-settings-page-heading {
+    min-height: 64px;
+  }
+}
 .dl-workspace {
   display: flex;
   min-width: 0;

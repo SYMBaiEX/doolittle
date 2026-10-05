@@ -1,4 +1,4 @@
-import { Activity, RefreshCw, Search } from "lucide-react";
+import { Activity, RefreshCw, Search, Settings } from "lucide-react";
 import type {
   BackendState,
   DoolittleDesktopBridge,
@@ -21,6 +21,7 @@ export interface DesktopWindowToolsProps {
   utilityOpen: boolean;
   compactCommand?: boolean;
   onOpenPalette: () => void;
+  onOpenSettings: () => void;
   onToggleUtilities: () => void;
   onRefresh: () => void | Promise<void>;
 }
@@ -31,6 +32,7 @@ export function DesktopWindowTools({
   platform,
   utilityOpen,
   onOpenPalette,
+  onOpenSettings,
   onToggleUtilities,
   onRefresh,
 }: DesktopWindowToolsProps) {
@@ -95,6 +97,15 @@ export function DesktopWindowTools({
         type="button"
       >
         <UiIcon icon={RefreshCw} size="sm" />
+      </button>
+      <button
+        aria-label="Open settings"
+        className="grid size-10 shrink-0 place-items-center rounded-[var(--radius-md)] text-[var(--text-soft)] hover:bg-[var(--surface-hover)] max-[760px]:size-11"
+        onClick={onOpenSettings}
+        title="Settings"
+        type="button"
+      >
+        <UiIcon icon={Settings} size="sm" />
       </button>
     </>
   );

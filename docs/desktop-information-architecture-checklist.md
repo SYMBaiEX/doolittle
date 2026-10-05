@@ -18,8 +18,9 @@ that code was written for it.
 - [x] `NAV-01` Replace the flat route-first navigation model with semantic
   destinations and nested sections while preserving old hashes through
   redirects for one release.
-- [x] `NAV-02` Reduce the permanent rail to Chat and Code plus the Settings
-  footer; make the Doolittle brand return to the Chat home.
+- [x] `NAV-02` Keep everyday work in companion bot/conversation navigation and
+  contextual work surfaces; the Settings gear lives in the header beside the
+  icon-only inspector. The Doolittle brand returns to Chat home.
 - [x] `SETTINGS-01` Consolidate models, providers, credentials, tools, skills,
   plugins, memory, profiles, registry, runtime, logs, compatibility, setup, and
   About under searchable Settings sections.

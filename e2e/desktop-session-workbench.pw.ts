@@ -2222,6 +2222,11 @@ test.describe("Doolittle desktop session workbench", () => {
         panel: ReturnType<typeof panelById>,
         mode: "running" | "waiting" | "failed" | "complete",
       ) {
+        // A cancelled receipt can precede response cleanup. Starting the next
+        // fixture must wait for the composer to be idle, not queue a follow-up.
+        await expect(
+          panel.getByRole("button", { name: "Stop response", exact: true }),
+        ).toHaveCount(0);
         const composer = panel.getByRole("textbox", {
           name: "Message Doolittle",
         });

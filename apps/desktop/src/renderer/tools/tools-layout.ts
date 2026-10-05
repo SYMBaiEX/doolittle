@@ -12,3 +12,7 @@ export const TOOLS_INTEGRATIONS_LOADING_TITLE_CLASS =
 
 export const TOOLS_INTEGRATIONS_LOADING_DETAIL_CLASS =
   "tools-integrations__loading-detail text-[length:var(--text-meta)]";
+
+/** Embedded Settings can be narrow even when the window is wider than 760px. */
+export const TOOLS_FILTER_CONTAINER_CLASS =
+  "@container/tools min-w-0 @max-[640px]/tools:[&_.catalog-filter-bar]:flex-wrap @max-[640px]/tools:[&_.catalog-filter-bar]:items-stretch @max-[640px]/tools:[&_.catalog-filter-bar>label]:min-w-0 @max-[640px]/tools:[&_.catalog-filter-bar>label]:basis-full @max-[640px]/tools:[&_.catalog-filter-bar>div]:min-w-0 @max-[640px]/tools:[&_.catalog-filter-bar>div]:flex-[1_1_auto] @max-[640px]/tools:[&_.catalog-filter-bar>div]:flex-wrap @max-[640px]/tools:[&_.catalog-filter-bar>div_select]:min-w-0 @max-[640px]/tools:[&_.catalog-filter-bar>div_select]:flex-[1_1_150px]";

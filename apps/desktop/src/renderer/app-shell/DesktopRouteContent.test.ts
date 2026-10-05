@@ -21,6 +21,10 @@ const routeContentSource = readFileSync(
   "utf8",
 );
 const appSource = readFileSync(new URL("../App.tsx", import.meta.url), "utf8");
+const settingsPageSource = readFileSync(
+  new URL("../SettingsPage.tsx", import.meta.url),
+  "utf8",
+);
 const chatPageSource = readFileSync(
   new URL("../ChatPage.tsx", import.meta.url),
   "utf8",
@@ -154,6 +158,19 @@ describe("desktop route preloaders", () => {
     expect(routeContentSource).toContain('case "browser":');
     expect(routeContentSource).toContain('surface={view === "browser"');
     expect(routeContentSource).toContain("requestedTab={");
+  });
+
+  test("routes interface recovery through the shell, including a pending startup request", () => {
+    expect(appSource).toContain('setView("interfaces");');
+    expect(appSource).toContain(
+      "delete document.documentElement.dataset.interfaceSettings;",
+    );
+    expect(appSource).toContain(
+      'if (document.documentElement.dataset.interfaceSettings === "true")',
+    );
+    expect(settingsPageSource).not.toContain(
+      'window.addEventListener("doolittle:interface-settings"',
+    );
   });
 
   test("keeps Work tabs compatible with their standalone legacy routes", () => {

@@ -7,7 +7,16 @@ import {
   type Locator,
   test,
 } from "@playwright/test";
+import { desktopHashForView } from "../apps/desktop/src/renderer/desktop-navigation";
+import {
+  SETTINGS_SHELL_SECTIONS,
+  settingsViewForSection,
+} from "../apps/desktop/src/renderer/settings/settings-sections";
 import { expectNoDesktopRecovery } from "./support/desktop-assertions";
+import {
+  launchIsolatedDesktop,
+  waitForDesktopReady,
+} from "./support/doolittle-workbench-app";
 import { isolatedRuntimeEnvironment } from "./support/isolated-runtime-environment";
 
 const repoRoot = process.cwd();
@@ -44,6 +53,244 @@ const routes = [
 ] as const;
 
 const visualAuditRoutes = new Set(routes.map(([route]) => route));
+
+test("settings menu stays stable across sections, viewports and header shortcuts", async ({
+  browserName,
+}, testInfo) => {
+  test.setTimeout(180_000);
+  expect(browserName).toBe("chromium");
+  const desktop = await launchIsolatedDesktop();
+  const { app, page } = desktop;
+  try {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await waitForDesktopReady(page);
+    const headerSettings = page.getByRole("button", {
+      name: "Open settings",
+      exact: true,
+    });
+    await expect(headerSettings).toBeVisible();
+    const inspector = page.getByRole("button", {
+      name: "Open inspector",
+      exact: true,
+    });
+    await expect(inspector).toHaveText("");
+    await expect(inspector).toHaveAttribute("title", "Open inspector");
+    const inspectorBox = await inspector.boundingBox();
+    const settingsBox = await headerSettings.boundingBox();
+    expect(settingsBox?.x).toBeGreaterThan(inspectorBox?.x ?? 0);
+    await headerSettings.click();
+    await expect(page).toHaveURL(/#\/settings$/u);
+    const frame = page.locator(".dl-settings-frame");
+    const menu = frame.getByRole("complementary", {
+      name: "Settings categories",
+    });
+    const content = frame.locator(".settings-content");
+    const sectionPicker = menu.getByRole("combobox", {
+      name: "Settings section",
+    });
+    const clippedSections: string[] = [];
+    for (const width of [1728, 1280, 768, 360]) {
+      await app.evaluate(
+        ({ BrowserWindow }, size) =>
+          BrowserWindow.getAllWindows()[0]?.setContentSize(size, 900),
+        width,
+      );
+      await expect
+        .poll(() => page.evaluate(() => window.innerWidth))
+        .toBe(width);
+      await expect(frame).toBeVisible();
+      let menuGeometry:
+        | { x: number; width: number; height: number }
+        | undefined;
+      for (const section of SETTINGS_SHELL_SECTIONS) {
+        const pickerVisible = await sectionPicker.isVisible();
+        if (pickerVisible) {
+          await sectionPicker.selectOption(section.id);
+        } else {
+          await menu
+            .getByRole("button", {
+              name: `${section.label}: ${section.description}`,
+              exact: true,
+            })
+            .click();
+        }
+        await expect(page).toHaveURL(
+          new RegExp(
+            `${desktopHashForView(settingsViewForSection(section.id))}$`,
+            "u",
+          ),
+        );
+        await expect(
+          content.getByRole("heading", {
+            level: 1,
+            name: section.label,
+            exact: true,
+          }),
+        ).toBeVisible();
+        await expect(menu.locator("details")).toHaveCount(0);
+        await expect(menu.locator("button[data-settings-section]")).toHaveCount(
+          SETTINGS_SHELL_SECTIONS.length,
+        );
+        await expect(
+          menu.locator('button[aria-current="page"]'),
+        ).toHaveAttribute("data-settings-section", section.id);
+        await expect(content.locator(".loading-block")).toHaveCount(0, {
+          timeout: 30_000,
+        });
+        const geometry = await menu.boundingBox();
+        expect(geometry).not.toBeNull();
+        if (!menuGeometry && geometry) menuGeometry = geometry;
+        expect(geometry?.x).toBeCloseTo(menuGeometry?.x ?? 0, 0);
+        expect(geometry?.width).toBeCloseTo(menuGeometry?.width ?? 0, 0);
+        expect(geometry?.height).toBeCloseTo(menuGeometry?.height ?? 0, 0);
+        const frameGeometry = await frame.evaluate((element) => ({
+          width: element.clientWidth,
+          scroll: element.scrollWidth,
+        }));
+        expect(frameGeometry.scroll).toBeLessThanOrEqual(
+          frameGeometry.width + 1,
+        );
+        const contentGeometry = await content.evaluate((element) => ({
+          width: element.clientWidth,
+          scroll: element.scrollWidth,
+          overflow: [...element.querySelectorAll("*")]
+            .filter(
+              (child) =>
+                child.getBoundingClientRect().right >
+                element.getBoundingClientRect().right + 1,
+            )
+            .slice(0, 6)
+            .map((child) => ({
+              tag: child.tagName,
+              className: child.className,
+              text: child.textContent?.trim().slice(0, 80),
+            })),
+        }));
+        if (contentGeometry.scroll > contentGeometry.width + 1) {
+          clippedSections.push(
+            `${section.id} at ${width}px: ${contentGeometry.scroll} > ${contentGeometry.width}; ${JSON.stringify(contentGeometry.overflow)}`,
+          );
+        }
+        if (
+          width === 1728 ||
+          width === 360 ||
+          section.id === "appearance" ||
+          section.id === "model" ||
+          section.id === "execution" ||
+          section.id === "interfaces"
+        ) {
+          await page.screenshot({
+            path: testInfo.outputPath(`settings-${section.id}-${width}.png`),
+            animations: "disabled",
+          });
+        }
+      }
+    }
+    expect(
+      clippedSections,
+      "Loaded settings pages must not clip horizontally",
+    ).toEqual([]);
+    await app.evaluate(({ BrowserWindow }) =>
+      BrowserWindow.getAllWindows()[0]?.setContentSize(1728, 900),
+    );
+    await page
+      .getByRole("button", { name: "Open settings", exact: true })
+      .click();
+    await content
+      .getByRole("button", { name: "Light: Light surfaces", exact: true })
+      .click();
+    await expect(page.locator("html")).toHaveAttribute(
+      "data-appearance",
+      "light",
+    );
+    await page.screenshot({
+      path: testInfo.outputPath("settings-light-1728.png"),
+      animations: "disabled",
+    });
+    await content.getByRole("button", { name: /^Canvas:/u }).click();
+    await expect(page.locator("html")).toHaveAttribute(
+      "data-ui-layout",
+      "canvas",
+    );
+    await expect(
+      content.getByRole("button", { name: /^Canvas:/u }),
+    ).toHaveAttribute("aria-pressed", "true");
+    await expect(frame).toBeVisible();
+    await expect(
+      menu.getByRole("button", { name: /^Advanced:/u }),
+    ).toBeVisible();
+    await page.screenshot({
+      path: testInfo.outputPath("settings-canvas-1728.png"),
+      animations: "disabled",
+    });
+    await content.getByRole("button", { name: /^Companion:/u }).click();
+    await content
+      .getByRole("button", { name: "Dark: Dark surfaces", exact: true })
+      .click();
+    const sectionSearch = menu.getByRole("searchbox", {
+      name: "Search settings sections",
+    });
+    await sectionSearch.fill("credentials");
+    await expect(menu.locator("button[data-settings-section]")).toHaveCount(2);
+    await menu.getByRole("button", { name: /^Credentials:/u }).click();
+    await expect(
+      content.getByRole("heading", {
+        name: "Credentials",
+        level: 1,
+        exact: true,
+      }),
+    ).toBeVisible();
+    await expect(sectionSearch).toHaveValue("credentials");
+    await sectionSearch.fill("no-such-settings-section");
+    await expect(menu.getByRole("status")).toContainText(
+      "No matching sections",
+    );
+    await expect(menu.locator("button[data-settings-section]")).toHaveCount(1);
+    await menu
+      .getByRole("button", { name: "Clear search", exact: true })
+      .click();
+    await expect(sectionSearch).toBeFocused();
+    await expect(menu.locator("button[data-settings-section]")).toHaveCount(
+      SETTINGS_SHELL_SECTIONS.length,
+    );
+    const appearance = menu.getByRole("button", { name: /^Appearance:/u });
+    await appearance.focus();
+    await page.keyboard.press("ArrowDown");
+    await expect(
+      menu.getByRole("button", { name: /^Interfaces:/u }),
+    ).toBeFocused();
+    await page.keyboard.press("End");
+    await expect(menu.getByRole("button", { name: /^About:/u })).toBeFocused();
+    await page.keyboard.press("Home");
+    await expect(appearance).toBeFocused();
+    await page.keyboard.press("ArrowDown");
+    await page.keyboard.press("Enter");
+    await expect(
+      content.getByRole("heading", {
+        level: 1,
+        name: "Interfaces",
+        exact: true,
+      }),
+    ).toBeVisible();
+    await headerSettings.click();
+    await page.evaluate(() => {
+      document.documentElement.dataset.interfaceSettings = "true";
+      window.dispatchEvent(new Event("doolittle:interface-settings"));
+    });
+    await expect(page).toHaveURL(/#\/settings\/interfaces$/u);
+    await page.reload();
+    await expect(
+      content.getByRole("heading", {
+        level: 1,
+        name: "Interfaces",
+        exact: true,
+      }),
+    ).toBeVisible();
+    expect(desktop.pageErrors).toEqual([]);
+  } finally {
+    await desktop.dispose();
+  }
+});
 
 async function expectEditorToolbarGeometry(toolbar: Locator): Promise<void> {
   const geometry = await toolbar.evaluate((element) => {
@@ -795,7 +1042,9 @@ test.describe("Doolittle desktop navigation", () => {
           const viewContainer =
             route === "chat" || route === "sessions" || route === "media"
               ? routeContainer.locator("[data-session-panel]:visible").first()
-              : routeContainer;
+              : route === "settings"
+                ? page.locator(".dl-settings-frame")
+                : routeContainer;
           await expect(viewContainer).toBeVisible();
           if (route === "code") {
             await expectEditorToolbarGeometry(
@@ -986,59 +1235,45 @@ test.describe("Doolittle desktop navigation", () => {
             );
             await expect(settingsNavigation).toBeVisible();
             const settingsCategories = [
-              [/^Appearance:/u, "Appearance & desktop"],
-              [/^Desktop:/u, "Appearance & desktop"],
-              [/^Execution:/u, "Runtime & diagnostics"],
-              [/^Advanced:/u, "Runtime & diagnostics"],
+              /^Appearance:/u,
+              /^Desktop:/u,
+              /^Execution:/u,
+              /^Advanced:/u,
             ] as const;
-            for (const [categoryName, groupName] of settingsCategories) {
+            for (const categoryName of settingsCategories) {
               const categoryButton = settingsNavigation.getByRole("button", {
                 name: categoryName,
               });
-              if (!(await categoryButton.isVisible())) {
-                await settingsNavigation
-                  .locator("summary")
-                  .filter({ hasText: groupName })
-                  .click();
-              }
+              await expect(categoryButton).toBeVisible();
               await categoryButton.click();
               const settingsHeader = viewContainer.locator(
                 ".settings-content-header",
               );
               await expect(settingsHeader).toBeVisible();
               const geometry = await viewContainer.evaluate((element) => {
-                const pageHeader = element.querySelector(".page-header");
-                const layout = element.querySelector(".settings-layout");
                 const content = element.querySelector(".settings-content");
                 const header = element.querySelector(
                   ".settings-content-header",
                 );
                 const next = header?.nextElementSibling;
-                if (!(pageHeader && layout && content && header)) {
+                if (!(content && header)) {
                   throw new Error("Missing settings density geometry.");
                 }
-                const pageHeaderRect = pageHeader.getBoundingClientRect();
-                const layoutRect = layout.getBoundingClientRect();
                 const contentRect = content.getBoundingClientRect();
                 const headerRect = header.getBoundingClientRect();
                 const nextRect = next?.getBoundingClientRect();
                 return {
                   contentOffset: Math.round(headerRect.top - contentRect.top),
                   headerHeight: Math.round(headerRect.height),
-                  pageGap: Math.round(layoutRect.top - pageHeaderRect.bottom),
                   panelGap: nextRect
                     ? Math.round(nextRect.top - headerRect.bottom)
                     : 0,
                 };
               });
               expect(geometry.contentOffset).toBeGreaterThanOrEqual(-1);
-              expect(geometry.contentOffset).toBeLessThanOrEqual(2);
-              // The reusable system uses 40px controls inside a compact 48px
-              // header, rather than the previous smaller workbench targets.
-              expect(geometry.headerHeight).toBeGreaterThanOrEqual(40);
-              expect(geometry.headerHeight).toBeLessThanOrEqual(48);
-              expect(geometry.pageGap).toBeLessThanOrEqual(8);
-              expect(geometry.panelGap).toBeLessThanOrEqual(10);
+              expect(geometry.contentOffset).toBeLessThanOrEqual(32);
+              expect(geometry.headerHeight).toBeGreaterThanOrEqual(64);
+              expect(geometry.panelGap).toBe(20);
             }
             await viewContainer
               .getByRole("button", { name: /Advanced/ })

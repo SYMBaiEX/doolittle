@@ -90,8 +90,10 @@ while keeping Doolittle's native runtime and cross-platform Electron boundary:
 - **Settings:** appearance and desktop preferences, models, provider accounts,
   credentials, tools, skills, plugins, memory, profiles, filtered logs, runtime
   and compatibility diagnostics, registry search, setup, and About. Its
-  searchable section rail replaces separate top-level capability pages while
-  legacy links remain accepted for one compatibility release.
+  searchable, fixed-width section menu replaces separate top-level capability
+  pages. Groups remain expanded and selection never resizes navigation. Narrow
+  settings panes use a grouped section picker; legacy links remain accepted for
+  one compatibility release.
 
 Activity is a global drawer rather than a destination. Tasks, agents, plans,
 build/research runs, automations, gateway Inbox, human review, dashboards, and
@@ -105,9 +107,10 @@ session.
 
 Companion opens directly into a conversation. Its sidebar contains bot contacts
 and the selected bot's recent conversations; selecting a bot resumes its last
-conversation. One compact header and composer keep tools behind the inspector,
-overflow and Add menus. Canvas uses the same capabilities with navigation on
-demand. The Activity drawer and `Cmd/Ctrl+K` palette retain access to supporting
+conversation. One compact header and composer keep tools behind the icon-only
+inspector, overflow and Add menus. The Settings gear sits beside the inspector
+in the header rather than in the sidebar. Canvas uses the same capabilities
+with navigation on demand. The Activity drawer and `Cmd/Ctrl+K` palette retain access to supporting
 destinations. Native background completion notifications omit private task content.
 
 Closing a session panel closes its view, not its agent run or stored draft.

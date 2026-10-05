@@ -1,5 +1,9 @@
+// @vitest-environment jsdom
+
+import { act } from "react";
+import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { BackendState } from "../../shared/contracts";
 import { DesktopWindowTools } from "./DesktopWindowTools";
 
@@ -13,6 +17,7 @@ function renderTools(utilityOpen: boolean): string {
     <DesktopWindowTools
       backend={backend}
       onOpenPalette={() => undefined}
+      onOpenSettings={() => undefined}
       onRefresh={() => undefined}
       onToggleUtilities={() => undefined}
       platform="darwin"
@@ -37,5 +42,40 @@ describe("DesktopWindowTools", () => {
     expect(markup).toContain('aria-label="Close Activity"');
     expect(markup).toContain('aria-expanded="true"');
     expect(markup).toContain('title="Close Activity"');
+  });
+
+  it("keeps Settings available in every non-chat header with an icon tooltip", () => {
+    const markup = renderTools(false);
+    expect(markup).toContain('aria-label="Open settings"');
+    expect(markup).toContain('title="Settings"');
+    expect(markup).toContain("size-10");
+  });
+
+  it("uses the supplied route action for Settings", () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+    const onOpenSettings = vi.fn();
+    act(() =>
+      root.render(
+        <DesktopWindowTools
+          backend={backend}
+          onOpenPalette={vi.fn()}
+          onOpenSettings={onOpenSettings}
+          onRefresh={vi.fn()}
+          onToggleUtilities={vi.fn()}
+          platform="darwin"
+          utilityOpen={false}
+        />,
+      ),
+    );
+    act(() =>
+      container
+        .querySelector<HTMLButtonElement>('[aria-label="Open settings"]')
+        ?.click(),
+    );
+    expect(onOpenSettings).toHaveBeenCalledOnce();
+    act(() => root.unmount());
+    container.remove();
   });
 });

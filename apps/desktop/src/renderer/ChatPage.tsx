@@ -284,6 +284,7 @@ export interface ChatPageProps {
   refreshRuntime: () => void;
   onOpenModelsPage: () => void;
   onOpenProvidersPage: () => void;
+  onOpenSettings?: () => void;
   onOpenWorkspaceView: (
     view: ThreadWorkbenchFullView,
     origin?: import("./computer-origin").ComputerOrigin,
@@ -329,6 +330,7 @@ export function ChatSessionPanel({
   refreshRuntime,
   onOpenModelsPage,
   onOpenProvidersPage,
+  onOpenSettings,
   onOpenWorkspaceView,
   onConsumeContextHandoff,
   activeProject,
@@ -2080,6 +2082,7 @@ export function ChatSessionPanel({
               onOpenMobileConversations={() => setMobileConversationsOpen(true)}
               onOpenRouteControls={() => setRouteDialogOpen(true)}
               onOpenWorkspace={() => openComputerView("code")}
+              onOpenSettings={onOpenSettings}
               onPrepareCompression={() => {
                 setDraft((current) =>
                   current.trim() ? current : "/compress ",

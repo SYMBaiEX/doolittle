@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { McpControlPanelFallback, ToolsPage } from "./ToolsPage";
+import { TOOLS_FILTER_CONTAINER_CLASS } from "./tools/tools-layout";
 
 describe("ToolsPage density", () => {
   it("defers verbose integration diagnostics behind one disclosure", () => {
@@ -32,5 +33,25 @@ describe("ToolsPage density", () => {
     expect(markup).toContain('class="settings-section-header"');
     expect(markup).toContain("Tool registry");
     expect(markup).not.toContain('class="page page-tools gap-3"');
+  });
+
+  it("reflows the loaded filter controls against available Settings content width", () => {
+    const markup = renderToStaticMarkup(<ToolsPage active embedded />);
+
+    expect(markup).toContain('class="@container/tools min-w-0');
+    expect(markup).toContain('aria-label="Tool category"');
+    expect(markup).toContain('aria-label="Eliza tool profile"');
+    expect(TOOLS_FILTER_CONTAINER_CLASS).toContain(
+      "@max-[640px]/tools:[&_.catalog-filter-bar]:flex-wrap",
+    );
+    expect(TOOLS_FILTER_CONTAINER_CLASS).toContain(
+      "@max-[640px]/tools:[&_.catalog-filter-bar>label]:basis-full",
+    );
+    expect(TOOLS_FILTER_CONTAINER_CLASS).toContain(
+      "@max-[640px]/tools:[&_.catalog-filter-bar>div]:flex-wrap",
+    );
+    expect(TOOLS_FILTER_CONTAINER_CLASS).toContain(
+      "@max-[640px]/tools:[&_.catalog-filter-bar>div_select]:flex-[1_1_150px]",
+    );
   });
 });

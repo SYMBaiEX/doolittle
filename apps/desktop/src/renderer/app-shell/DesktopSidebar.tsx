@@ -283,7 +283,6 @@ export function DesktopSidebar({
             [
               ["orchestration", "Team & work"],
               ["connections", "Connections"],
-              ["settings", "Settings"],
             ] as const
           ).map(([target, label]) => (
             <button

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Input, Textarea } from "../components/ElizaControls";
 import { desktopRequest, EmptyBlock, errorMessage, titleCase } from "../lib";
 import {
   SETTINGS_ROW_LAYOUT_CLASS,
@@ -152,13 +153,24 @@ export function SettingControl({
       ? field.value
       : String(field.value ?? "");
   const [value, setValue] = useState<string | boolean>(initial);
+  const [savedValue, setSavedValue] = useState<string | boolean>(initial);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const options = selectOptions[field.path];
   const controlId = settingControlId(field.path);
+  const labelId = `${controlId}-label`;
+  const descriptionId = `${controlId}-description`;
+  const errorId = `${controlId}-error`;
+  const dirty = value !== savedValue;
+
+  useEffect(() => {
+    setValue(initial);
+    setSavedValue(initial);
+    setError("");
+  }, [initial]);
 
   const persist = async () => {
-    setBusy(true);
+    if (busy || !dirty) return;
     setError("");
     let next: unknown = value;
     if (Array.isArray(field.value)) {
@@ -167,13 +179,19 @@ export function SettingControl({
         .map((entry) => entry.trim())
         .filter(Boolean);
     } else if (typeof field.value === "number") {
+      if (String(value).trim() === "" || !Number.isFinite(Number(value))) {
+        setError("Enter a valid number before saving.");
+        return;
+      }
       next = Number(value);
     }
+    setBusy(true);
     try {
       await desktopRequest("/settings", "POST", {
         path: field.path,
         value: next,
       });
+      setSavedValue(value);
       onSaved(field);
     } catch (requestError) {
       setError(errorMessage(requestError));
@@ -186,17 +204,23 @@ export function SettingControl({
     <div className={SETTINGS_ROW_LAYOUT_CLASS}>
       <div className="setting-copy">
         <strong>
-          <label htmlFor={controlId}>{settingFieldLabel(field.path)}</label>
+          <label htmlFor={controlId} id={labelId}>
+            {settingFieldLabel(field.path)}
+          </label>
         </strong>
-        <small>{settingDescription(field)}</small>
+        <small id={descriptionId}>{settingDescription(field)}</small>
         <code>{field.path}</code>
       </div>
       <div className="setting-control">
         {typeof field.value === "boolean" ? (
-          <div className={SETTINGS_SWITCH_CLASS}>
+          <label className={SETTINGS_SWITCH_CLASS} htmlFor={controlId}>
             <input
+              aria-describedby={`${descriptionId}${error ? ` ${errorId}` : ""}`}
+              aria-invalid={Boolean(error)}
+              aria-labelledby={labelId}
               checked={Boolean(value)}
               className={SETTINGS_SWITCH_INPUT_CLASS}
+              disabled={busy}
               id={controlId}
               type="checkbox"
               onChange={(event) => setValue(event.target.checked)}
@@ -205,9 +229,13 @@ export function SettingControl({
             <span className={SETTINGS_SWITCH_LABEL_CLASS}>
               {value ? "On" : "Off"}
             </span>
-          </div>
+          </label>
         ) : Array.isArray(field.value) ? (
-          <textarea
+          <Textarea
+            aria-describedby={`${descriptionId}${error ? ` ${errorId}` : ""}`}
+            aria-invalid={Boolean(error)}
+            className="min-w-0 text-sm"
+            disabled={busy}
             id={controlId}
             rows={Math.min(4, Math.max(2, field.value.length))}
             value={String(value)}
@@ -215,6 +243,10 @@ export function SettingControl({
           />
         ) : options ? (
           <select
+            aria-describedby={`${descriptionId}${error ? ` ${errorId}` : ""}`}
+            aria-invalid={Boolean(error)}
+            className="min-h-10 min-w-0 text-sm max-[760px]:min-h-11"
+            disabled={busy}
             id={controlId}
             value={String(value)}
             onChange={(event) => setValue(event.target.value)}
@@ -229,7 +261,11 @@ export function SettingControl({
             ))}
           </select>
         ) : (
-          <input
+          <Input
+            aria-describedby={`${descriptionId}${error ? ` ${errorId}` : ""}`}
+            aria-invalid={Boolean(error)}
+            className="min-w-0 text-sm"
+            disabled={busy}
             id={controlId}
             type={typeof field.value === "number" ? "number" : "text"}
             value={String(value)}
@@ -238,14 +274,19 @@ export function SettingControl({
         )}
         <button
           className="secondary-button"
-          disabled={busy}
+          disabled={busy || !dirty}
           onClick={() => void persist()}
           type="button"
+          aria-label={`Save ${settingFieldLabel(field.path)}`}
         >
           {busy ? "Saving…" : "Save"}
         </button>
       </div>
-      {error ? <small className="field-error">{error}</small> : null}
+      {error ? (
+        <small className="field-error" id={errorId} role="alert">
+          {error}
+        </small>
+      ) : null}
     </div>
   );
 }

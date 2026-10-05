@@ -1,4 +1,4 @@
-import { MoreHorizontal, PanelRight } from "lucide-react";
+import { MoreHorizontal, PanelRight, Settings } from "lucide-react";
 import { type RefObject, useRef } from "react";
 import type { ChatSurface } from "../ChatPage";
 import { UiIcon } from "../components/UiIcon";
@@ -15,6 +15,7 @@ export interface ChatHeaderChromeProps {
   onOpenMobileConversations: () => void;
   onOpenRouteControls: () => void;
   onOpenWorkspace: () => void;
+  onOpenSettings?: () => void;
   onPrepareCompression: () => void;
   onSurfaceChange?: (surface: ChatSurface) => void;
   onToggleInspector: () => void;
@@ -38,6 +39,7 @@ export function ChatHeaderChrome({
   inspectorVisible,
   isNewConversation,
   onOpenWorkspace,
+  onOpenSettings,
   onSurfaceChange,
   onToggleInspector,
   onTogglePin,
@@ -57,14 +59,25 @@ export function ChatHeaderChrome({
       <button
         aria-expanded={inspectorVisible}
         aria-label={inspectorVisible ? "Close inspector" : "Open inspector"}
-        className="flex min-h-10 items-center gap-1.5 rounded-[var(--radius-md)] px-2 text-sm text-[var(--text-soft)] hover:bg-[var(--surface-hover)] max-[760px]:min-h-11"
+        className="grid size-10 place-items-center rounded-[var(--radius-md)] text-[var(--text-soft)] hover:bg-[var(--surface-hover)] max-[760px]:size-11"
         onClick={onToggleInspector}
         ref={workbenchToggleRef}
+        title={inspectorVisible ? "Close inspector" : "Open inspector"}
         type="button"
       >
         <UiIcon icon={PanelRight} size="sm" />
-        <span className="max-[640px]:sr-only">Inspector</span>
       </button>
+      {onOpenSettings ? (
+        <button
+          aria-label="Open settings"
+          className="grid size-10 place-items-center rounded-[var(--radius-md)] text-[var(--text-soft)] hover:bg-[var(--surface-hover)] max-[760px]:size-11"
+          onClick={onOpenSettings}
+          title="Settings"
+          type="button"
+        >
+          <UiIcon icon={Settings} size="sm" />
+        </button>
+      ) : null}
       <details
         ref={menuRef}
         className="relative"

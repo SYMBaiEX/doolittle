@@ -81,13 +81,13 @@ describe("settings resource policy", () => {
     expect(settingsPageSource).toContain("LazyModelsPage");
     expect(settingsPageSource).not.toContain("settings-nav-title");
     expect(settingsPageSource).not.toContain("settings-nav-note");
-    expect(settingsNavigationSource).toContain("title={entry.description}");
-    expect(settingsNavigationSource).toMatch(
-      /aria-label=\{`\$\{entry\.label\}: \$\{entry\.description\}`\}/u,
+    expect(settingsNavigationSource).toContain("<SettingsMenu");
+    expect(settingsNavigationSource).toContain("value={category}");
+    expect(settingsNavigationSource).not.toContain("<details");
+    expect(settingsPageSource).toContain(
+      "const categories = SETTINGS_SHELL_SECTIONS;",
     );
-    expect(settingsNavigationSource).toContain(
-      'aria-current={category === entry.id ? "page" : undefined}',
-    );
+    expect(settingsPageSource).not.toContain("rawCategories");
     expect(settingsPageSource).not.toContain("<i>{entry.count}</i>");
     expect(settingsPageSource).not.toContain(
       "Accounts, appearance, models, execution, and local desktop behavior",
@@ -149,7 +149,16 @@ describe("settings resource policy", () => {
     expect(settingsViewForSection("credentials")).toBe("keys");
     expect(settingsViewForSection("setup")).toBe("operatorSetup");
     expect(settingsViewForSection("about")).toBe("docs");
-    expect(settingsViewForSection("execution")).toBe("settings");
+    expect(settingsViewForSection("execution")).toBe("execution");
+    for (const section of [
+      "interfaces",
+      "desktop",
+      "execution",
+      "advanced",
+    ] as const) {
+      expect(settingsSectionForView(section)).toBe(section);
+      expect(settingsViewForSection(section)).toBe(section);
+    }
   });
 
   it("leaves the model panel as the owner of its settings resource", () => {
@@ -167,7 +176,9 @@ describe("settings resource policy", () => {
     expect(settingsPageSource).toContain('"appearance"');
     expect(settingsPageSource).toContain('"desktop"');
     expect(settingsPageSource).toContain('"model"');
-    expect(settingsPageSource).toContain("{categorySupportsSearch ? (");
+    expect(settingsPageSource).toContain(
+      "!runtimeCategoryOffline && categorySupportsSearch",
+    );
   });
 
   it("keeps embedded sections as the sole owners of their runtime resources", () => {
@@ -178,14 +189,13 @@ describe("settings resource policy", () => {
     );
   });
 
-  it("omits duplicate settings chrome for embedded feature categories", () => {
+  it("uses a consistent heading and shell for native and embedded settings pages", () => {
+    expect(settingsPageSource).toContain("<SettingsFrame");
     expect(settingsPageSource).toContain(
-      "const embeddedFeature = isEmbeddedSettingsFeature(category);",
+      '<h1>{activeCategory?.label ?? "Settings"}</h1>',
     );
-    expect(settingsPageSource).toContain("{!embeddedFeature ? (");
-    expect(settingsPageSource).toContain(
-      "!runtimeCategoryOffline && !embeddedFeature",
-    );
+    expect(settingsPageSource).not.toContain("<PageHeader");
+    expect(settingsPageSource).not.toContain("!embeddedFeature");
   });
 
   it("keeps advanced focused on grouped runtime fields instead of duplicating other settings panels", () => {

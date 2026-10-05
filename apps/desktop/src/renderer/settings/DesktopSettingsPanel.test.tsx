@@ -44,6 +44,12 @@ describe("DesktopSettingsPanel", () => {
         ?.disabled,
     ).toBe(true);
     expect(container.textContent).toContain("Loading update status…");
+    expect(container.textContent).toContain("Loading desktop state…");
+    expect(
+      [...container.querySelectorAll<HTMLButtonElement>("button")].find(
+        (button) => button.textContent?.includes("Check for updates"),
+      )?.disabled,
+    ).toBe(true);
   });
 
   it("forwards lifecycle and downloaded-update actions", () => {
@@ -94,5 +100,32 @@ describe("DesktopSettingsPanel", () => {
       container.querySelector<HTMLButtonElement>(".primary-button");
     expect(install?.disabled).toBe(true);
     expect(install?.textContent).toBe("Install and restart");
+  });
+
+  it("announces update status and provides determinate download progress", () => {
+    act(() =>
+      root.render(
+        <DesktopSettingsPanel
+          lifecycle={{ keepRunningInBackground: true }}
+          onBackgroundChange={vi.fn()}
+          onCheckUpdates={vi.fn()}
+          onDownloadUpdate={vi.fn()}
+          onInstallUpdate={vi.fn()}
+          update={{
+            phase: "downloading",
+            message: "Downloading update",
+            progress: 32,
+          }}
+          updateBusy
+        />,
+      ),
+    );
+    expect(
+      container.querySelector('[role="status"][aria-live="polite"]')
+        ?.textContent,
+    ).toBe("Downloading update");
+    expect(
+      container.querySelector<HTMLProgressElement>("progress")?.value,
+    ).toBe(32);
   });
 });

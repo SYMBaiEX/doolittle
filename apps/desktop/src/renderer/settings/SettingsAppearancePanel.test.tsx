@@ -31,6 +31,7 @@ describe("SettingsAppearancePanel", () => {
     );
 
     expect(markup).toContain('aria-label="Application appearance"');
+    expect(markup).toContain("Color mode</h2>");
     expect(markup).toContain('aria-pressed="true"');
     expect(markup).toContain('aria-label="Interface density"');
     expect(markup).toContain("Interface theme");
@@ -60,10 +61,13 @@ describe("SettingsAppearancePanel", () => {
       />,
     );
 
-    expect(markup).toContain("Unavailable");
-    expect(markup).toContain("Appearance and density remain available locally");
+    expect(markup).toContain("Runtime theme sync is unavailable");
+    expect(markup).toContain("local color themes remain available");
     expect(markup).toContain("theme-grid");
     expect(markup).not.toContain('hidden=""');
+    expect(markup).toContain("Warm operator signal");
+    expect(markup).toContain('type="button">Import</button>');
+    expect(markup).toContain('title="Warm operator signal" type="button"');
   });
 
   it("keeps appearance controls while reporting a runtime theme failure with retry", () => {
@@ -106,5 +110,24 @@ describe("SettingsAppearancePanel", () => {
     );
     expect(markup).toContain('role="alert"');
     expect(markup).toContain("Your previous theme is still preserved.");
+  });
+
+  it("shows an empty theme message without removing local import", () => {
+    const markup = renderToStaticMarkup(
+      <SettingsAppearancePanel
+        active
+        activeTheme={null}
+        appearance="system"
+        density="comfortable"
+        onAppearanceChange={noop}
+        onDensityChange={noop}
+        onThemeExport={noop}
+        onThemeImport={noop}
+        onThemeChange={noop}
+        themes={[]}
+      />,
+    );
+    expect(markup).toContain("No color themes are available yet");
+    expect(markup).toContain("Import");
   });
 });

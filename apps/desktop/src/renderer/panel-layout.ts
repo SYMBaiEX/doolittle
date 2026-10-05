@@ -66,6 +66,7 @@ export interface UtilityPanelLayoutInput {
   navCollapsed: boolean;
   canDockWithExpandedNavigation: boolean;
   canDockWithCollapsedNavigation: boolean;
+  allowNavigationAutoCollapse?: boolean;
 }
 
 export interface UtilityPanelLayout {
@@ -86,8 +87,10 @@ export function resolveUtilityPanelLayout({
   navCollapsed,
   canDockWithExpandedNavigation,
   canDockWithCollapsedNavigation,
+  allowNavigationAutoCollapse = true,
 }: UtilityPanelLayoutInput): UtilityPanelLayout {
   const navigationAutoCollapsed =
+    allowNavigationAutoCollapse &&
     utilityOpen &&
     !isMobileSidebarMode &&
     !navCollapsed &&

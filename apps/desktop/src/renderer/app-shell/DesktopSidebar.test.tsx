@@ -117,6 +117,9 @@ describe("DesktopSidebar companion navigation", () => {
     expect(container.textContent).toContain("Research thread");
     expect(container.textContent).not.toContain("Lead thread");
     expect(container.textContent).toContain("Team & work");
+    expect(
+      container.querySelector('nav[aria-label="Other areas"]')?.textContent,
+    ).not.toContain("Settings");
     const research = [
       ...container.querySelectorAll<HTMLButtonElement>("button"),
     ].find(

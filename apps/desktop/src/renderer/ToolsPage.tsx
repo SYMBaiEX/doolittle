@@ -22,6 +22,7 @@ import {
   toolEntryCategories,
 } from "./tools/tool-catalog-filter";
 import {
+  TOOLS_FILTER_CONTAINER_CLASS,
   TOOLS_INTEGRATIONS_BODY_CLASS,
   TOOLS_INTEGRATIONS_CLASS,
   TOOLS_INTEGRATIONS_LOADING_CLASS,
@@ -270,42 +271,44 @@ export function ToolsPage({
           </div>
         ) : null}
       </details>
-      <CatalogFilterBar
-        onQueryChange={setQuery}
-        placeholder="Search tools"
-        query={query}
-        resultLabel={
-          tools.loading
-            ? "Loading…"
-            : tools.error
-              ? "Unavailable"
-              : `${filtered.length} of ${entries.length}`
-        }
-        searchLabel="Search tools"
-      >
-        <select
-          aria-label="Tool category"
-          value={category}
-          onChange={(event) => setCategory(event.target.value)}
+      <div className={TOOLS_FILTER_CONTAINER_CLASS}>
+        <CatalogFilterBar
+          onQueryChange={setQuery}
+          placeholder="Search tools"
+          query={query}
+          resultLabel={
+            tools.loading
+              ? "Loading…"
+              : tools.error
+                ? "Unavailable"
+                : `${filtered.length} of ${entries.length}`
+          }
+          searchLabel="Search tools"
         >
-          {categories.map((value) => (
-            <option key={value} value={value}>
-              {titleCase(value)}
-            </option>
-          ))}
-        </select>
-        <select
-          aria-label="Eliza tool profile"
-          value={profile}
-          onChange={(event) => setProfile(event.target.value as ToolProfile)}
-        >
-          {TOOL_PROFILES.map((value) => (
-            <option key={value} value={value}>
-              {titleCase(value)} profile
-            </option>
-          ))}
-        </select>
-      </CatalogFilterBar>
+          <select
+            aria-label="Tool category"
+            value={category}
+            onChange={(event) => setCategory(event.target.value)}
+          >
+            {categories.map((value) => (
+              <option key={value} value={value}>
+                {titleCase(value)}
+              </option>
+            ))}
+          </select>
+          <select
+            aria-label="Eliza tool profile"
+            value={profile}
+            onChange={(event) => setProfile(event.target.value as ToolProfile)}
+          >
+            {TOOL_PROFILES.map((value) => (
+              <option key={value} value={value}>
+                {titleCase(value)} profile
+              </option>
+            ))}
+          </select>
+        </CatalogFilterBar>
+      </div>
       {tools.loading && !catalogData ? (
         <LoadingBlock label="Reading tool registry…" />
       ) : tools.error && !catalogData ? (

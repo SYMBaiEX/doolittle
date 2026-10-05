@@ -83,6 +83,24 @@ describe("panel layout persistence", () => {
     });
   });
 
+  it("uses a utility sheet without shrinking settings navigation", () => {
+    expect(
+      resolveUtilityPanelLayout({
+        isMobileSidebarMode: false,
+        utilityOpen: true,
+        navCollapsed: false,
+        canDockWithExpandedNavigation: false,
+        canDockWithCollapsedNavigation: true,
+        allowNavigationAutoCollapse: false,
+      }),
+    ).toEqual({
+      effectiveNavCollapsed: false,
+      navigationAutoCollapsed: false,
+      utilityModalMode: true,
+      utilityDocked: false,
+    });
+  });
+
   it("never changes the saved collapsed preference", () => {
     expect(
       resolveUtilityPanelLayout({

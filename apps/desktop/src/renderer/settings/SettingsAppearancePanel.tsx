@@ -59,6 +59,13 @@ export function SettingsAppearancePanel({
   const importInputRef = useRef<HTMLInputElement | null>(null);
   return (
     <section className={SETTINGS_GROUP_CLASS}>
+      <div className="settings-group-heading">
+        <div>
+          <span className="eyebrow">Display</span>
+          <h2>Color mode</h2>
+          <p>Choose how Doolittle looks on this device.</p>
+        </div>
+      </div>
       <fieldset
         aria-label="Application appearance"
         className={SETTINGS_APPEARANCE_CLASS}
@@ -116,27 +123,27 @@ export function SettingsAppearancePanel({
           ))}
         </fieldset>
       </div>
-      <div className="settings-group-heading mt-0.75 mb-0 min-h-8 [&_p]:mt-0.25 [&_p]:text-[length:var(--text-meta)]">
+      <div className="settings-group-heading mt-2 border-t border-[var(--line-subtle)] pt-3">
         <div>
           <span className="eyebrow">Color system</span>
           <h2>Interface theme</h2>
           <p>Shared across chat, code, review, workbench, and terminal.</p>
         </div>
-        <Badge>
-          {activeTheme?.label ?? (active ? "Default" : "Unavailable")}
-        </Badge>
+        <span className="[&_.badge]:!text-sm">
+          <Badge>{activeTheme?.label ?? "Default"}</Badge>
+        </span>
       </div>
-      <div className="settings-theme-transfer flex min-h-9.5 items-center justify-between gap-3 rounded-[var(--radius-xs)] border border-[var(--line-subtle)] bg-[color-mix(in_srgb,var(--surface-soft)_64%,transparent)] px-2 py-1.5 max-[620px]:items-stretch max-[620px]:flex-col">
+      <div className="settings-theme-transfer flex min-h-10 items-center justify-between gap-3 border-b border-[var(--line-subtle)] pb-3 max-[620px]:items-stretch max-[620px]:flex-col">
         <div className="grid min-w-0 gap-0.5">
           <strong className="text-[length:var(--text-control)]">
             Shareable theme file
           </strong>
-          <small className="text-[length:var(--text-meta)] leading-[1.45] text-[var(--muted)]">
+          <small className="text-sm leading-[1.45] text-[var(--text-soft)]">
             Colors, typography, spacing, geometry, motion, and registered
             layouts. Imported files cannot run CSS or scripts.
           </small>
         </div>
-        <div className="flex shrink-0 gap-1.25 max-[620px]:w-full [&>button]:min-h-10 max-[760px]:[&>button]:min-h-11 [&>button]:flex-1 [&>button]:px-2.25 [&>button]:text-sm">
+        <div className="flex shrink-0 gap-1.5 max-[620px]:w-full [&>button]:min-h-10 max-[760px]:[&>button]:min-h-11 [&>button]:flex-1 [&>button]:px-3 [&>button]:text-sm">
           <button
             className="secondary-button"
             onClick={() => importInputRef.current?.click()}
@@ -162,14 +169,15 @@ export function SettingsAppearancePanel({
               event.currentTarget.value = "";
             }}
             ref={importInputRef}
+            tabIndex={-1}
             type="file"
           />
         </div>
       </div>
       {!active ? (
         <OfflineRouteState>
-          Saved color themes are unavailable until the local runtime is ready.
-          Appearance and density remain available locally.
+          Runtime theme sync is unavailable until the local runtime is ready.
+          Appearance, density, and local color themes remain available.
         </OfflineRouteState>
       ) : null}
       {themeMigrationError ? (
@@ -182,6 +190,12 @@ export function SettingsAppearancePanel({
       ) : null}
       {active && themesError ? (
         <ErrorBlock error={themesError} retry={onThemeReload} />
+      ) : null}
+      {active && !themesLoading && !themesError && themes.length === 0 ? (
+        <p className="m-0 text-sm text-[var(--text-soft)]" role="status">
+          No color themes are available yet. You can still import a local theme
+          file.
+        </p>
       ) : null}
       <div className={SETTINGS_THEME_GRID_CLASS}>
         {themes.map((value, index) => {

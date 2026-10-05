@@ -42,10 +42,13 @@ export function DesktopSettingsPanel({
         <div className={SETTINGS_ROW_LAYOUT_CLASS}>
           <div className="setting-copy">
             <strong>Keep running in the background</strong>
-            <small>
+            <small id="desktop-background-description">
               When enabled, closing the window hides Doolittle so active local
               work can continue. Quit always stops it.
             </small>
+            {!lifecycle ? (
+              <small role="status">Loading desktop state…</small>
+            ) : null}
           </div>
           <div className="setting-control">
             <label className={SETTINGS_SWITCH_CLASS}>
@@ -53,6 +56,7 @@ export function DesktopSettingsPanel({
                 checked={lifecycle?.keepRunningInBackground ?? false}
                 className={SETTINGS_SWITCH_INPUT_CLASS}
                 disabled={!lifecycle}
+                aria-describedby="desktop-background-description"
                 type="checkbox"
                 onChange={(event) => onBackgroundChange(event.target.checked)}
               />
@@ -66,9 +70,27 @@ export function DesktopSettingsPanel({
         <div className={SETTINGS_ROW_LAYOUT_CLASS}>
           <div className="setting-copy">
             <strong>Application updates</strong>
-            <small>{update?.message ?? "Loading update status…"}</small>
-            {update?.progress !== undefined ? (
-              <small>{update.progress}% downloaded</small>
+            <small
+              aria-live={update?.phase === "error" ? "assertive" : "polite"}
+              role="status"
+            >
+              {update?.message ?? "Loading update status…"}
+            </small>
+            {update?.phase === "downloading" &&
+            update.progress !== undefined ? (
+              <progress
+                aria-label="Update download progress"
+                className="h-2 w-full max-w-64 accent-[var(--accent)]"
+                max={100}
+                value={Math.min(100, Math.max(0, update.progress))}
+              />
+            ) : null}
+            {update?.phase === "downloading" &&
+            update.progress !== undefined ? (
+              <small>
+                {Math.round(Math.min(100, Math.max(0, update.progress)))}%
+                downloaded
+              </small>
             ) : null}
           </div>
           <div className="setting-control">
@@ -76,6 +98,7 @@ export function DesktopSettingsPanel({
               <button
                 className="secondary-button"
                 disabled={
+                  !update ||
                   updateBusy ||
                   update?.phase === "unavailable" ||
                   update?.phase === "checking" ||
@@ -83,6 +106,11 @@ export function DesktopSettingsPanel({
                 }
                 onClick={onCheckUpdates}
                 type="button"
+                aria-label={
+                  update?.phase === "checking"
+                    ? "Checking for updates"
+                    : undefined
+                }
               >
                 Check for updates
               </button>

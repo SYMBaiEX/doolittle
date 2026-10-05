@@ -186,6 +186,14 @@ export function settingsSectionForView(
   switch (view) {
     case "settings":
       return "appearance";
+    case "interfaces":
+      return "interfaces";
+    case "desktop":
+      return "desktop";
+    case "execution":
+      return "execution";
+    case "advanced":
+      return "advanced";
     case "models":
       return "model";
     case "connections":
@@ -221,6 +229,14 @@ export function settingsSectionForView(
 
 export function settingsViewForSection(section: string): View {
   switch (section) {
+    case "interfaces":
+      return "interfaces";
+    case "desktop":
+      return "desktop";
+    case "execution":
+      return "execution";
+    case "advanced":
+      return "advanced";
     case "model":
       return "models";
     case "accounts":

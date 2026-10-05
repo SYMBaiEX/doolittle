@@ -106,6 +106,10 @@ export const ActivityPage = lazyNamedRoute(
 export const SettingsPage = lazyNamedRoute(
   [
     "settings",
+    "interfaces",
+    "desktop",
+    "execution",
+    "advanced",
     "models",
     "connections",
     "tools",

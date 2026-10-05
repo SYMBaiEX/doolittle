@@ -57,7 +57,47 @@ describe("SettingControl accessibility", () => {
       expect(container.querySelector(`label[for="${id}"]`)?.textContent).toBe(
         name,
       );
-      expect(container.querySelector(`${element}#${id}`)).not.toBeNull();
+      const control = container.querySelector(`${element}#${id}`);
+      expect(control).not.toBeNull();
+      expect(control?.getAttribute("aria-describedby")).toContain(
+        `${id}-description`,
+      );
+      expect(
+        container.querySelector(`#${id}-description`)?.textContent,
+      ).toBeTruthy();
     }
+  });
+
+  it("only enables Save after an edit and exposes the full boolean switch target", () => {
+    const field: FlatSetting = {
+      category: "agent",
+      path: "agent.enabled",
+      value: true,
+    };
+    act(() => root.render(<SettingControl field={field} onSaved={vi.fn()} />));
+
+    const save =
+      container.querySelector<HTMLButtonElement>(".secondary-button");
+    const switchLabel = container.querySelector<HTMLLabelElement>(
+      ".setting-control label",
+    );
+    const checkbox = container.querySelector<HTMLInputElement>(
+      "input[type=checkbox]",
+    );
+    expect(save?.disabled).toBe(true);
+    expect(switchLabel?.control).toBe(checkbox);
+    expect(switchLabel?.className).toContain("relative");
+    expect(checkbox?.className).toContain("!w-px");
+    expect(checkbox?.className).toContain("!p-0");
+    expect(checkbox?.getAttribute("aria-labelledby")).toBe(
+      `${settingControlId(field.path)}-label`,
+    );
+    expect(
+      container.querySelector(`#${settingControlId(field.path)}-label`)
+        ?.textContent,
+    ).toBe("Enabled");
+    act(() => checkbox?.click());
+    expect(save?.disabled).toBe(false);
+    expect(save?.getAttribute("aria-label")).toBe("Save Enabled");
   });
 });

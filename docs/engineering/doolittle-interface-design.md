@@ -18,9 +18,11 @@ gradients, glow, textures, or cards around ordinary lists.
 
 - Navigation contains search, new conversation, bot contacts, and the selected
   bot's recent conversations. Selecting a bot resumes its latest conversation.
-  Add bot, Team & work, Connections and Settings are supporting destinations.
-- One 48px conversation header carries bot identity, thread title, inspector and
-  overflow. New/close view actions are disclosures. Closing a view never stops work.
+  Add bot, Team & work and Connections are supporting destinations.
+- One 48px conversation header carries bot identity, thread title, an icon-only
+  inspector toggle, adjacent Settings gear and overflow. Both icons have named
+  tooltips and accessible labels. Settings lives in the header, not the sidebar.
+  New/close view actions are disclosures. Closing a view never stops work.
 - Tabs and arrangement tools appear only with multiple open conversations. The
   workspace supports nested right/below splits, resizing, reordering, focus and
   closing, with a 12-view limit. Narrow layouts show the active tab and retain
@@ -32,6 +34,13 @@ gradients, glow, textures, or cards around ordinary lists.
 - The initially closed inspector contains Details, Library and Computer.
   Computer opens actual editor/browser/terminal resources; it is not a VM.
   Its immutable bot/conversation/workspace origin must not follow ambient focus.
+- Settings uses a fixed-width, independently scrolling, searchable section menu
+  with every group always expanded. Selection uses a quiet current-section marker,
+  never a route stripe or auto-collapsing group. One consistent section heading,
+  readable field descriptions and rule-separated forms apply across retained pages.
+  A native grouped section picker replaces the menu below 760px of available
+  settings width. Section changes never resize or auto-collapse navigation.
+  Interfaces, Desktop, Execution and Advanced have distinct persistent deep links.
 
 Drafts, stream subscriptions, queued messages, editor documents and PTYs belong
 outside replaceable presentation. Running, Waiting, Attention, Complete, Stopped,

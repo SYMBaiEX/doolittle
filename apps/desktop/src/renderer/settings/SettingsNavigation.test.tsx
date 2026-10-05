@@ -17,12 +17,13 @@ describe("SettingsNavigation", () => {
         onSelect={vi.fn()}
       />,
     );
-    expect(markup).toContain("selected");
+    expect(markup).not.toMatch(/class="[^"]*\bselected\b/u);
+    expect(markup).toContain("dl-settings-current");
     expect(markup).toContain('aria-label="Appearance: Theme and display"');
     expect(markup).toContain('aria-current="page"');
   });
 
-  it("opens matching groups and keeps the active selection visible while filtering", () => {
+  it("keeps matching groups and the active selection available without accordions", () => {
     const markup = renderToStaticMarkup(
       <SettingsNavigation
         categories={[
@@ -46,10 +47,11 @@ describe("SettingsNavigation", () => {
       />,
     );
 
-    expect(markup).toContain("<details");
-    expect(markup).toContain("<summary>Models &amp; accounts</summary>");
-    expect(markup).toContain("<summary>Runtime &amp; diagnostics</summary>");
-    expect(markup.match(/<details[^>]* open=""/gu)).toHaveLength(2);
+    expect(markup).not.toContain("<details");
+    expect(markup).not.toContain("<summary");
+    expect(markup).toContain("<h3>Models &amp; accounts</h3>");
+    expect(markup).toContain("<h3>Runtime &amp; diagnostics</h3>");
+    expect(markup).toContain('aria-label="Settings section"');
     expect(markup).toContain("settings-nav-group");
     expect(markup).toContain("settings-section-search");
     expect(markup).toContain("Search settings sections");

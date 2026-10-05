@@ -25,6 +25,10 @@ export type View =
   | "logs"
   | "keys"
   | "settings"
+  | "interfaces"
+  | "desktop"
+  | "execution"
+  | "advanced"
   | "docs"
   | "runtime"
   | "compatibility"
@@ -54,6 +58,10 @@ export const views = new Set<View>([
   "logs",
   "keys",
   "settings",
+  "interfaces",
+  "desktop",
+  "execution",
+  "advanced",
   "docs",
   "runtime",
   "compatibility",
@@ -85,7 +93,11 @@ export type DesktopSection =
   | "compatibility"
   | "registry"
   | "setup"
-  | "about";
+  | "about"
+  | "interfaces"
+  | "desktop"
+  | "execution"
+  | "advanced";
 
 export interface DesktopLocation {
   destination: DesktopDestination;
@@ -145,6 +157,26 @@ export const DESKTOP_ROUTE_LOCATIONS: Readonly<
     primaryView: "orchestration",
   },
   settings: { destination: "settings", primaryView: "settings" },
+  interfaces: {
+    destination: "settings",
+    section: "interfaces",
+    primaryView: "settings",
+  },
+  desktop: {
+    destination: "settings",
+    section: "desktop",
+    primaryView: "settings",
+  },
+  execution: {
+    destination: "settings",
+    section: "execution",
+    primaryView: "settings",
+  },
+  advanced: {
+    destination: "settings",
+    section: "advanced",
+    primaryView: "settings",
+  },
   models: {
     destination: "settings",
     section: "models",
@@ -334,6 +366,10 @@ export const navigation: NavigationSection[] = [
     label: "Settings",
     items: [
       { id: "settings", label: "Settings" },
+      { id: "interfaces", label: "Interfaces" },
+      { id: "desktop", label: "Desktop" },
+      { id: "execution", label: "Execution" },
+      { id: "advanced", label: "Advanced" },
       { id: "models", label: "Models" },
       { id: "connections", label: "Providers & accounts" },
       { id: "keys", label: "Credentials" },
@@ -376,6 +412,10 @@ export const VIEW_DESCRIPTIONS: Record<View, string> = {
   logs: "Trace runtime behavior",
   keys: "Manage local provider credentials",
   settings: "Configure Doolittle",
+  interfaces: "Configure desktop interfaces",
+  desktop: "Manage desktop updates and lifecycle",
+  execution: "Configure execution permissions and tools",
+  advanced: "Inspect every runtime setting",
   docs: "Learn how the desktop works",
   runtime: "Inspect local runtime health",
   compatibility: "Verify SDK compatibility",

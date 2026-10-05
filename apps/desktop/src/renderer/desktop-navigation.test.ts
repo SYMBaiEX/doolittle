@@ -12,6 +12,10 @@ import {
   views,
   workspaceName,
 } from "./desktop-navigation";
+import {
+  settingsSectionForView,
+  settingsViewForSection,
+} from "./settings/settings-sections";
 
 function storage(values: Record<string, string>): Pick<Storage, "getItem"> {
   return {
@@ -58,6 +62,33 @@ describe("desktop navigation descriptors", () => {
         expect(resolved.legacy).toBe(true);
       }
     }
+  });
+
+  it("keeps local settings sections on distinct canonical hashes and one route owner", () => {
+    expect(desktopHashForView("settings")).toBe("#/settings");
+    expect(settingsSectionForView("settings")).toBe("appearance");
+
+    for (const section of [
+      "interfaces",
+      "desktop",
+      "execution",
+      "advanced",
+    ] as const) {
+      const view = settingsViewForSection(section);
+      const hash = `#/settings/${section}`;
+      expect(view).toBe(section);
+      expect(settingsSectionForView(view)).toBe(section);
+      expect(desktopHashForView(view)).toBe(hash);
+      expect(resolveDesktopHash(hash)).toMatchObject({
+        view,
+        canonicalHash: hash,
+        legacy: false,
+      });
+      expect(renderedViewForView(view)).toBe("settings");
+    }
+
+    expect(settingsViewForSection("appearance")).toBe("settings");
+    expect(resolveDesktopHash("#/settings/models").view).toBe("models");
   });
 
   it("maps each route to one semantic rendered owner", () => {

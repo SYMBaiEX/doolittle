@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   COMMAND_PALETTE_ITEM_CLASS,
@@ -27,9 +28,15 @@ import {
 } from "./project-manager/layout";
 import { REVIEW_DETAIL_HEADER_CLASS } from "./review/layout";
 import {
+  SETTINGS_GROUP_CLASS,
   SETTINGS_PAGE_CLASS,
   SETTINGS_ROW_LAYOUT_CLASS,
 } from "./settings/settings-layout";
+
+const settingsStyles = readFileSync(
+  new URL("../../../../packages/ui/src/styles.css", import.meta.url),
+  "utf8",
+);
 
 describe("desktop typography and spacing rhythm", () => {
   it("keeps shared headers, body copy, and metadata on named rhythm tokens", () => {
@@ -62,13 +69,14 @@ describe("desktop typography and spacing rhythm", () => {
     expect(COMMAND_PALETTE_ITEM_DESCRIPTION_CLASS).toContain(
       "text-[length:var(--text-meta)]",
     );
-    expect(SETTINGS_PAGE_CLASS).toContain(
-      "[&_.setting-copy_small]:text-[length:var(--text-meta)]",
+    expect(settingsStyles).toMatch(
+      /\.dl-settings-content \.setting-copy small \{[^}]*font-size: 14px;/su,
+    );
+    expect(settingsStyles).toMatch(
+      /\.dl-settings-content\s+:where\(\.settings-section-header, \.settings-group-heading\)\s+h2 \{[^}]*font-size: 16px;/su,
     );
     expect(SETTINGS_PAGE_CLASS).not.toMatch(/text-\[(?:10|11)px\]/u);
-    expect(SETTINGS_PAGE_CLASS).toContain(
-      "[&_.settings-section-header]:min-h-8.5",
-    );
+    expect(SETTINGS_GROUP_CLASS).toContain("gap-5 py-4");
     expect(BROWSER_PLACEHOLDER_CLASS).toContain("p-6");
     expect(AUTOMATION_BUILDER_HEADER_CLASS).toContain("px-4 pt-3 pb-2");
   });
@@ -81,7 +89,12 @@ describe("desktop typography and spacing rhythm", () => {
     expect(SETTINGS_PAGE_CLASS).not.toContain(
       "[&_.settings-group-heading]:border-b",
     );
-    expect(SETTINGS_ROW_LAYOUT_CLASS).not.toContain("border-b");
+    expect(SETTINGS_ROW_LAYOUT_CLASS).toContain(
+      "border-b border-[var(--border)]",
+    );
+    expect(SETTINGS_ROW_LAYOUT_CLASS).toContain("last:border-b-0");
+    expect(SETTINGS_ROW_LAYOUT_CLASS).not.toContain("rounded-");
+    expect(SETTINGS_GROUP_CLASS).not.toContain("bg-[");
     expect(MODELS_PAGE_CLASS).not.toContain("min-h-[74px]");
     expect(MODEL_FORM_ACTIONS_CLASS).not.toContain("border-t");
     expect(AUTOMATION_BUILDER_HEADER_CLASS).not.toContain("border-b");

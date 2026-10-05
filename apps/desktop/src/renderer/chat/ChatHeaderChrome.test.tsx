@@ -11,6 +11,7 @@ const handlers = {
   onOpenMobileConversations: vi.fn(),
   onOpenRouteControls: vi.fn(),
   onOpenWorkspace: vi.fn(),
+  onOpenSettings: vi.fn(),
   onPrepareCompression: vi.fn(),
   onSurfaceChange: vi.fn(),
   onToggleInspector: vi.fn(),
@@ -58,7 +59,13 @@ describe("ChatHeaderChrome", () => {
   it("keeps a new draft quiet while retaining primary actions", () => {
     render();
 
-    expect(container.textContent).toContain("Inspector");
+    expect(container.textContent).not.toContain("Inspector");
+    expect(
+      container.querySelector('[aria-label="Open inspector"]'),
+    ).not.toBeNull();
+    expect(
+      container.querySelector('[aria-label="Open settings"]'),
+    ).not.toBeNull();
     expect(
       container.querySelector('[aria-label="Find conversation"]'),
     ).toBeNull();
@@ -98,6 +105,16 @@ describe("ChatHeaderChrome", () => {
         ?.click(),
     );
     expect(handlers.onToggleInspector).toHaveBeenCalledTimes(1);
+  });
+
+  it("opens settings through the supplied navigation action", () => {
+    render();
+    const settings = container.querySelector<HTMLButtonElement>(
+      '[aria-label="Open settings"]',
+    );
+    expect(settings?.title).toBe("Settings");
+    act(() => settings?.click());
+    expect(handlers.onOpenSettings).toHaveBeenCalledOnce();
   });
 
   it("keeps history available in the options menu", () => {
