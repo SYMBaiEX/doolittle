@@ -36,6 +36,10 @@ gradients, glow, textures, or cards around ordinary lists.
   keyboard focus is indicated locally, not by an orange frame around the input.
   Short panes keep the workspace bounded and scroll exceptional composer
   content locally rather than placing the input after a scrolling document.
+  Empty panes retain a 128px readable welcome region; when centering cannot fit,
+  the lower spacer yields first. Exceptional notices remain scroll-reachable.
+  Short-mode controls follow the actual pane height, including vertical splits
+  inside a tall window, rather than only the window height.
   Context pressure is disclosed when warning/error thresholds matter, not as a
   permanent zero-usage meter. Full context remains available in Details.
 - The initially closed inspector contains Details, Library and Computer.

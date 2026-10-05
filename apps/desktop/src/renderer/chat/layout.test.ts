@@ -115,7 +115,9 @@ describe("chat layout", () => {
           candidate.includes("chat-transcript-region") ||
           candidate.includes("chat-composer-dock") ||
           candidate === "[&_.chat-conversation]:!grid" ||
-          candidate.includes("grid-rows-[minmax(0,1fr)"),
+          candidate.includes("grid-rows-[minmax(0,1fr)") ||
+          candidate.includes("grid-rows-[minmax(128px,1fr)") ||
+          candidate.includes("chat-messages]:min-h-[128px]"),
       ),
     );
     expect(css).toContain(".chat-transcript-region");
@@ -126,8 +128,9 @@ describe("chat layout", () => {
     expect(css).toContain("grid-template-rows: minmax(0,1fr) auto");
     expect(css).toContain(".chat-conversation[data-layout=empty]");
     expect(css).toContain(
-      "grid-template-rows: minmax(0,1fr) auto minmax(0,1fr)",
+      "grid-template-rows: minmax(128px,1fr) auto minmax(0,1fr)",
     );
+    expect(css).toContain("min-height: 128px");
     expect(css).toContain("max-height: max(96px, calc(100cqh - 128px))");
     expect(css).toContain("overflow-y: auto");
     expect(css).not.toContain("height: auto");
@@ -147,7 +150,8 @@ describe("chat layout", () => {
         ),
       ),
     );
-    expect(css).toContain("@media (max-height:640px)");
+    expect(css).toContain("@container session (max-height:640px)");
+    expect(css).not.toContain("@media (max-height");
     expect(css).toContain(
       ".chat-composer :is(.composer-selector-popover, .chat-prompt-library)",
     );
@@ -156,5 +160,21 @@ describe("chat layout", () => {
     expect(css).toContain("width: auto !important");
     expect(css).toContain("max-height: none !important");
     expect(css).toContain("overflow-y: auto !important");
+  });
+
+  it("makes exceptional empty-state notices scrollable without bottom-alignment clipping", async () => {
+    const compiler = await compile("@tailwind utilities;");
+    const css = compiler.build(
+      CHAT_WORKSPACE_CLASS.split(/\s+/u).filter((candidate) =>
+        candidate.includes("data-layout=empty]_.chat-transcript-region"),
+      ),
+    );
+    expect(css).toContain(
+      ".chat-conversation[data-layout=empty] .chat-transcript-region",
+    );
+    expect(css).toContain("justify-content: safe flex-end");
+    expect(css).toContain("overflow-y: auto");
+    expect(css).toContain("overscroll-behavior: contain");
+    expect(css).not.toContain(".chat-conversation[data-layout=active]");
   });
 });

@@ -628,7 +628,7 @@ export function ChatComposer({
       {commandSuggestions.length > 0 ? (
         <div
           aria-label="Chat commands"
-          className="chat-command-completions absolute inset-x-0 bottom-[calc(100%+8px)] z-50 grid max-h-[min(360px,46vh)] overflow-y-auto rounded-[var(--radius-md)] border border-[var(--border-strong)] bg-[color-mix(in_srgb,var(--surface-raised)_98%,var(--bg))] p-1.5 shadow-[var(--shell-shadow-lg)] [@media(max-height:640px)]:static [@media(max-height:640px)]:max-h-28"
+          className="chat-command-completions absolute inset-x-0 bottom-[calc(100%+8px)] z-50 grid max-h-[min(360px,46vh)] overflow-y-auto rounded-[var(--radius-md)] border border-[var(--border-strong)] bg-[color-mix(in_srgb,var(--surface-raised)_98%,var(--bg))] p-1.5 shadow-[var(--shell-shadow-lg)] [@container_session_(max-height:640px)]:static [@container_session_(max-height:640px)]:max-h-28"
           id={controlId("chat-command-completions")}
           role="listbox"
         >
@@ -677,7 +677,7 @@ export function ChatComposer({
       {reusableSuggestions.length > 0 ? (
         <div
           aria-label="Reusable prompts and skills"
-          className="chat-reusable-completions absolute inset-x-0 bottom-[calc(100%+8px)] z-50 grid max-h-[min(360px,46vh)] overflow-y-auto rounded-[var(--radius-md)] border border-[var(--border-strong)] bg-[color-mix(in_srgb,var(--surface-raised)_98%,var(--bg))] p-1.5 shadow-[var(--shell-shadow-lg)] [@media(max-height:640px)]:static [@media(max-height:640px)]:max-h-28"
+          className="chat-reusable-completions absolute inset-x-0 bottom-[calc(100%+8px)] z-50 grid max-h-[min(360px,46vh)] overflow-y-auto rounded-[var(--radius-md)] border border-[var(--border-strong)] bg-[color-mix(in_srgb,var(--surface-raised)_98%,var(--bg))] p-1.5 shadow-[var(--shell-shadow-lg)] [@container_session_(max-height:640px)]:static [@container_session_(max-height:640px)]:max-h-28"
           id={controlId("chat-reusable-completions")}
           role="listbox"
         >
@@ -867,7 +867,7 @@ export function ChatComposer({
             >
               <UiIcon icon={Plus} size="sm" />
             </summary>
-            <div className="chat-composer-tool-menu absolute bottom-full left-0 z-30 mb-2 flex min-w-52 items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-raised)] p-2 shadow-[var(--shell-shadow-md)] [@media(max-height:640px)]:static [@media(max-height:640px)]:my-2 [@media(max-height:640px)]:min-w-0 [@media(max-height:640px)]:flex-wrap">
+            <div className="chat-composer-tool-menu absolute bottom-full left-0 z-30 mb-2 flex min-w-52 items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-raised)] p-2 shadow-[var(--shell-shadow-md)] [@container_session_(max-height:640px)]:static [@container_session_(max-height:640px)]:my-2 [@container_session_(max-height:640px)]:min-w-0 [@container_session_(max-height:640px)]:flex-wrap">
               <VoiceComposerButton
                 disabled={backend.phase !== "ready"}
                 importAndTranscribe={importAndTranscribeRecording}

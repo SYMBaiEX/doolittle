@@ -81,14 +81,19 @@ describe("Eliza UI chat integration", () => {
   it("lets extra composer tools flow inside the short-pane scrollport", () => {
     const composer = readRendererFile("chat/ChatComposer.tsx");
     expect(composer).toContain("chat-composer-tool-menu");
-    expect(composer).toContain("[@media(max-height:640px)]:static");
-    expect(composer).toContain("[@media(max-height:640px)]:flex-wrap");
+    expect(composer).toContain(
+      "[@container_session_(max-height:640px)]:static",
+    );
+    expect(composer).toContain(
+      "[@container_session_(max-height:640px)]:flex-wrap",
+    );
     expect(
-      composer.match(/\[@media\(max-height:640px\)\]:max-h-28/gu),
+      composer.match(/\[@container_session_\(max-height:640px\)\]:max-h-28/gu),
     ).toHaveLength(2);
     expect(composer).toContain(
       "list.scrollTop += selected.bottom - bounds.bottom",
     );
     expect(composer).not.toContain("option.scrollIntoView");
+    expect(composer).not.toContain("[@media(max-height:640px)]");
   });
 });

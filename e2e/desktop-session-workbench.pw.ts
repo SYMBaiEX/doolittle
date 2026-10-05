@@ -457,6 +457,59 @@ test.describe("Doolittle desktop session workbench", () => {
 
       await resize(360, 844);
       await expectCentered(second);
+      await resize(360, 480);
+      await expect(second.locator(".chat-conversation")).toHaveAttribute(
+        "data-layout",
+        "empty",
+      );
+      await expect
+        .poll(async () => (await layout(second)).transcriptHeight)
+        .toBeGreaterThanOrEqual(128);
+      await expectComposerGeometry(second);
+      await expect(
+        second.getByText("Checking active runs before sending…", {
+          exact: true,
+        }),
+      ).toHaveCount(0);
+      await page.screenshot({
+        path: testInfo.outputPath("chat-new-360-short.png"),
+        animations: "disabled",
+      });
+      const newDraft = second.getByRole("textbox", {
+        name: "Message Doolittle",
+      });
+      await newDraft.fill("A long, unsent layout fixture draft.\n".repeat(30));
+      // This explicitly synthetic in-flow notice tests CSS/focus reachability,
+      // not storage failure detection or a runtime action.
+      await second.locator(".chat-transcript-region").evaluate((region) => {
+        const notice = document.createElement("p");
+        notice.dataset.layoutFixtureNotice = "true";
+        notice.className = "chat-storage-warning";
+        notice.textContent = "Synthetic layout-only notice. ";
+        const action = document.createElement("button");
+        action.type = "button";
+        action.textContent = "Layout-only notice action";
+        notice.append(action);
+        region.append(notice);
+      });
+      const noticeAction = second.getByRole("button", {
+        name: "Layout-only notice action",
+        exact: true,
+      });
+      await noticeAction.focus();
+      await expect(noticeAction).toBeFocused();
+      await expectHitTarget(noticeAction);
+      await expectHitTarget(
+        second.getByRole("button", { name: "Send message", exact: true }),
+      );
+      await second
+        .locator("[data-layout-fixture-notice]")
+        .evaluate((notice) => {
+          notice.remove();
+        });
+      await newDraft.fill("A separate new conversation draft");
+      await resize(360, 844);
+      await expectCentered(second);
       await focusPanelTab(workbench, firstId);
       await expectDocked(first);
       await expect(composer).toHaveValue(draft);
@@ -472,18 +525,20 @@ test.describe("Doolittle desktop session workbench", () => {
       await expect(composer).toHaveValue(draft);
       async function expectHitTarget(target: Locator) {
         await expect(target).toBeVisible();
-        await target.scrollIntoViewIfNeeded();
         await expect
-          .poll(() =>
-            target.evaluate((element) => {
+          .poll(async () => {
+            // Context discovery can settle after the draft changes. Re-scroll
+            // the local dock as needed, then verify the actual hit target.
+            await target.scrollIntoViewIfNeeded();
+            return target.evaluate((element) => {
               const bounds = element.getBoundingClientRect();
               const hit = document.elementFromPoint(
                 bounds.left + bounds.width / 2,
                 bounds.top + bounds.height / 2,
               );
               return hit === element || (hit !== null && element.contains(hit));
-            }),
-          )
+            });
+          })
           .toBe(true);
       }
       const modelButton = first.getByRole("button", {
@@ -564,6 +619,45 @@ test.describe("Doolittle desktop session workbench", () => {
       await resize(1728, 1000);
       await expectDocked(first);
       await expectCentered(second);
+      await focusPanelTab(workbench, secondId);
+      await workbench
+        .locator("summary")
+        .filter({ hasText: "Layout views" })
+        .click();
+      await workbench.getByRole("button", { name: "Split below" }).click();
+      await expect
+        .poll(() =>
+          second
+            .locator(".chat-conversation")
+            .evaluate((pane) => pane.getBoundingClientRect().height),
+        )
+        .toBeLessThanOrEqual(640);
+      await newDraft.fill(
+        "A tall-window short-pane fixture draft.\n".repeat(30),
+      );
+      await expect
+        .poll(() =>
+          second
+            .locator(".chat-composer-dock")
+            .evaluate((dock) => getComputedStyle(dock).overflowY),
+        )
+        .toBe("auto");
+      await expect
+        .poll(async () => (await layout(second)).transcriptHeight)
+        .toBeGreaterThanOrEqual(128);
+      await second
+        .getByRole("button", { name: /^Choose model\. Current route/ })
+        .click();
+      await expectHitTarget(
+        second
+          .getByRole("region", { name: "Choose provider and model" })
+          .getByLabel("Search models"),
+      );
+      await page.keyboard.press("Escape");
+      await expectHitTarget(
+        second.getByRole("button", { name: "Send message", exact: true }),
+      );
+      await newDraft.fill("A separate new conversation draft");
       expect(
         await originalInput.evaluate((input) => input.isConnected),
         "pane resizing retains the same input",
