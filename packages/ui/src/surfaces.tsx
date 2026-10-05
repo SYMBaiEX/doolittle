@@ -1,4 +1,9 @@
-import type { ComponentPropsWithRef, HTMLAttributes, ReactNode } from "react";
+import type {
+  ComponentPropsWithRef,
+  HTMLAttributes,
+  ReactNode,
+  Ref,
+} from "react";
 import type { UiRunState } from "./host";
 
 const classes = (...values: Array<string | undefined | false>) =>
@@ -212,5 +217,48 @@ export function StateSurface({
       {children && <div className="dl-meta">{children}</div>}
       {action && <div className="dl-state-action">{action}</div>}
     </section>
+  );
+}
+
+/** Controlled dialog composition. The host supplies focus, consent and lifecycle. */
+export function DialogFrame({
+  title,
+  titleId,
+  actions,
+  backdropRef,
+  children,
+  className,
+  ...props
+}: ComponentPropsWithRef<"section"> & {
+  title: string;
+  titleId: string;
+  actions?: ReactNode;
+  backdropRef?: Ref<HTMLDivElement>;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-120 grid place-items-center bg-[color-mix(in_srgb,var(--shadow)_40%,transparent)] p-4"
+      ref={backdropRef}
+    >
+      <section
+        {...props}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        className={classes(
+          "grid max-h-[calc(100dvh-32px)] w-[min(100%,520px)] gap-4 overflow-y-auto rounded-[var(--radius-xl)] border border-[var(--border-strong)] bg-[var(--surface-raised)] p-5 text-[var(--text)] shadow-[var(--shell-shadow-lg)]",
+          className,
+        )}
+      >
+        <header className="flex items-start justify-between gap-3">
+          <h2 className="m-0 text-lg font-semibold" id={titleId}>
+            {title}
+          </h2>
+          {actions}
+        </header>
+        {children}
+      </section>
+    </div>
   );
 }

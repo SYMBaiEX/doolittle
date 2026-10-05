@@ -1,19 +1,20 @@
 # Doolittle Desktop
 
-Doolittle Desktop is a native operator surface over the same ElizaOS runtime
-used by the CLI, cockpit, gateway, and API. It keeps native machine lifecycle
-in Electron, presentation in React, and agent behavior in the shared runtime.
+Doolittle Desktop is a companion-first native interface over the same ElizaOS
+runtime used by the CLI, cockpit, gateway, and API. Electron owns native
+lifecycle and permissions, React owns presentation, and isolated bot workers
+own durable agent execution.
 The visual and interaction contracts are documented in the
-[operator workbench design guide](engineering/doolittle-interface-design.md).
+[companion interface design guide](engineering/doolittle-interface-design.md).
 
 ## Architecture
 
 ```text
 Electron main process
-  ├─ owns the Doolittle child process
-  ├─ binds it to 127.0.0.1 on an operating-system-assigned port
-  ├─ probes health and owns restart/shutdown
-  └─ validates and relays bounded agent requests and dedicated streams
+  ├─ owns the lead runtime and one isolated worker per persistent bot
+  ├─ binds worker APIs to operating-system-assigned loopback ports
+  ├─ owns health, restart, cancellation and shutdown for every worker
+  └─ validates immutable bot/session/resource ownership before relaying requests
             │
             │ narrow, context-isolated preload bridge
             ▼
@@ -21,7 +22,7 @@ React renderer
   ├─ owns navigation and presentation state
   ├─ uses the official ElizaClient through an AgentRequestTransport adapter
   ├─ renders chat, code, browser evidence, review, and agent orchestration
-  └─ has no Node.js or filesystem access
+  └─ default renderer has no Node.js or filesystem access
             │
             ▼
 Doolittle API
@@ -102,26 +103,27 @@ carries the session receipt into run details and branch context into Review.
 Retried launch requests reuse their durable task instead of starting another
 session.
 
-The default surface is Chat: the project rail and conversation history provide
-new/resume work without an intermediate dashboard. A persistent status strip,
-the global Activity drawer, and the `Cmd/Ctrl+K` palette keep
-workspace, destination, tasks, approvals, conversations, files, and logs
-reachable without expanding the Settings rail. Chat includes an in-context
-provider switcher for local and linked providers. Native completion notifications are shown only
-while the app is in the background and deliberately omit prompts, responses,
-paths, commands, and other private task content.
+Companion opens directly into a conversation. Its sidebar contains bot contacts
+and the selected bot's recent conversations; selecting a bot resumes its last
+conversation. One compact header and composer keep tools behind the inspector,
+overflow and Add menus. Canvas uses the same capabilities with navigation on
+demand. The Activity drawer and `Cmd/Ctrl+K` palette retain access to supporting
+destinations. Native background completion notifications omit private task content.
 
 Closing a session panel closes its view, not its agent run or stored draft.
-Stop a running turn with its explicit cancellation action. Separate sessions
-can run concurrently in the same active runtime workspace; each session still
-admits only one active turn. Panels do not create independent backend runtimes
-or permit concurrent work in different project workspaces. Existing workspace
-leases, approvals, provider capacity, and account policies remain authoritative.
+Stop a running turn with its explicit cancellation action. Persistent bots use
+separate worker processes, histories and configured model routes. Processes
+isolate runtime state, not filesystem access. Four owned executions are admitted
+globally, with at most two automatic/ACP subexecutions. Concurrent repository
+reads are allowed; mutations require a canonical-root lease, and parallel writers
+require separate worktrees. Existing approvals, provider capacity and account
+policies remain authoritative.
 Run and attention labels come from runtime receipts; they are not simulated
 agent activity. Panel layout persistence is separate from conversation content.
-Provider/model selection is a shared runtime route for new messages in every
-session, not a per-panel account assignment. An existing turn keeps the provider
-and model selected when it began; this does not freeze an authentication account.
+A turn keeps its selected provider/model without freezing its authentication
+account. Changing presentation does not change execution ownership. Explicitly
+approved trusted React plugins have full application trust and are not sandboxed;
+community renderers use isolated views and a minimal capability broker.
 
 The workbench admits up to twelve open panel views. This is a presentation
 limit, not an agent-capacity promise: closing a view retains its session and
@@ -159,11 +161,12 @@ Panel headers expose focus, move-left, move-right, and close actions. Focus a
 resize separator and use Left/Right to adjust it or Home to reset the pair.
 On narrow screens, the open-session tabs use Left/Right/Home/End with roving
 keyboard focus; hidden panels remain inert rather than capturing input.
-Context uses the width of its session panel: in a small desktop tile it
-temporarily replaces that conversation's view, keeping neighboring panels
-usable. A narrow window uses the existing modal inspector. Closing Context
-returns focus to its trigger. Changes distinguishes a confirmed clean Git
-repository from a non-Git workspace, loading, or unavailable repository state.
+The initially closed inspector contains Details, Library and Computer. Computer
+opens actual editor/browser/terminal resources with captured bot, conversation
+and workspace ownership; it does not imply a virtual machine. Narrow windows
+use a modal inspector, and closing it restores focus to its trigger. Changes
+distinguishes a confirmed clean repository from a non-Git workspace, loading
+or unavailable state.
 
 Registry search uses Eliza's official registry client. Every installable release,
 including first-party metadata, remains blocked unless its canonical package
@@ -203,20 +206,15 @@ of a duplicate desktop schema. Secrets and OAuth tokens are intentionally
 absent: connection actions cross a narrow IPC allowlist, but secret values are
 never returned to the renderer.
 
-Appearance settings also provide a shareable `.doolittle-theme.json` bundle.
-Export captures the active color profile, light/dark/system appearance, and
-interface density; Import validates and applies that versioned JSON locally.
-Theme files cannot include CSS, scripts, URLs, or runtime settings. Imported
-profiles remain active across restarts until the operator selects a built-in
-runtime theme, which makes the export-edit-share-import path safe and portable.
-The exported file is also the authoring template: change the profile name,
-label, tagline, and color values, then import it from Settings > Appearance.
-Required palette fields are `primary`, `secondary`, `amberGlow`, and
-`greenGlow`; optional `cyanGlow`, `magentaGlow`, `muted`, `baseBg`, `baseFg`,
-and `panelBg` extend the entire workbench, including shell, routes, editor, and
-terminal surfaces. Colors accept hex, rgb, hsl, or the bounded ANSI names shown
-by built-in exports. The bundle is versioned, limited to 64 KB, and ignores
-unknown keys when it is exported again.
+Appearance supports Companion and Canvas compositions and shareable
+`.doolittle-theme.json` bundles. Export writes bundle v2 with the active semantic
+theme, appearance and density. Themes describe colors, typography, spacing,
+geometry, density, motion and registered layout presets; they cannot execute
+CSS, scripts or arbitrary layouts. Semantic colors use six-digit hexadecimal
+values. Import validates bounded, strict JSON up to 64 KB. Legacy v1 bundles
+remain importable through migration, and existing v1 preference bytes are
+backed up before v2 persistence. Use an exported v2 bundle as the authoring
+template rather than the legacy glow-palette fields.
 
 ### MCP marketplace discovery
 
@@ -684,14 +682,13 @@ apply. This native loop is distinct from Doolittle's operator autonomy profile,
 which configures product policy rather than implementing another reasoning
 engine.
 
-Quitting the application aborts active streams and sends `SIGTERM` to the owned
-child process. The API entrypoint handles that signal idempotently through one
-adapter-safe shutdown boundary before exiting, so Eliza plugin services stop
-and PGLite closes cleanly; Electron retains a bounded force-kill fallback for
-a wedged child. Closing the last window does the same by default;
-when the operator has enabled background mode, the main process and runtime
-remain available from the tray. A failed boot stays visible and retryable; the
-renderer never waits on an indefinite loading skeleton.
+Quitting shuts down the lead runtime and every owned bot worker. Owned chat/ACP
+execution and Computer resources are cancelled through the host shutdown
+boundary before process termination; services and databases close through the
+runtime's idempotent shutdown path, with a bounded force-kill fallback. Closing
+the last window does the same unless background mode is enabled. Worker
+failures remain visible and recoverable rather than being reported as idle
+or complete.
 
 ## Workspace checkpoints
 

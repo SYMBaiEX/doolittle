@@ -1,5 +1,6 @@
 import type {
   BotCatalogResponse,
+  BotTeamCatalogResponse,
   SharedKnowledgeResponse,
 } from "@doolittle/contracts/bots";
 import { Button, NativeSelect, StateSurface } from "@doolittle/ui";
@@ -15,6 +16,10 @@ export function ProjectKnowledgePanel({ active }: { active: boolean }) {
   const catalog = useApiResource<BotCatalogResponse>(active ? "/bots" : null, [
     active,
   ]);
+  const teams = useApiResource<BotTeamCatalogResponse>(
+    active ? "/bots/teams" : null,
+    [active],
+  );
   const [targets, setTargets] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState("");
   const [feedback, setFeedback] = useState<{
@@ -23,11 +28,15 @@ export function ProjectKnowledgePanel({ active }: { active: boolean }) {
   }>({});
   useEffect(() => {
     if (!active) return;
-    const reload = () => knowledge.reload();
+    const reload = () => {
+      knowledge.reload();
+      teams.reload();
+      catalog.reload();
+    };
     window.addEventListener("doolittle:knowledge-changed", reload);
     return () =>
       window.removeEventListener("doolittle:knowledge-changed", reload);
-  }, [active, knowledge.reload]);
+  }, [active, knowledge.reload, teams.reload, catalog.reload]);
   const change = async (
     id: string,
     action: "grant" | "revoke",
@@ -58,10 +67,10 @@ export function ProjectKnowledgePanel({ active }: { active: boolean }) {
   const records = knowledge.data?.knowledge ?? [];
   const bots = catalog.data?.bots ?? [];
   return (
-    <section className="grid gap-4" aria-label="Project knowledge">
+    <section className="grid gap-4" aria-label="Shared knowledge">
       <header className="flex items-start justify-between gap-3">
         <div>
-          <h2>Project knowledge</h2>
+          <h2>Shared knowledge</h2>
           <p className="text-sm text-[var(--muted)]">
             Promote a completed conversation message, then explicitly grant
             access. Private bot history stays private.
@@ -73,6 +82,7 @@ export function ProjectKnowledgePanel({ active }: { active: boolean }) {
           onClick={() => {
             knowledge.reload();
             catalog.reload();
+            teams.reload();
           }}
         >
           Refresh knowledge
@@ -93,24 +103,46 @@ export function ProjectKnowledgePanel({ active }: { active: boolean }) {
           {knowledge.error || catalog.error}
         </StateSurface>
       ) : null}
+      {teams.error ? (
+        <StateSurface kind="error" title="Teams are unavailable">
+          {teams.error} Team grants are disabled until membership can be
+          verified.
+        </StateSurface>
+      ) : null}
       {knowledge.loading && !knowledge.data ? (
-        <StateSurface kind="loading" title="Loading project knowledge" />
+        <StateSurface kind="loading" title="Loading shared knowledge" />
       ) : null}
       {!knowledge.loading && !knowledge.error && records.length === 0 ? (
         <StateSurface kind="empty" title="Nothing shared yet">
-          Use a message's bookmark action in a project conversation. Promotion
-          does not automatically share it.
+          Use a completed message's bookmark action to choose its project or
+          team. Promotion does not automatically share it.
         </StateSurface>
       ) : null}
       <ul className="m-0 list-none p-0 divide-y divide-[var(--line-subtle)]">
         {records.map((record) => {
+          const team = teams.data?.teams.find(
+            (candidate) =>
+              candidate.id === record.scope.id && !candidate.archivedAt,
+          );
+          const sourceBot = bots.find((bot) => bot.id === record.source.botId);
+          const sourceEligible =
+            sourceBot &&
+            !sourceBot.archivedAt &&
+            (record.scope.kind === "team"
+              ? team?.memberBotIds.includes(sourceBot.id)
+              : sourceBot.projectId === record.scope.id);
           const eligible = bots.filter(
             (bot) =>
+              sourceEligible &&
               !bot.archivedAt &&
               bot.id !== record.source.botId &&
-              bot.projectId === record.scope.id,
+              (record.scope.kind === "team"
+                ? team?.memberBotIds.includes(bot.id)
+                : bot.projectId === record.scope.id),
           );
-          const selected = targets[record.id] ?? eligible[0]?.id ?? "";
+          const selected = eligible.some((bot) => bot.id === targets[record.id])
+            ? targets[record.id]
+            : (eligible[0]?.id ?? "");
           const grants =
             knowledge.data?.grants.filter(
               (grant) => grant.knowledgeId === record.id && !grant.revokedAt,
@@ -123,10 +155,19 @@ export function ProjectKnowledgePanel({ active }: { active: boolean }) {
               <div>
                 <h3 className="text-base font-medium">{record.title}</h3>
                 <p className="text-sm text-[var(--muted)]">
-                  From {sourceName} · {record.scope.kind} {record.scope.id} ·{" "}
-                  {record.revokedAt ? "Revoked" : "Privately promoted"}
+                  From {sourceName} · {record.scope.kind}{" "}
+                  {record.scope.kind === "team"
+                    ? (team?.name ?? "Archived or unavailable team")
+                    : record.scope.id}{" "}
+                  · {record.revokedAt ? "Revoked" : "Privately promoted"}
                 </p>
               </div>
+              {record.integrity ? (
+                <StateSurface kind="error" title="Re-promote the exact source">
+                  {record.integrity.message} Existing access cannot disclose
+                  this ambiguous finding.
+                </StateSurface>
+              ) : null}
               {!record.revokedAt ? (
                 <>
                   {grants.length ? (
@@ -140,6 +181,9 @@ export function ProjectKnowledgePanel({ active }: { active: boolean }) {
                             Shared with{" "}
                             {bots.find((bot) => bot.id === grant.botId)?.name ??
                               "Archived bot"}
+                            {!eligible.some((bot) => bot.id === grant.botId)
+                              ? " · Membership inactive"
+                              : ""}
                           </span>
                           <Button
                             variant="ghost"
@@ -162,7 +206,11 @@ export function ProjectKnowledgePanel({ active }: { active: boolean }) {
                     <NativeSelect
                       aria-label={`Share ${record.title} with bot`}
                       value={selected}
-                      disabled={!eligible.length || Boolean(busy)}
+                      disabled={
+                        !eligible.length ||
+                        Boolean(busy) ||
+                        Boolean(record.integrity)
+                      }
                       onChange={(event) =>
                         setTargets((current) => ({
                           ...current,
@@ -171,7 +219,9 @@ export function ProjectKnowledgePanel({ active }: { active: boolean }) {
                       }
                     >
                       {!eligible.length ? (
-                        <option value="">No other bots in this project</option>
+                        <option value="">
+                          No eligible bots in this {record.scope.kind}
+                        </option>
                       ) : (
                         eligible.map((bot) => (
                           <option key={bot.id} value={bot.id}>
@@ -184,6 +234,7 @@ export function ProjectKnowledgePanel({ active }: { active: boolean }) {
                       disabled={
                         !selected ||
                         Boolean(busy) ||
+                        Boolean(record.integrity) ||
                         grants.some((grant) => grant.botId === selected)
                       }
                       onClick={() => void change(record.id, "grant", selected)}

@@ -36,7 +36,7 @@ const MEMORY_SECTIONS: Array<{
   {
     detail: "Explicitly promoted findings and per-bot access",
     id: "project",
-    label: "Project knowledge",
+    label: "Shared knowledge",
     refreshLabel: "knowledge",
   },
   {

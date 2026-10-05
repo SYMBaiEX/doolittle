@@ -54,7 +54,20 @@ export async function promoteProjectMessage(input: {
   projectId: string;
   message: DisplayMessage;
 }): Promise<SharedKnowledgeRecord> {
-  const { sourceBotId, sessionId, projectId, message } = input;
+  return promoteKnowledgeMessage({
+    ...input,
+    scope: { kind: "project", id: input.projectId },
+  });
+}
+
+export async function promoteKnowledgeMessage(input: {
+  sourceBotId: string;
+  sessionId: string;
+  scope: { kind: "project" | "team"; id: string };
+  message: DisplayMessage;
+}): Promise<SharedKnowledgeRecord> {
+  const { sourceBotId, sessionId, scope, message } = input;
+  if (!scope.id) throw new Error("Choose a project or team for this finding.");
   if (!message.runId) throw new Error("This message has no saved run.");
   const boundary = await desktopRequest<TranscriptBoundary>(
     `/sessions/messages?sessionId=${encodeURIComponent(sessionId)}&throughRunId=${encodeURIComponent(message.runId)}&limit=500`,
@@ -75,7 +88,9 @@ export async function promoteProjectMessage(input: {
     {
       sourceBotId,
       sessionId,
-      projectId,
+      ...(scope.kind === "team"
+        ? { teamId: scope.id }
+        : { projectId: scope.id }),
       runId: message.runId,
       messageId,
       title:

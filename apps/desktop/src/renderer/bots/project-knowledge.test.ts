@@ -1,7 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import type { DisplayMessage } from "../chat/models";
 import { desktopRequest } from "../eliza-client";
-import { promoteProjectMessage, promotionMessageId } from "./project-knowledge";
+import {
+  promoteKnowledgeMessage,
+  promoteProjectMessage,
+  promotionMessageId,
+} from "./project-knowledge";
 
 vi.mock("../eliza-client", () => ({ desktopRequest: vi.fn() }));
 const message = {
@@ -75,5 +79,27 @@ describe("exact project knowledge promotion", () => {
         consent: true,
       }),
     );
+  });
+  it("submits exactly one explicit team scope with captured source ownership", async () => {
+    vi.mocked(desktopRequest)
+      .mockReset()
+      .mockResolvedValueOnce(boundary)
+      .mockResolvedValueOnce({ knowledge: { id: "team-finding" } });
+    await promoteKnowledgeMessage({
+      sourceBotId: "source",
+      sessionId: "conversation",
+      scope: { kind: "team", id: "team" },
+      message,
+    });
+    const body = vi.mocked(desktopRequest).mock.calls[1][2];
+    expect(body).toEqual(
+      expect.objectContaining({
+        sourceBotId: "source",
+        sessionId: "conversation",
+        teamId: "team",
+        consent: true,
+      }),
+    );
+    expect(body).not.toHaveProperty("projectId");
   });
 });

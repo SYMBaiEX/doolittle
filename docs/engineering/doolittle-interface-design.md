@@ -38,6 +38,33 @@ outside replaceable presentation. Running, Waiting, Attention, Complete, Stopped
 Error and Offline are execution facts, never guesses based on visibility. A
 presentation switch does not resend, cancel or complete a run.
 
+## Persistent bots and knowledge
+
+Bot contacts represent persistent workers, not cosmetic personalities. The
+authoritative catalog stores stable IDs, personas, model routes, approved
+connection references, workspace permissions and archive state. Sessions,
+runs, approvals, artifacts and Computer resources retain immutable ownership.
+The lead identity and existing conversations are adopted in place.
+
+Specialist consultation uses bounded durable chat dispatch with visible
+attribution, cycle checks and execution admission. Private history remains
+private. Only explicitly promoted, provenance-bearing results enter shared
+project/team knowledge through the broker-only official DocumentService worker.
+Retrieval requires a current grant and current membership; revocation blocks
+future retrieval but cannot erase information already delivered to a model.
+
+Team membership is an explicit, revisioned host-owned catalog, not an inference
+from projects. Manage teams in Team & work → Agents. A completed message's
+bookmark action chooses its project or team; Memory → Shared knowledge manages
+separate recipient grants. Team sharing may cross projects only for current
+members. Ambiguous legacy document identities remain visible and fail closed;
+re-promote the exact source rather than guessing or deleting old provenance.
+
+Named-bot scheduling and application-owned external connector dispatch require
+their own implementation and acceptance evidence. Default-runtime automation
+must not be described as independently owned bot automation. Approved model
+account references are not a claim of access to Gmail, Calendar or other apps.
+
 ## Reusable package and themes
 
 Private `@doolittle/ui` owns controlled browser-safe controls and compositions.
@@ -51,6 +78,10 @@ Existing v1 themes migrate without resetting saved preferences. Layout presets
 change composition, not runtime permissions or execution ownership.
 
 ## Optional interfaces
+
+UI plugin manifest v1 declares compatibility, exact artifact identity,
+registered contributions and requested capabilities. Installation and access
+management remain native host responsibilities.
 
 `UiHostV1` exposes revisioned snapshots, sequenced subscriptions, explicit owned
 targets and stable submission IDs. Trusted prebuilt React entries export

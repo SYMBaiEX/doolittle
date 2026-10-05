@@ -52,6 +52,11 @@ const AutomationsPage = lazy(() =>
 const GatewayPage = lazy(() =>
   import("./GatewayPage").then((module) => ({ default: module.GatewayPage })),
 );
+const TeamManagementPanel = lazy(() =>
+  import("./bots/TeamManagementPanel").then((module) => ({
+    default: module.TeamManagementPanel,
+  })),
+);
 
 export type WorkTabId =
   | "tasks"
@@ -936,13 +941,18 @@ export function OrchestrationPage({
           />
         ) : null}
         {activeTab === "agents" ? (
-          <AgentRosterPanel
-            workersResource={workersResource}
-            workers={workers}
-            workerOverview={workerOverview}
-            selectedWorker={selectedWorker}
-            onSelectWorker={(worker) => setSelectedWorkerId(worker.id)}
-          />
+          <div className="grid gap-6">
+            <Suspense fallback={<p role="status">Loading bot teams…</p>}>
+              <TeamManagementPanel active={active} />
+            </Suspense>
+            <AgentRosterPanel
+              workersResource={workersResource}
+              workers={workers}
+              workerOverview={workerOverview}
+              selectedWorker={selectedWorker}
+              onSelectWorker={(worker) => setSelectedWorkerId(worker.id)}
+            />
+          </div>
         ) : null}
         {activeTab === "plans" ? (
           <PlanPanel

@@ -10,6 +10,12 @@ const state = vi.hoisted(() => ({
   records: null as SharedKnowledgeResponse | null,
   error: "",
   loading: false,
+  teams: [] as Array<{
+    id: string;
+    name: string;
+    memberBotIds: string[];
+    archivedAt?: string;
+  }>,
   reload: vi.fn(),
 }));
 vi.mock("../lib", () => ({
@@ -31,7 +37,9 @@ vi.mock("../lib", () => ({
               },
             ],
           }
-        : state.records,
+        : path === "/bots/teams"
+          ? { version: 1, revision: 0, teams: state.teams }
+          : state.records,
     error: path === "/bots/knowledge" ? state.error : "",
     loading: state.loading,
     reload: state.reload,
@@ -51,6 +59,7 @@ describe("ProjectKnowledgePanel", () => {
     state.records = { knowledge: [], grants: [] };
     state.error = "";
     state.loading = false;
+    state.teams = [];
     vi.clearAllMocks();
     container = document.createElement("div");
     document.body.append(container);
@@ -128,5 +137,48 @@ describe("ProjectKnowledgePanel", () => {
     expect(container.textContent).toContain("Revoked");
     expect(container.querySelector("select")).toBeNull();
     expect(container.textContent).not.toContain("Grant access");
+  });
+  it("uses explicit current team membership, never project membership as a team alias", async () => {
+    state.teams = [
+      { id: "team", name: "Research", memberBotIds: ["source", "outsider"] },
+    ];
+    state.records = {
+      knowledge: [{ ...record, scope: { kind: "team", id: "team" } }],
+      grants: [],
+    };
+    await render();
+    expect(
+      [...container.querySelectorAll("option")].map((option) => option.value),
+    ).toEqual(["outsider"]);
+    expect(container.textContent).toContain("team Research");
+    state.teams[0].memberBotIds = ["outsider"];
+    await render();
+    expect(container.querySelector("select")?.disabled).toBe(true);
+    expect(container.textContent).toContain("No eligible bots in this team");
+  });
+  it("surfaces legacy ambiguous identities and disables all new grants without deleting provenance", async () => {
+    state.records = {
+      knowledge: [
+        {
+          ...record,
+          integrity: {
+            status: "ambiguous-document",
+            message: "Exact source must be re-promoted.",
+          },
+        },
+      ],
+      grants: [],
+    };
+    await render();
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain(
+      "Exact source must be re-promoted",
+    );
+    expect(
+      [...container.querySelectorAll("button")].find(
+        (button) => button.textContent === "Grant access",
+      )?.disabled,
+    ).toBe(true);
+    expect(container.textContent).toContain("From Source");
+    expect(container.textContent).toContain("Revoke finding");
   });
 });

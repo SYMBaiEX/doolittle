@@ -21,7 +21,7 @@ import type {
   SessionForkResponse,
   SessionSummary,
 } from "../shared/contracts";
-import { promoteProjectMessage } from "./bots/project-knowledge";
+import type { KnowledgePromotionSource } from "./bots/KnowledgePromotionDialog";
 import { liveBotIds, loadOwnedRunInventory } from "./bots/run-inventory";
 import { ChatHeaderChrome } from "./chat/ChatHeaderChrome";
 import {
@@ -157,6 +157,10 @@ const ChatComposer = lazy(async () => {
   const module = await import("./chat/ChatComposer");
   return { default: module.ChatComposer };
 });
+const KnowledgePromotionDialog = lazy(async () => ({
+  default: (await import("./bots/KnowledgePromotionDialog"))
+    .KnowledgePromotionDialog,
+}));
 const ChatTranscript = lazy(async () => {
   const module = await import("./chat/ChatTranscript");
   return { default: module.ChatTranscript };
@@ -588,43 +592,18 @@ export function ChatSessionPanel({
   const [promotionFeedback, setPromotionFeedback] = useWorkspaceState<
     Record<string, { busy: boolean; error?: string; message: string }>
   >("knowledge.promotion-feedback", {});
-  const promoteMessage = async (message: DisplayMessage) => {
-    const sessionId = selectedId;
-    const sourceBotId = currentBotId;
-    const projectId =
-      sessions.find((session) => session.sessionId === sessionId)?.projectId ??
-      activeProject?.id;
-    if (!sourceBotId || !projectId || promotionFeedback[sessionId]?.busy)
-      return;
-    setPromotionFeedback((current) => ({
-      ...current,
-      [sessionId]: {
-        busy: true,
-        message: "Saving selected project knowledge…",
-      },
-    }));
-    try {
-      await promoteProjectMessage({
-        sourceBotId,
-        sessionId,
-        projectId,
-        message,
-      });
-      setPromotionFeedback((current) => ({
-        ...current,
-        [sessionId]: {
-          busy: false,
-          message:
-            "Saved privately. Grant access in Memory → Project knowledge to share it with a bot.",
-        },
-      }));
-      window.dispatchEvent(new Event("doolittle:knowledge-changed"));
-    } catch (cause) {
-      setPromotionFeedback((current) => ({
-        ...current,
-        [sessionId]: { busy: false, error: errorMessage(cause), message: "" },
-      }));
-    }
+  const [promotionSource, setPromotionSource] =
+    useState<KnowledgePromotionSource>();
+  const promoteMessage = (message: DisplayMessage) => {
+    if (!currentBotId) return;
+    setPromotionSource({
+      botId: currentBotId,
+      sessionId: selectedId,
+      projectId: sessions.find((session) => session.sessionId === selectedId)
+        ?.projectId,
+      message: { ...message },
+      returnFocusTarget: document.activeElement as HTMLElement | null,
+    });
   };
   const [routeDialogOpen, setRouteDialogOpen] = useState(false);
   const [attachmentValidationError, setAttachmentValidationError] =
@@ -2117,11 +2096,7 @@ export function ChatSessionPanel({
             )
           }
           onRead={readMessage}
-          onPromote={
-            currentBotId && (selectedSession?.projectId ?? activeProject?.id)
-              ? (message) => void promoteMessage(message)
-              : undefined
-          }
+          onPromote={currentBotId ? promoteMessage : undefined}
           onRetryHistory={() => retryHistory(selectedId)}
           onRetryMessage={(message) => void branchMessage(message, "retry")}
           onLoadEarlier={() => loadEarlierHistory(selectedId)}
@@ -2437,6 +2412,25 @@ export function ChatSessionPanel({
         refreshRuntime={refreshRuntime}
         runtime={runtime}
       />
+      {promotionSource && visible && focused ? (
+        <Suspense fallback={<p role="status">Opening sharing controls…</p>}>
+          <KnowledgePromotionDialog
+            source={promotionSource}
+            onClose={() => setPromotionSource(undefined)}
+            onSaved={(sessionId) => {
+              setPromotionFeedback((current) => ({
+                ...current,
+                [sessionId]: {
+                  busy: false,
+                  message:
+                    "Saved privately. Grant access in Memory → Shared knowledge to share it with a bot.",
+                },
+              }));
+              window.dispatchEvent(new Event("doolittle:knowledge-changed"));
+            }}
+          />
+        </Suspense>
+      ) : null}
     </div>
   );
 }
