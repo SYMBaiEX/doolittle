@@ -6,6 +6,7 @@ import {
   executeTriggerTask,
   listTriggerTasks,
   readTriggerConfig,
+  registerTriggerTaskWorker,
   TRIGGER_TASK_NAME,
   TRIGGER_TASK_TAGS,
 } from "@elizaos/agent/triggers/runtime";
@@ -21,6 +22,7 @@ import {
   type IAgentRuntime,
   type Service,
   type ServiceClass,
+  ServiceType,
   type Task,
   type UUID,
 } from "@elizaos/core";
@@ -668,6 +670,18 @@ export function createTriggerRuntimeServices(
       }
     }
     static async start(runtime: IAgentRuntime): Promise<Service> {
+      // The aggregate-safe foundation deliberately omits the full Eliza plugin
+      // init hook. Restore only its official trigger worker, once on the lead.
+      if (!runtime.getTaskWorker(TRIGGER_TASK_NAME)) {
+        registerTriggerTaskWorker(runtime);
+        const tasks = runtime.getService(ServiceType.TASK);
+        if (
+          tasks &&
+          "markDirty" in tasks &&
+          typeof tasks.markDirty === "function"
+        )
+          tasks.markDirty();
+      }
       return new TriggerRuntimeService(runtime);
     }
     async list() {

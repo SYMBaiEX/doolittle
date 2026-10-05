@@ -1,7 +1,252 @@
 diff --git a/dist/node/index.node.js b/dist/node/index.node.js
 --- a/dist/node/index.node.js
 +++ b/dist/node/index.node.js
-@@ -238338,6 +238338,9 @@
+@@ -176183,69 +176183,91 @@ var promptRunnerTaskWorker = {
+     const composed = PROMPT_RUNNER_SYSTEM_PROMPT.replace("{{prompt}}", prompt);
+     await runtime2.useModel(ModelType.TEXT_LARGE, { prompt: composed });
+     return;
+   }
+ };
+ 
+ // src/services/task.ts
+ init_service();
+ 
+ // src/services/task-scheduler.ts
+ init_logger2();
+ var registry = new Map;
+ var dirtyAgents = new Set;
+ var timer = null;
+ var adapter = null;
+ var TICK_INTERVAL_MS = 1000;
++var taskSchedulerTickInFlight = false;
++var taskSchedulerExecutingAgents = new Set;
+ async function tick() {
+-  const snapshot = Array.from(dirtyAgents);
+-  dirtyAgents.clear();
++  const dueAgents = new Set(Array.from(dirtyAgents).filter((agentIdKey) => !taskSchedulerExecutingAgents.has(agentIdKey)));
++  for (const agentIdKey of dueAgents) dirtyAgents.delete(agentIdKey);
++  for (const [agentIdKey, entry] of registry) {
++    if (!taskSchedulerExecutingAgents.has(agentIdKey) && Date.now() >= entry.taskService.nextScheduledCheckAt) dueAgents.add(agentIdKey);
++  }
++  const snapshot = Array.from(dueAgents);
++  for (const agentIdKey of snapshot) {
++    const entry = registry.get(agentIdKey);
++    if (entry) entry.taskService.nextScheduledCheckAt = Infinity;
++  }
+   if (snapshot.length === 0)
+     return;
+   const adp = adapter;
+   if (!adp)
+     return;
+   const agentIds = snapshot;
+-  const allTasks = await adp.getTasks({
++  let allTasks;
++  try {
++  allTasks = await adp.getTasks({
+     tags: ["queue"],
+     agentIds
+   });
++  } catch (error) {
++    for (const agentIdKey of snapshot) dirtyAgents.add(agentIdKey);
++    throw error;
++  }
+   const byAgent = new Map;
+   for (const task2 of allTasks) {
+     const aid = task2.agentId != null ? String(task2.agentId) : "";
+     if (!aid)
+       continue;
+     const list = byAgent.get(aid) ?? [];
+     list.push(task2);
+     byAgent.set(aid, list);
+   }
+   for (const [agentIdKey, tasks] of byAgent) {
++    if (!dueAgents.has(agentIdKey) || taskSchedulerExecutingAgents.has(agentIdKey)) continue;
+     const entry = registry.get(agentIdKey);
+     if (!entry)
+       continue;
+-    try {
+-      await entry.taskService.runTick(tasks);
+-    } catch (_) {}
++    taskSchedulerExecutingAgents.add(agentIdKey);
++    entry.taskService.runTick(tasks).catch(() => {
++      dirtyAgents.add(agentIdKey);
++    }).finally(() => taskSchedulerExecutingAgents.delete(agentIdKey));
+   }
+ }
+ function startTaskScheduler(adapterInstance) {
+   adapter = adapterInstance;
+   if (timer)
+     return;
+   timer = setInterval(() => {
+-    tick().catch((err) => logger.error({ err }, "[TaskScheduler] tick failed"));
++    if (taskSchedulerTickInFlight) return;
++    taskSchedulerTickInFlight = true;
++    tick().catch((err) => logger.error({ err }, "[TaskScheduler] tick failed")).finally(() => {
++      taskSchedulerTickInFlight = false;
++    });
+   }, TICK_INTERVAL_MS);
+ }
+ function stopTaskScheduler() {
+   if (timer) {
+     clearInterval(timer);
+     timer = null;
+   }
+   registry.clear();
+   dirtyAgents.clear();
+   adapter = null;
+ }
+ function registerTaskSchedulerRuntime(runtime2, taskService) {
+   const agentIdKey = String(runtime2.agentId);
+   registry.set(agentIdKey, { runtime: runtime2, taskService });
+   dirtyAgents.add(agentIdKey);
+ }
+@@ -176271,32 +176293,33 @@ function resolveDueTime(task2) {
+   const scheduledAt = task2.metadata?.scheduledAt;
+   if (scheduledAt == null)
+     return null;
+   if (typeof scheduledAt === "number")
+     return scheduledAt;
+   const t = new Date(scheduledAt).getTime();
+   return Number.isNaN(t) ? null : t;
+ }
+ 
+ class TaskService extends Service {
+   timer = null;
+   activeTick = null;
+   TICK_INTERVAL = 1000;
+   executingTasks = new Set;
+   executingTaskPromises = new Set;
+   tasksDirty = true;
++  nextScheduledCheckAt = Infinity;
+   stopped = false;
+   static serviceType = ServiceType.TASK;
+   capabilityDescription = "The agent is able to schedule and execute tasks";
+   static async start(runtime2) {
+     const service2 = new TaskService(runtime2);
+     runtime2.registerTaskWorker({
+       name: "BATCHER_DRAIN",
+       execute: async (rt, options) => {
+         const affinityKey = options.affinityKey;
+         if (!rt.promptBatcher || !affinityKey)
+           return;
+         await rt.promptBatcher.drainAffinityGroup(affinityKey);
+         return;
+       }
+     });
+     runtime2.registerTaskWorker(promptRunnerTaskWorker);
+@@ -176396,83 +176419,95 @@ class TaskService extends Service {
+       }
+       const worker = this.runtime.getTaskWorker(task2.name);
+       if (!worker) {
+         continue;
+       }
+       if (worker.shouldRun) {
+         const shouldRun = await worker.shouldRun(this.runtime, task2);
+         if (!shouldRun) {
+           continue;
+         }
+       }
+       validatedTasks.push(task2);
+     }
+     return validatedTasks;
+   }
+   async checkTasks() {
+-    if (this.stopped || !this.tasksDirty) {
++    if (this.stopped || !this.tasksDirty && Date.now() < this.nextScheduledCheckAt) {
+       return;
+     }
+     this.tasksDirty = false;
++    try {
+     const allTasks = await this.runtime.getTasks({
+       tags: ["queue"],
+       agentIds: [this.runtime.agentId]
+     });
+     if (!allTasks) {
+       return;
+     }
+     if (this.stopped) {
+       return;
+     }
+     await this.runTick(allTasks);
++    } catch (error) {
++      this.tasksDirty = true;
++      throw error;
++    }
+   }
+   async runTick(tasks) {
+     if (this.stopped)
+       return;
+     const validated = await this.validateTasks(tasks);
++    this.nextScheduledCheckAt = Infinity;
+     const now = Date.now();
+     for (const task2 of validated) {
+       if (!task2.tags?.includes("repeat")) {
+         const dueMs = resolveDueTime(task2);
+-        if (dueMs != null && now < dueMs)
++        if (dueMs != null && (!Number.isFinite(dueMs) || dueMs < 0)) continue;
++        if (dueMs != null && now < dueMs) {
++          this.nextScheduledCheckAt = Math.min(this.nextScheduledCheckAt, dueMs);
+           continue;
++        }
+         await this.executeTask(task2);
+         continue;
+       }
+       if (task2.metadata?.paused === true) {
+         continue;
+       }
+       let lastRan;
+       if (task2.metadata?.updatedAt != null && typeof task2.metadata.updatedAt === "number") {
+         lastRan = task2.metadata.updatedAt;
+       } else if (typeof task2.updatedAt === "number") {
+         lastRan = task2.updatedAt;
+       } else if (typeof task2.updatedAt === "bigint") {
+         lastRan = Number(task2.updatedAt);
+       } else if (task2.updatedAt) {
+         lastRan = new Date(String(task2.updatedAt)).getTime();
+       } else {
+         lastRan = 0;
+       }
+       const taskMetadata = task2.metadata;
+       const updateIntervalMs = taskMetadata?.updateInterval ?? 0;
+       const notBeforeMs = taskMetadata?.notBefore ?? 0;
+       const notAfterMs = taskMetadata?.notAfter;
++      if (!Number.isFinite(lastRan) || lastRan < 0 || typeof updateIntervalMs !== "number" || !Number.isFinite(updateIntervalMs) || updateIntervalMs < 0 || typeof notBeforeMs !== "number" || !Number.isFinite(notBeforeMs) || notBeforeMs < 0) continue;
+       const idealNextRun = lastRan + updateIntervalMs;
+       const earliest = idealNextRun - notBeforeMs;
++      if (!Number.isFinite(earliest) || earliest < 0) continue;
+       if (now < earliest) {
++        this.nextScheduledCheckAt = Math.min(this.nextScheduledCheckAt, earliest);
+         continue;
+       }
+       if (notAfterMs != null && typeof notAfterMs === "number" && now > idealNextRun + notAfterMs) {
+         this.runtime.logger.warn({
+           src: "plugin:basic-capabilities:service:task",
+           agentId: this.runtime.agentId,
+           taskName: task2.name,
+           taskId: task2.id,
+           overdueMs: now - (idealNextRun + notAfterMs)
+         }, "Task overdue");
+       }
+       const isBlocking = task2.metadata?.blocking !== false;
+       if (isBlocking && task2.id && this.executingTasks.has(task2.id)) {
+         this.runtime.logger.debug({
+           src: "plugin:basic-capabilities:service:task",
+           agentId: this.runtime.agentId,
+@@ -238324,32 +238359,35 @@ function normalizeVisibleTextForDuplicateCheck(text4) {
+ var MEDIA_CONTENT_URL_RE = /<?\s*https?:\/\/[^\s<>]+\/v1\/(?:videos|images|audio)\/[^\s<>/]+\/content\s*>?/gi;
+ function collectMediaDeliveryUrls(actionResults) {
+   const urls = new Set;
+   for (const result2 of actionResults) {
+     if (!result2.success)
+       continue;
+     const data2 = result2.data;
+     if (!data2 || typeof data2 !== "object")
+       continue;
+     for (const key of [
+       "videoUrl",
+       "mediaUrl",
+       "imageUrl",
+       "audioUrl",
        "url"
      ]) {
 +      // Generic URLs can identify retrieved documents, not delivered media.
@@ -11,10 +256,264 @@ diff --git a/dist/node/index.node.js b/dist/node/index.node.js
        if (typeof value === "string" && value.trim()) {
          urls.add(value.trim());
        }
+     }
+   }
+   return [...urls];
+ }
+ function sanitizeReplyTextAfterMediaDelivery(text4, deliveredUrls) {
+   let cleaned = text4.trim();
+   if (!cleaned)
+     return cleaned;
+   for (const url of deliveredUrls) {
+     const escaped = url.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+     cleaned = cleaned.replace(new RegExp(`<?\\s*${escaped}\\s*>?`, "gi"), "");
+   }
+@@ -250545,87 +250583,93 @@ ${priorOutput}` : ""}`;
+   async getCaches(keys2) {
+     return this.adapter.getCaches(keys2);
+   }
+   async setCaches(entries) {
+     return this.adapter.setCaches(entries);
+   }
+   async deleteCaches(keys2) {
+     return this.adapter.deleteCaches(keys2);
+   }
+   async getTasks(params) {
+     return this.adapter.getTasks({ ...params, agentIds: [this.agentId] });
+   }
+   async getTasksByName(name) {
+     return this.adapter.getTasksByName(name);
+   }
+   _notifyCompanionTasksDirty() {
++    const taskService = this.getService(ServiceType.TASK);
++    if (taskService && typeof taskService.markDirty === "function") taskService.markDirty();
+     if (!this.companionUrl)
+       return;
+     const url = `${this.companionUrl.replace(/\/$/, "")}/task-dirty`;
+     this.fetch(url, {
+       method: "POST",
+       headers: { "Content-Type": "application/json" },
+       body: JSON.stringify({ agentId: this.agentId })
+     }).catch(() => {});
+   }
+   async createTask(task2) {
+     const ids = await this.adapter.createTasks([task2]);
+     this._notifyCompanionTasksDirty();
+     return ids[0];
+   }
+   async getTask(id2) {
+     const tasks = await this.adapter.getTasksByIds([id2]);
+     return tasks[0] ?? null;
+   }
+   async updateTask(id2, task2) {
+     await this.adapter.updateTasks([{ id: id2, task: task2 }]);
+     this._notifyCompanionTasksDirty();
+   }
+   async deleteTask(id2) {
+-    return this.adapter.deleteTasks([id2]);
++    const deleted = await this.adapter.deleteTasks([id2]);
++    this._notifyCompanionTasksDirty();
++    return deleted;
+   }
+   async log(params) {
+     return this.adapter.createLogs([params]);
+   }
+   async deleteLog(logId) {
+     return this.adapter.deleteLogs([logId]);
+   }
+   async getCache(key) {
+     const caches = await this.adapter.getCaches([key]);
+     return caches.get(key);
+   }
+   async setCache(key, value) {
+     return this.adapter.setCaches([{ key, value }]);
+   }
+   async deleteCache(key) {
+     return this.adapter.deleteCaches([key]);
+   }
+   async createTasks(tasks) {
+     const ids = await this.adapter.createTasks(tasks);
+     this._notifyCompanionTasksDirty();
+     return ids;
+   }
+   async getTasksByIds(taskIds) {
+     return this.adapter.getTasksByIds(taskIds);
+   }
+   async updateTasks(updates) {
+     await this.adapter.updateTasks(updates);
+     this._notifyCompanionTasksDirty();
+   }
+   async deleteTasks(taskIds) {
+-    return this.adapter.deleteTasks(taskIds);
++    const deleted = await this.adapter.deleteTasks(taskIds);
++    this._notifyCompanionTasksDirty();
++    return deleted;
+   }
+   async transaction(callback, options) {
+     return this.adapter.transaction(callback, options);
+   }
+   async queryEntities(params) {
+     return this.adapter.queryEntities({
+       ...params,
+       agentId: params.agentId ?? this.agentId
+     });
+   }
+   async getEntitiesByIds(entityIds) {
+     return this.adapter.getEntitiesByIds(entityIds);
+   }
+   async updateEntities(entities) {
+     return this.adapter.updateEntities(entities);
+   }
 diff --git a/dist/browser/index.browser.js b/dist/browser/index.browser.js
 --- a/dist/browser/index.browser.js
 +++ b/dist/browser/index.browser.js
-@@ -168326,6 +168326,9 @@
+@@ -92798,32 +92798,33 @@ function resolveDueTime(task2) {
+   const scheduledAt = task2.metadata?.scheduledAt;
+   if (scheduledAt == null)
+     return null;
+   if (typeof scheduledAt === "number")
+     return scheduledAt;
+   const t = new Date(scheduledAt).getTime();
+   return Number.isNaN(t) ? null : t;
+ }
+ 
+ class TaskService extends Service {
+   timer = null;
+   activeTick = null;
+   TICK_INTERVAL = 1000;
+   executingTasks = new Set;
+   executingTaskPromises = new Set;
+   tasksDirty = true;
++  nextScheduledCheckAt = Infinity;
+   stopped = false;
+   static serviceType = ServiceType.TASK;
+   capabilityDescription = "The agent is able to schedule and execute tasks";
+   static async start(runtime2) {
+     const service2 = new TaskService(runtime2);
+     runtime2.registerTaskWorker({
+       name: "BATCHER_DRAIN",
+       execute: async (rt, options) => {
+         const affinityKey = options.affinityKey;
+         if (!rt.promptBatcher || !affinityKey)
+           return;
+         await rt.promptBatcher.drainAffinityGroup(affinityKey);
+         return;
+       }
+     });
+     runtime2.registerTaskWorker(promptRunnerTaskWorker);
+@@ -92923,83 +92924,95 @@ class TaskService extends Service {
+       }
+       const worker = this.runtime.getTaskWorker(task2.name);
+       if (!worker) {
+         continue;
+       }
+       if (worker.shouldRun) {
+         const shouldRun = await worker.shouldRun(this.runtime, task2);
+         if (!shouldRun) {
+           continue;
+         }
+       }
+       validatedTasks.push(task2);
+     }
+     return validatedTasks;
+   }
+   async checkTasks() {
+-    if (this.stopped || !this.tasksDirty) {
++    if (this.stopped || !this.tasksDirty && Date.now() < this.nextScheduledCheckAt) {
+       return;
+     }
+     this.tasksDirty = false;
++    try {
+     const allTasks = await this.runtime.getTasks({
+       tags: ["queue"],
+       agentIds: [this.runtime.agentId]
+     });
+     if (!allTasks) {
+       return;
+     }
+     if (this.stopped) {
+       return;
+     }
+     await this.runTick(allTasks);
++    } catch (error) {
++      this.tasksDirty = true;
++      throw error;
++    }
+   }
+   async runTick(tasks) {
+     if (this.stopped)
+       return;
+     const validated = await this.validateTasks(tasks);
++    this.nextScheduledCheckAt = Infinity;
+     const now = Date.now();
+     for (const task2 of validated) {
+       if (!task2.tags?.includes("repeat")) {
+         const dueMs = resolveDueTime(task2);
+-        if (dueMs != null && now < dueMs)
++        if (dueMs != null && (!Number.isFinite(dueMs) || dueMs < 0)) continue;
++        if (dueMs != null && now < dueMs) {
++          this.nextScheduledCheckAt = Math.min(this.nextScheduledCheckAt, dueMs);
+           continue;
++        }
+         await this.executeTask(task2);
+         continue;
+       }
+       if (task2.metadata?.paused === true) {
+         continue;
+       }
+       let lastRan;
+       if (task2.metadata?.updatedAt != null && typeof task2.metadata.updatedAt === "number") {
+         lastRan = task2.metadata.updatedAt;
+       } else if (typeof task2.updatedAt === "number") {
+         lastRan = task2.updatedAt;
+       } else if (typeof task2.updatedAt === "bigint") {
+         lastRan = Number(task2.updatedAt);
+       } else if (task2.updatedAt) {
+         lastRan = new Date(String(task2.updatedAt)).getTime();
+       } else {
+         lastRan = 0;
+       }
+       const taskMetadata = task2.metadata;
+       const updateIntervalMs = taskMetadata?.updateInterval ?? 0;
+       const notBeforeMs = taskMetadata?.notBefore ?? 0;
+       const notAfterMs = taskMetadata?.notAfter;
++      if (!Number.isFinite(lastRan) || lastRan < 0 || typeof updateIntervalMs !== "number" || !Number.isFinite(updateIntervalMs) || updateIntervalMs < 0 || typeof notBeforeMs !== "number" || !Number.isFinite(notBeforeMs) || notBeforeMs < 0) continue;
+       const idealNextRun = lastRan + updateIntervalMs;
+       const earliest = idealNextRun - notBeforeMs;
++      if (!Number.isFinite(earliest) || earliest < 0) continue;
+       if (now < earliest) {
++        this.nextScheduledCheckAt = Math.min(this.nextScheduledCheckAt, earliest);
+         continue;
+       }
+       if (notAfterMs != null && typeof notAfterMs === "number" && now > idealNextRun + notAfterMs) {
+         this.runtime.logger.warn({
+           src: "plugin:basic-capabilities:service:task",
+           agentId: this.runtime.agentId,
+           taskName: task2.name,
+           taskId: task2.id,
+           overdueMs: now - (idealNextRun + notAfterMs)
+         }, "Task overdue");
+       }
+       const isBlocking = task2.metadata?.blocking !== false;
+       if (isBlocking && task2.id && this.executingTasks.has(task2.id)) {
+         this.runtime.logger.debug({
+           src: "plugin:basic-capabilities:service:task",
+           agentId: this.runtime.agentId,
+@@ -168312,32 +168325,35 @@ function normalizeVisibleTextForDuplicateCheck(text3) {
+ var MEDIA_CONTENT_URL_RE = /<?\s*https?:\/\/[^\s<>]+\/v1\/(?:videos|images|audio)\/[^\s<>/]+\/content\s*>?/gi;
+ function collectMediaDeliveryUrls(actionResults) {
+   const urls = new Set;
+   for (const result2 of actionResults) {
+     if (!result2.success)
+       continue;
+     const data2 = result2.data;
+     if (!data2 || typeof data2 !== "object")
+       continue;
+     for (const key of [
+       "videoUrl",
+       "mediaUrl",
+       "imageUrl",
+       "audioUrl",
        "url"
      ]) {
 +      // Generic URLs can identify retrieved documents, not delivered media.
@@ -24,3 +523,111 @@ diff --git a/dist/browser/index.browser.js b/dist/browser/index.browser.js
        if (typeof value === "string" && value.trim()) {
          urls.add(value.trim());
        }
+     }
+   }
+   return [...urls];
+ }
+ function sanitizeReplyTextAfterMediaDelivery(text3, deliveredUrls) {
+   let cleaned = text3.trim();
+   if (!cleaned)
+     return cleaned;
+   for (const url2 of deliveredUrls) {
+     const escaped = url2.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+     cleaned = cleaned.replace(new RegExp(`<?\\s*${escaped}\\s*>?`, "gi"), "");
+   }
+@@ -180533,87 +180549,93 @@ ${priorOutput}` : ""}`;
+   async getCaches(keys2) {
+     return this.adapter.getCaches(keys2);
+   }
+   async setCaches(entries) {
+     return this.adapter.setCaches(entries);
+   }
+   async deleteCaches(keys2) {
+     return this.adapter.deleteCaches(keys2);
+   }
+   async getTasks(params) {
+     return this.adapter.getTasks({ ...params, agentIds: [this.agentId] });
+   }
+   async getTasksByName(name) {
+     return this.adapter.getTasksByName(name);
+   }
+   _notifyCompanionTasksDirty() {
++    const taskService = this.getService(ServiceType.TASK);
++    if (taskService && typeof taskService.markDirty === "function") taskService.markDirty();
+     if (!this.companionUrl)
+       return;
+     const url2 = `${this.companionUrl.replace(/\/$/, "")}/task-dirty`;
+     this.fetch(url2, {
+       method: "POST",
+       headers: { "Content-Type": "application/json" },
+       body: JSON.stringify({ agentId: this.agentId })
+     }).catch(() => {});
+   }
+   async createTask(task2) {
+     const ids = await this.adapter.createTasks([task2]);
+     this._notifyCompanionTasksDirty();
+     return ids[0];
+   }
+   async getTask(id) {
+     const tasks = await this.adapter.getTasksByIds([id]);
+     return tasks[0] ?? null;
+   }
+   async updateTask(id, task2) {
+     await this.adapter.updateTasks([{ id, task: task2 }]);
+     this._notifyCompanionTasksDirty();
+   }
+   async deleteTask(id) {
+-    return this.adapter.deleteTasks([id]);
++    const deleted = await this.adapter.deleteTasks([id]);
++    this._notifyCompanionTasksDirty();
++    return deleted;
+   }
+   async log(params) {
+     return this.adapter.createLogs([params]);
+   }
+   async deleteLog(logId) {
+     return this.adapter.deleteLogs([logId]);
+   }
+   async getCache(key) {
+     const caches = await this.adapter.getCaches([key]);
+     return caches.get(key);
+   }
+   async setCache(key, value) {
+     return this.adapter.setCaches([{ key, value }]);
+   }
+   async deleteCache(key) {
+     return this.adapter.deleteCaches([key]);
+   }
+   async createTasks(tasks) {
+     const ids = await this.adapter.createTasks(tasks);
+     this._notifyCompanionTasksDirty();
+     return ids;
+   }
+   async getTasksByIds(taskIds) {
+     return this.adapter.getTasksByIds(taskIds);
+   }
+   async updateTasks(updates) {
+     await this.adapter.updateTasks(updates);
+     this._notifyCompanionTasksDirty();
+   }
+   async deleteTasks(taskIds) {
+-    return this.adapter.deleteTasks(taskIds);
++    const deleted = await this.adapter.deleteTasks(taskIds);
++    this._notifyCompanionTasksDirty();
++    return deleted;
+   }
+   async transaction(callback, options) {
+     return this.adapter.transaction(callback, options);
+   }
+   async queryEntities(params) {
+     return this.adapter.queryEntities({
+       ...params,
+       agentId: params.agentId ?? this.agentId
+     });
+   }
+   async getEntitiesByIds(entityIds) {
+     return this.adapter.getEntitiesByIds(entityIds);
+   }
+   async updateEntities(entities) {
+     return this.adapter.updateEntities(entities);
+   }

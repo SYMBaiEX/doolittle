@@ -22,6 +22,10 @@ function createHarness(
 ) {
   const tasks = new Map<string, Task>();
   const services = new Map<string, unknown>();
+  const workers = new Map<string, unknown>();
+  const registerTaskWorker = vi.fn((worker: { name: string }) => {
+    workers.set(worker.name, worker);
+  });
   const runtime = {
     agentId: "00000000-0000-4000-8000-000000000001",
     createTask: async (task: Task) => {
@@ -40,6 +44,8 @@ function createHarness(
       tasks.delete(String(id));
     },
     getService: (name: string) => services.get(name) ?? null,
+    getTaskWorker: (name: string) => workers.get(name),
+    registerTaskWorker,
     logger: {
       info: () => undefined,
       warn: () => undefined,
@@ -55,10 +61,25 @@ function createHarness(
     if (!service) throw new Error(`Missing service class: ${type}`);
     return service;
   };
-  return { runtime, serviceClass, services, tasks };
+  return {
+    runtime,
+    serviceClass,
+    services,
+    tasks,
+    workers,
+    registerTaskWorker,
+  };
 }
 
 describe("Eliza product trigger runtime adapter", () => {
+  it("restores the official task worker omitted by aggregate-safe foundation init without double registration", async () => {
+    const harness = createHarness();
+    const cls = harness.serviceClass(DOOLITTLE_AUTOMATION_SERVICE);
+    await cls.start(harness.runtime);
+    await cls.start(harness.runtime);
+    expect(harness.workers.has("TRIGGER_DISPATCH")).toBe(true);
+    expect(harness.registerTaskWorker).toHaveBeenCalledTimes(1);
+  });
   it("seeds the first scheduled SDK fire and retains its official third argument", async () => {
     const executor = vi.fn<AutomationExecutor>(async () => "done");
     const harness = createHarness(executor);
