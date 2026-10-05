@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 
+import type { BotSummary } from "@doolittle/contracts/bots";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -7,8 +8,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AutomationDraft } from "./automation-model";
 import { AutomationBuilder } from "./automations/AutomationBuilder";
 
-const { useApiResourceMock } = vi.hoisted(() => ({
+const { useApiResourceMock, desktopRequestMock } = vi.hoisted(() => ({
   useApiResourceMock: vi.fn(),
+  desktopRequestMock: vi.fn(),
 }));
 
 vi.mock("./lib", async () => {
@@ -16,6 +18,7 @@ vi.mock("./lib", async () => {
   return {
     ...actual,
     useApiResource: useApiResourceMock,
+    desktopRequest: desktopRequestMock,
   };
 });
 
@@ -80,6 +83,29 @@ describe("AutomationDeleteConfirmation", () => {
 });
 
 describe("AutomationBuilder", () => {
+  it("shows real named targets, hides archived contacts, and disables unsupported webhook controls", () => {
+    const targetBotId = "00000000-0000-4000-8000-000000000001";
+    const markup = renderToStaticMarkup(
+      <AutomationBuilder
+        busy={false}
+        draft={{ ...baseDraft, targetBotId }}
+        bots={
+          [
+            { id: targetBotId, name: "Research" },
+            { id: "archived", name: "Archived", archivedAt: "now" },
+          ] as BotSummary[]
+        }
+        onSubmit={vi.fn()}
+        onUpdate={vi.fn()}
+      />,
+    );
+    expect(markup).toContain("Research");
+    expect(markup).not.toContain("Archived");
+    expect(markup).toContain("native confirmation");
+    expect(markup).toContain("Target ownership cannot be changed");
+    expect(markup.match(/disabled=""/gu)).toHaveLength(2);
+    expect(markup).toContain('id="automation-target-bot"');
+  });
   it("keeps schedule fields compact while still exposing inline guidance", () => {
     const markup = renderToStaticMarkup(
       <AutomationBuilder
@@ -138,6 +164,35 @@ describe("AutomationsPage", () => {
     document.body.append(container);
     root = createRoot(container);
     useApiResourceMock.mockReset();
+    desktopRequestMock.mockReset();
+  });
+
+  it("reports the returned run outcome instead of assuming a trigger means completion", async () => {
+    useApiResourceMock.mockImplementation((path: string | null) =>
+      path === "/cron/jobs"
+        ? buildResource({
+            jobs: [
+              { id: "job", name: "Research", status: "active", prompt: "Work" },
+            ],
+          })
+        : buildResource(null),
+    );
+    desktopRequestMock.mockResolvedValue({ run: { status: "failed" } });
+    await act(async () => root.render(<AutomationsPage active />));
+    await act(async () =>
+      [...container.querySelectorAll("button")]
+        .find((button) => button.textContent === "Run now")
+        ?.click(),
+    );
+    expect(desktopRequestMock).toHaveBeenCalledWith(
+      "/cron/jobs/job/trigger",
+      "POST",
+      {},
+    );
+    expect(container.textContent).toContain(
+      "Automation failed. Review its trace.",
+    );
+    expect(container.textContent).not.toContain("Automation completed");
   });
 
   afterEach(() => {

@@ -1,6 +1,5 @@
-import { Button } from "@elizaos/ui/components/ui/button";
-import { Input } from "@elizaos/ui/components/ui/input";
-import { Textarea } from "@elizaos/ui/components/ui/textarea";
+import type { BotSummary } from "@doolittle/contracts/bots";
+import { Button, Input, NativeSelect, Textarea } from "@doolittle/ui";
 import type { FormEvent } from "react";
 import type {
   AutomationActionChoice,
@@ -27,11 +26,13 @@ function ChoiceButtons({
   selected,
   onSelect,
   label,
+  disabled = [],
 }: {
   choices: Array<[string, string]>;
   selected: string;
   onSelect(value: string): void;
   label: string;
+  disabled?: readonly string[];
 }) {
   return (
     <fieldset className="automation-choice-fieldset m-0 border-0 p-0">
@@ -39,6 +40,7 @@ function ChoiceButtons({
       <div className={AUTOMATION_CHOICE_GRID_CLASS}>
         {choices.map(([value, label]) => (
           <button
+            disabled={disabled.includes(value)}
             aria-pressed={selected === value}
             className={`${AUTOMATION_CHOICE_BUTTON_CLASS} ${selected === value ? AUTOMATION_CHOICE_SELECTED_CLASS : ""}`}
             key={value}
@@ -58,8 +60,12 @@ export function AutomationBuilder({
   draft,
   onSubmit,
   onUpdate,
+  bots = [],
+  botsError,
 }: {
   busy: boolean;
+  bots?: readonly BotSummary[];
+  botsError?: string | null;
   draft: AutomationDraft;
   onSubmit(event: FormEvent): void;
   onUpdate<Key extends keyof AutomationDraft>(
@@ -67,6 +73,15 @@ export function AutomationBuilder({
     value: AutomationDraft[Key],
   ): void;
 }) {
+  const namedTarget = Boolean(
+    draft.targetBotId && draft.targetBotId !== "default",
+  );
+  const targetAvailable =
+    !namedTarget ||
+    bots.some(
+      (bot) =>
+        bot.id === draft.targetBotId && !bot.archivedAt && !bot.isDefault,
+    );
   const triggerHelp =
     draft.triggerType === "schedule"
       ? "Runs on a 5-field cron or interval such as every 30m."
@@ -105,6 +120,43 @@ export function AutomationBuilder({
         </label>
       </div>
 
+      <div className="grid gap-2 px-4 pb-4">
+        <label className="grid gap-2 text-sm" htmlFor="automation-target-bot">
+          Run as
+          <NativeSelect
+            id="automation-target-bot"
+            value={draft.targetBotId || "default"}
+            disabled={busy}
+            onChange={(event) => onUpdate("targetBotId", event.target.value)}
+          >
+            <option value="default">
+              {bots.find((bot) => bot.isDefault)?.name ?? "Doolittle"}
+            </option>
+            {bots
+              .filter((bot) => !bot.isDefault && !bot.archivedAt)
+              .map((bot) => (
+                <option key={bot.id} value={bot.id}>
+                  {bot.name}
+                </option>
+              ))}
+          </NativeSelect>
+        </label>
+        {botsError || !targetAvailable ? (
+          <p role="alert" className="m-0 text-sm text-[var(--bad)]">
+            Bot catalog is unavailable or this target is no longer active.{" "}
+            {botsError} No unavailable bot will be substituted.
+          </p>
+        ) : null}
+        {namedTarget ? (
+          <p className="m-0 text-sm text-[var(--muted)]">
+            This bot keeps its own history and approved workspace access. Saving
+            requires native confirmation. Scheduled/manual prompt and agent runs
+            are supported; external app access is not implied. Target ownership
+            cannot be changed after saving.
+          </p>
+        ) : null}
+      </div>
+
       <fieldset className="automation-builder__fieldset m-0 border-0 p-0">
         <legend className="sr-only">Automation definition</legend>
         <div className={AUTOMATION_BUILDER_GRID_CLASS}>
@@ -114,7 +166,7 @@ export function AutomationBuilder({
               <small>Starts the workflow</small>
             </div>
             <div className="automation-builder__field grid gap-1.5">
-              <span className="text-[11px] font-semibold tracking-[0.06em] text-[var(--muted)] uppercase">
+              <span className="text-[length:var(--text-control)] font-semibold tracking-[0.06em] text-[var(--muted)] uppercase">
                 Start when
               </span>
               <ChoiceButtons
@@ -124,6 +176,7 @@ export function AutomationBuilder({
                   ["webhook", "Webhook"],
                 ]}
                 label="Choose a trigger"
+                disabled={namedTarget ? ["webhook"] : []}
                 selected={draft.triggerType}
                 onSelect={(value) =>
                   onUpdate("triggerType", value as AutomationTriggerChoice)
@@ -145,7 +198,7 @@ export function AutomationBuilder({
                 />
               </label>
             ) : null}
-            <p className="automation-builder__hint m-0 text-[11px] leading-[1.5] text-[var(--muted)]">
+            <p className="automation-builder__hint m-0 text-[length:var(--text-control)] leading-[1.5] text-[var(--muted)]">
               {triggerHelp}
             </p>
           </section>
@@ -210,7 +263,7 @@ export function AutomationBuilder({
                 </label>
               ) : null}
             </div>
-            <p className="automation-builder__hint m-0 text-[11px] leading-[1.5] text-[var(--muted)]">
+            <p className="automation-builder__hint m-0 text-[length:var(--text-control)] leading-[1.5] text-[var(--muted)]">
               {conditionHelp}
             </p>
           </section>
@@ -223,7 +276,7 @@ export function AutomationBuilder({
               <small>Performs the work</small>
             </div>
             <div className="automation-builder__field grid gap-1.5">
-              <span className="text-[11px] font-semibold tracking-[0.06em] text-[var(--muted)] uppercase">
+              <span className="text-[length:var(--text-control)] font-semibold tracking-[0.06em] text-[var(--muted)] uppercase">
                 Then do
               </span>
               <ChoiceButtons
@@ -233,6 +286,7 @@ export function AutomationBuilder({
                   ["webhook", "Webhook"],
                 ]}
                 label="Choose an action"
+                disabled={namedTarget ? ["webhook"] : []}
                 selected={draft.actionType}
                 onSelect={(value) =>
                   onUpdate("actionType", value as AutomationActionChoice)
@@ -270,7 +324,7 @@ export function AutomationBuilder({
                 />
               </label>
             )}
-            <p className="automation-builder__hint m-0 text-[11px] leading-[1.5] text-[var(--muted)]">
+            <p className="automation-builder__hint m-0 text-[length:var(--text-control)] leading-[1.5] text-[var(--muted)]">
               {actionHelp}
             </p>
           </section>
@@ -281,7 +335,7 @@ export function AutomationBuilder({
         <span>
           Output and each phase result stay in the local trace archive.
         </span>
-        <Button disabled={busy} type="submit">
+        <Button disabled={busy || !targetAvailable} type="submit">
           {busy ? "Creating…" : "Create automation"}
         </Button>
       </div>

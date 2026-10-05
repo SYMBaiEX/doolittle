@@ -1,4 +1,5 @@
-import { Button } from "@elizaos/ui/components/ui/button";
+import type { BotCatalogResponse } from "@doolittle/contracts/bots";
+import { Button } from "@doolittle/ui";
 import { type FormEvent, useEffect, useState } from "react";
 import {
   type AutomationDraft,
@@ -72,6 +73,10 @@ export function AutomationsPage({
     (entry) => summarizeAutomation(entry).triggerType === "webhook",
   ).length;
   const hasJobs = entries.length > 0;
+  const bots = useApiResource<BotCatalogResponse>(
+    active && (showCreate || hasJobs) ? "/bots" : null,
+    [active, showCreate, hasJobs],
+  );
   const showHeaderAction =
     showCreate || hasJobs || jobs.loading || Boolean(jobs.error);
 
@@ -120,7 +125,7 @@ export function AutomationsPage({
     setBusy(`${id}:${action}`);
     setFeedback(null);
     try {
-      await desktopRequest(
+      const response = await desktopRequest<{ run?: { status?: string } }>(
         `/cron/jobs/${encodeURIComponent(id)}${action === "delete" ? "" : `/${action}`}`,
         action === "delete" ? "DELETE" : "POST",
         action === "trigger" ? {} : undefined,
@@ -130,9 +135,18 @@ export function AutomationsPage({
           action === "delete"
             ? "Automation deleted."
             : action === "trigger"
-              ? "Automation completed. The trace is ready."
+              ? response.run?.status === "completed"
+                ? "Automation completed. The trace is ready."
+                : response.run?.status === "failed"
+                  ? "Automation failed. Review its trace."
+                  : response.run?.status === "skipped"
+                    ? "Automation skipped by its condition."
+                    : "Trigger accepted. Review run history for its actual outcome."
               : `Automation ${action === "pause" ? "paused" : "resumed"}.`,
-        tone: "good",
+        tone:
+          action === "trigger" && response.run?.status === "failed"
+            ? "bad"
+            : "good",
       });
       jobs.reload();
       runs.reload();
@@ -222,6 +236,8 @@ export function AutomationsPage({
 
       {active && showCreate ? (
         <AutomationBuilder
+          bots={bots.data?.bots}
+          botsError={bots.error}
           busy={busy === "create"}
           draft={draft}
           onSubmit={create}
@@ -237,6 +253,9 @@ export function AutomationsPage({
 
       {active ? (
         <AutomationWorkspace
+          botNames={Object.fromEntries(
+            (bots.data?.bots ?? []).map((bot) => [bot.id, bot.name]),
+          )}
           builderOpen={showCreate}
           busy={busy}
           jobs={entries}

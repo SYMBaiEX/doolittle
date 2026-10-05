@@ -11,7 +11,7 @@ export const AUTOMATION_FIELD_LABEL_CLASS =
   "grid min-w-0 gap-1.5 text-[length:var(--text-control)] font-semibold tracking-[0.06em] text-[var(--muted)] uppercase";
 
 export const AUTOMATION_FIELD_CONTROL_CLASS =
-  "min-h-9 w-full rounded-[var(--radius-xs)] border border-[var(--border)] bg-[var(--surface-raised)] px-2.5 py-2 text-[13px] text-[var(--text)]";
+  "min-h-[var(--control-height)] w-full rounded-[var(--radius-md)] border border-[var(--border-strong)] bg-[var(--surface-raised)] px-2.5 py-2 text-[length:var(--text-control)] text-[var(--text)] max-[760px]:min-h-11 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]";
 
 export const AUTOMATION_BUILDER_GRID_CLASS =
   "automation-builder__grid grid grid-cols-3 gap-1.5 px-4 pb-3 max-[1040px]:grid-cols-1";
@@ -26,7 +26,7 @@ export const AUTOMATION_CHOICE_GRID_CLASS =
   "automation-choice-grid grid grid-cols-3 gap-1 rounded-[var(--radius-xs)] border border-[var(--border)] bg-[var(--surface-soft)] p-1";
 
 export const AUTOMATION_CHOICE_BUTTON_CLASS =
-  "min-h-8 rounded-[calc(var(--radius-xs)-1px)] px-2 py-1.5 text-[length:var(--text-control)] font-semibold text-[var(--muted)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]";
+  "min-h-[var(--control-height)] rounded-[var(--radius-sm)] px-2 py-1.5 text-[length:var(--text-control)] font-medium text-[var(--muted)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)] max-[760px]:min-h-11 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-50";
 
 export const AUTOMATION_CHOICE_SELECTED_CLASS =
   "selected bg-[var(--accent-soft)] text-[var(--accent-text)] shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--accent)_34%,var(--border))]";
@@ -38,10 +38,10 @@ export const AUTOMATION_WORKSPACE_CLASS =
   "automation-workspace grid grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)] items-start gap-3 max-[1040px]:grid-cols-1";
 
 export const AUTOMATION_JOB_CARD_CLASS =
-  "automation-job-card rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] p-3.5 transition-colors hover:border-[var(--border-strong)]";
+  "automation-job-card border-b border-[var(--line-subtle)] bg-transparent py-4";
 
 export const AUTOMATION_JOB_SUMMARY_CLASS =
-  "automation-job-summary my-3 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 rounded-[var(--radius-xs)] bg-[var(--surface-soft)] p-2.5 max-[620px]:grid-cols-1";
+  "automation-job-summary my-3 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 max-[620px]:grid-cols-1";
 
 export const AUTOMATION_DETAILS_SUMMARY_CLASS =
   "flex min-h-8 cursor-pointer list-none items-center justify-between rounded-[var(--radius-xs)] px-1.5 py-1.5 text-[length:var(--text-control)] font-semibold text-[var(--muted)] hover:bg-[var(--surface-hover)] [&::-webkit-details-marker]:hidden after:text-[var(--faint)] after:content-['+'] [details[open]_&]:after:content-['−']";
@@ -56,4 +56,4 @@ export const AUTOMATION_TRACE_CLASS =
   "automation-trace rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] p-3.5";
 
 export const AUTOMATION_STATUS_DOT_CLASS =
-  "automation-run-status size-2 rounded-full bg-[var(--good)] shadow-[0_0_0_3px_color-mix(in_srgb,var(--good)_10%,transparent)]";
+  "automation-run-status size-2 rounded-full bg-[var(--good)]";

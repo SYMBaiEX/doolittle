@@ -13,6 +13,7 @@ export type AutomationStarterChoice =
   | "webhook-triage";
 
 export interface AutomationDraft {
+  targetBotId?: string;
   name: string;
   triggerType: AutomationTriggerChoice;
   schedule: string;
@@ -82,6 +83,26 @@ export function buildAutomationRequest(
   const prompt = draft.prompt.trim();
   const conditionPath = draft.conditionPath.trim();
   const conditionValue = draft.conditionValue.trim();
+  const targetBotId = draft.targetBotId?.trim();
+  const namedTarget = Boolean(targetBotId && targetBotId !== "default");
+  if (
+    namedTarget &&
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu.test(
+      targetBotId ?? "",
+    )
+  ) {
+    return { ok: false, error: "Choose a saved bot for this automation." };
+  }
+  if (
+    namedTarget &&
+    (draft.triggerType === "webhook" || draft.actionType === "webhook")
+  ) {
+    return {
+      ok: false,
+      error:
+        "Named bots support scheduled or manual prompt/agent runs. Webhook triggers and actions stay on Doolittle.",
+    };
+  }
 
   if (draft.triggerType === "schedule" && !schedule) {
     return { ok: false, error: "Choose a schedule for this trigger." };
@@ -146,6 +167,7 @@ export function buildAutomationRequest(
   return {
     ok: true,
     payload: {
+      ...(namedTarget ? { targetBotId } : {}),
       name: name || "Untitled automation",
       schedule: schedule || draft.triggerType,
       prompt: prompt || `POST ${webhookUrl}`,

@@ -19,6 +19,33 @@ const baseDraft: AutomationDraft = {
 };
 
 describe("automation model", () => {
+  it("captures immutable named targets while preserving legacy default payloads", () => {
+    const targetBotId = "00000000-0000-4000-8000-000000000001";
+    expect(buildAutomationRequest({ ...baseDraft, targetBotId })).toEqual({
+      ok: true,
+      payload: expect.objectContaining({ targetBotId, delivery: "local" }),
+    });
+    expect(
+      buildAutomationRequest({ ...baseDraft, targetBotId: "default" }),
+    ).toEqual(buildAutomationRequest(baseDraft));
+    expect(
+      buildAutomationRequest({ ...baseDraft, targetBotId: "unknown" }),
+    ).toEqual({ ok: false, error: expect.stringContaining("saved bot") });
+    expect(
+      buildAutomationRequest({
+        ...baseDraft,
+        targetBotId,
+        triggerType: "webhook",
+      }).ok,
+    ).toBe(false);
+    expect(
+      buildAutomationRequest({
+        ...baseDraft,
+        targetBotId,
+        actionType: "webhook",
+      }).ok,
+    ).toBe(false);
+  });
   it("creates blank and useful local starter drafts", () => {
     expect(createAutomationDraft()).toMatchObject({
       name: "",

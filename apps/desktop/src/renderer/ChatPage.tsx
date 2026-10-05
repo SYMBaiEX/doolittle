@@ -31,6 +31,7 @@ import {
 import { isChatNearBottom, scheduleChatScroll } from "./chat/chat-scroll";
 import { handleFailedChatTerminalEvent } from "./chat/chat-terminal-events";
 import { addUnreadMessageIds, appendedMessageIds } from "./chat/chat-unread";
+import { chatDispatchBlockReason } from "./chat/dispatch-readiness";
 import { snapshotDraftForDispatch } from "./chat/draft-dispatch-recovery";
 import {
   CHAT_WORKSPACE_CLASS,
@@ -382,6 +383,12 @@ export function ChatSessionPanel({
   const [activeRequests, setActiveRequests] = useWorkspaceState<
     Record<string, string>
   >("run.active-requests", {});
+  const [dispatchPending, setDispatchPending] = useWorkspaceState<
+    Record<string, boolean>
+  >("run.dispatch-pending", {});
+  const [dispatchFeedback, setDispatchFeedback] = useWorkspaceState<
+    Record<string, string>
+  >("run.dispatch-feedback", {});
   const activeRequestSessionsRef = useWorkspaceRef<Record<string, true>>(
     "run.claims",
     {},
@@ -1310,31 +1317,36 @@ export function ChatSessionPanel({
     const content =
       composedContentOverride ??
       composeChatContextMessage(visibleContent, contextCapsule);
-    if (
-      !content ||
-      !sessionId ||
-      ["foreign", "unknown"].includes(
-        sessionWorkspaceBinding(
-          remoteSessions.find((session) => session.sessionId === sessionId),
-          projects,
-          workspacePath,
-          window.doolittle.platform,
-        ).kind,
-      ) ||
-      activeRequestSessionsRef.current[sessionId] ||
-      activeRequests[sessionId] ||
-      (() => {
-        const ownerId = resolveSessionBot(sessionId);
-        const owner = bots?.find((bot) => bot.id === ownerId);
-        return owner
-          ? !["ready", "busy", "waiting"].includes(owner.state)
-          : Boolean(ownerId && ownerId !== defaultBotId);
-      })() ||
-      backend.phase !== "ready" ||
-      runHydration !== "ready"
-    ) {
+    const botId = resolveSessionBot(sessionId);
+    const owner = bots?.find((bot) => bot.id === botId);
+    const blockedReason = chatDispatchBlockReason({
+      hasContent: Boolean(content),
+      sessionId,
+      workspaceKind: sessionWorkspaceBinding(
+        remoteSessions.find((session) => session.sessionId === sessionId),
+        projects,
+        workspacePath,
+        window.doolittle.platform,
+      ).kind,
+      alreadyClaimed: Boolean(
+        activeRequestSessionsRef.current[sessionId] ||
+          activeRequests[sessionId],
+      ),
+      ownerResolved: !botIdForSession || Boolean(botId),
+      ownerReady: owner
+        ? ["ready", "busy", "waiting"].includes(owner.state)
+        : !botId || botId === defaultBotId,
+      backendReady: backend.phase === "ready",
+      hydration: runHydration,
+    });
+    if (blockedReason) {
+      setDispatchFeedback((current) => ({
+        ...current,
+        [sessionId]: blockedReason,
+      }));
       return false;
     }
+    setDispatchFeedback((current) => ({ ...current, [sessionId]: "" }));
 
     if (isCommandMessage(content) && attachments.length > 0) {
       setQueueAnnouncement(
@@ -1352,7 +1364,6 @@ export function ChatSessionPanel({
         : (projectIdOverride ?? undefined);
     const requestId = crypto.randomUUID();
     const dispatchedDraftRevision = getDraftRevision(sessionId);
-    const botId = resolveSessionBot(sessionId);
     if (botIdForSession && !botId) {
       setQueueAnnouncement(
         "This conversation's owner is unavailable. Select its bot before sending.",
@@ -1361,6 +1372,7 @@ export function ChatSessionPanel({
     }
     if (botId) {
       activeRequestSessionsRef.current[sessionId] = true;
+      setDispatchPending((current) => ({ ...current, [sessionId]: true }));
       try {
         await desktopRequest(
           `/bots/${encodeURIComponent(botId)}/conversations`,
@@ -1372,10 +1384,14 @@ export function ChatSessionPanel({
         );
       } catch {
         delete activeRequestSessionsRef.current[sessionId];
-        setQueueAnnouncement(
-          "Conversation ownership could not be confirmed. Your draft has been kept.",
-        );
+        setDispatchFeedback((current) => ({
+          ...current,
+          [sessionId]:
+            "Conversation ownership could not be confirmed. Your draft has been kept.",
+        }));
         return false;
+      } finally {
+        setDispatchPending((current) => ({ ...current, [sessionId]: false }));
       }
     }
     if (botId) onBindSessionBot?.(sessionId, botId);
@@ -1994,6 +2010,8 @@ export function ChatSessionPanel({
     Boolean(draft.trim() || attachedFiles.length > 0) &&
     backend.phase === "ready" &&
     !workspaceBindingBlocked &&
+    (!botIdForSession || Boolean(currentBotId)) &&
+    !dispatchPending[selectedId] &&
     botReady &&
     runHydration === "ready" &&
     !attachmentImportPending &&
@@ -2161,6 +2179,19 @@ export function ChatSessionPanel({
           }
           workspaceNotice={
             <>
+              {dispatchFeedback[selectedId] ? (
+                <p role="alert" className="m-0 pb-2 text-sm text-[var(--text)]">
+                  {dispatchFeedback[selectedId]}
+                </p>
+              ) : null}
+              {dispatchPending[selectedId] ? (
+                <p
+                  role="status"
+                  className="m-0 pb-2 text-sm text-[var(--muted)]"
+                >
+                  Confirming this conversation’s owner…
+                </p>
+              ) : null}
               {runHydration !== "ready" ? (
                 <div
                   className="flex items-center justify-between gap-2 pb-2 text-[length:var(--text-control)] text-[var(--muted)]"

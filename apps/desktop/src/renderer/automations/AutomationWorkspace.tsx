@@ -1,4 +1,4 @@
-import { Button } from "@elizaos/ui/components/ui/button";
+import { Button } from "@doolittle/ui";
 import { ChevronRight } from "lucide-react";
 import { useState } from "react";
 import {
@@ -56,12 +56,14 @@ function AutomationJobCard({
   busy,
   onAction,
   onFeedback,
+  botNames,
 }: {
   entry: UnknownRecord;
   index: number;
   busy: string;
   onAction(id: string, action: AutomationAction): Promise<boolean>;
   onFeedback(message: string): void;
+  botNames: Readonly<Record<string, string>>;
 }) {
   const id = asString(entry.id, String(index));
   const status = asString(entry.status, "active");
@@ -87,7 +89,15 @@ function AutomationJobCard({
       <header className="flex items-center justify-between gap-2.5">
         <div className="automation-job-card__heading flex min-w-0 flex-col gap-1">
           <strong className="truncate text-xs">{name}</strong>
-          <small className="text-[10px] text-[var(--muted)]">
+          <span className="text-sm text-[var(--muted)]">
+            Runs as{" "}
+            {asString(entry.targetBotId) &&
+            asString(entry.targetBotId) !== "default"
+              ? (botNames[asString(entry.targetBotId)] ??
+                "Unavailable bot (no fallback)")
+              : "Doolittle"}
+          </span>
+          <small className="text-[length:var(--text-meta)] text-[var(--muted)]">
             {displayTimestamp(asString(entry.nextRunAt) || undefined)}
           </small>
         </div>
@@ -97,10 +107,10 @@ function AutomationJobCard({
       </header>
       <div className={AUTOMATION_JOB_SUMMARY_CLASS}>
         <span className="automation-job-summary__segment inline-flex min-w-0 items-center gap-1.5 max-[620px]:justify-between">
-          <i className="font-[var(--font-mono)] text-[10px] not-italic text-[var(--accent)] uppercase">
+          <i className="font-[var(--font-mono)] text-[length:var(--text-meta)] not-italic text-[var(--accent)] uppercase">
             Trigger
           </i>
-          <span className="truncate text-[11px] text-[var(--text-soft)]">
+          <span className="truncate text-[length:var(--text-control)] text-[var(--text-soft)]">
             {summary.triggerLabel}
           </span>
         </span>
@@ -110,10 +120,10 @@ function AutomationJobCard({
           size="xs"
         />
         <span className="automation-job-summary__segment inline-flex min-w-0 items-center gap-1.5 max-[620px]:justify-between">
-          <i className="font-[var(--font-mono)] text-[10px] not-italic text-[var(--accent)] uppercase">
+          <i className="font-[var(--font-mono)] text-[length:var(--text-meta)] not-italic text-[var(--accent)] uppercase">
             Condition
           </i>
-          <span className="truncate text-[11px] text-[var(--text-soft)]">
+          <span className="truncate text-[length:var(--text-control)] text-[var(--text-soft)]">
             {summary.conditionLabel}
           </span>
         </span>
@@ -123,10 +133,10 @@ function AutomationJobCard({
           size="xs"
         />
         <span className="automation-job-summary__segment inline-flex min-w-0 items-center gap-1.5 max-[620px]:justify-between">
-          <i className="font-[var(--font-mono)] text-[10px] not-italic text-[var(--accent)] uppercase">
+          <i className="font-[var(--font-mono)] text-[length:var(--text-meta)] not-italic text-[var(--accent)] uppercase">
             Action
           </i>
-          <span className="truncate text-[11px] text-[var(--text-soft)]">
+          <span className="truncate text-[length:var(--text-control)] text-[var(--text-soft)]">
             {summary.actionLabel}
           </span>
         </span>
@@ -140,13 +150,13 @@ function AutomationJobCard({
             title="Copy local webhook path"
             type="button"
           >
-            <span className="automation-webhook-path__label text-[10px] font-extrabold tracking-[0.06em] text-[var(--accent)] uppercase">
+            <span className="automation-webhook-path__label text-[length:var(--text-meta)] font-extrabold tracking-[0.06em] text-[var(--accent)] uppercase">
               Webhook
             </span>
-            <code className="truncate text-[10px] text-[var(--text-soft)]">
+            <code className="truncate text-[length:var(--text-meta)] text-[var(--text-soft)]">
               {summary.webhookPath}
             </code>
-            <small className="automation-webhook-path__action text-[10px] font-extrabold tracking-[0.06em] text-[var(--accent)] uppercase">
+            <small className="automation-webhook-path__action text-[length:var(--text-meta)] font-extrabold tracking-[0.06em] text-[var(--accent)] uppercase">
               Copy
             </small>
           </button>
@@ -214,6 +224,7 @@ export function AutomationWorkspace({
   runsLoading,
   runsOpen,
   selectedRun,
+  botNames = {},
 }: {
   builderOpen: boolean;
   busy: string;
@@ -232,6 +243,7 @@ export function AutomationWorkspace({
   runsLoading: boolean;
   runsOpen: boolean;
   selectedRun?: UnknownRecord;
+  botNames?: Readonly<Record<string, string>>;
 }) {
   return (
     <div
@@ -254,6 +266,7 @@ export function AutomationWorkspace({
             <div className="automation-job-list flex flex-col gap-2.5">
               {jobs.map((entry, index) => (
                 <AutomationJobCard
+                  botNames={botNames}
                   busy={busy}
                   entry={entry}
                   index={index}
@@ -274,12 +287,12 @@ export function AutomationWorkspace({
             <div className="flex min-w-0 flex-col gap-1">
               <span className="eyebrow">Start here</span>
               <strong
-                className="text-[13px] text-[var(--text-strong)]"
+                className="text-[length:var(--text-control)] text-[var(--text-strong)]"
                 id="automation-starter-title"
               >
                 Build your first workflow
               </strong>
-              <p className="m-0 text-[10px] leading-[1.45]">
+              <p className="m-0 text-[length:var(--text-meta)] leading-[1.45]">
                 Start blank or adapt a practical local preset.
               </p>
             </div>
@@ -290,7 +303,7 @@ export function AutomationWorkspace({
           <fieldset className="automation-starters mt-2.5 grid min-w-0 grid-cols-2 gap-1.25 border-0 p-0 max-[720px]:grid-cols-1">
             <legend className="sr-only">Automation starters</legend>
             <button
-              className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2.5 rounded-[var(--radius-xs)] px-2 py-2.5 text-left text-[var(--text-soft)] hover:bg-[color-mix(in_srgb,var(--accent)_4%,var(--surface-soft))] [&>span:first-child]:font-[var(--font-mono)] [&>span:first-child]:text-[10px] [&>span:first-child]:text-[var(--accent)] [&>span:nth-child(2)]:flex [&>span:nth-child(2)]:min-w-0 [&>span:nth-child(2)]:flex-col [&>span:nth-child(2)]:gap-0.5 [&_strong]:truncate [&_strong]:text-xs [&_small]:truncate [&_small]:text-[10px] [&_small]:text-[var(--muted)] [&>i]:font-[var(--font-mono)] [&>i]:text-[10px] [&>i]:not-italic [&>i]:text-[var(--accent)]"
+              className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2.5 rounded-[var(--radius-xs)] px-2 py-2.5 text-left text-[var(--text-soft)] hover:bg-[color-mix(in_srgb,var(--accent)_4%,var(--surface-soft))] [&>span:first-child]:font-[var(--font-mono)] [&>span:first-child]:text-[length:var(--text-meta)] [&>span:first-child]:text-[var(--accent)] [&>span:nth-child(2)]:flex [&>span:nth-child(2)]:min-w-0 [&>span:nth-child(2)]:flex-col [&>span:nth-child(2)]:gap-0.5 [&_strong]:truncate [&_strong]:text-xs [&_small]:truncate [&_small]:text-[length:var(--text-meta)] [&_small]:text-[var(--muted)] [&>i]:font-[var(--font-mono)] [&>i]:text-[length:var(--text-meta)] [&>i]:not-italic [&>i]:text-[var(--accent)]"
               onClick={() => onCreate("weekday-brief")}
               type="button"
             >
@@ -302,7 +315,7 @@ export function AutomationWorkspace({
               <i>Use starter</i>
             </button>
             <button
-              className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2.5 rounded-[var(--radius-xs)] px-2 py-2.5 text-left text-[var(--text-soft)] hover:bg-[color-mix(in_srgb,var(--accent)_4%,var(--surface-soft))] [&>span:first-child]:font-[var(--font-mono)] [&>span:first-child]:text-[10px] [&>span:first-child]:text-[var(--accent)] [&>span:nth-child(2)]:flex [&>span:nth-child(2)]:min-w-0 [&>span:nth-child(2)]:flex-col [&>span:nth-child(2)]:gap-0.5 [&_strong]:truncate [&_strong]:text-xs [&_small]:truncate [&_small]:text-[10px] [&_small]:text-[var(--muted)] [&>i]:font-[var(--font-mono)] [&>i]:text-[10px] [&>i]:not-italic [&>i]:text-[var(--accent)]"
+              className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2.5 rounded-[var(--radius-xs)] px-2 py-2.5 text-left text-[var(--text-soft)] hover:bg-[color-mix(in_srgb,var(--accent)_4%,var(--surface-soft))] [&>span:first-child]:font-[var(--font-mono)] [&>span:first-child]:text-[length:var(--text-meta)] [&>span:first-child]:text-[var(--accent)] [&>span:nth-child(2)]:flex [&>span:nth-child(2)]:min-w-0 [&>span:nth-child(2)]:flex-col [&>span:nth-child(2)]:gap-0.5 [&_strong]:truncate [&_strong]:text-xs [&_small]:truncate [&_small]:text-[length:var(--text-meta)] [&_small]:text-[var(--muted)] [&>i]:font-[var(--font-mono)] [&>i]:text-[length:var(--text-meta)] [&>i]:not-italic [&>i]:text-[var(--accent)]"
               onClick={() => onCreate("webhook-triage")}
               type="button"
             >
