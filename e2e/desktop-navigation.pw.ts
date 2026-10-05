@@ -1033,7 +1033,10 @@ test.describe("Doolittle desktop navigation", () => {
               });
               expect(geometry.contentOffset).toBeGreaterThanOrEqual(-1);
               expect(geometry.contentOffset).toBeLessThanOrEqual(2);
-              expect(geometry.headerHeight).toBeLessThanOrEqual(42);
+              // The reusable system uses 40px controls inside a compact 48px
+              // header, rather than the previous smaller workbench targets.
+              expect(geometry.headerHeight).toBeGreaterThanOrEqual(40);
+              expect(geometry.headerHeight).toBeLessThanOrEqual(48);
               expect(geometry.pageGap).toBeLessThanOrEqual(8);
               expect(geometry.panelGap).toBeLessThanOrEqual(10);
             }
