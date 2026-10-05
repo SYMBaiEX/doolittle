@@ -122,7 +122,33 @@ function sha256File(path: string): string {
   return createHash("sha256").update(readFileSync(path)).digest("hex");
 }
 
-function verifyAutomaticRepositoryPackage(executable: string): void {
+type PackageProvenanceManifest = {
+  commit?: unknown;
+  appAsarPath?: unknown;
+  sha256?: unknown;
+  unpackedPackages?: Array<{ appAsarPath?: unknown; sha256?: unknown }>;
+};
+
+export function selectRepositoryPackageRecord(
+  manifests: PackageProvenanceManifest[],
+  sourceRevision: string,
+  appAsarRelativePath: string,
+  appAsarSha256: string,
+) {
+  return manifests
+    .flatMap((manifest) => {
+      const records = manifest.unpackedPackages ?? [manifest];
+      return records.map((record) => ({ manifest, record }));
+    })
+    .find(
+      ({ manifest, record }) =>
+        manifest.commit === sourceRevision &&
+        record.appAsarPath === appAsarRelativePath &&
+        record.sha256 === appAsarSha256,
+    );
+}
+
+export function verifyAutomaticRepositoryPackage(executable: string): string {
   const releaseRoot = join(repoRoot, "apps/desktop/release");
   const manifestPaths = [
     join(releaseRoot, "release-manifest.json"),
@@ -139,27 +165,16 @@ function verifyAutomaticRepositoryPackage(executable: string): void {
   const appAsarSha256 = sha256File(appAsar);
   const manifests = manifestPaths.map(
     (manifestPath) =>
-      JSON.parse(readFileSync(manifestPath, "utf8")) as {
-        commit?: unknown;
-        appAsarPath?: unknown;
-        sha256?: unknown;
-        unpackedPackages?: Array<{
-          appAsarPath?: unknown;
-          sha256?: unknown;
-        }>;
-      },
+      JSON.parse(
+        readFileSync(manifestPath, "utf8"),
+      ) as PackageProvenanceManifest,
   );
-  const matching = manifests
-    .flatMap((manifest) => {
-      const records = manifest.unpackedPackages ?? [manifest];
-      return records.map((record) => ({ manifest, record }));
-    })
-    .find(
-      ({ manifest, record }) =>
-        manifest.commit === sourceRevision &&
-        record.appAsarPath === appAsarRelativePath &&
-        record.sha256 === appAsarSha256,
-    );
+  const matching = selectRepositoryPackageRecord(
+    manifests,
+    sourceRevision,
+    appAsarRelativePath,
+    appAsarSha256,
+  );
   const manifest = matching?.manifest;
   const packageRecord = matching?.record;
   assertRepositoryPackageProvenance({
@@ -176,6 +191,7 @@ function verifyAutomaticRepositoryPackage(executable: string): void {
     manifestAppAsarSha256:
       typeof packageRecord?.sha256 === "string" ? packageRecord.sha256 : "",
   });
+  return sourceRevision;
 }
 
 export function main(): void {

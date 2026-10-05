@@ -11,7 +11,10 @@ import {
 } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { packagedAppAsarPath } from "./run-desktop-packaged-tests";
+import {
+  packagedAppAsarPath,
+  verifyAutomaticRepositoryPackage,
+} from "./run-desktop-packaged-tests";
 
 const repoRoot = fileURLToPath(new URL("..", import.meta.url));
 
@@ -134,22 +137,6 @@ function sha256File(path: string): string {
   return createHash("sha256").update(readFileSync(path)).digest("hex");
 }
 
-function releaseRevision(): string {
-  const manifestPath = join(
-    repoRoot,
-    "apps/desktop/release/release-manifest.json",
-  );
-  if (!existsSync(manifestPath)) {
-    throw new Error(
-      "Desktop release manifest is missing. Run `nub run desktop:package:all` first.",
-    );
-  }
-  const parsed = JSON.parse(readFileSync(manifestPath, "utf8")) as {
-    commit?: unknown;
-  };
-  return typeof parsed.commit === "string" ? parsed.commit.trim() : "";
-}
-
 export function main(): void {
   const candidates = visualSweepCandidates(process.platform);
   const requestedExecutable =
@@ -165,7 +152,7 @@ export function main(): void {
   const repositoryExecutable = candidates[0];
   if (!repositoryExecutable || !existsSync(repositoryExecutable)) {
     throw new Error(
-      "The repository desktop package is missing. Run `nub run desktop:package:all` first.",
+      "The repository desktop package is missing. Run `nub run desktop:package:dir` first.",
     );
   }
   const sourceRevision = gitOutput(["rev-parse", "HEAD"]);
@@ -178,7 +165,7 @@ export function main(): void {
   const appAsarSha256 = sha256File(selectedAppAsar);
   assertVisualSweepProvenance({
     appAsarSha256,
-    releaseRevision: releaseRevision(),
+    releaseRevision: verifyAutomaticRepositoryPackage(repositoryExecutable),
     repositoryAppAsarSha256: sha256File(repositoryAppAsar),
     sourceRevision,
     worktreeClean: gitOutput(["status", "--porcelain"]).length === 0,

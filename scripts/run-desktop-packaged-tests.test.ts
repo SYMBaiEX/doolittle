@@ -4,9 +4,63 @@ import {
   packagedAppAsarPath,
   packagedTestCandidates,
   resolvePackagedTestExecutable,
+  selectRepositoryPackageRecord,
 } from "./run-desktop-packaged-tests";
 
 describe("packaged desktop test launcher", () => {
+  it("accepts exact ASAR records from local and release-matrix manifests", () => {
+    const record = { appAsarPath: "mac-arm64/app.asar", sha256: "hash" };
+    const unpacked = { commit: "head", ...record };
+    const release = { commit: "head", unpackedPackages: [record] };
+    expect(
+      selectRepositoryPackageRecord(
+        [unpacked],
+        "head",
+        record.appAsarPath,
+        "hash",
+      ),
+    ).toEqual({ manifest: unpacked, record: unpacked });
+    expect(
+      selectRepositoryPackageRecord(
+        [release],
+        "head",
+        record.appAsarPath,
+        "hash",
+      ),
+    ).toEqual({ manifest: release, record });
+  });
+
+  it("ignores stale releases and requires revision, path and digest together", () => {
+    const valid = {
+      commit: "head",
+      appAsarPath: "mac-arm64/app.asar",
+      sha256: "hash",
+    };
+    const stale = { ...valid, commit: "old" };
+    expect(
+      selectRepositoryPackageRecord(
+        [stale, valid],
+        "head",
+        valid.appAsarPath,
+        "hash",
+      ),
+    ).toEqual({ manifest: valid, record: valid });
+    for (const altered of [
+      stale,
+      { ...valid, appAsarPath: "other/app.asar" },
+      { ...valid, sha256: "other" },
+    ]) {
+      expect(
+        selectRepositoryPackageRecord(
+          [altered],
+          "head",
+          valid.appAsarPath,
+          "hash",
+        ),
+      ).toBeUndefined();
+    }
+  });
+
   it("uses repository-owned unpacked applications on every platform", () => {
     expect(packagedTestCandidates("darwin", "/repo", "arm64")).toEqual([
       "/repo/apps/desktop/release/mac-arm64/Doolittle.app/Contents/MacOS/Doolittle",
