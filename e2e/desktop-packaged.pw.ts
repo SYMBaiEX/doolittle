@@ -71,10 +71,17 @@ test.describe("packaged Doolittle desktop", () => {
       const pageErrors: string[] = [];
       page.on("pageerror", (error) => pageErrors.push(error.message));
       await expect(page).toHaveTitle(/Doolittle$/);
-      await expect(page.locator(".window-runtime-status.ready")).toContainText(
-        "Local runtime",
-        { timeout: 60_000 },
-      );
+      // Companion deliberately removes the permanent runtime-health toolbar.
+      // Read the actual privileged bridge state, not presentation visibility.
+      await expect
+        .poll(
+          () =>
+            page.evaluate(
+              async () => (await window.doolittle.getBackendState()).phase,
+            ),
+          { timeout: 60_000 },
+        )
+        .toBe("ready");
       await expect
         .poll(() => page.evaluate(() => typeof window.doolittle))
         .toBe("object");
