@@ -149,6 +149,11 @@
   background: var(--surface-raised);
   padding: 12px;
 }
+.dl-composer:has(textarea:focus-visible) {
+  border-color: color-mix(in srgb, var(--accent) 58%, var(--border));
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
 .dl-composer-actions {
   display: flex;
   align-items: center;
