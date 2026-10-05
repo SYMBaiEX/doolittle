@@ -125,7 +125,7 @@ describe("configuration routes when the local runtime is inactive", () => {
     expect(settingsResourcePolicy("appearance", false)).toEqual({
       settings: false,
       themes: false,
-      desktop: false,
+      desktop: true,
       execution: false,
     });
     expect(settingsResourcePolicy("desktop", false)).toEqual({

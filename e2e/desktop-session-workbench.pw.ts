@@ -2231,6 +2231,16 @@ test.describe("Doolittle desktop session workbench", () => {
           name: "Message Doolittle",
         });
         await composer.fill(syntheticChatPrompt(mode));
+        // Run events refresh the owned inventory independently of response
+        // cleanup. Respect the same readiness boundary as a real submission.
+        await expect(
+          panel.getByText("Checking active runs before sending…", {
+            exact: true,
+          }),
+        ).toHaveCount(0);
+        await expect(
+          panel.getByRole("button", { name: "Retry run list", exact: true }),
+        ).toHaveCount(0);
         await composer.press("Enter");
         const userMessage = panel
           .locator(".chat-message.user")

@@ -33,13 +33,12 @@ export function DesktopSettingsPanel({
   return (
     <section className={SETTINGS_GROUP_CLASS}>
       <div className="settings-group-heading">
-        <div>
-          <span className="eyebrow">Desktop</span>
-          <h2>Background & updates</h2>
-        </div>
+        <h2>Desktop</h2>
       </div>
       <div className="settings-rows">
-        <div className={SETTINGS_ROW_LAYOUT_CLASS}>
+        <div
+          className={`${SETTINGS_ROW_LAYOUT_CLASS} dl-settings-preference-row`}
+        >
           <div className="setting-copy">
             <strong>Keep running in the background</strong>
             <small id="desktop-background-description">
@@ -57,17 +56,20 @@ export function DesktopSettingsPanel({
                 className={SETTINGS_SWITCH_INPUT_CLASS}
                 disabled={!lifecycle}
                 aria-describedby="desktop-background-description"
+                aria-label="Keep running in the background"
                 type="checkbox"
                 onChange={(event) => onBackgroundChange(event.target.checked)}
               />
-              <i className={SETTINGS_SWITCH_TRACK_CLASS} />
+              <i className={SETTINGS_SWITCH_TRACK_CLASS} aria-hidden="true" />
               <span className={SETTINGS_SWITCH_LABEL_CLASS}>
                 {lifecycle?.keepRunningInBackground ? "On" : "Off"}
               </span>
             </label>
           </div>
         </div>
-        <div className={SETTINGS_ROW_LAYOUT_CLASS}>
+        <div
+          className={`${SETTINGS_ROW_LAYOUT_CLASS} dl-settings-preference-row`}
+        >
           <div className="setting-copy">
             <strong>Application updates</strong>
             <small
@@ -94,7 +96,7 @@ export function DesktopSettingsPanel({
             ) : null}
           </div>
           <div className="setting-control">
-            <div className="button-row">
+            <div className="button-row dl-settings-desktop-actions">
               <button
                 className="secondary-button"
                 disabled={

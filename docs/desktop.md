@@ -90,10 +90,11 @@ while keeping Doolittle's native runtime and cross-platform Electron boundary:
 - **Settings:** appearance and desktop preferences, models, provider accounts,
   credentials, tools, skills, plugins, memory, profiles, filtered logs, runtime
   and compatibility diagnostics, registry search, setup, and About. Its
-  searchable, fixed-width section menu replaces separate top-level capability
-  pages. Groups remain expanded and selection never resizes navigation. Narrow
-  settings panes use a grouped section picker; legacy links remain accepted for
-  one compatibility release.
+  fixed-width menu contains seven flat categories with contextual tabs. General
+  combines appearance and desktop behavior in compact labeled rows. Search can
+  open any retained subsection directly; selection never resizes navigation.
+  Narrow panes use a native category picker and wrapping tabs. Existing
+  subsection links remain accepted for one compatibility release.
 
 Activity is a global drawer rather than a destination. Tasks, agents, plans,
 build/research runs, automations, gateway Inbox, human review, dashboards, and

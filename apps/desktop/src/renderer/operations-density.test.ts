@@ -191,10 +191,10 @@ describe("operational route density", () => {
     expect(memory).toContain("{preview.length ? (");
   });
 
-  it("loads shell-owned desktop state only on its category, even offline", () => {
+  it("loads shell-owned desktop state for merged preferences, even offline", () => {
     const settings = read("./SettingsPage.tsx");
 
-    expect(settings).toContain('desktop: category === "desktop"');
+    expect(settings).toContain("desktop: settingsPreferencesVisible(category)");
     expect(settings).toContain(
       '!active && !["appearance", "desktop", "interfaces"].includes(category)',
     );

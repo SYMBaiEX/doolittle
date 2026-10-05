@@ -10,6 +10,7 @@ export interface SettingsMenuItem {
   label: string;
   description: string;
   group?: string;
+  icon?: ReactNode;
 }
 
 /** Controlled composition; the host owns routes, fetching and durable state. */
@@ -38,12 +39,18 @@ export function SettingsMenu({
   onChange,
   query = "",
   onQueryChange,
+  pickerItems = items,
+  pickerValue = value,
+  onPickerChange = onChange,
 }: {
   items: readonly SettingsMenuItem[];
   value: string;
   onChange: (id: string) => void;
   query?: string;
   onQueryChange?: (query: string) => void;
+  pickerItems?: readonly SettingsMenuItem[];
+  pickerValue?: string;
+  onPickerChange?: (id: string) => void;
 }) {
   const id = useId();
   const searchRef = useRef<HTMLInputElement>(null);
@@ -55,6 +62,9 @@ export function SettingsMenu({
       .includes(normalizedQuery);
   const visible = items.filter((item) => item.id === value || matches(item));
   const groups = [...new Set(items.map((item) => item.group ?? "Settings"))];
+  const pickerGroups = [
+    ...new Set(pickerItems.map((item) => item.group ?? "Settings")),
+  ];
   return (
     <aside
       className="settings-nav dl-settings-menu"
@@ -62,19 +72,18 @@ export function SettingsMenu({
     >
       <header className="dl-settings-menu-heading">
         <h2>Settings</h2>
-        <p>Make Doolittle yours.</p>
       </header>
       <label className="dl-settings-mobile-select" htmlFor={`${id}-section`}>
         <span>Settings section</span>
         <select
           id={`${id}-section`}
           aria-label="Settings section"
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
+          value={pickerValue}
+          onChange={(event) => onPickerChange(event.target.value)}
         >
-          {groups.map((group) => (
+          {pickerGroups.map((group) => (
             <optgroup key={group} label={group}>
-              {items
+              {pickerItems
                 .filter((item) => (item.group ?? "Settings") === group)
                 .map((item) => (
                   <option key={item.id} value={item.id}>
@@ -154,7 +163,9 @@ export function SettingsMenu({
               className="settings-nav-group dl-settings-menu-group"
               aria-label={group}
             >
-              <h3>{group}</h3>
+              {groups.length > 1 || items.some((item) => item.group) ? (
+                <h3>{group}</h3>
+              ) : null}
               {entries.map((item) => (
                 <button
                   key={item.id}
@@ -165,7 +176,12 @@ export function SettingsMenu({
                   title={item.description}
                   onClick={() => onChange(item.id)}
                 >
-                  <span>{item.label}</span>
+                  {item.icon ? (
+                    <span className="dl-settings-menu-icon" aria-hidden="true">
+                      {item.icon}
+                    </span>
+                  ) : null}
+                  <span className="dl-settings-menu-label">{item.label}</span>
                   <span className="dl-settings-current" aria-hidden="true">
                     ●
                   </span>
@@ -176,5 +192,71 @@ export function SettingsMenu({
         })}
       </nav>
     </aside>
+  );
+}
+
+export interface SettingsTabItem {
+  id: string;
+  label: string;
+}
+
+/** Manual activation preserves form state while arrow keys explore sections. */
+export function SettingsTabs({
+  items,
+  value,
+  onChange,
+  panelId,
+  label = "Settings sections",
+}: {
+  items: readonly SettingsTabItem[];
+  value: string;
+  onChange: (id: string) => void;
+  panelId: string;
+  label?: string;
+}) {
+  return (
+    <div
+      role="tablist"
+      aria-label={label}
+      className="dl-settings-tabs"
+      onKeyDown={(event) => {
+        if (!(event.target instanceof HTMLButtonElement)) return;
+        const tabs = [
+          ...event.currentTarget.querySelectorAll<HTMLButtonElement>(
+            'button[role="tab"]',
+          ),
+        ];
+        const index = tabs.indexOf(event.target);
+        if (index < 0) return;
+        const next =
+          event.key === "ArrowRight"
+            ? (index + 1) % tabs.length
+            : event.key === "ArrowLeft"
+              ? (index + tabs.length - 1) % tabs.length
+              : event.key === "Home"
+                ? 0
+                : event.key === "End"
+                  ? tabs.length - 1
+                  : undefined;
+        if (next === undefined) return;
+        event.preventDefault();
+        tabs[next]?.focus();
+      }}
+    >
+      {items.map((item) => (
+        <button
+          key={item.id}
+          id={`${panelId}-tab-${item.id}`}
+          role="tab"
+          type="button"
+          aria-controls={panelId}
+          aria-selected={value === item.id}
+          tabIndex={value === item.id ? 0 : -1}
+          onClick={() => onChange(item.id)}
+        >
+          {item.label}
+        </button>
+      ))}
+    </div>
   );
 }

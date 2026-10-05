@@ -1,74 +1,58 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { SettingsNavigation } from "./SettingsNavigation";
+import { SETTINGS_CATEGORIES } from "./settings-sections";
 
 describe("SettingsNavigation", () => {
-  it("renders accessible category labels and active state", () => {
+  it("renders seven icon-ready categories with a quiet active state", () => {
     const markup = renderToStaticMarkup(
       <SettingsNavigation
-        categories={[
-          {
-            id: "appearance",
-            label: "Appearance",
-            description: "Theme and display",
-          },
-        ]}
+        categories={SETTINGS_CATEGORIES}
         category="appearance"
         onSelect={vi.fn()}
       />,
     );
     expect(markup).not.toMatch(/class="[^"]*\bselected\b/u);
     expect(markup).toContain("dl-settings-current");
-    expect(markup).toContain('aria-label="Appearance: Theme and display"');
+    expect(markup.match(/data-settings-section=/gu)).toHaveLength(7);
+    expect(markup).toContain(
+      'aria-label="General: Appearance, interface and desktop behavior"',
+    );
+    expect(markup).toContain('data-settings-section="general"');
     expect(markup).toContain('aria-current="page"');
   });
 
-  it("keeps matching groups and the active selection available without accordions", () => {
+  it("searches retained subsections directly without hiding them behind categories", () => {
     const markup = renderToStaticMarkup(
       <SettingsNavigation
-        categories={[
-          {
-            id: "credentials",
-            label: "Credentials",
-            description: "API keys and credentials",
-            group: "Models & accounts",
-          },
-          {
-            id: "logs",
-            label: "Logs",
-            description: "Runtime logs",
-            group: "Runtime & diagnostics",
-          },
-        ]}
-        category="credentials"
+        categories={SETTINGS_CATEGORIES}
+        category="appearance"
         onSelect={vi.fn()}
         onQueryChange={vi.fn()}
-        query="runtime"
+        query="credentials"
       />,
     );
 
     expect(markup).not.toContain("<details");
     expect(markup).not.toContain("<summary");
-    expect(markup).toContain("<h3>Models &amp; accounts</h3>");
-    expect(markup).toContain("<h3>Runtime &amp; diagnostics</h3>");
+    expect(markup).toContain('data-settings-section="credentials"');
+    expect(markup).toContain('data-settings-section="appearance"');
+    expect(markup.match(/data-settings-section=/gu)).toHaveLength(2);
+    expect(markup).not.toContain('data-settings-section="logs"');
     expect(markup).toContain('aria-label="Settings section"');
     expect(markup).toContain("settings-nav-group");
     expect(markup).toContain("settings-section-search");
     expect(markup).toContain("Search settings sections");
+    expect(markup.match(/<option /gu)).toHaveLength(7);
+    expect(markup).toContain('value="general" selected=""');
     expect(markup).toContain("Credentials");
-    expect(markup).toContain("Logs");
+    expect(markup).toContain("Appearance");
   });
 
   it("explains an empty section search while retaining the active destination", () => {
     const markup = renderToStaticMarkup(
       <SettingsNavigation
-        categories={[
-          {
-            id: "appearance",
-            label: "Appearance",
-            description: "Theme and display",
-          },
-        ]}
+        categories={SETTINGS_CATEGORIES}
         category="appearance"
         query="nothing matches"
         onSelect={vi.fn()}

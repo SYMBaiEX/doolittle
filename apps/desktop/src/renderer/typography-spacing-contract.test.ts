@@ -76,7 +76,10 @@ describe("desktop typography and spacing rhythm", () => {
       /\.dl-settings-content\s+:where\(\.settings-section-header, \.settings-group-heading\)\s+h2 \{[^}]*font-size: 16px;/su,
     );
     expect(SETTINGS_PAGE_CLASS).not.toMatch(/text-\[(?:10|11)px\]/u);
-    expect(SETTINGS_GROUP_CLASS).toContain("gap-5 py-4");
+    expect(SETTINGS_GROUP_CLASS).toContain("dl-settings-group");
+    expect(settingsStyles).toMatch(
+      /\.dl-settings-group \{[^}]*gap: 0;[^}]*padding-block: 8px;/su,
+    );
     expect(BROWSER_PLACEHOLDER_CLASS).toContain("p-6");
     expect(AUTOMATION_BUILDER_HEADER_CLASS).toContain("px-4 pt-3 pb-2");
   });
@@ -89,10 +92,13 @@ describe("desktop typography and spacing rhythm", () => {
     expect(SETTINGS_PAGE_CLASS).not.toContain(
       "[&_.settings-group-heading]:border-b",
     );
-    expect(SETTINGS_ROW_LAYOUT_CLASS).toContain(
-      "border-b border-[var(--border)]",
+    expect(SETTINGS_ROW_LAYOUT_CLASS).toContain("dl-settings-field-row");
+    expect(settingsStyles).toMatch(
+      /\.dl-settings-field-row \{[^}]*padding-block: 12px;[^}]*border-bottom: 1px solid var\(--border\);/su,
     );
-    expect(SETTINGS_ROW_LAYOUT_CLASS).toContain("last:border-b-0");
+    expect(settingsStyles).toMatch(
+      /\.dl-settings-field-row:last-child \{\s*border-bottom: 0;/su,
+    );
     expect(SETTINGS_ROW_LAYOUT_CLASS).not.toContain("rounded-");
     expect(SETTINGS_GROUP_CLASS).not.toContain("bg-[");
     expect(MODELS_PAGE_CLASS).not.toContain("min-h-[74px]");

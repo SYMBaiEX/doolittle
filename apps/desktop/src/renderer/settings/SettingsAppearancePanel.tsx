@@ -10,7 +10,6 @@ import type {
 import {
   asRecord,
   asString,
-  Badge,
   ErrorBlock,
   LoadingBlock,
   titleCase,
@@ -60,60 +59,63 @@ export function SettingsAppearancePanel({
   return (
     <section className={SETTINGS_GROUP_CLASS}>
       <div className="settings-group-heading">
-        <div>
-          <span className="eyebrow">Display</span>
-          <h2>Color mode</h2>
-          <p>Choose how Doolittle looks on this device.</p>
-        </div>
+        <h2>Appearance</h2>
       </div>
-      <fieldset
-        aria-label="Application appearance"
-        className={SETTINGS_APPEARANCE_CLASS}
-      >
-        <legend className="sr-only">Application appearance</legend>
-        {(["dark", "light", "system"] as const).map((option) => (
-          <button
-            aria-label={`${titleCase(option)}: ${
-              option === "system"
-                ? "Match this device"
-                : `${titleCase(option)} surfaces`
-            }`}
-            aria-pressed={appearance === option}
-            className={`${SETTINGS_APPEARANCE_BUTTON_CLASS} !min-h-10 max-[760px]:!min-h-11 ${
-              appearance === option ? "selected" : ""
-            }`}
-            key={option}
-            onClick={() => onAppearanceChange(option)}
-            title={
-              option === "system"
-                ? "Match this device"
-                : `${titleCase(option)} surfaces`
-            }
-            type="button"
-          >
-            <UiIcon
-              icon={
-                option === "dark" ? Moon : option === "light" ? Sun : Monitor
+      <div className="dl-settings-preference-row">
+        <div className="setting-copy">
+          <strong>Color mode</strong>
+          <small>Use light, dark, or match this device.</small>
+        </div>
+        <fieldset
+          aria-label="Application appearance"
+          className={SETTINGS_APPEARANCE_CLASS}
+        >
+          <legend className="sr-only">Application appearance</legend>
+          {(["dark", "light", "system"] as const).map((option) => (
+            <button
+              aria-label={`${titleCase(option)}: ${
+                option === "system"
+                  ? "Match this device"
+                  : `${titleCase(option)} surfaces`
+              }`}
+              aria-pressed={appearance === option}
+              className={`${SETTINGS_APPEARANCE_BUTTON_CLASS} ${
+                appearance === option ? "selected" : ""
+              }`}
+              key={option}
+              onClick={() => onAppearanceChange(option)}
+              title={
+                option === "system"
+                  ? "Match this device"
+                  : `${titleCase(option)} surfaces`
               }
-              size="md"
-            />
-            <strong>{titleCase(option)}</strong>
-          </button>
-        ))}
-      </fieldset>
-      <div
-        className={`${SETTINGS_INLINE_CHOICE_CLASS} [&>fieldset_button]:!min-h-10 max-[760px]:[&>fieldset_button]:!min-h-11 [&>fieldset_button]:!text-sm`}
-      >
-        <div>
+              type="button"
+            >
+              <UiIcon
+                icon={
+                  option === "dark" ? Moon : option === "light" ? Sun : Monitor
+                }
+                size="md"
+              />
+              <strong>{titleCase(option)}</strong>
+            </button>
+          ))}
+        </fieldset>
+      </div>
+      <div className={SETTINGS_INLINE_CHOICE_CLASS}>
+        <div className="setting-copy">
           <strong>Interface density</strong>
           <small>Spacing across pages, tables, and panels.</small>
         </div>
-        <fieldset aria-label="Interface density">
+        <fieldset
+          aria-label="Interface density"
+          className="dl-settings-choices"
+        >
           <legend className="sr-only">Interface density</legend>
           {(["comfortable", "compact"] as const).map((option) => (
             <button
               aria-pressed={density === option}
-              className={density === option ? "selected" : ""}
+              className={`dl-settings-choice ${density === option ? "selected" : ""}`}
               key={option}
               onClick={() => onDensityChange(option)}
               type="button"
@@ -123,29 +125,18 @@ export function SettingsAppearancePanel({
           ))}
         </fieldset>
       </div>
-      <div className="settings-group-heading mt-2 border-t border-[var(--line-subtle)] pt-3">
-        <div>
-          <span className="eyebrow">Color system</span>
-          <h2>Interface theme</h2>
-          <p>Shared across chat, code, review, workbench, and terminal.</p>
-        </div>
-        <span className="[&_.badge]:!text-sm">
-          <Badge>{activeTheme?.label ?? "Default"}</Badge>
-        </span>
-      </div>
-      <div className="settings-theme-transfer flex min-h-10 items-center justify-between gap-3 border-b border-[var(--line-subtle)] pb-3 max-[620px]:items-stretch max-[620px]:flex-col">
-        <div className="grid min-w-0 gap-0.5">
-          <strong className="text-[length:var(--text-control)]">
-            Shareable theme file
-          </strong>
-          <small className="text-sm leading-[1.45] text-[var(--text-soft)]">
-            Colors, typography, spacing, geometry, motion, and registered
-            layouts. Imported files cannot run CSS or scripts.
+      <div className="settings-theme-transfer dl-settings-theme-heading">
+        <div className="setting-copy">
+          <strong>Interface theme</strong>
+          <small id="settings-theme-file-description">
+            Colors, typography, spacing, geometry, motion, and layouts. Imported
+            files cannot run CSS or scripts.
           </small>
         </div>
-        <div className="flex shrink-0 gap-1.5 max-[620px]:w-full [&>button]:min-h-10 max-[760px]:[&>button]:min-h-11 [&>button]:flex-1 [&>button]:px-3 [&>button]:text-sm">
+        <div className="dl-settings-theme-actions">
           <button
             className="secondary-button"
+            aria-describedby="settings-theme-file-description"
             onClick={() => importInputRef.current?.click()}
             type="button"
           >
@@ -153,6 +144,7 @@ export function SettingsAppearancePanel({
           </button>
           <button
             className="secondary-button"
+            aria-describedby="settings-theme-file-description"
             disabled={!activeTheme}
             onClick={onThemeExport}
             type="button"
@@ -223,7 +215,7 @@ export function SettingsAppearancePanel({
             <button
               aria-label={`${label}: ${tagline}`}
               aria-pressed={activeTheme?.name === name}
-              className={`${SETTINGS_THEME_BUTTON_CLASS} !min-h-10 max-[760px]:!min-h-11 [&>strong]:!text-sm ${
+              className={`${SETTINGS_THEME_BUTTON_CLASS} ${
                 activeTheme?.name === name ? "selected" : ""
               }`}
               key={name}

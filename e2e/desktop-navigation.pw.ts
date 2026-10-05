@@ -9,7 +9,9 @@ import {
 } from "@playwright/test";
 import { desktopHashForView } from "../apps/desktop/src/renderer/desktop-navigation";
 import {
+  SETTINGS_CATEGORIES,
   SETTINGS_SHELL_SECTIONS,
+  settingsCategoryForSection,
   settingsViewForSection,
 } from "../apps/desktop/src/renderer/settings/settings-sections";
 import { expectNoDesktopRecovery } from "./support/desktop-assertions";
@@ -103,17 +105,13 @@ test("settings menu stays stable across sections, viewports and header shortcuts
         | { x: number; width: number; height: number }
         | undefined;
       for (const section of SETTINGS_SHELL_SECTIONS) {
-        const pickerVisible = await sectionPicker.isVisible();
-        if (pickerVisible) {
-          await sectionPicker.selectOption(section.id);
-        } else {
-          await menu
-            .getByRole("button", {
-              name: `${section.label}: ${section.description}`,
-              exact: true,
-            })
-            .click();
-        }
+        const category = settingsCategoryForSection(section.id);
+        const hash = desktopHashForView(settingsViewForSection(section.id));
+        // All existing subsection hashes remain directly addressable, even
+        // though the navigation now contains only seven categories.
+        await page.evaluate((target) => {
+          window.location.hash = target;
+        }, hash);
         await expect(page).toHaveURL(
           new RegExp(
             `${desktopHashForView(settingsViewForSection(section.id))}$`,
@@ -123,17 +121,54 @@ test("settings menu stays stable across sections, viewports and header shortcuts
         await expect(
           content.getByRole("heading", {
             level: 1,
-            name: section.label,
+            name: category.label,
             exact: true,
           }),
         ).toBeVisible();
         await expect(menu.locator("details")).toHaveCount(0);
         await expect(menu.locator("button[data-settings-section]")).toHaveCount(
-          SETTINGS_SHELL_SECTIONS.length,
+          SETTINGS_CATEGORIES.length,
         );
         await expect(
           menu.locator('button[aria-current="page"]'),
-        ).toHaveAttribute("data-settings-section", section.id);
+        ).toHaveAttribute("data-settings-section", category.id);
+        if (!(await sectionPicker.isVisible())) {
+          const rowHeights = await menu
+            .locator("button[data-settings-section]")
+            .evaluateAll((buttons) =>
+              buttons.map((button) => button.getBoundingClientRect().height),
+            );
+          expect(
+            rowHeights,
+            "Category labels stay on one compact row when selected",
+          ).toHaveLength(7);
+          for (const height of rowHeights)
+            expect(height).toBeLessThanOrEqual(44);
+        }
+        const selectedTab = content.getByRole("tab", {
+          name:
+            section.id === "appearance" || section.id === "desktop"
+              ? "Preferences"
+              : section.label,
+          exact: true,
+        });
+        if (category.sections.length > 1) {
+          await expect(selectedTab).toHaveAttribute("aria-selected", "true");
+        }
+        if (section.id === "appearance" || section.id === "desktop") {
+          await expect(
+            content.getByRole("button", {
+              name: "Light: Light surfaces",
+              exact: true,
+            }),
+          ).toBeVisible();
+          await expect(
+            content.getByRole("button", {
+              name: "Check for updates",
+              exact: true,
+            }),
+          ).toBeVisible();
+        }
         await expect(content.locator(".loading-block")).toHaveCount(0, {
           timeout: 30_000,
         });
@@ -185,6 +220,48 @@ test("settings menu stays stable across sections, viewports and header shortcuts
           });
         }
       }
+      // Exercise the actual desktop/mobile menu and contextual tabs, not just
+      // hash navigation. The native select must contain category IDs.
+      for (const category of SETTINGS_CATEGORIES) {
+        if (await sectionPicker.isVisible()) {
+          await sectionPicker.selectOption(category.id);
+        } else {
+          await menu
+            .getByRole("button", {
+              name: `${category.label}: ${category.description}`,
+              exact: true,
+            })
+            .click();
+        }
+        await expect(
+          content.getByRole("heading", {
+            level: 1,
+            name: category.label,
+            exact: true,
+          }),
+        ).toBeVisible();
+        for (const id of category.sections) {
+          if (id === "desktop") continue;
+          const section = SETTINGS_SHELL_SECTIONS.find(
+            (entry) => entry.id === id,
+          );
+          if (!section) throw new Error(`Missing settings subsection ${id}`);
+          if (category.sections.length > 1) {
+            const tab = content.getByRole("tab", {
+              name: id === "appearance" ? "Preferences" : section.label,
+              exact: true,
+            });
+            await tab.click();
+            await expect(tab).toHaveAttribute("aria-selected", "true");
+          }
+          await expect(page).toHaveURL(
+            new RegExp(
+              `${desktopHashForView(settingsViewForSection(id))}$`,
+              "u",
+            ),
+          );
+        }
+      }
     }
     expect(
       clippedSections,
@@ -216,9 +293,7 @@ test("settings menu stays stable across sections, viewports and header shortcuts
       content.getByRole("button", { name: /^Canvas:/u }),
     ).toHaveAttribute("aria-pressed", "true");
     await expect(frame).toBeVisible();
-    await expect(
-      menu.getByRole("button", { name: /^Advanced:/u }),
-    ).toBeVisible();
+    await expect(menu.getByRole("button", { name: /^System:/u })).toBeVisible();
     await page.screenshot({
       path: testInfo.outputPath("settings-canvas-1728.png"),
       animations: "disabled",
@@ -235,12 +310,56 @@ test("settings menu stays stable across sections, viewports and header shortcuts
     await menu.getByRole("button", { name: /^Credentials:/u }).click();
     await expect(
       content.getByRole("heading", {
-        name: "Credentials",
+        name: "Models & accounts",
         level: 1,
         exact: true,
       }),
     ).toBeVisible();
     await expect(sectionSearch).toHaveValue("credentials");
+    // A subsection search must not replace the mobile category switcher's
+    // options or make its selected value invalid during a responsive change.
+    await app.evaluate(({ BrowserWindow }) =>
+      BrowserWindow.getAllWindows()[0]?.setContentSize(360, 900),
+    );
+    await expect.poll(() => page.evaluate(() => window.innerWidth)).toBe(360);
+    await expect(sectionPicker).toBeVisible();
+    await expect(sectionPicker.locator("option")).toHaveText(
+      SETTINGS_CATEGORIES.map((category) => category.label),
+    );
+    expect(
+      await sectionPicker
+        .locator("option")
+        .evaluateAll((options) =>
+          options.map((option) => (option as HTMLOptionElement).value),
+        ),
+    ).toEqual(SETTINGS_CATEGORIES.map((category) => category.id));
+    await expect(sectionPicker).toHaveValue("intelligence");
+    await sectionPicker.selectOption("general");
+    await expect(
+      content.getByRole("heading", {
+        level: 1,
+        name: "General",
+        exact: true,
+      }),
+    ).toBeVisible();
+    await expect(
+      content.getByRole("tab", { name: "Preferences", exact: true }),
+    ).toHaveAttribute("aria-selected", "true");
+    await expect(
+      content.getByRole("button", {
+        name: "Light: Light surfaces",
+        exact: true,
+      }),
+    ).toBeVisible();
+    await app.evaluate(({ BrowserWindow }) =>
+      BrowserWindow.getAllWindows()[0]?.setContentSize(1728, 900),
+    );
+    await expect.poll(() => page.evaluate(() => window.innerWidth)).toBe(1728);
+    await expect(sectionSearch).toBeVisible();
+    await expect(sectionSearch).toHaveValue("credentials");
+    await expect(
+      menu.getByRole("button", { name: /^Appearance:/u }),
+    ).toHaveAttribute("aria-current", "page");
     await sectionSearch.fill("no-such-settings-section");
     await expect(menu.getByRole("status")).toContainText(
       "No matching sections",
@@ -251,16 +370,16 @@ test("settings menu stays stable across sections, viewports and header shortcuts
       .click();
     await expect(sectionSearch).toBeFocused();
     await expect(menu.locator("button[data-settings-section]")).toHaveCount(
-      SETTINGS_SHELL_SECTIONS.length,
+      SETTINGS_CATEGORIES.length,
     );
-    const appearance = menu.getByRole("button", { name: /^Appearance:/u });
+    const appearance = menu.getByRole("button", { name: /^General:/u });
     await appearance.focus();
     await page.keyboard.press("ArrowDown");
     await expect(
-      menu.getByRole("button", { name: /^Interfaces:/u }),
+      menu.getByRole("button", { name: /^Models & accounts:/u }),
     ).toBeFocused();
     await page.keyboard.press("End");
-    await expect(menu.getByRole("button", { name: /^About:/u })).toBeFocused();
+    await expect(menu.getByRole("button", { name: /^Help:/u })).toBeFocused();
     await page.keyboard.press("Home");
     await expect(appearance).toBeFocused();
     await page.keyboard.press("ArrowDown");
@@ -268,11 +387,30 @@ test("settings menu stays stable across sections, viewports and header shortcuts
     await expect(
       content.getByRole("heading", {
         level: 1,
-        name: "Interfaces",
+        name: "Models & accounts",
         exact: true,
       }),
     ).toBeVisible();
     await headerSettings.click();
+    const preferences = content.getByRole("tab", {
+      name: "Preferences",
+      exact: true,
+    });
+    const interfaces = content.getByRole("tab", {
+      name: "Interfaces",
+      exact: true,
+    });
+    await preferences.focus();
+    await page.keyboard.press("ArrowRight");
+    await expect(interfaces).toBeFocused();
+    await expect(preferences).toHaveAttribute("aria-selected", "true");
+    await page.keyboard.press("Enter");
+    await expect(interfaces).toHaveAttribute("aria-selected", "true");
+    await expect(page).toHaveURL(/#\/settings\/interfaces$/u);
+    await page.keyboard.press("Home");
+    await expect(preferences).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(page).toHaveURL(/#\/settings$/u);
     await page.evaluate(() => {
       document.documentElement.dataset.interfaceSettings = "true";
       window.dispatchEvent(new Event("doolittle:interface-settings"));
@@ -282,10 +420,13 @@ test("settings menu stays stable across sections, viewports and header shortcuts
     await expect(
       content.getByRole("heading", {
         level: 1,
-        name: "Interfaces",
+        name: "General",
         exact: true,
       }),
     ).toBeVisible();
+    await expect(
+      content.getByRole("tab", { name: "Interfaces", exact: true }),
+    ).toHaveAttribute("aria-selected", "true");
     expect(desktop.pageErrors).toEqual([]);
   } finally {
     await desktop.dispose();
@@ -1235,10 +1376,10 @@ test.describe("Doolittle desktop navigation", () => {
             );
             await expect(settingsNavigation).toBeVisible();
             const settingsCategories = [
-              /^Appearance:/u,
-              /^Desktop:/u,
+              /^General:/u,
+              /^Models & accounts:/u,
               /^Execution:/u,
-              /^Advanced:/u,
+              /^System:/u,
             ] as const;
             for (const categoryName of settingsCategories) {
               const categoryButton = settingsNavigation.getByRole("button", {
@@ -1272,11 +1413,13 @@ test.describe("Doolittle desktop navigation", () => {
               });
               expect(geometry.contentOffset).toBeGreaterThanOrEqual(-1);
               expect(geometry.contentOffset).toBeLessThanOrEqual(32);
-              expect(geometry.headerHeight).toBeGreaterThanOrEqual(64);
-              expect(geometry.panelGap).toBe(20);
+              expect(geometry.headerHeight).toBeGreaterThanOrEqual(40);
+              expect(geometry.headerHeight).toBeLessThanOrEqual(64);
+              expect(geometry.panelGap).toBeGreaterThanOrEqual(8);
+              expect(geometry.panelGap).toBeLessThanOrEqual(16);
             }
             await viewContainer
-              .getByRole("button", { name: /Advanced/ })
+              .getByRole("tab", { name: "Advanced", exact: true })
               .click();
             const advancedGroups = viewContainer.locator(
               ".settings-field-disclosure",

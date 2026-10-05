@@ -158,6 +158,100 @@ export const SETTINGS_SHELL_SECTIONS: readonly SettingsShellSectionDefinition[] 
     },
   ];
 
+export type SettingsCategoryId =
+  | "general"
+  | "intelligence"
+  | "capabilities"
+  | "personalization"
+  | "execution"
+  | "system"
+  | "help";
+
+export interface SettingsCategoryDefinition {
+  id: SettingsCategoryId;
+  label: string;
+  description: string;
+  sections: readonly SettingsShellSection[];
+  defaultSection: SettingsShellSection;
+}
+
+/** Presentation categories never replace persisted subsection identities. */
+export const SETTINGS_CATEGORIES = [
+  {
+    id: "general",
+    label: "General",
+    description: "Appearance, interface and desktop behavior",
+    sections: ["appearance", "desktop", "interfaces"],
+    defaultSection: "appearance",
+  },
+  {
+    id: "intelligence",
+    label: "Models & accounts",
+    description: "Model routing, provider accounts and API keys",
+    sections: ["model", "accounts", "credentials"],
+    defaultSection: "model",
+  },
+  {
+    id: "capabilities",
+    label: "Tools & extensions",
+    description: "Tools, skills, plugins and package sources",
+    sections: ["tools", "skills", "plugins", "registry"],
+    defaultSection: "tools",
+  },
+  {
+    id: "personalization",
+    label: "Memory & identity",
+    description: "Stored knowledge and agent profiles",
+    sections: ["memory", "profiles"],
+    defaultSection: "memory",
+  },
+  {
+    id: "execution",
+    label: "Execution",
+    description: "Permissions and execution environments",
+    sections: ["execution"],
+    defaultSection: "execution",
+  },
+  {
+    id: "system",
+    label: "System",
+    description: "Runtime status, logs and advanced configuration",
+    sections: ["runtime", "logs", "compatibility", "advanced"],
+    defaultSection: "runtime",
+  },
+  {
+    id: "help",
+    label: "Help",
+    description: "Setup, documentation and support",
+    sections: ["setup", "about"],
+    defaultSection: "setup",
+  },
+] as const satisfies readonly SettingsCategoryDefinition[];
+
+export function settingsCategoryForSection(
+  section: string,
+): SettingsCategoryDefinition {
+  return (
+    SETTINGS_CATEGORIES.find((category: SettingsCategoryDefinition) =>
+      category.sections.includes(section as SettingsShellSection),
+    ) ?? SETTINGS_CATEGORIES[0]
+  );
+}
+
+/** Desktop is merged into Preferences; its saved deep link still works. */
+export function settingsTabsForCategory(category: SettingsCategoryDefinition) {
+  return category.sections
+    .filter((section) => section !== "desktop")
+    .map((section) => ({
+      id: section,
+      label:
+        section === "appearance"
+          ? "Preferences"
+          : (SETTINGS_SHELL_SECTIONS.find((entry) => entry.id === section)
+              ?.label ?? section),
+    }));
+}
+
 const EMBEDDED_FEATURE_SECTIONS = new Set<SettingsShellSection>([
   "interfaces",
   "model",

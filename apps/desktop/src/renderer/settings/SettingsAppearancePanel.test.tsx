@@ -31,11 +31,17 @@ describe("SettingsAppearancePanel", () => {
     );
 
     expect(markup).toContain('aria-label="Application appearance"');
-    expect(markup).toContain("Color mode</h2>");
+    expect(markup).toContain("Appearance</h2>");
+    expect(markup).toContain("Color mode</strong>");
+    expect(markup.match(/class="dl-settings-preference-row"/gu)).toHaveLength(
+      1,
+    );
     expect(markup).toContain('aria-pressed="true"');
     expect(markup).toContain('aria-label="Interface density"');
     expect(markup).toContain("Interface theme");
-    expect(markup).toContain("Shareable theme file");
+    expect(markup).toContain("dl-settings-theme-heading");
+    expect(markup).toContain("dl-settings-theme-actions");
+    expect(markup).not.toContain("Shareable theme file");
     expect(markup).toContain("Imported files cannot run CSS or scripts");
     expect(markup).toContain("typography, spacing, geometry, motion");
     expect(markup).not.toContain("linear-gradient");

@@ -1,6 +1,6 @@
-import { SettingsFrame } from "@doolittle/ui";
+import { SettingsFrame, SettingsTabs } from "@doolittle/ui";
 import { BUILT_IN_THEMES } from "@doolittle/ui/themes";
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useId, useMemo, useRef, useState } from "react";
 import type {
   DesktopLifecycleState,
   DesktopUpdateState,
@@ -77,8 +77,12 @@ import {
 } from "./settings/settings-layout";
 import {
   isEmbeddedSettingsFeature,
+  SETTINGS_CATEGORIES,
   SETTINGS_SHELL_SECTIONS,
+  type SettingsCategoryId,
   type SettingsShellSection,
+  settingsCategoryForSection,
+  settingsTabsForCategory,
 } from "./settings/settings-sections";
 import type { SettingsResponse } from "./settings/settings-types";
 
@@ -107,14 +111,22 @@ export function settingsResourcePolicy(
 ): SettingsResourcePolicy {
   return {
     // Embedded feature pages own their resources. The shell only reads the
-    // settings document for its native configuration panels.
-    settings: active && !isEmbeddedSettingsFeature(category),
-    themes: active && category === "appearance",
+    // settings document for execution and advanced runtime fields. General
+    // preferences are local/native; do not offer a no-op runtime Reload there.
+    settings:
+      active &&
+      !isEmbeddedSettingsFeature(category) &&
+      !settingsPreferencesVisible(category),
+    themes: active && settingsPreferencesVisible(category),
     // Lifecycle and update controls belong to the Electron shell, so they
     // remain usable even when the local agent runtime is stopped.
-    desktop: category === "desktop",
+    desktop: settingsPreferencesVisible(category),
     execution: active && category === "execution",
   };
+}
+
+export function settingsPreferencesVisible(section: string) {
+  return section === "appearance" || section === "desktop";
 }
 
 export function settingsCategoryOffline(category: string, active: boolean) {
@@ -137,6 +149,11 @@ export function SettingsPage({
   refreshRuntime?: () => void;
 }) {
   const [category, setCategory] = useState<string>(section ?? "appearance");
+  const panelId = useId();
+  const panelRef = useRef<HTMLDivElement>(null);
+  const selections = useRef<
+    Partial<Record<SettingsCategoryId, SettingsShellSection>>
+  >({});
   const resourcePolicy = settingsResourcePolicy(category, active);
   const settings = useApiResource<SettingsResponse>(
     resourcePolicy.settings ? "/settings" : null,
@@ -192,6 +209,12 @@ export function SettingsPage({
     setQuery("");
   }, [section]);
   useEffect(() => {
+    selections.current[settingsCategoryForSection(category).id] =
+      category as SettingsShellSection;
+    const content = panelRef.current?.parentElement;
+    if (content) content.scrollTop = 0;
+  }, [category]);
+  useEffect(() => {
     if (!resourcePolicy.desktop) return;
     let disposed = false;
     void window.doolittle
@@ -226,7 +249,7 @@ export function SettingsPage({
   );
   // All runtime fields stay accessible in Advanced, without changing the menu
   // when a resource loads or unloads during navigation.
-  const categories = SETTINGS_SHELL_SECTIONS;
+  const categories = SETTINGS_CATEGORIES;
   const fieldCategory =
     category === "appearance"
       ? "ui"
@@ -241,8 +264,25 @@ export function SettingsPage({
       (!normalized || field.path.toLowerCase().includes(normalized))
     );
   });
-  const activeCategory =
-    categories.find((entry) => entry.id === category) ?? categories[0];
+  const activeCategory = settingsCategoryForSection(category);
+  const activeSection = SETTINGS_SHELL_SECTIONS.find(
+    (entry) => entry.id === category,
+  );
+  const tabs = settingsTabsForCategory(activeCategory);
+  const tabValue = category === "desktop" ? "appearance" : category;
+  const panelAccessibility =
+    tabs.length > 1
+      ? {
+          role: "tabpanel" as const,
+          "aria-labelledby": `${panelId}-tab-${tabValue}`,
+          tabIndex: 0,
+        }
+      : { role: "region" as const, "aria-label": activeCategory.label };
+  const selectSection = (id: string) => {
+    setCategory(id);
+    setQuery("");
+    onSectionChange?.(id as SettingsShellSection);
+  };
   const categorySupportsSearch =
     !["appearance", "desktop"].includes(category) &&
     !isEmbeddedSettingsFeature(category);
@@ -374,18 +414,15 @@ export function SettingsPage({
           category={category}
           query={sectionQuery}
           onQueryChange={setSectionQuery}
-          onSelect={(id) => {
-            setCategory(id);
-            setQuery("");
-            onSectionChange?.(id as SettingsShellSection);
-          }}
+          onSelect={selectSection}
+          selections={selections.current}
         />
       }
     >
       <header className={SETTINGS_CONTENT_HEADER_CLASS}>
         <div>
-          <h1>{activeCategory?.label ?? "Settings"}</h1>
-          <p>{activeCategory?.description}</p>
+          <h1>{activeCategory.label}</h1>
+          <p>{activeCategory.description}</p>
         </div>
         {resourcePolicy.settings ? (
           <button
@@ -397,191 +434,207 @@ export function SettingsPage({
           </button>
         ) : null}
       </header>
-      {savedMessage ? <Notice>{savedMessage}</Notice> : null}
-      {runtimeCategoryOffline ? (
-        <OfflineRouteState>
-          Runtime configuration and execution controls are unavailable until the
-          local runtime is ready.
-        </OfflineRouteState>
-      ) : null}
-      {!runtimeCategoryOffline && categorySupportsSearch ? (
-        <label className="search-field settings-search max-w-80">
-          <span className="sr-only">Search settings</span>
-          <input
-            placeholder={`Search ${activeCategory?.label.toLowerCase()}`}
-            type="search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-          />
-        </label>
-      ) : null}
-      {!runtimeCategoryOffline && categorySupportsSearch ? (
-        settings.loading ? (
-          <LoadingBlock label="Loading runtime configuration…" />
-        ) : settings.error ? (
-          <ErrorBlock error={settings.error} retry={reloadSettings} />
-        ) : null
-      ) : null}
-      {!runtimeCategoryOffline && category === "appearance" ? (
-        <SettingsAppearancePanel
-          active={active}
-          activeTheme={activeThemeProfile}
-          themeMigrationError={themeMigrationError}
-          appearance={appearance}
-          density={density}
-          onAppearanceChange={changeAppearance}
-          onDensityChange={changeDensity}
-          onThemeExport={exportTheme}
-          onThemeImport={(file) => void importTheme(file)}
-          onThemeChange={(theme) => void changeTheme(theme)}
-          themes={[...BUILT_IN_THEMES, ...asArray(themes.data?.themes)]}
-          themesLoading={themes.loading}
-          themesError={themes.error}
-          onThemeReload={themes.reload}
+      {tabs.length > 1 ? (
+        <SettingsTabs
+          items={tabs}
+          value={tabValue}
+          onChange={selectSection}
+          panelId={panelId}
+          label="Settings subsections"
         />
       ) : null}
-      {category === "interfaces" ? (
-        <Suspense fallback={<LoadingBlock label="Loading interfaces…" />}>
-          <LazyInterfacePanel />
-        </Suspense>
-      ) : null}
-      {!runtimeCategoryOffline && category === "model" ? (
-        <Suspense fallback={<LoadingBlock label="Loading model settings…" />}>
-          <LazyModelsPage
+      <div
+        {...panelAccessibility}
+        className="settings-category-panel"
+        id={panelId}
+        ref={panelRef}
+      >
+        {savedMessage ? <Notice>{savedMessage}</Notice> : null}
+        {runtimeCategoryOffline ? (
+          <OfflineRouteState>
+            Runtime configuration and execution controls are unavailable until
+            the local runtime is ready.
+          </OfflineRouteState>
+        ) : null}
+        {!runtimeCategoryOffline && categorySupportsSearch ? (
+          <label className="search-field settings-search max-w-80">
+            <span className="sr-only">Search settings</span>
+            <input
+              placeholder={`Search ${activeSection?.label.toLowerCase() ?? "settings"}`}
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+            />
+          </label>
+        ) : null}
+        {!runtimeCategoryOffline && categorySupportsSearch ? (
+          settings.loading ? (
+            <LoadingBlock label="Loading runtime configuration…" />
+          ) : settings.error ? (
+            <ErrorBlock error={settings.error} retry={reloadSettings} />
+          ) : null
+        ) : null}
+        {!runtimeCategoryOffline && settingsPreferencesVisible(category) ? (
+          <SettingsAppearancePanel
             active={active}
-            embedded
-            refreshRuntime={() => {
-              refreshRuntime?.();
-            }}
-            runtime={runtime ?? null}
+            activeTheme={activeThemeProfile}
+            themeMigrationError={themeMigrationError}
+            appearance={appearance}
+            density={density}
+            onAppearanceChange={changeAppearance}
+            onDensityChange={changeDensity}
+            onThemeExport={exportTheme}
+            onThemeImport={(file) => void importTheme(file)}
+            onThemeChange={(theme) => void changeTheme(theme)}
+            themes={[...BUILT_IN_THEMES, ...asArray(themes.data?.themes)]}
+            themesLoading={themes.loading}
+            themesError={themes.error}
+            onThemeReload={themes.reload}
           />
-        </Suspense>
-      ) : null}
-      {!runtimeCategoryOffline && category === "accounts" ? (
-        <Suspense
-          fallback={<LoadingBlock label="Loading provider accounts…" />}
-        >
-          <LazyConnectionsPage active={active} embedded />
-        </Suspense>
-      ) : null}
-      {!runtimeCategoryOffline && category === "credentials" ? (
-        <Suspense fallback={<LoadingBlock label="Loading credentials…" />}>
-          <LazyKeysPage active={active} embedded />
-        </Suspense>
-      ) : null}
-      {!runtimeCategoryOffline && category === "tools" ? (
-        <Suspense fallback={<LoadingBlock label="Loading tools…" />}>
-          <LazyToolsPage active={active} embedded />
-        </Suspense>
-      ) : null}
-      {!runtimeCategoryOffline && category === "skills" ? (
-        <Suspense fallback={<LoadingBlock label="Loading skills…" />}>
-          <LazySkillsPage active={active} embedded />
-        </Suspense>
-      ) : null}
-      {!runtimeCategoryOffline && category === "plugins" ? (
-        <Suspense fallback={<LoadingBlock label="Loading plugins…" />}>
-          <LazyPluginsPage active={active} embedded />
-        </Suspense>
-      ) : null}
-      {!runtimeCategoryOffline && category === "memory" ? (
-        <Suspense fallback={<LoadingBlock label="Loading memory…" />}>
-          <LazyMemoryPage active={active} embedded />
-        </Suspense>
-      ) : null}
-      {!runtimeCategoryOffline && category === "profiles" ? (
-        <Suspense fallback={<LoadingBlock label="Loading profiles…" />}>
-          <LazyProfilesPage active={active} embedded />
-        </Suspense>
-      ) : null}
-      {!runtimeCategoryOffline && category === "logs" ? (
-        <Suspense fallback={<LoadingBlock label="Loading logs…" />}>
-          <LazyLogsPage active={active} embedded />
-        </Suspense>
-      ) : null}
-      {!runtimeCategoryOffline && category === "runtime" ? (
-        <Suspense fallback={<LoadingBlock label="Loading runtime…" />}>
-          <LazyRuntimePage
-            active={active}
-            embedded
-            onOpenProviders={() => onSectionChange?.("accounts")}
-            readOnly={!writesAllowed}
+        ) : null}
+        {category === "interfaces" ? (
+          <Suspense fallback={<LoadingBlock label="Loading interfaces…" />}>
+            <LazyInterfacePanel />
+          </Suspense>
+        ) : null}
+        {!runtimeCategoryOffline && category === "model" ? (
+          <Suspense fallback={<LoadingBlock label="Loading model settings…" />}>
+            <LazyModelsPage
+              active={active}
+              embedded
+              refreshRuntime={() => {
+                refreshRuntime?.();
+              }}
+              runtime={runtime ?? null}
+            />
+          </Suspense>
+        ) : null}
+        {!runtimeCategoryOffline && category === "accounts" ? (
+          <Suspense
+            fallback={<LoadingBlock label="Loading provider accounts…" />}
+          >
+            <LazyConnectionsPage active={active} embedded />
+          </Suspense>
+        ) : null}
+        {!runtimeCategoryOffline && category === "credentials" ? (
+          <Suspense fallback={<LoadingBlock label="Loading credentials…" />}>
+            <LazyKeysPage active={active} embedded />
+          </Suspense>
+        ) : null}
+        {!runtimeCategoryOffline && category === "tools" ? (
+          <Suspense fallback={<LoadingBlock label="Loading tools…" />}>
+            <LazyToolsPage active={active} embedded />
+          </Suspense>
+        ) : null}
+        {!runtimeCategoryOffline && category === "skills" ? (
+          <Suspense fallback={<LoadingBlock label="Loading skills…" />}>
+            <LazySkillsPage active={active} embedded />
+          </Suspense>
+        ) : null}
+        {!runtimeCategoryOffline && category === "plugins" ? (
+          <Suspense fallback={<LoadingBlock label="Loading plugins…" />}>
+            <LazyPluginsPage active={active} embedded />
+          </Suspense>
+        ) : null}
+        {!runtimeCategoryOffline && category === "memory" ? (
+          <Suspense fallback={<LoadingBlock label="Loading memory…" />}>
+            <LazyMemoryPage active={active} embedded />
+          </Suspense>
+        ) : null}
+        {!runtimeCategoryOffline && category === "profiles" ? (
+          <Suspense fallback={<LoadingBlock label="Loading profiles…" />}>
+            <LazyProfilesPage active={active} embedded />
+          </Suspense>
+        ) : null}
+        {!runtimeCategoryOffline && category === "logs" ? (
+          <Suspense fallback={<LoadingBlock label="Loading logs…" />}>
+            <LazyLogsPage active={active} embedded />
+          </Suspense>
+        ) : null}
+        {!runtimeCategoryOffline && category === "runtime" ? (
+          <Suspense fallback={<LoadingBlock label="Loading runtime…" />}>
+            <LazyRuntimePage
+              active={active}
+              embedded
+              onOpenProviders={() => onSectionChange?.("accounts")}
+              readOnly={!writesAllowed}
+            />
+          </Suspense>
+        ) : null}
+        {!runtimeCategoryOffline && category === "compatibility" ? (
+          <Suspense fallback={<LoadingBlock label="Loading compatibility…" />}>
+            <LazyCompatibilityPage active={active} embedded />
+          </Suspense>
+        ) : null}
+        {!runtimeCategoryOffline && category === "registry" ? (
+          <Suspense fallback={<LoadingBlock label="Loading registry…" />}>
+            <LazyRegistryPage active={active} embedded />
+          </Suspense>
+        ) : null}
+        {!runtimeCategoryOffline && category === "setup" ? (
+          <Suspense fallback={<LoadingBlock label="Loading setup…" />}>
+            <LazySetupPage
+              active={active}
+              embedded
+              onOpenProviders={() => onSectionChange?.("accounts")}
+            />
+          </Suspense>
+        ) : null}
+        {!runtimeCategoryOffline && category === "about" ? (
+          <Suspense fallback={<LoadingBlock label="Loading documentation…" />}>
+            <LazyDocsPage active={active} embedded />
+          </Suspense>
+        ) : null}
+        {!runtimeCategoryOffline && settingsPreferencesVisible(category) ? (
+          <DesktopSettingsPanel
+            lifecycle={lifecycle}
+            onBackgroundChange={updateLifecycleBackground}
+            onCheckUpdates={checkForUpdates}
+            onDownloadUpdate={downloadUpdate}
+            onInstallUpdate={installUpdate}
+            update={update}
+            updateBusy={updateBusy}
           />
-        </Suspense>
-      ) : null}
-      {!runtimeCategoryOffline && category === "compatibility" ? (
-        <Suspense fallback={<LoadingBlock label="Loading compatibility…" />}>
-          <LazyCompatibilityPage active={active} embedded />
-        </Suspense>
-      ) : null}
-      {!runtimeCategoryOffline && category === "registry" ? (
-        <Suspense fallback={<LoadingBlock label="Loading registry…" />}>
-          <LazyRegistryPage active={active} embedded />
-        </Suspense>
-      ) : null}
-      {!runtimeCategoryOffline && category === "setup" ? (
-        <Suspense fallback={<LoadingBlock label="Loading setup…" />}>
-          <LazySetupPage
-            active={active}
-            embedded
-            onOpenProviders={() => onSectionChange?.("accounts")}
-          />
-        </Suspense>
-      ) : null}
-      {!runtimeCategoryOffline && category === "about" ? (
-        <Suspense fallback={<LoadingBlock label="Loading documentation…" />}>
-          <LazyDocsPage active={active} embedded />
-        </Suspense>
-      ) : null}
-      {!runtimeCategoryOffline && category === "desktop" ? (
-        <DesktopSettingsPanel
-          lifecycle={lifecycle}
-          onBackgroundChange={updateLifecycleBackground}
-          onCheckUpdates={checkForUpdates}
-          onDownloadUpdate={downloadUpdate}
-          onInstallUpdate={installUpdate}
-          update={update}
-          updateBusy={updateBusy}
-        />
-      ) : null}
-      {!["desktop", "appearance"].includes(category) &&
-      !isEmbeddedSettingsFeature(category) &&
-      !runtimeCategoryOffline &&
-      !settings.loading &&
-      !settings.error ? (
-        <section className={SETTINGS_GROUP_CLASS}>
-          <div className="settings-group-heading">
-            <div>
-              <span className="eyebrow">{activeCategory?.label}</span>
-              <h2>
-                {category === "advanced"
-                  ? "Complete configuration"
-                  : `${activeCategory?.label} settings`}
-              </h2>
+        ) : null}
+        {!["desktop", "appearance"].includes(category) &&
+        !isEmbeddedSettingsFeature(category) &&
+        !runtimeCategoryOffline &&
+        !settings.loading &&
+        !settings.error ? (
+          <section className={SETTINGS_GROUP_CLASS}>
+            <div className="settings-group-heading">
+              <div>
+                <span className="eyebrow">{activeSection?.label}</span>
+                <h2>
+                  {category === "advanced"
+                    ? "Complete configuration"
+                    : `${activeSection?.label} settings`}
+                </h2>
+              </div>
+              <Badge>{visibleFields.length} fields</Badge>
             </div>
-            <Badge>{visibleFields.length} fields</Badge>
-          </div>
-          <SettingsFieldCollection
-            advanced={category === "advanced"}
-            fields={visibleFields}
-            onReload={settings.reload}
-            onSaved={(field: FlatSetting) => {
-              setSavedMessage(`${field.path} saved.`);
-              settings.reload();
-              if (field.category === "execution") execution.reload();
-            }}
-            query={query}
+            <SettingsFieldCollection
+              advanced={category === "advanced"}
+              fields={visibleFields}
+              onReload={settings.reload}
+              onSaved={(field: FlatSetting) => {
+                setSavedMessage(`${field.path} saved.`);
+                settings.reload();
+                if (field.category === "execution") execution.reload();
+              }}
+              query={query}
+            />
+          </section>
+        ) : null}
+        {!runtimeCategoryOffline && category === "execution" ? (
+          <SettingsExecutionStatusPanel
+            data={execution.data}
+            error={execution.error}
+            loading={execution.loading}
+            onReload={execution.reload}
           />
-        </section>
-      ) : null}
-      {!runtimeCategoryOffline && category === "execution" ? (
-        <SettingsExecutionStatusPanel
-          data={execution.data}
-          error={execution.error}
-          loading={execution.loading}
-          onReload={execution.reload}
-        />
-      ) : null}
+        ) : null}
+      </div>
     </SettingsFrame>
   );
 }

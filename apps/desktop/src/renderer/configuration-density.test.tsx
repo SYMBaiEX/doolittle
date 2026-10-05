@@ -52,6 +52,19 @@ describe("configuration route density", () => {
     desktopRequestMock.mockReset();
     desktopRequestMock.mockResolvedValue({});
     useApiResourceMock.mockReset();
+    Object.defineProperty(window, "doolittle", {
+      configurable: true,
+      value: {
+        getLifecycleState: vi.fn(async () => ({
+          keepRunningInBackground: false,
+        })),
+        getUpdateState: vi.fn(async () => ({
+          phase: "up_to_date",
+          message: "Up to date",
+        })),
+        onUpdateState: vi.fn(() => () => undefined),
+      },
+    });
   });
 
   afterEach(() => {
@@ -59,6 +72,21 @@ describe("configuration route density", () => {
     container.remove();
     vi.unstubAllGlobals();
   });
+
+  function openAdvanced() {
+    act(() =>
+      container
+        .querySelector<HTMLButtonElement>(
+          'button[data-settings-section="system"]',
+        )
+        ?.click(),
+    );
+    act(() =>
+      [...container.querySelectorAll<HTMLButtonElement>('button[role="tab"]')]
+        .find((button) => button.textContent === "Advanced")
+        ?.click(),
+    );
+  }
 
   it("keeps appearance compact and exposes every runtime field through static Advanced navigation", async () => {
     useApiResourceMock.mockImplementation((path: string | null) => {
@@ -86,7 +114,7 @@ describe("configuration route density", () => {
       return resource(null);
     });
 
-    act(() => root.render(<SettingsPage active />));
+    await act(async () => root.render(<SettingsPage active />));
 
     expect(container.querySelector(".settings-search")).toBeNull();
     expect(
@@ -99,20 +127,14 @@ describe("configuration route density", () => {
     expect(theme?.querySelector("small")).toBeNull();
 
     expect(
-      container.querySelector('button[data-settings-section="advanced"]'),
+      container.querySelector('button[data-settings-section="system"]'),
     ).not.toBeNull();
     expect(
       container.querySelector(
         'button[aria-label="Agent: Runtime preferences"]',
       ),
     ).toBeNull();
-    act(() =>
-      container
-        .querySelector<HTMLButtonElement>(
-          'button[data-settings-section="advanced"]',
-        )
-        ?.click(),
-    );
+    openAdvanced();
 
     expect(
       container
@@ -148,13 +170,13 @@ describe("configuration route density", () => {
     expect(container.textContent).not.toContain("No stored keys yet");
   });
 
-  it("keeps the settings rail and local appearance controls available during runtime loading", () => {
+  it("keeps the settings rail and local appearance controls available during runtime loading", async () => {
     useApiResourceMock.mockImplementation((path: string | null) =>
       path === "/settings"
         ? { ...resource(null), loading: true }
         : resource(null),
     );
-    act(() => root.render(<SettingsPage active />));
+    await act(async () => root.render(<SettingsPage active />));
     expect(
       container.querySelector('aside[aria-label="Settings categories"]'),
     ).not.toBeNull();
@@ -164,11 +186,7 @@ describe("configuration route density", () => {
     expect(container.textContent).not.toContain(
       "Loading runtime configuration…",
     );
-    const advanced = container.querySelector<HTMLButtonElement>(
-      'button[data-settings-section="advanced"]',
-    );
-    expect(advanced).not.toBeNull();
-    act(() => advanced?.click());
+    openAdvanced();
     expect(container.textContent).toContain("Loading runtime configuration…");
     expect(container.querySelector(".settings-group-heading")).toBeNull();
     expect(
@@ -176,27 +194,29 @@ describe("configuration route density", () => {
     ).not.toBeNull();
   });
 
-  it("allows leaving a failed runtime settings category without losing navigation", () => {
+  it("allows leaving a failed runtime settings category without losing navigation", async () => {
     useApiResourceMock.mockImplementation((path: string | null) =>
       path === "/settings"
         ? { ...resource(null), error: "Runtime settings unavailable" }
         : resource(null),
     );
-    act(() => root.render(<SettingsPage active section="advanced" />));
+    await act(async () =>
+      root.render(<SettingsPage active section="advanced" />),
+    );
     expect(container.textContent).toContain("Runtime settings unavailable");
     const appearance = container.querySelector<HTMLButtonElement>(
-      'button[aria-label="Appearance: Theme and display"]',
+      'button[data-settings-section="general"]',
     );
-    act(() => appearance?.click());
+    await act(async () => appearance?.click());
     expect(container.textContent).not.toContain("Runtime settings unavailable");
     expect(
       container.querySelector('button[aria-label="Light: Light surfaces"]'),
     ).not.toBeNull();
   });
 
-  it("synchronizes mounted appearance controls with the shell toggle and preserves System preference", () => {
+  it("synchronizes mounted appearance controls with the shell toggle and preserves System preference", async () => {
     useApiResourceMock.mockReturnValue(resource(null));
-    act(() => root.render(<SettingsPage active />));
+    await act(async () => root.render(<SettingsPage active />));
     const choice = (label: string) =>
       container.querySelector<HTMLButtonElement>(
         `button[aria-label="${label}"]`,

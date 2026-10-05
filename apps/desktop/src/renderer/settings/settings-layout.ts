@@ -10,22 +10,18 @@ export const SETTINGS_NAV_BUTTON_CLASS = "dl-settings-menu-item";
 export const SETTINGS_CONTENT_CLASS = "settings-content dl-settings-content";
 export const SETTINGS_CONTENT_HEADER_CLASS =
   "settings-content-header dl-settings-page-heading";
-export const SETTINGS_GROUP_CLASS =
-  "settings-group grid min-w-0 content-start gap-5 py-4";
+export const SETTINGS_GROUP_CLASS = "settings-group dl-settings-group";
 export const SETTINGS_APPEARANCE_CLASS =
-  "appearance-segmented grid grid-cols-3 gap-2 max-[620px]:grid-cols-1";
-export const SETTINGS_APPEARANCE_BUTTON_CLASS =
-  "grid min-h-10 grid-cols-[auto_minmax(0,1fr)] items-center gap-2 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-left text-sm text-[var(--text-soft)] hover:bg-[var(--surface-hover)] [&.selected]:border-[var(--accent-border)] [&.selected]:bg-[var(--accent-soft)] [&.selected]:text-[var(--text)] [&>svg]:text-[var(--muted)] [&.selected>svg]:text-[var(--accent-text)] max-[760px]:min-h-11";
+  "appearance-segmented dl-settings-choices";
+export const SETTINGS_APPEARANCE_BUTTON_CLASS = "dl-settings-choice";
 export const SETTINGS_INLINE_CHOICE_CLASS =
-  "settings-inline-choice flex min-h-10 flex-wrap items-center justify-between gap-3 py-3 [&>div:first-child]:grid [&>div:first-child]:gap-1 [&>div:first-child_small]:text-sm [&>div:first-child_small]:leading-relaxed [&>div:first-child_small]:text-[var(--muted)] [&>fieldset]:flex [&>fieldset]:gap-1 [&>fieldset_button]:min-h-10 [&>fieldset_button]:rounded-[var(--radius-sm)] [&>fieldset_button]:px-3 [&>fieldset_button]:text-sm [&>fieldset_button]:text-[var(--text-soft)] [&>fieldset_button:hover]:bg-[var(--surface-hover)] [&>fieldset_button.selected]:bg-[var(--surface-selected)] [&>fieldset_button.selected]:text-[var(--text)] max-[760px]:[&>fieldset_button]:min-h-11";
-export const SETTINGS_THEME_GRID_CLASS =
-  "theme-grid grid grid-cols-3 gap-2 max-[1280px]:grid-cols-2 max-[620px]:grid-cols-1";
-export const SETTINGS_THEME_BUTTON_CLASS =
-  "grid min-h-10 grid-cols-[24px_minmax(0,1fr)_16px] items-center gap-2 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-left text-sm text-[var(--text-soft)] hover:bg-[var(--surface-hover)] [&.selected]:border-[var(--accent-border)] [&.selected]:bg-[var(--accent-soft)] [&.selected]:text-[var(--text)] [&.selected>svg]:text-[var(--accent-text)] [&>strong]:truncate max-[760px]:min-h-11";
+  "settings-inline-choice dl-settings-preference-row";
+export const SETTINGS_THEME_GRID_CLASS = "theme-grid dl-settings-theme-grid";
+export const SETTINGS_THEME_BUTTON_CLASS = "dl-settings-theme-choice";
 export const SETTINGS_THEME_SIGNAL_CLASS =
   "theme-card-signal grid size-6 grid-cols-3 gap-0.5 rounded-[var(--radius-xs)] border border-[var(--border)] p-1 [&>i]:h-2 [&>i]:w-1";
 export const SETTINGS_ROW_LAYOUT_CLASS =
-  "setting-row grid min-h-10 min-w-0 grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] items-start gap-6 border-b border-[var(--border)] py-4 last:border-b-0 max-[900px]:grid-cols-1 max-[900px]:gap-3";
+  "setting-row dl-settings-field-row min-h-10";
 export const SETTINGS_SWITCH_CLASS =
   "switch relative flex min-h-10 cursor-pointer items-center gap-2 max-[760px]:min-h-11";
 export const SETTINGS_SWITCH_INPUT_CLASS =

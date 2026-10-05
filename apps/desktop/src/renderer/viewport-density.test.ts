@@ -55,7 +55,7 @@ describe("wide route viewport density", () => {
 
     expect(settingsPage).toContain("SETTINGS_PAGE_CLASS");
     expect(settingsStyles).toContain(
-      "grid-template-columns: 224px minmax(0, 1fr)",
+      "grid-template-columns: 204px minmax(0, 1fr)",
     );
     expect(settingsStyles).toContain(
       "@container dl-settings (max-width: 760px)",

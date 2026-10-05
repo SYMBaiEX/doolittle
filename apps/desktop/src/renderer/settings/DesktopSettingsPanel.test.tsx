@@ -50,6 +50,15 @@ describe("DesktopSettingsPanel", () => {
         (button) => button.textContent?.includes("Check for updates"),
       )?.disabled,
     ).toBe(true);
+    expect(container.querySelector("h2")?.textContent).toBe("Desktop");
+    expect(
+      container.querySelectorAll(".dl-settings-preference-row"),
+    ).toHaveLength(2);
+    expect(
+      container
+        .querySelector<HTMLInputElement>('input[type="checkbox"]')
+        ?.getAttribute("aria-label"),
+    ).toBe("Keep running in the background");
   });
 
   it("forwards lifecycle and downloaded-update actions", () => {

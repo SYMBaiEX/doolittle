@@ -11,7 +11,7 @@
 }
 .dl-settings-layout {
   display: grid;
-  grid-template-columns: 224px minmax(0, 1fr);
+  grid-template-columns: 204px minmax(0, 1fr);
   height: 100%;
   min-height: 0;
   min-width: 0;
@@ -19,10 +19,10 @@
 .dl-settings-menu {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
   min-height: 0;
   min-width: 0;
-  padding: 24px 16px;
+  padding: 20px 8px;
   overflow-y: auto;
   overflow-x: hidden;
   scrollbar-gutter: stable;
@@ -35,11 +35,8 @@
   font-weight: 600;
   line-height: 1.4;
 }
-.dl-settings-menu-heading p {
-  margin: 4px 0 0;
-  font-size: 14px;
-  line-height: 1.5;
-  color: var(--muted);
+.dl-settings-menu-heading {
+  padding-inline: 8px;
 }
 .dl-settings-menu-search input {
   min-height: 40px;
@@ -64,7 +61,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 6px;
   width: 100%;
   min-height: 40px;
   padding: 8px;
@@ -88,7 +85,24 @@
   flex: none;
   visibility: hidden;
   color: var(--accent-text);
-  font-size: 8px;
+  font-size: 6px;
+}
+.dl-settings-menu-icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  color: var(--muted);
+}
+.dl-settings-menu-icon svg {
+  width: 16px;
+  height: 16px;
+}
+.dl-settings-menu-label {
+  flex: 1;
+  min-width: 0;
 }
 .dl-settings-menu-group button[aria-current] .dl-settings-current {
   visibility: visible;
@@ -110,13 +124,15 @@
   color: var(--text);
 }
 .dl-settings-content {
+  container-type: inline-size;
+  container-name: dl-settings-content;
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 20px;
+  gap: 16px;
   min-width: 0;
   min-height: 0;
-  padding: 32px clamp(20px, 4vw, 48px) 48px;
+  padding: 24px clamp(20px, 3vw, 36px) 32px;
   overflow-y: auto;
   overflow-x: hidden;
   scrollbar-gutter: stable;
@@ -131,13 +147,13 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
-  min-height: 64px;
-  padding-bottom: 16px;
+  min-height: 48px;
+  padding-bottom: 8px;
   border-bottom: 1px solid var(--border);
 }
 .dl-settings-page-heading h1 {
   margin: 0;
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 600;
   line-height: 1.35;
   letter-spacing: -0.02em;
@@ -179,7 +195,178 @@
 .dl-settings-content .settings-field-groups {
   display: grid;
   min-width: 0;
+  gap: 0;
+}
+.dl-settings-group {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: 0;
+  padding-block: 8px;
+}
+.settings-category-panel {
+  display: grid;
+  min-width: 0;
+  align-content: start;
   gap: 16px;
+}
+.dl-settings-group > .settings-group-heading {
+  padding-bottom: 4px;
+}
+.dl-settings-field-row {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  align-items: start;
+  gap: 16px;
+  padding-block: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.dl-settings-field-row:last-child {
+  border-bottom: 0;
+}
+.dl-settings-preference-row,
+.dl-settings-theme-heading {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 20px;
+  padding-block: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.dl-settings-preference-row > .setting-copy,
+.dl-settings-theme-heading > .setting-copy {
+  flex: 1 1 200px;
+}
+.dl-settings-preference-row > .setting-control {
+  flex: 0 1 auto;
+}
+.dl-settings-content .dl-settings-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.dl-settings-content .dl-settings-choice,
+.dl-settings-content .dl-settings-theme-choice {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm, 6px);
+  background: transparent;
+  color: var(--text-soft);
+  font-size: 14px;
+  line-height: 1.4;
+}
+.dl-settings-content .dl-settings-choice:hover,
+.dl-settings-content .dl-settings-theme-choice:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+.dl-settings-content .dl-settings-choice[aria-pressed="true"],
+.dl-settings-content .dl-settings-theme-choice[aria-pressed="true"] {
+  border-color: var(--border-strong);
+  background: var(--surface-selected);
+  color: var(--text);
+}
+.dl-settings-content .dl-settings-choice:focus-visible,
+.dl-settings-content .dl-settings-theme-choice:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+.dl-settings-content .dl-settings-choice strong,
+.dl-settings-content .dl-settings-theme-choice strong {
+  font-size: 14px;
+  font-weight: 500;
+}
+.dl-settings-theme-heading {
+  border-bottom: 0;
+}
+.dl-settings-theme-actions,
+.dl-settings-desktop-actions {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.dl-settings-theme-actions > button,
+.dl-settings-desktop-actions > button {
+  min-height: 40px;
+  padding-inline: 12px;
+  font-size: 14px;
+}
+.dl-settings-content .dl-settings-theme-grid {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: repeat(auto-fit, minmax(min(160px, 100%), 1fr));
+  gap: 6px;
+}
+.dl-settings-content .dl-settings-theme-choice {
+  justify-content: flex-start;
+  min-width: 0;
+  padding-inline: 8px;
+}
+.dl-settings-content .dl-settings-theme-choice strong {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dl-settings-theme-choice > span,
+.dl-settings-theme-choice > svg {
+  flex: none;
+}
+.dl-settings-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-width: 0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.dl-settings-tabs [role="tab"] {
+  min-height: 40px;
+  max-width: 100%;
+  padding: 8px 12px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm, 6px);
+  background: transparent;
+  color: var(--text-soft);
+  font-size: 14px;
+  line-height: 1.4;
+}
+.dl-settings-tabs [role="tab"]:hover {
+  background: var(--surface-hover);
+}
+.dl-settings-tabs [role="tab"][aria-selected="true"] {
+  border-color: var(--border-strong);
+  background: var(--surface-selected);
+  color: var(--text);
+  font-weight: 600;
+}
+.dl-settings-tabs [role="tab"]:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+@container dl-settings-content (max-width: 600px) {
+  .dl-settings-field-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+  .dl-settings-preference-row > .setting-copy,
+  .dl-settings-theme-heading > .setting-copy {
+    flex-basis: 100%;
+  }
 }
 .dl-settings-content .setting-copy {
   display: grid;
@@ -264,8 +451,8 @@
     color: var(--text);
   }
   .dl-settings-content {
-    gap: 20px;
-    padding: 24px 16px 40px;
+    gap: 16px;
+    padding: 20px 16px 32px;
   }
   .dl-settings-content button,
   .dl-settings-content input:not([type="checkbox"]):not([type="radio"]),
@@ -273,7 +460,12 @@
     min-height: 44px;
   }
   .dl-settings-page-heading {
-    min-height: 64px;
+    min-height: 48px;
+  }
+  .dl-settings-tabs [role="tab"],
+  .dl-settings-content .dl-settings-choice,
+  .dl-settings-content .dl-settings-theme-choice {
+    min-height: 44px;
   }
 }
 .dl-workspace {

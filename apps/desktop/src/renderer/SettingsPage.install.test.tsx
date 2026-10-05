@@ -85,10 +85,8 @@ describe("SettingsPage update installation", () => {
     });
 
     await act(async () => root.render(<SettingsPage active />));
-    const desktop = container.querySelector<HTMLButtonElement>(
-      'button[aria-label="Desktop: Updates and lifecycle"]',
-    );
-    await act(async () => desktop?.click());
+    expect(container.querySelector("h1")?.textContent).toBe("General");
+    expect(container.textContent).toContain("Keep running in the background");
 
     const installButton =
       container.querySelector<HTMLButtonElement>(".primary-button");

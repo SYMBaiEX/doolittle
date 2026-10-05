@@ -1,9 +1,16 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { settingsResourcePolicy } from "./SettingsPage";
 import {
+  settingsCategoryOffline,
+  settingsPreferencesVisible,
+  settingsResourcePolicy,
+} from "./SettingsPage";
+import {
+  SETTINGS_CATEGORIES,
   SETTINGS_SHELL_SECTIONS,
+  settingsCategoryForSection,
   settingsSectionForView,
+  settingsTabsForCategory,
   settingsViewForSection,
 } from "./settings/settings-sections";
 
@@ -38,9 +45,9 @@ describe("settings resource policy", () => {
 
   it("activates detail resources only when their category becomes visible", () => {
     expect(settingsResourcePolicy("appearance", true)).toMatchObject({
-      settings: true,
+      settings: false,
       themes: true,
-      desktop: false,
+      desktop: true,
       execution: false,
     });
     expect(settingsResourcePolicy("execution", true)).toMatchObject({
@@ -56,8 +63,8 @@ describe("settings resource policy", () => {
       execution: false,
     });
     expect(settingsResourcePolicy("desktop", true)).toEqual({
-      settings: true,
-      themes: false,
+      settings: false,
+      themes: true,
       desktop: true,
       execution: false,
     });
@@ -82,10 +89,12 @@ describe("settings resource policy", () => {
     expect(settingsPageSource).not.toContain("settings-nav-title");
     expect(settingsPageSource).not.toContain("settings-nav-note");
     expect(settingsNavigationSource).toContain("<SettingsMenu");
-    expect(settingsNavigationSource).toContain("value={category}");
+    expect(settingsNavigationSource).toContain(
+      "value={searching ? category : current.id}",
+    );
     expect(settingsNavigationSource).not.toContain("<details");
     expect(settingsPageSource).toContain(
-      "const categories = SETTINGS_SHELL_SECTIONS;",
+      "const categories = SETTINGS_CATEGORIES;",
     );
     expect(settingsPageSource).not.toContain("rawCategories");
     expect(settingsPageSource).not.toContain("<i>{entry.count}</i>");
@@ -94,17 +103,52 @@ describe("settings resource policy", () => {
     );
   });
 
-  it("groups detailed settings into six operator-facing areas", () => {
-    expect([
-      ...new Set(SETTINGS_SHELL_SECTIONS.map((section) => section.group)),
-    ]).toEqual([
-      "Appearance & desktop",
+  it("consolidates every retained destination into exactly seven categories", () => {
+    expect(SETTINGS_CATEGORIES.map((category) => category.label)).toEqual([
+      "General",
       "Models & accounts",
-      "Capabilities",
-      "Personalization",
-      "Runtime & diagnostics",
-      "Setup & support",
+      "Tools & extensions",
+      "Memory & identity",
+      "Execution",
+      "System",
+      "Help",
     ]);
+    const sections = SETTINGS_CATEGORIES.flatMap(
+      (category) => category.sections,
+    );
+    expect(new Set(sections).size).toBe(19);
+    expect(sections.length).toBe(19);
+    expect([...sections].sort()).toEqual(
+      SETTINGS_SHELL_SECTIONS.map((section) => section.id).sort(),
+    );
+    for (const category of SETTINGS_CATEGORIES) {
+      expect(category.sections).toContain(category.defaultSection);
+      for (const section of category.sections)
+        expect(settingsCategoryForSection(section).id).toBe(category.id);
+    }
+  });
+
+  it("combines appearance and desktop controls without merging their saved identities", () => {
+    expect(settingsPreferencesVisible("appearance")).toBe(true);
+    expect(settingsPreferencesVisible("desktop")).toBe(true);
+    expect(settingsPreferencesVisible("interfaces")).toBe(false);
+    expect(settingsTabsForCategory(SETTINGS_CATEGORIES[0])).toEqual([
+      { id: "appearance", label: "Preferences" },
+      { id: "interfaces", label: "Interfaces" },
+    ]);
+    expect(settingsResourcePolicy("appearance", false)).toEqual({
+      settings: false,
+      themes: false,
+      desktop: true,
+      execution: false,
+    });
+    expect(settingsCategoryOffline("desktop", false)).toBe(false);
+    expect(settingsCategoryOffline("interfaces", false)).toBe(false);
+    expect(settingsCategoryOffline("model", false)).toBe(true);
+    expect(settingsPageSource).toContain("<SettingsTabs");
+    expect(settingsPageSource).toContain(
+      'category === "desktop" ? "appearance" : category',
+    );
   });
 
   it("loads embedded feature panels behind accessible suspense boundaries", () => {
@@ -191,9 +235,7 @@ describe("settings resource policy", () => {
 
   it("uses a consistent heading and shell for native and embedded settings pages", () => {
     expect(settingsPageSource).toContain("<SettingsFrame");
-    expect(settingsPageSource).toContain(
-      '<h1>{activeCategory?.label ?? "Settings"}</h1>',
-    );
+    expect(settingsPageSource).toContain("<h1>{activeCategory.label}</h1>");
     expect(settingsPageSource).not.toContain("<PageHeader");
     expect(settingsPageSource).not.toContain("!embeddedFeature");
   });

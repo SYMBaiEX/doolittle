@@ -66,7 +66,9 @@ that code was written for it.
 
 ### 2. Settings consolidation
 
-- [x] Define grouped Settings sections with stable labels and search keywords.
+- [x] Consolidate Settings into seven flat categories with stable labels,
+  contextual tabs, direct subsection search and retained deep links.
+- [x] Combine appearance and desktop behavior into compact General preferences.
 - [x] Embed existing feature pages without duplicating resource ownership.
 - [x] Keep Appearance and Desktop usable while the runtime is offline.
 - [x] Preserve degraded read-only diagnostics for runtime-related sections.

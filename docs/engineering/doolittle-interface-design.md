@@ -34,13 +34,18 @@ gradients, glow, textures, or cards around ordinary lists.
 - The initially closed inspector contains Details, Library and Computer.
   Computer opens actual editor/browser/terminal resources; it is not a VM.
   Its immutable bot/conversation/workspace origin must not follow ambient focus.
-- Settings uses a fixed-width, independently scrolling, searchable section menu
-  with every group always expanded. Selection uses a quiet current-section marker,
-  never a route stripe or auto-collapsing group. One consistent section heading,
-  readable field descriptions and rule-separated forms apply across retained pages.
-  A native grouped section picker replaces the menu below 760px of available
-  settings width. Section changes never resize or auto-collapse navigation.
-  Interfaces, Desktop, Execution and Advanced have distinct persistent deep links.
+- Settings has seven flat icon-led categories: General, Models & accounts,
+  Tools & extensions, Memory & identity, Execution, System and Help. A fixed
+  204px menu never collapses or changes width with selection; a quiet current
+  marker replaces route stripes. Search opens retained subsections directly.
+  Contextual tabs group larger tools without loading unrelated resources.
+  General combines appearance, density, themes, background behavior and updates
+  into compact labeled rows; interface extensions remain a contextual tab.
+  Readable 14px descriptions, aligned controls and rule-separated forms apply
+  across retained pages. A native category picker replaces the menu below 760px
+  of available settings width. Tabs wrap rather than clipping at narrow widths.
+  All 19 existing subsection identities and deep links remain valid, including
+  Desktop, which opens the same combined Preferences panel as Appearance.
 
 Drafts, stream subscriptions, queued messages, editor documents and PTYs belong
 outside replaceable presentation. Running, Waiting, Attention, Complete, Stopped,
