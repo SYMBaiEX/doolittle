@@ -47,7 +47,7 @@ overrides:
 
 patchedDependencies:
   '@elizaos/core@2.0.3-beta.7':
-    hash: de13c1a28833d96617e332553e573cabc4deebfae1a53903e56f08767762db5a
+    hash: 093f5c62e94e8c497955401e8bf30cf003b62b1d4eb879426dc08be05c3510d1
     path: patches/@elizaos+core@2.0.3-beta.7.patch
   '@elizaos/plugin-agent-orchestrator@2.0.3-beta.7':
     hash: 71401e5b29d17ab7336b9c74422d0fcb17888465b1b34a821fcfdba6054c8ed2
@@ -98,7 +98,7 @@ importers:
         version: link:packages/cloud-shared
       '@elizaos/core':
         specifier: 2.0.3-beta.7
-        version: 2.0.3-beta.7(patch_hash=de13c1a28833d96617e332553e573cabc4deebfae1a53903e56f08767762db5a)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
+        version: 2.0.3-beta.7(patch_hash=093f5c62e94e8c497955401e8bf30cf003b62b1d4eb879426dc08be05c3510d1)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       '@elizaos/logger':
         specifier: 2.0.3-beta.7
         version: 2.0.3-beta.7
@@ -358,7 +358,7 @@ importers:
         version: 2.0.3-beta.7(a17c9b7b5ff65c0249f2f3abe6ba4d87)
       '@elizaos/core':
         specifier: 2.0.3-beta.7
-        version: 2.0.3-beta.7(patch_hash=de13c1a28833d96617e332553e573cabc4deebfae1a53903e56f08767762db5a)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
+        version: 2.0.3-beta.7(patch_hash=093f5c62e94e8c497955401e8bf30cf003b62b1d4eb879426dc08be05c3510d1)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       '@elizaos/logger':
         specifier: 2.0.3-beta.7
         version: 2.0.3-beta.7
@@ -477,7 +477,7 @@ importers:
         version: 2.0.3-beta.7(4f8771c41f2b19a02b2cd0fcc72a625d)
       '@elizaos/core':
         specifier: 2.0.3-beta.7
-        version: 2.0.3-beta.7(patch_hash=de13c1a28833d96617e332553e573cabc4deebfae1a53903e56f08767762db5a)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
+        version: 2.0.3-beta.7(patch_hash=093f5c62e94e8c497955401e8bf30cf003b62b1d4eb879426dc08be05c3510d1)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       '@elizaos/plugin-form':
         specifier: 2.0.3-beta.7
         version: 2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
@@ -492,7 +492,7 @@ importers:
         version: link:../provider-transport
       '@elizaos/core':
         specifier: 2.0.3-beta.7
-        version: 2.0.3-beta.7(patch_hash=de13c1a28833d96617e332553e573cabc4deebfae1a53903e56f08767762db5a)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
+        version: 2.0.3-beta.7(patch_hash=093f5c62e94e8c497955401e8bf30cf003b62b1d4eb879426dc08be05c3510d1)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
 
   packages/plugins/plugin-devin:
     dependencies:
@@ -501,13 +501,13 @@ importers:
         version: link:../provider-transport
       '@elizaos/core':
         specifier: 2.0.3-beta.7
-        version: 2.0.3-beta.7(patch_hash=de13c1a28833d96617e332553e573cabc4deebfae1a53903e56f08767762db5a)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
+        version: 2.0.3-beta.7(patch_hash=093f5c62e94e8c497955401e8bf30cf003b62b1d4eb879426dc08be05c3510d1)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
 
   packages/plugins/plugin-sql:
     dependencies:
       '@elizaos/core':
         specifier: 2.0.3-beta.7
-        version: 2.0.3-beta.7(patch_hash=de13c1a28833d96617e332553e573cabc4deebfae1a53903e56f08767762db5a)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
+        version: 2.0.3-beta.7(patch_hash=093f5c62e94e8c497955401e8bf30cf003b62b1d4eb879426dc08be05c3510d1)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       '@elizaos/plugin-sql':
         specifier: 2.0.3-beta.7
         version: 2.0.3-beta.7(@elizaos/core@2.0.3-beta.7)(@upstash/redis@1.39.0)(react@19.3.0)
@@ -516,7 +516,7 @@ importers:
     dependencies:
       '@elizaos/core':
         specifier: 2.0.3-beta.7
-        version: 2.0.3-beta.7(patch_hash=de13c1a28833d96617e332553e573cabc4deebfae1a53903e56f08767762db5a)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
+        version: 2.0.3-beta.7(patch_hash=093f5c62e94e8c497955401e8bf30cf003b62b1d4eb879426dc08be05c3510d1)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
 
   packages/registry: {}
 
@@ -15869,7 +15869,7 @@ snapshots:
       '@ai-sdk/openai': 3.0.123(zod@4.6.5)
       '@clack/prompts': 1.8.1
       '@elizaos/app-core': 2.0.3-beta.7(a17c9b7b5ff65c0249f2f3abe6ba4d87)
-      '@elizaos/core': 2.0.3-beta.7(patch_hash=de13c1a28833d96617e332553e573cabc4deebfae1a53903e56f08767762db5a)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
+      '@elizaos/core': 2.0.3-beta.7(patch_hash=093f5c62e94e8c497955401e8bf30cf003b62b1d4eb879426dc08be05c3510d1)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       '@elizaos/plugin-agent-orchestrator': 2.0.3-beta.7(patch_hash=71401e5b29d17ab7336b9c74422d0fcb17888465b1b34a821fcfdba6054c8ed2)(25f40e37cd740f6f3c57d06ce75e52ff)
       '@elizaos/plugin-agent-skills': 2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       '@elizaos/plugin-anthropic': 2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)(zod@4.6.5)
@@ -16071,7 +16071,7 @@ snapshots:
       '@capacitor/push-notifications': 8.1.2(@capacitor/core@8.4.0)
       '@clack/prompts': 1.8.1
       '@elizaos/agent': 2.0.3-beta.7(4f8771c41f2b19a02b2cd0fcc72a625d)
-      '@elizaos/core': 2.0.3-beta.7(patch_hash=de13c1a28833d96617e332553e573cabc4deebfae1a53903e56f08767762db5a)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
+      '@elizaos/core': 2.0.3-beta.7(patch_hash=093f5c62e94e8c497955401e8bf30cf003b62b1d4eb879426dc08be05c3510d1)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       '@elizaos/plugin-anthropic': 2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)(zod@4.6.5)
       '@elizaos/plugin-browser': 2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       '@elizaos/plugin-edge-tts': 2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
@@ -16334,7 +16334,7 @@ snapshots:
 
   '@elizaos/contracts@2.0.3-beta.7': {}
 
-  '@elizaos/core@2.0.3-beta.7(patch_hash=de13c1a28833d96617e332553e573cabc4deebfae1a53903e56f08767762db5a)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)':
+  '@elizaos/core@2.0.3-beta.7(patch_hash=093f5c62e94e8c497955401e8bf30cf003b62b1d4eb879426dc08be05c3510d1)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)':
     dependencies:
       '@ai-sdk/anthropic': 3.0.127(zod@4.6.5)
       '@ai-sdk/gateway': 3.0.133(zod@4.6.5)
@@ -16405,7 +16405,7 @@ snapshots:
 
   '@elizaos/plugin-agent-orchestrator@2.0.3-beta.7(patch_hash=71401e5b29d17ab7336b9c74422d0fcb17888465b1b34a821fcfdba6054c8ed2)(25f40e37cd740f6f3c57d06ce75e52ff)':
     dependencies:
-      '@elizaos/core': 2.0.3-beta.7(patch_hash=de13c1a28833d96617e332553e573cabc4deebfae1a53903e56f08767762db5a)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
+      '@elizaos/core': 2.0.3-beta.7(patch_hash=093f5c62e94e8c497955401e8bf30cf003b62b1d4eb879426dc08be05c3510d1)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       '@octokit/rest': 22.0.1
       coding-agent-adapters: 0.16.3
       drizzle-orm: 0.45.2(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
@@ -16453,7 +16453,7 @@ snapshots:
 
   '@elizaos/plugin-agent-skills@2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)':
     dependencies:
-      '@elizaos/core': 2.0.3-beta.7(patch_hash=de13c1a28833d96617e332553e573cabc4deebfae1a53903e56f08767762db5a)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
+      '@elizaos/core': 2.0.3-beta.7(patch_hash=093f5c62e94e8c497955401e8bf30cf003b62b1d4eb879426dc08be05c3510d1)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       '@elizaos/shared': 2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(ws@8.22.0)
       '@elizaos/skills': 2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       fflate: 0.8.3
@@ -16491,12 +16491,12 @@ snapshots:
   '@elizaos/plugin-anthropic@2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)(zod@4.6.5)':
     dependencies:
       '@ai-sdk/anthropic': 3.0.127(zod@4.6.5)
-      '@elizaos/core': 2.0.3-beta.7(patch_hash=de13c1a28833d96617e332553e573cabc4deebfae1a53903e56f08767762db5a)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
+      '@elizaos/core': 2.0.3-beta.7(patch_hash=093f5c62e94e8c497955401e8bf30cf003b62b1d4eb879426dc08be05c3510d1)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       ai: 6.0.299(zod@4.6.5)
 
   '@elizaos/plugin-aosp-local-inference@2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)':
     dependencies:
-      '@elizaos/core': 2.0.3-beta.7(patch_hash=de13c1a28833d96617e332553e573cabc4deebfae1a53903e56f08767762db5a)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
+      '@elizaos/core': 2.0.3-beta.7(patch_hash=093f5c62e94e8c497955401e8bf30cf003b62b1d4eb879426dc08be05c3510d1)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       '@elizaos/shared': 2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(ws@8.22.0)
     transitivePeerDependencies:
       - '@aws-sdk/client-rds-data'
@@ -16531,7 +16531,7 @@ snapshots:
 
   '@elizaos/plugin-app-control@2.0.3-beta.7(@babel/core@7.29.7)(@babel/runtime@7.29.7)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.5.8)(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.1.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@solana/sysvars@2.3.0(@solana/addresses@2.3.0(typescript@7.0.2))(@solana/rpc-parsed-types@2.3.0(typescript@7.0.2))(typescript@7.0.2))(@types/react@19.3.0)(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(@walletconnect/types@2.19.1)(bs58@6.0.0)(bufferutil@4.1.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react-dom@19.3.0(react@19.3.0))(react-is@18.3.1)(react-native@0.87.1(react@19.3.0))(tslib@2.8.1)(typescript@7.0.2)(undici@8.10.2)(utf-8-validate@5.0.10)(vitest@5.0.3(@types/node@26.6.3)(jsdom@29.1.1)(vite@8.3.1(@types/node@26.6.3)(esbuild@0.28.2)(yaml@2.9.1)))(ws@8.22.0)(zod@4.6.5)':
     dependencies:
-      '@elizaos/core': 2.0.3-beta.7(patch_hash=de13c1a28833d96617e332553e573cabc4deebfae1a53903e56f08767762db5a)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
+      '@elizaos/core': 2.0.3-beta.7(patch_hash=093f5c62e94e8c497955401e8bf30cf003b62b1d4eb879426dc08be05c3510d1)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       '@elizaos/logger': 2.0.3-beta.7
       '@elizaos/shared': 2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(ws@8.22.0)
       '@elizaos/ui': 2.0.3-beta.7(@babel/core@7.29.7)(@babel/runtime@7.29.7)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@solana/sysvars@2.3.0(@solana/addresses@2.3.0(typescript@7.0.2))(@solana/rpc-parsed-types@2.3.0(typescript@7.0.2))(typescript@7.0.2))(@types/react@19.3.0)(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(@walletconnect/types@2.19.1)(bs58@6.0.0)(bufferutil@4.1.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react-is@18.3.1)(react-native@0.87.1(react@19.3.0))(tslib@2.8.1)(typescript@7.0.2)(undici@8.10.2)(utf-8-validate@5.0.10)(vitest@5.0.3(@types/node@26.6.3)(jsdom@29.1.1)(vite@8.3.1(@types/node@26.6.3)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.5)
@@ -16620,7 +16620,7 @@ snapshots:
 
   '@elizaos/plugin-app-manager@2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)':
     dependencies:
-      '@elizaos/core': 2.0.3-beta.7(patch_hash=de13c1a28833d96617e332553e573cabc4deebfae1a53903e56f08767762db5a)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
+      '@elizaos/core': 2.0.3-beta.7(patch_hash=093f5c62e94e8c497955401e8bf30cf003b62b1d4eb879426dc08be05c3510d1)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       '@elizaos/plugin-registry': 2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       '@elizaos/shared': 2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(ws@8.22.0)
     transitivePeerDependencies:
@@ -16656,11 +16656,11 @@ snapshots:
 
   '@elizaos/plugin-background-runner@2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)':
     dependencies:
-      '@elizaos/core': 2.0.3-beta.7(patch_hash=de13c1a28833d96617e332553e573cabc4deebfae1a53903e56f08767762db5a)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
+      '@elizaos/core': 2.0.3-beta.7(patch_hash=093f5c62e94e8c497955401e8bf30cf003b62b1d4eb879426dc08be05c3510d1)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
 
   '@elizaos/plugin-browser@2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)':
     dependencies:
-      '@elizaos/core': 2.0.3-beta.7(patch_hash=de13c1a28833d96617e332553e573cabc4deebfae1a53903e56f08767762db5a)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
+      '@elizaos/core': 2.0.3-beta.7(patch_hash=093f5c62e94e8c497955401e8bf30cf003b62b1d4eb879426dc08be05c3510d1)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       '@elizaos/vault': 2.0.3-beta.7(ws@8.22.0)
       drizzle-orm: 0.45.2(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
     transitivePeerDependencies:
@@ -16697,7 +16697,7 @@ snapshots:
 
   '@elizaos/plugin-capacitor-bridge@2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)':
     dependencies:
-      '@elizaos/core': 2.0.3-beta.7(patch_hash=de13c1a28833d96617e332553e573cabc4deebfae1a53903e56f08767762db5a)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
+      '@elizaos/core': 2.0.3-beta.7(patch_hash=093f5c62e94e8c497955401e8bf30cf003b62b1d4eb879426dc08be05c3510d1)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       ws: 8.22.0
     transitivePeerDependencies:
       - bufferutil
@@ -16705,12 +16705,12 @@ snapshots:
 
   '@elizaos/plugin-codex-cli@2.0.3-beta.7(patch_hash=1d187815659907fc5e4c73991fc0ab955d29764ab473ad82d0e300368473b7fb)(@electric-sql/pglite@0.5.8)(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)(zod@4.6.5)':
     dependencies:
-      '@elizaos/core': 2.0.3-beta.7(patch_hash=de13c1a28833d96617e332553e573cabc4deebfae1a53903e56f08767762db5a)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
+      '@elizaos/core': 2.0.3-beta.7(patch_hash=093f5c62e94e8c497955401e8bf30cf003b62b1d4eb879426dc08be05c3510d1)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       zod: 4.6.5
 
   '@elizaos/plugin-coding-tools@2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)':
     dependencies:
-      '@elizaos/core': 2.0.3-beta.7(patch_hash=de13c1a28833d96617e332553e573cabc4deebfae1a53903e56f08767762db5a)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
+      '@elizaos/core': 2.0.3-beta.7(patch_hash=093f5c62e94e8c497955401e8bf30cf003b62b1d4eb879426dc08be05c3510d1)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       '@elizaos/shared': 2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(ws@8.22.0)
       '@vscode/ripgrep': 1.18.0
       zod: 4.6.5
@@ -16747,7 +16747,7 @@ snapshots:
 
   '@elizaos/plugin-commands@2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)':
     dependencies:
-      '@elizaos/core': 2.0.3-beta.7(patch_hash=de13c1a28833d96617e332553e573cabc4deebfae1a53903e56f08767762db5a)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
+      '@elizaos/core': 2.0.3-beta.7(patch_hash=093f5c62e94e8c497955401e8bf30cf003b62b1d4eb879426dc08be05c3510d1)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
     transitivePeerDependencies:
       - '@aws-sdk/client-rds-data'
       - '@cloudflare/workers-types'
@@ -16781,7 +16781,7 @@ snapshots:
 
   '@elizaos/plugin-computeruse@2.0.3-beta.7(@babel/runtime@7.29.7)(@electric-sql/pglite@0.5.8)(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)(zod@4.6.5)':
     dependencies:
-      '@elizaos/core': 2.0.3-beta.7(patch_hash=de13c1a28833d96617e332553e573cabc4deebfae1a53903e56f08767762db5a)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
+      '@elizaos/core': 2.0.3-beta.7(patch_hash=093f5c62e94e8c497955401e8bf30cf003b62b1d4eb879426dc08be05c3510d1)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       '@nut-tree-fork/nut-js': 4.2.6(@babel/runtime@7.29.7)
       puppeteer-core: 25.12.0
     optionalDependencies:
@@ -16801,7 +16801,7 @@ snapshots:
   '@elizaos/plugin-contacts@2.0.3-beta.7(@babel/core@7.29.7)(@babel/runtime@7.29.7)(@capacitor/core@8.4.0)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@solana/sysvars@2.3.0(@solana/addresses@2.3.0(typescript@7.0.2))(@solana/rpc-parsed-types@2.3.0(typescript@7.0.2))(typescript@7.0.2))(@types/react@19.3.0)(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(@walletconnect/types@2.19.1)(bs58@6.0.0)(bufferutil@4.1.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react-is@18.3.1)(react-native@0.87.1(react@19.3.0))(tslib@2.8.1)(typescript@7.0.2)(undici@8.10.2)(utf-8-validate@5.0.10)(vitest@5.0.3(@types/node@26.6.3)(jsdom@29.1.1)(vite@8.3.1(@types/node@26.6.3)(esbuild@0.28.2)(yaml@2.9.1)))(ws@8.22.0)(zod@4.6.5)':
     dependencies:
       '@elizaos/capacitor-contacts': 2.0.3-beta.7(@capacitor/core@8.4.0)
-      '@elizaos/core': 2.0.3-beta.7(patch_hash=de13c1a28833d96617e332553e573cabc4deebfae1a53903e56f08767762db5a)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
+      '@elizaos/core': 2.0.3-beta.7(patch_hash=093f5c62e94e8c497955401e8bf30cf003b62b1d4eb879426dc08be05c3510d1)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       '@elizaos/ui': 2.0.3-beta.7(@babel/core@7.29.7)(@babel/runtime@7.29.7)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@solana/sysvars@2.3.0(@solana/addresses@2.3.0(typescript@7.0.2))(@solana/rpc-parsed-types@2.3.0(typescript@7.0.2))(typescript@7.0.2))(@types/react@19.3.0)(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(@walletconnect/types@2.19.1)(bs58@6.0.0)(bufferutil@4.1.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react-is@18.3.1)(react-native@0.87.1(react@19.3.0))(tslib@2.8.1)(typescript@7.0.2)(undici@8.10.2)(utf-8-validate@5.0.10)(vitest@5.0.3(@types/node@26.6.3)(jsdom@29.1.1)(vite@8.3.1(@types/node@26.6.3)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.5)
       lucide-react: 1.49.0(@types/react@19.3.0)(react@19.3.0)
       react: 19.3.0
@@ -16897,7 +16897,7 @@ snapshots:
       '@discordjs/util': 1.2.0
       '@discordjs/voice': 0.19.2(@discordjs/opus@0.10.0)(@emnapi/core@1.11.2(@emnapi/runtime@1.11.2))(@emnapi/runtime@1.11.2)
       '@discordjs/ws': 1.2.3
-      '@elizaos/core': 2.0.3-beta.7(patch_hash=de13c1a28833d96617e332553e573cabc4deebfae1a53903e56f08767762db5a)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
+      '@elizaos/core': 2.0.3-beta.7(patch_hash=093f5c62e94e8c497955401e8bf30cf003b62b1d4eb879426dc08be05c3510d1)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       '@elizaos/plugin-browser': 2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       '@elizaos/plugin-commands': 2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       '@sapphire/snowflake': 3.5.5
@@ -16955,7 +16955,7 @@ snapshots:
 
   '@elizaos/plugin-edge-tts@2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)':
     dependencies:
-      '@elizaos/core': 2.0.3-beta.7(patch_hash=de13c1a28833d96617e332553e573cabc4deebfae1a53903e56f08767762db5a)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
+      '@elizaos/core': 2.0.3-beta.7(patch_hash=093f5c62e94e8c497955401e8bf30cf003b62b1d4eb879426dc08be05c3510d1)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       node-edge-tts: 1.2.10
     transitivePeerDependencies:
       - '@aws-sdk/client-rds-data'
@@ -16997,7 +16997,7 @@ snapshots:
       '@ai-sdk/provider': 3.0.10
       '@ai-sdk/provider-utils': 4.0.26(zod@4.6.5)
       '@elizaos/cloud-sdk': 2.0.3-beta.7
-      '@elizaos/core': 2.0.3-beta.7(patch_hash=de13c1a28833d96617e332553e573cabc4deebfae1a53903e56f08767762db5a)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
+      '@elizaos/core': 2.0.3-beta.7(patch_hash=093f5c62e94e8c497955401e8bf30cf003b62b1d4eb879426dc08be05c3510d1)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       '@elizaos/shared': 2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(ws@8.22.0)
       '@noble/curves': 2.2.0
       '@noble/hashes': 1.8.0
@@ -17049,7 +17049,7 @@ snapshots:
 
   '@elizaos/plugin-form@2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)':
     dependencies:
-      '@elizaos/core': 2.0.3-beta.7(patch_hash=de13c1a28833d96617e332553e573cabc4deebfae1a53903e56f08767762db5a)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
+      '@elizaos/core': 2.0.3-beta.7(patch_hash=093f5c62e94e8c497955401e8bf30cf003b62b1d4eb879426dc08be05c3510d1)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       uuid: 14.0.2
     transitivePeerDependencies:
       - '@aws-sdk/client-rds-data'
@@ -17084,17 +17084,17 @@ snapshots:
 
   '@elizaos/plugin-github@2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)':
     dependencies:
-      '@elizaos/core': 2.0.3-beta.7(patch_hash=de13c1a28833d96617e332553e573cabc4deebfae1a53903e56f08767762db5a)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
+      '@elizaos/core': 2.0.3-beta.7(patch_hash=093f5c62e94e8c497955401e8bf30cf003b62b1d4eb879426dc08be05c3510d1)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       '@octokit/rest': 22.0.1
 
   '@elizaos/plugin-gitpathologist@2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)':
     dependencies:
-      '@elizaos/core': 2.0.3-beta.7(patch_hash=de13c1a28833d96617e332553e573cabc4deebfae1a53903e56f08767762db5a)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
+      '@elizaos/core': 2.0.3-beta.7(patch_hash=093f5c62e94e8c497955401e8bf30cf003b62b1d4eb879426dc08be05c3510d1)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
 
   '@elizaos/plugin-groq@2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)(zod@4.6.5)':
     dependencies:
       '@ai-sdk/groq': 3.0.72(zod@4.6.5)
-      '@elizaos/core': 2.0.3-beta.7(patch_hash=de13c1a28833d96617e332553e573cabc4deebfae1a53903e56f08767762db5a)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
+      '@elizaos/core': 2.0.3-beta.7(patch_hash=093f5c62e94e8c497955401e8bf30cf003b62b1d4eb879426dc08be05c3510d1)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       ai: 6.0.299(zod@4.6.5)
     transitivePeerDependencies:
       - '@aws-sdk/client-rds-data'
@@ -17129,7 +17129,7 @@ snapshots:
 
   '@elizaos/plugin-health@2.0.3-beta.7(@babel/core@7.29.7)(@babel/runtime@7.29.7)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@solana/sysvars@2.3.0(@solana/addresses@2.3.0(typescript@7.0.2))(@solana/rpc-parsed-types@2.3.0(typescript@7.0.2))(typescript@7.0.2))(@types/react@19.3.0)(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(@walletconnect/types@2.19.1)(bs58@6.0.0)(bufferutil@4.1.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react-is@18.3.1)(react-native@0.87.1(react@19.3.0))(tslib@2.8.1)(typescript@7.0.2)(undici@8.10.2)(utf-8-validate@5.0.10)(vitest@5.0.3(@types/node@26.6.3)(jsdom@29.1.1)(vite@8.3.1(@types/node@26.6.3)(esbuild@0.28.2)(yaml@2.9.1)))(ws@8.22.0)(zod@4.6.5)':
     dependencies:
-      '@elizaos/core': 2.0.3-beta.7(patch_hash=de13c1a28833d96617e332553e573cabc4deebfae1a53903e56f08767762db5a)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
+      '@elizaos/core': 2.0.3-beta.7(patch_hash=093f5c62e94e8c497955401e8bf30cf003b62b1d4eb879426dc08be05c3510d1)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       '@elizaos/shared': 2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(ws@8.22.0)
       '@elizaos/ui': 2.0.3-beta.7(@babel/core@7.29.7)(@babel/runtime@7.29.7)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@solana/sysvars@2.3.0(@solana/addresses@2.3.0(typescript@7.0.2))(@solana/rpc-parsed-types@2.3.0(typescript@7.0.2))(typescript@7.0.2))(@types/react@19.3.0)(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(@walletconnect/types@2.19.1)(bs58@6.0.0)(bufferutil@4.1.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react-is@18.3.1)(react-native@0.87.1(react@19.3.0))(tslib@2.8.1)(typescript@7.0.2)(undici@8.10.2)(utf-8-validate@5.0.10)(vitest@5.0.3(@types/node@26.6.3)(jsdom@29.1.1)(vite@8.3.1(@types/node@26.6.3)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.5)
       lucide-react: 1.49.0(@types/react@19.3.0)(react@19.3.0)
@@ -17218,7 +17218,7 @@ snapshots:
 
   '@elizaos/plugin-imessage@2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)':
     dependencies:
-      '@elizaos/core': 2.0.3-beta.7(patch_hash=de13c1a28833d96617e332553e573cabc4deebfae1a53903e56f08767762db5a)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
+      '@elizaos/core': 2.0.3-beta.7(patch_hash=093f5c62e94e8c497955401e8bf30cf003b62b1d4eb879426dc08be05c3510d1)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       zod: 4.6.5
     transitivePeerDependencies:
       - '@aws-sdk/client-rds-data'
@@ -17253,7 +17253,7 @@ snapshots:
 
   '@elizaos/plugin-local-inference@2.0.3-beta.7(@babel/runtime@7.29.7)(@electric-sql/pglite@0.5.8)(@elizaos/core@2.0.3-beta.7)(@elizaos/shared@2.0.3-beta.7)(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(zod@4.6.5)':
     dependencies:
-      '@elizaos/core': 2.0.3-beta.7(patch_hash=de13c1a28833d96617e332553e573cabc4deebfae1a53903e56f08767762db5a)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
+      '@elizaos/core': 2.0.3-beta.7(patch_hash=093f5c62e94e8c497955401e8bf30cf003b62b1d4eb879426dc08be05c3510d1)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       '@elizaos/plugin-aosp-local-inference': 2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       '@elizaos/plugin-capacitor-bridge': 2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)
       '@elizaos/plugin-computeruse': 2.0.3-beta.7(@babel/runtime@7.29.7)(@electric-sql/pglite@0.5.8)(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)(zod@4.6.5)
@@ -17302,7 +17302,7 @@ snapshots:
 
   '@elizaos/plugin-mcp@2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)(zod@4.6.5)':
     dependencies:
-      '@elizaos/core': 2.0.3-beta.7(patch_hash=de13c1a28833d96617e332553e573cabc4deebfae1a53903e56f08767762db5a)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
+      '@elizaos/core': 2.0.3-beta.7(patch_hash=093f5c62e94e8c497955401e8bf30cf003b62b1d4eb879426dc08be05c3510d1)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       '@elizaos/security': 2.0.3-beta.7
       '@modelcontextprotocol/sdk': 1.31.0(zod@4.6.5)
       ajv: 8.20.0
@@ -17313,7 +17313,7 @@ snapshots:
 
   '@elizaos/plugin-ollama@2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)':
     dependencies:
-      '@elizaos/core': 2.0.3-beta.7(patch_hash=de13c1a28833d96617e332553e573cabc4deebfae1a53903e56f08767762db5a)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
+      '@elizaos/core': 2.0.3-beta.7(patch_hash=093f5c62e94e8c497955401e8bf30cf003b62b1d4eb879426dc08be05c3510d1)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       ai: 6.0.299(zod@4.6.5)
       ollama-ai-provider-v2: 3.6.0(ai@6.0.299(zod@4.6.5))(zod@4.6.5)
       zod: 4.6.5
@@ -17321,14 +17321,14 @@ snapshots:
   '@elizaos/plugin-openai@2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)(zod@4.6.5)':
     dependencies:
       '@ai-sdk/openai': 3.0.123(zod@4.6.5)
-      '@elizaos/core': 2.0.3-beta.7(patch_hash=de13c1a28833d96617e332553e573cabc4deebfae1a53903e56f08767762db5a)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
+      '@elizaos/core': 2.0.3-beta.7(patch_hash=093f5c62e94e8c497955401e8bf30cf003b62b1d4eb879426dc08be05c3510d1)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       ai: 6.0.299(zod@4.6.5)
       js-tiktoken: 1.0.21
       zod: 4.6.5
 
   '@elizaos/plugin-pdf@2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)':
     dependencies:
-      '@elizaos/core': 2.0.3-beta.7(patch_hash=de13c1a28833d96617e332553e573cabc4deebfae1a53903e56f08767762db5a)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
+      '@elizaos/core': 2.0.3-beta.7(patch_hash=093f5c62e94e8c497955401e8bf30cf003b62b1d4eb879426dc08be05c3510d1)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       unpdf: 1.8.1
     transitivePeerDependencies:
       - '@aws-sdk/client-rds-data'
@@ -17369,7 +17369,7 @@ snapshots:
       '@capacitor/preferences': 8.0.1(@capacitor/core@8.4.0)
       '@capacitor/push-notifications': 8.1.2(@capacitor/core@8.4.0)
       '@elizaos/capacitor-phone': 2.0.3-beta.7(@capacitor/core@8.4.0)
-      '@elizaos/core': 2.0.3-beta.7(patch_hash=de13c1a28833d96617e332553e573cabc4deebfae1a53903e56f08767762db5a)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
+      '@elizaos/core': 2.0.3-beta.7(patch_hash=093f5c62e94e8c497955401e8bf30cf003b62b1d4eb879426dc08be05c3510d1)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       '@elizaos/plugin-browser': 2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       '@elizaos/shared': 2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(ws@8.22.0)
       '@elizaos/ui': 2.0.3-beta.7(@babel/core@7.29.7)(@babel/runtime@7.29.7)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@solana/sysvars@2.3.0(@solana/addresses@2.3.0(typescript@7.0.2))(@solana/rpc-parsed-types@2.3.0(typescript@7.0.2))(typescript@7.0.2))(@types/react@19.3.0)(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(@walletconnect/types@2.19.1)(bs58@6.0.0)(bufferutil@4.1.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react-is@18.3.1)(react-native@0.87.1(react@19.3.0))(tslib@2.8.1)(typescript@7.0.2)(undici@8.10.2)(utf-8-validate@5.0.10)(vitest@5.0.3(@types/node@26.6.3)(jsdom@29.1.1)(vite@8.3.1(@types/node@26.6.3)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.5)
@@ -17460,7 +17460,7 @@ snapshots:
 
   '@elizaos/plugin-registry@2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)':
     dependencies:
-      '@elizaos/core': 2.0.3-beta.7(patch_hash=de13c1a28833d96617e332553e573cabc4deebfae1a53903e56f08767762db5a)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
+      '@elizaos/core': 2.0.3-beta.7(patch_hash=093f5c62e94e8c497955401e8bf30cf003b62b1d4eb879426dc08be05c3510d1)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       '@elizaos/shared': 2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(ws@8.22.0)
       '@elizaos/vault': 2.0.3-beta.7(ws@8.22.0)
     transitivePeerDependencies:
@@ -17496,7 +17496,7 @@ snapshots:
 
   '@elizaos/plugin-shell@2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)':
     dependencies:
-      '@elizaos/core': 2.0.3-beta.7(patch_hash=de13c1a28833d96617e332553e573cabc4deebfae1a53903e56f08767762db5a)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
+      '@elizaos/core': 2.0.3-beta.7(patch_hash=093f5c62e94e8c497955401e8bf30cf003b62b1d4eb879426dc08be05c3510d1)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       '@elizaos/shared': 2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(ws@8.22.0)
       cross-spawn: 7.0.6
       zod: 4.6.5
@@ -17535,12 +17535,12 @@ snapshots:
 
   '@elizaos/plugin-signal@2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)':
     dependencies:
-      '@elizaos/core': 2.0.3-beta.7(patch_hash=de13c1a28833d96617e332553e573cabc4deebfae1a53903e56f08767762db5a)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
+      '@elizaos/core': 2.0.3-beta.7(patch_hash=093f5c62e94e8c497955401e8bf30cf003b62b1d4eb879426dc08be05c3510d1)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       qrcode: 1.5.4
 
   '@elizaos/plugin-simple-views@2.0.3-beta.7(@babel/core@7.29.7)(@babel/runtime@7.29.7)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@solana/sysvars@2.3.0(@solana/addresses@2.3.0(typescript@7.0.2))(@solana/rpc-parsed-types@2.3.0(typescript@7.0.2))(typescript@7.0.2))(@types/react@19.3.0)(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(@walletconnect/types@2.19.1)(bs58@6.0.0)(bufferutil@4.1.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react-is@18.3.1)(react-native@0.87.1(react@19.3.0))(tslib@2.8.1)(typescript@7.0.2)(undici@8.10.2)(utf-8-validate@5.0.10)(vitest@5.0.3(@types/node@26.6.3)(jsdom@29.1.1)(vite@8.3.1(@types/node@26.6.3)(esbuild@0.28.2)(yaml@2.9.1)))(ws@8.22.0)(zod@4.6.5)':
     dependencies:
-      '@elizaos/core': 2.0.3-beta.7(patch_hash=de13c1a28833d96617e332553e573cabc4deebfae1a53903e56f08767762db5a)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
+      '@elizaos/core': 2.0.3-beta.7(patch_hash=093f5c62e94e8c497955401e8bf30cf003b62b1d4eb879426dc08be05c3510d1)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       '@elizaos/ui': 2.0.3-beta.7(@babel/core@7.29.7)(@babel/runtime@7.29.7)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@solana/sysvars@2.3.0(@solana/addresses@2.3.0(typescript@7.0.2))(@solana/rpc-parsed-types@2.3.0(typescript@7.0.2))(typescript@7.0.2))(@types/react@19.3.0)(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(@walletconnect/types@2.19.1)(bs58@6.0.0)(bufferutil@4.1.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react-is@18.3.1)(react-native@0.87.1(react@19.3.0))(tslib@2.8.1)(typescript@7.0.2)(undici@8.10.2)(utf-8-validate@5.0.10)(vitest@5.0.3(@types/node@26.6.3)(jsdom@29.1.1)(vite@8.3.1(@types/node@26.6.3)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.5)
       lucide-react: 1.49.0(@types/react@19.3.0)(react@19.3.0)
       react: 19.3.0
@@ -17628,7 +17628,7 @@ snapshots:
 
   '@elizaos/plugin-slack@2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.1.0)(@types/express@5.0.6)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)':
     dependencies:
-      '@elizaos/core': 2.0.3-beta.7(patch_hash=de13c1a28833d96617e332553e573cabc4deebfae1a53903e56f08767762db5a)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
+      '@elizaos/core': 2.0.3-beta.7(patch_hash=093f5c62e94e8c497955401e8bf30cf003b62b1d4eb879426dc08be05c3510d1)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       '@slack/bolt': 4.7.3(@types/express@5.0.6)
       '@slack/web-api': 7.19.0
     transitivePeerDependencies:
@@ -17642,7 +17642,7 @@ snapshots:
     dependencies:
       '@electric-sql/pglite': 0.4.6(ws@8.22.0)
       '@electric-sql/pglite-sync': 0.5.6(@electric-sql/pglite@0.4.6(ws@8.22.0))
-      '@elizaos/core': 2.0.3-beta.7(patch_hash=de13c1a28833d96617e332553e573cabc4deebfae1a53903e56f08767762db5a)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
+      '@elizaos/core': 2.0.3-beta.7(patch_hash=093f5c62e94e8c497955401e8bf30cf003b62b1d4eb879426dc08be05c3510d1)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       '@neondatabase/serverless': 1.1.0
       drizzle-orm: 0.45.2(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)
       pg: 8.23.1
@@ -17683,7 +17683,7 @@ snapshots:
   '@elizaos/plugin-streaming@2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)':
     dependencies:
       '@elizaos/cloud-routing': 2.0.3-beta.7
-      '@elizaos/core': 2.0.3-beta.7(patch_hash=de13c1a28833d96617e332553e573cabc4deebfae1a53903e56f08767762db5a)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
+      '@elizaos/core': 2.0.3-beta.7(patch_hash=093f5c62e94e8c497955401e8bf30cf003b62b1d4eb879426dc08be05c3510d1)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       '@elizaos/plugin-browser': 2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
     transitivePeerDependencies:
       - '@aws-sdk/client-rds-data'
@@ -17719,7 +17719,7 @@ snapshots:
 
   '@elizaos/plugin-task-coordinator@2.0.3-beta.7(@babel/core@7.29.7)(@babel/runtime@7.29.7)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@solana/sysvars@2.3.0(@solana/addresses@2.3.0(typescript@7.0.2))(@solana/rpc-parsed-types@2.3.0(typescript@7.0.2))(typescript@7.0.2))(@types/react@19.3.0)(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(@walletconnect/types@2.19.1)(bs58@6.0.0)(bufferutil@4.1.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react-is@18.3.1)(react-native@0.87.1(react@19.3.0))(tslib@2.8.1)(typescript@7.0.2)(undici@8.10.2)(utf-8-validate@5.0.10)(vitest@5.0.3(@types/node@26.6.3)(jsdom@29.1.1)(vite@8.3.1(@types/node@26.6.3)(esbuild@0.28.2)(yaml@2.9.1)))(ws@8.22.0)(zod@4.6.5)':
     dependencies:
-      '@elizaos/core': 2.0.3-beta.7(patch_hash=de13c1a28833d96617e332553e573cabc4deebfae1a53903e56f08767762db5a)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
+      '@elizaos/core': 2.0.3-beta.7(patch_hash=093f5c62e94e8c497955401e8bf30cf003b62b1d4eb879426dc08be05c3510d1)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       '@elizaos/plugin-commands': 2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       '@elizaos/shared': 2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(ws@8.22.0)
       '@elizaos/ui': 2.0.3-beta.7(@babel/core@7.29.7)(@babel/runtime@7.29.7)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@solana/sysvars@2.3.0(@solana/addresses@2.3.0(typescript@7.0.2))(@solana/rpc-parsed-types@2.3.0(typescript@7.0.2))(typescript@7.0.2))(@types/react@19.3.0)(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(@walletconnect/types@2.19.1)(bs58@6.0.0)(bufferutil@4.1.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react-is@18.3.1)(react-native@0.87.1(react@19.3.0))(tslib@2.8.1)(typescript@7.0.2)(undici@8.10.2)(utf-8-validate@5.0.10)(vitest@5.0.3(@types/node@26.6.3)(jsdom@29.1.1)(vite@8.3.1(@types/node@26.6.3)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.5)
@@ -17812,7 +17812,7 @@ snapshots:
 
   '@elizaos/plugin-telegram@2.0.3-beta.7(@babel/runtime@7.29.7)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)':
     dependencies:
-      '@elizaos/core': 2.0.3-beta.7(patch_hash=de13c1a28833d96617e332553e573cabc4deebfae1a53903e56f08767762db5a)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
+      '@elizaos/core': 2.0.3-beta.7(patch_hash=093f5c62e94e8c497955401e8bf30cf003b62b1d4eb879426dc08be05c3510d1)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       '@elizaos/plugin-commands': 2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       '@telegraf/types': 7.1.0
       '@types/node': 24.19.0
@@ -17855,7 +17855,7 @@ snapshots:
 
   '@elizaos/plugin-video@2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(debug@4.4.3)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)':
     dependencies:
-      '@elizaos/core': 2.0.3-beta.7(patch_hash=de13c1a28833d96617e332553e573cabc4deebfae1a53903e56f08767762db5a)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
+      '@elizaos/core': 2.0.3-beta.7(patch_hash=093f5c62e94e8c497955401e8bf30cf003b62b1d4eb879426dc08be05c3510d1)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       ffmpeg-static: 5.3.0
       fluent-ffmpeg: 2.1.3
       youtube-dl-exec: 3.1.15(debug@4.4.3)
@@ -17892,7 +17892,7 @@ snapshots:
 
   '@elizaos/plugin-vision@2.0.3-beta.7(@babel/runtime@7.29.7)(@electric-sql/pglite@0.5.8)(@elizaos/plugin-computeruse@2.0.3-beta.7(@elizaos/core@2.0.3-beta.7))(@img/sharp-wasm32@0.34.5)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)(zod@4.6.5)':
     dependencies:
-      '@elizaos/core': 2.0.3-beta.7(patch_hash=de13c1a28833d96617e332553e573cabc4deebfae1a53903e56f08767762db5a)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
+      '@elizaos/core': 2.0.3-beta.7(patch_hash=093f5c62e94e8c497955401e8bf30cf003b62b1d4eb879426dc08be05c3510d1)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       '@elizaos/plugin-computeruse': 2.0.3-beta.7(@babel/runtime@7.29.7)(@electric-sql/pglite@0.5.8)(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)(zod@4.6.5)
       jimp: 1.6.1
       sharp: 0.34.5(@img/sharp-wasm32@0.34.5)
@@ -17933,7 +17933,7 @@ snapshots:
     dependencies:
       '@coral-xyz/anchor': 0.32.1(typescript@7.0.2)
       '@elizaos/cloud-routing': 2.0.3-beta.7
-      '@elizaos/core': 2.0.3-beta.7(patch_hash=de13c1a28833d96617e332553e573cabc4deebfae1a53903e56f08767762db5a)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
+      '@elizaos/core': 2.0.3-beta.7(patch_hash=093f5c62e94e8c497955401e8bf30cf003b62b1d4eb879426dc08be05c3510d1)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       '@elizaos/plugin-elizacloud': 2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(typescript@7.0.2)(zod@4.6.5)
       '@elizaos/shared': 2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(ws@8.22.0)
       '@lifi/sdk': 3.16.3(@solana/wallet-adapter-base@0.9.28(@solana/web3.js@1.99.0))(@solana/web3.js@1.98.4)(react@19.3.0)(viem@2.57.2(typescript@7.0.2))(zod@4.6.5)
@@ -18001,11 +18001,11 @@ snapshots:
 
   '@elizaos/plugin-wechat@2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)':
     dependencies:
-      '@elizaos/core': 2.0.3-beta.7(patch_hash=de13c1a28833d96617e332553e573cabc4deebfae1a53903e56f08767762db5a)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
+      '@elizaos/core': 2.0.3-beta.7(patch_hash=093f5c62e94e8c497955401e8bf30cf003b62b1d4eb879426dc08be05c3510d1)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
 
   '@elizaos/plugin-whatsapp@2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(sharp@0.34.5(@img/sharp-wasm32@0.34.5))(ws@8.22.0)':
     dependencies:
-      '@elizaos/core': 2.0.3-beta.7(patch_hash=de13c1a28833d96617e332553e573cabc4deebfae1a53903e56f08767762db5a)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
+      '@elizaos/core': 2.0.3-beta.7(patch_hash=093f5c62e94e8c497955401e8bf30cf003b62b1d4eb879426dc08be05c3510d1)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       '@hapi/boom': 10.0.1
       '@whiskeysockets/baileys': 7.0.0-rc14(sharp@0.34.5(@img/sharp-wasm32@0.34.5))
       pino: 10.3.1
@@ -18023,7 +18023,7 @@ snapshots:
     dependencies:
       '@elizaos/capacitor-system': 2.0.3-beta.7(@capacitor/core@8.4.0)
       '@elizaos/capacitor-wifi': 2.0.3-beta.7(@capacitor/core@8.4.0)
-      '@elizaos/core': 2.0.3-beta.7(patch_hash=de13c1a28833d96617e332553e573cabc4deebfae1a53903e56f08767762db5a)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
+      '@elizaos/core': 2.0.3-beta.7(patch_hash=093f5c62e94e8c497955401e8bf30cf003b62b1d4eb879426dc08be05c3510d1)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       '@elizaos/shared': 2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(ws@8.22.0)
       '@elizaos/ui': 2.0.3-beta.7(@babel/core@7.29.7)(@babel/runtime@7.29.7)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@solana/sysvars@2.3.0(@solana/addresses@2.3.0(typescript@7.0.2))(@solana/rpc-parsed-types@2.3.0(typescript@7.0.2))(typescript@7.0.2))(@types/react@19.3.0)(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(@walletconnect/types@2.19.1)(bs58@6.0.0)(bufferutil@4.1.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react-is@18.3.1)(react-native@0.87.1(react@19.3.0))(tslib@2.8.1)(typescript@7.0.2)(undici@8.10.2)(utf-8-validate@5.0.10)(vitest@5.0.3(@types/node@26.6.3)(jsdom@29.1.1)(vite@8.3.1(@types/node@26.6.3)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.5)
       lucide-react: 1.49.0(@types/react@19.3.0)(react@19.3.0)
@@ -18112,7 +18112,7 @@ snapshots:
 
   '@elizaos/plugin-workflow@2.0.3-beta.7(d4eca0945a04ae5561c35dafe42f660e)':
     dependencies:
-      '@elizaos/core': 2.0.3-beta.7(patch_hash=de13c1a28833d96617e332553e573cabc4deebfae1a53903e56f08767762db5a)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
+      '@elizaos/core': 2.0.3-beta.7(patch_hash=093f5c62e94e8c497955401e8bf30cf003b62b1d4eb879426dc08be05c3510d1)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       drizzle-orm: 0.45.2(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       effect: 3.22.2
       quickjs-emscripten: 0.32.0
@@ -18157,7 +18157,7 @@ snapshots:
 
   '@elizaos/plugin-x402@2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(typescript@7.0.2)(ws@8.22.0)(zod@4.6.5)':
     dependencies:
-      '@elizaos/core': 2.0.3-beta.7(patch_hash=de13c1a28833d96617e332553e573cabc4deebfae1a53903e56f08767762db5a)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
+      '@elizaos/core': 2.0.3-beta.7(patch_hash=093f5c62e94e8c497955401e8bf30cf003b62b1d4eb879426dc08be05c3510d1)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       '@solana/web3.js': 1.98.4(typescript@7.0.2)
       drizzle-orm: 0.45.2(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       viem: 2.57.2(typescript@7.0.2)(zod@4.6.5)
@@ -18203,7 +18203,7 @@ snapshots:
   '@elizaos/shared@2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(ws@8.22.0)':
     dependencies:
       '@elizaos/contracts': 2.0.3-beta.7
-      '@elizaos/core': 2.0.3-beta.7(patch_hash=de13c1a28833d96617e332553e573cabc4deebfae1a53903e56f08767762db5a)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
+      '@elizaos/core': 2.0.3-beta.7(patch_hash=093f5c62e94e8c497955401e8bf30cf003b62b1d4eb879426dc08be05c3510d1)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       '@elizaos/registry': 2.0.3-beta.7
       chalk: 5.6.2
       drizzle-orm: 0.45.2(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
@@ -18246,7 +18246,7 @@ snapshots:
 
   '@elizaos/skills@2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)':
     dependencies:
-      '@elizaos/core': 2.0.3-beta.7(patch_hash=de13c1a28833d96617e332553e573cabc4deebfae1a53903e56f08767762db5a)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
+      '@elizaos/core': 2.0.3-beta.7(patch_hash=093f5c62e94e8c497955401e8bf30cf003b62b1d4eb879426dc08be05c3510d1)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       yaml: 2.9.1
     transitivePeerDependencies:
       - '@aws-sdk/client-rds-data'
@@ -18292,7 +18292,7 @@ snapshots:
       '@capacitor/core': 8.4.0
       '@elizaos/cloud-sdk': 2.0.3-beta.7
       '@elizaos/cloud-shared': 2.0.3-beta.7
-      '@elizaos/core': 2.0.3-beta.7(patch_hash=de13c1a28833d96617e332553e573cabc4deebfae1a53903e56f08767762db5a)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
+      '@elizaos/core': 2.0.3-beta.7(patch_hash=093f5c62e94e8c497955401e8bf30cf003b62b1d4eb879426dc08be05c3510d1)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       '@elizaos/logger': 2.0.3-beta.7
       '@elizaos/shared': 2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(ws@8.22.0)
       '@elizaos/tui': 2.0.3-beta.7

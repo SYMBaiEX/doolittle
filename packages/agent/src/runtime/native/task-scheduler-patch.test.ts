@@ -112,6 +112,28 @@ async function fixture(universal: boolean) {
 describe.each([false, true])(
   "installed SDK next-due scheduler (universal=%s)",
   (universal) => {
+    it("does not execute after Stop while worker eligibility is still being validated", async () => {
+      const f = await fixture(universal);
+      let release!: () => void;
+      const blocked = new Promise<boolean>((resolve) => {
+        release = () => resolve(true);
+      });
+      f.runtime.registerTaskWorker({
+        name: "SDK_WAKE_PROOF",
+        shouldRun: async () => blocked,
+        execute: f.executed,
+      });
+      const task = await f.add(0, { repeat: false });
+      const service = f.service as Service & {
+        runTick(tasks: Task[]): Promise<void>;
+      };
+      const pending = service.runTick([task]);
+      await Promise.resolve();
+      await service.stop();
+      release();
+      await pending;
+      expect(f.executed).not.toHaveBeenCalled();
+    });
     it("invalidates a restored future-task cache when the official trigger worker registers late", async () => {
       const f = await fixture(universal);
       const restored = await f.add(10_000);

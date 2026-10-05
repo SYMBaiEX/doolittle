@@ -134,7 +134,7 @@ diff --git a/dist/node/index.node.js b/dist/node/index.node.js
        }
      });
      runtime2.registerTaskWorker(promptRunnerTaskWorker);
-@@ -176396,83 +176419,95 @@ class TaskService extends Service {
+@@ -176396,83 +176419,97 @@ class TaskService extends Service {
        }
        const worker = this.runtime.getTaskWorker(task2.name);
        if (!worker) {
@@ -177,9 +177,11 @@ diff --git a/dist/node/index.node.js b/dist/node/index.node.js
      if (this.stopped)
        return;
      const validated = await this.validateTasks(tasks);
++    if (this.stopped) return;
 +    this.nextScheduledCheckAt = Infinity;
      const now = Date.now();
      for (const task2 of validated) {
++      if (this.stopped) return;
        if (!task2.tags?.includes("repeat")) {
          const dueMs = resolveDueTime(task2);
 -        if (dueMs != null && now < dueMs)
@@ -232,7 +234,7 @@ diff --git a/dist/node/index.node.js b/dist/node/index.node.js
          this.runtime.logger.debug({
            src: "plugin:basic-capabilities:service:task",
            agentId: this.runtime.agentId,
-@@ -238324,32 +238359,35 @@ function normalizeVisibleTextForDuplicateCheck(text4) {
+@@ -238324,32 +238361,35 @@ function normalizeVisibleTextForDuplicateCheck(text4) {
  var MEDIA_CONTENT_URL_RE = /<?\s*https?:\/\/[^\s<>]+\/v1\/(?:videos|images|audio)\/[^\s<>/]+\/content\s*>?/gi;
  function collectMediaDeliveryUrls(actionResults) {
    const urls = new Set;
@@ -268,7 +270,7 @@ diff --git a/dist/node/index.node.js b/dist/node/index.node.js
      const escaped = url.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
      cleaned = cleaned.replace(new RegExp(`<?\\s*${escaped}\\s*>?`, "gi"), "");
    }
-@@ -250545,87 +250583,93 @@ ${priorOutput}` : ""}`;
+@@ -250545,87 +250585,93 @@ ${priorOutput}` : ""}`;
    async getCaches(keys2) {
      return this.adapter.getCaches(keys2);
    }
@@ -401,7 +403,7 @@ diff --git a/dist/browser/index.browser.js b/dist/browser/index.browser.js
        }
      });
      runtime2.registerTaskWorker(promptRunnerTaskWorker);
-@@ -92923,83 +92924,95 @@ class TaskService extends Service {
+@@ -92923,83 +92924,97 @@ class TaskService extends Service {
        }
        const worker = this.runtime.getTaskWorker(task2.name);
        if (!worker) {
@@ -444,9 +446,11 @@ diff --git a/dist/browser/index.browser.js b/dist/browser/index.browser.js
      if (this.stopped)
        return;
      const validated = await this.validateTasks(tasks);
++    if (this.stopped) return;
 +    this.nextScheduledCheckAt = Infinity;
      const now = Date.now();
      for (const task2 of validated) {
++      if (this.stopped) return;
        if (!task2.tags?.includes("repeat")) {
          const dueMs = resolveDueTime(task2);
 -        if (dueMs != null && now < dueMs)
@@ -499,7 +503,7 @@ diff --git a/dist/browser/index.browser.js b/dist/browser/index.browser.js
          this.runtime.logger.debug({
            src: "plugin:basic-capabilities:service:task",
            agentId: this.runtime.agentId,
-@@ -168312,32 +168325,35 @@ function normalizeVisibleTextForDuplicateCheck(text3) {
+@@ -168312,32 +168327,35 @@ function normalizeVisibleTextForDuplicateCheck(text3) {
  var MEDIA_CONTENT_URL_RE = /<?\s*https?:\/\/[^\s<>]+\/v1\/(?:videos|images|audio)\/[^\s<>/]+\/content\s*>?/gi;
  function collectMediaDeliveryUrls(actionResults) {
    const urls = new Set;
@@ -535,7 +539,7 @@ diff --git a/dist/browser/index.browser.js b/dist/browser/index.browser.js
      const escaped = url2.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
      cleaned = cleaned.replace(new RegExp(`<?\\s*${escaped}\\s*>?`, "gi"), "");
    }
-@@ -180533,87 +180549,93 @@ ${priorOutput}` : ""}`;
+@@ -180533,87 +180551,93 @@ ${priorOutput}` : ""}`;
    async getCaches(keys2) {
      return this.adapter.getCaches(keys2);
    }
