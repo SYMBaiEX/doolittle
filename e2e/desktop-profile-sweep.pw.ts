@@ -105,10 +105,10 @@ type RouteAudit = {
 };
 
 const interfaceModes = [
-  { appearance: "dark", density: "comfortable", controlHeight: 36 },
-  { appearance: "dark", density: "compact", controlHeight: 32 },
-  { appearance: "light", density: "comfortable", controlHeight: 36 },
-  { appearance: "light", density: "compact", controlHeight: 32 },
+  { appearance: "dark", density: "comfortable", controlHeight: 40 },
+  { appearance: "dark", density: "compact", controlHeight: 40 },
+  { appearance: "light", density: "comfortable", controlHeight: 40 },
+  { appearance: "light", density: "compact", controlHeight: 40 },
 ] as const;
 
 const importedThemeBundle = {
@@ -1193,22 +1193,15 @@ async function expectViewportGeometry(
   expect(geometry.modelTrigger, `${label} model selector`).not.toBeNull();
 
   const controlHeight = geometry.tokens.controlHeight;
-  const spacing = geometry.tokens.space || 8;
   expect(controlHeight, `${label} control-height token`).toBe(
     mode.controlHeight,
   );
-  // shell-layout.ts and chat-chrome-layout.test.ts declare one 40px wide
-  // row, two bands below 1180px, and the native title inset below 480px.
-  // Tailwind's max-[...] boundaries are strict, including exactly 1180px.
-  const expectedDragbarHeight =
-    viewport.width < 480
-      ? 80 + spacing + (geometry.platformDarwin ? 36 : 0)
-      : viewport.width < 1180
-        ? controlHeight + 40 + spacing
-        : 40;
+  // Companion keeps identity and conversation actions in one 48px row at
+  // every width, including the native desktop title inset.
+  const expectedDragbarHeight = 48;
   expect(
     geometry.dragbar?.height ?? 0,
-    `${label} declared chat masthead bands`,
+    `${label} single conversation header`,
   ).toBeCloseTo(expectedDragbarHeight, 1);
   for (const action of geometry.headerActions) {
     expect(
@@ -1246,7 +1239,7 @@ async function expectViewportGeometry(
   }
   // The composer responds to its conversation's inline-size container, not
   // the window. chat/layout.ts declares two 44px control bands below 640px;
-  // composer-selectors/layout.ts declares a 30px selector in wider sessions.
+  // composer-selectors/layout.ts declares a 40px selector in wider sessions.
   const conversationWidth = geometry.conversation?.width ?? 0;
   const constrainedSession = conversationWidth < 640;
   for (const [name, control] of [
@@ -1280,7 +1273,7 @@ async function expectViewportGeometry(
     ? conversationWidth - 16
     : viewport.width < 720
       ? conversationWidth - 12
-      : Math.min(conversationWidth - 24, 880);
+      : Math.min(conversationWidth - 24, 760);
   expect(
     geometry.composer?.width ?? 0,
     `${label} pane-local composer width`,
@@ -1382,7 +1375,7 @@ async function expectViewportGeometry(
   expect(
     geometry.modelTrigger?.height ?? 0,
     `${label} pane-local model selector height`,
-  ).toBeCloseTo(constrainedSession ? 44 : 30, 1);
+  ).toBeCloseTo(constrainedSession ? 44 : 40, 1);
   expect(
     geometry.modelTrigger?.left ?? -1,
     `${label} model selector routing left`,
