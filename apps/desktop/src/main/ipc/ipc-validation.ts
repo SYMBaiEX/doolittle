@@ -1,3 +1,4 @@
+import { isAbsolute } from "node:path";
 import type { BrowserWindow, IpcMain, IpcMainInvokeEvent } from "electron";
 import type {
   AttachmentCleanupRequest,
@@ -22,6 +23,7 @@ import type {
 } from "../../shared/contracts";
 import type { BackendManager } from "../backend";
 import type { BotProcessRegistry } from "../bot-process-registry";
+import type { DesktopExecutionAdmission } from "../execution-admission";
 import type { ProviderAuthController } from "../provider-auth";
 import type { DesktopUpdateController } from "../update-state";
 import {
@@ -52,7 +54,8 @@ export interface SensitiveActionConfirmationRequest {
     | "command"
     | "workspace-write"
     | "worktree-create"
-    | "repository-mutation";
+    | "repository-mutation"
+    | "knowledge-promotion";
   title: string;
   message: string;
   detail: string;
@@ -89,6 +92,7 @@ export interface RegisterIpcDependencies {
   ipcMain: IpcMain;
   backend: BackendManager;
   bots?: BotProcessRegistry;
+  admission?: DesktopExecutionAdmission;
   getMainWindow: () => BrowserWindow | null;
   authorizeSender?: (event: IpcMainInvokeEvent) => boolean;
   pickFiles: () => Promise<FileSelection>;
@@ -235,7 +239,26 @@ export function validateInteractiveTerminalStartRequest(
   if (!isRecord(value)) {
     throw new Error("Interactive terminal dimensions are required.");
   }
+  if (
+    typeof value.originConversationId !== "string" ||
+    !/^[A-Za-z0-9:_-]{1,128}$/u.test(value.originConversationId)
+  ) {
+    throw new Error("Interactive terminal origin conversation is invalid.");
+  }
+  if (
+    typeof value.workspacePath !== "string" ||
+    !isAbsolute(value.workspacePath) ||
+    value.workspacePath.length > MAX_WORKSPACE_PATH_LENGTH ||
+    hasControlCharacters(value.workspacePath)
+  ) {
+    throw new Error("Interactive terminal workspace is invalid.");
+  }
   return {
+    ...(value.botId === undefined
+      ? {}
+      : { botId: validateTerminalBotId(value.botId) }),
+    originConversationId: value.originConversationId,
+    workspacePath: value.workspacePath,
     cols: validateInteractiveTerminalDimension(
       value.cols,
       "columns",
@@ -264,6 +287,9 @@ export function validateInteractiveTerminalInputRequest(
     throw new Error("Interactive terminal input is too large.");
   }
   return {
+    ...(value.botId === undefined
+      ? {}
+      : { botId: validateTerminalBotId(value.botId) }),
     sessionId: validateInteractiveTerminalSessionId(value.sessionId),
     data: value.data,
   };
@@ -276,6 +302,9 @@ export function validateInteractiveTerminalResizeRequest(
     throw new Error("Interactive terminal resize details are required.");
   }
   return {
+    ...(value.botId === undefined
+      ? {}
+      : { botId: validateTerminalBotId(value.botId) }),
     sessionId: validateInteractiveTerminalSessionId(value.sessionId),
     cols: validateInteractiveTerminalDimension(
       value.cols,
@@ -290,6 +319,14 @@ export function validateInteractiveTerminalResizeRequest(
       MAX_INTERACTIVE_TERMINAL_ROWS,
     ),
   };
+}
+
+export function validateTerminalBotId(value: unknown): string {
+  if (value === undefined) return "default";
+  if (typeof value !== "string" || !/^[a-z0-9][a-z0-9_-]{0,63}$/u.test(value)) {
+    throw new Error("Bot target is invalid.");
+  }
+  return value;
 }
 
 export function validateInteractiveTerminalSession(

@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { realpathSync } from "node:fs";
 import { homedir } from "node:os";
 import { resolve } from "node:path";
 import {
@@ -25,6 +26,7 @@ import {
   findRepoRoot,
   sourceRuntimeTarget,
 } from "./backend";
+import type { BotConsultationDispatchInput } from "./bot-consultation-broker";
 import { BotProcessRegistry } from "./bot-process-registry";
 import { isActiveManagedRenderUrl } from "./browser-render-targets";
 import {
@@ -41,6 +43,7 @@ import {
   shouldStayOnDirtyClosePrompt,
 } from "./desktop-lifecycle";
 import { DesktopPreferences } from "./desktop-preferences";
+import { DesktopExecutionAdmission } from "./execution-admission";
 import { type DesktopBackgroundNotification, registerIpc } from "./ipc";
 import { readBoundedResponseText } from "./ipc/runtime-http";
 import { ProviderAuthController } from "./provider-auth";
@@ -798,16 +801,68 @@ if (ownsSingleInstance)
           ? "Updates are unavailable in this packaged build."
           : "Updates are only available in a packaged, signed Doolittle build.",
     );
+    const executionAdmission = new DesktopExecutionAdmission();
     backend = new BackendManager(
       target,
       runtimeDataDir,
       workspaceState.getState().currentPath || fallbackWorkspace,
+      fetch,
+      {
+        hostRpcBotId: "default",
+        workerHostHandler: async (request, signal) => {
+          if (
+            request.operation === "execution.claim" ||
+            request.operation === "execution.release"
+          ) {
+            const mutationRoot = workspaceState?.getState().currentPath;
+            return executionAdmission.handle(
+              "default",
+              request.operation,
+              request.payload,
+              {
+                mutationRoot: mutationRoot
+                  ? realpathSync(mutationRoot)
+                  : undefined,
+              },
+            );
+          }
+          if (!bots) throw new Error("The consultation broker is unavailable.");
+          if (request.operation === "consult.dispatch") {
+            return bots.consultations.dispatch(
+              "default",
+              request.payload as BotConsultationDispatchInput,
+              signal,
+            );
+          }
+          if (
+            request.operation === "consult.wait" ||
+            request.operation === "consult.cancel"
+          ) {
+            const payload = request.payload as { dispatchId?: unknown } | null;
+            if (
+              !payload ||
+              typeof payload.dispatchId !== "string" ||
+              !/^[0-9a-f-]{36}$/iu.test(payload.dispatchId)
+            ) {
+              throw new Error("Consultation ID is invalid.");
+            }
+            return request.operation === "consult.wait"
+              ? bots.consultations.wait("default", payload.dispatchId, signal)
+              : bots.consultations.cancel("default", payload.dispatchId);
+          }
+          throw new Error(
+            "This host operation is not available to the lead runtime.",
+          );
+        },
+        onHostDisconnect: () => executionAdmission.releaseBot("default"),
+      },
     );
     bots = new BotProcessRegistry(
       target,
       runtimeDataDir,
       backend,
       workspaceState.getState().currentPath || fallbackWorkspace,
+      { admission: executionAdmission },
     );
     // Start the bundled Eliza runtime as soon as its immutable launch inputs
     // are ready. Window construction, menus, tray wiring, and IPC registration
@@ -985,11 +1040,18 @@ if (ownsSingleInstance)
       confirm: nativeConfirm,
       ownsTarget: (target) =>
         uiBackend?.ownsTarget(target) ?? Promise.resolve(false),
-      stopAll: () =>
-        uiBackend?.stopAllOwnedConversations() ??
-        Promise.reject(
-          new Error("Native conversation control is unavailable."),
-        ),
+      stopAll: async () => {
+        if (!uiBackend || !bots)
+          throw new Error("Native execution control is unavailable.");
+        let chatFailure: unknown;
+        try {
+          await uiBackend.stopAllOwnedConversations();
+        } catch (error) {
+          chatFailure = error;
+        }
+        await bots.stopAllOwnedExecutions();
+        if (chatFailure) throw chatFailure;
+      },
     });
     await uiInterfaces.start();
     if (!corruptUiHost) uiBackend.start();
@@ -1005,6 +1067,7 @@ if (ownsSingleInstance)
       ipcMain,
       backend,
       bots,
+      admission: executionAdmission,
       getMainWindow: () => mainWindow,
       pickFiles,
       workspace: {

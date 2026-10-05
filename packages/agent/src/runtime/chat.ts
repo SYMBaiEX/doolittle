@@ -6,7 +6,16 @@ import {
   snapshotNativeConversationMemories,
 } from "@/runtime/chat-turn/conversation-persistence";
 import { runPostCommandTurn } from "@/runtime/chat-turn/post-command";
-import { prepareTurnState } from "@/runtime/chat-turn/state";
+import {
+  type PreparedTurnState,
+  prepareTurnState,
+} from "@/runtime/chat-turn/state";
+import {
+  acquireExecutionLease,
+  type ExecutionAdmissionKind,
+  type ExecutionLease,
+  runWithExecutionLease,
+} from "@/runtime/execution-admission";
 import {
   connectLinkedProvider,
   type LinkedProviderName,
@@ -133,16 +142,45 @@ export async function executeSlashCommand(
   });
 }
 
+type AgentTurnOptions = {
+  runtimeOverrides?: AutomationRuntimeOverrides;
+  personalityId?: string;
+  admissionKind?: ExecutionAdmissionKind;
+  /** A durable HTTP submit acquires before acknowledging; its owner releases. */
+  admissionLease?: ExecutionLease | null;
+} & AgentTurnHooks;
+
 export async function handleAgentTurn(
   input: ChatTurnRequest,
   context: AgentExecutionContext,
-  options?: {
-    runtimeOverrides?: AutomationRuntimeOverrides;
-    personalityId?: string;
-  } & AgentTurnHooks,
+  options?: AgentTurnOptions,
+): Promise<string> {
+  const preparedTurn = prepareTurnState(input, context);
+  const lease =
+    options?.admissionLease === undefined
+      ? await acquireExecutionLease({
+          runId: preparedTurn.turn.runId,
+          sessionId: preparedTurn.turn.sessionId,
+          kind: options?.admissionKind ?? "foreground",
+          signal: options?.abortSignal,
+        })
+      : null;
+  try {
+    return await runWithExecutionLease(options?.admissionLease ?? lease, () =>
+      handleAdmittedAgentTurn(input, context, preparedTurn, options),
+    );
+  } finally {
+    await lease?.release();
+  }
+}
+
+async function handleAdmittedAgentTurn(
+  input: ChatTurnRequest,
+  context: AgentExecutionContext,
+  preparedTurn: PreparedTurnState,
+  options?: AgentTurnOptions,
 ): Promise<string> {
   const perf = new TurnPerfTrace();
-  const preparedTurn = prepareTurnState(input, context);
   const trimmedMessage = input.message.trim();
   const workflowCommand = trimmedMessage.startsWith("/")
     ? resolveWorkflowCommandPrompt({

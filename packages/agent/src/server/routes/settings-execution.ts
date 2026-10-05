@@ -1,4 +1,5 @@
 import type { AppContext } from "@/runtime/bootstrap";
+import { readWorkerBotProfile } from "@/runtime/bootstrap/bot-profile";
 import {
   syncProviderSettings,
   withLinkedProviderMutationLock,
@@ -129,6 +130,26 @@ export async function handleSettingsExecutionRoutes(
           },
           409,
         );
+      }
+      if (record.botId || record.sessionId || record.runId) {
+        const active = record.sessionId
+          ? context.services.runController.getActive(record.sessionId)
+          : undefined;
+        const botId =
+          readWorkerBotProfile()?.id ?? String(context.runtime.agentId);
+        if (
+          !record.botId ||
+          !record.sessionId ||
+          !record.runId ||
+          record.botId !== botId ||
+          active?.sessionId !== record.sessionId ||
+          active.runId !== record.runId
+        ) {
+          return json(
+            { error: "execution approval run is no longer active" },
+            409,
+          );
+        }
       }
       try {
         const approval =

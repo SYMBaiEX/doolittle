@@ -1,4 +1,5 @@
 import { type ChildProcess, spawn } from "node:child_process";
+import { randomBytes } from "node:crypto";
 import { appendFileSync, existsSync, mkdirSync, renameSync } from "node:fs";
 import { homedir } from "node:os";
 import { delimiter, dirname, resolve } from "node:path";
@@ -226,6 +227,9 @@ export interface BackendManagerOptions {
   expectedBotId?: string;
   expectedAgentId?: string;
   workerHostHandler?: WorkerHostHandler;
+  /** IPC process identity can differ from the lead runtime's SDK agent ID. */
+  hostRpcBotId?: string;
+  onHostDisconnect?: () => void;
 }
 
 export function findPackagedRuntime(
@@ -252,6 +256,7 @@ export function sourceRuntimeTarget(repoRoot: string): BackendLaunchTarget {
 }
 
 export class BackendManager {
+  private readonly desktopControlToken = randomBytes(32).toString("hex");
   private child: ChildProcess | null = null;
   private state: BackendState = {
     phase: "stopped",
@@ -276,6 +281,29 @@ export class BackendManager {
 
   getWorkspaceDirectory(): string {
     return this.workspaceDir;
+  }
+
+  /** Host-only operation; the token never crosses renderer IPC. */
+  async stopAllOwnedExecutions(): Promise<void> {
+    const state = this.getState();
+    if (state.phase !== "ready" || !state.url) return;
+    const response = await this.runtimeFetch(
+      `${state.url}/runtime/executions/stop-all`,
+      {
+        method: "POST",
+        headers: {
+          "x-doolittle-desktop-control-token": this.desktopControlToken,
+        },
+        signal: AbortSignal.timeout(5_000),
+      },
+    );
+    if (!response.ok)
+      throw new Error(
+        `Runtime execution stop failed (HTTP ${response.status}).`,
+      );
+    const payload = (await response.json()) as { stopped?: unknown };
+    if (payload.stopped !== true)
+      throw new Error("Runtime did not confirm execution stop.");
   }
 
   subscribe(listener: (state: BackendState) => void): () => void {
@@ -391,6 +419,10 @@ export class BackendManager {
         ...this.target.environment,
       },
     );
+    environment.DOOLITTLE_DESKTOP_CONTROL_TOKEN = this.desktopControlToken;
+    if (this.options.hostRpcBotId) {
+      environment.DOOLITTLE_HOST_BOT_ID = this.options.hostRpcBotId;
+    }
     const child = spawn(this.target.executable, this.target.args, {
       cwd: this.target.repoRoot,
       env: environment,
@@ -401,10 +433,11 @@ export class BackendManager {
     });
     this.child = child;
     const detachWorkerHost =
-      this.options.workerHostHandler && this.options.expectedBotId
+      this.options.workerHostHandler &&
+      (this.options.hostRpcBotId ?? this.options.expectedBotId)
         ? attachWorkerHostRpc(
             child,
-            this.options.expectedBotId,
+            (this.options.hostRpcBotId ?? this.options.expectedBotId) as string,
             this.options.workerHostHandler,
           )
         : () => undefined;
@@ -420,6 +453,7 @@ export class BackendManager {
     child.once("error", (error) => rejectUrl?.(error));
     child.once("exit", (code, signal) => {
       detachWorkerHost();
+      this.options.onHostDisconnect?.();
       if (this.child === child) this.child = null;
       const detail = backendExitDetail(code, signal, recentOutput, environment);
       rejectUrl?.(new Error(detail));
@@ -566,6 +600,12 @@ export class BackendManager {
         });
       }
       return;
+    }
+    try {
+      await this.stopAllOwnedExecutions();
+    } catch {
+      // SIGTERM still invokes the SDK service cleanup; a stale listener must
+      // never prevent the host from terminating its owned child process.
     }
     try {
       await terminateBackendChild(child);

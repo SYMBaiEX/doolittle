@@ -24,6 +24,7 @@ import {
   createCommandAction,
   createCommandShortcut,
 } from "@/actions/command-action";
+import { createConsultBotAction } from "@/actions/consult-bot-action";
 import { createFileActions } from "@/actions/file-action";
 import { createMediaActions } from "@/actions/media-action";
 import { createRepositoryAction } from "@/actions/repository-action";
@@ -73,6 +74,7 @@ export function createDoolittleProductPlugin(
 ): Plugin {
   const availableActions = withToolPolicyOwnership([
     createCodingAction(),
+    createConsultBotAction(services),
     createAppServerAction(services),
     createBrowserAnalysisAction(services),
     createCommandAction(services, config),
@@ -92,7 +94,9 @@ export function createDoolittleProductPlugin(
   const actions = workerBot
     ? availableActions.filter(
         (action) =>
-          workerBot.permissions.allowMutation &&
+          (action.name === "DOOLITTLE_CONSULT_BOT"
+            ? workerBot.permissions.allowDelegation
+            : workerBot.permissions.allowMutation) &&
           workerBot.permissions.toolIds.includes(action.name) &&
           action !== triggerAction,
       )

@@ -13,6 +13,7 @@ import {
   buildActionResultData,
 } from "@/runtime/action-result-metadata";
 import { workspaceNoopRequirements } from "@/runtime/chat-turn/workspace-noop-completion";
+import { getScopedExecutionLease } from "@/runtime/execution-admission";
 import { buildCacheablePrompt } from "@/runtime/prompt-cache";
 import {
   getScopedTurnAbortSignal,
@@ -470,10 +471,8 @@ function wrapAction(
           return typeof value === "function" ? value.bind(target) : value;
         },
       });
-      const result = await runWithAdditionalTurnRuntimeSettings(
-        runtime,
-        scopedSettings,
-        () =>
+      const runManagedAction = () =>
+        runWithAdditionalTurnRuntimeSettings(runtime, scopedSettings, () =>
           handler(
             scopedRuntime,
             message,
@@ -489,7 +488,14 @@ function wrapAction(
             },
             undefined,
           ),
-      );
+        );
+      const parentLease = getScopedExecutionLease();
+      const result = parentLease
+        ? await parentLease.yieldFor(runManagedAction, {
+            deadline: Date.now() + 30 * 60_000,
+            signal,
+          })
+        : await runManagedAction();
       if (receipt) {
         const result = completion(
           receipt,

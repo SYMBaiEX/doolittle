@@ -1,3 +1,4 @@
+import { readWorkerBotProfile } from "@/runtime/bootstrap/bot-profile";
 import { stableRuntimeUuid } from "@/runtime/stable-runtime-uuid";
 import type { ChatTurnRequest } from "@/types/runtime";
 import type { AgentExecutionContext } from "../../chat";
@@ -13,7 +14,9 @@ interface PendingApprovalRecord {
 export function isApprovalScopedToRequester(
   input: ChatTurnRequest,
   record: ExecutionApprovalScopeRecord,
+  botId?: string,
 ): boolean {
+  if (record.botId && record.botId !== botId) return false;
   const source = resolveRemoteExecutionPlatform(input.source);
   if (!source) {
     return true;
@@ -22,7 +25,8 @@ export function isApprovalScopedToRequester(
   return (
     record.platform === source &&
     record.userId === input.userId &&
-    record.roomId === sessionKey
+    record.roomId === sessionKey &&
+    (!record.sessionId || record.sessionId === sessionKey)
   );
 }
 
@@ -41,6 +45,15 @@ export async function resolvePendingExecutionApproval(input: {
       ? stableRuntimeUuid(`${agentName}-chat-room`)
       : stableRuntimeUuid(roomId);
   const runtimeEntityId = stableRuntimeUuid(request.userId);
+  const active = context.services.runController?.getActive?.(roomId);
+  const scope =
+    active?.sessionId === roomId && active.runId
+      ? {
+          botId: readWorkerBotProfile()?.id ?? String(context.runtime.agentId),
+          sessionId: active.sessionId,
+          runId: active.runId,
+        }
+      : {};
 
   const approval =
     context.services.executionApprovals.useApproved({
@@ -48,6 +61,7 @@ export async function resolvePendingExecutionApproval(input: {
       userId: request.userId,
       roomId,
       sessionKey: roomId,
+      ...scope,
       command,
     }) ?? undefined;
 
@@ -60,6 +74,7 @@ export async function resolvePendingExecutionApproval(input: {
     userId: request.userId,
     roomId,
     sessionKey: roomId,
+    ...scope,
     command,
   });
   if (pending) {
@@ -71,6 +86,7 @@ export async function resolvePendingExecutionApproval(input: {
     userId: request.userId,
     roomId,
     sessionKey: roomId,
+    ...scope,
     runtimeRoomId: String(runtimeRoomId),
     runtimeEntityId: String(runtimeEntityId),
     command,

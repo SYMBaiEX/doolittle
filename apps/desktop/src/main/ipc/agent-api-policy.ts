@@ -126,6 +126,8 @@ const ACTIVITY_TARGETS = [
 const API_ALLOWLIST: Record<HttpMethod, AllowedApiPath[]> = {
   GET: [
     { exact: "/bots" },
+    { exact: "/bots/knowledge" },
+    { exact: "/bots/consultations", allowedQueries: ["runId", "targetRunId"] },
     { exact: "/bots/conversations/owner", allowedQueries: ["sessionId"] },
     {
       predicate: (pathname) =>
@@ -522,6 +524,11 @@ const API_ALLOWLIST: Record<HttpMethod, AllowedApiPath[]> = {
   ],
   POST: [
     { exact: "/bots" },
+    { exact: "/bots/knowledge/promote" },
+    {
+      predicate: (pathname) =>
+        /^\/bots\/knowledge\/[0-9a-f-]{36}\/(?:grant|revoke)$/iu.test(pathname),
+    },
     {
       predicate: (pathname) =>
         matchesResourceActionPath(pathname, "/bots", [
@@ -1117,6 +1124,23 @@ export function validateAgentTransportRequest(
   ) {
     throw new Error("Eliza desktop bot target is invalid.");
   }
+  const originConversationId = unsafeRequest.originConversationId;
+  if (
+    originConversationId !== undefined &&
+    (typeof originConversationId !== "string" ||
+      !/^[a-zA-Z0-9:_-]{1,128}$/u.test(originConversationId))
+  ) {
+    throw new Error("Eliza desktop originating conversation is invalid.");
+  }
+  const workspacePath = unsafeRequest.workspacePath;
+  if (
+    workspacePath !== undefined &&
+    (typeof workspacePath !== "string" ||
+      !workspacePath ||
+      workspacePath.length > 4_096)
+  ) {
+    throw new Error("Eliza desktop workspace is invalid.");
+  }
   const method = unsafeRequest.method;
   if (
     method !== "GET" &&
@@ -1162,6 +1186,8 @@ export function validateAgentTransportRequest(
   }
   return {
     ...(botId === undefined ? {} : { botId }),
+    ...(originConversationId === undefined ? {} : { originConversationId }),
+    ...(workspacePath === undefined ? {} : { workspacePath }),
     requestId,
     path: unsafeRequest.path,
     method,

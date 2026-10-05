@@ -21,11 +21,21 @@ import {
   BackendManager,
   type BackendManagerOptions,
 } from "./backend";
+import {
+  BotAcpSessionLedger,
+  type BoundAcpSession,
+} from "./bot-acp-session-ledger";
 import { BotCatalog } from "./bot-catalog";
+import {
+  BotConsultationBroker,
+  type BotConsultationDispatchInput,
+} from "./bot-consultation-broker";
 import {
   BotConversationLedger,
   type BoundConversation,
 } from "./bot-conversation-ledger";
+import { BotKnowledgeBroker } from "./bot-knowledge-broker";
+import type { DesktopExecutionAdmission } from "./execution-admission";
 import type { WorkerHostHandler } from "./worker-host-rpc";
 
 const CONNECTION_ID_PATTERN =
@@ -71,6 +81,7 @@ function codexAccountId(accessToken: string): string {
 }
 
 export interface BotProcessRegistryOptions {
+  admission?: DesktopExecutionAdmission;
   tokenResolver?: TokenResolver;
   subscriptionStatus?: () => SubscriptionAccountStatus[];
   invokeClaudeCli?: typeof invokeClaudeCodeCliPrint;
@@ -88,12 +99,16 @@ export interface BotProcessRegistryOptions {
 export class BotProcessRegistry {
   readonly catalog: BotCatalog;
   readonly conversations: BotConversationLedger;
+  readonly acpSessions: BotAcpSessionLedger;
+  readonly consultations: BotConsultationBroker;
+  readonly knowledge: BotKnowledgeBroker;
   private readonly backends = new Map<string, BackendManager>();
   private readonly activeRuns = new Map<string, Set<string>>();
   private readonly tokenResolver: TokenResolver;
   private readonly subscriptionStatus: () => SubscriptionAccountStatus[];
   private readonly invokeClaudeCli: typeof invokeClaudeCodeCliPrint;
   private readonly runtimeFetch: typeof fetch;
+  private readonly admission?: DesktopExecutionAdmission;
   private readonly createBackend: NonNullable<
     BotProcessRegistryOptions["createBackend"]
   >;
@@ -111,11 +126,24 @@ export class BotProcessRegistry {
       defaultWorkspacePath,
     );
     this.conversations = new BotConversationLedger(dataDir);
+    this.acpSessions = new BotAcpSessionLedger(dataDir);
+    this.knowledge = new BotKnowledgeBroker(
+      this,
+      target,
+      dataDir,
+      options.runtimeFetch ?? fetch,
+    );
+    this.consultations = new BotConsultationBroker(
+      this,
+      dataDir,
+      options.runtimeFetch ?? fetch,
+    );
     this.tokenResolver = options.tokenResolver ?? officialTokenResolver;
     this.subscriptionStatus =
       options.subscriptionStatus ?? getSubscriptionStatus;
     this.invokeClaudeCli = options.invokeClaudeCli ?? invokeClaudeCodeCliPrint;
     this.runtimeFetch = options.runtimeFetch ?? fetch;
+    this.admission = options.admission;
     this.createBackend =
       options.createBackend ??
       ((
@@ -383,6 +411,42 @@ export class BotProcessRegistry {
     this.conversations.touch(owner.botId, sessionId);
   }
 
+  assertAcpWorkspace(botId: string, workspacePath: string): string {
+    const bot = this.get(botId);
+    if (typeof workspacePath !== "string" || !workspacePath)
+      throw new Error("ACP workspace is required.");
+    const actual = realpathSync(workspacePath);
+    const approved = realpathSync(bot.workspacePath);
+    if (actual !== approved)
+      throw new Error(
+        "ACP workspace does not match this bot's approved workspace.",
+      );
+    return actual;
+  }
+
+  bindAcpSession(
+    botId: string,
+    originConversationId: string,
+    workspacePath: string,
+    sessionId: string,
+  ): BoundAcpSession {
+    const owner = this.assertConversationOwner(botId, originConversationId);
+    const actual = this.assertAcpWorkspace(botId, workspacePath);
+    return this.acpSessions.bind({
+      botId: owner.botId,
+      originConversationId,
+      workspacePath: actual,
+      sessionId,
+    });
+  }
+
+  assertAcpSessionOwner(botId: string, sessionId: string): BoundAcpSession {
+    const owner = this.acpSessions.assert(this.get(botId).id, sessionId);
+    this.assertConversationOwner(botId, owner.originConversationId);
+    this.assertAcpWorkspace(botId, owner.workspacePath);
+    return owner;
+  }
+
   async assertRunOwner(botId: string, runId: string): Promise<void> {
     const bot = this.get(botId);
     const canonicalId = bot.isDefault
@@ -573,6 +637,7 @@ export class BotProcessRegistry {
         expectedBotId: definition.id,
         expectedAgentId: definition.agentId,
         workerHostHandler: this.hostHandler(definition, grant, workspacePath),
+        onHostDisconnect: () => this.admission?.releaseBot(definition.id),
       },
     );
     this.backends.set(botId, backend);
@@ -603,21 +668,40 @@ export class BotProcessRegistry {
       // A bot-card stop is not allowed to tear down the legacy desktop host.
       throw new Error("The lead runtime stays owned by the desktop host.");
     }
-    const backend = this.backends.get(id);
-    if (backend) {
-      await backend.stop();
-      this.backends.delete(id);
+    try {
+      await this.consultations.cancelForBot(definition.id);
+    } finally {
+      const backend = this.backends.get(id);
+      if (backend) {
+        await backend.stop();
+        this.backends.delete(id);
+      }
     }
     this.activeRuns.delete(definition.id);
     return this.summary(id);
   }
 
   async stopAll(): Promise<void> {
-    await Promise.all(
-      [...this.backends.values()].map((backend) => backend.stop()),
+    try {
+      await this.consultations.cancelAll();
+    } finally {
+      await Promise.all(
+        [...this.backends.values()]
+          .map((backend) => backend.stop())
+          .concat(this.knowledge.stop()),
+      );
+      this.backends.clear();
+      this.activeRuns.clear();
+    }
+  }
+
+  /** Host emergency action across the lead and every running worker. */
+  async stopAllOwnedExecutions(): Promise<void> {
+    await this.consultations.cancelAll();
+    const ready = [this.defaultBackend, ...this.backends.values()].filter(
+      (backend) => backend.getState().phase === "ready",
     );
-    this.backends.clear();
-    this.activeRuns.clear();
+    await Promise.all(ready.map((backend) => backend.stopAllOwnedExecutions()));
   }
 
   private async resolveProviderGrant(
@@ -704,6 +788,45 @@ export class BotProcessRegistry {
         current.updatedAt !== definition.updatedAt
       ) {
         throw new Error("The bot configuration changed. Reactivate it.");
+      }
+      if (
+        request.operation === "execution.claim" ||
+        request.operation === "execution.release"
+      ) {
+        if (!this.admission) {
+          throw new Error("Global execution admission is unavailable.");
+        }
+        const mutationRoot = definition.permissions.allowMutation
+          ? realpathSync(workspacePath)
+          : undefined;
+        return this.admission.handle(
+          definition.id,
+          request.operation,
+          request.payload,
+          { mutationRoot },
+        );
+      }
+      if (request.operation === "consult.dispatch") {
+        return this.consultations.dispatch(
+          definition.id,
+          request.payload as BotConsultationDispatchInput,
+          signal,
+        );
+      }
+      if (
+        request.operation === "consult.wait" ||
+        request.operation === "consult.cancel"
+      ) {
+        const payload = request.payload as { dispatchId?: unknown } | null;
+        if (
+          !payload ||
+          typeof payload.dispatchId !== "string" ||
+          !/^[0-9a-f-]{36}$/iu.test(payload.dispatchId)
+        )
+          throw new Error("Consultation ID is invalid.");
+        return request.operation === "consult.wait"
+          ? this.consultations.wait(definition.id, payload.dispatchId, signal)
+          : this.consultations.cancel(definition.id, payload.dispatchId);
       }
       if (
         request.operation === "codex.auth" &&

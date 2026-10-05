@@ -19,6 +19,9 @@ export interface RequestExecutionApprovalInput {
   userId: string;
   roomId: string;
   sessionKey?: string;
+  botId?: string;
+  sessionId?: string;
+  runId?: string;
   runtimeRoomId?: string;
   runtimeEntityId?: string;
   command: string;
@@ -79,6 +82,9 @@ export async function requestExecutionApproval(input: {
     userId: input.input.userId,
     roomId: input.input.roomId,
     sessionKey: input.input.sessionKey,
+    botId: input.input.botId,
+    sessionId: input.input.sessionId,
+    runId: input.input.runId,
     command: input.input.command,
     reason: input.input.reason,
     ttlMinutes,

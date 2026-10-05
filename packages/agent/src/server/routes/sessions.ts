@@ -2,7 +2,10 @@ import type { AppContext } from "@/runtime/bootstrap";
 import { readWorkerBotProfile } from "@/runtime/bootstrap/bot-profile";
 import { readJsonObjectBody } from "@/server/request-body";
 import { json } from "@/server/responses";
-import { SessionForkError } from "@/services/session/service";
+import {
+  SessionForkError,
+  SessionRunBoundaryUnavailableError,
+} from "@/services/session/service";
 
 const ID_PATTERN = /^[a-zA-Z0-9:_-]{1,128}$/;
 
@@ -202,6 +205,31 @@ export async function handleSessionRoutes(
       Number.isInteger(offsetRaw) && offsetRaw >= 0
         ? Math.min(offsetRaw, 1_000_000_000)
         : 0;
+    const throughRunId = url.searchParams.get("throughRunId");
+    if (throughRunId !== null) {
+      if (!ID_PATTERN.test(throughRunId))
+        return json({ error: "throughRunId is invalid" }, 400);
+      try {
+        return json({
+          ...context.services.sessions.messagesThroughRun(
+            throughRunId,
+            sessionId,
+            limit,
+            offset,
+          ),
+          throughRunId,
+        });
+      } catch (error) {
+        if (!(error instanceof SessionRunBoundaryUnavailableError)) throw error;
+        return json(
+          {
+            error: error.message,
+            code: "run_transcript_boundary_unavailable",
+          },
+          410,
+        );
+      }
+    }
     const total = context.services.sessions.countBySessionRole(sessionId);
     const pageSize = Math.min(limit, Math.max(0, total - offset));
     const pageOffset = Math.max(0, total - offset - pageSize);

@@ -3,7 +3,14 @@ import { readWorkerBotProfile } from "./bot-profile";
 
 export const WORKER_HOST_RPC_PROTOCOL = "doolittle-worker-host-v1";
 
-export type WorkerHostOperation = "codex.auth" | "claude.invoke";
+export type WorkerHostOperation =
+  | "codex.auth"
+  | "claude.invoke"
+  | "execution.claim"
+  | "execution.release"
+  | "consult.dispatch"
+  | "consult.wait"
+  | "consult.cancel";
 
 interface PendingRequest {
   resolve: (value: unknown) => void;
@@ -14,6 +21,18 @@ interface PendingRequest {
 
 const pending = new Map<string, PendingRequest>();
 let listening = false;
+const BOT_ID = /^[a-z0-9][a-z0-9_-]{0,63}$/u;
+
+function hostBotId(): string | null {
+  const worker = readWorkerBotProfile();
+  if (worker) return worker.id;
+  const lead = process.env.DOOLITTLE_HOST_BOT_ID;
+  return process.env.DOOLITTLE_DESKTOP_RUNTIME === "1" &&
+    typeof lead === "string" &&
+    BOT_ID.test(lead)
+    ? lead
+    : null;
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -26,7 +45,7 @@ function ensureListener(): void {
     if (
       !isRecord(message) ||
       message.protocol !== WORKER_HOST_RPC_PROTOCOL ||
-      message.botId !== readWorkerBotProfile()?.id
+      message.botId !== hostBotId()
     ) {
       return;
     }
@@ -53,17 +72,19 @@ function ensureListener(): void {
   });
 }
 
-/** Worker-only request; the child cannot choose a provider account or home. */
+/** Desktop-runtime request; the child cannot choose its host identity. */
 export function requestWorkerHost(
   operation: WorkerHostOperation,
   payload: unknown,
   options: { timeoutMs?: number; signal?: AbortSignal } = {},
 ): Promise<unknown> {
-  const profile = readWorkerBotProfile();
-  if (!profile || typeof process.send !== "function") {
-    return Promise.reject(new Error("The named bot host is unavailable."));
+  const botId = hostBotId();
+  if (!botId || typeof process.send !== "function") {
+    return Promise.reject(
+      new Error("The desktop execution host is unavailable."),
+    );
   }
-  if (pending.size >= 4) {
+  if (pending.size >= 16) {
     return Promise.reject(new Error("Too many host requests are in flight."));
   }
   ensureListener();
@@ -81,7 +102,7 @@ export function requestWorkerHost(
       process.send?.({
         protocol: WORKER_HOST_RPC_PROTOCOL,
         id,
-        botId: profile.id,
+        botId,
         cancel: true,
       });
       reject(new DOMException("The host request was cancelled.", "AbortError"));
@@ -92,7 +113,7 @@ export function requestWorkerHost(
       process.send?.({
         protocol: WORKER_HOST_RPC_PROTOCOL,
         id,
-        botId: profile.id,
+        botId,
         cancel: true,
       });
       reject(new Error("The approved host request timed out."));
@@ -113,7 +134,7 @@ export function requestWorkerHost(
       {
         protocol: WORKER_HOST_RPC_PROTOCOL,
         id,
-        botId: profile.id,
+        botId,
         operation,
         payload,
       },

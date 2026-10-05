@@ -282,6 +282,15 @@ export class RunControllerService {
     return { accepted: true, run: this.store.getByRunId(runId) };
   }
 
+  cancelAllActiveRuns(): number {
+    const active = new Set([
+      ...this.abortControllers.keys(),
+      ...this.activeTasks.keys(),
+    ]);
+    for (const runId of active) this.cancelRun(runId);
+    return active.size;
+  }
+
   getByRunId(runId: string): RunSnapshot | undefined {
     return this.store.getByRunId(runId);
   }

@@ -26,6 +26,10 @@ import {
 } from "./editor-project-context";
 import { validateAgentTransportRequest } from "./ipc/agent-api-policy";
 import { requestAgentTransport } from "./ipc/agent-transport";
+import {
+  authorizeComputerRequest,
+  validateComputerOwnerScope,
+} from "./ipc/computer-authorization";
 import { isRecord } from "./ipc/input-validation";
 import type {
   DesktopBackgroundNotification,
@@ -171,6 +175,7 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
     ipcMain,
     backend,
     bots,
+    admission,
     getMainWindow,
     pickFiles,
     workspace,
@@ -412,6 +417,7 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
   );
   registerTerminalIpcHandlers({
     backend,
+    bots,
     registerHandler,
     activeTerminalRuns,
     confirmSensitiveAction,
@@ -481,17 +487,41 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
   );
   registerHandler(
     invokeChannels.editorProjectContext,
-    (
+    async (
       _event: IpcMainInvokeEvent,
       request: EditorProjectContextRequest,
-    ): EditorProjectContextResult => resolveEditorProjectContext(request),
+    ): Promise<EditorProjectContextResult> => {
+      const scope =
+        request.botId === undefined &&
+        request.originConversationId === undefined
+          ? {}
+          : validateComputerOwnerScope(request);
+      await authorizeComputerRequest(
+        scope,
+        { backend, bots, admission },
+        false,
+      );
+      return resolveEditorProjectContext(request);
+    },
   );
   registerHandler(
     invokeChannels.editorProjectRevision,
-    (
+    async (
       _event: IpcMainInvokeEvent,
       request: EditorProjectRevisionRequest,
-    ): string => resolveEditorProjectRevision(request),
+    ): Promise<string> => {
+      const scope =
+        request.botId === undefined &&
+        request.originConversationId === undefined
+          ? {}
+          : validateComputerOwnerScope(request);
+      await authorizeComputerRequest(
+        scope,
+        { backend, bots, admission },
+        false,
+      );
+      return resolveEditorProjectRevision(request);
+    },
   );
   registerHandler(
     invokeChannels.workspaceSaveConfirmed,
@@ -500,6 +530,12 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
       unsafeRequest: WorkspaceFileSaveRequest,
     ): Promise<WorkspaceFileSaveResult> => {
       const request = validateWorkspaceFileSaveRequest(unsafeRequest);
+      const scope = validateComputerOwnerScope(unsafeRequest);
+      await authorizeComputerRequest(
+        scope,
+        { backend, bots, admission },
+        false,
+      );
       const confirmed = await confirmSensitiveAction({
         kind: "workspace-write",
         title: "Save workspace file?",
@@ -511,40 +547,56 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
       });
       if (!confirmed) return { status: "cancelled" };
 
-      const state = backend.getState();
-      if (state.phase !== "ready" || !state.url) {
-        throw new Error("The local runtime is not ready.");
-      }
-      const response = await sensitiveFetch(`${state.url}/workspace/write`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(request),
-        signal: AbortSignal.timeout(API_TIMEOUT_MS),
-      });
-      if (response.status === 409) {
-        return {
-          status: "conflict",
-          message: (await parseRequestError(response)).trim(),
-        };
-      }
-      if (!response.ok) {
-        throw new Error(
-          `Save failed: ${(await parseRequestError(response)).trim()}`,
-        );
-      }
-      const payload = await parseSuccessfulJson(
-        response,
-        MAX_SENSITIVE_RESPONSE_BYTES,
+      const target = await authorizeComputerRequest(
+        scope,
+        {
+          backend,
+          bots,
+          admission,
+          defaultWorkspaceRoot: backend.getWorkspaceDirectory(),
+        },
+        true,
       );
-      const savedPath = isRecord(payload) ? payload.path : undefined;
-      if (typeof savedPath !== "string" || !savedPath) {
-        throw new Error("The local runtime did not confirm the saved path.");
+      try {
+        const state = target.backend.getState();
+        if (state.phase !== "ready" || !state.url)
+          throw new Error("The local runtime is not ready.");
+        const response = await sensitiveFetch(`${state.url}/workspace/write`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(request),
+          signal: AbortSignal.timeout(API_TIMEOUT_MS),
+        });
+        if (response.status === 409) {
+          return {
+            status: "conflict",
+            message: (await parseRequestError(response)).trim(),
+          };
+        }
+        if (!response.ok) {
+          throw new Error(
+            `Save failed: ${(await parseRequestError(response)).trim()}`,
+          );
+        }
+        const payload = await parseSuccessfulJson(
+          response,
+          MAX_SENSITIVE_RESPONSE_BYTES,
+        );
+        const savedPath = isRecord(payload) ? payload.path : undefined;
+        if (typeof savedPath !== "string" || !savedPath) {
+          throw new Error("The local runtime did not confirm the saved path.");
+        }
+        return { status: "saved", path: savedPath };
+      } finally {
+        target.release();
       }
-      return { status: "saved", path: savedPath };
     },
   );
   registerRepositoryIpcHandlers({
     backend,
+    bots,
+    admission,
+    defaultWorkspaceRoot: backend.getWorkspaceDirectory(),
     confirmSensitiveAction,
     sensitiveFetch,
     registerHandler,
@@ -559,7 +611,11 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
         throw new Error("This desktop transport request is already running.");
       }
       if (bots) {
-        const catalogResponse = await handleBotApiRequest(bots, request);
+        const catalogResponse = await handleBotApiRequest(
+          bots,
+          request,
+          confirmSensitiveAction,
+        );
         if (catalogResponse) return catalogResponse;
       } else if (botId !== "default") {
         throw new Error("Named bots are unavailable.");
@@ -586,7 +642,7 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
           controller.signal,
         );
         return bots
-          ? attributeBotSessionResponse(bots, request, botId, response)
+          ? await attributeBotSessionResponse(bots, request, botId, response)
           : response;
       } finally {
         stopTrackingSender();
@@ -786,7 +842,11 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
           response,
           MAX_SENSITIVE_RESPONSE_BYTES,
         );
-        if (!isRecord(submitted) || submitted.run_id !== request.requestId) {
+        if (
+          !isRecord(submitted) ||
+          submitted.run_id !== request.requestId ||
+          (bots && submitted.bot_id !== bots.get(botId).id)
+        ) {
           throw new Error("The runtime returned an invalid chat run receipt.");
         }
         bots?.bindRun(botId, request.roomId, request.requestId);

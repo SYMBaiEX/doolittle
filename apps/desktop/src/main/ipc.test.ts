@@ -475,10 +475,25 @@ describe("sensitive desktop actions", () => {
       }),
     ).toThrow(/request id/);
     expect(
-      validateInteractiveTerminalStartRequest({ cols: 120, rows: 40 }),
-    ).toEqual({ cols: 120, rows: 40 });
+      validateInteractiveTerminalStartRequest({
+        originConversationId: "conversation-1",
+        workspacePath: "/workspace",
+        cols: 120,
+        rows: 40,
+      }),
+    ).toEqual({
+      originConversationId: "conversation-1",
+      workspacePath: "/workspace",
+      cols: 120,
+      rows: 40,
+    });
     expect(() =>
-      validateInteractiveTerminalStartRequest({ cols: 10, rows: 40 }),
+      validateInteractiveTerminalStartRequest({
+        originConversationId: "conversation-1",
+        workspacePath: "/workspace",
+        cols: 10,
+        rows: 40,
+      }),
     ).toThrow(/columns/);
     expect(
       validateInteractiveTerminalInputRequest({
@@ -1970,8 +1985,28 @@ data: {"response":"retried"}
       supportsResize: true,
       outputBytes: 0,
     };
+    const bots = {
+      get: () => ({
+        id: "lead-agent",
+        isDefault: true,
+        permissions: { allowMutation: true },
+      }),
+      ensureConversationOwner: vi.fn(async () => ({
+        botId: "lead-agent",
+        sessionId: "conversation-1",
+      })),
+      assertConversationOwner: vi.fn(() => ({
+        botId: "lead-agent",
+        sessionId: "conversation-1",
+      })),
+      assertAcpWorkspace: vi.fn(() => "/workspace"),
+      backendFor: async () => ({
+        getState: () => ({ phase: "ready", url: "http://127.0.0.1:4555" }),
+      }),
+    } as unknown as BotProcessRegistry;
     const harness = createHarness({
       confirmed: false,
+      bots,
       fetch: async (input, init) => {
         const url = String(input);
         requests.push({ url, init });
@@ -1990,7 +2025,12 @@ data: {"response":"retried"}
     await expect(
       harness.handlers.get("terminal:session-start")?.(
         {},
-        { cols: 100, rows: 30 },
+        {
+          originConversationId: "conversation-1",
+          workspacePath: "/workspace",
+          cols: 100,
+          rows: 30,
+        },
       ),
     ).resolves.toEqual({ status: "started", session });
     await harness.handlers.get("terminal:session-input")?.(
@@ -2033,9 +2073,96 @@ data: {"response":"retried"}
     harness.dispose();
   });
 
+  it("binds an interactive PTY to its named bot and never sends its input to the lead runtime", async () => {
+    const sessionId = "62df6968-19be-4ea6-b7a1-479a57fa3b7c";
+    const requests: string[] = [];
+    const bots = {
+      get: (id: string) => {
+        if (id !== "bot-a") throw new Error("Bot not found.");
+        return { id, isDefault: false, permissions: { allowMutation: true } };
+      },
+      backendFor: async (id: string) => {
+        if (id !== "bot-a") throw new Error("Bot not found.");
+        return {
+          getState: () => ({ phase: "ready", url: "http://127.0.0.1:4666" }),
+        };
+      },
+      ensureConversationOwner: vi.fn(async () => ({
+        botId: "bot-a",
+        sessionId: "conversation-a",
+      })),
+      assertConversationOwner: vi.fn(() => ({
+        botId: "bot-a",
+        sessionId: "conversation-a",
+      })),
+      assertAcpWorkspace: vi.fn(() => "/workspace"),
+    } as unknown as BotProcessRegistry;
+    const session = {
+      id: sessionId,
+      state: "running",
+      cwd: "/workspace",
+      shell: "zsh",
+      cols: 100,
+      rows: 30,
+      startedAt: "2026-07-27T00:00:00.000Z",
+      pty: true,
+      supportsResize: true,
+      outputBytes: 0,
+    };
+    const harness = createHarness({
+      confirmed: false,
+      bots,
+      fetch: async (input) => {
+        requests.push(String(input));
+        return Response.json({ session });
+      },
+    });
+    await harness.handlers.get("terminal:session-start")?.(
+      {},
+      {
+        botId: "bot-a",
+        originConversationId: "conversation-a",
+        workspacePath: "/workspace",
+        cols: 100,
+        rows: 30,
+      },
+    );
+    await expect(
+      harness.handlers.get("terminal:session-input")?.(
+        {},
+        { sessionId, data: "echo private\n" },
+      ),
+    ).rejects.toThrow(/another bot|unavailable/iu);
+    await harness.handlers.get("terminal:session-input")?.(
+      {},
+      { botId: "bot-a", sessionId, data: "echo private\n" },
+    );
+    expect(requests).toEqual([
+      "http://127.0.0.1:4666/terminal/session/start",
+      "http://127.0.0.1:4666/terminal/session/input",
+    ]);
+    harness.dispose();
+  });
+
   it("rejects malformed interactive terminal responses at the IPC boundary", async () => {
+    const bots = {
+      get: () => ({
+        id: "lead-agent",
+        isDefault: true,
+        permissions: { allowMutation: true },
+      }),
+      ensureConversationOwner: vi.fn(async () => ({
+        botId: "lead-agent",
+        sessionId: "conversation-1",
+      })),
+      assertAcpWorkspace: vi.fn(() => "/workspace"),
+      backendFor: async () => ({
+        getState: () => ({ phase: "ready", url: "http://127.0.0.1:4555" }),
+      }),
+    } as unknown as BotProcessRegistry;
     const harness = createHarness({
       confirmed: true,
+      bots,
       fetch: async () =>
         Response.json({
           session: {
@@ -2048,7 +2175,12 @@ data: {"response":"retried"}
     await expect(
       harness.handlers.get("terminal:session-start")?.(
         {},
-        { cols: 100, rows: 30 },
+        {
+          originConversationId: "conversation-1",
+          workspacePath: "/workspace",
+          cols: 100,
+          rows: 30,
+        },
       ),
     ).rejects.toThrow(/invalid terminal session state/iu);
     harness.dispose();

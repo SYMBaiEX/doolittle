@@ -4,10 +4,17 @@ const PROTOCOL = "doolittle-worker-host-v1";
 const REQUEST_ID =
   /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 const MAX_REQUEST_BYTES = 1_000_000;
-const MAX_PENDING = 4;
+const MAX_PENDING = 16;
 
 export interface WorkerHostRequest {
-  operation: "codex.auth" | "claude.invoke";
+  operation:
+    | "codex.auth"
+    | "claude.invoke"
+    | "execution.claim"
+    | "execution.release"
+    | "consult.dispatch"
+    | "consult.wait"
+    | "consult.cancel";
   payload: unknown;
 }
 
@@ -43,7 +50,15 @@ export function attachWorkerHostRpc(
       controllers.get(value.id)?.abort();
       return;
     }
-    if (value.operation !== "codex.auth" && value.operation !== "claude.invoke")
+    if (
+      value.operation !== "codex.auth" &&
+      value.operation !== "claude.invoke" &&
+      value.operation !== "execution.claim" &&
+      value.operation !== "execution.release" &&
+      value.operation !== "consult.dispatch" &&
+      value.operation !== "consult.wait" &&
+      value.operation !== "consult.cancel"
+    )
       return;
     if (pending >= MAX_PENDING || controllers.has(value.id)) return;
     let size: number;

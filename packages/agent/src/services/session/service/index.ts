@@ -14,6 +14,7 @@ export {
   type SessionArchivePreview,
   SessionTransferError,
 } from "../../session-transfer";
+export { SessionRunBoundaryUnavailableError } from "../messages";
 export { SessionForkError } from "./write";
 
 /**
@@ -36,6 +37,8 @@ export class SessionService {
   declare recent: SessionServiceApi["recent"];
   declare recentBySession: SessionServiceApi["recentBySession"];
   declare messagesBySession: SessionServiceApi["messagesBySession"];
+  declare recordRunTerminalBoundary: SessionServiceApi["recordRunTerminalBoundary"];
+  declare messagesThroughRun: SessionServiceApi["messagesThroughRun"];
   declare countBySessionRole: SessionServiceApi["countBySessionRole"];
   declare latest: SessionServiceApi["latest"];
   declare summary: SessionServiceApi["summary"];

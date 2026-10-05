@@ -21,6 +21,20 @@ export interface SessionTranscriptPrefix {
   truncated: boolean;
 }
 
+export interface SessionRunTranscriptPage {
+  messages: StoredMessage[];
+  hasEarlier: boolean;
+  nextOffset: number;
+  throughMessageId?: string;
+  terminalStatus: "complete" | "cancelled" | "error";
+}
+
+export class SessionRunBoundaryUnavailableError extends Error {
+  constructor() {
+    super("The exact transcript boundary for this run is unavailable.");
+  }
+}
+
 export class SessionMessageStore {
   constructor(
     private readonly db: SessionDatabase,
@@ -74,6 +88,11 @@ export class SessionMessageStore {
           inserted.push(replacement);
         }
       }
+      // A replacement can preserve IDs while changing their order or content.
+      // Never let an old run silently resolve against that new transcript.
+      this.db
+        .query("DELETE FROM run_message_boundaries WHERE session_id = ?1")
+        .run(sessionId);
       this.db.exec("COMMIT");
     } catch (error) {
       this.db.exec("ROLLBACK");
@@ -221,6 +240,134 @@ export class SessionMessageStore {
       )
       .all(sessionId, limit, offset) as StoredMessageRow[];
     return rows.map(toStoredMessage);
+  }
+
+  recordRunTerminalBoundary(
+    runId: string,
+    sessionId: string,
+    status: "complete" | "cancelled" | "error",
+  ): void {
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      const existing = this.db
+        .query(
+          "SELECT session_id as sessionId, status FROM run_message_boundaries WHERE run_id = ?1",
+        )
+        .get(runId) as { sessionId: string; status: string } | null;
+      if (existing) {
+        if (existing.sessionId !== sessionId || existing.status !== status) {
+          throw new Error("Run transcript boundary conflicts with its owner.");
+        }
+      } else {
+        const last = this.db
+          .query(
+            "SELECT id FROM messages WHERE session_id = ?1 ORDER BY created_at DESC, rowid DESC LIMIT 1",
+          )
+          .get(sessionId) as { id: string } | null;
+        const count = this.db
+          .query("SELECT COUNT(*) as count FROM messages WHERE session_id = ?1")
+          .get(sessionId) as { count: number };
+        this.db
+          .query(
+            `INSERT INTO run_message_boundaries
+              (run_id, session_id, through_message_id, message_count, status, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)`,
+          )
+          .run(
+            runId,
+            sessionId,
+            last?.id ?? null,
+            count.count,
+            status,
+            new Date().toISOString(),
+          );
+      }
+      this.db.exec("COMMIT");
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
+  }
+
+  messagesThroughRun(
+    runId: string,
+    sessionId: string,
+    limit: number,
+    offset = 0,
+  ): SessionRunTranscriptPage {
+    const boundary = this.db
+      .query(
+        `SELECT through_message_id as throughMessageId,
+          message_count as messageCount, status
+         FROM run_message_boundaries
+         WHERE run_id = ?1 AND session_id = ?2`,
+      )
+      .get(runId, sessionId) as {
+      throughMessageId: string | null;
+      messageCount: number;
+      status: SessionRunTranscriptPage["terminalStatus"];
+    } | null;
+    if (!boundary) throw new SessionRunBoundaryUnavailableError();
+    if (!boundary.throughMessageId) {
+      if (boundary.messageCount !== 0)
+        throw new SessionRunBoundaryUnavailableError();
+      return {
+        messages: [],
+        hasEarlier: false,
+        nextOffset: offset,
+        terminalStatus: boundary.status,
+      };
+    }
+    const anchor = this.db
+      .query(
+        "SELECT created_at as createdAt, rowid FROM messages WHERE session_id = ?1 AND id = ?2",
+      )
+      .get(sessionId, boundary.throughMessageId) as {
+      createdAt: string;
+      rowid: number;
+    } | null;
+    if (!anchor) throw new SessionRunBoundaryUnavailableError();
+    const predicate =
+      "session_id = ?1 AND (created_at < ?2 OR (created_at = ?2 AND rowid <= ?3))";
+    const current = this.db
+      .query(`SELECT COUNT(*) as count FROM messages WHERE ${predicate}`)
+      .get(sessionId, anchor.createdAt, anchor.rowid) as {
+      count: number;
+    };
+    if (current.count !== boundary.messageCount)
+      throw new SessionRunBoundaryUnavailableError();
+    const pageSize = Math.min(limit, Math.max(0, current.count - offset));
+    const pageOffset = Math.max(0, current.count - offset - pageSize);
+    const rows = this.db
+      .query(
+        `SELECT messages.id, messages.session_id as sessionId,
+          messages.room_id as roomId, messages.entity_id as entityId,
+          messages.role, messages.text,
+          messages.attachments_json as attachmentsJson,
+          messages.created_at as createdAt,
+          message_origins.origin_message_id as originMessageId
+         FROM messages
+         LEFT JOIN message_origins ON message_origins.message_id = messages.id
+         WHERE messages.session_id = ?1 AND
+           (messages.created_at < ?2 OR
+            (messages.created_at = ?2 AND messages.rowid <= ?3))
+         ORDER BY messages.created_at ASC, messages.rowid ASC
+         LIMIT ?4 OFFSET ?5`,
+      )
+      .all(
+        sessionId,
+        anchor.createdAt,
+        anchor.rowid,
+        pageSize,
+        pageOffset,
+      ) as StoredMessageRow[];
+    return {
+      messages: rows.map(toStoredMessage),
+      hasEarlier: pageOffset > 0,
+      nextOffset: offset + rows.length,
+      throughMessageId: boundary.throughMessageId,
+      terminalStatus: boundary.status,
+    };
   }
 
   transcriptPrefix(

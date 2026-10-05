@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type {
@@ -743,7 +743,9 @@ function createFixture(
   sessions: SessionSummary[] = [],
   messages: StoredMessage[] = [],
 ) {
-  const root = mkdtempSync(join(tmpdir(), "doolittle-acp-protocol-"));
+  const root = realpathSync(
+    mkdtempSync(join(tmpdir(), "doolittle-acp-protocol-")),
+  );
   const config = {
     agentName: "Doolittle",
     dataDir: root,

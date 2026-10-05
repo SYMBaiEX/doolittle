@@ -1,3 +1,4 @@
+import { readWorkerBotProfile } from "@/runtime/bootstrap/bot-profile";
 import type { ChatTurnRequest } from "@/types/runtime";
 import type { AgentExecutionContext, AgentTurnHooks } from "../chat";
 import {
@@ -25,12 +26,15 @@ export async function handleExecutionApprovalCommand(
   hooks?: AgentTurnHooks,
 ): Promise<string | undefined> {
   const sourcePlatform = resolveRemoteExecutionPlatform(input.source);
+  const botId = readWorkerBotProfile()?.id ?? String(context.runtime.agentId);
 
   if (trimmed === "/approvals" || trimmed === "/approvals list") {
     const approvals = context.services.executionApprovals
       .list()
       .filter((record) =>
-        sourcePlatform ? isApprovalScopedToRequester(input, record) : true,
+        sourcePlatform
+          ? isApprovalScopedToRequester(input, record, botId)
+          : true,
       )
       .slice(0, 20);
     return formatExecutionApprovalList(approvals);
@@ -44,7 +48,9 @@ export async function handleExecutionApprovalCommand(
     const approvals = context.services.executionApprovals
       .list(status)
       .filter((record) =>
-        sourcePlatform ? isApprovalScopedToRequester(input, record) : true,
+        sourcePlatform
+          ? isApprovalScopedToRequester(input, record, botId)
+          : true,
       )
       .slice(0, 20);
     return formatExecutionApprovalList(approvals);
@@ -56,7 +62,7 @@ export async function handleExecutionApprovalCommand(
     if (!record) {
       return `Execution approval not found: ${id}`;
     }
-    if (!isApprovalScopedToRequester(input, record)) {
+    if (!isApprovalScopedToRequester(input, record, botId)) {
       return "You can only deny execution approvals for your own remote session.";
     }
     const denied = await context.services.executionApprovals.deny(id);
@@ -86,7 +92,7 @@ export async function handleExecutionApprovalCommand(
     if (!record) {
       return `Execution approval not found: ${id}`;
     }
-    if (!isApprovalScopedToRequester(input, record)) {
+    if (!isApprovalScopedToRequester(input, record, botId)) {
       return "You can only approve execution requests for your own remote session.";
     }
     const approved = await context.services.executionApprovals.approve(id, {

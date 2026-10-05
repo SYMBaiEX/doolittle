@@ -268,9 +268,25 @@ export async function createApiServer(
 
           let response: Response;
           const method = incoming.method ?? "GET";
+          const workerBot = readWorkerBotProfile();
+          const knowledgeBroker =
+            process.env.DOOLITTLE_KNOWLEDGE_BROKER === "1";
+          const brokerRoute =
+            (method === "POST" && requestPath === "/knowledge/documents") ||
+            (method === "GET" &&
+              /^\/knowledge\/documents\/[0-9a-f-]{36}$/iu.test(requestPath));
+          const brokerProbe =
+            method === "GET" &&
+            ["/health", "/runtime/bot-identity"].includes(requestPath);
           if (
-            readWorkerBotProfile() &&
-            !isWorkerApiRouteAllowed(method, requestPath)
+            workerBot &&
+            (knowledgeBroker
+              ? !(brokerRoute || brokerProbe)
+              : !isWorkerApiRouteAllowed(
+                  method,
+                  requestPath,
+                  workerBot.permissions.allowMutation,
+                ))
           ) {
             await writeEarlyResponse(
               json({ error: "Not found" }, 404),

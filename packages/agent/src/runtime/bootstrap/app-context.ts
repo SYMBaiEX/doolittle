@@ -1,4 +1,9 @@
-import { AgentRuntime, type UUID } from "@elizaos/core";
+import {
+  AgentRuntime,
+  createDocumentsPlugin,
+  DocumentService,
+  type UUID,
+} from "@elizaos/core";
 import character from "@/character";
 import { configureBootstrapContext } from "@/runtime/bootstrap/context";
 import {
@@ -20,6 +25,7 @@ import {
   initializeDoolittleAccountPool,
 } from "@/runtime/native/account-pool";
 import { buildNativePluginAssembly } from "@/runtime/native/plugin-registry";
+import { normalizePlugin } from "@/runtime/native/plugin-registry/support";
 import { createServices } from "@/services";
 import { readWorkerBotProfile } from "./bot-profile";
 
@@ -49,6 +55,48 @@ export async function buildAppContext({
     ]);
   }
   appendBootstrapTrace("phase:createServices:done");
+  if (process.env.DOOLITTLE_KNOWLEDGE_BROKER === "1") {
+    if (
+      workerBot?.id !== "knowledge-broker" ||
+      workerBot.model.provider !== "offline"
+    ) {
+      throw new Error(
+        "Private knowledge storage requires its fixed offline broker identity.",
+      );
+    }
+    const { default: sqlPlugin } = await import(
+      "@doolittle/plugin-sql-relationships"
+    );
+    const runtime = new AgentRuntime({
+      character: {
+        ...character,
+        id: workerBot.agentId as UUID,
+        name: workerBot.name,
+        system:
+          "Private document storage only. No conversation or autonomous work.",
+      },
+      plugins: [
+        normalizePlugin(sqlPlugin),
+        createDocumentsPlugin({ enableActions: false, enableProviders: false }),
+      ],
+      ...DOOLITTLE_RUNTIME_CAPABILITY_OPTIONS,
+    });
+    await runtime.initialize();
+    await runtime.getServiceLoadPromise(DocumentService.serviceType);
+    services.startupState.markReady(
+      "runtime",
+      "private SDK document worker ready",
+    );
+    return {
+      config,
+      services,
+      runtime,
+      get gateway(): never {
+        throw new Error("The private document worker has no gateway.");
+      },
+      ensureDeferredHydration: async () => undefined,
+    };
+  }
   services.startupState.markWarming("runtime", "initializing core runtime");
   services.startupState.markDeferred(
     "gateway",

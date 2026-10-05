@@ -1,6 +1,9 @@
 import { join } from "node:path";
 import type { Plugin } from "@elizaos/core";
-import { agentOrchestratorPlugin } from "@elizaos/plugin-agent-orchestrator";
+import {
+  AcpService,
+  agentOrchestratorPlugin,
+} from "@elizaos/plugin-agent-orchestrator";
 import { agentSkillsPlugin } from "@elizaos/plugin-agent-skills";
 import {
   createCodingAgentPlugin,
@@ -14,6 +17,7 @@ import {
 } from "../../../services/project-inspection";
 import type { EnvConfig } from "../../../types/runtime";
 import { withManagedCodingDelegation } from "../coding-delegation";
+import { DesktopAdmittedAcpService } from "../desktop-admitted-acp";
 
 export async function loadHotExecutionPlugins(
   services: AppServices,
@@ -37,7 +41,17 @@ export async function loadHotExecutionPlugins(
       resolveProjectTarget: (inputPath, workspaceRoot) =>
         resolveLocalProjectTarget(inputPath, workspaceRoot),
     }),
-    withManagedCodingDelegation(agentOrchestratorPlugin, services),
+    withManagedCodingDelegation(
+      process.env.DOOLITTLE_DESKTOP_RUNTIME === "1"
+        ? {
+            ...agentOrchestratorPlugin,
+            services: agentOrchestratorPlugin.services?.map((service) =>
+              service === AcpService ? DesktopAdmittedAcpService : service,
+            ),
+          }
+        : agentOrchestratorPlugin,
+      services,
+    ),
     agentSkillsPlugin,
     createPlanningPlugin({
       storage: {

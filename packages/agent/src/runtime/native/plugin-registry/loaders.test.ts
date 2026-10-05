@@ -11,6 +11,7 @@ import { loadFoundationPlugins } from "./foundation";
 import { loadHotExecutionPlugins } from "./hot-execution";
 
 vi.mock("@elizaos/plugin-agent-orchestrator", () => ({
+  AcpService: class AcpService {},
   agentOrchestratorPlugin: {
     name: "@elizaos/plugin-agent-orchestrator",
     actions: [

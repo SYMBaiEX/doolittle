@@ -16,6 +16,7 @@ import { handleFormsPlanningRoutes } from "./forms-planning";
 import { handleGatewayRuntimeRoutes } from "./gateway-runtime";
 import { handleGatewaySessionRoutes } from "./gateway-sessions";
 import { handleIdentityRoutes } from "./identity";
+import { handleKnowledgeBrokerRoutes } from "./knowledge-broker";
 import { handleMcpRoutes } from "./mcp";
 import { handleMediaRoutes } from "./media";
 import { handleManagedMediaRoutes } from "./media-managed";
@@ -40,6 +41,7 @@ import { handleWebhookRoutes } from "./webhooks";
 import { handleWorkspaceRoutes } from "./workspace";
 
 export const apiRouteHandlers = [
+  handleKnowledgeBrokerRoutes,
   handleRuntimeRoutes,
   handleActivityRoutes,
   handleDiagnosticsRoutes,

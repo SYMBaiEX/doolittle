@@ -81,6 +81,31 @@ describe("RunControllerService", () => {
     });
   });
 
+  it("cancels every active process-owned run for emergency stop", () => {
+    const service = new RunControllerService();
+    const controllers = [new AbortController(), new AbortController()];
+    for (const [index, controller] of controllers.entries()) {
+      const id = `emergency-${index}`;
+      service.startTurn({
+        sessionId: id,
+        roomId: id,
+        runId: id,
+        source: "desktop",
+        message: "work",
+        runDepth: "standard",
+        configuredMaxIterations: 45,
+        progressMode: "new",
+      });
+      service.registerAbortController(id, controller);
+    }
+    expect(service.cancelAllActiveRuns()).toBe(2);
+    expect(controllers.every((controller) => controller.signal.aborted)).toBe(
+      true,
+    );
+    expect(service.getByRunId("emergency-0")?.status).toBe("cancelled");
+    expect(service.getByRunId("emergency-1")?.status).toBe("cancelled");
+  });
+
   it("claims one active run per session while allowing other sessions in parallel", () => {
     const service = new RunControllerService();
     expect(

@@ -2,6 +2,10 @@ import { randomUUID } from "node:crypto";
 import type { AppContext } from "@/runtime/bootstrap";
 import type { AgentTurnHooks } from "@/runtime/chat";
 import { handleAgentTurn } from "@/runtime/chat";
+import type {
+  ExecutionAdmissionKind,
+  ExecutionLease,
+} from "@/runtime/execution-admission";
 import {
   createResponseTextAccumulator,
   formatRunEvent,
@@ -12,6 +16,8 @@ import type { RunUpdateEvent } from "@/services/run-controller-service";
 import type { ChatTurnRequest } from "@/types/runtime";
 
 export interface StreamedTurnHandlers {
+  admissionKind?: ExecutionAdmissionKind;
+  admissionLease?: ExecutionLease | null;
   /** Server-side cancellation signal, shared with the provider/tool turn. */
   abortSignal?: AbortSignal;
   onProgress?: (event: {
@@ -72,6 +78,8 @@ export async function executeAgentTurnWithProgress(
 
   try {
     const response = await handleAgentTurn(turnInput, context, {
+      admissionKind: handlers?.admissionKind,
+      admissionLease: handlers?.admissionLease,
       abortSignal: handlers?.abortSignal,
       onResponseProgress: async ({ chunk, response, phase }) => {
         const frame = nextResponseTextFrame(responseAccumulator, response) ?? {

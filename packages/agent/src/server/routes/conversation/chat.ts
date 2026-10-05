@@ -1,6 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { relative } from "node:path";
 import type { AppContext } from "@/runtime/bootstrap";
+import { readWorkerBotProfile } from "@/runtime/bootstrap/bot-profile";
+import {
+  acquireExecutionLease,
+  ExecutionAdmissionLimitError,
+} from "@/runtime/execution-admission";
 import { executeAgentTurnWithProgress } from "@/runtime/turn-stream";
 import { readJsonObjectBody } from "@/server/request-body";
 import { json, streamSse } from "@/server/responses";
@@ -291,10 +296,10 @@ function conflictResponse(
       );
 }
 
-function startServerOwnedChatRun(
+async function startServerOwnedChatRun(
   context: AppContext,
   prepared: PreparedChatRun,
-): Response | undefined {
+): Promise<Response | undefined> {
   const { body, message, runId, responseId, roomId, sessionId, workspaceDir } =
     prepared;
   const claim = context.services.runController.claimTaskRun({
@@ -319,7 +324,46 @@ function startServerOwnedChatRun(
     return conflictResponse("run_exists");
   }
 
+  let admissionLease: Awaited<ReturnType<typeof acquireExecutionLease>>;
+  try {
+    admissionLease = await acquireExecutionLease({
+      runId,
+      sessionId,
+      kind: "foreground",
+    });
+  } catch (error) {
+    releaseWorkspace();
+    context.services.runController.releaseTaskRun(runId);
+    if (error instanceof ExecutionAdmissionLimitError) {
+      return json({ error: error.message, code: error.reason }, 429);
+    }
+    return json(
+      {
+        error: "Global execution admission is unavailable.",
+        code: "admission_unavailable",
+      },
+      503,
+    );
+  }
+
   const controller = new AbortController();
+  let boundaryRecorded = false;
+  const recordTerminalBoundary = (
+    status: "complete" | "cancelled" | "error",
+  ) => {
+    if (boundaryRecorded) return;
+    try {
+      context.services.sessions.recordRunTerminalBoundary(
+        runId,
+        sessionId,
+        status,
+      );
+      boundaryRecorded = true;
+    } catch {
+      // The live turn remains authoritative. Historical transcript requests
+      // fail explicitly with 410 until a durable boundary can be recovered.
+    }
+  };
   const unregisterController =
     context.services.runController.registerAbortController(runId, controller);
   context.services.runController.appendTaskEvent(runId, "response.created", {
@@ -348,6 +392,7 @@ function startServerOwnedChatRun(
         },
         context,
         {
+          admissionLease,
           abortSignal: controller.signal,
           onProgress: ({ delta }) => {
             if (!delta) return;
@@ -391,6 +436,7 @@ function startServerOwnedChatRun(
         },
       );
       if (controller.signal.aborted) {
+        recordTerminalBoundary("cancelled");
         context.services.runController.appendTaskEvent(
           runId,
           "response.cancelled",
@@ -400,6 +446,7 @@ function startServerOwnedChatRun(
       } else {
         const failureMessage = failedTurnMessage(context, runId);
         if (failureMessage) {
+          recordTerminalBoundary("error");
           context.services.runController.appendTaskEvent(
             runId,
             "response.failed",
@@ -413,6 +460,7 @@ function startServerOwnedChatRun(
           );
         } else {
           const receipt = context.services.runController.getByRunId(runId);
+          recordTerminalBoundary("complete");
           context.services.runController.appendTaskEvent(
             runId,
             "response.completed",
@@ -429,6 +477,7 @@ function startServerOwnedChatRun(
       }
     } catch (error) {
       if (controller.signal.aborted) {
+        recordTerminalBoundary("cancelled");
         context.services.runController.appendTaskEvent(
           runId,
           "response.cancelled",
@@ -444,6 +493,7 @@ function startServerOwnedChatRun(
             error instanceof Error ? error.message : String(error),
           );
         }
+        recordTerminalBoundary("error");
         context.services.runController.appendTaskEvent(
           runId,
           "response.failed",
@@ -457,6 +507,10 @@ function startServerOwnedChatRun(
         );
       }
     } finally {
+      await admissionLease?.release();
+      if (!boundaryRecorded && controller.signal.aborted) {
+        recordTerminalBoundary("cancelled");
+      }
       const active = context.services.runController.getActive(sessionId);
       if (controller.signal.aborted && active?.runId === runId) {
         context.services.runController.finishTurn(sessionId, "cancelled");
@@ -570,11 +624,12 @@ export async function handleChatSubmitRoute(
 ): Promise<Response> {
   const prepared = await prepareChatRun(context, request);
   if (prepared instanceof Response) return prepared;
-  const conflict = startServerOwnedChatRun(context, prepared);
+  const conflict = await startServerOwnedChatRun(context, prepared);
   if (conflict) return conflict;
   return json(
     {
       run_id: prepared.runId,
+      bot_id: readWorkerBotProfile()?.id ?? String(context.runtime.agentId),
       response_id: prepared.responseId,
       room_id: prepared.roomId,
       events_url: `/chat/runs/${prepared.runId}/events`,
@@ -589,7 +644,7 @@ export async function handleChatRoute(
 ): Promise<Response> {
   const prepared = await prepareChatRun(context, request);
   if (prepared instanceof Response) return prepared;
-  const conflict = startServerOwnedChatRun(context, prepared);
+  const conflict = await startServerOwnedChatRun(context, prepared);
   if (conflict) return conflict;
   if (prepared.body.stream) {
     return handleChatRunEventsRoute(

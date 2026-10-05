@@ -8,6 +8,7 @@ export const sessionServiceReadMethods: Pick<
   | "recent"
   | "recentBySession"
   | "messagesBySession"
+  | "messagesThroughRun"
   | "countBySessionRole"
   | "latest"
   | "metadata"
@@ -29,6 +30,15 @@ export const sessionServiceReadMethods: Pick<
 
   messagesBySession(sessionId, limit, offset) {
     return getSessionServiceState(this).reads.messagesBySession(
+      sessionId,
+      limit,
+      offset,
+    );
+  },
+
+  messagesThroughRun(runId, sessionId, limit, offset) {
+    return getSessionServiceState(this).reads.messagesThroughRun(
+      runId,
       sessionId,
       limit,
       offset,

@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { realpathSync } from "node:fs";
 import { relative, resolve } from "node:path";
 import {
   type AgentApp,
@@ -145,9 +146,11 @@ export class AcpProtocolRuntime {
     return this.hostProxy
       .connection()
       .agent.request(methods.agent.session.new, {
-        cwd: params?.cwd ?? this.workspaceRoot(),
+        cwd: realpathSync(params?.cwd ?? this.workspaceRoot()),
         mcpServers: params?.mcpServers ?? [],
-        additionalDirectories: params?.additionalDirectories,
+        additionalDirectories: params?.additionalDirectories?.map((path) =>
+          realpathSync(path),
+        ),
         _meta: params?._meta,
       });
   }
@@ -158,7 +161,13 @@ export class AcpProtocolRuntime {
     await this.ensureInitialized();
     await this.hostProxy
       .connection()
-      .agent.request(methods.agent.session.load, params);
+      .agent.request(methods.agent.session.load, {
+        ...params,
+        cwd: realpathSync(params.cwd),
+        additionalDirectories: params.additionalDirectories?.map((path) =>
+          realpathSync(path),
+        ),
+      });
     return this.loadResponses.get(params.sessionId) ?? { _meta: {} };
   }
 
@@ -181,6 +190,16 @@ export class AcpProtocolRuntime {
     const session = this.requireSession(sessionId);
     session.pendingPrompt?.abort();
     this.recordTelemetry("session.cancel", { sessionId });
+  }
+
+  cancelAll(): number {
+    let cancelled = 0;
+    for (const session of this.sessions.values()) {
+      if (!session.pendingPrompt) continue;
+      session.pendingPrompt.abort();
+      cancelled += 1;
+    }
+    return cancelled;
   }
 
   async notifyCancel(sessionId: string): Promise<void> {

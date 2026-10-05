@@ -33,6 +33,26 @@ export async function assertBotSessionRequest(
 ): Promise<void> {
   const url = new URL(request.path, "http://desktop.local");
   const path = url.pathname;
+  if (
+    request.method === "GET" &&
+    (/^\/workspace\/(?:tree|read|search)$/u.test(path) ||
+      /^\/repo\/(?:status|diff|log|summary|review|changes|patch|worktrees|branches|remotes|stashes|conflicts)$/u.test(
+        path,
+      ))
+  ) {
+    if (
+      botId !== "default" ||
+      request.originConversationId !== undefined ||
+      request.workspacePath !== undefined
+    ) {
+      const originConversationId = requiredSessionId(
+        request.originConversationId,
+      );
+      await registry.ensureConversationOwner(botId, originConversationId);
+      registry.assertAcpWorkspace(botId, request.workspacePath as string);
+    }
+    return;
+  }
   const runPath =
     /^\/chat\/runs\/([a-zA-Z0-9:_-]{1,128})(?:\/(?:events|cancel))?$/u.exec(
       path,
@@ -43,13 +63,56 @@ export async function assertBotSessionRequest(
   }
   if (
     request.method === "POST" &&
-    (path === "/acp/editor/context" || path.startsWith("/acp/terminal/"))
+    ["/acp/initialize", "/acp/session/new"].includes(path)
   ) {
     const body = objectBody(request.body);
-    await registry.ensureConversationOwner(
+    const originConversationId = requiredSessionId(body?.originConversationId);
+    await registry.ensureConversationOwner(botId, originConversationId);
+    registry.assertAcpWorkspace(
+      botId,
+      path === "/acp/session/new"
+        ? (body?.cwd as string)
+        : (body?.workspacePath as string),
+    );
+    if (
+      path === "/acp/session/new" &&
+      Array.isArray(body?.additionalDirectories) &&
+      body.additionalDirectories.length > 0
+    ) {
+      throw new Error(
+        "Additional ACP workspaces are not approved for this bot.",
+      );
+    }
+    return;
+  }
+  if (request.method === "GET" && path === "/acp/session/updates") {
+    registry.assertAcpSessionOwner(
+      botId,
+      requiredSessionId(url.searchParams.get("sessionId")),
+    );
+    return;
+  }
+  if (
+    request.method === "POST" &&
+    (path === "/acp/session/load" ||
+      path === "/acp/session/prompt" ||
+      path === "/acp/session/cancel" ||
+      path === "/acp/editor/context" ||
+      path.startsWith("/acp/terminal/") ||
+      path.startsWith("/acp/fs/"))
+  ) {
+    const body = objectBody(request.body);
+    const owner = registry.assertAcpSessionOwner(
       botId,
       requiredSessionId(body?.sessionId),
     );
+    if (
+      path === "/acp/session/load" &&
+      registry.assertAcpWorkspace(botId, body?.cwd as string) !==
+        owner.workspacePath
+    ) {
+      throw new Error("ACP workspace changed for this session.");
+    }
     return;
   }
   const projectPath =
@@ -75,6 +138,17 @@ export async function assertBotSessionRequest(
       "/sessions/export",
     ].includes(path)
   ) {
+    if (path === "/sessions/messages") {
+      const throughRunId = url.searchParams.get("throughRunId");
+      if (throughRunId !== null) {
+        const runId = requiredSessionId(throughRunId);
+        await registry.assertRunOwner(botId, runId);
+        const run = registry.conversations.getRun(runId);
+        if (run?.sessionId !== url.searchParams.get("sessionId")) {
+          throw new Error("Run does not belong to this conversation.");
+        }
+      }
+    }
     await registry.ensureConversationOwner(
       botId,
       requiredSessionId(url.searchParams.get("sessionId")),
@@ -116,15 +190,102 @@ export async function assertBotSessionRequest(
 }
 
 /** Attribute rows and bind a successful fork before the renderer can use it. */
-export function attributeBotSessionResponse(
+export async function attributeBotSessionResponse(
   registry: BotProcessRegistry,
   request: AgentTransportRequest,
   botId: string,
   response: AgentTransportResponse,
-): AgentTransportResponse {
+): Promise<AgentTransportResponse> {
   if (response.status < 200 || response.status >= 300) return response;
   const path = new URL(request.path, "http://desktop.local").pathname;
   if (request.method !== "GET" && request.method !== "POST") return response;
+  if (request.method === "POST" && path === "/acp/session/new") {
+    const input = objectBody(request.body);
+    const payload = objectBody(response.body);
+    if (
+      !payload?.session ||
+      typeof payload.session !== "object" ||
+      Array.isArray(payload.session)
+    ) {
+      throw new Error("The ACP runtime returned an invalid session.");
+    }
+    const sessionId = requiredSessionId(
+      (payload.session as Record<string, unknown>).sessionId,
+    );
+    const owner = registry.bindAcpSession(
+      botId,
+      requiredSessionId(input?.originConversationId),
+      input?.cwd as string,
+      sessionId,
+    );
+    return {
+      ...response,
+      body: JSON.stringify({
+        ...payload,
+        session: {
+          ...(payload.session as Record<string, unknown>),
+          botId: owner.botId,
+        },
+      }),
+    };
+  }
+  if (
+    request.method === "GET" &&
+    (path === "/chat/runs" ||
+      /^\/chat\/runs\/[a-zA-Z0-9:_-]{1,128}$/u.test(path))
+  ) {
+    const payload = objectBody(response.body);
+    if (!payload) throw new Error("The runtime returned invalid run data.");
+    const items = path === "/chat/runs" ? payload.runs : [payload.run];
+    if (!Array.isArray(items) || items.length > 100)
+      throw new Error("The runtime returned invalid run data.");
+    const expectedBotId = registry.get(botId).id;
+    const runs: Array<Record<string, unknown>> = [];
+    for (const value of items) {
+      if (!value || typeof value !== "object" || Array.isArray(value))
+        throw new Error("The runtime returned invalid run data.");
+      const run = value as Record<string, unknown>;
+      const runId = requiredSessionId(run.runId);
+      const sessionId = requiredSessionId(run.sessionId);
+      if (run.botId !== expectedBotId)
+        throw new Error(
+          "Runtime run bot identity does not match the selected bot.",
+        );
+      await registry.assertRunOwner(botId, runId);
+      const owner = registry.conversations.getRun(runId);
+      if (
+        !owner ||
+        owner.botId !== expectedBotId ||
+        owner.sessionId !== sessionId
+      ) {
+        throw new Error("Run belongs to a different bot or conversation.");
+      }
+      runs.push({ ...run, botId: owner.botId });
+    }
+    return {
+      ...response,
+      body: JSON.stringify(
+        path === "/chat/runs"
+          ? {
+              ...payload,
+              runs,
+              ...(payload.updates && typeof payload.updates === "object"
+                ? {
+                    updates: Object.fromEntries(
+                      runs.map((run) => [
+                        run.runId,
+                        (payload.updates as Record<string, unknown>)[
+                          run.runId as string
+                        ],
+                      ]),
+                    ),
+                  }
+                : {}),
+            }
+          : { ...payload, run: runs[0] },
+      ),
+    };
+  }
   if (
     path === "/projects" &&
     (request.method === "GET" || request.method === "POST")

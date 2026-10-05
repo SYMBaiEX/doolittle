@@ -6,6 +6,47 @@ import { SessionService } from "./service";
 import type { SessionForkError } from "./service/write";
 
 describe("SessionService", () => {
+  it("retains exact completed and cancelled run transcript anchors after restart", () => {
+    const root = mkdtempSync(join(tmpdir(), "doolittle-run-boundary-"));
+    try {
+      const first = new SessionService(root);
+      first.storeMessage({
+        id: "first",
+        sessionId: "session-1",
+        roomId: "session-1",
+        entityId: "user-1",
+        role: "user",
+        text: "first",
+        createdAt: "2026-03-20T00:00:00.000Z",
+      });
+      first.recordRunTerminalBoundary("run-1", "session-1", "complete");
+      first.storeMessage({
+        id: "second",
+        sessionId: "session-1",
+        roomId: "session-1",
+        entityId: "user-1",
+        role: "user",
+        text: "second",
+        createdAt: "2026-03-20T00:00:00.000Z",
+      });
+      first.recordRunTerminalBoundary("run-2", "session-1", "cancelled");
+      const restarted = new SessionService(root);
+      expect(
+        restarted
+          .messagesThroughRun("run-1", "session-1", 20)
+          .messages.map((m) => m.id),
+      ).toEqual(["first"]);
+      expect(
+        restarted.messagesThroughRun("run-2", "session-1", 20),
+      ).toMatchObject({
+        messages: [{ id: "first" }, { id: "second" }],
+        terminalStatus: "cancelled",
+      });
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("does not own Eliza advanced-memory persistence", () => {
     const root = mkdtempSync(join(tmpdir(), "doolittle-session-boundary-"));
     const service = new SessionService(root);

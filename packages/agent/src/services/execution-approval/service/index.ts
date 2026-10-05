@@ -38,6 +38,9 @@ export class ExecutionApprovalService {
     userId: string;
     roomId: string;
     sessionKey?: string;
+    botId?: string;
+    sessionId?: string;
+    runId?: string;
     runtimeRoomId?: string;
     runtimeEntityId?: string;
     command: string;

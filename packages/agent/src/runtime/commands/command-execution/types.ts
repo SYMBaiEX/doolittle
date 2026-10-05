@@ -30,6 +30,9 @@ export interface ExecutionApprovalScopeRecord {
   platform: PlatformName;
   userId: string;
   roomId: string;
+  botId?: string;
+  sessionId?: string;
+  runId?: string;
 }
 
 export interface RemoteExecutionApprovalRule {

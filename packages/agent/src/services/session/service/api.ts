@@ -17,7 +17,10 @@ import type {
   ImportSessionArchiveResult,
   SessionArchivePreview,
 } from "../../session-transfer";
-import type { SessionMessageActivityEvent } from "../messages";
+import type {
+  SessionMessageActivityEvent,
+  SessionRunTranscriptPage,
+} from "../messages";
 import type { SessionMetadataValue } from "../metadata";
 import type {
   AddProjectResourceInput,
@@ -53,6 +56,17 @@ export interface SessionServiceApi {
     limit: number,
     offset?: number,
   ): StoredMessage[];
+  recordRunTerminalBoundary(
+    runId: string,
+    sessionId: string,
+    status: "complete" | "cancelled" | "error",
+  ): void;
+  messagesThroughRun(
+    runId: string,
+    sessionId: string,
+    limit: number,
+    offset?: number,
+  ): SessionRunTranscriptPage;
   countBySessionRole(sessionId: string, role?: StoredMessage["role"]): number;
   latest(limit: number): SessionSearchResult[];
   summary(limit?: number): {

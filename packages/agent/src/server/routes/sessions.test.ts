@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { AppContext } from "@/runtime/bootstrap";
 import { handleSessionRoutes } from "@/server/routes/sessions";
-import { SessionForkError } from "@/services/session/service";
+import {
+  SessionForkError,
+  SessionRunBoundaryUnavailableError,
+} from "@/services/session/service";
 
 function createContext() {
   return {
@@ -19,6 +22,14 @@ function createContext() {
           limit: number,
           offset?: number,
         ) => [{ sessionId, limit, offset, role: "assistant", text: "Ready" }],
+        messagesThroughRun: (runId: string, sessionId: string) => ({
+          messages: [{ id: "anchored", sessionId }],
+          hasEarlier: false,
+          nextOffset: 1,
+          throughMessageId: "anchored",
+          terminalStatus: "complete",
+          runId,
+        }),
         forkSession: (input: {
           sourceSessionId: string;
           throughMessageId?: string;
@@ -51,6 +62,40 @@ function createContext() {
 }
 
 describe("handleSessionRoutes", () => {
+  it("returns a pinned run transcript and explicitly rejects missing boundaries", async () => {
+    const context = createContext();
+    const anchored = await handleSessionRoutes(
+      context,
+      new Request(
+        "http://localhost/sessions/messages?sessionId=session-1&throughRunId=run-1",
+      ),
+      new URL(
+        "http://localhost/sessions/messages?sessionId=session-1&throughRunId=run-1",
+      ),
+    );
+    expect(anchored?.status).toBe(200);
+    await expect(anchored?.json()).resolves.toMatchObject({
+      messages: [{ id: "anchored" }],
+      throughRunId: "run-1",
+    });
+    context.services.sessions.messagesThroughRun = () => {
+      throw new SessionRunBoundaryUnavailableError();
+    };
+    const missing = await handleSessionRoutes(
+      context,
+      new Request(
+        "http://localhost/sessions/messages?sessionId=session-1&throughRunId=old-run",
+      ),
+      new URL(
+        "http://localhost/sessions/messages?sessionId=session-1&throughRunId=old-run",
+      ),
+    );
+    expect(missing?.status).toBe(410);
+    await expect(missing?.json()).resolves.toMatchObject({
+      code: "run_transcript_boundary_unavailable",
+    });
+  });
+
   it("lists sessions with a validated limit", async () => {
     const response = await handleSessionRoutes(
       createContext(),

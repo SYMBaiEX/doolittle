@@ -4,7 +4,12 @@ import type { AppContext } from "@/runtime/bootstrap";
 import { listTuiThemes, type TuiThemeName } from "@/runtime/theme-catalog";
 import { handleSettingsExecutionRoutes } from "./settings-execution";
 
-function createContext(): AppContext {
+function createContext(scope?: {
+  botId: string;
+  sessionId: string;
+  runId: string;
+  activeRunId?: string;
+}): AppContext {
   const themeName = (listTuiThemes()[0]?.name ?? "orange") as TuiThemeName;
   const state = {
     ui: { theme: themeName },
@@ -26,6 +31,9 @@ function createContext(): AppContext {
       createdAt: "2026-07-27T00:00:00.000Z",
       expiresAt: "2026-07-27T01:00:00.000Z",
       status: "pending",
+      ...(scope
+        ? { botId: scope.botId, sessionId: scope.sessionId, runId: scope.runId }
+        : {}),
     },
     {
       id: "approval-used",
@@ -43,6 +51,7 @@ function createContext(): AppContext {
   return {
     config: { elizaCloudEnabled: false },
     runtime: {
+      agentId: "bot-a",
       getSetting: () => "",
       setSetting: () => undefined,
       getService: (name: string) =>
@@ -53,6 +62,12 @@ function createContext(): AppContext {
           : null,
     },
     services: {
+      runController: {
+        getActive: (sessionId: string) =>
+          scope?.activeRunId && sessionId === scope.sessionId
+            ? { sessionId, runId: scope.activeRunId }
+            : undefined,
+      },
       settings: {
         get: () => state,
         set: (path: string, value: string | number | boolean) => {
@@ -351,6 +366,52 @@ describe("handleSettingsExecutionRoutes", () => {
     await expect(denied?.json()).resolves.toMatchObject({
       approval: { id: "approval-1", status: "denied" },
     });
+  });
+
+  it("resolves a run-bound approval only for its still-active originating run", async () => {
+    const route = "http://localhost/execution/approvals/approval-1/approve";
+    const decide = (context: AppContext) =>
+      handleSettingsExecutionRoutes(
+        context,
+        new Request(route, { method: "POST" }),
+        new URL(route),
+      );
+    expect(
+      (
+        await decide(
+          createContext({
+            botId: "bot-a",
+            sessionId: "room-1",
+            runId: "run-a",
+            activeRunId: "run-a",
+          }),
+        )
+      )?.status,
+    ).toBe(200);
+    expect(
+      (
+        await decide(
+          createContext({
+            botId: "bot-a",
+            sessionId: "room-1",
+            runId: "run-a",
+            activeRunId: "run-b",
+          }),
+        )
+      )?.status,
+    ).toBe(409);
+    expect(
+      (
+        await decide(
+          createContext({
+            botId: "bot-b",
+            sessionId: "room-1",
+            runId: "run-a",
+            activeRunId: "run-a",
+          }),
+        )
+      )?.status,
+    ).toBe(409);
   });
 
   it("rejects invalid approval filters and resolved or missing decisions", async () => {

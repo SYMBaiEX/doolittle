@@ -36,6 +36,20 @@ export class SessionReadOperations {
     return this.messageStore.messagesBySession(sessionId, limit, offset);
   }
 
+  messagesThroughRun(
+    runId: string,
+    sessionId: string,
+    limit: number,
+    offset?: number,
+  ) {
+    return this.messageStore.messagesThroughRun(
+      runId,
+      sessionId,
+      limit,
+      offset,
+    );
+  }
+
   countBySessionRole(sessionId: string, role?: StoredMessage["role"]): number {
     return this.messageStore.countBySessionRole(sessionId, role);
   }

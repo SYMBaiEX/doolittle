@@ -5,6 +5,7 @@ import { getSessionServiceState } from "./state";
 export const sessionServiceWriteMethods: Pick<
   SessionServiceApi,
   | "storeMessage"
+  | "recordRunTerminalBoundary"
   | "replaceSessionMessages"
   | "deleteLatestExchange"
   | "forkSession"
@@ -14,6 +15,14 @@ export const sessionServiceWriteMethods: Pick<
   ThisType<SessionService> = {
   storeMessage(message) {
     getSessionServiceState(this).writes.storeMessage(message);
+  },
+
+  recordRunTerminalBoundary(runId, sessionId, status) {
+    getSessionServiceState(this).writes.recordRunTerminalBoundary(
+      runId,
+      sessionId,
+      status,
+    );
   },
 
   replaceSessionMessages(sessionId, messages) {

@@ -106,6 +106,10 @@ export class AcpService {
     return this.protocol.notifyCancel(sessionId);
   }
 
+  cancelAllProtocolSessions(): number {
+    return this.protocol.cancelAll();
+  }
+
   updateEditorContext(sessionId: string, context: AcpEditorContext) {
     return this.protocol.updateEditorContext(sessionId, context);
   }

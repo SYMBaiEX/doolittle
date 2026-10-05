@@ -1,3 +1,4 @@
+import { timingSafeEqual } from "node:crypto";
 import type { AppContext } from "@/runtime/bootstrap";
 import { readWorkerBotProfile } from "@/runtime/bootstrap/bot-profile";
 import {
@@ -17,6 +18,37 @@ export async function handleRuntimeStatusRoutes(
   request: Request,
   url: URL,
 ): Promise<Response | null> {
+  if (
+    request.method === "POST" &&
+    url.pathname === "/runtime/executions/stop-all"
+  ) {
+    const expected = process.env.DOOLITTLE_DESKTOP_CONTROL_TOKEN;
+    const supplied = request.headers.get("x-doolittle-desktop-control-token");
+    if (
+      process.env.DOOLITTLE_DESKTOP_RUNTIME !== "1" ||
+      !expected ||
+      !supplied ||
+      supplied.length !== expected.length ||
+      !timingSafeEqual(Buffer.from(supplied), Buffer.from(expected))
+    ) {
+      return json({ error: "Desktop execution control is unavailable." }, 403);
+    }
+    const chatRuns = context.services.runController.cancelAllActiveRuns();
+    const protocolPrompts = context.services.acp.cancelAllProtocolSessions();
+    context.services.terminal.disposeInteractiveSessions();
+    const admitted = context.runtime.getService("ACP_SUBPROCESS_SERVICE") as
+      | { stopAllAdmittedSessions?: () => Promise<number> }
+      | undefined;
+    const automaticAcpSessions = admitted?.stopAllAdmittedSessions
+      ? await admitted.stopAllAdmittedSessions()
+      : 0;
+    return json({
+      stopped: true,
+      chatRuns,
+      protocolPrompts,
+      automaticAcpSessions,
+    });
+  }
   if (request.method === "GET" && url.pathname === "/runtime/bot-identity") {
     const workerBot = readWorkerBotProfile();
     return json({

@@ -45,6 +45,18 @@ export function migrateSessionDatabase(db: SessionDatabase): void {
       FOREIGN KEY(message_id) REFERENCES messages(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS run_message_boundaries (
+      run_id TEXT PRIMARY KEY,
+      session_id TEXT NOT NULL,
+      through_message_id TEXT,
+      message_count INTEGER NOT NULL,
+      status TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_run_message_boundaries_session
+      ON run_message_boundaries (session_id, created_at DESC);
+
     CREATE TABLE IF NOT EXISTS session_imports (
       session_id TEXT PRIMARY KEY,
       archive_version INTEGER NOT NULL,

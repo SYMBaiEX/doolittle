@@ -6,6 +6,10 @@ export interface ExecutionApprovalRecord {
   userId: string;
   roomId: string;
   sessionKey?: string;
+  /** Immutable execution identity. Legacy approvals may omit these fields. */
+  botId?: string;
+  sessionId?: string;
+  runId?: string;
   command: string;
   reason: string;
   createdAt: string;
@@ -26,6 +30,9 @@ export interface ExecutionApprovalMatchInput {
   userId: string;
   roomId: string;
   sessionKey?: string;
+  botId?: string;
+  sessionId?: string;
+  runId?: string;
   command: string;
 }
 

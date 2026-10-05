@@ -50,6 +50,62 @@ class FaultInjectingSessionDatabase implements SessionDatabase {
 }
 
 describe("session/messages/store", () => {
+  it("pins a terminal run to its exact message even when later messages share the same millisecond", () => {
+    const db = createDb();
+    const store = new SessionMessageStore(db, new EventEmitter());
+    const message = (id: string) => ({
+      id,
+      sessionId: "session-1",
+      roomId: "session-1",
+      entityId: "agent-1",
+      role: "assistant" as const,
+      text: id,
+      createdAt: "2026-03-20T00:00:00.000Z",
+    });
+    store.storeMessage(message("first"));
+    store.storeMessage(message("second"));
+    store.recordRunTerminalBoundary("run-1", "session-1", "complete");
+    store.storeMessage(message("later"));
+    expect(store.messagesThroughRun("run-1", "session-1", 20)).toMatchObject({
+      messages: [{ id: "first" }, { id: "second" }],
+      throughMessageId: "second",
+      terminalStatus: "complete",
+    });
+    expect(store.messagesThroughRun("run-1", "session-1", 1)).toMatchObject({
+      messages: [{ id: "second" }],
+      hasEarlier: true,
+      nextOffset: 1,
+    });
+    expect(() => store.messagesThroughRun("run-1", "another", 20)).toThrow(
+      /boundary.*unavailable/i,
+    );
+    expect(() =>
+      store.recordRunTerminalBoundary("run-1", "another", "error"),
+    ).toThrow(/conflicts with its owner/i);
+  });
+
+  it("invalidates a run anchor after transcript replacement", () => {
+    const db = createDb();
+    const store = new SessionMessageStore(db, new EventEmitter());
+    const message = {
+      id: "first",
+      sessionId: "session-1",
+      roomId: "session-1",
+      entityId: "agent-1",
+      role: "assistant" as const,
+      text: "original",
+      createdAt: "2026-03-20T00:00:00.000Z",
+    };
+    store.storeMessage(message);
+    store.recordRunTerminalBoundary("run-1", "session-1", "error");
+    store.replaceSessionMessages("session-1", [
+      { ...message, text: "replacement" },
+    ]);
+    expect(() => store.messagesThroughRun("run-1", "session-1", 20)).toThrow(
+      /boundary.*unavailable/i,
+    );
+  });
+
   it("stores messages, emits activity, and supports search helpers", () => {
     const db = createDb();
     const events = new EventEmitter();

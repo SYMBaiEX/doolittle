@@ -14,6 +14,7 @@ import type {
   WaitForTerminalExitResponse,
 } from "@doolittle/acp";
 import type { AppContext } from "@/runtime/bootstrap";
+import { readWorkerBotProfile } from "@/runtime/bootstrap/bot-profile";
 import { executeAgentTurnWithProgress } from "@/runtime/turn-stream";
 import {
   assertWorkspacePathResolvesInside,
@@ -140,6 +141,7 @@ export function createAcpProtocolHost(context: AppContext): AcpProtocolHost {
         },
         context,
         {
+          admissionKind: "automatic-acp",
           abortSignal: input.signal,
           onProgress: ({ delta }) => input.onText(delta),
           onRunUpdate: input.onRunUpdate,
@@ -155,6 +157,10 @@ async function requestPermission(
   params: RequestPermissionRequest,
   signal: AbortSignal,
 ): Promise<RequestPermissionResponse> {
+  const active = context.services.runController.getActive(params.sessionId);
+  if (signal.aborted || !active || active.sessionId !== params.sessionId) {
+    return { outcome: { outcome: "cancelled" } };
+  }
   const allowOptions = params.options.filter((option) =>
     option.kind.startsWith("allow"),
   );
@@ -166,6 +172,9 @@ async function requestPermission(
     userId: "acp-user",
     roomId: params.sessionId,
     sessionKey: params.sessionId,
+    botId: readWorkerBotProfile()?.id ?? String(context.runtime.agentId),
+    sessionId: active.sessionId,
+    runId: active.runId,
     command: permissionCommand(params),
     reason: params.toolCall.title ?? "ACP tool request",
   });

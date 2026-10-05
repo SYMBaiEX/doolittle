@@ -26,10 +26,15 @@ async function handleAcpRoutesImpl(
 ): Promise<Response | null> {
   if (request.method === "POST" && url.pathname === "/acp/initialize") {
     const body = await readOptionalObject(request);
+    const {
+      originConversationId: _originConversationId,
+      workspacePath: _workspacePath,
+      ...protocolBody
+    } = body;
     return json({
       initialized: await context.services.acp.initializeProtocol(
-        Object.keys(body).length > 0
-          ? (body as Parameters<
+        Object.keys(protocolBody).length > 0
+          ? (protocolBody as Parameters<
               typeof context.services.acp.initializeProtocol
             >[0])
           : undefined,
@@ -39,8 +44,10 @@ async function handleAcpRoutesImpl(
 
   if (request.method === "POST" && url.pathname === "/acp/session/new") {
     const body = await readOptionalObject(request);
+    const { originConversationId: _originConversationId, ...protocolBody } =
+      body;
     return json({
-      session: await context.services.acp.newProtocolSession(body),
+      session: await context.services.acp.newProtocolSession(protocolBody),
     });
   }
 

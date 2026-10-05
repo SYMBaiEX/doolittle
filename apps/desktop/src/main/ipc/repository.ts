@@ -9,6 +9,12 @@ import type {
 } from "../../shared/contracts";
 import { desktopIpcChannels } from "../../shared/ipc-channels";
 import type { BackendManager } from "../backend";
+import type { BotProcessRegistry } from "../bot-process-registry";
+import type { DesktopExecutionAdmission } from "../execution-admission";
+import {
+  authorizeComputerRequest,
+  validateComputerOwnerScope,
+} from "./computer-authorization";
 import {
   fullyDecodeComponent,
   hasControlCharacters,
@@ -39,6 +45,9 @@ type RepositoryHandler = (
 
 export interface RegisterRepositoryIpcHandlersDependencies {
   backend: Pick<BackendManager, "getState">;
+  bots?: BotProcessRegistry;
+  admission?: DesktopExecutionAdmission;
+  defaultWorkspaceRoot?: string;
   confirmSensitiveAction: (
     request: RepositoryConfirmationRequest,
   ) => Promise<boolean>;
@@ -500,6 +509,9 @@ export function repositoryMutationConfirmation(
 
 export function registerRepositoryIpcHandlers({
   backend,
+  bots,
+  admission,
+  defaultWorkspaceRoot,
   confirmSensitiveAction,
   sensitiveFetch,
   registerHandler,
@@ -510,6 +522,12 @@ export function registerRepositoryIpcHandlers({
     repositoryCreateWorktreeConfirmed,
     async (_event, unsafeRequest): Promise<RepositoryWorktreeCreateResult> => {
       const request = validateWorktreeCreateRequest(unsafeRequest);
+      const scope = validateComputerOwnerScope(unsafeRequest);
+      await authorizeComputerRequest(
+        scope,
+        { backend, bots, admission, defaultWorkspaceRoot },
+        false,
+      );
       const confirmed = await confirmSensitiveAction({
         kind: "worktree-create",
         title: "Create Git worktree?",
@@ -518,97 +536,126 @@ export function registerRepositoryIpcHandlers({
         confirmLabel: "Create worktree",
       });
       if (!confirmed) return { status: "cancelled" };
-      const state = backend.getState();
-      if (state.phase !== "ready" || !state.url)
-        throw new Error("The local runtime is not ready.");
-      const response = await sensitiveFetch(
-        `${state.url}/repo/worktrees/create`,
-        {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify(request),
-          signal: AbortSignal.timeout(API_TIMEOUT_MS),
-        },
+      const target = await authorizeComputerRequest(
+        scope,
+        { backend, bots, admission, defaultWorkspaceRoot },
+        true,
       );
-      if (!response.ok)
-        throw new Error(
-          `Worktree creation failed: ${(await parseRequestError(response)).trim()}`,
+      try {
+        const state = target.backend.getState();
+        if (state.phase !== "ready" || !state.url)
+          throw new Error("The local runtime is not ready.");
+        const response = await sensitiveFetch(
+          `${state.url}/repo/worktrees/create`,
+          {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+              branch: request.branch,
+              path: request.path,
+            }),
+            signal: AbortSignal.timeout(API_TIMEOUT_MS),
+          },
         );
-      const payload = await parseSuccessfulJson(
-        response,
-        MAX_SENSITIVE_RESPONSE_BYTES,
-      );
-      const worktree = isRecord(payload) ? payload.worktree : undefined;
-      if (
-        !isRecord(worktree) ||
-        typeof worktree.path !== "string" ||
-        !worktree.path ||
-        typeof worktree.detached !== "boolean" ||
-        typeof worktree.bare !== "boolean" ||
-        typeof worktree.prunable !== "boolean"
-      )
-        throw new Error("The local runtime did not confirm the new worktree.");
-      const confirmedWorktree: RepositoryWorktree = {
-        path: worktree.path,
-        detached: worktree.detached,
-        bare: worktree.bare,
-        prunable: worktree.prunable,
-      };
-      if (typeof worktree.head === "string")
-        confirmedWorktree.head = worktree.head;
-      if (typeof worktree.branch === "string")
-        confirmedWorktree.branch = worktree.branch;
-      return { status: "created", worktree: confirmedWorktree };
+        if (!response.ok)
+          throw new Error(
+            `Worktree creation failed: ${(await parseRequestError(response)).trim()}`,
+          );
+        const payload = await parseSuccessfulJson(
+          response,
+          MAX_SENSITIVE_RESPONSE_BYTES,
+        );
+        const worktree = isRecord(payload) ? payload.worktree : undefined;
+        if (
+          !isRecord(worktree) ||
+          typeof worktree.path !== "string" ||
+          !worktree.path ||
+          typeof worktree.detached !== "boolean" ||
+          typeof worktree.bare !== "boolean" ||
+          typeof worktree.prunable !== "boolean"
+        )
+          throw new Error(
+            "The local runtime did not confirm the new worktree.",
+          );
+        const confirmedWorktree: RepositoryWorktree = {
+          path: worktree.path,
+          detached: worktree.detached,
+          bare: worktree.bare,
+          prunable: worktree.prunable,
+        };
+        if (typeof worktree.head === "string")
+          confirmedWorktree.head = worktree.head;
+        if (typeof worktree.branch === "string")
+          confirmedWorktree.branch = worktree.branch;
+        return { status: "created", worktree: confirmedWorktree };
+      } finally {
+        target.release();
+      }
     },
   );
   registerHandler(
     repositoryMutateConfirmed,
     async (_event, unsafeRequest): Promise<RepositoryMutationDesktopResult> => {
       const request = validateRepositoryMutationRequest(unsafeRequest);
+      const scope = validateComputerOwnerScope(unsafeRequest);
+      await authorizeComputerRequest(
+        scope,
+        { backend, bots, admission, defaultWorkspaceRoot },
+        false,
+      );
       const confirmed = await confirmSensitiveAction({
         kind: "repository-mutation",
         ...repositoryMutationConfirmation(request),
       });
       if (!confirmed) return { status: "cancelled" };
-      const state = backend.getState();
-      if (state.phase !== "ready" || !state.url)
-        throw new Error("The local runtime is not ready.");
-      const response = await sensitiveFetch(`${state.url}/repo/mutate`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(request),
-        signal: AbortSignal.timeout(MAX_COMMAND_TIMEOUT_MS),
-      });
-      if (!response.ok)
-        throw new Error(
-          `Git operation failed: ${(await parseRequestError(response)).trim()}`,
-        );
-      const payload = await parseSuccessfulJson(
-        response,
-        MAX_SENSITIVE_RESPONSE_BYTES,
+      const target = await authorizeComputerRequest(
+        scope,
+        { backend, bots, admission, defaultWorkspaceRoot },
+        true,
       );
-      const result = isRecord(payload) ? payload.result : undefined;
-      if (
-        !isRecord(result) ||
-        result.type !== request.type ||
-        typeof result.ok !== "boolean" ||
-        typeof result.summary !== "string" ||
-        typeof result.stdout !== "string" ||
-        typeof result.stderr !== "string" ||
-        typeof result.exitCode !== "number"
-      )
-        throw new Error("The local runtime returned an invalid Git result.");
-      const validatedResult: RepositoryMutationResult = {
-        type: request.type,
-        ok: result.ok,
-        summary: result.summary,
-        stdout: result.stdout,
-        stderr: result.stderr,
-        exitCode: result.exitCode,
-      };
-      if (typeof result.error === "string")
-        validatedResult.error = result.error;
-      return { status: "completed", result: validatedResult };
+      try {
+        const state = target.backend.getState();
+        if (state.phase !== "ready" || !state.url)
+          throw new Error("The local runtime is not ready.");
+        const response = await sensitiveFetch(`${state.url}/repo/mutate`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(request),
+          signal: AbortSignal.timeout(MAX_COMMAND_TIMEOUT_MS),
+        });
+        if (!response.ok)
+          throw new Error(
+            `Git operation failed: ${(await parseRequestError(response)).trim()}`,
+          );
+        const payload = await parseSuccessfulJson(
+          response,
+          MAX_SENSITIVE_RESPONSE_BYTES,
+        );
+        const result = isRecord(payload) ? payload.result : undefined;
+        if (
+          !isRecord(result) ||
+          result.type !== request.type ||
+          typeof result.ok !== "boolean" ||
+          typeof result.summary !== "string" ||
+          typeof result.stdout !== "string" ||
+          typeof result.stderr !== "string" ||
+          typeof result.exitCode !== "number"
+        )
+          throw new Error("The local runtime returned an invalid Git result.");
+        const validatedResult: RepositoryMutationResult = {
+          type: request.type,
+          ok: result.ok,
+          summary: result.summary,
+          stdout: result.stdout,
+          stderr: result.stderr,
+          exitCode: result.exitCode,
+        };
+        if (typeof result.error === "string")
+          validatedResult.error = result.error;
+        return { status: "completed", result: validatedResult };
+      } finally {
+        target.release();
+      }
     },
   );
 }

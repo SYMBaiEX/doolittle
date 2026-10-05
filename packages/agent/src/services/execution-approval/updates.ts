@@ -21,6 +21,9 @@ export function createPendingApprovalRecord(
     userId: input.userId,
     roomId: input.roomId,
     sessionKey: input.sessionKey,
+    botId: input.botId,
+    sessionId: input.sessionId,
+    runId: input.runId,
     command: input.command,
     reason: input.reason,
     createdAt: nowIso(),
@@ -39,6 +42,9 @@ export function matchesApprovalRequest(
     record.userId === input.userId &&
     record.roomId === input.roomId &&
     record.sessionKey === input.sessionKey &&
+    record.botId === input.botId &&
+    record.sessionId === input.sessionId &&
+    record.runId === input.runId &&
     record.command.trim() === input.command.trim()
   );
 }

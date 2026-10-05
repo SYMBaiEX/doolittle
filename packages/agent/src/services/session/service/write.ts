@@ -47,6 +47,14 @@ export class SessionWriteOperations {
     this.messageStore.storeMessage(message);
   }
 
+  recordRunTerminalBoundary(
+    runId: string,
+    sessionId: string,
+    status: "complete" | "cancelled" | "error",
+  ): void {
+    this.messageStore.recordRunTerminalBoundary(runId, sessionId, status);
+  }
+
   replaceSessionMessages(sessionId: string, messages: StoredMessage[]): void {
     this.messageStore.replaceSessionMessages(sessionId, messages);
   }

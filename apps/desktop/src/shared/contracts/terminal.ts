@@ -44,8 +44,8 @@ export interface InteractiveTerminalOutput {
 }
 export interface InteractiveTerminalStartRequest {
   botId?: string;
-  originConversationId?: string;
-  workspacePath?: string;
+  originConversationId: string;
+  workspacePath: string;
   cols: number;
   rows: number;
 }

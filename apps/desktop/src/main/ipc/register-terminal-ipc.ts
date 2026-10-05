@@ -14,6 +14,7 @@ import {
 } from "../../shared/ipc-channels";
 import { SseParser } from "../../shared/sse";
 import type { BackendManager } from "../backend";
+import type { BotProcessRegistry } from "../bot-process-registry";
 import { isRecord } from "./input-validation";
 import type {
   DesktopBackgroundNotification,
@@ -27,6 +28,7 @@ import {
   validateInteractiveTerminalSession,
   validateInteractiveTerminalSessionId,
   validateInteractiveTerminalStartRequest,
+  validateTerminalBotId,
   validateTerminalRequestId,
   validateTerminalStreamRequest,
 } from "./ipc-validation";
@@ -46,6 +48,7 @@ type RegisterHandler = (
 
 export interface TerminalIpcRegistrationContext {
   backend: BackendManager;
+  bots?: BotProcessRegistry;
   registerHandler: RegisterHandler;
   activeTerminalRuns: Map<string, ActiveTerminalRun>;
   confirmSensitiveAction: (
@@ -68,6 +71,7 @@ export function registerTerminalIpcHandlers(
 ): void {
   const {
     backend,
+    bots,
     registerHandler,
     activeTerminalRuns,
     confirmSensitiveAction,
@@ -76,8 +80,53 @@ export function registerTerminalIpcHandlers(
     trackSenderCleanup,
   } = context;
   const { event: eventChannels, invoke: invokeChannels } = desktopIpcChannels;
+  const terminalOwners = new Map<
+    string,
+    {
+      botId: string;
+      originConversationId: string;
+      workspacePath: string;
+    }
+  >();
+
+  const interactiveBackendFor = async (
+    botId: string,
+  ): Promise<BackendManager> => {
+    if (!bots) {
+      if (botId !== "default") throw new Error("Named bots are unavailable.");
+      return backend;
+    }
+    const bot = bots.get(botId);
+    if (!bot.isDefault && !bot.permissions.allowMutation) {
+      throw new Error("This bot cannot open a mutable terminal.");
+    }
+    return bots.backendFor(botId);
+  };
+
+  const assertTerminalOwner = (sessionId: string, botId: string): void => {
+    const owner = terminalOwners.get(sessionId);
+    let requestedId: string | undefined;
+    try {
+      requestedId = bots?.get(botId).id;
+    } catch {
+      /* unknown bot */
+    }
+    if (!bots || !owner || owner.botId !== requestedId) {
+      throw new Error(
+        "Interactive terminal belongs to another bot or is unavailable.",
+      );
+    }
+    bots.assertConversationOwner(botId, owner.originConversationId);
+    if (
+      bots.assertAcpWorkspace(botId, owner.workspacePath) !==
+      owner.workspacePath
+    ) {
+      throw new Error("Interactive terminal workspace has changed.");
+    }
+  };
 
   const requestInteractiveTerminal = async (
+    botId: string,
     path:
       | "/terminal/session/start"
       | "/terminal/session/input"
@@ -88,7 +137,8 @@ export function registerTerminalIpcHandlers(
     method: "GET" | "POST",
     body?: object,
   ): Promise<unknown> => {
-    const state = backend.getState();
+    const target = await interactiveBackendFor(botId);
+    const state = target.getState();
     if (state.phase !== "ready" || !state.url) {
       throw new Error("The local runtime is not ready.");
     }
@@ -303,20 +353,40 @@ export function registerTerminalIpcHandlers(
       unsafeRequest: InteractiveTerminalStartRequest,
     ): Promise<InteractiveTerminalStartResult> => {
       const request = validateInteractiveTerminalStartRequest(unsafeRequest);
+      if (!bots)
+        throw new Error("Bot ownership is unavailable for this terminal.");
+      await bots.ensureConversationOwner(
+        request.botId ?? "default",
+        request.originConversationId,
+      );
+      const workspacePath = bots.assertAcpWorkspace(
+        request.botId ?? "default",
+        request.workspacePath,
+      );
       // Opening an empty PTY from the trusted desktop renderer does not execute
       // a command. Typed input and command-running IPC paths remain separate,
       // validated boundaries; command execution still requires confirmation.
       const payload = await requestInteractiveTerminal(
+        request.botId ?? "default",
         "/terminal/session/start",
         "POST",
-        request,
+        { cols: request.cols, rows: request.rows },
       );
       if (!isRecord(payload) || !isRecord(payload.session)) {
         throw new Error("The runtime returned an invalid terminal session.");
       }
+      const session = validateInteractiveTerminalSession(payload.session);
+      if (terminalOwners.has(session.id)) {
+        throw new Error("Interactive terminal identity is already owned.");
+      }
+      terminalOwners.set(session.id, {
+        botId: bots.get(request.botId ?? "default").id,
+        originConversationId: request.originConversationId,
+        workspacePath,
+      });
       return {
         status: "started",
-        session: validateInteractiveTerminalSession(payload.session),
+        session,
       };
     },
   );
@@ -327,10 +397,12 @@ export function registerTerminalIpcHandlers(
       unsafeRequest: InteractiveTerminalInputRequest,
     ) => {
       const request = validateInteractiveTerminalInputRequest(unsafeRequest);
+      assertTerminalOwner(request.sessionId, request.botId ?? "default");
       const payload = await requestInteractiveTerminal(
+        request.botId ?? "default",
         "/terminal/session/input",
         "POST",
-        request,
+        { sessionId: request.sessionId, data: request.data },
       );
       return validateInteractiveTerminalSession(
         isRecord(payload) ? payload.session : undefined,
@@ -344,10 +416,16 @@ export function registerTerminalIpcHandlers(
       unsafeRequest: InteractiveTerminalResizeRequest,
     ) => {
       const request = validateInteractiveTerminalResizeRequest(unsafeRequest);
+      assertTerminalOwner(request.sessionId, request.botId ?? "default");
       const payload = await requestInteractiveTerminal(
+        request.botId ?? "default",
         "/terminal/session/resize",
         "POST",
-        request,
+        {
+          sessionId: request.sessionId,
+          cols: request.cols,
+          rows: request.rows,
+        },
       );
       return validateInteractiveTerminalSession(
         isRecord(payload) ? payload.session : undefined,
@@ -356,9 +434,16 @@ export function registerTerminalIpcHandlers(
   );
   registerHandler(
     invokeChannels.terminalSessionInterrupt,
-    async (_event: IpcMainInvokeEvent, unsafeSessionId: string) => {
+    async (
+      _event: IpcMainInvokeEvent,
+      unsafeSessionId: string,
+      unsafeBotId?: string,
+    ) => {
       const sessionId = validateInteractiveTerminalSessionId(unsafeSessionId);
+      const botId = validateTerminalBotId(unsafeBotId);
+      assertTerminalOwner(sessionId, botId);
       const payload = await requestInteractiveTerminal(
+        botId,
         "/terminal/session/interrupt",
         "POST",
         { sessionId },
@@ -370,16 +455,24 @@ export function registerTerminalIpcHandlers(
   );
   registerHandler(
     invokeChannels.terminalSessionClose,
-    async (_event: IpcMainInvokeEvent, unsafeSessionId: string) => {
+    async (
+      _event: IpcMainInvokeEvent,
+      unsafeSessionId: string,
+      unsafeBotId?: string,
+    ) => {
       const sessionId = validateInteractiveTerminalSessionId(unsafeSessionId);
+      const botId = validateTerminalBotId(unsafeBotId);
+      assertTerminalOwner(sessionId, botId);
       const payload = await requestInteractiveTerminal(
+        botId,
         "/terminal/session/close",
         "POST",
         { sessionId },
       );
-      return validateInteractiveTerminalSession(
+      const session = validateInteractiveTerminalSession(
         isRecord(payload) ? payload.session : undefined,
       );
+      return session;
     },
   );
   registerHandler(
@@ -388,8 +481,11 @@ export function registerTerminalIpcHandlers(
       _event: IpcMainInvokeEvent,
       unsafeSessionId: string,
       unsafeCursor: number,
+      unsafeBotId?: string,
     ) => {
       const sessionId = validateInteractiveTerminalSessionId(unsafeSessionId);
+      const botId = validateTerminalBotId(unsafeBotId);
+      assertTerminalOwner(sessionId, botId);
       const cursor =
         typeof unsafeCursor === "number" &&
         Number.isSafeInteger(unsafeCursor) &&
@@ -397,6 +493,7 @@ export function registerTerminalIpcHandlers(
           ? unsafeCursor
           : 0;
       return requestInteractiveTerminal(
+        botId,
         `/terminal/session/output?sessionId=${encodeURIComponent(
           sessionId,
         )}&cursor=${cursor}`,

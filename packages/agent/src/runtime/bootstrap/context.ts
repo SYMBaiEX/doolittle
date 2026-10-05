@@ -91,12 +91,10 @@ export async function configureBootstrapContext({
     },
     ensureDeferredHydration,
   } as BootstrapContext;
-  if (!workerBot) {
-    services.acp.bindProtocolHost(createAcpProtocolHost(context));
-    services.acp.bindRuntimeTools(() =>
-      getRuntimeToolProjection(runtime).tools.filter((tool) => tool.enabled),
-    );
-  }
+  services.acp.bindProtocolHost(createAcpProtocolHost(context));
+  services.acp.bindRuntimeTools(() =>
+    getRuntimeToolProjection(runtime).tools.filter((tool) => tool.enabled),
+  );
 
   if (eagerDeferredHydration) {
     appendBootstrapTrace("phase:deferredHydration:start");

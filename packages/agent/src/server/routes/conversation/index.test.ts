@@ -229,6 +229,42 @@ describe("handleConversationRoutes", () => {
     });
   });
 
+  it("resolves an encoded consultation run ID to the same receipt and cancel target", async () => {
+    const context = createContext();
+    const controller = new AbortController();
+    context.services.runController.startTurn({
+      sessionId: "consult:session",
+      roomId: "consult:session",
+      runId: "consult:run",
+      source: "desktop-consultation",
+      message: "offline",
+      runDepth: "standard",
+      configuredMaxIterations: 45,
+      progressMode: "new",
+    });
+    context.services.runController.registerAbortController(
+      "consult:run",
+      controller,
+    );
+    const path = "http://localhost/chat/runs/consult%3Arun";
+    const receipt = await handleConversationRoutes(
+      context,
+      new Request(path),
+      new URL(path),
+    );
+    expect(receipt?.status).toBe(200);
+    await expect(receipt?.json()).resolves.toMatchObject({
+      run: { runId: "consult:run" },
+    });
+    const cancel = await handleConversationRoutes(
+      context,
+      new Request(`${path}/cancel`, { method: "POST" }),
+      new URL(`${path}/cancel`),
+    );
+    expect(cancel?.status).toBe(200);
+    expect(controller.signal.aborted).toBe(true);
+  });
+
   it("lists stored responses through the legacy GET alias", async () => {
     const response = await handleConversationRoutes(
       createContext(),

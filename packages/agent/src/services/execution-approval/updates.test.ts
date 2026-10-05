@@ -33,6 +33,44 @@ describe("execution approval updates", () => {
     ).toBe(true);
   });
 
+  it("never matches a scoped approval to another bot, session, run, or an unscoped request", () => {
+    const scope = {
+      botId: "bot-a",
+      sessionId: "session-a",
+      runId: "run-a",
+    };
+    const request = {
+      platform: "telegram" as const,
+      userId: "user-a",
+      roomId: "session-a",
+      command: "git push origin main",
+      ...scope,
+    };
+    const record = createPendingApprovalRecord({
+      ...request,
+      reason: "publish",
+      ttlMinutes: 15,
+    });
+    expect(matchesApprovalRequest(record, request)).toBe(true);
+    expect(matchesApprovalRequest(record, { ...request, botId: "bot-b" })).toBe(
+      false,
+    );
+    expect(
+      matchesApprovalRequest(record, { ...request, sessionId: "session-b" }),
+    ).toBe(false);
+    expect(matchesApprovalRequest(record, { ...request, runId: "run-b" })).toBe(
+      false,
+    );
+    expect(
+      matchesApprovalRequest(record, {
+        platform: request.platform,
+        userId: request.userId,
+        roomId: request.roomId,
+        command: request.command,
+      }),
+    ).toBe(false);
+  });
+
   it("applies approval, denial, and use transitions consistently", () => {
     const record = createPendingApprovalRecord({
       platform: "discord",
