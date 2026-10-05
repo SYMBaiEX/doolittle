@@ -81,6 +81,8 @@ const bridge: DoolittleDesktopBridge = {
     stopAll: () => ipcRenderer.invoke(uiInterfaceChannels.stopAll),
     returnToInterface: () =>
       ipcRenderer.invoke(uiInterfaceChannels.returnToInterface),
+    selectContribution: (selection) =>
+      ipcRenderer.invoke(uiInterfaceChannels.selectContribution, selection),
     onSurface: (listener) =>
       subscribeToDesktopEvent(uiInterfaceChannels.surface, listener),
   },

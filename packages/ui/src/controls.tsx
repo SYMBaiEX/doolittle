@@ -114,6 +114,25 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
 );
 Textarea.displayName = "DoolittleTextarea";
 
+/** Native select for host-owned menus; retains OS keyboard and accessibility behavior. */
+export const NativeSelect = forwardRef<
+  HTMLSelectElement,
+  ComponentPropsWithoutRef<"select">
+>(({ className, ...props }, ref) => (
+  <select
+    {...props}
+    className={cn(
+      focusControlClass,
+      fieldControlClass,
+      standardControlClass,
+      "border px-2",
+      className,
+    )}
+    ref={ref}
+  />
+));
+NativeSelect.displayName = "DoolittleNativeSelect";
+
 export const SelectTrigger = forwardRef<
   HTMLButtonElement,
   ComponentPropsWithoutRef<typeof ElizaSelectTrigger>

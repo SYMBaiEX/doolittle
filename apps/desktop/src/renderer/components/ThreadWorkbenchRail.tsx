@@ -311,6 +311,8 @@ export function ThreadWorkbenchRail({
       </div>
 
       <WorkbenchPanels
+        botId={botId}
+        sessionId={sessionId}
         controller={controller}
         idPrefix={idPrefix}
         onOpenFullView={onOpenFullView}

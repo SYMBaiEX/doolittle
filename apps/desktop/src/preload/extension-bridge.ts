@@ -4,6 +4,7 @@ import type {
   UiHostResult,
   UiSnapshot,
 } from "@doolittle/contracts/ui-host";
+import type { UiPluginPresentationV1 } from "@doolittle/contracts/ui-plugin";
 import { contextBridge, ipcRenderer } from "electron";
 
 // Deliberately no window.doolittle, generic IPC, network, path, or approval API.
@@ -13,6 +14,8 @@ const CHANNELS = {
   subscribe: "doolittle-ui:subscribe",
   unsubscribe: "doolittle-ui:unsubscribe",
   event: "doolittle-ui:event",
+  presentation: "doolittle-ui:presentation",
+  presentationChanged: "doolittle-ui:presentation-changed",
 } as const;
 
 interface ExtensionBridge {
@@ -20,11 +23,23 @@ interface ExtensionBridge {
   getSnapshot(): Promise<UiSnapshot>;
   dispatch(command: UiHostCommand): Promise<UiHostResult>;
   subscribe(listener: (event: UiHostEvent) => void, after?: number): () => void;
+  getPresentation(): Promise<UiPluginPresentationV1>;
+  onPresentation(listener: (value: UiPluginPresentationV1) => void): () => void;
 }
 
 const bridge: ExtensionBridge = Object.freeze({
   version: 1 as const,
   getSnapshot: () => ipcRenderer.invoke(CHANNELS.snapshot),
+  getPresentation: () => ipcRenderer.invoke(CHANNELS.presentation),
+  onPresentation: (listener: (value: UiPluginPresentationV1) => void) => {
+    const receive = (
+      _event: Electron.IpcRendererEvent,
+      value: UiPluginPresentationV1,
+    ) => listener(value);
+    ipcRenderer.on(CHANNELS.presentationChanged, receive);
+    return () =>
+      ipcRenderer.removeListener(CHANNELS.presentationChanged, receive);
+  },
   dispatch: (command: UiHostCommand) =>
     ipcRenderer.invoke(CHANNELS.dispatch, command),
   subscribe(listener: (event: UiHostEvent) => void, after?: number) {

@@ -5,7 +5,7 @@ import cssWorker from "monaco-editor/language/css/css.worker?worker";
 import htmlWorker from "monaco-editor/language/html/html.worker?worker";
 import jsonWorker from "monaco-editor/language/json/json.worker?worker";
 import tsWorker from "monaco-editor/language/typescript/ts.worker?worker";
-import { useEffect, useEffectEvent, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useId, useRef, useState } from "react";
 import type { CodeLanguage } from "../code-language";
 import {
   APPEARANCE_APPLIED_EVENT,
@@ -13,6 +13,7 @@ import {
   parseDesktopThemeProfile,
   THEME_CHANGE_EVENT,
 } from "../desktop-theme";
+import { editorModelQuery } from "../editor-model-identity";
 import {
   acquireMonacoProjectDiagnosticsLease,
   acquireMonacoProjectSupport,
@@ -57,7 +58,13 @@ function defineDoolittleTheme(
   });
 }
 
-function modelUri(path: string, workspacePath?: string): monaco.Uri {
+function modelUri(
+  path: string,
+  workspacePath: string | undefined,
+  instanceId: string,
+  botId?: string,
+  originConversationId?: string,
+): monaco.Uri {
   const normalizedPath = path.replace(/\\/gu, "/").replace(/^\/+/u, "");
   const normalizedWorkspace = workspacePath
     ?.replace(/\\/gu, "/")
@@ -65,7 +72,9 @@ function modelUri(path: string, workspacePath?: string): monaco.Uri {
   const absolutePath = normalizedWorkspace
     ? `${normalizedWorkspace}/${normalizedPath || "untitled.txt"}`
     : `/${normalizedPath || "untitled.txt"}`;
-  return monaco.Uri.file(absolutePath);
+  return monaco.Uri.file(absolutePath).with({
+    query: editorModelQuery(path, instanceId, botId, originConversationId),
+  });
 }
 
 function projectSupportSignature(content: string): string {
@@ -146,6 +155,7 @@ export function CodeEditor({
   botId?: string;
   originConversationId?: string;
 }) {
+  const modelInstanceId = useId();
   const hostRef = useRef<HTMLDivElement | null>(null);
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
   const modelRef = useRef<monaco.editor.ITextModel | null>(null);
@@ -179,8 +189,15 @@ export function CodeEditor({
         acquireMonacoProjectDiagnosticsLease(supportLanguage);
     }
 
-    const uri = modelUri(path, workspacePath);
-    monaco.editor.getModel(uri)?.dispose();
+    // A read-only preview and a full editor can remain mounted simultaneously.
+    // Each view owns its model; never dispose another live editor's document.
+    const uri = modelUri(
+      path,
+      workspacePath,
+      modelInstanceId,
+      botId,
+      originConversationId,
+    );
     const model = monaco.editor.createModel(valueRef.current, language.id, uri);
     const editor = monaco.editor.create(host, {
       model,
@@ -288,7 +305,16 @@ export function CodeEditor({
       editorRef.current = null;
       modelRef.current = null;
     };
-  }, [ariaLabel, compact, language.id, path, workspacePath]);
+  }, [
+    ariaLabel,
+    compact,
+    language.id,
+    path,
+    workspacePath,
+    modelInstanceId,
+    botId,
+    originConversationId,
+  ]);
 
   useEffect(() => {
     const updateTheme = (event: Event) => {

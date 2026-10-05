@@ -2,6 +2,10 @@ import { randomUUID } from "node:crypto";
 import { resolve } from "node:path";
 import type { UiHostCommand, UiHostEvent } from "@doolittle/contracts/ui-host";
 import type {
+  UiPluginContributionSelection,
+  UiPluginPresentationV1,
+} from "@doolittle/contracts/ui-plugin";
+import type {
   BrowserWindow,
   IpcMain,
   IpcMainInvokeEvent,
@@ -18,6 +22,8 @@ export const extensionChannels = {
   subscribe: "doolittle-ui:subscribe",
   unsubscribe: "doolittle-ui:unsubscribe",
   event: "doolittle-ui:event",
+  presentation: "doolittle-ui:presentation",
+  presentationChanged: "doolittle-ui:presentation-changed",
 } as const;
 
 const CSP = [
@@ -156,6 +162,7 @@ export class CommunityUiView {
   private readonly onWindowHide = () => this.hide();
   private readonly onWindowClosed = () => this.dispose();
   private disposed = false;
+  private selectedContribution?: UiPluginContributionSelection;
 
   private constructor(
     private readonly options: CommunityViewOptions,
@@ -228,6 +235,30 @@ export class CommunityUiView {
   }
   get webContentsId(): number {
     return this.view.webContents.id;
+  }
+
+  private getPresentation(): UiPluginPresentationV1 {
+    const artifact = this.options.artifact;
+    return {
+      version: 1,
+      artifact: { ...artifact.identity },
+      name: artifact.manifest.name,
+      contributions: structuredClone(artifact.manifest.contributions),
+      ...(this.selectedContribution
+        ? { selected: { ...this.selectedContribution } }
+        : {}),
+    };
+  }
+
+  /** Native controller selects from the verified manifest, never plugin-supplied IDs. */
+  setContribution(selection?: UiPluginContributionSelection): void {
+    if (this.disposed) return;
+    this.selectedContribution = selection && { ...selection };
+    if (!this.view.webContents.isDestroyed())
+      this.view.webContents.send(
+        extensionChannels.presentationChanged,
+        this.getPresentation(),
+      );
   }
 
   /** Caller must hide this before native tool/auth/install/approval dialogs. */
@@ -304,6 +335,7 @@ export class CommunityUiView {
       extensionChannels.dispatch,
       extensionChannels.subscribe,
       extensionChannels.unsubscribe,
+      extensionChannels.presentation,
     ]) {
       this.options.ipcMain.removeHandler(channel);
     }
@@ -369,6 +401,10 @@ export class CommunityUiView {
 
   private installIpc(): void {
     const ipc = this.options.ipcMain;
+    ipc.handle(extensionChannels.presentation, (event) => {
+      this.authorize(event);
+      return this.getPresentation();
+    });
     ipc.handle(extensionChannels.snapshot, async (event) => {
       this.authorize(event);
       return this.options.host.getCommunitySnapshot(this.context);

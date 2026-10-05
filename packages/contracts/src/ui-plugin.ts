@@ -137,6 +137,20 @@ export const uiPluginManifestV1Schema = z
   });
 export type UiPluginManifestV1 = z.infer<typeof uiPluginManifestV1Schema>;
 
+export interface UiPluginContributionSelection {
+  kind: "workspace" | "panel";
+  id: string;
+}
+
+/** Public, immutable artifact metadata; never credentials or new capabilities. */
+export interface UiPluginPresentationV1 {
+  version: 1;
+  artifact: UiPluginArtifactIdentity;
+  name: string;
+  contributions: UiPluginManifestV1["contributions"];
+  selected?: UiPluginContributionSelection;
+}
+
 /** No wildcards or implicit future-session scopes in community grants. */
 export interface UiPluginGrant {
   artifact: UiPluginArtifactIdentity;

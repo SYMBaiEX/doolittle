@@ -59,7 +59,10 @@ function setup(
         },
       ],
       requestedCapabilities: ["conversation.read", "message.send"],
-      contributions: { workspaces: [], panels: [] },
+      contributions: {
+        workspaces: [{ id: "wide", title: "Wide canvas" }],
+        panels: [{ id: "activity", title: "Activity" }],
+      },
     }),
   );
   const artifactRoot = resolve(root, "installed");
@@ -107,6 +110,7 @@ function setup(
     setProtectedDialog: vi.fn(),
     setBounds: vi.fn(),
     hide: vi.fn(),
+    setContribution: vi.fn(),
     dispose: vi.fn(),
   };
   const confirm = vi.fn(async () => true);
@@ -148,6 +152,57 @@ function setup(
 }
 
 describe("native interface consent and recovery", () => {
+  it.each(["community-static", "trusted-react"] as const)(
+    "registers only verified %s contributions without dispatching work",
+    async (tier) => {
+      const { controller, artifact, community, backend, handlers } =
+        setup(tier);
+      await controller.start();
+      await controller.activate({
+        identity: artifact.identity,
+        capabilities: ["conversation.read"],
+        targets: [target],
+      });
+      expect(controller.getState().active?.contributions.panels).toEqual([
+        { id: "activity", title: "Activity" },
+      ]);
+      expect(
+        controller.selectContribution({ kind: "panel", id: "activity" })
+          .selectedContribution,
+      ).toEqual({ kind: "panel", id: "activity" });
+      if (tier === "community-static")
+        expect(community.setContribution).toHaveBeenCalledWith({
+          kind: "panel",
+          id: "activity",
+        });
+      expect(() =>
+        controller.selectContribution({ kind: "workspace", id: "activity" }),
+      ).toThrow("not registered");
+      expect(() =>
+        controller.selectContribution({
+          kind: "panel",
+          id: "activity",
+          capabilities: ["message.send"],
+        }),
+      ).toThrow("not registered");
+      controller.revealHostSurface(target, "computer");
+      expect(() => controller.selectContribution(undefined)).toThrow(
+        "not available",
+      );
+      controller.returnToInterface();
+      expect(
+        controller.selectContribution(undefined).selectedContribution,
+      ).toBeUndefined();
+      expect(backend.sendChat).not.toHaveBeenCalled();
+      expect(backend.stopRun).not.toHaveBeenCalled();
+      expect(handlers.has(uiInterfaceChannels.selectContribution)).toBe(true);
+      controller.restoreDefault();
+      expect(() =>
+        controller.selectContribution({ kind: "panel", id: "activity" }),
+      ).toThrow("not available");
+      controller.dispose();
+    },
+  );
   it("temporarily reveals a host surface without cancelling or replacing the community renderer", async () => {
     const { controller, artifact, community, backend, handlers } = setup();
     await controller.start();

@@ -11,12 +11,16 @@ describe("desktop view transitions", () => {
   it("uses one transition boundary for direct and hash navigation", () => {
     expect(appSource).toContain("const applyViewTransition = useCallback(");
     expect(appSource).toContain(
-      "if (!applyViewTransition(next)) return false;",
+      "if (!applyViewTransition(next, options)) return false;",
     );
     expect(appSource).toContain(
       "const hashNavigationRef = useRef({\n    applyViewTransition,\n    recordNavigation,\n    view,\n  });",
     );
     expect(appSource).toContain("!current.applyViewTransition(next) &&");
+    expect(appSource).toContain(
+      "pushDesktopNavigationHistory(current, next, computerOriginRef.current)",
+    );
+    expect(appSource).toContain("computerOrigin: target.computerOrigin");
     expect(appSource).toContain("}, []);");
     expect(appSource).not.toContain(
       'if (next !== "chat") closeChatTerminal();',

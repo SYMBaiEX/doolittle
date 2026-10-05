@@ -31,6 +31,8 @@ export interface ThreadWorkbenchFilesFileData {
 }
 
 export interface ThreadWorkbenchFilesPanelProps {
+  botId?: string;
+  originConversationId?: string;
   workspacePath: string;
   tree: ApiResource<ThreadWorkbenchFilesTreeData>;
   file: ApiResource<ThreadWorkbenchFilesFileData>;
@@ -43,6 +45,8 @@ export interface ThreadWorkbenchFilesPanelProps {
 }
 
 export function ThreadWorkbenchFilesPanel({
+  botId,
+  originConversationId,
   workspacePath,
   tree,
   file,
@@ -114,6 +118,8 @@ export function ThreadWorkbenchFilesPanel({
                       }
                     >
                       <CodeEditor
+                        botId={botId}
+                        originConversationId={originConversationId}
                         ariaLabel={`Preview ${selectedPath}`}
                         compact
                         disabled

@@ -6,6 +6,39 @@ import {
 } from "./desktop-navigation-history";
 
 describe("desktop navigation history", () => {
+  it("captures immutable Computer origins per visit, including same-route owner changes", () => {
+    const one = {
+      botId: "one",
+      originConversationId: "chat-one",
+      workspacePath: "/one",
+    };
+    const two = {
+      botId: "two",
+      originConversationId: "chat-two",
+      workspacePath: "/two",
+    };
+    const first = pushDesktopNavigationHistory(
+      createDesktopNavigationHistory("chat"),
+      "code",
+      one,
+    );
+    one.botId = "mutated";
+    const second = pushDesktopNavigationHistory(first, "code", two);
+    const back = desktopNavigationTarget(second, -1);
+    expect(back?.computerOrigin).toEqual({
+      botId: "one",
+      originConversationId: "chat-one",
+      workspacePath: "/one",
+    });
+    expect(
+      desktopNavigationTarget(back?.history ?? first, 1)?.computerOrigin,
+    ).toEqual(two);
+    const branched = pushDesktopNavigationHistory(
+      back?.history ?? first,
+      "settings",
+    );
+    expect(branched.computerOrigins?.[2]).toBeUndefined();
+  });
   it("keeps actual visit order and ignores duplicate route updates", () => {
     const initial = createDesktopNavigationHistory("chat");
     const code = pushDesktopNavigationHistory(initial, "code");

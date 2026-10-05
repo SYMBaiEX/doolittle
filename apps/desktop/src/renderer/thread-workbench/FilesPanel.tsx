@@ -18,9 +18,13 @@ type FilesPanelController = Pick<
 export function FilesPanel({
   controller,
   workspacePath,
+  botId,
+  sessionId,
 }: {
   controller: FilesPanelController;
   workspacePath: string;
+  botId?: string;
+  sessionId?: string;
 }) {
   const {
     acpEditor,
@@ -34,6 +38,8 @@ export function FilesPanel({
   } = controller;
   return (
     <ThreadWorkbenchFilesPanel
+      botId={botId}
+      originConversationId={sessionId}
       entries={fileEntries}
       file={file}
       onEditorStateChange={(snapshot) =>

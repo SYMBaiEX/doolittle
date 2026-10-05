@@ -397,6 +397,9 @@ export function ChatSessionPanel({
     "run.hydration-retry",
     0,
   );
+  const [runHydrationWarnings, setRunHydrationWarnings] = useWorkspaceState<
+    string[]
+  >("run.hydration-warnings", []);
   const recoveryBotIds = liveBotIds(bots).join(",");
   useEffect(() => {
     if (!coordinator || !window.doolittle.ui) return;
@@ -1154,6 +1157,7 @@ export function ChatSessionPanel({
     void loadOwnedRunInventory(recoveryBotIds ? recoveryBotIds.split(",") : [])
       .then((payload) => {
         if (disposed) return;
+        setRunHydrationWarnings(payload.warnings);
         if (!Array.isArray(payload.runs)) {
           setRunHydration("unavailable");
           return;
@@ -1237,7 +1241,10 @@ export function ChatSessionPanel({
         setRunHydration("ready");
       })
       .catch(() => {
-        if (!disposed) setRunHydration("unavailable");
+        if (!disposed) {
+          setRunHydration("unavailable");
+          setRunHydrationWarnings([]);
+        }
       });
     return () => {
       disposed = true;
@@ -1247,6 +1254,7 @@ export function ChatSessionPanel({
     coordinator,
     setMessages,
     setRunHydration,
+    setRunHydrationWarnings,
     setRunReceipts,
     activeRequestSessionsRef,
     requestSession,
@@ -2099,6 +2107,16 @@ export function ChatSessionPanel({
             {storageWarning}
           </div>
         ) : null}
+        {runHydrationWarnings.length > 0 ? (
+          <div
+            className="chat-storage-warning"
+            role="status"
+            title={runHydrationWarnings.join("\n")}
+          >
+            Some agent history is unavailable. Other conversations remain
+            usable.
+          </div>
+        ) : null}
         <div aria-live="polite" className="sr-only" role="status">
           {accessibilityStatus}
         </div>
@@ -2337,7 +2355,7 @@ export function ChatSessionPanel({
           ref={workbenchDialogRef}
         >
           <CompanionInspector
-            active={backend.phase === "ready"}
+            active={backend.phase === "ready" && routeActive && visible}
             bot={currentBot}
             contextLabel={selectedContextLabel}
             fullWidth={isNarrowWorkbench}

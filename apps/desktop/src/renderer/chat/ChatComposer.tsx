@@ -43,7 +43,7 @@ import type {
   ContextPressureSnapshot,
   ContextPressureTone,
 } from "../context-pressure";
-import { compactTokenCount, contextPressureLabel } from "../context-pressure";
+import { contextPressureLabel } from "../context-pressure";
 import type { PersistedQueuedMessage } from "../conversation-persistence";
 import {
   loadPromptLibrary,
@@ -333,22 +333,13 @@ export function ChatComposer({
   const reusableMenuOpen = reusableSuggestions.length > 0;
   const hasMemoryMatches =
     memoryMatches.status === "ready" && memoryMatches.matches.length > 0;
-  const contextSummary = selectedContext
-    ? `${compactTokenCount(selectedContext.estimatedTokens)} / ${compactTokenCount(
-        selectedContext.contextWindowTokens,
-      )} · ${compactTokenCount(
-        Math.max(
-          0,
-          selectedContext.contextWindowTokens - selectedContext.estimatedTokens,
-        ),
-      )} left`
-    : usageLoading === selectedId
-      ? "Measuring…"
-      : selectedUsageError
-        ? "Unavailable"
-        : "0%";
+  const contextSummary = selectedUsageError
+    ? "Context unavailable"
+    : `Context ${selectedContextPercent}%`;
   const hasContextDetails = Boolean(
-    selectedContext || selectedUsageError || usageLoading === selectedId,
+    selectedUsageError ||
+      (selectedContext &&
+        (selectedContextTone !== "neutral" || selectedContext.overThreshold)),
   );
   const showOperationalStatus = Boolean(
     activeRequest ||
@@ -362,7 +353,7 @@ export function ChatComposer({
       : hasMemoryMatches
         ? `${memoryMatches.matches.length} memory ${memoryMatches.matches.length === 1 ? "match" : "matches"}`
         : hasContextDetails
-          ? `${contextSummary} context`
+          ? contextSummary
           : "Details";
   const completionCount = commandMenuOpen
     ? commandSuggestions.length

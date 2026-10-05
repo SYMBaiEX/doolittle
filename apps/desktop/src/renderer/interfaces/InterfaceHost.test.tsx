@@ -1,5 +1,11 @@
 // @vitest-environment jsdom
-import { act, type ButtonHTMLAttributes, useEffect, useState } from "react";
+import {
+  act,
+  type ButtonHTMLAttributes,
+  type SelectHTMLAttributes,
+  useEffect,
+  useState,
+} from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type {
@@ -15,6 +21,9 @@ vi.mock("@doolittle/ui", () => ({
     <button {...props} />
   ),
   StateSurface: ({ title }: { title: string }) => <p role="status">{title}</p>,
+  NativeSelect: (props: SelectHTMLAttributes<HTMLSelectElement>) => (
+    <select {...props} />
+  ),
 }));
 
 import { InterfaceHost } from "./InterfaceHost";
@@ -104,4 +113,54 @@ it("retains native component state through community activation, host-surface re
   expect(input?.value).toBe("retained draft");
   expect(unmounts).toBe(0);
   expect(bridge.stopAll).not.toHaveBeenCalled();
+});
+
+it("selects registered contributions without replacing the native session", async () => {
+  const state: UiInterfaceState = {
+    ...defaultState,
+    mode: "community-static",
+    active: {
+      identity: {
+        pluginId: "test",
+        pluginVersion: "1.0.0",
+        digest: "a".repeat(64),
+      },
+      name: "Test",
+      trustTier: "community-static",
+      requestedCapabilities: [],
+      contributions: {
+        workspaces: [{ id: "wide", title: "Canvas" }],
+        panels: [{ id: "activity", title: "Activity" }],
+      },
+    },
+  };
+  const selectContribution = vi.fn(async () => state);
+  const bridge = {
+    getState: async () => state,
+    onState: () => () => {},
+    selectContribution,
+  } as unknown as DesktopUiInterfaceBridge;
+  await act(async () =>
+    root.render(
+      <InterfaceHost bridge={bridge}>
+        <input aria-label="Draft" defaultValue="Preserved" />
+      </InterfaceHost>,
+    ),
+  );
+  const input = container.querySelector("input");
+  const select = container.querySelector<HTMLSelectElement>(
+    '[aria-label="Interface view"]',
+  );
+  expect(select?.options.length).toBe(3);
+  await act(async () => {
+    if (select) {
+      select.value = "panel:activity";
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+  });
+  expect(selectContribution).toHaveBeenCalledWith({
+    kind: "panel",
+    id: "activity",
+  });
+  expect(container.querySelector("input")).toBe(input);
 });

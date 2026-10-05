@@ -11,6 +11,7 @@ import {
   Suspense,
   useCallback,
   useEffect,
+  useEffectEvent,
   useId,
   useMemo,
   useRef,
@@ -348,6 +349,7 @@ export function App() {
   const [chatTerminalOpen, setChatTerminalOpen] = useState(false);
   const [chatTerminalMounted, setChatTerminalMounted] = useState(false);
   const [computerOrigin, setComputerOrigin] = useState<ComputerOrigin>();
+  const computerOriginRef = useRef<ComputerOrigin | undefined>(undefined);
   const [terminalOrigin, setTerminalOrigin] = useState<ComputerOrigin>();
   const [navCollapsed, setNavCollapsed] = useState(
     () => localStorage.getItem(NAV_COLLAPSED_KEY) === "true",
@@ -759,9 +761,52 @@ export function App() {
   const applyViewTransition = useCallback(
     (
       next: View,
-      { skipDirtyCheck = false }: { skipDirtyCheck?: boolean } = {},
+      {
+        skipDirtyCheck = false,
+        computerOrigin: suppliedOrigin,
+      }: { skipDirtyCheck?: boolean; computerOrigin?: ComputerOrigin } = {},
     ) => {
       if (!skipDirtyCheck && !confirmViewChange(next)) return false;
+      const computer =
+        renderedViewForView(next) === "code" ||
+        renderedViewForView(next) === "browser";
+      const owner = sessionBotId(
+        selectedSession,
+        sessions,
+        localBotBindings,
+        defaultBotId,
+      );
+      const bot = bots.find((entry) => entry.id === owner);
+      const origin = computer
+        ? (suppliedOrigin ??
+          (owner
+            ? {
+                botId: owner,
+                originConversationId: selectedSession,
+                workspacePath:
+                  bot && !bot.isDefault
+                    ? bot.workspacePath
+                    : workspace.currentPath,
+              }
+            : undefined))
+        : undefined;
+      if (
+        !skipDirtyCheck &&
+        computer &&
+        renderedViewForView(view) === "code" &&
+        JSON.stringify(computerOriginRef.current) !== JSON.stringify(origin) &&
+        !confirmDirtyNavigation({
+          dirty: codeWorkspaceDirty,
+          confirm: () =>
+            window.confirm(
+              "This coding workspace has unsaved edits. Change its owner and discard them?",
+            ),
+          discard: () => setCodeWorkspaceDirty(false),
+        })
+      )
+        return false;
+      computerOriginRef.current = origin && { ...origin };
+      setComputerOrigin(computerOriginRef.current);
       void warmDesktopRoute(next, backend.phase, workspace.currentPath).catch(
         () => undefined,
       );
@@ -777,6 +822,13 @@ export function App() {
       utilityModalMode,
       workspace.currentPath,
       setMobileSidebarOpen,
+      selectedSession,
+      sessions,
+      localBotBindings,
+      defaultBotId,
+      bots,
+      view,
+      codeWorkspaceDirty,
     ],
   );
 
@@ -785,7 +837,7 @@ export function App() {
   // compact-layout navigation can update the hash without updating the view.
   const recordNavigation = useCallback((next: View) => {
     setNavigationHistory((current) =>
-      pushDesktopNavigationHistory(current, next),
+      pushDesktopNavigationHistory(current, next, computerOriginRef.current),
     );
   }, []);
   const hashNavigationRef = useRef({
@@ -796,10 +848,16 @@ export function App() {
   hashNavigationRef.current = { applyViewTransition, recordNavigation, view };
 
   const setView = useCallback(
-    (next: View, options?: { readonly skipDirtyCheck?: boolean }) => {
+    (
+      next: View,
+      options?: {
+        readonly skipDirtyCheck?: boolean;
+        readonly computerOrigin?: ComputerOrigin;
+      },
+    ) => {
       if (options?.skipDirtyCheck) {
         if (!applyViewTransition(next, options)) return false;
-      } else if (!applyViewTransition(next)) return false;
+      } else if (!applyViewTransition(next, options)) return false;
       recordNavigation(next);
       window.location.hash = desktopHashForView(next);
       return true;
@@ -807,10 +865,36 @@ export function App() {
     [applyViewTransition, recordNavigation],
   );
 
+  useEffect(() => {
+    if (
+      !computerOrigin &&
+      defaultBotId &&
+      (renderedViewForView(view) === "code" ||
+        renderedViewForView(view) === "browser")
+    ) {
+      applyViewTransition(view, { skipDirtyCheck: true });
+      setNavigationHistory((current) => ({
+        ...current,
+        computerOrigins: computerOriginRef.current
+          ? {
+              ...current.computerOrigins,
+              [current.index]: { ...computerOriginRef.current },
+            }
+          : current.computerOrigins,
+      }));
+    }
+  }, [computerOrigin, defaultBotId, view, applyViewTransition]);
+
   const traverseNavigationHistory = useCallback(
     (offset: -1 | 1) => {
       const target = desktopNavigationTarget(navigationHistory, offset);
-      if (!target || !applyViewTransition(target.view)) return;
+      if (
+        !target ||
+        !applyViewTransition(target.view, {
+          computerOrigin: target.computerOrigin,
+        })
+      )
+        return;
       setNavigationHistory(target.history);
       window.history.replaceState(null, "", desktopHashForView(target.view));
     },
@@ -1384,14 +1468,20 @@ export function App() {
     toggleNavigation,
   ]);
 
-  useEffect(() => {
-    const openInterfaces = () => setView("settings");
-    window.addEventListener("doolittle:interface-settings", openInterfaces);
-    const detach = window.doolittle.ui?.onSurface(({ target }) => {
+  const openInterfaceSettings = useEffectEvent(() => setView("settings"));
+  const revealNativeSurface = useEffectEvent(
+    (target: { botId: string; sessionId: string }) => {
       bindSessionBot(target.sessionId, target.botId);
       setSelectedBotId(target.botId);
       setSelectedSession(target.sessionId);
       setView("chat");
+    },
+  );
+  useEffect(() => {
+    const openInterfaces = () => openInterfaceSettings();
+    window.addEventListener("doolittle:interface-settings", openInterfaces);
+    const detach = window.doolittle.ui?.onSurface(({ target }) => {
+      revealNativeSurface(target);
     });
     const bridge = window.doolittle.ui;
     let disposed = false;
@@ -1423,7 +1513,7 @@ export function App() {
         openInterfaces,
       );
     };
-  }, [bindSessionBot, setView]);
+  }, [bindSessionBot]);
 
   useEffect(() => {
     if (document.documentElement.dataset.nativeInterfaceVisible === "false")
@@ -1484,6 +1574,14 @@ export function App() {
     void window.doolittle.getWorkspaceState().then(setWorkspace);
     return window.doolittle.onWorkspaceState(handleWorkspaceState);
   }, [handleWorkspaceState]);
+
+  useIntervalWhenDocumentVisible(
+    () => {
+      void botResource.reload();
+    },
+    5_000,
+    !!botCatalog,
+  );
 
   useIntervalWhenDocumentVisible(
     () => {
@@ -1641,8 +1739,7 @@ export function App() {
         selectSession: setSelectedSession,
         setView,
         openComputerView: (next, origin) => {
-          setComputerOrigin(origin);
-          setView(next);
+          setView(next, { computerOrigin: origin });
         },
         transitionToProjectScope,
       }}
@@ -1675,19 +1772,7 @@ export function App() {
       onActivateBot={activateBot}
       view={routeView}
       workspacePath={workspace.currentPath}
-      computerOrigin={
-        computerOrigin ??
-        (botIdForSession(selectedSession)
-          ? {
-              botId: botIdForSession(selectedSession),
-              originConversationId: selectedSession,
-              workspacePath:
-                selectedBot && !selectedBot.isDefault
-                  ? selectedBot.workspacePath
-                  : workspace.currentPath,
-            }
-          : undefined)
-      }
+      computerOrigin={computerOrigin}
     />
   );
   const chatRouteActive = renderedView === "chat";

@@ -13,10 +13,22 @@ vi.mock("./CodeEditor", async () => {
   codeEditorModule();
   const { createElement } = await import("react");
   return {
-    CodeEditor: ({ ariaLabel, path }: { ariaLabel?: string; path: string }) =>
+    CodeEditor: ({
+      ariaLabel,
+      path,
+      botId,
+      originConversationId,
+    }: {
+      ariaLabel?: string;
+      path: string;
+      botId?: string;
+      originConversationId?: string;
+    }) =>
       createElement("div", {
         "aria-label": ariaLabel,
         "data-code-editor-path": path,
+        "data-bot-id": botId,
+        "data-origin-conversation": originConversationId,
       }),
   };
 });
@@ -117,6 +129,8 @@ describe("ThreadWorkbenchFilesPanel", () => {
 
   it("loads the editor only for a selected preview and preserves its ARIA label", async () => {
     const selectedPreview = {
+      botId: "bot-two",
+      originConversationId: "chat-two",
       entries: [{ path: "src/index.ts", type: "file", depth: 1 }],
       file: {
         data: { content: "export {};" },
@@ -140,6 +154,8 @@ describe("ThreadWorkbenchFilesPanel", () => {
     expect(markup).toContain("TypeScript");
     expect(markup).toContain('aria-label="Preview src/index.ts"');
     expect(markup).toContain('data-code-editor-path="src/index.ts"');
+    expect(markup).toContain('data-bot-id="bot-two"');
+    expect(markup).toContain('data-origin-conversation="chat-two"');
     expect(markup).toMatch(/<button type="button">Add to chat<\/button>/u);
     expect(codeEditorModule).toHaveBeenCalledTimes(1);
   });

@@ -1,196 +1,101 @@
-# Doolittle operator workbench
+# Doolittle companion interface
 
-## Direction and boundaries
+## Design direction
 
-Preserve `brand.md`: warm near-black or warm light surfaces, Doolittle orange,
-Avenir/system sans for prose, system monospace for commands, paths, state and
-identifiers. The interface is a local operator workbench, not a marketing page.
-Use solid panel edges to communicate ownership, selected leading edges to
-communicate context, and a one-pixel contact lip on action keys. Do not add
-gradients, neon glow, decorative runtime indicators, remote fonts or new UI
-dependencies. Keep SDK controls and the existing Tailwind-only presentation
-contracts; visual changes must not fabricate agent capabilities.
+The default Companion composition is a contact-sidebar messenger: one readable
+conversation, one compact composer, supporting tools on demand. Canvas hides
+navigation until requested and gives conversations and supporting panes more room.
+Both compositions use the same capabilities, session identities and host.
 
-Comfortable density is the readable default: 14px prose, 13px controls, 12px
-metadata, 36px ordinary controls. Compact is 14px prose, 12px controls, 11px
-metadata and 32px controls. Narrow touch controls have a 44px target. Compact
-reduces spacing and chrome, not transcript legibility. Radius roles are 3px
-keys, 5px sections, 8px composition surfaces, 10–12px overlays.
+Keep Doolittle's small existing mark, restrained orange accent, warm neutral
+light/dark surfaces, system/Avenir sans and monospace code. Conversation text is
+16px/1.55; controls are 14px with 40px ordinary and 44px touch targets. Reading
+width defaults to 760px, navigation to 248px and inspector to 320px. Compact
+density reduces chrome without reducing transcript legibility. No decorative
+gradients, glow, textures, or cards around ordinary lists.
 
-## Concrete audit and screen decisions
+## Hierarchy and workflows
 
-The pre-change Electron captures at 1440×960 and 390×844 show a centered
-three-card launch view, very small top/sidebar chrome, a settings-route gradient
-and weak visible boundaries. The implementation replaces the starter cards with
-an ordered command console, gives the shell a monospace operator masthead,
-normalizes literal 10–11px layout text through density tokens, removes decorative
-gradients/glow, and uses a contrast-protected keyboard ring.
+- Navigation contains search, new conversation, bot contacts, and the selected
+  bot's recent conversations. Selecting a bot resumes its latest conversation.
+  Add bot, Team & work, Connections and Settings are supporting destinations.
+- One 48px conversation header carries bot identity, thread title, inspector and
+  overflow. New/close view actions are disclosures. Closing a view never stops work.
+- Tabs and arrangement tools appear only with multiple open conversations. The
+  workspace supports nested right/below splits, resizing, reordering, focus and
+  closing, with a 12-view limit. Narrow layouts show the active tab and retain
+  the saved desktop arrangement; hidden panels remain mounted and inert.
+- The composer contains text, Attach, model route and Send/Stop. Advanced
+  actions live in Add. Queue, files, errors and memory matches appear when relevant.
+  Context pressure is disclosed when warning/error thresholds matter, not as a
+  permanent zero-usage meter. Full context remains available in Details.
+- The initially closed inspector contains Details, Library and Computer.
+  Computer opens actual editor/browser/terminal resources; it is not a VM.
+  Its immutable bot/conversation/workspace origin must not follow ambient focus.
 
-| Surface | Composition and primary action | Secondary information |
-| --- | --- | --- |
-| Application shell | Product masthead; New conversation key; Chat/Code modes; project/history rail | Search shortcut, scope, runtime health and settings stay subordinate |
-| Chat workbench | Each open conversation owns its own bounded transcript and composer | Identity, project and run state belong to the session; provider/model selection is a shared runtime route |
-| New conversation | Left-aligned `~/doolittle $ new session` marker, task heading, three numbered prompt rows | Prompt choices populate the composer; they do not execute automatically |
-| Coding | Explorer, editor and terminal remain real separated tool surfaces | Utility tabs are content navigation, not additional primary actions |
-| History | Searchable master list with selected leading edge and transcript detail | Execution facts and raw records are disclosures, not duplicated cards |
-| Review and orchestration | Queue/roster beside the selected record; action controls adjacent to evidence | Destructive and approval actions remain explicit and distinguishable |
-| Tools, skills, plugins, registry | Shared searchable catalog index and detail panel | Availability, provenance and permissions before install or enable |
-| Connections, models, profiles, keys | Named provider/record rows with explicit connection or configuration actions | Advanced config is disclosed; sensitive values never exposed for styling |
-| Settings | Persistent section navigation; native Appearance/Desktop settings remain usable while runtime config loads | Show load/retry feedback only in the dependent runtime section |
-| Runtime, setup, compatibility | Group related diagnostics; use concise status rows and functional separators | Distinguish offline, unavailable, loading and a real zero count |
-| Activity, logs and analytics | Filter controls above bounded streams/tables with monospace evidence | Refresh feedback preserves existing records and scroll position |
-| Browser and media | Task toolbar, bounded content canvas and clear loading/empty recovery | Inspect/detail metadata does not compete with preview content |
-| Memory and docs | Reading-width long-form content; profiles/list selection beside content | Raw snapshots and technical detail remain inspectable disclosures |
-| Search and control dialogs | Trigger-related overlay, one visible title and focused search/form | Keyboard guidance and readiness are readable, not decorative chips |
+Drafts, stream subscriptions, queued messages, editor documents and PTYs belong
+outside replaceable presentation. Running, Waiting, Attention, Complete, Stopped,
+Error and Offline are execution facts, never guesses based on visibility. A
+presentation switch does not resend, cancel or complete a run.
 
-## Independent session contract
+## Reusable package and themes
 
-Opening a second panel must not repurpose the first conversation. Keep each
-panel keyed by its conversation identity and preserve its draft, scroll position,
-attachments, pending approvals and in-flight turn. Selecting a panel changes the
-active target for workspace-scoped commands; it does not cancel another run.
-Closing a panel is presentation-only unless a distinct stop action is chosen.
-Show real run state as text, never infer activity from panel focus. A one-pixel
-separator plus the active panel leading edge is sufficient; do not nest another
-card around transcript and composer.
+Private `@doolittle/ui` owns controlled browser-safe controls and compositions.
+Suitable official ElizaOS controls are explicit wrappers. Native select is used
+for host-owned view selection. Fetching, credentials, runtime coordination,
+Electron/preload, Monaco and xterm stay outside the package.
 
-Inline command approvals belong to the conversation's original room label,
-the same label sent by desktop chat dispatch and projected in approval records.
-Match that label exactly; an optional session key must agree. Never derive it
-from the native runtime UUID or infer ownership from the focused panel.
-Unattributed or conflicting records remain in the runtime-wide Review queue.
-This is presentation attribution, not a replacement for runtime permission
-checks. Pending commands and reasons wrap within the composer, with readable
-feedback, explicit retry on load failure, and 44px decision targets.
+Theme manifest v2 is validated non-executable data: semantic colors, typography,
+spacing, geometry, density, motion and registered Companion/Canvas presets.
+Existing v1 themes migrate without resetting saved preferences. Layout presets
+change composition, not runtime permissions or execution ownership.
 
-At narrow widths, show one selected panel and an accessible session switcher.
-Hidden panels retain state but must be inert and excluded from keyboard focus.
-Do not squeeze two composers into the same 390px viewport. Preserve access to
-session switching and stop/approval controls without horizontal page overflow.
+## Optional interfaces
 
-On desktop, a session narrower than 720px shows its Context inspector in place
-of its conversation, not beside a crushed transcript. The neighboring session
-stays available. Closing Context restores the mounted conversation and draft.
-The inspector remains a nonmodal region here; only the existing viewport-level
-mobile flow is a modal dialog. Wider sessions retain side-by-side inspection.
-Narrow rail tabs scroll horizontally with a visible scrollbar and keyboard
-focus; empty file preview content stays stacked in normal flow.
+`UiHostV1` exposes revisioned snapshots, sequenced subscriptions, explicit owned
+targets and stable submission IDs. Trusted prebuilt React entries export
+`createRenderer(React, Ui)` and return a function component accepting
+`{ host, presentation }`. Presentation metadata includes the exact artifact,
+registered workspace/panel contributions and optional host-selected contribution.
+Selecting a contribution updates presentation without creating another coordinator.
 
-## Interaction and state expectations
+Trusted renderers require full-application-trust consent for their exact version
+and digest. They are **not sandboxed**. Community static assets use a private,
+isolated Electron WebContentsView with restrictive CSP/network policy and only
+`window.doolittleUI`: host snapshot/dispatch/subscription plus public presentation
+metadata/events. They do not receive the privileged desktop preload or Node.
+The native host validates contribution selection against the verified manifest;
+community code cannot select an unregistered view or grant itself capabilities.
 
-- Loading: announce a short polite status inside the affected panel; preserve
-  its header and available controls. Avoid full-page loading when only runtime
-  configuration is pending. Background refresh retains current content.
-- Empty: distinguish no records from no matches, unavailable resources and
-  runtime offline. Provide a concrete relevant next step; filtered lists offer
-  Clear filters. Empty chat offers task prompts, not fabricated run results.
-- Error: persist actionable inline error text with retry or configuration
-  recovery. Preserve drafts and last usable records. Do not auto-dismiss errors.
-- Success: update the affected control/record immediately; avoid replacing
-  readable evidence with celebratory animation.
-- Disabled: keep the label visible, block the action semantically, and explain
-  unmet prerequisites near the control. Hover and pressed styling must not
-  imply disabled controls are operable.
-- Repository state: show Clean/Changes and branch counts only after a real
-  Git summary loads. A non-Git workspace says No Git repository; loading or
-  unavailable summaries never imply a clean repository or zero changes.
-  File status is neutral until a selected file has verified change data.
-- Motion: 150ms background/border/color changes with the shared easing; no
-  layout jumps on hover. Honor reduced motion, including loading indicators.
+Reading, sending, stopping, attachment picking and host-surface opening are
+separate grants for explicit conversations. Consent explains that authorized
+plugin code can initiate agent actions. Ownership and grant generation are
+checked again before effects commit; scope changes revoke pending operations.
+Background community commands are disabled. Host tools temporarily cover the
+same community view; Back returns without remounting it. Protected dialogs hide
+the community view. Approval, installation, grants, Stop all, Restore default
+and startup safe mode remain host-owned.
 
-## Keyboard and accessibility
+The optional AG-UI adapter projects Doolittle's durable text/lifecycle stream,
+owned cancellation, approval presentation and custom events. Reconnect resumes
+observation from a sequence cursor without resubmission. Client-supplied tools,
+state, arbitrary context and interrupt/branch continuation are explicitly rejected;
+approval decisions remain host-owned. CopilotKit and hosted Intelligence are not
+dependencies or a second execution coordinator.
 
-Conversation columns establish a named inline-size `session` container. At a
-conversation width below 640px, the composer splits into two control bands:
-attachment/voice/prompt tools, then bounded project/model selectors beside the
-context disclosure and send/stop action. Controls have 44px minimum targets;
-long selector names truncate inside their own bounds, not over other controls.
-Operational status stays visible on a separate row. This applies to narrow
-desktop tiles as well as mobile, without changing DOM or keyboard focus order.
+## Accessibility and validation
 
-The Code repository header wraps by available content width, not a single
-viewport breakpoint. Identity and status/action bands must never overlap;
-long branch names truncate while truthful state labels remain readable.
-The Code page and its explorer/editor/utility grid query the route's available
-content width, including the sidebar. When three panes would crowd the editor,
-they stack in the route's bounded scroll area; editor and utility controls
-remain reachable even while the shared terminal dock is open.
-Editor status and delegated-task controls wrap within the pane's own width;
-do not hide controls or mask page overflow to make narrow layouts appear valid.
-In split mode, side-pane preferences fit a joint width budget that reserves
-320px for the editor. Window resizing preserves preferred widths; explicit
-pointer or keyboard resizing starts from the currently displayed widths and
-respects the space needed by the opposite pane and editor.
+Keyboard navigation must reach every retained route and action. Tabs use roving
+focus and arrows/Home/End; resizers have names and keyboard adjustment. Dialogs
+trap focus, close on Escape and restore their trigger. Hidden panes are inert.
+Streaming does not steal focus. Errors stay actionable, disabled states explain
+their prerequisite, and loading retains usable controls. Reduced motion removes
+nonessential transitions. Normal text needs 4.5:1 contrast; selection and state
+must not rely only on color.
 
-The shared chat masthead uses a second control band in intermediate and narrow
-windows, rather than squeezing surface tabs and Context between breadcrumbs
-and runtime tools. Loading or long provider labels stay bounded; sibling
-controls must never overlap.
-
-Natural focus order is shell controls → session switcher/header actions →
-transcript actions → composer controls → active supporting panel. Independent
-panel headers expose an accessible session name and selected state. Switching
-panels moves focus only when initiated by the keyboard, to a stable header or
-composer target. Do not focus a streaming transcript on every update.
-
-Keep existing Enter/Shift+Enter composition semantics and the displayed
-platform-specific shortcuts. Buttons remain buttons and links remain links.
-Content tabs implement arrows/Home/End and roving focus; simple navigation
-buttons do not pretend to be ARIA tabs. Dialogs trap focus, dismiss on Escape,
-and restore the invoking control. Native details retain Enter/Space behavior.
-Resizable boundaries retain their accessible label and keyboard adjustments.
-
-Approval height is budgeted against the actual pane, reserving conversation
-space and the complete composer action band. A constrained pane uses a 44px
-session-scoped review trigger and the SDK scrolling dialog, not a zero-height
-request list or truncated command. The dialog closes when its panel, surface,
-or route is hidden; focus returns only to an available invoking control.
-
-Terminal utility controls use the same comfortable/compact control geometry.
-The shared dock fits its preferred height against actual chat chrome and
-composer geometry, reserving 128px of transcript space (roughly five readable
-lines plus padding). Viewport-only fitting does not overwrite the preference.
-When even the minimum usable terminal split cannot fit, a 44px Open terminal
-control exposes the same mounted PTY in a full-viewport focused dialog. Escape
-or Back to workspace restores the opener; folding does not stop the shell.
-On screens at most 640px high, Chat's route remains a bounded vertical scroller:
-session controls stay in normal flow, each transcript has a 128px scrolling
-row, and its complete intrinsic composer can be scrolled into view. The shell
-does not grow beyond the viewport, and actions are neither shrunk nor clipped.
-At narrow widths they retain 44px targets and a separate action band above the
-scrollable tab list. The output canvas is a real PTY surface, without scanline
-overlays or decorative glow; real health and attention indicators remain.
-Tab selection keeps focus on the selected tab, including successive arrow
-keys; fitting or recreating xterm must not steal that focus. Explicit terminal
-activation and shell-start actions retain their existing input focus behavior.
-
-Pending shell startup must not take focus back from another view, terminal tab,
-or toolbar control. Completion and error feedback belong to the initiating
-workspace and current request; a stale result cannot replace another workspace's
-session data or clear a newer shell's loading state. These presentation guards
-do not stop background PTY sessions or introduce history/reattachment guarantees.
-
-Every interactive surface uses a two-pixel `--focus-ring` derived from the
-contrast-protected `--accent-text`, including standalone SDK adapters and
-disclosure summaries. Selection also has a structural edge, so it is not
-color-only. Verify normal text at 4.5:1, including status text on its tinted
-background and primary button ink on resting and hover fills. Light theme
-success/warning/error text and primary hover fill require darker semantic
-values than the pre-change palette.
-
-## Implementation and acceptance
-
-`desktop-theme.ts` owns canonical palette, density and geometry. Existing
-`*layout.ts` contracts own presentation; behavioral panel-layout models are
-separate. `components/ElizaControls.tsx` wraps SDK primitives without replacing
-their behavior. Only `--focus-ring` and `--control-contact` are new material
-tokens; reuse existing surfaces, spacing, typography and status tokens.
-
-Acceptance requires real desktop, narrow, dark and light captures; independent
-draft/run retention; keyboard session navigation and focus restoration; visible
-error/loading/empty states; no horizontal document overflow; and the existing
-repository gates. A build alone is not visual or runtime proof.
-
-No additional product choice is required for this direction. Concurrent panel
-limits, reopen-after-close policy and cross-window persistence are runtime
-product decisions; do not imply unsupported persistence in labels.
+Validate actual Electron workflows at 360, 768, 1280 and 1728 CSS pixels,
+including parallel sessions, keyboard-only interactions, both interface tiers,
+grant races, recovery and VoiceOver traversal. Source tests and builds are not
+proof of packaged behavior, assistive-technology behavior or agent quality.
+Record final verification and installation evidence separately from this design
+contract; never turn an untested capability into a passing claim.

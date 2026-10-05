@@ -52,6 +52,8 @@ import {
 import { ResourceState } from "./ResourceState";
 
 export interface WorkbenchPanelsProps {
+  botId?: string;
+  sessionId?: string;
   controller: WorkbenchController;
   idPrefix?: string;
   workspacePath: string;
@@ -542,6 +544,8 @@ function PreviewPanel({ controller }: { controller: PreviewPanelController }) {
 }
 
 export function WorkbenchPanels({
+  botId,
+  sessionId,
   controller,
   idPrefix,
   workspacePath,
@@ -597,7 +601,12 @@ export function WorkbenchPanels({
       </div>
 
       {model.selectedTab === "files" ? (
-        <FilesPanel controller={controller} workspacePath={workspacePath} />
+        <FilesPanel
+          controller={controller}
+          workspacePath={workspacePath}
+          botId={botId}
+          sessionId={sessionId}
+        />
       ) : null}
       {model.selectedTab === "changes" ? (
         <ChangesPanel controller={controller} />

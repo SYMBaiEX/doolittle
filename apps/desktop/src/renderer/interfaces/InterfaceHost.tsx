@@ -1,5 +1,11 @@
 import type { UiHostV1 } from "@doolittle/contracts/ui-host";
-import { Button, StateSurface, type UiRendererProps } from "@doolittle/ui";
+import type { UiPluginPresentationV1 } from "@doolittle/contracts/ui-plugin";
+import {
+  Button,
+  NativeSelect,
+  StateSurface,
+  type UiRendererProps,
+} from "@doolittle/ui";
 import {
   Component,
   type ComponentType,
@@ -38,11 +44,13 @@ function TrustedInterface({
   entryUrl,
   visible,
   onFailure,
+  presentation,
 }: {
   bridge: DesktopUiInterfaceBridge;
   entryUrl: string;
   visible: boolean;
   onFailure: () => void;
+  presentation?: UiPluginPresentationV1;
 }) {
   const visibility = useRef(visible);
   visibility.current = visible;
@@ -77,7 +85,7 @@ function TrustedInterface({
       <Suspense
         fallback={<StateSurface kind="loading" title="Opening interface…" />}
       >
-        <Renderer host={host} />
+        <Renderer host={host} presentation={presentation} />
       </Suspense>
     </RendererBoundary>
   );
@@ -169,6 +177,52 @@ export function InterfaceHost({
                 ? "Safe mode · default interface"
                 : state?.active?.name)}
           </span>
+          {alternate &&
+          state?.active &&
+          bridge &&
+          (state.active.contributions.workspaces.length > 0 ||
+            state.active.contributions.panels.length > 0) ? (
+            <NativeSelect
+              aria-label="Interface view"
+              className="w-auto max-w-40 shrink min-w-0 max-[640px]:max-w-24"
+              disabled={busy || !!state.hostSurface}
+              value={
+                state.selectedContribution
+                  ? `${state.selectedContribution.kind}:${state.selectedContribution.id}`
+                  : ""
+              }
+              onChange={(event) => {
+                const [kind, id] = event.currentTarget.value.split(":");
+                void operate(() =>
+                  bridge.selectContribution(
+                    kind === "workspace" || kind === "panel"
+                      ? { kind, id: id ?? "" }
+                      : undefined,
+                  ),
+                );
+              }}
+            >
+              <option value="">Interface</option>
+              {state.active.contributions.workspaces.length > 0 ? (
+                <optgroup label="Workspaces">
+                  {state.active.contributions.workspaces.map((item) => (
+                    <option key={item.id} value={`workspace:${item.id}`}>
+                      {item.title}
+                    </option>
+                  ))}
+                </optgroup>
+              ) : null}
+              {state.active.contributions.panels.length > 0 ? (
+                <optgroup label="Panels">
+                  {state.active.contributions.panels.map((item) => (
+                    <option key={item.id} value={`panel:${item.id}`}>
+                      {item.title}
+                    </option>
+                  ))}
+                </optgroup>
+              ) : null}
+            </NativeSelect>
+          ) : null}
           {state?.hostSurface && alternate && bridge ? (
             <Button
               variant="ghost"
@@ -227,6 +281,19 @@ export function InterfaceHost({
             bridge={bridge}
             entryUrl={state.entryUrl}
             visible={!nativeVisible}
+            presentation={
+              state.active
+                ? {
+                    version: 1,
+                    artifact: state.active.identity,
+                    name: state.active.name,
+                    contributions: state.active.contributions,
+                    ...(state.selectedContribution
+                      ? { selected: state.selectedContribution }
+                      : {}),
+                  }
+                : undefined
+            }
             onFailure={recover}
           />
         </div>

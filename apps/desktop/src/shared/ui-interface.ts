@@ -8,6 +8,7 @@ import type {
 import type {
   UiPluginArtifactIdentity,
   UiPluginCapability,
+  UiPluginContributionSelection,
   UiPluginManifestV1,
 } from "@doolittle/contracts/ui-plugin";
 
@@ -26,6 +27,7 @@ export const uiInterfaceChannels = {
   stopAll: "desktop-ui:stop-all",
   surface: "desktop-ui:surface",
   returnToInterface: "desktop-ui:return-to-interface",
+  selectContribution: "desktop-ui:select-contribution",
 } as const;
 
 export interface InstalledUiInterface {
@@ -33,6 +35,7 @@ export interface InstalledUiInterface {
   name: string;
   trustTier: UiPluginManifestV1["trustTier"];
   requestedCapabilities: UiPluginCapability[];
+  contributions: UiPluginManifestV1["contributions"];
 }
 
 export interface UiInterfaceState {
@@ -43,6 +46,7 @@ export interface UiInterfaceState {
   installed: InstalledUiInterface[];
   safeMode: boolean;
   recovery?: string;
+  selectedContribution?: UiPluginContributionSelection;
   /** A host-owned surface temporarily covers a renderer without replacing it. */
   hostSurface?: {
     target: UiTarget;
@@ -73,6 +77,9 @@ export interface DesktopUiInterfaceBridge {
   revoke(identity: UiPluginArtifactIdentity): Promise<UiInterfaceState>;
   stopAll(): Promise<void>;
   returnToInterface(): Promise<UiInterfaceState>;
+  selectContribution(
+    selection?: UiPluginContributionSelection,
+  ): Promise<UiInterfaceState>;
   onSurface(
     listener: (request: {
       target: UiTarget;

@@ -258,7 +258,7 @@ describe("chat presentation components", () => {
     expect(html).toContain('aria-label="Send message"');
   });
 
-  it("keeps context capacity and remaining tokens visible at zero usage", () => {
+  it("keeps the composer quiet when there is no context pressure", () => {
     const html = renderToStaticMarkup(
       <ChatComposer
         {...composerProps({
@@ -280,7 +280,36 @@ describe("chat presentation components", () => {
       />,
     );
 
-    expect(html).toContain("0 / 1.1m · 1.1m left");
+    expect(html).not.toContain("0 / 1.1m · 1.1m left");
+    expect(html).not.toContain(
+      'aria-controls="chat-composer-details-session-1"',
+    );
+  });
+
+  it("reveals a compact context warning when capacity is under pressure", () => {
+    const html = renderToStaticMarkup(
+      <ChatComposer
+        {...composerProps({
+          backend: { phase: "ready", message: "" },
+          selectedContext: {
+            provider: "codex",
+            model: "gpt-5.6-luna",
+            estimatedTokens: 990_000,
+            contextWindowTokens: 1_100_000,
+            usageFraction: 0.9,
+            percent: 90,
+            overThreshold: true,
+            estimated: true,
+            sampledMessages: 20,
+            totalMessages: 20,
+            truncated: false,
+          },
+          selectedContextPercent: 90,
+          selectedContextTone: "bad",
+        })}
+      />,
+    );
+    expect(html).toContain("Context 90%");
     expect(html).toContain('aria-controls="chat-composer-details-session-1"');
   });
 
@@ -367,9 +396,8 @@ describe("chat presentation components", () => {
       ),
     );
 
-    expect(container.textContent).toContain(
-      "1 memory · 1.2k / 128k · 127k left",
-    );
+    expect(container.textContent).toContain("1 memory match");
+    expect(container.textContent).not.toContain("127k left");
     expect(
       container.querySelector("#chat-composer-details-session-1"),
     ).toBeNull();

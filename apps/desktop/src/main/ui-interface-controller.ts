@@ -1,7 +1,10 @@
 import { existsSync, lstatSync, readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import type { UiHostCommand, UiTarget } from "@doolittle/contracts/ui-host";
-import type { UiPluginArtifactIdentity } from "@doolittle/contracts/ui-plugin";
+import type {
+  UiPluginArtifactIdentity,
+  UiPluginContributionSelection,
+} from "@doolittle/contracts/ui-plugin";
 import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
 import type {
   BrowserWindow,
@@ -34,6 +37,7 @@ interface CommunitySurface {
     height: number;
   }): void;
   hide(): void;
+  setContribution(selection?: UiPluginContributionSelection): void;
   dispose(): void;
 }
 
@@ -46,7 +50,7 @@ export interface UiInterfaceControllerOptions {
   ipcMain: IpcMain;
   protocol: Pick<Protocol, "handle" | "unhandle">;
   safeMode: boolean;
-  /** Exact trusted development origin; packaged file:// modules use Origin:null. */
+  /** Exact trusted development origin; packaged file modules use Origin:file://. */
   rendererOrigin?: string;
   commandsDisabled?: boolean;
   initialRecovery?: string;
@@ -103,6 +107,7 @@ function description(artifact: VerifiedUiArtifact): InstalledUiInterface {
     name: artifact.manifest.name,
     trustTier: artifact.manifest.trustTier,
     requestedCapabilities: [...artifact.manifest.requestedCapabilities],
+    contributions: structuredClone(artifact.manifest.contributions),
   };
 }
 
@@ -114,6 +119,7 @@ export class UiInterfaceController {
   private transition = false;
   private recovery?: string;
   private hostSurface?: UiInterfaceState["hostSurface"];
+  private selectedContribution?: UiPluginContributionSelection;
   private readonly subscriptions = new Map<string, () => void>();
   private readonly onResize = () => this.showCommunity();
   private readonly onHide = () => this.community?.hide();
@@ -144,6 +150,9 @@ export class UiInterfaceController {
       safeMode: this.options.safeMode,
       ...(this.recovery ? { recovery: this.recovery } : {}),
       ...(this.hostSurface ? { hostSurface: this.hostSurface } : {}),
+      ...(this.selectedContribution
+        ? { selectedContribution: { ...this.selectedContribution } }
+        : {}),
     };
   }
 
@@ -408,6 +417,7 @@ export class UiInterfaceController {
         this.options.host.activate(artifact);
         this.artifact = artifact;
         this.hostSurface = undefined;
+        this.selectedContribution = undefined;
       } else {
         const capabilities = request.capabilities ?? [];
         const targets = request.targets ?? [];
@@ -515,6 +525,7 @@ export class UiInterfaceController {
         this.activationEpoch += 1;
         this.artifact = artifact;
         this.hostSurface = undefined;
+        this.selectedContribution = undefined;
         this.showCommunity();
       }
       this.recovery = undefined;
@@ -530,6 +541,7 @@ export class UiInterfaceController {
     this.community = undefined;
     this.artifact = undefined;
     this.hostSurface = undefined;
+    this.selectedContribution = undefined;
     this.recovery = undefined;
     try {
       this.options.host.deactivate();
@@ -588,6 +600,38 @@ export class UiInterfaceController {
     this.activationEpoch += 1;
     this.hostSurface = undefined;
     this.showCommunity();
+    this.emit();
+    return this.getState();
+  }
+
+  selectContribution(value: unknown): UiInterfaceState {
+    const artifact = this.artifact;
+    if (
+      this.disposed ||
+      this.transition ||
+      this.protectedDepth ||
+      this.hostSurface ||
+      !artifact
+    )
+      throw new Error("The interface is not available for view selection.");
+    let selected: UiPluginContributionSelection | undefined;
+    if (value !== undefined) {
+      if (!value || typeof value !== "object" || Array.isArray(value))
+        throw new Error("Invalid interface contribution.");
+      const input = value as Partial<UiPluginContributionSelection>;
+      if (
+        Object.keys(value).some((key) => key !== "kind" && key !== "id") ||
+        (input.kind !== "workspace" && input.kind !== "panel") ||
+        typeof input.id !== "string" ||
+        !artifact.manifest.contributions[
+          input.kind === "workspace" ? "workspaces" : "panels"
+        ].some((item) => item.id === input.id)
+      )
+        throw new Error("The contribution is not registered by this artifact.");
+      selected = { kind: input.kind, id: input.id };
+    }
+    this.selectedContribution = selected;
+    this.community?.setContribution(selected);
     this.emit();
     return this.getState();
   }
@@ -702,6 +746,9 @@ export class UiInterfaceController {
     handle(uiInterfaceChannels.restore, () => this.restoreDefault());
     handle(uiInterfaceChannels.returnToInterface, () =>
       this.returnToInterface(),
+    );
+    handle(uiInterfaceChannels.selectContribution, (selection) =>
+      this.selectContribution(selection),
     );
     handle(uiInterfaceChannels.revoke, (value) =>
       this.revoke(value as UiPluginArtifactIdentity),
