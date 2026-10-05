@@ -72,6 +72,19 @@ or other app access. Actual offline worker acceptance covers dispatch, result
 ownership, restart deduplication and independent cancellation, not paid-provider
 or external-connector execution.
 
+The pinned SDK TaskService remains the scheduler. Its compatibility patch wakes
+cached future jobs when due, preserves wake signals after adapter failures and
+invalidates restored-job caches when the official trigger worker is registered.
+No second timer or coordinator owns execution. Independent runtime queues may
+progress concurrently; the SDK's sequential execution within one runtime is
+retained, so a long scheduled fire may delay another job on that same runtime.
+Wall-clock timing under saturated load is not established by a single-fire test.
+
+Local draft project scope is captured at creation/navigation and persisted by
+conversation ID. Saved native ownership takes precedence, including explicitly
+unscoped sessions. Unknown legacy draft scope is not guessed from whichever
+project currently has focus; keep its text and surface a recovery action.
+
 ## Reusable package and themes
 
 Private `@doolittle/ui` owns controlled browser-safe controls and compositions.
