@@ -106,9 +106,9 @@ type RouteAudit = {
 
 const interfaceModes = [
   { appearance: "dark", density: "comfortable", controlHeight: 40 },
-  { appearance: "dark", density: "compact", controlHeight: 40 },
+  { appearance: "dark", density: "compact", controlHeight: 36 },
   { appearance: "light", density: "comfortable", controlHeight: 40 },
-  { appearance: "light", density: "compact", controlHeight: 40 },
+  { appearance: "light", density: "compact", controlHeight: 36 },
 ] as const;
 
 const importedThemeBundle = {
@@ -913,13 +913,15 @@ async function expectViewportGeometry(
       const composerActions = composer
         ? Array.from(
             composer.querySelectorAll<HTMLElement>(
-              ".chat-composer-tools button, .chat-composer-routing button, .chat-composer-meta-toggle, .chat-composer-submit",
+              ".chat-composer-tools button, .chat-composer-tools summary, .chat-composer-routing button, .chat-composer-meta-toggle, .chat-composer-submit",
             ),
           )
             .filter((element) => {
               const style = getComputedStyle(element);
               const rect = element.getBoundingClientRect();
               return (
+                (!element.closest("details") ||
+                  element.tagName === "SUMMARY") &&
                 style.display !== "none" &&
                 style.visibility !== "hidden" &&
                 rect.width > 0 &&
@@ -985,8 +987,14 @@ async function expectViewportGeometry(
             const toolsHeight = Math.max(
               0,
               ...Array.from(
-                tools?.querySelectorAll<HTMLElement>("button") ?? [],
-              ).map((element) => normalFlowBox(element)?.height ?? 0),
+                tools?.querySelectorAll<HTMLElement>("button, summary") ?? [],
+              )
+                .filter(
+                  (element) =>
+                    !element.closest("details") ||
+                    element.tagName === "SUMMARY",
+                )
+                .map((element) => normalFlowBox(element)?.height ?? 0),
             );
             const rightRows = Array.from(right?.children ?? []).filter(
               (element): element is HTMLElement =>
@@ -1007,14 +1015,27 @@ async function expectViewportGeometry(
               : 0;
             const constrained =
               (conversation?.getBoundingClientRect().width ?? 0) < 640;
-            // chat/layout.ts: footer top pad1, two-band gap6, right-grid gap4;
-            // form row gap4, border2, padding7+6 (or mobile5+4).
+            // Resolve padding/borders/gaps: reusable ComposerFrame and the
+            // host theme can override the legacy layered utility values.
+            // Heights still come from content, never the stretched form box.
+            const formStyle = getComputedStyle(composer);
+            const footer = composer.querySelector<HTMLElement>(
+              ".chat-composer-footer",
+            );
+            const footerStyle = footer ? getComputedStyle(footer) : null;
+            const rightStyle = right ? getComputedStyle(right) : null;
+            const px = (value: string | undefined) =>
+              Number.parseFloat(value ?? "") || 0;
             const rightHeight = constrained
-              ? controlRowHeight + (status ? statusHeight + 4 : 0)
+              ? controlRowHeight +
+                (status ? statusHeight + px(rightStyle?.rowGap) : 0)
               : Math.max(controlRowHeight, statusHeight);
-            const footerHeight = constrained
-              ? toolsHeight + rightHeight + 6 + 1
-              : Math.max(toolsHeight, rightHeight) + 1;
+            const footerHeight =
+              (constrained
+                ? toolsHeight + rightHeight + px(footerStyle?.rowGap)
+                : Math.max(toolsHeight, rightHeight)) +
+              px(footerStyle?.paddingTop) +
+              px(footerStyle?.paddingBottom);
             const inputHeight =
               composer
                 .querySelector<HTMLElement>(".chat-composer-input")
@@ -1024,9 +1045,11 @@ async function expectViewportGeometry(
                 inputHeight +
                 footerHeight +
                 optionalHeight +
-                Math.max(0, rows.length - 1) * 4 +
-                (viewport.width < 480 ? 5 + 4 : 7 + 6) +
-                2,
+                Math.max(0, rows.length - 1) * px(formStyle.rowGap) +
+                px(formStyle.paddingTop) +
+                px(formStyle.paddingBottom) +
+                px(formStyle.borderTopWidth) +
+                px(formStyle.borderBottomWidth),
               optionalRows: optionalRows.length,
             };
           })()
@@ -1036,13 +1059,14 @@ async function expectViewportGeometry(
       const sidebarBox = readBox(".app-sidebar");
       const headerActions = Array.from(
         document.querySelectorAll<HTMLElement>(
-          ".chat-header-top-actions button, .chat-header-top-actions [role='button']",
+          "[role='toolbar'][aria-label='Conversation controls'] button, [role='toolbar'][aria-label='Conversation controls'] summary",
         ),
       )
         .filter((element) => {
           const style = getComputedStyle(element);
           const rect = element.getBoundingClientRect();
           return (
+            (!element.closest("details") || element.tagName === "SUMMARY") &&
             style.display !== "none" &&
             style.visibility !== "hidden" &&
             rect.width > 0 &&
@@ -1066,6 +1090,9 @@ async function expectViewportGeometry(
       return {
         attach: conversation
           ? readBox('button[aria-label="Attach multiple files"]', conversation)
+          : null,
+        add: conversation
+          ? readBox('summary[aria-label="More composer tools"]', conversation)
           : null,
         composer: conversation ? readBox(".chat-composer", conversation) : null,
         composerActions,
@@ -1244,6 +1271,7 @@ async function expectViewportGeometry(
   const constrainedSession = conversationWidth < 640;
   for (const [name, control] of [
     ["Attach", geometry.attach],
+    ["Add", geometry.add],
     ["Send/stop", geometry.submit],
     ["Model selector", geometry.modelTrigger],
   ] as const) {
@@ -1724,6 +1752,15 @@ test.describe("Doolittle packaged-profile control sweep", () => {
           tabs: tabCount,
           ...(apiFailures?.length ? { apiFailures } : {}),
         });
+        // The safe-control audit exercises disclosure content. Geometry
+        // measures the resting conversation, not absolute menu popovers.
+        await interactionView
+          .locator("details[open]")
+          .evaluateAll((elements) => {
+            for (const element of elements) {
+              if (element instanceof HTMLDetailsElement) element.open = false;
+            }
+          });
         await expect(page.locator(".recovery-shell")).toHaveCount(0);
       }
 
