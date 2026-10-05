@@ -1,6 +1,9 @@
 import { chmodSync, existsSync, mkdirSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
-import type { SharedKnowledgeRecord } from "@doolittle/contracts/bots";
+import type {
+  KnowledgeGrant,
+  SharedKnowledgeRecord,
+} from "@doolittle/contracts/bots";
 import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
 
 const ID = /^[A-Za-z0-9:_-]{1,128}$/u;
@@ -11,12 +14,7 @@ function timestamp(value: unknown): value is string {
   return typeof value === "string" && Number.isFinite(Date.parse(value));
 }
 
-export interface KnowledgeGrant {
-  knowledgeId: string;
-  botId: string;
-  grantedAt: string;
-  revokedAt?: string;
-}
+export type { KnowledgeGrant } from "@doolittle/contracts/bots";
 
 interface StoredKnowledge {
   version: 1;
@@ -148,6 +146,10 @@ export class BotKnowledgeLedger {
 
   list(): SharedKnowledgeRecord[] {
     return this.stored.records.map((row) => structuredClone(row));
+  }
+
+  listGrants(): KnowledgeGrant[] {
+    return this.stored.grants.map((row) => structuredClone(row));
   }
 
   promote(record: SharedKnowledgeRecord): void {

@@ -1905,6 +1905,7 @@ export function App() {
           returnFocusTarget={botCreationTriggerRef.current}
           runtime={runtime}
           workspacePath={workspace.currentPath}
+          projectId={activeProject?.id}
         />
       ) : null}
       <Suspense

@@ -20,7 +20,15 @@ describe("Eliza UI chat integration", () => {
     expect(composer).toContain("ComposerFrame");
     expect(composer).toContain("@elizaos/ui/components/ui/textarea");
     expect(composer).toContain("@elizaos/ui/components/ui/status-badge");
-    expect(actions).toContain("@elizaos/ui/components/ui/button");
+    expect(actions).toContain("@doolittle/ui");
+    const controls = readFileSync(
+      new URL(
+        "../../../../../packages/ui/src/controls.tsx",
+        import.meta.url,
+      ),
+      "utf8",
+    );
+    expect(controls).toContain("@elizaos/ui/button");
   });
 
   it("keeps the textarea borderless while the rounded composer owns focus", () => {

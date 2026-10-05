@@ -41,7 +41,8 @@ export function MemorySnapshotPanel({
   resource: ApiResource<MemoryResponse>;
   target: "memory" | "user";
 }) {
-  const targetLabel = target === "memory" ? "Shared memory" : "User memory";
+  const targetLabel =
+    target === "memory" ? "Doolittle private memory" : "User memory";
   const summary = asRecord(resource.data?.summary) as MemorySummary;
   const snapshot = asString(resource.data?.snapshot, "");
   const entryCount = asNumber(summary.entries, 0);
@@ -103,7 +104,7 @@ export function MemorySnapshotPanel({
             <span className="eyebrow">Summary</span>
             <h2>{targetLabel}</h2>
           </div>
-          <Badge>{target === "memory" ? "Shared" : "User"}</Badge>
+          <Badge>{target === "memory" ? "Private" : "User"}</Badge>
         </div>
         <CompactStatStrip
           label={`${targetLabel} summary`}
@@ -114,7 +115,7 @@ export function MemorySnapshotPanel({
               label: "Target",
               value:
                 asString(summary.target, target) === "memory"
-                  ? "Shared"
+                  ? "Private"
                   : "User",
             },
           ]}

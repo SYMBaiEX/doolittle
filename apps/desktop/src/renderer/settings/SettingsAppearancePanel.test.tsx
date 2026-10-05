@@ -33,9 +33,11 @@ describe("SettingsAppearancePanel", () => {
     expect(markup).toContain('aria-label="Application appearance"');
     expect(markup).toContain('aria-pressed="true"');
     expect(markup).toContain('aria-label="Interface density"');
-    expect(markup).toContain("Operator signal");
+    expect(markup).toContain("Interface theme");
     expect(markup).toContain("Shareable theme file");
     expect(markup).toContain("Imported files cannot run CSS or scripts");
+    expect(markup).toContain("typography, spacing, geometry, motion");
+    expect(markup).not.toContain("linear-gradient");
     expect(markup).toContain(".doolittle-theme.json,application/json");
     expect(markup).toContain("Warm operator signal");
     expect(markup).toContain("selected");

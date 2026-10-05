@@ -11,6 +11,7 @@ import {
   applyThemeManifest,
   DENSITY_CHANGE_EVENT,
   getThemeMigrationError,
+  legacyThemeProfile,
   loadDensityPreference,
   loadDesktopThemeSource,
   loadStoredDesktopTheme,
@@ -379,6 +380,24 @@ describe("desktop theme", () => {
     expect(storage.get(UI_LAYOUT_STORAGE_KEY)).toBe("canvas");
     expect(storage.get("style:--conversation-width")).toBe("960px");
     expect(loadStoredThemeManifest().id).toBe("canvas");
+  });
+
+  it("does not downgrade a v2 selection when its legacy palette is broadcast", () => {
+    const canvas = {
+      ...loadStoredThemeManifest(),
+      id: "canvas",
+      name: "Canvas",
+      layout: "canvas" as const,
+      geometry: { ...loadStoredThemeManifest().geometry, readingWidth: 960 },
+    };
+    applyThemeManifest(canvas, "builtin");
+    applyDesktopTheme(legacyThemeProfile(canvas));
+    expect(loadStoredThemeManifest()).toEqual(canvas);
+    expect(root.dataset.uiLayout).toBe("canvas");
+    expect(storage.get("style:--conversation-width")).toBe("960px");
+    // An explicit imported legacy theme is still a new selection.
+    applyDesktopTheme(legacyThemeProfile(canvas), "imported");
+    expect(loadStoredThemeManifest().layout).toBe("companion");
   });
 
   it("backs up legacy storage bytes before persisting the v2 migration", () => {

@@ -79,7 +79,10 @@ export async function handleBotApiRequest(
   }
   try {
     if (request.method === "GET" && path === "/bots/knowledge") {
-      return jsonResponse(200, { knowledge: registry.knowledge.ledger.list() });
+      return jsonResponse(200, {
+        knowledge: registry.knowledge.ledger.list(),
+        grants: registry.knowledge.ledger.listGrants(),
+      });
     }
     if (request.method === "POST" && path === "/bots/knowledge/promote") {
       const input = parseInput(request.body);

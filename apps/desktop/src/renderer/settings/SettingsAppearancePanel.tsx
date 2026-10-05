@@ -72,7 +72,7 @@ export function SettingsAppearancePanel({
                 : `${titleCase(option)} surfaces`
             }`}
             aria-pressed={appearance === option}
-            className={`${SETTINGS_APPEARANCE_BUTTON_CLASS} ${
+            className={`${SETTINGS_APPEARANCE_BUTTON_CLASS} !min-h-10 max-[760px]:!min-h-11 ${
               appearance === option ? "selected" : ""
             }`}
             key={option}
@@ -94,7 +94,9 @@ export function SettingsAppearancePanel({
           </button>
         ))}
       </fieldset>
-      <div className={SETTINGS_INLINE_CHOICE_CLASS}>
+      <div
+        className={`${SETTINGS_INLINE_CHOICE_CLASS} [&>fieldset_button]:!min-h-10 max-[760px]:[&>fieldset_button]:!min-h-11 [&>fieldset_button]:!text-sm`}
+      >
         <div>
           <strong>Interface density</strong>
           <small>Spacing across pages, tables, and panels.</small>
@@ -117,7 +119,7 @@ export function SettingsAppearancePanel({
       <div className="settings-group-heading mt-0.75 mb-0 min-h-8 [&_p]:mt-0.25 [&_p]:text-[length:var(--text-meta)]">
         <div>
           <span className="eyebrow">Color system</span>
-          <h2>Operator signal</h2>
+          <h2>Interface theme</h2>
           <p>Shared across chat, code, review, workbench, and terminal.</p>
         </div>
         <Badge>
@@ -130,11 +132,11 @@ export function SettingsAppearancePanel({
             Shareable theme file
           </strong>
           <small className="text-[length:var(--text-meta)] leading-[1.45] text-[var(--muted)]">
-            Palette, appearance, and density only. Imported files cannot run CSS
-            or scripts.
+            Colors, typography, spacing, geometry, motion, and registered
+            layouts. Imported files cannot run CSS or scripts.
           </small>
         </div>
-        <div className="flex shrink-0 gap-1.25 max-[620px]:w-full [&>button]:min-h-7 [&>button]:flex-1 [&>button]:px-2.25 [&>button]:text-[10px]">
+        <div className="flex shrink-0 gap-1.25 max-[620px]:w-full [&>button]:min-h-10 max-[760px]:[&>button]:min-h-11 [&>button]:flex-1 [&>button]:px-2.25 [&>button]:text-sm">
           <button
             className="secondary-button"
             onClick={() => importInputRef.current?.click()}
@@ -207,7 +209,7 @@ export function SettingsAppearancePanel({
             <button
               aria-label={`${label}: ${tagline}`}
               aria-pressed={activeTheme?.name === name}
-              className={`${SETTINGS_THEME_BUTTON_CLASS} ${
+              className={`${SETTINGS_THEME_BUTTON_CLASS} !min-h-10 max-[760px]:!min-h-11 [&>strong]:!text-sm ${
                 activeTheme?.name === name ? "selected" : ""
               }`}
               key={name}
@@ -218,7 +220,7 @@ export function SettingsAppearancePanel({
               <span
                 className={SETTINGS_THEME_SIGNAL_CLASS}
                 style={{
-                  background: `linear-gradient(135deg, ${primary}, ${secondary})`,
+                  background: "var(--surface)",
                 }}
               >
                 <i style={{ background: primary }} />

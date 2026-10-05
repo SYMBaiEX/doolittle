@@ -75,6 +75,7 @@ describe("BotCreationDialog accessibility", () => {
       state: "stopped",
       model: { provider: "offline", model: "test", reasoningEffort: "high" },
       workspacePath: "/tmp/one",
+      projectId: "original-project",
       permissions: {
         connectionIds: ["offline:local"],
         workspacePaths: ["/tmp/one", "/tmp/two"],
@@ -93,6 +94,7 @@ describe("BotCreationDialog accessibility", () => {
           returnFocusTarget={trigger}
           runtime={null}
           workspacePath="/tmp/global"
+          projectId="new-ambient-project"
         />,
       ),
     );
@@ -122,6 +124,7 @@ describe("BotCreationDialog accessibility", () => {
           ),
         },
         workspacePath: "/tmp/one",
+        projectId: "original-project",
       }),
     );
     expect(saved).toHaveBeenCalledOnce();

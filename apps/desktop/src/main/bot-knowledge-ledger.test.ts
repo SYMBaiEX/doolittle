@@ -45,6 +45,12 @@ describe("BotKnowledgeLedger", () => {
     const ledger = new BotKnowledgeLedger(dir);
     ledger.promote(record);
     ledger.grant(record.id, "target");
+    const grants = ledger.listGrants();
+    expect(grants).toEqual([
+      expect.objectContaining({ knowledgeId: record.id, botId: "target" }),
+    ]);
+    grants[0].botId = "mutated";
+    expect(ledger.granted(record.id, "target")).toBe(true);
     expect(new BotKnowledgeLedger(dir).granted(record.id, "target")).toBe(true);
     ledger.revoke(record.id, "target");
     expect(new BotKnowledgeLedger(dir).granted(record.id, "target")).toBe(

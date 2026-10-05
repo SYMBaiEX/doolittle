@@ -78,6 +78,33 @@ describe("consultation recovery API", () => {
 });
 
 describe("knowledge API", () => {
+  it("exposes only grant metadata through the application-owned catalog", async () => {
+    const list = vi.fn(() => [{ id: "record" }]);
+    const listGrants = vi.fn(() => [
+      { knowledgeId: "record", botId: "target", grantedAt: "2026-10-04" },
+    ]);
+    const bots = {
+      get: () => ({ isDefault: false }),
+      knowledge: { ledger: { list, listGrants } },
+    } as unknown as BotProcessRegistry;
+    const request = {
+      method: "GET" as const,
+      requestId: "metadata",
+      path: "/bots/knowledge",
+      headers: {},
+    };
+    const response = await handleBotApiRequest(bots, request);
+    expect(JSON.parse(response?.body ?? "{}")).toEqual({
+      knowledge: [{ id: "record" }],
+      grants: [
+        { knowledgeId: "record", botId: "target", grantedAt: "2026-10-04" },
+      ],
+    });
+    expect(
+      (await handleBotApiRequest(bots, { ...request, botId: "named" }))?.status,
+    ).toBe(400);
+    expect(list).toHaveBeenCalledOnce();
+  });
   const promoteRequest = {
     method: "POST" as const,
     requestId: "promote",

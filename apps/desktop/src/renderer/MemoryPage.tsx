@@ -1,7 +1,7 @@
 import { PagePanel } from "@elizaos/ui/components/composites/page-panel";
 import { Button } from "@elizaos/ui/components/ui/button";
 import { Tabs, TabsContent } from "@elizaos/ui/components/ui/tabs";
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { OfflineRouteState } from "./components/OfflineRouteState";
 import { PageHeader, useApiResource } from "./lib";
 import { MemoryProfilesPanel } from "./memory/MemoryProfilesPanel";
@@ -16,6 +16,10 @@ import {
 import { RuntimeSectionNav } from "./runtime-state/RuntimeSectionNav";
 
 const MEMORY_PAGE_CLASS = "page gap-2.5";
+const ProjectKnowledgePanel = lazy(async () => ({
+  default: (await import("./memory/ProjectKnowledgePanel"))
+    .ProjectKnowledgePanel,
+}));
 
 const MEMORY_SECTIONS: Array<{
   detail: string;
@@ -24,10 +28,16 @@ const MEMORY_SECTIONS: Array<{
   refreshLabel: string;
 }> = [
   {
-    detail: "Conversation knowledge available across the workspace",
+    detail: "Private memory for the application's Doolittle bot",
     id: "shared",
-    label: "Shared",
+    label: "Doolittle memory",
     refreshLabel: "shared",
+  },
+  {
+    detail: "Explicitly promoted findings and per-bot access",
+    id: "project",
+    label: "Project knowledge",
+    refreshLabel: "knowledge",
   },
   {
     detail: "Saved operator details for the current desktop user",
@@ -71,6 +81,8 @@ export function MemoryPage({
 
   const reloadVisibleSection = () => {
     if (!active) return;
+    if (section === "project")
+      window.dispatchEvent(new Event("doolittle:knowledge-changed"));
     if (policy.shared) sharedMemory.reload();
     if (policy.user) userMemory.reload();
     if (policy.profiles) {
@@ -140,7 +152,9 @@ export function MemoryPage({
           <div>
             <span className="eyebrow">Workspace knowledge</span>
             <h2>Memory & recall</h2>
-            <p>Inspect shared knowledge, saved details, and profile recall.</p>
+            <p>
+              Inspect private memory, promoted findings, and profile recall.
+            </p>
           </div>
           <Button
             className="secondary-button"
@@ -173,7 +187,7 @@ export function MemoryPage({
               }
             </Button>
           }
-          description="Inspect shared knowledge, saved details, and profile recall."
+          description="Inspect private memory, promoted findings, and profile recall."
           eyebrow="Operator Workspace"
           title="Memory"
         />
@@ -208,6 +222,11 @@ export function MemoryPage({
             agentProfile={agentProfile}
             profileSummary={profileSummary}
           />
+        </TabsContent>
+        <TabsContent value="project">
+          <Suspense fallback={<p role="status">Loading project knowledge…</p>}>
+            <ProjectKnowledgePanel active={active && section === "project"} />
+          </Suspense>
         </TabsContent>
       </Tabs>
     </PagePanel>

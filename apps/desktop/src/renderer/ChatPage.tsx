@@ -21,6 +21,7 @@ import type {
   SessionForkResponse,
   SessionSummary,
 } from "../shared/contracts";
+import { promoteProjectMessage } from "./bots/project-knowledge";
 import { liveBotIds, loadOwnedRunInventory } from "./bots/run-inventory";
 import { ChatHeaderChrome } from "./chat/ChatHeaderChrome";
 import {
@@ -584,6 +585,47 @@ export function ChatSessionPanel({
   >("run.pending-deltas", {});
   const deltaFrame = useWorkspaceRef<number | null>("run.delta-frame", null);
   const [forkingMessageId, setForkingMessageId] = useState("");
+  const [promotionFeedback, setPromotionFeedback] = useWorkspaceState<
+    Record<string, { busy: boolean; error?: string; message: string }>
+  >("knowledge.promotion-feedback", {});
+  const promoteMessage = async (message: DisplayMessage) => {
+    const sessionId = selectedId;
+    const sourceBotId = currentBotId;
+    const projectId =
+      sessions.find((session) => session.sessionId === sessionId)?.projectId ??
+      activeProject?.id;
+    if (!sourceBotId || !projectId || promotionFeedback[sessionId]?.busy)
+      return;
+    setPromotionFeedback((current) => ({
+      ...current,
+      [sessionId]: {
+        busy: true,
+        message: "Saving selected project knowledge…",
+      },
+    }));
+    try {
+      await promoteProjectMessage({
+        sourceBotId,
+        sessionId,
+        projectId,
+        message,
+      });
+      setPromotionFeedback((current) => ({
+        ...current,
+        [sessionId]: {
+          busy: false,
+          message:
+            "Saved privately. Grant access in Memory → Project knowledge to share it with a bot.",
+        },
+      }));
+      window.dispatchEvent(new Event("doolittle:knowledge-changed"));
+    } catch (cause) {
+      setPromotionFeedback((current) => ({
+        ...current,
+        [sessionId]: { busy: false, error: errorMessage(cause), message: "" },
+      }));
+    }
+  };
   const [routeDialogOpen, setRouteDialogOpen] = useState(false);
   const [attachmentValidationError, setAttachmentValidationError] =
     useWorkspaceState(`view.attachment-error.${selectedId}`, "");
@@ -2075,6 +2117,11 @@ export function ChatSessionPanel({
             )
           }
           onRead={readMessage}
+          onPromote={
+            currentBotId && (selectedSession?.projectId ?? activeProject?.id)
+              ? (message) => void promoteMessage(message)
+              : undefined
+          }
           onRetryHistory={() => retryHistory(selectedId)}
           onRetryMessage={(message) => void branchMessage(message, "retry")}
           onLoadEarlier={() => loadEarlierHistory(selectedId)}
@@ -2097,6 +2144,15 @@ export function ChatSessionPanel({
             {unreadMessageCount === 1 ? "message" : "messages"}
             <span aria-hidden="true"> · Jump to latest</span>
           </button>
+        ) : null}
+        {promotionFeedback[selectedId] ? (
+          <div
+            className="chat-storage-warning"
+            role={promotionFeedback[selectedId]?.error ? "alert" : "status"}
+          >
+            {promotionFeedback[selectedId]?.error ??
+              promotionFeedback[selectedId]?.message}
+          </div>
         ) : null}
         {storageWarning ? (
           <div

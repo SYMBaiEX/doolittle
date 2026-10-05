@@ -31,6 +31,7 @@ export interface ChatTranscriptProps {
   onRetryHistory: () => void;
   onRetryMessage?: (message: DisplayMessage) => void;
   onStopReading: () => void;
+  onPromote?: (message: DisplayMessage) => void;
   onSelectPrompt: (prompt: string) => void;
   hasEarlierMessages?: boolean;
   loadingEarlierHistory?: boolean;
@@ -48,6 +49,7 @@ interface TranscriptMessageRowProps {
   onRead: (message: DisplayMessage) => void;
   onRetryMessage?: (message: DisplayMessage) => void;
   onStopReading: () => void;
+  onPromote?: (message: DisplayMessage) => void;
   receipt: RunReceiptStore[string] | undefined;
   speakingMessageId: string;
   speechSupported: boolean;
@@ -64,6 +66,7 @@ const TranscriptMessageRow = memo(
     onCopy,
     onRead,
     onStopReading,
+    onPromote,
     onRetryMessage,
     receipt,
     speakingMessageId,
@@ -82,6 +85,7 @@ const TranscriptMessageRow = memo(
             onCopy={onCopy}
             onRead={onRead}
             onStopReading={onStopReading}
+            onPromote={onPromote}
             speakingMessageId={speakingMessageId}
             speechSupported={speechSupported}
           />
@@ -108,6 +112,7 @@ const TranscriptMessageRow = memo(
     previous.onCopy === next.onCopy &&
     previous.onRead === next.onRead &&
     previous.onStopReading === next.onStopReading &&
+    previous.onPromote === next.onPromote &&
     previous.onRetryMessage === next.onRetryMessage,
 );
 
@@ -128,6 +133,7 @@ export function ChatTranscript({
   speakingMessageId,
   onBranch,
   onCopy,
+  onPromote,
   onRead,
   onRetryHistory,
   onRetryMessage,
@@ -210,6 +216,7 @@ export function ChatTranscript({
               message={message}
               onBranch={onBranch}
               onCopy={onCopy}
+              onPromote={onPromote}
               onRead={onRead}
               onRetryMessage={onRetryMessage}
               onStopReading={onStopReading}

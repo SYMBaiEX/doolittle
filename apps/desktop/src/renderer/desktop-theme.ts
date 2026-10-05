@@ -577,6 +577,12 @@ export function applyDesktopTheme(
   profile: DesktopThemeProfile,
   source?: "imported" | "runtime",
 ): void {
+  // A v2 selection also broadcasts its legacy palette for Monaco/xterm consumers.
+  // That notification is not a request to replace its composition with v1 defaults.
+  if (!source && localStorage.getItem(THEME_V2_STORAGE_KEY)) {
+    const selected = loadStoredThemeManifest();
+    if (selected.id === profile.name) return;
+  }
   const bundle = migrateLegacyThemeBundle({
     kind: "doolittle.theme",
     version: 1,

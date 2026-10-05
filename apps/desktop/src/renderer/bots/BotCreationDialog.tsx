@@ -23,6 +23,7 @@ export interface BotCreationDialogProps {
   returnFocusTarget: HTMLElement | null;
   runtime: RuntimeStatus | null;
   workspacePath: string;
+  projectId?: string;
 }
 
 export function BotCreationDialog({
@@ -32,6 +33,7 @@ export function BotCreationDialog({
   returnFocusTarget,
   runtime,
   workspacePath,
+  projectId,
 }: BotCreationDialogProps) {
   const [step, setStep] = useState(0);
   const [name, setName] = useState(editingBot?.name ?? "");
@@ -140,6 +142,9 @@ export function BotCreationDialog({
           : {}),
       },
       workspacePath: botWorkspacePath.trim(),
+      ...((editingBot ? editingBot.projectId : projectId)
+        ? { projectId: editingBot ? editingBot.projectId : projectId }
+        : {}),
       permissions: {
         connectionIds,
         workspacePaths: [

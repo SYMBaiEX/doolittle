@@ -1,5 +1,6 @@
-import { Button as ElizaButton } from "@elizaos/ui/components/ui/button";
+import { Button as ElizaButton } from "@doolittle/ui";
 import {
+  BookmarkPlus,
   Check,
   Copy,
   GitFork,
@@ -12,7 +13,7 @@ import { UiIcon } from "../components/UiIcon";
 import type { BranchMode, CopyState, DisplayMessage } from "./models";
 
 const MESSAGE_ACTION_CLASS =
-  "chat-message-action-button !size-[26px] !min-h-[26px] !min-w-[26px] !rounded-[6px] !border-0 !bg-transparent !p-0 !text-[var(--muted)] hover:!bg-[var(--surface-hover)] hover:!text-[var(--text)] focus-visible:!bg-[var(--surface-hover)] focus-visible:!text-[var(--text)] motion-reduce:transition-none";
+  "chat-message-action-button !size-10 !min-h-10 !min-w-10 max-[760px]:!size-11 max-[760px]:!min-h-11 max-[760px]:!min-w-11 !border-0 !bg-transparent !p-0 !text-[var(--muted)] hover:!bg-[var(--surface-hover)] hover:!text-[var(--text)] focus-visible:!bg-[var(--surface-hover)] focus-visible:!text-[var(--text)] motion-reduce:transition-none";
 
 export interface MessageActionsProps {
   message: DisplayMessage;
@@ -26,6 +27,7 @@ export interface MessageActionsProps {
   onCopy: (message: DisplayMessage) => void;
   onRead: (message: DisplayMessage) => void;
   onStopReading: () => void;
+  onPromote?: (message: DisplayMessage) => void;
 }
 
 export function MessageActions({
@@ -40,6 +42,7 @@ export function MessageActions({
   onCopy,
   onRead,
   onStopReading,
+  onPromote,
 }: MessageActionsProps) {
   const label = copyState === "copied" ? "Copied" : "Copy";
   const failed = copyState === "failed";
@@ -70,6 +73,19 @@ export function MessageActions({
           {forkingMessageId === message.id ? "Branching…" : "Fork"}
         </span>
       </ElizaButton>
+      {onPromote && !message.pending && !message.error && message.runId ? (
+        <ElizaButton
+          className={MESSAGE_ACTION_CLASS}
+          aria-label="Promote message to project knowledge"
+          title="Save this message as project knowledge; sharing requires a separate grant"
+          disabled={!backendReady}
+          onClick={() => onPromote(message)}
+          type="button"
+          variant="ghost"
+        >
+          <UiIcon icon={BookmarkPlus} size="xs" />
+        </ElizaButton>
+      ) : null}
       {message.role === "user" ? (
         <ElizaButton
           className={MESSAGE_ACTION_CLASS}

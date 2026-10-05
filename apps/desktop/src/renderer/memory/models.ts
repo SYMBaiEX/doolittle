@@ -1,6 +1,6 @@
 import type { UnknownRecord } from "../lib";
 
-export type MemorySection = "shared" | "user" | "profiles";
+export type MemorySection = "shared" | "user" | "profiles" | "project";
 
 export interface MemorySummary {
   target?: "memory" | "user" | string;

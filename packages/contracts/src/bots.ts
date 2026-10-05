@@ -115,3 +115,16 @@ export interface SharedKnowledgeRecord {
   updatedAt: string;
   revokedAt?: string;
 }
+
+/** Grant metadata only; document content remains in the broker-owned worker. */
+export interface KnowledgeGrant {
+  knowledgeId: string;
+  botId: string;
+  grantedAt: string;
+  revokedAt?: string;
+}
+
+export interface SharedKnowledgeResponse {
+  knowledge: SharedKnowledgeRecord[];
+  grants: KnowledgeGrant[];
+}
