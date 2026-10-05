@@ -162,6 +162,14 @@ describe("native interface consent and recovery", () => {
     const url = controller.getState().entryUrl ?? "";
     expect(controller.trustedAsset(url).status).toBe(200);
     expect(
+      controller
+        .trustedAsset(url, "null")
+        .headers.get("access-control-allow-origin"),
+    ).toBe("null");
+    expect(controller.trustedAsset(url, "https://malicious.test").status).toBe(
+      403,
+    );
+    expect(
       controller.trustedAsset(
         url.replace(artifact.identity.digest, "b".repeat(64)),
       ).status,
@@ -221,6 +229,50 @@ describe("native interface consent and recovery", () => {
     await expect(activation).rejects.toThrow(/revoked/u);
     expect(controller.getState().mode).toBe("default");
     expect(community.setBounds).not.toHaveBeenCalled();
+    controller.dispose();
+  });
+
+  it("invalidates pending consent before a failing revocation write", async () => {
+    const { controller, artifact, confirm, host, community } = setup();
+    await controller.start();
+    let allow!: (value: boolean) => void;
+    confirm.mockImplementationOnce(
+      () =>
+        new Promise<boolean>((resolveConsent) => {
+          allow = resolveConsent;
+        }),
+    );
+    const activation = controller.activate({
+      identity: artifact.identity,
+      capabilities: ["message.send"],
+      targets: [target],
+    });
+    await vi.waitFor(() => expect(confirm).toHaveBeenCalledOnce());
+    vi.spyOn(host, "revoke").mockImplementationOnce(() => {
+      throw new Error("Storage unavailable.");
+    });
+    controller.workspaceChanged();
+    allow(true);
+    await expect(activation).rejects.toThrow(/revoked/u);
+    expect(controller.getState().mode).toBe("default");
+    expect(community.setBounds).not.toHaveBeenCalled();
+    controller.dispose();
+  });
+
+  it("disables the active trusted interface even if revocation cannot be saved", async () => {
+    const { controller, artifact, host } = setup("trusted-react");
+    await controller.start();
+    await controller.activate({ identity: artifact.identity });
+    const url = controller.getState().entryUrl ?? "";
+    vi.spyOn(host, "revoke").mockImplementationOnce(() => {
+      throw new Error("Storage unavailable.");
+    });
+    expect(() => controller.revoke(artifact.identity)).toThrow(/Storage/u);
+    expect(controller.getState()).toMatchObject({
+      mode: "default",
+      recovery: expect.stringContaining("could not be saved"),
+    });
+    expect(controller.trustedAsset(url).status).toBe(403);
     controller.dispose();
   });
 

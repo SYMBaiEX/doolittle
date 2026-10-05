@@ -376,12 +376,15 @@ function openWorkspacePath(path: string): Promise<WorkspacePickResult> {
 }
 
 function reportWorkspacePickerError(error: unknown): void {
-  dialog.showErrorBox(
-    "Unable to open workspace",
-    error instanceof Error
-      ? error.message
-      : "Doolittle could not open the selected workspace.",
-  );
+  const show = () =>
+    dialog.showErrorBox(
+      "Unable to open workspace",
+      error instanceof Error
+        ? error.message
+        : "Doolittle could not open the selected workspace.",
+    );
+  if (uiInterfaces) uiInterfaces.withProtectedDialogSync(show);
+  else show();
 }
 
 function installApplicationMenu(): void {
@@ -952,6 +955,17 @@ if (ownsSingleInstance)
         corruptUiHost ||
         process.argv.includes("--safe-ui") ||
         process.env.DOOLITTLE_SAFE_UI === "1",
+      rendererOrigin: trustedDevRendererUrl(
+        process.env.DOOLITTLE_RENDERER_URL,
+        app.isPackaged,
+      )
+        ? new URL(
+            trustedDevRendererUrl(
+              process.env.DOOLITTLE_RENDERER_URL,
+              app.isPackaged,
+            ) as string,
+          ).origin
+        : "null",
       commandsDisabled: corruptUiHost,
       ...(corruptUiHost
         ? {

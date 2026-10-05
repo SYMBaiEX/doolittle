@@ -46,6 +46,8 @@ export interface UiInterfaceControllerOptions {
   ipcMain: IpcMain;
   protocol: Pick<Protocol, "handle" | "unhandle">;
   safeMode: boolean;
+  /** Exact trusted development origin; packaged file:// modules use Origin:null. */
+  rendererOrigin?: string;
   commandsDisabled?: boolean;
   initialRecovery?: string;
   pickArtifactDirectory: () => Promise<string | undefined>;
@@ -205,7 +207,10 @@ export class UiInterfaceController {
   async start(): Promise<void> {
     this.registerIpc();
     this.options.protocol.handle(UI_SCHEME, (request) =>
-      this.trustedAsset(request.url),
+      this.trustedAsset(
+        request.url,
+        request.headers.get("origin") ?? undefined,
+      ),
     );
     const window = this.options.getWindow();
     if (window) this.attachWindow(window);
@@ -274,7 +279,7 @@ export class UiInterfaceController {
   }
 
   /** Default session serves only the currently approved, immutable trusted artifact. */
-  trustedAsset(rawUrl: string): Response {
+  trustedAsset(rawUrl: string, initiatorOrigin?: string): Response {
     const artifact = this.artifact;
     if (
       artifact?.manifest.trustTier !== "trusted-react" ||
@@ -283,6 +288,9 @@ export class UiInterfaceController {
       rawUrl.includes("?") ||
       rawUrl.includes("#")
     )
+      return new Response("Forbidden", { status: 403 });
+    const allowedOrigin = this.options.rendererOrigin ?? "null";
+    if (initiatorOrigin !== undefined && initiatorOrigin !== allowedOrigin)
       return new Response("Forbidden", { status: 403 });
     const prefix = `${UI_SCHEME}://trusted/${artifact.identity.digest}/`;
     if (!rawUrl.startsWith(prefix))
@@ -298,6 +306,8 @@ export class UiInterfaceController {
             "content-type": uiAssetMime(path),
             "x-content-type-options": "nosniff",
             "cache-control": "no-store",
+            "access-control-allow-origin": allowedOrigin,
+            vary: "Origin",
           },
         })
       : new Response("Not found", { status: 404 });
@@ -390,6 +400,7 @@ export class UiInterfaceController {
         }
         this.community?.dispose();
         this.community = undefined;
+        this.activationEpoch += 1;
         this.options.host.activate(artifact);
         this.artifact = artifact;
       } else {
@@ -496,6 +507,7 @@ export class UiInterfaceController {
           approvedAt: new Date().toISOString(),
         });
         stillCurrent();
+        this.activationEpoch += 1;
         this.artifact = artifact;
         this.showCommunity();
       }
@@ -510,27 +522,49 @@ export class UiInterfaceController {
     this.activationEpoch += 1;
     this.community?.dispose();
     this.community = undefined;
-    this.options.host.deactivate();
     this.artifact = undefined;
     this.recovery = undefined;
-    this.persistSelection();
+    try {
+      this.options.host.deactivate();
+      this.persistSelection();
+    } catch {
+      this.recovery =
+        "Default interface restored for this launch, but its saved selection could not be updated. Use --safe-ui if restarting before storage is repaired.";
+    }
     this.emit();
     return this.getState();
   }
 
   revoke(value: UiPluginArtifactIdentity): UiInterfaceState {
-    this.activationEpoch += 1;
     const selected = identity(value);
-    this.options.host.revoke(selected);
-    if (this.artifact && sameIdentity(this.artifact.identity, selected))
-      return this.restoreDefault();
+    this.activationEpoch += 1;
+    if (
+      this.artifact &&
+      (sameIdentity(this.artifact.identity, selected) ||
+        this.artifact.manifest.trustTier === "community-static")
+    )
+      this.restoreDefault();
+    try {
+      this.options.host.revoke(selected);
+    } catch (error) {
+      this.recovery =
+        "Interface access was disabled for this launch, but revocation could not be saved. Repair storage and use --safe-ui on restart.";
+      this.emit();
+      throw error;
+    }
     this.emit();
     return this.getState();
   }
 
   workspaceChanged(): void {
-    this.options.host.revoke();
     this.restoreDefault(); // Runs, transcripts and drafts remain untouched.
+    try {
+      this.options.host.revoke();
+    } catch {
+      this.recovery =
+        "Interface access was disabled for this launch, but revocation could not be saved. Repair storage and use --safe-ui on restart.";
+      this.emit();
+    }
   }
 
   private showCommunity(): void {

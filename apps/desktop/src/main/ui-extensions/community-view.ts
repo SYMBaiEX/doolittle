@@ -37,7 +37,12 @@ interface SchemeRegistrar {
   registerSchemesAsPrivileged(
     schemes: Array<{
       scheme: string;
-      privileges: { standard: boolean; secure: boolean };
+      privileges: {
+        standard: boolean;
+        secure: boolean;
+        supportFetchAPI: boolean;
+        corsEnabled: boolean;
+      };
     }>,
   ): void;
 }
@@ -45,7 +50,15 @@ interface SchemeRegistrar {
 /** Must be called once before app.ready; root owns the lifecycle hook. */
 export function registerUiExtensionScheme(protocol: SchemeRegistrar): void {
   protocol.registerSchemesAsPrivileged([
-    { scheme: UI_SCHEME, privileges: { standard: true, secure: true } },
+    {
+      scheme: UI_SCHEME,
+      privileges: {
+        standard: true,
+        secure: true,
+        supportFetchAPI: true,
+        corsEnabled: true,
+      },
+    },
   ]);
 }
 

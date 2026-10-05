@@ -481,10 +481,10 @@ export class UiExtensionHost implements UiHostV1 {
   }
 
   deactivate(): void {
-    this.bumpGeneration();
     this.active = undefined;
     this.visible = false;
     this.attachments.clear();
+    this.bumpGeneration();
   }
 
   setVisible(visible: boolean): void {
