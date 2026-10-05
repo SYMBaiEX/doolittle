@@ -27,6 +27,34 @@ function fakeStorage(): Storage & { values: Map<string, string> } {
 }
 
 describe("interactive terminal state", () => {
+  it("isolates bots and conversations at the same workspace without adopting another bot's legacy PTY", () => {
+    const storage = fakeStorage();
+    const tab = createInteractiveTerminalTab("Lead shell");
+    tab.sessionId = "lead-pty";
+    tab.state = "running";
+    const state = { activeTabId: tab.id, tabs: [tab] };
+    saveInteractiveTerminalState("/workspace", state, storage);
+    expect(
+      loadInteractiveTerminalState("/workspace", storage, "specialist/chat")
+        .tabs[0]?.sessionId,
+    ).toBeNull();
+    expect(
+      loadInteractiveTerminalState("/workspace", storage, "lead/chat", true)
+        .tabs[0]?.sessionId,
+    ).toBe("lead-pty");
+    saveInteractiveTerminalState("/workspace", state, storage, "lead/chat");
+    expect(
+      loadInteractiveTerminalState("/workspace", storage, "lead/other").tabs[0]
+        ?.sessionId,
+    ).toBeNull();
+    expect(
+      loadInteractiveTerminalState("/workspace", storage, "lead/chat").tabs[0]
+        ?.sessionId,
+    ).toBe("lead-pty");
+    expect(
+      loadInteractiveTerminalState("/workspace", storage).tabs[0]?.sessionId,
+    ).toBe("lead-pty");
+  });
   it("removes obsolete navigation-poll notices from persisted output", () => {
     const tab = createInteractiveTerminalTab("Terminal 1");
     tab.output = [

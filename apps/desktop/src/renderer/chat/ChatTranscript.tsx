@@ -1,5 +1,5 @@
+import { StateSurface } from "@doolittle/ui";
 import { memo, type RefObject } from "react";
-import { EmptyBlock } from "../lib";
 import { ChatMessage } from "./ChatMessage";
 import { MessageActions } from "./MessageActions";
 import type {
@@ -17,6 +17,7 @@ export interface ChatTranscriptProps {
   runReceipts: RunReceiptStore;
   progress: string;
   projectName?: string;
+  botName?: string;
   endRef: RefObject<HTMLDivElement | null>;
   backendReady: boolean;
   activeRequest: string | null;
@@ -117,6 +118,7 @@ export function ChatTranscript({
   runReceipts,
   progress,
   projectName,
+  botName,
   endRef,
   backendReady,
   activeRequest,
@@ -154,13 +156,11 @@ export function ChatTranscript({
       role="log"
     >
       {loading ? (
-        <div className="chat-loading">
-          <i />
-          Loading conversation…
-        </div>
+        <StateSurface kind="loading" title="Loading conversation…" />
       ) : historyError ? (
-        <EmptyBlock
-          actions={
+        <StateSurface
+          kind="error"
+          action={
             <button
               className="text-button"
               onClick={onRetryHistory}
@@ -172,7 +172,7 @@ export function ChatTranscript({
           title="Conversation unavailable"
         >
           {historyError}
-        </EmptyBlock>
+        </StateSurface>
       ) : messages.length ? (
         <>
           {hasEarlierMessages && onLoadEarlier ? (
@@ -227,7 +227,11 @@ export function ChatTranscript({
           ))}
         </>
       ) : (
-        <Welcome onSelect={onSelectPrompt} projectName={projectName} />
+        <Welcome
+          onSelect={onSelectPrompt}
+          projectName={projectName}
+          botName={botName}
+        />
       )}
       {showStandaloneProgress ? (
         <div aria-live="polite" className="chat-progress" role="status">

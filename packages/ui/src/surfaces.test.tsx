@@ -39,7 +39,7 @@ describe("controlled browser-only compositions", () => {
       }),
     );
     expect(markup).toContain('aria-current="page"');
-    expect(markup).toContain('aria-label="Needs attention"');
+    expect(markup).toContain('aria-label="Attention"');
     expect(markup).toContain('type="button"');
   });
 

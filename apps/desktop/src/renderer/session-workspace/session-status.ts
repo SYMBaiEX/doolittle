@@ -21,7 +21,7 @@ export function sessionPanelStatus({
   if (activeRequest) {
     const run = receipts[activeRequest]?.latest.run;
     if (run?.pendingApprovals)
-      return `Needs approval · ${run.pendingApprovals}`;
+      return `Attention · ${run.pendingApprovals} approval${run.pendingApprovals === 1 ? "" : "s"}`;
     if (run?.status === "waiting") return "Waiting";
     return backendPhase === "ready" ? "Running" : "Reconnecting";
   }
@@ -32,7 +32,7 @@ export function sessionPanelStatus({
       right.latest.run.startedAt.localeCompare(left.latest.run.startedAt),
     )[0];
   if (receipt?.latest.run.status === "error" || messages.at(-1)?.error)
-    return "Failed";
+    return "Error";
   if (receipt?.latest.run.status === "cancelled") return "Stopped";
   if (receipt?.latest.run.status === "complete") return "Complete";
   // Missing bounded run history is not evidence that a session completed.
@@ -41,6 +41,6 @@ export function sessionPanelStatus({
     : backendPhase === "booting"
       ? "Connecting"
       : backendPhase === "degraded"
-        ? "Needs attention"
+        ? "Attention"
         : "Offline";
 }

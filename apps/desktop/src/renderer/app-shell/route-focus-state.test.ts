@@ -17,6 +17,9 @@ const workSource = readFileSync(
 
 describe("desktop route focus", () => {
   test("keys Code and Work snapshots by both workspace and project scope", () => {
+    expect(desktopRouteFocusScope("/work/a", "project-a", "bot/one")).not.toBe(
+      desktopRouteFocusScope("/work/a", "project-a", "bot/two"),
+    );
     expect(desktopRouteFocusScope("/work/a", "project-a")).not.toBe(
       desktopRouteFocusScope("/work/a", "project-b"),
     );

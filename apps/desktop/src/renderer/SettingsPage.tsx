@@ -49,6 +49,7 @@ import {
   LazyCompatibilityPage,
   LazyConnectionsPage,
   LazyDocsPage,
+  LazyInterfacePanel,
   LazyKeysPage,
   LazyLogsPage,
   LazyMemoryPage,
@@ -119,7 +120,7 @@ export function settingsResourcePolicy(
 }
 
 export function settingsCategoryOffline(category: string, active: boolean) {
-  return !active && !["appearance", "desktop"].includes(category);
+  return !active && !["appearance", "desktop", "interfaces"].includes(category);
 }
 
 export function SettingsPage({
@@ -138,6 +139,20 @@ export function SettingsPage({
   refreshRuntime?: () => void;
 }) {
   const [category, setCategory] = useState<string>(section ?? "appearance");
+  useEffect(() => {
+    const openInterfaces = () => {
+      if (document.documentElement.dataset.interfaceSettings !== "true") return;
+      delete document.documentElement.dataset.interfaceSettings;
+      setCategory("interfaces");
+    };
+    openInterfaces();
+    window.addEventListener("doolittle:interface-settings", openInterfaces);
+    return () =>
+      window.removeEventListener(
+        "doolittle:interface-settings",
+        openInterfaces,
+      );
+  }, []);
   const resourcePolicy = settingsResourcePolicy(category, active);
   const settings = useApiResource<SettingsResponse>(
     resourcePolicy.settings ? "/settings" : null,
@@ -474,6 +489,11 @@ export function SettingsPage({
               themesError={themes.error}
               onThemeReload={themes.reload}
             />
+          ) : null}
+          {category === "interfaces" ? (
+            <Suspense fallback={<LoadingBlock label="Loading interfaces…" />}>
+              <LazyInterfacePanel />
+            </Suspense>
           ) : null}
           {!runtimeCategoryOffline && category === "model" ? (
             <Suspense

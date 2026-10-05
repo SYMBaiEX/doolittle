@@ -212,6 +212,7 @@ class Projection implements AgUiEventStream {
     if (
       this.closed ||
       event.type === "snapshot" ||
+      event.type === "draft.changed" ||
       !sameTarget(event.target, this.target) ||
       event.runId !== this.runId ||
       event.sequence <= this.lastSequence
@@ -484,8 +485,10 @@ export class AgUiHostAdapter {
     const runId = input.runId;
     const message = validateInput(input, owned);
     const projection = new Projection(owned, runId, 0);
-    projection.attach(this.host.subscribe(projection.receive));
+    const subscription = this.host.subscribe(projection.receive);
+    projection.attach(subscription);
     try {
+      await subscription.ready;
       const result = await this.host.dispatch({
         type: "chat.send",
         target: owned,
@@ -519,9 +522,12 @@ export class AgUiHostAdapter {
     if (!runIdentity.test(runId))
       throw new Error("A canonical run identity is required.");
     const projection = new Projection(owned, runId, afterSequence);
-    projection.attach(this.host.subscribe(projection.receive, afterSequence));
-    void this.host
-      .dispatch({ type: "run.read", target: owned, runId })
+    const subscription = this.host.subscribe(projection.receive, afterSequence);
+    projection.attach(subscription);
+    void Promise.resolve(subscription.ready)
+      .then(() =>
+        this.host.dispatch({ type: "run.read", target: owned, runId }),
+      )
       .then(async (result) => {
         if (
           !result.accepted ||

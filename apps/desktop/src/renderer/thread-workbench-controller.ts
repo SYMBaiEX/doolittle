@@ -7,7 +7,7 @@ import {
   asRecord,
   asString,
   desktopRequest,
-  useApiResource,
+  useApiResource as useApplicationResource,
 } from "./lib";
 import type {
   RepositoryBranchesResponse,
@@ -231,15 +231,30 @@ export function workbenchResourceDependencies(
 
 export function useThreadWorkbenchRailController({
   active,
+  botId,
   sessionId,
   workspacePath,
   onInsertContext,
 }: {
   active: boolean;
+  botId?: string;
   sessionId: string;
   workspacePath: string;
   onInsertContext: (text: string) => void;
 }) {
+  function useApiResource<T>(
+    path: string | null,
+    dependencies: readonly unknown[] = [],
+  ) {
+    return useApplicationResource<T>(
+      path,
+      dependencies,
+      botId,
+      botId
+        ? { botId, originConversationId: sessionId, workspacePath }
+        : undefined,
+    );
+  }
   const storage = useMemo(() => browserThreadWorkbenchStorage(), []);
   const [model, setModel] = useState<ThreadWorkbenchState>(() =>
     loadThreadWorkbenchState({ sessionId, workspacePath }, storage),
@@ -251,6 +266,8 @@ export function useThreadWorkbenchRailController({
   const [checkpointMessage, setCheckpointMessage] = useState("");
   const [checkpointBusy, setCheckpointBusy] = useState(false);
   const acpEditor = useDesktopAcpEditorBridge({
+    botId,
+    originConversationId: sessionId,
     active: active && model.selectedTab === "files" && !!workspacePath,
     workspacePath,
   });
@@ -490,6 +507,12 @@ export function useThreadWorkbenchRailController({
         "/workspace/checkpoints",
         "POST",
         { label: "Operator checkpoint" },
+        undefined,
+        undefined,
+        botId,
+        botId
+          ? { botId, originConversationId: sessionId, workspacePath }
+          : undefined,
       );
       setCheckpointMessage(
         `Created checkpoint ${asString(response.checkpoint?.id, "")}.`,
@@ -517,6 +540,12 @@ export function useThreadWorkbenchRailController({
         `/workspace/checkpoints/${encodeURIComponent(id)}/restore`,
         "POST",
         { confirmCheckpointId: id },
+        undefined,
+        undefined,
+        botId,
+        botId
+          ? { botId, originConversationId: sessionId, workspacePath }
+          : undefined,
       );
       setCheckpointMessage(`Restored ${id}. Runtime remains running.`);
       changes.reload();

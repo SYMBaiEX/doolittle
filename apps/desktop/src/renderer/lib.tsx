@@ -1,3 +1,4 @@
+import { StateSurface } from "@doolittle/ui";
 import { PagePanel } from "@elizaos/ui/components/composites/page-panel";
 import { Badge as ElizaBadge } from "@elizaos/ui/components/ui/badge";
 import { getCached, revalidate } from "@elizaos/ui/hooks/resource-cache";
@@ -10,6 +11,7 @@ import {
   useState,
 } from "react";
 import { UiIcon } from "./components/UiIcon";
+import type { ComputerOrigin } from "./computer-origin";
 import { desktopRequest } from "./eliza-client";
 
 export { desktopRequest } from "./eliza-client";
@@ -117,12 +119,32 @@ export function displayTimestamp(value?: string): string {
 export function useApiResource<T>(
   path: string | null,
   dependencies: DependencyList = [],
+  botId?: string,
+  origin?: ComputerOrigin,
 ): ApiResource<T> {
   const resource = useCachedResource<T | null>(
-    apiResourceCacheKey(path, dependencies),
+    apiResourceCacheKey(
+      path,
+      botId
+        ? [
+            ...dependencies,
+            botId,
+            origin?.originConversationId,
+            origin?.workspacePath,
+          ]
+        : dependencies,
+    ),
     (signal) =>
       path
-        ? desktopRequest<T>(path, "GET", undefined, signal)
+        ? desktopRequest<T>(
+            path,
+            "GET",
+            undefined,
+            signal,
+            undefined,
+            botId,
+            origin,
+          )
         : Promise.resolve(null),
     { staleTime: API_RESOURCE_STALE_TIME_MS },
   );
@@ -220,12 +242,9 @@ export function Notice({
 
 export function LoadingBlock({ label = "Loading…" }: { label?: string }) {
   return (
-    <PagePanel.Loading
-      aria-live="polite"
-      className="loading-block"
-      heading={<span>{label}</span>}
-      role="status"
-    />
+    <div className="loading-block">
+      <StateSurface kind="loading" title={label} />
+    </div>
   );
 }
 
@@ -268,19 +287,19 @@ export function EmptyBlock({
   density?: "default" | "compact";
 }) {
   return (
-    <PagePanel.Empty
-      action={
-        actions ? <div className="empty-actions">{actions}</div> : undefined
-      }
+    <div
       className={`empty-block${density === "compact" ? " empty-block--compact" : ""}`}
-      title={title}
-      variant="inset"
     >
-      <div className="empty-glyph" aria-hidden="true">
-        ∴
-      </div>
-      <p>{children}</p>
-    </PagePanel.Empty>
+      <StateSurface
+        kind="empty"
+        title={title}
+        action={
+          actions ? <div className="empty-actions">{actions}</div> : undefined
+        }
+      >
+        {children}
+      </StateSurface>
+    </div>
   );
 }
 

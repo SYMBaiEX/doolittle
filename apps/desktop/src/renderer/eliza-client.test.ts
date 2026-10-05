@@ -32,6 +32,73 @@ afterEach(() => {
 });
 
 describe("desktop Eliza client transport", () => {
+  it("captures Computer origin on requests and refuses a conflicting owner", async () => {
+    const requests: AgentTransportRequest[] = [];
+    installTransport(async (request) => {
+      requests.push(request);
+      return { status: 200, statusText: "OK", headers: {}, body: "{}" };
+    });
+    const origin = {
+      botId: "bot-one",
+      originConversationId: "thread-one",
+      workspacePath: "/tmp/one",
+    };
+    await desktopRequest(
+      "/workspace/read?path=README.md",
+      "GET",
+      undefined,
+      undefined,
+      undefined,
+      "bot-one",
+      origin,
+    );
+    expect(requests[0]).toMatchObject(origin);
+    await expect(
+      desktopRequest(
+        "/workspace/tree",
+        "GET",
+        undefined,
+        undefined,
+        undefined,
+        "bot-two",
+        origin,
+      ),
+    ).rejects.toThrow(/owner/i);
+    expect(requests).toHaveLength(1);
+  });
+  it("captures each request's bot owner without mutating the global client", async () => {
+    const requestAgent = vi.fn(async () => ({
+      status: 200,
+      statusText: "OK",
+      headers: {},
+      body: "{}",
+    }));
+    installTransport(requestAgent);
+    await Promise.all([
+      desktopRequest(
+        "/sessions?limit=200",
+        "GET",
+        undefined,
+        undefined,
+        undefined,
+        "bot-one",
+      ),
+      desktopRequest(
+        "/sessions?limit=200",
+        "GET",
+        undefined,
+        undefined,
+        undefined,
+        "bot-two",
+      ),
+      desktopRequest("/runtime/status"),
+    ]);
+    expect(requestAgent.mock.calls.map(([request]) => request.botId)).toEqual([
+      "bot-one",
+      "bot-two",
+      undefined,
+    ]);
+  });
   it("routes JSON requests through the official Eliza transport contract", async () => {
     const requestAgent = vi.fn(
       async (
@@ -127,7 +194,10 @@ describe("desktop Eliza client transport", () => {
     controller.abort();
 
     await expect(pending).rejects.toMatchObject({ name: "AbortError" });
-    expect(cancelAgentRequest).toHaveBeenCalledWith(expect.any(String));
+    expect(cancelAgentRequest).toHaveBeenCalledWith(
+      expect.any(String),
+      undefined,
+    );
   });
 
   it("forwards cancellation through the desktop client helper", async () => {

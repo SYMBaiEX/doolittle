@@ -1,3 +1,4 @@
+import { ConversationFrame } from "@doolittle/ui";
 import { useMediaQuery } from "@elizaos/ui/hooks/useMediaQuery";
 import {
   type FormEvent,
@@ -20,6 +21,7 @@ import type {
   SessionForkResponse,
   SessionSummary,
 } from "../shared/contracts";
+import { liveBotIds, loadOwnedRunInventory } from "./bots/run-inventory";
 import { ChatHeaderChrome } from "./chat/ChatHeaderChrome";
 import {
   CompanionInspector,
@@ -72,6 +74,7 @@ import {
   safeSetStorageItem,
   saveConversationQueue,
 } from "./conversation-persistence";
+import { NativeUiHost } from "./interfaces/native-ui-host";
 import { desktopRequest, errorMessage } from "./lib";
 import {
   freezeMemoryMatchSnapshot,
@@ -268,7 +271,10 @@ export interface ChatPageProps {
   refreshRuntime: () => void;
   onOpenModelsPage: () => void;
   onOpenProvidersPage: () => void;
-  onOpenWorkspaceView: (view: ThreadWorkbenchFullView) => void;
+  onOpenWorkspaceView: (
+    view: ThreadWorkbenchFullView,
+    origin?: import("./computer-origin").ComputerOrigin,
+  ) => void;
   onConsumeContextHandoff: (id: string) => void;
   activeProject?: {
     id: string;
@@ -299,11 +305,11 @@ export function ChatSessionPanel({
   onBindSessionBot,
   onActivateBot,
   routeActive = true,
-  backend,
+  backend: hostBackend,
   runtime,
   remoteSessions,
   selectedId,
-  workspacePath,
+  workspacePath: hostWorkspacePath,
   onSelect,
   refreshRuntime,
   onOpenModelsPage,
@@ -332,6 +338,42 @@ export function ChatSessionPanel({
   focused?: boolean;
   visible?: boolean;
 }) {
+  const resolveSessionBot = (sessionId: string) =>
+    botIdForSession
+      ? botIdForSession(sessionId)
+      : defaultBotId || selectedBotId || "";
+  const currentBotId = resolveSessionBot(selectedId);
+  const currentBot = bots?.find((bot) => bot.id === currentBotId);
+  const backend =
+    currentBot && !currentBot.isDefault
+      ? {
+          ...hostBackend,
+          phase: (["ready", "busy", "waiting"].includes(currentBot.state)
+            ? "ready"
+            : currentBot.state === "starting"
+              ? "booting"
+              : currentBot.state === "error"
+                ? "degraded"
+                : "stopped") as BackendState["phase"],
+          message:
+            currentBot.error ?? `${currentBot.name} is ${currentBot.state}`,
+        }
+      : hostBackend;
+  const workspacePath =
+    currentBot && !currentBot.isDefault
+      ? currentBot.workspacePath
+      : hostWorkspacePath;
+  const openComputerView = (view: ThreadWorkbenchFullView) =>
+    onOpenWorkspaceView(
+      view,
+      currentBotId
+        ? {
+            botId: currentBotId,
+            originConversationId: selectedId,
+            workspacePath,
+          }
+        : undefined,
+    );
   const [activeRequests, setActiveRequests] = useWorkspaceState<
     Record<string, string>
   >("run.active-requests", {});
@@ -355,12 +397,23 @@ export function ChatSessionPanel({
     "run.hydration-retry",
     0,
   );
+  const recoveryBotIds = liveBotIds(bots).join(",");
+  useEffect(() => {
+    if (!coordinator || !window.doolittle.ui) return;
+    const host = new NativeUiHost(window.doolittle.ui);
+    host.subscribe((event) => {
+      if (event.type === "run.state")
+        setRunHydrationRetry((current) => current + 1);
+    });
+    return () => host.dispose();
+  }, [coordinator, setRunHydrationRetry]);
   const {
     draft,
     draftAttachments,
     draftAttachmentCleanup,
     chatContextCapsule,
     clearDraftForDispatch,
+    getDraftRevision,
     hasEarlierMessages,
     historyError,
     loadEarlierHistory,
@@ -389,6 +442,8 @@ export function ChatSessionPanel({
     requestSession,
     selectedId,
     persistenceOwner: coordinator,
+    nativeHostReady: backend.phase === "ready",
+    botIdForSession,
   });
   const latestSelectedMessage = selectedMessages.at(-1);
   const workspaceBinding = sessionWorkspaceBinding(
@@ -401,9 +456,6 @@ export function ChatSessionPanel({
     workspaceBinding.kind === "foreign" ? workspaceBinding.project : undefined;
   const workspaceBindingBlocked =
     workspaceBinding.kind === "foreign" || workspaceBinding.kind === "unknown";
-  const currentBotId =
-    botIdForSession?.(selectedId) || defaultBotId || selectedBotId;
-  const currentBot = bots?.find((bot) => bot.id === currentBotId);
   const botReady = currentBot
     ? ["ready", "busy", "waiting"].includes(currentBot.state)
     : !currentBotId || currentBotId === defaultBotId;
@@ -430,6 +482,34 @@ export function ChatSessionPanel({
     () => savedView?.inspectorVisible ?? loadInspectorVisibility(),
   );
   const [inspectorTab, setInspectorTab] = useState<InspectorTab>("details");
+  useEffect(() => {
+    if (coordinator || !window.doolittle.ui) return;
+    let disposed = false;
+    const applySurface = (request: {
+      target: { botId: string; sessionId: string };
+      surface: InspectorTab;
+    }) => {
+      if (
+        disposed ||
+        request.target.sessionId !== selectedId ||
+        request.target.botId !== currentBotId
+      )
+        return;
+      setInspectorTab(request.surface);
+      setInspectorVisible(true);
+    };
+    const detach = window.doolittle.ui.onSurface(applySurface);
+    void window.doolittle.ui
+      .getState()
+      .then((state) => {
+        if (state.hostSurface) applySurface(state.hostSurface);
+      })
+      .catch(() => undefined);
+    return () => {
+      disposed = true;
+      detach();
+    };
+  }, [coordinator, currentBotId, selectedId]);
   const workspaceRef = useRef<HTMLDivElement>(null);
   const [narrowPanel, setNarrowPanel] = useState(false);
   useEffect(() => {
@@ -582,6 +662,8 @@ export function ChatSessionPanel({
     composerRef,
     draft,
     selectedId,
+    botId: currentBotId,
+    botIdForSession,
     setCommandMenuDismissed,
     setDraft,
     setQueueAnnouncement,
@@ -661,6 +743,7 @@ export function ChatSessionPanel({
   const cleanupManagedAttachments = async (
     ids: readonly string[],
     attachmentCleanup: Readonly<Record<string, string>>,
+    botId = currentBotId,
   ) => {
     const byCapability = new Map<string, string[]>();
     for (const id of ids) {
@@ -672,6 +755,7 @@ export function ChatSessionPanel({
     }
     for (const [cleanupCapability, attachmentIds] of byCapability) {
       await window.doolittle.discardChatAttachments({
+        ...(botId ? { botId } : {}),
         attachmentIds,
         cleanupCapability,
       });
@@ -885,6 +969,7 @@ export function ChatSessionPanel({
       );
     }
     delete requestSession.current[requestId];
+    delete requestBot.current[requestId];
     refreshRuntime();
     if (completedSessionId) {
       void refreshSessionUsage(completedSessionId);
@@ -896,7 +981,10 @@ export function ChatSessionPanel({
     setCancellingRequests((current) => ({ ...current, [requestId]: true }));
     setQueueAnnouncement("Stopping the current response…");
     try {
-      await window.doolittle.cancelChat(requestId);
+      await window.doolittle.cancelChat(
+        requestId,
+        requestBot.current[requestId],
+      );
       if (requestSession.current[requestId]) {
         cancellationTimers.current[requestId] = window.setTimeout(() => {
           delete cancellationTimers.current[requestId];
@@ -1063,10 +1151,7 @@ export function ChatSessionPanel({
     if (!coordinator || backend.phase !== "ready") return;
     setRunHydration("checking");
     let disposed = false;
-    void desktopRequest<{ runs?: unknown; updates?: unknown }>(
-      "/chat/runs?limit=50&include_updates=true",
-      "GET",
-    )
+    void loadOwnedRunInventory(recoveryBotIds ? recoveryBotIds.split(",") : [])
       .then((payload) => {
         if (disposed) return;
         if (!Array.isArray(payload.runs)) {
@@ -1090,7 +1175,12 @@ export function ChatSessionPanel({
             typeof run.botId === "string"
               ? run.botId
               : botIdForSession?.(sessionId) || defaultBotId;
-          if (run.source !== "desktop") continue;
+          if (
+            !["desktop", "desktop-ui", "desktop-consultation"].includes(
+              String(run.source),
+            )
+          )
+            continue;
           if (!runId || !sessionId) continue;
           if (["complete", "cancelled", "error"].includes(status)) {
             const receipt = historicalRunReceipt(run, persistedUpdates[runId]);
@@ -1167,6 +1257,7 @@ export function ChatSessionPanel({
     defaultBotId,
     onBindSessionBot,
     requestBot,
+    recoveryBotIds,
   ]);
 
   const sendMessage = async (
@@ -1204,8 +1295,7 @@ export function ChatSessionPanel({
       activeRequestSessionsRef.current[sessionId] ||
       activeRequests[sessionId] ||
       (() => {
-        const ownerId =
-          botIdForSession?.(sessionId) || defaultBotId || selectedBotId;
+        const ownerId = resolveSessionBot(sessionId);
         const owner = bots?.find((bot) => bot.id === ownerId);
         return owner
           ? !["ready", "busy", "waiting"].includes(owner.state)
@@ -1232,17 +1322,44 @@ export function ChatSessionPanel({
             ?.projectId ?? activeProject?.id)
         : (projectIdOverride ?? undefined);
     const requestId = crypto.randomUUID();
-    const botId = botIdForSession?.(sessionId) || defaultBotId || selectedBotId;
+    const dispatchedDraftRevision = getDraftRevision(sessionId);
+    const botId = resolveSessionBot(sessionId);
+    if (botIdForSession && !botId) {
+      setQueueAnnouncement(
+        "This conversation's owner is unavailable. Select its bot before sending.",
+      );
+      return false;
+    }
+    if (botId) {
+      activeRequestSessionsRef.current[sessionId] = true;
+      try {
+        await desktopRequest(
+          `/bots/${encodeURIComponent(botId)}/conversations`,
+          "POST",
+          {
+            sessionId,
+            ...(requestProjectId ? { projectId: requestProjectId } : {}),
+          },
+        );
+      } catch {
+        delete activeRequestSessionsRef.current[sessionId];
+        setQueueAnnouncement(
+          "Conversation ownership could not be confirmed. Your draft has been kept.",
+        );
+        return false;
+      }
+    }
     if (botId) onBindSessionBot?.(sessionId, botId);
     const createdAt = new Date().toISOString();
-    const dispatchedDraft = clearComposer
-      ? {
-          text: input,
-          attachments: messageAttachments,
-          attachmentCleanup,
-          capsule: contextCapsule,
-        }
-      : null;
+    const dispatchedDraft =
+      clearComposer && getDraftRevision(sessionId) === dispatchedDraftRevision
+        ? {
+            text: input,
+            attachments: messageAttachments,
+            attachmentCleanup,
+            capsule: contextCapsule,
+          }
+        : null;
     requestSession.current[requestId] = sessionId;
     if (botId) requestBot.current[requestId] = botId;
     activeRequestSessionsRef.current[sessionId] = true;
@@ -1326,6 +1443,7 @@ export function ChatSessionPanel({
           void cleanupManagedAttachments(
             messageAttachments.map((attachment) => attachment.id),
             attachmentCleanup,
+            botId,
           ).catch(() => undefined);
         }
       }
@@ -1366,6 +1484,9 @@ export function ChatSessionPanel({
     setForkingMessageId(message.id);
     try {
       const boundaryMessage = mode === "retry" ? retryPrompt : message;
+      const sourceBotId = resolveSessionBot(selectedId);
+      if (botIdForSession && !sourceBotId)
+        throw new Error("Conversation owner is unavailable.");
       const response = await desktopRequest<SessionForkResponse>(
         "/sessions/fork",
         "POST",
@@ -1378,10 +1499,11 @@ export function ChatSessionPanel({
               sourceSessionId: selectedId,
               beforeMessageId: boundaryMessage?.id,
             },
+        undefined,
+        undefined,
+        sourceBotId,
       );
       const fork = response.fork;
-      const sourceBotId =
-        botIdForSession?.(selectedId) || defaultBotId || selectedBotId;
       if (sourceBotId) onBindSessionBot?.(fork.sessionId, sourceBotId);
 
       if (mode === "edit") {
@@ -1596,6 +1718,7 @@ export function ChatSessionPanel({
 
   const createConversation = () => {
     const id = newConversationId();
+    if (currentBotId) onBindSessionBot?.(id, currentBotId);
     setMessages((current) => ({ ...current, [id]: [] }));
     onSelect(id);
   };
@@ -1614,10 +1737,13 @@ export function ChatSessionPanel({
   const pickContextFiles = async () => {
     if (attachmentImportPending) return;
     const sessionId = selectedId;
+    const botId = currentBotId;
     const revision = attachmentRevisionRef.current;
     setAttachmentImportPending(true);
     try {
-      const result = await window.doolittle.pickChatAttachments();
+      const result = await window.doolittle.pickChatAttachments(
+        botId || undefined,
+      );
       if (result.canceled || result.attachments.length === 0) return;
       const cleanupCapability = result.cleanupCapability;
       const isCurrentDraft =
@@ -1626,6 +1752,7 @@ export function ChatSessionPanel({
       if (!isCurrentDraft) {
         if (cleanupCapability) {
           await window.doolittle.discardChatAttachments({
+            ...(botId ? { botId } : {}),
             attachmentIds: result.attachments.map(
               (attachment) => attachment.id,
             ),
@@ -1663,6 +1790,7 @@ export function ChatSessionPanel({
       if (cleanupCapability) {
         if (rejectedIds.length > 0) {
           await window.doolittle.discardChatAttachments({
+            ...(botId ? { botId } : {}),
             attachmentIds: rejectedIds,
             cleanupCapability,
           });
@@ -1697,13 +1825,14 @@ export function ChatSessionPanel({
         throw new DOMException("Voice dictation was cancelled.", "AbortError");
       }
       const attachment = await window.doolittle.importRecordedAudio({
+        ...(currentBotId ? { botId: currentBotId } : {}),
         bytes,
         mimeType,
         name,
       });
       if (signal.aborted) {
         await window.doolittle
-          .discardRecordedAudio(attachment.id)
+          .discardRecordedAudio(attachment.id, currentBotId || undefined)
           .catch(() => undefined);
         throw new DOMException("Voice dictation was cancelled.", "AbortError");
       }
@@ -1718,16 +1847,18 @@ export function ChatSessionPanel({
             name,
           },
           signal,
+          undefined,
+          currentBotId || undefined,
         );
         return { transcriptText: result.transcription.transcriptText };
       } catch (error) {
         await window.doolittle
-          .discardRecordedAudio(attachment.id)
+          .discardRecordedAudio(attachment.id, currentBotId || undefined)
           .catch(() => undefined);
         throw error;
       }
     },
-    [],
+    [currentBotId],
   );
 
   const insertDictationTranscript = useCallback(
@@ -1816,8 +1947,10 @@ export function ChatSessionPanel({
     setInspectorVisible(true);
   };
 
-  const runtimeProvider = runtime?.provider ?? "Loading provider";
-  const runtimeModel = runtime?.model ?? "Loading model";
+  const runtimeProvider =
+    currentBot?.model.provider ?? runtime?.provider ?? "Loading provider";
+  const runtimeModel =
+    currentBot?.model.model ?? runtime?.model ?? "Loading model";
   const modelRouteLabel = `${runtimeProvider} · ${runtimeModel}`;
   const attachmentTotalBytes = attachedFiles.reduce(
     (sum, attachment) => sum + attachment.sizeBytes,
@@ -1872,7 +2005,7 @@ export function ChatSessionPanel({
               modelRouteLabel={modelRouteLabel}
               onOpenMobileConversations={() => setMobileConversationsOpen(true)}
               onOpenRouteControls={() => setRouteDialogOpen(true)}
-              onOpenWorkspace={() => onOpenWorkspaceView("code")}
+              onOpenWorkspace={() => openComputerView("code")}
               onPrepareCompression={() => {
                 setDraft((current) =>
                   current.trim() ? current : "/compress ",
@@ -1898,7 +2031,7 @@ export function ChatSessionPanel({
             chromeHost,
           )
         : null}
-      <section
+      <ConversationFrame
         aria-hidden={
           (inspectorVisible && isNarrowWorkbench) || surface !== "conversation"
             ? "true"
@@ -1913,6 +2046,7 @@ export function ChatSessionPanel({
         }
       >
         <ChatTranscript
+          botName={currentBot?.name}
           activeRequest={activeRequest}
           backendReady={backend.phase === "ready"}
           copyStates={copyStates}
@@ -1969,6 +2103,7 @@ export function ChatSessionPanel({
           {accessibilityStatus}
         </div>
         <ChatComposer
+          bot={currentBot}
           approvalsVisible={
             routeActive &&
             visible &&
@@ -2123,7 +2258,7 @@ export function ChatSessionPanel({
           pendingApprovals={pendingApprovals}
           runningTasks={runningTasks}
         />
-      </section>
+      </ConversationFrame>
       <section
         aria-hidden={surface !== "history" ? "true" : undefined}
         aria-label="Conversation history"
@@ -2209,7 +2344,7 @@ export function ChatSessionPanel({
             messageCount={selectedMessageCount}
             onClose={closeInspector}
             onInsertContext={insertChatContext}
-            onOpenFullView={onOpenWorkspaceView}
+            onOpenFullView={openComputerView}
             onTabChange={setInspectorTab}
             sessionId={selectedId}
             tab={inspectorTab}

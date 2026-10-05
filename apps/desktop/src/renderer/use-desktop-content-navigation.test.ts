@@ -58,6 +58,64 @@ beforeEach(() => {
   latestHandoffNavigation = null;
 });
 
+describe("owned Computer context handoffs", () => {
+  it("returns context to its original bot conversation rather than the selected chat", () => {
+    const origin = {
+      botId: "specialist",
+      originConversationId: "original",
+      workspacePath: "/tmp/specialist",
+    };
+    const result = resolveChatContextHandoff({
+      createId: () => "handoff",
+      createSessionId: () => "must-not-create",
+      pathsEqual: (left, right) => left === right,
+      projects: [],
+      selectedSession: "another",
+      sessions: [],
+      botIdForSession: (id) => (id === "original" ? "specialist" : "lead"),
+      request: {
+        text: "Review this output",
+        workspacePath: origin.workspacePath,
+        projectScope: "all",
+        origin,
+      },
+    });
+    expect(result).toMatchObject({
+      status: "ready",
+      sessionId: "original",
+      handoff: { origin, sessionId: "original" },
+    });
+  });
+  it("rejects stale or conflicting ownership and workspace instead of retargeting", () => {
+    const resolve = (workspacePath: string, owner: string) =>
+      resolveChatContextHandoff({
+        createId: () => "handoff",
+        createSessionId: () => "must-not-create",
+        pathsEqual: (left, right) => left === right,
+        projects: [],
+        selectedSession: "another",
+        sessions: [],
+        botIdForSession: () => owner,
+        request: {
+          text: "Review",
+          workspacePath,
+          projectScope: "all",
+          origin: {
+            botId: "specialist",
+            originConversationId: "original",
+            workspacePath: "/tmp/specialist",
+          },
+        },
+      });
+    expect(resolve("/tmp/specialist", "lead")).toEqual({
+      status: "unresolved",
+    });
+    expect(resolve("/tmp/lead", "specialist")).toEqual({
+      status: "unresolved",
+    });
+  });
+});
+
 afterEach(() => {
   act(() => handoffRoot.unmount());
   handoffContainer.remove();

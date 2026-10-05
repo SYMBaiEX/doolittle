@@ -45,7 +45,7 @@ describe("truthful per-session status", () => {
     for (const [status, expected] of [
       ["complete", "Complete"],
       ["cancelled", "Stopped"],
-      ["error", "Failed"],
+      ["error", "Error"],
     ] as const) {
       expect(
         sessionPanelStatus({
@@ -69,7 +69,7 @@ describe("truthful per-session status", () => {
         receipts: receipt("waiting", 2),
         backendPhase: "ready",
       }),
-    ).toBe("Needs approval · 2");
+    ).toBe("Attention · 2 approvals");
     expect(
       sessionPanelStatus({
         sessionId: "a",

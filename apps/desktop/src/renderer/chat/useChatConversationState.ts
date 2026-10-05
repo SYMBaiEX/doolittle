@@ -28,6 +28,8 @@ import {
   saveConversationDrafts,
   saveConversationPins,
 } from "../conversation-persistence";
+import { NativeDraftBridge } from "../interfaces/native-draft-bridge";
+import { NativeUiHost } from "../interfaces/native-ui-host";
 import { desktopRequest, errorMessage } from "../lib";
 import {
   useWorkspaceRef,
@@ -519,6 +521,8 @@ export function useChatConversationState({
   requestSession,
   selectedId,
   persistenceOwner = true,
+  botIdForSession,
+  nativeHostReady = backendReady,
 }: {
   activeRequest: string | null;
   backendReady: boolean;
@@ -527,6 +531,8 @@ export function useChatConversationState({
   requestSession: MutableRefObject<Record<string, string>>;
   selectedId: string;
   persistenceOwner?: boolean;
+  botIdForSession?: (sessionId: string) => string;
+  nativeHostReady?: boolean;
 }) {
   const initialId = useMemo(
     () => selectedId || newConversationId(),
@@ -589,6 +595,106 @@ export function useChatConversationState({
     },
     [draftRevisions],
   );
+  const localDraftOwner = useRef({ botIdForSession, remoteSessions });
+  const nativeDraftBridge = useRef<NativeDraftBridge | undefined>(undefined);
+  localDraftOwner.current = { botIdForSession, remoteSessions };
+  const nativeDraftsEnabled = persistenceOwner && !!botIdForSession;
+  useEffect(() => {
+    if (!nativeDraftsEnabled || !window.doolittle?.ui) return;
+    const host = new NativeUiHost(window.doolittle.ui);
+    const drafts = new NativeDraftBridge({
+      host,
+      bind: async (target) => {
+        await desktopRequest(
+          `/bots/${encodeURIComponent(target.botId)}/conversations`,
+          "POST",
+          {
+            sessionId: target.sessionId,
+            ...(target.projectId ? { projectId: target.projectId } : {}),
+          },
+        );
+      },
+      revision: (sessionId) => draftRevisions.current[sessionId] ?? 0,
+      apply: (target, text) => {
+        if (
+          localDraftOwner.current.botIdForSession?.(target.sessionId) !==
+          target.botId
+        )
+          return;
+        bumpDraftRevision(target.sessionId);
+        setConversationDrafts((current) => {
+          const previous = current[target.sessionId] ?? {
+            text: "",
+            capsule: null,
+            attachments: [],
+          };
+          return { ...current, [target.sessionId]: { ...previous, text } };
+        });
+      },
+    });
+    nativeDraftBridge.current = drafts;
+    host.subscribe((event) => {
+      if (
+        event.type === "draft.changed" &&
+        localDraftOwner.current.botIdForSession?.(event.target.sessionId) ===
+          event.target.botId
+      )
+        void drafts.refresh(event.target).catch(() => undefined);
+    });
+    return () => {
+      nativeDraftBridge.current = undefined;
+      host.dispose();
+    };
+  }, [
+    nativeDraftsEnabled,
+    draftRevisions,
+    bumpDraftRevision,
+    setConversationDrafts,
+  ]);
+  useEffect(() => {
+    if (
+      !persistenceOwner ||
+      !nativeHostReady ||
+      !nativeDraftBridge.current ||
+      !botIdForSession
+    )
+      return;
+    for (const sessionId of new Set([
+      selectedId,
+      ...Object.keys(conversationDrafts),
+    ])) {
+      const botId = botIdForSession(sessionId);
+      if (!botId) continue;
+      const session = remoteSessions.find(
+        (item) => item.sessionId === sessionId,
+      );
+      const target = {
+        botId,
+        sessionId,
+        ...(session?.projectId ? { projectId: session.projectId } : {}),
+      };
+      void nativeDraftBridge.current
+        .sync(
+          target,
+          conversationDrafts[sessionId]?.text ?? "",
+          draftRevisions.current[sessionId] ?? 0,
+        )
+        .catch(() =>
+          setDraftStorageWarning(
+            "The native draft copy is unavailable. Your local draft has been kept; restore the default interface before switching layouts.",
+          ),
+        );
+    }
+  }, [
+    nativeHostReady,
+    persistenceOwner,
+    selectedId,
+    conversationDrafts,
+    botIdForSession,
+    remoteSessions,
+    draftRevisions,
+    setDraftStorageWarning,
+  ]);
 
   const draftState = conversationDrafts[draftSessionId] ?? {
     text: "",
@@ -738,6 +844,10 @@ export function useChatConversationState({
     },
     [bumpDraftRevision, setConversationDrafts],
   );
+  const getDraftRevision = useCallback(
+    (sessionId: string) => draftRevisions.current[sessionId] ?? 0,
+    [draftRevisions],
+  );
 
   const restoreDraftAfterRejectedDispatch = useCallback(
     (recovery: DraftDispatchRecovery) => {
@@ -835,6 +945,7 @@ export function useChatConversationState({
     const remoteSession = remoteSessions.find(
       (session) => session.sessionId === selectedId,
     );
+    const owner = botIdForSession?.(selectedId);
     const selectedRequestIsActive =
       Boolean(activeRequest) &&
       requestSession.current[activeRequest ?? ""] === selectedId;
@@ -842,6 +953,7 @@ export function useChatConversationState({
       !backendReady ||
       !selectedId ||
       !remoteSession ||
+      (botIdForSession && !owner) ||
       selectedRequestIsActive
     ) {
       return;
@@ -871,6 +983,8 @@ export function useChatConversationState({
       "GET",
       undefined,
       controller.signal,
+      undefined,
+      owner,
     )
       .then((response) => {
         if (cancelled || controller.signal.aborted) return;
@@ -943,6 +1057,7 @@ export function useChatConversationState({
     remoteSessions,
     requestSession,
     selectedId,
+    botIdForSession,
   ]);
 
   const retryHistory = useCallback(
@@ -972,8 +1087,10 @@ export function useChatConversationState({
   const loadEarlierHistory = useCallback(
     async (sessionId: string) => {
       const page = historyPages[sessionId];
+      const owner = botIdForSession?.(sessionId);
       if (
         !backendReady ||
+        (botIdForSession && !owner) ||
         !page?.hasEarlier ||
         loadingEarlierHistory === sessionId
       ) {
@@ -989,6 +1106,8 @@ export function useChatConversationState({
           "GET",
           undefined,
           controller.signal,
+          undefined,
+          owner,
         );
         const older = response.messages
           .filter(
@@ -1049,6 +1168,7 @@ export function useChatConversationState({
       setLoadingEarlierHistory,
       setHistoryPages,
       setHistoryErrors,
+      botIdForSession,
     ],
   );
 
@@ -1078,6 +1198,7 @@ export function useChatConversationState({
   return {
     chatContextCapsule,
     clearDraftForDispatch,
+    getDraftRevision,
     draft,
     draftAttachments,
     draftAttachmentCleanup,

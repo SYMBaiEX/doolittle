@@ -43,6 +43,9 @@ export interface InteractiveTerminalOutput {
   truncatedBeforeCursor: boolean;
 }
 export interface InteractiveTerminalStartRequest {
+  botId?: string;
+  originConversationId?: string;
+  workspacePath?: string;
   cols: number;
   rows: number;
 }
@@ -51,10 +54,12 @@ export interface InteractiveTerminalStartResult {
   session: InteractiveTerminalSession;
 }
 export interface InteractiveTerminalInputRequest {
+  botId?: string;
   sessionId: string;
   data: string;
 }
 export interface InteractiveTerminalResizeRequest {
+  botId?: string;
   sessionId: string;
   cols: number;
   rows: number;

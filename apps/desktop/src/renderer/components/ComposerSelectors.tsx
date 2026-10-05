@@ -1,3 +1,4 @@
+import type { BotSummary } from "@doolittle/contracts/bots";
 import {
   Check,
   ChevronDown,
@@ -137,14 +138,17 @@ export function ComposerModelSelector({
   onOpenModelsPage,
   onOpenProvidersPage,
   refreshRuntime,
-  runtime,
+  runtime: hostRuntime,
+  bot,
 }: {
   active: boolean;
   onOpenModelsPage: () => void;
   onOpenProvidersPage: () => void;
   refreshRuntime: () => unknown;
   runtime: RuntimeStatus | null;
+  bot?: BotSummary;
 }) {
+  const runtime = bot ? bot.model : hostRuntime;
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
@@ -227,14 +231,23 @@ export function ComposerModelSelector({
       const resolvedEffort = model.reasoning
         ? resolvedReasoningEffort(model, effort)
         : null;
-      await desktopRequest("/settings", "POST", {
-        changes: [
-          { path: "model.provider", value: provider.id },
-          { path: "model.model", value: modelId },
-          { path: "model.baseUrl", value: baseUrl },
-          { path: "model.reasoningEffort", value: resolvedEffort },
-        ],
-      });
+      if (bot) {
+        await desktopRequest(`/bots/${encodeURIComponent(bot.id)}`, "PATCH", {
+          model: {
+            provider: provider.id,
+            model: modelId,
+            ...(resolvedEffort ? { reasoningEffort: resolvedEffort } : {}),
+          },
+        });
+      } else
+        await desktopRequest("/settings", "POST", {
+          changes: [
+            { path: "model.provider", value: provider.id },
+            { path: "model.model", value: modelId },
+            { path: "model.baseUrl", value: baseUrl },
+            { path: "model.reasoningEffort", value: resolvedEffort },
+          ],
+        });
       await Promise.resolve(refreshRuntime());
       restoreTriggerFocusRef.current = true;
       setOpen(false);

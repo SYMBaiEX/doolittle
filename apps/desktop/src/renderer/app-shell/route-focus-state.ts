@@ -36,6 +36,7 @@ export type DesktopRouteFocusStore = Map<string, DesktopRouteFocusSnapshot>;
 export function desktopRouteFocusScope(
   workspacePath: string,
   projectScope: string,
+  ownerKey?: string,
 ): string {
-  return `${workspacePath}\u0000${projectScope}`;
+  return `${workspacePath}\u0000${projectScope}${ownerKey ? `\u0000${ownerKey}` : ""}`;
 }

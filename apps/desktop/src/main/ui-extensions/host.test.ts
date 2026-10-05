@@ -140,6 +140,34 @@ function deferred<T>() {
 }
 
 describe("community UI broker", () => {
+  it("acknowledges a host surface that intentionally hides its requesting view", async () => {
+    const { host, backend, context, grant } = setup();
+    await host.approveCommunity(artifact, {
+      ...grant,
+      capabilities: ["surface.open"],
+    });
+    host.setVisible(true);
+    vi.mocked(backend.openSurface).mockImplementation(
+      async (_target, _surface, check) => {
+        await check();
+        host.setVisible(false);
+      },
+    );
+    await expect(
+      host.dispatchCommunity(context, {
+        type: "surface.open",
+        target,
+        surface: "computer",
+      }),
+    ).resolves.toEqual({ requestId: expect.any(String), accepted: true });
+    await expect(
+      host.dispatchCommunity(context, {
+        type: "surface.open",
+        target,
+        surface: "computer",
+      }),
+    ).rejects.toThrow(/inactive/iu);
+  });
   it("preserves the optional canonical AG-UI identity through the actual host", async () => {
     const { host, backend } = setup();
     const adapter = new AgUiHostAdapter(host);
@@ -657,7 +685,7 @@ describe("community UI broker", () => {
     expect(replacement.getDraft(target)).toBe("unsent");
     expect(
       (await replacement.dispatch({ type: "draft.read", target })).draft,
-    ).toEqual({ target, text: "unsent" });
+    ).toEqual({ target, text: "unsent", exists: true, revision: 2 });
     await expect(
       replacement.dispatch({ type: "draft.read", target: other }),
     ).rejects.toThrow(/owned/u);

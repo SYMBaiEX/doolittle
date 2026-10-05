@@ -16,7 +16,8 @@ describe("Eliza UI chat integration", () => {
   it("uses the UI package for composer, status, and message actions", () => {
     const composer = readRendererFile("chat/ChatComposer.tsx");
     const actions = readRendererFile("chat/MessageActions.tsx");
-    expect(composer).toContain("@elizaos/ui/components/ui/button");
+    expect(composer).toContain("@doolittle/ui");
+    expect(composer).toContain("ComposerFrame");
     expect(composer).toContain("@elizaos/ui/components/ui/textarea");
     expect(composer).toContain("@elizaos/ui/components/ui/status-badge");
     expect(actions).toContain("@elizaos/ui/components/ui/button");

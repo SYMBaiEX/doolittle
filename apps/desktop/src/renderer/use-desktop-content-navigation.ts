@@ -124,6 +124,7 @@ export function resolveChatContextHandoff({
   request,
   selectedSession,
   sessions,
+  botIdForSession,
 }: {
   createId: () => string;
   createSessionId: () => string;
@@ -132,10 +133,37 @@ export function resolveChatContextHandoff({
   request: ChatContextRequest;
   selectedSession: string;
   sessions: readonly SessionSummary[];
+  botIdForSession?: (sessionId: string) => string;
 }): ChatContextHandoffResolution {
   const text = request.text.trim();
   if (!text) return { status: "empty" };
   const { prompt, capsule } = splitChatContext(text);
+  if (request.origin) {
+    const origin = request.origin;
+    const saved = sessions.find(
+      (session) => session.sessionId === origin.originConversationId,
+    );
+    const owner =
+      saved?.botId ?? botIdForSession?.(origin.originConversationId);
+    if (
+      owner !== origin.botId ||
+      !pathsEqual(origin.workspacePath, request.workspacePath)
+    )
+      return { status: "unresolved" };
+    return {
+      status: "ready",
+      scope: saved?.projectId ?? "unscoped",
+      sessionId: origin.originConversationId,
+      handoff: {
+        ...request,
+        text,
+        id: createId(),
+        sessionId: origin.originConversationId,
+        prompt,
+        capsule,
+      },
+    };
+  }
   const scope = resolveChatContextProjectScope(
     { ...request, text },
     projects,
@@ -175,6 +203,7 @@ export function resolveChatContextHandoff({
 }
 
 interface UseDesktopContentNavigationOptions {
+  readonly botIdForSession?: (sessionId: string) => string;
   readonly backendReady: boolean;
   readonly closeUtilities: () => void;
   readonly createId: () => string;
@@ -204,6 +233,7 @@ interface UseDesktopContentNavigationOptions {
 }
 
 export function useDesktopContentNavigation({
+  botIdForSession,
   backendReady,
   closeUtilities,
   createId,
@@ -280,6 +310,7 @@ export function useDesktopContentNavigation({
         request,
         selectedSession,
         sessions,
+        botIdForSession,
       });
       if (resolution.status === "empty") return false;
       if (resolution.status === "unresolved") {
@@ -313,6 +344,7 @@ export function useDesktopContentNavigation({
       pushToast,
       selectedSession,
       sessions,
+      botIdForSession,
       transitionToProjectScope,
     ],
   );

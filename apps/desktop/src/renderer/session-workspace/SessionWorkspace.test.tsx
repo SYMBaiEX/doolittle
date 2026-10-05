@@ -250,6 +250,20 @@ async function click(scope: ParentNode, label: string) {
         value.getAttribute("aria-label") === label ||
         value.textContent === label,
     );
+    // These host-owned actions live in the single conversation header/sidebar,
+    // deliberately outside this workspace-only harness.
+    const hostEvent =
+      label === "Find session"
+        ? "doolittle:find-session"
+        : label === "New session"
+          ? "doolittle:new-conversation-view"
+          : label.startsWith("Close ")
+            ? "doolittle:close-conversation-view"
+            : undefined;
+    if (!button && hostEvent) {
+      window.dispatchEvent(new Event(hostEvent));
+      return;
+    }
     expect(button, label).toBeDefined();
     button?.click();
   });
@@ -313,6 +327,16 @@ afterEach(async () => {
 });
 
 describe("shared session workbench behavior", () => {
+  it("keeps a single conversation free of duplicate workspace controls", async () => {
+    await render();
+    expect(container.querySelector('[aria-label="Find session"]')).toBeNull();
+    expect(container.querySelector('[aria-label="New session"]')).toBeNull();
+    expect(container.querySelector('[role="tablist"]')).toBeNull();
+    await act(async () =>
+      window.dispatchEvent(new Event("doolittle:new-conversation-view")),
+    );
+    expect(container.querySelector('[role="tablist"]')).not.toBeNull();
+  });
   it("bounds mounts and shared-store subscriptions through 50 cycles while restoring an evicted draft and scroll position", async () => {
     const read = ChatWorkspaceStore.prototype.read;
     const instrumented = new WeakSet<ChatWorkspaceStore>();
@@ -767,7 +791,7 @@ describe("shared session workbench behavior", () => {
     expect(panel("a").textContent).not.toContain("Only B");
     expect(panel("b").textContent).toContain("Only B");
     await click(panel("a"), "Stop test");
-    expect(cancel).toHaveBeenCalledWith(required(runA).requestId);
+    expect(cancel).toHaveBeenCalledWith(required(runA).requestId, undefined);
     await emit({
       requestId: required(runA).requestId,
       event: "response.cancelled",
@@ -830,6 +854,8 @@ describe("shared session workbench behavior", () => {
         "GET",
         undefined,
         expect.any(AbortSignal),
+        undefined,
+        undefined,
       );
       if (unsentDraft) await draft("a", unsentDraft);
       await click(panel("a"), "Close Session A");

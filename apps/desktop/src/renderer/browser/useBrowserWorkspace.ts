@@ -43,7 +43,7 @@ export const BROWSER_ACTIONS: Array<{
   { id: "analyze", label: "Analyze", detail: "Model-backed review" },
 ];
 
-export function useBrowserWorkspace(active: boolean) {
+export function useBrowserWorkspace(active: boolean, botId?: string) {
   const [navigation, dispatchNavigation] = useReducer(
     browserNavigationReducer,
     INITIAL_BROWSER_NAVIGATION,
@@ -60,6 +60,7 @@ export function useBrowserWorkspace(active: boolean) {
   const status = useApiResource<BrowserStatusResponse>(
     active ? "/browser/status" : null,
     [active],
+    botId,
   );
   const statusRecord = asRecord(status.data?.browser);
   const embedded =
@@ -153,10 +154,20 @@ export function useBrowserWorkspace(active: boolean) {
         action === "inspect"
           ? await desktopRequest<unknown>(
               `/browser/inspect?url=${encodeURIComponent(url)}`,
+              "GET",
+              undefined,
+              undefined,
+              undefined,
+              botId,
             )
-          : await desktopRequest<unknown>(`/browser/${action}`, "POST", {
-              url,
-            });
+          : await desktopRequest<unknown>(
+              `/browser/${action}`,
+              "POST",
+              { url },
+              undefined,
+              undefined,
+              botId,
+            );
       if (browserNavigationMatches(navigationAtStart, navigationRef.current)) {
         dispatchNavigation({ type: "show-url", url, recordHistory: true });
       }
@@ -198,6 +209,9 @@ export function useBrowserWorkspace(active: boolean) {
         analyze ? "/browser/compare/analyze" : "/browser/compare",
         "POST",
         { leftUrl, rightUrl },
+        undefined,
+        undefined,
+        botId,
       );
       setResult({
         action,

@@ -60,7 +60,7 @@ import {
   EmptyBlock,
   errorMessage,
   PageHeader,
-  useApiResource,
+  useApiResource as useApplicationResource,
 } from "./lib";
 import type { ProjectScope } from "./project-manager/models";
 import { codingWorkspaceRequests } from "./resource-request-policy";
@@ -97,6 +97,8 @@ export function CodingWorkspacePage({
   surface: controlledSurface,
   onSurfaceChange,
   workspacePath,
+  botId,
+  originConversationId,
 }: {
   active: boolean;
   editingLocked: boolean;
@@ -113,7 +115,22 @@ export function CodingWorkspacePage({
   surface?: CodeSurface;
   onSurfaceChange?: (surface: CodeSurface) => void;
   workspacePath: string;
+  botId?: string;
+  originConversationId?: string;
 }) {
+  function useApiResource<T>(
+    path: string | null,
+    dependencies: readonly unknown[] = [],
+  ) {
+    return useApplicationResource<T>(
+      path,
+      dependencies,
+      botId,
+      botId && originConversationId
+        ? { botId, originConversationId, workspacePath }
+        : undefined,
+    );
+  }
   const initialLayoutRef = useRef<ReturnType<
     typeof loadCodeWorkspaceLayout
   > | null>(null);
@@ -216,6 +233,8 @@ export function CodingWorkspacePage({
   const acpEditor = useDesktopAcpEditorBridge({
     active: workspaceActive,
     workspacePath,
+    botId,
+    originConversationId,
   });
   const requestPolicy = codingWorkspaceRequests({
     active,
@@ -558,6 +577,9 @@ export function CodingWorkspacePage({
     });
     try {
       const result = await window.doolittle.saveWorkspaceFile({
+        botId,
+        originConversationId,
+        workspacePath,
         path: selectedPath,
         content: draftContent,
         expectedContent: originalContent,
@@ -601,6 +623,9 @@ export function CodingWorkspacePage({
     });
     try {
       const result = await window.doolittle.mutateRepository({
+        botId,
+        originConversationId,
+        workspacePath,
         type,
         patch: patch.patch,
       });
@@ -633,6 +658,10 @@ export function CodingWorkspacePage({
         ].join("\n"),
         workspacePath,
         projectScope,
+        origin:
+          botId && originConversationId
+            ? { botId, originConversationId, workspacePath }
+            : undefined,
       });
       return;
     }
@@ -645,6 +674,10 @@ export function CodingWorkspacePage({
       ].join("\n"),
       workspacePath,
       projectScope,
+      origin:
+        botId && originConversationId
+          ? { botId, originConversationId, workspacePath }
+          : undefined,
     });
   };
 
@@ -781,6 +814,8 @@ export function CodingWorkspacePage({
         ) : null}
 
         <CodingWorkspaceEditor
+          botId={botId}
+          originConversationId={originConversationId}
           acpEditor={acpEditor}
           acpTaskDraft={acpTaskDraft}
           acpTaskOpen={acpTaskOpen}
@@ -853,10 +888,19 @@ export function CodingWorkspacePage({
         role="tabpanel"
       >
         <BrowserPage
+          botId={botId}
           active={active && surface === "preview"}
           contextual
           onSendToChat={(text) => {
-            onSendToChat({ text, workspacePath, projectScope });
+            onSendToChat({
+              text,
+              workspacePath,
+              projectScope,
+              origin:
+                botId && originConversationId
+                  ? { botId, originConversationId, workspacePath }
+                  : undefined,
+            });
             return true;
           }}
         />

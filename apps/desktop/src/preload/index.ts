@@ -79,6 +79,8 @@ const bridge: DoolittleDesktopBridge = {
     revoke: (identity) =>
       ipcRenderer.invoke(uiInterfaceChannels.revoke, identity),
     stopAll: () => ipcRenderer.invoke(uiInterfaceChannels.stopAll),
+    returnToInterface: () =>
+      ipcRenderer.invoke(uiInterfaceChannels.returnToInterface),
     onSurface: (listener) =>
       subscribeToDesktopEvent(uiInterfaceChannels.surface, listener),
   },
@@ -215,21 +217,28 @@ const bridge: DoolittleDesktopBridge = {
       desktopIpcChannels.invoke.terminalSessionResize,
       request,
     ),
-  interruptInteractiveTerminal: (sessionId: string) =>
+  interruptInteractiveTerminal: (sessionId: string, botId?: string) =>
     ipcRenderer.invoke(
       desktopIpcChannels.invoke.terminalSessionInterrupt,
       sessionId,
+      botId,
     ),
-  closeInteractiveTerminal: (sessionId: string) =>
+  closeInteractiveTerminal: (sessionId: string, botId?: string) =>
     ipcRenderer.invoke(
       desktopIpcChannels.invoke.terminalSessionClose,
       sessionId,
+      botId,
     ),
-  getInteractiveTerminalOutput: (sessionId: string, cursor: number) =>
+  getInteractiveTerminalOutput: (
+    sessionId: string,
+    cursor: number,
+    botId?: string,
+  ) =>
     ipcRenderer.invoke(
       desktopIpcChannels.invoke.terminalSessionOutput,
       sessionId,
       cursor,
+      botId,
     ),
   getEditorProjectContext: (request: EditorProjectContextRequest) =>
     ipcRenderer.invoke(desktopIpcChannels.invoke.editorProjectContext, request),

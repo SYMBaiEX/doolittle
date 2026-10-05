@@ -4,6 +4,7 @@ import { Button } from "../components/ElizaControls";
 import { InteractiveTerminal } from "../components/InteractiveTerminal";
 import { PanelResizeHandle } from "../components/PanelResizeHandle";
 import { useModalFocusBoundary } from "../components/useModalFocusBoundary";
+import { type ComputerOrigin, computerOriginKey } from "../computer-origin";
 import { CHAT_TERMINAL_HEIGHT, clampPanelSize } from "../panel-layout";
 
 const SHORT_VIEWPORT_MAX_HEIGHT = 640;
@@ -56,6 +57,8 @@ export interface ChatTerminalPanelProps {
   onSendToChat: (text: string) => void;
   platform: DoolittleDesktopBridge["platform"];
   workspacePath: string;
+  origin?: ComputerOrigin;
+  allowLegacy?: boolean;
 }
 
 export function ChatTerminalPanel({
@@ -67,6 +70,8 @@ export function ChatTerminalPanel({
   onSendToChat,
   platform,
   workspacePath,
+  origin,
+  allowLegacy,
 }: ChatTerminalPanelProps) {
   const shortcut = platform === "darwin" ? "⌘J" : "Ctrl+J";
   const panelRef = useRef<HTMLElement>(null);
@@ -270,12 +275,15 @@ export function ChatTerminalPanel({
         ) : null}
         <div className="min-h-0 flex-1 h-full [&>[data-interactive-terminal]]:min-h-0">
           <InteractiveTerminal
+            key={`${computerOriginKey(origin)}:${workspacePath}`}
             active={active && open && (!compact || modalOpen)}
             autoStart
             dismissShortcut={shortcut}
             onDismiss={compact ? () => setExpanded(false) : onClose}
             onSendToChat={onSendToChat}
             workspacePath={workspacePath}
+            origin={origin}
+            allowLegacy={allowLegacy}
           />
         </div>
       </div>

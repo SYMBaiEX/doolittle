@@ -1,9 +1,11 @@
+import type { ComputerOrigin } from "./computer-origin";
 import type { ProjectScope } from "./project-manager/models";
 
 export interface ChatContextRequest {
   text: string;
   workspacePath: string;
   projectScope: ProjectScope;
+  origin?: ComputerOrigin;
 }
 
 export const CHAT_CONTEXT_CAPSULE_KINDS = [

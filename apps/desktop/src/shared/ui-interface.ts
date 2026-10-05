@@ -25,6 +25,7 @@ export const uiInterfaceChannels = {
   revoke: "desktop-ui:revoke",
   stopAll: "desktop-ui:stop-all",
   surface: "desktop-ui:surface",
+  returnToInterface: "desktop-ui:return-to-interface",
 } as const;
 
 export interface InstalledUiInterface {
@@ -42,6 +43,11 @@ export interface UiInterfaceState {
   installed: InstalledUiInterface[];
   safeMode: boolean;
   recovery?: string;
+  /** A host-owned surface temporarily covers a renderer without replacing it. */
+  hostSurface?: {
+    target: UiTarget;
+    surface: "details" | "library" | "computer";
+  };
 }
 
 export interface UiInterfaceActivation {
@@ -66,6 +72,7 @@ export interface DesktopUiInterfaceBridge {
   restore(): Promise<UiInterfaceState>;
   revoke(identity: UiPluginArtifactIdentity): Promise<UiInterfaceState>;
   stopAll(): Promise<void>;
+  returnToInterface(): Promise<UiInterfaceState>;
   onSurface(
     listener: (request: {
       target: UiTarget;

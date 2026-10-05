@@ -33,6 +33,70 @@ afterEach(() => {
 });
 
 describe("useDesktopAcpEditorBridge recovery", () => {
+  it("retains an owned editor task across presentation unmount without cancel or resubmit", async () => {
+    const response = deferred<unknown>();
+    mocks.desktopRequest.mockImplementation(async (path: string) => {
+      if (path === "/acp/session/new")
+        return { session: { sessionId: "acp:retained" } };
+      if (path === "/acp/initialize")
+        return { initialized: { agentCapabilities: {} } };
+      if (path === "/acp/session/prompt") return response.promise;
+      return {};
+    });
+    let bridge: ReturnType<typeof useDesktopAcpEditorBridge> | undefined;
+    const origin = {
+      botId: "specialist-retained",
+      originConversationId: "thread-retained",
+      workspacePath: "/workspace-retained",
+    };
+    function Probe() {
+      bridge = useDesktopAcpEditorBridge({
+        active: true,
+        workspacePath: origin.workspacePath,
+        botId: origin.botId,
+        originConversationId: origin.originConversationId,
+      });
+      return null;
+    }
+    const host = document.createElement("div");
+    document.body.append(host);
+    root = createRoot(host);
+    await act(async () => {
+      root?.render(createElement(Probe));
+    });
+    let prompt: Promise<unknown> | undefined;
+    await act(async () => {
+      prompt = bridge?.prompt("Inspect only once");
+      await Promise.resolve();
+    });
+    expect(bridge?.promptPhase).toBe("running");
+    act(() => root?.render(null));
+    await act(async () => {
+      root?.render(createElement(Probe));
+    });
+    expect(bridge?.promptPhase).toBe("running");
+    expect(
+      mocks.desktopRequest.mock.calls.filter(
+        ([path]) => path === "/acp/session/prompt",
+      ),
+    ).toHaveLength(1);
+    expect(
+      mocks.desktopRequest.mock.calls.filter(
+        ([path]) => path === "/acp/session/cancel",
+      ),
+    ).toHaveLength(0);
+    for (const call of mocks.desktopRequest.mock.calls) {
+      expect(call[5]).toBe(origin.botId);
+      expect(call[6]).toEqual(origin);
+    }
+    response.resolve({ result: { stopReason: "end_turn", updates: [] } });
+    await act(async () => {
+      await prompt;
+    });
+    expect(bridge?.promptPhase).toBe("idle");
+    expect(bridge?.stopReason).toBe("end_turn");
+    host.remove();
+  });
   it("offers an in-place retry after the initial ACP session fails", async () => {
     let attempts = 0;
     mocks.desktopRequest.mockImplementation(async (path: string) => {

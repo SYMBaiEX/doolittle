@@ -14,6 +14,7 @@ import type {
   InteractiveTerminalOutput,
   InteractiveTerminalSession,
 } from "../../shared/contracts";
+import { type ComputerOrigin, computerOriginKey } from "../computer-origin";
 import { APPEARANCE_APPLIED_EVENT, THEME_CHANGE_EVENT } from "../desktop-theme";
 import { desktopRequest, errorMessage } from "../lib";
 import { compactWorkspacePath } from "../workspace-path";
@@ -179,6 +180,8 @@ export function InteractiveTerminal({
   onDismiss,
   onSendToChat,
   workspacePath,
+  origin,
+  allowLegacy = false,
 }: {
   active: boolean;
   autoStart?: boolean;
@@ -186,11 +189,21 @@ export function InteractiveTerminal({
   onDismiss?: () => void;
   onSendToChat: (text: string) => void;
   workspacePath: string;
+  origin?: ComputerOrigin;
+  allowLegacy?: boolean;
 }) {
+  const ownerKey = computerOriginKey(origin);
+  const botId = origin?.botId;
   const storage = useMemo(() => browserInteractiveTerminalStorage(), []);
   const loaded = useMemo(
-    () => loadInteractiveTerminalState(workspacePath, storage),
-    [storage, workspacePath],
+    () =>
+      loadInteractiveTerminalState(
+        workspacePath,
+        storage,
+        ownerKey,
+        allowLegacy,
+      ),
+    [storage, workspacePath, ownerKey, allowLegacy],
   );
   const [tabs, setTabs] = useState(() =>
     preserveTabs(workspacePath, loaded.tabs),
@@ -244,7 +257,14 @@ export function InteractiveTerminal({
       try {
         const result = await desktopRequest<{
           sessions: InteractiveTerminalSession[];
-        }>("/terminal/sessions", "GET", undefined, controller.signal);
+        }>(
+          "/terminal/sessions",
+          "GET",
+          undefined,
+          controller.signal,
+          undefined,
+          botId,
+        );
         if (controller.signal.aborted) return;
         setTabs((current) => {
           const next = mergeManagedApplicationTabs(
@@ -265,7 +285,7 @@ export function InteractiveTerminal({
       controller.abort();
       if (timer) clearTimeout(timer);
     };
-  }, [active]);
+  }, [active, botId]);
 
   const fitTerminalToViewport = useCallback(() => {
     const terminal = xtermRef.current;
@@ -341,6 +361,8 @@ export function InteractiveTerminal({
         tabs: tabsRef.current,
       },
       storage,
+      ownerKey,
+      allowLegacy,
     });
     const normalized = preserveTabs(workspacePath, loadedState.tabs);
     const nextActiveTabId = normalized.some(
@@ -356,7 +378,7 @@ export function InteractiveTerminal({
     setStarting(false);
     setRenamingTabId(null);
     setRenamingValue("");
-  }, [workspacePath, storage]);
+  }, [workspacePath, storage, ownerKey, allowLegacy]);
 
   useEffect(() => {
     const normalized = preserveTabs(workspacePath, tabs);
@@ -378,6 +400,7 @@ export function InteractiveTerminal({
         workspacePath,
         { activeTabId, tabs },
         storage,
+        ownerKey,
       );
       persistenceTimerRef.current = null;
     }, TERMINAL_PERSIST_DEBOUNCE_MS);
@@ -387,7 +410,7 @@ export function InteractiveTerminal({
         persistenceTimerRef.current = null;
       }
     };
-  }, [activeTabId, storage, tabs, workspacePath]);
+  }, [activeTabId, storage, tabs, workspacePath, ownerKey]);
 
   useEffect(
     () => () => {
@@ -402,9 +425,10 @@ export function InteractiveTerminal({
           tabs: tabsRef.current,
         },
         storage,
+        ownerKey,
       );
     },
-    [storage, workspacePath],
+    [storage, workspacePath, ownerKey],
   );
 
   useEffect(() => {
@@ -479,6 +503,7 @@ export function InteractiveTerminal({
       inputSequenceRef.current = inputSequenceRef.current
         .then(() =>
           window.doolittle.writeInteractiveTerminal({
+            ...(botId ? { botId } : {}),
             sessionId: activeTab.sessionId as string,
             data,
           }),
@@ -510,7 +535,7 @@ export function InteractiveTerminal({
       fitAddonRef.current = null;
       xtermTabIdRef.current = null;
     };
-  }, [activeTabId, fitTerminalToViewport]);
+  }, [activeTabId, fitTerminalToViewport, botId]);
 
   useEffect(() => {
     const updateTheme = () => {
@@ -624,6 +649,7 @@ export function InteractiveTerminal({
         const snapshot = await window.doolittle.getInteractiveTerminalOutput(
           sessionId,
           cursor,
+          botId,
         );
         const hadOutput =
           snapshot.truncatedBeforeCursor || snapshot.chunks.length > 0;
@@ -640,7 +666,7 @@ export function InteractiveTerminal({
         pollingRef.current = false;
       }
     },
-    [appendOutputToTab, setTabToClosed],
+    [appendOutputToTab, setTabToClosed, botId],
   );
 
   useEffect(() => {
@@ -653,6 +679,10 @@ export function InteractiveTerminal({
   const onStart = useCallback(
     async (event?: MouseEvent<HTMLButtonElement>) => {
       if (!activeTab || starting || !active) return;
+      if (!origin) {
+        setNotice("Select a bot conversation before opening a terminal.");
+        return;
+      }
       const startControl = event?.currentTarget;
       const focusAtStart = document.activeElement;
       const terminalAtStart = xtermRef.current;
@@ -665,8 +695,12 @@ export function InteractiveTerminal({
       setNotice("Opening workspace shell…");
       try {
         const dimensions = fitTerminalToViewport();
-        const result =
-          await window.doolittle.startInteractiveTerminal(dimensions);
+        const result = await window.doolittle.startInteractiveTerminal({
+          ...dimensions,
+          botId: origin.botId,
+          originConversationId: origin.originConversationId,
+          workspacePath: origin.workspacePath,
+        });
         if (!ownsStart()) return;
         const session = result.session;
         updateTab(activeTab.id, (tab) =>
@@ -733,6 +767,7 @@ export function InteractiveTerminal({
       starting,
       updateTab,
       workspacePath,
+      origin,
     ],
   );
 
@@ -749,6 +784,7 @@ export function InteractiveTerminal({
     try {
       const session = await window.doolittle.interruptInteractiveTerminal(
         activeTab.sessionId,
+        botId,
       );
       syncSession(activeTab.id, {
         id: session.id,
@@ -775,6 +811,7 @@ export function InteractiveTerminal({
     try {
       const session = await window.doolittle.closeInteractiveTerminal(
         activeTab.sessionId,
+        botId,
       );
       syncSession(activeTab.id, {
         id: session.id,
@@ -807,6 +844,7 @@ export function InteractiveTerminal({
       try {
         const session = await window.doolittle.closeInteractiveTerminal(
           target.sessionId,
+          botId,
         );
         syncSession(tabId, {
           id: session.id,
@@ -1002,6 +1040,7 @@ export function InteractiveTerminal({
         }
         void window.doolittle
           .resizeInteractiveTerminal({
+            ...(botId ? { botId } : {}),
             sessionId: resizeSessionId,
             cols: dimensions.cols,
             rows: dimensions.rows,
@@ -1036,6 +1075,7 @@ export function InteractiveTerminal({
     activeTab?.rows,
     activeSessionId,
     activeSessionSupportsResize,
+    botId,
     fitTerminalToViewport,
     running,
     syncSession,

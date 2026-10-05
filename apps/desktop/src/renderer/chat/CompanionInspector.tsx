@@ -1,6 +1,8 @@
 import type { BotSummary } from "@doolittle/contracts/bots";
+import { InspectorFrame, StateSurface } from "@doolittle/ui";
 import { X } from "lucide-react";
 import { lazy, Suspense, useId, useRef } from "react";
+import { BotActions } from "../bots/BotActions";
 import type { ThreadWorkbenchFullView } from "../components/ThreadWorkbenchRail";
 
 const ThreadWorkbenchRail = lazy(async () => {
@@ -49,15 +51,15 @@ export function CompanionInspector({
     computer: null,
   });
   return (
-    <aside
-      aria-label="Conversation inspector"
+    <InspectorFrame
+      title="Conversation inspector"
       className={`flex h-full min-h-0 w-[var(--inspector-width,320px)] max-w-[40vw] flex-col overflow-hidden border-l border-[var(--border)] bg-[var(--surface)] max-[720px]:w-full max-[720px]:max-w-none${fullWidth ? " !w-full !max-w-none" : ""}`}
     >
       <header className="flex min-h-12 items-center justify-between border-b border-[var(--border)] px-3">
         <strong className="text-sm font-semibold">Inspector</strong>
         <button
           aria-label="Close inspector"
-          className="grid size-10 place-items-center rounded-[var(--radius-md)] hover:bg-[var(--surface-hover)]"
+          className="grid size-10 place-items-center rounded-[var(--radius-md)] hover:bg-[var(--surface-hover)] max-[760px]:size-11"
           onClick={onClose}
           type="button"
         >
@@ -73,7 +75,7 @@ export function CompanionInspector({
           <button
             aria-controls={`${id}-${item}`}
             aria-selected={tab === item}
-            className="min-h-10 flex-1 border-b-2 border-transparent px-2 text-sm text-[var(--text-soft)] hover:text-[var(--text)] aria-selected:border-[var(--accent)] aria-selected:text-[var(--text)] focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
+            className="min-h-10 flex-1 border-b-2 border-transparent px-2 text-[length:var(--text-control)] text-[var(--text-soft)] hover:text-[var(--text)] aria-selected:border-[var(--accent)] aria-selected:text-[var(--text)] focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)] max-[760px]:min-h-11"
             id={`${id}-${item}-tab`}
             key={item}
             onClick={() => onTabChange(item)}
@@ -115,48 +117,48 @@ export function CompanionInspector({
         role="tabpanel"
       >
         {tab === "details" ? (
-          <dl className="grid gap-3 p-4 text-sm [&_dd]:min-w-0 [&_dd]:break-words [&_dd]:text-[var(--text)] [&_dt]:text-xs [&_dt]:text-[var(--muted)]">
-            <div>
-              <dt>Conversation</dt>
-              <dd>{title}</dd>
-            </div>
-            <div>
-              <dt>Bot</dt>
-              <dd>
-                {bot?.name ?? "Doolittle"}
-                {bot ? ` · ${bot.state}` : ""}
-              </dd>
-            </div>
-            <div>
-              <dt>Model</dt>
-              <dd>
-                {bot
-                  ? `${bot.model.provider} · ${bot.model.model}`
-                  : "Runtime default"}
-              </dd>
-            </div>
-            <div>
-              <dt>Messages</dt>
-              <dd>{messageCount}</dd>
-            </div>
-            <div>
-              <dt>Context</dt>
-              <dd>{contextLabel}</dd>
-            </div>
-            <div>
-              <dt>Workspace</dt>
-              <dd>{workspacePath || "No workspace selected"}</dd>
-            </div>
-          </dl>
+          <>
+            <dl className="grid gap-3 p-4 text-sm [&_dd]:min-w-0 [&_dd]:break-words [&_dd]:text-[var(--text)] [&_dt]:text-xs [&_dt]:text-[var(--muted)]">
+              <div>
+                <dt>Conversation</dt>
+                <dd>{title}</dd>
+              </div>
+              <div>
+                <dt>Bot</dt>
+                <dd>
+                  {bot?.name ?? "Doolittle"}
+                  {bot ? ` · ${bot.state}` : ""}
+                </dd>
+              </div>
+              <div>
+                <dt>Model</dt>
+                <dd>
+                  {bot
+                    ? `${bot.model.provider} · ${bot.model.model}`
+                    : "Runtime default"}
+                </dd>
+              </div>
+              <div>
+                <dt>Messages</dt>
+                <dd>{messageCount}</dd>
+              </div>
+              <div>
+                <dt>Context</dt>
+                <dd>{contextLabel}</dd>
+              </div>
+              <div>
+                <dt>Workspace</dt>
+                <dd>{workspacePath || "No workspace selected"}</dd>
+              </div>
+            </dl>
+            {bot ? <BotActions bot={bot} /> : null}
+          </>
         ) : (
           <Suspense
-            fallback={
-              <p className="p-4 text-sm text-[var(--muted)]" role="status">
-                Loading {tab}…
-              </p>
-            }
+            fallback={<StateSurface kind="loading" title={`Loading ${tab}…`} />}
           >
             <ThreadWorkbenchRail
+              botId={bot?.id}
               active={active}
               group={tab}
               minimal
@@ -169,6 +171,6 @@ export function CompanionInspector({
           </Suspense>
         )}
       </div>
-    </aside>
+    </InspectorFrame>
   );
 }

@@ -77,12 +77,14 @@ describe("chat chrome density contract", () => {
     expect(app).toContain("WINDOW_TOOLS_CLASS");
     expect(chatPage).toContain("createPortal(");
     expect(chatPage).not.toContain('className="chat-header"');
-    expect(app).toContain('renderedView === "chat" ? selectedBot?.name');
+    expect(app).toMatch(
+      /renderedView === "chat"\s*\? \(selectedBot\?\.name \?\? "Doolittle"\)/u,
+    );
     expect(app).toContain("currentRouteLabel");
     expect(chatHeader).not.toContain("Conversation breadcrumb");
-    expect(chatHeader).toContain('aria-label="Find conversation"');
+    expect(chatHeader).not.toContain('aria-label="Find conversation"');
     expect(chatHeader).toContain('aria-label="Conversation options"');
-    expect(chatHeader).toContain("onOpenInspectorTab");
+    expect(chatHeader).toContain("doolittle:new-conversation-view");
     expect(chatPage).toMatch(/id=\{`chat-context-history-\$\{selectedId\}`\}/);
     expect(chatPage).toMatch(/id=\{`chat-context-media-\$\{selectedId\}`\}/);
     expect(chatPage).toContain('hidden={surface !== "conversation"}');
@@ -157,8 +159,8 @@ describe("chat chrome density contract", () => {
     expect(CHAT_WORKSPACE_CLASS).toContain(
       "max-[480px]:[&_.chat-composer-control-label]:hidden",
     );
-    expect(COMPOSER_PROJECT_TRIGGER_CLASS).toContain("max-[480px]:w-10");
-    expect(COMPOSER_MODEL_TRIGGER_CLASS).toContain("max-[480px]:h-10");
+    expect(COMPOSER_PROJECT_TRIGGER_CLASS).toContain("max-[480px]:w-11");
+    expect(COMPOSER_MODEL_TRIGGER_CLASS).toContain("max-[480px]:h-11");
   });
 
   it("uses compact transcript typography and bounded code blocks", () => {

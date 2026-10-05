@@ -8,11 +8,12 @@ export function sessionBotId(
   localBindings: Readonly<Record<string, string>>,
   defaultBotId: string,
 ): string {
-  return (
-    sessions.find((session) => session.sessionId === sessionId)?.botId ??
-    localBindings[sessionId] ??
-    defaultBotId
-  );
+  const saved = sessions.find((session) => session.sessionId === sessionId);
+  return saved
+    ? (saved.botId ?? defaultBotId)
+    : Object.hasOwn(localBindings, sessionId)
+      ? (localBindings[sessionId] ?? "")
+      : "";
 }
 
 export function visibleBots(catalog: BotCatalogResponse | null): BotSummary[] {

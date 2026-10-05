@@ -130,6 +130,8 @@ export function CodeEditor({
   path,
   value,
   workspacePath,
+  botId,
+  originConversationId,
 }: {
   ariaLabel?: string;
   compact?: boolean;
@@ -141,6 +143,8 @@ export function CodeEditor({
   path: string;
   value: string;
   workspacePath?: string;
+  botId?: string;
+  originConversationId?: string;
 }) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
@@ -350,6 +354,8 @@ export function CodeEditor({
       if (projectSupportSignature(content) !== supportSignature) return;
       void window.doolittle
         .getEditorProjectContext({
+          botId,
+          originConversationId,
           workspacePath,
           entryPath: path,
           content,
@@ -407,6 +413,8 @@ export function CodeEditor({
     projectSupportRefresh,
     supportSignature,
     workspacePath,
+    botId,
+    originConversationId,
   ]);
 
   useEffect(() => {
@@ -424,6 +432,8 @@ export function CodeEditor({
       checking = true;
       try {
         const revision = await window.doolittle.getEditorProjectRevision({
+          botId,
+          originConversationId,
           workspacePath,
           entryPath: path,
         });
@@ -456,7 +466,7 @@ export function CodeEditor({
       window.clearInterval(timer);
       window.removeEventListener("focus", checkRevision);
     };
-  }, [language.id, path, workspacePath]);
+  }, [language.id, path, workspacePath, botId, originConversationId]);
 
   useEffect(
     () => () => {

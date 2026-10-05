@@ -1,5 +1,5 @@
-import { MoreHorizontal, PanelRight, Search } from "lucide-react";
-import type { RefObject } from "react";
+import { MoreHorizontal, PanelRight } from "lucide-react";
+import { type RefObject, useRef } from "react";
 import type { ChatSurface } from "../ChatPage";
 import { UiIcon } from "../components/UiIcon";
 import type { ContextPressureTone } from "../context-pressure";
@@ -37,47 +37,42 @@ export interface ChatHeaderChromeProps {
 export function ChatHeaderChrome({
   inspectorVisible,
   isNewConversation,
-  modelRouteLabel,
-  onOpenRouteControls,
   onOpenWorkspace,
-  onPrepareCompression,
   onSurfaceChange,
   onToggleInspector,
-  onOpenInspectorTab,
   onTogglePin,
   selectedSession,
   workbenchToggleRef,
 }: ChatHeaderChromeProps) {
+  const menuRef = useRef<HTMLDetailsElement>(null);
+  const selectAction = (action: () => void) => {
+    if (menuRef.current) {
+      menuRef.current.open = false;
+      menuRef.current.querySelector("summary")?.focus();
+    }
+    action();
+  };
   return (
     <div className="flex h-full w-full items-center justify-end gap-1 [-webkit-app-region:no-drag]">
       <button
-        aria-label="Find conversation"
-        className="grid size-10 place-items-center rounded-[var(--radius-md)] text-[var(--text-soft)] hover:bg-[var(--surface-hover)] max-[760px]:size-11"
-        onClick={() =>
-          window.dispatchEvent(new Event("doolittle:find-session"))
-        }
-        title="Find conversation"
-        type="button"
-      >
-        <UiIcon icon={Search} size="sm" />
-      </button>
-      <button
         aria-expanded={inspectorVisible}
-        aria-label={inspectorVisible ? "Close details" : "Open details"}
+        aria-label={inspectorVisible ? "Close inspector" : "Open inspector"}
         className="flex min-h-10 items-center gap-1.5 rounded-[var(--radius-md)] px-2 text-sm text-[var(--text-soft)] hover:bg-[var(--surface-hover)] max-[760px]:min-h-11"
         onClick={onToggleInspector}
         ref={workbenchToggleRef}
         type="button"
       >
         <UiIcon icon={PanelRight} size="sm" />
-        <span className="max-[640px]:sr-only">Details</span>
+        <span className="max-[640px]:sr-only">Inspector</span>
       </button>
       <details
+        ref={menuRef}
         className="relative"
         onKeyDown={(event) => {
           if (event.key === "Escape") {
             event.preventDefault();
             event.currentTarget.open = false;
+            event.currentTarget.querySelector("summary")?.focus();
           }
         }}
       >
@@ -87,24 +82,30 @@ export function ChatHeaderChrome({
         >
           <UiIcon icon={MoreHorizontal} size="sm" />
         </summary>
-        <div className="absolute right-0 z-70 mt-1 grid w-52 rounded-[var(--radius-md)] border border-[var(--border-strong)] bg-[var(--surface-raised)] p-1 shadow-[var(--shell-shadow-md)] [&>button]:min-h-10 [&>button]:rounded-[var(--radius-sm)] [&>button]:px-2 [&>button]:text-left [&>button]:text-sm [&>button:hover]:bg-[var(--surface-hover)]">
-          <button onClick={() => onSurfaceChange?.("history")} type="button">
-            Conversation history
-          </button>
-          <button onClick={() => onOpenInspectorTab?.("library")} type="button">
-            Library
-          </button>
+        <div className="absolute right-0 z-70 mt-1 grid w-52 rounded-[var(--radius-md)] border border-[var(--border-strong)] bg-[var(--surface-raised)] p-1 shadow-[var(--shell-shadow-md)] [&>button]:min-h-10 [&>button]:rounded-[var(--radius-sm)] [&>button]:px-2 [&>button]:text-left [&>button]:text-[length:var(--text-control)] [&>button:hover]:bg-[var(--surface-hover)] max-[760px]:[&>button]:min-h-11">
           <button
-            onClick={() => onOpenInspectorTab?.("computer")}
+            onClick={() =>
+              selectAction(() =>
+                window.dispatchEvent(
+                  new Event("doolittle:new-conversation-view"),
+                ),
+              )
+            }
             type="button"
           >
-            Computer
+            New conversation
           </button>
-          <button onClick={onOpenWorkspace} type="button">
+          <button
+            onClick={() => selectAction(() => onSurfaceChange?.("history"))}
+            type="button"
+          >
+            Conversation history
+          </button>
+          <button onClick={() => selectAction(onOpenWorkspace)} type="button">
             Open full workspace
           </button>
           {!isNewConversation && selectedSession ? (
-            <button onClick={onTogglePin} type="button">
+            <button onClick={() => selectAction(onTogglePin)} type="button">
               {selectedSession.pinned
                 ? "Unpin conversation"
                 : "Pin conversation"}
@@ -112,23 +113,15 @@ export function ChatHeaderChrome({
           ) : null}
           <button
             onClick={() =>
-              window.dispatchEvent(
-                new Event("doolittle:close-conversation-view"),
+              selectAction(() =>
+                window.dispatchEvent(
+                  new Event("doolittle:close-conversation-view"),
+                ),
               )
             }
             type="button"
           >
             Close view
-          </button>
-          <button
-            aria-label={`Model options. Current route ${modelRouteLabel}`}
-            onClick={onOpenRouteControls}
-            type="button"
-          >
-            Model options
-          </button>
-          <button onClick={onPrepareCompression} type="button">
-            Prepare context compression
           </button>
         </div>
       </details>

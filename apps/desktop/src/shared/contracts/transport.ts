@@ -54,6 +54,8 @@ export function desktopRequestTimeoutMs(path: string): number {
 export interface AgentTransportRequest {
   /** Immutable request owner; omitted only for legacy default-bot callers. */
   botId?: string;
+  originConversationId?: string;
+  workspacePath?: string;
   /** Sender-scoped identifier used for cancellation and lifecycle cleanup. */
   requestId: string;
   path: string;

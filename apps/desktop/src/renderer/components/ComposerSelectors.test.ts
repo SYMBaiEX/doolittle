@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 
+import type { BotSummary } from "@doolittle/contracts/bots";
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -338,6 +339,50 @@ describe("ComposerModelSelector loaded catalog", () => {
     vi.unstubAllGlobals();
     delete (HTMLElement.prototype as { scrollIntoView?: unknown })
       .scrollIntoView;
+  });
+
+  it("updates a named bot's catalog route without changing Doolittle's global settings", async () => {
+    const bot = {
+      id: "specialist",
+      isDefault: false,
+      model: { provider: "ollama", model: "granite4.1:3b" },
+    } as BotSummary;
+    act(() =>
+      root.render(
+        createElement(ComposerModelSelector, {
+          active: true,
+          bot,
+          onOpenModelsPage: vi.fn(),
+          onOpenProvidersPage: vi.fn(),
+          refreshRuntime: vi.fn(),
+          runtime: { provider: "codex", model: "gpt-5.6-terra", plugins: {} },
+        }),
+      ),
+    );
+    const trigger = container.querySelector<HTMLButtonElement>(
+      '[aria-label^="Choose model."]',
+    );
+    expect(trigger?.textContent).toContain("granite4.1:3b");
+    act(() => trigger?.click());
+    await act(async () =>
+      container
+        .querySelector<HTMLButtonElement>('[title="gpt-5.6-terra"]')
+        ?.click(),
+    );
+    expect(desktopRequestMock).toHaveBeenCalledWith(
+      "/bots/specialist",
+      "PATCH",
+      {
+        model: {
+          provider: "codex",
+          model: "gpt-5.6-terra",
+          reasoningEffort: "medium",
+        },
+      },
+    );
+    expect(
+      desktopRequestMock.mock.calls.some(([path]) => path === "/settings"),
+    ).toBe(false);
   });
 
   it("shows the loaded current effort and marks the actionable model button current", () => {

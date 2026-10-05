@@ -58,10 +58,10 @@ describe("ChatHeaderChrome", () => {
   it("keeps a new draft quiet while retaining primary actions", () => {
     render();
 
-    expect(container.textContent).toContain("Details");
+    expect(container.textContent).toContain("Inspector");
     expect(
       container.querySelector('[aria-label="Find conversation"]'),
-    ).not.toBeNull();
+    ).toBeNull();
     expect(
       container.querySelector('[aria-label="Conversation options"]'),
     ).not.toBeNull();
@@ -82,7 +82,7 @@ describe("ChatHeaderChrome", () => {
     expect(container.textContent).toContain("Open full workspace");
   });
 
-  it("keeps a long loading route inspectable without changing surface actions", () => {
+  it("leaves route controls in the composer and exposes one inspector toggle", () => {
     const modelRouteLabel =
       "Loading provider · Loading an unusually long model route";
     render({ modelRouteLabel });
@@ -90,12 +90,11 @@ describe("ChatHeaderChrome", () => {
     const route = container.querySelector<HTMLButtonElement>(
       '[aria-label^="Model options"]',
     );
-    expect(route?.getAttribute("aria-label")).toContain(modelRouteLabel);
-    act(() => route?.click());
-    expect(handlers.onOpenRouteControls).toHaveBeenCalledTimes(1);
+    expect(route).toBeNull();
+    expect(handlers.onOpenRouteControls).not.toHaveBeenCalled();
     act(() =>
       container
-        .querySelector<HTMLButtonElement>('[aria-label="Open details"]')
+        .querySelector<HTMLButtonElement>('[aria-label="Open inspector"]')
         ?.click(),
     );
     expect(handlers.onToggleInspector).toHaveBeenCalledTimes(1);
@@ -110,16 +109,27 @@ describe("ChatHeaderChrome", () => {
     expect(handlers.onSurfaceChange).toHaveBeenCalledWith("history");
   });
 
-  it("opens Library and Computer from the options menu", () => {
+  it("avoids duplicate Library and Computer controls and dispatches host view actions", () => {
     render();
     const button = (label: string) =>
       Array.from(container.querySelectorAll("button")).find(
         (entry) => entry.textContent === label,
       );
-    act(() => button("Library")?.click());
-    act(() => button("Computer")?.click());
-    expect(handlers.onOpenInspectorTab).toHaveBeenNthCalledWith(1, "library");
-    expect(handlers.onOpenInspectorTab).toHaveBeenNthCalledWith(2, "computer");
+    expect(button("Library")).toBeUndefined();
+    expect(button("Computer")).toBeUndefined();
+    const create = vi.fn();
+    const close = vi.fn();
+    window.addEventListener("doolittle:new-conversation-view", create);
+    window.addEventListener("doolittle:close-conversation-view", close);
+    try {
+      act(() => button("New conversation")?.click());
+      act(() => button("Close view")?.click());
+      expect(create).toHaveBeenCalledOnce();
+      expect(close).toHaveBeenCalledOnce();
+    } finally {
+      window.removeEventListener("doolittle:new-conversation-view", create);
+      window.removeEventListener("doolittle:close-conversation-view", close);
+    }
   });
 
   it("reveals conversation state and forwards the compact actions", () => {
@@ -157,8 +167,8 @@ describe("ChatHeaderChrome", () => {
     );
 
     expect(handlers.onTogglePin).toHaveBeenCalledTimes(1);
-    expect(handlers.onOpenRouteControls).toHaveBeenCalledTimes(1);
-    expect(handlers.onPrepareCompression).toHaveBeenCalledTimes(1);
+    expect(handlers.onOpenRouteControls).not.toHaveBeenCalled();
+    expect(handlers.onPrepareCompression).not.toHaveBeenCalled();
   });
 
   it("keeps embedded resource paths out of the chat header", () => {

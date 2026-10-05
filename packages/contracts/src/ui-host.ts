@@ -91,6 +91,12 @@ export type UiHostCommand =
 export type UiHostEvent =
   | { type: "snapshot"; sequence: number; snapshot: UiSnapshot }
   | {
+      type: "draft.changed";
+      sequence: number;
+      target: UiTarget;
+      revision: number;
+    }
+  | {
       type: "message.delta";
       sequence: number;
       target: UiTarget;
@@ -140,14 +146,27 @@ export interface UiHostResult {
   /** Required acknowledgement when an as-of transcript was requested. */
   transcriptThroughRunId?: string;
   attachments?: Array<{ id: string; name: string }>;
-  draft?: { target: UiTarget; text: string };
+  draft?: {
+    target: UiTarget;
+    text: string;
+    revision?: number;
+    exists?: boolean;
+  };
   error?: string;
 }
 
 /** Implementations authorize every read/action; a renderer is never authoritative. */
+export type UiHostSubscription = (() => void) & {
+  /** Async transports acknowledge installation before any submitted run. */
+  readonly ready?: Promise<void>;
+};
+
 export interface UiHostV1 {
   readonly version: 1;
   getSnapshot(): Promise<UiSnapshot>;
-  subscribe(listener: (event: UiHostEvent) => void, after?: number): () => void;
+  subscribe(
+    listener: (event: UiHostEvent) => void,
+    after?: number,
+  ): UiHostSubscription;
   dispatch(command: UiHostCommand): Promise<UiHostResult>;
 }

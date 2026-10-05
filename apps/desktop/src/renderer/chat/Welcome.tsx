@@ -1,35 +1,48 @@
 export function Welcome({
   onSelect,
   projectName,
+  botName = "Doolittle",
 }: {
   onSelect: (prompt: string) => void;
   projectName?: string;
+  botName?: string;
 }) {
-  const prompts = [
-    {
-      prompt: "Explain this project",
-      detail: "Summarize its structure and important files",
-    },
-    {
-      prompt: "Plan a change",
-      detail: "Break a feature or refactor into concrete steps",
-    },
-    {
-      prompt: "Investigate a bug",
-      detail: "Trace a failure from evidence to a likely cause",
-    },
-  ];
+  const prompts = projectName
+    ? [
+        {
+          prompt: "Explain this project",
+          detail: "Summarize its structure and important files",
+        },
+        {
+          prompt: "Plan a change",
+          detail: "Break a feature or refactor into concrete steps",
+        },
+        {
+          prompt: "Investigate a bug",
+          detail: "Trace a failure from evidence to a likely cause",
+        },
+      ]
+    : [
+        {
+          prompt: "Help me think something through",
+          detail: "Make a decision, find an approach, or untangle an idea",
+        },
+        {
+          prompt: "Research a question",
+          detail: "Gather evidence and explain what matters",
+        },
+        {
+          prompt: "Plan my next steps",
+          detail: "Turn a goal into something manageable",
+        },
+      ];
   return (
     <div className="chat-welcome">
-      <div className="chat-welcome-command" aria-hidden="true">
-        <span>~/doolittle</span>
-        <span>$ new session</span>
-      </div>
-      <h1>Start a task</h1>
+      <h1>What’s on your mind?</h1>
       <p>
         {projectName
-          ? `Doolittle will use the open ${projectName} project as context.`
-          : "Choose a coding task to give Doolittle a clear starting point."}
+          ? `${botName} can help with ${projectName}, or anything else you’re working on.`
+          : `Talk to ${botName}. Start wherever you like.`}
       </p>
       <div className="starter-grid">
         {prompts.map(({ prompt, detail }, index) => (

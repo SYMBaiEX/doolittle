@@ -1,4 +1,5 @@
 import type { BotCatalogResponse, BotSummary } from "@doolittle/contracts/bots";
+import { WorkspaceShell } from "@doolittle/ui";
 import { useIntervalWhenDocumentVisible } from "@elizaos/ui/hooks/useDocumentVisibility";
 import { useMediaQuery } from "@elizaos/ui/hooks/useMediaQuery";
 import { ArrowLeft } from "lucide-react";
@@ -69,9 +70,14 @@ import {
   sessionBotId,
   visibleBots,
 } from "./bots/bot-selection";
+import {
+  loadSessionBindings,
+  saveSessionBindings,
+} from "./bots/session-bindings";
 import { DesktopRouteErrorBoundary } from "./components/DesktopRouteErrorBoundary";
 import { useToasts } from "./components/ToastRegion";
 import { useModalFocusBoundary } from "./components/useModalFocusBoundary";
+import type { ComputerOrigin } from "./computer-origin";
 import { newConversationId } from "./conversation-id";
 import {
   collectSidebarFocusables,
@@ -341,6 +347,8 @@ export function App() {
   const [utilityOpen, setUtilityOpen] = useState(false);
   const [chatTerminalOpen, setChatTerminalOpen] = useState(false);
   const [chatTerminalMounted, setChatTerminalMounted] = useState(false);
+  const [computerOrigin, setComputerOrigin] = useState<ComputerOrigin>();
+  const [terminalOrigin, setTerminalOrigin] = useState<ComputerOrigin>();
   const [navCollapsed, setNavCollapsed] = useState(
     () => localStorage.getItem(NAV_COLLAPSED_KEY) === "true",
   );
@@ -391,8 +399,12 @@ export function App() {
   );
   const [localBotBindings, setLocalBotBindings] = useState<
     Record<string, string>
-  >({});
+  >(() => loadSessionBindings(localStorage));
+  useEffect(() => {
+    saveSessionBindings(localStorage, localBotBindings);
+  }, [localBotBindings]);
   const [botCreationOpen, setBotCreationOpen] = useState(false);
+  const [editingBot, setEditingBot] = useState<BotSummary | undefined>();
   const botCreationTriggerRef = useRef<HTMLElement | null>(null);
   const [appearance, setAppearance] = useState<DesktopAppearance>(
     loadAppearancePreference,
@@ -460,11 +472,36 @@ export function App() {
     setProjects,
     setSessions,
   } = useRuntimeWorkspaceData(pushToast);
-  const botResource = useApiResource<BotCatalogResponse>(
-    backend.phase === "ready" ? "/bots" : null,
-    [backend.phase],
-  );
+  const botResource = useApiResource<BotCatalogResponse>("/bots", [
+    backend.phase,
+  ]);
   const botCatalog = botResource.data;
+  useEffect(() => {
+    const refresh = () => {
+      void botResource.reload();
+    };
+    const edit = (event: Event) => {
+      const id = (event as CustomEvent<{ botId?: string }>).detail?.botId;
+      const bot = botCatalog?.bots.find(
+        (entry) =>
+          entry.id === id &&
+          !entry.isDefault &&
+          (entry.state === "stopped" || entry.state === "error"),
+      );
+      if (!bot) return;
+      botCreationTriggerRef.current =
+        document.activeElement instanceof HTMLElement
+          ? document.activeElement
+          : null;
+      setEditingBot(bot);
+    };
+    window.addEventListener("doolittle:bot-catalog-changed", refresh);
+    window.addEventListener("doolittle:edit-bot", edit);
+    return () => {
+      window.removeEventListener("doolittle:bot-catalog-changed", refresh);
+      window.removeEventListener("doolittle:edit-bot", edit);
+    };
+  }, [botCatalog, botResource.reload]);
   const defaultBotId = botCatalog?.defaultBotId ?? "";
   const bots = useMemo(() => {
     const catalogBots = visibleBots(botCatalog);
@@ -633,6 +670,35 @@ export function App() {
   }, []);
 
   const openChatTerminal = useCallback(() => {
+    const owner = sessionBotId(
+      selectedSession,
+      sessions,
+      localBotBindings,
+      defaultBotId,
+    );
+    const bot = bots.find((entry) => entry.id === owner);
+    const origin =
+      (renderedViewForView(view) === "code" ||
+      renderedViewForView(view) === "browser"
+        ? computerOrigin
+        : undefined) ??
+      (owner
+        ? {
+            botId: owner,
+            originConversationId: selectedSession,
+            workspacePath:
+              bot && !bot.isDefault ? bot.workspacePath : workspace.currentPath,
+          }
+        : undefined);
+    if (!origin) {
+      pushToast({
+        tone: "error",
+        title: "Computer is unavailable",
+        message: "Select a bot conversation before opening Computer.",
+      });
+      return;
+    }
+    setTerminalOrigin(origin);
     if (utilityOpen && utilityModalMode) {
       setUtilityOpen(false);
     }
@@ -643,7 +709,20 @@ export function App() {
     setMobileSidebarOpen(false);
     setChatTerminalMounted(true);
     setChatTerminalOpen(true);
-  }, [setMobileSidebarOpen, utilityModalMode, utilityOpen]);
+  }, [
+    setMobileSidebarOpen,
+    utilityModalMode,
+    utilityOpen,
+    selectedSession,
+    sessions,
+    localBotBindings,
+    defaultBotId,
+    bots,
+    computerOrigin,
+    view,
+    workspace.currentPath,
+    pushToast,
+  ]);
 
   const toggleChatTerminal = useCallback(() => {
     if (chatTerminalOpen) closeChatTerminal();
@@ -1038,6 +1117,8 @@ export function App() {
     switchToRecentWorkspace,
     transitionToProjectScope,
     workspacePath: workspace.currentPath,
+    botIdForSession: (id) =>
+      sessionBotId(id, sessions, localBotBindings, defaultBotId),
   });
 
   const botIdForSession = useCallback(
@@ -1228,6 +1309,8 @@ export function App() {
 
   useEffect(() => {
     const onChatTerminalKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (document.documentElement.dataset.nativeInterfaceVisible === "false")
+        return;
       if (!shouldHandleGlobalChatTerminalShortcut(view, event)) return;
       event.preventDefault();
       event.stopPropagation();
@@ -1240,6 +1323,8 @@ export function App() {
 
   useEffect(() => {
     const onKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (document.documentElement.dataset.nativeInterfaceVisible === "false")
+        return;
       if (isCommandPaletteShortcut(event)) {
         event.preventDefault();
         if (paletteOpen) {
@@ -1298,6 +1383,68 @@ export function App() {
     toggleInspector,
     toggleNavigation,
   ]);
+
+  useEffect(() => {
+    const openInterfaces = () => setView("settings");
+    window.addEventListener("doolittle:interface-settings", openInterfaces);
+    const detach = window.doolittle.ui?.onSurface(({ target }) => {
+      bindSessionBot(target.sessionId, target.botId);
+      setSelectedBotId(target.botId);
+      setSelectedSession(target.sessionId);
+      setView("chat");
+    });
+    const bridge = window.doolittle.ui;
+    let disposed = false;
+    let generation = 0;
+    const restoreSelection = () => {
+      const request = ++generation;
+      void bridge
+        ?.getSnapshot()
+        .then((snapshot) => {
+          if (disposed || request !== generation || !snapshot.selected) return;
+          const target = snapshot.selected;
+          bindSessionBot(target.sessionId, target.botId);
+          setSelectedBotId(target.botId);
+          setSelectedSession(target.sessionId);
+        })
+        .catch(() => undefined);
+    };
+    restoreSelection();
+    const detachState = bridge?.onState((state) => {
+      generation++;
+      if (state.mode === "default") restoreSelection();
+    });
+    return () => {
+      disposed = true;
+      detachState?.();
+      detach?.();
+      window.removeEventListener(
+        "doolittle:interface-settings",
+        openInterfaces,
+      );
+    };
+  }, [bindSessionBot, setView]);
+
+  useEffect(() => {
+    if (document.documentElement.dataset.nativeInterfaceVisible === "false")
+      return;
+    const botId = botIdForSession(selectedSession);
+    const bridge = window.doolittle.ui;
+    if (!botId || !bridge) return;
+    const projectId = sessions.find(
+      (session) => session.sessionId === selectedSession,
+    )?.projectId;
+    void bridge
+      .dispatch({
+        type: "conversation.select",
+        target: {
+          botId,
+          sessionId: selectedSession,
+          ...(projectId ? { projectId } : {}),
+        },
+      })
+      .catch(() => undefined);
+  }, [botIdForSession, selectedSession, sessions]);
 
   useEffect(
     () =>
@@ -1493,6 +1640,10 @@ export function App() {
         openWorkspaceFile,
         selectSession: setSelectedSession,
         setView,
+        openComputerView: (next, origin) => {
+          setComputerOrigin(origin);
+          setView(next);
+        },
         transitionToProjectScope,
       }}
       onChooseWorkspace={chooseWorkspace}
@@ -1505,7 +1656,11 @@ export function App() {
       projectCards={projectCards}
       projectLabels={projectLabels}
       projectScope={projectScope}
-      refreshRuntime={refreshRuntime}
+      refreshRuntime={async () => {
+        const refreshed = await refreshRuntime();
+        await botResource.reload();
+        return refreshed;
+      }}
       routeFocus={routeFocus.current}
       runtime={runtime}
       runningTasks={runningTasks}
@@ -1520,6 +1675,19 @@ export function App() {
       onActivateBot={activateBot}
       view={routeView}
       workspacePath={workspace.currentPath}
+      computerOrigin={
+        computerOrigin ??
+        (botIdForSession(selectedSession)
+          ? {
+              botId: botIdForSession(selectedSession),
+              originConversationId: selectedSession,
+              workspacePath:
+                selectedBot && !selectedBot.isDefault
+                  ? selectedBot.workspacePath
+                  : workspace.currentPath,
+            }
+          : undefined)
+      }
     />
   );
   const chatRouteActive = renderedView === "chat";
@@ -1529,7 +1697,10 @@ export function App() {
   const persistentChatView: View = chatRouteActive ? view : "chat";
 
   return (
-    <main
+    <WorkspaceShell
+      hostSlots
+      layout={canvasLayout ? "canvas" : "companion"}
+      role="main"
       className={`${DESKTOP_SHELL_CLASS} platform-${window.doolittle.platform}${canvasLayout ? " layout-canvas" : ""}${
         effectiveNavCollapsed ? " nav-collapsed" : ""
       }`}
@@ -1630,10 +1801,22 @@ export function App() {
           toasts={toasts}
         />
       </Suspense>
-      {botCreationOpen ? (
+      {botCreationOpen || editingBot ? (
         <BotCreationDialog
-          onClose={() => setBotCreationOpen(false)}
-          onCreated={onBotCreated}
+          key={editingBot?.id ?? "create"}
+          editingBot={editingBot}
+          onClose={() => {
+            setBotCreationOpen(false);
+            setEditingBot(undefined);
+          }}
+          onCreated={
+            editingBot
+              ? () => {
+                  setEditingBot(undefined);
+                  void botResource.reload();
+                }
+              : onBotCreated
+          }
           returnFocusTarget={botCreationTriggerRef.current}
           runtime={runtime}
           workspacePath={workspace.currentPath}
@@ -1824,7 +2007,9 @@ export function App() {
               onSendToChat={(text) => {
                 void openChatWithContext({
                   text,
-                  workspacePath: workspace.currentPath,
+                  workspacePath:
+                    terminalOrigin?.workspacePath ?? workspace.currentPath,
+                  origin: terminalOrigin,
                   projectScope,
                 })
                   .then((accepted) => {
@@ -1833,7 +2018,11 @@ export function App() {
                   .catch(() => undefined);
               }}
               platform={window.doolittle.platform}
-              workspacePath={workspace.currentPath}
+              workspacePath={
+                terminalOrigin?.workspacePath ?? workspace.currentPath
+              }
+              origin={terminalOrigin}
+              allowLegacy={terminalOrigin?.botId === defaultBotId}
             />
           </Suspense>
         ) : null}
@@ -1862,6 +2051,6 @@ export function App() {
           />
         </Suspense>
       ) : null}
-    </main>
+    </WorkspaceShell>
   );
 }

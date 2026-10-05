@@ -7,12 +7,13 @@ import type {
   SessionSummary,
   SessionsResponse,
 } from "../shared/contracts";
+import { loadBotSessionCatalog } from "./bots/session-catalog";
 import type { ToastInput } from "./components/ToastRegion";
 import { desktopRequest } from "./lib";
 
 type RuntimeWorkspaceResults = readonly [
   PromiseSettledResult<RuntimeStatus>,
-  PromiseSettledResult<SessionsResponse>,
+  PromiseSettledResult<SessionsResponse & { warnings?: string[] }>,
   PromiseSettledResult<ProjectsResponse>,
 ];
 
@@ -39,6 +40,8 @@ export function resolveRuntimeWorkspaceResults(
       (result): result is PromiseRejectedResult => result.status === "rejected",
     )
     .map(resultError);
+  if (sessionsResult.status === "fulfilled")
+    errors.push(...(sessionsResult.value.warnings ?? []));
 
   return {
     ...(runtimeResult.status === "fulfilled"
@@ -64,6 +67,8 @@ export function useRuntimeWorkspaceData(
   });
   const [runtime, setRuntime] = useState<RuntimeStatus | null>(null);
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
+  const sessionsRef = useRef(sessions);
+  sessionsRef.current = sessions;
   const [projects, setProjects] = useState<Project[]>([]);
   const [globalError, setGlobalError] = useState("");
   const backendPhaseRef = useRef(backend.phase);
@@ -83,7 +88,9 @@ export function useRuntimeWorkspaceData(
     const snapshot = resolveRuntimeWorkspaceResults(
       await Promise.allSettled([
         desktopRequest<RuntimeStatus>("/runtime/status"),
-        desktopRequest<SessionsResponse>("/sessions?limit=200"),
+        desktopRequest<SessionsResponse>("/sessions?limit=200").then((lead) =>
+          loadBotSessionCatalog(lead, sessionsRef.current),
+        ),
         desktopRequest<ProjectsResponse>("/projects?includeArchived=true"),
       ]),
     );

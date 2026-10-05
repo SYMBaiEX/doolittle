@@ -570,6 +570,8 @@ describe("chat history concurrency", () => {
       "GET",
       undefined,
       expect.any(AbortSignal),
+      undefined,
+      undefined,
     );
 
     act(() => {
@@ -761,6 +763,8 @@ describe("chat history concurrency", () => {
       "GET",
       undefined,
       expect.any(AbortSignal),
+      undefined,
+      undefined,
     );
   });
 
@@ -816,6 +820,8 @@ describe("chat history concurrency", () => {
       "GET",
       undefined,
       expect.any(AbortSignal),
+      undefined,
+      undefined,
     );
     expect(latest?.selectedMessages).toHaveLength(501);
     expect(

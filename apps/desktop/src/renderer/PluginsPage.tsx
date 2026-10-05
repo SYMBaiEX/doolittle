@@ -25,10 +25,8 @@ import {
 import { PluginCatalogWorkspace } from "./plugins/PluginCatalogWorkspace";
 import { buildPluginCatalogEntries } from "./plugins/plugin-catalog-model";
 
-const PLUGIN_DESCRIPTION =
-  "Inspect the ElizaOS packages assembled into this runtime.";
-const FILTER_LABEL_CLASS =
-  "plugins-filter-label font-[var(--font-mono)] text-[length:var(--text-meta)] tracking-[0.08em] text-[var(--muted)] uppercase";
+const PLUGIN_DESCRIPTION = "ElizaOS runtime packages.";
+const FILTER_LABEL_CLASS = "plugins-filter-label text-sm text-[var(--muted)]";
 
 export function PluginsPage({
   active,

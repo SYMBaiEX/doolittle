@@ -1,8 +1,10 @@
 // @vitest-environment jsdom
 
+import type { BotSummary } from "@doolittle/contracts/bots";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { desktopRequest } from "../lib";
 import { BotCreationDialog } from "./BotCreationDialog";
 
 vi.mock("../lib", () => ({
@@ -17,6 +19,7 @@ describe("BotCreationDialog accessibility", () => {
   let raf: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
+    Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
     host = document.createElement("div");
     trigger = document.createElement("button");
     document.body.append(trigger, host);
@@ -62,6 +65,66 @@ describe("BotCreationDialog accessibility", () => {
       "Give this bot a name.",
     );
     expect(document.activeElement).toBe(name);
+  });
+
+  it("edits a stopped bot in place without discarding existing permissions", async () => {
+    const bot = {
+      id: "specialist",
+      name: "Researcher",
+      persona: "Research carefully",
+      state: "stopped",
+      model: { provider: "offline", model: "test", reasoningEffort: "high" },
+      workspacePath: "/tmp/one",
+      permissions: {
+        connectionIds: ["offline:local"],
+        workspacePaths: ["/tmp/one", "/tmp/two"],
+        toolIds: ["approved-tool"],
+        allowMutation: false,
+        allowDelegation: true,
+      },
+    } as BotSummary;
+    const saved = vi.fn();
+    await act(async () =>
+      root.render(
+        <BotCreationDialog
+          editingBot={bot}
+          onClose={vi.fn()}
+          onCreated={saved}
+          returnFocusTarget={trigger}
+          runtime={null}
+          workspacePath="/tmp/global"
+        />,
+      ),
+    );
+    expect(
+      host.querySelector<HTMLInputElement>("#bot-create-name")?.value,
+    ).toBe("Researcher");
+    for (let index = 0; index < 4; index++)
+      await act(async () =>
+        [...host.querySelectorAll("button")]
+          .find((entry) => entry.textContent === "Continue")
+          ?.click(),
+      );
+    await act(async () =>
+      [...host.querySelectorAll("button")]
+        .find((entry) => entry.textContent === "Save bot")
+        ?.click(),
+    );
+    expect(desktopRequest).toHaveBeenCalledWith(
+      "/bots/specialist",
+      "PATCH",
+      expect.objectContaining({
+        model: bot.model,
+        permissions: {
+          ...bot.permissions,
+          workspacePaths: expect.arrayContaining(
+            bot.permissions.workspacePaths,
+          ),
+        },
+        workspacePath: "/tmp/one",
+      }),
+    );
+    expect(saved).toHaveBeenCalledOnce();
   });
 
   it("restores focus to the launch control when the dialog unmounts", async () => {

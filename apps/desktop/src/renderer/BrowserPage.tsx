@@ -54,13 +54,15 @@ export function BrowserPage({
   active,
   contextual = false,
   onSendToChat,
+  botId,
 }: {
   active: boolean;
   /** Render browser chrome inside the Code workspace instead of as a route. */
   contextual?: boolean;
   onSendToChat?: (text: string) => boolean | Promise<boolean>;
+  botId?: string;
 }) {
-  const browser = useBrowserWorkspace(active);
+  const browser = useBrowserWorkspace(active, botId);
   const {
     address,
     busy,

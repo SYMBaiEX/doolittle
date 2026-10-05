@@ -49,7 +49,7 @@ type WorkspaceProps = ChatPageProps & {
   renderPanel: (props: PanelProps) => ReactNode;
 };
 const CONTROL =
-  "inline-flex min-h-9 min-w-9 max-[720px]:min-h-11 max-[720px]:min-w-11 items-center justify-center gap-1.5 border border-[var(--border)] px-2 text-[length:var(--text-control)] text-[var(--text-soft)] transition-colors hover:border-[var(--accent)] hover:bg-[var(--surface-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] disabled:opacity-40";
+  "inline-flex min-h-10 min-w-10 max-[720px]:min-h-11 max-[720px]:min-w-11 items-center justify-center gap-1.5 border border-[var(--border)] px-2 text-[length:var(--text-control)] text-[var(--text-soft)] transition-colors hover:border-[var(--accent)] hover:bg-[var(--surface-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] disabled:opacity-40";
 
 export function SessionWorkspace(props: WorkspaceProps) {
   return (
@@ -113,6 +113,7 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
   const geometry = workspaceGeometry(layout.tree);
   const searchRef = useRef<HTMLInputElement>(null);
   const finderButtonRef = useRef<HTMLButtonElement>(null);
+  const finderReturnRef = useRef<HTMLElement | null>(null);
   const focusRequestedRef = useRef(false);
   const externalSelectionRef = useRef(props.selectedId);
   useEffect(() => {
@@ -267,7 +268,13 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
   }, [finderOpen]);
 
   useEffect(() => {
-    const openFinder = () => setFinderOpen(true);
+    const openFinder = () => {
+      finderReturnRef.current =
+        document.activeElement instanceof HTMLElement
+          ? document.activeElement
+          : null;
+      setFinderOpen(true);
+    };
     window.addEventListener("doolittle:find-session", openFinder);
     return () =>
       window.removeEventListener("doolittle:find-session", openFinder);
@@ -340,6 +347,16 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
     focusSession(id, true);
   };
 
+  useEffect(() => {
+    const createView = () => {
+      if (rootRef.current?.closest("[hidden], [inert]")) return;
+      createSession();
+    };
+    window.addEventListener("doolittle:new-conversation-view", createView);
+    return () =>
+      window.removeEventListener("doolittle:new-conversation-view", createView);
+  });
+
   const focusedSession = layout.focusedId || props.selectedId;
   const conversationSurface =
     (props.surface ?? "conversation") === "conversation";
@@ -371,7 +388,7 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
             if (event.key === "Escape") {
               event.preventDefault();
               setFinderOpen(false);
-              finderButtonRef.current?.focus();
+              (finderButtonRef.current ?? finderReturnRef.current)?.focus();
             }
           }}
         >
@@ -395,7 +412,7 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
             </Button>
           </div>
           <Input
-            className="min-h-9 w-full border border-[var(--border)] bg-[var(--bg)] px-3 text-sm text-[var(--text)] focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
+            className="min-h-10 w-full border border-[var(--border)] bg-[var(--bg)] px-3 text-sm text-[var(--text)] focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)] max-[760px]:min-h-11"
             id="session-workspace-search"
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Title or session ID"
@@ -680,41 +697,6 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
                 }}
                 tabIndex={-1}
               >
-                {conversationSurface && layout.openIds.length === 1 ? (
-                  <div className="flex min-h-10 shrink-0 items-center justify-end gap-1 border-b border-[var(--border)] px-2">
-                    <Button
-                      aria-controls="session-workspace-finder"
-                      aria-expanded={finderOpen}
-                      aria-label="Find session"
-                      className={CONTROL}
-                      onClick={() => setFinderOpen((value) => !value)}
-                      ref={finderButtonRef}
-                      type="button"
-                      variant="ghost"
-                    >
-                      <Search aria-hidden size={14} />
-                    </Button>
-                    <Button
-                      aria-label="New session"
-                      className={CONTROL}
-                      onClick={createSession}
-                      type="button"
-                      variant="ghost"
-                    >
-                      <Plus aria-hidden size={14} />
-                    </Button>
-                    <Button
-                      aria-label={`Close ${title}`}
-                      className={CONTROL}
-                      onClick={() => closePanel(id)}
-                      title="Close view only; running work continues"
-                      type="button"
-                      variant="ghost"
-                    >
-                      <X aria-hidden size={14} />
-                    </Button>
-                  </div>
-                ) : null}
                 {!tabbed && layout.openIds.length > 1 ? (
                   <div className="flex min-h-10 shrink-0 items-center justify-between gap-1 border-b border-[var(--border)] bg-[var(--surface)] px-2">
                     <Button

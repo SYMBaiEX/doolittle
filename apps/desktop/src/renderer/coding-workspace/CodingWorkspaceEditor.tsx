@@ -90,6 +90,8 @@ export function CodingWorkspaceEditor({
   savingFile,
   draftContent,
   workspacePath,
+  botId,
+  originConversationId,
   acpEditor,
   acpTaskOpen,
   acpTaskDraft,
@@ -118,6 +120,8 @@ export function CodingWorkspaceEditor({
   savingFile: boolean;
   draftContent: string;
   workspacePath: string;
+  botId?: string;
+  originConversationId?: string;
   acpEditor: CodingWorkspaceAcpViewModel;
   acpTaskOpen: boolean;
   acpTaskDraft: string;
@@ -291,6 +295,8 @@ export function CodingWorkspaceEditor({
                 }
               >
                 <CodeEditor
+                  botId={botId}
+                  originConversationId={originConversationId}
                   disabled={editingLocked || savingFile}
                   language={selectedLanguage}
                   onChange={onDraftChange}

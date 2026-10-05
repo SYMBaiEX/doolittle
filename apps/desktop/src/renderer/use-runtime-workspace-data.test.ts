@@ -13,6 +13,9 @@ import type {
 const mocks = vi.hoisted(() => ({ desktopRequest: vi.fn() }));
 
 vi.mock("./lib", () => ({ desktopRequest: mocks.desktopRequest }));
+vi.mock("./bots/session-catalog", () => ({
+  loadBotSessionCatalog: async (lead: unknown) => lead,
+}));
 
 import {
   resolveRuntimeWorkspaceResults,

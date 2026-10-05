@@ -113,6 +113,7 @@ export class UiInterfaceController {
   private protectedDepth = 0;
   private transition = false;
   private recovery?: string;
+  private hostSurface?: UiInterfaceState["hostSurface"];
   private readonly subscriptions = new Map<string, () => void>();
   private readonly onResize = () => this.showCommunity();
   private readonly onHide = () => this.community?.hide();
@@ -142,6 +143,7 @@ export class UiInterfaceController {
       installed: this.listInstalled(),
       safeMode: this.options.safeMode,
       ...(this.recovery ? { recovery: this.recovery } : {}),
+      ...(this.hostSurface ? { hostSurface: this.hostSurface } : {}),
     };
   }
 
@@ -289,7 +291,9 @@ export class UiInterfaceController {
       rawUrl.includes("#")
     )
       return new Response("Forbidden", { status: 403 });
-    const allowedOrigin = this.options.rendererOrigin ?? "null";
+    // Electron's packaged file renderer sends Origin: file:// for ESM imports.
+    // Keep the exact development origin separate; never allow arbitrary origins.
+    const allowedOrigin = this.options.rendererOrigin ?? "file://";
     if (initiatorOrigin !== undefined && initiatorOrigin !== allowedOrigin)
       return new Response("Forbidden", { status: 403 });
     const prefix = `${UI_SCHEME}://trusted/${artifact.identity.digest}/`;
@@ -403,6 +407,7 @@ export class UiInterfaceController {
         this.activationEpoch += 1;
         this.options.host.activate(artifact);
         this.artifact = artifact;
+        this.hostSurface = undefined;
       } else {
         const capabilities = request.capabilities ?? [];
         const targets = request.targets ?? [];
@@ -509,6 +514,7 @@ export class UiInterfaceController {
         stillCurrent();
         this.activationEpoch += 1;
         this.artifact = artifact;
+        this.hostSurface = undefined;
         this.showCommunity();
       }
       this.recovery = undefined;
@@ -523,6 +529,7 @@ export class UiInterfaceController {
     this.community?.dispose();
     this.community = undefined;
     this.artifact = undefined;
+    this.hostSurface = undefined;
     this.recovery = undefined;
     try {
       this.options.host.deactivate();
@@ -567,9 +574,28 @@ export class UiInterfaceController {
     }
   }
 
+  revealHostSurface(
+    target: UiTarget,
+    surface: "details" | "library" | "computer",
+  ): void {
+    this.activationEpoch += 1;
+    this.hostSurface = { target: { ...target }, surface };
+    this.community?.hide();
+    this.emit();
+  }
+
+  returnToInterface(): UiInterfaceState {
+    this.activationEpoch += 1;
+    this.hostSurface = undefined;
+    this.showCommunity();
+    this.emit();
+    return this.getState();
+  }
+
   private showCommunity(): void {
     if (
       this.protectedDepth ||
+      this.hostSurface ||
       !this.community ||
       this.artifact?.manifest.trustTier !== "community-static"
     )
@@ -674,6 +700,9 @@ export class UiInterfaceController {
       this.activate(request as UiInterfaceActivation),
     );
     handle(uiInterfaceChannels.restore, () => this.restoreDefault());
+    handle(uiInterfaceChannels.returnToInterface, () =>
+      this.returnToInterface(),
+    );
     handle(uiInterfaceChannels.revoke, (value) =>
       this.revoke(value as UiPluginArtifactIdentity),
     );

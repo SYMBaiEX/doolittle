@@ -62,6 +62,7 @@ import { UiIcon } from "./UiIcon";
 export type { ThreadWorkbenchFullView } from "../thread-workbench/models";
 
 export interface ThreadWorkbenchRailProps {
+  botId?: string;
   group?: "all" | "library" | "computer";
   minimal?: boolean;
   active: boolean;
@@ -86,6 +87,7 @@ export function ThreadWorkbenchRail({
   group = "all",
   minimal = false,
   active,
+  botId,
   sessionId,
   workspacePath,
   onInsertContext,
@@ -96,6 +98,7 @@ export function ThreadWorkbenchRail({
   const idPrefix = `thread-workbench-${instanceId.replace(/:/g, "")}`;
   const controller = useThreadWorkbenchRailController({
     active,
+    botId,
     sessionId,
     workspacePath,
     onInsertContext,

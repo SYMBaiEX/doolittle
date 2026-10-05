@@ -237,7 +237,7 @@ describe("chat presentation components", () => {
   it("keeps composer controls compact by default while preserving primary actions", () => {
     const props = composerProps({ backend: { phase: "ready", message: "" } });
     const html = renderToStaticMarkup(<ChatComposer {...props} />);
-    expect(html).toContain('class="chat-composer"');
+    expect(html).toContain('class="dl-composer chat-composer"');
     expect(html).toContain("chat-composer-main");
     expect(html).toContain("chat-composer-footer");
     expect(html).toContain("chat-composer-footer-right");
@@ -919,8 +919,8 @@ describe("chat presentation components", () => {
       <Welcome onSelect={() => undefined} projectName="Doolittle" />,
     );
     expect(html).toContain('class="chat-welcome"');
-    expect(html).toContain("Start a task");
-    expect(html).toContain("open Doolittle project as context");
+    expect(html).toContain("What’s on your mind?");
+    expect(html).toContain("can help with Doolittle");
     expect(html).toContain("Explain this project");
     expect(html).toContain("Plan a change");
     expect(html).toContain("Investigate a bug");
@@ -1325,7 +1325,7 @@ describe("chat presentation components", () => {
     expect(html).not.toContain('aria-live="polite"');
     expect(html).not.toContain('aria-relevant="additions text"');
     expect(html).toContain('aria-label="Conversation"');
-    expect(html).toContain("Start a task");
+    expect(html).toContain("What’s on your mind?");
   });
 
   it("marks the transcript busy while history or a live request is active", () => {

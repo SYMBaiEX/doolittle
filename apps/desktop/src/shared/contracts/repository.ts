@@ -1,15 +1,21 @@
-import type { RepositoryMutationResult } from "@doolittle/contracts/repository";
+import type {
+  RepositoryMutationRequest as CoreRepositoryMutationRequest,
+  RepositoryMutationResult,
+} from "@doolittle/contracts/repository";
+import type { ComputerOwnerScope } from "./editor";
 
 export type {
   RepositoryBranch,
   RepositoryConflict,
-  RepositoryMutationRequest,
   RepositoryMutationResult,
   RepositoryRemote,
   RepositoryStash,
 } from "@doolittle/contracts/repository";
 
-export interface RepositoryWorktreeCreateRequest {
+export type RepositoryMutationRequest = CoreRepositoryMutationRequest &
+  ComputerOwnerScope;
+
+export interface RepositoryWorktreeCreateRequest extends ComputerOwnerScope {
   branch: string;
   path: string;
 }

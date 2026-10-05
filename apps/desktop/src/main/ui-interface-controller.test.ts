@@ -148,6 +148,37 @@ function setup(
 }
 
 describe("native interface consent and recovery", () => {
+  it("temporarily reveals a host surface without cancelling or replacing the community renderer", async () => {
+    const { controller, artifact, community, backend, handlers } = setup();
+    await controller.start();
+    await controller.activate({
+      identity: artifact.identity,
+      capabilities: ["conversation.read"],
+      targets: [target],
+    });
+    community.setBounds.mockClear();
+    controller.revealHostSurface(target, "computer");
+    expect(controller.getState().hostSurface).toEqual({
+      target,
+      surface: "computer",
+    });
+    expect(community.hide).toHaveBeenCalledOnce();
+    expect(community.dispose).not.toHaveBeenCalled();
+    expect(controller.getState().mode).toBe("community-static");
+    controller.returnToInterface();
+    expect(controller.getState().hostSurface).toBeUndefined();
+    expect(community.setBounds).toHaveBeenCalledWith({
+      x: 0,
+      y: 56,
+      width: 1000,
+      height: 744,
+    });
+    expect(backend.stopRun).not.toHaveBeenCalled();
+    expect(handlers.has(uiInterfaceChannels.returnToInterface)).toBe(true);
+    controller.restoreDefault();
+    expect(controller.getState().hostSurface).toBeUndefined();
+    controller.dispose();
+  });
   it("requires explicit full-application trust for the exact trusted artifact", async () => {
     const { controller, confirm, artifact } = setup("trusted-react");
     await controller.start();
@@ -163,9 +194,10 @@ describe("native interface consent and recovery", () => {
     expect(controller.trustedAsset(url).status).toBe(200);
     expect(
       controller
-        .trustedAsset(url, "null")
+        .trustedAsset(url, "file://")
         .headers.get("access-control-allow-origin"),
-    ).toBe("null");
+    ).toBe("file://");
+    expect(controller.trustedAsset(url, "null").status).toBe(403);
     expect(controller.trustedAsset(url, "https://malicious.test").status).toBe(
       403,
     );

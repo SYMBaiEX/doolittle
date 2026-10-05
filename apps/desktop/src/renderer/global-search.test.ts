@@ -6,7 +6,8 @@ const hook = vi.hoisted(() => ({
   desktopRequest: vi.fn(),
 }));
 
-vi.mock("react", () => ({
+vi.mock("react", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("react")>()),
   useEffect: (effect: () => undefined | (() => void)) => {
     hook.cleanup = effect() ?? undefined;
   },

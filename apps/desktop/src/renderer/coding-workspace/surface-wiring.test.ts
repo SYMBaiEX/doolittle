@@ -21,8 +21,11 @@ describe("Code preview surface wiring", () => {
   });
 
   it("keeps preview evidence handoff scoped to the active workspace", () => {
+    expect(pageSource).toMatch(
+      /onSendToChat\(\{\s+text,\s+workspacePath,\s+projectScope,\s+origin:/u,
+    );
     expect(pageSource).toContain(
-      "onSendToChat({ text, workspacePath, projectScope })",
+      "{ botId, originConversationId, workspacePath }",
     );
   });
 });

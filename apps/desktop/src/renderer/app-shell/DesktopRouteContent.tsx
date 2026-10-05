@@ -10,9 +10,10 @@ import type {
   ChatContextHandoff,
   ChatContextRequest,
 } from "../chat-context-handoff";
+import { type ComputerOrigin, computerOriginKey } from "../computer-origin";
 import { renderedViewForView, type View } from "../desktop-navigation";
 import type { DesktopNavigationIntent } from "../desktop-navigation-intent";
-import type { ApiResource } from "../lib";
+import { type ApiResource, LoadingBlock } from "../lib";
 import type { ProjectLike, ProjectScope } from "../project-manager/models";
 import {
   settingsSectionForView,
@@ -37,6 +38,7 @@ export interface DesktopRouteNavigation {
   ) => void | Promise<void>;
   createConversation: () => void;
   openChatTerminal: () => void;
+  openComputerView?: (view: View, origin?: ComputerOrigin) => void;
   transitionToProjectScope: (
     scope: ProjectScope,
     sessionId: string,
@@ -81,6 +83,7 @@ export interface DesktopRouteContentProps {
   chatChromeHost: HTMLElement | null;
   chatRouteActive?: boolean;
   workspacePath: string;
+  computerOrigin?: ComputerOrigin;
   approvalsResource: ApiResource<{ approvals?: unknown[] }>;
   tasksResource: ApiResource<{ tasks?: unknown[] }>;
   refreshRuntime: () => Promise<boolean>;
@@ -122,12 +125,19 @@ export function DesktopRouteContent({
   onActivateBot,
   view,
   workspacePath,
+  computerOrigin,
 }: DesktopRouteContentProps): ReactNode {
   const routeCapabilities = desktopRouteCapabilities(view, backend.phase);
   const active = routeCapabilities.apiRead;
   const settingsSection = settingsSectionForView(view);
   const Route = getDesktopRouteComponent(renderedViewForView(view));
-  const focusScope = desktopRouteFocusScope(workspacePath, projectScope);
+  const focusScope = desktopRouteFocusScope(
+    computerOrigin?.workspacePath ?? workspacePath,
+    projectScope,
+    view === "code" || view === "browser"
+      ? computerOriginKey(computerOrigin)
+      : undefined,
+  );
   const focusForScope = routeFocus.get(focusScope);
 
   const content = (() => {
@@ -186,7 +196,9 @@ export function DesktopRouteContent({
             onSelect={navigation.selectSession}
             onOpenModelsPage={() => navigation.setView("models")}
             onOpenProvidersPage={() => navigation.setView("connections")}
-            onOpenWorkspaceView={navigation.setView}
+            onOpenWorkspaceView={
+              navigation.openComputerView ?? navigation.setView
+            }
             onConsumeContextHandoff={onConsumeContextHandoff}
             pendingApprovals={pendingApprovals}
             pendingContextHandoff={pendingContextHandoff}
@@ -227,11 +239,17 @@ export function DesktopRouteContent({
         );
       case "code":
       case "browser":
+        if (!computerOrigin)
+          return (
+            <LoadingBlock label="Resolving this conversation’s Computer access…" />
+          );
         return (
           <Route
             active={active}
             editingLocked={codeEditingLocked}
             key={focusScope}
+            botId={computerOrigin?.botId}
+            originConversationId={computerOrigin?.originConversationId}
             focusState={focusForScope?.code}
             onFocusStateChange={(state: CodingWorkspaceFocusState) => {
               const current = routeFocus.get(focusScope) ?? {};
@@ -249,7 +267,7 @@ export function DesktopRouteContent({
             onSurfaceChange={(surface: string) =>
               navigation.setView(surface === "preview" ? "browser" : "code")
             }
-            workspacePath={workspacePath}
+            workspacePath={computerOrigin?.workspacePath ?? workspacePath}
           />
         );
       case "gateway":

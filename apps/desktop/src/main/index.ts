@@ -864,6 +864,7 @@ if (ownsSingleInstance)
       openSurface: (target, surface) => {
         // The native renderer resolves this explicit owner; it must not retarget
         // an extension's request to whichever conversation happens to be focused.
+        uiInterfaces?.revealHostSurface(target, surface);
         mainWindow?.webContents.send(uiInterfaceChannels.surface, {
           target,
           surface,
@@ -965,7 +966,7 @@ if (ownsSingleInstance)
               app.isPackaged,
             ) as string,
           ).origin
-        : "null",
+        : "file://",
       commandsDisabled: corruptUiHost,
       ...(corruptUiHost
         ? {

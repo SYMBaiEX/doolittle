@@ -39,6 +39,8 @@ export interface ResolveInteractiveTerminalWorkspaceStateInput {
   nextWorkspacePath: string;
   currentState: InteractiveTerminalWorkspaceState;
   storage?: Storage;
+  ownerKey?: string;
+  allowLegacy?: boolean;
 }
 
 function isString(value: unknown): value is string {
@@ -87,7 +89,12 @@ function normalizeWorkspaceStoragePath(workspacePath: string): string {
   return (workspacePath || "workspace").trim() || "workspace";
 }
 
-export function interactiveTerminalStorageKey(workspacePath: string): string {
+export function interactiveTerminalStorageKey(
+  workspacePath: string,
+  ownerKey?: string,
+): string {
+  if (ownerKey)
+    return `doolittle.desktop.interactive-terminal.v3:${encodeURIComponent(ownerKey)}:${encodeURIComponent(normalizeWorkspaceStoragePath(workspacePath))}`;
   return `${INTERACTIVE_TERMINAL_STORAGE_PREFIX}${encodeURIComponent(
     normalizeWorkspaceStoragePath(workspacePath),
   )}`;
@@ -282,6 +289,8 @@ function closeInvalidatedTerminalTabs(
 export function loadInteractiveTerminalState(
   workspacePath: string,
   storage?: Storage,
+  ownerKey?: string,
+  allowLegacy = false,
 ): InteractiveTerminalWorkspaceState {
   const workspaceDefault = createInteractiveTerminalTab("Terminal 1");
   const fallback = {
@@ -291,7 +300,11 @@ export function loadInteractiveTerminalState(
 
   if (!storage) return fallback;
   try {
-    const value = storage.getItem(interactiveTerminalStorageKey(workspacePath));
+    const value =
+      storage.getItem(interactiveTerminalStorageKey(workspacePath, ownerKey)) ??
+      (ownerKey && allowLegacy
+        ? storage.getItem(interactiveTerminalStorageKey(workspacePath))
+        : null);
     if (!value) return fallback;
     const parsed = JSON.parse(value) as unknown;
     const normalized = parseInteractiveTerminalState(parsed);
@@ -311,6 +324,8 @@ export function resolveInteractiveTerminalWorkspaceState({
   nextWorkspacePath,
   currentState,
   storage,
+  ownerKey,
+  allowLegacy,
 }: ResolveInteractiveTerminalWorkspaceStateInput): InteractiveTerminalWorkspaceState {
   const previous = previousWorkspacePath.trim();
   const next = nextWorkspacePath.trim();
@@ -332,7 +347,12 @@ export function resolveInteractiveTerminalWorkspaceState({
     };
   }
 
-  const restored = loadInteractiveTerminalState(nextWorkspacePath, storage);
+  const restored = loadInteractiveTerminalState(
+    nextWorkspacePath,
+    storage,
+    ownerKey,
+    allowLegacy,
+  );
   if (!previous || !next || previous === next) return restored;
 
   return {
@@ -347,6 +367,7 @@ export function saveInteractiveTerminalState(
   workspacePath: string,
   state: InteractiveTerminalWorkspaceState,
   storage?: Storage,
+  ownerKey?: string,
 ): void {
   if (!storage) return;
   try {
@@ -364,7 +385,7 @@ export function saveInteractiveTerminalState(
       })),
     };
     storage.setItem(
-      interactiveTerminalStorageKey(workspacePath),
+      interactiveTerminalStorageKey(workspacePath, ownerKey),
       JSON.stringify(normalized),
     );
   } catch {

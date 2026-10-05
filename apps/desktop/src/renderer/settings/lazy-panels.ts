@@ -1,5 +1,10 @@
 import { lazy } from "react";
 
+export const LazyInterfacePanel = lazy(async () => {
+  const module = await import("./SettingsInterfacePanel");
+  return { default: module.SettingsInterfacePanel };
+});
+
 export const LazyModelsPage = lazy(async () => {
   const module = await import("../ModelsPage");
   return { default: module.ModelsPage };

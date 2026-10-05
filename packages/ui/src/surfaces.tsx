@@ -1,14 +1,16 @@
-import type { HTMLAttributes, ReactNode } from "react";
+import type { ComponentPropsWithRef, HTMLAttributes, ReactNode } from "react";
 import type { UiRunState } from "./host";
 
 const classes = (...values: Array<string | undefined | false>) =>
   values.filter(Boolean).join(" ");
 
-export interface WorkspaceShellProps extends HTMLAttributes<HTMLDivElement> {
+export interface WorkspaceShellProps extends ComponentPropsWithRef<"div"> {
   navigation?: ReactNode;
   header?: ReactNode;
   inspector?: ReactNode;
   layout?: "companion" | "canvas";
+  /** The native host supplies existing landmark slots, without extra wrappers. */
+  hostSlots?: boolean;
 }
 
 /** Composition only. The host owns navigation, focus, resource and run state. */
@@ -17,6 +19,7 @@ export function WorkspaceShell({
   header,
   inspector,
   layout = "companion",
+  hostSlots = false,
   children,
   className,
   ...props
@@ -25,14 +28,21 @@ export function WorkspaceShell({
     <div
       {...props}
       data-layout={layout}
+      data-layout-mode={hostSlots ? "host-slots" : undefined}
       className={classes("dl-workspace", className)}
     >
-      {navigation && <aside className="dl-navigation">{navigation}</aside>}
-      <div className="dl-main">
-        {header && <header className="dl-header">{header}</header>}
-        <main className="dl-content">{children}</main>
-      </div>
-      {inspector && <aside className="dl-inspector">{inspector}</aside>}
+      {hostSlots ? (
+        children
+      ) : (
+        <>
+          {navigation && <aside className="dl-navigation">{navigation}</aside>}
+          <div className="dl-main">
+            {header && <header className="dl-header">{header}</header>}
+            <main className="dl-content">{children}</main>
+          </div>
+          {inspector && <aside className="dl-inspector">{inspector}</aside>}
+        </>
+      )}
     </div>
   );
 }
@@ -76,7 +86,7 @@ export function ContactRow({
 const stateLabels: Record<UiRunState, string> = {
   running: "Running",
   waiting: "Waiting",
-  attention: "Needs attention",
+  attention: "Attention",
   complete: "Complete",
   stopped: "Stopped",
   error: "Error",
@@ -112,27 +122,43 @@ export function ConversationFrame({
 }: HTMLAttributes<HTMLDivElement> & { composer?: ReactNode }) {
   return (
     <div {...props} className={classes("dl-conversation", className)}>
-      <div className="dl-transcript">{children}</div>
+      {composer === undefined ? (
+        children
+      ) : (
+        <div className="dl-transcript">{children}</div>
+      )}
       {composer && <div className="dl-composer-slot">{composer}</div>}
     </div>
   );
 }
 
+type ComposerFrameProps = (
+  | ({ as: "form" } & ComponentPropsWithRef<"form">)
+  | ({ as?: "div" } & ComponentPropsWithRef<"div">)
+) & { actions?: ReactNode; context?: ReactNode };
 export function ComposerFrame({
+  as = "div",
   children,
   actions,
   context,
   className,
   ...props
-}: HTMLAttributes<HTMLDivElement> & {
-  actions?: ReactNode;
-  context?: ReactNode;
-}) {
-  return (
-    <div {...props} className={classes("dl-composer", className)}>
+}: ComposerFrameProps) {
+  const content = (
+    <>
       {children}
       {actions && <div className="dl-composer-actions">{actions}</div>}
       {context && <div className="dl-composer-context">{context}</div>}
+    </>
+  );
+  const frameClass = classes("dl-composer", className);
+  return as === "form" ? (
+    <form {...(props as ComponentPropsWithRef<"form">)} className={frameClass}>
+      {content}
+    </form>
+  ) : (
+    <div {...(props as ComponentPropsWithRef<"div">)} className={frameClass}>
+      {content}
     </div>
   );
 }
@@ -141,16 +167,26 @@ export function InspectorFrame({
   title,
   navigation,
   children,
+  className,
+  ...props
 }: {
   title: string;
   navigation?: ReactNode;
   children: ReactNode;
-}) {
+} & ComponentPropsWithRef<"aside">) {
   return (
-    <section className="dl-inspector-frame" aria-label={title}>
+    <aside
+      {...props}
+      className={classes("dl-inspector-frame", className)}
+      aria-label={title}
+    >
       {navigation}
-      <div className="dl-inspector-content">{children}</div>
-    </section>
+      {navigation === undefined ? (
+        children
+      ) : (
+        <div className="dl-inspector-content">{children}</div>
+      )}
+    </aside>
   );
 }
 

@@ -834,7 +834,16 @@ export class UiExtensionHost implements UiHostV1 {
           throw new Error("UI target ownership changed.");
         recheck();
         const text = this.state.drafts[targetKey(target)] ?? "";
-        return { requestId, accepted: true, draft: { target, text } };
+        return {
+          requestId,
+          accepted: true,
+          draft: {
+            target,
+            text,
+            revision: this.revision,
+            exists: Object.hasOwn(this.state.drafts, targetKey(target)),
+          },
+        };
       }
       case "transcript.read": {
         if (
@@ -939,7 +948,9 @@ export class UiExtensionHost implements UiHostV1 {
           command.surface,
           assertAuthorizedAtCommit,
         );
-        recheck();
+        // Revealing the host-owned surface intentionally hides/deactivates the
+        // requesting presentation. Authorization is checked by the backend at
+        // commit, not again after that successful visibility transition.
         return { requestId, accepted: true };
       }
       case "approval.present": {
@@ -962,7 +973,21 @@ export class UiExtensionHost implements UiHostV1 {
         this.state.drafts[targetKey(target)] = command.text;
         this.state.revision = ++this.revision;
         this.persist();
-        return { requestId, accepted: true };
+        this.publish({
+          type: "draft.changed",
+          target,
+          revision: this.revision,
+        });
+        return {
+          requestId,
+          accepted: true,
+          draft: {
+            target,
+            text: command.text,
+            revision: this.revision,
+            exists: true,
+          },
+        };
       }
       default:
         throw new Error("Unsupported UI command.");

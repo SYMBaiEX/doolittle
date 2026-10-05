@@ -113,13 +113,16 @@ export interface DoolittleDesktopBridge {
   ): Promise<InteractiveTerminalSession>;
   interruptInteractiveTerminal(
     sessionId: string,
+    botId?: string,
   ): Promise<InteractiveTerminalSession>;
   closeInteractiveTerminal(
     sessionId: string,
+    botId?: string,
   ): Promise<InteractiveTerminalSession>;
   getInteractiveTerminalOutput(
     sessionId: string,
     cursor: number,
+    botId?: string,
   ): Promise<InteractiveTerminalOutput>;
   getEditorProjectContext(
     request: EditorProjectContextRequest,

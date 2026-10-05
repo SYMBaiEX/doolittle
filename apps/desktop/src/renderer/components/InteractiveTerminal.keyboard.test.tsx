@@ -81,6 +81,11 @@ describe("interactive terminal keyboard focus", () => {
           autoStart={autoStart}
           onSendToChat={vi.fn()}
           workspacePath={workspace}
+          origin={{
+            botId: "synthetic-bot",
+            originConversationId: "synthetic-chat",
+            workspacePath: workspace,
+          }}
         />,
       );
     });
@@ -400,6 +405,7 @@ describe("interactive terminal keyboard focus", () => {
         otherWorkspace,
         { activeTabId: tab.id, tabs: [tab] },
         localStorage,
+        JSON.stringify(["synthetic-bot", "synthetic-chat"]),
       );
       startShell();
       await renderTerminal({ workspace: otherWorkspace });
@@ -435,6 +441,7 @@ describe("interactive terminal keyboard focus", () => {
       expect(pending.output).toHaveBeenCalledWith(
         "synthetic-pending-session-1",
         0,
+        "synthetic-bot",
       );
     },
   );

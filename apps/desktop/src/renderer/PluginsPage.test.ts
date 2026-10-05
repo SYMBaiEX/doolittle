@@ -30,7 +30,9 @@ describe("PluginsPage density", () => {
     );
     expect(source).not.toContain('className="filter-bar plugins-filter-bar');
     expect(source).not.toContain('className="search-field plugins-filter');
-    expect(source).toContain('"plugins-filter-label font-[var(--font-mono)]');
+    expect(source).toContain(
+      '"plugins-filter-label text-sm text-[var(--muted)]"',
+    );
     expect(source).toContain("className={FILTER_LABEL_CLASS}");
     expect(source).toContain('id="plugin-category-label"');
     expect(source).toContain(

@@ -4,6 +4,7 @@ export type {
   UiHostCommand,
   UiHostEvent,
   UiHostResult,
+  UiHostSubscription,
   UiHostV1,
   UiMessage,
   UiRunState,

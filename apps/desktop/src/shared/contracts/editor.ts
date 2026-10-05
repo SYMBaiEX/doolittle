@@ -1,14 +1,21 @@
-export interface WorkspaceFileSaveRequest {
+/** Native Computer operations retain the conversation that opened them. */
+export interface ComputerOwnerScope {
+  botId?: string;
+  originConversationId?: string;
+  workspacePath?: string;
+}
+
+export interface WorkspaceFileSaveRequest extends ComputerOwnerScope {
   path: string;
   content: string;
   expectedContent: string;
 }
-export interface EditorProjectContextRequest {
+export interface EditorProjectContextRequest extends ComputerOwnerScope {
   workspacePath: string;
   entryPath: string;
   content?: string;
 }
-export interface EditorProjectRevisionRequest {
+export interface EditorProjectRevisionRequest extends ComputerOwnerScope {
   workspacePath: string;
   entryPath: string;
 }

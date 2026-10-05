@@ -17,6 +17,7 @@ const STEP_LABELS = [
 ] as const;
 
 export interface BotCreationDialogProps {
+  editingBot?: BotSummary;
   onClose: () => void;
   onCreated: (bot: BotSummary) => void;
   returnFocusTarget: HTMLElement | null;
@@ -25,6 +26,7 @@ export interface BotCreationDialogProps {
 }
 
 export function BotCreationDialog({
+  editingBot,
   onClose,
   onCreated,
   returnFocusTarget,
@@ -32,15 +34,27 @@ export function BotCreationDialog({
   workspacePath,
 }: BotCreationDialogProps) {
   const [step, setStep] = useState(0);
-  const [name, setName] = useState("");
-  const [avatar, setAvatar] = useState("");
-  const [persona, setPersona] = useState("");
-  const [provider, setProvider] = useState(runtime?.provider ?? "");
-  const [model, setModel] = useState(runtime?.model ?? "");
-  const [botWorkspacePath, setBotWorkspacePath] = useState(workspacePath);
-  const [allowMutation, setAllowMutation] = useState(false);
-  const [allowDelegation, setAllowDelegation] = useState(false);
-  const [connectionIds, setConnectionIds] = useState<string[]>([]);
+  const [name, setName] = useState(editingBot?.name ?? "");
+  const [avatar, setAvatar] = useState(editingBot?.avatar ?? "");
+  const [persona, setPersona] = useState(editingBot?.persona ?? "");
+  const [provider, setProvider] = useState(
+    editingBot?.model.provider ?? runtime?.provider ?? "",
+  );
+  const [model, setModel] = useState(
+    editingBot?.model.model ?? runtime?.model ?? "",
+  );
+  const [botWorkspacePath, setBotWorkspacePath] = useState(
+    editingBot?.workspacePath ?? workspacePath,
+  );
+  const [allowMutation, setAllowMutation] = useState(
+    editingBot?.permissions.allowMutation ?? false,
+  );
+  const [allowDelegation, setAllowDelegation] = useState(
+    editingBot?.permissions.allowDelegation ?? false,
+  );
+  const [connectionIds, setConnectionIds] = useState<string[]>(
+    editingBot?.permissions.connectionIds ?? [],
+  );
   const [accountPool, setAccountPool] = useState<AccountPoolResponse | null>(
     null,
   );
@@ -116,21 +130,38 @@ export function BotCreationDialog({
       name: name.trim(),
       persona: persona.trim(),
       ...(avatar ? { avatar } : {}),
-      model: { provider: provider.trim(), model: model.trim() },
+      model: {
+        provider: provider.trim(),
+        model: model.trim(),
+        ...(editingBot?.model.reasoningEffort &&
+        editingBot.model.provider === provider.trim() &&
+        editingBot.model.model === model.trim()
+          ? { reasoningEffort: editingBot.model.reasoningEffort }
+          : {}),
+      },
       workspacePath: botWorkspacePath.trim(),
       permissions: {
         connectionIds,
-        workspacePaths: botWorkspacePath.trim()
-          ? [botWorkspacePath.trim()]
-          : [],
-        toolIds: [],
+        workspacePaths: [
+          ...new Set([
+            ...(editingBot?.permissions.workspacePaths.filter(
+              (path) => path !== editingBot.workspacePath,
+            ) ?? []),
+            ...(botWorkspacePath.trim() ? [botWorkspacePath.trim()] : []),
+          ]),
+        ],
+        toolIds: editingBot?.permissions.toolIds ?? [],
         allowMutation,
         allowDelegation,
       },
     };
     setSaving(true);
     try {
-      const created = await desktopRequest<BotSummary>("/bots", "POST", input);
+      const created = await desktopRequest<BotSummary>(
+        editingBot ? `/bots/${encodeURIComponent(editingBot.id)}` : "/bots",
+        editingBot ? "PATCH" : "POST",
+        input,
+      );
       onCreated(created);
     } catch (cause) {
       setError(errorMessage(cause) || "Could not create this bot. Try again.");
@@ -157,14 +188,14 @@ export function BotCreationDialog({
         <header className="mb-5 flex items-start justify-between gap-4">
           <div>
             <h2 className="m-0 text-lg font-semibold" id={titleId}>
-              Add a bot
+              {editingBot ? `Edit ${editingBot.name}` : "Add a bot"}
             </h2>
             <p className="mt-1 text-sm text-[var(--muted)]">
               {STEP_LABELS[step]} · {step + 1} of {STEP_LABELS.length}
             </p>
           </div>
           <Button
-            aria-label="Close add bot"
+            aria-label={editingBot ? "Close edit bot" : "Close add bot"}
             disabled={saving}
             onClick={onClose}
             type="button"
@@ -413,9 +444,11 @@ export function BotCreationDialog({
             type="button"
           >
             {saving
-              ? "Creating…"
+              ? "Saving…"
               : step === STEP_LABELS.length - 1
-                ? "Create bot"
+                ? editingBot
+                  ? "Save bot"
+                  : "Create bot"
                 : "Continue"}
           </Button>
         </footer>

@@ -3,6 +3,7 @@ import type { View } from "../desktop-navigation";
 /** Canonical destinations rendered by the Settings shell. */
 export type SettingsShellSection =
   | "appearance"
+  | "interfaces"
   | "desktop"
   | "execution"
   | "advanced"
@@ -45,6 +46,12 @@ export const SETTINGS_SHELL_SECTIONS: readonly SettingsShellSectionDefinition[] 
       id: "appearance",
       label: "Appearance",
       description: "Theme and display",
+      group: "Appearance & desktop",
+    },
+    {
+      id: "interfaces",
+      label: "Interfaces",
+      description: "Layouts, extension access and recovery",
       group: "Appearance & desktop",
     },
     {
@@ -152,6 +159,7 @@ export const SETTINGS_SHELL_SECTIONS: readonly SettingsShellSectionDefinition[] 
   ];
 
 const EMBEDDED_FEATURE_SECTIONS = new Set<SettingsShellSection>([
+  "interfaces",
   "model",
   "accounts",
   "credentials",

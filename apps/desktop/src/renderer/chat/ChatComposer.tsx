@@ -1,4 +1,4 @@
-import { Button as ElizaButton } from "@elizaos/ui/components/ui/button";
+import { ComposerFrame, Button as ElizaButton } from "@doolittle/ui";
 import { StatusBadge } from "@elizaos/ui/components/ui/status-badge";
 import { Textarea as ElizaTextarea } from "@elizaos/ui/components/ui/textarea";
 import {
@@ -103,6 +103,7 @@ export function chatComposerHeight(scrollHeight: number): number {
 }
 
 export interface ChatComposerProps {
+  bot?: import("@doolittle/contracts/bots").BotSummary;
   approvalsVisible?: boolean;
   workspaceNotice?: ReactNode;
   activeProject?: {
@@ -172,6 +173,7 @@ export interface ChatComposerProps {
 }
 
 export function ChatComposer({
+  bot,
   approvalsVisible = true,
   workspaceNotice,
   activeProject,
@@ -400,7 +402,8 @@ export function ChatComposer({
   };
 
   return (
-    <form
+    <ComposerFrame
+      as="form"
       className="chat-composer"
       onSubmit={onSubmit}
       ref={formRef}
@@ -726,7 +729,7 @@ export function ChatComposer({
             backend.phase === "ready"
               ? activeProject
                 ? `Message ${activeProject.name}…`
-                : "Message Doolittle…"
+                : `Message ${bot?.name ?? "Doolittle"}…`
               : "Waiting for the local runtime…"
           }
           ref={composerRef}
@@ -741,7 +744,7 @@ export function ChatComposer({
           <ElizaButton
             aria-label="Attach multiple files"
             aria-busy={attachmentImporting || undefined}
-            className="!size-7.5 !min-h-7.5 !min-w-7.5 !justify-center rounded-[7px] !border-transparent !bg-transparent !p-0 text-[var(--text-soft)] hover:!border-[var(--border)] hover:!bg-[var(--surface-soft)] hover:!text-[var(--text)] max-[480px]:!size-10 max-[480px]:!min-h-10 max-[480px]:!min-w-10"
+            className="!size-10 !min-h-10 !min-w-10 !justify-center rounded-[var(--radius-md)] !border-transparent !bg-transparent !p-0 text-[var(--text-soft)] hover:!border-[var(--border)] hover:!bg-[var(--surface-soft)] hover:!text-[var(--text)] max-[720px]:!size-11 max-[720px]:!min-h-11 max-[720px]:!min-w-11"
             disabled={attachmentImporting}
             onClick={() => void importContextFiles()}
             size="sm"
@@ -813,6 +816,7 @@ export function ChatComposer({
               />
             ) : null}
             <ComposerModelSelector
+              bot={bot && !bot.isDefault ? bot : undefined}
               active={backend.phase === "ready"}
               onOpenModelsPage={onOpenModelsPage}
               onOpenProvidersPage={onOpenProvidersPage}
@@ -862,7 +866,7 @@ export function ChatComposer({
               aria-controls={controlId("chat-composer-details")}
               aria-label={detailsLabel}
               aria-expanded={detailsOpen}
-              className="chat-composer-meta-toggle !min-h-[30px] rounded-[7px] !border-transparent !bg-transparent px-2 py-1 text-[10px] font-semibold text-[var(--muted)] hover:!border-[var(--border)] hover:!bg-[var(--surface-soft)] hover:!text-[var(--text)]"
+              className="chat-composer-meta-toggle !min-h-10 rounded-[var(--radius-md)] !border-transparent !bg-transparent px-2 py-1 text-[length:var(--text-control)] text-[var(--text-soft)] hover:!border-[var(--border)] hover:!bg-[var(--surface-soft)] hover:!text-[var(--text)] max-[720px]:!min-h-11"
               onClick={() => setDetailsOpen((current) => !current)}
               size="sm"
               type="button"
@@ -887,7 +891,7 @@ export function ChatComposer({
                   : "Send message"
             }
             aria-keyshortcuts={activeRequest ? "Escape" : undefined}
-            className={`chat-composer-submit !size-[30px] !min-h-[30px] !min-w-[30px] !rounded-full !p-0 motion-reduce:transition-none max-[480px]:!size-9.5 max-[480px]:!min-h-9.5 max-[480px]:!min-w-9.5 ${
+            className={`chat-composer-submit !size-10 !min-h-10 !min-w-10 !rounded-[var(--radius-md)] !p-0 motion-reduce:transition-none max-[720px]:!size-11 max-[720px]:!min-h-11 max-[720px]:!min-w-11 ${
               activeRequest
                 ? "!border !border-[color-mix(in_srgb,var(--bad)_40%,var(--border))] !bg-[color-mix(in_srgb,var(--bad)_10%,var(--surface-soft))] !text-[var(--bad)] hover:!bg-[color-mix(in_srgb,var(--bad)_18%,var(--surface-hover))]"
                 : "!border-0 !bg-[var(--accent)] !text-[var(--accent-ink)] hover:!bg-[color-mix(in_srgb,var(--accent)_86%,var(--text))] disabled:!bg-[var(--surface-soft)] disabled:!text-[var(--faint)] disabled:opacity-70"
@@ -1011,6 +1015,6 @@ export function ChatComposer({
           </div>
         </div>
       ) : null}
-    </form>
+    </ComposerFrame>
   );
 }

@@ -50,6 +50,8 @@ export interface UseChatComposerSupportOptions {
   composerRef: RefObject<HTMLTextAreaElement | null>;
   draft: string;
   selectedId: string;
+  botId?: string;
+  botIdForSession?: (sessionId: string) => string;
   setCommandMenuDismissed: Dispatch<SetStateAction<boolean>>;
   setDraft: Dispatch<SetStateAction<string>>;
   setQueueAnnouncement: Dispatch<SetStateAction<string>>;
@@ -80,6 +82,8 @@ export function useChatComposerSupport({
   composerRef,
   draft,
   selectedId,
+  botId,
+  botIdForSession,
   setCommandMenuDismissed,
   setDraft,
   setQueueAnnouncement,
@@ -108,6 +112,8 @@ export function useChatComposerSupport({
   const refreshSessionUsage = useCallback(
     async (sessionId: string) => {
       if (!sessionId || !backendReady) return;
+      const owner = botIdForSession?.(sessionId) ?? botId;
+      if (botIdForSession && !owner) return;
       const sequence = (usageRequestSequence.current[sessionId] ?? 0) + 1;
       usageRequestSequence.current[sessionId] = sequence;
       const isLatestRequest = () =>
@@ -123,7 +129,14 @@ export function useChatComposerSupport({
       try {
         const path =
           `/sessions/usage?sessionId=${encodeURIComponent(sessionId)}` as const;
-        const response = await desktopRequest<SessionUsageResponse>(path);
+        const response = await desktopRequest<SessionUsageResponse>(
+          path,
+          "GET",
+          undefined,
+          undefined,
+          undefined,
+          owner,
+        );
         const context = response.usage?.context;
         if (context && isLatestRequest()) {
           setSessionUsage((current) => ({
@@ -144,7 +157,7 @@ export function useChatComposerSupport({
         }
       }
     },
-    [backendReady],
+    [backendReady, botId, botIdForSession],
   );
 
   useEffect(() => {
@@ -163,7 +176,14 @@ export function useChatComposerSupport({
 
     let cancelled = false;
     const requestWorkspacePath = workspacePath;
-    void desktopRequest<CommandCatalogResponse>("/commands/catalog")
+    void desktopRequest<CommandCatalogResponse>(
+      "/commands/catalog",
+      "GET",
+      undefined,
+      undefined,
+      undefined,
+      botId,
+    )
       .then((response) => {
         if (!cancelled && workspacePathRef.current === requestWorkspacePath) {
           setCommandCatalog({ commands: response.commands, error: "" });
@@ -181,7 +201,7 @@ export function useChatComposerSupport({
     return () => {
       cancelled = true;
     };
-  }, [backendReady, workspacePath]);
+  }, [backendReady, workspacePath, botId]);
 
   useEffect(() => {
     const query = draft.trim();
@@ -204,7 +224,14 @@ export function useChatComposerSupport({
       }));
       const path =
         `/profiles/users/recall?userId=desktop-user&query=${encodeURIComponent(query)}` as const;
-      void desktopRequest<SavedProfileRecallResponse>(path)
+      void desktopRequest<SavedProfileRecallResponse>(
+        path,
+        "GET",
+        undefined,
+        undefined,
+        undefined,
+        botId,
+      )
         .then((response) => {
           if (memoryRecallSequence.current !== sequence) return;
           setMemoryMatches({
@@ -220,7 +247,7 @@ export function useChatComposerSupport({
     }, MEMORY_MATCH_DEBOUNCE_MS);
 
     return () => window.clearTimeout(timeout);
-  }, [backendReady, draft]);
+  }, [backendReady, draft, botId]);
 
   const commandSuggestions = useMemo(
     () =>

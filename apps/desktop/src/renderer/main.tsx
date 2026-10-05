@@ -13,6 +13,7 @@ import {
   loadStoredThemeManifest,
 } from "./desktop-theme";
 import { ElizaUiBridge } from "./ElizaUiBridge";
+import { InterfaceHost } from "./interfaces/InterfaceHost";
 import "./eliza-tailwind.css";
 
 document.documentElement.dataset.platform = window.doolittle.platform;
@@ -44,7 +45,9 @@ createRoot(root).render(
   <StrictMode>
     <DesktopErrorBoundary>
       <ElizaUiBridge>
-        <App />
+        <InterfaceHost>
+          <App />
+        </InterfaceHost>
       </ElizaUiBridge>
     </DesktopErrorBoundary>
   </StrictMode>,

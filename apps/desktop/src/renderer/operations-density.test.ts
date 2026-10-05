@@ -196,7 +196,7 @@ describe("operational route density", () => {
 
     expect(settings).toContain('desktop: category === "desktop"');
     expect(settings).toContain(
-      '!active && !["appearance", "desktop"].includes(category)',
+      '!active && !["appearance", "desktop", "interfaces"].includes(category)',
     );
     expect(settings).toContain("if (!resourcePolicy.desktop) return;");
     expect(settings).toContain("[resourcePolicy.desktop]");

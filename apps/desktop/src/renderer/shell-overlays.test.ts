@@ -70,7 +70,7 @@ describe("desktop shell overlay Tailwind ownership", () => {
       /const openCommandPalette = useCallback\(\(\) => \{\s*if \(utilityOpen && utilityModalMode\) \{\s*setUtilityOpen\(false\);\s*\}\s*paletteReturnFocusRef/u,
     );
     expect(appSource).toMatch(
-      /const openChatTerminal = useCallback\(\(\) => \{\s*if \(utilityOpen && utilityModalMode\) \{\s*setUtilityOpen\(false\);\s*\}\s*chatTerminalReturnFocusRef/u,
+      /const openChatTerminal = useCallback\(\(\) => \{[\s\S]*?setTerminalOrigin\(origin\);\s*if \(utilityOpen && utilityModalMode\) \{\s*setUtilityOpen\(false\);\s*\}\s*chatTerminalReturnFocusRef/u,
     );
     expect(appSource).toMatch(
       /const openUtilities = useCallback\(\(\) => \{\s*if \(utilityModalMode\) \{\s*setPaletteOpen\(false\);\s*setPaletteQuery\(""\);\s*setChatTerminalOpen\(false\);/u,
