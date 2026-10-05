@@ -45,6 +45,11 @@ export async function handleKnowledgeBrokerRoutes(
     const parsed = await readJsonObjectBody(request);
     if (!parsed.ok) return json({ error: "Document request is invalid" }, 400);
     const { clientDocumentId, content, title, projectId } = parsed.value;
+    const suppliedScope = parsed.value.scope;
+    const scope =
+      suppliedScope === undefined && typeof projectId === "string"
+        ? { kind: "project", id: projectId }
+        : suppliedScope;
     if (
       typeof clientDocumentId !== "string" ||
       !UUID_PATTERN.test(clientDocumentId) ||
@@ -54,8 +59,20 @@ export async function handleKnowledgeBrokerRoutes(
       typeof title !== "string" ||
       !title.trim() ||
       title.length > 300 ||
-      typeof projectId !== "string" ||
-      !/^[A-Za-z0-9:_-]{1,128}$/u.test(projectId)
+      !scope ||
+      typeof scope !== "object" ||
+      Array.isArray(scope) ||
+      Object.keys(scope).some((key) => !["kind", "id"].includes(key)) ||
+      !["project", "team"].includes(
+        String((scope as Record<string, unknown>).kind),
+      ) ||
+      typeof (scope as Record<string, unknown>).id !== "string" ||
+      !/^[A-Za-z0-9:_-]{1,128}$/u.test(
+        String((scope as Record<string, unknown>).id),
+      ) ||
+      ((scope as Record<string, unknown>).kind === "team" &&
+        !UUID_PATTERN.test(String((scope as Record<string, unknown>).id))) ||
+      (suppliedScope !== undefined && projectId !== undefined)
     ) {
       return json({ error: "Document fields are invalid" }, 400);
     }
@@ -68,13 +85,23 @@ export async function handleKnowledgeBrokerRoutes(
         entityId: context.runtime.agentId,
         clientDocumentId: clientDocumentId as UUID,
         contentType: "text/plain",
-        originalFilename: `${title}.txt`,
-        content,
+        // SDK IDs include only a content prefix plus filename. The promotion UUID
+        // prevents same-title/common-prefix messages in different scopes colliding.
+        originalFilename: `knowledge-${clientDocumentId}.txt`,
+        // Explicit JSON framing prevents the SDK's text/base64 auto-detection
+        // from transforming literal base64, short text, or Unicode selections.
+        content: JSON.stringify({ version: 1, text: content }),
         scope: "agent-private",
         addedBy: context.runtime.agentId,
         addedByRole: "OWNER",
         addedFrom: "runtime-internal",
-        metadata: { projectId, title, source: "explicit-desktop-promotion" },
+        metadata: {
+          sharedKnowledgeScope: scope,
+          sharedKnowledgeTextEncoding: "json-v1",
+          ...(suppliedScope === undefined ? { projectId } : {}),
+          title,
+          source: "explicit-desktop-promotion",
+        },
       });
     } catch {
       return json({ error: "SDK document storage failed" }, 500);
@@ -99,7 +126,30 @@ export async function handleKnowledgeBrokerRoutes(
     if (!document || typeof document.content?.text !== "string") {
       return json({ error: "Document not found" }, 404);
     }
-    return json({ documentId: match[1], content: document.content.text });
+    let content = document.content.text;
+    if (document.metadata?.sharedKnowledgeTextEncoding === "json-v1") {
+      try {
+        const framed = JSON.parse(content) as {
+          version?: unknown;
+          text?: unknown;
+        };
+        if (
+          framed?.version !== 1 ||
+          typeof framed.text !== "string" ||
+          Object.keys(framed).some((key) => !["version", "text"].includes(key))
+        )
+          throw new Error("Invalid document framing");
+        content = framed.text;
+      } catch {
+        return json({ error: "Promoted document encoding is invalid" }, 500);
+      }
+    }
+    return json({
+      documentId: match[1],
+      content,
+      sharedKnowledgeScope: document.metadata?.sharedKnowledgeScope,
+      storageScope: document.metadata?.scope,
+    });
   }
   return json({ error: "Not found" }, 404);
 }

@@ -270,6 +270,14 @@ export class BotConsultationBroker {
       updatedAt: now,
     };
     const targetUrl = await this.endpoint(target.id);
+    if (knowledgeIds.length > 0) {
+      this.bots.knowledge.assertConsultationAccess({
+        originBotId,
+        originProjectId: input.origin.projectId,
+        targetBotId: target.id,
+        knowledgeIds,
+      });
+    }
     this.ledger.prepare(record);
     // From this point onward the dispatch is uncertain and never replayed.
     this.bots.bindConversation(target.id, targetSessionId, target.projectId);
@@ -289,7 +297,7 @@ export class BotConsultationBroker {
             ),
             ...selectedKnowledge.map(
               (entry) =>
-                `Explicitly shared project knowledge ${entry.id} (${entry.title}):\n${entry.text}`,
+                `Explicitly promoted shared knowledge ${entry.id} (${entry.title}):\n${entry.text}`,
             ),
           ].join("\n\n"),
           source: "desktop-consultation",

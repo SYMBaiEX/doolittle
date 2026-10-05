@@ -10,6 +10,14 @@ const ID = /^[A-Za-z0-9:_-]{1,128}$/u;
 const UUID = /^[0-9a-f-]{36}$/iu;
 const MAX_BYTES = 4_000_000;
 
+function identifier(value: unknown): value is string {
+  return typeof value === "string" && ID.test(value);
+}
+
+function uuid(value: unknown): value is string {
+  return typeof value === "string" && UUID.test(value);
+}
+
 function timestamp(value: unknown): value is string {
   return typeof value === "string" && Number.isFinite(Date.parse(value));
 }
@@ -17,7 +25,7 @@ function timestamp(value: unknown): value is string {
 export type { KnowledgeGrant } from "@doolittle/contracts/bots";
 
 interface StoredKnowledge {
-  version: 1;
+  version: 1 | 2;
   revision: number;
   records: SharedKnowledgeRecord[];
   grants: KnowledgeGrant[];
@@ -30,8 +38,9 @@ function parse(path: string): StoredKnowledge | null {
     throw new Error("Knowledge ledger is too large.");
   const value = JSON.parse(raw) as Partial<StoredKnowledge>;
   if (
-    value.version !== 1 ||
+    (value.version !== 1 && value.version !== 2) ||
     !Number.isSafeInteger(value.revision) ||
+    (value.revision ?? -1) < 0 ||
     !Array.isArray(value.records) ||
     !Array.isArray(value.grants) ||
     value.records.length > 5_000 ||
@@ -39,17 +48,23 @@ function parse(path: string): StoredKnowledge | null {
     value.records.some(
       (row) =>
         !row ||
-        !UUID.test(row.id) ||
-        !UUID.test(row.documentId) ||
+        !uuid(row.id) ||
+        !uuid(row.documentId) ||
         row.version !== 1 ||
-        row.scope?.kind !== "project" ||
-        !ID.test(row.scope.id) ||
-        !ID.test(row.source?.botId) ||
-        !ID.test(row.source?.agentId) ||
-        !ID.test(row.source?.sessionId) ||
-        !ID.test(row.source?.runId) ||
-        row.source?.projectId !== row.scope.id ||
-        !ID.test(row.source?.messageId ?? "") ||
+        !["project", ...(value.version === 2 ? ["team"] : [])].includes(
+          row.scope?.kind,
+        ) ||
+        !identifier(row.scope.id) ||
+        (row.scope.kind === "team" && !uuid(row.scope.id)) ||
+        !identifier(row.source?.botId) ||
+        !identifier(row.source?.agentId) ||
+        !identifier(row.source?.sessionId) ||
+        !identifier(row.source?.runId) ||
+        (row.scope.kind === "project" &&
+          row.source?.projectId !== row.scope.id) ||
+        (row.source?.projectId !== undefined &&
+          !identifier(row.source.projectId)) ||
+        !identifier(row.source?.messageId) ||
         !Array.isArray(row.source?.links) ||
         row.source.links.length !== 0 ||
         typeof row.title !== "string" ||
@@ -63,8 +78,8 @@ function parse(path: string): StoredKnowledge | null {
     value.grants.some(
       (row) =>
         !row ||
-        !UUID.test(row.knowledgeId) ||
-        !ID.test(row.botId) ||
+        !uuid(row.knowledgeId) ||
+        !identifier(row.botId) ||
         !timestamp(row.grantedAt) ||
         (row.revokedAt !== undefined && !timestamp(row.revokedAt)),
     ) ||
@@ -118,7 +133,23 @@ export class BotKnowledgeLedger {
     this.stored =
       primary && (!backup || primary.revision >= backup.revision)
         ? primary
-        : (backup ?? { version: 1, revision: 0, records: [], grants: [] });
+        : (backup ?? { version: 2, revision: 0, records: [], grants: [] });
+    if (this.stored.version === 1) {
+      const migrationBackup = resolve(
+        dataDir,
+        "bots",
+        "knowledge.v1.backup.json",
+      );
+      // Preserve the original schema once; restart never overwrites the rollback copy.
+      if (!existsSync(migrationBackup)) {
+        mkdirSync(dirname(this.path), { recursive: true, mode: 0o700 });
+        writeJsonAtomicSync(migrationBackup, this.stored, {
+          trailingNewline: true,
+        });
+        chmodSync(migrationBackup, 0o600);
+      }
+      this.save({ ...this.stored, version: 2 });
+    }
   }
 
   private save(next: StoredKnowledge): void {
@@ -140,12 +171,26 @@ export class BotKnowledgeLedger {
   }
 
   get(id: string): SharedKnowledgeRecord | null {
+    if (this.failed) throw new Error("Knowledge ledger requires recovery.");
     const value = this.stored.records.find((row) => row.id === id);
-    return value ? structuredClone(value) : null;
+    if (!value) return null;
+    const copy = structuredClone(value);
+    if (
+      this.stored.records.filter((row) => row.documentId === value.documentId)
+        .length > 1
+    )
+      copy.integrity = {
+        status: "ambiguous-document",
+        message:
+          "Promoted document identity is ambiguous. Revoke and re-promote the exact source message; the original provenance is preserved.",
+      };
+    return copy;
   }
 
   list(): SharedKnowledgeRecord[] {
-    return this.stored.records.map((row) => structuredClone(row));
+    return this.stored.records.map(
+      (row) => this.get(row.id) as SharedKnowledgeRecord,
+    );
   }
 
   listGrants(): KnowledgeGrant[] {
@@ -154,6 +199,10 @@ export class BotKnowledgeLedger {
 
   promote(record: SharedKnowledgeRecord): void {
     if (this.get(record.id)) throw new Error("Knowledge ID already exists.");
+    if (this.stored.records.some((row) => row.documentId === record.documentId))
+      throw new Error(
+        "SDK document identity is already attached to another promotion. Re-promote the exact source with a fresh document identity.",
+      );
     this.save({
       ...this.stored,
       records: [...this.stored.records, structuredClone(record)],
@@ -164,6 +213,7 @@ export class BotKnowledgeLedger {
     const record = this.get(knowledgeId);
     if (!record || record.revokedAt)
       throw new Error("Knowledge is unavailable.");
+    if (record.integrity) throw new Error(record.integrity.message);
     const now = new Date().toISOString();
     const existing = this.stored.grants.find(
       (row) => row.knowledgeId === knowledgeId && row.botId === botId,
@@ -182,6 +232,7 @@ export class BotKnowledgeLedger {
     return Boolean(
       this.get(knowledgeId) &&
         !this.get(knowledgeId)?.revokedAt &&
+        !this.get(knowledgeId)?.integrity &&
         this.stored.grants.find(
           (row) =>
             row.knowledgeId === knowledgeId &&

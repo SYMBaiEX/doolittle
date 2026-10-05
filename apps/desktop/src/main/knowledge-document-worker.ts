@@ -115,7 +115,8 @@ export class KnowledgeDocumentWorker {
     clientDocumentId: string;
     content: string;
     title: string;
-    projectId: string;
+    projectId?: string;
+    scope?: { kind: "project" | "team"; id: string };
   }): Promise<string> {
     const url = await this.endpoint();
     const response = await this.runtimeFetch(`${url}/knowledge/documents`, {

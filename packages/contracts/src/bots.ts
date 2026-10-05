@@ -71,6 +71,34 @@ export interface CreateBotInput {
 
 export type UpdateBotInput = Partial<CreateBotInput>;
 
+/** Host-owned, explicitly selected membership; never derived from projects. */
+export interface BotTeam {
+  id: string;
+  name: string;
+  memberBotIds: string[];
+  createdAt: string;
+  updatedAt: string;
+  archivedAt?: string;
+}
+
+export interface BotTeamCatalogResponse {
+  version: 1;
+  revision: number;
+  teams: BotTeam[];
+}
+
+export interface CreateBotTeamInput {
+  name: string;
+  memberBotIds: string[];
+  expectedRevision: number;
+}
+
+export interface UpdateBotTeamInput {
+  name?: string;
+  memberBotIds?: string[];
+  expectedRevision: number;
+}
+
 export interface BotRunOwner {
   botId: string;
   agentId: string;
@@ -114,6 +142,8 @@ export interface SharedKnowledgeRecord {
   createdAt: string;
   updatedAt: string;
   revokedAt?: string;
+  /** Computed host integrity diagnosis; original saved provenance is retained. */
+  integrity?: { status: "ambiguous-document"; message: string };
 }
 
 /** Grant metadata only; document content remains in the broker-owned worker. */

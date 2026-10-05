@@ -8,12 +8,20 @@ import { KnowledgeDocumentWorker } from "./knowledge-document-worker";
 const ID = /^[A-Za-z0-9:_-]{1,128}$/u;
 const MAX_TRANSCRIPT_BYTES = 2_000_000;
 
+interface ConsultationKnowledgeSelection {
+  originBotId: string;
+  originProjectId?: string;
+  targetBotId: string;
+  knowledgeIds: string[];
+}
+
 export interface PromoteKnowledgeInput {
   sourceBotId: string;
   sessionId: string;
   runId: string;
   messageId: string;
-  projectId: string;
+  projectId?: string;
+  teamId?: string;
   title: string;
   consent: true;
 }
@@ -23,7 +31,7 @@ interface DocumentStore {
     clientDocumentId: string;
     content: string;
     title: string;
-    projectId: string;
+    scope: SharedKnowledgeRecord["scope"];
   }): Promise<string>;
   read(documentId: string): Promise<string>;
   stop(): Promise<void>;
@@ -53,7 +61,9 @@ export class BotKnowledgeBroker {
       !ID.test(input.sessionId) ||
       !ID.test(input.runId) ||
       !ID.test(input.messageId) ||
-      !ID.test(input.projectId) ||
+      (input.projectId === undefined) === (input.teamId === undefined) ||
+      (input.projectId !== undefined && !ID.test(input.projectId)) ||
+      (input.teamId !== undefined && !/^[0-9a-f-]{36}$/iu.test(input.teamId)) ||
       typeof input.title !== "string" ||
       !input.title.trim() ||
       input.title.length > 300
@@ -61,6 +71,17 @@ export class BotKnowledgeBroker {
       throw new Error("Explicit, scoped knowledge promotion is required.");
     }
     const sourceBot = this.bots.get(input.sourceBotId);
+    const scope: SharedKnowledgeRecord["scope"] = input.teamId
+      ? { kind: "team", id: input.teamId }
+      : { kind: "project", id: input.projectId as string };
+    const assertSourceMembership = () => {
+      const current = this.bots.get(sourceBot.id);
+      if (scope.kind === "team")
+        this.bots.teams.assertMember(scope.id, current.id);
+      else if (!current.isDefault && current.projectId !== scope.id)
+        throw new Error("Source bot is no longer a member of this project.");
+    };
+    assertSourceMembership();
     const owner = await this.bots.ensureConversationOwner(
       sourceBot.id,
       input.sessionId,
@@ -70,12 +91,9 @@ export class BotKnowledgeBroker {
     if (
       !run ||
       run.sessionId !== owner.sessionId ||
-      owner.projectId !== input.projectId
+      (scope.kind === "project" && owner.projectId !== scope.id)
     ) {
       throw new Error("Selected source does not belong to this project run.");
-    }
-    if (!sourceBot.isDefault && sourceBot.projectId !== input.projectId) {
-      throw new Error("Source bot is no longer a member of this project.");
     }
     const backend = await this.bots.backendFor(sourceBot.id);
     const url = backend.getState().url;
@@ -115,24 +133,33 @@ export class BotKnowledgeBroker {
       throw new Error("Selected source message is unavailable.");
     }
     const knowledgeId = randomUUID();
+    assertSourceMembership();
     const documentId = await this.documents.add({
       clientDocumentId: knowledgeId,
       content: selected.text,
       title: input.title.trim(),
-      projectId: input.projectId,
+      scope,
     });
+    // An in-flight SDK write cannot authorize a promotion after membership changed.
+    assertSourceMembership();
+    const storedContent = await this.documents.read(documentId);
+    assertSourceMembership();
+    if (storedContent !== selected.text)
+      throw new Error(
+        "SDK document did not preserve the exact selected message.",
+      );
     const now = new Date().toISOString();
     const record: SharedKnowledgeRecord = {
       id: knowledgeId,
       version: 1,
       documentId,
-      scope: { kind: "project", id: input.projectId },
+      scope,
       source: {
         botId: sourceBot.id,
         agentId: sourceBot.agentId,
         sessionId: input.sessionId,
         runId: input.runId,
-        projectId: input.projectId,
+        ...(owner.projectId ? { projectId: owner.projectId } : {}),
         messageId: input.messageId,
         links: [],
       },
@@ -151,8 +178,11 @@ export class BotKnowledgeBroker {
     const record = this.ledger.get(knowledgeId);
     if (!record || record.revokedAt)
       throw new Error("Knowledge is unavailable.");
+    if (record.integrity) throw new Error(record.integrity.message);
     const target = this.bots.get(targetBotId);
-    if (target.projectId !== record.scope.id) {
+    if (record.scope.kind === "team") {
+      this.bots.teams.assertMember(record.scope.id, target.id);
+    } else if (target.projectId !== record.scope.id) {
       throw new Error("Target bot is not a current project member.");
     }
     this.ledger.grant(knowledgeId, target.id);
@@ -162,42 +192,59 @@ export class BotKnowledgeBroker {
     this.ledger.revoke(knowledgeId, targetBotId);
   }
 
-  /** Only consultation dispatch may call this; workers receive selected text, never broker DB access. */
-  async retrieveForConsultation(input: {
-    originBotId: string;
-    originProjectId?: string;
-    targetBotId: string;
-    knowledgeIds: string[];
-  }): Promise<Array<{ id: string; title: string; text: string }>> {
+  /** Synchronous authorization seam, also checked immediately before child submission. */
+  assertConsultationAccess(input: ConsultationKnowledgeSelection): void {
     if (
       input.knowledgeIds.length > 8 ||
       new Set(input.knowledgeIds).size !== input.knowledgeIds.length
     ) {
       throw new Error("Knowledge selection is invalid.");
     }
+    for (const id of input.knowledgeIds) this.authorizedRecord(input, id);
+  }
+
+  private authorizedRecord(
+    input: ConsultationKnowledgeSelection,
+    id: string,
+  ): SharedKnowledgeRecord {
     const origin = this.bots.get(input.originBotId);
     const target = this.bots.get(input.targetBotId);
+    const record = this.ledger.get(id);
+    if (record?.integrity) throw new Error(record.integrity.message);
+    if (!record || record.revokedAt || !this.ledger.granted(id, target.id))
+      throw new Error(
+        "Knowledge grant is unavailable for the current project or team members.",
+      );
+    if (record.scope.kind === "team") {
+      this.bots.teams.assertMember(record.scope.id, origin.id);
+      this.bots.teams.assertMember(record.scope.id, target.id);
+    } else if (
+      record.scope.id !== input.originProjectId ||
+      target.projectId !== record.scope.id ||
+      (!origin.isDefault && origin.projectId !== record.scope.id)
+    )
+      throw new Error(
+        "Knowledge grant is unavailable for the current project members.",
+      );
+    return record;
+  }
+
+  /** Only consultation dispatch may call this; workers receive selected text, never broker DB access. */
+  async retrieveForConsultation(
+    input: ConsultationKnowledgeSelection,
+  ): Promise<Array<{ id: string; title: string; text: string }>> {
+    this.assertConsultationAccess(input);
     const selected: Array<{ id: string; title: string; text: string }> = [];
     for (const id of input.knowledgeIds) {
-      const record = this.ledger.get(id);
-      if (
-        !record ||
-        record.revokedAt ||
-        !this.ledger.granted(id, target.id) ||
-        record.scope.kind !== "project" ||
-        record.scope.id !== input.originProjectId ||
-        target.projectId !== record.scope.id ||
-        (!origin.isDefault && origin.projectId !== record.scope.id)
-      ) {
-        throw new Error(
-          "Knowledge grant is unavailable for the current project members.",
-        );
-      }
+      const record = this.authorizedRecord(input, id);
       const text = await this.documents.read(record.documentId);
+      this.assertConsultationAccess(input);
       if (!text || text.length > 100_000)
         throw new Error("Promoted document content is invalid.");
       selected.push({ id, title: record.title, text });
     }
+    // A later document read may race revocation of an earlier selected record.
+    this.assertConsultationAccess(input);
     return selected;
   }
 

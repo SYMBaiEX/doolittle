@@ -69,6 +69,63 @@ function fixture(workspace: string) {
 }
 
 describe("BotConsultationBroker", () => {
+  it.each(["grant revoked", "team member removed"])(
+    "rejects %s during delayed target activation before persisting or posting selected knowledge",
+    async (reason) => {
+      const directory = mkdtempSync(
+        resolve(tmpdir(), "doolittle-broker-race-"),
+      );
+      try {
+        const { bots, input, bindConversation } = fixture(directory);
+        let authorized = true;
+        const retrieveForConsultation = vi.fn(async () => [
+          { id: "knowledge", title: "Finding", text: "Private promoted text" },
+        ]);
+        const assertConsultationAccess = vi.fn(() => {
+          if (!authorized) throw new Error(reason);
+        });
+        Object.assign(bots, {
+          knowledge: { retrieveForConsultation, assertConsultationAccess },
+          backendFor: vi.fn(async (id: string) => {
+            if (id === "target") {
+              await Promise.resolve();
+              authorized = false;
+            }
+            return {
+              getState: () => ({
+                phase: "ready",
+                url: id === "target" ? "http://target" : "http://lead",
+              }),
+            };
+          }),
+        });
+        const runtimeFetch = vi.fn(async () =>
+          Response.json({
+            run: {
+              runId: "root-run",
+              sessionId: "origin-session",
+              status: "acting",
+            },
+          }),
+        );
+        const broker = new BotConsultationBroker(
+          bots,
+          directory,
+          runtimeFetch as typeof fetch,
+        );
+        await expect(
+          broker.dispatch("default", { ...input, knowledgeIds: ["knowledge"] }),
+        ).rejects.toThrow(reason);
+        expect(retrieveForConsultation).toHaveBeenCalledOnce();
+        expect(assertConsultationAccess).toHaveBeenCalledOnce();
+        expect(bindConversation).not.toHaveBeenCalled();
+        expect(broker.ledger.countRoot("root-run")).toBe(0);
+        expect(runtimeFetch.mock.calls).toHaveLength(1);
+      } finally {
+        rmSync(directory, { recursive: true, force: true });
+      }
+    },
+  );
   it("dispatches once with durable ownership and reads the exact target transcript", async () => {
     const directory = mkdtempSync(resolve(tmpdir(), "doolittle-broker-"));
     try {

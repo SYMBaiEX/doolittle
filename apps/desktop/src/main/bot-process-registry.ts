@@ -35,6 +35,7 @@ import {
   type BoundConversation,
 } from "./bot-conversation-ledger";
 import { BotKnowledgeBroker } from "./bot-knowledge-broker";
+import { BotTeamCatalog } from "./bot-team-catalog";
 import type { DesktopExecutionAdmission } from "./execution-admission";
 import type { WorkerHostHandler } from "./worker-host-rpc";
 
@@ -102,6 +103,7 @@ export class BotProcessRegistry {
   readonly acpSessions: BotAcpSessionLedger;
   readonly consultations: BotConsultationBroker;
   readonly knowledge: BotKnowledgeBroker;
+  readonly teams: BotTeamCatalog;
   private readonly backends = new Map<string, BackendManager>();
   private readonly activeRuns = new Map<string, Set<string>>();
   private readonly tokenResolver: TokenResolver;
@@ -127,6 +129,7 @@ export class BotProcessRegistry {
     );
     this.conversations = new BotConversationLedger(dataDir);
     this.acpSessions = new BotAcpSessionLedger(dataDir);
+    this.teams = new BotTeamCatalog(dataDir, (id) => this.get(id));
     this.knowledge = new BotKnowledgeBroker(
       this,
       target,

@@ -55,7 +55,8 @@ export interface SensitiveActionConfirmationRequest {
     | "workspace-write"
     | "worktree-create"
     | "repository-mutation"
-    | "knowledge-promotion";
+    | "knowledge-promotion"
+    | "team-membership";
   title: string;
   message: string;
   detail: string;

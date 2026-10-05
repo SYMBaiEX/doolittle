@@ -127,6 +127,7 @@ const API_ALLOWLIST: Record<HttpMethod, AllowedApiPath[]> = {
   GET: [
     { exact: "/bots" },
     { exact: "/bots/knowledge" },
+    { exact: "/bots/teams" },
     { exact: "/bots/consultations", allowedQueries: ["runId", "targetRunId"] },
     { exact: "/bots/conversations/owner", allowedQueries: ["sessionId"] },
     {
@@ -524,6 +525,11 @@ const API_ALLOWLIST: Record<HttpMethod, AllowedApiPath[]> = {
   ],
   POST: [
     { exact: "/bots" },
+    { exact: "/bots/teams" },
+    {
+      predicate: (pathname) =>
+        /^\/bots\/teams\/[0-9a-f-]{36}\/archive$/iu.test(pathname),
+    },
     { exact: "/bots/knowledge/promote" },
     {
       predicate: (pathname) =>
@@ -698,6 +704,10 @@ const API_ALLOWLIST: Record<HttpMethod, AllowedApiPath[]> = {
     },
   ],
   PATCH: [
+    {
+      predicate: (pathname) =>
+        /^\/bots\/teams\/[0-9a-f-]{36}$/iu.test(pathname),
+    },
     {
       predicate: (pathname) => matchesResourcePath(pathname, "/bots"),
     },

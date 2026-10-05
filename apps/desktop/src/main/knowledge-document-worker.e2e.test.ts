@@ -27,11 +27,70 @@ describe.skipIf(process.env.DOOLITTLE_WORKER_E2E !== "1")(
         expect(await worker.read(documentId)).toContain(
           "Selected project finding",
         );
+        const teamScope = { kind: "team" as const, id: randomUUID() };
+        const teamDocumentId = await worker.add({
+          clientDocumentId: randomUUID(),
+          content: "Explicitly selected team finding; not private bot memory.",
+          title: "Team finding",
+          scope: teamScope,
+        });
+        expect(await worker.read(teamDocumentId)).toContain(
+          "selected team finding",
+        );
         const backend = (
           worker as unknown as { backend: { getState(): { url?: string } } }
         ).backend;
         const url = backend.getState().url;
         expect(url).toBeTruthy();
+        const token = (worker as unknown as { token: string }).token;
+        const metadata = await fetch(
+          `${url}/knowledge/documents/${teamDocumentId}`,
+          { headers: { authorization: `Bearer ${token}` } },
+        );
+        expect(await metadata.json()).toMatchObject({
+          storageScope: "agent-private",
+          sharedKnowledgeScope: teamScope,
+        });
+        const commonPrefix = "Shared boilerplate. ".repeat(120);
+        const contentA = `${commonPrefix}SECRET FROM TEAM A`;
+        const contentB = `${commonPrefix}PUBLIC FROM TEAM B`;
+        const documentA = await worker.add({
+          clientDocumentId: randomUUID(),
+          title: "Same title",
+          content: contentA,
+          scope: teamScope,
+        });
+        const otherTeam = { kind: "team" as const, id: randomUUID() };
+        const documentB = await worker.add({
+          clientDocumentId: randomUUID(),
+          title: "Same title",
+          content: contentB,
+          scope: otherTeam,
+        });
+        expect(documentB).not.toBe(documentA);
+        expect(await worker.read(documentA)).toBe(contentA);
+        expect(await worker.read(documentB)).toBe(contentB);
+        const otherMetadata = await fetch(
+          `${url}/knowledge/documents/${documentB}`,
+          { headers: { authorization: `Bearer ${token}` } },
+        );
+        expect(await otherMetadata.json()).toMatchObject({
+          storageScope: "agent-private",
+          sharedKnowledgeScope: otherTeam,
+        });
+        for (const content of [
+          "a",
+          "é😀\nExact Unicode",
+          "U2VsZWN0ZWQgcGxhaW4gdGV4dA==",
+        ]) {
+          const exact = await worker.add({
+            clientDocumentId: randomUUID(),
+            title: "Exact text",
+            content,
+            scope: teamScope,
+          });
+          expect(await worker.read(exact)).toBe(content);
+        }
         expect((await fetch(`${url}/chat/runs`)).status).toBe(404);
         expect((await fetch(`${url}/memory`)).status).toBe(404);
         expect(
