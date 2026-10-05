@@ -62,6 +62,9 @@ describe("RuntimeSectionNav", () => {
     );
 
     expect(navigation).not.toBeNull();
+    expect(navigation?.className).toContain("max-[720px]:grid-cols-2");
+    expect(gateway?.className).toContain("max-[720px]:min-h-11");
+    expect(gateway?.className).toContain("whitespace-normal");
     expect(gateway?.title).toBe("Transports and deliveries");
     expect(container.textContent).not.toContain("Model, accounts, autonomy");
 

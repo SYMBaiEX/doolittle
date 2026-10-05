@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { sessionBotId } from "./bot-selection";
-import { loadSessionBindings, saveSessionBindings } from "./session-bindings";
+import {
+  loadSessionBindings,
+  saveSessionBindings,
+  loadSessionProjectBindings,
+  saveSessionProjectBindings,
+  sessionProjectTarget,
+} from "./session-bindings";
 
 const storage = () => {
   const values = new Map<string, string>();
@@ -12,6 +18,34 @@ const storage = () => {
   };
 };
 describe("presentation ownership cache", () => {
+  it("preserves captured project and explicit unscoped drafts across restart", () => {
+    const store = storage();
+    saveSessionProjectBindings(store, {
+      alpha: "project-alpha",
+      loose: null,
+      "bad/path": "no",
+    });
+    const restored = loadSessionProjectBindings(store);
+    expect(restored).toEqual({ alpha: "project-alpha", loose: null });
+    expect(sessionProjectTarget("alpha", [], restored)).toEqual({
+      projectId: "project-alpha",
+    });
+    expect(sessionProjectTarget("loose", [], restored)).toEqual({});
+    expect(sessionProjectTarget("unknown", [], restored)).toBeUndefined();
+  });
+  it("saved project ownership wins including explicitly unscoped saved sessions", () => {
+    const local = { chat: "stale", loose: "stale" };
+    expect(
+      sessionProjectTarget(
+        "chat",
+        [{ sessionId: "chat", projectId: "saved" }],
+        local,
+      ),
+    ).toEqual({ projectId: "saved" });
+    expect(
+      sessionProjectTarget("loose", [{ sessionId: "loose" }], local),
+    ).toEqual({});
+  });
   it("retains unsent conversation bindings after restart", () => {
     const store = storage();
     expect(saveSessionBindings(store, { chat: "specialist" })).toBe(true);

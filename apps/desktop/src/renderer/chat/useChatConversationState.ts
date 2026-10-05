@@ -522,6 +522,7 @@ export function useChatConversationState({
   selectedId,
   persistenceOwner = true,
   botIdForSession,
+  projectTargetForSession,
   nativeHostReady = backendReady,
 }: {
   activeRequest: string | null;
@@ -532,6 +533,9 @@ export function useChatConversationState({
   selectedId: string;
   persistenceOwner?: boolean;
   botIdForSession?: (sessionId: string) => string;
+  projectTargetForSession?: (
+    sessionId: string,
+  ) => { projectId?: string } | undefined;
   nativeHostReady?: boolean;
 }) {
   const initialId = useMemo(
@@ -668,10 +672,20 @@ export function useChatConversationState({
       const session = remoteSessions.find(
         (item) => item.sessionId === sessionId,
       );
+      const projectTarget = projectTargetForSession
+        ? projectTargetForSession(sessionId)
+        : session
+          ? session.projectId
+            ? { projectId: session.projectId }
+            : {}
+          : undefined;
+      // Unknown local drafts must not be silently bound as unscoped before
+      // their creating navigation has captured the project.
+      if (!projectTarget) continue;
       const target = {
         botId,
         sessionId,
-        ...(session?.projectId ? { projectId: session.projectId } : {}),
+        ...projectTarget,
       };
       void nativeDraftBridge.current
         .sync(
@@ -691,6 +705,7 @@ export function useChatConversationState({
     selectedId,
     conversationDrafts,
     botIdForSession,
+    projectTargetForSession,
     remoteSessions,
     draftRevisions,
     setDraftStorageWarning,

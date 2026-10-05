@@ -66,6 +66,8 @@ function ConversationProbe({
   requestSession,
   remoteSessions = [remoteSession],
   selectedId = remoteSession.sessionId,
+  botIdForSession,
+  projectTargetForSession,
 }: {
   activeRequest?: string | null;
   backendReady?: boolean;
@@ -73,6 +75,10 @@ function ConversationProbe({
   requestSession?: MutableRefObject<Record<string, string>>;
   remoteSessions?: readonly SessionSummary[];
   selectedId?: string;
+  botIdForSession?: (sessionId: string) => string;
+  projectTargetForSession?: (
+    sessionId: string,
+  ) => { projectId?: string } | undefined;
 }) {
   const localRequestSession = useRef<Record<string, string>>({});
   const value = useChatConversationState({
@@ -82,6 +88,8 @@ function ConversationProbe({
     remoteSessions,
     requestSession: requestSession ?? localRequestSession,
     selectedId,
+    botIdForSession,
+    projectTargetForSession,
   });
   useEffect(() => {
     onValue(value);
@@ -274,6 +282,94 @@ describe("chat history concurrency", () => {
   afterEach(() => {
     act(() => root.unmount());
     container.remove();
+  });
+
+  it("binds a fresh project draft with its captured owner before native synchronization", async () => {
+    const bridge = {
+      onEvent: vi.fn(() => () => undefined),
+      subscribe: vi.fn(async () => undefined),
+      unsubscribe: vi.fn(async () => undefined),
+      dispatch: vi.fn(async (command: { type: string; target: unknown }) => ({
+        requestId: "draft",
+        accepted: true,
+        ...(command.type === "draft.read"
+          ? { draft: { target: command.target, text: "", exists: false } }
+          : {}),
+      })),
+    };
+    const previous = window.doolittle;
+    Object.defineProperty(window, "doolittle", {
+      configurable: true,
+      value: { ui: bridge },
+    });
+    desktopRequestMock.mockResolvedValue({});
+    try {
+      await act(async () => {
+        root.render(
+          createElement(ConversationProbe, {
+            selectedId: "project-draft",
+            remoteSessions: [],
+            botIdForSession: () => "lead",
+            projectTargetForSession: () => ({ projectId: "project-alpha" }),
+            onValue: () => undefined,
+          }),
+        );
+      });
+      expect(desktopRequestMock).toHaveBeenCalledWith(
+        "/bots/lead/conversations",
+        "POST",
+        { sessionId: "project-draft", projectId: "project-alpha" },
+      );
+      expect(bridge.dispatch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          target: {
+            botId: "lead",
+            sessionId: "project-draft",
+            projectId: "project-alpha",
+          },
+        }),
+      );
+    } finally {
+      act(() => root.render(null));
+      Object.defineProperty(window, "doolittle", {
+        configurable: true,
+        value: previous,
+      });
+    }
+  });
+
+  it("does not bind an unknown project draft as unscoped", async () => {
+    const previous = window.doolittle;
+    Object.defineProperty(window, "doolittle", {
+      configurable: true,
+      value: {
+        ui: {
+          onEvent: () => () => undefined,
+          subscribe: async () => undefined,
+          unsubscribe: async () => undefined,
+        },
+      },
+    });
+    try {
+      await act(async () =>
+        root.render(
+          createElement(ConversationProbe, {
+            selectedId: "unknown-draft",
+            remoteSessions: [],
+            botIdForSession: () => "lead",
+            projectTargetForSession: () => undefined,
+            onValue: () => undefined,
+          }),
+        ),
+      );
+      expect(desktopRequestMock).not.toHaveBeenCalled();
+    } finally {
+      act(() => root.render(null));
+      Object.defineProperty(window, "doolittle", {
+        configurable: true,
+        value: previous,
+      });
+    }
   });
 
   it("keeps the selected session and unfiltered count stable while filtering history", () => {

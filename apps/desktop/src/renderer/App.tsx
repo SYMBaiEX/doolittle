@@ -73,7 +73,10 @@ import {
 } from "./bots/bot-selection";
 import {
   loadSessionBindings,
+  loadSessionProjectBindings,
   saveSessionBindings,
+  saveSessionProjectBindings,
+  sessionProjectTarget,
 } from "./bots/session-bindings";
 import { DesktopRouteErrorBoundary } from "./components/DesktopRouteErrorBoundary";
 import { useToasts } from "./components/ToastRegion";
@@ -408,6 +411,26 @@ export function App() {
   useEffect(() => {
     saveSessionBindings(localStorage, localBotBindings);
   }, [localBotBindings]);
+  const [localProjectBindings, setLocalProjectBindings] = useState<
+    Record<string, string | null>
+  >(() => ({
+    ...loadSessionProjectBindings(localStorage),
+    [initialConversation]:
+      projectScope === "all" || projectScope === "unscoped"
+        ? null
+        : projectScope,
+  }));
+  useEffect(() => {
+    saveSessionProjectBindings(localStorage, localProjectBindings);
+  }, [localProjectBindings]);
+  const captureSessionProject = useCallback(
+    (id: string, projectId: string | null) => {
+      setLocalProjectBindings((current) =>
+        Object.hasOwn(current, id) ? current : { ...current, [id]: projectId },
+      );
+    },
+    [],
+  );
   const [botCreationOpen, setBotCreationOpen] = useState(false);
   const [editingBot, setEditingBot] = useState<BotSummary | undefined>();
   const botCreationTriggerRef = useRef<HTMLElement | null>(null);
@@ -971,9 +994,17 @@ export function App() {
     if (!selectedBot?.id) return;
     const id = newConversationId();
     setLocalBotBindings((current) => ({ ...current, [id]: selectedBot.id }));
+    captureSessionProject(
+      id,
+      selectedBot.isDefault
+        ? projectScope === "all" || projectScope === "unscoped"
+          ? null
+          : projectScope
+        : (selectedBot.projectId ?? null),
+    );
     setSelectedSession(id);
     setView("chat");
-  }, [selectedBot?.id, setView]);
+  }, [selectedBot, projectScope, captureSessionProject, setView]);
 
   const toggleAppearance = useCallback(() => {
     const nextAppearance = resolvedAppearance === "dark" ? "light" : "dark";
@@ -1013,6 +1044,7 @@ export function App() {
     sessions,
     setProjectScope,
     setSelectedSession,
+    captureSessionProject,
     setView,
     setWorkspace,
     workspace,
@@ -1082,11 +1114,22 @@ export function App() {
       } else {
         const id = newConversationId();
         setLocalBotBindings((current) => ({ ...current, [id]: botId }));
+        captureSessionProject(
+          id,
+          bots.find((bot) => bot.id === botId)?.projectId ?? null,
+        );
         setSelectedSession(id);
         setView("chat");
       }
     },
-    [bots, defaultBotId, sessions, setView, transitionToProjectScope],
+    [
+      bots,
+      defaultBotId,
+      sessions,
+      setView,
+      transitionToProjectScope,
+      captureSessionProject,
+    ],
   );
 
   const openCreateBot = useCallback(() => {
@@ -1105,6 +1148,7 @@ export function App() {
       setSelectedBotId(bot.id);
       const id = newConversationId();
       setLocalBotBindings((current) => ({ ...current, [id]: bot.id }));
+      captureSessionProject(id, bot.projectId ?? null);
       setSelectedSession(id);
       setView("chat");
       pushToast({
@@ -1116,7 +1160,7 @@ export function App() {
             : "This bot is stopped. Connect and activate it before sending.",
       });
     },
-    [botResource.reload, pushToast, setView],
+    [botResource.reload, pushToast, setView, captureSessionProject],
   );
   const activateBot = useCallback(
     async (botId: string) => {
@@ -1212,6 +1256,10 @@ export function App() {
     (sessionId: string) =>
       sessionBotId(sessionId, sessions, localBotBindings, defaultBotId),
     [defaultBotId, localBotBindings, sessions],
+  );
+  const projectTargetForSession = useCallback(
+    (id: string) => sessionProjectTarget(id, sessions, localProjectBindings),
+    [sessions, localProjectBindings],
   );
   const bindSessionBot = useCallback((sessionId: string, botId: string) => {
     if (!sessionId || !botId) return;
@@ -1473,8 +1521,9 @@ export function App() {
 
   const openInterfaceSettings = useEffectEvent(() => setView("settings"));
   const revealNativeSurface = useEffectEvent(
-    (target: { botId: string; sessionId: string }) => {
+    (target: { botId: string; sessionId: string; projectId?: string }) => {
       bindSessionBot(target.sessionId, target.botId);
+      captureSessionProject(target.sessionId, target.projectId ?? null);
       setSelectedBotId(target.botId);
       setSelectedSession(target.sessionId);
       setView("chat");
@@ -1497,6 +1546,7 @@ export function App() {
           if (disposed || request !== generation || !snapshot.selected) return;
           const target = snapshot.selected;
           bindSessionBot(target.sessionId, target.botId);
+          captureSessionProject(target.sessionId, target.projectId ?? null);
           setSelectedBotId(target.botId);
           setSelectedSession(target.sessionId);
         })
@@ -1516,7 +1566,7 @@ export function App() {
         openInterfaces,
       );
     };
-  }, [bindSessionBot]);
+  }, [bindSessionBot, captureSessionProject]);
 
   useEffect(() => {
     if (document.documentElement.dataset.nativeInterfaceVisible === "false")
@@ -1753,11 +1803,9 @@ export function App() {
           const originSession = sessions.find(
             (session) => session.sessionId === origin.originConversationId,
           );
-          const projectId =
-            originSession?.projectId ??
-            (selectedSession === origin.originConversationId
-              ? (activeProject?.id ?? undefined)
-              : undefined);
+          const projectId = originSession
+            ? originSession.projectId
+            : projectTargetForSession(origin.originConversationId)?.projectId;
           void ensureComputerOriginOwnerBinding(origin, {
             savedSessionIds: new Set(
               sessions.map((session) => session.sessionId),
@@ -1812,6 +1860,7 @@ export function App() {
       bots={bots}
       defaultBotId={defaultBotId}
       botIdForSession={botIdForSession}
+      projectTargetForSession={projectTargetForSession}
       onBindSessionBot={bindSessionBot}
       onActivateBot={activateBot}
       view={routeView}

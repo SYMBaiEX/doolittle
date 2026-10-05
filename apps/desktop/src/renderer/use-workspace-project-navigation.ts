@@ -130,6 +130,10 @@ interface UseWorkspaceProjectNavigationOptions {
   readonly sessions: readonly SessionSummary[];
   readonly setProjectScope: Dispatch<SetStateAction<ProjectScope>>;
   readonly setSelectedSession: Dispatch<SetStateAction<string>>;
+  readonly captureSessionProject?: (
+    sessionId: string,
+    projectId: string | null,
+  ) => void;
   /** Checks whether a view may be left without committing the route change. */
   readonly confirmViewChange: (view: View) => boolean;
   /** Returns whether the route change was committed (for example, after a dirty-edit prompt). */
@@ -178,6 +182,7 @@ export function useWorkspaceProjectNavigation({
   sessions,
   setProjectScope,
   setSelectedSession,
+  captureSessionProject,
   confirmViewChange,
   setView,
   setWorkspace,
@@ -200,10 +205,18 @@ export function useWorkspaceProjectNavigation({
       });
       setWorkspace(state);
       setProjectScope(selection.projectScope);
+      captureSessionProject?.(
+        selection.sessionId,
+        selection.projectScope === "all" ||
+          selection.projectScope === "unscoped"
+          ? null
+          : selection.projectScope,
+      );
       setSelectedSession(selection.sessionId);
     },
     [
       createSessionId,
+      captureSessionProject,
       pathsEqual,
       projects,
       selectedSession,
@@ -455,6 +468,10 @@ export function useWorkspaceProjectNavigation({
               return;
             }
             setProjectScope(scope);
+            captureSessionProject?.(
+              sessionId,
+              scope === "all" || scope === "unscoped" ? null : scope,
+            );
             setSelectedSession(sessionId);
             setCodeEditingLocked(false);
             resolve(onActivated?.() !== false);
@@ -478,6 +495,7 @@ export function useWorkspaceProjectNavigation({
     },
     [
       activateProjectWorkspace,
+      captureSessionProject,
       confirmViewChange,
       confirmWorkspaceChange,
       coordinator,

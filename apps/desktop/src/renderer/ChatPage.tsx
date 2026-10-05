@@ -264,6 +264,9 @@ export interface ChatPageProps {
   selectedBotId?: string;
   defaultBotId?: string;
   botIdForSession?: (sessionId: string) => string;
+  projectTargetForSession?: (
+    sessionId: string,
+  ) => { projectId?: string } | undefined;
   onBindSessionBot?: (sessionId: string, botId: string) => void;
   onActivateBot?: (botId: string) => Promise<void>;
   routeActive?: boolean;
@@ -308,6 +311,7 @@ export function ChatSessionPanel({
   selectedBotId = "",
   defaultBotId = "",
   botIdForSession,
+  projectTargetForSession,
   onBindSessionBot,
   onActivateBot,
   routeActive = true,
@@ -459,6 +463,7 @@ export function ChatSessionPanel({
     persistenceOwner: coordinator,
     nativeHostReady: backend.phase === "ready",
     botIdForSession,
+    projectTargetForSession,
   });
   const latestSelectedMessage = selectedMessages.at(-1);
   const workspaceBinding = sessionWorkspaceBinding(
@@ -1355,12 +1360,22 @@ export function ChatSessionPanel({
       return false;
     }
     const messageAttachments = attachments;
+    if (projectTargetForSession && !projectTargetForSession(sessionId)) {
+      setDispatchFeedback((current) => ({
+        ...current,
+        [sessionId]:
+          "This draft's workspace ownership is unavailable. Start a conversation in the intended workspace; your draft has been kept.",
+      }));
+      return false;
+    }
     const memoryMatch =
       memoryMatchOverride ?? freezeMemoryMatchSnapshot(content, memoryMatches);
     const requestProjectId =
       projectIdOverride === undefined
-        ? (remoteSessions.find((session) => session.sessionId === sessionId)
-            ?.projectId ?? activeProject?.id)
+        ? projectTargetForSession
+          ? projectTargetForSession(sessionId)?.projectId
+          : (remoteSessions.find((session) => session.sessionId === sessionId)
+              ?.projectId ?? activeProject?.id)
         : (projectIdOverride ?? undefined);
     const requestId = crypto.randomUUID();
     const dispatchedDraftRevision = getDraftRevision(sessionId);
