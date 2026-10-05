@@ -18,6 +18,7 @@ export function syntheticChatPrompt(mode: SyntheticChatMode): string {
  */
 export async function installSyntheticChatLifecycleFixture(
   app: ElectronApplication,
+  responseText = FIXTURE_TEXT,
 ): Promise<void> {
   await app.evaluate(
     ({ ipcMain }, fixture) => {
@@ -203,7 +204,7 @@ export async function installSyntheticChatLifecycleFixture(
       event: desktopIpcChannels.event,
       invoke: desktopIpcChannels.invoke,
       prefix: FIXTURE_PREFIX,
-      text: FIXTURE_TEXT,
+      text: responseText,
     },
   );
 }

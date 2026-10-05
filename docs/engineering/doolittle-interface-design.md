@@ -29,6 +29,13 @@ gradients, glow, textures, or cards around ordinary lists.
   the saved desktop arrangement; hidden panels remain mounted and inert.
 - The composer contains text, Attach, model route and Send/Stop. Advanced
   actions live in Add. Queue, files, errors and memory matches appear when relevant.
+  New conversations center a quiet welcome and the same composer. After the
+  first message, the input stays in a dedicated bottom dock while history
+  scrolls independently above it. Loading and failed history recovery never
+  masquerade as an empty conversation. The form has a neutral thin edge;
+  keyboard focus is indicated locally, not by an orange frame around the input.
+  Short panes keep the workspace bounded and scroll exceptional composer
+  content locally rather than placing the input after a scrolling document.
   Context pressure is disclosed when warning/error thresholds matter, not as a
   permanent zero-usage meter. Full context remains available in Details.
 - The initially closed inspector contains Details, Library and Computer.

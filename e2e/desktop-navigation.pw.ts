@@ -2473,6 +2473,8 @@ test.describe("Doolittle desktop navigation", () => {
           outlineOffset: containerStyle.outlineOffset,
           textareaBoxShadow: textareaStyle.boxShadow,
           textareaOutline: textareaStyle.outlineStyle,
+          textareaOutlineWidth: textareaStyle.outlineWidth,
+          textareaOutlineOffset: textareaStyle.outlineOffset,
           textareaFocusVisible: element.matches(":focus-visible"),
         };
       });
@@ -2492,26 +2494,25 @@ test.describe("Doolittle desktop navigation", () => {
           outlineOffset: containerStyle.outlineOffset,
           textareaBoxShadow: textareaStyle.boxShadow,
           textareaOutline: textareaStyle.outlineStyle,
+          textareaOutlineWidth: textareaStyle.outlineWidth,
+          textareaOutlineOffset: textareaStyle.outlineOffset,
           textareaFocusVisible: element.matches(":focus-visible"),
         };
       });
       expect(restingComposerStyle.textareaFocusVisible).toBe(false);
       expect(focusedComposerStyle.textareaFocusVisible).toBe(true);
-      expect(focusedComposerStyle.borderColor).not.toBe(
+      expect(focusedComposerStyle.borderColor).toBe(
         restingComposerStyle.borderColor,
       );
-      // The operator system uses an explicit keyboard ring, not a focus glow.
+      // The frame remains quiet; keyboard focus belongs to the text field.
       expect(focusedComposerStyle.boxShadow).toBe(
         restingComposerStyle.boxShadow,
       );
-      expect(focusedComposerStyle.outline).toBe("solid");
-      expect(focusedComposerStyle.outlineWidth).toBe("2px");
-      expect(focusedComposerStyle.outlineOffset).toBe("2px");
-      expect(focusedComposerStyle.outlineWidth).not.toBe(
-        restingComposerStyle.outlineWidth,
-      );
+      expect(focusedComposerStyle.outline).toBe("none");
       expect(focusedComposerStyle.textareaBoxShadow).toBe("none");
-      expect(focusedComposerStyle.textareaOutline).toBe("none");
+      expect(focusedComposerStyle.textareaOutline).toBe("solid");
+      expect(focusedComposerStyle.textareaOutlineWidth).toBe("2px");
+      expect(focusedComposerStyle.textareaOutlineOffset).toBe("0px");
       await composer.fill("Draft survives project switching");
       await focusedSessionPanel
         .getByRole("button", {

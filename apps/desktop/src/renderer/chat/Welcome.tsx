@@ -44,18 +44,30 @@ export function Welcome({
           ? `${botName} can help with ${projectName}, or anything else you’re working on.`
           : `Talk to ${botName}. Start wherever you like.`}
       </p>
-      <div className="starter-grid">
-        {prompts.map(({ prompt, detail }, index) => (
-          <button key={prompt} onClick={() => onSelect(prompt)} type="button">
-            <span className="starter-index" aria-hidden="true">
-              {String(index + 1).padStart(2, "0")}
-            </span>
-            <strong>{prompt}</strong>
-            <small>{detail}</small>
-            <UiIcon icon={ArrowUpRight} size="sm" />
-          </button>
-        ))}
-      </div>
+      <details className="chat-starter-ideas">
+        <summary>Ideas to get started</summary>
+        <div className="starter-grid">
+          {prompts.map(({ prompt, detail }, index) => (
+            <button
+              key={prompt}
+              onClick={(event) => {
+                onSelect(prompt);
+                const ideas = event.currentTarget.closest("details");
+                ideas?.removeAttribute("open");
+                ideas?.querySelector("summary")?.focus();
+              }}
+              type="button"
+            >
+              <span className="starter-index" aria-hidden="true">
+                {String(index + 1).padStart(2, "0")}
+              </span>
+              <strong>{prompt}</strong>
+              <small>{detail}</small>
+              <UiIcon icon={ArrowUpRight} size="sm" />
+            </button>
+          ))}
+        </div>
+      </details>
     </div>
   );
 }

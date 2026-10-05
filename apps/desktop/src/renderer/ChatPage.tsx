@@ -2049,6 +2049,10 @@ export function ChatSessionPanel({
     selectedMessages.length === 0 &&
     (selectedSession?.messageCount ?? 0) === 0 &&
     !activeRequest;
+  // History recovery stays in the active layout until its outcome is known.
+  // Only presentation changes; the composer and transcript keep their identity.
+  const isEmptyConversation =
+    isNewConversation && loadingHistory !== selectedId && !historyError;
   const workbenchAccessibilityProps = isNarrowViewport
     ? {
         "aria-label": "Thread workbench",
@@ -2116,258 +2120,272 @@ export function ChatSessionPanel({
         }
         aria-label="Conversation detail"
         className="chat-conversation"
+        data-layout={isEmptyConversation ? "empty" : "active"}
         hidden={surface !== "conversation"}
         id={`chat-context-conversation-${selectedId}`}
         inert={
           (inspectorVisible && isNarrowWorkbench) || surface !== "conversation"
         }
       >
-        <ChatTranscript
-          botName={currentBot?.name}
-          activeRequest={activeRequest}
-          backendReady={backend.phase === "ready"}
-          copyStates={copyStates}
-          endRef={endRef}
-          forkingMessageId={forkingMessageId}
-          historyError={historyError}
-          hasEarlierMessages={hasEarlierMessages}
-          loadingEarlierHistory={loadingEarlierHistory === selectedId}
-          loading={loadingHistory === selectedId}
-          messages={selectedMessages}
-          onBranch={(message, mode) => void branchMessage(message, mode)}
-          onCopy={(message) =>
-            void copyMessage(
-              message.id,
-              message.role === "assistant"
-                ? visibleAssistantText(message.content)
-                : message.content,
-            )
-          }
-          onRead={readMessage}
-          onPromote={currentBotId ? promoteMessage : undefined}
-          onRetryHistory={() => retryHistory(selectedId)}
-          onRetryMessage={(message) => void branchMessage(message, "retry")}
-          onLoadEarlier={() => loadEarlierHistory(selectedId)}
-          onSelectPrompt={setDraft}
-          onStopReading={stopSpeaking}
-          progress={progress}
-          projectName={activeProject?.name}
-          runReceipts={runReceipts}
-          speakingMessageId={speakingMessageId}
-          speechSupported={speechSupported}
-        />
-        {unreadMessageCount > 0 ? (
-          <button
-            aria-label={`Jump to latest messages (${unreadMessageCount} new)`}
-            className="chat-jump-to-latest"
-            onClick={jumpToLatestMessages}
-            type="button"
-          >
-            {unreadMessageCount} new{" "}
-            {unreadMessageCount === 1 ? "message" : "messages"}
-            <span aria-hidden="true"> · Jump to latest</span>
-          </button>
-        ) : null}
-        {promotionFeedback[selectedId] ? (
-          <div
-            className="chat-storage-warning"
-            role={promotionFeedback[selectedId]?.error ? "alert" : "status"}
-          >
-            {promotionFeedback[selectedId]?.error ??
-              promotionFeedback[selectedId]?.message}
+        <div className="chat-transcript-region">
+          <ChatTranscript
+            botName={currentBot?.name}
+            activeRequest={activeRequest}
+            backendReady={backend.phase === "ready"}
+            copyStates={copyStates}
+            endRef={endRef}
+            forkingMessageId={forkingMessageId}
+            historyError={historyError}
+            hasEarlierMessages={hasEarlierMessages}
+            loadingEarlierHistory={loadingEarlierHistory === selectedId}
+            loading={loadingHistory === selectedId}
+            messages={selectedMessages}
+            onBranch={(message, mode) => void branchMessage(message, mode)}
+            onCopy={(message) =>
+              void copyMessage(
+                message.id,
+                message.role === "assistant"
+                  ? visibleAssistantText(message.content)
+                  : message.content,
+              )
+            }
+            onRead={readMessage}
+            onPromote={currentBotId ? promoteMessage : undefined}
+            onRetryHistory={() => retryHistory(selectedId)}
+            onRetryMessage={(message) => void branchMessage(message, "retry")}
+            onLoadEarlier={() => loadEarlierHistory(selectedId)}
+            onSelectPrompt={(prompt) => {
+              setDraft(prompt);
+              requestAnimationFrame(() => composerRef.current?.focus());
+            }}
+            onStopReading={stopSpeaking}
+            progress={progress}
+            projectName={activeProject?.name}
+            runReceipts={runReceipts}
+            speakingMessageId={speakingMessageId}
+            speechSupported={speechSupported}
+          />
+          {unreadMessageCount > 0 ? (
+            <button
+              aria-label={`Jump to latest messages (${unreadMessageCount} new)`}
+              className="chat-jump-to-latest"
+              onClick={jumpToLatestMessages}
+              type="button"
+            >
+              {unreadMessageCount} new{" "}
+              {unreadMessageCount === 1 ? "message" : "messages"}
+              <span aria-hidden="true"> · Jump to latest</span>
+            </button>
+          ) : null}
+          {promotionFeedback[selectedId] ? (
+            <div
+              className="chat-storage-warning"
+              role={promotionFeedback[selectedId]?.error ? "alert" : "status"}
+            >
+              {promotionFeedback[selectedId]?.error ??
+                promotionFeedback[selectedId]?.message}
+            </div>
+          ) : null}
+          {storageWarning ? (
+            <div
+              aria-live="polite"
+              className="chat-storage-warning"
+              role="status"
+            >
+              {storageWarning}
+            </div>
+          ) : null}
+          {runHydrationWarnings.length > 0 ? (
+            <div
+              className="chat-storage-warning"
+              role="status"
+              title={runHydrationWarnings.join("\n")}
+            >
+              Some agent history is unavailable. Other conversations remain
+              usable.
+            </div>
+          ) : null}
+          <div aria-live="polite" className="sr-only" role="status">
+            {accessibilityStatus}
           </div>
-        ) : null}
-        {storageWarning ? (
-          <div
-            aria-live="polite"
-            className="chat-storage-warning"
-            role="status"
-          >
-            {storageWarning}
-          </div>
-        ) : null}
-        {runHydrationWarnings.length > 0 ? (
-          <div
-            className="chat-storage-warning"
-            role="status"
-            title={runHydrationWarnings.join("\n")}
-          >
-            Some agent history is unavailable. Other conversations remain
-            usable.
-          </div>
-        ) : null}
-        <div aria-live="polite" className="sr-only" role="status">
-          {accessibilityStatus}
         </div>
-        <ChatComposer
-          bot={currentBot}
-          approvalsVisible={
-            routeActive &&
-            visible &&
-            surface === "conversation" &&
-            !(inspectorVisible && isNarrowWorkbench)
-          }
-          workspaceNotice={
-            <>
-              {dispatchFeedback[selectedId] ? (
-                <p role="alert" className="m-0 pb-2 text-sm text-[var(--text)]">
-                  {dispatchFeedback[selectedId]}
-                </p>
-              ) : null}
-              {dispatchPending[selectedId] ? (
-                <p
-                  role="status"
-                  className="m-0 pb-2 text-sm text-[var(--muted)]"
-                >
-                  Confirming this conversation’s owner…
-                </p>
-              ) : null}
-              {runHydration !== "ready" ? (
-                <div
-                  className="flex items-center justify-between gap-2 pb-2 text-[length:var(--text-control)] text-[var(--muted)]"
-                  role="status"
-                >
-                  <span>
-                    {runHydration === "checking"
-                      ? "Checking active runs before sending…"
-                      : "Active run recovery is unavailable. Retry before sending; your draft is retained."}
-                  </span>
-                  {runHydration === "unavailable" ? (
-                    <button
-                      className="secondary-button"
-                      onClick={() =>
-                        setRunHydrationRetry((current) => current + 1)
-                      }
-                      type="button"
-                    >
-                      Retry run list
-                    </button>
-                  ) : null}
-                </div>
-              ) : null}
-              {workspaceBindingBlocked ? (
-                <div
-                  className="flex items-center justify-between gap-2 border-b border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[length:var(--text-control)] text-[var(--text-soft)]"
-                  role="status"
-                >
-                  <span>
-                    {foreignProject
-                      ? `This session belongs to ${foreignProject.name}. Activate its workspace before sending. Existing runs continue in their original workspace.`
-                      : "This session's project workspace binding is unavailable. Choose its repository before sending; its draft and history are retained."}
-                  </span>
-                  {foreignProject && onActivateSessionProject ? (
-                    <button
-                      className="secondary-button shrink-0"
-                      onClick={() =>
-                        onActivateSessionProject(selectedId, foreignProject.id)
-                      }
-                      type="button"
-                    >
-                      Activate workspace
-                    </button>
-                  ) : (
-                    <button
-                      className="secondary-button shrink-0"
-                      onClick={() =>
-                        onChooseRepository
-                          ? void onChooseRepository(selectedId)
-                          : onOpenProjectManager?.()
-                      }
-                      type="button"
-                    >
-                      Resolve repository
-                    </button>
-                  )}
-                </div>
-              ) : null}
-              {!botReady && currentBot ? (
-                <div
-                  className="flex items-center justify-between gap-3 border-b border-[var(--border)] px-3 py-2 text-sm text-[var(--text-soft)]"
-                  role="status"
-                >
-                  <span>
-                    {currentBot.name} is {currentBot.state}. Activate it before
-                    sending; this draft is retained.
-                  </span>
-                  {currentBot.state === "stopped" && onActivateBot ? (
-                    <button
-                      className="secondary-button shrink-0"
-                      onClick={() => void onActivateBot(currentBot.id)}
-                      type="button"
-                    >
-                      Activate bot
-                    </button>
-                  ) : null}
-                </div>
-              ) : null}
-              {!botReady && !currentBot ? (
-                <p
-                  className="border-b border-[var(--border)] px-3 py-2 text-sm text-[var(--bad)]"
-                  role="alert"
-                >
-                  This conversation’s bot is unavailable. The draft is retained;
-                  refresh the bot list before sending.
-                </p>
-              ) : null}
-            </>
-          }
-          activeProject={activeProject}
-          projects={projects}
-          onChooseRepository={() => onChooseRepository?.(selectedId)}
-          onOpenProjectManager={onOpenProjectManager}
-          onSelectProjectForNewChat={onSelectProjectForNewChat}
-          isNewConversation={isNewConversation}
-          backend={backend}
-          runtime={runtime}
-          refreshRuntime={refreshRuntime}
-          onOpenModelsPage={onOpenModelsPage}
-          onOpenProvidersPage={onOpenProvidersPage}
-          activeRequest={activeRequest}
-          cancellingRequest={cancellingRequest}
-          onCancelRequest={(requestId) => void cancelRequest(requestId)}
-          canSubmit={canSubmit}
-          draft={draft}
-          setDraft={setDraft}
-          onSubmit={submit}
-          composerRef={composerRef}
-          queueRef={queueRef}
-          queuedMessages={queuedMessages.filter(
-            (message) => message.sessionId === selectedId,
-          )}
-          queuePaused={queuePaused}
-          resumeQueuedMessages={resumeQueuedMessages}
-          setQueueAnnouncement={setQueueAnnouncement}
-          clearQueuedMessages={clearQueuedMessages}
-          removeQueuedMessage={removeQueuedMessage}
-          attachedFiles={attachedFiles}
-          attachmentImporting={attachmentImportPending}
-          chatContextCapsule={chatContextCapsule}
-          removeChatContext={() => setChatContextCapsule(null)}
-          attachmentTotalBytes={attachmentTotalBytes}
-          removeContextFile={removeContextFile}
-          composerValidationError={composerValidationError}
-          memoryMatches={memoryMatches}
-          commandSuggestions={commandSuggestions}
-          commandMenuDismissed={commandMenuDismissed}
-          commandSelection={commandSelection}
-          setCommandSelection={setCommandSelection}
-          setCommandMenuDismissed={setCommandMenuDismissed}
-          selectCommandSuggestion={selectCommandSuggestion}
-          commandCatalog={commandCatalog}
-          pickContextFiles={pickContextFiles}
-          importAndTranscribeRecording={importAndTranscribeRecording}
-          insertDictationTranscript={insertDictationTranscript}
-          selectedContext={selectedContext}
-          selectedContextPercent={selectedContextPercent}
-          selectedContextTone={selectedContextTone}
-          selectedUsageError={selectedUsageError}
-          usageLoading={usageLoading}
-          selectedId={selectedId}
-          modelRouteLabel={modelRouteLabel}
-          workspacePath={workspacePath}
-          pendingApprovals={pendingApprovals}
-          runningTasks={runningTasks}
-        />
+        <div className="chat-composer-dock">
+          <ChatComposer
+            bot={currentBot}
+            approvalsVisible={
+              routeActive &&
+              visible &&
+              surface === "conversation" &&
+              !(inspectorVisible && isNarrowWorkbench)
+            }
+            workspaceNotice={
+              <>
+                {dispatchFeedback[selectedId] ? (
+                  <p
+                    role="alert"
+                    className="m-0 pb-2 text-sm text-[var(--text)]"
+                  >
+                    {dispatchFeedback[selectedId]}
+                  </p>
+                ) : null}
+                {dispatchPending[selectedId] ? (
+                  <p
+                    role="status"
+                    className="m-0 pb-2 text-sm text-[var(--muted)]"
+                  >
+                    Confirming this conversation’s owner…
+                  </p>
+                ) : null}
+                {runHydration !== "ready" ? (
+                  <div
+                    className="flex items-center justify-between gap-2 pb-2 text-[length:var(--text-control)] text-[var(--muted)]"
+                    role="status"
+                  >
+                    <span>
+                      {runHydration === "checking"
+                        ? "Checking active runs before sending…"
+                        : "Active run recovery is unavailable. Retry before sending; your draft is retained."}
+                    </span>
+                    {runHydration === "unavailable" ? (
+                      <button
+                        className="secondary-button"
+                        onClick={() =>
+                          setRunHydrationRetry((current) => current + 1)
+                        }
+                        type="button"
+                      >
+                        Retry run list
+                      </button>
+                    ) : null}
+                  </div>
+                ) : null}
+                {workspaceBindingBlocked ? (
+                  <div
+                    className="flex items-center justify-between gap-2 border-b border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[length:var(--text-control)] text-[var(--text-soft)]"
+                    role="status"
+                  >
+                    <span>
+                      {foreignProject
+                        ? `This session belongs to ${foreignProject.name}. Activate its workspace before sending. Existing runs continue in their original workspace.`
+                        : "This session's project workspace binding is unavailable. Choose its repository before sending; its draft and history are retained."}
+                    </span>
+                    {foreignProject && onActivateSessionProject ? (
+                      <button
+                        className="secondary-button shrink-0"
+                        onClick={() =>
+                          onActivateSessionProject(
+                            selectedId,
+                            foreignProject.id,
+                          )
+                        }
+                        type="button"
+                      >
+                        Activate workspace
+                      </button>
+                    ) : (
+                      <button
+                        className="secondary-button shrink-0"
+                        onClick={() =>
+                          onChooseRepository
+                            ? void onChooseRepository(selectedId)
+                            : onOpenProjectManager?.()
+                        }
+                        type="button"
+                      >
+                        Resolve repository
+                      </button>
+                    )}
+                  </div>
+                ) : null}
+                {!botReady && currentBot ? (
+                  <div
+                    className="flex items-center justify-between gap-3 border-b border-[var(--border)] px-3 py-2 text-sm text-[var(--text-soft)]"
+                    role="status"
+                  >
+                    <span>
+                      {currentBot.name} is {currentBot.state}. Activate it
+                      before sending; this draft is retained.
+                    </span>
+                    {currentBot.state === "stopped" && onActivateBot ? (
+                      <button
+                        className="secondary-button shrink-0"
+                        onClick={() => void onActivateBot(currentBot.id)}
+                        type="button"
+                      >
+                        Activate bot
+                      </button>
+                    ) : null}
+                  </div>
+                ) : null}
+                {!botReady && !currentBot ? (
+                  <p
+                    className="border-b border-[var(--border)] px-3 py-2 text-sm text-[var(--bad)]"
+                    role="alert"
+                  >
+                    This conversation’s bot is unavailable. The draft is
+                    retained; refresh the bot list before sending.
+                  </p>
+                ) : null}
+              </>
+            }
+            activeProject={activeProject}
+            projects={projects}
+            onChooseRepository={() => onChooseRepository?.(selectedId)}
+            onOpenProjectManager={onOpenProjectManager}
+            onSelectProjectForNewChat={onSelectProjectForNewChat}
+            isNewConversation={isNewConversation}
+            backend={backend}
+            runtime={runtime}
+            refreshRuntime={refreshRuntime}
+            onOpenModelsPage={onOpenModelsPage}
+            onOpenProvidersPage={onOpenProvidersPage}
+            activeRequest={activeRequest}
+            cancellingRequest={cancellingRequest}
+            onCancelRequest={(requestId) => void cancelRequest(requestId)}
+            canSubmit={canSubmit}
+            draft={draft}
+            setDraft={setDraft}
+            onSubmit={submit}
+            composerRef={composerRef}
+            queueRef={queueRef}
+            queuedMessages={queuedMessages.filter(
+              (message) => message.sessionId === selectedId,
+            )}
+            queuePaused={queuePaused}
+            resumeQueuedMessages={resumeQueuedMessages}
+            setQueueAnnouncement={setQueueAnnouncement}
+            clearQueuedMessages={clearQueuedMessages}
+            removeQueuedMessage={removeQueuedMessage}
+            attachedFiles={attachedFiles}
+            attachmentImporting={attachmentImportPending}
+            chatContextCapsule={chatContextCapsule}
+            removeChatContext={() => setChatContextCapsule(null)}
+            attachmentTotalBytes={attachmentTotalBytes}
+            removeContextFile={removeContextFile}
+            composerValidationError={composerValidationError}
+            memoryMatches={memoryMatches}
+            commandSuggestions={commandSuggestions}
+            commandMenuDismissed={commandMenuDismissed}
+            commandSelection={commandSelection}
+            setCommandSelection={setCommandSelection}
+            setCommandMenuDismissed={setCommandMenuDismissed}
+            selectCommandSuggestion={selectCommandSuggestion}
+            commandCatalog={commandCatalog}
+            pickContextFiles={pickContextFiles}
+            importAndTranscribeRecording={importAndTranscribeRecording}
+            insertDictationTranscript={insertDictationTranscript}
+            selectedContext={selectedContext}
+            selectedContextPercent={selectedContextPercent}
+            selectedContextTone={selectedContextTone}
+            selectedUsageError={selectedUsageError}
+            usageLoading={usageLoading}
+            selectedId={selectedId}
+            modelRouteLabel={modelRouteLabel}
+            workspacePath={workspacePath}
+            pendingApprovals={pendingApprovals}
+            runningTasks={runningTasks}
+          />
+        </div>
       </ConversationFrame>
       <section
         aria-hidden={surface !== "history" ? "true" : undefined}

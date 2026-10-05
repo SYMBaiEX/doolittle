@@ -135,17 +135,46 @@ describe("chat presentation components", () => {
     // approval surface, and12px of transcript. Its footer was clipped below
     // the pane. Model overflowing intrinsic composer chrome at480px: the
     // full form, not only its visible portion, counts toward the budget.
-    const budget = chatApprovalHeightBudget(382.5, 480, 280, 12);
+    const budget = chatApprovalHeightBudget(382.5, 480, 280, 0);
     expect(budget).toBe(54);
     expect(budget).toBeLessThan(144);
     // A44px disclosure replaces280px of inline approval detail; composer
     // controls stay in flow and the pane recovers more than100px transcript.
     expect(382.5 - (480 - 280 + 44)).toBeGreaterThan(100);
-    expect(chatApprovalHeightBudget(800, 460, 280, 340)).toBe(280);
-    expect(chatApprovalHeightBudget(540, 420, 280, 100)).toBe(252);
+    expect(chatApprovalHeightBudget(800, 460, 280, 0)).toBe(280);
+    expect(chatApprovalHeightBudget(540, 420, 280, 20)).toBe(252);
     expect(chatApprovalHeightBudget(0, 420, 280, 100)).toBeNull();
     expect(chatApprovalHeightBudget(Number.NaN, 420, 280, 100)).toBeNull();
     expect(chatApprovalHeightBudget(540, 140, 0, 380)).toBeNull();
+  });
+
+  it("reclaims empty-track slack without making the approval mode self-fulfilling", () => {
+    // The44px disclosure and280px panel both have8px margin and identical
+    // non-approval controls. The same margin is reserved in the final budget.
+    const compact = chatApprovalHeightBudget(860, 176, 52, 32, 256);
+    const expanded = chatApprovalHeightBudget(860, 412, 288, 32, 256);
+    expect(compact).toBe(280);
+    expect(expanded).toBe(compact);
+    // The128px top transcript needs256px residual in the centered layout.
+    // Near the144px disclosure threshold, margins must not change the mode.
+    expect(chatApprovalHeightBudget(554, 176, 52, 32, 256)).toBe(142);
+    expect(chatApprovalHeightBudget(554, 412, 288, 32, 256)).toBe(142);
+    const bounded = chatApprovalHeightBudget(540, 176, 52, 32, 256);
+    expect(bounded).toBe(128);
+    expect((540 - 24 - 124 - (bounded ?? 0) - 8) / 2).toBe(128);
+  });
+
+  it("reserves actual notices and full transcript space in small active panes", () => {
+    // Dock24px, warning44px, approval margin8px are actual chrome. Active does not
+    // reserve the unused second track of the centered welcome layout.
+    const active = chatApprovalHeightBudget(400, 176, 52, 76);
+    expect(active).toBe(72);
+    expect(400 - 76 - 124 - (active ?? 0)).toBe(128);
+    // The centered layout needs another warning44px in its second reserve.
+    const centered = chatApprovalHeightBudget(600, 176, 52, 76, 256 + 44);
+    expect(centered).toBe(100);
+    expect((600 - 24 - 124 - (centered ?? 0) - 8) / 2 - 44).toBe(128);
+    expect(chatApprovalHeightBudget(400, 168, 44, Number.NaN)).toBeNull();
   });
   it("labels shared runtime counts separately from the session's working state", () => {
     const markup = renderToStaticMarkup(

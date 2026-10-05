@@ -25,29 +25,18 @@ const chatHeader = readFileSync(
 );
 
 describe("chat chrome density contract", () => {
-  it("keeps short chat screens bounded while their session chrome scrolls", async () => {
+  it("keeps even short chat screens bounded instead of scrolling the route", async () => {
     const compiler = await compile("@tailwind utilities;");
     const candidates = VIEW_CONTAINER_CLASS.split(/\s+/u).filter((candidate) =>
-      candidate.startsWith("[@media(max-height:640px)]:"),
+      candidate.includes("view-chat"),
     );
     const css = compiler.build(candidates);
-    expect(css).toContain("@media (max-height:640px)");
     expect(css).toContain(".view-chat {");
-    expect(css).toContain("overflow-y: auto !important");
-    expect(css).toContain("[data-session-workbench]");
-    expect(css).toContain("height: auto !important");
-    expect(css).toContain("min-height: 100% !important");
-    expect(css).toContain("[data-session-panels]");
-    expect(css).toContain("flex: none !important");
-    expect(css).toContain("position: relative !important");
-    expect(css).toContain("inset: auto !important");
-    expect(css).toContain("overflow: visible !important");
-    expect(css).toContain(".chat-conversation");
-    expect(css).toContain("display: grid !important");
-    expect(css).toContain("grid-template-rows: 128px auto !important");
-    expect(css).toContain("max-height: none !important");
+    expect(css).toContain("overflow: hidden !important");
+    expect(css).not.toContain("height: auto");
+    expect(css).not.toContain("overflow: visible");
+    expect(css).not.toContain("grid-template-rows: 128px auto");
     expect(css).not.toContain("display: none");
-    expect(css).not.toContain("overflow-y: hidden");
     expect(css).not.toContain("view-code");
     expect(VIEW_CONTAINER_CLASS).toContain("min-h-0 min-w-0 flex-1");
   });

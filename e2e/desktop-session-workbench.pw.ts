@@ -86,6 +86,7 @@ async function expectComposerGeometry(panel: Locator): Promise<void> {
             return (
               style.display !== "none" &&
               style.visibility !== "hidden" &&
+              button.checkVisibility() &&
               button.getBoundingClientRect().width > 0
             );
           })
@@ -247,6 +248,334 @@ async function expectApprovalGeometry(panel: Locator): Promise<void> {
 }
 
 test.describe("Doolittle desktop session workbench", () => {
+  test("centers a new composer then docks it below independently scrolling history", async () => {
+    const testInfo = test.info();
+    test.setTimeout(120_000);
+    const desktop = await launchIsolatedDesktop();
+    try {
+      const { app, page, pageErrors } = desktop;
+      await waitForDesktopReady(page);
+      async function resize(width: number, height: number) {
+        const nativeWindow = await app.browserWindow(page);
+        try {
+          await nativeWindow.evaluate(
+            (window, size) => {
+              window.setContentSize(size.width, size.height);
+            },
+            { width, height },
+          );
+        } finally {
+          await nativeWindow.dispose();
+        }
+        await expect
+          .poll(() =>
+            page.evaluate(() => ({
+              width: window.innerWidth,
+              height: window.innerHeight,
+            })),
+          )
+          .toEqual({ width, height });
+      }
+      await resize(1280, 900);
+      await installSyntheticChatLifecycleFixture(app);
+      const workbench = page.getByRole("region", { name: "Session workbench" });
+      await expectEmptyComposerReady(workbench);
+      const panels = workbench.locator("[data-session-panel]");
+      const firstId = await panels.first().getAttribute("data-session-panel");
+      if (!firstId) throw new Error("Initial session panel is unavailable.");
+      const first = panelById(workbench, firstId);
+      const composer = first.getByRole("textbox", {
+        name: "Message Doolittle",
+      });
+      const originalInput = await composer.elementHandle();
+      if (!originalInput) throw new Error("Initial composer is unavailable.");
+      async function layout(panel: Locator) {
+        return panel.locator(".chat-conversation").evaluate((conversation) => {
+          const form = conversation.querySelector(".chat-composer");
+          const messages = conversation.querySelector(".chat-messages");
+          if (
+            !(form instanceof HTMLElement) ||
+            !(messages instanceof HTMLElement)
+          ) {
+            throw new Error("Conversation layout is incomplete.");
+          }
+          const bounds = conversation.getBoundingClientRect();
+          const input = form.getBoundingClientRect();
+          const styles = getComputedStyle(form);
+          return {
+            center: (input.top + input.height / 2 - bounds.top) / bounds.height,
+            bottomGap: bounds.bottom - input.bottom,
+            top: input.top,
+            bottom: input.bottom,
+            transcriptHeight: messages.clientHeight,
+            transcriptOverflow:
+              messages.scrollHeight > messages.clientHeight + 1,
+            outlineWidth: Number.parseFloat(styles.outlineWidth),
+            outlineStyle: styles.outlineStyle,
+            borderWidth: Number.parseFloat(styles.borderTopWidth),
+            display: getComputedStyle(conversation).display,
+            tracks: getComputedStyle(conversation).gridTemplateRows,
+          };
+        });
+      }
+      async function expectCentered(panel: Locator) {
+        await expect
+          .poll(async () => Math.abs((await layout(panel)).center - 0.5))
+          .toBeLessThan(1 / 6);
+        await expectComposerGeometry(panel);
+      }
+      async function expectDocked(panel: Locator) {
+        await expect
+          .poll(async () => (await layout(panel)).bottomGap)
+          .toBeGreaterThanOrEqual(-1);
+        await expect
+          .poll(async () => (await layout(panel)).bottomGap)
+          .toBeLessThanOrEqual(24);
+        await expectComposerGeometry(panel);
+      }
+      async function submit() {
+        await expect(
+          first.getByRole("button", { name: "Stop response", exact: true }),
+        ).toHaveCount(0);
+        await composer.fill(syntheticChatPrompt("complete"));
+        await expect(
+          first.getByText("Checking active runs before sending…", {
+            exact: true,
+          }),
+        ).toHaveCount(0);
+        await expect(
+          first.getByRole("button", { name: "Retry run list", exact: true }),
+        ).toHaveCount(0);
+        await composer.press("Enter");
+      }
+      await composer.focus();
+      await composer.fill(syntheticChatPrompt("complete"));
+      await page.screenshot({ path: testInfo.outputPath("chat-new-1280.png") });
+      await testInfo.attach("initial-chat-layout", {
+        body: JSON.stringify(await layout(first)),
+        contentType: "application/json",
+      });
+      await expectCentered(first);
+      const focusStyle = await layout(first);
+      expect(
+        focusStyle.outlineStyle,
+        "no painted form-wide focus outline",
+      ).toBe("none");
+      expect(
+        focusStyle.borderWidth,
+        "composer has a quiet single-pixel edge",
+      ).toBeLessThanOrEqual(1);
+      await first
+        .getByRole("button", { name: /^Choose model\. Current route/ })
+        .click();
+      await expectHitTarget(
+        first
+          .getByRole("region", { name: "Choose provider and model" })
+          .getByLabel("Search models"),
+      );
+      await page.keyboard.press("Escape");
+      await expectCentered(first);
+      await submit();
+      await expect(
+        first.locator(".chat-message.assistant").last(),
+      ).toContainText("Synthetic E2E renderer fixture only");
+      await expectDocked(first);
+      expect(
+        await originalInput.evaluate(
+          (input) => input.isConnected && input === document.activeElement,
+        ),
+        "submission does not remount or blur the input",
+      ).toBe(true);
+      expect((await layout(first)).transcriptHeight).toBeGreaterThan(150);
+
+      const longResponse = Array.from(
+        { length: 80 },
+        (_, index) =>
+          `Synthetic layout fixture paragraph ${index + 1}. This is test history, not a model response. The composer must remain available while reading earlier messages.`,
+      ).join("\n\n");
+      await installSyntheticChatLifecycleFixture(app, longResponse);
+      await submit();
+      await expect(
+        first.locator(".chat-message.assistant").last(),
+      ).toContainText("Synthetic layout fixture paragraph 80.");
+      await expect
+        .poll(async () => (await layout(first)).transcriptOverflow)
+        .toBe(true);
+      const draft = "Unsent draft stays while reviewing history.";
+      await composer.fill(draft);
+      await expectDocked(first);
+      const docked = await layout(first);
+      const transcript = first.locator(".chat-messages");
+      await transcript.evaluate((messages) => {
+        messages.scrollTop = 0;
+      });
+      // Deferred Markdown metrics can adjust the fractional scroll anchor.
+      // Assert the reading outcome, not an exact browser-owned scroll offset.
+      await expect
+        .poll(() =>
+          transcript.evaluate((messages) => {
+            const firstMessage = messages.querySelector(".chat-message.user");
+            if (!firstMessage) return false;
+            const clip = messages.getBoundingClientRect();
+            const content = firstMessage.getBoundingClientRect();
+            return content.bottom > clip.top && content.top < clip.bottom;
+          }),
+        )
+        .toBe(true);
+      expect(
+        Math.abs((await layout(first)).top - docked.top),
+        "scrolling history never moves the input",
+      ).toBeLessThanOrEqual(1);
+      await expect(composer).toHaveValue(draft);
+      await expect(composer).toBeFocused();
+      await transcript.evaluate((messages) => {
+        messages.scrollTop = messages.scrollHeight;
+      });
+      await expectDocked(first);
+      await page.screenshot({
+        path: testInfo.outputPath("chat-history-1280.png"),
+      });
+
+      await openNewConversationView(page);
+      const secondId = (
+        await panels.evaluateAll((elements) =>
+          elements.map((element) => element.getAttribute("data-session-panel")),
+        )
+      ).find((id) => id && id !== firstId);
+      if (!secondId) throw new Error("Second session panel is unavailable.");
+      const second = panelById(workbench, secondId);
+      await second
+        .getByRole("textbox", { name: "Message Doolittle" })
+        .fill("A separate new conversation draft");
+      await splitOpenConversations(workbench);
+      await expectDocked(first);
+      await expectCentered(second);
+      await focusPanelTab(workbench, secondId);
+      await page.screenshot({
+        path: testInfo.outputPath("chat-split-1280.png"),
+      });
+
+      await resize(360, 844);
+      await expectCentered(second);
+      await focusPanelTab(workbench, firstId);
+      await expectDocked(first);
+      await expect(composer).toHaveValue(draft);
+      await page.screenshot({
+        path: testInfo.outputPath("chat-history-360.png"),
+      });
+      await resize(768, 600);
+      await expectDocked(first);
+      expect(
+        (await layout(first)).transcriptHeight,
+        "short windows preserve independently scrollable history",
+      ).toBeGreaterThanOrEqual(128);
+      await expect(composer).toHaveValue(draft);
+      async function expectHitTarget(target: Locator) {
+        await expect(target).toBeVisible();
+        await target.scrollIntoViewIfNeeded();
+        await expect
+          .poll(() =>
+            target.evaluate((element) => {
+              const bounds = element.getBoundingClientRect();
+              const hit = document.elementFromPoint(
+                bounds.left + bounds.width / 2,
+                bounds.top + bounds.height / 2,
+              );
+              return hit === element || (hit !== null && element.contains(hit));
+            }),
+          )
+          .toBe(true);
+      }
+      const modelButton = first.getByRole("button", {
+        name: /^Choose model\. Current route/,
+      });
+      await modelButton.click();
+      const modelDialog = first.getByRole("region", {
+        name: "Choose provider and model",
+      });
+      await expectHitTarget(modelDialog.getByLabel("Search models"));
+      await page.keyboard.press("Escape");
+      await expect(modelDialog).toHaveCount(0);
+      await expect(modelButton).toBeFocused();
+
+      const moreTools = first.locator(
+        'summary[aria-label="More composer tools"]',
+      );
+      await moreTools.click();
+      const promptButton = first.getByRole("button", {
+        name: "Open prompt library",
+      });
+      await expectHitTarget(promptButton);
+      await promptButton.click();
+      const promptDialog = first.getByRole("dialog", {
+        name: "Prompt library",
+        exact: true,
+      });
+      const titleInput = promptDialog.getByRole("textbox", {
+        name: "Saved prompt title",
+      });
+      await expectHitTarget(titleInput);
+      await titleInput.fill("Layout regression prompt");
+      await promptDialog
+        .getByRole("button", { name: "Save draft", exact: true })
+        .click();
+      await expect(
+        promptDialog.getByText("Layout regression prompt", { exact: true }),
+      ).toBeVisible();
+      await promptDialog
+        .getByRole("button", { name: "Close prompt library", exact: true })
+        .click();
+      await expect(promptDialog).toHaveCount(0);
+      await moreTools.press("Escape");
+      await composer.fill("/commands");
+      const commands = first.getByRole("listbox", { name: "Chat commands" });
+      const command = commands
+        .locator('[role="option"]:not([aria-disabled="true"])')
+        .first();
+      await expectHitTarget(command);
+      await command.click();
+      await expect(composer).toHaveValue(/^\/commands/);
+      await composer.fill("$Layout");
+      const reusable = first.getByRole("listbox", {
+        name: "Reusable prompts and skills",
+      });
+      const savedPrompt = reusable
+        .getByRole("option")
+        .filter({ hasText: "Layout regression prompt" });
+      await expectHitTarget(savedPrompt);
+      await composer.press("Tab");
+      await expect(composer).toHaveValue(draft);
+
+      await focusPanelTab(workbench, secondId);
+      const projectButton = second.getByRole("button", {
+        name: /^Choose project\. Current project/,
+      });
+      await projectButton.click();
+      const projectDialog = second.getByRole("dialog", {
+        name: "Choose a project for this new conversation",
+      });
+      await expectHitTarget(projectDialog.getByLabel("Search projects"));
+      await page.keyboard.press("Escape");
+      await expect(projectDialog).toHaveCount(0);
+      await expect(projectButton).toBeFocused();
+      await focusPanelTab(workbench, firstId);
+      await expectDocked(first);
+      await expect(composer).toHaveValue(draft);
+      await resize(1728, 1000);
+      await expectDocked(first);
+      await expectCentered(second);
+      expect(
+        await originalInput.evaluate((input) => input.isConnected),
+        "pane resizing retains the same input",
+      ).toBe(true);
+      await expectNoDesktopRecovery(page);
+      expect(pageErrors).toEqual([]);
+      await originalInput.dispose();
+    } finally {
+      await desktop.dispose();
+    }
+  });
+
   test("fits the native terminal after mobile and narrow window resize", async () => {
     test.skip(
       process.platform !== "darwin",
@@ -1779,6 +2108,9 @@ test.describe("Doolittle desktop session workbench", () => {
       );
       await expect(firstApprovalSection).toHaveAttribute("aria-busy", "true");
       await waitForDesktopReady(page);
+      await expect(
+        page.getByRole("alert", { name: "Application error", exact: true }),
+      ).toHaveCount(0);
       await expect(firstApprovalSection.getByRole("alert")).toContainText(
         "temporary list failure",
         { timeout: 15_000 },

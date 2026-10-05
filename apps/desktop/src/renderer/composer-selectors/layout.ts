@@ -7,7 +7,7 @@ export const COMPOSER_PROJECT_GLYPH_CLASS =
   "grid size-5 shrink-0 place-items-center rounded-md border border-[color-mix(in_srgb,var(--composer-project-color,var(--accent))_28%,var(--border))] bg-[color-mix(in_srgb,var(--composer-project-color,var(--accent))_10%,var(--surface-soft))] font-mono text-[length:var(--text-control)] font-bold text-[var(--composer-project-color,var(--accent))]";
 
 export const COMPOSER_POPOVER_CLASS =
-  "absolute right-0 bottom-[calc(100%+9px)] z-70 grid overflow-hidden rounded-xl border border-[var(--border-strong)] bg-[color-mix(in_srgb,var(--surface-raised)_98%,var(--bg))] text-[var(--text-soft)] shadow-[0_24px_70px_color-mix(in_srgb,var(--shadow)_76%,transparent)]";
+  "composer-selector-popover absolute right-0 bottom-[calc(100%+9px)] z-70 grid overflow-hidden rounded-xl border border-[var(--border-strong)] bg-[color-mix(in_srgb,var(--surface-raised)_98%,var(--bg))] text-[var(--text-soft)] shadow-[0_24px_70px_color-mix(in_srgb,var(--shadow)_76%,transparent)]";
 
 export const COMPOSER_POPOVER_HEADER_CLASS =
   "flex items-start border-[var(--border)] border-b px-3.5 pt-3.25 pb-2.5 [&>span]:grid [&>span]:gap-0.5 [&_small]:text-[length:var(--text-control)] [&_small]:text-[var(--faint)] [&_strong]:text-[length:var(--text-control)] [&_strong]:font-semibold [&_strong]:text-[var(--text)]";

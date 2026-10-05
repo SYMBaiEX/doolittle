@@ -65,7 +65,7 @@ describe("chat layout", () => {
 
   it("adapts the composer to session width without hiding run feedback", () => {
     expect(CHAT_WORKSPACE_CLASS).toContain(
-      "[&_.chat-conversation]:[container-type:inline-size]",
+      "[&_.chat-conversation]:[container-type:size]",
     );
     expect(CHAT_WORKSPACE_CLASS).toContain(
       "[&_.chat-conversation]:[container-name:session]",
@@ -84,13 +84,11 @@ describe("chat layout", () => {
     );
   });
 
-  it("anchors the jump control within the conversation column", () => {
+  it("anchors the jump control above the composer in the transcript region", () => {
     expect(CHAT_WORKSPACE_CLASS).toContain("motion-reduce:transition-none");
     expect(CHAT_WORKSPACE_CLASS).toContain("motion-reduce:duration-0");
     expect(CHAT_WORKSPACE_CLASS).toContain("[&_.chat-conversation]:relative");
-    expect(CHAT_WORKSPACE_CLASS).toContain(
-      "[&_.chat-jump-to-latest]:bottom-[88px]",
-    );
+    expect(CHAT_WORKSPACE_CLASS).toContain("[&_.chat-jump-to-latest]:bottom-3");
     expect(CHAT_WORKSPACE_CLASS).toContain("[&_.chat-composer-main]:grid");
     expect(CHAT_WORKSPACE_CLASS).toContain("[&_.chat-composer-footer]:grid");
     expect(CHAT_WORKSPACE_CLASS).toContain(
@@ -105,5 +103,58 @@ describe("chat layout", () => {
     expect(CHAT_WORKSPACE_CLASS).toContain(
       "motion-reduce:[&_.thinking]:before:animate-none",
     );
+  });
+
+  it("compiles separate stable transcript and composer rows for both chat states", async () => {
+    const compiler = await compile(
+      "@theme { --spacing: .25rem; } @tailwind utilities;",
+    );
+    const css = compiler.build(
+      CHAT_WORKSPACE_CLASS.split(/\s+/u).filter(
+        (candidate) =>
+          candidate.includes("chat-transcript-region") ||
+          candidate.includes("chat-composer-dock") ||
+          candidate === "[&_.chat-conversation]:!grid" ||
+          candidate.includes("grid-rows-[minmax(0,1fr)"),
+      ),
+    );
+    expect(css).toContain(".chat-transcript-region");
+    expect(css).toContain("grid-row-start: 1");
+    expect(css).toContain(".chat-composer-dock");
+    expect(css).toContain("grid-row-start: 2");
+    expect(css).toContain("display: grid !important");
+    expect(css).toContain("grid-template-rows: minmax(0,1fr) auto");
+    expect(css).toContain(".chat-conversation[data-layout=empty]");
+    expect(css).toContain(
+      "grid-template-rows: minmax(0,1fr) auto minmax(0,1fr)",
+    );
+    expect(css).toContain("max-height: max(96px, calc(100cqh - 128px))");
+    expect(css).toContain("overflow-y: auto");
+    expect(css).not.toContain("height: auto");
+    expect(CHAT_WORKSPACE_CLASS).not.toContain(
+      "chat-composer:has(textarea:focus-visible)",
+    );
+  });
+
+  it("compiles pane-local short-screen selector and library sheets outside the dock", async () => {
+    const compiler = await compile(
+      "@theme { --spacing: .25rem; } @tailwind utilities;",
+    );
+    const css = compiler.build(
+      CHAT_WORKSPACE_CLASS.split(/\s+/u).filter((candidate) =>
+        candidate.includes(
+          ":is(.composer-selector-popover,.chat-prompt-library)",
+        ),
+      ),
+    );
+    expect(css).toContain("@media (max-height:640px)");
+    expect(css).toContain(
+      ".chat-composer :is(.composer-selector-popover, .chat-prompt-library)",
+    );
+    expect(css).toContain("position: fixed !important");
+    expect(css).toContain("inset: calc(var(--spacing) * 3) !important");
+    expect(css).toContain("width: auto !important");
+    expect(css).toContain("max-height: none !important");
+    expect(css).toContain("overflow-y: auto !important");
   });
 });

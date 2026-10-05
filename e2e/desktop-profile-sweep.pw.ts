@@ -799,6 +799,11 @@ async function expectViewportGeometry(
         const routeRect = route?.getBoundingClientRect();
         return {
           overflowY: route ? getComputedStyle(route).overflowY : null,
+          transcriptOverflowY: transcript
+            ? getComputedStyle(transcript).overflowY
+            : null,
+          routeScrollHeight: route?.scrollHeight,
+          routeClientHeight: route?.clientHeight,
           shellHeight: document
             .querySelector(".desktop-shell")
             ?.getBoundingClientRect().height,
@@ -813,8 +818,16 @@ async function expectViewportGeometry(
       });
       expect(
         shortLayout.overflowY,
-        "short Chat has an intentional scroll boundary",
+        "short Chat remains a bounded workspace rather than a scrolling document",
+      ).toBe("hidden");
+      expect(
+        shortLayout.transcriptOverflowY,
+        "history owns the vertical scroll boundary",
       ).toBe("auto");
+      expect(
+        shortLayout.routeScrollHeight,
+        "the composer cannot extend below the short Chat workspace",
+      ).toBeLessThanOrEqual((shortLayout.routeClientHeight ?? 0) + 1);
       expect(
         shortLayout.shellHeight,
         "short shell remains viewport bounded",

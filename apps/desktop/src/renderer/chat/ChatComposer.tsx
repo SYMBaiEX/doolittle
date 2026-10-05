@@ -64,31 +64,37 @@ import {
 export const CHAT_COMPOSER_MIN_HEIGHT = 42;
 export const CHAT_COMPOSER_MAX_HEIGHT = 156;
 
-/** Reserve transcript space from this pane's actual geometry, not window height. */
+/** Border-box approval allowance from actual chrome, never empty-track slack. */
 export function chatApprovalHeightBudget(
   paneHeight: number,
   composerHeight: number,
   approvalHeight: number,
-  transcriptHeight: number,
+  otherChromeHeight: number,
+  transcriptReservation = 128,
 ): number | null {
   if (
-    ![paneHeight, composerHeight, approvalHeight, transcriptHeight].every(
-      (height) => Number.isFinite(height) && height >= 0,
-    ) ||
+    ![
+      paneHeight,
+      composerHeight,
+      approvalHeight,
+      otherChromeHeight,
+      transcriptReservation,
+    ].every((height) => Number.isFinite(height) && height >= 0) ||
     paneHeight === 0 ||
     approvalHeight === 0
   )
     return null;
-  const otherChrome = Math.max(
-    0,
-    paneHeight - composerHeight - transcriptHeight,
-  );
   const composerControls = Math.max(0, composerHeight - approvalHeight);
   return Math.max(
     0,
     Math.min(
       280,
-      Math.floor(paneHeight - otherChrome - composerControls - 128),
+      Math.floor(
+        paneHeight -
+          otherChromeHeight -
+          composerControls -
+          transcriptReservation,
+      ),
     ),
   );
 }
@@ -239,7 +245,25 @@ export function ChatComposer({
     const form = formRef.current;
     const pane = form?.closest<HTMLElement>(".chat-conversation");
     const transcript = pane?.querySelector<HTMLElement>(".chat-messages");
-    if (!form || !pane || !transcript) return;
+    const transcriptRegion = pane?.querySelector<HTMLElement>(
+      ".chat-transcript-region",
+    );
+    const dock = form?.closest<HTMLElement>(".chat-composer-dock");
+    if (!form || !pane || !transcript || !transcriptRegion || !dock) return;
+    const pixels = (value: string) => Number.parseFloat(value) || 0;
+    const verticalChrome = (element: HTMLElement) => {
+      const style = getComputedStyle(element);
+      return (
+        pixels(style.paddingTop) +
+        pixels(style.paddingBottom) +
+        pixels(style.borderTopWidth) +
+        pixels(style.borderBottomWidth)
+      );
+    };
+    const verticalMargin = (element: HTMLElement) => {
+      const style = getComputedStyle(element);
+      return pixels(style.marginTop) + pixels(style.marginBottom);
+    };
     const measure = () => {
       const approval = form.querySelector<HTMLElement>(
         "[data-session-approval-surface]",
@@ -248,11 +272,42 @@ export function ChatComposer({
         setApprovalHeightBudget(null);
         return;
       }
+      const noticeHeight = Array.from(transcriptRegion.children).reduce(
+        (height, child) => {
+          if (!(child instanceof HTMLElement) || child === transcript)
+            return height;
+          const style = getComputedStyle(child);
+          if (
+            style.position === "absolute" ||
+            style.position === "fixed" ||
+            style.display === "none"
+          )
+            return height;
+          return (
+            height +
+            child.getBoundingClientRect().height +
+            verticalMargin(child)
+          );
+        },
+        0,
+      );
       const budget = chatApprovalHeightBudget(
         pane.getBoundingClientRect().height,
         form.getBoundingClientRect().height,
-        approval.getBoundingClientRect().height,
-        transcript.getBoundingClientRect().height,
+        approval.getBoundingClientRect().height + verticalMargin(approval),
+        verticalChrome(pane) +
+          verticalChrome(transcriptRegion) +
+          verticalChrome(dock) +
+          verticalMargin(dock) +
+          verticalMargin(form) +
+          // Inline and disclosure surfaces use the same outer spacing.
+          verticalMargin(approval) +
+          noticeHeight,
+        // Empty layout divides residual space between two equal tracks. Both
+        // must fit the upper transcript's 128px plus its notices/chrome.
+        pane.dataset.layout === "empty"
+          ? 256 + noticeHeight + verticalChrome(transcriptRegion)
+          : 128,
       );
       if (budget !== null) setApprovalHeightBudget(budget);
     };
@@ -262,7 +317,33 @@ export function ChatComposer({
     observer.observe(pane);
     observer.observe(form);
     observer.observe(transcript);
-    return () => observer.disconnect();
+    observer.observe(transcriptRegion);
+    observer.observe(dock);
+    const observedNotices = new Set<HTMLElement>();
+    const observeNotices = () => {
+      for (const notice of observedNotices) {
+        if (!transcriptRegion.contains(notice)) {
+          observer.unobserve(notice);
+          observedNotices.delete(notice);
+        }
+      }
+      for (const child of transcriptRegion.children) {
+        if (child instanceof HTMLElement && child !== transcript) {
+          observer.observe(child);
+          observedNotices.add(child);
+        }
+      }
+    };
+    observeNotices();
+    const noticesObserver = new MutationObserver(() => {
+      observeNotices();
+      measure();
+    });
+    noticesObserver.observe(transcriptRegion, { childList: true });
+    return () => {
+      observer.disconnect();
+      noticesObserver.disconnect();
+    };
   }, []);
   const controlId = (name: string) => `${name}-${selectedId}`;
   const isCancellingActive = Boolean(
@@ -366,6 +447,21 @@ export function ChatComposer({
           `${commandMenuOpen ? "chat-command" : "chat-reusable"}-option-${activeCommandIndex}`,
         )
       : undefined;
+  useLayoutEffect(() => {
+    if (!activeCommandId) return;
+    const option =
+      composerRef.current?.ownerDocument.getElementById(activeCommandId);
+    if (!option || !formRef.current?.contains(option)) return;
+    const list = option.closest<HTMLElement>('[role="listbox"]');
+    if (!list) return;
+    // Scroll this bounded list only. Keyboard completions must not move the
+    // transcript, composer dock, or the user's input focus.
+    const bounds = list.getBoundingClientRect();
+    const selected = option.getBoundingClientRect();
+    if (selected.top < bounds.top) list.scrollTop -= bounds.top - selected.top;
+    else if (selected.bottom > bounds.bottom)
+      list.scrollTop += selected.bottom - bounds.bottom;
+  }, [activeCommandId, composerRef]);
   const selectReusableSuggestion = (suggestion: ReusableCompletion) => {
     setDraft(suggestion.insertText);
     setCommandMenuDismissed(true);
@@ -532,7 +628,7 @@ export function ChatComposer({
       {commandSuggestions.length > 0 ? (
         <div
           aria-label="Chat commands"
-          className="chat-command-completions absolute inset-x-0 bottom-[calc(100%+8px)] z-50 grid max-h-[min(360px,46vh)] overflow-y-auto rounded-[var(--radius-md)] border border-[var(--border-strong)] bg-[color-mix(in_srgb,var(--surface-raised)_98%,var(--bg))] p-1.5 shadow-[var(--shell-shadow-lg)]"
+          className="chat-command-completions absolute inset-x-0 bottom-[calc(100%+8px)] z-50 grid max-h-[min(360px,46vh)] overflow-y-auto rounded-[var(--radius-md)] border border-[var(--border-strong)] bg-[color-mix(in_srgb,var(--surface-raised)_98%,var(--bg))] p-1.5 shadow-[var(--shell-shadow-lg)] [@media(max-height:640px)]:static [@media(max-height:640px)]:max-h-28"
           id={controlId("chat-command-completions")}
           role="listbox"
         >
@@ -581,7 +677,7 @@ export function ChatComposer({
       {reusableSuggestions.length > 0 ? (
         <div
           aria-label="Reusable prompts and skills"
-          className="chat-reusable-completions absolute inset-x-0 bottom-[calc(100%+8px)] z-50 grid max-h-[min(360px,46vh)] overflow-y-auto rounded-[var(--radius-md)] border border-[var(--border-strong)] bg-[color-mix(in_srgb,var(--surface-raised)_98%,var(--bg))] p-1.5 shadow-[var(--shell-shadow-lg)]"
+          className="chat-reusable-completions absolute inset-x-0 bottom-[calc(100%+8px)] z-50 grid max-h-[min(360px,46vh)] overflow-y-auto rounded-[var(--radius-md)] border border-[var(--border-strong)] bg-[color-mix(in_srgb,var(--surface-raised)_98%,var(--bg))] p-1.5 shadow-[var(--shell-shadow-lg)] [@media(max-height:640px)]:static [@media(max-height:640px)]:max-h-28"
           id={controlId("chat-reusable-completions")}
           role="listbox"
         >
@@ -632,7 +728,7 @@ export function ChatComposer({
       ) : null}
       <div className="chat-composer-main">
         <ElizaTextarea
-          className="chat-composer-input !max-h-[156px] !min-h-[46px] !w-full !resize-none !rounded-none !border-0 !bg-transparent px-1 py-1 text-[14px] leading-[1.5] text-[var(--text)] [box-shadow:none]! placeholder:text-[var(--faint)] focus-visible:!outline-none max-[720px]:!max-h-[132px] max-[480px]:!max-h-[112px] max-[480px]:!min-h-10 max-[480px]:!px-0.5 max-[480px]:!py-0.5 max-[480px]:text-[14px]"
+          className="chat-composer-input !max-h-[156px] !min-h-[46px] !w-full !resize-none !rounded-[var(--radius-xs)] !border-0 !bg-transparent px-1 py-1 text-[14px] leading-[1.5] text-[var(--text)] [box-shadow:none]! placeholder:text-[var(--faint)] focus-visible:!outline-2 focus-visible:!outline-solid focus-visible:!outline-offset-0 focus-visible:!outline-[var(--text-soft)] max-[720px]:!max-h-[132px] max-[480px]:!max-h-[112px] max-[480px]:!min-h-10 max-[480px]:!px-0.5 max-[480px]:!py-0.5 max-[480px]:text-[14px]"
           aria-activedescendant={activeCommandId}
           aria-autocomplete="list"
           aria-describedby={
@@ -771,7 +867,7 @@ export function ChatComposer({
             >
               <UiIcon icon={Plus} size="sm" />
             </summary>
-            <div className="absolute bottom-full left-0 z-30 mb-2 flex min-w-52 items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-raised)] p-2 shadow-[var(--shell-shadow-md)]">
+            <div className="chat-composer-tool-menu absolute bottom-full left-0 z-30 mb-2 flex min-w-52 items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-raised)] p-2 shadow-[var(--shell-shadow-md)] [@media(max-height:640px)]:static [@media(max-height:640px)]:my-2 [@media(max-height:640px)]:min-w-0 [@media(max-height:640px)]:flex-wrap">
               <VoiceComposerButton
                 disabled={backend.phase !== "ready"}
                 importAndTranscribe={importAndTranscribeRecording}

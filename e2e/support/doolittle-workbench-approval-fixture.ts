@@ -163,6 +163,7 @@ export async function installSyntheticApprovalFixture(
             requestId?: unknown;
             path?: unknown;
             method?: unknown;
+            body?: unknown;
           };
           if (
             typeof request.requestId !== "string" ||
@@ -171,22 +172,6 @@ export async function installSyntheticApprovalFixture(
             typeof request.method !== "string"
           ) {
             throw new Error("Invalid synthetic approval fixture request.");
-          }
-
-          const delegatesReadOnlyCatalog =
-            request.method === "GET" &&
-            (request.path === "/bots" ||
-              request.path.startsWith("/bots?") ||
-              /^\/bots\/[a-z0-9][a-z0-9_-]{0,63}\/conversations$/u.test(
-                request.path,
-              ) ||
-              request.path === "/projects" ||
-              request.path.startsWith("/projects?") ||
-              request.path === "/sessions" ||
-              request.path.startsWith("/sessions?") ||
-              request.path.startsWith("/sessions/messages?"));
-          if (delegatesReadOnlyCatalog) {
-            return originalAgentRequest(event, unsafeRequest);
           }
 
           if (
@@ -215,7 +200,35 @@ export async function installSyntheticApprovalFixture(
             return response(200, { approvals: records });
           }
 
+          // Only approvals are synthetic. Let the original isolated transport
+          // validate normal runtime, ownership, and capability reads after reload.
+          if (
+            request.method === "GET" &&
+            !request.path.startsWith("/execution/approvals")
+          ) {
+            return originalAgentRequest(event, unsafeRequest);
+          }
+
           if (request.method === "POST") {
+            // Native draft recovery binds these existing test conversations.
+            // Do not permit arbitrary conversation creation or other mutations.
+            if (
+              /^\/bots\/[a-z0-9][a-z0-9_-]{0,63}\/conversations$/u.test(
+                request.path,
+              ) &&
+              typeof request.body === "string"
+            ) {
+              const binding: unknown = JSON.parse(request.body);
+              if (
+                binding &&
+                typeof binding === "object" &&
+                "sessionId" in binding &&
+                typeof binding.sessionId === "string" &&
+                boundSessionIds.includes(binding.sessionId)
+              ) {
+                return originalAgentRequest(event, unsafeRequest);
+              }
+            }
             const match =
               /^\/execution\/approvals\/([^/?#]+)\/(approve|deny)$/u.exec(
                 request.path,

@@ -117,6 +117,19 @@ describe("InlineApprovalPanel session attribution and decisions", () => {
     expect(document.activeElement).toBe(trigger);
     expect(request).not.toHaveBeenCalled();
   });
+
+  it("keeps the same outer spacing when approval detail becomes a disclosure", () => {
+    render("A", true, false);
+    expect(
+      container.querySelector('[data-session-approval-surface="inline"]')
+        ?.className,
+    ).toContain("mb-2");
+    render("A", true, true);
+    expect(
+      container.querySelector('[data-session-approval-surface="disclosure"]')
+        ?.className,
+    ).toContain("mb-2");
+  });
   it.each([
     "route inactive",
     "panel closed",

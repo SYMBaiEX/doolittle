@@ -27,12 +27,9 @@ export const CHAT_CHROME_HOST_CLASS =
 
 export const VIEW_CONTAINER_CLASS = [
   "view-container min-h-0 min-w-0 flex-1 overflow-y-auto bg-[var(--bg)] [&.view-code]:[container-type:inline-size] [&.view-code]:[container-name:coding-route]",
-  // On short screens the session chrome scrolls normally instead of consuming
-  // the bounded conversation. Keep a readable transcript and the complete
-  // intrinsic composer; never enlarge the shell or clip its action bands.
-  "[@media(max-height:640px)]:[&.view-chat]:!overflow-y-auto [@media(max-height:640px)]:[&.view-chat]:overscroll-contain [@media(max-height:640px)]:[&.view-chat_[data-session-workbench]]:!h-auto [@media(max-height:640px)]:[&.view-chat_[data-session-workbench]]:!min-h-full [@media(max-height:640px)]:[&.view-chat_[data-session-workbench]]:!overflow-visible",
-  "[@media(max-height:640px)]:[&.view-chat_[data-session-panels]]:!flex-none [@media(max-height:640px)]:[&.view-chat_[data-session-panels]]:!overflow-visible [@media(max-height:640px)]:[&.view-chat_[data-session-panel]]:!relative [@media(max-height:640px)]:[&.view-chat_[data-session-panel]]:!inset-auto [@media(max-height:640px)]:[&.view-chat_[data-session-panel]]:!h-auto [@media(max-height:640px)]:[&.view-chat_[data-session-panel]]:!w-full [@media(max-height:640px)]:[&.view-chat_[data-session-panel]]:!overflow-visible [@media(max-height:640px)]:[&.view-chat_[data-session-panel]>div:last-child]:!flex-none [@media(max-height:640px)]:[&.view-chat_[data-session-panel]>div:last-child]:!overflow-visible",
-  "[@media(max-height:640px)]:[&.view-chat_.chat-workspace]:!h-auto [@media(max-height:640px)]:[&.view-chat_.chat-workspace]:!max-h-none [@media(max-height:640px)]:[&.view-chat_.chat-workspace]:!overflow-visible [@media(max-height:640px)]:[&.view-chat_.chat-conversation]:!grid [@media(max-height:640px)]:[&.view-chat_.chat-conversation]:!h-auto [@media(max-height:640px)]:[&.view-chat_.chat-conversation]:!max-h-none [@media(max-height:640px)]:[&.view-chat_.chat-conversation]:!grid-rows-[128px_auto] [@media(max-height:640px)]:[&.view-chat_.chat-conversation]:!overflow-visible",
+  // Chat retains a bounded pane at every height. Its transcript and exceptional
+  // composer content own their scrollports, not the route container.
+  "[&.view-chat]:!overflow-hidden",
 ].join(" ");
 
 export const VIEW_CONTAINER_WORKSPACE_CLASS = "overflow-hidden bg-[var(--bg)]";

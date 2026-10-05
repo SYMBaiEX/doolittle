@@ -283,7 +283,7 @@ export function InlineApprovalPanel({
   );
   if (!compact && !dialogOpen) return panel;
   return (
-    <div data-session-approval-surface="disclosure" className="min-w-0">
+    <div data-session-approval-surface="disclosure" className="mb-2 min-w-0">
       <Dialog
         open={dialogOpen}
         onOpenChange={(open) => {
