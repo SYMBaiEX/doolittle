@@ -109,7 +109,7 @@ test.describe("packaged Doolittle desktop", () => {
       await expect
         .poll(() =>
           page.evaluate((needle) => {
-            const prefix = "doolittle.desktop.interactive-terminal.v2:";
+            const prefix = "doolittle.desktop.interactive-terminal.v3:";
             for (
               let index = 0;
               index < window.localStorage.length;

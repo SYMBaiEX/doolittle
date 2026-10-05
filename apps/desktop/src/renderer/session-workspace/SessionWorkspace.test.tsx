@@ -909,7 +909,13 @@ describe("shared session workbench behavior", () => {
     await act(async () => {
       required(container.querySelector<HTMLElement>("summary")).click();
     });
+    const layoutMenu = required(
+      container.querySelector<HTMLDetailsElement>("details"),
+    );
+    layoutMenu.open = true;
     await click(container, "Split right");
+    expect(layoutMenu.open).toBe(false);
+    expect(document.activeElement).toBe(layoutMenu.querySelector("summary"));
     const separator = required(
       container.querySelector<HTMLElement>("[data-session-resizer]"),
     );

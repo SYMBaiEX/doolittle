@@ -86,6 +86,31 @@ describe("session workspace split layout", () => {
     expect(openWorkspaceSession(closed, "b").openIds).toEqual(["a", "b"]);
   });
 
+  it("falls back before an unequal nested split squeezes any pane below its minimum", () => {
+    const tree = {
+      type: "split" as const,
+      axis: "horizontal" as const,
+      ratio: 0.8,
+      first: {
+        type: "split" as const,
+        axis: "vertical" as const,
+        ratio: 0.75,
+        first: { type: "leaf" as const, id: "a" },
+        second: { type: "leaf" as const, id: "b" },
+      },
+      second: { type: "leaf" as const, id: "c" },
+    };
+    const required = workspaceRequiredSize(tree);
+    expect(required.width).toBeGreaterThanOrEqual(1800);
+    expect(required.height).toBe(1120);
+    for (const pane of Object.values(workspaceGeometry(tree).panels)) {
+      expect((pane.width / 100) * required.width).toBeGreaterThanOrEqual(360);
+      expect((pane.height / 100) * required.height).toBeGreaterThanOrEqual(280);
+    }
+    expect(tree.ratio).toBe(0.8);
+    expect(tree.first.ratio).toBe(0.75);
+  });
+
   it("enforces twelve open views and supports keyboard reorder", () => {
     let layout = restoreWorkspaceLayout(null, "a");
     for (let index = 1; index < MAX_OPEN_PANELS; index++)

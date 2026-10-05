@@ -103,6 +103,7 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
   const isNarrow = useMediaQuery("(max-width: 900px)");
   const rootRef = useRef<HTMLElement>(null);
   const panelsRef = useRef<HTMLDivElement>(null);
+  const layoutMenuRef = useRef<HTMLDetailsElement>(null);
   const [panelSize, setPanelSize] = useState({ width: 0, height: 0 });
   const requiredSize = workspaceRequiredSize(layout.tree);
   const tabbed =
@@ -111,6 +112,14 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
     (panelSize.width > 0 && panelSize.width < requiredSize.width) ||
     (panelSize.height > 0 && panelSize.height < requiredSize.height);
   const geometry = workspaceGeometry(layout.tree);
+  const selectLayout = (apply: (current: typeof layout) => typeof layout) => {
+    const menu = layoutMenuRef.current;
+    if (menu) {
+      menu.open = false;
+      menu.querySelector("summary")?.focus();
+    }
+    setLayout(apply);
+  };
   const searchRef = useRef<HTMLInputElement>(null);
   const finderButtonRef = useRef<HTMLButtonElement>(null);
   const finderReturnRef = useRef<HTMLElement | null>(null);
@@ -553,10 +562,12 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
             {!isNarrow ? (
               <details
                 className="relative"
+                ref={layoutMenuRef}
                 onKeyDown={(event) => {
                   if (event.key === "Escape") {
                     event.preventDefault();
                     event.currentTarget.open = false;
+                    event.currentTarget.querySelector("summary")?.focus();
                   }
                 }}
               >
@@ -568,7 +579,7 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
                   <button
                     className="min-h-10 rounded px-2 text-left text-sm hover:bg-[var(--surface-hover)]"
                     onClick={() =>
-                      setLayout((current) => ({ ...current, mode: "tabs" }))
+                      selectLayout((current) => ({ ...current, mode: "tabs" }))
                     }
                     type="button"
                   >
@@ -584,7 +595,7 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
                         <button
                           className="min-h-10 rounded px-2 text-left text-sm hover:bg-[var(--surface-hover)]"
                           onClick={() =>
-                            setLayout((current) =>
+                            selectLayout((current) =>
                               splitWorkspaceSession(
                                 current,
                                 current.focusedId,
@@ -600,7 +611,7 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
                         <button
                           className="min-h-10 rounded px-2 text-left text-sm hover:bg-[var(--surface-hover)]"
                           onClick={() =>
-                            setLayout((current) =>
+                            selectLayout((current) =>
                               splitWorkspaceSession(
                                 current,
                                 current.focusedId,

@@ -114,8 +114,13 @@ async function persistedTerminalOutput(
   workspacePath: string,
 ): Promise<string | null> {
   return page.evaluate((path) => {
-    const key = `doolittle.desktop.interactive-terminal.v2:${encodeURIComponent(path)}`;
-    const raw = window.localStorage.getItem(key);
+    const keys = Object.keys(window.localStorage).filter(
+      (key) =>
+        key.startsWith("doolittle.desktop.interactive-terminal.v3:") &&
+        key.endsWith(`:${encodeURIComponent(path)}`),
+    );
+    if (keys.length !== 1) return null;
+    const raw = window.localStorage.getItem(keys[0] as string);
     if (!raw) return null;
     const state = JSON.parse(raw) as InteractiveTerminalWorkspaceState;
     const activeTab = state.tabs.find((tab) => tab.id === state.activeTabId);

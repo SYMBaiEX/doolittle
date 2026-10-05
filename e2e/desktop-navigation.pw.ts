@@ -676,12 +676,12 @@ test.describe("Doolittle desktop navigation", () => {
         .getByRole("textbox", { name: "Terminal input" });
       await expect(terminalInput).toBeEnabled({ timeout: 15_000 });
       await chatTerminal.getByRole("tabpanel").click();
-      await page.keyboard.type("printf 'DOOLITTLE_TERMINAL_HANDOFF\\n'");
+      await page.keyboard.type("printf 'DOOLITTLE_%s\\n' TERMINAL_HANDOFF");
       await page.keyboard.press("Enter");
       await expect
         .poll(() =>
           page.evaluate((needle) => {
-            const prefix = "doolittle.desktop.interactive-terminal.v2:";
+            const prefix = "doolittle.desktop.interactive-terminal.v3:";
             for (
               let index = 0;
               index < window.localStorage.length;
@@ -715,7 +715,7 @@ test.describe("Doolittle desktop navigation", () => {
       await expect
         .poll(() =>
           page.evaluate(() => {
-            const prefix = "doolittle.desktop.interactive-terminal.v2:";
+            const prefix = "doolittle.desktop.interactive-terminal.v3:";
             for (
               let index = 0;
               index < window.localStorage.length;

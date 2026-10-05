@@ -312,14 +312,21 @@ export function workspaceRequiredSize(node: WorkspaceNode | null): {
   if (!node || node.type === "leaf") return { width: 360, height: 280 };
   const first = workspaceRequiredSize(node.first);
   const second = workspaceRequiredSize(node.second);
+  const ratio = clampRatio(node.ratio);
   return node.axis === "horizontal"
     ? {
-        width: first.width + second.width,
+        // Each subtree must fit its actual saved share, not an assumed 50/50
+        // split. Keep the arrangement saved while narrow windows use tabs.
+        width: Math.ceil(
+          Math.max(first.width / ratio, second.width / (1 - ratio)),
+        ),
         height: Math.max(first.height, second.height),
       }
     : {
         width: Math.max(first.width, second.width),
-        height: first.height + second.height,
+        height: Math.ceil(
+          Math.max(first.height / ratio, second.height / (1 - ratio)),
+        ),
       };
 }
 
