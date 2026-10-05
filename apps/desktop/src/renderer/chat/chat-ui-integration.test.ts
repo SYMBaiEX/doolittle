@@ -22,10 +22,7 @@ describe("Eliza UI chat integration", () => {
     expect(composer).toContain("@elizaos/ui/components/ui/status-badge");
     expect(actions).toContain("@doolittle/ui");
     const controls = readFileSync(
-      new URL(
-        "../../../../../packages/ui/src/controls.tsx",
-        import.meta.url,
-      ),
+      new URL("../../../../../packages/ui/src/controls.tsx", import.meta.url),
       "utf8",
     );
     expect(controls).toContain("@elizaos/ui/button");
