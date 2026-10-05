@@ -2374,6 +2374,12 @@ test.describe("Doolittle desktop navigation", () => {
       });
       await workbench.getByRole("button", { name: "Close inspector" }).click();
 
+      // Supporting Activity tools belong to their retained route, not a
+      // permanent second toolbar above every conversation.
+      await page.evaluate(() => {
+        window.location.hash = "#/activity";
+      });
+      await expect(page.locator('[data-view="activity"]')).toBeVisible();
       await page.getByRole("button", { name: "Open Activity" }).click();
       const activityPanel = page.locator('aside[aria-label="Activity"]');
       await expect(activityPanel).toBeVisible();
