@@ -1752,9 +1752,11 @@ test.describe("Doolittle desktop navigation", () => {
       await expect(
         page.getByRole("heading", { name: "Profile search" }),
       ).toBeVisible();
-      await memoryTabs.getByRole("tab", { name: /^Shared:/u }).click();
+      await memoryTabs
+        .getByRole("tab", { name: /^Doolittle memory:/u })
+        .click();
       await expect(
-        memoryTabs.getByRole("tab", { name: /^Shared:/u }),
+        memoryTabs.getByRole("tab", { name: /^Doolittle memory:/u }),
       ).toHaveAttribute("aria-selected", "true");
 
       await page.evaluate(() => {
@@ -1986,7 +1988,7 @@ test.describe("Doolittle desktop navigation", () => {
         page.getByRole("heading", { name: "Memory & recall", exact: true }),
       ).toBeVisible();
       await expect(
-        page.getByRole("tab", { name: /^Shared:/u }),
+        page.getByRole("tab", { name: /^Doolittle memory:/u }),
       ).toHaveAttribute("aria-selected", "true");
 
       await page.evaluate(() => {
