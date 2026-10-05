@@ -353,6 +353,15 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
     }
     const id = newConversationId();
     if (props.selectedBotId) props.onBindSessionBot?.(id, props.selectedBotId);
+    const selectedBot = props.bots?.find(
+      (bot) => bot.id === props.selectedBotId,
+    );
+    props.onCaptureSessionProject?.(
+      id,
+      selectedBot && !selectedBot.isDefault
+        ? (selectedBot.projectId ?? null)
+        : (props.activeProject?.id ?? null),
+    );
     focusSession(id, true);
   };
 

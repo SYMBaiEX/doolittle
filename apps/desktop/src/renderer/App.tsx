@@ -1862,6 +1862,7 @@ export function App() {
       botIdForSession={botIdForSession}
       projectTargetForSession={projectTargetForSession}
       onBindSessionBot={bindSessionBot}
+      onCaptureSessionProject={captureSessionProject}
       onActivateBot={activateBot}
       view={routeView}
       workspacePath={workspace.currentPath}

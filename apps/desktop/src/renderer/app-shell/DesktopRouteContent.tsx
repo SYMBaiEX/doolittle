@@ -73,6 +73,10 @@ export interface DesktopRouteContentProps {
     sessionId: string,
   ) => { projectId?: string } | undefined;
   onBindSessionBot: (sessionId: string, botId: string) => void;
+  onCaptureSessionProject?: (
+    sessionId: string,
+    projectId: string | null,
+  ) => void;
   onActivateBot: (botId: string) => Promise<void>;
   pendingApprovals: number;
   runningTasks: number;
@@ -126,6 +130,7 @@ export function DesktopRouteContent({
   botIdForSession,
   projectTargetForSession,
   onBindSessionBot,
+  onCaptureSessionProject,
   onActivateBot,
   view,
   workspacePath,
@@ -221,6 +226,7 @@ export function DesktopRouteContent({
             botIdForSession={botIdForSession}
             projectTargetForSession={projectTargetForSession}
             onBindSessionBot={onBindSessionBot}
+            onCaptureSessionProject={onCaptureSessionProject}
             onActivateBot={onActivateBot}
             surface={
               view === "sessions"

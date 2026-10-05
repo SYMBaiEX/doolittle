@@ -268,6 +268,10 @@ export interface ChatPageProps {
     sessionId: string,
   ) => { projectId?: string } | undefined;
   onBindSessionBot?: (sessionId: string, botId: string) => void;
+  onCaptureSessionProject?: (
+    sessionId: string,
+    projectId: string | null,
+  ) => void;
   onActivateBot?: (botId: string) => Promise<void>;
   routeActive?: boolean;
   backend: BackendState;
@@ -313,6 +317,7 @@ export function ChatSessionPanel({
   botIdForSession,
   projectTargetForSession,
   onBindSessionBot,
+  onCaptureSessionProject,
   onActivateBot,
   routeActive = true,
   backend: hostBackend,
@@ -1565,6 +1570,7 @@ export function ChatSessionPanel({
       );
       const fork = response.fork;
       if (sourceBotId) onBindSessionBot?.(fork.sessionId, sourceBotId);
+      onCaptureSessionProject?.(fork.sessionId, fork.projectId ?? null);
 
       if (mode === "edit") {
         setDraftForSession(
@@ -1779,6 +1785,12 @@ export function ChatSessionPanel({
   const createConversation = () => {
     const id = newConversationId();
     if (currentBotId) onBindSessionBot?.(id, currentBotId);
+    onCaptureSessionProject?.(
+      id,
+      currentBot && !currentBot.isDefault
+        ? (currentBot.projectId ?? null)
+        : (activeProject?.id ?? null),
+    );
     setMessages((current) => ({ ...current, [id]: [] }));
     onSelect(id);
   };

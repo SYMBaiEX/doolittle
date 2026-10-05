@@ -172,6 +172,9 @@ function Harness({
   bots,
   botIdForSession,
   defaultBotId,
+  activeProject,
+  selectedBotId,
+  onCaptureSessionProject,
 }: Partial<
   Pick<
     ChatPageProps,
@@ -183,6 +186,9 @@ function Harness({
     | "bots"
     | "botIdForSession"
     | "defaultBotId"
+    | "activeProject"
+    | "selectedBotId"
+    | "onCaptureSessionProject"
   >
 >) {
   const [selectedId, onSelect] = useState("a");
@@ -192,6 +198,9 @@ function Harness({
       bots={bots}
       botIdForSession={botIdForSession}
       defaultBotId={defaultBotId}
+      activeProject={activeProject}
+      selectedBotId={selectedBotId}
+      onCaptureSessionProject={onCaptureSessionProject}
       backend={backend}
       chromeHost={null}
       onConsumeContextHandoff={vi.fn()}
@@ -224,6 +233,9 @@ async function render(
       | "bots"
       | "botIdForSession"
       | "defaultBotId"
+      | "activeProject"
+      | "selectedBotId"
+      | "onCaptureSessionProject"
     >
   > = {},
 ) {
@@ -327,6 +339,21 @@ afterEach(async () => {
 });
 
 describe("shared session workbench behavior", () => {
+  it("captures project ownership for a new panel before selecting it", async () => {
+    const capture = vi.fn();
+    await render({
+      activeProject: { id: "alpha", name: "Alpha" },
+      selectedBotId: "lead",
+      onCaptureSessionProject: capture,
+    });
+    await act(async () =>
+      window.dispatchEvent(new Event("doolittle:new-conversation-view")),
+    );
+    expect(capture).toHaveBeenCalledWith(
+      expect.stringMatching(/^desktop:/),
+      "alpha",
+    );
+  });
   it("keeps a single conversation free of duplicate workspace controls", async () => {
     await render();
     expect(container.querySelector('[aria-label="Find session"]')).toBeNull();
