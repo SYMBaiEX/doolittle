@@ -2058,7 +2058,7 @@ test.describe("Doolittle desktop navigation", () => {
         focusedSessionPanel.locator(".chat-composer-status"),
       ).toHaveCount(0);
       const historyScrollport = await page
-        .locator(".sidebar-projects__list")
+        .getByRole("navigation", { name: "Bots and conversations" })
         .evaluate((element) => {
           const style = getComputedStyle(element);
           return {

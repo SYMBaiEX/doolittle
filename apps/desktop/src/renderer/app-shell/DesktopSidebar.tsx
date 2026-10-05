@@ -183,7 +183,7 @@ export function DesktopSidebar({
         </div>
         <nav
           aria-label="Bots and conversations"
-          className="min-h-0 flex-1 overflow-y-auto [-webkit-app-region:no-drag]"
+          className="min-h-0 flex-1 overflow-y-auto overscroll-contain [-webkit-app-region:no-drag]"
         >
           {!compact ? (
             <h2 className="px-3 pb-1 text-xs font-medium text-[var(--muted)]">
