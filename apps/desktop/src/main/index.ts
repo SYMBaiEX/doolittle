@@ -827,6 +827,40 @@ if (ownsSingleInstance)
             );
           }
           if (!bots) throw new Error("The consultation broker is unavailable.");
+          if (request.operation === "automation.validate")
+            return bots.automations.validate(
+              "default",
+              (
+                request.payload as {
+                  job: import("@doolittle/contracts").AutomationJobRecord;
+                }
+              ).job,
+              signal,
+            );
+          if (request.operation === "automation.dispatch")
+            return bots.automations.dispatch(
+              "default",
+              request.payload as Parameters<
+                typeof bots.automations.dispatch
+              >[1],
+              signal,
+            );
+          if (request.operation === "automation.status")
+            return bots.automations.status(
+              "default",
+              request.payload as Parameters<typeof bots.automations.status>[1],
+            );
+          if (
+            request.operation === "automation.wait" ||
+            request.operation === "automation.cancel"
+          ) {
+            const payload = request.payload as { fireId?: unknown } | null;
+            if (!payload || typeof payload.fireId !== "string")
+              throw new Error("Automation fire identity is invalid.");
+            return request.operation === "automation.wait"
+              ? bots.automations.wait("default", payload.fireId, signal)
+              : bots.automations.cancel("default", payload.fireId);
+          }
           if (request.operation === "consult.dispatch") {
             return bots.consultations.dispatch(
               "default",
@@ -862,7 +896,7 @@ if (ownsSingleInstance)
       runtimeDataDir,
       backend,
       workspaceState.getState().currentPath || fallbackWorkspace,
-      { admission: executionAdmission },
+      { admission: executionAdmission, confirmAutomation: nativeConfirm },
     );
     // Start the bundled Eliza runtime as soon as its immutable launch inputs
     // are ready. Window construction, menus, tray wiring, and IPC registration
@@ -1059,6 +1093,7 @@ if (ownsSingleInstance)
     disposeUiWorkspace = workspaceState.subscribe((state) => {
       if (state.currentPath === uiWorkspace) return;
       uiWorkspace = state.currentPath;
+      bots?.automations.cancelPendingValidations();
       uiInterfaces?.workspaceChanged();
     });
     installApplicationMenu();

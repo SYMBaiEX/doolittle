@@ -10,7 +10,12 @@ export type WorkerHostOperation =
   | "execution.release"
   | "consult.dispatch"
   | "consult.wait"
-  | "consult.cancel";
+  | "consult.cancel"
+  | "automation.validate"
+  | "automation.dispatch"
+  | "automation.wait"
+  | "automation.status"
+  | "automation.cancel";
 
 interface PendingRequest {
   resolve: (value: unknown) => void;
@@ -59,7 +64,15 @@ function ensureListener(): void {
     if (message.ok === true) {
       request.resolve(message.result);
     } else {
-      request.reject(new Error("The approved host connection is unavailable."));
+      request.reject(
+        new Error(
+          message.code === "automation_host_failure" &&
+            typeof message.error === "string" &&
+            message.error.length <= 512
+            ? message.error
+            : "The approved host connection is unavailable.",
+        ),
+      );
     }
   });
   process.on("disconnect", () => {

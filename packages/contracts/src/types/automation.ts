@@ -65,6 +65,10 @@ export interface AutomationRuntimeOverrides {
 
 export interface AutomationJobRecord {
   id: string;
+  /** Immutable host catalog target; absent legacy jobs belong to default. */
+  targetBotId?: string;
+  /** Host-only approval bound to this job's exact named-target definition. */
+  targetApprovalId?: string;
   name: string;
   prompt: string;
   schedule: string;
@@ -86,6 +90,9 @@ export interface AutomationRunRecord {
   id: string;
   jobId: string;
   jobName: string;
+  targetBotId?: string;
+  targetSessionId?: string;
+  targetRunId?: string;
   output: string;
   outputPath?: string;
   createdAt: string;

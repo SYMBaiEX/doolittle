@@ -1,5 +1,5 @@
 import type { AgentRuntime } from "@elizaos/core";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { GatewayRunner } from "@/gateway/runner";
 import type { AppServices } from "@/services";
 import { serveFetchTest } from "@/testing/fetch-server";
@@ -10,7 +10,100 @@ import {
   createAutomationExecutor,
 } from "./automation-executor";
 
+const host = vi.hoisted(() => vi.fn());
+vi.mock("@/runtime/bootstrap/worker-host-rpc", () => ({
+  requestWorkerHost: host,
+}));
+afterEach(() => {
+  host.mockReset();
+});
+
 describe("createAutomationExecutor", () => {
+  it("dispatches a named bot through host-owned durable runs without borrowing the lead gateway", async () => {
+    const job = {
+      id: "job",
+      targetBotId: "bot",
+      prompt: "Review.",
+    } as AutomationJobRecord;
+    const gateway = vi.fn(() => {
+      throw new Error("Lead gateway must not be borrowed.");
+    });
+    const executor = createAutomationExecutor({
+      config: {} as EnvConfig,
+      services: {} as AppServices,
+      runtime: {} as AgentRuntime,
+      ensureGateway: gateway,
+    });
+    await expect(executor(job, { source: "manual" })).rejects.toThrow(
+      /stable automation fire key/,
+    );
+    expect(host).not.toHaveBeenCalled();
+    host
+      .mockResolvedValueOnce({
+        fireId: "fire",
+        targetBotId: "bot",
+        sessionId: "owned-session",
+        runId: "owned-run",
+      })
+      .mockResolvedValueOnce({ text: "named result" });
+    const owner = vi.fn();
+    await expect(
+      executor(job, {
+        source: "manual",
+        idempotencyKey: "exact-sdk-key",
+        onOwnedRun: owner,
+      }),
+    ).resolves.toBe("named result");
+    expect(host.mock.calls[0]).toEqual([
+      "automation.dispatch",
+      {
+        jobId: "job",
+        idempotencyKey: "exact-sdk-key",
+        source: "manual",
+        payload: undefined,
+      },
+      expect.objectContaining({ timeoutMs: 120_000 }),
+    ]);
+    expect(owner).toHaveBeenCalledWith({
+      botId: "bot",
+      sessionId: "owned-session",
+      runId: "owned-run",
+    });
+    expect(gateway).not.toHaveBeenCalled();
+  });
+  it("cancels the actual named target after waiting is aborted", async () => {
+    const controller = new AbortController();
+    const executor = createAutomationExecutor({
+      config: {} as EnvConfig,
+      services: {} as AppServices,
+      runtime: {} as AgentRuntime,
+      ensureGateway: () => {
+        throw new Error("No lead gateway");
+      },
+    });
+    host.mockResolvedValueOnce({
+      fireId: "fire",
+      targetBotId: "bot",
+      sessionId: "owned-session",
+      runId: "owned-run",
+    });
+    host.mockImplementationOnce(async () => {
+      controller.abort();
+      throw new Error("Aborted wait");
+    });
+    host.mockResolvedValueOnce({ ok: true });
+    await expect(
+      executor({ targetBotId: "bot", id: "job" } as AutomationJobRecord, {
+        source: "manual",
+        idempotencyKey: "key",
+        abortSignal: controller.signal,
+      }),
+    ).rejects.toThrow(/Aborted wait/);
+    expect(host.mock.calls[2]).toEqual([
+      "automation.cancel",
+      { fireId: "fire" },
+    ]);
+  });
   it("builds automation guidance from the runtime-bound Eliza skill inventory", () => {
     const runtime = {
       getService: (name: string) =>

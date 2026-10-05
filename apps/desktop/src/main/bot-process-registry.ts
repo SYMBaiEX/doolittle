@@ -25,6 +25,10 @@ import {
   BotAcpSessionLedger,
   type BoundAcpSession,
 } from "./bot-acp-session-ledger";
+import {
+  type AutomationNativeConsent,
+  BotAutomationBroker,
+} from "./bot-automation-broker";
 import { BotCatalog } from "./bot-catalog";
 import {
   BotConsultationBroker,
@@ -82,6 +86,7 @@ function codexAccountId(accessToken: string): string {
 }
 
 export interface BotProcessRegistryOptions {
+  confirmAutomation?: (request: AutomationNativeConsent) => Promise<boolean>;
   admission?: DesktopExecutionAdmission;
   tokenResolver?: TokenResolver;
   subscriptionStatus?: () => SubscriptionAccountStatus[];
@@ -103,9 +108,11 @@ export class BotProcessRegistry {
   readonly acpSessions: BotAcpSessionLedger;
   readonly consultations: BotConsultationBroker;
   readonly knowledge: BotKnowledgeBroker;
+  readonly automations: BotAutomationBroker;
   readonly teams: BotTeamCatalog;
   private readonly backends = new Map<string, BackendManager>();
   private readonly activeRuns = new Map<string, Set<string>>();
+  private readonly activationGeneration = new Map<string, number>();
   private readonly tokenResolver: TokenResolver;
   private readonly subscriptionStatus: () => SubscriptionAccountStatus[];
   private readonly invokeClaudeCli: typeof invokeClaudeCodeCliPrint;
@@ -140,6 +147,12 @@ export class BotProcessRegistry {
       this,
       dataDir,
       options.runtimeFetch ?? fetch,
+    );
+    this.automations = new BotAutomationBroker(
+      this,
+      dataDir,
+      options.runtimeFetch ?? fetch,
+      options.confirmAutomation,
     );
     this.tokenResolver = options.tokenResolver ?? officialTokenResolver;
     this.subscriptionStatus =
@@ -604,6 +617,7 @@ export class BotProcessRegistry {
 
   async activate(botId: string): Promise<BotSummary> {
     const definition = this.get(botId);
+    const generation = this.activationGeneration.get(definition.id) ?? 0;
     if (definition.isDefault) {
       await this.defaultBackend.start();
       return this.summary(botId);
@@ -616,6 +630,13 @@ export class BotProcessRegistry {
     }
 
     const grant = await this.resolveProviderGrant(definition);
+    if (
+      generation !== (this.activationGeneration.get(definition.id) ?? 0) ||
+      this.get(definition.id).updatedAt !== definition.updatedAt
+    )
+      throw new Error(
+        "Bot activation was cancelled or its approved configuration changed.",
+      );
     if (!existsSync(definition.workspacePath)) {
       throw new Error("The bot workspace is unavailable.");
     }
@@ -645,6 +666,11 @@ export class BotProcessRegistry {
     );
     this.backends.set(botId, backend);
     const state = await backend.start();
+    if (generation !== (this.activationGeneration.get(definition.id) ?? 0)) {
+      await backend.stop();
+      if (this.backends.get(botId) === backend) this.backends.delete(botId);
+      throw new Error("Bot activation was cancelled.");
+    }
     if (state.phase !== "ready") {
       throw new Error(
         state.detail ?? "The named bot runtime could not become ready.",
@@ -671,7 +697,12 @@ export class BotProcessRegistry {
       // A bot-card stop is not allowed to tear down the legacy desktop host.
       throw new Error("The lead runtime stays owned by the desktop host.");
     }
+    this.activationGeneration.set(
+      definition.id,
+      (this.activationGeneration.get(definition.id) ?? 0) + 1,
+    );
     try {
+      await this.automations.cancelForBot(definition.id);
       await this.consultations.cancelForBot(definition.id);
     } finally {
       const backend = this.backends.get(id);
@@ -685,7 +716,13 @@ export class BotProcessRegistry {
   }
 
   async stopAll(): Promise<void> {
+    for (const bot of this.catalog.list(this.backends).bots)
+      this.activationGeneration.set(
+        bot.id,
+        (this.activationGeneration.get(bot.id) ?? 0) + 1,
+      );
     try {
+      await this.automations.cancelAll();
       await this.consultations.cancelAll();
     } finally {
       await Promise.all(
@@ -700,11 +737,22 @@ export class BotProcessRegistry {
 
   /** Host emergency action across the lead and every running worker. */
   async stopAllOwnedExecutions(): Promise<void> {
-    await this.consultations.cancelAll();
-    const ready = [this.defaultBackend, ...this.backends.values()].filter(
-      (backend) => backend.getState().phase === "ready",
-    );
-    await Promise.all(ready.map((backend) => backend.stopAllOwnedExecutions()));
+    for (const bot of this.catalog.list(this.backends).bots)
+      this.activationGeneration.set(
+        bot.id,
+        (this.activationGeneration.get(bot.id) ?? 0) + 1,
+      );
+    try {
+      await this.automations.cancelAll();
+      await this.consultations.cancelAll();
+    } finally {
+      const ready = [this.defaultBackend, ...this.backends.values()].filter(
+        (backend) => backend.getState().phase === "ready",
+      );
+      await Promise.all(
+        ready.map((backend) => backend.stopAllOwnedExecutions()),
+      );
+    }
   }
 
   private async resolveProviderGrant(
@@ -778,6 +826,14 @@ export class BotProcessRegistry {
     return { kind: "direct", provider: expectedProvider, token };
   }
 
+  /** Fresh application-owned connection check; credentials never enter receipts. */
+  async validateAutomationConnection(botId: string): Promise<void> {
+    const definition = this.get(botId);
+    await this.resolveProviderGrant(definition);
+    if (this.get(botId).updatedAt !== definition.updatedAt)
+      throw new Error("The automation bot's connection grant changed.");
+  }
+
   private hostHandler(
     definition: BotDefinition,
     grant: ProviderGrant,
@@ -805,7 +861,9 @@ export class BotProcessRegistry {
         return this.admission.handle(
           definition.id,
           request.operation,
-          request.payload,
+          request.operation === "execution.claim"
+            ? this.automations.admission(definition.id, request.payload)
+            : request.payload,
           { mutationRoot },
         );
       }

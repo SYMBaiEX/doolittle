@@ -60,10 +60,17 @@ separate recipient grants. Team sharing may cross projects only for current
 members. Ambiguous legacy document identities remain visible and fail closed;
 re-promote the exact source rather than guessing or deleting old provenance.
 
-Named-bot scheduling and application-owned external connector dispatch require
-their own implementation and acceptance evidence. Default-runtime automation
-must not be described as independently owned bot automation. Approved model
-account references are not a claim of access to Gmail, Calendar or other apps.
+The application-owned scheduler can target a named bot for scheduled or manual
+prompt/run-agent turns. Native approval binds the saved job, bot configuration,
+workspace and mutation permissions. Each fire has a persisted SDK idempotency
+key and its own durable owned conversation; uncertain fires are not replayed
+with new keys. Workers do not run their own schedulers or connector gateways.
+Named automations currently reject webhooks, home delivery, runtime overrides
+and lead-loaded skills. Application-owned external connector dispatch to named
+bots remains unsupported: approved model accounts do not grant Gmail, Calendar
+or other app access. Actual offline worker acceptance covers dispatch, result
+ownership, restart deduplication and independent cancellation, not paid-provider
+or external-connector execution.
 
 ## Reusable package and themes
 

@@ -1,5 +1,6 @@
 import type { IAgentRuntime } from "@elizaos/core";
 import type { GatewayRunner } from "@/gateway/runner";
+import { requestWorkerHost } from "@/runtime/bootstrap/worker-host-rpc";
 import { applyRuntimeOverrides } from "@/runtime/chat-turn/overrides";
 import { getEffectiveSkills } from "@/runtime/native/service-bridge/autonomous";
 import {
@@ -155,6 +156,66 @@ export function createAutomationExecutor(params: {
         "AbortError",
       );
     }
+    if ((job.targetBotId ?? "default") !== "default") {
+      if (!executionContext.idempotencyKey)
+        throw new Error(
+          "The SDK did not provide a stable automation fire key. No target run was submitted.",
+        );
+      const receipt = (await requestWorkerHost(
+        "automation.dispatch",
+        {
+          jobId: job.id,
+          idempotencyKey: executionContext.idempotencyKey,
+          source: executionContext.source,
+          payload: executionContext.payload,
+        },
+        { timeoutMs: 120_000, signal: executionContext.abortSignal },
+      )) as {
+        fireId?: unknown;
+        targetBotId?: unknown;
+        sessionId?: unknown;
+        runId?: unknown;
+      };
+      if (
+        typeof receipt.fireId !== "string" ||
+        typeof receipt.targetBotId !== "string" ||
+        typeof receipt.sessionId !== "string" ||
+        typeof receipt.runId !== "string"
+      )
+        throw new Error("The named automation dispatch receipt is invalid.");
+      executionContext.onOwnedRun?.({
+        botId: receipt.targetBotId,
+        sessionId: receipt.sessionId,
+        runId: receipt.runId,
+      });
+      await notifyProgress(
+        executionContext,
+        "action",
+        "started",
+        "Running the selected bot's owned automation conversation.",
+        {
+          botId: receipt.targetBotId,
+          runId: receipt.runId,
+          sessionId: receipt.sessionId,
+        },
+      );
+      try {
+        const result = (await requestWorkerHost(
+          "automation.wait",
+          { fireId: receipt.fireId },
+          { timeoutMs: 600_000, signal: executionContext.abortSignal },
+        )) as { text?: unknown };
+        if (typeof result.text !== "string")
+          throw new Error("The named automation result is invalid.");
+        return result.text;
+      } catch (error) {
+        if (executionContext.abortSignal?.aborted)
+          await requestWorkerHost("automation.cancel", {
+            fireId: receipt.fireId,
+          }).catch(() => undefined);
+        throw error;
+      }
+    }
     if (job.action?.type === "webhook") {
       await notifyProgress(
         executionContext,
@@ -250,6 +311,10 @@ export function createAutomationExecutor(params: {
         runtimeOverrides: job.runtime,
         personalityId: job.runtime?.personalityId,
         abortSignal: executionContext.abortSignal,
+        admissionKind:
+          executionContext.source === "schedule"
+            ? "automatic-acp"
+            : "foreground",
         onNotice: async (notice) => {
           await notifyProgress(
             executionContext,

@@ -1,6 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AppContext } from "@/runtime/bootstrap";
 import { handleCronRoutes } from "./cron";
+
+afterEach(() => vi.unstubAllEnvs());
 
 function createContext(calls: string[] = []): AppContext {
   const cron = {
@@ -103,6 +105,58 @@ function createContext(calls: string[] = []): AppContext {
 }
 
 describe("handleCronRoutes", () => {
+  it("forwards only canonical named target references and never client host approval IDs", async () => {
+    const url = new URL("http://localhost/cron/jobs");
+    const targetBotId = "00000000-0000-4000-8000-000000000002";
+    const request = (body: Record<string, unknown>) =>
+      new Request(url, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          name: "Scout",
+          prompt: "Review.",
+          schedule: "every 1h",
+          ...body,
+        }),
+      });
+    const response = await handleCronRoutes(
+      createContext(),
+      request({ targetBotId }),
+      url,
+    );
+    expect(await response?.json()).toMatchObject({ job: { targetBotId } });
+    expect(
+      (
+        await handleCronRoutes(
+          createContext(),
+          request({ targetBotId, targetApprovalId: "forged" }),
+          url,
+        )
+      )?.status,
+    ).toBe(400);
+    expect(
+      (
+        await handleCronRoutes(
+          createContext(),
+          request({ targetBotId: "invented-bot" }),
+          url,
+        )
+      )?.status,
+    ).toBe(400);
+  });
+  it("denies cron authority to named workers before reaching scheduler services", async () => {
+    vi.stubEnv("DOOLITTLE_BOT_RUNTIME", "worker");
+    const url = new URL("http://localhost/cron/jobs");
+    const response = await handleCronRoutes(
+      {} as AppContext,
+      new Request(url),
+      url,
+    );
+    expect(response?.status).toBe(403);
+    expect(await response?.json()).toMatchObject({
+      error: expect.stringContaining("application scheduler"),
+    });
+  });
   it("does not shadow unrelated routes when automation is unavailable", async () => {
     const context = {
       runtime: { getService: () => null },

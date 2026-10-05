@@ -49,7 +49,7 @@ function within(root: string, path: string): boolean {
   return part === "" || (!part.startsWith("..") && !isAbsolute(part));
 }
 
-function effectivePermissions(
+export function effectivePermissions(
   origin: BotDefinition,
   target: BotDefinition,
 ): BotPermissions {

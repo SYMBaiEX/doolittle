@@ -2,10 +2,20 @@ import {
   DOOLITTLE_AUTOMATION_SERVICE,
   DOOLITTLE_WORKFLOW_DISPATCH_SERVICE,
 } from "@doolittle/contracts";
+import { executeTriggerTask } from "@elizaos/agent/triggers/runtime";
 import type { IAgentRuntime, ServiceClass, Task, UUID } from "@elizaos/core";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AutomationExecutor } from "@/services/automation/types";
 import { createTriggerRuntimeServices } from "./trigger-runtime-service";
+
+const host = vi.hoisted(() => vi.fn());
+vi.mock("../../../bootstrap/worker-host-rpc", () => ({
+  requestWorkerHost: host,
+}));
+afterEach(() => {
+  vi.unstubAllEnvs();
+  host.mockReset();
+});
 
 function createHarness(
   executor: AutomationExecutor = async () => "automation complete",
@@ -49,6 +59,266 @@ function createHarness(
 }
 
 describe("Eliza product trigger runtime adapter", () => {
+  it("seeds the first scheduled SDK fire and retains its official third argument", async () => {
+    const executor = vi.fn<AutomationExecutor>(async () => "done");
+    const harness = createHarness(executor);
+    const dispatcher = await harness
+      .serviceClass(DOOLITTLE_WORKFLOW_DISPATCH_SERVICE)
+      .start(harness.runtime);
+    harness.services.set(DOOLITTLE_WORKFLOW_DISPATCH_SERVICE, dispatcher);
+    const cron = (await harness
+      .serviceClass(DOOLITTLE_AUTOMATION_SERVICE)
+      .start(harness.runtime)) as unknown as {
+      create(input: Record<string, unknown>): Promise<{ id: string }>;
+    };
+    const job = await cron.create({
+      name: "Initial scheduled fire",
+      schedule: "every 1h",
+      prompt: "Review.",
+    });
+    const task = harness.tasks.get(job.id);
+    if (!task) throw new Error("Missing persisted scheduled task.");
+    const key = (task.metadata as { idempotencyKey: string }).idempotencyKey;
+    expect(key).toMatch(new RegExp(`^${job.id}:\\d+$`));
+    await executeTriggerTask(harness.runtime, task, {
+      source: "scheduler",
+      force: true,
+    });
+    expect(executor.mock.calls[0][1].idempotencyKey).toBe(key);
+  });
+  it("forwards the SDK third-argument fire key, not a payload supplied key", async () => {
+    const executor = vi.fn<AutomationExecutor>(async () => "done");
+    const harness = createHarness(executor);
+    const cron = (await harness
+      .serviceClass(DOOLITTLE_AUTOMATION_SERVICE)
+      .start(harness.runtime)) as unknown as {
+      create(input: Record<string, unknown>): Promise<{ id: string }>;
+    };
+    const job = await cron.create({
+      name: "Stable fire",
+      trigger: { type: "manual" },
+      prompt: "Review.",
+    });
+    const dispatcher = (await harness
+      .serviceClass(DOOLITTLE_WORKFLOW_DISPATCH_SERVICE)
+      .start(harness.runtime)) as unknown as {
+      execute(
+        id: string,
+        payload: Record<string, unknown>,
+        context?: { idempotencyKey?: string },
+      ): Promise<unknown>;
+    };
+    await dispatcher.execute(
+      job.id,
+      {
+        eventKind: `doolittle.manual.${job.id}`,
+        idempotencyKey: "untrusted-payload-key",
+      },
+      { idempotencyKey: "exact-sdk-key" },
+    );
+    expect(executor.mock.calls[0][1]).toMatchObject({
+      idempotencyKey: "exact-sdk-key",
+    });
+    await dispatcher.execute(job.id, {
+      eventKind: `doolittle.manual.${job.id}`,
+      idempotencyKey: "untrusted-payload-key",
+    });
+    expect(executor.mock.calls[1][1].idempotencyKey).toBeUndefined();
+  });
+  it("receives a stable fire key from the real official SDK trigger execution seam", async () => {
+    vi.stubEnv("DOOLITTLE_DESKTOP_RUNTIME", "1");
+    vi.stubEnv("DOOLITTLE_BOT_RUNTIME", "");
+    const target = "00000000-0000-4000-8000-000000000002";
+    host.mockResolvedValue({
+      targetBotId: target,
+      approvalId: "00000000-0000-4000-8000-000000000003",
+    });
+    const executor = vi.fn<AutomationExecutor>(async () => "done");
+    const harness = createHarness(executor);
+    const dispatcher = await harness
+      .serviceClass(DOOLITTLE_WORKFLOW_DISPATCH_SERVICE)
+      .start(harness.runtime);
+    harness.services.set(DOOLITTLE_WORKFLOW_DISPATCH_SERVICE, dispatcher);
+    const cron = (await harness
+      .serviceClass(DOOLITTLE_AUTOMATION_SERVICE)
+      .start(harness.runtime)) as unknown as {
+      create(input: Record<string, unknown>): Promise<{ id: string }>;
+      runNow(id: string): Promise<unknown>;
+    };
+    const job = await cron.create({
+      name: "Official fire key",
+      targetBotId: target,
+      prompt: "Review.",
+      trigger: { type: "manual" },
+    });
+    await cron.runNow(job.id);
+    expect(executor.mock.calls[0][1]).toMatchObject({
+      source: "manual",
+      idempotencyKey: expect.any(String),
+    });
+    expect(executor.mock.calls[0][1].idempotencyKey?.length).toBeGreaterThan(0);
+    await cron.runNow(job.id);
+    expect(executor.mock.calls[1][1].idempotencyKey).not.toBe(
+      executor.mock.calls[0][1].idempotencyKey,
+    );
+  });
+  it("persists and reuses a failed manual fire key after restart rather than replaying under a new identity", async () => {
+    vi.stubEnv("DOOLITTLE_DESKTOP_RUNTIME", "1");
+    vi.stubEnv("DOOLITTLE_BOT_RUNTIME", "");
+    const target = "00000000-0000-4000-8000-000000000002";
+    host.mockResolvedValue({
+      targetBotId: target,
+      approvalId: "00000000-0000-4000-8000-000000000003",
+    });
+    const executor = vi.fn<AutomationExecutor>(async () => {
+      throw new Error("Uncertain saved run");
+    });
+    const harness = createHarness(executor);
+    harness.services.set(
+      DOOLITTLE_WORKFLOW_DISPATCH_SERVICE,
+      await harness
+        .serviceClass(DOOLITTLE_WORKFLOW_DISPATCH_SERVICE)
+        .start(harness.runtime),
+    );
+    const cls = harness.serviceClass(DOOLITTLE_AUTOMATION_SERVICE);
+    type Cron = {
+      create(input: Record<string, unknown>): Promise<{ id: string }>;
+      runNow(id: string): Promise<unknown>;
+    };
+    const cron = (await cls.start(harness.runtime)) as unknown as Cron;
+    const job = await cron.create({
+      name: "Uncertain",
+      targetBotId: target,
+      prompt: "Review.",
+      trigger: { type: "manual" },
+    });
+    await expect(cron.runNow(job.id)).rejects.toThrow(/Uncertain saved run/);
+    const restored = (await cls.start(harness.runtime)) as unknown as Cron;
+    await expect(restored.runNow(job.id)).rejects.toThrow(
+      /Uncertain saved run/,
+    );
+    expect(executor.mock.calls[1][1].idempotencyKey).toBe(
+      executor.mock.calls[0][1].idempotencyKey,
+    );
+  });
+  it("allows a distinct explicit manual fire after host-confirmed terminal cancellation", async () => {
+    vi.stubEnv("DOOLITTLE_DESKTOP_RUNTIME", "1");
+    vi.stubEnv("DOOLITTLE_BOT_RUNTIME", "");
+    const target = "00000000-0000-4000-8000-000000000002";
+    host.mockImplementation(async (operation) =>
+      operation === "automation.status"
+        ? { status: "cancelled" }
+        : {
+            targetBotId: target,
+            approvalId: "00000000-0000-4000-8000-000000000003",
+          },
+    );
+    const executor = vi.fn<AutomationExecutor>(async () => "done");
+    executor.mockRejectedValueOnce(new Error("Stopped owned fire"));
+    const harness = createHarness(executor);
+    harness.services.set(
+      DOOLITTLE_WORKFLOW_DISPATCH_SERVICE,
+      await harness
+        .serviceClass(DOOLITTLE_WORKFLOW_DISPATCH_SERVICE)
+        .start(harness.runtime),
+    );
+    const cron = (await harness
+      .serviceClass(DOOLITTLE_AUTOMATION_SERVICE)
+      .start(harness.runtime)) as unknown as {
+      create(input: Record<string, unknown>): Promise<{ id: string }>;
+      runNow(id: string): Promise<unknown>;
+    };
+    const job = await cron.create({
+      name: "Cancelled fire",
+      targetBotId: target,
+      prompt: "Review.",
+      trigger: { type: "manual" },
+    });
+    await expect(cron.runNow(job.id)).rejects.toThrow(/Stopped owned fire/);
+    await cron.runNow(job.id);
+    expect(executor.mock.calls[1][1].idempotencyKey).not.toBe(
+      executor.mock.calls[0][1].idempotencyKey,
+    );
+  });
+  it.each(["pause", "remove"])(
+    "rejects a stale update after %s during native consent",
+    async (operation) => {
+      vi.stubEnv("DOOLITTLE_DESKTOP_RUNTIME", "1");
+      vi.stubEnv("DOOLITTLE_BOT_RUNTIME", "");
+      const harness = createHarness();
+      const cron = (await harness
+        .serviceClass(DOOLITTLE_AUTOMATION_SERVICE)
+        .start(harness.runtime)) as unknown as {
+        create(
+          input: Record<string, unknown>,
+        ): Promise<{ id: string; targetBotId: string }>;
+        update(id: string, patch: Record<string, unknown>): Promise<unknown>;
+        pause(id: string): Promise<unknown>;
+        remove(id: string): Promise<unknown>;
+        get(id: string): Promise<{ status: string } | undefined>;
+      };
+      const target = "00000000-0000-4000-8000-000000000002";
+      host.mockResolvedValue({
+        targetBotId: target,
+        approvalId: "00000000-0000-4000-8000-000000000003",
+      });
+      const job = await cron.create({
+        name: "Named fire",
+        targetBotId: target,
+        trigger: { type: "manual" },
+        prompt: "Original.",
+      });
+      host.mockImplementationOnce(async () => {
+        await cron[operation as "pause" | "remove"](job.id);
+        return {
+          targetBotId: target,
+          approvalId: "00000000-0000-4000-8000-000000000004",
+        };
+      });
+      await expect(cron.update(job.id, { prompt: "Edited." })).rejects.toThrow(
+        /changed during approval/,
+      );
+      if (operation === "remove")
+        expect(await cron.get(job.id)).toBeUndefined();
+      else expect(await cron.get(job.id)).toMatchObject({ status: "paused" });
+    },
+  );
+  it("keeps the canonical target immutable and denies unsupported named settings before consent", async () => {
+    vi.stubEnv("DOOLITTLE_DESKTOP_RUNTIME", "1");
+    vi.stubEnv("DOOLITTLE_BOT_RUNTIME", "");
+    const harness = createHarness();
+    const cron = (await harness
+      .serviceClass(DOOLITTLE_AUTOMATION_SERVICE)
+      .start(harness.runtime)) as unknown as {
+      create(input: Record<string, unknown>): Promise<{ id: string }>;
+      update(id: string, patch: Record<string, unknown>): Promise<unknown>;
+    };
+    const target = "00000000-0000-4000-8000-000000000002";
+    host.mockResolvedValue({
+      targetBotId: target,
+      approvalId: "00000000-0000-4000-8000-000000000003",
+    });
+    const job = await cron.create({
+      name: "Named",
+      targetBotId: target,
+      prompt: "Review.",
+      trigger: { type: "manual" },
+    });
+    expect(host).toHaveBeenCalledTimes(1);
+    await expect(
+      cron.update(job.id, { targetBotId: "default" }),
+    ).rejects.toThrow(/immutable/);
+    await expect(
+      cron.create({
+        name: "Unsupported",
+        targetBotId: target,
+        prompt: "Review.",
+        trigger: { type: "manual" },
+        delivery: "home",
+      }),
+    ).rejects.toThrow(/do not support/);
+    expect(host).toHaveBeenCalledTimes(1);
+  });
   it("persists the complete automation definition in the SDK trigger task", async () => {
     const harness = createHarness();
     const service = (await harness

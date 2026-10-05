@@ -14,7 +14,12 @@ export interface WorkerHostRequest {
     | "execution.release"
     | "consult.dispatch"
     | "consult.wait"
-    | "consult.cancel";
+    | "consult.cancel"
+    | "automation.validate"
+    | "automation.dispatch"
+    | "automation.wait"
+    | "automation.status"
+    | "automation.cancel";
   payload: unknown;
 }
 
@@ -57,7 +62,12 @@ export function attachWorkerHostRpc(
       value.operation !== "execution.release" &&
       value.operation !== "consult.dispatch" &&
       value.operation !== "consult.wait" &&
-      value.operation !== "consult.cancel"
+      value.operation !== "consult.cancel" &&
+      value.operation !== "automation.validate" &&
+      value.operation !== "automation.dispatch" &&
+      value.operation !== "automation.wait" &&
+      value.operation !== "automation.status" &&
+      value.operation !== "automation.cancel"
     )
       return;
     if (pending >= MAX_PENDING || controllers.has(value.id)) return;
@@ -89,7 +99,19 @@ export function attachWorkerHostRpc(
         () => {
           if (disposed || !child.connected) return;
           try {
-            child.send({ protocol: PROTOCOL, id, botId, ok: false });
+            child.send({
+              protocol: PROTOCOL,
+              id,
+              botId,
+              ok: false,
+              ...(operation.startsWith("automation.")
+                ? {
+                    code: "automation_host_failure",
+                    error:
+                      "Named automation approval, grant, or worker is unavailable. Review the target and saved fire identity before retrying; uncertain submissions are never replayed.",
+                  }
+                : {}),
+            });
           } catch {
             /* child exited */
           }

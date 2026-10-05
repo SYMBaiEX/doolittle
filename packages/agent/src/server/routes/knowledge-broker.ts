@@ -126,8 +126,17 @@ export async function handleKnowledgeBrokerRoutes(
     if (!document || typeof document.content?.text !== "string") {
       return json({ error: "Document not found" }, 404);
     }
+    const metadata = document.metadata;
+    const textEncoding =
+      metadata && "sharedKnowledgeTextEncoding" in metadata
+        ? metadata.sharedKnowledgeTextEncoding
+        : undefined;
+    const sharedKnowledgeScope =
+      metadata && "sharedKnowledgeScope" in metadata
+        ? metadata.sharedKnowledgeScope
+        : undefined;
     let content = document.content.text;
-    if (document.metadata?.sharedKnowledgeTextEncoding === "json-v1") {
+    if (textEncoding === "json-v1") {
       try {
         const framed = JSON.parse(content) as {
           version?: unknown;
@@ -147,7 +156,7 @@ export async function handleKnowledgeBrokerRoutes(
     return json({
       documentId: match[1],
       content,
-      sharedKnowledgeScope: document.metadata?.sharedKnowledgeScope,
+      sharedKnowledgeScope,
       storageScope: document.metadata?.scope,
     });
   }

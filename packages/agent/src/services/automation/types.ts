@@ -16,6 +16,13 @@ export interface AutomationExecutionContext {
   payload?: Record<string, unknown>;
   /** Stable execution identity shared with the persisted Eliza Trigger receipt. */
   executionId?: string;
+  /** Supplied by the SDK dispatch's third argument, never by event payload. */
+  idempotencyKey?: string;
+  onOwnedRun?: (owner: {
+    botId: string;
+    sessionId: string;
+    runId: string;
+  }) => void;
   /** Cancels model work and webhook delivery without abandoning the receipt. */
   abortSignal?: AbortSignal;
   /** Lifecycle events consumed by the native trigger service for its receipt. */
@@ -35,6 +42,7 @@ export type AutomationExecutor = (
 ) => Promise<string>;
 
 export interface CreateAutomationInput {
+  targetBotId?: string;
   name: string;
   prompt?: string;
   schedule?: string;

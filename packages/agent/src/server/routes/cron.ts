@@ -19,6 +19,14 @@ export async function handleCronRoutes(
     url.pathname.startsWith("/cron/jobs/") ||
     url.pathname.startsWith("/cron/webhooks/");
   if (!isCronRoute) return null;
+  if (process.env.DOOLITTLE_BOT_RUNTIME === "worker")
+    return json(
+      {
+        error:
+          "Automations are owned by the application scheduler, not bot workers.",
+      },
+      403,
+    );
 
   const nativeServices = getNativeServices(context.runtime);
   const cron = nativeServices.automation;
@@ -103,6 +111,7 @@ export async function handleCronRoutes(
     const parsed = await readMutationBody(request);
     if ("response" in parsed) return parsed.response;
     const body = parsed.body as {
+      targetBotId?: string;
       name?: string;
       prompt?: string;
       schedule?: string;
@@ -123,8 +132,19 @@ export async function handleCronRoutes(
     if (!body.trigger && (!body.schedule || !body.prompt)) {
       return json({ error: "schedule and prompt are required" }, 400);
     }
+    if (
+      parsed.body.targetApprovalId !== undefined ||
+      (body.targetBotId !== undefined &&
+        (typeof body.targetBotId !== "string" ||
+          !/^(?:default|[0-9a-f-]{36})$/iu.test(body.targetBotId)))
+    )
+      return json(
+        { error: "Automation target must be an approved canonical bot." },
+        400,
+      );
     const input = {
       name: body.name ?? `job-${Date.now()}`,
+      targetBotId: body.targetBotId,
       schedule: body.schedule,
       prompt: body.prompt,
       skills: body.skills ?? [],
@@ -138,6 +158,7 @@ export async function handleCronRoutes(
       return json({
         job: await cron.create({
           name: input.name,
+          targetBotId: input.targetBotId,
           schedule: body.schedule,
           prompt: body.prompt,
           skills: input.skills,
@@ -173,6 +194,7 @@ export async function handleCronRoutes(
     const parsed = await readMutationBody(request);
     if ("response" in parsed) return parsed.response;
     const body = parsed.body as {
+      targetBotId?: string;
       name?: string;
       prompt?: string;
       schedule?: string;
@@ -191,10 +213,16 @@ export async function handleCronRoutes(
         personalityId?: string;
       };
     };
+    if (parsed.body.targetApprovalId !== undefined)
+      return json(
+        { error: "Host target approval cannot be supplied by a client." },
+        400,
+      );
     try {
       return json({
         job: await cron.update(id, {
           name: body.name,
+          targetBotId: body.targetBotId,
           prompt: body.prompt,
           schedule: body.schedule,
           skills: body.skills,
