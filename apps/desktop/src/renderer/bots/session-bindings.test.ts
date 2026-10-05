@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { sessionBotId } from "./bot-selection";
 import {
   loadSessionBindings,
-  saveSessionBindings,
   loadSessionProjectBindings,
+  saveSessionBindings,
   saveSessionProjectBindings,
   sessionProjectTarget,
 } from "./session-bindings";
