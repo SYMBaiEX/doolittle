@@ -306,7 +306,9 @@ async function expectThemeSurfaces(
       shell: read(".desktop-shell"),
       composer: read(".chat-composer"),
       editor: read(".doolittle-code-editor"),
-      terminal: read("[aria-label='Terminal output'] .xterm-viewport"),
+      terminal: read(
+        "[aria-label='Chat terminal panel'] [aria-label='Terminal output'] .xterm-viewport",
+      ),
     };
   });
 
@@ -334,6 +336,26 @@ async function expectThemeSurfaces(
   if (expected.accent) expect(surfaces.accent).toBe(expected.accent);
 }
 
+async function ensureGlobalChatTerminalOpen(page: Page): Promise<void> {
+  const panel = page.locator("[aria-label='Chat terminal panel']");
+  if (
+    (await panel.count()) === 0 ||
+    (await panel.getAttribute("data-open")) !== "true"
+  ) {
+    await page
+      .locator(
+        '.view-container[data-view="chat"] [data-session-panel]:not([hidden]) .chat-composer-input',
+      )
+      .first()
+      .focus();
+    await page.keyboard.press(
+      process.platform === "darwin" ? "Meta+J" : "Control+J",
+    );
+  }
+  await expect(panel).toHaveAttribute("data-open", "true");
+  await expect(panel).toBeVisible();
+}
+
 async function auditThemeResponsiveness(
   app: ElectronApplication,
   page: Page,
@@ -350,20 +372,11 @@ async function auditThemeResponsiveness(
   // here can sample the outgoing terminal instead of opening one. Inspect
   // the semantic state first, then assert the live panel is open before
   // asserting xterm's canvas surface.
-  const chatTerminalPanel = page.getByLabel("Chat terminal panel");
-  const terminalAlreadyOpen =
-    (await chatTerminalPanel.count()) > 0 &&
-    (await chatTerminalPanel.getAttribute("data-open")) === "true";
-  if (!terminalAlreadyOpen) {
-    await page.getByRole("textbox", { name: "Message Doolittle" }).focus();
-    await page.keyboard.press(
-      process.platform === "darwin" ? "Meta+J" : "Control+J",
-    );
-  }
-  await expect(chatTerminalPanel).toHaveAttribute("data-open", "true");
-  await expect(chatTerminalPanel).toBeVisible();
+  await ensureGlobalChatTerminalOpen(page);
   await expect(
-    page.locator("[aria-label='Terminal output'] .xterm-viewport"),
+    page.locator(
+      "[aria-label='Chat terminal panel'] [aria-label='Terminal output'] .xterm-viewport",
+    ),
   ).toBeVisible({ timeout: 15_000 });
 
   // Explicit appearances must remain deterministic regardless of the OS.
@@ -771,6 +784,10 @@ async function expectViewportGeometry(
       activeConversation.locator(".composer-model-trigger"),
     ).toBeVisible();
     if (viewport.height <= 640) {
+      await ensureGlobalChatTerminalOpen(page);
+      await expect(
+        page.locator("[aria-label='Chat terminal panel']"),
+      ).toHaveAttribute("data-compact", "true");
       const composer = activeConversation.locator(".chat-composer");
       await composer.scrollIntoViewIfNeeded();
       const shortLayout = await composer.evaluate((form) => {

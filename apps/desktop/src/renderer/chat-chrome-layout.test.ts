@@ -39,7 +39,11 @@ describe("chat chrome density contract", () => {
     expect(css).toContain("min-height: 100% !important");
     expect(css).toContain("[data-session-panels]");
     expect(css).toContain("flex: none !important");
+    expect(css).toContain("position: relative !important");
+    expect(css).toContain("inset: auto !important");
+    expect(css).toContain("overflow: visible !important");
     expect(css).toContain(".chat-conversation");
+    expect(css).toContain("display: grid !important");
     expect(css).toContain("grid-template-rows: 128px auto !important");
     expect(css).toContain("max-height: none !important");
     expect(css).not.toContain("display: none");

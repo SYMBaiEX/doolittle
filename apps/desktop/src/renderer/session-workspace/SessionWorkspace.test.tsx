@@ -25,13 +25,15 @@ import {
   SESSION_WORKSPACE_STORAGE_KEY,
 } from "./workspace-layout";
 
-const { narrow, request } = vi.hoisted(() => ({
+const { narrow, short, request } = vi.hoisted(() => ({
   narrow: { value: false },
+  short: { value: false },
   request: vi.fn(),
 }));
 vi.mock("@elizaos/ui/hooks/useMediaQuery", () => ({
   useMediaQuery: (query: string) =>
-    query === "(max-width: 900px)" && narrow.value,
+    (query === "(max-width: 900px)" && narrow.value) ||
+    (query === "(max-height: 640px)" && short.value),
 }));
 vi.mock("../lib", () => ({
   desktopRequest: request,
@@ -307,6 +309,7 @@ beforeEach(() => {
   localStorage.clear();
   sessionStorage.clear();
   narrow.value = false;
+  short.value = false;
   vi.clearAllMocks();
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   request.mockImplementation(async (path: string) =>
@@ -979,5 +982,32 @@ describe("shared session workbench behavior", () => {
     expect(panel("b").hidden).toBe(false);
     expect(panel("a").querySelector("textarea")?.value).toBe("Narrow draft A");
     expect(document.activeElement?.id).toBe("session-tab-b");
+    const savedSplit = localStorage.getItem(SESSION_WORKSPACE_STORAGE_KEY);
+    narrow.value = false;
+    short.value = true;
+    await render();
+    expect(
+      container
+        .querySelector("[data-session-workbench]")
+        ?.getAttribute("data-session-layout"),
+    ).toBe("tabs");
+    expect(panel("a").hidden).toBe(true);
+    expect(panel("b").hidden).toBe(false);
+    expect(container.querySelector("[data-session-resizer]")).toBeNull();
+    expect(localStorage.getItem(SESSION_WORKSPACE_STORAGE_KEY)).toBe(
+      savedSplit,
+    );
+    short.value = false;
+    await render();
+    expect(
+      container
+        .querySelector("[data-session-workbench]")
+        ?.getAttribute("data-session-layout"),
+    ).toBe("split");
+    expect(container.querySelector("[data-session-resizer]")).not.toBeNull();
+    expect(panel("a").querySelector("textarea")?.value).toBe("Narrow draft A");
+    expect(localStorage.getItem(SESSION_WORKSPACE_STORAGE_KEY)).toBe(
+      savedSplit,
+    );
   });
 });

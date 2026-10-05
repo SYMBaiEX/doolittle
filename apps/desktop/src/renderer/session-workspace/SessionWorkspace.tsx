@@ -101,6 +101,7 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
     () => loadConversationDrafts(localStorage),
   );
   const isNarrow = useMediaQuery("(max-width: 900px)");
+  const isShort = useMediaQuery("(max-height: 640px)");
   const rootRef = useRef<HTMLElement>(null);
   const panelsRef = useRef<HTMLDivElement>(null);
   const layoutMenuRef = useRef<HTMLDetailsElement>(null);
@@ -108,6 +109,7 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
   const requiredSize = workspaceRequiredSize(layout.tree);
   const tabbed =
     isNarrow ||
+    isShort ||
     layout.mode === "tabs" ||
     (panelSize.width > 0 && panelSize.width < requiredSize.width) ||
     (panelSize.height > 0 && panelSize.height < requiredSize.height);
@@ -385,6 +387,7 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
       className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-[var(--bg)]"
       ref={rootRef}
       data-session-workbench
+      data-session-layout={tabbed ? "tabs" : "split"}
     >
       {renderPanel({
         ...props,
