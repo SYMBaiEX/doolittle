@@ -103,6 +103,13 @@ describe("coding workspace presentational sections", () => {
     expect(utility).toMatch(
       /aria-label="Resize code utility panel"[^>]*aria-valuemax="410"[^>]*aria-valuemin="270"[^>]*aria-valuenow="410"/u,
     );
+    for (const markup of [explorer, utility]) {
+      const ids = [...markup.matchAll(/\sid="([^"]+)"/gu)].map(
+        (match) => match[1],
+      );
+      expect(new Set(ids).size).toBe(ids.length);
+      expect(markup).toMatch(/aria-controls="coding-[^"]+-container"/u);
+    }
     expect(explorer).toContain('tabindex="0"');
     expect(utility).toContain('tabindex="0"');
   });

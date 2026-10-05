@@ -85,13 +85,13 @@ export function CodingWorkspaceUtility({
   const panelId = `coding-utility-${useId().replace(/:/gu, "")}`;
   return (
     <aside
-      id={panelId}
+      id={`${panelId}-container`}
       className={`${CODING_PANE_CLASS} ${CODING_UTILITY_CLASS}`}
     >
       <PanelResizeHandle
         bounds={resizeBounds}
         className={CODING_UTILITY_RESIZER_CLASS}
-        controls={panelId}
+        controls={`${panelId}-container`}
         direction="grow-left"
         label="Resize code utility panel"
         onResize={onResize}

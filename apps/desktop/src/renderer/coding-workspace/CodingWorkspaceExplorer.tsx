@@ -75,13 +75,13 @@ export function CodingWorkspaceExplorer({
   const panelId = `coding-explorer-${useId().replace(/:/gu, "")}`;
   return (
     <aside
-      id={panelId}
+      id={`${panelId}-container`}
       className={`${CODING_PANE_CLASS} ${CODING_EXPLORER_CLASS}`}
     >
       <PanelResizeHandle
         bounds={resizeBounds}
         className={CODING_EXPLORER_RESIZER_CLASS}
-        controls={panelId}
+        controls={`${panelId}-container`}
         direction="grow-right"
         label="Resize code explorer"
         onResize={onResize}
