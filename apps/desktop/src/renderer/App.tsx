@@ -78,7 +78,10 @@ import {
 import { DesktopRouteErrorBoundary } from "./components/DesktopRouteErrorBoundary";
 import { useToasts } from "./components/ToastRegion";
 import { useModalFocusBoundary } from "./components/useModalFocusBoundary";
-import type { ComputerOrigin } from "./computer-origin";
+import {
+  type ComputerOrigin,
+  ensureComputerOriginOwnerBinding,
+} from "./computer-origin";
 import { newConversationId } from "./conversation-id";
 import {
   collectSidebarFocusables,
@@ -1739,7 +1742,48 @@ export function App() {
         selectSession: setSelectedSession,
         setView,
         openComputerView: (next, origin) => {
-          setView(next, { computerOrigin: origin });
+          if (!origin) {
+            pushToast({
+              tone: "error",
+              title: "Computer is unavailable",
+              message: "Select a bot conversation before opening Computer.",
+            });
+            return;
+          }
+          const originSession = sessions.find(
+            (session) => session.sessionId === origin.originConversationId,
+          );
+          const projectId =
+            originSession?.projectId ??
+            (selectedSession === origin.originConversationId
+              ? (activeProject?.id ?? undefined)
+              : undefined);
+          void ensureComputerOriginOwnerBinding(origin, {
+            savedSessionIds: new Set(
+              sessions.map((session) => session.sessionId),
+            ),
+            localBotBindings,
+            ...(projectId ? { projectId } : {}),
+            bind: async (botId, sessionId, boundProjectId) => {
+              await desktopRequest(
+                `/bots/${encodeURIComponent(botId)}/conversations`,
+                "POST",
+                {
+                  sessionId,
+                  ...(boundProjectId ? { projectId: boundProjectId } : {}),
+                },
+              );
+            },
+          })
+            .then(() => setView(next, { computerOrigin: origin }))
+            .catch(() => {
+              pushToast({
+                tone: "error",
+                title: "Computer is unavailable",
+                message:
+                  "This draft’s bot ownership could not be confirmed. The draft was kept.",
+              });
+            });
         },
         transitionToProjectScope,
       }}
