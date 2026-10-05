@@ -31,6 +31,21 @@ export async function installSyntheticApprovalFixture(
 
   await app.evaluate(
     ({ ipcMain }, fixture) => {
+      type AgentRequestHandler = (
+        event: Electron.IpcMainInvokeEvent,
+        ...args: unknown[]
+      ) => unknown;
+      const originalAgentRequest = (
+        ipcMain as typeof ipcMain & {
+          _invokeHandlers?: Map<string, AgentRequestHandler>;
+        }
+      )._invokeHandlers?.get(fixture.invoke.agentRequest);
+      if (!originalAgentRequest) {
+        throw new Error(
+          "Original isolated-profile agent transport is missing.",
+        );
+      }
+
       type FixtureApproval = {
         id: string;
         platform: string;
@@ -140,7 +155,7 @@ export async function installSyntheticApprovalFixture(
       ipcMain.removeHandler(fixture.invoke.agentRequest);
       ipcMain.handle(
         fixture.invoke.agentRequest,
-        async (_event, unsafeRequest: unknown) => {
+        async (event, unsafeRequest: unknown) => {
           if (!unsafeRequest || typeof unsafeRequest !== "object") {
             throw new Error("Invalid synthetic approval fixture request.");
           }
@@ -156,6 +171,22 @@ export async function installSyntheticApprovalFixture(
             typeof request.method !== "string"
           ) {
             throw new Error("Invalid synthetic approval fixture request.");
+          }
+
+          const delegatesReadOnlyCatalog =
+            request.method === "GET" &&
+            (request.path === "/bots" ||
+              request.path.startsWith("/bots?") ||
+              /^\/bots\/[a-z0-9][a-z0-9_-]{0,63}\/conversations$/u.test(
+                request.path,
+              ) ||
+              request.path === "/projects" ||
+              request.path.startsWith("/projects?") ||
+              request.path === "/sessions" ||
+              request.path.startsWith("/sessions?") ||
+              request.path.startsWith("/sessions/messages?"));
+          if (delegatesReadOnlyCatalog) {
+            return originalAgentRequest(event, unsafeRequest);
           }
 
           if (

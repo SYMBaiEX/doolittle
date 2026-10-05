@@ -88,9 +88,49 @@ function removeOwnedTempDirectory(path: string, prefix: string): void {
 
 export async function waitForDesktopReady(page: Page): Promise<void> {
   await expect(page).toHaveTitle(/Doolittle$/);
-  await expect(page.locator(".window-runtime-status")).toHaveAttribute(
-    "aria-label",
-    "Runtime status: ready",
-    { timeout: 45_000 },
+  await expect
+    .poll(
+      () =>
+        page.evaluate(async () => {
+          const state = await window.doolittle.getBackendState();
+          return state.phase;
+        }),
+      { timeout: 45_000 },
+    )
+    .toBe("ready");
+}
+
+export async function openNewConversationView(page: Page): Promise<void> {
+  const panels = page.locator("[data-session-panel]");
+  const previousIds = new Set(
+    await panels.evaluateAll((elements) =>
+      elements
+        .map((element) => element.getAttribute("data-session-panel"))
+        .filter((id): id is string => Boolean(id)),
+    ),
   );
+  await page.locator('summary[aria-label="Conversation options"]').click();
+  await page
+    .getByRole("toolbar", { name: "Conversation controls" })
+    .getByRole("button", { name: "New conversation", exact: true })
+    .click();
+  await expect
+    .poll(
+      () =>
+        panels.evaluateAll(
+          (elements, knownIds) =>
+            elements.some((element) => {
+              const id = element.getAttribute("data-session-panel");
+              return Boolean(id && !knownIds.includes(id));
+            }),
+          [...previousIds],
+        ),
+      { timeout: 30_000 },
+    )
+    .toBe(true);
+}
+
+export async function closeFocusedConversationView(page: Page): Promise<void> {
+  await page.locator('summary[aria-label="Conversation options"]').click();
+  await page.getByRole("button", { name: "Close view", exact: true }).click();
 }

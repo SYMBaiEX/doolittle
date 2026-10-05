@@ -226,14 +226,16 @@ test.describe("Doolittle desktop navigation", () => {
       await expect(page).toHaveTitle(/Doolittle$/);
       expect(pageErrors).toEqual([]);
       await expectNoDesktopRecovery(page);
-      const runtimeStatus = page.locator(".window-runtime-status");
-      await expect(runtimeStatus).toHaveAttribute(
-        "aria-label",
-        "Runtime status: ready",
-        { timeout: 45_000 },
-      );
-      await expect(runtimeStatus).toHaveClass(/(?:^|\s)ready(?:\s|$)/);
-      await expect(runtimeStatus).toContainText("Local runtime");
+      await expect
+        .poll(
+          () =>
+            page.evaluate(async () => {
+              const state = await window.doolittle.getBackendState();
+              return state.phase;
+            }),
+          { timeout: 45_000 },
+        )
+        .toBe("ready");
       // Real SDK/API isolation proof, not a mocked task-creation response.
       const initialTaskCount = await page.evaluate(async () => {
         const response = await window.doolittle.requestAgent({
@@ -255,16 +257,10 @@ test.describe("Doolittle desktop navigation", () => {
         "a fresh fixture must not inherit SDK tasks",
       ).toBe(0);
       // This route/navigation smoke deliberately exercises one focused view;
-      // independent tiled sessions have their own workbench E2E coverage.
-      await page
-        .getByRole("button", { name: "Focus panel", exact: true })
-        .click();
-      await expect(
-        page.getByRole("button", { name: "Tile panels", exact: true }),
-      ).toBeVisible();
-      const focusedSessionPanel = page.locator("[data-session-panel]").filter({
-        has: page.locator('[data-session-focus][aria-pressed="true"]'),
-      });
+      // multi-view arrangement has dedicated workbench E2E coverage.
+      const focusedSessionPanel = page
+        .locator("[data-session-panel]:visible")
+        .first();
       const shellBeforeCommandMenu = await page
         .locator(".desktop-shell")
         .boundingBox();
@@ -439,7 +435,7 @@ test.describe("Doolittle desktop navigation", () => {
         }, repoRoot);
       }
       await expect(
-        page.getByRole("navigation", { name: "Workspace breadcrumb" }),
+        page.getByRole("toolbar", { name: "Conversation controls" }),
       ).toBeVisible();
       await page.getByRole("button", { name: "Collapse navigation" }).click();
       await expect(page.locator(".desktop-shell")).toHaveClass(/nav-collapsed/);
@@ -449,7 +445,7 @@ test.describe("Doolittle desktop navigation", () => {
       );
 
       const sidebarResizer = page.getByRole("separator", {
-        name: "Resize project navigation",
+        name: "Resize bot navigation",
       });
       await sidebarResizer.focus();
       await page.keyboard.press("ArrowRight");
@@ -461,7 +457,12 @@ test.describe("Doolittle desktop navigation", () => {
         )
         .not.toBe("252");
 
-      await page.getByRole("button", { name: "Manage projects" }).click();
+      await focusedSessionPanel
+        .getByRole("button", { name: /^Choose project\./ })
+        .click();
+      await page
+        .getByRole("button", { name: "Manage projects", exact: true })
+        .click();
       const projectManager = page.getByRole("dialog", { name: "Projects" });
       await expect(projectManager).toBeVisible();
       await projectManager
@@ -491,20 +492,41 @@ test.describe("Doolittle desktop navigation", () => {
       await page.getByRole("button", { name: "Close projects" }).click();
 
       await page.evaluate(() => {
+        window.location.hash = "#/chat";
+      });
+      await page
+        .getByRole("button", { name: "Conversation", exact: true })
+        .click();
+      const repositoryScope = page.getByRole("button", {
+        name: /^Choose project\./,
+      });
+      await repositoryScope.click();
+      await page
+        .getByRole("button", { name: /General No repository context/ })
+        .click();
+      await page.evaluate(() => {
         window.location.hash = "#/code";
       });
-      await expect(page.locator(".window-breadcrumb-current")).toHaveText(
-        "Workspace",
-      );
-      await page.locator(".project-rail-all").click();
+      await expect(
+        page.locator('.view-container[data-view="code"]'),
+      ).toBeVisible();
       await expect
         .poll(() => page.evaluate(() => window.location.hash))
         .toBe("#/code");
-      const e2eProject = page
-        .locator(".project-rail-group")
-        .filter({ hasText: "E2E repository" });
-      await e2eProject.locator(".project-rail-main").click();
-      await expect(e2eProject).toHaveClass(/is-active/);
+      await page.evaluate(() => {
+        window.location.hash = "#/chat";
+      });
+      const projectScope = page.getByRole("button", {
+        name: /^Choose project\./,
+      });
+      await projectScope.click();
+      await page.getByRole("button", { name: /E2E repository/ }).click();
+      await page.evaluate(() => {
+        window.location.hash = "#/code";
+      });
+      await expect(
+        page.locator('.view-container[data-view="code"]'),
+      ).toBeVisible();
       await expect
         .poll(() => page.evaluate(() => window.location.hash))
         .toBe("#/code");
@@ -612,45 +634,47 @@ test.describe("Doolittle desktop navigation", () => {
         )
         .not.toBe("280");
 
+      const projectScopeBeforeNewConversation = await page.evaluate(() =>
+        localStorage.getItem("doolittle.desktop.project-scope.v1"),
+      );
+      expect(projectScopeBeforeNewConversation).toBeTruthy();
+      const sessionPanels = page.locator("[data-session-panel]");
+      const previousPanelCount = await sessionPanels.count();
       await page
+        .getByRole("complementary", { name: "Navigation and bots" })
         .getByRole("button", { exact: true, name: "New conversation" })
         .click();
-      const newConversationMenu = page.locator(
-        'section[aria-label="Start a new conversation"]',
-      );
-      await expect(newConversationMenu).toBeVisible();
-      const floatingMenuBounds = await newConversationMenu.boundingBox();
-      expect(floatingMenuBounds).not.toBeNull();
-      expect(floatingMenuBounds?.x ?? -1).toBeGreaterThanOrEqual(0);
-      expect(floatingMenuBounds?.y ?? -1).toBeGreaterThanOrEqual(0);
-      expect(
-        (floatingMenuBounds?.x ?? 0) + (floatingMenuBounds?.width ?? 0),
-      ).toBeLessThanOrEqual(1440);
-      expect(
-        (floatingMenuBounds?.y ?? 0) + (floatingMenuBounds?.height ?? 0),
-      ).toBeLessThanOrEqual(1000);
-      await newConversationMenu
-        .getByRole("menuitem", { name: /General chat/ })
-        .click();
+      await expect
+        .poll(() => sessionPanels.count())
+        .toBeGreaterThan(previousPanelCount);
       await expect(
-        page
-          .getByRole("navigation", { name: "Workspace breadcrumb" })
-          .locator(".window-breadcrumb-current"),
-      ).toHaveText("New conversation");
+        page.getByRole("toolbar", { name: "Conversation controls" }),
+      ).toBeVisible();
+      await expect(
+        page.getByRole("textbox", { name: "Message Doolittle" }),
+      ).toBeVisible();
       await page.evaluate(() => {
         window.location.hash = "#/code";
       });
-      await expect(page.locator(".window-breadcrumb-current")).toHaveText(
-        "Workspace",
-      );
+      await expect(
+        page.locator('.view-container[data-view="code"]'),
+      ).toBeVisible();
       await expect
         .poll(() =>
           page.evaluate(() =>
             localStorage.getItem("doolittle.desktop.project-scope.v1"),
           ),
         )
-        .toBe("unscoped");
-
+        .toBe(projectScopeBeforeNewConversation);
+      await expect(
+        chatTerminal.getByRole("button", {
+          name: "Interrupt foreground process",
+        }),
+      ).toBeVisible({ timeout: 15_000 });
+      const terminalInput = chatTerminal
+        .getByRole("tabpanel")
+        .getByRole("textbox", { name: "Terminal input" });
+      await expect(terminalInput).toBeEnabled({ timeout: 15_000 });
       await chatTerminal.getByRole("tabpanel").click();
       await page.keyboard.type("printf 'DOOLITTLE_TERMINAL_HANDOFF\\n'");
       await page.keyboard.press("Enter");
@@ -687,6 +711,47 @@ test.describe("Doolittle desktop navigation", () => {
           }, "DOOLITTLE_TERMINAL_HANDOFF"),
         )
         .toContain("DOOLITTLE_TERMINAL_HANDOFF");
+
+      await expect
+        .poll(() =>
+          page.evaluate(() => {
+            const prefix = "doolittle.desktop.interactive-terminal.v2:";
+            for (
+              let index = 0;
+              index < window.localStorage.length;
+              index += 1
+            ) {
+              const key = window.localStorage.key(index);
+              if (!key?.startsWith(prefix)) continue;
+              const value = window.localStorage.getItem(key);
+              if (!value) continue;
+              try {
+                const parsed = JSON.parse(value) as {
+                  tabs?: Array<{ output?: unknown }>;
+                };
+                const output = Array.isArray(parsed.tabs)
+                  ? parsed.tabs
+                      .map((tab) =>
+                        typeof tab?.output === "string" ? tab.output : "",
+                      )
+                      .join("\n")
+                  : "";
+                if (output.includes("DOOLITTLE_TERMINAL_HANDOFF")) return true;
+              } catch {
+                // Ignore unrelated localStorage state while polling.
+              }
+            }
+            return false;
+          }),
+        )
+        .toBe(true);
+      await page.evaluate(() => {
+        window.location.hash = "#/chat";
+      });
+      await expect(
+        page.locator('.view-container[data-view="chat"]'),
+      ).toBeVisible();
+
       await chatTerminal
         .getByRole("button", { name: "Add terminal output to chat" })
         .click();
@@ -709,35 +774,27 @@ test.describe("Doolittle desktop navigation", () => {
       // unscoped conversation while moving between Chat and Code. The
       // orchestration receipt below instead verifies a repository-scoped task,
       // so restore the E2E project before starting that independent flow.
-      const restoredE2eProject = page
-        .locator(".project-rail-group")
-        .filter({ hasText: "E2E repository" });
-      await restoredE2eProject.locator(".project-rail-main").click();
-      await expect(restoredE2eProject).toHaveClass(/is-active/);
+      await page.getByRole("button", { name: /^Choose project\./ }).click();
+      await page.getByRole("button", { name: /E2E repository/ }).click();
 
       const verifyAllRoutes = async () => {
         for (const [route] of routes) {
           await page.evaluate((nextRoute) => {
             window.location.hash = `#/${nextRoute}`;
           }, route);
-          const currentRouteLabel = await page
-            .locator(".window-breadcrumb-current")
-            .innerText();
-          await expect(
-            page.locator('.window-dragbar [aria-live="polite"].sr-only'),
-          ).toContainText(`${currentRouteLabel} opened for`);
           await expectNoDesktopRecovery(page);
           const routeContainer = page.locator(
             `.view-container[data-view="${route}"]`,
           );
           await expect(routeContainer).toBeVisible();
+          if (route === "chat") {
+            await expect(
+              page.getByRole("toolbar", { name: "Conversation controls" }),
+            ).toBeVisible();
+          }
           const viewContainer =
             route === "chat" || route === "sessions" || route === "media"
-              ? routeContainer.locator("[data-session-panel]").filter({
-                  has: page.locator(
-                    '[data-session-focus][aria-pressed="true"]',
-                  ),
-                })
+              ? routeContainer.locator("[data-session-panel]:visible").first()
               : routeContainer;
           await expect(viewContainer).toBeVisible();
           if (route === "code") {
@@ -1708,9 +1765,9 @@ test.describe("Doolittle desktop navigation", () => {
       await page.evaluate(() => {
         window.location.hash = "#/code";
       });
-      await expect(page.locator(".window-breadcrumb-current")).toHaveText(
-        "Workspace",
-      );
+      await expect(
+        page.locator('.view-container[data-view="code"]'),
+      ).toBeVisible();
       // The prior terminal-output handoff closes the global terminal by design. Open
       // it again before exercising its tab-management controls.
       const reopenedWorkspaceUtilities = page.getByRole("tablist", {
@@ -1751,18 +1808,32 @@ test.describe("Doolittle desktop navigation", () => {
       await expect(
         page.locator('section[aria-label="Current agent work outcome"]'),
       ).toBeVisible();
-      await page.locator(".project-rail-all").click();
+      await page.evaluate(() => {
+        window.location.hash = "#/chat";
+      });
+      await page.getByRole("button", { name: /^Choose project\./ }).click();
+      await page
+        .getByRole("button", { name: /General No repository context/ })
+        .click();
+      await page.evaluate(() => {
+        window.location.hash = "#/work/review";
+      });
+      await expect(page.locator(".review-page")).toBeVisible();
       await expect
         .poll(() => page.evaluate(() => window.location.hash))
         .toBe("#/work/review");
       await expect(page.locator(".review-page")).toHaveAttribute(
         "data-project-scope",
-        "all",
+        "unscoped",
       );
-      await page
-        .locator(".project-rail-main")
-        .filter({ hasText: "E2E repository" })
-        .click();
+      await page.evaluate(() => {
+        window.location.hash = "#/chat";
+      });
+      await page.getByRole("button", { name: /^Choose project\./ }).click();
+      await page.getByRole("button", { name: /E2E repository/ }).click();
+      await page.evaluate(() => {
+        window.location.hash = "#/work/review";
+      });
       await expect
         .poll(() => page.evaluate(() => window.location.hash))
         .toBe("#/work/review");
@@ -2152,8 +2223,20 @@ test.describe("Doolittle desktop navigation", () => {
         path: chatShellScreenshot,
       });
 
-      await page.getByRole("button", { name: "Context", exact: true }).click();
-      const workbench = focusedSessionPanel.locator(".chat-workbench-pane");
+      const inspectorToggle = page.getByRole("button", {
+        name: "Open inspector",
+      });
+      await inspectorToggle.click();
+      const workbench = page.locator(".chat-workbench-pane");
+      const inspectorTabs = workbench.getByRole("tablist", {
+        name: "Inspector views",
+      });
+      await expect(inspectorTabs.getByRole("tab")).toHaveText([
+        "Details",
+        "Library",
+        "Computer",
+      ]);
+      await inspectorTabs.getByRole("tab", { name: "Library" }).click();
       const workbenchTree = workbench.getByRole("tree", {
         name: "Workspace files",
       });
@@ -2223,7 +2306,7 @@ test.describe("Doolittle desktop navigation", () => {
           .querySelector(".thread-workbench")
           ?.getBoundingClientRect();
         const close = element
-          .querySelector('[aria-label="Close thread context"]')
+          .querySelector('[aria-label="Close inspector"]')
           ?.getBoundingClientRect();
         return {
           documentFits:
@@ -2245,42 +2328,46 @@ test.describe("Doolittle desktop navigation", () => {
         panelMatchesWrapper: true,
       });
       const narrowWorkbenchScreenshot = testInfo.outputPath(
-        "doolittle-thread-workbench-narrow.png",
+        "doolittle-library-inspector-narrow.png",
       );
       await page.screenshot({
         animations: "disabled",
         fullPage: true,
         path: narrowWorkbenchScreenshot,
       });
-      await testInfo.attach("thread workbench narrow", {
+      await testInfo.attach("library inspector narrow", {
         contentType: "image/png",
         path: narrowWorkbenchScreenshot,
       });
       await narrowWorkbenchDialog
-        .getByRole("button", { name: "Close thread context" })
+        .getByRole("button", { name: "Close inspector" })
         .click();
-      await expect(
-        page.getByRole("button", { name: "Context", exact: true }),
-      ).toBeFocused();
+      await expect(inspectorToggle).toBeFocused();
       await page.setViewportSize({ width: 1280, height: 900 });
-      await page.getByRole("button", { name: "Context", exact: true }).click();
-      await expect(workbenchTree).toBeVisible();
+      await inspectorToggle.click();
+      await workbench.getByRole("tab", { name: "Computer" }).click();
+      const computerTabs = workbench.getByRole("tablist", {
+        name: "Thread context views",
+      });
+      await computerTabs.getByRole("tab", { name: "Brief" }).click();
+      await expect(
+        computerTabs.getByRole("tab", { name: "Brief" }),
+      ).toHaveAttribute("aria-selected", "true");
+      await expect(
+        workbench.getByRole("heading", { name: "Current plan" }),
+      ).toBeVisible();
       const workbenchScreenshot = testInfo.outputPath(
-        "doolittle-thread-workbench.png",
+        "doolittle-companion-computer.png",
       );
       await page.screenshot({
         animations: "disabled",
         path: workbenchScreenshot,
       });
-      await testInfo.attach("thread workbench", {
+      await testInfo.attach("computer inspector", {
         contentType: "image/png",
         path: workbenchScreenshot,
       });
-      await page.getByRole("tab", { name: /Brief/ }).click();
-      await expect(
-        page.getByRole("heading", { name: "Current plan" }),
-      ).toBeVisible();
-      await page.getByRole("button", { name: "Close thread context" }).click();
+      await workbench.getByRole("button", { name: "Close inspector" }).click();
 
       await page.getByRole("button", { name: "Open Activity" }).click();
       const activityPanel = page.locator('aside[aria-label="Activity"]');
