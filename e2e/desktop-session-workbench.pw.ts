@@ -1293,6 +1293,11 @@ test.describe("Doolittle desktop session workbench", () => {
       ).toBeVisible();
       await expect(firstPanel).toBeVisible();
       await expect(secondPanel).toBeHidden();
+      await expect(layoutMenu.locator("xpath=..")).not.toHaveAttribute(
+        "open",
+        "",
+      );
+      await layoutMenu.click();
       await workbench.getByRole("button", { name: "Split right" }).click();
       await expect(firstPanel).toBeVisible();
       await expect(secondPanel).toBeVisible();
