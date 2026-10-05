@@ -1733,13 +1733,9 @@ test.describe("Doolittle desktop session workbench", () => {
       await expect
         .poll(() => reloadedPanels.count(), { timeout: 30_000 })
         .toBeGreaterThanOrEqual(2);
-      const reloadedIds = (
-        await reloadedPanels.evaluateAll((elements) =>
-          elements
-            .map((element) => element.getAttribute("data-session-panel"))
-            .filter((id): id is string => Boolean(id)),
-        )
-      ).slice(0, 2);
+      // Retained hidden mounts are not open views. The original conversation
+      // identities must survive reload regardless of a restored host selection.
+      const reloadedIds = initialSessionIds;
       const firstRestoredId = reloadedIds[0];
       const secondRestoredId = reloadedIds[1];
       if (!firstRestoredId || !secondRestoredId) {
@@ -1749,14 +1745,22 @@ test.describe("Doolittle desktop session workbench", () => {
       }
       const sessionIds = [firstRestoredId, secondRestoredId] as const;
       await rebindSyntheticApprovalSessions(app, sessionIds);
-      const extraIds = await reloadedPanels.evaluateAll((elements) =>
-        elements
-          .map((element) => element.getAttribute("data-session-panel"))
-          .filter((id): id is string => Boolean(id)),
-      );
-      for (const extraId of extraIds.slice(2)) {
-        await panelById(workbenchAfterReload, extraId)
-          .getByRole("button", { name: /^Close / })
+      const extraIds = await workbenchAfterReload
+        .getByRole("tab", { name: /./ })
+        .evaluateAll((elements) =>
+          elements
+            .map((element) =>
+              element
+                .getAttribute("aria-controls")
+                ?.replace(/^session-panel-/, ""),
+            )
+            .filter((id): id is string => Boolean(id)),
+        );
+      for (const extraId of extraIds.filter((id) => !sessionIds.includes(id))) {
+        await workbenchAfterReload
+          .locator(`[aria-controls="session-panel-${extraId}"]`)
+          .locator("..")
+          .getByRole("button", { name: /^Close .* view$/ })
           .click();
       }
       await expect(reloadedPanels.filter({ visible: true })).toHaveCount(2);
