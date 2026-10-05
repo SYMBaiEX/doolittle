@@ -1572,10 +1572,15 @@ test.describe("Doolittle packaged-profile control sweep", () => {
       });
 
       await resizeElectronWindow(app, desktopViewport);
-      await expect(page.locator(".window-runtime-status.ready")).toContainText(
-        "Local runtime",
-        { timeout: 60_000 },
-      );
+      await expect
+        .poll(
+          () =>
+            page.evaluate(
+              async () => (await window.doolittle.getBackendState()).phase,
+            ),
+          { timeout: 60_000 },
+        )
+        .toBe("ready");
 
       const audit: RouteAudit[] = [];
 
