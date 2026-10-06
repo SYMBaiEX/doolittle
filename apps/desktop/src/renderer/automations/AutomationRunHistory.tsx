@@ -1,5 +1,7 @@
+import { ContextActionMenu } from "@doolittle/ui";
 import { Button } from "@elizaos/ui/components/ui/button";
 import { useMemo } from "react";
+import { copyContextText } from "../context-menu-clipboard";
 import {
   asArray,
   asRecord,
@@ -171,32 +173,51 @@ export function AutomationRunHistory({
                   const status = asString(entry.status, "completed");
                   return (
                     <li key={id}>
-                      <button
-                        aria-pressed={asString(selectedRun?.id) === id}
-                        className={`${AUTOMATION_RUN_BUTTON_CLASS} ${asString(selectedRun?.id) === id ? "selected border border-[color-mix(in_srgb,var(--accent)_26%,transparent)] bg-[var(--accent-soft)]" : "border border-transparent"}`}
-                        onClick={() => onSelectRun(id)}
-                        type="button"
+                      <ContextActionMenu
+                        label="Automation receipt actions"
+                        scopeKey={`automation-run:${id}`}
+                        items={[
+                          {
+                            id: "inspect",
+                            label: "Inspect receipt",
+                            onSelect: () => onSelectRun(id),
+                          },
+                          {
+                            id: "copy-id",
+                            label: "Copy run ID",
+                            onSelect: () => void copyContextText(id),
+                          },
+                        ]}
                       >
-                        <span className={runStatusClass(status)} />
-                        <span className="flex min-w-0 flex-col gap-0.75">
-                          <strong className="automation-run-list__title truncate text-[10px]">
-                            {asString(entry.jobName, "Automation run")}
-                          </strong>
-                          <small className="automation-run-list__meta text-[10px] text-[var(--muted)]">
-                            {titleCase(asString(entry.triggerType, "schedule"))}{" "}
-                            ·{" "}
-                            {displayTimestamp(
-                              asString(
-                                entry.completedAt,
-                                asString(entry.createdAt),
-                              ) || undefined,
-                            )}
-                          </small>
-                        </span>
-                        <Badge tone={runTone(status)}>
-                          {titleCase(status)}
-                        </Badge>
-                      </button>
+                        <button
+                          aria-pressed={asString(selectedRun?.id) === id}
+                          className={`${AUTOMATION_RUN_BUTTON_CLASS} ${asString(selectedRun?.id) === id ? "selected border border-[color-mix(in_srgb,var(--accent)_26%,transparent)] bg-[var(--accent-soft)]" : "border border-transparent"}`}
+                          onClick={() => onSelectRun(id)}
+                          type="button"
+                        >
+                          <span className={runStatusClass(status)} />
+                          <span className="flex min-w-0 flex-col gap-0.75">
+                            <strong className="automation-run-list__title truncate text-[10px]">
+                              {asString(entry.jobName, "Automation run")}
+                            </strong>
+                            <small className="automation-run-list__meta text-[10px] text-[var(--muted)]">
+                              {titleCase(
+                                asString(entry.triggerType, "schedule"),
+                              )}{" "}
+                              ·{" "}
+                              {displayTimestamp(
+                                asString(
+                                  entry.completedAt,
+                                  asString(entry.createdAt),
+                                ) || undefined,
+                              )}
+                            </small>
+                          </span>
+                          <Badge tone={runTone(status)}>
+                            {titleCase(status)}
+                          </Badge>
+                        </button>
+                      </ContextActionMenu>
                     </li>
                   );
                 })}

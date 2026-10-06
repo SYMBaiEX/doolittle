@@ -1,3 +1,4 @@
+import { ContextActionMenu } from "@doolittle/ui";
 import {
   CircleCheck,
   ExternalLink,
@@ -8,6 +9,7 @@ import {
 } from "lucide-react";
 import type { KeyboardEvent, RefObject } from "react";
 import { UiIcon } from "../components/UiIcon";
+import { copyContextText } from "../context-menu-clipboard";
 import { Badge, displayTimestamp, EmptyBlock } from "../lib";
 import {
   REVIEW_LIST_BUTTON_CLASS,
@@ -29,6 +31,7 @@ import {
 } from "./models";
 
 export interface ReviewQueueProps {
+  contextScope?: string;
   filter: ReviewFilter;
   query: string;
   searchRef: RefObject<HTMLInputElement | null>;
@@ -42,6 +45,7 @@ export interface ReviewQueueProps {
 }
 
 export function ReviewQueue({
+  contextScope,
   filter,
   query,
   searchRef,
@@ -150,45 +154,80 @@ export function ReviewQueue({
           </EmptyBlock>
         ) : (
           visibleItems.map((item) => (
-            <button
-              aria-current={selectedId === item.id}
-              className={`${REVIEW_LIST_BUTTON_CLASS} ${
-                selectedId === item.id ? REVIEW_LIST_BUTTON_SELECTED_CLASS : ""
-              }`}
+            <ContextActionMenu
               key={item.id}
-              onClick={() => onSelect(item.id)}
-              type="button"
+              label={`Review item actions for ${item.title}`}
+              scopeKey={JSON.stringify([contextScope ?? "", item.id])}
+              items={[
+                {
+                  id: "open",
+                  label: "Open review item",
+                  onSelect: () => onSelect(item.id),
+                },
+                {
+                  id: "copy-title",
+                  label: "Copy review title",
+                  onSelect: () => void copyContextText(item.title),
+                },
+                {
+                  id: "copy-summary",
+                  label: "Copy review summary",
+                  onSelect: () =>
+                    void copyContextText(
+                      `${item.title}\n${item.description}\nStatus: ${item.status}`,
+                    ),
+                },
+                {
+                  id: "copy-path",
+                  label: "Copy file path",
+                  disabled: !item.path,
+                  onSelect: () => {
+                    if (item.path) void copyContextText(item.path);
+                  },
+                },
+              ]}
             >
-              <span
-                className={reviewKindMarkClass(
-                  item.kind,
-                  item.kind === "ci" ? statusTone(item.status) : "",
-                )}
+              <button
+                aria-current={selectedId === item.id}
+                className={`${REVIEW_LIST_BUTTON_CLASS} ${
+                  selectedId === item.id
+                    ? REVIEW_LIST_BUTTON_SELECTED_CLASS
+                    : ""
+                }`}
+                onClick={() => onSelect(item.id)}
+                type="button"
               >
-                <UiIcon
-                  icon={
-                    item.kind === "approvals"
-                      ? TriangleAlert
-                      : item.kind === "ci"
-                        ? CircleCheck
-                        : item.kind === "changes"
-                          ? GitCompareArrows
-                          : ExternalLink
-                  }
-                  size="sm"
-                />
-              </span>
-              <span className={REVIEW_LIST_COPY_CLASS}>
-                <strong>{item.title}</strong>
-                <small>{item.description}</small>
-                {item.timestamp ? (
-                  <time dateTime={item.timestamp}>
-                    {displayTimestamp(item.timestamp)}
-                  </time>
-                ) : null}
-              </span>
-              <Badge tone={statusTone(item.status)}>{item.status}</Badge>
-            </button>
+                <span
+                  className={reviewKindMarkClass(
+                    item.kind,
+                    item.kind === "ci" ? statusTone(item.status) : "",
+                  )}
+                >
+                  <UiIcon
+                    icon={
+                      item.kind === "approvals"
+                        ? TriangleAlert
+                        : item.kind === "ci"
+                          ? CircleCheck
+                          : item.kind === "changes"
+                            ? GitCompareArrows
+                            : ExternalLink
+                    }
+                    size="sm"
+                  />
+                </span>
+                <span className={REVIEW_LIST_COPY_CLASS}>
+                  <strong>{item.title}</strong>
+                  <small>{item.description}</small>
+                  {item.timestamp ? (
+                    <time dateTime={item.timestamp}>
+                      {displayTimestamp(item.timestamp)}
+                    </time>
+                  ) : null}
+                </span>
+                <Badge tone={statusTone(item.status)}>{item.status}</Badge>
+              </button>
+            </ContextActionMenu>
           ))
         )}
       </div>

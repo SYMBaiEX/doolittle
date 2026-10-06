@@ -1,6 +1,12 @@
 import type { BotSummary } from "@doolittle/contracts/bots";
-import { ContactRow, StateSurface } from "@doolittle/ui";
-import { PanelLeftClose, PanelLeftOpen, Plus, Search } from "lucide-react";
+import { ContactRow, ContextActionMenu, StateSurface } from "@doolittle/ui";
+import {
+  MoreHorizontal,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Plus,
+  Search,
+} from "lucide-react";
 import type { KeyboardEvent as ReactKeyboardEvent, RefObject } from "react";
 import type {
   DoolittleDesktopBridge,
@@ -8,6 +14,7 @@ import type {
 } from "../../shared/contracts";
 import { PanelResizeHandle } from "../components/PanelResizeHandle";
 import { UiIcon } from "../components/UiIcon";
+import { copyContextText } from "../context-menu-clipboard";
 import type { View } from "../desktop-navigation";
 import { APP_SIDEBAR_WIDTH } from "../panel-layout";
 import type { ProjectScope } from "../project-manager/models";
@@ -67,6 +74,9 @@ function botRunState(bot: BotSummary) {
   if (bot.activeRunCount > 0 || bot.state === "busy") return "running" as const;
   return undefined;
 }
+
+const ROW_MENU_TRIGGER_CLASS =
+  "grid size-10 shrink-0 place-items-center rounded-[var(--radius-md)] text-[var(--muted)] hover:bg-[var(--surface-hover)] focus-visible:bg-[var(--surface-hover)] max-[760px]:size-11 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100";
 
 export function DesktopSidebar({
   isMobileSidebarMode,
@@ -221,32 +231,109 @@ export function DesktopSidebar({
             <>
               {bots.map((bot) => (
                 <div key={bot.id}>
-                  <ContactRow
-                    avatar={bot.name.slice(0, 1).toUpperCase()}
-                    detail={bot.isDefault ? "Lead" : undefined}
-                    name={bot.name}
-                    onSelect={() => onSelectBot(bot.id)}
-                    selected={bot.id === selectedBotId}
-                    state={botRunState(bot)}
-                  />
+                  <ContextActionMenu
+                    className="group flex min-w-0 items-center [&_.dl-contact]:min-w-0 [&_.dl-contact]:flex-1 [&_.dl-contact]:w-auto"
+                    items={[
+                      {
+                        id: "open",
+                        label: "Open conversation",
+                        onSelect: () => onSelectBot(bot.id),
+                      },
+                      {
+                        id: "manage",
+                        label: "Manage bots…",
+                        onSelect: () => onSetView("orchestration"),
+                      },
+                      {
+                        id: "copy-name",
+                        label: "Copy bot name",
+                        separatorBefore: true,
+                        onSelect: () => void copyContextText(bot.name),
+                      },
+                      {
+                        id: "copy-id",
+                        label: "Copy bot ID",
+                        onSelect: () => void copyContextText(bot.id),
+                      },
+                    ]}
+                    label={`${bot.name} actions`}
+                    scopeKey={`bot:${bot.id}`}
+                    trigger={
+                      compact ? undefined : (
+                        <button
+                          aria-label={`${bot.name} actions`}
+                          className={ROW_MENU_TRIGGER_CLASS}
+                          type="button"
+                        >
+                          <UiIcon icon={MoreHorizontal} size="sm" />
+                        </button>
+                      )
+                    }
+                  >
+                    <ContactRow
+                      avatar={bot.name.slice(0, 1).toUpperCase()}
+                      detail={bot.isDefault ? "Lead" : undefined}
+                      name={bot.name}
+                      onSelect={() => onSelectBot(bot.id)}
+                      selected={bot.id === selectedBotId}
+                      state={botRunState(bot)}
+                    />
+                  </ContextActionMenu>
                   {bot.id === selectedBotId && !compact ? (
                     <div className="ml-4 border-l border-[var(--border)] pl-2">
                       {selectedBotSessions.length ? (
                         selectedBotSessions.map((session) => (
-                          <button
-                            aria-current={
-                              session.sessionId === selectedSession
-                                ? "page"
-                                : undefined
-                            }
-                            className="block min-h-10 w-full truncate rounded-[var(--radius-md)] px-2 text-left text-sm text-[var(--text-soft)] hover:bg-[var(--surface-hover)] aria-current:bg-[var(--surface-selected)] max-[760px]:min-h-11"
+                          <ContextActionMenu
+                            className="group flex min-w-0 items-center"
+                            items={[
+                              {
+                                id: "open",
+                                label: "Open conversation",
+                                onSelect: () =>
+                                  onOpenSession(session.sessionId),
+                              },
+                              {
+                                id: "copy-title",
+                                label: "Copy conversation title",
+                                disabled: !session.title,
+                                separatorBefore: true,
+                                onSelect: () =>
+                                  void copyContextText(session.title || ""),
+                              },
+                              {
+                                id: "copy-id",
+                                label: "Copy conversation ID",
+                                onSelect: () =>
+                                  void copyContextText(session.sessionId),
+                              },
+                            ]}
+                            label={`${session.title || "New conversation"} actions`}
+                            scopeKey={`conversation:${session.sessionId}`}
                             key={session.sessionId}
-                            onClick={() => onOpenSession(session.sessionId)}
-                            title={session.title || "New conversation"}
-                            type="button"
+                            trigger={
+                              <button
+                                aria-label={`${session.title || "New conversation"} actions`}
+                                className={ROW_MENU_TRIGGER_CLASS}
+                                type="button"
+                              >
+                                <UiIcon icon={MoreHorizontal} size="sm" />
+                              </button>
+                            }
                           >
-                            {session.title || "New conversation"}
-                          </button>
+                            <button
+                              aria-current={
+                                session.sessionId === selectedSession
+                                  ? "page"
+                                  : undefined
+                              }
+                              className="block min-h-10 min-w-0 flex-1 truncate rounded-[var(--radius-md)] px-2 text-left text-sm text-[var(--text-soft)] hover:bg-[var(--surface-hover)] aria-current:bg-[var(--surface-selected)] max-[760px]:min-h-11"
+                              onClick={() => onOpenSession(session.sessionId)}
+                              title={session.title || "New conversation"}
+                              type="button"
+                            >
+                              {session.title || "New conversation"}
+                            </button>
+                          </ContextActionMenu>
                         ))
                       ) : (
                         <p className="px-2 py-2 text-xs text-[var(--muted)]">

@@ -6,6 +6,17 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DesktopSidebar, type DesktopSidebarProps } from "./DesktopSidebar";
 
+const { copyContextTextMock } = vi.hoisted(() => ({
+  copyContextTextMock: vi.fn(async () => undefined),
+}));
+vi.mock("../context-menu-clipboard", () => ({
+  copyContextText: copyContextTextMock,
+}));
+
+(
+  globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
+).IS_REACT_ACT_ENVIRONMENT = true;
+
 const bots: BotSummary[] = [
   {
     id: "lead",
@@ -55,6 +66,7 @@ describe("DesktopSidebar companion navigation", () => {
   let props: DesktopSidebarProps;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     container = document.createElement("div");
     document.body.append(container);
     root = createRoot(container);
@@ -169,5 +181,60 @@ describe("DesktopSidebar companion navigation", () => {
     const scrim = container.querySelector<HTMLButtonElement>(".sidebar-scrim");
     expect(scrim?.tabIndex).toBe(-1);
     expect(scrim?.getAttribute("aria-hidden")).toBe("true");
+  });
+
+  it("opens bot actions without selecting another bot and routes management through the host", async () => {
+    act(() => root.render(<DesktopSidebar {...props} />));
+    const research = [
+      ...container.querySelectorAll<HTMLButtonElement>(".dl-contact"),
+    ].find((button) => button.textContent?.includes("Research"));
+    await act(async () => {
+      research?.dispatchEvent(
+        new MouseEvent("contextmenu", { bubbles: true, cancelable: true }),
+      );
+    });
+    expect(document.body.querySelector('[role="menu"]')).not.toBeNull();
+    expect(props.onSelectBot).not.toHaveBeenCalled();
+    const manage = [
+      ...document.body.querySelectorAll<HTMLElement>('[role="menuitem"]'),
+    ].find((item) => item.textContent === "Manage bots…");
+    act(() => manage?.click());
+    expect(props.onSetView).toHaveBeenCalledWith("orchestration");
+    expect(props.onSelectBot).not.toHaveBeenCalled();
+    expect(document.body.querySelector('[role="menu"]')).toBeNull();
+  });
+
+  it("offers the same recent-conversation actions from its overflow button and keyboard", async () => {
+    act(() => root.render(<DesktopSidebar {...props} />));
+    const trigger = container.querySelector<HTMLButtonElement>(
+      '[aria-label="Research thread actions"]',
+    );
+    await act(async () => trigger?.click());
+    const copyId = [
+      ...document.body.querySelectorAll<HTMLElement>('[role="menuitem"]'),
+    ].find((item) => item.textContent === "Copy conversation ID");
+    await act(async () => copyId?.click());
+    expect(copyContextTextMock).toHaveBeenCalledWith("b");
+    expect(props.onOpenSession).not.toHaveBeenCalled();
+    const thread = [
+      ...container.querySelectorAll<HTMLButtonElement>("button"),
+    ].find((button) => button.textContent === "Research thread");
+    thread?.focus();
+    await act(async () =>
+      thread?.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "F10",
+          shiftKey: true,
+          bubbles: true,
+          cancelable: true,
+        }),
+      ),
+    );
+    const open = [
+      ...document.body.querySelectorAll<HTMLElement>('[role="menuitem"]'),
+    ].find((item) => item.textContent === "Open conversation");
+    expect(open).toBeDefined();
+    await act(async () => open?.click());
+    expect(props.onOpenSession).toHaveBeenCalledWith("b");
   });
 });

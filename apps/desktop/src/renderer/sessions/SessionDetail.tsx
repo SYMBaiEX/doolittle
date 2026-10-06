@@ -1,3 +1,5 @@
+import { ContextActionMenu } from "@doolittle/ui";
+import { MoreHorizontal } from "lucide-react";
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import type {
   SessionMessagesResponse,
@@ -7,6 +9,9 @@ import type {
 } from "../../shared/contracts";
 import { Button, Input } from "../components/ElizaControls";
 import { MessageContent } from "../components/MessageContent";
+import { visibleAssistantText } from "../components/message-output";
+import { UiIcon } from "../components/UiIcon";
+import { copyContextText } from "../context-menu-clipboard";
 import {
   compactNumber,
   desktopRequest,
@@ -47,29 +52,61 @@ export function SessionTranscriptMessage({
   message: StoredMessage;
 }) {
   return (
-    <article
-      className={`${SESSION_TRANSCRIPT_MESSAGE_CLASS} ${message.role === "user" ? SESSION_TRANSCRIPT_USER_MESSAGE_CLASS : ""}`}
-      data-message-role={message.role}
+    <ContextActionMenu
+      className="group relative border-b border-[var(--border-subtle)] last:border-b-0"
+      items={[
+        {
+          id: "copy-message",
+          label: "Copy message",
+          onSelect: () =>
+            void copyContextText(
+              message.role === "assistant"
+                ? visibleAssistantText(message.text)
+                : message.text,
+            ),
+        },
+        {
+          id: "copy-id",
+          label: "Copy message ID",
+          onSelect: () => void copyContextText(message.id),
+        },
+      ]}
+      label="Saved message actions"
+      scopeKey={`message:${message.sessionId}:${message.id}`}
+      trigger={
+        <button
+          aria-label="Saved message actions"
+          className="absolute top-1 right-0 grid size-10 place-items-center rounded-[var(--radius-md)] text-[var(--muted)] opacity-0 group-hover:opacity-100 hover:bg-[var(--surface-hover)] focus-visible:opacity-100 pointer-coarse:opacity-100 max-[760px]:size-11"
+          type="button"
+        >
+          <UiIcon icon={MoreHorizontal} size="sm" />
+        </button>
+      }
     >
-      <div className={SESSION_TRANSCRIPT_LABEL_CLASS}>
-        <strong>
-          {message.role === "assistant"
-            ? "Doolittle"
-            : message.role === "user"
-              ? "You"
-              : "System"}
-        </strong>
-        <time>{displayTimestamp(message.createdAt)}</time>
-      </div>
-      <div
-        className={`${SESSION_TRANSCRIPT_BODY_CLASS} ${message.role === "user" ? SESSION_TRANSCRIPT_USER_BODY_CLASS : ""}`}
+      <article
+        className={`${SESSION_TRANSCRIPT_MESSAGE_CLASS} !border-b-0 pr-11 ${message.role === "user" ? SESSION_TRANSCRIPT_USER_MESSAGE_CLASS : ""}`}
+        data-message-role={message.role}
       >
-        <MessageContent
-          content={message.text}
-          separateAgentEvents={message.role === "assistant"}
-        />
-      </div>
-    </article>
+        <div className={SESSION_TRANSCRIPT_LABEL_CLASS}>
+          <strong>
+            {message.role === "assistant"
+              ? "Doolittle"
+              : message.role === "user"
+                ? "You"
+                : "System"}
+          </strong>
+          <time>{displayTimestamp(message.createdAt)}</time>
+        </div>
+        <div
+          className={`${SESSION_TRANSCRIPT_BODY_CLASS} ${message.role === "user" ? SESSION_TRANSCRIPT_USER_BODY_CLASS : ""}`}
+        >
+          <MessageContent
+            content={message.text}
+            separateAgentEvents={message.role === "assistant"}
+          />
+        </div>
+      </article>
+    </ContextActionMenu>
   );
 }
 
@@ -159,51 +196,94 @@ export function SessionDetail({
       setRenaming(false);
     }
   };
+  const beginRename = () => {
+    if (!active || renaming) return;
+    setTitle(selected.title ?? "");
+    setEditing(true);
+  };
 
   return (
     <div className={SESSION_DETAIL_CLASS} data-session-detail="true">
-      <div className={SESSION_DETAIL_TOOLBAR_CLASS}>
-        <div>
-          <span className="eyebrow">Transcript</span>
-          <h2>
-            {compactSessionPreview(selected.title || "") ||
-              compactSessionPreview(selected.preview?.[0] || "") ||
-              "Untitled conversation"}
-          </h2>
+      <ContextActionMenu
+        items={[
+          {
+            id: "open",
+            label: "Open in workspace",
+            disabled: !active,
+            onSelect: () => {
+              if (active) onOpenChat(selected.sessionId);
+            },
+          },
+          {
+            id: "rename",
+            label: "Rename conversation…",
+            disabled: !active || renaming,
+            onSelect: beginRename,
+          },
+          {
+            id: "export",
+            label: "Export conversation",
+            disabled: !active || transferring,
+            onSelect: () => {
+              if (active && !transferring) onExport();
+            },
+          },
+          {
+            id: "copy-title",
+            label: "Copy conversation title",
+            disabled: !selected.title,
+            separatorBefore: true,
+            onSelect: () => void copyContextText(selected.title || ""),
+          },
+          {
+            id: "copy-id",
+            label: "Copy conversation ID",
+            onSelect: () => void copyContextText(selected.sessionId),
+          },
+        ]}
+        label="Conversation actions"
+        scopeKey={`conversation:${selected.sessionId}`}
+      >
+        <div className={SESSION_DETAIL_TOOLBAR_CLASS}>
+          <div>
+            <span className="eyebrow">Transcript</span>
+            <h2>
+              {compactSessionPreview(selected.title || "") ||
+                compactSessionPreview(selected.preview?.[0] || "") ||
+                "Untitled conversation"}
+            </h2>
+          </div>
+          <div className="flex flex-wrap items-center justify-end gap-1.5 max-[860px]:justify-start">
+            <Button
+              disabled={!active || renaming}
+              ref={renameButtonRef}
+              onClick={beginRename}
+              size="sm"
+              type="button"
+              variant="secondary"
+            >
+              Rename
+            </Button>
+            <Button
+              disabled={!active || transferring}
+              onClick={onExport}
+              size="sm"
+              type="button"
+              variant="secondary"
+            >
+              {transferring ? "Working…" : "Export"}
+            </Button>
+            <Button
+              disabled={!active}
+              onClick={() => onOpenChat(selected.sessionId)}
+              size="sm"
+              type="button"
+            >
+              Open in workspace
+            </Button>
+          </div>
         </div>
-        <div className="flex flex-wrap items-center justify-end gap-1.5 max-[860px]:justify-start">
-          <Button
-            disabled={!active || renaming}
-            ref={renameButtonRef}
-            onClick={() => {
-              setTitle(selected.title ?? "");
-              setEditing(true);
-            }}
-            size="sm"
-            type="button"
-            variant="secondary"
-          >
-            Rename
-          </Button>
-          <Button
-            disabled={!active || transferring}
-            onClick={onExport}
-            size="sm"
-            type="button"
-            variant="secondary"
-          >
-            {transferring ? "Working…" : "Export"}
-          </Button>
-          <Button
-            disabled={!active}
-            onClick={() => onOpenChat(selected.sessionId)}
-            size="sm"
-            type="button"
-          >
-            Open in workspace
-          </Button>
-        </div>
-      </div>
+      </ContextActionMenu>
       {editing ? (
         <form
           className="flex items-center gap-2 pt-3 max-[640px]:flex-wrap"

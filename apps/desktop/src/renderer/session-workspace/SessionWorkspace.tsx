@@ -1,3 +1,4 @@
+import { type ContextAction, ContextActionMenu } from "@doolittle/ui";
 import { useMediaQuery } from "@elizaos/ui/hooks/useMediaQuery";
 import { ArrowLeft, ArrowRight, Columns2, Plus, Search, X } from "lucide-react";
 import {
@@ -12,6 +13,7 @@ import type { ChatPageProps } from "../ChatPage";
 import type { ConversationStore, RunReceiptStore } from "../chat/models";
 import { loadStoredChatMessages } from "../chat/useChatConversationState";
 import { Button, Input } from "../components/ElizaControls";
+import { copyContextText } from "../context-menu-clipboard";
 import { newConversationId } from "../conversation-id";
 import {
   type ConversationDraft,
@@ -380,6 +382,89 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
   const focusedSession = layout.focusedId || props.selectedId;
   const conversationSurface =
     (props.surface ?? "conversation") === "conversation";
+  const panelActions = (id: string): ContextAction[] => {
+    const index = layout.openIds.indexOf(id);
+    const companionId =
+      layout.focusedId && layout.focusedId !== id
+        ? layout.focusedId
+        : (layout.openIds[index + 1] ?? layout.openIds[index - 1]);
+    const split = (axis: "horizontal" | "vertical") => {
+      if (!companionId || isNarrow || isShort) return;
+      const sourceId = layout.focusedId === id ? id : companionId;
+      const targetId = layout.focusedId === id ? companionId : id;
+      const next = splitWorkspaceSession(layout, sourceId, targetId, axis);
+      setLayout(next);
+      focusRequestedRef.current = true;
+      if (next.focusedId) props.onSelect(next.focusedId);
+    };
+    const move = (direction: -1 | 1) => {
+      const target = index + direction;
+      if (index < 0 || target < 0 || target >= layout.openIds.length) return;
+      setLayout((current) => moveWorkspaceSession(current, id, direction));
+      // Match activating the pane's ordinary Move button: the command's
+      // explicit target becomes the focused conversation, not an ambient pane.
+      focusSession(id, true);
+    };
+    return [
+      {
+        id: "focus",
+        label: "Focus conversation",
+        onSelect: () => focusSession(id, true),
+      },
+      {
+        id: "move-left",
+        label: "Move view left",
+        disabled: index <= 0,
+        onSelect: () => move(-1),
+      },
+      {
+        id: "move-right",
+        label: "Move view right",
+        disabled: index < 0 || index >= layout.openIds.length - 1,
+        onSelect: () => move(1),
+      },
+      ...(companionId
+        ? [
+            {
+              id: "split-right",
+              label: `Split right with ${titleFor(companionId)}`,
+              disabled: isNarrow || isShort,
+              separatorBefore: true,
+              onSelect: () => split("horizontal"),
+            },
+            {
+              id: "split-below",
+              label: `Split below with ${titleFor(companionId)}`,
+              disabled: isNarrow || isShort,
+              onSelect: () => split("vertical"),
+            },
+          ]
+        : []),
+      {
+        id: "show-tabs",
+        label: "Show as tabs",
+        disabled: layout.mode === "tabs",
+        onSelect: () => setLayout((current) => ({ ...current, mode: "tabs" })),
+      },
+      {
+        id: "copy-title",
+        label: "Copy conversation title",
+        separatorBefore: true,
+        onSelect: () => void copyContextText(titleFor(id)),
+      },
+      {
+        id: "copy-id",
+        label: "Copy conversation ID",
+        onSelect: () => void copyContextText(id),
+      },
+      {
+        id: "close-view",
+        label: "Close view (work continues)",
+        separatorBefore: true,
+        onSelect: () => closePanel(id),
+      },
+    ];
+  };
 
   return (
     <section
@@ -452,18 +537,56 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
               )
               .map((id) => (
                 <li key={id}>
-                  <Button
-                    variant="ghost"
-                    className={`${CONTROL} w-full justify-between text-left`}
-                    onClick={() => focusSession(id, true)}
-                    type="button"
+                  <ContextActionMenu
+                    items={[
+                      {
+                        id: "open",
+                        label: layout.openIds.includes(id)
+                          ? "Focus conversation"
+                          : "Open conversation",
+                        disabled:
+                          !layout.openIds.includes(id) &&
+                          layout.openIds.length >= MAX_OPEN_PANELS,
+                        onSelect: () => focusSession(id, true),
+                      },
+                      {
+                        id: "copy-title",
+                        label: "Copy conversation title",
+                        separatorBefore: true,
+                        onSelect: () => void copyContextText(titleFor(id)),
+                      },
+                      {
+                        id: "copy-id",
+                        label: "Copy conversation ID",
+                        onSelect: () => void copyContextText(id),
+                      },
+                      ...(layout.openIds.includes(id)
+                        ? [
+                            {
+                              id: "close-view",
+                              label: "Close view (work continues)",
+                              separatorBefore: true,
+                              onSelect: () => closePanel(id),
+                            },
+                          ]
+                        : []),
+                    ]}
+                    label={`${titleFor(id)} conversation actions`}
+                    scopeKey={`finder:${id}`}
                   >
-                    <span className="min-w-0 truncate">{titleFor(id)}</span>
-                    <span className="shrink-0 font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--muted)]">
-                      {layout.openIds.includes(id) ? "Focus" : "Open"} ·{" "}
-                      {statusFor(id)}
-                    </span>
-                  </Button>
+                    <Button
+                      variant="ghost"
+                      className={`${CONTROL} w-full justify-between text-left`}
+                      onClick={() => focusSession(id, true)}
+                      type="button"
+                    >
+                      <span className="min-w-0 truncate">{titleFor(id)}</span>
+                      <span className="shrink-0 font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--muted)]">
+                        {layout.openIds.includes(id) ? "Focus" : "Open"} ·{" "}
+                        {statusFor(id)}
+                      </span>
+                    </Button>
+                  </ContextActionMenu>
                 </li>
               ))}
             {ids.filter((id) =>
@@ -500,50 +623,56 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
                 key={id}
                 role="presentation"
               >
-                <Button
-                  variant="ghost"
-                  aria-controls={`session-panel-${id}`}
-                  aria-selected={id === layout.focusedId}
-                  className="min-h-10 max-w-52 shrink-0 truncate border-r border-[var(--border)] px-3 text-[length:var(--text-control)] text-[var(--text-soft)] aria-selected:border-b-2 aria-selected:border-b-[var(--accent)] aria-selected:bg-[var(--surface)] focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)] max-[760px]:min-h-11"
-                  id={`session-tab-${id}`}
-                  onClick={() => focusSession(id)}
-                  onKeyDown={(event) => {
-                    const next =
-                      event.key === "ArrowRight"
-                        ? (index + 1) % layout.openIds.length
-                        : event.key === "ArrowLeft"
-                          ? (index + layout.openIds.length - 1) %
-                            layout.openIds.length
-                          : event.key === "Home"
-                            ? 0
-                            : event.key === "End"
-                              ? layout.openIds.length - 1
-                              : -1;
-                    if (next < 0) return;
-                    event.preventDefault();
-                    const nextId = layout.openIds[next];
-                    if (!nextId) return;
-                    focusSession(nextId);
-                    document.getElementById(`session-tab-${nextId}`)?.focus();
-                  }}
-                  role="tab"
-                  tabIndex={id === layout.focusedId ? 0 : -1}
-                  type="button"
+                <ContextActionMenu
+                  items={panelActions(id)}
+                  label={`${titleFor(id)} view actions`}
+                  scopeKey={`conversation-view:${id}:${layout.focusedId}`}
                 >
-                  {titleFor(id)}{" "}
-                  <span className="ml-2 text-[length:var(--text-meta)] text-[var(--muted)]">
-                    {statusFor(id)}
-                  </span>
-                </Button>
-                <button
-                  aria-label={`Close ${titleFor(id)} view`}
-                  className="grid min-h-10 w-8 place-items-center text-[var(--muted)] hover:text-[var(--text)] max-[760px]:min-h-11 max-[760px]:w-11"
-                  onClick={() => closePanel(id)}
-                  title="Close view only; running work continues"
-                  type="button"
-                >
-                  <X aria-hidden size={14} />
-                </button>
+                  <Button
+                    variant="ghost"
+                    aria-controls={`session-panel-${id}`}
+                    aria-selected={id === layout.focusedId}
+                    className="min-h-10 max-w-52 shrink-0 truncate border-r border-[var(--border)] px-3 text-[length:var(--text-control)] text-[var(--text-soft)] aria-selected:border-b-2 aria-selected:border-b-[var(--accent)] aria-selected:bg-[var(--surface)] focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)] max-[760px]:min-h-11"
+                    id={`session-tab-${id}`}
+                    onClick={() => focusSession(id)}
+                    onKeyDown={(event) => {
+                      const next =
+                        event.key === "ArrowRight"
+                          ? (index + 1) % layout.openIds.length
+                          : event.key === "ArrowLeft"
+                            ? (index + layout.openIds.length - 1) %
+                              layout.openIds.length
+                            : event.key === "Home"
+                              ? 0
+                              : event.key === "End"
+                                ? layout.openIds.length - 1
+                                : -1;
+                      if (next < 0) return;
+                      event.preventDefault();
+                      const nextId = layout.openIds[next];
+                      if (!nextId) return;
+                      focusSession(nextId);
+                      document.getElementById(`session-tab-${nextId}`)?.focus();
+                    }}
+                    role="tab"
+                    tabIndex={id === layout.focusedId ? 0 : -1}
+                    type="button"
+                  >
+                    {titleFor(id)}{" "}
+                    <span className="ml-2 text-[length:var(--text-meta)] text-[var(--muted)]">
+                      {statusFor(id)}
+                    </span>
+                  </Button>
+                  <button
+                    aria-label={`Close ${titleFor(id)} view`}
+                    className="grid min-h-10 w-8 place-items-center text-[var(--muted)] hover:text-[var(--text)] max-[760px]:min-h-11 max-[760px]:w-11"
+                    onClick={() => closePanel(id)}
+                    title="Close view only; running work continues"
+                    type="button"
+                  >
+                    <X aria-hidden size={14} />
+                  </button>
+                </ContextActionMenu>
               </div>
             ))}
           </div>
@@ -697,7 +826,10 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
                 hidden={!visible}
                 inert={!visible}
                 id={`session-panel-${id}`}
-                onFocusCapture={() => {
+                onFocusCapture={(event) => {
+                  // React portal focus bubbles through this component tree, but
+                  // menu contents are not part of the owned pane's DOM.
+                  if (!event.currentTarget.contains(event.target)) return;
                   if (!focused) focusSession(id);
                 }}
                 role={
@@ -721,67 +853,73 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
                 tabIndex={-1}
               >
                 {!tabbed && layout.openIds.length > 1 ? (
-                  <div className="flex min-h-10 shrink-0 items-center justify-between gap-1 border-b border-[var(--border)] bg-[var(--surface)] px-2">
-                    <Button
-                      variant="ghost"
-                      aria-label={`Focus ${title}`}
-                      aria-pressed={focused}
-                      className="inline-flex min-h-9 min-w-0 flex-1 items-center justify-start truncate px-1 text-left text-sm font-medium text-[var(--text)] focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
-                      data-session-focus={id}
-                      onClick={() => focusSession(id, true)}
-                      title={id}
-                      type="button"
-                    >
-                      <span className="mr-2 font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--muted)]">
-                        {String(index + 1).padStart(2, "0")}
+                  <ContextActionMenu
+                    items={panelActions(id)}
+                    label={`${title} panel actions`}
+                    scopeKey={`conversation-panel:${id}:${layout.focusedId}`}
+                  >
+                    <div className="flex min-h-10 shrink-0 items-center justify-between gap-1 border-b border-[var(--border)] bg-[var(--surface)] px-2">
+                      <Button
+                        variant="ghost"
+                        aria-label={`Focus ${title}`}
+                        aria-pressed={focused}
+                        className="inline-flex min-h-9 min-w-0 flex-1 items-center justify-start truncate px-1 text-left text-sm font-medium text-[var(--text)] focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
+                        data-session-focus={id}
+                        onClick={() => focusSession(id, true)}
+                        title={id}
+                        type="button"
+                      >
+                        <span className="mr-2 font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--muted)]">
+                          {String(index + 1).padStart(2, "0")}
+                        </span>
+                        {title}
+                      </Button>
+                      <span
+                        aria-live="polite"
+                        className={`shrink-0 font-[var(--font-mono)] text-[length:var(--text-meta)] ${activeRequests[id] ? "text-[var(--accent-text)]" : "text-[var(--muted)]"}`}
+                      >
+                        {statusFor(id)}
                       </span>
-                      {title}
-                    </Button>
-                    <span
-                      aria-live="polite"
-                      className={`shrink-0 font-[var(--font-mono)] text-[length:var(--text-meta)] ${activeRequests[id] ? "text-[var(--accent-text)]" : "text-[var(--muted)]"}`}
-                    >
-                      {statusFor(id)}
-                    </span>
-                    <Button
-                      variant="ghost"
-                      aria-label={`Move ${title} left`}
-                      className={CONTROL}
-                      disabled={index === 0}
-                      onClick={() =>
-                        setLayout((current) =>
-                          moveWorkspaceSession(current, id, -1),
-                        )
-                      }
-                      type="button"
-                    >
-                      <ArrowLeft aria-hidden size={13} />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      aria-label={`Move ${title} right`}
-                      className={CONTROL}
-                      disabled={!nextId}
-                      onClick={() =>
-                        setLayout((current) =>
-                          moveWorkspaceSession(current, id, 1),
-                        )
-                      }
-                      type="button"
-                    >
-                      <ArrowRight aria-hidden size={13} />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      aria-label={`Close ${title}`}
-                      className={CONTROL}
-                      onClick={() => closePanel(id)}
-                      title="Close view only. Running agents continue."
-                      type="button"
-                    >
-                      <X aria-hidden size={14} />
-                    </Button>
-                  </div>
+                      <Button
+                        variant="ghost"
+                        aria-label={`Move ${title} left`}
+                        className={CONTROL}
+                        disabled={index === 0}
+                        onClick={() =>
+                          setLayout((current) =>
+                            moveWorkspaceSession(current, id, -1),
+                          )
+                        }
+                        type="button"
+                      >
+                        <ArrowLeft aria-hidden size={13} />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        aria-label={`Move ${title} right`}
+                        className={CONTROL}
+                        disabled={!nextId}
+                        onClick={() =>
+                          setLayout((current) =>
+                            moveWorkspaceSession(current, id, 1),
+                          )
+                        }
+                        type="button"
+                      >
+                        <ArrowRight aria-hidden size={13} />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        aria-label={`Close ${title}`}
+                        className={CONTROL}
+                        onClick={() => closePanel(id)}
+                        title="Close view only. Running agents continue."
+                        type="button"
+                      >
+                        <X aria-hidden size={14} />
+                      </Button>
+                    </div>
+                  </ContextActionMenu>
                 ) : null}
                 <div className="min-h-0 flex-1 overflow-hidden">
                   {renderPanel({
@@ -803,86 +941,106 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
         })}
         {!tabbed && conversationSurface
           ? geometry.dividers.map((divider) => (
-              <hr
-                aria-label={`Resize ${divider.axis === "horizontal" ? "left and right" : "upper and lower"} conversations`}
-                aria-orientation={
-                  divider.axis === "horizontal" ? "vertical" : "horizontal"
-                }
-                aria-valuemin={20}
-                aria-valuemax={80}
-                aria-valuenow={Math.round(divider.ratio * 100)}
-                className={`absolute z-10 touch-none bg-[var(--border)] hover:bg-[var(--accent-border)] focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)] ${divider.axis === "horizontal" ? "w-2 -translate-x-1 cursor-col-resize" : "h-2 -translate-y-1 cursor-row-resize"}`}
-                data-session-resizer
+              <ContextActionMenu
+                items={[
+                  {
+                    id: "reset-size",
+                    label: "Reset conversation sizes",
+                    onSelect: () =>
+                      setLayout((current) =>
+                        resizeWorkspaceSplit(current, divider.path, 0.5),
+                      ),
+                  },
+                ]}
                 key={divider.path}
-                onKeyDown={(event) => {
-                  const forward =
-                    divider.axis === "horizontal" ? "ArrowRight" : "ArrowDown";
-                  const backward =
-                    divider.axis === "horizontal" ? "ArrowLeft" : "ArrowUp";
-                  if (![forward, backward, "Home"].includes(event.key)) return;
-                  event.preventDefault();
-                  setLayout((current) =>
-                    resizeWorkspaceSplit(
-                      current,
-                      divider.path,
-                      event.key === "Home"
-                        ? 0.5
-                        : divider.ratio +
-                            (event.key === forward ? 0.05 : -0.05),
-                    ),
-                  );
-                }}
-                onPointerDown={(event) => {
-                  event.preventDefault();
-                  event.currentTarget.setPointerCapture(event.pointerId);
-                  event.currentTarget.dataset.start = String(
-                    divider.axis === "horizontal"
-                      ? event.clientX
-                      : event.clientY,
-                  );
-                }}
-                onPointerMove={(event) => {
-                  if (!event.currentTarget.hasPointerCapture(event.pointerId))
-                    return;
-                  const coordinate =
-                    divider.axis === "horizontal"
-                      ? event.clientX
-                      : event.clientY;
-                  const previous = Number(event.currentTarget.dataset.start);
-                  const size =
-                    divider.axis === "horizontal"
-                      ? panelSize.width
-                      : panelSize.height;
-                  const percent =
-                    divider.axis === "horizontal"
-                      ? divider.width || 100
-                      : divider.height || 100;
-                  setLayout((current) =>
-                    resizeWorkspaceSplit(
-                      current,
-                      divider.path,
-                      divider.ratio +
-                        (coordinate - previous) /
-                          Math.max(1, (size * percent) / 100),
-                    ),
-                  );
-                  event.currentTarget.dataset.start = String(coordinate);
-                }}
-                onPointerUp={(event) => {
-                  if (event.currentTarget.hasPointerCapture(event.pointerId))
-                    event.currentTarget.releasePointerCapture(event.pointerId);
-                }}
-                style={{
-                  left: `${divider.x}%`,
-                  top: `${divider.y}%`,
-                  width:
-                    divider.axis === "horizontal" ? 8 : `${divider.width}%`,
-                  height:
-                    divider.axis === "vertical" ? 8 : `${divider.height}%`,
-                }}
-                tabIndex={0}
-                title="Drag or use arrow keys to resize; Home resets"
-              />
+                label="Conversation divider actions"
+                scopeKey={`divider:${divider.path}`}
+              >
+                <hr
+                  aria-label={`Resize ${divider.axis === "horizontal" ? "left and right" : "upper and lower"} conversations`}
+                  aria-orientation={
+                    divider.axis === "horizontal" ? "vertical" : "horizontal"
+                  }
+                  aria-valuemin={20}
+                  aria-valuemax={80}
+                  aria-valuenow={Math.round(divider.ratio * 100)}
+                  className={`absolute z-10 touch-none bg-[var(--border)] hover:bg-[var(--accent-border)] focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)] ${divider.axis === "horizontal" ? "w-2 -translate-x-1 cursor-col-resize" : "h-2 -translate-y-1 cursor-row-resize"}`}
+                  data-session-resizer
+                  onKeyDown={(event) => {
+                    const forward =
+                      divider.axis === "horizontal"
+                        ? "ArrowRight"
+                        : "ArrowDown";
+                    const backward =
+                      divider.axis === "horizontal" ? "ArrowLeft" : "ArrowUp";
+                    if (![forward, backward, "Home"].includes(event.key))
+                      return;
+                    event.preventDefault();
+                    setLayout((current) =>
+                      resizeWorkspaceSplit(
+                        current,
+                        divider.path,
+                        event.key === "Home"
+                          ? 0.5
+                          : divider.ratio +
+                              (event.key === forward ? 0.05 : -0.05),
+                      ),
+                    );
+                  }}
+                  onPointerDown={(event) => {
+                    event.preventDefault();
+                    event.currentTarget.setPointerCapture(event.pointerId);
+                    event.currentTarget.dataset.start = String(
+                      divider.axis === "horizontal"
+                        ? event.clientX
+                        : event.clientY,
+                    );
+                  }}
+                  onPointerMove={(event) => {
+                    if (!event.currentTarget.hasPointerCapture(event.pointerId))
+                      return;
+                    const coordinate =
+                      divider.axis === "horizontal"
+                        ? event.clientX
+                        : event.clientY;
+                    const previous = Number(event.currentTarget.dataset.start);
+                    const size =
+                      divider.axis === "horizontal"
+                        ? panelSize.width
+                        : panelSize.height;
+                    const percent =
+                      divider.axis === "horizontal"
+                        ? divider.width || 100
+                        : divider.height || 100;
+                    setLayout((current) =>
+                      resizeWorkspaceSplit(
+                        current,
+                        divider.path,
+                        divider.ratio +
+                          (coordinate - previous) /
+                            Math.max(1, (size * percent) / 100),
+                      ),
+                    );
+                    event.currentTarget.dataset.start = String(coordinate);
+                  }}
+                  onPointerUp={(event) => {
+                    if (event.currentTarget.hasPointerCapture(event.pointerId))
+                      event.currentTarget.releasePointerCapture(
+                        event.pointerId,
+                      );
+                  }}
+                  style={{
+                    left: `${divider.x}%`,
+                    top: `${divider.y}%`,
+                    width:
+                      divider.axis === "horizontal" ? 8 : `${divider.width}%`,
+                    height:
+                      divider.axis === "vertical" ? 8 : `${divider.height}%`,
+                  }}
+                  tabIndex={0}
+                  title="Drag or use arrow keys to resize; Home resets"
+                />
+              </ContextActionMenu>
             ))
           : null}
       </div>

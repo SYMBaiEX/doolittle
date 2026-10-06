@@ -304,6 +304,25 @@ async function emit(event: ChatEvent) {
     await new Promise((resolve) => setTimeout(resolve, 5));
   });
 }
+async function contextMenu(target: HTMLElement) {
+  await act(async () =>
+    target.dispatchEvent(
+      new MouseEvent("contextmenu", {
+        bubbles: true,
+        cancelable: true,
+      }),
+    ),
+  );
+  return required(document.body.querySelector<HTMLElement>('[role="menu"]'));
+}
+async function contextAction(label: string) {
+  const action = required(
+    [...document.body.querySelectorAll<HTMLElement>('[role="menuitem"]')].find(
+      (item) => item.textContent === label,
+    ),
+  );
+  await act(async () => action.click());
+}
 
 beforeEach(() => {
   localStorage.clear();
@@ -366,6 +385,192 @@ describe("shared session workbench behavior", () => {
       window.dispatchEvent(new Event("doolittle:new-conversation-view")),
     );
     expect(container.querySelector('[role="tablist"]')).not.toBeNull();
+  });
+  it("closes the targeted running view from its context menu without cancelling or losing its draft", async () => {
+    await render();
+    await draft("a", "Run A");
+    await click(panel("a"), "Send test");
+    const runA = required(start.mock.calls[0])[0];
+    await draft("a", "Retained A draft");
+    await openB();
+    const tabA = required(
+      container.querySelector<HTMLElement>("#session-tab-a"),
+    );
+    await contextMenu(tabA);
+    expect(panel("b").hidden).toBe(false);
+    await contextAction("Close view (work continues)");
+    expect(panel("a").hidden).toBe(true);
+    expect(cancel).not.toHaveBeenCalled();
+    await emit({
+      requestId: runA.requestId,
+      event: "response.completed",
+      data: { response: "A finished while its view was closed" },
+    });
+    await click(container, "Find session");
+    const reopen = required(
+      [
+        ...container.querySelectorAll<HTMLButtonElement>(
+          "#session-workspace-finder button",
+        ),
+      ].find((button) => button.textContent?.startsWith("Session A")),
+    );
+    await act(async () => reopen.click());
+    expect(panel("a").hidden).toBe(false);
+    expect(panel("a").querySelector("textarea")?.value).toBe(
+      "Retained A draft",
+    );
+    expect(panel("a").textContent).toContain(
+      "A finished while its view was closed",
+    );
+    expect(start).toHaveBeenCalledOnce();
+    expect(cancel).not.toHaveBeenCalled();
+  });
+  it("reuses split, move and divider reset commands without duplicating session identities", async () => {
+    await render();
+    await openB();
+    await contextMenu(
+      required(container.querySelector<HTMLElement>("#session-tab-a")),
+    );
+    await contextAction("Split right with Session B");
+    let saved = JSON.parse(
+      required(localStorage.getItem(SESSION_WORKSPACE_STORAGE_KEY)),
+    );
+    expect(saved.openIds).toEqual(["a", "b"]);
+    expect(saved.focusedId).toBe("a");
+    expect(saved.tree.first.id).toBe("b");
+    expect(saved.tree.second.id).toBe("a");
+    expect(panel("a").hidden).toBe(false);
+    expect(panel("b").hidden).toBe(false);
+    await contextMenu(
+      required(
+        panel("a").querySelector<HTMLElement>('[data-session-focus="a"]'),
+      ),
+    );
+    await contextAction("Move view right");
+    saved = JSON.parse(
+      required(localStorage.getItem(SESSION_WORKSPACE_STORAGE_KEY)),
+    );
+    expect(saved.openIds).toEqual(["b", "a"]);
+    const divider = required(
+      container.querySelector<HTMLElement>("[data-session-resizer]"),
+    );
+    await act(async () =>
+      divider.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }),
+      ),
+    );
+    expect(
+      JSON.parse(required(localStorage.getItem(SESSION_WORKSPACE_STORAGE_KEY)))
+        .tree.ratio,
+    ).toBeCloseTo(0.55);
+    await contextMenu(divider);
+    await contextAction("Reset conversation sizes");
+    expect(
+      JSON.parse(required(localStorage.getItem(SESSION_WORKSPACE_STORAGE_KEY)))
+        .tree.ratio,
+    ).toBe(0.5);
+    expect(start).not.toHaveBeenCalled();
+    expect(cancel).not.toHaveBeenCalled();
+  });
+  it("offers keyboard context actions on narrow tabs without changing the retained arrangement", async () => {
+    await render();
+    await openB();
+    narrow.value = true;
+    await render();
+    const before = localStorage.getItem(SESSION_WORKSPACE_STORAGE_KEY);
+    const tabB = required(
+      container.querySelector<HTMLElement>("#session-tab-b"),
+    );
+    tabB.focus();
+    await act(async () =>
+      tabB.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "F10",
+          shiftKey: true,
+          bubbles: true,
+          cancelable: true,
+        }),
+      ),
+    );
+    const split = required(
+      [
+        ...document.body.querySelectorAll<HTMLElement>('[role="menuitem"]'),
+      ].find((item) => item.textContent === "Split below with Session A"),
+    );
+    expect(split.getAttribute("aria-disabled")).toBe("true");
+    await act(async () => split.click());
+    expect(localStorage.getItem(SESSION_WORKSPACE_STORAGE_KEY)).toBe(before);
+    expect(container.querySelector("[data-session-resizer]")).toBeNull();
+    expect(start).not.toHaveBeenCalled();
+  });
+  it("keeps a menu on an unfocused split pane open without treating portal focus as pane focus", async () => {
+    await render();
+    await openB();
+    await contextMenu(
+      required(container.querySelector<HTMLElement>("#session-tab-a")),
+    );
+    await contextAction("Split right with Session B");
+    // Split deliberately focuses its destination on the next animation frame.
+    // Settle that host-owned handoff before starting an unrelated pane menu.
+    await act(async () => {
+      await vi.waitFor(() =>
+        expect(document.activeElement).toBe(
+          panel("a").querySelector("textarea"),
+        ),
+      );
+    });
+    expect(
+      JSON.parse(required(localStorage.getItem(SESSION_WORKSPACE_STORAGE_KEY)))
+        .focusedId,
+    ).toBe("a");
+    const statusB = required(
+      panel("b")
+        .querySelector<HTMLElement>('[data-session-focus="b"]')
+        ?.parentElement?.querySelector<HTMLElement>('span[aria-live="polite"]'),
+    );
+    await contextMenu(statusB);
+    expect(
+      JSON.parse(required(localStorage.getItem(SESSION_WORKSPACE_STORAGE_KEY)))
+        .focusedId,
+    ).toBe("a");
+    await contextAction("Move view left");
+    expect(
+      JSON.parse(required(localStorage.getItem(SESSION_WORKSPACE_STORAGE_KEY)))
+        .openIds,
+    ).toEqual(["b", "a"]);
+    expect(
+      JSON.parse(required(localStorage.getItem(SESSION_WORKSPACE_STORAGE_KEY)))
+        .focusedId,
+    ).toBe("b");
+    await act(async () => {
+      await vi.waitFor(() =>
+        expect(document.activeElement).toBe(
+          panel("b").querySelector("textarea"),
+        ),
+      );
+    });
+    const focusB = required(
+      panel("b").querySelector<HTMLElement>('[data-session-focus="b"]'),
+    );
+    await act(async () => {
+      focusB.focus();
+      focusB.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "F10",
+          shiftKey: true,
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+    });
+    expect(document.body.querySelector('[role="menu"]')).not.toBeNull();
+    await contextAction("Move view right");
+    expect(
+      JSON.parse(required(localStorage.getItem(SESSION_WORKSPACE_STORAGE_KEY)))
+        .openIds,
+    ).toEqual(["a", "b"]);
+    expect(start).not.toHaveBeenCalled();
+    expect(cancel).not.toHaveBeenCalled();
   });
   it("bounds mounts and shared-store subscriptions through 50 cycles while restoring an evicted draft and scroll position", async () => {
     const read = ChatWorkspaceStore.prototype.read;

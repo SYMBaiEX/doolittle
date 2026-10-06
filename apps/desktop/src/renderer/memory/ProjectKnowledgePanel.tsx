@@ -3,8 +3,14 @@ import type {
   BotTeamCatalogResponse,
   SharedKnowledgeResponse,
 } from "@doolittle/contracts/bots";
-import { Button, NativeSelect, StateSurface } from "@doolittle/ui";
+import {
+  Button,
+  ContextActionMenu,
+  NativeSelect,
+  StateSurface,
+} from "@doolittle/ui";
 import { useEffect, useState } from "react";
+import { copyContextText } from "../context-menu-clipboard";
 import { desktopRequest, errorMessage, useApiResource } from "../lib";
 
 /** Host-owned sharing management, not a view into another bot's private memory. */
@@ -150,107 +156,181 @@ export function ProjectKnowledgePanel({ active }: { active: boolean }) {
           const sourceName =
             bots.find((bot) => bot.id === record.source.botId)?.name ??
             "Archived bot";
+          const grantDisabled =
+            !active ||
+            !selected ||
+            Boolean(busy) ||
+            Boolean(record.integrity) ||
+            Boolean(knowledge.error) ||
+            Boolean(catalog.error) ||
+            (record.scope.kind === "team" && Boolean(teams.error)) ||
+            grants.some((grant) => grant.botId === selected);
+          const contextScope = JSON.stringify([
+            record.id,
+            record.revokedAt,
+            record.integrity?.status,
+            selected,
+            eligible.map((bot) => bot.id),
+            grants.map((grant) => [grant.botId, grant.grantedAt]),
+            teams.data?.revision,
+          ]);
           return (
             <li key={record.id} className="grid gap-3 py-4">
-              <div>
-                <h3 className="text-base font-medium">{record.title}</h3>
-                <p className="text-sm text-[var(--muted)]">
-                  From {sourceName} · {record.scope.kind}{" "}
-                  {record.scope.kind === "team"
-                    ? (team?.name ?? "Archived or unavailable team")
-                    : record.scope.id}{" "}
-                  · {record.revokedAt ? "Revoked" : "Privately promoted"}
-                </p>
-              </div>
-              {record.integrity ? (
-                <StateSurface kind="error" title="Re-promote the exact source">
-                  {record.integrity.message} Existing access cannot disclose
-                  this ambiguous finding.
-                </StateSurface>
-              ) : null}
-              {!record.revokedAt ? (
-                <>
-                  {grants.length ? (
-                    <ul className="m-0 list-none p-0 grid gap-1">
-                      {grants.map((grant) => (
-                        <li
-                          key={grant.botId}
-                          className="flex flex-wrap items-center justify-between gap-2"
-                        >
-                          <span className="text-sm">
-                            Shared with{" "}
-                            {bots.find((bot) => bot.id === grant.botId)?.name ??
-                              "Archived bot"}
-                            {!eligible.some((bot) => bot.id === grant.botId)
-                              ? " · Membership inactive"
-                              : ""}
-                          </span>
-                          <Button
-                            variant="ghost"
-                            disabled={Boolean(busy)}
-                            onClick={() =>
-                              void change(record.id, "revoke", grant.botId)
-                            }
+              <ContextActionMenu
+                label={`Shared finding: ${record.title}`}
+                scopeKey={contextScope}
+                items={[
+                  ...(!record.revokedAt
+                    ? [
+                        {
+                          id: "grant-access",
+                          label: `Grant access to ${bots.find((bot) => bot.id === selected)?.name ?? "selected bot"}…`,
+                          disabled: grantDisabled,
+                          onSelect: () => {
+                            void change(record.id, "grant", selected);
+                          },
+                        },
+                        {
+                          id: "revoke-finding",
+                          label: "Revoke finding…",
+                          destructive: true,
+                          disabled: !active || Boolean(busy),
+                          onSelect: () => {
+                            void change(record.id, "revoke");
+                          },
+                        },
+                      ]
+                    : []),
+                  {
+                    id: "copy-title",
+                    label: "Copy finding title",
+                    separatorBefore: !record.revokedAt,
+                    onSelect: () => {
+                      void copyContextText(record.title);
+                    },
+                  },
+                ]}
+              >
+                <div>
+                  <h3 className="text-base font-medium">{record.title}</h3>
+                  <p className="text-sm text-[var(--muted)]">
+                    From {sourceName} · {record.scope.kind}{" "}
+                    {record.scope.kind === "team"
+                      ? (team?.name ?? "Archived or unavailable team")
+                      : record.scope.id}{" "}
+                    · {record.revokedAt ? "Revoked" : "Privately promoted"}
+                  </p>
+                </div>
+                {record.integrity ? (
+                  <StateSurface
+                    kind="error"
+                    title="Re-promote the exact source"
+                  >
+                    {record.integrity.message} Existing access cannot disclose
+                    this ambiguous finding.
+                  </StateSurface>
+                ) : null}
+                {!record.revokedAt ? (
+                  <>
+                    {grants.length ? (
+                      <ul className="m-0 list-none p-0 grid gap-1">
+                        {grants.map((grant) => (
+                          <li
+                            key={grant.botId}
+                            className="flex flex-wrap items-center justify-between gap-2"
                           >
-                            Revoke access
-                          </Button>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="text-sm text-[var(--muted)]">
-                      No bots have access.
-                    </p>
-                  )}
-                  <div className="flex flex-wrap items-center gap-2">
-                    <NativeSelect
-                      aria-label={`Share ${record.title} with bot`}
-                      value={selected}
-                      disabled={
-                        !eligible.length ||
-                        Boolean(busy) ||
-                        Boolean(record.integrity)
-                      }
-                      onChange={(event) =>
-                        setTargets((current) => ({
-                          ...current,
-                          [record.id]: event.target.value,
-                        }))
-                      }
-                    >
-                      {!eligible.length ? (
-                        <option value="">
-                          No eligible bots in this {record.scope.kind}
-                        </option>
-                      ) : (
-                        eligible.map((bot) => (
-                          <option key={bot.id} value={bot.id}>
-                            {bot.name}
+                            <ContextActionMenu
+                              label={`Knowledge access: ${bots.find((bot) => bot.id === grant.botId)?.name ?? "archived bot"}`}
+                              scopeKey={`${contextScope}:${grant.botId}`}
+                              items={[
+                                {
+                                  id: "revoke-access",
+                                  label: "Revoke this bot’s access…",
+                                  destructive: true,
+                                  disabled: !active || Boolean(busy),
+                                  onSelect: () => {
+                                    void change(
+                                      record.id,
+                                      "revoke",
+                                      grant.botId,
+                                    );
+                                  },
+                                },
+                              ]}
+                            >
+                              <span className="text-sm">
+                                Shared with{" "}
+                                {bots.find((bot) => bot.id === grant.botId)
+                                  ?.name ?? "Archived bot"}
+                                {!eligible.some((bot) => bot.id === grant.botId)
+                                  ? " · Membership inactive"
+                                  : ""}
+                              </span>
+                              <Button
+                                variant="ghost"
+                                disabled={Boolean(busy)}
+                                onClick={() =>
+                                  void change(record.id, "revoke", grant.botId)
+                                }
+                              >
+                                Revoke access
+                              </Button>
+                            </ContextActionMenu>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-sm text-[var(--muted)]">
+                        No bots have access.
+                      </p>
+                    )}
+                    <div className="flex flex-wrap items-center gap-2">
+                      <NativeSelect
+                        aria-label={`Share ${record.title} with bot`}
+                        value={selected}
+                        disabled={
+                          !eligible.length ||
+                          Boolean(busy) ||
+                          Boolean(record.integrity)
+                        }
+                        onChange={(event) =>
+                          setTargets((current) => ({
+                            ...current,
+                            [record.id]: event.target.value,
+                          }))
+                        }
+                      >
+                        {!eligible.length ? (
+                          <option value="">
+                            No eligible bots in this {record.scope.kind}
                           </option>
-                        ))
-                      )}
-                    </NativeSelect>
-                    <Button
-                      disabled={
-                        !selected ||
-                        Boolean(busy) ||
-                        Boolean(record.integrity) ||
-                        grants.some((grant) => grant.botId === selected)
-                      }
-                      onClick={() => void change(record.id, "grant", selected)}
-                    >
-                      Grant access
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      disabled={Boolean(busy)}
-                      onClick={() => void change(record.id, "revoke")}
-                    >
-                      Revoke finding
-                    </Button>
-                  </div>
-                </>
-              ) : null}
+                        ) : (
+                          eligible.map((bot) => (
+                            <option key={bot.id} value={bot.id}>
+                              {bot.name}
+                            </option>
+                          ))
+                        )}
+                      </NativeSelect>
+                      <Button
+                        disabled={grantDisabled}
+                        onClick={() =>
+                          void change(record.id, "grant", selected)
+                        }
+                      >
+                        Grant access
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        disabled={Boolean(busy)}
+                        onClick={() => void change(record.id, "revoke")}
+                      >
+                        Revoke finding
+                      </Button>
+                    </div>
+                  </>
+                ) : null}
+              </ContextActionMenu>
             </li>
           );
         })}

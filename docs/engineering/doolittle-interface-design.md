@@ -33,7 +33,8 @@ gradients, glow, textures, or cards around ordinary lists.
   first message, the input stays in a dedicated bottom dock while history
   scrolls independently above it. Loading and failed history recovery never
   masquerade as an empty conversation. The form has a neutral thin edge;
-  keyboard focus is indicated locally, not by an orange frame around the input.
+  keyboard focus uses a small inset left-edge marker, not a rectangular frame
+  around the input. OS forced-color mode retains a 1px system focus outline.
   Short panes keep the workspace bounded and scroll exceptional composer
   content locally rather than placing the input after a scrolling document.
   Empty panes retain a 128px readable welcome region; when centering cannot fit,
@@ -42,6 +43,8 @@ gradients, glow, textures, or cards around ordinary lists.
   inside a tall window, rather than only the window height.
   Context pressure is disclosed when warning/error thresholds matter, not as a
   permanent zero-usage meter. Full context remains available in Details.
+  The project picker uses the SDK's portaled collision placement, with a
+  bounded scrolling list; composer/pane clipping cannot hide its footer actions.
 - The initially closed inspector contains Details, Library and Computer.
   Computer opens actual editor/browser/terminal resources; it is not a VM.
   Its immutable bot/conversation/workspace origin must not follow ambient focus.
@@ -62,6 +65,25 @@ Drafts, stream subscriptions, queued messages, editor documents and PTYs belong
 outside replaceable presentation. Running, Waiting, Attention, Complete, Stopped,
 Error and Offline are execution facts, never guesses based on visibility. A
 presentation switch does not resend, cancel or complete a run.
+
+## Context actions
+
+Use the controlled SDK-backed `ContextActionMenu` for app objects: contacts,
+conversations and views, messages and attachments, files, editor and terminal
+chrome, browser tools, receipts, media, reviews, automation/workflow items,
+catalog entries and settings destinations. Menus act on the invoked object, not
+ambient selection. Ownership and view-mode changes revoke open menus; callbacks
+retain existing busy, permission and confirmation checks. Closing a view is not
+cancellation. Never invent unsupported file operations or an approval bypass.
+
+Right-click, Shift-F10/the Menu key and dedicated overflow controls share actions.
+SDK arrow-key navigation, collision handling, disabled states and semantic theme
+tokens keep menus consistent. Text fields and selected text use native editing
+menus; HTTPS links retain the host's external-opening confirmation. Monaco keeps
+its own menu. Xterm content, embedded previews and isolated community views are
+not given privileged host context actions; terminal/browser chrome exposes the
+host's existing guarded actions instead. Clipboard failures give a quiet notice,
+never the copied value or raw error. No background context action is introduced.
 
 ## Persistent bots and knowledge
 

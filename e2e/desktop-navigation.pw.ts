@@ -848,6 +848,44 @@ test.describe("Doolittle desktop navigation", () => {
       await focusedSessionPanel
         .getByRole("button", { name: /^Choose project\./ })
         .click();
+      const projectPicker = page.getByRole("dialog", {
+        name: "Choose a project for this new conversation",
+      });
+      await expect(projectPicker).toBeVisible();
+      const projectPickerBounds = await projectPicker.boundingBox();
+      const projectPickerViewport = await page.evaluate(() => ({
+        width: innerWidth,
+        height: innerHeight,
+      }));
+      if (!projectPickerBounds)
+        throw new Error("Missing project picker geometry");
+      expect(projectPickerBounds.x).toBeGreaterThanOrEqual(0);
+      expect(projectPickerBounds.y).toBeGreaterThanOrEqual(0);
+      expect(
+        projectPickerBounds.x + projectPickerBounds.width,
+      ).toBeLessThanOrEqual(projectPickerViewport.width + 1);
+      expect(
+        projectPickerBounds.y + projectPickerBounds.height,
+      ).toBeLessThanOrEqual(projectPickerViewport.height + 1);
+      await testInfo.attach("project picker placement", {
+        body: JSON.stringify(
+          await projectPicker.evaluate((element) => {
+            const bounds = element.getBoundingClientRect();
+            return {
+              x: bounds.x,
+              y: bounds.y,
+              width: bounds.width,
+              height: bounds.height,
+              viewport: { width: innerWidth, height: innerHeight },
+            };
+          }),
+        ),
+        contentType: "application/json",
+      });
+      await page.screenshot({
+        path: testInfo.outputPath("project-picker-open.png"),
+        animations: "disabled",
+      });
       await page
         .getByRole("button", { name: "Manage projects", exact: true })
         .click();
@@ -2457,8 +2495,13 @@ test.describe("Doolittle desktop navigation", () => {
       const composer = focusedSessionPanel.getByRole("textbox", {
         name: "Message Doolittle",
       });
+      await composer.evaluate((element) => element.blur());
+      await expect
+        .poll(() =>
+          composer.evaluate((element) => getComputedStyle(element).boxShadow),
+        )
+        .toBe("none");
       const restingComposerStyle = await composer.evaluate((element) => {
-        element.blur();
         const container = element.closest(".chat-composer");
         if (!(container instanceof HTMLElement)) {
           throw new Error("Chat composer container is missing.");
@@ -2479,6 +2522,11 @@ test.describe("Doolittle desktop navigation", () => {
         };
       });
       await composer.focus();
+      await expect
+        .poll(() =>
+          composer.evaluate((element) => getComputedStyle(element).boxShadow),
+        )
+        .toContain("2px 0px 0px 0px");
       const focusedComposerStyle = await composer.evaluate((element) => {
         const container = element.closest(".chat-composer");
         if (!(container instanceof HTMLElement)) {
@@ -2509,10 +2557,11 @@ test.describe("Doolittle desktop navigation", () => {
         restingComposerStyle.boxShadow,
       );
       expect(focusedComposerStyle.outline).toBe("none");
-      expect(focusedComposerStyle.textareaBoxShadow).toBe("none");
-      expect(focusedComposerStyle.textareaOutline).toBe("solid");
-      expect(focusedComposerStyle.textareaOutlineWidth).toBe("2px");
-      expect(focusedComposerStyle.textareaOutlineOffset).toBe("0px");
+      expect(focusedComposerStyle.textareaBoxShadow).toContain("inset");
+      expect(focusedComposerStyle.textareaBoxShadow).toContain(
+        "2px 0px 0px 0px",
+      );
+      expect(focusedComposerStyle.textareaOutline).toBe("none");
       await composer.fill("Draft survives project switching");
       await focusedSessionPanel
         .getByRole("button", {

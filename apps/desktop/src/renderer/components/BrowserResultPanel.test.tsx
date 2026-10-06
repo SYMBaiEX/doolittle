@@ -128,6 +128,39 @@ describe("BrowserResultPanel thread handoff", () => {
     expect(container.textContent).toContain("Sent to the active thread.");
   });
 
+  it("reuses the pending handoff guard for receipt context-menu sends", async () => {
+    let resolveSend: ((sent: boolean) => void) | undefined;
+    const send = vi.fn(
+      () =>
+        new Promise<boolean>((resolve) => {
+          resolveSend = resolve;
+        }),
+    );
+    await render(send);
+    const openMenu = async () => {
+      await act(async () =>
+        container.querySelector("h3")?.dispatchEvent(
+          new MouseEvent("contextmenu", {
+            bubbles: true,
+            cancelable: true,
+            button: 2,
+          }),
+        ),
+      );
+      return [
+        ...document.body.querySelectorAll<HTMLElement>('[role="menuitem"]'),
+      ].find((item) => item.textContent === "Send receipt to thread");
+    };
+    const first = await openMenu();
+    expect(first).toBeTruthy();
+    await act(async () => first?.click());
+    const pending = await openMenu();
+    expect(pending?.getAttribute("aria-disabled")).toBe("true");
+    await act(async () => pending?.click());
+    expect(send).toHaveBeenCalledOnce();
+    await act(async () => resolveSend?.(true));
+  });
+
   it("does not mark edited evidence as sent when an older handoff resolves", async () => {
     let resolveSend: ((sent: boolean) => void) | undefined;
     await render(

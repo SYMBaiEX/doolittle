@@ -97,4 +97,34 @@ describe("SessionsPage", () => {
     ).not.toBeNull();
     expect(container.textContent).not.toContain("Search, inspect, rename");
   });
+
+  it("exposes page-level history actions without duplicating their workflows", async () => {
+    const onNewConversation = vi.fn();
+    const refresh = vi.fn();
+    act(() =>
+      root.render(
+        <SessionsPage
+          active
+          onNewConversation={onNewConversation}
+          openChat={vi.fn()}
+          refresh={refresh}
+          sessions={[]}
+        />,
+      ),
+    );
+    const page = container.querySelector<HTMLElement>(
+      '[data-sessions-page="true"]',
+    );
+    await act(async () =>
+      page?.dispatchEvent(
+        new MouseEvent("contextmenu", { bubbles: true, cancelable: true }),
+      ),
+    );
+    const create = [
+      ...document.body.querySelectorAll<HTMLElement>('[role="menuitem"]'),
+    ].find((item) => item.textContent === "New conversation");
+    await act(async () => create?.click());
+    expect(onNewConversation).toHaveBeenCalledOnce();
+    expect(refresh).not.toHaveBeenCalled();
+  });
 });

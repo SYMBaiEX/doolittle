@@ -1,9 +1,11 @@
 import type { RepositoryMutationRequest } from "@doolittle/contracts/repository";
+import { type ContextAction, ContextActionMenu } from "@doolittle/ui";
 import { FileText, GitCompareArrows, X } from "lucide-react";
 import { type FormEvent, lazy, Suspense } from "react";
 import type { CodeLanguage } from "../code-language";
 import type { CodeEditorStateSnapshot } from "../components/CodeEditor";
 import { UiIcon } from "../components/UiIcon";
+import { copyContextText } from "../context-menu-clipboard";
 import type {
   DesktopAcpPhase,
   DesktopAcpPromptPhase,
@@ -135,118 +137,210 @@ export function CodingWorkspaceEditor({
   onSubmitAcpTask: (event: FormEvent<HTMLFormElement>) => void | Promise<void>;
   onSendSelectedContext: () => void;
 }) {
+  const scopeKey = JSON.stringify([
+    botId,
+    originConversationId,
+    workspacePath,
+    selectedPath,
+    editorPane,
+    stagedPatch,
+  ]);
+  const editorActions: ContextAction[] = [
+    {
+      id: "show-file",
+      label: "Show file",
+      onSelect: () => onEditorPaneChange("file"),
+    },
+    {
+      id: "show-diff",
+      label: "Show diff",
+      onSelect: () => onEditorPaneChange("diff"),
+    },
+    {
+      id: "copy-path",
+      label: "Copy relative path",
+      separatorBefore: true,
+      disabled: !selectedPath,
+      onSelect: () => copyContextText(selectedPath),
+    },
+  ];
+  if (editorPane === "file" && selectedPath) {
+    editorActions.push(
+      {
+        id: "save-file",
+        label: savingFile ? "Saving…" : "Save file",
+        shortcut: "⌘/Ctrl S",
+        separatorBefore: true,
+        disabled: editingLocked || !fileDirty || savingFile,
+        onSelect: onSave,
+      },
+      {
+        id: "discard-draft",
+        label: "Discard unsaved edits",
+        destructive: true,
+        disabled: editingLocked || !fileDirty || savingFile,
+        onSelect: onDiscard,
+      },
+    );
+  }
+  if (editorPane === "diff" && selectedChange) {
+    if (selectedChange.staged) {
+      if (selectedChange.unstaged)
+        editorActions.push({
+          id: "working-diff",
+          label: "Show working diff",
+          disabled: editingLocked,
+          onSelect: () => onSetStagedPatch(false),
+        });
+      editorActions.push({
+        id: "staged-diff",
+        label: "Show staged diff",
+        disabled: editingLocked,
+        onSelect: () => onSetStagedPatch(true),
+      });
+    }
+    if (
+      patchResource.data?.patch?.patch &&
+      !patchResource.data.patch.truncated
+    ) {
+      editorActions.push({
+        id: "stage-patch",
+        label: stagedPatch ? "Unstage patch" : "Stage patch",
+        separatorBefore: true,
+        disabled: editingLocked,
+        onSelect: () =>
+          onMutateVisiblePatch(stagedPatch ? "unstage-hunk" : "stage-hunk"),
+      });
+      if (!stagedPatch && !selectedChange.untracked)
+        editorActions.push({
+          id: "discard-patch",
+          label: "Discard patch…",
+          destructive: true,
+          disabled: editingLocked,
+          onSelect: () => onMutateVisiblePatch("discard-hunk"),
+        });
+    }
+  }
   return (
     <main className={`${CODING_PANE_CLASS} ${CODING_EDITOR_CLASS}`}>
-      <div className={CODING_EDITOR_TOOLBAR_CLASS}>
-        <PaneTabs<EditorPane>
-          label="Editor views"
-          options={[
-            { id: "file", label: "File", icon: FileText },
-            { id: "diff", label: "Diff", icon: GitCompareArrows },
-          ]}
-          panelId={EDITOR_PANEL_ID}
-          value={editorPane}
-          onChange={onEditorPaneChange}
-        />
-        <div className={CODING_BREADCRUMB_CLASS} title={selectedPath}>
-          <span>{selectedPath || "Select a file"}</span>
-          {selectedPath ? <small>{selectedLanguage.label}</small> : null}
-        </div>
-        {editorPane === "file" && selectedPath ? (
-          <div className={CODING_EDITOR_ACTIONS_CLASS}>
-            {fileDirty ? (
-              <span className={CODING_UNSAVED_CLASS} role="status">
-                Unsaved
-              </span>
-            ) : null}
-            <button
-              className="secondary-button"
-              disabled={editingLocked || !fileDirty || savingFile}
-              onClick={onDiscard}
-              type="button"
-            >
-              Discard
-            </button>
-            <button
-              className="primary-button"
-              disabled={editingLocked || !fileDirty || savingFile}
-              onClick={onSave}
-              type="button"
-            >
-              {savingFile ? "Saving…" : "Save"}
-            </button>
+      <ContextActionMenu
+        label="Editor actions"
+        scopeKey={scopeKey}
+        items={editorActions}
+      >
+        <div className={CODING_EDITOR_TOOLBAR_CLASS}>
+          <PaneTabs<EditorPane>
+            label="Editor views"
+            options={[
+              { id: "file", label: "File", icon: FileText },
+              { id: "diff", label: "Diff", icon: GitCompareArrows },
+            ]}
+            panelId={EDITOR_PANEL_ID}
+            value={editorPane}
+            onChange={onEditorPaneChange}
+          />
+          <div className={CODING_BREADCRUMB_CLASS} title={selectedPath}>
+            <span>{selectedPath || "Select a file"}</span>
+            {selectedPath ? <small>{selectedLanguage.label}</small> : null}
           </div>
-        ) : editorPane === "diff" && selectedChange ? (
-          <div className={CODING_EDITOR_ACTIONS_CLASS}>
-            {selectedChange.staged ? (
-              <fieldset
-                aria-label="Diff source"
-                className={CODING_DIFF_SOURCE_CLASS}
+          {editorPane === "file" && selectedPath ? (
+            <div className={CODING_EDITOR_ACTIONS_CLASS}>
+              {fileDirty ? (
+                <span className={CODING_UNSAVED_CLASS} role="status">
+                  Unsaved
+                </span>
+              ) : null}
+              <button
+                className="secondary-button"
+                disabled={editingLocked || !fileDirty || savingFile}
+                onClick={onDiscard}
+                type="button"
               >
-                <legend className="sr-only">Diff source</legend>
-                {selectedChange.unstaged ? (
-                  <button
-                    aria-pressed={!stagedPatch}
-                    className={
-                      !stagedPatch ? CODING_DIFF_SOURCE_SELECTED_CLASS : ""
-                    }
-                    disabled={editingLocked}
-                    onClick={() => onSetStagedPatch(false)}
-                    type="button"
-                  >
-                    Working
-                  </button>
-                ) : null}
-                <button
-                  aria-pressed={stagedPatch}
-                  className={
-                    stagedPatch ? CODING_DIFF_SOURCE_SELECTED_CLASS : ""
-                  }
-                  disabled={editingLocked}
-                  onClick={() => onSetStagedPatch(true)}
-                  type="button"
+                Discard
+              </button>
+              <button
+                className="primary-button"
+                disabled={editingLocked || !fileDirty || savingFile}
+                onClick={onSave}
+                type="button"
+              >
+                {savingFile ? "Saving…" : "Save"}
+              </button>
+            </div>
+          ) : editorPane === "diff" && selectedChange ? (
+            <div className={CODING_EDITOR_ACTIONS_CLASS}>
+              {selectedChange.staged ? (
+                <fieldset
+                  aria-label="Diff source"
+                  className={CODING_DIFF_SOURCE_CLASS}
                 >
-                  Staged
-                </button>
-              </fieldset>
-            ) : null}
-            {patchResource.data?.patch?.patch &&
-            !patchResource.data.patch.truncated ? (
-              stagedPatch ? (
-                <button
-                  className="secondary-button"
-                  disabled={editingLocked}
-                  onClick={() => void onMutateVisiblePatch("unstage-hunk")}
-                  type="button"
-                >
-                  Unstage patch
-                </button>
-              ) : (
-                <>
-                  {!selectedChange.untracked ? (
+                  <legend className="sr-only">Diff source</legend>
+                  {selectedChange.unstaged ? (
                     <button
-                      className="danger-button"
+                      aria-pressed={!stagedPatch}
+                      className={
+                        !stagedPatch ? CODING_DIFF_SOURCE_SELECTED_CLASS : ""
+                      }
                       disabled={editingLocked}
-                      onClick={() => void onMutateVisiblePatch("discard-hunk")}
+                      onClick={() => onSetStagedPatch(false)}
                       type="button"
                     >
-                      Discard patch
+                      Working
                     </button>
                   ) : null}
                   <button
-                    className="primary-button"
+                    aria-pressed={stagedPatch}
+                    className={
+                      stagedPatch ? CODING_DIFF_SOURCE_SELECTED_CLASS : ""
+                    }
                     disabled={editingLocked}
-                    onClick={() => void onMutateVisiblePatch("stage-hunk")}
+                    onClick={() => onSetStagedPatch(true)}
                     type="button"
                   >
-                    Stage patch
+                    Staged
                   </button>
-                </>
-              )
-            ) : null}
-          </div>
-        ) : null}
-      </div>
+                </fieldset>
+              ) : null}
+              {patchResource.data?.patch?.patch &&
+              !patchResource.data.patch.truncated ? (
+                stagedPatch ? (
+                  <button
+                    className="secondary-button"
+                    disabled={editingLocked}
+                    onClick={() => void onMutateVisiblePatch("unstage-hunk")}
+                    type="button"
+                  >
+                    Unstage patch
+                  </button>
+                ) : (
+                  <>
+                    {!selectedChange.untracked ? (
+                      <button
+                        className="danger-button"
+                        disabled={editingLocked}
+                        onClick={() =>
+                          void onMutateVisiblePatch("discard-hunk")
+                        }
+                        type="button"
+                      >
+                        Discard patch
+                      </button>
+                    ) : null}
+                    <button
+                      className="primary-button"
+                      disabled={editingLocked}
+                      onClick={() => void onMutateVisiblePatch("stage-hunk")}
+                      type="button"
+                    >
+                      Stage patch
+                    </button>
+                  </>
+                )
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      </ContextActionMenu>
 
       <section
         aria-label={
@@ -452,107 +546,139 @@ export function CodingWorkspaceEditor({
           ) : null}
         </form>
       ) : null}
-      <footer className={CODING_EDITOR_STATUS_CLASS}>
-        <span
-          className={
-            fileDirty
-              ? "coding-modified-status text-[var(--warn)]"
-              : "coding-editable-status text-[var(--accent)]"
-          }
-        >
-          {editorPane === "diff"
-            ? "REVIEW"
-            : fileDirty
-              ? "MODIFIED"
-              : "EDITABLE"}
-        </span>
-        <span>{selectedLanguage.label}</span>
-        <span>UTF-8</span>
-        {editorPane === "file" ? <span>⌘/Ctrl S to save</span> : null}
-        <span
-          className={`${CODING_ACP_STATUS_CLASS} ${acpEditor.phase} ${
-            acpEditor.phase === "connected"
-              ? "text-[var(--good)]"
-              : acpEditor.phase === "connecting"
-                ? "text-[var(--accent)]"
-                : acpEditor.phase === "degraded"
-                  ? "text-[var(--bad)]"
-                  : ""
-          }`}
-          title={
-            acpEditor.error ||
-            (acpEditor.sessionId
-              ? `ACP session ${acpEditor.sessionId}`
-              : "ACP editor context")
-          }
-        >
-          <i aria-hidden="true" />
-          ACP{" "}
-          {acpEditor.phase === "connected"
-            ? "live"
-            : acpEditor.phase === "degraded"
-              ? "offline"
-              : acpEditor.phase === "connecting"
-                ? "linking"
-                : "idle"}
-        </span>
-        {acpEditor.updates.length > 0 ? (
+      <ContextActionMenu
+        label="Editor context and agent"
+        scopeKey={scopeKey}
+        items={[
+          {
+            id: "send-context",
+            label: "Ask Doolittle about this file",
+            disabled: !selectedPath || editingLocked,
+            onSelect: onSendSelectedContext,
+          },
+          {
+            id: "acp-task",
+            label: acpTaskOpen ? "Hide ACP task" : "Show ACP task",
+            disabled: editingLocked,
+            onSelect: () => onAcpTaskOpenChange(!acpTaskOpen),
+          },
+          {
+            id: "cancel-acp",
+            label: "Cancel ACP task",
+            destructive: true,
+            disabled: editingLocked || !acpEditor.promptBusy,
+            onSelect: acpEditor.cancel,
+          },
+          {
+            id: "retry-acp",
+            label: "Retry ACP connection",
+            disabled: editingLocked || acpEditor.phase !== "degraded",
+            onSelect: acpEditor.retryConnection,
+          },
+        ]}
+      >
+        <footer className={CODING_EDITOR_STATUS_CLASS}>
           <span
-            className="coding-acp-progress font-[var(--font-mono)] text-[10px] tracking-[0.04em] text-[var(--muted)] uppercase"
-            title={
-              acpEditor.lastUpdateLabel || "Structured ACP session updates"
+            className={
+              fileDirty
+                ? "coding-modified-status text-[var(--warn)]"
+                : "coding-editable-status text-[var(--accent)]"
             }
           >
-            {acpEditor.lastUpdateLabel || "ACP"} · {acpEditor.updates.length}
+            {editorPane === "diff"
+              ? "REVIEW"
+              : fileDirty
+                ? "MODIFIED"
+                : "EDITABLE"}
           </span>
-        ) : null}
-        {acpEditor.promptBusy && !acpTaskOpen ? (
+          <span>{selectedLanguage.label}</span>
+          <span>UTF-8</span>
+          {editorPane === "file" ? <span>⌘/Ctrl S to save</span> : null}
+          <span
+            className={`${CODING_ACP_STATUS_CLASS} ${acpEditor.phase} ${
+              acpEditor.phase === "connected"
+                ? "text-[var(--good)]"
+                : acpEditor.phase === "connecting"
+                  ? "text-[var(--accent)]"
+                  : acpEditor.phase === "degraded"
+                    ? "text-[var(--bad)]"
+                    : ""
+            }`}
+            title={
+              acpEditor.error ||
+              (acpEditor.sessionId
+                ? `ACP session ${acpEditor.sessionId}`
+                : "ACP editor context")
+            }
+          >
+            <i aria-hidden="true" />
+            ACP{" "}
+            {acpEditor.phase === "connected"
+              ? "live"
+              : acpEditor.phase === "degraded"
+                ? "offline"
+                : acpEditor.phase === "connecting"
+                  ? "linking"
+                  : "idle"}
+          </span>
+          {acpEditor.updates.length > 0 ? (
+            <span
+              className="coding-acp-progress font-[var(--font-mono)] text-[10px] tracking-[0.04em] text-[var(--muted)] uppercase"
+              title={
+                acpEditor.lastUpdateLabel || "Structured ACP session updates"
+              }
+            >
+              {acpEditor.lastUpdateLabel || "ACP"} · {acpEditor.updates.length}
+            </span>
+          ) : null}
+          {acpEditor.promptBusy && !acpTaskOpen ? (
+            <button
+              className={`${CODING_STATUS_ACTION_CLASS} coding-acp-cancel`}
+              disabled={editingLocked}
+              onClick={() => void acpEditor.cancel()}
+              type="button"
+            >
+              Cancel ACP
+            </button>
+          ) : null}
+          {acpEditor.phase === "degraded" ? (
+            <button
+              className={`${CODING_STATUS_ACTION_CLASS} coding-acp-retry`}
+              disabled={editingLocked}
+              onClick={() => void acpEditor.retryConnection()}
+              type="button"
+            >
+              Retry ACP
+            </button>
+          ) : null}
+          <span className="coding-spacer flex-1" />
           <button
-            className={`${CODING_STATUS_ACTION_CLASS} coding-acp-cancel`}
+            aria-expanded={acpTaskOpen}
+            className={`${CODING_STATUS_ACTION_CLASS} coding-acp-task-toggle aria-expanded:shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--accent-ink)_24%,transparent)]`}
             disabled={editingLocked}
-            onClick={() => void acpEditor.cancel()}
+            onClick={() => onAcpTaskOpenChange(!acpTaskOpen)}
             type="button"
           >
-            Cancel ACP
+            ACP task
           </button>
-        ) : null}
-        {acpEditor.phase === "degraded" ? (
-          <button
-            className={`${CODING_STATUS_ACTION_CLASS} coding-acp-retry`}
-            disabled={editingLocked}
-            onClick={() => void acpEditor.retryConnection()}
-            type="button"
-          >
-            Retry ACP
-          </button>
-        ) : null}
-        <span className="coding-spacer flex-1" />
-        <button
-          aria-expanded={acpTaskOpen}
-          className={`${CODING_STATUS_ACTION_CLASS} coding-acp-task-toggle aria-expanded:shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--accent-ink)_24%,transparent)]`}
-          disabled={editingLocked}
-          onClick={() => onAcpTaskOpenChange(!acpTaskOpen)}
-          type="button"
-        >
-          ACP task
-        </button>
-        {selectedPath ? (
-          <button
-            className={CODING_STATUS_ACTION_CLASS}
-            onClick={onSendSelectedContext}
-            type="button"
-          >
-            Ask Doolittle
-          </button>
-        ) : null}
-        <span>
-          {!selectedPath
-            ? "No file selected"
-            : selectedChange
-              ? statusLabel(selectedChange)
-              : "File selected"}
-        </span>
-      </footer>
+          {selectedPath ? (
+            <button
+              className={CODING_STATUS_ACTION_CLASS}
+              onClick={onSendSelectedContext}
+              type="button"
+            >
+              Ask Doolittle
+            </button>
+          ) : null}
+          <span>
+            {!selectedPath
+              ? "No file selected"
+              : selectedChange
+                ? statusLabel(selectedChange)
+                : "File selected"}
+          </span>
+        </footer>
+      </ContextActionMenu>
     </main>
   );
 }

@@ -793,6 +793,11 @@ export function CodingWorkspacePage({
       >
         {explorerVisible ? (
           <CodingWorkspaceExplorer
+            contextScope={JSON.stringify([
+              botId,
+              originConversationId,
+              workspacePath,
+            ])}
             changes={changes}
             changesResource={changesResource}
             leftPane={leftPane}

@@ -1,7 +1,7 @@
-import { StateSurface } from "@doolittle/ui";
+import { ContextActionMenu, StateSurface } from "@doolittle/ui";
 import { memo, type RefObject } from "react";
 import { ChatMessage } from "./ChatMessage";
-import { MessageActions } from "./MessageActions";
+import { MessageActions, messageContextActions } from "./MessageActions";
 import type {
   BranchMode,
   CopyState,
@@ -72,31 +72,53 @@ const TranscriptMessageRow = memo(
     speakingMessageId,
     speechSupported,
   }: TranscriptMessageRowProps) {
+    const contextActions = messageContextActions({
+      activeRequest,
+      backendReady,
+      copyState,
+      forkingMessageId,
+      message,
+      onBranch,
+      onCopy,
+      onRead,
+      onStopReading,
+      onPromote,
+      speakingMessageId,
+      speechSupported,
+    });
     return (
-      <ChatMessage
-        actions={
-          <MessageActions
-            activeRequest={activeRequest}
-            backendReady={backendReady}
-            copyState={copyState}
-            forkingMessageId={forkingMessageId}
-            message={message}
-            onBranch={onBranch}
-            onCopy={onCopy}
-            onRead={onRead}
-            onStopReading={onStopReading}
-            onPromote={onPromote}
-            speakingMessageId={speakingMessageId}
-            speechSupported={speechSupported}
-          />
+      <ContextActionMenu
+        label={
+          message.role === "assistant" ? "Response actions" : "Message actions"
         }
-        message={message}
-        onRetry={onRetryMessage ? () => onRetryMessage(message) : undefined}
-        receipt={receipt}
-        retryDisabled={
-          !backendReady || Boolean(activeRequest) || Boolean(forkingMessageId)
-        }
-      />
+        items={contextActions}
+        scopeKey={message.id}
+      >
+        <ChatMessage
+          actions={
+            <MessageActions
+              activeRequest={activeRequest}
+              backendReady={backendReady}
+              copyState={copyState}
+              forkingMessageId={forkingMessageId}
+              message={message}
+              onBranch={onBranch}
+              onCopy={onCopy}
+              onRead={onRead}
+              onStopReading={onStopReading}
+              onPromote={onPromote}
+              speakingMessageId={speakingMessageId}
+              speechSupported={speechSupported}
+            />
+          }
+          message={message}
+          onRetry={onRetryMessage ? () => onRetryMessage(message) : undefined}
+          receipt={receipt}
+          retryDisabled={
+            !backendReady || Boolean(activeRequest) || Boolean(forkingMessageId)
+          }
+        />
+      </ContextActionMenu>
     );
   },
   (previous, next) =>

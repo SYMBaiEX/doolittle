@@ -76,13 +76,14 @@ describe("ComposerProjectSelector", () => {
 
   it("filters active projects and selects project or general scope", () => {
     openSelector();
-    const search = container.querySelector<HTMLInputElement>(
+    const search = document.body.querySelector<HTMLInputElement>(
       'input[aria-label="Search projects"]',
     );
     expect(document.activeElement).toBe(search);
-    expect(container.textContent).toContain("Doolittle");
-    expect(container.textContent).toContain("Workbench");
-    expect(container.textContent).not.toContain("Archived work");
+    expect(document.body.textContent).toContain("Doolittle");
+    expect(document.body.textContent).toContain("Workbench");
+    expect(document.body.textContent).not.toContain("Archived work");
+    expect(container.querySelector('[role="dialog"]')).toBeNull();
 
     act(() => {
       if (!search) return;
@@ -94,17 +95,17 @@ describe("ComposerProjectSelector", () => {
       search.dispatchEvent(new Event("input", { bubbles: true }));
     });
     expect(
-      container.querySelector(".composer-project-list")?.textContent,
+      document.body.querySelector(".composer-project-list")?.textContent,
     ).not.toContain("Doolittle");
-    const workbench = Array.from(container.querySelectorAll("button")).find(
+    const workbench = Array.from(document.body.querySelectorAll("button")).find(
       (button) => button.textContent?.includes("Workbench"),
     );
     act(() => workbench?.click());
     expect(onSelectProject).toHaveBeenCalledWith("project-3");
-    expect(container.querySelector('[role="dialog"]')).toBeNull();
+    expect(document.body.querySelector('[role="dialog"]')).toBeNull();
 
     openSelector();
-    const general = Array.from(container.querySelectorAll("button")).find(
+    const general = Array.from(document.body.querySelectorAll("button")).find(
       (button) => button.textContent?.includes("General"),
     );
     act(() => general?.click());
@@ -113,15 +114,15 @@ describe("ComposerProjectSelector", () => {
 
   it("opens repository and project management actions", () => {
     openSelector();
-    const addRepository = Array.from(container.querySelectorAll("button")).find(
-      (button) => button.textContent?.includes("Add repository"),
-    );
+    const addRepository = Array.from(
+      document.body.querySelectorAll("button"),
+    ).find((button) => button.textContent?.includes("Add repository"));
     act(() => addRepository?.click());
     expect(onChooseRepository).toHaveBeenCalledTimes(1);
 
     openSelector();
     const manageProjects = Array.from(
-      container.querySelectorAll("button"),
+      document.body.querySelectorAll("button"),
     ).find((button) => button.textContent === "Manage projects");
     act(() => manageProjects?.click());
     expect(onManageProjects).toHaveBeenCalledTimes(1);
@@ -129,23 +130,57 @@ describe("ComposerProjectSelector", () => {
 
   it("dismisses on Escape and restores trigger focus", () => {
     const trigger = openSelector();
-    expect(container.querySelector('[role="dialog"]')).not.toBeNull();
+    expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();
     act(() => {
-      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+      document.activeElement?.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "Escape",
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
       vi.runAllTimers();
     });
-    expect(container.querySelector('[role="dialog"]')).toBeNull();
+    act(() => vi.runAllTimers());
+    expect(document.body.querySelector('[role="dialog"]')).toBeNull();
     expect(document.activeElement).toBe(trigger);
   });
 
   it("dismisses when pointer interaction moves outside the popover", () => {
     openSelector();
-    expect(container.querySelector('[role="dialog"]')).not.toBeNull();
+    expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();
     act(() => {
       document.body.dispatchEvent(
         new PointerEvent("pointerdown", { bubbles: true }),
       );
+      document.body.click();
     });
+    expect(document.body.querySelector('[role="dialog"]')).toBeNull();
+  });
+
+  it("keeps portaled content interactive without treating it as outside", () => {
+    openSelector();
+    const input = document.body.querySelector<HTMLInputElement>(
+      'input[aria-label="Search projects"]',
+    );
+    act(() =>
+      input?.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true })),
+    );
+    expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();
     expect(container.querySelector('[role="dialog"]')).toBeNull();
+    const content = document.body.querySelector<HTMLElement>('[role="dialog"]');
+    expect(content?.className).toContain(
+      "max-h-[var(--radix-popover-content-available-height)]",
+    );
+    expect(content?.className).toContain(
+      "grid-rows-[auto_auto_minmax(0,1fr)_auto]",
+    );
+    expect(content?.getAttribute("data-align")).toBe("end");
+  });
+
+  it("closes its portal when the source session becomes hidden or inert", async () => {
+    openSelector();
+    await act(async () => container.setAttribute("inert", ""));
+    expect(document.body.querySelector('[role="dialog"]')).toBeNull();
   });
 });

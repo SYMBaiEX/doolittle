@@ -140,6 +140,69 @@ describe("ReviewQueue keyboard focus", () => {
     expect(container.textContent).toContain("npm test");
   });
 
+  it("opens the right-clicked queue item without approving the currently selected item", async () => {
+    const onSelect = vi.fn();
+    const queueProps = props();
+    const second = {
+      ...queueProps.items[0],
+      id: "approvals:two",
+      title: "npm build",
+      raw: { id: "two" },
+    };
+    await act(async () =>
+      root.render(
+        <ReviewQueue
+          {...queueProps}
+          items={[...queueProps.items, second]}
+          visibleItems={[...queueProps.items, second]}
+          onSelect={onSelect}
+        />,
+      ),
+    );
+    const target = [...container.querySelectorAll("strong")].find(
+      (element) => element.textContent === "npm build",
+    );
+    await act(async () =>
+      target?.dispatchEvent(
+        new MouseEvent("contextmenu", {
+          bubbles: true,
+          cancelable: true,
+          button: 2,
+        }),
+      ),
+    );
+    const items = [
+      ...document.body.querySelectorAll<HTMLElement>('[role="menuitem"]'),
+    ];
+    expect(
+      items.some((item) => /approve|deny/i.test(item.textContent ?? "")),
+    ).toBe(false);
+    await act(async () =>
+      items.find((item) => item.textContent === "Open review item")?.click(),
+    );
+    expect(onSelect).toHaveBeenCalledExactlyOnceWith("approvals:two");
+  });
+
+  it("dismisses an open menu when another workspace has the same item id", async () => {
+    const value = props({ contextScope: "/work/alpha" });
+    await act(async () => root.render(<ReviewQueue {...value} />));
+    await act(async () =>
+      container.querySelector("strong")?.dispatchEvent(
+        new MouseEvent("contextmenu", {
+          bubbles: true,
+          cancelable: true,
+          button: 2,
+        }),
+      ),
+    );
+    expect(document.body.querySelector('[role="menu"]')).not.toBeNull();
+    await act(async () =>
+      root.render(<ReviewQueue {...value} contextScope="/work/beta" />),
+    );
+    expect(document.body.querySelector('[role="menu"]')).toBeNull();
+    expect(value.onSelect).not.toHaveBeenCalled();
+  });
+
   it("keeps successive arrow keys on the selected tab and wraps both ways", () => {
     const tabs = mountQueue();
     const first = tabs[0];

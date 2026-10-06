@@ -1,3 +1,5 @@
+import { ContextActionMenu } from "@doolittle/ui";
+import { MoreHorizontal } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import type {
   SessionSearchResponse,
@@ -5,6 +7,8 @@ import type {
 } from "../../shared/contracts";
 import { Button, Input } from "../components/ElizaControls";
 import { progressiveWindow } from "../components/progressive-window";
+import { UiIcon } from "../components/UiIcon";
+import { copyContextText } from "../context-menu-clipboard";
 import {
   displayTimestamp,
   EmptyBlock,
@@ -30,6 +34,7 @@ export function SessionListPanel({
   projectId,
   selectedId,
   onQueryChange,
+  onOpenSession,
   onSelect,
 }: {
   active: boolean;
@@ -37,6 +42,7 @@ export function SessionListPanel({
   projectId?: string | null;
   selectedId: string;
   onQueryChange?: (query: string) => void;
+  onOpenSession?: (sessionId: string) => void;
   onSelect: (session: SessionSummary) => void;
 }) {
   const [query, setQuery] = useState("");
@@ -139,30 +145,74 @@ export function SessionListPanel({
         className="overflow-auto overscroll-contain [scrollbar-gutter:stable]"
       >
         {sessionWindow.visible.map((session) => (
-          <button
-            className={`${SESSION_ROW_CLASS} ${selectedId === session.sessionId ? SESSION_ROW_SELECTED_CLASS : ""}`}
-            aria-pressed={selectedId === session.sessionId}
-            data-session-row="true"
+          <ContextActionMenu
+            className="group flex min-w-0 items-center"
+            items={[
+              {
+                id: "preview",
+                label: "Preview conversation",
+                onSelect: () => onSelect(session),
+              },
+              ...(onOpenSession
+                ? [
+                    {
+                      id: "open",
+                      label: "Open in workspace",
+                      disabled: !active,
+                      onSelect: () => onOpenSession(session.sessionId),
+                    },
+                  ]
+                : []),
+              {
+                id: "copy-title",
+                label: "Copy conversation title",
+                disabled: !session.title,
+                separatorBefore: true,
+                onSelect: () => void copyContextText(session.title || ""),
+              },
+              {
+                id: "copy-id",
+                label: "Copy conversation ID",
+                onSelect: () => void copyContextText(session.sessionId),
+              },
+            ]}
             key={session.sessionId}
-            onClick={() => onSelect(session)}
-            type="button"
+            label={`${compactSessionPreview(session.title || "") || "Untitled conversation"} actions`}
+            scopeKey={`conversation:${session.sessionId}`}
+            trigger={
+              <button
+                aria-label={`${compactSessionPreview(session.title || "") || "Untitled conversation"} actions`}
+                className="grid size-10 shrink-0 place-items-center rounded-[var(--radius-md)] text-[var(--muted)] opacity-0 group-hover:opacity-100 hover:bg-[var(--surface-hover)] focus-visible:opacity-100 pointer-coarse:opacity-100 max-[760px]:size-11"
+                type="button"
+              >
+                <UiIcon icon={MoreHorizontal} size="sm" />
+              </button>
+            }
           >
-            <span className="grid min-w-0 gap-0.5 [&_small]:overflow-hidden [&_small]:text-ellipsis [&_small]:whitespace-nowrap [&_small]:text-[length:var(--text-meta)] [&_small]:text-[var(--text-muted)] [&_strong]:overflow-hidden [&_strong]:text-ellipsis [&_strong]:whitespace-nowrap [&_strong]:text-[length:var(--text-control)]">
-              <strong>
-                {compactSessionPreview(session.title || "") ||
-                  compactSessionPreview(session.preview?.[0] || "") ||
-                  "Untitled conversation"}
-              </strong>
-              <small>
-                {compactSessionPreview(session.preview?.[0] || "") ||
-                  session.sessionId}
-              </small>
-            </span>
-            <span className="grid shrink-0 justify-items-end gap-0.5 [&_small]:font-[var(--font-mono)] [&_small]:text-[length:var(--text-meta)] [&_small]:text-[var(--text-muted)]">
-              <small>{session.messageCount} messages</small>
-              <small>{displayTimestamp(session.endedAt)}</small>
-            </span>
-          </button>
+            <button
+              className={`${SESSION_ROW_CLASS} min-w-0 flex-1 ${selectedId === session.sessionId ? SESSION_ROW_SELECTED_CLASS : ""}`}
+              aria-pressed={selectedId === session.sessionId}
+              data-session-row="true"
+              onClick={() => onSelect(session)}
+              type="button"
+            >
+              <span className="grid min-w-0 gap-0.5 [&_small]:overflow-hidden [&_small]:text-ellipsis [&_small]:whitespace-nowrap [&_small]:text-[length:var(--text-meta)] [&_small]:text-[var(--text-muted)] [&_strong]:overflow-hidden [&_strong]:text-ellipsis [&_strong]:whitespace-nowrap [&_strong]:text-[length:var(--text-control)]">
+                <strong>
+                  {compactSessionPreview(session.title || "") ||
+                    compactSessionPreview(session.preview?.[0] || "") ||
+                    "Untitled conversation"}
+                </strong>
+                <small>
+                  {compactSessionPreview(session.preview?.[0] || "") ||
+                    session.sessionId}
+                </small>
+              </span>
+              <span className="grid shrink-0 justify-items-end gap-0.5 [&_small]:font-[var(--font-mono)] [&_small]:text-[length:var(--text-meta)] [&_small]:text-[var(--text-muted)]">
+                <small>{session.messageCount} messages</small>
+                <small>{displayTimestamp(session.endedAt)}</small>
+              </span>
+            </button>
+          </ContextActionMenu>
         ))}
         {!filtered.length &&
         (!searchPath ||

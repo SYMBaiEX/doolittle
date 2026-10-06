@@ -1,4 +1,4 @@
-import { Button as ElizaButton } from "@doolittle/ui";
+import { type ContextAction, Button as ElizaButton } from "@doolittle/ui";
 import {
   BookmarkPlus,
   Check,
@@ -30,6 +30,82 @@ export interface MessageActionsProps {
   onPromote?: (message: DisplayMessage) => void;
 }
 
+function isBranchDisabled(props: MessageActionsProps): boolean {
+  return (
+    !props.backendReady ||
+    Boolean(props.activeRequest) ||
+    Boolean(props.message.pending) ||
+    (Boolean(props.message.error) && props.message.role !== "assistant") ||
+    Boolean(props.forkingMessageId)
+  );
+}
+
+/** Context menus reuse exactly the same owned actions and guards as the toolbar. */
+export function messageContextActions(
+  props: MessageActionsProps,
+): ContextAction[] {
+  const { message } = props;
+  const branchDisabled = isBranchDisabled(props);
+  const branch = (mode: BranchMode) => {
+    if (!isBranchDisabled(props)) props.onBranch(message, mode);
+  };
+  const items: ContextAction[] = [
+    {
+      id: "copy",
+      label: "Copy message",
+      onSelect: () => props.onCopy(message),
+    },
+    {
+      id: "fork",
+      label: "Fork from this message",
+      disabled: branchDisabled,
+      onSelect: () => branch("fork"),
+    },
+  ];
+  if (message.role === "user") {
+    items.push({
+      id: "edit",
+      label: "Edit in a new branch",
+      disabled: branchDisabled,
+      onSelect: () => branch("edit"),
+    });
+  } else if (!message.pending) {
+    items.push({
+      id: "retry",
+      label: "Retry in a new branch",
+      disabled: branchDisabled,
+      onSelect: () => branch("retry"),
+    });
+  }
+  if (message.role === "assistant" && !message.pending && !message.error) {
+    const speaking = props.speakingMessageId === message.id;
+    const speechDisabled = !props.speechSupported || !message.content.trim();
+    items.push({
+      id: "read",
+      label: speaking ? "Stop reading response" : "Read response aloud",
+      disabled: speechDisabled,
+      separatorBefore: true,
+      onSelect: () => {
+        if (speechDisabled) return;
+        if (speaking) props.onStopReading();
+        else props.onRead(message);
+      },
+    });
+  }
+  if (props.onPromote && !message.pending && !message.error && message.runId) {
+    items.push({
+      id: "promote",
+      label: "Save to project knowledge…",
+      disabled: !props.backendReady,
+      separatorBefore: true,
+      onSelect: () => {
+        if (props.backendReady) props.onPromote?.(message);
+      },
+    });
+  }
+  return items;
+}
+
 export function MessageActions({
   message,
   backendReady,
@@ -46,12 +122,19 @@ export function MessageActions({
 }: MessageActionsProps) {
   const label = copyState === "copied" ? "Copied" : "Copy";
   const failed = copyState === "failed";
-  const branchDisabled =
-    !backendReady ||
-    Boolean(activeRequest) ||
-    Boolean(message.pending) ||
-    (Boolean(message.error) && message.role !== "assistant") ||
-    Boolean(forkingMessageId);
+  const branchDisabled = isBranchDisabled({
+    message,
+    backendReady,
+    activeRequest,
+    forkingMessageId,
+    speechSupported,
+    speakingMessageId,
+    onBranch,
+    onCopy,
+    onRead,
+    onStopReading,
+    onPromote,
+  });
   return (
     <div
       aria-label="Message actions"

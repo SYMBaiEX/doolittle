@@ -1,6 +1,8 @@
+import { ContextActionMenu } from "@doolittle/ui";
 import { Button } from "@elizaos/ui/components/ui/button";
 import { ChevronDown, ChevronRight, File, Folder } from "lucide-react";
 import { type KeyboardEvent, useMemo, useRef, useState } from "react";
+import { copyContextText } from "../context-menu-clipboard";
 import {
   allWorkspaceDirectories,
   visibleWorkspaceTree,
@@ -35,11 +37,14 @@ export function WorkspaceFileTree({
   onOpenFile,
   selectedPath,
   truncated = false,
+  contextScope = "",
 }: {
   entries: WorkspaceTreeEntry[];
   onOpenFile: (path: string) => void;
   selectedPath: string;
   truncated?: boolean;
+  /** Immutable bot/conversation/workspace identity supplied by the resource host. */
+  contextScope?: string;
 }) {
   const [expandedDirectories, setExpandedDirectories] = useState<Set<string>>(
     () => new Set(),
@@ -117,113 +122,170 @@ export function WorkspaceFileTree({
   };
 
   return (
-    <div className="flex min-h-full flex-col">
-      <header className="flex min-h-[42px] shrink-0 items-center justify-between gap-2 border-b border-[color-mix(in_srgb,var(--border)_76%,transparent)] bg-[color-mix(in_srgb,var(--surface-raised)_82%,transparent)] py-1.5 pr-2 pl-[11px]">
-        <div className="flex min-w-0 flex-col gap-0.5">
-          <strong className="overflow-hidden text-ellipsis whitespace-nowrap font-[var(--font-mono)] text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--text-soft)]">
-            Workspace
-          </strong>
-          <span className="overflow-hidden text-ellipsis whitespace-nowrap font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--faint)]">
-            {fileCount} {fileCount === 1 ? "file" : "files"} ·{" "}
-            {directories.length}{" "}
-            {directories.length === 1 ? "folder" : "folders"}
-            {truncated ? (
-              <em
-                className="ml-1.5 text-[var(--warning)] not-italic"
-                title="This large workspace is showing a bounded tree view. Search can still find additional files."
-              >
-                limited view
-              </em>
-            ) : null}
-          </span>
-        </div>
-        <div className="flex shrink-0 gap-[3px]">
-          <Button
-            aria-label="Collapse all folders"
-            className="size-6 min-h-6 p-0 font-[var(--font-mono)] text-[13px] disabled:opacity-30"
-            disabled={expandedDirectories.size === 0}
-            onClick={() => setExpandedDirectories(new Set())}
-            size="icon"
-            title="Collapse all folders"
-            type="button"
-            variant="ghost"
-          >
-            −
-          </Button>
-          <Button
-            aria-label="Expand all folders"
-            className="size-6 min-h-6 p-0 font-[var(--font-mono)] text-[13px] disabled:opacity-30"
-            disabled={
-              directories.length === 0 ||
-              directories.every((path) => expandedDirectories.has(path))
-            }
-            onClick={() => setExpandedDirectories(new Set(directories))}
-            size="icon"
-            title="Expand all folders"
-            type="button"
-            variant="ghost"
-          >
-            +
-          </Button>
-        </div>
-      </header>
-      <div
-        aria-label="Workspace files"
-        className="min-h-0 flex-1 overflow-auto px-1.5 pt-[5px] pb-2.5 [scrollbar-color:var(--border-strong)_transparent] [scrollbar-width:thin]"
-        role="tree"
-      >
-        {visibleEntries.map((entry, index) => {
-          const directory = entry.type === "directory";
-          const expanded = directory && expandedDirectories.has(entry.path);
-          const suffix = directory ? "" : fileExtension(entry.path);
-          return (
-            <button
-              aria-expanded={directory ? expanded : undefined}
-              aria-level={entry.depth + 1}
-              aria-selected={!directory && selectedPath === entry.path}
-              className={`${TREE_ITEM_CLASS} ${
-                selectedPath === entry.path ? SELECTED_ITEM_CLASS : ""
-              }`}
-              data-entry-type={entry.type}
-              key={`${entry.type}:${entry.path}`}
-              onClick={() =>
-                directory ? toggleDirectory(entry.path) : onOpenFile(entry.path)
-              }
-              onKeyDown={(event) => handleItemKeyDown(event, index)}
-              ref={(node) => {
-                itemRefs.current[entry.path] = node;
-              }}
-              role="treeitem"
-              style={{ paddingInlineStart: 5 + entry.depth * 13 }}
-              title={entry.path}
-              type="button"
-            >
-              {directory ? (
-                <UiIcon
-                  className="text-[var(--muted)] transition-colors group-hover:text-[var(--accent)] motion-reduce:transition-none"
-                  icon={expanded ? ChevronDown : ChevronRight}
-                  size="xs"
-                />
-              ) : (
-                <span />
-              )}
-              <EntryIcon directory={directory} />
-              <span
-                className={`overflow-hidden text-ellipsis whitespace-nowrap font-[var(--font-mono)] text-[11px] ${
-                  directory ? "font-semibold text-[var(--text-soft)]" : ""
-                }`}
-              >
-                {entry.name}
-              </span>
-              {suffix ? (
-                <small className="font-[var(--font-mono)] text-[length:var(--text-meta)] uppercase tracking-[0.04em] text-[var(--faint)]">
-                  {suffix}
-                </small>
+    <ContextActionMenu
+      label="Workspace files"
+      scopeKey={`${contextScope}:${entries.map((entry) => entry.path).join("\n")}`}
+      items={[
+        {
+          id: "expand-all",
+          label: "Expand all folders",
+          disabled:
+            directories.length === 0 ||
+            directories.every((path) => expandedDirectories.has(path)),
+          onSelect: () => setExpandedDirectories(new Set(directories)),
+        },
+        {
+          id: "collapse-all",
+          label: "Collapse all folders",
+          disabled: expandedDirectories.size === 0,
+          onSelect: () => setExpandedDirectories(new Set()),
+        },
+      ]}
+    >
+      <div className="flex min-h-full flex-col">
+        <header className="flex min-h-[42px] shrink-0 items-center justify-between gap-2 border-b border-[color-mix(in_srgb,var(--border)_76%,transparent)] bg-[color-mix(in_srgb,var(--surface-raised)_82%,transparent)] py-1.5 pr-2 pl-[11px]">
+          <div className="flex min-w-0 flex-col gap-0.5">
+            <strong className="overflow-hidden text-ellipsis whitespace-nowrap font-[var(--font-mono)] text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--text-soft)]">
+              Workspace
+            </strong>
+            <span className="overflow-hidden text-ellipsis whitespace-nowrap font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--faint)]">
+              {fileCount} {fileCount === 1 ? "file" : "files"} ·{" "}
+              {directories.length}{" "}
+              {directories.length === 1 ? "folder" : "folders"}
+              {truncated ? (
+                <em
+                  className="ml-1.5 text-[var(--warning)] not-italic"
+                  title="This large workspace is showing a bounded tree view. Search can still find additional files."
+                >
+                  limited view
+                </em>
               ) : null}
-            </button>
-          );
-        })}
+            </span>
+          </div>
+          <div className="flex shrink-0 gap-[3px]">
+            <Button
+              aria-label="Collapse all folders"
+              className="size-6 min-h-6 p-0 font-[var(--font-mono)] text-[13px] disabled:opacity-30"
+              disabled={expandedDirectories.size === 0}
+              onClick={() => setExpandedDirectories(new Set())}
+              size="icon"
+              title="Collapse all folders"
+              type="button"
+              variant="ghost"
+            >
+              −
+            </Button>
+            <Button
+              aria-label="Expand all folders"
+              className="size-6 min-h-6 p-0 font-[var(--font-mono)] text-[13px] disabled:opacity-30"
+              disabled={
+                directories.length === 0 ||
+                directories.every((path) => expandedDirectories.has(path))
+              }
+              onClick={() => setExpandedDirectories(new Set(directories))}
+              size="icon"
+              title="Expand all folders"
+              type="button"
+              variant="ghost"
+            >
+              +
+            </Button>
+          </div>
+        </header>
+        <div
+          aria-label="Workspace files"
+          className="min-h-0 flex-1 overflow-auto px-1.5 pt-[5px] pb-2.5 [scrollbar-color:var(--border-strong)_transparent] [scrollbar-width:thin]"
+          role="tree"
+        >
+          {visibleEntries.map((entry, index) => {
+            const directory = entry.type === "directory";
+            const expanded = directory && expandedDirectories.has(entry.path);
+            const suffix = directory ? "" : fileExtension(entry.path);
+            return (
+              <ContextActionMenu
+                key={`${entry.type}:${entry.path}`}
+                label={`${directory ? "Folder" : "File"}: ${entry.path}`}
+                scopeKey={`${contextScope}:${entry.path}:${expanded}`}
+                items={[
+                  {
+                    id: directory
+                      ? expanded
+                        ? "collapse-folder"
+                        : "expand-folder"
+                      : "open-file",
+                    label: directory
+                      ? expanded
+                        ? "Collapse folder"
+                        : "Expand folder"
+                      : "Open file",
+                    onSelect: () =>
+                      directory
+                        ? toggleDirectory(entry.path)
+                        : onOpenFile(entry.path),
+                  },
+                  {
+                    id: "copy-path",
+                    label: "Copy relative path",
+                    separatorBefore: true,
+                    onSelect: () => copyContextText(entry.path),
+                  },
+                  {
+                    id: "copy-name",
+                    label: "Copy name",
+                    onSelect: () => copyContextText(entry.name),
+                  },
+                ]}
+              >
+                <button
+                  aria-expanded={directory ? expanded : undefined}
+                  aria-level={entry.depth + 1}
+                  aria-selected={!directory && selectedPath === entry.path}
+                  className={`${TREE_ITEM_CLASS} ${
+                    selectedPath === entry.path ? SELECTED_ITEM_CLASS : ""
+                  }`}
+                  data-entry-type={entry.type}
+                  onClick={() =>
+                    directory
+                      ? toggleDirectory(entry.path, !expanded)
+                      : onOpenFile(entry.path)
+                  }
+                  onKeyDown={(event) => handleItemKeyDown(event, index)}
+                  ref={(node) => {
+                    itemRefs.current[entry.path] = node;
+                  }}
+                  role="treeitem"
+                  style={{ paddingInlineStart: 5 + entry.depth * 13 }}
+                  title={entry.path}
+                  type="button"
+                >
+                  {directory ? (
+                    <UiIcon
+                      className="text-[var(--muted)] transition-colors group-hover:text-[var(--accent)] motion-reduce:transition-none"
+                      icon={expanded ? ChevronDown : ChevronRight}
+                      size="xs"
+                    />
+                  ) : (
+                    <span />
+                  )}
+                  <EntryIcon directory={directory} />
+                  <span
+                    className={`overflow-hidden text-ellipsis whitespace-nowrap font-[var(--font-mono)] text-[11px] ${
+                      directory ? "font-semibold text-[var(--text-soft)]" : ""
+                    }`}
+                  >
+                    {entry.name}
+                  </span>
+                  {suffix ? (
+                    <small className="font-[var(--font-mono)] text-[length:var(--text-meta)] uppercase tracking-[0.04em] text-[var(--faint)]">
+                      {suffix}
+                    </small>
+                  ) : null}
+                </button>
+              </ContextActionMenu>
+            );
+          })}
+        </div>
       </div>
-    </div>
+    </ContextActionMenu>
   );
 }

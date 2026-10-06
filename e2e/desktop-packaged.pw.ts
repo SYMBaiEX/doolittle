@@ -95,6 +95,23 @@ test.describe("packaged Doolittle desktop", () => {
       const composer = page.getByRole("textbox", { name: "Message Doolittle" });
       await expect(composer).toBeEnabled();
       await composer.focus();
+      await expect
+        .poll(() =>
+          composer.evaluate((input) => getComputedStyle(input).boxShadow),
+        )
+        .toContain("2px 0px 0px 0px");
+      const inputFocusStyle = await composer.evaluate((input) => {
+        const styles = getComputedStyle(input);
+        return {
+          outline: styles.outlineStyle,
+          border: styles.borderWidth,
+          shadow: styles.boxShadow,
+        };
+      });
+      expect(inputFocusStyle.outline).toBe("none");
+      expect(inputFocusStyle.border).toBe("0px");
+      expect(inputFocusStyle.shadow).toContain("inset");
+      expect(inputFocusStyle.shadow).toContain("2px 0px 0px 0px");
       await page.keyboard.press(
         process.platform === "darwin" ? "Meta+J" : "Control+J",
       );
@@ -166,6 +183,32 @@ test.describe("packaged Doolittle desktop", () => {
       ).toBeVisible({
         timeout: 45_000,
       });
+      const message = page
+        .locator(".chat-message.user")
+        .filter({ hasText: prompt });
+      await message.click({ button: "right" });
+      const messageMenu = page.getByRole("menu", {
+        name: "Message actions",
+        exact: true,
+      });
+      await expect(messageMenu).toBeVisible();
+      await messageMenu
+        .getByRole("menuitem", { name: "Copy message", exact: true })
+        .click();
+      await expect
+        .poll(() => app.evaluate(({ clipboard }) => clipboard.readText()))
+        .toBe(prompt);
+      await expect(messageMenu).toBeHidden();
+      const keyboardInvoker = message.getByRole("button", {
+        name: "Copy message",
+        exact: true,
+      });
+      await keyboardInvoker.focus();
+      await keyboardInvoker.press("Shift+F10");
+      await expect(messageMenu).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(messageMenu).toBeHidden();
+      await expect(keyboardInvoker).toBeFocused();
       await expect(page.locator(".recovery-shell")).toHaveCount(0);
       expect(pageErrors).toEqual([]);
     } finally {

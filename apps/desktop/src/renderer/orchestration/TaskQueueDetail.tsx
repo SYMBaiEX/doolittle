@@ -1,4 +1,6 @@
-import type { FormEvent, RefObject } from "react";
+import { ContextActionMenu } from "@doolittle/ui";
+import { type FormEvent, type RefObject, useRef } from "react";
+import { copyContextText } from "../context-menu-clipboard";
 import { asArray, asNumber, asString, Badge, displayTimestamp } from "../lib";
 import {
   orchestrationTimingLabel,
@@ -74,8 +76,64 @@ export function TaskQueueDetail({
 }: TaskQueueDetailProps) {
   const status = asString(selectedTask.status, "pending");
   const notes = asArray(selectedTask.notes);
+  const failButtonRef = useRef<HTMLButtonElement>(null);
+  const cancelButtonRef = useRef<HTMLButtonElement>(null);
+  const requestDestructiveAction = (action: "cancel" | "fail") => {
+    const button =
+      action === "cancel" ? cancelButtonRef.current : failButtonRef.current;
+    if (!button) return;
+    const disclosure = button.closest("details");
+    if (disclosure) disclosure.open = true;
+    onRequestDestructiveAction(selectedTask, action, button);
+  };
   return (
-    <>
+    <ContextActionMenu
+      label="Task actions"
+      scopeKey={`task:${selectedTask.id}:${status}`}
+      items={[
+        ...(["execute", "complete", "retry"] as const).map((action) => ({
+          id: action,
+          label:
+            action === "execute"
+              ? "Execute"
+              : action === "complete"
+                ? "Complete"
+                : "Retry",
+          disabled: !active || busyKeys[`task:${selectedTask.id}:${action}`],
+          onSelect: () => onRunTaskAction(selectedTask, action),
+        })),
+        {
+          id: "child",
+          label: "Add child",
+          disabled: !active || !taskDetailReady,
+          onSelect: () => onToggleChildCreate(selectedTask),
+        },
+        {
+          id: "copy-id",
+          label: "Copy task ID",
+          onSelect: () => void copyContextText(selectedTask.id),
+        },
+        {
+          id: "fail",
+          label: "Mark failed…",
+          destructive: true,
+          separatorBefore: true,
+          disabled: !active || busyKeys[`task:${selectedTask.id}:fail`],
+          onSelect: () => {
+            requestDestructiveAction("fail");
+          },
+        },
+        {
+          id: "cancel",
+          label: "Cancel…",
+          destructive: true,
+          disabled: !active || busyKeys[`task:${selectedTask.id}:cancel`],
+          onSelect: () => {
+            requestDestructiveAction("cancel");
+          },
+        },
+      ]}
+    >
       <div className={oc("orchestration-detail-header")}>
         <div>
           <span className={oc("detail-kicker")}>
@@ -178,6 +236,7 @@ export function TaskQueueDetail({
               <div className={oc("orchestration-action-overflow__body")}>
                 <button
                   className="text-button danger-text-button"
+                  ref={failButtonRef}
                   type="button"
                   onClick={(event) =>
                     onRequestDestructiveAction(
@@ -192,6 +251,7 @@ export function TaskQueueDetail({
                 </button>
                 <button
                   className="text-button danger-text-button"
+                  ref={cancelButtonRef}
                   type="button"
                   onClick={(event) =>
                     onRequestDestructiveAction(
@@ -441,6 +501,6 @@ export function TaskQueueDetail({
           <DetailRow label="Worker PID" value={selectedTask.workerPid} />
         </dl>
       </details>
-    </>
+    </ContextActionMenu>
   );
 }

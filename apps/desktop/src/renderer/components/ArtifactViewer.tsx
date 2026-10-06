@@ -1,6 +1,8 @@
+import { ContextActionMenu } from "@doolittle/ui";
 import { Button } from "@elizaos/ui/components/ui/button";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { useState } from "react";
+import { copyContextText } from "../context-menu-clipboard";
 import { desktopRequest, errorMessage, Notice } from "../lib";
 import { UiIcon } from "./UiIcon";
 
@@ -154,65 +156,91 @@ function ArtifactItem({
   };
 
   return (
-    <article
-      className={`overflow-hidden rounded-[var(--radius-xs,3px)] border bg-[var(--surface-soft)] ${
-        expanded
-          ? "border-[color-mix(in_srgb,var(--accent)_30%,var(--border))]"
-          : "border-[var(--border)]"
-      }`}
+    <ContextActionMenu
+      label={`Artifact actions for ${payload?.artifact.name ?? label}`}
+      scopeKey={`${runId}:${index}`}
+      items={[
+        {
+          id: "toggle",
+          label: expanded ? "Collapse artifact" : "Expand artifact",
+          onSelect: () => void toggle(),
+        },
+        {
+          id: "copy-name",
+          label: "Copy artifact name",
+          onSelect: () => void copyContextText(payload?.artifact.name ?? label),
+        },
+        {
+          id: "copy-content",
+          label: "Copy artifact contents",
+          disabled: payload?.encoding !== "utf8" || loading,
+          onSelect: () => {
+            if (payload?.encoding === "utf8")
+              void copyContextText(payload.content);
+          },
+        },
+      ]}
     >
-      <Button
-        aria-expanded={expanded}
-        className="grid min-h-[46px] w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-[9px] rounded-none border-0 bg-transparent px-[9px] py-[7px] text-left text-[var(--text-soft)] shadow-none hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
-        onClick={() => void toggle()}
-        type="button"
-        variant="ghost"
+      <article
+        className={`overflow-hidden rounded-[var(--radius-xs,3px)] border bg-[var(--surface-soft)] ${
+          expanded
+            ? "border-[color-mix(in_srgb,var(--accent)_30%,var(--border))]"
+            : "border-[var(--border)]"
+        }`}
       >
-        <span className="grid size-5 place-items-center rounded-[2px] border border-[var(--accent-border)] bg-[var(--accent-soft)] text-[var(--accent)]">
-          <UiIcon icon={expanded ? ChevronDown : ChevronRight} size="xs" />
-        </span>
-        <span className="flex min-w-0 flex-col gap-0.5">
-          <strong className="overflow-hidden text-ellipsis whitespace-nowrap text-[11px]">
-            {payload?.artifact.name ?? label}
-          </strong>
-          <small className="overflow-hidden font-[var(--font-mono)] text-[length:var(--text-meta,10px)] text-ellipsis whitespace-nowrap text-[var(--muted)]">
-            {payload
-              ? `${payload.artifact.kind} · ${compactBytes(
-                  payload.artifact.sizeBytes,
-                )}`
-              : `Artifact ${index + 1}`}
-          </small>
-        </span>
-        <span className="font-[var(--font-mono)] text-[length:var(--text-meta,10px)] not-italic tracking-[0.06em] text-[var(--accent)] uppercase">
-          {expanded ? "Close" : "Open"}
-        </span>
-      </Button>
-      {expanded ? (
-        <div className="grid gap-2 border-t border-[var(--border)] p-[9px]">
-          {loading ? (
-            <div
-              aria-live="polite"
-              className="p-[18px] text-center text-[11px] text-[var(--muted)]"
-              role="status"
-            >
-              Loading secure artifact…
-            </div>
-          ) : error ? (
-            <Notice tone="bad">{error}</Notice>
-          ) : payload ? (
-            <>
-              <div className="flex min-w-0 items-center justify-between gap-2.5 font-[var(--font-mono)] text-[length:var(--text-meta,10px)] text-[var(--muted)]">
-                <span>{payload.artifact.mimeType}</span>
-                <code className="overflow-hidden text-ellipsis whitespace-nowrap text-[var(--faint)]">
-                  {payload.artifact.runId} · {payload.artifact.index}
-                </code>
+        <Button
+          aria-expanded={expanded}
+          className="grid min-h-[46px] w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-[9px] rounded-none border-0 bg-transparent px-[9px] py-[7px] text-left text-[var(--text-soft)] shadow-none hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+          onClick={() => void toggle()}
+          type="button"
+          variant="ghost"
+        >
+          <span className="grid size-5 place-items-center rounded-[2px] border border-[var(--accent-border)] bg-[var(--accent-soft)] text-[var(--accent)]">
+            <UiIcon icon={expanded ? ChevronDown : ChevronRight} size="xs" />
+          </span>
+          <span className="flex min-w-0 flex-col gap-0.5">
+            <strong className="overflow-hidden text-ellipsis whitespace-nowrap text-[11px]">
+              {payload?.artifact.name ?? label}
+            </strong>
+            <small className="overflow-hidden font-[var(--font-mono)] text-[length:var(--text-meta,10px)] text-ellipsis whitespace-nowrap text-[var(--muted)]">
+              {payload
+                ? `${payload.artifact.kind} · ${compactBytes(
+                    payload.artifact.sizeBytes,
+                  )}`
+                : `Artifact ${index + 1}`}
+            </small>
+          </span>
+          <span className="font-[var(--font-mono)] text-[length:var(--text-meta,10px)] not-italic tracking-[0.06em] text-[var(--accent)] uppercase">
+            {expanded ? "Close" : "Open"}
+          </span>
+        </Button>
+        {expanded ? (
+          <div className="grid gap-2 border-t border-[var(--border)] p-[9px]">
+            {loading ? (
+              <div
+                aria-live="polite"
+                className="p-[18px] text-center text-[11px] text-[var(--muted)]"
+                role="status"
+              >
+                Loading secure artifact…
               </div>
-              <ArtifactBody payload={payload} />
-            </>
-          ) : null}
-        </div>
-      ) : null}
-    </article>
+            ) : error ? (
+              <Notice tone="bad">{error}</Notice>
+            ) : payload ? (
+              <>
+                <div className="flex min-w-0 items-center justify-between gap-2.5 font-[var(--font-mono)] text-[length:var(--text-meta,10px)] text-[var(--muted)]">
+                  <span>{payload.artifact.mimeType}</span>
+                  <code className="overflow-hidden text-ellipsis whitespace-nowrap text-[var(--faint)]">
+                    {payload.artifact.runId} · {payload.artifact.index}
+                  </code>
+                </div>
+                <ArtifactBody payload={payload} />
+              </>
+            ) : null}
+          </div>
+        ) : null}
+      </article>
+    </ContextActionMenu>
   );
 }
 

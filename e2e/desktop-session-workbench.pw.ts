@@ -350,6 +350,23 @@ test.describe("Doolittle desktop session workbench", () => {
       }
       await composer.focus();
       await composer.fill(syntheticChatPrompt("complete"));
+      await expect
+        .poll(() =>
+          composer.evaluate((input) => getComputedStyle(input).boxShadow),
+        )
+        .toContain("2px 0px 0px 0px");
+      const inputFocusStyle = await composer.evaluate((input) => {
+        const styles = getComputedStyle(input);
+        return {
+          outline: styles.outlineStyle,
+          border: styles.borderWidth,
+          shadow: styles.boxShadow,
+        };
+      });
+      expect(inputFocusStyle.outline).toBe("none");
+      expect(inputFocusStyle.border).toBe("0px");
+      expect(inputFocusStyle.shadow).toContain("inset");
+      expect(inputFocusStyle.shadow).toContain("2px 0px 0px 0px");
       await page.screenshot({ path: testInfo.outputPath("chat-new-1280.png") });
       await testInfo.attach("initial-chat-layout", {
         body: JSON.stringify(await layout(first)),
@@ -375,6 +392,29 @@ test.describe("Doolittle desktop session workbench", () => {
       );
       await page.keyboard.press("Escape");
       await expectCentered(first);
+      await expect
+        .poll(() =>
+          composer.evaluate((input) => getComputedStyle(input).boxShadow),
+        )
+        .toBe("none");
+      await composer.focus();
+      await page.emulateMedia({ forcedColors: "active" });
+      await expect
+        .poll(() =>
+          composer.evaluate((input) => getComputedStyle(input).outlineStyle),
+        )
+        .toBe("solid");
+      expect(
+        await composer.evaluate(
+          (input) => getComputedStyle(input).outlineWidth,
+        ),
+      ).toBe("1px");
+      await page.emulateMedia({ forcedColors: "none" });
+      await expect
+        .poll(() =>
+          composer.evaluate((input) => getComputedStyle(input).outlineStyle),
+        )
+        .toBe("none");
       await submit();
       await expect(
         first.locator(".chat-message.assistant").last(),
@@ -606,7 +646,7 @@ test.describe("Doolittle desktop session workbench", () => {
         name: /^Choose project\. Current project/,
       });
       await projectButton.click();
-      const projectDialog = second.getByRole("dialog", {
+      const projectDialog = page.getByRole("dialog", {
         name: "Choose a project for this new conversation",
       });
       await expectHitTarget(projectDialog.getByLabel("Search projects"));
@@ -2723,6 +2763,161 @@ test.describe("Doolittle desktop session workbench", () => {
       await expect(
         secondPanel.locator(".chat-run-receipt").last(),
       ).toContainText("Run complete");
+      await expectNoDesktopRecovery(page);
+      expect(pageErrors).toEqual([]);
+    } finally {
+      await desktop.dispose();
+    }
+  });
+
+  test("opens native editing menus and target-bound conversation menus with keyboard and narrow-screen access", async () => {
+    test.setTimeout(120_000);
+    const desktop = await launchIsolatedDesktop();
+    try {
+      const { app, page, pageErrors } = desktop;
+      await waitForDesktopReady(page);
+      // Observe the real native popup only inside this isolated Electron process.
+      // No test hooks are exposed to production renderers or user profiles.
+      await app.evaluate(({ Menu }) => {
+        const state = {
+          popups: 0,
+          items: [] as { role?: string; label?: string; enabled?: boolean }[],
+          close: () => {},
+        };
+        Object.assign(globalThis, { __doolittleMenuAcceptance: state });
+        const original = Menu.buildFromTemplate;
+        Menu.buildFromTemplate = (items) => {
+          const menu = original.call(Menu, items);
+          state.items = items.map(({ role, label, enabled }) => ({
+            role,
+            label,
+            enabled,
+          }));
+          state.close = () => menu.closePopup();
+          const popup = menu.popup.bind(menu);
+          menu.popup = (options) => {
+            state.popups += 1;
+            popup(options);
+          };
+          return menu;
+        };
+      });
+      const nativeMenuState = () =>
+        app.evaluate(() => {
+          const state = (
+            globalThis as typeof globalThis & {
+              __doolittleMenuAcceptance: {
+                popups: number;
+                items: { role?: string; label?: string; enabled?: boolean }[];
+              };
+            }
+          ).__doolittleMenuAcceptance;
+          return { popups: state.popups, items: state.items };
+        });
+      const closeNativeMenu = () =>
+        app.evaluate(() => {
+          (
+            globalThis as typeof globalThis & {
+              __doolittleMenuAcceptance: { close: () => void };
+            }
+          ).__doolittleMenuAcceptance.close();
+        });
+      const workbench = page.getByRole("region", { name: "Session workbench" });
+      const originalId = await workbench
+        .locator("[data-session-panel]")
+        .first()
+        .getAttribute("data-session-panel");
+      if (!originalId) throw new Error("Missing initial conversation identity");
+      const original = panelById(workbench, originalId);
+      const input = original.getByRole("textbox", {
+        name: "Message Doolittle",
+      });
+      const draft = "Preserve this draft when closing only its view.";
+      await input.fill(draft);
+      await input.press("Meta+a");
+      await input.click({ button: "right" });
+      await expect.poll(async () => (await nativeMenuState()).popups).toBe(1);
+      expect((await nativeMenuState()).items).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ role: "copy", enabled: true }),
+          expect.objectContaining({ role: "cut", enabled: true }),
+          expect.objectContaining({ role: "selectAll" }),
+        ]),
+      );
+      await closeNativeMenu();
+      await expect(input).toHaveValue(draft);
+      await input.press("ArrowRight");
+      await openNewConversationView(page);
+      const tabs = workbench.getByRole("tablist", {
+        name: "Open conversations",
+      });
+      const originalTab = tabs.locator(
+        `[aria-controls="session-panel-${originalId}"]`,
+      );
+      await originalTab.click({ button: "right" });
+      const menu = page.getByRole("menu", { name: /view actions$/ });
+      await expect(menu).toBeVisible();
+      expect((await nativeMenuState()).popups).toBe(1);
+      mkdirSync(screenshotRoot, { recursive: true });
+      await page.screenshot({
+        path: resolve(screenshotRoot, "context-menu-desktop.png"),
+      });
+      await menu
+        .getByRole("menuitem", { name: "Move view right", exact: true })
+        .click();
+      await expect(input).toBeVisible();
+      await expect(input).toBeFocused();
+      await originalTab.focus();
+      await originalTab.press("Shift+F10");
+      await expect(menu).toBeVisible();
+      await page.keyboard.press("ArrowDown");
+      await page.keyboard.press("Escape");
+      await expect(menu).toBeHidden();
+      await expect(originalTab).toBeFocused();
+      await originalTab.click({ button: "right" });
+      await menu
+        .getByRole("menuitem", {
+          name: "Close view (work continues)",
+          exact: true,
+        })
+        .click();
+      await expect(original).toBeHidden();
+      await page.keyboard.press("Meta+Shift+o");
+      await workbench
+        .getByRole("textbox", { name: "Search loaded and local sessions" })
+        .fill(originalId);
+      const result = workbench
+        .getByRole("list", { name: "Session search results" })
+        .getByRole("listitem");
+      await result.getByRole("button").click();
+      await expect(input).toHaveValue(draft);
+      const window = await app.browserWindow(page);
+      try {
+        await window.evaluate((nativeWindow) => {
+          nativeWindow.setMinimumSize(360, 360);
+          nativeWindow.setContentSize(360, 780);
+        });
+      } finally {
+        await window.dispose();
+      }
+      await expect.poll(() => page.evaluate(() => window.innerWidth)).toBe(360);
+      const activeTab = tabs.locator(
+        `[aria-controls="session-panel-${originalId}"]`,
+      );
+      await activeTab.scrollIntoViewIfNeeded();
+      await activeTab.click({ button: "right", position: { x: 8, y: 8 } });
+      await expect(menu).toBeVisible();
+      const bounds = await menu.boundingBox();
+      if (!bounds)
+        throw new Error("Missing narrow-screen context menu geometry");
+      expect(bounds.x).toBeGreaterThanOrEqual(0);
+      expect(bounds.x + bounds.width).toBeLessThanOrEqual(361);
+      expect(bounds.y + bounds.height).toBeLessThanOrEqual(781);
+      await page.screenshot({
+        path: resolve(screenshotRoot, "context-menu-360.png"),
+      });
+      await page.keyboard.press("Escape");
+      await expect(input).toHaveValue(draft);
       await expectNoDesktopRecovery(page);
       expect(pageErrors).toEqual([]);
     } finally {

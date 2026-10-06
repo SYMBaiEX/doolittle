@@ -35,6 +35,10 @@ import {
 } from "./browser-renderer";
 import { ChatAttachmentLifecycle } from "./chat-attachment-lifecycle";
 import {
+  contextMenuHttpsLink,
+  registerMainWindowContextMenu,
+} from "./context-menu";
+import {
   configureDesktopSingleInstance,
   DEFAULT_DESKTOP_LIFECYCLE_STATE,
   ensureDesktopWindow,
@@ -118,6 +122,22 @@ function nativeMessageBox(options: Electron.MessageBoxOptions) {
       ? dialog.showMessageBox(mainWindow, options)
       : dialog.showMessageBox(options),
   );
+}
+
+async function openConfirmedExternalLink(value: string) {
+  const url = contextMenuHttpsLink(value);
+  if (!url) return;
+  const result = await nativeMessageBox({
+    type: "question",
+    buttons: ["Open link", "Cancel"],
+    defaultId: 1,
+    cancelId: 1,
+    title: "Open external link?",
+    message: `Leave Doolittle and open ${new URL(url).hostname}?`,
+    detail: url,
+    noLink: true,
+  });
+  if (result.response === 0) await shell.openExternal(url);
 }
 
 async function nativeConfirm(options: {
@@ -620,28 +640,15 @@ function createWindow(): BrowserWindow {
     },
   });
   window.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.startsWith("https://")) {
-      let destination = url;
-      try {
-        destination = new URL(url).hostname;
-      } catch {
-        // The invalid URL remains blocked below.
-      }
-      void nativeMessageBox({
-        type: "question",
-        buttons: ["Open link", "Cancel"],
-        defaultId: 1,
-        cancelId: 1,
-        title: "Open external link?",
-        message: `Leave Doolittle and open ${destination}?`,
-        detail: url,
-        noLink: true,
-      }).then((result) => {
-        if (result.response === 0) void shell.openExternal(url);
-      });
-    }
+    void openConfirmedExternalLink(url).catch(() => undefined);
     return { action: "deny" };
   });
+  const disposeContextMenu = registerMainWindowContextMenu(window, {
+    buildMenu: (items) => Menu.buildFromTemplate(items),
+    copyLink: (url) => clipboard.writeText(url),
+    openLink: openConfirmedExternalLink,
+  });
+  window.once("closed", disposeContextMenu);
   const rendererUrl = trustedDevRendererUrl(
     process.env.DOOLITTLE_RENDERER_URL,
     app.isPackaged,

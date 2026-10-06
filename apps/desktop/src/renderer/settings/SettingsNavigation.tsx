@@ -9,6 +9,7 @@ import {
   Wrench,
 } from "lucide-react";
 import { UiIcon } from "../components/UiIcon";
+import { copyContextText } from "../context-menu-clipboard";
 import {
   SETTINGS_SHELL_SECTIONS,
   type SettingsCategoryDefinition,
@@ -74,6 +75,21 @@ export function SettingsNavigation({
       pickerItems={categoryItems}
       pickerValue={current.id}
       onPickerChange={selectCategory}
+      contextActions={(item) => [
+        {
+          id: "open",
+          label: "Open section",
+          onSelect: () =>
+            searching ? onSelect(item.id) : selectCategory(item.id),
+        },
+        {
+          id: "copy-name",
+          label: "Copy section name",
+          onSelect: () => {
+            void copyContextText(item.label);
+          },
+        },
+      ]}
     />
   );
 }

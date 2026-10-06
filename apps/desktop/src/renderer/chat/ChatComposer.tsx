@@ -728,7 +728,7 @@ export function ChatComposer({
       ) : null}
       <div className="chat-composer-main">
         <ElizaTextarea
-          className="chat-composer-input !max-h-[156px] !min-h-[46px] !w-full !resize-none !rounded-[var(--radius-xs)] !border-0 !bg-transparent px-1 py-1 text-[14px] leading-[1.5] text-[var(--text)] [box-shadow:none]! placeholder:text-[var(--faint)] focus-visible:!outline-2 focus-visible:!outline-solid focus-visible:!outline-offset-0 focus-visible:!outline-[var(--text-soft)] max-[720px]:!max-h-[132px] max-[480px]:!max-h-[112px] max-[480px]:!min-h-10 max-[480px]:!px-0.5 max-[480px]:!py-0.5 max-[480px]:text-[14px]"
+          className="chat-composer-input !max-h-[156px] !min-h-[46px] !w-full !resize-none !rounded-[var(--radius-xs)] !border-0 !bg-transparent px-1 py-1 text-[14px] leading-[1.5] text-[var(--text)] placeholder:text-[var(--faint)] focus-visible:!outline-none forced-colors:focus-visible:!outline-solid forced-colors:focus-visible:!outline-1 forced-colors:focus-visible:!outline-offset-0 forced-colors:focus-visible:!outline-[Highlight] max-[720px]:!max-h-[132px] max-[480px]:!max-h-[112px] max-[480px]:!min-h-10 max-[480px]:!px-0.5 max-[480px]:!py-0.5 max-[480px]:text-[14px]"
           aria-activedescendant={activeCommandId}
           aria-autocomplete="list"
           aria-describedby={

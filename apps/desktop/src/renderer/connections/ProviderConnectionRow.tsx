@@ -1,10 +1,5 @@
+import { type ContextAction, ContextActionMenu } from "@doolittle/ui";
 import { Button } from "@elizaos/ui/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@elizaos/ui/components/ui/dropdown-menu";
 import { MoreHorizontal } from "lucide-react";
 import type {
   ProviderAuthProvider,
@@ -16,7 +11,6 @@ import {
   PROVIDER_CONNECTION_ACTIONS_CLASS,
   PROVIDER_CONNECTION_COPY_CLASS,
   PROVIDER_CONNECTION_DEFAULT_CLASS,
-  PROVIDER_CONNECTION_MENU_CLASS,
   PROVIDER_CONNECTION_MORE_CLASS,
   PROVIDER_CONNECTION_ROW_CLASS,
   PROVIDER_CONNECTION_TITLE_CLASS,
@@ -151,86 +145,109 @@ export function ProviderConnectionRow({
       : ready
         ? "is-ready [&>span]:bg-[var(--good)]"
         : "is-offline [&>span]:bg-[var(--muted)]";
+  const contextActions: ContextAction[] = [
+    ...(primaryAction
+      ? [
+          {
+            id: "primary",
+            label: primaryAction.label,
+            onSelect: primaryAction.onClick,
+            disabled: busy || (ready && !signingIn && isDefault),
+          },
+        ]
+      : []),
+    ...(secondaryAction
+      ? [
+          {
+            id: "secondary",
+            label: secondaryAction.label,
+            onSelect: secondaryAction.onClick,
+            disabled: busy,
+          },
+        ]
+      : []),
+  ];
+  const menuScope = `provider:${descriptor.key}:${authState?.phase ?? "idle"}`;
 
   return (
-    <article
-      className={`${PROVIDER_CONNECTION_ROW_CLASS} ${isDefault ? PROVIDER_CONNECTION_DEFAULT_CLASS : ""}`}
-      data-provider-connection="true"
+    <ContextActionMenu
+      label={`${descriptor.label} actions`}
+      items={contextActions}
+      scopeKey={menuScope}
     >
-      <div className={PROVIDER_IDENTITY_MARK_CLASS} aria-hidden="true">
-        {descriptor.shortLabel}
-      </div>
-      <div className={PROVIDER_CONNECTION_COPY_CLASS}>
-        <div className={PROVIDER_CONNECTION_TITLE_CLASS}>
-          <h3>{descriptor.label}</h3>
-          <Badge tone={badgeTone}>{stateLabel}</Badge>
+      <article
+        className={`${PROVIDER_CONNECTION_ROW_CLASS} ${isDefault ? PROVIDER_CONNECTION_DEFAULT_CLASS : ""}`}
+        data-provider-connection="true"
+      >
+        <div className={PROVIDER_IDENTITY_MARK_CLASS} aria-hidden="true">
+          {descriptor.shortLabel}
         </div>
-        <div
-          className={`${PROVIDER_STATUS_LINE_CLASS} ${statusClass}`}
-          data-provider-status={
-            signingIn
-              ? "pending"
-              : fallbackReady
-                ? "fallback"
-                : ready
-                  ? "ready"
-                  : "offline"
-          }
-          aria-live="polite"
-        >
-          <span aria-hidden="true" />
-          <p title={detail}>{detail}</p>
-        </div>
-        <dl className={PROVIDER_FACTS_CLASS}>
-          {facts.map((fact) => (
-            <div key={fact.label} title={`${fact.label}: ${fact.value}`}>
-              <dt className="sr-only">{fact.label}</dt>
-              <dd>{fact.value}</dd>
-            </div>
-          ))}
-        </dl>
-      </div>
-      <div className={PROVIDER_CONNECTION_ACTIONS_CLASS}>
-        {primaryAction ? (
-          <Button
-            onClick={primaryAction.onClick}
-            disabled={busy || (ready && !signingIn && isDefault)}
-            size="sm"
-            type="button"
-            variant={primaryAction.variant}
+        <div className={PROVIDER_CONNECTION_COPY_CLASS}>
+          <div className={PROVIDER_CONNECTION_TITLE_CLASS}>
+            <h3>{descriptor.label}</h3>
+            <Badge tone={badgeTone}>{stateLabel}</Badge>
+          </div>
+          <div
+            className={`${PROVIDER_STATUS_LINE_CLASS} ${statusClass}`}
+            data-provider-status={
+              signingIn
+                ? "pending"
+                : fallbackReady
+                  ? "fallback"
+                  : ready
+                    ? "ready"
+                    : "offline"
+            }
+            aria-live="polite"
           >
-            {primaryAction.label}
-          </Button>
-        ) : null}
-        {secondaryAction ? (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                aria-label={`More actions for ${descriptor.label}`}
-                className={PROVIDER_CONNECTION_MORE_CLASS}
-                disabled={busy}
-                size="icon-sm"
-                title={`More actions for ${descriptor.label}`}
-                type="button"
-                variant="ghost"
-              >
-                <UiIcon icon={MoreHorizontal} size="sm" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              align="end"
-              className={PROVIDER_CONNECTION_MENU_CLASS}
+            <span aria-hidden="true" />
+            <p title={detail}>{detail}</p>
+          </div>
+          <dl className={PROVIDER_FACTS_CLASS}>
+            {facts.map((fact) => (
+              <div key={fact.label} title={`${fact.label}: ${fact.value}`}>
+                <dt className="sr-only">{fact.label}</dt>
+                <dd>{fact.value}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+        <div className={PROVIDER_CONNECTION_ACTIONS_CLASS}>
+          {primaryAction ? (
+            <Button
+              onClick={primaryAction.onClick}
+              disabled={busy || (ready && !signingIn && isDefault)}
+              size="sm"
+              type="button"
+              variant={primaryAction.variant}
             >
-              <DropdownMenuItem
-                onSelect={secondaryAction.onClick}
-                disabled={busy}
-              >
-                {secondaryAction.label}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        ) : null}
-      </div>
-    </article>
+              {primaryAction.label}
+            </Button>
+          ) : null}
+          {secondaryAction ? (
+            <ContextActionMenu
+              items={contextActions}
+              label={`More actions for ${descriptor.label}`}
+              scopeKey={menuScope}
+              trigger={
+                <Button
+                  aria-label={`More actions for ${descriptor.label}`}
+                  className={PROVIDER_CONNECTION_MORE_CLASS}
+                  disabled={busy}
+                  size="icon-sm"
+                  title={`More actions for ${descriptor.label}`}
+                  type="button"
+                  variant="ghost"
+                >
+                  <UiIcon icon={MoreHorizontal} size="sm" />
+                </Button>
+              }
+            >
+              {null}
+            </ContextActionMenu>
+          ) : null}
+        </div>
+      </article>
+    </ContextActionMenu>
   );
 }

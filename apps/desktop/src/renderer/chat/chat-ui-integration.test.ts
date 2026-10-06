@@ -29,32 +29,40 @@ describe("Eliza UI chat integration", () => {
     expect(controls).toContain("@elizaos/ui/button");
   });
 
-  it("keeps a neutral focus indicator on the textarea, not the whole form", () => {
+  it("keeps a small focus marker without a rectangular textarea outline", () => {
     const composer = readRendererFile("chat/ChatComposer.tsx");
     expect(composer).toContain("!border-0");
-    expect(composer).toContain("focus-visible:!outline-2");
-    expect(composer).toContain("focus-visible:!outline-solid");
-    expect(composer).toContain("focus-visible:!outline-[var(--text-soft)]");
-    expect(composer).not.toContain("focus-visible:!outline-none");
-    expect(composer).toContain("[box-shadow:none]!");
+    expect(composer).toContain("focus-visible:!outline-none");
+    expect(composer).not.toContain("focus-visible:!outline-2");
+    expect(composer).not.toContain("focus-visible:!outline-[var(--text-soft)]");
+    expect(composer).not.toContain("[box-shadow:none]!");
     expect(composer).not.toContain("focus-visible:!ring-0");
     const styles = readFileSync(
       new URL("../../../../../packages/ui/src/styles.css", import.meta.url),
       "utf8",
     );
     expect(styles).toContain(".dl-composer textarea:focus-visible");
+    expect(styles).toContain("box-shadow: inset 2px 0 0 var(--text-soft)");
+    expect(styles).toContain("@media (forced-colors: active)");
+    expect(styles).toContain("outline: 1px solid Highlight");
+    expect(styles).not.toContain("outline: 2px solid var(--text-soft)");
     expect(styles).not.toContain(".dl-composer:has(textarea:focus-visible)");
   });
 
-  it("explicitly compiles a painted solid textarea outline, not just its width", async () => {
+  it("suppresses ordinary outlines with an OS high-contrast-only fallback", async () => {
     const composer = readRendererFile("chat/ChatComposer.tsx");
     const compiler = await compile("@tailwind utilities;");
-    const focusUtilities = composer.match(/focus-visible:![^\s"]+/gu) ?? [];
+    const focusUtilities =
+      composer.match(/(?:forced-colors:)?focus-visible:![^\s"]+/gu) ?? [];
     const css = compiler.build(focusUtilities);
     expect(css).toContain("outline-style: solid !important");
     expect(css).toContain("--tw-outline-style: solid !important");
-    expect(css).toContain("outline-width: 2px !important");
-    expect(css).toContain("outline-color: var(--text-soft) !important");
+    expect(css).toContain("outline-style: none !important");
+    expect(css).toContain("@media (forced-colors: active)");
+    expect(css).toContain("outline-width: 1px !important");
+    expect(css).toContain("outline-color: Highlight !important");
+    expect(css).not.toContain("outline-width: 2px !important");
+    expect(css).not.toContain("outline-color: var(--text-soft) !important");
     expect(css).not.toContain("outline-color: var(--focus-ring)");
     expect(css).not.toContain(".chat-composer:focus");
   });

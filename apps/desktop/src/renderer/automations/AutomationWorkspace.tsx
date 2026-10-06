@@ -1,4 +1,4 @@
-import { Button } from "@doolittle/ui";
+import { Button, ContextActionMenu } from "@doolittle/ui";
 import { ChevronRight } from "lucide-react";
 import { useState } from "react";
 import {
@@ -7,6 +7,7 @@ import {
 } from "../automation-model";
 import { InlineActionConfirmation } from "../components/InlineActionConfirmation";
 import { UiIcon } from "../components/UiIcon";
+import { copyContextText } from "../context-menu-clipboard";
 import {
   asString,
   Badge,
@@ -85,124 +86,159 @@ function AutomationJobCard({
   };
 
   return (
-    <article className={AUTOMATION_JOB_CARD_CLASS}>
-      <header className="flex items-center justify-between gap-2.5">
-        <div className="automation-job-card__heading flex min-w-0 flex-col gap-1">
-          <strong className="truncate text-xs">{name}</strong>
-          <span className="text-sm text-[var(--muted)]">
-            Runs as{" "}
-            {asString(entry.targetBotId) &&
-            asString(entry.targetBotId) !== "default"
-              ? (botNames[asString(entry.targetBotId)] ??
-                "Unavailable bot (no fallback)")
-              : "Doolittle"}
-          </span>
-          <small className="text-[length:var(--text-meta)] text-[var(--muted)]">
-            {displayTimestamp(asString(entry.nextRunAt) || undefined)}
-          </small>
-        </div>
-        <Badge tone={status === "paused" ? "warn" : "good"}>
-          {titleCase(status)}
-        </Badge>
-      </header>
-      <div className={AUTOMATION_JOB_SUMMARY_CLASS}>
-        <span className="automation-job-summary__segment inline-flex min-w-0 items-center gap-1.5 max-[620px]:justify-between">
-          <i className="font-[var(--font-mono)] text-[length:var(--text-meta)] not-italic text-[var(--accent)] uppercase">
-            Trigger
-          </i>
-          <span className="truncate text-[length:var(--text-control)] text-[var(--text-soft)]">
-            {summary.triggerLabel}
-          </span>
-        </span>
-        <UiIcon
-          className="mx-auto text-[var(--accent)] opacity-60 max-[620px]:hidden"
-          icon={ChevronRight}
-          size="xs"
-        />
-        <span className="automation-job-summary__segment inline-flex min-w-0 items-center gap-1.5 max-[620px]:justify-between">
-          <i className="font-[var(--font-mono)] text-[length:var(--text-meta)] not-italic text-[var(--accent)] uppercase">
-            Condition
-          </i>
-          <span className="truncate text-[length:var(--text-control)] text-[var(--text-soft)]">
-            {summary.conditionLabel}
-          </span>
-        </span>
-        <UiIcon
-          className="mx-auto text-[var(--accent)] opacity-60 max-[620px]:hidden"
-          icon={ChevronRight}
-          size="xs"
-        />
-        <span className="automation-job-summary__segment inline-flex min-w-0 items-center gap-1.5 max-[620px]:justify-between">
-          <i className="font-[var(--font-mono)] text-[length:var(--text-meta)] not-italic text-[var(--accent)] uppercase">
-            Action
-          </i>
-          <span className="truncate text-[length:var(--text-control)] text-[var(--text-soft)]">
-            {summary.actionLabel}
-          </span>
-        </span>
-      </div>
-      <details className="automation-job-details my-2">
-        <summary className={AUTOMATION_DETAILS_SUMMARY_CLASS}>Details</summary>
-        {summary.webhookPath ? (
-          <button
-            className="automation-webhook-path mt-2 grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 rounded-[var(--radius-sm)] border border-[color-mix(in_srgb,var(--accent)_18%,var(--border))] bg-[color-mix(in_srgb,var(--accent-soft)_35%,transparent)] px-2.25 py-1.75 text-left text-[var(--muted)]"
-            onClick={() => void copyWebhookPath()}
-            title="Copy local webhook path"
-            type="button"
-          >
-            <span className="automation-webhook-path__label text-[length:var(--text-meta)] font-extrabold tracking-[0.06em] text-[var(--accent)] uppercase">
-              Webhook
+    <ContextActionMenu
+      label={`${name} actions`}
+      scopeKey={`automation:${id}:${status}:${confirmDelete}`}
+      items={[
+        {
+          id: "trigger",
+          label: "Run now",
+          disabled: Boolean(busy) || status === "paused" || confirmDelete,
+          onSelect: () => void onAction(id, "trigger"),
+        },
+        {
+          id: "pause-resume",
+          label: status === "paused" ? "Resume" : "Pause",
+          disabled: Boolean(busy) || confirmDelete,
+          onSelect: () =>
+            void onAction(id, status === "paused" ? "resume" : "pause"),
+        },
+        {
+          id: "copy-id",
+          label: "Copy automation ID",
+          onSelect: () => void copyContextText(id),
+        },
+        {
+          id: "delete",
+          label: "Delete…",
+          destructive: true,
+          separatorBefore: true,
+          disabled: Boolean(busy) || confirmDelete,
+          onSelect: () => setConfirmDelete(true),
+        },
+      ]}
+    >
+      <article className={AUTOMATION_JOB_CARD_CLASS}>
+        <header className="flex items-center justify-between gap-2.5">
+          <div className="automation-job-card__heading flex min-w-0 flex-col gap-1">
+            <strong className="truncate text-xs">{name}</strong>
+            <span className="text-sm text-[var(--muted)]">
+              Runs as{" "}
+              {asString(entry.targetBotId) &&
+              asString(entry.targetBotId) !== "default"
+                ? (botNames[asString(entry.targetBotId)] ??
+                  "Unavailable bot (no fallback)")
+                : "Doolittle"}
             </span>
-            <code className="truncate text-[length:var(--text-meta)] text-[var(--text-soft)]">
-              {summary.webhookPath}
-            </code>
-            <small className="automation-webhook-path__action text-[length:var(--text-meta)] font-extrabold tracking-[0.06em] text-[var(--accent)] uppercase">
-              Copy
+            <small className="text-[length:var(--text-meta)] text-[var(--muted)]">
+              {displayTimestamp(asString(entry.nextRunAt) || undefined)}
             </small>
-          </button>
-        ) : null}
-        <p className="mt-0.5 mb-2 text-xs leading-[1.5] text-[var(--text-soft)]">
-          {asString(entry.prompt, "No prompt configured.")}
-        </p>
-      </details>
-      {confirmDelete ? (
-        <AutomationDeleteConfirmation
-          automationName={name}
-          busy={deleting}
-          onCancel={() => setConfirmDelete(false)}
-          onConfirm={() => void deleteAutomation()}
-        />
-      ) : (
-        <footer className="flex items-center gap-2.5 max-[620px]:items-stretch max-[620px]:flex-col">
-          <Button
-            disabled={Boolean(busy) || status === "paused"}
-            onClick={() => void onAction(id, "trigger")}
-            type="button"
-            variant="secondary"
-          >
-            Run now
-          </Button>
-          <Button
-            disabled={Boolean(busy)}
-            onClick={() =>
-              void onAction(id, status === "paused" ? "resume" : "pause")
-            }
-            type="button"
-            variant="secondary"
-          >
-            {status === "paused" ? "Resume" : "Pause"}
-          </Button>
-          <Button
-            disabled={Boolean(busy)}
-            onClick={() => setConfirmDelete(true)}
-            type="button"
-            variant="destructive"
-          >
-            Delete
-          </Button>
-        </footer>
-      )}
-    </article>
+          </div>
+          <Badge tone={status === "paused" ? "warn" : "good"}>
+            {titleCase(status)}
+          </Badge>
+        </header>
+        <div className={AUTOMATION_JOB_SUMMARY_CLASS}>
+          <span className="automation-job-summary__segment inline-flex min-w-0 items-center gap-1.5 max-[620px]:justify-between">
+            <i className="font-[var(--font-mono)] text-[length:var(--text-meta)] not-italic text-[var(--accent)] uppercase">
+              Trigger
+            </i>
+            <span className="truncate text-[length:var(--text-control)] text-[var(--text-soft)]">
+              {summary.triggerLabel}
+            </span>
+          </span>
+          <UiIcon
+            className="mx-auto text-[var(--accent)] opacity-60 max-[620px]:hidden"
+            icon={ChevronRight}
+            size="xs"
+          />
+          <span className="automation-job-summary__segment inline-flex min-w-0 items-center gap-1.5 max-[620px]:justify-between">
+            <i className="font-[var(--font-mono)] text-[length:var(--text-meta)] not-italic text-[var(--accent)] uppercase">
+              Condition
+            </i>
+            <span className="truncate text-[length:var(--text-control)] text-[var(--text-soft)]">
+              {summary.conditionLabel}
+            </span>
+          </span>
+          <UiIcon
+            className="mx-auto text-[var(--accent)] opacity-60 max-[620px]:hidden"
+            icon={ChevronRight}
+            size="xs"
+          />
+          <span className="automation-job-summary__segment inline-flex min-w-0 items-center gap-1.5 max-[620px]:justify-between">
+            <i className="font-[var(--font-mono)] text-[length:var(--text-meta)] not-italic text-[var(--accent)] uppercase">
+              Action
+            </i>
+            <span className="truncate text-[length:var(--text-control)] text-[var(--text-soft)]">
+              {summary.actionLabel}
+            </span>
+          </span>
+        </div>
+        <details className="automation-job-details my-2">
+          <summary className={AUTOMATION_DETAILS_SUMMARY_CLASS}>
+            Details
+          </summary>
+          {summary.webhookPath ? (
+            <button
+              className="automation-webhook-path mt-2 grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 rounded-[var(--radius-sm)] border border-[color-mix(in_srgb,var(--accent)_18%,var(--border))] bg-[color-mix(in_srgb,var(--accent-soft)_35%,transparent)] px-2.25 py-1.75 text-left text-[var(--muted)]"
+              onClick={() => void copyWebhookPath()}
+              title="Copy local webhook path"
+              type="button"
+            >
+              <span className="automation-webhook-path__label text-[length:var(--text-meta)] font-extrabold tracking-[0.06em] text-[var(--accent)] uppercase">
+                Webhook
+              </span>
+              <code className="truncate text-[length:var(--text-meta)] text-[var(--text-soft)]">
+                {summary.webhookPath}
+              </code>
+              <small className="automation-webhook-path__action text-[length:var(--text-meta)] font-extrabold tracking-[0.06em] text-[var(--accent)] uppercase">
+                Copy
+              </small>
+            </button>
+          ) : null}
+          <p className="mt-0.5 mb-2 text-xs leading-[1.5] text-[var(--text-soft)]">
+            {asString(entry.prompt, "No prompt configured.")}
+          </p>
+        </details>
+        {confirmDelete ? (
+          <AutomationDeleteConfirmation
+            automationName={name}
+            busy={deleting}
+            onCancel={() => setConfirmDelete(false)}
+            onConfirm={() => void deleteAutomation()}
+          />
+        ) : (
+          <footer className="flex items-center gap-2.5 max-[620px]:items-stretch max-[620px]:flex-col">
+            <Button
+              disabled={Boolean(busy) || status === "paused"}
+              onClick={() => void onAction(id, "trigger")}
+              type="button"
+              variant="secondary"
+            >
+              Run now
+            </Button>
+            <Button
+              disabled={Boolean(busy)}
+              onClick={() =>
+                void onAction(id, status === "paused" ? "resume" : "pause")
+              }
+              type="button"
+              variant="secondary"
+            >
+              {status === "paused" ? "Resume" : "Pause"}
+            </Button>
+            <Button
+              disabled={Boolean(busy)}
+              onClick={() => setConfirmDelete(true)}
+              type="button"
+              variant="destructive"
+            >
+              Delete
+            </Button>
+          </footer>
+        )}
+      </article>
+    </ContextActionMenu>
   );
 }
 

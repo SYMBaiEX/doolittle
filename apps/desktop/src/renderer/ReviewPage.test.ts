@@ -49,6 +49,17 @@ describe("review workspace scope", () => {
     );
   });
 
+  it("threads workspace, revision, and optional host origin into both review menu surfaces", () => {
+    expect(reviewPageSource).toContain(
+      "const reviewContextScope = JSON.stringify([",
+    );
+    expect(reviewPageSource).toContain('contextScope ?? ""');
+    expect(reviewPageSource).toContain("commentIdentity.storageKey");
+    expect(
+      reviewPageSource.match(/contextScope=\{reviewContextScope\}/gu),
+    ).toHaveLength(2);
+  });
+
   it("omits the duplicate queue and detail shell until review items exist", () => {
     expect(shouldShowReviewWorkspace(0)).toBe(false);
     expect(shouldShowReviewWorkspace(1)).toBe(true);

@@ -1,3 +1,4 @@
+import { ContextActionMenu } from "@doolittle/ui";
 import type { AccountWithCredentialFlag } from "@elizaos/ui/api/client-agent";
 import { AccountCard } from "@elizaos/ui/components/accounts/AccountCard";
 import { Button } from "@elizaos/ui/components/ui/button";
@@ -125,34 +126,99 @@ export function AccountPoolDirectory({
                 className={`${PROVIDER_POOL_ACCOUNT_CLASS} ${direct ? PROVIDER_POOL_DIRECT_ACCOUNT_CLASS : ""} ${selectedAccountId === account.id ? PROVIDER_ACCOUNT_PREVIEWED_CLASS : ""}`}
                 key={account.id}
               >
-                {selectedAccountId === account.id ? (
-                  <Badge tone="good">Next account</Badge>
-                ) : null}
-                <AccountCard
-                  account={account}
-                  isFirst={index === 0}
-                  isLast={index === accounts.length - 1}
-                  onDelete={() =>
-                    sourceAccount ? onDelete(sourceAccount) : Promise.resolve()
-                  }
-                  onMoveDown={() => onMove(accounts, account.id, "down")}
-                  onMoveUp={() => onMove(accounts, account.id, "up")}
-                  onPatch={(changes) =>
-                    onPatch(
-                      { accountId: account.id, label: account.label },
-                      changes,
-                    )
-                  }
-                  onRefreshUsage={() => onRefreshUsage(account)}
-                  onTest={() => onTest(account)}
-                  refreshBusy={
-                    busy === `${descriptor.provider}:${account.id}:usage`
-                  }
-                  saving={Boolean(busy)}
-                  testBusy={
-                    busy === `${descriptor.provider}:${account.id}:test`
-                  }
-                />
+                <ContextActionMenu
+                  label={`Model account: ${account.label}`}
+                  scopeKey={JSON.stringify([
+                    descriptor.provider,
+                    account.id,
+                    account.enabled,
+                    accounts.map((candidate) => [
+                      candidate.id,
+                      candidate.priority,
+                    ]),
+                  ])}
+                  items={[
+                    {
+                      id: account.enabled
+                        ? "disable-account"
+                        : "enable-account",
+                      label: account.enabled
+                        ? "Disable account"
+                        : "Enable account",
+                      disabled: Boolean(busy),
+                      onSelect: () => {
+                        void onPatch(
+                          { accountId: account.id, label: account.label },
+                          { enabled: !account.enabled },
+                        );
+                      },
+                    },
+                    {
+                      id: "test-account",
+                      label: "Test account connection",
+                      disabled: Boolean(busy),
+                      onSelect: () => {
+                        void onTest(account);
+                      },
+                    },
+                    {
+                      id: "refresh-usage",
+                      label: "Refresh usage",
+                      disabled: Boolean(busy),
+                      onSelect: () => {
+                        void onRefreshUsage(account);
+                      },
+                    },
+                    {
+                      id: "move-up",
+                      label: "Move account up",
+                      separatorBefore: true,
+                      disabled: Boolean(busy) || index === 0,
+                      onSelect: () => {
+                        void onMove(accounts, account.id, "up");
+                      },
+                    },
+                    {
+                      id: "move-down",
+                      label: "Move account down",
+                      disabled: Boolean(busy) || index === accounts.length - 1,
+                      onSelect: () => {
+                        void onMove(accounts, account.id, "down");
+                      },
+                    },
+                  ]}
+                >
+                  {selectedAccountId === account.id ? (
+                    <Badge tone="good">Next account</Badge>
+                  ) : null}
+                  <AccountCard
+                    account={account}
+                    isFirst={index === 0}
+                    isLast={index === accounts.length - 1}
+                    onDelete={() =>
+                      sourceAccount
+                        ? onDelete(sourceAccount)
+                        : Promise.resolve()
+                    }
+                    onMoveDown={() => onMove(accounts, account.id, "down")}
+                    onMoveUp={() => onMove(accounts, account.id, "up")}
+                    onPatch={(changes) =>
+                      onPatch(
+                        { accountId: account.id, label: account.label },
+                        changes,
+                      )
+                    }
+                    onRefreshUsage={() => onRefreshUsage(account)}
+                    onTest={() => onTest(account)}
+                    refreshBusy={
+                      busy === `${descriptor.provider}:${account.id}:usage`
+                    }
+                    saving={Boolean(busy)}
+                    testBusy={
+                      busy === `${descriptor.provider}:${account.id}:test`
+                    }
+                  />
+                </ContextActionMenu>
               </li>
             );
           })}

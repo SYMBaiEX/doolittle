@@ -82,6 +82,7 @@ export function shouldShowReviewWorkspace(itemCount: number): boolean {
 
 export function ReviewPage({
   active,
+  contextScope,
   embedded = false,
   onOpenWorkspaceFile,
   onSendToChat,
@@ -89,6 +90,8 @@ export function ReviewPage({
   workspacePath,
 }: {
   active: boolean;
+  /** Optional immutable bot/conversation origin supplied by the owning host. */
+  contextScope?: string;
   embedded?: boolean;
   onOpenWorkspaceFile?: (path: string) => void;
   onSendToChat: (request: ChatContextRequest) => void;
@@ -164,6 +167,11 @@ export function ReviewPage({
     () => reviewCommentIdentity(review),
     [review],
   );
+  const reviewContextScope = JSON.stringify([
+    contextScope ?? "",
+    scopeKey,
+    commentIdentity.storageKey,
+  ]);
   const items = useMemo(
     () => reviewItems(approvals.data, changes.data, review),
     [approvals.data, changes.data, review],
@@ -677,6 +685,7 @@ export function ReviewPage({
       ) : !shouldShowReviewWorkspace(items.length) ? null : (
         <div className={REVIEW_WORKSPACE_CLASS}>
           <ReviewQueue
+            contextScope={reviewContextScope}
             filter={filter}
             items={items}
             onFilterChange={setFilter}
@@ -689,6 +698,7 @@ export function ReviewPage({
             visibleItems={visibleItems}
           />
           <ReviewDetail
+            contextScope={reviewContextScope}
             activeCommentTarget={activeCommentTarget}
             busy={busy}
             commentDraft={commentDraft}

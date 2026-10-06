@@ -9,6 +9,11 @@ export const COMPOSER_PROJECT_GLYPH_CLASS =
 export const COMPOSER_POPOVER_CLASS =
   "composer-selector-popover absolute right-0 bottom-[calc(100%+9px)] z-70 grid overflow-hidden rounded-xl border border-[var(--border-strong)] bg-[color-mix(in_srgb,var(--surface-raised)_98%,var(--bg))] text-[var(--text-soft)] shadow-[0_24px_70px_color-mix(in_srgb,var(--shadow)_76%,transparent)]";
 
+// SDK portal placement avoids pane/dock clipping and uses the actual free side.
+// Only the list scrolls; search and project-management actions stay reachable.
+export const COMPOSER_PROJECT_POPOVER_CLASS =
+  "composer-project-popover z-70 grid w-[min(340px,calc(100vw-24px))] max-h-[var(--radix-popover-content-available-height)] grid-rows-[auto_auto_minmax(0,1fr)_auto] overflow-hidden rounded-xl border border-[var(--border-strong)] bg-[color-mix(in_srgb,var(--surface-raised)_98%,var(--bg))] !p-0 text-[var(--text-soft)] shadow-[0_24px_70px_color-mix(in_srgb,var(--shadow)_76%,transparent)] [&_.composer-project-list]:min-h-0 motion-reduce:animate-none";
+
 export const COMPOSER_POPOVER_HEADER_CLASS =
   "flex items-start border-[var(--border)] border-b px-3.5 pt-3.25 pb-2.5 [&>span]:grid [&>span]:gap-0.5 [&_small]:text-[length:var(--text-control)] [&_small]:text-[var(--faint)] [&_strong]:text-[length:var(--text-control)] [&_strong]:font-semibold [&_strong]:text-[var(--text)]";
 

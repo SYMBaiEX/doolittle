@@ -105,6 +105,93 @@ describe("SessionListPanel", () => {
     );
   });
 
+  it("distinguishes contextual preview from opening the target conversation in the workspace", async () => {
+    useApiResourceMock.mockReturnValue({
+      data: null,
+      error: "",
+      loading: false,
+      reload: vi.fn(),
+    });
+    const onSelect = vi.fn();
+    const onOpenSession = vi.fn();
+    act(() =>
+      root.render(
+        <SessionListPanel
+          active
+          sessions={sessions}
+          selectedId="session-0"
+          onSelect={onSelect}
+          onOpenSession={onOpenSession}
+        />,
+      ),
+    );
+    const row = container.querySelector<HTMLButtonElement>(
+      '[data-session-row="true"]',
+    );
+    await act(async () =>
+      row?.dispatchEvent(
+        new MouseEvent("contextmenu", { bubbles: true, cancelable: true }),
+      ),
+    );
+    expect(onSelect).not.toHaveBeenCalled();
+    const preview = [
+      ...document.body.querySelectorAll<HTMLElement>('[role="menuitem"]'),
+    ].find((item) => item.textContent === "Preview conversation");
+    expect(preview).toBeDefined();
+    await act(async () => preview?.click());
+    expect(onSelect).toHaveBeenCalledWith(sessions[0]);
+    expect(onOpenSession).not.toHaveBeenCalled();
+    expect(row?.isConnected).toBe(true);
+    expect(document.getSelection()?.toString()).toBe("");
+    const reopen = new MouseEvent("contextmenu", {
+      bubbles: true,
+      cancelable: true,
+    });
+    await act(async () => row?.dispatchEvent(reopen));
+    expect(reopen.defaultPrevented).toBe(true);
+    const open = [
+      ...document.body.querySelectorAll<HTMLElement>('[role="menuitem"]'),
+    ].find((item) => item.textContent === "Open in workspace");
+    expect(open).toBeDefined();
+    await act(async () => open?.click());
+    expect(onOpenSession).toHaveBeenCalledWith("session-0");
+  });
+
+  it("keeps offline workspace opening disabled while allowing local preview", async () => {
+    useApiResourceMock.mockReturnValue({
+      data: null,
+      error: "",
+      loading: false,
+      reload: vi.fn(),
+    });
+    const onOpenSession = vi.fn();
+    act(() =>
+      root.render(
+        <SessionListPanel
+          active={false}
+          sessions={sessions}
+          selectedId="session-0"
+          onSelect={vi.fn()}
+          onOpenSession={onOpenSession}
+        />,
+      ),
+    );
+    const row = container.querySelector<HTMLButtonElement>(
+      '[data-session-row="true"]',
+    );
+    await act(async () =>
+      row?.dispatchEvent(
+        new MouseEvent("contextmenu", { bubbles: true, cancelable: true }),
+      ),
+    );
+    const open = [
+      ...document.body.querySelectorAll<HTMLElement>('[role="menuitem"]'),
+    ].find((item) => item.textContent === "Open in workspace");
+    expect(open?.getAttribute("aria-disabled")).toBe("true");
+    act(() => open?.click());
+    expect(onOpenSession).not.toHaveBeenCalled();
+  });
+
   it("deduplicates multiple transcript hits from the same session", () => {
     useApiResourceMock.mockReturnValue({
       data: {

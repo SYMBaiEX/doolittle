@@ -19,6 +19,7 @@ import {
 } from "./ReviewCommentsPanel";
 
 export interface ReviewChangesPanelProps {
+  contextScope?: string;
   selected: ReviewItem;
   patch: ApiResource<PatchResponse>;
   selectedPathComments: ReviewComment[];
@@ -44,6 +45,7 @@ export interface ReviewChangesPanelProps {
 }
 
 export function ReviewChangesPanel({
+  contextScope,
   selected,
   patch,
   selectedPathComments,
@@ -87,6 +89,7 @@ export function ReviewChangesPanel({
         </div>
       </div>
       <ReviewCommentsPanel
+        contextScope={contextScope}
         activeCommentTarget={activeCommentTarget}
         commentDraft={commentDraft}
         commentEditorRef={commentEditorRef}

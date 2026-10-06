@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { CompactCatalogList } from "./components/CompactCatalogList";
+import { copyContextText } from "./context-menu-clipboard";
 import {
   asArray,
   asRecord,
@@ -91,6 +92,19 @@ export function ProfilesPage({
       title: profile.name,
       description: profile.description,
       code: profile.id,
+      contextActions: [
+        {
+          id: "activate",
+          label: "Use profile",
+          disabled: Boolean(busy) || !active,
+          onSelect: (): void => void activate(profile.id),
+        },
+        {
+          id: "copy-id",
+          label: "Copy profile ID",
+          onSelect: (): void => void copyContextText(profile.id),
+        },
+      ],
       action: (
         <button
           className="secondary-button"

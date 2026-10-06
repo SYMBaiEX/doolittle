@@ -1,3 +1,4 @@
+import { ContextActionMenu } from "@doolittle/ui";
 import { Button } from "@elizaos/ui/components/ui/button";
 import {
   CATALOG_BROWSER_CLASS,
@@ -15,6 +16,7 @@ import {
   catalogIndexItemClass,
 } from "../components/catalog-browser-layout";
 import { useCatalogBrowser } from "../components/useCatalogBrowser";
+import { copyContextText } from "../context-menu-clipboard";
 import { Badge, titleCase } from "../lib";
 import { REGISTRY_INSTALL_CAVEAT, type RegistryEntry } from "./registry-model";
 
@@ -93,31 +95,62 @@ export function RegistryCatalogWorkspace({
             const entry = item.entry;
             const active = entry.name === selectedEntry.name;
             return (
-              <button
+              <ContextActionMenu
                 key={entry.name}
-                aria-controls={panelId}
-                aria-selected={active}
-                className={catalogIndexItemClass(active)}
-                id={itemId(index)}
-                onClick={() => selectAt(index, false)}
-                onKeyDown={(event) => handleKeyDown(event, index)}
-                role="tab"
-                tabIndex={active ? 0 : -1}
-                type="button"
+                label={`${entry.name} actions`}
+                scopeKey={`registry:${resetKey}:${entry.name}:${entry.version}`}
+                items={[
+                  {
+                    id: "inspect",
+                    label: "Inspect package",
+                    onSelect: () => selectAt(index, false),
+                  },
+                  {
+                    id: "copy-package",
+                    label: "Copy package name",
+                    onSelect: () => void copyContextText(entry.packageName),
+                  },
+                  ...(!entry.installed && entry.installable
+                    ? [
+                        {
+                          id: "review-install",
+                          label: "Review installation…",
+                          disabled: installing,
+                          separatorBefore: true,
+                          onSelect: () => {
+                            selectAt(index, false);
+                            onReviewInstall(entry);
+                          },
+                        },
+                      ]
+                    : []),
+                ]}
               >
-                <span className={CATALOG_INDEX_TITLE_CLASS}>
-                  <strong>{entry.name}</strong>
-                  {entry.installed ? (
-                    <Badge tone="good">Installed</Badge>
-                  ) : entry.installable ? (
-                    <Badge tone="good">Eligible</Badge>
-                  ) : null}
-                </span>
-                <span className={CATALOG_INDEX_META_CLASS}>
-                  <code>{entry.version}</code>
-                  <span>{titleCase(entry.trust)}</span>
-                </span>
-              </button>
+                <button
+                  aria-controls={panelId}
+                  aria-selected={active}
+                  className={catalogIndexItemClass(active)}
+                  id={itemId(index)}
+                  onClick={() => selectAt(index, false)}
+                  onKeyDown={(event) => handleKeyDown(event, index)}
+                  role="tab"
+                  tabIndex={active ? 0 : -1}
+                  type="button"
+                >
+                  <span className={CATALOG_INDEX_TITLE_CLASS}>
+                    <strong>{entry.name}</strong>
+                    {entry.installed ? (
+                      <Badge tone="good">Installed</Badge>
+                    ) : entry.installable ? (
+                      <Badge tone="good">Eligible</Badge>
+                    ) : null}
+                  </span>
+                  <span className={CATALOG_INDEX_META_CLASS}>
+                    <code>{entry.version}</code>
+                    <span>{titleCase(entry.trust)}</span>
+                  </span>
+                </button>
+              </ContextActionMenu>
             );
           })}
         </div>

@@ -126,4 +126,67 @@ describe("MediaLibraryTab state continuity", () => {
     act(() => retry?.click());
     expect(reload).toHaveBeenCalledOnce();
   });
+
+  it("selects the right-clicked asset and keeps its media element mounted while refreshing the menu", async () => {
+    const reload = vi.fn();
+    useApiResourceMock.mockImplementation((path: string | null) =>
+      path === "/media/library"
+        ? { ...resource({ assets: [image, audio] }), reload }
+        : resource({
+            asset: path?.endsWith("audio-1") ? audio : image,
+            encoding: "base64",
+            content: "aW1hZ2U=",
+          }),
+    );
+    await act(async () => root.render(<MediaLibraryTab active revision={0} />));
+    const target = [...container.querySelectorAll("button")].find((button) =>
+      button.textContent?.includes("Voice recording"),
+    );
+    await act(async () =>
+      target?.dispatchEvent(
+        new MouseEvent("contextmenu", {
+          bubbles: true,
+          cancelable: true,
+          button: 2,
+        }),
+      ),
+    );
+    await act(async () =>
+      [...document.body.querySelectorAll<HTMLElement>('[role="menuitem"]')]
+        .find((item) => item.textContent === "View asset")
+        ?.click(),
+    );
+    const media = container.querySelector("audio");
+    expect(media).not.toBeNull();
+    await act(async () =>
+      target?.dispatchEvent(
+        new MouseEvent("contextmenu", {
+          bubbles: true,
+          cancelable: true,
+          button: 2,
+        }),
+      ),
+    );
+    await act(async () =>
+      [...document.body.querySelectorAll<HTMLElement>('[role="menuitem"]')]
+        .find((item) => item.textContent === "Refresh asset library")
+        ?.click(),
+    );
+    expect(reload).toHaveBeenCalledOnce();
+    expect(container.querySelector("audio")).toBe(media);
+    await act(async () =>
+      target?.dispatchEvent(
+        new MouseEvent("contextmenu", {
+          bubbles: true,
+          cancelable: true,
+          button: 2,
+        }),
+      ),
+    );
+    expect(document.body.querySelector('[role="menu"]')).not.toBeNull();
+    await act(async () =>
+      root.render(<MediaLibraryTab active={false} revision={0} />),
+    );
+    expect(document.body.querySelector('[role="menu"]')).toBeNull();
+  });
 });

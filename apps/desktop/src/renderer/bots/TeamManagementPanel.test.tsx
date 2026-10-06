@@ -8,6 +8,7 @@ import { TeamManagementPanel } from "./TeamManagementPanel";
 const state = vi.hoisted(() => ({
   error: "",
   loading: false,
+  revision: 7,
   teams: [
     {
       id: "team",
@@ -32,7 +33,7 @@ vi.mock("../lib", () => ({
               { id: "archived", name: "Archived", archivedAt: "now" },
             ],
           }
-        : { version: 1, revision: 7, teams: state.teams },
+        : { version: 1, revision: state.revision, teams: state.teams },
     error: state.error,
     loading: state.loading,
     reload: state.reload,
@@ -46,6 +47,16 @@ describe("TeamManagementPanel", () => {
     vi.clearAllMocks();
     state.error = "";
     state.loading = false;
+    state.revision = 7;
+    state.teams = [
+      {
+        id: "team",
+        name: "Research",
+        memberBotIds: ["source"],
+        createdAt: "now",
+        updatedAt: "now",
+      },
+    ];
     host = document.createElement("div");
     document.body.append(host);
     root = createRoot(host);
@@ -128,5 +139,83 @@ describe("TeamManagementPanel", () => {
         (button) => button.textContent === "Save team",
       )?.disabled,
     ).toBe(true);
+  });
+
+  it("opens the existing member editor from a team menu and keeps native consent on save", async () => {
+    await render();
+    await act(async () =>
+      host.querySelector("li h3")?.dispatchEvent(
+        new MouseEvent("contextmenu", {
+          bubbles: true,
+          cancelable: true,
+          button: 2,
+        }),
+      ),
+    );
+    const item = [
+      ...document.body.querySelectorAll<HTMLElement>('[role="menuitem"]'),
+    ].find((entry) => entry.textContent === "Edit team and members…");
+    await act(async () => item?.click());
+    expect(host.querySelector('[role="dialog"]')?.textContent).toContain(
+      "Edit Research",
+    );
+    expect(desktopRequest).not.toHaveBeenCalled();
+    await act(async () =>
+      [...host.querySelectorAll("button")]
+        .find((entry) => entry.textContent === "Save team")
+        ?.click(),
+    );
+    expect(desktopRequest).toHaveBeenCalledWith("/bots/teams/team", "PATCH", {
+      name: "Research",
+      memberBotIds: ["source"],
+      expectedRevision: 7,
+      consent: true,
+    });
+  });
+
+  it("archives only the menu’s target team and revokes menus after catalog revision changes", async () => {
+    state.teams.push({
+      id: "second-team",
+      name: "Build",
+      memberBotIds: ["other"],
+      createdAt: "now",
+      updatedAt: "now",
+    });
+    await render();
+    await act(async () =>
+      host.querySelectorAll("li h3")[1]?.dispatchEvent(
+        new MouseEvent("contextmenu", {
+          bubbles: true,
+          cancelable: true,
+          button: 2,
+        }),
+      ),
+    );
+    expect(
+      document.body.querySelector('[role="menu"]')?.getAttribute("aria-label"),
+    ).toBe("Team: Build");
+    await act(async () =>
+      [...document.body.querySelectorAll<HTMLElement>('[role="menuitem"]')]
+        .find((entry) => entry.textContent === "Archive team…")
+        ?.click(),
+    );
+    expect(desktopRequest).toHaveBeenCalledWith(
+      "/bots/teams/second-team/archive",
+      "POST",
+      { expectedRevision: 7, consent: true },
+    );
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 0)));
+    await act(async () =>
+      host.querySelector("li h3")?.dispatchEvent(
+        new MouseEvent("contextmenu", {
+          bubbles: true,
+          cancelable: true,
+          button: 2,
+        }),
+      ),
+    );
+    state.revision = 8;
+    await render();
+    expect(document.body.querySelector('[role="menu"]')).toBeNull();
   });
 });

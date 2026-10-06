@@ -226,4 +226,89 @@ describe("reusable settings compositions", () => {
       container.remove();
     }
   });
+  it("opens target-bound settings actions without changing selection until activated", async () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+    const onChange = vi.fn();
+    try {
+      await act(async () =>
+        root.render(
+          <SettingsMenu items={items} value="appearance" onChange={onChange} />,
+        ),
+      );
+      const target = container.querySelector<HTMLButtonElement>(
+        '[data-settings-section="execution"]',
+      );
+      if (!target) throw new Error("Missing settings section");
+      target.focus();
+      await act(async () =>
+        target.dispatchEvent(
+          new KeyboardEvent("keydown", {
+            key: "F10",
+            shiftKey: true,
+            bubbles: true,
+            cancelable: true,
+          }),
+        ),
+      );
+      expect(onChange).not.toHaveBeenCalled();
+      const menu = document.querySelector('[role="menu"]');
+      expect(menu?.getAttribute("aria-label")).toBe(
+        "Execution settings actions",
+      );
+      expect(menu?.textContent).not.toContain("Close");
+      await act(async () =>
+        menu?.querySelector<HTMLElement>('[role="menuitem"]')?.click(),
+      );
+      expect(onChange).toHaveBeenCalledExactlyOnceWith("execution");
+    } finally {
+      await act(async () => root.unmount());
+      container.remove();
+    }
+  });
+  it("gives fixed settings tabs target-bound Open without inventing a Close action", async () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+    const onChange = vi.fn();
+    try {
+      await act(async () =>
+        root.render(
+          <SettingsTabs
+            items={items}
+            value="appearance"
+            panelId="settings"
+            onChange={onChange}
+          />,
+        ),
+      );
+      const target = container.querySelector<HTMLButtonElement>(
+        "#settings-tab-desktop",
+      );
+      if (!target) throw new Error("Missing settings tab");
+      await act(async () =>
+        target.dispatchEvent(
+          new MouseEvent("contextmenu", {
+            bubbles: true,
+            cancelable: true,
+            clientX: 40,
+            clientY: 40,
+            button: 2,
+          }),
+        ),
+      );
+      expect(onChange).not.toHaveBeenCalled();
+      const menu = document.querySelector('[role="menu"]');
+      expect(menu?.getAttribute("aria-label")).toBe("Desktop tab actions");
+      expect(menu?.textContent).toBe("Open tab");
+      await act(async () =>
+        menu?.querySelector<HTMLElement>('[role="menuitem"]')?.click(),
+      );
+      expect(onChange).toHaveBeenCalledExactlyOnceWith("desktop");
+    } finally {
+      await act(async () => root.unmount());
+      container.remove();
+    }
+  });
 });

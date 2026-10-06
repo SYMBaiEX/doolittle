@@ -1,5 +1,7 @@
+import { ContextActionMenu } from "@doolittle/ui";
 import type { FormEvent } from "react";
 import { ArtifactViewer } from "../components/ArtifactViewer";
+import { copyContextText } from "../context-menu-clipboard";
 import {
   type ApiResource,
   asArray,
@@ -178,35 +180,52 @@ export function OrchestrationRunsPanel({
               const status = asString(workflow.status, "pending");
               const tier = orchestrationStatusTier(status);
               return (
-                <button
+                <ContextActionMenu
                   key={workflow.id}
-                  type="button"
-                  className={oc(
-                    selectedWorkflow?.id === workflow.id && "selected",
-                    `tier-${tier}`,
-                  )}
-                  aria-pressed={selectedWorkflow?.id === workflow.id}
-                  onClick={() => onSelectWorkflow(workflow.id)}
+                  label="Workflow actions"
+                  scopeKey={`workflow:${workflow.id}`}
+                  items={[
+                    {
+                      id: "inspect",
+                      label: "Inspect workflow",
+                      onSelect: () => onSelectWorkflow(workflow.id),
+                    },
+                    {
+                      id: "copy-id",
+                      label: "Copy workflow ID",
+                      onSelect: () => void copyContextText(workflow.id),
+                    },
+                  ]}
                 >
-                  <span className={oc("master-row", "master-row-top")}>
-                    <span className={oc("master-title-line")}>
-                      <i
-                        className={oc("master-status-dot")}
-                        aria-hidden="true"
-                      />
-                      <strong>{asString(workflow.title, workflow.id)}</strong>
+                  <button
+                    type="button"
+                    className={oc(
+                      selectedWorkflow?.id === workflow.id && "selected",
+                      `tier-${tier}`,
+                    )}
+                    aria-pressed={selectedWorkflow?.id === workflow.id}
+                    onClick={() => onSelectWorkflow(workflow.id)}
+                  >
+                    <span className={oc("master-row", "master-row-top")}>
+                      <span className={oc("master-title-line")}>
+                        <i
+                          className={oc("master-status-dot")}
+                          aria-hidden="true"
+                        />
+                        <strong>{asString(workflow.title, workflow.id)}</strong>
+                      </span>
+                      <Badge tone={statusTone(status)}>{status}</Badge>
                     </span>
-                    <Badge tone={statusTone(status)}>{status}</Badge>
-                  </span>
-                  <small>
-                    {orchestrationTimingLabel({
-                      status,
-                      completedAt: asString(workflow.completedAt),
-                      updatedAt: asString(workflow.updatedAt),
-                      createdAt: asString(workflow.createdAt),
-                    })}
-                  </small>
-                </button>
+                    <small>
+                      {orchestrationTimingLabel({
+                        status,
+                        completedAt: asString(workflow.completedAt),
+                        updatedAt: asString(workflow.updatedAt),
+                        createdAt: asString(workflow.createdAt),
+                      })}
+                    </small>
+                  </button>
+                </ContextActionMenu>
               );
             })
           )}
@@ -235,35 +254,68 @@ export function OrchestrationRunsPanel({
               const status = asString(run.status, "pending");
               const tier = orchestrationStatusTier(status);
               return (
-                <button
+                <ContextActionMenu
                   key={run.id}
-                  type="button"
-                  className={oc(
-                    selectedRun?.id === run.id && "selected",
-                    `tier-${tier}`,
-                  )}
-                  aria-pressed={selectedRun?.id === run.id}
-                  onClick={() => onSelectRun(run.id)}
+                  label="Run actions"
+                  scopeKey={`run:${run.id}:${status}`}
+                  items={[
+                    {
+                      id: "inspect",
+                      label: "Inspect run",
+                      onSelect: () => onSelectRun(run.id),
+                    },
+                    {
+                      id: "copy-id",
+                      label: "Copy run ID",
+                      onSelect: () => void copyContextText(run.id),
+                    },
+                    ...(["pending", "running"].includes(status)
+                      ? [
+                          {
+                            id: "cancel",
+                            label: "Cancel run…",
+                            destructive: true,
+                            separatorBefore: true,
+                            disabled:
+                              !active || busyKeys[`codegen:${run.id}:cancel`],
+                            onSelect: () => {
+                              onSelectRun(run.id);
+                              onRequestRunCancellation(run.id);
+                            },
+                          },
+                        ]
+                      : []),
+                  ]}
                 >
-                  <span className={oc("master-row", "master-row-top")}>
-                    <span className={oc("master-title-line")}>
-                      <i
-                        className={oc("master-status-dot")}
-                        aria-hidden="true"
-                      />
-                      <strong>{asString(run.phase, run.kind)}</strong>
+                  <button
+                    type="button"
+                    className={oc(
+                      selectedRun?.id === run.id && "selected",
+                      `tier-${tier}`,
+                    )}
+                    aria-pressed={selectedRun?.id === run.id}
+                    onClick={() => onSelectRun(run.id)}
+                  >
+                    <span className={oc("master-row", "master-row-top")}>
+                      <span className={oc("master-title-line")}>
+                        <i
+                          className={oc("master-status-dot")}
+                          aria-hidden="true"
+                        />
+                        <strong>{asString(run.phase, run.kind)}</strong>
+                      </span>
+                      <Badge tone={statusTone(status)}>{status}</Badge>
                     </span>
-                    <Badge tone={statusTone(status)}>{status}</Badge>
-                  </span>
-                  <small>
-                    {orchestrationTimingLabel({
-                      status,
-                      completedAt: asString(run.completedAt),
-                      updatedAt: asString(run.updatedAt),
-                      createdAt: asString(run.createdAt),
-                    })}
-                  </small>
-                </button>
+                    <small>
+                      {orchestrationTimingLabel({
+                        status,
+                        completedAt: asString(run.completedAt),
+                        updatedAt: asString(run.updatedAt),
+                        createdAt: asString(run.createdAt),
+                      })}
+                    </small>
+                  </button>
+                </ContextActionMenu>
               );
             })
           )}

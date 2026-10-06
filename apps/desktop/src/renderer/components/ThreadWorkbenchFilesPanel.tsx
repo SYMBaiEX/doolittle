@@ -71,6 +71,11 @@ export function ThreadWorkbenchFilesPanel({
           <div className={WORKBENCH_TREE_CLASS}>
             {entries.length ? (
               <WorkspaceFileTree
+                contextScope={JSON.stringify([
+                  botId,
+                  originConversationId,
+                  workspacePath,
+                ])}
                 entries={entries}
                 key={workspacePath}
                 onOpenFile={onSelectPath}

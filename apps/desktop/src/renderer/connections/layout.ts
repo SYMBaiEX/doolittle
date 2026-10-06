@@ -38,9 +38,6 @@ export const PROVIDER_CONNECTION_ACTIONS_CLASS =
 export const PROVIDER_CONNECTION_MORE_CLASS =
   "provider-connection-more font-[var(--font-mono)] text-[length:var(--text-meta)] tracking-[1px] text-[var(--text-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--text)] focus-visible:bg-[var(--surface-raised)] focus-visible:text-[var(--text)] data-[state=open]:bg-[var(--surface-raised)] data-[state=open]:text-[var(--text)]";
 
-export const PROVIDER_CONNECTION_MENU_CLASS =
-  "provider-connection-menu min-w-34.5 [&_[role=menuitem]]:text-[length:var(--text-control)]";
-
 export const PROVIDER_ROUTING_DISCLOSURE_CLASS =
   "provider-routing-disclosure overflow-hidden rounded-[5px] border border-[var(--border)] bg-[color-mix(in_srgb,var(--surface)_92%,transparent)] pt-0 [&>summary]:flex [&>summary]:min-h-14.5 [&>summary]:cursor-pointer [&>summary]:list-none [&>summary]:items-center [&>summary]:justify-between [&>summary]:gap-4.5 [&>summary]:px-3.25 [&>summary]:py-2.25 [&>summary::-webkit-details-marker]:hidden [&>summary>span:first-child]:grid [&>summary>span:first-child]:gap-0.5 [&>summary_strong]:font-[var(--font-display)] [&>summary_strong]:text-sm [&>summary_small]:text-[var(--muted)] [&>summary_small]:text-[length:var(--text-meta)] [&>summary>span:last-child]:font-[var(--font-mono)] [&>summary>span:last-child]:text-[var(--accent-text)] [&>summary>span:last-child]:text-[length:var(--text-meta)] [&>summary>span:last-child]:uppercase";
 

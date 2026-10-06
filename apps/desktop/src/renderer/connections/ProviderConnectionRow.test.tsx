@@ -5,6 +5,10 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ProviderConnectionRow } from "./ProviderConnectionRow";
 
+(
+  globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
+).IS_REACT_ACT_ENVIRONMENT = true;
+
 describe("ProviderConnectionRow interactions", () => {
   let container: HTMLDivElement;
   let root: Root;
@@ -57,11 +61,7 @@ describe("ProviderConnectionRow interactions", () => {
     act(() => primary?.click());
     expect(onSetDefault).toHaveBeenCalledTimes(1);
 
-    act(() =>
-      more?.dispatchEvent(
-        new MouseEvent("pointerdown", { bubbles: true, button: 0 }),
-      ),
-    );
+    act(() => more?.click());
     const repair = Array.from(
       document.body.querySelectorAll<HTMLElement>('[role="menuitem"]'),
     ).find((item) => item.textContent === "Repair sign-in");
@@ -114,11 +114,7 @@ describe("ProviderConnectionRow interactions", () => {
     act(() => submit?.click());
     expect(onSubmitCode).toHaveBeenCalledWith("codex");
 
-    act(() =>
-      more?.dispatchEvent(
-        new MouseEvent("pointerdown", { bubbles: true, button: 0 }),
-      ),
-    );
+    act(() => more?.click());
     const cancel = Array.from(
       document.body.querySelectorAll<HTMLElement>('[role="menuitem"]'),
     ).find((item) => item.textContent === "Cancel sign-in");

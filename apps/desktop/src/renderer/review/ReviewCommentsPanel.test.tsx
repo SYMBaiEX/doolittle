@@ -197,4 +197,155 @@ describe("ReviewCommentsPanel", () => {
     expect(dialog?.className).toContain("max-[480px]:[&>div]:flex-col-reverse");
     expect(dialog?.className).toContain("max-[480px]:[&_button]:w-full");
   });
+
+  it("deletes the right-clicked note only after host confirmation and restores its button", async () => {
+    const onDelete = vi.fn();
+    const notes = ["first", "second"].map((id) => ({
+      id,
+      path: "src/example.ts",
+      body: `${id} note`,
+      status: "open" as const,
+      createdAt: "2026-08-12T00:00:00.000Z",
+      updatedAt: "2026-08-12T00:00:00.000Z",
+    }));
+    await act(async () =>
+      root.render(
+        <ReviewCommentsPanel {...props({ comments: notes, onDelete })} />,
+      ),
+    );
+    const target = container.querySelectorAll("li")[1];
+    const deleteButton =
+      target?.querySelector<HTMLButtonElement>("button.danger");
+    await act(async () =>
+      target?.querySelector("p")?.dispatchEvent(
+        new MouseEvent("contextmenu", {
+          bubbles: true,
+          cancelable: true,
+          button: 2,
+        }),
+      ),
+    );
+    const menu = document.body.querySelector('[role="menu"]');
+    const deleteItem = [
+      ...(menu?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? []),
+    ].find((item) => item.textContent === "Delete note");
+    expect(deleteItem).toBeTruthy();
+    await act(async () => deleteItem?.click());
+    expect(onDelete).not.toHaveBeenCalled();
+    expect(
+      container.querySelector('[role="alertdialog"]')?.textContent,
+    ).toContain("second note");
+    await act(async () => {
+      container
+        .querySelector<HTMLButtonElement>("[data-review-delete-cancel]")
+        ?.click();
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+    });
+    expect(document.activeElement).toBe(deleteButton);
+    await act(async () =>
+      target?.querySelector("p")?.dispatchEvent(
+        new MouseEvent("contextmenu", {
+          bubbles: true,
+          cancelable: true,
+          button: 2,
+        }),
+      ),
+    );
+    await act(async () =>
+      [...document.body.querySelectorAll<HTMLElement>('[role="menuitem"]')]
+        .find((item) => item.textContent === "Delete note")
+        ?.click(),
+    );
+    await act(async () =>
+      [...container.querySelectorAll<HTMLButtonElement>("button")]
+        .find((item) => item.textContent === "Delete note")
+        ?.click(),
+    );
+    expect(onDelete).toHaveBeenCalledExactlyOnceWith("second");
+  });
+
+  it("dismisses the note menu across workspaces with identical path and note ids", async () => {
+    const note = {
+      id: "same-note",
+      path: "src/example.ts",
+      body: "Original workspace note",
+      status: "open" as const,
+      createdAt: "2026-08-12T00:00:00.000Z",
+      updatedAt: "2026-08-12T00:00:00.000Z",
+    };
+    const value = props({ comments: [note], contextScope: "/work/alpha" });
+    await act(async () => root.render(<ReviewCommentsPanel {...value} />));
+    await act(async () =>
+      container.querySelector("li p")?.dispatchEvent(
+        new MouseEvent("contextmenu", {
+          bubbles: true,
+          cancelable: true,
+          button: 2,
+        }),
+      ),
+    );
+    expect(document.body.querySelector('[role="menu"]')).not.toBeNull();
+    await act(async () =>
+      root.render(
+        <ReviewCommentsPanel
+          {...value}
+          contextScope="/work/beta"
+          comments={[{ ...note, body: "Another workspace note" }]}
+        />,
+      ),
+    );
+    expect(document.body.querySelector('[role="menu"]')).toBeNull();
+    expect(value.onDelete).not.toHaveBeenCalled();
+    expect(value.onToggleResolved).not.toHaveBeenCalled();
+    expect(value.onStartComment).not.toHaveBeenCalled();
+  });
+
+  it.each(["workspace", "path", "removed note"])(
+    "revokes a pending delete confirmation on %s change",
+    async (change) => {
+      const note = {
+        id: "same-note",
+        path: "src/example.ts",
+        body: "Original note",
+        status: "open" as const,
+        createdAt: "2026-08-12T00:00:00.000Z",
+        updatedAt: "2026-08-12T00:00:00.000Z",
+      };
+      const value = props({ comments: [note], contextScope: "/work/alpha" });
+      await act(async () => root.render(<ReviewCommentsPanel {...value} />));
+      await act(async () =>
+        container.querySelector<HTMLButtonElement>("button.danger")?.click(),
+      );
+      const confirmation = [
+        ...container.querySelectorAll<HTMLButtonElement>(
+          '[role="alertdialog"] button',
+        ),
+      ].find((button) => button.textContent === "Delete note");
+      expect(confirmation).toBeTruthy();
+      const next = {
+        ...value,
+        contextScope:
+          change === "workspace" ? "/work/beta" : value.contextScope,
+        path: change === "path" ? "src/other.ts" : value.path,
+        comments:
+          change === "removed note"
+            ? []
+            : [
+                {
+                  ...note,
+                  path: change === "path" ? "src/other.ts" : note.path,
+                  body: "New scope note with same id",
+                },
+              ],
+      };
+      await act(async () => root.render(<ReviewCommentsPanel {...next} />));
+      expect(container.querySelector('[role="alertdialog"]')).toBeNull();
+      expect(confirmation?.isConnected).toBe(false);
+      await act(async () => confirmation?.click());
+      expect(value.onDelete).not.toHaveBeenCalled();
+      // Switching back must not resurrect a revoked confirmation.
+      await act(async () => root.render(<ReviewCommentsPanel {...value} />));
+      expect(container.querySelector('[role="alertdialog"]')).toBeNull();
+    },
+  );
 });

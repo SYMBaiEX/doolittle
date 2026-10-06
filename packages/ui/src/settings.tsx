@@ -4,6 +4,7 @@ import {
   useId,
   useRef,
 } from "react";
+import { type ContextAction, ContextActionMenu } from "./context-action-menu";
 
 export interface SettingsMenuItem {
   id: string;
@@ -42,6 +43,7 @@ export function SettingsMenu({
   pickerItems = items,
   pickerValue = value,
   onPickerChange = onChange,
+  contextActions,
 }: {
   items: readonly SettingsMenuItem[];
   value: string;
@@ -51,6 +53,7 @@ export function SettingsMenu({
   pickerItems?: readonly SettingsMenuItem[];
   pickerValue?: string;
   onPickerChange?: (id: string) => void;
+  contextActions?: (item: SettingsMenuItem) => readonly ContextAction[];
 }) {
   const id = useId();
   const searchRef = useRef<HTMLInputElement>(null);
@@ -167,25 +170,42 @@ export function SettingsMenu({
                 <h3>{group}</h3>
               ) : null}
               {entries.map((item) => (
-                <button
+                <ContextActionMenu
                   key={item.id}
-                  type="button"
-                  data-settings-section={item.id}
-                  aria-label={`${item.label}: ${item.description}`}
-                  aria-current={value === item.id ? "page" : undefined}
-                  title={item.description}
-                  onClick={() => onChange(item.id)}
+                  label={`${item.label} settings actions`}
+                  scopeKey={item.id}
+                  items={
+                    contextActions?.(item) ?? [
+                      {
+                        id: "open",
+                        label: "Open section",
+                        onSelect: () => onChange(item.id),
+                      },
+                    ]
+                  }
                 >
-                  {item.icon ? (
-                    <span className="dl-settings-menu-icon" aria-hidden="true">
-                      {item.icon}
+                  <button
+                    type="button"
+                    data-settings-section={item.id}
+                    aria-label={`${item.label}: ${item.description}`}
+                    aria-current={value === item.id ? "page" : undefined}
+                    title={item.description}
+                    onClick={() => onChange(item.id)}
+                  >
+                    {item.icon ? (
+                      <span
+                        className="dl-settings-menu-icon"
+                        aria-hidden="true"
+                      >
+                        {item.icon}
+                      </span>
+                    ) : null}
+                    <span className="dl-settings-menu-label">{item.label}</span>
+                    <span className="dl-settings-current" aria-hidden="true">
+                      ●
                     </span>
-                  ) : null}
-                  <span className="dl-settings-menu-label">{item.label}</span>
-                  <span className="dl-settings-current" aria-hidden="true">
-                    ●
-                  </span>
-                </button>
+                  </button>
+                </ContextActionMenu>
               ))}
             </section>
           );
@@ -244,18 +264,30 @@ export function SettingsTabs({
       }}
     >
       {items.map((item) => (
-        <button
+        <ContextActionMenu
           key={item.id}
-          id={`${panelId}-tab-${item.id}`}
-          role="tab"
-          type="button"
-          aria-controls={panelId}
-          aria-selected={value === item.id}
-          tabIndex={value === item.id ? 0 : -1}
-          onClick={() => onChange(item.id)}
+          label={`${item.label} tab actions`}
+          scopeKey={item.id}
+          items={[
+            {
+              id: "open",
+              label: "Open tab",
+              onSelect: () => onChange(item.id),
+            },
+          ]}
         >
-          {item.label}
-        </button>
+          <button
+            id={`${panelId}-tab-${item.id}`}
+            role="tab"
+            type="button"
+            aria-controls={panelId}
+            aria-selected={value === item.id}
+            tabIndex={value === item.id ? 0 : -1}
+            onClick={() => onChange(item.id)}
+          >
+            {item.label}
+          </button>
+        </ContextActionMenu>
       ))}
     </div>
   );

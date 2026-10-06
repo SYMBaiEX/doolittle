@@ -1,3 +1,4 @@
+import { ContextActionMenu } from "@doolittle/ui";
 import type { AccountWithCredentialFlag } from "@elizaos/ui/api/client-agent";
 import { RotationStrategyPicker } from "@elizaos/ui/components/accounts/RotationStrategyPicker";
 import { Button } from "@elizaos/ui/components/ui/button";
@@ -119,43 +120,71 @@ export function AccountPoolPanel({
       aria-label={`${descriptor.label} spawned-agent account pool`}
       className={`${PROVIDER_POOL_PANEL_CLASS} ${expanded ? "is-expanded" : ""}`}
     >
-      <header
-        className={`${PROVIDER_POOL_HEADER_CLASS} ${expanded ? "border-[var(--line-subtle)] border-b" : ""}`}
+      <ContextActionMenu
+        label={`${descriptor.label} account pool`}
+        scopeKey={descriptor.provider}
+        items={[
+          {
+            id: "manage-accounts",
+            label: expanded ? "Close account manager" : "Manage accounts",
+            onSelect: () => setExpanded((current) => !current),
+          },
+          {
+            id: "preview-route",
+            label: "Preview next account",
+            disabled: Boolean(busy) || progress.enabled === 0,
+            onSelect: onPreview,
+          },
+          ...(needsAuthRepair && authProvider
+            ? [
+                {
+                  id: "repair-auth",
+                  label: "Repair account sign-in…",
+                  disabled: Boolean(busy),
+                  onSelect: () => onSignIn(authProvider),
+                },
+              ]
+            : []),
+        ]}
       >
-        <div className={PROVIDER_IDENTITY_MARK_CLASS} aria-hidden="true">
-          {descriptor.shortLabel}
-        </div>
-        <div className={PROVIDER_POOL_TITLE_CLASS}>
-          <h3>{descriptor.label}</h3>
-          <p>
-            {progress.enabled} active · {progress.healthy} ready
-          </p>
-        </div>
-        <div className={PROVIDER_POOL_HEADER_ACTIONS_CLASS}>
-          <Badge tone={bridgeInstalled ? "good" : "warn"}>
-            {bridgeInstalled ? "Eliza native" : "Unavailable"}
-          </Badge>
-          {needsAuthRepair && authProvider ? (
+        <header
+          className={`${PROVIDER_POOL_HEADER_CLASS} ${expanded ? "border-[var(--line-subtle)] border-b" : ""}`}
+        >
+          <div className={PROVIDER_IDENTITY_MARK_CLASS} aria-hidden="true">
+            {descriptor.shortLabel}
+          </div>
+          <div className={PROVIDER_POOL_TITLE_CLASS}>
+            <h3>{descriptor.label}</h3>
+            <p>
+              {progress.enabled} active · {progress.healthy} ready
+            </p>
+          </div>
+          <div className={PROVIDER_POOL_HEADER_ACTIONS_CLASS}>
+            <Badge tone={bridgeInstalled ? "good" : "warn"}>
+              {bridgeInstalled ? "Eliza native" : "Unavailable"}
+            </Badge>
+            {needsAuthRepair && authProvider ? (
+              <Button
+                onClick={() => authProvider && onSignIn(authProvider)}
+                disabled={Boolean(busy)}
+                type="button"
+                variant="secondary"
+              >
+                Repair auth
+              </Button>
+            ) : null}
             <Button
-              onClick={() => authProvider && onSignIn(authProvider)}
-              disabled={Boolean(busy)}
+              aria-controls={`provider-pool-${descriptor.provider}`}
+              aria-expanded={expanded}
+              onClick={() => setExpanded((current) => !current)}
               type="button"
               variant="secondary"
             >
-              Repair auth
+              {expanded ? "Done" : "Manage"}
             </Button>
-          ) : null}
-          <Button
-            aria-controls={`provider-pool-${descriptor.provider}`}
-            aria-expanded={expanded}
-            onClick={() => setExpanded((current) => !current)}
-            type="button"
-            variant="secondary"
-          >
-            {expanded ? "Done" : "Manage"}
-          </Button>
-        </div>
-      </header>
+          </div>
+        </header>
+      </ContextActionMenu>
 
       <div
         className={PROVIDER_POOL_BODY_CLASS}

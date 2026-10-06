@@ -9,6 +9,7 @@ import { ProjectKnowledgePanel } from "./ProjectKnowledgePanel";
 const state = vi.hoisted(() => ({
   records: null as SharedKnowledgeResponse | null,
   error: "",
+  teamsError: "",
   loading: false,
   teams: [] as Array<{
     id: string;
@@ -40,7 +41,12 @@ vi.mock("../lib", () => ({
         : path === "/bots/teams"
           ? { version: 1, revision: 0, teams: state.teams }
           : state.records,
-    error: path === "/bots/knowledge" ? state.error : "",
+    error:
+      path === "/bots/knowledge"
+        ? state.error
+        : path === "/bots/teams"
+          ? state.teamsError
+          : "",
     loading: state.loading,
     reload: state.reload,
   }),
@@ -58,6 +64,7 @@ describe("ProjectKnowledgePanel", () => {
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
     state.records = { knowledge: [], grants: [] };
     state.error = "";
+    state.teamsError = "";
     state.loading = false;
     state.teams = [];
     vi.clearAllMocks();
@@ -180,5 +187,107 @@ describe("ProjectKnowledgePanel", () => {
     ).toBe(true);
     expect(container.textContent).toContain("From Source");
     expect(container.textContent).toContain("Revoke finding");
+  });
+
+  it("grants only the finding menu’s selected eligible bot through the native-consent path", async () => {
+    state.records = { knowledge: [record], grants: [] };
+    await render();
+    await act(async () =>
+      container.querySelector("li h3")?.dispatchEvent(
+        new MouseEvent("contextmenu", {
+          bubbles: true,
+          cancelable: true,
+          button: 2,
+        }),
+      ),
+    );
+    const menu = document.body.querySelector('[role="menu"]');
+    expect(menu?.textContent).toContain("Grant access to Allowed…");
+    expect(menu?.textContent).not.toContain("Outsider");
+    await act(async () =>
+      [...(menu?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? [])]
+        .find((item) => item.textContent === "Grant access to Allowed…")
+        ?.click(),
+    );
+    expect(desktopRequest).toHaveBeenCalledWith(
+      `/bots/knowledge/${record.id}/grant`,
+      "POST",
+      { consent: true, targetBotId: "allowed" },
+    );
+  });
+
+  it("revokes the exact grant without substituting a selected finding or bot", async () => {
+    const second = {
+      ...record,
+      id: "00000000-0000-4000-8000-000000000002",
+      title: "Second finding",
+    };
+    state.records = {
+      knowledge: [record, second],
+      grants: [
+        { knowledgeId: record.id, botId: "allowed", grantedAt: "now" },
+        { knowledgeId: second.id, botId: "allowed", grantedAt: "now" },
+      ],
+    };
+    await render();
+    const row = container.querySelectorAll(
+      'section[aria-label="Shared knowledge"] > ul > li',
+    )[1];
+    await act(async () =>
+      row?.querySelector("ul li span")?.dispatchEvent(
+        new MouseEvent("contextmenu", {
+          bubbles: true,
+          cancelable: true,
+          button: 2,
+        }),
+      ),
+    );
+    expect(
+      document.body.querySelector('[role="menu"]')?.getAttribute("aria-label"),
+    ).toBe("Knowledge access: Allowed");
+    await act(async () =>
+      document.body.querySelector<HTMLElement>('[role="menuitem"]')?.click(),
+    );
+    expect(desktopRequest).toHaveBeenCalledWith(
+      `/bots/knowledge/${second.id}/revoke`,
+      "POST",
+      { consent: true, targetBotId: "allowed" },
+    );
+  });
+
+  it("blocks team grants when current membership cannot be verified and closes stale eligibility menus", async () => {
+    state.teams = [
+      { id: "team", name: "Research", memberBotIds: ["source", "outsider"] },
+    ];
+    state.records = {
+      knowledge: [{ ...record, scope: { kind: "team", id: "team" } }],
+      grants: [],
+    };
+    state.teamsError = "Membership unavailable";
+    await render();
+    expect(
+      [...container.querySelectorAll("button")].find(
+        (button) => button.textContent === "Grant access",
+      )?.disabled,
+    ).toBe(true);
+    await act(async () =>
+      container.querySelector("li h3")?.dispatchEvent(
+        new MouseEvent("contextmenu", {
+          bubbles: true,
+          cancelable: true,
+          button: 2,
+        }),
+      ),
+    );
+    const grant = [
+      ...document.body.querySelectorAll<HTMLElement>('[role="menuitem"]'),
+    ].find((item) => item.textContent === "Grant access to Outsider…");
+    expect(grant?.hasAttribute("data-disabled")).toBe(true);
+    await act(async () => grant?.click());
+    expect(desktopRequest).not.toHaveBeenCalled();
+    state.teamsError = "";
+    state.teams[0].memberBotIds = ["outsider"];
+    await render();
+    expect(document.body.querySelector('[role="menu"]')).toBeNull();
   });
 });

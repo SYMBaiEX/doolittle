@@ -1,7 +1,9 @@
+import { ContextActionMenu } from "@doolittle/ui";
 import { ChevronDown } from "lucide-react";
 import { type RefObject, useEffect, useRef, useState } from "react";
 import { UiIcon } from "../components/UiIcon";
 import { useModalFocusBoundary } from "../components/useModalFocusBoundary";
+import { copyContextText } from "../context-menu-clipboard";
 import { Badge } from "../lib";
 import type { ReviewComment, ReviewCommentAnchor } from "../review-comments";
 import {
@@ -26,6 +28,7 @@ export interface ReviewCommentTarget {
 }
 
 export interface ReviewCommentsPanelProps {
+  contextScope?: string;
   path: string;
   comments: ReviewComment[];
   openCommentCount: number;
@@ -48,6 +51,7 @@ export interface ReviewCommentsPanelProps {
 }
 
 export function ReviewCommentsPanel({
+  contextScope,
   path,
   comments,
   openCommentCount,
@@ -67,17 +71,44 @@ export function ReviewCommentsPanel({
   const [notesOpen, setNotesOpen] = useState(
     comments.length > 0 || Boolean(activeCommentTarget),
   );
-  const [pendingDelete, setPendingDelete] = useState<ReviewComment | null>(
-    null,
-  );
+  const deleteScope = JSON.stringify([contextScope ?? "", path]);
+  const latestDeleteScope = useRef({ scope: deleteScope, comments });
+  latestDeleteScope.current = { scope: deleteScope, comments };
+  const [deleteRequest, setDeleteRequest] = useState<{
+    scope: string;
+    comment: ReviewComment;
+  } | null>(null);
+  const pendingDelete =
+    deleteRequest?.scope === deleteScope &&
+    comments.some(
+      (comment) =>
+        comment.id === deleteRequest.comment.id &&
+        comment.path === deleteRequest.comment.path,
+    )
+      ? deleteRequest.comment
+      : null;
+  useEffect(() => {
+    if (deleteRequest && !pendingDelete) setDeleteRequest(null);
+  }, [deleteRequest, pendingDelete]);
   const deleteTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const deleteButtons = useRef(new Map<string, HTMLButtonElement>());
+  const requestDelete = (comment: ReviewComment) => {
+    deleteTriggerRef.current = deleteButtons.current.get(comment.id) ?? null;
+    setDeleteRequest({
+      scope: deleteScope,
+      comment: {
+        ...comment,
+        anchor: comment.anchor ? { ...comment.anchor } : undefined,
+      },
+    });
+  };
   const deleteBackdropRef = useRef<HTMLDivElement | null>(null);
   const deleteDialogRef = useModalFocusBoundary({
     active: Boolean(pendingDelete),
     initialFocusSelector: "[data-review-delete-cancel]",
     isolationBoundaryRef: deleteBackdropRef,
     isolateBackground: true,
-    onClose: () => setPendingDelete(null),
+    onClose: () => setDeleteRequest(null),
     restoreFocus: true,
     restoreFocusRef: deleteTriggerRef,
   });
@@ -144,49 +175,88 @@ export function ReviewCommentsPanel({
                   }`}
                   key={comment.id}
                 >
-                  <div className={REVIEW_COMMENT_LOCATION_CLASS}>
-                    <span>
-                      {comment.anchor
-                        ? `${comment.anchor.side === "new" ? "+" : "−"} line ${comment.anchor.line}`
-                        : "Whole file"}
-                    </span>
-                    <Badge
-                      tone={comment.status === "open" ? "warn" : "neutral"}
-                    >
-                      {comment.status}
-                    </Badge>
-                  </div>
-                  {comment.anchor?.preview ? (
-                    <code>{comment.anchor.preview}</code>
-                  ) : null}
-                  <p>{comment.body}</p>
-                  <div className={REVIEW_COMMENT_ACTIONS_CLASS}>
-                    <button
-                      onClick={() => onToggleResolved(comment.id)}
-                      type="button"
-                    >
-                      {comment.status === "open" ? "Resolve" : "Reopen"}
-                    </button>
-                    <button
-                      onClick={() =>
-                        onStartComment(comment.path, comment.anchor, comment)
-                      }
-                      type="button"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      aria-label={`Delete review note for ${comment.path}`}
-                      className="danger"
-                      onClick={(event) => {
-                        deleteTriggerRef.current = event.currentTarget;
-                        setPendingDelete(comment);
-                      }}
-                      type="button"
-                    >
-                      Delete
-                    </button>
-                  </div>
+                  <ContextActionMenu
+                    label={`Review note actions for ${comment.path}`}
+                    scopeKey={JSON.stringify([
+                      contextScope ?? "",
+                      path,
+                      comment.id,
+                    ])}
+                    items={[
+                      {
+                        id: "resolve",
+                        label:
+                          comment.status === "open"
+                            ? "Resolve note"
+                            : "Reopen note",
+                        onSelect: () => onToggleResolved(comment.id),
+                      },
+                      {
+                        id: "edit",
+                        label: "Edit note",
+                        onSelect: () =>
+                          onStartComment(comment.path, comment.anchor, comment),
+                      },
+                      {
+                        id: "copy",
+                        label: "Copy note",
+                        onSelect: () => void copyContextText(comment.body),
+                      },
+                      {
+                        id: "delete",
+                        label: "Delete note",
+                        destructive: true,
+                        separatorBefore: true,
+                        onSelect: () => requestDelete(comment),
+                      },
+                    ]}
+                  >
+                    <div className={REVIEW_COMMENT_LOCATION_CLASS}>
+                      <span>
+                        {comment.anchor
+                          ? `${comment.anchor.side === "new" ? "+" : "−"} line ${comment.anchor.line}`
+                          : "Whole file"}
+                      </span>
+                      <Badge
+                        tone={comment.status === "open" ? "warn" : "neutral"}
+                      >
+                        {comment.status}
+                      </Badge>
+                    </div>
+                    {comment.anchor?.preview ? (
+                      <code>{comment.anchor.preview}</code>
+                    ) : null}
+                    <p>{comment.body}</p>
+                    <div className={REVIEW_COMMENT_ACTIONS_CLASS}>
+                      <button
+                        onClick={() => onToggleResolved(comment.id)}
+                        type="button"
+                      >
+                        {comment.status === "open" ? "Resolve" : "Reopen"}
+                      </button>
+                      <button
+                        onClick={() =>
+                          onStartComment(comment.path, comment.anchor, comment)
+                        }
+                        type="button"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        aria-label={`Delete review note for ${comment.path}`}
+                        className="danger"
+                        ref={(element) => {
+                          if (element)
+                            deleteButtons.current.set(comment.id, element);
+                          else deleteButtons.current.delete(comment.id);
+                        }}
+                        onClick={() => requestDelete(comment)}
+                        type="button"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </ContextActionMenu>
                 </li>
               ))}
             </ol>
@@ -280,7 +350,7 @@ export function ReviewCommentsPanel({
             <div>
               <button
                 data-review-delete-cancel
-                onClick={() => setPendingDelete(null)}
+                onClick={() => setDeleteRequest(null)}
                 type="button"
               >
                 Cancel
@@ -288,8 +358,18 @@ export function ReviewCommentsPanel({
               <button
                 className="danger"
                 onClick={() => {
-                  onDelete(pendingDelete.id);
-                  setPendingDelete(null);
+                  const current = latestDeleteScope.current;
+                  if (
+                    deleteRequest?.scope === current.scope &&
+                    current.comments.some(
+                      (comment) =>
+                        comment.id === pendingDelete.id &&
+                        comment.path === pendingDelete.path,
+                    )
+                  ) {
+                    onDelete(pendingDelete.id);
+                  }
+                  setDeleteRequest(null);
                 }}
                 type="button"
               >

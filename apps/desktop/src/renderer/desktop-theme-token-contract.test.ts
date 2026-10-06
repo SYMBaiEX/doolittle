@@ -11,6 +11,10 @@ const OFFICIAL_STYLE_FILES = [
 ];
 const VARIABLE_USE = /var\(\s*(--[A-Za-z0-9_-]+)/g;
 const VARIABLE_DECLARATION = /(?:["']|[\s[,])(--[A-Za-z0-9_-]+)(?:["'])?\s*:/g;
+// ElizaOS PopoverContent uses this Radix sizing value at runtime for collision-aware placement.
+const SDK_RUNTIME_CUSTOM_PROPERTIES = new Set([
+  "--radix-popover-content-available-height",
+]);
 
 function rendererSources(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true })
@@ -48,7 +52,12 @@ function unresolvedRendererVariables(): string[] {
       declared.add(variable);
     }
   }
-  return [...used].filter((variable) => !declared.has(variable)).sort();
+  return [...used]
+    .filter(
+      (variable) =>
+        !declared.has(variable) && !SDK_RUNTIME_CUSTOM_PROPERTIES.has(variable),
+    )
+    .sort();
 }
 
 function rendererSourceEntries(): Array<{ path: string; source: string }> {

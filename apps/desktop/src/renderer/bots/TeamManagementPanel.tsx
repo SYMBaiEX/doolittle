@@ -4,9 +4,16 @@ import type {
   BotTeam,
   BotTeamCatalogResponse,
 } from "@doolittle/contracts/bots";
-import { Button, DialogFrame, Input, StateSurface } from "@doolittle/ui";
+import {
+  Button,
+  ContextActionMenu,
+  DialogFrame,
+  Input,
+  StateSurface,
+} from "@doolittle/ui";
 import { useId, useRef, useState } from "react";
 import { useModalFocusBoundary } from "../components/useModalFocusBoundary";
+import { copyContextText } from "../context-menu-clipboard";
 import { desktopRequest, errorMessage, useApiResource } from "../lib";
 
 function TeamEditor({
@@ -165,6 +172,13 @@ export function TeamManagementPanel({ active }: { active: boolean }) {
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const editRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const editTeam = (team: BotTeam) =>
+    setEditor({
+      team,
+      revision: teams.data?.revision ?? 0,
+      returnFocusTarget: editRefs.current[team.id] ?? null,
+    });
   const refresh = () => {
     teams.reload();
     catalog.reload();
@@ -254,46 +268,83 @@ export function TeamManagementPanel({ active }: { active: boolean }) {
             key={team.id}
             className="flex flex-wrap items-center justify-between gap-3 py-4"
           >
-            <div className="min-w-0">
-              <h3 className="m-0 text-base font-medium">
-                {team.name}
-                {team.archivedAt ? " · Archived" : ""}
-              </h3>
-              <p className="mt-1 text-sm text-[var(--muted)]">
-                {team.memberBotIds
-                  .map(
-                    (id) =>
-                      bots.find((bot) => bot.id === id)?.name ??
-                      "Unavailable bot",
-                  )
-                  .join(", ") || "No members"}
-              </p>
-            </div>
-            {!team.archivedAt ? (
-              <div className="flex gap-2">
-                <Button
-                  variant="secondary"
-                  disabled={Boolean(busy) || !catalog.data}
-                  onClick={() =>
-                    setEditor({
-                      team,
-                      revision: teams.data?.revision ?? 0,
-                      returnFocusTarget:
-                        document.activeElement as HTMLElement | null,
-                    })
-                  }
-                >
-                  Edit members<span className="sr-only"> for {team.name}</span>
-                </Button>
-                <Button
-                  variant="ghost"
-                  disabled={Boolean(busy)}
-                  onClick={() => void archive(team)}
-                >
-                  Archive team<span className="sr-only"> {team.name}</span>
-                </Button>
+            <ContextActionMenu
+              label={`Team: ${team.name}`}
+              scopeKey={JSON.stringify([
+                team.id,
+                teams.data?.revision,
+                team.archivedAt,
+                team.memberBotIds,
+              ])}
+              items={[
+                {
+                  id: "edit-members",
+                  label: "Edit team and members…",
+                  disabled:
+                    !active ||
+                    Boolean(team.archivedAt) ||
+                    Boolean(busy) ||
+                    !catalog.data,
+                  onSelect: () => editTeam(team),
+                },
+                {
+                  id: "archive-team",
+                  label: "Archive team…",
+                  destructive: true,
+                  disabled:
+                    !active || Boolean(team.archivedAt) || Boolean(busy),
+                  onSelect: () => {
+                    void archive(team);
+                  },
+                },
+                {
+                  id: "copy-name",
+                  label: "Copy team name",
+                  separatorBefore: true,
+                  onSelect: () => {
+                    void copyContextText(team.name);
+                  },
+                },
+              ]}
+            >
+              <div className="min-w-0">
+                <h3 className="m-0 text-base font-medium">
+                  {team.name}
+                  {team.archivedAt ? " · Archived" : ""}
+                </h3>
+                <p className="mt-1 text-sm text-[var(--muted)]">
+                  {team.memberBotIds
+                    .map(
+                      (id) =>
+                        bots.find((bot) => bot.id === id)?.name ??
+                        "Unavailable bot",
+                    )
+                    .join(", ") || "No members"}
+                </p>
               </div>
-            ) : null}
+              {!team.archivedAt ? (
+                <div className="flex gap-2">
+                  <Button
+                    variant="secondary"
+                    disabled={Boolean(busy) || !catalog.data}
+                    onClick={() => editTeam(team)}
+                    ref={(node) => {
+                      editRefs.current[team.id] = node;
+                    }}
+                  >
+                    Edit members
+                    <span className="sr-only"> for {team.name}</span>
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    disabled={Boolean(busy)}
+                    onClick={() => void archive(team)}
+                  >
+                    Archive team<span className="sr-only"> {team.name}</span>
+                  </Button>
+                </div>
+              ) : null}
+            </ContextActionMenu>
           </li>
         ))}
       </ul>

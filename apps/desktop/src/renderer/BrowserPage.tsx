@@ -1,3 +1,4 @@
+import { type ContextAction, ContextActionMenu } from "@doolittle/ui";
 import {
   ArrowLeft,
   ArrowRight,
@@ -35,6 +36,7 @@ import { BrowserResultPanel } from "./components/BrowserResultPanel";
 import { Button, Input } from "./components/ElizaControls";
 import { OfflineRouteState } from "./components/OfflineRouteState";
 import { UiIcon } from "./components/UiIcon";
+import { copyContextText } from "./context-menu-clipboard";
 import { Badge, Notice } from "./lib";
 
 export { isLocalPreviewUrl } from "./browser/browser-navigation";
@@ -92,6 +94,49 @@ export function BrowserPage({
   const refreshStatus = () => {
     if (active) status.reload();
   };
+  const previewActions: ContextAction[] = [
+    {
+      id: "back",
+      label: "Go back",
+      disabled: !active || Boolean(busy) || !canGoBack,
+      onSelect: () => travelHistory(-1),
+    },
+    {
+      id: "forward",
+      label: "Go forward",
+      disabled: !active || Boolean(busy) || !canGoForward,
+      onSelect: () => travelHistory(1),
+    },
+    {
+      id: "reload",
+      label: "Reload preview",
+      disabled: !active || Boolean(busy) || !currentUrl,
+      onSelect: reloadPreview,
+    },
+    {
+      id: "copy-url",
+      label: "Copy page URL",
+      disabled: !currentUrl,
+      onSelect: () => void copyContextText(currentUrl),
+    },
+    ...(["responsive", "desktop", "tablet", "mobile"] as const).map((size) => ({
+      id: `size-${size}`,
+      label:
+        size === "responsive"
+          ? "Fit preview"
+          : `${size[0].toUpperCase()}${size.slice(1)} preview`,
+      separatorBefore: size === "responsive",
+      disabled: !active || Boolean(busy) || previewSize === size,
+      onSelect: () => setPreviewSize(size),
+    })),
+    ...BROWSER_ACTIONS.map((action, index) => ({
+      id: action.id,
+      label: action.label,
+      separatorBefore: index === 0,
+      disabled: !active || Boolean(busy),
+      onSelect: () => void runAction(action.id),
+    })),
+  ];
 
   if (!active) {
     return (
@@ -164,62 +209,70 @@ export function BrowserPage({
         </header>
       ) : null}
 
-      <form
-        className={BROWSER_ADDRESS_CLASS}
-        onSubmit={(event) => {
-          event.preventDefault();
-          navigate();
-        }}
+      <ContextActionMenu
+        items={previewActions}
+        label="Browser navigation actions"
+        scopeKey={`${botId ?? "lead"}:${currentUrl}`}
       >
-        <button
-          aria-label="Go back"
-          className={BROWSER_NAV_BUTTON_CLASS}
-          disabled={!canGoBack}
-          onClick={() => travelHistory(-1)}
-          type="button"
+        <form
+          className={BROWSER_ADDRESS_CLASS}
+          onSubmit={(event) => {
+            event.preventDefault();
+            navigate();
+          }}
         >
-          <UiIcon icon={ArrowLeft} size="sm" />
-        </button>
-        <button
-          aria-label="Go forward"
-          className={BROWSER_NAV_BUTTON_CLASS}
-          disabled={!canGoForward}
-          onClick={() => travelHistory(1)}
-          type="button"
-        >
-          <UiIcon icon={ArrowRight} size="sm" />
-        </button>
-        <button
-          aria-label="Reload preview"
-          className={BROWSER_NAV_BUTTON_CLASS}
-          disabled={!currentUrl}
-          onClick={reloadPreview}
-          type="button"
-        >
-          <UiIcon icon={RefreshCw} size="sm" />
-        </button>
-        <UiIcon
-          className="text-[var(--accent)]"
-          icon={embedded ? Monitor : Globe2}
-          size="sm"
-        />
-        <Input
-          aria-describedby={
-            error && errorField === "address" ? "browser-url-error" : undefined
-          }
-          aria-invalid={errorField === "address" ? true : undefined}
-          aria-label="Preview URL"
-          className={BROWSER_ADDRESS_INPUT_CLASS}
-          id="browser-address-input"
-          onChange={(event) => updateAddress(event.target.value)}
-          placeholder="http://127.0.0.1:3000"
-          spellCheck={false}
-          value={address}
-        />
-        <Button disabled={!active} size="sm" type="submit">
-          Open
-        </Button>
-      </form>
+          <button
+            aria-label="Go back"
+            className={BROWSER_NAV_BUTTON_CLASS}
+            disabled={!canGoBack}
+            onClick={() => travelHistory(-1)}
+            type="button"
+          >
+            <UiIcon icon={ArrowLeft} size="sm" />
+          </button>
+          <button
+            aria-label="Go forward"
+            className={BROWSER_NAV_BUTTON_CLASS}
+            disabled={!canGoForward}
+            onClick={() => travelHistory(1)}
+            type="button"
+          >
+            <UiIcon icon={ArrowRight} size="sm" />
+          </button>
+          <button
+            aria-label="Reload preview"
+            className={BROWSER_NAV_BUTTON_CLASS}
+            disabled={!currentUrl}
+            onClick={reloadPreview}
+            type="button"
+          >
+            <UiIcon icon={RefreshCw} size="sm" />
+          </button>
+          <UiIcon
+            className="text-[var(--accent)]"
+            icon={embedded ? Monitor : Globe2}
+            size="sm"
+          />
+          <Input
+            aria-describedby={
+              error && errorField === "address"
+                ? "browser-url-error"
+                : undefined
+            }
+            aria-invalid={errorField === "address" ? true : undefined}
+            aria-label="Preview URL"
+            className={BROWSER_ADDRESS_INPUT_CLASS}
+            id="browser-address-input"
+            onChange={(event) => updateAddress(event.target.value)}
+            placeholder="http://127.0.0.1:3000"
+            spellCheck={false}
+            value={address}
+          />
+          <Button disabled={!active} size="sm" type="submit">
+            Open
+          </Button>
+        </form>
+      </ContextActionMenu>
 
       {error ? (
         <Notice tone="bad">
@@ -228,72 +281,78 @@ export function BrowserPage({
       ) : null}
 
       <div className={BROWSER_WORKSPACE_CLASS}>
-        <section className={BROWSER_CANVAS_CLASS}>
-          <div className={BROWSER_CANVAS_TOOLBAR_CLASS}>
-            <span>{currentUrl || "No preview loaded"}</span>
-            <label>
-              <span className="sr-only">Preview size</span>
-              <select
-                aria-label="Preview size"
-                className="min-h-[var(--control-height)] rounded-[var(--radius-xs)] border border-[var(--border-strong)] bg-[var(--surface-raised)] px-2 font-[var(--font-mono)] text-[length:var(--text-control)] text-[var(--text)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] max-[760px]:min-h-11"
-                onChange={(event) =>
-                  setPreviewSize(event.target.value as BrowserPreviewSize)
-                }
-                value={previewSize}
-              >
-                <option value="responsive">Fit</option>
-                <option value="desktop">Desktop</option>
-                <option value="tablet">Tablet</option>
-                <option value="mobile">Mobile</option>
-              </select>
-            </label>
-            <Badge tone={embedded ? "good" : "neutral"}>
-              {embedded ? "Live localhost" : "Capture mode"}
-            </Badge>
-          </div>
-          {embedded ? (
-            <div
-              className={`${BROWSER_FRAME_STAGE_CLASS} ${BROWSER_PREVIEW_WIDTH_CLASS[previewSize]}`}
-              data-browser-preview-size={previewSize}
-            >
-              <iframe
-                key={currentUrl}
-                referrerPolicy="no-referrer"
-                sandbox="allow-forms allow-modals allow-pointer-lock allow-popups allow-same-origin allow-scripts"
-                src={currentUrl}
-                title="Local application preview"
-              />
-            </div>
-          ) : (
-            <div className={BROWSER_PLACEHOLDER_CLASS}>
-              <span
-                aria-hidden="true"
-                className="grid size-8.5 place-items-center rounded-[var(--radius-xs)] border border-[var(--accent-border)] bg-[var(--accent-soft)] text-base text-[var(--accent)]"
-              >
-                <UiIcon icon={Link2} size="md" />
-              </span>
-              <h2>
-                {currentUrl
-                  ? "External pages open as evidence"
-                  : "Open a localhost app"}
-              </h2>
-              <p>
-                {currentUrl
-                  ? "For safety, remote sites are inspected through Doolittle’s browser service instead of being embedded."
-                  : "Start your development server, enter its local URL, and preview it inside the coding workspace."}
-              </p>
-              {currentUrl ? (
-                <Button
-                  disabled={!active || Boolean(busy)}
-                  onClick={() => void runAction("capture")}
-                  type="button"
+        <ContextActionMenu
+          items={previewActions}
+          label="Browser preview actions"
+          scopeKey={`${botId ?? "lead"}:${currentUrl}`}
+        >
+          <section className={BROWSER_CANVAS_CLASS}>
+            <div className={BROWSER_CANVAS_TOOLBAR_CLASS}>
+              <span>{currentUrl || "No preview loaded"}</span>
+              <label>
+                <span className="sr-only">Preview size</span>
+                <select
+                  aria-label="Preview size"
+                  className="min-h-[var(--control-height)] rounded-[var(--radius-xs)] border border-[var(--border-strong)] bg-[var(--surface-raised)] px-2 font-[var(--font-mono)] text-[length:var(--text-control)] text-[var(--text)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] max-[760px]:min-h-11"
+                  onChange={(event) =>
+                    setPreviewSize(event.target.value as BrowserPreviewSize)
+                  }
+                  value={previewSize}
                 >
-                  {busy === "capture" ? "Capturing…" : "Capture page"}
-                </Button>
-              ) : null}
+                  <option value="responsive">Fit</option>
+                  <option value="desktop">Desktop</option>
+                  <option value="tablet">Tablet</option>
+                  <option value="mobile">Mobile</option>
+                </select>
+              </label>
+              <Badge tone={embedded ? "good" : "neutral"}>
+                {embedded ? "Live localhost" : "Capture mode"}
+              </Badge>
             </div>
-          )}
-        </section>
+            {embedded ? (
+              <div
+                className={`${BROWSER_FRAME_STAGE_CLASS} ${BROWSER_PREVIEW_WIDTH_CLASS[previewSize]}`}
+                data-browser-preview-size={previewSize}
+              >
+                <iframe
+                  key={currentUrl}
+                  referrerPolicy="no-referrer"
+                  sandbox="allow-forms allow-modals allow-pointer-lock allow-popups allow-same-origin allow-scripts"
+                  src={currentUrl}
+                  title="Local application preview"
+                />
+              </div>
+            ) : (
+              <div className={BROWSER_PLACEHOLDER_CLASS}>
+                <span
+                  aria-hidden="true"
+                  className="grid size-8.5 place-items-center rounded-[var(--radius-xs)] border border-[var(--accent-border)] bg-[var(--accent-soft)] text-base text-[var(--accent)]"
+                >
+                  <UiIcon icon={Link2} size="md" />
+                </span>
+                <h2>
+                  {currentUrl
+                    ? "External pages open as evidence"
+                    : "Open a localhost app"}
+                </h2>
+                <p>
+                  {currentUrl
+                    ? "For safety, remote sites are inspected through Doolittle’s browser service instead of being embedded."
+                    : "Start your development server, enter its local URL, and preview it inside the coding workspace."}
+                </p>
+                {currentUrl ? (
+                  <Button
+                    disabled={!active || Boolean(busy)}
+                    onClick={() => void runAction("capture")}
+                    type="button"
+                  >
+                    {busy === "capture" ? "Capturing…" : "Capture page"}
+                  </Button>
+                ) : null}
+              </div>
+            )}
+          </section>
+        </ContextActionMenu>
 
         <aside className={BROWSER_TOOLS_CLASS}>
           <div className="flex items-start justify-between gap-3 border-[var(--border)] border-b p-3.5 [&_h2]:mt-1 [&_h2]:mb-0 [&_h2]:font-[var(--font-display)] [&_h2]:text-sm">

@@ -619,8 +619,15 @@
   padding: 12px;
 }
 .dl-composer textarea:focus-visible {
-  outline: 2px solid var(--text-soft);
-  outline-offset: 0;
+  outline: none;
+  box-shadow: inset 2px 0 0 var(--text-soft);
+}
+@media (forced-colors: active) {
+  .dl-composer textarea:focus-visible {
+    box-shadow: none;
+    outline: 1px solid Highlight;
+    outline-offset: 0;
+  }
 }
 .dl-composer-actions {
   display: flex;
@@ -675,5 +682,101 @@
   .dl-workspace *::after {
     transition: none;
     animation: none;
+  }
+}
+
+/* Portaled menus carry their own theme contract, independent of route shells. */
+.dl-action-menu-anchor {
+  position: fixed;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+.dl-action-menu {
+  min-width: 180px;
+  max-width: calc(100vw - 24px);
+  max-height: var(--radix-dropdown-menu-content-available-height);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  color: var(--text);
+  padding: 4px;
+  box-shadow: var(--shell-shadow-md);
+  font-family: var(--font-sans);
+  font-size: var(--text-control, 14px);
+  line-height: var(--line-control, 1.4);
+  animation: none;
+}
+.dl-action-menu-item {
+  display: flex;
+  align-items: center;
+  min-height: 40px;
+  gap: 16px;
+  border-radius: var(--radius-xs);
+  padding-inline: 10px;
+  color: var(--text);
+  font-size: var(--text-control, 14px);
+  cursor: pointer;
+}
+.dl-action-menu-item[data-highlighted] {
+  background: var(--surface-hover);
+  color: var(--text);
+  outline: none;
+}
+.dl-action-menu-item > span:first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.dl-action-menu-item[data-destructive] {
+  color: var(--bad);
+}
+.dl-action-menu-item[data-disabled] {
+  cursor: default;
+  opacity: 0.5;
+}
+.dl-action-menu-separator {
+  height: 1px;
+  margin: 4px 0;
+  background: var(--border);
+}
+.dl-action-menu-shortcut {
+  margin-left: auto;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-meta);
+  letter-spacing: normal;
+  opacity: 1;
+  white-space: nowrap;
+}
+@media (pointer: coarse), (max-width: 760px) {
+  .dl-action-menu-item {
+    min-height: 44px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dl-action-menu,
+  .dl-action-menu * {
+    animation: none;
+    transition: none;
+  }
+}
+@media (forced-colors: active) {
+  .dl-action-menu {
+    border-color: CanvasText;
+    background: Canvas;
+    color: CanvasText;
+  }
+  .dl-action-menu-item[data-highlighted] {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
+  .dl-action-menu-item[data-disabled] {
+    color: GrayText;
   }
 }

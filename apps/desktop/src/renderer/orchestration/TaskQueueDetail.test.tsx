@@ -110,4 +110,40 @@ describe("TaskQueueDetail", () => {
     expect(container.textContent).toContain("Child tasks are unchanged");
     expect(container.textContent).not.toContain("Cascade to children");
   });
+
+  it("routes context cancellation through the existing confirmation and a visible return control", async () => {
+    const onRequestDestructiveAction = vi.fn();
+    const onRunTaskAction = vi.fn();
+    await act(async () =>
+      root.render(
+        <TaskQueueDetail
+          {...props({ onRequestDestructiveAction, onRunTaskAction })}
+        />,
+      ),
+    );
+    await act(async () =>
+      container.querySelector("h2")?.dispatchEvent(
+        new MouseEvent("contextmenu", {
+          bubbles: true,
+          cancelable: true,
+          button: 2,
+        }),
+      ),
+    );
+    const cancel = Array.from(
+      document.querySelectorAll<HTMLElement>('[role="menuitem"]'),
+    ).find((item) => item.textContent === "Cancel…");
+    expect(cancel).toBeDefined();
+    await act(async () => cancel?.click());
+    const returnButton = container.querySelector<HTMLButtonElement>(
+      "details button:last-child",
+    );
+    expect(onRequestDestructiveAction).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ id: "task-1" }),
+      "cancel",
+      returnButton,
+    );
+    expect(returnButton?.closest("details")?.open).toBe(true);
+    expect(onRunTaskAction).not.toHaveBeenCalled();
+  });
 });

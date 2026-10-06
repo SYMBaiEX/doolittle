@@ -85,6 +85,7 @@ import {
   type ComputerOrigin,
   ensureComputerOriginOwnerBinding,
 } from "./computer-origin";
+import { observeContextMenuCopy } from "./context-menu-clipboard";
 import { newConversationId } from "./conversation-id";
 import {
   collectSidebarFocusables,
@@ -488,6 +489,7 @@ export function App() {
     pause: pauseToast,
     resume: resumeToast,
   } = useToasts({ maxVisible: 3, defaultTimeoutMs: 4_500 });
+  useEffect(() => observeContextMenuCopy(pushToast), [pushToast]);
   const {
     backend,
     globalError,

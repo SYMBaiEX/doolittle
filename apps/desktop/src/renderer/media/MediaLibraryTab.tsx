@@ -1,7 +1,9 @@
+import { type ContextAction, ContextActionMenu } from "@doolittle/ui";
 import { Film, Image, Music2, RefreshCw } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button, Input } from "../components/ElizaControls";
 import { UiIcon } from "../components/UiIcon";
+import { copyContextText } from "../context-menu-clipboard";
 import { ErrorBlock, LoadingBlock, useApiResource } from "../lib";
 
 type AssetKind = "image" | "audio" | "video";
@@ -77,6 +79,31 @@ export function MediaLibraryTab({
       : null,
     [selectedAsset?.id],
   );
+  const assetActions = (asset: MediaLibraryAsset): ContextAction[] => [
+    {
+      id: "view",
+      label: "View asset",
+      disabled: !active,
+      onSelect: () => setSelectedId(asset.id),
+    },
+    {
+      id: "copy-name",
+      label: "Copy asset name",
+      onSelect: () => void copyContextText(asset.name),
+    },
+    {
+      id: "copy-metadata",
+      label: "Copy asset metadata",
+      onSelect: () => void copyContextText(JSON.stringify(asset, null, 2)),
+    },
+    {
+      id: "refresh",
+      label: "Refresh asset library",
+      disabled: !active || library.loading,
+      separatorBefore: true,
+      onSelect: library.reload,
+    },
+  ];
 
   useEffect(() => {
     if (!active) return;
@@ -182,31 +209,38 @@ export function MediaLibraryTab({
               {visibleAssets.map((asset) => {
                 const Icon = assetIcon(asset.kind);
                 return (
-                  <button
-                    aria-current={
-                      asset.id === selectedAsset?.id ? "true" : undefined
-                    }
-                    className={`grid min-h-12 w-full grid-cols-[28px_minmax(0,1fr)] items-center gap-2 rounded-[var(--radius-xs)] border-0 px-2 py-1.5 text-left ${
-                      asset.id === selectedAsset?.id
-                        ? "bg-[var(--surface-hover)] text-[var(--text)] shadow-[inset_2px_0_var(--accent)]"
-                        : "bg-transparent text-[var(--text-soft)] hover:bg-[var(--surface-hover)]"
-                    }`}
+                  <ContextActionMenu
+                    disabled={!active}
                     key={asset.id}
-                    onClick={() => setSelectedId(asset.id)}
-                    type="button"
+                    items={assetActions(asset)}
+                    label={`Asset actions for ${asset.name}`}
+                    scopeKey={asset.id}
                   >
-                    <span className="grid size-7 place-items-center rounded-[var(--radius-xs)] bg-[var(--surface-soft)] text-[var(--accent)]">
-                      <UiIcon icon={Icon} size="sm" />
-                    </span>
-                    <span className="grid min-w-0 gap-0.5">
-                      <strong className="truncate text-[length:var(--text-control)]">
-                        {asset.name}
-                      </strong>
-                      <small className="truncate font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--muted)]">
-                        {asset.provider} · {compactBytes(asset.sizeBytes)}
-                      </small>
-                    </span>
-                  </button>
+                    <button
+                      aria-current={
+                        asset.id === selectedAsset?.id ? "true" : undefined
+                      }
+                      className={`grid min-h-12 w-full grid-cols-[28px_minmax(0,1fr)] items-center gap-2 rounded-[var(--radius-xs)] border-0 px-2 py-1.5 text-left ${
+                        asset.id === selectedAsset?.id
+                          ? "bg-[var(--surface-hover)] text-[var(--text)] shadow-[inset_2px_0_var(--accent)]"
+                          : "bg-transparent text-[var(--text-soft)] hover:bg-[var(--surface-hover)]"
+                      }`}
+                      onClick={() => setSelectedId(asset.id)}
+                      type="button"
+                    >
+                      <span className="grid size-7 place-items-center rounded-[var(--radius-xs)] bg-[var(--surface-soft)] text-[var(--accent)]">
+                        <UiIcon icon={Icon} size="sm" />
+                      </span>
+                      <span className="grid min-w-0 gap-0.5">
+                        <strong className="truncate text-[length:var(--text-control)]">
+                          {asset.name}
+                        </strong>
+                        <small className="truncate font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--muted)]">
+                          {asset.provider} · {compactBytes(asset.sizeBytes)}
+                        </small>
+                      </span>
+                    </button>
+                  </ContextActionMenu>
                 );
               })}
             </div>
@@ -229,55 +263,70 @@ export function MediaLibraryTab({
             </p>
           </div>
         ) : (
-          <article className="grid max-w-[980px] gap-3">
-            <header className="grid gap-1 border-b border-[var(--border)] pb-3">
-              <span className="eyebrow">{selectedAsset.kind} asset</span>
-              <h2 className="m-0 text-base">{selectedAsset.name}</h2>
-              <p className="m-0 text-[length:var(--text-control)] text-[var(--muted)]">
-                {selectedAsset.provider} · {selectedAsset.model} ·{" "}
-                {compactBytes(selectedAsset.sizeBytes)}
-              </p>
-            </header>
-            {payload.loading ? (
-              <LoadingBlock label="Loading preview…" />
-            ) : payload.error ? (
-              <ErrorBlock error={payload.error} retry={payload.reload} />
-            ) : payload.data?.asset.id === selectedAsset.id ? (
-              selectedAsset.kind === "image" ? (
-                <img
-                  alt={selectedAsset.prompt || selectedAsset.name}
-                  className="block max-h-[min(62vh,720px)] max-w-full rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--canvas-bg)] object-contain"
-                  src={assetUrl(payload.data)}
-                />
-              ) : selectedAsset.kind === "audio" ? (
-                // Generated narration may not include a truthful caption track.
-                // biome-ignore lint/a11y/useMediaCaption: no caption payload exists
-                <audio
-                  className="w-full"
-                  controls
-                  src={assetUrl(payload.data)}
-                />
-              ) : (
-                // Generated video may not include a truthful caption track.
-                // biome-ignore lint/a11y/useMediaCaption: no caption payload exists
-                <video
-                  className="max-h-[62vh] max-w-full"
-                  controls
-                  src={assetUrl(payload.data)}
-                />
-              )
-            ) : null}
-            {selectedAsset.prompt ? (
-              <section className="grid gap-1.5 pt-1">
-                <strong className="font-[var(--font-mono)] text-[length:var(--text-meta)] tracking-[0.07em] text-[var(--muted)] uppercase">
-                  Source prompt
-                </strong>
-                <p className="m-0 max-w-[760px] text-[length:var(--text-body)] leading-[1.55] text-[var(--text-soft)]">
-                  {selectedAsset.prompt}
+          <ContextActionMenu
+            disabled={!active}
+            items={[
+              ...assetActions(selectedAsset),
+              {
+                id: "refresh-preview",
+                label: "Refresh asset preview",
+                disabled: !active || payload.loading,
+                onSelect: payload.reload,
+              },
+            ]}
+            label={`Asset preview actions for ${selectedAsset.name}`}
+            scopeKey={selectedAsset.id}
+          >
+            <article className="grid max-w-[980px] gap-3">
+              <header className="grid gap-1 border-b border-[var(--border)] pb-3">
+                <span className="eyebrow">{selectedAsset.kind} asset</span>
+                <h2 className="m-0 text-base">{selectedAsset.name}</h2>
+                <p className="m-0 text-[length:var(--text-control)] text-[var(--muted)]">
+                  {selectedAsset.provider} · {selectedAsset.model} ·{" "}
+                  {compactBytes(selectedAsset.sizeBytes)}
                 </p>
-              </section>
-            ) : null}
-          </article>
+              </header>
+              {payload.loading ? (
+                <LoadingBlock label="Loading preview…" />
+              ) : payload.error ? (
+                <ErrorBlock error={payload.error} retry={payload.reload} />
+              ) : payload.data?.asset.id === selectedAsset.id ? (
+                selectedAsset.kind === "image" ? (
+                  <img
+                    alt={selectedAsset.prompt || selectedAsset.name}
+                    className="block max-h-[min(62vh,720px)] max-w-full rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--canvas-bg)] object-contain"
+                    src={assetUrl(payload.data)}
+                  />
+                ) : selectedAsset.kind === "audio" ? (
+                  // Generated narration may not include a truthful caption track.
+                  // biome-ignore lint/a11y/useMediaCaption: no caption payload exists
+                  <audio
+                    className="w-full"
+                    controls
+                    src={assetUrl(payload.data)}
+                  />
+                ) : (
+                  // Generated video may not include a truthful caption track.
+                  // biome-ignore lint/a11y/useMediaCaption: no caption payload exists
+                  <video
+                    className="max-h-[62vh] max-w-full"
+                    controls
+                    src={assetUrl(payload.data)}
+                  />
+                )
+              ) : null}
+              {selectedAsset.prompt ? (
+                <section className="grid gap-1.5 pt-1">
+                  <strong className="font-[var(--font-mono)] text-[length:var(--text-meta)] tracking-[0.07em] text-[var(--muted)] uppercase">
+                    Source prompt
+                  </strong>
+                  <p className="m-0 max-w-[760px] text-[length:var(--text-body)] leading-[1.55] text-[var(--text-soft)]">
+                    {selectedAsset.prompt}
+                  </p>
+                </section>
+              ) : null}
+            </article>
+          </ContextActionMenu>
         )}
       </div>
     </section>

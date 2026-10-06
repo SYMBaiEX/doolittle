@@ -1,3 +1,4 @@
+import { type ContextAction, ContextActionMenu } from "@doolittle/ui";
 import { PagePanel } from "@elizaos/ui/components/composites/page-panel";
 import { Button } from "@elizaos/ui/components/ui/button";
 import { StatusBadge } from "@elizaos/ui/components/ui/status-badge";
@@ -224,8 +225,8 @@ function ToolActivityGroup({
   const activitySummary = latestTool
     ? `${tools.length > 1 ? `${tools.length} steps · ` : ""}${toolLabel(latestTool)}`
     : "Agent activity";
-  const copyOutput = async () => {
-    const value = formatToolPayload(selected?.output);
+  const copyOutput = async (activity = selected) => {
+    const value = formatToolPayload(activity?.output);
     if (!value || !navigator.clipboard?.writeText) return;
     try {
       await navigator.clipboard.writeText(value);
@@ -235,129 +236,159 @@ function ToolActivityGroup({
     }
     window.setTimeout(() => setCopyLabel("Copy output"), 1_500);
   };
+  const activityActions = (activity = selected): ContextAction[] => [
+    {
+      id: "toggle",
+      label: expanded ? "Collapse tool activity" : "Expand tool activity",
+      onSelect: () => setExpanded(!expanded),
+    },
+    {
+      id: "copy-output",
+      label: "Copy tool output",
+      disabled:
+        !formatToolPayload(activity?.output) ||
+        typeof navigator === "undefined" ||
+        !navigator.clipboard?.writeText,
+      onSelect: () => void copyOutput(activity),
+    },
+  ];
 
   return (
-    <details
-      className={MESSAGE_TOOL_GROUP_CLASS}
-      data-tool-group="true"
-      data-tool-status={status}
-      open={expanded}
-      onToggle={(event) => setExpanded(event.currentTarget.open)}
+    <ContextActionMenu
+      label="Tool activity actions"
+      scopeKey={selected?.id}
+      items={activityActions()}
     >
-      <summary className={MESSAGE_TOOL_SUMMARY_CLASS}>
-        <UiIcon
-          className={
-            status === "error" ? "text-[var(--danger)]" : "text-[var(--accent)]"
-          }
-          icon={Activity}
-          size="sm"
-        />
-        <strong className="text-[length:var(--text-meta)] font-semibold text-[var(--text-soft)] max-[560px]:sr-only">
-          Activity
-        </strong>
-        <span className="flex min-w-0 items-baseline gap-1.25">
-          <span
-            className="truncate text-[length:var(--text-meta)] text-[var(--text-soft)]"
-            title={activitySummary}
-          >
-            {activitySummary}
-          </span>
-          {latestSummary ? (
-            <small
-              className="min-w-0 truncate font-mono text-[length:var(--text-meta)] text-[var(--faint)] max-[760px]:hidden"
-              title={latestSummary}
+      <details
+        className={MESSAGE_TOOL_GROUP_CLASS}
+        data-tool-group="true"
+        data-tool-status={status}
+        open={expanded}
+        onToggle={(event) => setExpanded(event.currentTarget.open)}
+      >
+        <summary className={MESSAGE_TOOL_SUMMARY_CLASS}>
+          <UiIcon
+            className={
+              status === "error"
+                ? "text-[var(--danger)]"
+                : "text-[var(--accent)]"
+            }
+            icon={Activity}
+            size="sm"
+          />
+          <strong className="text-[length:var(--text-meta)] font-semibold text-[var(--text-soft)] max-[560px]:sr-only">
+            Activity
+          </strong>
+          <span className="flex min-w-0 items-baseline gap-1.25">
+            <span
+              className="truncate text-[length:var(--text-meta)] text-[var(--text-soft)]"
+              title={activitySummary}
             >
-              · {latestSummary}
-            </small>
-          ) : null}
-        </span>
-        <StatusBadge
-          className={`${MESSAGE_TOOL_STATE_CLASS} max-[760px]:text-[0]`}
-          label={state}
-          status={statusVariant(status)}
-          pulse={status === "running"}
-          withDot
-        />
-        <UiIcon
-          className="text-[var(--faint)] transition-transform group-open:rotate-90 motion-reduce:transition-none"
-          icon={ChevronRight}
-          size="xs"
-        />
-      </summary>
-      <ol className={MESSAGE_TOOL_LIST_CLASS} aria-label="Tool steps">
-        {tools.map((activity) => {
-          const target = toolSummary(activity);
-          return (
-            <li key={activity.id}>
-              <button
-                aria-pressed={selected?.id === activity.id}
-                className={`${MESSAGE_TOOL_ROW_CLASS} ${selected?.id === activity.id ? MESSAGE_TOOL_ROW_SELECTED_CLASS : ""}`}
-                data-tool-card="true"
-                data-tool-status={activity.status}
-                onClick={() => setSelectedId(activity.id)}
-                type="button"
+              {activitySummary}
+            </span>
+            {latestSummary ? (
+              <small
+                className="min-w-0 truncate font-mono text-[length:var(--text-meta)] text-[var(--faint)] max-[760px]:hidden"
+                title={latestSummary}
               >
-                <UiIcon
-                  className={`${activity.status === "error" ? "text-[var(--danger)]" : activity.status === "completed" ? "text-[var(--success)]" : "text-[var(--accent)]"} ${activity.status === "running" ? "animate-spin motion-reduce:animate-none" : ""}`}
-                  icon={
-                    activity.status === "completed"
-                      ? Check
-                      : activity.status === "running"
-                        ? LoaderCircle
-                        : activity.status === "error"
-                          ? TriangleAlert
-                          : Wrench
-                  }
-                  size="xs"
-                />
-                <span className="flex min-w-0 items-baseline gap-1.5">
-                  <strong className="shrink-0 text-[length:var(--text-meta)] font-semibold text-[var(--text-soft)]">
-                    {toolLabel(activity)}
-                  </strong>
-                  {target ? (
-                    <small
-                      className="min-w-0 truncate font-mono text-[length:var(--text-meta)] text-[var(--faint)]"
-                      title={target}
-                    >
-                      {target}
-                    </small>
-                  ) : null}
-                </span>
-                <span
-                  className={`text-[length:var(--text-meta)] ${activity.status === "error" ? "text-[var(--danger)]" : activity.status === "running" ? "text-[var(--accent)]" : "text-[var(--muted)]"}`}
+                · {latestSummary}
+              </small>
+            ) : null}
+          </span>
+          <StatusBadge
+            className={`${MESSAGE_TOOL_STATE_CLASS} max-[760px]:text-[0]`}
+            label={state}
+            status={statusVariant(status)}
+            pulse={status === "running"}
+            withDot
+          />
+          <UiIcon
+            className="text-[var(--faint)] transition-transform group-open:rotate-90 motion-reduce:transition-none"
+            icon={ChevronRight}
+            size="xs"
+          />
+        </summary>
+        <ol className={MESSAGE_TOOL_LIST_CLASS} aria-label="Tool steps">
+          {tools.map((activity) => {
+            const target = toolSummary(activity);
+            return (
+              <li key={activity.id}>
+                <ContextActionMenu
+                  label={`Tool actions for ${toolLabel(activity)}`}
+                  scopeKey={activity.id}
+                  items={activityActions(activity)}
                 >
-                  {statusLabel(activity.status)}
-                </span>
-              </button>
-            </li>
-          );
-        })}
-      </ol>
-      {selected ? (
-        <div className={MESSAGE_TOOL_BODY_CLASS} data-tool-detail="true">
-          {selected.error ? (
-            <p className="my-1.5 border-[var(--danger)] border-l-2 bg-[color-mix(in_srgb,var(--danger)_7%,transparent)] px-2 py-1.5 text-[length:var(--text-meta)] text-[color-mix(in_srgb,var(--danger)_82%,var(--text))]">
-              {selected.error}
-            </p>
-          ) : null}
-          <ToolPayload label="Input" value={selected.input} />
-          <WebSearchSources activity={selected} />
-          <ToolPayload label="Output" value={selected.output} />
-          {selected.output !== undefined ? (
-            <footer className="flex justify-end pt-1.5">
-              <Button
-                onClick={() => void copyOutput()}
-                size="sm"
-                type="button"
-                variant="ghost"
-              >
-                {copyLabel}
-              </Button>
-            </footer>
-          ) : null}
-        </div>
-      ) : null}
-    </details>
+                  <button
+                    aria-pressed={selected?.id === activity.id}
+                    className={`${MESSAGE_TOOL_ROW_CLASS} ${selected?.id === activity.id ? MESSAGE_TOOL_ROW_SELECTED_CLASS : ""}`}
+                    data-tool-card="true"
+                    data-tool-status={activity.status}
+                    onClick={() => setSelectedId(activity.id)}
+                    type="button"
+                  >
+                    <UiIcon
+                      className={`${activity.status === "error" ? "text-[var(--danger)]" : activity.status === "completed" ? "text-[var(--success)]" : "text-[var(--accent)]"} ${activity.status === "running" ? "animate-spin motion-reduce:animate-none" : ""}`}
+                      icon={
+                        activity.status === "completed"
+                          ? Check
+                          : activity.status === "running"
+                            ? LoaderCircle
+                            : activity.status === "error"
+                              ? TriangleAlert
+                              : Wrench
+                      }
+                      size="xs"
+                    />
+                    <span className="flex min-w-0 items-baseline gap-1.5">
+                      <strong className="shrink-0 text-[length:var(--text-meta)] font-semibold text-[var(--text-soft)]">
+                        {toolLabel(activity)}
+                      </strong>
+                      {target ? (
+                        <small
+                          className="min-w-0 truncate font-mono text-[length:var(--text-meta)] text-[var(--faint)]"
+                          title={target}
+                        >
+                          {target}
+                        </small>
+                      ) : null}
+                    </span>
+                    <span
+                      className={`text-[length:var(--text-meta)] ${activity.status === "error" ? "text-[var(--danger)]" : activity.status === "running" ? "text-[var(--accent)]" : "text-[var(--muted)]"}`}
+                    >
+                      {statusLabel(activity.status)}
+                    </span>
+                  </button>
+                </ContextActionMenu>
+              </li>
+            );
+          })}
+        </ol>
+        {selected ? (
+          <div className={MESSAGE_TOOL_BODY_CLASS} data-tool-detail="true">
+            {selected.error ? (
+              <p className="my-1.5 border-[var(--danger)] border-l-2 bg-[color-mix(in_srgb,var(--danger)_7%,transparent)] px-2 py-1.5 text-[length:var(--text-meta)] text-[color-mix(in_srgb,var(--danger)_82%,var(--text))]">
+                {selected.error}
+              </p>
+            ) : null}
+            <ToolPayload label="Input" value={selected.input} />
+            <WebSearchSources activity={selected} />
+            <ToolPayload label="Output" value={selected.output} />
+            {selected.output !== undefined ? (
+              <footer className="flex justify-end pt-1.5">
+                <Button
+                  onClick={() => void copyOutput()}
+                  size="sm"
+                  type="button"
+                  variant="ghost"
+                >
+                  {copyLabel}
+                </Button>
+              </footer>
+            ) : null}
+          </div>
+        ) : null}
+      </details>
+    </ContextActionMenu>
   );
 }
 

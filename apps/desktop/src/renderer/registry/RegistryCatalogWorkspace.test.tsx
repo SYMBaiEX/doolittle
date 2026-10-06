@@ -146,4 +146,70 @@ describe("RegistryCatalogWorkspace", () => {
     expect(document.activeElement).toBe(tabs[2]);
     expect(container.textContent).toContain("Package purpose 2");
   });
+
+  it("binds context review to the exact eligible package without approving it", async () => {
+    const eligible = entry(1, { installable: true, reasons: [] });
+    const onReviewInstall = vi.fn();
+    const onApproveInstall = vi.fn();
+    await act(async () =>
+      root.render(
+        <RegistryCatalogWorkspace
+          entries={[entry(0), eligible]}
+          installing={false}
+          onApproveInstall={onApproveInstall}
+          onCancelInstall={vi.fn()}
+          onReviewInstall={onReviewInstall}
+          pendingInstall=""
+          resetKey="all:0"
+        />,
+      ),
+    );
+    const tab = container.querySelectorAll('[role="tab"]')[1];
+    await act(async () =>
+      tab?.dispatchEvent(
+        new MouseEvent("contextmenu", {
+          bubbles: true,
+          cancelable: true,
+          button: 2,
+        }),
+      ),
+    );
+    const review = Array.from(
+      document.querySelectorAll<HTMLElement>('[role="menuitem"]'),
+    ).find((item) => item.textContent === "Review installation…");
+    expect(review).toBeDefined();
+    await act(async () => review?.click());
+    expect(onReviewInstall).toHaveBeenCalledExactlyOnceWith(eligible);
+    expect(onApproveInstall).not.toHaveBeenCalled();
+    expect(tab?.getAttribute("aria-selected")).toBe("true");
+  });
+
+  it("does not offer install review for restricted registry entries", async () => {
+    await act(async () =>
+      root.render(
+        <RegistryCatalogWorkspace
+          entries={[entry(0)]}
+          installing={false}
+          onApproveInstall={vi.fn()}
+          onCancelInstall={vi.fn()}
+          onReviewInstall={vi.fn()}
+          pendingInstall=""
+          resetKey="all:0"
+        />,
+      ),
+    );
+    await act(async () =>
+      container.querySelector('[role="tab"]')?.dispatchEvent(
+        new MouseEvent("contextmenu", {
+          bubbles: true,
+          cancelable: true,
+          button: 2,
+        }),
+      ),
+    );
+    const items = Array.from(
+      document.querySelectorAll('[role="menuitem"]'),
+    ).map((item) => item.textContent);
+    expect(items).toEqual(["Inspect package", "Copy package name"]);
+  });
 });
