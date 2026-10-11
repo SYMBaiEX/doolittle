@@ -38,7 +38,7 @@ const button = (label: string) =>
 it("stops only the selected bot and makes editing wait until it is stopped", async () => {
   act(() => root.render(<BotActions bot={bot} />));
   expect(button("Edit bot")?.disabled).toBe(true);
-  await act(async () => button("Stop bot")?.click());
+  await act(async () => button("Stop work")?.click());
   expect(request).toHaveBeenCalledWith("/bots/specialist/stop", "POST");
   const receive = vi.fn();
   window.addEventListener("doolittle:edit-bot", receive);
@@ -49,6 +49,13 @@ it("stops only the selected bot and makes editing wait until it is stopped", asy
   } finally {
     window.removeEventListener("doolittle:edit-bot", receive);
   }
+});
+it("explains on-demand startup without requiring activation", async () => {
+  act(() => root.render(<BotActions bot={{ ...bot, state: "stopped" }} />));
+  expect(host.textContent).toContain("Available on demand");
+  expect(host.textContent).not.toContain("Activate bot");
+  await act(async () => button("Start now")?.click());
+  expect(request).toHaveBeenCalledWith("/bots/specialist/activate", "POST");
 });
 it("requires an explicit archive confirmation and explains preserved history", async () => {
   act(() => root.render(<BotActions bot={bot} />));

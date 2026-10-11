@@ -181,6 +181,51 @@ describe("handleConversationRoutes", () => {
     });
   });
 
+  it("keeps the earliest queued run queryable after 121 accepted receipts", async () => {
+    const context = createContext();
+    for (let index = 0; index < 121; index += 1) {
+      const runId = `queued-fleet-${index}`;
+      const sessionId = `queued-session-${index}`;
+      expect(
+        context.services.runController.claimTaskRun({
+          runId,
+          responseId: `response-${index}`,
+          sessionId,
+          roomId: sessionId,
+          source: "desktop",
+        }),
+      ).toMatchObject({ accepted: true });
+      context.services.runController.acceptQueuedRun({
+        runId,
+        sessionId,
+        roomId: sessionId,
+        source: "desktop",
+        runDepth: "standard",
+        configuredMaxIterations: 45,
+        progressMode: "new",
+      });
+    }
+    const oldestUrl = new URL("http://localhost/chat/runs/queued-fleet-0");
+    const oldest = await handleConversationRoutes(
+      context,
+      new Request(oldestUrl),
+      oldestUrl,
+    );
+    expect(oldest?.status).toBe(200);
+    await expect(oldest?.json()).resolves.toMatchObject({
+      run: { runId: "queued-fleet-0", status: "waiting" },
+    });
+    const listUrl = new URL("http://localhost/chat/runs?limit=100");
+    const listed = await handleConversationRoutes(
+      context,
+      new Request(listUrl),
+      listUrl,
+    );
+    const list = await listed?.json();
+    expect(list.runs).toHaveLength(100);
+    expect(list.runs[0]).toMatchObject({ runId: "queued-fleet-120" });
+  });
+
   it("cancels the registered server turn and exposes its retained receipt", async () => {
     const context = createContext();
     const controller = new AbortController();

@@ -30,17 +30,29 @@ export class ExecutionAdmissionLimitError extends Error {
     readonly reason:
       | "total_limit"
       | "automatic_acp_limit"
+      | "bot_limit"
       | "mutation_conflict"
-      | "run_exists",
+      | "run_exists"
+      | "queue_full"
+      | "queue_timeout"
+      | "bot_stopped",
   ) {
     super(
       reason === "automatic_acp_limit"
-        ? "Two automatic ACP executions are already active. Try again when one finishes."
+        ? "Automatic ACP executions are at capacity. Try again when one finishes."
         : reason === "mutation_conflict"
           ? "A mutation-capable execution already owns this workspace. Try again when it finishes."
           : reason === "total_limit"
-            ? "Four executions are already active. Try again when one finishes."
-            : "This execution is already active.",
+            ? "The execution fleet is at capacity. Try again when one finishes."
+            : reason === "bot_limit"
+              ? "This bot has reached its active execution limit."
+              : reason === "queue_full"
+                ? "The execution waiting queue is full. Try again shortly."
+                : reason === "queue_timeout"
+                  ? "Execution admission timed out while waiting for capacity."
+                  : reason === "bot_stopped"
+                    ? "This bot stopped while waiting for execution admission."
+                    : "This execution is already active.",
     );
     this.name = "ExecutionAdmissionLimitError";
   }
@@ -49,6 +61,8 @@ export class ExecutionAdmissionLimitError extends Error {
 const RUN_ID = /^[A-Za-z0-9:_-]{1,128}$/u;
 const LEASE_ID =
   /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+// Host admission permits up to 120s of queueing; leave delivery/cancel margin.
+const EXECUTION_CLAIM_RPC_TIMEOUT_MS = 150_000;
 
 /** In desktop mode the host owns capacity. A missing IPC channel is failure, not fallback. */
 export async function acquireExecutionLease(input: {
@@ -61,11 +75,14 @@ export async function acquireExecutionLease(input: {
   if (!RUN_ID.test(input.runId)) {
     throw new Error("Execution run identity is invalid.");
   }
-  const claim = (signal = input.signal) =>
+  const claim = (
+    signal = input.signal,
+    timeoutMs = EXECUTION_CLAIM_RPC_TIMEOUT_MS,
+  ) =>
     requestWorkerHost(
       "execution.claim",
       { runId: input.runId, sessionId: input.sessionId, kind: input.kind },
-      { timeoutMs: 5_000, signal },
+      { timeoutMs, signal },
     );
   const result = await claim();
   let leaseId: string | null = parseAdmissionDecision(result);
@@ -84,6 +101,10 @@ export async function acquireExecutionLease(input: {
       // Child disconnect clears its leases. Never mask a completed turn.
     }
   };
+  if (input.signal?.aborted) {
+    await release();
+    input.signal.throwIfAborted();
+  }
   return {
     runId: input.runId,
     release,
@@ -103,26 +124,27 @@ export async function acquireExecutionLease(input: {
       }
       let reacquireError: unknown;
       try {
-        while (!options.signal?.aborted && Date.now() < options.deadline) {
-          try {
-            leaseId = parseAdmissionDecision(await claim(options.signal));
-            break;
-          } catch (error) {
-            if (!(error instanceof ExecutionAdmissionLimitError)) throw error;
-            await new Promise<void>((resolve) => setTimeout(resolve, 100));
-          }
-        }
-        if (!leaseId && !options.signal?.aborted) {
+        const remainingMs = options.deadline - Date.now();
+        if (remainingMs <= 0) {
           throw new Error(
             "Execution could not reacquire its admission and mutation lease before the deadline.",
           );
         }
+        leaseId = parseAdmissionDecision(
+          await claim(
+            options.signal,
+            Math.min(EXECUTION_CLAIM_RPC_TIMEOUT_MS, remainingMs),
+          ),
+        );
         options.signal?.throwIfAborted();
       } catch (error) {
         reacquireError = error;
       }
       yielded = false;
-      if (reacquireError) throw reacquireError;
+      if (reacquireError) {
+        await release();
+        throw reacquireError;
+      }
       if (!outcome.ok) throw outcome.error;
       return outcome.value;
     },
@@ -142,8 +164,12 @@ function parseAdmissionDecision(result: unknown): string {
     if (
       decision.reason === "total_limit" ||
       decision.reason === "automatic_acp_limit" ||
+      decision.reason === "bot_limit" ||
       decision.reason === "mutation_conflict" ||
-      decision.reason === "run_exists"
+      decision.reason === "run_exists" ||
+      decision.reason === "queue_full" ||
+      decision.reason === "queue_timeout" ||
+      decision.reason === "bot_stopped"
     ) {
       throw new ExecutionAdmissionLimitError(decision.reason);
     }

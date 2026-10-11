@@ -4,11 +4,15 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 const admission = vi.hoisted(() => ({
   runId: "parent-run",
   acquire: vi.fn(),
+  parentSignal: undefined as AbortSignal | undefined,
 }));
 
 vi.mock("@/runtime/execution-admission", () => ({
   getScopedExecutionLease: () => ({ runId: admission.runId }),
   acquireExecutionLease: admission.acquire,
+}));
+vi.mock("@/runtime/turn-runtime-scope", () => ({
+  getScopedTurnAbortSignal: () => admission.parentSignal,
 }));
 
 import { DesktopAdmittedAcpService } from "./desktop-admitted-acp";
@@ -16,14 +20,32 @@ import { DesktopAdmittedAcpService } from "./desktop-admitted-acp";
 const originalDesktop = process.env.DOOLITTLE_DESKTOP_RUNTIME;
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.restoreAllMocks();
   admission.acquire.mockReset();
+  admission.parentSignal = undefined;
+  admission.runId = "parent-run";
   if (originalDesktop === undefined)
     delete process.env.DOOLITTLE_DESKTOP_RUNTIME;
   else process.env.DOOLITTLE_DESKTOP_RUNTIME = originalDesktop;
 });
 
 describe("desktop-admitted SDK ACP lifecycle", () => {
+  function delayedAdmission() {
+    const claims: Array<{
+      signal: AbortSignal;
+      grant: () => void;
+    }> = [];
+    const release = vi.fn(async () => undefined);
+    admission.acquire.mockImplementation(
+      ({ signal }: { signal: AbortSignal }) =>
+        new Promise((resolve) => {
+          claims.push({ signal, grant: () => resolve({ release }) });
+        }),
+    );
+    return { claims, release };
+  }
+
   it("claims an automatic ACP seat before spawn and releases it after success", async () => {
     process.env.DOOLITTLE_DESKTOP_RUNTIME = "1";
     const release = vi.fn(async () => undefined);
@@ -114,5 +136,209 @@ describe("desktop-admitted SDK ACP lifecycle", () => {
     ) as DesktopAdmittedAcpService;
     expect(await service.stopAllAdmittedSessions()).toBe(1);
     expect(stop).toHaveBeenCalledExactlyOnceWith("busy-1");
+  });
+
+  it("cancels a queued spawn before stop-all and admits a later independent request", async () => {
+    process.env.DOOLITTLE_DESKTOP_RUNTIME = "1";
+    const { claims, release } = delayedAdmission();
+    vi.spyOn(AcpService.prototype, "listSessions").mockResolvedValue([]);
+    const spawn = vi
+      .spyOn(AcpService.prototype, "spawnSession")
+      .mockResolvedValue({ id: "new" } as never);
+    const service = Object.create(
+      DesktopAdmittedAcpService.prototype,
+    ) as DesktopAdmittedAcpService;
+    const waiting = service.spawnSession({
+      metadata: { doolittleParentRunId: "parent-run" },
+    });
+    expect(claims).toHaveLength(1);
+    expect(await service.stopAllAdmittedSessions()).toBe(0);
+    expect(claims[0]?.signal.aborted).toBe(true);
+    claims[0]?.grant();
+    await expect(waiting).rejects.toThrow();
+    expect(spawn).not.toHaveBeenCalled();
+    expect(release).toHaveBeenCalledOnce();
+
+    const next = service.spawnSession({
+      metadata: { doolittleParentRunId: "parent-run" },
+    });
+    expect(claims).toHaveLength(2);
+    claims[1]?.grant();
+    await expect(next).resolves.toMatchObject({ id: "new" });
+    expect(spawn).toHaveBeenCalledOnce();
+    expect(release).toHaveBeenCalledTimes(2);
+  });
+
+  it("cancels a queued spawn when the parent turn aborts", async () => {
+    process.env.DOOLITTLE_DESKTOP_RUNTIME = "1";
+    const parent = new AbortController();
+    admission.parentSignal = parent.signal;
+    const { claims, release } = delayedAdmission();
+    const spawn = vi
+      .spyOn(AcpService.prototype, "spawnSession")
+      .mockResolvedValue({} as never);
+    const service = Object.create(
+      DesktopAdmittedAcpService.prototype,
+    ) as DesktopAdmittedAcpService;
+    const waiting = service.spawnSession({
+      metadata: { doolittleParentRunId: "parent-run" },
+    });
+    parent.abort();
+    expect(claims[0]?.signal.aborted).toBe(true);
+    claims[0]?.grant();
+    await expect(waiting).rejects.toThrow();
+    expect(spawn).not.toHaveBeenCalled();
+    expect(release).toHaveBeenCalledOnce();
+  });
+
+  it("stops a child returned after stop-all during SDK spawn", async () => {
+    process.env.DOOLITTLE_DESKTOP_RUNTIME = "1";
+    const release = vi.fn(async () => undefined);
+    admission.acquire.mockResolvedValue({ release });
+    let finishSpawn!: (value: unknown) => void;
+    const spawn = vi
+      .spyOn(AcpService.prototype, "spawnSession")
+      .mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            finishSpawn = resolve;
+          }) as never,
+      );
+    vi.spyOn(AcpService.prototype, "listSessions").mockResolvedValue([]);
+    const stop = vi
+      .spyOn(AcpService.prototype, "stopSession")
+      .mockResolvedValue(undefined);
+    const service = Object.create(
+      DesktopAdmittedAcpService.prototype,
+    ) as DesktopAdmittedAcpService;
+    const pending = service.spawnSession({
+      metadata: { doolittleParentRunId: "parent-run" },
+    });
+    await vi.waitFor(() => expect(spawn).toHaveBeenCalledOnce());
+    let stopSettled = false;
+    const stopping = service.stopAllAdmittedSessions().finally(() => {
+      stopSettled = true;
+    });
+    await Promise.resolve();
+    expect(stopSettled).toBe(false);
+    finishSpawn({ sessionId: "late-child", id: "late-child" });
+    await expect(pending).rejects.toThrow();
+    await expect(stopping).resolves.toBe(1);
+    expect(stop).toHaveBeenCalledExactlyOnceWith("late-child");
+    expect(release).toHaveBeenCalledOnce();
+  });
+
+  it("fails stop-all confirmation when an SDK spawn never settles", async () => {
+    process.env.DOOLITTLE_DESKTOP_RUNTIME = "1";
+    const release = vi.fn(async () => undefined);
+    admission.acquire.mockResolvedValue({ release });
+    let finishSpawn!: (value: unknown) => void;
+    const spawn = vi
+      .spyOn(AcpService.prototype, "spawnSession")
+      .mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            finishSpawn = resolve;
+          }) as never,
+      );
+    vi.spyOn(AcpService.prototype, "listSessions").mockResolvedValue([]);
+    const stop = vi
+      .spyOn(AcpService.prototype, "stopSession")
+      .mockResolvedValue(undefined);
+    const service = Object.create(
+      DesktopAdmittedAcpService.prototype,
+    ) as DesktopAdmittedAcpService;
+    const pending = service.spawnSession({
+      metadata: { doolittleParentRunId: "parent-run" },
+    });
+    await vi.waitFor(() => expect(spawn).toHaveBeenCalledOnce());
+    vi.useFakeTimers();
+    const stopping = expect(service.stopAllAdmittedSessions()).rejects.toThrow(
+      "could not confirm SDK session teardown",
+    );
+    await vi.advanceTimersByTimeAsync(5_000);
+    await stopping;
+    expect(release).not.toHaveBeenCalled();
+    finishSpawn({ sessionId: "late-child", id: "late-child" });
+    await expect(pending).rejects.toThrow();
+    expect(stop).toHaveBeenCalledExactlyOnceWith("late-child");
+    expect(release).toHaveBeenCalledOnce();
+  });
+
+  it("waits for an active prompt's SDK stop before confirming stop-all", async () => {
+    process.env.DOOLITTLE_DESKTOP_RUNTIME = "1";
+    const release = vi.fn(async () => undefined);
+    admission.acquire.mockResolvedValue({ release });
+    vi.spyOn(AcpService.prototype, "getSession").mockResolvedValue({
+      metadata: { doolittleParentRunId: "parent-run" },
+      status: "ready",
+    } as never);
+    vi.spyOn(AcpService.prototype, "listSessions").mockResolvedValue([]);
+    let finishSend!: (value: unknown) => void;
+    const send = vi
+      .spyOn(AcpService.prototype, "sendPrompt")
+      .mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            finishSend = resolve;
+          }) as never,
+      );
+    let finishStop!: () => void;
+    const stop = vi
+      .spyOn(AcpService.prototype, "stopSession")
+      .mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            finishStop = resolve;
+          }),
+      );
+    const service = Object.create(
+      DesktopAdmittedAcpService.prototype,
+    ) as DesktopAdmittedAcpService;
+    const prompt = service.sendPrompt("session-1", "task");
+    await vi.waitFor(() => expect(send).toHaveBeenCalledOnce());
+    let stopSettled = false;
+    const stopping = service.stopAllAdmittedSessions().finally(() => {
+      stopSettled = true;
+    });
+    await vi.waitFor(() =>
+      expect(stop).toHaveBeenCalledExactlyOnceWith("session-1"),
+    );
+    finishSend({});
+    await Promise.resolve();
+    expect(stopSettled).toBe(false);
+    expect(release).not.toHaveBeenCalled();
+    finishStop();
+    await expect(prompt).rejects.toThrow();
+    await expect(stopping).resolves.toBe(0);
+    expect(release).toHaveBeenCalledOnce();
+  });
+
+  it("does not send a queued prompt after its session stops", async () => {
+    process.env.DOOLITTLE_DESKTOP_RUNTIME = "1";
+    const { claims, release } = delayedAdmission();
+    const get = vi.spyOn(AcpService.prototype, "getSession").mockResolvedValue({
+      metadata: { doolittleParentRunId: "parent-run" },
+      status: "ready",
+    } as never);
+    const send = vi
+      .spyOn(AcpService.prototype, "sendPrompt")
+      .mockResolvedValue({} as never);
+    const stop = vi
+      .spyOn(AcpService.prototype, "stopSession")
+      .mockResolvedValue(undefined);
+    const service = Object.create(
+      DesktopAdmittedAcpService.prototype,
+    ) as DesktopAdmittedAcpService;
+    const waiting = service.sendPrompt("session-1", "task");
+    await vi.waitFor(() => expect(claims).toHaveLength(1));
+    await service.stopSession("session-1");
+    expect(claims[0]?.signal.aborted).toBe(true);
+    claims[0]?.grant();
+    await expect(waiting).rejects.toThrow();
+    expect(send).not.toHaveBeenCalled();
+    expect(stop).toHaveBeenCalledExactlyOnceWith("session-1");
+    expect(get).toHaveBeenCalledOnce();
+    expect(release).toHaveBeenCalledOnce();
   });
 });

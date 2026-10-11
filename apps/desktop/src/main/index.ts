@@ -49,6 +49,8 @@ import {
 import { DesktopPreferences } from "./desktop-preferences";
 import { createDesktopQuitHandler } from "./desktop-quit";
 import { DesktopExecutionAdmission } from "./execution-admission";
+import { readExecutionCapacity } from "./execution-capacity";
+import { releaseAbandonedExecutionClaim } from "./execution-receipt";
 import { type DesktopBackgroundNotification, registerIpc } from "./ipc";
 import { readBoundedResponseText } from "./ipc/runtime-http";
 import { ProviderAuthController } from "./provider-auth";
@@ -810,13 +812,16 @@ if (ownsSingleInstance)
           ? "Updates are unavailable in this packaged build."
           : "Updates are only available in a packaged, signed Doolittle build.",
     );
-    const executionAdmission = new DesktopExecutionAdmission();
+    const executionAdmission = new DesktopExecutionAdmission(
+      readExecutionCapacity(),
+    );
     backend = new BackendManager(
       target,
       runtimeDataDir,
       workspaceState.getState().currentPath || fallbackWorkspace,
       fetch,
       {
+        sharedEngine: true,
         hostRpcBotId: "default",
         workerHostHandler: async (request, signal) => {
           if (
@@ -833,6 +838,7 @@ if (ownsSingleInstance)
                   ? realpathSync(mutationRoot)
                   : undefined,
               },
+              signal,
             );
           }
           if (!bots) throw new Error("The consultation broker is unavailable.");
@@ -898,6 +904,13 @@ if (ownsSingleInstance)
           );
         },
         onHostDisconnect: () => executionAdmission.releaseBot("default"),
+        workerHostOnAbandonedResult: (request, result) =>
+          releaseAbandonedExecutionClaim(
+            executionAdmission,
+            "default",
+            request,
+            result,
+          ),
       },
     );
     bots = new BotProcessRegistry(

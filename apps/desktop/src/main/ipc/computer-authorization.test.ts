@@ -128,7 +128,9 @@ describe("Computer bot authorization", () => {
         runId: "other-run",
         sessionId: "other-session",
         kind: "foreground",
-        mutationRoot: workspace,
+        // Direct scheduling calls, like production host handlers, supply
+        // the already-authorized realpath rather than a symlink alias.
+        mutationRoot: realpathSync(workspace),
       });
       expect(competing).toEqual({
         accepted: false,

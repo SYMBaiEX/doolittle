@@ -1,4 +1,5 @@
 import { timingSafeEqual } from "node:crypto";
+import { threadId } from "node:worker_threads";
 import type { AppContext } from "@/runtime/bootstrap";
 import { readWorkerBotProfile } from "@/runtime/bootstrap/bot-profile";
 import {
@@ -57,6 +58,8 @@ export async function handleRuntimeStatusRoutes(
       agentId: context.runtime.agentId,
       name: context.config.agentName,
       isDefault: !workerBot,
+      processId: process.pid,
+      threadId,
     });
   }
   if (request.method === "GET" && url.pathname === "/commands/catalog") {

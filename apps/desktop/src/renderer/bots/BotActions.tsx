@@ -38,7 +38,7 @@ export function BotActions({ bot }: { bot: BotSummary }) {
           type="button"
           variant="secondary"
         >
-          {pending ? "Updating…" : stopped ? "Activate bot" : "Stop bot"}
+          {pending ? "Updating…" : stopped ? "Start now" : "Stop work"}
         </Button>
         {!bot.isDefault ? (
           <Button
@@ -57,12 +57,18 @@ export function BotActions({ bot }: { bot: BotSummary }) {
           </Button>
         ) : null}
       </div>
-      {!stopped ? (
+      {stopped ? (
         <p className="m-0 text-[var(--muted)]">
-          Stop ends this bot’s active work. Stop it before editing its model or
-          access.
+          Available on demand. Sending a message starts this bot in the shared
+          engine after checking its approved access.
         </p>
-      ) : null}
+      ) : (
+        <p className="m-0 text-[var(--muted)]">
+          Stop ends this bot’s active work without stopping other agents. Stop
+          it before editing its model or access; the next request starts it
+          again.
+        </p>
+      )}
       {!bot.isDefault ? (
         archiveConfirmation ? (
           <fieldset className="grid gap-2" aria-label="Confirm bot archive">

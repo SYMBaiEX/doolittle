@@ -55,6 +55,78 @@ function jwt(accountId: string): string {
 }
 
 describe("named bot native host grants", () => {
+  it("does not edit access while a degraded worker may still be alive", async () => {
+    const { registry } = fixture();
+    const bot = registry.create({
+      name: "Uncertain",
+      persona: "Keep access fixed.",
+      model: { provider: "offline", model: "offline" },
+    });
+    const backend = await registry.backendFor(bot.id);
+    vi.spyOn(backend, "getState").mockReturnValue({
+      phase: "degraded",
+      message: "Unconfirmed stop",
+    });
+    Object.assign(backend, { hasLiveRuntime: () => true });
+    await expect(registry.update(bot.id, { name: "Changed" })).rejects.toThrow(
+      /Stop this bot/i,
+    );
+    Object.assign(backend, { hasLiveRuntime: () => false });
+    await expect(
+      registry.update(bot.id, { name: "Changed" }),
+    ).resolves.toMatchObject({ name: "Changed" });
+  });
+  it("starts a saved bot on first use and coalesces simultaneous requests", async () => {
+    const { registry, captured } = fixture();
+    const bot = registry.create({
+      name: "On demand",
+      persona: "Wait until asked.",
+      model: { provider: "offline", model: "offline" },
+    });
+    expect(captured).toHaveLength(0);
+    const [one, two] = await Promise.all([
+      registry.backendFor(bot.id),
+      registry.backendFor(bot.id),
+    ]);
+    expect(one).toBe(two);
+    expect(captured).toHaveLength(1);
+    expect(captured[0]?.isolatedEnvironment?.DOOLITTLE_BOT_PROFILE).toContain(
+      bot.id,
+    );
+  });
+
+  it("does not start a bot when its selected account is unavailable", async () => {
+    const { registry, captured } = fixture({ tokenResolver: async () => null });
+    const bot = registry.create({
+      name: "Unavailable",
+      persona: "Only approved access.",
+      model: { provider: "openai", model: "gpt-5.5" },
+      permissions: { connectionIds: ["openai-api:unavailable"] },
+    });
+    await expect(registry.backendFor(bot.id)).rejects.toThrow(/unavailable/i);
+    expect(captured).toHaveLength(0);
+  });
+
+  it("cancels a delayed startup before any worker is created", async () => {
+    let resolveToken!: (value: string | null) => void;
+    const token = new Promise<string | null>((resolvePromise) => {
+      resolveToken = resolvePromise;
+    });
+    const { registry, captured } = fixture({ tokenResolver: () => token });
+    const bot = registry.create({
+      name: "Delayed",
+      persona: "Stop means stop.",
+      model: { provider: "openai", model: "gpt-5.5" },
+      permissions: { connectionIds: ["openai-api:delayed"] },
+    });
+    const startup = registry.activate(bot.id);
+    const rejected = expect(startup).rejects.toThrow(/cancelled/i);
+    await registry.stop(bot.id);
+    resolveToken("fixture-only-approved-key");
+    await rejected;
+    expect(captured).toHaveLength(0);
+  });
+
   it("refreshes only the selected Codex account on every host call", async () => {
     const tokenResolver = vi.fn(async () => jwt("chatgpt-account-1"));
     const { registry, captured } = fixture({ tokenResolver });
@@ -154,6 +226,34 @@ describe("named bot native host grants", () => {
 });
 
 describe("global run ownership", () => {
+  it("polls a 50-bot fleet in bounded parallel batches and coalesces callers", async () => {
+    let active = 0;
+    let peak = 0;
+    const runtimeFetch = vi.fn(async () => {
+      active++;
+      peak = Math.max(peak, active);
+      await new Promise((resolvePromise) => setTimeout(resolvePromise, 1));
+      active--;
+      return Response.json({ runs: [] });
+    }) as unknown as typeof fetch;
+    const { registry } = fixture({ runtimeFetch });
+    for (let index = 0; index < 49; index++) {
+      const bot = registry.create({
+        name: `Fleet ${index}`,
+        persona: "Isolated offline fixture.",
+        model: { provider: "offline", model: "offline" },
+      });
+      await registry.activate(bot.id);
+    }
+    const first = registry.refreshActiveRuns();
+    const second = registry.refreshActiveRuns();
+    expect(first).toBe(second);
+    await Promise.all([first, second]);
+    expect(runtimeFetch).toHaveBeenCalledTimes(50);
+    expect(peak).toBe(8);
+    expect(active).toBe(0);
+  });
+
   it("derives active counts from runtime receipts, not attached observers", async () => {
     let status = "thinking";
     const runtimeFetch = vi.fn(async () =>

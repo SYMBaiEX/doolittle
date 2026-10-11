@@ -16,10 +16,10 @@ import {
   getSubscriptionStatus,
   type SubscriptionAccountStatus,
 } from "@elizaos/agent/auth/credentials";
-import {
-  type BackendLaunchTarget,
+import type {
+  BackendLaunchTarget,
   BackendManager,
-  type BackendManagerOptions,
+  BackendManagerOptions,
 } from "./backend";
 import {
   BotAcpSessionLedger,
@@ -40,7 +40,9 @@ import {
 } from "./bot-conversation-ledger";
 import { BotKnowledgeBroker } from "./bot-knowledge-broker";
 import { BotTeamCatalog } from "./bot-team-catalog";
+import { EngineBotBackend } from "./engine-bot-backend";
 import type { DesktopExecutionAdmission } from "./execution-admission";
+import { releaseAbandonedExecutionClaim } from "./execution-receipt";
 import type { WorkerHostHandler } from "./worker-host-rpc";
 
 const CONNECTION_ID_PATTERN =
@@ -101,7 +103,7 @@ export interface BotProcessRegistryOptions {
   ) => BackendManager;
 }
 
-/** One child process and one SQL/PGlite manager per named bot. */
+/** Shared engine lifecycle; each named SDK runtime retains an isolated context. */
 export class BotProcessRegistry {
   readonly catalog: BotCatalog;
   readonly conversations: BotConversationLedger;
@@ -112,12 +114,15 @@ export class BotProcessRegistry {
   readonly teams: BotTeamCatalog;
   private readonly backends = new Map<string, BackendManager>();
   private readonly activeRuns = new Map<string, Set<string>>();
+  private runsRefresh: Promise<void> | null = null;
   private readonly activationGeneration = new Map<string, number>();
+  private readonly activations = new Map<string, Promise<BotSummary>>();
   private readonly tokenResolver: TokenResolver;
   private readonly subscriptionStatus: () => SubscriptionAccountStatus[];
   private readonly invokeClaudeCli: typeof invokeClaudeCodeCliPrint;
   private readonly runtimeFetch: typeof fetch;
   private readonly admission?: DesktopExecutionAdmission;
+  private readonly usesSharedEngine: boolean;
   private readonly createBackend: NonNullable<
     BotProcessRegistryOptions["createBackend"]
   >;
@@ -160,6 +165,7 @@ export class BotProcessRegistry {
     this.invokeClaudeCli = options.invokeClaudeCli ?? invokeClaudeCodeCliPrint;
     this.runtimeFetch = options.runtimeFetch ?? fetch;
     this.admission = options.admission;
+    this.usesSharedEngine = !options.createBackend;
     this.createBackend =
       options.createBackend ??
       ((
@@ -169,12 +175,13 @@ export class BotProcessRegistry {
         runtimeFetch,
         managerOptions,
       ) =>
-        new BackendManager(
+        new EngineBotBackend(
           launchTarget,
           botDataDir,
           workspacePath,
           runtimeFetch,
           managerOptions,
+          () => this.defaultBackend.getEngineClient(),
         ));
   }
 
@@ -526,44 +533,78 @@ export class BotProcessRegistry {
   }
 
   /** Reconcile display counts from runtime receipts, never renderer subscriptions. */
-  async refreshActiveRuns(): Promise<void> {
-    for (const bot of this.catalog.list(this.backends).bots) {
-      const backend = bot.isDefault
-        ? this.defaultBackend
-        : this.backends.get(bot.id);
-      const state = backend?.getState();
-      if (state?.phase !== "ready" || !state.url) {
-        this.activeRuns.delete(bot.id);
-        continue;
-      }
-      const response = await this.runtimeFetch(
-        `${state.url}/chat/runs?limit=100`,
-        {
-          signal: AbortSignal.timeout(5_000),
-        },
-      );
-      if (!response.ok) throw new Error("Bot run status is unavailable.");
-      const payload: unknown = await response.json();
-      if (
-        !payload ||
-        typeof payload !== "object" ||
-        !Array.isArray((payload as { runs?: unknown }).runs)
-      ) {
-        throw new Error("Bot run status is invalid.");
-      }
-      const active = new Set<string>();
-      for (const row of (payload as { runs: unknown[] }).runs) {
-        if (!row || typeof row !== "object")
-          throw new Error("Bot run status is invalid.");
-        const run = row as { runId?: unknown; status?: unknown };
-        if (typeof run.runId !== "string" || typeof run.status !== "string") {
+  refreshActiveRuns(): Promise<void> {
+    if (this.runsRefresh) return this.runsRefresh;
+    const refresh = this.refreshRunReceipts().finally(() => {
+      if (this.runsRefresh === refresh) this.runsRefresh = null;
+    });
+    this.runsRefresh = refresh;
+    return refresh;
+  }
+
+  private async refreshRunReceipts(): Promise<void> {
+    const bots = this.catalog.list(this.backends).bots;
+    const receipts = new Map<string, Set<string>>();
+    let next = 0;
+    const poll = async () => {
+      while (next < bots.length) {
+        const bot = bots[next++];
+        if (!bot) continue;
+        const backend = bot.isDefault
+          ? this.defaultBackend
+          : this.backends.get(bot.id);
+        const state = backend?.getState();
+        if (state?.phase !== "ready" || !state.url) {
+          receipts.set(bot.id, new Set());
+          continue;
+        }
+        const response = await this.runtimeFetch(
+          `${state.url}/chat/runs?limit=100`,
+          {
+            signal: AbortSignal.timeout(5_000),
+          },
+        );
+        if (!response.ok) throw new Error("Bot run status is unavailable.");
+        const payload: unknown = await response.json();
+        if (
+          !payload ||
+          typeof payload !== "object" ||
+          !Array.isArray((payload as { runs?: unknown }).runs)
+        ) {
           throw new Error("Bot run status is invalid.");
         }
-        if (["thinking", "acting", "waiting"].includes(run.status))
-          active.add(run.runId);
+        const active = new Set<string>();
+        for (const row of (payload as { runs: unknown[] }).runs) {
+          if (!row || typeof row !== "object")
+            throw new Error("Bot run status is invalid.");
+          const run = row as { runId?: unknown; status?: unknown };
+          if (typeof run.runId !== "string" || typeof run.status !== "string") {
+            throw new Error("Bot run status is invalid.");
+          }
+          if (["thinking", "acting", "waiting"].includes(run.status))
+            active.add(run.runId);
+        }
+        // Do not reintroduce a stopped or replaced runtime's stale receipts.
+        const current = backend?.getState();
+        receipts.set(
+          bot.id,
+          current?.phase === "ready" && current.url === state.url
+            ? active
+            : new Set(),
+        );
       }
-      if (active.size > 0) this.activeRuns.set(bot.id, active);
-      else this.activeRuns.delete(bot.id);
+    };
+    // Bound fleet polling independently of execution slots. Concurrent callers
+    // share this sweep; one failed runtime still fails the catalog closed.
+    const outcomes = await Promise.allSettled(
+      Array.from({ length: Math.min(8, bots.length) }, poll),
+    );
+    for (const outcome of outcomes) {
+      if (outcome.status === "rejected") throw outcome.reason;
+    }
+    for (const [botId, active] of receipts) {
+      if (active.size > 0) this.activeRuns.set(botId, active);
+      else this.activeRuns.delete(botId);
     }
   }
 
@@ -594,12 +635,12 @@ export class BotProcessRegistry {
 
   async update(id: string, input: UpdateBotInput): Promise<BotSummary> {
     const existing = this.get(id);
-    const running = this.backends.get(existing.id)?.getState().phase;
+    const ownedBackend = this.backends.get(existing.id);
+    const running = ownedBackend?.getState().phase;
     if (
       !existing.isDefault &&
-      running &&
-      running !== "stopped" &&
-      running !== "degraded"
+      (ownedBackend?.hasLiveRuntime?.() ||
+        (running && running !== "stopped" && running !== "degraded"))
     ) {
       throw new Error(
         "Stop this bot before editing its configuration. The current turn will not be interrupted.",
@@ -615,7 +656,18 @@ export class BotProcessRegistry {
     return this.summary(id);
   }
 
-  async activate(botId: string): Promise<BotSummary> {
+  activate(botId: string): Promise<BotSummary> {
+    const id = this.get(botId).id;
+    const pending = this.activations.get(id);
+    if (pending) return pending;
+    const activation = this.activateRuntime(id).finally(() => {
+      if (this.activations.get(id) === activation) this.activations.delete(id);
+    });
+    this.activations.set(id, activation);
+    return activation;
+  }
+
+  private async activateRuntime(botId: string): Promise<BotSummary> {
     const definition = this.get(botId);
     const generation = this.activationGeneration.get(definition.id) ?? 0;
     if (definition.isDefault) {
@@ -627,6 +679,13 @@ export class BotProcessRegistry {
     if (existing) {
       await existing.stop();
       this.backends.delete(botId);
+    }
+
+    if (this.usesSharedEngine) {
+      const engineState = await this.defaultBackend.start();
+      if (engineState.phase !== "ready") {
+        throw new Error("The shared agent engine is not ready.");
+      }
     }
 
     const grant = await this.resolveProviderGrant(definition);
@@ -662,6 +721,13 @@ export class BotProcessRegistry {
         expectedAgentId: definition.agentId,
         workerHostHandler: this.hostHandler(definition, grant, workspacePath),
         onHostDisconnect: () => this.admission?.releaseBot(definition.id),
+        workerHostOnAbandonedResult: (request, result) =>
+          releaseAbandonedExecutionClaim(
+            this.admission,
+            definition.id,
+            request,
+            result,
+          ),
       },
     );
     this.backends.set(botId, backend);
@@ -682,12 +748,12 @@ export class BotProcessRegistry {
   async backendFor(botId?: string): Promise<BackendManager> {
     const definition = this.get(botId);
     if (definition.isDefault) return this.defaultBackend;
-    const backend = this.backends.get(definition.id);
-    if (backend?.getState().phase !== "ready") {
-      throw new Error(
-        "The named bot is stopped. Activate it before sending a request.",
-      );
+    if (this.backends.get(definition.id)?.getState().phase !== "ready") {
+      await this.activate(definition.id);
     }
+    const backend = this.backends.get(definition.id);
+    if (backend?.getState().phase !== "ready")
+      throw new Error("The named bot could not become ready.");
     return backend;
   }
 
@@ -742,16 +808,21 @@ export class BotProcessRegistry {
         bot.id,
         (this.activationGeneration.get(bot.id) ?? 0) + 1,
       );
-    try {
-      await this.automations.cancelAll();
-      await this.consultations.cancelAll();
-    } finally {
-      const ready = [this.defaultBackend, ...this.backends.values()].filter(
-        (backend) => backend.getState().phase === "ready",
-      );
-      await Promise.all(
-        ready.map((backend) => backend.stopAllOwnedExecutions()),
-      );
+    const bookkeeping = await Promise.allSettled([
+      this.automations.cancelAll(),
+      this.consultations.cancelAll(),
+    ]);
+    const owned = [this.defaultBackend, ...this.backends.values()].filter(
+      (backend) =>
+        backend.hasLiveRuntime?.() || backend.getState().phase === "ready",
+    );
+    const outcomes = await Promise.allSettled(
+      owned.map((backend) => backend.stopAllOwnedExecutions()),
+    );
+    if (outcomes.some((outcome) => outcome.status === "rejected"))
+      throw new Error("Some runtime execution stops could not be confirmed.");
+    for (const outcome of bookkeeping) {
+      if (outcome.status === "rejected") throw outcome.reason;
     }
   }
 
@@ -865,6 +936,7 @@ export class BotProcessRegistry {
             ? this.automations.admission(definition.id, request.payload)
             : request.payload,
           { mutationRoot },
+          signal,
         );
       }
       if (request.operation === "consult.dispatch") {

@@ -1162,7 +1162,7 @@ export function App() {
         message:
           bot.state === "ready"
             ? "The bot is ready for a conversation."
-            : "This bot is stopped. Connect and activate it before sending.",
+            : "The shared engine starts this bot when you send a message. Its approved connection must be available.",
       });
     },
     [botResource.reload, pushToast, setView, captureSessionProject],
@@ -1178,13 +1178,13 @@ export function App() {
         await botResource.reload();
         pushToast({
           tone: "success",
-          title: `${activated.name} activated`,
+          title: `${activated.name} ready`,
           message: "Ready for a conversation.",
         });
       } catch (error) {
         pushToast({
           tone: "error",
-          title: "Bot activation failed",
+          title: "Bot startup failed",
           message:
             error instanceof Error
               ? error.message

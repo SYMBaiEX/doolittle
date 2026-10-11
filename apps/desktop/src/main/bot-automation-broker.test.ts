@@ -54,7 +54,11 @@ function fixture() {
   const lead = backend("http://lead.invalid");
   const worker = backend("http://target.invalid");
   const captured: BackendManagerOptions[] = [];
-  const admission = new DesktopExecutionAdmission();
+  const admission = new DesktopExecutionAdmission({
+    maxConcurrent: 4,
+    maxAutomaticAcp: 2,
+    queueTimeoutMs: 30,
+  });
   const runtimeFetch = vi.fn(
     async (input: string | URL | Request, init?: RequestInit) => {
       const url = String(input);
@@ -175,7 +179,7 @@ function fixture() {
 }
 
 describe("application-owned named automation", () => {
-  it("honors the two-slot automatic limit through the actual named worker host handler", async () => {
+  it("queues past the configured automatic limit through the actual named worker host handler", async () => {
     const f = fixture();
     await f.approve();
     const fires = await Promise.all([
@@ -204,7 +208,7 @@ describe("application-owned named automation", () => {
     ).toHaveLength(2);
     expect(results).toContainEqual({
       accepted: false,
-      reason: "automatic_acp_limit",
+      reason: "queue_timeout",
     });
     expect(
       f.admission.list().every((row) => row.kind === "automatic-acp"),
@@ -226,6 +230,24 @@ describe("application-owned named automation", () => {
     ledger.failed = true;
     await expect(f.registry.stopAllOwnedExecutions()).rejects.toThrow(
       /requires recovery/,
+    );
+    expect(f.lead.stopAllOwnedExecutions).toHaveBeenCalledOnce();
+    expect(f.worker.stopAllOwnedExecutions).toHaveBeenCalledOnce();
+  });
+  it("attempts emergency cancellation for degraded but live backends", async () => {
+    const f = fixture();
+    await f.approve();
+    await f.dispatch();
+    vi.spyOn(f.worker, "getState").mockReturnValue({
+      phase: "degraded",
+      message: "Unconfirmed teardown",
+    });
+    Object.assign(f.worker, { hasLiveRuntime: () => true });
+    vi.mocked(f.worker.stopAllOwnedExecutions).mockRejectedValue(
+      new Error("unconfirmed"),
+    );
+    await expect(f.registry.stopAllOwnedExecutions()).rejects.toThrow(
+      /could not be confirmed/i,
     );
     expect(f.lead.stopAllOwnedExecutions).toHaveBeenCalledOnce();
     expect(f.worker.stopAllOwnedExecutions).toHaveBeenCalledOnce();

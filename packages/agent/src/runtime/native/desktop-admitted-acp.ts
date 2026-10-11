@@ -8,8 +8,66 @@ import {
 } from "@elizaos/plugin-agent-orchestrator";
 import {
   acquireExecutionLease,
+  type ExecutionLease,
   getScopedExecutionLease,
 } from "@/runtime/execution-admission";
+import { getScopedTurnAbortSignal } from "@/runtime/turn-runtime-scope";
+
+type PendingAdmission = {
+  sessionId?: string;
+  controller: AbortController;
+  started: boolean;
+  stoppedLateSessionId?: string;
+  stopOnAbort?: Promise<void>;
+  cleanupFailed: boolean;
+  settled: Promise<void>;
+  resolveSettled(): void;
+};
+type AdmittedOperation = {
+  signal: AbortSignal;
+  start(): void;
+  recordStoppedLateSession(sessionId: string): void;
+  markTeardownFailed(): void;
+  finish(): Promise<void>;
+};
+
+const STOP_CONFIRMATION_TIMEOUT_MS = 5_000;
+
+async function withStopConfirmationDeadline<T>(work: Promise<T>): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      work,
+      new Promise<never>((_resolve, reject) => {
+        timer = setTimeout(
+          () =>
+            reject(
+              new Error("ACP stop could not confirm SDK session teardown."),
+            ),
+          STOP_CONFIRMATION_TIMEOUT_MS,
+        );
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+const ACTIVE_STATUSES = new Set([
+  "running",
+  "busy",
+  "blocked",
+  "authenticating",
+  "tool_running",
+]);
+const TERMINAL_STATUSES = new Set([
+  "completed",
+  "errored",
+  "failed",
+  "stopped",
+  "cancelled",
+  "canceled",
+]);
 
 function desktopParentRunId(metadata?: Record<string, unknown>): string | null {
   if (process.env.DOOLITTLE_DESKTOP_RUNTIME !== "1") return null;
@@ -24,6 +82,122 @@ function desktopParentRunId(metadata?: Record<string, unknown>): string | null {
 
 /** The SDK retains ACP session/process authority; the desktop host owns slots. */
 export class DesktopAdmittedAcpService extends AcpService {
+  private pendingAdmissions?: Set<PendingAdmission>;
+
+  private abortPending(
+    predicate: (pending: PendingAdmission) => boolean,
+  ): void {
+    for (const pending of this.pendingAdmissions ?? []) {
+      if (predicate(pending)) pending.controller.abort();
+    }
+  }
+
+  private async admittedLease(
+    parentRunId: string,
+    sessionId?: string,
+  ): Promise<AdmittedOperation> {
+    const parentSignal = getScopedTurnAbortSignal(this.runtime);
+    parentSignal?.throwIfAborted();
+    let resolveSettled!: () => void;
+    const settled = new Promise<void>((resolve) => {
+      resolveSettled = resolve;
+    });
+    const pending: PendingAdmission = {
+      sessionId,
+      controller: new AbortController(),
+      started: false,
+      cleanupFailed: false,
+      settled,
+      resolveSettled,
+    };
+    const onParentAbort = () => pending.controller.abort(parentSignal?.reason);
+    const onAbort = () => {
+      if (sessionId && pending.started) {
+        pending.stopOnAbort = super.stopSession(sessionId);
+        void pending.stopOnAbort.catch(() => undefined);
+      }
+    };
+    parentSignal?.addEventListener("abort", onParentAbort, { once: true });
+    pending.controller.signal.addEventListener("abort", onAbort, {
+      once: true,
+    });
+    if (parentSignal?.aborted) pending.controller.abort(parentSignal.reason);
+    this.pendingAdmissions ??= new Set();
+    this.pendingAdmissions.add(pending);
+    const dispose = () => {
+      this.pendingAdmissions?.delete(pending);
+      parentSignal?.removeEventListener("abort", onParentAbort);
+      pending.controller.signal.removeEventListener("abort", onAbort);
+      pending.resolveSettled();
+    };
+    let lease: ExecutionLease | null = null;
+    try {
+      lease = await acquireExecutionLease({
+        runId: `acp:${randomUUID()}`,
+        sessionId: parentRunId,
+        kind: "automatic-acp",
+        signal: pending.controller.signal,
+      });
+      pending.controller.signal.throwIfAborted();
+      if (getScopedExecutionLease()?.runId !== parentRunId) {
+        throw new Error("The parent desktop run is no longer active.");
+      }
+      if (sessionId) {
+        const session = await super.getSession(sessionId);
+        pending.controller.signal.throwIfAborted();
+        if (!session || TERMINAL_STATUSES.has(session.status)) {
+          throw new Error("ACP session is unavailable.");
+        }
+      }
+      return {
+        signal: pending.controller.signal,
+        start: () => {
+          pending.started = true;
+        },
+        recordStoppedLateSession: (stoppedSessionId) => {
+          pending.stoppedLateSessionId = stoppedSessionId;
+        },
+        markTeardownFailed: () => {
+          pending.cleanupFailed = true;
+        },
+        finish: async () => {
+          let cleanupError: unknown;
+          let finishFailed = false;
+          try {
+            await pending.stopOnAbort;
+          } catch (error) {
+            pending.cleanupFailed = true;
+            finishFailed = true;
+            cleanupError = error;
+          }
+          try {
+            await lease?.release();
+          } catch (error) {
+            pending.cleanupFailed = true;
+            finishFailed = true;
+            cleanupError ??= error;
+          }
+          // An abort can arrive while release is in flight.
+          try {
+            await pending.stopOnAbort;
+          } catch (error) {
+            pending.cleanupFailed = true;
+            finishFailed = true;
+            cleanupError ??= error;
+          }
+          dispose();
+          if (finishFailed) throw cleanupError;
+        },
+      };
+    } catch (error) {
+      try {
+        await lease?.release();
+      } finally {
+        dispose();
+      }
+      throw error;
+    }
+  }
   static override async start(
     runtime: IAgentRuntime,
   ): Promise<DesktopAdmittedAcpService> {
@@ -71,17 +245,25 @@ export class DesktopAdmittedAcpService extends AcpService {
 
   override async spawnSession(options: SpawnOptions) {
     const parentRunId = desktopParentRunId(options.metadata);
-    const lease = parentRunId
-      ? await acquireExecutionLease({
-          runId: `acp:${randomUUID()}`,
-          sessionId: parentRunId,
-          kind: "automatic-acp",
-        })
+    const operation = parentRunId
+      ? await this.admittedLease(parentRunId)
       : null;
     try {
-      return await super.spawnSession(options);
+      operation?.start();
+      const result = await super.spawnSession(options);
+      if (operation?.signal.aborted) {
+        try {
+          await super.stopSession(result.sessionId);
+        } catch (error) {
+          operation.markTeardownFailed();
+          throw error;
+        }
+        operation.recordStoppedLateSession(result.sessionId);
+        operation.signal.throwIfAborted();
+      }
+      return result;
     } finally {
-      await lease?.release();
+      await operation?.finish();
     }
   }
 
@@ -96,15 +278,17 @@ export class DesktopAdmittedAcpService extends AcpService {
     const session = await super.getSession(sessionId);
     if (!session) throw new Error("ACP session is unavailable.");
     const parentRunId = desktopParentRunId(session.metadata);
-    const lease = await acquireExecutionLease({
-      runId: `acp:${randomUUID()}`,
-      sessionId: parentRunId as string,
-      kind: "automatic-acp",
-    });
+    const operation = await this.admittedLease(
+      parentRunId as string,
+      sessionId,
+    );
     try {
-      return await super.sendPrompt(sessionId, text, options);
+      operation.start();
+      const result = await super.sendPrompt(sessionId, text, options);
+      operation.signal.throwIfAborted();
+      return result;
     } finally {
-      await lease?.release();
+      await operation.finish();
     }
   }
 
@@ -115,15 +299,17 @@ export class DesktopAdmittedAcpService extends AcpService {
     const session = await super.getSession(sessionId);
     if (!session) throw new Error("ACP session is unavailable.");
     const parentRunId = desktopParentRunId(session.metadata);
-    const lease = await acquireExecutionLease({
-      runId: `acp:${randomUUID()}`,
-      sessionId: parentRunId as string,
-      kind: "automatic-acp",
-    });
+    const operation = await this.admittedLease(
+      parentRunId as string,
+      sessionId,
+    );
     try {
-      return await super.reattachSession(sessionId);
+      operation.start();
+      const result = await super.reattachSession(sessionId);
+      operation.signal.throwIfAborted();
+      return result;
     } finally {
-      await lease?.release();
+      await operation.finish();
     }
   }
 
@@ -133,9 +319,7 @@ export class DesktopAdmittedAcpService extends AcpService {
     }
     const sessions = await super.listSessions();
     const orphaned = sessions.filter((session) =>
-      ["running", "busy", "blocked", "authenticating", "tool_running"].includes(
-        session.status,
-      ),
+      ACTIVE_STATUSES.has(session.status),
     );
     for (const session of orphaned) await super.stopSession(session.id);
     return { resumed: 0, skipped: orphaned.length };
@@ -143,13 +327,35 @@ export class DesktopAdmittedAcpService extends AcpService {
 
   /** Emergency stop without unloading the SDK service from the runtime. */
   async stopAllAdmittedSessions(): Promise<number> {
-    const sessions = await super.listSessions();
-    const active = sessions.filter((session) =>
-      ["running", "busy", "blocked", "authenticating", "tool_running"].includes(
-        session.status,
-      ),
+    const inFlight = [...(this.pendingAdmissions ?? [])].filter(
+      (pending) => pending.started,
     );
-    await Promise.all(active.map((session) => super.stopSession(session.id)));
-    return active.length;
+    this.abortPending(() => true);
+    return withStopConfirmationDeadline(
+      (async () => {
+        const sessions = await super.listSessions();
+        const active = sessions.filter((session) =>
+          ACTIVE_STATUSES.has(session.status),
+        );
+        await Promise.all([
+          ...active.map((session) => super.stopSession(session.id)),
+          ...inFlight.map((pending) => pending.settled),
+        ]);
+        if (inFlight.some((pending) => pending.cleanupFailed)) {
+          throw new Error("ACP stop could not confirm SDK session teardown.");
+        }
+        return new Set([
+          ...active.map((session) => session.id),
+          ...inFlight.flatMap((pending) =>
+            pending.stoppedLateSessionId ? [pending.stoppedLateSessionId] : [],
+          ),
+        ]).size;
+      })(),
+    );
+  }
+
+  override async stopSession(sessionId: string): Promise<void> {
+    this.abortPending((pending) => pending.sessionId === sessionId);
+    return super.stopSession(sessionId);
   }
 }

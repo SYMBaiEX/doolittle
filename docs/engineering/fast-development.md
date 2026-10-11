@@ -41,6 +41,27 @@ nub run desktop:test apps/desktop/src/main/execution-admission.test.ts
 nub run --cwd apps/desktop test:watch apps/desktop/src/main/execution-admission.test.ts
 ```
 
+For the [shared agent engine](shared-agent-engine.md), opt into the two-bot
+offline SDK boundary (real workers, no paid provider call) with:
+
+```sh
+nub run build
+DOOLITTLE_SHARED_ENGINE_E2E=1 nub run test:scope apps/desktop/src/main/shared-engine.e2e.test.ts
+```
+
+The source test launches the built `dist/index.js` for both the lead and its
+worker threads, so rebuild after runtime changes. To exercise the staged macOS
+app runtime under Electron's embedded Node instead, prepare a fresh directory
+package and select the fixed repo-owned artifact:
+
+```sh
+nub run desktop:package:dir
+DOOLITTLE_SHARED_ENGINE_E2E=1 DOOLITTLE_SHARED_ENGINE_E2E_TARGET=packaged nub run test:scope apps/desktop/src/main/shared-engine.e2e.test.ts
+```
+
+Packaged mode requires `apps/desktop/release/mac-arm64/Doolittle.app/Contents/Resources/runtime`.
+Without the opt-in, the E2E is skipped; it does not load 50 SDK runtimes.
+
 ## Essential behavior coverage
 
 The exact eight-file list lives in `vitest.essential.config.ts`. It intentionally

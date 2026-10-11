@@ -4,6 +4,7 @@ import {
   TaskRunEventBus,
 } from "@/services/run-controller/event-bus";
 import { RunControllerStore } from "@/services/run-controller/store";
+import { createRunStartTransition } from "@/services/run-controller/transitions";
 import type {
   LocalMutationInput,
   RunSnapshot,
@@ -15,7 +16,8 @@ import type {
   TaskRunClaimResult,
   TaskRunEvent,
 } from "@/services/run-controller/types";
-import { onRunUpdate } from "./event-capture";
+import { cloneRun } from "@/services/run-controller/utils";
+import { emitRunUpdate, onRunUpdate } from "./event-capture";
 import { getRunByRoomId, withSessionForRoom } from "./room-mapping";
 import {
   getActiveRun,
@@ -47,6 +49,8 @@ export type {
 } from "@/services/run-controller/types";
 
 export class RunControllerService {
+  private static readonly SERVER_RUN_FAILURE_MESSAGE =
+    "The response could not be completed. Please try again.";
   private readonly events = new RunUpdateEventBus();
   private readonly taskEvents = new TaskRunEventBus();
   private readonly codingVerificationEvents =
@@ -56,6 +60,7 @@ export class RunControllerService {
   private readonly workspaceRuns = new Map<string, string>();
   private readonly activeTasks = new Map<string, TaskRunClaimInput>();
   private readonly sessionTasks = new Map<string, string>();
+  private readonly queuedRunIds = new Set<string>();
   private runtimeBridgeAttached = false;
   private agentEventBridgeAttached = false;
 
@@ -87,7 +92,59 @@ export class RunControllerService {
   }
 
   startTurn(input: StartTurnInput): RunSnapshot {
+    const prior = this.store.getByRunId(input.runId);
+    if (prior?.endedAt) {
+      throw new Error(`Run ${input.runId} already has a terminal receipt.`);
+    }
+    if (this.queuedRunIds.has(input.runId)) {
+      const queued = this.store.getInternal(input.sessionId);
+      if (!queued || queued.runId !== input.runId || queued.endedAt) {
+        throw new Error(`Run ${input.runId} is no longer queued.`);
+      }
+      const transition = createRunStartTransition(input);
+      transition.run.firstStatusAt = queued.firstStatusAt;
+      this.store.apply(input.sessionId, transition.run);
+      this.queuedRunIds.delete(input.runId);
+      emitRunUpdate(this.dependencies, transition.type, transition.run);
+      return cloneRun(transition.run);
+    }
     return startTurn(this.dependencies, input);
+  }
+
+  /** Retain an accepted, admission-waiting receipt without recording a model turn. */
+  acceptQueuedRun(input: Omit<StartTurnInput, "message">): RunSnapshot {
+    const claim = this.activeTasks.get(input.runId);
+    if (
+      !claim ||
+      claim.sessionId !== input.sessionId ||
+      this.store.hasRunId(input.runId)
+    ) {
+      throw new Error(
+        `Run ${input.runId} is not available for queued acceptance.`,
+      );
+    }
+    const now = new Date().toISOString();
+    const run: RunSnapshot = {
+      ...input,
+      message: "",
+      observedActionCount: 0,
+      status: "waiting",
+      statusDetail: "Waiting for execution capacity",
+      localMutations: [],
+      pendingApprovals: 0,
+      startedAt: now,
+      firstStatusAt: now,
+      lastMeaningfulActivityAt: now,
+      updatedAt: now,
+    };
+    this.store.saveAccepted(run);
+    this.queuedRunIds.add(input.runId);
+    try {
+      emitRunUpdate(this.dependencies, "waiting", run);
+    } catch {
+      // A subscriber cannot undo the durable acceptance receipt.
+    }
+    return cloneRun(run);
   }
 
   updateThinking(sessionId: string): void {
@@ -135,7 +192,17 @@ export class RunControllerService {
     status: Extract<RunStatus, "complete" | "cancelled" | "error">,
     errorMessage?: string,
   ): void {
-    finishTurn(this.dependencies, sessionId, status, errorMessage);
+    const current = this.store.getInternal(sessionId);
+    finishTurn(
+      this.dependencies,
+      sessionId,
+      status,
+      status === "error" && current && this.activeTasks.has(current.runId)
+        ? RunControllerService.SERVER_RUN_FAILURE_MESSAGE
+        : errorMessage,
+    );
+    const finished = this.store.getInternal(sessionId);
+    if (finished?.endedAt) this.queuedRunIds.delete(finished.runId);
   }
 
   /** Registers the server-side signal that actually drives provider/tool cancellation. */
@@ -178,6 +245,7 @@ export class RunControllerService {
     const task = this.activeTasks.get(runId);
     if (!task) return;
     this.activeTasks.delete(runId);
+    this.queuedRunIds.delete(runId);
     if (this.sessionTasks.get(task.sessionId) === runId) {
       this.sessionTasks.delete(task.sessionId);
     }

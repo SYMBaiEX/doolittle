@@ -324,26 +324,21 @@ async function startServerOwnedChatRun(
     return conflictResponse("run_exists");
   }
 
-  let admissionLease: Awaited<ReturnType<typeof acquireExecutionLease>>;
   try {
-    admissionLease = await acquireExecutionLease({
+    const agentSettings = context.services.settings?.get().agent;
+    context.services.runController.acceptQueuedRun({
       runId,
       sessionId,
-      kind: "foreground",
+      roomId,
+      source: body.source ?? "api",
+      runDepth: agentSettings?.runDepth ?? "standard",
+      configuredMaxIterations: agentSettings?.maxIterations ?? 0,
+      progressMode: agentSettings?.toolProgressMode ?? "new",
     });
-  } catch (error) {
+  } catch {
     releaseWorkspace();
     context.services.runController.releaseTaskRun(runId);
-    if (error instanceof ExecutionAdmissionLimitError) {
-      return json({ error: error.message, code: error.reason }, 429);
-    }
-    return json(
-      {
-        error: "Global execution admission is unavailable.",
-        code: "admission_unavailable",
-      },
-      503,
-    );
+    return json({ error: TURN_FAILURE_MESSAGE, code: "turn_failed" }, 500);
   }
 
   const controller = new AbortController();
@@ -374,8 +369,20 @@ async function startServerOwnedChatRun(
   });
 
   void (async () => {
+    let admissionLease: Awaited<ReturnType<typeof acquireExecutionLease>> =
+      null;
     let textSequence = 0;
     try {
+      // Persist acceptance and register cancellation before waiting for fleet
+      // capacity. POST returns its durable run identity promptly; detaching a
+      // viewer cannot cancel work, but Cancel/Stop All can abort queued work.
+      admissionLease = await acquireExecutionLease({
+        runId,
+        sessionId,
+        kind: "foreground",
+        signal: controller.signal,
+      });
+      controller.signal.throwIfAborted();
       const attachments = prepared.attachments.map((entry) => entry.media);
       const attachmentDescriptors = prepared.attachments.map(
         (entry) => entry.descriptor,
@@ -459,6 +466,10 @@ async function startServerOwnedChatRun(
             true,
           );
         } else {
+          const active = context.services.runController.getActive(sessionId);
+          if (active?.runId === runId && !active.endedAt) {
+            context.services.runController.finishTurn(sessionId, "complete");
+          }
           const receipt = context.services.runController.getByRunId(runId);
           recordTerminalBoundary("complete");
           context.services.runController.appendTaskEvent(
@@ -490,7 +501,9 @@ async function startServerOwnedChatRun(
           context.services.runController.finishTurn(
             sessionId,
             "error",
-            error instanceof Error ? error.message : String(error),
+            error instanceof ExecutionAdmissionLimitError
+              ? error.message
+              : TURN_FAILURE_MESSAGE,
           );
         }
         recordTerminalBoundary("error");
@@ -501,7 +514,13 @@ async function startServerOwnedChatRun(
             id: responseId,
             run_id: runId,
             room_id: roomId,
-            message: TURN_FAILURE_MESSAGE,
+            message:
+              error instanceof ExecutionAdmissionLimitError
+                ? error.message
+                : TURN_FAILURE_MESSAGE,
+            ...(error instanceof ExecutionAdmissionLimitError
+              ? { code: error.reason }
+              : {}),
           },
           true,
         );
@@ -669,6 +688,29 @@ export async function handleChatRoute(
   }
   if (terminal.type === "response.cancelled") {
     return json({ error: "run cancelled", code: "run_cancelled" }, 409);
+  }
+  const failureCode =
+    terminal.data !== null && typeof terminal.data === "object"
+      ? (terminal.data as { code?: unknown }).code
+      : undefined;
+  switch (failureCode) {
+    case "total_limit":
+    case "automatic_acp_limit":
+    case "bot_limit":
+    case "mutation_conflict":
+    case "run_exists":
+    case "queue_full":
+    case "queue_timeout":
+    case "bot_stopped":
+      // Only admission reasons are public. Do not forward arbitrary provider
+      // error codes or stored event messages into this capacity response.
+      return json(
+        {
+          error: new ExecutionAdmissionLimitError(failureCode).message,
+          code: failureCode,
+        },
+        429,
+      );
   }
   return json({ error: TURN_FAILURE_MESSAGE, code: "turn_failed" }, 500);
 }
