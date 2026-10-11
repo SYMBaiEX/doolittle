@@ -16,6 +16,11 @@ The updated [162-alert source disposition ledger](code-scanning/remediation-disp
 separates historical triage from current source anchors. It does not close
 GitHub alerts or claim a fresh scanner result.
 
+The [first fresh branch scan review](code-scanning/remediation-fresh-scan-2026-10-11.md)
+separately covers all 53 results from analysis `1933033304` at `0c631e9d`.
+Its 47 production-boundary and six fixture dispositions are not a blanket
+false-positive dismissal or final-head scanner closure.
+
 ## Findings requiring code or dependency work
 
 ### SR-1 — Automatic SOUL context escapes the workspace reader boundary

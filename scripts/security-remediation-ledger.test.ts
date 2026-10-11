@@ -55,10 +55,13 @@ describe("current security remediation evidence", () => {
   });
 
   it("reports source dispositions without claiming GitHub closure", () => {
-    const counts: Record<string, number> = {};
+    const counts = new Map<string, number>();
     for (const alert of ledger.alerts)
-      counts[alert.classification] = (counts[alert.classification] ?? 0) + 1;
-    expect(counts).toEqual(ledger.classificationCounts);
+      counts.set(
+        alert.classification,
+        (counts.get(alert.classification) ?? 0) + 1,
+      );
+    expect(Object.fromEntries(counts)).toEqual(ledger.classificationCounts);
     expect(ledger.scope).toContain("not fresh CodeQL or GitHub alert closure");
     expect(
       ledger.limitations.some((note: string) => note.includes("version-based")),
