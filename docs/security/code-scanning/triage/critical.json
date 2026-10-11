@@ -1,0 +1,175 @@
+[
+  {
+    "number": 8,
+    "classification": "hardening",
+    "reason": "The URL is an explicit operator CLI argument, not a remotely reachable server request parameter, so arbitrary unauthenticated health probes are intentional. The original code nevertheless forwarded ELIZA_API_TOKEN to every chosen host. An attacker who persuades the operator to run an attacker URL with that environment token could capture it. Authentication now requires an exact trusted origin, defaulting to the configured numeric loopback API origin. Remote authentication requires explicit HTTPS origin opt-in. All redirects fail before any redirected request. Intentional arbitrary unauthenticated HTTP(S) probes remain; CodeQL may continue reporting that dataflow and requires contextual triage rather than automatic suppression. Native ScriptC compilation and binary integration remain unverified.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/native-tools/doolittle-probe.ts",
+        "line": 14,
+        "detail": "The URL comes from process.argv in the opt-in native operator CLI."
+      },
+      {
+        "path": "packages/agent/src/native-tools/health-probe-core.ts",
+        "line": 19,
+        "detail": "URL normalization permits only HTTP(S), rejects URL credentials, and fixes the route to /health."
+      },
+      {
+        "path": "packages/agent/src/native-tools/health-probe-core.ts",
+        "line": 36,
+        "detail": "Authentication request builder sets redirect:error, rejects invalid explicit origins, permits remote authentication only over HTTPS, and adds the token only for exact origin equality."
+      },
+      {
+        "path": "packages/agent/src/native-tools/doolittle-probe.ts",
+        "line": 26,
+        "detail": "The actual fetch receives the origin-scoped headers and no-redirect policy from the shared request builder."
+      }
+    ],
+    "tests": [
+      "nub run test:scope packages/agent/src/native-tools/health-probe-core.test.ts packages/agent/src/entrypoint/native-tool-command.test.ts: 27 tests passed",
+      "Health-probe coverage includes default/configured local port, host alias and port mismatch, explicit HTTPS opt-in, IPv6 numeric loopback, invalid and credential-bearing auth origins, and a real loopback cross-origin redirect whose target receives zero requests",
+      "nubx tsc --noEmit --project packages/agent/src/native-tools/tsconfig.json: passed",
+      "Scoped Biome check and git diff --check: passed; no native executable build or full suite run"
+    ]
+  },
+  {
+    "number": 202,
+    "classification": "intentional-local",
+    "reason": "Developer/source runtime selection intentionally accepts an operator-controlled DOOLITTLE_NUB_PATH and source repository location. Exploitation requires control of the desktop launch environment, development checkout, local executable, or packaged application resources. No renderer/workspace argument can change the private BackendLaunchTarget. Packaged applications use process.execPath with the resources runtime entry and never fall back to a source target. shell:false prevents shell interpretation, but the decision also relies on these executable/argument ownership boundaries; it is not a generic claim that shell:false makes arbitrary executables safe. Residual local dependency/PATH/application-resource compromise is outside this remote injection claim.",
+    "evidence": [
+      {
+        "path": "apps/desktop/src/main/backend.ts",
+        "line": 243,
+        "detail": "Packaged target consists of process.execPath and the fixed resources/runtime/bin/doolittle-runtime.mjs entry plus api argument."
+      },
+      {
+        "path": "apps/desktop/src/main/backend.ts",
+        "line": 258,
+        "detail": "Source target uses an operator-resolved Nub executable and fixed packages/agent/src/index.ts api arguments."
+      },
+      {
+        "path": "apps/desktop/src/main/backend.ts",
+        "line": 436,
+        "detail": "spawn consumes the host-owned target with shell:false; selected workspace changes the environment, not the target executable or arguments."
+      },
+      {
+        "path": "apps/desktop/src/main/backend.ts",
+        "line": 656,
+        "detail": "DOOLITTLE_NUB_PATH override and local executable/PATH search are development operator configuration."
+      },
+      {
+        "path": "apps/desktop/src/main/index.ts",
+        "line": 713,
+        "detail": "App packaging status controls target selection; packaged applications do not evaluate a source runtime target."
+      },
+      {
+        "path": "apps/desktop/src/main/runtime-target-policy.ts",
+        "line": 21,
+        "detail": "Packaged runtime absence throws instead of falling back to environment-selected source code."
+      }
+    ],
+    "tests": [
+      "nub run test:scope apps/desktop/src/main/runtime-target-policy.test.ts: 3 tests passed, covering source override isolation, packaged selection, and missing-package failure"
+    ]
+  },
+  {
+    "number": 175,
+    "classification": "test-only",
+    "reason": "The critical sink is an isolated packaging regression test. BUN_BIN and PATH are controlled by the test runner/operator; generated code comes from the already installed SDK dependency. An attacker must control the test environment or installed dependency, which is the existing CI/dependency execution trust boundary, not application input. Test payload is fixed and no provider is invoked. No blanket suppression of production child-process usage is justified by this classification.",
+    "evidence": [
+      {
+        "path": "apps/desktop/scripts/smithers-runtime.test.ts",
+        "line": 30,
+        "detail": "Source is read from the installed @elizaos/plugin-agent-orchestrator package."
+      },
+      {
+        "path": "apps/desktop/scripts/smithers-runtime.test.ts",
+        "line": 44,
+        "detail": "Test extracts the real reviewed SDK-generated runner into an isolated temporary bundle."
+      },
+      {
+        "path": "apps/desktop/scripts/smithers-runtime.test.ts",
+        "line": 93,
+        "detail": "Test-runner BUN_BIN selects the executable; --no-install and a separate -e script argument are used with fixture-only task data."
+      }
+    ],
+    "tests": [
+      "Static test source reviewed; this SDK workflow test was not executed during triage"
+    ]
+  },
+  {
+    "number": 174,
+    "classification": "test-only",
+    "reason": "The vm sink evaluates a known function extracted from the installed pinned @elizaos/core package to regression-test its real planner gate. User/model output is passed later as data, never evaluated. Exploitation requires replacing the installed package or test code, both of which already execute under the CI dependency/code trust boundary. This is not a production arbitrary-code evaluation path.",
+    "evidence": [
+      {
+        "path": "packages/plugins/doolittle-plugin/planner-completion.test.ts",
+        "line": 84,
+        "detail": "Input is installed @elizaos/core JS read through createRequire, with explicit extraction boundary assertions."
+      },
+      {
+        "path": "packages/plugins/doolittle-plugin/planner-completion.test.ts",
+        "line": 92,
+        "detail": "runInNewContext evaluates the extracted installed gate, not the fixture message or planner JSON."
+      },
+      {
+        "path": "packages/plugins/doolittle-plugin/planner-completion.test.ts",
+        "line": 105,
+        "detail": "The fixture is supplied to the resulting gate function as structured argument data."
+      }
+    ],
+    "tests": [
+      "Static test source reviewed; this installed-SDK regression test was not executed during triage"
+    ]
+  },
+  {
+    "number": 4,
+    "classification": "test-only",
+    "reason": "The child executable is a test-runner DOOLITTLE_NUB_PATH override with fixed -e arguments. Module-path interpolation is JSON.stringify quoted; home paths and fetch fixtures are passed as environment data, not inserted into executable JS. An attacker must control the test runner executable environment or checked-out test source. No application or provider input reaches command source here.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/runtime/native/account-auth/claude-code.test.ts",
+        "line": 14,
+        "detail": "Nub executable is explicitly configured by the test process environment."
+      },
+      {
+        "path": "packages/agent/src/runtime/native/account-auth/claude-code.test.ts",
+        "line": 123,
+        "detail": "Module paths in generated import source are JSON.stringify quoted, while mock response and home path come from environment values."
+      },
+      {
+        "path": "packages/agent/src/runtime/native/account-auth/claude-code.test.ts",
+        "line": 145,
+        "detail": "spawnSync passes fixed -e script arguments without a shell; test input remains environment data."
+      }
+    ],
+    "tests": [
+      "Static test source reviewed; credential-refresh subprocess tests were not executed during triage"
+    ]
+  },
+  {
+    "number": 5,
+    "classification": "test-only",
+    "reason": "This sink repeats the test-runner Nub executable override for a setup-token persistence fixture. Executed source is fixed except JSON.stringify-quoted local module paths. The mock token and temporary home/data paths are environment data. Exploitation requires control of the test runner environment/source, not an externally reachable auth request. No real-provider execution was used to verify it.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/runtime/native/account-auth/claude-code.test.ts",
+        "line": 14,
+        "detail": "DOOLITTLE_NUB_PATH selects the locally trusted test runner."
+      },
+      {
+        "path": "packages/agent/src/runtime/native/account-auth/claude-code.test.ts",
+        "line": 482,
+        "detail": "The import paths are JSON.stringify quoted; fixture home path is read as data from TEST_HOME_PATH."
+      },
+      {
+        "path": "packages/agent/src/runtime/native/account-auth/claude-code.test.ts",
+        "line": 490,
+        "detail": "spawnSync executes fixed -e arguments with a literal setup-token fixture and temporary-directory environment data."
+      }
+    ],
+    "tests": [
+      "Static test source reviewed; setup-token persistence subprocess test was not executed during triage"
+    ]
+  }
+]

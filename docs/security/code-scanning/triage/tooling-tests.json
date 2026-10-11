@@ -1,0 +1,1383 @@
+[
+  {
+    "number": 226,
+    "classification": "false-positive",
+    "reason": "The fixture-only environment builder iterates the cloned environment's existing own keys and writes only an empty string to remove credentials. It never installs an attacker-supplied object or changes Object.prototype. Callers are packaged offline E2E launch helpers, not an exposed runtime mutation endpoint.",
+    "evidence": [
+      {
+        "path": "e2e/support/isolated-runtime-environment.ts",
+        "line": 55,
+        "detail": "Copies inherited environment, blanks credential-like keys and pins SDK stores to an owned absolute fixture root."
+      },
+      {
+        "path": "e2e/support/doolittle-workbench-app.ts",
+        "line": 39,
+        "detail": "Launches offline fixture runtime with isolated environment."
+      }
+    ],
+    "tests": [
+      "e2e/support/isolated-runtime-environment.test.ts: 4 scoped tests passed"
+    ]
+  },
+  {
+    "number": 200,
+    "classification": "intentional-local",
+    "reason": "This unanchored expression is a deterministic local grading term check inside freeform prose, not a URL navigation/origin/authorization control. A model can spoof this shallow check; humanReviewRequired remains true and the check must not be promoted to evidence of an authentic origin or factual grounding. No URL is fetched or authority granted by this expression.",
+    "evidence": [
+      {
+        "path": "packages/evals/src/headless/cases.ts",
+        "line": 152,
+        "detail": "Research task defines prose acceptance check and separately requires human review."
+      },
+      {
+        "path": "packages/evals/src/headless/cases.ts",
+        "line": 159,
+        "detail": "Substring regex evaluates response text only; unchanged grading contract."
+      }
+    ]
+  },
+  {
+    "number": 199,
+    "classification": "guarded",
+    "reason": "Trajectory metadata is untrusted, but its reason is type-checked and constrained to the exact constant CONTINUATION_REASONS allowlist before indexing the counter object. Prototype keys are absent from the allowlist, so arbitrary property injection is prevented.",
+    "evidence": [
+      {
+        "path": "packages/evals/src/headless/trace-summary.ts",
+        "line": 5,
+        "detail": "Three fixed continuation reason literals."
+      },
+      {
+        "path": "packages/evals/src/headless/trace-summary.ts",
+        "line": 242,
+        "detail": "String plus allowlist check dominates dynamic counter increment at line 248."
+      }
+    ]
+  },
+  {
+    "number": 185,
+    "classification": "test-only",
+    "reason": "The file path comes from writeCodingEvalReport inside the test's fresh mkdtemp directory, not externally supplied user content. stat/read assertions validate private report modes and scrubbed output; there is no production authentication or ownership decision in these assertions. Adjacent local writers with access to the private fixture are outside the unit-test isolation model.",
+    "evidence": [
+      {
+        "path": "packages/evals/src/coding/report.test.ts",
+        "line": 37,
+        "detail": "Fixture uses mkdtemp and tracks only created directories for cleanup."
+      },
+      {
+        "path": "packages/evals/src/coding/report.test.ts",
+        "line": 207,
+        "detail": "Writes a generated report, reloads it, and asserts 0600 and no raw workspace field."
+      }
+    ],
+    "tests": [
+      "packages/evals/src/coding/report.test.ts: 11 scoped tests passed"
+    ]
+  },
+  {
+    "number": 184,
+    "classification": "intentional-local",
+    "reason": "Report listing is an operator-local CLI operation. The directory is deliberately selected through --report-dir or local evaluation environment; entry names come from readdirSync, which cannot emit path separators, and every loaded JSON is validated as an evaluation report. Reads are not an exposed server capability and do not fetch or execute entry contents. The selected directory and its ancestors remain trusted local storage; symlinked entries are not a sandbox guarantee.",
+    "evidence": [
+      {
+        "path": "packages/evals/src/coding/report.ts",
+        "line": 662,
+        "detail": "listCodingEvalReportFiles resolves operator-selected directory and validates each .json file before returning metadata."
+      },
+      {
+        "path": "packages/evals/src/coding/reports-cli.ts",
+        "line": 8,
+        "detail": "Only caller selects local report directory from process arguments or default state home."
+      }
+    ],
+    "tests": [
+      "packages/evals/src/coding/report.test.ts: 11 scoped tests passed"
+    ]
+  },
+  {
+    "number": 183,
+    "classification": "intentional-local",
+    "reason": "Report listing is an operator-local CLI operation. The directory is deliberately selected through --report-dir or local evaluation environment; entry names come from readdirSync, which cannot emit path separators, and every loaded JSON is validated as an evaluation report. Reads are not an exposed server capability and do not fetch or execute entry contents. The selected directory and its ancestors remain trusted local storage; symlinked entries are not a sandbox guarantee.",
+    "evidence": [
+      {
+        "path": "packages/evals/src/coding/report.ts",
+        "line": 662,
+        "detail": "listCodingEvalReportFiles resolves operator-selected directory and validates each .json file before returning metadata."
+      },
+      {
+        "path": "packages/evals/src/coding/reports-cli.ts",
+        "line": 8,
+        "detail": "Only caller selects local report directory from process arguments or default state home."
+      }
+    ],
+    "tests": [
+      "packages/evals/src/coding/report.test.ts: 11 scoped tests passed"
+    ]
+  },
+  {
+    "number": 182,
+    "classification": "intentional-local",
+    "reason": "The compare CLI deliberately reads exactly the local report paths selected by --baseline and --candidate; no public caller provides the path and loaded content is schema/metric validated before comparison. Arbitrary local file selection is intended CLI behavior, not a traversal across a remote principal boundary.",
+    "evidence": [
+      {
+        "path": "packages/evals/src/coding/report.ts",
+        "line": 531,
+        "detail": "readCodingEvalReport reads the selected JSON and passes it to strict report parser."
+      },
+      {
+        "path": "packages/evals/src/coding/compare-cli.ts",
+        "line": 40,
+        "detail": "Local main loads explicit baseline and candidate arguments."
+      }
+    ],
+    "tests": [
+      "packages/evals/src/coding/report.test.ts: 11 scoped tests passed"
+    ]
+  },
+  {
+    "number": 181,
+    "classification": "hardening",
+    "reason": "The report output directory is intentionally operator-controlled, but an override of root/home/current repository previously chmodded that broad directory to 0700. The write path now rejects those broad lexical/canonical targets, opens a non-followed directory and verifies its kind before descriptor chmod, while preserving dedicated custom roots and default state storage. Generated filenames retain sanitization, UUID, exclusive creation and 0600; unsafe post-create pathname chmod was removed. Preventive local safety improvement, not a confirmed remote exploit. Operator-owned ancestor directories remain a prerequisite and Windows descriptor semantics need runtime verification.",
+    "evidence": [
+      {
+        "path": "packages/evals/src/coding/report.ts",
+        "line": 309,
+        "detail": "Rejects broad directories before mkdir/chmod and canonicalizes target."
+      },
+      {
+        "path": "packages/evals/src/coding/report.ts",
+        "line": 324,
+        "detail": "O_NOFOLLOW open, fstat directory and fchmod on opened descriptor."
+      },
+      {
+        "path": "packages/evals/src/coding/report.ts",
+        "line": 338,
+        "detail": "Sanitized timestamp/label plus random UUID; wx/0600 creation without later path chmod."
+      }
+    ],
+    "tests": [
+      "packages/evals/src/coding/report.test.ts: 11 scoped tests passed, including normal private report, broad-path rejection, symlink rejection and recovery"
+    ]
+  },
+  {
+    "number": 180,
+    "classification": "hardening",
+    "reason": "The report output directory is intentionally operator-controlled, but an override of root/home/current repository previously chmodded that broad directory to 0700. The write path now rejects those broad lexical/canonical targets, opens a non-followed directory and verifies its kind before descriptor chmod, while preserving dedicated custom roots and default state storage. Generated filenames retain sanitization, UUID, exclusive creation and 0600; unsafe post-create pathname chmod was removed. Preventive local safety improvement, not a confirmed remote exploit. Operator-owned ancestor directories remain a prerequisite and Windows descriptor semantics need runtime verification.",
+    "evidence": [
+      {
+        "path": "packages/evals/src/coding/report.ts",
+        "line": 309,
+        "detail": "Rejects broad directories before mkdir/chmod and canonicalizes target."
+      },
+      {
+        "path": "packages/evals/src/coding/report.ts",
+        "line": 324,
+        "detail": "O_NOFOLLOW open, fstat directory and fchmod on opened descriptor."
+      },
+      {
+        "path": "packages/evals/src/coding/report.ts",
+        "line": 338,
+        "detail": "Sanitized timestamp/label plus random UUID; wx/0600 creation without later path chmod."
+      }
+    ],
+    "tests": [
+      "packages/evals/src/coding/report.test.ts: 11 scoped tests passed, including normal private report, broad-path rejection, symlink rejection and recovery"
+    ]
+  },
+  {
+    "number": 179,
+    "classification": "hardening",
+    "reason": "The report output directory is intentionally operator-controlled, but an override of root/home/current repository previously chmodded that broad directory to 0700. The write path now rejects those broad lexical/canonical targets, opens a non-followed directory and verifies its kind before descriptor chmod, while preserving dedicated custom roots and default state storage. Generated filenames retain sanitization, UUID, exclusive creation and 0600; unsafe post-create pathname chmod was removed. Preventive local safety improvement, not a confirmed remote exploit. Operator-owned ancestor directories remain a prerequisite and Windows descriptor semantics need runtime verification.",
+    "evidence": [
+      {
+        "path": "packages/evals/src/coding/report.ts",
+        "line": 309,
+        "detail": "Rejects broad directories before mkdir/chmod and canonicalizes target."
+      },
+      {
+        "path": "packages/evals/src/coding/report.ts",
+        "line": 324,
+        "detail": "O_NOFOLLOW open, fstat directory and fchmod on opened descriptor."
+      },
+      {
+        "path": "packages/evals/src/coding/report.ts",
+        "line": 338,
+        "detail": "Sanitized timestamp/label plus random UUID; wx/0600 creation without later path chmod."
+      }
+    ],
+    "tests": [
+      "packages/evals/src/coding/report.test.ts: 11 scoped tests passed, including normal private report, broad-path rejection, symlink rejection and recovery"
+    ]
+  },
+  {
+    "number": 178,
+    "classification": "hardening",
+    "reason": "The report output directory is intentionally operator-controlled, but an override of root/home/current repository previously chmodded that broad directory to 0700. The write path now rejects those broad lexical/canonical targets, opens a non-followed directory and verifies its kind before descriptor chmod, while preserving dedicated custom roots and default state storage. Generated filenames retain sanitization, UUID, exclusive creation and 0600; unsafe post-create pathname chmod was removed. Preventive local safety improvement, not a confirmed remote exploit. Operator-owned ancestor directories remain a prerequisite and Windows descriptor semantics need runtime verification.",
+    "evidence": [
+      {
+        "path": "packages/evals/src/coding/report.ts",
+        "line": 309,
+        "detail": "Rejects broad directories before mkdir/chmod and canonicalizes target."
+      },
+      {
+        "path": "packages/evals/src/coding/report.ts",
+        "line": 324,
+        "detail": "O_NOFOLLOW open, fstat directory and fchmod on opened descriptor."
+      },
+      {
+        "path": "packages/evals/src/coding/report.ts",
+        "line": 338,
+        "detail": "Sanitized timestamp/label plus random UUID; wx/0600 creation without later path chmod."
+      }
+    ],
+    "tests": [
+      "packages/evals/src/coding/report.test.ts: 11 scoped tests passed, including normal private report, broad-path rejection, symlink rejection and recovery"
+    ]
+  },
+  {
+    "number": 177,
+    "classification": "test-only",
+    "reason": "The file path comes from writeCodingEvalReport inside the test's fresh mkdtemp directory, not externally supplied user content. stat/read assertions validate private report modes and scrubbed output; there is no production authentication or ownership decision in these assertions. Adjacent local writers with access to the private fixture are outside the unit-test isolation model.",
+    "evidence": [
+      {
+        "path": "packages/evals/src/coding/report.test.ts",
+        "line": 37,
+        "detail": "Fixture uses mkdtemp and tracks only created directories for cleanup."
+      },
+      {
+        "path": "packages/evals/src/coding/report.test.ts",
+        "line": 207,
+        "detail": "Writes a generated report, reloads it, and asserts 0600 and no raw workspace field."
+      }
+    ],
+    "tests": [
+      "packages/evals/src/coding/report.test.ts: 11 scoped tests passed"
+    ]
+  },
+  {
+    "number": 176,
+    "classification": "test-only",
+    "reason": "The file path comes from writeCodingEvalReport inside the test's fresh mkdtemp directory, not externally supplied user content. stat/read assertions validate private report modes and scrubbed output; there is no production authentication or ownership decision in these assertions. Adjacent local writers with access to the private fixture are outside the unit-test isolation model.",
+    "evidence": [
+      {
+        "path": "packages/evals/src/coding/report.test.ts",
+        "line": 37,
+        "detail": "Fixture uses mkdtemp and tracks only created directories for cleanup."
+      },
+      {
+        "path": "packages/evals/src/coding/report.test.ts",
+        "line": 207,
+        "detail": "Writes a generated report, reloads it, and asserts 0600 and no raw workspace field."
+      }
+    ],
+    "tests": [
+      "packages/evals/src/coding/report.test.ts: 11 scoped tests passed"
+    ]
+  },
+  {
+    "number": 171,
+    "classification": "intentional-local",
+    "reason": "This release verifier reads build/package-owned JSON or legal text. Existence/stat checks are diagnostics, not access/ownership decisions; legal/runtime notice content is hashed and checked against artifact metadata. A concurrent writer with package-directory access can still race reads or mutate after verification, so these are detective consistency checks rather than atomic attestation. No public runtime endpoint calls them. Use an isolated trusted build directory and final code signature for release integrity.",
+    "evidence": [
+      {
+        "path": "apps/desktop/scripts/verify-package.ts",
+        "line": 651,
+        "detail": "Local package read after diagnostic existence/stat check; no privilege transition."
+      },
+      {
+        "path": "apps/desktop/scripts/package.ts",
+        "line": 196,
+        "detail": "Packaging launcher invokes verifier as a child process over its produced app artifact."
+      },
+      {
+        "path": "apps/desktop/scripts/verify-package.ts",
+        "line": 801,
+        "detail": "CLI main selects package paths, while normal branch performs composition, artifact and runtime checks."
+      }
+    ],
+    "tests": [
+      "apps/desktop/scripts/verify-package.test.ts: scoped suite passed within 6-file/65-test package/account/isolation selection"
+    ]
+  },
+  {
+    "number": 170,
+    "classification": "intentional-local",
+    "reason": "This release verifier reads build/package-owned JSON or legal text. Existence/stat checks are diagnostics, not access/ownership decisions; legal/runtime notice content is hashed and checked against artifact metadata. A concurrent writer with package-directory access can still race reads or mutate after verification, so these are detective consistency checks rather than atomic attestation. No public runtime endpoint calls them. Use an isolated trusted build directory and final code signature for release integrity.",
+    "evidence": [
+      {
+        "path": "apps/desktop/scripts/verify-package.ts",
+        "line": 630,
+        "detail": "Local package read after diagnostic existence/stat check; no privilege transition."
+      },
+      {
+        "path": "apps/desktop/scripts/package.ts",
+        "line": 196,
+        "detail": "Packaging launcher invokes verifier as a child process over its produced app artifact."
+      },
+      {
+        "path": "apps/desktop/scripts/verify-package.ts",
+        "line": 801,
+        "detail": "CLI main selects package paths, while normal branch performs composition, artifact and runtime checks."
+      }
+    ],
+    "tests": [
+      "apps/desktop/scripts/verify-package.test.ts: scoped suite passed within 6-file/65-test package/account/isolation selection"
+    ]
+  },
+  {
+    "number": 169,
+    "classification": "intentional-local",
+    "reason": "legalEntry computes size and SHA-256 of fixed legal asset names in the generated desktop-artifact directory. Concurrent mutation can produce inconsistent metadata and is not prevented atomically; subsequent package verification detects mismatches. A writer already able to mutate the trusted build directory has supply-chain authority outside this local inventory helper, not an exposed request path.",
+    "evidence": [
+      {
+        "path": "apps/desktop/scripts/desktop-artifact.ts",
+        "line": 439,
+        "detail": "legalEntry only hashes/records metadata for a supplied local generated asset."
+      },
+      {
+        "path": "apps/desktop/scripts/desktop-artifact.ts",
+        "line": 672,
+        "detail": "Caller passes three fixed legal filenames under outputRoot."
+      }
+    ],
+    "tests": [
+      "apps/desktop/scripts/desktop-artifact.test.ts: scoped suite passed"
+    ]
+  },
+  {
+    "number": 168,
+    "classification": "intentional-local",
+    "reason": "Vite-generated outputs and emitted inventory are local trusted build inputs. The existence/stat/read sequence can race concurrent build-directory mutation; validation hashes content and checks expected metadata but does not claim an immutable package. A compromised build writer already controls the emitted application. Keep packaging directories isolated; no remote runtime caller or security permission decision reaches these helpers.",
+    "evidence": [
+      {
+        "path": "apps/desktop/scripts/desktop-build-inventory.ts",
+        "line": 184,
+        "detail": "writeBundle inventory records bytes emitted to resolved Vite output root."
+      },
+      {
+        "path": "apps/desktop/scripts/desktop-build-inventory.ts",
+        "line": 244,
+        "detail": "Validation rejects lexical escape and missing output, then checks size/hash."
+      },
+      {
+        "path": "apps/desktop/vite.main.config.ts",
+        "line": 4,
+        "detail": "Bundler configuration imports inventory plugin; plugin runs only during desktop build."
+      }
+    ],
+    "tests": [
+      "apps/desktop/scripts/desktop-build-inventory.test.ts: 2 scoped tests passed, including output tampering rejection"
+    ]
+  },
+  {
+    "number": 167,
+    "classification": "intentional-local",
+    "reason": "Vite-generated outputs and emitted inventory are local trusted build inputs. The existence/stat/read sequence can race concurrent build-directory mutation; validation hashes content and checks expected metadata but does not claim an immutable package. A compromised build writer already controls the emitted application. Keep packaging directories isolated; no remote runtime caller or security permission decision reaches these helpers.",
+    "evidence": [
+      {
+        "path": "apps/desktop/scripts/desktop-build-inventory.ts",
+        "line": 184,
+        "detail": "writeBundle inventory records bytes emitted to resolved Vite output root."
+      },
+      {
+        "path": "apps/desktop/scripts/desktop-build-inventory.ts",
+        "line": 244,
+        "detail": "Validation rejects lexical escape and missing output, then checks size/hash."
+      },
+      {
+        "path": "apps/desktop/vite.main.config.ts",
+        "line": 4,
+        "detail": "Bundler configuration imports inventory plugin; plugin runs only during desktop build."
+      }
+    ],
+    "tests": [
+      "apps/desktop/scripts/desktop-build-inventory.test.ts: 2 scoped tests passed, including output tampering rejection"
+    ]
+  },
+  {
+    "number": 166,
+    "classification": "intentional-local",
+    "reason": "readJson is a developer build helper reached from package identity and artifact-inventory preparation, not an HTTP/IPC handler. stat before read provides a diagnostic but is not an ownership control. Inputs are already-trusted checkout/node_modules/generated build files; concurrent writers remain a release-environment trust assumption.",
+    "evidence": [
+      {
+        "path": "apps/desktop/scripts/desktop-artifact.ts",
+        "line": 89,
+        "detail": "Checks then parses local JSON, wrapping invalid content with an actionable build error."
+      },
+      {
+        "path": "apps/desktop/scripts/desktop-artifact.ts",
+        "line": 561,
+        "detail": "prepareDesktopArtifact runs only from packaging with repository/desktop root defaults."
+      }
+    ],
+    "tests": [
+      "apps/desktop/scripts/desktop-artifact.test.ts: scoped suite passed"
+    ]
+  },
+  {
+    "number": 165,
+    "classification": "intentional-local",
+    "reason": "ELECTRON_OVERRIDE_DIST_PATH is an explicit developer packaging option selecting an installed Electron distribution. The code checks required legal assets and exact Electron version before copying LICENSES.chromium.html into a fixed generated artifact path. It does not interpret renderer/network input or execute content. Anyone controlling this build environment/distribution already controls the Electron executable used for packaging; the override is not a sandbox or provenance proof.",
+    "evidence": [
+      {
+        "path": "apps/desktop/scripts/desktop-artifact.ts",
+        "line": 402,
+        "detail": "electronSources resolves installed Electron package and explicit distribution override."
+      },
+      {
+        "path": "apps/desktop/scripts/desktop-artifact.ts",
+        "line": 415,
+        "detail": "Checks legal assets and distribution version; rejects version mismatch."
+      },
+      {
+        "path": "apps/desktop/scripts/desktop-artifact.ts",
+        "line": 668,
+        "detail": "Copies chosen legal assets to fixed build/desktop-artifact outputs."
+      }
+    ],
+    "tests": [
+      "apps/desktop/scripts/desktop-artifact.test.ts: audit-focused scoped suite passed; actual overridden Electron distribution packaging not run"
+    ]
+  },
+  {
+    "number": 164,
+    "classification": "intentional-local",
+    "reason": "ELECTRON_OVERRIDE_DIST_PATH is an explicit developer packaging option selecting an installed Electron distribution. The code checks required legal assets and exact Electron version before copying LICENSES.chromium.html into a fixed generated artifact path. It does not interpret renderer/network input or execute content. Anyone controlling this build environment/distribution already controls the Electron executable used for packaging; the override is not a sandbox or provenance proof.",
+    "evidence": [
+      {
+        "path": "apps/desktop/scripts/desktop-artifact.ts",
+        "line": 402,
+        "detail": "electronSources resolves installed Electron package and explicit distribution override."
+      },
+      {
+        "path": "apps/desktop/scripts/desktop-artifact.ts",
+        "line": 415,
+        "detail": "Checks legal assets and distribution version; rejects version mismatch."
+      },
+      {
+        "path": "apps/desktop/scripts/desktop-artifact.ts",
+        "line": 668,
+        "detail": "Copies chosen legal assets to fixed build/desktop-artifact outputs."
+      }
+    ],
+    "tests": [
+      "apps/desktop/scripts/desktop-artifact.test.ts: audit-focused scoped suite passed; actual overridden Electron distribution packaging not run"
+    ]
+  },
+  {
+    "number": 163,
+    "classification": "intentional-local",
+    "reason": "ELECTRON_OVERRIDE_DIST_PATH is an explicit developer packaging option selecting an installed Electron distribution. The code checks required legal assets and exact Electron version before copying LICENSES.chromium.html into a fixed generated artifact path. It does not interpret renderer/network input or execute content. Anyone controlling this build environment/distribution already controls the Electron executable used for packaging; the override is not a sandbox or provenance proof.",
+    "evidence": [
+      {
+        "path": "apps/desktop/scripts/desktop-artifact.ts",
+        "line": 402,
+        "detail": "electronSources resolves installed Electron package and explicit distribution override."
+      },
+      {
+        "path": "apps/desktop/scripts/desktop-artifact.ts",
+        "line": 415,
+        "detail": "Checks legal assets and distribution version; rejects version mismatch."
+      },
+      {
+        "path": "apps/desktop/scripts/desktop-artifact.ts",
+        "line": 668,
+        "detail": "Copies chosen legal assets to fixed build/desktop-artifact outputs."
+      }
+    ],
+    "tests": [
+      "apps/desktop/scripts/desktop-artifact.test.ts: audit-focused scoped suite passed; actual overridden Electron distribution packaging not run"
+    ]
+  },
+  {
+    "number": 162,
+    "classification": "intentional-local",
+    "reason": "ELECTRON_OVERRIDE_DIST_PATH is an explicit developer packaging option selecting an installed Electron distribution. The code checks required legal assets and exact Electron version before copying LICENSES.chromium.html into a fixed generated artifact path. It does not interpret renderer/network input or execute content. Anyone controlling this build environment/distribution already controls the Electron executable used for packaging; the override is not a sandbox or provenance proof.",
+    "evidence": [
+      {
+        "path": "apps/desktop/scripts/desktop-artifact.ts",
+        "line": 402,
+        "detail": "electronSources resolves installed Electron package and explicit distribution override."
+      },
+      {
+        "path": "apps/desktop/scripts/desktop-artifact.ts",
+        "line": 415,
+        "detail": "Checks legal assets and distribution version; rejects version mismatch."
+      },
+      {
+        "path": "apps/desktop/scripts/desktop-artifact.ts",
+        "line": 668,
+        "detail": "Copies chosen legal assets to fixed build/desktop-artifact outputs."
+      }
+    ],
+    "tests": [
+      "apps/desktop/scripts/desktop-artifact.test.ts: audit-focused scoped suite passed; actual overridden Electron distribution packaging not run"
+    ]
+  },
+  {
+    "number": 161,
+    "classification": "intentional-local",
+    "reason": "ELECTRON_OVERRIDE_DIST_PATH is an explicit developer packaging option selecting an installed Electron distribution. The code checks required legal assets and exact Electron version before copying LICENSES.chromium.html into a fixed generated artifact path. It does not interpret renderer/network input or execute content. Anyone controlling this build environment/distribution already controls the Electron executable used for packaging; the override is not a sandbox or provenance proof.",
+    "evidence": [
+      {
+        "path": "apps/desktop/scripts/desktop-artifact.ts",
+        "line": 402,
+        "detail": "electronSources resolves installed Electron package and explicit distribution override."
+      },
+      {
+        "path": "apps/desktop/scripts/desktop-artifact.ts",
+        "line": 415,
+        "detail": "Checks legal assets and distribution version; rejects version mismatch."
+      },
+      {
+        "path": "apps/desktop/scripts/desktop-artifact.ts",
+        "line": 668,
+        "detail": "Copies chosen legal assets to fixed build/desktop-artifact outputs."
+      }
+    ],
+    "tests": [
+      "apps/desktop/scripts/desktop-artifact.test.ts: audit-focused scoped suite passed; actual overridden Electron distribution packaging not run"
+    ]
+  },
+  {
+    "number": 160,
+    "classification": "test-only",
+    "reason": "Only the repository's release-contract unit test constructs this regex from the checked-in package version and matches the checked-in changelog. It neither consumes remote input nor protects an authorization boundary. A PR author able to edit this manifest already controls the same checkout/test sources; regex metacharacters may affect the assertion but not production authority. Test contract was not weakened or altered to silence the scanner.",
+    "evidence": [
+      {
+        "path": "scripts/release-changelog.test.ts",
+        "line": 5,
+        "detail": "Fixed repository root and manifest/changelog paths."
+      },
+      {
+        "path": "scripts/release-changelog.test.ts",
+        "line": 13,
+        "detail": "Dynamic expression is used only by expect assertions."
+      }
+    ]
+  },
+  {
+    "number": 159,
+    "classification": "fixed",
+    "reason": "The skills hub import/export fixture previously derived a predictable temp path from Date.now/PID and recursively created it before writing. A local adversary who could precreate that temp path or linked descendants could redirect fixture writes; some fixtures also deleted predicted paths before owning them. Root creation now uses mkdtempSync and cleanup targets only the returned owned root. No test assertions or expected product contracts were weakened. Residual same-user/root interference with a live private fixture is outside isolation guarantees.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/skills-hub/service.test.ts",
+        "line": 19,
+        "detail": "Fresh atomic mkdtemp root owns all subsequent fixed child writes; original predictable-root sink replaced."
+      }
+    ],
+    "tests": [
+      "packages/agent/src/services/skills-hub/service.test.ts: scoped suite passed in final 11-file/56-test selection"
+    ]
+  },
+  {
+    "number": 158,
+    "classification": "fixed",
+    "reason": "The skills hub import/export fixture previously derived a predictable temp path from Date.now/PID and recursively created it before writing. A local adversary who could precreate that temp path or linked descendants could redirect fixture writes; some fixtures also deleted predicted paths before owning them. Root creation now uses mkdtempSync and cleanup targets only the returned owned root. No test assertions or expected product contracts were weakened. Residual same-user/root interference with a live private fixture is outside isolation guarantees.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/skills-hub/service.test.ts",
+        "line": 19,
+        "detail": "Fresh atomic mkdtemp root owns all subsequent fixed child writes; original predictable-root sink replaced."
+      }
+    ],
+    "tests": [
+      "packages/agent/src/services/skills-hub/service.test.ts: scoped suite passed in final 11-file/56-test selection"
+    ]
+  },
+  {
+    "number": 157,
+    "classification": "fixed",
+    "reason": "The skills hub import/export fixture previously derived a predictable temp path from Date.now/PID and recursively created it before writing. A local adversary who could precreate that temp path or linked descendants could redirect fixture writes; some fixtures also deleted predicted paths before owning them. Root creation now uses mkdtempSync and cleanup targets only the returned owned root. No test assertions or expected product contracts were weakened. Residual same-user/root interference with a live private fixture is outside isolation guarantees.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/skills-hub/service.test.ts",
+        "line": 19,
+        "detail": "Fresh atomic mkdtemp root owns all subsequent fixed child writes; original predictable-root sink replaced."
+      }
+    ],
+    "tests": [
+      "packages/agent/src/services/skills-hub/service.test.ts: scoped suite passed in final 11-file/56-test selection"
+    ]
+  },
+  {
+    "number": 156,
+    "classification": "fixed",
+    "reason": "The skills hub import/export fixture previously derived a predictable temp path from Date.now/PID and recursively created it before writing. A local adversary who could precreate that temp path or linked descendants could redirect fixture writes; some fixtures also deleted predicted paths before owning them. Root creation now uses mkdtempSync and cleanup targets only the returned owned root. No test assertions or expected product contracts were weakened. Residual same-user/root interference with a live private fixture is outside isolation guarantees.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/skills-hub/service.test.ts",
+        "line": 19,
+        "detail": "Fresh atomic mkdtemp root owns all subsequent fixed child writes; original predictable-root sink replaced."
+      }
+    ],
+    "tests": [
+      "packages/agent/src/services/skills-hub/service.test.ts: scoped suite passed in final 11-file/56-test selection"
+    ]
+  },
+  {
+    "number": 155,
+    "classification": "fixed",
+    "reason": "The skills manifest fixtures previously derived a predictable temp path from Date.now/PID and recursively created it before writing. A local adversary who could precreate that temp path or linked descendants could redirect fixture writes; some fixtures also deleted predicted paths before owning them. Root creation now uses mkdtempSync and cleanup targets only the returned owned root. No test assertions or expected product contracts were weakened. Residual same-user/root interference with a live private fixture is outside isolation guarantees.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/skills-hub/manifests.test.ts",
+        "line": 123,
+        "detail": "Fresh atomic mkdtemp root owns all subsequent fixed child writes; original predictable-root sink replaced."
+      }
+    ],
+    "tests": [
+      "packages/agent/src/services/skills-hub/manifests.test.ts: scoped suite passed in final 11-file/56-test selection"
+    ]
+  },
+  {
+    "number": 154,
+    "classification": "fixed",
+    "reason": "The skills manifest fixtures previously derived a predictable temp path from Date.now/PID and recursively created it before writing. A local adversary who could precreate that temp path or linked descendants could redirect fixture writes; some fixtures also deleted predicted paths before owning them. Root creation now uses mkdtempSync and cleanup targets only the returned owned root. No test assertions or expected product contracts were weakened. Residual same-user/root interference with a live private fixture is outside isolation guarantees.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/skills-hub/manifests.test.ts",
+        "line": 163,
+        "detail": "Fresh atomic mkdtemp root owns all subsequent fixed child writes; original predictable-root sink replaced."
+      }
+    ],
+    "tests": [
+      "packages/agent/src/services/skills-hub/manifests.test.ts: scoped suite passed in final 11-file/56-test selection"
+    ]
+  },
+  {
+    "number": 152,
+    "classification": "fixed",
+    "reason": "The project resolution fixture previously derived a predictable temp path from Date.now/PID and recursively created it before writing. A local adversary who could precreate that temp path or linked descendants could redirect fixture writes; some fixtures also deleted predicted paths before owning them. Root creation now uses mkdtempSync and cleanup targets only the returned owned root. No test assertions or expected product contracts were weakened. Residual same-user/root interference with a live private fixture is outside isolation guarantees.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/project-inspection/resolve.test.ts",
+        "line": 10,
+        "detail": "Fresh atomic mkdtemp root owns all subsequent fixed child writes; original predictable-root sink replaced."
+      }
+    ],
+    "tests": [
+      "packages/agent/src/services/project-inspection/resolve.test.ts: scoped suite passed in final 11-file/56-test selection"
+    ]
+  },
+  {
+    "number": 151,
+    "classification": "fixed",
+    "reason": "The project layout fixture previously derived a predictable temp path from Date.now/PID and recursively created it before writing. A local adversary who could precreate that temp path or linked descendants could redirect fixture writes; some fixtures also deleted predicted paths before owning them. Root creation now uses mkdtempSync and cleanup targets only the returned owned root. No test assertions or expected product contracts were weakened. Residual same-user/root interference with a live private fixture is outside isolation guarantees.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/project-inspection/layout.test.ts",
+        "line": 14,
+        "detail": "Fresh atomic mkdtemp root owns all subsequent fixed child writes; original predictable-root sink replaced."
+      }
+    ],
+    "tests": [
+      "packages/agent/src/services/project-inspection/layout.test.ts: scoped suite passed in final 11-file/56-test selection"
+    ]
+  },
+  {
+    "number": 150,
+    "classification": "fixed",
+    "reason": "The project layout fixture previously derived a predictable temp path from Date.now/PID and recursively created it before writing. A local adversary who could precreate that temp path or linked descendants could redirect fixture writes; some fixtures also deleted predicted paths before owning them. Root creation now uses mkdtempSync and cleanup targets only the returned owned root. No test assertions or expected product contracts were weakened. Residual same-user/root interference with a live private fixture is outside isolation guarantees.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/project-inspection/layout.test.ts",
+        "line": 14,
+        "detail": "Fresh atomic mkdtemp root owns all subsequent fixed child writes; original predictable-root sink replaced."
+      }
+    ],
+    "tests": [
+      "packages/agent/src/services/project-inspection/layout.test.ts: scoped suite passed in final 11-file/56-test selection"
+    ]
+  },
+  {
+    "number": 149,
+    "classification": "fixed",
+    "reason": "The operator migration fixture previously derived a predictable temp path from Date.now/PID and recursively created it before writing. A local adversary who could precreate that temp path or linked descendants could redirect fixture writes; some fixtures also deleted predicted paths before owning them. Root creation now uses mkdtempSync and cleanup targets only the returned owned root. No test assertions or expected product contracts were weakened. Residual same-user/root interference with a live private fixture is outside isolation guarantees.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/operator/service.test.ts",
+        "line": 261,
+        "detail": "Fresh atomic mkdtemp root owns all subsequent fixed child writes; original predictable-root sink replaced."
+      }
+    ],
+    "tests": [
+      "packages/agent/src/services/operator/service.test.ts: scoped suite passed in final 11-file/56-test selection"
+    ]
+  },
+  {
+    "number": 148,
+    "classification": "fixed",
+    "reason": "The operator migration fixture previously derived a predictable temp path from Date.now/PID and recursively created it before writing. A local adversary who could precreate that temp path or linked descendants could redirect fixture writes; some fixtures also deleted predicted paths before owning them. Root creation now uses mkdtempSync and cleanup targets only the returned owned root. No test assertions or expected product contracts were weakened. Residual same-user/root interference with a live private fixture is outside isolation guarantees.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/operator/service.test.ts",
+        "line": 261,
+        "detail": "Fresh atomic mkdtemp root owns all subsequent fixed child writes; original predictable-root sink replaced."
+      }
+    ],
+    "tests": [
+      "packages/agent/src/services/operator/service.test.ts: scoped suite passed in final 11-file/56-test selection"
+    ]
+  },
+  {
+    "number": 147,
+    "classification": "fixed",
+    "reason": "The operator migration fixture previously derived a predictable temp path from Date.now/PID and recursively created it before writing. A local adversary who could precreate that temp path or linked descendants could redirect fixture writes; some fixtures also deleted predicted paths before owning them. Root creation now uses mkdtempSync and cleanup targets only the returned owned root. No test assertions or expected product contracts were weakened. Residual same-user/root interference with a live private fixture is outside isolation guarantees.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/operator/service.test.ts",
+        "line": 261,
+        "detail": "Fresh atomic mkdtemp root owns all subsequent fixed child writes; original predictable-root sink replaced."
+      }
+    ],
+    "tests": [
+      "packages/agent/src/services/operator/service.test.ts: scoped suite passed in final 11-file/56-test selection"
+    ]
+  },
+  {
+    "number": 146,
+    "classification": "fixed",
+    "reason": "The bootstrap secret-salt fixture previously derived a predictable temp path from Date.now/PID and recursively created it before writing. A local adversary who could precreate that temp path or linked descendants could redirect fixture writes; some fixtures also deleted predicted paths before owning them. Root creation now uses mkdtempSync and cleanup targets only the returned owned root. No test assertions or expected product contracts were weakened. Residual same-user/root interference with a live private fixture is outside isolation guarantees.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/runtime/bootstrap/env/index.test.ts",
+        "line": 139,
+        "detail": "Fresh atomic mkdtemp root owns all subsequent fixed child writes; original predictable-root sink replaced."
+      }
+    ],
+    "tests": [
+      "packages/agent/src/runtime/bootstrap/env/index.test.ts: scoped suite passed in final 11-file/56-test selection"
+    ]
+  },
+  {
+    "number": 140,
+    "classification": "intentional-local",
+    "reason": "The property names and versions come from installed package.json optionalDependencies during developer package-closure discovery. Resolution of each optional dependency succeeds before insertion, and the resulting dictionary is consumed as own entries by closure traversal. This is a trusted node_modules/build boundary; a package/checkout adversary with malformed metadata may affect local closure bookkeeping but already controls code bundled or installed by the build. It is not attacker input crossing a runtime auth boundary or a write into global Object.prototype.",
+    "evidence": [
+      {
+        "path": "apps/desktop/scripts/verify-package.ts",
+        "line": 276,
+        "detail": "Package manifests loaded by createRequire in installedProductionClosure."
+      },
+      {
+        "path": "apps/desktop/scripts/verify-package.ts",
+        "line": 296,
+        "detail": "Only resolved installed optional dependencies are recorded then passed to closure."
+      },
+      {
+        "path": "apps/desktop/scripts/prepare-runtime.ts",
+        "line": 210,
+        "detail": "Same build-only graph over installed package manifests; no app request caller."
+      }
+    ],
+    "tests": [
+      "apps/desktop/scripts/verify-package.test.ts: scoped suite passed; prepare-runtime build not executed"
+    ]
+  },
+  {
+    "number": 139,
+    "classification": "intentional-local",
+    "reason": "The property names and versions come from installed package.json optionalDependencies during developer package-closure discovery. Resolution of each optional dependency succeeds before insertion, and the resulting dictionary is consumed as own entries by closure traversal. This is a trusted node_modules/build boundary; a package/checkout adversary with malformed metadata may affect local closure bookkeeping but already controls code bundled or installed by the build. It is not attacker input crossing a runtime auth boundary or a write into global Object.prototype.",
+    "evidence": [
+      {
+        "path": "apps/desktop/scripts/verify-package.ts",
+        "line": 276,
+        "detail": "Package manifests loaded by createRequire in installedProductionClosure."
+      },
+      {
+        "path": "apps/desktop/scripts/verify-package.ts",
+        "line": 296,
+        "detail": "Only resolved installed optional dependencies are recorded then passed to closure."
+      },
+      {
+        "path": "apps/desktop/scripts/prepare-runtime.ts",
+        "line": 210,
+        "detail": "Same build-only graph over installed package manifests; no app request caller."
+      }
+    ],
+    "tests": [
+      "apps/desktop/scripts/verify-package.test.ts: scoped suite passed; prepare-runtime build not executed"
+    ]
+  },
+  {
+    "number": 138,
+    "classification": "intentional-local",
+    "reason": "syncFile writes generated architecture documentation only in explicit developer write mode; default mode is check. Its preceding exists/read is a stale-content diagnostic, not an access-control decision. A local writer controlling these checkout paths can redirect a write by concurrent replacement and is within the already-trusted development checkout boundary; this helper does not provide hostile shared-directory confinement. No runtime service exposes it.",
+    "evidence": [
+      {
+        "path": "scripts/sync-doc-truth/sync.ts",
+        "line": 130,
+        "detail": "Private syncFile joins fixed generated-doc targets."
+      },
+      {
+        "path": "scripts/sync-doc-truth/sync.ts",
+        "line": 151,
+        "detail": "runSyncDocTruth defaults to check and passes fixed inventory/readme paths."
+      }
+    ]
+  },
+  {
+    "number": 137,
+    "classification": "intentional-local",
+    "reason": "Markdown-link validation is a developer/acceptance check over checked-in docs. The checked target is read only to compare a heading fragment; the helper does not execute Markdown or return raw file content. Concurrent file replacement may cause a failed/inaccurate doc check, not a permission or authentication bypass. Repository writers remain trusted, and lexical containment is not a symlink sandbox.",
+    "evidence": [
+      {
+        "path": "scripts/sync-doc-truth/sync.ts",
+        "line": 62,
+        "detail": "validateMarkdownLinks is an offline docs checker."
+      },
+      {
+        "path": "scripts/sync-doc-truth/sync.ts",
+        "line": 112,
+        "detail": "stat/read used only for fragment presence, with parse errors converted to doc failures."
+      }
+    ]
+  },
+  {
+    "number": 136,
+    "classification": "fixed",
+    "reason": "Bootstrap .env update previously read and later rewrote the pathname, allowing link/replacement redirection and overwriting a raced target with credentials. It now opens with O_NOFOLLOW and O_NONBLOCK, verifies regular-file type, reads and writes the same descriptor from offset zero, restricts mode to 0600 and truncates only that inode. Missing-file/check-only contracts remain. The initial read uses the same no-follow, nonblocking regular-file guard, so FIFOs cannot block bootstrap before type validation. Existing symlink .env reads/updates now fail closed; parent-directory/hard-link and Windows filesystem semantics remain environment assumptions.",
+    "evidence": [
+      {
+        "path": "scripts/bootstrap/core/env-file.ts",
+        "line": 99,
+        "detail": "One non-following open and regular-file validation dominate update."
+      },
+      {
+        "path": "scripts/bootstrap/core/env-file.ts",
+        "line": 157,
+        "detail": "Private descriptor write and truncation cannot target a replacement pathname."
+      },
+      {
+        "path": "scripts/bootstrap/persistence/apply.ts",
+        "line": 86,
+        "detail": "Wizard persistence calls the guarded updater for planned environment changes."
+      },
+      {
+        "path": "scripts/bootstrap/core/env-file.ts",
+        "line": 59,
+        "detail": "readEnvEntries also rejects symlinks/nonregular files without FIFO blocking."
+      }
+    ],
+    "tests": [
+      "scripts/bootstrap/core/env-file.test.ts: 6 scoped tests passed; includes subprocess-bounded FIFO rejection, symlink, replacement-race, normal, check-only and recovery",
+      "scripts/bootstrap/persistence/apply.test.ts: 1 scoped integration test passed"
+    ]
+  },
+  {
+    "number": 135,
+    "classification": "fixed",
+    "reason": "Bootstrap .env creation previously checked existence and then used a truncating pathname write. A local race winner or dangling symlink could be overwritten/followed. Creation now uses exclusive wx and 0600, treating EEXIST as already-existing without overwrite. Example reads remain operator-owned checkout input; unsafe writable ancestor directories remain outside this leaf-file control.",
+    "evidence": [
+      {
+        "path": "scripts/bootstrap/core/env-file.ts",
+        "line": 41,
+        "detail": "Exclusive private creation handles EEXIST without overwrite."
+      },
+      {
+        "path": "scripts/bootstrap/program/index.ts",
+        "line": 36,
+        "detail": "Bootstrap program selects fixed .env and .env.example paths from local root."
+      }
+    ],
+    "tests": [
+      "scripts/bootstrap/core/env-file.test.ts: 6 scoped tests passed; deterministic race winner and dangling symlink creation preserved",
+      "scripts/bootstrap/persistence/apply.test.ts: 1 scoped integration test passed"
+    ]
+  },
+  {
+    "number": 121,
+    "classification": "intentional-local",
+    "reason": "This release verifier reads build/package-owned JSON or legal text. Existence/stat checks are diagnostics, not access/ownership decisions; legal/runtime notice content is hashed and checked against artifact metadata. A concurrent writer with package-directory access can still race reads or mutate after verification, so these are detective consistency checks rather than atomic attestation. No public runtime endpoint calls them. Use an isolated trusted build directory and final code signature for release integrity.",
+    "evidence": [
+      {
+        "path": "apps/desktop/scripts/verify-package.ts",
+        "line": 560,
+        "detail": "Local package read after diagnostic existence/stat check; no privilege transition."
+      },
+      {
+        "path": "apps/desktop/scripts/package.ts",
+        "line": 196,
+        "detail": "Packaging launcher invokes verifier as a child process over its produced app artifact."
+      },
+      {
+        "path": "apps/desktop/scripts/verify-package.ts",
+        "line": 801,
+        "detail": "CLI main selects package paths, while normal branch performs composition, artifact and runtime checks."
+      }
+    ],
+    "tests": [
+      "apps/desktop/scripts/verify-package.test.ts: scoped suite passed within 6-file/65-test package/account/isolation selection"
+    ]
+  },
+  {
+    "number": 120,
+    "classification": "intentional-local",
+    "reason": "This release verifier reads build/package-owned JSON or legal text. Existence/stat checks are diagnostics, not access/ownership decisions; legal/runtime notice content is hashed and checked against artifact metadata. A concurrent writer with package-directory access can still race reads or mutate after verification, so these are detective consistency checks rather than atomic attestation. No public runtime endpoint calls them. Use an isolated trusted build directory and final code signature for release integrity.",
+    "evidence": [
+      {
+        "path": "apps/desktop/scripts/verify-package.ts",
+        "line": 486,
+        "detail": "Local package read after diagnostic existence/stat check; no privilege transition."
+      },
+      {
+        "path": "apps/desktop/scripts/package.ts",
+        "line": 196,
+        "detail": "Packaging launcher invokes verifier as a child process over its produced app artifact."
+      },
+      {
+        "path": "apps/desktop/scripts/verify-package.ts",
+        "line": 801,
+        "detail": "CLI main selects package paths, while normal branch performs composition, artifact and runtime checks."
+      }
+    ],
+    "tests": [
+      "apps/desktop/scripts/verify-package.test.ts: scoped suite passed within 6-file/65-test package/account/isolation selection"
+    ]
+  },
+  {
+    "number": 119,
+    "classification": "false-positive",
+    "reason": "These predicates choose documented CLI modes (--verify-signature and --runtime-manifest), not caller-selected permission exemptions. Each selected mode performs its own validation and is explicitly invoked by the packaging/release chain. Normal full package verification still runs separately. An operator can choose which tool to run, but a remote principal cannot turn this CLI option into a package-acceptance bypass.",
+    "evidence": [
+      {
+        "path": "apps/desktop/scripts/verify-package.ts",
+        "line": 801,
+        "detail": "main explicitly dispatches two single-purpose validation modes."
+      },
+      {
+        "path": "apps/desktop/scripts/package.ts",
+        "line": 196,
+        "detail": "Packaging executes full package verifier."
+      },
+      {
+        "path": ".github/workflows/desktop-macos.yml",
+        "line": 206,
+        "detail": "Release pipeline separately invokes signature validation for packaged artifacts."
+      }
+    ],
+    "tests": [
+      "apps/desktop/scripts/verify-package.test.ts: scoped mode/control tests passed; release pipeline and signing not executed"
+    ]
+  },
+  {
+    "number": 118,
+    "classification": "false-positive",
+    "reason": "These predicates choose documented CLI modes (--verify-signature and --runtime-manifest), not caller-selected permission exemptions. Each selected mode performs its own validation and is explicitly invoked by the packaging/release chain. Normal full package verification still runs separately. An operator can choose which tool to run, but a remote principal cannot turn this CLI option into a package-acceptance bypass.",
+    "evidence": [
+      {
+        "path": "apps/desktop/scripts/verify-package.ts",
+        "line": 801,
+        "detail": "main explicitly dispatches two single-purpose validation modes."
+      },
+      {
+        "path": "apps/desktop/scripts/package.ts",
+        "line": 196,
+        "detail": "Packaging executes full package verifier."
+      },
+      {
+        "path": ".github/workflows/desktop-macos.yml",
+        "line": 206,
+        "detail": "Release pipeline separately invokes signature validation for packaged artifacts."
+      }
+    ],
+    "tests": [
+      "apps/desktop/scripts/verify-package.test.ts: scoped mode/control tests passed; release pipeline and signing not executed"
+    ]
+  },
+  {
+    "number": 56,
+    "classification": "test-only",
+    "reason": "These seeded credentials/readbacks run only inside withIsolatedAccountPool, which atomically creates a private mkdtemp root, temporarily pins DOOLITTLE_DATA_DIR and ELIZA_HOME, and restores prior environment in finally. Env-derived paths in the seed helper therefore refer to a harness-owned fixture during every caller, not an externally provided runtime path. Cleanup is limited to the created root.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/runtime/native/account-pool/index.test.ts",
+        "line": 34,
+        "detail": "Isolated fixture controls env and SDK account-pool reset."
+      },
+      {
+        "path": "packages/agent/src/runtime/native/account-pool/index.test.ts",
+        "line": 58,
+        "detail": "Seed helper has only fixture-wrapped test callers."
+      }
+    ],
+    "tests": [
+      "packages/agent/src/runtime/native/account-pool/index.test.ts: scoped suite passed"
+    ]
+  },
+  {
+    "number": 54,
+    "classification": "test-only",
+    "reason": "These seeded credentials/readbacks run only inside withIsolatedAccountPool, which atomically creates a private mkdtemp root, temporarily pins DOOLITTLE_DATA_DIR and ELIZA_HOME, and restores prior environment in finally. Env-derived paths in the seed helper therefore refer to a harness-owned fixture during every caller, not an externally provided runtime path. Cleanup is limited to the created root.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/runtime/native/account-pool/index.test.ts",
+        "line": 34,
+        "detail": "Isolated fixture controls env and SDK account-pool reset."
+      },
+      {
+        "path": "packages/agent/src/runtime/native/account-pool/index.test.ts",
+        "line": 58,
+        "detail": "Seed helper has only fixture-wrapped test callers."
+      }
+    ],
+    "tests": [
+      "packages/agent/src/runtime/native/account-pool/index.test.ts: scoped suite passed"
+    ]
+  },
+  {
+    "number": 53,
+    "classification": "test-only",
+    "reason": "These seeded credentials/readbacks run only inside withIsolatedAccountPool, which atomically creates a private mkdtemp root, temporarily pins DOOLITTLE_DATA_DIR and ELIZA_HOME, and restores prior environment in finally. Env-derived paths in the seed helper therefore refer to a harness-owned fixture during every caller, not an externally provided runtime path. Cleanup is limited to the created root.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/runtime/native/account-pool/index.test.ts",
+        "line": 34,
+        "detail": "Isolated fixture controls env and SDK account-pool reset."
+      },
+      {
+        "path": "packages/agent/src/runtime/native/account-pool/index.test.ts",
+        "line": 58,
+        "detail": "Seed helper has only fixture-wrapped test callers."
+      }
+    ],
+    "tests": [
+      "packages/agent/src/runtime/native/account-pool/index.test.ts: scoped suite passed"
+    ]
+  },
+  {
+    "number": 51,
+    "classification": "test-only",
+    "reason": "createDataDir owns a fresh mkdtemp directory and pins ELIZA_HOME; each flagged read/write sets DOOLITTLE_DATA_DIR to that returned fixture before getProviderAuthStorePath. Inputs are synthetic credentials or malformed-provider test cases. These test assertions do not create a production path-authorization rule, and environment values are not attacker-controlled within their callers.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/runtime/native/account-auth/store.test.ts",
+        "line": 36,
+        "detail": "Fresh fixture controls SDK home."
+      },
+      {
+        "path": "packages/agent/src/runtime/native/account-auth/store.test.ts",
+        "line": 68,
+        "detail": "Flagged store readback and malformed-store setup use the owned fixture data directory."
+      }
+    ],
+    "tests": [
+      "packages/agent/src/runtime/native/account-auth/store.test.ts: scoped suite passed"
+    ]
+  },
+  {
+    "number": 50,
+    "classification": "test-only",
+    "reason": "createDataDir owns a fresh mkdtemp directory and pins ELIZA_HOME; each flagged read/write sets DOOLITTLE_DATA_DIR to that returned fixture before getProviderAuthStorePath. Inputs are synthetic credentials or malformed-provider test cases. These test assertions do not create a production path-authorization rule, and environment values are not attacker-controlled within their callers.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/runtime/native/account-auth/store.test.ts",
+        "line": 36,
+        "detail": "Fresh fixture controls SDK home."
+      },
+      {
+        "path": "packages/agent/src/runtime/native/account-auth/store.test.ts",
+        "line": 68,
+        "detail": "Flagged store readback and malformed-store setup use the owned fixture data directory."
+      }
+    ],
+    "tests": [
+      "packages/agent/src/runtime/native/account-auth/store.test.ts: scoped suite passed"
+    ]
+  },
+  {
+    "number": 49,
+    "classification": "test-only",
+    "reason": "createDataDir owns a fresh mkdtemp directory and pins ELIZA_HOME; each flagged read/write sets DOOLITTLE_DATA_DIR to that returned fixture before getProviderAuthStorePath. Inputs are synthetic credentials or malformed-provider test cases. These test assertions do not create a production path-authorization rule, and environment values are not attacker-controlled within their callers.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/runtime/native/account-auth/store.test.ts",
+        "line": 36,
+        "detail": "Fresh fixture controls SDK home."
+      },
+      {
+        "path": "packages/agent/src/runtime/native/account-auth/store.test.ts",
+        "line": 68,
+        "detail": "Flagged store readback and malformed-store setup use the owned fixture data directory."
+      }
+    ],
+    "tests": [
+      "packages/agent/src/runtime/native/account-auth/store.test.ts: scoped suite passed"
+    ]
+  },
+  {
+    "number": 26,
+    "classification": "fixed",
+    "reason": "The E2E sweep treated every explicit profile as a disposable clone and removed PGlite lock/postmaster.pid files before launching. An operator accidentally selecting an active/user profile could remove another runtime's exclusion evidence and increase database corruption/concurrent-open risk; no clone or inactivity proof dominated deletion. The destructive sanitizer is removed. Explicit profiles now fail if either lock entry exists, including dangling links; lock-free dedicated profiles and default scrubbed mkdtemp profiles remain usable. Compatibility: prepare a verified inactive clone or use default scrubbed profile, never delete active-profile locks to satisfy the guard.",
+    "evidence": [
+      {
+        "path": "e2e/support/explicit-sweep-profile.ts",
+        "line": 5,
+        "detail": "Read-only validation detects both lock entries and refuses to remove them."
+      },
+      {
+        "path": "e2e/desktop-profile-sweep.pw.ts",
+        "line": 1567,
+        "detail": "Explicit-profile branch runs read-only validator before Electron launch."
+      },
+      {
+        "path": "e2e/support/explicit-sweep-profile.test.ts",
+        "line": 30,
+        "detail": "Both lock files retain exact bytes on failure; only owned fixture cleanup permits recovery."
+      }
+    ],
+    "tests": [
+      "e2e/support/explicit-sweep-profile.test.ts: 4 scoped tests passed; real Electron/profile lifecycle not run"
+    ]
+  },
+  {
+    "number": 25,
+    "classification": "fixed",
+    "reason": "The E2E sweep treated every explicit profile as a disposable clone and removed PGlite lock/postmaster.pid files before launching. An operator accidentally selecting an active/user profile could remove another runtime's exclusion evidence and increase database corruption/concurrent-open risk; no clone or inactivity proof dominated deletion. The destructive sanitizer is removed. Explicit profiles now fail if either lock entry exists, including dangling links; lock-free dedicated profiles and default scrubbed mkdtemp profiles remain usable. Compatibility: prepare a verified inactive clone or use default scrubbed profile, never delete active-profile locks to satisfy the guard.",
+    "evidence": [
+      {
+        "path": "e2e/support/explicit-sweep-profile.ts",
+        "line": 5,
+        "detail": "Read-only validation detects both lock entries and refuses to remove them."
+      },
+      {
+        "path": "e2e/desktop-profile-sweep.pw.ts",
+        "line": 1567,
+        "detail": "Explicit-profile branch runs read-only validator before Electron launch."
+      },
+      {
+        "path": "e2e/support/explicit-sweep-profile.test.ts",
+        "line": 30,
+        "detail": "Both lock files retain exact bytes on failure; only owned fixture cleanup permits recovery."
+      }
+    ],
+    "tests": [
+      "e2e/support/explicit-sweep-profile.test.ts: 4 scoped tests passed; real Electron/profile lifecycle not run"
+    ]
+  },
+  {
+    "number": 24,
+    "classification": "guarded",
+    "reason": "The visual manifest write uses the config returned by guarded screenshot preparation, not an arbitrary renderer path. The output root remains intentionally operator-selectable, but is a dedicated non-linked root with fixed manifest name. Manifest creation also requires package/source provenance fields. This is local diagnostic artifact output, not a remote arbitrary-file write API.",
+    "evidence": [
+      {
+        "path": "e2e/desktop-profile-sweep.pw.ts",
+        "line": 604,
+        "detail": "All config creation passes through prepareScreenshotEvidence."
+      },
+      {
+        "path": "e2e/support/screenshot-evidence.ts",
+        "line": 29,
+        "detail": "Rejects broad/linked output and statically validates route identifiers."
+      },
+      {
+        "path": "e2e/desktop-profile-sweep.pw.ts",
+        "line": 652,
+        "detail": "Writes fixed visual manifest path after required provenance checks."
+      }
+    ],
+    "tests": ["e2e/support/screenshot-evidence.test.ts: 4 scoped tests passed"]
+  },
+  {
+    "number": 23,
+    "classification": "hardening",
+    "reason": "Screenshot cleanup previously recursively deleted desktop/narrow children of an unrestricted environment-selected root. A root/home/repository typo or linked output could destroy unrelated local data. It now requires a dedicated bounded non-linked evidence root, rejects linked children and traversal-shaped route IDs, and removes only fixed generated route PNGs plus the fixed manifest, preserving unknown files and nested directories. It is a preventive operator-safety improvement; parent directories must remain operator-owned and not concurrently writable by an adversary.",
+    "evidence": [
+      {
+        "path": "e2e/support/screenshot-evidence.ts",
+        "line": 16,
+        "detail": "Rejects root/home/cwd/tmpdir exact broad targets lexically and canonically."
+      },
+      {
+        "path": "e2e/support/screenshot-evidence.ts",
+        "line": 43,
+        "detail": "Validates both children before cleanup."
+      },
+      {
+        "path": "e2e/support/screenshot-evidence.ts",
+        "line": 53,
+        "detail": "No recursive removal; cleans only known generated names."
+      },
+      {
+        "path": "e2e/desktop-profile-sweep.pw.ts",
+        "line": 604,
+        "detail": "Sweep uses the guarded config preparation instead of recursive cleanup."
+      }
+    ],
+    "tests": [
+      "e2e/support/screenshot-evidence.test.ts: 4 scoped tests passed, including normal cleanup, broad-root rejection, unrelated-data preservation, linked-child rejection and recovery"
+    ]
+  },
+  {
+    "number": 22,
+    "classification": "hardening",
+    "reason": "Screenshot cleanup previously recursively deleted desktop/narrow children of an unrestricted environment-selected root. A root/home/repository typo or linked output could destroy unrelated local data. It now requires a dedicated bounded non-linked evidence root, rejects linked children and traversal-shaped route IDs, and removes only fixed generated route PNGs plus the fixed manifest, preserving unknown files and nested directories. It is a preventive operator-safety improvement; parent directories must remain operator-owned and not concurrently writable by an adversary.",
+    "evidence": [
+      {
+        "path": "e2e/support/screenshot-evidence.ts",
+        "line": 16,
+        "detail": "Rejects root/home/cwd/tmpdir exact broad targets lexically and canonically."
+      },
+      {
+        "path": "e2e/support/screenshot-evidence.ts",
+        "line": 43,
+        "detail": "Validates both children before cleanup."
+      },
+      {
+        "path": "e2e/support/screenshot-evidence.ts",
+        "line": 53,
+        "detail": "No recursive removal; cleans only known generated names."
+      },
+      {
+        "path": "e2e/desktop-profile-sweep.pw.ts",
+        "line": 604,
+        "detail": "Sweep uses the guarded config preparation instead of recursive cleanup."
+      }
+    ],
+    "tests": [
+      "e2e/support/screenshot-evidence.test.ts: 4 scoped tests passed, including normal cleanup, broad-root rejection, unrelated-data preservation, linked-child rejection and recovery"
+    ]
+  },
+  {
+    "number": 21,
+    "classification": "hardening",
+    "reason": "Screenshot cleanup previously recursively deleted desktop/narrow children of an unrestricted environment-selected root. A root/home/repository typo or linked output could destroy unrelated local data. It now requires a dedicated bounded non-linked evidence root, rejects linked children and traversal-shaped route IDs, and removes only fixed generated route PNGs plus the fixed manifest, preserving unknown files and nested directories. It is a preventive operator-safety improvement; parent directories must remain operator-owned and not concurrently writable by an adversary.",
+    "evidence": [
+      {
+        "path": "e2e/support/screenshot-evidence.ts",
+        "line": 16,
+        "detail": "Rejects root/home/cwd/tmpdir exact broad targets lexically and canonically."
+      },
+      {
+        "path": "e2e/support/screenshot-evidence.ts",
+        "line": 43,
+        "detail": "Validates both children before cleanup."
+      },
+      {
+        "path": "e2e/support/screenshot-evidence.ts",
+        "line": 53,
+        "detail": "No recursive removal; cleans only known generated names."
+      },
+      {
+        "path": "e2e/desktop-profile-sweep.pw.ts",
+        "line": 604,
+        "detail": "Sweep uses the guarded config preparation instead of recursive cleanup."
+      }
+    ],
+    "tests": [
+      "e2e/support/screenshot-evidence.test.ts: 4 scoped tests passed, including normal cleanup, broad-root rejection, unrelated-data preservation, linked-child rejection and recovery"
+    ]
+  },
+  {
+    "number": 20,
+    "classification": "hardening",
+    "reason": "Screenshot cleanup previously recursively deleted desktop/narrow children of an unrestricted environment-selected root. A root/home/repository typo or linked output could destroy unrelated local data. It now requires a dedicated bounded non-linked evidence root, rejects linked children and traversal-shaped route IDs, and removes only fixed generated route PNGs plus the fixed manifest, preserving unknown files and nested directories. It is a preventive operator-safety improvement; parent directories must remain operator-owned and not concurrently writable by an adversary.",
+    "evidence": [
+      {
+        "path": "e2e/support/screenshot-evidence.ts",
+        "line": 16,
+        "detail": "Rejects root/home/cwd/tmpdir exact broad targets lexically and canonically."
+      },
+      {
+        "path": "e2e/support/screenshot-evidence.ts",
+        "line": 43,
+        "detail": "Validates both children before cleanup."
+      },
+      {
+        "path": "e2e/support/screenshot-evidence.ts",
+        "line": 53,
+        "detail": "No recursive removal; cleans only known generated names."
+      },
+      {
+        "path": "e2e/desktop-profile-sweep.pw.ts",
+        "line": 604,
+        "detail": "Sweep uses the guarded config preparation instead of recursive cleanup."
+      }
+    ],
+    "tests": [
+      "e2e/support/screenshot-evidence.test.ts: 4 scoped tests passed, including normal cleanup, broad-root rejection, unrelated-data preservation, linked-child rejection and recovery"
+    ]
+  },
+  {
+    "number": 19,
+    "classification": "hardening",
+    "reason": "Screenshot cleanup previously recursively deleted desktop/narrow children of an unrestricted environment-selected root. A root/home/repository typo or linked output could destroy unrelated local data. It now requires a dedicated bounded non-linked evidence root, rejects linked children and traversal-shaped route IDs, and removes only fixed generated route PNGs plus the fixed manifest, preserving unknown files and nested directories. It is a preventive operator-safety improvement; parent directories must remain operator-owned and not concurrently writable by an adversary.",
+    "evidence": [
+      {
+        "path": "e2e/support/screenshot-evidence.ts",
+        "line": 16,
+        "detail": "Rejects root/home/cwd/tmpdir exact broad targets lexically and canonically."
+      },
+      {
+        "path": "e2e/support/screenshot-evidence.ts",
+        "line": 43,
+        "detail": "Validates both children before cleanup."
+      },
+      {
+        "path": "e2e/support/screenshot-evidence.ts",
+        "line": 53,
+        "detail": "No recursive removal; cleans only known generated names."
+      },
+      {
+        "path": "e2e/desktop-profile-sweep.pw.ts",
+        "line": 604,
+        "detail": "Sweep uses the guarded config preparation instead of recursive cleanup."
+      }
+    ],
+    "tests": [
+      "e2e/support/screenshot-evidence.test.ts: 4 scoped tests passed, including normal cleanup, broad-root rejection, unrelated-data preservation, linked-child rejection and recovery"
+    ]
+  },
+  {
+    "number": 7,
+    "classification": "test-only",
+    "reason": "The URL substring is an assertion about synthetic diagnostics output, not a runtime sanitization or trusted-host decision. It checks that the configured official base URL appears in a test check.detail string; no connection is opened or credential destination selected by this expression.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/diagnostics/service.test.ts",
+        "line": 340,
+        "detail": "expect/checks.some assertion on diagnostic detail only."
+      }
+    ]
+  },
+  {
+    "number": 6,
+    "classification": "test-only",
+    "reason": "The substring test belongs to a vi.fn fetch stub deciding which synthetic model JSON to return. The test explicitly injects this implementation; it is not a runtime origin allowlist and never sends credentials to URLs based on substring matching.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/server/routes/runtime/models.test.ts",
+        "line": 114,
+        "detail": "fetchImplementation is vi.fn test stub returning Response.json fixture data."
+      },
+      {
+        "path": "packages/agent/src/server/routes/runtime/models.test.ts",
+        "line": 124,
+        "detail": "openai.com substring branches only inside the mock."
+      }
+    ]
+  },
+  {
+    "number": 2,
+    "classification": "test-only",
+    "reason": "serveFetchTest is imported only by two Vitest files and binds an ephemeral port on 127.0.0.1. Its 500 response contains a test handler's error.message (not a production runtime stack/trace). Test fixture diagnostics are intentionally visible to local test callers; no production app startup or server imports this helper. Reuse in production would need sanitized errors/body bounds but is not current reachability.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/testing/fetch-server.ts",
+        "line": 38,
+        "detail": "Errors returned only by the local test adapter."
+      },
+      {
+        "path": "packages/agent/src/testing/fetch-server.ts",
+        "line": 44,
+        "detail": "Loopback-only ephemeral listener."
+      },
+      {
+        "path": "packages/agent/src/actions/sdk-terminal-action.test.ts",
+        "line": 17,
+        "detail": "One of two imports; other is runtime/bootstrap/runtime/automation-executor.test.ts:5."
+      }
+    ]
+  }
+]

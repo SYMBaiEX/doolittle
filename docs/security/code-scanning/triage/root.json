@@ -1,0 +1,308 @@
+[
+  {
+    "number": 141,
+    "classification": "hardening",
+    "reason": "Workspace frontmatter formerly wrote arbitrary string keys to a local accumulator, but only command/title/description were consumed and string-valued __proto__ did not demonstrate prototype pollution. Explicit three-field allowlisting now removes the arbitrary write surface.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/runtime/workflow-commands/frontmatter.ts",
+        "line": 27,
+        "detail": "Only command/title/description keys may be assigned."
+      },
+      {
+        "path": "packages/agent/src/runtime/workflow-commands.test.ts",
+        "line": 13,
+        "detail": "Unknown/prototype-shaped metadata is ignored and normal workflow fields preserved."
+      }
+    ],
+    "tests": ["packages/agent/src/runtime/workflow-commands.test.ts"]
+  },
+  {
+    "number": 117,
+    "classification": "intentional-local",
+    "reason": "Legacy secrets migration removes the fixed secrets.json basename beneath the startup plugin storage binding only after copying missing entries into the official encrypted Vault. The root comes from operator configuration, not a model/tool filename; arbitrary operator data-root selection is intentional. Requires trusted private storage ancestors; no general filesystem sandbox or concurrent legacy migration guarantee is claimed.",
+    "evidence": [
+      {
+        "path": "packages/plugins/doolittle-plugin/secrets-vault/service.ts",
+        "line": 77,
+        "detail": "legacyStorePath is join(storageRootDir, secrets.json)."
+      },
+      {
+        "path": "packages/plugins/doolittle-plugin/secrets-vault/service.ts",
+        "line": 169,
+        "detail": "Migration reads the fixed legacy store, persists entries through Vault, then removes that same fixed path."
+      },
+      {
+        "path": "packages/agent/src/runtime/native/plugin-registry/product/index.ts",
+        "line": 113,
+        "detail": "Application supplies startup config.dataDir/plugins and constant autocoder scope."
+      },
+      {
+        "path": "packages/contracts/src/types/storage.ts",
+        "line": 31,
+        "detail": "Storage bindings resolve explicit operator roots with constant plugin scopes."
+      }
+    ]
+  },
+  {
+    "number": 113,
+    "classification": "intentional-local",
+    "reason": "The forms service initializes its fixed forms-store.json under a startup/operator-selected plugin root. Neither form/plan IDs nor model parameters enter the directory or basename. SDK atomic JSON persistence is retained; private trusted ancestors remain a prerequisite.",
+    "evidence": [
+      {
+        "path": "packages/plugins/doolittle-plugin/forms/storage.ts",
+        "line": 15,
+        "detail": "Initial directory and fixed store-path existence checks."
+      },
+      {
+        "path": "packages/plugins/doolittle-plugin/forms/service.ts",
+        "line": 45,
+        "detail": "Factory captures startup storageRoot; basename is constant."
+      },
+      {
+        "path": "packages/plugins/doolittle-plugin/forms/plugin.ts",
+        "line": 7,
+        "detail": "bindPluginStorage uses the constant forms scope."
+      },
+      {
+        "path": "packages/contracts/src/types/storage.ts",
+        "line": 31,
+        "detail": "Binding accepts intentional operator-configured local data roots."
+      }
+    ]
+  },
+  {
+    "number": 114,
+    "classification": "intentional-local",
+    "reason": "The forms service initializes its fixed forms-store.json under a startup/operator-selected plugin root. Neither form/plan IDs nor model parameters enter the directory or basename. SDK atomic JSON persistence is retained; private trusted ancestors remain a prerequisite.",
+    "evidence": [
+      {
+        "path": "packages/plugins/doolittle-plugin/forms/storage.ts",
+        "line": 16,
+        "detail": "Initial directory and fixed store-path existence checks."
+      },
+      {
+        "path": "packages/plugins/doolittle-plugin/forms/service.ts",
+        "line": 45,
+        "detail": "Factory captures startup storageRoot; basename is constant."
+      },
+      {
+        "path": "packages/plugins/doolittle-plugin/forms/plugin.ts",
+        "line": 7,
+        "detail": "bindPluginStorage uses the constant forms scope."
+      },
+      {
+        "path": "packages/contracts/src/types/storage.ts",
+        "line": 31,
+        "detail": "Binding accepts intentional operator-configured local data roots."
+      }
+    ]
+  },
+  {
+    "number": 115,
+    "classification": "intentional-local",
+    "reason": "The planning service initializes its fixed plans-store.json under a startup/operator-selected plugin root. Neither form/plan IDs nor model parameters enter the directory or basename. SDK atomic JSON persistence is retained; private trusted ancestors remain a prerequisite.",
+    "evidence": [
+      {
+        "path": "packages/plugins/doolittle-plugin/planning/storage.ts",
+        "line": 19,
+        "detail": "Initial directory and fixed store-path existence checks."
+      },
+      {
+        "path": "packages/plugins/doolittle-plugin/planning/service.ts",
+        "line": 69,
+        "detail": "Factory captures startup storageRoot; basename is constant."
+      },
+      {
+        "path": "packages/plugins/doolittle-plugin/planning/plugin.ts",
+        "line": 7,
+        "detail": "bindPluginStorage uses the constant planning scope."
+      },
+      {
+        "path": "packages/contracts/src/types/storage.ts",
+        "line": 31,
+        "detail": "Binding accepts intentional operator-configured local data roots."
+      }
+    ]
+  },
+  {
+    "number": 116,
+    "classification": "intentional-local",
+    "reason": "The planning service initializes its fixed plans-store.json under a startup/operator-selected plugin root. Neither form/plan IDs nor model parameters enter the directory or basename. SDK atomic JSON persistence is retained; private trusted ancestors remain a prerequisite.",
+    "evidence": [
+      {
+        "path": "packages/plugins/doolittle-plugin/planning/storage.ts",
+        "line": 20,
+        "detail": "Initial directory and fixed store-path existence checks."
+      },
+      {
+        "path": "packages/plugins/doolittle-plugin/planning/service.ts",
+        "line": 69,
+        "detail": "Factory captures startup storageRoot; basename is constant."
+      },
+      {
+        "path": "packages/plugins/doolittle-plugin/planning/plugin.ts",
+        "line": 7,
+        "detail": "bindPluginStorage uses the constant planning scope."
+      },
+      {
+        "path": "packages/contracts/src/types/storage.ts",
+        "line": 31,
+        "detail": "Binding accepts intentional operator-configured local data roots."
+      }
+    ]
+  },
+  {
+    "number": 13,
+    "classification": "hardening",
+    "reason": "This is a capped SDK JSON string recovery path, not code/HTML escaping. Re-escaping already JSON-encoded quotes could corrupt data; the prefix is now decoded directly with JSON.parse. Result URLs independently allow HTTP(S), titles/excerpts become text/Markdown, and no eval-like execution is used. Not a demonstrated high-severity injection vulnerability.",
+    "evidence": [
+      {
+        "path": "packages/plugins/doolittle-plugin/sdk-native-surface.ts",
+        "line": 115,
+        "detail": "Already encoded prefix is parsed as JSON data without redundant quote escaping."
+      },
+      {
+        "path": "packages/plugins/doolittle-plugin/sdk-native-surface.ts",
+        "line": 178,
+        "detail": "safeResultUrl allowlists HTTP(S)."
+      },
+      {
+        "path": "packages/plugins/doolittle-plugin/sdk-native-surface.test.ts",
+        "line": 200,
+        "detail": "Truncated excerpts with quotes and backslashes are decoded intact."
+      }
+    ],
+    "tests": ["packages/plugins/doolittle-plugin/sdk-native-surface.test.ts"]
+  },
+  {
+    "number": 12,
+    "classification": "false-positive",
+    "reason": "extractReadableText produces bounded plain-text snapshots and metadata, not sanitized HTML. The scanner correctly notes an incomplete script-tag filter, but no executable HTML sink relies on it. SVG capture cards XML-escape all text; model context/JSON/Markdown outputs are data. Malformed tags or script contents may remain in the text and MUST NOT be treated as safe HTML.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/web/content.ts",
+        "line": 4,
+        "detail": "Contract explicitly plain text, capped at 20,000 characters."
+      },
+      {
+        "path": "packages/agent/src/services/web/fetch-flow.ts",
+        "line": 24,
+        "detail": "Extraction populates WebPageSnapshot text/metadata."
+      },
+      {
+        "path": "packages/agent/src/services/web/capture-cards.ts",
+        "line": 35,
+        "detail": "SVG text rows use SDK escapeXml."
+      },
+      {
+        "path": "packages/agent/src/services/web/analysis/prompts.ts",
+        "line": 67,
+        "detail": "Snapshot text enters model prompt context, not a DOM HTML sink."
+      }
+    ]
+  },
+  {
+    "number": 11,
+    "classification": "false-positive",
+    "reason": "buildMediaPreview is a 512-character plain-text metadata preview. Its tag stripping is not an HTML-sanitization security boundary; returned strings are stored as metadata/sidecar previews, not inserted as active HTML. Incomplete script-tag matching can leave plain text, not demonstrated XSS.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/media/inspection/media-preview.ts",
+        "line": 1,
+        "detail": "Explicit plain-text-only contract."
+      },
+      {
+        "path": "packages/agent/src/services/media/inspection/media-metadata/text.ts",
+        "line": 16,
+        "detail": "Preview is returned as TextMetadata."
+      },
+      {
+        "path": "packages/agent/src/services/media/inspection/media-sidecars.ts",
+        "line": 81,
+        "detail": "Preview returned as transcript/caption metadata strings."
+      },
+      {
+        "path": "apps/desktop/src/renderer/components/ArtifactViewer.tsx",
+        "line": 119,
+        "detail": "Text/Markdown artifact content uses escaped React code children; HTML artifacts have a separate sandboxed iframe, not this preview."
+      }
+    ]
+  },
+  {
+    "number": 10,
+    "classification": "false-positive",
+    "reason": "markdownFragment builds a lowercase heading identifier for local-document link comparison. It is not an HTML sanitizer or renderer, and its final allowlist removes all punctuation including angle brackets. The reported residual <script cannot reach the returned slug.",
+    "evidence": [
+      {
+        "path": "scripts/sync-doc-truth/sync.ts",
+        "line": 24,
+        "detail": "Heading slug pipeline strips tags/formatting then permits only Unicode letters/numbers/whitespace/hyphens."
+      },
+      {
+        "path": "scripts/sync-doc-truth/sync.ts",
+        "line": 37,
+        "detail": "Result is compared with decoded fragment identifiers, never inserted as HTML."
+      }
+    ]
+  },
+  {
+    "number": 9,
+    "classification": "false-positive",
+    "reason": "stripHtmlComments removes comment-shaped text before SOUL.md is quoted into model context. It is not an HTML rendering sanitizer. Nested comment markers may remain as plain model text; no HTML execution sink consumes the filtered result. Automatic prompt/context trust and filesystem containment are separate boundaries.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/runtime/soul.ts",
+        "line": 16,
+        "detail": "Comment removal is a Markdown/text cleanup."
+      },
+      {
+        "path": "packages/agent/src/runtime/soul.ts",
+        "line": 59,
+        "detail": "Text is quoted line-by-line into model context."
+      },
+      {
+        "path": "packages/agent/src/providers/agent-context/provider.ts",
+        "line": 166,
+        "detail": "Consumes SOUL context as provider prompt text."
+      }
+    ]
+  },
+  {
+    "number": 1,
+    "classification": "fixed",
+    "reason": "Latest SARIF shows four SDK exception-to-JSON flows (registry search, official skill search, MCP search/details). Native Error.message normally omits stacks, but non-Error throw values/arbitrary SDK messages could expose internal paths or credentials. Those public failures now return fixed operation-specific messages (and adjacent registry/skill sync/install failures too), preserving unavailable and cancellation contracts; the generic JSON serializer is unchanged.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/runtime/native/agent-sdk.ts",
+        "line": 141,
+        "detail": "Registry search returns fixed failure text instead of SDK exception data."
+      },
+      {
+        "path": "packages/agent/src/runtime/native/service-bridge/skill-hub/index.ts",
+        "line": 237,
+        "detail": "Official catalog failure uses a fixed public message."
+      },
+      {
+        "path": "packages/agent/src/runtime/native/service-bridge/tooling/mcp.ts",
+        "line": 145,
+        "detail": "MCP search failure uses a fixed message, preserving explicit abort rejection."
+      },
+      {
+        "path": "packages/agent/src/runtime/native/service-bridge/tooling/mcp.ts",
+        "line": 175,
+        "detail": "MCP details failure uses fixed text."
+      },
+      {
+        "path": "packages/agent/src/server/responses.ts",
+        "line": 18,
+        "detail": "JSON remains a data serializer; redaction occurs at the exception boundary, not by mutating unrelated public payloads."
+      }
+    ],
+    "tests": [
+      "packages/agent/src/runtime/native/agent-sdk.test.ts",
+      "packages/agent/src/runtime/native/service-bridge/skill-hub/index.test.ts",
+      "packages/agent/src/runtime/native/service-bridge/tooling/mcp.test.ts"
+    ]
+  }
+]

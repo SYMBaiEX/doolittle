@@ -1,0 +1,1832 @@
+[
+  {
+    "number": 229,
+    "classification": "intentional-local",
+    "reason": "CLI boot/onboarding intentionally honors operator DOOLITTLE_REPO_ROOT, DOOLITTLE_DATA_DIR and PGLITE_DATA_DIR. Checked paths append only fixed .env/onboarding.json/bootstrap/Nub basenames; onboarding arguments do not alter those names. Desktop host sets explicit private runtime roots. Arbitrary operator storage/executable selection is trusted launch authority, not remotely supplied data.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/cli/startup.ts",
+        "line": 63,
+        "detail": "Baseline sink reviewed; caller ownership and pathname constraints are recorded below."
+      },
+      {
+        "path": "packages/agent/src/config/env/paths.ts",
+        "line": 4,
+        "detail": "Repo root derives from the launch environment or module-relative default; startup.runtimeDataDir uses the launch data-root override."
+      },
+      {
+        "path": "packages/agent/src/entrypoint/runtime-boot.ts",
+        "line": 57,
+        "detail": "Runtime boot calls startup functions; no request body is passed as a storage path."
+      }
+    ]
+  },
+  {
+    "number": 188,
+    "classification": "intentional-local",
+    "reason": "Opt-in local eval instrumentation uses operator DOOLITTLE_DATA_DIR and fixed eval-model-calls.jsonl. Metric arguments are timing/token counts and never modify the path. It requires an explicit true capture flag; measurement failures are caught. No production call site was found by current source search. Configured local eval storage remains intentional.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/runtime/native/plugin-registry/eval-model-metrics.ts",
+        "line": 32,
+        "detail": "Baseline sink reviewed; caller ownership and pathname constraints are recorded below."
+      },
+      {
+        "path": "packages/agent/src/runtime/native/plugin-registry/eval-model-metrics.ts",
+        "line": 19,
+        "detail": "Capture checks the explicit enable flag and nonempty environment data root before using a fixed basename."
+      }
+    ]
+  },
+  {
+    "number": 187,
+    "classification": "intentional-local",
+    "reason": "Opt-in local eval instrumentation uses operator DOOLITTLE_DATA_DIR and fixed eval-model-calls.jsonl. Metric arguments are timing/token counts and never modify the path. It requires an explicit true capture flag; measurement failures are caught. No production call site was found by current source search. Configured local eval storage remains intentional.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/runtime/native/plugin-registry/eval-model-metrics.ts",
+        "line": 28,
+        "detail": "Baseline sink reviewed; caller ownership and pathname constraints are recorded below."
+      },
+      {
+        "path": "packages/agent/src/runtime/native/plugin-registry/eval-model-metrics.ts",
+        "line": 19,
+        "detail": "Capture checks the explicit enable flag and nonempty environment data root before using a fixed basename."
+      }
+    ]
+  },
+  {
+    "number": 186,
+    "classification": "intentional-local",
+    "reason": "Opt-in local eval instrumentation uses operator DOOLITTLE_DATA_DIR and fixed eval-model-calls.jsonl. Metric arguments are timing/token counts and never modify the path. It requires an explicit true capture flag; measurement failures are caught. No production call site was found by current source search. Configured local eval storage remains intentional.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/runtime/native/plugin-registry/eval-model-metrics.ts",
+        "line": 26,
+        "detail": "Baseline sink reviewed; caller ownership and pathname constraints are recorded below."
+      },
+      {
+        "path": "packages/agent/src/runtime/native/plugin-registry/eval-model-metrics.ts",
+        "line": 19,
+        "detail": "Capture checks the explicit enable flag and nonempty environment data root before using a fixed basename."
+      }
+    ]
+  },
+  {
+    "number": 112,
+    "classification": "intentional-local",
+    "reason": "Profile storage receives fixed user-profiles.json from the service state builder. Remote userId/profile content mutates JSON records, never the filename. SDK atomic JSON writes are retained.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/user-profile/storage/store.ts",
+        "line": 27,
+        "detail": "Baseline sink reviewed; caller ownership and pathname constraints are recorded below."
+      },
+      {
+        "path": "packages/agent/src/services/user-profile/service/state.ts",
+        "line": 17,
+        "detail": "Builder passes join(baseDir,user-profiles.json) to storage."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/construction/state-core.ts",
+        "line": 39,
+        "detail": "Assembly supplies profilesDir from config.dataDir/profiles."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/service-directories.ts",
+        "line": 31,
+        "detail": "Service roots are fixed children of startup EnvConfig dataDir/gatewayDataDir/hooksDir."
+      },
+      {
+        "path": "packages/agent/src/config/env/index.ts",
+        "line": 24,
+        "detail": "EnvConfig directories are parsed from process launch settings at boot, not message/request records."
+      }
+    ]
+  },
+  {
+    "number": 111,
+    "classification": "intentional-local",
+    "reason": "Profile storage receives fixed user-profiles.json from the service state builder. Remote userId/profile content mutates JSON records, never the filename. SDK atomic JSON writes are retained.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/user-profile/storage/store.ts",
+        "line": 17,
+        "detail": "Baseline sink reviewed; caller ownership and pathname constraints are recorded below."
+      },
+      {
+        "path": "packages/agent/src/services/user-profile/service/state.ts",
+        "line": 17,
+        "detail": "Builder passes join(baseDir,user-profiles.json) to storage."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/construction/state-core.ts",
+        "line": 39,
+        "detail": "Assembly supplies profilesDir from config.dataDir/profiles."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/service-directories.ts",
+        "line": 31,
+        "detail": "Service roots are fixed children of startup EnvConfig dataDir/gatewayDataDir/hooksDir."
+      },
+      {
+        "path": "packages/agent/src/config/env/index.ts",
+        "line": 24,
+        "detail": "EnvConfig directories are parsed from process launch settings at boot, not message/request records."
+      }
+    ]
+  },
+  {
+    "number": 110,
+    "classification": "intentional-local",
+    "reason": "The profile directory comes from config.dataDir/profiles through service assembly; user IDs/profile mutations are record content. Creating operator-configured storage is intentional.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/user-profile/service/state.ts",
+        "line": 16,
+        "detail": "Baseline sink reviewed; caller ownership and pathname constraints are recorded below."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/construction/state-core.ts",
+        "line": 39,
+        "detail": "Assembly supplies profilesDir rather than any request field."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/service-directories.ts",
+        "line": 31,
+        "detail": "Service roots are fixed children of startup EnvConfig dataDir/gatewayDataDir/hooksDir."
+      },
+      {
+        "path": "packages/agent/src/config/env/index.ts",
+        "line": 24,
+        "detail": "EnvConfig directories are parsed from process launch settings at boot, not message/request records."
+      }
+    ]
+  },
+  {
+    "number": 109,
+    "classification": "intentional-local",
+    "reason": "Evaluation projection root is config.dataDir/trajectories, wired at service assembly. Session IDs/events are record content and cannot change this mkdir root. Native SDK training trajectory storage remains separately owned.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/trajectory/service/index.ts",
+        "line": 97,
+        "detail": "Baseline sink reviewed; caller ownership and pathname constraints are recorded below."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/construction/state-leaves.ts",
+        "line": 54,
+        "detail": "Lazy construction passes directories.trajectoriesDir."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/service-directories.ts",
+        "line": 31,
+        "detail": "Service roots are fixed children of startup EnvConfig dataDir/gatewayDataDir/hooksDir."
+      },
+      {
+        "path": "packages/agent/src/config/env/index.ts",
+        "line": 24,
+        "detail": "EnvConfig directories are parsed from process launch settings at boot, not message/request records."
+      }
+    ]
+  },
+  {
+    "number": 108,
+    "classification": "intentional-local",
+    "reason": "Journal mkdir/append/recent operations use fixed trajectory-events.jsonl under configured evaluation storage. The exported read helper has only the journal's closed-over fixed-path production caller. Event/filter inputs do not modify paths.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/trajectory/event-journal.ts",
+        "line": 231,
+        "detail": "Baseline sink reviewed; caller ownership and pathname constraints are recorded below."
+      },
+      {
+        "path": "packages/agent/src/services/trajectory/event-journal.ts",
+        "line": 208,
+        "detail": "Factory closes over join(baseDir,TRAJECTORY_EVENT_JOURNAL)."
+      },
+      {
+        "path": "packages/agent/src/services/trajectory/event-journal.ts",
+        "line": 218,
+        "detail": "recent passes only that closed-over path to readTrajectoryEventRecords."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/service-directories.ts",
+        "line": 31,
+        "detail": "Service roots are fixed children of startup EnvConfig dataDir/gatewayDataDir/hooksDir."
+      },
+      {
+        "path": "packages/agent/src/config/env/index.ts",
+        "line": 24,
+        "detail": "EnvConfig directories are parsed from process launch settings at boot, not message/request records."
+      }
+    ]
+  },
+  {
+    "number": 107,
+    "classification": "intentional-local",
+    "reason": "Journal mkdir/append/recent operations use fixed trajectory-events.jsonl under configured evaluation storage. The exported read helper has only the journal's closed-over fixed-path production caller. Event/filter inputs do not modify paths.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/trajectory/event-journal.ts",
+        "line": 228,
+        "detail": "Baseline sink reviewed; caller ownership and pathname constraints are recorded below."
+      },
+      {
+        "path": "packages/agent/src/services/trajectory/event-journal.ts",
+        "line": 208,
+        "detail": "Factory closes over join(baseDir,TRAJECTORY_EVENT_JOURNAL)."
+      },
+      {
+        "path": "packages/agent/src/services/trajectory/event-journal.ts",
+        "line": 218,
+        "detail": "recent passes only that closed-over path to readTrajectoryEventRecords."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/service-directories.ts",
+        "line": 31,
+        "detail": "Service roots are fixed children of startup EnvConfig dataDir/gatewayDataDir/hooksDir."
+      },
+      {
+        "path": "packages/agent/src/config/env/index.ts",
+        "line": 24,
+        "detail": "EnvConfig directories are parsed from process launch settings at boot, not message/request records."
+      }
+    ]
+  },
+  {
+    "number": 106,
+    "classification": "intentional-local",
+    "reason": "Journal mkdir/append/recent operations use fixed trajectory-events.jsonl under configured evaluation storage. The exported read helper has only the journal's closed-over fixed-path production caller. Event/filter inputs do not modify paths.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/trajectory/event-journal.ts",
+        "line": 214,
+        "detail": "Baseline sink reviewed; caller ownership and pathname constraints are recorded below."
+      },
+      {
+        "path": "packages/agent/src/services/trajectory/event-journal.ts",
+        "line": 208,
+        "detail": "Factory closes over join(baseDir,TRAJECTORY_EVENT_JOURNAL)."
+      },
+      {
+        "path": "packages/agent/src/services/trajectory/event-journal.ts",
+        "line": 218,
+        "detail": "recent passes only that closed-over path to readTrajectoryEventRecords."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/service-directories.ts",
+        "line": 31,
+        "detail": "Service roots are fixed children of startup EnvConfig dataDir/gatewayDataDir/hooksDir."
+      },
+      {
+        "path": "packages/agent/src/config/env/index.ts",
+        "line": 24,
+        "detail": "EnvConfig directories are parsed from process launch settings at boot, not message/request records."
+      }
+    ]
+  },
+  {
+    "number": 105,
+    "classification": "intentional-local",
+    "reason": "Journal mkdir/append/recent operations use fixed trajectory-events.jsonl under configured evaluation storage. The exported read helper has only the journal's closed-over fixed-path production caller. Event/filter inputs do not modify paths.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/trajectory/event-journal.ts",
+        "line": 208,
+        "detail": "Baseline sink reviewed; caller ownership and pathname constraints are recorded below."
+      },
+      {
+        "path": "packages/agent/src/services/trajectory/event-journal.ts",
+        "line": 208,
+        "detail": "Factory closes over join(baseDir,TRAJECTORY_EVENT_JOURNAL)."
+      },
+      {
+        "path": "packages/agent/src/services/trajectory/event-journal.ts",
+        "line": 218,
+        "detail": "recent passes only that closed-over path to readTrajectoryEventRecords."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/service-directories.ts",
+        "line": 31,
+        "detail": "Service roots are fixed children of startup EnvConfig dataDir/gatewayDataDir/hooksDir."
+      },
+      {
+        "path": "packages/agent/src/config/env/index.ts",
+        "line": 24,
+        "detail": "EnvConfig directories are parsed from process launch settings at boot, not message/request records."
+      }
+    ]
+  },
+  {
+    "number": 104,
+    "classification": "intentional-local",
+    "reason": "Flagged readdir lists the service's configured trajectories root; request limits do not modify it. Names passed to join come from readdir, not arbitrary request strings. Separate explicit manifest/data-file import APIs are operator local-file capabilities, not falsely certified as confined by this classification. Untrusted local storage replacement/symlinks remain an integrity risk.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/trajectory/bundle-storage/listing.ts",
+        "line": 57,
+        "detail": "Baseline sink reviewed; caller ownership and pathname constraints are recorded below."
+      },
+      {
+        "path": "packages/agent/src/services/trajectory/service/catalog.ts",
+        "line": 13,
+        "detail": "listBundles passes the service-state baseDir to catalog listing."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/construction/state-leaves.ts",
+        "line": 54,
+        "detail": "Assembly supplies configured trajectoriesDir."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/service-directories.ts",
+        "line": 31,
+        "detail": "Service roots are fixed children of startup EnvConfig dataDir/gatewayDataDir/hooksDir."
+      },
+      {
+        "path": "packages/agent/src/config/env/index.ts",
+        "line": 24,
+        "detail": "EnvConfig directories are parsed from process launch settings at boot, not message/request records."
+      }
+    ]
+  },
+  {
+    "number": 103,
+    "classification": "intentional-local",
+    "reason": "Flagged mkdir creates config.dataDir/terminal. History and cloud store basenames are fixed. Command/cwd inputs are separate local execution capabilities and do not alter this storage root.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/terminal/service.ts",
+        "line": 55,
+        "detail": "Baseline sink reviewed; caller ownership and pathname constraints are recorded below."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/construction/state-leaves.ts",
+        "line": 92,
+        "detail": "TerminalService receives terminalDir plus a separate workspace callback."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/service-directories.ts",
+        "line": 31,
+        "detail": "Service roots are fixed children of startup EnvConfig dataDir/gatewayDataDir/hooksDir."
+      },
+      {
+        "path": "packages/agent/src/config/env/index.ts",
+        "line": 24,
+        "detail": "EnvConfig directories are parsed from process launch settings at boot, not message/request records."
+      }
+    ]
+  },
+  {
+    "number": 102,
+    "classification": "intentional-local",
+    "reason": "History pathname is fixed terminal-history.json supplied by TerminalService. Command text and IDs stay inside JSON records and never select the path.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/terminal/records/history.ts",
+        "line": 11,
+        "detail": "Baseline sink reviewed; caller ownership and pathname constraints are recorded below."
+      },
+      {
+        "path": "packages/agent/src/services/terminal/service.ts",
+        "line": 56,
+        "detail": "Constructor passes join(baseDir,terminal-history.json)."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/service-directories.ts",
+        "line": 31,
+        "detail": "Service roots are fixed children of startup EnvConfig dataDir/gatewayDataDir/hooksDir."
+      },
+      {
+        "path": "packages/agent/src/config/env/index.ts",
+        "line": 24,
+        "detail": "EnvConfig directories are parsed from process launch settings at boot, not message/request records."
+      }
+    ]
+  },
+  {
+    "number": 101,
+    "classification": "intentional-local",
+    "reason": "The existence check intentionally selects operator SHELL or fixed /bin/zsh and /bin/sh paths; Windows ComSpec is similarly launch configuration. Command text never selects the executable. Local executable/launch environment control is already execution authority; workspace confinement would not mitigate it.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/terminal/execution/subprocess/shell.ts",
+        "line": 11,
+        "detail": "Baseline sink reviewed; caller ownership and pathname constraints are recorded below."
+      },
+      {
+        "path": "packages/agent/src/services/terminal/execution/subprocess/shell.ts",
+        "line": 8,
+        "detail": "Candidates are process.env.SHELL and fixed system paths."
+      },
+      {
+        "path": "packages/agent/src/services/terminal/backends/local.ts",
+        "line": 118,
+        "detail": "Execution uses localShellInvocation's executable and separate command argument."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/service-directories.ts",
+        "line": 31,
+        "detail": "Service roots are fixed children of startup EnvConfig dataDir/gatewayDataDir/hooksDir."
+      },
+      {
+        "path": "packages/agent/src/config/env/index.ts",
+        "line": 24,
+        "detail": "EnvConfig directories are parsed from process launch settings at boot, not message/request records."
+      }
+    ]
+  },
+  {
+    "number": 100,
+    "classification": "intentional-local",
+    "reason": "Cloud store pathname is fixed cloud-sessions.json under configured terminalDir. Session/snapshot/artifact record fields never determine that store filename; SDK atomic JSON remains the persistence primitive.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/terminal/cloud/store/persistence.ts",
+        "line": 6,
+        "detail": "Baseline sink reviewed; caller ownership and pathname constraints are recorded below."
+      },
+      {
+        "path": "packages/agent/src/services/terminal/service.ts",
+        "line": 59,
+        "detail": "CloudStoreManager receives join(baseDir,cloud-sessions.json)."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/service-directories.ts",
+        "line": 31,
+        "detail": "Service roots are fixed children of startup EnvConfig dataDir/gatewayDataDir/hooksDir."
+      },
+      {
+        "path": "packages/agent/src/config/env/index.ts",
+        "line": 24,
+        "detail": "EnvConfig directories are parsed from process launch settings at boot, not message/request records."
+      }
+    ]
+  },
+  {
+    "number": 99,
+    "classification": "intentional-local",
+    "reason": "Flagged operations are read-only existence checks of the launch-selected shell executable. User command text is separate from executable selection. Shell/PATH/executable compromise requires control of the trusted host environment.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/terminal/backends/local.ts",
+        "line": 73,
+        "detail": "Baseline sink reviewed; caller ownership and pathname constraints are recorded below."
+      },
+      {
+        "path": "packages/agent/src/services/terminal/execution/subprocess/shell.ts",
+        "line": 8,
+        "detail": "Executable selection uses operator SHELL/system defaults, not command text."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/service-directories.ts",
+        "line": 31,
+        "detail": "Service roots are fixed children of startup EnvConfig dataDir/gatewayDataDir/hooksDir."
+      },
+      {
+        "path": "packages/agent/src/config/env/index.ts",
+        "line": 24,
+        "detail": "EnvConfig directories are parsed from process launch settings at boot, not message/request records."
+      }
+    ]
+  },
+  {
+    "number": 98,
+    "classification": "intentional-local",
+    "reason": "Flagged operations are read-only existence checks of the launch-selected shell executable. User command text is separate from executable selection. Shell/PATH/executable compromise requires control of the trusted host environment.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/terminal/backends/local.ts",
+        "line": 30,
+        "detail": "Baseline sink reviewed; caller ownership and pathname constraints are recorded below."
+      },
+      {
+        "path": "packages/agent/src/services/terminal/execution/subprocess/shell.ts",
+        "line": 8,
+        "detail": "Executable selection uses operator SHELL/system defaults, not command text."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/service-directories.ts",
+        "line": 31,
+        "detail": "Service roots are fixed children of startup EnvConfig dataDir/gatewayDataDir/hooksDir."
+      },
+      {
+        "path": "packages/agent/src/config/env/index.ts",
+        "line": 24,
+        "detail": "EnvConfig directories are parsed from process launch settings at boot, not message/request records."
+      }
+    ]
+  },
+  {
+    "number": 97,
+    "classification": "intentional-local",
+    "reason": "Flagged mkdir paths are fixed manifests/installs/exports/imports children of config.dataDir/skills-hub. Catalog IDs and skill metadata never select those roots. Configured skillsRootDir is separate service state.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/skills-hub/service/paths.ts",
+        "line": 37,
+        "detail": "Baseline sink reviewed; caller ownership and pathname constraints are recorded below."
+      },
+      {
+        "path": "packages/agent/src/services/skills-hub/service/state.ts",
+        "line": 31,
+        "detail": "Path builder gets baseDir and SkillsService.rootDir()."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/construction/state-slots.ts",
+        "line": 57,
+        "detail": "Assembly passes config.dataDir to SkillsHubService."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/service-directories.ts",
+        "line": 31,
+        "detail": "Service roots are fixed children of startup EnvConfig dataDir/gatewayDataDir/hooksDir."
+      },
+      {
+        "path": "packages/agent/src/config/env/index.ts",
+        "line": 24,
+        "detail": "EnvConfig directories are parsed from process launch settings at boot, not message/request records."
+      }
+    ]
+  },
+  {
+    "number": 96,
+    "classification": "intentional-local",
+    "reason": "Flagged mkdir paths are fixed manifests/installs/exports/imports children of config.dataDir/skills-hub. Catalog IDs and skill metadata never select those roots. Configured skillsRootDir is separate service state.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/skills-hub/service/paths.ts",
+        "line": 36,
+        "detail": "Baseline sink reviewed; caller ownership and pathname constraints are recorded below."
+      },
+      {
+        "path": "packages/agent/src/services/skills-hub/service/state.ts",
+        "line": 31,
+        "detail": "Path builder gets baseDir and SkillsService.rootDir()."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/construction/state-slots.ts",
+        "line": 57,
+        "detail": "Assembly passes config.dataDir to SkillsHubService."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/service-directories.ts",
+        "line": 31,
+        "detail": "Service roots are fixed children of startup EnvConfig dataDir/gatewayDataDir/hooksDir."
+      },
+      {
+        "path": "packages/agent/src/config/env/index.ts",
+        "line": 24,
+        "detail": "EnvConfig directories are parsed from process launch settings at boot, not message/request records."
+      }
+    ]
+  },
+  {
+    "number": 95,
+    "classification": "intentional-local",
+    "reason": "Flagged mkdir paths are fixed manifests/installs/exports/imports children of config.dataDir/skills-hub. Catalog IDs and skill metadata never select those roots. Configured skillsRootDir is separate service state.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/skills-hub/service/paths.ts",
+        "line": 35,
+        "detail": "Baseline sink reviewed; caller ownership and pathname constraints are recorded below."
+      },
+      {
+        "path": "packages/agent/src/services/skills-hub/service/state.ts",
+        "line": 31,
+        "detail": "Path builder gets baseDir and SkillsService.rootDir()."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/construction/state-slots.ts",
+        "line": 57,
+        "detail": "Assembly passes config.dataDir to SkillsHubService."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/service-directories.ts",
+        "line": 31,
+        "detail": "Service roots are fixed children of startup EnvConfig dataDir/gatewayDataDir/hooksDir."
+      },
+      {
+        "path": "packages/agent/src/config/env/index.ts",
+        "line": 24,
+        "detail": "EnvConfig directories are parsed from process launch settings at boot, not message/request records."
+      }
+    ]
+  },
+  {
+    "number": 94,
+    "classification": "intentional-local",
+    "reason": "Flagged mkdir paths are fixed manifests/installs/exports/imports children of config.dataDir/skills-hub. Catalog IDs and skill metadata never select those roots. Configured skillsRootDir is separate service state.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/skills-hub/service/paths.ts",
+        "line": 34,
+        "detail": "Baseline sink reviewed; caller ownership and pathname constraints are recorded below."
+      },
+      {
+        "path": "packages/agent/src/services/skills-hub/service/state.ts",
+        "line": 31,
+        "detail": "Path builder gets baseDir and SkillsService.rootDir()."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/construction/state-slots.ts",
+        "line": 57,
+        "detail": "Assembly passes config.dataDir to SkillsHubService."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/service-directories.ts",
+        "line": 31,
+        "detail": "Service roots are fixed children of startup EnvConfig dataDir/gatewayDataDir/hooksDir."
+      },
+      {
+        "path": "packages/agent/src/config/env/index.ts",
+        "line": 24,
+        "detail": "EnvConfig directories are parsed from process launch settings at boot, not message/request records."
+      }
+    ]
+  },
+  {
+    "number": 88,
+    "classification": "intentional-local",
+    "reason": "Session DB uses fixed state.db in startup config.dataDir. Session/user IDs are query values rather than directory names. Configured local database storage is intentional.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/session/service/support.ts",
+        "line": 11,
+        "detail": "Baseline sink reviewed; caller ownership and pathname constraints are recorded below."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/construction/state-core.ts",
+        "line": 38,
+        "detail": "Assembly constructs SessionService(config.dataDir)."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/service-directories.ts",
+        "line": 31,
+        "detail": "Service roots are fixed children of startup EnvConfig dataDir/gatewayDataDir/hooksDir."
+      },
+      {
+        "path": "packages/agent/src/config/env/index.ts",
+        "line": 24,
+        "detail": "EnvConfig directories are parsed from process launch settings at boot, not message/request records."
+      }
+    ]
+  },
+  {
+    "number": 87,
+    "classification": "intentional-local",
+    "reason": "Review storage is fixed review-records.json under config.dataDir. Review scopes/comments/workspace references are JSON content, never constructor-root selectors.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/review-record/service.ts",
+        "line": 192,
+        "detail": "Baseline sink reviewed; caller ownership and pathname constraints are recorded below."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/construction/state-core.ts",
+        "line": 54,
+        "detail": "Assembly constructs ReviewRecordService(config.dataDir)."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/service-directories.ts",
+        "line": 31,
+        "detail": "Service roots are fixed children of startup EnvConfig dataDir/gatewayDataDir/hooksDir."
+      },
+      {
+        "path": "packages/agent/src/config/env/index.ts",
+        "line": 24,
+        "detail": "EnvConfig directories are parsed from process launch settings at boot, not message/request records."
+      }
+    ]
+  },
+  {
+    "number": 86,
+    "classification": "intentional-local",
+    "reason": "Review storage is fixed review-records.json under config.dataDir. Review scopes/comments/workspace references are JSON content, never constructor-root selectors.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/review-record/service.ts",
+        "line": 190,
+        "detail": "Baseline sink reviewed; caller ownership and pathname constraints are recorded below."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/construction/state-core.ts",
+        "line": 54,
+        "detail": "Assembly constructs ReviewRecordService(config.dataDir)."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/service-directories.ts",
+        "line": 31,
+        "detail": "Service roots are fixed children of startup EnvConfig dataDir/gatewayDataDir/hooksDir."
+      },
+      {
+        "path": "packages/agent/src/config/env/index.ts",
+        "line": 24,
+        "detail": "EnvConfig directories are parsed from process launch settings at boot, not message/request records."
+      }
+    ]
+  },
+  {
+    "number": 85,
+    "classification": "intentional-local",
+    "reason": "Run receipts use fixed run-receipts.json under startup config.dataDir. Run/session IDs select Map/JSON entries, not paths; restart recovery loads the same fixed filename.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/run-controller/store.ts",
+        "line": 205,
+        "detail": "Baseline sink reviewed; caller ownership and pathname constraints are recorded below."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/construction/state-core.ts",
+        "line": 55,
+        "detail": "Assembly supplies config.dataDir to RunControllerService."
+      },
+      {
+        "path": "packages/agent/src/services/run-controller/store.ts",
+        "line": 80,
+        "detail": "Store closes over fixed run-receipts.json pathname."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/service-directories.ts",
+        "line": 31,
+        "detail": "Service roots are fixed children of startup EnvConfig dataDir/gatewayDataDir/hooksDir."
+      },
+      {
+        "path": "packages/agent/src/config/env/index.ts",
+        "line": 24,
+        "detail": "EnvConfig directories are parsed from process launch settings at boot, not message/request records."
+      }
+    ]
+  },
+  {
+    "number": 84,
+    "classification": "intentional-local",
+    "reason": "Run receipts use fixed run-receipts.json under startup config.dataDir. Run/session IDs select Map/JSON entries, not paths; restart recovery loads the same fixed filename.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/run-controller/store.ts",
+        "line": 79,
+        "detail": "Baseline sink reviewed; caller ownership and pathname constraints are recorded below."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/construction/state-core.ts",
+        "line": 55,
+        "detail": "Assembly supplies config.dataDir to RunControllerService."
+      },
+      {
+        "path": "packages/agent/src/services/run-controller/store.ts",
+        "line": 80,
+        "detail": "Store closes over fixed run-receipts.json pathname."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/service-directories.ts",
+        "line": 31,
+        "detail": "Service roots are fixed children of startup EnvConfig dataDir/gatewayDataDir/hooksDir."
+      },
+      {
+        "path": "packages/agent/src/config/env/index.ts",
+        "line": 24,
+        "detail": "EnvConfig directories are parsed from process launch settings at boot, not message/request records."
+      }
+    ]
+  },
+  {
+    "number": 83,
+    "classification": "intentional-local",
+    "reason": "Project inspection is an explicit local coding capability supporting absolute/home/workspace-relative targets outside the active workspace. This stat only returns existing file/directory classification, not file content or a write. Downstream local inspection/shell authority remains a distinct boundary; this function is not a host sandbox and must not be exposed as one.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/project-inspection/resolve.ts",
+        "line": 39,
+        "detail": "Baseline sink reviewed; caller ownership and pathname constraints are recorded below."
+      },
+      {
+        "path": "packages/agent/src/runtime/native/plugin-registry/hot-execution.ts",
+        "line": 41,
+        "detail": "Coding plugin bridges resolveLocalProjectTarget(inputPath,workspaceRoot)."
+      }
+    ]
+  },
+  {
+    "number": 82,
+    "classification": "intentional-local",
+    "reason": "Personality storage is fixed personality.json under config.dataDir. IDs match a fixed in-memory profile list and become activeId JSON data, never pathname segments.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/personality-service.ts",
+        "line": 48,
+        "detail": "Baseline sink reviewed; caller ownership and pathname constraints are recorded below."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/construction/state-leaves.ts",
+        "line": 90,
+        "detail": "Assembly constructs PersonalityService(config.dataDir)."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/service-directories.ts",
+        "line": 31,
+        "detail": "Service roots are fixed children of startup EnvConfig dataDir/gatewayDataDir/hooksDir."
+      },
+      {
+        "path": "packages/agent/src/config/env/index.ts",
+        "line": 24,
+        "detail": "EnvConfig directories are parsed from process launch settings at boot, not message/request records."
+      }
+    ]
+  },
+  {
+    "number": 81,
+    "classification": "intentional-local",
+    "reason": "Personality storage is fixed personality.json under config.dataDir. IDs match a fixed in-memory profile list and become activeId JSON data, never pathname segments.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/personality-service.ts",
+        "line": 46,
+        "detail": "Baseline sink reviewed; caller ownership and pathname constraints are recorded below."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/construction/state-leaves.ts",
+        "line": 90,
+        "detail": "Assembly constructs PersonalityService(config.dataDir)."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/service-directories.ts",
+        "line": 31,
+        "detail": "Service roots are fixed children of startup EnvConfig dataDir/gatewayDataDir/hooksDir."
+      },
+      {
+        "path": "packages/agent/src/config/env/index.ts",
+        "line": 24,
+        "detail": "EnvConfig directories are parsed from process launch settings at boot, not message/request records."
+      }
+    ]
+  },
+  {
+    "number": 80,
+    "classification": "intentional-local",
+    "reason": "Version reads fixed package.json under operator/module-selected repo root. A request does not choose the filename. Repository override is intentional developer/source-runtime configuration; launch/resource compromise is residual.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/operator/version.ts",
+        "line": 42,
+        "detail": "Baseline sink reviewed; caller ownership and pathname constraints are recorded below."
+      },
+      {
+        "path": "packages/agent/src/config/env/paths.ts",
+        "line": 4,
+        "detail": "Repo root is launch override or module-relative default."
+      },
+      {
+        "path": "packages/agent/src/services/operator/version.ts",
+        "line": 41,
+        "detail": "Only fixed package.json is appended."
+      }
+    ]
+  },
+  {
+    "number": 79,
+    "classification": "intentional-local",
+    "reason": "Hook projection stores fixed hooks.json under configured hooksDir. Hook templates/event names are record content and cannot choose the constructor path. SDK HookService owns execution separately; SDK atomic persistence remains.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/hook-projection-service.ts",
+        "line": 89,
+        "detail": "Baseline sink reviewed; caller ownership and pathname constraints are recorded below."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/construction/state-leaves.ts",
+        "line": 89,
+        "detail": "Assembly passes directories.hooksDir."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/service-directories.ts",
+        "line": 31,
+        "detail": "Service roots are fixed children of startup EnvConfig dataDir/gatewayDataDir/hooksDir."
+      },
+      {
+        "path": "packages/agent/src/config/env/index.ts",
+        "line": 24,
+        "detail": "EnvConfig directories are parsed from process launch settings at boot, not message/request records."
+      }
+    ]
+  },
+  {
+    "number": 78,
+    "classification": "intentional-local",
+    "reason": "Hook projection stores fixed hooks.json under configured hooksDir. Hook templates/event names are record content and cannot choose the constructor path. SDK HookService owns execution separately; SDK atomic persistence remains.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/hook-projection-service.ts",
+        "line": 87,
+        "detail": "Baseline sink reviewed; caller ownership and pathname constraints are recorded below."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/construction/state-leaves.ts",
+        "line": 89,
+        "detail": "Assembly passes directories.hooksDir."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/service-directories.ts",
+        "line": 31,
+        "detail": "Service roots are fixed children of startup EnvConfig dataDir/gatewayDataDir/hooksDir."
+      },
+      {
+        "path": "packages/agent/src/config/env/index.ts",
+        "line": 24,
+        "detail": "EnvConfig directories are parsed from process launch settings at boot, not message/request records."
+      }
+    ]
+  },
+  {
+    "number": 77,
+    "classification": "intentional-local",
+    "reason": "Gateway store receives fixed gateway-sessions.json from GatewaySessionService. Platform/account/user identifiers only select routing JSON records, not the file.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/gateway-session-service/storage.ts",
+        "line": 18,
+        "detail": "Baseline sink reviewed; caller ownership and pathname constraints are recorded below."
+      },
+      {
+        "path": "packages/agent/src/services/gateway-session-service/index.ts",
+        "line": 25,
+        "detail": "Constructor closes over join(baseDir,gateway-sessions.json)."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/construction/state-leaves.ts",
+        "line": 79,
+        "detail": "Assembly supplies configured gatewaySessionDir."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/service-directories.ts",
+        "line": 31,
+        "detail": "Service roots are fixed children of startup EnvConfig dataDir/gatewayDataDir/hooksDir."
+      },
+      {
+        "path": "packages/agent/src/config/env/index.ts",
+        "line": 24,
+        "detail": "EnvConfig directories are parsed from process launch settings at boot, not message/request records."
+      }
+    ]
+  },
+  {
+    "number": 76,
+    "classification": "intentional-local",
+    "reason": "Gateway session directory is fixed config.gatewayDataDir/sessions at boot. Incoming platform/account/session IDs are routing record fields, never path segments.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/gateway-session-service/index.ts",
+        "line": 25,
+        "detail": "Baseline sink reviewed; caller ownership and pathname constraints are recorded below."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/construction/state-leaves.ts",
+        "line": 79,
+        "detail": "Assembly supplies gatewaySessionDir."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/service-directories.ts",
+        "line": 31,
+        "detail": "Service roots are fixed children of startup EnvConfig dataDir/gatewayDataDir/hooksDir."
+      },
+      {
+        "path": "packages/agent/src/config/env/index.ts",
+        "line": 24,
+        "detail": "EnvConfig directories are parsed from process launch settings at boot, not message/request records."
+      }
+    ]
+  },
+  {
+    "number": 75,
+    "classification": "intentional-local",
+    "reason": "Shared and legacy memory use fixed MEMORY.md/USER.md under config.dataDir/memories. Migration destination adds only an internally generated migrated/numeric suffix. User memory is delegated into profile records, not ID-named files. Memory content/user IDs do not select paths.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/experience-memory-service.ts",
+        "line": 258,
+        "detail": "Baseline sink reviewed; caller ownership and pathname constraints are recorded below."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/construction/state-core.ts",
+        "line": 57,
+        "detail": "Assembly supplies config.dataDir and UserProfileService."
+      },
+      {
+        "path": "packages/agent/src/services/experience-memory-service.ts",
+        "line": 32,
+        "detail": "Constructor fixes sharedFile/legacyUserFile under memories."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/service-directories.ts",
+        "line": 31,
+        "detail": "Service roots are fixed children of startup EnvConfig dataDir/gatewayDataDir/hooksDir."
+      },
+      {
+        "path": "packages/agent/src/config/env/index.ts",
+        "line": 24,
+        "detail": "EnvConfig directories are parsed from process launch settings at boot, not message/request records."
+      }
+    ]
+  },
+  {
+    "number": 74,
+    "classification": "intentional-local",
+    "reason": "Shared and legacy memory use fixed MEMORY.md/USER.md under config.dataDir/memories. Migration destination adds only an internally generated migrated/numeric suffix. User memory is delegated into profile records, not ID-named files. Memory content/user IDs do not select paths.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/experience-memory-service.ts",
+        "line": 258,
+        "detail": "Baseline sink reviewed; caller ownership and pathname constraints are recorded below."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/construction/state-core.ts",
+        "line": 57,
+        "detail": "Assembly supplies config.dataDir and UserProfileService."
+      },
+      {
+        "path": "packages/agent/src/services/experience-memory-service.ts",
+        "line": 32,
+        "detail": "Constructor fixes sharedFile/legacyUserFile under memories."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/service-directories.ts",
+        "line": 31,
+        "detail": "Service roots are fixed children of startup EnvConfig dataDir/gatewayDataDir/hooksDir."
+      },
+      {
+        "path": "packages/agent/src/config/env/index.ts",
+        "line": 24,
+        "detail": "EnvConfig directories are parsed from process launch settings at boot, not message/request records."
+      }
+    ]
+  },
+  {
+    "number": 73,
+    "classification": "intentional-local",
+    "reason": "Shared and legacy memory use fixed MEMORY.md/USER.md under config.dataDir/memories. Migration destination adds only an internally generated migrated/numeric suffix. User memory is delegated into profile records, not ID-named files. Memory content/user IDs do not select paths.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/experience-memory-service.ts",
+        "line": 254,
+        "detail": "Baseline sink reviewed; caller ownership and pathname constraints are recorded below."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/construction/state-core.ts",
+        "line": 57,
+        "detail": "Assembly supplies config.dataDir and UserProfileService."
+      },
+      {
+        "path": "packages/agent/src/services/experience-memory-service.ts",
+        "line": 32,
+        "detail": "Constructor fixes sharedFile/legacyUserFile under memories."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/service-directories.ts",
+        "line": 31,
+        "detail": "Service roots are fixed children of startup EnvConfig dataDir/gatewayDataDir/hooksDir."
+      },
+      {
+        "path": "packages/agent/src/config/env/index.ts",
+        "line": 24,
+        "detail": "EnvConfig directories are parsed from process launch settings at boot, not message/request records."
+      }
+    ]
+  },
+  {
+    "number": 72,
+    "classification": "intentional-local",
+    "reason": "Shared and legacy memory use fixed MEMORY.md/USER.md under config.dataDir/memories. Migration destination adds only an internally generated migrated/numeric suffix. User memory is delegated into profile records, not ID-named files. Memory content/user IDs do not select paths.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/experience-memory-service.ts",
+        "line": 204,
+        "detail": "Baseline sink reviewed; caller ownership and pathname constraints are recorded below."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/construction/state-core.ts",
+        "line": 57,
+        "detail": "Assembly supplies config.dataDir and UserProfileService."
+      },
+      {
+        "path": "packages/agent/src/services/experience-memory-service.ts",
+        "line": 32,
+        "detail": "Constructor fixes sharedFile/legacyUserFile under memories."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/service-directories.ts",
+        "line": 31,
+        "detail": "Service roots are fixed children of startup EnvConfig dataDir/gatewayDataDir/hooksDir."
+      },
+      {
+        "path": "packages/agent/src/config/env/index.ts",
+        "line": 24,
+        "detail": "EnvConfig directories are parsed from process launch settings at boot, not message/request records."
+      }
+    ]
+  },
+  {
+    "number": 71,
+    "classification": "intentional-local",
+    "reason": "Shared and legacy memory use fixed MEMORY.md/USER.md under config.dataDir/memories. Migration destination adds only an internally generated migrated/numeric suffix. User memory is delegated into profile records, not ID-named files. Memory content/user IDs do not select paths.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/experience-memory-service.ts",
+        "line": 201,
+        "detail": "Baseline sink reviewed; caller ownership and pathname constraints are recorded below."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/construction/state-core.ts",
+        "line": 57,
+        "detail": "Assembly supplies config.dataDir and UserProfileService."
+      },
+      {
+        "path": "packages/agent/src/services/experience-memory-service.ts",
+        "line": 32,
+        "detail": "Constructor fixes sharedFile/legacyUserFile under memories."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/service-directories.ts",
+        "line": 31,
+        "detail": "Service roots are fixed children of startup EnvConfig dataDir/gatewayDataDir/hooksDir."
+      },
+      {
+        "path": "packages/agent/src/config/env/index.ts",
+        "line": 24,
+        "detail": "EnvConfig directories are parsed from process launch settings at boot, not message/request records."
+      }
+    ]
+  },
+  {
+    "number": 70,
+    "classification": "intentional-local",
+    "reason": "Shared and legacy memory use fixed MEMORY.md/USER.md under config.dataDir/memories. Migration destination adds only an internally generated migrated/numeric suffix. User memory is delegated into profile records, not ID-named files. Memory content/user IDs do not select paths.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/experience-memory-service.ts",
+        "line": 33,
+        "detail": "Baseline sink reviewed; caller ownership and pathname constraints are recorded below."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/construction/state-core.ts",
+        "line": 57,
+        "detail": "Assembly supplies config.dataDir and UserProfileService."
+      },
+      {
+        "path": "packages/agent/src/services/experience-memory-service.ts",
+        "line": 32,
+        "detail": "Constructor fixes sharedFile/legacyUserFile under memories."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/service-directories.ts",
+        "line": 31,
+        "detail": "Service roots are fixed children of startup EnvConfig dataDir/gatewayDataDir/hooksDir."
+      },
+      {
+        "path": "packages/agent/src/config/env/index.ts",
+        "line": 24,
+        "detail": "EnvConfig directories are parsed from process launch settings at boot, not message/request records."
+      }
+    ]
+  },
+  {
+    "number": 69,
+    "classification": "intentional-local",
+    "reason": "Approval storage is fixed execution-approvals.json beneath config.gatewayDataDir/approvals. Commands/request IDs only enter JSON approval records. SDK atomic writes remain.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/execution-approval/store.ts",
+        "line": 12,
+        "detail": "Baseline sink reviewed; caller ownership and pathname constraints are recorded below."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/construction/state-leaves.ts",
+        "line": 80,
+        "detail": "Assembly supplies gatewayApprovalDir."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/service-directories.ts",
+        "line": 31,
+        "detail": "Service roots are fixed children of startup EnvConfig dataDir/gatewayDataDir/hooksDir."
+      },
+      {
+        "path": "packages/agent/src/config/env/index.ts",
+        "line": 24,
+        "detail": "EnvConfig directories are parsed from process launch settings at boot, not message/request records."
+      }
+    ]
+  },
+  {
+    "number": 68,
+    "classification": "intentional-local",
+    "reason": "Approval storage is fixed execution-approvals.json beneath config.gatewayDataDir/approvals. Commands/request IDs only enter JSON approval records. SDK atomic writes remain.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/execution-approval/store.ts",
+        "line": 10,
+        "detail": "Baseline sink reviewed; caller ownership and pathname constraints are recorded below."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/construction/state-leaves.ts",
+        "line": 80,
+        "detail": "Assembly supplies gatewayApprovalDir."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/service-directories.ts",
+        "line": 31,
+        "detail": "Service roots are fixed children of startup EnvConfig dataDir/gatewayDataDir/hooksDir."
+      },
+      {
+        "path": "packages/agent/src/config/env/index.ts",
+        "line": 24,
+        "detail": "EnvConfig directories are parsed from process launch settings at boot, not message/request records."
+      }
+    ]
+  },
+  {
+    "number": 67,
+    "classification": "intentional-local",
+    "reason": "Delivery storage is fixed deliveries.json beneath config.gatewayDataDir/delivery. Targets/thread IDs/messages are JSON fields, not filename components.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/delivery-service.ts",
+        "line": 17,
+        "detail": "Baseline sink reviewed; caller ownership and pathname constraints are recorded below."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/construction/state-leaves.ts",
+        "line": 78,
+        "detail": "Assembly supplies gatewayDeliveryDir."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/service-directories.ts",
+        "line": 31,
+        "detail": "Service roots are fixed children of startup EnvConfig dataDir/gatewayDataDir/hooksDir."
+      },
+      {
+        "path": "packages/agent/src/config/env/index.ts",
+        "line": 24,
+        "detail": "EnvConfig directories are parsed from process launch settings at boot, not message/request records."
+      }
+    ]
+  },
+  {
+    "number": 66,
+    "classification": "intentional-local",
+    "reason": "Delivery storage is fixed deliveries.json beneath config.gatewayDataDir/delivery. Targets/thread IDs/messages are JSON fields, not filename components.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/delivery-service.ts",
+        "line": 15,
+        "detail": "Baseline sink reviewed; caller ownership and pathname constraints are recorded below."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/construction/state-leaves.ts",
+        "line": 78,
+        "detail": "Assembly supplies gatewayDeliveryDir."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/service-directories.ts",
+        "line": 31,
+        "detail": "Service roots are fixed children of startup EnvConfig dataDir/gatewayDataDir/hooksDir."
+      },
+      {
+        "path": "packages/agent/src/config/env/index.ts",
+        "line": 24,
+        "detail": "EnvConfig directories are parsed from process launch settings at boot, not message/request records."
+      }
+    ]
+  },
+  {
+    "number": 65,
+    "classification": "intentional-local",
+    "reason": "Flagged mkdir roots are config.dataDir/autocoder and fixed artifacts child; project names/request IDs never select them. Artifact callers use internally generated run/workflow IDs, safeSlug project names, and constant suffixes. Untrusted replacement of local persisted state is a separate integrity risk, not request control of these flagged mkdir roots.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/autocoder-pipeline/persistence.ts",
+        "line": 43,
+        "detail": "Baseline sink reviewed; caller ownership and pathname constraints are recorded below."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/construction/state-slots.ts",
+        "line": 46,
+        "detail": "Assembly supplies configured autocoderDir."
+      },
+      {
+        "path": "packages/agent/src/services/autocoder-pipeline/workflow-actions/workflow.ts",
+        "line": 70,
+        "detail": "Run ID is generated by nextId; request artifact suffix is fixed request."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/service-directories.ts",
+        "line": 31,
+        "detail": "Service roots are fixed children of startup EnvConfig dataDir/gatewayDataDir/hooksDir."
+      },
+      {
+        "path": "packages/agent/src/config/env/index.ts",
+        "line": 24,
+        "detail": "EnvConfig directories are parsed from process launch settings at boot, not message/request records."
+      }
+    ]
+  },
+  {
+    "number": 64,
+    "classification": "intentional-local",
+    "reason": "Flagged mkdir roots are config.dataDir/autocoder and fixed artifacts child; project names/request IDs never select them. Artifact callers use internally generated run/workflow IDs, safeSlug project names, and constant suffixes. Untrusted replacement of local persisted state is a separate integrity risk, not request control of these flagged mkdir roots.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/autocoder-pipeline/persistence.ts",
+        "line": 41,
+        "detail": "Baseline sink reviewed; caller ownership and pathname constraints are recorded below."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/construction/state-slots.ts",
+        "line": 46,
+        "detail": "Assembly supplies configured autocoderDir."
+      },
+      {
+        "path": "packages/agent/src/services/autocoder-pipeline/workflow-actions/workflow.ts",
+        "line": 70,
+        "detail": "Run ID is generated by nextId; request artifact suffix is fixed request."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/service-directories.ts",
+        "line": 31,
+        "detail": "Service roots are fixed children of startup EnvConfig dataDir/gatewayDataDir/hooksDir."
+      },
+      {
+        "path": "packages/agent/src/config/env/index.ts",
+        "line": 24,
+        "detail": "EnvConfig directories are parsed from process launch settings at boot, not message/request records."
+      }
+    ]
+  },
+  {
+    "number": 63,
+    "classification": "intentional-local",
+    "reason": "API responses use fixed responses.json under config.dataDir/api. User/response IDs and request input only select JSON records, never the store pathname.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/api-transport-service.ts",
+        "line": 59,
+        "detail": "Baseline sink reviewed; caller ownership and pathname constraints are recorded below."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/construction/state-core.ts",
+        "line": 44,
+        "detail": "Assembly supplies configured apiDir."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/service-directories.ts",
+        "line": 31,
+        "detail": "Service roots are fixed children of startup EnvConfig dataDir/gatewayDataDir/hooksDir."
+      },
+      {
+        "path": "packages/agent/src/config/env/index.ts",
+        "line": 24,
+        "detail": "EnvConfig directories are parsed from process launch settings at boot, not message/request records."
+      }
+    ]
+  },
+  {
+    "number": 62,
+    "classification": "intentional-local",
+    "reason": "API responses use fixed responses.json under config.dataDir/api. User/response IDs and request input only select JSON records, never the store pathname.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/api-transport-service.ts",
+        "line": 57,
+        "detail": "Baseline sink reviewed; caller ownership and pathname constraints are recorded below."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/construction/state-core.ts",
+        "line": 44,
+        "detail": "Assembly supplies configured apiDir."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/service-directories.ts",
+        "line": 31,
+        "detail": "Service roots are fixed children of startup EnvConfig dataDir/gatewayDataDir/hooksDir."
+      },
+      {
+        "path": "packages/agent/src/config/env/index.ts",
+        "line": 24,
+        "detail": "EnvConfig directories are parsed from process launch settings at boot, not message/request records."
+      }
+    ]
+  },
+  {
+    "number": 61,
+    "classification": "intentional-local",
+    "reason": "Codex model discovery reads fixed models_cache.json under operator CODEX_HOME or homedir/.codex. Route provider selection does not accept a home/cache path. Desktop workers receive private CODEX_HOME. Parsed output is model metadata, not an arbitrary raw file read endpoint.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/server/routes/runtime/models.ts",
+        "line": 501,
+        "detail": "Baseline sink reviewed; caller ownership and pathname constraints are recorded below."
+      },
+      {
+        "path": "packages/agent/src/server/routes/runtime/models.ts",
+        "line": 495,
+        "detail": "Codex-only discovery selects launch CODEX_HOME and fixed cache basename."
+      }
+    ]
+  },
+  {
+    "number": 60,
+    "classification": "fixed",
+    "reason": "Confirmed automatic prompt-file escape fixed: repository-controlled command directory/file links could read host files into workflow prompts. Discovery now checks canonical directories and file targets against canonical workspace using sibling-safe containment, then reads an at-most-1-MiB regular file through a descriptor with final-entry O_NOFOLLOW where supported. Internal links survive canonical resolution; missing/denied/nonregular/oversized custom files are ignored, preserving built-in fallback. Mutable ancestor replacement remains residual; Windows/no-O_NOFOLLOW runtime assurance is pending.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/runtime/workflow-commands/definitions.ts",
+        "line": 103,
+        "detail": "Current guarded discovery replaces original inventory sink at baseline line 99."
+      },
+      {
+        "path": "packages/agent/src/runtime/workflow-commands/definitions.ts",
+        "line": 103,
+        "detail": "Canonical command directory must be contained before listing; canonical markdown targets must be contained before descriptor read."
+      },
+      {
+        "path": "packages/agent/src/runtime/chat.ts",
+        "line": 186,
+        "detail": "Workflow text is expanded into the admitted chat input."
+      }
+    ],
+    "tests": [
+      "nub run test:scope packages/agent/src/runtime/workspace-prompt-containment.test.ts packages/agent/src/runtime/workflow-commands.test.ts packages/agent/src/services/context-files-service.test.ts: 17 tests passed in 3 files",
+      "Normal behavior, external directory/file and sibling-prefix links, internal links, built-in fallback, missing workspace, oversize/nonregular files, deterministic final-entry swap, blocked diagnostics, and replacement/recovery covered."
+    ]
+  },
+  {
+    "number": 59,
+    "classification": "fixed",
+    "reason": "Confirmed automatic prompt-file escape fixed: repository-controlled command directory/file links could read host files into workflow prompts. Discovery now checks canonical directories and file targets against canonical workspace using sibling-safe containment, then reads an at-most-1-MiB regular file through a descriptor with final-entry O_NOFOLLOW where supported. Internal links survive canonical resolution; missing/denied/nonregular/oversized custom files are ignored, preserving built-in fallback. Mutable ancestor replacement remains residual; Windows/no-O_NOFOLLOW runtime assurance is pending.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/runtime/workflow-commands/definitions.ts",
+        "line": 103,
+        "detail": "Current guarded discovery replaces original inventory sink at baseline line 93."
+      },
+      {
+        "path": "packages/agent/src/runtime/workflow-commands/definitions.ts",
+        "line": 103,
+        "detail": "Canonical command directory must be contained before listing; canonical markdown targets must be contained before descriptor read."
+      },
+      {
+        "path": "packages/agent/src/runtime/chat.ts",
+        "line": 186,
+        "detail": "Workflow text is expanded into the admitted chat input."
+      }
+    ],
+    "tests": [
+      "nub run test:scope packages/agent/src/runtime/workspace-prompt-containment.test.ts packages/agent/src/runtime/workflow-commands.test.ts packages/agent/src/services/context-files-service.test.ts: 17 tests passed in 3 files",
+      "Normal behavior, external directory/file and sibling-prefix links, internal links, built-in fallback, missing workspace, oversize/nonregular files, deterministic final-entry swap, blocked diagnostics, and replacement/recovery covered."
+    ]
+  },
+  {
+    "number": 58,
+    "classification": "fixed",
+    "reason": "Confirmed automatic prompt-file escape fixed: repository-controlled command directory/file links could read host files into workflow prompts. Discovery now checks canonical directories and file targets against canonical workspace using sibling-safe containment, then reads an at-most-1-MiB regular file through a descriptor with final-entry O_NOFOLLOW where supported. Internal links survive canonical resolution; missing/denied/nonregular/oversized custom files are ignored, preserving built-in fallback. Mutable ancestor replacement remains residual; Windows/no-O_NOFOLLOW runtime assurance is pending.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/runtime/workflow-commands/definitions.ts",
+        "line": 103,
+        "detail": "Current guarded discovery replaces original inventory sink at baseline line 89."
+      },
+      {
+        "path": "packages/agent/src/runtime/workflow-commands/definitions.ts",
+        "line": 103,
+        "detail": "Canonical command directory must be contained before listing; canonical markdown targets must be contained before descriptor read."
+      },
+      {
+        "path": "packages/agent/src/runtime/chat.ts",
+        "line": 186,
+        "detail": "Workflow text is expanded into the admitted chat input."
+      }
+    ],
+    "tests": [
+      "nub run test:scope packages/agent/src/runtime/workspace-prompt-containment.test.ts packages/agent/src/runtime/workflow-commands.test.ts packages/agent/src/services/context-files-service.test.ts: 17 tests passed in 3 files",
+      "Normal behavior, external directory/file and sibling-prefix links, internal links, built-in fallback, missing workspace, oversize/nonregular files, deterministic final-entry swap, blocked diagnostics, and replacement/recovery covered."
+    ]
+  },
+  {
+    "number": 57,
+    "classification": "intentional-local",
+    "reason": "SDK MemoryStorageProvider compatibility implementation uses fixed state.db under config.dataDir; agent/entity/room IDs are SQL parameters. Preserving this DB path retains prior advanced memory continuity. There is no request-selected database path at the flagged mkdir.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/runtime/native/plugin-registry/product/memory-storage-store.ts",
+        "line": 186,
+        "detail": "Baseline sink reviewed; caller ownership and pathname constraints are recorded below."
+      },
+      {
+        "path": "packages/agent/src/runtime/native/plugin-registry/product/index.ts",
+        "line": 148,
+        "detail": "Product plugin passes config.dataDir into the SDK contract implementation."
+      },
+      {
+        "path": "packages/agent/src/runtime/native/plugin-registry/product/memory-storage-service.ts",
+        "line": 29,
+        "detail": "Service closes over dataDir when constructing ElizaMemoryStorageStore."
+      }
+    ]
+  },
+  {
+    "number": 55,
+    "classification": "intentional-local",
+    "reason": "Strategy read uses fixed account-pool-strategies.json beside the configured provider auth store. Provider IDs are allowlisted record keys and account IDs do not alter this filename. Official SDK account-pool/account-storage own credentials separately.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/runtime/native/account-pool/index.ts",
+        "line": 141,
+        "detail": "Baseline sink reviewed; caller ownership and pathname constraints are recorded below."
+      },
+      {
+        "path": "packages/agent/src/runtime/native/account-pool/index.ts",
+        "line": 129,
+        "detail": "Strategy path is fixed basename under dirname(getProviderAuthStorePath())."
+      },
+      {
+        "path": "packages/agent/src/runtime/native/account-auth/store.ts",
+        "line": 39,
+        "detail": "Auth root comes from launch DOOLITTLE_DATA_DIR/DATA_PATH or local default."
+      }
+    ]
+  },
+  {
+    "number": 52,
+    "classification": "intentional-local",
+    "reason": "Legacy auth compatibility reads fixed auth/providers.json under operator DOOLITTLE_DATA_DIR/DATA_PATH or cwd/.doolittle. Request IDs do not select that path. SDK account-storage owns canonical records with a scoped/restored ELIZA_HOME compatibility root. Trusted launch and local credential-store ownership remain required.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/runtime/native/account-auth/store.ts",
+        "line": 50,
+        "detail": "Baseline sink reviewed; caller ownership and pathname constraints are recorded below."
+      },
+      {
+        "path": "packages/agent/src/runtime/native/account-auth/store.ts",
+        "line": 39,
+        "detail": "Path builder appends only fixed auth/providers.json to the launch data root."
+      }
+    ]
+  },
+  {
+    "number": 48,
+    "classification": "intentional-local",
+    "reason": "Shared checks intentionally discover local executables via PATH/PATHEXT or operator DEVIN_CLI_COMMAND and read provider auth files with fixed home-relative basenames. Production Codex/Claude/Eliza CLI command names are constants. Runtime account routes accept provider/account IDs, not homePath overrides. Launch/home/executable tampering already grants local configuration/execution authority; shell:false alone is not the security rationale.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/runtime/native/account-auth/shared.ts",
+        "line": 116,
+        "detail": "Baseline sink reviewed; caller ownership and pathname constraints are recorded below."
+      },
+      {
+        "path": "packages/agent/src/runtime/native/account-auth/codex/local.ts",
+        "line": 34,
+        "detail": "Codex path is resolved home plus fixed .codex/auth.json."
+      },
+      {
+        "path": "packages/agent/src/runtime/native/account-auth/claude-code-support/files.ts",
+        "line": 60,
+        "detail": "Claude path is resolved home plus fixed .claude/.credentials.json."
+      }
+    ]
+  },
+  {
+    "number": 47,
+    "classification": "intentional-local",
+    "reason": "Shared checks intentionally discover local executables via PATH/PATHEXT or operator DEVIN_CLI_COMMAND and read provider auth files with fixed home-relative basenames. Production Codex/Claude/Eliza CLI command names are constants. Runtime account routes accept provider/account IDs, not homePath overrides. Launch/home/executable tampering already grants local configuration/execution authority; shell:false alone is not the security rationale.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/runtime/native/account-auth/shared.ts",
+        "line": 40,
+        "detail": "Baseline sink reviewed; caller ownership and pathname constraints are recorded below."
+      },
+      {
+        "path": "packages/agent/src/runtime/native/account-auth/codex/local.ts",
+        "line": 34,
+        "detail": "Codex path is resolved home plus fixed .codex/auth.json."
+      },
+      {
+        "path": "packages/agent/src/runtime/native/account-auth/claude-code-support/files.ts",
+        "line": 60,
+        "detail": "Claude path is resolved home plus fixed .claude/.credentials.json."
+      }
+    ]
+  },
+  {
+    "number": 43,
+    "classification": "intentional-local",
+    "reason": "PGLite root is operator PGLITE_DATA_DIR or fixed config.dataDir/pglite; bootstrap passes EnvConfig rather than request path input. Desktop host fixes private DB storage. Restricting valid external DB storage to repo root would break deployments without reducing remote exposure.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/runtime/bootstrap/env/pglite.ts",
+        "line": 17,
+        "detail": "Baseline sink reviewed; caller ownership and pathname constraints are recorded below."
+      },
+      {
+        "path": "packages/agent/src/runtime/bootstrap/env/runtime.ts",
+        "line": 14,
+        "detail": "Bootstrap sets the default from config and prepares the chosen DB directory."
+      }
+    ]
+  },
+  {
+    "number": 42,
+    "classification": "intentional-local",
+    "reason": "Gateway config is fixed gateway.json under startup config.gatewayDataDir. Gateway request fields select policy/content and cannot change that root/filename. Operator storage configuration and SDK atomic writes are intentional.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/config/gateway.ts",
+        "line": 66,
+        "detail": "Baseline sink reviewed; caller ownership and pathname constraints are recorded below."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/service-bootstrap.ts",
+        "line": 60,
+        "detail": "Service bootstrap invokes loadGatewayConfig with EnvConfig."
+      },
+      {
+        "path": "packages/agent/src/config/env/directories.ts",
+        "line": 34,
+        "detail": "gatewayDataDir derives from launch DOOLITTLE_GATEWAY_DATA_DIR."
+      }
+    ]
+  },
+  {
+    "number": 41,
+    "classification": "intentional-local",
+    "reason": "Gateway config is fixed gateway.json under startup config.gatewayDataDir. Gateway request fields select policy/content and cannot change that root/filename. Operator storage configuration and SDK atomic writes are intentional.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/config/gateway.ts",
+        "line": 61,
+        "detail": "Baseline sink reviewed; caller ownership and pathname constraints are recorded below."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/service-bootstrap.ts",
+        "line": 60,
+        "detail": "Service bootstrap invokes loadGatewayConfig with EnvConfig."
+      },
+      {
+        "path": "packages/agent/src/config/env/directories.ts",
+        "line": 34,
+        "detail": "gatewayDataDir derives from launch DOOLITTLE_GATEWAY_DATA_DIR."
+      }
+    ]
+  },
+  {
+    "number": 40,
+    "classification": "intentional-local",
+    "reason": "Gateway config is fixed gateway.json under startup config.gatewayDataDir. Gateway request fields select policy/content and cannot change that root/filename. Operator storage configuration and SDK atomic writes are intentional.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/config/gateway.ts",
+        "line": 58,
+        "detail": "Baseline sink reviewed; caller ownership and pathname constraints are recorded below."
+      },
+      {
+        "path": "packages/agent/src/services/assembly/service-bootstrap.ts",
+        "line": 60,
+        "detail": "Service bootstrap invokes loadGatewayConfig with EnvConfig."
+      },
+      {
+        "path": "packages/agent/src/config/env/directories.ts",
+        "line": 34,
+        "detail": "gatewayDataDir derives from launch DOOLITTLE_GATEWAY_DATA_DIR."
+      }
+    ]
+  },
+  {
+    "number": 39,
+    "classification": "intentional-local",
+    "reason": "Dotenv reads fixed .env beneath operator/module-selected repo root at non-worker boot, with override:false. Worker runtime skips repository dotenv. Remote requests cannot select repoEnvPath; trusted source checkout/.env ownership is an existing local execution/config boundary.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/config/env/load.ts",
+        "line": 26,
+        "detail": "Baseline sink reviewed; caller ownership and pathname constraints are recorded below."
+      },
+      {
+        "path": "packages/agent/src/config/env/index.ts",
+        "line": 17,
+        "detail": "Non-worker boot calls loadProcessEnv; worker boot skips it."
+      },
+      {
+        "path": "packages/agent/src/config/env/paths.ts",
+        "line": 4,
+        "detail": "Repo root is launch override or module-relative default."
+      }
+    ]
+  },
+  {
+    "number": 38,
+    "classification": "intentional-local",
+    "reason": "CLI boot/onboarding intentionally honors operator DOOLITTLE_REPO_ROOT, DOOLITTLE_DATA_DIR and PGLITE_DATA_DIR. Checked paths append only fixed .env/onboarding.json/bootstrap/Nub basenames; onboarding arguments do not alter those names. Desktop host sets explicit private runtime roots. Arbitrary operator storage/executable selection is trusted launch authority, not remotely supplied data.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/cli/startup.ts",
+        "line": 132,
+        "detail": "Baseline sink reviewed; caller ownership and pathname constraints are recorded below."
+      },
+      {
+        "path": "packages/agent/src/config/env/paths.ts",
+        "line": 4,
+        "detail": "Repo root derives from the launch environment or module-relative default; startup.runtimeDataDir uses the launch data-root override."
+      },
+      {
+        "path": "packages/agent/src/entrypoint/runtime-boot.ts",
+        "line": 57,
+        "detail": "Runtime boot calls startup functions; no request body is passed as a storage path."
+      }
+    ]
+  },
+  {
+    "number": 37,
+    "classification": "intentional-local",
+    "reason": "CLI boot/onboarding intentionally honors operator DOOLITTLE_REPO_ROOT, DOOLITTLE_DATA_DIR and PGLITE_DATA_DIR. Checked paths append only fixed .env/onboarding.json/bootstrap/Nub basenames; onboarding arguments do not alter those names. Desktop host sets explicit private runtime roots. Arbitrary operator storage/executable selection is trusted launch authority, not remotely supplied data.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/cli/startup.ts",
+        "line": 115,
+        "detail": "Baseline sink reviewed; caller ownership and pathname constraints are recorded below."
+      },
+      {
+        "path": "packages/agent/src/config/env/paths.ts",
+        "line": 4,
+        "detail": "Repo root derives from the launch environment or module-relative default; startup.runtimeDataDir uses the launch data-root override."
+      },
+      {
+        "path": "packages/agent/src/entrypoint/runtime-boot.ts",
+        "line": 57,
+        "detail": "Runtime boot calls startup functions; no request body is passed as a storage path."
+      }
+    ]
+  },
+  {
+    "number": 36,
+    "classification": "intentional-local",
+    "reason": "CLI boot/onboarding intentionally honors operator DOOLITTLE_REPO_ROOT, DOOLITTLE_DATA_DIR and PGLITE_DATA_DIR. Checked paths append only fixed .env/onboarding.json/bootstrap/Nub basenames; onboarding arguments do not alter those names. Desktop host sets explicit private runtime roots. Arbitrary operator storage/executable selection is trusted launch authority, not remotely supplied data.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/cli/startup.ts",
+        "line": 101,
+        "detail": "Baseline sink reviewed; caller ownership and pathname constraints are recorded below."
+      },
+      {
+        "path": "packages/agent/src/config/env/paths.ts",
+        "line": 4,
+        "detail": "Repo root derives from the launch environment or module-relative default; startup.runtimeDataDir uses the launch data-root override."
+      },
+      {
+        "path": "packages/agent/src/entrypoint/runtime-boot.ts",
+        "line": 57,
+        "detail": "Runtime boot calls startup functions; no request body is passed as a storage path."
+      }
+    ]
+  },
+  {
+    "number": 35,
+    "classification": "intentional-local",
+    "reason": "CLI boot/onboarding intentionally honors operator DOOLITTLE_REPO_ROOT, DOOLITTLE_DATA_DIR and PGLITE_DATA_DIR. Checked paths append only fixed .env/onboarding.json/bootstrap/Nub basenames; onboarding arguments do not alter those names. Desktop host sets explicit private runtime roots. Arbitrary operator storage/executable selection is trusted launch authority, not remotely supplied data.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/cli/startup.ts",
+        "line": 76,
+        "detail": "Baseline sink reviewed; caller ownership and pathname constraints are recorded below."
+      },
+      {
+        "path": "packages/agent/src/config/env/paths.ts",
+        "line": 4,
+        "detail": "Repo root derives from the launch environment or module-relative default; startup.runtimeDataDir uses the launch data-root override."
+      },
+      {
+        "path": "packages/agent/src/entrypoint/runtime-boot.ts",
+        "line": 57,
+        "detail": "Runtime boot calls startup functions; no request body is passed as a storage path."
+      }
+    ]
+  },
+  {
+    "number": 34,
+    "classification": "intentional-local",
+    "reason": "CLI boot/onboarding intentionally honors operator DOOLITTLE_REPO_ROOT, DOOLITTLE_DATA_DIR and PGLITE_DATA_DIR. Checked paths append only fixed .env/onboarding.json/bootstrap/Nub basenames; onboarding arguments do not alter those names. Desktop host sets explicit private runtime roots. Arbitrary operator storage/executable selection is trusted launch authority, not remotely supplied data.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/cli/startup.ts",
+        "line": 74,
+        "detail": "Baseline sink reviewed; caller ownership and pathname constraints are recorded below."
+      },
+      {
+        "path": "packages/agent/src/config/env/paths.ts",
+        "line": 4,
+        "detail": "Repo root derives from the launch environment or module-relative default; startup.runtimeDataDir uses the launch data-root override."
+      },
+      {
+        "path": "packages/agent/src/entrypoint/runtime-boot.ts",
+        "line": 57,
+        "detail": "Runtime boot calls startup functions; no request body is passed as a storage path."
+      }
+    ]
+  }
+]

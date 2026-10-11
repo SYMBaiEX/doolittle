@@ -1,0 +1,324 @@
+[
+  {
+    "number": 233,
+    "classification": "hardening",
+    "reason": "Confirmed check-then-path-read structure was replaced by a bounded, no-follow descriptor read. Exploitation required local write access to the app interfaces directory; no new artifact approval or stale community grant bypass was established. Parent-directory substitution and platforms without O_NOFOLLOW remain environmental residual risks, not a claim of remote compromise.",
+    "evidence": [
+      {
+        "path": "apps/desktop/src/main/ui-interface-controller.ts",
+        "line": 237,
+        "detail": "Saved selection uses the opened-file bounded reader; parse failures recover to default UI."
+      },
+      {
+        "path": "apps/desktop/src/main/ui-interface-controller.ts",
+        "line": 243,
+        "detail": "Restoration validates identity and reloads verified artifact; community grants require new consent."
+      },
+      {
+        "path": "apps/desktop/src/main/ui-extensions/host.ts",
+        "line": 472,
+        "detail": "Trusted renderer source independently requires the exact persisted artifact approval."
+      }
+    ],
+    "tests": [
+      "apps/desktop/src/main/ui-interface-controller.test.ts",
+      "apps/desktop/src/main/regular-file.test.ts"
+    ]
+  },
+  {
+    "number": 232,
+    "classification": "hardening",
+    "reason": "Manifest discovery previously checked lstat then reread the mutable pathname. It now validates and bounds the opened descriptor. Local artifact-directory write access was required; discovery still independently verifies the full artifact digest rather than trusting this JSON read as execution authorization.",
+    "evidence": [
+      {
+        "path": "apps/desktop/src/main/ui-interface-controller.ts",
+        "line": 194,
+        "detail": "Manifest discovery performs a bounded no-follow regular-file read."
+      },
+      {
+        "path": "apps/desktop/src/main/ui-interface-controller.ts",
+        "line": 201,
+        "detail": "Discovery loads and verifies the complete artifact identity before listing it."
+      },
+      {
+        "path": "apps/desktop/src/main/regular-file.ts",
+        "line": 25,
+        "detail": "Type, size and change checks use fstat and reads on the same descriptor."
+      }
+    ],
+    "tests": [
+      "apps/desktop/src/main/ui-interface-controller.test.ts",
+      "apps/desktop/src/main/regular-file.test.ts"
+    ]
+  },
+  {
+    "number": 231,
+    "classification": "hardening",
+    "reason": "The original sink already used O_NOFOLLOW, fstat and descriptor reads, so a high-severity race exploit was not demonstrated. Removed the redundant pathname precheck and made reads strictly allocation-bounded with change detection. Asset SHA256 and full identity verification remain in place. Mutable ancestor directories and Windows fallback behavior need platform verification.",
+    "evidence": [
+      {
+        "path": "apps/desktop/src/main/ui-extensions/artifact.ts",
+        "line": 41,
+        "detail": "Artifact regular files delegate to the shared bounded descriptor reader."
+      },
+      {
+        "path": "apps/desktop/src/main/regular-file.ts",
+        "line": 55,
+        "detail": "Open includes O_NOFOLLOW and O_NONBLOCK where available; fstat rejects non-files before bounded reads."
+      },
+      {
+        "path": "apps/desktop/src/main/ui-extensions/artifact.ts",
+        "line": 109,
+        "detail": "Declared asset size and SHA256 bind loaded bytes; the installed artifact identity is checked again."
+      }
+    ],
+    "tests": [
+      "apps/desktop/src/main/ui-extensions/artifact.test.ts",
+      "apps/desktop/src/main/regular-file.test.ts"
+    ]
+  },
+  {
+    "number": 230,
+    "classification": "test-only",
+    "reason": "A migration regression test reads its private temporary rollback fixture after an earlier stat assertion to verify preservation. This is not shipped runtime code and has no external attacker-controlled request. No weakening of test behavior or unnecessary production change was applied.",
+    "evidence": [
+      {
+        "path": "apps/desktop/src/main/bot-knowledge-ledger.test.ts",
+        "line": 137,
+        "detail": "The flagged read compares rollback bytes with the previously captured fixture after a ledger migration."
+      },
+      {
+        "path": "apps/desktop/src/main/bot-knowledge-ledger.test.ts",
+        "line": 22,
+        "detail": "Fixtures use mkdtemp under the operating-system temporary directory and are cleaned after tests."
+      }
+    ]
+  },
+  {
+    "number": 228,
+    "classification": "intentional-local",
+    "reason": "Filesystem existence/canonicalization establishes overlap of host-owned mutation roots, not arbitrary remote file access. Worker payload mutationRoot is ignored: authority.mutationRoot supplies it. Arbitrary native workspace directories are a product capability. Local filesystem mutation during admission remains a concurrency/environment concern.",
+    "evidence": [
+      {
+        "path": "apps/desktop/src/main/execution-admission.ts",
+        "line": 67,
+        "detail": "Existing mutation roots canonicalize for conflict checks; the sink performs metadata inspection only."
+      },
+      {
+        "path": "apps/desktop/src/main/execution-admission.ts",
+        "line": 135,
+        "detail": "Worker claim accepts mutationRoot only from host authority, never from payload."
+      },
+      {
+        "path": "apps/desktop/src/main/index.ts",
+        "line": 826,
+        "detail": "Host authority derives from the current native workspace state."
+      }
+    ]
+  },
+  {
+    "number": 227,
+    "classification": "intentional-local",
+    "reason": "Spawn cwd is the selected runtime launch target repository, supplied by packaged runtime resolution or operator-owned development source configuration. It is not a remote request path; launch uses argv and shell:false. Source-mode execution assumes trust in the operator-selected repository, which is intentionally broader than packaged mode.",
+    "evidence": [
+      {
+        "path": "apps/desktop/src/main/backend.ts",
+        "line": 437,
+        "detail": "Launch target repoRoot is spawn cwd, with shell explicitly disabled."
+      },
+      {
+        "path": "apps/desktop/src/main/backend.ts",
+        "line": 243,
+        "detail": "Packaged target comes from resources/runtime with a fixed runtime entry."
+      },
+      {
+        "path": "apps/desktop/src/main/index.ts",
+        "line": 717,
+        "detail": "Packaged mode does not discover or use an operator-supplied source repository."
+      }
+    ]
+  },
+  {
+    "number": 125,
+    "classification": "hardening",
+    "reason": "Removed the recording stage stat-then-path-read and reopen-for-fsync sequence. Exclusive creation, verification and fsync now retain one descriptor, preserving private staging, byte integrity and rollback semantics. Attack prerequisite was concurrent local mutation of private random-named transient staging storage; no remote exploit was established. Ancestor-directory races and post-close rename replacement are residual filesystem trust assumptions.",
+    "evidence": [
+      {
+        "path": "apps/desktop/src/main/recorded-audio-import.ts",
+        "line": 361,
+        "detail": "Recording bytes are exclusively created, verified and fsynced through one descriptor before publication."
+      },
+      {
+        "path": "apps/desktop/src/main/regular-file.ts",
+        "line": 74,
+        "detail": "The staged writer uses wx+ and reads back the same opened inode."
+      },
+      {
+        "path": "apps/desktop/src/main/recorded-audio-import.ts",
+        "line": 193,
+        "detail": "Transient directories reject symlinks and enforce canonical containment."
+      }
+    ],
+    "tests": [
+      "apps/desktop/src/main/recorded-audio-import.test.ts",
+      "apps/desktop/src/main/regular-file.test.ts"
+    ]
+  },
+  {
+    "number": 124,
+    "classification": "hardening",
+    "reason": "Attachment staged-file integrity and fsync no longer reopen a path after a metadata check; both use the descriptor retained from exclusive creation. This is preventive local race hardening, not a verified remote privilege escalation. Private 0700 storage and random filenames remain required; mutable ancestors and post-close rename races are not fully pinned by portable Node APIs.",
+    "evidence": [
+      {
+        "path": "apps/desktop/src/main/attachment-import.ts",
+        "line": 351,
+        "detail": "The stage uses the shared exclusive descriptor writer instead of reopening temporaryDataPath."
+      },
+      {
+        "path": "apps/desktop/src/main/regular-file.ts",
+        "line": 80,
+        "detail": "fsync applies to the exact descriptor used for write and verification."
+      }
+    ],
+    "tests": [
+      "apps/desktop/src/main/attachment-import.test.ts",
+      "apps/desktop/src/main/regular-file.test.ts"
+    ]
+  },
+  {
+    "number": 123,
+    "classification": "hardening",
+    "reason": "Attachment stage previously statted and read the pathname separately. Readback now validates type/size and compares bytes on its creation descriptor. Digest metadata still binds the imported contents. Exploitation required concurrent local private-stage mutation; parent-directory and later rename races remain explicit residual assumptions.",
+    "evidence": [
+      {
+        "path": "apps/desktop/src/main/attachment-import.ts",
+        "line": 351,
+        "detail": "The flagged path-based copied-byte read is replaced by descriptor verification."
+      },
+      {
+        "path": "apps/desktop/src/main/regular-file.ts",
+        "line": 78,
+        "detail": "Readback compares actual descriptor bytes to the prepared bytes before fsync."
+      },
+      {
+        "path": "apps/desktop/src/main/attachment-import.ts",
+        "line": 261,
+        "detail": "Prepared contents retain SHA256 for descriptor metadata."
+      }
+    ],
+    "tests": [
+      "apps/desktop/src/main/attachment-import.test.ts",
+      "apps/desktop/src/main/regular-file.test.ts"
+    ]
+  },
+  {
+    "number": 122,
+    "classification": "hardening",
+    "reason": "Selected attachment paths are returned by a native file picker. Original descriptor fstat protected type/size but open followed a final-component symlink substituted after canonicalization. Reads now open the canonical target with O_NOFOLLOW/O_NONBLOCK and strict bounded change detection. Intentional selected symlink support is retained by initial canonicalization. Concurrent local ancestor mutation and unsupported-platform fallback remain unverified.",
+    "evidence": [
+      {
+        "path": "apps/desktop/src/main/index.ts",
+        "line": 284,
+        "detail": "Only nativeOpenDialog returned paths are imported after an authority recheck."
+      },
+      {
+        "path": "apps/desktop/src/main/attachment-import.ts",
+        "line": 232,
+        "detail": "User-selected symlinks canonicalize to their actual file while retaining the display name."
+      },
+      {
+        "path": "apps/desktop/src/main/attachment-import.ts",
+        "line": 242,
+        "detail": "Canonical targets use bounded no-follow descriptor reads; no separate pathname stat remains."
+      }
+    ],
+    "tests": [
+      "apps/desktop/src/main/attachment-import.test.ts",
+      "apps/desktop/src/main/regular-file.test.ts"
+    ]
+  },
+  {
+    "number": 18,
+    "classification": "intentional-local",
+    "reason": "Workspace normalization intentionally accepts native/operator-selected directories anywhere the user can access, resolves symlinks and requires an actual directory. There is no request-to-read/write arbitrary protected file attack path at this metadata-only sink. Added bounded no-follow persisted-state reading separately to limit malformed local state effects without restricting valid workspace picks.",
+    "evidence": [
+      {
+        "path": "apps/desktop/src/main/workspace-state.ts",
+        "line": 31,
+        "detail": "Requested workspace canonicalizes before directory metadata validation."
+      },
+      {
+        "path": "apps/desktop/src/main/workspace-state.ts",
+        "line": 118,
+        "detail": "Persisted workspace state now uses bounded descriptor reading before JSON normalization."
+      },
+      {
+        "path": "apps/desktop/src/main/index.ts",
+        "line": 318,
+        "detail": "Workspace switches normalize the selected native directory."
+      }
+    ],
+    "tests": ["apps/desktop/src/main/workspace-state.test.ts"]
+  },
+  {
+    "number": 17,
+    "classification": "intentional-local",
+    "reason": "Development startup migration copies fixed onboarding.json/settings.json filenames from the configured source repository into Electron userData/runtime, and skips existing destination state. Packaged mode supplies no sourceDataDir. No remote-controlled traversal segment is present. A same-user source/destination replacement race remains possible but is outside a demonstrated remote boundary.",
+    "evidence": [
+      {
+        "path": "apps/desktop/src/main/runtime-state.ts",
+        "line": 5,
+        "detail": "Both filenames are compile-time fixed rather than concatenated user segments."
+      },
+      {
+        "path": "apps/desktop/src/main/index.ts",
+        "line": 782,
+        "detail": "Migration receives userData runtime root and development-only source repo .doolittle."
+      },
+      {
+        "path": "apps/desktop/src/main/index.ts",
+        "line": 717,
+        "detail": "Packaged mode sets sourceRepoRoot to null."
+      }
+    ]
+  },
+  {
+    "number": 16,
+    "classification": "intentional-local",
+    "reason": "The existence check inspects only fixed migration filenames under the development source root and private desktop runtime root. The user/environment may choose a development repository deliberately; the code does not treat a remote HTTP or worker-supplied path as this root. Local check/copy races remain possible and are not represented as a verified high-severity exploit.",
+    "evidence": [
+      {
+        "path": "apps/desktop/src/main/runtime-state.ts",
+        "line": 15,
+        "detail": "Source and destination paths use fixed migration filenames."
+      },
+      {
+        "path": "apps/desktop/src/main/index.ts",
+        "line": 746,
+        "detail": "Desktop runtime directory is rooted in Electron userData."
+      },
+      {
+        "path": "apps/desktop/src/main/index.ts",
+        "line": 713,
+        "detail": "Development source roots derive from startup configuration, not renderer request payloads."
+      }
+    ]
+  },
+  {
+    "number": 14,
+    "classification": "intentional-local",
+    "reason": "Repository discovery checks a fixed packages/agent/src/index.ts marker while walking operator-owned development candidate roots. Packaged launch bypasses source discovery. This is deliberate local development tooling, not attacker-controlled arbitrary file content access; selecting an untrusted development repository already grants source execution by design.",
+    "evidence": [
+      {
+        "path": "apps/desktop/src/main/backend.ts",
+        "line": 217,
+        "detail": "Discovery performs an existence check of a compile-time repository marker."
+      },
+      {
+        "path": "apps/desktop/src/main/index.ts",
+        "line": 717,
+        "detail": "Only nonpackaged startup performs development repository discovery."
+      }
+    ]
+  }
+]

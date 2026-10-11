@@ -1,0 +1,843 @@
+[
+  {
+    "number": 173,
+    "classification": "hardening",
+    "reason": "Source-only receipt collection previously checked lstat/realpath then reopened a pathname for hashing. It now pins a no-follow, nonblocking file handle, checks regular-file type and size on that handle, and reads only stat-size-plus-one bytes; growth fails closed. Secret-name exclusions, canonical containment, inventory caps and broad-directory exclusions remain. Residual: O_NOFOLLOW final-link rejection is platform-dependent; mutable ancestor directories, hard links, concurrent same-inode writers and compromise of the local operating user are not comprehensively isolated.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/runtime/native/coding-delegation/evidence.ts",
+        "line": 29,
+        "detail": "Excludes credentials, environment files and out-of-root paths."
+      },
+      {
+        "path": "packages/agent/src/runtime/native/coding-delegation/evidence.ts",
+        "line": 60,
+        "detail": "No-follow file handle is pinned before descriptor stat/read."
+      },
+      {
+        "path": "packages/agent/src/runtime/native/coding-delegation/evidence.ts",
+        "line": 65,
+        "detail": "Checks regular-file size then uses bounded buffer and growth detection."
+      }
+    ],
+    "tests": [
+      "Filesystem integration scope: 15 files, 138 tests passed across bounded-read helper, salt/bootstrap, job store, journal, imports/service/bridge, attachments/media/workspace/dictation routes, evidence/native delegation and settings. Additional lifecycle mock scope: 2 tests passed. Final helper-stability refinement scope: 8 files, 66 tests passed including after-stat shrink, same-size rewrite and leaf-swap refusal. Scoped Biome and git diff --check passed. No full suite, build, native launch, Windows runtime or live CodeQL reanalysis.",
+      "evidence.test.ts covers source changes, credential exclusion, oversize files, final symlink refusal and regular-source recovery."
+    ]
+  },
+  {
+    "number": 172,
+    "classification": "hardening",
+    "reason": "Generated manifest loader previously checked lstat size then read a fresh pathname. The bounded regular-file helper now pins the final file before checking size and reading, and rejects growth; malformed/linked manifests remain unavailable. Residual: O_NOFOLLOW final-link rejection is platform-dependent; mutable ancestor directories, hard links, concurrent same-inode writers and compromise of the local operating user are not comprehensively isolated.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/media/library.ts",
+        "line": 83,
+        "detail": "128 KiB manifest cap is enforced on a pinned regular descriptor."
+      },
+      {
+        "path": "packages/agent/src/utils/read-regular-file.ts",
+        "line": 8,
+        "detail": "Shared helper does no-follow open, descriptor stat, bounded read and finally close."
+      }
+    ],
+    "tests": [
+      "Filesystem integration scope: 15 files, 138 tests passed across bounded-read helper, salt/bootstrap, job store, journal, imports/service/bridge, attachments/media/workspace/dictation routes, evidence/native delegation and settings. Additional lifecycle mock scope: 2 tests passed. Final helper-stability refinement scope: 8 files, 66 tests passed including after-stat shrink, same-size rewrite and leaf-swap refusal. Scoped Biome and git diff --check passed. No full suite, build, native launch, Windows runtime or live CodeQL reanalysis.",
+      "library.test.ts covers generated preview, malformed/linked/external artifacts; helper tests include stat/read entry swap and same-inode growth."
+    ]
+  },
+  {
+    "number": 153,
+    "classification": "hardening",
+    "reason": "Imported SKILL.md is persistent local storage rather than an ambient OS temporary file. Output is now 0600 with 0700 newly created directories and a no-follow regular descriptor verified before truncate/write. Confirmed additional manifest-slug ../ traversal is fixed by rejecting empty/dot/dotdot segments, strict descendant checking and canonical existing-ancestor containment. Nested normal slugs and re-imports remain supported; JSON metadata retains the SDK private atomic writer. Residual: O_NOFOLLOW final-link rejection is platform-dependent; mutable ancestor directories, hard links, concurrent same-inode writers and compromise of the local operating user are not comprehensively isolated.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/skills-hub/manifests/imports.ts",
+        "line": 37,
+        "detail": "Manifest slug traversal segments are rejected."
+      },
+      {
+        "path": "packages/agent/src/services/skills-hub/manifests/imports.ts",
+        "line": 50,
+        "detail": "Strict descendant and canonical existing-ancestor checks restrict output to imports root."
+      },
+      {
+        "path": "packages/agent/src/services/skills-hub/manifests/imports.ts",
+        "line": 71,
+        "detail": "No-follow private regular descriptor is verified before truncate/write."
+      },
+      {
+        "path": "packages/agent/src/services/skills-hub/manifests/imports.ts",
+        "line": 89,
+        "detail": "SDK private atomic JSON persists structured metadata."
+      }
+    ],
+    "tests": [
+      "Filesystem integration scope: 15 files, 138 tests passed across bounded-read helper, salt/bootstrap, job store, journal, imports/service/bridge, attachments/media/workspace/dictation routes, evidence/native delegation and settings. Additional lifecycle mock scope: 2 tests passed. Final helper-stability refinement scope: 8 files, 66 tests passed including after-stat shrink, same-size rewrite and leaf-swap refusal. Scoped Biome and git diff --check passed. No full suite, build, native launch, Windows runtime or live CodeQL reanalysis.",
+      "manifests.test.ts covers five traversal cases, outside linked ancestor, final linked output nonmutation, repair recovery, 0600 mode and shorter re-import."
+    ]
+  },
+  {
+    "number": 145,
+    "classification": "fixed",
+    "reason": "Salt was created with default file permissions and silently regenerated after any read failure. Creation is now exclusive wx at 0600; only ENOENT allows creation. Existing salt is read with a no-follow regular descriptor and bounded 4096-byte same-descriptor read, then made 0600 on that handle. EEXIST reads the incumbent salt without overwriting. Invalid/empty/unreadable salts fail closed instead of rotating encryption material. Operator recovery requires restoring the original salt or the explicit environment override; simultaneous initialization can fail safely if another writer's exclusive new file is not yet complete. Residual: O_NOFOLLOW final-link rejection is platform-dependent; mutable ancestor directories, hard links, concurrent same-inode writers and compromise of the local operating user are not comprehensively isolated.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/runtime/bootstrap/env/secret-salt.ts",
+        "line": 16,
+        "detail": "Explicit environment salt override remains first choice."
+      },
+      {
+        "path": "packages/agent/src/runtime/bootstrap/env/secret-salt.ts",
+        "line": 34,
+        "detail": "Exclusive 0600 create cannot clobber an incumbent salt."
+      },
+      {
+        "path": "packages/agent/src/runtime/bootstrap/env/secret-salt.ts",
+        "line": 46,
+        "detail": "No-follow bounded same-descriptor existing salt read and permission repair."
+      }
+    ],
+    "tests": [
+      "Filesystem integration scope: 15 files, 138 tests passed across bounded-read helper, salt/bootstrap, job store, journal, imports/service/bridge, attachments/media/workspace/dictation routes, evidence/native delegation and settings. Additional lifecycle mock scope: 2 tests passed. Final helper-stability refinement scope: 8 files, 66 tests passed including after-stat shrink, same-size rewrite and leaf-swap refusal. Scoped Biome and git diff --check passed. No full suite, build, native launch, Windows runtime or live CodeQL reanalysis.",
+      "secret-salt.test.ts covers stable private creation, link refusal without target mutation/chmod, empty-salt failure and operator repair recovery; env bootstrap override/reuse tests pass."
+    ]
+  },
+  {
+    "number": 144,
+    "classification": "hardening",
+    "reason": "CLI jobs are persistent artifacts under the operator data root, not predictable ambient temporary files. UUID-generated paths now have 0700 new state directories and exclusive 0600 event-log creation. Existing appends pin a no-follow regular descriptor and set its mode. Prompt/event persistence is intentional job replay behavior; the trusted local jobs index is not a remote path input. Residual: O_NOFOLLOW final-link rejection is platform-dependent; mutable ancestor directories, hard links, concurrent same-inode writers and compromise of the local operating user are not comprehensively isolated.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/cli/jobs/store/index.ts",
+        "line": 23,
+        "detail": "Random UUID identifies fixed state/events.jsonl paths."
+      },
+      {
+        "path": "packages/agent/src/cli/jobs/store/index.ts",
+        "line": 27,
+        "detail": "0700 directory and exclusive 0600 log creation."
+      },
+      {
+        "path": "packages/agent/src/cli/jobs/store/index.ts",
+        "line": 101,
+        "detail": "No-follow regular descriptor append and same-handle fchmod."
+      }
+    ],
+    "tests": [
+      "Filesystem integration scope: 15 files, 138 tests passed across bounded-read helper, salt/bootstrap, job store, journal, imports/service/bridge, attachments/media/workspace/dictation routes, evidence/native delegation and settings. Additional lifecycle mock scope: 2 tests passed. Final helper-stability refinement scope: 8 files, 66 tests passed including after-stat shrink, same-size rewrite and leaf-swap refusal. Scoped Biome and git diff --check passed. No full suite, build, native launch, Windows runtime or live CodeQL reanalysis.",
+      "store.test.ts covers normal persistence/replay, private modes, linked-log rejection without target write, and restored regular-log recovery."
+    ]
+  },
+  {
+    "number": 143,
+    "classification": "hardening",
+    "reason": "Detached child output no longer uses two path-based append opens. One verified no-follow regular append descriptor is shared by stdout/stderr, with same-descriptor mode repair and finally close on success or synchronous spawn/setup failure. This avoids a final-entry substitution between opens and descriptor leaks. The path is a locally generated/persisted job artifact. Residual: O_NOFOLLOW final-link rejection is platform-dependent; mutable ancestor directories, hard links, concurrent same-inode writers and compromise of the local operating user are not comprehensively isolated.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/cli/jobs/lifecycle.ts",
+        "line": 86,
+        "detail": "Generated job record supplies log path."
+      },
+      {
+        "path": "packages/agent/src/cli/jobs/lifecycle.ts",
+        "line": 88,
+        "detail": "Opens a verified private append descriptor."
+      },
+      {
+        "path": "packages/agent/src/cli/jobs/lifecycle.ts",
+        "line": 106,
+        "detail": "Both child output streams share the same descriptor."
+      },
+      {
+        "path": "packages/agent/src/cli/jobs/store/index.ts",
+        "line": 101,
+        "detail": "Regular-file/no-follow append checks and 0600 repair."
+      }
+    ],
+    "tests": [
+      "Filesystem integration scope: 15 files, 138 tests passed across bounded-read helper, salt/bootstrap, job store, journal, imports/service/bridge, attachments/media/workspace/dictation routes, evidence/native delegation and settings. Additional lifecycle mock scope: 2 tests passed. Final helper-stability refinement scope: 8 files, 66 tests passed including after-stat shrink, same-size rewrite and leaf-swap refusal. Scoped Biome and git diff --check passed. No full suite, build, native launch, Windows runtime or live CodeQL reanalysis.",
+      "lifecycle.test.ts mocks spawn to verify normal descriptor sharing/close, synchronous spawn failure close, and subsequent recovery launch; no real detached process/native launch."
+    ]
+  },
+  {
+    "number": 142,
+    "classification": "hardening",
+    "reason": "Detached child output no longer uses two path-based append opens. One verified no-follow regular append descriptor is shared by stdout/stderr, with same-descriptor mode repair and finally close on success or synchronous spawn/setup failure. This avoids a final-entry substitution between opens and descriptor leaks. The path is a locally generated/persisted job artifact. Residual: O_NOFOLLOW final-link rejection is platform-dependent; mutable ancestor directories, hard links, concurrent same-inode writers and compromise of the local operating user are not comprehensively isolated.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/cli/jobs/lifecycle.ts",
+        "line": 86,
+        "detail": "Generated job record supplies log path."
+      },
+      {
+        "path": "packages/agent/src/cli/jobs/lifecycle.ts",
+        "line": 88,
+        "detail": "Opens a verified private append descriptor."
+      },
+      {
+        "path": "packages/agent/src/cli/jobs/lifecycle.ts",
+        "line": 106,
+        "detail": "Both child output streams share the same descriptor."
+      },
+      {
+        "path": "packages/agent/src/cli/jobs/store/index.ts",
+        "line": 101,
+        "detail": "Regular-file/no-follow append checks and 0600 repair."
+      }
+    ],
+    "tests": [
+      "Filesystem integration scope: 15 files, 138 tests passed across bounded-read helper, salt/bootstrap, job store, journal, imports/service/bridge, attachments/media/workspace/dictation routes, evidence/native delegation and settings. Additional lifecycle mock scope: 2 tests passed. Final helper-stability refinement scope: 8 files, 66 tests passed including after-stat shrink, same-size rewrite and leaf-swap refusal. Scoped Biome and git diff --check passed. No full suite, build, native launch, Windows runtime or live CodeQL reanalysis.",
+      "lifecycle.test.ts mocks spawn to verify normal descriptor sharing/close, synchronous spawn failure close, and subsequent recovery launch; no real detached process/native launch."
+    ]
+  },
+  {
+    "number": 134,
+    "classification": "hardening",
+    "reason": "Workspace candidates already use root and sensitive-file visibility policy, but lstat-size then path-read permitted final-entry swaps and unbounded growth. Search now uses bounded no-follow regular-descriptor reads, detects growth and continues skipping unreadable/disappearing files. Existing policy and canonical initial-root checks remain. Residual: O_NOFOLLOW final-link rejection is platform-dependent; mutable ancestor directories, hard links, concurrent same-inode writers and compromise of the local operating user are not comprehensively isolated.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/workspace-service/path.ts",
+        "line": 76,
+        "detail": "Workspace lexical/canonical root and exposure policy remain."
+      },
+      {
+        "path": "packages/agent/src/services/workspace-service/file-operations.ts",
+        "line": 188,
+        "detail": "Search now uses bounded descriptor read instead of stat/path reopen."
+      },
+      {
+        "path": "packages/agent/src/utils/read-regular-file.ts",
+        "line": 8,
+        "detail": "No-follow final file open and pinned bounded read."
+      }
+    ],
+    "tests": [
+      "Filesystem integration scope: 15 files, 138 tests passed across bounded-read helper, salt/bootstrap, job store, journal, imports/service/bridge, attachments/media/workspace/dictation routes, evidence/native delegation and settings. Additional lifecycle mock scope: 2 tests passed. Final helper-stability refinement scope: 8 files, 66 tests passed including after-stat shrink, same-size rewrite and leaf-swap refusal. Scoped Biome and git diff --check passed. No full suite, build, native launch, Windows runtime or live CodeQL reanalysis.",
+      "workspace-service.test.ts normal search/read/patch and sensitive/link policy; helper tests inject entry swap and growth."
+    ]
+  },
+  {
+    "number": 133,
+    "classification": "hardening",
+    "reason": "Dictation metadata previously used stat-size then pathname read after canonical session containment. Metadata now uses bounded no-follow regular-file same-descriptor read with growth detection. Recording integrity checks and transient materialization/cleanup behavior remain unchanged. Residual: O_NOFOLLOW final-link rejection is platform-dependent; mutable ancestor directories, hard links, concurrent same-inode writers and compromise of the local operating user are not comprehensively isolated.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/transient-dictation.ts",
+        "line": 83,
+        "detail": "Canonical data/dictation-root containment."
+      },
+      {
+        "path": "packages/agent/src/services/transient-dictation.ts",
+        "line": 232,
+        "detail": "Bounded pinned metadata read."
+      },
+      {
+        "path": "packages/agent/src/services/transient-dictation.ts",
+        "line": 248,
+        "detail": "Existing recording size/hash validation remains."
+      }
+    ],
+    "tests": [
+      "Filesystem integration scope: 15 files, 138 tests passed across bounded-read helper, salt/bootstrap, job store, journal, imports/service/bridge, attachments/media/workspace/dictation routes, evidence/native delegation and settings. Additional lifecycle mock scope: 2 tests passed. Final helper-stability refinement scope: 8 files, 66 tests passed including after-stat shrink, same-size rewrite and leaf-swap refusal. Scoped Biome and git diff --check passed. No full suite, build, native launch, Windows runtime or live CodeQL reanalysis.",
+      "media-managed route scope covers transient normal resolution/materialization and integrity/safety failures."
+    ]
+  },
+  {
+    "number": 132,
+    "classification": "intentional-local",
+    "reason": "Settings filename is fixed settings.json under operator config.dataDir. get() mtime stat is a cache freshness key rather than a security check; file replacement already requires control of persistent local configuration. set(path,value) modifies validated setting-object fields, not filesystem paths. SDK private atomic JSON remains the smallest compatible persistence path. Residual trusted-local symlink/ancestor/SDK-temp and concurrent initialization behavior is not claimed eliminated.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/bootstrap/settings/index.ts",
+        "line": 17,
+        "detail": "SettingsService baseDir comes from EnvConfig.dataDir."
+      },
+      {
+        "path": "packages/agent/src/services/settings-service.ts",
+        "line": 24,
+        "detail": "Uses selected local root and fixed settings.json."
+      },
+      {
+        "path": "packages/agent/src/services/settings-service.ts",
+        "line": 33,
+        "detail": "mtime is a read-through cache key, not authorization."
+      },
+      {
+        "path": "packages/agent/src/services/settings-service.ts",
+        "line": 70,
+        "detail": "SDK private atomic JSON settings writer."
+      }
+    ],
+    "tests": [
+      "Filesystem integration scope: 15 files, 138 tests passed across bounded-read helper, salt/bootstrap, job store, journal, imports/service/bridge, attachments/media/workspace/dictation routes, evidence/native delegation and settings. Additional lifecycle mock scope: 2 tests passed. Final helper-stability refinement scope: 8 files, 66 tests passed including after-stat shrink, same-size rewrite and leaf-swap refusal. Scoped Biome and git diff --check passed. No full suite, build, native launch, Windows runtime or live CodeQL reanalysis.",
+      "No settings source change. settings-service.test.ts normal settings changes, reload and unsafe object-path rejection pass in final scope."
+    ]
+  },
+  {
+    "number": 131,
+    "classification": "intentional-local",
+    "reason": "Read/check distinguishes the operator-selected repository .git directory from a worktree gitdir reference. External metadata references are intentional Git worktree behavior; imposing worktree-only containment would break that workflow. This is not an authorization decision or privileged filesystem write. A concurrent local metadata change can affect operation-state observation or cause an error; compromise of trusted .git remains a local Git workflow boundary.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/repository/mutations.ts",
+        "line": 726,
+        "detail": "Fixed .git entry under configured root."
+      },
+      {
+        "path": "packages/agent/src/services/repository/mutations.ts",
+        "line": 729,
+        "detail": "Directory vs reference parsing supports Git worktrees."
+      },
+      {
+        "path": "packages/agent/src/services/repository/mutations.ts",
+        "line": 735,
+        "detail": "Intentional absolute/relative gitdir references are canonicalized."
+      }
+    ],
+    "tests": [
+      "Filesystem integration scope: 15 files, 138 tests passed across bounded-read helper, salt/bootstrap, job store, journal, imports/service/bridge, attachments/media/workspace/dictation routes, evidence/native delegation and settings. Additional lifecycle mock scope: 2 tests passed. Final helper-stability refinement scope: 8 files, 66 tests passed including after-stat shrink, same-size rewrite and leaf-swap refusal. Scoped Biome and git diff --check passed. No full suite, build, native launch, Windows runtime or live CodeQL reanalysis.",
+      "No filesystem source change; repository mutation verification remains with root/local-path owner. Concurrent Git metadata replacement unverified."
+    ]
+  },
+  {
+    "number": 130,
+    "classification": "hardening",
+    "reason": "Managed IDs, canonical storage containment, metadata limits and SHA-256 were present, but sidecar/payload stat-then-path reads could reopen a substituted leaf or grown file. Both now pin no-follow regular descriptors and bound reads with stat-size-plus-one/growth refusal. Payload cap derives from validated metadata, and actual byte count/SHA-256 remain checked. Consumers reopening returned canonical paths still need independent guards. Residual: O_NOFOLLOW final-link rejection is platform-dependent; mutable ancestor directories, hard links, concurrent same-inode writers and compromise of the local operating user are not comprehensively isolated.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/chat-attachments.ts",
+        "line": 205,
+        "detail": "Canonical storage containment remains."
+      },
+      {
+        "path": "packages/agent/src/services/chat-attachments.ts",
+        "line": 252,
+        "detail": "Pinned bounded sidecar read (16 KiB)."
+      },
+      {
+        "path": "packages/agent/src/services/chat-attachments.ts",
+        "line": 268,
+        "detail": "Payload cap is validated expected size on a pinned descriptor."
+      },
+      {
+        "path": "packages/agent/src/services/chat-attachments.ts",
+        "line": 270,
+        "detail": "Actual byte count and SHA-256 checks remain."
+      }
+    ],
+    "tests": [
+      "Filesystem integration scope: 15 files, 138 tests passed across bounded-read helper, salt/bootstrap, job store, journal, imports/service/bridge, attachments/media/workspace/dictation routes, evidence/native delegation and settings. Additional lifecycle mock scope: 2 tests passed. Final helper-stability refinement scope: 8 files, 66 tests passed including after-stat shrink, same-size rewrite and leaf-swap refusal. Scoped Biome and git diff --check passed. No full suite, build, native launch, Windows runtime or live CodeQL reanalysis.",
+      "chat-attachments.test.ts normal media/path/descriptor, invalid IDs/metadata, links/external paths and size/hash failures; shared helper injected swap/growth coverage."
+    ]
+  },
+  {
+    "number": 129,
+    "classification": "hardening",
+    "reason": "Managed IDs, canonical storage containment, metadata limits and SHA-256 were present, but sidecar/payload stat-then-path reads could reopen a substituted leaf or grown file. Both now pin no-follow regular descriptors and bound reads with stat-size-plus-one/growth refusal. Payload cap derives from validated metadata, and actual byte count/SHA-256 remain checked. Consumers reopening returned canonical paths still need independent guards. Residual: O_NOFOLLOW final-link rejection is platform-dependent; mutable ancestor directories, hard links, concurrent same-inode writers and compromise of the local operating user are not comprehensively isolated.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/chat-attachments.ts",
+        "line": 205,
+        "detail": "Canonical storage containment remains."
+      },
+      {
+        "path": "packages/agent/src/services/chat-attachments.ts",
+        "line": 252,
+        "detail": "Pinned bounded sidecar read (16 KiB)."
+      },
+      {
+        "path": "packages/agent/src/services/chat-attachments.ts",
+        "line": 268,
+        "detail": "Payload cap is validated expected size on a pinned descriptor."
+      },
+      {
+        "path": "packages/agent/src/services/chat-attachments.ts",
+        "line": 270,
+        "detail": "Actual byte count and SHA-256 checks remain."
+      }
+    ],
+    "tests": [
+      "Filesystem integration scope: 15 files, 138 tests passed across bounded-read helper, salt/bootstrap, job store, journal, imports/service/bridge, attachments/media/workspace/dictation routes, evidence/native delegation and settings. Additional lifecycle mock scope: 2 tests passed. Final helper-stability refinement scope: 8 files, 66 tests passed including after-stat shrink, same-size rewrite and leaf-swap refusal. Scoped Biome and git diff --check passed. No full suite, build, native launch, Windows runtime or live CodeQL reanalysis.",
+      "chat-attachments.test.ts normal media/path/descriptor, invalid IDs/metadata, links/external paths and size/hash failures; shared helper injected swap/growth coverage."
+    ]
+  },
+  {
+    "number": 128,
+    "classification": "intentional-local",
+    "reason": "SOUL.md is an explicit local instruction source discovered by a bounded upward directory walk. mtime stat keys a text cache, not a security decision, before a read-only prompt load. An editor of that trusted local prompt source can already change its contents. Concurrent edits may briefly produce stale text; read errors return empty context. Upward discovery and local symlink use are intentional product behavior. Root separately owns sanitizer alert #9.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/runtime/soul.ts",
+        "line": 20,
+        "detail": "Bounded upward local SOUL.md discovery."
+      },
+      {
+        "path": "packages/agent/src/runtime/soul.ts",
+        "line": 43,
+        "detail": "mtime cache freshness key."
+      },
+      {
+        "path": "packages/agent/src/runtime/soul.ts",
+        "line": 48,
+        "detail": "Read-only prompt source; catch returns empty context."
+      }
+    ],
+    "tests": [
+      "Filesystem integration scope: 15 files, 138 tests passed across bounded-read helper, salt/bootstrap, job store, journal, imports/service/bridge, attachments/media/workspace/dictation routes, evidence/native delegation and settings. Additional lifecycle mock scope: 2 tests passed. Final helper-stability refinement scope: 8 files, 66 tests passed including after-stat shrink, same-size rewrite and leaf-swap refusal. Scoped Biome and git diff --check passed. No full suite, build, native launch, Windows runtime or live CodeQL reanalysis.",
+      "No filesystem source change; sanitizer regression scope handled by root."
+    ]
+  },
+  {
+    "number": 127,
+    "classification": "fixed",
+    "reason": "Journal creation previously existed-checked then opened with truncating write, so a concurrently created journal could be erased. It now atomically creates with O_CREAT|O_EXCL at 0600 or opens the incumbent append-only/no-follow, validates regular-file type and chmods the same descriptor. All append paths pin regular-file descriptors; durable writes preserve short-write retry and fsync. Structured snapshots continue using SDK JSON persistence. Residual: O_NOFOLLOW final-link rejection is platform-dependent; mutable ancestor directories, hard links, concurrent same-inode writers and compromise of the local operating user are not comprehensively isolated.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/gateway/recording/journal.ts",
+        "line": 24,
+        "detail": "Exclusive creation never truncates an existing file."
+      },
+      {
+        "path": "packages/agent/src/gateway/recording/journal.ts",
+        "line": 32,
+        "detail": "EEXIST selects verified append-only incumbent."
+      },
+      {
+        "path": "packages/agent/src/gateway/recording/journal.ts",
+        "line": 142,
+        "detail": "Same-descriptor regular-file and private-mode append."
+      },
+      {
+        "path": "packages/agent/src/gateway/recording/journal.ts",
+        "line": 115,
+        "detail": "Durable append retains fsync after complete writes."
+      }
+    ],
+    "tests": [
+      "Filesystem integration scope: 15 files, 138 tests passed across bounded-read helper, salt/bootstrap, job store, journal, imports/service/bridge, attachments/media/workspace/dictation routes, evidence/native delegation and settings. Additional lifecycle mock scope: 2 tests passed. Final helper-stability refinement scope: 8 files, 66 tests passed including after-stat shrink, same-size rewrite and leaf-swap refusal. Scoped Biome and git diff --check passed. No full suite, build, native launch, Windows runtime or live CodeQL reanalysis.",
+      "journal.test.ts covers existing entries, link refusal without target chmod/write, recovery, short writes and zero-progress failure."
+    ]
+  },
+  {
+    "number": 126,
+    "classification": "hardening",
+    "reason": "Detached child output no longer uses two path-based append opens. One verified no-follow regular append descriptor is shared by stdout/stderr, with same-descriptor mode repair and finally close on success or synchronous spawn/setup failure. This avoids a final-entry substitution between opens and descriptor leaks. The path is a locally generated/persisted job artifact. Residual: O_NOFOLLOW final-link rejection is platform-dependent; mutable ancestor directories, hard links, concurrent same-inode writers and compromise of the local operating user are not comprehensively isolated.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/cli/jobs/lifecycle.ts",
+        "line": 86,
+        "detail": "Generated job record supplies log path."
+      },
+      {
+        "path": "packages/agent/src/cli/jobs/lifecycle.ts",
+        "line": 88,
+        "detail": "Opens a verified private append descriptor."
+      },
+      {
+        "path": "packages/agent/src/cli/jobs/lifecycle.ts",
+        "line": 106,
+        "detail": "Both child output streams share the same descriptor."
+      },
+      {
+        "path": "packages/agent/src/cli/jobs/store/index.ts",
+        "line": 101,
+        "detail": "Regular-file/no-follow append checks and 0600 repair."
+      }
+    ],
+    "tests": [
+      "Filesystem integration scope: 15 files, 138 tests passed across bounded-read helper, salt/bootstrap, job store, journal, imports/service/bridge, attachments/media/workspace/dictation routes, evidence/native delegation and settings. Additional lifecycle mock scope: 2 tests passed. Final helper-stability refinement scope: 8 files, 66 tests passed including after-stat shrink, same-size rewrite and leaf-swap refusal. Scoped Biome and git diff --check passed. No full suite, build, native launch, Windows runtime or live CodeQL reanalysis.",
+      "lifecycle.test.ts mocks spawn to verify normal descriptor sharing/close, synchronous spawn failure close, and subsequent recovery launch; no real detached process/native launch."
+    ]
+  },
+  {
+    "number": 93,
+    "classification": "intentional-local",
+    "reason": "Settings filename is fixed settings.json under operator config.dataDir. get() mtime stat is a cache freshness key rather than a security check; file replacement already requires control of persistent local configuration. set(path,value) modifies validated setting-object fields, not filesystem paths. SDK private atomic JSON remains the smallest compatible persistence path. Residual trusted-local symlink/ancestor/SDK-temp and concurrent initialization behavior is not claimed eliminated.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/bootstrap/settings/index.ts",
+        "line": 17,
+        "detail": "SettingsService baseDir comes from EnvConfig.dataDir."
+      },
+      {
+        "path": "packages/agent/src/services/settings-service.ts",
+        "line": 24,
+        "detail": "Uses selected local root and fixed settings.json."
+      },
+      {
+        "path": "packages/agent/src/services/settings-service.ts",
+        "line": 33,
+        "detail": "mtime is a read-through cache key, not authorization."
+      },
+      {
+        "path": "packages/agent/src/services/settings-service.ts",
+        "line": 70,
+        "detail": "SDK private atomic JSON settings writer."
+      }
+    ],
+    "tests": [
+      "Filesystem integration scope: 15 files, 138 tests passed across bounded-read helper, salt/bootstrap, job store, journal, imports/service/bridge, attachments/media/workspace/dictation routes, evidence/native delegation and settings. Additional lifecycle mock scope: 2 tests passed. Final helper-stability refinement scope: 8 files, 66 tests passed including after-stat shrink, same-size rewrite and leaf-swap refusal. Scoped Biome and git diff --check passed. No full suite, build, native launch, Windows runtime or live CodeQL reanalysis.",
+      "No settings source change. settings-service.test.ts normal settings changes, reload and unsafe object-path rejection pass in final scope."
+    ]
+  },
+  {
+    "number": 92,
+    "classification": "intentional-local",
+    "reason": "Settings filename is fixed settings.json under operator config.dataDir. get() mtime stat is a cache freshness key rather than a security check; file replacement already requires control of persistent local configuration. set(path,value) modifies validated setting-object fields, not filesystem paths. SDK private atomic JSON remains the smallest compatible persistence path. Residual trusted-local symlink/ancestor/SDK-temp and concurrent initialization behavior is not claimed eliminated.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/bootstrap/settings/index.ts",
+        "line": 17,
+        "detail": "SettingsService baseDir comes from EnvConfig.dataDir."
+      },
+      {
+        "path": "packages/agent/src/services/settings-service.ts",
+        "line": 24,
+        "detail": "Uses selected local root and fixed settings.json."
+      },
+      {
+        "path": "packages/agent/src/services/settings-service.ts",
+        "line": 33,
+        "detail": "mtime is a read-through cache key, not authorization."
+      },
+      {
+        "path": "packages/agent/src/services/settings-service.ts",
+        "line": 70,
+        "detail": "SDK private atomic JSON settings writer."
+      }
+    ],
+    "tests": [
+      "Filesystem integration scope: 15 files, 138 tests passed across bounded-read helper, salt/bootstrap, job store, journal, imports/service/bridge, attachments/media/workspace/dictation routes, evidence/native delegation and settings. Additional lifecycle mock scope: 2 tests passed. Final helper-stability refinement scope: 8 files, 66 tests passed including after-stat shrink, same-size rewrite and leaf-swap refusal. Scoped Biome and git diff --check passed. No full suite, build, native launch, Windows runtime or live CodeQL reanalysis.",
+      "No settings source change. settings-service.test.ts normal settings changes, reload and unsafe object-path rejection pass in final scope."
+    ]
+  },
+  {
+    "number": 91,
+    "classification": "intentional-local",
+    "reason": "Settings filename is fixed settings.json under operator config.dataDir. get() mtime stat is a cache freshness key rather than a security check; file replacement already requires control of persistent local configuration. set(path,value) modifies validated setting-object fields, not filesystem paths. SDK private atomic JSON remains the smallest compatible persistence path. Residual trusted-local symlink/ancestor/SDK-temp and concurrent initialization behavior is not claimed eliminated.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/bootstrap/settings/index.ts",
+        "line": 17,
+        "detail": "SettingsService baseDir comes from EnvConfig.dataDir."
+      },
+      {
+        "path": "packages/agent/src/services/settings-service.ts",
+        "line": 24,
+        "detail": "Uses selected local root and fixed settings.json."
+      },
+      {
+        "path": "packages/agent/src/services/settings-service.ts",
+        "line": 33,
+        "detail": "mtime is a read-through cache key, not authorization."
+      },
+      {
+        "path": "packages/agent/src/services/settings-service.ts",
+        "line": 70,
+        "detail": "SDK private atomic JSON settings writer."
+      }
+    ],
+    "tests": [
+      "Filesystem integration scope: 15 files, 138 tests passed across bounded-read helper, salt/bootstrap, job store, journal, imports/service/bridge, attachments/media/workspace/dictation routes, evidence/native delegation and settings. Additional lifecycle mock scope: 2 tests passed. Final helper-stability refinement scope: 8 files, 66 tests passed including after-stat shrink, same-size rewrite and leaf-swap refusal. Scoped Biome and git diff --check passed. No full suite, build, native launch, Windows runtime or live CodeQL reanalysis.",
+      "No settings source change. settings-service.test.ts normal settings changes, reload and unsafe object-path rejection pass in final scope."
+    ]
+  },
+  {
+    "number": 90,
+    "classification": "intentional-local",
+    "reason": "Settings filename is fixed settings.json under operator config.dataDir. get() mtime stat is a cache freshness key rather than a security check; file replacement already requires control of persistent local configuration. set(path,value) modifies validated setting-object fields, not filesystem paths. SDK private atomic JSON remains the smallest compatible persistence path. Residual trusted-local symlink/ancestor/SDK-temp and concurrent initialization behavior is not claimed eliminated.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/bootstrap/settings/index.ts",
+        "line": 17,
+        "detail": "SettingsService baseDir comes from EnvConfig.dataDir."
+      },
+      {
+        "path": "packages/agent/src/services/settings-service.ts",
+        "line": 24,
+        "detail": "Uses selected local root and fixed settings.json."
+      },
+      {
+        "path": "packages/agent/src/services/settings-service.ts",
+        "line": 33,
+        "detail": "mtime is a read-through cache key, not authorization."
+      },
+      {
+        "path": "packages/agent/src/services/settings-service.ts",
+        "line": 70,
+        "detail": "SDK private atomic JSON settings writer."
+      }
+    ],
+    "tests": [
+      "Filesystem integration scope: 15 files, 138 tests passed across bounded-read helper, salt/bootstrap, job store, journal, imports/service/bridge, attachments/media/workspace/dictation routes, evidence/native delegation and settings. Additional lifecycle mock scope: 2 tests passed. Final helper-stability refinement scope: 8 files, 66 tests passed including after-stat shrink, same-size rewrite and leaf-swap refusal. Scoped Biome and git diff --check passed. No full suite, build, native launch, Windows runtime or live CodeQL reanalysis.",
+      "No settings source change. settings-service.test.ts normal settings changes, reload and unsafe object-path rejection pass in final scope."
+    ]
+  },
+  {
+    "number": 89,
+    "classification": "intentional-local",
+    "reason": "Settings filename is fixed settings.json under operator config.dataDir. get() mtime stat is a cache freshness key rather than a security check; file replacement already requires control of persistent local configuration. set(path,value) modifies validated setting-object fields, not filesystem paths. SDK private atomic JSON remains the smallest compatible persistence path. Residual trusted-local symlink/ancestor/SDK-temp and concurrent initialization behavior is not claimed eliminated.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/services/bootstrap/settings/index.ts",
+        "line": 17,
+        "detail": "SettingsService baseDir comes from EnvConfig.dataDir."
+      },
+      {
+        "path": "packages/agent/src/services/settings-service.ts",
+        "line": 24,
+        "detail": "Uses selected local root and fixed settings.json."
+      },
+      {
+        "path": "packages/agent/src/services/settings-service.ts",
+        "line": 33,
+        "detail": "mtime is a read-through cache key, not authorization."
+      },
+      {
+        "path": "packages/agent/src/services/settings-service.ts",
+        "line": 70,
+        "detail": "SDK private atomic JSON settings writer."
+      }
+    ],
+    "tests": [
+      "Filesystem integration scope: 15 files, 138 tests passed across bounded-read helper, salt/bootstrap, job store, journal, imports/service/bridge, attachments/media/workspace/dictation routes, evidence/native delegation and settings. Additional lifecycle mock scope: 2 tests passed. Final helper-stability refinement scope: 8 files, 66 tests passed including after-stat shrink, same-size rewrite and leaf-swap refusal. Scoped Biome and git diff --check passed. No full suite, build, native launch, Windows runtime or live CodeQL reanalysis.",
+      "No settings source change. settings-service.test.ts normal settings changes, reload and unsafe object-path rejection pass in final scope."
+    ]
+  },
+  {
+    "number": 46,
+    "classification": "intentional-local",
+    "reason": "Salt location is operator-configured config.dataDir resolved from DOOLITTLE_DATA_DIR, not a remotely supplied path field. The fixed secret-salt suffix remains within that selected root. Environment salt overrides intentionally bypass persistence. Private exclusive creation, no-follow reads and bounded validation now harden this local storage boundary without banning operator-selected roots. Residual: O_NOFOLLOW final-link rejection is platform-dependent; mutable ancestor directories, hard links, concurrent same-inode writers and compromise of the local operating user are not comprehensively isolated.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/config/env/directories.ts",
+        "line": 32,
+        "detail": "Operator environment/configuration chooses the data directory."
+      },
+      {
+        "path": "packages/agent/src/runtime/bootstrap/env/secret-salt.ts",
+        "line": 24,
+        "detail": "Fixed secret-salt filename is joined to operator root."
+      },
+      {
+        "path": "packages/agent/src/runtime/bootstrap/env/secret-salt.ts",
+        "line": 34,
+        "detail": "Private exclusive create with existing-salt nonrotation."
+      }
+    ],
+    "tests": [
+      "Filesystem integration scope: 15 files, 138 tests passed across bounded-read helper, salt/bootstrap, job store, journal, imports/service/bridge, attachments/media/workspace/dictation routes, evidence/native delegation and settings. Additional lifecycle mock scope: 2 tests passed. Final helper-stability refinement scope: 8 files, 66 tests passed including after-stat shrink, same-size rewrite and leaf-swap refusal. Scoped Biome and git diff --check passed. No full suite, build, native launch, Windows runtime or live CodeQL reanalysis."
+    ]
+  },
+  {
+    "number": 45,
+    "classification": "intentional-local",
+    "reason": "Salt location is operator-configured config.dataDir resolved from DOOLITTLE_DATA_DIR, not a remotely supplied path field. The fixed secret-salt suffix remains within that selected root. Environment salt overrides intentionally bypass persistence. Private exclusive creation, no-follow reads and bounded validation now harden this local storage boundary without banning operator-selected roots. Residual: O_NOFOLLOW final-link rejection is platform-dependent; mutable ancestor directories, hard links, concurrent same-inode writers and compromise of the local operating user are not comprehensively isolated.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/config/env/directories.ts",
+        "line": 32,
+        "detail": "Operator environment/configuration chooses the data directory."
+      },
+      {
+        "path": "packages/agent/src/runtime/bootstrap/env/secret-salt.ts",
+        "line": 24,
+        "detail": "Fixed secret-salt filename is joined to operator root."
+      },
+      {
+        "path": "packages/agent/src/runtime/bootstrap/env/secret-salt.ts",
+        "line": 34,
+        "detail": "Private exclusive create with existing-salt nonrotation."
+      }
+    ],
+    "tests": [
+      "Filesystem integration scope: 15 files, 138 tests passed across bounded-read helper, salt/bootstrap, job store, journal, imports/service/bridge, attachments/media/workspace/dictation routes, evidence/native delegation and settings. Additional lifecycle mock scope: 2 tests passed. Final helper-stability refinement scope: 8 files, 66 tests passed including after-stat shrink, same-size rewrite and leaf-swap refusal. Scoped Biome and git diff --check passed. No full suite, build, native launch, Windows runtime or live CodeQL reanalysis."
+    ]
+  },
+  {
+    "number": 44,
+    "classification": "intentional-local",
+    "reason": "Salt location is operator-configured config.dataDir resolved from DOOLITTLE_DATA_DIR, not a remotely supplied path field. The fixed secret-salt suffix remains within that selected root. Environment salt overrides intentionally bypass persistence. Private exclusive creation, no-follow reads and bounded validation now harden this local storage boundary without banning operator-selected roots. Residual: O_NOFOLLOW final-link rejection is platform-dependent; mutable ancestor directories, hard links, concurrent same-inode writers and compromise of the local operating user are not comprehensively isolated.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/config/env/directories.ts",
+        "line": 32,
+        "detail": "Operator environment/configuration chooses the data directory."
+      },
+      {
+        "path": "packages/agent/src/runtime/bootstrap/env/secret-salt.ts",
+        "line": 24,
+        "detail": "Fixed secret-salt filename is joined to operator root."
+      },
+      {
+        "path": "packages/agent/src/runtime/bootstrap/env/secret-salt.ts",
+        "line": 34,
+        "detail": "Private exclusive create with existing-salt nonrotation."
+      }
+    ],
+    "tests": [
+      "Filesystem integration scope: 15 files, 138 tests passed across bounded-read helper, salt/bootstrap, job store, journal, imports/service/bridge, attachments/media/workspace/dictation routes, evidence/native delegation and settings. Additional lifecycle mock scope: 2 tests passed. Final helper-stability refinement scope: 8 files, 66 tests passed including after-stat shrink, same-size rewrite and leaf-swap refusal. Scoped Biome and git diff --check passed. No full suite, build, native launch, Windows runtime or live CodeQL reanalysis."
+    ]
+  },
+  {
+    "number": 32,
+    "classification": "intentional-local",
+    "reason": "Job paths are derived from a random UUID and fixed suffixes under jobsRoot(dataDir); the data root is explicit operator configuration. Arbitrary remote job IDs are lookup keys, not filesystem suffixes at these creation sinks. Private exclusive log creation and owner-only state harden persistence while preserving local CLI replay. Residual: O_NOFOLLOW final-link rejection is platform-dependent; mutable ancestor directories, hard links, concurrent same-inode writers and compromise of the local operating user are not comprehensively isolated.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/cli/jobs/store/index.ts",
+        "line": 23,
+        "detail": "Generated UUID and fixed state/log suffixes."
+      },
+      {
+        "path": "packages/agent/src/cli/jobs/store/index.ts",
+        "line": 27,
+        "detail": "Owner-only newly created state/log."
+      },
+      {
+        "path": "packages/agent/src/config/env/directories.ts",
+        "line": 32,
+        "detail": "Explicit operator data-root selection."
+      }
+    ],
+    "tests": [
+      "Filesystem integration scope: 15 files, 138 tests passed across bounded-read helper, salt/bootstrap, job store, journal, imports/service/bridge, attachments/media/workspace/dictation routes, evidence/native delegation and settings. Additional lifecycle mock scope: 2 tests passed. Final helper-stability refinement scope: 8 files, 66 tests passed including after-stat shrink, same-size rewrite and leaf-swap refusal. Scoped Biome and git diff --check passed. No full suite, build, native launch, Windows runtime or live CodeQL reanalysis."
+    ]
+  },
+  {
+    "number": 31,
+    "classification": "intentional-local",
+    "reason": "Job paths are derived from a random UUID and fixed suffixes under jobsRoot(dataDir); the data root is explicit operator configuration. Arbitrary remote job IDs are lookup keys, not filesystem suffixes at these creation sinks. Private exclusive log creation and owner-only state harden persistence while preserving local CLI replay. Residual: O_NOFOLLOW final-link rejection is platform-dependent; mutable ancestor directories, hard links, concurrent same-inode writers and compromise of the local operating user are not comprehensively isolated.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/cli/jobs/store/index.ts",
+        "line": 23,
+        "detail": "Generated UUID and fixed state/log suffixes."
+      },
+      {
+        "path": "packages/agent/src/cli/jobs/store/index.ts",
+        "line": 27,
+        "detail": "Owner-only newly created state/log."
+      },
+      {
+        "path": "packages/agent/src/config/env/directories.ts",
+        "line": 32,
+        "detail": "Explicit operator data-root selection."
+      }
+    ],
+    "tests": [
+      "Filesystem integration scope: 15 files, 138 tests passed across bounded-read helper, salt/bootstrap, job store, journal, imports/service/bridge, attachments/media/workspace/dictation routes, evidence/native delegation and settings. Additional lifecycle mock scope: 2 tests passed. Final helper-stability refinement scope: 8 files, 66 tests passed including after-stat shrink, same-size rewrite and leaf-swap refusal. Scoped Biome and git diff --check passed. No full suite, build, native launch, Windows runtime or live CodeQL reanalysis."
+    ]
+  },
+  {
+    "number": 30,
+    "classification": "intentional-local",
+    "reason": "CLI index location is explicit operator dataDir plus fixed cli-jobs/jobs.json, not a remote relative path. New jobsRoot directories are 0700 and index writes retain SDK atomic JSON defaults of 0600 files/0700 new parents. Existing broad ancestor permissions are not automatically altered. SDK predictable temp naming relies on a trusted non-hostile parent directory; local multi-process index initialization/update coordination is not claimed fixed.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/cli/jobs/store/index-store.ts",
+        "line": 11,
+        "detail": "Fixed cli-jobs subdirectory under operator root."
+      },
+      {
+        "path": "packages/agent/src/cli/jobs/store/index-store.ts",
+        "line": 20,
+        "detail": "New root is owner-only."
+      },
+      {
+        "path": "packages/agent/src/cli/jobs/store/index-store.ts",
+        "line": 23,
+        "detail": "SDK private atomic initial index write."
+      },
+      {
+        "path": "packages/agent/src/cli/jobs/store/index-store.ts",
+        "line": 41,
+        "detail": "SDK private atomic update write."
+      }
+    ],
+    "tests": [
+      "Filesystem integration scope: 15 files, 138 tests passed across bounded-read helper, salt/bootstrap, job store, journal, imports/service/bridge, attachments/media/workspace/dictation routes, evidence/native delegation and settings. Additional lifecycle mock scope: 2 tests passed. Final helper-stability refinement scope: 8 files, 66 tests passed including after-stat shrink, same-size rewrite and leaf-swap refusal. Scoped Biome and git diff --check passed. No full suite, build, native launch, Windows runtime or live CodeQL reanalysis."
+    ]
+  },
+  {
+    "number": 29,
+    "classification": "intentional-local",
+    "reason": "CLI index location is explicit operator dataDir plus fixed cli-jobs/jobs.json, not a remote relative path. New jobsRoot directories are 0700 and index writes retain SDK atomic JSON defaults of 0600 files/0700 new parents. Existing broad ancestor permissions are not automatically altered. SDK predictable temp naming relies on a trusted non-hostile parent directory; local multi-process index initialization/update coordination is not claimed fixed.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/cli/jobs/store/index-store.ts",
+        "line": 11,
+        "detail": "Fixed cli-jobs subdirectory under operator root."
+      },
+      {
+        "path": "packages/agent/src/cli/jobs/store/index-store.ts",
+        "line": 20,
+        "detail": "New root is owner-only."
+      },
+      {
+        "path": "packages/agent/src/cli/jobs/store/index-store.ts",
+        "line": 23,
+        "detail": "SDK private atomic initial index write."
+      },
+      {
+        "path": "packages/agent/src/cli/jobs/store/index-store.ts",
+        "line": 41,
+        "detail": "SDK private atomic update write."
+      }
+    ],
+    "tests": [
+      "Filesystem integration scope: 15 files, 138 tests passed across bounded-read helper, salt/bootstrap, job store, journal, imports/service/bridge, attachments/media/workspace/dictation routes, evidence/native delegation and settings. Additional lifecycle mock scope: 2 tests passed. Final helper-stability refinement scope: 8 files, 66 tests passed including after-stat shrink, same-size rewrite and leaf-swap refusal. Scoped Biome and git diff --check passed. No full suite, build, native launch, Windows runtime or live CodeQL reanalysis."
+    ]
+  },
+  {
+    "number": 28,
+    "classification": "intentional-local",
+    "reason": "Background job log path is produced by createCliJob and stored only in the local operator jobs index. Caller prompt/session strings are process arguments, not logfile names. The final file open now uses the private no-follow regular descriptor helper; preserving configurable operator data roots is intentional. Residual: O_NOFOLLOW final-link rejection is platform-dependent; mutable ancestor directories, hard links, concurrent same-inode writers and compromise of the local operating user are not comprehensively isolated.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/cli/jobs/lifecycle.ts",
+        "line": 86,
+        "detail": "createCliJob generates fixed log path."
+      },
+      {
+        "path": "packages/agent/src/cli/jobs/lifecycle.ts",
+        "line": 88,
+        "detail": "Verified regular private append descriptor rather than arbitrary path write."
+      },
+      {
+        "path": "packages/agent/src/cli/jobs/store/index.ts",
+        "line": 23,
+        "detail": "UUID job root construction."
+      }
+    ],
+    "tests": [
+      "Filesystem integration scope: 15 files, 138 tests passed across bounded-read helper, salt/bootstrap, job store, journal, imports/service/bridge, attachments/media/workspace/dictation routes, evidence/native delegation and settings. Additional lifecycle mock scope: 2 tests passed. Final helper-stability refinement scope: 8 files, 66 tests passed including after-stat shrink, same-size rewrite and leaf-swap refusal. Scoped Biome and git diff --check passed. No full suite, build, native launch, Windows runtime or live CodeQL reanalysis."
+    ]
+  },
+  {
+    "number": 27,
+    "classification": "intentional-local",
+    "reason": "Background job log path is produced by createCliJob and stored only in the local operator jobs index. Caller prompt/session strings are process arguments, not logfile names. The final file open now uses the private no-follow regular descriptor helper; preserving configurable operator data roots is intentional. Residual: O_NOFOLLOW final-link rejection is platform-dependent; mutable ancestor directories, hard links, concurrent same-inode writers and compromise of the local operating user are not comprehensively isolated.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/cli/jobs/lifecycle.ts",
+        "line": 86,
+        "detail": "createCliJob generates fixed log path."
+      },
+      {
+        "path": "packages/agent/src/cli/jobs/lifecycle.ts",
+        "line": 88,
+        "detail": "Verified regular private append descriptor rather than arbitrary path write."
+      },
+      {
+        "path": "packages/agent/src/cli/jobs/store/index.ts",
+        "line": 23,
+        "detail": "UUID job root construction."
+      }
+    ],
+    "tests": [
+      "Filesystem integration scope: 15 files, 138 tests passed across bounded-read helper, salt/bootstrap, job store, journal, imports/service/bridge, attachments/media/workspace/dictation routes, evidence/native delegation and settings. Additional lifecycle mock scope: 2 tests passed. Final helper-stability refinement scope: 8 files, 66 tests passed including after-stat shrink, same-size rewrite and leaf-swap refusal. Scoped Biome and git diff --check passed. No full suite, build, native launch, Windows runtime or live CodeQL reanalysis."
+    ]
+  }
+]
