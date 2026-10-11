@@ -100,7 +100,7 @@ describe("desktop execution admission", () => {
       }),
     ).rejects.toBeInstanceOf(ExecutionAdmissionLimitError);
     expect(host.request.mock.calls[0]?.[2]).toMatchObject({
-      timeoutMs: 50_000,
+      timeoutMs: 150_000,
     });
   });
 
@@ -129,5 +129,34 @@ describe("desktop execution admission", () => {
       "execution.claim",
       "execution.release",
     ]);
+  });
+
+  it("allows reacquisition to wait through a 120-second host queue", async () => {
+    vi.stubEnv("DOOLITTLE_DESKTOP_RUNTIME", "1");
+    const ids = [
+      "a4af1e7a-2712-4e43-8ca4-4334e5d63870",
+      "85c6b4cb-b80b-4ad1-96c8-97f6e6db0aa3",
+    ];
+    host.request.mockImplementation(async (operation: string) =>
+      operation === "execution.claim"
+        ? { accepted: true, leaseId: ids.shift() }
+        : { released: true },
+    );
+    const lease = await acquireExecutionLease({
+      runId: "parent",
+      sessionId: "s",
+      kind: "foreground",
+    });
+    if (!lease) throw new Error("Parent lease was not acquired.");
+    await lease.yieldFor(async () => undefined, {
+      deadline: Date.now() + 125_000,
+    });
+    const claims = host.request.mock.calls.filter(
+      ([operation]) => operation === "execution.claim",
+    );
+    expect(claims).toHaveLength(2);
+    expect(claims[0]?.[2]).toMatchObject({ timeoutMs: 150_000 });
+    expect(claims[1]?.[2].timeoutMs).toBeGreaterThan(120_000);
+    await lease.release();
   });
 });

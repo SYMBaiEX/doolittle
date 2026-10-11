@@ -7,7 +7,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { DesktopExecutionAdmission } from "./execution-admission";
 
 describe("DesktopExecutionAdmission", () => {
@@ -304,6 +304,39 @@ describe("DesktopExecutionAdmission", () => {
         kind: "foreground",
       }),
     ).toEqual({ accepted: false, reason: "queue_timeout" });
+  });
+
+  it("honors the maximum configured queue wait past the old RPC cutoff", async () => {
+    vi.useFakeTimers();
+    try {
+      const admission = new DesktopExecutionAdmission({
+        maxConcurrent: 1,
+        queueTimeoutMs: 120_000,
+      });
+      const owner = admission.claim({
+        botId: "owner",
+        runId: "owner",
+        sessionId: "s",
+        kind: "foreground",
+      });
+      const waiting = admission.acquire({
+        botId: "waiter",
+        runId: "waiter",
+        sessionId: "s",
+        kind: "foreground",
+      });
+      await vi.advanceTimersByTimeAsync(119_000);
+      expect(admission.snapshot().pending).toBe(1);
+      if (!owner.accepted) throw new Error("Owner was not admitted.");
+      admission.release({
+        botId: "owner",
+        runId: "owner",
+        leaseId: owner.leaseId,
+      });
+      expect((await waiting).accepted).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("rotates pending bots instead of draining one bot first", async () => {

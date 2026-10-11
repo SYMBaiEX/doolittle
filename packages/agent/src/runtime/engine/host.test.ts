@@ -387,6 +387,11 @@ describe("shared engine host", () => {
       ok: true,
       result: undefined,
     });
+    expect(
+      f.ipc.send.mock.calls.filter(
+        ([message]) => message?.event === "bot-exit",
+      ),
+    ).toHaveLength(0);
     await f.host?.stopAll();
   });
 
@@ -465,6 +470,41 @@ describe("shared engine host", () => {
       error: "The named engine could not start.",
     });
     await f.host?.stopAll();
+  });
+
+  it("reports one bot exit after an error on a ready worker", async () => {
+    const onDiagnostic = vi.fn();
+    const f = fixture({ onDiagnostic });
+    f.start("bot-one", 1);
+    f.workers[0]?.emit("message", {
+      protocol: ENGINE_WORKER_PROTOCOL,
+      type: "ready",
+      ready: ready("bot-one"),
+    });
+    await flush();
+    f.workers[0]?.emit("error", new Error("worker crashed"));
+    expect(f.workers[0]?.messages).toContainEqual({
+      protocol: ENGINE_WORKER_PROTOCOL,
+      type: "shutdown",
+    });
+    f.workers[0]?.emit("exit", 1);
+    f.workers[0]?.emit("exit", 1);
+    await flush();
+    expect(onDiagnostic).toHaveBeenCalledWith({
+      botId: "bot-one",
+      code: "worker-error",
+    });
+    expect(
+      f.ipc.send.mock.calls
+        .map(([message]) => message)
+        .filter((message) => message?.event === "bot-exit"),
+    ).toEqual([
+      {
+        protocol: ENGINE_PROTOCOL,
+        event: "bot-exit",
+        botId: "bot-one",
+      },
+    ]);
   });
 
   it("drops delayed old responses and ACKs after an ID is reused with a newer sequence", async () => {

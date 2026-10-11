@@ -8,11 +8,28 @@ import { releaseAbandonedExecutionClaim } from "./execution-receipt";
 class FakeChild extends EventEmitter {
   connected = true;
   sent: Record<string, unknown>[] = [];
+  deferHostSend = false;
+  hostSendReturn = true;
+  hostSendCallback?: (error: Error | null) => void;
+  disconnectOnStartSend = false;
   send(
     value: Record<string, unknown>,
     callback?: (error: Error | null) => void,
   ): boolean {
     this.sent.push(value);
+    if (
+      value.protocol === "doolittle-engine-v1" &&
+      value.operation === "start" &&
+      this.disconnectOnStartSend
+    ) {
+      this.connected = false;
+      callback?.(new Error("fixture disconnect"));
+      return false;
+    }
+    if (value.protocol === "doolittle-engine-host-v1" && this.deferHostSend) {
+      this.hostSendCallback = callback;
+      return this.hostSendReturn;
+    }
     callback?.(null);
     return true;
   }
@@ -42,6 +59,132 @@ const ready = (botId: string) => ({
 });
 
 describe("EngineClient", () => {
+  it("rolls back an accepted grant as soon as the engine reports async send failure", async () => {
+    const child = new FakeChild();
+    child.deferHostSend = true;
+    const client = new EngineClient(child.asChild());
+    const admission = new DesktopExecutionAdmission({ maxConcurrent: 1 });
+    const start = client.startBot(
+      "bot-one",
+      {},
+      "agent-1",
+      async (request, signal) =>
+        admission.handle(
+          "bot-one",
+          request.operation as "execution.claim",
+          request.payload,
+          {},
+          signal,
+        ),
+      () => admission.releaseBot("bot-one"),
+      (request, result) =>
+        releaseAbandonedExecutionClaim(admission, "bot-one", request, result),
+    );
+    child.reply(child.sentAt(0), ready("bot-one"));
+    await start;
+    child.emit("message", {
+      protocol: "doolittle-engine-host-v1",
+      botId: "bot-one",
+      message: {
+        protocol: "doolittle-worker-host-v1",
+        botId: "bot-one",
+        id: "123e4567-e89b-42d3-a456-426614174000",
+        sequence: 1,
+        operation: "execution.claim",
+        payload: { runId: "run", sessionId: "session", kind: "foreground" },
+      },
+    });
+    await new Promise<void>((done) => setTimeout(done, 0));
+    expect(admission.snapshot().active).toBe(1);
+    expect(child.hostSendCallback).toBeDefined();
+    child.hostSendCallback?.(new Error("fixture send failure"));
+    expect(admission.snapshot().active).toBe(0);
+    expect(client.hasBot("bot-one")).toBe(true);
+    client.dispose();
+  });
+
+  it("does not treat IPC backpressure as failed delivery", async () => {
+    const child = new FakeChild();
+    child.deferHostSend = true;
+    child.hostSendReturn = false;
+    const client = new EngineClient(child.asChild());
+    const admission = new DesktopExecutionAdmission({ maxConcurrent: 1 });
+    const start = client.startBot(
+      "bot-one",
+      {},
+      "agent-1",
+      async (request, signal) =>
+        admission.handle(
+          "bot-one",
+          request.operation as "execution.claim",
+          request.payload,
+          {},
+          signal,
+        ),
+      () => admission.releaseBot("bot-one"),
+      (request, result) =>
+        releaseAbandonedExecutionClaim(admission, "bot-one", request, result),
+    );
+    child.reply(child.sentAt(0), ready("bot-one"));
+    await start;
+    child.emit("message", {
+      protocol: "doolittle-engine-host-v1",
+      botId: "bot-one",
+      message: {
+        protocol: "doolittle-worker-host-v1",
+        botId: "bot-one",
+        id: "123e4567-e89b-42d3-a456-426614174000",
+        sequence: 1,
+        operation: "execution.claim",
+        payload: { runId: "run", sessionId: "session", kind: "foreground" },
+      },
+    });
+    await new Promise<void>((done) => setTimeout(done, 0));
+    expect(admission.snapshot().active).toBe(1);
+    child.hostSendCallback?.(null);
+    expect(admission.snapshot().active).toBe(1);
+    client.dispose();
+    expect(admission.snapshot().active).toBe(0);
+  });
+
+  it("rejects a start on a disconnected client before installing a host binding", async () => {
+    const child = new FakeChild();
+    child.connected = false;
+    const client = new EngineClient(child.asChild());
+    let notifications = 0;
+    await expect(
+      client.startBot(
+        "bot-one",
+        {},
+        "agent-1",
+        async () => true,
+        () => notifications++,
+      ),
+    ).rejects.toThrow("unavailable");
+    expect(client.hasBot("bot-one")).toBe(false);
+    expect(child.sent).toHaveLength(0);
+    expect(notifications).toBe(0);
+  });
+
+  it("detaches the host if IPC disconnects during the start send", async () => {
+    const child = new FakeChild();
+    child.disconnectOnStartSend = true;
+    const client = new EngineClient(child.asChild());
+    let notifications = 0;
+    await expect(
+      client.startBot(
+        "bot-one",
+        {},
+        "agent-1",
+        async () => true,
+        () => notifications++,
+      ),
+    ).rejects.toThrow("unavailable");
+    expect(client.hasBot("bot-one")).toBe(false);
+    expect(notifications).toBe(1);
+    client.dispose();
+    expect(notifications).toBe(1);
+  });
   it("rolls back a named execution grant canceled before receipt acknowledgement", async () => {
     const child = new FakeChild();
     const client = new EngineClient(child.asChild());

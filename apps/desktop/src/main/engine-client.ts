@@ -71,15 +71,20 @@ class VirtualWorkerChild extends EventEmitter {
     super();
   }
 
-  send(message: unknown): boolean {
-    if (!this.connected || !this.engine.connected) return false;
+  send(message: unknown, callback?: (error: Error | null) => void): boolean {
+    if (!this.connected || !this.engine.connected) {
+      callback?.(new Error("The shared Doolittle engine is unavailable."));
+      return false;
+    }
     try {
-      return this.engine.send({
-        protocol: HOST_PROTOCOL,
-        botId: this.botId,
-        message,
-      });
+      // `false` means backpressure, not failed delivery. The callback is the
+      // authoritative send result for immediate receipt rollback.
+      return this.engine.send(
+        { protocol: HOST_PROTOCOL, botId: this.botId, message },
+        callback,
+      );
     } catch {
+      callback?.(new Error("The shared Doolittle engine is unavailable."));
       return false;
     }
   }
@@ -115,6 +120,8 @@ export class EngineClient {
     onDisconnect: () => void,
     onAbandonedResult?: WorkerHostRpcOptions["onAbandonedResult"],
   ): Promise<EngineReady> {
+    if (this.disconnected || !this.child.connected)
+      throw new Error("The shared Doolittle engine is unavailable.");
     if (!BOT_ID.test(botId) || !expectedAgentId || this.hosts.has(botId))
       throw new Error("Named bot engine request is invalid.");
     const virtualChild = new VirtualWorkerChild(this.child, botId);
@@ -134,13 +141,19 @@ export class EngineClient {
         expectedAgentId,
       )) as EngineReady;
     } catch (error) {
-      if (this.hosts.get(botId) === binding && !this.disconnected) {
-        try {
-          await this.stopBot(botId);
-        } catch {
-          throw new Error(
-            "Named bot startup failed and its worker stop was not confirmed.",
-          );
+      if (this.hosts.get(botId) === binding) {
+        if (this.disconnected || !this.child.connected) {
+          this.releaseHost(botId, true);
+        } else {
+          try {
+            await this.stopBot(botId);
+          } catch {
+            if (this.disconnected || !this.child.connected)
+              this.releaseHost(botId, true);
+            throw new Error(
+              "Named bot startup failed and its worker stop was not confirmed.",
+            );
+          }
         }
       }
       throw error;

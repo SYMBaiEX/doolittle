@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { RoomHandlerQueue } from "@elizaos/core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AppContext } from "@/runtime/bootstrap";
+import { ExecutionAdmissionLimitError } from "@/runtime/execution-admission";
 import type { RunSnapshot } from "@/services/run-controller-service";
 import { RunControllerService } from "@/services/run-controller-service";
 import { SessionService } from "@/services/session/service";
@@ -75,6 +76,58 @@ afterEach(() => {
 });
 
 describe("handleChatRoute turn lifecycle", () => {
+  it.each([
+    "total_limit",
+    "automatic_acp_limit",
+    "bot_limit",
+    "mutation_conflict",
+    "run_exists",
+    "queue_full",
+    "queue_timeout",
+    "bot_stopped",
+  ] as const)("returns a public capacity response for %s", async (reason) => {
+    const context = createContext();
+    const failure = new ExecutionAdmissionLimitError(reason);
+    acquireExecutionLease.mockRejectedValue(failure);
+
+    const response = await handleChatRoute(
+      context,
+      chatRequest({
+        message: "Wait for capacity.",
+        runId: `capacity-${reason}`,
+        roomId: `room-${reason}`,
+      }),
+    );
+
+    expect(response.status).toBe(429);
+    await expect(response.json()).resolves.toEqual({
+      error: failure.message,
+      code: reason,
+    });
+    expect(executeAgentTurnWithProgress).not.toHaveBeenCalled();
+  });
+
+  it("does not expose internal admission failure diagnostics", async () => {
+    const context = createContext();
+    acquireExecutionLease.mockRejectedValue(
+      new Error("private diagnostic fixture"),
+    );
+    const response = await handleChatRoute(
+      context,
+      chatRequest({
+        message: "Wait for capacity.",
+        runId: "capacity-internal-error",
+        roomId: "room-internal-error",
+      }),
+    );
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toEqual({
+      error: "The response could not be completed. Please try again.",
+      code: "turn_failed",
+    });
+    expect(executeAgentTurnWithProgress).not.toHaveBeenCalled();
+  });
+
   it("accepts a durable queued run promptly and cancels it before execution", async () => {
     const context = createContext();
     acquireExecutionLease.mockImplementation(

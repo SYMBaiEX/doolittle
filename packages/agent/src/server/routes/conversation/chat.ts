@@ -666,5 +666,28 @@ export async function handleChatRoute(
   if (terminal.type === "response.cancelled") {
     return json({ error: "run cancelled", code: "run_cancelled" }, 409);
   }
+  const failureCode =
+    terminal.data !== null && typeof terminal.data === "object"
+      ? (terminal.data as { code?: unknown }).code
+      : undefined;
+  switch (failureCode) {
+    case "total_limit":
+    case "automatic_acp_limit":
+    case "bot_limit":
+    case "mutation_conflict":
+    case "run_exists":
+    case "queue_full":
+    case "queue_timeout":
+    case "bot_stopped":
+      // Only admission reasons are public. Do not forward arbitrary provider
+      // error codes or stored event messages into this capacity response.
+      return json(
+        {
+          error: new ExecutionAdmissionLimitError(failureCode).message,
+          code: failureCode,
+        },
+        429,
+      );
+  }
   return json({ error: TURN_FAILURE_MESSAGE, code: "turn_failed" }, 500);
 }

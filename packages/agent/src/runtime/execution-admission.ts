@@ -61,6 +61,8 @@ export class ExecutionAdmissionLimitError extends Error {
 const RUN_ID = /^[A-Za-z0-9:_-]{1,128}$/u;
 const LEASE_ID =
   /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+// Host admission permits up to 120s of queueing; leave delivery/cancel margin.
+const EXECUTION_CLAIM_RPC_TIMEOUT_MS = 150_000;
 
 /** In desktop mode the host owns capacity. A missing IPC channel is failure, not fallback. */
 export async function acquireExecutionLease(input: {
@@ -73,7 +75,10 @@ export async function acquireExecutionLease(input: {
   if (!RUN_ID.test(input.runId)) {
     throw new Error("Execution run identity is invalid.");
   }
-  const claim = (signal = input.signal, timeoutMs = 50_000) =>
+  const claim = (
+    signal = input.signal,
+    timeoutMs = EXECUTION_CLAIM_RPC_TIMEOUT_MS,
+  ) =>
     requestWorkerHost(
       "execution.claim",
       { runId: input.runId, sessionId: input.sessionId, kind: input.kind },
@@ -126,7 +131,10 @@ export async function acquireExecutionLease(input: {
           );
         }
         leaseId = parseAdmissionDecision(
-          await claim(options.signal, Math.min(50_000, remainingMs)),
+          await claim(
+            options.signal,
+            Math.min(EXECUTION_CLAIM_RPC_TIMEOUT_MS, remainingMs),
+          ),
         );
         options.signal?.throwIfAborted();
       } catch (error) {

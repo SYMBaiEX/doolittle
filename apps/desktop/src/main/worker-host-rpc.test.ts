@@ -141,4 +141,39 @@ describe("worker-host grant receipts", () => {
     expect(rollback).toHaveBeenCalledOnce();
     detach();
   });
+
+  it("does not start the receipt deadline while a long claim is queued", async () => {
+    vi.useFakeTimers();
+    try {
+      const worker = child();
+      let grant: (result: unknown) => void = () => undefined;
+      const rollback = vi.fn();
+      const detach = attachWorkerHostRpc(
+        worker,
+        botId,
+        () =>
+          new Promise<unknown>((resolve) => {
+            grant = resolve;
+          }),
+        { onAbandonedResult: rollback },
+      );
+      worker.request();
+      await vi.advanceTimersByTimeAsync(125_000);
+      expect(worker.sent).toEqual([]);
+      expect(rollback).not.toHaveBeenCalled();
+      grant({ accepted: true, leaseId: id });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(worker.sent).toContainEqual(
+        expect.objectContaining({
+          ok: true,
+          sequence: 1,
+        }),
+      );
+      worker.ack();
+      expect(rollback).not.toHaveBeenCalled();
+      detach();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

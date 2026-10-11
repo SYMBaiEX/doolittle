@@ -38,6 +38,8 @@ interface Resident {
   close: () => void;
   startupTimer?: ReturnType<typeof setTimeout>;
   stopping: boolean;
+  requestedStop: boolean;
+  exited: boolean;
   stopPromise?: Promise<void>;
   lastSequence: number;
   pendingHostRequests: Map<string, PendingHostRequest>;
@@ -273,9 +275,11 @@ export function installSharedEngineHost(
           void stop(resident).catch(() => {});
         });
         worker.on("exit", () => {
+          if (resident.exited) return;
+          resident.exited = true;
           if (!resident.stopping && !resident.diagnosticCode)
             diagnose(resident, "worker-exit");
-          if (!resident.stopping && !disconnected) {
+          if (!resident.requestedStop && !disconnected) {
             send({
               protocol: ENGINE_PROTOCOL,
               event: "bot-exit",
@@ -304,7 +308,11 @@ export function installSharedEngineHost(
     }
   };
 
-  const stop = async (resident: Resident): Promise<void> => {
+  const stop = async (
+    resident: Resident,
+    requestedStop = false,
+  ): Promise<void> => {
+    if (requestedStop) resident.requestedStop = true;
     if (resident.stopping) return resident.stopPromise ?? resident.closed;
     resident.stopping = true;
     rejectStartup(resident);
@@ -345,7 +353,7 @@ export function installSharedEngineHost(
 
   const stopAll = async (): Promise<void> => {
     const outcomes = await Promise.allSettled(
-      [...residents.values()].map((resident) => stop(resident)),
+      [...residents.values()].map((resident) => stop(resident, true)),
     );
     if (outcomes.some((outcome) => outcome.status === "rejected")) {
       throw new Error(STATIC_ERRORS.unavailable);
@@ -386,6 +394,8 @@ export function installSharedEngineHost(
       closed,
       close,
       stopping: false,
+      requestedStop: false,
+      exited: false,
       lastSequence: 0,
       pendingHostRequests: new Map(),
     };
@@ -450,7 +460,7 @@ export function installSharedEngineHost(
       if (value.operation === "start") return start(value);
       const resident = residents.get(value.botId);
       if (value.operation === "stop-all") await stopAll();
-      else if (resident) await stop(resident);
+      else if (resident) await stop(resident, true);
       return undefined;
     })().then(
       (result) => send({ protocol: ENGINE_PROTOCOL, id, ok: true, result }),
