@@ -73,6 +73,9 @@ patchedDependencies:
   '@elizaos/plugin-codex-cli@2.0.3-beta.7':
     hash: 1d187815659907fc5e4c73991fc0ab955d29764ab473ad82d0e300368473b7fb
     path: patches/@elizaos+plugin-codex-cli@2.0.3-beta.7.patch
+  '@elizaos/plugin-sql@2.0.3-beta.7':
+    hash: 94c6a4545006a5fe230360285bafd6a2c649a0a2f425563a92141974667e673f
+    path: patches/@elizaos+plugin-sql@2.0.3-beta.7.patch
   bigint-buffer@1.1.5:
     hash: f62cf6c7f469a7e8277d7cbad4a7e1d898a304bffb6c2650b693a5829aeda90c
     path: patches/bigint-buffer+1.1.5.patch
@@ -188,7 +191,7 @@ importers:
         version: 2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@elizaos/core@2.0.3-beta.7)(@types/express@5.0.6)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       '@elizaos/plugin-sql':
         specifier: 2.0.3-beta.7
-        version: 2.0.3-beta.7(@elizaos/core@2.0.3-beta.7)(@upstash/redis@1.39.0)(react@19.3.0)
+        version: 2.0.3-beta.7(patch_hash=94c6a4545006a5fe230360285bafd6a2c649a0a2f425563a92141974667e673f)(@elizaos/core@2.0.3-beta.7)(@upstash/redis@1.39.0)(react@19.3.0)
       '@elizaos/plugin-telegram':
         specifier: 2.0.3-beta.7
         version: 2.0.3-beta.7(@babel/runtime@7.29.10)(@electric-sql/pglite@0.5.8)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
@@ -548,7 +551,7 @@ importers:
         version: 2.0.3-beta.7(patch_hash=7242104d352567e5494819604c53ef11b12ecb35e0aec410c0af09c4bc5b7864)(@electric-sql/pglite@0.5.8)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       '@elizaos/plugin-sql':
         specifier: 2.0.3-beta.7
-        version: 2.0.3-beta.7(@elizaos/core@2.0.3-beta.7)(@upstash/redis@1.39.0)(react@19.3.0)
+        version: 2.0.3-beta.7(patch_hash=94c6a4545006a5fe230360285bafd6a2c649a0a2f425563a92141974667e673f)(@elizaos/core@2.0.3-beta.7)(@upstash/redis@1.39.0)(react@19.3.0)
 
   packages/plugins/provider-transport:
     dependencies:
@@ -15366,7 +15369,7 @@ snapshots:
       '@elizaos/plugin-shell': 2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       '@elizaos/plugin-signal': 2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@elizaos/core@2.0.3-beta.7)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       '@elizaos/plugin-simple-views': 2.0.3-beta.7(@babel/core@7.29.7)(@babel/runtime@7.29.10)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.5.8)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@solana/sysvars@2.3.0(typescript@7.0.2))(@upstash/redis@1.39.0)(@walletconnect/types@2.19.1)(bs58@6.0.0)(bufferutil@4.1.0)(fastestsmallesttextencoderdecoder@1.0.22)(jsdom@29.1.1)(pg@8.23.1)(react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react-is@18.3.1)(react-native@0.87.1(react@19.3.0))(tslib@2.8.1)(typescript@7.0.2)(undici@8.10.2)(utf-8-validate@5.0.10)(vitest@5.0.3(@types/node@26.6.5)(vite@8.3.4(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(ws@8.22.0)(zod@4.6.5)
-      '@elizaos/plugin-sql': 2.0.3-beta.7(@elizaos/core@2.0.3-beta.7)(@upstash/redis@1.39.0)(react@19.3.0)
+      '@elizaos/plugin-sql': 2.0.3-beta.7(patch_hash=94c6a4545006a5fe230360285bafd6a2c649a0a2f425563a92141974667e673f)(@elizaos/core@2.0.3-beta.7)(@upstash/redis@1.39.0)(react@19.3.0)
       '@elizaos/plugin-streaming': 2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       '@elizaos/plugin-task-coordinator': 2.0.3-beta.7(@babel/core@7.29.7)(@babel/runtime@7.29.10)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.5.8)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@solana/sysvars@2.3.0(typescript@7.0.2))(@upstash/redis@1.39.0)(@walletconnect/types@2.19.1)(bs58@6.0.0)(bufferutil@4.1.0)(fastestsmallesttextencoderdecoder@1.0.22)(jsdom@29.1.1)(pg@8.23.1)(react-is@18.3.1)(react-native@0.87.1(react@19.3.0))(tslib@2.8.1)(typescript@7.0.2)(undici@8.10.2)(utf-8-validate@5.0.10)(vitest@5.0.3(@types/node@26.6.5)(vite@8.3.4(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(ws@8.22.0)(zod@4.6.5)
       '@elizaos/plugin-video': 2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@upstash/redis@1.39.0)(debug@4.4.3)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
@@ -15554,7 +15557,7 @@ snapshots:
       '@elizaos/plugin-local-inference': 2.0.3-beta.7(@babel/runtime@7.29.10)(@electric-sql/pglite@0.5.8)(@elizaos/core@2.0.3-beta.7)(@elizaos/shared@2.0.3-beta.7)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(zod@4.6.5)
       '@elizaos/plugin-openai': 2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@elizaos/core@2.0.3-beta.7)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)(zod@4.6.5)
       '@elizaos/plugin-registry': 2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
-      '@elizaos/plugin-sql': 2.0.3-beta.7(@elizaos/core@2.0.3-beta.7)(@upstash/redis@1.39.0)(react@19.3.0)
+      '@elizaos/plugin-sql': 2.0.3-beta.7(patch_hash=94c6a4545006a5fe230360285bafd6a2c649a0a2f425563a92141974667e673f)(@elizaos/core@2.0.3-beta.7)(@upstash/redis@1.39.0)(react@19.3.0)
       '@elizaos/plugin-wechat': 2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@elizaos/core@2.0.3-beta.7)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       '@elizaos/plugin-workflow': 2.0.3-beta.7(40cfd2fd85526dd548a8b5ee9dc1059f)
       '@elizaos/registry': 2.0.3-beta.7
@@ -17144,7 +17147,7 @@ snapshots:
       - supports-color
       - utf-8-validate
 
-  '@elizaos/plugin-sql@2.0.3-beta.7(@elizaos/core@2.0.3-beta.7)(@upstash/redis@1.39.0)(react@19.3.0)':
+  '@elizaos/plugin-sql@2.0.3-beta.7(patch_hash=94c6a4545006a5fe230360285bafd6a2c649a0a2f425563a92141974667e673f)(@elizaos/core@2.0.3-beta.7)(@upstash/redis@1.39.0)(react@19.3.0)':
     dependencies:
       '@electric-sql/pglite': 0.4.6(ws@8.22.0)
       '@electric-sql/pglite-sync': 0.5.6(@electric-sql/pglite@0.4.6(ws@8.22.0))
