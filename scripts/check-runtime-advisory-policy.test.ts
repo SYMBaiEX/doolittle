@@ -65,12 +65,60 @@ describe("runtime advisory policy coverage", () => {
             url: "https://github.com/advisories/GHSA-v5mp-jgw5-2x6j",
             vulnerable_versions: "<4.1.2",
           },
-          low: {
-            severity: "low",
-            url: "https://github.com/advisories/GHSA-not-reviewed-low",
-          },
         },
       }),
+    ).not.toThrow();
+  });
+
+  it.each(["low", "moderate", "high", "critical"])(
+    "does not silently ignore an unreviewed %s advisory",
+    (severity) => {
+      expect(() =>
+        assertRuntimeAdvisoryPolicyCoverage({
+          advisories: {
+            unknown: {
+              severity,
+              url: "https://github.com/advisories/GHSA-new1-low1-new2",
+            },
+          },
+        }),
+      ).toThrow("GHSA-NEW1-LOW1-NEW2");
+    },
+  );
+
+  it("checks the exact range and severity of patched lower-severity findings", () => {
+    const known = {
+      severity: "moderate",
+      url: "https://github.com/advisories/GHSA-vcc3-ghjq-m6fr",
+      vulnerable_versions: "<=0.4.2",
+    };
+    expect(() =>
+      assertRuntimeAdvisoryPolicyCoverage({ advisories: { known } }),
+    ).not.toThrow();
+    expect(() =>
+      assertRuntimeAdvisoryPolicyCoverage({
+        advisories: { known: { ...known, severity: "critical" } },
+      }),
+    ).toThrow("changed severity");
+    expect(() =>
+      assertRuntimeAdvisoryPolicyCoverage({
+        advisories: { known: { ...known, vulnerable_versions: "<=0.5.0" } },
+      }),
+    ).toThrow("changed range");
+  });
+
+  it("does not turn an audit error or missing inventory into an all-clear", () => {
+    expect(() => assertRuntimeAdvisoryPolicyCoverage({})).toThrow(
+      "valid advisory inventory",
+    );
+    expect(() =>
+      assertRuntimeAdvisoryPolicyCoverage({
+        advisories: {},
+        error: { code: "OFFLINE" },
+      }),
+    ).toThrow("valid advisory inventory");
+    expect(() =>
+      assertRuntimeAdvisoryPolicyCoverage({ advisories: {} }),
     ).not.toThrow();
   });
 

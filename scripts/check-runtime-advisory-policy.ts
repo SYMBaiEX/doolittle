@@ -8,6 +8,7 @@ type AuditAdvisory = {
 
 type AuditReport = {
   advisories?: Record<string, AuditAdvisory>;
+  error?: unknown;
 };
 
 /**
@@ -47,29 +48,68 @@ export const REVIEWED_RUNTIME_HIGH_ADVISORIES = new Map([
   ["GHSA-X8MW-P69M-V3MX", ">=1.0.0 <3.2.1"],
 ]);
 
+/** All current lower-severity residuals have tested, version-preserving patches.
+ * New advisories at any severity still require review; this is not an audit waiver.
+ */
+export const REVIEWED_RUNTIME_ADVISORIES = new Map([
+  ...REVIEWED_RUNTIME_HIGH_ADVISORIES,
+  ["GHSA-VCC3-GHJQ-M6FR", "<=0.4.2"],
+  ["GHSA-848J-6MX2-7J84", "<=6.6.1"],
+  ["GHSA-5V7R-6R5C-R473", ">=13.0.0 <21.3.1"],
+  ["GHSA-HP3W-G68C-FV3C", "<=1.1.3"],
+  ["GHSA-W5HQ-G745-H8PQ", "<11.1.1"],
+]);
+
+const REVIEWED_SEVERITIES = new Map([
+  ...[...REVIEWED_RUNTIME_HIGH_ADVISORIES.keys()].map(
+    (id) => [id, "high"] as const,
+  ),
+  ["GHSA-VCC3-GHJQ-M6FR", "moderate"],
+  ["GHSA-848J-6MX2-7J84", "low"],
+  ["GHSA-5V7R-6R5C-R473", "moderate"],
+  ["GHSA-HP3W-G68C-FV3C", "moderate"],
+  ["GHSA-W5HQ-G745-H8PQ", "moderate"],
+]);
+
 function advisoryId(url: string): string | undefined {
   return url.match(/\/advisories\/(GHSA-[0-9a-z-]+)$/iu)?.[1]?.toUpperCase();
 }
 
 export function assertRuntimeAdvisoryPolicyCoverage(report: AuditReport): void {
+  if (
+    report.error ||
+    !report.advisories ||
+    typeof report.advisories !== "object" ||
+    Array.isArray(report.advisories)
+  ) {
+    throw new Error(
+      "Production audit did not provide a valid advisory inventory.",
+    );
+  }
   const unknown: string[] = [];
-  for (const advisory of Object.values(report.advisories ?? {}).filter(
-    (entry) => entry.severity === "high",
-  )) {
+  for (const advisory of Object.values(report.advisories)) {
+    if (!advisory || typeof advisory !== "object") {
+      unknown.push("INVALID-ADVISORY");
+      continue;
+    }
     const id = advisoryId(advisory.url ?? "") ?? "MISSING-GHSA-URL";
-    const reviewedRange = REVIEWED_RUNTIME_HIGH_ADVISORIES.get(id);
+    const reviewedRange = REVIEWED_RUNTIME_ADVISORIES.get(id);
     if (!reviewedRange) {
       unknown.push(id);
     } else if (reviewedRange !== advisory.vulnerable_versions) {
       unknown.push(
         `${id} changed range from ${reviewedRange} to ${advisory.vulnerable_versions ?? "missing"}`,
       );
+    } else if (REVIEWED_SEVERITIES.get(id) !== advisory.severity) {
+      unknown.push(
+        `${id} changed severity to ${advisory.severity ?? "missing"}`,
+      );
     }
   }
   unknown.sort();
   if (unknown.length > 0) {
     throw new Error(
-      `Production audit contains unreviewed high advisories: ${unknown.join(", ")}`,
+      `Production audit contains unreviewed advisories: ${unknown.join(", ")}`,
     );
   }
 }
@@ -77,7 +117,7 @@ export function assertRuntimeAdvisoryPolicyCoverage(report: AuditReport): void {
 function run(): void {
   const result = spawnSync(
     "nub",
-    ["audit", "--production", "--audit-level", "high", "--json"],
+    ["audit", "--production", "--audit-level", "low", "--json"],
     { encoding: "utf8", maxBuffer: 16 * 1024 * 1024 },
   );
   if (!result.stdout.trim()) {
@@ -86,12 +126,19 @@ function run(): void {
     );
   }
   const report = JSON.parse(result.stdout) as AuditReport;
+  if (
+    result.error ||
+    result.signal ||
+    (result.status !== 0 && result.status !== 1)
+  ) {
+    throw new Error(
+      "Production audit failed before review coverage could be checked.",
+    );
+  }
   assertRuntimeAdvisoryPolicyCoverage(report);
-  const highCount = Object.values(report.advisories ?? {}).filter(
-    (advisory) => advisory.severity === "high",
-  ).length;
+  const count = Object.keys(report.advisories ?? {}).length;
   console.log(
-    `Runtime advisory policy covers all ${highCount} high production advisories.`,
+    `Runtime advisory review covers all ${count} production advisories; version-based findings remain visible.`,
   );
 }
 

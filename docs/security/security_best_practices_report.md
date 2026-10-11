@@ -12,6 +12,9 @@ query disabled, or scanned path excluded by this work.
 The current per-alert baseline is
 [remediation-baseline-2026-10-11.json](code-scanning/remediation-baseline-2026-10-11.json).
 Existing triage is evidence to revalidate, not proof of current closure.
+The updated [162-alert source disposition ledger](code-scanning/remediation-dispositions-2026-10-11.json)
+separates historical triage from current source anchors. It does not close
+GitHub alerts or claim a fresh scanner result.
 
 ## Findings requiring code or dependency work
 
@@ -58,7 +61,28 @@ migration or maintained replacement where feasible, focused compatibility and
 adversarial tests, exact ElizaOS beta.7 alignment, and a fresh full graph audit.
 No-upstream-fix limitations must remain visible.
 
-Status: dependency migration discovery in progress.
+Status: integrated and independently reviewed. Scoped Jayson 5 browser-client
+and Electron-builder get 5 upgrades remove the three stream-json advisories.
+Seven version-based findings remain (2 high, 4 moderate, 1 low), each covered
+by a mechanism patch while retaining its truthful published version:
+
+| Dependency | Mechanism repair |
+|---|---|
+| bigint-buffer 1.1.5 | Existing pure-JavaScript replacement avoids the vulnerable native binding. |
+| braces 3.0.3 | Existing bounded nesting/ancestor traversal patch. |
+| decode-uri-component 0.2.2 | Upstream single-pass decoder backport, preserving CommonJS/plus-as-space. |
+| elliptic 6.6.1 | Preserve raw DRBG byte length before nonce truncation; public P-521 vector. |
+| file-type 16.5.4 | Reject invalid ASF sizes and enforce monotonic, bounded scanning. |
+| sprintf-js 1.0.3 | Clamp numeric precision before formatting; do not replace one uncaught RangeError with another. |
+| uuid 8.3.2 / 9.0.1 | Validate output buffer bounds before mutation across published entrypoints. |
+
+SDK atomic JSON now uses exclusive random temporary files and owned descriptors;
+failed creation cannot remove another writer's temporary entry. Main-checkout
+frozen reinstall and 46 dependency/policy tests passed. Consumer checks include
+loopback RPC/download checksums, Jimp bytes, Mammoth/argparse formatting, and
+actual nested dependency copies. The release review gate now covers every
+advisory severity, exact ranges/severities, and audit failures. This is review
+coverage, not a zero-advisory or GitHub closure claim.
 
 ### SR-3 — Test-server error detail disclosure
 
@@ -157,8 +181,8 @@ privacy. Preserve authorized absolute roots and the SDK atomic primitive where
 its mechanism can be hardened. Mutable ancestors remain a separate trust
 requirement; this is not a demonstrated unauthenticated remote path choice.
 
-Status: source implementation and independent review complete; SDK atomic JSON
-patch integration pending. Memory/settings reads and writes are capped at
+Status: implemented and independently reviewed; the SDK atomic JSON patch is
+integrated. Memory/settings reads and writes are capped at
 1 MiB, profile/pipeline state at 4 MiB, and artifacts at 5 MiB. Unsafe existing
 state fails visibly instead of being overwritten. Dedicated owned child
 directories are descriptor-checked and tightened to 0700 without chmodding the
@@ -207,7 +231,15 @@ calls were needed to test this boundary.
 
 ## Verification and release
 
-Pending: focused regressions for changes, complete per-finding dispositions,
-independent review, integrated release checks, and fresh GitHub scans.
+Unused-workspace cleanup removed `app-training` and `cloud-shared`. The latter
+is omitted only from the unused SDK cloud-UI dependency boundary, with Nub
+resolution and real leaf-UI build evidence. Remaining compatibility packages
+expose only consumed registry JSON, worker error functions, or remote-message
+types; empty runtime entry points were removed. Deleted tracked files remain
+recoverable from Git history.
+
+Pending: integrated release checks, packaged/native acceptance and installation,
+and fresh GitHub scans. Focused source and independent reviews are complete;
+native Windows and live provider behavior are not certified by these tests.
 Earlier shared-engine release checks do not certify this new security branch.
 
