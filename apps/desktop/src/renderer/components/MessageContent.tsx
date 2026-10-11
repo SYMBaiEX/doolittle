@@ -465,7 +465,7 @@ export function MessageContent({
     >
       {parsed.text ? (
         <Streamdown
-          animated={pending ? { animation: "fadeIn", duration: 120 } : false}
+          animated={false}
           caret="block"
           className={MESSAGE_RESPONSE_CLASS}
           controls={{

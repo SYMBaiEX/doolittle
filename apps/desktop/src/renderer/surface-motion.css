@@ -1,0 +1,209 @@
+/* Native compositions retain state and focus owners; these rules own only paint. */
+.desktop-shell {
+  -webkit-font-smoothing: antialiased;
+}
+.desktop-shell,
+.chat-workspace {
+  /* Do not animate grid geometry or continuously reflow the transcript. */
+  transition-property: none;
+}
+.desktop-shell .app-sidebar {
+  background: color-mix(in srgb, var(--surface) 94%, var(--bg));
+  border-color: color-mix(in srgb, var(--border) 64%, transparent);
+}
+.desktop-shell .window-dragbar {
+  border-color: color-mix(in srgb, var(--border) 60%, transparent);
+}
+.chat-workspace .chat-messages {
+  padding-top: 24px;
+  scroll-padding-block: 24px 92px;
+}
+.chat-workspace .chat-message {
+  margin-bottom: 24px;
+}
+.chat-workspace .chat-message-avatar {
+  border-radius: 50%;
+}
+.chat-workspace .chat-message.user .chat-message-body {
+  border-radius: 20px 6px 20px 20px;
+  border-color: color-mix(in srgb, var(--border) 62%, transparent);
+  background: color-mix(
+    in srgb,
+    var(--surface-soft) 88%,
+    var(--surface-raised)
+  );
+  padding: 10px 16px;
+}
+.chat-workspace .chat-composer {
+  border-radius: max(20px, var(--radius-lg));
+  border-color: var(--material-edge);
+  background: var(--material-floating);
+  padding: 10px 12px 8px;
+  box-shadow:
+    0 2px 4px color-mix(in srgb, var(--shadow) 4%, transparent),
+    0 9px 28px color-mix(in srgb, var(--shadow) 9%, transparent);
+}
+.chat-workspace .chat-composer-dock {
+  padding-bottom: 20px;
+}
+.chat-workspace .chat-welcome h1 {
+  line-height: 1.18;
+  letter-spacing: -0.035em;
+}
+.chat-workspace .chat-welcome,
+.chat-workspace
+  .chat-conversation[data-layout="active"]
+  .chat-transcript-region {
+  animation: dl-content-in var(--motion-surface) var(--ease-liquid) backwards;
+}
+.chat-workspace .thinking::before {
+  /* Execution facts already have labels; never make nearby text pulse. */
+  animation: none;
+}
+.chat-workspace .chat-progress {
+  border-radius: var(--radius-floating);
+  border-left-width: 1px;
+  border-color: var(--material-edge);
+  background: var(--surface-raised);
+  box-shadow: none;
+}
+.chat-workbench-pane {
+  transform-origin: right center;
+  animation: dl-inspector-in var(--motion-surface) var(--ease-liquid) backwards;
+}
+.chat-workbench-pane[data-state="closed"] {
+  pointer-events: none;
+  animation: dl-inspector-out var(--motion-dismiss) var(--ease-liquid) both;
+}
+.chat-workbench-pane .dl-inspector-frame {
+  border-left-color: color-mix(in srgb, var(--border) 65%, transparent);
+  background: color-mix(in srgb, var(--surface) 96%, var(--bg));
+}
+.chat-workspace
+  :is(
+    .chat-command-completions,
+    .chat-reusable-completions,
+    .chat-composer-tool-menu,
+    .chat-prompt-library
+  ),
+.composer-selector-popover,
+.route-control-dialog,
+.command-palette {
+  border-radius: var(--radius-floating);
+  border-color: var(--material-edge);
+  background: var(--material-floating);
+  box-shadow: var(--material-shadow);
+  backdrop-filter: blur(24px);
+  transform-origin: bottom center;
+  animation: dl-surface-in var(--motion-surface) var(--ease-liquid) backwards;
+}
+.command-palette,
+.route-control-dialog {
+  transform-origin: center;
+  border-radius: max(20px, var(--radius-xl));
+}
+.command-palette[data-state="closed"] {
+  animation: dl-surface-out var(--motion-dismiss) var(--ease-liquid) both;
+}
+.route-control-dialog[data-state="closed"] {
+  animation: dl-surface-out var(--motion-dismiss) var(--ease-liquid) both;
+}
+.dialog-backdrop {
+  background: color-mix(in srgb, var(--shadow) 34%, transparent);
+  animation: dl-backdrop-in var(--motion-surface) var(--ease-liquid) backwards;
+}
+.dialog-backdrop[data-state="closed"] {
+  animation: dl-backdrop-in var(--motion-dismiss) var(--ease-liquid) reverse
+    both;
+}
+.desktop-shell
+  :is(.icon-button, .window-utility-button, .window-command-button) {
+  border-radius: max(9px, var(--radius-md));
+}
+.desktop-shell .sidebar-account {
+  border-radius: max(10px, var(--radius-md));
+}
+.desktop-shell .loading-block {
+  animation: dl-content-in var(--motion-surface) var(--ease-liquid) backwards;
+}
+@keyframes dl-inspector-in {
+  from {
+    opacity: 0;
+    transform: translateX(18px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+@keyframes dl-inspector-out {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+}
+@media (max-width: 760px) {
+  .chat-workspace .chat-composer {
+    padding: 8px;
+  }
+  .chat-workspace .chat-composer-dock {
+    padding-bottom: 10px;
+  }
+  .chat-workspace .chat-messages {
+    padding-top: 16px;
+  }
+  .chat-workspace .chat-message {
+    margin-bottom: 20px;
+  }
+  .chat-workbench-pane {
+    transform-origin: bottom center;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .desktop-shell *,
+  .desktop-shell *::before,
+  .desktop-shell *::after,
+  .chat-workbench-pane,
+  .composer-selector-popover,
+  .route-control-dialog,
+  .command-palette,
+  .dialog-backdrop {
+    /* biome-ignore lint/complexity/noImportantStyles: OS motion preferences must win over SDK animations. */
+    animation: none !important;
+    /* biome-ignore lint/complexity/noImportantStyles: OS motion preferences must win over SDK transitions. */
+    transition: none !important;
+    /* biome-ignore lint/complexity/noImportantStyles: Prevent retained smooth scrolling with reduced motion. */
+    scroll-behavior: auto !important;
+  }
+}
+@media (prefers-reduced-transparency: reduce), (forced-colors: active) {
+  .chat-workspace .chat-composer,
+  .chat-workspace
+    :is(
+      .chat-command-completions,
+      .chat-reusable-completions,
+      .chat-composer-tool-menu,
+      .chat-prompt-library
+    ),
+  .composer-selector-popover,
+  .route-control-dialog,
+  .command-palette {
+    background: var(--surface-raised);
+    backdrop-filter: none;
+  }
+}
+@media (forced-colors: active) {
+  .chat-workspace .chat-composer,
+  .chat-workspace .chat-message.user .chat-message-body,
+  .chat-workspace .chat-progress,
+  .route-control-dialog,
+  .command-palette {
+    border-color: CanvasText;
+    background: Canvas;
+    box-shadow: none;
+  }
+}

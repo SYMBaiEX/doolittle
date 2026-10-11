@@ -1,5 +1,5 @@
 import { fileURLToPath } from "node:url";
-import { defineConfig } from "vitest/config";
+import { configDefaults, defineConfig } from "vitest/config";
 
 const fromRoot = (path: string): string =>
   fileURLToPath(new URL(path, import.meta.url));
@@ -50,6 +50,16 @@ export default defineConfig({
     ],
   },
   test: {
+    // All-tests discovery is intentional here. The routine default uses the
+    // curated essential config; direct scoped/related runs share these aliases.
+    include: ["{packages,apps,scripts,e2e}/**/*.{test,spec}.{ts,tsx}"],
+    exclude: [
+      ...configDefaults.exclude,
+      "**/dist/**",
+      "apps/desktop/build/**",
+      "apps/desktop/release/**",
+      "**/.generated/**",
+    ],
     clearMocks: true,
     restoreMocks: true,
     server: {

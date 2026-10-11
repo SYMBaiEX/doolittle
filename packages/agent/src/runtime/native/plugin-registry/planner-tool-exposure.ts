@@ -160,6 +160,11 @@ function filterTools(tools: unknown[], actions: unknown[]): unknown[] {
     // original admission tools and independent legacy dispatch remain intact.
     return !(
       matches.length === 1 &&
+      // Confirm the installed SDK's derived alias metadata as well as shared
+      // schema identity. A separately authored tool can intentionally share a
+      // schema and simile while expressing a distinct routing contract.
+      alias.description ===
+        `${matches[0].description}\nAlias for ${matches[0].name}.`.trim() &&
       matches[0].similes.some(
         (simile) => typeof simile === "string" && simile.trim() === alias.name,
       )
@@ -173,13 +178,13 @@ export function createPlannerToolExposurePlugin(
   return {
     name: "doolittle-planner-tool-exposure",
     description:
-      "Opt-in duplicate alias advertisement policy for native planning.",
+      "Canonical native planner advertisement with unchanged action admission.",
     init: (_config, runtime) => {
       runtime.unregisterPipelineHook(PLANNER_TOOL_EXPOSURE_HOOK_ID);
-      if (
-        !(options.enabled ?? process.env[PLANNER_TOOL_EXPOSURE_FLAG] === "true")
-      )
-        return;
+      const flag = process.env[PLANNER_TOOL_EXPOSURE_FLAG];
+      // Enabled for ordinary turns; exact false is the rollback switch. Other
+      // explicit values leave this optional optimization off rather than guess.
+      if (!(options.enabled ?? (flag === undefined || flag === "true"))) return;
       runtime.registerPipelineHook({
         id: PLANNER_TOOL_EXPOSURE_HOOK_ID,
         phase: "pre_model",

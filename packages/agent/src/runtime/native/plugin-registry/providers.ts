@@ -19,7 +19,10 @@ import {
   createDoolittleOllamaUxPlugin,
   withOllamaTextReadiness,
 } from "./local-ollama";
-import { withOllamaEmbeddingReadiness } from "./ollama-embedding-readiness";
+import {
+  withOllamaEmbeddingReadiness,
+  withOllamaEmbeddingStartupReadiness,
+} from "./ollama-embedding-readiness";
 import { createPlannerToolExposurePlugin } from "./planner-tool-exposure";
 import { normalizePlugin } from "./support";
 
@@ -190,8 +193,11 @@ export async function loadProviderPlugins(
 
   if (config.ollamaApiEndpoint?.trim()) {
     const { default: ollamaPlugin } = await import("@elizaos/plugin-ollama");
-    const normalizedOllamaPlugin = withOllamaEmbeddingReadiness(
-      withOllamaTextReadiness(normalizePlugin(ollamaPlugin), config),
+    const normalizedOllamaPlugin = await withOllamaEmbeddingStartupReadiness(
+      withOllamaEmbeddingReadiness(
+        withOllamaTextReadiness(normalizePlugin(ollamaPlugin), config),
+        config,
+      ),
       config,
     );
     providers.push(

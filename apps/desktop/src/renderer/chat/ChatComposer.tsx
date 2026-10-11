@@ -978,7 +978,7 @@ export function ChatComposer({
                   : "Send message"
             }
             aria-keyshortcuts={activeRequest ? "Escape" : undefined}
-            className={`chat-composer-submit !size-10 !min-h-10 !min-w-10 !rounded-[var(--radius-md)] !p-0 motion-reduce:transition-none max-[720px]:!size-11 max-[720px]:!min-h-11 max-[720px]:!min-w-11 ${
+            className={`chat-composer-submit !size-10 !min-h-10 !min-w-10 !rounded-full !p-0 motion-reduce:transition-none max-[720px]:!size-11 max-[720px]:!min-h-11 max-[720px]:!min-w-11 ${
               activeRequest
                 ? "!border !border-[color-mix(in_srgb,var(--bad)_40%,var(--border))] !bg-[color-mix(in_srgb,var(--bad)_10%,var(--surface-soft))] !text-[var(--bad)] hover:!bg-[color-mix(in_srgb,var(--bad)_18%,var(--surface-hover))]"
                 : "!border-0 !bg-[var(--accent)] !text-[var(--accent-ink)] hover:!bg-[color-mix(in_srgb,var(--accent)_86%,var(--text))] disabled:!bg-[var(--surface-soft)] disabled:!text-[var(--faint)] disabled:opacity-70"

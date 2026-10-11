@@ -1,5 +1,5 @@
 import { ModelType } from "@elizaos/core";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { EnvConfig } from "@/types/runtime";
 import {
   ensureDoolittleDirectApiPlugins,
@@ -9,6 +9,7 @@ import {
 function config(): EnvConfig {
   return {
     ollamaApiEndpoint: "http://127.0.0.1:11434/api",
+    ollamaEmbeddingModel: "nomic-embed-text:latest",
     claudeCodeCliFallback: true,
     devinCliCommand: "devin",
     devinModel: "devin-latest",
@@ -19,7 +20,53 @@ function config(): EnvConfig {
   } as EnvConfig;
 }
 
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+});
+
 describe("loadProviderPlugins", () => {
+  it("omits unavailable optional embedding slots while retaining Ollama text models", async () => {
+    const fetch = vi.fn().mockRejectedValue(new TypeError("offline"));
+    vi.stubGlobal("fetch", fetch);
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const providers = await loadProviderPlugins(config());
+    const ollama = providers.find((plugin) => plugin.name === "ollama");
+
+    expect(ollama?.models?.[ModelType.TEXT_EMBEDDING]).toBeUndefined();
+    expect(ollama?.models?.[ModelType.TEXT_EMBEDDING_BATCH]).toBeUndefined();
+    expect(ollama?.models?.[ModelType.TEXT_LARGE]).toBeTypeOf("function");
+    expect(fetch).toHaveBeenCalledOnce();
+    expect(warning).toHaveBeenCalledWith(
+      expect.stringContaining("restart Doolittle"),
+    );
+  });
+
+  it("restores optional embedding slots on a fresh assembly after Ollama becomes ready", async () => {
+    const fetch = vi
+      .fn()
+      .mockRejectedValueOnce(new TypeError("offline"))
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({ models: [{ name: "nomic-embed-text:latest" }] }),
+        ),
+      );
+    vi.stubGlobal("fetch", fetch);
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const unavailable = await loadProviderPlugins(config());
+    const restored = await loadProviderPlugins(config());
+
+    expect(
+      unavailable.find((plugin) => plugin.name === "ollama")?.models?.[
+        ModelType.TEXT_EMBEDDING
+      ],
+    ).toBeUndefined();
+    const ollama = restored.find((plugin) => plugin.name === "ollama");
+    expect(ollama?.models?.[ModelType.TEXT_EMBEDDING]).toBeTypeOf("function");
+    expect(ollama?.models?.[ModelType.TEXT_LARGE]).toBeTypeOf("function");
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
   it("assembles the opt-in exposure plugin without replacing model providers", async () => {
     const providers = await loadProviderPlugins(config());
     const exposure = providers.find(

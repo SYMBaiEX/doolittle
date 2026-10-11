@@ -34,6 +34,7 @@ function createContext() {
       dataDir: "/tmp/doolittle-cli-tests",
     },
     services: {
+      runController: { getByRoomId: vi.fn(() => undefined as unknown) },
       sessions: {
         listTitled: () => [],
         resolveByTitle: () => undefined,
@@ -53,6 +54,51 @@ function createContext() {
 }
 
 describe("CLI explicit command lifecycle", () => {
+  it.each(["error", "cancelled", "complete"])(
+    "uses its own terminal %s receipt instead of treating returned prose as success",
+    async (status) => {
+      const context = createContext();
+      context.services.runController.getByRoomId
+        .mockReturnValueOnce(undefined)
+        .mockReturnValueOnce({
+          runId: "owned",
+          sessionId: "cli:active",
+          source: "cli",
+          status,
+        });
+      const result = await executeCliInput(
+        "diagnose",
+        context as never,
+        createState(),
+      );
+      expect(result.status).toBe(
+        status === "error"
+          ? "failed"
+          : status === "complete"
+            ? "completed"
+            : "cancelled",
+      );
+      if (status === "error") expect(result.tone).toBe("error");
+    },
+  );
+
+  it("ignores an old or foreign run when a command creates no new receipt", async () => {
+    const context = createContext();
+    context.services.runController.getByRoomId.mockReturnValue({
+      runId: "old",
+      sessionId: "cli:other",
+      source: "cli",
+      status: "error",
+    });
+    const result = await executeCliInput(
+      "/status",
+      context as never,
+      createState(),
+    );
+    expect(result.status).toBeUndefined();
+    expect(result.tone).toBe("info");
+  });
+
   it("routes a non-static slash command through the SDK message turn", async () => {
     vi.clearAllMocks();
     const progress = vi.fn();

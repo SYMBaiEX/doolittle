@@ -1,3 +1,7 @@
+import {
+  type CliExecutionResult,
+  getCliResultStatus,
+} from "@/cli/execution/types";
 import type { CliJobRecord } from "@/cli/jobs";
 import { encodeCliTurnEvent } from "@/cli/turn-events";
 import type { StaticResult } from "./static-prompts";
@@ -6,11 +10,14 @@ export function writeStderrLine(message: string): void {
   process.stderr.write(`${message}\n`);
 }
 
-export function printOneShotResult(result: StaticResult, json: boolean): void {
+export function printOneShotResult(
+  result: CliExecutionResult,
+  json: boolean,
+): void {
   if (json) {
     console.log(
       JSON.stringify({
-        ok: !result.shouldExit,
+        ok: getCliResultStatus(result) === "completed",
         tone: result.tone ?? "info",
         text: result.text,
       }),
@@ -70,7 +77,7 @@ export async function emitStaticPromptEvents(
     encodeCliTurnEvent({
       type: "completed",
       timestamp: new Date().toISOString(),
-      status: result.shouldExit ? "cancelled" : "completed",
+      status: getCliResultStatus(result),
     }),
   );
 }

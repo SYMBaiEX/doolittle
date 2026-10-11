@@ -13,6 +13,38 @@ function setting(runtime: IAgentRuntime, name: string, fallback: string) {
 }
 
 /**
+ * Registration, not a successful startup probe, enables the SDK embedding queue.
+ * Omit an unavailable optional slot before registration so the SDK starts its
+ * disabled embedding service rather than retrying every unembedded memory.
+ * Text handlers remain intact. Recovery is an explicit clean runtime restart.
+ */
+export async function withOllamaEmbeddingStartupReadiness(
+  plugin: Plugin,
+  config: Pick<EnvConfig, "ollamaApiEndpoint" | "ollamaEmbeddingModel">,
+): Promise<Plugin> {
+  if (!plugin.models?.[ModelType.TEXT_EMBEDDING]) return plugin;
+  const availability = await checkOllamaReadiness(
+    config.ollamaApiEndpoint,
+    config.ollamaEmbeddingModel,
+  );
+  if (availability.ready) return plugin;
+
+  console.warn(
+    `Semantic memory is unavailable: ${availability.detail} Optional Ollama embeddings are disabled for this runtime; text model handlers remain available. Restore the Ollama server and embedding model, then restart Doolittle to enable semantic memory.`,
+  );
+  return {
+    ...plugin,
+    models: Object.fromEntries(
+      Object.entries(plugin.models).filter(
+        ([key]) =>
+          key !== ModelType.TEXT_EMBEDDING &&
+          key !== ModelType.TEXT_EMBEDDING_BATCH,
+      ),
+    ),
+  };
+}
+
+/**
  * Ollama is an optional local service, but the SDK probes every registered
  * embedding provider during core startup. An unavailable server must use the
  * SDK's no-provider path, not abort the entire CLI or invent semantic vectors.

@@ -1,4 +1,5 @@
 import type { CliExecutionResult } from "@/cli/execution";
+import { getCliResultStatus } from "@/cli/execution/types";
 import {
   appendCliJobEvent,
   finalizeCliJob,
@@ -13,7 +14,7 @@ import { isEntrypointAliasCommand } from "./subcommand";
 type RunCliPrompt = (
   context: AppContext,
   line: string,
-  options?: { sessionId?: string },
+  options?: { sessionId?: string; abortSignal?: AbortSignal },
 ) => Promise<CliExecutionResult | undefined>;
 
 type RunCliPromptWithEvents = (
@@ -57,6 +58,7 @@ export async function handleRuntimePromptCommand(
     context: AppContext;
     runCliPrompt?: RunCliPrompt;
     runCliPromptWithEvents?: RunCliPromptWithEvents;
+    abortSignal?: AbortSignal;
     writeStdout?: (message: string) => void;
     exit?: (code: number) => void;
   },
@@ -86,7 +88,7 @@ export async function handleRuntimePromptCommand(
       exit(1);
       return true;
     }
-    const sessionController = new AbortController();
+    const abortSignal = input.abortSignal;
     const activeJobId = input.oneShot.jobId?.trim() || undefined;
     if (activeJobId) {
       deps.markCliJobStarted(controlDataDir, activeJobId, {
@@ -113,7 +115,7 @@ export async function handleRuntimePromptCommand(
       deps.finalizeCliJob(controlDataDir, activeJobId, status, exitCode);
     };
     try {
-      await input.runCliPromptWithEvents(
+      const { result } = await input.runCliPromptWithEvents(
         input.context,
         trimmedPrompt,
         {
@@ -122,34 +124,42 @@ export async function handleRuntimePromptCommand(
           },
         },
         {
-          abortSignal: sessionController.signal,
+          abortSignal,
           sessionId: input.oneShot.sessionId,
           codingVerificationReceipts:
             !activeJobId &&
             process.env.DOOLITTLE_EVAL_CODING_VERIFICATION === "true",
         },
       );
-      finalizeActiveJob("completed", 0);
+      const status = getCliResultStatus(result, abortSignal);
+      const exitCode =
+        status === "failed" ? 1 : status === "cancelled" ? 130 : 0;
+      finalizeActiveJob(status, exitCode);
+      if (exitCode !== 0) process.exitCode = exitCode;
     } catch (_error) {
       finalizeActiveJob(
-        sessionController.signal.aborted ? "cancelled" : "failed",
-        1,
+        abortSignal?.aborted ? "cancelled" : "failed",
+        abortSignal?.aborted ? 130 : 1,
       );
-      process.exitCode = 1;
+      process.exitCode = abortSignal?.aborted ? 130 : 1;
     }
     return true;
   }
 
   const result = await input.runCliPrompt?.(input.context, trimmedPrompt, {
     sessionId: input.oneShot?.sessionId,
+    abortSignal: input.abortSignal,
   });
   if (!result) {
     exit(1);
     return true;
   }
+  const status = getCliResultStatus(result, input.abortSignal);
   deps.printOneShotResult(
-    result,
+    { ...result, status },
     input.command === "exec" && Boolean(input.oneShot?.json),
   );
+  if (status !== "completed")
+    process.exitCode = status === "cancelled" ? 130 : 1;
   return true;
 }

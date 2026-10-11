@@ -40,6 +40,7 @@ nub run check:docs-truth
 | [Module structure guidelines](./module-structure-guidelines.md) | Folder, filename, entrypoint, and test-placement conventions. |
 | [Package ownership](./package-ownership.md) | Current Eliza-native, product-owned, compatibility, and data-package boundaries. |
 | [Eliza maximization matrix](./eliza-maximization-matrix.md) | Dated maintainer audit of native SDK ownership and remaining adapters. |
+| [October cleanup](./engineering/october-2026-cleanup.md) | Scoped removal rationale, retained coverage, and verification boundaries. |
 
 ## Documentation Rules
 

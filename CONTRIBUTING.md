@@ -20,19 +20,29 @@ The scriptless install is intentional: dependency lifecycle scripts are not a
 trusted bootstrap boundary. Use `nub run desktop:runtime:install` when working
 on the Electron app; the source installer and CI follow the same split.
 
-## Quality gates
+## Fast development loop
 
-Every change must keep these green (CI runs them):
+Run the smallest relevant behavioral regression once per change. Prefer existing
+Vitest scoping and watch mode over a new verification system:
 
 ```bash
 nub run typecheck      # tsc --noEmit, strict
-nub run test           # full Vitest suite
+nub run test:scope path/to/file.test.ts
+nub run test:related path/to/changed.ts
+nub run test           # essential execution/permissions/persistence checks
 nub run build          # bundle packages/agent
 nub run lint:check     # biome
-nub run check:acceptance   # repo hygiene + plugin boundaries + doc truth
+nub run check          # routine essential lane
 ```
 
-Run `nub run lint` to auto-fix formatting before committing.
+Use `nub run test:all`, `nub run test:integration`, and `nub run check:release`
+only at deliberate integration/release milestones. Live integrations retain
+their explicit environment opt-ins. Do not repeat an unchanged passed suite
+at each agent handoff. See [the fast development guide](docs/engineering/fast-development.md).
+
+Format changed paths with Biome before committing; avoid rewriting unrelated
+files. Keep small behavior tests for ownership, cancellation, permissions, data
+integrity and essential workflows, not source-text layout assertions.
 
 ## Repository shape
 
@@ -98,5 +108,5 @@ prompt caching, make it consume `params.promptSegments` (see
   `@elizaos/*` packages and compatibility workspaces pinned independently to the
   exact root `elizaSdk.version`.
 - Keep audit and planning notes dated. Do not present them as runtime proof.
-- Run `nub run check:docs-truth` and `nub run check:local-links` for every
-  documentation change.
+- Run the relevant documentation check when changing generated truth or links;
+  acceptance gates remain a deliberate release milestone.

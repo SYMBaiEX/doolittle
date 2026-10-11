@@ -711,7 +711,12 @@
   font-family: var(--font-sans);
   font-size: var(--text-control, 14px);
   line-height: var(--line-control, 1.4);
-  animation: none;
+  transform-origin: var(
+    --radix-dropdown-menu-content-transform-origin,
+    top left
+  );
+  animation: dl-surface-in var(--motion-surface, 240ms) var(--ease-liquid)
+    backwards;
 }
 .dl-action-menu-item {
   display: flex;
@@ -778,5 +783,161 @@
   }
   .dl-action-menu-item[data-disabled] {
     color: GrayText;
+  }
+}
+
+/* One quiet material and motion language, including portaled SDK surfaces. */
+:root {
+  --ease-liquid: cubic-bezier(0.22, 1, 0.36, 1);
+  --motion-feedback: min(140ms, var(--motion-duration, 120ms));
+  --motion-surface: min(360ms, calc(var(--motion-duration, 120ms) * 2));
+  --motion-dismiss: min(180ms, calc(var(--motion-duration, 120ms) * 1.5));
+  --radius-floating: max(16px, var(--radius-lg, 12px));
+  --material-floating: color-mix(
+    in srgb,
+    var(--surface-raised) 96%,
+    transparent
+  );
+  --material-edge: color-mix(in srgb, var(--border-strong) 64%, transparent);
+  --material-shadow:
+    0 2px 5px color-mix(in srgb, var(--shadow) 6%, transparent),
+    0 18px 52px color-mix(in srgb, var(--shadow) 16%, transparent);
+}
+.dl-button {
+  transition-property: transform, background-color, border-color, color;
+  transition-duration: var(--motion-feedback);
+  transition-timing-function: var(--ease-liquid);
+}
+.dl-button:active:not(:disabled) {
+  transform: scale(0.97);
+}
+.dl-contact,
+.dl-settings-menu-group button,
+.dl-settings-tabs [role="tab"] {
+  transition:
+    background-color var(--motion-feedback) var(--ease-liquid),
+    color var(--motion-feedback) var(--ease-liquid);
+}
+.dl-composer {
+  border-radius: var(--radius-floating);
+  border-color: var(--material-edge);
+  background: var(--material-floating);
+  box-shadow: 0 3px 16px color-mix(in srgb, var(--shadow) 8%, transparent);
+}
+.dl-action-menu,
+.dl-dialog {
+  border-color: var(--material-edge);
+  border-radius: var(--radius-floating);
+  background: var(--material-floating);
+  box-shadow: var(--material-shadow);
+  backdrop-filter: blur(24px);
+}
+.dl-action-menu {
+  padding: 6px;
+}
+.dl-action-menu-item {
+  border-radius: max(8px, var(--radius-sm, 6px));
+}
+.dl-action-menu[data-state="closed"] {
+  animation: dl-surface-out var(--motion-dismiss) var(--ease-liquid) both;
+}
+.dl-dialog {
+  animation: dl-surface-in var(--motion-surface) var(--ease-liquid) backwards;
+}
+.dl-dialog-backdrop {
+  animation: dl-backdrop-in var(--motion-surface) var(--ease-liquid) backwards;
+}
+.dl-state-surface {
+  animation: dl-content-in var(--motion-surface) var(--ease-liquid) backwards;
+}
+.dl-state-surface[data-kind="loading"]::before {
+  content: "";
+  display: block;
+  width: 24px;
+  height: 24px;
+  margin: 0 auto 16px;
+  border: 2px solid var(--border);
+  border-top-color: var(--muted);
+  border-radius: 50%;
+  animation: dl-loading-turn 900ms linear infinite;
+}
+@keyframes dl-surface-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.975);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@keyframes dl-surface-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(5px) scale(0.985);
+  }
+}
+@keyframes dl-content-in {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes dl-backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes dl-loading-turn {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dl-button,
+  .dl-contact,
+  .dl-settings-menu-group button,
+  .dl-settings-tabs [role="tab"],
+  .dl-action-menu,
+  .dl-dialog,
+  .dl-dialog-backdrop,
+  .dl-state-surface,
+  .dl-state-surface::before {
+    /* biome-ignore lint/complexity/noImportantStyles: OS motion preferences must win over SDK animations. */
+    animation: none !important;
+    /* biome-ignore lint/complexity/noImportantStyles: OS motion preferences must win over SDK transitions. */
+    transition: none !important;
+  }
+  .dl-button:active:not(:disabled) {
+    transform: none;
+  }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .dl-action-menu,
+  .dl-dialog,
+  .dl-composer {
+    background: var(--surface-raised);
+    backdrop-filter: none;
+  }
+}
+@media (forced-colors: active) {
+  .dl-action-menu,
+  .dl-dialog,
+  .dl-composer {
+    border-color: CanvasText;
+    background: Canvas;
+    box-shadow: none;
+    backdrop-filter: none;
   }
 }

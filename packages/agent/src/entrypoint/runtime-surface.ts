@@ -88,11 +88,15 @@ export async function handleEntrypointRuntimeSurface(input: {
     throw error;
   }
   const ownedEndpoint = endpoint;
+  const promptController = new AbortController();
   const signalLifecycle = ownedEndpoint
     ? installRuntimeProcessLifecycle({
         runtime: input.context.runtime as AgentRuntime,
         label: "Doolittle one-shot",
-        beforeShutdown: () => ownedEndpoint.close(),
+        beforeShutdown: async () => {
+          promptController.abort();
+          await ownedEndpoint.close();
+        },
         onExit: input.exit,
       })
     : undefined;
@@ -109,6 +113,7 @@ export async function handleEntrypointRuntimeSurface(input: {
         context: input.context,
         runCliPrompt: input.runCliPrompt,
         runCliPromptWithEvents: input.runCliPromptWithEvents,
+        abortSignal: promptController.signal,
         exit: (code) => {
           requestedExitCode = code;
         },

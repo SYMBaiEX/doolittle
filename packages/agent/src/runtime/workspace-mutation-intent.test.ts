@@ -13,6 +13,8 @@ describe("workspace mutation intent", () => {
     "Add tests for the workspace service",
     "Delete the unused component file",
     "Inspect README.md, then edit it to fix the setup instructions.",
+    "Inspect the source file and propose a fix, then implement it.",
+    "Review the repo, suggest a patch and implement it in src/runtime.ts.",
     "Do not edit package.json, but create README.md.",
     "Explain how this repo works, then update its README.md.",
     "Fix the source file without modifying unrelated files.",
@@ -26,6 +28,11 @@ describe("workspace mutation intent", () => {
 
   it.each([
     "Review the repo and tell me what it is",
+    "Read-only repository task: inspect packages/agent/src/entrypoint/prompt-command.ts and identify one concrete correctness issue in one-shot result or cancellation handling. Do not edit any files or run tests. Report the precise issue, file and a minimal proposed fix. Use actual file inspection, not prior assumptions.",
+    "Inspect the source file and propose a fix.",
+    "Review src/runtime.ts and suggest a minimal patch.",
+    "Report the issue in src/runtime.ts and the recommended fix.",
+    "Identify a small fix for the workspace service.",
     "How would you fix the provider accounts page?",
     "Explain how to write a README",
     "What should I change in this codebase?",

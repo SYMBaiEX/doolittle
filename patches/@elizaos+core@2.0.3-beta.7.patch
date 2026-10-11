@@ -1,6 +1,15 @@
 diff --git a/dist/node/index.node.js b/dist/node/index.node.js
 --- a/dist/node/index.node.js
 +++ b/dist/node/index.node.js
+@@ -1,2 +1,3 @@
+ import { createRequire } from "node:module";
++import doolittleExternalHandlebars from "handlebars";
+ var __create = Object.create;
+@@ -12408,3 +12409,3 @@
+   init_synthetic_conversation_artifact();
+-  import_handlebars = __toESM(require_lib(), 1);
++  import_handlebars = { default: doolittleExternalHandlebars };
+   DEFAULT_MAX_EMBEDDING_CHARS = DEFAULT_MAX_EMBEDDING_TOKENS * 4;
 @@ -176183,69 +176183,91 @@ var promptRunnerTaskWorker = {
      const composed = PROMPT_RUNNER_SYSTEM_PROMPT.replace("{{prompt}}", prompt);
      await runtime2.useModel(ModelType.TEXT_LARGE, { prompt: composed });
@@ -234,6 +243,11 @@ diff --git a/dist/node/index.node.js b/dist/node/index.node.js
          this.runtime.logger.debug({
            src: "plugin:basic-capabilities:service:task",
            agentId: this.runtime.agentId,
+@@ -226107,3 +226145,3 @@
+ init_dist_node();
+-var import_handlebars2 = __toESM(require_lib(), 1);
++var import_handlebars2 = { default: doolittleExternalHandlebars };
+ init_logger2();
 @@ -238324,32 +238361,35 @@ function normalizeVisibleTextForDuplicateCheck(text4) {
  var MEDIA_CONTENT_URL_RE = /<?\s*https?:\/\/[^\s<>]+\/v1\/(?:videos|images|audio)\/[^\s<>/]+\/content\s*>?/gi;
  function collectMediaDeliveryUrls(actionResults) {
@@ -270,7 +284,30 @@ diff --git a/dist/node/index.node.js b/dist/node/index.node.js
      const escaped = url.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
      cleaned = cleaned.replace(new RegExp(`<?\\s*${escaped}\\s*>?`, "gi"), "");
    }
-@@ -250545,87 +250585,93 @@ ${priorOutput}` : ""}`;
+@@ -242374,5 +242414,6 @@ class DefaultMessageService {
+         keepExistingResponses: options?.keepExistingResponses ?? parseBooleanFromText2(String(runtime2.getSetting("BASIC_CAPABILITIES_KEEP_RESP") ?? "")),
+         shouldRespondModel: resolvedShouldRespondModel,
++        plannerLoopConfig: options?.plannerLoopConfig,
+         ...options?.abortSignal ? { abortSignal: options.abortSignal } : {}
+       };
+       const instrumentedCallback = wrapSingleTurnVisibleCallback(runtime2, message, callback);
+@@ -242812,5 +242853,6 @@ class DefaultMessageService {
+             state: state2,
+             responseId,
++            plannerLoopConfig: opts.plannerLoopConfig,
+             onResponseHandlerEarlyReply: deliverResponseHandlerEarlyReply
+           }),
+           runtime2.applyPipelineHooks("parallel_with_should_respond", parallelHookCtx)
+@@ -242861,4 +242903,8 @@ class DefaultMessageService {
+         strategyResult = await this.buildStructuredFailureReply(runtime2, message, state2, responseId, "running the native tool message runtime");
++        if (error instanceof TrajectoryLimitExceeded && strategyResult.responseContent) {
++          strategyResult.responseContent.failureKind = "trajectory_limit";
++          strategyResult.responseContent.text = "The native planner reached its configured execution limit before completing this turn. Completed partial work is preserved; inspect the recorded results before continuing.";
++        }
+         _usedV5Runtime = true;
+         state2 = strategyResult.state;
+       }
+@@ -250545,87 +250591,93 @@ ${priorOutput}` : ""}`;
    async getCaches(keys2) {
      return this.adapter.getCaches(keys2);
    }
@@ -366,9 +403,35 @@ diff --git a/dist/node/index.node.js b/dist/node/index.node.js
    async updateEntities(entities) {
      return this.adapter.updateEntities(entities);
    }
+diff --git a/dist/types/message-service.d.ts b/dist/types/message-service.d.ts
+--- a/dist/types/message-service.d.ts
++++ b/dist/types/message-service.d.ts
+@@ -11,5 +11,7 @@
+ export interface MessageProcessingOptions {
++    /** Native planner limits and SDK-owned model-aware compaction. */
++    plannerLoopConfig?: Partial<import("../runtime/limits.js").ChainingLoopConfig>;
+     maxRetries?: number;
+     timeoutDuration?: number;
+     useMultiStep?: boolean;
+     maxMultiStepIterations?: number;
 diff --git a/dist/browser/index.browser.js b/dist/browser/index.browser.js
 --- a/dist/browser/index.browser.js
 +++ b/dist/browser/index.browser.js
+@@ -1,2 +1,3 @@
+ import { createRequire } from "node:module";
++import doolittleExternalHandlebars from "handlebars";
+ var __create = Object.create;
+@@ -26934,3 +26935,3 @@
+   init_synthetic_conversation_artifact();
+-  import_handlebars = __toESM(require_lib(), 1);
++  import_handlebars = { default: doolittleExternalHandlebars };
+   DEFAULT_MAX_EMBEDDING_CHARS = DEFAULT_MAX_EMBEDDING_TOKENS * 4;
+@@ -91499,4 +91500,4 @@
+ init_dist_node();
+-var import_handlebars2 = __toESM(require_lib(), 1);
++var import_handlebars2 = { default: doolittleExternalHandlebars };
+
+ // src/action-docs.ts
 @@ -92798,32 +92798,33 @@ function resolveDueTime(task2) {
    const scheduledAt = task2.metadata?.scheduledAt;
    if (scheduledAt == null)
@@ -539,7 +602,30 @@ diff --git a/dist/browser/index.browser.js b/dist/browser/index.browser.js
      const escaped = url2.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
      cleaned = cleaned.replace(new RegExp(`<?\\s*${escaped}\\s*>?`, "gi"), "");
    }
-@@ -180533,87 +180551,93 @@ ${priorOutput}` : ""}`;
+@@ -172362,5 +172380,6 @@ class DefaultMessageService {
+         keepExistingResponses: options?.keepExistingResponses ?? parseBooleanFromText2(String(runtime2.getSetting("BASIC_CAPABILITIES_KEEP_RESP") ?? "")),
+         shouldRespondModel: resolvedShouldRespondModel,
++        plannerLoopConfig: options?.plannerLoopConfig,
+         ...options?.abortSignal ? { abortSignal: options.abortSignal } : {}
+       };
+       const instrumentedCallback = wrapSingleTurnVisibleCallback(runtime2, message, callback);
+@@ -172800,5 +172819,6 @@ class DefaultMessageService {
+             state: state2,
+             responseId,
++            plannerLoopConfig: opts.plannerLoopConfig,
+             onResponseHandlerEarlyReply: deliverResponseHandlerEarlyReply
+           }),
+           runtime2.applyPipelineHooks("parallel_with_should_respond", parallelHookCtx)
+@@ -172849,4 +172869,8 @@ class DefaultMessageService {
+         strategyResult = await this.buildStructuredFailureReply(runtime2, message, state2, responseId, "running the native tool message runtime");
++        if (error instanceof TrajectoryLimitExceeded && strategyResult.responseContent) {
++          strategyResult.responseContent.failureKind = "trajectory_limit";
++          strategyResult.responseContent.text = "The native planner reached its configured execution limit before completing this turn. Completed partial work is preserved; inspect the recorded results before continuing.";
++        }
+         _usedV5Runtime = true;
+         state2 = strategyResult.state;
+       }
+@@ -180533,87 +180557,93 @@ ${priorOutput}` : ""}`;
    async getCaches(keys2) {
      return this.adapter.getCaches(keys2);
    }
@@ -635,3 +721,21 @@ diff --git a/dist/browser/index.browser.js b/dist/browser/index.browser.js
    async updateEntities(entities) {
      return this.adapter.updateEntities(entities);
    }
+diff --git a/dist/edge/index.edge.js b/dist/edge/index.edge.js
+--- a/dist/edge/index.edge.js
++++ b/dist/edge/index.edge.js
+@@ -1,2 +1,3 @@
+ import { createRequire } from "node:module";
++import doolittleExternalHandlebars from "handlebars";
+ var __create = Object.create;
+@@ -26934,3 +26935,3 @@
+   init_synthetic_conversation_artifact();
+-  import_handlebars = __toESM(require_lib(), 1);
++  import_handlebars = { default: doolittleExternalHandlebars };
+   DEFAULT_MAX_EMBEDDING_CHARS = DEFAULT_MAX_EMBEDDING_TOKENS * 4;
+@@ -157635,4 +157636,4 @@
+ init_dist_node();
+-var import_handlebars2 = __toESM(require_lib(), 1);
++var import_handlebars2 = { default: doolittleExternalHandlebars };
+
+ // src/features/advanced-memory/evaluators/memory-items.ts

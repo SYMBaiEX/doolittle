@@ -56,6 +56,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       <ElizaButton
         {...props}
         className={cn(
+          "dl-button",
           focusControlClass,
           standard ? standardControlClass : undefined,
           !quiet &&

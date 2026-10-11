@@ -1,4 +1,8 @@
-import { ConversationFrame } from "@doolittle/ui";
+import {
+  ConversationFrame,
+  useLiquidLayout,
+  useSurfacePresence,
+} from "@doolittle/ui";
 import { useMediaQuery } from "@elizaos/ui/hooks/useMediaQuery";
 import {
   type FormEvent,
@@ -2053,6 +2057,13 @@ export function ChatSessionPanel({
   // Only presentation changes; the composer and transcript keep their identity.
   const isEmptyConversation =
     isNewConversation && loadingHistory !== selectedId && !historyError;
+  const composerDockRef = useRef<HTMLDivElement>(null);
+  const inspectorPresence = useSurfacePresence(inspectorVisible);
+  useLiquidLayout(
+    composerDockRef,
+    `${isEmptyConversation}:${inspectorPresence.present}:${surface}`,
+    selectedId,
+  );
   const workbenchAccessibilityProps = isNarrowViewport
     ? {
         "aria-label": "Thread workbench",
@@ -2070,7 +2081,7 @@ export function ChatSessionPanel({
   return (
     <div
       className={`${CHAT_WORKSPACE_CLASS} ${
-        inspectorVisible ? "inspector-open" : "inspector-closed"
+        inspectorPresence.present ? "inspector-open" : "inspector-closed"
       }${inspectorVisible && isNarrowWorkbench ? " inspector-sheet" : ""}`}
       ref={workspaceRef}
     >
@@ -2209,7 +2220,7 @@ export function ChatSessionPanel({
             {accessibilityStatus}
           </div>
         </div>
-        <div className="chat-composer-dock">
+        <div className="chat-composer-dock" ref={composerDockRef}>
           <ChatComposer
             bot={currentBot}
             approvalsVisible={
@@ -2457,15 +2468,23 @@ export function ChatSessionPanel({
           />
         </Suspense>
       ) : null}
-      {inspectorVisible ? (
+      {inspectorPresence.present ? (
         <div
           {...workbenchAccessibilityProps}
+          aria-hidden={!inspectorVisible || undefined}
+          inert={!inspectorVisible}
+          data-state={inspectorPresence.state}
           className="chat-workbench-pane max-[720px]:fixed max-[720px]:inset-0 max-[720px]:z-120 max-[720px]:w-full"
           id={`thread-workbench-${selectedId}`}
           ref={workbenchDialogRef}
         >
           <CompanionInspector
-            active={backend.phase === "ready" && routeActive && visible}
+            active={
+              inspectorVisible &&
+              backend.phase === "ready" &&
+              routeActive &&
+              visible
+            }
             bot={currentBot}
             contextLabel={selectedContextLabel}
             fullWidth={isNarrowWorkbench}

@@ -1,14 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { RuntimeSettings } from "../../settings/runtime-settings";
 import {
-  buildCloudProfile,
   buildCloudRuntimeChecks,
   buildCloudRuntimePreviewChecks,
-  buildDaytonaExecArgs,
-  buildModalShellArgs,
-  buildRemoteSyncPlan,
-  isValidEnvName,
-} from "./index";
+} from "./planning/checks";
+import { buildDaytonaExecArgs } from "./planning/daytona";
+import { buildModalShellArgs } from "./planning/modal";
+import { buildCloudProfile } from "./planning/summary";
+import { buildRemoteSyncPlan, isValidEnvName } from "./sync-plan";
 
 function makeSettings(): RuntimeSettings {
   return {

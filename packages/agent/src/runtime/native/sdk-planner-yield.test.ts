@@ -32,6 +32,7 @@ function fixture(stopAfterFirstAction = false) {
   const executed: string[] = [];
   const optimizedTasks: string[] = [];
   const plannerTemplateSelections: boolean[] = [];
+  const plannerBudgets: unknown[] = [];
   // The installed planner falls back to ambient disk artifacts when this
   // service is absent OR its result equals the bundled baseline. Supply a
   // distinct bounded prompt through the real service contract instead.
@@ -130,10 +131,14 @@ function fixture(stopAfterFirstAction = false) {
     startRun: () => "00000000-0000-4000-8000-000000000004",
     useModel: async (
       modelType: string,
-      params: { messages?: Array<{ content?: unknown }> },
+      params: {
+        messages?: Array<{ content?: unknown }>;
+        providerOptions?: { eliza?: { modelInputBudget?: unknown } };
+      },
     ) => {
       modelTypes.push(modelType);
       if (modelType === ModelType.ACTION_PLANNER) {
+        plannerBudgets.push(params.providerOptions?.eliza?.modelInputBudget);
         plannerTemplateSelections.push(
           params.messages?.some(
             ({ content }) =>
@@ -166,10 +171,58 @@ function fixture(stopAfterFirstAction = false) {
     modelTypes,
     optimizedTasks,
     plannerTemplateSelections,
+    plannerBudgets,
   };
 }
 
 describe("installed SDK planner yield boundary", () => {
+  it("forwards real planner limits and model-aware context through handleMessage", async () => {
+    const f = fixture();
+    const result = await new DefaultMessageService().handleMessage(
+      f.runtime,
+      f.message,
+      undefined,
+      {
+        plannerLoopConfig: {
+          maxToolCalls: 2,
+          contextWindowModelName: "gpt-oss-120b",
+          compactionEnabled: true,
+        },
+        timeoutDuration: 2_000,
+      },
+    );
+    expect(result.didRespond).toBe(true);
+    expect(f.executed).toEqual(["SYNTHETIC_FIRST", "SYNTHETIC_SECOND"]);
+    expect(f.plannerBudgets).toHaveLength(2);
+    expect(f.plannerBudgets[0]).toMatchObject({
+      contextWindowTokens: 131_000,
+      resolvedModelKey: "gpt-oss-120b",
+    });
+  }, 5_000);
+
+  it("refuses a call above the forwarded allowance as a structured failure", async () => {
+    const f = fixture();
+    const stderr = vi
+      .spyOn(process.stderr, "write")
+      .mockImplementation(() => true);
+    try {
+      const result = await new DefaultMessageService().handleMessage(
+        f.runtime,
+        f.message,
+        undefined,
+        { plannerLoopConfig: { maxToolCalls: 1 }, timeoutDuration: 2_000 },
+      );
+      expect(f.executed).toEqual(["SYNTHETIC_FIRST"]);
+      expect(result.responseContent?.failureKind).toBe("trajectory_limit");
+      expect(result.responseContent?.text).toContain("execution limit");
+      expect(result.responseContent?.thought).toBe(
+        "Handle a temporary reply failure during running the native tool message runtime.",
+      );
+      expect(f.runtime.turnControllers.hasActiveTurn(roomId)).toBe(false);
+    } finally {
+      stderr.mockRestore();
+    }
+  }, 5_000);
   it("executes two actions inside handleMessage despite the legacy one-iteration option", async () => {
     const f = fixture();
     const result = await new DefaultMessageService().handleMessage(

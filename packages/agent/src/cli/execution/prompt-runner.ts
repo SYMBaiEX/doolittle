@@ -12,6 +12,7 @@ import {
   type CliState,
   createCliSessionId,
   getCliErrorMessage,
+  getCliResultStatus,
 } from "./types";
 
 export async function runCliPrompt(
@@ -23,7 +24,9 @@ export async function runCliPrompt(
     activeSessionId: options?.sessionId ?? createCliSessionId("cli"),
     notices: [],
   };
-  return executeCliInput(line, context, state);
+  return executeCliInput(line, context, state, {
+    abortSignal: options?.abortSignal,
+  });
 }
 
 export async function runCliPromptWithEvents(
@@ -142,7 +145,7 @@ export async function runCliPromptWithEvents(
     await handlers?.onEvent?.({
       type: "completed",
       timestamp: new Date().toISOString(),
-      status: result.shouldExit ? "cancelled" : "completed",
+      status: getCliResultStatus(result, options?.abortSignal),
       elapsedMs: latestRunElapsedMs,
     });
     return {

@@ -2,11 +2,13 @@ import type { ActionResult } from "@elizaos/core";
 import { describe, expect, it } from "vitest";
 import {
   getScopedTurnActionResults,
+  getScopedTurnPlannerBudget,
   hasScopedTurnActionReceipts,
   recordScopedTurnActionResult,
   resolveScopedTurnActionResult,
   runWithAdditionalTurnRuntimeSettings,
   runWithTurnRuntimeScope,
+  TurnPlannerBudget,
 } from "./turn-runtime-scope";
 
 function receipt(): ActionResult {
@@ -20,6 +22,66 @@ function receipt(): ActionResult {
     },
   };
 }
+
+describe("native planner turn allowance", () => {
+  it("shares the remaining allowance through nested adapter scopes", () => {
+    const runtime = { getSetting: (_key: string): unknown => undefined };
+    const budget = new TurnPlannerBudget(20, "gpt-oss-120b");
+    runWithTurnRuntimeScope(
+      runtime,
+      { settings: new Map(), plannerBudget: budget },
+      () => {
+        expect(budget.beginPass()).toEqual({
+          maxToolCalls: 16,
+          contextWindowModelName: "gpt-oss-120b",
+          compactionEnabled: true,
+        });
+        budget.finishPass(16);
+        runWithAdditionalTurnRuntimeSettings(runtime, new Map(), () => {
+          expect(getScopedTurnPlannerBudget(runtime)).toBe(budget);
+          expect(budget.beginPass().maxToolCalls).toBe(4);
+          budget.finishPass(4);
+        });
+        expect(budget.exhausted).toBe(true);
+        expect(() => budget.beginPass()).toThrow("budget exhausted");
+      },
+    );
+    expect(getScopedTurnPlannerBudget(runtime)).toBeUndefined();
+  });
+
+  it("counts pending native calls missing from results without double charging", () => {
+    const budget = new TurnPlannerBudget(4, "synthetic");
+    budget.beginPass();
+    for (let index = 0; index < 3; index++) {
+      budget.observeStreamChunk(
+        JSON.stringify({
+          type: "tool_call",
+          toolCall: { name: "SYNTHETIC_READ", status: "pending" },
+          metadata: { iteration: index + 1 },
+        }),
+      );
+    }
+    budget.observeStreamChunk("ordinary prose");
+    budget.observeStreamChunk('{"type":"tool_call"}');
+    budget.observeStreamChunk("null");
+    budget.observeStreamChunk(
+      '{"type":"tool_result","toolCall":{"name":"SYNTHETIC_READ","status":"pending"},"metadata":{"iteration":1}}',
+    );
+    budget.finishPass(2);
+    expect(budget.beginPass().maxToolCalls).toBe(1);
+    budget.finishPass(1);
+    expect(budget.exhausted).toBe(true);
+  });
+
+  it("bounds no-action passes even when no allowance is consumed", () => {
+    const budget = new TurnPlannerBudget(10, "synthetic", 2);
+    budget.beginPass();
+    budget.finishPass(0);
+    budget.beginPass();
+    budget.finishPass(0);
+    expect(budget.exhausted).toBe(true);
+  });
+});
 
 describe("request-local action occurrence provenance", () => {
   it("resolves shallow and JSON projections to the full original without new settlement", () => {

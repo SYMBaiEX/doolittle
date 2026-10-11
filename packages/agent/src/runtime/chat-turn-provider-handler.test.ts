@@ -35,6 +35,10 @@ function createContext(overrides?: {
     onSettledActionResult?: (result: unknown) => void;
     maxMultiStepIterations?: number;
     continueAfterActions?: boolean;
+    plannerLoopConfig?: {
+      maxToolCalls?: number;
+      contextWindowModelName?: string;
+    };
   }) => Promise<unknown>;
   getActionResults?: () => unknown[];
   captureNotice?: (notice: string) => void;
@@ -82,6 +86,10 @@ function createContext(overrides?: {
             onSettledActionResult?: (result: unknown) => void;
             maxMultiStepIterations?: number;
             continueAfterActions?: boolean;
+            plannerLoopConfig?: {
+              maxToolCalls?: number;
+              contextWindowModelName?: string;
+            };
           },
         ) => {
           await onContent({ text: "provider response" } as never);
@@ -96,6 +104,7 @@ function createContext(overrides?: {
               onSettledActionResult: options?.onSettledActionResult,
               maxMultiStepIterations: options?.maxMultiStepIterations,
               continueAfterActions: options?.continueAfterActions,
+              plannerLoopConfig: options?.plannerLoopConfig,
             });
           }
           return {
@@ -725,6 +734,43 @@ describe("chat turn provider handler", () => {
       ).toEqual(blocked.data?.interactiveTextCheck);
     },
   );
+
+  it("completes a read-only diagnosis with a proposed fix after one inspection pass", async () => {
+    let calls = 0;
+    const diagnostic =
+      "The inspected one-shot command can report completion after a failed turn. Proposed fix: preserve the failed result status in prompt-command.ts.";
+    const { context, traceEvents } = createContext({
+      onHandleMessage: async () => {
+        calls += 1;
+        return {
+          responseContent: { text: diagnostic },
+          responseMessages: [],
+          state: {
+            data: {
+              actionResults: [
+                {
+                  success: true,
+                  text: "Inspected prompt-command.ts.",
+                  data: { actionName: "READ_FILE" },
+                },
+              ],
+            },
+          },
+        };
+      },
+    });
+    const result = await executeTestTurn(
+      context,
+      "codex",
+      "Read-only repository task: inspect packages/agent/src/entrypoint/prompt-command.ts and identify one concrete correctness issue in one-shot result or cancellation handling. Do not edit any files or run tests. Report the precise issue, file and a minimal proposed fix. Use actual file inspection, not prior assumptions.",
+    );
+    expect(calls).toBe(1);
+    expect(result.response).toBe(diagnostic);
+    expect(result.runFailureMessage).toBeUndefined();
+    expect(
+      traceEvents.some((event) => event.event === "model.continuation"),
+    ).toBe(false);
+  });
 
   it.each([
     "no actions",
@@ -4720,6 +4766,57 @@ describe("chat turn provider handler", () => {
     );
     expect(result.response).toContain("No verified file changes were recorded");
   });
+
+  it.each([false, true])(
+    "shares the native allowance across passes and preserves final verified completion: %s",
+    async (complete) => {
+      const limits: Array<number | undefined> = [];
+      const inspection = {
+        success: true,
+        text: "Inspected the module.",
+        data: { actionName: "READ_FILE" },
+      };
+      const { page } = frontendReceipts();
+      page.data = {
+        ...page.data,
+        mutation: {
+          ...(page.data?.mutation as object),
+          resolvedPath: "/workspace/frontend-review/src/logic.ts",
+        },
+      };
+      const { context } = createContext({
+        onHandleMessage: async ({ plannerLoopConfig }) => {
+          limits.push(plannerLoopConfig?.maxToolCalls);
+          expect(plannerLoopConfig?.contextWindowModelName).toBe("m-1");
+          return {
+            responseContent: { text: "The backend update is complete." },
+            responseMessages: [],
+            state: {
+              data: {
+                actionResults: [
+                  inspection,
+                  complete && limits.length === 2 ? page : inspection,
+                ],
+              },
+            },
+          };
+        },
+      });
+      const result = await executeTestTurn(
+        context,
+        "codex",
+        "Update the backend module in this workspace.",
+      );
+      expect(limits).toEqual([4, 2]);
+      if (complete) {
+        expect(result.runFailureMessage).toBeUndefined();
+        expect(result.response).toBe("The backend update is complete.");
+      } else {
+        expect(result.runFailureMessage).toContain("verified workspace change");
+        expect(result.response).toContain("No verified file changes");
+      }
+    },
+  );
 
   it("stops after a terminal managed coding-agent failure and preserves its actionable error", async () => {
     let callCount = 0;

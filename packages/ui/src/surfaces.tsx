@@ -237,7 +237,7 @@ export function DialogFrame({
 }) {
   return (
     <div
-      className="fixed inset-0 z-120 grid place-items-center bg-[color-mix(in_srgb,var(--shadow)_40%,transparent)] p-4"
+      className="dl-dialog-backdrop fixed inset-0 z-120 grid place-items-center bg-[color-mix(in_srgb,var(--shadow)_40%,transparent)] p-4"
       ref={backdropRef}
     >
       <section
@@ -247,7 +247,7 @@ export function DialogFrame({
         aria-labelledby={titleId}
         tabIndex={-1}
         className={classes(
-          "grid max-h-[calc(100dvh-32px)] w-[min(100%,520px)] gap-4 overflow-y-auto rounded-[var(--radius-xl)] border border-[var(--border-strong)] bg-[var(--surface-raised)] p-5 text-[var(--text)] shadow-[var(--shell-shadow-lg)]",
+          "dl-dialog grid max-h-[calc(100dvh-32px)] w-[min(100%,520px)] gap-4 overflow-y-auto rounded-[var(--radius-xl)] border border-[var(--border-strong)] bg-[var(--surface-raised)] p-5 text-[var(--text)] shadow-[var(--shell-shadow-lg)]",
           className,
         )}
       >

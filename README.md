@@ -208,21 +208,30 @@ scripts/               Bootstrap, verification, and release helpers
 ## Development and verification
 
 This is a Nub workspace. After `nub install --frozen-lockfile --ignore-scripts`,
-use the narrowest relevant command while working, then run the appropriate
-gates before opening a change:
+use the narrowest relevant command while working. Routine development does not
+run the complete historical suite:
 
 ```bash
 nub run typecheck          # TypeScript, no emit
-nub run test               # Vitest suite
+nub run test               # small essential ownership/safety/persistence lane
+nub run test:scope path/to/file.test.ts  # one regression file
+nub run test:related path/to/changed.ts # Vitest dependency-related tests
+nub run test:watch         # essential tests while editing
 nub run build              # packages/agent bundle
 nub run lint:check         # Biome check
 nub run desktop:typecheck  # desktop main, preload, renderer
-nub run desktop:test       # focused desktop tests
+nub run desktop:test       # essential desktop checks
+nub run test:all           # all unit regressions, deliberate integration milestone
+nub run test:integration   # slow integrations, explicit opt-ins still required
 nub run test:e2e           # real Electron + Playwright smoke
 nub run check:acceptance   # hygiene, boundaries, SDK, docs, links, audit
 ```
 
-`nub run check` combines linting, typechecking, tests, and the agent build. CI additionally runs the Electron smoke test and acceptance gates; see [the CI workflow](.github/workflows/ci.yml).
+`nub run check` is the routine essential check. Use `check:all` and
+`check:release` at deliberate integration/release milestones, not every edit or
+agent handoff. See [the fast development guide](docs/engineering/fast-development.md)
+and [the CI workflow](.github/workflows/ci.yml). A passing build or fixture is
+not evidence of a live provider task or packaged UI behavior.
 
 ### Provider package release
 

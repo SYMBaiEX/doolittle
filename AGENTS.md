@@ -24,15 +24,25 @@ behavioral — never a log or memory dump.
   `@elizaos/agent`, and `@elizaos/skills` at `2.0.3-beta.7`). Keep the exact
   root overrides aligned.
 
-## Gates (run before considering work done)
+## Developer loop
 
+```sh
+nub run test:scope path/to/changed.test.ts   # direct behavior coverage
+nub run test:related packages/agent/src/path/to/changed.ts
+nub run test:watch:scope path/to/changed.test.ts # persistent scoped loop
+nub run test                               # 8 essential behavior files
 ```
-nub run typecheck      # tsc --noEmit
-nub run test           # full suite
-nub run build          # bundle packages/agent
-nub run lint:check     # biome
-nub run check:acceptance   # repo hygiene + plugin boundaries + doc truth
-```
+
+- Default `test`/`check` is a fast feedback loop, not release certification.
+- Match verification to changed behavior. Do not repeatedly run the full suite,
+  builds, acceptance gates, or live evals during routine edits.
+- Use `test:all` / `check:all` for deliberate broad coverage and `check:release`
+  before release. Use `test:integration:workers`, `test:sandbox:integration`, and
+  `test:e2e` only when validating those real runtime/platform boundaries.
+- Report exactly what ran and what remains unverified. Related tests follow
+  static imports; select explicit tests for dynamic plugin/runtime wiring.
+- See [fast development](docs/engineering/fast-development.md) for scope and
+  failure/recovery coverage.
 
 ## Conventions
 

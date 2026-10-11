@@ -1,4 +1,5 @@
 import { DEFAULT_MODEL_ROUTE } from "@doolittle/contracts/model-route";
+import { useSurfacePresence } from "@doolittle/ui";
 import { X } from "lucide-react";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import type {
@@ -109,6 +110,7 @@ export function RouteControlDialog({
   refreshRuntime: () => void;
   runtime: RuntimeStatus | null;
 }) {
+  const presence = useSurfacePresence(isOpen);
   const settings = useApiResource<SettingsResponse>(
     isOpen ? "/settings" : null,
     [isOpen],
@@ -219,11 +221,14 @@ export function RouteControlDialog({
     }
   };
 
-  if (!isOpen) return null;
+  if (!presence.present) return null;
 
   return (
     <div
       className={ROUTE_DIALOG_BACKDROP_CLASS}
+      aria-hidden={!isOpen || undefined}
+      inert={!isOpen}
+      data-state={presence.state}
       onClick={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
@@ -235,10 +240,15 @@ export function RouteControlDialog({
         }
       }}
       role="dialog"
-      aria-modal="true"
+      aria-modal={isOpen || undefined}
       aria-labelledby="route-control-title"
     >
-      <div className={ROUTE_DIALOG_CLASS} ref={dialogRef} tabIndex={-1}>
+      <div
+        className={ROUTE_DIALOG_CLASS}
+        ref={dialogRef}
+        tabIndex={-1}
+        data-state={presence.state}
+      >
         <div className={ROUTE_DIALOG_HEADER_CLASS}>
           <div>
             <span className="eyebrow">Shared runtime route</span>

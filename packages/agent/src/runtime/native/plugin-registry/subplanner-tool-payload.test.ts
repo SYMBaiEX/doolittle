@@ -14,7 +14,10 @@ import { toOpenAITools } from "@elizaos/plugin-codex-cli";
 import { createSelectedProviderTextModel } from "@plugins/doolittle-plugin/model-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createEvalModelInputObservationsPlugin } from "./eval-model-input-observations";
-import { createPlannerToolExposurePlugin } from "./planner-tool-exposure";
+import {
+  createPlannerToolExposurePlugin,
+  PLANNER_TOOL_EXPOSURE_FLAG,
+} from "./planner-tool-exposure";
 
 const plannerPrompt = "Bounded synthetic sub-planner instruction.";
 const parentName = "SYNTHETIC_OPERATIONS";
@@ -23,6 +26,7 @@ const secondName = `${parentName}_SECOND`;
 const sharedAlias = "SYNTHETIC_SHARED";
 
 beforeEach(() => {
+  vi.stubEnv(PLANNER_TOOL_EXPOSURE_FLAG, undefined);
   vi.stubEnv("ELIZA_TRAJECTORY_RECORDING", "false");
   vi.stubEnv("ELIZA_INFERENCE_TIMING", "false");
   // Avoid ambient role-policy configuration; the gate tests use explicit roles.
@@ -113,7 +117,7 @@ async function sdkFixture(
   selectedName: string,
   args: Record<string, unknown> = {},
   options: {
-    exposure?: boolean;
+    exposure?: boolean | "default";
     router?: boolean;
     observations?: boolean;
   } = {},
@@ -201,7 +205,9 @@ async function sdkFixture(
         },
       });
       await runtime.registerPlugin(
-        createPlannerToolExposurePlugin({ enabled: options.exposure }),
+        createPlannerToolExposurePlugin(
+          options.exposure === "default" ? {} : { enabled: options.exposure },
+        ),
       );
       runtime.registerPipelineHook({
         id: "synthetic-filtered-tools",
@@ -503,7 +509,39 @@ describe("installed SDK sub-planner native tool payload", () => {
   );
 });
 
-describe("opt-in SDK alias advertisement policy", () => {
+describe("canonical SDK alias advertisement policy", () => {
+  it.each([
+    [undefined, 6],
+    ["false", 10],
+    ["unrecognized", 10],
+  ])(
+    "uses the default policy or environment rollback (%s) through the real SDK",
+    async (flag, advertisedTools) => {
+      vi.stubEnv(PLANNER_TOOL_EXPOSURE_FLAG, flag);
+      const f = promotedFixture();
+      const sdk = await sdkFixture(
+        f.parent,
+        f.actions,
+        firstName,
+        {},
+        { exposure: "default", router: true },
+      );
+      try {
+        const result = await sdk.run();
+        expect(result.status).toBe("finished");
+        expect(f.operations).toEqual(["first"]);
+        expect(sdk.originalTools[0]).toHaveLength(10);
+        expect(sdk.capturedTools[0]).toHaveLength(advertisedTools);
+        expect(sdk.counts()).toEqual({ modelCalls: 1, evaluatorCalls: 0 });
+        if (advertisedTools === 10)
+          expect(sdk.capturedTools[0]).toBe(sdk.originalTools[0]);
+      } finally {
+        await sdk.runtime.stop();
+      }
+    },
+    3_000,
+  );
+
   it("reduces native and real Codex payload on both router legs before observers without altering original tools", async () => {
     const f = promotedFixture();
     const sdk = await sdkFixture(

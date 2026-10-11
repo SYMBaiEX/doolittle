@@ -28,7 +28,9 @@
     "package:linux": "nub run build && nub run runtime:prepare && nub scripts/package.ts --linux AppImage deb --x64",
     "package:all": "nub scripts/package-all.ts",
     "typecheck": "tsc -b tsconfig.main.json tsconfig.renderer.json",
-    "test": "nubx vitest run"
+    "test": "nubx vitest run --config vitest.config.ts",
+    "test:watch": "nubx vitest watch --config vitest.config.ts",
+    "test:related": "nubx vitest related --run --config vitest.config.ts"
   },
   "dependencies": {
     "electron-updater": "^6.8.9"

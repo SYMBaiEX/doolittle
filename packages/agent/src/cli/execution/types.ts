@@ -13,6 +13,8 @@ export interface CliExecutionResult {
   text: string;
   tone?: "info" | "success" | "warning" | "error" | "agent";
   shouldExit?: boolean;
+  /** Authoritative terminal receipt, when an agent turn created a run. */
+  status?: "completed" | "failed" | "cancelled";
 }
 
 export interface CliExecutionHooks {
@@ -31,8 +33,20 @@ export interface CliExecutionHooks {
 
 export interface CliPromptRunOptions {
   sessionId?: string;
+  abortSignal?: AbortSignal;
   /** Internal JSON-stream-only eval channel; never enable for replayable jobs. */
   codingVerificationReceipts?: boolean;
+}
+
+/** Completion is an execution fact, not merely a resolved promise. */
+export function getCliResultStatus(
+  result: CliExecutionResult,
+  abortSignal?: AbortSignal,
+): "completed" | "failed" | "cancelled" {
+  if (abortSignal?.aborted) return "cancelled";
+  if (result.status) return result.status;
+  if (result.shouldExit) return "cancelled";
+  return result.tone === "error" ? "failed" : "completed";
 }
 
 export interface CliPromptEventHandlers {

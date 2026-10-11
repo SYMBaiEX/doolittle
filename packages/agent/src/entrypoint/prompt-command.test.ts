@@ -6,8 +6,10 @@ import { handleRuntimePromptCommand } from "./prompt-command";
 
 const previousCodingVerificationOptIn =
   process.env.DOOLITTLE_EVAL_CODING_VERIFICATION;
+const previousExitCode = process.exitCode;
 
 afterEach(() => {
+  process.exitCode = previousExitCode;
   if (previousCodingVerificationOptIn === undefined)
     delete process.env.DOOLITTLE_EVAL_CODING_VERIFICATION;
   else
@@ -173,10 +175,10 @@ describe("handleRuntimePromptCommand", () => {
     expect(runCliPrompt).toHaveBeenCalledWith(
       expect.anything(),
       "summarize this repo",
-      { sessionId: undefined },
+      { sessionId: undefined, abortSignal: undefined },
     );
     expect(printOneShotResult).toHaveBeenCalledWith(
-      { text: "done", tone: "success" },
+      { text: "done", tone: "success", status: "completed" },
       true,
     );
   });
@@ -208,10 +210,93 @@ describe("handleRuntimePromptCommand", () => {
 
     expect(runCliPrompt).toHaveBeenCalledWith(expect.anything(), "/status", {
       sessionId: undefined,
+      abortSignal: undefined,
     });
     expect(printOneShotResult).toHaveBeenCalledWith(
-      { text: "status ok", tone: "success" },
+      { text: "status ok", tone: "success", status: "completed" },
       false,
     );
+  });
+
+  it("does not mark a resolved error result as a completed background job", async () => {
+    const finalizeCliJob = vi.fn();
+    await handleRuntimePromptCommand(
+      {
+        command: "exec",
+        shellIsInteractive: false,
+        immediatePrompt: "task",
+        oneShot: {
+          json: false,
+          jsonStream: true,
+          background: false,
+          jobId: "job-error",
+        },
+        context: createContext(),
+        runCliPromptWithEvents: async () => ({
+          result: { text: "permission denied", tone: "error" },
+          sessionId: "session-error",
+        }),
+      },
+      {
+        markCliJobStarted: vi.fn(),
+        appendCliJobEvent: vi.fn(),
+        finalizeCliJob,
+        encodeCliTurnEvent: JSON.stringify,
+        printOneShotResult: vi.fn(),
+      },
+    );
+    expect(finalizeCliJob).toHaveBeenCalledWith(
+      "/tmp/doolittle-data",
+      "job-error",
+      "failed",
+      1,
+    );
+    expect(process.exitCode).toBe(1);
+  });
+
+  it("propagates cancelled resolved one-shot exit status and JSON evidence", async () => {
+    const output = vi.spyOn(console, "log").mockImplementation(() => {});
+    const controller = new AbortController();
+    const runCliPrompt = vi.fn(async () => {
+      controller.abort();
+      return { text: "stopped", tone: "agent" } as CliExecutionResult;
+    });
+
+    await handleRuntimePromptCommand({
+      command: "exec",
+      shellIsInteractive: false,
+      immediatePrompt: "task",
+      oneShot: { json: true, jsonStream: false, background: false },
+      context: createContext(),
+      abortSignal: controller.signal,
+      runCliPrompt,
+    });
+
+    expect(process.exitCode).toBe(130);
+    expect(JSON.parse(output.mock.calls[0]?.[0])).toMatchObject({
+      ok: false,
+      text: "stopped",
+    });
+  });
+
+  it("passes the lifecycle cancellation signal into a streamed turn", async () => {
+    const controller = new AbortController();
+    const runCliPromptWithEvents = vi.fn(
+      async (_context, _line, _handlers, options) => {
+        expect(options.abortSignal).toBe(controller.signal);
+        controller.abort();
+        throw new Error("cancelled");
+      },
+    );
+    await handleRuntimePromptCommand({
+      command: "exec",
+      shellIsInteractive: false,
+      immediatePrompt: "task",
+      oneShot: { json: false, jsonStream: true, background: false },
+      context: createContext(),
+      abortSignal: controller.signal,
+      runCliPromptWithEvents,
+    });
+    expect(process.exitCode).toBe(130);
   });
 });

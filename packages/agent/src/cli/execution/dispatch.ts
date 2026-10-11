@@ -2,6 +2,7 @@ import type { AppContext } from "@/runtime/bootstrap";
 import { handleAgentTurn } from "@/runtime/chat";
 import { normalizeSlashCommandSyntax } from "@/runtime/command-catalog";
 import { connectLinkedProvider } from "@/runtime/linked-provider-accounts";
+import { stableRuntimeUuid } from "@/runtime/stable-runtime-uuid";
 import { handleCliJobCommand } from "./job-commands";
 import { handleCliSessionCommand } from "./session-commands";
 import { runCliShellFlow } from "./shell-flow";
@@ -44,6 +45,9 @@ export async function executeCliInput(
     return sessionResult;
   }
 
+  const nativeRoomId = stableRuntimeUuid(state.activeSessionId);
+  const previousRunId =
+    context.services.runController?.getByRoomId(nativeRoomId)?.runId;
   const response = await handleAgentTurn(
     {
       message: normalizedTrimmed,
@@ -82,5 +86,25 @@ export async function executeCliInput(
     },
   );
 
-  return { text: response, tone: isExplicitSlashCommand ? "info" : "agent" };
+  const receipt = context.services.runController?.getByRoomId(nativeRoomId);
+  const ownedReceipt =
+    receipt &&
+    receipt.runId !== previousRunId &&
+    receipt.sessionId === state.activeSessionId &&
+    receipt.source === "cli";
+  const status = ownedReceipt
+    ? receipt.status === "error"
+      ? "failed"
+      : receipt.status === "cancelled"
+        ? "cancelled"
+        : receipt.status === "complete"
+          ? "completed"
+          : undefined
+    : undefined;
+  return {
+    text: response,
+    tone:
+      status === "failed" ? "error" : isExplicitSlashCommand ? "info" : "agent",
+    ...(status ? { status } : {}),
+  };
 }

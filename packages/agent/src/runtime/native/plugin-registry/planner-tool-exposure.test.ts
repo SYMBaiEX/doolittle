@@ -15,6 +15,11 @@ const tool = (name: string, parameters = schema()) => ({
   strict: true,
   parameters,
 });
+const aliasTool = (canonical: ReturnType<typeof tool>, name = "ALIAS") => ({
+  ...canonical,
+  name,
+  description: `${canonical.description}\nAlias for ${canonical.name}.`.trim(),
+});
 const action = (name: string, similes: unknown[] = []) => ({
   name,
   similes,
@@ -48,8 +53,8 @@ async function fixture(actions: unknown[] = [action("FIRST", ["ALIAS"])]) {
 }
 
 describe("planner alias tool exposure", () => {
-  it.each([undefined, "false", "TRUE", "1", " true "])(
-    "is inert unless the flag is exactly true (%s) and removes a prior hook",
+  it.each(["false", "TRUE", "1", " true ", ""])(
+    "preserves rollback or unrecognized explicit flag (%s) and removes a prior hook",
     async (flag) => {
       vi.stubEnv(PLANNER_TOOL_EXPOSURE_FLAG, flag);
       const f = await fixture();
@@ -61,10 +66,25 @@ describe("planner alias tool exposure", () => {
     },
   );
 
-  it("supports strict opt-in, injected overrides, stable registration and rollback", async () => {
-    vi.stubEnv(PLANNER_TOOL_EXPOSURE_FLAG, "true");
+  it.each([undefined, "true"])(
+    "enables canonical advertisement by default or exact true (%s)",
+    async (flag) => {
+      vi.stubEnv(PLANNER_TOOL_EXPOSURE_FLAG, flag);
+      const f = await fixture();
+      await f.initialize();
+      const canonical = tool("FIRST");
+      const alias = aliasTool(canonical);
+      const params = { tools: [canonical, alias] };
+      await f.invoke(params);
+      expect(params.tools).toEqual([canonical]);
+      expect(f.runtime.actions).toEqual([action("FIRST", ["ALIAS"])]);
+    },
+  );
+
+  it("supports injected overrides, stable registration and rollback", async () => {
+    vi.stubEnv(PLANNER_TOOL_EXPOSURE_FLAG, "false");
     const f = await fixture();
-    await f.initialize();
+    await f.initialize(true);
     await f.initialize(true);
     expect(f.hooks.size).toBe(1);
     expect(f.hooks.get(PLANNER_TOOL_EXPOSURE_HOOK_ID)).toMatchObject({
@@ -75,12 +95,15 @@ describe("planner alias tool exposure", () => {
     });
     await f.initialize(false);
     expect(f.hooks.size).toBe(0);
+    vi.stubEnv(PLANNER_TOOL_EXPOSURE_FLAG, "true");
+    await f.initialize(false);
+    expect(f.hooks.size).toBe(0);
   });
 
   it("replaces only tools, preserves frozen originals and is idempotent", async () => {
     const f = await fixture();
     const canonical = Object.freeze(tool("FIRST", Object.freeze(schema())));
-    const alias = Object.freeze({ ...canonical, name: "ALIAS" });
+    const alias = Object.freeze(aliasTool(canonical));
     const unknown = Object.freeze(tool("UNKNOWN"));
     const terminal = Object.freeze(tool("STOP"));
     const original = Object.freeze([canonical, alias, unknown, terminal]);
@@ -113,7 +136,7 @@ describe("planner alias tool exposure", () => {
     ]);
     const canonical = tool("FIRST");
     const second = tool("SECOND");
-    const alias = { ...canonical, name: "ALIAS" };
+    const alias = aliasTool(canonical);
     const params = { tools: [canonical, second, alias] };
     await f.invoke(params);
     expect(params.tools).toEqual([canonical, second]);
@@ -134,7 +157,7 @@ describe("planner alias tool exposure", () => {
       name: "PARENT",
       description: "Synthetic tool.\nAlias for FIRST.",
     };
-    const shared = { ...canonical, name: "SHARED" };
+    const shared = aliasTool(canonical, "SHARED");
     const params = { tools: [canonical, parentAlias, shared] };
     await f.invoke(params);
     expect(params.tools).toEqual([canonical, parentAlias]);
@@ -149,7 +172,7 @@ describe("planner alias tool exposure", () => {
     };
     const f = await fixture([registered]);
     const canonical = { ...tool("FIRST"), description: "Route.\nCompressed." };
-    const alias = { ...canonical, name: "ALIAS" };
+    const alias = aliasTool(canonical);
     const good = { tools: [canonical, alias] };
     await f.invoke(good);
     expect(good.tools).toEqual([canonical]);
@@ -161,6 +184,22 @@ describe("planner alias tool exposure", () => {
     const original = bad.tools;
     await f.invoke(bad);
     expect(bad.tools).toBe(original);
+  });
+
+  it("retains intentionally distinct alias descriptions even with shared schemas and similes", async () => {
+    const f = await fixture();
+    const canonical = tool("FIRST");
+    for (const description of [
+      canonical.description,
+      "Distinct routing behavior.",
+      `${canonical.description}\nAlias for SECOND.`,
+    ]) {
+      const alias = { ...aliasTool(canonical), description };
+      const params = { tools: [canonical, alias] };
+      const original = params.tools;
+      await f.invoke(params);
+      expect(params.tools).toBe(original);
+    }
   });
 
   it.each(["name", "description", "descriptionCompressed", "routingHint"])(
@@ -176,7 +215,7 @@ describe("planner alias tool exposure", () => {
       );
       const f = await fixture([registered]);
       const canonical = tool("FIRST");
-      const params = { tools: [canonical, { ...canonical, name: "ALIAS" }] };
+      const params = { tools: [canonical, aliasTool(canonical)] };
       const original = params.tools;
       await f.invoke(params);
       expect(params.tools).toBe(original);
@@ -189,7 +228,7 @@ describe("planner alias tool exposure", () => {
     async (key) => {
       const f = await fixture([{ ...action("FIRST", ["ALIAS"]), [key]: 17 }]);
       const canonical = tool("FIRST");
-      const params = { tools: [canonical, { ...canonical, name: "ALIAS" }] };
+      const params = { tools: [canonical, aliasTool(canonical)] };
       const original = params.tools;
       await f.invoke(params);
       expect(params.tools).toBe(original);
@@ -201,7 +240,7 @@ describe("planner alias tool exposure", () => {
     async (model) => {
       const f = await fixture();
       const canonical = tool("FIRST");
-      const params = { tools: [canonical, { ...canonical, name: "ALIAS" }] };
+      const params = { tools: [canonical, aliasTool(canonical)] };
       const original = params.tools;
       await f.invoke(params, model);
       expect(params.tools).toBe(original);
@@ -227,7 +266,7 @@ describe("planner alias tool exposure", () => {
     "malformed-schema",
   ])("preserves unproven or protected advertisement: %s", async (kind) => {
     const canonical = tool("FIRST");
-    let alias: object = { ...canonical, name: "ALIAS" };
+    let alias: object = aliasTool(canonical);
     let tools: unknown[] = [canonical, alias];
     const actions = [action("FIRST", ["ALIAS"])];
     if (kind === "distinct-schema") alias = tool("ALIAS");
@@ -268,7 +307,7 @@ describe("planner alias tool exposure", () => {
       throw new Error("Must not read accessor.");
     });
     const canonical = tool("FIRST");
-    const alias = { ...canonical, name: "ALIAS" };
+    const alias = aliasTool(canonical);
     const accessorAlias = Object.defineProperty({ ...alias }, "name", {
       get: getter,
     });
@@ -293,7 +332,7 @@ describe("planner alias tool exposure", () => {
     const canonical = tool("FIRST");
     const unreadable = Object.defineProperty({}, "name", { get: getter });
     const params = {
-      tools: [canonical, { ...canonical, name: "ALIAS" }, unreadable],
+      tools: [canonical, aliasTool(canonical), unreadable],
     };
     const original = params.tools;
     await f.invoke(params);
@@ -304,7 +343,7 @@ describe("planner alias tool exposure", () => {
   it("fails open for frozen params, sparse arrays, nonplain params and assignment errors", async () => {
     const f = await fixture();
     const canonical = tool("FIRST");
-    const tools = [canonical, { ...canonical, name: "ALIAS" }];
+    const tools = [canonical, aliasTool(canonical)];
     const frozen = Object.freeze({ tools });
     await expect(f.invoke(frozen)).resolves.toBeUndefined();
     const sparseTools: unknown[] = Array(3);

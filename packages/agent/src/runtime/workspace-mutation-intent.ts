@@ -9,6 +9,12 @@ const NEGATED_ACTION_PREFIX =
 const NEGATED_PASSIVE_ACTION_SUFFIX =
   /\b(?:(?:is|are|was|were|be|been|being)\s+not|(?:is|are|was|were|has|have|had)n['’]t|(?:has|have|had)\s+not(?:\s+been)?)\s*$/iu;
 
+// A requested diagnosis can contain mutation nouns ("a proposed fix", "the
+// recommended patch") without authorizing execution. Scope this exclusion to
+// the noun's immediate prefix; a later "and implement it" still means work.
+const PROPOSED_MUTATION_PREFIX =
+  /\b(?:proposed|suggested|recommended|hypothetical|potential|possible|candidate)\s+(?:(?:minimal|small|scoped|concrete)\s+)?$|\b(?:propose|suggest|recommend|describe|report|outline|identify)\s+(?:(?:a|an|the)\s+)?(?:(?:minimal|small|scoped|concrete|proposed|suggested|recommended|possible)\s+)*$/iu;
+
 // Keep offsets and quoted filenames intact in the original text, but do not
 // interpret example commands or quoted instructions as the user's actions.
 function unquotedInstructions(message: string): string {
@@ -57,6 +63,7 @@ export function hasExplicitWorkspaceMutationIntent(message: string): boolean {
         return (
           !NEGATED_ACTION_PREFIX.test(before) &&
           !NEGATED_PASSIVE_ACTION_SUFFIX.test(before.trimEnd()) &&
+          !PROPOSED_MUTATION_PREFIX.test(before) &&
           !/\b(?:how\s+to|(?:would|could|might|should)\s*)$/iu.test(
             before.trimEnd(),
           )

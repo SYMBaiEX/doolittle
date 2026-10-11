@@ -15,9 +15,11 @@ import { matchesRegisteredCommandShortcut } from "@/runtime/command-shortcut-mat
 import { checkOllamaReadiness } from "@/runtime/native/plugin-registry/ollama-readiness";
 import {
   getScopedTurnActionResults,
+  getScopedTurnPlannerBudget,
   hasScopedTurnActionReceipts,
   recordScopedTurnActionResult,
   resolveScopedTurnActionResult,
+  TurnPlannerBudget,
 } from "@/runtime/turn-runtime-scope";
 import { hasWorkspaceMutationObligation } from "@/runtime/workspace-mutation-intent";
 import {
@@ -111,6 +113,7 @@ function isSdkFailureReply(content: SdkResponseContent | null | undefined) {
   // (including a user asking about errors) by matching the displayed text.
   return (
     content?.failureKind === "no_provider" ||
+    content?.failureKind === "trajectory_limit" ||
     content?.thought ===
       "Handle a temporary reply failure during running the native tool message runtime."
   );
@@ -1515,6 +1518,13 @@ export async function executeProviderMessageTurn(
   let actionResults: ActionResult[] = [];
   const settledActionResults: ActionResult[] = [];
   let responseMessages: Memory[] = [];
+  const plannerBudget =
+    getScopedTurnPlannerBudget(input.context.runtime) ??
+    new TurnPlannerBudget(
+      input.messagePolicy.maxIterations,
+      input.settingsDuring.model.model,
+      MAX_MUTATION_CONTINUATION_PASSES,
+    );
 
   await runWithSdkTrajectoryContext(
     input.context,
@@ -1617,15 +1627,12 @@ export async function executeProviderMessageTurn(
         // Check workspace mutations against Doolittle's receipt gate after
         // each SDK message pass. The installed beta.7 planner ignores the
         // legacy iteration/continuation hints below: one handleMessage call
-        // can execute multiple actions before returning. This outer bound
-        // limits message passes, not inner tool calls. Continuing on the same
+        // can execute multiple actions before returning. The shared allowance
+        // now forwards real SDK limits and bounds both passes and tool calls.
+        // Continuing on the same
         // memory ID preserves the original room/session without another
         // visible user message; the SDK still owns its internal planner.
-        for (
-          let attempt = 0;
-          attempt < MAX_MUTATION_CONTINUATION_PASSES;
-          attempt += 1
-        ) {
+        for (let attempt = 0; !plannerBudget.exhausted; attempt += 1) {
           throwIfTurnAborted(input.abortSignal);
           const settledCountBeforeAttempt = settledActionResults.length;
           messageResult = await messageService.handleMessage(
@@ -1644,6 +1651,7 @@ export async function executeProviderMessageTurn(
               // a hard tool-call refusal is not a completion-preserving yield.
               continueAfterActions: !mutationObligation,
               abortSignal: input.abortSignal,
+              plannerLoopConfig: plannerBudget.beginPass(),
               // Once a managed coding child has completed, its final response
               // must come from the terminal receipt below. Suppress the SDK's
               // provisional follow-up text so beta.7's streamed no-provider
@@ -1651,6 +1659,7 @@ export async function executeProviderMessageTurn(
               // failure marker is available. Run and tool progress still
               // streams; post-provider emits the selected final answer once.
               onStreamChunk: async (chunk: string) => {
+                plannerBudget.observeStreamChunk(chunk);
                 const streamResults = [
                   ...actionResults,
                   ...settledActionResults,
@@ -1690,6 +1699,7 @@ export async function executeProviderMessageTurn(
               : stateActionResults.length > 0
                 ? stateActionResults
                 : settledThisAttempt;
+          plannerBudget.finishPass(attemptActionResults.length);
           actionResults = mergeActionResults(
             input.context.runtime,
             actionResults,
@@ -1827,6 +1837,7 @@ export async function executeProviderMessageTurn(
             isSdkFailureReply(messageResult?.responseContent) ||
             hasPendingApproval(input.context, sessionId) ||
             attempt >= MAX_MUTATION_CONTINUATION_PASSES - 1 ||
+            plannerBudget.exhausted ||
             consecutiveNoActionPasses >= MAX_CONSECUTIVE_NO_ACTION_PASSES ||
             // A strict no-op receipt includes the completed coding-agent
             // attestation plus the requested parent install/build and ready
@@ -1950,6 +1961,8 @@ export async function executeProviderMessageTurn(
             "The model provider could not complete this turn. Check provider status and retry.";
           const completedPass =
             completedManagedDelegationResponse(actionResults);
+          const plannerLimitReached =
+            messageResult?.responseContent?.failureKind === "trajectory_limit";
           if (admittedIncomplete !== undefined) {
             runFailureMessage =
               incompleteAdmittedWorkspaceFailure(actionResults);
@@ -1960,7 +1973,9 @@ export async function executeProviderMessageTurn(
             response = [
               completedPass,
               appServerSummary,
-              "Doolittle's configured response provider returned an unavailable reply after the coding agent finished. This receipt-backed report is preserved as the final answer; it does not infer checks beyond the results listed above.",
+              plannerLimitReached
+                ? "The parent planner reached its configured execution limit after the coding agent finished. This receipt-backed report is preserved as the final answer; it does not infer checks beyond the results listed above."
+                : "Doolittle's configured response provider returned an unavailable reply after the coding agent finished. This receipt-backed report is preserved as the final answer; it does not infer checks beyond the results listed above.",
             ]
               .filter(Boolean)
               .join("\n\n");
@@ -2057,7 +2072,9 @@ export async function executeProviderMessageTurn(
           const providerUnavailable = isSdkFailureReply(
             messageResult?.responseContent,
           )
-            ? "The configured response provider did not produce a final message; completion is based on the verified coding, build, server, and HTTP receipts."
+            ? messageResult?.responseContent?.failureKind === "trajectory_limit"
+              ? "The parent planner reached its configured execution limit; completion is based on the verified coding, build, server, and HTTP receipts."
+              : "The configured response provider did not produce a final message; completion is based on the verified coding, build, server, and HTTP receipts."
             : undefined;
           response = verifiedWorkspaceNoopResponse(
             verifiedNoopCompletion,

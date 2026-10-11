@@ -119,10 +119,12 @@ from aggregate counts alone.
 
 ## Planner alias exposure experiment
 
-`DOOLITTLE_PLANNER_DEDUP_ALIAS_TOOLS=true` opts into a public SDK `pre_model`
-hook for `ACTION_PLANNER`; it is disabled by default. The hook replaces only
+Canonical alias advertisement uses the public SDK `pre_model` hook for
+`ACTION_PLANNER` by default. `DOOLITTLE_PLANNER_DEDUP_ALIAS_TOOLS=false` disables
+the optimization. The hook replaces only
 the provider-facing tools array. An alias qualifies through its explicit
-registered simile, unique canonical tool and exact schema-object identity,
+registered simile, unique canonical tool, exact SDK-derived description and
+exact schema-object identity,
 with conservative own-data shape/metadata checks. Shared alias ownership does
 not itself prevent removal: SDK admission and legacy dispatch still use the
 original tools. Canonical/terminal names, normalized collisions, unknown or

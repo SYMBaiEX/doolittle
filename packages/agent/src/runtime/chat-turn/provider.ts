@@ -11,7 +11,10 @@ import {
 } from "@elizaos/core";
 import type { AgentExecutionContext } from "@/runtime/chat";
 import { buildProviderRuntimeSettings } from "@/runtime/linked-provider-accounts";
-import { runWithTurnRuntimeScope } from "@/runtime/turn-runtime-scope";
+import {
+  runWithTurnRuntimeScope,
+  TurnPlannerBudget,
+} from "@/runtime/turn-runtime-scope";
 import type { NativeMessagePolicy } from "./native/types";
 import {
   type ModelSettingsSnapshot,
@@ -186,6 +189,10 @@ export async function runProviderModelTurn(
         runLocalShellCommand: input.options?.runLocalShellCommand,
       },
       settledActionResults: [],
+      plannerBudget: new TurnPlannerBudget(
+        input.messagePolicy.maxIterations,
+        input.settingsDuring.model.model,
+      ),
     },
     async () => {
       let response = "";

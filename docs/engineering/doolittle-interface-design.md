@@ -14,6 +14,19 @@ width defaults to 760px, navigation to 248px and inspector to 320px. Compact
 density reduces chrome without reducing transcript legibility. No decorative
 gradients, glow, textures, or cards around ordinary lists.
 
+Floating controls use a thin neutral material edge and restrained depth: composer
+corners are at least 20px, floating menus at least 16px, and user messages use
+asymmetric rounded bubbles. Send is circular; text retains the existing reading
+width and density. These are functional floating surfaces, not decorative cards.
+
+Liquid movement belongs to the existing element, never a duplicate screenshot:
+the composer translates from welcome position to its dock without remounting or
+scaling text. Menus, dialogs and the inspector use short transform/opacity
+transitions. Closing surfaces become inert immediately; reopening interrupts
+dismissal. Ownership changes and window resizing settle motion rather than
+carrying a surface across conversations. Reduced motion, zero-duration themes,
+reduced transparency and forced colors have static/readable alternatives.
+
 ## Hierarchy and workflows
 
 - Navigation contains search, new conversation, bot contacts, and the selected

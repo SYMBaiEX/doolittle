@@ -79,6 +79,24 @@ function context() {
 }
 
 describe("CLI JSON-stream coding verification receipts", () => {
+  it("reports a resolved command error as failed rather than completed", async () => {
+    const ctx = context();
+    const events: CliTurnEvent[] = [];
+    executeCliInput.mockResolvedValue({
+      text: "permission denied",
+      tone: "error",
+    });
+    await runCliPromptWithEvents(ctx.value, "command", {
+      onEvent: (event) => {
+        events.push(event);
+      },
+    });
+    expect(events.at(-1)).toMatchObject({
+      type: "completed",
+      status: "failed",
+    });
+  });
+
   it("is default-off", async () => {
     delete process.env.DOOLITTLE_EVAL_CODING_VERIFICATION;
     const ctx = context();
