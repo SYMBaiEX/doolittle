@@ -97,7 +97,7 @@ consumer tests remain, alongside this seventh reporter regression.
 ## Verification status
 
 `nub run check:all` passed: lint, root/UI type checking, desktop type checking,
-1,047 passing test files (five skipped), 6,826 passing tests (seven skipped),
+1,047 passing test files (five skipped), 6,827 passing tests (seven skipped),
 and the agent build. Focused behavior, disclosure, dependency-compatibility,
 and adversarial local-patch checks also passed. `nub run native:test` compiled
 and exercised the actual macOS probe against loopback servers.
@@ -109,6 +109,29 @@ native package versions. Those policy passes do not close the residual full-
 graph version advisories above. An independent bounded source review found no
 actionable blocker in the final patch, API, hook, and native-probe changes.
 
-The rebuilt desktop installation is recorded after the clean source commit.
+The desktop renderer/main/preload/runtime build passed, followed by verified
+macOS arm64 directory packaging from clean source commit
+`5210d72190b88d77fc6abadd54ed028c8468e40e`. The first packaging attempt correctly
+refused uncommitted source changes. After the script-disabled dependency refresh
+removed Electron's downloaded distribution, the repository's dedicated Electron
+runtime installer restored it; the already-built package then passed the normal
+directory packaging checks. No packaging check was bypassed.
+
+`nub run desktop:install:mac` successfully replaced `/Applications/Doolittle.app`
+transactionally. The installed bundle passes `codesign --verify --deep --strict`
+with the intentional local ad-hoc signature, not release notarization. Package
+and installed hashes agree:
+
+- `app.asar`: `c87650f806618b3c38088a402c4a27fcae427d7261a4ce9a487b72094ccdf744`
+- `runtime-manifest.json`: `74096ce70baf90aa17dddf84748e6c32865327ab59877ae869d152454162f3b2`
+
+The installed macOS app was opened and its native conversation window observed
+from `/Applications/Doolittle.app`. Existing bot profiles were not deleted or
+reset. This documentation update is separate from the packaged source commit;
+the bundle provenance names the exact code/dependency revision above.
+
 Native Windows/Linux builds, real provider calls, and external/platform
-end-to-end behavior are not established by the local macOS checks.
+end-to-end behavior are not established by the local macOS checks. Bot
+activation semantics were inspected and explained, not changed: only the lead
+runtime starts at launch; opening a named bot does not itself activate its
+isolated worker.
