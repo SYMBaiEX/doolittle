@@ -77,7 +77,11 @@ by a mechanism patch while retaining its truthful published version:
 | uuid 8.3.2 / 9.0.1 | Validate output buffer bounds before mutation across published entrypoints. |
 
 SDK atomic JSON now uses exclusive random temporary files and owned descriptors;
-failed creation cannot remove another writer's temporary entry. Main-checkout
+failed creation cannot remove another writer's temporary entry. Its additive
+`exclusive` option publishes by hard link without overwriting a final file or
+symlink; default replacement remains unchanged. Job control uses that SDK option,
+and concurrent cancellation requests validate the winning id/nonce. Hard-link
+support on native Windows and other filesystems remains unverified. Main-checkout
 frozen reinstall and 46 dependency/policy tests passed. Consumer checks include
 loopback RPC/download checksums, Jimp bytes, Mammoth/argparse formatting, and
 actual nested dependency copies. The release review gate now covers every
@@ -227,7 +231,7 @@ calls were needed to test this boundary.
 - Filesystem lane: 127 alert IDs across 58 files source-reviewed, including the
   automatic SOUL reader and fixed Codex models-cache reader.
   Operator-selected absolute data/output roots must remain supported. Additional
-  profile/settings/report read hardening is being evaluated separately.
+  profile/settings/report read hardening is implemented above.
 
 ## Verification and release
 

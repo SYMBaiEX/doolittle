@@ -1,5 +1,5 @@
 import { spawn, spawnSync } from "node:child_process";
-import {
+import fs, {
   existsSync,
   mkdtempSync,
   rmSync,
@@ -19,6 +19,42 @@ import { createCliJob, finalizeCliJob, getCliJob } from "./store";
 import { jobPaths } from "./store/index-store";
 
 describe("durable job cancellation", () => {
+  it.each([true, false])(
+    "validates the winning request after a publication race (matching: %s)",
+    (matching) => {
+      const dataDir = mkdtempSync(join(tmpdir(), "doolittle-cancel-race-"));
+      try {
+        const job = createCliJob(dataDir, "task");
+        const nonce = createJobControl(dataDir, job.id);
+        const request = jobPaths(dataDir, job.id).requestPath;
+        const original = fs.linkSync.bind(fs);
+        const publish = vi
+          .spyOn(fs, "linkSync")
+          .mockImplementationOnce((from, to) => {
+            expect(String(to)).toBe(request);
+            writeFileSync(
+              request,
+              JSON.stringify({
+                id: job.id,
+                nonce: matching ? nonce : "f".repeat(64),
+              }),
+              { mode: 0o600, flag: "wx" },
+            );
+            return original(from, to);
+          });
+        try {
+          expect(requestJobCancel(dataDir, job.id)).toBe(
+            matching ? "requested" : "cannot-request",
+          );
+          expect(publish).toHaveBeenCalledOnce();
+        } finally {
+          publish.mockRestore();
+        }
+      } finally {
+        rmSync(dataDir, { recursive: true, force: true });
+      }
+    },
+  );
   it("aborts an actual loopback child turn across process boundaries", async () => {
     const dataDir = mkdtempSync(join(tmpdir(), "doolittle-job-child-turn-"));
     const job = createCliJob(dataDir, "wait");

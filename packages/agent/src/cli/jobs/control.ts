@@ -9,6 +9,7 @@ import {
   openSync,
   writeFileSync,
 } from "node:fs";
+import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
 import { readRegularFileSync } from "@/utils/read-regular-file";
 import { assertJobPaths, isJobId, jobPaths } from "./store/index-store";
 
@@ -34,10 +35,13 @@ function readControl(path: string): { id: string; nonce: string } {
 export function createJobControl(dataDir: string, id: string): string {
   assertJobPaths(dataDir, id);
   const nonce = randomBytes(32).toString("hex");
-  writeFileSync(
+  writeJsonAtomicSync(
     jobPaths(dataDir, id).controlPath,
-    JSON.stringify({ id, nonce }),
-    { mode: 0o600, flag: "wx" },
+    { id, nonce },
+    {
+      exclusive: true,
+      skipMkdir: true,
+    },
   );
   return nonce;
 }
@@ -56,10 +60,18 @@ export function requestJobCancel(
         ? "requested"
         : "cannot-request";
     }
-    writeFileSync(paths.requestPath, JSON.stringify(control), {
-      mode: 0o600,
-      flag: "wx",
-    });
+    try {
+      writeJsonAtomicSync(paths.requestPath, control, {
+        exclusive: true,
+        skipMkdir: true,
+      });
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+      const existing = readControl(paths.requestPath);
+      return existing.id === id && existing.nonce === control.nonce
+        ? "requested"
+        : "cannot-request";
+    }
     return "requested";
   } catch {
     return "cannot-request";

@@ -7,7 +7,7 @@
     "capturedAtUtc": "2026-10-11 22:23:10 UTC",
     "count": 162
   },
-  "scope": "Complete source review of the 162-alert main baseline, updated with branch remediation; not fresh CodeQL or GitHub alert closure.",
+  "scope": "Complete 162-alert disposition overlay using current source anchors for rechecked changes and historical triage provenance otherwise; not fresh CodeQL or GitHub alert closure.",
   "limitations": [
     "Baseline URLs, rules, security ratings and locations remain unchanged; source-review classifications do not alter GitHub state.",
     "Historical triage evidence remains historical. currentEvidence anchors were rechecked against branch source.",
@@ -529,7 +529,7 @@
         },
         {
           "path": "packages/agent/src/cli/jobs/control.ts",
-          "line": 97,
+          "line": 109,
           "detail": "export function monitorJobCancel"
         }
       ]
@@ -4974,7 +4974,7 @@
         },
         {
           "path": "packages/agent/src/cli/jobs/control.ts",
-          "line": 97,
+          "line": 109,
           "detail": "export function monitorJobCancel"
         }
       ]
@@ -5025,7 +5025,7 @@
         },
         {
           "path": "packages/agent/src/cli/jobs/control.ts",
-          "line": 97,
+          "line": 109,
           "detail": "export function monitorJobCancel"
         }
       ]
@@ -5076,7 +5076,7 @@
         },
         {
           "path": "packages/agent/src/cli/jobs/control.ts",
-          "line": 97,
+          "line": 109,
           "detail": "export function monitorJobCancel"
         }
       ]
@@ -5127,7 +5127,7 @@
         },
         {
           "path": "packages/agent/src/cli/jobs/control.ts",
-          "line": 97,
+          "line": 109,
           "detail": "export function monitorJobCancel"
         }
       ]
@@ -5676,5 +5676,5 @@
       ]
     }
   ],
-  "sourceReviewCommit": "ed7bf6e5"
+  "sourceReviewCommit": "a10040ca"
 }
