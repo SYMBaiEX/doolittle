@@ -1,8 +1,9 @@
-import { readFileSync } from "node:fs";
 import type {
   TrajectoryBenchmarkCaseResult,
   TrajectoryBenchmarkManifest,
 } from "../../../../types/trajectory";
+import { describeTrajectoryBenchmarkManifest } from "../../bundle-storage";
+import { TrajectoryInputError } from "../../bundle-storage/safe-read";
 import type { TrajectoryBenchmarkHost } from "../types";
 import { writeTrajectoryBenchmarkRunArtifacts } from "./artifacts";
 import { runTrajectoryBenchmarkCases } from "./execution";
@@ -31,12 +32,13 @@ export async function runTrajectoryBenchmark(
   recommendations: string[];
   reportPath: string;
 }> {
-  const manifest = JSON.parse(
-    readFileSync(manifestPath, "utf8"),
-  ) as TrajectoryBenchmarkManifest;
+  const manifest = describeTrajectoryBenchmarkManifest(
+    host.baseDir,
+    manifestPath,
+  );
 
   if (!manifest.cases?.length) {
-    throw new Error("Benchmark manifest does not contain any cases.");
+    throw new TrajectoryInputError();
   }
 
   const createdAt = new Date().toISOString();

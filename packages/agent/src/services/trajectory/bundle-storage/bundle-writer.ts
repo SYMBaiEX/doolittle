@@ -34,7 +34,7 @@ export function writeTrajectoryBundleRecords(
       counts[message.role] = (counts[message.role] ?? 0) + 1;
       return counts;
     },
-    {},
+    Object.create(null),
   );
   const recordKindCounts = messages.reduce<Record<string, number>>(
     (counts, message) => {
@@ -42,7 +42,7 @@ export function writeTrajectoryBundleRecords(
       counts[kind] = (counts[kind] ?? 0) + 1;
       return counts;
     },
-    {},
+    Object.create(null),
   );
   const eventCount = recordKindCounts.event ?? 0;
   const messageRecordCount = messages.length - eventCount;

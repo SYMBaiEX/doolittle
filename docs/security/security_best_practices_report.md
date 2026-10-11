@@ -34,9 +34,12 @@ nested-workspace behavior only within a stated trusted root.
 Status: implemented. Default discovery stays inside the canonical workspace;
 ancestor lookup requires an explicit trusted root. Reads are descriptor-pinned
 and capped at 1 MiB, text remains capped at 5,000 characters, and the mtime-only
-cache was removed. Five focused tests and 30 related tests passed; root type
+cache was removed. A follow-up rejects all SOUL leaf links and opens the
+validated candidate rather than the canonical target. Seven focused tests and
+30 initial related tests passed; root type
 checking, targeted Biome, and diff checks passed. FIFO regression is Unix-only;
-native Windows behavior remains unverified.
+native Windows post-check substitution remains unverified. Trusted ancestor
+directories must remain stable; this is not an OS sandbox.
 
 ### SR-2 — Legacy production dependency advisories
 
@@ -82,7 +85,15 @@ Required remediation: authorize manifests and referenced artifacts at the
 per-service trajectory root, pinned bounded reads, normal generated bundle
 compatibility, and route-level traversal/absolute-path/symlink/oversize failures.
 
-Status: implementation queued.
+Status: implemented and independently reviewed. Manifest, data, and
+benchmark-case reads are confined to the configured trajectory root, restricted
+to regular files, and capped (1 MiB manifests, 32 MiB records). Consumed optional
+fields are validated. Real-service HTTP regressions cover unsafe requested and
+referenced paths, malformed schemas, static 400 responses, and valid replay.
+Eighteen focused and 39 related tests passed, plus type/Biome/diff checks.
+An independent rerun passed 16 directly scoped tests.
+Directory enumeration remains unbounded; trusted ancestor stability and native
+Windows no-follow semantics remain limitations.
 
 ### SR-5 — Persisted CLI job records redirect log I/O
 
@@ -99,6 +110,36 @@ use, derive expected state/log paths, reject escaped or linked descendants,
 retain legitimate existing jobs, and test crafted indexes plus benign replay.
 
 Status: implementation queued.
+
+### SR-7 — Detached jobs trust persisted PIDs and expose prompt arguments
+
+Severity: High when the configured job store can be modified, or a saved PID is
+reused. `cli/jobs/lifecycle.ts:55` signals the persisted PID and marks a job
+cancelled even when signaling fails. `store/events.ts:30` treats PID existence
+as ownership. Background launch also places the full prompt in child argv.
+
+Required remediation: child-owned durable cancellation requests, truthful
+request-versus-confirmation status, no signaling of a stored PID, validated
+private job paths, bounded stdin prompt delivery, and cross-restart/concurrent
+writer regressions. A PID command-line check is not an ownership proof.
+
+Status: implementation planned; existing child turn abort signal is reusable.
+
+### SR-8 — Automatic private-state reads and shared-memory writes
+
+Severity: Medium, configured state-root boundary. Memory, settings, profiles,
+and autocoder stores use unbounded, link-following automatic reads. Shared
+MEMORY.md writes follow the final path and create plaintext files without an
+explicit private mode. Profile mutation can update its cache before persistence
+succeeds. SDK atomic JSON uses a predictable, nonexclusive temporary filename.
+
+Required remediation: bounded pinned reads, cache/persistence consistency,
+exclusive private atomic writes, safe legacy migration, and dedicated directory
+privacy. Preserve authorized absolute roots and the SDK atomic primitive where
+its mechanism can be hardened. Mutable ancestors remain a separate trust
+requirement; this is not a demonstrated unauthenticated remote path choice.
+
+Status: source plan complete; implementation pending.
 
 ### SR-6 — Unbounded/link-following eval report reads
 
@@ -123,8 +164,8 @@ Status: implementation queued.
 - Test/helper lane: 22 alert IDs inspected. Deliberate race, symlink, SDK gate,
   and account-store fixtures must remain effective and scanned. Evidence-backed
   false-positive dispositions are individual, not a blanket test exclusion.
-- Filesystem lane: 127 alert IDs across 58 files. Representative paths and older
-  ledger were checked; complete per-sink revalidation remains in progress.
+- Filesystem lane: 127 alert IDs across 58 files source-reviewed, including the
+  automatic SOUL reader and fixed Codex models-cache reader.
   Operator-selected absolute data/output roots must remain supported. Additional
   profile/settings/report read hardening is being evaluated separately.
 

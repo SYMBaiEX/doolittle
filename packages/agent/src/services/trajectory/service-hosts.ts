@@ -37,7 +37,8 @@ export function buildTrajectoryEvaluationServiceHosts(
     compareBundles: bindings.compareBundles.bind(bindings),
     evaluateBundle: bindings.evaluateBundle.bind(bindings),
     analyze: bindings.analyze.bind(bindings),
-    readRecords: readTrajectoryEvaluationServiceRecords,
+    readRecords: (dataPath) =>
+      readTrajectoryEvaluationServiceRecords(source.baseDir, dataPath),
     listBundles: bindings.listBundles.bind(bindings),
     listBenchmarkManifests: bindings.listBenchmarkManifests.bind(bindings),
     describeBenchmarkManifest:

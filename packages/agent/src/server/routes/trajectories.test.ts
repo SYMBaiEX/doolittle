@@ -1,8 +1,17 @@
-import { mkdtempSync } from "node:fs";
+import {
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  truncateSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import type { AppContext } from "@/runtime/bootstrap";
+import { TrajectoryInputError } from "@/services/trajectory/bundle-storage/safe-read";
+import { TrajectoryEvaluationService } from "@/services/trajectory/service";
 import { createOfficialOrchestratorTestFixture } from "@/testing/official-orchestrator";
 import { handleTrajectoryRoutes } from "./trajectories";
 
@@ -157,6 +166,139 @@ function createJsonRequest(
 }
 
 describe("handleTrajectoryRoutes", () => {
+  it("rejects unsafe files and malformed bundles through the real service", async () => {
+    const root = mkdtempSync(join(tmpdir(), "doolittle-trajectory-http-"));
+    try {
+      const owned = join(root, "owned");
+      const context = createContext();
+      const service = new TrajectoryEvaluationService(owned, {
+        recent: () => [
+          {
+            sessionId: "s",
+            createdAt: "2026-01-01T00:00:00Z",
+            role: "user",
+            text: "hello",
+          },
+        ],
+      } as never);
+      context.services.trajectoryEvaluation = service;
+      const bundle = service.exportFilteredBundle({
+        label: "valid",
+        purpose: "test",
+        mode: "research",
+        limit: 1,
+      });
+      const outside = join(root, "secret-manifest.json");
+      writeFileSync(outside, "secret-marker");
+      const link = join(owned, "linked-manifest.json");
+      symlinkSync(bundle.manifestPath, link);
+      const oversized = join(owned, "oversized-manifest.json");
+      writeFileSync(oversized, "{}");
+      truncateSync(oversized, 1024 * 1024 + 1);
+      const forged = join(owned, "forged-manifest.json");
+      writeFileSync(
+        forged,
+        JSON.stringify({
+          ...JSON.parse(readFileSync(bundle.manifestPath, "utf8")),
+          dataPath: outside,
+        }),
+      );
+      const malformed = join(owned, "malformed-manifest.json");
+      writeFileSync(
+        malformed,
+        JSON.stringify({
+          ...JSON.parse(readFileSync(bundle.manifestPath, "utf8")),
+          tags: { length: 1 },
+        }),
+      );
+      for (const path of [
+        outside,
+        join(owned, "..", "secret-manifest.json"),
+        link,
+        oversized,
+        forged,
+      ]) {
+        const url = new URL("http://localhost/trajectories/replay");
+        url.searchParams.set("manifestPath", path);
+        const response = await handleTrajectoryRoutes(
+          context,
+          createJsonRequest(url.toString(), "GET"),
+          url,
+        );
+        expect(response?.status).toBe(400);
+        const text = await response?.text();
+        expect(text).toContain("Invalid trajectory artifact.");
+        expect(text).not.toContain("secret-marker");
+        expect(text).not.toContain(root);
+      }
+      const compressUrl = new URL("http://localhost/trajectories/compress");
+      const malformedResponse = await handleTrajectoryRoutes(
+        context,
+        createJsonRequest(compressUrl.toString(), "POST", {
+          manifestPath: malformed,
+        }),
+        compressUrl,
+      );
+      expect(malformedResponse?.status).toBe(400);
+      expect(await malformedResponse?.json()).toEqual({
+        error: "Invalid trajectory artifact.",
+      });
+      const benchmark = service.createBenchmarkManifest({
+        cases: [{ manifestPath: bundle.manifestPath }],
+      });
+      writeFileSync(
+        benchmark.manifestPath,
+        JSON.stringify({
+          ...benchmark,
+          cases: [{ ...benchmark.cases[0], rubric: { length: 1 } }],
+        }),
+      );
+      const benchmarkUrl = new URL(
+        "http://localhost/trajectories/benchmark/run",
+      );
+      const malformedBenchmark = await handleTrajectoryRoutes(
+        context,
+        createJsonRequest(benchmarkUrl.toString(), "POST", {
+          manifestPath: benchmark.manifestPath,
+        }),
+        benchmarkUrl,
+      );
+      expect(malformedBenchmark?.status).toBe(400);
+      expect(await malformedBenchmark?.json()).toEqual({
+        error: "Invalid trajectory artifact.",
+      });
+      const successUrl = new URL("http://localhost/trajectories/replay");
+      successUrl.searchParams.set("manifestPath", bundle.manifestPath);
+      const success = await handleTrajectoryRoutes(
+        context,
+        createJsonRequest(successUrl.toString(), "GET"),
+        successUrl,
+      );
+      expect(success?.status).toBe(200);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+  it("returns a static client error for rejected trajectory paths", async () => {
+    const context = createContext();
+    context.services.trajectoryEvaluation.replayBundle = () => {
+      throw new TrajectoryInputError();
+    };
+    const response = await handleTrajectoryRoutes(
+      context,
+      createJsonRequest(
+        "http://localhost/trajectories/replay?manifestPath=%2Fprivate%2Fsecret",
+        "GET",
+      ),
+      new URL(
+        "http://localhost/trajectories/replay?manifestPath=%2Fprivate%2Fsecret",
+      ),
+    );
+    expect(response?.status).toBe(400);
+    expect(await response?.json()).toEqual({
+      error: "Invalid trajectory artifact.",
+    });
+  });
   it("requires SDK trajectory export while preserving product debug bundles and comparisons", async () => {
     const context = createContext();
 
