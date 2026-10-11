@@ -224,8 +224,6 @@ Additional hardening: the operator-selected Codex `models_cache.json` metadata
 read is bounded at 8 MiB; no real user cache, credentials, or live provider
 calls were needed to test this boundary.
 
-## Current scanner review coverage
-
 ### SR-9 — Project dotenv fallback changes application configuration
 
 Severity: High configuration-authority boundary. When the fixed application
@@ -248,6 +246,33 @@ files with the project as the actual cwd. Linked, multiply linked, FIFO and
 oversized files fail without mutation. The Unix FIFO test ran on macOS; native
 Windows behavior remains unverified. Release evidence recorded below predates
 this follow-up and must be rerun before delivery.
+
+### SR-10 — SQL SDK directory selection reimports project environment
+
+Severity: High worker/configuration boundary. The actual published SQL plugin
+Node resolver loaded a cwd/ancestor `.env` before selecting its PGlite directory,
+even when an explicit directory was supplied. Non-override mode protected
+already-set values but let a project populate unset credentials/settings after
+the host-approved worker-environment boundary.
+
+Status: implemented through a version-preserving SDK patch in both published
+Node ESM and CJS artifacts. Database-directory resolution no longer imports an
+environment file or mutates process environment. Explicit directory, inherited
+`PGLITE_DATA_DIR`, and default precedence remain unchanged. The private fallback
+argument is unchanged in source but not directly exercised by the public factory.
+Application configuration belongs to the explicit application loader, not a
+storage helper.
+
+The actual public adapter factory reproduced marker injection before the patch.
+Isolated child tests verify unrelated environment remains unchanged for cwd and
+ancestor files across both entrypoints, while public directory precedence cases
+still work. Children receive only fixture home/configuration and the explicitly
+tested inherited directory, never real database URLs or account stores. Frozen
+reinstall, seven focused tests, SDK alignment, Biome and diff checks passed in
+the isolated candidate; an independent public-factory rerun passed. Integrated
+release and packaged acceptance must be rerun for this SDK follow-up.
+
+## Current scanner review coverage
 
 - Non-test, non-filesystem lane: 13 alert IDs inspected. No demonstrated remote
   exploit found in those inspected paths; local operator capability, text-only

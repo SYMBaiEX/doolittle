@@ -52,10 +52,17 @@ function probeAdapter(input: {
     }) + "\\n");
     process.exit(0);
   `;
-  const env = { ...process.env };
-  delete env[markerName];
-  if (input.inheritedDir === undefined) delete env.PGLITE_DATA_DIR;
-  else env.PGLITE_DATA_DIR = input.inheritedDir;
+  const privateHome = resolve(input.cwd, ".probe-home");
+  mkdirSync(privateHome, { recursive: true });
+  // Never let a fixture select a real PostgreSQL URL or SDK account store.
+  const env: NodeJS.ProcessEnv = {
+    PATH: process.env.PATH,
+    HOME: privateHome,
+    ELIZA_HOME: privateHome,
+    ELIZA_CONFIG_PATH: resolve(privateHome, "eliza.json"),
+  };
+  if (input.inheritedDir !== undefined)
+    env.PGLITE_DATA_DIR = input.inheritedDir;
   const result = spawnSync(
     process.execPath,
     ["--input-type=module", "-e", child],
