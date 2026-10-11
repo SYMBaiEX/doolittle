@@ -65,8 +65,6 @@ const PROVIDERS: readonly Provider[] = [
 ];
 
 const LOCAL_COMPATIBILITY_PACKAGE_PATHS = [
-  "packages/app-training",
-  "packages/cloud-shared",
   "packages/plugin-remote-manifest",
   "packages/plugin-worker-runtime",
   "packages/registry",

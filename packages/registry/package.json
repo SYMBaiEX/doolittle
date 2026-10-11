@@ -4,7 +4,6 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.js",
     "./first-party/channel-plugin-map.json": "./src/first-party/channel-plugin-map.json",
     "./first-party/curated-app-definitions.json": "./src/first-party/curated-app-definitions.json"
   }
