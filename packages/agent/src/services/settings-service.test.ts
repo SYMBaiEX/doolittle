@@ -1,4 +1,13 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import {
+  linkSync,
+  mkdtempSync,
+  renameSync,
+  rmSync,
+  symlinkSync,
+  utimesSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, test } from "vitest";
@@ -124,6 +133,20 @@ describe("SettingsService", () => {
     expect(reloaded.get().model).toEqual(updated.model);
   });
 
+  test("does not expose cached settings through setMany's return value", () => {
+    const dir = mkdtempSync(join(tmpdir(), "eliza-settings-"));
+    tempDirs.push(dir);
+    const service = new SettingsService(dir, makeDefaults());
+    const returned = service.setMany([{ path: "ui.theme", value: "matrix" }]);
+    returned.ui.theme = "orange";
+    returned.execution.remoteSyncInclude.push("mutated");
+    expect(service.get().ui.theme).toBe("matrix");
+    expect(service.get().execution.remoteSyncInclude).not.toContain("mutated");
+    const reopened = new SettingsService(dir, makeDefaults());
+    expect(reopened.get().ui.theme).toBe("matrix");
+    expect(reopened.get().execution.remoteSyncInclude).not.toContain("mutated");
+  });
+
   test("does not persist unsupported reasoning effort values", () => {
     const dir = mkdtempSync(join(tmpdir(), "eliza-settings-"));
     tempDirs.push(dir);
@@ -150,4 +173,58 @@ describe("SettingsService", () => {
     );
     expect(service.get()).toEqual(makeDefaults());
   });
+
+  test("invalidates cache after same-mtime replacement and rejects linked or oversized settings", () => {
+    const dir = mkdtempSync(join(tmpdir(), "eliza-settings-"));
+    tempDirs.push(dir);
+    const service = new SettingsService(dir, makeDefaults());
+    const path = join(dir, "settings.json");
+    const before = service.get();
+    const replacement = join(dir, "replacement.json");
+    writeFileSync(
+      replacement,
+      JSON.stringify({ ...before, ui: { theme: "matrix" } }),
+    );
+    const oldTime = new Date();
+    utimesSync(replacement, oldTime, oldTime);
+    // Rename is an atomic replacement even when a producer preserves timestamps.
+    renameSync(replacement, path);
+    expect(service.get().ui.theme).toBe("matrix");
+    rmSync(path);
+    symlinkSync(replacement, path);
+    expect(() => service.get()).toThrow();
+    rmSync(path);
+    writeFileSync(path, "x".repeat(1024 * 1024 + 1));
+    expect(() => service.get()).toThrow();
+    rmSync(path);
+    writeFileSync(path, JSON.stringify(before));
+    linkSync(path, join(dir, "linked.json"));
+    expect(() => service.get()).toThrow();
+  });
+
+  test("rejects a setting larger than the read cap before replacing the file", () => {
+    const dir = mkdtempSync(join(tmpdir(), "eliza-settings-"));
+    tempDirs.push(dir);
+    const service = new SettingsService(dir, makeDefaults());
+    const before = service.get();
+    expect(() => service.set("model.model", "x".repeat(1024 * 1024))).toThrow(
+      "byte limit",
+    );
+    expect(service.get()).toEqual(before);
+  });
+
+  test.skipIf(process.platform === "win32")(
+    "rejects a settings FIFO without blocking",
+    () => {
+      const dir = mkdtempSync(join(tmpdir(), "eliza-settings-fifo-"));
+      tempDirs.push(dir);
+      const service = new SettingsService(dir, makeDefaults());
+      const path = join(dir, "settings.json");
+      rmSync(path);
+      const result = spawnSync("mkfifo", [path]);
+      if (result.error || result.status !== 0)
+        throw new Error("mkfifo unavailable");
+      expect(() => service.get()).toThrow();
+    },
+  );
 });

@@ -67,7 +67,9 @@ a thrown diagnostic in an ephemeral loopback test HTTP response. It has three
 test importers, not two as older triage states. A generic response can remove
 the diagnostic from the boundary while preserving useful local test evidence.
 
-Status: scoped cleanup pending; not a production remote vulnerability claim.
+Status: implemented. HTTP failures return a generic 500; an optional volatile
+diagnostic observer cannot prevent the response even if it throws. Covered by
+the independently rerun state/read test scope. This remains test-only.
 
 ### SR-4 — Trajectory HTTP manifest and referenced-data paths
 
@@ -155,7 +157,16 @@ privacy. Preserve authorized absolute roots and the SDK atomic primitive where
 its mechanism can be hardened. Mutable ancestors remain a separate trust
 requirement; this is not a demonstrated unauthenticated remote path choice.
 
-Status: source plan complete; implementation pending.
+Status: source implementation and independent review complete; SDK atomic JSON
+patch integration pending. Memory/settings reads and writes are capped at
+1 MiB, profile/pipeline state at 4 MiB, and artifacts at 5 MiB. Unsafe existing
+state fails visibly instead of being overwritten. Dedicated owned child
+directories are descriptor-checked and tightened to 0700 without chmodding the
+configured parent. Shared memory uses exclusive 0600 atomic text replacement.
+Cloned profile/settings caches cannot be changed by public return-value mutation
+or unsuccessful persistence. Artifact growth is tested without a large
+allocation. Independently rerun eight files passed 59 tests; broader related
+checks, types, targeted Biome and diff checks passed.
 
 ### SR-6 — Unbounded/link-following eval report reads
 
@@ -169,7 +180,16 @@ Evidence: `packages/evals/src/coding/report.ts:531` reads a selected report;
 Required remediation: bounded, descriptor-pinned report readers, no-follow and
 nonblocking flags where supported, and linked/oversized/nonregular regressions.
 
-Status: implementation queued.
+Status: implemented and independently reviewed. Selected and listed reports
+use descriptor-pinned regular-file reads capped at 16 MiB, with final-entry
+identity/no-follow, nonblocking, and single-link checks. Valid comparison/listing
+and unsafe entry regressions passed in the shared state/read test scope.
+Enumeration across a large directory and mutable ancestor stability remain
+separate limitations. Native Windows semantics remain unverified.
+
+Additional hardening: the operator-selected Codex `models_cache.json` metadata
+read is bounded at 8 MiB; no real user cache, credentials, or live provider
+calls were needed to test this boundary.
 
 ## Current scanner review coverage
 

@@ -4,10 +4,11 @@ import {
   constants,
   fchmodSync,
   fstatSync,
+  lstatSync,
   mkdirSync,
   openSync,
   readdirSync,
-  readFileSync,
+  readSync,
   realpathSync,
   writeFileSync,
 } from "node:fs";
@@ -19,6 +20,62 @@ import type { CodingEvalStatus, CodingRunEvaluation } from "./evaluator";
 
 export const CODING_EVAL_REPORT_SCHEMA_VERSION = 1 as const;
 export const CODING_EVAL_PACKAGE_VERSION = EVALS_EVALUATOR_VERSION;
+const MAX_REPORT_BYTES = 16 * 1024 * 1024;
+
+function readBoundedReport(path: string): string {
+  const before = lstatSync(path);
+  if (
+    !before.isFile() ||
+    before.isSymbolicLink() ||
+    before.nlink !== 1 ||
+    before.size > MAX_REPORT_BYTES
+  ) {
+    throw new Error(
+      "Coding evaluation report is not a bounded private regular file.",
+    );
+  }
+  const descriptor = openSync(
+    path,
+    constants.O_RDONLY | constants.O_NONBLOCK | (constants.O_NOFOLLOW ?? 0),
+  );
+  try {
+    const info = fstatSync(descriptor);
+    if (
+      !info.isFile() ||
+      info.nlink !== 1 ||
+      info.dev !== before.dev ||
+      info.ino !== before.ino ||
+      info.size > MAX_REPORT_BYTES
+    ) {
+      throw new Error("Coding evaluation report changed before read.");
+    }
+    const bytes = Buffer.alloc(info.size + 1);
+    let length = 0;
+    while (length < bytes.length) {
+      const count = readSync(
+        descriptor,
+        bytes,
+        length,
+        bytes.length - length,
+        null,
+      );
+      if (count === 0) break;
+      length += count;
+    }
+    const after = fstatSync(descriptor);
+    if (
+      length !== info.size ||
+      after.size !== info.size ||
+      after.mtimeMs !== info.mtimeMs ||
+      after.ctimeMs !== info.ctimeMs
+    ) {
+      throw new Error("Coding evaluation report changed during read.");
+    }
+    return bytes.subarray(0, length).toString("utf8");
+  } finally {
+    closeSync(descriptor);
+  }
+}
 
 export interface CodingEvalReportCheck {
   id: string;
@@ -529,9 +586,7 @@ export function parseCodingEvalReport(value: unknown): CodingEvalReport {
 }
 
 export function readCodingEvalReport(path: string): CodingEvalReport {
-  return parseCodingEvalReport(
-    JSON.parse(readFileSync(path, "utf8")) as unknown,
-  );
+  return parseCodingEvalReport(JSON.parse(readBoundedReport(path)) as unknown);
 }
 
 function finiteDelta(candidate: number | null, baseline: number | null) {
@@ -676,9 +731,7 @@ export function listCodingEvalReportFiles(
       const path = join(directory, entry);
       return {
         path,
-        report: parseCodingEvalReport(
-          JSON.parse(readFileSync(path, "utf8")) as unknown,
-        ),
+        report: readCodingEvalReport(path),
       };
     })
     .sort((left, right) =>

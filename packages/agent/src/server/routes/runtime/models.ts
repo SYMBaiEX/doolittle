@@ -1,4 +1,3 @@
-import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { resolve } from "node:path";
 import { getModelOptions } from "@elizaos/agent/api/model-provider-helpers";
@@ -8,6 +7,7 @@ import { json } from "@/server/responses";
 import { listRuntimeModelCapabilities } from "@/services/operator/runtime-model-capabilities";
 import type { RuntimeReasoningEffort } from "@/services/settings/runtime-settings";
 import type { EnvConfig } from "@/types";
+import { readRegularFileSync } from "@/utils/read-regular-file";
 
 const MODEL_DISCOVERY_TIMEOUT_MS = 2_500;
 
@@ -498,7 +498,11 @@ async function discoverLinkedProviderModels(
     process.env.CODEX_HOME?.trim() || resolve(homedir(), ".codex");
   try {
     const body = JSON.parse(
-      await readFile(resolve(codexHome, "models_cache.json"), "utf8"),
+      readRegularFileSync(
+        resolve(codexHome, "models_cache.json"),
+        8 * 1024 * 1024,
+        { singleLink: true },
+      ).toString("utf8"),
     ) as unknown;
     const models = parseCodexModelCache(body);
     return { models, live: models.length > 0 };

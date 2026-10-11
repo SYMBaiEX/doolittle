@@ -1,16 +1,38 @@
+import { randomUUID } from "node:crypto";
 import {
-  existsSync,
-  mkdirSync,
-  readFileSync,
+  closeSync,
+  constants,
+  lstatSync,
+  openSync,
   renameSync,
+  unlinkSync,
   writeFileSync,
 } from "node:fs";
 import { dirname, join } from "node:path";
 import { DEFAULT_LOCAL_USER_ID } from "@/runtime/message-user";
 import type { MemoryTarget } from "@/types";
+import { ensurePrivateDirectorySync } from "@/utils/private-directory";
+import { readRegularFileSync } from "@/utils/read-regular-file";
 import type { UserProfileService } from "./user-profile/service";
 
 const ENTRY_DELIMITER = "\n§\n";
+const MAX_MEMORY_BYTES = 1024 * 1024;
+
+function entryExists(path: string): boolean {
+  try {
+    lstatSync(path);
+    return true;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;
+    throw error;
+  }
+}
+
+function readMemory(path: string): string {
+  return readRegularFileSync(path, MAX_MEMORY_BYTES, {
+    singleLink: true,
+  }).toString("utf8");
+}
 
 export interface MemorySummary {
   target: MemoryTarget;
@@ -30,7 +52,7 @@ export class ExperienceMemoryService {
     private readonly userProfiles: UserProfileService,
   ) {
     const memoryDir = join(baseDir, "memories");
-    mkdirSync(memoryDir, { recursive: true });
+    ensurePrivateDirectorySync(memoryDir);
     this.sharedFile = join(memoryDir, "MEMORY.md");
     this.legacyUserFile = join(memoryDir, "USER.md");
     this.limitByTarget = limits;
@@ -41,11 +63,12 @@ export class ExperienceMemoryService {
     if (target === "user") {
       return [...(this.userProfiles.get(userId).explicitMemories ?? [])];
     }
-    if (!existsSync(this.sharedFile)) {
+    this.assertMemoryDirectory();
+    if (!entryExists(this.sharedFile)) {
       return [];
     }
 
-    const raw = readFileSync(this.sharedFile, "utf8").trim();
+    const raw = readMemory(this.sharedFile).trim();
     if (!raw) {
       return [];
     }
@@ -167,8 +190,33 @@ export class ExperienceMemoryService {
       );
       return;
     }
-    mkdirSync(dirname(this.sharedFile), { recursive: true });
-    writeFileSync(this.sharedFile, entries.join(ENTRY_DELIMITER), "utf8");
+    this.assertMemoryDirectory();
+    const content = entries.join(ENTRY_DELIMITER);
+    if (Buffer.byteLength(content, "utf8") > MAX_MEMORY_BYTES) {
+      throw new Error("Memory file exceeds its byte limit.");
+    }
+    // Refuse to replace an existing non-private leaf, even though rename would not follow it.
+    if (entryExists(this.sharedFile)) readMemory(this.sharedFile);
+    const temporary = `${this.sharedFile}.${randomUUID()}.tmp`;
+    const descriptor = openSync(
+      temporary,
+      constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL,
+      0o600,
+    );
+    try {
+      writeFileSync(descriptor, content, "utf8");
+    } catch (error) {
+      closeSync(descriptor);
+      unlinkSync(temporary);
+      throw error;
+    }
+    closeSync(descriptor);
+    try {
+      renameSync(temporary, this.sharedFile);
+    } catch (error) {
+      unlinkSync(temporary);
+      throw error;
+    }
   }
 
   private assertWithinLimit(target: MemoryTarget, entries: string[]): void {
@@ -198,10 +246,11 @@ export class ExperienceMemoryService {
   }
 
   private migrateLegacyUserMemory(): void {
-    if (!existsSync(this.legacyUserFile)) {
+    this.assertMemoryDirectory();
+    if (!entryExists(this.legacyUserFile)) {
       return;
     }
-    const raw = readFileSync(this.legacyUserFile, "utf8").trim();
+    const raw = readMemory(this.legacyUserFile).trim();
     const entries = raw
       ? raw
           .split(ENTRY_DELIMITER)
@@ -251,10 +300,17 @@ export class ExperienceMemoryService {
     const migratedBase = `${this.legacyUserFile}.migrated`;
     let migratedPath = migratedBase;
     let suffix = 1;
-    while (existsSync(migratedPath)) {
+    while (entryExists(migratedPath)) {
       migratedPath = `${migratedBase}.${suffix}`;
       suffix += 1;
     }
     renameSync(this.legacyUserFile, migratedPath);
+  }
+
+  private assertMemoryDirectory(): void {
+    const info = lstatSync(dirname(this.sharedFile));
+    if (!info.isDirectory() || info.isSymbolicLink()) {
+      throw new Error("Memories directory must be a real directory.");
+    }
   }
 }

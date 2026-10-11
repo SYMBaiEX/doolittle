@@ -1,13 +1,40 @@
-import { mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  symlinkSync,
+  truncateSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   AutocoderArtifactError,
   MAX_AUTOCODER_ARTIFACT_BYTES,
   readAutocoderArtifact,
 } from "./artifacts";
 import type { AutocoderPipelineRunRecord } from "./service";
+
+const statHook = vi.hoisted(() => ({
+  afterSecondStat: undefined as (() => void) | undefined,
+  calls: 0,
+}));
+vi.mock("node:fs", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:fs")>();
+  return {
+    ...actual,
+    fstatSync: (...args: Parameters<typeof actual.fstatSync>) => {
+      const info = actual.fstatSync(...args);
+      if (statHook.afterSecondStat && ++statHook.calls === 2) {
+        const callback = statHook.afterSecondStat;
+        statHook.afterSecondStat = undefined;
+        callback();
+      }
+      return info;
+    },
+  };
+});
 
 function createRun(artifactPaths: string[]): AutocoderPipelineRunRecord {
   return {
@@ -36,6 +63,33 @@ function expectArtifactError(callback: () => unknown, status: number): void {
 }
 
 describe("readAutocoderArtifact", () => {
+  it("rejects growth after descriptor stat without allocating the grown file", () => {
+    const root = mkdtempSync(join(tmpdir(), "doolittle-artifact-growth-"));
+    const artifactRoot = join(root, "artifacts");
+    mkdirSync(artifactRoot);
+    const path = join(artifactRoot, "growing.txt");
+    writeFileSync(path, "safe");
+    const run = createRun([path]);
+    const input = { artifactRoot, run, runId: run.id, index: 0 };
+    const allocate = vi.spyOn(Buffer, "alloc");
+    try {
+      statHook.calls = 0;
+      statHook.afterSecondStat = () => {
+        truncateSync(path, MAX_AUTOCODER_ARTIFACT_BYTES + 1);
+      };
+      expectArtifactError(() => readAutocoderArtifact(input), 403);
+      expect(allocate.mock.calls.map(([size]) => size)).toContain(5);
+      expect(
+        Math.max(...allocate.mock.calls.map(([size]) => size)),
+      ).toBeLessThan(64);
+      writeFileSync(path, "safe");
+      expect(readAutocoderArtifact(input).content).toBe("safe");
+    } finally {
+      statHook.afterSecondStat = undefined;
+      allocate.mockRestore();
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
   it("returns allowlisted text and binary artifacts without exposing a path", () => {
     const root = mkdtempSync(join(tmpdir(), "doolittle-artifacts-"));
     const artifactRoot = join(root, "artifacts");

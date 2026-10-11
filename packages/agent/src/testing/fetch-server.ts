@@ -8,6 +8,7 @@ export interface FetchTestServer {
 
 export async function serveFetchTest(
   handler: (request: Request) => Response | Promise<Response>,
+  options?: { onError?: (error: unknown) => void },
 ): Promise<FetchTestServer> {
   const server = createServer(async (incoming, outgoing) => {
     try {
@@ -34,8 +35,13 @@ export async function serveFetchTest(
       });
       outgoing.end(Buffer.from(await response.arrayBuffer()));
     } catch (error) {
+      try {
+        options?.onError?.(error);
+      } catch {
+        // Diagnostic observers must not change the HTTP failure boundary.
+      }
       outgoing.statusCode = 500;
-      outgoing.end(error instanceof Error ? error.message : String(error));
+      outgoing.end("Internal server error");
     }
   });
 

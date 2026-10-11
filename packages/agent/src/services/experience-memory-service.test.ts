@@ -4,6 +4,8 @@ import {
   mkdtempSync,
   readFileSync,
   rmSync,
+  statSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -57,6 +59,47 @@ describe("ExperienceMemoryService", () => {
       "Shared operating rule",
     );
     expect(existsSync(join(root, "memories", "USER.md"))).toBe(false);
+    expect(statSync(join(root, "memories")).mode & 0o777).toBe(0o700);
+    expect(statSync(join(root, "memories", "MEMORY.md")).mode & 0o777).toBe(
+      0o600,
+    );
+  });
+
+  it("rejects linked and oversized memory without touching the outside file", () => {
+    const { root, memory } = createService();
+    const path = join(root, "memories", "MEMORY.md");
+    const outside = join(root, "outside.md");
+    writeFileSync(outside, "outside");
+    symlinkSync(outside, path);
+    expect(() => memory.list("memory")).toThrow();
+    expect(() => memory.add("memory", "new")).toThrow();
+    expect(readFileSync(outside, "utf8")).toBe("outside");
+    rmSync(path);
+    writeFileSync(path, "x".repeat(1024 * 1024 + 1));
+    expect(() => memory.list("memory")).toThrow();
+  });
+
+  it("does not import or rename an unsafe legacy file", () => {
+    const root = mkdtempSync(join(tmpdir(), "doolittle-experience-memory-"));
+    roots.push(root);
+    const memoryDir = join(root, "memories");
+    mkdirSync(memoryDir);
+    const outside = join(root, "outside.md");
+    writeFileSync(outside, "User fact: outside");
+    const legacy = join(memoryDir, "USER.md");
+    symlinkSync(outside, legacy);
+    const profiles = new UserProfileService(join(root, "profiles"));
+    expect(
+      () =>
+        new ExperienceMemoryService(
+          root,
+          { memory: 1000, user: 1000 },
+          profiles,
+        ),
+    ).toThrow();
+    expect(readFileSync(outside, "utf8")).toBe("User fact: outside");
+    expect(existsSync(legacy)).toBe(true);
+    expect(profiles.get("desktop-user").facts).toEqual([]);
   });
 
   it("preserves replace and remove compatibility over explicit profile memory", () => {
