@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  arrangeWorkspaceSessions,
+  balanceWorkspaceSizes,
+  closeOtherWorkspaceSessions,
   closeWorkspaceSession,
   MAX_OPEN_PANELS,
   MAX_RETAINED_CLOSED_PANELS,
@@ -14,6 +17,118 @@ import {
 } from "./workspace-layout";
 
 describe("session workspace split layout", () => {
+  it("arranges every open view in tab order with equal space, including twelve views", () => {
+    let layout = restoreWorkspaceLayout(null, "a");
+    for (let index = 1; index < MAX_OPEN_PANELS; index++)
+      layout = openWorkspaceSession(layout, `s-${index}`);
+    // Ordinary opening no longer creates exponentially deep 50/50 roots.
+    expect(workspaceRequiredSize(layout.tree).width).toBeLessThanOrEqual(5760);
+    for (const axis of ["horizontal", "vertical"] as const) {
+      const arranged = arrangeWorkspaceSessions(layout, axis);
+      const panels = workspaceGeometry(arranged.tree).panels;
+      expect(Object.keys(panels)).toEqual(layout.openIds);
+      for (const pane of Object.values(panels)) {
+        expect(axis === "horizontal" ? pane.width : pane.height).toBeCloseTo(
+          100 / MAX_OPEN_PANELS,
+        );
+      }
+      expect(arranged.focusedId).toBe(layout.focusedId);
+      expect(workspaceRequiredSize(arranged.tree)).toEqual(
+        axis === "horizontal"
+          ? { width: 4320, height: 280 }
+          : { width: 360, height: 3360 },
+      );
+    }
+  });
+
+  it("retains split presentation and existing root proportions when adding or reopening a view", () => {
+    const first = openWorkspaceSession(restoreWorkspaceLayout(null, "a"), "b");
+    const arranged = resizeWorkspaceSplit(
+      arrangeWorkspaceSessions(first, "vertical"),
+      "",
+      0.65,
+    );
+    const opened = openWorkspaceSession(arranged, "c");
+    expect(opened.mode).toBe("split");
+    expect(opened.tree).toMatchObject({ axis: "vertical", ratio: 0.65 });
+    expect(opened.focusedId).toBe("c");
+    expect(Object.keys(workspaceGeometry(opened.tree).panels)).toHaveLength(3);
+    expect(opened.openIds).toEqual(
+      Object.keys(workspaceGeometry(opened.tree).panels),
+    );
+  });
+
+  it("keeps tab order aligned to physical positions when split-mode addition inserts into an existing branch", () => {
+    const first = openWorkspaceSession(restoreWorkspaceLayout(null, "a"), "b");
+    const opened = openWorkspaceSession(
+      arrangeWorkspaceSessions(first, "horizontal"),
+      "c",
+    );
+    expect(opened.openIds).toEqual(["a", "c", "b"]);
+    expect(workspaceGeometry(opened.tree).panels.c?.x).toBe(25);
+    const moved = moveWorkspaceSession(opened, "c", -1);
+    expect(moved.openIds).toEqual(["c", "a", "b"]);
+    expect(workspaceGeometry(moved.tree).panels.c?.x).toBe(0);
+    expect(workspaceGeometry(moved.tree).panels.a?.x).toBe(25);
+    expect(openWorkspaceSession(first, "c").openIds).toEqual(["a", "b", "c"]);
+  });
+
+  it("moves physical split leaves together with tab order without duplicating identities", () => {
+    const arranged = arrangeWorkspaceSessions(
+      openWorkspaceSession(restoreWorkspaceLayout(null, "a"), "b"),
+      "horizontal",
+    );
+    const moved = moveWorkspaceSession(arranged, "b", -1);
+    expect(moved.openIds).toEqual(["b", "a"]);
+    expect(workspaceGeometry(moved.tree).panels.b?.x).toBe(0);
+    expect(workspaceGeometry(moved.tree).panels.a?.x).toBe(50);
+    expect(moved.focusedId).toBe("b");
+  });
+
+  it("balances unequal nested sizes and reports each divider's actual subtree extent", () => {
+    let layout = restoreWorkspaceLayout(null, "a");
+    layout = openWorkspaceSession(layout, "b");
+    layout = openWorkspaceSession(layout, "c");
+    layout = splitWorkspaceSession(layout, "a", "b", "horizontal");
+    layout = splitWorkspaceSession(layout, "b", "c", "horizontal");
+    const nested = workspaceGeometry(layout.tree).dividers.find(
+      (divider) => divider.path === "1",
+    );
+    expect(nested).toMatchObject({
+      width: 0,
+      parentWidth: 50,
+      parentHeight: 100,
+    });
+    layout = resizeWorkspaceSplit(layout, "", 0.8);
+    layout = resizeWorkspaceSplit(layout, "1", 0.75);
+    const balanced = balanceWorkspaceSizes(layout);
+    expect(workspaceRequiredSize(balanced.tree)).toEqual({
+      width: 1080,
+      height: 280,
+    });
+    for (const pane of Object.values(workspaceGeometry(balanced.tree).panels))
+      expect(pane.width).toBeCloseTo(100 / 3);
+    expect(
+      restoreWorkspaceLayout(JSON.stringify(balanced), balanced.focusedId),
+    ).toEqual(balanced);
+  });
+
+  it("closes other views without changing the kept identity and handles empty arrangements", () => {
+    const layout = openWorkspaceSession(restoreWorkspaceLayout(null, "a"), "b");
+    expect(closeOtherWorkspaceSessions(layout, "a")).toMatchObject({
+      openIds: ["a"],
+      focusedId: "a",
+      tree: { type: "leaf", id: "a" },
+    });
+    expect(closeOtherWorkspaceSessions(layout, "unknown")).toBe(layout);
+    const empty = closeWorkspaceSession(restoreWorkspaceLayout(null, "a"), "a");
+    expect(arrangeWorkspaceSessions(empty, "horizontal")).toMatchObject({
+      openIds: [],
+      tree: null,
+      mode: "tabs",
+    });
+  });
+
   it("bounds closed React views without evicting open views", () => {
     const open = Array.from(
       { length: MAX_OPEN_PANELS },

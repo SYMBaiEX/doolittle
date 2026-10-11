@@ -60,6 +60,8 @@ export interface DesktopSidebarProps {
   onSidebarKeyDown: (event: ReactKeyboardEvent<HTMLElement>) => void;
   onClose: () => void;
   onResize: (width: number) => void;
+  resizeBounds?: { default: number; min: number; max: number };
+  onResizeActiveChange?: (active: boolean) => void;
   onToggleNavigation: () => void;
   onOpenPalette: () => void;
   onStartConversation: (scope: ProjectScope) => void;
@@ -99,6 +101,8 @@ export function DesktopSidebar({
   onSidebarKeyDown,
   onClose,
   onResize,
+  resizeBounds = APP_SIDEBAR_WIDTH,
+  onResizeActiveChange,
   onToggleNavigation,
   onOpenPalette,
   onStartConversation,
@@ -152,12 +156,13 @@ export function DesktopSidebar({
       >
         {!compact && !isMobileSidebarMode ? (
           <PanelResizeHandle
-            bounds={APP_SIDEBAR_WIDTH}
-            className="app-sidebar-resizer"
+            bounds={resizeBounds}
+            className="app-sidebar-resizer inset-y-0 right-0"
             controls="desktop-sidebar"
             direction="grow-right"
             label="Resize bot navigation"
             onResize={onResize}
+            onResizeActiveChange={onResizeActiveChange}
             value={sidebarWidth}
           />
         ) : null}

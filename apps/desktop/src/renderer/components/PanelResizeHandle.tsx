@@ -19,6 +19,7 @@ export function PanelResizeHandle({
   label,
   controls,
   onResize,
+  onResizeActiveChange,
   value,
 }: {
   bounds: { default: number; min: number; max: number };
@@ -27,9 +28,12 @@ export function PanelResizeHandle({
   label: string;
   controls: string;
   onResize: (value: number) => void;
+  onResizeActiveChange?: (active: boolean) => void;
   value: number;
 }) {
   const activeResizeCleanup = useRef<(() => void) | null>(null);
+  const callbacks = useRef({ bounds, onResize, onResizeActiveChange });
+  callbacks.current = { bounds, onResize, onResizeActiveChange };
   const resizesHeight = direction === "grow-up" || direction === "grow-down";
   const growsWithPointer =
     direction === "grow-right" || direction === "grow-down";
@@ -38,11 +42,22 @@ export function PanelResizeHandle({
     return () => activeResizeCleanup.current?.();
   }, []);
 
+  useEffect(() => {
+    // Window/pane measurements may shrink during a gesture. Constrain the
+    // current drag immediately without resetting an idle preferred size.
+    if (!activeResizeCleanup.current) return;
+    const current = callbacks.current;
+    const next = clampPanelSize(value, bounds);
+    if (next !== value) current.onResize(next);
+  }, [bounds, value]);
+
   const resizeStart = (event: ReactPointerEvent<HTMLHRElement>) => {
+    if (event.button !== 0 || event.isPrimary === false) return;
     event.preventDefault();
     activeResizeCleanup.current?.();
 
     const handle = event.currentTarget;
+    handle.focus({ preventScroll: true });
     const pointerId = event.pointerId;
     const startPosition = resizesHeight ? event.clientY : event.clientX;
     const startSize = value;
@@ -58,6 +73,18 @@ export function PanelResizeHandle({
     body.style.cursor = root.style.cursor;
     body.style.userSelect = "none";
 
+    let pendingSize: number | null = null;
+    let frame: number | null = null;
+    const flushResize = () => {
+      if (frame !== null) cancelAnimationFrame(frame);
+      frame = null;
+      if (pendingSize === null) return;
+      const next = pendingSize;
+      pendingSize = null;
+      const current = callbacks.current;
+      current.onResize(clampPanelSize(next, current.bounds));
+    };
+
     const onMove = (moveEvent: PointerEvent) => {
       if (moveEvent.pointerId !== pointerId) return;
       const pointerPosition = resizesHeight
@@ -65,7 +92,8 @@ export function PanelResizeHandle({
         : moveEvent.clientX;
       const delta = pointerPosition - startPosition;
       const next = growsWithPointer ? startSize + delta : startSize - delta;
-      onResize(clampPanelSize(next, bounds));
+      pendingSize = next;
+      if (frame === null) frame = requestAnimationFrame(flushResize);
     };
     let finished = false;
     let capturedPointer = false;
@@ -93,6 +121,10 @@ export function PanelResizeHandle({
       }
       if (finished) return;
       finished = true;
+      if (endEvent?.type === "pointerup") {
+        onMove(endEvent as PointerEvent);
+      }
+      flushResize();
       delete root.dataset.panelResizing;
       root.style.cursor = previousRootCursor;
       root.style.userSelect = previousRootSelection;
@@ -101,18 +133,22 @@ export function PanelResizeHandle({
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onEnd);
       window.removeEventListener("pointercancel", onEnd);
+      window.removeEventListener("blur", onEnd);
       handle.removeEventListener("lostpointercapture", onEnd);
       releasePointer();
       if (activeResizeCleanup.current === onEnd) {
         activeResizeCleanup.current = null;
       }
+      callbacks.current.onResizeActiveChange?.(false);
     };
 
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onEnd);
     window.addEventListener("pointercancel", onEnd);
+    window.addEventListener("blur", onEnd);
     handle.addEventListener("lostpointercapture", onEnd);
     activeResizeCleanup.current = onEnd;
+    callbacks.current.onResizeActiveChange?.(true);
 
     if (typeof handle.setPointerCapture === "function") {
       try {
@@ -168,7 +204,7 @@ export function PanelResizeHandle({
         aria-valuemin={bounds.min}
         aria-valuenow={value}
         className="peer absolute inset-0 m-0 size-full cursor-inherit border-0 bg-transparent p-0 outline-none touch-none [-webkit-app-region:no-drag] focus-visible:outline-solid focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
-        onDoubleClick={() => onResize(bounds.default)}
+        onDoubleClick={() => onResize(clampPanelSize(bounds.default, bounds))}
         onKeyDown={resizeWithKeyboard}
         onPointerDown={resizeStart}
         tabIndex={0}

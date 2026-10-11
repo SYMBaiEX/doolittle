@@ -462,10 +462,22 @@ export function collectSidebarFocusables(
     ),
   ).filter((element) => {
     if (
-      element.hasAttribute("hidden") ||
+      element.closest('[hidden], [inert], [aria-hidden="true"]') ||
       element.getAttribute("disabled") !== null
     ) {
       return false;
+    }
+    // Breakpoint-hidden resize separators and hidden ancestors cannot be
+    // offered as a modal's first/last focus target.
+    for (
+      let current: HTMLElement | null = element;
+      current;
+      current = current.parentElement
+    ) {
+      const style = getComputedStyle(current);
+      if (style.display === "none" || style.visibility === "hidden")
+        return false;
+      if (current === scope) break;
     }
     return element.tabIndex !== -1;
   });

@@ -38,6 +38,14 @@ import { addUnreadMessageIds, appendedMessageIds } from "./chat/chat-unread";
 import { chatDispatchBlockReason } from "./chat/dispatch-readiness";
 import { snapshotDraftForDispatch } from "./chat/draft-dispatch-recovery";
 import {
+  INSPECTOR_SHEET_WIDTH,
+  INSPECTOR_WIDTH,
+  inspectorResizeBounds,
+  loadInspectorWidth,
+  observeInspectorGeometry,
+  saveInspectorWidth,
+} from "./chat/inspector-layout";
+import {
   CHAT_WORKSPACE_CLASS,
   MOBILE_CONVERSATIONS_BACKDROP_CLASS,
   MOBILE_CONVERSATIONS_DIALOG_CLASS,
@@ -86,6 +94,7 @@ import {
   freezeMemoryMatchSnapshot,
   type MemoryMatchSnapshot,
 } from "./memory-matches";
+import { clampPanelSize } from "./panel-layout";
 import type { ProjectLike, ProjectScope } from "./project-manager/models";
 import {
   useWorkspaceRef,
@@ -512,7 +521,13 @@ export function ChatSessionPanel({
   const [inspectorVisible, setInspectorVisible] = useState(
     () => savedView?.inspectorVisible ?? loadInspectorVisibility(),
   );
-  const [inspectorTab, setInspectorTab] = useState<InspectorTab>("details");
+  const [inspectorTab, setInspectorTab] = useState<InspectorTab>(
+    () => savedView?.inspectorTab ?? "details",
+  );
+  const [preferredInspectorWidth, setPreferredInspectorWidth] =
+    useWorkspaceState<number | null>("layout.inspector-width", () =>
+      loadInspectorWidth(localStorage),
+    );
   useEffect(() => {
     if (coordinator || !window.doolittle.ui) return;
     let disposed = false;
@@ -543,18 +558,40 @@ export function ChatSessionPanel({
   }, [coordinator, currentBotId, selectedId]);
   const workspaceRef = useRef<HTMLDivElement>(null);
   const [narrowPanel, setNarrowPanel] = useState(false);
+  const [inspectorGeometry, setInspectorGeometry] = useState({
+    paneWidth: 0,
+    themeWidth: INSPECTOR_WIDTH.default as number,
+  });
   useEffect(() => {
     const panel = workspaceRef.current;
-    if (!panel || typeof ResizeObserver === "undefined") return;
-    const update = () =>
-      setNarrowPanel(panel.clientWidth > 0 && panel.clientWidth < 720);
-    update();
-    const observer = new ResizeObserver(update);
-    observer.observe(panel);
-    return () => observer.disconnect();
+    if (!panel) return;
+    return observeInspectorGeometry(panel, (geometry) => {
+      setNarrowPanel(
+        geometry.paneWidth > 0 && geometry.paneWidth <= INSPECTOR_SHEET_WIDTH,
+      );
+      setInspectorGeometry((current) =>
+        current.paneWidth === geometry.paneWidth &&
+        current.themeWidth === geometry.themeWidth
+          ? current
+          : geometry,
+      );
+    });
   }, []);
   const isNarrowViewport = useMediaQuery(NARROW_WORKBENCH_QUERY);
   const isNarrowWorkbench = isNarrowViewport || narrowPanel;
+  const inspectorBounds = inspectorResizeBounds(
+    inspectorGeometry.paneWidth,
+    inspectorGeometry.themeWidth,
+  );
+  const inspectorWidth = clampPanelSize(
+    preferredInspectorWidth ?? inspectorBounds.default,
+    inspectorBounds,
+  );
+  const resizeInspector = (width: number) => {
+    const preference = width === inspectorBounds.default ? null : width;
+    setPreferredInspectorWidth(preference);
+    saveInspectorWidth(localStorage, preference);
+  };
   const prefersReducedMotion = useMediaQuery(
     "(prefers-reduced-motion: reduce)",
   );
@@ -844,11 +881,13 @@ export function ChatSessionPanel({
     const saved = panelViewSnapshots.current[selectedId];
     if (!saved) return;
     saved.inspectorVisible = inspectorVisible;
+    saved.inspectorTab = inspectorTab;
     saved.unreadMessageIds = unreadMessageIdsBySession[selectedId] ?? [];
     saved.knownMessageIds = selectedMessages.map((message) => message.id);
   }, [
     coordinator,
     inspectorVisible,
+    inspectorTab,
     panelViewSnapshots,
     selectedId,
     selectedMessages,
@@ -2038,7 +2077,6 @@ export function ChatSessionPanel({
   };
 
   const toggleInspector = () => {
-    if (!inspectorVisible) setInspectorTab("details");
     setInspectorVisible((current) => !current);
   };
   const openInspectorTab = (tab: InspectorTab) => {
@@ -2514,9 +2552,19 @@ export function ChatSessionPanel({
             onInsertContext={insertChatContext}
             onOpenFullView={openComputerView}
             onTabChange={setInspectorTab}
+            resize={
+              inspectorVisible && !isNarrowWorkbench
+                ? {
+                    bounds: inspectorBounds,
+                    onResize: resizeInspector,
+                    value: inspectorWidth,
+                  }
+                : undefined
+            }
             sessionId={selectedId}
             tab={inspectorTab}
             title={selectedSession?.title || "New conversation"}
+            width={isNarrowWorkbench ? undefined : inspectorWidth}
             workspacePath={workspacePath}
           />
         </div>

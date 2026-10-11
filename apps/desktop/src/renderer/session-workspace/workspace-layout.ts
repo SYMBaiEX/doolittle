@@ -38,6 +38,9 @@ export interface WorkspaceDivider {
   width: number;
   height: number;
   ratio: number;
+  /** The containing split's dimensions, not the divider's zero-width line. */
+  parentWidth: number;
+  parentHeight: number;
 }
 
 const validId = (value: unknown): value is string =>
@@ -91,16 +94,95 @@ function parseNode(
   };
 }
 
+function leafCount(node: WorkspaceNode): number {
+  return node.type === "leaf"
+    ? 1
+    : leafCount(node.first) + leafCount(node.second);
+}
+
+function treeIds(node: WorkspaceNode): string[] {
+  return node.type === "leaf"
+    ? [node.id]
+    : [...treeIds(node.first), ...treeIds(node.second)];
+}
+
 function appendNode(tree: WorkspaceNode | null, id: string): WorkspaceNode {
-  return tree
-    ? {
-        type: "split",
-        axis: "horizontal",
-        ratio: 0.5,
-        first: tree,
-        second: leaf(id),
-      }
-    : leaf(id);
+  if (!tree) return leaf(id);
+  if (tree.type === "leaf")
+    return {
+      type: "split",
+      axis: "horizontal",
+      ratio: 0.5,
+      first: tree,
+      second: leaf(id),
+    };
+  // Insert in the smaller branch. Wrapping every existing panel in a new
+  // 50/50 root makes the oldest pane exponentially narrower on each open.
+  return leafCount(tree.first) <= leafCount(tree.second)
+    ? { ...tree, first: appendNode(tree.first, id) }
+    : { ...tree, second: appendNode(tree.second, id) };
+}
+
+function arrangedTree(
+  ids: readonly string[],
+  axis: SplitAxis,
+): WorkspaceNode | null {
+  if (!ids.length) return null;
+  if (ids.length === 1) return leaf(ids[0] as string);
+  const middle = Math.ceil(ids.length / 2);
+  return {
+    type: "split",
+    axis,
+    ratio: middle / ids.length,
+    first: arrangedTree(ids.slice(0, middle), axis) as WorkspaceNode,
+    second: arrangedTree(ids.slice(middle), axis) as WorkspaceNode,
+  };
+}
+
+/** Deliberate arrangements follow tab order and give every view equal space. */
+export function arrangeWorkspaceSessions(
+  layout: SessionWorkspaceLayout,
+  axis: SplitAxis,
+): SessionWorkspaceLayout {
+  return {
+    ...layout,
+    mode: layout.openIds.length > 1 ? "split" : "tabs",
+    tree: arrangedTree(layout.openIds, axis),
+  };
+}
+
+export function balanceWorkspaceSizes(
+  layout: SessionWorkspaceLayout,
+): SessionWorkspaceLayout {
+  const balance = (node: WorkspaceNode): WorkspaceNode => {
+    if (node.type === "leaf") return node;
+    const first = balance(node.first);
+    const second = balance(node.second);
+    const dimension = node.axis === "horizontal" ? "width" : "height";
+    const firstSize = workspaceRequiredSize(first)[dimension];
+    const secondSize = workspaceRequiredSize(second)[dimension];
+    return {
+      ...node,
+      first,
+      second,
+      ratio: clampRatio(firstSize / (firstSize + secondSize)),
+    };
+  };
+  return layout.tree ? { ...layout, tree: balance(layout.tree) } : layout;
+}
+
+export function closeOtherWorkspaceSessions(
+  layout: SessionWorkspaceLayout,
+  id: string,
+): SessionWorkspaceLayout {
+  if (!layout.openIds.includes(id)) return layout;
+  return {
+    ...layout,
+    openIds: [id],
+    focusedId: id,
+    mode: "tabs",
+    tree: leaf(id),
+  };
 }
 
 function completeTree(
@@ -178,12 +260,12 @@ export function openWorkspaceSession(
   if (!validId(id)) return layout;
   if (layout.openIds.includes(id)) return { ...layout, focusedId: id };
   if (layout.openIds.length >= MAX_OPEN_PANELS) return layout;
+  const tree = appendNode(layout.tree, id);
   return {
     ...layout,
-    openIds: [...layout.openIds, id],
+    openIds: layout.mode === "split" ? treeIds(tree) : [...layout.openIds, id],
     focusedId: id,
-    mode: "tabs",
-    tree: appendNode(layout.tree, id),
+    tree,
   };
 }
 
@@ -232,7 +314,15 @@ export function moveWorkspaceSession(
     openIds[next] as string,
     openIds[index] as string,
   ];
-  return { ...layout, openIds };
+  const otherId = layout.openIds[next] as string;
+  const swap = (node: WorkspaceNode): WorkspaceNode =>
+    node.type === "leaf"
+      ? {
+          ...node,
+          id: node.id === id ? otherId : node.id === otherId ? id : node.id,
+        }
+      : { ...node, first: swap(node.first), second: swap(node.second) };
+  return { ...layout, openIds, tree: layout.tree ? swap(layout.tree) : null };
 }
 
 function replaceLeaf(
@@ -267,11 +357,13 @@ export function splitWorkspaceSession(
     return layout;
   const withoutTarget = removeNode(layout.tree, targetId);
   if (!withoutTarget) return layout;
+  const tree = replaceLeaf(withoutTarget, sourceId, targetId, axis);
   return {
     ...layout,
+    openIds: treeIds(tree),
     mode: "split",
     focusedId: targetId,
-    tree: replaceLeaf(withoutTarget, sourceId, targetId, axis),
+    tree,
   };
 }
 
@@ -358,6 +450,8 @@ export function workspaceGeometry(node: WorkspaceNode | null): {
         width: 0,
         height: rect.height,
         ratio,
+        parentWidth: rect.width,
+        parentHeight: rect.height,
       });
     } else {
       const firstHeight = rect.height * ratio;
@@ -380,6 +474,8 @@ export function workspaceGeometry(node: WorkspaceNode | null): {
         width: rect.width,
         height: 0,
         ratio,
+        parentWidth: rect.width,
+        parentHeight: rect.height,
       });
     }
   };

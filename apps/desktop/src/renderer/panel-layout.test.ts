@@ -4,9 +4,11 @@ import {
   CHAT_TERMINAL_HEIGHT,
   clampPanelSize,
   clampPanelWidth,
+  dockedPanelResizeBounds,
   loadPanelSize,
   loadPanelWidth,
   minimumDockedUtilityViewportWidth,
+  navigationToggleAction,
   resolveUtilityPanelLayout,
   savePanelSize,
   savePanelWidth,
@@ -23,6 +25,52 @@ function memoryStorage(initial: Record<string, string> = {}) {
 }
 
 describe("panel layout persistence", () => {
+  it("expands automatically borrowed navigation by closing Activity, without changing saved preference", () => {
+    const input = {
+      isMobileSidebarMode: false,
+      utilityOpen: true,
+      navCollapsed: false,
+      canDockWithExpandedNavigation: false,
+      canDockWithCollapsedNavigation: true,
+    };
+    const layout = resolveUtilityPanelLayout(input);
+    expect(navigationToggleAction({ ...input, ...layout })).toBe(
+      "close-utility",
+    );
+    expect(
+      resolveUtilityPanelLayout({ ...input, utilityOpen: false })
+        .effectiveNavCollapsed,
+    ).toBe(false);
+    expect(input.navCollapsed).toBe(false);
+    expect(
+      navigationToggleAction({
+        isMobileSidebarMode: false,
+        navigationAutoCollapsed: false,
+      }),
+    ).toBe("toggle-saved");
+    expect(
+      navigationToggleAction({
+        isMobileSidebarMode: true,
+        navigationAutoCollapsed: false,
+      }),
+    ).toBe("toggle-mobile");
+  });
+
+  it("caps docked growth before the owning composition loses usable canvas", () => {
+    expect(dockedPanelResizeBounds(UTILITY_DRAWER_WIDTH, 1600, 248).max).toBe(
+      392,
+    );
+    expect(dockedPanelResizeBounds(APP_SIDEBAR_WIDTH, 1600, 360).max).toBe(280);
+    expect(dockedPanelResizeBounds(UTILITY_DRAWER_WIDTH, 1450, 68).max).toBe(
+      422,
+    );
+    expect(dockedPanelResizeBounds(UTILITY_DRAWER_WIDTH, 2000, 248).max).toBe(
+      520,
+    );
+    expect(dockedPanelResizeBounds(UTILITY_DRAWER_WIDTH, 360, 248).max).toBe(
+      292,
+    );
+  });
   it("reserves most of the default viewport for the active workspace", () => {
     expect(APP_SIDEBAR_WIDTH.default).toBe(248);
     expect(UTILITY_DRAWER_WIDTH.default).toBe(360);

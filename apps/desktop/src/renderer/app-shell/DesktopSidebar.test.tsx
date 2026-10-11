@@ -3,6 +3,7 @@
 import type { BotSummary } from "@doolittle/contracts/bots";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
+import { compile } from "tailwindcss";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DesktopSidebar, type DesktopSidebarProps } from "./DesktopSidebar";
 
@@ -146,6 +147,45 @@ describe("DesktopSidebar companion navigation", () => {
     ].find((button) => button.textContent === "Research thread");
     act(() => thread?.click());
     expect(props.onOpenSession).toHaveBeenCalledWith("b");
+  });
+
+  it("anchors navigation resizing to its visible full-height edge and reports an owned gesture", async () => {
+    const active = vi.fn();
+    act(() =>
+      root.render(
+        <DesktopSidebar
+          {...props}
+          onResizeActiveChange={active}
+          resizeBounds={{ default: 248, min: 220, max: 280 }}
+        />,
+      ),
+    );
+    const handle = container.querySelector<HTMLHRElement>(
+      'hr[aria-label="Resize bot navigation"]',
+    );
+    if (!handle?.parentElement) throw new Error("Resize handle not rendered");
+    const wrapper = handle.parentElement;
+    const compiler = await compile(
+      "@theme { --spacing: 0.25rem; } @tailwind utilities;",
+    );
+    const css = compiler.build(wrapper.className.split(/\s+/u));
+    expect(css).toContain("inset-block:");
+    expect(css).toContain("right:");
+    handle.focus();
+    expect(document.activeElement).toBe(handle);
+    act(() => {
+      handle.dispatchEvent(
+        new MouseEvent("pointerdown", { bubbles: true, clientX: 248 }),
+      );
+      window.dispatchEvent(new MouseEvent("pointermove", { clientX: 500 }));
+      window.dispatchEvent(new MouseEvent("pointerup", { clientX: 500 }));
+    });
+    expect(props.onResize).toHaveBeenLastCalledWith(280);
+    expect(active.mock.calls).toEqual([[true], [false]]);
+    act(() => root.render(<DesktopSidebar {...props} navCollapsed />));
+    expect(
+      container.querySelector('hr[aria-label="Resize bot navigation"]'),
+    ).toBeNull();
   });
 
   it("keeps actionable catalog loading and error states distinct", () => {

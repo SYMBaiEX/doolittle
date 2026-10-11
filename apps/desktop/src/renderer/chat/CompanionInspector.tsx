@@ -3,6 +3,7 @@ import { InspectorFrame, StateSurface } from "@doolittle/ui";
 import { X } from "lucide-react";
 import { lazy, Suspense, useId, useRef } from "react";
 import { BotActions } from "../bots/BotActions";
+import { PanelResizeHandle } from "../components/PanelResizeHandle";
 import type { ThreadWorkbenchFullView } from "../components/ThreadWorkbenchRail";
 
 const ThreadWorkbenchRail = lazy(async () => {
@@ -18,6 +19,12 @@ export interface CompanionInspectorProps {
   bot?: BotSummary;
   contextLabel: string;
   fullWidth?: boolean;
+  width?: number;
+  resize?: {
+    bounds: { default: number; min: number; max: number };
+    onResize: (value: number) => void;
+    value: number;
+  };
   messageCount: number;
   onClose: () => void;
   onInsertContext: (text: string) => void;
@@ -34,6 +41,8 @@ export function CompanionInspector({
   bot,
   contextLabel,
   fullWidth = false,
+  width,
+  resize,
   messageCount,
   onClose,
   onInsertContext,
@@ -52,9 +61,26 @@ export function CompanionInspector({
   });
   return (
     <InspectorFrame
+      id={`${id}-inspector`}
       title="Conversation inspector"
-      className={`flex h-full min-h-0 w-[var(--inspector-width,320px)] max-w-[40vw] flex-col overflow-hidden border-l border-[var(--border)] bg-[var(--surface)] max-[720px]:w-full max-[720px]:max-w-none${fullWidth ? " !w-full !max-w-none" : ""}`}
+      className={`relative flex h-full min-h-0 w-[var(--inspector-width,320px)] ${width !== undefined || resize ? "max-w-none" : "max-w-[40vw]"} flex-col overflow-hidden border-l border-[var(--border)] bg-[var(--surface)] max-[720px]:w-full max-[720px]:max-w-none${fullWidth ? " !w-full !max-w-none" : ""}`}
+      style={
+        !fullWidth && (width !== undefined || resize)
+          ? { width: width ?? resize?.value }
+          : undefined
+      }
     >
+      {resize && !fullWidth ? (
+        <PanelResizeHandle
+          bounds={resize.bounds}
+          className="inset-y-0 left-0 max-[720px]:hidden"
+          controls={`${id}-inspector`}
+          direction="grow-left"
+          label="Resize conversation inspector"
+          onResize={resize.onResize}
+          value={resize.value}
+        />
+      ) : null}
       <header className="flex min-h-12 items-center justify-between border-b border-[var(--border)] px-3">
         <strong className="text-sm font-semibold">Inspector</strong>
         <button

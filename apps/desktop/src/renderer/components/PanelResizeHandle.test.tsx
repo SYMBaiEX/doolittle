@@ -1,12 +1,22 @@
 // @vitest-environment jsdom
 
-import { act } from "react";
+import { act, useState, useSyncExternalStore } from "react";
 import { createRoot } from "react-dom/client";
 import { compile } from "tailwindcss";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { WINDOW_RUNTIME_STATUS_TONE } from "../app-shell/shell-layout";
+import {
+  dockedPanelResizeBounds,
+  shellViewportWidth,
+  subscribeShellViewportWidth,
+  UTILITY_DRAWER_WIDTH,
+} from "../panel-layout";
 import { WORKBENCH_TAB_SIGNAL_CLASS } from "../thread-workbench/layout";
 import { PanelResizeHandle } from "./PanelResizeHandle";
+
+(
+  globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
+).IS_REACT_ACT_ENVIRONMENT = true;
 
 function dispatchPointerEvent(
   target: EventTarget,
@@ -15,6 +25,7 @@ function dispatchPointerEvent(
 ) {
   const event = new Event(type, { bubbles: true });
   Object.defineProperties(event, {
+    button: { value: 0 },
     clientX: { value: clientX },
     clientY: { value: clientY },
     pointerId: { value: pointerId },
@@ -22,8 +33,29 @@ function dispatchPointerEvent(
   target.dispatchEvent(event);
 }
 
+function ResponsiveDockFixture() {
+  const viewportWidth = useSyncExternalStore(
+    subscribeShellViewportWidth,
+    shellViewportWidth,
+  );
+  const [width, setWidth] = useState(360);
+  return (
+    <PanelResizeHandle
+      bounds={dockedPanelResizeBounds(UTILITY_DRAWER_WIDTH, viewportWidth, 248)}
+      className="left-0"
+      controls="panel"
+      direction="grow-right"
+      label="Resize responsive dock"
+      onResize={setWidth}
+      value={width}
+    />
+  );
+}
+
 describe("PanelResizeHandle", () => {
+  beforeEach(() => vi.useFakeTimers());
   afterEach(() => {
+    vi.useRealTimers();
     document.documentElement.style.cursor = "";
     document.documentElement.style.userSelect = "";
     document.body.style.cursor = "";
@@ -117,7 +149,7 @@ describe("PanelResizeHandle", () => {
       ),
     );
     expect(css).toContain("background-color: var(--good)");
-    expect(css).toContain("background-color: var(--accent)");
+    expect(css).not.toContain("background-color: var(--accent)");
     expect(css).not.toContain("box-shadow");
   });
 
@@ -158,7 +190,9 @@ describe("PanelResizeHandle", () => {
       window.dispatchEvent(
         new MouseEvent("pointermove", { bubbles: true, clientX: 132 }),
       );
-      window.dispatchEvent(new MouseEvent("pointerup", { bubbles: true }));
+      window.dispatchEvent(
+        new MouseEvent("pointerup", { bubbles: true, clientX: 132 }),
+      );
     });
     expect(onResize).toHaveBeenCalledWith(292);
     expect(document.documentElement.style.cursor).toBe("");
@@ -211,6 +245,7 @@ describe("PanelResizeHandle", () => {
       });
     });
     expect(setPointerCapture).toHaveBeenCalledWith(7);
+    act(() => vi.advanceTimersByTime(20));
     expect(onResize).toHaveBeenLastCalledWith(292);
 
     act(() => {
@@ -246,6 +281,7 @@ describe("PanelResizeHandle", () => {
       });
     });
     expect(setPointerCapture).toHaveBeenLastCalledWith(8);
+    act(() => vi.advanceTimersByTime(20));
     expect(onResize).toHaveBeenLastCalledWith(276);
     expect(document.documentElement.style.cursor).toBe("col-resize");
 
@@ -255,6 +291,209 @@ describe("PanelResizeHandle", () => {
     expect(releasePointerCapture).toHaveBeenLastCalledWith(8);
 
     host.remove();
+  });
+
+  it("coalesces moves, flushes the final position, and reports one gesture", () => {
+    const host = document.createElement("div");
+    document.body.append(host);
+    const root = createRoot(host);
+    const onResize = vi.fn();
+    const onResizeActiveChange = vi.fn();
+    act(() =>
+      root.render(
+        <PanelResizeHandle
+          bounds={{ default: 260, min: 180, max: 520 }}
+          className="left-0"
+          controls="panel"
+          direction="grow-right"
+          label="Resize panel"
+          onResize={onResize}
+          onResizeActiveChange={onResizeActiveChange}
+          value={260}
+        />,
+      ),
+    );
+    const handle = host.querySelector("hr");
+    if (!handle) throw new Error("Resize handle not rendered");
+    act(() => {
+      dispatchPointerEvent(handle, "pointerdown", {
+        clientX: 100,
+        pointerId: 1,
+      });
+      dispatchPointerEvent(window, "pointermove", {
+        clientX: 130,
+        pointerId: 1,
+      });
+      dispatchPointerEvent(window, "pointermove", {
+        clientX: 140,
+        pointerId: 1,
+      });
+    });
+    expect(onResize).not.toHaveBeenCalled();
+    act(() => vi.advanceTimersByTime(20));
+    expect(onResize).toHaveBeenCalledExactlyOnceWith(300);
+    act(() => {
+      dispatchPointerEvent(window, "pointermove", {
+        clientX: 150,
+        pointerId: 1,
+      });
+      dispatchPointerEvent(window, "pointerup", { clientX: 160, pointerId: 1 });
+    });
+    expect(onResize).toHaveBeenLastCalledWith(320);
+    expect(onResizeActiveChange.mock.calls).toEqual([[true], [false]]);
+    act(() => vi.advanceTimersByTime(20));
+    expect(onResize).toHaveBeenCalledTimes(2);
+    act(() => root.unmount());
+    host.remove();
+  });
+
+  it("ignores secondary buttons and ends an uncaptured drag on window blur", () => {
+    const host = document.createElement("div");
+    document.body.append(host);
+    const root = createRoot(host);
+    const onResize = vi.fn();
+    const onResizeActiveChange = vi.fn();
+    act(() =>
+      root.render(
+        <PanelResizeHandle
+          bounds={{ default: 260, min: 180, max: 520 }}
+          className="left-0"
+          controls="panel"
+          direction="grow-right"
+          label="Resize panel"
+          onResize={onResize}
+          onResizeActiveChange={onResizeActiveChange}
+          value={260}
+        />,
+      ),
+    );
+    const handle = host.querySelector("hr");
+    if (!handle) throw new Error("Resize handle not rendered");
+    act(() =>
+      handle.dispatchEvent(
+        new MouseEvent("pointerdown", { bubbles: true, button: 2 }),
+      ),
+    );
+    expect(document.documentElement.style.cursor).toBe("");
+    expect(onResizeActiveChange).not.toHaveBeenCalled();
+    act(() => {
+      dispatchPointerEvent(handle, "pointerdown", { clientX: 100 });
+      dispatchPointerEvent(window, "pointermove", { clientX: 130 });
+      window.dispatchEvent(new Event("blur"));
+    });
+    expect(onResize).toHaveBeenCalledExactlyOnceWith(290);
+    expect(onResizeActiveChange.mock.calls).toEqual([[true], [false]]);
+    expect(document.documentElement.style.cursor).toBe("");
+    act(() => dispatchPointerEvent(window, "pointermove", { clientX: 160 }));
+    expect(onResize).toHaveBeenCalledTimes(1);
+    act(() => root.unmount());
+    host.remove();
+  });
+
+  it("delivers a pending drag frame to the current controlled owner", () => {
+    const host = document.createElement("div");
+    document.body.append(host);
+    const root = createRoot(host);
+    const first = vi.fn();
+    const current = vi.fn();
+    const render = (onResize: (value: number) => void) => (
+      <PanelResizeHandle
+        bounds={{ default: 260, min: 180, max: 520 }}
+        className="left-0"
+        controls="panel"
+        direction="grow-right"
+        label="Resize panel"
+        onResize={onResize}
+        value={260}
+      />
+    );
+    try {
+      act(() => root.render(render(first)));
+      const handle = host.querySelector("hr");
+      if (!handle) throw new Error("Resize handle not rendered");
+      act(() => {
+        dispatchPointerEvent(handle, "pointerdown", { clientX: 100 });
+        dispatchPointerEvent(window, "pointermove", { clientX: 140 });
+      });
+      act(() => root.render(render(current)));
+      act(() => vi.advanceTimersByTime(20));
+      expect(first).not.toHaveBeenCalled();
+      expect(current).toHaveBeenCalledExactlyOnceWith(300);
+    } finally {
+      act(() => root.unmount());
+      host.remove();
+    }
+  });
+
+  it("refreshes same-band viewport bounds before a new drag", () => {
+    const originalWidth = window.innerWidth;
+    const host = document.createElement("div");
+    document.body.append(host);
+    const root = createRoot(host);
+    try {
+      Object.defineProperty(window, "innerWidth", {
+        configurable: true,
+        value: 2000,
+        writable: true,
+      });
+      act(() => root.render(<ResponsiveDockFixture />));
+      const handle = host.querySelector("hr");
+      if (!handle) throw new Error("Resize handle not rendered");
+      expect(handle.getAttribute("aria-valuemax")).toBe("520");
+      act(() => {
+        window.innerWidth = 1600;
+        window.dispatchEvent(new Event("resize"));
+      });
+      expect(handle.getAttribute("aria-valuemax")).toBe("392");
+      act(() => {
+        dispatchPointerEvent(handle, "pointerdown", { clientX: 100 });
+        dispatchPointerEvent(window, "pointerup", { clientX: 500 });
+      });
+      expect(handle.getAttribute("aria-valuenow")).toBe("392");
+    } finally {
+      act(() => root.unmount());
+      host.remove();
+      window.innerWidth = originalWidth;
+    }
+  });
+
+  it("constrains the current size, queued frame, and pointer-up when the window shrinks mid-drag", () => {
+    const originalWidth = window.innerWidth;
+    const host = document.createElement("div");
+    document.body.append(host);
+    const root = createRoot(host);
+    try {
+      Object.defineProperty(window, "innerWidth", {
+        configurable: true,
+        value: 2000,
+        writable: true,
+      });
+      act(() => root.render(<ResponsiveDockFixture />));
+      const handle = host.querySelector("hr");
+      if (!handle) throw new Error("Resize handle not rendered");
+      act(() => {
+        dispatchPointerEvent(handle, "pointerdown", { clientX: 100 });
+        dispatchPointerEvent(window, "pointermove", { clientX: 240 });
+        vi.advanceTimersByTime(20);
+      });
+      expect(handle.getAttribute("aria-valuenow")).toBe("500");
+      act(() => dispatchPointerEvent(window, "pointermove", { clientX: 250 }));
+      act(() => {
+        window.innerWidth = 1600;
+        window.dispatchEvent(new Event("resize"));
+      });
+      expect(handle.getAttribute("aria-valuemax")).toBe("392");
+      expect(handle.getAttribute("aria-valuenow")).toBe("392");
+      act(() => vi.advanceTimersByTime(20));
+      expect(handle.getAttribute("aria-valuenow")).toBe("392");
+      act(() => dispatchPointerEvent(window, "pointerup", { clientX: 400 }));
+      expect(handle.getAttribute("aria-valuenow")).toBe("392");
+      expect(document.documentElement.dataset.panelResizing).toBeUndefined();
+    } finally {
+      act(() => root.unmount());
+      host.remove();
+      window.innerWidth = originalWidth;
+    }
   });
 
   it.each([

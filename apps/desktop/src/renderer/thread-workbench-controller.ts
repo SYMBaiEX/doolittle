@@ -1,4 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import {
+  type SetStateAction,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { detectCodeLanguage } from "./code-language";
 import { useDesktopAcpEditorBridge } from "./desktop-acp-client";
 import {
@@ -22,8 +28,12 @@ import {
   buildBriefPlanSummary,
   loadThreadWorkbenchState,
   saveThreadWorkbenchState,
+  selectThreadWorkbenchTab,
+  type ThreadWorkbenchGroup,
   type ThreadWorkbenchState,
   type ThreadWorkbenchTab,
+  threadWorkbenchStorageKey,
+  threadWorkbenchTabForGroup,
 } from "./thread-workbench";
 import type { WorkspaceTreeEntry } from "./workspace-file-tree";
 
@@ -231,12 +241,14 @@ export function workbenchResourceDependencies(
 
 export function useThreadWorkbenchRailController({
   active,
+  group = "all",
   botId,
   sessionId,
   workspacePath,
   onInsertContext,
 }: {
   active: boolean;
+  group?: ThreadWorkbenchGroup;
   botId?: string;
   sessionId: string;
   workspacePath: string;
@@ -256,12 +268,38 @@ export function useThreadWorkbenchRailController({
     );
   }
   const storage = useMemo(() => browserThreadWorkbenchStorage(), []);
-  const [model, setModel] = useState<ThreadWorkbenchState>(() =>
-    loadThreadWorkbenchState({ sessionId, workspacePath }, storage),
+  const hydrated = useMemo(
+    () =>
+      loadThreadWorkbenchState({ botId, sessionId, workspacePath }, storage),
+    [botId, sessionId, workspacePath, storage],
   );
-  const [selectedFile, setSelectedFile] = useState("");
-  const [selectedChange, setSelectedChange] = useState("");
-  const [selectedCommand, setSelectedCommand] = useState("");
+  const ownerKey = threadWorkbenchStorageKey(hydrated);
+  const [storedModel, setStoredModel] = useState(hydrated);
+  const ownsModel = threadWorkbenchStorageKey(storedModel) === ownerKey;
+  const ownedModel = ownsModel ? storedModel : hydrated;
+  // Settle ownership before any resource path is evaluated. An effect-only reset
+  // would issue one render of the previous workspace's selected file at the new origin.
+  if (!ownsModel) setStoredModel(hydrated);
+  const model = {
+    ...ownedModel,
+    selectedTab: threadWorkbenchTabForGroup(ownedModel, group),
+  };
+  const setModel = useCallback(
+    (update: SetStateAction<ThreadWorkbenchState>) => {
+      setStoredModel((current) => {
+        if (threadWorkbenchStorageKey(current) !== ownerKey) return current;
+        return typeof update === "function" ? update(current) : update;
+      });
+    },
+    [ownerKey],
+  );
+  const { selectedFile, selectedChange, selectedCommand } = model;
+  const setSelectedFile = (selectedFile: string) =>
+    setModel((current) => ({ ...current, selectedFile }));
+  const setSelectedChange = (selectedChange: string) =>
+    setModel((current) => ({ ...current, selectedChange }));
+  const setSelectedCommand = (selectedCommand: string) =>
+    setModel((current) => ({ ...current, selectedCommand }));
   const [copiedLabel, setCopiedLabel] = useState("");
   const [checkpointMessage, setCheckpointMessage] = useState("");
   const [checkpointBusy, setCheckpointBusy] = useState(false);
@@ -417,20 +455,9 @@ export function useThreadWorkbenchRailController({
     ),
   );
   useEffect(() => {
-    setModel(
-      loadThreadWorkbenchState(
-        { sessionId, workspacePath, lifecycle: active ? "active" : "idle" },
-        storage,
-      ),
-    );
-    setSelectedFile("");
-    setSelectedChange("");
-    setSelectedCommand("");
-  }, [storage, active, sessionId, workspacePath]);
-  useEffect(() => {
-    if (model.sessionId === (sessionId.trim() || "local"))
-      saveThreadWorkbenchState(model, storage);
-  }, [model, sessionId, storage]);
+    if (threadWorkbenchStorageKey(ownedModel) === ownerKey)
+      saveThreadWorkbenchState(ownedModel, storage);
+  }, [ownedModel, ownerKey, storage]);
   const repositorySummary = summary.data?.summary;
   useEffect(() => {
     if (!repositorySummary) return;
@@ -455,14 +482,14 @@ export function useThreadWorkbenchRailController({
         lifecycle: active ? "active" : "idle",
       };
     });
-  }, [active, repositorySummary, workspacePath]);
+  }, [active, repositorySummary, workspacePath, setModel]);
   useEffect(() => {
     if (!copiedLabel) return;
     const timeout = window.setTimeout(() => setCopiedLabel(""), 1_800);
     return () => window.clearTimeout(timeout);
   }, [copiedLabel]);
   const selectTab = (tab: ThreadWorkbenchTab) =>
-    setModel((current) => ({ ...current, selectedTab: tab }));
+    setModel((current) => selectThreadWorkbenchTab(current, group, tab));
   const insert = (label: string, value: string) => {
     onInsertContext(value);
     setCopiedLabel(label);

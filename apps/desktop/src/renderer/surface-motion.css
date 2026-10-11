@@ -207,3 +207,10 @@
     box-shadow: none;
   }
 }
+:root[data-panel-resizing] .desktop-shell,
+:root[data-panel-resizing] .chat-workspace,
+:root[data-panel-resizing] .chat-workbench-pane,
+:root[data-panel-resizing] [data-chat-terminal-panel] {
+  /* Resize feedback follows the pointer; keep reveal/close motion otherwise. */
+  transition: none;
+}

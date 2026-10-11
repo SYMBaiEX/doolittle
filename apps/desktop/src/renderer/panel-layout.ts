@@ -41,6 +41,49 @@ export const CHAT_TERMINAL_HEIGHT = {
 export const APP_SIDEBAR_COMPACT_WIDTH = 68;
 export const MIN_DOCKED_WORKSPACE_WIDTH = 960;
 
+export function shellViewportWidth(): number {
+  return window.innerWidth;
+}
+
+export function subscribeShellViewportWidth(onChange: () => void): () => void {
+  window.addEventListener("resize", onChange);
+  return () => window.removeEventListener("resize", onChange);
+}
+
+export function navigationToggleAction({
+  isMobileSidebarMode,
+  navigationAutoCollapsed,
+}: {
+  isMobileSidebarMode: boolean;
+  navigationAutoCollapsed: boolean;
+}) {
+  return isMobileSidebarMode
+    ? "toggle-mobile"
+    : navigationAutoCollapsed
+      ? "close-utility"
+      : "toggle-saved";
+}
+
+/** Keep a docked drag inside its current composition, not a breakpoint jump. */
+export function dockedPanelResizeBounds(
+  bounds: { default: number; min: number; max: number },
+  viewportWidth: number,
+  otherPanelWidth: number,
+) {
+  return {
+    ...bounds,
+    max: Math.max(
+      bounds.min,
+      Math.min(
+        bounds.max,
+        Math.floor(
+          viewportWidth - otherPanelWidth - MIN_DOCKED_WORKSPACE_WIDTH,
+        ),
+      ),
+    ),
+  };
+}
+
 export function minimumDockedUtilityViewportWidth({
   navCollapsed,
   sidebarWidth,

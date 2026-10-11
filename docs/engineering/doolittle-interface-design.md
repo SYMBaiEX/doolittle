@@ -43,10 +43,13 @@ reduced transparency and forced colors have static/readable alternatives.
   inspector toggle, adjacent Settings gear and overflow. Both icons have named
   tooltips and accessible labels. Settings lives in the header, not the sidebar.
   New/close view actions are disclosures. Closing a view never stops work.
-- Tabs and arrangement tools appear only with multiple open conversations. The
-  workspace supports nested right/below splits, resizing, reordering, focus and
-  closing, with a 12-view limit. Narrow layouts show the active tab and retain
-  the saved desktop arrangement; hidden panels remain mounted and inert.
+- Tabs appear only with multiple open conversations; the Panels disclosure is
+  available with one or no open views. It offers tabs, balanced side-by-side or
+  stacked arrangements, temporary focus/restore, size reset, close others and
+  reopening the last closed view. The workspace also supports nested right/below
+  splits, resizing and physical reordering, with a 12-view limit. Narrow layouts
+  show the active tab and retain the saved desktop arrangement; hidden panels
+  remain mounted and inert. Opening another view preserves the split mode.
 - The composer contains text, Attach, model route and Send/Stop. Advanced
   actions live in Add. Queue, files, errors and memory matches appear when relevant.
   New conversations center a quiet welcome and the same composer. After the
@@ -66,6 +69,11 @@ reduced transparency and forced colors have static/readable alternatives.
   The project picker uses the SDK's portaled collision placement, with a
   bounded scrolling list; composer/pane clipping cannot hide its footer actions.
 - The initially closed inspector contains Details, Library and Computer.
+  Its width can be adjusted without squeezing the conversation below its local
+  reading reserve; narrow conversation tiles use the existing full-width sheet.
+  Closing/reopening retains its selected view. Library and Computer remember
+  independent tabs and resource selections under bot/conversation/workspace
+  ownership, without persisting document contents or terminal output.
   Computer opens actual editor/browser/terminal resources; it is not a VM.
   Its immutable bot/conversation/workspace origin must not follow ambient focus.
 - Settings has seven flat icon-led categories: General, Models & accounts,

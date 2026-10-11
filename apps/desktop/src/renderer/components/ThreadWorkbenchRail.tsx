@@ -11,20 +11,15 @@ import {
   SquareTerminal,
   X,
 } from "lucide-react";
-import {
-  type CSSProperties,
-  type KeyboardEvent,
-  useEffect,
-  useId,
-  useRef,
-} from "react";
+import { type CSSProperties, type KeyboardEvent, useId, useRef } from "react";
 import { asNumber, Badge } from "../lib";
 import {
   clampThreadWorkbenchWidth,
   THREAD_WORKBENCH_DEFAULT_WIDTH,
+  THREAD_WORKBENCH_GROUP_TABS,
   THREAD_WORKBENCH_MAX_WIDTH,
   THREAD_WORKBENCH_MIN_WIDTH,
-  THREAD_WORKBENCH_TABS,
+  type ThreadWorkbenchGroup,
   type ThreadWorkbenchTab,
 } from "../thread-workbench";
 import {
@@ -63,7 +58,7 @@ export type { ThreadWorkbenchFullView } from "../thread-workbench/models";
 
 export interface ThreadWorkbenchRailProps {
   botId?: string;
-  group?: "all" | "library" | "computer";
+  group?: ThreadWorkbenchGroup;
   minimal?: boolean;
   active: boolean;
   sessionId: string;
@@ -98,6 +93,7 @@ export function ThreadWorkbenchRail({
   const idPrefix = `thread-workbench-${instanceId.replace(/:/g, "")}`;
   const controller = useThreadWorkbenchRailController({
     active,
+    group,
     botId,
     sessionId,
     workspacePath,
@@ -111,25 +107,7 @@ export function ThreadWorkbenchRail({
     selectTab,
     refreshCurrent,
   } = controller;
-  const visibleTabs: ThreadWorkbenchTab[] =
-    group === "library"
-      ? ["files", "changes", "plans"]
-      : group === "computer"
-        ? ["terminal", "preview", "brief", "settings"]
-        : [...THREAD_WORKBENCH_TABS];
-  useEffect(() => {
-    const allowed: ThreadWorkbenchTab[] =
-      group === "library"
-        ? ["files", "changes", "plans"]
-        : group === "computer"
-          ? ["terminal", "preview", "brief", "settings"]
-          : [...THREAD_WORKBENCH_TABS];
-    setModel((current) =>
-      allowed.includes(current.selectedTab)
-        ? current
-        : { ...current, selectedTab: allowed[0] ?? "files" },
-    );
-  }, [group, setModel]);
+  const visibleTabs = THREAD_WORKBENCH_GROUP_TABS[group];
   const tabRefs = useRef<Record<ThreadWorkbenchTab, HTMLButtonElement | null>>({
     files: null,
     changes: null,

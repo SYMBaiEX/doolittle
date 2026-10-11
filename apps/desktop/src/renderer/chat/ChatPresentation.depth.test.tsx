@@ -141,4 +141,62 @@ describe("chat presentation depth", () => {
       host.remove();
     }
   });
+
+  it("provides a locally bounded keyboard resizer and removes it in sheet mode", async () => {
+    const host = document.createElement("div");
+    document.body.append(host);
+    const root = createRoot(host);
+    const onResize = vi.fn();
+    const props = {
+      active: false,
+      contextLabel: "Not measured",
+      messageCount: 0,
+      onClose: () => undefined,
+      onInsertContext: () => undefined,
+      onOpenFullView: () => undefined,
+      onTabChange: () => undefined,
+      sessionId: "session-a",
+      tab: "details" as const,
+      title: "A conversation",
+      workspacePath: "",
+      width: 360,
+      resize: {
+        bounds: { min: 280, max: 460, default: 320 },
+        value: 360,
+        onResize,
+      },
+    };
+    try {
+      await act(async () => root.render(<CompanionInspector {...props} />));
+      const handle = host.querySelector<HTMLHRElement>("hr");
+      expect(handle?.getAttribute("aria-valuenow")).toBe("360");
+      expect(handle?.getAttribute("aria-valuemax")).toBe("460");
+      expect(host.querySelector("aside")?.id).toBe(
+        handle?.getAttribute("aria-controls"),
+      );
+      await act(async () =>
+        handle?.dispatchEvent(
+          new KeyboardEvent("keydown", { bubbles: true, key: "ArrowLeft" }),
+        ),
+      );
+      expect(onResize).toHaveBeenLastCalledWith(376);
+      await act(async () =>
+        handle?.dispatchEvent(new MouseEvent("dblclick", { bubbles: true })),
+      );
+      expect(onResize).toHaveBeenLastCalledWith(320);
+      await act(async () =>
+        root.render(<CompanionInspector {...props} resize={undefined} />),
+      );
+      expect(host.querySelector("hr")).toBeNull();
+      expect(host.querySelector("aside")?.style.width).toBe("360px");
+      await act(async () =>
+        root.render(<CompanionInspector {...props} fullWidth />),
+      );
+      expect(host.querySelector("hr")).toBeNull();
+      expect(host.querySelector("aside")?.style.width).toBe("");
+    } finally {
+      await act(async () => root.unmount());
+      host.remove();
+    }
+  });
 });

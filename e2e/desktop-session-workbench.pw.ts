@@ -1,6 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { expect, type Locator, test } from "@playwright/test";
+import { SESSION_WORKSPACE_STORAGE_KEY } from "../apps/desktop/src/renderer/session-workspace/workspace-layout";
 import {
   loadCodeWorkspaceLayout,
   saveCodeWorkspaceLayout,
@@ -53,11 +54,20 @@ async function expectEmptyComposerReady(workbench: Locator): Promise<void> {
 }
 
 async function splitOpenConversations(workbench: Locator): Promise<void> {
+  await selectPanelAction(workbench, "Side by side");
+}
+
+async function selectPanelAction(
+  workbench: Locator,
+  label: string,
+): Promise<void> {
+  await workbench.getByRole("button", { name: "Panels", exact: true }).click();
+  // The SDK menu is portaled outside the workspace clipping container.
   await workbench
-    .locator("summary")
-    .filter({ hasText: "Layout views" })
+    .page()
+    .getByRole("menuitem", { name: label, exact: true })
     .click();
-  await workbench.getByRole("button", { name: "Split right" }).click();
+  await expect(workbench.page().getByRole("menu")).toHaveCount(0);
 }
 
 async function expectComposerGeometry(panel: Locator): Promise<void> {
@@ -248,6 +258,203 @@ async function expectApprovalGeometry(panel: Locator): Promise<void> {
 }
 
 test.describe("Doolittle desktop session workbench", () => {
+  test("manages panels from one view while preserving drafts, running state, and physical order", async () => {
+    test.setTimeout(90_000);
+    const desktop = await launchIsolatedDesktop();
+    try {
+      const { app, page, pageErrors } = desktop;
+      await waitForDesktopReady(page);
+      const nativeWindow = await app.browserWindow(page);
+      try {
+        await nativeWindow.evaluate((window) =>
+          window.setContentSize(1800, 1000),
+        );
+      } finally {
+        await nativeWindow.dispose();
+      }
+      await expect
+        .poll(() => page.evaluate(() => window.innerWidth))
+        .toBe(1800);
+      await installSyntheticChatLifecycleFixture(app);
+      const workbench = page.getByRole("region", { name: "Session workbench" });
+      const panels = workbench.locator("[data-session-panel]");
+      const panelsMenu = workbench.getByRole("button", {
+        name: "Panels",
+        exact: true,
+      });
+      await expect(panels).toHaveCount(1);
+      await expect(panelsMenu).toBeVisible();
+      await panelsMenu.click();
+      await expect(
+        page.getByRole("menuitem", { name: "Side by side", exact: true }),
+      ).toBeDisabled();
+      await page.keyboard.press("Escape");
+      await expect(panelsMenu).toBeFocused();
+      const firstId = await panels.first().getAttribute("data-session-panel");
+      if (!firstId) throw new Error("Initial session panel is unavailable.");
+      const first = panelById(workbench, firstId);
+      const inspectorToggle = page.getByRole("button", {
+        name: "Open inspector",
+        exact: true,
+      });
+      await inspectorToggle.click();
+      const inspector = first.getByRole("complementary", {
+        name: "Conversation inspector",
+      });
+      const inspectorResize = inspector.getByRole("separator", {
+        name: "Resize conversation inspector",
+      });
+      await expect(inspectorResize).toBeVisible();
+      const initialInspectorWidth = Number(
+        await inspectorResize.getAttribute("aria-valuenow"),
+      );
+      await inspectorResize.focus();
+      await page.keyboard.press("ArrowLeft");
+      await expect(inspectorResize).toHaveAttribute(
+        "aria-valuenow",
+        String(initialInspectorWidth + 16),
+      );
+      await inspector
+        .getByRole("tab", { name: "Library", exact: true })
+        .click();
+      await inspector
+        .getByRole("button", { name: "Close inspector", exact: true })
+        .click();
+      await expect(inspectorToggle).toBeFocused();
+      await inspectorToggle.click();
+      await expect(
+        inspector.getByRole("tab", { name: "Library", exact: true }),
+      ).toHaveAttribute("aria-selected", "true");
+      await expect(inspectorResize).toHaveAttribute(
+        "aria-valuenow",
+        String(initialInspectorWidth + 16),
+      );
+      await inspector
+        .getByRole("button", { name: "Close inspector", exact: true })
+        .click();
+      const firstComposer = first.getByRole("textbox", {
+        name: "Message Doolittle",
+      });
+      await firstComposer.fill(syntheticChatPrompt("running"));
+      await expect(
+        first.getByText("Checking active runs before sending…", {
+          exact: true,
+        }),
+      ).toHaveCount(0);
+      await firstComposer.press("Enter");
+      await expect(
+        first.getByRole("button", { name: "Stop response", exact: true }),
+      ).toBeVisible();
+      await firstComposer.fill("Draft A survives view management.");
+
+      await selectPanelAction(workbench, "New session");
+      await expect(panels).toHaveCount(2);
+      const secondId = (
+        await panels.evaluateAll((elements) =>
+          elements.map((element) => element.getAttribute("data-session-panel")),
+        )
+      ).find((id) => id && id !== firstId);
+      if (!secondId) throw new Error("Second session panel is unavailable.");
+      const second = panelById(workbench, secondId);
+      const secondComposer = second.getByRole("textbox", {
+        name: "Message Doolittle",
+      });
+      await secondComposer.fill("Draft B survives view management.");
+      await splitOpenConversations(workbench);
+      await expect(workbench).toHaveAttribute("data-session-layout", "split");
+      await expect(first).toBeVisible();
+      await expect(second).toBeVisible();
+
+      await selectPanelAction(workbench, "New session");
+      await expect(panels).toHaveCount(3);
+      const thirdId = (
+        await panels.evaluateAll((elements) =>
+          elements.map((element) => element.getAttribute("data-session-panel")),
+        )
+      ).find((id) => id && id !== firstId && id !== secondId);
+      if (!thirdId) throw new Error("Third session panel is unavailable.");
+      const third = panelById(workbench, thirdId);
+      const thirdComposer = third.getByRole("textbox", {
+        name: "Message Doolittle",
+      });
+      await thirdComposer.fill("Draft C survives view management.");
+      await expect(workbench).toHaveAttribute("data-session-layout", "split");
+      await expect(first).toBeVisible();
+      await expect(second).toBeVisible();
+      await expect(third).toBeVisible();
+      const savedArrangement = await page.evaluate(
+        (key) => localStorage.getItem(key),
+        SESSION_WORKSPACE_STORAGE_KEY,
+      );
+      await selectPanelAction(workbench, "Focus view");
+      await expect(first).toBeHidden();
+      await expect(first).toHaveAttribute("inert", "");
+      await expect(second).toBeHidden();
+      await expect(thirdComposer).toBeFocused();
+      expect(
+        await page.evaluate(
+          (key) => localStorage.getItem(key),
+          SESSION_WORKSPACE_STORAGE_KEY,
+        ),
+      ).toBe(savedArrangement);
+      await selectPanelAction(workbench, "Restore arrangement");
+      await expect(first).toBeVisible();
+      await expect(second).toBeVisible();
+      expect(
+        await page.evaluate(
+          (key) => localStorage.getItem(key),
+          SESSION_WORKSPACE_STORAGE_KEY,
+        ),
+      ).toBe(savedArrangement);
+
+      // C was inserted inside the left branch. Its Move left command must
+      // change the actual pane position, not just the tab strip's order.
+      const thirdBefore = await third.evaluate(
+        (element) => element.getBoundingClientRect().x,
+      );
+      await third.getByRole("button", { name: /^Move .* left$/ }).click();
+      await expect
+        .poll(() =>
+          third.evaluate((element) => element.getBoundingClientRect().x),
+        )
+        .toBeLessThan(thirdBefore);
+      const paneIds = await workbench
+        .getByRole("tablist", { name: "Open conversations" })
+        .getByRole("tab")
+        .evaluateAll((tabs) =>
+          tabs.map((tab) => tab.getAttribute("aria-controls")),
+        );
+      expect(paneIds).toEqual([
+        `session-panel-${thirdId}`,
+        `session-panel-${firstId}`,
+        `session-panel-${secondId}`,
+      ]);
+      await selectPanelAction(workbench, "Close view (work continues)");
+      await expect(third).toBeHidden();
+      await selectPanelAction(workbench, "Reopen last closed view");
+      await expect(third).toBeVisible();
+      await expect(thirdComposer).toHaveValue(
+        "Draft C survives view management.",
+      );
+      await expect(firstComposer).toHaveValue(
+        "Draft A survives view management.",
+      );
+      await expect(secondComposer).toHaveValue(
+        "Draft B survives view management.",
+      );
+      await expect(
+        first.getByRole("button", { name: "Stop response", exact: true }),
+      ).toBeVisible();
+      await expect(first.locator(".chat-run-receipt").last()).toContainText(
+        "Working",
+      );
+      await expectNoDesktopRecovery(page);
+      expect(pageErrors).toEqual([]);
+    } finally {
+      await desktop.dispose();
+    }
+  });
+
   test("centers a new composer then docks it below independently scrolling history", async () => {
     const testInfo = test.info();
     test.setTimeout(120_000);
@@ -660,11 +867,7 @@ test.describe("Doolittle desktop session workbench", () => {
       await expectDocked(first);
       await expectCentered(second);
       await focusPanelTab(workbench, secondId);
-      await workbench
-        .locator("summary")
-        .filter({ hasText: "Layout views" })
-        .click();
-      await workbench.getByRole("button", { name: "Split below" }).click();
+      await selectPanelAction(workbench, "Stacked");
       await expect
         .poll(() =>
           second
@@ -1519,11 +1722,11 @@ test.describe("Doolittle desktop session workbench", () => {
         .getByRole("textbox", { name: "Message Doolittle" })
         .fill("Draft preserved in the second session.");
 
-      const layoutMenu = workbench
-        .locator("summary")
-        .filter({ hasText: "Layout views" });
-      await layoutMenu.click();
-      await workbench.getByRole("button", { name: "Split right" }).click();
+      const layoutMenu = workbench.getByRole("button", {
+        name: "Panels",
+        exact: true,
+      });
+      await splitOpenConversations(workbench);
       await expect(firstPanel).toBeVisible();
       await expect(secondPanel).toBeVisible();
 
@@ -1749,31 +1952,17 @@ test.describe("Doolittle desktop session workbench", () => {
       await expect(focusSecond).toHaveAttribute("aria-pressed", "false");
       await expect(firstPanel).toBeVisible();
       await expect(secondPanel).toBeVisible();
-      await layoutMenu.click();
-      await workbench.getByRole("button", { name: "Show as tabs" }).click();
+      await selectPanelAction(workbench, "Tabs");
       await expect(
         workbench.getByRole("tablist", { name: "Open conversations" }),
       ).toBeVisible();
       await expect(firstPanel).toBeVisible();
       await expect(secondPanel).toBeHidden();
-      await expect(layoutMenu.locator("xpath=..")).not.toHaveAttribute(
-        "open",
-        "",
-      );
-      await layoutMenu.click();
-      await workbench.getByRole("button", { name: "Split right" }).click();
+      await expect(layoutMenu).toHaveAttribute("aria-expanded", "false");
+      await splitOpenConversations(workbench);
       await expect(firstPanel).toBeVisible();
       await expect(secondPanel).toBeVisible();
-      const layoutDetails = layoutMenu.locator("xpath=..");
-      if (
-        await layoutDetails.evaluate(
-          (details) => (details as HTMLDetailsElement).open,
-        )
-      ) {
-        await layoutMenu.focus();
-        await page.keyboard.press("Enter");
-      }
-      await expect(layoutDetails).not.toHaveAttribute("open", "");
+      await expect(layoutMenu).toHaveAttribute("aria-expanded", "false");
       const dragStartRatio = await separator.getAttribute("aria-valuenow");
       const resizerBox = await separator.boundingBox();
       expect(resizerBox).not.toBeNull();

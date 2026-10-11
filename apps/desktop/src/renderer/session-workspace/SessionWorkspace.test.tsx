@@ -435,10 +435,172 @@ describe("shared session workbench behavior", () => {
     expect(container.querySelector('[aria-label="Find session"]')).toBeNull();
     expect(container.querySelector('[aria-label="New session"]')).toBeNull();
     expect(container.querySelector('[role="tablist"]')).toBeNull();
+    expect(container.querySelector('[aria-label="Panels"]')).not.toBeNull();
     await act(async () =>
       window.dispatchEvent(new Event("doolittle:new-conversation-view")),
     );
     expect(container.querySelector('[role="tablist"]')).not.toBeNull();
+  });
+
+  it("manages one or empty view through a portaled menu and can reopen the final closed draft", async () => {
+    await render();
+    await draft("a", "Keep this draft");
+    await click(container, "Panels");
+    expect(container.querySelector('[role="menu"]')).toBeNull();
+    const sideBySide = required(
+      [
+        ...document.body.querySelectorAll<HTMLElement>('[role="menuitem"]'),
+      ].find((item) => item.textContent === "Side by side"),
+    );
+    expect(sideBySide.getAttribute("aria-disabled")).toBe("true");
+    await contextAction("Find session");
+    await click(container, "Close conversation finder");
+    expect(document.activeElement?.getAttribute("aria-label")).toBe("Panels");
+    await click(container, "Panels");
+    await contextAction("Close view (work continues)");
+    expect(panel("a").hidden).toBe(true);
+    expect(container.textContent).toContain("No open views");
+    await click(container, "Panels");
+    await contextAction("Reopen last closed view");
+    expect(panel("a").hidden).toBe(false);
+    expect(panel("a").querySelector("textarea")?.value).toBe("Keep this draft");
+    expect(panel("a").getAttribute("aria-label")).toBe("Session: Session A");
+    expect(start).not.toHaveBeenCalled();
+    expect(cancel).not.toHaveBeenCalled();
+  });
+
+  it("focuses and restores the saved arrangement, then closes others and reopens without losing work", async () => {
+    await render();
+    await draft("a", "Run A");
+    await click(panel("a"), "Send test");
+    await draft("a", "Retained A");
+    await openB();
+    await draft("b", "Retained B");
+    await click(container, "Panels");
+    await contextAction("Side by side");
+    const divider = required(
+      container.querySelector<HTMLElement>("[data-session-resizer]"),
+    );
+    await act(async () =>
+      divider.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }),
+      ),
+    );
+    const saved = localStorage.getItem(SESSION_WORKSPACE_STORAGE_KEY);
+    await click(container, "Panels");
+    await contextAction("Focus view");
+    expect(panel("a").hidden).toBe(true);
+    expect(panel("a").hasAttribute("inert")).toBe(true);
+    expect(panel("b").hidden).toBe(false);
+    expect(localStorage.getItem(SESSION_WORKSPACE_STORAGE_KEY)).toBe(saved);
+    await click(container, "Panels");
+    await contextAction("Restore arrangement");
+    expect(panel("a").hidden).toBe(false);
+    expect(panel("b").hidden).toBe(false);
+    expect(localStorage.getItem(SESSION_WORKSPACE_STORAGE_KEY)).toBe(saved);
+    await click(container, "Panels");
+    await contextAction("Balance sizes");
+    expect(
+      JSON.parse(required(localStorage.getItem(SESSION_WORKSPACE_STORAGE_KEY)))
+        .tree.ratio,
+    ).toBe(0.5);
+    await click(container, "Panels");
+    await contextAction("Close other views (work continues)");
+    expect(panel("a").hidden).toBe(true);
+    expect(panel("b").hidden).toBe(false);
+    await click(container, "Panels");
+    await contextAction("Reopen last closed view");
+    expect(panel("a").hidden).toBe(false);
+    expect(panel("a").querySelector("textarea")?.value).toBe("Retained A");
+    expect(panel("b").querySelector("textarea")?.value).toBe("Retained B");
+    expect(start).toHaveBeenCalledOnce();
+    expect(cancel).not.toHaveBeenCalled();
+  });
+
+  it("saves narrow-window arrangements without squeezing panes and restores them when space returns", async () => {
+    await render();
+    await openB();
+    narrow.value = true;
+    await render();
+    await click(container, "Panels");
+    await contextAction("Stacked");
+    expect(container.querySelector("[data-session-resizer]")).toBeNull();
+    expect(panel("a").hidden).toBe(true);
+    const saved = localStorage.getItem(SESSION_WORKSPACE_STORAGE_KEY);
+    expect(JSON.parse(required(saved)).tree.axis).toBe("vertical");
+    narrow.value = false;
+    await render();
+    expect(panel("a").hidden).toBe(false);
+    expect(container.querySelector("[data-session-resizer]")).not.toBeNull();
+    expect(localStorage.getItem(SESSION_WORKSPACE_STORAGE_KEY)).toBe(saved);
+  });
+
+  it("resizes a nested split using its subtree width and accumulates pointer moves before React renders", async () => {
+    localStorage.setItem(
+      SESSION_WORKSPACE_STORAGE_KEY,
+      JSON.stringify({
+        version: 2,
+        openIds: ["a", "b", "c"],
+        focusedId: "a",
+        mode: "split",
+        tree: {
+          type: "split",
+          axis: "horizontal",
+          ratio: 0.5,
+          first: { type: "leaf", id: "a" },
+          second: {
+            type: "split",
+            axis: "horizontal",
+            ratio: 0.5,
+            first: { type: "leaf", id: "b" },
+            second: { type: "leaf", id: "c" },
+          },
+        },
+      }),
+    );
+    await render();
+    const canvas = required(
+      container.querySelector<HTMLElement>("[data-session-panels]"),
+    );
+    vi.spyOn(canvas, "getBoundingClientRect").mockReturnValue({
+      width: 2000,
+      height: 1000,
+    } as DOMRect);
+    const divider = required(
+      [
+        ...container.querySelectorAll<HTMLElement>("[data-session-resizer]"),
+      ].find((item) => item.style.left === "75%"),
+    );
+    let captured = false;
+    divider.setPointerCapture = vi.fn(() => {
+      captured = true;
+    });
+    divider.hasPointerCapture = vi.fn(() => captured);
+    divider.releasePointerCapture = vi.fn(() => {
+      captured = false;
+    });
+    const pointer = (type: string, clientX: number) => {
+      const event = new MouseEvent(type, {
+        bubbles: true,
+        cancelable: true,
+        clientX,
+      });
+      Object.defineProperty(event, "pointerId", { value: 1 });
+      divider.dispatchEvent(event);
+    };
+    await act(async () => {
+      pointer("pointerdown", 1500);
+      pointer("pointermove", 1600);
+      pointer("pointermove", 1650);
+      pointer("pointerup", 1650);
+    });
+    const saved = JSON.parse(
+      required(localStorage.getItem(SESSION_WORKSPACE_STORAGE_KEY)),
+    );
+    expect(saved.tree.ratio).toBe(0.5);
+    expect(saved.tree.second.ratio).toBeCloseTo(0.65);
+    expect(divider.releasePointerCapture).toHaveBeenCalledWith(1);
+    expect(start).not.toHaveBeenCalled();
   });
 
   it("keeps selected views text-led with full-title access and an explicit finder dismiss action", async () => {
@@ -509,7 +671,7 @@ describe("shared session workbench behavior", () => {
     let saved = JSON.parse(
       required(localStorage.getItem(SESSION_WORKSPACE_STORAGE_KEY)),
     );
-    expect(saved.openIds).toEqual(["a", "b"]);
+    expect(saved.openIds).toEqual(["b", "a"]);
     expect(saved.focusedId).toBe("a");
     expect(saved.tree.first.id).toBe("b");
     expect(saved.tree.second.id).toBe("a");
@@ -517,14 +679,14 @@ describe("shared session workbench behavior", () => {
     expect(panel("b").hidden).toBe(false);
     await contextMenu(
       required(
-        panel("a").querySelector<HTMLElement>('[data-session-focus="a"]'),
+        panel("b").querySelector<HTMLElement>('[data-session-focus="b"]'),
       ),
     );
     await contextAction("Move view right");
     saved = JSON.parse(
       required(localStorage.getItem(SESSION_WORKSPACE_STORAGE_KEY)),
     );
-    expect(saved.openIds).toEqual(["b", "a"]);
+    expect(saved.openIds).toEqual(["a", "b"]);
     const divider = required(
       container.querySelector<HTMLElement>("[data-session-resizer]"),
     );
@@ -607,11 +769,11 @@ describe("shared session workbench behavior", () => {
       JSON.parse(required(localStorage.getItem(SESSION_WORKSPACE_STORAGE_KEY)))
         .focusedId,
     ).toBe("a");
-    await contextAction("Move view left");
+    await contextAction("Move view right");
     expect(
       JSON.parse(required(localStorage.getItem(SESSION_WORKSPACE_STORAGE_KEY)))
         .openIds,
-    ).toEqual(["b", "a"]);
+    ).toEqual(["a", "b"]);
     expect(
       JSON.parse(required(localStorage.getItem(SESSION_WORKSPACE_STORAGE_KEY)))
         .focusedId,
@@ -638,11 +800,11 @@ describe("shared session workbench behavior", () => {
       );
     });
     expect(document.body.querySelector('[role="menu"]')).not.toBeNull();
-    await contextAction("Move view right");
+    await contextAction("Move view left");
     expect(
       JSON.parse(required(localStorage.getItem(SESSION_WORKSPACE_STORAGE_KEY)))
         .openIds,
-    ).toEqual(["a", "b"]);
+    ).toEqual(["b", "a"]);
     expect(start).not.toHaveBeenCalled();
     expect(cancel).not.toHaveBeenCalled();
   });
@@ -1221,16 +1383,9 @@ describe("shared session workbench behavior", () => {
   it("persists keyboard resize/order and switches to a deliberate roving tabbed narrow layout", async () => {
     await render();
     await openB();
-    await act(async () => {
-      required(container.querySelector<HTMLElement>("summary")).click();
-    });
-    const layoutMenu = required(
-      container.querySelector<HTMLDetailsElement>("details"),
-    );
-    layoutMenu.open = true;
-    await click(container, "Split right");
-    expect(layoutMenu.open).toBe(false);
-    expect(document.activeElement).toBe(layoutMenu.querySelector("summary"));
+    await click(container, "Panels");
+    await contextAction("Side by side");
+    expect(document.body.querySelector('[role="menu"]')).toBeNull();
     const separator = required(
       container.querySelector<HTMLElement>("[data-session-resizer]"),
     );
@@ -1249,6 +1404,9 @@ describe("shared session workbench behavior", () => {
         .openIds,
     ).toEqual(["b", "a"]);
     await draft("a", "Narrow draft A");
+    await act(async () =>
+      required(container.querySelector<HTMLElement>("#session-tab-a")).click(),
+    );
     narrow.value = true;
     await render();
     expect(container.querySelector('[role="tablist"]')).not.toBeNull();
