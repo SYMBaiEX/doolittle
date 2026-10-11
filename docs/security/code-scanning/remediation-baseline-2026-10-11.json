@@ -1,0 +1,1630 @@
+{
+  "schema": 1,
+  "capturedAtUtc": "2026-10-11 22:23:10 UTC",
+  "repository": "SYMBaiEX/doolittle",
+  "ref": "refs/heads/main",
+  "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+  "count": 162,
+  "alerts": [
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 322,
+      "message": "This path depends on a user-provided value.",
+      "number": 261,
+      "path": "packages/evals/src/coding/report.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/261"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 66,
+      "message": "The file may have changed since it was checked.",
+      "number": 259,
+      "path": "scripts/bootstrap/core/env-file.test.ts",
+      "rule": "js/file-system-race",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/259"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 44,
+      "message": "The file may have changed since it was checked.",
+      "number": 258,
+      "path": "scripts/bootstrap/core/env-file.test.ts",
+      "rule": "js/file-system-race",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/258"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 44,
+      "message": "The file may have changed since it was checked.",
+      "number": 257,
+      "path": "scripts/bootstrap/core/env-file.ts",
+      "rule": "js/file-system-race",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/257"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 115,
+      "message": "The file may have changed since it was checked.",
+      "number": 256,
+      "path": "packages/agent/src/services/skills-hub/manifests.test.ts",
+      "rule": "js/file-system-race",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/256"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 90,
+      "message": "The file may have changed since it was checked.",
+      "number": 255,
+      "path": "apps/desktop/src/main/regular-file.test.ts",
+      "rule": "js/file-system-race",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/255"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 9,
+      "message": "Insecure creation of file in the os temp dir.\nInsecure creation of file in the os temp dir.\nInsecure creation of file in the os temp dir.\nInsecure creation of file in the os temp dir.\nInsecure creation of file in the os temp dir.\nInsecure creation of file in the os temp dir.",
+      "number": 254,
+      "path": "packages/agent/src/utils/read-regular-file.ts",
+      "rule": "js/insecure-temporary-file",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/254"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 48,
+      "message": "Insecure creation of file in the os temp dir.\nInsecure creation of file in the os temp dir.\nInsecure creation of file in the os temp dir.",
+      "number": 253,
+      "path": "packages/agent/src/runtime/bootstrap/env/secret-salt.ts",
+      "rule": "js/insecure-temporary-file",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/253"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 103,
+      "message": "Insecure creation of file in the os temp dir.\nInsecure creation of file in the os temp dir.\nInsecure creation of file in the os temp dir.",
+      "number": 252,
+      "path": "packages/agent/src/cli/jobs/store/index.ts",
+      "rule": "js/insecure-temporary-file",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/252"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 325,
+      "message": "This path depends on a user-provided value.",
+      "number": 251,
+      "path": "packages/evals/src/coding/report.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/251"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 9,
+      "message": "This path depends on a user-provided value.",
+      "number": 250,
+      "path": "packages/agent/src/utils/read-regular-file.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/250"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 105,
+      "message": "This path depends on a user-provided value.",
+      "number": 249,
+      "path": "packages/agent/src/runtime/workflow-commands/definitions.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/249"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 48,
+      "message": "This path depends on a user-provided value.",
+      "number": 248,
+      "path": "packages/agent/src/runtime/bootstrap/env/secret-salt.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/248"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 34,
+      "message": "This path depends on a user-provided value.",
+      "number": 247,
+      "path": "packages/agent/src/runtime/bootstrap/env/secret-salt.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/247"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 25,
+      "message": "This path depends on a user-provided value.",
+      "number": 246,
+      "path": "packages/agent/src/runtime/bootstrap/env/secret-salt.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/246"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 103,
+      "message": "This path depends on a user-provided value.",
+      "number": 245,
+      "path": "packages/agent/src/cli/jobs/store/index.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/245"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 28,
+      "message": "This path depends on a user-provided value.",
+      "number": 244,
+      "path": "packages/agent/src/cli/jobs/store/index.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/244"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 27,
+      "message": "This path depends on a user-provided value.",
+      "number": 243,
+      "path": "packages/agent/src/cli/jobs/store/index.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/243"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 20,
+      "message": "This path depends on a user-provided value.",
+      "number": 242,
+      "path": "packages/agent/src/cli/jobs/store/index-store.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/242"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 58,
+      "message": "This path depends on a user-provided value.",
+      "number": 241,
+      "path": "e2e/support/screenshot-evidence.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/241"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 55,
+      "message": "This path depends on a user-provided value.",
+      "number": 240,
+      "path": "e2e/support/screenshot-evidence.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/240"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 47,
+      "message": "This path depends on a user-provided value.",
+      "number": 239,
+      "path": "e2e/support/screenshot-evidence.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/239"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 45,
+      "message": "This path depends on a user-provided value.",
+      "number": 238,
+      "path": "e2e/support/screenshot-evidence.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/238"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 34,
+      "message": "This path depends on a user-provided value.",
+      "number": 237,
+      "path": "e2e/support/screenshot-evidence.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/237"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 33,
+      "message": "This path depends on a user-provided value.",
+      "number": 236,
+      "path": "e2e/support/screenshot-evidence.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/236"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 9,
+      "message": "This path depends on a user-provided value.",
+      "number": 235,
+      "path": "e2e/support/explicit-sweep-profile.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/235"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 32,
+      "message": "The URL of this request depends on a user-provided value.\nThe URL of this request depends on a user-provided value.\nThe URL of this request depends on a user-provided value.",
+      "number": 234,
+      "path": "packages/agent/src/native-tools/doolittle-probe.ts",
+      "rule": "js/request-forgery",
+      "securitySeverity": "critical",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/234"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 137,
+      "message": "The file may have changed since it was checked.",
+      "number": 230,
+      "path": "apps/desktop/src/main/bot-knowledge-ledger.test.ts",
+      "rule": "js/file-system-race",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/230"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 63,
+      "message": "This path depends on a user-provided value.",
+      "number": 229,
+      "path": "packages/agent/src/cli/startup.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/229"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 467,
+      "message": "This path depends on a user-provided value.\nThis path depends on a user-provided value.",
+      "number": 227,
+      "path": "apps/desktop/src/main/backend.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/227"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 58,
+      "message": "A property name to write to depends on a user-provided value.",
+      "number": 226,
+      "path": "e2e/support/isolated-runtime-environment.ts",
+      "rule": "js/remote-property-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/226"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 466,
+      "message": "This command line depends on a user-provided value.\nThis command line depends on a user-provided value.\nThis command line depends on a user-provided value.",
+      "number": 202,
+      "path": "apps/desktop/src/main/backend.ts",
+      "rule": "js/command-line-injection",
+      "securitySeverity": "critical",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/202"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 159,
+      "message": "When this is used as a regular expression on a URL, it may match anywhere, and arbitrary hosts may come before or after it.",
+      "number": 200,
+      "path": "packages/evals/src/headless/cases.ts",
+      "rule": "js/regex/missing-regexp-anchor",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/200"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 248,
+      "message": "A property name to write to depends on a user-provided value.",
+      "number": 199,
+      "path": "packages/evals/src/headless/trace-summary.ts",
+      "rule": "js/remote-property-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/199"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 32,
+      "message": "This path depends on a user-provided value.",
+      "number": 188,
+      "path": "packages/agent/src/runtime/native/plugin-registry/eval-model-metrics.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/188"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 28,
+      "message": "This path depends on a user-provided value.",
+      "number": 187,
+      "path": "packages/agent/src/runtime/native/plugin-registry/eval-model-metrics.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/187"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 26,
+      "message": "This path depends on a user-provided value.",
+      "number": 186,
+      "path": "packages/agent/src/runtime/native/plugin-registry/eval-model-metrics.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/186"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 225,
+      "message": "The file may have changed since it was checked.",
+      "number": 185,
+      "path": "packages/evals/src/coding/report.test.ts",
+      "rule": "js/file-system-race",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/185"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 680,
+      "message": "This path depends on a user-provided value.",
+      "number": 184,
+      "path": "packages/evals/src/coding/report.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/184"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 668,
+      "message": "This path depends on a user-provided value.",
+      "number": 183,
+      "path": "packages/evals/src/coding/report.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/183"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 533,
+      "message": "This path depends on a user-provided value.",
+      "number": 182,
+      "path": "packages/evals/src/coding/report.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/182"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 347,
+      "message": "This path depends on a user-provided value.",
+      "number": 180,
+      "path": "packages/evals/src/coding/report.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/180"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 225,
+      "message": "This path depends on a user-provided value.",
+      "number": 177,
+      "path": "packages/evals/src/coding/report.test.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/177"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 224,
+      "message": "This path depends on a user-provided value.",
+      "number": 176,
+      "path": "packages/evals/src/coding/report.test.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/176"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 94,
+      "message": "This command line depends on a user-provided value.",
+      "number": 175,
+      "path": "apps/desktop/scripts/smithers-runtime.test.ts",
+      "rule": "js/command-line-injection",
+      "securitySeverity": "critical",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/175"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 93,
+      "message": "This code execution depends on a user-provided value.",
+      "number": 174,
+      "path": "packages/plugins/doolittle-plugin/planner-completion.test.ts",
+      "rule": "js/code-injection",
+      "securitySeverity": "critical",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/174"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 651,
+      "message": "The file may have changed since it was checked.",
+      "number": 171,
+      "path": "apps/desktop/scripts/verify-package.ts",
+      "rule": "js/file-system-race",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/171"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 630,
+      "message": "The file may have changed since it was checked.",
+      "number": 170,
+      "path": "apps/desktop/scripts/verify-package.ts",
+      "rule": "js/file-system-race",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/170"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 447,
+      "message": "The file may have changed since it was checked.",
+      "number": 169,
+      "path": "apps/desktop/scripts/desktop-artifact.ts",
+      "rule": "js/file-system-race",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/169"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 252,
+      "message": "The file may have changed since it was checked.",
+      "number": 168,
+      "path": "apps/desktop/scripts/desktop-build-inventory.ts",
+      "rule": "js/file-system-race",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/168"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 189,
+      "message": "The file may have changed since it was checked.",
+      "number": 167,
+      "path": "apps/desktop/scripts/desktop-build-inventory.ts",
+      "rule": "js/file-system-race",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/167"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 94,
+      "message": "The file may have changed since it was checked.",
+      "number": 166,
+      "path": "apps/desktop/scripts/desktop-artifact.ts",
+      "rule": "js/file-system-race",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/166"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 670,
+      "message": "This path depends on a user-provided value.",
+      "number": 165,
+      "path": "apps/desktop/scripts/desktop-artifact.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/165"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 428,
+      "message": "This path depends on a user-provided value.",
+      "number": 164,
+      "path": "apps/desktop/scripts/desktop-artifact.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/164"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 420,
+      "message": "This path depends on a user-provided value.",
+      "number": 163,
+      "path": "apps/desktop/scripts/desktop-artifact.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/163"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 419,
+      "message": "This path depends on a user-provided value.",
+      "number": 162,
+      "path": "apps/desktop/scripts/desktop-artifact.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/162"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 418,
+      "message": "This path depends on a user-provided value.",
+      "number": 161,
+      "path": "apps/desktop/scripts/desktop-artifact.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/161"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 14,
+      "message": "This regular expression is constructed from a user-provided value.",
+      "number": 160,
+      "path": "scripts/release-changelog.test.ts",
+      "rule": "js/regex-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/160"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 300,
+      "message": "A property name to write to depends on a user-provided value.",
+      "number": 140,
+      "path": "apps/desktop/scripts/verify-package.ts",
+      "rule": "js/remote-property-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/140"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 240,
+      "message": "A property name to write to depends on a user-provided value.",
+      "number": 139,
+      "path": "apps/desktop/scripts/prepare-runtime.ts",
+      "rule": "js/remote-property-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/139"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 144,
+      "message": "The file may have changed since it was checked.",
+      "number": 138,
+      "path": "scripts/sync-doc-truth/sync.ts",
+      "rule": "js/file-system-race",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/138"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 116,
+      "message": "The file may have changed since it was checked.",
+      "number": 137,
+      "path": "scripts/sync-doc-truth/sync.ts",
+      "rule": "js/file-system-race",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/137"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 38,
+      "message": "The file may have changed since it was checked.",
+      "number": 132,
+      "path": "packages/agent/src/services/settings-service.ts",
+      "rule": "js/file-system-race",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/132"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 731,
+      "message": "The file may have changed since it was checked.",
+      "number": 131,
+      "path": "packages/agent/src/services/repository/mutations.ts",
+      "rule": "js/file-system-race",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/131"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 48,
+      "message": "The file may have changed since it was checked.",
+      "number": 128,
+      "path": "packages/agent/src/runtime/soul.ts",
+      "rule": "js/file-system-race",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/128"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 560,
+      "message": "The file may have changed since it was checked.",
+      "number": 121,
+      "path": "apps/desktop/scripts/verify-package.ts",
+      "rule": "js/file-system-race",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/121"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 486,
+      "message": "The file may have changed since it was checked.",
+      "number": 120,
+      "path": "apps/desktop/scripts/verify-package.ts",
+      "rule": "js/file-system-race",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/120"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 811,
+      "message": "This condition guards a sensitive action, but a user-provided value controls it.\nThis condition guards a sensitive action, but a user-provided value controls it.",
+      "number": 119,
+      "path": "apps/desktop/scripts/verify-package.ts",
+      "rule": "js/user-controlled-bypass",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/119"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 803,
+      "message": "This condition guards a sensitive action, but a user-provided value controls it.",
+      "number": 118,
+      "path": "apps/desktop/scripts/verify-package.ts",
+      "rule": "js/user-controlled-bypass",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/118"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 183,
+      "message": "This path depends on a user-provided value.\nThis path depends on a user-provided value.",
+      "number": 117,
+      "path": "packages/plugins/doolittle-plugin/secrets-vault/service.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/117"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 20,
+      "message": "This path depends on a user-provided value.\nThis path depends on a user-provided value.",
+      "number": 116,
+      "path": "packages/plugins/doolittle-plugin/planning/storage.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/116"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 19,
+      "message": "This path depends on a user-provided value.\nThis path depends on a user-provided value.",
+      "number": 115,
+      "path": "packages/plugins/doolittle-plugin/planning/storage.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/115"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 16,
+      "message": "This path depends on a user-provided value.\nThis path depends on a user-provided value.",
+      "number": 114,
+      "path": "packages/plugins/doolittle-plugin/forms/storage.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/114"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 15,
+      "message": "This path depends on a user-provided value.\nThis path depends on a user-provided value.",
+      "number": 113,
+      "path": "packages/plugins/doolittle-plugin/forms/storage.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/113"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 27,
+      "message": "This path depends on a user-provided value.",
+      "number": 112,
+      "path": "packages/agent/src/services/user-profile/storage/store.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/112"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 17,
+      "message": "This path depends on a user-provided value.",
+      "number": 111,
+      "path": "packages/agent/src/services/user-profile/storage/store.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/111"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 16,
+      "message": "This path depends on a user-provided value.",
+      "number": 110,
+      "path": "packages/agent/src/services/user-profile/service/state.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/110"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 97,
+      "message": "This path depends on a user-provided value.",
+      "number": 109,
+      "path": "packages/agent/src/services/trajectory/service/index.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/109"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 231,
+      "message": "This path depends on a user-provided value.",
+      "number": 108,
+      "path": "packages/agent/src/services/trajectory/event-journal.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/108"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 228,
+      "message": "This path depends on a user-provided value.",
+      "number": 107,
+      "path": "packages/agent/src/services/trajectory/event-journal.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/107"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 214,
+      "message": "This path depends on a user-provided value.",
+      "number": 106,
+      "path": "packages/agent/src/services/trajectory/event-journal.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/106"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 208,
+      "message": "This path depends on a user-provided value.",
+      "number": 105,
+      "path": "packages/agent/src/services/trajectory/event-journal.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/105"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 57,
+      "message": "This path depends on a user-provided value.",
+      "number": 104,
+      "path": "packages/agent/src/services/trajectory/bundle-storage/listing.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/104"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 55,
+      "message": "This path depends on a user-provided value.",
+      "number": 103,
+      "path": "packages/agent/src/services/terminal/service.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/103"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 11,
+      "message": "This path depends on a user-provided value.",
+      "number": 102,
+      "path": "packages/agent/src/services/terminal/records/history.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/102"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 11,
+      "message": "This path depends on a user-provided value.",
+      "number": 101,
+      "path": "packages/agent/src/services/terminal/execution/subprocess/shell.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/101"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 6,
+      "message": "This path depends on a user-provided value.",
+      "number": 100,
+      "path": "packages/agent/src/services/terminal/cloud/store/persistence.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/100"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 73,
+      "message": "This path depends on a user-provided value.\nThis path depends on a user-provided value.",
+      "number": 99,
+      "path": "packages/agent/src/services/terminal/backends/local.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/99"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 30,
+      "message": "This path depends on a user-provided value.\nThis path depends on a user-provided value.",
+      "number": 98,
+      "path": "packages/agent/src/services/terminal/backends/local.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/98"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 37,
+      "message": "This path depends on a user-provided value.",
+      "number": 97,
+      "path": "packages/agent/src/services/skills-hub/service/paths.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/97"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 36,
+      "message": "This path depends on a user-provided value.",
+      "number": 96,
+      "path": "packages/agent/src/services/skills-hub/service/paths.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/96"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 35,
+      "message": "This path depends on a user-provided value.",
+      "number": 95,
+      "path": "packages/agent/src/services/skills-hub/service/paths.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/95"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 34,
+      "message": "This path depends on a user-provided value.",
+      "number": 94,
+      "path": "packages/agent/src/services/skills-hub/service/paths.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/94"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 71,
+      "message": "This path depends on a user-provided value.",
+      "number": 93,
+      "path": "packages/agent/src/services/settings-service.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/93"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 38,
+      "message": "This path depends on a user-provided value.",
+      "number": 92,
+      "path": "packages/agent/src/services/settings-service.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/92"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 33,
+      "message": "This path depends on a user-provided value.",
+      "number": 91,
+      "path": "packages/agent/src/services/settings-service.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/91"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 27,
+      "message": "This path depends on a user-provided value.",
+      "number": 90,
+      "path": "packages/agent/src/services/settings-service.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/90"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 24,
+      "message": "This path depends on a user-provided value.",
+      "number": 89,
+      "path": "packages/agent/src/services/settings-service.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/89"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 11,
+      "message": "This path depends on a user-provided value.",
+      "number": 88,
+      "path": "packages/agent/src/services/session/service/support.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/88"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 192,
+      "message": "This path depends on a user-provided value.",
+      "number": 87,
+      "path": "packages/agent/src/services/review-record/service.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/87"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 190,
+      "message": "This path depends on a user-provided value.",
+      "number": 86,
+      "path": "packages/agent/src/services/review-record/service.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/86"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 242,
+      "message": "This path depends on a user-provided value.",
+      "number": 85,
+      "path": "packages/agent/src/services/run-controller/store.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/85"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 81,
+      "message": "This path depends on a user-provided value.",
+      "number": 84,
+      "path": "packages/agent/src/services/run-controller/store.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/84"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 39,
+      "message": "This path depends on a user-provided value.",
+      "number": 83,
+      "path": "packages/agent/src/services/project-inspection/resolve.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/83"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 48,
+      "message": "This path depends on a user-provided value.",
+      "number": 82,
+      "path": "packages/agent/src/services/personality-service.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/82"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 46,
+      "message": "This path depends on a user-provided value.",
+      "number": 81,
+      "path": "packages/agent/src/services/personality-service.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/81"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 42,
+      "message": "This path depends on a user-provided value.",
+      "number": 80,
+      "path": "packages/agent/src/services/operator/version.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/80"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 91,
+      "message": "This path depends on a user-provided value.",
+      "number": 79,
+      "path": "packages/agent/src/services/hook-projection-service.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/79"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 89,
+      "message": "This path depends on a user-provided value.",
+      "number": 78,
+      "path": "packages/agent/src/services/hook-projection-service.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/78"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 18,
+      "message": "This path depends on a user-provided value.",
+      "number": 77,
+      "path": "packages/agent/src/services/gateway-session-service/storage.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/77"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 25,
+      "message": "This path depends on a user-provided value.",
+      "number": 76,
+      "path": "packages/agent/src/services/gateway-session-service/index.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/76"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 258,
+      "message": "This path depends on a user-provided value.",
+      "number": 75,
+      "path": "packages/agent/src/services/experience-memory-service.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/75"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 258,
+      "message": "This path depends on a user-provided value.",
+      "number": 74,
+      "path": "packages/agent/src/services/experience-memory-service.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/74"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 254,
+      "message": "This path depends on a user-provided value.",
+      "number": 73,
+      "path": "packages/agent/src/services/experience-memory-service.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/73"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 204,
+      "message": "This path depends on a user-provided value.",
+      "number": 72,
+      "path": "packages/agent/src/services/experience-memory-service.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/72"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 201,
+      "message": "This path depends on a user-provided value.",
+      "number": 71,
+      "path": "packages/agent/src/services/experience-memory-service.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/71"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 33,
+      "message": "This path depends on a user-provided value.",
+      "number": 70,
+      "path": "packages/agent/src/services/experience-memory-service.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/70"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 12,
+      "message": "This path depends on a user-provided value.",
+      "number": 69,
+      "path": "packages/agent/src/services/execution-approval/store.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/69"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 10,
+      "message": "This path depends on a user-provided value.",
+      "number": 68,
+      "path": "packages/agent/src/services/execution-approval/store.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/68"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 17,
+      "message": "This path depends on a user-provided value.",
+      "number": 67,
+      "path": "packages/agent/src/services/delivery-service.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/67"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 15,
+      "message": "This path depends on a user-provided value.",
+      "number": 66,
+      "path": "packages/agent/src/services/delivery-service.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/66"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 43,
+      "message": "This path depends on a user-provided value.",
+      "number": 65,
+      "path": "packages/agent/src/services/autocoder-pipeline/persistence.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/65"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 41,
+      "message": "This path depends on a user-provided value.",
+      "number": 64,
+      "path": "packages/agent/src/services/autocoder-pipeline/persistence.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/64"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 59,
+      "message": "This path depends on a user-provided value.",
+      "number": 63,
+      "path": "packages/agent/src/services/api-transport-service.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/63"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 57,
+      "message": "This path depends on a user-provided value.",
+      "number": 62,
+      "path": "packages/agent/src/services/api-transport-service.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/62"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 501,
+      "message": "This path depends on a user-provided value.",
+      "number": 61,
+      "path": "packages/agent/src/server/routes/runtime/models.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/61"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 186,
+      "message": "This path depends on a user-provided value.",
+      "number": 57,
+      "path": "packages/agent/src/runtime/native/plugin-registry/product/memory-storage-store.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/57"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 385,
+      "message": "This path depends on a user-provided value.",
+      "number": 56,
+      "path": "packages/agent/src/runtime/native/account-pool/index.test.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/56"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 141,
+      "message": "This path depends on a user-provided value.\nThis path depends on a user-provided value.",
+      "number": 55,
+      "path": "packages/agent/src/runtime/native/account-pool/index.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/55"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 64,
+      "message": "This path depends on a user-provided value.",
+      "number": 54,
+      "path": "packages/agent/src/runtime/native/account-pool/index.test.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/54"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 62,
+      "message": "This path depends on a user-provided value.",
+      "number": 53,
+      "path": "packages/agent/src/runtime/native/account-pool/index.test.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/53"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 50,
+      "message": "This path depends on a user-provided value.\nThis path depends on a user-provided value.",
+      "number": 52,
+      "path": "packages/agent/src/runtime/native/account-auth/store.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/52"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 110,
+      "message": "This path depends on a user-provided value.\nThis path depends on a user-provided value.",
+      "number": 51,
+      "path": "packages/agent/src/runtime/native/account-auth/store.test.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/51"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 107,
+      "message": "This path depends on a user-provided value.\nThis path depends on a user-provided value.",
+      "number": 50,
+      "path": "packages/agent/src/runtime/native/account-auth/store.test.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/50"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 79,
+      "message": "This path depends on a user-provided value.\nThis path depends on a user-provided value.",
+      "number": 49,
+      "path": "packages/agent/src/runtime/native/account-auth/store.test.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/49"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 116,
+      "message": "This path depends on a user-provided value.",
+      "number": 48,
+      "path": "packages/agent/src/runtime/native/account-auth/shared.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/48"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 40,
+      "message": "This path depends on a user-provided value.",
+      "number": 47,
+      "path": "packages/agent/src/runtime/native/account-auth/shared.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/47"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 17,
+      "message": "This path depends on a user-provided value.\nThis path depends on a user-provided value.\nThis path depends on a user-provided value.",
+      "number": 43,
+      "path": "packages/agent/src/runtime/bootstrap/env/pglite.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/43"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 66,
+      "message": "This path depends on a user-provided value.",
+      "number": 42,
+      "path": "packages/agent/src/config/gateway.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/42"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 61,
+      "message": "This path depends on a user-provided value.",
+      "number": 41,
+      "path": "packages/agent/src/config/gateway.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/41"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 58,
+      "message": "This path depends on a user-provided value.",
+      "number": 40,
+      "path": "packages/agent/src/config/gateway.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/40"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 26,
+      "message": "This path depends on a user-provided value.",
+      "number": 39,
+      "path": "packages/agent/src/config/env/load.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/39"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 132,
+      "message": "This path depends on a user-provided value.",
+      "number": 38,
+      "path": "packages/agent/src/cli/startup.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/38"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 115,
+      "message": "This path depends on a user-provided value.",
+      "number": 37,
+      "path": "packages/agent/src/cli/startup.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/37"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 101,
+      "message": "This path depends on a user-provided value.\nThis path depends on a user-provided value.",
+      "number": 36,
+      "path": "packages/agent/src/cli/startup.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/36"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 76,
+      "message": "This path depends on a user-provided value.",
+      "number": 35,
+      "path": "packages/agent/src/cli/startup.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/35"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 74,
+      "message": "This path depends on a user-provided value.",
+      "number": 34,
+      "path": "packages/agent/src/cli/startup.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/34"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 22,
+      "message": "This path depends on a user-provided value.",
+      "number": 30,
+      "path": "packages/agent/src/cli/jobs/store/index-store.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/30"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 653,
+      "message": "This path depends on a user-provided value.",
+      "number": 24,
+      "path": "e2e/desktop-profile-sweep.pw.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/24"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 32,
+      "message": "This path depends on a user-provided value.",
+      "number": 18,
+      "path": "apps/desktop/src/main/workspace-state.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/18"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 18,
+      "message": "This path depends on a user-provided value.\nThis path depends on a user-provided value.",
+      "number": 17,
+      "path": "apps/desktop/src/main/runtime-state.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/17"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 17,
+      "message": "This path depends on a user-provided value.\nThis path depends on a user-provided value.",
+      "number": 16,
+      "path": "apps/desktop/src/main/runtime-state.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/16"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 222,
+      "message": "This path depends on a user-provided value.\nThis path depends on a user-provided value.",
+      "number": 14,
+      "path": "apps/desktop/src/main/backend.ts",
+      "rule": "js/path-injection",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/14"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 40,
+      "message": "This regular expression does not match script end tags like </script >.",
+      "number": 12,
+      "path": "packages/agent/src/services/web/content.ts",
+      "rule": "js/bad-tag-filter",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/12"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 10,
+      "message": "This regular expression does not match script end tags like </script >.",
+      "number": 11,
+      "path": "packages/agent/src/services/media/inspection/media-preview.ts",
+      "rule": "js/bad-tag-filter",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/11"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 27,
+      "message": "This string may still contain <script, which may cause an HTML element injection vulnerability.",
+      "number": 10,
+      "path": "scripts/sync-doc-truth/sync.ts",
+      "rule": "js/incomplete-multi-character-sanitization",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/10"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 17,
+      "message": "This string may still contain <!--, which may cause an HTML element injection vulnerability.",
+      "number": 9,
+      "path": "packages/agent/src/runtime/soul.ts",
+      "rule": "js/incomplete-multi-character-sanitization",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/9"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 343,
+      "message": "'https://elizacloud.ai/api/v1' can be anywhere in the URL, and arbitrary hosts may come before or after it.",
+      "number": 7,
+      "path": "packages/agent/src/services/diagnostics/service.test.ts",
+      "rule": "js/incomplete-url-substring-sanitization",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/7"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 124,
+      "message": "'openai.com' can be anywhere in the URL, and arbitrary hosts may come before or after it.",
+      "number": 6,
+      "path": "packages/agent/src/server/routes/runtime/models.test.ts",
+      "rule": "js/incomplete-url-substring-sanitization",
+      "securitySeverity": "high",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/6"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 490,
+      "message": "This command line depends on a user-provided value.",
+      "number": 5,
+      "path": "packages/agent/src/runtime/native/account-auth/claude-code.test.ts",
+      "rule": "js/command-line-injection",
+      "securitySeverity": "critical",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/5"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 145,
+      "message": "This command line depends on a user-provided value.",
+      "number": 4,
+      "path": "packages/agent/src/runtime/native/account-auth/claude-code.test.ts",
+      "rule": "js/command-line-injection",
+      "securitySeverity": "critical",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/4"
+    },
+    {
+      "commit": "90ad26aff7396a5c8cf5e1a29506301ea3d13a87",
+      "line": 38,
+      "message": "This information exposed to the user depends on stack trace information.",
+      "number": 2,
+      "path": "packages/agent/src/testing/fetch-server.ts",
+      "rule": "js/stack-trace-exposure",
+      "securitySeverity": "medium",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/2"
+    }
+  ]
+}
