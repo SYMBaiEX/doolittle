@@ -242,8 +242,13 @@ expose only consumed registry JSON, worker error functions, or remote-message
 types; empty runtime entry points were removed. Deleted tracked files remain
 recoverable from Git history.
 
-Pending: integrated release checks, packaged/native acceptance and installation,
-and fresh GitHub scans. Focused source and independent reviews are complete;
+Latest integrated `check:all` passed lint/types/build and 7,011 tests (8 skipped).
+Acceptance passed through local-link checks; its dependency-hygiene stop was
+the OS `mkfifo` binary used only for Unix named-pipe security fixtures. The
+agent workspace now allowlists that binary without excluding those tests.
+
+Pending: remaining integrated release gates, packaged/native acceptance and
+installation, and fresh GitHub scans. Focused source and independent reviews are complete;
 native Windows and live provider behavior are not certified by these tests.
 Earlier shared-engine release checks do not certify this new security branch.
 
