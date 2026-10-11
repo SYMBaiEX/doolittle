@@ -333,6 +333,50 @@ describe("dependency security consumer contracts", () => {
     }
   });
 
+  it("uses patched diff for Mocha's assertion reporter and preserves pass output", () => {
+    expect(packageVersion(mochaRequire, "diff")).toBe("9.0.0");
+    const runReporter = (fail: boolean) =>
+      spawnSync(
+        process.execPath,
+        [
+          "-e",
+          `
+            const Mocha = require('mocha');
+            const assert = require('node:assert/strict');
+            const mocha = new Mocha({ reporter: 'spec', color: false, exit: false });
+            const suite = Mocha.Suite.create(mocha.suite, 'reporter smoke');
+            suite.addTest(new Mocha.Test('passes', () => assert.equal(1, 1)));
+            if (${fail}) {
+              suite.addTest(new Mocha.Test('shows assertion diff', () => assert.equal('actual', 'expected')));
+            }
+            mocha.run(failures => { process.exitCode = failures ? 1 : 0; });
+          `,
+        ],
+        {
+          cwd: resolve(import.meta.dirname, ".."),
+          encoding: "utf8",
+          timeout: 5_000,
+        },
+      );
+
+    const failed = runReporter(true);
+    expect(failed.error).toBeUndefined();
+    expect(failed.status, failed.stderr).toBe(1);
+    expect(failed.stdout).toContain("1 passing");
+    expect(failed.stdout).toContain("1 failing");
+    expect(failed.stdout).toContain("+ expected - actual");
+    expect(failed.stdout).toContain("-actual");
+    expect(failed.stdout).toContain("+expected");
+    expect(failed.stdout).not.toContain("failed to generate Mocha diff");
+
+    const passed = runReporter(false);
+    expect(passed.error).toBeUndefined();
+    expect(passed.status, passed.stderr).toBe(0);
+    expect(passed.stdout).toContain("1 passing");
+    expect(passed.stdout).not.toContain("failing");
+    expect(passed.stdout).not.toContain("+ expected - actual");
+  });
+
   it("keeps the known-compatible shared provider and utility packages patched", () => {
     expect(packageVersion(rootRequire, "@ai-sdk/provider-utils")).toBe(
       "4.0.57",

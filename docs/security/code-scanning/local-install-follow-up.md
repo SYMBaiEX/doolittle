@@ -47,7 +47,7 @@ finding, not a claimed scanner closure.
 The full installed graph initially reported 49 advisories: 18 high, 22 moderate,
 and nine low. Compatible/version-scoped updates cover sharp, provider-utils,
 lodash, ws, fast-uri, cookie, and esbuild. Parent-scoped upgrades cover Hardhat's
-adm-zip and undici, Mocha's serializer, and Solc's tmp. Exact consumer tests use
+adm-zip and undici, Mocha's serializer and diff reporter, and Solc's tmp. Exact consumer tests use
 local ZIPs, loopback HTTP/RPC/proxy traffic, temporary files, and Mocha parallel
 workers; they do not send transactions or call public RPC services.
 
@@ -66,8 +66,8 @@ patch hashes and adversarial regressions are remediation evidence; they are not
 new upstream releases, GitHub dismissals, or a clean version-only audit.
 
 The remaining full-graph advisory set is **two locally mitigated high, seven
-moderate, and two low**. The unremediated lower-severity entries concern legacy
-decode-uri-component, diff, elliptic, file-type, sprintf-js, stream-json, and
+moderate, and one low**. The unremediated lower-severity entries concern legacy
+decode-uri-component, elliptic, file-type, sprintf-js, stream-json, and
 uuid dependency paths. Some have no patched release; others require parent/API
 migration. In particular, Jayson requires CommonJS stream-json 1.x constructors
 and subpaths; replacing it with ESM stream-json 3.x is not a compatible override.
@@ -79,7 +79,6 @@ The residual consumer boundaries are explicit:
 | Package | Remaining consumer | Why a blanket override is not a completed fix |
 | --- | --- | --- |
 | decode-uri-component 0.2.2 | WalletConnect's query-string 7.1.3 | The fixed 0.5.0 is ESM; the caller requires a callable CommonJS export. |
-| diff 7.0.0 | Mocha 11.8.0's reporter | The fix starts at 8.0.3, across a major boundary. The observed caller uses createPatch, not the affected parsePatch/applyPatch APIs. |
 | elliptic 6.6.1 | Wallet and ethers dependency paths | No upstream patched release; replacing signing primitives requires cryptographic compatibility validation. |
 | file-type 16.5.4 | Jimp 0.22 under nut-tree-fork | The fix requires a newer file-type/Jimp API train. |
 | sprintf-js 1.0.3 / 1.1.3 | Mammoth/argparse and Electron's global-agent/roarr | The latest installed upstream train remains affected; there is no patched release. |
@@ -89,6 +88,11 @@ The residual consumer boundaries are explicit:
 The first installed desktop runtime inventory contained no affected versions
 from that remaining set. This is artifact-specific evidence, not a claim that
 every CLI, optional SDK route, or installed development dependency is clean.
+
+Mocha's diff dependency was additionally upgraded with a parent-scoped override
+to 9.0.0. A real Mocha assertion failure still prints the expected unified
+actual/expected diff; a separate normal run still passes. All six earlier
+consumer tests remain, alongside this seventh reporter regression.
 
 ## Verification status
 

@@ -209,6 +209,7 @@
     "@elizaos/plugin-computeruse>puppeteer-core": "25.12.0",
     "hardhat>adm-zip": "0.6.1",
     "hardhat>undici": "6.29.0",
+    "mocha>diff": "9.0.0",
     "mocha>serialize-javascript": "7.1.2",
     "solc>tmp": "0.2.7",
     "cytoscape": "3.34.0",
