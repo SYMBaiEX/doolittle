@@ -6,7 +6,7 @@ export const BROWSER_EMBEDDED_PAGE_CLASS =
   "flex h-full min-h-0 min-w-0 flex-1 flex-col gap-2 overflow-hidden p-1 max-[1080px]:h-auto max-[1080px]:min-h-full max-[1080px]:overflow-auto";
 
 export const BROWSER_HEADER_CLASS =
-  "flex min-h-12 shrink-0 items-center justify-between gap-5 [&_h1]:mt-0.75 [&_h1]:mb-0.5 [&_h1]:font-[var(--font-display)] [&_h1]:text-base [&_h1]:tracking-[-0.025em] [&_p]:m-0 [&_p]:text-[length:var(--text-meta)] [&_p]:text-[var(--muted)] max-[780px]:[&_p]:hidden";
+  "flex min-h-14 shrink-0 flex-wrap items-center justify-between gap-4 [&_h1]:m-0 [&_h1]:font-[var(--font-display)] [&_h1]:text-[length:var(--text-section)] [&_h1]:font-semibold [&_p]:mt-1 [&_p]:mb-0 [&_p]:text-[length:var(--text-control)] [&_p]:text-[var(--muted)]";
 
 export const BROWSER_STATUS_CLASS =
   "grid grid-cols-[auto_auto_auto] items-center gap-2 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] py-1 pr-1.5 pl-2 font-mono text-[length:var(--text-meta)] shadow-none [&>strong]:text-[var(--text-soft)] [&>strong]:uppercase";
@@ -15,10 +15,10 @@ export const BROWSER_ADDRESS_CLASS =
   "grid min-h-9.5 shrink-0 grid-cols-[auto_auto_auto_auto_minmax(0,1fr)_auto] items-center gap-2 rounded-[var(--radius-sm)] border border-[var(--line-subtle)] bg-[var(--surface)] p-1 shadow-none";
 
 export const BROWSER_NAV_BUTTON_CLASS =
-  "size-8 rounded-[var(--radius-xs)] border-0 bg-transparent text-base text-[var(--muted)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--focus-ring)] disabled:cursor-not-allowed disabled:opacity-40";
+  "size-10 shrink-0 rounded-md border-0 bg-transparent text-base text-[var(--muted)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--focus-ring)] disabled:cursor-not-allowed disabled:opacity-40 max-[760px]:size-11 motion-reduce:transition-none";
 
 export const BROWSER_ADDRESS_INPUT_CLASS =
-  "h-8 min-w-0 border-0 bg-transparent p-0 font-mono text-[length:var(--text-control)] text-[var(--text)] outline-0 placeholder:text-[var(--muted)] focus-visible:ring-0";
+  "h-10 min-w-0 border-0 bg-transparent px-2 font-mono text-[length:var(--text-control)] text-[var(--text)] placeholder:text-[var(--muted)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--focus-ring)] max-[760px]:h-11";
 
 export const BROWSER_WORKSPACE_CLASS =
   "grid min-h-0 flex-1 grid-cols-[minmax(520px,1fr)_minmax(300px,360px)] overflow-hidden rounded-[var(--radius-sm)] border border-[var(--line-subtle)] bg-[var(--surface)] shadow-none max-[1080px]:min-h-0 max-[1080px]:flex-none max-[1080px]:grid-cols-1 max-[1080px]:overflow-visible";
@@ -60,13 +60,13 @@ export const BROWSER_RESULT_HEADING_CLASS =
   "flex items-start justify-between gap-2.5 max-[780px]:grid max-[780px]:grid-cols-1";
 
 export const BROWSER_RESULT_CARD_CLASS =
-  "grid gap-1 rounded-[var(--radius-xs)] border border-[var(--border)] bg-[var(--surface-soft)] p-2.5 [&>small]:text-[length:var(--text-meta)] [&>small]:leading-[1.45] [&>small]:text-[var(--muted)] [&>span]:font-mono [&>span]:text-[length:var(--text-meta)] [&>span]:text-[var(--muted)] [&>span]:uppercase [&>strong]:text-xs [&>strong]:text-[var(--text)]";
+  "grid gap-2 border-b border-[var(--border)] bg-transparent py-3 [&>small]:text-[length:var(--text-control)] [&>small]:leading-[1.5] [&>small]:text-[var(--muted)] [&>span]:font-mono [&>span]:text-[length:var(--text-meta)] [&>span]:text-[var(--muted)] [&>strong]:text-[length:var(--text-control)] [&>strong]:text-[var(--text)]";
 
 export const BROWSER_FIELD_CLASS =
-  "grid gap-1.25 font-mono text-[length:var(--text-meta)] text-[var(--text-soft)]";
+  "grid gap-2 text-[length:var(--text-control)] font-medium text-[var(--text-soft)]";
 
 export const BROWSER_FIELD_CONTROL_CLASS =
-  "box-border w-full rounded-[var(--radius-xs)] border border-[var(--border)] bg-[var(--surface-raised)] font-mono text-[length:var(--text-meta)] text-[var(--text)] focus:border-[var(--accent)] focus:outline-0";
+  "box-border min-h-10 w-full rounded-[var(--radius-xs)] border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2 text-[length:var(--text-control)] text-[var(--text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)] max-[760px]:min-h-11";
 
 export const BROWSER_CODE_PREVIEW_CLASS =
   "m-0 max-h-60 overflow-auto whitespace-pre-wrap rounded-[var(--radius-xs)] border border-[var(--canvas-border)] bg-[var(--canvas-bg)] p-3 text-[length:var(--text-meta)] leading-normal text-[var(--canvas-text-soft)]";

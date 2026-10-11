@@ -50,7 +50,7 @@ function AutomationTrace({ entry }: { entry: UnknownRecord }) {
       <header className="mb-3 flex items-center justify-between gap-3">
         <div className="flex min-w-0 flex-col gap-1">
           <span className="eyebrow">Selected receipt</span>
-          <strong className="truncate text-[11px]">
+          <strong className="truncate text-[length:var(--text-control)]">
             {asString(entry.jobName, "Automation run")}
           </strong>
         </div>
@@ -69,14 +69,14 @@ function AutomationTrace({ entry }: { entry: UnknownRecord }) {
                   className={`${runStatusClass(stepStatus)} relative z-1 mt-0.75`}
                 />
                 <div className="automation-trace-step__content min-w-0">
-                  <strong className="automation-trace-step__title text-[10px]">
+                  <strong className="automation-trace-step__title text-[length:var(--text-control)]">
                     {titleCase(asString(step.phase, "step"))}
                   </strong>
-                  <p className="mt-0.75 mb-0 text-[10px] leading-[1.45] text-[var(--muted)]">
+                  <p className="mt-0.75 mb-0 text-[length:var(--text-control)] leading-[1.45] text-[var(--muted)]">
                     {asString(step.message, titleCase(stepStatus))}
                   </p>
                 </div>
-                <small className="automation-trace-step__index font-[var(--font-mono)] text-[10px] text-[var(--muted)]">
+                <small className="automation-trace-step__index font-[var(--font-mono)] text-[length:var(--text-control)] text-[var(--muted)]">
                   {String(index + 1).padStart(2, "0")}
                 </small>
               </div>
@@ -88,10 +88,10 @@ function AutomationTrace({ entry }: { entry: UnknownRecord }) {
               className={`${runStatusClass(status)} relative z-1 mt-0.75`}
             />
             <div className="automation-trace-step__content min-w-0">
-              <strong className="automation-trace-step__title text-[10px]">
+              <strong className="automation-trace-step__title text-[length:var(--text-control)]">
                 Legacy receipt
               </strong>
-              <p className="mt-0.75 mb-0 text-[10px] leading-[1.45] text-[var(--muted)]">
+              <p className="mt-0.75 mb-0 text-[length:var(--text-control)] leading-[1.45] text-[var(--muted)]">
                 This run predates phase-level trace capture.
               </p>
             </div>
@@ -100,7 +100,7 @@ function AutomationTrace({ entry }: { entry: UnknownRecord }) {
       </div>
       <details className="automation-trace-output mt-2.5">
         <summary className={AUTOMATION_DETAILS_SUMMARY_CLASS}>Output</summary>
-        <pre className="m-0 max-h-42.5 overflow-auto whitespace-pre-wrap rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] p-2.5 font-[var(--font-mono)] text-[10px] leading-[1.5] text-[var(--text-soft)]">
+        <pre className="m-0 max-h-42.5 overflow-auto whitespace-pre-wrap rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] p-2.5 font-[var(--font-mono)] text-[length:var(--text-control)] leading-[1.5] text-[var(--text-soft)]">
           {asString(entry.output, "No output was recorded.")}
         </pre>
       </details>
@@ -142,7 +142,7 @@ export function AutomationRunHistory({
             {quiet ? "Receipts appear after execution" : "Execution history"}
           </small>
         </span>
-        <span className="automation-runs-panel__meta font-[var(--font-mono)] text-[10px] text-[var(--muted)]">
+        <span className="automation-runs-panel__meta font-[var(--font-mono)] text-[length:var(--text-control)] text-[var(--muted)]">
           {open
             ? `${runs.length} loaded`
             : quiet
@@ -152,7 +152,7 @@ export function AutomationRunHistory({
       </summary>
       {open ? (
         <div className="automation-runs-body m-4 mt-3.5">
-          <div className="automation-runs-toolbar mb-2.5 flex items-center justify-between gap-3 text-[10px] text-[var(--muted)]">
+          <div className="automation-runs-toolbar mb-2.5 flex items-center justify-between gap-3 text-[length:var(--text-control)] text-[var(--muted)]">
             <span>Latest durable execution receipts</span>
             <Button onClick={onReload} size="sm" type="button" variant="ghost">
               Refresh
@@ -191,16 +191,16 @@ export function AutomationRunHistory({
                       >
                         <button
                           aria-pressed={asString(selectedRun?.id) === id}
-                          className={`${AUTOMATION_RUN_BUTTON_CLASS} ${asString(selectedRun?.id) === id ? "selected border border-[color-mix(in_srgb,var(--accent)_26%,transparent)] bg-[var(--accent-soft)]" : "border border-transparent"}`}
+                          className={`${AUTOMATION_RUN_BUTTON_CLASS} ${asString(selectedRun?.id) === id ? "selected font-semibold [&_strong]:font-semibold text-[var(--text)]" : "text-[var(--text-soft)]"}`}
                           onClick={() => onSelectRun(id)}
                           type="button"
                         >
                           <span className={runStatusClass(status)} />
                           <span className="flex min-w-0 flex-col gap-0.75">
-                            <strong className="automation-run-list__title truncate text-[10px]">
+                            <strong className="automation-run-list__title truncate text-[length:var(--text-control)] font-medium">
                               {asString(entry.jobName, "Automation run")}
                             </strong>
-                            <small className="automation-run-list__meta text-[10px] text-[var(--muted)]">
+                            <small className="automation-run-list__meta text-[length:var(--text-control)] text-[var(--muted)]">
                               {titleCase(
                                 asString(entry.triggerType, "schedule"),
                               )}{" "}

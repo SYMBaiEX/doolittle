@@ -1,3 +1,5 @@
+// @vitest-environment jsdom
+
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
@@ -49,5 +51,30 @@ describe("DesktopRuntimeNotices", () => {
     expect(markup).toBe("");
     expect(onRefresh).not.toHaveBeenCalled();
     expect(onRestart).not.toHaveBeenCalled();
+  });
+
+  it("keeps stack traces in closed details with an actionable lock recovery summary", () => {
+    const markup = renderToStaticMarkup(
+      <DesktopRuntimeNotices
+        backend={{
+          phase: "degraded",
+          message: "Process exited",
+          detail:
+            "Error: data directory locked\n at acquireDataDirLockIfNeeded (runtime.mjs:45)",
+        }}
+        globalError=""
+        onRefresh={() => undefined}
+        onRestart={() => undefined}
+      />,
+    );
+    expect(markup).toContain("Close the other instance, then restart");
+    const document = new DOMParser().parseFromString(markup, "text/html");
+    expect(document.querySelector("details")?.hasAttribute("open")).toBe(false);
+    expect(document.querySelector("details pre")?.textContent).toContain(
+      "acquireDataDirLockIfNeeded",
+    );
+    expect(
+      document.querySelector('[role="status"]')?.textContent,
+    ).not.toContain("runtime.mjs");
   });
 });

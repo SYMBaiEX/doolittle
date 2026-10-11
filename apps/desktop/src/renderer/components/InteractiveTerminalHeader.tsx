@@ -245,10 +245,10 @@ export function InteractiveTerminalHeader({
                     aria-controls={`interactive-terminal-${tab.id}-panel`}
                     aria-labelledby={tabLabelId}
                     aria-selected={isActive}
-                    className={`inline-flex h-[var(--control-height)] min-h-[var(--control-height)] min-w-18 max-w-30 items-center gap-1 rounded-[var(--radius-xs)] border px-2 py-1 text-[length:var(--text-control)] text-[var(--text-soft)] transition-colors motion-reduce:transition-none hover:border-[var(--accent-border)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--focus-ring)] max-[760px]:h-11 max-[760px]:min-h-11 ${
+                    className={`inline-flex h-[var(--control-height)] min-h-[var(--control-height)] min-w-18 max-w-30 items-center gap-1 rounded-[var(--radius-xs)] border-0 bg-transparent px-3 py-2 text-[length:var(--text-control)] text-[var(--text-soft)] transition-colors motion-reduce:transition-none hover:bg-[var(--surface-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--focus-ring)] max-[760px]:h-11 max-[760px]:min-h-11 ${
                       isActive
-                        ? "border-[var(--accent-border)] bg-[var(--accent-soft)] text-[var(--text)] shadow-[inset_0_-1px_var(--accent)]"
-                        : "border-[var(--border)] bg-[var(--surface-raised)]"
+                        ? "font-semibold text-[var(--text)]"
+                        : "font-medium text-[var(--muted)]"
                     } ${isRenaming ? "pointer-events-none opacity-0" : ""}`}
                     id={`interactive-terminal-${tab.id}-tab`}
                     onClick={() => onSelectTab(tab.id)}

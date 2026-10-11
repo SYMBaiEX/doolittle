@@ -90,7 +90,7 @@ export function CompactCatalogList({
                   <div className="grid min-w-0 flex-1 gap-0.5">
                     <div className="flex min-w-0 items-baseline gap-2.5 max-[700px]:flex-col max-[700px]:items-start max-[700px]:gap-[3px]">
                       {entry.eyebrow ? (
-                        <span className="shrink-0 font-[var(--font-mono)] text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--muted)]">
+                        <span className="shrink-0 font-[var(--font-mono)] text-[length:var(--text-meta)] font-bold uppercase tracking-[0.08em] text-[var(--muted)]">
                           {entry.eyebrow}
                         </span>
                       ) : null}
@@ -162,7 +162,7 @@ export function CompactCatalogList({
                     </div>
                   </div>
                   <div
-                    className="flex shrink-0 items-center gap-2 [&>button]:min-h-7 [&>button]:px-[9px] max-[700px]:flex-col max-[700px]:items-end"
+                    className="flex shrink-0 items-center gap-2 [&>button]:min-h-10 [&>button]:px-[9px] max-[700px]:flex-col max-[700px]:items-end"
                     data-catalog-actions="true"
                   >
                     {entry.status ? (

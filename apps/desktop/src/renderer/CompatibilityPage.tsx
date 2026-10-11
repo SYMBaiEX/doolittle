@@ -65,7 +65,7 @@ export function CompatibilityEmptyState({ onRetry }: { onRetry: () => void }) {
         </small>
       </div>
       <Button
-        className="min-h-7 max-[700px]:col-start-2 max-[700px]:justify-self-start"
+        className="min-h-10 max-[700px]:col-start-2 max-[700px]:justify-self-start"
         onClick={onRetry}
         size="sm"
         type="button"

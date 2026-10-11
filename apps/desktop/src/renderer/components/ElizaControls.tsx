@@ -9,11 +9,11 @@ import {
   type InputProps,
 } from "../../../../../node_modules/@elizaos/ui/components/ui/input.js";
 import {
+  SelectContent as ElizaSelectContent,
   SelectItem as ElizaSelectItem,
   SelectLabel as ElizaSelectLabel,
   SelectTrigger as ElizaSelectTrigger,
   Select,
-  SelectContent,
   SelectGroup,
   SelectScrollDownButton,
   SelectScrollUpButton,
@@ -29,18 +29,18 @@ import {
  * Desktop-only density bridge for the official Eliza controls.
  *
  * The upstream primitives default to 40px controls. Ordinary renderer
- * controls consume Doolittle's shared desktop control-height token (36px
- * comfortable / 32px compact) and retain a 44px mobile target. Explicit
+ * controls consume Doolittle's shared desktop control-height token (40px
+ * comfortable / 36px compact) and retain a 44px mobile target. Explicit
  * Eliza size/density variants keep their upstream geometry.
  */
 const standardControlClass =
   "!h-[var(--control-height)] !min-h-[var(--control-height)] !text-[length:var(--text-control)] max-[760px]:!h-11 max-[760px]:!min-h-11";
 
 const focusControlClass =
-  "rounded-[var(--radius-xs)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] transition-[background-color,border-color,color,box-shadow] duration-150 ease-[var(--ease-out)] motion-reduce:transition-none disabled:cursor-not-allowed";
+  "dl-control rounded-[var(--radius-xs)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] transition-[background-color,border-color,color,box-shadow] duration-150 ease-[var(--ease-out)] motion-reduce:transition-none disabled:cursor-not-allowed";
 
 const fieldControlClass =
-  "border-[var(--border-strong)] bg-[var(--surface-raised)] text-[var(--text)] placeholder:text-[var(--muted)] focus-visible:border-[var(--focus-ring)] aria-invalid:border-[var(--bad)]";
+  "dl-field border-[var(--border-strong)] bg-[var(--surface-raised)] text-[var(--text)] placeholder:text-[var(--muted)] focus-visible:border-[var(--focus-ring)] aria-invalid:border-[var(--bad)]";
 
 // Text entry needs room to compose; do not collapse it to a one-line control.
 const textareaControlClass =
@@ -59,8 +59,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           "dl-button",
           focusControlClass,
           standard ? standardControlClass : undefined,
-          !quiet &&
-            "border border-[var(--border)] shadow-[var(--control-contact)] active:shadow-none",
+          !quiet && "border border-[var(--border)]",
           variant === "default" &&
             "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-ink)] hover:bg-[var(--accent-hover)]",
           variant === "destructive" &&
@@ -138,13 +137,25 @@ export const SelectTrigger = forwardRef<
 ));
 SelectTrigger.displayName = "DoolittleSelectTrigger";
 
+export const SelectContent = forwardRef<
+  HTMLDivElement,
+  ComponentPropsWithoutRef<typeof ElizaSelectContent>
+>(({ className, ...props }, ref) => (
+  <ElizaSelectContent
+    {...props}
+    className={cn("dl-select-content", className)}
+    ref={ref}
+  />
+));
+SelectContent.displayName = "DoolittleSelectContent";
+
 export const SelectItem = forwardRef<
   HTMLDivElement,
   ComponentPropsWithoutRef<typeof ElizaSelectItem>
 >(({ className, ...props }, ref) => (
   <ElizaSelectItem
     {...props}
-    className={cn(ELIZA_SELECT_TEXT_CLASS, className)}
+    className={cn("dl-select-item", ELIZA_SELECT_TEXT_CLASS, className)}
     ref={ref}
   />
 ));
@@ -164,7 +175,6 @@ SelectLabel.displayName = "DoolittleSelectLabel";
 
 export {
   Select,
-  SelectContent,
   SelectGroup,
   SelectScrollDownButton,
   SelectScrollUpButton,

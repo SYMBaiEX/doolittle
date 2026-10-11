@@ -26,16 +26,21 @@ export function PaneTabs<T extends string>({
   value: T;
   onChange: (value: T) => void;
 }) {
+  // An async capability refresh can remove the current option before its
+  // owner updates value. Keep the remaining controls keyboard-reachable,
+  // without claiming a different tab is selected or changing owner state.
+  const focusableId = options.some((option) => option.id === value)
+    ? value
+    : options[0]?.id;
   const selectAt = (index: number) => {
     const option = options[index];
     if (option) onChange(option.id);
   };
   const focusAt = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
     selectAt(index);
-    const tabs =
-      event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>(
-        'button[role="tab"]',
-      );
+    const tabs = event.currentTarget
+      .closest('[role="tablist"]')
+      ?.querySelectorAll<HTMLButtonElement>('button[role="tab"]');
     requestAnimationFrame(() => tabs?.[index]?.focus());
   };
 
@@ -49,7 +54,12 @@ export function PaneTabs<T extends string>({
         onSelect: () => onChange(option.id),
       }))}
     >
-      <div aria-label={label} className={CODING_TABS_CLASS} role="tablist">
+      <div
+        aria-label={label}
+        aria-orientation="horizontal"
+        className={CODING_TABS_CLASS}
+        role="tablist"
+      >
         {options.map((option, index) => (
           <button
             aria-controls={panelId}
@@ -74,7 +84,7 @@ export function PaneTabs<T extends string>({
               }
             }}
             role="tab"
-            tabIndex={value === option.id ? 0 : -1}
+            tabIndex={focusableId === option.id ? 0 : -1}
             type="button"
           >
             {option.icon ? <UiIcon icon={option.icon} size="xs" /> : null}

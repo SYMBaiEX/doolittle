@@ -196,7 +196,7 @@ export function SessionListPanel({
               onClick={() => onSelect(session)}
               type="button"
             >
-              <span className="grid min-w-0 gap-0.5 [&_small]:overflow-hidden [&_small]:text-ellipsis [&_small]:whitespace-nowrap [&_small]:text-[length:var(--text-meta)] [&_small]:text-[var(--text-muted)] [&_strong]:overflow-hidden [&_strong]:text-ellipsis [&_strong]:whitespace-nowrap [&_strong]:text-[length:var(--text-control)]">
+              <span className="grid min-w-0 gap-0.5 [&_small]:overflow-hidden [&_small]:text-ellipsis [&_small]:whitespace-nowrap [&_small]:text-[length:var(--text-meta)] [&_small]:text-[var(--text-muted)] [&_strong]:overflow-hidden [&_strong]:text-ellipsis [&_strong]:whitespace-nowrap [&_strong]:text-[length:var(--text-control)] [&_strong]:font-medium">
                 <strong>
                   {compactSessionPreview(session.title || "") ||
                     compactSessionPreview(session.preview?.[0] || "") ||
@@ -253,7 +253,7 @@ export function SessionListPanel({
               Showing {sessionWindow.visible.length} of {filtered.length}
             </span>
             <Button
-              className="min-h-7 px-[9px]"
+              className="min-h-10 px-3"
               onClick={() =>
                 setPage({
                   key: filterKey,

@@ -652,6 +652,14 @@ export function ChatSessionPanel({
   );
   const scheduleTranscriptScrollRef = useRef<(() => void) | null>(null);
   const composerRef = useRef<HTMLTextAreaElement>(null);
+  const composerPresentationActiveRef = useRef(false);
+  composerPresentationActiveRef.current =
+    !coordinator &&
+    focused &&
+    visible &&
+    routeActive &&
+    surface === "conversation" &&
+    !(inspectorVisible && isNarrowWorkbench);
   const mobileConversationsButtonRef = useRef<HTMLButtonElement>(null);
   const mobileConversationsBackdropRef = useRef<HTMLDivElement>(null);
   const workbenchToggleRef = useRef<HTMLButtonElement>(null);
@@ -954,7 +962,7 @@ export function ChatSessionPanel({
       : queueAnnouncement ||
         progress ||
         (latestAssistant && !latestAssistant.pending
-          ? "Doolittle replied."
+          ? `${currentBot?.name ?? "Doolittle"} ${latestAssistant.error ? "response failed." : "replied."}`
           : "");
 
   const updateAssistant = useCallback(
@@ -1945,10 +1953,23 @@ export function ChatSessionPanel({
         const trimmed = current.trimEnd();
         return trimmed ? `${trimmed} ${transcript}` : transcript;
       });
+      // setDraft retains the recording's conversation; only visible controls
+      // and focus follow the currently selected conversation.
+      if (
+        selectedIdRef.current !== selectedId ||
+        !composerPresentationActiveRef.current
+      )
+        return;
       setCommandMenuDismissed(false);
-      requestAnimationFrame(() => composerRef.current?.focus());
+      requestAnimationFrame(() => {
+        if (
+          selectedIdRef.current === selectedId &&
+          composerPresentationActiveRef.current
+        )
+          composerRef.current?.focus();
+      });
     },
-    [setDraft],
+    [selectedId, setDraft],
   );
 
   const removeContextFile = (id: string) => {

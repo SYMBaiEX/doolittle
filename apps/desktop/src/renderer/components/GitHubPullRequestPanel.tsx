@@ -18,11 +18,11 @@ import { UiIcon } from "./UiIcon";
 
 const FORM_CLASS = "grid gap-[9px]";
 const LABEL_CLASS =
-  "grid gap-[5px] text-[11px] font-bold text-[var(--text-soft)]";
+  "grid gap-[5px] text-[length:var(--text-control)] font-bold text-[var(--text-soft)]";
 const OPTIONAL_CLASS =
   "font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--muted)]";
 const CHECKBOX_CLASS =
-  "flex min-h-[31px] items-center gap-[7px] text-[10px] font-bold text-[var(--muted)] [&_input]:accent-[var(--accent)]";
+  "flex min-h-10 items-center gap-[7px] text-[length:var(--text-control)] font-bold text-[var(--muted)] [&_input]:accent-[var(--accent)]";
 const ACTIONS_CLASS =
   "flex items-center justify-end gap-2.5 max-[760px]:flex-col max-[760px]:items-start [&_button]:whitespace-nowrap";
 const SELECT_CLASS =
@@ -184,7 +184,7 @@ export function GitHubPullRequestPanel({
   return (
     <section
       aria-label="GitHub pull request"
-      className="grid shrink-0 gap-2.5 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[color-mix(in_srgb,var(--surface-raised)_90%,transparent)] p-3 shadow-[inset_2px_0_var(--accent)]"
+      className="grid shrink-0 gap-2.5 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] p-4"
     >
       <header className="flex items-center justify-between gap-2.5 max-[760px]:flex-col max-[760px]:items-start">
         <div className="grid min-w-0 gap-[3px]">
@@ -201,7 +201,7 @@ export function GitHubPullRequestPanel({
         </div>
         {pullRequest?.url ? (
           <a
-            className="inline-flex shrink-0 items-center gap-1 font-[var(--font-mono)] text-[10px] font-bold text-[var(--accent)] uppercase no-underline hover:underline hover:underline-offset-3"
+            className="inline-flex shrink-0 items-center gap-1 font-[var(--font-mono)] text-[length:var(--text-control)] font-bold text-[var(--accent)] uppercase no-underline hover:underline hover:underline-offset-3"
             href={pullRequest.url}
             rel="noreferrer"
             target="_blank"
@@ -286,7 +286,7 @@ export function GitHubPullRequestPanel({
                   </Button>
                 ) : null}
                 <details className="min-w-0 open:grid open:w-[min(100%,560px)] open:gap-[9px]">
-                  <summary className="cursor-pointer font-[var(--font-mono)] text-[10px] font-bold text-[var(--muted)] uppercase">
+                  <summary className="cursor-pointer font-[var(--font-mono)] text-[length:var(--text-control)] font-bold text-[var(--muted)] uppercase">
                     Edit pull request
                   </summary>
                   <form className={FORM_CLASS} onSubmit={updatePullRequest}>

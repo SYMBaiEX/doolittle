@@ -37,6 +37,7 @@ describe("reusable settings compositions", () => {
         <SettingsMenu items={items} value={item.id} onChange={vi.fn()} />,
       );
       expect(markup).not.toContain("<details");
+      expect(markup).not.toContain("dl-settings-current");
       expect(markup).not.toMatch(/class="[^"]*\bselected\b/u);
       expect(markup.match(/data-settings-section=/gu)).toHaveLength(
         items.length,

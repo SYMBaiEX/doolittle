@@ -1,6 +1,5 @@
 import { Check, Monitor, Moon, Sun } from "lucide-react";
 import { useRef } from "react";
-import { OfflineRouteState } from "../components/OfflineRouteState";
 import { UiIcon } from "../components/UiIcon";
 import type {
   DesktopAppearance,
@@ -39,6 +38,8 @@ export function SettingsAppearancePanel({
   themesError = "",
   themeMigrationError = "",
   onThemeReload,
+  themeBusy = false,
+  localThemeIds,
 }: {
   active: boolean;
   activeTheme: DesktopThemeProfile | null;
@@ -54,10 +55,12 @@ export function SettingsAppearancePanel({
   themesError?: string;
   themeMigrationError?: string;
   onThemeReload?: () => void;
+  themeBusy?: boolean;
+  localThemeIds?: readonly string[];
 }) {
   const importInputRef = useRef<HTMLInputElement | null>(null);
   return (
-    <section className={SETTINGS_GROUP_CLASS}>
+    <section className={SETTINGS_GROUP_CLASS} aria-busy={themeBusy}>
       <div className="settings-group-heading">
         <h2>Appearance</h2>
       </div>
@@ -83,6 +86,7 @@ export function SettingsAppearancePanel({
                 appearance === option ? "selected" : ""
               }`}
               key={option}
+              disabled={themeBusy}
               onClick={() => onAppearanceChange(option)}
               title={
                 option === "system"
@@ -117,6 +121,7 @@ export function SettingsAppearancePanel({
               aria-pressed={density === option}
               className={`dl-settings-choice ${density === option ? "selected" : ""}`}
               key={option}
+              disabled={themeBusy}
               onClick={() => onDensityChange(option)}
               type="button"
             >
@@ -138,6 +143,7 @@ export function SettingsAppearancePanel({
             className="secondary-button"
             aria-describedby="settings-theme-file-description"
             onClick={() => importInputRef.current?.click()}
+            disabled={themeBusy}
             type="button"
           >
             Import
@@ -145,7 +151,7 @@ export function SettingsAppearancePanel({
           <button
             className="secondary-button"
             aria-describedby="settings-theme-file-description"
-            disabled={!activeTheme}
+            disabled={!activeTheme || themeBusy}
             onClick={onThemeExport}
             type="button"
           >
@@ -166,11 +172,19 @@ export function SettingsAppearancePanel({
           />
         </div>
       </div>
+      {themeBusy ? (
+        <p className="settings-status-note" role="status">
+          Applying interface theme…
+        </p>
+      ) : null}
       {!active ? (
-        <OfflineRouteState>
+        <p
+          className="m-0 text-sm leading-relaxed text-[var(--text-soft)]"
+          role="status"
+        >
           Runtime theme sync is unavailable until the local runtime is ready.
           Appearance, density, and local color themes remain available.
-        </OfflineRouteState>
+        </p>
       ) : null}
       {themeMigrationError ? (
         <p className="m-0 text-sm text-[var(--bad)]" role="alert">
@@ -219,8 +233,18 @@ export function SettingsAppearancePanel({
                 activeTheme?.name === name ? "selected" : ""
               }`}
               key={name}
+              disabled={
+                themeBusy ||
+                (!active &&
+                  Boolean(localThemeIds) &&
+                  !localThemeIds?.includes(name))
+              }
               onClick={() => onThemeChange(name)}
-              title={tagline}
+              title={
+                !active && localThemeIds && !localThemeIds.includes(name)
+                  ? "Start the runtime to apply this theme"
+                  : tagline
+              }
               type="button"
             >
               <span

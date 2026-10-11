@@ -29,6 +29,7 @@ import {
   subscribeToDesktopThemeChanges,
 } from "./desktop-theme";
 import {
+  DESKTOP_THEME_IMPORT_MAX_BYTES,
   downloadDesktopThemeBundle,
   parseDesktopThemeBundle,
 } from "./desktop-theme-transfer";
@@ -170,6 +171,9 @@ export function SettingsPage({
   const [query, setQuery] = useState("");
   const [sectionQuery, setSectionQuery] = useState("");
   const [savedMessage, setSavedMessage] = useState("");
+  const [operationError, setOperationError] = useState("");
+  const [themeBusy, setThemeBusy] = useState(false);
+  const themeInFlightRef = useRef(false);
   const [appearance, setAppearance] = useState<DesktopAppearance>(
     loadAppearancePreference,
   );
@@ -183,6 +187,11 @@ export function SettingsPage({
   );
   const [update, setUpdate] = useState<DesktopUpdateState | null>(null);
   const [updateBusy, setUpdateBusy] = useState(false);
+  const updateInFlightRef = useRef(false);
+  const [lifecycleBusy, setLifecycleBusy] = useState(false);
+  const lifecycleInFlightRef = useRef(false);
+  const [lifecycleError, setLifecycleError] = useState("");
+  const [desktopReadRevision, setDesktopReadRevision] = useState(0);
   const installInFlightRef = useRef(false);
   useEffect(() => {
     const syncAppliedAppearance = () =>
@@ -214,21 +223,43 @@ export function SettingsPage({
     const content = panelRef.current?.parentElement;
     if (content) content.scrollTop = 0;
   }, [category]);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: explicit retry revision reloads host-owned state.
   useEffect(() => {
     if (!resourcePolicy.desktop) return;
     let disposed = false;
     void window.doolittle
       .getLifecycleState()
-      .then((state) => !disposed && setLifecycle(state));
+      .then((state) => {
+        if (disposed) return;
+        setLifecycle(state);
+        setLifecycleError("");
+      })
+      .catch(() => {
+        if (!disposed)
+          setLifecycleError(
+            "Desktop behavior could not be loaded. Retry to manage background work.",
+          );
+      });
+    let observedUpdate = false;
     void window.doolittle
       .getUpdateState()
-      .then((state) => !disposed && setUpdate(state));
+      .then((state) => !disposed && !observedUpdate && setUpdate(state))
+      .catch(() => {
+        if (!disposed && !observedUpdate)
+          setUpdate({
+            phase: "error",
+            message:
+              "Update status could not be loaded. Check for updates to retry.",
+          });
+      });
     const unsubscribe = window.doolittle.onUpdateState((state) => {
       if (disposed) return;
+      observedUpdate = true;
       if (state.phase === "error" && installInFlightRef.current) {
         installInFlightRef.current = false;
         setUpdateBusy(false);
-        setSavedMessage(state.message);
+        setSavedMessage("");
+        setOperationError(state.message);
       }
       setUpdate(state);
     });
@@ -236,7 +267,7 @@ export function SettingsPage({
       disposed = true;
       unsubscribe();
     };
-  }, [resourcePolicy.desktop]);
+  }, [resourcePolicy.desktop, desktopReadRevision]);
   useEffect(() => {
     if (["imported", "builtin"].includes(loadDesktopThemeSource() ?? ""))
       return;
@@ -281,6 +312,8 @@ export function SettingsPage({
   const selectSection = (id: string) => {
     setCategory(id);
     setQuery("");
+    setSavedMessage("");
+    setOperationError("");
     onSectionChange?.(id as SettingsShellSection);
   };
   const categorySupportsSearch =
@@ -288,7 +321,10 @@ export function SettingsPage({
     !isEmbeddedSettingsFeature(category);
 
   const changeTheme = async (theme: string) => {
+    if (themeInFlightRef.current) return;
     const builtIn = BUILT_IN_THEMES.find((candidate) => candidate.id === theme);
+    setOperationError("");
+    setSavedMessage("");
     if (builtIn) {
       applyThemeManifest(builtIn, "builtin");
       const profile = legacyThemeProfile(builtIn);
@@ -298,6 +334,8 @@ export function SettingsPage({
       return;
     }
     if (!active) return;
+    themeInFlightRef.current = true;
+    setThemeBusy(true);
     try {
       const response = await desktopRequest<ThemeResponse>("/theme", "POST", {
         theme,
@@ -313,11 +351,15 @@ export function SettingsPage({
       themes.reload();
       settings.reload();
     } catch (error) {
-      setSavedMessage(errorMessage(error));
+      setOperationError(errorMessage(error));
+    } finally {
+      themeInFlightRef.current = false;
+      setThemeBusy(false);
     }
   };
 
   const changeAppearance = (next: DesktopAppearance) => {
+    setOperationError("");
     setAppearance(next);
     applyDesktopAppearance(next);
     announceAppearance(next);
@@ -329,6 +371,7 @@ export function SettingsPage({
   };
 
   const changeDensity = (next: DesktopDensity) => {
+    setOperationError("");
     setDensity(next);
     applyDesktopDensity(next);
     announceDensity(next);
@@ -336,7 +379,14 @@ export function SettingsPage({
   };
 
   const importTheme = async (file: File) => {
+    if (themeInFlightRef.current) return;
+    themeInFlightRef.current = true;
+    setThemeBusy(true);
+    setOperationError("");
+    setSavedMessage("");
     try {
+      if (file.size > DESKTOP_THEME_IMPORT_MAX_BYTES)
+        throw new Error("Theme files must be 64 KB or smaller.");
       const bundle = parseDesktopThemeBundle(await file.text());
       setAppearance(bundle.appearance);
       applyDesktopAppearance(bundle.appearance);
@@ -350,17 +400,22 @@ export function SettingsPage({
       announceTheme(profile);
       setSavedMessage(`${bundle.theme.name} was imported and applied.`);
     } catch (error) {
-      setSavedMessage(errorMessage(error));
+      setOperationError(errorMessage(error));
+    } finally {
+      themeInFlightRef.current = false;
+      setThemeBusy(false);
     }
   };
 
   const exportTheme = () => {
+    setOperationError("");
+    setSavedMessage("");
     const theme = loadStoredThemeManifest();
     try {
       downloadDesktopThemeBundle(theme, appearance, density);
       setSavedMessage(`${theme.name} was exported as a Doolittle theme file.`);
     } catch (error) {
-      setSavedMessage(errorMessage(error));
+      setOperationError(errorMessage(error));
     }
   };
 
@@ -368,12 +423,27 @@ export function SettingsPage({
     if (active) settings.reload();
   };
   const updateLifecycleBackground = (enabled: boolean) => {
+    if (lifecycleInFlightRef.current) return;
+    lifecycleInFlightRef.current = true;
+    setLifecycleBusy(true);
+    setLifecycleError("");
     void window.doolittle
       .setKeepRunningInBackground(enabled)
       .then(setLifecycle)
-      .catch((error) => setSavedMessage(errorMessage(error)));
+      .catch(() => {
+        setLifecycle(null);
+        setLifecycleError(
+          "Background behavior could not be confirmed. Retry desktop state before changing it again.",
+        );
+      })
+      .finally(() => {
+        lifecycleInFlightRef.current = false;
+        setLifecycleBusy(false);
+      });
   };
   const checkForUpdates = () => {
+    if (updateInFlightRef.current || installInFlightRef.current) return;
+    updateInFlightRef.current = true;
     setUpdateBusy(true);
     void window.doolittle
       .checkForUpdates()
@@ -381,9 +451,14 @@ export function SettingsPage({
       .catch((error) =>
         setUpdate({ phase: "error", message: errorMessage(error) }),
       )
-      .finally(() => setUpdateBusy(false));
+      .finally(() => {
+        updateInFlightRef.current = false;
+        setUpdateBusy(false);
+      });
   };
   const downloadUpdate = () => {
+    if (updateInFlightRef.current || installInFlightRef.current) return;
+    updateInFlightRef.current = true;
     setUpdateBusy(true);
     void window.doolittle
       .downloadUpdate()
@@ -391,15 +466,19 @@ export function SettingsPage({
       .catch((error) =>
         setUpdate({ phase: "error", message: errorMessage(error) }),
       )
-      .finally(() => setUpdateBusy(false));
+      .finally(() => {
+        updateInFlightRef.current = false;
+        setUpdateBusy(false);
+      });
   };
   const installUpdate = () => {
-    if (installInFlightRef.current) return;
+    if (installInFlightRef.current || updateInFlightRef.current) return;
     installInFlightRef.current = true;
     setUpdateBusy(true);
     setSavedMessage("Installing update and restarting Doolittle…");
     void window.doolittle.installUpdate().catch((error) => {
-      setSavedMessage(errorMessage(error));
+      setSavedMessage("");
+      setOperationError(errorMessage(error));
       installInFlightRef.current = false;
       setUpdateBusy(false);
     });
@@ -428,6 +507,7 @@ export function SettingsPage({
           <button
             className="text-button"
             onClick={reloadSettings}
+            disabled={settings.loading}
             type="button"
           >
             Reload
@@ -450,6 +530,7 @@ export function SettingsPage({
         ref={panelRef}
       >
         {savedMessage ? <Notice>{savedMessage}</Notice> : null}
+        {operationError ? <ErrorBlock error={operationError} /> : null}
         {runtimeCategoryOffline ? (
           <OfflineRouteState>
             Runtime configuration and execution controls are unavailable until
@@ -479,6 +560,8 @@ export function SettingsPage({
             active={active}
             activeTheme={activeThemeProfile}
             themeMigrationError={themeMigrationError}
+            themeBusy={themeBusy}
+            localThemeIds={BUILT_IN_THEMES.map((theme) => theme.id)}
             appearance={appearance}
             density={density}
             onAppearanceChange={changeAppearance}
@@ -556,7 +639,7 @@ export function SettingsPage({
             <LazyRuntimePage
               active={active}
               embedded
-              onOpenProviders={() => onSectionChange?.("accounts")}
+              onOpenProviders={() => selectSection("accounts")}
               readOnly={!writesAllowed}
             />
           </Suspense>
@@ -576,7 +659,7 @@ export function SettingsPage({
             <LazySetupPage
               active={active}
               embedded
-              onOpenProviders={() => onSectionChange?.("accounts")}
+              onOpenProviders={() => selectSection("accounts")}
             />
           </Suspense>
         ) : null}
@@ -588,6 +671,12 @@ export function SettingsPage({
         {!runtimeCategoryOffline && settingsPreferencesVisible(category) ? (
           <DesktopSettingsPanel
             lifecycle={lifecycle}
+            lifecycleBusy={lifecycleBusy}
+            lifecycleError={lifecycleError}
+            onLifecycleRetry={() => {
+              setLifecycleError("");
+              setDesktopReadRevision((revision) => revision + 1);
+            }}
             onBackgroundChange={updateLifecycleBackground}
             onCheckUpdates={checkForUpdates}
             onDownloadUpdate={downloadUpdate}
@@ -614,6 +703,7 @@ export function SettingsPage({
               <Badge>{visibleFields.length} fields</Badge>
             </div>
             <SettingsFieldCollection
+              readOnly={!writesAllowed}
               advanced={category === "advanced"}
               fields={visibleFields}
               onReload={settings.reload}

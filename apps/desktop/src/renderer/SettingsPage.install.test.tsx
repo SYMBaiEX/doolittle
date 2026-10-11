@@ -51,6 +51,100 @@ describe("SettingsPage update installation", () => {
     vi.unstubAllGlobals();
   });
 
+  it("recovers failed desktop state reads and ignores a stale initial update reply after a host event", async () => {
+    let resolveUpdate: ((state: DesktopUpdateState) => void) | undefined;
+    let updateListener: ((state: DesktopUpdateState) => void) | undefined;
+    const lifecycle = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("host unavailable"))
+      .mockResolvedValue({ keepRunningInBackground: true });
+    Object.defineProperty(window, "doolittle", {
+      configurable: true,
+      value: {
+        getLifecycleState: lifecycle,
+        getUpdateState: vi.fn(
+          () =>
+            new Promise<DesktopUpdateState>((resolve) => {
+              resolveUpdate = resolve;
+            }),
+        ),
+        onUpdateState: vi.fn((listener) => {
+          updateListener = listener;
+          return () => undefined;
+        }),
+        checkForUpdates: vi.fn(),
+        downloadUpdate: vi.fn(),
+        installUpdate: vi.fn(),
+        setKeepRunningInBackground: vi.fn(),
+      },
+    });
+    await act(async () => root.render(<SettingsPage active />));
+    expect(container.textContent).toContain(
+      "Desktop behavior could not be loaded",
+    );
+    expect(container.textContent).not.toContain("Loading desktop state");
+    const retry = [
+      ...container.querySelectorAll<HTMLButtonElement>("button"),
+    ].find((button) => button.textContent === "Retry desktop state");
+    await act(async () => retry?.click());
+    expect(lifecycle).toHaveBeenCalledTimes(2);
+    expect(
+      container.querySelector<HTMLInputElement>('input[type="checkbox"]')
+        ?.checked,
+    ).toBe(true);
+    await act(async () =>
+      updateListener?.({ phase: "downloaded", message: "New host update" }),
+    );
+    await act(async () =>
+      resolveUpdate?.({ phase: "idle", message: "Stale update state" }),
+    );
+    expect(container.textContent).toContain("New host update");
+    expect(container.textContent).not.toContain("Stale update state");
+  });
+
+  it("admits one background write and requires authoritative state after a failed response", async () => {
+    let rejectWrite: ((error: Error) => void) | undefined;
+    const background = vi.fn(
+      () =>
+        new Promise((_, reject) => {
+          rejectWrite = reject;
+        }),
+    );
+    Object.defineProperty(window, "doolittle", {
+      configurable: true,
+      value: {
+        getLifecycleState: vi.fn(async () => ({
+          keepRunningInBackground: false,
+        })),
+        getUpdateState: vi.fn(async () => ({
+          phase: "idle",
+          message: "No update checked",
+        })),
+        onUpdateState: vi.fn(() => () => undefined),
+        checkForUpdates: vi.fn(),
+        downloadUpdate: vi.fn(),
+        installUpdate: vi.fn(),
+        setKeepRunningInBackground: background,
+      },
+    });
+    await act(async () => root.render(<SettingsPage active />));
+    const checkbox = container.querySelector<HTMLInputElement>(
+      'input[type="checkbox"]',
+    );
+    await act(async () => {
+      checkbox?.click();
+      checkbox?.click();
+    });
+    expect(background).toHaveBeenCalledOnce();
+    expect(checkbox?.disabled).toBe(true);
+    await act(async () => rejectWrite?.(new Error("Unknown response")));
+    expect(checkbox?.disabled).toBe(true);
+    expect(container.textContent).toContain(
+      "Background behavior could not be confirmed",
+    );
+    expect(container.textContent).toContain("Retry desktop state");
+  });
+
   it("locks an accepted install until provider failure and then allows retry", async () => {
     const install = vi.fn(async () => undefined);
     let updateListener: ((state: DesktopUpdateState) => void) | undefined;

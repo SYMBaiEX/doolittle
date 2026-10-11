@@ -140,7 +140,7 @@ function ChangeSection({
                 {gitChangeLabel(change)}
               </span>
               <code
-                className={`${GIT_CODE_CLASS} text-[10px] text-[var(--text)]`}
+                className={`${GIT_CODE_CLASS} text-[length:var(--text-control)] text-[var(--text)]`}
               >
                 {shortGitPath(change.path)}
               </code>
@@ -251,7 +251,7 @@ export function GitControlPanel({
           <strong
             className={`${
               variant === "compact"
-                ? "max-w-31 text-[10px]"
+                ? "max-w-31 text-[length:var(--text-control)]"
                 : "max-w-55 text-xs"
             } truncate font-mono max-[700px]:max-w-full`}
           >
@@ -285,7 +285,7 @@ export function GitControlPanel({
       </header>
       {notice ? (
         <p
-          className={`m-0 rounded-[var(--radius-xs,5px)] border border-[var(--border)] px-2 py-1.75 text-[10px] leading-[1.45] ${
+          className={`m-0 rounded-[var(--radius-xs,5px)] border border-[var(--border)] px-2 py-1.75 text-[length:var(--text-control)] leading-[1.45] ${
             notice.tone === "good"
               ? "bg-[var(--good-soft)] text-[var(--good)]"
               : notice.tone === "bad"
@@ -366,7 +366,7 @@ export function GitControlPanel({
             placeholder="Describe the change"
             value={commitMessage}
           />
-          <label className="text-[10px] text-[var(--muted)]">
+          <label className="text-[length:var(--text-control)] text-[var(--muted)]">
             <input
               checked={amend}
               className="mr-1.25 accent-[var(--accent)]"
@@ -392,7 +392,7 @@ export function GitControlPanel({
           >
             <summary className="flex min-h-10.5 cursor-pointer list-none items-center justify-between gap-3 px-2.25 py-1.75 focus-visible:outline-2 focus-visible:outline-[color-mix(in_srgb,var(--accent)_72%,transparent)] focus-visible:outline-offset-2 group-open:border-[var(--border)] group-open:border-b [&::-webkit-details-marker]:hidden">
               <span className="grid min-w-0 gap-0.5">
-                <strong className="font-mono text-[10px] text-[var(--text-soft)] uppercase tracking-[0.06em]">
+                <strong className="font-mono text-[length:var(--text-control)] text-[var(--text-soft)] uppercase tracking-[0.06em]">
                   Advanced repository operations
                 </strong>
                 <small className="text-[length:var(--text-meta)] text-[var(--muted)]">

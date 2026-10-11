@@ -13,7 +13,7 @@ describe("SettingsNavigation", () => {
       />,
     );
     expect(markup).not.toMatch(/class="[^"]*\bselected\b/u);
-    expect(markup).toContain("dl-settings-current");
+    expect(markup).not.toContain("dl-settings-current");
     expect(markup.match(/data-settings-section=/gu)).toHaveLength(7);
     expect(markup).toContain(
       'aria-label="General: Appearance, interface and desktop behavior"',

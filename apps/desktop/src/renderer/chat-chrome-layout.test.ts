@@ -7,7 +7,7 @@ import {
   WINDOW_DRAGBAR_CHAT_CLASS,
   WINDOW_DRAGBAR_PRIMARY_CLASS,
 } from "./app-shell/shell-layout";
-import { CHAT_HEADER_CONTENT_CLASS, CHAT_WORKSPACE_CLASS } from "./chat/layout";
+import { CHAT_WORKSPACE_CLASS } from "./chat/layout";
 import { MESSAGE_RESPONSE_CLASS } from "./components/message-content-layout";
 import {
   COMPOSER_MODEL_TRIGGER_CLASS,
@@ -60,7 +60,12 @@ describe("chat chrome density contract", () => {
   });
 
   it("does not retain unreachable legacy chat shell selectors", () => {
-    expect(CHAT_HEADER_CONTENT_CLASS).not.toContain("chat-header-toolbar");
+    const layout = readFileSync(
+      new URL("./chat/layout.ts", import.meta.url),
+      "utf8",
+    );
+    expect(layout).not.toContain("export const CHAT_HEADER_CONTENT_CLASS");
+    expect(layout).not.toContain("chat-header-toolbar");
   });
 
   it("keeps identity and conversation controls in one 48px shell row", () => {
@@ -132,10 +137,10 @@ describe("chat chrome density contract", () => {
       "[&_.chat-composer-details]:border-t",
     );
     expect(CHAT_WORKSPACE_CLASS).toContain(
-      "max-[480px]:[&_.chat-composer]:pt-[5px]",
+      "max-[760px]:[&_.chat-composer]:p-2",
     );
     expect(CHAT_WORKSPACE_CLASS).toContain(
-      "max-[480px]:[&_.chat-composer]:pb-[4px]",
+      "[&_.chat-composer]:rounded-[max(20px,var(--radius-lg))]",
     );
     expect(CHAT_WORKSPACE_CLASS).not.toContain(
       "max-[480px]:[&_.chat-composer-meta-toggle]:!size-10",
@@ -156,17 +161,18 @@ describe("chat chrome density contract", () => {
     expect(COMPOSER_MODEL_TRIGGER_CLASS).toContain("max-[480px]:h-11");
   });
 
-  it("uses compact transcript typography and bounded code blocks", () => {
+  it("uses readable transcript typography and bounded code blocks", () => {
     expect(CHAT_WORKSPACE_CLASS).toContain(
       "max-[480px]:[&_.chat-messages]:px-2",
     );
     expect(CHAT_WORKSPACE_CLASS).toContain(
-      "[&_.chat-message.user_.chat-message-body]:py-1.75",
+      "[&_.chat-message.user_.chat-message-body]:py-2.5",
     );
-    expect(MESSAGE_RESPONSE_CLASS).toContain("[&_p]:!my-[0.36em]");
-    expect(MESSAGE_RESPONSE_CLASS).toContain("!max-h-[220px]");
+    expect(MESSAGE_RESPONSE_CLASS).toContain("[&_p]:!my-[0.65em]");
+    expect(MESSAGE_RESPONSE_CLASS).toContain("[&_p]:!leading-[1.55]");
+    expect(MESSAGE_RESPONSE_CLASS).toContain("!max-h-[320px]");
     expect(MESSAGE_RESPONSE_CLASS).toContain(
-      "max-[480px]:[&_[data-streamdown=code-block-body]]:!max-h-[180px]",
+      "max-[480px]:[&_[data-streamdown=code-block-body]]:!max-h-[240px]",
     );
   });
 

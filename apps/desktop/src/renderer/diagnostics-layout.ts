@@ -1,14 +1,14 @@
 export const DIAGNOSTICS_PAGE_GRID_CLASS =
-  "grid grid-cols-2 items-start gap-3 max-[760px]:grid-cols-1";
+  "grid grid-cols-[repeat(auto-fit,minmax(min(100%,320px),1fr))] items-start gap-5";
 
 export const DIAGNOSTICS_CARD_CLASS =
-  "min-w-0 rounded-[var(--radius-sm)] border border-[var(--line-subtle)] bg-[var(--surface)] p-[var(--card-pad)]";
+  "min-w-0 border-t border-[var(--line-subtle)] bg-transparent py-4";
 
 export const DIAGNOSTICS_CARD_HEADING_CLASS =
   "mb-2 flex min-h-7 items-center justify-between gap-3 [&>div]:min-w-0 [&_h2]:mt-0.5 [&_h2]:mb-0 [&_h2]:font-[var(--font-display)] [&_h2]:text-sm [&_h2]:font-semibold";
 
 export const DIAGNOSTICS_STATUS_ROW_CLASS =
-  "flex min-h-9 items-center justify-between gap-3 rounded-[var(--radius-xs)] px-1 py-1.5 [&>div]:grid [&>div]:min-w-0 [&>div]:gap-0.5 [&_strong]:text-[length:var(--text-control)] [&_small]:text-[length:var(--text-meta)] [&_small]:leading-[1.4] [&_small]:text-[var(--muted)]";
+  "flex min-h-11 items-center justify-between gap-4 border-b border-[var(--border-subtle)] py-3 [&>div]:grid [&>div]:min-w-0 [&>div]:gap-1 [&_strong]:text-[length:var(--text-control)] [&_small]:text-[length:var(--text-control)] [&_small]:leading-[1.5] [&_small]:text-[var(--muted)]";
 
 export const DIAGNOSTICS_DETAILS_CLASS =
   "group overflow-hidden rounded-[var(--radius-sm)] border border-[var(--line-subtle)] bg-[var(--surface)]";

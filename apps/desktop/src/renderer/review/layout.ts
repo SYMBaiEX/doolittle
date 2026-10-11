@@ -59,10 +59,10 @@ export const REVIEW_TABS_CLASS =
   "review-tabs grid shrink-0 grid-cols-2 gap-0 border-[color-mix(in_srgb,var(--border)_72%,transparent)] border-b bg-[var(--surface)] px-1.25 pt-1 pb-0";
 
 export const REVIEW_TAB_CLASS =
-  "relative flex min-h-8 min-w-0 items-center justify-start gap-1 rounded-t-[var(--radius-xs)] border-0 bg-transparent px-2 py-1.5 font-[var(--font-mono)] text-[length:var(--text-meta)] font-bold tracking-[0.06em] text-[var(--muted)] uppercase whitespace-normal hover:bg-[var(--surface-hover)] hover:text-[var(--text)] [&>span]:shrink-0 [&>span]:font-[var(--font-mono)] [&>span]:text-[length:var(--text-meta)] [&>span]:text-[var(--faint)] max-[760px]:min-h-11";
+  "relative flex min-h-10 min-w-0 items-center justify-start gap-2 rounded-md border-0 bg-transparent px-3 py-2 text-[length:var(--text-control)] font-medium text-[var(--muted)] whitespace-normal hover:bg-[var(--surface-hover)] hover:text-[var(--text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--focus-ring)] [&>span]:shrink-0 [&>span]:text-[length:var(--text-meta)] [&>span]:text-[var(--muted)] max-[760px]:min-h-11";
 
 export const REVIEW_TAB_SELECTED_CLASS =
-  "selected bg-[var(--surface-hover)] text-[var(--text)] after:absolute after:right-2 after:bottom-[-1px] after:left-2 after:h-0.5 after:bg-[var(--accent)] after:content-['']";
+  "selected font-semibold [&_strong]:font-semibold text-[var(--text)]";
 
 export const REVIEW_SEARCH_CLASS =
   "review-search mx-1.5 my-1.25 grid min-h-8.5 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 rounded-[3px] border border-[color-mix(in_srgb,var(--border)_76%,transparent)] bg-[var(--bg)] px-2.25 text-[var(--faint)] focus-within:border-[var(--border-strong)] focus-within:text-[var(--text-soft)] [&_input]:h-8.75 [&_input]:w-full [&_input]:border-0 [&_input]:bg-transparent [&_input]:p-0 [&_input]:text-[length:var(--text-control)] [&_input]:text-[var(--text)] [&_input]:outline-none [&_button]:size-5.5 [&_button]:rounded-[var(--radius-xs)] [&_button]:border-0 [&_button]:bg-transparent [&_button]:p-0 [&_button]:text-[15px] [&_button]:text-[var(--muted)] [&_button:hover]:bg-[var(--surface-hover)] [&_button:hover]:text-[var(--text)] [&_kbd]:text-[length:var(--text-meta)] [&_kbd]:text-[var(--faint)]";
@@ -71,10 +71,10 @@ export const REVIEW_LIST_CLASS =
   "review-list min-h-0 flex-1 overflow-auto px-1 pt-0 pb-1.5 [scrollbar-gutter:stable]";
 
 export const REVIEW_LIST_BUTTON_CLASS =
-  "grid min-h-13 w-full grid-cols-[24px_minmax(0,1fr)_auto] items-start gap-2.25 rounded-none border border-transparent border-b-[color-mix(in_srgb,var(--border)_72%,transparent)] bg-transparent px-1.75 py-2 text-left text-[var(--text-soft)] hover:border-x-transparent hover:border-t-transparent hover:bg-[var(--surface-hover)] hover:text-[var(--text)]";
+  "grid min-h-14 w-full grid-cols-[24px_minmax(0,1fr)_auto] items-start gap-3 border-b border-[var(--border-subtle)] bg-transparent px-3 py-3 text-left text-[var(--text-soft)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--focus-ring)]";
 
 export const REVIEW_LIST_BUTTON_SELECTED_CLASS =
-  "selected border-x-transparent border-t-transparent bg-[color-mix(in_srgb,var(--accent)_7%,var(--surface-hover))] text-[var(--text)] shadow-[inset_3px_0_var(--accent)]";
+  "selected font-semibold [&_strong]:font-semibold text-[var(--text)]";
 
 const REVIEW_KIND_MARK_BASE =
   "review-kind-mark grid size-5.75 place-items-center rounded-[var(--radius-xs)] border font-[var(--font-mono)] text-[length:var(--text-control)] font-extrabold";
@@ -155,7 +155,7 @@ export const REVIEW_FEEDBACK_BODY_CLASS =
   "review-feedback__body grid gap-2 border-[var(--border)] border-t px-3 pt-2 pb-2.5";
 
 export const REVIEW_FEEDBACK_ACTIONS_CLASS =
-  "review-feedback__actions flex items-center justify-end gap-1.5 [&_button]:min-h-6.75 [&_button]:px-2 [&_button]:py-1.25 [&_button]:text-[length:var(--text-meta)]";
+  "review-feedback__actions flex items-center justify-end gap-1.5 [&_button]:min-h-10 [&_button]:px-3 [&_button]:py-2 [&_button]:text-[length:var(--text-control)]";
 
 export const REVIEW_COMMENT_LIST_CLASS =
   "review-comment-list m-0 grid max-h-52.5 list-none gap-1.75 overflow-auto p-0";
@@ -176,7 +176,7 @@ export const REVIEW_FEEDBACK_EMPTY_CLASS =
   "review-feedback-empty m-0 text-[length:var(--text-meta)] leading-[1.45] text-[var(--muted)] [&_strong]:text-[var(--accent-text)]";
 
 export const REVIEW_COMMENT_EDITOR_CLASS =
-  "review-comment-editor grid gap-1.75 rounded-[var(--radius-xs)] border border-[var(--accent-border)] bg-[var(--surface-raised)] p-2.5 shadow-[inset_2px_0_var(--accent)] [&>label]:text-[length:var(--text-meta)] [&>label]:font-bold [&>label]:text-[var(--text)] [&>code]:truncate [&>code]:text-[length:var(--text-meta)] [&>code]:text-[var(--faint)] [&>textarea]:min-h-16 [&>textarea]:w-full [&>textarea]:resize-y [&>textarea]:rounded-[var(--radius-xs)] [&>textarea]:border [&>textarea]:border-[var(--border-strong)] [&>textarea]:bg-[var(--surface)] [&>textarea]:px-2.25 [&>textarea]:py-2 [&>textarea]:text-[length:var(--text-control)] [&>textarea]:leading-[1.5] [&>textarea]:text-[var(--text)] [&>textarea]:outline-none [&>textarea:focus]:border-[var(--accent-border)] [&>textarea:focus]:shadow-[0_0_0_2px_var(--accent-soft)] [&>small]:font-[var(--font-mono)] [&>small]:text-[length:var(--text-meta)] [&>small]:font-medium [&>small]:text-[var(--muted)] [&>div:last-child]:flex [&>div:last-child]:items-center [&>div:last-child]:justify-end [&>div:last-child]:gap-1.5 [&>div:last-child>small]:mr-auto [&_button]:min-h-6.75 [&_button]:px-2 [&_button]:py-1.25 [&_button]:text-[length:var(--text-meta)]";
+  "review-comment-editor grid gap-1.75 rounded-[var(--radius-xs)] border border-[var(--border)] bg-[var(--surface-raised)] p-4 [&>label]:text-[length:var(--text-meta)] [&>label]:font-bold [&>label]:text-[var(--text)] [&>code]:truncate [&>code]:text-[length:var(--text-meta)] [&>code]:text-[var(--faint)] [&>textarea]:min-h-16 [&>textarea]:w-full [&>textarea]:resize-y [&>textarea]:rounded-[var(--radius-xs)] [&>textarea]:border [&>textarea]:border-[var(--border-strong)] [&>textarea]:bg-[var(--surface)] [&>textarea]:px-2.25 [&>textarea]:py-2 [&>textarea]:text-[length:var(--text-control)] [&>textarea]:leading-[1.5] [&>textarea]:text-[var(--text)] [&>textarea]:outline-none [&>textarea:focus]:border-[var(--accent-border)] [&>textarea:focus]:shadow-[0_0_0_2px_var(--accent-soft)] [&>small]:font-[var(--font-mono)] [&>small]:text-[length:var(--text-meta)] [&>small]:font-medium [&>small]:text-[var(--muted)] [&>div:last-child]:flex [&>div:last-child]:items-center [&>div:last-child]:justify-end [&>div:last-child]:gap-1.5 [&>div:last-child>small]:mr-auto [&_button]:min-h-10 [&_button]:px-3 [&_button]:py-2 [&_button]:text-[length:var(--text-control)]";
 
 export const REVIEW_DELETE_BACKDROP_CLASS =
   "fixed inset-0 z-150 grid place-items-center overflow-y-auto bg-[color-mix(in_srgb,var(--shadow)_70%,transparent)] p-4 backdrop-blur-[2px] max-[480px]:items-end max-[480px]:p-2";
@@ -185,7 +185,7 @@ export const REVIEW_DELETE_CONFIRMATION_CLASS =
   "review-delete-confirmation relative z-1 grid max-h-[calc(100svh-32px)] w-[min(440px,calc(100vw-32px))] gap-3 overflow-y-auto rounded-[var(--radius-md)] border border-[var(--bad)] bg-[var(--surface-raised)] p-5 text-[var(--text)] shadow-[var(--shell-shadow-lg)] max-[480px]:max-h-[calc(100svh-16px)] max-[480px]:w-full max-[480px]:p-4 [&_h3]:m-0 [&_p]:m-0 [&_p]:break-words [&_p]:text-xs [&_p]:leading-[1.55] [&_p]:text-[var(--text-soft)] [&>div]:flex [&>div]:justify-end [&>div]:gap-2 max-[480px]:[&>div]:flex-col-reverse [&_button]:min-h-8 [&_button]:rounded-[var(--radius-xs)] [&_button]:border [&_button]:border-[var(--border)] [&_button]:bg-[var(--surface)] [&_button]:px-3 [&_button]:py-1.5 max-[480px]:[&_button]:w-full [&_button.danger]:border-[var(--bad)] [&_button.danger]:bg-[var(--bad-soft)] [&_button.danger]:text-[var(--bad)]";
 
 export const REVIEW_BRANCH_RECORD_CLASS =
-  "review-branch-record grid min-h-18.5 shrink-0 grid-cols-[minmax(220px,0.72fr)_minmax(360px,1.15fr)_minmax(260px,1fr)] items-stretch overflow-hidden rounded-[var(--radius-sm)] border border-[var(--border)] bg-[color-mix(in_srgb,var(--surface-raised)_90%,transparent)] shadow-[inset_2px_0_var(--accent)] max-[940px]:grid-cols-[minmax(210px,0.7fr)_minmax(300px,1fr)] max-[760px]:grid-cols-1";
+  "review-branch-record grid min-h-18.5 shrink-0 grid-cols-[minmax(220px,0.72fr)_minmax(360px,1.15fr)_minmax(260px,1fr)] items-stretch overflow-hidden rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] max-[940px]:grid-cols-[minmax(210px,0.7fr)_minmax(300px,1fr)] max-[760px]:grid-cols-1";
 
 export const REVIEW_BRANCH_HEADING_CLASS =
   "review-branch-record-heading flex min-w-0 flex-wrap content-center items-center gap-2.25 border-[var(--border)] border-r p-3 max-[760px]:border-r-0 max-[760px]:border-b [&_.eyebrow]:w-full [&_strong]:max-w-full [&_strong]:truncate [&_strong]:text-xs [&_strong]:text-[var(--text)] [&_code]:font-[var(--font-mono)] [&_code]:text-[length:var(--text-meta)] [&_code]:text-[var(--faint)]";

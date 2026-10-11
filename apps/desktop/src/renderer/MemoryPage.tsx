@@ -15,7 +15,7 @@ import {
 } from "./memory/models";
 import { RuntimeSectionNav } from "./runtime-state/RuntimeSectionNav";
 
-const MEMORY_PAGE_CLASS = "page gap-2.5";
+const MEMORY_PAGE_CLASS = "page @container/memory min-w-0 gap-4";
 const ProjectKnowledgePanel = lazy(async () => ({
   default: (await import("./memory/ProjectKnowledgePanel"))
     .ProjectKnowledgePanel,
@@ -95,7 +95,9 @@ export function MemoryPage({
     return (
       <PagePanel
         className={
-          embedded ? "settings-memory-section gap-2" : MEMORY_PAGE_CLASS
+          embedded
+            ? "settings-memory-section @container/memory min-w-0 gap-4"
+            : MEMORY_PAGE_CLASS
         }
         variant={embedded ? "section" : "workspace"}
       >
@@ -144,7 +146,11 @@ export function MemoryPage({
 
   return (
     <PagePanel
-      className={embedded ? "settings-memory-section gap-2" : MEMORY_PAGE_CLASS}
+      className={
+        embedded
+          ? "settings-memory-section @container/memory min-w-0 gap-4"
+          : MEMORY_PAGE_CLASS
+      }
       variant={embedded ? "section" : "workspace"}
     >
       {embedded ? (

@@ -221,6 +221,8 @@ export function themeCssVariables(
     "--font-display": fonts[t.bodyFont],
     "--font-mono": fonts.monospace,
     "--text-body": `${t.conversationSize}px`,
+    "--text-conversation": `${t.conversationSize}px`,
+    "--text-code": `${Math.max(13, t.conversationSize - 2)}px`,
     "--text-control": `${t.controlSize}px`,
     "--text-meta": `${compact ? Math.max(11, t.metadataSize - 1) : t.metadataSize}px`,
     "--text-caption": `${t.metadataSize}px`,
@@ -242,6 +244,8 @@ export function themeCssVariables(
     "--row-pad": `${compact ? Math.max(6, theme.spacing.row - 2) : theme.spacing.row}px`,
     "--motion-duration": `${theme.motion.durationMs}ms`,
     "--focus-ring": p.accentText,
+    // Legacy consumers must not turn current navigation into a tinted card.
+    "--surface-selected": "transparent",
     "--canvas-bg": theme.codeColors?.[appearance].background ?? p.background,
     "--canvas-text": theme.codeColors?.[appearance].text ?? p.text,
     "--canvas-text-soft": p.secondaryText,

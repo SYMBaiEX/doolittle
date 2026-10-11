@@ -1,7 +1,11 @@
 import { Button } from "@elizaos/ui/components/ui/button";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@elizaos/ui/components/ui/popover";
 import { Mic } from "lucide-react";
 import {
-  type KeyboardEvent,
   useCallback,
   useEffect,
   useId,
@@ -55,6 +59,7 @@ export interface VoiceComposerButtonProps {
   ) => Promise<{ transcriptText: string }>;
   onTranscript: (text: string) => void;
   disabled?: boolean;
+  presentationActive?: boolean;
 }
 
 interface RecorderChunkResult {
@@ -168,6 +173,7 @@ export function VoiceComposerButton({
   importAndTranscribe,
   onTranscript,
   disabled = false,
+  presentationActive = true,
 }: VoiceComposerButtonProps) {
   const panelId = useId();
   const [open, setOpen] = useState(false);
@@ -184,6 +190,11 @@ export function VoiceComposerButton({
   const transcriptionControllerRef = useRef<AbortController | null>(null);
   const mountedRef = useRef(true);
   const terminalErrorRef = useRef("");
+  const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const presentationActiveRef = useRef(presentationActive);
+  presentationActiveRef.current = presentationActive;
 
   const clearTimers = useCallback(() => {
     if (durationTimerRef.current !== null) {
@@ -252,6 +263,20 @@ export function VoiceComposerButton({
   useEffect(() => {
     if (disabled && open) cancel();
   }, [cancel, disabled, open]);
+
+  useEffect(() => {
+    if (!presentationActive) setOpen(false);
+  }, [presentationActive]);
+
+  useEffect(() => {
+    const tools = rootRef.current?.closest("details");
+    if (!tools) return;
+    const closeHiddenPresentation = () => {
+      if (!tools.open) setOpen(false);
+    };
+    tools.addEventListener("toggle", closeHiddenPresentation);
+    return () => tools.removeEventListener("toggle", closeHiddenPresentation);
+  }, []);
 
   const beginTranscription = useCallback(
     async (chunks: Blob[], mimeType: VoiceRecorderMime, operation: number) => {
@@ -448,12 +473,6 @@ export function VoiceComposerButton({
     clearTimers,
   ]);
 
-  const handlePanelKeyDown = (event: KeyboardEvent<HTMLFieldSetElement>) => {
-    if (event.key !== "Escape") return;
-    event.preventDefault();
-    cancel();
-  };
-
   const busy =
     phase === "requesting" ||
     phase === "recording" ||
@@ -461,108 +480,143 @@ export function VoiceComposerButton({
     phase === "transcribing";
 
   return (
-    <div className="relative inline-flex shrink-0">
-      <Button
-        aria-controls={panelId}
-        aria-expanded={open}
-        aria-label="Open voice dictation"
-        className="voice-composer-trigger grid size-7.5 rounded-[7px] border border-transparent bg-transparent p-0 text-[var(--text-soft)] shadow-none hover:border-[color-mix(in_srgb,var(--accent)_32%,var(--border))] hover:bg-[var(--accent-soft)] hover:text-[var(--accent)] aria-expanded:border-[color-mix(in_srgb,var(--accent)_32%,var(--border))] aria-expanded:bg-[var(--accent-soft)] aria-expanded:text-[var(--accent)] max-[480px]:size-10 [&_svg]:size-4 [&_svg]:fill-none [&_svg]:stroke-current [&_svg]:stroke-[1.7] [&_svg]:[stroke-linecap:round] [&_svg]:[stroke-linejoin:round]"
-        disabled={disabled}
-        onClick={() => {
-          if (open) {
-            cancel();
-            return;
+    <div className="relative inline-flex shrink-0" ref={rootRef}>
+      <Popover
+        open={open && presentationActive && !disabled}
+        onOpenChange={(nextOpen) => {
+          setOpen(nextOpen);
+          if (nextOpen && !busy) {
+            setErrorDetail("");
+            terminalErrorRef.current = "";
+            dispatch("reset");
           }
-          setOpen(true);
-          setErrorDetail("");
-          terminalErrorRef.current = "";
-          dispatch("reset");
         }}
-        size="icon"
-        title="Voice dictation"
-        type="button"
-        variant="ghost"
       >
-        <UiIcon icon={Mic} size="md" />
-      </Button>
-
-      {open ? (
-        <fieldset
-          aria-label="Voice dictation controls"
-          className="absolute right-0 bottom-[calc(100%+9px)] z-80 m-0 grid w-[min(292px,calc(100vw-32px))] min-w-0 gap-[11px] rounded-[5px] border border-[var(--border-strong)] bg-[color-mix(in_srgb,var(--surface-raised)_97%,transparent)] p-[13px] shadow-[0_18px_46px_var(--shadow)] transition-[opacity,transform] duration-200 starting:translate-y-1 starting:scale-[0.995] starting:opacity-0 motion-reduce:transition-none"
-          id={panelId}
-          onKeyDown={handlePanelKeyDown}
-        >
-          <span
-            aria-hidden="true"
-            className="absolute right-[11px] -bottom-[5px] size-2 rotate-45 border-r border-b border-[var(--border-strong)] bg-[var(--surface-raised)]"
-          />
-          <div className="grid grid-cols-[8px_minmax(0,1fr)_auto] items-center gap-2">
-            <span
-              aria-hidden="true"
-              className={`size-[7px] rounded-full ${
-                phase === "recording"
-                  ? "animate-pulse bg-[var(--accent)] shadow-[0_0_0_4px_color-mix(in_srgb,var(--accent)_14%,transparent)] motion-reduce:animate-none"
-                  : "bg-[var(--faint)]"
-              }`}
-            />
-            <strong className="min-w-0 text-xs tracking-[0.01em]">
-              Voice dictation
-            </strong>
-            <small className="font-[var(--font-mono)] text-[length:var(--text-meta)] tracking-[0.035em] text-[var(--faint)] uppercase">
-              Review before sending
-            </small>
-          </div>
-
-          <p
-            aria-live="polite"
-            className="m-0 min-h-[34px] text-[11px] leading-normal text-[var(--text-soft)]"
-            role="status"
+        <PopoverTrigger asChild>
+          <Button
+            aria-controls={panelId}
+            aria-expanded={open && presentationActive && !disabled}
+            aria-label="Open voice dictation"
+            className="voice-composer-trigger grid size-10 rounded-[7px] border border-transparent bg-transparent p-0 text-[var(--text-soft)] shadow-none hover:border-[color-mix(in_srgb,var(--accent)_32%,var(--border))] hover:bg-[var(--accent-soft)] hover:text-[var(--accent)] aria-expanded:border-[color-mix(in_srgb,var(--accent)_32%,var(--border))] aria-expanded:bg-[var(--accent-soft)] aria-expanded:text-[var(--accent)] max-[760px]:size-11 [&_svg]:size-4 [&_svg]:fill-none [&_svg]:stroke-current [&_svg]:stroke-[1.7] [&_svg]:[stroke-linecap:round] [&_svg]:[stroke-linejoin:round]"
+            disabled={disabled}
+            onClick={() => {
+              if (open) {
+                cancel();
+                return;
+              }
+            }}
+            ref={triggerRef}
+            size="icon"
+            title="Voice dictation"
+            type="button"
+            variant="ghost"
           >
-            {errorDetail || statusText(phase, elapsedMs)}
-          </p>
-
-          <div className="flex items-center gap-[7px]">
-            {phase === "recording" ? (
-              <Button
-                aria-label="Stop voice recording and transcribe"
-                className="min-h-[29px] rounded-[3px] px-[11px] text-[11px] font-semibold"
-                onClick={stopRecording}
-                size="sm"
-                type="button"
-                variant="surfaceDestructive"
-              >
-                Stop
-              </Button>
-            ) : (
-              <Button
-                aria-label={
-                  phase === "complete"
-                    ? "Start another voice recording"
-                    : "Start voice recording"
-                }
-                className="min-h-[29px] rounded-[3px] px-[11px] text-[11px] font-semibold"
-                disabled={busy || phase === "unsupported"}
-                onClick={() => void startRecording()}
-                size="sm"
-                type="button"
-              >
-                {phase === "complete" ? "Record again" : "Start"}
-              </Button>
-            )}
-            <Button
-              aria-label="Cancel voice dictation"
-              className="min-h-[29px] rounded-[3px] px-[11px] text-[11px] font-semibold"
-              onClick={cancel}
-              size="sm"
-              type="button"
-              variant="outline"
+            <UiIcon icon={Mic} size="md" />
+          </Button>
+        </PopoverTrigger>
+        {open && presentationActive && !disabled ? (
+          <PopoverContent
+            aria-label="Voice dictation"
+            align="end"
+            avoidCollisions
+            className="z-80 w-[min(340px,calc(100vw-24px))] max-h-[min(400px,var(--radix-popover-content-available-height))] overflow-y-auto overscroll-contain rounded-[var(--radius-floating)] border border-[var(--border-strong)] bg-[var(--surface-raised)] p-4 text-[var(--text)] shadow-[0_18px_46px_var(--shadow)] motion-reduce:animate-none"
+            collisionPadding={12}
+            id={panelId}
+            onEscapeKeyDown={(event) => {
+              event.preventDefault();
+              cancel();
+            }}
+            onCloseAutoFocus={(event) => {
+              const activeElement = document.activeElement;
+              if (
+                !presentationActiveRef.current ||
+                rootRef.current?.closest("[hidden],[inert]") ||
+                (rootRef.current?.closest("details") &&
+                  !rootRef.current.closest("details")?.open) ||
+                (activeElement &&
+                  activeElement !== document.body &&
+                  activeElement !== triggerRef.current &&
+                  !contentRef.current?.contains(activeElement))
+              ) {
+                event.preventDefault();
+              }
+            }}
+            ref={contentRef}
+            side="top"
+            sideOffset={9}
+          >
+            <fieldset
+              aria-label="Voice dictation controls"
+              className="m-0 grid min-w-0 gap-4 border-0 p-0"
             >
-              Cancel
-            </Button>
-          </div>
-        </fieldset>
-      ) : null}
+              <div className="grid grid-cols-[8px_minmax(0,1fr)] items-center gap-x-2 gap-y-1">
+                <span
+                  aria-hidden="true"
+                  className={`size-[7px] rounded-full ${
+                    phase === "recording"
+                      ? "animate-pulse bg-[var(--accent)] motion-reduce:animate-none"
+                      : "bg-[var(--faint)]"
+                  }`}
+                />
+                <strong className="min-w-0 text-[length:var(--text-control)] font-semibold">
+                  Voice dictation
+                </strong>
+                <small className="col-start-2 text-[length:var(--text-control)] text-[var(--muted)]">
+                  Review before sending
+                </small>
+              </div>
+
+              <p
+                aria-live="polite"
+                className="m-0 text-[length:var(--text-control)] leading-[1.5] text-[var(--text-soft)]"
+                role="status"
+              >
+                {errorDetail || statusText(phase, elapsedMs)}
+              </p>
+
+              <div className="flex flex-wrap items-center gap-2">
+                {phase === "recording" ? (
+                  <Button
+                    aria-label="Stop voice recording and transcribe"
+                    className="min-h-10 rounded-md px-3 text-[length:var(--text-control)] font-semibold max-[760px]:min-h-11"
+                    onClick={stopRecording}
+                    size="sm"
+                    type="button"
+                    variant="surfaceDestructive"
+                  >
+                    Stop
+                  </Button>
+                ) : (
+                  <Button
+                    aria-label={
+                      phase === "complete"
+                        ? "Start another voice recording"
+                        : "Start voice recording"
+                    }
+                    className="min-h-10 rounded-md px-3 text-[length:var(--text-control)] font-semibold max-[760px]:min-h-11"
+                    disabled={busy || phase === "unsupported"}
+                    onClick={() => void startRecording()}
+                    size="sm"
+                    type="button"
+                  >
+                    {phase === "complete" ? "Record again" : "Start"}
+                  </Button>
+                )}
+                <Button
+                  aria-label="Cancel voice dictation"
+                  className="min-h-10 rounded-md px-3 text-[length:var(--text-control)] font-semibold max-[760px]:min-h-11"
+                  onClick={cancel}
+                  size="sm"
+                  type="button"
+                  variant="outline"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </fieldset>
+          </PopoverContent>
+        ) : null}
+      </Popover>
     </div>
   );
 }

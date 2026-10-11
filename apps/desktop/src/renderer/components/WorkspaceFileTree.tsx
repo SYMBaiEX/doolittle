@@ -12,9 +12,8 @@ import {
 import { UiIcon } from "./UiIcon";
 
 const TREE_ITEM_CLASS =
-  "group grid min-h-[29px] w-full grid-cols-[12px_15px_minmax(0,1fr)_auto] items-center gap-1 overflow-hidden rounded-[var(--radius-xs)] border-0 bg-transparent py-[3px] pr-[7px] text-left text-[var(--text-soft)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] focus-visible:bg-[var(--surface-hover)] focus-visible:text-[var(--text)] focus-visible:outline focus-visible:outline-1 focus-visible:-outline-offset-1 focus-visible:outline-[var(--accent-border)]";
-const SELECTED_ITEM_CLASS =
-  "bg-[color-mix(in_srgb,var(--accent)_9%,var(--surface-hover))] text-[var(--text)] shadow-[inset_2px_0_var(--accent)]";
+  "group grid min-h-10 w-full grid-cols-[12px_15px_minmax(0,1fr)_auto] items-center gap-1 overflow-hidden rounded-[var(--radius-xs)] border-0 bg-transparent py-[3px] pr-[7px] text-left text-[var(--text-soft)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] focus-visible:bg-[var(--surface-hover)] focus-visible:text-[var(--text)] focus-visible:outline focus-visible:outline-1 focus-visible:-outline-offset-1 focus-visible:outline-[var(--focus-ring)]";
+const SELECTED_ITEM_CLASS = "font-semibold text-[var(--text)]";
 
 function EntryIcon({ directory }: { directory: boolean }) {
   return (
@@ -145,7 +144,7 @@ export function WorkspaceFileTree({
       <div className="flex min-h-full flex-col">
         <header className="flex min-h-[42px] shrink-0 items-center justify-between gap-2 border-b border-[color-mix(in_srgb,var(--border)_76%,transparent)] bg-[color-mix(in_srgb,var(--surface-raised)_82%,transparent)] py-1.5 pr-2 pl-[11px]">
           <div className="flex min-w-0 flex-col gap-0.5">
-            <strong className="overflow-hidden text-ellipsis whitespace-nowrap font-[var(--font-mono)] text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--text-soft)]">
+            <strong className="overflow-hidden text-ellipsis whitespace-nowrap font-[var(--font-mono)] text-[length:var(--text-control)] font-bold uppercase tracking-[0.08em] text-[var(--text-soft)]">
               Workspace
             </strong>
             <span className="overflow-hidden text-ellipsis whitespace-nowrap font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--faint)]">
@@ -165,7 +164,7 @@ export function WorkspaceFileTree({
           <div className="flex shrink-0 gap-[3px]">
             <Button
               aria-label="Collapse all folders"
-              className="size-6 min-h-6 p-0 font-[var(--font-mono)] text-[13px] disabled:opacity-30"
+              className="size-10 min-h-10 p-0 font-[var(--font-mono)] text-[13px] disabled:opacity-30"
               disabled={expandedDirectories.size === 0}
               onClick={() => setExpandedDirectories(new Set())}
               size="icon"
@@ -177,7 +176,7 @@ export function WorkspaceFileTree({
             </Button>
             <Button
               aria-label="Expand all folders"
-              className="size-6 min-h-6 p-0 font-[var(--font-mono)] text-[13px] disabled:opacity-30"
+              className="size-10 min-h-10 p-0 font-[var(--font-mono)] text-[13px] disabled:opacity-30"
               disabled={
                 directories.length === 0 ||
                 directories.every((path) => expandedDirectories.has(path))
@@ -269,7 +268,7 @@ export function WorkspaceFileTree({
                   )}
                   <EntryIcon directory={directory} />
                   <span
-                    className={`overflow-hidden text-ellipsis whitespace-nowrap font-[var(--font-mono)] text-[11px] ${
+                    className={`overflow-hidden text-ellipsis whitespace-nowrap font-[var(--font-mono)] text-[length:var(--text-control)] ${
                       directory ? "font-semibold text-[var(--text-soft)]" : ""
                     }`}
                   >

@@ -6,6 +6,7 @@ import { delimiter, dirname, resolve } from "node:path";
 import type { BackendState } from "../shared/contracts";
 import { BackendUrlParser } from "./backend-url";
 import { providerAuthExecutableCandidates } from "./provider-auth";
+import { runtimeStartsAllowed } from "./runtime-start-admission";
 import { attachWorkerHostRpc, type WorkerHostHandler } from "./worker-host-rpc";
 
 const STARTUP_TIMEOUT_MS = 45_000;
@@ -125,6 +126,13 @@ function sanitizeBackendDiagnostic(
 
 export function isRecoverablePgliteStartupFailure(output: string): boolean {
   const normalized = output.toLowerCase();
+  // Contention is not corruption. Another live process may own this healthy
+  // directory; never move it aside and start a second, empty database.
+  if (
+    /already\s+(?:in\s+use|locked)|lock.*(?:held|in\s+use)/u.test(normalized)
+  ) {
+    return false;
+  }
   return (
     normalized.includes("pglite") &&
     (normalized.includes("aborted()") ||
@@ -312,7 +320,9 @@ export class BackendManager {
   }
 
   start(): Promise<BackendState> {
-    if (this.activeStops > 0) return Promise.resolve(this.getState());
+    if (this.activeStops > 0 || !runtimeStartsAllowed()) {
+      return Promise.resolve(this.getState());
+    }
     if (this.state.phase === "ready") return Promise.resolve(this.getState());
     if (this.startup) return this.startup;
     this.startup = this.startImpl().finally(() => {
@@ -477,8 +487,10 @@ export class BackendManager {
 
     try {
       const url = await urlPromise;
-      await this.waitForHealth(url);
+      this.assertStartingChild(child);
+      await this.waitForHealth(url, child);
       const identity = await this.readBotIdentity(url);
+      this.assertStartingChild(child);
       const next: BackendState = {
         phase: "ready",
         url,
@@ -560,14 +572,22 @@ export class BackendManager {
     return { botId: value.botId, agentId: value.agentId, name: value.name };
   }
 
-  private async waitForHealth(url: string): Promise<void> {
+  private assertStartingChild(child: ChildProcess): void {
+    if (this.stopping || this.child !== child) {
+      throw new Error("The local runtime startup was cancelled.");
+    }
+  }
+
+  private async waitForHealth(url: string, child: ChildProcess): Promise<void> {
     const deadline = Date.now() + STARTUP_TIMEOUT_MS;
     let lastError = "Health endpoint did not respond.";
     while (Date.now() < deadline) {
+      this.assertStartingChild(child);
       try {
         const response = await this.runtimeFetch(`${url}/health`, {
           signal: AbortSignal.timeout(2_000),
         });
+        this.assertStartingChild(child);
         if (response.ok) return;
         lastError = `Health endpoint returned ${response.status}.`;
       } catch (error) {

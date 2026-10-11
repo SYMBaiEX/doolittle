@@ -39,6 +39,8 @@ describe("controlled browser-only compositions", () => {
       }),
     );
     expect(markup).toContain('aria-current="page"');
+    expect(markup).toContain('aria-label="Research, Attention"');
+    expect(markup).toContain('title="Research"');
     expect(markup).toContain('aria-label="Attention"');
     expect(markup).toContain('type="button"');
   });

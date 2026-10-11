@@ -106,6 +106,58 @@ describe("Tool activity context actions", () => {
         .getAttribute("aria-pressed"),
     ).toBe("true");
   });
+  it("retains the inspected step while a stream adds more tool activity", async () => {
+    await render();
+    await act(async () =>
+      container.querySelector<HTMLButtonElement>("[data-tool-card]")?.click(),
+    );
+    const details = container.querySelector("details");
+    await render({
+      ...parsed,
+      tools: [
+        ...parsed.tools,
+        {
+          id: "tool-third",
+          name: "WRITE_FILE",
+          status: "running",
+          output: "Newest output",
+        },
+      ],
+    });
+    expect(container.querySelector("details")).toBe(details);
+    expect(
+      container.querySelector("[data-tool-card]")?.getAttribute("aria-pressed"),
+    ).toBe("true");
+    expect(
+      container.querySelector("[data-tool-detail]")?.textContent,
+    ).toContain("First tool output");
+    expect(
+      container.querySelector("[data-tool-detail]")?.textContent,
+    ).not.toContain("Newest output");
+  });
+  it("follows new steps when the user has not selected an earlier one", async () => {
+    await render();
+    await render({
+      ...parsed,
+      tools: [
+        ...parsed.tools,
+        {
+          id: "tool-third",
+          name: "WRITE_FILE",
+          status: "running",
+          output: "Newest output",
+        },
+      ],
+    });
+    expect(
+      container
+        .querySelectorAll("[data-tool-card]")[2]
+        ?.getAttribute("aria-pressed"),
+    ).toBe("true");
+    expect(
+      container.querySelector("[data-tool-detail]")?.textContent,
+    ).toContain("Newest output");
+  });
   it("blocks unavailable output and closes the group menu when selection changes", async () => {
     await render({
       ...parsed,

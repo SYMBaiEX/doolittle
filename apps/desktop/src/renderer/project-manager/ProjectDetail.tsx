@@ -63,7 +63,7 @@ export function ProjectDetail({
               {project.name}
             </h3>
             {project.pinned ? (
-              <span className="project-manager__pin border-[var(--accent)] border-l-2 py-0.25 pl-1.5 text-[10px] text-[var(--muted)]">
+              <span className="project-manager__pin py-1 text-[length:var(--text-control)] text-[var(--muted)]">
                 Pinned
               </span>
             ) : null}
@@ -71,7 +71,7 @@ export function ProjectDetail({
           <p className="my-1.25 text-[13px] text-[var(--text-soft)]">
             {project.description || "A focused home for this work."}
           </p>
-          <span className="text-[11px] text-[var(--muted)]">
+          <span className="text-[length:var(--text-control)] text-[var(--muted)]">
             {formatCount(project.chatCount)} · {resources.length}{" "}
             {resources.length === 1 ? "source" : "sources"}
             {project.primaryPath
@@ -111,7 +111,7 @@ export function ProjectDetail({
                 ? "This chat belongs here"
                 : "Put this chat in this project"}
             </strong>
-            <small className="text-[11px] text-[var(--text-soft)]">
+            <small className="text-[length:var(--text-control)] text-[var(--text-soft)]">
               {currentChatProjectId === project.id
                 ? "New messages will retain this project context."
                 : "Move the active conversation without changing its history."}
@@ -206,7 +206,7 @@ export function ProjectDetail({
                   path: project.primaryPath,
                 })}
               </strong>
-              <small className="truncate font-[var(--font-mono)] text-[10px] text-[var(--muted)]">
+              <small className="truncate font-[var(--font-mono)] text-[length:var(--text-control)] text-[var(--muted)]">
                 {project.primaryPath}
               </small>
             </span>
@@ -235,7 +235,7 @@ export function ProjectDetail({
                   <strong className="truncate text-xs">
                     {resourceLabel(resource)}
                   </strong>
-                  <small className="truncate font-[var(--font-mono)] text-[10px] text-[var(--muted)]">
+                  <small className="truncate font-[var(--font-mono)] text-[length:var(--text-control)] text-[var(--muted)]">
                     {resource.path}
                   </small>
                 </span>
@@ -246,7 +246,7 @@ export function ProjectDetail({
                     </b>
                   ) : (
                     <Button
-                      className="project-manager__make-primary h-6.25 px-1.75 font-[var(--font-mono)] text-[length:var(--text-meta)]"
+                      className="project-manager__make-primary min-h-10 px-3 font-[var(--font-mono)] text-[length:var(--text-meta)]"
                       disabled={working}
                       onClick={() => onSetPrimaryPath(resource.path)}
                       title={`Use ${resourceLabel(resource)} for new chats and Git operations`}
@@ -278,7 +278,7 @@ export function ProjectDetail({
           </div>
         )}
       </section>
-      <footer className="project-manager__danger flex items-center justify-between gap-4 border-[var(--border)] border-t pt-4.25 text-[11px] text-[var(--muted)] max-[740px]:items-start max-[740px]:flex-col">
+      <footer className="project-manager__danger flex items-center justify-between gap-4 border-[var(--border)] border-t pt-4.25 text-[length:var(--text-control)] text-[var(--muted)] max-[740px]:items-start max-[740px]:flex-col">
         <span>
           {project.archived
             ? "This project is archived and hidden from new chat selection."

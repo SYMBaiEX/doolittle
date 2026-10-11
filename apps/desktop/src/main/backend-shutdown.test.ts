@@ -19,6 +19,7 @@ import {
   backendExitDetail,
   terminateBackendChild,
 } from "./backend";
+import { holdRuntimeStarts } from "./runtime-start-admission";
 
 function mockChild() {
   const child = Object.assign(new EventEmitter(), {
@@ -37,6 +38,95 @@ function mockChild() {
 
 describe("BackendManager shutdown during startup", () => {
   beforeEach(() => spawn.mockReset());
+
+  it("blocks new desktop children while quit holds ownership and permits a failed-quit retry", async () => {
+    const release = holdRuntimeStarts();
+    const child = mockChild();
+    spawn.mockReturnValue(child);
+    const backend = new BackendManager(
+      { executable: "unused", args: [], repoRoot: resolve("/tmp") },
+      resolve("/tmp/doolittle-shutdown"),
+      resolve("/tmp/workspace"),
+    );
+    try {
+      await expect(backend.start()).resolves.toMatchObject({
+        phase: "stopped",
+      });
+      expect(spawn).not.toHaveBeenCalled();
+      release();
+      const startup = backend.start();
+      expect(spawn).toHaveBeenCalledOnce();
+      await backend.stop();
+      await startup;
+    } finally {
+      release();
+    }
+  });
+
+  it("does not publish ready after stop interrupts a pending identity response", async () => {
+    const child = mockChild();
+    spawn.mockReturnValue(child);
+    let finishIdentity!: (response: Response) => void;
+    const identity = new Promise<Response>((resolvePromise) => {
+      finishIdentity = resolvePromise;
+    });
+    const runtimeFetch = vi.fn(async (input) =>
+      String(input).includes("/runtime/bot-identity")
+        ? identity
+        : new Response(null, { status: 200 }),
+    );
+    const backend = new BackendManager(
+      { executable: "unused", args: [], repoRoot: resolve("/tmp") },
+      resolve("/tmp/doolittle-shutdown"),
+      resolve("/tmp/workspace"),
+      runtimeFetch as typeof fetch,
+    );
+    const ready = vi.fn();
+    backend.subscribe((state) => {
+      if (state.phase === "ready") ready();
+    });
+    const startup = backend.start();
+    child.stdout.emit(
+      "data",
+      Buffer.from("Doolittle API listening on http://127.0.0.1:43817\n"),
+    );
+    await vi.waitFor(() => expect(runtimeFetch).toHaveBeenCalledTimes(2));
+    await backend.stop();
+    finishIdentity(
+      Response.json({ botId: "default", agentId: "agent", name: "Doolittle" }),
+    );
+    await expect(startup).resolves.toMatchObject({ phase: "stopped" });
+    expect(ready).not.toHaveBeenCalled();
+  });
+
+  it("preserves the original database and never retries a lock contention failure", async () => {
+    const runtimeDataDir = mkdtempSync(join(tmpdir(), "doolittle-shutdown-"));
+    const pgliteDir = join(runtimeDataDir, "pglite");
+    mkdirSync(pgliteDir);
+    writeFileSync(join(pgliteDir, "PG_VERSION"), "17");
+    const child = mockChild();
+    spawn.mockReturnValue(child);
+    const backend = new BackendManager(
+      { executable: "unused", args: [], repoRoot: resolve("/tmp") },
+      runtimeDataDir,
+      resolve("/tmp/workspace"),
+    );
+    try {
+      const startup = backend.start();
+      child.stderr.emit(
+        "data",
+        Buffer.from(
+          "PGlite initialization failed: data directory already in use",
+        ),
+      );
+      child.emit("exit", 1, null);
+      await expect(startup).resolves.toMatchObject({ phase: "degraded" });
+      expect(spawn).toHaveBeenCalledTimes(1);
+      expect(readFileSync(join(pgliteDir, "PG_VERSION"), "utf8")).toBe("17");
+    } finally {
+      rmSync(runtimeDataDir, { recursive: true, force: true });
+    }
+  });
 
   it("still performs one PGlite recovery when shutdown was not requested", async () => {
     const runtimeDataDir = mkdtempSync(join(tmpdir(), "doolittle-shutdown-"));

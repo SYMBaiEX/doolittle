@@ -149,7 +149,7 @@ export function BrowserResultPanel({
 
         {resultView.previews.length > 0 ? (
           <section className={BROWSER_RESULT_SECTION_CLASS}>
-            <div className="grid gap-0.5 [&>span]:font-mono [&>span]:text-[10px] [&>span]:text-[var(--muted)] [&>span]:uppercase [&>strong]:text-xs [&>strong]:text-[var(--text)]">
+            <div className="grid gap-0.5 [&>span]:font-mono [&>span]:text-[length:var(--text-control)] [&>span]:text-[var(--muted)] [&>span]:uppercase [&>strong]:text-xs [&>strong]:text-[var(--text)]">
               <span className="eyebrow">Preview assets</span>
               <strong>Safe image thumbnails</strong>
             </div>
@@ -165,7 +165,7 @@ export function BrowserResultPanel({
                     loading="lazy"
                     src={preview.src}
                   />
-                  <figcaption className="truncate text-[10px] text-[var(--muted)]">
+                  <figcaption className="truncate text-[length:var(--text-control)] text-[var(--muted)]">
                     {preview.label}
                   </figcaption>
                 </figure>
@@ -176,14 +176,14 @@ export function BrowserResultPanel({
 
         {resultView.artifacts.length > 0 ? (
           <section className={BROWSER_RESULT_SECTION_CLASS}>
-            <div className="grid gap-0.5 [&>span]:font-mono [&>span]:text-[10px] [&>span]:text-[var(--muted)] [&>span]:uppercase [&>strong]:text-xs [&>strong]:text-[var(--text)]">
+            <div className="grid gap-0.5 [&>span]:font-mono [&>span]:text-[length:var(--text-control)] [&>span]:text-[var(--muted)] [&>span]:uppercase [&>strong]:text-xs [&>strong]:text-[var(--text)]">
               <span className="eyebrow">Artifacts</span>
               <strong>Captured paths and URLs</strong>
             </div>
             <div className="grid gap-2">
               {resultView.artifacts.map((artifact) => (
                 <article
-                  className="grid gap-1 rounded-[var(--radius-xs)] border border-[var(--border)] bg-[var(--surface-soft)] px-2.5 py-2.25 [&>code]:wrap-anywhere [&>code]:text-[10px] [&>code]:leading-normal [&>code]:text-[var(--text-soft)] [&>span]:font-mono [&>span]:text-[10px] [&>span]:text-[var(--muted)] [&>span]:uppercase"
+                  className="grid gap-1 rounded-[var(--radius-xs)] border border-[var(--border)] bg-[var(--surface-soft)] px-2.5 py-2.25 [&>code]:wrap-anywhere [&>code]:text-[length:var(--text-control)] [&>code]:leading-normal [&>code]:text-[var(--text-soft)] [&>span]:font-mono [&>span]:text-[length:var(--text-control)] [&>span]:text-[var(--muted)] [&>span]:uppercase"
                   key={`${artifact.label}:${artifact.value}`}
                 >
                   <span>{artifact.label}</span>
@@ -196,7 +196,7 @@ export function BrowserResultPanel({
 
         {resultView.responseText ? (
           <section className={BROWSER_RESULT_SECTION_CLASS}>
-            <div className="grid gap-0.5 [&>span]:font-mono [&>span]:text-[10px] [&>span]:text-[var(--muted)] [&>span]:uppercase [&>strong]:text-xs [&>strong]:text-[var(--text)]">
+            <div className="grid gap-0.5 [&>span]:font-mono [&>span]:text-[length:var(--text-control)] [&>span]:text-[var(--muted)] [&>span]:uppercase [&>strong]:text-xs [&>strong]:text-[var(--text)]">
               <span className="eyebrow">Analysis response</span>
               <strong>Model output preview</strong>
             </div>
@@ -210,11 +210,11 @@ export function BrowserResultPanel({
         ) : null}
 
         <section className="grid gap-2.5 rounded-[var(--radius-xs)] border border-[var(--accent-border)] bg-[color-mix(in_srgb,var(--accent)_8%,var(--surface-soft))] p-3">
-          <div className="grid gap-0.5 [&>span]:font-mono [&>span]:text-[10px] [&>span]:text-[var(--muted)] [&>span]:uppercase [&>strong]:text-xs [&>strong]:text-[var(--text)]">
+          <div className="grid gap-0.5 [&>span]:font-mono [&>span]:text-[length:var(--text-control)] [&>span]:text-[var(--muted)] [&>span]:uppercase [&>strong]:text-xs [&>strong]:text-[var(--text)]">
             <span className="eyebrow">Thread handoff</span>
             <strong>Send a reviewable browser receipt</strong>
           </div>
-          <p className="m-0 text-[10px] leading-normal text-[var(--muted)]">
+          <p className="m-0 text-[length:var(--text-control)] leading-normal text-[var(--muted)]">
             The active thread receives only this bounded context. Capture mode
             and artifacts travel with your note.
           </p>
@@ -231,7 +231,7 @@ export function BrowserResultPanel({
             />
           </label>
           <details className="group grid gap-2">
-            <summary className="cursor-pointer font-mono text-[10px] text-[var(--muted)] group-open:text-[var(--text-soft)]">
+            <summary className="cursor-pointer font-mono text-[length:var(--text-control)] text-[var(--muted)] group-open:text-[var(--text-soft)]">
               Target a selector, region, or viewport
             </summary>
             <div className="grid grid-cols-2 gap-2 max-[780px]:grid-cols-1">
@@ -241,7 +241,7 @@ export function BrowserResultPanel({
                   onChange={(event) =>
                     updateEvidence(setSelector, event.target.value)
                   }
-                  className={`${BROWSER_FIELD_CONTROL_CLASS} h-7.5 px-2`}
+                  className={`${BROWSER_FIELD_CONTROL_CLASS} min-h-10 px-3`}
                   placeholder="#checkout-button"
                   value={selector}
                 />
@@ -252,7 +252,7 @@ export function BrowserResultPanel({
                   onChange={(event) =>
                     updateEvidence(setRegion, event.target.value)
                   }
-                  className={`${BROWSER_FIELD_CONTROL_CLASS} h-7.5 px-2`}
+                  className={`${BROWSER_FIELD_CONTROL_CLASS} min-h-10 px-3`}
                   placeholder="Hero CTA"
                   value={region}
                 />
@@ -265,14 +265,14 @@ export function BrowserResultPanel({
                   onChange={(event) =>
                     updateEvidence(setViewportNote, event.target.value)
                   }
-                  className={`${BROWSER_FIELD_CONTROL_CLASS} h-7.5 px-2`}
+                  className={`${BROWSER_FIELD_CONTROL_CLASS} min-h-10 px-3`}
                   placeholder="390 × 844, logged in"
                   value={viewportNote}
                 />
               </label>
             </div>
           </details>
-          <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-2 gap-y-1 rounded-[var(--radius-xs)] border border-[var(--border)] bg-[color-mix(in_srgb,var(--bg)_58%,transparent)] p-2 [&>code]:truncate [&>code]:text-[10px] [&>code]:text-[var(--text-soft)] [&>span]:font-mono [&>span]:text-[length:var(--text-meta)] [&>span]:text-[var(--muted)] [&>span]:uppercase">
+          <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-2 gap-y-1 rounded-[var(--radius-xs)] border border-[var(--border)] bg-[color-mix(in_srgb,var(--bg)_58%,transparent)] p-2 [&>code]:truncate [&>code]:text-[length:var(--text-control)] [&>code]:text-[var(--text-soft)] [&>span]:font-mono [&>span]:text-[length:var(--text-meta)] [&>span]:text-[var(--muted)] [&>span]:uppercase">
             <span>URL</span>
             <code>{currentUrl || address}</code>
             <span>Viewport</span>
@@ -281,7 +281,7 @@ export function BrowserResultPanel({
             <code>{capture}</code>
           </div>
           <details className="group grid gap-1.75">
-            <summary className="cursor-pointer font-mono text-[10px] text-[var(--muted)] group-open:text-[var(--text-soft)]">
+            <summary className="cursor-pointer font-mono text-[length:var(--text-control)] text-[var(--muted)] group-open:text-[var(--text-soft)]">
               Preview exact context for thread
             </summary>
             <pre
@@ -291,7 +291,7 @@ export function BrowserResultPanel({
             </pre>
           </details>
           <div className="flex items-center justify-between gap-2.5">
-            <span className="flex-1 text-[10px] leading-normal text-[var(--muted)]">
+            <span className="flex-1 text-[length:var(--text-control)] leading-normal text-[var(--muted)]">
               {sent
                 ? "Sent to the active thread."
                 : sending
@@ -311,7 +311,7 @@ export function BrowserResultPanel({
         </section>
 
         <details className="group grid gap-2">
-          <summary className="cursor-pointer font-mono text-[10px] text-[var(--muted)] uppercase group-open:text-[var(--text)]">
+          <summary className="cursor-pointer font-mono text-[length:var(--text-control)] text-[var(--muted)] uppercase group-open:text-[var(--text)]">
             Raw JSON fallback
           </summary>
           <pre className={BROWSER_CODE_PREVIEW_CLASS}>

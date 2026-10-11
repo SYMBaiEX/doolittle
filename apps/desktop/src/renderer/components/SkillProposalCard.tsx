@@ -39,9 +39,7 @@ export function SkillProposalCard({
     Boolean(proposal.safety.reason);
 
   return (
-    <article
-      className={`${SKILL_WORKSHOP_CARD_CLASS} ${isSelected ? "border-[var(--accent-border)]" : ""}`}
-    >
+    <article className={SKILL_WORKSHOP_CARD_CLASS}>
       <div className="flex items-center justify-between gap-4">
         <div>
           <span className="eyebrow">{status}</span>

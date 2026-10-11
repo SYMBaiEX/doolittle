@@ -355,6 +355,15 @@ export function ChatComposer({
     typeof window === "undefined" ? [] : loadPromptLibrary(window.localStorage),
   );
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const toolsRef = useRef<HTMLDetailsElement>(null);
+  const toolsOwnerRef = useRef(selectedId);
+
+  useEffect(() => {
+    if (toolsOwnerRef.current === selectedId) return;
+    toolsOwnerRef.current = selectedId;
+    setDetailsOpen(false);
+    if (toolsRef.current) toolsRef.current.open = false;
+  }, [selectedId]);
 
   useEffect(() => {
     const refresh = () => setPromptEntries(loadPromptLibrary(localStorage));
@@ -651,11 +660,11 @@ export function ChatComposer({
               role="option"
               tabIndex={-1}
             >
-              <code className="font-[var(--font-mono)] text-[11px] text-[var(--accent)]">
+              <code className="font-[var(--font-mono)] text-[length:var(--text-control)] text-[var(--accent)]">
                 {command.command}
               </code>
               <span className="flex min-w-0 flex-col gap-0.5 [&>*]:overflow-hidden [&>*]:text-ellipsis [&>*]:whitespace-nowrap">
-                <strong className="text-[11px] font-semibold">
+                <strong className="text-[length:var(--text-control)] font-semibold">
                   {command.category}
                 </strong>
                 <small className="text-[length:var(--text-meta)] text-[var(--muted)]">
@@ -702,7 +711,7 @@ export function ChatComposer({
               tabIndex={-1}
             >
               <span className="flex min-w-0 flex-col gap-0.5 [&>*]:overflow-hidden [&>*]:text-ellipsis [&>*]:whitespace-nowrap">
-                <strong className="text-[11px] font-semibold text-[var(--text)]">
+                <strong className="text-[length:var(--text-control)] font-semibold text-[var(--text)]">
                   {suggestion.label}
                 </strong>
                 <small className="text-[length:var(--text-meta)] text-[var(--muted)]">
@@ -728,13 +737,13 @@ export function ChatComposer({
       ) : null}
       <div className="chat-composer-main">
         <ElizaTextarea
-          className="chat-composer-input !max-h-[156px] !min-h-[46px] !w-full !resize-none !rounded-[var(--radius-xs)] !border-0 !bg-transparent px-1 py-1 text-[14px] leading-[1.5] text-[var(--text)] placeholder:text-[var(--faint)] focus-visible:!outline-none forced-colors:focus-visible:!outline-solid forced-colors:focus-visible:!outline-1 forced-colors:focus-visible:!outline-offset-0 forced-colors:focus-visible:!outline-[Highlight] max-[720px]:!max-h-[132px] max-[480px]:!max-h-[112px] max-[480px]:!min-h-10 max-[480px]:!px-0.5 max-[480px]:!py-0.5 max-[480px]:text-[14px]"
+          className="chat-composer-input !max-h-[156px] !min-h-[46px] !w-full !resize-none !rounded-[var(--radius-xs)] !border-0 !bg-transparent px-1 py-1 text-[length:var(--text-conversation,16px)] leading-[1.55] text-[var(--text)] placeholder:text-[var(--faint)] focus-visible:!outline-none forced-colors:focus-visible:!outline-solid forced-colors:focus-visible:!outline-1 forced-colors:focus-visible:!outline-offset-0 forced-colors:focus-visible:!outline-[Highlight] max-[720px]:!max-h-[132px] max-[480px]:!max-h-[112px] max-[480px]:!min-h-10 max-[480px]:!px-0.5 max-[480px]:!py-0.5 "
           aria-activedescendant={activeCommandId}
           aria-autocomplete="list"
           aria-describedby={
             composerValidationError
-              ? controlId("chat-composer-validation")
-              : undefined
+              ? `${controlId("chat-composer-hint")} ${controlId("chat-composer-validation")}`
+              : controlId("chat-composer-hint")
           }
           aria-controls={
             commandMenuOpen
@@ -751,7 +760,7 @@ export function ChatComposer({
           aria-expanded={commandMenuOpen || reusableMenuOpen}
           aria-haspopup="listbox"
           aria-invalid={composerValidationError ? true : undefined}
-          aria-label="Message Doolittle"
+          aria-label={`Message ${bot?.name ?? "Doolittle"}`}
           id={controlId("chat-composer-input")}
           disabled={backend.phase !== "ready"}
           onChange={(event) => {
@@ -853,6 +862,7 @@ export function ChatComposer({
           </span>
           <details
             className="relative"
+            ref={toolsRef}
             onKeyDown={(event) => {
               if (event.key === "Escape") {
                 event.preventDefault();
@@ -870,6 +880,7 @@ export function ChatComposer({
             <div className="chat-composer-tool-menu absolute bottom-full left-0 z-30 mb-2 flex min-w-52 items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-raised)] p-2 shadow-[var(--shell-shadow-md)] [@container_session_(max-height:640px)]:static [@container_session_(max-height:640px)]:my-2 [@container_session_(max-height:640px)]:min-w-0 [@container_session_(max-height:640px)]:flex-wrap">
               <VoiceComposerButton
                 disabled={backend.phase !== "ready"}
+                presentationActive={approvalsVisible}
                 importAndTranscribe={importAndTranscribeRecording}
                 onTranscript={insertDictationTranscript}
               />
@@ -1018,7 +1029,10 @@ export function ChatComposer({
           </ElizaButton>
         </div>
       </div>
-      <small className="chat-composer-hint">
+      <small
+        className="chat-composer-hint"
+        id={controlId("chat-composer-hint")}
+      >
         {isCancellingActive
           ? "Stopping response"
           : activeRequest
@@ -1096,7 +1110,7 @@ export function ChatComposer({
                     ? "Measuring…"
                     : selectedUsageError
                       ? "Unavailable"
-                      : `0% · ${fileName(workspacePath)}`}
+                      : "Not measured"}
               </small>
             </span>
           </div>

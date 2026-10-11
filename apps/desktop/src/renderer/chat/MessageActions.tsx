@@ -136,10 +136,10 @@ export function MessageActions({
     onPromote,
   });
   return (
-    <div
+    <fieldset
       aria-label="Message actions"
       className="chat-message-actions pointer-coarse:pointer-events-auto pointer-coarse:translate-y-0 pointer-coarse:opacity-100 pointer-fine:pointer-events-none pointer-fine:translate-y-0.5 pointer-fine:opacity-0 pointer-fine:transition-[opacity,transform] pointer-fine:duration-150 pointer-fine:group-hover:pointer-events-auto pointer-fine:group-hover:translate-y-0 pointer-fine:group-hover:opacity-100 pointer-fine:focus-within:pointer-events-auto pointer-fine:focus-within:translate-y-0 pointer-fine:focus-within:opacity-100 static flex min-w-0 max-w-full flex-wrap items-center justify-end gap-0.5 motion-reduce:transition-none motion-reduce:transform-none"
-      role="toolbar"
+      style={{ margin: 0, padding: 0, border: 0 }}
     >
       <ElizaButton
         className={MESSAGE_ACTION_CLASS}
@@ -247,6 +247,6 @@ export function MessageActions({
         <UiIcon icon={copyState === "copied" ? Check : Copy} size="xs" />
         <span className="sr-only">{failed ? "Copy failed" : label}</span>
       </ElizaButton>
-    </div>
+    </fieldset>
   );
 }

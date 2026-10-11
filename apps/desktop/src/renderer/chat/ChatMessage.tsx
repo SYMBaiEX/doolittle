@@ -26,36 +26,66 @@ export function messageContentAfterReceipt(
   message: DisplayMessage,
   receipt?: RunReceipt,
 ): string {
+  if (message.role === "user") return message.content;
   const hasMutationFailure = UNFINISHED_MUTATION_FAILURE.test(message.content);
   UNFINISHED_MUTATION_FAILURE.lastIndex = 0;
-  let content = message.content.replace(
-    UNFINISHED_MUTATION_FAILURE,
-    "No verified file change was completed.",
-  );
+  let content = message.content;
   if (
     !message.error &&
     !hasMutationFailure &&
     receipt?.latest.run.status !== "error"
   )
     return content;
-  if (receipt?.latest.run.errorMessage) {
-    content = content.replace(receipt.latest.run.errorMessage, "");
-  }
-  if (receipt)
-    content = content.replace("No verified file change was completed.", "");
-  for (const pattern of FAILURE_BOILERPLATE)
-    content = content.replace(pattern, "");
-  return content.replace(/\s{2,}/gu, " ").trim();
+  let fence: { marker: string; length: number } | undefined;
+  content = content
+    .split("\n")
+    .map((line) => {
+      const marker = /^ {0,3}(`{3,}|~{3,})(.*)$/u.exec(line);
+      if (marker?.[1]) {
+        if (!fence) {
+          fence = { marker: marker[1][0] ?? "`", length: marker[1].length };
+        } else if (
+          marker[1][0] === fence.marker &&
+          marker[1].length >= fence.length &&
+          !marker[2]?.trim()
+        ) {
+          fence = undefined;
+        }
+        return line;
+      }
+      // Failure phrases can also appear in literal code or quoted test fixtures.
+      if (fence || /^(?: {4}|\t)/u.test(line)) return line;
+      let cleaned = line.replace(
+        UNFINISHED_MUTATION_FAILURE,
+        "No verified file change was completed.",
+      );
+      if (receipt?.latest.run.errorMessage) {
+        cleaned = cleaned.replace(receipt.latest.run.errorMessage, "");
+      }
+      if (receipt)
+        cleaned = cleaned.replace("No verified file change was completed.", "");
+      for (const pattern of FAILURE_BOILERPLATE)
+        cleaned = cleaned.replace(pattern, "");
+      return cleaned;
+    })
+    .join("\n");
+  // A partial response may contain useful code, lists or tables. Removing run
+  // boilerplate must never normalize the authored whitespace inside them.
+  return content
+    .replace(/^(?:[ \t]*\r?\n)+|(?:\r?\n[ \t]*)+$/gu, "")
+    .replace(/^[ \t]{1,3}(?=\S)|[ \t]+$/gu, "");
 }
 
 export function ChatMessage({
   message,
+  botName = "Doolittle",
   receipt,
   actions,
   retryDisabled,
   onRetry,
 }: {
   message: DisplayMessage;
+  botName?: string;
   receipt?: RunReceipt;
   actions: ReactNode;
   retryDisabled?: boolean;
@@ -83,20 +113,28 @@ export function ChatMessage({
             message.pending ||
             receipt.latest.run.localMutations.length > 0))),
   );
+  const messageState =
+    receipt?.latest.run.status === "cancelled"
+      ? "stopped"
+      : message.error || receipt?.latest.run.status === "error"
+        ? "error"
+        : receipt && receipt.latest.run.pendingApprovals > 0
+          ? "waiting"
+          : message.pending
+            ? "streaming"
+            : "complete";
   return (
     <article
       className={`chat-message group ${message.role} ${message.error && !showRunReceipt ? "error" : ""}`}
       data-message-role={message.role}
-      data-message-state={
-        message.pending ? "streaming" : message.error ? "error" : "complete"
-      }
+      data-message-state={messageState}
     >
       <div className="chat-message-label">
         <strong>
           <span aria-hidden="true" className="chat-message-avatar">
-            {message.role === "assistant" ? "D" : "Y"}
+            {message.role === "assistant" ? botName.slice(0, 1) : "Y"}
           </span>
-          <span>{message.role === "assistant" ? "Doolittle" : "You"}</span>
+          <span>{message.role === "assistant" ? botName : "You"}</span>
         </strong>
         <time dateTime={message.createdAt}>
           {displayTimestamp(message.createdAt)}
@@ -120,8 +158,29 @@ export function ChatMessage({
           />
         ) : message.pending && !receipt ? (
           <span aria-live="polite" className="thinking" role="status">
-            Doolittle is working
+            {botName} is working
           </span>
+        ) : null}
+        {message.error && !showRunReceipt ? (
+          <div className="chat-history-notice" role="alert">
+            <span>Response could not be completed.</span>
+            {onRetry ? (
+              <button
+                aria-label="Retry failed response in a new branch"
+                className="text-button"
+                disabled={retryDisabled}
+                onClick={onRetry}
+                type="button"
+              >
+                Retry
+              </button>
+            ) : null}
+          </div>
+        ) : !visibleContent &&
+          !message.pending &&
+          !showRunReceipt &&
+          message.role === "assistant" ? (
+          <p className="text-[var(--muted)]">No response text was returned.</p>
         ) : null}
         <MessageAttachmentList attachments={message.attachments} />
         {message.role === "user" && message.contextCapsule ? (

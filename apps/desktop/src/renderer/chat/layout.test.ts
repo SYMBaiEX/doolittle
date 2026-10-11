@@ -31,7 +31,7 @@ describe("chat layout", () => {
     const candidates = CHAT_WORKSPACE_CLASS.split(/\s+/u).filter((candidate) =>
       candidate.includes("\\_\\_"),
     );
-    expect(candidates).toHaveLength(23);
+    expect(candidates).toHaveLength(29);
     const css = compiler.build(candidates);
     for (const selector of [
       ".chat-message.user .message-content__response p",

@@ -1,10 +1,9 @@
-import { Button as ElizaButton } from "@elizaos/ui/components/ui/button";
+import { Button as ElizaButton, Input as ElizaInput } from "@doolittle/ui";
 import {
   Dialog,
   DialogContent,
   DialogTitle,
 } from "@elizaos/ui/components/ui/dialog";
-import { Input as ElizaInput } from "@elizaos/ui/components/ui/input";
 import { ScrollArea } from "@elizaos/ui/components/ui/scroll-area";
 import { BookOpen, Search, Settings2, X } from "lucide-react";
 import {
@@ -59,6 +58,10 @@ export function PromptLibrary({
   });
   const [open, setOpen] = useState(false);
   const [manageOpen, setManageOpen] = useState(false);
+  const scopeIdentity = `${namespace ?? "default"}:${activeProject?.id ?? "general"}`;
+  const menuOwner = useRef(scopeIdentity);
+  const showLibrary = open && menuOwner.current === scopeIdentity;
+  const showManager = manageOpen && menuOwner.current === scopeIdentity;
   const [query, setQuery] = useState("");
   const [title, setTitle] = useState("");
   const [scope, setScope] = useState<"general" | "project">(
@@ -70,12 +73,21 @@ export function PromptLibrary({
   const renameRef = useRef<HTMLInputElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useModalFocusBoundary({
-    active: open,
+    active: showLibrary,
     initialFocusSelector: '[aria-label="Saved prompt title"]',
     onClose: () => setOpen(false),
     restoreFocus: !restoreComposerOnClose,
     restoreFocusRef: triggerRef,
   });
+
+  useEffect(() => {
+    if (menuOwner.current === scopeIdentity) return;
+    setOpen(false);
+    setManageOpen(false);
+    setEditingId("");
+    setEditingTitle("");
+    setTitle("");
+  }, [scopeIdentity]);
 
   useEffect(() => {
     const storage = browserStorage();
@@ -246,10 +258,13 @@ export function PromptLibrary({
     <Fragment>
       <button
         aria-controls={controlId("chat-prompt-library")}
-        aria-expanded={open}
+        aria-expanded={showLibrary}
         aria-label="Open prompt library"
-        className="secondary-button !inline-flex !h-7.5 !min-h-7.5 !w-auto !flex-row !flex-nowrap !items-center !justify-center gap-1.25 !rounded-[7px] !border-transparent !bg-transparent !px-2 !py-0 text-[10px] font-semibold text-[var(--text-soft)] hover:!border-[var(--border)] hover:!bg-[var(--surface-soft)] hover:!text-[var(--text)] max-[480px]:!size-10 max-[480px]:!min-h-10 max-[480px]:!min-w-10 max-[480px]:!px-0"
-        onClick={() => setOpen((current) => !current)}
+        className="secondary-button !inline-flex !h-10 !min-h-10 !w-auto !flex-row !flex-nowrap !items-center !justify-center gap-1.25 !rounded-[7px] !border-transparent !bg-transparent !px-2 !py-0 text-[length:var(--text-control)] font-semibold text-[var(--text-soft)] hover:!border-[var(--border)] hover:!bg-[var(--surface-soft)] hover:!text-[var(--text)] max-[480px]:!size-10 max-[480px]:!min-h-10 max-[480px]:!min-w-10 max-[480px]:!px-0"
+        onClick={() => {
+          menuOwner.current = scopeIdentity;
+          setOpen((current) => !current);
+        }}
         ref={triggerRef}
         title="Prompt library ($)"
         type="button"
@@ -265,7 +280,7 @@ export function PromptLibrary({
           $
         </kbd>
       </button>
-      {open ? (
+      {showLibrary ? (
         <section
           aria-labelledby={controlId("chat-prompt-library-title")}
           className="chat-prompt-library absolute bottom-[calc(100%+10px)] left-0 z-60 grid max-h-[min(440px,62vh)] w-[min(380px,calc(100vw-32px))] gap-2 overflow-auto rounded-[var(--radius-md)] border border-[var(--border-strong)] bg-[color-mix(in_srgb,var(--surface-raised)_98%,var(--bg))] p-3 text-[var(--text-soft)] shadow-[var(--shell-shadow-lg)]"
@@ -290,7 +305,7 @@ export function PromptLibrary({
             </div>
             <div className="flex items-center gap-1">
               <ElizaButton
-                className="!min-h-7 gap-1.5 !rounded-[var(--radius-xs)] px-2 text-[length:var(--text-meta)]"
+                className="!min-h-10 gap-1.5 !rounded-[var(--radius-xs)] px-2 text-[length:var(--text-meta)]"
                 onClick={() => {
                   setOpen(false);
                   setManageOpen(true);
@@ -304,7 +319,7 @@ export function PromptLibrary({
               </ElizaButton>
               <ElizaButton
                 aria-label="Close prompt library"
-                className="!size-7 !min-h-7 !min-w-7 !rounded-[var(--radius-xs)] !p-0"
+                className="!size-10 !min-h-10 !min-w-10 !rounded-[var(--radius-xs)] !p-0"
                 onClick={() => {
                   setOpen(false);
                   requestAnimationFrame(() => triggerRef.current?.focus());
@@ -320,12 +335,12 @@ export function PromptLibrary({
           {activeProject ? (
             <fieldset
               aria-label="Prompt library scope"
-              className="flex gap-1 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-soft)] p-1"
+              className="flex gap-1 border-b border-[var(--border)] py-1"
             >
               <legend className="sr-only">Prompt library scope</legend>
               <button
                 aria-pressed={scope === "project"}
-                className="min-w-0 flex-1 truncate rounded-[var(--radius-xs)] border-0 bg-transparent px-2 py-1.5 text-[length:var(--text-meta)] text-[var(--muted)] aria-pressed:bg-[var(--surface-raised)] aria-pressed:text-[var(--text)]"
+                className="min-h-10 min-w-0 flex-1 truncate border-0 bg-transparent px-2 py-1.5 text-[length:var(--text-control)] text-[var(--muted)] aria-pressed:font-semibold aria-pressed:text-[var(--text)]"
                 onClick={() => setScope("project")}
                 type="button"
               >
@@ -333,7 +348,7 @@ export function PromptLibrary({
               </button>
               <button
                 aria-pressed={scope === "general"}
-                className="min-w-0 flex-1 truncate rounded-[var(--radius-xs)] border-0 bg-transparent px-2 py-1.5 text-[length:var(--text-meta)] text-[var(--muted)] aria-pressed:bg-[var(--surface-raised)] aria-pressed:text-[var(--text)]"
+                className="min-h-10 min-w-0 flex-1 truncate border-0 bg-transparent px-2 py-1.5 text-[length:var(--text-control)] text-[var(--muted)] aria-pressed:font-semibold aria-pressed:text-[var(--text)]"
                 onClick={() => setScope("general")}
                 type="button"
               >
@@ -344,14 +359,14 @@ export function PromptLibrary({
           <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-1.5">
             <ElizaInput
               aria-label="Saved prompt title"
-              className="!h-8 !min-h-8 !rounded-[var(--radius-sm)] !border-[var(--border)] !bg-[var(--surface-soft)] px-2 text-[11px]"
+              className="!h-10 !min-h-10 !rounded-[var(--radius-sm)] !border-[var(--border)] !bg-[var(--surface-soft)] px-2 text-[length:var(--text-control)]"
               maxLength={MAX_PROMPT_TITLE_LENGTH}
               onChange={(event) => setTitle(event.target.value)}
               placeholder="Title (optional)"
               value={title}
             />
             <ElizaButton
-              className="!h-8 !min-h-8 !rounded-[var(--radius-sm)] px-2.5 text-[10px] font-semibold"
+              className="!h-10 !min-h-10 !rounded-[var(--radius-sm)] px-2.5 text-[length:var(--text-control)] font-semibold"
               disabled={!draft.trim()}
               onClick={saveCurrent}
               size="sm"
@@ -387,12 +402,12 @@ export function PromptLibrary({
                     />
                   ) : (
                     <button
-                      className="grid min-w-0 gap-0.5 border-0 bg-transparent p-0 text-left"
+                      className="grid min-h-10 min-w-0 gap-0.5 border-0 bg-transparent p-0 text-left"
                       onClick={() => restore(entry)}
                       title={entry.content}
                       type="button"
                     >
-                      <strong className="truncate text-[11px] text-[var(--text)]">
+                      <strong className="truncate text-[length:var(--text-control)] text-[var(--text)]">
                         {entry.title}
                       </strong>
                       <small className="truncate text-[length:var(--text-meta)] text-[var(--muted)]">
@@ -403,7 +418,7 @@ export function PromptLibrary({
                   <span className="flex items-center gap-1">
                     <button
                       aria-label={`Rename ${entry.title}`}
-                      className="rounded-[var(--radius-xs)] px-1.5 py-1 text-[length:var(--text-meta)] text-[var(--muted)] hover:bg-[var(--surface-raised)] hover:text-[var(--text)]"
+                      className="min-h-10 rounded-[var(--radius-xs)] px-1.5 py-1 text-[length:var(--text-meta)] text-[var(--muted)] hover:bg-[var(--surface-raised)] hover:text-[var(--text)]"
                       onClick={() => beginRename(entry)}
                       type="button"
                     >
@@ -411,7 +426,7 @@ export function PromptLibrary({
                     </button>
                     <button
                       aria-label={`Delete ${entry.title}`}
-                      className="rounded-[var(--radius-xs)] px-1.5 py-1 text-[length:var(--text-meta)] text-[var(--bad)] hover:bg-[var(--surface-raised)]"
+                      className="min-h-10 rounded-[var(--radius-xs)] px-1.5 py-1 text-[length:var(--text-meta)] text-[var(--bad)] hover:bg-[var(--surface-raised)]"
                       onClick={() => remove(entry)}
                       type="button"
                     >
@@ -429,7 +444,7 @@ export function PromptLibrary({
           )}
         </section>
       ) : null}
-      <Dialog open={manageOpen} onOpenChange={setManageOpen}>
+      <Dialog open={showManager} onOpenChange={setManageOpen}>
         <DialogContent
           aria-describedby={controlId("prompt-library-manager-description")}
           className="!grid !max-h-[min(720px,calc(100svh-40px))] !w-[min(720px,calc(100vw-32px))] !max-w-none !grid-rows-[auto_auto_minmax(0,1fr)] !gap-3 !overflow-hidden !rounded-[var(--radius-lg)] !border-[var(--border-strong)] !bg-[var(--surface-raised)] !p-4 !shadow-[var(--shell-shadow-lg)]"
@@ -463,7 +478,7 @@ export function PromptLibrary({
             </div>
             <ElizaButton
               aria-label="Close prompt manager"
-              className="!size-8 !min-h-8 !min-w-8 !rounded-[var(--radius-xs)] !p-0"
+              className="!size-10 !min-h-10 !min-w-10 !rounded-[var(--radius-xs)] !p-0"
               onClick={() => setManageOpen(false)}
               size="icon-sm"
               type="button"
@@ -479,7 +494,7 @@ export function PromptLibrary({
             <UiIcon icon={Search} size="sm" />
             <ElizaInput
               aria-label="Search saved prompts"
-              className="!h-9 !min-h-9 !border-0 !bg-transparent !px-0 !shadow-none focus-visible:!ring-0"
+              className="!h-10 !min-h-10 !border-0 !bg-transparent !px-0 !shadow-none"
               id={controlId("prompt-library-manager-search")}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search saved prompts"
@@ -492,13 +507,13 @@ export function PromptLibrary({
               <ul className="grid gap-1.5 pr-3">
                 {managedEntries.map((entry) => (
                   <li
-                    className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-soft)] p-2.5"
+                    className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-[var(--border)] py-3 last:border-0 max-[480px]:grid-cols-1"
                     key={entry.id}
                   >
                     {editingId === entry.id ? (
                       <ElizaInput
                         aria-label={`Rename ${entry.title}`}
-                        className="!h-8 !min-h-8 !rounded-[var(--radius-xs)]"
+                        className="!h-10 !min-h-10 !rounded-[var(--radius-xs)]"
                         maxLength={MAX_PROMPT_TITLE_LENGTH}
                         onBlur={finishRename}
                         onChange={(event) =>
@@ -517,12 +532,12 @@ export function PromptLibrary({
                       />
                     ) : (
                       <button
-                        className="grid min-w-0 gap-1 border-0 bg-transparent p-0 text-left"
+                        className="grid min-h-10 min-w-0 gap-1 border-0 bg-transparent p-0 text-left"
                         onClick={() => restore(entry)}
                         type="button"
                       >
                         <span className="flex min-w-0 items-center gap-2">
-                          <strong className="truncate text-[11px] font-semibold text-[var(--text)]">
+                          <strong className="truncate text-[length:var(--text-control)] font-semibold text-[var(--text)]">
                             {entry.title}
                           </strong>
                           <small className="shrink-0 rounded border border-[var(--border)] bg-[var(--surface-raised)] px-1.5 py-0.5 font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--accent)]">
@@ -537,7 +552,7 @@ export function PromptLibrary({
                     <span className="flex items-center gap-1">
                       <ElizaButton
                         aria-label={`Rename ${entry.title}`}
-                        className="!min-h-7 !rounded-[var(--radius-xs)] px-2 text-[length:var(--text-meta)]"
+                        className="!min-h-10 !rounded-[var(--radius-xs)] px-2 text-[length:var(--text-meta)]"
                         onClick={() => beginRename(entry)}
                         size="sm"
                         type="button"
@@ -547,7 +562,7 @@ export function PromptLibrary({
                       </ElizaButton>
                       <ElizaButton
                         aria-label={`Delete ${entry.title}`}
-                        className="!min-h-7 !rounded-[var(--radius-xs)] px-2 text-[length:var(--text-meta)] text-[var(--bad)]"
+                        className="!min-h-10 !rounded-[var(--radius-xs)] px-2 text-[length:var(--text-meta)] text-[var(--bad)]"
                         onClick={() => remove(entry)}
                         size="sm"
                         type="button"
@@ -560,7 +575,7 @@ export function PromptLibrary({
                 ))}
               </ul>
             ) : (
-              <div className="grid min-h-40 place-items-center rounded-[var(--radius-md)] border border-dashed border-[var(--border)] text-center text-[11px] text-[var(--muted)]">
+              <div className="grid min-h-40 place-items-center rounded-[var(--radius-md)] border border-dashed border-[var(--border)] text-center text-[length:var(--text-control)] text-[var(--muted)]">
                 {entries.length
                   ? "No prompts match this search."
                   : "No saved prompts yet."}

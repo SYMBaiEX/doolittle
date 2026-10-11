@@ -218,13 +218,13 @@ export function SkillsPage({
       />
       <div
         aria-label="Skills views"
-        className="flex gap-[18px] overflow-x-auto border-b border-[var(--border)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="flex flex-wrap gap-2 border-b border-[var(--border)]"
         role="tablist"
       >
         <button
           aria-controls="skills-catalog-panel"
           aria-selected={section === "catalog"}
-          className={`relative flex min-h-[34px] shrink-0 items-center border-b-2 px-0 pt-[5px] pb-[7px] text-left ${section === "catalog" ? "border-[var(--accent)] text-[var(--text)]" : "border-transparent text-[var(--muted)] hover:text-[var(--text)]"}`}
+          className={`flex min-h-10 shrink-0 items-center rounded-md px-3 py-2 text-left text-[length:var(--text-control)] hover:bg-[var(--surface-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--focus-ring)] max-[760px]:min-h-11 ${section === "catalog" ? "font-semibold text-[var(--text)]" : "font-medium text-[var(--muted)] hover:text-[var(--text)]"}`}
           id="skills-catalog-tab"
           onClick={() => setSection("catalog")}
           onKeyDown={selectSectionWithKeyboard}
@@ -240,7 +240,7 @@ export function SkillsPage({
         <button
           aria-controls="skills-workshop-panel"
           aria-selected={section === "workshop"}
-          className={`relative flex min-h-[34px] shrink-0 items-center border-b-2 px-0 pt-[5px] pb-[7px] text-left ${section === "workshop" ? "border-[var(--accent)] text-[var(--text)]" : "border-transparent text-[var(--muted)] hover:text-[var(--text)]"}`}
+          className={`flex min-h-10 shrink-0 items-center rounded-md px-3 py-2 text-left text-[length:var(--text-control)] hover:bg-[var(--surface-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--focus-ring)] max-[760px]:min-h-11 ${section === "workshop" ? "font-semibold text-[var(--text)]" : "font-medium text-[var(--muted)] hover:text-[var(--text)]"}`}
           id="skills-workshop-tab"
           onClick={() => setSection("workshop")}
           onKeyDown={selectSectionWithKeyboard}

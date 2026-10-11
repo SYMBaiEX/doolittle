@@ -100,7 +100,7 @@ describe("VoiceComposerButton cancellation", () => {
         ?.click();
     });
     await act(async () => {
-      container
+      document.body
         .querySelector<HTMLButtonElement>(
           'button[aria-label="Start voice recording"]',
         )
@@ -108,7 +108,7 @@ describe("VoiceComposerButton cancellation", () => {
       await Promise.resolve();
     });
     await act(async () => {
-      container
+      document.body
         .querySelector<HTMLButtonElement>(
           'button[aria-label="Stop voice recording and transcribe"]',
         )
@@ -121,14 +121,19 @@ describe("VoiceComposerButton cancellation", () => {
     const signal = importAndTranscribe.mock.calls[0]?.[3];
     expect(signal).toBeInstanceOf(AbortSignal);
     expect(signal?.aborted).toBe(false);
-    return { onTranscript, result, signal: signal as AbortSignal };
+    return {
+      importAndTranscribe,
+      onTranscript,
+      result,
+      signal: signal as AbortSignal,
+    };
   }
 
   it("aborts an active transcription when the operator cancels", async () => {
     const pending = await beginPendingTranscription();
 
     await act(async () => {
-      container
+      document.body
         .querySelector<HTMLButtonElement>(
           'button[aria-label="Cancel voice dictation"]',
         )
@@ -145,7 +150,7 @@ describe("VoiceComposerButton cancellation", () => {
     const pending = await beginPendingTranscription();
 
     await act(async () => {
-      container
+      document.body
         .querySelector("fieldset")
         ?.dispatchEvent(
           new KeyboardEvent("keydown", { bubbles: true, key: "Escape" }),
@@ -162,6 +167,152 @@ describe("VoiceComposerButton cancellation", () => {
 
     expect(pending.signal.aborted).toBe(true);
     root = createRoot(container);
+  });
+
+  it("portals controls without requesting microphone access on disclosure", async () => {
+    await act(async () => {
+      root.render(
+        createElement(VoiceComposerButton, {
+          importAndTranscribe: vi.fn(),
+          onTranscript: vi.fn(),
+        }),
+      );
+    });
+    const trigger = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Open voice dictation"]',
+    );
+    await act(async () => trigger?.click());
+
+    const controls = document.body.querySelector("fieldset");
+    expect(controls).not.toBeNull();
+    expect(container.contains(controls)).toBe(false);
+    expect(navigator.mediaDevices.getUserMedia).not.toHaveBeenCalled();
+    expect(document.activeElement?.getAttribute("aria-label")).toBe(
+      "Start voice recording",
+    );
+
+    await act(async () => {
+      controls?.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, key: "Escape" }),
+      );
+    });
+    expect(document.body.querySelector("fieldset")).toBeNull();
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  it("hides inactive controls without aborting their owner transcription or stealing focus", async () => {
+    const pending = await beginPendingTranscription();
+    const nextComposer = document.createElement("textarea");
+    container.append(nextComposer);
+
+    await act(async () => {
+      root.render(
+        createElement(VoiceComposerButton, {
+          importAndTranscribe: pending.importAndTranscribe,
+          onTranscript: pending.onTranscript,
+          presentationActive: false,
+        }),
+      );
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(document.body.querySelector("fieldset")).toBeNull();
+    expect(document.activeElement).not.toBe(
+      container.querySelector('button[aria-label="Open voice dictation"]'),
+    );
+    expect(pending.signal.aborted).toBe(false);
+    nextComposer.focus();
+
+    pending.result.resolve({ transcriptText: "late transcript" });
+    await act(async () => Promise.resolve());
+    expect(pending.onTranscript).toHaveBeenCalledWith("late transcript");
+    expect(document.activeElement).toBe(nextComposer);
+
+    await act(async () => {
+      root.render(
+        createElement(VoiceComposerButton, {
+          importAndTranscribe: pending.importAndTranscribe,
+          onTranscript: pending.onTranscript,
+          presentationActive: true,
+        }),
+      );
+    });
+    expect(document.body.querySelector("fieldset")).toBeNull();
+  });
+
+  it("removes portaled controls when the surrounding tools disclosure closes", async () => {
+    await act(async () => {
+      root.render(
+        createElement(
+          "details",
+          { open: true },
+          createElement("summary", null, "More composer tools"),
+          createElement(VoiceComposerButton, {
+            importAndTranscribe: vi.fn(),
+            onTranscript: vi.fn(),
+          }),
+        ),
+      );
+    });
+    await act(async () => {
+      container
+        .querySelector<HTMLButtonElement>(
+          'button[aria-label="Open voice dictation"]',
+        )
+        ?.click();
+    });
+    expect(document.body.querySelector("fieldset")).not.toBeNull();
+    await act(async () => {
+      const tools = container.querySelector("details");
+      if (tools) {
+        tools.open = false;
+        tools.dispatchEvent(new Event("toggle"));
+      }
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(document.body.querySelector("fieldset")).toBeNull();
+    expect(document.activeElement).not.toBe(
+      container.querySelector('button[aria-label="Open voice dictation"]'),
+    );
+    expect(navigator.mediaDevices.getUserMedia).not.toHaveBeenCalled();
+  });
+
+  it("outside focus dismisses only the disclosure and reopens the existing transcription", async () => {
+    const pending = await beginPendingTranscription();
+    const nextComposer = document.createElement("textarea");
+    container.append(nextComposer);
+    await act(async () => nextComposer.focus());
+
+    expect(document.body.querySelector("fieldset")).toBeNull();
+    expect(pending.signal.aborted).toBe(false);
+    expect(document.activeElement).toBe(nextComposer);
+
+    await act(async () => {
+      container
+        .querySelector<HTMLButtonElement>(
+          'button[aria-label="Open voice dictation"]',
+        )
+        ?.click();
+    });
+    expect(document.body.querySelector('[role="status"]')?.textContent).toBe(
+      "Transcribing locally managed audio…",
+    );
+    expect(
+      document.body.querySelector<HTMLButtonElement>(
+        'button[aria-label="Start voice recording"]',
+      )?.disabled,
+    ).toBe(true);
+    expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledOnce();
+    pending.result.resolve({ transcriptText: "late transcript" });
+    await act(async () => Promise.resolve());
+    expect(pending.onTranscript).toHaveBeenCalledWith("late transcript");
   });
 
   it("accepts transcription results after the StrictMode effect replay", async () => {
@@ -190,7 +341,7 @@ describe("VoiceComposerButton cancellation", () => {
       await Promise.resolve();
     });
     await act(async () => {
-      container
+      document.body
         .querySelector<HTMLButtonElement>(
           'button[aria-label="Start voice recording"]',
         )
@@ -198,7 +349,7 @@ describe("VoiceComposerButton cancellation", () => {
       await Promise.resolve();
     });
     await act(async () => {
-      container
+      document.body
         .querySelector<HTMLButtonElement>(
           'button[aria-label="Stop voice recording and transcribe"]',
         )

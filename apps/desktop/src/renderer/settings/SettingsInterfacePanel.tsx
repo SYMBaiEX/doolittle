@@ -1,7 +1,7 @@
 import type { UiConversation } from "@doolittle/contracts/ui-host";
 import type { UiPluginCapability } from "@doolittle/contracts/ui-plugin";
 import { Button, StateSurface } from "@doolittle/ui";
-import { useEffect, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type {
   InstalledUiInterface,
   UiInterfaceState,
@@ -27,60 +27,127 @@ export function SettingsInterfacePanel() {
   const [targets, setTargets] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [snapshotReady, setSnapshotReady] = useState(false);
+  const [loadRevision, setLoadRevision] = useState(0);
+  const inFlightRef = useRef(false);
+  const mountedRef = useRef(true);
+  const stateRevisionRef = useRef(0);
+  const snapshotRevisionRef = useRef(0);
+  const selectionRef = useRef(selected);
+  selectionRef.current = selected;
+  const permissionDescriptionId = useId();
+  const permissionHeadingRef = useRef<HTMLHeadingElement>(null);
+  const interfaceHeadingRef = useRef<HTMLHeadingElement>(null);
+  const permissionTriggerRef = useRef<HTMLButtonElement | null>(null);
+  useEffect(() => {
+    if (selected) permissionHeadingRef.current?.focus();
+    else if (permissionTriggerRef.current) {
+      const trigger = permissionTriggerRef.current;
+      if (!trigger.disabled && trigger.isConnected) trigger.focus();
+      else interfaceHeadingRef.current?.focus();
+    }
+  }, [selected]);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: explicit retry revision reloads host-owned state.
   useEffect(() => {
     if (!bridge) return;
     let disposed = false;
+    mountedRef.current = true;
     let observed = false;
     const detach = bridge.onState((next) => {
       observed = true;
-      if (!disposed) setState(next);
+      stateRevisionRef.current += 1;
+      if (!disposed) {
+        setState(next);
+        setError((current) =>
+          current === "Interface settings could not be loaded." ? "" : current,
+        );
+        const pending = selectionRef.current;
+        if (
+          pending &&
+          (next.safeMode ||
+            !next.installed.some(
+              (item) => item.identity.digest === pending.identity.digest,
+            ))
+        ) {
+          snapshotRevisionRef.current += 1;
+          setSelected(undefined);
+          setSnapshotReady(false);
+          setCapabilities([]);
+          setTargets([]);
+        }
+      }
     });
     void bridge
       .getState()
       .then((next) => {
-        if (!disposed && !observed) setState(next);
+        if (!disposed && !observed) {
+          setState(next);
+          setError("");
+        }
       })
       .catch(() => {
-        if (!disposed) setError("Interface settings could not be loaded.");
+        if (!disposed && !observed)
+          setError("Interface settings could not be loaded.");
       });
     return () => {
       disposed = true;
+      mountedRef.current = false;
+      snapshotRevisionRef.current += 1;
       detach();
     };
-  }, [bridge]);
+  }, [bridge, loadRevision]);
   const operate = async (operation: () => Promise<UiInterfaceState>) => {
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
     setBusy(true);
     setError("");
+    const revision = stateRevisionRef.current;
     try {
-      setState(await operation());
+      const next = await operation();
+      if (!mountedRef.current) return;
+      if (revision === stateRevisionRef.current) setState(next);
+      setSelected(undefined);
+      setSnapshotReady(false);
     } catch {
-      setError(
-        "The operation could not be completed. No new interface access was granted. Check the native Interface menu for recovery.",
-      );
+      if (mountedRef.current)
+        setError(
+          "The operation could not be confirmed. Check the native Interface menu for the current state and recovery options.",
+        );
     } finally {
-      setBusy(false);
+      inFlightRef.current = false;
+      if (mountedRef.current) setBusy(false);
     }
   };
   const choose = async (item: InstalledUiInterface) => {
-    if (!bridge) return;
+    if (!bridge || inFlightRef.current || state?.safeMode) return;
     if (item.trustTier === "trusted-react") {
       void operate(() => bridge.activate({ identity: item.identity }));
       return;
     }
+    selectionRef.current = item;
     setSelected(item);
     setCapabilities([]);
     setTargets([]);
     setConversations([]);
     setError("");
+    setSnapshotReady(false);
+    inFlightRef.current = true;
+    const revision = ++snapshotRevisionRef.current;
     setBusy(true);
     try {
-      setConversations((await bridge.getSnapshot()).conversations);
+      const snapshot = await bridge.getSnapshot();
+      if (!mountedRef.current || revision !== snapshotRevisionRef.current)
+        return;
+      setConversations(snapshot.conversations);
+      setSnapshotReady(true);
     } catch {
-      setError(
-        "Conversations could not be loaded. Access cannot be granted until ownership is available.",
-      );
+      if (mountedRef.current && revision === snapshotRevisionRef.current)
+        setError(
+          "Conversations could not be loaded. Access cannot be granted until ownership is available.",
+        );
     } finally {
-      setBusy(false);
+      inFlightRef.current = false;
+      if (mountedRef.current) setBusy(false);
     }
   };
   if (!bridge)
@@ -90,9 +157,19 @@ export function SettingsInterfacePanel() {
       </StateSurface>
     );
   return (
-    <section className="grid min-w-0 gap-6" aria-label="Application interfaces">
+    <section
+      className="settings-group dl-settings-group"
+      aria-label="Application interfaces"
+      aria-busy={busy}
+    >
       <header className="grid gap-2">
-        <h2 className="m-0 text-base font-semibold">Your interface</h2>
+        <h2
+          className="m-0 text-base font-semibold"
+          ref={interfaceHeadingRef}
+          tabIndex={-1}
+        >
+          Your interface
+        </h2>
         <p className="m-0 max-w-170 text-sm leading-relaxed text-[var(--muted)]">
           Companion and Canvas share the same conversations and capabilities.
           Choose them in Appearance. Optional interface packages change the
@@ -125,9 +202,23 @@ export function SettingsInterfacePanel() {
           </p>
         ) : null}
         {error ? (
-          <p role="alert" className="m-0 text-sm text-[var(--bad)]">
-            {error}
-          </p>
+          <div className="grid gap-2">
+            <p role="alert" className="m-0 text-sm text-[var(--bad)]">
+              {error}
+            </p>
+            {!state ? (
+              <Button
+                variant="ghost"
+                disabled={busy}
+                onClick={() => {
+                  setError("");
+                  setLoadRevision((revision) => revision + 1);
+                }}
+              >
+                Retry interface settings
+              </Button>
+            ) : null}
+          </div>
         ) : null}
       </header>
       {!state && !error ? (
@@ -153,6 +244,9 @@ export function SettingsInterfacePanel() {
                     {item.identity.pluginVersion}
                   </span>
                 </h3>
+                {state.active?.identity.digest === item.identity.digest ? (
+                  <span className="settings-status-note">Currently active</span>
+                ) : null}
                 <p className="my-1 text-sm text-[var(--muted)]">
                   {item.trustTier === "trusted-react"
                     ? "Full application trust · not sandboxed"
@@ -169,7 +263,15 @@ export function SettingsInterfacePanel() {
                 <Button
                   variant="outline"
                   disabled={busy || state.safeMode}
-                  onClick={() => void choose(item)}
+                  title={
+                    state.safeMode
+                      ? "Restart without safe mode to use optional interfaces"
+                      : undefined
+                  }
+                  onClick={(event) => {
+                    permissionTriggerRef.current = event.currentTarget;
+                    void choose(item);
+                  }}
                 >
                   Use interface
                 </Button>
@@ -192,6 +294,17 @@ export function SettingsInterfacePanel() {
           className="grid gap-4 border-t border-[var(--border)] pt-4"
           onSubmit={(event) => {
             event.preventDefault();
+            if (
+              inFlightRef.current ||
+              !snapshotReady ||
+              state?.safeMode ||
+              !capabilities.length ||
+              !targets.length ||
+              !state?.installed.some(
+                (item) => item.identity.digest === selected.identity.digest,
+              )
+            )
+              return;
             const ownedTargets = conversations
               .filter((item) => targets.includes(keyFor(item)))
               .map(({ botId, sessionId, projectId }) => ({
@@ -207,16 +320,34 @@ export function SettingsInterfacePanel() {
               }),
             );
           }}
+          aria-describedby={permissionDescriptionId}
         >
-          <h3 className="m-0 text-base font-semibold">
+          <h3
+            className="m-0 text-base font-semibold"
+            ref={permissionHeadingRef}
+            tabIndex={-1}
+          >
             Allow {selected.name} to use…
           </h3>
-          <p className="m-0 text-sm leading-relaxed text-[var(--muted)]">
+          <p
+            id={permissionDescriptionId}
+            className="m-0 text-sm leading-relaxed text-[var(--muted)]"
+          >
             Sending permission lets this interface initiate agent actions
             without asking each time. Select only the access and conversations
             you want to share. No future conversations or background commands
             are included. Final approval is shown by the native application.
           </p>
+          {busy && !snapshotReady ? (
+            <p className="settings-status-note" role="status">
+              Loading owned conversations…
+            </p>
+          ) : null}
+          {!busy && !snapshotReady ? (
+            <Button variant="ghost" onClick={() => void choose(selected)}>
+              Retry conversation access
+            </Button>
+          ) : null}
           <fieldset className="m-0 grid gap-1 border-0 p-0">
             <legend className="mb-2 text-sm font-semibold">Capabilities</legend>
             {selected.requestedCapabilities.map((capability) => (
@@ -269,17 +400,30 @@ export function SettingsInterfacePanel() {
                 </span>
               </label>
             ))}
-            {!busy && !conversations.length ? (
+            {!busy && snapshotReady && !conversations.length ? (
               <p className="text-sm text-[var(--muted)]">
                 Create a conversation first. Interfaces cannot receive a
                 wildcard grant.
               </p>
             ) : null}
           </fieldset>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button
               type="submit"
-              disabled={busy || !capabilities.length || !targets.length}
+              disabled={
+                busy ||
+                !snapshotReady ||
+                Boolean(state?.safeMode) ||
+                !capabilities.length ||
+                !targets.length
+              }
+              title={
+                !snapshotReady
+                  ? "Load owned conversations before reviewing access"
+                  : !capabilities.length || !targets.length
+                    ? "Choose at least one capability and one conversation"
+                    : undefined
+              }
             >
               Review native approval
             </Button>

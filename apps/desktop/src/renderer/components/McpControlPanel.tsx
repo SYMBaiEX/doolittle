@@ -285,7 +285,7 @@ export function McpControlPanel({ active }: { active: boolean }) {
                       key={server.name}
                     >
                       <div className="flex items-center justify-between gap-2">
-                        <code className="overflow-hidden text-ellipsis text-[11px] text-[var(--accent)]">
+                        <code className="overflow-hidden text-ellipsis text-[length:var(--text-control)] text-[var(--accent)]">
                           {server.name}
                         </code>
                         <Badge
@@ -294,12 +294,12 @@ export function McpControlPanel({ active }: { active: boolean }) {
                           {server.status}
                         </Badge>
                       </div>
-                      <span className="text-[11px] leading-[1.45] text-[var(--text-soft)]">
+                      <span className="text-[length:var(--text-control)] leading-[1.45] text-[var(--text-soft)]">
                         {server.toolCount} tools · {server.resourceCount}{" "}
                         resources · {server.resourceTemplateCount} templates
                       </span>
                       {server.error ? (
-                        <small className="text-[11px] leading-[1.45] text-[var(--danger)]">
+                        <small className="text-[length:var(--text-control)] leading-[1.45] text-[var(--danger)]">
                           {server.error}
                         </small>
                       ) : null}

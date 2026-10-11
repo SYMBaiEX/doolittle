@@ -183,6 +183,101 @@ describe("DesktopSidebar companion navigation", () => {
     expect(scrim?.getAttribute("aria-hidden")).toBe("true");
   });
 
+  it("keeps collapsed destinations identifiable and selectable without card highlights", () => {
+    act(() => root.render(<DesktopSidebar {...props} navCollapsed />));
+    const utilities = [
+      ...container.querySelectorAll<HTMLButtonElement>(
+        'nav[aria-label="Other areas"] button',
+      ),
+    ];
+    expect(utilities).toHaveLength(2);
+    for (const button of utilities) {
+      expect(button.querySelector("svg")).not.toBeNull();
+      expect(button.title).toBeTruthy();
+      expect(button.className).not.toContain("aria-current:bg");
+    }
+    act(() => utilities[0]?.click());
+    expect(props.onSetView).toHaveBeenCalledWith("orchestration");
+    expect(container.querySelector(".dl-contact-copy")?.className).toBe(
+      "dl-contact-copy",
+    );
+    expect(
+      container.querySelector('[aria-label="Recent conversations"]'),
+    ).toBeNull();
+  });
+
+  it("makes hidden mobile navigation inert and closes it from its named action", () => {
+    act(() => root.render(<DesktopSidebar {...props} isMobileSidebarMode />));
+    expect(container.querySelector("aside")?.hasAttribute("inert")).toBe(true);
+    act(() =>
+      root.render(
+        <DesktopSidebar {...props} isMobileSidebarMode mobileSidebarOpen />,
+      ),
+    );
+    expect(container.querySelector("aside")?.hasAttribute("inert")).toBe(false);
+    act(() =>
+      container
+        .querySelector<HTMLButtonElement>('[aria-label="Close navigation"]')
+        ?.click(),
+    );
+    expect(props.onClose).toHaveBeenCalledOnce();
+    expect(props.onToggleNavigation).not.toHaveBeenCalled();
+  });
+
+  it("retains the last bot catalog with an actionable refresh error", () => {
+    act(() =>
+      root.render(
+        <DesktopSidebar
+          {...props}
+          botStatus="error"
+          botError="Refresh failed"
+        />,
+      ),
+    );
+    expect(container.textContent).toContain("Showing the last catalog");
+    expect(container.querySelectorAll(".dl-contact")).toHaveLength(2);
+    const retry = [
+      ...container.querySelectorAll<HTMLButtonElement>("button"),
+    ].find((button) => button.textContent === "Retry");
+    act(() => retry?.click());
+    expect(props.onRetryBots).toHaveBeenCalledOnce();
+    const recent = container.querySelector(
+      '[aria-label="Recent conversations"]',
+    );
+    expect(recent?.className).not.toContain("border-l");
+    const current = recent?.querySelector('[aria-current="page"]');
+    expect(current?.className).toContain("aria-current:font-semibold");
+    expect(current?.className).not.toContain("aria-current:bg");
+  });
+
+  it("keeps an older current conversation visible without exceeding eight recent rows", () => {
+    const seed = props.sessions[1];
+    if (!seed) throw new Error("Missing research conversation fixture");
+    const history = Array.from({ length: 10 }, (_, index) => ({
+      ...seed,
+      sessionId: `thread-${index}`,
+      title: `Thread ${index}`,
+      startedAt: `2026-01-${String(index + 1).padStart(2, "0")}`,
+    }));
+    act(() =>
+      root.render(
+        <DesktopSidebar
+          {...props}
+          sessions={history}
+          selectedSession="thread-0"
+        />,
+      ),
+    );
+    const recent = container.querySelector(
+      '[aria-label="Recent conversations"]',
+    );
+    expect(recent?.querySelectorAll("button[title^='Thread']")).toHaveLength(8);
+    expect(recent?.querySelector('[aria-current="page"]')?.textContent).toBe(
+      "Thread 0",
+    );
+    expect(recent?.textContent).toContain("Thread 9");
+  });
+
   it("opens bot actions without selecting another bot and routes management through the host", async () => {
     act(() => root.render(<DesktopSidebar {...props} />));
     const research = [

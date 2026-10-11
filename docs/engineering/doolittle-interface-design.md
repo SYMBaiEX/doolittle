@@ -14,6 +14,13 @@ width defaults to 760px, navigation to 248px and inspector to 320px. Compact
 density reduces chrome without reducing transcript legibility. No decorative
 gradients, glow, textures, or cards around ordinary lists.
 
+Persistent selection is text-led and semantic: no side-card fill, selection
+stripe, category dot, tab capsule or tab underline. Use text weight and
+`aria-current`/`aria-selected`; retain transient hover, visible keyboard focus
+and genuine checked/pressed state. Do not tint a surrounding card because a
+child control has focus. Native checkbox/radio/range/file/color controls must
+not inherit text-field geometry.
+
 Floating controls use a thin neutral material edge and restrained depth: composer
 corners are at least 20px, floating menus at least 16px, and user messages use
 asymmetric rounded bubbles. Send is circular; text retains the existing reading
@@ -63,8 +70,8 @@ reduced transparency and forced colors have static/readable alternatives.
   Its immutable bot/conversation/workspace origin must not follow ambient focus.
 - Settings has seven flat icon-led categories: General, Models & accounts,
   Tools & extensions, Memory & identity, Execution, System and Help. A fixed
-  204px menu never collapses or changes width with selection; a quiet current
-  marker replaces route stripes. Search opens retained subsections directly.
+  204px menu never collapses or changes width with selection; text weight and
+  current-page semantics identify selection. Search opens retained subsections directly.
   Contextual tabs group larger tools without loading unrelated resources.
   General combines appearance, density, themes, background behavior and updates
   into compact labeled rows; interface extensions remain a contextual tab.

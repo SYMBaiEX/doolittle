@@ -6,6 +6,8 @@ import { describe, expect, it } from "vitest";
 const RENDERER_ROOT = fileURLToPath(new URL(".", import.meta.url));
 const REPOSITORY_ROOT = fileURLToPath(new URL("../../../../", import.meta.url));
 const OFFICIAL_STYLE_FILES = [
+  // The renderer imports this shared package through eliza-tailwind.css.
+  join(REPOSITORY_ROOT, "packages/ui/src/styles.css"),
   join(REPOSITORY_ROOT, "node_modules/@elizaos/ui/styles/base.css"),
   join(REPOSITORY_ROOT, "node_modules/@elizaos/ui/styles/tailwind-theme.css"),
 ];
@@ -14,6 +16,9 @@ const VARIABLE_DECLARATION = /(?:["']|[\s[,])(--[A-Za-z0-9_-]+)(?:["'])?\s*:/g;
 // ElizaOS PopoverContent uses this Radix sizing value at runtime for collision-aware placement.
 const SDK_RUNTIME_CUSTOM_PROPERTIES = new Set([
   "--radix-popover-content-available-height",
+  "--radix-dropdown-menu-content-available-height",
+  "--radix-dropdown-menu-content-transform-origin",
+  "--radix-select-content-available-height",
 ]);
 
 function rendererSources(directory: string): string[] {

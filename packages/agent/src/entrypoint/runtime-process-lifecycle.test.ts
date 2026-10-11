@@ -8,6 +8,82 @@ vi.mock("@/runtime/bootstrap/runtime/initialization", () => ({
 import { installRuntimeProcessLifecycle } from "./runtime-process-lifecycle";
 
 describe("installRuntimeProcessLifecycle", () => {
+  it("hands desktop host loss to SDK shutdown and adapter closure exactly once", async () => {
+    const signalHost = Object.assign(new EventEmitter(), { connected: true });
+    const shutdownRuntime = vi.fn(async () => {});
+    const onExit = vi.fn();
+    const lifecycle = installRuntimeProcessLifecycle({
+      runtime: {} as never,
+      label: "Desktop API",
+      signalHost,
+      watchHostDisconnect: true,
+      shutdownRuntime,
+      onExit,
+    });
+    signalHost.emit("disconnect");
+    signalHost.emit("SIGTERM");
+    await lifecycle.shutdown("disconnect");
+    expect(shutdownRuntime).toHaveBeenCalledOnce();
+    expect(shutdownRuntime).toHaveBeenCalledWith(
+      expect.anything(),
+      "Desktop API received host IPC disconnect",
+      undefined,
+      { fast: true },
+    );
+    expect(onExit).toHaveBeenCalledWith(1);
+    expect(signalHost.listenerCount("disconnect")).toBe(0);
+  });
+
+  it("stops a desktop child whose parent disconnected during bootstrap", async () => {
+    const signalHost = Object.assign(new EventEmitter(), { connected: false });
+    const shutdownRuntime = vi.fn(async () => {});
+    const onExit = vi.fn();
+    const lifecycle = installRuntimeProcessLifecycle({
+      runtime: {} as never,
+      label: "Desktop API",
+      signalHost,
+      watchHostDisconnect: true,
+      shutdownRuntime,
+      onExit,
+    });
+    await lifecycle.shutdown("disconnect");
+    expect(shutdownRuntime).toHaveBeenCalledOnce();
+    expect(onExit).toHaveBeenCalledWith(1);
+  });
+
+  it("does not stop a standalone API on disconnect, and preserves normal desktop SIGTERM", async () => {
+    const standaloneHost = new EventEmitter();
+    const standaloneShutdown = vi.fn(async () => {});
+    const standalone = installRuntimeProcessLifecycle({
+      runtime: {} as never,
+      label: "Standalone API",
+      signalHost: standaloneHost,
+      watchHostDisconnect: false,
+      shutdownRuntime: standaloneShutdown,
+      onExit: vi.fn(),
+    });
+    standaloneHost.emit("disconnect");
+    expect(standaloneShutdown).not.toHaveBeenCalled();
+    standalone.dispose();
+
+    const desktopHost = new EventEmitter();
+    const onExit = vi.fn();
+    const desktopShutdown = vi.fn(async () => {});
+    const desktop = installRuntimeProcessLifecycle({
+      runtime: {} as never,
+      label: "Desktop API",
+      signalHost: desktopHost,
+      watchHostDisconnect: true,
+      shutdownRuntime: desktopShutdown,
+      onExit,
+    });
+    desktopHost.emit("SIGTERM");
+    desktopHost.emit("disconnect");
+    await desktop.shutdown("SIGTERM");
+    expect(desktopShutdown).toHaveBeenCalledOnce();
+    expect(onExit).toHaveBeenCalledWith(0);
+  });
+
   it.each(["SIGINT", "SIGTERM"] as const)(
     "drains the owned endpoint before runtime shutdown for %s",
     async (signal) => {

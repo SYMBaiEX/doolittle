@@ -4,8 +4,11 @@ import {
   MoreHorizontal,
   PanelLeftClose,
   PanelLeftOpen,
+  Plug,
   Plus,
   Search,
+  Users,
+  X,
 } from "lucide-react";
 import type { KeyboardEvent as ReactKeyboardEvent, RefObject } from "react";
 import type {
@@ -76,7 +79,7 @@ function botRunState(bot: BotSummary) {
 }
 
 const ROW_MENU_TRIGGER_CLASS =
-  "grid size-10 shrink-0 place-items-center rounded-[var(--radius-md)] text-[var(--muted)] hover:bg-[var(--surface-hover)] focus-visible:bg-[var(--surface-hover)] max-[760px]:size-11 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100";
+  "grid size-10 shrink-0 place-items-center rounded-[var(--radius-md)] text-[var(--muted)] hover:bg-[var(--surface-hover)] focus-visible:bg-[var(--surface-hover)] max-[760px]:size-11 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 pointer-coarse:opacity-100";
 
 export function DesktopSidebar({
   isMobileSidebarMode,
@@ -107,14 +110,22 @@ export function DesktopSidebar({
   navigationView,
 }: DesktopSidebarProps) {
   const compact = navCollapsed && !isMobileSidebarMode;
-  const selectedBotSessions = [...sessions]
+  const botSessions = [...sessions]
     .filter((session) => (session.botId ?? defaultBotId) === selectedBotId)
     .sort((left, right) =>
       (right.endedAt ?? right.startedAt ?? "").localeCompare(
         left.endedAt ?? left.startedAt ?? "",
       ),
-    )
-    .slice(0, 8);
+    );
+  const selectedBotSessions = botSessions.slice(0, 8);
+  const currentSession = botSessions.find(
+    (session) => session.sessionId === selectedSession,
+  );
+  // Keep an older opened conversation discoverable without widening the
+  // compact recent list or changing the bot/session ownership filter.
+  if (currentSession && !selectedBotSessions.includes(currentSession)) {
+    selectedBotSessions.splice(7, 1, currentSession);
+  }
 
   return (
     <>
@@ -133,6 +144,7 @@ export function DesktopSidebar({
         aria-hidden={
           isMobileSidebarMode && !mobileSidebarOpen ? true : undefined
         }
+        inert={isMobileSidebarMode && !mobileSidebarOpen}
         aria-label="Navigation and bots"
         className={`${APP_SIDEBAR_CLASS}${platform === "darwin" ? ` ${APP_SIDEBAR_DARWIN_CLASS}` : ""} ${isMobileSidebarMode ? `${APP_SIDEBAR_MOBILE_CLASS} ${mobileSidebarOpen ? APP_SIDEBAR_MOBILE_OPEN_CLASS : APP_SIDEBAR_MOBILE_CLOSED_CLASS}` : APP_SIDEBAR_DESKTOP_CLASS}${compact ? ` ${APP_SIDEBAR_COLLAPSED_CLASS}` : ""}`}
         onKeyDown={onSidebarKeyDown}
@@ -149,7 +161,9 @@ export function DesktopSidebar({
             value={sidebarWidth}
           />
         ) : null}
-        <div className="flex h-14 shrink-0 items-center gap-2 px-2 [-webkit-app-region:no-drag]">
+        <div
+          className={`flex min-h-14 shrink-0 items-center gap-2 px-2 [-webkit-app-region:no-drag] ${compact ? "flex-col px-0 py-2" : ""}`}
+        >
           <button
             aria-label="Doolittle home"
             className="grid size-8 place-items-center rounded-[var(--radius-md)] bg-[var(--accent)] font-semibold text-[var(--accent-ink)]"
@@ -164,28 +178,51 @@ export function DesktopSidebar({
             </strong>
           ) : null}
           <button
-            aria-label={compact ? "Expand navigation" : "Collapse navigation"}
+            aria-label={
+              isMobileSidebarMode
+                ? "Close navigation"
+                : compact
+                  ? "Expand navigation"
+                  : "Collapse navigation"
+            }
             className="grid size-10 place-items-center rounded-[var(--radius-md)] text-[var(--muted)] hover:bg-[var(--surface-hover)]"
-            onClick={onToggleNavigation}
+            onClick={isMobileSidebarMode ? onClose : onToggleNavigation}
             type="button"
           >
-            <UiIcon icon={compact ? PanelLeftOpen : PanelLeftClose} size="sm" />
+            <UiIcon
+              icon={
+                isMobileSidebarMode
+                  ? X
+                  : compact
+                    ? PanelLeftOpen
+                    : PanelLeftClose
+              }
+              size="sm"
+            />
           </button>
         </div>
         <div className="grid shrink-0 gap-1 px-1 pb-3 [-webkit-app-region:no-drag]">
           <button
-            className="flex min-h-10 items-center gap-2 rounded-[var(--radius-md)] px-2 text-left text-sm hover:bg-[var(--surface-hover)] max-[760px]:min-h-11"
+            className={`flex min-h-10 items-center gap-2 rounded-[var(--radius-md)] px-2 text-left text-sm hover:bg-[var(--surface-hover)] max-[760px]:min-h-11 ${compact ? "justify-center" : ""}`}
             onClick={onOpenPalette}
+            title={compact ? "Search" : undefined}
             type="button"
           >
             <UiIcon icon={Search} size="sm" />
             <span className={compact ? "sr-only" : ""}>Search</span>
           </button>
           <button
-            className="flex min-h-10 items-center gap-2 rounded-[var(--radius-md)] px-2 text-left text-sm hover:bg-[var(--surface-hover)] max-[760px]:min-h-11"
+            className={`flex min-h-10 items-center gap-2 rounded-[var(--radius-md)] px-2 text-left text-sm hover:bg-[var(--surface-hover)] disabled:cursor-default disabled:opacity-50 max-[760px]:min-h-11 ${compact ? "justify-center" : ""}`}
             disabled={!selectedBotId}
             onClick={() => onStartConversation(projectScope)}
             type="button"
+            title={
+              !selectedBotId
+                ? "Choose a bot to start a conversation"
+                : compact
+                  ? "New conversation"
+                  : undefined
+            }
           >
             <UiIcon icon={Plus} size="sm" />
             <span className={compact ? "sr-only" : ""}>New conversation</span>
@@ -193,14 +230,38 @@ export function DesktopSidebar({
         </div>
         <nav
           aria-label="Bots and conversations"
-          className="min-h-0 flex-1 overflow-y-auto overscroll-contain [-webkit-app-region:no-drag]"
+          className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-3 [-webkit-app-region:no-drag]"
         >
           {!compact ? (
             <h2 className="px-3 pb-1 text-xs font-medium text-[var(--muted)]">
               Bots
             </h2>
           ) : null}
-          {botStatus === "loading" || botStatus === "disabled" ? (
+          {botStatus === "refreshing" ||
+          (botStatus === "error" && bots.length > 0) ||
+          (botStatus === "disabled" && bots.length > 0) ? (
+            <div
+              className="px-3 py-2 text-xs leading-5 text-[var(--muted)]"
+              role="status"
+            >
+              {botStatus === "refreshing"
+                ? "Updating bots…"
+                : botStatus === "disabled"
+                  ? "Runtime offline. Saved bots remain available."
+                  : "Could not update bots. Showing the last catalog."}
+              {botStatus === "error" ? (
+                <button
+                  className="ml-1 min-h-10 underline"
+                  onClick={onRetryBots}
+                  type="button"
+                >
+                  Retry
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+          {botStatus === "loading" ||
+          (botStatus === "disabled" && bots.length === 0) ? (
             <StateSurface
               kind={botStatus === "disabled" ? "offline" : "loading"}
               title={
@@ -232,7 +293,7 @@ export function DesktopSidebar({
               {bots.map((bot) => (
                 <div key={bot.id}>
                   <ContextActionMenu
-                    className="group flex min-w-0 items-center [&_.dl-contact]:min-w-0 [&_.dl-contact]:flex-1 [&_.dl-contact]:w-auto"
+                    className={`group flex min-w-0 items-center [&_.dl-contact]:min-w-0 [&_.dl-contact]:flex-1 [&_.dl-contact]:w-auto ${compact ? "[&_.dl-contact]:relative [&_.dl-contact]:justify-center [&_.dl-contact]:px-0 [&_.dl-contact-copy]:sr-only [&_.dl-run-state]:absolute [&_.dl-run-state]:bottom-1 [&_.dl-run-state]:right-1" : ""}`}
                     items={[
                       {
                         id: "open",
@@ -279,86 +340,92 @@ export function DesktopSidebar({
                       state={botRunState(bot)}
                     />
                   </ContextActionMenu>
-                  {bot.id === selectedBotId && !compact ? (
-                    <div className="ml-4 border-l border-[var(--border)] pl-2">
-                      {selectedBotSessions.length ? (
-                        selectedBotSessions.map((session) => (
-                          <ContextActionMenu
-                            className="group flex min-w-0 items-center"
-                            items={[
-                              {
-                                id: "open",
-                                label: "Open conversation",
-                                onSelect: () =>
-                                  onOpenSession(session.sessionId),
-                              },
-                              {
-                                id: "copy-title",
-                                label: "Copy conversation title",
-                                disabled: !session.title,
-                                separatorBefore: true,
-                                onSelect: () =>
-                                  void copyContextText(session.title || ""),
-                              },
-                              {
-                                id: "copy-id",
-                                label: "Copy conversation ID",
-                                onSelect: () =>
-                                  void copyContextText(session.sessionId),
-                              },
-                            ]}
-                            label={`${session.title || "New conversation"} actions`}
-                            scopeKey={`conversation:${session.sessionId}`}
-                            key={session.sessionId}
-                            trigger={
-                              <button
-                                aria-label={`${session.title || "New conversation"} actions`}
-                                className={ROW_MENU_TRIGGER_CLASS}
-                                type="button"
-                              >
-                                <UiIcon icon={MoreHorizontal} size="sm" />
-                              </button>
-                            }
-                          >
-                            <button
-                              aria-current={
-                                session.sessionId === selectedSession
-                                  ? "page"
-                                  : undefined
-                              }
-                              className="block min-h-10 min-w-0 flex-1 truncate rounded-[var(--radius-md)] px-2 text-left text-sm text-[var(--text-soft)] hover:bg-[var(--surface-hover)] aria-current:bg-[var(--surface-selected)] max-[760px]:min-h-11"
-                              onClick={() => onOpenSession(session.sessionId)}
-                              title={session.title || "New conversation"}
-                              type="button"
-                            >
-                              {session.title || "New conversation"}
-                            </button>
-                          </ContextActionMenu>
-                        ))
-                      ) : (
-                        <p className="px-2 py-2 text-xs text-[var(--muted)]">
-                          No conversations yet.
-                        </p>
-                      )}
-                      <button
-                        className="min-h-10 px-2 text-left text-xs text-[var(--muted)] hover:text-[var(--text)]"
-                        onClick={() => onSetView("sessions")}
-                        type="button"
-                      >
-                        All conversations
-                      </button>
-                    </div>
-                  ) : null}
                 </div>
               ))}
               <button
-                className="mt-2 flex min-h-10 w-full items-center gap-2 rounded-[var(--radius-md)] px-3 text-left text-sm text-[var(--text-soft)] hover:bg-[var(--surface-hover)] max-[760px]:min-h-11"
+                className={`mt-1 flex min-h-10 w-full items-center gap-2 rounded-[var(--radius-md)] px-3 text-left text-sm text-[var(--text-soft)] hover:bg-[var(--surface-hover)] max-[760px]:min-h-11 ${compact ? "justify-center" : ""}`}
                 onClick={onAddBot}
+                title={compact ? "Add bot" : undefined}
                 type="button"
               >
                 <UiIcon icon={Plus} size="sm" />
                 <span className={compact ? "sr-only" : ""}>Add bot</span>
               </button>
+              {!compact ? (
+                <section aria-label="Recent conversations" className="mt-5">
+                  <h2 className="px-3 pb-1 text-xs font-medium text-[var(--muted)]">
+                    Recent conversations
+                  </h2>
+                  {selectedBotSessions.length ? (
+                    selectedBotSessions.map((session) => (
+                      <ContextActionMenu
+                        className="group flex min-w-0 items-center"
+                        items={[
+                          {
+                            id: "open",
+                            label: "Open conversation",
+                            onSelect: () => onOpenSession(session.sessionId),
+                          },
+                          {
+                            id: "copy-title",
+                            label: "Copy conversation title",
+                            disabled: !session.title,
+                            separatorBefore: true,
+                            onSelect: () =>
+                              void copyContextText(session.title || ""),
+                          },
+                          {
+                            id: "copy-id",
+                            label: "Copy conversation ID",
+                            onSelect: () =>
+                              void copyContextText(session.sessionId),
+                          },
+                        ]}
+                        label={`${session.title || "New conversation"} actions`}
+                        scopeKey={`conversation:${session.sessionId}`}
+                        key={session.sessionId}
+                        trigger={
+                          <button
+                            aria-label={`${session.title || "New conversation"} actions`}
+                            className={ROW_MENU_TRIGGER_CLASS}
+                            type="button"
+                          >
+                            <UiIcon icon={MoreHorizontal} size="sm" />
+                          </button>
+                        }
+                      >
+                        <button
+                          aria-current={
+                            session.sessionId === selectedSession
+                              ? "page"
+                              : undefined
+                          }
+                          className="block min-h-10 min-w-0 flex-1 truncate rounded-[var(--radius-md)] px-3 text-left text-sm text-[var(--text-soft)] hover:bg-[var(--surface-hover)] aria-current:font-semibold aria-current:text-[var(--text)] max-[760px]:min-h-11"
+                          onClick={() => onOpenSession(session.sessionId)}
+                          title={session.title || "New conversation"}
+                          type="button"
+                        >
+                          {session.title || "New conversation"}
+                        </button>
+                      </ContextActionMenu>
+                    ))
+                  ) : (
+                    <p className="px-2 py-2 text-xs text-[var(--muted)]">
+                      No conversations yet.
+                    </p>
+                  )}
+                  <button
+                    aria-current={
+                      navigationView === "sessions" ? "page" : undefined
+                    }
+                    className="min-h-10 w-full rounded-[var(--radius-md)] px-3 text-left text-sm text-[var(--muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] aria-current:font-semibold aria-current:text-[var(--text)] max-[760px]:min-h-11"
+                    onClick={() => onSetView("sessions")}
+                    type="button"
+                  >
+                    All conversations
+                  </button>
+                </section>
+              ) : null}
             </>
           )}
         </nav>
@@ -368,18 +435,20 @@ export function DesktopSidebar({
         >
           {(
             [
-              ["orchestration", "Team & work"],
-              ["connections", "Connections"],
+              ["orchestration", "Team & work", Users],
+              ["connections", "Connections", Plug],
             ] as const
-          ).map(([target, label]) => (
+          ).map(([target, label, icon]) => (
             <button
               aria-current={navigationView === target ? "page" : undefined}
-              className="min-h-10 rounded-[var(--radius-md)] px-2 text-left text-sm text-[var(--text-soft)] hover:bg-[var(--surface-hover)] aria-current:bg-[var(--surface-selected)] max-[760px]:min-h-11"
+              className={`flex min-h-10 items-center gap-2 rounded-[var(--radius-md)] px-2 text-left text-sm text-[var(--text-soft)] hover:bg-[var(--surface-hover)] aria-current:font-semibold aria-current:text-[var(--text)] max-[760px]:min-h-11 ${compact ? "justify-center" : ""}`}
               key={target}
               onClick={() => onSetView(target)}
               type="button"
+              title={compact ? label : undefined}
             >
-              {compact ? <span className="sr-only">{label}</span> : label}
+              <UiIcon icon={icon} size="sm" />
+              <span className={compact ? "sr-only" : ""}>{label}</span>
             </button>
           ))}
         </nav>

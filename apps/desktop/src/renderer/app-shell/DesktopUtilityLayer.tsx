@@ -64,13 +64,15 @@ export function DesktopUtilityLayer({
           tabIndex={-1}
           {...accessibility}
         >
-          <header className="flex min-h-16 items-center justify-between gap-3 border-[var(--line-subtle)] border-b bg-[var(--surface-soft)] px-3 py-2.5">
-            <div className="flex min-w-0 items-center gap-2.5">
-              <span className="grid size-7 shrink-0 place-items-center rounded-[7px] border border-[color-mix(in_srgb,var(--accent)_27%,var(--border))] bg-[color-mix(in_srgb,var(--accent)_9%,var(--surface))] text-[var(--accent)]">
+          <header className="flex min-h-12 shrink-0 items-center justify-between gap-3 border-b border-[var(--border)] px-3">
+            <div className="flex min-w-0 items-center gap-2">
+              <span
+                aria-hidden="true"
+                className="grid size-6 shrink-0 place-items-center text-[var(--muted)]"
+              >
                 <Icon name="activity" />
               </span>
               <div className="grid min-w-0 gap-px">
-                <span className="eyebrow">Runtime {"//"}</span>
                 <h2
                   className="m-0 font-semibold text-sm text-[var(--text)] tracking-[-0.015em] [font-family:var(--font-display)]"
                   id="utility-drawer-title"
@@ -81,7 +83,7 @@ export function DesktopUtilityLayer({
             </div>
             <button
               aria-label="Close Activity"
-              className="grid size-6.5 place-items-center rounded-[var(--radius-sm)] border border-transparent bg-transparent text-[var(--muted)] hover:border-[var(--border)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-[var(--accent-border)]"
+              className="grid size-10 shrink-0 place-items-center rounded-[var(--radius-md)] border-0 bg-transparent text-[var(--muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--focus-ring)] max-[760px]:size-11"
               onClick={onClose}
               type="button"
             >

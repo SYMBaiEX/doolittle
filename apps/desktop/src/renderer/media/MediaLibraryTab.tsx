@@ -161,10 +161,10 @@ export function MediaLibraryTab({
               <Button
                 aria-pressed={filter === kind}
                 variant="ghost"
-                className={`rounded-[var(--radius-xs)] border px-2 font-[var(--font-mono)] capitalize ${
+                className={`rounded-md border-0 bg-transparent px-3 text-[length:var(--text-control)] capitalize ${
                   filter === kind
-                    ? "border-[var(--accent-border)] bg-[var(--accent-soft)] text-[var(--accent)]"
-                    : "border-[var(--border)] bg-transparent text-[var(--muted)]"
+                    ? "font-semibold text-[var(--text)]"
+                    : "font-medium text-[var(--muted)]"
                 }`}
                 key={kind}
                 onClick={() => setFilter(kind)}
@@ -220,9 +220,9 @@ export function MediaLibraryTab({
                       aria-current={
                         asset.id === selectedAsset?.id ? "true" : undefined
                       }
-                      className={`grid min-h-12 w-full grid-cols-[28px_minmax(0,1fr)] items-center gap-2 rounded-[var(--radius-xs)] border-0 px-2 py-1.5 text-left ${
+                      className={`grid min-h-14 w-full grid-cols-[28px_minmax(0,1fr)] items-center gap-3 border-b border-[var(--border-subtle)] px-3 py-2 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--focus-ring)] ${
                         asset.id === selectedAsset?.id
-                          ? "bg-[var(--surface-hover)] text-[var(--text)] shadow-[inset_2px_0_var(--accent)]"
+                          ? "bg-transparent font-semibold [&_strong]:font-semibold text-[var(--text)]"
                           : "bg-transparent text-[var(--text-soft)] hover:bg-[var(--surface-hover)]"
                       }`}
                       onClick={() => setSelectedId(asset.id)}
@@ -232,7 +232,7 @@ export function MediaLibraryTab({
                         <UiIcon icon={Icon} size="sm" />
                       </span>
                       <span className="grid min-w-0 gap-0.5">
-                        <strong className="truncate text-[length:var(--text-control)]">
+                        <strong className="truncate text-[length:var(--text-control)] font-medium">
                           {asset.name}
                         </strong>
                         <small className="truncate font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--muted)]">

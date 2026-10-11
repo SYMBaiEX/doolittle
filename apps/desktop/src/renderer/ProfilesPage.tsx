@@ -153,10 +153,10 @@ export function ProfilesPage({
           <div className="profile-picker grid items-start gap-4 min-[701px]:grid-cols-[minmax(18rem,0.42fr)_minmax(0,0.58fr)]">
             <section
               aria-label="Active identity"
-              className="profile-current grid grid-cols-[38px_minmax(0,1fr)] items-start gap-3 rounded-[var(--radius-sm)] border border-[var(--border)] border-l-2 border-l-[var(--accent)] bg-[color-mix(in_srgb,var(--surface)_94%,transparent)] p-3 min-[701px]:grid-cols-[42px_minmax(0,1fr)_auto] min-[701px]:items-center min-[701px]:gap-3.5 min-[701px]:px-4 min-[701px]:py-3.5 [&>.badge]:col-start-2 [&>.badge]:justify-self-start min-[701px]:[&>.badge]:col-start-auto"
+              className="profile-current grid grid-cols-[38px_minmax(0,1fr)] items-start gap-3 border-y border-[var(--border)] bg-transparent py-4 min-[701px]:grid-cols-[42px_minmax(0,1fr)_auto] min-[701px]:items-center min-[701px]:gap-3.5 min-[701px]:px-4 min-[701px]:py-3.5 [&>.badge]:col-start-2 [&>.badge]:justify-self-start min-[701px]:[&>.badge]:col-start-auto"
             >
               <div
-                className="profile-current__mark grid size-[38px] place-items-center rounded-[var(--radius-sm)] border border-[color-mix(in_srgb,var(--accent)_44%,var(--border))] bg-[color-mix(in_srgb,var(--accent)_11%,var(--surface-soft))] font-[var(--font-mono)] text-[length:var(--text-meta)] font-bold text-[var(--accent)]"
+                className="profile-current__mark grid size-[38px] place-items-center rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-soft)] font-[var(--font-mono)] text-[length:var(--text-meta)] font-bold text-[var(--accent)]"
                 aria-hidden="true"
               >
                 {presentation.active.name.slice(0, 2).toUpperCase()}

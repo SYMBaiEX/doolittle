@@ -28,9 +28,9 @@ export const COMMAND_PALETTE_GROUP_CLASS =
 export const COMMAND_PALETTE_GROUP_LABEL_CLASS =
   "command-palette__group-label m-0 px-2.5 pt-1.25 pb-1 font-[var(--font-mono)] text-[length:var(--text-meta)] font-semibold tracking-[0.12em] text-[var(--faint)] uppercase";
 export const COMMAND_PALETTE_ITEM_CLASS =
-  "command-palette__item relative grid min-h-9.5 w-full cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2.5 gap-y-0.5 rounded-[var(--radius-sm)] border border-transparent bg-transparent py-1.25 pr-2.5 pl-3 text-left text-[var(--text-soft)] hover:border-[color-mix(in_srgb,var(--accent)_11%,var(--border))] hover:bg-[color-mix(in_srgb,var(--accent)_7%,var(--surface-hover))] hover:text-[var(--text)] aria-disabled:cursor-default aria-disabled:opacity-40 aria-selected:border-[color-mix(in_srgb,var(--accent)_11%,var(--border))] aria-selected:bg-[color-mix(in_srgb,var(--accent)_7%,var(--surface-hover))] aria-selected:text-[var(--text)] aria-selected:before:absolute aria-selected:before:top-2 aria-selected:before:bottom-2 aria-selected:before:left-0.75 aria-selected:before:w-0.5 aria-selected:before:rounded-sm aria-selected:before:bg-[var(--accent)] aria-selected:before:content-['']";
+  "command-palette__item relative grid min-h-10 w-full cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2.5 gap-y-0.5 rounded-[var(--radius-sm)] border border-transparent bg-transparent py-1.25 pr-2.5 pl-3 text-left text-[var(--text-soft)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] aria-disabled:cursor-default aria-disabled:opacity-40 aria-selected:bg-[var(--surface-hover)] aria-selected:text-[var(--text)]";
 export const COMMAND_PALETTE_ITEM_LABEL_CLASS =
-  "command-palette__item-label overflow-hidden text-ellipsis whitespace-nowrap text-xs font-semibold";
+  "command-palette__item-label overflow-hidden text-ellipsis whitespace-nowrap text-[length:var(--text-control)] font-semibold";
 export const COMMAND_PALETTE_ITEM_DESCRIPTION_CLASS =
   "command-palette__item-description col-start-1 overflow-hidden text-ellipsis whitespace-nowrap text-[length:var(--text-meta)] text-[var(--muted)]";
 export const COMMAND_PALETTE_ITEM_SHORTCUT_CLASS =

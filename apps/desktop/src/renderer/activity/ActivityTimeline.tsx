@@ -51,7 +51,7 @@ export function ActivityTimeline({
     <section className="overflow-hidden rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)]">
       <div className="flex items-start justify-between gap-3 border-b border-[var(--border)] px-3 py-2.5">
         <div>
-          <span className="font-[var(--font-mono)] text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--muted)]">
+          <span className="font-[var(--font-mono)] text-[length:var(--text-meta)] font-bold uppercase tracking-[0.08em] text-[var(--muted)]">
             Operator stream
           </span>
           <h2>Timeline</h2>
@@ -118,7 +118,7 @@ export function ActivityTimeline({
                     </strong>
                   </p>
                   {activitySummaryIsDistinct(event.title, summary) ? (
-                    <p className="mt-0.5 text-[11px] leading-[1.4] text-[var(--text-soft)] [overflow-wrap:anywhere]">
+                    <p className="mt-0.5 text-[length:var(--text-control)] leading-[1.4] text-[var(--text-soft)] [overflow-wrap:anywhere]">
                       {summary}
                     </p>
                   ) : null}

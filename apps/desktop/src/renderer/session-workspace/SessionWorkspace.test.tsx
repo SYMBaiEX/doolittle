@@ -25,10 +25,13 @@ import {
   SESSION_WORKSPACE_STORAGE_KEY,
 } from "./workspace-layout";
 
-const { narrow, short, request } = vi.hoisted(() => ({
+const { narrow, short, request, dictation } = vi.hoisted(() => ({
   narrow: { value: false },
   short: { value: false },
   request: vi.fn(),
+  dictation: {
+    complete: undefined as undefined | ((transcript: string) => void),
+  },
 }));
 vi.mock("@elizaos/ui/hooks/useMediaQuery", () => ({
   useMediaQuery: (query: string) =>
@@ -73,6 +76,14 @@ vi.mock("../chat/ChatComposer", () => ({
   ChatComposer: (props: ChatComposerProps) => (
     <div>
       {props.workspaceNotice}
+      <button
+        onClick={() => {
+          dictation.complete = props.insertDictationTranscript;
+        }}
+        type="button"
+      >
+        Record test
+      </button>
       <button onClick={() => void props.pickContextFiles()} type="button">
         Attach test
       </button>
@@ -330,6 +341,16 @@ beforeEach(() => {
   narrow.value = false;
   short.value = false;
   vi.clearAllMocks();
+  dictation.complete = undefined;
+  vi.stubGlobal(
+    "matchMedia",
+    vi.fn((media: string) => ({
+      matches: false,
+      media,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    })),
+  );
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   request.mockImplementation(async (path: string) =>
     path.startsWith("/chat/runs") ? { runs: [] } : { messages: [] },
@@ -358,9 +379,42 @@ afterEach(async () => {
   await act(async () => root.unmount());
   container.remove();
   listener = undefined;
+  vi.unstubAllGlobals();
 });
 
 describe("shared session workbench behavior", () => {
+  it.each(["tabs", "split"])(
+    "keeps late dictation in its original draft without stealing the active pane's focus in %s",
+    async (mode) => {
+      await render();
+      await draft("a", "Original draft");
+      await click(panel("a"), "Record test");
+      const complete = required(dictation.complete);
+      await openB();
+      if (mode === "split") {
+        await contextMenu(
+          required(container.querySelector<HTMLElement>("#session-tab-b")),
+        );
+        await contextAction("Split right with Session A");
+        expect(panel("a").hidden).toBe(false);
+      } else {
+        expect(panel("a").hidden).toBe(true);
+      }
+      const activeComposer = required(
+        panel("b").querySelector<HTMLTextAreaElement>("textarea"),
+      );
+      activeComposer.focus();
+      await act(async () => {
+        complete("Late transcript");
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      });
+      expect(panel("a").querySelector("textarea")?.value).toBe(
+        "Original draft Late transcript",
+      );
+      expect(activeComposer.value).toBe("");
+      expect(document.activeElement).toBe(activeComposer);
+    },
+  );
   it("captures project ownership for a new panel before selecting it", async () => {
     const capture = vi.fn();
     await render({
@@ -385,6 +439,26 @@ describe("shared session workbench behavior", () => {
       window.dispatchEvent(new Event("doolittle:new-conversation-view")),
     );
     expect(container.querySelector('[role="tablist"]')).not.toBeNull();
+  });
+
+  it("keeps selected views text-led with full-title access and an explicit finder dismiss action", async () => {
+    await render();
+    await openB();
+    const selected = required(
+      container.querySelector<HTMLButtonElement>(
+        '[role="tab"][aria-selected="true"]',
+      ),
+    );
+    expect(selected.className).toContain("aria-selected:font-semibold");
+    expect(selected.className).not.toMatch(/aria-selected:(bg-|border-)/u);
+    expect(selected.title).toBe("Session B");
+    expect(selected.querySelector(".truncate")?.textContent).toBe("Session B");
+    await click(container, "Find session");
+    await click(container, "Close conversation finder");
+    expect(container.querySelector("#session-workspace-finder")).toBeNull();
+    expect(document.activeElement?.getAttribute("aria-label")).toBe(
+      "Find session",
+    );
   });
   it("closes the targeted running view from its context menu without cancelling or losing its draft", async () => {
     await render();
@@ -643,7 +717,11 @@ describe("shared session workbench behavior", () => {
       await act(async () =>
         window.dispatchEvent(new CustomEvent("doolittle:toggle-inspector")),
       );
-      expect(panel("b").querySelector(".chat-workbench-pane")).toBeNull();
+      const dismissingInspector = panel("b").querySelector(
+        ".chat-workbench-pane",
+      );
+      expect(dismissingInspector?.hasAttribute("inert")).toBe(true);
+      expect(dismissingInspector?.getAttribute("aria-hidden")).toBe("true");
       const originalB = panel("b");
       await click(container, "Close Session A view");
       let subscriptionsAtCapacity = 0;
@@ -1060,9 +1138,11 @@ describe("shared session workbench behavior", () => {
     await render();
     await draft("a", "Unsent draft");
     await click(panel("a"), "Close Session A");
-    expect(container.textContent).toContain("No open panels");
+    expect(container.textContent).toContain("Your sessions are still here.");
     expect(panel("a").hidden).toBe(true);
     expect(cancel).not.toHaveBeenCalled();
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 10)));
+    expect(document.activeElement?.textContent).toBe("Find session");
     await click(container, "Find session");
     const reopen = required(
       [
@@ -1099,7 +1179,7 @@ describe("shared session workbench behavior", () => {
         remoteSessions: [],
       });
       expect(loadStoredChatMessages(localStorage)).not.toHaveProperty("a");
-      expect(container.textContent).toContain("No open panels");
+      expect(container.textContent).toContain("Your sessions are still here.");
       await click(container, "Find session");
       const reopen = required(
         [

@@ -1,10 +1,10 @@
 import { type ButtonProps, Button as ElizaButton } from "@elizaos/ui/button";
 import {
+  SelectContent as ElizaSelectContent,
   SelectItem as ElizaSelectItem,
   SelectLabel as ElizaSelectLabel,
   SelectTrigger as ElizaSelectTrigger,
   Select,
-  SelectContent,
   SelectGroup,
   SelectScrollDownButton,
   SelectScrollUpButton,
@@ -31,10 +31,10 @@ const standardControlClass =
   "!h-[var(--control-height)] !min-h-[var(--control-height)] !text-[length:var(--text-control)] max-[760px]:!h-11 max-[760px]:!min-h-11";
 
 const focusControlClass =
-  "rounded-[var(--radius-md)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] transition-[background-color,border-color,color,box-shadow] duration-150 ease-[var(--ease-out)] motion-reduce:transition-none disabled:cursor-not-allowed";
+  "dl-control rounded-[var(--radius-md)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] transition-[background-color,border-color,color,box-shadow] duration-150 ease-[var(--ease-out)] motion-reduce:transition-none disabled:cursor-not-allowed";
 
 const fieldControlClass =
-  "border-[var(--border-strong)] bg-[var(--surface-raised)] text-[var(--text)] placeholder:text-[var(--muted)] focus-visible:border-[var(--focus-ring)] aria-invalid:border-[var(--bad)]";
+  "dl-field border-[var(--border-strong)] bg-[var(--surface-raised)] text-[var(--text)] placeholder:text-[var(--muted)] focus-visible:border-[var(--focus-ring)] aria-invalid:border-[var(--bad)]";
 
 // Text entry needs room to compose; do not collapse it to a one-line control.
 const textareaControlClass =
@@ -53,8 +53,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           "dl-button",
           focusControlClass,
           standard ? standardControlClass : undefined,
-          !quiet &&
-            "border border-[var(--border)] shadow-[var(--control-contact)] active:shadow-none",
+          !quiet && "border border-[var(--border)]",
           variant === "default" &&
             "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-ink)] hover:bg-[var(--accent-hover)]",
           variant === "destructive" &&
@@ -157,7 +156,7 @@ export const SelectItem = forwardRef<
 >(({ className, ...props }, ref) => (
   <ElizaSelectItem
     {...props}
-    className={cn(ELIZA_SELECT_TEXT_CLASS, className)}
+    className={cn("dl-select-item", ELIZA_SELECT_TEXT_CLASS, className)}
     ref={ref}
   />
 ));
@@ -175,9 +174,21 @@ export const SelectLabel = forwardRef<
 ));
 SelectLabel.displayName = "DoolittleSelectLabel";
 
+/** Keep SDK collision, portal and keyboard behavior with Doolittle's material. */
+export const SelectContent = forwardRef<
+  HTMLDivElement,
+  ComponentPropsWithoutRef<typeof ElizaSelectContent>
+>(({ className, ...props }, ref) => (
+  <ElizaSelectContent
+    {...props}
+    className={cn("dl-select-content", className)}
+    ref={ref}
+  />
+));
+SelectContent.displayName = "DoolittleSelectContent";
+
 export {
   Select,
-  SelectContent,
   SelectGroup,
   SelectScrollDownButton,
   SelectScrollUpButton,

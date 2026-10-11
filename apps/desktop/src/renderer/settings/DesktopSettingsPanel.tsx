@@ -13,6 +13,9 @@ import {
 
 export interface DesktopSettingsPanelProps {
   lifecycle: DesktopLifecycleState | null;
+  lifecycleBusy?: boolean;
+  lifecycleError?: string;
+  onLifecycleRetry?: () => void;
   update: DesktopUpdateState | null;
   updateBusy: boolean;
   onBackgroundChange: (enabled: boolean) => void;
@@ -23,6 +26,9 @@ export interface DesktopSettingsPanelProps {
 
 export function DesktopSettingsPanel({
   lifecycle,
+  lifecycleBusy = false,
+  lifecycleError = "",
+  onLifecycleRetry,
   update,
   updateBusy,
   onBackgroundChange,
@@ -45,8 +51,15 @@ export function DesktopSettingsPanel({
               When enabled, closing the window hides Doolittle so active local
               work can continue. Quit always stops it.
             </small>
-            {!lifecycle ? (
+            {lifecycleError ? (
+              <small className="field-error" role="alert">
+                {lifecycleError}
+              </small>
+            ) : !lifecycle ? (
               <small role="status">Loading desktop state…</small>
+            ) : null}
+            {lifecycleBusy ? (
+              <small role="status">Saving background behavior…</small>
             ) : null}
           </div>
           <div className="setting-control">
@@ -54,7 +67,7 @@ export function DesktopSettingsPanel({
               <input
                 checked={lifecycle?.keepRunningInBackground ?? false}
                 className={SETTINGS_SWITCH_INPUT_CLASS}
-                disabled={!lifecycle}
+                disabled={!lifecycle || lifecycleBusy}
                 aria-describedby="desktop-background-description"
                 aria-label="Keep running in the background"
                 type="checkbox"
@@ -62,9 +75,25 @@ export function DesktopSettingsPanel({
               />
               <i className={SETTINGS_SWITCH_TRACK_CLASS} aria-hidden="true" />
               <span className={SETTINGS_SWITCH_LABEL_CLASS}>
-                {lifecycle?.keepRunningInBackground ? "On" : "Off"}
+                {!lifecycle
+                  ? lifecycleError
+                    ? "Unavailable"
+                    : "Loading…"
+                  : lifecycle.keepRunningInBackground
+                    ? "On"
+                    : "Off"}
               </span>
             </label>
+            {lifecycleError && onLifecycleRetry ? (
+              <button
+                className="text-button"
+                type="button"
+                disabled={lifecycleBusy}
+                onClick={onLifecycleRetry}
+              >
+                Retry desktop state
+              </button>
+            ) : null}
           </div>
         </div>
         <div

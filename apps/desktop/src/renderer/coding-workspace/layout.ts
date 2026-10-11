@@ -54,13 +54,13 @@ export const CODING_REPO_STATE_VALUE_CLASS =
   "coding-repo-state-value inline-flex items-center justify-end gap-0.5 text-[length:var(--text-meta)] text-[var(--text-soft)]";
 
 export const CODING_LAYOUT_CONTROLS_CLASS =
-  "coding-layout-controls flex gap-0.5 rounded-[4px] border border-[var(--border)] bg-[var(--surface-soft)] p-0.5";
+  "coding-layout-controls flex flex-wrap gap-1";
 
 export const CODING_LAYOUT_BUTTON_CLASS =
-  "min-h-5.75 rounded-[var(--radius-xs)] border-0 bg-transparent px-1.5 py-0.75 font-[var(--font-mono)] text-[length:var(--text-meta)] tracking-[0.04em] text-[var(--muted)] uppercase hover:bg-[var(--surface-hover)] hover:text-[var(--text)]";
+  "min-h-10 rounded-md border-0 bg-transparent px-3 py-2 text-[length:var(--text-control)] font-medium text-[var(--muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--focus-ring)] max-[760px]:min-h-11";
 
 export const CODING_LAYOUT_BUTTON_SELECTED_CLASS =
-  "selected bg-[var(--surface-hover)] text-[var(--text)] shadow-[inset_0_-2px_var(--accent)]";
+  "selected font-semibold text-[var(--text)]";
 
 export const CODING_GLOBAL_NOTICE_CLASS =
   "coding-global-notice mb-2 shrink-0 [&_.notice]:min-h-0 [&_.notice]:px-2.75 [&_.notice]:py-2";
@@ -90,13 +90,13 @@ export const CODING_UTILITY_RESIZER_CLASS =
   "coding-utility-resizer top-0 bottom-0 left-[-5px] @max-[960px]/coding-route:hidden";
 
 export const CODING_TABS_CLASS =
-  "coding-tabs flex min-h-8 shrink-0 items-stretch gap-px overflow-x-auto border-[var(--border)] border-b bg-[var(--surface)] px-1 pt-0.5 pb-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
+  "coding-tabs flex min-h-10 shrink-0 items-stretch gap-1 overflow-x-auto border-b border-[var(--border)] bg-transparent px-2 [scrollbar-width:thin] max-[760px]:min-h-11";
 
 export const CODING_TAB_BUTTON_CLASS =
-  "relative inline-flex min-w-0 items-center justify-center gap-1 rounded-none border-0 bg-transparent px-1.5 pt-1.25 pb-1.5 font-[var(--font-mono)] text-[length:var(--text-meta)] font-bold tracking-[0.055em] text-[var(--muted)] uppercase hover:bg-[var(--surface-hover)] hover:text-[var(--text-soft)] [&>.coding-tab-label]:truncate [&>.coding-tab-count]:inline-grid [&>.coding-tab-count]:h-3.75 [&>.coding-tab-count]:min-w-3.75 [&>.coding-tab-count]:place-items-center [&>.coding-tab-count]:rounded-full [&>.coding-tab-count]:bg-[var(--surface-soft)] [&>.coding-tab-count]:px-0.75 [&>.coding-tab-count]:text-[length:var(--text-meta)] [&>.coding-tab-count]:text-[var(--muted)]";
+  "relative inline-flex min-h-10 min-w-0 shrink-0 items-center justify-center gap-2 rounded-md border-0 bg-transparent px-3 py-2 font-sans text-[length:var(--text-control)] font-medium text-[var(--muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--focus-ring)] max-[760px]:min-h-11 [&>.coding-tab-label]:truncate [&>.coding-tab-count]:text-[length:var(--text-meta)] [&>.coding-tab-count]:text-[var(--muted)]";
 
 export const CODING_TAB_SELECTED_CLASS =
-  "selected bg-[var(--surface-hover)] text-[var(--text)] after:absolute after:right-1.75 after:bottom-[-1px] after:left-1.75 after:h-0.5 after:bg-[var(--accent)] after:content-['']";
+  "selected font-semibold text-[var(--text)]";
 
 export const CODING_PANE_BODY_CLASS =
   "coding-pane-body min-h-0 flex-1 overflow-auto [scrollbar-color:var(--border-strong)_transparent] [scrollbar-gutter:stable] [scrollbar-width:thin] [&>.loading-block]:m-3 [&>.notice]:m-3 [&>.empty-block]:m-3";
@@ -107,7 +107,7 @@ export const CODING_CHANGE_BUTTON_CLASS =
   "grid min-h-9 w-full grid-cols-[20px_minmax(0,1fr)_auto] items-center gap-1.75 rounded-none border-0 border-[color-mix(in_srgb,var(--border)_72%,transparent)] border-b bg-transparent px-1.75 py-1.5 text-left hover:bg-[var(--surface-hover)] [&>span:nth-child(2)]:flex [&>span:nth-child(2)]:min-w-0 [&>span:nth-child(2)]:flex-col [&>span:nth-child(2)]:gap-0.75";
 
 export const CODING_CHANGE_BUTTON_SELECTED_CLASS =
-  "selected bg-[var(--surface-hover)] shadow-[inset_2px_0_var(--accent)]";
+  "selected font-semibold text-[var(--text)]";
 
 export const CODING_CHANGE_CODE_CLASS =
   "coding-change-code font-[var(--font-mono)] text-[length:var(--text-meta)] font-extrabold text-[var(--accent-text)]";
@@ -146,7 +146,7 @@ export const CODING_BREADCRUMB_CLASS =
   "coding-breadcrumb flex min-w-0 items-center justify-start gap-2 px-2 font-[var(--font-mono)] text-[length:var(--text-meta)] text-left text-[var(--muted)] [&>span]:min-w-0 [&>span]:flex-1 [&>span]:truncate [&>small]:min-w-0 [&>small]:max-w-1/2 [&>small]:truncate [&>small]:rounded-[3px] [&>small]:border [&>small]:border-[var(--accent-border)] [&>small]:bg-[var(--accent-soft)] [&>small]:px-1.25 [&>small]:py-0.5 [&>small]:text-[length:var(--text-meta)] [&>small]:tracking-[0.04em] [&>small]:text-[color-mix(in_srgb,var(--accent)_76%,var(--text-soft))] [&>small]:uppercase";
 
 export const CODING_EDITOR_ACTIONS_CLASS =
-  "coding-editor-actions flex min-w-0 flex-wrap items-center justify-end gap-1.25 py-1 pr-1.75 [&_button]:min-h-6.75 [&_button]:shrink-0 [&_button]:px-2 [&_button]:py-1.25 @max-[480px]/code:col-span-full";
+  "coding-editor-actions flex min-w-0 flex-wrap items-center justify-end gap-2 py-1 pr-2 [&_button]:min-h-10 [&_button]:shrink-0 [&_button]:px-3 [&_button]:py-2 @max-[480px]/code:col-span-full";
 
 export const CODING_UNSAVED_CLASS =
   "coding-unsaved-indicator inline-flex items-center gap-1.25 font-[var(--font-mono)] text-[length:var(--text-meta)] tracking-[0.04em] text-[var(--accent-text)] uppercase before:size-1.5 before:rounded-full before:bg-[var(--accent)] before:content-['']";
@@ -155,7 +155,7 @@ export const CODING_DIFF_SOURCE_CLASS =
   "coding-diff-source m-0 flex min-w-0 gap-0.5 border-0 py-0 pr-1.75 pl-0 [&_button]:border [&_button]:border-[var(--border)] [&_button]:bg-transparent [&_button]:px-1.75 [&_button]:py-1.25 [&_button]:font-[var(--font-mono)] [&_button]:text-[length:var(--text-meta)] [&_button]:text-[var(--muted)] [&_button]:uppercase";
 
 export const CODING_DIFF_SOURCE_SELECTED_CLASS =
-  "selected border-[var(--accent-border)]! bg-[var(--accent-soft)]! text-[var(--accent-text)]!";
+  "selected font-semibold text-[var(--text)]!";
 
 export const CODING_EDITOR_SURFACE_CLASS =
   "coding-editor-surface relative flex min-h-0 min-w-0 flex-1 flex-col overflow-auto bg-[var(--bg)] [scrollbar-color:var(--border-strong)_transparent] [scrollbar-width:thin] [&>.loading-block]:m-auto [&>.notice]:m-auto [&>.empty-block]:m-auto [&>.coding-inline-state]:mt-2 [&>.coding-inline-state]:mr-2 [&>.coding-inline-state]:ml-10";

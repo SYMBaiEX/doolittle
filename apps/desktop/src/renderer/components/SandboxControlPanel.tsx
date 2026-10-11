@@ -232,7 +232,9 @@ export function SandboxControlPanel({ active }: { active: boolean }) {
       <div className="flex items-center justify-between gap-2">
         <div className="flex flex-col items-start gap-[3px]">
           <span className={EXECUTION_EYEBROW_CLASS}>Sandbox isolation</span>
-          <strong className="text-[11px]">Eliza SandboxManager</strong>
+          <strong className="text-[length:var(--text-control)]">
+            Eliza SandboxManager
+          </strong>
         </div>
         <Badge tone={available ? "good" : "warn"}>
           {loading ? "Checking" : available ? "Available" : "Unavailable"}
@@ -316,13 +318,13 @@ export function SandboxControlPanel({ active }: { active: boolean }) {
             </select>
           </label>
           {selected ? (
-            <small className="overflow-hidden text-ellipsis whitespace-nowrap text-[10px] text-[var(--muted)]">
+            <small className="overflow-hidden text-ellipsis whitespace-nowrap text-[length:var(--text-control)] text-[var(--muted)]">
               Target: <code>{selected.id}</code>
               {selected.path ? ` · ${selected.path}` : ""}
             </small>
           ) : null}
           {snapshot?.control.activeSandboxId ? (
-            <small className="overflow-hidden text-ellipsis whitespace-nowrap text-[10px] text-[var(--muted)]">
+            <small className="overflow-hidden text-ellipsis whitespace-nowrap text-[length:var(--text-control)] text-[var(--muted)]">
               Active runtime sandbox:{" "}
               <code>{snapshot.control.activeSandboxId}</code>
             </small>

@@ -39,6 +39,7 @@ export interface ChatTranscriptProps {
 }
 
 interface TranscriptMessageRowProps {
+  botName?: string;
   activeRequest: string | null;
   backendReady: boolean;
   copyState?: CopyState;
@@ -57,6 +58,7 @@ interface TranscriptMessageRowProps {
 
 const TranscriptMessageRow = memo(
   function TranscriptMessageRow({
+    botName,
     activeRequest,
     backendReady,
     copyState,
@@ -95,6 +97,7 @@ const TranscriptMessageRow = memo(
         scopeKey={message.id}
       >
         <ChatMessage
+          botName={botName}
           actions={
             <MessageActions
               activeRequest={activeRequest}
@@ -122,6 +125,7 @@ const TranscriptMessageRow = memo(
     );
   },
   (previous, next) =>
+    previous.botName === next.botName &&
     previous.activeRequest === next.activeRequest &&
     previous.backendReady === next.backendReady &&
     previous.copyState === next.copyState &&
@@ -178,14 +182,15 @@ export function ChatTranscript({
 
   return (
     <div
-      aria-busy={loading || Boolean(activeRequest)}
+      aria-busy={loading || undefined}
+      aria-relevant="additions"
       aria-label={projectName ? `${projectName} conversation` : "Conversation"}
       className="chat-messages"
       role="log"
     >
-      {loading ? (
+      {loading && !messages.length ? (
         <StateSurface kind="loading" title="Loading conversation…" />
-      ) : historyError ? (
+      ) : historyError && !messages.length ? (
         <StateSurface
           kind="error"
           action={
@@ -203,6 +208,22 @@ export function ChatTranscript({
         </StateSurface>
       ) : messages.length ? (
         <>
+          {loading ? (
+            <p className="chat-history-notice" role="status">
+              Refreshing conversation…
+            </p>
+          ) : historyError ? (
+            <div className="chat-history-notice" role="alert">
+              <span>History could not be refreshed. {historyError}</span>
+              <button
+                className="text-button"
+                onClick={onRetryHistory}
+                type="button"
+              >
+                Retry history
+              </button>
+            </div>
+          ) : null}
           {hasEarlierMessages && onLoadEarlier ? (
             <div className="chat-load-earlier">
               <button
@@ -230,6 +251,7 @@ export function ChatTranscript({
           ) : null}
           {messages.map((message) => (
             <TranscriptMessageRow
+              botName={botName}
               activeRequest={activeRequest}
               backendReady={backendReady}
               copyState={copyStates[message.id]}

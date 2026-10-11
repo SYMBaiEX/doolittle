@@ -81,7 +81,7 @@ export function GatewayTimelinePanel({
       {entries.length > 0 ? (
         <fieldset className="m-0 grid min-w-0 grid-cols-[minmax(120px,0.5fr)_minmax(130px,0.6fr)_minmax(200px,1fr)] gap-2.25 border-x-0 border-y border-[var(--border)] px-0 py-2.25 max-[620px]:grid-cols-1">
           <legend className="sr-only">Gateway record filters</legend>
-          <label className="grid gap-1.25 font-mono text-[10px] text-[var(--muted)]">
+          <label className="grid gap-2 text-[length:var(--text-control)] text-[var(--muted)]">
             Direction
             <select
               className={GATEWAY_FILTER_CONTROL_CLASS}
@@ -97,7 +97,7 @@ export function GatewayTimelinePanel({
               <option value="outbox">Outbox only</option>
             </select>
           </label>
-          <label className="grid gap-1.25 font-mono text-[10px] text-[var(--muted)]">
+          <label className="grid gap-2 text-[length:var(--text-control)] text-[var(--muted)]">
             Platform
             <select
               className={GATEWAY_FILTER_CONTROL_CLASS}
@@ -113,7 +113,7 @@ export function GatewayTimelinePanel({
             </select>
           </label>
           <label
-            className="grid gap-1.25 font-mono text-[10px] text-[var(--muted)]"
+            className="grid gap-2 text-[length:var(--text-control)] text-[var(--muted)]"
             htmlFor="gateway-record-query"
           >
             Find record
@@ -231,7 +231,7 @@ export function GatewayTimelinePanel({
             }`}
             key={`${entry.direction}:${entry.id}`}
           >
-            <div className="flex flex-wrap items-center gap-1.75 [&>span:not(.badge)]:font-mono [&>span:not(.badge)]:text-[10px] [&>span:not(.badge)]:text-[var(--muted)] [&>time]:font-mono [&>time]:text-[10px] [&>time]:text-[var(--muted)]">
+            <div className="flex flex-wrap items-center gap-1.75 [&>span:not(.badge)]:font-mono [&>span:not(.badge)]:text-[length:var(--text-control)] [&>span:not(.badge)]:text-[var(--muted)] [&>time]:font-mono [&>time]:text-[length:var(--text-control)] [&>time]:text-[var(--muted)]">
               <Badge tone={entry.direction === "inbox" ? "warn" : "neutral"}>
                 {entry.direction === "inbox" ? "Inbound" : "Outbound"}
               </Badge>
@@ -243,7 +243,7 @@ export function GatewayTimelinePanel({
               {entry.direction === "inbox" ? (
                 <Button
                   aria-label={`Replay inbound ${titleCase(entry.platform)} message`}
-                  className="ml-auto h-auto p-0 text-[10px]"
+                  className="ml-auto min-h-10 px-2 py-1 text-[length:var(--text-control)]"
                   disabled={Boolean(replayingId)}
                   onClick={() => setConfirmReplayId(entry.id)}
                   size="sm"
@@ -256,7 +256,7 @@ export function GatewayTimelinePanel({
               {entry.retryable ? (
                 <Button
                   aria-label={`Retry rejected ${titleCase(entry.platform)} delivery`}
-                  className="ml-auto h-auto p-0 text-[10px]"
+                  className="ml-auto min-h-10 px-2 py-1 text-[length:var(--text-control)]"
                   disabled={Boolean(retryingDeliveryId)}
                   onClick={() => setConfirmRetryId(entry.id)}
                   size="sm"
@@ -274,7 +274,7 @@ export function GatewayTimelinePanel({
             <p className="m-0 whitespace-pre-wrap text-[var(--text)] leading-normal">
               {entry.preview}
             </p>
-            <details className="group block pt-px font-mono text-[10px] text-[var(--muted)]">
+            <details className="group block pt-px font-mono text-[length:var(--text-control)] text-[var(--muted)]">
               <summary className="flex w-fit cursor-pointer list-none items-center gap-1.25 [&::-webkit-details-marker]:hidden">
                 <span aria-hidden="true" className="group-open:hidden">
                   +

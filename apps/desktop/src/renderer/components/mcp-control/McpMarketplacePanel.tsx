@@ -164,15 +164,15 @@ function MarketplaceDetail({ detail }: { detail: McpMarketplaceDetail }) {
         </a>
       ) : null}
       <dl className="my-3 grid gap-[7px] [&_dd]:m-0 [&_dd]:min-w-0 [&_dd]:break-words [&_dd]:text-[var(--text-soft)] [&_dt]:font-[var(--font-mono)] [&_dt]:text-[var(--muted)] [&_dt]:uppercase">
-        <div className="grid grid-cols-[92px_minmax(0,1fr)] gap-2 text-[11px] leading-[1.45]">
+        <div className="grid grid-cols-[92px_minmax(0,1fr)] gap-2 text-[length:var(--text-control)] leading-[1.45]">
           <dt>Transport</dt>
           <dd>{detail.transports.join(", ") || "Not declared"}</dd>
         </div>
-        <div className="grid grid-cols-[92px_minmax(0,1fr)] gap-2 text-[11px] leading-[1.45]">
+        <div className="grid grid-cols-[92px_minmax(0,1fr)] gap-2 text-[length:var(--text-control)] leading-[1.45]">
           <dt>Environment</dt>
           <dd>{formatMarketplaceRequirements(detail.environment)}</dd>
         </div>
-        <div className="grid grid-cols-[92px_minmax(0,1fr)] gap-2 text-[11px] leading-[1.45]">
+        <div className="grid grid-cols-[92px_minmax(0,1fr)] gap-2 text-[length:var(--text-control)] leading-[1.45]">
           <dt>Headers</dt>
           <dd>{formatMarketplaceRequirements(detail.headers)}</dd>
         </div>

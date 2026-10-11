@@ -181,7 +181,7 @@ export function GitAdvancedControls({
           {stashes.map((stash) => (
             <div className={GIT_ROW_CLASS} key={stash.reference}>
               <code className={GIT_CODE_CLASS}>{stash.reference}</code>
-              <span className="min-w-0 flex-1 truncate text-[10px] text-[var(--muted)]">
+              <span className="min-w-0 flex-1 truncate text-[length:var(--text-control)] text-[var(--muted)]">
                 {stash.message || "Unlabelled stash"}
               </span>
               <GitButton
@@ -324,7 +324,7 @@ export function GitAdvancedControls({
             <div className={GIT_ROW_CLASS} key={remote.name}>
               <code className={GIT_CODE_CLASS}>{remote.name}</code>
               <span
-                className="min-w-0 flex-1 truncate text-[10px] text-[var(--muted)]"
+                className="min-w-0 flex-1 truncate text-[length:var(--text-control)] text-[var(--muted)]"
                 title={remote.fetchUrl || remote.pushUrl}
               >
                 {remote.fetchUrl || remote.pushUrl || "No URL"}
@@ -401,7 +401,7 @@ export function GitAdvancedControls({
               <code className={GIT_CODE_CLASS} title={worktree.path}>
                 {shortGitPath(worktree.path)}
               </code>
-              <span className="text-[10px] text-[var(--muted)]">
+              <span className="text-[length:var(--text-control)] text-[var(--muted)]">
                 {worktree.branch || "Detached"}
               </span>
               {!worktree.current ? (

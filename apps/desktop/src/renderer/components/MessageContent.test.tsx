@@ -148,20 +148,21 @@ describe("MessageContent", () => {
     expect(html).not.toContain("onclick");
   });
 
-  it("uses compact terminal-style markdown and code surfaces", () => {
+  it("keeps readable markdown and bounded code surfaces", () => {
     const html = renderToStaticMarkup(
       <MessageContent content={"## Setup\n\n```bash\nbun install\n```"} />,
     );
 
     expect(html).toContain('data-streamdown="code-block"');
     expect(html).toContain('data-streamdown="code-block-body"');
-    expect(html).toContain("!max-h-[220px]");
+    expect(html).toContain("!max-h-[320px]");
     expect(html).toContain(
-      "max-[480px]:[&amp;_[data-streamdown=code-block-body]]:!max-h-[180px]",
+      "max-[480px]:[&amp;_[data-streamdown=code-block-body]]:!max-h-[240px]",
     );
     expect(html).toContain("[contain-intrinsic-size:none]!");
     expect(html).toContain("[content-visibility:visible]!");
-    expect(html).toContain("[&amp;_hr]:!hidden");
+    expect(html).not.toContain("[&amp;_hr]:!hidden");
+    expect(html).toContain("!text-[length:var(--text-code,13px)]");
     expect(html).toContain("!rounded-[var(--radius-xs)]");
     expect(html).toContain("!bg-[var(--canvas-bg)]");
     expect(html).toContain("!overflow-x-auto");

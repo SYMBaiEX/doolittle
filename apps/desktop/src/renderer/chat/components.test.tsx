@@ -225,9 +225,11 @@ describe("chat presentation components", () => {
       ]) {
         const targetId = input.getAttribute(attribute);
         if (!targetId) continue;
-        expect(
-          input.closest("form")?.querySelector(`[id="${targetId}"]`),
-        ).not.toBeNull();
+        for (const id of targetId.split(/\s+/u)) {
+          expect(
+            input.closest("form")?.querySelector(`[id="${id}"]`),
+          ).not.toBeNull();
+        }
       }
     }
   });
@@ -730,7 +732,7 @@ describe("chat presentation components", () => {
       'aria-errormessage="chat-composer-validation-session-1"',
     );
     expect(commandConflict).toContain(
-      'aria-describedby="chat-composer-validation-session-1"',
+      'aria-describedby="chat-composer-hint-session-1 chat-composer-validation-session-1"',
     );
   });
 
@@ -982,7 +984,9 @@ describe("chat presentation components", () => {
     expect(html).toContain("Plan a change");
     expect(html).toContain("Investigate a bug");
     expect(html).not.toContain("PRIVATE LOCAL RUNTIME");
-    expect(html.match(/class="starter-grid"/gu)).toHaveLength(1);
+    expect(
+      html.match(/class="starter-grid chat-welcome-starters"/gu),
+    ).toHaveLength(1);
     expect(html.match(/type="button"/gu)).toHaveLength(3);
   });
 
@@ -1317,6 +1321,89 @@ describe("chat presentation components", () => {
         createdAt: "2026-09-08T16:06:00.000Z",
       }),
     ).toBe("No verified file change was completed.");
+  });
+
+  it("preserves code fences, indentation and blank lines in failed partial output", () => {
+    const partial = [
+      "Here is the partial patch:",
+      "",
+      "```ts",
+      "function recover() {",
+      '  return "Response interrupted. Retry to continue.";',
+      "}",
+      "```",
+      "",
+      "- first check",
+      "- second check",
+      "",
+      "    const example =  true;",
+    ].join("\n");
+    expect(
+      messageContentAfterReceipt({
+        id: "failed-partial",
+        role: "assistant",
+        error: true,
+        content: `${partial}\n\nResponse interrupted. Retry to continue.`,
+        createdAt: "2026-10-11T10:00:00Z",
+      }),
+    ).toBe(partial);
+  });
+
+  it("never rewrites the user's literal failure phrases", () => {
+    const content =
+      "Please debug this: Response interrupted. Retry to continue.\n\n    const text =  true;";
+    expect(
+      messageContentAfterReceipt({
+        id: "user-literal",
+        role: "user",
+        error: true,
+        content,
+        createdAt: "2026-10-11T10:00:00Z",
+      }),
+    ).toBe(content);
+  });
+
+  it("keeps failures visible and recoverable when their run receipt is unavailable", () => {
+    const html = renderToStaticMarkup(
+      <ChatMessage
+        actions={null}
+        botName="Researcher"
+        onRetry={() => undefined}
+        message={{
+          id: "missing-receipt",
+          role: "assistant",
+          error: true,
+          content:
+            "Something went wrong while I was working on that. Retry to continue.",
+          createdAt: "2026-10-11T10:00:00Z",
+        }}
+      />,
+    );
+    expect(html).toContain("Response could not be completed.");
+    expect(html).toContain(
+      'aria-label="Retry failed response in a new branch"',
+    );
+    expect(html).toContain('data-message-state="error"');
+    expect(html).not.toContain("Empty");
+  });
+
+  it("reports a cancelled receipt as stopped instead of complete", () => {
+    const update = runUpdate("cancelled");
+    update.run.status = "cancelled";
+    update.run.terminalReason = "cancelled";
+    const html = renderToStaticMarkup(
+      <ChatMessage
+        actions={null}
+        message={{
+          id: "assistant-stopped",
+          role: "assistant",
+          content: "Partial response",
+          createdAt: "2026-10-11T10:00:00Z",
+        }}
+        receipt={{ latest: update, events: [update] }}
+      />,
+    );
+    expect(html).toContain('data-message-state="stopped"');
   });
 
   it("renders message attachments and delegates action controls", () => {

@@ -199,7 +199,7 @@ export function ExecutionEnvironmentPanel({
         <div>
           <span className={EXECUTION_EYEBROW_CLASS}>Execution environment</span>
           <strong
-            className="max-w-full overflow-hidden text-ellipsis whitespace-nowrap font-[var(--font-mono)] text-[11px]"
+            className="max-w-full overflow-hidden text-ellipsis whitespace-nowrap font-[var(--font-mono)] text-[length:var(--text-control)]"
             title={workspaceRoot || undefined}
           >
             {compactWorkspacePath(workspaceRoot || "Local workspace")}
@@ -315,13 +315,13 @@ export function ExecutionEnvironmentPanel({
             <article
               className={`flex min-w-0 flex-col gap-[5px] rounded-[var(--radius-xs)] border bg-[var(--surface-raised)] p-[9px] ${
                 isCurrentWorkspace(worktree.path, workspaceRoot)
-                  ? "border-[color-mix(in_srgb,var(--accent)_55%,var(--border))] shadow-[inset_2px_0_var(--accent)]"
+                  ? "border-[var(--border)] [&_strong]:font-semibold"
                   : "border-[var(--border)]"
               }`}
               key={worktree.path}
             >
               <div className="flex min-w-0 items-center gap-1.5">
-                <strong className="overflow-hidden text-ellipsis whitespace-nowrap text-[11px]">
+                <strong className="overflow-hidden text-ellipsis whitespace-nowrap text-[length:var(--text-control)]">
                   {worktreeLabel(worktree)}
                 </strong>
                 {isCurrentWorkspace(worktree.path, workspaceRoot) ? (
@@ -330,13 +330,13 @@ export function ExecutionEnvironmentPanel({
                 {worktree.prunable ? <Badge tone="warn">Prunable</Badge> : null}
               </div>
               <code
-                className="overflow-hidden text-ellipsis whitespace-nowrap text-[10px] text-[var(--muted)]"
+                className="overflow-hidden text-ellipsis whitespace-nowrap text-[length:var(--text-control)] text-[var(--muted)]"
                 title={worktree.path}
               >
                 {compactWorkspacePath(worktree.path)}
               </code>
               {worktree.head ? (
-                <small className="overflow-hidden text-ellipsis whitespace-nowrap text-[10px] text-[var(--muted)]">
+                <small className="overflow-hidden text-ellipsis whitespace-nowrap text-[length:var(--text-control)] text-[var(--muted)]">
                   {worktree.head}
                 </small>
               ) : null}

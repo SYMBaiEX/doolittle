@@ -32,7 +32,7 @@ export const ARTIFACT_IMAGE_CANVAS_CLASS =
   "mx-auto block max-h-[560px] w-[min(100%,960px)] border border-[var(--canvas-border)] bg-[var(--canvas-bg)] object-contain";
 
 export const ARTIFACT_TEXT_CANVAS_CLASS =
-  "m-0 max-h-[420px] overflow-auto rounded-[2px] border border-[var(--canvas-border)] bg-[var(--canvas-bg)] p-[11px] text-[10px] leading-[1.55] whitespace-pre-wrap text-[var(--canvas-text-soft)]";
+  "m-0 max-h-[420px] overflow-auto rounded-[2px] border border-[var(--canvas-border)] bg-[var(--canvas-bg)] p-[11px] text-[length:var(--text-control)] leading-[1.55] whitespace-pre-wrap text-[var(--canvas-text-soft)]";
 
 function compactBytes(value: number): string {
   if (value < 1024) return `${value} B`;
@@ -199,7 +199,7 @@ function ArtifactItem({
             <UiIcon icon={expanded ? ChevronDown : ChevronRight} size="xs" />
           </span>
           <span className="flex min-w-0 flex-col gap-0.5">
-            <strong className="overflow-hidden text-ellipsis whitespace-nowrap text-[11px]">
+            <strong className="overflow-hidden text-ellipsis whitespace-nowrap text-[length:var(--text-control)]">
               {payload?.artifact.name ?? label}
             </strong>
             <small className="overflow-hidden font-[var(--font-mono)] text-[length:var(--text-meta,10px)] text-ellipsis whitespace-nowrap text-[var(--muted)]">
@@ -219,7 +219,7 @@ function ArtifactItem({
             {loading ? (
               <div
                 aria-live="polite"
-                className="p-[18px] text-center text-[11px] text-[var(--muted)]"
+                className="p-[18px] text-center text-[length:var(--text-control)] text-[var(--muted)]"
                 role="status"
               >
                 Loading secure artifact…

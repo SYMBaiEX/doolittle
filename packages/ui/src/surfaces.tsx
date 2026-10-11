@@ -73,6 +73,8 @@ export function ContactRow({
     <button
       type="button"
       className="dl-contact"
+      aria-label={state ? `${name}, ${stateLabels[state]}` : name}
+      title={name}
       aria-current={selected ? "page" : undefined}
       onClick={onSelect}
     >

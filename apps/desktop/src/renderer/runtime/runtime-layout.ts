@@ -1,15 +1,15 @@
-export const RUNTIME_PAGE_CLASS = "page";
+export const RUNTIME_PAGE_CLASS = "page @container/runtime min-w-0";
 
-export const RUNTIME_SECTION_STACK_CLASS = "grid min-h-0 gap-2.5";
+export const RUNTIME_SECTION_STACK_CLASS = "grid min-h-0 gap-5";
 
 export const RUNTIME_TWO_COLUMN_GRID_CLASS =
-  "grid grid-cols-2 items-start gap-2.5 max-[760px]:grid-cols-1";
+  "grid grid-cols-2 items-start gap-5 @max-[680px]/runtime:grid-cols-1";
 
 export const RUNTIME_INVENTORY_GRID_CLASS =
-  "grid grid-cols-2 items-start gap-2.5 max-[760px]:grid-cols-1 min-[761px]:max-[1080px]:[&>:last-child]:col-span-full";
+  "grid grid-cols-2 items-start gap-5 @max-[680px]/runtime:grid-cols-1 @min-[681px]/runtime:@max-[960px]/runtime:[&>:last-child]:col-span-full";
 
 export const RUNTIME_CARD_CLASS =
-  "min-w-0 rounded-[var(--radius-sm)] border border-[var(--line-subtle)] bg-[color-mix(in_srgb,var(--surface-raised)_82%,var(--surface))] px-3 py-[11px] shadow-none focus-within:border-[color-mix(in_srgb,var(--accent)_24%,var(--border))]";
+  "min-w-0 border-t border-[var(--line-subtle)] bg-transparent py-4";
 
 export const RUNTIME_CARD_HEADING_CLASS =
   "mb-2.5 flex min-h-[34px] items-center justify-between gap-4 [&>div]:min-w-0 [&_h2]:mt-1 [&_h2]:mb-0 [&_h2]:font-[var(--font-display)] [&_h2]:text-sm [&_h2]:font-semibold [&_h2]:leading-[1.2] [&_h2]:tracking-[-0.015em]";

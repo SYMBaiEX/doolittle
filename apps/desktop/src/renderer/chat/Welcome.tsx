@@ -1,3 +1,6 @@
+import { ArrowUpRight } from "lucide-react";
+import { UiIcon } from "../components/UiIcon";
+
 export function Welcome({
   onSelect,
   projectName,
@@ -46,31 +49,30 @@ export function Welcome({
       </p>
       <details className="chat-starter-ideas">
         <summary>Ideas to get started</summary>
-        <div className="starter-grid">
-          {prompts.map(({ prompt, detail }, index) => (
-            <button
-              key={prompt}
-              onClick={(event) => {
-                onSelect(prompt);
-                const ideas = event.currentTarget.closest("details");
-                ideas?.removeAttribute("open");
-                ideas?.querySelector("summary")?.focus();
-              }}
-              type="button"
-            >
-              <span className="starter-index" aria-hidden="true">
-                {String(index + 1).padStart(2, "0")}
-              </span>
-              <strong>{prompt}</strong>
-              <small>{detail}</small>
-              <UiIcon icon={ArrowUpRight} size="sm" />
-            </button>
+        <ul
+          aria-label="Conversation starters"
+          className="starter-grid chat-welcome-starters"
+        >
+          {prompts.map(({ prompt, detail }) => (
+            <li key={prompt}>
+              <button
+                className="chat-welcome-starter"
+                onClick={(event) => {
+                  onSelect(prompt);
+                  const ideas = event.currentTarget.closest("details");
+                  ideas?.removeAttribute("open");
+                  ideas?.querySelector("summary")?.focus();
+                }}
+                type="button"
+              >
+                <strong>{prompt}</strong>
+                <small>{detail}</small>
+                <UiIcon icon={ArrowUpRight} size="sm" />
+              </button>
+            </li>
           ))}
-        </div>
+        </ul>
       </details>
     </div>
   );
 }
-
-import { ArrowUpRight } from "lucide-react";
-import { UiIcon } from "../components/UiIcon";

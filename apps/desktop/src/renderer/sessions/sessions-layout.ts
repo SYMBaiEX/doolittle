@@ -11,10 +11,10 @@ export const SESSION_LIST_HEADER_CLASS =
   "flex min-h-6 items-center justify-between gap-2 px-0.25 [&_strong]:text-[length:var(--text-control)] [&_strong]:font-semibold [&_strong]:text-[var(--text-strong)] [&_small]:font-[var(--font-mono)] [&_small]:text-[length:var(--text-meta)] [&_small]:text-[var(--text-muted)]";
 
 export const SESSION_ROW_CLASS =
-  "group grid min-h-[50px] w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-2.5 rounded-[var(--radius-sm)] border border-transparent px-2.25 py-1.5 text-left text-[var(--text)] transition-colors duration-100 hover:border-[var(--border)] hover:bg-[var(--surface-raised)] focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--focus-ring)] motion-reduce:transition-none";
+  "group grid min-h-14 w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-[var(--border-subtle)] px-3 py-2 text-left text-[var(--text)] transition-colors duration-100 hover:bg-[var(--surface-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--focus-ring)] motion-reduce:transition-none";
 
 export const SESSION_ROW_SELECTED_CLASS =
-  "border-[color-mix(in_srgb,var(--accent)_26%,var(--border))] border-l-2 border-l-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_7%,var(--surface))]";
+  "font-semibold [&_strong]:font-semibold text-[var(--text)]";
 
 export const SESSION_DETAIL_CLASS = "mx-auto w-[min(100%,1080px)] pb-[18px]";
 
@@ -22,7 +22,7 @@ export const SESSION_DETAIL_TOOLBAR_CLASS =
   "grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3.5 pb-[9px] max-[860px]:grid-cols-1 [&_h2]:m-0";
 
 export const SESSION_DISCLOSURE_CLASS =
-  "group min-w-0 overflow-hidden rounded-[3px] border border-[var(--border-subtle)] bg-[color-mix(in_srgb,var(--surface-raised)_72%,transparent)]";
+  "group min-w-0 overflow-hidden border-y border-[var(--border-subtle)] bg-transparent";
 
 export const SESSION_DISCLOSURE_SUMMARY_CLASS =
   "flex min-h-[38px] cursor-pointer list-none items-center justify-between gap-2.5 px-2 py-[5px] group-open:border-b group-open:border-[var(--border-subtle)] [&::-webkit-details-marker]:hidden";
@@ -31,7 +31,7 @@ export const SESSION_STATUS_ROW_CLASS =
   "flex min-h-[42px] w-full items-center justify-between gap-4 border-b border-[var(--border-subtle)] py-[7px] text-left last:border-b-0 [&>div]:grid [&>div]:min-w-0 [&>div]:gap-[3px] [&_strong]:text-[length:var(--text-control)] [&_strong]:text-[var(--text-strong)] [&_small]:break-words [&_small]:text-[length:var(--text-meta)] [&_small]:text-[var(--text-muted)]";
 
 export const SESSION_TRANSCRIPT_PANEL_CLASS =
-  "mt-2 overflow-hidden rounded border border-[var(--border-subtle)] bg-[color-mix(in_srgb,var(--surface-raised)_68%,transparent)]";
+  "mt-4 overflow-hidden border-t border-[var(--border-subtle)] bg-transparent";
 
 export const SESSION_TRANSCRIPT_HEADER_CLASS =
   "flex items-baseline justify-between gap-3 border-b border-[var(--border-subtle)] px-3 py-2 max-[860px]:flex-col max-[860px]:items-start [&>span]:grid [&_strong]:text-[length:var(--text-control)] [&_strong]:text-[var(--text-strong)] [&_small]:text-[length:var(--text-meta)] [&_small]:text-[var(--text-muted)]";

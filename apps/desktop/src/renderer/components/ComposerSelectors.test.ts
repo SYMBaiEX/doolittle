@@ -175,7 +175,8 @@ describe("composer selectors", () => {
 
     expect(markup).toContain("composer-model-trigger");
     expect(markup).toContain("min-w-0 truncate");
-    expect(markup).toContain("shrink-0 rounded-[4px]");
+    expect(markup).toContain("shrink-0 text-[length:var(--text-meta)]");
+    expect(markup).not.toContain("shrink-0 rounded-[4px]");
     expect(markup).toContain(">gpt-5.6-terra</span>");
     expect(markup).toContain(">xhigh</span>");
     expect(markup).not.toContain("gpt-5.6-terra · xhigh");
@@ -238,7 +239,7 @@ describe("composer selectors", () => {
     expect(markup).not.toContain("No matching projects.");
   });
 
-  it("labels the lightweight model chooser as an expandable popover, not a dialog", () => {
+  it("exposes the SDK popover dialog affordance", () => {
     const markup = renderToStaticMarkup(
       createElement(ComposerModelSelector, {
         active: true,
@@ -251,7 +252,7 @@ describe("composer selectors", () => {
 
     expect(markup).toContain('aria-expanded="false"');
     expect(markup).toContain("aria-controls=");
-    expect(markup).not.toContain('aria-haspopup="dialog"');
+    expect(markup).toContain('aria-haspopup="dialog"');
   });
 
   it("filters models across provider names, display labels, and ids", () => {
@@ -341,6 +342,109 @@ describe("ComposerModelSelector loaded catalog", () => {
       .scrollIntoView;
   });
 
+  it("portals the model dialog outside the composer and dismisses it when its owner becomes hidden", async () => {
+    act(() =>
+      root.render(
+        createElement(ComposerModelSelector, {
+          active: true,
+          onOpenModelsPage: vi.fn(),
+          onOpenProvidersPage: vi.fn(),
+          refreshRuntime: vi.fn(),
+          runtime: { model: "gpt-5.6-terra", plugins: {}, provider: "codex" },
+        }),
+      ),
+    );
+    const trigger = container.querySelector<HTMLButtonElement>(
+      '[aria-label^="Choose model. Current route"]',
+    );
+    act(() => trigger?.click());
+    expect(document.querySelector('[role="dialog"]')).not.toBeNull();
+    expect(container.querySelector('[role="dialog"]')).toBeNull();
+    expect(document.activeElement).toBe(
+      document.querySelector('[aria-label="Search models"]'),
+    );
+
+    await act(async () => {
+      container.hidden = true;
+      await Promise.resolve();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+    expect(document.activeElement).not.toBe(trigger);
+  });
+
+  it("does not let a previous bot's pending selection close the next bot's model dialog", async () => {
+    let finishSave: (() => void) | undefined;
+    desktopRequestMock.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          finishSave = resolve;
+        }),
+    );
+    const refreshRuntime = vi.fn();
+    const props = {
+      active: true,
+      onOpenModelsPage: vi.fn(),
+      onOpenProvidersPage: vi.fn(),
+      refreshRuntime,
+      runtime: null,
+    };
+    const firstBot = {
+      id: "first-specialist",
+      model: { provider: "codex", model: "gpt-5.6-terra" },
+    } as BotSummary;
+    const secondBot = {
+      id: "second-specialist",
+      model: { provider: "ollama", model: "granite4.1:3b" },
+    } as BotSummary;
+    act(() =>
+      root.render(
+        createElement(ComposerModelSelector, { ...props, bot: firstBot }),
+      ),
+    );
+    act(() =>
+      container
+        .querySelector<HTMLButtonElement>(
+          '[aria-label^="Choose model. Current route"]',
+        )
+        ?.click(),
+    );
+    act(() =>
+      document
+        .querySelector<HTMLButtonElement>('[title="granite4.1:3b"]')
+        ?.click(),
+    );
+    expect(desktopRequestMock).toHaveBeenCalledWith(
+      "/bots/first-specialist",
+      "PATCH",
+      expect.any(Object),
+    );
+
+    act(() =>
+      root.render(
+        createElement(ComposerModelSelector, { ...props, bot: secondBot }),
+      ),
+    );
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+    act(() =>
+      container
+        .querySelector<HTMLButtonElement>(
+          '[aria-label^="Choose model. Current route"]',
+        )
+        ?.click(),
+    );
+    await act(async () => {
+      finishSave?.();
+      await Promise.resolve();
+    });
+    expect(document.querySelector('[role="dialog"]')).not.toBeNull();
+    expect(
+      container.querySelector('[aria-label^="Choose model. Current route"]')
+        ?.textContent,
+    ).toContain("granite4.1:3b");
+    expect(desktopRequestMock).toHaveBeenCalledOnce();
+  });
+
   it("updates a named bot's catalog route without changing Doolittle's global settings", async () => {
     const bot = {
       id: "specialist",
@@ -359,13 +463,13 @@ describe("ComposerModelSelector loaded catalog", () => {
         }),
       ),
     );
-    const trigger = container.querySelector<HTMLButtonElement>(
+    const trigger = document.querySelector<HTMLButtonElement>(
       '[aria-label^="Choose model."]',
     );
     expect(trigger?.textContent).toContain("granite4.1:3b");
     act(() => trigger?.click());
     await act(async () =>
-      container
+      document
         .querySelector<HTMLButtonElement>('[title="gpt-5.6-terra"]')
         ?.click(),
     );
@@ -403,23 +507,24 @@ describe("ComposerModelSelector loaded catalog", () => {
       ),
     );
     act(() =>
-      container
+      document
         .querySelector<HTMLButtonElement>(
           '[aria-label^="Choose model. Current route"]',
         )
         ?.click(),
     );
 
-    const model = container.querySelector<HTMLButtonElement>(
+    const model = document.querySelector<HTMLButtonElement>(
       '[title="gpt-5.6-terra"]',
     );
-    const effort = container.querySelector<HTMLButtonElement>(
+    const effort = document.querySelector<HTMLButtonElement>(
       '[aria-label="GPT-5.6 Terra reasoning effort"]',
     );
 
     expect(model?.getAttribute("aria-current")).toBe("true");
     expect(model?.parentElement?.getAttribute("aria-current")).toBeNull();
-    expect(model?.className).toContain("aria-current:bg-");
+    expect(model?.className).toContain("aria-current:font-semibold");
+    expect(model?.className).not.toContain("aria-current:bg-");
     expect(effort?.textContent).toContain("XHigh");
     expect(effort?.tagName).toBe("BUTTON");
   });
@@ -444,14 +549,14 @@ describe("ComposerModelSelector loaded catalog", () => {
       ),
     );
     act(() =>
-      container
+      document
         .querySelector<HTMLButtonElement>(
           '[aria-label^="Choose model. Current route"]',
         )
         ?.click(),
     );
 
-    const effort = container.querySelector<HTMLButtonElement>(
+    const effort = document.querySelector<HTMLButtonElement>(
       '[aria-label="GPT-5.6 Terra reasoning effort"]',
     );
 
@@ -476,13 +581,13 @@ describe("ComposerModelSelector loaded catalog", () => {
       ),
     );
     act(() =>
-      container
+      document
         .querySelector<HTMLButtonElement>(
           '[aria-label^="Choose model. Current route"]',
         )
         ?.click(),
     );
-    const refresh = container.querySelector<HTMLButtonElement>(
+    const refresh = document.querySelector<HTMLButtonElement>(
       '[aria-label="Refresh model catalog"]',
     );
 
@@ -508,18 +613,18 @@ describe("ComposerModelSelector loaded catalog", () => {
       ),
     );
     act(() =>
-      container
+      document
         .querySelector<HTMLButtonElement>(
           '[aria-label^="Choose model. Current route"]',
         )
         ?.click(),
     );
 
-    expect(container.textContent).toContain(
+    expect(document.body.textContent).toContain(
       "Refreshing the live model inventory. Showing the last configured catalog until it arrives.",
     );
-    expect(container.textContent).toContain("Configured");
-    expect(container.textContent).not.toContain("Ready");
+    expect(document.body.textContent).toContain("Configured");
+    expect(document.body.textContent).not.toContain("Ready");
   });
 
   it("closes the nested effort list before the model dialog on Escape", async () => {
@@ -539,11 +644,11 @@ describe("ComposerModelSelector loaded catalog", () => {
         }),
       ),
     );
-    const trigger = container.querySelector<HTMLButtonElement>(
+    const trigger = document.querySelector<HTMLButtonElement>(
       '[aria-label^="Choose model. Current route"]',
     );
     act(() => trigger?.click());
-    const effort = container.querySelector<HTMLButtonElement>(
+    const effort = document.querySelector<HTMLButtonElement>(
       '[aria-label="GPT-5.6 Terra reasoning effort"]',
     );
 
@@ -566,9 +671,9 @@ describe("ComposerModelSelector loaded catalog", () => {
       ),
     );
     expect(document.querySelector('[role="listbox"]')).toBeNull();
-    expect(container.querySelector('[role="dialog"]')).toBeNull();
+    expect(document.querySelector('[role="dialog"]')).not.toBeNull();
     expect(
-      container.querySelector('[aria-label="Choose provider and model"]'),
+      document.querySelector('[aria-label="Choose provider and model"]'),
     ).not.toBeNull();
 
     act(() =>
@@ -580,7 +685,10 @@ describe("ComposerModelSelector loaded catalog", () => {
         }),
       ),
     );
-    expect(container.querySelector('[role="dialog"]')).toBeNull();
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
     expect(document.activeElement).toBe(trigger);
   });
 
@@ -602,11 +710,11 @@ describe("ComposerModelSelector loaded catalog", () => {
         }),
       ),
     );
-    const trigger = container.querySelector<HTMLButtonElement>(
+    const trigger = document.querySelector<HTMLButtonElement>(
       '[aria-label^="Choose model. Current route"]',
     );
     act(() => trigger?.click());
-    const effort = container.querySelector<HTMLButtonElement>(
+    const effort = document.querySelector<HTMLButtonElement>(
       '[aria-label="GPT-5.6 Terra reasoning effort"]',
     );
 
@@ -640,7 +748,10 @@ describe("ComposerModelSelector loaded catalog", () => {
       }),
     );
     expect(refreshRuntime).toHaveBeenCalledOnce();
-    expect(container.querySelector('[role="dialog"]')).toBeNull();
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
     expect(document.activeElement).toBe(trigger);
   });
 
@@ -662,7 +773,7 @@ describe("ComposerModelSelector loaded catalog", () => {
       ),
     );
     act(() =>
-      container
+      document
         .querySelector<HTMLButtonElement>(
           '[aria-label^="Choose model. Current route"]',
         )
@@ -670,7 +781,7 @@ describe("ComposerModelSelector loaded catalog", () => {
     );
 
     await act(async () => {
-      container
+      document
         .querySelector<HTMLButtonElement>('[title="granite4.1:3b"]')
         ?.click();
       await Promise.resolve();

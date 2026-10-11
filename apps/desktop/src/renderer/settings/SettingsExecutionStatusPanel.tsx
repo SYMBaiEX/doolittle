@@ -24,7 +24,9 @@ export function SettingsExecutionStatusPanel({
   onReload: () => void;
 }) {
   const backends = asArray(data?.backends).map(asRecord);
-  const readyCount = backends.filter((backend) => backend.ready).length;
+  const readyCount = backends.filter(
+    (backend) => backend.ready === true,
+  ).length;
   const status = loading
     ? "Checking"
     : error
@@ -41,11 +43,13 @@ export function SettingsExecutionStatusPanel({
         <div className="flex items-center gap-2 [&_.badge]:!text-sm">
           <Badge
             tone={
-              error || (backends.length > 0 && readyCount < backends.length)
-                ? "warn"
-                : readyCount > 0
-                  ? "good"
-                  : "neutral"
+              loading
+                ? "neutral"
+                : error || (backends.length > 0 && readyCount < backends.length)
+                  ? "warn"
+                  : readyCount > 0
+                    ? "good"
+                    : "neutral"
             }
           >
             {status}
@@ -62,6 +66,10 @@ export function SettingsExecutionStatusPanel({
           ) : null}
         </div>
       </div>
+      <p className="settings-status-note">
+        Readiness does not grant execution access. Workspace permissions and
+        native approvals still apply.
+      </p>
       {loading ? (
         <LoadingBlock label="Checking execution backends…" />
       ) : error ? (
@@ -85,8 +93,12 @@ export function SettingsExecutionStatusPanel({
                 </small>
               </div>
               <span className="[&_.badge]:!text-sm">
-                <Badge tone={backend.ready ? "good" : "warn"}>
-                  {backend.ready ? "Ready" : "Unavailable"}
+                <Badge tone={backend.ready === true ? "good" : "warn"}>
+                  {backend.ready === true
+                    ? "Ready"
+                    : backend.ready === false
+                      ? "Unavailable"
+                      : "Not reported"}
                 </Badge>
               </span>
             </div>

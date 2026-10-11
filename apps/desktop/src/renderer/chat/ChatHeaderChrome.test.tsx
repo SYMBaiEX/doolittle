@@ -55,6 +55,17 @@ describe("ChatHeaderChrome", () => {
   const render = (props: Partial<ChatHeaderChromeProps> = {}) => {
     act(() => root.render(<ChatHeaderChrome {...baseProps} {...props} />));
   };
+  const openOptions = async () => {
+    await act(async () =>
+      container
+        .querySelector<HTMLButtonElement>('[aria-label="Conversation options"]')
+        ?.click(),
+    );
+  };
+  const menuItem = (label: string) =>
+    Array.from(
+      document.querySelectorAll<HTMLElement>('[role="menuitem"]'),
+    ).find((item) => item.textContent === label);
 
   it("keeps a new draft quiet while retaining primary actions", () => {
     render();
@@ -80,13 +91,14 @@ describe("ChatHeaderChrome", () => {
     ).toBeNull();
   });
 
-  it("leaves route hierarchy to the stable shell navigation", () => {
+  it("leaves route hierarchy to the stable shell navigation", async () => {
     render();
 
     expect(
       container.querySelector('nav[aria-label="Conversation breadcrumb"]'),
     ).toBeNull();
-    expect(container.textContent).toContain("Open full workspace");
+    await openOptions();
+    expect(menuItem("Open full workspace")).toBeDefined();
   });
 
   it("leaves route controls in the composer and exposes one inspector toggle", () => {
@@ -117,16 +129,14 @@ describe("ChatHeaderChrome", () => {
     expect(handlers.onOpenSettings).toHaveBeenCalledOnce();
   });
 
-  it("keeps history available in the options menu", () => {
+  it("keeps history available in the options menu", async () => {
     render({ surface: "history" });
-    const history = Array.from(container.querySelectorAll("button")).find(
-      (button) => button.textContent === "Conversation history",
-    );
-    act(() => history?.click());
+    await openOptions();
+    await act(async () => menuItem("Conversation history")?.click());
     expect(handlers.onSurfaceChange).toHaveBeenCalledWith("history");
   });
 
-  it("avoids duplicate Library and Computer controls and dispatches host view actions", () => {
+  it("avoids duplicate Library and Computer controls and dispatches host view actions", async () => {
     render();
     const button = (label: string) =>
       Array.from(container.querySelectorAll("button")).find(
@@ -139,8 +149,10 @@ describe("ChatHeaderChrome", () => {
     window.addEventListener("doolittle:new-conversation-view", create);
     window.addEventListener("doolittle:close-conversation-view", close);
     try {
-      act(() => button("New conversation")?.click());
-      act(() => button("Close view")?.click());
+      await openOptions();
+      await act(async () => menuItem("New conversation")?.click());
+      await openOptions();
+      await act(async () => menuItem("Close view")?.click());
       expect(create).toHaveBeenCalledOnce();
       expect(close).toHaveBeenCalledOnce();
     } finally {
@@ -149,7 +161,7 @@ describe("ChatHeaderChrome", () => {
     }
   });
 
-  it("reveals conversation state and forwards the compact actions", () => {
+  it("reveals conversation state and forwards the compact actions", async () => {
     render({
       isNewConversation: false,
       selectedContextLabel: "72%",
@@ -166,12 +178,9 @@ describe("ChatHeaderChrome", () => {
       selectedUpdatedAt: "2026-08-12T12:00:00.000Z",
     });
 
-    expect(container.textContent).toContain("Pin conversation");
-    act(() =>
-      Array.from(container.querySelectorAll("button"))
-        .find((button) => button.textContent === "Pin conversation")
-        ?.click(),
-    );
+    await openOptions();
+    expect(menuItem("Pin conversation")).toBeDefined();
+    await act(async () => menuItem("Pin conversation")?.click());
     act(() =>
       container
         .querySelector<HTMLButtonElement>('[aria-label^="Model options"]')
@@ -204,5 +213,15 @@ describe("ChatHeaderChrome", () => {
     expect(container.textContent).not.toContain(
       "/Users/symbiex/dev/test/package.json",
     );
+  });
+
+  it("revokes the open options menu when the conversation changes", async () => {
+    render({ selectedId: "session-a" });
+    await openOptions();
+    expect(menuItem("Close view")).toBeDefined();
+    await act(async () =>
+      root.render(<ChatHeaderChrome {...baseProps} selectedId="session-b" />),
+    );
+    expect(menuItem("Close view")).toBeUndefined();
   });
 });

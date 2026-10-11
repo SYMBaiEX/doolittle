@@ -47,6 +47,7 @@ import {
   shouldStayOnDirtyClosePrompt,
 } from "./desktop-lifecycle";
 import { DesktopPreferences } from "./desktop-preferences";
+import { createDesktopQuitHandler } from "./desktop-quit";
 import { DesktopExecutionAdmission } from "./execution-admission";
 import { type DesktopBackgroundNotification, registerIpc } from "./ipc";
 import { readBoundedResponseText } from "./ipc/runtime-http";
@@ -60,6 +61,7 @@ import {
   isTrustedRendererNavigation,
   trustedDevRendererUrl,
 } from "./renderer-url";
+import { holdRuntimeStarts } from "./runtime-start-admission";
 import { ensureDesktopRuntimeState } from "./runtime-state";
 import {
   selectBackendLaunchTarget,
@@ -1172,24 +1174,38 @@ if (ownsSingleInstance)
     });
   });
 
+const handleDesktopQuit = createDesktopQuitHandler({
+  holdRuntimeStarts,
+  stopOwnedRuntimes: () => [
+    async () => backend?.stop(),
+    async () => bots?.stopAll(),
+  ],
+  setQuitting: (value) => {
+    quitting = value;
+  },
+  afterStopped: async () => {
+    await browserRenderBridge?.dispose();
+    browserRenderBridge = null;
+    tray?.destroy();
+    tray = null;
+    disposeUiWorkspace?.();
+    uiInterfaces?.dispose();
+    uiBackend?.dispose();
+    disposeIpc?.();
+  },
+  quit: () => app.quit(),
+  onFailure: () => {
+    showMainWindow();
+    dialog.showErrorBox(
+      "Doolittle could not quit safely",
+      "A local runtime did not confirm shutdown. Doolittle remains open to protect your saved data. Try quitting again; do not delete the database lock.",
+    );
+  },
+});
+
 app.on("before-quit", (event) => {
-  if (quitting || !backend) return;
-  event.preventDefault();
-  quitting = true;
-  tray?.destroy();
-  tray = null;
-  disposeUiWorkspace?.();
-  uiInterfaces?.dispose();
-  uiBackend?.dispose();
-  void Promise.all([backend.stop(), bots?.stopAll()]).finally(async () => {
-    try {
-      await browserRenderBridge?.dispose();
-    } finally {
-      browserRenderBridge = null;
-      disposeIpc?.();
-      app.quit();
-    }
-  });
+  if (!backend) return;
+  void handleDesktopQuit(event);
 });
 
 app.on("window-all-closed", () => {

@@ -136,4 +136,49 @@ describe("SettingsAppearancePanel", () => {
     expect(markup).toContain("No color themes are available yet");
     expect(markup).toContain("Import");
   });
+
+  it("keeps built-in themes available offline while explaining runtime-only choices", () => {
+    const markup = renderToStaticMarkup(
+      <SettingsAppearancePanel
+        active={false}
+        activeTheme={null}
+        appearance="system"
+        density="comfortable"
+        onAppearanceChange={noop}
+        onDensityChange={noop}
+        onThemeExport={noop}
+        onThemeImport={noop}
+        onThemeChange={noop}
+        themes={[{ id: "companion", name: "Companion" }, emberTheme]}
+        localThemeIds={["companion"]}
+      />,
+    );
+    expect(markup).toContain(
+      'aria-label="Companion: Desktop color system" aria-pressed="false"',
+    );
+    expect(markup).toContain('title="Start the runtime to apply this theme"');
+    expect(markup).toMatch(/aria-label="Ember:[^>]*disabled=""/u);
+    expect(markup).not.toMatch(/aria-label="Companion:[^>]*disabled=""/u);
+  });
+
+  it("locks theme-dependent controls during an asynchronous apply", () => {
+    const markup = renderToStaticMarkup(
+      <SettingsAppearancePanel
+        active
+        activeTheme={emberTheme}
+        appearance="dark"
+        density="compact"
+        themeBusy
+        onAppearanceChange={noop}
+        onDensityChange={noop}
+        onThemeExport={noop}
+        onThemeImport={noop}
+        onThemeChange={noop}
+        themes={[emberTheme]}
+      />,
+    );
+    expect(markup).toContain('aria-busy="true"');
+    expect(markup).toContain("Applying interface theme…");
+    expect(markup.match(/disabled=""/gu)).toHaveLength(8);
+  });
 });

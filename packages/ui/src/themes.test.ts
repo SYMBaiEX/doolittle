@@ -20,6 +20,9 @@ describe("versioned themes", () => {
       const tokens = themeCssVariables(theme, appearance);
       expect(tokens["--control-height"]).toBe("40px");
       expect(tokens["--text-body"]).toBe("16px");
+      expect(tokens["--text-conversation"]).toBe("16px");
+      expect(tokens["--surface-selected"]).toBe("transparent");
+      expect(tokens["--touch-height"]).toBe("44px");
       expect(tokens["--text-control"]).toBe("14px");
       expect(tokens["--sidebar-width"]).toBe("248px");
     }

@@ -7,12 +7,28 @@
   /* Do not animate grid geometry or continuously reflow the transcript. */
   transition-property: none;
 }
-.desktop-shell .app-sidebar {
-  background: color-mix(in srgb, var(--surface) 94%, var(--bg));
-  border-color: color-mix(in srgb, var(--border) 64%, transparent);
+.chat-header-action:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
 }
-.desktop-shell .window-dragbar {
-  border-color: color-mix(in srgb, var(--border) 60%, transparent);
+.chat-history-notice {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  padding: 8px clamp(12px, 2.6vw, 28px);
+  color: var(--text-soft);
+  font-size: var(--text-control, 14px);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.chat-history-notice button {
+  min-height: var(--control-height, 40px);
+  flex: none;
+  padding-inline: 8px;
+  color: var(--text);
+  font-weight: 500;
 }
 .chat-workspace .chat-messages {
   padding-top: 24px;
@@ -21,18 +37,12 @@
 .chat-workspace .chat-message {
   margin-bottom: 24px;
 }
-.chat-workspace .chat-message-avatar {
-  border-radius: 50%;
-}
 .chat-workspace .chat-message.user .chat-message-body {
-  border-radius: 20px 6px 20px 20px;
-  border-color: color-mix(in srgb, var(--border) 62%, transparent);
   background: color-mix(
     in srgb,
     var(--surface-soft) 88%,
     var(--surface-raised)
   );
-  padding: 10px 16px;
 }
 .chat-workspace .chat-composer {
   border-radius: max(20px, var(--radius-lg));
@@ -49,12 +59,6 @@
 .chat-workspace .chat-welcome h1 {
   line-height: 1.18;
   letter-spacing: -0.035em;
-}
-.chat-workspace .chat-welcome,
-.chat-workspace
-  .chat-conversation[data-layout="active"]
-  .chat-transcript-region {
-  animation: dl-content-in var(--motion-surface) var(--ease-liquid) backwards;
 }
 .chat-workspace .thinking::before {
   /* Execution facts already have labels; never make nearby text pulse. */
@@ -116,16 +120,6 @@
   animation: dl-backdrop-in var(--motion-dismiss) var(--ease-liquid) reverse
     both;
 }
-.desktop-shell
-  :is(.icon-button, .window-utility-button, .window-command-button) {
-  border-radius: max(9px, var(--radius-md));
-}
-.desktop-shell .sidebar-account {
-  border-radius: max(10px, var(--radius-md));
-}
-.desktop-shell .loading-block {
-  animation: dl-content-in var(--motion-surface) var(--ease-liquid) backwards;
-}
 @keyframes dl-inspector-in {
   from {
     opacity: 0;
@@ -147,6 +141,12 @@
   }
 }
 @media (max-width: 760px) {
+  .chat-workspace {
+    --text-code: max(14px, var(--text-control));
+  }
+  .chat-history-notice button {
+    min-height: var(--touch-height, 44px);
+  }
   .chat-workspace .chat-composer {
     padding: 8px;
   }

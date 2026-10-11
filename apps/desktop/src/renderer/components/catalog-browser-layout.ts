@@ -1,11 +1,11 @@
 export const CATALOG_BROWSER_CLASS =
-  "grid min-h-[clamp(360px,48vh,560px)] grid-cols-[minmax(250px,0.58fr)_minmax(0,1.42fr)] overflow-hidden rounded-[var(--radius-sm)] border border-[var(--border)] bg-[color-mix(in_srgb,var(--surface)_94%,transparent)] max-[820px]:grid-cols-1";
+  "grid min-h-[clamp(360px,48vh,560px)] grid-cols-[minmax(250px,0.58fr)_minmax(0,1.42fr)] overflow-hidden border-y border-[var(--border)] bg-transparent max-[820px]:grid-cols-1";
 export const CATALOG_INDEX_CLASS =
   "grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)_auto] border-r border-[var(--border)] max-[820px]:max-h-[310px] max-[820px]:border-r-0 max-[820px]:border-b";
 export const CATALOG_INDEX_HEADER_CLASS =
   "flex min-h-[51px] items-center justify-between gap-3 border-b border-[var(--border)] bg-[color-mix(in_srgb,var(--surface-soft)_70%,transparent)] px-2.5 py-2 [&>div]:grid [&>div]:gap-px [&_small]:font-[var(--font-mono)] [&_small]:text-[length:var(--text-meta)] [&_small]:text-[var(--muted)] [&_strong]:text-[length:var(--text-control)] [&_strong]:text-[var(--text)]";
 export const CATALOG_EYEBROW_CLASS =
-  "font-[var(--font-mono)] text-[length:var(--text-meta)] font-bold uppercase tracking-[0.08em] text-[var(--muted)]";
+  "text-[length:var(--text-control)] font-medium text-[var(--muted)]";
 export const CATALOG_INDEX_LIST_CLASS =
   "m-0 grid min-h-0 list-none content-start gap-px overflow-y-auto p-1 [scrollbar-gutter:stable]";
 export const CATALOG_INDEX_TITLE_CLASS =
@@ -26,9 +26,9 @@ export const CATALOG_TOKENS_CLASS =
   "mt-[17px] grid gap-[7px] [&>div]:flex [&>div]:flex-wrap [&>div]:gap-[5px] [&_code]:rounded-[var(--radius-xs)] [&_code]:border [&_code]:border-[var(--border)] [&_code]:bg-[var(--surface-soft)] [&_code]:px-1.5 [&_code]:py-1 [&_code]:text-[length:var(--text-meta)] [&_code]:text-[var(--text-soft)]";
 
 export function catalogIndexItemClass(active: boolean): string {
-  return `grid min-h-[49px] w-full gap-[3px] rounded-[var(--radius-xs)] border p-[6px_8px] text-left ${
+  return `grid min-h-14 w-full gap-1 border-b border-[var(--border-subtle)] bg-transparent px-3 py-2 text-left hover:bg-[var(--surface-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--focus-ring)] ${
     active
-      ? "border-[color-mix(in_srgb,var(--accent)_20%,var(--border))] bg-[color-mix(in_srgb,var(--accent)_8%,var(--surface-soft))] text-[var(--text)] shadow-[inset_2px_0_var(--accent)]"
-      : "border-transparent bg-transparent text-[var(--text-soft)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+      ? "font-semibold [&_strong]:font-semibold text-[var(--text)]"
+      : "[&_strong]:font-medium text-[var(--text-soft)] hover:text-[var(--text)]"
   }`;
 }

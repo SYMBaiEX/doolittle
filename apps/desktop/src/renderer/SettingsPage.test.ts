@@ -229,7 +229,7 @@ describe("settings resource policy", () => {
     expect(settingsPageSource).toContain("isEmbeddedSettingsFeature(category)");
     expect(settingsPageSource).toContain("readOnly={!writesAllowed}");
     expect(settingsPageSource).toContain(
-      'onOpenProviders={() => onSectionChange?.("accounts")}',
+      'onOpenProviders={() => selectSection("accounts")}',
     );
   });
 

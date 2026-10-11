@@ -394,7 +394,7 @@ export function RunReceiptView({
           </p>
           {onRetry ? (
             <button
-              className="inline-flex min-h-7 shrink-0 items-center gap-1.5 rounded-[var(--radius-xs)] border border-[var(--border)] bg-[var(--surface-soft)] px-2 text-[length:var(--text-meta)] font-semibold text-[var(--text-soft)] hover:border-[var(--border-strong)] hover:text-[var(--text)] disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-[var(--radius-xs)] border border-[var(--border)] bg-[var(--surface-soft)] px-2 text-[length:var(--text-control)] font-semibold text-[var(--text-soft)] hover:border-[var(--border-strong)] hover:text-[var(--text)] disabled:cursor-not-allowed disabled:opacity-50 max-[760px]:min-h-11"
               disabled={retryDisabled}
               aria-label="Retry this response in a new branch"
               onClick={onRetry}
@@ -441,10 +441,10 @@ export function RunReceiptView({
                 <li key={item.id}>
                   <button
                     aria-pressed={selected?.id === item.id}
-                    className={`grid min-h-8 w-full grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-2 rounded-[var(--radius-xs)] border-0 px-2 py-1 text-left transition-colors duration-100 hover:bg-[var(--surface-hover)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-[var(--accent)] motion-reduce:transition-none ${
+                    className={`grid min-h-10 w-full grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-2 border-0 bg-transparent px-2 py-1 text-left transition-colors duration-100 hover:bg-[var(--surface-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)] motion-reduce:transition-none max-[760px]:min-h-11 ${
                       selected?.id === item.id
-                        ? "bg-[color-mix(in_srgb,var(--accent)_7%,var(--surface-soft))]"
-                        : "bg-transparent"
+                        ? "font-semibold text-[var(--text)]"
+                        : "text-[var(--text-soft)]"
                     }`}
                     onClick={() => setSelectedId(item.id)}
                     type="button"

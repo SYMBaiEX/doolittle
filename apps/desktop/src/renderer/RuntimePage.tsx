@@ -41,7 +41,10 @@ function RuntimePageFrame({
 }) {
   if (embedded) {
     return (
-      <div className="settings-embedded-section" data-settings-embedded="true">
+      <div
+        className="settings-embedded-section @container/runtime min-w-0"
+        data-settings-embedded="true"
+      >
         {children}
       </div>
     );

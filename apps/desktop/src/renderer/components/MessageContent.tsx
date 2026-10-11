@@ -1,5 +1,4 @@
 import { type ContextAction, ContextActionMenu } from "@doolittle/ui";
-import { PagePanel } from "@elizaos/ui/components/composites/page-panel";
 import { Button } from "@elizaos/ui/components/ui/button";
 import { StatusBadge } from "@elizaos/ui/components/ui/status-badge";
 import {
@@ -10,7 +9,7 @@ import {
   TriangleAlert,
   Wrench,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Streamdown, type UrlTransform } from "streamdown";
 import "streamdown/styles.css";
 import {
@@ -152,16 +151,18 @@ function WebSearchSources({ activity }: { activity: ToolActivity }) {
       <ol className="m-0 grid list-none gap-1.5 p-0">
         {results.slice(0, 10).map((result) => (
           <li
-            className="rounded-md border border-[var(--border)] bg-[color-mix(in_srgb,var(--surface-soft)_76%,transparent)] px-2.25 py-2"
+            className="border-b border-[var(--border)] py-2 last:border-0"
             key={result.url}
           >
             <a
-              className="flex items-baseline justify-between gap-3 text-[var(--text-soft)] no-underline hover:[&>strong]:text-[var(--accent)]"
+              className="flex min-w-0 flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-[var(--text-soft)] no-underline hover:[&>strong]:text-[var(--accent)]"
               href={result.url}
               rel="noreferrer"
               target="_blank"
             >
-              <strong>{result.title}</strong>
+              <strong className="min-w-0 [overflow-wrap:anywhere]">
+                {result.title}
+              </strong>
               <span className="shrink-0 font-mono text-[length:var(--text-meta)] text-[var(--faint)]">
                 {new URL(result.url).hostname}
               </span>
@@ -185,16 +186,28 @@ function ToolActivityGroup({
   pending: boolean;
   tools: ToolActivity[];
 }) {
-  const latestToolId = tools.at(-1)?.id ?? null;
-  const [selectedId, setSelectedId] = useState(latestToolId);
-  const [copyLabel, setCopyLabel] = useState("Copy output");
+  // Follow live activity until the user explicitly inspects a step. New tools
+  // must not replace a payload they are reading or selecting text within.
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [copyState, setCopyState] = useState<{
+    id: string;
+    label: string;
+  } | null>(null);
+  const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [expanded, setExpanded] = useState(pending);
-  useEffect(() => setSelectedId(latestToolId), [latestToolId]);
+  useEffect(
+    () => () => {
+      if (copyTimer.current !== null) clearTimeout(copyTimer.current);
+    },
+    [],
+  );
   useEffect(() => {
     if (pending) setExpanded(true);
   }, [pending]);
   const selected =
     tools.find((activity) => activity.id === selectedId) ?? tools.at(-1);
+  const copyLabel =
+    copyState?.id === selected?.id ? copyState?.label : "Copy output";
   const completed = tools.filter(
     (activity) => activity.status === "completed",
   ).length;
@@ -227,14 +240,19 @@ function ToolActivityGroup({
     : "Agent activity";
   const copyOutput = async (activity = selected) => {
     const value = formatToolPayload(activity?.output);
-    if (!value || !navigator.clipboard?.writeText) return;
+    if (!activity || !value) return;
+    if (copyTimer.current !== null) clearTimeout(copyTimer.current);
+    if (!navigator.clipboard?.writeText) {
+      setCopyState({ id: activity.id, label: "Copy unavailable" });
+      return;
+    }
     try {
       await navigator.clipboard.writeText(value);
-      setCopyLabel("Copied");
+      setCopyState({ id: activity.id, label: "Copied" });
     } catch {
-      setCopyLabel("Copy failed");
+      setCopyState({ id: activity.id, label: "Copy failed" });
     }
-    window.setTimeout(() => setCopyLabel("Copy output"), 1_500);
+    copyTimer.current = setTimeout(() => setCopyState(null), 1_500);
   };
   const activityActions = (activity = selected): ContextAction[] => [
     {
@@ -271,7 +289,7 @@ function ToolActivityGroup({
             className={
               status === "error"
                 ? "text-[var(--danger)]"
-                : "text-[var(--accent)]"
+                : "text-[var(--muted)]"
             }
             icon={Activity}
             size="sm"
@@ -339,8 +357,8 @@ function ToolActivityGroup({
                       }
                       size="xs"
                     />
-                    <span className="flex min-w-0 items-baseline gap-1.5">
-                      <strong className="shrink-0 text-[length:var(--text-meta)] font-semibold text-[var(--text-soft)]">
+                    <span className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
+                      <strong className="min-w-0 [overflow-wrap:anywhere] text-[length:var(--text-control)] font-medium text-inherit">
                         {toolLabel(activity)}
                       </strong>
                       {target ? (
@@ -376,6 +394,8 @@ function ToolActivityGroup({
             {selected.output !== undefined ? (
               <footer className="flex justify-end pt-1.5">
                 <Button
+                  aria-live="polite"
+                  disabled={!formatToolPayload(selected.output)}
                   onClick={() => void copyOutput()}
                   size="sm"
                   type="button"
@@ -404,7 +424,7 @@ function AgentSteps({
   if (!failed) return null;
   return (
     <details className={MESSAGE_AGENT_STEPS_CLASS}>
-      <summary className="grid min-h-6 cursor-pointer list-none grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-1.25 px-0.75 py-0.5 font-mono text-[length:var(--text-meta)] [&::-webkit-details-marker]:hidden">
+      <summary className="grid min-h-10 cursor-pointer list-none grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-1.25 px-0.75 py-1 text-[length:var(--text-control)] [&::-webkit-details-marker]:hidden max-[760px]:min-h-11">
         <UiIcon className="text-[var(--faint)]" icon={Activity} size="xs" />
         <strong className="font-medium text-[var(--muted)]">
           Run diagnostics
@@ -418,7 +438,7 @@ function AgentSteps({
           size="xs"
         />
       </summary>
-      <div className="max-h-42.5 overflow-auto pt-0.25 pr-1.5 pb-2.25 pl-5.75 text-[10px] leading-[1.55] text-[var(--muted)] [&>p]:my-1 [&>small]:mt-1.75 [&>small]:block [&>small]:text-[var(--faint)]">
+      <div className="max-h-42.5 overflow-auto py-2 pl-6 pr-2 text-[length:var(--text-control)] leading-[1.55] text-[var(--muted)] [&>p]:my-1 [&>small]:mt-2 [&>small]:block">
         {continued > 0 ? (
           <p>
             The evaluator requested another step before a final response was
@@ -459,10 +479,7 @@ export function MessageContent({
     parsed.steps.continued + parsed.steps.failed + parsed.steps.finished > 0;
 
   return (
-    <PagePanel
-      className="min-w-0 !space-y-0 !bg-transparent !p-0"
-      data-message-content="true"
-    >
+    <div className="min-w-0" data-message-content="true">
       {parsed.text ? (
         <Streamdown
           animated={false}
@@ -484,7 +501,9 @@ export function MessageContent({
         </Streamdown>
       ) : !hasActivity ? (
         <p data-message-content-state="empty">
-          <span className="thinking">Empty</span>
+          <span className="thinking">
+            {pending ? "Working…" : "No response text was returned."}
+          </span>
         </p>
       ) : null}
       {parsed.tools.length > 0 ? (
@@ -493,6 +512,6 @@ export function MessageContent({
         </section>
       ) : null}
       <AgentSteps {...parsed.steps} />
-    </PagePanel>
+    </div>
   );
 }

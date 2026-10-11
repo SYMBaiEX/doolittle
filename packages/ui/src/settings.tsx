@@ -5,6 +5,7 @@ import {
   useRef,
 } from "react";
 import { type ContextAction, ContextActionMenu } from "./context-action-menu";
+import { Input, NativeSelect } from "./controls";
 
 export interface SettingsMenuItem {
   id: string;
@@ -78,7 +79,7 @@ export function SettingsMenu({
       </header>
       <label className="dl-settings-mobile-select" htmlFor={`${id}-section`}>
         <span>Settings section</span>
-        <select
+        <NativeSelect
           id={`${id}-section`}
           aria-label="Settings section"
           value={pickerValue}
@@ -95,12 +96,16 @@ export function SettingsMenu({
                 ))}
             </optgroup>
           ))}
-        </select>
+        </NativeSelect>
       </label>
       {onQueryChange ? (
-        <label className="settings-section-search dl-settings-menu-search">
+        <label
+          className="settings-section-search dl-settings-menu-search"
+          htmlFor={`${id}-search`}
+        >
           <span className="sr-only">Search settings sections</span>
-          <input
+          <Input
+            id={`${id}-search`}
             ref={searchRef}
             type="search"
             placeholder="Find a section…"
@@ -201,9 +206,6 @@ export function SettingsMenu({
                       </span>
                     ) : null}
                     <span className="dl-settings-menu-label">{item.label}</span>
-                    <span className="dl-settings-current" aria-hidden="true">
-                      ●
-                    </span>
                   </button>
                 </ContextActionMenu>
               ))}

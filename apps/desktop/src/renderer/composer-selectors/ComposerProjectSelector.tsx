@@ -225,7 +225,7 @@ export function ComposerProjectSelector({
                 </button>
               ))}
               {!visibleProjects.length && query ? (
-                <p className="p-3 text-[10px] text-[var(--faint)]">
+                <p className="p-3 text-[length:var(--text-control)] text-[var(--faint)]">
                   No matching projects.
                 </p>
               ) : null}

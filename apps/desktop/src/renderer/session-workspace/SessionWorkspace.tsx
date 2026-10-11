@@ -51,7 +51,7 @@ type WorkspaceProps = ChatPageProps & {
   renderPanel: (props: PanelProps) => ReactNode;
 };
 const CONTROL =
-  "inline-flex min-h-10 min-w-10 max-[720px]:min-h-11 max-[720px]:min-w-11 items-center justify-center gap-1.5 border border-[var(--border)] px-2 text-[length:var(--text-control)] text-[var(--text-soft)] transition-colors hover:border-[var(--accent)] hover:bg-[var(--surface-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] disabled:opacity-40";
+  "inline-flex min-h-10 min-w-10 max-[720px]:min-h-11 max-[720px]:min-w-11 items-center justify-center gap-2 rounded-[var(--radius-md)] border-0 bg-transparent px-2 text-[length:var(--text-control)] text-[var(--text-soft)] transition-colors hover:bg-[var(--surface-hover)] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--focus-ring)] disabled:cursor-default disabled:opacity-40";
 
 export function SessionWorkspace(props: WorkspaceProps) {
   return (
@@ -162,11 +162,14 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
     ]),
   ];
   const titleFor = (id: string) =>
-    knownSessions.current.get(id)?.title ||
+    knownSessions.current.get(id)?.title?.trim() ||
     messages[id]
       ?.find((message) => message.role === "user")
       ?.content.slice(0, 48) ||
     "New session";
+  const matchingIds = ids.filter((id) =>
+    `${id} ${titleFor(id)}`.toLowerCase().includes(search.trim().toLowerCase()),
+  );
   const statusFor = (id: string) =>
     sessionPanelStatus({
       sessionId: id,
@@ -498,12 +501,12 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
             }
           }}
         >
-          <div className="mb-2 flex items-center justify-between gap-2">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
             <label
               className="block text-[length:var(--text-control)] text-[var(--text-soft)]"
               htmlFor="session-workspace-search"
             >
-              Search loaded and local sessions
+              Find a conversation
             </label>
             <Button
               variant="ghost"
@@ -515,6 +518,18 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
               type="button"
             >
               Full history
+            </Button>
+            <Button
+              aria-label="Close conversation finder"
+              className={CONTROL}
+              onClick={() => {
+                setFinderOpen(false);
+                (finderButtonRef.current ?? finderReturnRef.current)?.focus();
+              }}
+              type="button"
+              variant="ghost"
+            >
+              <X aria-hidden size={14} />
             </Button>
           </div>
           <Input
@@ -529,71 +544,67 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
             className="mt-2 grid max-h-48 gap-1 overflow-y-auto"
             aria-label="Session search results"
           >
-            {ids
-              .filter((id) =>
-                `${id} ${titleFor(id)}`
-                  .toLowerCase()
-                  .includes(search.toLowerCase()),
-              )
-              .map((id) => (
-                <li key={id}>
-                  <ContextActionMenu
-                    items={[
-                      {
-                        id: "open",
-                        label: layout.openIds.includes(id)
-                          ? "Focus conversation"
-                          : "Open conversation",
-                        disabled:
-                          !layout.openIds.includes(id) &&
-                          layout.openIds.length >= MAX_OPEN_PANELS,
-                        onSelect: () => focusSession(id, true),
-                      },
-                      {
-                        id: "copy-title",
-                        label: "Copy conversation title",
-                        separatorBefore: true,
-                        onSelect: () => void copyContextText(titleFor(id)),
-                      },
-                      {
-                        id: "copy-id",
-                        label: "Copy conversation ID",
-                        onSelect: () => void copyContextText(id),
-                      },
-                      ...(layout.openIds.includes(id)
-                        ? [
-                            {
-                              id: "close-view",
-                              label: "Close view (work continues)",
-                              separatorBefore: true,
-                              onSelect: () => closePanel(id),
-                            },
-                          ]
-                        : []),
-                    ]}
-                    label={`${titleFor(id)} conversation actions`}
-                    scopeKey={`finder:${id}`}
+            {matchingIds.map((id) => (
+              <li key={id}>
+                <ContextActionMenu
+                  items={[
+                    {
+                      id: "open",
+                      label: layout.openIds.includes(id)
+                        ? "Focus conversation"
+                        : "Open conversation",
+                      disabled:
+                        !layout.openIds.includes(id) &&
+                        layout.openIds.length >= MAX_OPEN_PANELS,
+                      onSelect: () => focusSession(id, true),
+                    },
+                    {
+                      id: "copy-title",
+                      label: "Copy conversation title",
+                      separatorBefore: true,
+                      onSelect: () => void copyContextText(titleFor(id)),
+                    },
+                    {
+                      id: "copy-id",
+                      label: "Copy conversation ID",
+                      onSelect: () => void copyContextText(id),
+                    },
+                    ...(layout.openIds.includes(id)
+                      ? [
+                          {
+                            id: "close-view",
+                            label: "Close view (work continues)",
+                            separatorBefore: true,
+                            onSelect: () => closePanel(id),
+                          },
+                        ]
+                      : []),
+                  ]}
+                  label={`${titleFor(id)} conversation actions`}
+                  scopeKey={`finder:${id}`}
+                >
+                  <Button
+                    variant="ghost"
+                    className={`${CONTROL} w-full min-w-0 justify-between text-left`}
+                    disabled={
+                      !layout.openIds.includes(id) &&
+                      layout.openIds.length >= MAX_OPEN_PANELS
+                    }
+                    onClick={() => focusSession(id, true)}
+                    type="button"
                   >
-                    <Button
-                      variant="ghost"
-                      className={`${CONTROL} w-full justify-between text-left`}
-                      onClick={() => focusSession(id, true)}
-                      type="button"
-                    >
-                      <span className="min-w-0 truncate">{titleFor(id)}</span>
-                      <span className="shrink-0 font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--muted)]">
-                        {layout.openIds.includes(id) ? "Focus" : "Open"} ·{" "}
-                        {statusFor(id)}
-                      </span>
-                    </Button>
-                  </ContextActionMenu>
-                </li>
-              ))}
-            {ids.filter((id) =>
-              `${id} ${titleFor(id)}`
-                .toLowerCase()
-                .includes(search.toLowerCase()),
-            ).length === 0 ? (
+                    <span className="min-w-0 truncate" title={titleFor(id)}>
+                      {titleFor(id)}
+                    </span>
+                    <span className="shrink-0 font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--muted)]">
+                      {layout.openIds.includes(id) ? "Focus" : "Open"} ·{" "}
+                      {statusFor(id)}
+                    </span>
+                  </Button>
+                </ContextActionMenu>
+              </li>
+            ))}
+            {matchingIds.length === 0 ? (
               <li className="py-3 text-sm text-[var(--muted)]">
                 No matching sessions.
               </li>
@@ -614,16 +625,17 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
         <div className="flex min-h-10 shrink-0 items-center border-b border-[var(--border)] bg-[var(--surface)] max-[760px]:min-h-11">
           <div
             aria-label="Open conversations"
-            className="flex min-w-0 flex-1 overflow-x-auto"
+            className="flex min-w-0 flex-1 gap-1 overflow-x-auto px-2 [scrollbar-width:thin]"
             role="tablist"
           >
             {layout.openIds.map((id, index) => (
               <div
-                className="flex shrink-0 border-r border-[var(--border)]"
+                className="flex min-w-0 shrink-0 items-center"
                 key={id}
                 role="presentation"
               >
                 <ContextActionMenu
+                  className="group flex min-w-0 items-center"
                   items={panelActions(id)}
                   label={`${titleFor(id)} view actions`}
                   scopeKey={`conversation-view:${id}:${layout.focusedId}`}
@@ -632,7 +644,7 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
                     variant="ghost"
                     aria-controls={`session-panel-${id}`}
                     aria-selected={id === layout.focusedId}
-                    className="min-h-10 max-w-52 shrink-0 truncate border-r border-[var(--border)] px-3 text-[length:var(--text-control)] text-[var(--text-soft)] aria-selected:border-b-2 aria-selected:border-b-[var(--accent)] aria-selected:bg-[var(--surface)] focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)] max-[760px]:min-h-11"
+                    className="inline-flex min-h-10 min-w-0 max-w-64 items-center gap-2 rounded-[var(--radius-md)] border-0 bg-transparent px-2 text-[length:var(--text-control)] text-[var(--text-soft)] hover:bg-[var(--surface-hover)] aria-selected:font-semibold aria-selected:text-[var(--text)] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--focus-ring)] max-[760px]:min-h-11 max-[760px]:max-w-44"
                     id={`session-tab-${id}`}
                     onClick={() => focusSession(id)}
                     onKeyDown={(event) => {
@@ -656,16 +668,19 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
                     }}
                     role="tab"
                     tabIndex={id === layout.focusedId ? 0 : -1}
+                    title={titleFor(id)}
                     type="button"
                   >
-                    {titleFor(id)}{" "}
-                    <span className="ml-2 text-[length:var(--text-meta)] text-[var(--muted)]">
+                    <span className="min-w-0 truncate">{titleFor(id)}</span>
+                    <span
+                      className={`shrink-0 text-[length:var(--text-meta)] font-normal text-[var(--muted)] ${statusFor(id) === "Ready" ? "sr-only" : ""}`}
+                    >
                       {statusFor(id)}
                     </span>
                   </Button>
                   <button
                     aria-label={`Close ${titleFor(id)} view`}
-                    className="grid min-h-10 w-8 place-items-center text-[var(--muted)] hover:text-[var(--text)] max-[760px]:min-h-11 max-[760px]:w-11"
+                    className="grid size-10 shrink-0 place-items-center rounded-[var(--radius-md)] text-[var(--muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--focus-ring)] max-[760px]:size-11"
                     onClick={() => closePanel(id)}
                     title="Close view only; running work continues"
                     type="button"
@@ -693,14 +708,19 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
             <Button
               aria-label="New session"
               className={CONTROL}
+              disabled={layout.openIds.length >= MAX_OPEN_PANELS}
               onClick={createSession}
-              title="New conversation view"
+              title={
+                layout.openIds.length >= MAX_OPEN_PANELS
+                  ? "Close a view before opening another. Running work continues."
+                  : "New conversation view"
+              }
               type="button"
               variant="ghost"
             >
               <Plus aria-hidden size={14} />
             </Button>
-            {!isNarrow ? (
+            {!isNarrow && !isShort ? (
               <details
                 className="relative"
                 ref={layoutMenuRef}
@@ -716,7 +736,7 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
                   <Columns2 aria-hidden size={14} />
                   <span className="sr-only">Layout views</span>
                 </summary>
-                <div className="absolute right-0 z-40 mt-1 grid max-h-64 w-56 overflow-y-auto rounded-[var(--radius-md)] border border-[var(--border-strong)] bg-[var(--surface-raised)] p-1 shadow-[var(--shell-shadow-md)]">
+                <div className="absolute right-0 z-40 mt-1 grid max-h-64 w-56 overflow-y-auto rounded-[var(--radius-floating,16px)] border border-[var(--border)] bg-[var(--surface-raised)] p-1 shadow-[var(--shell-shadow-md)]">
                   <button
                     className="min-h-10 rounded px-2 text-left text-sm hover:bg-[var(--surface-hover)]"
                     onClick={() =>
@@ -779,10 +799,7 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
         ref={panelsRef}
       >
         {layout.openIds.length === 0 ? (
-          <div className="grid min-h-0 flex-1 content-center justify-items-center gap-3 p-6 text-center">
-            <p className="font-[var(--font-mono)] text-[length:var(--text-control)] uppercase tracking-widest text-[var(--accent-text)]">
-              No open panels
-            </p>
+          <div className="grid h-full min-h-0 content-center justify-items-center gap-3 overflow-y-auto p-6 text-center">
             <h2 className="text-[length:var(--page-title-size)] text-[var(--text)]">
               Your sessions are still here.
             </h2>
@@ -794,6 +811,7 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
               variant="ghost"
               className={CONTROL}
               onClick={() => setFinderOpen(true)}
+              ref={finderButtonRef}
               type="button"
             >
               Find session
@@ -821,7 +839,7 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
                     ? `session-tab-${id}`
                     : undefined
                 }
-                className={`absolute flex min-h-0 min-w-0 flex-col overflow-hidden bg-[var(--bg)] ${!tabbed && focused ? "ring-1 ring-inset ring-[var(--accent-border)]" : ""}`}
+                className="absolute @container/session-pane flex min-h-0 min-w-0 flex-col overflow-hidden bg-[var(--bg)]"
                 data-session-panel={id}
                 hidden={!visible}
                 inert={!visible}
@@ -863,20 +881,17 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
                         variant="ghost"
                         aria-label={`Focus ${title}`}
                         aria-pressed={focused}
-                        className="inline-flex min-h-9 min-w-0 flex-1 items-center justify-start truncate px-1 text-left text-sm font-medium text-[var(--text)] focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
+                        className="inline-flex min-h-10 min-w-0 flex-1 items-center justify-start gap-2 overflow-hidden rounded-[var(--radius-md)] px-1 text-left text-sm font-normal text-[var(--text-soft)] aria-pressed:font-semibold aria-pressed:text-[var(--text)] hover:bg-[var(--surface-hover)] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
                         data-session-focus={id}
                         onClick={() => focusSession(id, true)}
-                        title={id}
+                        title={title}
                         type="button"
                       >
-                        <span className="mr-2 font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--muted)]">
-                          {String(index + 1).padStart(2, "0")}
-                        </span>
-                        {title}
+                        <span className="min-w-0 truncate">{title}</span>
                       </Button>
                       <span
                         aria-live="polite"
-                        className={`shrink-0 font-[var(--font-mono)] text-[length:var(--text-meta)] ${activeRequests[id] ? "text-[var(--accent-text)]" : "text-[var(--muted)]"}`}
+                        className={`shrink-0 text-[length:var(--text-meta)] ${activeRequests[id] ? "text-[var(--accent-text)]" : "text-[var(--muted)]"} ${statusFor(id) === "Ready" ? "sr-only" : ""}`}
                       >
                         {statusFor(id)}
                       </span>
@@ -964,7 +979,7 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
                   aria-valuemin={20}
                   aria-valuemax={80}
                   aria-valuenow={Math.round(divider.ratio * 100)}
-                  className={`absolute z-10 touch-none bg-[var(--border)] hover:bg-[var(--accent-border)] focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)] ${divider.axis === "horizontal" ? "w-2 -translate-x-1 cursor-col-resize" : "h-2 -translate-y-1 cursor-row-resize"}`}
+                  className={`absolute z-10 m-0 touch-none border-0 bg-transparent hover:bg-[var(--surface-hover)] before:pointer-events-none before:absolute before:bg-[var(--border)] before:content-[''] focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)] ${divider.axis === "horizontal" ? "w-2 -translate-x-1 cursor-col-resize before:inset-y-0 before:left-1/2 before:w-px" : "h-2 -translate-y-1 cursor-row-resize before:inset-x-0 before:top-1/2 before:h-px"}`}
                   data-session-resizer
                   onKeyDown={(event) => {
                     const forward =

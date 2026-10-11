@@ -123,7 +123,7 @@ export function GatewayPairingPanel({
                     const denyId = `deny:${request.platform}:${request.code}`;
                     return (
                       <li
-                        className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-2.25 gap-y-1.25 border-[var(--border)] border-b py-2.25 [&>span]:col-span-full [&>span]:font-mono [&>span]:text-[10px] [&>span]:text-[var(--muted)] [&>time]:col-span-full [&>time]:font-mono [&>time]:text-[10px] [&>time]:text-[var(--muted)]"
+                        className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-2.25 gap-y-1.25 border-[var(--border)] border-b py-2.25 [&>span]:col-span-full [&>span]:font-mono [&>span]:text-[length:var(--text-control)] [&>span]:text-[var(--muted)] [&>time]:col-span-full [&>time]:font-mono [&>time]:text-[length:var(--text-control)] [&>time]:text-[var(--muted)]"
                         key={request.id}
                       >
                         <Badge tone="warn">{titleCase(request.platform)}</Badge>
@@ -205,7 +205,7 @@ export function GatewayPairingPanel({
                     const revokeId = `revoke:${sender.platform}:${sender.userId}`;
                     return (
                       <li
-                        className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-2.25 gap-y-1.25 border-[var(--border)] border-b py-2.25 [&>time]:col-span-full [&>time]:font-mono [&>time]:text-[10px] [&>time]:text-[var(--muted)]"
+                        className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-2.25 gap-y-1.25 border-[var(--border)] border-b py-2.25 [&>time]:col-span-full [&>time]:font-mono [&>time]:text-[length:var(--text-control)] [&>time]:text-[var(--muted)]"
                         key={sender.id}
                       >
                         <Badge tone="good">{titleCase(sender.platform)}</Badge>

@@ -42,6 +42,26 @@ describe("SettingsExecutionStatusPanel", () => {
     expect(markup).not.toContain('class="stack-list"');
   });
 
+  it("never converts missing or malformed health into ready access", () => {
+    const markup = renderToStaticMarkup(
+      <SettingsExecutionStatusPanel
+        data={{
+          backends: [
+            { backend: "remote", ready: "false" },
+            { backend: "local" },
+          ],
+        }}
+        error=""
+        loading={false}
+        onReload={vi.fn()}
+      />,
+    );
+    expect(markup).toContain("0/2 ready");
+    expect(markup).toContain("Not reported");
+    expect(markup).toContain("Readiness does not grant execution access");
+    expect(markup).not.toContain(">Ready</span>");
+  });
+
   it("disables recheck during loading and uses the error retry as the sole action", () => {
     const loading = renderToStaticMarkup(
       <SettingsExecutionStatusPanel

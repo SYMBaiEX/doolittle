@@ -1,5 +1,10 @@
 import type { BotSummary } from "@doolittle/contracts/bots";
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@elizaos/ui/components/ui/popover";
+import {
   Check,
   ChevronDown,
   ChevronRight,
@@ -32,7 +37,6 @@ import {
   COMPOSER_SEARCH_CLASS,
   COMPOSER_SELECTOR_ROOT_CLASS,
 } from "../composer-selectors/layout";
-import { useDismissPopover } from "../composer-selectors/useDismissPopover";
 import { desktopRequest, errorMessage, useApiResource } from "../lib";
 import {
   defaultBaseUrlForProvider,
@@ -157,8 +161,11 @@ export function ComposerModelSelector({
   const rootRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const searchRef = useRef<HTMLInputElement | null>(null);
+  const contentRef = useRef<HTMLDivElement | null>(null);
+  const openRef = useRef(open);
+  openRef.current = open;
+  const operationRef = useRef(0);
   const popoverId = useId();
-  const restoreTriggerFocusRef = useRef(false);
   const configuredModels = useApiResource<RuntimeModelsResponse>(
     active && open ? "/runtime/models?refresh=false" : null,
     [active, open],
@@ -171,19 +178,40 @@ export function ComposerModelSelector({
     active && open ? "/runtime/account-pool" : null,
     [active, open],
   );
-  useDismissPopover(open, setOpen, rootRef, triggerRef);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: changing the active bot invalidates the prior owner's pending selection and dialog.
+  useEffect(() => {
+    operationRef.current += 1;
+    setOpen(false);
+    setSaving("");
+    return () => {
+      operationRef.current += 1;
+    };
+  }, [active, bot?.id]);
+
+  useEffect(() => {
+    if (!open) return;
+    const root = rootRef.current;
+    const document = root?.ownerDocument;
+    const Observer = document?.defaultView?.MutationObserver;
+    if (!root || !document || !Observer) return;
+    const observer = new Observer(() => {
+      if (!root.isConnected || root.closest("[hidden],[inert]")) setOpen(false);
+    });
+    observer.observe(document.body, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      attributeFilter: ["hidden", "inert"],
+    });
+    return () => observer.disconnect();
+  }, [open]);
 
   useEffect(() => {
     if (!open) {
       setQuery("");
       setFeedback("");
-      if (restoreTriggerFocusRef.current) {
-        restoreTriggerFocusRef.current = false;
-        requestAnimationFrame(() => triggerRef.current?.focus());
-      }
-      return;
     }
-    requestAnimationFrame(() => searchRef.current?.focus());
   }, [open]);
 
   const modelCatalog = liveModels.data ?? configuredModels.data;
@@ -215,6 +243,7 @@ export function ComposerModelSelector({
     model: RuntimeModelOption,
     effort?: RuntimeReasoningEffort,
   ) => {
+    const operation = ++operationRef.current;
     const modelId = model.id;
     const key = `${provider.id}:${modelId}`;
     setSaving(key);
@@ -249,286 +278,324 @@ export function ComposerModelSelector({
           ],
         });
       await Promise.resolve(refreshRuntime());
-      restoreTriggerFocusRef.current = true;
+      if (operation !== operationRef.current) return;
       setOpen(false);
     } catch (error) {
-      setFeedback(errorMessage(error));
+      if (operation === operationRef.current) setFeedback(errorMessage(error));
     } finally {
-      setSaving("");
+      if (operation === operationRef.current) setSaving("");
     }
   };
 
   return (
-    <div
-      className={`${COMPOSER_SELECTOR_ROOT_CLASS} ml-auto min-w-0`}
-      ref={rootRef}
-    >
-      <button
-        aria-label={`Choose model. Current route ${runtime?.provider ?? "unknown provider"} ${runtime?.model ?? "unknown model"}${activeEffort ? `, ${activeEffort} reasoning effort` : ""}.`}
-        aria-controls={popoverId}
-        aria-expanded={open}
-        className={COMPOSER_MODEL_TRIGGER_CLASS}
-        disabled={!active}
-        onClick={() => setOpen((current) => !current)}
-        ref={triggerRef}
-        title="Choose provider and model"
-        type="button"
+    <Popover open={open} onOpenChange={setOpen}>
+      <div
+        className={`${COMPOSER_SELECTOR_ROOT_CLASS} ml-auto min-w-0`}
+        ref={rootRef}
       >
-        <span className={COMPOSER_MODEL_NAME_CLASS}>
-          {runtime?.model ?? "Choose model"}
-        </span>
-        {activeEffort ? (
-          <span className={COMPOSER_MODEL_EFFORT_BADGE_CLASS}>
-            {activeEffort}
-          </span>
-        ) : null}
-        <UiIcon icon={ChevronUp} size="xs" />
-      </button>
-      {open ? (
-        <section
-          aria-label="Choose provider and model"
-          className={`${COMPOSER_POPOVER_CLASS} max-h-[min(620px,72vh)] w-[min(420px,calc(100vw-44px))]`}
-          id={popoverId}
-        >
-          <label className={`${COMPOSER_SEARCH_CLASS} m-2 mb-1.25`}>
-            <UiIcon icon={Search} size="sm" />
-            <input
-              aria-label="Search models"
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search models"
-              ref={searchRef}
-              value={query}
-            />
-          </label>
-          {fallbackNotice.tone !== "none" ? (
-            <p
-              className={`mx-2 mb-1 rounded-[var(--radius-xs)] border px-2.5 py-1.5 text-[10px] ${
-                fallbackNotice.tone === "warn"
-                  ? "border-[color-mix(in_srgb,var(--warn)_28%,var(--border))] bg-[color-mix(in_srgb,var(--warn)_8%,var(--surface-soft))] text-[var(--warn)]"
-                  : "border-[color-mix(in_srgb,var(--accent)_18%,var(--border))] bg-[color-mix(in_srgb,var(--accent)_5%,var(--surface-soft))] text-[var(--muted)]"
-              }`}
-            >
-              {fallbackNotice.message}
-            </p>
-          ) : null}
-          <div className={COMPOSER_MODEL_GROUPS_CLASS}>
-            {modelsLoading ? (
-              <p className="p-4.5 text-[10px] text-[var(--faint)]">
-                Discovering models…
-              </p>
-            ) : modelsError ? (
-              <p className="p-4.5 text-[10px] text-[var(--bad)]">
-                {modelsError}
-              </p>
-            ) : (
-              providers.map((provider) => {
-                const isCollapsed = collapsed.has(provider.id) && !query;
-                return (
-                  <section key={provider.id}>
-                    <button
-                      aria-expanded={!isCollapsed}
-                      className={COMPOSER_PROVIDER_HEADING_CLASS}
-                      onClick={() =>
-                        setCollapsed((current) => {
-                          const next = new Set(current);
-                          if (next.has(provider.id)) next.delete(provider.id);
-                          else next.add(provider.id);
-                          return next;
-                        })
-                      }
-                      type="button"
-                    >
-                      <UiIcon
-                        icon={isCollapsed ? ChevronRight : ChevronDown}
-                        size="xs"
-                      />
-                      <strong>{provider.label}</strong>
-                      <small
-                        className={`rounded-full border px-1.25 py-0.5 font-mono text-[length:var(--text-meta)] tracking-[0.04em] uppercase ${
-                          provider.discovery === "live"
-                            ? "border-[color-mix(in_srgb,var(--good)_32%,var(--border))] text-[var(--good)]"
-                            : "border-[var(--border)] text-[var(--faint)]"
-                        }`}
-                      >
-                        {providerDiscoveryLabel(provider)}
-                      </small>
-                    </button>
-                    {!isCollapsed ? (
-                      <div className={COMPOSER_MODEL_LIST_CLASS}>
-                        {provider.models.map((model) => {
-                          const selected =
-                            runtime?.provider === provider.id &&
-                            runtime.model === model.id;
-                          const key = `${provider.id}:${model.id}`;
-                          const effort = resolvedReasoningEffort(
-                            model,
-                            selected
-                              ? (runtime?.reasoningEffort ??
-                                  modelCatalog?.activeReasoningEffort)
-                              : undefined,
-                          );
-                          return (
-                            <div
-                              className={COMPOSER_MODEL_OPTION_CLASS}
-                              key={model.id}
-                            >
-                              <button
-                                aria-current={selected ? "true" : undefined}
-                                className={COMPOSER_MODEL_BUTTON_CLASS}
-                                disabled={Boolean(saving) || !provider.ready}
-                                onClick={() => void applyModel(provider, model)}
-                                title={model.id}
-                                type="button"
-                              >
-                                <span>
-                                  <strong>{model.label}</strong>
-                                  {model.label !== model.id ? (
-                                    <small>{model.id}</small>
-                                  ) : null}
-                                </span>
-                                {saving === key ? (
-                                  <UiIcon
-                                    className="animate-spin text-[var(--accent)] motion-reduce:animate-none"
-                                    icon={LoaderCircle}
-                                    size="xs"
-                                  />
-                                ) : selected ? (
-                                  <UiIcon
-                                    className="text-[var(--accent-text)]"
-                                    icon={Check}
-                                    size="xs"
-                                  />
-                                ) : model.source === "discovered" ? (
-                                  <i>Live</i>
-                                ) : null}
-                              </button>
-                              {model.reasoning ? (
-                                <div className={COMPOSER_EFFORT_CLASS}>
-                                  <span>Effort</span>
-                                  <Select
-                                    onValueChange={(value) =>
-                                      void applyModel(
-                                        provider,
-                                        model,
-                                        value as RuntimeReasoningEffort,
-                                      )
-                                    }
-                                    value={effort}
-                                  >
-                                    <SelectTrigger
-                                      aria-label={`${model.label} reasoning effort`}
-                                      className="!h-6 !min-h-6 min-w-20 border-[var(--border)] bg-[var(--surface)] px-1.5 py-0 font-mono text-[length:var(--text-meta)] text-[var(--text)] lowercase hover:border-[var(--border-strong)]"
-                                      disabled={
-                                        Boolean(saving) || !provider.ready
-                                      }
-                                    >
-                                      <SelectValue placeholder="Default" />
-                                    </SelectTrigger>
-                                    <SelectContent
-                                      className="border-[var(--border-strong)] bg-[var(--surface-raised)] text-[var(--text)]"
-                                      onPointerDown={(event) =>
-                                        event.stopPropagation()
-                                      }
-                                    >
-                                      {model.reasoning.options.map((option) => (
-                                        <SelectItem
-                                          className="font-mono text-[10px] text-[var(--text)] lowercase focus:bg-[var(--surface-hover)] focus:text-[var(--text)]"
-                                          key={option.id}
-                                          value={option.id}
-                                        >
-                                          {formatReasoningEffort(option.label)}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                </div>
-                              ) : null}
-                            </div>
-                          );
-                        })}
-                        {!provider.models.length ? (
-                          <p>{provider.detail}</p>
-                        ) : null}
-                      </div>
-                    ) : null}
-                  </section>
-                );
-              })
-            )}
-            {!modelsLoading && !modelsError && !providers.length ? (
-              <p className="p-4.5 text-[10px] text-[var(--faint)]">
-                No matching models.
+        <PopoverTrigger asChild>
+          <button
+            aria-label={`Choose model. Current route ${runtime?.provider ?? "unknown provider"} ${runtime?.model ?? "unknown model"}${activeEffort ? `, ${activeEffort} reasoning effort` : ""}.`}
+            aria-controls={popoverId}
+            aria-expanded={open}
+            aria-haspopup="dialog"
+            className={COMPOSER_MODEL_TRIGGER_CLASS}
+            disabled={!active}
+            ref={triggerRef}
+            title="Choose provider and model"
+            type="button"
+          >
+            <span className={COMPOSER_MODEL_NAME_CLASS}>
+              {runtime?.model ?? "Choose model"}
+            </span>
+            {activeEffort ? (
+              <span className={COMPOSER_MODEL_EFFORT_BADGE_CLASS}>
+                {activeEffort}
+              </span>
+            ) : null}
+            <UiIcon icon={ChevronUp} size="xs" />
+          </button>
+        </PopoverTrigger>
+        {open ? (
+          <PopoverContent
+            aria-label="Choose provider and model"
+            align="end"
+            avoidCollisions
+            className={COMPOSER_POPOVER_CLASS}
+            collisionPadding={12}
+            id={popoverId}
+            onOpenAutoFocus={(event) => {
+              event.preventDefault();
+              searchRef.current?.focus({ preventScroll: true });
+            }}
+            onCloseAutoFocus={(event) => {
+              if (
+                openRef.current ||
+                rootRef.current?.closest("[hidden],[inert]")
+              ) {
+                event.preventDefault();
+                return;
+              }
+              const activeElement =
+                triggerRef.current?.ownerDocument.activeElement;
+              if (
+                activeElement &&
+                activeElement !== triggerRef.current?.ownerDocument.body &&
+                activeElement !== triggerRef.current &&
+                !contentRef.current?.contains(activeElement)
+              )
+                event.preventDefault();
+            }}
+            ref={contentRef}
+            side="top"
+            sideOffset={9}
+          >
+            <label className={`${COMPOSER_SEARCH_CLASS} m-2 mb-1.25`}>
+              <UiIcon icon={Search} size="sm" />
+              <input
+                aria-label="Search models"
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search models"
+                ref={searchRef}
+                value={query}
+              />
+            </label>
+            {fallbackNotice.tone !== "none" ? (
+              <p
+                className={`mx-2 mb-1 rounded-[var(--radius-xs)] border px-2.5 py-1.5 text-[length:var(--text-control)] ${
+                  fallbackNotice.tone === "warn"
+                    ? "border-[color-mix(in_srgb,var(--warn)_28%,var(--border))] bg-[color-mix(in_srgb,var(--warn)_8%,var(--surface-soft))] text-[var(--warn)]"
+                    : "border-[color-mix(in_srgb,var(--accent)_18%,var(--border))] bg-[color-mix(in_srgb,var(--accent)_5%,var(--surface-soft))] text-[var(--muted)]"
+                }`}
+              >
+                {fallbackNotice.message}
               </p>
             ) : null}
-          </div>
-          {feedback ? (
-            <p
-              className="border-[var(--border)] border-t px-3 py-1.75 text-[length:var(--text-meta)] text-[var(--bad)]"
-              role="alert"
-            >
-              {feedback}
-            </p>
-          ) : null}
-          <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 border-[var(--border)] border-t bg-[color-mix(in_srgb,var(--accent)_5%,var(--surface-soft))] px-3 py-2.25 text-[length:var(--text-meta)] text-[var(--muted)] max-[560px]:grid-cols-[1fr_auto] [&>button]:whitespace-nowrap [&>button]:border-0 [&>button]:bg-transparent [&>button]:text-[length:var(--text-meta)] [&>button]:text-[var(--accent)] [&>span]:min-w-0 max-[560px]:[&>span]:col-span-full [&>strong]:text-[var(--text)]">
-            <strong>Spawned-agent pool</strong>
-            <span>
-              {accountPool.loading
-                ? "Checking Codex and Claude accounts…"
-                : accountPool.error
-                  ? "Account-pool status is unavailable."
-                  : `${
-                      accountPool.data?.providers[
-                        "openai-codex"
-                      ]?.accounts.filter((account) => account.enabled).length ??
-                      0
-                    } Codex · ${
-                      accountPool.data?.providers[
-                        "anthropic-subscription"
-                      ]?.accounts.filter((account) => account.enabled).length ??
-                      0
-                    } Claude accounts are enabled for spawned build and research sessions.`}
-            </span>
-            <button
-              onClick={() => {
-                setOpen(false);
-                onOpenProvidersPage();
-              }}
-              type="button"
-            >
-              Providers &amp; accounts
-            </button>
-          </div>
-          <footer className={COMPOSER_ACTIONS_CLASS}>
-            <button
-              aria-label="Refresh model catalog"
-              disabled={liveModels.loading}
-              onClick={liveModels.reload}
-              type="button"
-            >
-              <UiIcon
-                className={
-                  liveModels.loading
-                    ? "animate-spin motion-reduce:animate-none"
-                    : undefined
-                }
-                icon={RefreshCw}
-                size="xs"
-              />
-              {liveModels.loading ? "Refreshing…" : "Refresh models"}
-            </button>
-            <button
-              onClick={() => {
-                setOpen(false);
-                onOpenModelsPage();
-              }}
-              type="button"
-            >
-              Model settings
-            </button>
-          </footer>
-        </section>
-      ) : null}
-    </div>
+            <div className={COMPOSER_MODEL_GROUPS_CLASS}>
+              {modelsLoading ? (
+                <p className="p-4.5 text-[length:var(--text-control)] text-[var(--faint)]">
+                  Discovering models…
+                </p>
+              ) : modelsError ? (
+                <p className="p-4.5 text-[length:var(--text-control)] text-[var(--bad)]">
+                  {modelsError}
+                </p>
+              ) : (
+                providers.map((provider) => {
+                  const isCollapsed = collapsed.has(provider.id) && !query;
+                  return (
+                    <section key={provider.id}>
+                      <button
+                        aria-expanded={!isCollapsed}
+                        className={COMPOSER_PROVIDER_HEADING_CLASS}
+                        onClick={() =>
+                          setCollapsed((current) => {
+                            const next = new Set(current);
+                            if (next.has(provider.id)) next.delete(provider.id);
+                            else next.add(provider.id);
+                            return next;
+                          })
+                        }
+                        type="button"
+                      >
+                        <UiIcon
+                          icon={isCollapsed ? ChevronRight : ChevronDown}
+                          size="xs"
+                        />
+                        <strong>{provider.label}</strong>
+                        <small
+                          className={`rounded-full border px-1.25 py-0.5 font-mono text-[length:var(--text-meta)] tracking-[0.04em] uppercase ${
+                            provider.discovery === "live"
+                              ? "border-[color-mix(in_srgb,var(--good)_32%,var(--border))] text-[var(--good)]"
+                              : "border-[var(--border)] text-[var(--faint)]"
+                          }`}
+                        >
+                          {providerDiscoveryLabel(provider)}
+                        </small>
+                      </button>
+                      {!isCollapsed ? (
+                        <div className={COMPOSER_MODEL_LIST_CLASS}>
+                          {provider.models.map((model) => {
+                            const selected =
+                              runtime?.provider === provider.id &&
+                              runtime.model === model.id;
+                            const key = `${provider.id}:${model.id}`;
+                            const effort = resolvedReasoningEffort(
+                              model,
+                              selected
+                                ? (runtime?.reasoningEffort ??
+                                    modelCatalog?.activeReasoningEffort)
+                                : undefined,
+                            );
+                            return (
+                              <div
+                                className={COMPOSER_MODEL_OPTION_CLASS}
+                                key={model.id}
+                              >
+                                <button
+                                  aria-current={selected ? "true" : undefined}
+                                  className={COMPOSER_MODEL_BUTTON_CLASS}
+                                  disabled={Boolean(saving) || !provider.ready}
+                                  onClick={() =>
+                                    void applyModel(provider, model)
+                                  }
+                                  title={model.id}
+                                  type="button"
+                                >
+                                  <span>
+                                    <strong>{model.label}</strong>
+                                    {model.label !== model.id ? (
+                                      <small>{model.id}</small>
+                                    ) : null}
+                                  </span>
+                                  {saving === key ? (
+                                    <UiIcon
+                                      className="animate-spin text-[var(--accent)] motion-reduce:animate-none"
+                                      icon={LoaderCircle}
+                                      size="xs"
+                                    />
+                                  ) : selected ? (
+                                    <UiIcon
+                                      className="text-[var(--accent-text)]"
+                                      icon={Check}
+                                      size="xs"
+                                    />
+                                  ) : model.source === "discovered" ? (
+                                    <i>Live</i>
+                                  ) : null}
+                                </button>
+                                {model.reasoning ? (
+                                  <div className={COMPOSER_EFFORT_CLASS}>
+                                    <span>Effort</span>
+                                    <Select
+                                      onValueChange={(value) =>
+                                        void applyModel(
+                                          provider,
+                                          model,
+                                          value as RuntimeReasoningEffort,
+                                        )
+                                      }
+                                      value={effort}
+                                    >
+                                      <SelectTrigger
+                                        aria-label={`${model.label} reasoning effort`}
+                                        className="!h-10 !min-h-10 max-[760px]:!h-11 max-[760px]:!min-h-11 min-w-20 border-[var(--border)] bg-[var(--surface)] px-1.5 py-0 text-[length:var(--text-control)] text-[var(--text)] hover:border-[var(--border-strong)]"
+                                        disabled={
+                                          Boolean(saving) || !provider.ready
+                                        }
+                                      >
+                                        <SelectValue placeholder="Default" />
+                                      </SelectTrigger>
+                                      <SelectContent
+                                        className="border-[var(--border-strong)] bg-[var(--surface-raised)] text-[var(--text)]"
+                                        onPointerDown={(event) =>
+                                          event.stopPropagation()
+                                        }
+                                      >
+                                        {model.reasoning.options.map(
+                                          (option) => (
+                                            <SelectItem
+                                              className="font-mono text-[length:var(--text-control)] text-[var(--text)] lowercase focus:bg-[var(--surface-hover)] focus:text-[var(--text)]"
+                                              key={option.id}
+                                              value={option.id}
+                                            >
+                                              {formatReasoningEffort(
+                                                option.label,
+                                              )}
+                                            </SelectItem>
+                                          ),
+                                        )}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                ) : null}
+                              </div>
+                            );
+                          })}
+                          {!provider.models.length ? (
+                            <p>{provider.detail}</p>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </section>
+                  );
+                })
+              )}
+              {!modelsLoading && !modelsError && !providers.length ? (
+                <p className="p-4.5 text-[length:var(--text-control)] text-[var(--faint)]">
+                  No matching models.
+                </p>
+              ) : null}
+            </div>
+            {feedback ? (
+              <p
+                className="border-[var(--border)] border-t px-3 py-1.75 text-[length:var(--text-meta)] text-[var(--bad)]"
+                role="alert"
+              >
+                {feedback}
+              </p>
+            ) : null}
+            <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 border-[var(--border)] border-t bg-[color-mix(in_srgb,var(--accent)_5%,var(--surface-soft))] px-3 py-2.25 text-[length:var(--text-meta)] text-[var(--muted)] max-[560px]:grid-cols-[1fr_auto] [&>button]:whitespace-nowrap [&>button]:border-0 [&>button]:bg-transparent [&>button]:text-[length:var(--text-meta)] [&>button]:text-[var(--accent)] [&>span]:min-w-0 max-[560px]:[&>span]:col-span-full [&>strong]:text-[var(--text)]">
+              <strong>Spawned-agent pool</strong>
+              <span>
+                {accountPool.loading
+                  ? "Checking Codex and Claude accounts…"
+                  : accountPool.error
+                    ? "Account-pool status is unavailable."
+                    : `${
+                        accountPool.data?.providers[
+                          "openai-codex"
+                        ]?.accounts.filter((account) => account.enabled)
+                          .length ?? 0
+                      } Codex · ${
+                        accountPool.data?.providers[
+                          "anthropic-subscription"
+                        ]?.accounts.filter((account) => account.enabled)
+                          .length ?? 0
+                      } Claude accounts are enabled for spawned build and research sessions.`}
+              </span>
+              <button
+                onClick={() => {
+                  setOpen(false);
+                  onOpenProvidersPage();
+                }}
+                type="button"
+              >
+                Providers &amp; accounts
+              </button>
+            </div>
+            <footer className={COMPOSER_ACTIONS_CLASS}>
+              <button
+                aria-label="Refresh model catalog"
+                disabled={liveModels.loading}
+                onClick={liveModels.reload}
+                type="button"
+              >
+                <UiIcon
+                  className={
+                    liveModels.loading
+                      ? "animate-spin motion-reduce:animate-none"
+                      : undefined
+                  }
+                  icon={RefreshCw}
+                  size="xs"
+                />
+                {liveModels.loading ? "Refreshing…" : "Refresh models"}
+              </button>
+              <button
+                onClick={() => {
+                  setOpen(false);
+                  onOpenModelsPage();
+                }}
+                type="button"
+              >
+                Model settings
+              </button>
+            </footer>
+          </PopoverContent>
+        ) : null}
+      </div>
+    </Popover>
   );
 }
 

@@ -1,4 +1,40 @@
 /* Browser-only composition. The application supplies semantic theme tokens. */
+:root {
+  --ease-liquid: cubic-bezier(0.22, 1, 0.36, 1);
+  --motion-feedback: min(140ms, var(--motion-duration, 120ms));
+  --motion-surface: min(240ms, calc(var(--motion-duration, 120ms) * 2));
+  --motion-dismiss: min(160ms, calc(var(--motion-duration, 120ms) * 1.5));
+  --radius-floating: max(16px, var(--radius-lg, 12px));
+  --material-floating: color-mix(
+    in srgb,
+    var(--surface-raised) 98%,
+    transparent
+  );
+  --material-edge: var(--border-strong);
+  --material-shadow:
+    0 2px 5px color-mix(in srgb, var(--shadow) 6%, transparent),
+    0 12px 32px color-mix(in srgb, var(--shadow) 14%, transparent);
+}
+.dl-control {
+  font-family: var(--font-sans);
+  line-height: var(--line-control, 1.4);
+}
+.dl-field {
+  min-width: 0;
+  caret-color: var(--text);
+}
+.dl-control:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+.dl-button {
+  transition-property: background-color, border-color, color;
+  transition-duration: var(--motion-feedback);
+  transition-timing-function: var(--ease-liquid);
+}
+.dl-control:disabled {
+  cursor: not-allowed;
+}
 .dl-settings-frame {
   container-type: inline-size;
   container-name: dl-settings;
@@ -8,6 +44,7 @@
   overflow: hidden;
   color: var(--text);
   background: var(--bg);
+  font-family: var(--font-sans);
 }
 .dl-settings-layout {
   display: grid;
@@ -72,6 +109,9 @@
   font-size: 14px;
   line-height: 1.4;
   text-align: left;
+  transition:
+    background-color var(--motion-feedback) var(--ease-liquid),
+    color var(--motion-feedback) var(--ease-liquid);
 }
 .dl-settings-menu-group button:hover {
   background: var(--surface-hover);
@@ -80,12 +120,6 @@
 .dl-settings-menu-group button[aria-current] {
   color: var(--text);
   font-weight: 600;
-}
-.dl-settings-current {
-  flex: none;
-  visibility: hidden;
-  color: var(--accent-text);
-  font-size: 6px;
 }
 .dl-settings-menu-icon {
   display: inline-flex;
@@ -103,9 +137,6 @@
 .dl-settings-menu-label {
   flex: 1;
   min-width: 0;
-}
-.dl-settings-menu-group button[aria-current] .dl-settings-current {
-  visibility: visible;
 }
 .dl-settings-menu-group button:focus-visible {
   outline: 2px solid var(--focus-ring);
@@ -274,9 +305,8 @@
 }
 .dl-settings-content .dl-settings-choice[aria-pressed="true"],
 .dl-settings-content .dl-settings-theme-choice[aria-pressed="true"] {
-  border-color: var(--border-strong);
-  background: var(--surface-selected);
   color: var(--text);
+  font-weight: 600;
 }
 .dl-settings-content .dl-settings-choice:focus-visible,
 .dl-settings-content .dl-settings-theme-choice:focus-visible {
@@ -286,7 +316,7 @@
 .dl-settings-content .dl-settings-choice strong,
 .dl-settings-content .dl-settings-theme-choice strong {
   font-size: 14px;
-  font-weight: 500;
+  font-weight: inherit;
 }
 .dl-settings-theme-heading {
   border-bottom: 0;
@@ -344,13 +374,14 @@
   color: var(--text-soft);
   font-size: 14px;
   line-height: 1.4;
+  transition:
+    background-color var(--motion-feedback) var(--ease-liquid),
+    color var(--motion-feedback) var(--ease-liquid);
 }
 .dl-settings-tabs [role="tab"]:hover {
   background: var(--surface-hover);
 }
 .dl-settings-tabs [role="tab"][aria-selected="true"] {
-  border-color: var(--border-strong);
-  background: var(--surface-selected);
   color: var(--text);
   font-weight: 600;
 }
@@ -389,16 +420,42 @@
   line-height: 1.5;
 }
 .dl-settings-content .setting-control {
-  display: grid;
+  display: flex;
   min-width: 0;
-  grid-template-columns: minmax(0, 1fr) auto;
+  flex-wrap: wrap;
   align-items: start;
   gap: 8px;
 }
+.dl-settings-content .setting-control > :is(input, select, textarea) {
+  flex: 1 1 160px;
+  min-width: 0;
+}
+.dl-settings-content .setting-control > button {
+  flex: none;
+}
 .dl-settings-content .field-error {
-  grid-column: 1 / -1;
+  flex-basis: 100%;
   font-size: 14px;
   color: var(--bad);
+}
+.dl-settings-content .settings-control-feedback {
+  grid-column: 2;
+  margin-top: -8px;
+  color: var(--muted);
+  font-size: var(--text-meta, 12px);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.dl-settings-content .settings-status-note {
+  color: var(--muted);
+  font-size: var(--text-meta, 12px);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+@container dl-settings-content (max-width: 600px) {
+  .dl-settings-content .settings-control-feedback {
+    grid-column: 1;
+  }
 }
 .dl-settings-content .settings-field-disclosure {
   border-top: 1px solid var(--border);
@@ -419,6 +476,10 @@
   display: block;
   font-size: 14px;
   color: var(--muted);
+}
+.dl-settings-content .settings-field-disclosure > summary:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
 }
 @container dl-settings (max-width: 760px) {
   .dl-settings-layout {
@@ -454,8 +515,12 @@
     gap: 16px;
     padding: 20px 16px 32px;
   }
+  .dl-settings-content .settings-control-feedback {
+    grid-column: 1;
+  }
   .dl-settings-content button,
-  .dl-settings-content input:not([type="checkbox"]):not([type="radio"]),
+  .dl-settings-content
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
   .dl-settings-content select {
     min-height: 44px;
   }
@@ -521,15 +586,18 @@
   border: 0;
   border-radius: var(--radius-md, 8px);
   background: transparent;
-  color: inherit;
+  color: var(--text-soft);
   text-align: left;
   cursor: pointer;
+  transition:
+    background-color var(--motion-feedback) var(--ease-liquid),
+    color var(--motion-feedback) var(--ease-liquid);
 }
 .dl-contact:hover {
   background: var(--surface-hover);
 }
 .dl-contact[aria-current] {
-  background: var(--surface-selected);
+  color: var(--text);
 }
 .dl-contact:focus-visible {
   outline: 2px solid var(--focus-ring);
@@ -553,14 +621,19 @@
 }
 .dl-contact-name {
   font-size: 14px;
+  line-height: 1.4;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.dl-contact[aria-current] .dl-contact-name {
+  font-weight: 600;
 }
 .dl-meta {
   color: var(--muted);
   font-size: 12px;
   line-height: 1.4;
+  overflow-wrap: anywhere;
 }
 .dl-run-state {
   display: inline-flex;
@@ -568,6 +641,8 @@
   gap: 6px;
   color: var(--muted);
   font-size: 12px;
+  line-height: 1.4;
+  white-space: nowrap;
 }
 .dl-state-mark {
   display: inline-block;
@@ -602,7 +677,7 @@
   flex: 1;
   min-height: 0;
   overflow: auto;
-  font-size: var(--text-body, 16px);
+  font-size: var(--text-conversation, var(--text-body, 16px));
   line-height: 1.55;
 }
 .dl-composer-slot {
@@ -613,9 +688,10 @@
   box-sizing: border-box;
 }
 .dl-composer {
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-lg, 12px);
-  background: var(--surface-raised);
+  border: 1px solid var(--material-edge);
+  border-radius: max(20px, var(--radius-lg, 12px));
+  background: var(--material-floating);
+  box-shadow: 0 3px 16px color-mix(in srgb, var(--shadow) 8%, transparent);
   padding: 12px;
 }
 .dl-composer textarea:focus-visible {
@@ -656,11 +732,20 @@
   margin: auto;
   padding: 24px;
   text-align: center;
+  animation: dl-content-in var(--motion-surface) var(--ease-liquid) backwards;
+}
+.dl-state-surface .dl-meta {
+  font-size: var(--text-control, 14px);
+  line-height: 1.55;
+  overflow-wrap: anywhere;
 }
 .dl-state-surface h2 {
   margin: 0 0 8px;
   font-size: 16px;
   font-weight: 500;
+}
+.dl-state-surface[data-kind="error"] h2 {
+  color: var(--bad);
 }
 .dl-state-action {
   margin-top: 16px;
@@ -702,12 +787,13 @@
   max-height: var(--radix-dropdown-menu-content-available-height);
   overflow-y: auto;
   overscroll-behavior: contain;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md);
-  background: var(--surface-raised);
+  border: 1px solid var(--material-edge);
+  border-radius: var(--radius-floating);
+  background: var(--material-floating);
   color: var(--text);
-  padding: 4px;
-  box-shadow: var(--shell-shadow-md);
+  padding: 6px;
+  box-shadow: var(--material-shadow);
+  backdrop-filter: blur(20px);
   font-family: var(--font-sans);
   font-size: var(--text-control, 14px);
   line-height: var(--line-control, 1.4);
@@ -723,7 +809,7 @@
   align-items: center;
   min-height: 40px;
   gap: 16px;
-  border-radius: var(--radius-xs);
+  border-radius: max(6px, var(--radius-sm, 6px));
   padding-inline: 10px;
   color: var(--text);
   font-size: var(--text-control, 14px);
@@ -786,57 +872,38 @@
   }
 }
 
-/* One quiet material and motion language, including portaled SDK surfaces. */
-:root {
-  --ease-liquid: cubic-bezier(0.22, 1, 0.36, 1);
-  --motion-feedback: min(140ms, var(--motion-duration, 120ms));
-  --motion-surface: min(360ms, calc(var(--motion-duration, 120ms) * 2));
-  --motion-dismiss: min(180ms, calc(var(--motion-duration, 120ms) * 1.5));
-  --radius-floating: max(16px, var(--radius-lg, 12px));
-  --material-floating: color-mix(
-    in srgb,
-    var(--surface-raised) 96%,
-    transparent
-  );
-  --material-edge: color-mix(in srgb, var(--border-strong) 64%, transparent);
-  --material-shadow:
-    0 2px 5px color-mix(in srgb, var(--shadow) 6%, transparent),
-    0 18px 52px color-mix(in srgb, var(--shadow) 16%, transparent);
-}
-.dl-button {
-  transition-property: transform, background-color, border-color, color;
-  transition-duration: var(--motion-feedback);
-  transition-timing-function: var(--ease-liquid);
-}
-.dl-button:active:not(:disabled) {
-  transform: scale(0.97);
-}
-.dl-contact,
-.dl-settings-menu-group button,
-.dl-settings-tabs [role="tab"] {
-  transition:
-    background-color var(--motion-feedback) var(--ease-liquid),
-    color var(--motion-feedback) var(--ease-liquid);
-}
-.dl-composer {
-  border-radius: var(--radius-floating);
-  border-color: var(--material-edge);
-  background: var(--material-floating);
-  box-shadow: 0 3px 16px color-mix(in srgb, var(--shadow) 8%, transparent);
-}
-.dl-action-menu,
+/* Portaled SDK menus keep collision and keyboard ownership in the SDK. */
+.dl-select-content,
 .dl-dialog {
   border-color: var(--material-edge);
   border-radius: var(--radius-floating);
   background: var(--material-floating);
   box-shadow: var(--material-shadow);
-  backdrop-filter: blur(24px);
+  backdrop-filter: blur(20px);
 }
-.dl-action-menu {
-  padding: 6px;
+.dl-select-content {
+  max-height: min(384px, var(--radix-select-content-available-height, 384px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  font-family: var(--font-sans);
 }
-.dl-action-menu-item {
-  border-radius: max(8px, var(--radius-sm, 6px));
+.dl-select-item {
+  min-height: var(--control-height, 40px);
+  border-radius: var(--radius-sm, 6px);
+  line-height: 1.4;
+  padding-inline: 10px;
+}
+.dl-select-item[data-highlighted] {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+.dl-select-item[data-state="checked"] {
+  font-weight: 600;
+}
+@media (pointer: coarse), (max-width: 760px) {
+  .dl-select-item {
+    min-height: var(--touch-height, 44px);
+  }
 }
 .dl-action-menu[data-state="closed"] {
   animation: dl-surface-out var(--motion-dismiss) var(--ease-liquid) both;
@@ -846,9 +913,6 @@
 }
 .dl-dialog-backdrop {
   animation: dl-backdrop-in var(--motion-surface) var(--ease-liquid) backwards;
-}
-.dl-state-surface {
-  animation: dl-content-in var(--motion-surface) var(--ease-liquid) backwards;
 }
 .dl-state-surface[data-kind="loading"]::before {
   content: "";
@@ -910,6 +974,7 @@
   .dl-settings-menu-group button,
   .dl-settings-tabs [role="tab"],
   .dl-action-menu,
+  .dl-select-content,
   .dl-dialog,
   .dl-dialog-backdrop,
   .dl-state-surface,
@@ -919,12 +984,10 @@
     /* biome-ignore lint/complexity/noImportantStyles: OS motion preferences must win over SDK transitions. */
     transition: none !important;
   }
-  .dl-button:active:not(:disabled) {
-    transform: none;
-  }
 }
 @media (prefers-reduced-transparency: reduce) {
   .dl-action-menu,
+  .dl-select-content,
   .dl-dialog,
   .dl-composer {
     background: var(--surface-raised);
@@ -932,7 +995,20 @@
   }
 }
 @media (forced-colors: active) {
+  .dl-control:focus-visible,
+  .dl-contact:focus-visible,
+  .dl-settings-menu-group button:focus-visible,
+  .dl-settings-tabs [role="tab"]:focus-visible,
+  .dl-settings-choice:focus-visible,
+  .dl-settings-theme-choice:focus-visible {
+    outline-color: Highlight;
+  }
+  .dl-select-item[data-highlighted] {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
   .dl-action-menu,
+  .dl-select-content,
   .dl-dialog,
   .dl-composer {
     border-color: CanvasText;

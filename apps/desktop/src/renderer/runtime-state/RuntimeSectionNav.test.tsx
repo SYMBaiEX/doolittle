@@ -62,9 +62,15 @@ describe("RuntimeSectionNav", () => {
     );
 
     expect(navigation).not.toBeNull();
-    expect(navigation?.className).toContain("max-[720px]:grid-cols-2");
+    expect(navigation?.className).toContain("flex-wrap");
     expect(gateway?.className).toContain("max-[720px]:min-h-11");
     expect(gateway?.className).toContain("whitespace-normal");
+    expect(gateway?.className).toContain("data-[state=active]:font-semibold");
+    expect(gateway?.className).toContain(
+      "focus-visible:outline-[var(--focus-ring)]",
+    );
+    expect(gateway?.className).not.toContain("shadow-[inset");
+    expect(gateway?.className).not.toContain("data-[state=active]:bg-[var(");
     expect(gateway?.title).toBe("Transports and deliveries");
     expect(container.textContent).not.toContain("Model, accounts, autonomy");
 
@@ -75,6 +81,12 @@ describe("RuntimeSectionNav", () => {
     );
 
     expect(gateway?.dataset.state).toBe("active");
+    expect(gateway?.getAttribute("aria-selected")).toBe("true");
+    expect(
+      container
+        .querySelector('[aria-label="Overview: Model, accounts, autonomy"]')
+        ?.getAttribute("aria-selected"),
+    ).toBe("false");
     expect(container.textContent).toContain("Gateway content");
   });
 });

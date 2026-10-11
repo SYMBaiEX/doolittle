@@ -120,6 +120,8 @@ function ProjectRow({
   return (
     <button
       type="button"
+      aria-pressed={selected}
+      aria-current={active ? "true" : undefined}
       className={`${PROJECT_MANAGER_ROW_CLASS} ${selected ? PROJECT_MANAGER_ROW_SELECTED_CLASS : ""} ${active ? PROJECT_MANAGER_ROW_ACTIVE_CLASS : ""}`}
       onClick={onClick}
     >

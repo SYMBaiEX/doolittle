@@ -68,14 +68,14 @@ export function CompanionInspector({
       </header>
       <div
         aria-label="Inspector views"
-        className="flex border-b border-[var(--border)] px-2"
+        className="chat-inspector-tabs flex border-b border-[var(--border)] px-2"
         role="tablist"
       >
         {tabs.map((item, index) => (
           <button
             aria-controls={`${id}-${item}`}
             aria-selected={tab === item}
-            className="min-h-10 flex-1 border-b-2 border-transparent px-2 text-[length:var(--text-control)] text-[var(--text-soft)] hover:text-[var(--text)] aria-selected:border-[var(--accent)] aria-selected:text-[var(--text)] focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)] max-[760px]:min-h-11"
+            className="chat-inspector-tab min-h-10 flex-1 px-2 text-[length:var(--text-control)] text-[var(--text-soft)] hover:text-[var(--text)] aria-selected:font-semibold aria-selected:text-[var(--text)] focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)] max-[760px]:min-h-11"
             id={`${id}-${item}-tab`}
             key={item}
             onClick={() => onTabChange(item)}
@@ -115,10 +115,12 @@ export function CompanionInspector({
         className="min-h-0 flex-1 overflow-y-auto"
         id={`${id}-${tab}`}
         role="tabpanel"
+        // biome-ignore lint/a11y/noNoninteractiveTabindex: Details needs a reading focus target when it contains no interactive controls.
+        tabIndex={0}
       >
         {tab === "details" ? (
           <>
-            <dl className="grid gap-3 p-4 text-sm [&_dd]:min-w-0 [&_dd]:break-words [&_dd]:text-[var(--text)] [&_dt]:text-xs [&_dt]:text-[var(--muted)]">
+            <dl className="chat-inspector-details grid gap-4 p-4 text-sm [&_dd]:mt-1 [&_dd]:min-w-0 [&_dd]:break-words [&_dd]:text-[var(--text)] [&_dt]:text-[length:var(--text-meta)] [&_dt]:text-[var(--muted)]">
               <div>
                 <dt>Conversation</dt>
                 <dd>{title}</dd>
