@@ -1,11 +1,4 @@
-import {
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  realpathSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import {
@@ -20,7 +13,12 @@ import {
   type View,
   views,
 } from "../apps/desktop/src/renderer/desktop-navigation";
+import { assertExplicitSweepProfileUnlocked } from "./support/explicit-sweep-profile";
 import { isolatedRuntimeEnvironment } from "./support/isolated-runtime-environment";
+import {
+  prepareScreenshotEvidence,
+  type ScreenshotEvidenceConfig,
+} from "./support/screenshot-evidence";
 
 const executablePath = process.env.DOOLITTLE_DESKTOP_EXECUTABLE;
 const profileDir = process.env.DOOLITTLE_DESKTOP_PROFILE_DIR;
@@ -85,12 +83,6 @@ type ScreenshotManifest = {
     tabs: number;
     apiFailures?: Array<{ path: string; status: number; body: string }>;
   }>;
-};
-
-type ScreenshotEvidenceConfig = {
-  desktopDir: string;
-  narrowDir: string;
-  manifestPath: string;
 };
 
 type RouteAudit = {
@@ -604,25 +596,7 @@ function normalizeScreenshotDir(
     return null;
   }
 
-  const root = resolve(rawScreenshotDir);
-  return {
-    desktopDir: join(root, "desktop"),
-    narrowDir: join(root, "narrow"),
-    manifestPath: join(root, "visual-manifest.json"),
-  };
-}
-
-function cleanEvidenceDirectory(config: ScreenshotEvidenceConfig): void {
-  for (const directory of [config.desktopDir, config.narrowDir]) {
-    if (existsSync(directory)) {
-      rmSync(directory, { force: true, recursive: true });
-    }
-    mkdirSync(directory, { recursive: true });
-  }
-
-  if (existsSync(config.manifestPath)) {
-    rmSync(config.manifestPath, { force: true });
-  }
+  return prepareScreenshotEvidence(rawScreenshotDir, routes);
 }
 
 function writeManifest(
@@ -1527,17 +1501,6 @@ async function captureRouteScreenshots(
   };
 }
 
-function sanitizeClonedRuntimeProfile(root: string): void {
-  const runtimeDir = join(resolve(root), "runtime");
-  const transientPaths = [
-    join(runtimeDir, "pglite", "eliza-pglite.lock"),
-    join(runtimeDir, "pglite", "postmaster.pid"),
-  ];
-  for (const target of transientPaths) {
-    if (existsSync(target)) rmSync(target, { force: true });
-  }
-}
-
 function createScrubbedProfile(): { profileDir: string; workspaceDir: string } {
   const profileDir = mkdtempSync(join(tmpdir(), "doolittle-packaged-profile-"));
   const workspaceDir = realpathSync(
@@ -1591,15 +1554,12 @@ test.describe("Doolittle packaged-profile control sweep", () => {
   test("opens safe controls across every route without renderer failures", async () => {
     test.setTimeout(600_000);
     const screenshotEvidence = normalizeScreenshotDir(screenshotDir);
-    if (screenshotEvidence) {
-      cleanEvidenceDirectory(screenshotEvidence);
-    }
 
     const generatedProfile = profileDir ? null : createScrubbedProfile();
     const activeProfileDir = generatedProfile
       ? generatedProfile.profileDir
       : resolve(profileDir ?? "");
-    if (!generatedProfile) sanitizeClonedRuntimeProfile(activeProfileDir);
+    if (!generatedProfile) assertExplicitSweepProfileUnlocked(activeProfileDir);
     let app: Awaited<ReturnType<typeof electron.launch>> | undefined;
 
     try {

@@ -1,4 +1,15 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  closeSync,
+  constants,
+  existsSync,
+  fchmodSync,
+  fstatSync,
+  ftruncateSync,
+  openSync,
+  readFileSync,
+  writeFileSync,
+  writeSync,
+} from "node:fs";
 
 export interface EnvFileOptions {
   envPath: string;
@@ -27,18 +38,45 @@ export function ensureEnvFile({
     return messages;
   }
 
-  writeFileSync(envPath, readFileSync(envExamplePath, "utf8"), "utf8");
+  try {
+    // Exclusive creation cannot overwrite a file or symlink created after
+    // the advisory existence check. Environment files can contain secrets.
+    writeFileSync(envPath, readFileSync(envExamplePath, "utf8"), {
+      encoding: "utf8",
+      flag: "wx",
+      mode: 0o600,
+    });
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "EEXIST") {
+      return [".env already exists"];
+    }
+    throw error;
+  }
   messages.push(".env created from .env.example");
   return messages;
 }
 
 export function readEnvEntries(envPath: string): Map<string, string> {
   const map = new Map<string, string>();
-  if (!existsSync(envPath)) {
-    return map;
+  let descriptor: number;
+  try {
+    descriptor = openSync(
+      envPath,
+      constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK,
+    );
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return map;
+    throw error;
   }
-
-  const lines = readFileSync(envPath, "utf8").split(/\r?\n/);
+  let lines: string[];
+  try {
+    if (!fstatSync(descriptor).isFile()) {
+      throw new Error(".env must be a regular file");
+    }
+    lines = readFileSync(descriptor, "utf8").split(/\r?\n/);
+  } finally {
+    closeSync(descriptor);
+  }
   for (const line of lines) {
     if (!line || line.trim().startsWith("#")) {
       continue;
@@ -58,12 +96,37 @@ export function updateEnvFile(
   updates: Record<string, string | undefined>,
   options: Pick<EnvFileOptions, "envPath" | "checkOnly">,
 ): string[] {
-  const messages: string[] = [];
-  if (!existsSync(options.envPath)) {
-    return [".env is missing"];
+  let descriptor: number;
+  try {
+    descriptor = openSync(
+      options.envPath,
+      (options.checkOnly ? constants.O_RDONLY : constants.O_RDWR) |
+        constants.O_NOFOLLOW |
+        constants.O_NONBLOCK,
+    );
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      return [".env is missing"];
+    }
+    throw error;
   }
+  try {
+    if (!fstatSync(descriptor).isFile()) {
+      throw new Error(".env must be a regular file");
+    }
+    return updateOpenEnvFile(updates, options.checkOnly, descriptor);
+  } finally {
+    closeSync(descriptor);
+  }
+}
 
-  const lines = readFileSync(options.envPath, "utf8").split(/\r?\n/);
+function updateOpenEnvFile(
+  updates: Record<string, string | undefined>,
+  checkOnly: boolean,
+  descriptor: number,
+): string[] {
+  const messages: string[] = [];
+  const lines = readFileSync(descriptor, "utf8").split(/\r?\n/);
   const seen = new Set<string>();
   const nextLines = lines.map((line) => {
     if (!line || line.trim().startsWith("#")) {
@@ -74,7 +137,7 @@ export function updateEnvFile(
       return line;
     }
     const key = line.slice(0, separator).trim();
-    if (!(key in updates)) {
+    if (!Object.hasOwn(updates, key)) {
       return line;
     }
     seen.add(key);
@@ -91,8 +154,22 @@ export function updateEnvFile(
     messages.push(`${key} added`);
   }
 
-  if (!options.checkOnly) {
-    writeFileSync(options.envPath, nextLines.join("\n"), "utf8");
+  if (!checkOnly) {
+    // Keep the write on the opened inode even if the pathname is replaced.
+    fchmodSync(descriptor, 0o600);
+    const content = Buffer.from(nextLines.join("\n"));
+    // readFileSync advances the offset; write explicitly from position zero.
+    let offset = 0;
+    while (offset < content.length) {
+      offset += writeSync(
+        descriptor,
+        content,
+        offset,
+        content.length - offset,
+        offset,
+      );
+    }
+    ftruncateSync(descriptor, content.length);
   }
 
   return messages;

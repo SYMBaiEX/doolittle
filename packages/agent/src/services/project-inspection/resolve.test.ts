@@ -1,4 +1,4 @@
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -7,10 +7,7 @@ import { resolveLocalProjectTarget } from "./resolve";
 const createdPaths: string[] = [];
 
 function createHome(): string {
-  const parent = join(
-    tmpdir(),
-    `doolittle-project-resolution-${process.pid}-${Date.now()}-${createdPaths.length}`,
-  );
+  const parent = mkdtempSync(join(tmpdir(), "doolittle-project-resolution-"));
   const home = join(parent, "developer");
   mkdirSync(home, { recursive: true });
   createdPaths.push(parent);

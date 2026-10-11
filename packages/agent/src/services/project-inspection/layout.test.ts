@@ -1,4 +1,4 @@
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -11,11 +11,7 @@ import {
 const createdPaths: string[] = [];
 
 function createProject(): string {
-  const projectPath = join(
-    tmpdir(),
-    `doolittle-project-layout-${process.pid}-${Date.now()}-${createdPaths.length}`,
-  );
-  mkdirSync(projectPath, { recursive: true });
+  const projectPath = mkdtempSync(join(tmpdir(), "doolittle-project-layout-"));
   createdPaths.push(projectPath);
   return projectPath;
 }

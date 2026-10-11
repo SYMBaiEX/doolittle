@@ -1,13 +1,18 @@
 import { createHash, randomUUID } from "node:crypto";
 import {
-  chmodSync,
+  closeSync,
+  constants,
+  fchmodSync,
+  fstatSync,
   mkdirSync,
+  openSync,
   readdirSync,
   readFileSync,
+  realpathSync,
   writeFileSync,
 } from "node:fs";
 import { homedir } from "node:os";
-import { isAbsolute, join, resolve } from "node:path";
+import { isAbsolute, join, parse, resolve } from "node:path";
 import { EVALS_EVALUATOR_VERSION } from "../evaluator-version";
 import { CODING_EVAL_SUITES, type CodingEvalSuite } from "./cases";
 import type { CodingEvalStatus, CodingRunEvaluation } from "./evaluator";
@@ -302,8 +307,33 @@ export function writeCodingEvalReport(
   reportDirectory = defaultCodingEvalReportDirectory(),
 ): string {
   const directory = resolve(reportDirectory);
+  const assertDedicatedDirectory = (path: string) => {
+    if (
+      [parse(path).root, homedir(), process.cwd()].some(
+        (broad) => path === resolve(broad) || path === realpathSync(broad),
+      )
+    ) {
+      throw new Error(
+        "Coding evaluation reports require a dedicated output directory.",
+      );
+    }
+  };
+  assertDedicatedDirectory(directory);
   mkdirSync(directory, { recursive: true, mode: 0o700 });
-  chmodSync(directory, 0o700);
+  assertDedicatedDirectory(realpathSync(directory));
+  const descriptor = openSync(
+    directory,
+    constants.O_RDONLY | constants.O_NOFOLLOW,
+  );
+  try {
+    if (!fstatSync(descriptor).isDirectory()) {
+      throw new Error("Coding evaluation reports require a directory.");
+    }
+    // Change the opened directory, not a path that can be replaced by a link.
+    fchmodSync(descriptor, 0o700);
+  } finally {
+    closeSync(descriptor);
+  }
 
   const label = (report.suite?.id ?? "coding-eval").replace(
     /[^a-z0-9-]+/giu,
@@ -319,7 +349,6 @@ export function writeCodingEvalReport(
     flag: "wx",
     mode: 0o600,
   });
-  chmodSync(outputPath, 0o600);
   return outputPath;
 }
 

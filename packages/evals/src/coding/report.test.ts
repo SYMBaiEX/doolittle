@@ -1,7 +1,15 @@
-import { mkdtempSync, readFileSync, rmSync, statSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import {
+  fchmodSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  symlinkSync,
+  unlinkSync,
+} from "node:fs";
+import { homedir, tmpdir } from "node:os";
+import { join, parse, resolve } from "node:path";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { CODING_EVAL_SUITES } from "./cases";
 import type { CodingRunEvaluation } from "./evaluator";
 import {
@@ -13,6 +21,12 @@ import {
   readCodingEvalReport,
   writeCodingEvalReport,
 } from "./report";
+
+vi.mock("node:fs", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:fs")>();
+  return { ...actual, fchmodSync: vi.fn(actual.fchmodSync) };
+});
+const actualFs = await vi.importActual<typeof import("node:fs")>("node:fs");
 
 const temporaryDirectories: string[] = [];
 const suite = CODING_EVAL_SUITES["coding-harness-v1"];
@@ -82,6 +96,7 @@ function createReport(options: {
 }
 
 afterEach(() => {
+  vi.mocked(fchmodSync).mockReset().mockImplementation(actualFs.fchmodSync);
   for (const directory of temporaryDirectories.splice(0)) {
     rmSync(directory, { recursive: true, force: true });
   }
@@ -227,6 +242,51 @@ describe("coding evaluation reports", () => {
     expect(() => compareCodingEvalReports(report, report)).toThrow(
       "marked comparison-ready",
     );
+  });
+
+  it("rejects broad output directories without changing their permissions", () => {
+    // Even a regression must never chmod a real home/root/workspace in a test.
+    vi.mocked(fchmodSync).mockImplementation(() => {
+      throw new Error("Unsafe chmod reached in broad-directory test");
+    });
+    const report = createReport({
+      runId: "safe-run",
+      status: "pass",
+      score: 110,
+      routeLabel: "test",
+    });
+    for (const directory of [
+      parse(resolve("/")).root,
+      homedir(),
+      process.cwd(),
+    ]) {
+      const previousMode = statSync(directory).mode;
+      expect(() => writeCodingEvalReport(report, directory)).toThrow(
+        "dedicated",
+      );
+      expect(statSync(directory).mode).toBe(previousMode);
+    }
+    expect(fchmodSync).not.toHaveBeenCalled();
+  });
+
+  it("rejects a linked report directory, preserves its target, and permits recovery", () => {
+    const parent = temporaryDirectory();
+    const target = temporaryDirectory();
+    const link = join(parent, "reports");
+    const report = createReport({
+      runId: "safe-run",
+      status: "pass",
+      score: 110,
+      routeLabel: "test",
+    });
+    symlinkSync(target, link, "dir");
+    const previousMode = statSync(target).mode;
+    expect(() => writeCodingEvalReport(report, link)).toThrow();
+    expect(statSync(target).mode).toBe(previousMode);
+    expect(listCodingEvalReportFiles(target)).toEqual([]);
+    unlinkSync(link);
+    const output = writeCodingEvalReport(report, link);
+    expect(readCodingEvalReport(output).runs[0]?.runId).toBe("safe-run");
   });
 
   it("rejects malformed or task-mismatched persisted reports", () => {

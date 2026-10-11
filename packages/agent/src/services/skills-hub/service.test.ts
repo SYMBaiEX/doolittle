@@ -1,4 +1,10 @@
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -10,7 +16,7 @@ import type { SkillHubCatalogRecord, SkillHubInstalledRecord } from "./types";
 
 describe("SkillsHubService", () => {
   it("projects official catalog records and distributes local skill manifests", async () => {
-    const root = join(tmpdir(), `doolittle-skills-hub-${Date.now()}`);
+    const root = mkdtempSync(join(tmpdir(), "doolittle-skills-hub-"));
     const skillsDir = join(root, "skills");
     const dataDir = join(root, "data");
     mkdirSync(join(dataDir, "exports"), { recursive: true });

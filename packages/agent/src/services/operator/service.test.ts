@@ -1,4 +1,4 @@
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -175,8 +175,7 @@ afterEach(() => {
 
 describe("OperatorService", () => {
   it("builds setup and update summaries", async () => {
-    const base = join(tmpdir(), `doolittle-operator-${Date.now()}`);
-    mkdirSync(base, { recursive: true });
+    const base = mkdtempSync(join(tmpdir(), "doolittle-operator-"));
     roots.push(base);
     const config = makeConfig(base);
     const diagnostics = new DiagnosticsService(config, gatewayConfig);
@@ -259,8 +258,7 @@ describe("OperatorService", () => {
   });
 
   it("inspects and applies a filesystem migration", () => {
-    const base = join(tmpdir(), `doolittle-operator-migrate-${Date.now()}`);
-    mkdirSync(base, { recursive: true });
+    const base = mkdtempSync(join(tmpdir(), "doolittle-operator-migrate-"));
     roots.push(base);
     const config = makeConfig(base);
     const diagnostics = new DiagnosticsService(config, gatewayConfig);
