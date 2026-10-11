@@ -1,28 +1,18 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import type { CliTurnEvent } from "@/cli/turn-events";
 import { parseCliTurnEvent } from "@/cli/turn-events";
+import { readRegularFileSync } from "@/utils/read-regular-file";
 import type { CliJobIndex } from "../types";
 
 export function readCliJobEventsFromPath(logPath: string): CliTurnEvent[] {
   if (!existsSync(logPath)) {
     return [];
   }
-  return readFileSync(logPath, "utf8")
+  return readRegularFileSync(logPath, 16 * 1024 * 1024, { singleLink: true })
+    .toString("utf8")
     .split(/\r?\n/u)
     .map((line) => parseCliTurnEvent(line))
     .filter((entry): entry is CliTurnEvent => Boolean(entry));
-}
-
-function isProcessAlive(pid: number): boolean {
-  if (!Number.isFinite(pid) || pid <= 0) {
-    return false;
-  }
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch {
-    return false;
-  }
 }
 
 export function reconcileJobRecords(index: CliJobIndex): boolean {
@@ -31,23 +21,16 @@ export function reconcileJobRecords(index: CliJobIndex): boolean {
     if (job.status !== "queued" && job.status !== "running") {
       continue;
     }
-    if (job.pid && isProcessAlive(job.pid)) {
+    let terminalEvent: CliTurnEvent | undefined;
+    try {
+      terminalEvent = readCliJobEventsFromPath(job.logPath).find(
+        (event) => event.type === "completed",
+      );
+    } catch {
+      // A damaged or oversized log cannot prevent listing or cancelling other jobs.
       continue;
     }
-
-    const terminalEvent = readCliJobEventsFromPath(job.logPath)
-      .reverse()
-      .find((event) => event.type === "completed");
-    if (!terminalEvent) {
-      if (job.status === "running") {
-        job.status = "failed";
-        job.exitCode ??= 1;
-        job.completedAt ??= new Date().toISOString();
-        job.pid = undefined;
-        changed = true;
-      }
-      continue;
-    }
+    if (!terminalEvent) continue;
 
     job.status = terminalEvent.status;
     job.completedAt ??= terminalEvent.timestamp;

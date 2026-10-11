@@ -114,6 +114,7 @@ export async function handleEntrypointRuntimeSurface(input: {
         runCliPrompt: input.runCliPrompt,
         runCliPromptWithEvents: input.runCliPromptWithEvents,
         abortSignal: promptController.signal,
+        onCancelRequested: () => promptController.abort(),
         exit: (code) => {
           requestedExitCode = code;
         },

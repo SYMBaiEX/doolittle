@@ -3,6 +3,7 @@ import {
   getCliResultStatus,
 } from "@/cli/execution/types";
 import type { CliJobRecord } from "@/cli/jobs";
+import type { CliTurnEvent } from "@/cli/turn-events";
 import { encodeCliTurnEvent } from "@/cli/turn-events";
 import type { StaticResult } from "./static-prompts";
 
@@ -52,32 +53,31 @@ export async function emitStaticPromptEvents(
   result: StaticResult,
   options?: {
     sessionId?: string;
+    onEvent?: (event: CliTurnEvent) => void;
   },
 ): Promise<void> {
   const timestamp = new Date().toISOString();
   const sessionId = options?.sessionId?.trim() || `static:${Date.now()}`;
-  process.stdout.write(
-    encodeCliTurnEvent({
-      type: "start",
-      timestamp,
-      sessionId,
-      command: prompt,
-    }),
-  );
-  process.stdout.write(
-    encodeCliTurnEvent({
-      type: "result",
-      timestamp: new Date().toISOString(),
-      text: result.text,
-      tone: result.tone ?? "info",
-      shouldExit: result.shouldExit ?? false,
-    }),
-  );
-  process.stdout.write(
-    encodeCliTurnEvent({
-      type: "completed",
-      timestamp: new Date().toISOString(),
-      status: getCliResultStatus(result),
-    }),
-  );
+  const emit = (event: CliTurnEvent) => {
+    options?.onEvent?.(event);
+    process.stdout.write(encodeCliTurnEvent(event));
+  };
+  emit({
+    type: "start",
+    timestamp,
+    sessionId,
+    command: prompt,
+  });
+  emit({
+    type: "result",
+    timestamp: new Date().toISOString(),
+    text: result.text,
+    tone: result.tone ?? "info",
+    shouldExit: result.shouldExit ?? false,
+  });
+  emit({
+    type: "completed",
+    timestamp: new Date().toISOString(),
+    status: getCliResultStatus(result),
+  });
 }

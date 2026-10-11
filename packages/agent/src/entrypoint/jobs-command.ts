@@ -81,6 +81,12 @@ export async function handleJobsSubcommand(options: {
       deps.exit(1);
       return;
     }
+    if (job.status === "queued" || job.status === "running") {
+      deps.writeStderrLine(
+        `Background job ${jobId} is unconfirmed or stale; no terminal event has been observed.`,
+      );
+      deps.exit(1);
+    }
     return;
   }
 
@@ -92,14 +98,24 @@ export async function handleJobsSubcommand(options: {
       deps.exit(1);
       return;
     }
-    const job = deps.cancelCliJob(dataDir, jobId);
-    if (!job) {
+    const result = deps.cancelCliJob(dataDir, jobId);
+    if (result.kind === "not-found") {
       deps.entryLogger.warn("jobs-cancel-missing", { jobId });
       deps.writeStderrLine(`Background job not found: ${jobId}`);
       deps.exit(1);
       return;
     }
-    deps.printLine(`Cancelled background job ${job.id}.`);
+    if (result.kind === "already-terminal")
+      deps.printLine(`Background job ${jobId} already ${result.job.status}.`);
+    else if (result.kind === "cannot-request") {
+      deps.writeStderrLine(
+        `Cannot request cancellation of background job ${jobId}; check its status.`,
+      );
+      deps.exit(1);
+    } else
+      deps.printLine(
+        `Cancellation requested for background job ${jobId}; awaiting child confirmation.`,
+      );
     return;
   }
 

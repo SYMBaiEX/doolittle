@@ -13,11 +13,19 @@ import { readRegularFileSync } from "./read-regular-file";
 
 const hooks = vi.hoisted(() => ({
   afterStat: undefined as (() => void) | undefined,
+  beforeOpen: undefined as (() => void) | undefined,
 }));
 vi.mock("node:fs", async (importOriginal) => {
   const fs = await importOriginal<typeof import("node:fs")>();
   return {
     ...fs,
+    constants: { ...fs.constants, O_NOFOLLOW: 0 },
+    openSync: (...args: Parameters<typeof fs.openSync>) => {
+      const beforeOpen = hooks.beforeOpen;
+      hooks.beforeOpen = undefined;
+      beforeOpen?.();
+      return fs.openSync(...args);
+    },
     fstatSync: (descriptor: number) => {
       const info = fs.fstatSync(descriptor);
       const afterStat = hooks.afterStat;
@@ -29,9 +37,28 @@ vi.mock("node:fs", async (importOriginal) => {
 });
 afterEach(() => {
   hooks.afterStat = undefined;
+  hooks.beforeOpen = undefined;
 });
 
 describe("bounded regular file reads", () => {
+  it("rejects a leaf replacement before open when O_NOFOLLOW is unavailable", () => {
+    const root = mkdtempSync(join(tmpdir(), "doolittle-regular-preopen-"));
+    const path = join(root, "file");
+    const replacement = join(root, "replacement");
+    try {
+      writeFileSync(path, "old");
+      writeFileSync(replacement, "new");
+      hooks.beforeOpen = () => {
+        unlinkSync(path);
+        symlinkSync(replacement, path);
+      };
+      expect(() => readRegularFileSync(path, 100)).toThrow(
+        "changed before read",
+      );
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
   it("rejects shrinkage rather than returning a truncated stable value", () => {
     const root = mkdtempSync(join(tmpdir(), "doolittle-regular-shrink-"));
     const path = join(root, "file");

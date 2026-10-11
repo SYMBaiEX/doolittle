@@ -57,7 +57,7 @@ export async function handleCliJobCommand(
         tone: "error",
       };
     }
-    const job = launchCliBackgroundJobFn({
+    const job = await launchCliBackgroundJobFn({
       config: context.config,
       launcherPath,
       prompt,
@@ -73,16 +73,23 @@ export async function handleCliJobCommand(
     if (!jobId) {
       return { text: "Usage: /jobs cancel <job-id>", tone: "warning" };
     }
-    const cancelled = cancelCliJobFn(context.config.dataDir, jobId);
-    return cancelled
-      ? {
-          text: `Cancelled background job ${cancelled.id}.`,
-          tone: "success",
-        }
-      : {
-          text: `Background job not found: ${jobId}`,
-          tone: "warning",
-        };
+    const result = cancelCliJobFn(context.config.dataDir, jobId);
+    if (result.kind === "not-found")
+      return { text: `Background job not found: ${jobId}`, tone: "warning" };
+    if (result.kind === "already-terminal")
+      return {
+        text: `Background job ${jobId} already ${result.job.status}.`,
+        tone: "info",
+      };
+    if (result.kind === "cannot-request")
+      return {
+        text: `Cannot request cancellation of background job ${jobId}; check its status.`,
+        tone: "warning",
+      };
+    return {
+      text: `Cancellation requested for background job ${jobId}; awaiting child confirmation.`,
+      tone: "info",
+    };
   }
   if (normalizedTrimmed.startsWith("/jobs show ")) {
     const jobId = normalizedTrimmed.replace("/jobs show ", "").trim();
@@ -119,6 +126,12 @@ export async function handleCliJobCommand(
     });
     if (!job) {
       return { text: `Background job not found: ${jobId}`, tone: "warning" };
+    }
+    if (job.status === "queued" || job.status === "running") {
+      return {
+        text: `Background job ${jobId} is unconfirmed or stale; no terminal event has been observed.`,
+        tone: "warning",
+      };
     }
     return {
       text: renderCliJobReplayFn(context.config.dataDir, jobId),

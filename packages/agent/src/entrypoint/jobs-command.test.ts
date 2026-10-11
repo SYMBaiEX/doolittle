@@ -2,6 +2,32 @@ import { describe, expect, it } from "vitest";
 import { handleJobsSubcommand } from "./jobs-command";
 
 describe("handleJobsSubcommand", () => {
+  it("reports requested cancellation without presenting it as completed", async () => {
+    const lines: string[] = [];
+    await handleJobsSubcommand({
+      rest: ["cancel", "job-id"],
+      deps: {
+        loadConfig: () => ({ dataDir: "/tmp/doolittle" }),
+        cliJobStatusSummary: () => "",
+        getCliJob: () => undefined,
+        renderCliJobReplay: () => "",
+        attachCliJob: async () => undefined,
+        cancelCliJob: () => ({
+          kind: "requested",
+          job: { id: "job-id", status: "running" } as never,
+        }),
+        renderCliTurnEvent: () => "",
+        entryLogger: { warn: () => undefined },
+        printLine: (message) => lines.push(message),
+        writeStdout: () => undefined,
+        writeStderrLine: () => undefined,
+        exit: () => undefined,
+      },
+    });
+    expect(lines).toEqual([
+      "Cancellation requested for background job job-id; awaiting child confirmation.",
+    ]);
+  });
   it("prints the job summary for list", async () => {
     const lines: string[] = [];
     let exitCode: number | undefined;
@@ -14,7 +40,7 @@ describe("handleJobsSubcommand", () => {
         getCliJob: () => undefined,
         renderCliJobReplay: () => "",
         attachCliJob: async () => undefined,
-        cancelCliJob: () => undefined,
+        cancelCliJob: () => ({ kind: "not-found", id: "missing" }),
         renderCliTurnEvent: () => "event",
         entryLogger: {
           warn: () => undefined,
@@ -50,7 +76,7 @@ describe("handleJobsSubcommand", () => {
         getCliJob: () => undefined,
         renderCliJobReplay: () => "",
         attachCliJob: async () => undefined,
-        cancelCliJob: () => undefined,
+        cancelCliJob: () => ({ kind: "not-found", id: "missing" }),
         renderCliTurnEvent: () => "event",
         entryLogger: {
           warn: () => undefined,

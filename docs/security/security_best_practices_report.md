@@ -109,7 +109,10 @@ Required remediation: validate persisted identity/path authority at load and
 use, derive expected state/log paths, reject escaped or linked descendants,
 retain legitimate existing jobs, and test crafted indexes plus benign replay.
 
-Status: implementation queued.
+Status: implemented and independently reviewed together with SR-7. Stored
+UUID identities and derived state/log paths are validated under a private job
+root, index and log reads are capped at 16 MiB, linked/hardlinked entries are
+rejected, and index mutations are serialized. New jobs retain private modes.
 
 ### SR-7 — Detached jobs trust persisted PIDs and expose prompt arguments
 
@@ -123,7 +126,20 @@ request-versus-confirmation status, no signaling of a stored PID, validated
 private job paths, bounded stdin prompt delivery, and cross-restart/concurrent
 writer regressions. A PID command-line check is not an ownership proof.
 
-Status: implementation planned; existing child turn abort signal is reusable.
+Status: implemented and independently reviewed. A private per-job nonce
+addresses durable cancellation requests; only the matching child aborts its
+turn and confirms the terminal state. Saved PIDs are not signaled. Static and
+runtime prompt paths use the same identity boundary, prompts travel through
+bounded stdin, and detached stdout/stderr cannot bypass structured log bounds.
+Eighteen focused files passed 115 tests; an independent 12-file rerun passed
+75 tests. Type/Biome/diff checks passed. Real loopback child-process cancellation
+and four concurrent index writers were tested, not live provider accounts.
+
+Availability limitation: an abandoned `.index-lock` fails closed after a
+bounded wait. Stop all Doolittle and detached-job writers before manually
+removing only that empty lock directory under the configured `cli-jobs` root.
+No automatic PID-based lock breaking occurs. Native Windows and production
+launcher/provider behavior remain unverified.
 
 ### SR-8 — Automatic private-state reads and shared-memory writes
 

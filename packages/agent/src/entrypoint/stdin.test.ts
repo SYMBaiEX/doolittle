@@ -28,4 +28,14 @@ describe("readEntrypointStdinText", () => {
 
     await expect(readEntrypointStdinText(stdin)).resolves.toBe("hello world");
   });
+
+  it("rejects input beyond the one MiB prompt limit", async () => {
+    const stdin = {
+      isTTY: false,
+      async *[Symbol.asyncIterator]() {
+        yield Buffer.alloc(1024 * 1024 + 1);
+      },
+    };
+    await expect(readEntrypointStdinText(stdin)).rejects.toThrow("1 MiB");
+  });
 });

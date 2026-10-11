@@ -1,7 +1,24 @@
 import { describe, expect, it, vi } from "vitest";
-import { printOneShotResult } from "./output";
+import { emitStaticPromptEvents, printOneShotResult } from "./output";
 
 describe("one-shot result evidence", () => {
+  it("delivers static stream events to a bounded job sink while keeping stdout", async () => {
+    const stdout = vi
+      .spyOn(process.stdout, "write")
+      .mockImplementation(() => true);
+    const events: string[] = [];
+    try {
+      await emitStaticPromptEvents(
+        "/quit",
+        { text: "bye", shouldExit: true },
+        { sessionId: "s", onEvent: (event) => events.push(event.type) },
+      );
+      expect(events).toEqual(["start", "result", "completed"]);
+      expect(stdout).toHaveBeenCalledTimes(3);
+    } finally {
+      stdout.mockRestore();
+    }
+  });
   it("prints ok:false for resolved execution errors", () => {
     const output = vi.spyOn(console, "log").mockImplementation(() => {});
     printOneShotResult({ text: "permission denied", tone: "error" }, true);
