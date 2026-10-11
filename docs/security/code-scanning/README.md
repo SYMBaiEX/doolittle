@@ -31,8 +31,8 @@ regression tests, and the published CodeQL query definitions.
 | Unreviewed | 0 | No baseline alert is missing a disposition. |
 
 **These are local review dispositions, not GitHub closure counts.** No alert was
-dismissed to reduce the backlog. A fresh CodeQL analysis must establish which
-flows disappeared; intentional capabilities may still be reported. The
+dismissed to reduce the backlog. Changed-code PR analysis does not establish
+full main-branch closure; intentional capabilities may still be reported. The
 running/installed desktop app and main/panel branches were not modified by this
 security branch.
 
@@ -202,7 +202,7 @@ atomic JSON/Vault/account primitives were preserved.
 Focused regressions passed for each changed boundary. Independent read-only
 review validated all 196 unique evidence-backed dispositions, source locations,
 and normal/failure/recovery coverage without missing or duplicate IDs. The
-ledger's two coverage checks also passed.
+baseline ledger's two coverage checks also passed.
 
 | Validation | Result |
 | --- | --- |
@@ -233,6 +233,48 @@ for one. These source/test files were not changed by this security pass. Their
 baseline failures remain a release gate; they were not silenced or fixed by
 changing unrelated expectations.
 
+### Fresh PR changed-code analysis
+
+CodeQL completed for PR #34 at `6c1a9cda53b5acbd9afed1d31fd4956298a7f44b`.
+The JavaScript/TypeScript analysis
+[1931021851](https://github.com/SYMBaiEX/doolittle/actions/runs/38124570837/job/114426152639)
+reported **27 findings at new or moved locations**, IDs 234–260: 1 critical and
+26 high by scanner severity. Both analysis jobs completed successfully; the
+separate CodeQL alert-policy check failed because these findings exist. The
+Actions-language analysis reported zero findings, and CI validation passed.
+CI's default PR path runs essential tests, not the full suite described above.
+
+This is a **changed-code PR analysis**, not evidence that the original 196 main
+alerts shrank to 27 or were closed. The original snapshot and dispositions stay
+separate from this second inventory.
+
+The 27 follow-up dispositions are 13 intentional-local, 6 guarded, 4 test-only,
+3 false-positive, and 1 additional hardening change. No finding is unreviewed.
+
+- [PR scan snapshot and bounded SARIF extraction](scan-pr34-2026-10-11.json).
+  Source locations and representative chains are preserved with the analysis
+  ID; this is explicitly not a copy of every full SARIF thread flow.
+- Complete follow-up dispositions: [probe/workflow/test boundaries](triage/pr34-boundaries.json),
+  [filesystem](triage/pr34-filesystem.json), [tooling](triage/pr34-tooling.json),
+  and [audit counter](triage/pr34-root.json).
+- The scanner's insecure-temporary-file findings at read-only and existing
+  append-only descriptor opens do not demonstrate file creation: those flags
+  contain neither `O_CREAT` nor `O_TRUNC`. Exact operation/query evidence is
+  recorded in the filesystem follow-up, rather than adding dummy permissions
+  solely to silence the rule.
+- The critical probe finding retains intentional local URL authority, with
+  credential origin and redirect restrictions intact. Guarded local path
+  operations and explicit adversarial test races remain documented as such.
+- Finding 260 prompted replacing the test ledger's object-key counter with a
+  `Map`. This is additional test-only hardening, not a confirmed production
+  prototype-pollution issue. The follow-up coverage test accounts for all 27
+  findings exactly once.
+
+No new production defect was demonstrated by this reconciliation, and no alert
+was dismissed. The PR remains draft; the CodeQL policy check is not asserted
+green. A follow-up scan is needed to confirm the counter change, and main's
+original alerts remain unchanged until an analyzed merge or exact disposition.
+
 Still outside these guarantees:
 
 - Mutable ancestor directories, hard links, or compromise of the local OS user.
@@ -241,7 +283,7 @@ Still outside these guarantees:
   testing; macOS tests do not certify those boundaries.
 - Native ScriptC compilation/binary integration of the probe, desktop packaging,
   installation, real provider calls, or deployment.
-- Fresh GitHub CodeQL closure, security-alert dismissals, and dependency
+- Main-branch CodeQL alert closure, security-alert dismissals, and dependency
   advisories. The baseline main-branch alerts are not changed by local checks.
 
 After scanning the branch/PR, reconcile scanner results with this ledger.

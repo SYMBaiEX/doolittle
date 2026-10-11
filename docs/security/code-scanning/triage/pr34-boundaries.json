@@ -1,0 +1,126 @@
+[
+  {
+    "number": 234,
+    "rule": "js/request-forgery",
+    "classification": "intentional-local",
+    "reason": "Reconciled CodeQL analysis 1931021851 at 6c1a9cda with the full filtered SARIF result: all four thread flows originate in process.argv or process.env at doolittle-probe.ts:14/24 and end in its CLI fetch at line 32. No HTTP-request or remote-message source appears. Choosing an arbitrary HTTP(S) health endpoint is the explicit local operator capability of this opt-in standalone tool, not a remotely accessible privileged proxy. The rule still observes intentional URL taint; URL normalization is not claimed to remove that taint. The previously identified incidental token disclosure is separately prevented by exact trusted-origin equality, explicit HTTPS-only remote authentication opt-in, credential-bearing origin rejection, and redirect:error on the actual fetch. Changing the URL alone cannot select the token destination. Exploitation as privileged SSRF would require an additional caller to expose this local executable to untrusted remote input under greater network authority; no such caller was found in the reviewed native command path. Native compiled-runtime policy remains unverified, and operators must not trust attacker-provided auth origins.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/native-tools/doolittle-probe.ts",
+        "line": 14,
+        "detail": "Two SARIF flows start at CLI process.argv; the other two start at launch-environment API port configuration at line 24."
+      },
+      {
+        "path": "packages/agent/src/native-tools/health-probe-core.ts",
+        "line": 19,
+        "detail": "The deliberate URL capability is limited to HTTP(S), rejects URL credentials, and emits the canonical /health path rather than an arbitrary input pathname."
+      },
+      {
+        "path": "packages/agent/src/native-tools/health-probe-core.ts",
+        "line": 43,
+        "detail": "The fetch options always disable redirects; the token is added only at line 70 after exact origin equality and safe explicit-origin validation. This guards credentials, not the intentionally user-selected URL itself."
+      },
+      {
+        "path": "packages/agent/src/native-tools/doolittle-probe.ts",
+        "line": 32,
+        "detail": "The flagged sink is the standalone operator CLI fetch and consumes the guarded request options."
+      },
+      {
+        "path": "packages/agent/src/entrypoint/native-tool-command.ts",
+        "line": 156,
+        "detail": "The reviewed caller requires an explicit native probe command and an already-built native artifact; it forwards local CLI arguments, not HTTP parameters."
+      },
+      {
+        "path": "docs/native-tools.md",
+        "line": 48,
+        "detail": "The exact origin trust boundary, localhost/port mismatch behavior, HTTPS requirement, and no-redirect policy are documented for operators."
+      }
+    ],
+    "tests": [
+      "nub run test:scope packages/agent/src/native-tools/health-probe-core.test.ts packages/agent/src/runtime/workspace-prompt-containment.test.ts apps/desktop/src/main/regular-file.test.ts: 42 tests passed at 6c1a9cda",
+      "Probe tests cover default/configured local origins, port and host-alias mismatch, explicit HTTPS auth opt-in, IPv6 loopback, invalid/credential-bearing origins, and real loopback cross-origin redirect rejection with zero target requests",
+      "GitHub alert metadata and all four filtered SARIF thread flows inspected; no native binary build/provider/app launch or dismissal performed"
+    ]
+  },
+  {
+    "number": 249,
+    "rule": "js/path-injection",
+    "classification": "guarded",
+    "reason": "Reconciled all three SARIF thread flows: source is the operator process.env-derived DOOLITTLE_REPO_ROOT at config/env/paths.ts:5, propagated through runtime configuration and the workflow catalog to readdirSync at definitions.ts:105. An operator-selected workspace root may intentionally live outside the default checkout. Discovery only constructs two fixed workspace-relative command directories, canonicalizes them, and checks strict canonical descendant containment before enumeration. Each discovered markdown candidate is independently canonicalized/contained and read through a bounded regular-file descriptor with O_NOFOLLOW where supported, so static external directory/file links, sibling-prefix tricks, and deterministic final-entry symlink swaps cannot import host contents into prompts on the tested platform. An untrusted launch environment can still choose the root by design. These checks are not race-free ancestry confinement: concurrent ancestor replacement or platforms without nofollow remain explicitly documented residuals, not claimed fixed by this disposition. No new authorization escape or regression was demonstrated by this environment-to-directory scan.",
+    "evidence": [
+      {
+        "path": "packages/agent/src/config/env/paths.ts",
+        "line": 5,
+        "detail": "The actual SARIF source is launch process.env; DOOLITTLE_REPO_ROOT is an explicit operator configuration override resolved at line 9."
+      },
+      {
+        "path": "packages/agent/src/runtime/workflow-commands/listing.ts",
+        "line": 17,
+        "detail": "Catalog discovery forwards its runtime-selected workspace; command text is not appended to the filesystem path."
+      },
+      {
+        "path": "packages/agent/src/runtime/workflow-commands/definitions.ts",
+        "line": 92,
+        "detail": "Only .doolittle/commands and commands/workflows are scanned under the canonical workspace. The canonical directory must pass strict descendant containment before the flagged readdirSync at line 105."
+      },
+      {
+        "path": "packages/agent/src/runtime/workflow-commands/definitions.ts",
+        "line": 116,
+        "detail": "Every candidate independently passes canonical containment, then the descriptor helper bounds each automatic markdown input at 1 MiB."
+      },
+      {
+        "path": "packages/agent/src/utils/path-containment.ts",
+        "line": 11,
+        "detail": "relative-path descendant checks reject equality, parent paths, sibling-prefix escapes, and absolute results rather than trusting string prefixes."
+      },
+      {
+        "path": "packages/agent/src/utils/read-regular-file.ts",
+        "line": 8,
+        "detail": "Candidate content opens with O_NOFOLLOW/O_NONBLOCK where supported, validates the opened descriptor, bounds reads, and rejects observed mutation."
+      },
+      {
+        "path": "docs/security/code-scanning/local-path-boundaries.md",
+        "line": 60,
+        "detail": "Mutable-ancestor and unsupported-platform nofollow risks remain disclosed; source review does not claim native platform assurance."
+      }
+    ],
+    "tests": [
+      "Focused PR34 validation command above: 42 tests passed across the three selected files",
+      "workspace-prompt-containment.test.ts validates normal expansion, static external directory/file links, sibling-prefix rejection, internal links, missing workspace fallback, oversized/nonregular content, and an adversarial final-entry symlink swap after canonicalization",
+      "All three filtered SARIF source chains inspected; Windows and race-free ancestor confinement remain unverified"
+    ]
+  },
+  {
+    "number": 255,
+    "rule": "js/file-system-race",
+    "classification": "test-only",
+    "reason": "The alert marks a deliberately adversarial regression fixture, not a production pathname check/use sequence. GitHub identifies the check as openSync(path,'r') at regular-file.test.ts:87 and the later write as line 90. The test creates its own private mkdtemp directory, opens the original file, moves that pathname, deliberately writes a replacement at the old pathname, then verifies that readRegularFileDescriptor(fd,20) still returns original reviewed bytes. The queried changed-path condition is true by construction and is precisely the event this test must simulate. Production inspection/read/fsync operations use the opened descriptor; rewriting this fixture to avoid changing the pathname would remove its security coverage. The test has no user-selected path or production caller, and cleans up its owned temporary directory.",
+    "evidence": [
+      {
+        "path": "apps/desktop/src/main/regular-file.test.ts",
+        "line": 29,
+        "detail": "The fixture uses mkdtempSync under the OS temp directory and records only its owned roots for cleanup."
+      },
+      {
+        "path": "apps/desktop/src/main/regular-file.test.ts",
+        "line": 87,
+        "detail": "The original file is opened first; lines 89–90 intentionally replace the pathname while keeping the original fd."
+      },
+      {
+        "path": "apps/desktop/src/main/regular-file.test.ts",
+        "line": 91,
+        "detail": "The assertion reads from the pinned original descriptor and requires reviewed content, not replacement content."
+      },
+      {
+        "path": "apps/desktop/src/main/regular-file.ts",
+        "line": 27,
+        "detail": "Production helper uses descriptor fstat/readSync and after-read mutation checks; path replacement cannot redirect an already-open fd."
+      }
+    ],
+    "tests": [
+      "Focused PR34 validation command above: 42 tests passed across the three selected files",
+      "The flagged original-inode pathname replacement test passed alongside file growth, oversize, empty-file, directory, final-symlink, and exclusive-write coverage",
+      "Rule help and actual related-location check/sink inspected; SARIF has no source thread flows for this local race rule; Windows-specific fixture remains skipped"
+    ]
+  }
+]

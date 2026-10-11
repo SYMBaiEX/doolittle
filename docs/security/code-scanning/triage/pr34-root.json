@@ -1,0 +1,16 @@
+[
+  {
+    "number": 260,
+    "rule": "js/remote-property-injection",
+    "classification": "hardening",
+    "reason": "The source is the checked-in historical ledger consumed only by a Vitest coverage test, not a remotely supplied production object. The class is asserted against a literal allowed set before counting. Nevertheless, the new scanner finding at the plain object's dynamic key assignment prompted replacing that accumulator with a Map, eliminating prototype-sensitive property assignment rather than accepting the warning. No production prototype-pollution exploit was demonstrated.",
+    "evidence": [
+      {
+        "path": "scripts/check-code-scanning-triage.test.ts",
+        "line": 84,
+        "detail": "Counting uses Map<string, number>; classification membership is asserted before set, and Object.fromEntries materializes a prototype-safe comparison value."
+      }
+    ],
+    "tests": ["scripts/check-code-scanning-triage.test.ts"]
+  }
+]

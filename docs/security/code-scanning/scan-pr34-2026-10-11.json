@@ -1,0 +1,4995 @@
+{
+  "analyzedCommit": "6c1a9cda53b5acbd9afed1d31fd4956298a7f44b",
+  "ref": "refs/pull/34/head",
+  "analysisId": 1931021851,
+  "analysisScope": "Pull-request changed-code analysis, not a fresh full scan of main.",
+  "flowExtraction": "Sources and at most two representative chains of up to 40 locations per result; full SARIF remains available from the recorded analysis ID.",
+  "alerts": [
+    {
+      "number": 260,
+      "state": "open",
+      "rule": "js/remote-property-injection",
+      "severity": "high",
+      "path": "scripts/check-code-scanning-triage.test.ts",
+      "line": 84,
+      "sha": "6c1a9cda53b5acbd9afed1d31fd4956298a7f44b",
+      "ref": "refs/pull/34/head",
+      "message": "A property name to write to depends on a user-provided value.",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/260"
+    },
+    {
+      "number": 259,
+      "state": "open",
+      "rule": "js/file-system-race",
+      "severity": "high",
+      "path": "scripts/bootstrap/core/env-file.test.ts",
+      "line": 66,
+      "sha": "6c1a9cda53b5acbd9afed1d31fd4956298a7f44b",
+      "ref": "refs/pull/34/head",
+      "message": "The file may have changed since it was checked.",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/259"
+    },
+    {
+      "number": 258,
+      "state": "open",
+      "rule": "js/file-system-race",
+      "severity": "high",
+      "path": "scripts/bootstrap/core/env-file.test.ts",
+      "line": 44,
+      "sha": "6c1a9cda53b5acbd9afed1d31fd4956298a7f44b",
+      "ref": "refs/pull/34/head",
+      "message": "The file may have changed since it was checked.",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/258"
+    },
+    {
+      "number": 257,
+      "state": "open",
+      "rule": "js/file-system-race",
+      "severity": "high",
+      "path": "scripts/bootstrap/core/env-file.ts",
+      "line": 44,
+      "sha": "6c1a9cda53b5acbd9afed1d31fd4956298a7f44b",
+      "ref": "refs/pull/34/head",
+      "message": "The file may have changed since it was checked.",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/257"
+    },
+    {
+      "number": 256,
+      "state": "open",
+      "rule": "js/file-system-race",
+      "severity": "high",
+      "path": "packages/agent/src/services/skills-hub/manifests.test.ts",
+      "line": 115,
+      "sha": "6c1a9cda53b5acbd9afed1d31fd4956298a7f44b",
+      "ref": "refs/pull/34/head",
+      "message": "The file may have changed since it was checked.",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/256"
+    },
+    {
+      "number": 255,
+      "state": "open",
+      "rule": "js/file-system-race",
+      "severity": "high",
+      "path": "apps/desktop/src/main/regular-file.test.ts",
+      "line": 90,
+      "sha": "6c1a9cda53b5acbd9afed1d31fd4956298a7f44b",
+      "ref": "refs/pull/34/head",
+      "message": "The file may have changed since it was checked.",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/255"
+    },
+    {
+      "number": 254,
+      "state": "open",
+      "rule": "js/insecure-temporary-file",
+      "severity": "high",
+      "path": "packages/agent/src/utils/read-regular-file.ts",
+      "line": 9,
+      "sha": "6c1a9cda53b5acbd9afed1d31fd4956298a7f44b",
+      "ref": "refs/pull/34/head",
+      "message": "Insecure creation of file in the os temp dir.\nInsecure creation of file in the os temp dir.\nInsecure creation of file in the os temp dir.\nInsecure creation of file in the os temp dir.\nInsecure creation of file in the os temp dir.\nInsecure creation of file in the os temp dir.",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/254"
+    },
+    {
+      "number": 253,
+      "state": "open",
+      "rule": "js/insecure-temporary-file",
+      "severity": "high",
+      "path": "packages/agent/src/runtime/bootstrap/env/secret-salt.ts",
+      "line": 48,
+      "sha": "6c1a9cda53b5acbd9afed1d31fd4956298a7f44b",
+      "ref": "refs/pull/34/head",
+      "message": "Insecure creation of file in the os temp dir.\nInsecure creation of file in the os temp dir.\nInsecure creation of file in the os temp dir.",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/253"
+    },
+    {
+      "number": 252,
+      "state": "open",
+      "rule": "js/insecure-temporary-file",
+      "severity": "high",
+      "path": "packages/agent/src/cli/jobs/store/index.ts",
+      "line": 103,
+      "sha": "6c1a9cda53b5acbd9afed1d31fd4956298a7f44b",
+      "ref": "refs/pull/34/head",
+      "message": "Insecure creation of file in the os temp dir.\nInsecure creation of file in the os temp dir.\nInsecure creation of file in the os temp dir.",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/252"
+    },
+    {
+      "number": 251,
+      "state": "open",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "path": "packages/evals/src/coding/report.ts",
+      "line": 325,
+      "sha": "6c1a9cda53b5acbd9afed1d31fd4956298a7f44b",
+      "ref": "refs/pull/34/head",
+      "message": "This path depends on a user-provided value.",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/251"
+    },
+    {
+      "number": 250,
+      "state": "open",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "path": "packages/agent/src/utils/read-regular-file.ts",
+      "line": 9,
+      "sha": "6c1a9cda53b5acbd9afed1d31fd4956298a7f44b",
+      "ref": "refs/pull/34/head",
+      "message": "This path depends on a user-provided value.",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/250"
+    },
+    {
+      "number": 249,
+      "state": "open",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "path": "packages/agent/src/runtime/workflow-commands/definitions.ts",
+      "line": 105,
+      "sha": "6c1a9cda53b5acbd9afed1d31fd4956298a7f44b",
+      "ref": "refs/pull/34/head",
+      "message": "This path depends on a user-provided value.",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/249"
+    },
+    {
+      "number": 248,
+      "state": "open",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "path": "packages/agent/src/runtime/bootstrap/env/secret-salt.ts",
+      "line": 48,
+      "sha": "6c1a9cda53b5acbd9afed1d31fd4956298a7f44b",
+      "ref": "refs/pull/34/head",
+      "message": "This path depends on a user-provided value.",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/248"
+    },
+    {
+      "number": 247,
+      "state": "open",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "path": "packages/agent/src/runtime/bootstrap/env/secret-salt.ts",
+      "line": 34,
+      "sha": "6c1a9cda53b5acbd9afed1d31fd4956298a7f44b",
+      "ref": "refs/pull/34/head",
+      "message": "This path depends on a user-provided value.",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/247"
+    },
+    {
+      "number": 246,
+      "state": "open",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "path": "packages/agent/src/runtime/bootstrap/env/secret-salt.ts",
+      "line": 25,
+      "sha": "6c1a9cda53b5acbd9afed1d31fd4956298a7f44b",
+      "ref": "refs/pull/34/head",
+      "message": "This path depends on a user-provided value.",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/246"
+    },
+    {
+      "number": 245,
+      "state": "open",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "path": "packages/agent/src/cli/jobs/store/index.ts",
+      "line": 103,
+      "sha": "6c1a9cda53b5acbd9afed1d31fd4956298a7f44b",
+      "ref": "refs/pull/34/head",
+      "message": "This path depends on a user-provided value.",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/245"
+    },
+    {
+      "number": 244,
+      "state": "open",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "path": "packages/agent/src/cli/jobs/store/index.ts",
+      "line": 28,
+      "sha": "6c1a9cda53b5acbd9afed1d31fd4956298a7f44b",
+      "ref": "refs/pull/34/head",
+      "message": "This path depends on a user-provided value.",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/244"
+    },
+    {
+      "number": 243,
+      "state": "open",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "path": "packages/agent/src/cli/jobs/store/index.ts",
+      "line": 27,
+      "sha": "6c1a9cda53b5acbd9afed1d31fd4956298a7f44b",
+      "ref": "refs/pull/34/head",
+      "message": "This path depends on a user-provided value.",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/243"
+    },
+    {
+      "number": 242,
+      "state": "open",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "path": "packages/agent/src/cli/jobs/store/index-store.ts",
+      "line": 20,
+      "sha": "6c1a9cda53b5acbd9afed1d31fd4956298a7f44b",
+      "ref": "refs/pull/34/head",
+      "message": "This path depends on a user-provided value.",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/242"
+    },
+    {
+      "number": 241,
+      "state": "open",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "path": "e2e/support/screenshot-evidence.ts",
+      "line": 58,
+      "sha": "6c1a9cda53b5acbd9afed1d31fd4956298a7f44b",
+      "ref": "refs/pull/34/head",
+      "message": "This path depends on a user-provided value.",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/241"
+    },
+    {
+      "number": 240,
+      "state": "open",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "path": "e2e/support/screenshot-evidence.ts",
+      "line": 55,
+      "sha": "6c1a9cda53b5acbd9afed1d31fd4956298a7f44b",
+      "ref": "refs/pull/34/head",
+      "message": "This path depends on a user-provided value.",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/240"
+    },
+    {
+      "number": 239,
+      "state": "open",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "path": "e2e/support/screenshot-evidence.ts",
+      "line": 47,
+      "sha": "6c1a9cda53b5acbd9afed1d31fd4956298a7f44b",
+      "ref": "refs/pull/34/head",
+      "message": "This path depends on a user-provided value.",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/239"
+    },
+    {
+      "number": 238,
+      "state": "open",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "path": "e2e/support/screenshot-evidence.ts",
+      "line": 45,
+      "sha": "6c1a9cda53b5acbd9afed1d31fd4956298a7f44b",
+      "ref": "refs/pull/34/head",
+      "message": "This path depends on a user-provided value.",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/238"
+    },
+    {
+      "number": 237,
+      "state": "open",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "path": "e2e/support/screenshot-evidence.ts",
+      "line": 34,
+      "sha": "6c1a9cda53b5acbd9afed1d31fd4956298a7f44b",
+      "ref": "refs/pull/34/head",
+      "message": "This path depends on a user-provided value.",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/237"
+    },
+    {
+      "number": 236,
+      "state": "open",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "path": "e2e/support/screenshot-evidence.ts",
+      "line": 33,
+      "sha": "6c1a9cda53b5acbd9afed1d31fd4956298a7f44b",
+      "ref": "refs/pull/34/head",
+      "message": "This path depends on a user-provided value.",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/236"
+    },
+    {
+      "number": 235,
+      "state": "open",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "path": "e2e/support/explicit-sweep-profile.ts",
+      "line": 9,
+      "sha": "6c1a9cda53b5acbd9afed1d31fd4956298a7f44b",
+      "ref": "refs/pull/34/head",
+      "message": "This path depends on a user-provided value.",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/235"
+    },
+    {
+      "number": 234,
+      "state": "open",
+      "rule": "js/request-forgery",
+      "severity": "critical",
+      "path": "packages/agent/src/native-tools/doolittle-probe.ts",
+      "line": 32,
+      "sha": "6c1a9cda53b5acbd9afed1d31fd4956298a7f44b",
+      "ref": "refs/pull/34/head",
+      "message": "The URL of this request depends on a user-provided value.\nThe URL of this request depends on a user-provided value.\nThe URL of this request depends on a user-provided value.",
+      "url": "https://github.com/SYMBaiEX/doolittle/security/code-scanning/234"
+    }
+  ],
+  "flows": [
+    {
+      "ruleId": "js/request-forgery",
+      "sinks": [
+        {
+          "path": "packages/agent/src/native-tools/doolittle-probe.ts",
+          "line": 32
+        }
+      ],
+      "flowCount": 4,
+      "sources": [
+        {
+          "path": "packages/agent/src/native-tools/doolittle-probe.ts",
+          "line": 14
+        },
+        {
+          "path": "packages/agent/src/native-tools/doolittle-probe.ts",
+          "line": 24
+        }
+      ],
+      "representativeFlows": [
+        [
+          {
+            "path": "packages/agent/src/native-tools/doolittle-probe.ts",
+            "line": 14
+          },
+          {
+            "path": "packages/agent/src/native-tools/doolittle-probe.ts",
+            "line": 14
+          },
+          {
+            "path": "packages/agent/src/native-tools/doolittle-probe.ts",
+            "line": 14
+          },
+          {
+            "path": "packages/agent/src/native-tools/doolittle-probe.ts",
+            "line": 25
+          },
+          {
+            "path": "packages/agent/src/native-tools/doolittle-probe.ts",
+            "line": 25
+          },
+          {
+            "path": "packages/agent/src/native-tools/health-probe-core.ts",
+            "line": 11
+          },
+          {
+            "path": "packages/agent/src/native-tools/health-probe-core.ts",
+            "line": 15
+          },
+          {
+            "path": "packages/agent/src/native-tools/health-probe-core.ts",
+            "line": 15
+          },
+          {
+            "path": "packages/agent/src/native-tools/health-probe-core.ts",
+            "line": 14
+          },
+          {
+            "path": "packages/agent/src/native-tools/health-probe-core.ts",
+            "line": 19
+          },
+          {
+            "path": "packages/agent/src/native-tools/health-probe-core.ts",
+            "line": 19
+          },
+          {
+            "path": "packages/agent/src/native-tools/health-probe-core.ts",
+            "line": 19
+          },
+          {
+            "path": "packages/agent/src/native-tools/health-probe-core.ts",
+            "line": 32
+          },
+          {
+            "path": "packages/agent/src/native-tools/health-probe-core.ts",
+            "line": 32
+          },
+          {
+            "path": "packages/agent/src/native-tools/doolittle-probe.ts",
+            "line": 25
+          },
+          {
+            "path": "packages/agent/src/native-tools/doolittle-probe.ts",
+            "line": 25
+          },
+          {
+            "path": "packages/agent/src/native-tools/doolittle-probe.ts",
+            "line": 32
+          }
+        ],
+        [
+          {
+            "path": "packages/agent/src/native-tools/doolittle-probe.ts",
+            "line": 14
+          },
+          {
+            "path": "packages/agent/src/native-tools/doolittle-probe.ts",
+            "line": 14
+          },
+          {
+            "path": "packages/agent/src/native-tools/doolittle-probe.ts",
+            "line": 14
+          },
+          {
+            "path": "packages/agent/src/native-tools/doolittle-probe.ts",
+            "line": 25
+          },
+          {
+            "path": "packages/agent/src/native-tools/doolittle-probe.ts",
+            "line": 25
+          },
+          {
+            "path": "packages/agent/src/native-tools/health-probe-core.ts",
+            "line": 11
+          },
+          {
+            "path": "packages/agent/src/native-tools/health-probe-core.ts",
+            "line": 15
+          },
+          {
+            "path": "packages/agent/src/native-tools/health-probe-core.ts",
+            "line": 15
+          },
+          {
+            "path": "packages/agent/src/native-tools/health-probe-core.ts",
+            "line": 14
+          },
+          {
+            "path": "packages/agent/src/native-tools/health-probe-core.ts",
+            "line": 19
+          },
+          {
+            "path": "packages/agent/src/native-tools/health-probe-core.ts",
+            "line": 19
+          },
+          {
+            "path": "packages/agent/src/native-tools/health-probe-core.ts",
+            "line": 19
+          },
+          {
+            "path": "packages/agent/src/native-tools/health-probe-core.ts",
+            "line": 32
+          },
+          {
+            "path": "packages/agent/src/native-tools/health-probe-core.ts",
+            "line": 32
+          },
+          {
+            "path": "packages/agent/src/native-tools/doolittle-probe.ts",
+            "line": 25
+          },
+          {
+            "path": "packages/agent/src/native-tools/doolittle-probe.ts",
+            "line": 25
+          },
+          {
+            "path": "packages/agent/src/native-tools/doolittle-probe.ts",
+            "line": 32
+          }
+        ]
+      ]
+    },
+    {
+      "ruleId": "js/path-injection",
+      "sinks": [
+        {
+          "path": "e2e/support/explicit-sweep-profile.ts",
+          "line": 9
+        }
+      ],
+      "flowCount": 1,
+      "sources": [
+        {
+          "path": "e2e/desktop-profile-sweep.pw.ts",
+          "line": 24
+        }
+      ],
+      "representativeFlows": [
+        [
+          {
+            "path": "e2e/desktop-profile-sweep.pw.ts",
+            "line": 24
+          },
+          {
+            "path": "e2e/desktop-profile-sweep.pw.ts",
+            "line": 24
+          },
+          {
+            "path": "e2e/desktop-profile-sweep.pw.ts",
+            "line": 24
+          },
+          {
+            "path": "e2e/desktop-profile-sweep.pw.ts",
+            "line": 1561
+          },
+          {
+            "path": "e2e/desktop-profile-sweep.pw.ts",
+            "line": 1561
+          },
+          {
+            "path": "e2e/desktop-profile-sweep.pw.ts",
+            "line": 1561
+          },
+          {
+            "path": "e2e/desktop-profile-sweep.pw.ts",
+            "line": 1559
+          },
+          {
+            "path": "e2e/desktop-profile-sweep.pw.ts",
+            "line": 1562
+          },
+          {
+            "path": "e2e/support/explicit-sweep-profile.ts",
+            "line": 5
+          },
+          {
+            "path": "e2e/support/explicit-sweep-profile.ts",
+            "line": 6
+          },
+          {
+            "path": "e2e/support/explicit-sweep-profile.ts",
+            "line": 6
+          },
+          {
+            "path": "e2e/support/explicit-sweep-profile.ts",
+            "line": 6
+          },
+          {
+            "path": "e2e/support/explicit-sweep-profile.ts",
+            "line": 6
+          },
+          {
+            "path": "e2e/support/explicit-sweep-profile.ts",
+            "line": 9
+          },
+          {
+            "path": "e2e/support/explicit-sweep-profile.ts",
+            "line": 9
+          }
+        ]
+      ]
+    },
+    {
+      "ruleId": "js/path-injection",
+      "sinks": [
+        {
+          "path": "e2e/support/screenshot-evidence.ts",
+          "line": 33
+        }
+      ],
+      "flowCount": 1,
+      "sources": [
+        {
+          "path": "e2e/desktop-profile-sweep.pw.ts",
+          "line": 25
+        }
+      ],
+      "representativeFlows": [
+        [
+          {
+            "path": "e2e/desktop-profile-sweep.pw.ts",
+            "line": 25
+          },
+          {
+            "path": "e2e/desktop-profile-sweep.pw.ts",
+            "line": 25
+          },
+          {
+            "path": "e2e/desktop-profile-sweep.pw.ts",
+            "line": 25
+          },
+          {
+            "path": "e2e/desktop-profile-sweep.pw.ts",
+            "line": 25
+          },
+          {
+            "path": "e2e/desktop-profile-sweep.pw.ts",
+            "line": 1556
+          },
+          {
+            "path": "e2e/desktop-profile-sweep.pw.ts",
+            "line": 593
+          },
+          {
+            "path": "e2e/desktop-profile-sweep.pw.ts",
+            "line": 599
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 13
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 16
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 16
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 16
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 33
+          }
+        ]
+      ]
+    },
+    {
+      "ruleId": "js/path-injection",
+      "sinks": [
+        {
+          "path": "e2e/support/screenshot-evidence.ts",
+          "line": 34
+        }
+      ],
+      "flowCount": 1,
+      "sources": [
+        {
+          "path": "e2e/desktop-profile-sweep.pw.ts",
+          "line": 25
+        }
+      ],
+      "representativeFlows": [
+        [
+          {
+            "path": "e2e/desktop-profile-sweep.pw.ts",
+            "line": 25
+          },
+          {
+            "path": "e2e/desktop-profile-sweep.pw.ts",
+            "line": 25
+          },
+          {
+            "path": "e2e/desktop-profile-sweep.pw.ts",
+            "line": 25
+          },
+          {
+            "path": "e2e/desktop-profile-sweep.pw.ts",
+            "line": 25
+          },
+          {
+            "path": "e2e/desktop-profile-sweep.pw.ts",
+            "line": 1556
+          },
+          {
+            "path": "e2e/desktop-profile-sweep.pw.ts",
+            "line": 593
+          },
+          {
+            "path": "e2e/desktop-profile-sweep.pw.ts",
+            "line": 599
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 13
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 16
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 16
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 16
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 34
+          }
+        ]
+      ]
+    },
+    {
+      "ruleId": "js/path-injection",
+      "sinks": [
+        {
+          "path": "e2e/support/screenshot-evidence.ts",
+          "line": 45
+        }
+      ],
+      "flowCount": 2,
+      "sources": [
+        {
+          "path": "e2e/desktop-profile-sweep.pw.ts",
+          "line": 25
+        }
+      ],
+      "representativeFlows": [
+        [
+          {
+            "path": "e2e/desktop-profile-sweep.pw.ts",
+            "line": 25
+          },
+          {
+            "path": "e2e/desktop-profile-sweep.pw.ts",
+            "line": 25
+          },
+          {
+            "path": "e2e/desktop-profile-sweep.pw.ts",
+            "line": 25
+          },
+          {
+            "path": "e2e/desktop-profile-sweep.pw.ts",
+            "line": 25
+          },
+          {
+            "path": "e2e/desktop-profile-sweep.pw.ts",
+            "line": 1556
+          },
+          {
+            "path": "e2e/desktop-profile-sweep.pw.ts",
+            "line": 593
+          },
+          {
+            "path": "e2e/desktop-profile-sweep.pw.ts",
+            "line": 599
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 13
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 16
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 16
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 16
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 37
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 37
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 37
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 40
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 40
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 39
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 39
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 44
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 44
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 45
+          }
+        ],
+        [
+          {
+            "path": "e2e/desktop-profile-sweep.pw.ts",
+            "line": 25
+          },
+          {
+            "path": "e2e/desktop-profile-sweep.pw.ts",
+            "line": 25
+          },
+          {
+            "path": "e2e/desktop-profile-sweep.pw.ts",
+            "line": 25
+          },
+          {
+            "path": "e2e/desktop-profile-sweep.pw.ts",
+            "line": 25
+          },
+          {
+            "path": "e2e/desktop-profile-sweep.pw.ts",
+            "line": 1556
+          },
+          {
+            "path": "e2e/desktop-profile-sweep.pw.ts",
+            "line": 593
+          },
+          {
+            "path": "e2e/desktop-profile-sweep.pw.ts",
+            "line": 599
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 13
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 16
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 16
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 16
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 37
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 37
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 37
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 41
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 41
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 39
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 39
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 44
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 44
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 45
+          }
+        ]
+      ]
+    },
+    {
+      "ruleId": "js/path-injection",
+      "sinks": [
+        {
+          "path": "e2e/support/screenshot-evidence.ts",
+          "line": 47
+        }
+      ],
+      "flowCount": 2,
+      "sources": [
+        {
+          "path": "e2e/desktop-profile-sweep.pw.ts",
+          "line": 25
+        }
+      ],
+      "representativeFlows": [
+        [
+          {
+            "path": "e2e/desktop-profile-sweep.pw.ts",
+            "line": 25
+          },
+          {
+            "path": "e2e/desktop-profile-sweep.pw.ts",
+            "line": 25
+          },
+          {
+            "path": "e2e/desktop-profile-sweep.pw.ts",
+            "line": 25
+          },
+          {
+            "path": "e2e/desktop-profile-sweep.pw.ts",
+            "line": 25
+          },
+          {
+            "path": "e2e/desktop-profile-sweep.pw.ts",
+            "line": 1556
+          },
+          {
+            "path": "e2e/desktop-profile-sweep.pw.ts",
+            "line": 593
+          },
+          {
+            "path": "e2e/desktop-profile-sweep.pw.ts",
+            "line": 599
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 13
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 16
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 16
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 16
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 37
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 37
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 37
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 40
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 40
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 39
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 39
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 44
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 44
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 47
+          }
+        ],
+        [
+          {
+            "path": "e2e/desktop-profile-sweep.pw.ts",
+            "line": 25
+          },
+          {
+            "path": "e2e/desktop-profile-sweep.pw.ts",
+            "line": 25
+          },
+          {
+            "path": "e2e/desktop-profile-sweep.pw.ts",
+            "line": 25
+          },
+          {
+            "path": "e2e/desktop-profile-sweep.pw.ts",
+            "line": 25
+          },
+          {
+            "path": "e2e/desktop-profile-sweep.pw.ts",
+            "line": 1556
+          },
+          {
+            "path": "e2e/desktop-profile-sweep.pw.ts",
+            "line": 593
+          },
+          {
+            "path": "e2e/desktop-profile-sweep.pw.ts",
+            "line": 599
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 13
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 16
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 16
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 16
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 37
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 37
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 37
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 41
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 41
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 39
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 39
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 44
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 44
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 47
+          }
+        ]
+      ]
+    },
+    {
+      "ruleId": "js/path-injection",
+      "sinks": [
+        {
+          "path": "e2e/support/screenshot-evidence.ts",
+          "line": 55
+        }
+      ],
+      "flowCount": 2,
+      "sources": [
+        {
+          "path": "e2e/desktop-profile-sweep.pw.ts",
+          "line": 25
+        }
+      ],
+      "representativeFlows": [
+        [
+          {
+            "path": "e2e/desktop-profile-sweep.pw.ts",
+            "line": 25
+          },
+          {
+            "path": "e2e/desktop-profile-sweep.pw.ts",
+            "line": 25
+          },
+          {
+            "path": "e2e/desktop-profile-sweep.pw.ts",
+            "line": 25
+          },
+          {
+            "path": "e2e/desktop-profile-sweep.pw.ts",
+            "line": 25
+          },
+          {
+            "path": "e2e/desktop-profile-sweep.pw.ts",
+            "line": 1556
+          },
+          {
+            "path": "e2e/desktop-profile-sweep.pw.ts",
+            "line": 593
+          },
+          {
+            "path": "e2e/desktop-profile-sweep.pw.ts",
+            "line": 599
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 13
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 16
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 16
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 16
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 37
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 37
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 37
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 40
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 40
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 39
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 39
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 53
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 53
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 55
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 55
+          }
+        ],
+        [
+          {
+            "path": "e2e/desktop-profile-sweep.pw.ts",
+            "line": 25
+          },
+          {
+            "path": "e2e/desktop-profile-sweep.pw.ts",
+            "line": 25
+          },
+          {
+            "path": "e2e/desktop-profile-sweep.pw.ts",
+            "line": 25
+          },
+          {
+            "path": "e2e/desktop-profile-sweep.pw.ts",
+            "line": 25
+          },
+          {
+            "path": "e2e/desktop-profile-sweep.pw.ts",
+            "line": 1556
+          },
+          {
+            "path": "e2e/desktop-profile-sweep.pw.ts",
+            "line": 593
+          },
+          {
+            "path": "e2e/desktop-profile-sweep.pw.ts",
+            "line": 599
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 13
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 16
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 16
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 16
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 37
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 37
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 37
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 41
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 41
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 39
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 39
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 53
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 53
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 55
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 55
+          }
+        ]
+      ]
+    },
+    {
+      "ruleId": "js/path-injection",
+      "sinks": [
+        {
+          "path": "e2e/support/screenshot-evidence.ts",
+          "line": 58
+        }
+      ],
+      "flowCount": 1,
+      "sources": [
+        {
+          "path": "e2e/desktop-profile-sweep.pw.ts",
+          "line": 25
+        }
+      ],
+      "representativeFlows": [
+        [
+          {
+            "path": "e2e/desktop-profile-sweep.pw.ts",
+            "line": 25
+          },
+          {
+            "path": "e2e/desktop-profile-sweep.pw.ts",
+            "line": 25
+          },
+          {
+            "path": "e2e/desktop-profile-sweep.pw.ts",
+            "line": 25
+          },
+          {
+            "path": "e2e/desktop-profile-sweep.pw.ts",
+            "line": 25
+          },
+          {
+            "path": "e2e/desktop-profile-sweep.pw.ts",
+            "line": 1556
+          },
+          {
+            "path": "e2e/desktop-profile-sweep.pw.ts",
+            "line": 593
+          },
+          {
+            "path": "e2e/desktop-profile-sweep.pw.ts",
+            "line": 599
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 13
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 16
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 16
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 16
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 37
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 37
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 37
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 57
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 57
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 57
+          },
+          {
+            "path": "e2e/support/screenshot-evidence.ts",
+            "line": 58
+          }
+        ]
+      ]
+    },
+    {
+      "ruleId": "js/path-injection",
+      "sinks": [
+        {
+          "path": "packages/agent/src/cli/jobs/store/index-store.ts",
+          "line": 20
+        }
+      ],
+      "flowCount": 3,
+      "sources": [
+        {
+          "path": "packages/agent/src/config/env/paths.ts",
+          "line": 5
+        }
+      ],
+      "representativeFlows": [
+        [
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 5
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 5
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 7
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 7
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 7
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 7
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 9
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 9
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 13
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 13
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 27
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 28
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 32
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 14
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 15
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 15
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 15
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 32
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 31
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 27
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 44
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 50
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 26
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 26
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 30
+          },
+          {
+            "path": "packages/agent/src/config/env/build.ts",
+            "line": 41
+          },
+          {
+            "path": "packages/agent/src/config/env/build.ts",
+            "line": 49
+          },
+          {
+            "path": "packages/agent/src/config/env/build.ts",
+            "line": 49
+          },
+          {
+            "path": "packages/agent/src/config/env/build.ts",
+            "line": 44
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 30
+          },
+          {
+            "path": "packages/agent/src/entrypoint/static-prompt-command.ts",
+            "line": 53
+          },
+          {
+            "path": "packages/agent/src/entrypoint/static-prompt-command.ts",
+            "line": 53
+          },
+          {
+            "path": "packages/agent/src/entrypoint/static-prompt-command.ts",
+            "line": 53
+          },
+          {
+            "path": "packages/agent/src/cli/jobs/store/index.ts",
+            "line": 71
+          },
+          {
+            "path": "packages/agent/src/cli/jobs/store/index.ts",
+            "line": 76
+          },
+          {
+            "path": "packages/agent/src/cli/jobs/store/index-store.ts",
+            "line": 45
+          },
+          {
+            "path": "packages/agent/src/cli/jobs/store/index-store.ts",
+            "line": 49
+          },
+          {
+            "path": "packages/agent/src/cli/jobs/store/index-store.ts",
+            "line": 27
+          },
+          {
+            "path": "packages/agent/src/cli/jobs/store/index-store.ts",
+            "line": 28
+          },
+          {
+            "path": "packages/agent/src/cli/jobs/store/index-store.ts",
+            "line": 18
+          }
+        ],
+        [
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 5
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 5
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 7
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 7
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 7
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 7
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 9
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 9
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 13
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 13
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 27
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 28
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 32
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 14
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 15
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 15
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 15
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 32
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 31
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 27
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 44
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 50
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 26
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 26
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 30
+          },
+          {
+            "path": "packages/agent/src/config/env/build.ts",
+            "line": 41
+          },
+          {
+            "path": "packages/agent/src/config/env/build.ts",
+            "line": 49
+          },
+          {
+            "path": "packages/agent/src/config/env/build.ts",
+            "line": 49
+          },
+          {
+            "path": "packages/agent/src/config/env/build.ts",
+            "line": 44
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 30
+          },
+          {
+            "path": "packages/agent/src/entrypoint/exec-flow.ts",
+            "line": 73
+          },
+          {
+            "path": "packages/agent/src/entrypoint/exec-flow.ts",
+            "line": 73
+          },
+          {
+            "path": "packages/agent/src/entrypoint/exec-flow.ts",
+            "line": 85
+          },
+          {
+            "path": "packages/agent/src/entrypoint/exec-flow.ts",
+            "line": 85
+          },
+          {
+            "path": "packages/agent/src/entrypoint/exec-flow.ts",
+            "line": 85
+          },
+          {
+            "path": "packages/agent/src/entrypoint/exec-flow.ts",
+            "line": 83
+          },
+          {
+            "path": "packages/agent/src/entrypoint/exec-flow.ts",
+            "line": 82
+          },
+          {
+            "path": "packages/agent/src/cli/jobs/lifecycle.ts",
+            "line": 80
+          },
+          {
+            "path": "packages/agent/src/cli/jobs/lifecycle.ts",
+            "line": 86
+          },
+          {
+            "path": "packages/agent/src/cli/jobs/lifecycle.ts",
+            "line": 86
+          }
+        ]
+      ]
+    },
+    {
+      "ruleId": "js/path-injection",
+      "sinks": [
+        {
+          "path": "packages/agent/src/cli/jobs/store/index.ts",
+          "line": 27
+        }
+      ],
+      "flowCount": 1,
+      "sources": [
+        {
+          "path": "packages/agent/src/config/env/paths.ts",
+          "line": 5
+        }
+      ],
+      "representativeFlows": [
+        [
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 5
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 5
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 7
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 7
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 7
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 7
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 9
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 9
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 13
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 13
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 27
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 28
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 32
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 14
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 15
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 15
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 15
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 32
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 31
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 27
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 44
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 50
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 26
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 26
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 30
+          },
+          {
+            "path": "packages/agent/src/config/env/build.ts",
+            "line": 41
+          },
+          {
+            "path": "packages/agent/src/config/env/build.ts",
+            "line": 49
+          },
+          {
+            "path": "packages/agent/src/config/env/build.ts",
+            "line": 49
+          },
+          {
+            "path": "packages/agent/src/config/env/build.ts",
+            "line": 44
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 30
+          },
+          {
+            "path": "packages/agent/src/entrypoint/exec-flow.ts",
+            "line": 73
+          },
+          {
+            "path": "packages/agent/src/entrypoint/exec-flow.ts",
+            "line": 73
+          },
+          {
+            "path": "packages/agent/src/entrypoint/exec-flow.ts",
+            "line": 85
+          },
+          {
+            "path": "packages/agent/src/entrypoint/exec-flow.ts",
+            "line": 85
+          },
+          {
+            "path": "packages/agent/src/entrypoint/exec-flow.ts",
+            "line": 85
+          },
+          {
+            "path": "packages/agent/src/entrypoint/exec-flow.ts",
+            "line": 83
+          },
+          {
+            "path": "packages/agent/src/entrypoint/exec-flow.ts",
+            "line": 82
+          },
+          {
+            "path": "packages/agent/src/cli/jobs/lifecycle.ts",
+            "line": 80
+          },
+          {
+            "path": "packages/agent/src/cli/jobs/lifecycle.ts",
+            "line": 86
+          },
+          {
+            "path": "packages/agent/src/cli/jobs/lifecycle.ts",
+            "line": 86
+          }
+        ]
+      ]
+    },
+    {
+      "ruleId": "js/path-injection",
+      "sinks": [
+        {
+          "path": "packages/agent/src/cli/jobs/store/index.ts",
+          "line": 28
+        }
+      ],
+      "flowCount": 1,
+      "sources": [
+        {
+          "path": "packages/agent/src/config/env/paths.ts",
+          "line": 5
+        }
+      ],
+      "representativeFlows": [
+        [
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 5
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 5
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 7
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 7
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 7
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 7
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 9
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 9
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 13
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 13
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 27
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 28
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 32
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 14
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 15
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 15
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 15
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 32
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 31
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 27
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 44
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 50
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 26
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 26
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 30
+          },
+          {
+            "path": "packages/agent/src/config/env/build.ts",
+            "line": 41
+          },
+          {
+            "path": "packages/agent/src/config/env/build.ts",
+            "line": 49
+          },
+          {
+            "path": "packages/agent/src/config/env/build.ts",
+            "line": 49
+          },
+          {
+            "path": "packages/agent/src/config/env/build.ts",
+            "line": 44
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 30
+          },
+          {
+            "path": "packages/agent/src/entrypoint/exec-flow.ts",
+            "line": 73
+          },
+          {
+            "path": "packages/agent/src/entrypoint/exec-flow.ts",
+            "line": 73
+          },
+          {
+            "path": "packages/agent/src/entrypoint/exec-flow.ts",
+            "line": 85
+          },
+          {
+            "path": "packages/agent/src/entrypoint/exec-flow.ts",
+            "line": 85
+          },
+          {
+            "path": "packages/agent/src/entrypoint/exec-flow.ts",
+            "line": 85
+          },
+          {
+            "path": "packages/agent/src/entrypoint/exec-flow.ts",
+            "line": 83
+          },
+          {
+            "path": "packages/agent/src/entrypoint/exec-flow.ts",
+            "line": 82
+          },
+          {
+            "path": "packages/agent/src/cli/jobs/lifecycle.ts",
+            "line": 80
+          },
+          {
+            "path": "packages/agent/src/cli/jobs/lifecycle.ts",
+            "line": 86
+          },
+          {
+            "path": "packages/agent/src/cli/jobs/lifecycle.ts",
+            "line": 86
+          }
+        ]
+      ]
+    },
+    {
+      "ruleId": "js/path-injection",
+      "sinks": [
+        {
+          "path": "packages/agent/src/cli/jobs/store/index.ts",
+          "line": 103
+        }
+      ],
+      "flowCount": 1,
+      "sources": [
+        {
+          "path": "packages/agent/src/config/env/paths.ts",
+          "line": 5
+        }
+      ],
+      "representativeFlows": [
+        [
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 5
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 5
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 7
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 7
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 7
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 7
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 9
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 9
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 13
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 13
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 27
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 28
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 32
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 14
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 15
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 15
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 15
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 32
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 31
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 27
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 44
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 50
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 26
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 26
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 30
+          },
+          {
+            "path": "packages/agent/src/config/env/build.ts",
+            "line": 41
+          },
+          {
+            "path": "packages/agent/src/config/env/build.ts",
+            "line": 49
+          },
+          {
+            "path": "packages/agent/src/config/env/build.ts",
+            "line": 49
+          },
+          {
+            "path": "packages/agent/src/config/env/build.ts",
+            "line": 44
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 30
+          },
+          {
+            "path": "packages/agent/src/entrypoint/exec-flow.ts",
+            "line": 73
+          },
+          {
+            "path": "packages/agent/src/entrypoint/exec-flow.ts",
+            "line": 73
+          },
+          {
+            "path": "packages/agent/src/entrypoint/exec-flow.ts",
+            "line": 85
+          },
+          {
+            "path": "packages/agent/src/entrypoint/exec-flow.ts",
+            "line": 85
+          },
+          {
+            "path": "packages/agent/src/entrypoint/exec-flow.ts",
+            "line": 85
+          },
+          {
+            "path": "packages/agent/src/entrypoint/exec-flow.ts",
+            "line": 83
+          },
+          {
+            "path": "packages/agent/src/entrypoint/exec-flow.ts",
+            "line": 82
+          },
+          {
+            "path": "packages/agent/src/cli/jobs/lifecycle.ts",
+            "line": 80
+          },
+          {
+            "path": "packages/agent/src/cli/jobs/lifecycle.ts",
+            "line": 86
+          },
+          {
+            "path": "packages/agent/src/cli/jobs/lifecycle.ts",
+            "line": 86
+          }
+        ]
+      ]
+    },
+    {
+      "ruleId": "js/path-injection",
+      "sinks": [
+        {
+          "path": "packages/agent/src/runtime/bootstrap/env/secret-salt.ts",
+          "line": 25
+        }
+      ],
+      "flowCount": 2,
+      "sources": [
+        {
+          "path": "packages/agent/src/config/env/paths.ts",
+          "line": 5
+        }
+      ],
+      "representativeFlows": [
+        [
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 5
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 5
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 7
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 7
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 7
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 7
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 9
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 9
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 13
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 13
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 27
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 28
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 32
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 14
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 15
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 15
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 15
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 32
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 31
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 27
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 44
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 50
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 26
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 26
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 30
+          },
+          {
+            "path": "packages/agent/src/config/env/build.ts",
+            "line": 41
+          },
+          {
+            "path": "packages/agent/src/config/env/build.ts",
+            "line": 49
+          },
+          {
+            "path": "packages/agent/src/config/env/build.ts",
+            "line": 49
+          },
+          {
+            "path": "packages/agent/src/config/env/build.ts",
+            "line": 44
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 30
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/config.ts",
+            "line": 8
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/config.ts",
+            "line": 8
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/config.ts",
+            "line": 9
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/runtime.ts",
+            "line": 8
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/runtime.ts",
+            "line": 11
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/secret-salt.ts",
+            "line": 15
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/secret-salt.ts",
+            "line": 25
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/secret-salt.ts",
+            "line": 25
+          }
+        ],
+        [
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 5
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 5
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 7
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 7
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 7
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 7
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 9
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 9
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 13
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 13
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 27
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 28
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 32
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 14
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 15
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 15
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 15
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 32
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 31
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 27
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 44
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 50
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 26
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 26
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 30
+          },
+          {
+            "path": "packages/agent/src/config/env/build.ts",
+            "line": 41
+          },
+          {
+            "path": "packages/agent/src/config/env/build.ts",
+            "line": 49
+          },
+          {
+            "path": "packages/agent/src/config/env/build.ts",
+            "line": 49
+          },
+          {
+            "path": "packages/agent/src/config/env/build.ts",
+            "line": 44
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 30
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/config.ts",
+            "line": 8
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/config.ts",
+            "line": 8
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/config.ts",
+            "line": 11
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/app-context.ts",
+            "line": 36
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/app-context.ts",
+            "line": 36
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/app-context.ts",
+            "line": 121
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/app-context.ts",
+            "line": 175
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/plugin-settings/index.ts",
+            "line": 15
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/plugin-settings/index.ts",
+            "line": 22
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/plugin-settings/base.ts",
+            "line": 19
+          }
+        ]
+      ]
+    },
+    {
+      "ruleId": "js/path-injection",
+      "sinks": [
+        {
+          "path": "packages/agent/src/runtime/bootstrap/env/secret-salt.ts",
+          "line": 34
+        }
+      ],
+      "flowCount": 2,
+      "sources": [
+        {
+          "path": "packages/agent/src/config/env/paths.ts",
+          "line": 5
+        }
+      ],
+      "representativeFlows": [
+        [
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 5
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 5
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 7
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 7
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 7
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 7
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 9
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 9
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 13
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 13
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 27
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 28
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 32
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 14
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 15
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 15
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 15
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 32
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 31
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 27
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 44
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 50
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 26
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 26
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 30
+          },
+          {
+            "path": "packages/agent/src/config/env/build.ts",
+            "line": 41
+          },
+          {
+            "path": "packages/agent/src/config/env/build.ts",
+            "line": 49
+          },
+          {
+            "path": "packages/agent/src/config/env/build.ts",
+            "line": 49
+          },
+          {
+            "path": "packages/agent/src/config/env/build.ts",
+            "line": 44
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 30
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/config.ts",
+            "line": 8
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/config.ts",
+            "line": 8
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/config.ts",
+            "line": 9
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/runtime.ts",
+            "line": 8
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/runtime.ts",
+            "line": 11
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/secret-salt.ts",
+            "line": 15
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/secret-salt.ts",
+            "line": 24
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/secret-salt.ts",
+            "line": 24
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/secret-salt.ts",
+            "line": 24
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/secret-salt.ts",
+            "line": 24
+          }
+        ],
+        [
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 5
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 5
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 7
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 7
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 7
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 7
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 9
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 9
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 13
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 13
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 27
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 28
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 32
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 14
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 15
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 15
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 15
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 32
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 31
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 27
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 44
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 50
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 26
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 26
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 30
+          },
+          {
+            "path": "packages/agent/src/config/env/build.ts",
+            "line": 41
+          },
+          {
+            "path": "packages/agent/src/config/env/build.ts",
+            "line": 49
+          },
+          {
+            "path": "packages/agent/src/config/env/build.ts",
+            "line": 49
+          },
+          {
+            "path": "packages/agent/src/config/env/build.ts",
+            "line": 44
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 30
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/config.ts",
+            "line": 8
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/config.ts",
+            "line": 8
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/config.ts",
+            "line": 11
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/app-context.ts",
+            "line": 36
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/app-context.ts",
+            "line": 36
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/app-context.ts",
+            "line": 121
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/app-context.ts",
+            "line": 175
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/plugin-settings/index.ts",
+            "line": 15
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/plugin-settings/index.ts",
+            "line": 22
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/plugin-settings/base.ts",
+            "line": 19
+          }
+        ]
+      ]
+    },
+    {
+      "ruleId": "js/path-injection",
+      "sinks": [
+        {
+          "path": "packages/agent/src/runtime/bootstrap/env/secret-salt.ts",
+          "line": 48
+        }
+      ],
+      "flowCount": 2,
+      "sources": [
+        {
+          "path": "packages/agent/src/config/env/paths.ts",
+          "line": 5
+        }
+      ],
+      "representativeFlows": [
+        [
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 5
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 5
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 7
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 7
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 7
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 7
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 9
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 9
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 13
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 13
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 27
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 28
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 32
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 14
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 15
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 15
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 15
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 32
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 31
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 27
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 44
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 50
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 26
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 26
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 30
+          },
+          {
+            "path": "packages/agent/src/config/env/build.ts",
+            "line": 41
+          },
+          {
+            "path": "packages/agent/src/config/env/build.ts",
+            "line": 49
+          },
+          {
+            "path": "packages/agent/src/config/env/build.ts",
+            "line": 49
+          },
+          {
+            "path": "packages/agent/src/config/env/build.ts",
+            "line": 44
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 30
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/config.ts",
+            "line": 8
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/config.ts",
+            "line": 8
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/config.ts",
+            "line": 9
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/runtime.ts",
+            "line": 8
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/runtime.ts",
+            "line": 11
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/secret-salt.ts",
+            "line": 15
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/secret-salt.ts",
+            "line": 24
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/secret-salt.ts",
+            "line": 24
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/secret-salt.ts",
+            "line": 24
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/secret-salt.ts",
+            "line": 24
+          }
+        ],
+        [
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 5
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 5
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 7
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 7
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 7
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 7
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 9
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 9
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 13
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 13
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 27
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 28
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 32
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 14
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 15
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 15
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 15
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 32
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 31
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 27
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 44
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 50
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 26
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 26
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 30
+          },
+          {
+            "path": "packages/agent/src/config/env/build.ts",
+            "line": 41
+          },
+          {
+            "path": "packages/agent/src/config/env/build.ts",
+            "line": 49
+          },
+          {
+            "path": "packages/agent/src/config/env/build.ts",
+            "line": 49
+          },
+          {
+            "path": "packages/agent/src/config/env/build.ts",
+            "line": 44
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 30
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/config.ts",
+            "line": 8
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/config.ts",
+            "line": 8
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/config.ts",
+            "line": 11
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/app-context.ts",
+            "line": 36
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/app-context.ts",
+            "line": 36
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/app-context.ts",
+            "line": 121
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/app-context.ts",
+            "line": 175
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/plugin-settings/index.ts",
+            "line": 15
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/plugin-settings/index.ts",
+            "line": 22
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/plugin-settings/base.ts",
+            "line": 19
+          }
+        ]
+      ]
+    },
+    {
+      "ruleId": "js/path-injection",
+      "sinks": [
+        {
+          "path": "packages/agent/src/runtime/workflow-commands/definitions.ts",
+          "line": 105
+        }
+      ],
+      "flowCount": 3,
+      "sources": [
+        {
+          "path": "packages/agent/src/config/env/paths.ts",
+          "line": 5
+        }
+      ],
+      "representativeFlows": [
+        [
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 5
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 5
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 7
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 7
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 7
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 7
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 9
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 9
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 13
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 13
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 27
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 28
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 39
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 14
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 15
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 15
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 15
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 39
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 31
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 27
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 44
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 50
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 26
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 26
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 30
+          },
+          {
+            "path": "packages/agent/src/config/env/build.ts",
+            "line": 41
+          },
+          {
+            "path": "packages/agent/src/config/env/build.ts",
+            "line": 165
+          },
+          {
+            "path": "packages/agent/src/config/env/build.ts",
+            "line": 165
+          },
+          {
+            "path": "packages/agent/src/config/env/build.ts",
+            "line": 44
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 30
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/config.ts",
+            "line": 8
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/config.ts",
+            "line": 8
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/config.ts",
+            "line": 11
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/app-context.ts",
+            "line": 36
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/app-context.ts",
+            "line": 36
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/app-context.ts",
+            "line": 121
+          },
+          {
+            "path": "packages/agent/src/runtime/native/plugin-registry/index.ts",
+            "line": 43
+          },
+          {
+            "path": "packages/agent/src/runtime/native/plugin-registry/index.ts",
+            "line": 55
+          },
+          {
+            "path": "packages/agent/src/runtime/native/plugin-registry/product/index.ts",
+            "line": 72
+          },
+          {
+            "path": "packages/agent/src/runtime/native/plugin-registry/product/index.ts",
+            "line": 134
+          }
+        ],
+        [
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 5
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 5
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 7
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 7
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 7
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 7
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 9
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 9
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 13
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 13
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 27
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 28
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 39
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 14
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 15
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 15
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 15
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 39
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 31
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 27
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 44
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 50
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 26
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 26
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 30
+          },
+          {
+            "path": "packages/agent/src/config/env/build.ts",
+            "line": 41
+          },
+          {
+            "path": "packages/agent/src/config/env/build.ts",
+            "line": 165
+          },
+          {
+            "path": "packages/agent/src/config/env/build.ts",
+            "line": 165
+          },
+          {
+            "path": "packages/agent/src/config/env/build.ts",
+            "line": 44
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 30
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/config.ts",
+            "line": 8
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/config.ts",
+            "line": 8
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/config.ts",
+            "line": 11
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/app-context.ts",
+            "line": 36
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/app-context.ts",
+            "line": 36
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/app-context.ts",
+            "line": 42
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/app-context.ts",
+            "line": 121
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/app-context.ts",
+            "line": 140
+          },
+          {
+            "path": "packages/agent/src/runtime/native/plugin-registry/index.ts",
+            "line": 43
+          },
+          {
+            "path": "packages/agent/src/runtime/native/plugin-registry/index.ts",
+            "line": 55
+          }
+        ]
+      ]
+    },
+    {
+      "ruleId": "js/path-injection",
+      "sinks": [
+        {
+          "path": "packages/agent/src/utils/read-regular-file.ts",
+          "line": 9
+        }
+      ],
+      "flowCount": 3,
+      "sources": [
+        {
+          "path": "packages/agent/src/config/env/paths.ts",
+          "line": 5
+        }
+      ],
+      "representativeFlows": [
+        [
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 5
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 5
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 7
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 7
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 7
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 7
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 9
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 9
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 13
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 13
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 27
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 28
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 39
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 14
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 15
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 15
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 15
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 39
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 31
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 27
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 44
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 50
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 26
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 26
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 30
+          },
+          {
+            "path": "packages/agent/src/config/env/build.ts",
+            "line": 41
+          },
+          {
+            "path": "packages/agent/src/config/env/build.ts",
+            "line": 165
+          },
+          {
+            "path": "packages/agent/src/config/env/build.ts",
+            "line": 165
+          },
+          {
+            "path": "packages/agent/src/config/env/build.ts",
+            "line": 44
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 30
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/config.ts",
+            "line": 8
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/config.ts",
+            "line": 8
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/config.ts",
+            "line": 11
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/app-context.ts",
+            "line": 36
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/app-context.ts",
+            "line": 36
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/app-context.ts",
+            "line": 121
+          },
+          {
+            "path": "packages/agent/src/runtime/native/plugin-registry/index.ts",
+            "line": 43
+          },
+          {
+            "path": "packages/agent/src/runtime/native/plugin-registry/index.ts",
+            "line": 55
+          },
+          {
+            "path": "packages/agent/src/runtime/native/plugin-registry/product/index.ts",
+            "line": 72
+          },
+          {
+            "path": "packages/agent/src/runtime/native/plugin-registry/product/index.ts",
+            "line": 134
+          }
+        ],
+        [
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 5
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 5
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 7
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 7
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 7
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 7
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 9
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 9
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 13
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 13
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 27
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 28
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 39
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 14
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 15
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 15
+          },
+          {
+            "path": "packages/agent/src/config/env/paths.ts",
+            "line": 15
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 39
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 31
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 27
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 44
+          },
+          {
+            "path": "packages/agent/src/config/env/directories.ts",
+            "line": 50
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 26
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 26
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 30
+          },
+          {
+            "path": "packages/agent/src/config/env/build.ts",
+            "line": 41
+          },
+          {
+            "path": "packages/agent/src/config/env/build.ts",
+            "line": 165
+          },
+          {
+            "path": "packages/agent/src/config/env/build.ts",
+            "line": 165
+          },
+          {
+            "path": "packages/agent/src/config/env/build.ts",
+            "line": 44
+          },
+          {
+            "path": "packages/agent/src/config/env/index.ts",
+            "line": 30
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/config.ts",
+            "line": 8
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/config.ts",
+            "line": 8
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/config.ts",
+            "line": 11
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/app-context.ts",
+            "line": 36
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/app-context.ts",
+            "line": 36
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/app-context.ts",
+            "line": 42
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/app-context.ts",
+            "line": 121
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/app-context.ts",
+            "line": 140
+          },
+          {
+            "path": "packages/agent/src/runtime/native/plugin-registry/index.ts",
+            "line": 43
+          },
+          {
+            "path": "packages/agent/src/runtime/native/plugin-registry/index.ts",
+            "line": 55
+          }
+        ]
+      ]
+    },
+    {
+      "ruleId": "js/path-injection",
+      "sinks": [
+        {
+          "path": "packages/evals/src/coding/report.ts",
+          "line": 325
+        }
+      ],
+      "flowCount": 2,
+      "sources": [
+        {
+          "path": "packages/evals/src/coding/report.ts",
+          "line": 294
+        }
+      ],
+      "representativeFlows": [
+        [
+          {
+            "path": "packages/evals/src/coding/report.ts",
+            "line": 294
+          },
+          {
+            "path": "packages/evals/src/coding/report.ts",
+            "line": 294
+          },
+          {
+            "path": "packages/evals/src/coding/report.ts",
+            "line": 296
+          },
+          {
+            "path": "packages/evals/src/coding/report.ts",
+            "line": 296
+          },
+          {
+            "path": "packages/evals/src/coding/report.ts",
+            "line": 296
+          },
+          {
+            "path": "packages/evals/src/coding/report.ts",
+            "line": 297
+          },
+          {
+            "path": "packages/evals/src/coding/report.ts",
+            "line": 297
+          },
+          {
+            "path": "packages/evals/src/coding/report.ts",
+            "line": 307
+          },
+          {
+            "path": "packages/evals/src/coding/report.ts",
+            "line": 307
+          },
+          {
+            "path": "packages/evals/src/coding/report.ts",
+            "line": 309
+          },
+          {
+            "path": "packages/evals/src/coding/report.ts",
+            "line": 309
+          },
+          {
+            "path": "packages/evals/src/coding/report.ts",
+            "line": 309
+          },
+          {
+            "path": "packages/evals/src/coding/report.ts",
+            "line": 325
+          }
+        ],
+        [
+          {
+            "path": "packages/evals/src/coding/report.ts",
+            "line": 294
+          },
+          {
+            "path": "packages/evals/src/coding/report.ts",
+            "line": 294
+          },
+          {
+            "path": "packages/evals/src/coding/report.ts",
+            "line": 298
+          },
+          {
+            "path": "packages/evals/src/coding/report.ts",
+            "line": 298
+          },
+          {
+            "path": "packages/evals/src/coding/report.ts",
+            "line": 298
+          },
+          {
+            "path": "packages/evals/src/coding/report.ts",
+            "line": 300
+          },
+          {
+            "path": "packages/evals/src/coding/report.ts",
+            "line": 300
+          },
+          {
+            "path": "packages/evals/src/coding/report.ts",
+            "line": 307
+          },
+          {
+            "path": "packages/evals/src/coding/report.ts",
+            "line": 307
+          },
+          {
+            "path": "packages/evals/src/coding/report.ts",
+            "line": 309
+          },
+          {
+            "path": "packages/evals/src/coding/report.ts",
+            "line": 309
+          },
+          {
+            "path": "packages/evals/src/coding/report.ts",
+            "line": 309
+          },
+          {
+            "path": "packages/evals/src/coding/report.ts",
+            "line": 325
+          }
+        ]
+      ]
+    },
+    {
+      "ruleId": "js/insecure-temporary-file",
+      "sinks": [
+        {
+          "path": "packages/agent/src/cli/jobs/store/index.ts",
+          "line": 103
+        }
+      ],
+      "flowCount": 4,
+      "sources": [
+        {
+          "path": "packages/agent/src/cli/execution/job-commands.test.ts",
+          "line": 6
+        },
+        {
+          "path": "packages/agent/src/cli/execution/index.test.ts",
+          "line": 14
+        },
+        {
+          "path": "packages/agent/src/cli/execution/dispatch.test.ts",
+          "line": 34
+        }
+      ],
+      "representativeFlows": [
+        [
+          {
+            "path": "packages/agent/src/cli/execution/dispatch.test.ts",
+            "line": 34
+          },
+          {
+            "path": "packages/agent/src/cli/execution/dispatch.test.ts",
+            "line": 31
+          },
+          {
+            "path": "packages/agent/src/cli/execution/dispatch.test.ts",
+            "line": 30
+          },
+          {
+            "path": "packages/agent/src/cli/execution/dispatch.test.ts",
+            "line": 109
+          },
+          {
+            "path": "packages/agent/src/cli/execution/dispatch.test.ts",
+            "line": 109
+          },
+          {
+            "path": "packages/agent/src/cli/execution/dispatch.ts",
+            "line": 14
+          },
+          {
+            "path": "packages/agent/src/cli/execution/dispatch.ts",
+            "line": 31
+          },
+          {
+            "path": "packages/agent/src/cli/execution/job-commands.ts",
+            "line": 26
+          },
+          {
+            "path": "packages/agent/src/cli/execution/job-commands.ts",
+            "line": 61
+          },
+          {
+            "path": "packages/agent/src/cli/execution/job-commands.ts",
+            "line": 61
+          },
+          {
+            "path": "packages/agent/src/cli/execution/job-commands.ts",
+            "line": 60
+          },
+          {
+            "path": "packages/agent/src/cli/jobs/lifecycle.ts",
+            "line": 80
+          },
+          {
+            "path": "packages/agent/src/cli/jobs/lifecycle.ts",
+            "line": 86
+          },
+          {
+            "path": "packages/agent/src/cli/jobs/lifecycle.ts",
+            "line": 86
+          },
+          {
+            "path": "packages/agent/src/cli/jobs/lifecycle.ts",
+            "line": 86
+          },
+          {
+            "path": "packages/agent/src/cli/jobs/store/index.ts",
+            "line": 22
+          },
+          {
+            "path": "packages/agent/src/cli/jobs/store/index.ts",
+            "line": 24
+          },
+          {
+            "path": "packages/agent/src/cli/jobs/store/index-store.ts",
+            "line": 10
+          },
+          {
+            "path": "packages/agent/src/cli/jobs/store/index-store.ts",
+            "line": 11
+          },
+          {
+            "path": "packages/agent/src/cli/jobs/store/index-store.ts",
+            "line": 11
+          },
+          {
+            "path": "packages/agent/src/cli/jobs/store/index.ts",
+            "line": 24
+          },
+          {
+            "path": "packages/agent/src/cli/jobs/store/index.ts",
+            "line": 24
+          },
+          {
+            "path": "packages/agent/src/cli/jobs/store/index.ts",
+            "line": 24
+          },
+          {
+            "path": "packages/agent/src/cli/jobs/store/index.ts",
+            "line": 26
+          },
+          {
+            "path": "packages/agent/src/cli/jobs/store/index.ts",
+            "line": 26
+          },
+          {
+            "path": "packages/agent/src/cli/jobs/store/index.ts",
+            "line": 26
+          },
+          {
+            "path": "packages/agent/src/cli/jobs/store/index.ts",
+            "line": 36
+          },
+          {
+            "path": "packages/agent/src/cli/jobs/store/index.ts",
+            "line": 30
+          },
+          {
+            "path": "packages/agent/src/cli/jobs/store/index.ts",
+            "line": 30
+          },
+          {
+            "path": "packages/agent/src/cli/jobs/store/index.ts",
+            "line": 43
+          },
+          {
+            "path": "packages/agent/src/cli/jobs/lifecycle.ts",
+            "line": 86
+          },
+          {
+            "path": "packages/agent/src/cli/jobs/lifecycle.ts",
+            "line": 86
+          },
+          {
+            "path": "packages/agent/src/cli/jobs/lifecycle.ts",
+            "line": 88
+          },
+          {
+            "path": "packages/agent/src/cli/jobs/lifecycle.ts",
+            "line": 88
+          },
+          {
+            "path": "packages/agent/src/cli/jobs/store/index.ts",
+            "line": 101
+          },
+          {
+            "path": "packages/agent/src/cli/jobs/store/index.ts",
+            "line": 103
+          }
+        ],
+        [
+          {
+            "path": "packages/agent/src/cli/execution/dispatch.test.ts",
+            "line": 34
+          },
+          {
+            "path": "packages/agent/src/cli/execution/dispatch.test.ts",
+            "line": 31
+          },
+          {
+            "path": "packages/agent/src/cli/execution/dispatch.test.ts",
+            "line": 30
+          },
+          {
+            "path": "packages/agent/src/cli/execution/dispatch.test.ts",
+            "line": 137
+          },
+          {
+            "path": "packages/agent/src/cli/execution/dispatch.test.ts",
+            "line": 137
+          },
+          {
+            "path": "packages/agent/src/cli/execution/dispatch.ts",
+            "line": 14
+          },
+          {
+            "path": "packages/agent/src/cli/execution/dispatch.ts",
+            "line": 23
+          },
+          {
+            "path": "packages/agent/src/cli/execution/dispatch.ts",
+            "line": 31
+          },
+          {
+            "path": "packages/agent/src/cli/execution/job-commands.ts",
+            "line": 26
+          },
+          {
+            "path": "packages/agent/src/cli/execution/job-commands.ts",
+            "line": 61
+          },
+          {
+            "path": "packages/agent/src/cli/execution/job-commands.ts",
+            "line": 61
+          },
+          {
+            "path": "packages/agent/src/cli/execution/job-commands.ts",
+            "line": 60
+          },
+          {
+            "path": "packages/agent/src/cli/jobs/lifecycle.ts",
+            "line": 80
+          },
+          {
+            "path": "packages/agent/src/cli/jobs/lifecycle.ts",
+            "line": 86
+          },
+          {
+            "path": "packages/agent/src/cli/jobs/lifecycle.ts",
+            "line": 86
+          },
+          {
+            "path": "packages/agent/src/cli/jobs/lifecycle.ts",
+            "line": 86
+          },
+          {
+            "path": "packages/agent/src/cli/jobs/store/index.ts",
+            "line": 22
+          },
+          {
+            "path": "packages/agent/src/cli/jobs/store/index.ts",
+            "line": 24
+          },
+          {
+            "path": "packages/agent/src/cli/jobs/store/index-store.ts",
+            "line": 10
+          },
+          {
+            "path": "packages/agent/src/cli/jobs/store/index-store.ts",
+            "line": 11
+          },
+          {
+            "path": "packages/agent/src/cli/jobs/store/index-store.ts",
+            "line": 11
+          },
+          {
+            "path": "packages/agent/src/cli/jobs/store/index.ts",
+            "line": 24
+          },
+          {
+            "path": "packages/agent/src/cli/jobs/store/index.ts",
+            "line": 24
+          },
+          {
+            "path": "packages/agent/src/cli/jobs/store/index.ts",
+            "line": 24
+          },
+          {
+            "path": "packages/agent/src/cli/jobs/store/index.ts",
+            "line": 26
+          },
+          {
+            "path": "packages/agent/src/cli/jobs/store/index.ts",
+            "line": 26
+          },
+          {
+            "path": "packages/agent/src/cli/jobs/store/index.ts",
+            "line": 26
+          },
+          {
+            "path": "packages/agent/src/cli/jobs/store/index.ts",
+            "line": 36
+          },
+          {
+            "path": "packages/agent/src/cli/jobs/store/index.ts",
+            "line": 30
+          },
+          {
+            "path": "packages/agent/src/cli/jobs/store/index.ts",
+            "line": 30
+          },
+          {
+            "path": "packages/agent/src/cli/jobs/store/index.ts",
+            "line": 43
+          },
+          {
+            "path": "packages/agent/src/cli/jobs/lifecycle.ts",
+            "line": 86
+          },
+          {
+            "path": "packages/agent/src/cli/jobs/lifecycle.ts",
+            "line": 86
+          },
+          {
+            "path": "packages/agent/src/cli/jobs/lifecycle.ts",
+            "line": 88
+          },
+          {
+            "path": "packages/agent/src/cli/jobs/lifecycle.ts",
+            "line": 88
+          },
+          {
+            "path": "packages/agent/src/cli/jobs/store/index.ts",
+            "line": 101
+          },
+          {
+            "path": "packages/agent/src/cli/jobs/store/index.ts",
+            "line": 103
+          }
+        ]
+      ]
+    },
+    {
+      "ruleId": "js/insecure-temporary-file",
+      "sinks": [
+        {
+          "path": "packages/agent/src/runtime/bootstrap/env/secret-salt.ts",
+          "line": 48
+        }
+      ],
+      "flowCount": 4,
+      "sources": [
+        {
+          "path": "packages/agent/src/runtime/bootstrap/env/index.test.ts",
+          "line": 274
+        },
+        {
+          "path": "packages/agent/src/runtime/bootstrap/env/index.test.ts",
+          "line": 285
+        },
+        {
+          "path": "packages/agent/src/runtime/bootstrap/env/index.test.ts",
+          "line": 303
+        }
+      ],
+      "representativeFlows": [
+        [
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/index.test.ts",
+            "line": 274
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/index.test.ts",
+            "line": 274
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/index.test.ts",
+            "line": 274
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/plugin-settings/index.ts",
+            "line": 15
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/plugin-settings/index.ts",
+            "line": 22
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/plugin-settings/base.ts",
+            "line": 19
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/plugin-settings/base.ts",
+            "line": 50
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/secret-salt.ts",
+            "line": 15
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/secret-salt.ts",
+            "line": 24
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/secret-salt.ts",
+            "line": 24
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/secret-salt.ts",
+            "line": 24
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/secret-salt.ts",
+            "line": 24
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/secret-salt.ts",
+            "line": 27
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/secret-salt.ts",
+            "line": 46
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/secret-salt.ts",
+            "line": 48
+          }
+        ],
+        [
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/index.test.ts",
+            "line": 274
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/index.test.ts",
+            "line": 274
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/index.test.ts",
+            "line": 274
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/plugin-settings/index.ts",
+            "line": 15
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/plugin-settings/index.ts",
+            "line": 22
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/plugin-settings/base.ts",
+            "line": 19
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/plugin-settings/base.ts",
+            "line": 50
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/secret-salt.ts",
+            "line": 15
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/secret-salt.ts",
+            "line": 24
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/secret-salt.ts",
+            "line": 24
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/secret-salt.ts",
+            "line": 24
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/secret-salt.ts",
+            "line": 24
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/secret-salt.ts",
+            "line": 42
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/secret-salt.ts",
+            "line": 46
+          },
+          {
+            "path": "packages/agent/src/runtime/bootstrap/env/secret-salt.ts",
+            "line": 48
+          }
+        ]
+      ]
+    },
+    {
+      "ruleId": "js/insecure-temporary-file",
+      "sinks": [
+        {
+          "path": "packages/agent/src/utils/read-regular-file.ts",
+          "line": 9
+        }
+      ],
+      "flowCount": 4,
+      "sources": [
+        {
+          "path": "packages/agent/src/runtime/commands/control-plane-commands.test.ts",
+          "line": 16
+        },
+        {
+          "path": "packages/agent/src/runtime/commands/control-plane-commands.test.ts",
+          "line": 130
+        },
+        {
+          "path": "packages/agent/src/runtime/commands/control-plane-commands.test.ts",
+          "line": 149
+        },
+        {
+          "path": "packages/agent/src/runtime/commands/control-plane-commands.test.ts",
+          "line": 162
+        }
+      ],
+      "representativeFlows": [
+        [
+          {
+            "path": "packages/agent/src/runtime/commands/control-plane-commands.test.ts",
+            "line": 16
+          },
+          {
+            "path": "packages/agent/src/runtime/commands/control-plane-commands.test.ts",
+            "line": 16
+          },
+          {
+            "path": "packages/agent/src/runtime/commands/control-plane-commands.test.ts",
+            "line": 15
+          },
+          {
+            "path": "packages/agent/src/runtime/commands/control-plane-commands.test.ts",
+            "line": 15
+          },
+          {
+            "path": "packages/agent/src/runtime/commands/control-plane-commands.ts",
+            "line": 119
+          },
+          {
+            "path": "packages/agent/src/runtime/commands/control-plane-commands.ts",
+            "line": 126
+          },
+          {
+            "path": "packages/agent/src/runtime/commands/control-plane-commands.ts",
+            "line": 126
+          },
+          {
+            "path": "packages/agent/src/runtime/commands/control-plane-commands.ts",
+            "line": 126
+          },
+          {
+            "path": "packages/agent/src/runtime/command-catalog/render.ts",
+            "line": 8
+          },
+          {
+            "path": "packages/agent/src/runtime/command-catalog/render.ts",
+            "line": 10
+          },
+          {
+            "path": "packages/agent/src/runtime/command-catalog/registry.ts",
+            "line": 34
+          },
+          {
+            "path": "packages/agent/src/runtime/command-catalog/registry.ts",
+            "line": 44
+          },
+          {
+            "path": "packages/agent/src/runtime/workflow-commands/catalog.ts",
+            "line": 24
+          },
+          {
+            "path": "packages/agent/src/runtime/workflow-commands/catalog.ts",
+            "line": 26
+          },
+          {
+            "path": "packages/agent/src/runtime/workflow-commands/listing.ts",
+            "line": 8
+          },
+          {
+            "path": "packages/agent/src/runtime/workflow-commands/listing.ts",
+            "line": 18
+          },
+          {
+            "path": "packages/agent/src/runtime/workflow-commands/definitions.ts",
+            "line": 84
+          },
+          {
+            "path": "packages/agent/src/runtime/workflow-commands/definitions.ts",
+            "line": 88
+          },
+          {
+            "path": "packages/agent/src/runtime/workflow-commands/definitions.ts",
+            "line": 88
+          },
+          {
+            "path": "packages/agent/src/runtime/workflow-commands/definitions.ts",
+            "line": 88
+          },
+          {
+            "path": "packages/agent/src/runtime/workflow-commands/definitions.ts",
+            "line": 93
+          },
+          {
+            "path": "packages/agent/src/runtime/workflow-commands/definitions.ts",
+            "line": 93
+          },
+          {
+            "path": "packages/agent/src/runtime/workflow-commands/definitions.ts",
+            "line": 92
+          },
+          {
+            "path": "packages/agent/src/runtime/workflow-commands/definitions.ts",
+            "line": 92
+          },
+          {
+            "path": "packages/agent/src/runtime/workflow-commands/definitions.ts",
+            "line": 98
+          },
+          {
+            "path": "packages/agent/src/runtime/workflow-commands/definitions.ts",
+            "line": 98
+          },
+          {
+            "path": "packages/agent/src/runtime/workflow-commands/definitions.ts",
+            "line": 102
+          },
+          {
+            "path": "packages/agent/src/runtime/workflow-commands/definitions.ts",
+            "line": 102
+          },
+          {
+            "path": "packages/agent/src/runtime/workflow-commands/definitions.ts",
+            "line": 102
+          },
+          {
+            "path": "packages/agent/src/runtime/workflow-commands/definitions.ts",
+            "line": 116
+          },
+          {
+            "path": "packages/agent/src/runtime/workflow-commands/definitions.ts",
+            "line": 116
+          },
+          {
+            "path": "packages/agent/src/runtime/workflow-commands/definitions.ts",
+            "line": 116
+          },
+          {
+            "path": "packages/agent/src/runtime/workflow-commands/definitions.ts",
+            "line": 116
+          },
+          {
+            "path": "packages/agent/src/runtime/workflow-commands/definitions.ts",
+            "line": 119
+          },
+          {
+            "path": "packages/agent/src/utils/read-regular-file.ts",
+            "line": 6
+          },
+          {
+            "path": "packages/agent/src/utils/read-regular-file.ts",
+            "line": 9
+          }
+        ],
+        [
+          {
+            "path": "packages/agent/src/runtime/commands/control-plane-commands.test.ts",
+            "line": 130
+          },
+          {
+            "path": "packages/agent/src/runtime/commands/control-plane-commands.test.ts",
+            "line": 130
+          },
+          {
+            "path": "packages/agent/src/runtime/commands/control-plane-commands.test.ts",
+            "line": 129
+          },
+          {
+            "path": "packages/agent/src/runtime/commands/control-plane-commands.test.ts",
+            "line": 129
+          },
+          {
+            "path": "packages/agent/src/runtime/commands/control-plane-commands.ts",
+            "line": 119
+          },
+          {
+            "path": "packages/agent/src/runtime/commands/control-plane-commands.ts",
+            "line": 126
+          },
+          {
+            "path": "packages/agent/src/runtime/commands/control-plane-commands.ts",
+            "line": 126
+          },
+          {
+            "path": "packages/agent/src/runtime/commands/control-plane-commands.ts",
+            "line": 126
+          },
+          {
+            "path": "packages/agent/src/runtime/command-catalog/render.ts",
+            "line": 8
+          },
+          {
+            "path": "packages/agent/src/runtime/command-catalog/render.ts",
+            "line": 10
+          },
+          {
+            "path": "packages/agent/src/runtime/command-catalog/registry.ts",
+            "line": 34
+          },
+          {
+            "path": "packages/agent/src/runtime/command-catalog/registry.ts",
+            "line": 44
+          },
+          {
+            "path": "packages/agent/src/runtime/workflow-commands/catalog.ts",
+            "line": 24
+          },
+          {
+            "path": "packages/agent/src/runtime/workflow-commands/catalog.ts",
+            "line": 26
+          },
+          {
+            "path": "packages/agent/src/runtime/workflow-commands/listing.ts",
+            "line": 8
+          },
+          {
+            "path": "packages/agent/src/runtime/workflow-commands/listing.ts",
+            "line": 18
+          },
+          {
+            "path": "packages/agent/src/runtime/workflow-commands/definitions.ts",
+            "line": 84
+          },
+          {
+            "path": "packages/agent/src/runtime/workflow-commands/definitions.ts",
+            "line": 88
+          },
+          {
+            "path": "packages/agent/src/runtime/workflow-commands/definitions.ts",
+            "line": 88
+          },
+          {
+            "path": "packages/agent/src/runtime/workflow-commands/definitions.ts",
+            "line": 88
+          },
+          {
+            "path": "packages/agent/src/runtime/workflow-commands/definitions.ts",
+            "line": 93
+          },
+          {
+            "path": "packages/agent/src/runtime/workflow-commands/definitions.ts",
+            "line": 93
+          },
+          {
+            "path": "packages/agent/src/runtime/workflow-commands/definitions.ts",
+            "line": 92
+          },
+          {
+            "path": "packages/agent/src/runtime/workflow-commands/definitions.ts",
+            "line": 92
+          },
+          {
+            "path": "packages/agent/src/runtime/workflow-commands/definitions.ts",
+            "line": 98
+          },
+          {
+            "path": "packages/agent/src/runtime/workflow-commands/definitions.ts",
+            "line": 98
+          },
+          {
+            "path": "packages/agent/src/runtime/workflow-commands/definitions.ts",
+            "line": 102
+          },
+          {
+            "path": "packages/agent/src/runtime/workflow-commands/definitions.ts",
+            "line": 102
+          },
+          {
+            "path": "packages/agent/src/runtime/workflow-commands/definitions.ts",
+            "line": 102
+          },
+          {
+            "path": "packages/agent/src/runtime/workflow-commands/definitions.ts",
+            "line": 116
+          },
+          {
+            "path": "packages/agent/src/runtime/workflow-commands/definitions.ts",
+            "line": 116
+          },
+          {
+            "path": "packages/agent/src/runtime/workflow-commands/definitions.ts",
+            "line": 116
+          },
+          {
+            "path": "packages/agent/src/runtime/workflow-commands/definitions.ts",
+            "line": 116
+          },
+          {
+            "path": "packages/agent/src/runtime/workflow-commands/definitions.ts",
+            "line": 119
+          },
+          {
+            "path": "packages/agent/src/utils/read-regular-file.ts",
+            "line": 6
+          },
+          {
+            "path": "packages/agent/src/utils/read-regular-file.ts",
+            "line": 9
+          }
+        ]
+      ]
+    },
+    {
+      "ruleId": "js/file-system-race",
+      "sinks": [
+        {
+          "path": "apps/desktop/src/main/regular-file.test.ts",
+          "line": 90
+        }
+      ],
+      "flowCount": 0,
+      "sources": [],
+      "representativeFlows": []
+    },
+    {
+      "ruleId": "js/file-system-race",
+      "sinks": [
+        {
+          "path": "packages/agent/src/services/skills-hub/manifests.test.ts",
+          "line": 115
+        }
+      ],
+      "flowCount": 0,
+      "sources": [],
+      "representativeFlows": []
+    },
+    {
+      "ruleId": "js/file-system-race",
+      "sinks": [
+        {
+          "path": "scripts/bootstrap/core/env-file.ts",
+          "line": 44
+        }
+      ],
+      "flowCount": 0,
+      "sources": [],
+      "representativeFlows": []
+    },
+    {
+      "ruleId": "js/file-system-race",
+      "sinks": [
+        {
+          "path": "scripts/bootstrap/core/env-file.test.ts",
+          "line": 44
+        }
+      ],
+      "flowCount": 0,
+      "sources": [],
+      "representativeFlows": []
+    },
+    {
+      "ruleId": "js/file-system-race",
+      "sinks": [
+        {
+          "path": "scripts/bootstrap/core/env-file.test.ts",
+          "line": 66
+        }
+      ],
+      "flowCount": 0,
+      "sources": [],
+      "representativeFlows": []
+    },
+    {
+      "ruleId": "js/remote-property-injection",
+      "sinks": [
+        {
+          "path": "scripts/check-code-scanning-triage.test.ts",
+          "line": 84
+        }
+      ],
+      "flowCount": 1,
+      "sources": [
+        {
+          "path": "scripts/check-code-scanning-triage.test.ts",
+          "line": 31
+        }
+      ],
+      "representativeFlows": [
+        [
+          {
+            "path": "scripts/check-code-scanning-triage.test.ts",
+            "line": 31
+          },
+          {
+            "path": "scripts/check-code-scanning-triage.test.ts",
+            "line": 30
+          },
+          {
+            "path": "scripts/check-code-scanning-triage.test.ts",
+            "line": 30
+          },
+          {
+            "path": "scripts/check-code-scanning-triage.test.ts",
+            "line": 71
+          },
+          {
+            "path": "scripts/check-code-scanning-triage.test.ts",
+            "line": 71
+          },
+          {
+            "path": "scripts/check-code-scanning-triage.test.ts",
+            "line": 84
+          },
+          {
+            "path": "scripts/check-code-scanning-triage.test.ts",
+            "line": 84
+          }
+        ]
+      ]
+    }
+  ]
+}

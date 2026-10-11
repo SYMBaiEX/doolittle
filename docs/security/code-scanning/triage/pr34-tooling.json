@@ -1,0 +1,324 @@
+[
+  {
+    "number": 235,
+    "rule": "js/path-injection",
+    "classification": "intentional-local",
+    "reason": "The explicit profile directory is deliberately selected by a local operator through --profile/DOOLITTLE_DESKTOP_PROFILE_DIR. This new helper performs only lstat metadata reads at two fixed database-lock names and fails closed when an entry exists; it neither reads file bytes, follows the final lock symlink, deletes locks, nor grants authority to a remote caller. Lock absence is not proof of clone provenance/inactivity and can race another local runtime. Operators must supply a prepared inactive owned clone or use the default fresh scrubbed profile; ancestor directories are trusted local input.",
+    "evidence": [
+      {
+        "path": "e2e/support/explicit-sweep-profile.ts",
+        "line": 5,
+        "detail": "Resolve operator profile plus fixed runtime/pglite lock names."
+      },
+      {
+        "path": "e2e/support/explicit-sweep-profile.ts",
+        "line": 9,
+        "detail": "Read-only lstat; ENOENT proceeds, any existing entry throws without mutation."
+      },
+      {
+        "path": "e2e/desktop-profile-sweep.pw.ts",
+        "line": 1562,
+        "detail": "Only explicit-profile sweep branch invokes validator before Electron launch."
+      }
+    ],
+    "tests": [
+      "Explicit-sweep-profile scoped suite: 4 tests passed; normal private fixture, both lock names preserve bytes, dangling symlink refusal and recovery. Full scoped selection: 5 files / 26 tests passed; no live user profile accessed."
+    ]
+  },
+  {
+    "number": 236,
+    "rule": "js/path-injection",
+    "classification": "intentional-local",
+    "reason": "The screenshot root comes from an intentional local --output/environment option, not an exposed app request. Before mkdir, assertBounded rejects exact root/home/current workspace/tmpdir aliases and route IDs are statically validated. Dedicated custom output directories remain allowed by design. The caller's ownership of the selected root and ancestors is a trust assumption, not established by resolve or the broad-path denylist; recursive mkdir may traverse an allowed ancestor symlink. Existing output filename collisions remain within the selected local artifact directory. No newly introduced arbitrary remote file-write behavior demonstrated.",
+    "evidence": [
+      {
+        "path": "e2e/support/screenshot-evidence.ts",
+        "line": 16,
+        "detail": "Resolve selected root and build broad-directory denylist."
+      },
+      {
+        "path": "e2e/support/screenshot-evidence.ts",
+        "line": 29,
+        "detail": "Broad-path and route checks dominate mkdir at line 33."
+      },
+      {
+        "path": "e2e/desktop-profile-sweep.pw.ts",
+        "line": 599,
+        "detail": "Only config builder passes operator screenshot directory and fixed application views."
+      },
+      {
+        "path": "scripts/capture-desktop-visual.ts",
+        "line": 174,
+        "detail": "Launcher intentionally selects output from --output/environment/default repository evidence directory."
+      }
+    ],
+    "tests": [
+      "nub run test:scope e2e/support/explicit-sweep-profile.test.ts e2e/support/screenshot-evidence.test.ts packages/evals/src/coding/report.test.ts scripts/bootstrap/core/env-file.test.ts scripts/bootstrap/persistence/apply.test.ts: passed 5 files / 26 tests on 6c1a9cda",
+      "screenshot-evidence.test.ts: 4 tests validate normal cleanup, broad-root and route traversal rejection, preservation of unrelated data, linked-root/child rejection and recovery. No native app launch."
+    ]
+  },
+  {
+    "number": 237,
+    "rule": "js/path-injection",
+    "classification": "intentional-local",
+    "reason": "lstat at the chosen screenshot root is a local metadata check added to reject leaf symlink output. It does not consume file contents or mutate the target. Broad-root and route checks dominate the call; canonicalization and a second broad-root check occur before cleanup. It does not prove ownership or protect against hostile replacements of ancestor directories. An operator can intentionally select a custom output folder; no remote caller or extra privilege boundary reaches this check.",
+    "evidence": [
+      {
+        "path": "e2e/support/screenshot-evidence.ts",
+        "line": 29,
+        "detail": "Initial bounds and route validation precede root creation/check."
+      },
+      {
+        "path": "e2e/support/screenshot-evidence.ts",
+        "line": 34,
+        "detail": "lstat rejects a root symlink without following its final link."
+      },
+      {
+        "path": "e2e/support/screenshot-evidence.ts",
+        "line": 37,
+        "detail": "Canonical root is rechecked before constructing fixed children."
+      }
+    ],
+    "tests": [
+      "nub run test:scope e2e/support/explicit-sweep-profile.test.ts e2e/support/screenshot-evidence.test.ts packages/evals/src/coding/report.test.ts scripts/bootstrap/core/env-file.test.ts scripts/bootstrap/persistence/apply.test.ts: passed 5 files / 26 tests on 6c1a9cda",
+      "screenshot-evidence.test.ts: 4 tests validate normal cleanup, broad-root and route traversal rejection, preservation of unrelated data, linked-root/child rejection and recovery. No native app launch."
+    ]
+  },
+  {
+    "number": 238,
+    "rule": "js/path-injection",
+    "classification": "intentional-local",
+    "reason": "mkdir creates only fixed desktop/narrow child names beneath the canonical operator-selected evidence root, after broad-root and root-leaf symlink checks. It is expected local artifact setup, not content-selected path expansion. Both children are checked before any screenshot removals, and a pre-existing symlink or non-directory causes refusal/failure. Malicious concurrent parent replacement is not prevented atomically; output ancestors must remain operator-owned and private. Dedicated output choice is intentional and does not claim a filesystem sandbox.",
+    "evidence": [
+      {
+        "path": "e2e/support/screenshot-evidence.ts",
+        "line": 37,
+        "detail": "Canonical root and second broad-path check precede child paths."
+      },
+      {
+        "path": "e2e/support/screenshot-evidence.ts",
+        "line": 39,
+        "detail": "Only desktop and narrow literal children are constructed."
+      },
+      {
+        "path": "e2e/support/screenshot-evidence.ts",
+        "line": 44,
+        "detail": "mkdir/check loop validates both children before subsequent cleanup loop."
+      }
+    ],
+    "tests": [
+      "nub run test:scope e2e/support/explicit-sweep-profile.test.ts e2e/support/screenshot-evidence.test.ts packages/evals/src/coding/report.test.ts scripts/bootstrap/core/env-file.test.ts scripts/bootstrap/persistence/apply.test.ts: passed 5 files / 26 tests on 6c1a9cda",
+      "screenshot-evidence.test.ts: 4 tests validate normal cleanup, broad-root and route traversal rejection, preservation of unrelated data, linked-root/child rejection and recovery. No native app launch."
+    ]
+  },
+  {
+    "number": 239,
+    "rule": "js/path-injection",
+    "classification": "intentional-local",
+    "reason": "The flagged lstat is a metadata-only refusal check on a literal screenshot child under the canonical chosen root. It is not an untrusted filename supplied by renderer or model content and does not read/execute data. lstat's leaf symlink rejection plus canonical path equality precede all cleanup. The check/use sequence assumes an operator-owned stable output directory; no guarantee is made against an attacker able to rename ancestor/child directories concurrently.",
+    "evidence": [
+      {
+        "path": "e2e/support/screenshot-evidence.ts",
+        "line": 39,
+        "detail": "Directories derive from two static child names only."
+      },
+      {
+        "path": "e2e/support/screenshot-evidence.ts",
+        "line": 47,
+        "detail": "Leaf symlink/canonical equality validation dominates cleanup at lines 53-58."
+      }
+    ],
+    "tests": [
+      "nub run test:scope e2e/support/explicit-sweep-profile.test.ts e2e/support/screenshot-evidence.test.ts packages/evals/src/coding/report.test.ts scripts/bootstrap/core/env-file.test.ts scripts/bootstrap/persistence/apply.test.ts: passed 5 files / 26 tests on 6c1a9cda",
+      "screenshot-evidence.test.ts: 4 tests validate normal cleanup, broad-root and route traversal rejection, preservation of unrelated data, linked-root/child rejection and recovery. No native app launch."
+    ]
+  },
+  {
+    "number": 240,
+    "rule": "js/path-injection",
+    "classification": "guarded",
+    "reason": "The removal path is constrained to validated static route IDs plus .png under the two checked canonical child directories. Route traversal is rejected, both directory checks dominate removal, and rmSync is nonrecursive. Final-file symlinks or hard links are unlinked at the artifact pathname rather than following the target or removing another surviving link. Unknown files and nested directories are preserved. Concurrent ancestor-directory replacement can redirect path-based unlink; the selected output and ancestors must remain operator-owned/private. This is bounded local evidence cleanup, not remote arbitrary deletion or an atomic hostile-directory sandbox.",
+    "evidence": [
+      {
+        "path": "e2e/support/screenshot-evidence.ts",
+        "line": 30,
+        "detail": "Anchored identifier allowlist excludes path separators/traversal."
+      },
+      {
+        "path": "e2e/support/screenshot-evidence.ts",
+        "line": 44,
+        "detail": "Both fixed child directories validated before removal."
+      },
+      {
+        "path": "e2e/support/screenshot-evidence.ts",
+        "line": 55,
+        "detail": "Removes only route.png with force:true, never recursive."
+      },
+      {
+        "path": "e2e/desktop-profile-sweep.pw.ts",
+        "line": 599,
+        "detail": "Route list is the application's imported fixed view inventory."
+      }
+    ],
+    "tests": [
+      "nub run test:scope e2e/support/explicit-sweep-profile.test.ts e2e/support/screenshot-evidence.test.ts packages/evals/src/coding/report.test.ts scripts/bootstrap/core/env-file.test.ts scripts/bootstrap/persistence/apply.test.ts: passed 5 files / 26 tests on 6c1a9cda",
+      "screenshot-evidence.test.ts: 4 tests validate normal cleanup, broad-root and route traversal rejection, preservation of unrelated data, linked-root/child rejection and recovery. No native app launch."
+    ]
+  },
+  {
+    "number": 241,
+    "rule": "js/path-injection",
+    "classification": "guarded",
+    "reason": "The manifest removal uses a single fixed visual-manifest.json basename beneath the already canonicalized/broad-path-checked local evidence root. It is nonrecursive; a final symlink is unlinked rather than followed, and a directory at that name is not recursively erased. The surrounding root/child checks precede this call. The remaining prerequisite is stable operator-owned ancestors; concurrently replaceable parent directories are not atomically pinned. Intentional local output selection is not authority exposed to a renderer/network principal.",
+    "evidence": [
+      {
+        "path": "e2e/support/screenshot-evidence.ts",
+        "line": 29,
+        "detail": "Bounds before creation and canonical bounds at line 38."
+      },
+      {
+        "path": "e2e/support/screenshot-evidence.ts",
+        "line": 57,
+        "detail": "Manifest basename is fixed; following removal has no recursive flag."
+      }
+    ],
+    "tests": [
+      "nub run test:scope e2e/support/explicit-sweep-profile.test.ts e2e/support/screenshot-evidence.test.ts packages/evals/src/coding/report.test.ts scripts/bootstrap/core/env-file.test.ts scripts/bootstrap/persistence/apply.test.ts: passed 5 files / 26 tests on 6c1a9cda",
+      "screenshot-evidence.test.ts: 4 tests validate normal cleanup, broad-root and route traversal rejection, preservation of unrelated data, linked-root/child rejection and recovery. No native app launch."
+    ]
+  },
+  {
+    "number": 251,
+    "rule": "js/path-injection",
+    "classification": "guarded",
+    "reason": "Opening the report directory is deliberate local CLI/environment output selection. Broad root/home/current-workspace paths are rejected lexically and canonically before open; O_NOFOLLOW refuses a linked final directory and fstat verifies the opened directory before fchmod. The mode update stays on the same descriptor, so later replacement of the final pathname cannot redirect that chmod. Subsequent UUID report creation uses wx/0600. No public caller supplies the path. Ancestor links/races, output-directory ownership and Windows descriptor semantics remain explicit environment assumptions; this is not comprehensive hostile-path confinement.",
+    "evidence": [
+      {
+        "path": "packages/evals/src/coding/report.ts",
+        "line": 293,
+        "detail": "Default and DOOLITTLE_EVAL_HOME are local output-directory configuration."
+      },
+      {
+        "path": "packages/evals/src/coding/report.ts",
+        "line": 321,
+        "detail": "Broad lexical/canonical checks dominate directory open."
+      },
+      {
+        "path": "packages/evals/src/coding/report.ts",
+        "line": 324,
+        "detail": "O_NOFOLLOW open plus fstat directory check dominate descriptor chmod."
+      },
+      {
+        "path": "packages/evals/src/coding/report.ts",
+        "line": 347,
+        "detail": "Random sanitized filename is privately/exclusively created."
+      },
+      {
+        "path": "packages/evals/src/coding/cli.ts",
+        "line": 325,
+        "detail": "Only local coding-eval CLI writes selected report directory."
+      }
+    ],
+    "tests": [
+      "Coding report scoped suite: 11 tests passed, including normal private report, broad-directory refusal with mutation trap, linked-directory refusal and recovery. Full scoped selection: 5 files / 26 tests passed. Windows/hostile-ancestor runtime not exercised."
+    ]
+  },
+  {
+    "number": 257,
+    "rule": "js/file-system-race",
+    "classification": "guarded",
+    "reason": "The flagged line combines a trusted checkout .env.example read with destination .env creation. The prior destination exists check is advisory: writeFileSync uses wx (exclusive creation) and 0600, so a file/directory/dangling-symlink race winner causes EEXIST instead of truncation/following; EEXIST returns already-exists. The source example existence/read sequence is not an ownership/authorization decision and assumes a trusted non-hostile checkout. Later .env reads/updates independently open O_NOFOLLOW|O_NONBLOCK, fstat the opened regular file, and perform reads/writes on that descriptor; replacement cannot redirect those leaf-file operations. Writable ancestors, preplanted hard links for existing .env updates, and nonstandard/Windows filesystem semantics are residual assumptions, not silently claimed fixed. No demonstrated new behavior defect or test-contract change is warranted.",
+    "evidence": [
+      {
+        "path": "scripts/bootstrap/core/env-file.ts",
+        "line": 26,
+        "detail": "Initial destination check only provides early already-existing diagnostic."
+      },
+      {
+        "path": "scripts/bootstrap/core/env-file.ts",
+        "line": 44,
+        "detail": "Creation flag wx and mode 0600 protect destination atomically; EEXIST handling follows."
+      },
+      {
+        "path": "scripts/bootstrap/core/env-file.ts",
+        "line": 63,
+        "detail": "Initial env read opens nofollow/nonblocking and fstats regular file."
+      },
+      {
+        "path": "scripts/bootstrap/core/env-file.ts",
+        "line": 101,
+        "detail": "Updater likewise verifies and pins opened inode, with descriptor write at line 164."
+      },
+      {
+        "path": "scripts/bootstrap/program/index.ts",
+        "line": 36,
+        "detail": "Bootstrap uses fixed local .env and .env.example paths, not server input."
+      }
+    ],
+    "tests": [
+      "Env-file scoped suite: 6 tests passed, including deterministic creation race winner, dangling-link refusal, initial/update symlink refusal, same-inode replacement race, FIFO timeout and normal/check-only behavior. Bootstrap persistence integration: 1 test passed. Full scoped selection: 5 files / 26 tests passed."
+    ]
+  },
+  {
+    "number": 258,
+    "rule": "js/file-system-race",
+    "classification": "test-only",
+    "reason": "This is the normal-path regression assertion that a shortened environment update did not leave stale bytes. fixture() atomically creates and owns a private mkdtemp directory; the path was created by ensureEnvFile and only synthetic test values are read. stat/private-mode assertions and later read are test checks, not a production authorization decision. A process already able to interfere with this private fixture is outside unit-test isolation. Preserve the assertion: rewriting it to avoid CodeQL would reduce observable behavior coverage without mitigating a runtime defect.",
+    "evidence": [
+      {
+        "path": "scripts/bootstrap/core/env-file.test.ts",
+        "line": 15,
+        "detail": "All paths derive from tracked fresh mkdtemp root."
+      },
+      {
+        "path": "scripts/bootstrap/core/env-file.test.ts",
+        "line": 30,
+        "detail": "Normal-path test creates env and exercises shortening/clearing values."
+      },
+      {
+        "path": "scripts/bootstrap/core/env-file.test.ts",
+        "line": 44,
+        "detail": "Reads fixture output solely to assert stale content was removed."
+      }
+    ],
+    "tests": [
+      "scripts/bootstrap/core/env-file.test.ts: 6 scoped tests passed unchanged; full scoped selection 5 files / 26 tests passed."
+    ]
+  },
+  {
+    "number": 259,
+    "rule": "js/file-system-race",
+    "classification": "test-only",
+    "reason": "The existence check and write intentionally stage an adversarial dangling-symlink scenario inside a private mkdtemp fixture. The test first proves exclusive .env creation did not follow a dangling link, then creates a synthetic target and proves subsequent env reads/updates refuse the linked .env and preserve target bytes. The flagged write has a fixed target name within the owned fixture, not a live/user file, and does not rely on existsSync for an authorization decision. Other tests deliberately replace a pathname between descriptor read and write. Leave these race constructions intact; they demonstrate the mitigation rather than introducing production race behavior.",
+    "evidence": [
+      {
+        "path": "scripts/bootstrap/core/env-file.test.ts",
+        "line": 15,
+        "detail": "Owned temp root; cleanup tracks only returned roots."
+      },
+      {
+        "path": "scripts/bootstrap/core/env-file.test.ts",
+        "line": 60,
+        "detail": "Synthetic target plus dangling .env symlink setup."
+      },
+      {
+        "path": "scripts/bootstrap/core/env-file.test.ts",
+        "line": 65,
+        "detail": "Negative existence assertion then deliberate fixture-target write."
+      },
+      {
+        "path": "scripts/bootstrap/core/env-file.test.ts",
+        "line": 67,
+        "detail": "Refusal and target-byte preservation assertions, followed by fixture recovery."
+      },
+      {
+        "path": "scripts/bootstrap/core/env-file.test.ts",
+        "line": 74,
+        "detail": "Independent adversarial path-swap test verifies descriptor writes cannot redirect."
+      }
+    ],
+    "tests": [
+      "scripts/bootstrap/core/env-file.test.ts: 6 scoped tests passed unchanged, including the flagged adversarial scenario; full scoped selection 5 files / 26 tests passed."
+    ]
+  }
+]
