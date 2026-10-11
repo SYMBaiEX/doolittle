@@ -63,10 +63,20 @@ review fixes passed 20 tests, followed by 16 for acknowledgment/reversion cases.
 These scopes overlap. All 126 changed TypeScript/TSX/CSS files were checked by
 Biome; 11 formatting-only findings were repaired with its focused check/write.
 Diff hygiene and the local documentation-link check passed.
-The native-shaped-input and quiet command-navigation integration regressions passed 11 tests. Build,
-packaged/native results and exact install identity are recorded below when
-completed. Full unchanged suites and paid-provider flows are not part of this
-iteration's fast loop.
+The native-shaped-input and quiet command-navigation integration regressions
+passed 11 tests. The final composer-search focus follow-up passed 51 tests
+across three overlapping scopes, including compiled Tailwind focus/forced-color
+coverage. The desktop production build passed after deduplicating Skills tab
+classes rather than increasing its 10,000-byte route budget; its final chunk
+was 9,809 bytes.
+
+Final `nub run lint:check` passed across 3,291 files with nine existing unused
+suppression warnings in unchanged files. `nub run check:acceptance` passed every
+stage: repository hygiene, workflow security, plugin boundaries, beta.7 SDK
+alignment, documentation truth, local links, dependency analysis and the
+critical production dependency audit. The audit reported no known
+vulnerabilities. Full unchanged suites and paid-provider flows are not part of
+this iteration's fast loop.
 
 ### Installed-app baseline
 
@@ -82,6 +92,52 @@ The pre-pass installed app was copied intact to
 `/Users/symbiex/.local/state/doolittle/local-install/ui-deep-pass-7GuJHcTE/Doolittle-before-ui-deep-pass.app`.
 Its ASAR digest is
 `333ad4b352f24266f9c82907565ab408e9b9aee65fdc506db2e10081a842e8b3`.
+
+### Final local installation and native checks
+
+The final packaged source commit is
+`f274b8ebc46d42e3ec6373c4ac097d27f12ddaf0`. The main overhaul is
+`3f6b7ab5768cabbcd49cd4f62093e560148242c3`; two small follow-ups retain the
+Skills route budget and correct an installed-app model-search focus issue.
+Runtime preparation and directory packaging completed. The manifest was
+generated at `2026-10-11T06:38:30.686Z` for `darwin-arm64`, with a 30,969,430-byte
+ASAR and digest
+`5c4c1c3602c0ec83325f4b01235d334117853fd484de24b185cfffbcc4d9056f`.
+
+The standard local installer verified and promoted the app to
+`/Applications/Doolittle.app`. Its installed ASAR matches the manifest, and
+`codesign --verify --deep --strict` passed. This is an ad-hoc signed local
+installation, not a Developer ID notarized or public release.
+
+Native inspection on that artifact confirmed:
+
+- Flat bot/recent navigation and plain conversation, inspector and settings
+  tabs; selection uses title weight without persistent fills, rails, dots,
+  capsules or underlines.
+- Restored saved conversations and an enabled composer after startup. The
+  local runtime health endpoint returned HTTP 200, `status: ok`, with the
+  process identity matching the owned child and database-lock owner.
+- Model search opens in a portaled, unclipped popup, automatically focuses
+  its search field, and shows one focus outline. Escape restores the trigger.
+- Voice setup opens above the composer with its entire panel visible. Opening
+  it does not request microphone access or begin recording; Escape closes it
+  and restores focus. Real audio/transcription was not exercised.
+- Conversation options use the SDK menu and Escape restores their trigger.
+  Inspector Details, Library and Computer load; the existing file tree and
+  recorded terminal history remain available without executing work.
+- All seven settings category entry pages load, plus Interfaces, Skills and
+  Providers & accounts. Preferences retain Dark/Comfortable/Companion and
+  background Off. No appearance, account, permission or execution values were
+  changed during inspection.
+- Collapsed navigation shows working Team & work and Connections icons. The
+  original navigation width was restored and only the temporary empty test
+  view was closed, without deleting its conversation or saved work.
+- Normal Quit on the final artifact exits both GUI and owned runtime processes
+  and releases the PGlite lock. Relaunch returns to the saved workspace; no
+  agent signal, database replacement or lock deletion was needed.
+
+These are representative installed-app interactions, not exhaustive live
+coverage of every page, theme, viewport, permission race or provider flow.
 
 ### Remaining evidence boundaries
 
