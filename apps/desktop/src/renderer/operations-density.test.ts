@@ -45,7 +45,8 @@ describe("operational route density", () => {
     const analytics = read("./analytics/AnalyticsPage.tsx");
     const logs = read("./LogsPage.tsx");
 
-    expect(layout).toContain("max-[700px]:grid-cols-1");
+    expect(layout).toContain("@container/observability");
+    expect(layout).toContain("@max-[600px]/observability:grid-cols-1");
     expect(activity).toContain('data-activity-entry="true"');
     expect(analytics).toContain("max-[1120px]:grid-cols-1");
     expect(analytics).toContain("max-[700px]:flex-col");
@@ -199,7 +200,7 @@ describe("operational route density", () => {
       '!active && !["appearance", "desktop", "interfaces"].includes(category)',
     );
     expect(settings).toContain("if (!resourcePolicy.desktop) return;");
-    expect(settings).toContain("[resourcePolicy.desktop]");
+    expect(settings).toContain("[resourcePolicy.desktop, desktopReadRevision]");
   });
 
   it("keeps the primary model readiness visible and capability detail optional", () => {

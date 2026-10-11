@@ -32,6 +32,8 @@ const LazySkillWorkshopPanel = lazy(async () => {
 
 type SkillsSection = "catalog" | "workshop";
 const SKILLS_SECTIONS: readonly SkillsSection[] = ["catalog", "workshop"];
+const SKILLS_TAB_CLASS =
+  "flex min-h-10 shrink-0 items-center rounded-md px-3 py-2 text-left text-[length:var(--text-control)] font-medium text-[var(--muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] aria-selected:font-semibold aria-selected:text-[var(--text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--focus-ring)] max-[760px]:min-h-11";
 
 export function skillsSectionForKey(
   current: SkillsSection,
@@ -224,7 +226,7 @@ export function SkillsPage({
         <button
           aria-controls="skills-catalog-panel"
           aria-selected={section === "catalog"}
-          className={`flex min-h-10 shrink-0 items-center rounded-md px-3 py-2 text-left text-[length:var(--text-control)] hover:bg-[var(--surface-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--focus-ring)] max-[760px]:min-h-11 ${section === "catalog" ? "font-semibold text-[var(--text)]" : "font-medium text-[var(--muted)] hover:text-[var(--text)]"}`}
+          className={SKILLS_TAB_CLASS}
           id="skills-catalog-tab"
           onClick={() => setSection("catalog")}
           onKeyDown={selectSectionWithKeyboard}
@@ -240,7 +242,7 @@ export function SkillsPage({
         <button
           aria-controls="skills-workshop-panel"
           aria-selected={section === "workshop"}
-          className={`flex min-h-10 shrink-0 items-center rounded-md px-3 py-2 text-left text-[length:var(--text-control)] hover:bg-[var(--surface-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--focus-ring)] max-[760px]:min-h-11 ${section === "workshop" ? "font-semibold text-[var(--text)]" : "font-medium text-[var(--muted)] hover:text-[var(--text)]"}`}
+          className={SKILLS_TAB_CLASS}
           id="skills-workshop-tab"
           onClick={() => setSection("workshop")}
           onKeyDown={selectSectionWithKeyboard}
