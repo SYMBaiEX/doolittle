@@ -120,6 +120,123 @@ describe("patched dependency parsers and atomic writes", () => {
     }
   });
 
+  it("publishes complete private JSON once without replacing files or symlinks", async () => {
+    const dir = mkdtempSync(resolve(tmpdir(), "doolittle-atomic-exclusive-"));
+    try {
+      const target = resolve(dir, "state.json");
+      const linked = resolve(dir, "linked.json");
+      const outside = resolve(dir, "outside.txt");
+      writeFileSync(outside, "untouched");
+      await writeJsonAtomic(
+        target,
+        { value: "async" },
+        {
+          exclusive: true,
+          skipMkdir: true,
+        },
+      );
+      expect(readFileSync(target, "utf8")).toBe('{\n  "value": "async"\n}');
+      expect(lstatSync(target).mode & 0o777).toBe(0o600);
+      expect(lstatSync(target).nlink).toBe(1);
+      await expect(
+        writeJsonAtomic(target, { value: "replacement" }, { exclusive: true }),
+      ).rejects.toMatchObject({ code: "EEXIST" });
+      expect(() =>
+        writeJsonAtomicSync(
+          target,
+          { value: "replacement" },
+          { exclusive: true },
+        ),
+      ).toThrowError(expect.objectContaining({ code: "EEXIST" }));
+      expect(JSON.parse(readFileSync(target, "utf8"))).toEqual({
+        value: "async",
+      });
+
+      symlinkSync(outside, linked);
+      await expect(
+        writeJsonAtomic(linked, { value: "wrong" }, { exclusive: true }),
+      ).rejects.toMatchObject({ code: "EEXIST" });
+      expect(() =>
+        writeJsonAtomicSync(linked, { value: "wrong" }, { exclusive: true }),
+      ).toThrowError(expect.objectContaining({ code: "EEXIST" }));
+      expect(lstatSync(linked).isSymbolicLink()).toBe(true);
+      expect(readFileSync(outside, "utf8")).toBe("untouched");
+
+      const syncTarget = resolve(dir, "sync.json");
+      writeJsonAtomicSync(
+        syncTarget,
+        { value: "sync" },
+        {
+          exclusive: true,
+          skipMkdir: true,
+        },
+      );
+      expect(JSON.parse(readFileSync(syncTarget, "utf8"))).toEqual({
+        value: "sync",
+      });
+      expect(lstatSync(syncTarget).mode & 0o777).toBe(0o600);
+      expect(lstatSync(syncTarget).nlink).toBe(1);
+      writeJsonAtomicSync(syncTarget, { value: "default replaces" });
+      expect(JSON.parse(readFileSync(syncTarget, "utf8"))).toEqual({
+        value: "default replaces",
+      });
+      expect(readdirSync(dir).filter((name) => name.includes(".tmp-"))).toEqual(
+        [],
+      );
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("allows exactly one concurrent exclusive writer and cleans failed publications", async () => {
+    const dir = mkdtempSync(resolve(tmpdir(), "doolittle-atomic-race-"));
+    try {
+      const target = resolve(dir, "state.json");
+      const results = await Promise.allSettled(
+        Array.from({ length: 8 }, (_, value) =>
+          writeJsonAtomic(target, { value }, { exclusive: true }),
+        ),
+      );
+      expect(
+        results.filter((result) => result.status === "fulfilled"),
+      ).toHaveLength(1);
+      for (const result of results) {
+        if (result.status === "rejected")
+          expect(result.reason).toMatchObject({ code: "EEXIST" });
+      }
+      expect(JSON.parse(readFileSync(target, "utf8"))).toMatchObject({
+        value: expect.any(Number),
+      });
+      expect(lstatSync(target).nlink).toBe(1);
+      expect(readdirSync(dir)).toEqual(["state.json"]);
+
+      const failed = resolve(dir, "failed.json");
+      const asyncSpy = vi
+        .spyOn(fsp, "link")
+        .mockRejectedValueOnce(
+          Object.assign(new Error("denied"), { code: "EACCES" }),
+        );
+      const syncSpy = vi.spyOn(fs, "linkSync").mockImplementationOnce(() => {
+        throw Object.assign(new Error("denied"), { code: "EACCES" });
+      });
+      try {
+        await expect(
+          writeJsonAtomic(failed, { value: 1 }, { exclusive: true }),
+        ).rejects.toMatchObject({ code: "EACCES" });
+        expect(() =>
+          writeJsonAtomicSync(failed, { value: 2 }, { exclusive: true }),
+        ).toThrowError(expect.objectContaining({ code: "EACCES" }));
+      } finally {
+        asyncSpy.mockRestore();
+        syncSpy.mockRestore();
+      }
+      expect(existsSync(failed)).toBe(false);
+      expect(readdirSync(dir)).toEqual(["state.json"]);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("never removes or writes through a colliding unowned temp entry", async () => {
     const dir = mkdtempSync(resolve(tmpdir(), "doolittle-atomic-collision-"));
     const target = resolve(dir, "state.json");
@@ -146,7 +263,13 @@ describe("patched dependency parsers and atomic writes", () => {
     try {
       await expect(writeJsonAtomic(target, { value: 1 })).rejects.toThrow();
       expect(() => writeJsonAtomicSync(target, { value: 2 })).toThrow();
-      expect(planted).toHaveLength(2);
+      await expect(
+        writeJsonAtomic(target, { value: 3 }, { exclusive: true }),
+      ).rejects.toThrow();
+      expect(() =>
+        writeJsonAtomicSync(target, { value: 4 }, { exclusive: true }),
+      ).toThrow();
+      expect(planted).toHaveLength(4);
       for (const candidate of planted)
         expect(lstatSync(candidate).isSymbolicLink()).toBe(true);
       expect(readFileSync(target, "utf8")).toBe("original");

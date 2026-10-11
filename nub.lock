@@ -62,7 +62,7 @@ overrides:
 
 patchedDependencies:
   '@elizaos/agent@2.0.3-beta.7':
-    hash: da5e3a51883f138a68d059fe543966c4ee27fb0402efd56113baef293d8d5ca5
+    hash: b85fd4be037881bd9d1ace0fbf759fca4628e1c45ffdc9787c583a1e4e4ad00d
     path: patches/@elizaos+agent@2.0.3-beta.7.patch
   '@elizaos/core@2.0.3-beta.7':
     hash: 7242104d352567e5494819604c53ef11b12ecb35e0aec410c0af09c4bc5b7864
@@ -128,7 +128,7 @@ importers:
         version: 0.5.8
       '@elizaos/agent':
         specifier: 2.0.3-beta.7
-        version: 2.0.3-beta.7(patch_hash=da5e3a51883f138a68d059fe543966c4ee27fb0402efd56113baef293d8d5ca5)(416f515a824635493bcb7fea5da3d8f3)
+        version: 2.0.3-beta.7(patch_hash=b85fd4be037881bd9d1ace0fbf759fca4628e1c45ffdc9787c583a1e4e4ad00d)(416f515a824635493bcb7fea5da3d8f3)
       '@elizaos/app-core':
         specifier: 2.0.3-beta.7
         version: 2.0.3-beta.7(9c22176fa6603f6ced6cdeaff7e6774d)
@@ -286,7 +286,7 @@ importers:
         version: 4.3.1
       '@elizaos/agent':
         specifier: 2.0.3-beta.7
-        version: 2.0.3-beta.7(patch_hash=da5e3a51883f138a68d059fe543966c4ee27fb0402efd56113baef293d8d5ca5)(416f515a824635493bcb7fea5da3d8f3)
+        version: 2.0.3-beta.7(patch_hash=b85fd4be037881bd9d1ace0fbf759fca4628e1c45ffdc9787c583a1e4e4ad00d)(416f515a824635493bcb7fea5da3d8f3)
       '@elizaos/logger':
         specifier: 2.0.3-beta.7
         version: 2.0.3-beta.7
@@ -394,7 +394,7 @@ importers:
         version: link:../plugins/provider-transport
       '@elizaos/agent':
         specifier: 2.0.3-beta.7
-        version: 2.0.3-beta.7(patch_hash=da5e3a51883f138a68d059fe543966c4ee27fb0402efd56113baef293d8d5ca5)(416f515a824635493bcb7fea5da3d8f3)
+        version: 2.0.3-beta.7(patch_hash=b85fd4be037881bd9d1ace0fbf759fca4628e1c45ffdc9787c583a1e4e4ad00d)(416f515a824635493bcb7fea5da3d8f3)
       '@elizaos/app-core':
         specifier: 2.0.3-beta.7
         version: 2.0.3-beta.7(9c22176fa6603f6ced6cdeaff7e6774d)
@@ -512,7 +512,7 @@ importers:
         version: link:provider-transport
       '@elizaos/agent':
         specifier: 2.0.3-beta.7
-        version: 2.0.3-beta.7(patch_hash=da5e3a51883f138a68d059fe543966c4ee27fb0402efd56113baef293d8d5ca5)(416f515a824635493bcb7fea5da3d8f3)
+        version: 2.0.3-beta.7(patch_hash=b85fd4be037881bd9d1ace0fbf759fca4628e1c45ffdc9787c583a1e4e4ad00d)(416f515a824635493bcb7fea5da3d8f3)
       '@elizaos/core':
         specifier: 2.0.3-beta.7
         version: 2.0.3-beta.7(patch_hash=7242104d352567e5494819604c53ef11b12ecb35e0aec410c0af09c4bc5b7864)(@electric-sql/pglite@0.5.8)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
@@ -15331,7 +15331,7 @@ snapshots:
       - supports-color
     optional: true
 
-  '@elizaos/agent@2.0.3-beta.7(patch_hash=da5e3a51883f138a68d059fe543966c4ee27fb0402efd56113baef293d8d5ca5)(416f515a824635493bcb7fea5da3d8f3)':
+  '@elizaos/agent@2.0.3-beta.7(patch_hash=b85fd4be037881bd9d1ace0fbf759fca4628e1c45ffdc9787c583a1e4e4ad00d)(416f515a824635493bcb7fea5da3d8f3)':
     dependencies:
       '@ai-sdk/anthropic': 3.0.129(zod@4.6.5)
       '@ai-sdk/google': 3.0.131(zod@4.6.5)
@@ -15543,7 +15543,7 @@ snapshots:
       '@capacitor/preferences': 8.0.1(@capacitor/core@8.4.0)
       '@capacitor/push-notifications': 8.1.3(@capacitor/core@8.4.0)
       '@clack/prompts': 1.8.1
-      '@elizaos/agent': 2.0.3-beta.7(patch_hash=da5e3a51883f138a68d059fe543966c4ee27fb0402efd56113baef293d8d5ca5)(416f515a824635493bcb7fea5da3d8f3)
+      '@elizaos/agent': 2.0.3-beta.7(patch_hash=b85fd4be037881bd9d1ace0fbf759fca4628e1c45ffdc9787c583a1e4e4ad00d)(416f515a824635493bcb7fea5da3d8f3)
       '@elizaos/core': 2.0.3-beta.7(patch_hash=7242104d352567e5494819604c53ef11b12ecb35e0aec410c0af09c4bc5b7864)(@electric-sql/pglite@0.5.8)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       '@elizaos/plugin-anthropic': 2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@elizaos/core@2.0.3-beta.7)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)(zod@4.6.5)
       '@elizaos/plugin-browser': 2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
