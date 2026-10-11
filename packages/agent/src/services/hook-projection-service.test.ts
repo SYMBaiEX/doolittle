@@ -156,6 +156,25 @@ describe("HookProjectionService", () => {
     );
   });
 
+  it.each(["__proto__", "constructor", "toString"])(
+    "rejects inherited object key %s as a hook event",
+    (event) => {
+      const projection = createProjection();
+      expect(() => resolveHookEventBinding(event)).toThrow(
+        "Unsupported hook event",
+      );
+      expect(() =>
+        projection.add({
+          event,
+          name: "invalid",
+          enabled: true,
+          template: "ok",
+        }),
+      ).toThrow("Unsupported hook event");
+      expect(projection.list()).toEqual([]);
+    },
+  );
+
   it("does not silently execute without the Eliza runtime", async () => {
     const projection = createProjection();
 

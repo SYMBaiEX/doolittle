@@ -129,6 +129,26 @@ function createContext(scope?: {
 }
 
 describe("handleSettingsExecutionRoutes", () => {
+  it("does not disclose execution approval exception details", async () => {
+    const context = createContext();
+    context.services.executionApprovals.approve = async () => {
+      throw new Error("token=abc123 /private/operator/credentials.json");
+    };
+    const url = new URL(
+      "http://localhost/execution/approvals/approval-1/approve",
+    );
+    const response = await handleSettingsExecutionRoutes(
+      context,
+      new Request(url, {
+        method: "POST",
+      }),
+      url,
+    );
+    expect(response?.status).toBe(409);
+    expect(await response?.json()).toEqual({
+      error: "Execution approval could not be updated.",
+    });
+  });
   it("returns settings, theme, and execution status payloads", async () => {
     const context = createContext();
     const settings = await handleSettingsExecutionRoutes(

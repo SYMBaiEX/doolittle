@@ -16,7 +16,6 @@ export function createAwarenessRuntimeService(
     capabilityDescription =
       "Owns the Doolittle awareness registry and composes runtime self-status.";
 
-    // biome-ignore lint/complexity/noUselessConstructor: ElizaOS ServiceClass expects an optional runtime constructor.
     constructor(runtime?: IAgentRuntime) {
       super(runtime);
     }

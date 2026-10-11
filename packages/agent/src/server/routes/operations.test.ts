@@ -68,6 +68,25 @@ function createContext(): AppContext {
 }
 
 describe("handleOperationsRoutes", () => {
+  it("does not disclose terminal session exception details", async () => {
+    const context = createContext();
+    context.services.terminal.startInteractiveSession = () => {
+      throw new Error("token=abc123 /private/operator/credentials.json");
+    };
+    const url = new URL("http://localhost/terminal/session/start");
+    const response = await handleOperationsRoutes(
+      context,
+      new Request(url, {
+        method: "POST",
+        body: "{}",
+      }),
+      url,
+    );
+    expect(response?.status).toBe(500);
+    expect(await response?.json()).toEqual({
+      error: "Terminal session request failed.",
+    });
+  });
   it.each([
     { profile: "public captured", captureOutput: true, privateProfile: false },
     { profile: "public detached", captureOutput: false, privateProfile: false },

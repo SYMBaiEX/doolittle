@@ -5,6 +5,7 @@ import {
   getCommandCatalogEntries,
   normalizeSlashCommandSyntax,
 } from "@/runtime/command-catalog";
+import { AGENT_REGISTRY_INSTALL_FAILURE } from "@/runtime/native/agent-sdk";
 import {
   getNativePluginCatalog,
   groupNativePluginCatalog,
@@ -236,17 +237,14 @@ export async function handleRuntimeStatusRoutes(
         version,
         approved: true,
       });
-      return json(result, result.status);
-    } catch (error) {
       return json(
-        {
-          error:
-            error instanceof Error
-              ? error.message
-              : "Eliza could not install the registry plugin",
-        },
-        422,
+        !result.ok && result.status === 422
+          ? { ...result, error: AGENT_REGISTRY_INSTALL_FAILURE }
+          : result,
+        result.status,
       );
+    } catch {
+      return json({ error: AGENT_REGISTRY_INSTALL_FAILURE }, 422);
     }
   }
 

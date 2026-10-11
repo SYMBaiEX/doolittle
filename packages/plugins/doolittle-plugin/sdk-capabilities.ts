@@ -108,7 +108,6 @@ export function createSdkCapabilitiesRuntimeService(): ServiceClass {
     capabilityDescription =
       "Owns Doolittle trigger workers and recurring SDK maintenance tasks.";
 
-    // biome-ignore lint/complexity/noUselessConstructor: ElizaOS ServiceClass expects an optional runtime constructor.
     constructor(runtime?: IAgentRuntime) {
       super(runtime);
     }

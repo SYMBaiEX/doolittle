@@ -62,7 +62,9 @@ describe("streamSse", () => {
   it("converts producer failures into a terminal SSE error event", async () => {
     const response = streamSse(async (emit) => {
       await emit("response.created", { id: "response-1" });
-      throw new Error("local model unavailable");
+      throw new Error(
+        "local model unavailable at /private/secret token=abc123",
+      );
     });
 
     expect(response.headers.get("content-type")).toContain("text/event-stream");
@@ -70,7 +72,9 @@ describe("streamSse", () => {
     const body = await response.text();
     expect(body).toContain("event: response.created");
     expect(body).toContain("event: error");
-    expect(body).toContain('"message":"local model unavailable"');
+    expect(body).toContain('"message":"Stream failed."');
+    expect(body).not.toContain("/private/secret");
+    expect(body).not.toContain("abc123");
   });
 
   it("notifies server work when the SSE consumer cancels", async () => {

@@ -85,11 +85,36 @@ function parseTerminalCommandInput(
 }
 
 function terminalSessionError(error: unknown): Response {
-  const message = error instanceof Error ? error.message : String(error);
-  return json(
-    { error: message },
-    message.includes("was not found") ? 404 : 400,
-  );
+  const message = error instanceof Error ? error.message : "";
+  if (message === "Interactive terminal session was not found.") {
+    return json({ error: "Interactive terminal session was not found." }, 404);
+  }
+  if (message === "A valid terminal session id is required.")
+    return json({ error: "A valid terminal session id is required." }, 400);
+  if (message === "Interactive terminal session is no longer running.")
+    return json(
+      { error: "Interactive terminal session is no longer running." },
+      400,
+    );
+  if (
+    /^Terminal input must contain from 1 to [\d,]+ UTF-8 bytes\.$/u.test(
+      message,
+    )
+  )
+    return json(
+      { error: "Terminal input must contain a valid number of UTF-8 bytes." },
+      400,
+    );
+  if (
+    /^At most \d+ interactive terminal sessions may run at once\.$/u.test(
+      message,
+    )
+  )
+    return json(
+      { error: "Too many interactive terminal sessions are running." },
+      400,
+    );
+  return json({ error: "Terminal session request failed." }, 500);
 }
 
 function terminalSessionId(body: Record<string, unknown>): string {

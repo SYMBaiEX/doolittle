@@ -19,7 +19,6 @@ export function createSchedulerRuntimeService(
     #intervalId: ReturnType<typeof setInterval> | null = null;
     #started = false;
 
-    // biome-ignore lint/complexity/noUselessConstructor: ElizaOS ServiceClass expects an optional runtime constructor.
     constructor(runtime?: IAgentRuntime) {
       super(runtime);
     }

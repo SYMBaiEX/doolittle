@@ -447,7 +447,6 @@ export function createRunProgressRuntimeService(
     private unsubscribeEvents?: () => void;
     private unsubscribeHeartbeat?: () => void;
 
-    // biome-ignore lint/complexity/noUselessConstructor: ElizaOS ServiceClass expects an optional runtime constructor.
     constructor(runtime?: IAgentRuntime) {
       super(runtime);
     }

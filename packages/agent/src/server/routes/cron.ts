@@ -272,11 +272,72 @@ async function readMutationBody(request: Request): Promise<ParsedMutationBody> {
 }
 
 function automationErrorResponse(error: unknown): Response {
-  const message = error instanceof Error ? error.message : String(error);
-  const status = message.includes("not found")
-    ? 404
-    : message.includes("paused")
-      ? 409
-      : 400;
-  return json({ error: message }, status);
+  const message = error instanceof Error ? error.message : "";
+  const validationMessages = [
+    "An automation trigger is required.",
+    "Scheduled automations require a schedule.",
+    "Payload conditions require a dot-separated field path.",
+    "An automation action is required.",
+    "Webhook actions currently support POST only.",
+    "Webhook actions require a valid HTTP or HTTPS URL.",
+    "Webhook actions require an HTTP or HTTPS URL without embedded credentials.",
+    "An automation target is immutable. Create a new automation for another bot.",
+    "Named automations do not support lead-loaded skills, runtime/model overrides, home delivery, or webhook triggers/actions.",
+    "Named-bot automations require the application-owned desktop scheduler.",
+    "workflowId is required for workflow triggers",
+    "displayName is required",
+    "instructions is required",
+    "wakeMode must be inject_now or next_autonomy_cycle",
+    "maxRuns must be a positive integer",
+    "intervalMs is required for interval triggers",
+    "scheduledAtIso must be a valid ISO timestamp",
+    "eventKind is required for event triggers",
+    "cronExpression must be a valid 5-field cron expression",
+    "Invalid Eliza trigger definition.",
+  ];
+  const validationMessage = validationMessages.find(
+    (entry) => entry === message,
+  );
+  if (validationMessage) return json({ error: validationMessage }, 400);
+  if (message === "Named automation host approval is unavailable.")
+    return json(
+      { error: "Named automation host approval is unavailable." },
+      503,
+    );
+  if (
+    /^Unsupported automation (?:trigger|condition|action) ".*"\.$/u.test(
+      message,
+    )
+  )
+    return json({ error: "Unsupported automation configuration." }, 400);
+  if (/^Unsupported payload condition ".*"\.$/u.test(message))
+    return json({ error: "Unsupported payload condition." }, 400);
+  if (
+    /^The (?:equals|contains) condition requires a comparison value\.$/u.test(
+      message,
+    )
+  )
+    return json(
+      { error: "Payload condition requires a comparison value." },
+      400,
+    );
+  if (/^(?:prompt|run-agent) actions require a prompt\.$/u.test(message))
+    return json({ error: "Automation action requires a prompt." }, 400);
+  const status =
+    /^(?:Cron job|Webhook automation) not found(?:: .*)?\.?$/u.test(message)
+      ? 404
+      : /^Cron job is paused: .*$/u.test(message)
+        ? 409
+        : 500;
+  return json(
+    {
+      error:
+        status === 404
+          ? "Automation not found."
+          : status === 409
+            ? "Automation is paused."
+            : "Automation request failed.",
+    },
+    status,
+  );
 }

@@ -261,8 +261,8 @@ export class AcpService {
         ok: true,
         detail: `ACP v${initialized.protocolVersion} initialized with the official SDK.`,
       };
-    } catch (error) {
-      const detail = error instanceof Error ? error.message : String(error);
+    } catch {
+      const detail = "ACP probe failed.";
       this.telemetry.recordProbe(false, detail);
       return { ok: false, detail };
     }
@@ -286,8 +286,8 @@ export class AcpService {
         .join("");
       this.telemetry.recordInvocation(true);
       return { ok: true, output };
-    } catch (error) {
-      const output = error instanceof Error ? error.message : String(error);
+    } catch {
+      const output = "ACP invocation failed.";
       this.telemetry.recordInvocation(false, output);
       return { ok: false, output };
     }

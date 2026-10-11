@@ -105,6 +105,102 @@ function createContext(calls: string[] = []): AppContext {
 }
 
 describe("handleCronRoutes", () => {
+  it("does not disclose scheduler exception details", async () => {
+    const context = createContext();
+    const secret = "token=abc123 /private/operator/credentials.json";
+    const cron = context.runtime.getService("cron") as unknown as {
+      create: () => never;
+    };
+    cron.create = () => {
+      throw new Error(secret);
+    };
+    const url = new URL("http://localhost/cron/jobs");
+    const response = await handleCronRoutes(
+      context,
+      new Request(url, {
+        method: "POST",
+        body: JSON.stringify({ schedule: "every 1h", prompt: "Run" }),
+      }),
+      url,
+    );
+    expect(response?.status).toBe(500);
+    expect(await response?.json()).toEqual({
+      error: "Automation request failed.",
+    });
+  });
+  it("keeps known automation validation actionable", async () => {
+    const context = createContext();
+    const cron = context.runtime.getService("cron") as unknown as {
+      create: () => never;
+    };
+    cron.create = () => {
+      throw new Error("Webhook actions require a valid HTTP or HTTPS URL.");
+    };
+    const url = new URL("http://localhost/cron/jobs");
+    const response = await handleCronRoutes(
+      context,
+      new Request(url, {
+        method: "POST",
+        body: JSON.stringify({ schedule: "every 1h", prompt: "Run" }),
+      }),
+      url,
+    );
+    expect(response?.status).toBe(400);
+    expect(await response?.json()).toEqual({
+      error: "Webhook actions require a valid HTTP or HTTPS URL.",
+    });
+  });
+  it.each([
+    {
+      label: "immutable target",
+      method: "PATCH",
+      path: "/cron/jobs/job-1",
+      serviceMethod: "update",
+      message:
+        "An automation target is immutable. Create a new automation for another bot.",
+      body: { targetBotId: "default" },
+    },
+    {
+      label: "invalid schedule",
+      method: "POST",
+      path: "/cron/jobs",
+      serviceMethod: "create",
+      message: "cronExpression must be a valid 5-field cron expression",
+      body: { schedule: "not-cron", prompt: "Run" },
+    },
+    {
+      label: "named bot policy",
+      method: "POST",
+      path: "/cron/jobs",
+      serviceMethod: "create",
+      message:
+        "Named automations do not support lead-loaded skills, runtime/model overrides, home delivery, or webhook triggers/actions.",
+      body: { schedule: "every 1h", prompt: "Run" },
+    },
+  ] as const)(
+    "keeps $label validation as 400",
+    async ({ method, path, serviceMethod, message, body }) => {
+      const context = createContext();
+      const cron = context.runtime.getService("cron") as unknown as {
+        create: () => never;
+        update: () => never;
+      };
+      cron[serviceMethod] = () => {
+        throw new Error(message);
+      };
+      const url = new URL(`http://localhost${path}`);
+      const response = await handleCronRoutes(
+        context,
+        new Request(url, {
+          method,
+          body: JSON.stringify(body),
+        }),
+        url,
+      );
+      expect(response?.status).toBe(400);
+      expect(await response?.json()).toEqual({ error: message });
+    },
+  );
   it("forwards only canonical named target references and never client host approval IDs", async () => {
     const url = new URL("http://localhost/cron/jobs");
     const targetBotId = "00000000-0000-4000-8000-000000000002";

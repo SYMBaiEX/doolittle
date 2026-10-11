@@ -39,11 +39,9 @@ export function createHealthProbeRequest(
   configuredPort: string | undefined,
   configuredAuthOrigin: string | undefined,
 ): RequestInit {
-  const headers: Record<string, string> = {};
-  const request: RequestInit = { headers, redirect: "error" };
   const trimmedToken = token?.trim();
   const authOrigin = configuredAuthOrigin?.trim();
-  if (!trimmedToken && !authOrigin) return request;
+  if (!trimmedToken && !authOrigin) return { headers: {}, redirect: "error" };
   const trusted = new URL(
     authOrigin || resolveDoolittleApiUrl(undefined, configuredPort),
   );
@@ -67,9 +65,14 @@ export function createHealthProbeRequest(
     throw new Error("Remote probe authentication requires an HTTPS origin.");
   }
   if (trimmedToken && new URL(endpoint).origin === trusted.origin) {
-    headers.authorization = `Bearer ${trimmedToken}`;
+    // Return the final headers directly. ScriptC's native object lowering does
+    // not reliably retain a property added through a shared Record reference.
+    return {
+      headers: { authorization: `Bearer ${trimmedToken}` },
+      redirect: "error",
+    };
   }
-  return request;
+  return { headers: {}, redirect: "error" };
 }
 
 export function normalizeHealthBody(body: string): string {

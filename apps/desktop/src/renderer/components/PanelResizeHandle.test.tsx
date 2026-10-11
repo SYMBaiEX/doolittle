@@ -109,7 +109,7 @@ describe("PanelResizeHandle", () => {
     },
   );
 
-  it("retains real shell and selected-tab signals without blurred bloom", async () => {
+  it("keeps the shell tone visible and the decorative tab marker hidden", async () => {
     const compiler = await compile("@tailwind utilities;");
     const css = compiler.build(
       [WINDOW_RUNTIME_STATUS_TONE.ready, WORKBENCH_TAB_SIGNAL_CLASS].flatMap(
@@ -117,7 +117,7 @@ describe("PanelResizeHandle", () => {
       ),
     );
     expect(css).toContain("background-color: var(--good)");
-    expect(css).toContain("background-color: var(--accent)");
+    expect(css).toContain("display: none");
     expect(css).not.toContain("box-shadow");
   });
 

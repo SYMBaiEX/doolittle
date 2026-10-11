@@ -1,6 +1,7 @@
 import type { AppContext } from "@/runtime/bootstrap";
 import { readJsonObjectBody } from "@/server/request-body";
 import { json } from "@/server/responses";
+import { resolveHookEventBinding } from "@/services/hook-projection-service";
 
 export async function handleHookRoutes(
   context: AppContext,
@@ -37,6 +38,11 @@ export async function handleHookRoutes(
       return json({ error: "event, name, and template are required" }, 400);
     }
     try {
+      resolveHookEventBinding(body.event);
+    } catch {
+      return json({ error: "Unsupported hook event." }, 400);
+    }
+    try {
       return json({
         hook: context.services.hooks.add({
           event: body.event,
@@ -45,11 +51,8 @@ export async function handleHookRoutes(
           template: body.template,
         }),
       });
-    } catch (error) {
-      return json(
-        { error: error instanceof Error ? error.message : String(error) },
-        400,
-      );
+    } catch {
+      return json({ error: "Hook could not be created." }, 500);
     }
   }
 

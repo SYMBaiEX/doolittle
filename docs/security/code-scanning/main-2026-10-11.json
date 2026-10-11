@@ -1,0 +1,1325 @@
+{
+  "analysisId": 1932325388,
+  "commit": "69628dda21a2f6a05c1ee75c2da6079e1f61447f",
+  "ref": "refs/heads/main",
+  "scope": "Published main-branch CodeQL analysis after PR34 merge; before follow-up fixes",
+  "openCount": 164,
+  "originalAlertCount": 196,
+  "originalClosedCount": 59,
+  "originalStillOpenCount": 137,
+  "newOpenCount": 27,
+  "findings": [
+    {
+      "line": 322,
+      "number": 261,
+      "path": "packages/evals/src/coding/report.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 66,
+      "number": 259,
+      "path": "scripts/bootstrap/core/env-file.test.ts",
+      "rule": "js/file-system-race",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 44,
+      "number": 258,
+      "path": "scripts/bootstrap/core/env-file.test.ts",
+      "rule": "js/file-system-race",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 44,
+      "number": 257,
+      "path": "scripts/bootstrap/core/env-file.ts",
+      "rule": "js/file-system-race",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 115,
+      "number": 256,
+      "path": "packages/agent/src/services/skills-hub/manifests.test.ts",
+      "rule": "js/file-system-race",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 90,
+      "number": 255,
+      "path": "apps/desktop/src/main/regular-file.test.ts",
+      "rule": "js/file-system-race",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 9,
+      "number": 254,
+      "path": "packages/agent/src/utils/read-regular-file.ts",
+      "rule": "js/insecure-temporary-file",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 48,
+      "number": 253,
+      "path": "packages/agent/src/runtime/bootstrap/env/secret-salt.ts",
+      "rule": "js/insecure-temporary-file",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 103,
+      "number": 252,
+      "path": "packages/agent/src/cli/jobs/store/index.ts",
+      "rule": "js/insecure-temporary-file",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 325,
+      "number": 251,
+      "path": "packages/evals/src/coding/report.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 9,
+      "number": 250,
+      "path": "packages/agent/src/utils/read-regular-file.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 105,
+      "number": 249,
+      "path": "packages/agent/src/runtime/workflow-commands/definitions.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 48,
+      "number": 248,
+      "path": "packages/agent/src/runtime/bootstrap/env/secret-salt.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 34,
+      "number": 247,
+      "path": "packages/agent/src/runtime/bootstrap/env/secret-salt.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 25,
+      "number": 246,
+      "path": "packages/agent/src/runtime/bootstrap/env/secret-salt.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 103,
+      "number": 245,
+      "path": "packages/agent/src/cli/jobs/store/index.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 28,
+      "number": 244,
+      "path": "packages/agent/src/cli/jobs/store/index.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 27,
+      "number": 243,
+      "path": "packages/agent/src/cli/jobs/store/index.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 20,
+      "number": 242,
+      "path": "packages/agent/src/cli/jobs/store/index-store.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 58,
+      "number": 241,
+      "path": "e2e/support/screenshot-evidence.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 55,
+      "number": 240,
+      "path": "e2e/support/screenshot-evidence.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 47,
+      "number": 239,
+      "path": "e2e/support/screenshot-evidence.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 45,
+      "number": 238,
+      "path": "e2e/support/screenshot-evidence.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 34,
+      "number": 237,
+      "path": "e2e/support/screenshot-evidence.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 33,
+      "number": 236,
+      "path": "e2e/support/screenshot-evidence.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 9,
+      "number": 235,
+      "path": "e2e/support/explicit-sweep-profile.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 32,
+      "number": 234,
+      "path": "packages/agent/src/native-tools/doolittle-probe.ts",
+      "rule": "js/request-forgery",
+      "severity": "critical",
+      "state": "open"
+    },
+    {
+      "line": 137,
+      "number": 230,
+      "path": "apps/desktop/src/main/bot-knowledge-ledger.test.ts",
+      "rule": "js/file-system-race",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 63,
+      "number": 229,
+      "path": "packages/agent/src/cli/startup.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 67,
+      "number": 228,
+      "path": "apps/desktop/src/main/execution-admission.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 437,
+      "number": 227,
+      "path": "apps/desktop/src/main/backend.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 58,
+      "number": 226,
+      "path": "e2e/support/isolated-runtime-environment.ts",
+      "rule": "js/remote-property-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 436,
+      "number": 202,
+      "path": "apps/desktop/src/main/backend.ts",
+      "rule": "js/command-line-injection",
+      "severity": "critical",
+      "state": "open"
+    },
+    {
+      "line": 159,
+      "number": 200,
+      "path": "packages/evals/src/headless/cases.ts",
+      "rule": "js/regex/missing-regexp-anchor",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 248,
+      "number": 199,
+      "path": "packages/evals/src/headless/trace-summary.ts",
+      "rule": "js/remote-property-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 32,
+      "number": 188,
+      "path": "packages/agent/src/runtime/native/plugin-registry/eval-model-metrics.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 28,
+      "number": 187,
+      "path": "packages/agent/src/runtime/native/plugin-registry/eval-model-metrics.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 26,
+      "number": 186,
+      "path": "packages/agent/src/runtime/native/plugin-registry/eval-model-metrics.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 225,
+      "number": 185,
+      "path": "packages/evals/src/coding/report.test.ts",
+      "rule": "js/file-system-race",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 680,
+      "number": 184,
+      "path": "packages/evals/src/coding/report.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 668,
+      "number": 183,
+      "path": "packages/evals/src/coding/report.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 533,
+      "number": 182,
+      "path": "packages/evals/src/coding/report.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 347,
+      "number": 180,
+      "path": "packages/evals/src/coding/report.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 225,
+      "number": 177,
+      "path": "packages/evals/src/coding/report.test.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 224,
+      "number": 176,
+      "path": "packages/evals/src/coding/report.test.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 94,
+      "number": 175,
+      "path": "apps/desktop/scripts/smithers-runtime.test.ts",
+      "rule": "js/command-line-injection",
+      "severity": "critical",
+      "state": "open"
+    },
+    {
+      "line": 93,
+      "number": 174,
+      "path": "packages/plugins/doolittle-plugin/planner-completion.test.ts",
+      "rule": "js/code-injection",
+      "severity": "critical",
+      "state": "open"
+    },
+    {
+      "line": 651,
+      "number": 171,
+      "path": "apps/desktop/scripts/verify-package.ts",
+      "rule": "js/file-system-race",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 630,
+      "number": 170,
+      "path": "apps/desktop/scripts/verify-package.ts",
+      "rule": "js/file-system-race",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 447,
+      "number": 169,
+      "path": "apps/desktop/scripts/desktop-artifact.ts",
+      "rule": "js/file-system-race",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 252,
+      "number": 168,
+      "path": "apps/desktop/scripts/desktop-build-inventory.ts",
+      "rule": "js/file-system-race",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 189,
+      "number": 167,
+      "path": "apps/desktop/scripts/desktop-build-inventory.ts",
+      "rule": "js/file-system-race",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 94,
+      "number": 166,
+      "path": "apps/desktop/scripts/desktop-artifact.ts",
+      "rule": "js/file-system-race",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 670,
+      "number": 165,
+      "path": "apps/desktop/scripts/desktop-artifact.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 428,
+      "number": 164,
+      "path": "apps/desktop/scripts/desktop-artifact.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 420,
+      "number": 163,
+      "path": "apps/desktop/scripts/desktop-artifact.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 419,
+      "number": 162,
+      "path": "apps/desktop/scripts/desktop-artifact.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 418,
+      "number": 161,
+      "path": "apps/desktop/scripts/desktop-artifact.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 14,
+      "number": 160,
+      "path": "scripts/release-changelog.test.ts",
+      "rule": "js/regex-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 300,
+      "number": 140,
+      "path": "apps/desktop/scripts/verify-package.ts",
+      "rule": "js/remote-property-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 240,
+      "number": 139,
+      "path": "apps/desktop/scripts/prepare-runtime.ts",
+      "rule": "js/remote-property-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 144,
+      "number": 138,
+      "path": "scripts/sync-doc-truth/sync.ts",
+      "rule": "js/file-system-race",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 116,
+      "number": 137,
+      "path": "scripts/sync-doc-truth/sync.ts",
+      "rule": "js/file-system-race",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 38,
+      "number": 132,
+      "path": "packages/agent/src/services/settings-service.ts",
+      "rule": "js/file-system-race",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 731,
+      "number": 131,
+      "path": "packages/agent/src/services/repository/mutations.ts",
+      "rule": "js/file-system-race",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 48,
+      "number": 128,
+      "path": "packages/agent/src/runtime/soul.ts",
+      "rule": "js/file-system-race",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 560,
+      "number": 121,
+      "path": "apps/desktop/scripts/verify-package.ts",
+      "rule": "js/file-system-race",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 486,
+      "number": 120,
+      "path": "apps/desktop/scripts/verify-package.ts",
+      "rule": "js/file-system-race",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 811,
+      "number": 119,
+      "path": "apps/desktop/scripts/verify-package.ts",
+      "rule": "js/user-controlled-bypass",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 803,
+      "number": 118,
+      "path": "apps/desktop/scripts/verify-package.ts",
+      "rule": "js/user-controlled-bypass",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 183,
+      "number": 117,
+      "path": "packages/plugins/doolittle-plugin/secrets-vault/service.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 20,
+      "number": 116,
+      "path": "packages/plugins/doolittle-plugin/planning/storage.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 19,
+      "number": 115,
+      "path": "packages/plugins/doolittle-plugin/planning/storage.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 16,
+      "number": 114,
+      "path": "packages/plugins/doolittle-plugin/forms/storage.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 15,
+      "number": 113,
+      "path": "packages/plugins/doolittle-plugin/forms/storage.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 27,
+      "number": 112,
+      "path": "packages/agent/src/services/user-profile/storage/store.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 17,
+      "number": 111,
+      "path": "packages/agent/src/services/user-profile/storage/store.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 16,
+      "number": 110,
+      "path": "packages/agent/src/services/user-profile/service/state.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 97,
+      "number": 109,
+      "path": "packages/agent/src/services/trajectory/service/index.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 231,
+      "number": 108,
+      "path": "packages/agent/src/services/trajectory/event-journal.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 228,
+      "number": 107,
+      "path": "packages/agent/src/services/trajectory/event-journal.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 214,
+      "number": 106,
+      "path": "packages/agent/src/services/trajectory/event-journal.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 208,
+      "number": 105,
+      "path": "packages/agent/src/services/trajectory/event-journal.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 57,
+      "number": 104,
+      "path": "packages/agent/src/services/trajectory/bundle-storage/listing.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 55,
+      "number": 103,
+      "path": "packages/agent/src/services/terminal/service.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 11,
+      "number": 102,
+      "path": "packages/agent/src/services/terminal/records/history.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 11,
+      "number": 101,
+      "path": "packages/agent/src/services/terminal/execution/subprocess/shell.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 6,
+      "number": 100,
+      "path": "packages/agent/src/services/terminal/cloud/store/persistence.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 73,
+      "number": 99,
+      "path": "packages/agent/src/services/terminal/backends/local.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 30,
+      "number": 98,
+      "path": "packages/agent/src/services/terminal/backends/local.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 37,
+      "number": 97,
+      "path": "packages/agent/src/services/skills-hub/service/paths.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 36,
+      "number": 96,
+      "path": "packages/agent/src/services/skills-hub/service/paths.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 35,
+      "number": 95,
+      "path": "packages/agent/src/services/skills-hub/service/paths.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 34,
+      "number": 94,
+      "path": "packages/agent/src/services/skills-hub/service/paths.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 71,
+      "number": 93,
+      "path": "packages/agent/src/services/settings-service.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 38,
+      "number": 92,
+      "path": "packages/agent/src/services/settings-service.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 33,
+      "number": 91,
+      "path": "packages/agent/src/services/settings-service.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 27,
+      "number": 90,
+      "path": "packages/agent/src/services/settings-service.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 24,
+      "number": 89,
+      "path": "packages/agent/src/services/settings-service.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 11,
+      "number": 88,
+      "path": "packages/agent/src/services/session/service/support.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 192,
+      "number": 87,
+      "path": "packages/agent/src/services/review-record/service.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 190,
+      "number": 86,
+      "path": "packages/agent/src/services/review-record/service.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 205,
+      "number": 85,
+      "path": "packages/agent/src/services/run-controller/store.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 79,
+      "number": 84,
+      "path": "packages/agent/src/services/run-controller/store.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 39,
+      "number": 83,
+      "path": "packages/agent/src/services/project-inspection/resolve.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 48,
+      "number": 82,
+      "path": "packages/agent/src/services/personality-service.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 46,
+      "number": 81,
+      "path": "packages/agent/src/services/personality-service.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 42,
+      "number": 80,
+      "path": "packages/agent/src/services/operator/version.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 89,
+      "number": 79,
+      "path": "packages/agent/src/services/hook-projection-service.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 87,
+      "number": 78,
+      "path": "packages/agent/src/services/hook-projection-service.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 18,
+      "number": 77,
+      "path": "packages/agent/src/services/gateway-session-service/storage.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 25,
+      "number": 76,
+      "path": "packages/agent/src/services/gateway-session-service/index.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 258,
+      "number": 75,
+      "path": "packages/agent/src/services/experience-memory-service.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 258,
+      "number": 74,
+      "path": "packages/agent/src/services/experience-memory-service.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 254,
+      "number": 73,
+      "path": "packages/agent/src/services/experience-memory-service.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 204,
+      "number": 72,
+      "path": "packages/agent/src/services/experience-memory-service.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 201,
+      "number": 71,
+      "path": "packages/agent/src/services/experience-memory-service.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 33,
+      "number": 70,
+      "path": "packages/agent/src/services/experience-memory-service.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 12,
+      "number": 69,
+      "path": "packages/agent/src/services/execution-approval/store.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 10,
+      "number": 68,
+      "path": "packages/agent/src/services/execution-approval/store.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 17,
+      "number": 67,
+      "path": "packages/agent/src/services/delivery-service.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 15,
+      "number": 66,
+      "path": "packages/agent/src/services/delivery-service.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 43,
+      "number": 65,
+      "path": "packages/agent/src/services/autocoder-pipeline/persistence.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 41,
+      "number": 64,
+      "path": "packages/agent/src/services/autocoder-pipeline/persistence.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 59,
+      "number": 63,
+      "path": "packages/agent/src/services/api-transport-service.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 57,
+      "number": 62,
+      "path": "packages/agent/src/services/api-transport-service.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 501,
+      "number": 61,
+      "path": "packages/agent/src/server/routes/runtime/models.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 186,
+      "number": 57,
+      "path": "packages/agent/src/runtime/native/plugin-registry/product/memory-storage-store.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 385,
+      "number": 56,
+      "path": "packages/agent/src/runtime/native/account-pool/index.test.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 141,
+      "number": 55,
+      "path": "packages/agent/src/runtime/native/account-pool/index.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 64,
+      "number": 54,
+      "path": "packages/agent/src/runtime/native/account-pool/index.test.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 62,
+      "number": 53,
+      "path": "packages/agent/src/runtime/native/account-pool/index.test.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 50,
+      "number": 52,
+      "path": "packages/agent/src/runtime/native/account-auth/store.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 110,
+      "number": 51,
+      "path": "packages/agent/src/runtime/native/account-auth/store.test.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 107,
+      "number": 50,
+      "path": "packages/agent/src/runtime/native/account-auth/store.test.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 79,
+      "number": 49,
+      "path": "packages/agent/src/runtime/native/account-auth/store.test.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 116,
+      "number": 48,
+      "path": "packages/agent/src/runtime/native/account-auth/shared.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 40,
+      "number": 47,
+      "path": "packages/agent/src/runtime/native/account-auth/shared.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 17,
+      "number": 43,
+      "path": "packages/agent/src/runtime/bootstrap/env/pglite.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 66,
+      "number": 42,
+      "path": "packages/agent/src/config/gateway.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 61,
+      "number": 41,
+      "path": "packages/agent/src/config/gateway.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 58,
+      "number": 40,
+      "path": "packages/agent/src/config/gateway.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 26,
+      "number": 39,
+      "path": "packages/agent/src/config/env/load.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 132,
+      "number": 38,
+      "path": "packages/agent/src/cli/startup.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 115,
+      "number": 37,
+      "path": "packages/agent/src/cli/startup.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 101,
+      "number": 36,
+      "path": "packages/agent/src/cli/startup.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 76,
+      "number": 35,
+      "path": "packages/agent/src/cli/startup.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 74,
+      "number": 34,
+      "path": "packages/agent/src/cli/startup.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 22,
+      "number": 30,
+      "path": "packages/agent/src/cli/jobs/store/index-store.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 653,
+      "number": 24,
+      "path": "e2e/desktop-profile-sweep.pw.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 32,
+      "number": 18,
+      "path": "apps/desktop/src/main/workspace-state.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 18,
+      "number": 17,
+      "path": "apps/desktop/src/main/runtime-state.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 17,
+      "number": 16,
+      "path": "apps/desktop/src/main/runtime-state.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 217,
+      "number": 14,
+      "path": "apps/desktop/src/main/backend.ts",
+      "rule": "js/path-injection",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 40,
+      "number": 12,
+      "path": "packages/agent/src/services/web/content.ts",
+      "rule": "js/bad-tag-filter",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 10,
+      "number": 11,
+      "path": "packages/agent/src/services/media/inspection/media-preview.ts",
+      "rule": "js/bad-tag-filter",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 27,
+      "number": 10,
+      "path": "scripts/sync-doc-truth/sync.ts",
+      "rule": "js/incomplete-multi-character-sanitization",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 17,
+      "number": 9,
+      "path": "packages/agent/src/runtime/soul.ts",
+      "rule": "js/incomplete-multi-character-sanitization",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 343,
+      "number": 7,
+      "path": "packages/agent/src/services/diagnostics/service.test.ts",
+      "rule": "js/incomplete-url-substring-sanitization",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 124,
+      "number": 6,
+      "path": "packages/agent/src/server/routes/runtime/models.test.ts",
+      "rule": "js/incomplete-url-substring-sanitization",
+      "severity": "high",
+      "state": "open"
+    },
+    {
+      "line": 490,
+      "number": 5,
+      "path": "packages/agent/src/runtime/native/account-auth/claude-code.test.ts",
+      "rule": "js/command-line-injection",
+      "severity": "critical",
+      "state": "open"
+    },
+    {
+      "line": 145,
+      "number": 4,
+      "path": "packages/agent/src/runtime/native/account-auth/claude-code.test.ts",
+      "rule": "js/command-line-injection",
+      "severity": "critical",
+      "state": "open"
+    },
+    {
+      "line": 38,
+      "number": 2,
+      "path": "packages/agent/src/testing/fetch-server.ts",
+      "rule": "js/stack-trace-exposure",
+      "severity": "medium",
+      "state": "open"
+    },
+    {
+      "line": 19,
+      "number": 1,
+      "path": "packages/agent/src/server/responses.ts",
+      "rule": "js/stack-trace-exposure",
+      "severity": "medium",
+      "state": "open"
+    }
+  ]
+}

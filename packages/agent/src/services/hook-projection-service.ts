@@ -53,9 +53,11 @@ export function resolveHookEventBinding(event: string): HookEventBinding {
   if (OFFICIAL_HOOK_EVENTS.has(officialEvent)) {
     return { eventType: officialEvent };
   }
-  const legacyEventType = LEGACY_HOOK_EVENTS[normalized];
-  if (legacyEventType) {
-    return { eventType: legacyEventType, legacyEvent: normalized };
+  if (Object.hasOwn(LEGACY_HOOK_EVENTS, normalized)) {
+    return {
+      eventType: LEGACY_HOOK_EVENTS[normalized],
+      legacyEvent: normalized,
+    };
   }
   throw new Error(
     `Unsupported hook event "${event}". Use an official HOOK_* event or a supported Doolittle legacy event.`,
