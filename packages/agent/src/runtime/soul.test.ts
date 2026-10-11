@@ -1,7 +1,9 @@
 import { execFileSync } from "node:child_process";
 import {
+  lstatSync,
   mkdirSync,
   mkdtempSync,
+  realpathSync,
   rmSync,
   symlinkSync,
   utimesSync,
@@ -9,14 +11,27 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   findDoolittleSoulFile,
   readDoolittleSoul,
   renderDoolittleSoulContext,
 } from "./soul";
 
+vi.mock("node:fs", async (importOriginal) => {
+  const fs = await importOriginal<typeof import("node:fs")>();
+  return {
+    ...fs,
+    lstatSync: vi.fn(fs.lstatSync),
+    realpathSync: vi.fn(fs.realpathSync),
+  };
+});
+
 const fixtures: string[] = [];
+const originalLstat = vi.mocked(lstatSync).getMockImplementation();
+const originalRealpath = vi.mocked(realpathSync).getMockImplementation();
+if (!originalLstat || !originalRealpath)
+  throw new Error("Filesystem mock is not initialized.");
 
 function fixture() {
   const temp = mkdtempSync(join(tmpdir(), "doolittle-soul-"));
@@ -29,6 +44,10 @@ function fixture() {
 }
 
 afterEach(() => {
+  vi.mocked(lstatSync).mockReset();
+  vi.mocked(lstatSync).mockImplementation(originalLstat);
+  vi.mocked(realpathSync).mockReset();
+  vi.mocked(realpathSync).mockImplementation(originalRealpath);
   for (const path of fixtures.splice(0))
     rmSync(path, { recursive: true, force: true });
 });
@@ -77,6 +96,48 @@ describe("SOUL.md workspace boundary", () => {
     rmSync(soul);
     symlinkSync(target, soul);
     expect(renderDoolittleSoulContext(alias)).toEqual([]);
+  });
+
+  it("rejects an internal SOUL leaf symlink", () => {
+    const { workspace } = fixture();
+    const target = join(workspace, "source.md");
+    writeFileSync(target, "internal source text");
+    symlinkSync(target, join(workspace, "SOUL.md"));
+    expect(readDoolittleSoul(workspace)).toEqual({ text: "" });
+    expect(renderDoolittleSoulContext(workspace)).toEqual([]);
+  });
+
+  it("rejects a SOUL leaf swapped after containment resolution", () => {
+    if (process.platform === "win32") return;
+    const { workspace, outside } = fixture();
+    const source = join(workspace, "SOUL.md");
+    const target = join(outside, "secret.md");
+    writeFileSync(source, "approved soul");
+    writeFileSync(target, "external private text");
+    const canonicalSource = originalRealpath(source);
+    let sourceResolutions = 0;
+    let swapped = false;
+    let lstatCalls = 0;
+    vi.mocked(realpathSync).mockImplementation((path, options) => {
+      const result = originalRealpath(path, options);
+      if (result === canonicalSource) sourceResolutions += 1;
+      return result;
+    });
+    vi.mocked(lstatSync).mockImplementation((path, options) => {
+      lstatCalls += 1;
+      const result = originalLstat(path, options);
+      if (path === canonicalSource) {
+        rmSync(source);
+        symlinkSync(target, source);
+        swapped = true;
+      }
+      return result;
+    });
+    const context = renderDoolittleSoulContext(workspace);
+    expect(sourceResolutions).toBe(2);
+    expect(lstatCalls).toBeGreaterThan(0);
+    expect(swapped).toBe(true);
+    expect(context).toEqual([]);
   });
 
   it("rejects oversized and nonregular entries without blocking on a FIFO", () => {

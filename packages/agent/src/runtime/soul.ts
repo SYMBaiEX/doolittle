@@ -1,4 +1,4 @@
-import { realpathSync } from "node:fs";
+import { lstatSync, realpathSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { isStrictlyContainedPath } from "@/utils/path-containment";
 import { readRegularFileSync } from "@/utils/read-regular-file";
@@ -63,8 +63,11 @@ export function readDoolittleSoul(
     );
     const canonical = realpathSync(path);
     if (!isStrictlyContainedPath(root, canonical)) return { text: "" };
+    // A SOUL leaf link is never needed: workspace selectors are canonicalized
+    // during discovery. Reject it even on platforms without O_NOFOLLOW.
+    if (lstatSync(path).isSymbolicLink()) return { text: "" };
     const text = stripHtmlComments(
-      readRegularFileSync(canonical, MAX_SOUL_BYTES).toString("utf8"),
+      readRegularFileSync(path, MAX_SOUL_BYTES).toString("utf8"),
     ).slice(0, MAX_SOUL_CHARS);
     return { path, text };
   } catch {
