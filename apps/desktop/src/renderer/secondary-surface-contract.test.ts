@@ -1,3 +1,4 @@
+import { compile } from "tailwindcss";
 import { describe, expect, it } from "vitest";
 import {
   AUTOMATION_CHOICE_SELECTED_CLASS,
@@ -18,6 +19,7 @@ import {
 import { catalogIndexItemClass } from "./components/catalog-browser-layout";
 import { MCP_TOOL_BUTTON_SELECTED_CLASS } from "./components/mcp-control/layout";
 import { SKILL_FILTER_SELECTED_CLASS } from "./components/skill-workshop-layout";
+import { COMPOSER_SEARCH_CLASS } from "./composer-selectors/layout";
 import {
   PROVIDER_CONNECTION_DEFAULT_CLASS,
   PROVIDER_CONSOLE_CLASS,
@@ -48,6 +50,26 @@ import {
 } from "./thread-workbench/layout";
 
 describe("secondary surface selection contract", () => {
+  it("gives composer search one wrapper focus marker, including high contrast", async () => {
+    for (const utility of [
+      "[&_input:focus-visible]:!outline-none",
+      "[&_input:focus-visible]:!ring-0",
+      "[&_input:focus-visible]:!shadow-none",
+      "focus-within:outline-2",
+      "focus-within:outline-[var(--focus-ring)]",
+      "forced-colors:focus-within:outline-[Highlight]",
+    ]) {
+      expect(COMPOSER_SEARCH_CLASS).toContain(utility);
+    }
+    const compiler = await compile("@tailwind utilities;");
+    const css = compiler.build(COMPOSER_SEARCH_CLASS.split(" "));
+    expect(css).toContain(" input:focus-visible {");
+    expect(css).toContain("outline-style: none !important");
+    expect(css).toContain("outline-width: 2px");
+    expect(css).toContain("@media (forced-colors: active)");
+    expect(css).toContain("outline-color: Highlight");
+  });
+
   it.each([
     ["session", SESSION_ROW_SELECTED_CLASS],
     ["orchestration", orchestrationClass("selected")],
