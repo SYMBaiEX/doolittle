@@ -7,7 +7,7 @@ Actions analysis `1933026161` reports zero results. This is a scanner-result
 comparison, not a count of vulnerabilities fixed: rewritten flows received 52
 new alert identities, and result identity changes alone do not prove repair.
 
-Independent source review covered all 53 current identities in the groups
+Independent source review covered all 53 first-scan identities in the groups
 below. The 47 production results do not demonstrate a new exploitable path
 within the documented private, operator-owned, stable-root model. That does
 not make every production result a blanket false positive. Descendant/leaf
@@ -39,3 +39,17 @@ separate. The final-head CI/CodeQL result, normal merge and installed applicatio
 receipt must be checked independently; this note does not certify a newer
 commit or GitHub alert closure. Seven version-based dependency advisories
 remain visible despite their reviewed mechanism patches.
+
+The subsequent `fdeed3a4` analysis `1933050286` reports 52 results (one critical,
+51 high); Actions analysis `1933042855` reports zero. The test-counter finding
+321 disappeared after the `Map` change. Every remaining alert instance matched
+that head. Scan jobs and CI succeeded, but the separate CodeQL quality check
+failed; no merge override or alert dismissal followed.
+
+The source-authority review then identified a real dotenv fallback problem:
+when application `.env` was absent, an opened project's file could configure
+the app. The follow-up removes that fallback and adds bounded pinned reads and
+real-cwd regressions. Its new head requires separate release/scanner validation.
+Production path findings remain conditional on operator-owned application and
+inherited-process configuration. Guarded filesystem-race findings retain the
+documented ancestor/platform assumptions; they are not blanket-dismissed.

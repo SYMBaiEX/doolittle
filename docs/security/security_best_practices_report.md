@@ -226,6 +226,29 @@ calls were needed to test this boundary.
 
 ## Current scanner review coverage
 
+### SR-9 — Project dotenv fallback changes application configuration
+
+Severity: High configuration-authority boundary. When the fixed application
+`.env` file was absent, `config/env/load.ts` called dotenv without a path,
+silently loading the current project's `.env`. That gave an opened workspace
+an unintended route into application configuration. Existing inherited values
+were protected by `override: false`, but absent settings were not.
+
+Status: implemented. Only the explicitly resolved application-root `.env` is
+read, using the shared pinned regular-file reader with a 256 KiB cap and a
+single-link requirement. Missing files are benign; unsafe I/O fails with a
+static error before environment mutation. Dotenv's own parser/populator retains
+inherited-value precedence without any current-directory or ancestor fallback.
+The application's checkout/installation root and inherited process configuration
+remain operator-controlled authority; arbitrary opened projects are not.
+
+Six focused tests and 48 related tests passed, with types/Biome/diff checks.
+Real isolated child processes exercise both present and absent application
+files with the project as the actual cwd. Linked, multiply linked, FIFO and
+oversized files fail without mutation. The Unix FIFO test ran on macOS; native
+Windows behavior remains unverified. Release evidence recorded below predates
+this follow-up and must be rerun before delivery.
+
 - Non-test, non-filesystem lane: 13 alert IDs inspected. No demonstrated remote
   exploit found in those inspected paths; local operator capability, text-only
   output, package mode selection, and controlled dictionary writes remain
