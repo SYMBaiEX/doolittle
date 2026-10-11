@@ -1,5 +1,10 @@
 # CodeQL security review — 2026-10-11
 
+This is the original PR34 review. See [the merged-main snapshot](main-2026-10-11.json)
+and [the local-install follow-up](local-install-follow-up.md) for later scanner
+results, additional fixes, and outstanding dependency work. Historical source
+dispositions below are not a current zero-alert or zero-vulnerability claim.
+
 ## Executive summary
 
 All **196 open JavaScript/TypeScript CodeQL alerts** from main commit
