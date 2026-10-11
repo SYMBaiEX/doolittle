@@ -242,13 +242,23 @@ expose only consumed registry JSON, worker error functions, or remote-message
 types; empty runtime entry points were removed. Deleted tracked files remain
 recoverable from Git history.
 
-Latest integrated `check:all` passed lint/types/build and 7,011 tests (8 skipped).
-Acceptance passed through local-link checks; its dependency-hygiene stop was
-the OS `mkfifo` binary used only for Unix named-pipe security fixtures. The
-agent workspace now allowlists that binary without excluding those tests.
+Integrated `check:all` on `8f8f5411` passed lint/types/agent build and 7,011 tests
+(8 skipped). The release tail on the docs/Knip-only `0c631e9d` passed acceptance,
+all-severity advisory policy, runtime preparation, and manifest audit (316
+bundled package versions and four native package versions). This is staged
+coverage, not a single fresh `check:release` invocation. The agent workspace
+allowlists the OS `mkfifo` binary used for Unix named-pipe fixtures without
+excluding those tests.
 
-Pending: remaining integrated release gates, packaged/native acceptance and
-installation, and fresh GitHub scans. Focused source and independent reviews are complete;
-native Windows and live provider behavior are not certified by these tests.
-Earlier shared-engine release checks do not certify this new security branch.
+Native macOS directory packaging on `56581eaa` verified a 29.5 MiB `app.asar`,
+16 packaged modules, 472 complete artifact dependencies, and four native runtime
+packages. The isolated offline packaged test passed startup, privileged bridge,
+terminal interaction and offline chat. Its focus-style assertions now poll a
+single complete focused-state snapshot instead of sampling mid-transition.
+This does not certify live providers or the user's existing account state.
+
+Pending: fresh GitHub scan review, normal merge, and rebuilt-main local
+installation. Focused source and independent reviews are complete; native
+Windows and live provider behavior remain unverified. Earlier shared-engine
+checks do not certify this new security branch.
 
