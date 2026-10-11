@@ -1,6 +1,11 @@
 import { createHash } from "node:crypto";
 import { isMainThread, Worker, type WorkerOptions } from "node:worker_threads";
 import {
+  SHARED_ENGINE_DEFAULT_BOOT_TIMEOUT_MS,
+  SHARED_ENGINE_DEFAULT_CONCURRENT_STARTS,
+  SHARED_ENGINE_MAX_WORKERS,
+} from "@doolittle/contracts/engine";
+import {
   BOT_ID_PATTERN,
   boundedMessage,
   ENGINE_HOST_PROTOCOL,
@@ -111,9 +116,21 @@ export function installSharedEngineHost(
   const workerFactory: WorkerFactory =
     options.workerFactory ??
     ((entry, workerOptions) => new Worker(entry, workerOptions));
-  const maxWorkers = safeLimit(options.maxWorkers, 64, 64);
-  const maxConcurrentStarts = safeLimit(options.maxConcurrentStarts, 2, 2);
-  const startupTimeoutMs = safeLimit(options.startupTimeoutMs, 45_000, 300_000);
+  const maxWorkers = safeLimit(
+    options.maxWorkers,
+    SHARED_ENGINE_MAX_WORKERS,
+    SHARED_ENGINE_MAX_WORKERS,
+  );
+  const maxConcurrentStarts = safeLimit(
+    options.maxConcurrentStarts,
+    SHARED_ENGINE_DEFAULT_CONCURRENT_STARTS,
+    SHARED_ENGINE_DEFAULT_CONCURRENT_STARTS,
+  );
+  const startupTimeoutMs = safeLimit(
+    options.startupTimeoutMs,
+    SHARED_ENGINE_DEFAULT_BOOT_TIMEOUT_MS,
+    300_000,
+  );
   const stopTimeoutMs = safeLimit(options.stopTimeoutMs, 5_000, 30_000);
   const residents = new Map<string, Resident>();
   const seenRequests = new Set<string>();

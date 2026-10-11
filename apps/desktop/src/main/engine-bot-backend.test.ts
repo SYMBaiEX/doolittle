@@ -47,4 +47,86 @@ describe("EngineBotBackend", () => {
     expect(calls).toEqual(["start", "stop:bot-one"]);
     expect(backend.getState().phase).toBe("stopped");
   });
+
+  it("cancels an in-flight start without waiting for it to become ready", async () => {
+    const calls: string[] = [];
+    let rejectStart!: (error: Error) => void;
+    let startCount = 0;
+    const engine = {
+      hasBot: () => true,
+      startBot: () => {
+        startCount++;
+        return startCount === 1
+          ? new Promise<never>((_resolve, reject) => {
+              rejectStart = reject;
+            })
+          : Promise.resolve({
+              botId: "bot-one",
+              agentId: "agent-1",
+              name: "Bot One",
+              url: "http://127.0.0.1:43210",
+            });
+      },
+      stopBot: async (botId: string) => {
+        calls.push(`stop:${botId}`);
+      },
+    } as unknown as EngineClient;
+    const backend = new EngineBotBackend(
+      { executable: "/not/executed", args: [], repoRoot: "/repo" },
+      "/bot-data",
+      "/workspace",
+      (async () => new Response()) as typeof fetch,
+      {
+        isolatedEnvironment: { PATH: "/bin" },
+        expectedBotId: "bot-one",
+        expectedAgentId: "agent-1",
+        workerHostHandler: async () => true,
+      },
+      () => engine,
+    );
+    const starting = backend.start();
+    expect(backend.getState().phase).toBe("booting");
+    const stopping = backend.stop();
+    await stopping;
+    expect(calls).toEqual(["stop:bot-one"]);
+    expect(backend.getState().phase).toBe("stopped");
+    expect(backend.hasLiveRuntime()).toBe(false);
+    expect((await backend.start()).phase).toBe("ready");
+    rejectStart(new Error("Late canceled bootstrap result."));
+    await starting;
+    expect(backend.getState().phase).toBe("ready");
+  });
+
+  it("retains ownership when an in-flight stop is not confirmed", async () => {
+    let rejectStart!: (error: Error) => void;
+    const engine = {
+      hasBot: () => true,
+      startBot: () =>
+        new Promise<never>((_resolve, reject) => {
+          rejectStart = reject;
+        }),
+      stopBot: async () => {
+        rejectStart(new Error("Queued bootstrap canceled."));
+        throw new Error("No stop receipt.");
+      },
+    } as unknown as EngineClient;
+    const backend = new EngineBotBackend(
+      { executable: "/not/executed", args: [], repoRoot: "/repo" },
+      "/bot-data",
+      "/workspace",
+      (async () => new Response()) as typeof fetch,
+      {
+        isolatedEnvironment: { PATH: "/bin" },
+        expectedBotId: "bot-one",
+        expectedAgentId: "agent-1",
+        workerHostHandler: async () => true,
+      },
+      () => engine,
+    );
+    const starting = backend.start();
+    await expect(backend.stop()).rejects.toThrow("did not confirm");
+    await starting;
+    expect(backend.getState().phase).toBe("degraded");
+    expect(backend.hasLiveRuntime()).toBe(true);
+  });
 });

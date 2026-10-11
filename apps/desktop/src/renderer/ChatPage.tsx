@@ -25,6 +25,7 @@ import type {
   SessionForkResponse,
   SessionSummary,
 } from "../shared/contracts";
+import { BotRuntimeNotice } from "./bots/BotRuntimeNotice";
 import type { KnowledgePromotionSource } from "./bots/KnowledgePromotionDialog";
 import { liveBotIds, loadOwnedRunInventory } from "./bots/run-inventory";
 import { ChatHeaderChrome } from "./chat/ChatHeaderChrome";
@@ -2330,24 +2331,7 @@ export function ChatSessionPanel({
                   </div>
                 ) : null}
                 {!botReady && currentBot ? (
-                  <div
-                    className="flex items-center justify-between gap-3 border-b border-[var(--border)] px-3 py-2 text-sm text-[var(--text-soft)]"
-                    role="status"
-                  >
-                    <span>
-                      {currentBot.name} is {currentBot.state}. Activate it
-                      before sending; this draft is retained.
-                    </span>
-                    {currentBot.state === "stopped" && onActivateBot ? (
-                      <button
-                        className="secondary-button shrink-0"
-                        onClick={() => void onActivateBot(currentBot.id)}
-                        type="button"
-                      >
-                        Activate bot
-                      </button>
-                    ) : null}
-                  </div>
+                  <BotRuntimeNotice bot={currentBot} onStart={onActivateBot} />
                 ) : null}
                 {!botReady && !currentBot ? (
                   <p

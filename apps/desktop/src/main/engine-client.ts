@@ -2,6 +2,10 @@ import type { ChildProcess } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { EventEmitter } from "node:events";
 import {
+  SHARED_ENGINE_START_CONTROL_TIMEOUT_MS,
+  SHARED_ENGINE_STOP_CONTROL_TIMEOUT_MS,
+} from "@doolittle/contracts/engine";
+import {
   attachWorkerHostRpc,
   type WorkerHostHandler,
   type WorkerHostRpcOptions,
@@ -10,7 +14,6 @@ import {
 const CONTROL_PROTOCOL = "doolittle-engine-v1";
 const HOST_PROTOCOL = "doolittle-engine-host-v1";
 const WORKER_PROTOCOL = "doolittle-worker-host-v1";
-const CONTROL_TIMEOUT_MS = 45_000;
 const BOT_ID = /^[a-z0-9][a-z0-9_-]{0,63}$/u;
 const LOOPBACK_URL = /^http:\/\/127\.0\.0\.1:(?:[1-9][0-9]{0,4})$/u;
 
@@ -33,6 +36,7 @@ type HostBinding = {
   virtualChild: VirtualWorkerChild;
   detach: () => void;
   onDisconnect: () => void;
+  stopPromise?: Promise<void>;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -103,7 +107,7 @@ export class EngineClient {
 
   constructor(
     private readonly child: ChildProcess,
-    private readonly timeoutMs = CONTROL_TIMEOUT_MS,
+    private readonly timeoutMs = SHARED_ENGINE_STOP_CONTROL_TIMEOUT_MS,
   ) {
     child.on("message", this.onMessage);
     child.once("disconnect", this.onDisconnect);
@@ -165,14 +169,31 @@ export class EngineClient {
   }
 
   async stopBot(botId: string): Promise<void> {
-    await this.control("stop", botId);
-    this.releaseHost(botId, false);
+    const binding = this.hosts.get(botId);
+    if (binding?.stopPromise) return binding.stopPromise;
+    const stopping = this.control("stop", botId).then(() => {
+      if (binding && this.hosts.get(botId) === binding) {
+        this.releaseHost(botId, false);
+        this.cancelPendingStart(botId);
+      }
+    });
+    if (binding) binding.stopPromise = stopping;
+    try {
+      await stopping;
+    } finally {
+      if (binding?.stopPromise === stopping) binding.stopPromise = undefined;
+    }
   }
 
   /** Confirm the entire named-worker fleet has stopped, then revoke its RPC bindings. */
   async stopAll(): Promise<void> {
+    const bindings = [...this.hosts.entries()];
     await this.control("stop-all", "default");
-    for (const botId of this.hosts.keys()) this.releaseHost(botId, true);
+    for (const [botId, binding] of bindings) {
+      if (this.hosts.get(botId) !== binding) continue;
+      this.releaseHost(botId, true);
+      this.cancelPendingStart(botId);
+    }
   }
 
   dispose(): void {
@@ -193,10 +214,15 @@ export class EngineClient {
       return Promise.reject(new Error("Named bot identity is invalid."));
     const id = randomUUID();
     return new Promise<EngineReady | undefined>((resolve, reject) => {
-      const timer = setTimeout(() => {
-        this.pending.delete(id);
-        reject(new Error("The named bot engine did not respond in time."));
-      }, this.timeoutMs);
+      const timer = setTimeout(
+        () => {
+          this.pending.delete(id);
+          reject(new Error("The named bot engine did not respond in time."));
+        },
+        operation === "start"
+          ? SHARED_ENGINE_START_CONTROL_TIMEOUT_MS
+          : this.timeoutMs,
+      );
       this.pending.set(id, {
         botId,
         operation,
@@ -240,6 +266,15 @@ export class EngineClient {
     this.pending.delete(id);
     clearTimeout(pending.timer);
     pending.reject(new Error("The shared Doolittle engine is unavailable."));
+  }
+
+  private cancelPendingStart(botId: string): void {
+    for (const [id, pending] of this.pending) {
+      if (pending.botId !== botId || pending.operation !== "start") continue;
+      this.pending.delete(id);
+      clearTimeout(pending.timer);
+      pending.reject(new Error("The named bot engine stopped before ready."));
+    }
   }
 
   private readonly onMessage = (value: unknown): void => {

@@ -10,6 +10,15 @@ archiving its saved profile. Up to 64 workers may be resident, with at most two
 bootstraps in progress at once. Each currently has an internal loopback API
 listener; this is not yet one shared HTTP listener, database, or model pool.
 
+A start request may wait in the host's bootstrap queue before its worker's
+45-second boot timer begins. Desktop start controls therefore use a bounded
+fleet deadline derived from 64 sequential boot windows plus one IPC window;
+stop controls retain their separate 45-second deadline. **Stop work** sends an
+addressed stop immediately, including for a queued or booting bot, and only
+releases its host binding after the host confirms the stop. The fleet deadline
+uses production host defaults; custom programmatic boot-timeout overrides are
+not covered by that calculation.
+
 Each worker receives a distinct environment, bot profile, settings, workspace
 grant, account grant, and data directory (including its SQL state). Node worker
 isolation is **not** an OS security sandbox: a fatal native crash can affect the

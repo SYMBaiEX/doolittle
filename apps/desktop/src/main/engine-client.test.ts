@@ -1,6 +1,6 @@
 import type { ChildProcess } from "node:child_process";
 import { EventEmitter } from "node:events";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { EngineClient } from "./engine-client";
 import { DesktopExecutionAdmission } from "./execution-admission";
 import { releaseAbandonedExecutionClaim } from "./execution-receipt";
@@ -58,7 +58,140 @@ const ready = (botId: string) => ({
   name: "Bot One",
 });
 
+afterEach(() => vi.useRealTimers());
+
 describe("EngineClient", () => {
+  it("allows 50 slow queued starts past the ordinary control timeout", async () => {
+    vi.useFakeTimers();
+    const child = new FakeChild();
+    const client = new EngineClient(child.asChild());
+    const starts = Array.from({ length: 50 }, (_, index) =>
+      client.startBot(
+        `bot-${index}`,
+        {},
+        "agent-1",
+        async () => true,
+        () => {},
+      ),
+    );
+    expect(child.sent).toHaveLength(50);
+    await vi.advanceTimersByTimeAsync(25 * 30_000);
+    for (let index = 0; index < 50; index++) {
+      const request = child.sentAt(index);
+      child.reply(request, ready(`bot-${index}`));
+    }
+    expect(await Promise.all(starts)).toHaveLength(50);
+    client.dispose();
+  });
+
+  it("shares a queued startup cancellation with the explicit stop receipt", async () => {
+    const child = new FakeChild();
+    const client = new EngineClient(child.asChild());
+    const start = client.startBot(
+      "bot-one",
+      {},
+      "agent-1",
+      async () => true,
+      () => {},
+    );
+    const failedStart = expect(start).rejects.toThrow("could not complete");
+    const stop = client.stopBot("bot-one");
+    const duplicateStop = client.stopBot("bot-one");
+    expect(child.sent).toHaveLength(2);
+    child.reply(child.sentAt(0), undefined, false);
+    await Promise.resolve();
+    expect(child.sent).toHaveLength(2);
+    child.reply(child.sentAt(1));
+    await Promise.all([stop, duplicateStop]);
+    await failedStart;
+    expect(client.hasBot("bot-one")).toBe(false);
+    client.dispose();
+  });
+
+  it("settles a queued start when its stop is confirmed even without a start reply", async () => {
+    const child = new FakeChild();
+    const client = new EngineClient(child.asChild());
+    const start = client.startBot(
+      "bot-one",
+      {},
+      "agent-1",
+      async () => true,
+      () => {},
+    );
+    const canceledStart = expect(start).rejects.toThrow("stopped before ready");
+    const firstStartRequest = child.sentAt(0);
+    const stop = client.stopBot("bot-one");
+    child.reply(child.sentAt(1));
+    await stop;
+    await canceledStart;
+    expect(client.hasBot("bot-one")).toBe(false);
+    child.reply(firstStartRequest, ready("bot-one"));
+    const retry = client.startBot(
+      "bot-one",
+      {},
+      "agent-1",
+      async () => true,
+      () => {},
+    );
+    child.reply(child.sentAt(2), ready("bot-one"));
+    await expect(retry).resolves.toEqual(ready("bot-one"));
+    client.dispose();
+  });
+
+  it("does not revoke a newer binding for an older stop receipt", async () => {
+    const child = new FakeChild();
+    const client = new EngineClient(child.asChild());
+    const first = client.startBot(
+      "bot-one",
+      {},
+      "agent-1",
+      async () => true,
+      () => {},
+    );
+    child.reply(child.sentAt(0), ready("bot-one"));
+    await first;
+    const oldStop = client.stopBot("bot-one");
+    child.emit("message", {
+      protocol: "doolittle-engine-v1",
+      event: "bot-exit",
+      botId: "bot-one",
+    });
+    const second = client.startBot(
+      "bot-one",
+      {},
+      "agent-1",
+      async () => true,
+      () => {},
+    );
+    child.reply(child.sentAt(1));
+    await oldStop;
+    expect(client.hasBot("bot-one")).toBe(true);
+    child.reply(child.sentAt(2), ready("bot-one"));
+    await expect(second).resolves.toEqual(ready("bot-one"));
+    client.dispose();
+  });
+
+  it("keeps the stop deadline short and retains an unconfirmed binding", async () => {
+    vi.useFakeTimers();
+    const child = new FakeChild();
+    const client = new EngineClient(child.asChild());
+    const start = client.startBot(
+      "bot-one",
+      {},
+      "agent-1",
+      async () => true,
+      () => {},
+    );
+    child.reply(child.sentAt(0), ready("bot-one"));
+    await start;
+    const stop = client.stopBot("bot-one");
+    const failedStop = expect(stop).rejects.toThrow("did not respond in time");
+    await vi.advanceTimersByTimeAsync(45_000);
+    await failedStop;
+    expect(client.hasBot("bot-one")).toBe(true);
+    client.dispose();
+  });
+
   it("rolls back an accepted grant as soon as the engine reports async send failure", async () => {
     const child = new FakeChild();
     child.deferHostSend = true;

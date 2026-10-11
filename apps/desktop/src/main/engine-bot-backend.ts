@@ -23,6 +23,7 @@ export class EngineBotBackend extends BackendManager {
   };
   private botStartup: Promise<BackendState> | null = null;
   private botStopping: Promise<void> | null = null;
+  private generation = 0;
   private owner: EngineClient | null = null;
 
   constructor(
@@ -70,13 +71,15 @@ export class EngineBotBackend extends BackendManager {
       return Promise.resolve(this.getState());
     if (this.botStopping) return this.botStopping.then(() => this.start());
     if (this.botStartup) return this.botStartup;
-    this.botStartup = this.startNamed().finally(() => {
-      this.botStartup = null;
+    const generation = ++this.generation;
+    const startup = this.startNamed(generation).finally(() => {
+      if (this.botStartup === startup) this.botStartup = null;
     });
-    return this.botStartup;
+    this.botStartup = startup;
+    return startup;
   }
 
-  private async startNamed(): Promise<BackendState> {
+  private async startNamed(generation: number): Promise<BackendState> {
     this.publishBotState({
       phase: "booting",
       message: "Starting the named bot…",
@@ -118,6 +121,7 @@ export class EngineBotBackend extends BackendManager {
       );
       if (this.owner !== engine)
         throw new Error("The shared engine disconnected.");
+      if (generation !== this.generation) return this.getState();
       return this.publishBotState({
         phase: "ready",
         url: result.url,
@@ -126,6 +130,7 @@ export class EngineBotBackend extends BackendManager {
         message: "Named bot ready",
       });
     } catch {
+      if (generation !== this.generation) return this.getState();
       if (this.owner && !this.owner.hasBot(this.botId)) {
         this.owner = null;
         this.botOptions.onHostDisconnect?.();
@@ -140,6 +145,7 @@ export class EngineBotBackend extends BackendManager {
 
   override async stop(updateState = true): Promise<void> {
     if (this.botStopping) return this.botStopping;
+    this.generation++;
     this.botStopping = this.stopNamed(updateState).finally(() => {
       this.botStopping = null;
     });
@@ -147,7 +153,7 @@ export class EngineBotBackend extends BackendManager {
   }
 
   private async stopNamed(updateState: boolean): Promise<void> {
-    if (this.botStartup) await this.botStartup;
+    const startup = this.botStartup;
     const engine = this.owner;
     if (engine) {
       try {
@@ -168,6 +174,9 @@ export class EngineBotBackend extends BackendManager {
       if (this.owner === engine) this.owner = null;
       this.botOptions.onHostDisconnect?.();
     }
+    // A confirmed stop invalidates the old bootstrap even if its response is
+    // delayed; its generation cannot publish over a later start.
+    if (this.botStartup === startup) this.botStartup = null;
     if (updateState)
       this.publishBotState({
         phase: "stopped",

@@ -184,6 +184,33 @@ describe("shared engine host", () => {
     }
   }, 30_000);
 
+  it("keeps 50 slow queued starts bounded to two active bootstraps", async () => {
+    vi.useFakeTimers();
+    const f = fixture({ maxWorkers: 50, maxConcurrentStarts: 2 });
+    for (let index = 0; index < 50; index++) f.start(`bot-${index}`, index + 1);
+    expect(f.workers).toHaveLength(2);
+    for (let wave = 0; wave < 25; wave++) {
+      await vi.advanceTimersByTimeAsync(30_000);
+      for (let offset = 0; offset < 2; offset++) {
+        const index = wave * 2 + offset;
+        f.workers[index]?.emit("message", {
+          protocol: ENGINE_WORKER_PROTOCOL,
+          type: "ready",
+          ready: ready(`bot-${index}`),
+        });
+      }
+      await vi.advanceTimersByTimeAsync(0);
+      expect(f.workers).toHaveLength(Math.min(50, (wave + 2) * 2));
+    }
+    expect(
+      f.ipc.send.mock.calls.filter(
+        ([message]) => message?.protocol === ENGINE_PROTOCOL && message.ok,
+      ),
+    ).toHaveLength(50);
+    for (const worker of f.workers) worker.emit("exit", 0);
+    await f.host?.stopAll();
+  });
+
   it("runs two real Node workers with separate exact environments", async () => {
     const ipc = new EventEmitter() as EventEmitter & {
       send: ReturnType<typeof vi.fn>;
@@ -418,6 +445,36 @@ describe("shared engine host", () => {
     await flush();
     f.start("bot-one", 4);
     expect(f.workers).toHaveLength(2);
+    await f.host?.stopAll();
+  });
+
+  it("confirms a queued stop without ever constructing its worker", async () => {
+    const f = fixture({ maxConcurrentStarts: 1 });
+    f.start("bot-one", 1);
+    f.start("bot-two", 2);
+    expect(f.workers).toHaveLength(1);
+    f.stop("bot-two", 3);
+    await flush();
+    expect(f.ipc.send).toHaveBeenCalledWith({
+      protocol: ENGINE_PROTOCOL,
+      id: requestId(2),
+      ok: false,
+      error: "The named engine could not start.",
+    });
+    expect(f.ipc.send).toHaveBeenCalledWith({
+      protocol: ENGINE_PROTOCOL,
+      id: requestId(3),
+      ok: true,
+      result: undefined,
+    });
+    f.workers[0]?.emit("message", {
+      protocol: ENGINE_WORKER_PROTOCOL,
+      type: "ready",
+      ready: ready("bot-one"),
+    });
+    await flush();
+    expect(f.workers).toHaveLength(1);
+    f.workers[0]?.emit("exit", 0);
     await f.host?.stopAll();
   });
 
