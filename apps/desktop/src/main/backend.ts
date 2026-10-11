@@ -5,9 +5,14 @@ import { homedir } from "node:os";
 import { delimiter, dirname, resolve } from "node:path";
 import type { BackendState } from "../shared/contracts";
 import { BackendUrlParser } from "./backend-url";
+import { EngineClient } from "./engine-client";
 import { providerAuthExecutableCandidates } from "./provider-auth";
 import { runtimeStartsAllowed } from "./runtime-start-admission";
-import { attachWorkerHostRpc, type WorkerHostHandler } from "./worker-host-rpc";
+import {
+  attachWorkerHostRpc,
+  type WorkerHostHandler,
+  type WorkerHostRpcOptions,
+} from "./worker-host-rpc";
 
 const STARTUP_TIMEOUT_MS = 45_000;
 const HEALTH_POLL_MS = 250;
@@ -230,6 +235,8 @@ export interface BackendLaunchTarget {
 }
 
 export interface BackendManagerOptions {
+  /** The desktop's single runtime host owns named agent worker isolates. */
+  sharedEngine?: boolean;
   /** An exact worker environment, never merged with desktop process.env. */
   isolatedEnvironment?: NodeJS.ProcessEnv;
   expectedBotId?: string;
@@ -238,6 +245,7 @@ export interface BackendManagerOptions {
   /** IPC process identity can differ from the lead runtime's SDK agent ID. */
   hostRpcBotId?: string;
   onHostDisconnect?: () => void;
+  workerHostOnAbandonedResult?: WorkerHostRpcOptions["onAbandonedResult"];
 }
 
 export function findPackagedRuntime(
@@ -266,6 +274,7 @@ export function sourceRuntimeTarget(repoRoot: string): BackendLaunchTarget {
 export class BackendManager {
   private readonly desktopControlToken = randomBytes(32).toString("hex");
   private child: ChildProcess | null = null;
+  private engineClient: EngineClient | null = null;
   private state: BackendState = {
     phase: "stopped",
     message: "The local runtime is stopped.",
@@ -291,10 +300,25 @@ export class BackendManager {
     return this.workspaceDir;
   }
 
+  /** A degraded state alone does not attest process or database termination. */
+  hasLiveRuntime(): boolean {
+    return this.child !== null || this.startup !== null;
+  }
+
+  /** Main-process only: grants and control traffic never cross renderer IPC. */
+  getEngineClient(): EngineClient {
+    if (!this.engineClient || this.state.phase !== "ready") {
+      throw new Error("The shared agent engine is not ready.");
+    }
+    return this.engineClient;
+  }
+
   /** Host-only operation; the token never crosses renderer IPC. */
   async stopAllOwnedExecutions(): Promise<void> {
     const state = this.getState();
-    if (state.phase !== "ready" || !state.url) return;
+    if (!this.hasLiveRuntime() && state.phase !== "ready") return;
+    if (!state.url)
+      throw new Error("Runtime execution stop could not be confirmed.");
     const response = await this.runtimeFetch(
       `${state.url}/runtime/executions/stop-all`,
       {
@@ -430,6 +454,24 @@ export class BackendManager {
       },
     );
     environment.DOOLITTLE_DESKTOP_CONTROL_TOKEN = this.desktopControlToken;
+    if (this.options.sharedEngine) {
+      environment.DOOLITTLE_SHARED_ENGINE = "1";
+      delete environment.DOOLITTLE_ENGINE_WORKER_ENTRY;
+      // Nub's source resolver does not cross Node worker isolate boundaries.
+      // Source development builds the same agent bundle used by worker entry.
+      if (this.target.args[0]?.endsWith(".ts")) {
+        const workerEntry = resolve(this.target.repoRoot, "dist", "index.js");
+        if (!existsSync(workerEntry)) {
+          this.update({
+            phase: "degraded",
+            message: "Build the shared engine before starting the desktop.",
+            detail: "Run nub run build to prepare the source worker entry.",
+          });
+          return this.getState();
+        }
+        environment.DOOLITTLE_ENGINE_WORKER_ENTRY = workerEntry;
+      }
+    }
     if (this.options.hostRpcBotId) {
       environment.DOOLITTLE_HOST_BOT_ID = this.options.hostRpcBotId;
     }
@@ -442,6 +484,10 @@ export class BackendManager {
         : ["ignore", "pipe", "pipe"],
     });
     this.child = child;
+    const engineClient = this.options.sharedEngine
+      ? new EngineClient(child)
+      : null;
+    this.engineClient = engineClient;
     const detachWorkerHost =
       this.options.workerHostHandler &&
       (this.options.hostRpcBotId ?? this.options.expectedBotId)
@@ -449,6 +495,7 @@ export class BackendManager {
             child,
             (this.options.hostRpcBotId ?? this.options.expectedBotId) as string,
             this.options.workerHostHandler,
+            { onAbandonedResult: this.options.workerHostOnAbandonedResult },
           )
         : () => undefined;
 
@@ -462,6 +509,8 @@ export class BackendManager {
     child.stderr?.on("data", consume);
     child.once("error", (error) => rejectUrl?.(error));
     child.once("exit", (code, signal) => {
+      engineClient?.dispose();
+      if (this.engineClient === engineClient) this.engineClient = null;
       detachWorkerHost();
       this.options.onHostDisconnect?.();
       if (this.child === child) this.child = null;

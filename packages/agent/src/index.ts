@@ -1,4 +1,5 @@
 #!/usr/bin/env nub
+import { pathToFileURL } from "node:url";
 import type { AgentRuntime } from "@elizaos/core";
 import { restoreTerminalState } from "@/cli/render-utils";
 import { isCliStartupExitError, runOnboardingWizard } from "@/cli/startup";
@@ -17,6 +18,15 @@ import {
   isRecoverableTopLevelRuntimeError,
 } from "@/entrypoint/static-prompts";
 import { getEntrypointLogger } from "@/logging/entrypoint-logger";
+import { installSharedEngineHost } from "@/runtime/engine/host";
+import { installEngineWorkerTransport } from "@/runtime/engine/worker-transport";
+
+installEngineWorkerTransport();
+const sharedEngineHost = installSharedEngineHost(
+  process.env.DOOLITTLE_ENGINE_WORKER_ENTRY
+    ? pathToFileURL(process.env.DOOLITTLE_ENGINE_WORKER_ENTRY)
+    : import.meta.url,
+);
 
 async function main(): Promise<number> {
   const entryLogger = getEntrypointLogger("index");
@@ -77,6 +87,9 @@ async function main(): Promise<number> {
     installRuntimeProcessLifecycle({
       runtime: context.runtime as AgentRuntime,
       label: `${context.config.agentName} ${command}`,
+      beforeShutdown: sharedEngineHost
+        ? () => sharedEngineHost.stopAll()
+        : undefined,
       captureFatal: (error, origin) => {
         entryLogger.captureError("runtime-process-fatal", error, {
           command,

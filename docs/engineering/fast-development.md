@@ -41,6 +41,15 @@ nub run desktop:test apps/desktop/src/main/execution-admission.test.ts
 nub run --cwd apps/desktop test:watch apps/desktop/src/main/execution-admission.test.ts
 ```
 
+For the [shared agent engine](shared-agent-engine.md), opt into the two-bot
+offline SDK boundary (real workers, no paid provider call) with:
+
+```sh
+DOOLITTLE_SHARED_ENGINE_E2E=1 nubx vitest run --config vitest.integration.config.ts apps/desktop/src/main/shared-engine.e2e.test.ts
+```
+
+Without the opt-in, the E2E is skipped; it does not load 50 SDK runtimes.
+
 ## Essential behavior coverage
 
 The exact eight-file list lives in `vitest.essential.config.ts`. It intentionally

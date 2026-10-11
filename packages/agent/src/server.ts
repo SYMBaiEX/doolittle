@@ -16,6 +16,7 @@ import { syncResolvedApiPort } from "@elizaos/shared";
 import { formatLoggerError } from "@/logging/logger";
 import type { AppContext } from "@/runtime/bootstrap";
 import { readWorkerBotProfile } from "@/runtime/bootstrap/bot-profile";
+import { notifyEngineWorkerReady } from "@/runtime/engine/worker-transport";
 import {
   applyDoolittleCors,
   isProviderAuthenticatedWebhookRequest,
@@ -195,6 +196,15 @@ export async function startApiServer(
   activeApiServerAddress = address;
   activeApiServerInfo = owned.address;
   syncResolvedApiPort(process.env, owned.address.port);
+  const workerBot = readWorkerBotProfile();
+  if (workerBot) {
+    notifyEngineWorkerReady({
+      url: owned.address.url,
+      botId: workerBot.id,
+      agentId: context.runtime.agentId,
+      name: context.config.agentName,
+    });
+  }
   return owned.address;
 }
 

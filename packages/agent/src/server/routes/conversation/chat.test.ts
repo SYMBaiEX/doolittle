@@ -2,7 +2,7 @@ import { mkdtempSync, realpathSync, rmSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { RoomHandlerQueue } from "@elizaos/core";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AppContext } from "@/runtime/bootstrap";
 import type { RunSnapshot } from "@/services/run-controller-service";
 import { RunControllerService } from "@/services/run-controller-service";
@@ -14,13 +14,21 @@ import {
   summarizeChatRun,
 } from "./chat";
 
-const { executeAgentTurnWithProgress } = vi.hoisted(() => ({
-  executeAgentTurnWithProgress: vi.fn(),
-}));
+const { executeAgentTurnWithProgress, acquireExecutionLease } = vi.hoisted(
+  () => ({
+    executeAgentTurnWithProgress: vi.fn(),
+    acquireExecutionLease: vi.fn(),
+  }),
+);
 
 vi.mock("@/runtime/turn-stream", () => ({
   executeAgentTurnWithProgress,
 }));
+vi.mock("@/runtime/execution-admission", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/runtime/execution-admission")>()),
+  acquireExecutionLease,
+}));
+beforeEach(() => acquireExecutionLease.mockResolvedValue(null));
 
 function createContext(): AppContext {
   return {
@@ -67,6 +75,60 @@ afterEach(() => {
 });
 
 describe("handleChatRoute turn lifecycle", () => {
+  it("accepts a durable queued run promptly and cancels it before execution", async () => {
+    const context = createContext();
+    acquireExecutionLease.mockImplementation(
+      ({ signal }: { signal: AbortSignal }) =>
+        new Promise((_resolve, reject) => {
+          signal.addEventListener("abort", () => reject(signal.reason), {
+            once: true,
+          });
+        }),
+    );
+    const response = await handleChatSubmitRoute(
+      context,
+      chatRequest({
+        message: "Wait for fleet capacity.",
+        runId: "queued-cancel",
+        roomId: "queued-room",
+      }),
+    );
+    expect(response.status).toBe(202);
+    expect(await response.json()).toMatchObject({ run_id: "queued-cancel" });
+    expect(acquireExecutionLease.mock.calls[0]?.[0].signal.aborted).toBe(false);
+    context.services.runController.cancelRun("queued-cancel");
+    await vi.waitFor(() =>
+      expect(acquireExecutionLease.mock.calls[0]?.[0].signal.aborted).toBe(
+        true,
+      ),
+    );
+    expect(executeAgentTurnWithProgress).not.toHaveBeenCalled();
+  });
+
+  it("Stop All cannot start a previously queued run after capacity becomes available", async () => {
+    const context = createContext();
+    let grant!: (value: { release: () => Promise<void> }) => void;
+    acquireExecutionLease.mockImplementation(
+      () =>
+        new Promise((resolvePromise) => {
+          grant = resolvePromise;
+        }),
+    );
+    const response = await handleChatSubmitRoute(
+      context,
+      chatRequest({
+        message: "Do not run after stop.",
+        runId: "queued-stop-all",
+        roomId: "queued-room",
+      }),
+    );
+    expect(response.status).toBe(202);
+    context.services.runController.cancelAllActiveRuns();
+    const release = vi.fn(async () => undefined);
+    grant({ release });
+    await vi.waitFor(() => expect(release).toHaveBeenCalledOnce());
+    expect(executeAgentTurnWithProgress).not.toHaveBeenCalled();
+  });
   it("summarizes terminal evidence and experience timings", () => {
     const result = summarizeChatRun({
       runId: "run-summary",

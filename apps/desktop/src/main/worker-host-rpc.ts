@@ -4,7 +4,9 @@ const PROTOCOL = "doolittle-worker-host-v1";
 const REQUEST_ID =
   /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 const MAX_REQUEST_BYTES = 1_000_000;
-const MAX_PENDING = 16;
+const MAX_PENDING = 32;
+const MAX_PENDING_CLAIMS = 16;
+const RECEIPT_TIMEOUT_MS = 55_000;
 
 export interface WorkerHostRequest {
   operation:
@@ -28,6 +30,23 @@ export type WorkerHostHandler = (
   signal: AbortSignal,
 ) => Promise<unknown>;
 
+export interface WorkerHostRpcOptions {
+  /** Roll back a successful result that the child never acknowledged. */
+  onAbandonedResult?: (request: WorkerHostRequest, result: unknown) => void;
+}
+
+interface PendingRequest {
+  sequence: number;
+  request: WorkerHostRequest;
+  controller: AbortController;
+  resultKnown: boolean;
+  result?: unknown;
+  abandoned: boolean;
+  acknowledged: boolean;
+  rolledBack: boolean;
+  timer?: ReturnType<typeof setTimeout>;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
@@ -37,10 +56,46 @@ export function attachWorkerHostRpc(
   child: Pick<ChildProcess, "on" | "removeListener" | "send" | "connected">,
   botId: string,
   handler: WorkerHostHandler,
+  options: WorkerHostRpcOptions = {},
 ): () => void {
-  let pending = 0;
   let disposed = false;
-  const controllers = new Map<string, AbortController>();
+  const requests = new Map<string, PendingRequest>();
+  let lastSequence = 0;
+  const rejectRequest = (id: string, sequence: number) => {
+    if (!child.connected) return;
+    try {
+      child.send({
+        protocol: PROTOCOL,
+        id,
+        botId,
+        sequence,
+        ok: false,
+        code: "host_backpressure",
+      });
+    } catch {
+      // Child exit releases its bot's leases.
+    }
+  };
+  const finish = (id: string, entry: PendingRequest) => {
+    if (requests.get(id) === entry) requests.delete(id);
+    if (entry.timer) clearTimeout(entry.timer);
+  };
+  const rollback = (entry: PendingRequest) => {
+    if (!entry.resultKnown || entry.rolledBack) return;
+    entry.rolledBack = true;
+    try {
+      options.onAbandonedResult?.(entry.request, entry.result);
+    } catch {
+      // Rollback is best-effort; child exit also releases its bot's leases.
+    }
+  };
+  const abandon = (id: string, entry: PendingRequest) => {
+    if (entry.acknowledged || entry.abandoned) return;
+    entry.abandoned = true;
+    entry.controller.abort();
+    rollback(entry);
+    finish(id, entry);
+  };
   const onMessage = (value: unknown) => {
     if (
       disposed ||
@@ -48,11 +103,27 @@ export function attachWorkerHostRpc(
       value.protocol !== PROTOCOL ||
       typeof value.id !== "string" ||
       !REQUEST_ID.test(value.id) ||
+      !Number.isSafeInteger(value.sequence) ||
+      (value.sequence as number) < 1 ||
       value.botId !== botId
     )
       return;
     if (value.cancel === true) {
-      controllers.get(value.id)?.abort();
+      const entry = requests.get(value.id);
+      if (entry && entry.sequence === value.sequence) abandon(value.id, entry);
+      return;
+    }
+    if (value.ack === true) {
+      const entry = requests.get(value.id);
+      if (
+        entry &&
+        entry.sequence === value.sequence &&
+        entry.resultKnown &&
+        !entry.abandoned
+      ) {
+        entry.acknowledged = true;
+        finish(value.id, entry);
+      }
       return;
     }
     if (
@@ -70,7 +141,6 @@ export function attachWorkerHostRpc(
       value.operation !== "automation.cancel"
     )
       return;
-    if (pending >= MAX_PENDING || controllers.has(value.id)) return;
     let size: number;
     try {
       size = Buffer.byteLength(JSON.stringify(value), "utf8");
@@ -79,30 +149,72 @@ export function attachWorkerHostRpc(
     }
     if (size > MAX_REQUEST_BYTES) return;
     const id = value.id;
+    const sequence = value.sequence as number;
     const operation = value.operation as WorkerHostRequest["operation"];
-    const controller = new AbortController();
-    controllers.set(id, controller);
-    pending += 1;
+    if (sequence <= lastSequence) {
+      rejectRequest(id, sequence);
+      return;
+    }
+    lastSequence = sequence;
+    if (
+      requests.has(id) ||
+      requests.size >= MAX_PENDING ||
+      (operation === "execution.claim" &&
+        [...requests.values()].filter(
+          (entry) => entry.request.operation === "execution.claim",
+        ).length >= MAX_PENDING_CLAIMS)
+    ) {
+      rejectRequest(id, sequence);
+      return;
+    }
+    const request = { operation, payload: value.payload };
+    const entry: PendingRequest = {
+      sequence,
+      request,
+      controller: new AbortController(),
+      resultKnown: false,
+      abandoned: false,
+      acknowledged: false,
+      rolledBack: false,
+    };
+    requests.set(id, entry);
     void Promise.resolve()
-      .then(() =>
-        handler({ operation, payload: value.payload }, controller.signal),
-      )
+      .then(() => handler(request, entry.controller.signal))
       .then(
         (result) => {
-          if (disposed || !child.connected) return;
+          entry.resultKnown = true;
+          entry.result = result;
+          if (entry.abandoned || disposed || !child.connected) {
+            abandon(id, entry);
+            rollback(entry);
+            return;
+          }
+          entry.timer = setTimeout(
+            () => abandon(id, entry),
+            RECEIPT_TIMEOUT_MS,
+          );
           try {
-            child.send({ protocol: PROTOCOL, id, botId, ok: true, result });
+            child.send(
+              { protocol: PROTOCOL, id, botId, sequence, ok: true, result },
+              (error) => {
+                if (error) abandon(id, entry);
+              },
+            );
           } catch {
-            /* child exited */
+            abandon(id, entry);
           }
         },
         () => {
-          if (disposed || !child.connected) return;
+          if (entry.abandoned || disposed || !child.connected) {
+            finish(id, entry);
+            return;
+          }
           try {
             child.send({
               protocol: PROTOCOL,
               id,
               botId,
+              sequence,
               ok: false,
               ...(operation.startsWith("automation.")
                 ? {
@@ -115,18 +227,14 @@ export function attachWorkerHostRpc(
           } catch {
             /* child exited */
           }
+          finish(id, entry);
         },
-      )
-      .finally(() => {
-        controllers.delete(id);
-        pending -= 1;
-      });
+      );
   };
   child.on("message", onMessage);
   return () => {
     disposed = true;
-    for (const controller of controllers.values()) controller.abort();
-    controllers.clear();
+    for (const [id, entry] of requests) abandon(id, entry);
     child.removeListener("message", onMessage);
   };
 }

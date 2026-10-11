@@ -324,28 +324,6 @@ async function startServerOwnedChatRun(
     return conflictResponse("run_exists");
   }
 
-  let admissionLease: Awaited<ReturnType<typeof acquireExecutionLease>>;
-  try {
-    admissionLease = await acquireExecutionLease({
-      runId,
-      sessionId,
-      kind: "foreground",
-    });
-  } catch (error) {
-    releaseWorkspace();
-    context.services.runController.releaseTaskRun(runId);
-    if (error instanceof ExecutionAdmissionLimitError) {
-      return json({ error: error.message, code: error.reason }, 429);
-    }
-    return json(
-      {
-        error: "Global execution admission is unavailable.",
-        code: "admission_unavailable",
-      },
-      503,
-    );
-  }
-
   const controller = new AbortController();
   let boundaryRecorded = false;
   const recordTerminalBoundary = (
@@ -374,8 +352,20 @@ async function startServerOwnedChatRun(
   });
 
   void (async () => {
+    let admissionLease: Awaited<ReturnType<typeof acquireExecutionLease>> =
+      null;
     let textSequence = 0;
     try {
+      // Persist acceptance and register cancellation before waiting for fleet
+      // capacity. POST returns its durable run identity promptly; detaching a
+      // viewer cannot cancel work, but Cancel/Stop All can abort queued work.
+      admissionLease = await acquireExecutionLease({
+        runId,
+        sessionId,
+        kind: "foreground",
+        signal: controller.signal,
+      });
+      controller.signal.throwIfAborted();
       const attachments = prepared.attachments.map((entry) => entry.media);
       const attachmentDescriptors = prepared.attachments.map(
         (entry) => entry.descriptor,
@@ -501,7 +491,13 @@ async function startServerOwnedChatRun(
             id: responseId,
             run_id: runId,
             room_id: roomId,
-            message: TURN_FAILURE_MESSAGE,
+            message:
+              error instanceof ExecutionAdmissionLimitError
+                ? error.message
+                : TURN_FAILURE_MESSAGE,
+            ...(error instanceof ExecutionAdmissionLimitError
+              ? { code: error.reason }
+              : {}),
           },
           true,
         );
