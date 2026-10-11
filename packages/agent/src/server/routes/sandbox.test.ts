@@ -48,6 +48,63 @@ function createServiceCountingContext() {
 }
 
 describe("handleSandboxRoutes", () => {
+  it("does not disclose coded sandbox exception details", async () => {
+    const context = {
+      runtime: {
+        getService: () => ({
+          listSandboxes: () => [],
+          createSandbox: async () => {
+            throw Object.assign(
+              new Error("token=abc123 /private/operator/credentials.json"),
+              {
+                code: "UNSUPPORTED_SANDBOX_TEMPLATE",
+              },
+            );
+          },
+        }),
+      },
+    } as unknown as AppContext;
+    const url = new URL("http://localhost/e2b/sandboxes");
+    const response = await handleSandboxRoutes(
+      context,
+      new Request(url, {
+        method: "POST",
+        body: JSON.stringify({ template: "ruby" }),
+      }),
+      url,
+    );
+    expect(response?.status).toBe(400);
+    expect(await response?.json()).toEqual({
+      error: "Unsupported sandbox template.",
+      code: "UNSUPPORTED_SANDBOX_TEMPLATE",
+      supportedTemplates: ["node-js", "python"],
+    });
+  });
+  it("contains unknown sandbox exceptions at the route boundary", async () => {
+    const context = {
+      runtime: {
+        getService: () => ({
+          listSandboxes: () => [],
+          executeCode: async () => {
+            throw "token=abc123 /private/operator/credentials.json";
+          },
+        }),
+      },
+    } as unknown as AppContext;
+    const url = new URL("http://localhost/e2b/execute");
+    const response = await handleSandboxRoutes(
+      context,
+      new Request(url, {
+        method: "POST",
+        body: JSON.stringify({ code: "print('ok')" }),
+      }),
+      url,
+    );
+    expect(response?.status).toBe(500);
+    expect(await response?.json()).toEqual({
+      error: "Sandbox request failed.",
+    });
+  });
   it("returns runtime and sandbox summaries", async () => {
     const context = createContext();
     const runtime = await handleSandboxRoutes(
@@ -279,7 +336,7 @@ describe("handleSandboxRoutes", () => {
 
     expect(response?.status).toBe(400);
     await expect(response?.json()).resolves.toEqual({
-      error: "Unsupported sandbox template: ruby",
+      error: "Unsupported sandbox template.",
       code: "UNSUPPORTED_SANDBOX_TEMPLATE",
       supportedTemplates: ["node-js", "python"],
     });
@@ -311,7 +368,7 @@ describe("handleSandboxRoutes", () => {
 
     expect(response?.status).toBe(409);
     await expect(response?.json()).resolves.toEqual({
-      error: "Sandbox is closing: sandbox-1",
+      error: "Sandbox is closing.",
       code: "SANDBOX_CLOSING",
     });
   });
@@ -355,7 +412,7 @@ describe("handleSandboxRoutes", () => {
     for (const response of [create, execute]) {
       expect(response?.status).toBe(409);
       await expect(response?.json()).resolves.toEqual({
-        error: "Sandbox is owned by another live session: sandbox-1",
+        error: "Sandbox is owned by another live session.",
         code: "SANDBOX_OWNERSHIP_CONFLICT",
       });
     }
@@ -388,7 +445,7 @@ describe("handleSandboxRoutes", () => {
 
     expect(response?.status).toBe(409);
     await expect(response?.json()).resolves.toEqual({
-      error: "Sandbox cleanup could not be verified: sandbox-1",
+      error: "Sandbox cleanup could not be verified.",
       code: "SANDBOX_CLEANUP_UNVERIFIED",
     });
   });

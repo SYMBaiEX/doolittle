@@ -36,9 +36,11 @@ const registryPlugin = {
 function installAgentSdkMocks({
   registryShouldFail = false,
   searchFailure,
+  installFailure,
 }: {
   registryShouldFail?: boolean;
   searchFailure?: unknown;
+  installFailure?: string;
 }) {
   vi.doMock("@elizaos/agent/services/registry-client", () => ({
     getConfiguredEndpoints: () => ["https://agent-registry.test"],
@@ -62,17 +64,16 @@ function installAgentSdkMocks({
   vi.doMock("@elizaos/agent/services/plugin-installer", () => ({
     assertValidPackageName: () => undefined,
     listInstalledPlugins: () => [],
-    installPlugin: async (
-      name: string,
-      _progress: unknown,
-      version: string,
-    ) => ({
-      success: true,
-      pluginName: name,
-      version,
-      installPath: "/private/plugin",
-      requiresRestart: true,
-    }),
+    installPlugin: async (name: string, _progress: unknown, version: string) =>
+      installFailure === undefined
+        ? {
+            success: true,
+            pluginName: name,
+            version,
+            installPath: "/private/plugin",
+            requiresRestart: true,
+          }
+        : { success: false, error: installFailure },
   }));
   vi.doMock("@elizaos/agent/services/update-checker", () => ({
     CHANNEL_DIST_TAGS: ["dev", "staging", "prod"],
@@ -195,6 +196,30 @@ describe("agent-sdk helper facade", () => {
       },
     });
     expect(result).not.toHaveProperty("installed.installPath");
+  });
+
+  it("does not expose an SDK installer error containing a secret or local path", async () => {
+    installAgentSdkMocks({
+      installFailure:
+        "registry-token-fixture at /private/operator/plugins/plugin-browser",
+    });
+    const mod = await loadAgentSdkModule();
+
+    const result = await mod.installAgentRegistryExtension({
+      name: "@elizaos/plugin-browser",
+      packageName: "@elizaos/plugin-browser",
+      version: "2.0.3-beta.7",
+      approved: true,
+      allowlist: ["@elizaos/plugin-browser"],
+    });
+
+    expect(result).toMatchObject({
+      ok: false,
+      status: 422,
+      error: mod.AGENT_REGISTRY_INSTALL_FAILURE,
+    });
+    expect(JSON.stringify(result)).not.toContain("registry-token-fixture");
+    expect(JSON.stringify(result)).not.toContain("/private/operator");
   });
 
   it("requires explicit approval before resolving or installing", async () => {

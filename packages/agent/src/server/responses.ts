@@ -87,9 +87,9 @@ export function streamSse(
         };
         try {
           await stream(emit);
-        } catch (error) {
+        } catch {
           await emit("error", {
-            message: error instanceof Error ? error.message : String(error),
+            message: "Stream failed.",
           });
         } finally {
           if (!closed) {

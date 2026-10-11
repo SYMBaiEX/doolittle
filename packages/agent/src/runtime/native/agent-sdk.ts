@@ -25,6 +25,9 @@ const ECOSYSTEM_PACKAGES = [
   "@doolittle/plugin-planning",
 ] as const;
 
+export const AGENT_REGISTRY_INSTALL_FAILURE =
+  "Eliza could not install the registry plugin.";
+
 export async function getAgentSdkAudit() {
   const coreVersion = (await getInstalledVersion("@elizaos/core")) ?? "unknown";
   const installed = Object.fromEntries(
@@ -204,7 +207,9 @@ export async function installAgentRegistryExtension(input: {
     return {
       ok: false as const,
       status: 422,
-      error: result.error || "Eliza could not install the plugin",
+      // Installer diagnostics can include credentials, filesystem paths, or
+      // registry response bodies. They are not suitable for operator clients.
+      error: AGENT_REGISTRY_INSTALL_FAILURE,
       policy,
     };
   }

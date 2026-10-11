@@ -50,27 +50,28 @@ function sandboxErrorResponse(error: unknown): Response | undefined {
     error && typeof error === "object" && "code" in error
       ? error.code
       : undefined;
-  const message = error instanceof Error ? error.message : String(error);
   if (code === "SANDBOX_NOT_FOUND") {
-    return json({ error: message, code }, 404);
+    return json({ error: "Sandbox not found.", code }, 404);
   }
   if (code === "UNSUPPORTED_SANDBOX_TEMPLATE") {
     return json(
       {
-        error: message,
+        error: "Unsupported sandbox template.",
         code,
         supportedTemplates: ["node-js", "python"],
       },
       400,
     );
   }
-  if (
-    code === "SANDBOX_CLOSING" ||
-    code === "SANDBOX_OWNERSHIP_CONFLICT" ||
-    code === "SANDBOX_CLEANUP_UNVERIFIED"
-  ) {
-    return json({ error: message, code }, 409);
-  }
+  if (code === "SANDBOX_CLOSING")
+    return json({ error: "Sandbox is closing.", code }, 409);
+  if (code === "SANDBOX_OWNERSHIP_CONFLICT")
+    return json(
+      { error: "Sandbox is owned by another live session.", code },
+      409,
+    );
+  if (code === "SANDBOX_CLEANUP_UNVERIFIED")
+    return json({ error: "Sandbox cleanup could not be verified.", code }, 409);
   return undefined;
 }
 
@@ -110,9 +111,10 @@ export async function handleSandboxRoutes(
         sandboxes: listEffectiveSandboxes(context.runtime),
       });
     } catch (error) {
-      const response = sandboxErrorResponse(error);
-      if (response) return response;
-      throw error;
+      return (
+        sandboxErrorResponse(error) ??
+        json({ error: "Sandbox request failed." }, 500)
+      );
     }
   }
 
@@ -139,9 +141,10 @@ export async function handleSandboxRoutes(
         ),
       });
     } catch (error) {
-      const response = sandboxErrorResponse(error);
-      if (response) return response;
-      throw error;
+      return (
+        sandboxErrorResponse(error) ??
+        json({ error: "Sandbox request failed." }, 500)
+      );
     }
   }
 
@@ -157,9 +160,10 @@ export async function handleSandboxRoutes(
         sandboxes: listEffectiveSandboxes(context.runtime),
       });
     } catch (error) {
-      const response = sandboxErrorResponse(error);
-      if (response) return response;
-      throw error;
+      return (
+        sandboxErrorResponse(error) ??
+        json({ error: "Sandbox request failed." }, 500)
+      );
     }
   }
 

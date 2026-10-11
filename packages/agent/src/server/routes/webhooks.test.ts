@@ -524,7 +524,53 @@ describe("handleWebhookRoutes", () => {
 
     expect(response?.status).toBe(400);
     await expect(response?.json()).resolves.toEqual({
-      error: 'Unsupported hook event "made:up".',
+      error: "Unsupported hook event.",
+    });
+  });
+
+  it.each(["__proto__", "constructor", "toString"])(
+    "rejects inherited hook event %s before persistence",
+    async (event) => {
+      const context = createContext();
+      const add = vi.spyOn(context.services.hooks, "add");
+      const url = new URL("http://localhost/hooks");
+      const response = await handleWebhookRoutes(
+        context,
+        new Request(url, {
+          method: "POST",
+          body: JSON.stringify({ event, name: "invalid", template: "ok" }),
+        }),
+        url,
+      );
+      expect(response?.status).toBe(400);
+      expect(await response?.json()).toEqual({
+        error: "Unsupported hook event.",
+      });
+      expect(add).not.toHaveBeenCalled();
+    },
+  );
+
+  it("does not disclose hook service exception details", async () => {
+    const context = createContext();
+    context.services.hooks.add = () => {
+      throw new Error("token=abc123 /private/operator/credentials.json");
+    };
+    const url = new URL("http://localhost/hooks");
+    const response = await handleWebhookRoutes(
+      context,
+      new Request(url, {
+        method: "POST",
+        body: JSON.stringify({
+          event: "agent:end",
+          name: "safe",
+          template: "ok",
+        }),
+      }),
+      url,
+    );
+    expect(response?.status).toBe(500);
+    expect(await response?.json()).toEqual({
+      error: "Hook could not be created.",
     });
   });
 

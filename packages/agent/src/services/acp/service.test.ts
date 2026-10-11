@@ -2,11 +2,42 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { EnvConfig, ToolDefinition } from "@/types";
 import { AcpService } from "./service";
 
 describe("AcpService", () => {
+  it("does not expose protocol exceptions through results or telemetry", async () => {
+    const root = mkdtempSync(join(tmpdir(), "doolittle-acp-errors-"));
+    const service = new AcpService(
+      { dataDir: root } as EnvConfig,
+      () => ({
+        totalSessions: 0,
+        recentSessionIds: [],
+      }),
+      () => [],
+    );
+    const secret = "token=abc123 /private/operator/credentials.json";
+    try {
+      vi.spyOn(service, "initializeProtocol").mockRejectedValue(
+        new Error(secret),
+      );
+      vi.spyOn(service, "newProtocolSession").mockRejectedValue(secret);
+      expect(await service.probe()).toEqual({
+        ok: false,
+        detail: "ACP probe failed.",
+      });
+      expect(service.status().lastError).toBe("ACP probe failed.");
+      expect(await service.invoke("hello")).toEqual({
+        ok: false,
+        output: "ACP invocation failed.",
+      });
+      expect(service.status().lastError).toBe("ACP invocation failed.");
+      expect(JSON.stringify(service.status())).not.toContain(secret);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
   it("publishes a registry and exposes ACP-style tools", async () => {
     const root = mkdtempSync(join(tmpdir(), "doolittle-acp-"));
     const fixturePath = fileURLToPath(

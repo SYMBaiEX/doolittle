@@ -160,13 +160,8 @@ export async function handleSettingsExecutionRoutes(
               )
             : await context.services.executionApprovals.deny(approvalAction.id);
         return json({ approval });
-      } catch (error) {
-        return json(
-          {
-            error: error instanceof Error ? error.message : String(error),
-          },
-          409,
-        );
+      } catch {
+        return json({ error: "Execution approval could not be updated." }, 409);
       }
     }
   }
