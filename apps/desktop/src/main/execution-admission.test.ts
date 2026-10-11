@@ -1,3 +1,12 @@
+import {
+  mkdirSync,
+  mkdtempSync,
+  realpathSync,
+  rmSync,
+  symlinkSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { DesktopExecutionAdmission } from "./execution-admission";
 
@@ -94,6 +103,56 @@ describe("DesktopExecutionAdmission", () => {
         mutationRoot: "/other-worktree",
       }).accepted,
     ).toBe(true);
+  });
+
+  it("requires host-normalized absolute mutation roots for both admission paths", () => {
+    const admission = new DesktopExecutionAdmission();
+    for (const mutationRoot of [
+      "relative/path",
+      "/repo/../other",
+      "/repo\nchild",
+    ]) {
+      const input = {
+        botId: "bot",
+        runId: mutationRoot,
+        sessionId: "session",
+        kind: "foreground" as const,
+        mutationRoot,
+      };
+      expect(() => admission.claim(input)).toThrow(TypeError);
+      expect(() => admission.acquire(input)).toThrow(TypeError);
+    }
+    expect(admission.list()).toHaveLength(0);
+  });
+
+  it("conflicts on a real symlink alias canonicalized by the host", () => {
+    const temp = mkdtempSync(join(tmpdir(), "doolittle-admission-"));
+    try {
+      const workspace = join(temp, "workspace");
+      const alias = join(temp, "alias");
+      mkdirSync(workspace);
+      symlinkSync(workspace, alias);
+      const admission = new DesktopExecutionAdmission();
+      const owner = admission.claim({
+        botId: "owner",
+        runId: "owner",
+        sessionId: "session",
+        kind: "foreground",
+        mutationRoot: realpathSync(workspace),
+      });
+      expect(owner.accepted).toBe(true);
+      expect(
+        admission.claim({
+          botId: "alias",
+          runId: "alias",
+          sessionId: "session",
+          kind: "foreground",
+          mutationRoot: realpathSync(alias),
+        }),
+      ).toEqual({ accepted: false, reason: "mutation_conflict" });
+    } finally {
+      rmSync(temp, { recursive: true, force: true });
+    }
   });
 
   it("bounds 50 bots without denying queued work and gives another bot a turn", async () => {

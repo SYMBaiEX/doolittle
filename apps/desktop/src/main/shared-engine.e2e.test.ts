@@ -8,7 +8,8 @@ import {
 } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
-import { isAbsolute, resolve } from "node:path";
+import { isAbsolute, relative, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
   type BackendLaunchTarget,
@@ -24,13 +25,102 @@ type ReadyBot = {
   getState(): { url?: string; agentId?: string; phase: string };
 };
 
+type LoopbackEndpoint = { readonly port: number };
+const UUID =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+
+function checkedId(value: string): string {
+  if (!UUID.test(value)) throw new Error("The test bot identity is invalid.");
+  return value;
+}
+
+function loopbackEndpoint(raw: string): LoopbackEndpoint {
+  const match = /^http:\/\/127\.0\.0\.1:([1-9][0-9]{0,4})$/u.exec(raw);
+  const port = Number(match?.[1]);
+  if (!Number.isInteger(port) || port < 1 || port > 65535)
+    throw new Error("The runtime did not provide a private loopback endpoint.");
+  return { port };
+}
+
+function localUrl(
+  endpoint: LoopbackEndpoint,
+  pathname: string,
+  search?: URLSearchParams,
+): URL {
+  const url = new URL("http://127.0.0.1/");
+  url.port = String(endpoint.port);
+  url.pathname = pathname;
+  if (search) url.search = search.toString();
+  return url;
+}
+
+async function localFetch(
+  endpoint: LoopbackEndpoint,
+  pathname: string,
+  init?: RequestInit,
+  search?: URLSearchParams,
+): Promise<Response> {
+  return fetch(localUrl(endpoint, pathname, search), {
+    ...init,
+    redirect: "error",
+  });
+}
+
+/** Protect backend/registry health probes and control calls too. */
+const runtimeFetch: typeof fetch = (async (
+  input: RequestInfo | URL,
+  init?: RequestInit,
+) => {
+  const requested = new URL(
+    input instanceof Request ? input.url : String(input),
+  );
+  const endpoint = loopbackEndpoint(requested.origin);
+  if (requested.username || requested.password || requested.hash)
+    throw new Error("The runtime request URL is invalid.");
+  const destination = localUrl(
+    endpoint,
+    requested.pathname,
+    requested.searchParams,
+  );
+  const request =
+    input instanceof Request ? new Request(destination, input) : destination;
+  return fetch(request, { ...init, redirect: "error" });
+}) as typeof fetch;
+
 /** Use staged app Resources/runtime, never the bin-only prepare output. */
 function testRuntimeTarget(): BackendLaunchTarget {
-  const configured = process.env.DOOLITTLE_SHARED_ENGINE_E2E_RUNTIME_ROOT;
-  if (!configured) return sourceRuntimeTarget(process.cwd());
-  if (!isAbsolute(configured))
-    throw new Error("Shared-engine e2e runtime root must be absolute.");
-  const runtimeRoot = realpathSync(configured);
+  const repoRoot = realpathSync(
+    fileURLToPath(new URL("../../../../", import.meta.url)),
+  );
+  const mode = process.env.DOOLITTLE_SHARED_ENGINE_E2E_TARGET ?? "source";
+  if (mode === "source") return sourceRuntimeTarget(repoRoot);
+  if (
+    mode !== "packaged" ||
+    process.platform !== "darwin" ||
+    process.arch !== "arm64"
+  )
+    throw new Error(
+      "Shared-engine e2e target must be source or macOS arm64 packaged.",
+    );
+  const runtimeRoot = realpathSync(
+    resolve(
+      repoRoot,
+      "apps",
+      "desktop",
+      "release",
+      "mac-arm64",
+      "Doolittle.app",
+      "Contents",
+      "Resources",
+      "runtime",
+    ),
+  );
+  const releaseRelative = relative(
+    resolve(repoRoot, "apps", "desktop", "release"),
+    runtimeRoot,
+  );
+  if (releaseRelative.startsWith("..") || isAbsolute(releaseRelative))
+    throw new Error("Staged runtime escaped the repository release directory.");
   const entry = resolve(runtimeRoot, "bin", "doolittle-runtime.mjs");
   const manifest = resolve(runtimeRoot, "bin", "runtime-manifest.json");
   const skills = resolve(runtimeRoot, "packages", "skills");
@@ -55,16 +145,19 @@ function testRuntimeTarget(): BackendLaunchTarget {
   };
 }
 
-function urlOf(bot: ReadyBot): string {
+function endpointOf(bot: ReadyBot): LoopbackEndpoint {
   const state = bot.getState();
   expect(state.phase).toBe("ready");
-  expect(state.url).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/u);
   if (!state.url) throw new Error("Shared engine URL was not returned.");
-  return state.url;
+  return loopbackEndpoint(state.url);
 }
 
-async function jsonAt<T>(url: string): Promise<T> {
-  const response = await fetch(url);
+async function jsonAt<T>(
+  endpoint: LoopbackEndpoint,
+  pathname: string,
+  search?: URLSearchParams,
+): Promise<T> {
+  const response = await localFetch(endpoint, pathname, undefined, search);
   expect(response.status, await response.clone().text()).toBe(200);
   return response.json() as Promise<T>;
 }
@@ -94,45 +187,58 @@ describe.skipIf(process.env.DOOLITTLE_SHARED_ENGINE_E2E !== "1")(
         mkdirSync(path, { recursive: true, mode: 0o700 });
 
       const admission = new DesktopExecutionAdmission();
-      const lead = new BackendManager(target, leadData, leadWorkspace, fetch, {
-        sharedEngine: true,
-        hostRpcBotId: "default",
-        isolatedEnvironment: {
-          PATH: process.env.PATH ?? "",
-          HOME: leadData,
-          USERPROFILE: leadData,
-          ELIZA_HOME: leadData,
-          LANG: "C.UTF-8",
-          DOOLITTLE_OFFLINE_BOOTSTRAP: "true",
-          DOOLITTLE_USE_LINKED_DEVIN_AUTH: "false",
-          DOOLITTLE_ENGINE_DIAGNOSTICS: "1",
-          ...(target.environment?.ELECTRON_RUN_AS_NODE
-            ? { ELECTRON_RUN_AS_NODE: target.environment.ELECTRON_RUN_AS_NODE }
-            : {}),
+      const lead = new BackendManager(
+        target,
+        leadData,
+        leadWorkspace,
+        runtimeFetch,
+        {
+          sharedEngine: true,
+          hostRpcBotId: "default",
+          isolatedEnvironment: {
+            PATH: process.env.PATH ?? "",
+            HOME: leadData,
+            USERPROFILE: leadData,
+            ELIZA_HOME: leadData,
+            LANG: "C.UTF-8",
+            DOOLITTLE_OFFLINE_BOOTSTRAP: "true",
+            DOOLITTLE_USE_LINKED_DEVIN_AUTH: "false",
+            DOOLITTLE_ENGINE_DIAGNOSTICS: "1",
+            ...(target.environment?.ELECTRON_RUN_AS_NODE
+              ? {
+                  ELECTRON_RUN_AS_NODE: target.environment.ELECTRON_RUN_AS_NODE,
+                }
+              : {}),
+          },
+          workerHostHandler: async (request, signal) => {
+            if (
+              request.operation !== "execution.claim" &&
+              request.operation !== "execution.release"
+            )
+              throw new Error("The lead host operation is unavailable.");
+            return admission.handle(
+              "default",
+              request.operation,
+              request.payload,
+              {},
+              signal,
+            );
+          },
+          workerHostOnAbandonedResult: (request, result) =>
+            releaseAbandonedExecutionClaim(
+              admission,
+              "default",
+              request,
+              result,
+            ),
         },
-        workerHostHandler: async (request, signal) => {
-          if (
-            request.operation !== "execution.claim" &&
-            request.operation !== "execution.release"
-          )
-            throw new Error("The lead host operation is unavailable.");
-          return admission.handle(
-            "default",
-            request.operation,
-            request.payload,
-            {},
-            signal,
-          );
-        },
-        workerHostOnAbandonedResult: (request, result) =>
-          releaseAbandonedExecutionClaim(admission, "default", request, result),
-      });
+      );
       const registry = new BotProcessRegistry(
         target,
         catalogData,
         lead,
         leadWorkspace,
-        { admission },
+        { admission, runtimeFetch },
       );
       try {
         const leadState = await lead.start();
@@ -150,11 +256,13 @@ describe.skipIf(process.env.DOOLITTLE_SHARED_ENGINE_E2E !== "1")(
           workspacePath: workspaceB,
           model: { provider: "offline", model: "offline" },
         });
+        const firstId = checkedId(first.id);
+        const secondId = checkedId(second.id);
         const [botA, botB] = await Promise.all([
-          registry.backendFor(first.id),
-          registry.backendFor(second.id),
+          registry.backendFor(firstId),
+          registry.backendFor(secondId),
         ]).catch((error: unknown) => {
-          const loggedBots = [first.id, second.id].filter((id) =>
+          const loggedBots = [firstId, secondId].filter((id) =>
             existsSync(
               resolve(catalogData, "bots", id, "logs", "doolittle.jsonl"),
             ),
@@ -166,8 +274,8 @@ describe.skipIf(process.env.DOOLITTLE_SHARED_ENGINE_E2E !== "1")(
         });
         expect(botA).toBeInstanceOf(EngineBotBackend);
         expect(botB).toBeInstanceOf(EngineBotBackend);
-        const [urlA, urlB] = [urlOf(botA), urlOf(botB)];
-        expect(urlA).not.toBe(urlB);
+        const [endpointA, endpointB] = [endpointOf(botA), endpointOf(botB)];
+        expect(endpointA.port).not.toBe(endpointB.port);
         type RuntimeIdentity = {
           botId: string;
           agentId: string;
@@ -175,9 +283,9 @@ describe.skipIf(process.env.DOOLITTLE_SHARED_ENGINE_E2E !== "1")(
           threadId: number;
         };
         const [leadIdentity, identityA, identityB] = await Promise.all([
-          jsonAt<RuntimeIdentity>(`${urlOf(lead)}/runtime/bot-identity`),
-          jsonAt<RuntimeIdentity>(`${urlA}/runtime/bot-identity`),
-          jsonAt<RuntimeIdentity>(`${urlB}/runtime/bot-identity`),
+          jsonAt<RuntimeIdentity>(endpointOf(lead), "/runtime/bot-identity"),
+          jsonAt<RuntimeIdentity>(endpointA, "/runtime/bot-identity"),
+          jsonAt<RuntimeIdentity>(endpointB, "/runtime/bot-identity"),
         ]);
         for (const identity of [leadIdentity, identityA, identityB]) {
           expect(Number.isInteger(identity.processId)).toBe(true);
@@ -191,25 +299,32 @@ describe.skipIf(process.env.DOOLITTLE_SHARED_ENGINE_E2E !== "1")(
         expect(identityA.processId).toBe(leadIdentity.processId);
         expect(identityB.processId).toBe(leadIdentity.processId);
         expect(identityA).toMatchObject({
-          botId: first.id,
+          botId: firstId,
           agentId: first.agentId,
         });
         expect(identityB).toMatchObject({
-          botId: second.id,
+          botId: secondId,
           agentId: second.agentId,
         });
         expect(identityA.agentId).not.toBe(identityB.agentId);
         for (const [ownUrl, otherId] of [
-          [urlA, second.id],
-          [urlB, first.id],
-        ]) {
+          [endpointA, secondId],
+          [endpointB, firstId],
+        ] as const) {
           expect(
-            (await fetch(`${ownUrl}/runtime/bots/${otherId}`)).status,
+            (
+              await localFetch(
+                ownUrl,
+                `/runtime/bots/${encodeURIComponent(otherId)}`,
+              )
+            ).status,
           ).toBe(404);
           expect(
             (
               await jsonAt<{ botId: string }>(
-                `${ownUrl}/runtime/bot-identity?botId=${otherId}`,
+                ownUrl,
+                "/runtime/bot-identity",
+                new URLSearchParams({ botId: otherId }),
               )
             ).botId,
           ).not.toBe(otherId);
@@ -217,14 +332,15 @@ describe.skipIf(process.env.DOOLITTLE_SHARED_ENGINE_E2E !== "1")(
 
         const turn = async (
           botId: string,
-          baseUrl: string,
+          endpoint: LoopbackEndpoint,
           workspaceDir: string,
           marker: string,
         ) => {
+          checkedId(botId);
           const sessionId = `session-${randomUUID()}`;
           const runId = `run-${randomUUID()}`;
           registry.bindConversation(botId, sessionId);
-          const response = await fetch(`${baseUrl}/chat/runs`, {
+          const response = await localFetch(endpoint, "/chat/runs", {
             method: "POST",
             headers: { "content-type": "application/json" },
             body: JSON.stringify({
@@ -245,7 +361,7 @@ describe.skipIf(process.env.DOOLITTLE_SHARED_ENGINE_E2E !== "1")(
           while (Date.now() < deadline) {
             const payload = await jsonAt<{
               run: { runId: string; botId: string; status: string };
-            }>(`${baseUrl}/chat/runs/${runId}`);
+            }>(endpoint, `/chat/runs/${encodeURIComponent(runId)}`);
             expect(payload.run).toMatchObject({ runId, botId });
             if (
               ["complete", "cancelled", "error"].includes(payload.run.status)
@@ -260,53 +376,60 @@ describe.skipIf(process.env.DOOLITTLE_SHARED_ENGINE_E2E !== "1")(
         const markerA = `Offline-A-${randomUUID()}`;
         const markerB = `Offline-B-${randomUUID()}`;
         const [runA, runB] = await Promise.all([
-          turn(first.id, urlA, workspaceA, markerA),
-          turn(second.id, urlB, workspaceB, markerB),
+          turn(firstId, endpointA, workspaceA, markerA),
+          turn(secondId, endpointB, workspaceB, markerB),
         ]);
         const history = async (
-          baseUrl: string,
+          endpoint: LoopbackEndpoint,
           sessionId: string,
           runId: string,
         ) =>
           jsonAt<{ messages: Array<{ role: string; text: string }> }>(
-            `${baseUrl}/sessions/messages?sessionId=${sessionId}&throughRunId=${runId}`,
+            endpoint,
+            "/sessions/messages",
+            new URLSearchParams({ sessionId, throughRunId: runId }),
           );
         expect(
-          (await history(urlA, runA.sessionId, runA.runId)).messages.some(
+          (await history(endpointA, runA.sessionId, runA.runId)).messages.some(
             (entry) => entry.role === "user" && entry.text.includes(markerA),
           ),
         ).toBe(true);
         expect(
-          (await history(urlB, runB.sessionId, runB.runId)).messages.some(
+          (await history(endpointB, runB.sessionId, runB.runId)).messages.some(
             (entry) => entry.role === "user" && entry.text.includes(markerB),
           ),
         ).toBe(true);
         const bRuns = await jsonAt<{ runs: Array<{ runId: string }> }>(
-          `${urlB}/chat/runs?limit=20`,
+          endpointB,
+          "/chat/runs",
+          new URLSearchParams({ limit: "20" }),
         );
         expect(bRuns.runs.some((entry) => entry.runId === runA.runId)).toBe(
           false,
         );
 
-        await registry.stop(first.id);
-        expect((await fetch(`${urlB}/health`)).status).toBe(200);
-        expect(urlOf(await registry.backendFor(second.id))).toBe(urlB);
-        const restartedA = await registry.backendFor(first.id);
+        await registry.stop(firstId);
+        expect((await localFetch(endpointB, "/health")).status).toBe(200);
+        expect(endpointOf(await registry.backendFor(secondId)).port).toBe(
+          endpointB.port,
+        );
+        const restartedA = await registry.backendFor(firstId);
         expect(
           await jsonAt<{ botId: string; agentId: string }>(
-            `${urlOf(restartedA)}/runtime/bot-identity`,
+            endpointOf(restartedA),
+            "/runtime/bot-identity",
           ),
-        ).toMatchObject({ botId: first.id, agentId: first.agentId });
+        ).toMatchObject({ botId: firstId, agentId: first.agentId });
         expect(
           (
-            await history(urlOf(restartedA), runA.sessionId, runA.runId)
+            await history(endpointOf(restartedA), runA.sessionId, runA.runId)
           ).messages.some(
             (entry) => entry.role === "user" && entry.text.includes(markerA),
           ),
         ).toBe(true);
-        expect((await fetch(`${urlB}/health`)).status).toBe(200);
+        expect((await localFetch(endpointB, "/health")).status).toBe(200);
         expect(
-          (await history(urlB, runB.sessionId, runB.runId)).messages.some(
+          (await history(endpointB, runB.sessionId, runB.runId)).messages.some(
             (entry) => entry.role === "user" && entry.text.includes(markerB),
           ),
         ).toBe(true);

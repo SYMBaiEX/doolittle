@@ -266,7 +266,9 @@ export function findPackagedRuntime(
 export function sourceRuntimeTarget(repoRoot: string): BackendLaunchTarget {
   return {
     executable: resolveNubExecutable(repoRoot),
-    args: ["packages/agent/src/index.ts", "api"],
+    // Lead and worker isolates must load the same built entry. Nub's source
+    // resolver is process-local and does not cross Node worker boundaries.
+    args: ["dist/index.js", "api"],
     repoRoot,
   };
 }
@@ -457,20 +459,6 @@ export class BackendManager {
     if (this.options.sharedEngine) {
       environment.DOOLITTLE_SHARED_ENGINE = "1";
       delete environment.DOOLITTLE_ENGINE_WORKER_ENTRY;
-      // Nub's source resolver does not cross Node worker isolate boundaries.
-      // Source development builds the same agent bundle used by worker entry.
-      if (this.target.args[0]?.endsWith(".ts")) {
-        const workerEntry = resolve(this.target.repoRoot, "dist", "index.js");
-        if (!existsSync(workerEntry)) {
-          this.update({
-            phase: "degraded",
-            message: "Build the shared engine before starting the desktop.",
-            detail: "Run nub run build to prepare the source worker entry.",
-          });
-          return this.getState();
-        }
-        environment.DOOLITTLE_ENGINE_WORKER_ENTRY = workerEntry;
-      }
     }
     if (this.options.hostRpcBotId) {
       environment.DOOLITTLE_HOST_BOT_ID = this.options.hostRpcBotId;

@@ -1,5 +1,4 @@
 import { randomUUID } from "node:crypto";
-import { existsSync, realpathSync } from "node:fs";
 import { availableParallelism } from "node:os";
 import { isAbsolute, relative, resolve } from "node:path";
 
@@ -58,15 +57,27 @@ function boundedInteger(value: number, name: string, maximum: number): number {
     throw new RangeError(`${name} must be an integer from 1 to ${maximum}.`);
   return value;
 }
-function canonicalRoot(root: string | undefined): string | undefined {
-  return root
-    ? existsSync(root)
-      ? realpathSync(root)
-      : resolve(root)
-    : undefined;
+function hasControlCharacter(value: string): boolean {
+  for (let index = 0; index < value.length; index++) {
+    const code = value.charCodeAt(index);
+    if (code <= 0x1f || (code >= 0x7f && code <= 0x9f)) return true;
+  }
+  return false;
+}
+function validatedRoot(root: string | undefined): string | undefined {
+  if (root === undefined) return undefined;
+  if (!isAbsolute(root) || hasControlCharacter(root) || resolve(root) !== root)
+    throw new TypeError(
+      "Mutation root must be an absolute, normalized host path.",
+    );
+  return root;
 }
 
-/** Process-wide admission; a detached UI subscriber never frees an execution. */
+/**
+ * Process-wide admission; a detached UI subscriber never frees an execution.
+ * The host must realpath mutation roots before calling claim() or acquire().
+ * Admission only compares already authorized paths and never reads the filesystem.
+ */
 export class DesktopExecutionAdmission {
   private readonly leases = new Map<string, ExecutionAdmissionLease>();
   private readonly pending = new Map<string, PendingClaim[]>();
@@ -156,7 +167,7 @@ export class DesktopExecutionAdmission {
   claim(input: ClaimInput): ExecutionAdmissionResult {
     const normalized = {
       ...input,
-      mutationRoot: canonicalRoot(input.mutationRoot),
+      mutationRoot: validatedRoot(input.mutationRoot),
     };
     return this.check(normalized) ?? this.grant(normalized);
   }
@@ -168,7 +179,7 @@ export class DesktopExecutionAdmission {
     if (options.signal?.aborted) return Promise.reject(this.abortError());
     const normalized = {
       ...input,
-      mutationRoot: canonicalRoot(input.mutationRoot),
+      mutationRoot: validatedRoot(input.mutationRoot),
     };
     if (
       [...this.leases.values()].some((lease) => lease.runId === input.runId) ||

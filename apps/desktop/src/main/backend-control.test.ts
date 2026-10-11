@@ -1,6 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
-import { BackendManager } from "./backend";
+import { BackendManager, sourceRuntimeTarget } from "./backend";
 import { EngineBotBackend } from "./engine-bot-backend";
+
+it("uses the same bundled entry for a source lead and its worker isolates", () => {
+  expect(sourceRuntimeTarget(process.cwd()).args).toEqual([
+    "dist/index.js",
+    "api",
+  ]);
+});
 
 describe.each(["lead", "named"] as const)("%s emergency control", (kind) => {
   function fixture() {
