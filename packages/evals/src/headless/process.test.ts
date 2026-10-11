@@ -102,23 +102,48 @@ describe("bounded headless child execution", () => {
       const directory = tempDirectory();
       const markerPath = join(directory, "independent-descendant-survived.txt");
       const parent = `
+        console.log(process.pid);
         const descendant = 'process.on("SIGTERM", () => {}); process.send("ready"); setTimeout(() => require("node:fs").writeFileSync(process.env.DOOLITTLE_HEADLESS_TEST_MARKER, "survived"), 700); setInterval(() => {}, 1000);';
         const child = require("node:child_process").spawn(process.execPath, ["-e", descendant], {stdio:["ignore","ignore","ignore","ipc"]});
-        child.on("message", () => { console.log(process.pid); child.disconnect(); });
+        child.on("message", () => { console.log("ready"); child.disconnect(); });
         setInterval(() => {}, 1000);
       `;
       let ownedPid: number | undefined;
+      let output = "";
+      let terminationSent = false;
+      let signalError: unknown;
       try {
         const result = await executeHeadlessChild(execPath, ["-e", parent], {
           cwd: directory,
           env: { ...process.env, DOOLITTLE_HEADLESS_TEST_MARKER: markerPath },
-          timeoutMs: 250,
+          timeoutMs: 5_000,
           killGraceMs: 50,
           onStdoutChunk: (chunk) => {
-            ownedPid = Number(chunk.toString("utf8").trim());
+            output += chunk.toString("utf8");
+            let newline = output.indexOf("\n");
+            while (newline !== -1) {
+              const line = output.slice(0, newline).trim();
+              output = output.slice(newline + 1);
+              if (/^\d+$/u.test(line) && ownedPid === undefined)
+                ownedPid = Number(line);
+              if (line === "ready" && ownedPid && !terminationSent) {
+                terminationSent = true;
+                try {
+                  // The descendant has installed its TERM handler. Closing
+                  // only the parent exercises group TERM then KILL escalation.
+                  process.kill(ownedPid, "SIGTERM");
+                } catch (error) {
+                  signalError = error;
+                }
+              }
+              newline = output.indexOf("\n");
+            }
           },
         });
         expect(ownedPid).toBeGreaterThan(0);
+        expect(terminationSent).toBe(true);
+        expect(signalError).toBeUndefined();
+        expect(result.error).toBeUndefined();
         expect(result.cleanupSafe).toBe(true);
         expect(() => process.kill(-(ownedPid as number), 0)).toThrow();
         await new Promise((resolve) => setTimeout(resolve, 750));
