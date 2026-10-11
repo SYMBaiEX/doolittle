@@ -1,7 +1,7 @@
 export interface ElizaWorkspaceCompatibilityPackage {
   packageName: `@elizaos/${string}`;
   packagePath: string;
-  kind: "resolver-shim";
+  kind: "compatibility-contract";
   allowedVersion: string;
   upstreamVersion: string;
   requiredExports: string[];
@@ -16,53 +16,31 @@ export function normalizeCompatibilityPackagePath(path: string): string {
 /**
  * Deliberate local packages that occupy an upstream ElizaOS package name.
  *
- * These entries are runtime compatibility boundaries, not ordinary Doolittle
+ * These entries are SDK compatibility boundaries, not ordinary Doolittle
  * workspaces. Keeping the ownership and required exports executable prevents
  * an SDK-alignment check from hiding a patch or a cleanup from deleting a
- * resolver shim that the packaged desktop runtime still needs.
+ * compatibility contract that the packaged desktop runtime still needs.
  */
 export const ELIZA_WORKSPACE_COMPATIBILITY: readonly ElizaWorkspaceCompatibilityPackage[] =
   [
     {
-      packageName: "@elizaos/app-training",
-      packagePath: "packages/app-training/package.json",
-      kind: "resolver-shim",
-      allowedVersion: "2.0.3-beta.7",
-      upstreamVersion: "2.0.3-beta.7",
-      requiredExports: ["."],
-      consumers: ["root dependency resolution"],
-      reason:
-        "Keeps the beta workspace package resolvable without vendoring unpublished source.",
-    },
-    {
-      packageName: "@elizaos/cloud-shared",
-      packagePath: "packages/cloud-shared/package.json",
-      kind: "resolver-shim",
-      allowedVersion: "2.0.3-beta.7",
-      upstreamVersion: "2.0.3-beta.7",
-      requiredExports: ["."],
-      consumers: ["root dependency resolution"],
-      reason:
-        "Provides the beta cloud shared module boundary used by linked workspaces.",
-    },
-    {
       packageName: "@elizaos/plugin-remote-manifest",
       packagePath: "packages/plugin-remote-manifest/package.json",
-      kind: "resolver-shim",
+      kind: "compatibility-contract",
       allowedVersion: "2.0.3-beta.7",
       upstreamVersion: "2.0.3-beta.7",
       requiredExports: ["."],
-      consumers: ["Eliza plugin loading compatibility"],
+      consumers: ["Eliza remote plugin bridge types"],
       reason:
-        "Supplies the remote-manifest contract missing from the published beta runtime.",
+        "Supplies the remote-manifest message type without a false runtime export.",
     },
     {
       packageName: "@elizaos/plugin-worker-runtime",
       packagePath: "packages/plugin-worker-runtime/package.json",
-      kind: "resolver-shim",
+      kind: "compatibility-contract",
       allowedVersion: "2.0.3-beta.7",
       upstreamVersion: "2.0.3-beta.7",
-      requiredExports: [".", "./error"],
+      requiredExports: ["./error"],
       consumers: ["Eliza plugin worker compatibility"],
       reason:
         "Preserves the beta worker error wire contract and module resolution surface.",
@@ -70,11 +48,10 @@ export const ELIZA_WORKSPACE_COMPATIBILITY: readonly ElizaWorkspaceCompatibility
     {
       packageName: "@elizaos/registry",
       packagePath: "packages/registry/package.json",
-      kind: "resolver-shim",
+      kind: "compatibility-contract",
       allowedVersion: "2.0.3-beta.7",
       upstreamVersion: "2.0.3-beta.7",
       requiredExports: [
-        ".",
         "./first-party/channel-plugin-map.json",
         "./first-party/curated-app-definitions.json",
       ],

@@ -1,0 +1,74 @@
+diff --git a/utils/atomic-json.js b/utils/atomic-json.js
+--- a/utils/atomic-json.js
++++ b/utils/atomic-json.js
+@@ -8,9 +8,10 @@
+  *   - mode 0o600 on the written file (secret-grade)
+  *   - dir mode 0o700 when the parent has to be created
+  *   - JSON 2-space indent, no trailing newline
+- *   - tmp filename `${filePath}.tmp-${pid}-${Date.now()}` (multi-process safe)
++ *   - exclusive tmp filename `${filePath}.tmp-${pid}-${randomUUID()}`
+  *   - parent directory created with mkdir recursive
+  *
+  * On failure, the temp file is best-effort removed.
+  */
++import { randomUUID } from "node:crypto";
+ import fs from "node:fs";
+ import fsp from "node:fs/promises";
+ import path from "node:path";
+@@ -25,7 +26,7 @@ function normalizeOptions(opts) {
+     };
+ }
+ function tmpPathFor(filePath) {
+-    return `${filePath}.tmp-${process.pid}-${Date.now()}`;
++    return `${filePath}.tmp-${process.pid}-${randomUUID()}`;
+ }
+@@ -43,15 +44,21 @@ export async function writeJsonAtomic(filePath, value, opts) {
+     }
+     const tmp = tmpPathFor(filePath);
++    let owned = false;
+     try {
+-        await fsp.writeFile(tmp, serialize(value, o), {
+-            encoding: "utf-8",
+-            mode: o.mode,
+-        });
++        const handle = await fsp.open(tmp, "wx", o.mode);
++        owned = true;
++        try {
++            await handle.writeFile(serialize(value, o), "utf-8");
++        }
++        finally {
++            await handle.close();
++        }
+         await fsp.rename(tmp, filePath);
+     }
+     finally {
+-        await fsp.rm(tmp, { force: true }).catch(() => { });
++        if (owned)
++            await fsp.rm(tmp, { force: true }).catch(() => { });
+     }
+ }
+@@ -63,19 +70,25 @@ export function writeJsonAtomicSync(filePath, value, opts) {
+     }
+     const tmp = tmpPathFor(filePath);
++    let owned = false;
+     try {
+-        fs.writeFileSync(tmp, serialize(value, o), {
+-            encoding: "utf-8",
+-            mode: o.mode,
+-        });
++        const fd = fs.openSync(tmp, "wx", o.mode);
++        owned = true;
++        try {
++            fs.writeFileSync(fd, serialize(value, o), "utf-8");
++        }
++        finally {
++            fs.closeSync(fd);
++        }
+         fs.renameSync(tmp, filePath);
+     }
+     finally {
+-        if (fs.existsSync(tmp))
++        if (owned && fs.existsSync(tmp))
+             fs.rmSync(tmp, { force: true });
+     }
+ }

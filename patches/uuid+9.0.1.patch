@@ -1,0 +1,36 @@
+diff --git a/dist/v35.js b/dist/v35.js
+--- a/dist/v35.js
++++ b/dist/v35.js
+@@ -59,1 +59,4 @@
+-      offset = offset || 0;
++      offset = offset === undefined ? 0 : offset;
++      if (!Number.isSafeInteger(offset) || offset < 0 || !Number.isSafeInteger(buf.length) || offset + 16 > buf.length) {
++        throw new RangeError('UUID buffer offset is out of bounds');
++      }
+diff --git a/dist/esm-node/v35.js b/dist/esm-node/v35.js
+--- a/dist/esm-node/v35.js
++++ b/dist/esm-node/v35.js
+@@ -45,1 +45,4 @@
+-      offset = offset || 0;
++      offset = offset === undefined ? 0 : offset;
++      if (!Number.isSafeInteger(offset) || offset < 0 || !Number.isSafeInteger(buf.length) || offset + 16 > buf.length) {
++        throw new RangeError('UUID buffer offset is out of bounds');
++      }
+diff --git a/dist/esm-browser/v35.js b/dist/esm-browser/v35.js
+--- a/dist/esm-browser/v35.js
++++ b/dist/esm-browser/v35.js
+@@ -45,1 +45,4 @@
+-      offset = offset || 0;
++      offset = offset === undefined ? 0 : offset;
++      if (!Number.isSafeInteger(offset) || offset < 0 || !Number.isSafeInteger(buf.length) || offset + 16 > buf.length) {
++        throw new RangeError('UUID buffer offset is out of bounds');
++      }
+diff --git a/dist/commonjs-browser/v35.js b/dist/commonjs-browser/v35.js
+--- a/dist/commonjs-browser/v35.js
++++ b/dist/commonjs-browser/v35.js
+@@ -59,1 +59,4 @@
+-      offset = offset || 0;
++      offset = offset === undefined ? 0 : offset;
++      if (!Number.isSafeInteger(offset) || offset < 0 || !Number.isSafeInteger(buf.length) || offset + 16 > buf.length) {
++        throw new RangeError('UUID buffer offset is out of bounds');
++      }

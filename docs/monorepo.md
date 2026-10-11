@@ -15,7 +15,7 @@ Doolittle is organized as a Nub workspace monorepo running on stock Node.js.
 | `packages/characters` | Character and persona data loaded by Eliza. |
 | `packages/skills` | Curated and generated native skill documents. See the [skills index](../packages/skills/index.md). |
 | `packages/skill-packs-optional` | Optional native skill documents kept outside the default curated tier. |
-| `packages/app-training`, `packages/cloud-shared`, `packages/plugin-remote-manifest`, `packages/plugin-worker-runtime`, `packages/registry` | Explicit resolver shims for packages not published on the pinned beta train. They are guarded by the SDK release check and are not product-owned replacements for Eliza. |
+| `packages/plugin-remote-manifest`, `packages/plugin-worker-runtime`, `packages/registry` | Narrow compatibility workspaces for an SDK bridge type, worker error wire helpers, and curated registry JSON. They expose only used contracts and are guarded by the SDK release check. |
 
 ## Boundary rules
 

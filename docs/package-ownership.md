@@ -1,6 +1,6 @@
 # Package Ownership and Eliza Migration Status
 
-Last reviewed: September 25, 2026
+Last reviewed: October 11, 2026
 
 This is the package-level companion to the runtime
 [plugin inventory](plugin-inventory.md). Each workspace is classified by why it
@@ -21,11 +21,9 @@ pinned `2.0.3-beta.7` train.
 | `packages/plugins/plugin-claude-code` | Provider fallback | Keep narrow | Official `@elizaos/plugin-anthropic` owns linked OAuth inference, account-pool rotation, native tools, structured responses, streaming, and prompt caching. This package retains only schema-constrained local Claude CLI fallback with nested-tool suppression, which the pinned official CLI mode does not expose. |
 | `packages/plugins/plugin-devin` | Provider gap | Keep for now | Adapts the sanctioned Devin CLI; no official Eliza Devin provider exists on the pinned release. |
 | `packages/plugins/provider-transport` | Shared Doolittle adapter | Keep while used | Down-converts Eliza generation inputs only for the remaining custom Claude Code and Devin transports. |
-| `packages/app-training` | Resolver shim | Temporary | Exact beta package is unpublished. The SDK release gate declares and validates the shim. |
-| `packages/cloud-shared` | Resolver shim | Temporary | Exact beta package is unpublished. The SDK release gate declares and validates the shim. |
-| `packages/plugin-remote-manifest` | Resolver shim | Temporary | Exact beta package is unpublished. The SDK release gate declares and validates the shim. |
-| `packages/plugin-worker-runtime` | Resolver shim | Temporary | Exact beta package is unpublished. The SDK release gate declares and validates its public error contract. |
-| `packages/registry` | Resolver shim | Temporary | Supplies curated registry JSON subpaths required by desktop packaging until the exact beta artifact is public. |
+| `packages/plugin-remote-manifest` | Type compatibility | Temporary | Exposes the SDK bridge's `RemotePluginWorkerMessage` type only; there is no runtime root export. |
+| `packages/plugin-worker-runtime` | Runtime compatibility | Temporary | Exposes the worker error wire contract at `./error`; there is no empty root export. |
+| `packages/registry` | Data compatibility | Temporary | Exposes curated registry JSON subpaths required by the SDK and desktop packaging; there is no empty root export. |
 | `packages/skills` | Eliza skill assets | Native data | Skill manifests are consumed by official `@elizaos/skills` and Agent Skills services. |
 | `packages/skill-packs-optional` | Distribution assets | Keep | Optional curated skill content; installation and catalog lifecycle remain Eliza-owned. |
 
@@ -72,11 +70,15 @@ gateway, skill, or runtime-service ownership. See
   route-type union with the official `@elizaos/ui` `ElizaClient` plus a narrow,
   structured-clone-safe Electron `AgentRequestTransport` adapter. Non-streaming
   API failures now retain native Eliza `ApiError` metadata.
+- Removed unused `app-training` and `cloud-shared` placeholders. Doolittle's
+  desktop imports only leaf `@elizaos/ui` controls and API client modules, not
+  its cloud screens; the unused `@elizaos/ui` to `@elizaos/cloud-shared`
+  dependency is excluded from the resolved graph.
 
 ## Enforcement
 
 `nub run check:eliza-sdk` scans every workspace manifest, enforces the exact
 official package train, rejects undeclared local packages in the `@elizaos/*`
-namespace, checks installed versions, and validates the five resolver-shim
-exports. `nub run check:plugin-boundaries` guards runtime ownership and prevents
+namespace, checks installed versions, and validates the three remaining
+compatibility contracts. `nub run check:plugin-boundaries` guards runtime ownership and prevents
 retired custom SDK facades from returning.
