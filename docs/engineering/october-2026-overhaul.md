@@ -21,8 +21,8 @@ resource ownership, reduced motion and interruptibility.
 | C: fast development loop | developer_workflow; scripts/config/CI/AGENTS, provider readiness, lock metadata | Current test inventory | Related/watch + essential checks; one timed run | Complete |
 | D: real product dogfood | integration owner; existing CLI/API | Existing runnable product, then B | Bounded repository tasks with actual receipts | Complete; external launcher limit recorded below |
 | E: safe debloat | repository_debloat; unused sources/docs/tests outside B/F | C retained-check list; traced references | Recoverable deletions with concise inventory | Complete |
-| F: crafted liquid interface | liquid_product_ui; UI package + desktop renderer | Existing interface design | Reusable motion/materials; focused UI check | Complete; native visual spot-check at G |
-| G: integration + local release | integration owner; release/build artifacts | B, C, E, F | One integration milestone, committed runnable build, local install | Packaging/install in progress |
+| F: crafted liquid interface | liquid_product_ui; UI package + desktop renderer | Existing interface design | Reusable motion/materials; focused UI check | Complete; native visual spot-check passed |
+| G: integration + local release | integration owner; release/build artifacts | B, C, E, F | One integration milestone, committed runnable build, local install | Complete; local macOS delivery |
 
 A feeds B; C feeds E; D feeds B. B, C, E and F converge at G. Owners share a
 checkout with disjoint edit boundaries; conflicting ownership must be resolved
@@ -130,3 +130,31 @@ external delegation is not certified working. The large outer completion tree
 still merits extraction, and live long-session compaction, mid-run embedding
 outage recovery, Windows/Linux packaging and assistive-technology review remain
 unverified.
+
+### Local delivery
+
+Implementation commit: `be630e873e73ac44c19caa71acae6eebf1dd01e8`, on
+`sym/october-2026-lean-overhaul`. This record is updated after delivery without
+changing the packaged implementation.
+
+The clean committed source produced a verified macOS arm64 directory package.
+The agent build, desktop main/preload/renderer build, renderer budget and embedded
+runtime preparation passed. Package verification reported a 29.6 MiB app archive,
+16 packaged modules, 474 complete artifact dependencies and four native runtime
+packages. The standard transactional local installer completed with ad-hoc
+signing, not a notarized public release.
+
+Installed location: `/Applications/Doolittle.app`. Built and installed
+`app.asar` SHA-256 both equal
+`333ad4b352f24266f9c82907565ab408e9b9aee65fdc506db2e10081a842e8b3`.
+`codesign --verify --deep --strict` passed. The previous app was copied to
+`/Users/symbiex/.local/state/doolittle/local-install/october-2026-czZNaj/Doolittle-before-overhaul.app`
+before replacement, independently of the installer's temporary rollback copy.
+
+The installed native app launched and reached Ready. Native UI inspection
+confirmed the centered new-chat composer, readable existing conversation bubbles,
+inspector open/close, floating project menu and Escape dismissal. A real installed
+chat turn returned the requested short response and reached Complete; the
+composer then docked at the bottom. The app is left open for hands-on use. This
+is a native macOS spot-check, not an animation frame-rate, VoiceOver,
+cross-platform or full-suite certification.
