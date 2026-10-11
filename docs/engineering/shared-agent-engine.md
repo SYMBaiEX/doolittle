@@ -52,6 +52,12 @@ continuing. See `apps/desktop/src/main/execution-capacity.ts`,
 `apps/desktop/src/main/execution-admission.ts`, and
 `packages/agent/src/runtime/execution-admission.ts`.
 
+Accepted chat runs are queryable and cancellable while waiting for admission:
+the server records a waiting receipt before returning `202`, without storing
+the queued prompt or claiming that model execution has started. Admission then
+transitions that exact receipt into the SDK turn. Cancellation and admission
+failure retain terminal receipts even if no SDK turn begins.
+
 Named bots can consult approved persistent bots via `DOOLITTLE_CONSULT_BOT`.
 That path checks permissions and lineage, caps consultation depth at 2 and
 consultations per root run at 3, and yields the parent seat while waiting.

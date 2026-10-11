@@ -186,7 +186,7 @@ describe.skipIf(process.env.DOOLITTLE_SHARED_ENGINE_E2E !== "1")(
       ])
         mkdirSync(path, { recursive: true, mode: 0o700 });
 
-      const admission = new DesktopExecutionAdmission();
+      const admission = new DesktopExecutionAdmission({ maxConcurrent: 1 });
       const lead = new BackendManager(
         target,
         leadData,
@@ -330,11 +330,23 @@ describe.skipIf(process.env.DOOLITTLE_SHARED_ENGINE_E2E !== "1")(
           ).not.toBe(otherId);
         }
 
+        const capacityBlocker = admission.claim({
+          botId: "default",
+          runId: "shared-engine-test-capacity",
+          sessionId: "shared-engine-test-capacity",
+          kind: "foreground",
+        });
+        if (!capacityBlocker.accepted)
+          throw new Error(
+            "The test capacity reservation could not be admitted.",
+          );
+
         const turn = async (
           botId: string,
           endpoint: LoopbackEndpoint,
           workspaceDir: string,
           marker: string,
+          verifyQueued = false,
         ) => {
           checkedId(botId);
           const sessionId = `session-${randomUUID()}`;
@@ -357,6 +369,34 @@ describe.skipIf(process.env.DOOLITTLE_SHARED_ENGINE_E2E !== "1")(
             bot_id: botId,
           });
           registry.bindRun(botId, sessionId, runId);
+          if (verifyQueued) {
+            try {
+              // Hold the sole execution seat so acceptance/status visibility
+              // is deterministic, before any SDK model turn can begin.
+              const queued = await jsonAt<{
+                run: { runId: string; botId: string; status: string };
+              }>(endpoint, `/chat/runs/${encodeURIComponent(runId)}`);
+              expect(queued.run).toMatchObject({
+                runId,
+                botId,
+                status: "waiting",
+              });
+              const listed = await jsonAt<{
+                runs: Array<{ runId: string; status: string }>;
+              }>(endpoint, "/chat/runs");
+              expect(listed.runs).toContainEqual(
+                expect.objectContaining({ runId, status: "waiting" }),
+              );
+            } finally {
+              expect(
+                admission.release({
+                  botId: "default",
+                  runId: "shared-engine-test-capacity",
+                  leaseId: capacityBlocker.leaseId,
+                }),
+              ).toBe(true);
+            }
+          }
           const deadline = Date.now() + 30_000;
           while (Date.now() < deadline) {
             const payload = await jsonAt<{
@@ -376,7 +416,7 @@ describe.skipIf(process.env.DOOLITTLE_SHARED_ENGINE_E2E !== "1")(
         const markerA = `Offline-A-${randomUUID()}`;
         const markerB = `Offline-B-${randomUUID()}`;
         const [runA, runB] = await Promise.all([
-          turn(firstId, endpointA, workspaceA, markerA),
+          turn(firstId, endpointA, workspaceA, markerA, true),
           turn(secondId, endpointB, workspaceB, markerB),
         ]);
         const history = async (

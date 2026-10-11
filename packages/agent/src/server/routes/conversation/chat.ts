@@ -324,6 +324,23 @@ async function startServerOwnedChatRun(
     return conflictResponse("run_exists");
   }
 
+  try {
+    const agentSettings = context.services.settings?.get().agent;
+    context.services.runController.acceptQueuedRun({
+      runId,
+      sessionId,
+      roomId,
+      source: body.source ?? "api",
+      runDepth: agentSettings?.runDepth ?? "standard",
+      configuredMaxIterations: agentSettings?.maxIterations ?? 0,
+      progressMode: agentSettings?.toolProgressMode ?? "new",
+    });
+  } catch {
+    releaseWorkspace();
+    context.services.runController.releaseTaskRun(runId);
+    return json({ error: TURN_FAILURE_MESSAGE, code: "turn_failed" }, 500);
+  }
+
   const controller = new AbortController();
   let boundaryRecorded = false;
   const recordTerminalBoundary = (
@@ -449,6 +466,10 @@ async function startServerOwnedChatRun(
             true,
           );
         } else {
+          const active = context.services.runController.getActive(sessionId);
+          if (active?.runId === runId && !active.endedAt) {
+            context.services.runController.finishTurn(sessionId, "complete");
+          }
           const receipt = context.services.runController.getByRunId(runId);
           recordTerminalBoundary("complete");
           context.services.runController.appendTaskEvent(
@@ -480,7 +501,9 @@ async function startServerOwnedChatRun(
           context.services.runController.finishTurn(
             sessionId,
             "error",
-            error instanceof Error ? error.message : String(error),
+            error instanceof ExecutionAdmissionLimitError
+              ? error.message
+              : TURN_FAILURE_MESSAGE,
           );
         }
         recordTerminalBoundary("error");

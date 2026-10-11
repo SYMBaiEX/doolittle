@@ -41,6 +41,102 @@ describe("run-controller/store", () => {
     expect(store.getByRoom("room-a")).toMatchObject({ runId: "run-a" });
   });
 
+  it("rolls back a failed accepted receipt write without losing trimmed receipts", () => {
+    const dataDir = mkdtempSync(join(tmpdir(), "doolittle-run-accept-fail-"));
+    tempDirectories.push(dataDir);
+    let fail = false;
+    const store = new RunControllerStore(dataDir, {
+      writer: () => {
+        if (fail) throw new Error("private writer failure");
+      },
+    });
+    for (let index = 0; index < 1_024; index += 1) {
+      store.save({
+        ...baseRun,
+        runId: `run-${index}`,
+        sessionId: `session-${index}`,
+        roomId: `room-${index}`,
+      });
+    }
+    expect(() =>
+      store.saveAccepted({
+        ...baseRun,
+        runId: "over-active-cap",
+        sessionId: "over-active-session",
+        roomId: "over-active-room",
+        status: "waiting",
+        message: "",
+      }),
+    ).toThrow("Run receipt capacity is full.");
+    expect(store.getByRunId("over-active-cap")).toBeUndefined();
+    store.apply("session-0", {
+      ...baseRun,
+      runId: "run-0",
+      sessionId: "session-0",
+      roomId: "room-0",
+      status: "complete",
+      terminalReason: "completed",
+      endedAt: "2026-01-01T00:00:02.000Z",
+    });
+    store.appendEvent("run-0", "response.completed", {}, true);
+    fail = true;
+    expect(() =>
+      store.saveAccepted({
+        ...baseRun,
+        runId: "accepted-overflow",
+        sessionId: "accepted-session",
+        roomId: "accepted-room",
+        status: "waiting",
+        message: "",
+      }),
+    ).toThrow("private writer failure");
+    expect(store.getByRunId("accepted-overflow")).toBeUndefined();
+    expect(store.get("accepted-session")).toBeUndefined();
+    expect(store.getSessionByRoom("accepted-room")).toBeUndefined();
+    expect(store.getByRunId("run-0")).toBeDefined();
+    expect(store.getTerminalEvent("run-0")).toMatchObject({
+      type: "response.completed",
+    });
+    expect(store.listReceipts(1_024)).toHaveLength(1_024);
+    fail = false;
+    store.saveAccepted({
+      ...baseRun,
+      runId: "accepted-overflow",
+      sessionId: "accepted-session",
+      roomId: "accepted-room",
+      status: "waiting",
+      message: "",
+    });
+    expect(store.getByRunId("accepted-overflow")?.status).toBe("waiting");
+    expect(store.getByRunId("run-0")).toBeUndefined();
+    expect(store.getByRunId("run-1")).toBeDefined();
+  });
+
+  it("keeps more than 120 waiting receipts queryable across restart", () => {
+    const dataDir = mkdtempSync(join(tmpdir(), "doolittle-run-queue-fleet-"));
+    tempDirectories.push(dataDir);
+    const store = new RunControllerStore(dataDir);
+    for (let index = 0; index < 130; index += 1) {
+      store.saveAccepted({
+        ...baseRun,
+        runId: `queued-${index}`,
+        sessionId: `queued-session-${index}`,
+        roomId: `queued-room-${index}`,
+        status: "waiting",
+        message: "",
+      });
+    }
+    expect(store.getByRunId("queued-0")?.status).toBe("waiting");
+    expect(store.listReceipts(1_024)).toHaveLength(130);
+    const restored = new RunControllerStore(dataDir);
+    expect(restored.getByRunId("queued-0")).toMatchObject({
+      status: "error",
+      terminalReason: "error",
+      endedAt: expect.any(String),
+    });
+    expect(restored.listReceipts(1_024)).toHaveLength(130);
+  });
+
   it("returns cloned snapshots so callers cannot mutate internal state", () => {
     const store = new RunControllerStore();
     store.save(baseRun);

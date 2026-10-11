@@ -5,6 +5,8 @@ import { RoomHandlerQueue } from "@elizaos/core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AppContext } from "@/runtime/bootstrap";
 import { ExecutionAdmissionLimitError } from "@/runtime/execution-admission";
+import { handleConversationRoutes } from "@/server/routes/conversation";
+import { RunControllerStore } from "@/services/run-controller/store";
 import type { RunSnapshot } from "@/services/run-controller-service";
 import { RunControllerService } from "@/services/run-controller-service";
 import { SessionService } from "@/services/session/service";
@@ -39,6 +41,7 @@ function createContext(): AppContext {
       workspaceDir: process.cwd(),
     },
     runtime: { roomHandlerQueue: new RoomHandlerQueue() },
+    ensureDeferredHydration: vi.fn(async () => {}),
     services: {
       runController: new RunControllerService(),
       sessions: {
@@ -125,7 +128,70 @@ describe("handleChatRoute turn lifecycle", () => {
       error: "The response could not be completed. Please try again.",
       code: "turn_failed",
     });
+    const receiptUrl = new URL(
+      "http://localhost/chat/runs/capacity-internal-error",
+    );
+    const receipt = await handleConversationRoutes(
+      context,
+      new Request(receiptUrl),
+      receiptUrl,
+    );
+    const listUrl = new URL("http://localhost/chat/runs");
+    const listed = await handleConversationRoutes(
+      context,
+      new Request(listUrl),
+      listUrl,
+    );
+    expect(receipt?.status).toBe(200);
+    expect(listed?.status).toBe(200);
+    expect(`${await receipt?.text()} ${await listed?.text()}`).not.toContain(
+      "private diagnostic fixture",
+    );
     expect(executeAgentTurnWithProgress).not.toHaveBeenCalled();
+  });
+
+  it("sanitizes a pre-SDK turn failure finalized by the runtime before the route catches it", async () => {
+    const context = createContext();
+    executeAgentTurnWithProgress.mockImplementation(async () => {
+      context.services.runController.finishTurn(
+        "private-room",
+        "error",
+        "private provider diagnostic",
+      );
+      throw new Error("private provider diagnostic");
+    });
+    const response = await handleChatRoute(
+      context,
+      chatRequest({
+        message: "private prompt",
+        runId: "private-pre-sdk-run",
+        roomId: "private-room",
+      }),
+    );
+    expect(response.status).toBe(500);
+    const receiptUrl = new URL(
+      "http://localhost/chat/runs/private-pre-sdk-run",
+    );
+    const receipt = await handleConversationRoutes(
+      context,
+      new Request(receiptUrl),
+      receiptUrl,
+    );
+    const listUrl = new URL("http://localhost/chat/runs");
+    const listed = await handleConversationRoutes(
+      context,
+      new Request(listUrl),
+      listUrl,
+    );
+    expect(`${await receipt?.text()} ${await listed?.text()}`).not.toContain(
+      "private provider diagnostic",
+    );
+    expect(
+      context.services.runController.getByRunId("private-pre-sdk-run"),
+    ).toMatchObject({
+      status: "error",
+      errorMessage: "The response could not be completed. Please try again.",
+    });
   });
 
   it("accepts a durable queued run promptly and cancels it before execution", async () => {
@@ -148,14 +214,224 @@ describe("handleChatRoute turn lifecycle", () => {
     );
     expect(response.status).toBe(202);
     expect(await response.json()).toMatchObject({ run_id: "queued-cancel" });
+    const receiptUrl = new URL("http://localhost/chat/runs/queued-cancel");
+    const receipt = await handleConversationRoutes(
+      context,
+      new Request(receiptUrl),
+      receiptUrl,
+    );
+    expect(receipt?.status).toBe(200);
+    await expect(receipt?.json()).resolves.toMatchObject({
+      run: {
+        runId: "queued-cancel",
+        status: "waiting",
+        statusDetail: "Waiting for execution capacity",
+        message: "",
+        observedActionCount: 0,
+      },
+    });
+    const listUrl = new URL("http://localhost/chat/runs");
+    const listed = await handleConversationRoutes(
+      context,
+      new Request(listUrl),
+      listUrl,
+    );
+    await expect(listed?.json()).resolves.toMatchObject({
+      runs: [{ runId: "queued-cancel", status: "waiting" }],
+    });
     expect(acquireExecutionLease.mock.calls[0]?.[0].signal.aborted).toBe(false);
-    context.services.runController.cancelRun("queued-cancel");
+    const cancelUrl = new URL(
+      "http://localhost/chat/runs/queued-cancel/cancel",
+    );
+    const cancelled = await handleConversationRoutes(
+      context,
+      new Request(cancelUrl, { method: "POST" }),
+      cancelUrl,
+    );
+    expect(cancelled?.status).toBe(200);
+    await expect(cancelled?.json()).resolves.toMatchObject({
+      run: { status: "cancelled", terminalReason: "cancelled" },
+    });
     await vi.waitFor(() =>
       expect(acquireExecutionLease.mock.calls[0]?.[0].signal.aborted).toBe(
         true,
       ),
     );
+    expect(
+      context.services.runController.getByRunId("queued-cancel"),
+    ).toMatchObject({
+      status: "cancelled",
+      endedAt: expect.any(String),
+    });
+    expect(() =>
+      context.services.runController.startTurn({
+        sessionId: "queued-room",
+        roomId: "queued-room",
+        runId: "queued-cancel",
+        source: "api",
+        message: "must not restart",
+        runDepth: "standard",
+        configuredMaxIterations: 7,
+        progressMode: "new",
+      }),
+    ).toThrow("terminal receipt");
     expect(executeAgentTurnWithProgress).not.toHaveBeenCalled();
+  });
+
+  it("retains a safe terminal receipt when admission times out before SDK work", async () => {
+    const context = createContext();
+    acquireExecutionLease.mockRejectedValue(
+      new ExecutionAdmissionLimitError("queue_timeout"),
+    );
+    const response = await handleChatSubmitRoute(
+      context,
+      chatRequest({
+        message: "private queued prompt",
+        runId: "queued-timeout",
+        roomId: "timeout-room",
+      }),
+    );
+    expect(response.status).toBe(202);
+    await vi.waitFor(() =>
+      expect(
+        context.services.runController.getByRunId("queued-timeout"),
+      ).toMatchObject({
+        status: "error",
+        terminalReason: "error",
+        endedAt: expect.any(String),
+      }),
+    );
+    const receiptUrl = new URL("http://localhost/chat/runs/queued-timeout");
+    const receipt = await handleConversationRoutes(
+      context,
+      new Request(receiptUrl),
+      receiptUrl,
+    );
+    expect(receipt?.status).toBe(200);
+    const payload = await receipt?.json();
+    expect(payload.run.message).toBe("");
+    expect(JSON.stringify(payload)).not.toContain("private queued prompt");
+    const listUrl = new URL("http://localhost/chat/runs");
+    const listed = await handleConversationRoutes(
+      context,
+      new Request(listUrl),
+      listUrl,
+    );
+    await expect(listed?.json()).resolves.toMatchObject({
+      runs: [{ runId: "queued-timeout", status: "error" }],
+    });
+    expect(
+      context.services.runController.getTerminalTaskEvent("queued-timeout"),
+    ).toMatchObject({ type: "response.failed", terminal: true });
+    expect(executeAgentTurnWithProgress).not.toHaveBeenCalled();
+  });
+
+  it("returns a static failure and permits retry when durable acceptance fails", async () => {
+    const context = createContext();
+    const write = vi
+      .spyOn(RunControllerStore.prototype, "saveAccepted")
+      .mockImplementationOnce(() => {
+        throw new Error("private disk diagnostic");
+      });
+    const body = {
+      message: "try after disk recovery",
+      runId: "accept-retry",
+      roomId: "retry-room",
+    };
+    try {
+      const failed = await handleChatSubmitRoute(context, chatRequest(body));
+      expect(failed.status).toBe(500);
+      await expect(failed.json()).resolves.toEqual({
+        error: "The response could not be completed. Please try again.",
+        code: "turn_failed",
+      });
+      expect(
+        context.services.runController.getByRunId("accept-retry"),
+      ).toBeUndefined();
+      expect(
+        context.services.runController.workspaceSwitchConflict("/elsewhere"),
+      ).toBeUndefined();
+    } finally {
+      write.mockRestore();
+    }
+    executeAgentTurnWithProgress.mockResolvedValue({ response: "recovered" });
+    const retried = await handleChatSubmitRoute(context, chatRequest(body));
+    expect(retried.status).toBe(202);
+    await vi.waitFor(() =>
+      expect(
+        context.services.runController.getByRunId("accept-retry"),
+      ).toMatchObject({ status: "complete", terminalReason: "completed" }),
+    );
+  });
+
+  it("keeps unknown run IDs as 404 while queued receipts are queryable", async () => {
+    const context = createContext();
+    const url = new URL("http://localhost/chat/runs/not-a-run");
+    const response = await handleConversationRoutes(
+      context,
+      new Request(url),
+      url,
+    );
+    expect(response?.status).toBe(404);
+    await expect(response?.json()).resolves.toEqual({ error: "run not found" });
+  });
+
+  it("adopts a queued receipt only when the real SDK turn starts", async () => {
+    const context = createContext();
+    let grant!: (value: { release: () => Promise<void> }) => void;
+    acquireExecutionLease.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          grant = resolve;
+        }),
+    );
+    executeAgentTurnWithProgress.mockImplementation(async () => {
+      const started = context.services.runController.startTurn({
+        sessionId: "adopt-room",
+        roomId: "adopt-room",
+        runId: "queued-adopt",
+        source: "api",
+        message: "real task",
+        runDepth: "deep",
+        configuredMaxIterations: 7,
+        progressMode: "all",
+      });
+      expect(started).toMatchObject({
+        status: "thinking",
+        message: "real task",
+        runDepth: "deep",
+        configuredMaxIterations: 7,
+      });
+      context.services.runController.finishTurn("adopt-room", "complete");
+      return { response: "done" };
+    });
+    const response = await handleChatSubmitRoute(
+      context,
+      chatRequest({
+        message: "real task",
+        runId: "queued-adopt",
+        roomId: "adopt-room",
+      }),
+    );
+    expect(response.status).toBe(202);
+    expect(
+      context.services.runController.getByRunId("queued-adopt"),
+    ).toMatchObject({
+      status: "waiting",
+      message: "",
+    });
+    expect(executeAgentTurnWithProgress).not.toHaveBeenCalled();
+    grant({ release: vi.fn(async () => undefined) });
+    await vi.waitFor(() =>
+      expect(
+        context.services.runController.getByRunId("queued-adopt"),
+      ).toMatchObject({
+        status: "complete",
+        terminalReason: "completed",
+        message: "real task",
+      }),
+    );
+    expect(executeAgentTurnWithProgress).toHaveBeenCalledOnce();
   });
 
   it("Stop All cannot start a previously queued run after capacity becomes available", async () => {

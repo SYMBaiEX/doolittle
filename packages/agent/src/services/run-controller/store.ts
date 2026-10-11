@@ -57,7 +57,9 @@ function isRunSnapshot(value: unknown): value is RunSnapshot {
 }
 
 export class RunControllerStore {
-  private static readonly MAX_RECEIPTS = 120;
+  // Desktop admission allows 512 queued plus active runs. Keep that fleet's
+  // receipts durable while bounding terminal history and defensive excess.
+  private static readonly MAX_RECEIPTS = 1_024;
   private static readonly MAX_EVENTS_PER_RUN = 1_500;
   private static readonly DEFAULT_PERSISTENCE_DEBOUNCE_MS = 50;
   private readonly activeRuns = new Map<string, RunSnapshot>();
@@ -82,12 +84,45 @@ export class RunControllerStore {
   }
 
   save(run: RunSnapshot): void {
+    if (
+      !this.receipts.has(run.runId) &&
+      this.receipts.size >= RunControllerStore.MAX_RECEIPTS &&
+      !Array.from(this.receipts.values()).some((receipt) => receipt.endedAt)
+    ) {
+      throw new Error("Run receipt capacity is full.");
+    }
     this.activeRuns.set(run.sessionId, run);
     this.receipts.set(run.runId, cloneRun(run));
     this.trimReceipts();
     this.roomIndex.set(run.roomId, run.sessionId);
     this.persistenceDirty = true;
     this.flushPersistence();
+  }
+
+  /** Acceptance must not leave a phantom active run if its durable write fails. */
+  saveAccepted(run: RunSnapshot): void {
+    const activeBefore = new Map(this.activeRuns);
+    const receiptsBefore = new Map(this.receipts);
+    const journalsBefore = new Map(this.eventJournals);
+    const roomsBefore = new Map(this.roomIndex);
+    const dirtyBefore = this.persistenceDirty;
+    const timerBefore = Boolean(this.persistenceTimer);
+    try {
+      this.save(run);
+    } catch (error) {
+      this.activeRuns.clear();
+      for (const [key, value] of activeBefore) this.activeRuns.set(key, value);
+      this.receipts.clear();
+      for (const [key, value] of receiptsBefore) this.receipts.set(key, value);
+      this.eventJournals.clear();
+      for (const [key, value] of journalsBefore)
+        this.eventJournals.set(key, value);
+      this.roomIndex.clear();
+      for (const [key, value] of roomsBefore) this.roomIndex.set(key, value);
+      this.persistenceDirty = dirtyBefore;
+      if (timerBefore && dirtyBefore) this.schedulePersistence();
+      throw error;
+    }
   }
 
   getInternal(sessionId: string): RunSnapshot | undefined {
@@ -185,7 +220,9 @@ export class RunControllerStore {
 
   private trimReceipts(): void {
     while (this.receipts.size > RunControllerStore.MAX_RECEIPTS) {
-      const oldest = this.receipts.keys().next().value;
+      const oldest = Array.from(this.receipts).find(([, receipt]) =>
+        Boolean(receipt.endedAt),
+      )?.[0];
       if (!oldest) return;
       this.receipts.delete(oldest);
       this.eventJournals.delete(oldest);
