@@ -14,7 +14,6 @@ export function createShellRuntimeService(services: AppServices): ServiceClass {
     capabilityDescription =
       "Executes approved local commands through Doolittle terminal backends.";
 
-    // biome-ignore lint/complexity/noUselessConstructor: ElizaOS ServiceClass expects an optional runtime constructor.
     constructor(runtime?: IAgentRuntime) {
       super(runtime);
     }

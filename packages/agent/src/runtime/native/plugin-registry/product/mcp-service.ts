@@ -14,7 +14,6 @@ export function createMcpRuntimeService(services: AppServices): ServiceClass {
     capabilityDescription =
       "Projects the official Eliza MCP service into Doolittle CLI and desktop surfaces.";
 
-    // biome-ignore lint/complexity/noUselessConstructor: ElizaOS ServiceClass expects an optional runtime constructor.
     constructor(runtime?: IAgentRuntime) {
       super(runtime);
     }

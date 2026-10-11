@@ -48,7 +48,9 @@ describe("Doolittle Eliza control density adapter", () => {
       markup.match(/focus-visible:outline-\[var\(--focus-ring\)\]/gu),
     ).toHaveLength(3);
     expect(markup).toContain("motion-reduce:transition-none");
-    expect(markup).toContain("active:shadow-none");
+    expect(markup).toContain(
+      "transition-[background-color,border-color,color,box-shadow]",
+    );
     expect(markup).toContain("text-[var(--accent-ink)]");
   });
 

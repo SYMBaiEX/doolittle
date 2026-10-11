@@ -23,7 +23,6 @@ export function createGatewayRuntimeService({
       "Manages the Doolittle gateway lifecycle and platform routing.";
     runner?: GatewayRunner;
 
-    // biome-ignore lint/complexity/noUselessConstructor: ElizaOS ServiceClass expects an optional runtime constructor.
     constructor(runtime?: IAgentRuntime) {
       super(runtime);
     }

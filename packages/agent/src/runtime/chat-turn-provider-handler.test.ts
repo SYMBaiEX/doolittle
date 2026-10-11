@@ -15,10 +15,12 @@ import type { AgentExecutionContext } from "@/runtime/chat";
 import {
   recordScopedTurnActionResult,
   runWithTurnRuntimeScope,
+  TurnPlannerBudget,
 } from "@/runtime/turn-runtime-scope";
 import type { AppServices } from "@/services";
 import type { BrowserAnalysisBundle } from "@/services/web/service";
 import type { TrajectoryEventInput } from "@/types/trajectory";
+import { resolveNativeMessagePolicy } from "./chat-turn/native/setup";
 import { executeProviderMessageTurn } from "./chat-turn/provider-handler";
 import { createProviderStreamState } from "./chat-turn/provider-streaming";
 import { DOOLITTLE_COMMAND_ACTION } from "./command-shortcut-match";
@@ -189,7 +191,14 @@ describe("chat turn provider handler", () => {
         content: { text, source: "cli", channelType: ChannelType.DM },
       } as Memory,
       streamState,
-      messagePolicy: { useMultiStep: true, maxIterations: 4 },
+      messagePolicy: resolveNativeMessagePolicy(
+        {
+          runDepth: "standard",
+          maxIterations: 4,
+          toolProgressMode: "new",
+        },
+        text,
+      ),
       abortSignal: undefined,
       settingsDuring: {
         ...createTurnSettings(),
@@ -4802,10 +4811,18 @@ describe("chat turn provider handler", () => {
           };
         },
       });
-      const result = await executeTestTurn(
-        context,
-        "codex",
-        "Update the backend module in this workspace.",
+      const result = await runWithTurnRuntimeScope(
+        context.runtime,
+        {
+          settings: new Map(),
+          plannerBudget: new TurnPlannerBudget(4, "m-1"),
+        },
+        () =>
+          executeTestTurn(
+            context,
+            "codex",
+            "Update the backend module in this workspace.",
+          ),
       );
       expect(limits).toEqual([4, 2]);
       if (complete) {
@@ -4817,6 +4834,50 @@ describe("chat turn provider handler", () => {
       }
     },
   );
+
+  it("starts a fresh native allowance after a bounded incomplete coding turn", async () => {
+    const limits: Array<number | undefined> = [];
+    const inspection: ActionResult = {
+      success: true,
+      text: "Inspected the module.",
+      data: { actionName: "READ_FILE" },
+    };
+    const { page } = frontendReceipts();
+    page.data = {
+      ...page.data,
+      mutation: {
+        ...(page.data?.mutation as object),
+        resolvedPath: "/workspace/frontend-review/src/logic.ts",
+      },
+    };
+    const { context } = createContext({
+      onHandleMessage: async ({ plannerLoopConfig }) => {
+        limits.push(plannerLoopConfig?.maxToolCalls);
+        return {
+          responseContent: { text: "The backend update is complete." },
+          responseMessages: [],
+          actionResults: [limits.length <= 2 ? inspection : page],
+        };
+      },
+    });
+    const request = "Update the backend module in this workspace.";
+    const partial = await runWithTurnRuntimeScope(
+      context.runtime,
+      {
+        settings: new Map(),
+        plannerBudget: new TurnPlannerBudget(2, "m-1"),
+      },
+      () => executeTestTurn(context, "codex", request),
+    );
+    expect(limits).toEqual([2, 1]);
+    expect(partial.runFailureMessage).toContain("verified workspace change");
+
+    const recovered = await executeTestTurn(context, "codex", request);
+    expect(limits).toEqual([2, 1, 16]);
+    expect(recovered.runFailureMessage).toBeUndefined();
+    expect(recovered.response).toBe("The backend update is complete.");
+    expect(recovered.actionResults).toContain(page);
+  });
 
   it("stops after a terminal managed coding-agent failure and preserves its actionable error", async () => {
     let callCount = 0;

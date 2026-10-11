@@ -26,7 +26,6 @@ export function createBrowserRuntimeService(
     capabilityDescription =
       "Fetches, captures, inspects, and compares web pages with truthful degraded-state reporting.";
 
-    // biome-ignore lint/complexity/noUselessConstructor: ElizaOS ServiceClass expects an optional runtime constructor.
     constructor(runtime?: IAgentRuntime) {
       super(runtime);
     }
