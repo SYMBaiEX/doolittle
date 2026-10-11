@@ -10,6 +10,21 @@ function readBundledWorkflowMarkdown(fileName: string): string {
 }
 
 describe("workflow commands", () => {
+  it("ignores unknown and prototype-shaped frontmatter fields", () => {
+    const parsed = parseWorkflowFrontmatter(
+      "---\n__proto__: polluted\nconstructor: polluted\nprototype: polluted\ncommand: /review\ntitle: Review\ndescription: Safe metadata\n---\nBody",
+    );
+
+    expect(parsed).toEqual({
+      command: "/review",
+      title: "Review",
+      description: "Safe metadata",
+      body: "Body",
+    });
+    expect(Object.getPrototypeOf(parsed)).toBe(Object.prototype);
+    expect(Object.hasOwn(Object.prototype, "polluted")).toBe(false);
+  });
+
   it("ships the built-in workflow command prompts", () => {
     const review = parseWorkflowFrontmatter(
       readBundledWorkflowMarkdown("review.md"),

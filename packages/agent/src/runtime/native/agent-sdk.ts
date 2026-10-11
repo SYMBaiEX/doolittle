@@ -97,14 +97,15 @@ export async function getAgentRegistrySnapshot(
         }),
       })),
     };
-  } catch (error) {
+  } catch {
     return {
       available: false,
       endpoints: getConfiguredEndpoints(),
       total: 0,
       nonAppPlugins: 0,
       sample: [] as string[],
-      error: error instanceof Error ? error.message : String(error),
+      // Registry transport exceptions may contain local paths or credentials.
+      error: "Agent registry is unavailable.",
     };
   }
 }
@@ -130,12 +131,12 @@ export async function searchAgentRegistry(
         }),
       })),
     };
-  } catch (error) {
+  } catch {
     return {
       available: false,
       query,
       results: [],
-      error: error instanceof Error ? error.message : String(error),
+      error: "Agent registry search failed.",
     };
   }
 }

@@ -2,7 +2,10 @@ import {
   existsSync,
   mkdtempSync,
   readFileSync,
+  rmSync,
   statSync,
+  symlinkSync,
+  unlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -17,6 +20,43 @@ import {
 } from "./journal";
 
 describe("gateway journal helpers", () => {
+  it("never truncates existing entries when ensuring a journal", () => {
+    const root = mkdtempSync(join(tmpdir(), "doolittle-journal-existing-"));
+    try {
+      const path = join(root, "journal.jsonl");
+      writeFileSync(path, '{"at":"original"}\n');
+      ensureGatewayJournalFile(path);
+      ensureGatewayJournalFile(path);
+      expect(readFileSync(path, "utf8")).toBe('{"at":"original"}\n');
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it.skipIf(process.platform === "win32")(
+    "rejects linked journals without altering the target and recovers",
+    () => {
+      const root = mkdtempSync(join(tmpdir(), "doolittle-journal-link-"));
+      try {
+        const path = join(root, "journal.jsonl");
+        const target = join(root, "target");
+        writeFileSync(target, "keep", { mode: 0o644 });
+        symlinkSync(target, path);
+        expect(() => ensureGatewayJournalFile(path)).toThrow();
+        expect(() =>
+          appendGatewayJournalRecordDurably(path, { at: "now" }),
+        ).toThrow();
+        expect(readFileSync(target, "utf8")).toBe("keep");
+        expect(statSync(target).mode & 0o777).toBe(0o644);
+        unlinkSync(path);
+        appendGatewayJournalRecord(path, { at: "recovered" });
+        expect(loadGatewayJournal(path)).toEqual([{ at: "recovered" }]);
+      } finally {
+        rmSync(root, { recursive: true, force: true });
+      }
+    },
+  );
+
   it("ensures and appends jsonl journal files", () => {
     const root = mkdtempSync(join(tmpdir(), "doolittle-gateway-journal-"));
     const journalPath = join(root, "journal.jsonl");

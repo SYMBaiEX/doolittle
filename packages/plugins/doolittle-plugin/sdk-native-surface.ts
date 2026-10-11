@@ -114,7 +114,9 @@ function readJsonStringProperty(
     .replace(/\\$/, "");
   try {
     return {
-      value: JSON.parse(`"${partial.replace(/"/g, '\\"')}"`) as string,
+      // The prefix is already JSON-encoded; re-escaping quotes corrupts its
+      // existing backslash escapes. Decode as data, never executable source.
+      value: JSON.parse(`"${partial}"`) as string,
       end: input.length,
     };
   } catch {

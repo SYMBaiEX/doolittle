@@ -1,8 +1,9 @@
 import { createHash } from "node:crypto";
-import { lstatSync, readFileSync, realpathSync, statSync } from "node:fs";
+import { realpathSync, statSync } from "node:fs";
 import { basename, join } from "node:path";
 import type { ContentType, Media } from "@elizaos/core";
 import { isStrictlyContainedPath } from "@/utils/path-containment";
+import { readRegularFileSync } from "@/utils/read-regular-file";
 import { hasAsciiControlCharacters } from "@/utils/text-validation";
 
 export const MAX_CHAT_ATTACHMENTS = 8;
@@ -247,10 +248,10 @@ function validateOne(
 
   let metadata: ManagedAttachmentSidecar;
   try {
-    if (lstatSync(canonicalSidecar).size > MAX_SIDECAR_BYTES) {
-      fail("invalid_metadata", id, "has invalid metadata");
-    }
-    metadata = parseSidecar(readFileSync(canonicalSidecar, "utf8"), id);
+    metadata = parseSidecar(
+      readRegularFileSync(canonicalSidecar, MAX_SIDECAR_BYTES).toString("utf8"),
+      id,
+    );
   } catch (error) {
     if (error instanceof ManagedAttachmentError) throw error;
     fail("invalid_metadata", id, "has invalid metadata");
@@ -264,10 +265,8 @@ function validateOne(
   );
   let bytes: Buffer;
   try {
-    const fileStat = statSync(canonicalFile);
-    bytes = readFileSync(canonicalFile);
+    bytes = readRegularFileSync(canonicalFile, metadata.sizeBytes);
     if (
-      fileStat.size !== metadata.sizeBytes ||
       bytes.byteLength !== metadata.sizeBytes ||
       createHash("sha256").update(bytes).digest("hex") !== metadata.sha256
     ) {

@@ -1,22 +1,19 @@
 import { createHash, randomUUID } from "node:crypto";
 import {
   chmodSync,
-  closeSync,
-  constants,
   existsSync,
-  fstatSync,
-  fsyncSync,
   mkdirSync,
-  openSync,
-  readFileSync,
   realpathSync,
   renameSync,
   rmSync,
-  statSync,
-  writeFileSync,
 } from "node:fs";
 import { basename, extname, resolve } from "node:path";
 import { hasFilenameControlCharacters } from "./ipc/input-validation";
+import {
+  RegularFileError,
+  readBoundedRegularFile,
+  writeVerifiedFileSync,
+} from "./regular-file";
 
 export const ATTACHMENT_IMPORT_LIMITS = {
   maxCount: 8,
@@ -242,52 +239,10 @@ function prepareAttachment(inputPath: string): PreparedAttachment {
   }
 
   try {
-    const initialStatus = statSync(canonicalPath);
-    if (!initialStatus.isFile()) {
-      throw new AttachmentImportError(
-        "invalid_selection",
-        `"${name}" is not a regular file.`,
-      );
-    }
-    if (initialStatus.size > ATTACHMENT_IMPORT_LIMITS.maxFileBytes) {
-      throw new AttachmentImportError(
-        "file_too_large",
-        `"${name}" exceeds the ${ATTACHMENT_IMPORT_LIMITS.maxFileBytes / 1024 / 1024} MB attachment limit.`,
-      );
-    }
-  } catch (error) {
-    if (error instanceof AttachmentImportError) throw error;
-    throw new AttachmentImportError(
-      "invalid_selection",
-      `Could not inspect attachment "${name}".`,
-      { cause: error },
+    const contents = readBoundedRegularFile(
+      canonicalPath,
+      ATTACHMENT_IMPORT_LIMITS.maxFileBytes,
     );
-  }
-
-  let fileDescriptor: number | undefined;
-  try {
-    fileDescriptor = openSync(canonicalPath, constants.O_RDONLY);
-    const status = fstatSync(fileDescriptor);
-    if (!status.isFile()) {
-      throw new AttachmentImportError(
-        "invalid_selection",
-        `"${name}" is not a regular file.`,
-      );
-    }
-    if (status.size > ATTACHMENT_IMPORT_LIMITS.maxFileBytes) {
-      throw new AttachmentImportError(
-        "file_too_large",
-        `"${name}" exceeds the ${ATTACHMENT_IMPORT_LIMITS.maxFileBytes / 1024 / 1024} MB attachment limit.`,
-      );
-    }
-
-    const contents = readFileSync(fileDescriptor);
-    if (contents.byteLength !== status.size) {
-      throw new AttachmentImportError(
-        "import_failed",
-        `"${name}" changed while it was being imported. Try again.`,
-      );
-    }
     const mimeType = detectMime(contents, name);
     if (!mimeType) {
       throw new AttachmentImportError(
@@ -302,13 +257,26 @@ function prepareAttachment(inputPath: string): PreparedAttachment {
         name,
         kind: kindForMime(mimeType),
         mimeType,
-        sizeBytes: status.size,
+        sizeBytes: contents.byteLength,
         sha256: createHash("sha256").update(contents).digest("hex"),
       },
       storedExtension: STORED_EXTENSION_BY_MIME[mimeType] ?? ".txt",
     };
   } catch (error) {
     if (error instanceof AttachmentImportError) throw error;
+    if (error instanceof RegularFileError) {
+      const code =
+        error.code === "too_large"
+          ? "file_too_large"
+          : error.code === "not_regular"
+            ? "invalid_selection"
+            : "import_failed";
+      throw new AttachmentImportError(
+        code,
+        `Could not inspect attachment "${name}".`,
+        { cause: error },
+      );
+    }
     throw new AttachmentImportError(
       "import_failed",
       `Could not import "${name}".`,
@@ -316,8 +284,6 @@ function prepareAttachment(inputPath: string): PreparedAttachment {
         cause: error,
       },
     );
-  } finally {
-    if (fileDescriptor !== undefined) closeSync(fileDescriptor);
   }
 }
 
@@ -382,28 +348,7 @@ export function importSelectedAttachments(
         metadataPath,
       );
 
-      writeFileSync(temporaryDataPath, attachment.contents, {
-        flag: "wx",
-        mode: 0o600,
-      });
-      const copiedStatus = statSync(temporaryDataPath);
-      if (
-        copiedStatus.size !== attachment.descriptor.sizeBytes ||
-        createHash("sha256")
-          .update(readFileSync(temporaryDataPath))
-          .digest("hex") !== attachment.descriptor.sha256
-      ) {
-        throw new AttachmentImportError(
-          "import_failed",
-          `"${attachment.descriptor.name}" changed while it was being copied. Try again.`,
-        );
-      }
-      const copiedDescriptor = openSync(temporaryDataPath, constants.O_RDONLY);
-      try {
-        fsyncSync(copiedDescriptor);
-      } finally {
-        closeSync(copiedDescriptor);
-      }
+      writeVerifiedFileSync(temporaryDataPath, attachment.contents);
       renameSync(temporaryDataPath, destinationPath);
 
       const descriptor: ManagedAttachmentDescriptor = {
@@ -418,20 +363,10 @@ export function importSelectedAttachments(
       };
       // Keep this explicit staged write: the metadata participates in the
       // attachment's two-file fsync/rename transaction.
-      writeFileSync(temporaryMetadataPath, `${JSON.stringify(metadata)}\n`, {
-        encoding: "utf8",
-        flag: "wx",
-        mode: 0o600,
-      });
-      const metadataDescriptor = openSync(
+      writeVerifiedFileSync(
         temporaryMetadataPath,
-        constants.O_RDONLY,
+        Buffer.from(`${JSON.stringify(metadata)}\n`),
       );
-      try {
-        fsyncSync(metadataDescriptor);
-      } finally {
-        closeSync(metadataDescriptor);
-      }
       renameSync(temporaryMetadataPath, metadataPath);
       descriptors.push(descriptor);
     }

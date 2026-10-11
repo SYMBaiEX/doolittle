@@ -12,7 +12,6 @@ import type {
   SkillHubInstalledRecord,
   SkillHubManifest,
 } from "@/services/skills-hub/types";
-import { errorMessage } from "@/utils/error-message";
 import { getNativeServices, type RuntimeLike } from "../runtime";
 import type { NativeAgentSkillsService } from "../runtime-contracts";
 
@@ -228,13 +227,14 @@ export async function searchEffectiveSkillHubCatalog(
       query,
       results: await official.search(query, limit),
     };
-  } catch (error) {
+  } catch {
     return {
       available: false,
       source: OFFICIAL_SOURCE,
       query,
       results: [],
-      error: errorMessage(error),
+      // Public API failures must not serialize arbitrary SDK exception data.
+      error: "Skills catalog search failed.",
     };
   }
 }
@@ -251,14 +251,14 @@ export async function searchEffectiveSkillsMarketplace(
       limit,
       results: await searchSkillsMarketplace(query, { limit }),
     };
-  } catch (error) {
+  } catch {
     return {
       available: false,
       source: OFFICIAL_SOURCE,
       query,
       limit,
       results: [],
-      error: errorMessage(error),
+      error: "Skills marketplace search failed.",
     };
   }
 }
@@ -332,11 +332,11 @@ export async function syncEffectiveSkillCatalog(runtime: RuntimeLike) {
       source: OFFICIAL_SOURCE,
       result: await official.syncCatalog(),
     };
-  } catch (error) {
+  } catch {
     return {
       available: false,
       source: OFFICIAL_SOURCE,
-      error: errorMessage(error),
+      error: "Skills catalog sync failed.",
     };
   }
 }
@@ -354,13 +354,13 @@ export async function installEffectiveSkill(
       slug,
       installed,
     };
-  } catch (error) {
+  } catch {
     return {
       available: false,
       source: OFFICIAL_SOURCE,
       slug,
       installed: false,
-      error: errorMessage(error),
+      error: "Skill installation failed.",
     };
   }
 }

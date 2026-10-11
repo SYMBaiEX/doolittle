@@ -23,7 +23,11 @@ export function parseWorkflowFrontmatter(
         .slice(separator + 1)
         .trim()
         .replace(/^"(.*)"$/u, "$1");
-      if (key && value) {
+      // Workspace frontmatter is data, not an arbitrary object-property map.
+      if (
+        (key === "command" || key === "title" || key === "description") &&
+        value
+      ) {
         acc[key] = value;
       }
       return acc;

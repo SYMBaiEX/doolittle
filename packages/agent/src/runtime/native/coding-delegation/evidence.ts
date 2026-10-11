@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
-import { lstat, readdir, readFile, realpath } from "node:fs/promises";
+import { constants } from "node:fs";
+import { open, readdir, realpath } from "node:fs/promises";
 import { homedir } from "node:os";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import type { DelegatedFileChange } from "./types";
@@ -54,20 +55,36 @@ async function fingerprint(
 ): Promise<FileSnapshot | null> {
   if (!safeRelativePath(root, path)) return null;
   try {
-    const stats = await lstat(path);
-    if (
-      !stats.isFile() ||
-      stats.isSymbolicLink() ||
-      stats.size > MAX_FILE_BYTES
-    )
-      return null;
     const canonical = await realpath(path);
     if (!safeRelativePath(await realpath(root), canonical)) return null;
-    const bytes = await readFile(path);
-    return {
-      sha256: createHash("sha256").update(bytes).digest("hex"),
-      bytes: bytes.length,
-    };
+    const file = await open(
+      path,
+      constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | constants.O_NONBLOCK,
+    );
+    try {
+      const stats = await file.stat();
+      if (!stats.isFile() || stats.size > MAX_FILE_BYTES) return null;
+      const buffer = Buffer.alloc(stats.size + 1);
+      let length = 0;
+      while (length < buffer.length) {
+        const { bytesRead } = await file.read(
+          buffer,
+          length,
+          buffer.length - length,
+          null,
+        );
+        if (!bytesRead) break;
+        length += bytesRead;
+      }
+      if (length > stats.size) return null;
+      const bytes = buffer.subarray(0, length);
+      return {
+        sha256: createHash("sha256").update(bytes).digest("hex"),
+        bytes: bytes.length,
+      };
+    } finally {
+      await file.close();
+    }
   } catch {
     return null;
   }

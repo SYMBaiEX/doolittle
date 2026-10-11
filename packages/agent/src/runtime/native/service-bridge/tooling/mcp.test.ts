@@ -25,6 +25,21 @@ function pending<T>() {
 }
 
 describe("MCP marketplace cancellation", () => {
+  it.each([
+    new Error("fixture-secret\n    at transport (/private/file:1)"),
+    "fixture-secret\n    at transport (/private/file:1)",
+  ])("does not expose marketplace exception details", async (failure) => {
+    searchMarketplaceMock.mockRejectedValueOnce(failure);
+    getMarketplaceServerMock.mockRejectedValueOnce(failure);
+
+    const search = await searchEffectiveMcpMarketplace("browser");
+    const lookup = await getEffectiveMcpMarketplaceServer("browser");
+    expect(search.error).toBe("MCP marketplace search failed.");
+    expect(lookup.error).toBe("MCP marketplace lookup failed.");
+    expect(JSON.stringify([search, lookup])).not.toContain("fixture-secret");
+    expect(JSON.stringify([search, lookup])).not.toContain("/private/file");
+  });
+
   it("returns promptly when a search is already aborted", async () => {
     const controller = new AbortController();
     controller.abort();

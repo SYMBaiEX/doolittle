@@ -16,6 +16,7 @@ import type {
   WorkspaceReadLinesResult,
   WorkspaceWriteResult,
 } from "@doolittle/contracts";
+import { readRegularFileSync } from "@/utils/read-regular-file";
 import { resolveWorkspaceServicePath } from "./path";
 import { workspaceRelativePath } from "./path-format";
 import { isWorkspacePathVisible } from "./policy";
@@ -184,9 +185,9 @@ export function searchWorkspaceFiles(
     }
 
     try {
-      const stat = lstatSync(file);
-      if (stat.size > MAX_SEARCH_FILE_BYTES) continue;
-      const lines = readFileSync(file, "utf8").split(/\r?\n/u);
+      const lines = readRegularFileSync(file, MAX_SEARCH_FILE_BYTES)
+        .toString("utf8")
+        .split(/\r?\n/u);
       for (const [index, text] of lines.entries()) {
         if (regex.test(text)) {
           matches.push({ path: displayPath, line: index + 1, text });

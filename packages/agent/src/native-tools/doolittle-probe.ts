@@ -1,11 +1,12 @@
 import {
+  createHealthProbeRequest,
   createHealthProbeResult,
   resolveDoolittleApiUrl,
 } from "./health-probe-core";
 
 function printUsage(): void {
   console.log(
-    "Usage: doolittle-probe [base-url]\n\nChecks the canonical Doolittle /health endpoint.\nAuthentication is read only from ELIZA_API_TOKEN.",
+    "Usage: doolittle-probe [base-url]\n\nChecks the canonical Doolittle /health endpoint without redirects.\nELIZA_API_TOKEN is sent only to the configured local API origin.\nSet DOOLITTLE_PROBE_AUTH_ORIGIN to explicitly trust another origin (HTTPS required remotely).",
   );
 }
 
@@ -19,13 +20,17 @@ async function main(): Promise<void> {
     throw new Error("Expected at most one base URL argument.");
   }
 
-  const endpoint = resolveDoolittleApiUrl(
-    args[0],
-    process.env.ELIZA_API_PORT ?? process.env.DOOLITTLE_PORT,
+  const configuredPort =
+    process.env.ELIZA_API_PORT ?? process.env.DOOLITTLE_PORT;
+  const endpoint = resolveDoolittleApiUrl(args[0], configuredPort);
+  const request = createHealthProbeRequest(
+    endpoint,
+    process.env.ELIZA_API_TOKEN,
+    configuredPort,
+    process.env.DOOLITTLE_PROBE_AUTH_ORIGIN,
   );
-  const token = process.env.ELIZA_API_TOKEN?.trim();
   const response = await fetch(endpoint, {
-    headers: token ? { authorization: `Bearer ${token}` } : {},
+    ...request,
     signal: AbortSignal.timeout(10_000),
   });
   const result = createHealthProbeResult(

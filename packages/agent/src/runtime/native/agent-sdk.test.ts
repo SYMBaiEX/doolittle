@@ -35,8 +35,10 @@ const registryPlugin = {
 
 function installAgentSdkMocks({
   registryShouldFail = false,
+  searchFailure,
 }: {
   registryShouldFail?: boolean;
+  searchFailure?: unknown;
 }) {
   vi.doMock("@elizaos/agent/services/registry-client", () => ({
     getConfiguredEndpoints: () => ["https://agent-registry.test"],
@@ -50,7 +52,10 @@ function installAgentSdkMocks({
       ]);
     },
     listNonAppPlugins: () => [{ name: "plugin-a" }, { name: "plugin-b" }],
-    searchNonAppPlugins: () => [registryPlugin],
+    searchNonAppPlugins: () => {
+      if (searchFailure !== undefined) throw searchFailure;
+      return [registryPlugin];
+    },
     getPluginInfo: (name: string) =>
       name === registryPlugin.name ? registryPlugin : null,
   }));
@@ -126,7 +131,26 @@ describe("agent-sdk helper facade", () => {
     expect(snapshot.available).toBe(false);
     expect(snapshot.total).toBe(0);
     expect(snapshot.nonAppPlugins).toBe(0);
-    expect(snapshot.error).toBe("registry offline");
+    expect(snapshot.error).toBe("Agent registry is unavailable.");
+  });
+
+  it.each([
+    new Error(
+      "private-path fixture-secret\n    at transport (/private/file:1)",
+    ),
+    "private-path fixture-secret\n    at transport (/private/file:1)",
+  ])("does not expose registry transport exceptions", async (failure) => {
+    installAgentSdkMocks({ searchFailure: failure });
+    const mod = await loadAgentSdkModule();
+
+    const result = await mod.searchAgentRegistry("browser");
+    expect(result).toMatchObject({
+      available: false,
+      error: "Agent registry search failed.",
+      results: [],
+    });
+    expect(JSON.stringify(result)).not.toContain("fixture-secret");
+    expect(JSON.stringify(result)).not.toContain("/private/file");
   });
 
   it("enriches registry results with explicit trust policy", async () => {

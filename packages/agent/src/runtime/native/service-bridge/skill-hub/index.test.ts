@@ -6,6 +6,7 @@ import { AGENT_SKILLS_SERVICE } from "../runtime-contracts";
 import {
   getEffectiveSkillHubCatalog,
   installEffectiveSkill,
+  searchEffectiveSkillHubCatalog,
   syncEffectiveSkillCatalog,
 } from ".";
 
@@ -22,6 +23,39 @@ function services(): AppServices {
 }
 
 describe("official Agent Skills bridge", () => {
+  it.each([
+    new Error("fixture-secret\n    at transport (/private/file:1)"),
+    "fixture-secret\n    at transport (/private/file:1)",
+  ])("does not expose official service exception details", async (failure) => {
+    const reject = vi.fn(async () => {
+      throw failure;
+    });
+    const runtime = {
+      getService(name: string) {
+        return name === "AGENT_SKILLS_SERVICE"
+          ? { search: reject, syncCatalog: reject, install: reject }
+          : null;
+      },
+    } as unknown as RuntimeLike;
+
+    const search = await searchEffectiveSkillHubCatalog(
+      runtime,
+      services(),
+      "browser",
+    );
+    const sync = await syncEffectiveSkillCatalog(runtime);
+    const install = await installEffectiveSkill(runtime, "browser");
+    expect(search.error).toBe("Skills catalog search failed.");
+    expect(sync.error).toBe("Skills catalog sync failed.");
+    expect(install.error).toBe("Skill installation failed.");
+    expect(JSON.stringify([search, sync, install])).not.toContain(
+      "fixture-secret",
+    );
+    expect(JSON.stringify([search, sync, install])).not.toContain(
+      "/private/file",
+    );
+  });
+
   it("uses the official runtime service key", () => {
     expect(AGENT_SKILLS_SERVICE).toBe(AgentSkillsService.serviceType);
   });

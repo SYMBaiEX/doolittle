@@ -3,7 +3,6 @@ import {
   getMcpServerDetails,
   searchMcpMarketplace,
 } from "@elizaos/agent/services/mcp-marketplace";
-import { errorMessage } from "@/utils/error-message";
 import type { RuntimeLike } from "../runtime-contracts";
 import { requireNativeMcp } from "./native-services";
 
@@ -134,7 +133,7 @@ export async function searchEffectiveMcpMarketplace(
       limit,
       ...result,
     };
-  } catch (error) {
+  } catch {
     if (signal?.aborted) throw marketplaceAbortError(signal);
     return {
       available: false,
@@ -142,7 +141,8 @@ export async function searchEffectiveMcpMarketplace(
       query,
       limit,
       results: [],
-      error: errorMessage(error),
+      // Do not return SDK transport details in the public JSON response.
+      error: "MCP marketplace search failed.",
     };
   }
 }
@@ -164,7 +164,7 @@ export async function getEffectiveMcpMarketplaceServer(
       server,
       config: server ? generateMcpConfigFromServerDetails(server) : null,
     };
-  } catch (error) {
+  } catch {
     if (signal?.aborted) throw marketplaceAbortError(signal);
     return {
       available: false,
@@ -172,7 +172,7 @@ export async function getEffectiveMcpMarketplaceServer(
       name,
       server: null,
       config: null,
-      error: errorMessage(error),
+      error: "MCP marketplace lookup failed.",
     };
   }
 }

@@ -39,7 +39,12 @@ try {
     stderr: string;
   }>((resolveChild, reject) => {
     const child = spawn(executable, [`http://127.0.0.1:${address.port}`], {
-      env: { ...process.env, ELIZA_API_TOKEN: expectedToken },
+      env: {
+        ...process.env,
+        ELIZA_API_TOKEN: expectedToken,
+        ELIZA_API_PORT: String(address.port),
+        DOOLITTLE_PROBE_AUTH_ORIGIN: "",
+      },
       stdio: ["ignore", "pipe", "pipe"],
     });
     let stdout = "";

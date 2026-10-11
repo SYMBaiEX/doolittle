@@ -1,6 +1,7 @@
 import { hashContent } from "./artifacts";
 import type { WebPageSnapshot } from "./service-types";
 
+/** Extracts plain text for snapshots/model context, never safe-to-render HTML. */
 export function extractReadableText(
   content: string,
   contentType = "text/html",

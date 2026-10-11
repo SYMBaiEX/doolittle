@@ -16,6 +16,7 @@ import {
 } from "node:fs";
 import { basename, extname, resolve } from "node:path";
 import { isStrictlyContainedPath } from "@/utils/path-containment";
+import { readRegularFileSync } from "@/utils/read-regular-file";
 
 const RECORDING_ID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u;
@@ -227,10 +228,10 @@ export function resolveTransientDictation(
     if (!isStrictlyContainedPath(sessionDir, metadataPath)) {
       fail("invalid_metadata", "Dictation metadata is unsafe.");
     }
-    if (statSync(metadataPath).size > MAX_METADATA_BYTES) {
-      fail("invalid_metadata", "Dictation metadata is invalid.");
-    }
-    const metadata = parseMetadata(readFileSync(metadataPath, "utf8"), id);
+    const metadata = parseMetadata(
+      readRegularFileSync(metadataPath, MAX_METADATA_BYTES).toString("utf8"),
+      id,
+    );
 
     const requestedRecordingPath = resolve(sessionDir, metadata.storedName);
     if (

@@ -1,3 +1,4 @@
+/** Plain-text metadata preview, not an HTML sanitizer or DOM insertion value. */
 export function buildMediaPreview(content: string, extension: string): string {
   const trimmed = content.trim();
   if (!trimmed) {

@@ -11,6 +11,7 @@ import {
 } from "node:fs";
 import { basename, extname } from "node:path";
 import { isStrictlyContainedPath } from "@/utils/path-containment";
+import { readRegularFileSync } from "@/utils/read-regular-file";
 
 const MAX_MANIFEST_BYTES = 128 * 1024;
 export const MAX_MEDIA_LIBRARY_ASSET_BYTES = 5 * 1024 * 1024;
@@ -78,15 +79,9 @@ const ASSET_TYPES: Record<
 
 function readManifest(path: string): GeneratedManifest | null {
   try {
-    const info = lstatSync(path);
-    if (
-      !info.isFile() ||
-      info.isSymbolicLink() ||
-      info.size > MAX_MANIFEST_BYTES
-    ) {
-      return null;
-    }
-    const parsed = JSON.parse(readFileSync(path, "utf8"));
+    const parsed = JSON.parse(
+      readRegularFileSync(path, MAX_MANIFEST_BYTES).toString("utf8"),
+    );
     return parsed && typeof parsed === "object" && !Array.isArray(parsed)
       ? (parsed as GeneratedManifest)
       : null;

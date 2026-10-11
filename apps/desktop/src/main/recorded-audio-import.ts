@@ -9,15 +9,13 @@ import {
   mkdirSync,
   opendirSync,
   openSync,
-  readFileSync,
   realpathSync,
   renameSync,
   rmSync,
-  statSync,
-  writeFileSync,
 } from "node:fs";
 import { basename, isAbsolute, relative, resolve, sep } from "node:path";
 import { hasFilenameControlCharacters } from "./ipc/input-validation";
+import { writeVerifiedFileSync } from "./regular-file";
 
 export const RECORDED_AUDIO_IMPORT_MAX_BYTES = 20 * 1024 * 1024;
 export const RECORDED_AUDIO_IMPORT_PRUNE_LIMIT = 256;
@@ -360,18 +358,8 @@ export function importRecordedAudio(
 
   try {
     const sha256 = createHash("sha256").update(contents).digest("hex");
-    writeFileSync(temporaryDataPath, contents, { flag: "wx", mode: 0o600 });
+    writeVerifiedFileSync(temporaryDataPath, contents);
     temporaryDataCreated = true;
-    const copied = statSync(temporaryDataPath);
-    if (
-      copied.size !== contents.byteLength ||
-      createHash("sha256")
-        .update(readFileSync(temporaryDataPath))
-        .digest("hex") !== sha256
-    ) {
-      throw new Error("Recording changed during managed import.");
-    }
-    fsyncFile(temporaryDataPath);
     renameSync(temporaryDataPath, destinationPath);
     temporaryDataCreated = false;
     destinationCreated = true;
@@ -392,13 +380,11 @@ export function importRecordedAudio(
     };
     // Keep this explicit staged write: the metadata participates in the
     // recording's two-file fsync/rename transaction.
-    writeFileSync(temporaryMetadataPath, `${JSON.stringify(metadata)}\n`, {
-      encoding: "utf8",
-      flag: "wx",
-      mode: 0o600,
-    });
+    writeVerifiedFileSync(
+      temporaryMetadataPath,
+      Buffer.from(`${JSON.stringify(metadata)}\n`),
+    );
     temporaryMetadataCreated = true;
-    fsyncFile(temporaryMetadataPath);
     renameSync(temporaryMetadataPath, metadataPath);
     temporaryMetadataCreated = false;
     metadataCreated = true;

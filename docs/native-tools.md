@@ -45,6 +45,17 @@ If the API requires authentication, set `ELIZA_API_TOKEN` in the process
 environment. Do not pass tokens in the URL or command arguments. The probe
 rejects credential-bearing URLs and bounds non-JSON response output.
 
+Authentication is origin-scoped: by default the token is sent only to
+`http://127.0.0.1:${ELIZA_API_PORT ?? DOOLITTLE_PORT ?? 3000}`. A CLI URL cannot
+change that trust decision. Other health endpoints remain probeable without
+credentials. To authenticate a different endpoint, explicitly set
+`DOOLITTLE_PROBE_AUTH_ORIGIN` to its origin (scheme, host, and port only), for
+example `https://agent.example.com`. Remote authenticated origins must use
+HTTPS; HTTP is allowed only for numeric `127.0.0.1` or `[::1]` loopback. Host
+aliases and different ports are different origins: `localhost` does not inherit
+the default `127.0.0.1` trust. Never opt in to an origin you do not trust with
+the token. All probes reject redirects, including same-origin redirects.
+
 ## Toolchain policy
 
 - ScriptC is pinned as a development dependency. It is not shipped inside the

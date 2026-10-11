@@ -32,6 +32,46 @@ export function resolveDoolittleApiUrl(
   return `${parsed.protocol}//${parsed.host}/health`;
 }
 
+/** Scope an environment token to one operator-trusted origin, never redirects. */
+export function createHealthProbeRequest(
+  endpoint: string,
+  token: string | undefined,
+  configuredPort: string | undefined,
+  configuredAuthOrigin: string | undefined,
+): RequestInit {
+  const headers: Record<string, string> = {};
+  const request: RequestInit = { headers, redirect: "error" };
+  const trimmedToken = token?.trim();
+  const authOrigin = configuredAuthOrigin?.trim();
+  if (!trimmedToken && !authOrigin) return request;
+  const trusted = new URL(
+    authOrigin || resolveDoolittleApiUrl(undefined, configuredPort),
+  );
+  if (trusted.username || trusted.password || authOrigin?.includes("@")) {
+    throw new Error(
+      "Probe authentication origin must not contain credentials.",
+    );
+  }
+  if (
+    authOrigin &&
+    (trusted.pathname !== "/" || trusted.search || trusted.hash)
+  ) {
+    throw new Error("Probe authentication origin must contain only an origin.");
+  }
+  const numericLoopback =
+    trusted.hostname === "127.0.0.1" || trusted.hostname === "[::1]";
+  if (
+    trusted.protocol !== "https:" &&
+    !(trusted.protocol === "http:" && numericLoopback)
+  ) {
+    throw new Error("Remote probe authentication requires an HTTPS origin.");
+  }
+  if (trimmedToken && new URL(endpoint).origin === trusted.origin) {
+    headers.authorization = `Bearer ${trimmedToken}`;
+  }
+  return request;
+}
+
 export function normalizeHealthBody(body: string): string {
   return body.trim().slice(0, 2_000);
 }

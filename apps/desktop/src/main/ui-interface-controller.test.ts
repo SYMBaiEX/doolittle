@@ -5,6 +5,7 @@ import {
   mkdtempSync,
   readFileSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -152,6 +153,30 @@ function setup(
 }
 
 describe("native interface consent and recovery", () => {
+  it("recovers safely from an oversized saved selection", async () => {
+    const { controller, statePath } = setup("trusted-react");
+    writeFileSync(statePath, " ".repeat(64 * 1024 + 1));
+    await controller.start();
+    expect(controller.getState().mode).toBe("default");
+    expect(controller.getState().recovery).toContain(
+      "could not be restored safely",
+    );
+  });
+
+  it.skipIf(process.platform === "win32")(
+    "rejects symlinked selection state without activating an interface",
+    async () => {
+      const { controller, statePath, root } = setup("trusted-react");
+      const external = resolve(root, "external.json");
+      writeFileSync(external, JSON.stringify({ version: 1 }));
+      symlinkSync(external, statePath);
+      await controller.start();
+      expect(controller.getState().mode).toBe("default");
+      expect(controller.getState().recovery).toContain(
+        "could not be restored safely",
+      );
+    },
+  );
   it.each(["community-static", "trusted-react"] as const)(
     "registers only verified %s contributions without dispatching work",
     async (tier) => {

@@ -1,6 +1,8 @@
-import { existsSync, readFileSync } from "node:fs";
+import { realpathSync } from "node:fs";
 import { join } from "node:path";
 import type { ContextDocument } from "@/types";
+import { isStrictlyContainedPath } from "@/utils/path-containment";
+import { readRegularFileSync } from "@/utils/read-regular-file";
 import { injectionScanner, type ScanResult } from "./prompt-injection-scanner";
 import {
   resolveWorkspaceDirectory,
@@ -8,12 +10,15 @@ import {
 } from "./workspace-directory";
 
 const contextFileNames = ["AGENTS.md", "SOUL.md", "MISSION.md", "ROADMAP.md"];
+const MAX_CONTEXT_FILE_BYTES = 1024 * 1024;
 
 export interface SafeContextDocument extends ContextDocument {
   /** True when the injection scanner flagged this document. */
   flagged: boolean;
   /** True when the document was blocked outright by the scanner. */
   blocked: boolean;
+  /** Filesystem boundary failure, independent of injection scanning. */
+  blockedReason?: "outside workspace" | "unreadable or oversized file";
   /** The scanner result (undefined when scanning is disabled). */
   scanResult?: ScanResult;
   /** Sanitized content (injection markers redacted). */
@@ -44,12 +49,53 @@ export class ContextFilesService {
     const workspaceDir = resolveWorkspaceDirectory(this.workspaceDirectory);
 
     const results: SafeContextDocument[] = [];
+    let workspaceRoot: string;
+    try {
+      workspaceRoot = realpathSync(workspaceDir);
+    } catch {
+      return results;
+    }
 
     for (const name of contextFileNames) {
-      const path = join(workspaceDir, name);
-      if (!existsSync(path)) continue;
+      const path = join(workspaceRoot, name);
+      let canonicalPath: string;
+      try {
+        canonicalPath = realpathSync(path);
+      } catch {
+        continue;
+      }
+      // Workspace-controlled links must never import unrelated host secrets.
+      if (!isStrictlyContainedPath(workspaceRoot, canonicalPath)) {
+        results.push({
+          name,
+          path,
+          content: `[BLOCKED: ${name} resolves outside the workspace.]`,
+          sanitizedContent: `[BLOCKED: ${name} resolves outside the workspace.]`,
+          flagged: true,
+          blocked: true,
+          blockedReason: "outside workspace",
+        });
+        continue;
+      }
 
-      const rawContent = readFileSync(path, "utf8");
+      let rawContent: string;
+      try {
+        rawContent = readRegularFileSync(
+          canonicalPath,
+          MAX_CONTEXT_FILE_BYTES,
+        ).toString("utf8");
+      } catch {
+        results.push({
+          name,
+          path,
+          content: `[BLOCKED: ${name} is not a readable bounded regular file.]`,
+          sanitizedContent: `[BLOCKED: ${name} is not a readable bounded regular file.]`,
+          flagged: true,
+          blocked: true,
+          blockedReason: "unreadable or oversized file",
+        });
+        continue;
+      }
 
       if (!scanForInjection) {
         results.push({
@@ -150,6 +196,10 @@ export class ContextFilesService {
 
     const lines = ["Context File Security Scan:"];
     for (const doc of docs) {
+      if (doc.blocked && !doc.scanResult) {
+        lines.push(`  ${doc.name}: 🚫 BLOCKED (${doc.blockedReason})`);
+        continue;
+      }
       if (!doc.scanResult) {
         lines.push(`  ${doc.name}: scanning disabled`);
         continue;

@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { closeSync, existsSync, openSync, readFileSync } from "node:fs";
+import { closeSync, existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import type { EnvConfig } from "@/types";
 import type { CliTurnEvent } from "../turn-events";
@@ -10,6 +10,7 @@ import {
   finalizeCliJob,
   getCliJob,
   markCliJobStarted,
+  openCliJobLog,
 } from "./store";
 import type { CliJobRecord } from "./types";
 
@@ -84,39 +85,41 @@ export function launchCliBackgroundJob(params: {
 }): CliJobRecord {
   const record = createCliJob(params.config.dataDir, params.prompt);
 
-  const stdoutFd = openSync(record.logPath, "a");
-  const stderrFd = openSync(record.logPath, "a");
-  const child = spawn(
-    process.execPath,
-    [
-      params.launcherPath,
-      "exec",
-      "--prompt",
-      params.prompt,
-      "--json-stream",
-      "--job-id",
-      record.id,
-      ...(params.sessionId ? ["--session-id", params.sessionId] : []),
-    ],
-    {
-      cwd: resolve(process.cwd()),
-      detached: true,
-      stdio: ["ignore", stdoutFd, stderrFd],
-      env: {
-        ...process.env,
-        DOOLITTLE_DATA_DIR: record.stateDir,
-        DOOLITTLE_JOB_CONTROL_DIR: params.config.dataDir,
-        PGLITE_DATA_DIR: join(record.stateDir, "pglite"),
+  const stdoutFd = openCliJobLog(record.logPath);
+  // Both child streams share one append-only, verified descriptor.
+  try {
+    const child = spawn(
+      process.execPath,
+      [
+        params.launcherPath,
+        "exec",
+        "--prompt",
+        params.prompt,
+        "--json-stream",
+        "--job-id",
+        record.id,
+        ...(params.sessionId ? ["--session-id", params.sessionId] : []),
+      ],
+      {
+        cwd: resolve(process.cwd()),
+        detached: true,
+        stdio: ["ignore", stdoutFd, stdoutFd],
+        env: {
+          ...process.env,
+          DOOLITTLE_DATA_DIR: record.stateDir,
+          DOOLITTLE_JOB_CONTROL_DIR: params.config.dataDir,
+          PGLITE_DATA_DIR: join(record.stateDir, "pglite"),
+        },
       },
-    },
-  );
+    );
 
-  child.unref();
-  closeSync(stdoutFd);
-  closeSync(stderrFd);
-  markCliJobStarted(params.config.dataDir, record.id, {
-    pid: child.pid ?? 0,
-    sessionId: params.sessionId,
-  });
-  return getCliJob(params.config.dataDir, record.id) ?? record;
+    child.unref();
+    markCliJobStarted(params.config.dataDir, record.id, {
+      pid: child.pid ?? 0,
+      sessionId: params.sessionId,
+    });
+    return getCliJob(params.config.dataDir, record.id) ?? record;
+  } finally {
+    closeSync(stdoutFd);
+  }
 }

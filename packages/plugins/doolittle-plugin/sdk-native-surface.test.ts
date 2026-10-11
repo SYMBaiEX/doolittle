@@ -195,6 +195,33 @@ describe("Eliza-native Doolittle surface", () => {
     expect(result?.verifiedUserFacing).toBe(true);
   });
 
+  it.each([
+    'A quoted "result" and C:\\workspace\\file',
+    'A slash-quote \\" result',
+  ])(
+    "decodes an already-escaped truncated excerpt as data",
+    async (excerpt) => {
+      const encoded = JSON.stringify(excerpt).slice(1, -1);
+      const truncatedResult =
+        '{"results":[{"url":"https://example.com/","title":"Example","excerpts":["' +
+        encoded;
+      const action = createShortcutCompatibleWebSearchAction({
+        name: "WEB_SEARCH",
+        description: "Search the web",
+        validate: vi.fn(async () => true),
+        handler: vi.fn(async () => ({ success: true, text: truncatedResult })),
+      } as Action);
+
+      const result = await action.handler(
+        {} as never,
+        { content: { text: "/web Example" } } as Memory,
+        undefined,
+        { parameters: { query: "Example" } },
+      );
+      expect(result?.userFacingText).toContain(excerpt);
+    },
+  );
+
   it("recovers a verified final answer from the SDK's capped search JSON", async () => {
     const truncatedResult =
       '{\n  "search_id": "search-1",\n  "results": [\n    {\n' +

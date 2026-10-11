@@ -1,6 +1,6 @@
 import {
   existsSync,
-  mkdirSync,
+  mkdtempSync,
   readFileSync,
   rmSync,
   writeFileSync,
@@ -89,9 +89,7 @@ describe("bootstrap environment", () => {
   });
 
   it("defaults runtime env vars and generates a secret salt", () => {
-    const root = join(tmpdir(), `doolittle-bootstrap-${Date.now()}`);
-    rmSync(root, { force: true, recursive: true });
-    mkdirSync(root, { recursive: true });
+    const root = mkdtempSync(join(tmpdir(), "doolittle-bootstrap-"));
     delete process.env.LOG_LEVEL;
     delete process.env.DEFAULT_LOG_LEVEL;
     delete process.env.SECRET_SALT;
@@ -113,10 +111,8 @@ describe("bootstrap environment", () => {
   });
 
   it("keeps pglite preparation aligned with an explicit env override", () => {
-    const root = join(tmpdir(), `doolittle-bootstrap-${Date.now()}-pglite`);
+    const root = mkdtempSync(join(tmpdir(), "doolittle-bootstrap-pglite-"));
     const overriddenPgliteDir = join(root, "custom-pglite");
-    rmSync(root, { force: true, recursive: true });
-    mkdirSync(root, { recursive: true });
     process.env.PGLITE_DATA_DIR = overriddenPgliteDir;
 
     bootstrapRuntimeEnvironment(makeConfig(root));
@@ -140,9 +136,7 @@ describe("bootstrap environment", () => {
   });
 
   it("reuses an existing secret salt file", () => {
-    const root = join(tmpdir(), `doolittle-bootstrap-${Date.now()}-salt`);
-    rmSync(root, { force: true, recursive: true });
-    mkdirSync(root, { recursive: true });
+    const root = mkdtempSync(join(tmpdir(), "doolittle-bootstrap-salt-"));
     writeFileSync(join(root, "secret-salt"), "stable-salt\n", "utf8");
 
     expect(ensureSecretSalt(makeConfig(root))).toBe("stable-salt");
@@ -151,9 +145,7 @@ describe("bootstrap environment", () => {
   });
 
   it("prefers a provided secret salt from the environment", () => {
-    const root = join(tmpdir(), `doolittle-bootstrap-${Date.now()}-provided`);
-    rmSync(root, { force: true, recursive: true });
-    mkdirSync(root, { recursive: true });
+    const root = mkdtempSync(join(tmpdir(), "doolittle-bootstrap-provided-"));
     process.env.SECRET_SALT = "provided-salt";
 
     expect(ensureSecretSalt(makeConfig(root))).toBe("provided-salt");
@@ -163,9 +155,7 @@ describe("bootstrap environment", () => {
   });
 
   it("serializes plugin settings from config, runtime settings, and ambient env", () => {
-    const root = join(tmpdir(), `doolittle-bootstrap-${Date.now()}-settings`);
-    rmSync(root, { force: true, recursive: true });
-    mkdirSync(root, { recursive: true });
+    const root = mkdtempSync(join(tmpdir(), "doolittle-bootstrap-settings-"));
     process.env.SECRET_SALT = "runtime-secret";
     process.env.DOOLITTLE_EMBEDDING_PROVIDER = "elizacloud";
     process.env.E2B_MODE = "cloud";
@@ -240,9 +230,7 @@ describe("bootstrap environment", () => {
   });
 
   it("uses the persisted Ollama route instead of startup Granite defaults", () => {
-    const root = join(tmpdir(), `doolittle-bootstrap-${Date.now()}-ollama`);
-    rmSync(root, { force: true, recursive: true });
-    mkdirSync(root, { recursive: true });
+    const root = mkdtempSync(join(tmpdir(), "doolittle-bootstrap-ollama-"));
 
     const settings = buildPluginSettings(
       {
@@ -335,9 +323,7 @@ describe("bootstrap environment", () => {
   });
 
   it("supports explicit dependency injection for linked credentials and ambient env", () => {
-    const root = join(tmpdir(), `doolittle-bootstrap-${Date.now()}-linked`);
-    rmSync(root, { force: true, recursive: true });
-    mkdirSync(root, { recursive: true });
+    const root = mkdtempSync(join(tmpdir(), "doolittle-bootstrap-linked-"));
 
     const settings = buildPluginSettings(
       {
@@ -392,9 +378,7 @@ describe("bootstrap environment", () => {
   });
 
   it("does not expose a saved ElizaCloud key to local Devin runtime settings", () => {
-    const root = join(tmpdir(), `doolittle-bootstrap-${Date.now()}-devin`);
-    rmSync(root, { force: true, recursive: true });
-    mkdirSync(root, { recursive: true });
+    const root = mkdtempSync(join(tmpdir(), "doolittle-bootstrap-devin-"));
 
     const settings = buildPluginSettings(
       {
@@ -442,9 +426,7 @@ describe("bootstrap environment", () => {
   });
 
   it("makes explicitly enabled Eliza Cloud available for secondary model types", () => {
-    const root = join(tmpdir(), `doolittle-bootstrap-${Date.now()}-cloud`);
-    rmSync(root, { force: true, recursive: true });
-    mkdirSync(root, { recursive: true });
+    const root = mkdtempSync(join(tmpdir(), "doolittle-bootstrap-cloud-"));
 
     const settings = buildPluginSettings(
       {

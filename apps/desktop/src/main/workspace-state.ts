@@ -1,7 +1,8 @@
-import { readFileSync, realpathSync, statSync } from "node:fs";
+import { realpathSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
 import type { WorkspacePickResult, WorkspaceState } from "../shared/contracts";
+import { readBoundedRegularFile } from "./regular-file";
 
 export const MAX_RECENT_WORKSPACES = 8;
 const MAX_STATE_FILE_BYTES = 64_000;
@@ -114,10 +115,10 @@ export function loadWorkspaceState(
       }
     : { currentPath: "", recentPaths: [] };
   try {
-    const contents = readFileSync(statePath, "utf8");
-    if (contents.length > MAX_STATE_FILE_BYTES) {
-      return fallbackState;
-    }
+    const contents = readBoundedRegularFile(
+      statePath,
+      MAX_STATE_FILE_BYTES,
+    ).toString("utf8");
     return normalizePersistedState(
       JSON.parse(contents) as unknown,
       normalizedFallback,

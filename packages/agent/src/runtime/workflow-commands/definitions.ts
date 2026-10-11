@@ -1,8 +1,12 @@
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { readdirSync, readFileSync, realpathSync } from "node:fs";
 import { basename, join } from "node:path";
 import { canonicalizeSlashCommandSyntax } from "@/runtime/slash-command-syntax";
+import { isStrictlyContainedPath } from "@/utils/path-containment";
+import { readRegularFileSync } from "@/utils/read-regular-file";
 import { parseWorkflowFrontmatter } from "./frontmatter";
 import type { WorkflowCommandDefinition, WorkflowCommandSeed } from "./types";
+
+const MAX_WORKFLOW_FILE_BYTES = 1024 * 1024;
 
 const WORKFLOW_COMMAND_SEEDS: WorkflowCommandSeed[] = [
   {
@@ -79,24 +83,42 @@ export function builtInWorkflowDefinitions(): WorkflowCommandDefinition[] {
 export function discoverWorkspaceWorkflowDefinitions(
   workspaceDir: string,
 ): WorkflowCommandDefinition[] {
+  let workspaceRoot: string;
+  try {
+    workspaceRoot = realpathSync(workspaceDir);
+  } catch {
+    return [];
+  }
   const candidates = [
-    join(workspaceDir, ".doolittle", "commands"),
-    join(workspaceDir, "commands", "workflows"),
+    join(workspaceRoot, ".doolittle", "commands"),
+    join(workspaceRoot, "commands", "workflows"),
   ];
   const definitions: WorkflowCommandDefinition[] = [];
 
   for (const directory of candidates) {
-    if (!existsSync(directory)) {
+    let canonicalDirectory: string;
+    let entries: string[];
+    try {
+      canonicalDirectory = realpathSync(directory);
+      // Repository links must not pull unrelated host files into model prompts.
+      if (!isStrictlyContainedPath(workspaceRoot, canonicalDirectory)) continue;
+      entries = readdirSync(canonicalDirectory);
+    } catch {
       continue;
     }
 
-    for (const entry of readdirSync(directory)) {
+    for (const entry of entries) {
       if (!entry.endsWith(".md")) {
         continue;
       }
 
       try {
-        const markdown = readFileSync(join(directory, entry), "utf8");
+        const path = realpathSync(join(canonicalDirectory, entry));
+        if (!isStrictlyContainedPath(workspaceRoot, path)) continue;
+        const markdown = readRegularFileSync(
+          path,
+          MAX_WORKFLOW_FILE_BYTES,
+        ).toString("utf8");
         const normalized = normalizeWorkflowDefinition(
           markdown,
           `/${basename(entry, ".md")}`,

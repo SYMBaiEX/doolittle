@@ -1,15 +1,10 @@
 import { createHash, randomUUID } from "node:crypto";
 import {
   chmodSync,
-  closeSync,
-  constants,
   existsSync,
-  fstatSync,
   lstatSync,
   mkdirSync,
-  openSync,
   readdirSync,
-  readFileSync,
   renameSync,
   rmSync,
   writeFileSync,
@@ -20,6 +15,7 @@ import {
   type UiPluginArtifactIdentity,
   type UiPluginManifestV1,
 } from "@doolittle/contracts/ui-plugin";
+import { readBoundedRegularFile } from "../regular-file";
 
 const MAX_MANIFEST_BYTES = 64 * 1024;
 const MAX_ARTIFACT_BYTES = 32 * 1024 * 1024;
@@ -42,22 +38,7 @@ function isWithin(root: string, candidate: string): boolean {
 }
 
 function readRegularFile(path: string, maxBytes: number): Buffer {
-  if (!lstatSync(path).isFile())
-    throw new Error("UI artifact contains a non-file entry.");
-  const flags = constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0);
-  const fd = openSync(path, flags);
-  try {
-    const stats = fstatSync(fd);
-    if (!stats.isFile() || stats.size > maxBytes || stats.size < 0) {
-      throw new Error("UI artifact file exceeds its limit.");
-    }
-    const bytes = readFileSync(fd);
-    if (bytes.byteLength !== stats.size)
-      throw new Error("UI artifact file changed during inspection.");
-    return bytes;
-  } finally {
-    closeSync(fd);
-  }
+  return readBoundedRegularFile(path, maxBytes);
 }
 
 function inspectDirectory(

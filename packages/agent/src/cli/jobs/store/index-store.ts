@@ -17,7 +17,7 @@ function jobsIndexPath(dataDir: string): string {
 
 function ensureJobsStore(dataDir: string): void {
   const root = jobsRoot(dataDir);
-  mkdirSync(root, { recursive: true });
+  mkdirSync(root, { recursive: true, mode: 0o700 });
   const indexPath = jobsIndexPath(dataDir);
   if (!existsSync(indexPath)) {
     writeJsonAtomicSync(indexPath, { jobs: [] });

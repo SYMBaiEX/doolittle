@@ -1,4 +1,4 @@
-import { existsSync, lstatSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import type { UiHostCommand, UiTarget } from "@doolittle/contracts/ui-host";
 import type {
@@ -18,6 +18,7 @@ import {
   type UiInterfaceState,
   uiInterfaceChannels,
 } from "../shared/ui-interface";
+import { readBoundedRegularFile } from "./regular-file";
 import {
   installUiArtifact,
   loadUiArtifact,
@@ -189,10 +190,9 @@ export class UiInterfaceController {
             digest.name,
             "manifest.json",
           );
-          const stat = lstatSync(manifestPath);
-          if (!stat.isFile() || stat.isSymbolicLink() || stat.size > 64 * 1024)
-            continue;
-          const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as {
+          const manifest = JSON.parse(
+            readBoundedRegularFile(manifestPath, 64 * 1024).toString("utf8"),
+          ) as {
             pluginVersion?: unknown;
           };
           if (typeof manifest.pluginVersion !== "string") continue;
@@ -233,10 +233,10 @@ export class UiInterfaceController {
     }
     if (!existsSync(this.options.statePath)) return;
     try {
-      if (lstatSync(this.options.statePath).size > 64 * 1024)
-        throw new Error("Invalid interface state.");
       const saved = JSON.parse(
-        readFileSync(this.options.statePath, "utf8"),
+        readBoundedRegularFile(this.options.statePath, 64 * 1024).toString(
+          "utf8",
+        ),
       ) as { version?: unknown; active?: unknown };
       if (saved.version !== 1) throw new Error("Invalid interface state.");
       if (saved.active) {

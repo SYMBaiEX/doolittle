@@ -1,5 +1,13 @@
 import { randomUUID } from "node:crypto";
-import { mkdirSync, writeFileSync } from "node:fs";
+import {
+  closeSync,
+  constants,
+  fchmodSync,
+  fstatSync,
+  mkdirSync,
+  openSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 import { type CliTurnEvent, encodeCliTurnEvent } from "@/cli/turn-events";
 import type { CliJobRecord } from "../types";
@@ -16,8 +24,8 @@ export function createCliJob(dataDir: string, prompt: string): CliJobRecord {
   const root = join(jobsRoot(dataDir), id);
   const stateDir = join(root, "state");
   const logPath = join(root, "events.jsonl");
-  mkdirSync(stateDir, { recursive: true });
-  writeFileSync(logPath, "", "utf8");
+  mkdirSync(stateDir, { recursive: true, mode: 0o700 });
+  writeFileSync(logPath, "", { encoding: "utf8", mode: 0o600, flag: "wx" });
   const now = new Date().toISOString();
   const record: CliJobRecord = {
     id,
@@ -82,10 +90,31 @@ export function appendCliJobEvent(
   if (!job) {
     return;
   }
-  writeFileSync(job.logPath, encodeCliTurnEvent(event), {
-    encoding: "utf8",
-    flag: "a",
-  });
+  const descriptor = openCliJobLog(job.logPath);
+  try {
+    writeFileSync(descriptor, encodeCliTurnEvent(event), "utf8");
+  } finally {
+    closeSync(descriptor);
+  }
+}
+
+export function openCliJobLog(path: string): number {
+  const descriptor = openSync(
+    path,
+    constants.O_WRONLY |
+      constants.O_APPEND |
+      (constants.O_NOFOLLOW ?? 0) |
+      constants.O_NONBLOCK,
+  );
+  try {
+    if (!fstatSync(descriptor).isFile())
+      throw new Error("Job log is not a regular file.");
+    fchmodSync(descriptor, 0o600);
+    return descriptor;
+  } catch (error) {
+    closeSync(descriptor);
+    throw error;
+  }
 }
 
 export function readCliJobEvents(dataDir: string, id: string): CliTurnEvent[] {
