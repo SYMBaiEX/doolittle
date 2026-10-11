@@ -97,21 +97,22 @@ test.describe("packaged Doolittle desktop", () => {
       await composer.focus();
       await expect
         .poll(() =>
-          composer.evaluate((input) => getComputedStyle(input).boxShadow),
+          composer.evaluate((input) => {
+            const styles = getComputedStyle(input);
+            return {
+              focused: document.activeElement === input,
+              outline: styles.outlineStyle,
+              border: styles.borderWidth,
+              shadow: styles.boxShadow,
+            };
+          }),
         )
-        .toContain("2px 0px 0px 0px");
-      const inputFocusStyle = await composer.evaluate((input) => {
-        const styles = getComputedStyle(input);
-        return {
-          outline: styles.outlineStyle,
-          border: styles.borderWidth,
-          shadow: styles.boxShadow,
-        };
-      });
-      expect(inputFocusStyle.outline).toBe("none");
-      expect(inputFocusStyle.border).toBe("0px");
-      expect(inputFocusStyle.shadow).toContain("inset");
-      expect(inputFocusStyle.shadow).toContain("2px 0px 0px 0px");
+        .toEqual({
+          focused: true,
+          outline: "none",
+          border: "0px",
+          shadow: expect.stringMatching(/2px 0px 0px 0px inset/u),
+        });
       await page.keyboard.press(
         process.platform === "darwin" ? "Meta+J" : "Control+J",
       );
