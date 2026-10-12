@@ -27,6 +27,7 @@ export interface InteractiveTerminalTabState {
   output: string;
   commandHistory: string[];
   stale: boolean;
+  pendingStart: { requestId: string; cols: number; rows: number } | null;
 }
 
 export interface InteractiveTerminalWorkspaceState {
@@ -123,6 +124,7 @@ export function createInteractiveTerminalTab(
     output: "",
     commandHistory: [],
     stale: false,
+    pendingStart: null,
   };
 }
 
@@ -198,6 +200,26 @@ export function parseInteractiveTerminalState(
         output,
         commandHistory,
         stale: entry.stale === true && entry.state !== "running",
+        pendingStart:
+          isPlainObject(entry.pendingStart) &&
+          typeof entry.pendingStart.requestId === "string" &&
+          /^\d{13}\.[\da-f]{8}-[\da-f]{4}-4[\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/u.test(
+            entry.pendingStart.requestId,
+          ) &&
+          Number.isInteger(entry.pendingStart.cols) &&
+          Number.isInteger(entry.pendingStart.rows)
+            ? {
+                requestId: entry.pendingStart.requestId,
+                cols: Math.max(
+                  20,
+                  Math.min(400, Number(entry.pendingStart.cols)),
+                ),
+                rows: Math.max(
+                  5,
+                  Math.min(200, Number(entry.pendingStart.rows)),
+                ),
+              }
+            : null,
       };
     })
     .filter((entry): entry is InteractiveTerminalTabState => entry !== null)
@@ -247,7 +269,8 @@ function isDefaultTerminalTab(
     tab.exitCode === null &&
     tab.completedAt === null &&
     tab.startedAt === "" &&
-    tab.stale === false
+    tab.stale === false &&
+    tab.pendingStart === null
   );
 }
 

@@ -57,4 +57,53 @@ describe("ensureComputerOriginOwnerBinding", () => {
 
     expect(bind).not.toHaveBeenCalled();
   });
+
+  it("keeps the captured draft owner and project when selection changes during binding", async () => {
+    let finishBind: (() => void) | undefined;
+    const bind = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          finishBind = resolve;
+        }),
+    );
+    const localBotBindings = {
+      [origin.originConversationId]: origin.botId,
+    };
+
+    const pending = ensureComputerOriginOwnerBinding(origin, {
+      savedSessionIds: new Set(),
+      localBotBindings,
+      projectId: "project-1",
+      bind,
+    });
+    localBotBindings[origin.originConversationId] = "bot-other";
+
+    expect(bind).toHaveBeenCalledExactlyOnceWith(
+      "bot-default",
+      "local-draft-1",
+      "project-1",
+    );
+    finishBind?.();
+    await expect(pending).resolves.toBeUndefined();
+  });
+
+  it("rejects a denied binding so the caller can keep the terminal closed", async () => {
+    const denial = new Error("binding denied");
+    const bind = vi.fn(async () => {
+      throw denial;
+    });
+
+    await expect(
+      ensureComputerOriginOwnerBinding(origin, {
+        savedSessionIds: new Set(),
+        localBotBindings: { [origin.originConversationId]: origin.botId },
+        bind,
+      }),
+    ).rejects.toBe(denial);
+    expect(bind).toHaveBeenCalledExactlyOnceWith(
+      origin.botId,
+      origin.originConversationId,
+      undefined,
+    );
+  });
 });

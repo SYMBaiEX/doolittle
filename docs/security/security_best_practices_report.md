@@ -400,9 +400,47 @@ evidence; 17 remained open for the follow-up fixes above. No rule was disabled,
 path excluded, severity downgraded or merge requirement overridden. Scanner
 result/disposition counts are not counts of repaired vulnerabilities.
 
-Pending for this follow-up: fresh integrated release validation, new-head
-CodeQL review, normal merge and rebuilt-main installation. Seven version-based
-dependency advisories remain visible despite reviewed mechanism patches;
-Dependabot #4 is not hidden. Native Windows, hostile same-UID ancestor mutation,
-live provider behavior and a live 50-agent workload remain unverified.
+PR38 was normally merged to `f277eeb7`. A fresh single `check:release` passed
+7,041 tests (eight skipped), acceptance, types/build, advisory policy and runtime
+verification. Native packaging and its isolated offline smoke passed; the local
+installation's archive hash and ad-hoc signature were verified. The full-main
+JavaScript analysis `1933512083` returned 178 results. Five residual identities
+were independently reviewed against this new source and individually
+dispositioned: two isolated subprocess test sites, two guarded null-prototype
+dictionary writes, and the now-authorized operator path resolver. GitHub
+reported zero open code-scanning alerts across refs after those dispositions.
+
+Native launch testing also found a separate renderer gap: a stopped named bot's
+composer blocked the very first request that would start its shared worker.
+The focused follow-up permits drafting and first-send dispatch for idle named
+bots through the existing native ownership/grant boundary; it does not start
+the entire fleet on selection or catalog polling. Native pending requests are
+bound before bootstrap so cancellation or a destroyed sender cannot dispatch
+later. In-flight submission cancellation is bounded and remains explicitly
+unconfirmed without a receipt; late acceptance honors the cancellation intent,
+and failed cancellation keeps ownership and retry available.
+Recovered runs reconcile terminal receipts when final stream delivery is lost,
+releasing only their matching current claim; receipt reads, subscriptions and
+cancellation do not reactivate stopped workers. Fresh follow-up
+source checks are supplemented by native packaged tests and delivery receipts
+in [PR39](https://github.com/SYMBaiEX/doolittle/pull/39); source checks alone are
+not proof of local installation or live provider capacity.
+
+The packaged follow-up also exposed terminal requests resetting while the same
+backend process remained healthy. Terminal output now retains an unconfirmed
+session instead of declaring a live shell closed; bounded recovery is read-only.
+Creation retries retain one request identity and revalidate the exact runtime
+boot and owner/grants, while non-activating recovery cannot undo **Stop work**.
+Native terminal receipts and boot identity routes are reserved ahead of plugin
+dispatch. Fresh-draft opening binds its captured owner first, and stale open,
+output and confirmation callbacks cannot cross conversation/workspace ownership.
+An explicit discard confirmation removes only an uncertain tab/recovery identity
+and warns that shell shutdown is not confirmed. The original socket-reset trigger
+remains unproven; these changes address receipt recovery and truthful lifecycle
+reporting, not a claim that transient transport failures cannot occur.
+
+Seven version-based dependency advisories remain visible despite reviewed
+mechanism patches; Dependabot #4 is not hidden. Native Windows, hostile same-UID
+ancestor mutation, live provider behavior and a live 50-agent workload remain
+unverified.
 

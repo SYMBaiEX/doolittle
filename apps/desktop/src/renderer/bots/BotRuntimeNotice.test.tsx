@@ -29,7 +29,7 @@ describe("BotRuntimeNotice", () => {
     const onStart = vi.fn(async () => {});
     act(() => root.render(<BotRuntimeNotice bot={bot} onStart={onStart} />));
     expect(host.textContent).toContain(
-      "starts on demand for approved requests",
+      "Send a message to start its runtime with approved access",
     );
     expect(host.textContent).toContain("Your draft is retained");
     expect(host.textContent).not.toContain("Activate");

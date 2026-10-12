@@ -14,6 +14,8 @@ import {
   validateWorkspaceFileSaveRequest,
 } from "./ipc";
 
+const terminalStartRequestId = `${Date.now()}.62df6968-19be-4ea6-b7a1-479a57fa3b7c`;
+
 describe("validateChatAttachmentIds", () => {
   const first = "62df6968-19be-4ea6-b7a1-479a57fa3b7c";
   const second = "88c9a480-6578-440b-9289-922d1cb9a4f4";
@@ -196,7 +198,26 @@ describe("sensitive desktop actions", () => {
     }) => void;
     senderAuthorized?: boolean;
     bots?: BotProcessRegistry;
+    runtimeProcessId?: () => number;
+    runtimeInstanceId?: () => string;
+    identityFetch?: (
+      input: RequestInfo | URL,
+      init?: RequestInit,
+    ) => Promise<Response> | Response;
   }) {
+    // Older focused fixtures model the asynchronous initial binding check but
+    // omit the registry's synchronous assertion used at the fetch boundary.
+    if (
+      options.bots &&
+      typeof options.bots.assertConversationOwner !== "function"
+    ) {
+      Object.assign(options.bots, {
+        assertConversationOwner: vi.fn(() => ({
+          botId: "fixture-bot",
+          sessionId: "fixture-conversation",
+        })),
+      });
+    }
     const confirmations: unknown[] = [];
     const handlers = new Map<
       string,
@@ -274,12 +295,724 @@ describe("sensitive desktop actions", () => {
             ? options.confirmed()
             : options.confirmed;
         },
-        fetch: fetchWithLegacyChatFixture,
+        fetch: fetchWithLegacyChatFixture
+          ? async (input, init) => {
+              const url = String(input);
+              if (url.endsWith("/runtime/bot-identity")) {
+                if (options.identityFetch) {
+                  return options.identityFetch(input, init);
+                }
+                return Response.json({
+                  processId: options.runtimeProcessId?.() ?? 1234,
+                  runtimeInstanceId:
+                    options.runtimeInstanceId?.() ??
+                    "62df6968-19be-4ea6-b7a1-479a57fa3b7c",
+                });
+              }
+              const response = await fetchWithLegacyChatFixture(input, init);
+              // Legacy fixtures predate in-band runtime receipts. Preserve any
+              // explicit receipt supplied by a focused test.
+              if (
+                (url.includes("/terminal/session/start") ||
+                  url.includes("/terminal/session/output")) &&
+                response.headers
+                  .get("content-type")
+                  ?.includes("application/json")
+              ) {
+                const payload: unknown = await response.clone().json();
+                if (
+                  payload &&
+                  typeof payload === "object" &&
+                  !Array.isArray(payload) &&
+                  !("runtimeInstanceId" in payload)
+                ) {
+                  return Response.json(
+                    {
+                      ...payload,
+                      runtimeInstanceId:
+                        options.runtimeInstanceId?.() ??
+                        "62df6968-19be-4ea6-b7a1-479a57fa3b7c",
+                    },
+                    { status: response.status },
+                  );
+                }
+              }
+              return response;
+            }
+          : undefined,
         notify: options.notify,
       },
     });
     return { handlers, removedChannels, confirmations, dispose };
   }
+
+  function coldChatRuntime() {
+    return {
+      getState: () => ({
+        phase: "ready" as const,
+        url: "http://127.0.0.1:4666",
+      }),
+      getWorkspaceDirectory: () => "/workspace",
+    } as unknown as BackendManager;
+  }
+
+  function coldChatBots(backendFor: () => Promise<BackendManager>) {
+    return {
+      assertConversationOwner: vi.fn((botId: string, roomId: string) => {
+        if (botId !== "bot-a" || roomId !== "desktop:room-1") {
+          throw new Error("Conversation belongs to a different bot.");
+        }
+        return { botId, projectId: "project-1" };
+      }),
+      assertRunOwner: vi.fn(async () => {
+        throw new Error("Chat run is not owned by this bot.");
+      }),
+      backendFor: vi.fn(backendFor),
+      readyBackendFor: vi.fn(() => coldChatRuntime()),
+      get: vi.fn((botId: string) => ({ id: botId })),
+      bindRun: vi.fn(),
+      beginRun: vi.fn(),
+      endRun: vi.fn(),
+    } as unknown as BotProcessRegistry;
+  }
+
+  function coldChatRequest(requestId: string) {
+    return {
+      botId: "bot-a",
+      requestId,
+      message: "Start this named bot",
+      roomId: "desktop:room-1",
+      projectId: "project-1",
+      workspacePath: "/workspace",
+    };
+  }
+
+  function coldChatFetch() {
+    return vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).endsWith("/chat/runs")) {
+        const body = JSON.parse(String(init?.body)) as { runId: string };
+        return Response.json(
+          { run_id: body.runId, bot_id: "bot-a" },
+          { status: 202 },
+        );
+      }
+      return new Response(
+        'event: response.completed\ndata: {"event_id":1,"response":"done"}\n\n',
+        {
+          headers: { "content-type": "text/event-stream" },
+        },
+      );
+    });
+  }
+
+  it("does not activate a stopped named bot to cancel an accepted run", async () => {
+    const bots = coldChatBots(async () => coldChatRuntime());
+    vi.mocked(bots.assertRunOwner).mockResolvedValue(undefined);
+    vi.mocked(bots.readyBackendFor).mockReturnValue(null);
+    const fetch = vi.fn(async () => Response.json({ accepted: true }));
+    const harness = createHarness({
+      confirmed: true,
+      bots,
+      durableFetch: fetch,
+    });
+    const { sender } = coldChatSender(399);
+    await expect(
+      harness.handlers.get("chat:cancel")?.(
+        { sender },
+        "chat:hydrated-accepted",
+        "bot-a",
+      ),
+    ).rejects.toThrow(/not live; cancellation is unconfirmed/i);
+    expect(bots.assertRunOwner).toHaveBeenCalledWith(
+      "bot-a",
+      "chat:hydrated-accepted",
+    );
+    expect(bots.backendFor).not.toHaveBeenCalled();
+    expect(fetch).not.toHaveBeenCalled();
+    harness.dispose();
+  });
+
+  it("does not activate a stopped named bot for a recovered run receipt GET", async () => {
+    const bots = coldChatBots(async () => coldChatRuntime());
+    vi.mocked(bots.assertRunOwner).mockResolvedValue(undefined);
+    vi.mocked(bots.readyBackendFor).mockReturnValue(null);
+    const fetch = vi.fn(async () => Response.json({ run: {} }));
+    const harness = createHarness({
+      confirmed: true,
+      bots,
+      durableFetch: fetch,
+    });
+    const { sender } = coldChatSender(400);
+    await expect(
+      harness.handlers.get("agent:request")?.(
+        { sender },
+        {
+          requestId: "receipt-check",
+          botId: "bot-a",
+          path: "/chat/runs/chat:hydrated",
+          method: "GET",
+          headers: {},
+        },
+      ),
+    ).rejects.toThrow(/not live; run receipt is unavailable/i);
+    expect(bots.assertRunOwner).toHaveBeenCalledWith("bot-a", "chat:hydrated");
+    expect(bots.backendFor).not.toHaveBeenCalled();
+    expect(fetch).not.toHaveBeenCalled();
+    harness.dispose();
+  });
+
+  it("does not activate a stopped named bot for a recovered run subscription", async () => {
+    const bots = coldChatBots(async () => coldChatRuntime());
+    vi.mocked(bots.assertRunOwner).mockResolvedValue(undefined);
+    vi.mocked(bots.readyBackendFor).mockReturnValue(null);
+    const fetch = vi.fn(async () => Response.json({ accepted: true }));
+    const harness = createHarness({
+      confirmed: true,
+      bots,
+      durableFetch: fetch,
+    });
+    const { sender } = coldChatSender(401);
+    await expect(
+      harness.handlers.get("chat:subscribe")?.(
+        { sender },
+        { requestId: "chat:hydrated", botId: "bot-a", after: 0 },
+      ),
+    ).rejects.toThrow(/not live; run subscription is unavailable/i);
+    expect(bots.assertRunOwner).toHaveBeenCalledWith("bot-a", "chat:hydrated");
+    expect(bots.backendFor).not.toHaveBeenCalled();
+    expect(fetch).not.toHaveBeenCalled();
+    harness.dispose();
+  });
+
+  function coldChatSender(id: number) {
+    let destroyed = false;
+    const sender = Object.assign(new EventEmitter(), {
+      id,
+      isDestroyed: () => destroyed,
+      send: vi.fn(),
+    });
+    return {
+      sender,
+      destroy: () => {
+        destroyed = true;
+        sender.emit("destroyed");
+      },
+    };
+  }
+
+  it("cancels only the authorized pending chat while shared bot startup continues", async () => {
+    let ready: ((runtime: BackendManager) => void) | undefined;
+    const startup = new Promise<BackendManager>((resolve) => {
+      ready = resolve;
+    });
+    const bots = coldChatBots(() => startup);
+    const fetch = coldChatFetch();
+    const harness = createHarness({
+      confirmed: true,
+      bots,
+      durableFetch: fetch,
+    });
+    const { sender } = coldChatSender(300);
+    const other = coldChatSender(301).sender;
+    const firstRequest = coldChatRequest("chat:cold-first");
+    const first = harness.handlers.get("chat:start")?.(
+      { sender },
+      firstRequest,
+    ) as Promise<unknown>;
+    const second = harness.handlers.get("chat:start")?.(
+      { sender },
+      coldChatRequest("chat:cold-second"),
+    ) as Promise<unknown>;
+    await expect(
+      harness.handlers.get("chat:start")?.({ sender }, firstRequest),
+    ).rejects.toThrow(/already running/i);
+    await expect(
+      harness.handlers.get("chat:cancel")?.(
+        { sender },
+        firstRequest.requestId,
+        "bot-b",
+      ),
+    ).rejects.toThrow(/different bot/i);
+    await expect(
+      harness.handlers.get("chat:cancel")?.(
+        { sender: other },
+        firstRequest.requestId,
+        "bot-a",
+      ),
+    ).rejects.toThrow(/not owned/i);
+    await expect(
+      harness.handlers.get("chat:cancel")?.(
+        { sender },
+        firstRequest.requestId,
+        "bot-a",
+      ),
+    ).resolves.toBeUndefined();
+    await expect(first).resolves.toBeUndefined();
+    expect(fetch).not.toHaveBeenCalled();
+    expect(bots.assertRunOwner).toHaveBeenCalledOnce();
+    ready?.(coldChatRuntime());
+    await expect(second).resolves.toBeUndefined();
+    expect(
+      fetch.mock.calls.filter(([input]) =>
+        String(input).endsWith("/chat/runs"),
+      ),
+    ).toHaveLength(1);
+    expect(bots.bindRun).toHaveBeenCalledOnce();
+    expect(bots.beginRun).toHaveBeenCalledOnce();
+    await expect(
+      harness.handlers.get("chat:start")?.({ sender }, firstRequest),
+    ).resolves.toBeUndefined();
+    expect(
+      fetch.mock.calls.filter(([input]) =>
+        String(input).endsWith("/chat/runs"),
+      ),
+    ).toHaveLength(2);
+    harness.dispose();
+  });
+
+  it("does not submit a pending chat after its renderer is destroyed", async () => {
+    let ready: ((runtime: BackendManager) => void) | undefined;
+    const startup = new Promise<BackendManager>((resolve) => {
+      ready = resolve;
+    });
+    const bots = coldChatBots(() => startup);
+    const fetch = coldChatFetch();
+    const harness = createHarness({
+      confirmed: true,
+      bots,
+      durableFetch: fetch,
+    });
+    const { sender, destroy } = coldChatSender(302);
+    const start = harness.handlers.get("chat:start")?.(
+      { sender },
+      coldChatRequest("chat:cold-destroy"),
+    ) as Promise<unknown>;
+    expect(sender.listenerCount("destroyed")).toBe(1);
+    destroy();
+    await expect(start).resolves.toBeUndefined();
+    ready?.(coldChatRuntime());
+    await Promise.resolve();
+    expect(fetch).not.toHaveBeenCalled();
+    expect(bots.bindRun).not.toHaveBeenCalled();
+    expect(sender.listenerCount("destroyed")).toBe(0);
+    harness.dispose();
+  });
+
+  it("does not start a bot for an already destroyed renderer", async () => {
+    const bots = coldChatBots(async () => coldChatRuntime());
+    const fetch = coldChatFetch();
+    const harness = createHarness({
+      confirmed: true,
+      bots,
+      durableFetch: fetch,
+    });
+    const { sender, destroy } = coldChatSender(304);
+    destroy();
+    await expect(
+      harness.handlers.get("chat:start")?.(
+        { sender },
+        coldChatRequest("chat:already-destroyed"),
+      ),
+    ).resolves.toBeUndefined();
+    expect(bots.backendFor).not.toHaveBeenCalled();
+    expect(fetch).not.toHaveBeenCalled();
+    harness.dispose();
+  });
+
+  it("defers server cancellation until an in-flight submission is accepted", async () => {
+    let accept: ((response: Response) => void) | undefined;
+    let submitted: () => void = () => undefined;
+    const submissionStarted = new Promise<void>((resolve) => {
+      submitted = resolve;
+    });
+    const bots = coldChatBots(async () => coldChatRuntime());
+    vi.mocked(bots.assertRunOwner).mockResolvedValue(undefined);
+    const fetch = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/chat/runs")) {
+        submitted();
+        return new Promise<Response>((resolve) => {
+          accept = resolve;
+        });
+      }
+      if (url.endsWith("/cancel")) {
+        return Promise.resolve(Response.json({ accepted: true }));
+      }
+      if (url.includes("/events?")) {
+        return new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => {
+            reject(new DOMException("Aborted", "AbortError"));
+          });
+        });
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    const harness = createHarness({
+      confirmed: true,
+      bots,
+      durableFetch: fetch,
+    });
+    const { sender } = coldChatSender(305);
+    const request = coldChatRequest("chat:deferred-cancel");
+    const start = harness.handlers.get("chat:start")?.(
+      { sender },
+      request,
+    ) as Promise<unknown>;
+    await submissionStarted;
+    const cancel = harness.handlers.get("chat:cancel")?.(
+      { sender },
+      request.requestId,
+      request.botId,
+    ) as Promise<unknown>;
+    await Promise.resolve();
+    expect(bots.assertRunOwner).not.toHaveBeenCalled();
+    expect(
+      fetch.mock.calls.some(([input]) => String(input).endsWith("/cancel")),
+    ).toBe(false);
+    accept?.(
+      Response.json(
+        { run_id: request.requestId, bot_id: request.botId },
+        { status: 202 },
+      ),
+    );
+    await expect(cancel).resolves.toBeUndefined();
+    await expect(start).resolves.toBeUndefined();
+    expect(bots.bindRun).toHaveBeenCalledOnce();
+    expect(bots.beginRun).toHaveBeenCalledOnce();
+    expect(bots.assertRunOwner).toHaveBeenCalledWith(
+      request.botId,
+      request.requestId,
+    );
+    expect(
+      fetch.mock.calls.some(([input]) => String(input).endsWith("/cancel")),
+    ).toBe(true);
+    harness.dispose();
+  });
+
+  it("reports a failed queued Stop after receipt and keeps the run retryable", async () => {
+    let accept: ((response: Response) => void) | undefined;
+    let submitted: () => void = () => undefined;
+    const submissionStarted = new Promise<void>((resolve) => {
+      submitted = resolve;
+    });
+    const bots = coldChatBots(async () => coldChatRuntime());
+    vi.mocked(bots.assertRunOwner).mockResolvedValue(undefined);
+    let cancelCalls = 0;
+    let streamSignal: AbortSignal | undefined;
+    const fetch = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/chat/runs")) {
+        submitted();
+        return new Promise<Response>((resolve) => {
+          accept = resolve;
+        });
+      }
+      if (url.endsWith("/cancel")) {
+        cancelCalls += 1;
+        return Promise.resolve(
+          cancelCalls === 1
+            ? new Response("server stop failed", { status: 500 })
+            : Response.json({ accepted: true }),
+        );
+      }
+      if (url.includes("/events?")) {
+        streamSignal = init?.signal ?? undefined;
+        return new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => {
+            reject(new DOMException("Aborted", "AbortError"));
+          });
+        });
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    const harness = createHarness({
+      confirmed: true,
+      bots,
+      durableFetch: fetch,
+    });
+    const { sender } = coldChatSender(308);
+    const request = coldChatRequest("chat:queued-stop-fails");
+    try {
+      const start = harness.handlers.get("chat:start")?.(
+        { sender },
+        request,
+      ) as Promise<unknown>;
+      await submissionStarted;
+      const stop = harness.handlers.get("chat:cancel")?.(
+        { sender },
+        request.requestId,
+        request.botId,
+      ) as Promise<unknown>;
+      const failedStop = expect(stop).rejects.toThrow("server stop failed");
+      accept?.(
+        Response.json(
+          { run_id: request.requestId, bot_id: request.botId },
+          { status: 202 },
+        ),
+      );
+      await failedStop;
+      expect(cancelCalls).toBe(1);
+      expect(streamSignal?.aborted).toBe(false);
+      expect(
+        sender.send.mock.calls.some(
+          ([, payload]) =>
+            (payload as { event?: string }).event === "cancelled",
+        ),
+      ).toBe(false);
+      await expect(
+        harness.handlers.get("chat:start")?.({ sender }, request),
+      ).rejects.toThrow(/already running/i);
+      await expect(
+        harness.handlers.get("chat:cancel")?.(
+          { sender },
+          request.requestId,
+          request.botId,
+        ),
+      ).resolves.toBeUndefined();
+      await expect(start).resolves.toBeUndefined();
+      expect(cancelCalls).toBe(2);
+      expect(bots.bindRun).toHaveBeenCalledOnce();
+    } finally {
+      harness.dispose();
+    }
+  });
+
+  it("times out an unconfirmed Stop but cancels once a late receipt arrives", async () => {
+    vi.useFakeTimers();
+    let accept: ((response: Response) => void) | undefined;
+    let submitted: () => void = () => undefined;
+    let cancellationSent: () => void = () => undefined;
+    const submissionStarted = new Promise<void>((resolve) => {
+      submitted = resolve;
+    });
+    const serverCancellation = new Promise<void>((resolve) => {
+      cancellationSent = resolve;
+    });
+    const bots = coldChatBots(async () => coldChatRuntime());
+    vi.mocked(bots.assertRunOwner).mockResolvedValue(undefined);
+    const fetch = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/chat/runs")) {
+        submitted();
+        return new Promise<Response>((resolve) => {
+          accept = resolve;
+        });
+      }
+      if (url.endsWith("/cancel")) {
+        cancellationSent();
+        return Promise.resolve(Response.json({ accepted: true }));
+      }
+      if (url.includes("/events?")) {
+        return new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => {
+            reject(new DOMException("Aborted", "AbortError"));
+          });
+        });
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    const harness = createHarness({
+      confirmed: true,
+      bots,
+      durableFetch: fetch,
+    });
+    try {
+      const { sender } = coldChatSender(306);
+      const request = coldChatRequest("chat:late-receipt");
+      const start = harness.handlers.get("chat:start")?.(
+        { sender },
+        request,
+      ) as Promise<unknown>;
+      await submissionStarted;
+      const stop = harness.handlers.get("chat:cancel")?.(
+        { sender },
+        request.requestId,
+        request.botId,
+      ) as Promise<unknown>;
+      const repeatStop = harness.handlers.get("chat:cancel")?.(
+        { sender },
+        request.requestId,
+        request.botId,
+      ) as Promise<unknown>;
+      const firstOutcome = expect(stop).rejects.toThrow(/unconfirmed/i);
+      const secondOutcome = expect(repeatStop).rejects.toThrow(/unconfirmed/i);
+      await expect(
+        harness.handlers.get("chat:cancel")?.(
+          { sender },
+          request.requestId,
+          "bot-b",
+        ),
+      ).rejects.toThrow(/different bot/i);
+      await vi.advanceTimersByTimeAsync(15_000);
+      await Promise.all([firstOutcome, secondOutcome]);
+      expect(bots.assertRunOwner).not.toHaveBeenCalled();
+      expect(
+        fetch.mock.calls.some(([input]) => String(input).endsWith("/cancel")),
+      ).toBe(false);
+      const post = fetch.mock.calls.find(([input]) =>
+        String(input).endsWith("/chat/runs"),
+      );
+      expect(post?.[1]?.signal?.aborted).toBe(false);
+      await expect(
+        harness.handlers.get("chat:start")?.({ sender }, request),
+      ).rejects.toThrow(/already running/i);
+      accept?.(
+        Response.json(
+          { run_id: request.requestId, bot_id: request.botId },
+          { status: 202 },
+        ),
+      );
+      await serverCancellation;
+      await expect(start).resolves.toBeUndefined();
+      expect(bots.bindRun).toHaveBeenCalledOnce();
+      expect(bots.beginRun).toHaveBeenCalledOnce();
+      expect(bots.assertRunOwner).toHaveBeenCalledOnce();
+      expect(
+        fetch.mock.calls.filter(([input]) => String(input).endsWith("/cancel")),
+      ).toHaveLength(1);
+    } finally {
+      harness.dispose();
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps a late accepted chat active after cancel failure and retries Stop", async () => {
+    vi.useFakeTimers();
+    let accept: ((response: Response) => void) | undefined;
+    let failFirstCancel: ((response: Response) => void) | undefined;
+    let submitted: () => void = () => undefined;
+    let firstCancelSent: () => void = () => undefined;
+    const submissionStarted = new Promise<void>((resolve) => {
+      submitted = resolve;
+    });
+    const firstServerCancel = new Promise<void>((resolve) => {
+      firstCancelSent = resolve;
+    });
+    const bots = coldChatBots(async () => coldChatRuntime());
+    vi.mocked(bots.assertRunOwner).mockResolvedValue(undefined);
+    let cancelCalls = 0;
+    let streamSignal: AbortSignal | undefined;
+    const fetch = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/chat/runs")) {
+        submitted();
+        return new Promise<Response>((resolve) => {
+          accept = resolve;
+        });
+      }
+      if (url.endsWith("/cancel")) {
+        cancelCalls += 1;
+        if (cancelCalls === 1) {
+          firstCancelSent();
+          return new Promise<Response>((resolve) => {
+            failFirstCancel = resolve;
+          });
+        }
+        return Promise.resolve(Response.json({ accepted: true }));
+      }
+      if (url.includes("/events?")) {
+        streamSignal = init?.signal ?? undefined;
+        return new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => {
+            reject(new DOMException("Aborted", "AbortError"));
+          });
+        });
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    const harness = createHarness({
+      confirmed: true,
+      bots,
+      durableFetch: fetch,
+    });
+    try {
+      const { sender } = coldChatSender(307);
+      const request = coldChatRequest("chat:late-cancel-retry");
+      const start = harness.handlers.get("chat:start")?.(
+        { sender },
+        request,
+      ) as Promise<unknown>;
+      await submissionStarted;
+      const stop = harness.handlers.get("chat:cancel")?.(
+        { sender },
+        request.requestId,
+        request.botId,
+      ) as Promise<unknown>;
+      const timedOut = expect(stop).rejects.toThrow(/unconfirmed/i);
+      await vi.advanceTimersByTimeAsync(15_000);
+      await timedOut;
+      accept?.(
+        Response.json(
+          { run_id: request.requestId, bot_id: request.botId },
+          { status: 202 },
+        ),
+      );
+      await firstServerCancel;
+      const concurrentStop = harness.handlers.get("chat:cancel")?.(
+        { sender },
+        request.requestId,
+        request.botId,
+      ) as Promise<unknown>;
+      expect(cancelCalls).toBe(1);
+      failFirstCancel?.(
+        Response.json({ error: "temporary failure" }, { status: 500 }),
+      );
+      await expect(concurrentStop).rejects.toThrow(/temporary failure/i);
+      expect(streamSignal?.aborted).toBe(false);
+      expect(
+        sender.send.mock.calls.some(
+          ([, payload]) =>
+            (payload as { event?: string }).event === "cancelled",
+        ),
+      ).toBe(false);
+      await expect(
+        harness.handlers.get("chat:start")?.({ sender }, request),
+      ).rejects.toThrow(/already running/i);
+      await expect(
+        harness.handlers.get("chat:cancel")?.(
+          { sender },
+          request.requestId,
+          request.botId,
+        ),
+      ).resolves.toBeUndefined();
+      await expect(start).resolves.toBeUndefined();
+      expect(cancelCalls).toBe(2);
+      expect(bots.bindRun).toHaveBeenCalledOnce();
+      expect(bots.beginRun).toHaveBeenCalledOnce();
+    } finally {
+      harness.dispose();
+      vi.useRealTimers();
+    }
+  });
+
+  it("cleans up failed bot startup so the same chat ID can be retried", async () => {
+    let attempts = 0;
+    const bots = coldChatBots(async () => {
+      if (attempts++ === 0) throw new Error("Bot startup failed.");
+      return coldChatRuntime();
+    });
+    const fetch = coldChatFetch();
+    const harness = createHarness({
+      confirmed: true,
+      bots,
+      durableFetch: fetch,
+    });
+    const { sender } = coldChatSender(303);
+    const request = coldChatRequest("chat:cold-retry");
+    await expect(
+      harness.handlers.get("chat:start")?.({ sender }, request),
+    ).rejects.toThrow("Bot startup failed.");
+    expect(fetch).not.toHaveBeenCalled();
+    await expect(
+      harness.handlers.get("chat:start")?.({ sender }, request),
+    ).resolves.toBeUndefined();
+    expect(
+      fetch.mock.calls.filter(([input]) =>
+        String(input).endsWith("/chat/runs"),
+      ),
+    ).toHaveLength(1);
+    harness.dispose();
+  });
 
   it("disposes exactly the handlers it registers", () => {
     const harness = createHarness({ confirmed: true });
@@ -476,19 +1209,42 @@ describe("sensitive desktop actions", () => {
     ).toThrow(/request id/);
     expect(
       validateInteractiveTerminalStartRequest({
+        requestId: terminalStartRequestId,
         originConversationId: "conversation-1",
         workspacePath: "/workspace",
         cols: 120,
         rows: 40,
       }),
     ).toEqual({
+      requestId: terminalStartRequestId,
       originConversationId: "conversation-1",
       workspacePath: "/workspace",
       cols: 120,
       rows: 40,
     });
+    expect(
+      validateInteractiveTerminalStartRequest({
+        requestId: terminalStartRequestId,
+        originConversationId: "conversation-1",
+        workspacePath: "/workspace",
+        cols: 120,
+        rows: 40,
+        reconcileOnly: true,
+      }),
+    ).toMatchObject({ reconcileOnly: true });
     expect(() =>
       validateInteractiveTerminalStartRequest({
+        requestId: terminalStartRequestId,
+        originConversationId: "conversation-1",
+        workspacePath: "/workspace",
+        cols: 120,
+        rows: 40,
+        reconcileOnly: "true",
+      }),
+    ).toThrow(/reconciliation mode/);
+    expect(() =>
+      validateInteractiveTerminalStartRequest({
+        requestId: terminalStartRequestId,
         originConversationId: "conversation-1",
         workspacePath: "/workspace",
         cols: 10,
@@ -1794,9 +2550,10 @@ describe("sensitive desktop actions", () => {
     harness.dispose();
   });
 
-  it("aborts and cleans up a local chat when the server cancellation fails", async () => {
+  it("keeps a local chat active after failed cancellation and permits retry", async () => {
     let chatSignal: AbortSignal | undefined;
     let chatStarts = 0;
+    let cancelCalls = 0;
     const harness = createHarness({
       confirmed: true,
       fetch: async (input, init) => {
@@ -1820,7 +2577,10 @@ data: {"response":"retried"}
             );
           });
         }
-        return new Response("runtime cancellation failed", { status: 503 });
+        cancelCalls += 1;
+        return cancelCalls === 1
+          ? new Response("runtime cancellation failed", { status: 503 })
+          : Response.json({ accepted: true });
       },
     });
     const sender = {
@@ -1845,15 +2605,22 @@ data: {"response":"retried"}
     await expect(
       harness.handlers.get("chat:cancel")?.({ sender }, "chat:cancel-fallback"),
     ).rejects.toThrow("runtime cancellation failed");
+    expect(chatSignal?.aborted).toBe(false);
+    await expect(
+      harness.handlers.get("chat:start")?.({ sender }, request),
+    ).rejects.toThrow(/already running/i);
+    await expect(
+      harness.handlers.get("chat:cancel")?.({ sender }, "chat:cancel-fallback"),
+    ).resolves.toBeUndefined();
     expect(chatSignal?.aborted).toBe(true);
     await expect(start).resolves.toBeUndefined();
 
-    // chatStart's finally block must remove the active entry, otherwise a
-    // retry with the same request ID would be rejected as already running.
+    // Only the acknowledged cancellation releases the active ID for retry.
     await expect(
       harness.handlers.get("chat:start")?.({ sender }, request),
     ).resolves.toBeUndefined();
     expect(chatStarts).toBe(2);
+    expect(cancelCalls).toBe(2);
     harness.dispose();
   });
 
@@ -1985,6 +2752,9 @@ data: {"response":"retried"}
       supportsResize: true,
       outputBytes: 0,
     };
+    const terminalBackend = {
+      getState: () => ({ phase: "ready", url: "http://127.0.0.1:4555" }),
+    };
     const bots = {
       get: () => ({
         id: "lead-agent",
@@ -2000,9 +2770,8 @@ data: {"response":"retried"}
         sessionId: "conversation-1",
       })),
       assertAcpWorkspace: vi.fn(() => "/workspace"),
-      backendFor: async () => ({
-        getState: () => ({ phase: "ready", url: "http://127.0.0.1:4555" }),
-      }),
+      backendFor: async () => terminalBackend,
+      readyBackendFor: () => terminalBackend,
     } as unknown as BotProcessRegistry;
     const harness = createHarness({
       confirmed: false,
@@ -2024,8 +2793,9 @@ data: {"response":"retried"}
 
     await expect(
       harness.handlers.get("terminal:session-start")?.(
-        {},
+        { sender: { id: 1 } },
         {
+          requestId: terminalStartRequestId,
           originConversationId: "conversation-1",
           workspacePath: "/workspace",
           cols: 100,
@@ -2051,10 +2821,13 @@ data: {"response":"retried"}
       cursor: number,
     ) => Promise<unknown>;
     await expect(outputHandler({}, sessionId, 0)).resolves.toEqual({
-      session,
-      chunks: [{ cursor: 1, data: "ready" }],
-      nextCursor: 1,
-      truncatedBeforeCursor: false,
+      status: "available",
+      output: {
+        session,
+        chunks: [{ cursor: 1, data: "ready" }],
+        nextCursor: 1,
+        truncatedBeforeCursor: false,
+      },
     });
 
     expect(requests.map((request) => new URL(request.url).pathname)).toEqual([
@@ -2076,6 +2849,10 @@ data: {"response":"retried"}
   it("binds an interactive PTY to its named bot and never sends its input to the lead runtime", async () => {
     const sessionId = "62df6968-19be-4ea6-b7a1-479a57fa3b7c";
     const requests: string[] = [];
+    let ready = true;
+    const terminalBackend = {
+      getState: () => ({ phase: "ready", url: "http://127.0.0.1:4666" }),
+    };
     const bots = {
       get: (id: string) => {
         if (id !== "bot-a") throw new Error("Bot not found.");
@@ -2083,10 +2860,10 @@ data: {"response":"retried"}
       },
       backendFor: async (id: string) => {
         if (id !== "bot-a") throw new Error("Bot not found.");
-        return {
-          getState: () => ({ phase: "ready", url: "http://127.0.0.1:4666" }),
-        };
+        return terminalBackend;
       },
+      readyBackendFor: (id: string) =>
+        id === "bot-a" && ready ? terminalBackend : null,
       ensureConversationOwner: vi.fn(async () => ({
         botId: "bot-a",
         sessionId: "conversation-a",
@@ -2118,8 +2895,9 @@ data: {"response":"retried"}
       },
     });
     await harness.handlers.get("terminal:session-start")?.(
-      {},
+      { sender: { id: 1 } },
       {
+        requestId: terminalStartRequestId,
         botId: "bot-a",
         originConversationId: "conversation-a",
         workspacePath: "/workspace",
@@ -2137,6 +2915,19 @@ data: {"response":"retried"}
       {},
       { botId: "bot-a", sessionId, data: "echo private\n" },
     );
+    ready = false;
+    const output = harness.handlers.get(
+      "terminal:session-output",
+    ) as unknown as (
+      event: unknown,
+      id: string,
+      cursor: number,
+      botId: string,
+    ) => Promise<unknown>;
+    await expect(output({}, sessionId, 0, "bot-a")).resolves.toMatchObject({
+      status: "unconfirmed",
+      retryable: false,
+    });
     expect(requests).toEqual([
       "http://127.0.0.1:4666/terminal/session/start",
       "http://127.0.0.1:4666/terminal/session/input",
@@ -2145,6 +2936,9 @@ data: {"response":"retried"}
   });
 
   it("rejects malformed interactive terminal responses at the IPC boundary", async () => {
+    const terminalBackend = {
+      getState: () => ({ phase: "ready", url: "http://127.0.0.1:4555" }),
+    };
     const bots = {
       get: () => ({
         id: "lead-agent",
@@ -2156,9 +2950,8 @@ data: {"response":"retried"}
         sessionId: "conversation-1",
       })),
       assertAcpWorkspace: vi.fn(() => "/workspace"),
-      backendFor: async () => ({
-        getState: () => ({ phase: "ready", url: "http://127.0.0.1:4555" }),
-      }),
+      backendFor: async () => terminalBackend,
+      readyBackendFor: () => terminalBackend,
     } as unknown as BotProcessRegistry;
     const harness = createHarness({
       confirmed: true,
@@ -2174,15 +2967,1192 @@ data: {"response":"retried"}
 
     await expect(
       harness.handlers.get("terminal:session-start")?.(
-        {},
+        { sender: { id: 1 } },
         {
+          requestId: terminalStartRequestId,
           originConversationId: "conversation-1",
           workspacePath: "/workspace",
           cols: 100,
           rows: 30,
         },
       ),
-    ).rejects.toThrow(/invalid terminal session state/iu);
+    ).resolves.toMatchObject({
+      status: "unconfirmed",
+      requestId: terminalStartRequestId,
+      retryable: false,
+    });
+    harness.dispose();
+  });
+
+  it("reuses one creation identity after lost receipts and rejects conflicting retries", async () => {
+    const session = {
+      id: "62df6968-19be-4ea6-b7a1-479a57fa3b7c",
+      state: "running",
+      cwd: "/workspace",
+      shell: "zsh",
+      cols: 100,
+      rows: 30,
+      startedAt: "2026-07-27T00:00:00.000Z",
+      pty: true,
+      supportsResize: true,
+      outputBytes: 0,
+    };
+    const terminalBackend = {
+      getState: () => ({ phase: "ready", url: "http://127.0.0.1:4555" }),
+    };
+    const bots = {
+      get: () => ({
+        id: "lead-agent",
+        isDefault: true,
+        permissions: { allowMutation: true },
+      }),
+      ensureConversationOwner: vi.fn(async () => ({
+        botId: "lead-agent",
+        sessionId: "conversation-1",
+      })),
+      assertAcpWorkspace: vi.fn(() => "/workspace"),
+      backendFor: vi.fn(async () => terminalBackend),
+      readyBackendFor: vi.fn(() => terminalBackend),
+    } as unknown as BotProcessRegistry;
+    const creationIds: string[] = [];
+    const harness = createHarness({
+      confirmed: false,
+      bots,
+      fetch: async (_input, init) => {
+        const body = JSON.parse(String(init?.body)) as { creationId: string };
+        creationIds.push(body.creationId);
+        if (creationIds.length < 3) {
+          throw new TypeError("fetch failed", {
+            cause: Object.assign(new Error("socket reset"), {
+              code: "ECONNRESET",
+            }),
+          });
+        }
+        return Response.json({ session });
+      },
+    });
+    const request = {
+      requestId: terminalStartRequestId,
+      originConversationId: "conversation-1",
+      workspacePath: "/workspace",
+      cols: 100,
+      rows: 30,
+    };
+    await expect(
+      harness.handlers.get("terminal:session-start")?.({}, request),
+    ).resolves.toMatchObject({
+      status: "unconfirmed",
+      requestId: terminalStartRequestId,
+      retryable: true,
+    });
+    await expect(
+      harness.handlers.get("terminal:session-start")?.({}, request),
+    ).resolves.toEqual({
+      status: "started",
+      session,
+    });
+    expect(creationIds).toEqual(Array(3).fill(terminalStartRequestId));
+    await expect(
+      harness.handlers.get("terminal:session-start")?.(
+        {},
+        { ...request, cols: 101 },
+      ),
+    ).rejects.toThrow(/identity conflicts/iu);
+    expect(creationIds).toHaveLength(3);
+    const expiredRequestId = `${Date.now() - 11 * 60_000}.62df6968-19be-4ea6-b7a1-479a57fa3b7c`;
+    await expect(
+      harness.handlers.get("terminal:session-start")?.(
+        {},
+        { ...request, requestId: expiredRequestId },
+      ),
+    ).resolves.toMatchObject({ status: "unconfirmed", retryable: false });
+    expect(
+      (bots.backendFor as ReturnType<typeof vi.fn>).mock.calls,
+    ).toHaveLength(1);
+    expect(creationIds).toHaveLength(3);
+    harness.dispose();
+  });
+
+  it("never reactivates a stopped named bot after a pre-POST identity failure", async () => {
+    const session = {
+      id: "62df6968-19be-4ea6-b7a1-479a57fa3b7c",
+      state: "running",
+      cwd: "/workspace",
+      shell: "zsh",
+      cols: 100,
+      rows: 30,
+      startedAt: "2026-07-27T00:00:00.000Z",
+      pty: true,
+      supportsResize: true,
+      outputBytes: 0,
+    };
+    const terminalBackend = {
+      getState: () => ({ phase: "ready", url: "http://127.0.0.1:4555" }),
+    };
+    let ready = false;
+    const backendFor = vi.fn(async () => {
+      ready = true;
+      return terminalBackend;
+    });
+    let identityCalls = 0;
+    const bots = {
+      get: () => ({
+        id: "bot-a",
+        isDefault: false,
+        permissions: { allowMutation: true },
+      }),
+      ensureConversationOwner: vi.fn(async () => ({
+        botId: "bot-a",
+        sessionId: "conversation-a",
+      })),
+      assertAcpWorkspace: vi.fn(() => "/workspace"),
+      backendFor,
+      readyBackendFor: () => (ready ? terminalBackend : null),
+    } as unknown as BotProcessRegistry;
+    const posts = vi.fn(async () => Response.json({ session }));
+    const harness = createHarness({
+      confirmed: false,
+      bots,
+      fetch: posts,
+      runtimeProcessId: () => {
+        identityCalls += 1;
+        if (identityCalls === 1) {
+          ready = false;
+          throw new DOMException("Identity timed out.", "TimeoutError");
+        }
+        return 1234;
+      },
+    });
+    const request = {
+      botId: "bot-a",
+      requestId: terminalStartRequestId,
+      originConversationId: "conversation-a",
+      workspacePath: "/workspace",
+      cols: 100,
+      rows: 30,
+    };
+    await expect(
+      harness.handlers.get("terminal:session-start")?.({}, request),
+    ).resolves.toMatchObject({
+      status: "unconfirmed",
+      retryable: false,
+    });
+    expect(posts).not.toHaveBeenCalled();
+    expect(identityCalls).toBe(1);
+    ready = false; // Stop work after identity failed before the first POST.
+    await expect(
+      harness.handlers.get("terminal:session-start")?.({}, request),
+    ).resolves.toMatchObject({ status: "unconfirmed", retryable: false });
+    expect(backendFor).toHaveBeenCalledTimes(1);
+    expect(posts).not.toHaveBeenCalled();
+    ready = true; // An independently running bot can safely reconcile.
+    await expect(
+      harness.handlers.get("terminal:session-start")?.(
+        {},
+        { ...request, reconcileOnly: true },
+      ),
+    ).resolves.toEqual({
+      status: "started",
+      session,
+    });
+    expect(backendFor).toHaveBeenCalledTimes(1);
+    expect(posts).toHaveBeenCalledTimes(1);
+    harness.dispose();
+  });
+
+  it.each([
+    { mode: "recover", expectedIdentityReads: 4, expectedPosts: 1 },
+    { mode: "socket", expectedIdentityReads: 3, expectedPosts: 1 },
+    { mode: "exhaust", expectedIdentityReads: 3, expectedPosts: 0 },
+    { mode: "deadline", expectedIdentityReads: 1, expectedPosts: 0 },
+    { mode: "malformed", expectedIdentityReads: 1, expectedPosts: 0 },
+  ] as const)(
+    "bounds read-only identity recovery: $mode",
+    async ({ mode, expectedIdentityReads, expectedPosts }) => {
+      const session = {
+        id: "62df6968-19be-4ea6-b7a1-479a57fa3b7c",
+        state: "running",
+        cwd: "/workspace",
+        shell: "zsh",
+        cols: 100,
+        rows: 30,
+        startedAt: "2026-07-27T00:00:00.000Z",
+        pty: true,
+        supportsResize: true,
+        outputBytes: 0,
+      };
+      const terminalBackend = {
+        getState: () => ({ phase: "ready", url: "http://127.0.0.1:4555" }),
+      };
+      const backendFor = vi.fn(async () => terminalBackend);
+      const bots = {
+        get: () => ({
+          id: "bot-a",
+          isDefault: false,
+          permissions: { allowMutation: true },
+        }),
+        ensureConversationOwner: vi.fn(async () => ({
+          botId: "bot-a",
+          sessionId: "conversation-a",
+        })),
+        assertAcpWorkspace: vi.fn(() => "/workspace"),
+        backendFor,
+        readyBackendFor: () => terminalBackend,
+      } as unknown as BotProcessRegistry;
+      let identityReads = 0;
+      let timeOffsetMs = 0;
+      const realNow = Date.now.bind(Date);
+      const nowSpy = vi
+        .spyOn(Date, "now")
+        .mockImplementation(() => realNow() + timeOffsetMs);
+      let identityReadsAtFirstPost: number | null = null;
+      const posts = vi.fn(async () => {
+        identityReadsAtFirstPost ??= identityReads;
+        return Response.json({ session });
+      });
+      const harness = createHarness({
+        confirmed: false,
+        bots,
+        fetch: posts,
+        runtimeProcessId: () => {
+          identityReads += 1;
+          if (mode === "deadline") timeOffsetMs = 20_001;
+          if (mode === "socket" && identityReads === 1) {
+            throw new TypeError("fetch failed", {
+              cause: Object.assign(new Error("socket reset"), {
+                code: "ECONNRESET",
+              }),
+            });
+          }
+          if (
+            mode === "exhaust" ||
+            mode === "deadline" ||
+            (mode === "recover" && identityReads <= 2)
+          ) {
+            throw new DOMException("Identity timed out.", "TimeoutError");
+          }
+          return 1234;
+        },
+        runtimeInstanceId: () =>
+          mode === "malformed"
+            ? "invalid"
+            : "62df6968-19be-4ea6-b7a1-479a57fa3b7c",
+      });
+      try {
+        const result = await harness.handlers.get("terminal:session-start")?.(
+          {},
+          {
+            botId: "bot-a",
+            requestId: terminalStartRequestId,
+            originConversationId: "conversation-a",
+            workspacePath: "/workspace",
+            cols: 100,
+            rows: 30,
+          },
+        );
+        expect(result).toMatchObject({
+          status: expectedPosts ? "started" : "unconfirmed",
+        });
+        expect(identityReads).toBe(expectedIdentityReads);
+        if (mode === "recover") expect(identityReadsAtFirstPost).toBe(3);
+        if (mode === "socket") expect(identityReadsAtFirstPost).toBe(2);
+        expect(posts).toHaveBeenCalledTimes(expectedPosts);
+        expect(backendFor).toHaveBeenCalledTimes(1);
+      } finally {
+        harness.dispose();
+        nowSpy.mockRestore();
+      }
+    },
+  );
+
+  it.each(["body-socket", "malformed-json"] as const)(
+    "handles identity %s without duplicating terminal creation",
+    async (mode) => {
+      const session = {
+        id: "62df6968-19be-4ea6-b7a1-479a57fa3b7c",
+        state: "running",
+        cwd: "/workspace",
+        shell: "zsh",
+        cols: 100,
+        rows: 30,
+        startedAt: "2026-07-27T00:00:00.000Z",
+        pty: true,
+        supportsResize: true,
+        outputBytes: 0,
+      };
+      const terminalBackend = {
+        getState: () => ({ phase: "ready", url: "http://127.0.0.1:4555" }),
+      };
+      const bots = {
+        get: () => ({
+          id: "bot-a",
+          isDefault: false,
+          permissions: { allowMutation: true },
+        }),
+        ensureConversationOwner: vi.fn(async () => ({
+          botId: "bot-a",
+          sessionId: "conversation-a",
+        })),
+        assertAcpWorkspace: vi.fn(() => "/workspace"),
+        backendFor: vi.fn(async () => terminalBackend),
+        readyBackendFor: vi.fn(() => terminalBackend),
+      } as unknown as BotProcessRegistry;
+      const posts = vi.fn(async () => Response.json({ session }));
+      let identityReads = 0;
+      const harness = createHarness({
+        confirmed: false,
+        bots,
+        fetch: posts,
+        identityFetch: () => {
+          identityReads += 1;
+          if (identityReads === 1 && mode === "body-socket") {
+            return new Response(
+              new ReadableStream({
+                start(controller) {
+                  controller.error(
+                    new TypeError("fetch failed", {
+                      cause: Object.assign(new Error("socket reset"), {
+                        code: "ECONNRESET",
+                      }),
+                    }),
+                  );
+                },
+              }),
+              { headers: { "content-type": "application/json" } },
+            );
+          }
+          if (mode === "malformed-json") {
+            return new Response("{invalid", {
+              headers: { "content-type": "application/json" },
+            });
+          }
+          return Response.json({
+            processId: 1234,
+            runtimeInstanceId: "62df6968-19be-4ea6-b7a1-479a57fa3b7c",
+          });
+        },
+      });
+      try {
+        await expect(
+          harness.handlers.get("terminal:session-start")?.(
+            {},
+            {
+              botId: "bot-a",
+              requestId: terminalStartRequestId,
+              originConversationId: "conversation-a",
+              workspacePath: "/workspace",
+              cols: 100,
+              rows: 30,
+            },
+          ),
+        ).resolves.toMatchObject({
+          status: mode === "body-socket" ? "started" : "unconfirmed",
+        });
+        expect(identityReads).toBe(mode === "body-socket" ? 3 : 1);
+        expect(posts).toHaveBeenCalledTimes(mode === "body-socket" ? 1 : 0);
+      } finally {
+        harness.dispose();
+      }
+    },
+  );
+
+  it("never activates a named bot for a restored pending start absent from the native map", async () => {
+    const backendFor = vi.fn(async () => {
+      throw new Error("A restored pending request must not activate a bot.");
+    });
+    const bots = {
+      get: () => ({
+        id: "bot-a",
+        isDefault: false,
+        permissions: { allowMutation: true },
+      }),
+      ensureConversationOwner: vi.fn(async () => ({
+        botId: "bot-a",
+        sessionId: "conversation-a",
+      })),
+      assertAcpWorkspace: vi.fn(() => "/workspace"),
+      backendFor,
+      readyBackendFor: vi.fn(() => null),
+    } as unknown as BotProcessRegistry;
+    const posts = vi.fn(async () => Response.json({ session: {} }));
+    const harness = createHarness({ confirmed: false, bots, fetch: posts });
+    await expect(
+      harness.handlers.get("terminal:session-start")?.(
+        {},
+        {
+          botId: "bot-a",
+          requestId: terminalStartRequestId,
+          originConversationId: "conversation-a",
+          workspacePath: "/workspace",
+          cols: 100,
+          rows: 30,
+          reconcileOnly: true,
+        },
+      ),
+    ).resolves.toMatchObject({ status: "unconfirmed", retryable: false });
+    expect(backendFor).not.toHaveBeenCalled();
+    expect(posts).not.toHaveBeenCalled();
+    harness.dispose();
+  });
+
+  it.each(["transport", "authorization"] as const)(
+    "keeps a concurrent start recheck safe under %s failure",
+    async (failure) => {
+      const session = {
+        id: "62df6968-19be-4ea6-b7a1-479a57fa3b7c",
+        state: "running",
+        cwd: "/workspace",
+        shell: "zsh",
+        cols: 100,
+        rows: 30,
+        startedAt: "2026-07-27T00:00:00.000Z",
+        pty: true,
+        supportsResize: true,
+        outputBytes: 0,
+      };
+      const terminalBackend = {
+        getState: () => ({ phase: "ready", url: "http://127.0.0.1:4555" }),
+      };
+      let authorizationCalls = 0;
+      const backendFor = vi.fn(async () => terminalBackend);
+      const bots = {
+        get: () => ({
+          id: "bot-a",
+          isDefault: false,
+          permissions: { allowMutation: true },
+        }),
+        ensureConversationOwner: vi.fn(async () => {
+          authorizationCalls += 1;
+          if (failure === "authorization" && authorizationCalls === 6) {
+            throw new Error("Conversation ownership denied.");
+          }
+          return { botId: "bot-a", sessionId: "conversation-a" };
+        }),
+        assertAcpWorkspace: vi.fn(() => "/workspace"),
+        backendFor,
+        readyBackendFor: vi.fn(() => terminalBackend),
+      } as unknown as BotProcessRegistry;
+      let resolvePost: ((response: Response) => void) | undefined;
+      let markPostStarted: () => void = () => undefined;
+      const postStarted = new Promise<void>((resolve) => {
+        markPostStarted = resolve;
+      });
+      const postResponse = new Promise<Response>((resolve) => {
+        resolvePost = resolve;
+      });
+      const posts = vi.fn(async () => {
+        markPostStarted();
+        return postResponse;
+      });
+      let identityReads = 0;
+      const harness = createHarness({
+        confirmed: false,
+        bots,
+        fetch: posts,
+        runtimeProcessId: () => {
+          identityReads += 1;
+          if (failure === "transport" && identityReads === 3) {
+            throw new TypeError("Identity transport failed.");
+          }
+          return 1234;
+        },
+      });
+      const request = {
+        botId: "bot-a",
+        requestId: terminalStartRequestId,
+        originConversationId: "conversation-a",
+        workspacePath: "/workspace",
+        cols: 100,
+        rows: 30,
+      };
+      try {
+        const first = harness.handlers.get("terminal:session-start")?.(
+          {},
+          request,
+        ) as Promise<unknown>;
+        await postStarted;
+        const concurrent = harness.handlers.get("terminal:session-start")?.(
+          {},
+          { ...request, reconcileOnly: true },
+        ) as Promise<unknown>;
+        await vi.waitFor(() => expect(authorizationCalls).toBe(3));
+        resolvePost?.(Response.json({ session }));
+        await expect(first).resolves.toEqual({ status: "started", session });
+        if (failure === "transport") {
+          await expect(concurrent).resolves.toMatchObject({
+            status: "unconfirmed",
+            retryable: false,
+          });
+          expect(identityReads).toBe(3);
+        } else {
+          await expect(concurrent).rejects.toThrow(/ownership denied/i);
+        }
+        expect(posts).toHaveBeenCalledTimes(1);
+        expect(backendFor).toHaveBeenCalledTimes(1);
+      } finally {
+        harness.dispose();
+      }
+    },
+  );
+
+  it.each(["grant-revoked", "runtime-stopped", "owner-replaced"] as const)(
+    "rechecks %s after a concurrent identity read resolves",
+    async (change) => {
+      const session = {
+        id: "62df6968-19be-4ea6-b7a1-479a57fa3b7c",
+        state: "running",
+        cwd: "/workspace",
+        shell: "zsh",
+        cols: 100,
+        rows: 30,
+        startedAt: "2026-07-27T00:00:00.000Z",
+        pty: true,
+        supportsResize: true,
+        outputBytes: 0,
+      };
+      const terminalBackend = {
+        getState: () => ({ phase: "ready", url: "http://127.0.0.1:4555" }),
+      };
+      let revoked = false;
+      let stopped = false;
+      let replaced = false;
+      let authorizationCalls = 0;
+      const backendFor = vi.fn(async () => terminalBackend);
+      const bots = {
+        get: () => ({
+          id: replaced ? "bot-b" : "bot-a",
+          isDefault: false,
+          permissions: { allowMutation: true },
+        }),
+        ensureConversationOwner: vi.fn(async () => {
+          authorizationCalls += 1;
+          if (revoked) throw new Error("Conversation ownership denied.");
+          return { botId: "bot-a", sessionId: "conversation-a" };
+        }),
+        assertAcpWorkspace: vi.fn(() => "/workspace"),
+        backendFor,
+        readyBackendFor: vi.fn(() => (stopped ? null : terminalBackend)),
+      } as unknown as BotProcessRegistry;
+      let resolvePost: ((response: Response) => void) | undefined;
+      let markPostStarted: () => void = () => undefined;
+      const postStarted = new Promise<void>((resolve) => {
+        markPostStarted = resolve;
+      });
+      const postResponse = new Promise<Response>((resolve) => {
+        resolvePost = resolve;
+      });
+      const posts = vi.fn(async () => {
+        markPostStarted();
+        return postResponse;
+      });
+      let identityReads = 0;
+      let resolveIdentity: ((response: Response) => void) | undefined;
+      let markIdentityStarted: () => void = () => undefined;
+      const identityStarted = new Promise<void>((resolve) => {
+        markIdentityStarted = resolve;
+      });
+      const deferredIdentity = new Promise<Response>((resolve) => {
+        resolveIdentity = resolve;
+      });
+      const validIdentity = () =>
+        Response.json({
+          processId: 1234,
+          runtimeInstanceId: "62df6968-19be-4ea6-b7a1-479a57fa3b7c",
+        });
+      const harness = createHarness({
+        confirmed: false,
+        bots,
+        fetch: posts,
+        identityFetch: () => {
+          identityReads += 1;
+          if (identityReads === 3) {
+            markIdentityStarted();
+            return deferredIdentity;
+          }
+          return validIdentity();
+        },
+      });
+      const request = {
+        botId: "bot-a",
+        requestId: terminalStartRequestId,
+        originConversationId: "conversation-a",
+        workspacePath: "/workspace",
+        cols: 100,
+        rows: 30,
+      };
+      try {
+        const first = harness.handlers.get("terminal:session-start")?.(
+          {},
+          request,
+        ) as Promise<unknown>;
+        await postStarted;
+        const concurrent = harness.handlers.get("terminal:session-start")?.(
+          {},
+          { ...request, reconcileOnly: true },
+        ) as Promise<unknown>;
+        await vi.waitFor(() => expect(authorizationCalls).toBe(3));
+        resolvePost?.(Response.json({ session }));
+        await expect(first).resolves.toEqual({ status: "started", session });
+        await identityStarted;
+        if (change === "grant-revoked") revoked = true;
+        if (change === "runtime-stopped") stopped = true;
+        if (change === "owner-replaced") replaced = true;
+        resolveIdentity?.(validIdentity());
+        if (change === "grant-revoked") {
+          await expect(concurrent).rejects.toThrow(/ownership denied/i);
+        } else {
+          await expect(concurrent).resolves.toMatchObject({
+            status: "unconfirmed",
+            retryable: false,
+          });
+        }
+        expect(posts).toHaveBeenCalledTimes(1);
+        expect(backendFor).toHaveBeenCalledTimes(1);
+      } finally {
+        harness.dispose();
+      }
+    },
+  );
+
+  it.each(["input", "resize", "interrupt", "close"] as const)(
+    "does not POST terminal %s after ownership is revoked during identity read",
+    async (action) => {
+      const session = {
+        id: "62df6968-19be-4ea6-b7a1-479a57fa3b7c",
+        state: "running",
+        cwd: "/workspace",
+        shell: "zsh",
+        cols: 100,
+        rows: 30,
+        startedAt: "2026-07-27T00:00:00.000Z",
+        pty: true,
+        supportsResize: true,
+        outputBytes: 0,
+      };
+      const terminalBackend = {
+        getState: () => ({ phase: "ready", url: "http://127.0.0.1:4555" }),
+      };
+      let revoked = false;
+      const bots = {
+        get: () => ({
+          id: "bot-a",
+          isDefault: false,
+          permissions: { allowMutation: true },
+        }),
+        ensureConversationOwner: vi.fn(async () => ({
+          botId: "bot-a",
+          sessionId: "conversation-a",
+        })),
+        assertConversationOwner: vi.fn(() => {
+          if (revoked) throw new Error("Conversation ownership denied.");
+          return { botId: "bot-a", sessionId: "conversation-a" };
+        }),
+        assertAcpWorkspace: vi.fn(() => "/workspace"),
+        backendFor: vi.fn(async () => terminalBackend),
+        readyBackendFor: vi.fn(() => terminalBackend),
+      } as unknown as BotProcessRegistry;
+      let identityReads = 0;
+      let resolveIdentity: ((response: Response) => void) | undefined;
+      let markIdentityStarted: () => void = () => undefined;
+      const identityStarted = new Promise<void>((resolve) => {
+        markIdentityStarted = resolve;
+      });
+      const deferredIdentity = new Promise<Response>((resolve) => {
+        resolveIdentity = resolve;
+      });
+      const validIdentity = () =>
+        Response.json({
+          processId: 1234,
+          runtimeInstanceId: "62df6968-19be-4ea6-b7a1-479a57fa3b7c",
+        });
+      const posts: string[] = [];
+      const harness = createHarness({
+        confirmed: false,
+        bots,
+        fetch: async (input) => {
+          posts.push(String(input));
+          return Response.json({ session });
+        },
+        identityFetch: () => {
+          identityReads += 1;
+          if (identityReads === 3) {
+            markIdentityStarted();
+            return deferredIdentity;
+          }
+          return validIdentity();
+        },
+      });
+      try {
+        await expect(
+          harness.handlers.get("terminal:session-start")?.(
+            {},
+            {
+              botId: "bot-a",
+              requestId: terminalStartRequestId,
+              originConversationId: "conversation-a",
+              workspacePath: "/workspace",
+              cols: 100,
+              rows: 30,
+            },
+          ),
+        ).resolves.toMatchObject({ status: "started" });
+        const operation =
+          action === "input"
+            ? harness.handlers.get("terminal:session-input")?.(
+                {},
+                {
+                  botId: "bot-a",
+                  sessionId: session.id,
+                  data: "echo denied\n",
+                },
+              )
+            : action === "resize"
+              ? harness.handlers.get("terminal:session-resize")?.(
+                  {},
+                  {
+                    botId: "bot-a",
+                    sessionId: session.id,
+                    cols: 120,
+                    rows: 40,
+                  },
+                )
+              : harness.handlers.get(`terminal:session-${action}`)?.(
+                  {},
+                  session.id,
+                  "bot-a",
+                );
+        await identityStarted;
+        revoked = true;
+        resolveIdentity?.(validIdentity());
+        await expect(operation).rejects.toThrow(
+          /ownership denied|unavailable/i,
+        );
+        expect(posts).toEqual(["http://127.0.0.1:4555/terminal/session/start"]);
+      } finally {
+        harness.dispose();
+      }
+    },
+  );
+
+  it("does not return terminal output after ownership is revoked during the GET", async () => {
+    const session = {
+      id: "62df6968-19be-4ea6-b7a1-479a57fa3b7c",
+      state: "running",
+      cwd: "/workspace",
+      shell: "zsh",
+      cols: 100,
+      rows: 30,
+      startedAt: "2026-07-27T00:00:00.000Z",
+      pty: true,
+      supportsResize: true,
+      outputBytes: 0,
+    };
+    const terminalBackend = {
+      getState: () => ({ phase: "ready", url: "http://127.0.0.1:4555" }),
+    };
+    let revoked = false;
+    const bots = {
+      get: () => ({
+        id: "bot-a",
+        isDefault: false,
+        permissions: { allowMutation: true },
+      }),
+      ensureConversationOwner: vi.fn(async () => ({
+        botId: "bot-a",
+        sessionId: "conversation-a",
+      })),
+      assertConversationOwner: vi.fn(() => {
+        if (revoked) throw new Error("Conversation ownership denied.");
+        return { botId: "bot-a", sessionId: "conversation-a" };
+      }),
+      assertAcpWorkspace: vi.fn(() => "/workspace"),
+      backendFor: vi.fn(async () => terminalBackend),
+      readyBackendFor: vi.fn(() => terminalBackend),
+    } as unknown as BotProcessRegistry;
+    let resolveOutput: ((response: Response) => void) | undefined;
+    let markOutputStarted: () => void = () => undefined;
+    const outputStarted = new Promise<void>((resolve) => {
+      markOutputStarted = resolve;
+    });
+    const outputResponse = new Promise<Response>((resolve) => {
+      resolveOutput = resolve;
+    });
+    const harness = createHarness({
+      confirmed: false,
+      bots,
+      fetch: async (input) => {
+        if (String(input).includes("/terminal/session/output")) {
+          markOutputStarted();
+          return outputResponse;
+        }
+        return Response.json({ session });
+      },
+    });
+    try {
+      await expect(
+        harness.handlers.get("terminal:session-start")?.(
+          {},
+          {
+            botId: "bot-a",
+            requestId: terminalStartRequestId,
+            originConversationId: "conversation-a",
+            workspacePath: "/workspace",
+            cols: 100,
+            rows: 30,
+          },
+        ),
+      ).resolves.toMatchObject({ status: "started" });
+      const pending = harness.handlers.get("terminal:session-output")?.(
+        {},
+        session.id,
+        0,
+        "bot-a",
+      );
+      await outputStarted;
+      revoked = true;
+      resolveOutput?.(
+        Response.json({
+          session,
+          chunks: [{ cursor: 1, data: "private output" }],
+          nextCursor: 1,
+          truncatedBeforeCursor: false,
+        }),
+      );
+      await expect(pending).rejects.toThrow(/ownership denied|unavailable/i);
+    } finally {
+      harness.dispose();
+    }
+  });
+
+  it("does not POST a new terminal when its grant is revoked during the inner backend lookup", async () => {
+    const terminalBackend = {
+      getState: () => ({ phase: "ready", url: "http://127.0.0.1:4555" }),
+    };
+    let revoked = false;
+    let authorizationCalls = 0;
+    let scheduledRevocation = false;
+    const assertConversationOwner = vi.fn(() => {
+      if (revoked) throw new Error("Conversation ownership denied.");
+      return { botId: "bot-a", sessionId: "conversation-a" };
+    });
+    const bots = {
+      get: () => ({
+        id: "bot-a",
+        isDefault: false,
+        permissions: { allowMutation: true },
+      }),
+      ensureConversationOwner: vi.fn(async () => {
+        authorizationCalls += 1;
+        if (revoked) throw new Error("Conversation ownership denied.");
+        return { botId: "bot-a", sessionId: "conversation-a" };
+      }),
+      assertConversationOwner,
+      assertAcpWorkspace: vi.fn(() => "/workspace"),
+      backendFor: vi.fn(async () => terminalBackend),
+      readyBackendFor: vi.fn(() => {
+        // This call is made by requestInteractiveTerminal after its caller's
+        // second authorize() has passed. Its async wrapper then yields before
+        // the fetch boundary, allowing this queued grant revocation to land.
+        if (authorizationCalls === 2 && !scheduledRevocation) {
+          scheduledRevocation = true;
+          queueMicrotask(() => {
+            revoked = true;
+          });
+        }
+        return terminalBackend;
+      }),
+    } as unknown as BotProcessRegistry;
+    const posts = vi.fn(async () => Response.json({}));
+    const harness = createHarness({ confirmed: false, bots, fetch: posts });
+    try {
+      const pending = harness.handlers.get("terminal:session-start")?.(
+        {},
+        {
+          botId: "bot-a",
+          requestId: terminalStartRequestId,
+          originConversationId: "conversation-a",
+          workspacePath: "/workspace",
+          cols: 100,
+          rows: 30,
+        },
+      );
+      await expect(pending).rejects.toThrow(/ownership denied/i);
+      expect(scheduledRevocation).toBe(true);
+      expect(authorizationCalls).toBe(2);
+      expect(assertConversationOwner).toHaveBeenCalledWith(
+        "bot-a",
+        "conversation-a",
+      );
+      expect(posts).not.toHaveBeenCalled();
+    } finally {
+      harness.dispose();
+    }
+  });
+
+  it.each(["grant-revoked", "runtime-stopped"] as const)(
+    "rechecks a new start after its post-POST identity read when %s",
+    async (change) => {
+      const session = {
+        id: "62df6968-19be-4ea6-b7a1-479a57fa3b7c",
+        state: "running",
+        cwd: "/workspace",
+        shell: "zsh",
+        cols: 100,
+        rows: 30,
+        startedAt: "2026-07-27T00:00:00.000Z",
+        pty: true,
+        supportsResize: true,
+        outputBytes: 0,
+      };
+      const terminalBackend = {
+        getState: () => ({ phase: "ready", url: "http://127.0.0.1:4555" }),
+      };
+      let revoked = false;
+      let stopped = false;
+      const bots = {
+        get: () => ({
+          id: "bot-a",
+          isDefault: false,
+          permissions: { allowMutation: true },
+        }),
+        ensureConversationOwner: vi.fn(async () => {
+          if (revoked) throw new Error("Conversation ownership denied.");
+          return { botId: "bot-a", sessionId: "conversation-a" };
+        }),
+        assertAcpWorkspace: vi.fn(() => "/workspace"),
+        backendFor: vi.fn(async () => terminalBackend),
+        readyBackendFor: vi.fn(() => (stopped ? null : terminalBackend)),
+      } as unknown as BotProcessRegistry;
+      let identityReads = 0;
+      let resolveIdentity: ((response: Response) => void) | undefined;
+      let markIdentityStarted: () => void = () => undefined;
+      const identityStarted = new Promise<void>((resolve) => {
+        markIdentityStarted = resolve;
+      });
+      const deferredIdentity = new Promise<Response>((resolve) => {
+        resolveIdentity = resolve;
+      });
+      const validIdentity = () =>
+        Response.json({
+          processId: 1234,
+          runtimeInstanceId: "62df6968-19be-4ea6-b7a1-479a57fa3b7c",
+        });
+      const posts = vi.fn(async () => Response.json({ session }));
+      const harness = createHarness({
+        confirmed: false,
+        bots,
+        fetch: posts,
+        identityFetch: () => {
+          identityReads += 1;
+          if (identityReads === 2) {
+            markIdentityStarted();
+            return deferredIdentity;
+          }
+          return validIdentity();
+        },
+      });
+      try {
+        const pending = harness.handlers.get("terminal:session-start")?.(
+          {},
+          {
+            botId: "bot-a",
+            requestId: terminalStartRequestId,
+            originConversationId: "conversation-a",
+            workspacePath: "/workspace",
+            cols: 100,
+            rows: 30,
+          },
+        );
+        await identityStarted;
+        if (change === "grant-revoked") revoked = true;
+        else stopped = true;
+        resolveIdentity?.(validIdentity());
+        if (change === "grant-revoked") {
+          await expect(pending).rejects.toThrow(/ownership denied/i);
+        } else {
+          await expect(pending).resolves.toMatchObject({
+            status: "unconfirmed",
+            retryable: false,
+          });
+        }
+        expect(posts).toHaveBeenCalledTimes(1);
+      } finally {
+        harness.dispose();
+      }
+    },
+  );
+
+  it("distinguishes proven terminal absence from generic 404 and socket uncertainty", async () => {
+    const session = {
+      id: "62df6968-19be-4ea6-b7a1-479a57fa3b7c",
+      state: "running",
+      cwd: "/workspace",
+      shell: "zsh",
+      cols: 100,
+      rows: 30,
+      startedAt: "2026-07-27T00:00:00.000Z",
+      pty: true,
+      supportsResize: true,
+      outputBytes: 0,
+    };
+    const terminalBackend = {
+      getState: () => ({ phase: "ready", url: "http://127.0.0.1:4555" }),
+    };
+    const bots = {
+      get: () => ({
+        id: "lead-agent",
+        isDefault: true,
+        permissions: { allowMutation: true },
+      }),
+      ensureConversationOwner: vi.fn(async () => ({
+        botId: "lead-agent",
+        sessionId: "conversation-1",
+      })),
+      assertConversationOwner: vi.fn(() => ({
+        botId: "lead-agent",
+        sessionId: "conversation-1",
+      })),
+      assertAcpWorkspace: vi.fn(() => "/workspace"),
+      backendFor: async () => terminalBackend,
+      readyBackendFor: () => terminalBackend,
+    } as unknown as BotProcessRegistry;
+    let outputCalls = 0;
+    const runtimeInstanceId = "62df6968-19be-4ea6-b7a1-479a57fa3b7c";
+    const runtimeProcessId = vi.fn(() => 1234);
+    const harness = createHarness({
+      confirmed: false,
+      bots,
+      runtimeProcessId,
+      runtimeInstanceId: () => runtimeInstanceId,
+      fetch: async (input) => {
+        if (!String(input).includes("/terminal/session/output"))
+          return Response.json({ session });
+        outputCalls += 1;
+        if (outputCalls === 1) {
+          throw new TypeError("fetch failed", {
+            cause: Object.assign(new Error("socket reset"), {
+              code: "ECONNRESET",
+            }),
+          });
+        }
+        if (outputCalls === 2)
+          return Response.json({ error: "Not found" }, { status: 404 });
+        if (outputCalls === 5)
+          return Response.json({
+            session,
+            chunks: [],
+            nextCursor: 0,
+            truncatedBeforeCursor: false,
+            runtimeInstanceId: "88c9a480-6578-440b-9289-922d1cb9a4f4",
+          });
+        return Response.json(
+          {
+            code: "terminal-session-not-found",
+            error: "Interactive terminal session was not found.",
+            ...(outputCalls === 4
+              ? { runtimeInstanceId: "88c9a480-6578-440b-9289-922d1cb9a4f4" }
+              : {}),
+          },
+          { status: 404 },
+        );
+      },
+    });
+    const request = {
+      requestId: terminalStartRequestId,
+      originConversationId: "conversation-1",
+      workspacePath: "/workspace",
+      cols: 100,
+      rows: 30,
+    };
+    await harness.handlers.get("terminal:session-start")?.({}, request);
+    const identityRequestsAfterStart = runtimeProcessId.mock.calls.length;
+    const output = harness.handlers.get(
+      "terminal:session-output",
+    ) as unknown as (
+      event: unknown,
+      id: string,
+      cursor: number,
+    ) => Promise<unknown>;
+    await expect(output({}, session.id, 0)).resolves.toMatchObject({
+      status: "unconfirmed",
+      retryable: true,
+    });
+    await expect(output({}, session.id, 0)).resolves.toMatchObject({
+      status: "unconfirmed",
+      retryable: false,
+    });
+    await expect(output({}, session.id, 0)).resolves.toEqual({
+      status: "absent",
+      sessionId: session.id,
+    });
+    await expect(output({}, session.id, 0)).resolves.toMatchObject({
+      status: "unconfirmed",
+      retryable: false,
+    });
+    await expect(output({}, session.id, 0)).resolves.toMatchObject({
+      status: "unconfirmed",
+      retryable: false,
+    });
+    expect(outputCalls).toBe(5);
+    expect(runtimeProcessId).toHaveBeenCalledTimes(identityRequestsAfterStart);
+    harness.dispose();
+  });
+
+  it("does not replay an uncertain creation into a different runtime generation", async () => {
+    const terminalBackend = {
+      getState: () => ({ phase: "ready", url: "http://127.0.0.1:4555" }),
+    };
+    const bots = {
+      get: () => ({
+        id: "lead-agent",
+        isDefault: true,
+        permissions: { allowMutation: true },
+      }),
+      ensureConversationOwner: vi.fn(async () => ({
+        botId: "lead-agent",
+        sessionId: "conversation-1",
+      })),
+      assertAcpWorkspace: vi.fn(() => "/workspace"),
+      backendFor: vi.fn(async () => terminalBackend),
+      readyBackendFor: vi.fn(() => terminalBackend),
+    } as unknown as BotProcessRegistry;
+    let instanceId = "62df6968-19be-4ea6-b7a1-479a57fa3b7c";
+    let postCount = 0;
+    const harness = createHarness({
+      confirmed: false,
+      bots,
+      runtimeInstanceId: () => instanceId,
+      fetch: async () => {
+        postCount += 1;
+        throw new TypeError("fetch failed", {
+          cause: Object.assign(new Error("socket reset"), {
+            code: "ECONNRESET",
+          }),
+        });
+      },
+    });
+    const request = {
+      requestId: terminalStartRequestId,
+      originConversationId: "conversation-1",
+      workspacePath: "/workspace",
+      cols: 100,
+      rows: 30,
+    };
+    await expect(
+      harness.handlers.get("terminal:session-start")?.({}, request),
+    ).resolves.toMatchObject({
+      status: "unconfirmed",
+      retryable: true,
+    });
+    expect(postCount).toBe(2);
+    instanceId = "88c9a480-6578-440b-9289-922d1cb9a4f4";
+    await expect(
+      harness.handlers.get("terminal:session-start")?.({}, request),
+    ).resolves.toMatchObject({
+      status: "unconfirmed",
+      retryable: false,
+    });
+    expect(postCount).toBe(2);
     harness.dispose();
   });
 

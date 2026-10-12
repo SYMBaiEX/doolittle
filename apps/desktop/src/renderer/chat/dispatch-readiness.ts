@@ -1,3 +1,30 @@
+import type { BotSummary } from "@doolittle/contracts/bots";
+
+export const CANCELLATION_UNCONFIRMED_MESSAGE =
+  "Cancellation could not be confirmed; request remains active. Try Stop again.";
+
+export function retainCancellationFailureFeedback(
+  feedback: Readonly<Record<string, string>>,
+  sessionId: string,
+): Record<string, string> {
+  return feedback[sessionId] === CANCELLATION_UNCONFIRMED_MESSAGE
+    ? feedback
+    : { ...feedback, [sessionId]: CANCELLATION_UNCONFIRMED_MESSAGE };
+}
+
+/** A stopped named bot may start only as part of an actual owned request. */
+export function botAcceptsDispatch(
+  bot: Pick<BotSummary, "isDefault" | "state"> | undefined,
+  botId: string,
+  defaultBotId: string,
+): boolean {
+  if (!bot) return !botId || botId === defaultBotId;
+  return (
+    ["ready", "busy", "waiting"].includes(bot.state) ||
+    (!bot.isDefault && bot.state === "stopped")
+  );
+}
+
 /** Presentation feedback only. Native ownership and admission remain authoritative. */
 export function chatDispatchBlockReason(input: {
   hasContent: boolean;

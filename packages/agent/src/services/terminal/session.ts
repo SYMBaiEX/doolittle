@@ -15,6 +15,21 @@ const MAX_COLUMNS = 400;
 const MIN_ROWS = 5;
 const MAX_ROWS = 200;
 const CLOSED_SESSION_RETENTION_MS = 10 * 60_000;
+const CREATION_ID_RETENTION_MS = 10 * 60_000;
+const CREATION_ID_FUTURE_SKEW_MS = 60_000;
+const MAX_CREATION_IDS = 256;
+
+export class TerminalSessionNotFoundError extends Error {
+  constructor() {
+    super("Interactive terminal session was not found.");
+  }
+}
+
+export class TerminalCreationConflictError extends Error {
+  constructor() {
+    super("Interactive terminal creation cannot be repeated.");
+  }
+}
 
 export type InteractiveTerminalSessionState = "running" | "exited" | "closed";
 
@@ -109,6 +124,15 @@ export class InteractiveTerminalSessionManager {
     string,
     InteractiveTerminalSessionRecord
   >();
+  private readonly creations = new Map<
+    string,
+    {
+      createdAt: number;
+      cols: number;
+      rows: number;
+      sessionId?: string;
+    }
+  >();
 
   constructor(private readonly workspaceDirectory: WorkspaceDirectorySource) {}
 
@@ -117,7 +141,49 @@ export class InteractiveTerminalSessionManager {
     rows?: number;
     cwd?: string;
     command?: string;
+    creationId?: string;
   }): InteractiveTerminalSessionSnapshot {
+    const cols = boundedDimension(options?.cols, 100, MIN_COLUMNS, MAX_COLUMNS);
+    const rows = boundedDimension(options?.rows, 30, MIN_ROWS, MAX_ROWS);
+    const creationId = options?.creationId;
+    if (creationId !== undefined) {
+      // Idempotent desktop creation never accepts alternate execution context.
+      if (options?.cwd !== undefined || options?.command !== undefined) {
+        throw new TerminalCreationConflictError();
+      }
+      const match =
+        /^(\d{13})\.([a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12})$/u.exec(
+          creationId,
+        );
+      const createdAt = match ? Number(match[1]) : NaN;
+      const now = Date.now();
+      if (
+        !Number.isSafeInteger(createdAt) ||
+        createdAt > now + CREATION_ID_FUTURE_SKEW_MS ||
+        now - createdAt > CREATION_ID_RETENTION_MS
+      ) {
+        throw new TerminalCreationConflictError();
+      }
+      for (const [key, value] of this.creations) {
+        if (now - value.createdAt > CREATION_ID_RETENTION_MS) {
+          this.creations.delete(key);
+        }
+      }
+      const prior = this.creations.get(creationId);
+      if (prior) {
+        if (prior.cols !== cols || prior.rows !== rows || !prior.sessionId) {
+          throw new TerminalCreationConflictError();
+        }
+        const record = this.sessions.get(prior.sessionId);
+        if (!record || record.snapshot.state === "closed") {
+          throw new TerminalCreationConflictError();
+        }
+        return { ...record.snapshot };
+      }
+      if (this.creations.size >= MAX_CREATION_IDS) {
+        throw new TerminalCreationConflictError();
+      }
+    }
     const running = [...this.sessions.values()].filter(
       (session) => session.snapshot.state === "running",
     );
@@ -128,8 +194,6 @@ export class InteractiveTerminalSessionManager {
     }
 
     const id = randomUUID();
-    const cols = boundedDimension(options?.cols, 100, MIN_COLUMNS, MAX_COLUMNS);
-    const rows = boundedDimension(options?.rows, 30, MIN_ROWS, MAX_ROWS);
     const command = options?.command
       ? process.platform === "win32"
         ? [
@@ -143,6 +207,15 @@ export class InteractiveTerminalSessionManager {
       : terminalCommand();
     const workspaceDir =
       options?.cwd ?? resolveWorkspaceDirectory(this.workspaceDirectory);
+    if (creationId !== undefined) {
+      // Reserve immediately before spawn. A failed spawn remains a tombstone:
+      // a replay must never create a second process after uncertain outcome.
+      this.creations.set(creationId, {
+        createdAt: Number(creationId.slice(0, 13)),
+        cols,
+        rows,
+      });
+    }
     const terminal = spawnPty(command[0] ?? "", command.slice(1), {
       cwd: workspaceDir,
       env: {
@@ -188,6 +261,10 @@ export class InteractiveTerminalSessionManager {
       outputBytes: 0,
     };
     this.sessions.set(id, record);
+    if (creationId !== undefined) {
+      const creation = this.creations.get(creationId);
+      if (creation) creation.sessionId = id;
+    }
     for (const text of pendingOutput) {
       this.appendOutput(record, text);
     }
@@ -335,7 +412,7 @@ export class InteractiveTerminalSessionManager {
     const id = validateSessionId(sessionId);
     const record = this.sessions.get(id);
     if (!record) {
-      throw new Error("Interactive terminal session was not found.");
+      throw new TerminalSessionNotFoundError();
     }
     return record;
   }

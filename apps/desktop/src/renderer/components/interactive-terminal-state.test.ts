@@ -4,6 +4,7 @@ import {
   closeTerminalTabState,
   isCurrentTerminalSession,
   isPristineTerminalTab,
+  pendingTerminalDiscardTarget,
   terminalChatContext,
   terminalLifecycleChanged,
   terminalTabLabelId,
@@ -105,5 +106,70 @@ describe("interactive terminal pure state", () => {
     expect(isCurrentTerminalSession([tab], "tab-1", "session-2")).toBe(true);
     expect(isCurrentTerminalSession([tab], "tab-1", "session-1")).toBe(false);
     expect(isCurrentTerminalSession([], "tab-1", "session-2")).toBe(false);
+  });
+
+  it("rejects stale abandonment after owner, workspace, generation, or request reuse changes", () => {
+    const tab = createInteractiveTerminalTab("Terminal 1");
+    tab.id = "reused-tab";
+    tab.pendingStart = { requestId: "start-one", cols: 100, rows: 30 };
+    const confirmation = {
+      tabId: tab.id,
+      requestId: "start-one",
+      ownerKey: "bot/chat-one",
+      workspacePath: "/work/one",
+      generation: 5,
+    };
+    const current = {
+      ownerKey: "bot/chat-one",
+      workspacePath: "/work/one",
+      generation: 5,
+      mounted: true,
+    };
+    expect(pendingTerminalDiscardTarget([tab], confirmation, current)).toBe(
+      tab,
+    );
+    expect(
+      pendingTerminalDiscardTarget([tab], confirmation, {
+        ...current,
+        ownerKey: "bot/chat-two",
+      }),
+    ).toBeUndefined();
+    expect(
+      pendingTerminalDiscardTarget([tab], confirmation, {
+        ...current,
+        workspacePath: "/work/two",
+      }),
+    ).toBeUndefined();
+    expect(
+      pendingTerminalDiscardTarget([tab], confirmation, {
+        ...current,
+        generation: 6,
+      }),
+    ).toBeUndefined();
+    expect(
+      pendingTerminalDiscardTarget([tab], confirmation, {
+        ...current,
+        mounted: false,
+      }),
+    ).toBeUndefined();
+    expect(
+      pendingTerminalDiscardTarget(
+        [
+          {
+            ...tab,
+            pendingStart: { ...tab.pendingStart, requestId: "start-two" },
+          },
+        ],
+        confirmation,
+        current,
+      ),
+    ).toBeUndefined();
+    expect(
+      pendingTerminalDiscardTarget(
+        [{ ...tab, pendingStart: null }],
+        confirmation,
+        current,
+      ),
+    ).toBeUndefined();
   });
 });

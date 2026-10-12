@@ -35,7 +35,7 @@ import type {
 } from "./runtime";
 import type {
   InteractiveTerminalInputRequest,
-  InteractiveTerminalOutput,
+  InteractiveTerminalOutputResult,
   InteractiveTerminalResizeRequest,
   InteractiveTerminalSession,
   InteractiveTerminalStartRequest,
@@ -123,7 +123,7 @@ export interface DoolittleDesktopBridge {
     sessionId: string,
     cursor: number,
     botId?: string,
-  ): Promise<InteractiveTerminalOutput>;
+  ): Promise<InteractiveTerminalOutputResult>;
   getEditorProjectContext(
     request: EditorProjectContextRequest,
   ): Promise<EditorProjectContextResult>;

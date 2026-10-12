@@ -36,7 +36,12 @@ import {
 import { isChatNearBottom, scheduleChatScroll } from "./chat/chat-scroll";
 import { handleFailedChatTerminalEvent } from "./chat/chat-terminal-events";
 import { addUnreadMessageIds, appendedMessageIds } from "./chat/chat-unread";
-import { chatDispatchBlockReason } from "./chat/dispatch-readiness";
+import {
+  botAcceptsDispatch,
+  CANCELLATION_UNCONFIRMED_MESSAGE,
+  chatDispatchBlockReason,
+  retainCancellationFailureFeedback,
+} from "./chat/dispatch-readiness";
 import { snapshotDraftForDispatch } from "./chat/draft-dispatch-recovery";
 import {
   CHAT_WORKSPACE_CLASS,
@@ -54,6 +59,11 @@ import {
   type RunReceiptStore,
   runEventKey,
 } from "./chat/models";
+import {
+  matchingTerminalClaimReceipt,
+  mergeTerminalRunReceipt,
+  type RunClaim,
+} from "./chat/run-claim-reconciliation";
 import {
   completedResponseText,
   reconcileStreamedResponse,
@@ -417,6 +427,11 @@ export function ChatSessionPanel({
     "run.bot-owners",
     {},
   );
+  const requestGeneration = useWorkspaceRef<Record<string, number>>(
+    "run.claim-generations",
+    {},
+  );
+  const nextRequestGeneration = useWorkspaceRef("run.next-claim-generation", 0);
   const activeRequest = activeRequests[selectedId] ?? null;
   const [runHydration, setRunHydration] = useWorkspaceState<
     "checking" | "ready" | "unavailable"
@@ -491,6 +506,16 @@ export function ChatSessionPanel({
   const botReady = currentBot
     ? ["ready", "busy", "waiting"].includes(currentBot.state)
     : !currentBotId || currentBotId === defaultBotId;
+  const botCanDispatch = botAcceptsDispatch(
+    currentBot,
+    currentBotId,
+    defaultBotId,
+  );
+  const canDraft =
+    backend.phase === "ready" ||
+    (hostBackend.phase === "ready" &&
+      currentBot?.isDefault === false &&
+      currentBot.state === "stopped");
   const [progressBySession, setProgressBySession] = useWorkspaceState<
     Record<string, string>
   >("run.progress", {});
@@ -1000,6 +1025,32 @@ export function ChatSessionPanel({
     }
   }, [updateAssistant, pendingDeltas, deltaFrame]);
 
+  const capturedRunClaim = (requestId: string): RunClaim | null => {
+    const sessionId = requestSession.current[requestId];
+    const botId = requestBot.current[requestId];
+    const generation = requestGeneration.current[requestId];
+    return sessionId && botId && generation !== undefined
+      ? { runId: requestId, sessionId, botId, generation }
+      : null;
+  };
+
+  const currentTerminalReceipt = (
+    run: unknown,
+    claim: RunClaim,
+    persistedUpdates?: unknown,
+  ) =>
+    matchingTerminalClaimReceipt(
+      run,
+      claim,
+      {
+        sessions: requestSession.current,
+        bots: requestBot.current,
+        generations: requestGeneration.current,
+        claimedSessions: activeRequestSessionsRef.current,
+      },
+      persistedUpdates,
+    );
+
   const finishRequest = (requestId: string) => {
     const cancellationTimer = cancellationTimers.current[requestId];
     if (cancellationTimer !== undefined) {
@@ -1009,7 +1060,11 @@ export function ChatSessionPanel({
     clearCancellingRequest(requestId);
     delete seenStreamParts.current[requestId];
     const completedSessionId = requestSession.current[requestId];
-    if (completedSessionId) {
+    const anotherRunClaimsSession = Object.entries(requestSession.current).some(
+      ([otherRequestId, sessionId]) =>
+        otherRequestId !== requestId && sessionId === completedSessionId,
+    );
+    if (completedSessionId && !anotherRunClaimsSession) {
       delete activeRequestSessionsRef.current[completedSessionId];
     }
     setActiveRequests((current) => {
@@ -1019,13 +1074,19 @@ export function ChatSessionPanel({
       const { [completedSessionId]: _completed, ...remaining } = current;
       return remaining;
     });
-    if (completedSessionId) {
+    if (completedSessionId && !anotherRunClaimsSession) {
       setProgressBySession((current) =>
         clearSessionProgress(current, completedSessionId),
+      );
+      setDispatchFeedback((current) =>
+        current[completedSessionId] === CANCELLATION_UNCONFIRMED_MESSAGE
+          ? { ...current, [completedSessionId]: "" }
+          : current,
       );
     }
     delete requestSession.current[requestId];
     delete requestBot.current[requestId];
+    delete requestGeneration.current[requestId];
     refreshRuntime();
     if (completedSessionId) {
       void refreshSessionUsage(completedSessionId);
@@ -1034,6 +1095,7 @@ export function ChatSessionPanel({
 
   const cancelRequest = async (requestId: string) => {
     if (cancellingRequests[requestId]) return;
+    const claim = capturedRunClaim(requestId);
     setCancellingRequests((current) => ({ ...current, [requestId]: true }));
     setQueueAnnouncement("Stopping the current response…");
     try {
@@ -1050,18 +1112,47 @@ export function ChatSessionPanel({
           );
         }, 8_000);
       }
-    } catch (error) {
+    } catch {
       clearCancellingRequest(requestId);
       const sessionId = requestSession.current[requestId];
       if (!sessionId) return;
-      updateAssistant(sessionId, requestId, (message) => ({
+      // An unconfirmed stop is not a terminal run receipt. Retain the owned
+      // request/session claim so another send cannot duplicate a live turn.
+      setDispatchFeedback((current) =>
+        retainCancellationFailureFeedback(current, sessionId),
+      );
+      return;
+    }
+    if (!claim) return;
+    try {
+      const payload = await desktopRequest<{ run?: unknown }>(
+        `/chat/runs/${encodeURIComponent(requestId)}`,
+        "GET",
+        undefined,
+        undefined,
+        undefined,
+        claim.botId,
+      );
+      const receipt = currentTerminalReceipt(payload.run, claim);
+      if (!receipt) return;
+      setRunReceipts((current) => ({
+        ...current,
+        [requestId]: mergeTerminalRunReceipt(current[requestId], receipt),
+      }));
+      flushPendingDeltas();
+      updateAssistant(claim.sessionId, requestId, (message) => ({
         ...message,
-        content: `Cancellation failed: ${errorMessage(error)} Retry the response to continue.`,
+        content:
+          receipt.latest.type === "cancelled"
+            ? message.content || "Response stopped."
+            : message.content,
         pending: false,
-        error: true,
+        ...(receipt.latest.type === "error" ? { error: true } : {}),
       }));
       finishRequest(requestId);
-      setQueueAnnouncement("Cancellation failed. The response can be retried.");
+    } catch {
+      // An acknowledged Stop without a verified terminal receipt is still
+      // uncertain. Keep the claim until an event or later hydration confirms it.
     }
   };
 
@@ -1202,9 +1293,9 @@ export function ChatSessionPanel({
     return unsubscribe;
   }, [coordinator]);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: retry nonce deliberately reruns run recovery without changing backend phase.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: retry nonce deliberately reruns run recovery without changing the host backend phase.
   useEffect(() => {
-    if (!coordinator || backend.phase !== "ready") return;
+    if (!coordinator || hostBackend.phase !== "ready") return;
     setRunHydration("checking");
     let disposed = false;
     void loadOwnedRunInventory(recoveryBotIds ? recoveryBotIds.split(",") : [])
@@ -1242,17 +1333,31 @@ export function ChatSessionPanel({
           if (["complete", "cancelled", "error"].includes(status)) {
             const receipt = historicalRunReceipt(run, persistedUpdates[runId]);
             if (!receipt) continue;
-            setRunReceipts((current) =>
-              current[runId]
-                ? current
-                : {
-                    ...current,
-                    [runId]: receipt,
-                  },
-            );
+            setRunReceipts((current) => ({
+              ...current,
+              [runId]: mergeTerminalRunReceipt(current[runId], receipt),
+            }));
+            const claim = capturedRunClaim(runId);
+            if (
+              claim &&
+              currentTerminalReceipt(run, claim, persistedUpdates[runId])
+            ) {
+              flushPendingDeltas();
+              updateAssistant(sessionId, runId, (message) => ({
+                ...message,
+                content:
+                  status === "cancelled"
+                    ? message.content || "Response stopped."
+                    : message.content,
+                pending: false,
+                ...(status === "error" ? { error: true } : {}),
+              }));
+              finishRequest(runId);
+            }
             continue;
           }
           requestSession.current[runId] = sessionId;
+          requestGeneration.current[runId] = ++nextRequestGeneration.current;
           if (botId) {
             requestBot.current[runId] = botId;
             onBindSessionBot?.(sessionId, botId);
@@ -1303,7 +1408,7 @@ export function ChatSessionPanel({
       disposed = true;
     };
   }, [
-    backend.phase,
+    hostBackend.phase,
     coordinator,
     setMessages,
     setRunHydration,
@@ -1358,10 +1463,8 @@ export function ChatSessionPanel({
           activeRequests[sessionId],
       ),
       ownerResolved: !botIdForSession || Boolean(botId),
-      ownerReady: owner
-        ? ["ready", "busy", "waiting"].includes(owner.state)
-        : !botId || botId === defaultBotId,
-      backendReady: backend.phase === "ready",
+      ownerReady: botAcceptsDispatch(owner, botId, defaultBotId),
+      backendReady: hostBackend.phase === "ready",
       hydration: runHydration,
     });
     if (blockedReason) {
@@ -1441,6 +1544,7 @@ export function ChatSessionPanel({
           }
         : null;
     requestSession.current[requestId] = sessionId;
+    requestGeneration.current[requestId] = ++nextRequestGeneration.current;
     if (botId) requestBot.current[requestId] = botId;
     activeRequestSessionsRef.current[sessionId] = true;
     // A user's own dispatch should remain visible even if they were reading history.
@@ -2063,11 +2167,11 @@ export function ChatSessionPanel({
       : "");
   const canSubmit =
     Boolean(draft.trim() || attachedFiles.length > 0) &&
-    backend.phase === "ready" &&
+    hostBackend.phase === "ready" &&
     !workspaceBindingBlocked &&
     (!botIdForSession || Boolean(currentBotId)) &&
     !dispatchPending[selectedId] &&
-    botReady &&
+    botCanDispatch &&
     runHydration === "ready" &&
     !attachmentImportPending &&
     !composerValidationError;
@@ -2330,7 +2434,7 @@ export function ChatSessionPanel({
                     )}
                   </div>
                 ) : null}
-                {!botReady && currentBot ? (
+                {!botReady && currentBot && !activeRequest ? (
                   <BotRuntimeNotice bot={currentBot} onStart={onActivateBot} />
                 ) : null}
                 {!botReady && !currentBot ? (
@@ -2359,6 +2463,7 @@ export function ChatSessionPanel({
             cancellingRequest={cancellingRequest}
             onCancelRequest={(requestId) => void cancelRequest(requestId)}
             canSubmit={canSubmit}
+            canDraft={canDraft}
             draft={draft}
             setDraft={setDraft}
             onSubmit={submit}

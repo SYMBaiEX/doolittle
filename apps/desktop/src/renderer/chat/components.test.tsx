@@ -130,6 +130,31 @@ function composerProps(
 }
 
 describe("chat presentation components", () => {
+  it("keeps a stopped named bot draft editable while its first send is available", () => {
+    const markup = renderToStaticMarkup(
+      <ChatComposer
+        {...composerProps({
+          bot: {
+            id: "jerry",
+            name: "Jerry",
+            isDefault: false,
+            state: "stopped",
+          } as never,
+          canDraft: true,
+          canSubmit: true,
+        })}
+      />,
+    );
+    const host = document.createElement("div");
+    host.innerHTML = markup;
+    const input = host.querySelector("textarea");
+    expect(input?.disabled).toBe(false);
+    expect(input?.placeholder).toContain("Jerry");
+    expect(
+      host.querySelector<HTMLButtonElement>('button[aria-label="Send message"]')
+        ?.disabled,
+    ).toBe(false);
+  });
   it("reserves transcript space using actual pane and intrinsic composer geometry", () => {
     // The failed390px stress layout had a382.5px conversation, a280px
     // approval surface, and12px of transcript. Its footer was clipped below

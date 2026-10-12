@@ -253,6 +253,7 @@ export class TerminalService {
   startInteractiveSession(options?: {
     cols?: number;
     rows?: number;
+    creationId?: string;
   }): InteractiveTerminalSessionSnapshot {
     return this.interactiveSessions.start(options);
   }

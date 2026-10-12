@@ -56,6 +56,7 @@ export interface InteractiveTerminalHeaderProps {
   running: boolean;
   outputAvailable: boolean;
   starting: boolean;
+  pendingStart?: boolean;
   tabRefs: RefObject<Record<string, HTMLButtonElement | null>>;
   tabs: readonly InteractiveTerminalTabState[];
   maxTabs: number;
@@ -91,15 +92,18 @@ export function InteractiveTerminalHeader({
   running,
   outputAvailable,
   starting,
+  pendingStart = false,
   tabRefs,
   tabs,
   maxTabs,
 }: InteractiveTerminalHeaderProps) {
   const startActionLabel = starting
     ? "Opening shell"
-    : hasPriorOutput
-      ? "Restart shell"
-      : "Open shell";
+    : pendingStart
+      ? "Retry shell request"
+      : hasPriorOutput
+        ? "Restart shell"
+        : "Open shell";
   const hideLabel = `Hide terminal${dismissShortcut ? ` (${dismissShortcut})` : ""}`;
 
   return (

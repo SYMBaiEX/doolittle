@@ -132,6 +132,8 @@ export interface ChatComposerProps {
   cancellingRequest?: string | null;
   onCancelRequest: (requestId: string) => void;
   canSubmit: boolean;
+  /** A stopped named bot can accept a draft and start on its first send. */
+  canDraft?: boolean;
   draft: string;
   setDraft: Dispatch<SetStateAction<string>>;
   onSubmit: (event?: FormEvent<HTMLFormElement>) => void | Promise<void>;
@@ -197,6 +199,7 @@ export function ChatComposer({
   cancellingRequest = null,
   onCancelRequest,
   canSubmit,
+  canDraft = backend.phase === "ready",
   draft,
   setDraft,
   onSubmit,
@@ -762,7 +765,7 @@ export function ChatComposer({
           aria-invalid={composerValidationError ? true : undefined}
           aria-label={`Message ${bot?.name ?? "Doolittle"}`}
           id={controlId("chat-composer-input")}
-          disabled={backend.phase !== "ready"}
+          disabled={!canDraft}
           onChange={(event) => {
             setDraft(event.target.value);
             setCommandMenuDismissed(false);
@@ -822,7 +825,7 @@ export function ChatComposer({
             }
           }}
           placeholder={
-            backend.phase === "ready"
+            canDraft
               ? activeProject
                 ? `Message ${activeProject.name}…`
                 : `Message ${bot?.name ?? "Doolittle"}…`
