@@ -82,6 +82,7 @@ import {
   saveSessionProjectBindings,
   sessionProjectTarget,
 } from "./bots/session-bindings";
+import { useBotCatalogPolling } from "./bots/useBotCatalogPolling";
 import { DesktopRouteErrorBoundary } from "./components/DesktopRouteErrorBoundary";
 import { useToasts } from "./components/ToastRegion";
 import { useModalFocusBoundary } from "./components/useModalFocusBoundary";
@@ -1794,13 +1795,7 @@ export function App() {
     return window.doolittle.onWorkspaceState(handleWorkspaceState);
   }, [handleWorkspaceState]);
 
-  useIntervalWhenDocumentVisible(
-    () => {
-      void botResource.reload();
-    },
-    5_000,
-    !!botCatalog,
-  );
+  useBotCatalogPolling(backend.phase === "ready", botResource);
 
   useIntervalWhenDocumentVisible(
     () => {

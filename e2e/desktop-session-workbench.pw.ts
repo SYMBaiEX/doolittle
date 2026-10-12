@@ -418,54 +418,76 @@ test.describe("Doolittle desktop session workbench", () => {
         .getByRole("button", { name: "Create Offline Scout" })
         .click();
       await expect(creation).toBeHidden();
+      let savedBot: Record<string, unknown> | null = null;
       await expect
-        .poll(async () =>
-          page.evaluate(async () => {
-            const response = await window.doolittle.requestAgent({
-              requestId: crypto.randomUUID(),
-              path: "/bots",
-              method: "GET",
-              headers: { accept: "application/json" },
+        .poll(
+          async () => {
+            const result = await page.evaluate(async () => {
+              const response = await window.doolittle.requestAgent({
+                requestId: crypto.randomUUID(),
+                path: "/bots",
+                method: "GET",
+                headers: { accept: "application/json" },
+              });
+              if (response.status !== 200) {
+                let code = "";
+                try {
+                  const payload = JSON.parse(response.body) as {
+                    code?: unknown;
+                  };
+                  if (typeof payload.code === "string") code = payload.code;
+                } catch {
+                  // Status is authoritative when an error body is malformed.
+                }
+                return { status: response.status, code, bot: null };
+              }
+              const catalog = JSON.parse(response.body) as {
+                bots: Array<{
+                  name: string;
+                  state: string;
+                  activeRunCount: number;
+                  model: { provider: string; model: string };
+                  character?: {
+                    system?: string;
+                    bio?: string | string[];
+                    style?: unknown;
+                  };
+                  permissions: {
+                    connectionIds: string[];
+                    allowMutation: boolean;
+                    allowDelegation: boolean;
+                  };
+                }>;
+              };
+              return {
+                status: 200,
+                code: "",
+                bot:
+                  catalog.bots.find((bot) => bot.name === "Offline Scout") ??
+                  null,
+              };
             });
-            if (response.status !== 200)
-              throw new Error(`Bot catalog returned ${response.status}`);
-            const catalog = JSON.parse(response.body) as {
-              bots: Array<{
-                name: string;
-                state: string;
-                activeRunCount: number;
-                model: { provider: string; model: string };
-                character?: {
-                  system?: string;
-                  bio?: string | string[];
-                  style?: unknown;
-                };
-                permissions: {
-                  connectionIds: string[];
-                  allowMutation: boolean;
-                  allowDelegation: boolean;
-                };
-              }>;
+            if (
+              result.status !== 200 &&
+              !(
+                result.status === 503 &&
+                result.code === "bot_status_unavailable"
+              )
+            )
+              throw new Error(
+                `Bot catalog returned HTTP ${result.status}, code ${result.code || "none"}.`,
+              );
+            if (result.bot) savedBot = result.bot as Record<string, unknown>;
+            return {
+              status: result.status,
+              code: result.code,
+              found: Boolean(result.bot),
             };
-            return (
-              catalog.bots.find((bot) => bot.name === "Offline Scout") ?? null
-            );
-          }),
+          },
+          { timeout: 30_000 },
         )
-        .not.toBeNull();
-      // Poll above establishes native persistence; read the exact saved fields once settled.
-      const bot = await page.evaluate(async () => {
-        const response = await window.doolittle.requestAgent({
-          requestId: crypto.randomUUID(),
-          path: "/bots",
-          method: "GET",
-          headers: { accept: "application/json" },
-        });
-        const catalog = JSON.parse(response.body) as {
-          bots: Array<Record<string, unknown>>;
-        };
-        return catalog.bots.find((entry) => entry.name === "Offline Scout");
-      });
+        .toEqual({ status: 200, code: "", found: true });
+      const bot = savedBot;
       expect(bot).toMatchObject({
         name: "Offline Scout",
         state: "stopped",

@@ -1,7 +1,12 @@
 import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { _electron as electron, expect, type Page } from "@playwright/test";
+import {
+  _electron as electron,
+  expect,
+  type Page,
+  test,
+} from "@playwright/test";
 import { desktopIpcChannels } from "../../apps/desktop/src/shared/ipc-channels";
 import { isolatedRuntimeEnvironment } from "./isolated-runtime-environment";
 
@@ -99,6 +104,58 @@ export async function waitForDesktopReady(page: Page): Promise<void> {
       { timeout: 45_000 },
     )
     .toBe("ready");
+  const started = Date.now();
+  const observations: Array<{ elapsedMs: number; state: string }> = [];
+  try {
+    await expect
+      .poll(
+        async () => {
+          const state = await page.evaluate(async () => {
+            const backend = await window.doolittle.getBackendState();
+            if (backend.phase !== "ready") return `backend:${backend.phase}`;
+            const workbench = document.querySelector(
+              "[data-session-workbench]",
+            );
+            if (!workbench) return "workbench:not-mounted";
+            const content = workbench.textContent ?? "";
+            if (content.includes("Active run recovery is unavailable"))
+              throw new Error("Native run inventory is unavailable.");
+            const response = await window.doolittle.requestAgent({
+              requestId: crypto.randomUUID(),
+              path: "/bots",
+              method: "GET",
+              headers: { accept: "application/json" },
+            });
+            if (response.status !== 200) {
+              let code = "";
+              try {
+                const payload = JSON.parse(response.body) as { code?: unknown };
+                if (typeof payload.code === "string") code = payload.code;
+              } catch {
+                // The status remains the authoritative diagnostic.
+              }
+              if (response.status === 503 && code === "bot_status_unavailable")
+                return `bots:503/${code}`;
+              throw new Error(
+                `Native bot catalog readiness failed: HTTP ${response.status}, code ${code || "none"}.`,
+              );
+            }
+            if (content.includes("Checking active runs before sending…"))
+              return "run-inventory:checking";
+            return "ready";
+          });
+          observations.push({ elapsedMs: Date.now() - started, state });
+          return state;
+        },
+        { timeout: 30_000 },
+      )
+      .toBe("ready");
+  } finally {
+    await test.info().attach("native-capability-readiness", {
+      body: JSON.stringify(observations.slice(-24)),
+      contentType: "application/json",
+    });
+  }
 }
 
 /** Hide host account metadata in isolated screenshots; all other API calls remain native. */

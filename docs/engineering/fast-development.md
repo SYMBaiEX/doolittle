@@ -88,22 +88,43 @@ Vitest process; the shell's unrelated Node 26.10.0 is not the test runtime).
 This is one local measurement, not a CI or full-suite benchmark. The
 no-matching-scope failure probe exited 1 without executing tests.
 
-## Deliberate broad and live checks
+## Release gate and deliberate broad checks
 
 ```sh
+nub run check:release:static     # dirty-worktree-friendly preflight; no live E2E
+nub run check:release            # static gate, then serial source/workbench/packaged E2E
 nub run test:all                 # all repository Vitest sources, once
 nub run check:all                # lint, types, all tests, agent build
-nub run check:release            # check:all + acceptance, runtime policy/package audit
 nub run test:integration         # discovers integration files; opt-ins still apply
 nub run test:integration:workers # real isolated offline worker processes
 nub run test:sandbox:integration # real Docker sandbox (requires sandbox:setup)
 nub run test:e2e                 # desktop build + real Electron/Playwright smoke
 ```
 
-`test:all` includes the desktop and eval unit tests; the release chain does not
-run desktop unit tests a second time. Integration files retain their existing
-environment opt-ins, so a skipped test is not a live pass. Coding/headless eval
-and harness commands (`eval:*`, `test:*-evals`, `test:*-harness`, `check:alpha`)
+`test:release` uses the explicit 17-file `vitest.release.config.ts` selection:
+the eight essentials plus bot character/profile, process registry, session
+routing, host RPC on both sides, server auth, and the agent/desktop knowledge
+broker pair. `check:release:static` runs lint, application/desktop types, those
+tests, the agent build, acceptance/security gates, runtime advisory policy, and
+runtime preparation/audit. It can be run while source is uncommitted; it is not
+a release-ready result by itself.
+
+`check:release` then rebuilds and opts into the source shared-engine worker
+E2E, builds and runs the native Electron workbench Playwright suite, builds a
+host directory package, and runs packaged-app Playwright acceptance. These
+stages are serial and fail closed; no skipped integration test is counted as
+native evidence.
+The packaged path requires a clean, committed worktree and a package manifest
+matching the current HEAD and app artifact. Commit the verified source before
+running the complete gate. For a pre-commit edit, run `check:release:static`
+and report the native gate as pending, not passed. The package stage does not
+install, publish, or deploy an app, and does not certify notarization.
+
+`test:all` includes the desktop and eval unit tests but is no longer an implicit
+release prerequisite; `check:all` preserves the full local suite on demand.
+Integration files retain their existing environment opt-ins, so a skipped test
+is not a live pass. Coding/headless eval and harness commands (`eval:*`,
+`test:*-evals`, `test:*-harness`, `check:alpha`)
 remain separate and unchanged. Actual provider or platform capability needs
 live evidence, not a successful mock or source assertion.
 
@@ -118,7 +139,7 @@ CI runs do not promote or publish anything.
 At the October 2026 workflow audit, source inventory contained 1,049 test/spec
 files: 558 agent, 365 desktop, 66 scripts, 20 evals, and 40 across other packages
 and E2E helpers. The old unfiltered default discovered that entire tree, and
-`check:release` then discovered desktop files again. These are file counts,
+the former `check:release` then discovered desktop files again. These are file counts,
 not executed-test counts or full-suite duration measurements.
 
 Repeated cold Vitest processes transform imports, initialize fixtures/mocks,
@@ -131,7 +152,8 @@ known. Do not replace this with another verification framework.
 When a check fails, retain its nonzero exit status and narrow to the failing
 file. Confirm its normal path, one failure case, and recovery/rollback case.
 After configuration changes, verify selection before executing broad checks:
-`nubx vitest list --config vitest.essential.config.ts --filesOnly`.
+`nubx vitest list --config vitest.essential.config.ts --filesOnly` or
+`nubx vitest list --config vitest.release.config.ts --filesOnly`.
 Report the commands, timing, failures/skips, and remaining live boundaries.
 To recover the previous breadth, use `test:all` or `check:all`; no test source
 has been removed by this workflow change.
