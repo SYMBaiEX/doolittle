@@ -1226,6 +1226,14 @@ test.describe("Doolittle desktop navigation", () => {
                 : routeContainer;
           await expect(viewContainer).toBeVisible();
           if (route === "code") {
+            // Project selection now opens another immutable chat. Its scoped
+            // Code view intentionally does not inherit the earlier editor.
+            await viewContainer
+              .getByRole("treeitem", { name: /AGENTS\.md/ })
+              .click();
+            await expect(
+              viewContainer.locator(".doolittle-code-editor .monaco-editor"),
+            ).toBeVisible();
             await expectEditorToolbarGeometry(
               viewContainer.locator(".coding-editor-toolbar"),
             );
@@ -2606,6 +2614,10 @@ test.describe("Doolittle desktop navigation", () => {
         })
         .getByRole("button", { name: /General/ })
         .click();
+      await expect(
+        focusedSessionPanel.getByRole("button", { name: /^Choose project\./ }),
+      ).toHaveAccessibleName(/Current project General/u);
+      await expect(composer).toBeVisible();
       await expect(composer).toHaveValue("");
       await expect(retainedDraft).toHaveValue(
         "Draft survives project switching",
@@ -2621,12 +2633,14 @@ test.describe("Doolittle desktop navigation", () => {
         })
         .getByRole("button", { name: /E2E repository/ })
         .click();
+      await expect(
+        focusedSessionPanel.getByRole("button", { name: /^Choose project\./ }),
+      ).toHaveAccessibleName(/Current project E2E repository/u);
+      await expect(composer).toBeVisible();
       await expect(composer).toHaveValue("");
       await expect(retainedDraft).toHaveValue(
         "Draft survives project switching",
       );
-      await composer.fill("");
-
       await focusedSessionPanel
         .getByRole("button", { name: /Choose model\. Current route/ })
         .click();
