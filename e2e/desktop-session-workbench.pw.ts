@@ -1103,7 +1103,36 @@ test.describe("Doolittle desktop session workbench", () => {
       // Hidden panes clear and reload their command catalog. Confirm that the
       // visible pane has real suggestions before testing a specific command.
       await composer.fill("/");
-      await expect(commands).toBeVisible();
+      const commandCatalogDiagnostic = await page.evaluate(async () => {
+        const backend = await window.doolittle.getBackendState();
+        const response = await window.doolittle.requestAgent({
+          requestId: crypto.randomUUID(),
+          path: "/commands/catalog",
+          method: "GET",
+          headers: { accept: "application/json" },
+        });
+        const payload = JSON.parse(response.body) as {
+          commands?: unknown[];
+          code?: string;
+        };
+        return {
+          phase: backend.phase,
+          status: response.status,
+          count: payload.commands?.length ?? 0,
+          code: payload.code ?? "none",
+        };
+      });
+      await testInfo.attach("native-command-catalog-readiness", {
+        body: JSON.stringify(commandCatalogDiagnostic),
+        contentType: "application/json",
+      });
+      expect(commandCatalogDiagnostic.phase).toBe("ready");
+      expect(commandCatalogDiagnostic.status).toBe(200);
+      expect(commandCatalogDiagnostic.count).toBeGreaterThan(0);
+      await expect(
+        commands,
+        `Native command catalog: ${JSON.stringify(commandCatalogDiagnostic)}`,
+      ).toBeVisible();
       await composer.fill("/commands");
       const command = commands
         .locator('[role="option"]:not([aria-disabled="true"])')
