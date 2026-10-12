@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -15,6 +15,47 @@ const nubPath = process.env.DOOLITTLE_NUB_PATH ?? "nub";
 const textDecoder = new TextDecoder();
 const officialClaudeSource =
   "@elizaos/agent/auth/anthropic-subscription/doolittle-legacy-claude-code";
+
+function claudeSubprocessEnvironment(
+  homePath: string,
+  dataDir: string,
+  inputs: { setupToken?: string; fetchPayload?: Record<string, unknown> } = {},
+  inherited: NodeJS.ProcessEnv = process.env,
+): NodeJS.ProcessEnv {
+  // Real SDK account writes must stay in this fixture, regardless of the
+  // operator's account home, provider credentials or Node startup options.
+  return {
+    PATH: inherited.PATH,
+    SystemRoot: inherited.SystemRoot,
+    HOME: homePath,
+    USERPROFILE: homePath,
+    XDG_CONFIG_HOME: join(homePath, ".config"),
+    XDG_STATE_HOME: join(homePath, ".local", "state"),
+    CLAUDE_CONFIG_DIR: join(homePath, ".claude"),
+    ELIZA_HOME: dataDir,
+    ELIZA_CONFIG_PATH: join(dataDir, "eliza.json"),
+    DOOLITTLE_DATA_DIR: dataDir,
+    DOOLITTLE_DATA_PATH: dataDir,
+    DOOLITTLE_BOT_RUNTIME: "worker",
+    DOOLITTLE_OFFLINE_BOOTSTRAP: "true",
+    TEST_HOME_PATH: homePath,
+    TEST_FETCH_PAYLOAD: JSON.stringify(inputs.fetchPayload ?? {}),
+    CLAUDE_CODE_SETUP_TOKEN: inputs.setupToken ?? "",
+  };
+}
+
+function expectPrivateClaudeAccount(dataDir: string): void {
+  expect(
+    existsSync(
+      join(
+        dataDir,
+        "auth",
+        "anthropic-subscription",
+        "doolittle-legacy-claude-code.json",
+      ),
+    ),
+  ).toBe(true);
+}
 
 function parseLastJsonLine<T>(output: Uint8Array): T {
   const line = textDecoder.decode(output).trim().split("\n").at(-1);
@@ -143,21 +184,15 @@ function runClaudeRefreshSubprocess({
   `;
 
   const result = spawnSync(nubPath, ["-e", script], {
-    env: {
-      ...process.env,
-      DOOLITTLE_DATA_DIR: dataDir,
-      TEST_HOME_PATH: homePath,
-      TEST_FETCH_PAYLOAD: JSON.stringify(fetchPayload),
-      ...(setupToken
-        ? {
-            CLAUDE_CODE_SETUP_TOKEN: setupToken,
-          }
-        : {}),
-    },
+    env: claudeSubprocessEnvironment(homePath, dataDir, {
+      setupToken,
+      fetchPayload,
+    }),
     stdio: ["ignore", "pipe", "pipe"],
   });
 
   expect(result.status).toBe(0);
+  expectPrivateClaudeAccount(dataDir);
   return parseLastJsonLine(result.stdout) as {
     credentials?: LinkedClaudeCodeCredentials;
     stored?: LinkedClaudeCodeCredentials;
@@ -172,6 +207,48 @@ function runClaudeRefreshSubprocess({
 }
 
 describe("Claude Code account auth", () => {
+  it("isolates subprocess account storage and credentials from inherited configuration", () => {
+    const env = claudeSubprocessEnvironment(
+      "/fixture/home",
+      "/fixture/state",
+      { setupToken: "fixture-token" },
+      {
+        PATH: "fixture-bin",
+        ELIZA_HOME: "/must-not-use/account-state",
+        ELIZA_CONFIG_PATH: "/must-not-use/config.json",
+        HOME: "/must-not-use/home",
+        CLAUDE_CONFIG_DIR: "/must-not-use/claude",
+        CLAUDE_CODE_SETUP_TOKEN: "inherited-token",
+        OPENAI_API_KEY: "inherited-key",
+        ANTHROPIC_API_KEY: "inherited-key",
+        NODE_OPTIONS: "--require=/must-not-run/startup.js",
+      },
+    );
+    expect(env).toMatchObject({
+      PATH: "fixture-bin",
+      HOME: "/fixture/home",
+      ELIZA_HOME: "/fixture/state",
+      ELIZA_CONFIG_PATH: join("/fixture/state", "eliza.json"),
+      CLAUDE_CONFIG_DIR: join("/fixture/home", ".claude"),
+      DOOLITTLE_DATA_DIR: "/fixture/state",
+      DOOLITTLE_DATA_PATH: "/fixture/state",
+      CLAUDE_CODE_SETUP_TOKEN: "fixture-token",
+      DOOLITTLE_BOT_RUNTIME: "worker",
+    });
+    for (const name of ["OPENAI_API_KEY", "ANTHROPIC_API_KEY", "NODE_OPTIONS"])
+      expect(env).not.toHaveProperty(name);
+    expect(
+      claudeSubprocessEnvironment(
+        "/fixture/home",
+        "/fixture/state",
+        {},
+        {
+          CLAUDE_CODE_SETUP_TOKEN: "inherited-token",
+        },
+      ).CLAUDE_CODE_SETUP_TOKEN,
+    ).toBe("");
+  });
+
   it("prefers current local Claude auth artifacts over cached credentials", () => {
     const homePath = mkdtempSync(join(tmpdir(), "doolittle-claude-auth-"));
     mkdirSync(join(homePath, ".claude"), { recursive: true });
@@ -488,16 +565,14 @@ describe("Claude Code account auth", () => {
       `;
 
     const result = spawnSync(nubPath, ["-e", script], {
-      env: {
-        ...process.env,
-        CLAUDE_CODE_SETUP_TOKEN: "sk-ant-oat01-test",
-        DOOLITTLE_DATA_DIR: dataDir,
-        TEST_HOME_PATH: homePath,
-      },
+      env: claudeSubprocessEnvironment(homePath, dataDir, {
+        setupToken: "sk-ant-oat01-test",
+      }),
       stdio: ["ignore", "pipe", "pipe"],
     });
 
     expect(result.status).toBe(0);
+    expectPrivateClaudeAccount(dataDir);
     const parsed = parseLastJsonLine(result.stdout) as {
       credentials?: LinkedClaudeCodeCredentials;
       stored?: LinkedClaudeCodeCredentials;

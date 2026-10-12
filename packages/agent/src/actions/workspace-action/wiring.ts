@@ -7,9 +7,24 @@ import type {
   Memory,
   State,
 } from "@elizaos/core";
+import { hasGlobalSessionOperatorAccess } from "@/runtime/session-operator-policy";
 import { executeWorkspaceIntent } from "./execution";
 import { WORKSPACE_ACTION_FALLBACK_MESSAGE } from "./output";
 import { resolveWorkspaceActionIntent } from "./parsing";
+
+const WORKSPACE_ACCESS_DENIED =
+  "Workspace inspection is available only to a local or authenticated API operator.";
+
+function messageSource(message: Memory): string | undefined {
+  const metadata = message.metadata as
+    | { doolittle?: { source?: unknown } }
+    | undefined;
+  const metadataSource = metadata?.doolittle?.source;
+  if (typeof metadataSource === "string") return metadataSource;
+  return typeof message.content?.source === "string"
+    ? message.content.source
+    : undefined;
+}
 
 const WORKSPACE_PARAMETERS: NonNullable<Action["parameters"]> = [
   {
@@ -49,14 +64,26 @@ export function createWorkspaceAction(): Action {
     parameters: WORKSPACE_PARAMETERS,
     contexts: ["code", "files"],
     cacheStable: true,
-    validate: async () => true,
+    validate: async (_runtime, message) =>
+      hasGlobalSessionOperatorAccess(messageSource(message)),
     handler: async (
       runtime: IAgentRuntime,
-      _message: Memory,
+      message: Memory,
       _state: State | undefined,
       options: HandlerOptions | undefined,
       callback?: HandlerCallback,
     ): Promise<ActionResult> => {
+      if (!hasGlobalSessionOperatorAccess(messageSource(message))) {
+        await callback?.({
+          text: WORKSPACE_ACCESS_DENIED,
+          source: "workspace-action",
+        });
+        return {
+          success: false,
+          text: WORKSPACE_ACCESS_DENIED,
+          userFacingText: WORKSPACE_ACCESS_DENIED,
+        };
+      }
       const intent = resolveWorkspaceActionIntent(options);
       const response = intent
         ? await executeWorkspaceIntent(runtime, intent)

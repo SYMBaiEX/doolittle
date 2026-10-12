@@ -1,12 +1,20 @@
+import { randomUUID } from "node:crypto";
 import {
+  closeSync,
+  constants,
   existsSync,
+  fchmodSync,
+  lstatSync,
   mkdirSync,
-  readFileSync,
-  statSync,
+  openSync,
+  realpathSync,
+  renameSync,
+  unlinkSync,
   writeFileSync,
 } from "node:fs";
-import { dirname, join, relative } from "node:path";
+import { dirname, isAbsolute, join, relative } from "node:path";
 import { listNativeCapabilityTruth } from "@/runtime/native/capability-truth";
+import { readRegularFileSync } from "@/utils/read-regular-file";
 import { buildInventoryRows } from "./inventory";
 import {
   renderCapabilityTruth,
@@ -22,6 +30,38 @@ const MARKDOWN_LINK_TARGETS = [
   "docs/monorepo.md",
   "docs/quickstart.md",
 ] as const;
+
+function insideRoot(root: string, target: string): boolean {
+  const rel = relative(realpathSync(root), realpathSync(target));
+  return !isAbsolute(rel) && rel !== ".." && !/^\.\.(?:[\\/]|$)/u.test(rel);
+}
+
+function ensureGeneratedDirectory(root: string, directory: string): void {
+  const rel = relative(root, directory);
+  if (isAbsolute(rel) || rel === ".." || /^\.\.(?:[\\/]|$)/u.test(rel)) {
+    throw new Error(
+      `Generated documentation directory escapes repository: ${directory}`,
+    );
+  }
+  let current = root;
+  for (const component of rel.split(/[\\/]/u).filter(Boolean)) {
+    current = join(current, component);
+    if (!existsSync(current)) mkdirSync(current);
+    if (
+      lstatSync(current).isSymbolicLink() ||
+      !lstatSync(current).isDirectory() ||
+      !insideRoot(root, current)
+    ) {
+      throw new Error(
+        `Generated documentation directory is unsafe: ${current}`,
+      );
+    }
+  }
+}
+
+function readDocFile(path: string): string {
+  return readRegularFileSync(path, 16 * 1024 * 1024).toString("utf8");
+}
 
 function markdownFragment(value: string): string {
   return value
@@ -65,11 +105,15 @@ export function validateMarkdownLinks(
 
   for (const relativePath of files) {
     const absolutePath = join(root, relativePath);
-    if (!existsSync(absolutePath)) {
+    if (
+      !existsSync(absolutePath) ||
+      !insideRoot(root, absolutePath) ||
+      lstatSync(absolutePath).isSymbolicLink()
+    ) {
       failures.push(`${relativePath}: file does not exist`);
       continue;
     }
-    const content = readFileSync(absolutePath, "utf8");
+    const content = readDocFile(absolutePath);
     for (const match of content.matchAll(linkPattern)) {
       const rawTarget = (match[1] ?? "").replace(/^<|>$/gu, "");
       if (
@@ -102,18 +146,22 @@ export function validateMarkdownLinks(
         );
         continue;
       }
-      if (!existsSync(target)) {
+      if (
+        !existsSync(target) ||
+        !insideRoot(root, target) ||
+        lstatSync(target).isSymbolicLink()
+      ) {
         const line = content.slice(0, match.index ?? 0).split("\n").length;
         failures.push(
           `${relativePath}:${line}: missing link target: ${rawTarget}`,
         );
         continue;
       }
-      if (!fragment || !statSync(target).isFile() || !target.endsWith(".md")) {
+      if (!fragment || !lstatSync(target).isFile() || !target.endsWith(".md")) {
         continue;
       }
       try {
-        if (!hasMarkdownFragment(readFileSync(target, "utf8"), fragment)) {
+        if (!hasMarkdownFragment(readDocFile(target), fragment)) {
           const line = content.slice(0, match.index ?? 0).split("\n").length;
           failures.push(
             `${relativePath}:${line}: missing link fragment: ${rawTarget}`,
@@ -127,6 +175,42 @@ export function validateMarkdownLinks(
   return failures;
 }
 
+export function writeGeneratedDocFile(
+  root: string,
+  path: string,
+  expected: string,
+): void {
+  const absolute = join(root, path);
+  ensureGeneratedDirectory(root, dirname(absolute));
+  const temporary = join(
+    dirname(absolute),
+    `.doolittle-doc-${randomUUID()}.tmp`,
+  );
+  const mode =
+    existsSync(absolute) && !lstatSync(absolute).isSymbolicLink()
+      ? lstatSync(absolute).mode & 0o777
+      : 0o666 & ~process.umask();
+  let descriptor: number | undefined;
+  try {
+    descriptor = openSync(
+      temporary,
+      constants.O_WRONLY |
+        constants.O_CREAT |
+        constants.O_EXCL |
+        (constants.O_NOFOLLOW ?? 0),
+      0o600,
+    );
+    writeFileSync(descriptor, expected, "utf8");
+    fchmodSync(descriptor, mode);
+    closeSync(descriptor);
+    descriptor = undefined;
+    renameSync(temporary, absolute);
+  } finally {
+    if (descriptor !== undefined) closeSync(descriptor);
+    if (existsSync(temporary)) unlinkSync(temporary);
+  }
+}
+
 function syncFile(
   root: string,
   mode: SyncMode,
@@ -134,14 +218,16 @@ function syncFile(
   expected: string,
 ) {
   const absolute = join(root, path);
-  const current = existsSync(absolute) ? readFileSync(absolute, "utf8") : null;
+  const current =
+    existsSync(absolute) && !lstatSync(absolute).isSymbolicLink()
+      ? readDocFile(absolute)
+      : null;
   if (current === expected) {
     return null;
   }
 
   if (mode === "write") {
-    mkdirSync(dirname(absolute), { recursive: true });
-    writeFileSync(absolute, expected, "utf8");
+    writeGeneratedDocFile(root, path, expected);
     return null;
   }
 

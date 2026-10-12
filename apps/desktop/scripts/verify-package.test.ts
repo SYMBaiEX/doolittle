@@ -112,6 +112,24 @@ const validRuntimeManifest = () => ({
 });
 
 describe("packaged runtime dependency inventory", () => {
+  it("binds the parsed runtime manifest to the expected artifact digest", () => {
+    const { appAsarPath, manifest } = stagePackagedNativeRuntime();
+    const original = JSON.stringify(manifest);
+    const digest = createHash("sha256").update(original).digest("hex");
+    expect(verifyPackagedNativeRuntime(appAsarPath, digest)).toEqual(
+      manifest.nativePackages,
+    );
+    const path = resolve(
+      dirname(appAsarPath),
+      "runtime",
+      "bin",
+      "runtime-manifest.json",
+    );
+    writeFileSync(path, `${original}\n`);
+    expect(() => verifyPackagedNativeRuntime(appAsarPath, digest)).toThrow(
+      "tampered",
+    );
+  });
   it("accepts a complete deterministic runtime manifest", () => {
     expect(() => validateRuntimeManifest(validRuntimeManifest())).not.toThrow();
   });

@@ -5,6 +5,7 @@ import { createRequire } from "node:module";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { extractFile, listPackage } from "@electron/asar";
+import { assertOptionalDependencyEntry } from "./dependency-key";
 import {
   DESKTOP_ARTIFACT_FILES,
   type DesktopArtifactDependency,
@@ -18,6 +19,7 @@ import {
   packageNamesFromAsarEntries,
   productionDependencyClosure,
 } from "./package-composition";
+import { readRegularFile } from "./regular-file";
 import { SMITHERS_RUNTIME_ASSET } from "./smithers-runtime";
 
 const desktopRoot = fileURLToPath(new URL("..", import.meta.url));
@@ -287,7 +289,8 @@ function installedProductionClosure(
     const manifestPath = packageResolver.resolve(`${packageName}/package.json`);
     const manifest = loadManifest(manifestPath);
     const childResolver = createRequire(manifestPath);
-    const installedOptionalDependencies: Record<string, string> = {};
+    const installedOptionalDependencies: Record<string, string> =
+      Object.create(null);
     for (const childPackage of Object.keys(manifest.dependencies ?? {})) {
       childResolver.resolve(`${childPackage}/package.json`);
       pending.push({ packageName: childPackage, resolver: childResolver });
@@ -295,6 +298,7 @@ function installedProductionClosure(
     for (const [childPackage, version] of Object.entries(
       manifest.optionalDependencies ?? {},
     )) {
+      assertOptionalDependencyEntry(childPackage, version, manifestPath);
       try {
         childResolver.resolve(`${childPackage}/package.json`);
         installedOptionalDependencies[childPackage] = version;
@@ -446,11 +450,25 @@ export function validateRuntimeManifest(value: unknown): RuntimeManifest {
   return validated;
 }
 
-export function verifyRuntimeManifestFile(path: string): RuntimeManifest {
-  if (!existsSync(path)) {
-    throw new Error(`Packaged runtime manifest is missing: ${path}`);
+export function verifyRuntimeManifestFile(
+  path: string,
+  expectedSha256?: string,
+): RuntimeManifest {
+  let bytes: Buffer;
+  try {
+    bytes = readRegularFile(path);
+  } catch (error) {
+    throw new Error(`Packaged runtime manifest is missing or unsafe: ${path}`, {
+      cause: error,
+    });
   }
-  return validateRuntimeManifest(JSON.parse(readFileSync(path, "utf8")));
+  if (
+    expectedSha256 !== undefined &&
+    createHash("sha256").update(bytes).digest("hex") !== expectedSha256
+  ) {
+    throw new Error(`Packaged runtime manifest was tampered with: ${path}`);
+  }
+  return validateRuntimeManifest(JSON.parse(bytes.toString("utf8")));
 }
 
 function runtimePath(runtimeBin: string, value: string): string {
@@ -465,25 +483,29 @@ function runtimePath(runtimeBin: string, value: string): string {
   return resolve(runtimeBin, value);
 }
 
-export function verifyPackagedNativeRuntime(appAsarPath: string): string[] {
+export function verifyPackagedNativeRuntime(
+  appAsarPath: string,
+  expectedRuntimeManifestSha256?: string,
+): string[] {
   const runtimeBin = resolve(dirname(appAsarPath), "runtime", "bin");
   const runtimeManifestPath = resolve(runtimeBin, "runtime-manifest.json");
-  if (!existsSync(runtimeManifestPath)) {
-    throw new Error(
-      `Packaged runtime manifest is missing: ${runtimeManifestPath}`,
-    );
-  }
-  const runtimeManifest = verifyRuntimeManifestFile(runtimeManifestPath);
+  const runtimeManifest = verifyRuntimeManifestFile(
+    runtimeManifestPath,
+    expectedRuntimeManifestSha256,
+  );
   const noticesPath = runtimePath(
     runtimeBin,
     runtimeManifest.thirdPartyNotices.file,
   );
-  if (!existsSync(noticesPath) || !statSync(noticesPath).isFile()) {
+  let notices: string;
+  try {
+    notices = readRegularFile(noticesPath).toString("utf8");
+  } catch (error) {
     throw new Error(
-      `Packaged runtime third-party notices are missing: ${noticesPath}`,
+      `Packaged runtime third-party notices are missing or unsafe: ${noticesPath}`,
+      { cause: error },
     );
   }
-  const notices = readFileSync(noticesPath, "utf8");
   const noticesHash = createHash("sha256").update(notices).digest("hex");
   if (noticesHash !== runtimeManifest.thirdPartyNotices.sha256) {
     throw new Error(
@@ -554,10 +576,15 @@ export function verifyPackagedNativeRuntime(appAsarPath: string): string[] {
 
 function verifyPackagedLicense(appAsarPath: string): void {
   const licensePath = resolve(dirname(appAsarPath), "LICENSE");
-  if (!existsSync(licensePath) || !statSync(licensePath).isFile()) {
-    throw new Error(`Packaged Doolittle license is missing: ${licensePath}`);
+  let license: string;
+  try {
+    license = readRegularFile(licensePath).toString("utf8");
+  } catch (error) {
+    throw new Error(
+      `Packaged Doolittle license is missing or unsafe: ${licensePath}`,
+      { cause: error },
+    );
   }
-  const license = readFileSync(licensePath, "utf8");
   if (!license.includes("MIT License") || !license.includes("SYMBaiEX")) {
     throw new Error(`Packaged Doolittle license is invalid: ${licensePath}`);
   }
@@ -621,13 +648,17 @@ export function verifyPackagedDesktopArtifact(
 ): DesktopArtifactManifest {
   const resources = dirname(appAsarPath);
   const manifestPath = resolve(resources, "desktop-artifact-manifest.json");
-  if (!existsSync(manifestPath) || !statSync(manifestPath).isFile()) {
+  let manifestBytes: Buffer;
+  try {
+    manifestBytes = readRegularFile(manifestPath);
+  } catch (error) {
     throw new Error(
-      `Packaged desktop artifact manifest is missing: ${manifestPath}`,
+      `Packaged desktop artifact manifest is missing or unsafe: ${manifestPath}`,
+      { cause: error },
     );
   }
   const manifest = validateDesktopArtifactManifest(
-    JSON.parse(readFileSync(manifestPath, "utf8")),
+    JSON.parse(manifestBytes.toString("utf8")),
   );
   const actualLegalNames = readdirSync(resources)
     .filter((entry) =>
@@ -645,11 +676,18 @@ export function verifyPackagedDesktopArtifact(
   }
   for (const legal of manifest.legal) {
     const path = resolve(resources, legal.path);
+    let bytes: Buffer;
+    try {
+      bytes = readRegularFile(path);
+    } catch (error) {
+      throw new Error(
+        `Packaged desktop legal asset was tampered with: ${legal.path}`,
+        { cause: error },
+      );
+    }
     if (
-      !existsSync(path) ||
-      statSync(path).size !== legal.bytes ||
-      createHash("sha256").update(readFileSync(path)).digest("hex") !==
-        legal.sha256
+      bytes.byteLength !== legal.bytes ||
+      createHash("sha256").update(bytes).digest("hex") !== legal.sha256
     ) {
       throw new Error(
         `Packaged desktop legal asset was tampered with: ${legal.path}`,
@@ -660,11 +698,17 @@ export function verifyPackagedDesktopArtifact(
     resources,
     manifest.runtime.manifest.path,
   );
+  let runtimeManifestBytes: Buffer;
+  try {
+    runtimeManifestBytes = readRegularFile(runtimeManifestPath);
+  } catch (error) {
+    throw new Error("Packaged desktop runtime manifest was tampered with.", {
+      cause: error,
+    });
+  }
   if (
-    !existsSync(runtimeManifestPath) ||
-    createHash("sha256")
-      .update(readFileSync(runtimeManifestPath))
-      .digest("hex") !== manifest.runtime.manifest.sha256
+    createHash("sha256").update(runtimeManifestBytes).digest("hex") !==
+    manifest.runtime.manifest.sha256
   ) {
     throw new Error("Packaged desktop runtime manifest was tampered with.");
   }
@@ -830,7 +874,10 @@ function main(): void {
     appAsarPath,
     asarEntries,
   );
-  const nativePackages = verifyPackagedNativeRuntime(appAsarPath);
+  const nativePackages = verifyPackagedNativeRuntime(
+    appAsarPath,
+    artifactManifest.runtime.manifest.sha256,
+  );
   console.log(
     `Desktop package verified: ${(asarBytes / 1024 / 1024).toFixed(1)} MiB app.asar, ${packagedModules.length} packaged modules, ${artifactManifest.dependencies.length} complete artifact dependencies, ${allowedModules.length} allowed production modules, ${nativePackages.length} native runtime packages (limit ${(MAX_APP_ASAR_BYTES / 1024 / 1024).toFixed(0)} MiB).`,
   );

@@ -1,13 +1,8 @@
 import { createHash } from "node:crypto";
-import {
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  statSync,
-  writeFileSync,
-} from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, relative, resolve, sep } from "node:path";
 import type { Plugin } from "vite";
+import { readRegularFile } from "./regular-file";
 
 type DesktopOutputChunk = {
   type: "chunk";
@@ -181,12 +176,15 @@ function createDesktopBuildInventoryFromDisk(
   const outputs = Object.values(bundle)
     .map((output) => {
       const path = resolve(outputRoot, output.fileName);
-      if (!existsSync(path) || !statSync(path).isFile()) {
+      let contents: Buffer;
+      try {
+        contents = readRegularFile(path);
+      } catch (error) {
         throw new Error(
-          `Desktop ${surface} output is missing after write: ${output.fileName}`,
+          `Desktop ${surface} output is missing or unsafe after write: ${output.fileName}`,
+          { cause: error },
         );
       }
-      const contents = readFileSync(path);
       return {
         path: output.fileName,
         bytes: contents.byteLength,
@@ -247,9 +245,18 @@ export function validateDesktopBuildInventory(
         `Desktop ${expectedSurface} output is missing: ${output.path}`,
       );
     }
+    let contents: Buffer;
+    try {
+      contents = readRegularFile(absolutePath);
+    } catch (error) {
+      throw new Error(
+        `Desktop ${expectedSurface} output was tampered with: ${output.path}`,
+        { cause: error },
+      );
+    }
     if (
-      statSync(absolutePath).size !== output.bytes ||
-      sha256(readFileSync(absolutePath)) !== output.sha256
+      contents.byteLength !== output.bytes ||
+      sha256(contents) !== output.sha256
     ) {
       throw new Error(
         `Desktop ${expectedSurface} output was tampered with: ${output.path}`,

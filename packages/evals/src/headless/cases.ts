@@ -69,6 +69,22 @@ export interface HeadlessEvalSuite {
 
 const hasTerms = (response: string, terms: string[]) =>
   terms.every((term) => response.toLowerCase().includes(term.toLowerCase()));
+const citesOfficialLunaModelDoc = (response: string): boolean =>
+  [...response.matchAll(/https?:\/\/[^\s<>"'`]+/giu)].some(([raw]) => {
+    try {
+      const url = new URL(raw.replace(/[),.;]+$/u, ""));
+      return (
+        url.protocol === "https:" &&
+        url.hostname === "developers.openai.com" &&
+        !url.username &&
+        !url.password &&
+        !url.port &&
+        url.pathname.replace(/\/$/u, "") === "/api/docs/models/gpt-6-luna"
+      );
+    } catch {
+      return false;
+    }
+  });
 const ACP_SESSION_IDENTITY_FILES = new Set(["AGENTS.md", "CLAUDE.md"]);
 
 export const HEADLESS_EVAL_SUITES: Record<string, HeadlessEvalSuite> = {
@@ -156,9 +172,7 @@ export const HEADLESS_EVAL_SUITES: Record<string, HeadlessEvalSuite> = {
           {
             id: "official-model-doc-and-medium",
             evaluate: ({ response }) =>
-              /developers\.openai\.com\/api\/docs\/models\/gpt-6-luna/i.test(
-                response,
-              ) && /medium/i.test(response),
+              citesOfficialLunaModelDoc(response) && /medium/i.test(response),
           },
         ],
         humanReviewRequired: true,

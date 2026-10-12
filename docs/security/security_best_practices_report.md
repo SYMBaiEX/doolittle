@@ -272,7 +272,79 @@ reinstall, seven focused tests, SDK alignment, Biome and diff checks passed in
 the isolated candidate; an independent public-factory rerun passed. Integrated
 release and packaged acceptance must be rerun for this SDK follow-up.
 
-## Current scanner review coverage
+### SR-11 — Git marker discovery reopens unchecked metadata
+
+Severity: Medium, implicit local metadata read. Both repository discovery and
+mutation state checks read a `.git` marker without a bound after separate
+pathname checks. Malformed FIFOs, symlinks, oversized files or a different-inode
+replacement could block or redirect that implicit read.
+
+Status: implemented. Both callers share a 4,096-byte pinned regular-file
+reader; ordinary `.git` directories and real linked-worktree `gitdir:` markers
+remain supported. The 22-test repository suite covers discovery and mutation,
+including malformed markers and different-inode replacement. Marker-specific
+error assertions prevent ordinary no-merge errors from satisfying rejection
+tests. This is source remediation, not a false-positive dismissal of #131.
+
+### SR-12 — Account fixtures inherit operator SDK storage
+
+Severity: Medium, test-isolation boundary. Two Claude auth subprocesses passed
+temporary Doolittle storage but inherited `ELIZA_HOME`, credentials and startup
+options. The published SDK honors `ELIZA_HOME` independently, so fake account
+writes could escape the fixture when that variable was configured.
+
+Status: implemented. Both children use an explicit environment allowlist,
+pin home, SDK config and account storage to temporary fixtures, skip import-time
+dotenv as workers, and receive only explicit fake credentials/fetch payloads.
+Nine scoped tests passed, including hostile inherited-settings exclusion and
+actual SDK account-record creation inside the fixture. Genuine subprocess
+refresh/persistence coverage remains intact. The local executable/PATH remains
+test-runner authority; this is not an OS sandbox for a hostile operator.
+
+### SR-13 — Paired conversation access reaches host-wide project inspection
+
+Severity: High, caller-capability boundary. Paired gateway senders have
+conversation access, not global machine operator access. Workspace inspection
+previously always validated and ignored message provenance, allowing absolute
+or home-relative project inspection and home-wide codebase discovery.
+
+Status: implemented. Both validation and direct handler execution now enforce
+the existing global-operator policy before parsing parameters or acquiring a
+service. Trusted gateway metadata takes precedence over a forged content source.
+CLI/authenticated API operator selection remains supported. Nine tests passed,
+covering paired platform sources, missing provenance, spoofed source, all three
+intents and zero service acquisition on denial. Source/handler evidence supports
+the defect and fix; a live messaging-provider exploit was not performed.
+
+### SR-14 — Release and documentation inputs lack bounded descriptor binding
+
+Severity: Medium, release-input integrity and availability boundary. Several
+artifact/inventory/license reads separately checked and reopened a pathname.
+The follow-up removes those split content/hash reads, pins regular-file identity,
+uses nonblocking/no-follow opens and an initial-size-plus-one sentinel bound.
+Runtime manifests are hashed and parsed from one snapshot; full package
+verification checks that snapshot against the artifact's expected digest.
+
+Documentation link reads now use the existing pinned bounded reader and
+canonical repository containment. Generated output uses an exclusive temporary
+descriptor, preserves existing mode with descriptor chmod, and atomically
+renames; a restrictive-umask regression verifies mode preservation. Package
+optional-dependency keys reject special object names/non-string versions and
+use null-prototype dictionaries. Targeted tests cover FIFO rejection, zero-byte
+growth, manifest tampering, dependency keys and documentation permissions.
+Trusted/stable ancestor directories remain assumed: this is not an immutable
+artifact tree or protection against hostile same-UID directory replacement.
+
+### SR-15 — Eval grading accepts lookalike documentation links
+
+Severity: Low, evaluation integrity. An unanchored substring check accepted a
+model-doc pathname on an unrelated host. Grading now parses complete URLs,
+requires the official HTTPS hostname/model path and rejects credentials or
+nondefault ports. Markdown, query/hash, default HTTPS port and a trailing slash
+remain supported. Positive/negative regressions passed; this check never made
+a network request.
+
+## Historical scanner review coverage
 
 - Non-test, non-filesystem lane: 13 alert IDs inspected. No demonstrated remote
   exploit found in those inspected paths; local operator capability, text-only
@@ -310,8 +382,24 @@ terminal interaction and offline chat. Its focus-style assertions now poll a
 single complete focused-state snapshot instead of sampling mid-transition.
 This does not certify live providers or the user's existing account state.
 
-Pending: fresh GitHub scan review, normal merge, and rebuilt-main local
-installation. Focused source and independent reviews are complete; native
-Windows and live provider behavior remain unverified. Earlier shared-engine
-checks do not certify this new security branch.
+PR37 was normally merged to `bde54f4d` after CI and its changed-code CodeQL
+quality check passed. A fresh merged-main `check:release` passed 7,016 tests
+(eight skips), acceptance, runtime preparation and dependency policy. The
+rebuilt macOS package passed its isolated offline smoke test and was installed
+with an ad-hoc signature; installed archive identity and native launch readiness
+were verified. The prior app copy is retained separately for local rollback.
+
+The subsequent **full-main** JavaScript analysis `1933399914` reports 189
+results, including the 53 individually dispositioned PR results. It therefore
+exposed 136 additional open identities outside the changed-code receipt.
+Another 119 individually verified findings were dispositioned with GitHub
+evidence; 17 remained open for the follow-up fixes above. No rule was disabled,
+path excluded, severity downgraded or merge requirement overridden. Scanner
+result/disposition counts are not counts of repaired vulnerabilities.
+
+Pending for this follow-up: fresh integrated release validation, new-head
+CodeQL review, normal merge and rebuilt-main installation. Seven version-based
+dependency advisories remain visible despite reviewed mechanism patches;
+Dependabot #4 is not hidden. Native Windows, hostile same-UID ancestor mutation,
+live provider behavior and a live 50-agent workload remain unverified.
 

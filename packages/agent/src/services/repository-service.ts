@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, realpathSync } from "node:fs";
+import { existsSync, realpathSync } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import type {
   RepositoryBranch,
@@ -9,6 +9,7 @@ import type {
   RepositoryStash,
 } from "@doolittle/contracts/repository";
 import { runTextProcess } from "@/services/process-execution";
+import { readGitMarker } from "./repository/git-marker";
 import type {
   CreateRepositoryWorktreeInput,
   RepositoryChange,
@@ -52,12 +53,11 @@ const MAX_PATCH_CHARACTERS = 240_000;
 
 function hasValidGitMarker(directory: string): boolean {
   const marker = join(directory, ".git");
-  if (existsSync(join(marker, "HEAD"))) return true;
-
   try {
-    const match = /^gitdir:\s*(.+)$/u.exec(readFileSync(marker, "utf8").trim());
-    if (!match?.[1]) return false;
-    return existsSync(join(resolve(directory, match[1]), "HEAD"));
+    const reference = readGitMarker(marker);
+    return existsSync(
+      join(reference === null ? marker : resolve(directory, reference), "HEAD"),
+    );
   } catch {
     return false;
   }

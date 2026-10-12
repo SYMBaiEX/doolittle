@@ -1,8 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   createWorkspaceAction,
   resolveWorkspaceIntentFromParams,
 } from "./workspace-action";
+
+const operatorMessage = (text: string, source = "cli") => ({
+  content: { text },
+  metadata: { doolittle: { source } },
+});
 
 describe("resolveWorkspaceIntentFromParams", () => {
   it("parses broad inspection intents from action parameters", () => {
@@ -40,15 +45,13 @@ describe("workspace action contract", () => {
     await expect(
       action.validate(
         runtime as never,
-        { content: { text: "Please inspect the project." } } as never,
+        operatorMessage("Please inspect the project.") as never,
       ),
     ).resolves.toBe(true);
     await expect(
       action.handler(
         runtime as never,
-        {
-          content: { text: "This text has no legacy workspace intent." },
-        } as never,
+        operatorMessage("This text has no legacy workspace intent.") as never,
         undefined,
         { parameters: { intent: "tree" } },
       ),
@@ -98,7 +101,7 @@ describe("workspace action contract", () => {
     await expect(
       action.handler(
         runtime as never,
-        { content: { text: "Inspect packages/agent" } } as never,
+        operatorMessage("Inspect packages/agent", "api") as never,
         undefined,
         { parameters: { intent: "overview", path: "packages/agent" } },
       ),
@@ -109,7 +112,7 @@ describe("workspace action contract", () => {
     await expect(
       action.handler(
         runtime as never,
-        { content: { text: "Find src/index.ts" } } as never,
+        operatorMessage("Find src/index.ts", "api") as never,
         undefined,
         { parameters: { intent: "find-codebase", query: "src/index.ts" } },
       ),
@@ -147,7 +150,7 @@ describe("workspace action contract", () => {
 
     await action.handler(
       runtime as never,
-      { content: { text: "What is this project?" } } as never,
+      operatorMessage("What is this project?") as never,
       undefined,
       { parameters: { intent: "overview" } },
     );
@@ -194,7 +197,7 @@ describe("workspace action contract", () => {
 
     const result = await action.handler(
       runtime as never,
-      { content: { text: "Inspect this target" } } as never,
+      operatorMessage("Inspect this target") as never,
       undefined,
       { parameters: { intent: "tree", path: "dev/this-is-a-test" } },
     );
@@ -203,4 +206,64 @@ describe("workspace action contract", () => {
     expect(inspectedPaths).toEqual(["/workspace/dev/this-is-a-test"]);
     expect(workspaceSummaryCalls).toBe(0);
   });
+
+  it.each(["whatsapp", "slack", "telegram", undefined])(
+    "rejects nonoperator source %s before any project discovery, even via direct handler",
+    async (source) => {
+      const action = createWorkspaceAction();
+      const workspaceSummary = vi.fn();
+      const resolveProjectTarget = vi.fn();
+      const inspectProject = vi.fn();
+      const findLocalCodebases = vi.fn();
+      const callback = vi.fn();
+      const runtime = {
+        getService: vi.fn(() => ({
+          workspaceSummary,
+          resolveProjectTarget,
+          inspectProject,
+          findLocalCodebases,
+        })),
+      };
+      const message = source
+        ? {
+            ...operatorMessage("Inspect this project", source),
+            content: { text: "Inspect this project", source: "api" },
+          }
+        : { content: { text: "Inspect this project" } };
+
+      await expect(
+        action.validate(runtime as never, message as never),
+      ).resolves.toBe(false);
+      const parameterSets: Array<Record<string, string>> = [
+        { intent: "overview", path: "/Users/another/private" },
+        { intent: "tree", path: "~/dev/private" },
+        { intent: "find-codebase", query: "private" },
+      ];
+      for (const parameters of parameterSets) {
+        await expect(
+          action.handler(
+            runtime as never,
+            message as never,
+            undefined,
+            { parameters },
+            callback,
+          ),
+        ).resolves.toMatchObject({
+          success: false,
+          text: expect.stringContaining(
+            "only to a local or authenticated API operator",
+          ),
+          userFacingText: expect.stringContaining(
+            "only to a local or authenticated API operator",
+          ),
+        });
+      }
+      expect(callback).toHaveBeenCalledTimes(3);
+      expect(runtime.getService).not.toHaveBeenCalled();
+      expect(workspaceSummary).not.toHaveBeenCalled();
+      expect(resolveProjectTarget).not.toHaveBeenCalled();
+      expect(inspectProject).not.toHaveBeenCalled();
+      expect(findLocalCodebases).not.toHaveBeenCalled();
+    },
+  );
 });

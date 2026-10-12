@@ -18,6 +18,7 @@ import {
   type DesktopInventoryPackage,
   validateDesktopBuildInventory,
 } from "./desktop-build-inventory";
+import { readRegularFile } from "./regular-file";
 import {
   assertDesktopDistributionLicensePolicy,
   type RuntimeDependencyInventoryEntry,
@@ -87,11 +88,8 @@ function sha256(value: string | Uint8Array): string {
 }
 
 function readJson(path: string): unknown {
-  if (!existsSync(path) || !statSync(path).isFile()) {
-    throw new Error(`Desktop artifact input is missing: ${path}`);
-  }
   try {
-    return JSON.parse(readFileSync(path, "utf8"));
+    return JSON.parse(readRegularFile(path).toString("utf8"));
   } catch (error) {
     throw new Error(`Desktop artifact JSON is invalid: ${path}`, {
       cause: error,
@@ -441,10 +439,11 @@ function legalEntry(
   path: string,
 ): { path: string; bytes: number; sha256: string } {
   const absolute = resolve(root, path);
+  const contents = readRegularFile(absolute);
   return {
     path: relative(root, absolute).replaceAll("\\", "/"),
-    bytes: statSync(absolute).size,
-    sha256: sha256(readFileSync(absolute)),
+    bytes: contents.byteLength,
+    sha256: sha256(contents),
   };
 }
 
@@ -590,7 +589,10 @@ export function prepareDesktopArtifact({
     desktopRoot,
     "build/runtime/runtime-manifest.json",
   );
-  const runtimeManifest = readJson(runtimeManifestPath) as RuntimeManifest;
+  const runtimeManifestBytes = readRegularFile(runtimeManifestPath);
+  const runtimeManifest = JSON.parse(
+    runtimeManifestBytes.toString("utf8"),
+  ) as RuntimeManifest;
   if (
     !Array.isArray(runtimeManifest.bundledPackages) ||
     runtimeManifest.bundledPackages.length === 0 ||
@@ -684,7 +686,7 @@ export function prepareDesktopArtifact({
     runtime: {
       manifest: {
         path: "runtime/bin/runtime-manifest.json",
-        sha256: sha256(readFileSync(runtimeManifestPath)),
+        sha256: sha256(runtimeManifestBytes),
       },
       packages: runtimePackages,
     },

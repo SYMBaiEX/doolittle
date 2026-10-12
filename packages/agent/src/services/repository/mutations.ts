@@ -1,10 +1,8 @@
 import {
   existsSync,
   mkdtempSync,
-  readFileSync,
   realpathSync,
   rmSync,
-  statSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -23,6 +21,7 @@ import {
   resolveWorkspacePath,
 } from "../workspace-service/path";
 import { workspaceRelativePath } from "../workspace-service/path-format";
+import { readGitMarker } from "./git-marker";
 import type { RepositoryWorktree } from "./models";
 import {
   hasControlCharacters,
@@ -726,11 +725,8 @@ export class RepositoryMutationExecutor {
   private gitDirectory(): string {
     const gitEntry = join(this.options.root, ".git");
     if (!existsSync(gitEntry)) throw new Error("Git metadata is unavailable.");
-    if (statSync(gitEntry).isDirectory()) return realpathSync(gitEntry);
-    const reference = /^gitdir:\s*(.+)\s*$/mu.exec(
-      readFileSync(gitEntry, "utf8"),
-    )?.[1];
-    if (!reference) return gitEntry;
+    const reference = readGitMarker(gitEntry);
+    if (reference === null) return realpathSync(gitEntry);
     return realpathSync(
       isAbsolute(reference) ? reference : join(dirname(gitEntry), reference),
     );
