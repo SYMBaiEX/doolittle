@@ -91,12 +91,16 @@ test.describe("packaged Doolittle desktop", () => {
       const selectedState = await page.evaluate(async (botId) => {
         const response = await window.doolittle.requestAgent({
           requestId: crypto.randomUUID(),
-          path: `/bots/${botId}`,
+          path: "/bots",
           method: "GET",
           headers: {},
         });
         if (response.status !== 200) throw new Error(response.body);
-        return (JSON.parse(response.body) as { state: string }).state;
+        return (
+          JSON.parse(response.body) as {
+            bots: Array<{ id: string; state: string }>;
+          }
+        ).bots.find((entry) => entry.id === botId)?.state;
       }, bot.id);
       expect(selectedState).toBe("stopped");
       const prompt = `Jerry first message ${Date.now()}`;
