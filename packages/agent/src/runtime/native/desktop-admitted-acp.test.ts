@@ -8,11 +8,25 @@ const admission = vi.hoisted(() => ({
 }));
 
 vi.mock("@/runtime/execution-admission", () => ({
-  getScopedExecutionLease: () => ({ runId: admission.runId }),
+  getScopedExecutionLease: () => ({
+    runId: admission.runId,
+    sessionId: "chat-1",
+  }),
+  getScopedSdkTaskSpawn: () => null,
   acquireExecutionLease: admission.acquire,
 }));
 vi.mock("@/runtime/turn-runtime-scope", () => ({
   getScopedTurnAbortSignal: () => admission.parentSignal,
+}));
+vi.mock("@/runtime/workspace-scope", () => ({
+  requireConversationWorkspace: () => ({
+    sessionId: "chat-1",
+    workspacePath: "/workspace",
+  }),
+  resolveConversationWorkspace: async () => ({
+    sessionId: "chat-1",
+    workspacePath: "/workspace",
+  }),
 }));
 
 import { DesktopAdmittedAcpService } from "./desktop-admitted-acp";
@@ -70,7 +84,8 @@ describe("desktop-admitted SDK ACP lifecycle", () => {
     expect(admission.acquire).toHaveBeenCalledWith(
       expect.objectContaining({
         kind: "automatic-acp",
-        sessionId: "parent-run",
+        sessionId: "chat-1",
+        parentRunId: "parent-run",
       }),
     );
     expect(spawn).toHaveBeenCalledOnce();
@@ -149,6 +164,7 @@ describe("desktop-admitted SDK ACP lifecycle", () => {
       DesktopAdmittedAcpService.prototype,
     ) as DesktopAdmittedAcpService;
     const waiting = service.spawnSession({
+      workdir: "/workspace",
       metadata: { doolittleParentRunId: "parent-run" },
     });
     expect(claims).toHaveLength(1);
@@ -160,6 +176,7 @@ describe("desktop-admitted SDK ACP lifecycle", () => {
     expect(release).toHaveBeenCalledOnce();
 
     const next = service.spawnSession({
+      workdir: "/workspace",
       metadata: { doolittleParentRunId: "parent-run" },
     });
     expect(claims).toHaveLength(2);
@@ -181,6 +198,7 @@ describe("desktop-admitted SDK ACP lifecycle", () => {
       DesktopAdmittedAcpService.prototype,
     ) as DesktopAdmittedAcpService;
     const waiting = service.spawnSession({
+      workdir: "/workspace",
       metadata: { doolittleParentRunId: "parent-run" },
     });
     parent.abort();
@@ -212,6 +230,7 @@ describe("desktop-admitted SDK ACP lifecycle", () => {
       DesktopAdmittedAcpService.prototype,
     ) as DesktopAdmittedAcpService;
     const pending = service.spawnSession({
+      workdir: "/workspace",
       metadata: { doolittleParentRunId: "parent-run" },
     });
     await vi.waitFor(() => expect(spawn).toHaveBeenCalledOnce());
@@ -249,6 +268,7 @@ describe("desktop-admitted SDK ACP lifecycle", () => {
       DesktopAdmittedAcpService.prototype,
     ) as DesktopAdmittedAcpService;
     const pending = service.spawnSession({
+      workdir: "/workspace",
       metadata: { doolittleParentRunId: "parent-run" },
     });
     await vi.waitFor(() => expect(spawn).toHaveBeenCalledOnce());

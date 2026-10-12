@@ -41,10 +41,19 @@ reduced transparency and forced colors have static/readable alternatives.
   New conversation opens a chooser for an existing bot or Create a new bot.
   Creation gathers purpose, working style and name in the conversation canvas,
   previews an editable native Eliza character draft, then requires an explicit
-  model/access review before saving. This guided interview derives the draft
+  model/access review before saving. Provider and model are dependent dropdowns
+  backed by the runtime model catalog, with explicit discovery/loading errors;
+  choosing a route never grants an account. The saved bot's new conversation
+  starts only that bot through the shared engine, with real starting/ready/error
+  states. Failed startup keeps the saved character and provides retry. Existing
+  stopped bots remain on demand; catalog refresh never starts the fleet or
+  reverses an explicit Stop. This guided interview derives the draft
   from the user's answers; it does not pretend to have made a model-generation
   call. Account access and mutation/delegation remain unchecked by default.
   Add bot, Team & work and Connections are supporting destinations.
+  Workspace is a chat choice, not bot identity. The chooser selects a project
+  or private general workspace; native confirmation grants only that chat access.
+  A saved chat's canonical root never follows the current project picker.
 - One 48px conversation header carries bot identity, thread title, an icon-only
   inspector toggle, adjacent Settings gear and overflow. Both icons have named
   tooltips and accessible labels. Settings lives in the header, not the sidebar.
@@ -125,9 +134,12 @@ never the copied value or raw error. No background context action is introduced.
 
 Bot contacts represent persistent workers, not cosmetic personalities. The
 authoritative catalog stores stable IDs, native Eliza character sheets, model
-routes, approved connection references, workspace permissions and archive state. Sessions,
+routes, approved connection references, tool permissions and archive state. Sessions,
 runs, approvals, artifacts and Computer resources retain immutable ownership.
 The lead identity and existing conversations are adopted in place.
+Rootless historical chats retain readable history but require a new explicitly
+scoped chat for effects. Named runtimes start in private scratch; one runtime
+can serve concurrent chats in different projects using host-verified roots.
 Personality fields use the pinned SDK's CharacterInput shape and parser, with a
 strict bounded ingress that excludes identity, settings, secrets and plugins.
 Legacy persona-only bots hydrate into character.system without changing IDs or
@@ -139,6 +151,9 @@ private. Only explicitly promoted, provenance-bearing results enter shared
 project/team knowledge through the broker-only official DocumentService worker.
 Retrieval requires a current grant and current membership; revocation blocks
 future retrieval but cannot erase information already delivered to a model.
+Consultation grants inherit the origin chat root only for their bounded run;
+completion, cancellation or deadline ends access. Forking cannot make those
+temporary grants permanent.
 
 Team membership is an explicit, revisioned host-owned catalog, not an inference
 from projects. Manage teams in Team & work → Agents. A completed message's
@@ -149,7 +164,9 @@ re-promote the exact source rather than guessing or deleting old provenance.
 
 The application-owned scheduler can target a named bot for scheduled or manual
 prompt/run-agent turns. Native approval binds the saved job, bot configuration,
-workspace and mutation permissions. Each fire has a persisted SDK idempotency
+private scratch workspace and mutation permissions. Per-job project selection
+is not currently supported; legacy rootless approvals require reapproval.
+Each fire has a persisted SDK idempotency
 key and its own durable owned conversation; uncertain fires are not replayed
 with new keys. Workers do not run their own schedulers or connector gateways.
 Named automations currently reject webhooks, home delivery, runtime overrides

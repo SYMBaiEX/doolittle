@@ -1778,7 +1778,7 @@ export async function executeProviderMessageTurn(
                 ? admittedIncomplete.workdir
                 : admittedWorkspace(
                     actionResults,
-                    input.context.config.workspaceDir,
+                    input.context.services.workspace.root(),
                   ),
               verificationAdmissions,
             };

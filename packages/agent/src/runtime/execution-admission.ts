@@ -5,6 +5,8 @@ export type ExecutionAdmissionKind = "foreground" | "automatic-acp";
 
 export interface ExecutionLease {
   readonly runId: string;
+  readonly sessionId: string;
+  readonly active?: boolean;
   release(): Promise<void>;
   yieldFor<T>(
     work: () => Promise<T>,
@@ -14,6 +16,33 @@ export interface ExecutionLease {
 
 const executionScope = new AsyncLocalStorage<ExecutionLease | null>();
 
+type SdkTaskSpawn = {
+  taskId: string;
+  parentRunId: string;
+  sessionId: string;
+  workspacePath: string;
+  active: boolean;
+};
+const sdkTaskSpawnScope = new AsyncLocalStorage<SdkTaskSpawn>();
+
+/** Only the validated task bridge may authorize SDK-generated ACP metadata. */
+export async function runWithSdkTaskSpawn<T>(
+  input: Omit<SdkTaskSpawn, "active">,
+  task: () => Promise<T>,
+): Promise<T> {
+  const scope = { ...input, active: true };
+  try {
+    return await sdkTaskSpawnScope.run(scope, task);
+  } finally {
+    scope.active = false;
+  }
+}
+
+export function getScopedSdkTaskSpawn(): Readonly<SdkTaskSpawn> | null {
+  const scope = sdkTaskSpawnScope.getStore();
+  return scope?.active ? scope : null;
+}
+
 export function runWithExecutionLease<T>(
   lease: ExecutionLease | null,
   task: () => Promise<T>,
@@ -22,7 +51,8 @@ export function runWithExecutionLease<T>(
 }
 
 export function getScopedExecutionLease(): ExecutionLease | null {
-  return executionScope.getStore() ?? null;
+  const lease = executionScope.getStore();
+  return lease?.active === false ? null : (lease ?? null);
 }
 
 export class ExecutionAdmissionLimitError extends Error {
@@ -69,6 +99,7 @@ export async function acquireExecutionLease(input: {
   runId: string;
   sessionId: string;
   kind: ExecutionAdmissionKind;
+  parentRunId?: string;
   signal?: AbortSignal;
 }): Promise<ExecutionLease | null> {
   if (process.env.DOOLITTLE_DESKTOP_RUNTIME !== "1") return null;
@@ -81,20 +112,34 @@ export async function acquireExecutionLease(input: {
   ) =>
     requestWorkerHost(
       "execution.claim",
-      { runId: input.runId, sessionId: input.sessionId, kind: input.kind },
+      {
+        runId: input.runId,
+        sessionId: input.sessionId,
+        kind: input.kind,
+        ...(input.parentRunId ? { parentRunId: input.parentRunId } : {}),
+      },
       { timeoutMs, signal },
     );
   const result = await claim();
   let leaseId: string | null = parseAdmissionDecision(result);
+  let lastLeaseId = leaseId;
   let yielded = false;
-  const release = async () => {
-    if (!leaseId) return;
-    const current = leaseId;
+  let closed = false;
+  const release = async (yielding = false) => {
+    if (closed && !yielding) return;
+    if (!yielding) closed = true;
+    if (!leaseId && yielding) return;
+    const current = leaseId ?? lastLeaseId;
+    if (!current) return;
     leaseId = null;
     try {
       await requestWorkerHost(
         "execution.release",
-        { runId: input.runId, leaseId: current },
+        {
+          runId: input.runId,
+          leaseId: current,
+          ...(yielding ? { yielding: true } : {}),
+        },
         { timeoutMs: 2_000 },
       );
     } catch {
@@ -107,15 +152,19 @@ export async function acquireExecutionLease(input: {
   }
   return {
     runId: input.runId,
-    release,
+    sessionId: input.sessionId,
+    get active() {
+      return !closed;
+    },
+    release: () => release(),
     async yieldFor<T>(
       work: () => Promise<T>,
       options: { deadline: number; signal?: AbortSignal },
     ): Promise<T> {
-      if (yielded || !leaseId)
+      if (yielded || !leaseId || closed)
         throw new Error("Execution is not holding an admission lease.");
       yielded = true;
-      await release();
+      await release(true);
       let outcome: { ok: true; value: T } | { ok: false; error: unknown };
       try {
         outcome = { ok: true, value: await work() };
@@ -136,6 +185,7 @@ export async function acquireExecutionLease(input: {
             Math.min(EXECUTION_CLAIM_RPC_TIMEOUT_MS, remainingMs),
           ),
         );
+        lastLeaseId = leaseId;
         options.signal?.throwIfAborted();
       } catch (error) {
         reacquireError = error;

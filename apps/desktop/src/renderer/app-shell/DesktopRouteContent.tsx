@@ -2,6 +2,7 @@ import type { BotSummary } from "@doolittle/contracts/bots";
 import type { ReactNode } from "react";
 import type {
   BackendState,
+  BotConversationScope,
   RuntimeStatus,
   SessionSummary,
   WorkspacePickResult,
@@ -15,6 +16,7 @@ import { renderedViewForView, type View } from "../desktop-navigation";
 import type { DesktopNavigationIntent } from "../desktop-navigation-intent";
 import { type ApiResource, LoadingBlock } from "../lib";
 import type { ProjectLike, ProjectScope } from "../project-manager/models";
+import type { SessionConversationScope } from "../session-conversation-scope";
 import {
   settingsSectionForView,
   settingsViewForSection,
@@ -37,6 +39,10 @@ export interface DesktopRouteNavigation {
     targetSessionId?: string,
   ) => void | Promise<void>;
   createConversation: () => void;
+  startChatInProject: (
+    projectId: string | null,
+    sourceSessionId?: string,
+  ) => Promise<void>;
   openChatTerminal: () => void;
   openComputerView?: (view: View, origin?: ComputerOrigin) => void;
   transitionToProjectScope: (
@@ -72,6 +78,8 @@ export interface DesktopRouteContentProps {
   projectTargetForSession?: (
     sessionId: string,
   ) => { projectId?: string } | undefined;
+  scopeForSession?: (sessionId: string) => SessionConversationScope;
+  onConfirmConversationScope?: (scope: BotConversationScope) => void;
   onBindSessionBot: (sessionId: string, botId: string) => void;
   onCaptureSessionProject?: (
     sessionId: string,
@@ -129,6 +137,8 @@ export function DesktopRouteContent({
   defaultBotId,
   botIdForSession,
   projectTargetForSession,
+  scopeForSession,
+  onConfirmConversationScope,
   onBindSessionBot,
   onCaptureSessionProject,
   onActivateBot,
@@ -195,11 +205,13 @@ export function DesktopRouteContent({
                 "chat",
               );
             }}
-            onSelectProjectForNewChat={(scope: ProjectScope) =>
-              navigation.transitionToProjectScope(
-                scope,
-                selectedSession,
-                "chat",
+            onSelectProjectForNewChat={(
+              scope: ProjectScope,
+              sourceSessionId?: string,
+            ) =>
+              void navigation.startChatInProject(
+                scope === "all" || scope === "unscoped" ? null : scope,
+                sourceSessionId ?? selectedSession,
               )
             }
             onSelect={navigation.selectSession}
@@ -226,6 +238,8 @@ export function DesktopRouteContent({
             defaultBotId={defaultBotId}
             botIdForSession={botIdForSession}
             projectTargetForSession={projectTargetForSession}
+            scopeForSession={scopeForSession}
+            onConfirmConversationScope={onConfirmConversationScope}
             onBindSessionBot={onBindSessionBot}
             onCaptureSessionProject={onCaptureSessionProject}
             onActivateBot={onActivateBot}
@@ -285,7 +299,20 @@ export function DesktopRouteContent({
       case "gateway":
       case "automations":
       case "review":
-      case "orchestration":
+      case "orchestration": {
+        const workScope = scopeForSession?.(selectedSession);
+        const workOrigin =
+          workScope?.kind === "confirmed" &&
+          (projectScope === "all" ||
+            (projectScope === "unscoped"
+              ? !workScope.conversation.projectId
+              : workScope.conversation.projectId === projectScope))
+            ? {
+                botId: workScope.conversation.botId,
+                originConversationId: selectedSession,
+                workspacePath: workScope.conversation.workspacePath,
+              }
+            : undefined;
         return (
           <Route
             active={active}
@@ -324,9 +351,11 @@ export function DesktopRouteContent({
               activeProject?.name ??
               (projectScope === "unscoped" ? "General" : "All projects")
             }
-            workspacePath={workspacePath}
+            workspacePath={workOrigin?.workspacePath}
+            computerOrigin={workOrigin}
           />
         );
+      }
       case "activity":
         return <Route active={active} />;
       case "analytics":

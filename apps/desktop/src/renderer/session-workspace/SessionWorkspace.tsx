@@ -281,20 +281,29 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
       messages: messages[id],
     });
   const botScopeFor = (id: string) => {
-    const ownerId = props.botIdForSession?.(id) || props.defaultBotId;
-    const owner = props.bots?.find((bot) => bot.id === ownerId);
-    if (!owner || owner.isDefault) {
+    if (!props.scopeForSession) {
       return {
         workspacePath: props.workspacePath,
         activeProject: props.activeProject,
       };
     }
-    const ownerProject = owner?.projectId
-      ? props.projects?.find((project) => project.id === owner.projectId)
-      : undefined;
+    const scope = props.scopeForSession?.(id);
+    const projectId =
+      scope?.kind === "confirmed"
+        ? scope.conversation.projectId
+        : scope?.kind === "pending"
+          ? scope.projectId
+          : undefined;
     return {
-      workspacePath: owner.workspacePath,
-      activeProject: ownerProject ?? null,
+      workspacePath:
+        scope?.kind === "confirmed" ? scope.conversation.workspacePath : "",
+      activeProject:
+        props.projects?.find((project) => project.id === projectId) ??
+        (scope?.kind === "confirmed" &&
+        projectId &&
+        scope.conversation.projectContext
+          ? { id: projectId, name: scope.conversation.projectContext.name }
+          : null),
     };
   };
 
@@ -460,14 +469,9 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
     }
     const id = newConversationId();
     if (props.selectedBotId) props.onBindSessionBot?.(id, props.selectedBotId);
-    const selectedBot = props.bots?.find(
-      (bot) => bot.id === props.selectedBotId,
-    );
     props.onCaptureSessionProject?.(
       id,
-      selectedBot && !selectedBot.isDefault
-        ? (selectedBot.projectId ?? null)
-        : (props.activeProject?.id ?? null),
+      props.scopeForSession ? null : (props.activeProject?.id ?? null),
     );
     focusSession(id, true);
   };

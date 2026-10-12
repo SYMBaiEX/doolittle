@@ -57,6 +57,71 @@ beforeEach(() => {
   );
 });
 describe("owned bot conversation discovery", () => {
+  it("preserves host-confirmed roots on refreshed lead and stopped chat rows", async () => {
+    const original = mocks.request.getMockImplementation();
+    mocks.request.mockImplementation((...args) => {
+      if (args[0] === "/bots/lead/conversations")
+        return Promise.resolve({
+          conversations: [
+            {
+              botId: "lead",
+              sessionId: "lead-chat",
+              projectId: "project-a",
+              workspacePath: "/project/a",
+              projectContext: { name: "A" },
+            },
+          ],
+        });
+      if (args[0] === "/bots/resting/conversations")
+        return Promise.resolve({
+          conversations: [
+            {
+              botId: "resting",
+              sessionId: "resting-chat",
+              projectId: "project-b",
+              workspacePath: "/project/b",
+              projectContext: { name: "B" },
+            },
+          ],
+        });
+      return original?.(...args);
+    });
+    const result = await loadBotSessionCatalog({ sessions: [session] }, [
+      {
+        ...session,
+        botId: "resting",
+        sessionId: "resting-chat",
+        workspacePath: "/stale",
+        projectId: "old",
+        title: "Retained",
+      },
+    ]);
+    expect(
+      result.sessions.find((row) => row.sessionId === "lead-chat"),
+    ).toMatchObject({ workspacePath: "/project/a", projectId: "project-a" });
+    expect(
+      result.sessions.find((row) => row.sessionId === "resting-chat"),
+    ).toMatchObject({
+      workspacePath: "/project/b",
+      projectId: "project-b",
+      title: "Retained",
+    });
+  });
+  it("does not invent scope for rootless historical host rows", async () => {
+    const result = await loadBotSessionCatalog(
+      {
+        sessions: [
+          { ...session, workspacePath: "/current", projectId: "guessed" },
+        ],
+      },
+      [],
+    );
+    const row = result.sessions.find(
+      (entry) => entry.sessionId === "lead-chat",
+    );
+    expect(row?.workspacePath).toBeUndefined();
+    expect(row?.projectId).toBeUndefined();
+  });
   it("hydrates actual named history and lists stopped conversations without starting workers", async () => {
     const result = await loadBotSessionCatalog({ sessions: [session] }, []);
     expect(result.sessions.map((item) => item.botId).sort()).toEqual([

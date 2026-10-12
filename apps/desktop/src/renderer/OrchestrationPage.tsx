@@ -13,6 +13,7 @@ import { ICON_BUTTON_CLASS } from "./app-shell/shell-layout";
 import type { ChatContextRequest } from "./chat-context-handoff";
 import { ResourceStatusBar } from "./components/ResourceStatusBar";
 import { UiIcon } from "./components/UiIcon";
+import type { ComputerOrigin } from "./computer-origin";
 import type { DesktopNavigationIntent } from "./desktop-navigation-intent";
 import { asNumber, asRecord, asString, Notice } from "./lib";
 import { AgentRosterPanel } from "./orchestration/AgentRosterPanel";
@@ -127,6 +128,7 @@ export function OrchestrationPage({
   onFocusStateChange,
   workspaceLabel,
   workspacePath,
+  computerOrigin,
 }: {
   active: boolean;
   navigationIntent: DesktopNavigationIntent | null;
@@ -141,6 +143,7 @@ export function OrchestrationPage({
   onFocusStateChange?: (state: OrchestrationFocusState) => void;
   workspaceLabel?: string;
   workspacePath?: string;
+  computerOrigin?: ComputerOrigin;
 }) {
   const [activeTab, setActiveTab] = useState<WorkTabId>(
     requestedTab ??
@@ -233,6 +236,7 @@ export function OrchestrationPage({
     selectedTaskId,
     projectScope,
     workspacePath,
+    computerOrigin,
     platform: window.doolittle.platform,
   });
 
@@ -467,6 +471,7 @@ export function OrchestrationPage({
     taskCreateWorkspaceRoot,
   } = useOrchestrationActions({
     active,
+    computerOrigin,
     codegenExecution,
     codegenReady,
     onSelectPlan: setSelectedPlanId,
@@ -854,7 +859,15 @@ export function OrchestrationPage({
           >
             <ReviewPage
               active={active}
+              computerOrigin={computerOrigin}
               embedded
+              key={JSON.stringify([
+                projectScope,
+                workspacePath ?? "",
+                computerOrigin?.botId ?? "",
+                computerOrigin?.originConversationId ?? "",
+                computerOrigin?.workspacePath ?? "",
+              ])}
               onOpenWorkspaceFile={onOpenWorkspaceFile}
               onSendToChat={onSendToChat}
               projectScope={projectScope}

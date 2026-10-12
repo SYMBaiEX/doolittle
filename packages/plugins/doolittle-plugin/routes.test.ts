@@ -4,17 +4,20 @@ import { createDoolittleRuntimeRoutes } from "./routes";
 
 describe("createDoolittleRuntimeRoutes", () => {
   it("publishes health from live plugin dependencies", async () => {
-    let workspaceDir = "/workspace/one";
+    const config = {
+      agentName: "Doolittle Test",
+      mode: "api",
+      workspaceDir: "/workspace/one",
+    };
     const routes = createDoolittleRuntimeRoutes({
       services: {
         workspace: {
-          root: () => workspaceDir,
+          root: () => {
+            throw new Error("A bound conversation workspace is required.");
+          },
         },
       },
-      config: {
-        agentName: "Doolittle Test",
-        mode: "api",
-      },
+      config,
     });
     const health = routes.find((route) => route.path === "/health");
 
@@ -23,7 +26,7 @@ describe("createDoolittleRuntimeRoutes", () => {
       rawPath: true,
       name: "doolittle-health",
     });
-    workspaceDir = "/workspace/two";
+    config.workspaceDir = "/workspace/two";
     const result = await health?.routeHandler?.({
       runtime: {},
     } as unknown as RouteHandlerContext);

@@ -2,7 +2,7 @@ import type { IAgentRuntime, Route } from "@elizaos/core";
 
 interface DoolittleRuntimeRouteDependencies {
   services: { workspace: { root(): string } };
-  config: { agentName?: string; mode?: string };
+  config: { agentName?: string; mode?: string; workspaceDir?: string };
 }
 
 function readFeatureMap(runtime: IAgentRuntime): unknown[] {
@@ -18,7 +18,6 @@ function readFeatureMap(runtime: IAgentRuntime): unknown[] {
 }
 
 export function createDoolittleRuntimeRoutes({
-  services,
   config,
 }: DoolittleRuntimeRouteDependencies): Route[] {
   return [
@@ -34,7 +33,9 @@ export function createDoolittleRuntimeRoutes({
           name: config.agentName,
           mode: config.mode,
           processId: process.pid,
-          workspaceDir: services.workspace.root(),
+          // Process readiness is not a conversation-scoped filesystem read.
+          // The startup root is metadata only, never a chat access grant.
+          workspaceDir: config.workspaceDir,
         },
       }),
     },

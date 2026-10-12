@@ -66,6 +66,10 @@ interface UseProjectManagementOptions {
   readonly pushToast: (toast: ToastInput) => string;
   readonly selectProjectScope: (scope: ProjectScope) => void;
   readonly selectedSession: string;
+  readonly startChatInProject?: (
+    projectId: string | null,
+    sourceSessionId?: string,
+  ) => Promise<void>;
   readonly setProjectScope: Dispatch<SetStateAction<ProjectScope>>;
   readonly setProjects: Dispatch<SetStateAction<Project[]>>;
   readonly setSelectedSession: Dispatch<SetStateAction<string>>;
@@ -111,21 +115,14 @@ export interface ProjectManagementActions {
 }
 
 export function useProjectManagement({
-  createSessionId,
   pathsEqual,
   projectScope,
   projects,
   pushToast,
   selectProjectScope,
-  selectedSession,
-  setProjectScope,
+  startChatInProject,
   setProjects,
-  setSelectedSession,
-  setSessions,
-  setView,
-  setWorkspace,
   switchToRecentWorkspace,
-  transitionToProjectScope,
   workspace,
 }: UseProjectManagementOptions): ProjectManagementActions {
   const reloadProjects = useCallback(async () => {
@@ -147,36 +144,26 @@ export function useProjectManagement({
         },
       );
       await reloadProjects();
-      setProjectScope(response.project.id);
-      setSelectedSession(createSessionId());
-      setView("chat");
       pushToast({
         tone: "success",
         title: `${response.project.name} created`,
-        message: workspace.currentPath
-          ? "New chats now use this project and its current workspace."
-          : "Add a folder when you are ready to give this project local context.",
+        message:
+          "Start a new chat in this project to confirm bot access. Existing chats are unchanged.",
       });
     },
-    [
-      createSessionId,
-      pushToast,
-      reloadProjects,
-      setProjectScope,
-      setSelectedSession,
-      setView,
-      workspace.currentPath,
-    ],
+    [pushToast, reloadProjects, workspace.currentPath],
   );
 
   const chooseRepositoryForConversation = useCallback(
     async (targetSessionId?: string) => {
       try {
-        const result = await window.doolittle.pickWorkspace();
-        setWorkspace(result.state);
-        if (result.canceled || !result.state.currentPath) return;
-
-        const repositoryPath = result.state.currentPath;
+        // Picking a chat project must not switch or restart the shared engine.
+        const result = await window.doolittle.pickProjectFolders();
+        if (result.canceled) return;
+        if (result.paths.length !== 1)
+          throw new Error("Choose one project folder for this chat.");
+        const repositoryPath = result.paths[0];
+        if (!repositoryPath) return;
         let project = projects.find((entry) =>
           projectUsesPath(entry, repositoryPath, pathsEqual),
         );
@@ -205,15 +192,14 @@ export function useProjectManagement({
 
         const selectedProject = project;
         setProjects((current) => upsertProject(current, selectedProject));
-        transitionToProjectScope(
-          selectedProject.id,
-          targetSessionId ?? createSessionId(),
-          "chat",
-        );
+        if (!startChatInProject)
+          throw new Error("New chat action is unavailable.");
+        await startChatInProject(selectedProject.id, targetSessionId);
         pushToast({
           tone: "success",
           title: `Ready in ${selectedProject.name}`,
-          message: "This conversation is linked to the selected repository.",
+          message:
+            "A new chat uses this repository. The earlier chat is unchanged.",
         });
       } catch (error) {
         pushToast({
@@ -223,15 +209,7 @@ export function useProjectManagement({
         });
       }
     },
-    [
-      createSessionId,
-      pathsEqual,
-      projects,
-      pushToast,
-      setProjects,
-      setWorkspace,
-      transitionToProjectScope,
-    ],
+    [pathsEqual, projects, pushToast, setProjects, startChatInProject],
   );
 
   const updateProject = useCallback(
@@ -366,23 +344,18 @@ export function useProjectManagement({
 
   const moveCurrentChat = useCallback(
     async (projectId: string | null) => {
-      await desktopRequest("/sessions/project", "POST", {
-        sessionId: selectedSession,
-        projectId,
-      });
-      setSessions((current) =>
-        assignSessionProject(current, selectedSession, projectId),
-      );
-      transitionToProjectScope(projectId ?? "unscoped", selectedSession);
+      if (!startChatInProject)
+        throw new Error("New chat action is unavailable.");
+      await startChatInProject(projectId);
       pushToast({
         tone: "success",
-        title: "Conversation moved",
+        title: "New conversation started",
         message: projectId
-          ? "This chat now uses the selected project context."
-          : "This chat is now unscoped.",
+          ? "The earlier chat keeps its project; this new chat uses the selected project."
+          : "The earlier chat keeps its project; this new chat is private scratch.",
       });
     },
-    [pushToast, selectedSession, setSessions, transitionToProjectScope],
+    [pushToast, startChatInProject],
   );
 
   return {

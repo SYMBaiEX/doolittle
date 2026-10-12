@@ -242,7 +242,7 @@ export class BotCatalog {
   private stored: StoredBotCatalog;
 
   constructor(
-    dataDir: string,
+    private readonly dataDir: string,
     private readonly defaultBackend: BackendManager,
     private readonly defaultWorkspacePath: string,
   ) {
@@ -363,12 +363,16 @@ export class BotCatalog {
   create(input: CreateBotInput): BotDefinition {
     const name = requiredText(input.name, "Bot name", MAX_NAME_LENGTH);
     const personality = botPersonality(input, name);
+    const id = randomUUID();
+    const scratchPath = resolve(this.dataDir, "bot-workspaces", id);
     const workspacePath = validateWorkspacePath(
-      input.workspacePath ?? this.defaultBackend.getWorkspaceDirectory(),
+      input.workspacePath ?? scratchPath,
     );
+    if (!input.workspacePath)
+      mkdirSync(scratchPath, { recursive: true, mode: 0o700 });
     const now = new Date().toISOString();
     const definition: BotDefinition = {
-      id: randomUUID(),
+      id,
       agentId: randomUUID(),
       name,
       ...personality,

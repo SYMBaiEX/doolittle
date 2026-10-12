@@ -7,6 +7,7 @@ import { readWorkerBotProfile } from "@/runtime/bootstrap/bot-profile";
 import { requestWorkerHost } from "@/runtime/bootstrap/worker-host-rpc";
 import { getScopedExecutionLease } from "@/runtime/execution-admission";
 import { getScopedTurnAbortSignal } from "@/runtime/turn-runtime-scope";
+import { currentConversationWorkspace } from "@/runtime/workspace-scope";
 import type { AppServices } from "@/services";
 
 interface DispatchReceipt {
@@ -101,7 +102,15 @@ export function createConsultBotAction(services: AppServices): Action {
         return { success: false, text, userFacingText: text };
       }
       const worker = readWorkerBotProfile();
-      const projectId = services.sessions.projectIdForSession(run.sessionId);
+      const workspaceScope = currentConversationWorkspace();
+      if (workspaceScope && workspaceScope.sessionId !== run.sessionId) {
+        throw new Error(
+          "Consultation origin has a different conversation scope.",
+        );
+      }
+      const projectId = workspaceScope
+        ? workspaceScope.projectId
+        : services.sessions.projectIdForSession(run.sessionId);
       const origin: BotRunOwner = {
         botId: worker?.id ?? String(runtime.agentId),
         agentId: String(runtime.agentId),

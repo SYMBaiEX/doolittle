@@ -9,6 +9,18 @@ import { isRecord } from "./input-validation";
 const BOT_ID = /^[a-z0-9][a-z0-9_-]{0,63}$/u;
 const CONVERSATION_ID = /^[a-zA-Z0-9:_-]{1,128}$/u;
 
+/** Direct REST filesystem effects need the same write seat as native tools. */
+export function isWorkspaceTransportMutation(
+  method: string,
+  pathname: string,
+): boolean {
+  return (
+    method === "POST" &&
+    (pathname === "/workspace/checkpoints" ||
+      /^\/workspace\/checkpoints\/[^/]+\/restore$/u.test(pathname))
+  );
+}
+
 export function validateComputerOwnerScope(value: unknown): ComputerOwnerScope {
   if (!isRecord(value)) throw new Error("Computer request is invalid.");
   const { botId, originConversationId, workspacePath } = value;
@@ -53,6 +65,8 @@ export async function authorizeComputerRequest(
   mutation: boolean,
 ): Promise<AuthorizedComputerRequest> {
   const botId = scope.botId ?? "default";
+  if (mutation && dependencies.bots && scope.botId === undefined)
+    throw new Error("Computer changes require a confirmed chat workspace.");
   if (botId !== "default" && !dependencies.bots)
     throw new Error("Named bots are unavailable.");
   let mutationRoot: string | undefined;
@@ -68,8 +82,14 @@ export async function authorizeComputerRequest(
       botId,
       scope.originConversationId,
     );
-    mutationRoot = dependencies.bots.assertAcpWorkspace(
+    // Canonical paths alone do not prove a live project or transient task grant.
+    await dependencies.bots.resolveVerifiedConversationWorkspace(
       botId,
+      scope.originConversationId,
+    );
+    mutationRoot = dependencies.bots.assertConversationWorkspace(
+      botId,
+      scope.originConversationId,
       scope.workspacePath,
     );
     if (mutation && !dependencies.bots.get(botId).permissions.allowMutation) {

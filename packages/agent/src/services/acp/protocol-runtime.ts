@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { realpathSync } from "node:fs";
-import { relative, resolve } from "node:path";
+import { isAbsolute, relative, resolve, sep } from "node:path";
 import {
   type AgentApp,
   type AgentContext,
@@ -26,6 +26,13 @@ import {
   type WaitForTerminalExitRequest,
   type WriteTextFileRequest,
 } from "@doolittle/acp";
+import {
+  type ConversationWorkspaceScope,
+  currentConversationWorkspace,
+  isDesktopWorkspaceRuntime,
+  resolveConversationWorkspace,
+  runWithConversationWorkspace,
+} from "@/runtime/workspace-scope";
 import type { StoredMessage } from "@/types";
 import { DOOLITTLE_VERSION } from "@/version";
 import type { RunUpdateEvent } from "../run-controller-service";
@@ -60,6 +67,14 @@ export function isAcpSessionNotFoundError(
 }
 
 export class AcpProtocolRuntime {
+  private readonly pendingWorkspaceScopes = new Map<
+    string,
+    ConversationWorkspaceScope
+  >();
+  private readonly activeClientScopes = new Map<
+    string,
+    { scope: ConversationWorkspaceScope; count: number }
+  >();
   private readonly sessions = new Map<string, AcpProtocolSession>();
   private readonly clientCapabilities = new WeakMap<
     object,
@@ -91,11 +106,24 @@ export class AcpProtocolRuntime {
   ) {
     this.app = createDoolittleAcpAgent({
       initialize: (params, context) => this.handleInitialize(params, context),
-      newSession: (params, context) => this.handleNewSession(params, context),
-      loadSession: (params, context) => this.handleLoadSession(params, context),
+      newSession: (params, context) =>
+        this.withRequestScope(params._meta, () =>
+          this.handleNewSession(params, context),
+        ),
+      loadSession: (params, context) =>
+        this.withRequestScope(params._meta, () =>
+          this.handleLoadSession(params, context),
+        ),
       prompt: (params, context, signal) =>
-        this.handlePrompt(params, context, signal),
-      cancel: (params) => this.cancel(params.sessionId),
+        this.withRequestScope(params._meta, () =>
+          this.withClientCallScope(params.sessionId, () =>
+            this.handlePrompt(params, context, signal),
+          ),
+        ),
+      cancel: (params) =>
+        this.withActiveClientScope(params.sessionId, () =>
+          this.cancel(params.sessionId),
+        ),
     });
 
     this.hostProxy = new AcpHostProxy({
@@ -104,6 +132,8 @@ export class AcpProtocolRuntime {
       agentClient: () => this.requireAgentClient(),
       clientCapabilities: (sessionId) =>
         this.requireSession(sessionId).clientCapabilities,
+      withSessionScope: (sessionId, task) =>
+        this.withActiveClientScope(sessionId, task),
       recordTelemetry: (event, detail) => this.recordTelemetry(event, detail),
       onSessionUpdate: (sessionId, update) =>
         this.recordUpdate(sessionId, update),
@@ -119,6 +149,10 @@ export class AcpProtocolRuntime {
 
   agentApp(): AgentApp {
     return this.app;
+  }
+
+  originForSession(sessionId: string): string | undefined {
+    return this.requireSession(sessionId).originConversationId;
   }
 
   async initialize(
@@ -143,31 +177,48 @@ export class AcpProtocolRuntime {
     params?: Partial<NewSessionRequest>,
   ): Promise<{ sessionId: string }> {
     await this.ensureInitialized();
-    return this.hostProxy
-      .connection()
-      .agent.request(methods.agent.session.new, {
-        cwd: realpathSync(params?.cwd ?? this.workspaceRoot()),
-        mcpServers: params?.mcpServers ?? [],
-        additionalDirectories: params?.additionalDirectories?.map((path) =>
-          realpathSync(path),
-        ),
-        _meta: params?._meta,
-      });
+    const token = this.issueWorkspaceScopeToken();
+    try {
+      return await this.hostProxy
+        .connection()
+        .agent.request(methods.agent.session.new, {
+          cwd: realpathSync(params?.cwd ?? this.workspaceRoot()),
+          mcpServers: params?.mcpServers ?? [],
+          additionalDirectories: params?.additionalDirectories?.map((path) =>
+            realpathSync(path),
+          ),
+          _meta: {
+            ...(params?._meta ?? {}),
+            ...(token ? { "doolittle/workspace-scope-token": token } : {}),
+          },
+        });
+    } finally {
+      if (token) this.pendingWorkspaceScopes.delete(token);
+    }
   }
 
   async loadSession(
     params: LoadSessionRequest,
   ): Promise<{ _meta: Record<string, unknown> }> {
     await this.ensureInitialized();
-    await this.hostProxy
-      .connection()
-      .agent.request(methods.agent.session.load, {
-        ...params,
-        cwd: realpathSync(params.cwd),
-        additionalDirectories: params.additionalDirectories?.map((path) =>
-          realpathSync(path),
-        ),
-      });
+    const token = this.issueWorkspaceScopeToken();
+    try {
+      await this.hostProxy
+        .connection()
+        .agent.request(methods.agent.session.load, {
+          ...params,
+          _meta: {
+            ...(params._meta ?? {}),
+            ...(token ? { "doolittle/workspace-scope-token": token } : {}),
+          },
+          cwd: realpathSync(params.cwd),
+          additionalDirectories: params.additionalDirectories?.map((path) =>
+            realpathSync(path),
+          ),
+        });
+    } finally {
+      if (token) this.pendingWorkspaceScopes.delete(token);
+    }
     return this.loadResponses.get(params.sessionId) ?? { _meta: {} };
   }
 
@@ -177,13 +228,95 @@ export class AcpProtocolRuntime {
   }> {
     await this.ensureInitialized();
     const beforeCursor = this.latestCursor(params.sessionId);
-    const response = await this.hostProxy
-      .connection()
-      .agent.request(methods.agent.session.prompt, params);
+    const token = this.issueWorkspaceScopeToken();
+    let response: { stopReason: string };
+    try {
+      response = await this.hostProxy
+        .connection()
+        .agent.request(methods.agent.session.prompt, {
+          ...params,
+          _meta: {
+            ...(params._meta ?? {}),
+            ...(token ? { "doolittle/workspace-scope-token": token } : {}),
+          },
+        });
+    } finally {
+      if (token) this.pendingWorkspaceScopes.delete(token);
+    }
     return {
       stopReason: response.stopReason,
       updates: this.sessionUpdates(params.sessionId, beforeCursor).updates,
     };
+  }
+
+  private issueWorkspaceScopeToken(): string | undefined {
+    const scope = currentConversationWorkspace();
+    if (!scope) {
+      if (isDesktopWorkspaceRuntime())
+        throw new Error("An ACP conversation workspace is required.");
+      return undefined;
+    }
+    const token = randomUUID();
+    this.pendingWorkspaceScopes.set(token, scope);
+    return token;
+  }
+
+  private withRequestScope<T>(
+    meta: Record<string, unknown> | null | undefined,
+    task: () => T | Promise<T>,
+  ): Promise<T> {
+    const token = meta?.["doolittle/workspace-scope-token"];
+    const scope =
+      typeof token === "string"
+        ? this.pendingWorkspaceScopes.get(token)
+        : undefined;
+    if (isDesktopWorkspaceRuntime() && !scope) {
+      return Promise.reject(
+        new Error("An ACP conversation workspace is required."),
+      );
+    }
+    if (!scope) return Promise.resolve().then(task);
+    return runWithConversationWorkspace(scope, async () => task());
+  }
+
+  private async withClientCallScope<T>(
+    sessionId: string,
+    task: () => Promise<T>,
+  ): Promise<T> {
+    this.requireSession(sessionId);
+    const scope = currentConversationWorkspace();
+    if (!scope) return task();
+    const current = this.activeClientScopes.get(sessionId);
+    if (
+      current &&
+      (current.scope.sessionId !== scope.sessionId ||
+        current.scope.workspacePath !== scope.workspacePath)
+    ) {
+      throw new AcpSessionNotFoundError(sessionId);
+    }
+    const entry = current ?? { scope, count: 0 };
+    entry.count += 1;
+    this.activeClientScopes.set(sessionId, entry);
+    try {
+      return await task();
+    } finally {
+      entry.count -= 1;
+      if (entry.count === 0 && this.activeClientScopes.get(sessionId) === entry)
+        this.activeClientScopes.delete(sessionId);
+    }
+  }
+
+  private withActiveClientScope<T>(
+    sessionId: string,
+    task: () => T | Promise<T>,
+  ): Promise<T> {
+    const entry = this.activeClientScopes.get(sessionId);
+    if (!entry) {
+      if (isDesktopWorkspaceRuntime())
+        return Promise.reject(new AcpSessionNotFoundError(sessionId));
+      return Promise.resolve().then(task);
+    }
+    return runWithConversationWorkspace(entry.scope, async () => task());
   }
 
   cancel(sessionId: string): void {
@@ -204,11 +337,11 @@ export class AcpProtocolRuntime {
 
   async notifyCancel(sessionId: string): Promise<void> {
     this.requireSession(sessionId);
-    await this.hostProxy
-      .connection()
-      .agent.notify(methods.agent.session.cancel, {
-        sessionId,
-      });
+    await this.withClientCallScope(sessionId, () =>
+      this.hostProxy
+        .connection()
+        .agent.notify(methods.agent.session.cancel, { sessionId }),
+    );
   }
 
   updateEditorContext(
@@ -229,9 +362,11 @@ export class AcpProtocolRuntime {
   latestEditorContext(
     workspaceRoot: string,
   ): AcpLatestEditorContext | undefined {
+    const origin = currentConversationWorkspace()?.sessionId;
     const matching = Array.from(this.sessions.values())
       .filter(
         (session) =>
+          (!origin || session.originConversationId === origin) &&
           session.editorContext &&
           session.editorContextUpdatedAt &&
           isPathInside(workspaceRoot, session.cwd),
@@ -266,31 +401,45 @@ export class AcpProtocolRuntime {
   }
 
   readTextFile(params: ReadTextFileRequest): Promise<string> {
-    return this.hostProxy.readTextFile(params);
+    return this.withClientCallScope(params.sessionId, () =>
+      this.hostProxy.readTextFile(params),
+    );
   }
 
   writeTextFile(params: WriteTextFileRequest) {
-    return this.hostProxy.writeTextFile(params);
+    return this.withClientCallScope(params.sessionId, () =>
+      this.hostProxy.writeTextFile(params),
+    );
   }
 
   createTerminal(params: CreateTerminalRequest) {
-    return this.hostProxy.createTerminal(params);
+    return this.withClientCallScope(params.sessionId, () =>
+      this.hostProxy.createTerminal(params),
+    );
   }
 
   terminalOutput(params: TerminalOutputRequest) {
-    return this.hostProxy.terminalOutput(params);
+    return this.withClientCallScope(params.sessionId, () =>
+      this.hostProxy.terminalOutput(params),
+    );
   }
 
   waitForTerminalExit(params: WaitForTerminalExitRequest) {
-    return this.hostProxy.waitForTerminalExit(params);
+    return this.withClientCallScope(params.sessionId, () =>
+      this.hostProxy.waitForTerminalExit(params),
+    );
   }
 
   killTerminal(params: KillTerminalRequest) {
-    return this.hostProxy.killTerminal(params);
+    return this.withClientCallScope(params.sessionId, () =>
+      this.hostProxy.killTerminal(params),
+    );
   }
 
   releaseTerminal(params: ReleaseTerminalRequest) {
-    return this.hostProxy.releaseTerminal(params);
+    return this.withClientCallScope(params.sessionId, () =>
+      this.hostProxy.releaseTerminal(params),
+    );
   }
 
   private handleInitialize(
@@ -340,11 +489,16 @@ export class AcpProtocolRuntime {
     context: AgentContext,
   ): { sessionId: string; _meta: Record<string, unknown> } {
     this.assertWorkspaceRoots(params.cwd, params.additionalDirectories);
+    const originConversationId = currentConversationWorkspace()?.sessionId;
+    if (isDesktopWorkspaceRuntime() && !originConversationId) {
+      throw new Error("An ACP conversation workspace is required.");
+    }
     const sessionId = `acp:${randomUUID()}`;
     const capabilities =
       this.clientCapabilities.get(connectionKey(context)) ?? {};
     this.sessions.set(sessionId, {
       sessionId,
+      originConversationId,
       cwd: params.cwd,
       additionalDirectories: params.additionalDirectories ?? [],
       clientCapabilities: capabilities,
@@ -368,16 +522,42 @@ export class AcpProtocolRuntime {
     context: AgentContext,
   ): Promise<{ _meta: Record<string, unknown> }> {
     this.assertWorkspaceRoots(params.cwd, params.additionalDirectories);
+    const originConversationId = currentConversationWorkspace()?.sessionId;
+    if (isDesktopWorkspaceRuntime() && !originConversationId) {
+      throw new Error("An ACP conversation workspace is required.");
+    }
+    const existing = this.sessions.get(params.sessionId);
+    if (
+      existing?.originConversationId !== undefined &&
+      existing.originConversationId !== originConversationId
+    ) {
+      throw new AcpSessionNotFoundError(params.sessionId);
+    }
     if (
       !this.sessions.has(params.sessionId) &&
       !this.sessionExists(params.sessionId)
     ) {
       throw new AcpSessionNotFoundError(params.sessionId);
     }
+    if (isDesktopWorkspaceRuntime()) {
+      // A worker restart empties this in-memory map. The persisted host ledger,
+      // not the client-supplied scope token or worker history, must attest the
+      // ACP session's original conversation before replaying any messages.
+      try {
+        await resolveConversationWorkspace(
+          originConversationId as string,
+          undefined,
+          params.sessionId,
+        );
+      } catch {
+        throw new AcpSessionNotFoundError(params.sessionId);
+      }
+    }
     const capabilities =
       this.clientCapabilities.get(connectionKey(context)) ?? {};
     this.sessions.set(params.sessionId, {
       sessionId: params.sessionId,
+      originConversationId,
       cwd: params.cwd,
       additionalDirectories: params.additionalDirectories ?? [],
       clientCapabilities: capabilities,
@@ -667,6 +847,21 @@ export class AcpProtocolRuntime {
     const session = this.sessions.get(sessionId);
     if (!session) {
       throw new AcpSessionNotFoundError(sessionId);
+    }
+    if (session.originConversationId) {
+      const scope = currentConversationWorkspace();
+      const relativeCwd = scope
+        ? relative(scope.workspacePath, session.cwd)
+        : "..";
+      if (
+        !scope ||
+        scope.sessionId !== session.originConversationId ||
+        relativeCwd === ".." ||
+        relativeCwd.startsWith(`..${sep}`) ||
+        isAbsolute(relativeCwd)
+      ) {
+        throw new AcpSessionNotFoundError(sessionId);
+      }
     }
     return session;
   }

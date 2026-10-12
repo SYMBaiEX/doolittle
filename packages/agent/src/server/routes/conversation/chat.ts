@@ -7,6 +7,10 @@ import {
   ExecutionAdmissionLimitError,
 } from "@/runtime/execution-admission";
 import { executeAgentTurnWithProgress } from "@/runtime/turn-stream";
+import {
+  isDesktopWorkspaceRuntime,
+  resolveConversationWorkspace,
+} from "@/runtime/workspace-scope";
 import { readJsonObjectBody } from "@/server/request-body";
 import { json, streamSse } from "@/server/responses";
 import { resolveRuntimeWorkspacePath } from "@/server/routes/runtime/workspace";
@@ -251,19 +255,46 @@ async function prepareChatRun(
   ) {
     return json({ error: "Command messages cannot include attachments." }, 400);
   }
-  const workspaceDir = resolveChatWorkspace(context, body.workspaceDir);
-  if (workspaceDir instanceof Response) return workspaceDir;
   const roomId = resolveRoomId(body);
-  const boundProjectId = context.services.sessions.projectIdForSession(roomId);
-  if (boundProjectId !== undefined) {
-    const conflict = validateSessionProjectWorkspace(
-      context,
-      boundProjectId,
-      workspaceDir,
-    );
-    if (conflict) return conflict;
-  } else if (!assignProjectForNewSession(context, roomId, body.projectId)) {
-    return json({ error: "project not found or archived" }, 404);
+  let workspaceDir: string;
+  if (isDesktopWorkspaceRuntime()) {
+    try {
+      const scope = await resolveConversationWorkspace(roomId, request.signal);
+      if (body.projectId !== undefined && body.projectId !== scope.projectId) {
+        return json(
+          {
+            error: "Conversation project scope is mismatched.",
+            code: "session_project_mismatch",
+          },
+          409,
+        );
+      }
+      workspaceDir = scope.workspacePath;
+    } catch {
+      return json(
+        {
+          error: "Conversation workspace scope is unavailable.",
+          code: "session_workspace_unavailable",
+        },
+        409,
+      );
+    }
+  } else {
+    const resolved = resolveChatWorkspace(context, body.workspaceDir);
+    if (resolved instanceof Response) return resolved;
+    workspaceDir = resolved;
+    const boundProjectId =
+      context.services.sessions.projectIdForSession(roomId);
+    if (boundProjectId !== undefined) {
+      const conflict = validateSessionProjectWorkspace(
+        context,
+        boundProjectId,
+        workspaceDir,
+      );
+      if (conflict) return conflict;
+    } else if (!assignProjectForNewSession(context, roomId, body.projectId)) {
+      return json({ error: "project not found or archived" }, 404);
+    }
   }
   return {
     body,

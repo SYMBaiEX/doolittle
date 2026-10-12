@@ -123,13 +123,21 @@ export async function handleControlPlaneCommand(
   }
 
   if (trimmed === "/commands") {
-    return renderCommandCatalog(undefined, 80, context.config.workspaceDir);
+    return renderCommandCatalog(
+      undefined,
+      80,
+      context.services.workspace?.root() ?? context.config.workspaceDir,
+    );
   }
 
   if (trimmed.startsWith("/commands search ")) {
     const query = trimmed.replace("/commands search ", "").trim();
     return query
-      ? renderCommandCatalog(query, 80, context.config.workspaceDir)
+      ? renderCommandCatalog(
+          query,
+          80,
+          context.services.workspace?.root() ?? context.config.workspaceDir,
+        )
       : "Usage: /commands search <query>";
   }
 

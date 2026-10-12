@@ -34,6 +34,45 @@ describe("persistent bot conversation ownership", () => {
     );
   });
 
+  it("preserves immutable workspace grants across restart and interrupted dual-copy saves", () => {
+    const { directory, ledger } = fixture();
+    const root = resolve(directory, "project-root");
+    const bound = ledger.bind("bot-one", "scoped", "project-one", root, {
+      name: "Project one",
+    });
+    expect(new BotConversationLedger(directory).get("scoped")).toEqual(bound);
+    expect(() =>
+      ledger.bind(
+        "bot-one",
+        "scoped",
+        "project-one",
+        resolve(directory, "other"),
+      ),
+    ).toThrow(/different bot or project/i);
+    const primary = resolve(directory, "bots", "conversation-owners.json");
+    const old = JSON.parse(readFileSync(primary, "utf8"));
+    delete old.conversations[0].workspacePath;
+    delete old.conversations[0].projectContext;
+    writeFileSync(primary, JSON.stringify(old));
+    expect(
+      new BotConversationLedger(directory).get("scoped")?.workspacePath,
+    ).toBe(root);
+  });
+
+  it("refuses malformed root and oversized project projection before saving", () => {
+    const { ledger } = fixture();
+    expect(() =>
+      ledger.bind("bot-one", "invalid-root", undefined, "../outside"),
+    ).toThrow(/invalid/i);
+    expect(() =>
+      ledger.bind("bot-one", "invalid-context", "project-one", "/safe", {
+        name: "x".repeat(1_201),
+      }),
+    ).toThrow(/invalid/i);
+    expect(ledger.get("invalid-root")).toBeNull();
+    expect(ledger.get("invalid-context")).toBeNull();
+  });
+
   it("recovers from a corrupted primary without losing the bot owner", () => {
     const { directory, ledger } = fixture();
     ledger.bind("bot-one", "session-1");

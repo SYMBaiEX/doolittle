@@ -22,6 +22,7 @@ function harness() {
   const teamId = "00000000-0000-4000-8000-000000000003";
   const teamMembers = new Set(["source", "target"]);
   let teamArchived = false;
+  let onScopeRead: (() => void) | undefined;
   const add = vi.fn(async () => "00000000-0000-4000-8000-000000000002");
   const read = vi.fn(async () => "An explicitly selected message.");
   const documents = { add, read, stop: vi.fn(async () => undefined) };
@@ -43,7 +44,22 @@ function harness() {
       projectId: "project-1",
     }),
     assertRunOwner: async () => undefined,
-    conversations: { getRun: () => ({ sessionId: "source-session" }) },
+    conversations: {
+      getRun: () => ({ sessionId: "source-session" }),
+      get: (sessionId: string) =>
+        sessionId === "source-session"
+          ? { botId: "source", projectId: members.get("source") }
+          : null,
+    },
+    resolveVerifiedConversationWorkspace: async (
+      botId: string,
+      sessionId: string,
+    ) => {
+      onScopeRead?.();
+      if (botId !== "source" || sessionId !== "source-session")
+        throw new Error("Conversation project grant is unavailable.");
+      return { botId, sessionId, projectId: members.get("source") };
+    },
     backendFor: async () => ({
       getState: () => ({ url: "http://source.local" }),
     }),
@@ -78,10 +94,42 @@ function harness() {
     archiveTeam: () => {
       teamArchived = true;
     },
+    setScopeRead: (callback?: () => void) => {
+      onScopeRead = callback;
+    },
   };
 }
 
 describe("broker-only knowledge grants", () => {
+  it("rechecks revocation after the final asynchronous project verification", async () => {
+    const { broker, setScopeRead, read } = harness();
+    const record = await broker.promote({
+      sourceBotId: "source",
+      sessionId: "source-session",
+      runId: "source-run",
+      messageId: "message-1",
+      projectId: "project-1",
+      title: "Finding",
+      consent: true,
+    });
+    broker.grant(record.id, "target", true);
+    read.mockClear();
+    let checks = 0;
+    setScopeRead(() => {
+      checks += 1;
+      if (checks === 3) broker.revoke(record.id, "target");
+    });
+    await expect(
+      broker.retrieveForConsultation({
+        originBotId: "source",
+        originSessionId: "source-session",
+        originProjectId: "project-1",
+        targetBotId: "target",
+        knowledgeIds: [record.id],
+      }),
+    ).rejects.toThrow(/grant/);
+    expect(read).toHaveBeenCalledOnce();
+  });
   it("rejects an SDK content mismatch and ambiguous legacy identity before disclosure", async () => {
     const { broker, read } = harness();
     read.mockResolvedValueOnce("Wrong tail from another scope");
@@ -107,6 +155,7 @@ describe("broker-only knowledge grants", () => {
     await expect(
       broker.retrieveForConsultation({
         originBotId: "source",
+        originSessionId: "source-session",
         targetBotId: "target",
         originProjectId: "project-1",
         knowledgeIds: ["legacy"],
@@ -135,6 +184,7 @@ describe("broker-only knowledge grants", () => {
     expect(
       await broker.retrieveForConsultation({
         originBotId: "source",
+        originSessionId: "source-session",
         targetBotId: "target",
         knowledgeIds: [record.id],
       }),
@@ -143,6 +193,7 @@ describe("broker-only knowledge grants", () => {
     await expect(
       broker.retrieveForConsultation({
         originBotId: "source",
+        originSessionId: "source-session",
         targetBotId: "target",
         knowledgeIds: [record.id],
       }),
@@ -172,6 +223,7 @@ describe("broker-only knowledge grants", () => {
       await expect(
         broker.retrieveForConsultation({
           originBotId: "source",
+          originSessionId: "source-session",
           targetBotId: "target",
           knowledgeIds: [record.id],
         }),
@@ -230,6 +282,7 @@ describe("broker-only knowledge grants", () => {
     read.mockClear();
     const selection = {
       originBotId: "source",
+      originSessionId: "source-session",
       originProjectId: "project-1",
       targetBotId: "target",
       knowledgeIds: [record.id],
@@ -252,7 +305,7 @@ describe("broker-only knowledge grants", () => {
     );
   });
 
-  it("denies moved members, omitted consent, or an unselected source without reading private memory", async () => {
+  it("denies a revoked origin chat grant, omitted consent, or an unselected source without reading private memory", async () => {
     const { broker, members, add, read } = harness();
     await expect(
       broker.promote({
@@ -278,15 +331,16 @@ describe("broker-only knowledge grants", () => {
     read.mockClear();
     expect(() => broker.grant(record.id, "target", false)).toThrow("consent");
     broker.grant(record.id, "target", true);
-    members.set("target", "project-2");
+    members.set("source", "project-2");
     await expect(
       broker.retrieveForConsultation({
         originBotId: "source",
+        originSessionId: "source-session",
         originProjectId: "project-1",
         targetBotId: "target",
         knowledgeIds: [record.id],
       }),
-    ).rejects.toThrow("current project");
+    ).rejects.toThrow("Origin project grant changed");
     expect(read).not.toHaveBeenCalled();
   });
 });

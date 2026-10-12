@@ -284,7 +284,7 @@ describe("chat history concurrency", () => {
     container.remove();
   });
 
-  it("binds a fresh project draft with its captured owner before native synchronization", async () => {
+  it("keeps an unconfirmed project draft local without prompting a native access grant", async () => {
     const bridge = {
       onEvent: vi.fn(() => () => undefined),
       subscribe: vi.fn(async () => undefined),
@@ -315,20 +315,8 @@ describe("chat history concurrency", () => {
           }),
         );
       });
-      expect(desktopRequestMock).toHaveBeenCalledWith(
-        "/bots/lead/conversations",
-        "POST",
-        { sessionId: "project-draft", projectId: "project-alpha" },
-      );
-      expect(bridge.dispatch).toHaveBeenCalledWith(
-        expect.objectContaining({
-          target: {
-            botId: "lead",
-            sessionId: "project-draft",
-            projectId: "project-alpha",
-          },
-        }),
-      );
+      expect(desktopRequestMock).not.toHaveBeenCalled();
+      expect(bridge.dispatch).not.toHaveBeenCalled();
     } finally {
       act(() => root.render(null));
       Object.defineProperty(window, "doolittle", {

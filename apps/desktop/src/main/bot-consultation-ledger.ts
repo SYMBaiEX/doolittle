@@ -21,6 +21,8 @@ export interface BotConsultationRecord {
   targetBotId: string;
   targetSessionId: string;
   targetRunId: string;
+  /** Exact one-shot root; legacy records without it cannot authorize execution. */
+  workspacePath?: string;
   knowledgeIds?: string[];
   permissions: BotPermissions;
   deadline: string;
@@ -62,6 +64,10 @@ function parse(path: string): StoredConsultations | null {
         !ID.test(record.targetRunId) ||
         !ID.test(record.targetSessionId) ||
         !ID.test(record.targetBotId) ||
+        (record.workspacePath !== undefined &&
+          (typeof record.workspacePath !== "string" ||
+            !record.workspacePath.startsWith("/") ||
+            resolve(record.workspacePath) !== record.workspacePath)) ||
         !ID.test(record.origin?.runId) ||
         !Array.isArray(record.ancestry) ||
         !record.ancestry.every((id) => typeof id === "string" && ID.test(id)) ||
@@ -196,6 +202,10 @@ export class BotConsultationLedger {
     if (this.get(record.dispatchId) || this.byTargetRun(record.targetRunId)) {
       throw new Error("Consultation identity already exists.");
     }
+    // Reserve synchronously after async broker checks; parallel dispatches
+    // cannot all spend the same remaining root fan-out slot.
+    if (this.countRoot(record.rootRunId) >= 3)
+      throw new Error("This run has reached its consultation limit.");
     this.stored.records.push(structuredClone(record));
     try {
       this.save();

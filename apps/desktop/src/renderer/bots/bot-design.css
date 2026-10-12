@@ -192,6 +192,7 @@
   font-size: 14px;
 }
 .bot-design-question-block textarea,
+.bot-design-question-block select,
 .bot-design-question-block input:not([type="checkbox"]) {
   width: 100%;
   min-width: 0;
@@ -205,6 +206,9 @@
 .bot-design-question-block textarea {
   min-height: 76px;
   resize: vertical;
+}
+.bot-design-question-block select {
+  padding-block: 6px;
 }
 .bot-design-question-block fieldset {
   display: grid;
@@ -235,6 +239,12 @@
 .bot-design-note {
   color: var(--muted);
   font-size: 13px;
+}
+.bot-design-model-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
 }
 .bot-design-suggestions {
   display: grid;
@@ -307,6 +317,9 @@
   font-size: 13px;
   cursor: pointer;
 }
+.bot-design-model-status .bot-design-back {
+  flex-shrink: 0;
+}
 .bot-design-reading [role="alert"] {
   color: var(--bad);
   font-size: 14px;
@@ -317,6 +330,7 @@
   outline-offset: 2px;
 }
 .bot-design-question-block input:not([type="checkbox"]):focus-visible,
+.bot-design-question-block select:focus-visible,
 .bot-design-question-block textarea:focus-visible {
   outline: none;
   outline-width: 0;
@@ -352,6 +366,11 @@
   .bot-design-fields {
     grid-template-columns: 1fr;
   }
+  .bot-design-model-status {
+    align-items: start;
+    flex-direction: column;
+    gap: 4px;
+  }
   .bot-design-thread {
     padding: 16px;
   }
@@ -377,6 +396,7 @@
 @media (forced-colors: active) {
   .bot-design-dock textarea:focus-visible,
   .bot-design-question-block input:not([type="checkbox"]):focus-visible,
+  .bot-design-question-block select:focus-visible,
   .bot-design-question-block textarea:focus-visible,
   .new-chat-search input:focus-visible {
     outline: 1px solid Highlight;

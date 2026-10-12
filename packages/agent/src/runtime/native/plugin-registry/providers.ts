@@ -1,6 +1,8 @@
 import type { BotDefinition } from "@doolittle/contracts/bots";
 import type { IAgentRuntime, Plugin } from "@elizaos/core";
 import type { CodexAuth } from "@elizaos/plugin-codex-cli";
+import { requireConversationWorkspace } from "@/runtime/workspace-scope";
+import { resolveWorkspaceDirectory } from "@/services/workspace-directory";
 import type { EnvConfig } from "../../../types/runtime";
 import { requestWorkerHost } from "../../bootstrap/worker-host-rpc";
 import { refreshLinkedClaudeCodeCredentials } from "../account-auth";
@@ -158,10 +160,15 @@ export async function loadProviderPlugins(
               >[0],
             ) => {
               const { signal, ...payload } = params;
-              const result = await requestWorkerHost("claude.invoke", payload, {
-                timeoutMs: 125_000,
-                signal,
-              });
+              const { sessionId } = requireConversationWorkspace();
+              const result = await requestWorkerHost(
+                "claude.invoke",
+                { ...payload, sessionId },
+                {
+                  timeoutMs: 125_000,
+                  signal,
+                },
+              );
               if (typeof result !== "string")
                 throw new Error(
                   "The Claude Code host returned an invalid response.",
@@ -176,7 +183,7 @@ export async function loadProviderPlugins(
       command: config.devinCliCommand,
       model: config.devinModel,
       timeoutMs: config.devinTimeoutMs,
-      getCwd: () => config.workspaceDir,
+      getCwd: () => resolveWorkspaceDirectory(() => config.workspaceDir),
       getStatus: () => getDevinAccountStatus(),
     }),
     normalizePlugin({

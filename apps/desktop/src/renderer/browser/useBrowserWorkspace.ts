@@ -4,6 +4,7 @@ import {
   type BrowserResult,
   buildBrowserResultViewModel,
 } from "../browser-result-model";
+import type { ComputerOrigin } from "../computer-origin";
 import {
   asRecord,
   asString,
@@ -43,7 +44,11 @@ export const BROWSER_ACTIONS: Array<{
   { id: "analyze", label: "Analyze", detail: "Model-backed review" },
 ];
 
-export function useBrowserWorkspace(active: boolean, botId?: string) {
+export function useBrowserWorkspace(
+  active: boolean,
+  botId?: string,
+  origin?: ComputerOrigin,
+) {
   const [navigation, dispatchNavigation] = useReducer(
     browserNavigationReducer,
     INITIAL_BROWSER_NAVIGATION,
@@ -61,6 +66,7 @@ export function useBrowserWorkspace(active: boolean, botId?: string) {
     active ? "/browser/status" : null,
     [active],
     botId,
+    origin,
   );
   const statusRecord = asRecord(status.data?.browser);
   const embedded =
@@ -159,6 +165,7 @@ export function useBrowserWorkspace(active: boolean, botId?: string) {
               undefined,
               undefined,
               botId,
+              origin,
             )
           : await desktopRequest<unknown>(
               `/browser/${action}`,
@@ -167,6 +174,7 @@ export function useBrowserWorkspace(active: boolean, botId?: string) {
               undefined,
               undefined,
               botId,
+              origin,
             );
       if (browserNavigationMatches(navigationAtStart, navigationRef.current)) {
         dispatchNavigation({ type: "show-url", url, recordHistory: true });
@@ -212,6 +220,7 @@ export function useBrowserWorkspace(active: boolean, botId?: string) {
         undefined,
         undefined,
         botId,
+        origin,
       );
       setResult({
         action,

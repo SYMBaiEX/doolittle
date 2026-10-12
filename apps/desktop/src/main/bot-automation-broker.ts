@@ -139,7 +139,19 @@ export class BotAutomationBroker {
       throw new Error("Use the legacy default target for the lead bot.");
     const authorized =
       approval ?? this.ledger.approval(job.targetApprovalId ?? "");
-    const permissions = effectivePermissions(this.bots.get("default"), target);
+    if (!authorized?.workspacePath)
+      throw new Error(
+        "This legacy automation has no approved workspace scope. Review and reapprove it before another fire.",
+      );
+    if (this.bots.privateBotWorkspace(target.id) !== authorized.workspacePath)
+      throw new Error(
+        "Named automation scratch workspace changed. Reapprove the job.",
+      );
+    const permissions = effectivePermissions(
+      this.bots.get("default"),
+      target,
+      authorized.workspacePath,
+    );
     if (
       !authorized ||
       authorized.jobId !== job.id ||
@@ -168,7 +180,12 @@ export class BotAutomationBroker {
     const target = this.bots.get(job.targetBotId);
     if (target.isDefault || target.id !== job.targetBotId)
       throw new Error("Use default for the application lead.");
-    const permissions = effectivePermissions(this.bots.get("default"), target);
+    const workspacePath = this.bots.privateBotWorkspace(target.id);
+    const permissions = effectivePermissions(
+      this.bots.get("default"),
+      target,
+      workspacePath,
+    );
     const generation = this.generation;
     const botGeneration = this.botGeneration.get(target.id) ?? 0;
     const approved = await this.confirm?.({
@@ -176,7 +193,7 @@ export class BotAutomationBroker {
         ? "Approve named automation changes?"
         : "Create named automation?",
       message: `${job.name} — ${target.name} (${target.id})`,
-      detail: `Trigger: ${job.trigger?.type ?? "schedule"}; ${job.schedule}.\nWorkspace: ${target.workspacePath}.\nMutation permission: ${permissions.allowMutation ? "approved" : "read only"}. No worker scheduler, connector gateway, home delivery, or model override is granted.\nPrompt preview:\n${job.prompt.slice(0, 1_500)}`,
+      detail: `Trigger: ${job.trigger?.type ?? "schedule"}; ${job.schedule}.\nPrivate scratch workspace: ${workspacePath}. No project chat is selected for this job.\nMutation permission: ${permissions.allowMutation ? "approved" : "read only"}. No worker scheduler, connector gateway, home delivery, or model override is granted.\nPrompt preview:\n${job.prompt.slice(0, 1_500)}`,
       confirmLabel: "Approve automation",
     });
     signal?.throwIfAborted();
@@ -193,8 +210,10 @@ export class BotAutomationBroker {
     const current = this.bots.get(target.id);
     if (
       current.updatedAt !== target.updatedAt ||
-      digest(effectivePermissions(this.bots.get("default"), current)) !==
-        digest(permissions) ||
+      this.bots.privateBotWorkspace(current.id) !== workspacePath ||
+      digest(
+        effectivePermissions(this.bots.get("default"), current, workspacePath),
+      ) !== digest(permissions) ||
       generation !== this.generation ||
       botGeneration !== (this.botGeneration.get(target.id) ?? 0)
     )
@@ -222,6 +241,7 @@ export class BotAutomationBroker {
         effectivePermissions(
           this.bots.get("default"),
           this.bots.get(target.id),
+          workspacePath,
         ),
       ) !== digest(permissions)
     )
@@ -233,6 +253,7 @@ export class BotAutomationBroker {
       targetRevision: target.updatedAt,
       definitionDigest: definition(job),
       permissions,
+      workspacePath,
       createdAt: new Date().toISOString(),
     };
     this.ledger.approve(approval);
@@ -324,7 +345,12 @@ export class BotAutomationBroker {
         !state.url
       )
         throw new Error("The selected automation bot is unavailable.");
-      this.bots.bindConversation(target.id, record.sessionId, target.projectId);
+      const bound = this.bots.bindConversationWorkspace(
+        target.id,
+        record.sessionId,
+      );
+      if (bound.workspacePath !== approval.workspacePath || bound.projectId)
+        throw new Error("Named automation scope changed before submission.");
       this.bots.bindRun(target.id, record.sessionId, record.runId);
       let response: Response;
       try {
@@ -336,8 +362,7 @@ export class BotAutomationBroker {
             roomId: record.sessionId,
             message: `${current.action?.type === "prompt" || current.action?.type === "run-agent" ? current.action.prompt : current.prompt}${input.payload ? `\n\nTrigger payload:\n${JSON.stringify(input.payload)}` : ""}`,
             source: "desktop-automation",
-            workspaceDir: target.workspacePath,
-            ...(target.projectId ? { projectId: target.projectId } : {}),
+            workspaceDir: approval.workspacePath,
           }),
           signal: AbortSignal.timeout(10_000),
         });

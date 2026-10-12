@@ -15,6 +15,18 @@ export interface BotModelRoute {
   reasoningEffort?: string;
 }
 
+/** Named workers currently support only these host-scoped account bridges. */
+export const BOT_MODEL_PROVIDERS = [
+  "offline",
+  "openai",
+  "anthropic",
+  "codex",
+  "claude-code",
+] as const;
+export function isBotModelProvider(provider: string): boolean {
+  return (BOT_MODEL_PROVIDERS as readonly string[]).includes(provider);
+}
+
 /** References only: no credentials, environment variables, or provider tokens. */
 export interface BotPermissions {
   connectionIds: string[];

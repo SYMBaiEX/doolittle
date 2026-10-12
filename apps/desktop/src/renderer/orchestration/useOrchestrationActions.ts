@@ -5,6 +5,7 @@ import {
   useRef,
   useState,
 } from "react";
+import type { ComputerOrigin } from "../computer-origin";
 import {
   asRecord,
   asString,
@@ -41,11 +42,23 @@ import {
 } from "./models";
 import { CODEGEN_MODES, type CodegenMode } from "./orchestration-runs-model";
 
-async function postJson<T>(path: string, body: UnknownRecord): Promise<T> {
+async function postOrchestrationJson<T>(
+  path: string,
+  body: UnknownRecord,
+  origin?: ComputerOrigin,
+): Promise<T> {
+  if (path.startsWith("/delegation/") && !origin)
+    throw new Error(
+      "Choose a confirmed project chat before creating or running tasks.",
+    );
   return desktopRequest<T>(
     path as Parameters<typeof desktopRequest<T>>[0],
     "POST",
     body,
+    undefined,
+    undefined,
+    origin?.botId,
+    origin,
   );
 }
 
@@ -100,6 +113,7 @@ export function codegenRequestBody({
 
 export type UseOrchestrationActionsOptions = {
   active: boolean;
+  computerOrigin?: ComputerOrigin;
   codegenExecution: UnknownRecord;
   codegenReady: boolean;
   planCanSteer: boolean;
@@ -125,6 +139,7 @@ export type UseOrchestrationActionsOptions = {
 
 export function useOrchestrationActions({
   active,
+  computerOrigin,
   codegenExecution,
   codegenReady,
   onSelectPlan,
@@ -147,6 +162,8 @@ export function useOrchestrationActions({
   workspacePath,
   worktrees,
 }: UseOrchestrationActionsOptions) {
+  const postJson = <T>(path: string, body: UnknownRecord): Promise<T> =>
+    postOrchestrationJson<T>(path, body, computerOrigin);
   const [showTaskCreate, setShowTaskCreate] = useState(false);
   const [showPlanCreate, setShowPlanCreate] = useState(false);
   const [showChildCreate, setShowChildCreate] = useState(false);

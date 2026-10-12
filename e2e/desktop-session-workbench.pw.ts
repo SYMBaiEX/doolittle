@@ -9,10 +9,12 @@ import {
 } from "../apps/desktop/src/renderer/workspace-layout-state";
 import { expectNoDesktopRecovery } from "./support/desktop-assertions";
 import {
+  bindCurrentScratchChat,
   closeFocusedConversationView,
   emptyAccountPoolFixtureState,
   installEmptyAccountPoolFixture,
   launchIsolatedDesktop,
+  openApprovedProjectChat,
   openNewConversationView,
   openWorkspaceViews,
   waitForDesktopReady,
@@ -281,13 +283,32 @@ async function expectApprovalGeometry(panel: Locator): Promise<void> {
 }
 
 test.describe("Doolittle desktop session workbench", () => {
-  test("offline new-chat chooser saves a native stopped bot with reviewed character and bounded layouts", async () => {
+  test("offline new-chat chooser saves and starts its native bot with reviewed character and bounded layouts", async () => {
     test.setTimeout(90_000);
     const desktop = await launchIsolatedDesktop();
     try {
       const { app, page, pageErrors } = desktop;
       await waitForDesktopReady(page);
       await installEmptyAccountPoolFixture(app);
+      const dormantBot = await page.evaluate(async () => {
+        const response = await window.doolittle.requestAgent({
+          requestId: crypto.randomUUID(),
+          path: "/bots",
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            name: "Unopened Scout",
+            persona: "Remain dormant until this bot is asked to work.",
+            model: { provider: "offline", model: "offline" },
+          }),
+        });
+        return {
+          status: response.status,
+          bot: JSON.parse(response.body) as { id: string; state: string },
+        };
+      });
+      expect(dormantBot.status).toBe(201);
+      expect(dormantBot.bot.state).toBe("stopped");
       await page.emulateMedia({ reducedMotion: "reduce" });
       const externalRequests: string[] = [];
       page.on("request", (request) => {
@@ -479,8 +500,34 @@ test.describe("Doolittle desktop session workbench", () => {
       await expect(
         creation.getByRole("checkbox", { name: "Allow delegation" }),
       ).not.toBeChecked();
-      await creation.getByRole("textbox", { name: "Provider" }).fill("offline");
-      await creation.getByRole("textbox", { name: "Model" }).fill("offline");
+      const provider = creation.getByRole("combobox", { name: "Provider" });
+      const model = creation.getByRole("combobox", { name: "Model" });
+      await expect(provider).toBeEnabled();
+      await provider.selectOption("offline");
+      await page.keyboard.press("Tab");
+      await provider.focus();
+      await expect
+        .poll(() =>
+          provider.evaluate((select) => {
+            const style = getComputedStyle(select);
+            return {
+              focused: select.matches(":focus-visible"),
+              outline: style.outlineStyle,
+              width: style.outlineWidth,
+              insetCue:
+                style.boxShadow.includes("inset") &&
+                style.boxShadow.includes("1px 0px 0px 0px"),
+            };
+          }),
+        )
+        .toEqual({
+          focused: true,
+          outline: "none",
+          width: "0px",
+          insetCue: true,
+        });
+      await expect(model).toBeEnabled();
+      await model.selectOption("offline");
       for (const width of [360, 768, 1280, 1728]) {
         await resize(width);
         await expectFit(".bot-design-conversation");
@@ -519,6 +566,7 @@ test.describe("Doolittle desktop session workbench", () => {
               }
               const catalog = JSON.parse(response.body) as {
                 bots: Array<{
+                  id: string;
                   name: string;
                   state: string;
                   activeRunCount: number;
@@ -554,19 +602,24 @@ test.describe("Doolittle desktop session workbench", () => {
                 `Bot catalog returned HTTP ${result.status}, code ${result.code || "none"}.`,
               );
             if (result.bot) savedBot = result.bot as Record<string, unknown>;
+            if (result.bot?.state === "error")
+              throw new Error(
+                "The created bot failed native shared-engine startup.",
+              );
             return {
               status: result.status,
               code: result.code,
               found: Boolean(result.bot),
+              state: result.bot?.state ?? "missing",
             };
           },
           { timeout: 30_000 },
         )
-        .toEqual({ status: 200, code: "", found: true });
+        .toEqual({ status: 200, code: "", found: true, state: "ready" });
       const bot = savedBot;
       expect(bot).toMatchObject({
         name: "Offline Scout",
-        state: "stopped",
+        state: "ready",
         activeRunCount: 0,
         model: { provider: "offline", model: "offline" },
         permissions: {
@@ -581,7 +634,23 @@ test.describe("Doolittle desktop session workbench", () => {
       expect(JSON.stringify(bot?.character)).toContain("Be concise");
       const accountFixture = await emptyAccountPoolFixtureState(app);
       expect(accountFixture.accountPoolReads).toBeGreaterThan(0);
-      expect(accountFixture.activationRequests).toBe(0);
+      expect(accountFixture.activationRequests).toBe(1);
+      expect(accountFixture.activatedBotIds).toEqual([bot?.id]);
+      const untouchedBot = await page.evaluate(async (id) => {
+        const response = await window.doolittle.requestAgent({
+          requestId: crypto.randomUUID(),
+          path: "/bots",
+          method: "GET",
+          headers: { accept: "application/json" },
+        });
+        if (response.status !== 200)
+          throw new Error("Native bot catalog is unavailable after startup.");
+        const payload = JSON.parse(response.body) as {
+          bots: Array<{ id: string; state: string }>;
+        };
+        return payload.bots.find((entry) => entry.id === id)?.state;
+      }, dormantBot.bot.id);
+      expect(untouchedBot).toBe("stopped");
       await installSyntheticChatLifecycleFixture(
         app,
         "# Fixture notes\n\n- **Verified** offline rendering\n- Inline `code` stays readable.",
@@ -1237,6 +1306,13 @@ test.describe("Doolittle desktop session workbench", () => {
       expect(app.windows().length).toBe(1);
       const nativeWindow = await app.browserWindow(page);
       await waitForDesktopReady(page);
+
+      await openApprovedProjectChat(
+        app,
+        page,
+        "Terminal layout project",
+        workspaceDir,
+      );
 
       const seededLayoutValues = new Map<string, string>();
       const seededLayoutStorage = {
@@ -2004,6 +2080,7 @@ test.describe("Doolittle desktop session workbench", () => {
     try {
       const { page, pageErrors } = desktop;
       await waitForDesktopReady(page);
+      await bindCurrentScratchChat(page);
       await page.setViewportSize({ width: 1440, height: 960 });
       await expectNoDesktopRecovery(page);
 
@@ -3289,7 +3366,10 @@ test.describe("Doolittle desktop session workbench", () => {
 
       await startFixture(firstPanel, "running");
       const firstReceipt = firstPanel.locator(".chat-run-receipt").last();
-      await expect(firstReceipt).toContainText("Doolittle is working");
+      await expect(firstReceipt).toContainText(
+        /Doolittle is (?:still )?working/u,
+      );
+      await expect(firstReceipt).toHaveAttribute("data-pending", "true");
       await expect(
         firstPanel.locator(".chat-message.assistant").last(),
       ).toContainText(
@@ -3310,7 +3390,10 @@ test.describe("Doolittle desktop session workbench", () => {
       await startFixture(secondPanel, "waiting");
       const secondReceipt = secondPanel.locator(".chat-run-receipt").last();
       await expect(secondReceipt).toContainText("Approval needed");
-      await expect(firstReceipt).toContainText("Doolittle is working");
+      await expect(firstReceipt).toContainText(
+        /Doolittle is (?:still )?working/u,
+      );
+      await expect(firstReceipt).toHaveAttribute("data-pending", "true");
 
       await firstPanel.getByRole("button", { name: "Stop response" }).click();
       await expect(

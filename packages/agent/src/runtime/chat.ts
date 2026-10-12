@@ -25,6 +25,11 @@ import { executeEffectiveDelegationTask } from "@/runtime/native/service-bridge/
 import { getEffectiveActivePersonality } from "@/runtime/native/service-bridge/ownership";
 import type { TurnCommandHooks } from "@/runtime/turn-runtime-scope";
 import { resolveWorkflowCommandPrompt } from "@/runtime/workflow-commands";
+import {
+  isDesktopWorkspaceRuntime,
+  resolveConversationWorkspace,
+  runWithConversationWorkspace,
+} from "@/runtime/workspace-scope";
 import { resolveManagedChatAttachments } from "@/services/chat-attachments";
 import type {
   AutomationRuntimeOverrides,
@@ -148,6 +153,8 @@ type AgentTurnOptions = {
   admissionKind?: ExecutionAdmissionKind;
   /** A durable HTTP submit acquires before acknowledging; its owner releases. */
   admissionLease?: ExecutionLease | null;
+  /** ACP's generated room ID differs from its originating desktop chat. */
+  originConversationId?: string;
 } & AgentTurnHooks;
 
 export async function handleAgentTurn(
@@ -160,7 +167,8 @@ export async function handleAgentTurn(
     options?.admissionLease === undefined
       ? await acquireExecutionLease({
           runId: preparedTurn.turn.runId,
-          sessionId: preparedTurn.turn.sessionId,
+          sessionId:
+            options?.originConversationId ?? preparedTurn.turn.sessionId,
           kind: options?.admissionKind ?? "foreground",
           signal: options?.abortSignal,
         })
@@ -182,142 +190,144 @@ async function handleAdmittedAgentTurn(
 ): Promise<string> {
   const perf = new TurnPerfTrace();
   const trimmedMessage = input.message.trim();
-  const workflowCommand = trimmedMessage.startsWith("/")
-    ? resolveWorkflowCommandPrompt({
-        message: trimmedMessage,
-        workspaceDir: context.config.workspaceDir,
-      })
-    : undefined;
-  if (!workflowCommand && trimmedMessage === "/retry") {
-    return runInRoomQueue(
-      context,
-      String(preparedTurn.turn.roomId),
-      async () => {
-        throwIfTurnAborted(options?.abortSignal);
-        const sessions = context.services.sessions;
-        if (
-          typeof sessions.messagesBySession !== "function" ||
-          typeof sessions.replaceSessionMessages !== "function"
-        ) {
-          return "Retry is unavailable because complete session rollback is not supported by this runtime.";
-        }
-        const projectionSnapshot = sessions.messagesBySession(
+  const runQueued = (operation: () => Promise<string>): Promise<string> =>
+    runInRoomQueue(context, String(preparedTurn.turn.roomId), async () => {
+      if (!isDesktopWorkspaceRuntime()) return operation();
+      const scope = await resolveConversationWorkspace(
+        options?.originConversationId ?? preparedTurn.turn.sessionId,
+        options?.abortSignal,
+      );
+      return runWithConversationWorkspace(scope, operation);
+    });
+  return runQueued(async () => {
+    const workflowCommand = trimmedMessage.startsWith("/")
+      ? resolveWorkflowCommandPrompt({
+          message: trimmedMessage,
+          workspaceDir: isDesktopWorkspaceRuntime()
+            ? context.services.workspace.root()
+            : context.config.workspaceDir,
+        })
+      : undefined;
+    if (!workflowCommand && trimmedMessage === "/retry") {
+      throwIfTurnAborted(options?.abortSignal);
+      const sessions = context.services.sessions;
+      if (
+        typeof sessions.messagesBySession !== "function" ||
+        typeof sessions.replaceSessionMessages !== "function"
+      ) {
+        return "Retry is unavailable because complete session rollback is not supported by this runtime.";
+      }
+      const projectionSnapshot = sessions.messagesBySession(
+        preparedTurn.turn.sessionId,
+        Number.MAX_SAFE_INTEGER,
+      );
+      const replay = sessions.deleteLatestExchange(
+        preparedTurn.turn.sessionId,
+        {
+          skipSlashCommands: true,
+        },
+      );
+      if (!replay.userMessage) {
+        return "No prior conversational turn is available to retry.";
+      }
+      const replayUserMessage = replay.userMessage;
+      const restoreReplayProjection = () => {
+        // A replay may already have projected a partial replacement. Reset
+        // the complete cache to its exact pre-retry snapshot instead of
+        // appending the discarded exchange after partial replay output.
+        sessions.replaceSessionMessages(
           preparedTurn.turn.sessionId,
-          Number.MAX_SAFE_INTEGER,
+          projectionSnapshot,
         );
-        const replay = sessions.deleteLatestExchange(
-          preparedTurn.turn.sessionId,
-          {
-            skipSlashCommands: true,
-          },
-        );
-        if (!replay.userMessage) {
-          return "No prior conversational turn is available to retry.";
-        }
-        const replayUserMessage = replay.userMessage;
-        const restoreReplayProjection = () => {
-          // A replay may already have projected a partial replacement. Reset
-          // the complete cache to its exact pre-retry snapshot instead of
-          // appending the discarded exchange after partial replay output.
-          sessions.replaceSessionMessages(
-            preparedTurn.turn.sessionId,
-            projectionSnapshot,
-          );
-        };
-        let replayAttachments: Awaited<
-          ReturnType<typeof resolveManagedChatAttachments>
-        > = [];
-        if (replayUserMessage.attachments?.length) {
-          try {
-            replayAttachments = await resolveManagedChatAttachments({
-              dataDir: context.config.dataDir,
-              attachmentIds: replayUserMessage.attachments.map(
-                (attachment) => attachment.id,
-              ),
-            });
-          } catch {
-            restoreReplayProjection();
-            return "The previous turn used attachments that are no longer available, so it was not retried.";
-          }
-        }
-        let nativeSnapshots: Awaited<
-          ReturnType<typeof snapshotNativeConversationMemories>
-        > = [];
+      };
+      let replayAttachments: Awaited<
+        ReturnType<typeof resolveManagedChatAttachments>
+      > = [];
+      if (replayUserMessage.attachments?.length) {
         try {
-          nativeSnapshots = await snapshotNativeConversationMemories(context, [
-            replayUserMessage,
-            ...replay.assistantMessages,
-          ]);
-          const nativeDelete = await deleteNativeConversationMemories(context, [
-            replayUserMessage,
-            ...replay.assistantMessages,
-          ]);
-          if (nativeDelete.unsupported.length) {
-            throw new Error(
-              "The selected exchange contains legacy native memory ids.",
-            );
-          }
+          replayAttachments = await resolveManagedChatAttachments({
+            dataDir: context.config.dataDir,
+            attachmentIds: replayUserMessage.attachments.map(
+              (attachment) => attachment.id,
+            ),
+          });
         } catch {
           restoreReplayProjection();
-          return "The previous exchange could not be removed from native conversation history, so it was not retried.";
+          return "The previous turn used attachments that are no longer available, so it was not retried.";
         }
-        const retryInput = {
-          ...input,
-          message: replayUserMessage.text,
-          attachments: replayAttachments.map((attachment) => attachment.media),
-          attachmentDescriptors: replayAttachments.map(
-            (attachment) => attachment.descriptor,
-          ),
-        };
-        const retryTurn = prepareTurnState(retryInput, context);
-        perf.mark("retry-replay");
-        try {
-          return await runPostCommandTurn(
-            retryInput,
-            retryInput,
-            context,
-            options ?? {},
-            perf,
-            undefined,
-            retryTurn,
-          );
-        } catch (replayError) {
-          const rollbackErrors: unknown[] = [];
-          try {
-            await rollbackNativeConversationReplay({
-              context,
-              roomId: retryTurn.turn.roomId as UUID,
-              replayMessageId: retryTurn.turn.messageId as UUID,
-              originalSnapshots: nativeSnapshots,
-            });
-          } catch (error) {
-            rollbackErrors.push(error);
-          }
-          try {
-            restoreReplayProjection();
-          } catch (error) {
-            rollbackErrors.push(error);
-          }
-          if (rollbackErrors.length) {
-            throw new Error(
-              "Retry replay failed and its original exchange could not be fully restored.",
-              {
-                cause: new AggregateError([replayError, ...rollbackErrors]),
-              },
-            );
-          }
-          throw replayError;
-        }
-      },
-    );
-  }
-  const effectiveInput = workflowCommand
-    ? {
-        ...input,
-        message: workflowCommand.prompt,
       }
-    : input;
-  return runInRoomQueue(context, String(preparedTurn.turn.roomId), async () => {
+      let nativeSnapshots: Awaited<
+        ReturnType<typeof snapshotNativeConversationMemories>
+      > = [];
+      try {
+        nativeSnapshots = await snapshotNativeConversationMemories(context, [
+          replayUserMessage,
+          ...replay.assistantMessages,
+        ]);
+        const nativeDelete = await deleteNativeConversationMemories(context, [
+          replayUserMessage,
+          ...replay.assistantMessages,
+        ]);
+        if (nativeDelete.unsupported.length) {
+          throw new Error(
+            "The selected exchange contains legacy native memory ids.",
+          );
+        }
+      } catch {
+        restoreReplayProjection();
+        return "The previous exchange could not be removed from native conversation history, so it was not retried.";
+      }
+      const retryInput = {
+        ...input,
+        message: replayUserMessage.text,
+        attachments: replayAttachments.map((attachment) => attachment.media),
+        attachmentDescriptors: replayAttachments.map(
+          (attachment) => attachment.descriptor,
+        ),
+      };
+      const retryTurn = prepareTurnState(retryInput, context);
+      perf.mark("retry-replay");
+      try {
+        return await runPostCommandTurn(
+          retryInput,
+          retryInput,
+          context,
+          options ?? {},
+          perf,
+          undefined,
+          retryTurn,
+        );
+      } catch (replayError) {
+        const rollbackErrors: unknown[] = [];
+        try {
+          await rollbackNativeConversationReplay({
+            context,
+            roomId: retryTurn.turn.roomId as UUID,
+            replayMessageId: retryTurn.turn.messageId as UUID,
+            originalSnapshots: nativeSnapshots,
+          });
+        } catch (error) {
+          rollbackErrors.push(error);
+        }
+        try {
+          restoreReplayProjection();
+        } catch (error) {
+          rollbackErrors.push(error);
+        }
+        if (rollbackErrors.length) {
+          throw new Error(
+            "Retry replay failed and its original exchange could not be fully restored.",
+            {
+              cause: new AggregateError([replayError, ...rollbackErrors]),
+            },
+          );
+        }
+        throw replayError;
+      }
+    }
+    const effectiveInput = workflowCommand
+      ? { ...input, message: workflowCommand.prompt }
+      : input;
     throwIfTurnAborted(options?.abortSignal);
     perf.mark("sdk-shortcut-layer");
     return runPostCommandTurn(

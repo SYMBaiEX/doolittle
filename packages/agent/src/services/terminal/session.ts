@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
-import { basename } from "node:path";
+import { realpathSync } from "node:fs";
+import { basename, isAbsolute, relative, sep } from "node:path";
 import { type IPty, spawn as spawnPty } from "@lydell/node-pty";
+import { currentConversationWorkspace } from "@/runtime/workspace-scope";
 import {
   resolveWorkspaceDirectory,
   type WorkspaceDirectorySource,
@@ -64,6 +66,7 @@ export interface InteractiveTerminalOutput {
 }
 
 interface InteractiveTerminalSessionRecord {
+  originConversationId?: string;
   snapshot: InteractiveTerminalSessionSnapshot;
   terminal: IPty;
   chunks: InteractiveTerminalOutputChunk[];
@@ -178,6 +181,7 @@ export class InteractiveTerminalSessionManager {
         if (!record || record.snapshot.state === "closed") {
           throw new TerminalCreationConflictError();
         }
+        this.assertCurrentOwner(record);
         return { ...record.snapshot };
       }
       if (this.creations.size >= MAX_CREATION_IDS) {
@@ -205,8 +209,19 @@ export class InteractiveTerminalSessionManager {
           ]
         : [LOCAL_SHELL, "-lc", options.command]
       : terminalCommand();
-    const workspaceDir =
-      options?.cwd ?? resolveWorkspaceDirectory(this.workspaceDirectory);
+    const configuredRoot = resolveWorkspaceDirectory(this.workspaceDirectory);
+    const root = realpathSync(configuredRoot);
+    const canonicalCwd = options?.cwd ? realpathSync(options.cwd) : root;
+    const fromRoot = relative(root, canonicalCwd);
+    if (
+      !isAbsolute(canonicalCwd) ||
+      fromRoot === ".." ||
+      fromRoot.startsWith(`..${sep}`) ||
+      isAbsolute(fromRoot)
+    ) {
+      throw new Error("Terminal cwd must be inside the current workspace.");
+    }
+    const workspaceDir = options?.cwd ? canonicalCwd : configuredRoot;
     if (creationId !== undefined) {
       // Reserve immediately before spawn. A failed spawn remains a tombstone:
       // a replay must never create a second process after uncertain outcome.
@@ -254,6 +269,7 @@ export class InteractiveTerminalSessionManager {
       ...(options?.command ? { managed: true, command: options.command } : {}),
     };
     record = {
+      originConversationId: currentConversationWorkspace()?.sessionId,
       snapshot,
       terminal,
       chunks: [],
@@ -361,8 +377,13 @@ export class InteractiveTerminalSessionManager {
   }
 
   listManaged(): InteractiveTerminalSessionSnapshot[] {
+    const origin = currentConversationWorkspace()?.sessionId;
     return [...this.sessions.values()]
-      .filter((record) => record.snapshot.managed)
+      .filter(
+        (record) =>
+          record.snapshot.managed &&
+          (!origin || record.originConversationId === origin),
+      )
       .map((record) => ({ ...record.snapshot }));
   }
 
@@ -414,7 +435,15 @@ export class InteractiveTerminalSessionManager {
     if (!record) {
       throw new TerminalSessionNotFoundError();
     }
+    this.assertCurrentOwner(record);
     return record;
+  }
+
+  private assertCurrentOwner(record: InteractiveTerminalSessionRecord): void {
+    const origin = currentConversationWorkspace()?.sessionId;
+    if (origin && record.originConversationId !== origin) {
+      throw new TerminalSessionNotFoundError();
+    }
   }
 
   private requireRunning(sessionId: string): InteractiveTerminalSessionRecord {

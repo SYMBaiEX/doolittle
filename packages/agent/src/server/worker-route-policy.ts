@@ -31,6 +31,14 @@ export function isWorkerApiRouteAllowed(
     "/workspace/tree",
     "/workspace/read",
     "/workspace/search",
+    "/workspace/checkpoints",
+    "/browser/render-targets",
+    "/execution/status",
+    "/execution/backends",
+    "/activity",
+    "/activity/export",
+    "/skills",
+    "/context/files",
     "/repo/status",
     "/repo/diff",
     "/repo/log",
@@ -43,6 +51,7 @@ export function isWorkerApiRouteAllowed(
     "/repo/remotes",
     "/repo/stashes",
     "/repo/conflicts",
+    "/review-record",
   ]);
   const projectResource =
     /^\/projects\/[a-zA-Z0-9:_-]{1,128}\/resources(?:\/[a-zA-Z0-9:_-]{1,128})?$/u;
@@ -72,6 +81,14 @@ export function isWorkerApiRouteAllowed(
     ) {
       return true;
     }
+    if (
+      allowMutation &&
+      (pathname === "/workspace/checkpoints" ||
+        /^\/workspace\/checkpoints\/[a-zA-Z0-9_-]{1,128}\/restore$/u.test(
+          pathname,
+        ))
+    )
+      return true;
     return (
       new Set([
         "/chat/runs",

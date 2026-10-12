@@ -6,6 +6,7 @@ export const WORKER_HOST_RPC_PROTOCOL = "doolittle-worker-host-v1";
 export type WorkerHostOperation =
   | "codex.auth"
   | "claude.invoke"
+  | "workspace.resolve"
   | "execution.claim"
   | "execution.release"
   | "consult.dispatch"

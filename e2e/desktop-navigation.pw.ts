@@ -17,6 +17,7 @@ import {
 import { expectNoDesktopRecovery } from "./support/desktop-assertions";
 import {
   launchIsolatedDesktop,
+  openApprovedProjectChat,
   waitForDesktopReady,
 } from "./support/doolittle-workbench-app";
 import { isolatedRuntimeEnvironment } from "./support/isolated-runtime-environment";
@@ -792,10 +793,15 @@ test.describe("Doolittle desktop navigation", () => {
       // Independently cover the settled empty state, before any research task.
       // This owned workspace has no repository changes, approvals, or checks.
       try {
-        await page.evaluate(async (workspacePath) => {
-          await window.doolittle.switchWorkspace(workspacePath);
+        await openApprovedProjectChat(
+          app,
+          page,
+          "Empty review project",
+          alternateWorkspace,
+        );
+        await page.evaluate(() => {
           window.location.hash = "#/review";
-        }, alternateWorkspace);
+        });
         const emptyReview = page.locator(".review-page");
         await expect(emptyReview).toHaveAttribute(
           "data-workspace-path",
@@ -817,10 +823,12 @@ test.describe("Doolittle desktop navigation", () => {
           emptyReview.getByRole("tablist", { name: "Review filters" }),
         ).toHaveCount(0);
       } finally {
-        await page.evaluate(async (workspacePath) => {
-          await window.doolittle.switchWorkspace(workspacePath);
-          window.location.hash = "#/chat";
-        }, repoRoot);
+        await openApprovedProjectChat(
+          app,
+          page,
+          "Initial navigation project",
+          repoRoot,
+        );
       }
       await expect(
         page.getByRole("toolbar", { name: "Conversation controls" }),
@@ -920,33 +928,7 @@ test.describe("Doolittle desktop navigation", () => {
       await page.evaluate(() => {
         window.location.hash = "#/chat";
       });
-      await page
-        .getByRole("button", { name: "Conversation", exact: true })
-        .click();
-      const repositoryScope = page.getByRole("button", {
-        name: /^Choose project\./,
-      });
-      await repositoryScope.click();
-      await page
-        .getByRole("button", { name: /General No repository context/ })
-        .click();
-      await page.evaluate(() => {
-        window.location.hash = "#/code";
-      });
-      await expect(
-        page.locator('.view-container[data-view="code"]'),
-      ).toBeVisible();
-      await expect
-        .poll(() => page.evaluate(() => window.location.hash))
-        .toBe("#/code");
-      await page.evaluate(() => {
-        window.location.hash = "#/chat";
-      });
-      const projectScope = page.getByRole("button", {
-        name: /^Choose project\./,
-      });
-      await projectScope.click();
-      await page.getByRole("button", { name: /E2E repository/ }).click();
+      await openApprovedProjectChat(app, page, "E2E repository", repoRoot);
       await page.evaluate(() => {
         window.location.hash = "#/code";
       });
@@ -1210,7 +1192,16 @@ test.describe("Doolittle desktop navigation", () => {
       // orchestration receipt below instead verifies a repository-scoped task,
       // so restore the E2E project before starting that independent flow.
       await page.getByRole("button", { name: /^Choose project\./ }).click();
-      await page.getByRole("button", { name: /E2E repository/ }).click();
+      await page
+        .getByRole("dialog", {
+          name: "Choose a project for this new conversation",
+        })
+        .getByRole("button", { name: /E2E repository/ })
+        .click();
+
+      await expect(
+        page.getByRole("button", { name: /^Choose project\./ }),
+      ).toHaveAccessibleName(/Current project E2E repository/u);
 
       const verifyAllRoutes = async () => {
         for (const [route] of routes) {
@@ -1235,6 +1226,14 @@ test.describe("Doolittle desktop navigation", () => {
                 : routeContainer;
           await expect(viewContainer).toBeVisible();
           if (route === "code") {
+            // Project selection now opens another immutable chat. Its scoped
+            // Code view intentionally does not inherit the earlier editor.
+            await viewContainer
+              .getByRole("treeitem", { name: /AGENTS\.md/ })
+              .click();
+            await expect(
+              viewContainer.locator(".doolittle-code-editor .monaco-editor"),
+            ).toBeVisible();
             await expectEditorToolbarGeometry(
               viewContainer.locator(".coding-editor-toolbar"),
             );
@@ -2245,6 +2244,9 @@ test.describe("Doolittle desktop navigation", () => {
       await page
         .getByRole("button", { name: /General No repository context/ })
         .click();
+      await expect(
+        page.getByRole("button", { name: /^Choose project\./ }),
+      ).toHaveAccessibleName(/Current project General/u);
       await page.evaluate(() => {
         window.location.hash = "#/work/review";
       });
@@ -2261,6 +2263,9 @@ test.describe("Doolittle desktop navigation", () => {
       });
       await page.getByRole("button", { name: /^Choose project\./ }).click();
       await page.getByRole("button", { name: /E2E repository/ }).click();
+      await expect(
+        page.getByRole("button", { name: /^Choose project\./ }),
+      ).toHaveAccessibleName(/Current project E2E repository/u);
       await page.evaluate(() => {
         window.location.hash = "#/work/review";
       });
@@ -2572,6 +2577,13 @@ test.describe("Doolittle desktop navigation", () => {
       );
       expect(focusedComposerStyle.textareaOutline).toBe("none");
       await composer.fill("Draft survives project switching");
+      const retainedDraftId =
+        await focusedSessionPanel.getAttribute("data-session-panel");
+      if (!retainedDraftId)
+        throw new Error("Original draft identity is missing.");
+      const retainedDraft = page.locator(
+        `[data-session-panel="${retainedDraftId}"] textarea[aria-label="Message Doolittle"]`,
+      );
       await focusedSessionPanel
         .getByRole("button", {
           name: /Choose project\. Current project E2E repository\./,
@@ -2602,7 +2614,14 @@ test.describe("Doolittle desktop navigation", () => {
         })
         .getByRole("button", { name: /General/ })
         .click();
-      await expect(composer).toHaveValue("Draft survives project switching");
+      await expect(
+        focusedSessionPanel.getByRole("button", { name: /^Choose project\./ }),
+      ).toHaveAccessibleName(/Current project General/u);
+      await expect(composer).toBeVisible();
+      await expect(composer).toHaveValue("");
+      await expect(retainedDraft).toHaveValue(
+        "Draft survives project switching",
+      );
       await focusedSessionPanel
         .getByRole("button", {
           name: /Choose project\. Current project General\./,
@@ -2614,9 +2633,14 @@ test.describe("Doolittle desktop navigation", () => {
         })
         .getByRole("button", { name: /E2E repository/ })
         .click();
-      await expect(composer).toHaveValue("Draft survives project switching");
-      await composer.fill("");
-
+      await expect(
+        focusedSessionPanel.getByRole("button", { name: /^Choose project\./ }),
+      ).toHaveAccessibleName(/Current project E2E repository/u);
+      await expect(composer).toBeVisible();
+      await expect(composer).toHaveValue("");
+      await expect(retainedDraft).toHaveValue(
+        "Draft survives project switching",
+      );
       await focusedSessionPanel
         .getByRole("button", { name: /Choose model\. Current route/ })
         .click();

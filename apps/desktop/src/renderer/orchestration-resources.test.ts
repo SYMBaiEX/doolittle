@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { apiResourceCacheKey } from "./lib";
 import {
@@ -9,6 +10,15 @@ import {
   orchestrationResourcePaths,
   projectOrchestrationCodegenSelection,
 } from "./orchestration-resources";
+
+const resourceSource = readFileSync(
+  new URL("./orchestration-resources.ts", import.meta.url),
+  "utf8",
+);
+const orchestrationPageSource = readFileSync(
+  new URL("./OrchestrationPage.tsx", import.meta.url),
+  "utf8",
+);
 
 describe("orchestration resource paths", () => {
   it("uses bounded collection endpoints and safely encodes selected resource IDs", () => {
@@ -74,6 +84,27 @@ describe("orchestration resource cache identity", () => {
       apiResourceCacheKey(orchestrationResourcePaths.overview, forProjectA),
     ).toBe(
       apiResourceCacheKey(orchestrationResourcePaths.overview, forProjectB),
+    );
+  });
+});
+
+describe("scoped worktree reads", () => {
+  it("requires matching origin and forwards it to the resource request", () => {
+    expect(resourceSource).toContain(
+      "requestPolicy.worktrees && worktreeOrigin",
+    );
+    expect(resourceSource).toContain("input.computerOrigin.workspacePath");
+    expect(resourceSource).toContain(
+      "worktreeOrigin?.botId,\n    worktreeOrigin,",
+    );
+  });
+
+  it("remounts the embedded review when the captured chat changes", () => {
+    expect(orchestrationPageSource).toContain(
+      "computerOrigin={computerOrigin}",
+    );
+    expect(orchestrationPageSource).toContain(
+      'computerOrigin?.originConversationId ?? ""',
     );
   });
 });

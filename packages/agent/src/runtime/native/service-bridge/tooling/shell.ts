@@ -1,3 +1,4 @@
+import { currentConversationWorkspace } from "@/runtime/workspace-scope";
 import type { RuntimeLike } from "../runtime-contracts";
 import { requireNativeShell } from "./native-services";
 
@@ -15,6 +16,9 @@ export async function runEffectiveShellCommand(
 }
 
 export function getEffectiveShellHistory(runtime: RuntimeLike, limit = 10) {
+  // The SDK shell history has no conversation owner; never project it into a
+  // bound chat even if another chat happens to use the same repository root.
+  if (currentConversationWorkspace()) return [];
   return requireNativeShell(runtime).history(limit);
 }
 

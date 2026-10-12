@@ -9,6 +9,7 @@ describe("chat turn response shaping", () => {
       } as never,
       runtime: {} as never,
       services: {
+        workspace: { root: () => "/tmp/doolittle-workspace" },
         settings: {
           get: () => ({
             execution: { backend: "docker" },

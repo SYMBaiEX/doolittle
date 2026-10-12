@@ -100,7 +100,7 @@
     "test:account-pool": "nubx vitest run packages/agent/src/runtime/native/account-pool/index.test.ts packages/agent/src/server/routes/runtime/accounts.test.ts",
     "check:alpha": "nub run test:coding-harness && nub run test:coding-evals && nub run test:headless-evals && nub run test:research-harness && nub run test:account-pool",
     "test:e2e": "nub run desktop:build && nubx playwright test",
-    "test:e2e:release:source": "nub run build && DOOLITTLE_SHARED_ENGINE_E2E=1 DOOLITTLE_SHARED_ENGINE_E2E_TARGET=source nubx vitest run --config vitest.integration.config.ts apps/desktop/src/main/shared-engine.e2e.test.ts",
+    "test:e2e:release:source": "nub run build && DOOLITTLE_WORKER_E2E=1 DOOLITTLE_SHARED_ENGINE_E2E=1 DOOLITTLE_SHARED_ENGINE_E2E_TARGET=source nubx vitest run --config vitest.integration.config.ts apps/desktop/src/main/shared-engine.e2e.test.ts apps/desktop/src/main/bot-automation-worker.e2e.test.ts apps/desktop/src/main/bot-knowledge-consultation.e2e.test.ts",
     "test:e2e:release:workbench-core": "nub run desktop:build && nubx playwright test --config playwright.workbench.config.ts e2e/desktop-session-workbench.pw.ts --grep 'offline new-chat chooser|keeps running, approval, cancellation, failure, and completion state bound to each session'",
     "test:e2e:release:packaged-core": "DOOLITTLE_DESKTOP_EXECUTABLE= nub scripts/run-desktop-packaged-tests.ts e2e/desktop-packaged.pw.ts",
     "test:e2e:release": "nub run test:e2e:release:source && nub run test:e2e:desktop-workbench && nub run desktop:package:dir && DOOLITTLE_DESKTOP_EXECUTABLE= nub run test:e2e:desktop-packaged",

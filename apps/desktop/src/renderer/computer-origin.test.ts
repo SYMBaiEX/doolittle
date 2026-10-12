@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
-import { ensureComputerOriginOwnerBinding } from "./computer-origin";
+import {
+  ensureComputerOriginOwnerBinding,
+  resolveTerminalConversationOrigin,
+} from "./computer-origin";
 
 const origin = {
   botId: "bot-default",
@@ -105,5 +108,112 @@ describe("ensureComputerOriginOwnerBinding", () => {
       origin.originConversationId,
       undefined,
     );
+  });
+});
+
+describe("terminal conversation origin", () => {
+  const conversation = {
+    botId: origin.botId,
+    sessionId: origin.originConversationId,
+    workspacePath: "/private/scratch/bot-default",
+    createdAt: "2026-10-12",
+    updatedAt: "2026-10-12",
+  };
+  const options = () => ({
+    savedSessionIds: new Set<string>(),
+    localBotBindings: { [origin.originConversationId]: origin.botId },
+    freshScratchDraftIds: new Set([origin.originConversationId]),
+    bind: vi.fn(async () => conversation),
+  });
+
+  it("binds a fresh scratch draft and takes its root only from the host", async () => {
+    const input = { ...origin, workspacePath: "" };
+    const access = options();
+    await expect(
+      resolveTerminalConversationOrigin(input, { kind: "pending" }, access),
+    ).resolves.toEqual({
+      conversation,
+      origin: { ...input, workspacePath: conversation.workspacePath },
+    });
+    expect(access.bind).toHaveBeenCalledExactlyOnceWith(
+      origin.botId,
+      origin.originConversationId,
+      undefined,
+    );
+    expect(input.workspacePath).toBe("");
+  });
+
+  it("does not bind unknown history or pending project drafts", async () => {
+    const access = options();
+    for (const scope of [
+      { kind: "unknown" } as const,
+      { kind: "pending", projectId: "project" } as const,
+    ])
+      await expect(
+        resolveTerminalConversationOrigin(origin, scope, access),
+      ).rejects.toThrow(/confirmed chat workspace/u);
+    expect(access.bind).not.toHaveBeenCalled();
+  });
+
+  it("requires an ephemeral fresh-draft witness, not persisted draft intent", async () => {
+    const access = options();
+    access.freshScratchDraftIds.clear();
+    await expect(
+      resolveTerminalConversationOrigin(origin, { kind: "pending" }, access),
+    ).rejects.toThrow(/confirmed chat workspace/u);
+    expect(access.bind).not.toHaveBeenCalled();
+  });
+
+  it("rejects saved pending drafts and another bot's captured ownership", async () => {
+    const access = options();
+    access.savedSessionIds.add(origin.originConversationId);
+    await expect(
+      resolveTerminalConversationOrigin(origin, { kind: "pending" }, access),
+    ).rejects.toThrow(/confirmed chat workspace/u);
+    access.savedSessionIds.clear();
+    access.localBotBindings[origin.originConversationId] = "other-bot";
+    await expect(
+      resolveTerminalConversationOrigin(origin, { kind: "pending" }, access),
+    ).rejects.toThrow(/captured bot owner/u);
+    expect(access.bind).not.toHaveBeenCalled();
+  });
+
+  it("rejects mismatched host tuples instead of inheriting another root", async () => {
+    for (const mismatch of [
+      { botId: "other" },
+      { sessionId: "other" },
+      { projectId: "other" },
+      { workspacePath: "" },
+    ]) {
+      const access = options();
+      access.bind.mockResolvedValue({ ...conversation, ...mismatch });
+      await expect(
+        resolveTerminalConversationOrigin(origin, { kind: "pending" }, access),
+      ).rejects.toThrow(/scope changed/u);
+    }
+  });
+
+  it("keeps an already confirmed saved root without recreating its grant", async () => {
+    const access = options();
+    access.savedSessionIds.add(origin.originConversationId);
+    const confirmedOrigin = {
+      ...origin,
+      workspacePath: conversation.workspacePath,
+    };
+    await expect(
+      resolveTerminalConversationOrigin(
+        confirmedOrigin,
+        { kind: "confirmed", conversation },
+        access,
+      ),
+    ).resolves.toEqual({ origin: confirmedOrigin, conversation });
+    expect(access.bind).not.toHaveBeenCalled();
+    await expect(
+      resolveTerminalConversationOrigin(
+        { ...confirmedOrigin, workspacePath: "/other" },
+        { kind: "confirmed", conversation },
+        access,
+      ),
+    ).rejects.toThrow(/scope changed/u);
   });
 });

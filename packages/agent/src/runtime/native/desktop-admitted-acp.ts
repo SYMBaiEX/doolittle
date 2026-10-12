@@ -10,8 +10,13 @@ import {
   acquireExecutionLease,
   type ExecutionLease,
   getScopedExecutionLease,
+  getScopedSdkTaskSpawn,
 } from "@/runtime/execution-admission";
 import { getScopedTurnAbortSignal } from "@/runtime/turn-runtime-scope";
+import {
+  requireConversationWorkspace,
+  resolveConversationWorkspace,
+} from "@/runtime/workspace-scope";
 
 type PendingAdmission = {
   sessionId?: string;
@@ -80,6 +85,35 @@ function desktopParentRunId(metadata?: Record<string, unknown>): string | null {
   return parent.runId;
 }
 
+function admittedSdkSpawn(options: SpawnOptions): SpawnOptions {
+  if (process.env.DOOLITTLE_DESKTOP_RUNTIME !== "1") return options;
+  const context = getScopedSdkTaskSpawn();
+  if (!context) return options;
+  const parent = getScopedExecutionLease();
+  const workspace = requireConversationWorkspace();
+  if (
+    !parent ||
+    parent.runId !== context.parentRunId ||
+    parent.sessionId !== context.sessionId ||
+    workspace.sessionId !== context.sessionId ||
+    workspace.workspacePath !== context.workspacePath ||
+    (options.workdir !== undefined &&
+      options.workdir !== context.workspacePath) ||
+    options.metadata?.source !== "orchestrator" ||
+    options.metadata.taskId !== context.taskId ||
+    (options.metadata.doolittleParentRunId !== undefined &&
+      options.metadata.doolittleParentRunId !== parent.runId)
+  )
+    throw new Error(
+      "SDK task spawn no longer matches its approved desktop run.",
+    );
+  return {
+    ...options,
+    workdir: context.workspacePath,
+    metadata: { ...options.metadata, doolittleParentRunId: parent.runId },
+  };
+}
+
 /** The SDK retains ACP session/process authority; the desktop host owns slots. */
 export class DesktopAdmittedAcpService extends AcpService {
   private pendingAdmissions?: Set<PendingAdmission>;
@@ -95,6 +129,7 @@ export class DesktopAdmittedAcpService extends AcpService {
   private async admittedLease(
     parentRunId: string,
     sessionId?: string,
+    expectedWorkdir?: string,
   ): Promise<AdmittedOperation> {
     const parentSignal = getScopedTurnAbortSignal(this.runtime);
     parentSignal?.throwIfAborted();
@@ -134,13 +169,24 @@ export class DesktopAdmittedAcpService extends AcpService {
     try {
       lease = await acquireExecutionLease({
         runId: `acp:${randomUUID()}`,
-        sessionId: parentRunId,
+        sessionId: getScopedExecutionLease()?.sessionId ?? parentRunId,
         kind: "automatic-acp",
+        parentRunId,
         signal: pending.controller.signal,
       });
       pending.controller.signal.throwIfAborted();
       if (getScopedExecutionLease()?.runId !== parentRunId) {
         throw new Error("The parent desktop run is no longer active.");
+      }
+      if (expectedWorkdir) {
+        const parentSessionId = getScopedExecutionLease()?.sessionId;
+        if (!parentSessionId)
+          throw new Error("The parent desktop conversation is unavailable.");
+        const current = await resolveConversationWorkspace(parentSessionId);
+        if (current.workspacePath !== expectedWorkdir)
+          throw new Error(
+            "ACP workspace no longer matches the approved desktop conversation.",
+          );
       }
       if (sessionId) {
         const session = await super.getSession(sessionId);
@@ -244,9 +290,12 @@ export class DesktopAdmittedAcpService extends AcpService {
   }
 
   override async spawnSession(options: SpawnOptions) {
+    options = admittedSdkSpawn(options);
     const parentRunId = desktopParentRunId(options.metadata);
+    if (parentRunId && !options.workdir)
+      throw new Error("An approved desktop ACP workdir is required.");
     const operation = parentRunId
-      ? await this.admittedLease(parentRunId)
+      ? await this.admittedLease(parentRunId, undefined, options.workdir)
       : null;
     try {
       operation?.start();
@@ -281,6 +330,7 @@ export class DesktopAdmittedAcpService extends AcpService {
     const operation = await this.admittedLease(
       parentRunId as string,
       sessionId,
+      session.workdir,
     );
     try {
       operation.start();
@@ -302,6 +352,7 @@ export class DesktopAdmittedAcpService extends AcpService {
     const operation = await this.admittedLease(
       parentRunId as string,
       sessionId,
+      session.workdir,
     );
     try {
       operation.start();

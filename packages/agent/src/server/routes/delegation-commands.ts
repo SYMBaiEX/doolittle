@@ -9,6 +9,7 @@ import {
   spawnEffectiveDelegationChild,
   superviseEffectiveDelegationQueue,
 } from "@/runtime/native/service-bridge/delegation";
+import { currentConversationWorkspace } from "@/runtime/workspace-scope";
 import { readJsonObjectBody } from "@/server/request-body";
 import { json } from "@/server/responses";
 
@@ -620,7 +621,7 @@ export async function handleDelegationCommandRoutes(
       {
         message: `/delegate execute ${id}`,
         userId: "api-delegation",
-        roomId: "api-delegation",
+        roomId: currentConversationWorkspace()?.sessionId ?? "api-delegation",
         source: "api",
       },
       context,

@@ -5,6 +5,7 @@ import {
   mkdtempSync,
   realpathSync,
   rmSync,
+  writeFileSync,
 } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
@@ -167,7 +168,7 @@ async function jsonAt<T>(
 describe.skipIf(process.env.DOOLITTLE_SHARED_ENGINE_E2E !== "1")(
   "shared engine offline boundary",
   () => {
-    it("keeps two named bots independent across turns, stop, and restart", async () => {
+    it("keeps approved project chats on one bot scoped and named bots independent across restart", async () => {
       const target = testRuntimeTarget();
       const directory = mkdtempSync(
         resolve(tmpdir(), "doolittle-shared-engine-"),
@@ -185,6 +186,8 @@ describe.skipIf(process.env.DOOLITTLE_SHARED_ENGINE_E2E !== "1")(
         workspaceB,
       ])
         mkdirSync(path, { recursive: true, mode: 0o700 });
+      writeFileSync(resolve(workspaceA, "scope.txt"), "project-A-only");
+      writeFileSync(resolve(workspaceB, "scope.txt"), "project-B-only");
 
       const admission = new DesktopExecutionAdmission({ maxConcurrent: 1 });
       const lead = new BackendManager(
@@ -211,6 +214,15 @@ describe.skipIf(process.env.DOOLITTLE_SHARED_ENGINE_E2E !== "1")(
               : {}),
           },
           workerHostHandler: async (request, signal) => {
+            if (request.operation === "workspace.resolve") {
+              const payload = request.payload as { sessionId?: unknown } | null;
+              if (typeof payload?.sessionId !== "string")
+                throw new Error("Conversation scope is required.");
+              return registry.resolveVerifiedConversationWorkspace(
+                "default",
+                payload.sessionId,
+              );
+            }
             if (
               request.operation !== "execution.claim" &&
               request.operation !== "execution.release"
@@ -243,11 +255,32 @@ describe.skipIf(process.env.DOOLITTLE_SHARED_ENGINE_E2E !== "1")(
       try {
         const leadState = await lead.start();
         expect(leadState.phase, leadState.detail).toBe("ready");
+        const leadEndpoint = endpointOf(lead);
+        const createProject = async (name: string, primaryPath: string) => {
+          const response = await localFetch(leadEndpoint, "/projects", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ name, primaryPath }),
+          });
+          expect(response.status, await response.clone().text()).toBe(201);
+          return (await response.json()) as { project: { id: string } };
+        };
+        const [projectA, projectB] = await Promise.all([
+          createProject("Native scope A", workspaceA),
+          createProject("Native scope B", workspaceB),
+        ]);
+        const [snapshotA, snapshotB] = await Promise.all([
+          registry.readLeadProject(projectA.project.id),
+          registry.readLeadProject(projectB.project.id),
+        ]);
+        expect(snapshotA.workspacePath).toBe(realpathSync(workspaceA));
+        expect(snapshotB.workspacePath).toBe(realpathSync(workspaceB));
         const first = registry.create({
           name: "Shared Engine One",
           persona: "You are the first offline test bot. Keep your own history.",
           workspacePath: workspaceA,
           model: { provider: "offline", model: "offline" },
+          permissions: { allowMutation: true, toolIds: ["DOOLITTLE_COMMAND"] },
         });
         const second = registry.create({
           name: "Shared Engine Two",
@@ -258,6 +291,14 @@ describe.skipIf(process.env.DOOLITTLE_SHARED_ENGINE_E2E !== "1")(
         });
         const firstId = checkedId(first.id);
         const secondId = checkedId(second.id);
+        // This is the test's explicit native project approval. A named bot's
+        // configured workspace is only private scratch, not a project grant.
+        const firstSessionA = `session-${randomUUID()}`;
+        const firstSessionB = `session-${randomUUID()}`;
+        const secondSession = `session-${randomUUID()}`;
+        registry.bindConversationWorkspace(firstId, firstSessionA, snapshotA);
+        registry.bindConversationWorkspace(firstId, firstSessionB, snapshotB);
+        registry.bindConversationWorkspace(secondId, secondSession, snapshotB);
         const [botA, botB] = await Promise.all([
           registry.backendFor(firstId),
           registry.backendFor(secondId),
@@ -274,6 +315,9 @@ describe.skipIf(process.env.DOOLITTLE_SHARED_ENGINE_E2E !== "1")(
         });
         expect(botA).toBeInstanceOf(EngineBotBackend);
         expect(botB).toBeInstanceOf(EngineBotBackend);
+        expect(botA.getWorkspaceDirectory()).not.toBe(snapshotA.workspacePath);
+        expect(botA.getWorkspaceDirectory()).not.toBe(snapshotB.workspacePath);
+        expect(botB.getWorkspaceDirectory()).not.toBe(snapshotB.workspacePath);
         const [endpointA, endpointB] = [endpointOf(botA), endpointOf(botB)];
         expect(endpointA.port).not.toBe(endpointB.port);
         type RuntimeIdentity = {
@@ -307,6 +351,42 @@ describe.skipIf(process.env.DOOLITTLE_SHARED_ENGINE_E2E !== "1")(
           agentId: second.agentId,
         });
         expect(identityA.agentId).not.toBe(identityB.agentId);
+        expect(endpointOf(await registry.backendFor(firstId)).port).toBe(
+          endpointA.port,
+        );
+        const readScope = async (
+          endpoint: LoopbackEndpoint,
+          sessionId: string,
+        ) =>
+          localFetch(
+            endpoint,
+            "/workspace/read",
+            { headers: { "x-doolittle-origin-conversation": sessionId } },
+            new URLSearchParams({ path: "scope.txt" }),
+          );
+        const [readA, readB] = await Promise.all([
+          readScope(endpointA, firstSessionA),
+          readScope(endpointA, firstSessionB),
+        ]);
+        expect(readA.status, await readA.clone().text()).toBe(200);
+        expect(readB.status, await readB.clone().text()).toBe(200);
+        expect(await readA.json()).toMatchObject({ content: "project-A-only" });
+        expect(await readB.json()).toMatchObject({ content: "project-B-only" });
+        expect((await readScope(endpointA, secondSession)).status).toBe(409);
+        expect((await readScope(endpointB, firstSessionA)).status).toBe(409);
+        expect(
+          (await readScope(endpointA, `session-${randomUUID()}`)).status,
+        ).toBe(409);
+        expect(
+          (
+            await localFetch(
+              endpointA,
+              "/workspace/read",
+              undefined,
+              new URLSearchParams({ path: "scope.txt" }),
+            )
+          ).status,
+        ).toBe(409);
         for (const [ownUrl, otherId] of [
           [endpointA, secondId],
           [endpointB, firstId],
@@ -344,14 +424,13 @@ describe.skipIf(process.env.DOOLITTLE_SHARED_ENGINE_E2E !== "1")(
         const turn = async (
           botId: string,
           endpoint: LoopbackEndpoint,
-          workspaceDir: string,
+          sessionId: string,
+          projectId: string,
           marker: string,
           verifyQueued = false,
         ) => {
           checkedId(botId);
-          const sessionId = `session-${randomUUID()}`;
           const runId = `run-${randomUUID()}`;
-          registry.bindConversation(botId, sessionId);
           const response = await localFetch(endpoint, "/chat/runs", {
             method: "POST",
             headers: { "content-type": "application/json" },
@@ -360,7 +439,7 @@ describe.skipIf(process.env.DOOLITTLE_SHARED_ENGINE_E2E !== "1")(
               roomId: sessionId,
               message: marker,
               source: "desktop",
-              workspaceDir,
+              projectId,
             }),
           });
           expect(response.status, await response.clone().text()).toBe(202);
@@ -415,10 +494,30 @@ describe.skipIf(process.env.DOOLITTLE_SHARED_ENGINE_E2E !== "1")(
         };
         const markerA = `Offline-A-${randomUUID()}`;
         const markerB = `Offline-B-${randomUUID()}`;
-        const [runA, runB] = await Promise.all([
-          turn(firstId, endpointA, workspaceA, markerA, true),
-          turn(secondId, endpointB, workspaceB, markerB),
+        const markerC = `Offline-C-${randomUUID()}`;
+        const mismatch = await localFetch(endpointA, "/chat/runs", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            runId: `run-${randomUUID()}`,
+            roomId: firstSessionA,
+            message: "Must not run in another project",
+            source: "desktop",
+            projectId: snapshotB.id,
+          }),
+        });
+        expect(mismatch.status).toBe(409);
+        expect(await mismatch.json()).toMatchObject({
+          code: "session_project_mismatch",
+        });
+        const [runA, runB, runC] = await Promise.all([
+          turn(firstId, endpointA, firstSessionA, snapshotA.id, markerA, true),
+          turn(firstId, endpointA, firstSessionB, snapshotB.id, markerB),
+          turn(secondId, endpointB, secondSession, snapshotB.id, markerC),
         ]);
+        expect(
+          await jsonAt<RuntimeIdentity>(endpointA, "/runtime/bot-identity"),
+        ).toMatchObject(identityA);
         const history = async (
           endpoint: LoopbackEndpoint,
           sessionId: string,
@@ -435,18 +534,45 @@ describe.skipIf(process.env.DOOLITTLE_SHARED_ENGINE_E2E !== "1")(
           ),
         ).toBe(true);
         expect(
-          (await history(endpointB, runB.sessionId, runB.runId)).messages.some(
+          (await history(endpointA, runB.sessionId, runB.runId)).messages.some(
             (entry) => entry.role === "user" && entry.text.includes(markerB),
           ),
         ).toBe(true);
+        expect(
+          (await history(endpointB, runC.sessionId, runC.runId)).messages.some(
+            (entry) => entry.role === "user" && entry.text.includes(markerC),
+          ),
+        ).toBe(true);
+        // Use the supported chat command, not the blocked worker /terminal/run API.
+        for (const [sessionId, snapshot, otherRoot] of [
+          [firstSessionA, snapshotA, snapshotB.workspacePath],
+          [firstSessionB, snapshotB, snapshotA.workspacePath],
+        ] as const) {
+          const command = await turn(
+            firstId,
+            endpointA,
+            sessionId,
+            snapshot.id,
+            "/terminal run pwd",
+          );
+          const result = (
+            await history(endpointA, command.sessionId, command.runId)
+          ).messages
+            .filter((entry) => entry.role === "assistant")
+            .at(-1)?.text;
+          expect(result).toContain(snapshot.workspacePath);
+          expect(result).not.toContain(otherRoot);
+        }
         const bRuns = await jsonAt<{ runs: Array<{ runId: string }> }>(
           endpointB,
           "/chat/runs",
           new URLSearchParams({ limit: "20" }),
         );
-        expect(bRuns.runs.some((entry) => entry.runId === runA.runId)).toBe(
-          false,
-        );
+        expect(
+          bRuns.runs.some(
+            (entry) => entry.runId === runA.runId || entry.runId === runB.runId,
+          ),
+        ).toBe(false);
 
         await registry.stop(firstId);
         expect((await localFetch(endpointB, "/health")).status).toBe(200);
@@ -467,10 +593,27 @@ describe.skipIf(process.env.DOOLITTLE_SHARED_ENGINE_E2E !== "1")(
             (entry) => entry.role === "user" && entry.text.includes(markerA),
           ),
         ).toBe(true);
+        expect(
+          (
+            await history(endpointOf(restartedA), runB.sessionId, runB.runId)
+          ).messages.some(
+            (entry) => entry.role === "user" && entry.text.includes(markerB),
+          ),
+        ).toBe(true);
+        const [restartedReadA, restartedReadB] = await Promise.all([
+          readScope(endpointOf(restartedA), firstSessionA),
+          readScope(endpointOf(restartedA), firstSessionB),
+        ]);
+        expect(await restartedReadA.json()).toMatchObject({
+          content: "project-A-only",
+        });
+        expect(await restartedReadB.json()).toMatchObject({
+          content: "project-B-only",
+        });
         expect((await localFetch(endpointB, "/health")).status).toBe(200);
         expect(
-          (await history(endpointB, runB.sessionId, runB.runId)).messages.some(
-            (entry) => entry.role === "user" && entry.text.includes(markerB),
+          (await history(endpointB, runC.sessionId, runC.runId)).messages.some(
+            (entry) => entry.role === "user" && entry.text.includes(markerC),
           ),
         ).toBe(true);
       } finally {

@@ -31,6 +31,7 @@ import {
 import { requestAgentTransport } from "./ipc/agent-transport";
 import {
   authorizeComputerRequest,
+  isWorkspaceTransportMutation,
   validateComputerOwnerScope,
 } from "./ipc/computer-authorization";
 import { isRecord } from "./ipc/input-validation";
@@ -671,41 +672,61 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
       const passiveRunRead =
         request.method === "GET" &&
         (pathname === "/chat/runs" || pathname.startsWith("/chat/runs/"));
-      const targetBackend = bots
-        ? passiveRunRead
-          ? bots.readyBackendFor(botId)
-          : await bots.backendFor(botId)
-        : backend;
-      if (!targetBackend) {
-        throw new Error(
-          "The local runtime is not live; run receipt is unavailable.",
-        );
-      }
-      const controller = new AbortController();
-      activeAgentRequests.set(key, { controller, botId });
-      const cleanupDestroyedSender = () => {
-        controller.abort(
-          new DOMException("Desktop renderer closed.", "AbortError"),
-        );
-        activeAgentRequests.delete(key);
-      };
-      const stopTrackingSender = trackSenderCleanup(
-        event.sender,
-        cleanupDestroyedSender,
-      );
+      const directWrite = isWorkspaceTransportMutation(request.method, pathname)
+        ? await authorizeComputerRequest(
+            validateComputerOwnerScope({
+              botId: request.botId,
+              originConversationId: request.originConversationId,
+              workspacePath: request.workspacePath,
+            }),
+            {
+              backend,
+              bots,
+              admission,
+              defaultWorkspaceRoot: backend.getWorkspaceDirectory(),
+            },
+            true,
+          )
+        : undefined;
       try {
-        const response = await requestAgentTransport(
-          targetBackend,
-          sensitiveFetch,
-          request,
-          controller.signal,
+        const targetBackend = bots
+          ? passiveRunRead
+            ? bots.readyBackendFor(botId)
+            : await bots.backendFor(botId)
+          : backend;
+        if (!targetBackend) {
+          throw new Error(
+            "The local runtime is not live; run receipt is unavailable.",
+          );
+        }
+        const controller = new AbortController();
+        activeAgentRequests.set(key, { controller, botId });
+        const cleanupDestroyedSender = () => {
+          controller.abort(
+            new DOMException("Desktop renderer closed.", "AbortError"),
+          );
+          activeAgentRequests.delete(key);
+        };
+        const stopTrackingSender = trackSenderCleanup(
+          event.sender,
+          cleanupDestroyedSender,
         );
-        return bots
-          ? await attributeBotSessionResponse(bots, request, botId, response)
-          : response;
+        try {
+          const response = await requestAgentTransport(
+            targetBackend,
+            sensitiveFetch,
+            request,
+            controller.signal,
+          );
+          return bots
+            ? await attributeBotSessionResponse(bots, request, botId, response)
+            : response;
+        } finally {
+          stopTrackingSender();
+          activeAgentRequests.delete(key);
+        }
       } finally {
-        stopTrackingSender();
-        activeAgentRequests.delete(key);
+        directWrite?.release();
       }
     },
   );
@@ -826,9 +847,17 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
         if (state.phase !== "ready" || !state.url) {
           throw new Error("The local runtime is not ready.");
         }
-        if (request.workspacePath !== targetBackend.getWorkspaceDirectory()) {
+        if (bots) {
+          bots.assertConversationWorkspace(
+            botId,
+            request.roomId,
+            request.workspacePath,
+          );
+        } else if (
+          request.workspacePath !== targetBackend.getWorkspaceDirectory()
+        ) {
           throw new Error(
-            "The selected workspace changed before this chat started. Switch back before sending it.",
+            "The selected workspace changed before this chat started.",
           );
         }
         runtimeUrl = state.url;

@@ -36,6 +36,7 @@ import { dispatchRouteHandlers } from "@/server/router";
 import { apiRouteHandlers } from "@/server/routes";
 import { handleOperationsRoutes } from "@/server/routes/operations";
 import { handleRuntimeRoutes } from "@/server/routes/runtime";
+import { withDirectConversationWorkspace } from "@/server/routes/workspace-scope";
 import { isWorkerApiRouteAllowed } from "@/server/worker-route-policy";
 
 const INTERACTIVE_TERMINAL_MUTATION_PATHS = new Set([
@@ -438,7 +439,10 @@ export async function createApiServer(
                         ? method === "GET"
                         : method === "POST"
                     )
-                    ? ((await handleOperationsRoutes(context, request, url)) ??
+                    ? ((await withDirectConversationWorkspace(
+                        handleOperationsRoutes,
+                        () => true,
+                      )(context, request, url)) ??
                       json({ error: "Not found" }, 404))
                     : json({ error: "Method not allowed" }, 405)
                   : requestPath === RUNTIME_IDENTITY_PATH

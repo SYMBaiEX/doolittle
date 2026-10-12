@@ -36,10 +36,11 @@ vi.mock("./browser/useBrowserWorkspace", async () => ({
   ...(await vi.importActual<typeof import("./browser/useBrowserWorkspace")>(
     "./browser/useBrowserWorkspace",
   )),
-  useBrowserWorkspace: () => browser,
+  useBrowserWorkspace: vi.fn(() => browser),
 }));
 
 import { BrowserPage } from "./BrowserPage";
+import { useBrowserWorkspace } from "./browser/useBrowserWorkspace";
 
 (
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
@@ -111,5 +112,16 @@ describe("Browser context actions", () => {
     expect(container.querySelector("iframe")).toBeNull();
     expect(container.querySelector("[data-context-action-menu]")).toBeNull();
     expect(document.body.querySelector('[role="menu"]')).toBeNull();
+  });
+  it("forwards the frozen conversation origin to browser status and actions", async () => {
+    const origin = {
+      botId: "bot",
+      originConversationId: "chat-a",
+      workspacePath: "/repo/a",
+    };
+    await act(async () =>
+      root.render(<BrowserPage active botId="bot" origin={origin} />),
+    );
+    expect(useBrowserWorkspace).toHaveBeenCalledWith(true, "bot", origin);
   });
 });

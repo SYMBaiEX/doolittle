@@ -1,4 +1,6 @@
 import type { AppContext } from "@/runtime/bootstrap";
+import { readWorkerBotProfile } from "@/runtime/bootstrap/bot-profile";
+import { currentConversationWorkspace } from "@/runtime/workspace-scope";
 import { readJsonObjectBody } from "@/server/request-body";
 import { json } from "@/server/responses";
 
@@ -7,6 +9,18 @@ export async function handleMigrationRoutes(
   request: Request,
   url: URL,
 ): Promise<Response | null> {
+  if (
+    url.pathname.startsWith("/migrate/") &&
+    (readWorkerBotProfile() || currentConversationWorkspace())
+  ) {
+    return json(
+      {
+        error:
+          "Migration APIs are unavailable in a bound conversation workspace.",
+      },
+      409,
+    );
+  }
   if (request.method === "GET" && url.pathname === "/migrate/sources") {
     return json({
       sources: context.services.operator.migrationSources(),

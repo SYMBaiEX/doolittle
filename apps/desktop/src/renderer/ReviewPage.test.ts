@@ -49,6 +49,45 @@ describe("review workspace scope", () => {
     );
   });
 
+  it("separates the same project root by captured bot and conversation", () => {
+    const origin = {
+      botId: "bot-a",
+      originConversationId: "chat-a",
+      workspacePath: "/work/alpha",
+    };
+    const current = reviewWorkspaceScopeKey("/work/alpha", "project", origin);
+    expect(
+      reviewWorkspaceScopeKey("/work/alpha", "project", {
+        ...origin,
+        botId: "bot-b",
+      }),
+    ).not.toBe(current);
+    expect(
+      reviewWorkspaceScopeKey("/work/alpha", "project", {
+        ...origin,
+        originConversationId: "chat-b",
+      }),
+    ).not.toBe(current);
+    expect(
+      reviewWorkspaceScopeKey("/work/alpha", "project", {
+        ...origin,
+        workspacePath: "/work/other",
+      }),
+    ).not.toBe(current);
+  });
+
+  it("forwards origin to repository reads and durable review requests", () => {
+    expect(reviewPageSource).toContain(
+      "computerOrigin?.botId,\n      computerOrigin,",
+    );
+    expect(reviewPageSource).toContain(
+      "requestPolicy.primary && repositoryEnabled",
+    );
+    expect(reviewPageSource).toContain("!active || !repositoryEnabled");
+    expect(reviewPageSource).toContain("/review-record/comments/migrate");
+    expect(reviewPageSource).toContain("computerOrigin?.originConversationId");
+  });
+
   it("threads workspace, revision, and optional host origin into both review menu surfaces", () => {
     expect(reviewPageSource).toContain(
       "const reviewContextScope = JSON.stringify([",

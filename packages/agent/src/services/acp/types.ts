@@ -79,6 +79,7 @@ export interface AcpEditorContext {
 
 export interface AcpProtocolSession {
   sessionId: string;
+  originConversationId?: string;
   cwd: string;
   additionalDirectories: string[];
   clientCapabilities: ClientCapabilities;

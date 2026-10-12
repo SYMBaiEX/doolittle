@@ -11,6 +11,7 @@ import type {
   WaitForTerminalExitRequest,
   WriteTextFileRequest,
 } from "@doolittle/acp";
+import { resolveWorkspaceDirectory } from "@/services/workspace-directory";
 import type {
   AcpEditorSummary,
   AcpPackageMetadata,
@@ -63,7 +64,7 @@ export class AcpService {
     );
     this.persistence = new AcpPersistence(this.paths);
     this.protocol = new AcpProtocolRuntime(
-      () => this.config.workspaceDir,
+      () => resolveWorkspaceDirectory(() => this.config.workspaceDir),
       (sessionId) =>
         this.listSessions(1_000).some(
           (session) => session.sessionId === sessionId,
@@ -84,6 +85,10 @@ export class AcpService {
 
   agentApp() {
     return this.protocol.agentApp();
+  }
+
+  originForProtocolSession(sessionId: string): string | undefined {
+    return this.protocol.originForSession(sessionId);
   }
 
   initializeProtocol(params?: InitializeRequest) {
@@ -114,8 +119,11 @@ export class AcpService {
     return this.protocol.updateEditorContext(sessionId, context);
   }
 
-  latestEditorContext(workspaceRoot = this.config.workspaceDir) {
-    return this.protocol.latestEditorContext(workspaceRoot);
+  latestEditorContext(workspaceRoot?: string) {
+    return this.protocol.latestEditorContext(
+      workspaceRoot ??
+        resolveWorkspaceDirectory(() => this.config.workspaceDir),
+    );
   }
 
   protocolUpdates(sessionId: string, cursor?: number) {

@@ -9,6 +9,7 @@ import type { RepositoryReviewResponse } from "../shared/contracts";
 import type { ChatContextRequest } from "./chat-context-handoff";
 import { OfflineRouteState } from "./components/OfflineRouteState";
 import { ResourceStatusBar } from "./components/ResourceStatusBar";
+import type { ComputerOrigin } from "./computer-origin";
 import {
   type ActionFeedback,
   asArray,
@@ -58,12 +59,20 @@ import {
   saveReviewComments,
 } from "./review-comments";
 import { reviewWorkState } from "./review-work-state";
+import { workspacePathsEqual } from "./workspace-path";
 
 export function reviewWorkspaceScopeKey(
   workspacePath: string,
   projectScope: string,
+  origin?: ComputerOrigin,
 ): string {
-  return `${workspacePath}\u0000${projectScope}`;
+  return JSON.stringify([
+    workspacePath,
+    projectScope,
+    origin?.botId ?? "",
+    origin?.originConversationId ?? "",
+    origin?.workspacePath ?? "",
+  ]);
 }
 
 export function reviewPatchResourceDependencies(
@@ -82,6 +91,7 @@ export function shouldShowReviewWorkspace(itemCount: number): boolean {
 
 export function ReviewPage({
   active,
+  computerOrigin,
   contextScope,
   embedded = false,
   onOpenWorkspaceFile,
@@ -90,6 +100,7 @@ export function ReviewPage({
   workspacePath,
 }: {
   active: boolean;
+  computerOrigin?: ComputerOrigin;
   /** Optional immutable bot/conversation origin supplied by the owning host. */
   contextScope?: string;
   embedded?: boolean;
@@ -98,7 +109,31 @@ export function ReviewPage({
   projectScope: string;
   workspacePath: string;
 }) {
-  const scopeKey = reviewWorkspaceScopeKey(workspacePath, projectScope);
+  const scopeKey = reviewWorkspaceScopeKey(
+    workspacePath,
+    projectScope,
+    computerOrigin,
+  );
+  const repositoryEnabled = Boolean(
+    computerOrigin &&
+      workspacePath &&
+      workspacePathsEqual(
+        computerOrigin.workspacePath,
+        workspacePath,
+        window.doolittle.platform,
+      ),
+  );
+  function useReviewResource<T>(
+    path: string | null,
+    dependencies: readonly unknown[],
+  ) {
+    return useApiResource<T>(
+      path,
+      dependencies,
+      computerOrigin?.botId,
+      computerOrigin,
+    );
+  }
   const [filter, setFilter] = useState<ReviewFilter>("all");
   const [query, setQuery] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
@@ -122,51 +157,60 @@ export function ReviewPage({
     sourceControlOpen,
   });
 
-  const approvals = useApiResource<ApprovalResponse>(
+  const approvals = useReviewResource<ApprovalResponse>(
     requestPolicy.primary ? "/execution/approvals" : null,
     [requestPolicy.primary, scopeKey],
   );
-  const changes = useApiResource<ChangesResponse>(
-    requestPolicy.primary ? "/repo/changes" : null,
+  const changes = useReviewResource<ChangesResponse>(
+    requestPolicy.primary && repositoryEnabled ? "/repo/changes" : null,
     [requestPolicy.primary, scopeKey],
   );
-  const branches = useApiResource<RepositoryBranchesResponse>(
-    requestPolicy.sourceControl ? "/repo/branches" : null,
+  const branches = useReviewResource<RepositoryBranchesResponse>(
+    requestPolicy.sourceControl && repositoryEnabled ? "/repo/branches" : null,
     [requestPolicy.sourceControl, scopeKey],
   );
-  const remotes = useApiResource<RepositoryRemotesResponse>(
-    requestPolicy.sourceControl ? "/repo/remotes" : null,
+  const remotes = useReviewResource<RepositoryRemotesResponse>(
+    requestPolicy.sourceControl && repositoryEnabled ? "/repo/remotes" : null,
     [requestPolicy.sourceControl, scopeKey],
   );
-  const stashes = useApiResource<RepositoryStashesResponse>(
-    requestPolicy.sourceControl ? "/repo/stashes" : null,
+  const stashes = useReviewResource<RepositoryStashesResponse>(
+    requestPolicy.sourceControl && repositoryEnabled ? "/repo/stashes" : null,
     [requestPolicy.sourceControl, scopeKey],
   );
-  const conflicts = useApiResource<RepositoryConflictsResponse>(
-    requestPolicy.sourceControl ? "/repo/conflicts" : null,
+  const conflicts = useReviewResource<RepositoryConflictsResponse>(
+    requestPolicy.sourceControl && repositoryEnabled ? "/repo/conflicts" : null,
     [requestPolicy.sourceControl, scopeKey],
   );
-  const worktrees = useApiResource<RepositoryWorktreesResponse>(
-    requestPolicy.sourceControl ? "/repo/worktrees" : null,
+  const worktrees = useReviewResource<RepositoryWorktreesResponse>(
+    requestPolicy.sourceControl && repositoryEnabled ? "/repo/worktrees" : null,
     [requestPolicy.sourceControl, scopeKey],
   );
-  const runs = useApiResource<RunsResponse>(
+  const runs = useReviewResource<RunsResponse>(
     requestPolicy.primary ? "/codegen/runs" : null,
     [requestPolicy.primary, scopeKey],
   );
-  const repositoryReview = useApiResource<RepositoryReviewResponse>(
-    requestPolicy.primary ? "/repo/review" : null,
+  const repositoryReview = useReviewResource<RepositoryReviewResponse>(
+    requestPolicy.primary && repositoryEnabled ? "/repo/review" : null,
     [requestPolicy.primary, scopeKey],
   );
-  const branchRecord = useApiResource<ReviewRecordResponse>(
-    requestPolicy.primary ? "/review-record?limit=80" : null,
+  const branchRecord = useReviewResource<ReviewRecordResponse>(
+    requestPolicy.primary && repositoryEnabled
+      ? "/review-record?limit=80"
+      : null,
     [requestPolicy.primary, scopeKey],
   );
   const review = repositoryReview.data?.review;
-  const commentIdentity = useMemo(
-    () => reviewCommentIdentity(review),
-    [review],
-  );
+  const originBotId = computerOrigin?.botId;
+  const originConversationId = computerOrigin?.originConversationId;
+  const commentIdentity = useMemo(() => {
+    const identity = reviewCommentIdentity(review);
+    return originBotId && originConversationId
+      ? {
+          ...identity,
+          storageKey: `${identity.storageKey}:${encodeURIComponent(originBotId)}:${encodeURIComponent(originConversationId)}`,
+        }
+      : identity;
+  }, [review, originBotId, originConversationId]);
   const reviewContextScope = JSON.stringify([
     contextScope ?? "",
     scopeKey,
@@ -184,8 +228,8 @@ export function ReviewPage({
     visibleItems.find((item) => item.id === selectedId) ?? visibleItems[0];
   const activeCommentTarget =
     commentTarget?.path === selected?.path ? commentTarget : null;
-  const patch = useApiResource<PatchResponse>(
-    active && selected?.kind === "changes" && selected.path
+  const patch = useReviewResource<PatchResponse>(
+    active && repositoryEnabled && selected?.kind === "changes" && selected.path
       ? `/repo/patch?path=${encodeURIComponent(selected.path)}&staged=${
           selected.status === "staged"
         }`
@@ -253,16 +297,21 @@ export function ReviewPage({
   }, [active]);
 
   useEffect(() => {
-    setComments(loadReviewComments(commentIdentity, window.localStorage));
+    setComments(
+      repositoryEnabled
+        ? loadReviewComments(commentIdentity, window.localStorage)
+        : [],
+    );
     setCommentTarget(null);
     setCommentDraft("");
     setEditingCommentId("");
-  }, [commentIdentity]);
+  }, [commentIdentity, repositoryEnabled]);
 
   useEffect(() => {
     const record = branchRecord.data?.record;
     if (
       !active ||
+      !repositoryEnabled ||
       !record ||
       !reviewRecordMatchesIdentity(commentIdentity, record.scope)
     ) {
@@ -272,12 +321,13 @@ export function ReviewPage({
     const merged = mergeReviewComments(local, record.comments);
     setComments(merged);
     saveReviewComments(commentIdentity, merged, window.localStorage);
-  }, [active, branchRecord.data, commentIdentity]);
+  }, [active, branchRecord.data, commentIdentity, repositoryEnabled]);
 
   useEffect(() => {
     const migrationKey = commentIdentity.storageKey;
     if (
       !active ||
+      !repositoryEnabled ||
       branchRecord.loading ||
       branchRecord.error ||
       !branchRecord.data?.record ||
@@ -300,6 +350,10 @@ export function ReviewPage({
       "/review-record/comments/migrate",
       "POST",
       { comments: legacyComments },
+      undefined,
+      undefined,
+      computerOrigin?.botId,
+      computerOrigin,
     )
       .then((response) => {
         if (cancelled) return;
@@ -311,8 +365,12 @@ export function ReviewPage({
         saveReviewComments(commentIdentity, merged, window.localStorage);
         branchRecord.reload();
       })
-      .catch(() => {
-        // The browser-local record remains the truthful offline fallback.
+      .catch((error) => {
+        if (cancelled) return;
+        setFeedback({
+          tone: "warn",
+          message: `Durable review notes are unavailable: ${errorMessage(error)}. Local notes remain in this app.`,
+        });
       });
     return () => {
       cancelled = true;
@@ -324,6 +382,8 @@ export function ReviewPage({
     branchRecord.loading,
     branchRecord.reload,
     commentIdentity,
+    computerOrigin,
+    repositoryEnabled,
   ]);
 
   const reload = () => {
@@ -361,8 +421,8 @@ export function ReviewPage({
     setFeedback({
       tone: "warn",
       message: locallyPersisted
-        ? `Saved only in this app until the local runtime returns: ${errorMessage(error)}`
-        : `The local runtime could not save this review note, and local storage is unavailable. It exists only in this window and will be lost on reload: ${errorMessage(error)}`,
+        ? `Saved only in this app; durable review notes are unavailable: ${errorMessage(error)}`
+        : `Durable review notes are unavailable and local storage could not save this note. It exists only in this window and will be lost on reload: ${errorMessage(error)}`,
     });
   };
 
@@ -384,7 +444,8 @@ export function ReviewPage({
   };
 
   const saveComment = async () => {
-    if (!active || !commentTarget || !commentDraft.trim()) return;
+    if (!active || !repositoryEnabled || !commentTarget || !commentDraft.trim())
+      return;
     const now = new Date().toISOString();
     if (editingCommentId) {
       const nextComments = comments.map((comment) =>
@@ -403,6 +464,10 @@ export function ReviewPage({
             `/review-record/comments/${encodeURIComponent(editingCommentId)}`,
             "PATCH",
             { body: commentDraft.trim() },
+            undefined,
+            undefined,
+            computerOrigin?.botId,
+            computerOrigin,
           ),
         );
       } catch (error) {
@@ -425,6 +490,10 @@ export function ReviewPage({
             "/review-record/comments",
             "POST",
             { comment },
+            undefined,
+            undefined,
+            computerOrigin?.botId,
+            computerOrigin,
           ),
         );
       } catch (error) {
@@ -435,7 +504,7 @@ export function ReviewPage({
   };
 
   const toggleCommentResolved = async (commentId: string) => {
-    if (!active) return;
+    if (!active || !repositoryEnabled) return;
     const now = new Date().toISOString();
     const selectedComment = comments.find(
       (comment) => comment.id === commentId,
@@ -459,6 +528,11 @@ export function ReviewPage({
             nextStatus === "resolved" ? "resolve" : "reopen"
           }`,
           "POST",
+          undefined,
+          undefined,
+          undefined,
+          computerOrigin?.botId,
+          computerOrigin,
         ),
       );
     } catch (error) {
@@ -467,12 +541,17 @@ export function ReviewPage({
   };
 
   const deleteComment = async (commentId: string) => {
-    if (!active) return;
+    if (!active || !repositoryEnabled) return;
     try {
       applyDurableRecord(
         await desktopRequest<ReviewRecordResponse>(
           `/review-record/comments/${encodeURIComponent(commentId)}`,
           "DELETE",
+          undefined,
+          undefined,
+          undefined,
+          computerOrigin?.botId,
+          computerOrigin,
         ),
       );
       if (editingCommentId === commentId) cancelComment();
@@ -485,7 +564,7 @@ export function ReviewPage({
   };
 
   const sendReviewFeedback = async () => {
-    if (!active || openCommentCount === 0) return;
+    if (!active || !repositoryEnabled || openCommentCount === 0) return;
     onSendToChat({
       text: compileReviewFeedback({
         identity: commentIdentity,
@@ -499,6 +578,11 @@ export function ReviewPage({
         await desktopRequest<ReviewRecordResponse>(
           "/review-record/feedback-sent",
           "POST",
+          undefined,
+          undefined,
+          undefined,
+          computerOrigin?.botId,
+          computerOrigin,
         ),
       );
     } catch (error) {
@@ -520,6 +604,10 @@ export function ReviewPage({
         `/execution/approvals/${encodeURIComponent(approvalId)}/${decision}`,
         "POST",
         {},
+        undefined,
+        undefined,
+        computerOrigin?.botId,
+        computerOrigin,
       );
       setFeedback({
         tone: decision === "approve" ? "good" : "warn",
@@ -608,6 +696,17 @@ export function ReviewPage({
         pendingCount={pendingCount}
       />
       <ResourceStatusBar resources={statusResources} />
+      {branchRecord.error ? (
+        <Notice tone="warn">
+          Durable review notes are unavailable: {branchRecord.error}
+        </Notice>
+      ) : null}
+      {!repositoryEnabled ? (
+        <Notice tone="warn">
+          Repository review is unavailable until this project has a confirmed
+          chat and workspace origin.
+        </Notice>
+      ) : null}
       <ReviewOverview
         agentRunCount={agentRunCount}
         branchScope={branchScope}

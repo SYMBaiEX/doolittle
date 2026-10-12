@@ -4,6 +4,8 @@ export interface SessionSummary {
   botId?: string;
   sessionId: string;
   projectId?: string;
+  workspacePath?: string;
+  projectContext?: SessionProjectContext;
   title?: string;
   continuityKey?: string;
   parentSessionId?: string;
@@ -14,6 +16,27 @@ export interface SessionSummary {
   endedAt?: string;
   participants: Array<"user" | "assistant" | "system">;
   preview: string[];
+}
+
+export interface SessionProjectContext {
+  name: string;
+  description?: string;
+  instructions?: string;
+}
+
+/** Native host is the authority for each immutable conversation scope. */
+export interface BotConversationScope {
+  sessionId: string;
+  botId: string;
+  projectId?: string;
+  workspacePath: string;
+  projectContext?: SessionProjectContext;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BotConversationScopeResponse {
+  conversation: BotConversationScope;
 }
 
 export interface SessionsResponse {

@@ -52,21 +52,30 @@ function within(root: string, path: string): boolean {
 export function effectivePermissions(
   origin: BotDefinition,
   target: BotDefinition,
+  workspacePath?: string,
 ): BotPermissions {
   // The lead's connection/tool capability is unrestricted only in those two
   // dimensions. Filesystem and mutation permission are always explicit.
-  const origins = canonicalPaths(origin.permissions.workspacePaths);
-  const targets = canonicalPaths(target.permissions.workspacePaths);
-  if (
-    targets.some(
-      (targetPath) =>
-        !origins.some((originPath) => within(originPath, targetPath)),
+  let targets: string[];
+  if (workspacePath) {
+    // A verified conversation root is the entire filesystem grant for this
+    // dispatch; stale catalog roots are neither authority nor a prerequisite.
+    targets = [workspacePath];
+  } else {
+    const origins = canonicalPaths(origin.permissions.workspacePaths);
+    targets = canonicalPaths(target.permissions.workspacePaths);
+    if (
+      targets.some(
+        (targetPath) =>
+          !origins.some((originPath) => within(originPath, targetPath)),
+      )
     )
-  ) {
-    throw new Error(
-      "The target bot has workspace paths outside the originating bot's grant.",
-    );
+      throw new Error(
+        "The target bot has workspace paths outside the originating bot's grant.",
+      );
   }
+  // workspacePath comes from a freshly verified, host-owned conversation grant;
+  // named bots may have project chats outside their private startup workspace.
   if (!origin.isDefault) {
     assertSubset(
       target.permissions.connectionIds,
@@ -111,6 +120,8 @@ async function readJson(response: Response): Promise<Record<string, unknown>> {
 /** Host-only broker: durable one-shot dispatch into an independently owned run. */
 export class BotConsultationBroker {
   readonly ledger: BotConsultationLedger;
+  private generation = 0;
+  private readonly botGeneration = new Map<string, number>();
 
   constructor(
     private readonly bots: BotProcessRegistry,
@@ -128,6 +139,63 @@ export class BotConsultationBroker {
     return state.url;
   }
 
+  private async assertActiveOrigin(
+    url: string,
+    origin: BotRunOwner,
+    signal?: AbortSignal,
+  ): Promise<void> {
+    const response = await this.runtimeFetch(
+      `${url}/chat/runs/${encodeURIComponent(origin.runId)}`,
+      {
+        signal: AbortSignal.any([
+          signal ?? new AbortController().signal,
+          AbortSignal.timeout(5_000),
+        ]),
+      },
+    );
+    if (!response.ok) throw new Error("Origin run is unavailable.");
+    const run = (await readJson(response)).run as
+      | Record<string, unknown>
+      | undefined;
+    if (
+      run?.runId !== origin.runId ||
+      run.sessionId !== origin.sessionId ||
+      !["thinking", "acting", "waiting"].includes(String(run.status))
+    )
+      throw new Error("The originating run is no longer active.");
+  }
+
+  /** Execution admission cannot borrow a consultation session for another run. */
+  admission(botId: string, payload: unknown): unknown {
+    if (!payload || typeof payload !== "object" || Array.isArray(payload))
+      return payload;
+    const input = payload as Record<string, unknown>;
+    if (
+      typeof input.sessionId !== "string" ||
+      !input.sessionId.startsWith("consult:")
+    )
+      return payload;
+    const record = this.ledger.get(input.sessionId.slice("consult:".length));
+    const owner =
+      typeof input.runId === "string"
+        ? this.bots.conversations.getRun(input.runId)
+        : null;
+    if (
+      !record ||
+      record.targetBotId !== botId ||
+      record.targetSessionId !== input.sessionId ||
+      record.targetRunId !== input.runId ||
+      owner?.botId !== botId ||
+      owner.sessionId !== input.sessionId ||
+      !["prepared", "accepted"].includes(record.status) ||
+      Date.parse(record.deadline) <= Date.now()
+    )
+      throw new Error(
+        "Consultation execution has no active host-owned run binding.",
+      );
+    return payload;
+  }
+
   async dispatch(
     callerBotId: string,
     input: BotConsultationDispatchInput,
@@ -143,6 +211,18 @@ export class BotConsultationBroker {
     }
     const target = this.bots.get(input.targetBotId);
     const originBotId = origin.id;
+    const generation = this.generation;
+    const originGeneration = this.botGeneration.get(originBotId) ?? 0;
+    const targetGeneration = this.botGeneration.get(target.id) ?? 0;
+    const assertPending = () => {
+      signal?.throwIfAborted();
+      if (
+        generation !== this.generation ||
+        originGeneration !== (this.botGeneration.get(originBotId) ?? 0) ||
+        targetGeneration !== (this.botGeneration.get(target.id) ?? 0)
+      )
+        throw new Error("Consultation was cancelled during dispatch.");
+    };
     if (originBotId === target.id)
       throw new Error("A bot cannot consult itself.");
     if (!origin.permissions.allowDelegation)
@@ -174,26 +254,7 @@ export class BotConsultationBroker {
       throw new Error("Consultation origin does not match its run.");
     }
     const originUrl = await this.endpoint(callerBotId);
-    const originResponse = await this.runtimeFetch(
-      `${originUrl}/chat/runs/${encodeURIComponent(input.origin.runId)}`,
-      {
-        signal: AbortSignal.any([
-          signal ?? new AbortController().signal,
-          AbortSignal.timeout(5_000),
-        ]),
-      },
-    );
-    if (!originResponse.ok) throw new Error("Origin run is unavailable.");
-    const receipt = (await readJson(originResponse)).run as
-      | Record<string, unknown>
-      | undefined;
-    if (
-      receipt?.runId !== input.origin.runId ||
-      receipt.sessionId !== input.origin.sessionId ||
-      !["thinking", "acting", "waiting"].includes(String(receipt.status))
-    ) {
-      throw new Error("The originating run is no longer active.");
-    }
+    await this.assertActiveOrigin(originUrl, input.origin, signal);
 
     const parent = this.ledger.byTargetRun(input.origin.runId);
     const rootRunId = parent?.rootRunId ?? input.origin.runId;
@@ -230,7 +291,17 @@ export class BotConsultationBroker {
     ) {
       throw new Error("Consultation deadline is invalid.");
     }
-    const permissions = effectivePermissions(origin, target);
+    const originScope = await this.bots.resolveVerifiedConversationWorkspace(
+      originBotId,
+      input.origin.sessionId,
+    );
+    if (originScope.projectId !== input.origin.projectId)
+      throw new Error("Consultation origin project changed.");
+    const permissions = effectivePermissions(
+      origin,
+      target,
+      originScope.workspacePath,
+    );
     if (
       input.knowledgeIds !== undefined &&
       (!Array.isArray(input.knowledgeIds) ||
@@ -244,6 +315,7 @@ export class BotConsultationBroker {
         ? []
         : await this.bots.knowledge.retrieveForConsultation({
             originBotId,
+            originSessionId: input.origin.sessionId,
             originProjectId: input.origin.projectId,
             targetBotId: target.id,
             knowledgeIds,
@@ -262,6 +334,7 @@ export class BotConsultationBroker {
       targetBotId: target.id,
       targetSessionId,
       targetRunId,
+      workspacePath: originScope.workspacePath,
       permissions,
       deadline: input.deadline,
       knowledgeIds,
@@ -270,9 +343,13 @@ export class BotConsultationBroker {
       updatedAt: now,
     };
     const targetUrl = await this.endpoint(target.id);
+    assertPending();
+    await this.assertActiveOrigin(originUrl, input.origin, signal);
+    assertPending();
     if (knowledgeIds.length > 0) {
       this.bots.knowledge.assertConsultationAccess({
         originBotId,
+        originSessionId: input.origin.sessionId,
         originProjectId: input.origin.projectId,
         targetBotId: target.id,
         knowledgeIds,
@@ -280,8 +357,26 @@ export class BotConsultationBroker {
     }
     this.ledger.prepare(record);
     // From this point onward the dispatch is uncertain and never replayed.
-    this.bots.bindConversation(target.id, targetSessionId, target.projectId);
-    this.bots.bindRun(target.id, targetSessionId, targetRunId);
+    try {
+      await this.bots.bindConsultationConversation(
+        target.id,
+        targetSessionId,
+        originScope,
+      );
+      this.bots.bindRun(target.id, targetSessionId, targetRunId);
+      await this.assertActiveOrigin(originUrl, input.origin, signal);
+      assertPending();
+      if (this.ledger.get(dispatchId)?.status !== "prepared")
+        throw new Error("Consultation was cancelled before submission.");
+    } catch (error) {
+      if (
+        ["prepared", "accepted"].includes(
+          this.ledger.get(dispatchId)?.status ?? "",
+        )
+      )
+        this.ledger.update(dispatchId, "error");
+      throw error;
+    }
     let response: Response;
     try {
       response = await this.runtimeFetch(`${targetUrl}/chat/runs`, {
@@ -301,8 +396,10 @@ export class BotConsultationBroker {
             ),
           ].join("\n\n"),
           source: "desktop-consultation",
-          workspaceDir: target.workspacePath,
-          ...(target.projectId ? { projectId: target.projectId } : {}),
+          workspaceDir: originScope.workspacePath,
+          ...(originScope.projectId
+            ? { projectId: originScope.projectId }
+            : {}),
         }),
         signal: AbortSignal.any([
           signal ?? new AbortController().signal,
@@ -399,8 +496,8 @@ export class BotConsultationBroker {
               agentId: this.bots.get(record.targetBotId).agentId,
               sessionId: record.targetSessionId,
               runId: record.targetRunId,
-              ...(this.bots.get(record.targetBotId).projectId
-                ? { projectId: this.bots.get(record.targetBotId).projectId }
+              ...(record.origin.projectId
+                ? { projectId: record.origin.projectId }
                 : {}),
             },
             outcome,
@@ -435,6 +532,8 @@ export class BotConsultationBroker {
       throw new Error("Consultation not found for this bot.");
     if (["complete", "cancelled", "error", "timeout"].includes(record.status))
       return;
+    // Revoke the host workspace grant before waiting on worker cancellation.
+    this.ledger.update(dispatchId, status);
     try {
       const url = await this.endpoint(record.targetBotId);
       await this.runtimeFetch(
@@ -447,14 +546,16 @@ export class BotConsultationBroker {
     } catch {
       // A stopped child may already have cancelled its run. The host still
       // records the requested terminal intent and never replays dispatch.
-    } finally {
-      this.ledger.update(dispatchId, status);
     }
   }
 
   /** Stop owned child work before a bot process disappears; never replay dispatch. */
   async cancelForBot(botId: string): Promise<void> {
     const canonicalId = this.bots.get(botId).id;
+    this.botGeneration.set(
+      canonicalId,
+      (this.botGeneration.get(canonicalId) ?? 0) + 1,
+    );
     await Promise.all(
       this.ledger.activeForBot(canonicalId).map(async (record) => {
         await this.cancel(record.origin.botId, record.dispatchId);
@@ -463,6 +564,7 @@ export class BotConsultationBroker {
   }
 
   async cancelAll(): Promise<void> {
+    this.generation += 1;
     const active = new Map<string, BotConsultationRecord>();
     for (const bot of this.bots.list().bots) {
       for (const record of this.ledger.activeForBot(bot.id))

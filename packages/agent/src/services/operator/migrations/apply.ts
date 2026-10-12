@@ -1,6 +1,7 @@
 import { copyFileSync, cpSync, existsSync, mkdirSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
+import { currentConversationWorkspace } from "@/runtime/workspace-scope";
 import type { EnvConfig } from "@/types";
 import { findSkillRoot, inspectMigrationSource } from "./inspection";
 import type { MigrationResult } from "./types";
@@ -13,6 +14,11 @@ export interface ApplyMigrationInput {
 }
 
 export function applyMigration(input: ApplyMigrationInput): MigrationResult {
+  if (currentConversationWorkspace()) {
+    throw new Error(
+      "Migration apply is unavailable inside a bound conversation workspace.",
+    );
+  }
   const overwrite = input.overwrite ?? false;
   const inspection = inspectMigrationSource(input.sourcePath);
   if (!inspection.exists) {

@@ -3,7 +3,10 @@ import type {
   AgentTransportRequest,
   AgentTransportResponse,
 } from "../shared/contracts";
-import type { BotProcessRegistry } from "./bot-process-registry";
+import {
+  BotActivationCancelledError,
+  type BotProcessRegistry,
+} from "./bot-process-registry";
 import { parseApiPath } from "./ipc/agent-api-policy";
 import type { SensitiveActionConfirmationRequest } from "./ipc/ipc-validation";
 
@@ -354,18 +357,63 @@ export async function handleBotApiRequest(
         const input = parseInput(request.body);
         if (
           typeof input.sessionId !== "string" ||
-          (input.projectId !== undefined && typeof input.projectId !== "string")
+          (input.projectId !== undefined &&
+            typeof input.projectId !== "string") ||
+          Object.keys(input).some(
+            (key) => !["sessionId", "projectId", "consent"].includes(key),
+          )
         ) {
           return jsonResponse(400, {
-            error: "sessionId or projectId is invalid.",
+            error: "A valid session and explicit project consent are required.",
+          });
+        }
+        const bot = registry.get(botId);
+        const sessionId = input.sessionId;
+        const projectId = input.projectId;
+        const existing = registry.resolveSavedConversationOwner(sessionId);
+        if (existing) {
+          registry.assertConversationOwner(botId, sessionId, projectId);
+          return jsonResponse(200, {
+            conversation: await registry.resolveVerifiedConversationWorkspace(
+              botId,
+              sessionId,
+            ),
+          });
+        }
+        if (projectId) {
+          if (input.consent !== true)
+            return jsonResponse(400, {
+              error: "Explicit project consent is required.",
+            });
+          const selected = await registry.readLeadProject(projectId);
+          const confirmed = await confirmSensitiveAction?.({
+            kind: "conversation-workspace",
+            title: "Give this chat project access?",
+            message: `${bot.name} (${bot.id}) — ${selected.name} (${selected.id})`,
+            detail: `Workspace: ${selected.workspacePath}. File changes: ${bot.permissions.allowMutation ? "allowed, subject to tool approvals" : "not allowed"}. Delegation: ${bot.permissions.allowDelegation ? "allowed within this chat's approved scope" : "not allowed"}. Other chats do not receive this access. Create a new chat to change the project.`,
+            confirmLabel: "Grant this chat access",
+          });
+          if (confirmed !== true)
+            return jsonResponse(403, {
+              error: "Project access was not confirmed.",
+            });
+          const currentBot = registry.get(botId);
+          const currentProject = await registry.readLeadProject(projectId);
+          if (
+            JSON.stringify(currentBot) !== JSON.stringify(bot) ||
+            JSON.stringify(currentProject) !== JSON.stringify(selected)
+          )
+            throw new Error("Bot or project changed during confirmation.");
+          return jsonResponse(201, {
+            conversation: registry.bindConversationWorkspace(
+              botId,
+              sessionId,
+              currentProject,
+            ),
           });
         }
         return jsonResponse(201, {
-          conversation: registry.bindConversation(
-            botId,
-            input.sessionId,
-            input.projectId,
-          ),
+          conversation: registry.bindConversationWorkspace(botId, sessionId),
         });
       }
     }
@@ -388,6 +436,18 @@ export async function handleBotApiRequest(
     }
     return jsonResponse(404, { error: "Bot route not found." });
   } catch (error) {
+    if (
+      request.method === "POST" &&
+      /^\/bots\/[a-z0-9][a-z0-9_-]{0,63}\/activate$/u.test(path)
+    ) {
+      const cancelled = error instanceof BotActivationCancelledError;
+      return jsonResponse(409, {
+        error: cancelled
+          ? "Bot startup was cancelled."
+          : "This bot could not start. Check its connection and retry.",
+        code: cancelled ? "bot_activation_cancelled" : "bot_activation_failed",
+      });
+    }
     const unavailable = path === "/bots" && request.method === "GET";
     return jsonResponse(unavailable ? 503 : 409, {
       error: error instanceof Error ? error.message : "Bot operation failed.",

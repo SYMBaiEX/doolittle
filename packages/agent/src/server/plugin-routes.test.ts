@@ -1,12 +1,74 @@
+import { mkdtempSync, realpathSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type { IAgentRuntime, Route } from "@elizaos/core";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+const { requestWorkerHost } = vi.hoisted(() => ({
+  requestWorkerHost: vi.fn(),
+}));
+vi.mock("@/runtime/bootstrap/worker-host-rpc", () => ({ requestWorkerHost }));
+
+import { resolveWorkspaceDirectory } from "@/services/workspace-directory";
 import { dispatchRuntimePluginRoute } from "./plugin-routes";
 
 function runtimeWith(routes: Route[]): IAgentRuntime {
   return { routes } as unknown as IAgentRuntime;
 }
+const priorDesktop = process.env.DOOLITTLE_DESKTOP_RUNTIME;
+const directories: string[] = [];
+afterEach(() => {
+  if (priorDesktop === undefined) delete process.env.DOOLITTLE_DESKTOP_RUNTIME;
+  else process.env.DOOLITTLE_DESKTOP_RUNTIME = priorDesktop;
+  for (const root of directories.splice(0))
+    rmSync(root, { recursive: true, force: true });
+  vi.resetAllMocks();
+});
 
 describe("dispatchRuntimePluginRoute", () => {
+  it("scopes actual plugin matches, rejects unknown origins, and preserves API fallthrough", async () => {
+    process.env.DOOLITTLE_DESKTOP_RUNTIME = "1";
+    const roots = ["first", "second"].map((label) =>
+      realpathSync(mkdtempSync(join(tmpdir(), `doolittle-plugin-${label}-`))),
+    );
+    directories.push(...roots);
+    requestWorkerHost.mockImplementation(async (_operation, payload) => {
+      const index = ["first", "second"].indexOf(payload.sessionId);
+      if (index < 0) throw new Error("Unknown origin");
+      return {
+        sessionId: payload.sessionId,
+        botId: "bot",
+        workspacePath: roots[index],
+      };
+    });
+    const handler = vi.fn(async () => ({
+      status: 200,
+      body: { root: resolveWorkspaceDirectory("/bootstrap") },
+    }));
+    const runtime = runtimeWith([
+      { type: "POST", path: "/plugin/work", routeHandler: handler },
+    ]);
+    const invoke = (path: string, origin?: string) => {
+      const request = new Request(`http://localhost${path}`, {
+        method: "POST",
+        headers: origin ? { "x-doolittle-origin-conversation": origin } : {},
+      });
+      return dispatchRuntimePluginRoute({
+        runtime,
+        request,
+        url: new URL(request.url),
+        isAuthorized: () => true,
+      });
+    };
+    expect((await invoke("/plugin/work"))?.status).toBe(409);
+    expect((await invoke("/plugin/work", "forged"))?.status).toBe(409);
+    expect(handler).not.toHaveBeenCalled();
+    for (const [index, origin] of ["first", "second"].entries())
+      expect(await (await invoke("/plugin/work", origin))?.json()).toEqual({
+        root: roots[index],
+      });
+    expect(await invoke("/runtime/models")).toBeNull();
+  });
   it("uses Eliza route matching and passes structured request context", async () => {
     const runtime = runtimeWith([
       {

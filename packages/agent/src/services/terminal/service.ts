@@ -41,10 +41,14 @@ export class TerminalService {
   private readonly interactiveSessions: InteractiveTerminalSessionManager;
   readonly appServers: AppServerManager;
   private healthCache?: {
+    workspaceDir: string;
     capturedAt: number;
     value: ExecutionBackendHealth[];
   };
-  private healthPromise?: Promise<ExecutionBackendHealth[]>;
+  private healthPromise?: {
+    workspaceDir: string;
+    value: Promise<ExecutionBackendHealth[]>;
+  };
   private readonly buildsInProgress = new Set<string>();
 
   constructor(
@@ -212,30 +216,37 @@ export class TerminalService {
 
   async health(): Promise<ExecutionBackendHealth[]> {
     const now = Date.now();
-    if (this.healthCache && now - this.healthCache.capturedAt < 20_000) {
+    const workspaceDir = resolveWorkspaceDirectory(this.workspaceDirectory);
+    if (
+      this.healthCache &&
+      this.healthCache.workspaceDir === workspaceDir &&
+      now - this.healthCache.capturedAt < 20_000
+    ) {
       return this.healthCache.value;
     }
-    if (this.healthPromise) {
-      return this.healthPromise;
+    if (this.healthPromise?.workspaceDir === workspaceDir) {
+      return this.healthPromise.value;
     }
     const settings = this.getSettings();
-    const workspaceDir = resolveWorkspaceDirectory(this.workspaceDirectory);
-    this.healthPromise = Promise.all(
+    const pending = Promise.all(
       Array.from(this.backends.values()).map((backend) =>
         backend.health(settings, workspaceDir),
       ),
     )
       .then((value) => {
         this.healthCache = {
+          workspaceDir,
           capturedAt: Date.now(),
           value,
         };
         return value;
       })
       .finally(() => {
-        this.healthPromise = undefined;
+        if (this.healthPromise?.value === pending)
+          this.healthPromise = undefined;
       });
-    return this.healthPromise;
+    this.healthPromise = { workspaceDir, value: pending };
+    return pending;
   }
 
   preview(command: string, timeoutMs?: number): ExecutionBackendPreview {

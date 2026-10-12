@@ -23,7 +23,7 @@ describe("projectOfficialSkills", () => {
       description:
         "Use this skill when writing or updating operator docs, usage notes,",
       path: "/workspace/skills/authoring",
-      content: localSkill.content,
+      content: "# Stale content from another workspace",
       source: "workspace",
     } as LoadedSkillWithSource;
 
@@ -39,6 +39,7 @@ describe("projectOfficialSkills", () => {
       commandName: "authoring",
       userInvocable: true,
       disableModelInvocation: false,
+      content: localSkill.content,
     });
   });
 
@@ -64,5 +65,40 @@ describe("projectOfficialSkills", () => {
       description: "Provided by the official Agent Skills service.",
       source: "managed",
     });
+  });
+
+  it("retains only locally loaded project skills absent from the official catalog", () => {
+    const current = {
+      slug: "current-project",
+      title: "Current project",
+      description: "Current instructions",
+      path: "/current/.elizaos/skills/current-project/SKILL.md",
+      content: "# Current project",
+      source: "project",
+    } as SkillDocument;
+    const result = projectOfficialSkills([], {
+      workspace: [],
+      native: [current],
+      commandSpecs: [],
+    });
+    expect(result.native).toEqual([current]);
+  });
+
+  it("does not project workspace entries from a different root's SDK snapshot", () => {
+    const oldWorkspaceSkill = {
+      slug: "old-project",
+      name: "Old project",
+      description: "Instructions from another root",
+      path: "/old/.elizaos/skills/old-project",
+      content: "# Old workspace instructions",
+      source: "workspace",
+    } as LoadedSkillWithSource;
+    const result = projectOfficialSkills([oldWorkspaceSkill], {
+      workspace: [],
+      native: [],
+      commandSpecs: [],
+    });
+    expect(result.native).toEqual([]);
+    expect(result.workspace).toEqual([]);
   });
 });

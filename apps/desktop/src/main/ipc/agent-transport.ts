@@ -179,13 +179,25 @@ export async function requestAgentTransport(
 ): Promise<AgentTransportResponse> {
   const request = validateAgentTransportRequest(unsafeRequest);
   const path = parseApiPath(request.path, request.method);
+  const inventory =
+    request.method === "GET" &&
+    !request.originConversationId &&
+    /^(?:\/(?:workspace|repo|skills|tools|context|migrate|review-record)(?:\/|\?|$)|\/(?:runtime\/(?:workspace|ecosystem)|commands\/catalog|browser\/render-targets|execution\/(?:status|backends)|activity(?:\/export)?|setup\/(?:summary|checklist)|update\/preview|doctor|insights)(?:\?|$))/u.test(
+      path,
+    );
   const response = await fetchBackendApi(
     backend,
     fetchImplementation,
     path,
     {
       method: request.method,
-      headers: request.headers,
+      headers: {
+        ...request.headers,
+        ...(inventory ? backend.operatorInventoryHeaders?.() : {}),
+        ...(request.originConversationId
+          ? { "x-doolittle-origin-conversation": request.originConversationId }
+          : {}),
+      },
       body: request.body ?? undefined,
     },
     request.method === "GET",

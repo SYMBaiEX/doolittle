@@ -25,6 +25,20 @@ function requiredSessionId(value: unknown): string {
   return value;
 }
 
+function setVerifiedOrigin(
+  request: AgentTransportRequest,
+  originConversationId: string,
+): void {
+  if (
+    request.originConversationId !== undefined &&
+    request.originConversationId !== originConversationId
+  )
+    throw new Error(
+      "Originating conversation does not match saved session ownership.",
+    );
+  request.originConversationId = originConversationId;
+}
+
 /** Authorize saved conversation access before selecting a child runtime. */
 export async function assertBotSessionRequest(
   registry: BotProcessRegistry,
@@ -33,15 +47,44 @@ export async function assertBotSessionRequest(
 ): Promise<void> {
   const url = new URL(request.path, "http://desktop.local");
   const path = url.pathname;
+  if (request.method === "POST" && path.startsWith("/delegation/")) {
+    const bot = registry.get(botId);
+    if (!bot.isDefault || !bot.permissions.allowDelegation)
+      throw new Error("Work tasks require an approved lead-bot chat.");
+    const sessionId = requiredSessionId(request.originConversationId);
+    await registry.ensureConversationOwner(botId, sessionId);
+    await registry.resolveVerifiedConversationWorkspace(botId, sessionId);
+    registry.assertConversationWorkspace(
+      botId,
+      sessionId,
+      request.workspacePath as string,
+    );
+    setVerifiedOrigin(request, sessionId);
+    return;
+  }
   if (
-    request.method === "GET" &&
-    (/^\/workspace\/(?:tree|read|search)$/u.test(path) ||
+    path.startsWith("/workspace/") ||
+    path === "/review-record" ||
+    path.startsWith("/review-record/") ||
+    path === "/skills" ||
+    path.startsWith("/skills/") ||
+    path === "/context/files" ||
+    path === "/documents/pdf/extract" ||
+    [
+      "/browser/render-targets",
+      "/execution/status",
+      "/execution/backends",
+      "/activity",
+      "/activity/export",
+    ].includes(path) ||
+    (request.method === "GET" &&
       /^\/repo\/(?:status|diff|log|summary|review|changes|patch|worktrees|branches|remotes|stashes|conflicts)$/u.test(
         path,
       ))
   ) {
     if (
       botId !== "default" ||
+      request.method !== "GET" ||
       request.originConversationId !== undefined ||
       request.workspacePath !== undefined
     ) {
@@ -49,7 +92,12 @@ export async function assertBotSessionRequest(
         request.originConversationId,
       );
       await registry.ensureConversationOwner(botId, originConversationId);
-      registry.assertAcpWorkspace(botId, request.workspacePath as string);
+      setVerifiedOrigin(request, originConversationId);
+      registry.assertConversationWorkspace(
+        botId,
+        originConversationId,
+        request.workspacePath as string,
+      );
     }
     return;
   }
@@ -68,8 +116,10 @@ export async function assertBotSessionRequest(
     const body = objectBody(request.body);
     const originConversationId = requiredSessionId(body?.originConversationId);
     await registry.ensureConversationOwner(botId, originConversationId);
-    registry.assertAcpWorkspace(
+    setVerifiedOrigin(request, originConversationId);
+    registry.assertConversationWorkspace(
       botId,
+      originConversationId,
       path === "/acp/session/new"
         ? (body?.cwd as string)
         : (body?.workspacePath as string),
@@ -86,10 +136,11 @@ export async function assertBotSessionRequest(
     return;
   }
   if (request.method === "GET" && path === "/acp/session/updates") {
-    registry.assertAcpSessionOwner(
+    const owner = registry.assertAcpSessionOwner(
       botId,
       requiredSessionId(url.searchParams.get("sessionId")),
     );
+    setVerifiedOrigin(request, owner.originConversationId);
     return;
   }
   if (
@@ -106,10 +157,14 @@ export async function assertBotSessionRequest(
       botId,
       requiredSessionId(body?.sessionId),
     );
+    setVerifiedOrigin(request, owner.originConversationId);
     if (
       path === "/acp/session/load" &&
-      registry.assertAcpWorkspace(botId, body?.cwd as string) !==
-        owner.workspacePath
+      registry.assertConversationWorkspace(
+        botId,
+        owner.originConversationId,
+        body?.cwd as string,
+      ) !== owner.workspacePath
     ) {
       throw new Error("ACP workspace changed for this session.");
     }
@@ -361,6 +416,31 @@ export async function attributeBotSessionResponse(
       }),
     };
   }
+  if (request.method === "GET" && path === "/sessions/summary") {
+    const payload = objectBody(response.body);
+    if (
+      !payload?.summary ||
+      typeof payload.summary !== "object" ||
+      Array.isArray(payload.summary)
+    )
+      throw new Error("The runtime returned invalid conversation summary.");
+    const summary = payload.summary as Record<string, unknown>;
+    const sessionId = requiredSessionId(summary.sessionId);
+    const scope = registry.assertConversationOwner(botId, sessionId);
+    return {
+      ...response,
+      body: JSON.stringify({
+        ...payload,
+        summary: {
+          ...summary,
+          botId: scope.botId,
+          projectId: scope.projectId,
+          workspacePath: scope.workspacePath,
+          projectContext: scope.projectContext,
+        },
+      }),
+    };
+  }
   if (!["/sessions", "/sessions/search", "/sessions/fork"].includes(path))
     return response;
   const payload = objectBody(response.body);
@@ -373,13 +453,33 @@ export async function attributeBotSessionResponse(
     const item = fork as Record<string, unknown>;
     const sourceId = requiredSessionId(item.sourceSessionId);
     const sessionId = requiredSessionId(item.sessionId);
-    const source = registry.assertConversationOwner(botId, sourceId);
-    const bound = registry.bindConversation(botId, sessionId, source.projectId);
+    registry.assertConversationOwner(botId, sourceId);
+    const bound = registry.forkConversationWorkspace(
+      botId,
+      sourceId,
+      sessionId,
+    );
     return {
       ...response,
       body: JSON.stringify({
         ...payload,
-        fork: { ...item, botId: bound.botId },
+        fork: {
+          ...item,
+          botId: bound.botId,
+          projectId: bound.projectId,
+          workspacePath: bound.workspacePath,
+          projectContext: bound.projectContext,
+          summary:
+            item.summary && typeof item.summary === "object"
+              ? {
+                  ...item.summary,
+                  botId: bound.botId,
+                  projectId: bound.projectId,
+                  workspacePath: bound.workspacePath,
+                  projectContext: bound.projectContext,
+                }
+              : item.summary,
+        },
       }),
     };
   }
@@ -398,7 +498,13 @@ export async function attributeBotSessionResponse(
       botId === "default" && !registry.resolveSavedConversationOwner(sessionId)
         ? registry.bindConversation("default", sessionId, projectId)
         : registry.assertConversationOwner(botId, sessionId, projectId);
-    return { ...item, botId: owner.botId };
+    return {
+      ...item,
+      botId: owner.botId,
+      projectId: owner.projectId,
+      workspacePath: owner.workspacePath,
+      projectContext: owner.projectContext,
+    };
   });
   return { ...response, body: JSON.stringify({ ...payload, [key]: mapped }) };
 }
