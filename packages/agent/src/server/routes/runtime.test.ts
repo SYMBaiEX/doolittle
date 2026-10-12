@@ -91,6 +91,23 @@ function createContext() {
 }
 
 describe("handleRuntimeRoutes", () => {
+  it("keeps a boot-scoped identity for one runtime and changes it for another", async () => {
+    const url = new URL("http://localhost/runtime/bot-identity");
+    const first = createContext();
+    first.runtime.agentId = "agent-one";
+    const second = createContext();
+    second.runtime.agentId = "agent-one";
+    const read = async (context: ReturnType<typeof createContext>) =>
+      (await (
+        await handleRuntimeRoutes(context, new Request(url), url)
+      )?.json()) as {
+        runtimeInstanceId: string;
+      };
+    const firstId = (await read(first)).runtimeInstanceId;
+    expect(firstId).toMatch(/^[a-f0-9-]{36}$/u);
+    expect((await read(first)).runtimeInstanceId).toBe(firstId);
+    expect((await read(second)).runtimeInstanceId).not.toBe(firstId);
+  });
   it("leaves plugin-owned health routing to the Eliza route bridge", async () => {
     const response = await handleRuntimeRoutes(
       createContext(),

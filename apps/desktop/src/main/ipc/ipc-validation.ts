@@ -241,6 +241,14 @@ export function validateInteractiveTerminalStartRequest(
     throw new Error("Interactive terminal dimensions are required.");
   }
   if (
+    typeof value.requestId !== "string" ||
+    !/^\d{13}\.[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/u.test(
+      value.requestId,
+    )
+  ) {
+    throw new Error("Interactive terminal request id is invalid.");
+  }
+  if (
     typeof value.originConversationId !== "string" ||
     !/^[A-Za-z0-9:_-]{1,128}$/u.test(value.originConversationId)
   ) {
@@ -254,7 +262,17 @@ export function validateInteractiveTerminalStartRequest(
   ) {
     throw new Error("Interactive terminal workspace is invalid.");
   }
+  if (
+    value.reconcileOnly !== undefined &&
+    typeof value.reconcileOnly !== "boolean"
+  ) {
+    throw new Error("Interactive terminal reconciliation mode is invalid.");
+  }
   return {
+    requestId: value.requestId,
+    ...(value.reconcileOnly === undefined
+      ? {}
+      : { reconcileOnly: value.reconcileOnly }),
     ...(value.botId === undefined
       ? {}
       : { botId: validateTerminalBotId(value.botId) }),

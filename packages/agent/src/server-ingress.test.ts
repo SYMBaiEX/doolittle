@@ -5,6 +5,7 @@ import type { IAgentRuntime, Route } from "@elizaos/core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AppContext } from "@/runtime/bootstrap";
 import { startApiServer, stopApiServer } from "@/server";
+import { TerminalSessionNotFoundError } from "@/services/terminal/session";
 
 const authorization = vi.hoisted(() => ({ check: vi.fn() }));
 
@@ -161,6 +162,110 @@ describe("HTTP ingress security boundary", () => {
     expect(result.status).toBe(200);
     expect(JSON.parse(result.body)).toEqual({ ok: true });
     expect(onDispatch).toHaveBeenCalledOnce();
+  });
+
+  it("reserves terminal session receipts from plugin routes while leaving other plugins routed", async () => {
+    const pluginIntercept = vi.fn();
+    const ordinaryPlugin = vi.fn();
+    const context = contextWithRoute(ordinaryPlugin);
+    (context.runtime as unknown as { routes: Route[] }).routes.push(
+      {
+        path: "/terminal/session/output",
+        type: "GET",
+        routeHandler: async () => {
+          pluginIntercept();
+          return { body: { fake: true }, status: 200 };
+        },
+      },
+      {
+        path: "/terminal/session/start",
+        type: "POST",
+        routeHandler: async () => {
+          pluginIntercept();
+          return { body: { fake: true }, status: 200 };
+        },
+      },
+      {
+        path: "/runtime/bot-identity",
+        type: "GET",
+        routeHandler: async () => {
+          pluginIntercept();
+          return {
+            body: {
+              processId: process.pid,
+              runtimeInstanceId: "forged-stable-generation",
+            },
+            status: 200,
+          };
+        },
+      },
+      {
+        path: "/runtime/bot-identity",
+        type: "POST",
+        routeHandler: async () => {
+          pluginIntercept();
+          return { body: { fake: true }, status: 200 };
+        },
+      },
+    );
+    const startInteractiveSession = vi.fn();
+    Object.assign(context.services, {
+      terminal: {
+        interactiveSessionOutput: () => {
+          throw new TerminalSessionNotFoundError();
+        },
+        startInteractiveSession,
+      },
+    });
+    const server = await startApiServer(context);
+    const output = await send(server.url, {
+      method: "GET",
+      path: "/terminal/session/output?sessionId=62df6968-19be-4ea6-b7a1-479a57fa3b7c",
+    });
+    expect(output.status).toBe(404);
+    expect(JSON.parse(output.body)).toMatchObject({
+      code: "terminal-session-not-found",
+    });
+    const body = JSON.stringify({ cols: 100, rows: 30 });
+    const start = await send(server.url, {
+      body: [body],
+      headers: { "content-type": "application/json" },
+      path: "/terminal/session/start",
+    });
+    expect(start.status).toBe(400);
+    expect(startInteractiveSession).not.toHaveBeenCalled();
+    expect(
+      (
+        await send(server.url, {
+          method: "GET",
+          path: "/terminal/session/start",
+        })
+      ).status,
+    ).toBe(405);
+    const identity = await send(server.url, {
+      method: "GET",
+      path: "/runtime/bot-identity",
+    });
+    expect(identity.status).toBe(200);
+    expect(JSON.parse(identity.body)).toMatchObject({
+      processId: process.pid,
+      runtimeInstanceId: expect.stringMatching(/^[a-f0-9-]{36}$/u),
+    });
+    expect(
+      (
+        await send(server.url, {
+          method: "GET",
+          path: "/runtime/bot-identity",
+          headers: { "x-test-require-auth": "true" },
+        })
+      ).status,
+    ).toBe(401);
+    expect(
+      (await send(server.url, { path: "/runtime/bot-identity" })).status,
+    ).toBe(405);
+    expect(pluginIntercept).not.toHaveBeenCalled();
+    expect((await send(server.url, { body: ["{}"] })).status).toBe(200);
+    expect(ordinaryPlugin).toHaveBeenCalledOnce();
   });
 
   it.each(["GET", "HEAD", "OPTIONS"])(

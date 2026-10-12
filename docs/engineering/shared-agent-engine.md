@@ -34,6 +34,25 @@ retry rather than manufacturing a cancelled event. Existing stream recovery
 still reports unrecoverable stream failures as errors; a transport failure
 alone does not prove that provider work stopped.
 
+Opening a terminal from an unsaved conversation first binds that captured
+bot/session/project owner. A cancellable presentation intent prevents a late
+binding response from reopening a panel after navigation or close. Terminal
+creation uses one timestamped request identity per tab, retained across uncertain
+replies and reloads. The runtime rejects conflicting, retired, or expired
+identities instead of creating another shell; its bounded identity table never
+evicts an unexpired receipt to make room. Creation reconciliation is restricted
+to the same boot instance and current grants. Its 20-second HTTP budget follows
+initial worker activation, which retains the separate bootstrap limits above.
+
+Terminal output carries the responding runtime's boot identity. Only a matching,
+authorized missing-session receipt proves absence; transport errors preserve
+the session and permit bounded read-only recovery. Recovery never activates a
+stopped bot, and typed input, interrupt, and close are not automatically replayed.
+An operator may explicitly discard an uncertain tab after a warning: this removes
+only its view/recovery identity, not a possibly-running shell. **Stop work** or
+quitting Doolittle is the separate shutdown action. These receipts handle lost
+responses; they do not establish the underlying socket-reset trigger.
+
 Each worker receives a distinct environment, bot profile, settings, workspace
 grant, account grant, and data directory (including its SQL state). Node worker
 isolation is **not** an OS security sandbox: a fatal native crash can affect the

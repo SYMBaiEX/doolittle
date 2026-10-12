@@ -419,7 +419,22 @@ bound before bootstrap so cancellation or a destroyed sender cannot dispatch
 later. In-flight submission cancellation is bounded and remains explicitly
 unconfirmed without a receipt; late acceptance honors the cancellation intent,
 and failed cancellation keeps ownership and retry available. Fresh follow-up
-checks, normal merge, packaging and local installation remain pending.
+source checks are supplemented by native packaged tests and delivery receipts
+in [PR39](https://github.com/SYMBaiEX/doolittle/pull/39); source checks alone are
+not proof of local installation or live provider capacity.
+
+The packaged follow-up also exposed terminal requests resetting while the same
+backend process remained healthy. Terminal output now retains an unconfirmed
+session instead of declaring a live shell closed; bounded recovery is read-only.
+Creation retries retain one request identity and revalidate the exact runtime
+boot and owner/grants, while non-activating recovery cannot undo **Stop work**.
+Native terminal receipts and boot identity routes are reserved ahead of plugin
+dispatch. Fresh-draft opening binds its captured owner first, and stale open,
+output and confirmation callbacks cannot cross conversation/workspace ownership.
+An explicit discard confirmation removes only an uncertain tab/recovery identity
+and warns that shell shutdown is not confirmed. The original socket-reset trigger
+remains unproven; these changes address receipt recovery and truthful lifecycle
+reporting, not a claim that transient transport failures cannot occur.
 
 Seven version-based dependency advisories remain visible despite reviewed
 mechanism patches; Dependabot #4 is not hidden. Native Windows, hostile same-UID

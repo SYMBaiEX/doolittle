@@ -6,7 +6,7 @@ export const MAX_CHAT_TERMINAL_CONTEXT = 20_000;
 export function isPristineTerminalTab(
   tab: InteractiveTerminalTabState,
 ): boolean {
-  return !tab.sessionId && !tab.startedAt && !tab.output;
+  return !tab.sessionId && !tab.pendingStart && !tab.startedAt && !tab.output;
 }
 
 export function terminalLifecycleChanged(
@@ -30,6 +30,39 @@ export function isCurrentTerminalSession(
   sessionId: string,
 ): boolean {
   return tabs.some((tab) => tab.id === tabId && tab.sessionId === sessionId);
+}
+
+export interface PendingTerminalDiscard {
+  tabId: string;
+  requestId: string;
+  ownerKey: string;
+  workspacePath: string;
+  generation: number;
+}
+
+/** A confirmation is valid only for the exact unknown creation it described. */
+export function pendingTerminalDiscardTarget(
+  tabs: InteractiveTerminalTabState[],
+  confirmation: PendingTerminalDiscard,
+  current: {
+    ownerKey: string;
+    workspacePath: string;
+    generation: number;
+    mounted: boolean;
+  },
+): InteractiveTerminalTabState | undefined {
+  if (
+    !current.mounted ||
+    confirmation.ownerKey !== current.ownerKey ||
+    confirmation.workspacePath !== current.workspacePath ||
+    confirmation.generation !== current.generation
+  )
+    return undefined;
+  return tabs.find(
+    (tab) =>
+      tab.id === confirmation.tabId &&
+      tab.pendingStart?.requestId === confirmation.requestId,
+  );
 }
 
 export function boundedTerminalOutput(

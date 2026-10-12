@@ -142,6 +142,7 @@ export type {
   InteractiveTerminalInputRequest,
   InteractiveTerminalOutput,
   InteractiveTerminalOutputChunk,
+  InteractiveTerminalOutputResult,
   InteractiveTerminalResizeRequest,
   InteractiveTerminalSession,
   InteractiveTerminalSessionState,

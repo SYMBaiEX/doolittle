@@ -95,6 +95,22 @@ describe("named bot native host grants", () => {
     );
   });
 
+  it("inspects only an already-ready worker without starting a stopped bot", async () => {
+    const { registry, captured } = fixture();
+    const bot = registry.create({
+      name: "Recovery",
+      persona: "Keep stopped workers stopped.",
+      model: { provider: "offline", model: "offline" },
+    });
+    expect(registry.readyBackendFor(bot.id)).toBeNull();
+    expect(captured).toHaveLength(0);
+    const ready = await registry.backendFor(bot.id);
+    expect(registry.readyBackendFor(bot.id)).toBe(ready);
+    await registry.stop(bot.id);
+    expect(registry.readyBackendFor(bot.id)).toBeNull();
+    expect(captured).toHaveLength(1);
+  });
+
   it("does not start a bot when its selected account is unavailable", async () => {
     const { registry, captured } = fixture({ tokenResolver: async () => null });
     const bot = registry.create({

@@ -757,6 +757,15 @@ export class BotProcessRegistry {
     return backend;
   }
 
+  /** Inspect an already-running bot without activating a stopped worker. */
+  readyBackendFor(botId?: string): BackendManager | null {
+    const definition = this.get(botId);
+    const backend = definition.isDefault
+      ? this.defaultBackend
+      : this.backends.get(definition.id);
+    return backend?.getState().phase === "ready" ? backend : null;
+  }
+
   async stop(id: string): Promise<BotSummary> {
     const definition = this.get(id);
     if (definition.isDefault) {

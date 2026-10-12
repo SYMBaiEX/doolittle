@@ -12,6 +12,7 @@ import {
   groupNativePluginCatalog,
 } from "@/runtime/native/plugin-catalog";
 import { json } from "@/server/responses";
+import { runtimeInstanceId } from "@/server/runtime-instance-id";
 import { hasAsciiControlCharacters } from "@/utils/text-validation";
 import { resolveOwnership } from "./shared";
 
@@ -60,6 +61,7 @@ export async function handleRuntimeStatusRoutes(
       isDefault: !workerBot,
       processId: process.pid,
       threadId,
+      runtimeInstanceId: runtimeInstanceId(context.runtime),
     });
   }
   if (request.method === "GET" && url.pathname === "/commands/catalog") {

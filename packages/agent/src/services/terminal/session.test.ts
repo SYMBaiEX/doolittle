@@ -5,6 +5,10 @@ import { setTimeout as delay } from "node:timers/promises";
 import { describe, expect, it } from "vitest";
 import { InteractiveTerminalSessionManager } from "./session";
 
+function creationId(index: number, timestamp = Date.now()): string {
+  return `${timestamp}.00000000-0000-4000-8000-${index.toString(16).padStart(12, "0")}`;
+}
+
 async function waitForOutput(
   manager: InteractiveTerminalSessionManager,
   sessionId: string,
@@ -24,6 +28,77 @@ async function waitForOutput(
 }
 
 describe("InteractiveTerminalSessionManager", () => {
+  it("replays one creation receipt without another PTY and retires closed identities", () => {
+    const workspace = mkdtempSync(
+      join(tmpdir(), "doolittle-terminal-idempotent-"),
+    );
+    const manager = new InteractiveTerminalSessionManager(workspace);
+    const id = creationId(1);
+    try {
+      const first = manager.start({ cols: 90, rows: 28, creationId: id });
+      expect(manager.start({ cols: 90, rows: 28, creationId: id })).toEqual(
+        first,
+      );
+      expect(() =>
+        manager.start({ cols: 91, rows: 28, creationId: id }),
+      ).toThrow(/cannot be repeated/iu);
+      expect(() =>
+        manager.start({ cols: 90, rows: 28, cwd: workspace, creationId: id }),
+      ).toThrow(/cannot be repeated/iu);
+      manager.close(first.id);
+      expect(() =>
+        manager.start({ cols: 90, rows: 28, creationId: id }),
+      ).toThrow(/cannot be repeated/iu);
+      expect(() =>
+        manager.start({ creationId: creationId(2, Date.now() + 120_000) }),
+      ).toThrow(/cannot be repeated/iu);
+      expect(() =>
+        manager.start({ creationId: creationId(3, Date.now() - 11 * 60_000) }),
+      ).toThrow(/cannot be repeated/iu);
+    } finally {
+      manager.dispose();
+      rmSync(workspace, { recursive: true, force: true });
+    }
+  });
+
+  it("never evicts an unexpired creation identity to admit a new PTY", () => {
+    const workspace = mkdtempSync(join(tmpdir(), "doolittle-terminal-id-cap-"));
+    const manager = new InteractiveTerminalSessionManager(workspace);
+    const id = creationId(10);
+    try {
+      const first = manager.start({ creationId: id });
+      const creations = (
+        manager as unknown as {
+          creations: Map<
+            string,
+            {
+              createdAt: number;
+              cols: number;
+              rows: number;
+              sessionId?: string;
+            }
+          >;
+        }
+      ).creations;
+      for (let index = 11; index < 266; index += 1) {
+        creations.set(creationId(index), {
+          createdAt: Date.now(),
+          cols: 100,
+          rows: 30,
+        });
+      }
+      expect(creations.size).toBe(256);
+      expect(manager.start({ creationId: id })).toEqual(first);
+      expect(() => manager.start({ creationId: creationId(266) })).toThrow(
+        /cannot be repeated/iu,
+      );
+      expect(creations.size).toBe(256);
+      expect(manager.output(first.id).session.id).toBe(first.id);
+    } finally {
+      manager.dispose();
+      rmSync(workspace, { recursive: true, force: true });
+    }
+  });
   it("keeps a native PTY alive across input, resize, and close", async () => {
     const workspace = mkdtempSync(
       join(tmpdir(), "doolittle-interactive-terminal-"),

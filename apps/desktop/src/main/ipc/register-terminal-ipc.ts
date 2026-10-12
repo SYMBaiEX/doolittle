@@ -3,6 +3,7 @@ import type {
   DesktopCommandRequest,
   DesktopCommandResult,
   InteractiveTerminalInputRequest,
+  InteractiveTerminalOutputResult,
   InteractiveTerminalResizeRequest,
   InteractiveTerminalStartRequest,
   InteractiveTerminalStartResult,
@@ -36,6 +37,35 @@ import { parseRequestError, parseSuccessfulJson } from "./runtime-http";
 
 const API_TIMEOUT_MS = 15_000;
 const MAX_SENSITIVE_RESPONSE_BYTES = 2_000_000;
+const START_POST_BOOTSTRAP_BUDGET_MS = 20_000;
+const CREATION_ATTEMPT_RETENTION_MS = 10 * 60_000;
+const MAX_CREATION_ATTEMPTS = 256;
+
+class TerminalRuntimeHttpError extends Error {
+  constructor(
+    readonly status: number,
+    readonly code: string | undefined,
+    readonly runtimeInstanceId: string | undefined,
+  ) {
+    super("Interactive terminal request failed.");
+  }
+}
+
+function temporarySocketFailure(error: unknown): boolean {
+  let candidate: unknown = error;
+  for (let depth = 0; depth < 4 && candidate instanceof Error; depth += 1) {
+    const code = (candidate as Error & { code?: unknown }).code;
+    if (
+      code === "ECONNRESET" ||
+      code === "EPIPE" ||
+      code === "UND_ERR_SOCKET"
+    ) {
+      return true;
+    }
+    candidate = (candidate as Error & { cause?: unknown }).cause;
+  }
+  return false;
+}
 
 interface ActiveTerminalRun {
   controller: AbortController;
@@ -86,28 +116,56 @@ export function registerTerminalIpcHandlers(
       botId: string;
       originConversationId: string;
       workspacePath: string;
+      backend: BackendManager;
+      url: string;
+      processId: number;
+      runtimeInstanceId: string;
+    }
+  >();
+  const creationAttempts = new Map<
+    string,
+    {
+      createdAt: number;
+      request: InteractiveTerminalStartRequest;
+      creationId: string;
+      backend?: BackendManager;
+      url?: string;
+      processId?: number;
+      runtimeInstanceId?: string;
+      pending?: Promise<InteractiveTerminalStartResult>;
     }
   >();
 
   const interactiveBackendFor = async (
     botId: string,
+    allowActivation = false,
   ): Promise<BackendManager> => {
     if (!bots) {
       if (botId !== "default") throw new Error("Named bots are unavailable.");
+      if (backend.getState().phase !== "ready")
+        throw new Error("The local runtime is not ready.");
       return backend;
     }
     const bot = bots.get(botId);
     if (!bot.isDefault && !bot.permissions.allowMutation) {
       throw new Error("This bot cannot open a mutable terminal.");
     }
-    return bots.backendFor(botId);
+    const target = allowActivation
+      ? await bots.backendFor(botId)
+      : bots.readyBackendFor(botId);
+    if (!target) throw new Error("The named bot is not running.");
+    return target;
   };
 
   const assertTerminalOwner = (sessionId: string, botId: string): void => {
     const owner = terminalOwners.get(sessionId);
     let requestedId: string | undefined;
     try {
-      requestedId = bots?.get(botId).id;
+      const bot = bots?.get(botId);
+      if (bot && !bot.isDefault && !bot.permissions.allowMutation) {
+        throw new Error("This bot cannot open a mutable terminal.");
+      }
+      requestedId = bot?.id;
     } catch {
       /* unknown bot */
     }
@@ -136,24 +194,121 @@ export function registerTerminalIpcHandlers(
       | `/terminal/session/output?${string}`,
     method: "GET" | "POST",
     body?: object,
+    timeoutMs = API_TIMEOUT_MS,
+    expected?: { backend: BackendManager; url: string },
   ): Promise<unknown> => {
     const target = await interactiveBackendFor(botId);
     const state = target.getState();
     if (state.phase !== "ready" || !state.url) {
       throw new Error("The local runtime is not ready.");
     }
+    if (
+      expected &&
+      (target !== expected.backend || state.url !== expected.url)
+    ) {
+      throw new Error("The local runtime changed during terminal creation.");
+    }
     const response = await sensitiveFetch(`${state.url}${path}`, {
       method,
       headers: body ? { "content-type": "application/json" } : undefined,
       body: body ? JSON.stringify(body) : undefined,
-      signal: AbortSignal.timeout(API_TIMEOUT_MS),
+      signal: AbortSignal.timeout(timeoutMs),
     });
     if (!response.ok) {
-      throw new Error(
-        `Interactive terminal request failed: ${(await parseRequestError(response)).trim()}`,
+      let code: string | undefined;
+      let runtimeInstanceId: string | undefined;
+      try {
+        const errorPayload = await parseSuccessfulJson(response, 4_096);
+        if (isRecord(errorPayload)) {
+          if (typeof errorPayload.code === "string") code = errorPayload.code;
+          if (typeof errorPayload.runtimeInstanceId === "string") {
+            runtimeInstanceId = errorPayload.runtimeInstanceId;
+          }
+        }
+      } catch {
+        // Invalid or oversized error bodies never become absence receipts.
+      }
+      throw new TerminalRuntimeHttpError(
+        response.status,
+        code,
+        runtimeInstanceId,
       );
     }
     return parseSuccessfulJson(response, MAX_SENSITIVE_RESPONSE_BYTES);
+  };
+
+  const runtimeIdentity = async (
+    url: string,
+    timeoutMs = 5_000,
+  ): Promise<{ processId: number; runtimeInstanceId: string }> => {
+    const response = await sensitiveFetch(`${url}/runtime/bot-identity`, {
+      method: "GET",
+      signal: AbortSignal.timeout(Math.max(1, Math.min(5_000, timeoutMs))),
+    });
+    if (!response.ok)
+      throw new Error("The local runtime identity is unavailable.");
+    const payload = await parseSuccessfulJson(
+      response,
+      MAX_SENSITIVE_RESPONSE_BYTES,
+    );
+    if (
+      !isRecord(payload) ||
+      !Number.isSafeInteger(payload.processId) ||
+      typeof payload.runtimeInstanceId !== "string" ||
+      !/^[a-f0-9-]{36}$/u.test(payload.runtimeInstanceId)
+    ) {
+      throw new Error("The local runtime identity is invalid.");
+    }
+    return {
+      processId: payload.processId as number,
+      runtimeInstanceId: payload.runtimeInstanceId,
+    };
+  };
+
+  const matchesTerminalRuntime = async (
+    sessionId: string,
+    botId: string,
+  ): Promise<boolean> => {
+    assertTerminalOwner(sessionId, botId);
+    const owner = terminalOwners.get(sessionId);
+    if (!owner) return false;
+    try {
+      const target = await interactiveBackendFor(botId);
+      const state = target.getState();
+      if (
+        target !== owner.backend ||
+        state.phase !== "ready" ||
+        state.url !== owner.url
+      )
+        return false;
+      const identity = await runtimeIdentity(owner.url);
+      return (
+        identity.processId === owner.processId &&
+        identity.runtimeInstanceId === owner.runtimeInstanceId
+      );
+    } catch {
+      return false;
+    }
+  };
+
+  const matchesTerminalBackend = (
+    sessionId: string,
+    botId: string,
+  ): boolean => {
+    assertTerminalOwner(sessionId, botId);
+    const owner = terminalOwners.get(sessionId);
+    if (!owner) return false;
+    try {
+      const target = bots?.readyBackendFor(botId);
+      const state = target?.getState();
+      return (
+        target === owner.backend &&
+        state?.phase === "ready" &&
+        state.url === owner.url
+      );
+    } catch {
+      return false;
+    }
   };
 
   registerHandler(
@@ -355,39 +510,255 @@ export function registerTerminalIpcHandlers(
       const request = validateInteractiveTerminalStartRequest(unsafeRequest);
       if (!bots)
         throw new Error("Bot ownership is unavailable for this terminal.");
-      await bots.ensureConversationOwner(
-        request.botId ?? "default",
-        request.originConversationId,
-      );
-      const workspacePath = bots.assertAcpWorkspace(
-        request.botId ?? "default",
-        request.workspacePath,
-      );
+      const botId = request.botId ?? "default";
+      const authorize = async () => {
+        const bot = bots.get(botId);
+        if (!bot.isDefault && !bot.permissions.allowMutation) {
+          throw new Error("This bot cannot open a mutable terminal.");
+        }
+        await bots.ensureConversationOwner(botId, request.originConversationId);
+        const workspacePath = bots.assertAcpWorkspace(
+          botId,
+          request.workspacePath,
+        );
+        if (workspacePath !== request.workspacePath) {
+          throw new Error("Interactive terminal workspace has changed.");
+        }
+        return workspacePath;
+      };
+      const workspacePath = await authorize();
+      const now = Date.now();
+      const creationTimestamp = Number(request.requestId.slice(0, 13));
+      if (
+        creationTimestamp > now + 60_000 ||
+        now - creationTimestamp > CREATION_ATTEMPT_RETENTION_MS
+      ) {
+        return {
+          status: "unconfirmed",
+          requestId: request.requestId,
+          retryable: false,
+          message:
+            "Terminal creation could not be confirmed. This attempt has expired.",
+        };
+      }
+      for (const [key, value] of creationAttempts) {
+        if (
+          now - value.createdAt > CREATION_ATTEMPT_RETENTION_MS &&
+          !value.pending
+        ) {
+          creationAttempts.delete(key);
+        }
+      }
+      // The identity is renderer-stable across a webContents replacement.
+      // Its sealed owner/workspace fields are revalidated on every call.
+      const key = request.requestId;
+      let attempt = creationAttempts.get(key);
+      const isNewAttempt = !attempt;
+      if (attempt) {
+        const prior = attempt.request;
+        if (
+          (prior.botId ?? "default") !== botId ||
+          prior.originConversationId !== request.originConversationId ||
+          prior.workspacePath !== workspacePath ||
+          prior.cols !== request.cols ||
+          prior.rows !== request.rows
+        ) {
+          throw new Error(
+            "Interactive terminal request identity conflicts with an earlier request.",
+          );
+        }
+        if (attempt.pending) {
+          const result = await attempt.pending;
+          await authorize();
+          if (result.status === "started") {
+            const current = await interactiveBackendFor(botId);
+            const state = current.getState();
+            const identity =
+              state.phase === "ready" && state.url && state.url === attempt.url
+                ? await runtimeIdentity(state.url)
+                : null;
+            const owner = terminalOwners.get(result.session.id);
+            if (
+              current !== attempt.backend ||
+              identity?.runtimeInstanceId !== attempt.runtimeInstanceId ||
+              identity?.processId !== attempt.processId ||
+              owner?.backend !== attempt.backend ||
+              owner?.url !== attempt.url ||
+              owner?.runtimeInstanceId !== attempt.runtimeInstanceId ||
+              owner?.botId !== bots.get(botId).id ||
+              owner.originConversationId !== request.originConversationId ||
+              owner.workspacePath !== workspacePath
+            ) {
+              return {
+                status: "unconfirmed",
+                requestId: request.requestId,
+                retryable: false,
+                message: "Terminal ownership could not be confirmed.",
+              };
+            }
+          }
+          return result;
+        }
+      } else {
+        if (creationAttempts.size >= MAX_CREATION_ATTEMPTS) {
+          throw new Error("Too many terminal creation attempts are pending.");
+        }
+        attempt = {
+          createdAt: now,
+          request,
+          creationId: request.requestId,
+        };
+        creationAttempts.set(key, attempt);
+      }
+      const currentAttempt = attempt;
       // Opening an empty PTY from the trusted desktop renderer does not execute
       // a command. Typed input and command-running IPC paths remain separate,
       // validated boundaries; command execution still requires confirmation.
-      const payload = await requestInteractiveTerminal(
-        request.botId ?? "default",
-        "/terminal/session/start",
-        "POST",
-        { cols: request.cols, rows: request.rows },
-      );
-      if (!isRecord(payload) || !isRecord(payload.session)) {
-        throw new Error("The runtime returned an invalid terminal session.");
-      }
-      const session = validateInteractiveTerminalSession(payload.session);
-      if (terminalOwners.has(session.id)) {
-        throw new Error("Interactive terminal identity is already owned.");
-      }
-      terminalOwners.set(session.id, {
-        botId: bots.get(request.botId ?? "default").id,
-        originConversationId: request.originConversationId,
-        workspacePath,
-      });
-      return {
-        status: "started",
-        session,
+      const execute = async (): Promise<InteractiveTerminalStartResult> => {
+        const unconfirmed = (
+          retryable: boolean,
+        ): InteractiveTerminalStartResult => ({
+          status: "unconfirmed",
+          requestId: request.requestId,
+          retryable,
+          message: retryable
+            ? "Terminal creation could not be confirmed. Retry this tab."
+            : "Terminal creation could not be confirmed. Check the runtime before retrying.",
+        });
+        // Named-bot activation is a separate startup operation; bound only the
+        // HTTP identity, creation, and reconciliation sequence that follows it.
+        let deadline = 0;
+        let target: BackendManager;
+        let url: string;
+        try {
+          // Only the first explicit open may activate a named bot. A retry or
+          // restored pending descriptor must not undo Stop work.
+          target = await interactiveBackendFor(
+            botId,
+            isNewAttempt && !request.reconcileOnly,
+          );
+          deadline = Date.now() + START_POST_BOOTSTRAP_BUDGET_MS;
+          const state = target.getState();
+          if (state.phase !== "ready" || !state.url) return unconfirmed(false);
+          url = state.url;
+          if (deadline - Date.now() <= 0) return unconfirmed(false);
+          const { processId, runtimeInstanceId } = await runtimeIdentity(
+            url,
+            deadline - Date.now(),
+          );
+          if (
+            currentAttempt.backend &&
+            (currentAttempt.backend !== target ||
+              currentAttempt.url !== url ||
+              currentAttempt.processId !== processId ||
+              currentAttempt.runtimeInstanceId !== runtimeInstanceId)
+          ) {
+            return unconfirmed(false);
+          }
+          currentAttempt.backend = target;
+          currentAttempt.url = url;
+          currentAttempt.processId = processId;
+          currentAttempt.runtimeInstanceId = runtimeInstanceId;
+        } catch (error) {
+          return unconfirmed(temporarySocketFailure(error));
+        }
+        for (let delivery = 0; delivery < 2; delivery += 1) {
+          try {
+            await authorize();
+            const remaining = deadline - Date.now();
+            if (remaining <= 0) return unconfirmed(false);
+            const payload = await requestInteractiveTerminal(
+              botId,
+              "/terminal/session/start",
+              "POST",
+              {
+                cols: request.cols,
+                rows: request.rows,
+                creationId: currentAttempt.creationId,
+              },
+              Math.min(API_TIMEOUT_MS, remaining),
+              { backend: target, url },
+            );
+            if (!isRecord(payload) || !isRecord(payload.session)) {
+              return unconfirmed(false);
+            }
+            if (
+              payload.runtimeInstanceId !== currentAttempt.runtimeInstanceId
+            ) {
+              return unconfirmed(false);
+            }
+            const session = validateInteractiveTerminalSession(payload.session);
+            await authorize();
+            const currentState = target.getState();
+            const currentIdentity =
+              currentState.phase === "ready" &&
+              currentState.url === url &&
+              deadline - Date.now() > 0
+                ? await runtimeIdentity(url, deadline - Date.now())
+                : null;
+            if (
+              !currentIdentity ||
+              currentIdentity.runtimeInstanceId !==
+                currentAttempt.runtimeInstanceId ||
+              currentIdentity.processId !== currentAttempt.processId
+            ) {
+              return unconfirmed(false);
+            }
+            const owner = terminalOwners.get(session.id);
+            if (owner) {
+              if (
+                owner.botId !== bots.get(botId).id ||
+                owner.originConversationId !== request.originConversationId ||
+                owner.workspacePath !== workspacePath ||
+                owner.backend !== target ||
+                owner.url !== url ||
+                owner.runtimeInstanceId !== currentIdentity.runtimeInstanceId ||
+                owner.processId !== currentIdentity.processId
+              )
+                return unconfirmed(false);
+            } else {
+              terminalOwners.set(session.id, {
+                botId: bots.get(botId).id,
+                originConversationId: request.originConversationId,
+                workspacePath,
+                backend: target,
+                url,
+                processId: currentIdentity.processId,
+                runtimeInstanceId: currentIdentity.runtimeInstanceId,
+              });
+            }
+            return { status: "started", session };
+          } catch (error) {
+            if (!temporarySocketFailure(error)) return unconfirmed(false);
+            if (delivery === 1 || deadline - Date.now() <= 0)
+              return unconfirmed(true);
+            try {
+              await authorize();
+              const current = await interactiveBackendFor(botId);
+              const state = current.getState();
+              if (
+                current !== target ||
+                state.phase !== "ready" ||
+                state.url !== url ||
+                deadline - Date.now() <= 0 ||
+                (await runtimeIdentity(url, deadline - Date.now()))
+                  .runtimeInstanceId !== currentAttempt.runtimeInstanceId
+              ) {
+                return unconfirmed(false);
+              }
+            } catch {
+              return unconfirmed(false);
+            }
+          }
+        }
+        return unconfirmed(false);
       };
+      currentAttempt.pending = execute();
+      try {
+        return await currentAttempt.pending;
+      } finally {
+        currentAttempt.pending = undefined;
+      }
     },
   );
   registerHandler(
@@ -397,7 +768,14 @@ export function registerTerminalIpcHandlers(
       unsafeRequest: InteractiveTerminalInputRequest,
     ) => {
       const request = validateInteractiveTerminalInputRequest(unsafeRequest);
-      assertTerminalOwner(request.sessionId, request.botId ?? "default");
+      if (
+        !(await matchesTerminalRuntime(
+          request.sessionId,
+          request.botId ?? "default",
+        ))
+      ) {
+        throw new Error("Interactive terminal runtime has changed.");
+      }
       const payload = await requestInteractiveTerminal(
         request.botId ?? "default",
         "/terminal/session/input",
@@ -416,7 +794,14 @@ export function registerTerminalIpcHandlers(
       unsafeRequest: InteractiveTerminalResizeRequest,
     ) => {
       const request = validateInteractiveTerminalResizeRequest(unsafeRequest);
-      assertTerminalOwner(request.sessionId, request.botId ?? "default");
+      if (
+        !(await matchesTerminalRuntime(
+          request.sessionId,
+          request.botId ?? "default",
+        ))
+      ) {
+        throw new Error("Interactive terminal runtime has changed.");
+      }
       const payload = await requestInteractiveTerminal(
         request.botId ?? "default",
         "/terminal/session/resize",
@@ -441,7 +826,9 @@ export function registerTerminalIpcHandlers(
     ) => {
       const sessionId = validateInteractiveTerminalSessionId(unsafeSessionId);
       const botId = validateTerminalBotId(unsafeBotId);
-      assertTerminalOwner(sessionId, botId);
+      if (!(await matchesTerminalRuntime(sessionId, botId))) {
+        throw new Error("Interactive terminal runtime has changed.");
+      }
       const payload = await requestInteractiveTerminal(
         botId,
         "/terminal/session/interrupt",
@@ -462,7 +849,9 @@ export function registerTerminalIpcHandlers(
     ) => {
       const sessionId = validateInteractiveTerminalSessionId(unsafeSessionId);
       const botId = validateTerminalBotId(unsafeBotId);
-      assertTerminalOwner(sessionId, botId);
+      if (!(await matchesTerminalRuntime(sessionId, botId))) {
+        throw new Error("Interactive terminal runtime has changed.");
+      }
       const payload = await requestInteractiveTerminal(
         botId,
         "/terminal/session/close",
@@ -486,19 +875,75 @@ export function registerTerminalIpcHandlers(
       const sessionId = validateInteractiveTerminalSessionId(unsafeSessionId);
       const botId = validateTerminalBotId(unsafeBotId);
       assertTerminalOwner(sessionId, botId);
+      if (!matchesTerminalBackend(sessionId, botId)) {
+        return {
+          status: "unconfirmed",
+          sessionId,
+          retryable: false,
+          message:
+            "Terminal output could not be confirmed. The runtime has changed.",
+        } satisfies InteractiveTerminalOutputResult;
+      }
       const cursor =
         typeof unsafeCursor === "number" &&
         Number.isSafeInteger(unsafeCursor) &&
         unsafeCursor >= 0
           ? unsafeCursor
           : 0;
-      return requestInteractiveTerminal(
-        botId,
-        `/terminal/session/output?sessionId=${encodeURIComponent(
+      try {
+        const payload = await requestInteractiveTerminal(
+          botId,
+          `/terminal/session/output?sessionId=${encodeURIComponent(
+            sessionId,
+          )}&cursor=${cursor}`,
+          "GET",
+        );
+        const owner = terminalOwners.get(sessionId);
+        if (
+          !matchesTerminalBackend(sessionId, botId) ||
+          !isRecord(payload) ||
+          payload.runtimeInstanceId !== owner?.runtimeInstanceId
+        )
+          throw new Error("Interactive terminal runtime has changed.");
+        const output = validateInteractiveTerminalOutput(payload);
+        if (output.session.id !== sessionId) {
+          throw new Error("The runtime returned a different terminal session.");
+        }
+        return {
+          status: "available",
+          output,
+        } satisfies InteractiveTerminalOutputResult;
+      } catch (error) {
+        assertTerminalOwner(sessionId, botId);
+        if (!matchesTerminalBackend(sessionId, botId)) {
+          return {
+            status: "unconfirmed",
+            sessionId,
+            retryable: false,
+            message:
+              "Terminal output could not be confirmed. The runtime has changed.",
+          } satisfies InteractiveTerminalOutputResult;
+        }
+        if (
+          error instanceof TerminalRuntimeHttpError &&
+          error.status === 404 &&
+          error.code === "terminal-session-not-found" &&
+          error.runtimeInstanceId ===
+            terminalOwners.get(sessionId)?.runtimeInstanceId
+        ) {
+          return {
+            status: "absent",
+            sessionId,
+          } satisfies InteractiveTerminalOutputResult;
+        }
+        return {
+          status: "unconfirmed",
           sessionId,
-        )}&cursor=${cursor}`,
-        "GET",
-      ).then(validateInteractiveTerminalOutput);
+          retryable: temporarySocketFailure(error),
+          message:
+            "Terminal output could not be confirmed. The session may still be running.",
+        } satisfies InteractiveTerminalOutputResult;
+      }
     },
   );
 }

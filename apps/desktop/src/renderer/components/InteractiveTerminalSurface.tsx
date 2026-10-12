@@ -1,5 +1,6 @@
 import { Terminal } from "lucide-react";
 import type { RefObject } from "react";
+import { InlineActionConfirmation } from "./InlineActionConfirmation";
 import { INTERACTIVE_TERMINAL_PRIMARY_BUTTON_CLASS } from "./interactive-terminal-layout";
 import { terminalTabLabelId } from "./interactive-terminal-state";
 import type { InteractiveTerminalTabState } from "./interactive-terminal-store";
@@ -10,6 +11,10 @@ export function InteractiveTerminalSurface({
   activeTab,
   notice,
   onStart,
+  onRetryOutput,
+  canRetryOutput,
+  pendingStart = false,
+  discardConfirmation,
   running,
   starting,
   viewportRef,
@@ -18,6 +23,14 @@ export function InteractiveTerminalSurface({
   activeTab?: InteractiveTerminalTabState;
   notice: string;
   onStart: () => void;
+  onRetryOutput: () => void;
+  canRetryOutput: boolean;
+  pendingStart?: boolean;
+  discardConfirmation?: {
+    tabName: string;
+    onCancel: () => void;
+    onConfirm: () => void;
+  } | null;
   running: boolean;
   starting: boolean;
   viewportRef: RefObject<HTMLDivElement | null>;
@@ -55,19 +68,47 @@ export function InteractiveTerminalSurface({
             onClick={onStart}
             type="button"
           >
-            {starting ? "Opening…" : "Open shell"}
+            {starting
+              ? "Opening…"
+              : pendingStart
+                ? "Retry shell request"
+                : "Open shell"}
           </button>
         </div>
       ) : null}
+      {discardConfirmation ? (
+        <div className="absolute inset-x-2 top-2 z-10">
+          <InlineActionConfirmation
+            busy={false}
+            busyLabel="Discarding…"
+            confirmLabel="Discard tab only"
+            detail="This removes the tab and its recovery ID, not the shell. The shell may still be running. Use Stop work or quit Doolittle to shut it down."
+            onCancel={discardConfirmation.onCancel}
+            onConfirm={discardConfirmation.onConfirm}
+            title={`Discard ${discardConfirmation.tabName} tab only?`}
+          />
+        </div>
+      ) : null}
       {notice || activeTab?.stale ? (
-        <p
+        <div
           className="absolute right-1.5 bottom-1.5 z-4 m-0 max-w-[min(30rem,calc(100%-1rem))] rounded-[var(--radius-xs)] border border-[var(--warn)] bg-[var(--warn-soft)] px-2 py-1 font-mono text-[length:var(--text-meta)] text-[var(--warn)]"
           role="status"
           title={notice}
         >
-          {notice ||
-            "Session ended on workspace change. Open a new shell to continue."}
-        </p>
+          <span>
+            {notice ||
+              "Session ended on workspace change. Open a new shell to continue."}
+          </span>
+          {canRetryOutput ? (
+            <button
+              className="ml-2 underline underline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
+              onClick={onRetryOutput}
+              type="button"
+            >
+              Retry output
+            </button>
+          ) : null}
+        </div>
       ) : null}
     </div>
   );

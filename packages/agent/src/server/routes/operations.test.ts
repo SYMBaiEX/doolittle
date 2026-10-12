@@ -2,7 +2,11 @@ import { DOOLITTLE_SHELL_SERVICE } from "@doolittle/contracts";
 import { describe, expect, it, vi } from "vitest";
 import type { AppLogRecord } from "@/logging/logger";
 import type { AppContext } from "@/runtime/bootstrap";
+import { runtimeInstanceId } from "@/server/runtime-instance-id";
+import { TerminalSessionNotFoundError } from "@/services/terminal/session";
 import { handleOperationsRoutes } from "./operations";
+
+const creationId = `${Date.now()}.62df6968-19be-4ea6-b7a1-479a57fa3b7c`;
 
 function createContext(): AppContext {
   const terminal = {
@@ -68,6 +72,44 @@ function createContext(): AppContext {
 }
 
 describe("handleOperationsRoutes", () => {
+  it("marks only a known missing terminal session with the explicit absence code", async () => {
+    const context = createContext();
+    context.services.terminal.interactiveSessionOutput = () => {
+      throw new TerminalSessionNotFoundError();
+    };
+    const url = new URL(
+      "http://localhost/terminal/session/output?sessionId=62df6968-19be-4ea6-b7a1-479a57fa3b7c",
+    );
+    const response = await handleOperationsRoutes(
+      context,
+      new Request(url),
+      url,
+    );
+    expect(response?.status).toBe(404);
+    expect(await response?.json()).toEqual({
+      code: "terminal-session-not-found",
+      error: "Interactive terminal session was not found.",
+      runtimeInstanceId: runtimeInstanceId(context.runtime),
+    });
+  });
+
+  it("requires a creation identity before a terminal can be spawned", async () => {
+    const context = createContext();
+    context.services.terminal.startInteractiveSession = vi.fn();
+    const url = new URL("http://localhost/terminal/session/start");
+    const response = await handleOperationsRoutes(
+      context,
+      new Request(url, {
+        method: "POST",
+        body: JSON.stringify({ cols: 100, rows: 30 }),
+      }),
+      url,
+    );
+    expect(response?.status).toBe(400);
+    expect(
+      context.services.terminal.startInteractiveSession,
+    ).not.toHaveBeenCalled();
+  });
   it("does not disclose terminal session exception details", async () => {
     const context = createContext();
     context.services.terminal.startInteractiveSession = () => {
@@ -78,7 +120,7 @@ describe("handleOperationsRoutes", () => {
       context,
       new Request(url, {
         method: "POST",
-        body: "{}",
+        body: JSON.stringify({ creationId }),
       }),
       url,
     );
@@ -466,9 +508,16 @@ describe("handleOperationsRoutes", () => {
     const sessionId = session.id;
     expect(
       await (
-        await post("/terminal/session/start", { cols: 100, rows: 30 })
+        await post("/terminal/session/start", {
+          cols: 100,
+          rows: 30,
+          creationId,
+        })
       )?.json(),
-    ).toEqual({ session });
+    ).toEqual({
+      session,
+      runtimeInstanceId: runtimeInstanceId(context.runtime),
+    });
     await post("/terminal/session/input", {
       sessionId,
       data: "bun test\n",
@@ -494,9 +543,10 @@ describe("handleOperationsRoutes", () => {
       chunks: [{ cursor: 4, data: "ready" }],
       nextCursor: 4,
       truncatedBeforeCursor: false,
+      runtimeInstanceId: runtimeInstanceId(context.runtime),
     });
     expect(calls).toEqual([
-      { operation: "start", value: { cols: 100, rows: 30 } },
+      { operation: "start", value: { cols: 100, rows: 30, creationId } },
       { operation: "input", value: { sessionId, data: "bun test\n" } },
       { operation: "resize", value: { sessionId, cols: 120, rows: 40 } },
       { operation: "interrupt", value: sessionId },

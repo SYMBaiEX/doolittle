@@ -8,7 +8,12 @@ import {
 import { sdkTerminalRunTokenError } from "@/server/auth";
 import { readJsonObjectBody } from "@/server/request-body";
 import { json, streamSse } from "@/server/responses";
+import { runtimeInstanceId } from "@/server/runtime-instance-id";
 import { TerminalCancellationUnavailableError } from "@/services/terminal/command/orchestrator";
+import {
+  TerminalCreationConflictError,
+  TerminalSessionNotFoundError,
+} from "@/services/terminal/session";
 
 const MAX_WORKSPACE_FILE_BYTES = 1_000_000;
 const MAX_WORKSPACE_PATH_LENGTH = 4_096;
@@ -84,11 +89,20 @@ function parseTerminalCommandInput(
   return { command, timeoutMs };
 }
 
-function terminalSessionError(error: unknown): Response {
+function terminalSessionError(error: unknown, instanceId?: string): Response {
   const message = error instanceof Error ? error.message : "";
-  if (message === "Interactive terminal session was not found.") {
-    return json({ error: "Interactive terminal session was not found." }, 404);
+  if (error instanceof TerminalSessionNotFoundError) {
+    return json(
+      {
+        code: "terminal-session-not-found",
+        error: "Interactive terminal session was not found.",
+        ...(instanceId ? { runtimeInstanceId: instanceId } : {}),
+      },
+      404,
+    );
   }
+  if (error instanceof TerminalCreationConflictError)
+    return json({ error: "Terminal creation identity is unavailable." }, 409);
   if (message === "A valid terminal session id is required.")
     return json({ error: "A valid terminal session id is required." }, 400);
   if (message === "Interactive terminal session is no longer running.")
@@ -462,12 +476,17 @@ export async function handleOperationsRoutes(
     const parsed = await readBody(request);
     if ("response" in parsed) return parsed.response;
     const { body } = parsed;
+    if (typeof body.creationId !== "string") {
+      return json({ error: "Terminal creation identity is required." }, 400);
+    }
     try {
       return json({
         session: context.services.terminal.startInteractiveSession({
           cols: typeof body.cols === "number" ? body.cols : undefined,
           rows: typeof body.rows === "number" ? body.rows : undefined,
+          creationId: body.creationId,
         }),
+        runtimeInstanceId: runtimeInstanceId(context.runtime),
       });
     } catch (error) {
       return terminalSessionError(error);
@@ -546,14 +565,15 @@ export async function handleOperationsRoutes(
   if (request.method === "GET" && url.pathname === "/terminal/session/output") {
     try {
       const cursor = Number.parseInt(url.searchParams.get("cursor") ?? "0", 10);
-      return json(
-        context.services.terminal.interactiveSessionOutput(
+      return json({
+        ...context.services.terminal.interactiveSessionOutput(
           url.searchParams.get("sessionId") ?? "",
           Number.isSafeInteger(cursor) && cursor >= 0 ? cursor : 0,
         ),
-      );
+        runtimeInstanceId: runtimeInstanceId(context.runtime),
+      });
     } catch (error) {
-      return terminalSessionError(error);
+      return terminalSessionError(error, runtimeInstanceId(context.runtime));
     }
   }
 

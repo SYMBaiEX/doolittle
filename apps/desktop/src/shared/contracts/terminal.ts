@@ -42,17 +42,34 @@ export interface InteractiveTerminalOutput {
   nextCursor: number;
   truncatedBeforeCursor: boolean;
 }
+export type InteractiveTerminalOutputResult =
+  | { status: "available"; output: InteractiveTerminalOutput }
+  | { status: "absent"; sessionId: string }
+  | {
+      status: "unconfirmed";
+      sessionId: string;
+      retryable: boolean;
+      message: string;
+    };
 export interface InteractiveTerminalStartRequest {
+  /** Timestamp-prefixed UUID, stable for one tab's open attempt and retries. */
+  requestId: string;
+  /** Existing pending attempts may reconcile but must never activate a bot. */
+  reconcileOnly?: boolean;
   botId?: string;
   originConversationId: string;
   workspacePath: string;
   cols: number;
   rows: number;
 }
-export interface InteractiveTerminalStartResult {
-  status: "started";
-  session: InteractiveTerminalSession;
-}
+export type InteractiveTerminalStartResult =
+  | { status: "started"; session: InteractiveTerminalSession }
+  | {
+      status: "unconfirmed";
+      requestId: string;
+      retryable: boolean;
+      message: string;
+    };
 export interface InteractiveTerminalInputRequest {
   botId?: string;
   sessionId: string;

@@ -17,6 +17,8 @@ describe("InteractiveTerminalSurface", () => {
         activeTab={tab}
         notice=""
         onStart={vi.fn()}
+        onRetryOutput={vi.fn()}
+        canRetryOutput={false}
         running={false}
         starting={false}
         viewportRef={{ current: null }}
@@ -45,6 +47,8 @@ describe("InteractiveTerminalSurface", () => {
         activeTab={tab}
         notice=""
         onStart={vi.fn()}
+        onRetryOutput={vi.fn()}
+        canRetryOutput={false}
         running={false}
         starting={false}
         viewportRef={{ current: null }}
@@ -72,6 +76,8 @@ describe("InteractiveTerminalSurface", () => {
           active={active}
           notice=""
           onStart={vi.fn()}
+          onRetryOutput={vi.fn()}
+          canRetryOutput={false}
           running={false}
           starting={starting}
           viewportRef={{ current: null }}
@@ -89,4 +95,26 @@ describe("InteractiveTerminalSurface", () => {
       expect(markup).not.toContain("shadow-[0_0_");
     },
   );
+
+  it("offers only a read-only retry action for unconfirmed output", () => {
+    const markup = renderToStaticMarkup(
+      <InteractiveTerminalSurface
+        active
+        activeTab={{
+          ...createInteractiveTerminalTab("Terminal 1"),
+          state: "running",
+        }}
+        notice="Terminal output could not be confirmed. Session preserved."
+        onStart={vi.fn()}
+        onRetryOutput={vi.fn()}
+        canRetryOutput
+        running
+        starting={false}
+        viewportRef={{ current: null }}
+      />,
+    );
+    expect(markup).toContain("Retry output");
+    expect(markup).toContain('role="status"');
+    expect(markup).not.toContain("Open shell");
+  });
 });

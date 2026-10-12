@@ -35,7 +35,18 @@ import { json, runResponsePostCommit } from "@/server/responses";
 import { dispatchRouteHandlers } from "@/server/router";
 import { apiRouteHandlers } from "@/server/routes";
 import { handleOperationsRoutes } from "@/server/routes/operations";
+import { handleRuntimeRoutes } from "@/server/routes/runtime";
 import { isWorkerApiRouteAllowed } from "@/server/worker-route-policy";
+
+const INTERACTIVE_TERMINAL_MUTATION_PATHS = new Set([
+  "/terminal/session/start",
+  "/terminal/session/input",
+  "/terminal/session/resize",
+  "/terminal/session/interrupt",
+  "/terminal/session/close",
+]);
+const INTERACTIVE_TERMINAL_OUTPUT_PATH = "/terminal/session/output";
+const RUNTIME_IDENTITY_PATH = "/runtime/bot-identity";
 
 let activeApiServer: Server | null = null;
 let activeApiServerAddress: string | null = null;
@@ -420,19 +431,34 @@ export async function createApiServer(
                     url,
                     apiRouteHandlers,
                   )) ?? json({ error: "Not found" }, 404))
-                : ((await dispatchRuntimePluginRoute({
-                    runtime: context.runtime,
-                    request,
-                    url,
-                    isAuthorized: () => authorized,
-                  })) ??
-                  (await dispatchRouteHandlers(
-                    context,
-                    request,
-                    url,
-                    apiRouteHandlers,
-                  )) ??
-                  json({ error: "Not found" }, 404));
+                : INTERACTIVE_TERMINAL_MUTATION_PATHS.has(requestPath) ||
+                    requestPath === INTERACTIVE_TERMINAL_OUTPUT_PATH
+                  ? (
+                      requestPath === INTERACTIVE_TERMINAL_OUTPUT_PATH
+                        ? method === "GET"
+                        : method === "POST"
+                    )
+                    ? ((await handleOperationsRoutes(context, request, url)) ??
+                      json({ error: "Not found" }, 404))
+                    : json({ error: "Method not allowed" }, 405)
+                  : requestPath === RUNTIME_IDENTITY_PATH
+                    ? method === "GET"
+                      ? ((await handleRuntimeRoutes(context, request, url)) ??
+                        json({ error: "Not found" }, 404))
+                      : json({ error: "Method not allowed" }, 405)
+                    : ((await dispatchRuntimePluginRoute({
+                        runtime: context.runtime,
+                        request,
+                        url,
+                        isAuthorized: () => authorized,
+                      })) ??
+                      (await dispatchRouteHandlers(
+                        context,
+                        request,
+                        url,
+                        apiRouteHandlers,
+                      )) ??
+                      json({ error: "Not found" }, 404));
           }
           if (security.terminalOnly)
             requestLifecycle.controller.signal.throwIfAborted();
