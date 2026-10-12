@@ -12,7 +12,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { MAX_GIT_MARKER_BYTES } from "./repository/git-marker";
 import { RepositoryService } from "./repository-service";
@@ -25,7 +25,7 @@ vi.mock("node:fs", async (importOriginal) => {
   return {
     ...fs,
     openSync: (...args: Parameters<typeof fs.openSync>) => {
-      if (String(args[0]).endsWith("/.git")) {
+      if (basename(String(args[0])) === ".git") {
         const beforeOpen = markerHooks.beforeOpen;
         markerHooks.beforeOpen = undefined;
         beforeOpen?.();

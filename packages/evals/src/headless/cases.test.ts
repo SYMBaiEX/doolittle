@@ -27,6 +27,51 @@ describe("official model documentation citation check", () => {
         "Medium: https://developers.openai.com:443/api/docs/models/gpt-6-luna",
       ),
     ).toBe(true);
+    expect(
+      evaluate(
+        "Medium: <https://developers.openai.com/api/docs/models/gpt-6-luna>",
+      ),
+    ).toBe(true);
+    expect(
+      evaluate(
+        "Medium: [official model docs][luna]\n\n[luna]: https://developers.openai.com/api/docs/models/gpt-6-luna",
+      ),
+    ).toBe(true);
+  });
+
+  it("checks Markdown destinations, not deceptive labels or unused definitions", () => {
+    const official = "https://developers.openai.com/api/docs/models/gpt-6-luna";
+    expect(
+      evaluate(`Medium: [Official docs: ${official}](https://evil.example/)`),
+    ).toBe(false);
+    expect(
+      evaluate(
+        `Medium: [Official docs: ${official}][evil]\n\n[evil]: https://evil.example/`,
+      ),
+    ).toBe(false);
+    expect(
+      evaluate(
+        `Medium: [unrelated](https://evil.example/)\n\n[unused]: ${official}`,
+      ),
+    ).toBe(false);
+    expect(
+      evaluate(`Medium: ![${official}](https://evil.example/image.png)`),
+    ).toBe(false);
+    expect(evaluate(`Medium: \`${official}\``)).toBe(false);
+  });
+
+  it("uses the first definition of a repeated reference label", () => {
+    const official = "https://developers.openai.com/api/docs/models/gpt-6-luna";
+    expect(
+      evaluate(
+        `Medium: [model docs][luna]\n\n[luna]: https://evil.example/\n[luna]: ${official}`,
+      ),
+    ).toBe(false);
+    expect(
+      evaluate(
+        `Medium: [model docs][luna]\n\n[luna]: ${official}\n[luna]: https://evil.example/`,
+      ),
+    ).toBe(true);
   });
 
   it("rejects lookalike hosts, embedded paths, and path suffixes", () => {

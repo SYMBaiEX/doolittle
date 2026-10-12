@@ -500,6 +500,12 @@ importers:
       '@doolittle/contracts':
         specifier: workspace:*
         version: link:../contracts
+      mdast-util-from-markdown:
+        specifier: 2.1.0
+        version: 2.1.0
+      unist-util-visit:
+        specifier: 5.1.0
+        version: 5.1.0
 
   packages/plugin-remote-manifest: {}
 

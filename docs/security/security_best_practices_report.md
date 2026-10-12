@@ -341,8 +341,11 @@ Severity: Low, evaluation integrity. An unanchored substring check accepted a
 model-doc pathname on an unrelated host. Grading now parses complete URLs,
 requires the official HTTPS hostname/model path and rejects credentials or
 nondefault ports. Markdown, query/hash, default HTTPS port and a trailing slash
-remain supported. Positive/negative regressions passed; this check never made
-a network request.
+remain supported. Markdown parsing credits actual link destinations and used
+reference definitions, with CommonMark's first-definition-wins behavior. A URL
+in a deceptive label, unused definition, image label or code span does not count
+as a citation. Positive/negative regressions passed; this check never made a
+network request.
 
 ## Historical scanner review coverage
 
