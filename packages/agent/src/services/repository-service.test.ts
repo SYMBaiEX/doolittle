@@ -5,14 +5,35 @@ import {
   mkdtempSync,
   readFileSync,
   realpathSync,
+  renameSync,
   rmSync,
   symlinkSync,
+  unlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { basename, join } from "node:path";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { MAX_GIT_MARKER_BYTES } from "./repository/git-marker";
 import { RepositoryService } from "./repository-service";
+
+const markerHooks = vi.hoisted(() => ({
+  beforeOpen: undefined as (() => void) | undefined,
+}));
+vi.mock("node:fs", async (importOriginal) => {
+  const fs = await importOriginal<typeof import("node:fs")>();
+  return {
+    ...fs,
+    openSync: (...args: Parameters<typeof fs.openSync>) => {
+      if (basename(String(args[0])) === ".git") {
+        const beforeOpen = markerHooks.beforeOpen;
+        markerHooks.beforeOpen = undefined;
+        beforeOpen?.();
+      }
+      return fs.openSync(...args);
+    },
+  };
+});
 
 const createdDirectories: string[] = [];
 
@@ -39,6 +60,7 @@ function createRepository(): string {
 }
 
 afterEach(() => {
+  markerHooks.beforeOpen = undefined;
   while (createdDirectories.length) {
     const directory = createdDirectories.pop();
     if (directory) rmSync(directory, { recursive: true, force: true });
@@ -46,6 +68,123 @@ afterEach(() => {
 });
 
 describe("RepositoryService review model", () => {
+  it("discovers a real linked worktree and reads its Git operation state", async () => {
+    const directory = createRepository();
+    const linked = join(directory, "linked-worktree");
+    runGit(directory, ["worktree", "add", "-qb", "test/linked", linked]);
+    const repository = new RepositoryService(linked);
+
+    expect(repository.isRepository()).toBe(true);
+    expect((await repository.summary()).root).toBe(linked);
+    await expect(repository.mutate({ type: "merge-abort" })).rejects.toThrow(
+      "There is no merge in progress",
+    );
+  });
+
+  it.each(["symlink", "oversized"])(
+    "rejects %s .git markers for discovery and operation-state mutation",
+    async (kind) => {
+      const directory = createRepository();
+      const workspace = mkdtempSync(join(tmpdir(), "doolittle-git-marker-"));
+      createdDirectories.push(workspace);
+      const marker = join(workspace, ".git");
+      const valid = `gitdir: ${join(directory, ".git")}\n`;
+      writeFileSync(marker, valid);
+      const repository = new RepositoryService(workspace);
+      expect(repository.isRepository()).toBe(true);
+
+      unlinkSync(marker);
+      if (kind === "symlink") {
+        const target = join(workspace, "valid-marker");
+        writeFileSync(target, valid);
+        symlinkSync(target, marker);
+      } else {
+        writeFileSync(marker, `gitdir: ${"x".repeat(MAX_GIT_MARKER_BYTES)}`);
+      }
+
+      repository.invalidateWorkspace();
+      expect(repository.isRepository()).toBe(false);
+      // Restore the cached root, then change only the marker before mutation.
+      unlinkSync(marker);
+      writeFileSync(marker, valid);
+      repository.invalidateWorkspace();
+      expect(repository.isRepository()).toBe(true);
+      unlinkSync(marker);
+      if (kind === "symlink")
+        symlinkSync(join(workspace, "valid-marker"), marker);
+      else writeFileSync(marker, `gitdir: ${"x".repeat(MAX_GIT_MARKER_BYTES)}`);
+
+      await expect(repository.mutate({ type: "merge-abort" })).rejects.toThrow(
+        kind === "symlink"
+          ? "Git marker is not a regular file or directory"
+          : "File is not a bounded regular file",
+      );
+    },
+  );
+
+  it.skipIf(process.platform === "win32")(
+    "rejects a FIFO .git marker without opening it for discovery or mutation",
+    async () => {
+      const directory = createRepository();
+      const workspace = mkdtempSync(join(tmpdir(), "doolittle-git-fifo-"));
+      createdDirectories.push(workspace);
+      const marker = join(workspace, ".git");
+      writeFileSync(marker, `gitdir: ${join(directory, ".git")}\n`);
+      const repository = new RepositoryService(workspace);
+      expect(repository.isRepository()).toBe(true);
+      unlinkSync(marker);
+      const fifo = spawnSync("mkfifo", [marker]);
+      if (fifo.status !== 0) throw new Error(fifo.stderr.toString("utf8"));
+      repository.invalidateWorkspace();
+      expect(repository.isRepository()).toBe(false);
+      writeFileSync(
+        join(workspace, "marker-copy"),
+        `gitdir: ${join(directory, ".git")}\n`,
+      );
+      unlinkSync(marker);
+      renameSync(join(workspace, "marker-copy"), marker);
+      repository.invalidateWorkspace();
+      expect(repository.isRepository()).toBe(true);
+      unlinkSync(marker);
+      const secondFifo = spawnSync("mkfifo", [marker]);
+      if (secondFifo.status !== 0)
+        throw new Error(secondFifo.stderr.toString("utf8"));
+      await expect(
+        repository.mutate({ type: "merge-abort" }),
+      ).rejects.toThrow();
+    },
+  );
+
+  it("rejects a different-inode .git marker swapped just before open in both paths", async () => {
+    const directory = createRepository();
+    const workspace = mkdtempSync(join(tmpdir(), "doolittle-git-swap-"));
+    createdDirectories.push(workspace);
+    const marker = join(workspace, ".git");
+    const valid = `gitdir: ${join(directory, ".git")}\n`;
+    writeFileSync(marker, valid);
+    const repository = new RepositoryService(workspace);
+    expect(repository.isRepository()).toBe(true);
+
+    const swap = () => {
+      renameSync(marker, `${marker}.previous`);
+      writeFileSync(marker, valid);
+    };
+    repository.invalidateWorkspace();
+    markerHooks.beforeOpen = swap;
+    expect(repository.isRepository()).toBe(false);
+    expect(markerHooks.beforeOpen).toBeUndefined();
+
+    expect(repository.isRepository()).toBe(false);
+    repository.invalidateWorkspace();
+    expect(repository.isRepository()).toBe(true);
+    markerHooks.beforeOpen = () => {
+      unlinkSync(`${marker}.previous`);
+      swap();
+    };
+    await expect(repository.mutate({ type: "merge-abort" })).rejects.toThrow(
+      "changed before read",
+    );
+  });
   it("keeps one service instance while the live repository root changes", async () => {
     const first = createRepository();
     const second = createRepository();

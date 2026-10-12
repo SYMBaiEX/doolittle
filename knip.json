@@ -16,7 +16,14 @@
     },
     "apps/desktop": {
       "ignoreDependencies": ["electron-builder"],
-      "ignoreBinaries": ["ditto", "osascript", "pgrep", "plutil", "wine"]
+      "ignoreBinaries": [
+        "ditto",
+        "mkfifo",
+        "osascript",
+        "pgrep",
+        "plutil",
+        "wine"
+      ]
     },
     "packages/plugins": {
       "project": ["doolittle-plugin/**/*.ts"]

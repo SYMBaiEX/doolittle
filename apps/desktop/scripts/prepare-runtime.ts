@@ -13,6 +13,7 @@ import { createRequire } from "node:module";
 import { basename, dirname, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { build, type Metafile, type Plugin } from "esbuild";
+import { assertOptionalDependencyEntry } from "./dependency-key";
 import {
   assertDesktopDistributionLicensePolicy,
   discoverDynamicCommonJsPackages,
@@ -226,7 +227,8 @@ function installedRuntimePackageGraph(rootPackages: readonly string[]): {
       readFileSync(manifestPath, "utf8"),
     ) as RuntimePackageManifest;
     const packageResolver = createRequire(manifestPath);
-    const installedOptionalDependencies: Record<string, string> = {};
+    const installedOptionalDependencies: Record<string, string> =
+      Object.create(null);
 
     for (const dependency of Object.keys(manifest.dependencies ?? {})) {
       packageResolver.resolve(`${dependency}/package.json`);
@@ -235,6 +237,7 @@ function installedRuntimePackageGraph(rootPackages: readonly string[]): {
     for (const [dependency, version] of Object.entries(
       manifest.optionalDependencies ?? {},
     )) {
+      assertOptionalDependencyEntry(dependency, version, manifestPath);
       try {
         packageResolver.resolve(`${dependency}/package.json`);
         installedOptionalDependencies[dependency] = version;

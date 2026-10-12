@@ -1,6 +1,8 @@
 import { spawnSync } from "node:child_process";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { fromMarkdown } from "mdast-util-from-markdown";
+import { SKIP, visit } from "unist-util-visit";
 import {
   CODING_VERIFICATION_COMMAND,
   CODING_VERIFICATION_SUCCESS_MARKER,
@@ -69,6 +71,53 @@ export interface HeadlessEvalSuite {
 
 const hasTerms = (response: string, terms: string[]) =>
   terms.every((term) => response.toLowerCase().includes(term.toLowerCase()));
+function isOfficialLunaModelDoc(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return (
+      url.protocol === "https:" &&
+      url.hostname === "developers.openai.com" &&
+      !url.username &&
+      !url.password &&
+      !url.port &&
+      url.pathname.replace(/\/$/u, "") === "/api/docs/models/gpt-6-luna"
+    );
+  } catch {
+    return false;
+  }
+}
+
+function citesOfficialLunaModelDoc(response: string): boolean {
+  const markdown = fromMarkdown(response);
+  const definitions = new Map<string, string>();
+  visit(markdown, "definition", (node) => {
+    const identifier = node.identifier.toLowerCase();
+    // CommonMark resolves a repeated reference label to its first definition.
+    if (!definitions.has(identifier)) definitions.set(identifier, node.url);
+  });
+
+  let cited = false;
+  visit(markdown, (node) => {
+    if (node.type === "link") {
+      cited ||= isOfficialLunaModelDoc(node.url);
+      // A URL written in a deceptive link label is not the destination.
+      return SKIP;
+    }
+    if (node.type === "linkReference") {
+      cited ||= isOfficialLunaModelDoc(
+        definitions.get(node.identifier.toLowerCase()) ?? "",
+      );
+      return SKIP;
+    }
+    if (node.type === "text") {
+      for (const [raw] of node.value.matchAll(/https?:\/\/[^\s<>"'`]+/giu)) {
+        cited ||= isOfficialLunaModelDoc(raw.replace(/[),.;!?\]]+$/u, ""));
+      }
+    }
+    return undefined;
+  });
+  return cited;
+}
 const ACP_SESSION_IDENTITY_FILES = new Set(["AGENTS.md", "CLAUDE.md"]);
 
 export const HEADLESS_EVAL_SUITES: Record<string, HeadlessEvalSuite> = {
@@ -156,9 +205,7 @@ export const HEADLESS_EVAL_SUITES: Record<string, HeadlessEvalSuite> = {
           {
             id: "official-model-doc-and-medium",
             evaluate: ({ response }) =>
-              /developers\.openai\.com\/api\/docs\/models\/gpt-6-luna/i.test(
-                response,
-              ) && /medium/i.test(response),
+              citesOfficialLunaModelDoc(response) && /medium/i.test(response),
           },
         ],
         humanReviewRequired: true,
