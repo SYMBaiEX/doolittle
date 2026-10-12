@@ -1,16 +1,15 @@
 import { createHash } from "node:crypto";
 import {
-  chmodSync,
   existsSync,
   lstatSync,
   mkdirSync,
-  readFileSync,
   realpathSync,
   statSync,
 } from "node:fs";
 import { isAbsolute, resolve } from "node:path";
 import type { BotDefinition, BotPermissions } from "@doolittle/contracts/bots";
 import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
+import { readBoundedRegularFile } from "./regular-file";
 
 const BOT_ID = /^[a-z0-9][a-z0-9_-]{0,63}$/u;
 const PROJECT_ID = /^[a-zA-Z0-9:_-]{1,128}$/u;
@@ -123,13 +122,12 @@ export class BotProjectAccessStore {
 
   constructor(dataDir: string) {
     this.path = resolve(dataDir, "bots", "project-access.json");
-    if (!existsSync(this.path)) return;
     try {
       this.assertOwnedStore();
-      const file = lstatSync(this.path);
-      if (!file.isFile() || file.isSymbolicLink() || file.size > MAX_BYTES)
-        return;
-      const stored = JSON.parse(readFileSync(this.path, "utf8"));
+      // Validate and bound the opened inode, not a pathname checked earlier.
+      const stored = JSON.parse(
+        readBoundedRegularFile(this.path, MAX_BYTES).toString("utf8"),
+      );
       if (
         stored?.version !== 1 ||
         !Array.isArray(stored.grants) ||
@@ -192,8 +190,11 @@ export class BotProjectAccessStore {
       this.assertOwnedStore();
       mkdirSync(resolve(this.path, ".."), { recursive: true, mode: 0o700 });
       // One atomic authoritative file: a stale backup must not resurrect forgotten grants.
-      writeJsonAtomicSync(this.path, value, { trailingNewline: true });
-      chmodSync(this.path, 0o600);
+      writeJsonAtomicSync(this.path, value, {
+        mode: 0o600,
+        dirMode: 0o700,
+        trailingNewline: true,
+      });
       this.grants = grants;
       this.failed = false;
     } catch (error) {
@@ -203,11 +204,18 @@ export class BotProjectAccessStore {
   }
 
   private assertOwnedStore(): void {
+    // Ancestors belong to the private app profile. This is not an OS sandbox
+    // against a process already able to replace that same user's profile tree.
     const parent = resolve(this.path, "..");
     if (existsSync(parent)) {
       const directory = lstatSync(parent);
       if (!directory.isDirectory() || directory.isSymbolicLink())
         throw new Error("Project approval storage is not a private directory.");
+      if (
+        typeof process.getuid === "function" &&
+        (directory.uid !== process.getuid() || (directory.mode & 0o077) !== 0)
+      )
+        throw new Error("Project approval directory is not privately owned.");
     }
     if (existsSync(this.path)) {
       const file = lstatSync(this.path);

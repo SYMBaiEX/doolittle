@@ -1,6 +1,8 @@
 import {
+  closeSync,
   mkdirSync,
   mkdtempSync,
+  openSync,
   readFileSync,
   realpathSync,
   renameSync,
@@ -20,6 +22,7 @@ import {
   permissionsFingerprint,
   projectAccessScope,
 } from "../../apps/desktop/src/main/bot-project-access";
+import { readRegularFileDescriptor } from "../../apps/desktop/src/main/regular-file";
 
 const directories: string[] = [];
 afterEach(() => {
@@ -244,6 +247,19 @@ describe("native project approval", () => {
     const saved = readFileSync(path, "utf8");
     expect(statSync(path).mode & 0o777).toBe(0o600);
     expect(new BotProjectAccessStore(f.dir).has(scope)).toBe(true);
+    const opened = openSync(path, "r");
+    try {
+      renameSync(path, resolve(f.dir, "previous-store.json"));
+      writeFileSync(path, "{replacement", { mode: 0o600 });
+      expect(
+        readRegularFileDescriptor(opened, 2_000_000).toString("utf8"),
+      ).toBe(saved);
+      expect(() => readRegularFileDescriptor(opened, 1)).toThrow();
+      expect(new BotProjectAccessStore(f.dir).has(scope)).toBe(false);
+    } finally {
+      closeSync(opened);
+    }
+    writeFileSync(path, saved, { mode: 0o600 });
     expect(
       new BotProjectAccessStore(f.dir).has({
         ...scope,
