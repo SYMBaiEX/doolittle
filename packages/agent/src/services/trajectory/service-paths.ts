@@ -9,6 +9,9 @@ export function createTrajectoryEvaluationServiceSlug(value: string): string {
     .slice(0, 48);
 }
 
-export function readTrajectoryEvaluationServiceRecords(dataPath: string) {
-  return readTrajectoryRecords(dataPath);
+export function readTrajectoryEvaluationServiceRecords(
+  baseDir: string,
+  dataPath: string,
+) {
+  return readTrajectoryRecords(baseDir, dataPath);
 }

@@ -4,27 +4,31 @@ import {
   constants,
   fchmodSync,
   fstatSync,
+  lstatSync,
   mkdirSync,
   openSync,
   writeFileSync,
 } from "node:fs";
-import { join } from "node:path";
 import { type CliTurnEvent, encodeCliTurnEvent } from "@/cli/turn-events";
 import type { CliJobRecord } from "../types";
 import { readCliJobEventsFromPath } from "./events";
 import {
-  jobsRoot,
+  assertJobPaths,
+  jobPaths,
   mutateJob,
   readJobsIndex,
-  writeJobsIndex,
+  updateJobsIndex,
 } from "./index-store";
 
 export function createCliJob(dataDir: string, prompt: string): CliJobRecord {
+  if (Buffer.byteLength(prompt, "utf8") > 1024 * 1024)
+    throw new Error("Background prompt exceeds 1 MiB.");
   const id = randomUUID();
-  const root = join(jobsRoot(dataDir), id);
-  const stateDir = join(root, "state");
-  const logPath = join(root, "events.jsonl");
-  mkdirSync(stateDir, { recursive: true, mode: 0o700 });
+  readJobsIndex(dataDir);
+  const { root, stateDir, logPath } = jobPaths(dataDir, id);
+  mkdirSync(root, { mode: 0o700 });
+  mkdirSync(stateDir, { mode: 0o700 });
+  assertJobPaths(dataDir, id);
   writeFileSync(logPath, "", { encoding: "utf8", mode: 0o600, flag: "wx" });
   const now = new Date().toISOString();
   const record: CliJobRecord = {
@@ -36,10 +40,10 @@ export function createCliJob(dataDir: string, prompt: string): CliJobRecord {
     logPath,
     stateDir,
   };
-  const index = readJobsIndex(dataDir);
-  index.jobs.unshift(record);
-  index.jobs = index.jobs.slice(0, 200);
-  writeJobsIndex(dataDir, index);
+  updateJobsIndex(dataDir, (index) => {
+    index.jobs.unshift(record);
+    index.jobs = index.jobs.slice(0, 200);
+  });
   return record;
 }
 
@@ -60,6 +64,7 @@ export function markCliJobStarted(
   params: { pid: number; sessionId?: string },
 ): CliJobRecord | undefined {
   return mutateJob(dataDir, id, (job) => {
+    if (job.status !== "queued" && job.status !== "running") return;
     job.status = "running";
     job.pid = params.pid;
     job.sessionId = params.sessionId;
@@ -74,6 +79,7 @@ export function finalizeCliJob(
   exitCode?: number,
 ): CliJobRecord | undefined {
   return mutateJob(dataDir, id, (job) => {
+    if (job.status !== "queued" && job.status !== "running") return;
     job.status = status;
     job.exitCode = exitCode;
     job.completedAt = new Date().toISOString();
@@ -90,15 +96,30 @@ export function appendCliJobEvent(
   if (!job) {
     return;
   }
+  assertJobPaths(dataDir, id);
+  const encoded = encodeCliTurnEvent(event);
   const descriptor = openCliJobLog(job.logPath);
   try {
-    writeFileSync(descriptor, encodeCliTurnEvent(event), "utf8");
+    const limit = 16 * 1024 * 1024;
+    const reserve = event.type === "completed" ? 0 : 4096;
+    if (
+      fstatSync(descriptor).size + Buffer.byteLength(encoded, "utf8") >
+      limit - reserve
+    ) {
+      if (event.type === "completed")
+        throw new Error("Job log is full; terminal event cannot be stored.");
+      return;
+    }
+    writeFileSync(descriptor, encoded, "utf8");
   } finally {
     closeSync(descriptor);
   }
 }
 
 export function openCliJobLog(path: string): number {
+  const before = lstatSync(path);
+  if (!before.isFile() || before.isSymbolicLink() || before.nlink !== 1)
+    throw new Error("Job log is not a private regular file.");
   const descriptor = openSync(
     path,
     constants.O_WRONLY |
@@ -107,7 +128,14 @@ export function openCliJobLog(path: string): number {
       constants.O_NONBLOCK,
   );
   try {
-    if (!fstatSync(descriptor).isFile())
+    const opened = fstatSync(descriptor);
+    if (
+      !opened.isFile() ||
+      opened.nlink !== 1 ||
+      opened.dev !== before.dev ||
+      opened.ino !== before.ino ||
+      opened.size > 16 * 1024 * 1024
+    )
       throw new Error("Job log is not a regular file.");
     fchmodSync(descriptor, 0o600);
     return descriptor;
@@ -122,6 +150,7 @@ export function readCliJobEvents(dataDir: string, id: string): CliTurnEvent[] {
   if (!job) {
     return [];
   }
+  assertJobPaths(dataDir, id);
   return readCliJobEventsFromPath(job.logPath);
 }
 

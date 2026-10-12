@@ -1,11 +1,14 @@
+import { spawnSync } from "node:child_process";
 import {
   fchmodSync,
+  linkSync,
   mkdtempSync,
   readFileSync,
   rmSync,
   statSync,
   symlinkSync,
   unlinkSync,
+  writeFileSync,
 } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join, parse, resolve } from "node:path";
@@ -226,6 +229,42 @@ describe("coding evaluation reports", () => {
       "workspace",
     );
   });
+
+  it("rejects linked and oversized selected reports and listed entries", () => {
+    const directory = temporaryDirectory();
+    const report = createReport({
+      runId: "safe",
+      status: "pass",
+      score: 110,
+      routeLabel: "safe",
+    });
+    const original = writeCodingEvalReport(report, directory);
+    const linked = join(directory, "linked.json");
+    symlinkSync(original, linked);
+    expect(() => readCodingEvalReport(linked)).toThrow();
+    expect(() => listCodingEvalReportFiles(directory)).toThrow();
+    unlinkSync(linked);
+    linkSync(original, linked);
+    expect(() => readCodingEvalReport(original)).toThrow();
+    unlinkSync(linked);
+    const oversized = join(directory, "oversized.json");
+    writeFileSync(oversized, "x".repeat(16 * 1024 * 1024 + 1));
+    expect(() => readCodingEvalReport(oversized)).toThrow();
+    expect(() => listCodingEvalReportFiles(directory)).toThrow();
+  });
+
+  it.skipIf(process.platform === "win32")(
+    "rejects a report FIFO without blocking",
+    () => {
+      const directory = temporaryDirectory();
+      const path = join(directory, "pipe.json");
+      const result = spawnSync("mkfifo", [path]);
+      if (result.error || result.status !== 0)
+        throw new Error("mkfifo unavailable");
+      expect(() => readCodingEvalReport(path)).toThrow();
+      expect(() => listCodingEvalReportFiles(directory)).toThrow();
+    },
+  );
 
   it("does not mark unpaired one-off runs comparison-ready", () => {
     const report = createCodingEvalReport({

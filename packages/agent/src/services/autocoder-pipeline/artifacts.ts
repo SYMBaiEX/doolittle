@@ -4,11 +4,11 @@ import {
   fstatSync,
   lstatSync,
   openSync,
-  readFileSync,
   realpathSync,
 } from "node:fs";
 import { basename, extname } from "node:path";
 import { isStrictlyContainedPath } from "@/utils/path-containment";
+import { readRegularFileDescriptorSync } from "@/utils/read-regular-file";
 import type { AutocoderPipelineRunRecord } from "./service";
 
 export const MAX_AUTOCODER_ARTIFACT_BYTES = 5 * 1024 * 1024;
@@ -96,10 +96,15 @@ export function readAutocoderArtifact(input: {
 
   let canonicalRoot: string;
   let canonicalArtifact: string;
+  let linkInfo: ReturnType<typeof lstatSync>;
   try {
     canonicalRoot = realpathSync(input.artifactRoot);
-    const linkInfo = lstatSync(artifactPath);
-    if (linkInfo.isSymbolicLink()) {
+    linkInfo = lstatSync(artifactPath);
+    if (
+      !linkInfo.isFile() ||
+      linkInfo.isSymbolicLink() ||
+      linkInfo.nlink !== 1
+    ) {
       throw new AutocoderArtifactError(
         "Autocoder artifact is not an allowed regular file.",
         403,
@@ -129,8 +134,8 @@ export function readAutocoderArtifact(input: {
   let descriptor: number | undefined;
   try {
     descriptor = openSync(
-      canonicalArtifact,
-      constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0),
+      artifactPath,
+      constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | constants.O_NONBLOCK,
     );
     const fileInfo = fstatSync(descriptor);
     if (!fileInfo.isFile()) {
@@ -145,11 +150,18 @@ export function readAutocoderArtifact(input: {
         413,
       );
     }
-    const bytes = readFileSync(descriptor);
-    if (bytes.byteLength > MAX_AUTOCODER_ARTIFACT_BYTES) {
+    let bytes: Buffer;
+    try {
+      bytes = readRegularFileDescriptorSync(
+        descriptor,
+        MAX_AUTOCODER_ARTIFACT_BYTES,
+        { dev: linkInfo.dev, ino: linkInfo.ino },
+        { singleLink: true },
+      );
+    } catch {
       throw new AutocoderArtifactError(
-        `Autocoder artifact exceeds the ${MAX_AUTOCODER_ARTIFACT_BYTES} byte limit.`,
-        413,
+        "Autocoder artifact changed during read.",
+        403,
       );
     }
     return {

@@ -1,12 +1,10 @@
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { lstatSync, realpathSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
+import { isStrictlyContainedPath } from "@/utils/path-containment";
+import { readRegularFileSync } from "@/utils/read-regular-file";
 
 const MAX_SOUL_CHARS = 5000;
-
-// Memoize the (expensive) read + strip + slice keyed by path, guarded by mtime
-// so SOUL.md edits are picked up. The directory walk stays live so newly
-// created or deleted SOUL.md files are still detected.
-const soulReadCache = new Map<string, { mtimeMs: number; text: string }>();
+const MAX_SOUL_BYTES = 1024 * 1024;
 
 export type DoolittleSoul = {
   path?: string;
@@ -17,47 +15,71 @@ function stripHtmlComments(markdown: string): string {
   return markdown.replace(/<!--[\s\S]*?-->/g, "").trim();
 }
 
-export function findDoolittleSoulFile(startDir: string): string | undefined {
-  let current = resolve(startDir || process.cwd());
+function contained(root: string, candidate: string): boolean {
+  return candidate === root || isStrictlyContainedPath(root, candidate);
+}
+
+/** Default authority is startDir, matching ContextFilesService. */
+export function findDoolittleSoulFile(
+  startDir: string,
+  trustedRoot?: string,
+): string | undefined {
+  let current: string;
+  let root: string;
+  try {
+    current = realpathSync(resolve(startDir || process.cwd()));
+    root = trustedRoot ? realpathSync(resolve(trustedRoot)) : current;
+  } catch {
+    return undefined;
+  }
+  if (!contained(root, current)) return undefined;
+
   for (let depth = 0; depth < 8; depth += 1) {
     const candidate = join(current, "SOUL.md");
-    if (existsSync(candidate)) {
-      return candidate;
+    try {
+      const canonical = realpathSync(candidate);
+      if (isStrictlyContainedPath(root, canonical)) return candidate;
+    } catch {
+      // Missing or unreadable candidates do not stop bounded discovery.
     }
+    if (current === root) break;
     const parent = dirname(current);
-    if (parent === current) {
-      break;
-    }
+    if (parent === current || !contained(root, parent)) break;
     current = parent;
   }
   return undefined;
 }
 
-export function readDoolittleSoul(startDir: string): DoolittleSoul {
-  const path = findDoolittleSoulFile(startDir);
-  if (!path) {
-    return { text: "" };
-  }
+export function readDoolittleSoul(
+  startDir: string,
+  trustedRoot?: string,
+): DoolittleSoul {
+  const path = findDoolittleSoulFile(startDir, trustedRoot);
+  if (!path) return { text: "" };
 
   try {
-    const mtimeMs = statSync(path).mtimeMs;
-    const cached = soulReadCache.get(path);
-    if (cached && cached.mtimeMs === mtimeMs) {
-      return { path, text: cached.text };
-    }
-    const text = stripHtmlComments(readFileSync(path, "utf8")).slice(
-      0,
-      MAX_SOUL_CHARS,
+    const root = realpathSync(
+      resolve(trustedRoot || startDir || process.cwd()),
     );
-    soulReadCache.set(path, { mtimeMs, text });
+    const canonical = realpathSync(path);
+    if (!isStrictlyContainedPath(root, canonical)) return { text: "" };
+    // A SOUL leaf link is never needed: workspace selectors are canonicalized
+    // during discovery. Reject it even on platforms without O_NOFOLLOW.
+    if (lstatSync(path).isSymbolicLink()) return { text: "" };
+    const text = stripHtmlComments(
+      readRegularFileSync(path, MAX_SOUL_BYTES).toString("utf8"),
+    ).slice(0, MAX_SOUL_CHARS);
     return { path, text };
   } catch {
-    return { path, text: "" };
+    return { text: "" };
   }
 }
 
-export function renderDoolittleSoulContext(startDir: string): string[] {
-  const soul = readDoolittleSoul(startDir);
+export function renderDoolittleSoulContext(
+  startDir: string,
+  trustedRoot?: string,
+): string[] {
+  const soul = readDoolittleSoul(startDir, trustedRoot);
   if (!soul.text.trim()) {
     return [];
   }

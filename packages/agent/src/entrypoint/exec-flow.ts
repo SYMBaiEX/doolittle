@@ -79,7 +79,7 @@ export async function handleBackgroundExec(options: {
     return true;
   }
 
-  const job = launchCliBackgroundJobFn({
+  const job = await launchCliBackgroundJobFn({
     config: {
       ...config,
       dataDir: jobControlDir || config.dataDir,

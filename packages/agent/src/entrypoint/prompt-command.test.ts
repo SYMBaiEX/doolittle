@@ -98,6 +98,8 @@ describe("handleRuntimePromptCommand", () => {
             sessionId: "session-1",
           },
           context: createContext(),
+          jobControlNonce: "test-nonce",
+          onCancelRequested: () => undefined,
           runCliPromptWithEvents,
           writeStdout: (message) => {
             written.push(message);
@@ -109,6 +111,7 @@ describe("handleRuntimePromptCommand", () => {
           finalizeCliJob,
           encodeCliTurnEvent: (event) => JSON.stringify(event),
           printOneShotResult,
+          monitorJobCancel: () => () => undefined,
         },
       ),
     ).resolves.toBe(true);
@@ -129,15 +132,7 @@ describe("handleRuntimePromptCommand", () => {
       "completed",
       0,
     );
-    expect(written).toEqual([
-      JSON.stringify({
-        type: "result",
-        timestamp: "2026-03-30T00:00:00.000Z",
-        text: "ok",
-        tone: "agent",
-        shouldExit: false,
-      }),
-    ]);
+    expect(written).toEqual([]);
     expect(printOneShotResult).not.toHaveBeenCalled();
   });
 
@@ -232,6 +227,8 @@ describe("handleRuntimePromptCommand", () => {
           jobId: "job-error",
         },
         context: createContext(),
+        jobControlNonce: "test-nonce",
+        onCancelRequested: () => undefined,
         runCliPromptWithEvents: async () => ({
           result: { text: "permission denied", tone: "error" },
           sessionId: "session-error",
@@ -243,6 +240,7 @@ describe("handleRuntimePromptCommand", () => {
         finalizeCliJob,
         encodeCliTurnEvent: JSON.stringify,
         printOneShotResult: vi.fn(),
+        monitorJobCancel: () => () => undefined,
       },
     );
     expect(finalizeCliJob).toHaveBeenCalledWith(

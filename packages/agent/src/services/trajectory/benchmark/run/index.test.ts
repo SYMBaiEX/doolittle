@@ -22,11 +22,14 @@ import type {
 } from "../types";
 import { runTrajectoryBenchmark } from "./index";
 
-function createBundleEntry(label: string): TrajectoryBundleEntry {
+function createBundleEntry(
+  baseDir: string,
+  label: string,
+): TrajectoryBundleEntry {
   return {
-    manifestPath: `${label}.json`,
-    dataPath: `${label}.jsonl`,
-    summaryPath: `${label}.md`,
+    manifestPath: join(baseDir, `${label}.json`),
+    dataPath: join(baseDir, `${label}.jsonl`),
+    summaryPath: join(baseDir, `${label}.md`),
     createdAt: "2026-04-10T00:00:00.000Z",
     label,
     purpose: "trajectory",
@@ -84,8 +87,11 @@ describe("trajectory benchmark run", () => {
   it("runs cases, summarizes results, and writes artifacts", async () => {
     const baseDir = mkdtempSync(join(tmpdir(), "trajectory-benchmark-run-"));
     const entries = new Map<string, TrajectoryBundleEntry>([
-      ["compare.json", createBundleEntry("compare")],
-      ["candidate.json", createBundleEntry("candidate")],
+      [join(baseDir, "compare.json"), createBundleEntry(baseDir, "compare")],
+      [
+        join(baseDir, "candidate.json"),
+        createBundleEntry(baseDir, "candidate"),
+      ],
     ]);
     const manifest: TrajectoryBenchmarkManifest = {
       manifestPath: join(baseDir, "benchmark-manifest.json"),
@@ -97,12 +103,12 @@ describe("trajectory benchmark run", () => {
       rubric: ["default-rubric"],
       cases: [
         {
-          manifestPath: "compare.json",
+          manifestPath: join(baseDir, "compare.json"),
           label: "Compare case",
           mode: "evaluation",
         },
         {
-          manifestPath: "candidate.json",
+          manifestPath: join(baseDir, "candidate.json"),
           label: "Candidate case",
           tags: ["candidate-tag"],
         } satisfies TrajectoryBenchmarkCase,
@@ -166,7 +172,7 @@ describe("trajectory benchmark run", () => {
         manifestPathValue: string,
         options?: TrajectoryBenchmarkEvaluationOptions,
       ): Promise<TrajectoryEvaluationBundle> {
-        if (manifestPathValue === "compare.json") {
+        if (manifestPathValue === join(baseDir, "compare.json")) {
           expect(options?.rubric).toEqual(["default-rubric"]);
           expect(options?.tags).toEqual(["default-tag"]);
           expect(options?.mode).toBe("evaluation");
@@ -181,7 +187,7 @@ describe("trajectory benchmark run", () => {
             "compare-recommendation",
           ]);
         }
-        if (manifestPathValue === "candidate.json") {
+        if (manifestPathValue === join(baseDir, "candidate.json")) {
           expect(options?.rubric).toEqual(["default-rubric"]);
           expect(options?.tags).toEqual(["candidate-tag"]);
           expect(options?.mode).toBe("evaluation");
@@ -200,6 +206,12 @@ describe("trajectory benchmark run", () => {
       },
     };
 
+    for (const entry of entries.values()) {
+      writeFileSync(entry.dataPath, "", "utf8");
+      if (entry.summaryPath) writeFileSync(entry.summaryPath, "", "utf8");
+      writeFileSync(entry.manifestPath, JSON.stringify(entry), "utf8");
+    }
+    writeFileSync(manifest.summaryPath, "", "utf8");
     writeFileSync(manifestPath, JSON.stringify(manifest, null, 2), "utf8");
 
     try {

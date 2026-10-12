@@ -13,9 +13,10 @@ export function listTrajectoryEvaluationServiceBundles(
 }
 
 export function describeTrajectoryEvaluationServiceBundle(
+  baseDir: string,
   manifestPath: string,
 ) {
-  return describeTrajectoryBundle(manifestPath);
+  return describeTrajectoryBundle(baseDir, manifestPath);
 }
 
 export function listTrajectoryEvaluationServiceBenchmarkManifests(
@@ -26,7 +27,8 @@ export function listTrajectoryEvaluationServiceBenchmarkManifests(
 }
 
 export function describeTrajectoryEvaluationServiceBenchmarkManifest(
+  baseDir: string,
   manifestPath: string,
 ) {
-  return describeTrajectoryBenchmarkManifest(manifestPath);
+  return describeTrajectoryBenchmarkManifest(baseDir, manifestPath);
 }

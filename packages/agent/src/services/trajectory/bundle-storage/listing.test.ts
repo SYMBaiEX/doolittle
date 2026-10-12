@@ -29,8 +29,7 @@ describe("trajectory bundle manifest listing", () => {
         sessions: ["session-a"],
         roleCounts: { user: 1 },
         manifestPath: "should-be-replaced",
-        dataPath: "data-old",
-        summaryPath: "summary-old",
+        dataPath: join(root, "data-old.jsonl"),
       };
       const newManifest = {
         createdAt: "2026-03-21T00:00:00.000Z",
@@ -46,8 +45,7 @@ describe("trajectory bundle manifest listing", () => {
         sessions: ["session-a"],
         roleCounts: { user: 1, assistant: 1 },
         manifestPath: "should-be-replaced",
-        dataPath: "data-new",
-        summaryPath: "summary-new",
+        dataPath: join(root, "data-new.jsonl"),
       };
       const benchmarkManifest = {
         createdAt: "2026-03-21T00:00:00.000Z",
@@ -69,6 +67,9 @@ describe("trajectory bundle manifest listing", () => {
         },
       };
 
+      writeFileSync(join(root, "data-old.jsonl"), "", "utf8");
+      writeFileSync(join(root, "data-new.jsonl"), "", "utf8");
+      writeFileSync(join(root, "rl-dataset-1-manifest.json"), "{}", "utf8");
       writeFileSync(
         join(root, "trajectory-1-old-manifest.json"),
         JSON.stringify(oldManifest, null, 2),
@@ -91,10 +92,13 @@ describe("trajectory bundle manifest listing", () => {
       expect(bundles[1]?.label).toBe("old");
 
       const loadedBundle = describeTrajectoryBundle(
+        root,
         join(root, "trajectory-1-old-manifest.json"),
       );
       expect(loadedBundle.label).toBe("old");
-      expect(loadedBundle.manifestPath).toBe("should-be-replaced");
+      expect(loadedBundle.manifestPath).toBe(
+        join(root, "trajectory-1-old-manifest.json"),
+      );
 
       const benchmarks = listTrajectoryBenchmarkManifests(root);
       expect(benchmarks).toHaveLength(1);
@@ -102,6 +106,7 @@ describe("trajectory bundle manifest listing", () => {
       expect(benchmarks[0]?.manifestPath).toContain("benchmark.json");
 
       const describedBenchmark = describeTrajectoryBenchmarkManifest(
+        root,
         join(root, "trajectory-1-bench-benchmark.json"),
       );
       expect(describedBenchmark.environment.provider).toBe("offline");
@@ -128,7 +133,7 @@ describe("trajectory bundle manifest listing", () => {
         "utf8",
       );
 
-      const records = readTrajectoryRecords(recordsPath);
+      const records = readTrajectoryRecords(root, recordsPath);
       expect(records).toHaveLength(2);
       expect(readFileSync(recordsPath, "utf8")).toContain("hello");
     } finally {

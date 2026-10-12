@@ -1,4 +1,6 @@
 import type { AppContext } from "@/runtime/bootstrap";
+import { json } from "@/server/responses";
+import { TrajectoryInputError } from "@/services/trajectory/bundle-storage/safe-read";
 import { handleTrajectoryBatchRoutes } from "./batch";
 import { handleTrajectoryBenchmarkRoutes } from "./benchmark";
 import { handleTrajectoryComparisonRoutes } from "./compare";
@@ -25,7 +27,15 @@ export async function handleTrajectoryRoutes(
   url: URL,
 ): Promise<Response | null> {
   for (const handler of trajectoryRouteHandlers) {
-    const response = await handler(context, request, url);
+    let response: Response | null;
+    try {
+      response = await handler(context, request, url);
+    } catch (error) {
+      if (error instanceof TrajectoryInputError) {
+        return json({ error: error.message }, error.status);
+      }
+      throw error;
+    }
     if (response) {
       return response;
     }

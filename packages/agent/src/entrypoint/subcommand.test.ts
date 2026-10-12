@@ -65,6 +65,12 @@ describe("resolveSubcommand", () => {
 });
 
 describe("parseOneShotOptions", () => {
+  it("rejects ambiguous stdin and argv prompts", () => {
+    expect(() =>
+      parseOneShotOptions(["--prompt-stdin", "--prompt", "secret"]),
+    ).toThrow();
+    expect(() => parseOneShotOptions(["--prompt-stdin", "secret"])).toThrow();
+  });
   it("reads named flags and positional prompts", () => {
     expect(
       parseOneShotOptions([

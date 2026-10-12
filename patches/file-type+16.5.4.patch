@@ -1,0 +1,32 @@
+diff --git a/core.js b/core.js
+--- a/core.js
++++ b/core.js
+@@ -1062,10 +1062,19 @@
+ 		await tokenizer.ignore(30);
+ 		// Search for header should be in first 1KB of file.
+-		while (tokenizer.position + 24 < tokenizer.fileInfo.size) {
++		while (tokenizer.position + 24 < tokenizer.fileInfo.size && tokenizer.position < 1024) {
++			const startPosition = tokenizer.position;
+ 			const header = await readHeader();
++			if (!Number.isSafeInteger(header.size) || header.size < 24) {
++				return;
++			}
+ 			let payload = header.size - 24;
+ 			if (_check(header.id, [0x91, 0x07, 0xDC, 0xB7, 0xB7, 0xA9, 0xCF, 0x11, 0x8E, 0xE6, 0x00, 0xC0, 0x0C, 0x20, 0x53, 0x65])) {
+ 				// Sync on Stream-Properties-Object (B7DC0791-A9B7-11CF-8EE6-00C00C205365)
+ 				const typeId = Buffer.alloc(16);
+ 				payload -= await tokenizer.readBuffer(typeId);
++				if (payload < 0) {
++					return;
++				}
+@@ -1093,6 +1102,12 @@
+ 			}
+ 
++			if (payload < 0 || tokenizer.position + payload > tokenizer.fileInfo.size) {
++				return;
++			}
+ 			await tokenizer.ignore(payload);
++			if (tokenizer.position <= startPosition) {
++				return;
++			}
+ 		}

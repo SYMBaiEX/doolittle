@@ -2,6 +2,30 @@ import { describe, expect, it } from "vitest";
 import { resolveEntrypointInvocation } from "./invocation";
 
 describe("resolveEntrypointInvocation", () => {
+  it("reads explicit prompt stdin only for a non-TTY exec", async () => {
+    const stdin = {
+      isTTY: false,
+      async *[Symbol.asyncIterator]() {
+        yield "secret task";
+      },
+    };
+    const result = await resolveEntrypointInvocation({
+      argv: ["exec", "--prompt-stdin"],
+      env: {},
+      repoRoot: "/repo",
+      stdin,
+    });
+    expect(result.immediatePrompt).toBe("secret task");
+    expect(result.oneShot?.promptStdin).toBe(true);
+    await expect(
+      resolveEntrypointInvocation({
+        argv: ["exec", "--prompt-stdin"],
+        env: {},
+        repoRoot: "/repo",
+        stdin: { ...stdin, isTTY: true },
+      }),
+    ).rejects.toThrow("non-interactive");
+  });
   it("reads piped prompts for the plain shell startup path", async () => {
     const stdin = {
       isTTY: false,

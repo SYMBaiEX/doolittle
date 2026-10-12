@@ -5,6 +5,7 @@ import {
   finalizeCliJob,
   markCliJobStarted,
 } from "@/cli/jobs";
+import { monitorJobCancel } from "@/cli/jobs/control";
 import { encodeCliTurnEvent } from "@/cli/turn-events";
 import type { AppContext } from "@/runtime/bootstrap";
 import { printOneShotResult } from "./output";
@@ -38,6 +39,7 @@ interface PromptCommandDeps {
   finalizeCliJob: typeof finalizeCliJob;
   encodeCliTurnEvent: typeof encodeCliTurnEvent;
   printOneShotResult: typeof printOneShotResult;
+  monitorJobCancel?: typeof monitorJobCancel;
 }
 
 const promptCommandDeps: PromptCommandDeps = {
@@ -46,6 +48,7 @@ const promptCommandDeps: PromptCommandDeps = {
   finalizeCliJob,
   encodeCliTurnEvent,
   printOneShotResult,
+  monitorJobCancel,
 };
 
 export async function handleRuntimePromptCommand(
@@ -59,6 +62,8 @@ export async function handleRuntimePromptCommand(
     runCliPrompt?: RunCliPrompt;
     runCliPromptWithEvents?: RunCliPromptWithEvents;
     abortSignal?: AbortSignal;
+    onCancelRequested?: () => void;
+    jobControlNonce?: string;
     writeStdout?: (message: string) => void;
     exit?: (code: number) => void;
   },
@@ -90,20 +95,29 @@ export async function handleRuntimePromptCommand(
     }
     const abortSignal = input.abortSignal;
     const activeJobId = input.oneShot.jobId?.trim() || undefined;
-    if (activeJobId) {
-      deps.markCliJobStarted(controlDataDir, activeJobId, {
-        pid: process.pid,
-        sessionId: input.oneShot.sessionId,
-      });
-    }
+    // A forged --job-id cannot mutate a persisted job without the launch-only identity.
+    const nonce =
+      input.jobControlNonce ?? process.env.DOOLITTLE_JOB_CONTROL_NONCE;
+    if (activeJobId && (!nonce || !input.onCancelRequested))
+      throw new Error("Missing child job control identity.");
+    const stopMonitor =
+      activeJobId && nonce && input.onCancelRequested
+        ? (deps.monitorJobCancel ?? monitorJobCancel)(
+            controlDataDir,
+            activeJobId,
+            nonce,
+            input.onCancelRequested,
+          )
+        : undefined;
     const writeEvent = (event: Parameters<typeof encodeCliTurnEvent>[0]) => {
       if (activeJobId && event.type === "coding-verification") {
         return;
       }
       if (activeJobId) {
         deps.appendCliJobEvent(controlDataDir, activeJobId, event);
+      } else {
+        writeStdout(deps.encodeCliTurnEvent(event));
       }
-      writeStdout(deps.encodeCliTurnEvent(event));
     };
     const finalizeActiveJob = (
       status: "completed" | "failed" | "cancelled",
@@ -115,6 +129,12 @@ export async function handleRuntimePromptCommand(
       deps.finalizeCliJob(controlDataDir, activeJobId, status, exitCode);
     };
     try {
+      if (activeJobId) {
+        deps.markCliJobStarted(controlDataDir, activeJobId, {
+          pid: process.pid,
+          sessionId: input.oneShot.sessionId,
+        });
+      }
       const { result } = await input.runCliPromptWithEvents(
         input.context,
         trimmedPrompt,
@@ -142,6 +162,8 @@ export async function handleRuntimePromptCommand(
         abortSignal?.aborted ? 130 : 1,
       );
       process.exitCode = abortSignal?.aborted ? 130 : 1;
+    } finally {
+      stopMonitor?.();
     }
     return true;
   }

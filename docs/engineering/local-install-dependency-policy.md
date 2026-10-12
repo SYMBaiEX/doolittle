@@ -41,12 +41,12 @@ both its emitted-package inventory and copied native-package closure. The
 verifier blocks their vulnerable versions if later packaging includes them.
 This exclusion is not a claim that source/CLI execution paths are safe.
 
-`check:runtime-advisory-policy` retains exact reviewed high-advisory ranges;
-unknown advisories and changed ranges still fail closed. This gate is a review
-coverage check, not an all-severity security clearance. The complete source
-production graph still contains reviewed highs, and moderate/low advisories
-remain outside the critical/high checks. The pinned fast-uri version is the
-reviewed high-severity floor, not a claim of zero advisories.
+`check:runtime-advisory-policy` retains exact reviewed ranges and severities
+for production advisories at every severity. Unknown advisories, changed ranges
+or severities, and missing/error audit inventories fail closed. This gate checks
+review coverage, not scanner closure. Seven version-based findings remain in
+the source graph; their tested patches retain truthful upstream versions.
+Consumer regressions and packaged artifact verification remain separate gates.
 
 ## Reproduce before install
 

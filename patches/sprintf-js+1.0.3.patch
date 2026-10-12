@@ -1,0 +1,14 @@
+diff --git a/src/sprintf.js b/src/sprintf.js
+--- a/src/sprintf.js
++++ b/src/sprintf.js
+@@ -131,6 +131,13 @@
+             }
+             else if ((match = re.placeholder.exec(_fmt)) !== null) {
++                // Numeric precision is passed to Number#toExponential/toFixed/toPrecision.
++                // Clamp before Number formatting so hostile formats cannot throw RangeError.
++                if (/[efg]/.test(match[8]) && match[7]) {
++                    var precision = match[7].replace(/^0+/, "") || "0"
++                    match[7] = precision.length > 3 || Number(precision) > 100 ? "100" :
++                        match[8] === "g" && precision === "0" ? "1" : precision
++                }
+                 if (match[2]) {

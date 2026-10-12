@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import {
   existsSync,
   mkdtempSync,
@@ -23,6 +24,12 @@ const hardhatRequire = createRequire(
 );
 const solcRequire = createRequire(rootRequire.resolve("solc/package.json"));
 const mochaRequire = createRequire(rootRequire.resolve("mocha/package.json"));
+const solanaRequire = createRequire(
+  rootRequire.resolve("@solana/web3.js/package.json"),
+);
+const builderRequire = createRequire(
+  rootRequire.resolve("app-builder-lib/package.json"),
+);
 
 function packageVersion(
   scopedRequire: NodeJS.Require,
@@ -87,6 +94,88 @@ function close(server: Server): Promise<void> {
 }
 
 describe("dependency security consumer contracts", () => {
+  it("uses Solana web3.js with scoped Jayson 5 for single and batch loopback RPC", async () => {
+    expect(packageVersion(solanaRequire, "jayson")).toBe("5.0.0");
+    const { Connection } = solanaRequire("@solana/web3.js") as {
+      Connection: new (
+        url: string,
+      ) => {
+        getBlockHeight(): Promise<number>;
+        _rpcBatchRequest(
+          requests: { methodName: string; args: unknown[] }[],
+        ): Promise<{ result: string }[]>;
+      };
+    };
+    const server = createServer(async (request, response) => {
+      const chunks: Buffer[] = [];
+      for await (const chunk of request) chunks.push(Buffer.from(chunk));
+      const parsed = JSON.parse(Buffer.concat(chunks).toString("utf8")) as
+        | { id: number; method: string }
+        | { id: number; method: string }[];
+      const reply = (item: { id: number; method: string }) => ({
+        jsonrpc: "2.0",
+        id: item.id,
+        result: item.method === "getBlockHeight" ? 12345 : item.method,
+      });
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(
+        JSON.stringify(
+          Array.isArray(parsed) ? parsed.map(reply) : reply(parsed),
+        ),
+      );
+    });
+    try {
+      const origin = await listen(server);
+      const connection = new Connection(origin);
+      expect(await connection.getBlockHeight()).toBe(12345);
+      const results = await connection._rpcBatchRequest([
+        { methodName: "a", args: [] },
+        { methodName: "b", args: [] },
+      ]);
+      expect(results.map((result) => result.result)).toEqual(["a", "b"]);
+    } finally {
+      await close(server);
+    }
+  });
+
+  it("uses app-builder-lib with scoped electron/get 5 for checked loopback downloads", async () => {
+    const getEntry = builderRequire.resolve("@electron/get");
+    expect(
+      JSON.parse(readFileSync(resolve(getEntry, "../../package.json"), "utf8"))
+        .version,
+    ).toBe("5.1.0");
+    const { download } = builderRequire("app-builder-lib/out/binDownload") as {
+      download(url: string, output: string, checksum: string): Promise<void>;
+    };
+    const directory = mkdtempSync(resolve(tmpdir(), "doolittle-electron-get-"));
+    const payload = Buffer.from("controlled artifact");
+    const digest = createHash("sha256").update(payload).digest("hex");
+    const server = createServer((_request, response) => {
+      response.writeHead(200, { "content-type": "application/octet-stream" });
+      response.end(payload);
+    });
+    const oldCache = process.env.ELECTRON_BUILDER_CACHE;
+    try {
+      process.env.ELECTRON_BUILDER_CACHE = directory;
+      const origin = await listen(server);
+      const output = resolve(directory, "downloaded.bin");
+      await download(`${origin}/good.bin`, output, digest);
+      expect(readFileSync(output)).toEqual(payload);
+      await expect(
+        download(
+          `${origin}/bad.bin`,
+          resolve(directory, "bad.bin"),
+          "0".repeat(64),
+        ),
+      ).rejects.toThrow();
+      expect(existsSync(resolve(directory, "bad.bin"))).toBe(false);
+    } finally {
+      if (oldCache === undefined) delete process.env.ELECTRON_BUILDER_CACHE;
+      else process.env.ELECTRON_BUILDER_CACHE = oldCache;
+      await close(server);
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
   it("resolves Hardhat's patched adm-zip and extracts a small local archive", () => {
     expect(packageVersion(hardhatRequire, "adm-zip")).toBe("0.6.1");
     const AdmZip = hardhatRequire("adm-zip") as new (

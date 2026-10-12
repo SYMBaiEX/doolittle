@@ -24,6 +24,7 @@ export type EntrypointSubcommand =
 
 export interface OneShotOptions {
   prompt?: string;
+  promptStdin?: boolean;
   json: boolean;
   jsonStream: boolean;
   background: boolean;
@@ -162,6 +163,7 @@ export function isEntrypointAliasCommand(
 
 export function parseOneShotOptions(args: string[]): OneShotOptions {
   let prompt: string | undefined;
+  let promptStdin = false;
   let json = false;
   let jsonStream = false;
   let background = false;
@@ -181,6 +183,10 @@ export function parseOneShotOptions(args: string[]): OneShotOptions {
     }
     if (value === "--background") {
       background = true;
+      continue;
+    }
+    if (value === "--prompt-stdin") {
+      promptStdin = true;
       continue;
     }
     if (value === "--prompt" || value === "-p") {
@@ -205,7 +211,20 @@ export function parseOneShotOptions(args: string[]): OneShotOptions {
     prompt = positional.join(" ");
   }
 
-  return { prompt, json, jsonStream, background, jobId, sessionId };
+  if (promptStdin && (prompt !== undefined || positional.length > 0))
+    throw new Error(
+      "Cannot combine --prompt-stdin with --prompt or positional prompt.",
+    );
+
+  return {
+    prompt,
+    ...(promptStdin ? { promptStdin: true } : {}),
+    json,
+    jsonStream,
+    background,
+    jobId,
+    sessionId,
+  };
 }
 
 export function shouldLoadLocalRuntimeEnvForEntrypoint(

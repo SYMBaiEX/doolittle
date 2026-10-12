@@ -1,3 +1,6 @@
+import { mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import type { EnvConfig } from "@/types";
 import {
@@ -30,6 +33,54 @@ function config(overrides: Partial<EnvConfig> = {}): EnvConfig {
 }
 
 describe("runtime model discovery", () => {
+  it("uses only a bounded regular linked-provider cache", async () => {
+    const home = mkdtempSync(join(tmpdir(), "doolittle-model-cache-"));
+    const previous = process.env.CODEX_HOME;
+    process.env.CODEX_HOME = home;
+    const cache = join(home, "models_cache.json");
+    const discover = async () =>
+      (
+        await discoverModelProviders(
+          config({ useLinkedCodexAuth: true }),
+          "codex",
+          "fixture-model",
+          vi.fn<typeof fetch>(async () => {
+            throw new Error("offline");
+          }),
+          { codex: true },
+        )
+      ).find((provider) => provider.id === "codex");
+    try {
+      writeFileSync(
+        cache,
+        JSON.stringify({
+          models: [{ slug: "fixture-model", display_name: "Fixture model" }],
+        }),
+      );
+      expect(
+        (await discover())?.models.some(
+          (model) => model.id === "fixture-model",
+        ),
+      ).toBe(true);
+      rmSync(cache);
+      const outside = join(home, "outside.json");
+      writeFileSync(
+        outside,
+        JSON.stringify({ models: [{ slug: "linked-only" }] }),
+      );
+      symlinkSync(outside, cache);
+      expect(
+        (await discover())?.models.some((model) => model.id === "linked-only"),
+      ).toBe(false);
+      rmSync(cache);
+      writeFileSync(cache, "x".repeat(8 * 1024 * 1024 + 1));
+      expect((await discover())?.discovery).not.toBe("live");
+    } finally {
+      if (previous === undefined) delete process.env.CODEX_HOME;
+      else process.env.CODEX_HOME = previous;
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
   it("returns configured models without probing providers until requested", async () => {
     const fetchImplementation = vi.fn<typeof fetch>();
     const providers = await discoverModelProviders(

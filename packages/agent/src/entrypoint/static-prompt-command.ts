@@ -1,4 +1,5 @@
-import { finalizeCliJob } from "@/cli/jobs";
+import { appendCliJobEvent, finalizeCliJob } from "@/cli/jobs";
+import { monitorJobCancel } from "@/cli/jobs/control";
 import { loadConfig } from "@/config/env";
 import {
   emitStaticPromptEvents,
@@ -10,6 +11,8 @@ import type { OneShotOptions } from "./subcommand";
 interface StaticPromptCommandDeps {
   emitStaticPromptEvents: typeof emitStaticPromptEvents;
   finalizeCliJob: typeof finalizeCliJob;
+  appendCliJobEvent?: typeof appendCliJobEvent;
+  monitorJobCancel?: typeof monitorJobCancel;
   printOneShotResult: typeof printOneShotResult;
   loadConfig: typeof loadConfig;
 }
@@ -17,6 +20,8 @@ interface StaticPromptCommandDeps {
 const staticPromptCommandDeps: StaticPromptCommandDeps = {
   emitStaticPromptEvents,
   finalizeCliJob,
+  appendCliJobEvent,
+  monitorJobCancel,
   printOneShotResult,
   loadConfig,
 };
@@ -28,6 +33,7 @@ export async function handleStaticPromptCommand(
     staticPromptResult?: StaticResult;
     oneShot?: OneShotOptions;
     jobControlDir?: string;
+    jobControlNonce?: string;
   },
   deps: StaticPromptCommandDeps = staticPromptCommandDeps,
 ): Promise<boolean> {
@@ -41,20 +47,53 @@ export async function handleStaticPromptCommand(
 
   if (input.command === "exec" && input.oneShot?.jsonStream) {
     const activeJobId = input.oneShot.jobId?.trim() || undefined;
-    await deps.emitStaticPromptEvents(
-      input.immediatePrompt ?? "",
-      staticPromptResult,
-      {
-        sessionId: input.oneShot.sessionId,
-      },
-    );
-    if (activeJobId) {
-      deps.finalizeCliJob(
-        input.jobControlDir || deps.loadConfig().dataDir,
-        activeJobId,
-        staticPromptResult.shouldExit ? "cancelled" : "completed",
-        0,
+    const dataDir = input.jobControlDir || deps.loadConfig().dataDir;
+    const nonce =
+      input.jobControlNonce ?? process.env.DOOLITTLE_JOB_CONTROL_NONCE;
+    if (activeJobId && !nonce)
+      throw new Error("Missing child job control identity.");
+    let cancelRequested = false;
+    const stopMonitor =
+      activeJobId && nonce
+        ? (deps.monitorJobCancel ?? monitorJobCancel)(
+            dataDir,
+            activeJobId,
+            nonce,
+            () => {
+              cancelRequested = true;
+            },
+          )
+        : undefined;
+    try {
+      await deps.emitStaticPromptEvents(
+        input.immediatePrompt ?? "",
+        cancelRequested
+          ? { ...staticPromptResult, shouldExit: true }
+          : staticPromptResult,
+        {
+          sessionId: input.oneShot.sessionId,
+          onEvent: activeJobId
+            ? (event) =>
+                (deps.appendCliJobEvent ?? appendCliJobEvent)(
+                  dataDir,
+                  activeJobId,
+                  event,
+                )
+            : undefined,
+        },
       );
+      if (activeJobId) {
+        deps.finalizeCliJob(
+          dataDir,
+          activeJobId,
+          cancelRequested || staticPromptResult.shouldExit
+            ? "cancelled"
+            : "completed",
+          cancelRequested ? 130 : 0,
+        );
+      }
+    } finally {
+      stopMonitor?.();
     }
     return true;
   }

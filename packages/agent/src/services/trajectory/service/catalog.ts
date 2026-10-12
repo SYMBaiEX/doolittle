@@ -19,6 +19,7 @@ export const trajectoryServiceCatalogMethods: Pick<
 
   describeBundle(this: TrajectoryEvaluationService, manifestPath: string) {
     return trajectoryCatalog.describeTrajectoryEvaluationServiceBundle(
+      getTrajectoryEvaluationServiceState(this).baseDir,
       manifestPath,
     );
   },
@@ -35,6 +36,7 @@ export const trajectoryServiceCatalogMethods: Pick<
     manifestPath: string,
   ) {
     return trajectoryCatalog.describeTrajectoryEvaluationServiceBenchmarkManifest(
+      getTrajectoryEvaluationServiceState(this).baseDir,
       manifestPath,
     );
   },

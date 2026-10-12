@@ -6,8 +6,12 @@ export async function readEntrypointStdinText(
   }
 
   const chunks: Buffer[] = [];
+  let total = 0;
   for await (const chunk of stdin) {
-    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    const bytes = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+    total += bytes.length;
+    if (total > 1024 * 1024) throw new Error("Piped prompt exceeds 1 MiB.");
+    chunks.push(bytes);
   }
   return Buffer.concat(chunks).toString("utf8");
 }
