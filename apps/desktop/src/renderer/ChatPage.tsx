@@ -64,6 +64,7 @@ import {
   mergeTerminalRunReceipt,
   type RunClaim,
 } from "./chat/run-claim-reconciliation";
+import { sessionPendingApprovalCount } from "./chat/session-approvals";
 import {
   completedResponseText,
   reconcileStreamedResponse,
@@ -92,7 +93,7 @@ import {
   saveConversationQueue,
 } from "./conversation-persistence";
 import { NativeUiHost } from "./interfaces/native-ui-host";
-import { desktopRequest, errorMessage } from "./lib";
+import { desktopRequest, errorMessage, useApiResource } from "./lib";
 import {
   freezeMemoryMatchSnapshot,
   type MemoryMatchSnapshot,
@@ -346,7 +347,6 @@ export function ChatSessionPanel({
   onSelectProjectForNewChat,
   onRequestNewConversation,
   onActivateSessionProject,
-  pendingApprovals,
   pendingContextHandoff,
   runningTasks,
   chromeHost,
@@ -571,6 +571,23 @@ export function ChatSessionPanel({
   }, []);
   const isNarrowViewport = useMediaQuery(NARROW_WORKBENCH_QUERY);
   const isNarrowWorkbench = isNarrowViewport || narrowPanel;
+  const approvalsVisible =
+    routeActive &&
+    visible &&
+    surface === "conversation" &&
+    !(inspectorVisible && isNarrowWorkbench);
+  // The approval panel uses this same global resource key, then scopes rows to
+  // its room. The composer must not use App's global badge count.
+  const sessionApprovalsEnabled =
+    backend.phase === "ready" && approvalsVisible && selectedId.length > 0;
+  const sessionApprovalResource = useApiResource<{ approvals?: unknown[] }>(
+    sessionApprovalsEnabled ? "/execution/approvals?status=pending" : null,
+    [sessionApprovalsEnabled],
+  );
+  const sessionPendingApprovals = sessionPendingApprovalCount(
+    sessionApprovalResource.data?.approvals,
+    selectedId,
+  );
   const prefersReducedMotion = useMediaQuery(
     "(prefers-reduced-motion: reduce)",
   );
@@ -2331,12 +2348,7 @@ export function ChatSessionPanel({
         <div className="chat-composer-dock" ref={composerDockRef}>
           <ChatComposer
             bot={currentBot}
-            approvalsVisible={
-              routeActive &&
-              visible &&
-              surface === "conversation" &&
-              !(inspectorVisible && isNarrowWorkbench)
-            }
+            approvalsVisible={approvalsVisible}
             workspaceNotice={
               <>
                 {dispatchFeedback[selectedId] ? (
@@ -2485,7 +2497,7 @@ export function ChatSessionPanel({
             selectedId={selectedId}
             modelRouteLabel={modelRouteLabel}
             workspacePath={workspacePath}
-            pendingApprovals={pendingApprovals}
+            pendingApprovals={sessionPendingApprovals}
             runningTasks={runningTasks}
           />
         </div>

@@ -53,10 +53,21 @@ function canRestoreFocus(
 ): element is HTMLElement {
   return Boolean(
     element?.isConnected &&
+      element !== document.body &&
+      element !== document.documentElement &&
       !element.matches(":disabled") &&
       !element.closest('[hidden], [inert], [aria-hidden="true"]') &&
       !element.closest(".session-workspace-views:not([open])"),
   );
+}
+function focusFirstAvailable(
+  candidates: Array<HTMLElement | null | undefined>,
+) {
+  for (const candidate of candidates) {
+    if (!canRestoreFocus(candidate)) continue;
+    candidate.focus({ preventScroll: true });
+    if (document.activeElement === candidate) return;
+  }
 }
 type WorkspaceProps = ChatPageProps & {
   renderPanel: (props: PanelProps) => ReactNode;
@@ -192,18 +203,26 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
       `[data-session-panel="${layout.focusedId}"]`,
     );
     const composer = pane?.querySelector<HTMLTextAreaElement>("textarea");
-    for (const candidate of [
+    focusFirstAvailable([
       button,
       finderReturnRef.current,
       composer,
       pane,
       rootRef.current,
-    ]) {
-      if (!canRestoreFocus(candidate)) continue;
-      candidate.focus({ preventScroll: true });
-      if (document.activeElement === candidate) return;
-    }
+    ]);
   }, [layout.focusedId]);
+  const closeViews = () => {
+    if (viewsRef.current) viewsRef.current.open = false;
+    const pane = rootRef.current?.querySelector<HTMLElement>(
+      `[data-session-panel="${layout.focusedId}"]`,
+    );
+    focusFirstAvailable([
+      viewsReturnRef.current,
+      pane?.querySelector<HTMLTextAreaElement>("textarea"),
+      pane,
+      rootRef.current,
+    ]);
+  };
   const focusRequestedRef = useRef(false);
   const externalSelectionRef = useRef(props.selectedId);
   useEffect(() => {
@@ -470,7 +489,7 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
         ? layout.focusedId
         : (layout.openIds[index + 1] ?? layout.openIds[index - 1]);
     const split = (axis: "horizontal" | "vertical") => {
-      if (!companionId || isNarrow || isShort) return;
+      if (!isCanvas || !companionId || isNarrow || isShort) return;
       const sourceId = layout.focusedId === id ? id : companionId;
       const targetId = layout.focusedId === id ? companionId : id;
       const next = splitWorkspaceSession(layout, sourceId, targetId, axis);
@@ -517,14 +536,14 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
             {
               id: "split-right",
               label: `Split right with ${titleFor(companionId)}`,
-              disabled: isNarrow || isShort,
+              disabled: !isCanvas || isNarrow || isShort,
               separatorBefore: true,
               onSelect: () => split("horizontal"),
             },
             {
               id: "split-below",
               label: `Split below with ${titleFor(companionId)}`,
-              disabled: isNarrow || isShort,
+              disabled: !isCanvas || isNarrow || isShort,
               onSelect: () => split("vertical"),
             },
           ]
@@ -714,8 +733,7 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
           onKeyDown={(event) => {
             if (event.key !== "Escape") return;
             event.preventDefault();
-            event.currentTarget.open = false;
-            viewsReturnRef.current?.focus();
+            closeViews();
           }}
           ref={viewsRef}
         >
@@ -732,10 +750,7 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
             <button
               aria-label="Close workspace views"
               className={CONTROL}
-              onClick={() => {
-                if (viewsRef.current) viewsRef.current.open = false;
-                viewsReturnRef.current?.focus();
-              }}
+              onClick={closeViews}
               type="button"
             >
               <X aria-hidden size={14} />
@@ -846,7 +861,7 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
               >
                 <Plus aria-hidden size={14} />
               </Button>
-              {!isNarrow && !isShort ? (
+              {isCanvas && !isNarrow && !isShort ? (
                 <details
                   className="relative"
                   ref={layoutMenuRef}

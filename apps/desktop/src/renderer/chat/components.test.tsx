@@ -29,6 +29,7 @@ import {
   runIsStalled,
   runReceiptState,
 } from "./RunReceiptView";
+import { sessionPendingApprovalCount } from "./session-approvals";
 import { Welcome } from "./Welcome";
 
 (
@@ -130,6 +131,52 @@ function composerProps(
 }
 
 describe("chat presentation components", () => {
+  it("marks only the active session's approval as waiting", () => {
+    const approvals = [
+      {
+        id: "approval:other",
+        status: "pending",
+        roomId: "session-other",
+        sessionKey: "session-other",
+      },
+    ];
+    const status = (pendingApprovals: number) =>
+      renderToStaticMarkup(
+        <ChatComposer
+          {...composerProps({
+            bot: {
+              id: "research",
+              name: "Research",
+              isDefault: false,
+              state: "busy",
+            } as never,
+            backend: { phase: "ready", message: "" },
+            activeRequest: "run-session-1",
+            pendingApprovals,
+          })}
+        />,
+      );
+    const otherSession = status(
+      sessionPendingApprovalCount(approvals, "session-1"),
+    );
+    expect(otherSession).toContain("Research working");
+    expect(otherSession).not.toContain("Research waiting");
+    expect(otherSession).not.toContain("runtime approval");
+
+    approvals.push({
+      id: "approval:current",
+      status: "pending",
+      roomId: "session-1",
+      sessionKey: "session-1",
+    });
+    const currentSession = status(
+      sessionPendingApprovalCount(approvals, "session-1"),
+    );
+    expect(currentSession).toContain("Research waiting");
+    expect(currentSession).toContain("1 runtime approval");
+    expect(currentSession).not.toContain("animate-ping");
+  });
+
   it("keeps a stopped named bot draft editable while its first send is available", () => {
     const markup = renderToStaticMarkup(
       <ChatComposer

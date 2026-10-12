@@ -128,11 +128,20 @@ is not a live pass. Coding/headless eval and harness commands (`eval:*`,
 remain separate and unchanged. Actual provider or platform capability needs
 live evidence, not a successful mock or source assertion.
 
-Routine CI runs lint, application/desktop types, the essentials, the agent
-build, and acceptance gates. Manual CI's `full_validation` input substitutes
-the full Vitest suite for essentials and enables the real Electron smoke path.
-Platform packaging and publication workflows are unchanged. Cancelled obsolete
-CI runs do not promote or publish anything.
+On PRs and pushes, CI's lightweight `validate` job runs lint,
+application/desktop types, the 17 release-critical test files, the agent
+build, and acceptance gates. A separate `native_acceptance` job then runs the
+opted-in shared-engine source worker test, the real Electron new-chat and run
+lifecycle journeys, and a clean-HEAD Linux directory package's named-bot
+first-message and preload/offline-chat cases under Xvfb. The package runner
+checks artifact provenance; a skipped suite cannot satisfy the job. Manual
+CI's `full_validation` input substitutes `test:all` for the curated unit
+selection and additionally runs the Docker sandbox setup and broad Playwright
+smoke as diagnostics; the separate native acceptance job still runs.
+The full local `check:release` additionally covers the wider workbench
+navigation and packaged profile suites. Platform packaging and publication
+workflows are unchanged. Cancelled obsolete CI runs do not promote or publish
+anything.
 
 ## Baseline and limits
 

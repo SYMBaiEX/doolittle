@@ -471,6 +471,73 @@ describe("shared session workbench behavior", () => {
     expect(views.open).toBe(false);
     expect(document.activeElement).toBe(returnFocus);
   });
+  it("closes workspace views into the current composer when no control was focused", async () => {
+    await render();
+    await openB();
+    required(panel("b").querySelector("textarea")).blur();
+    expect(document.activeElement).toBe(document.body);
+    await act(async () =>
+      window.dispatchEvent(new Event("doolittle:workspace-views")),
+    );
+    const views = required(
+      container.querySelector<HTMLDetailsElement>(".session-workspace-views"),
+    );
+    await act(async () => {
+      views.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, key: "Escape" }),
+      );
+    });
+    expect(views.open).toBe(false);
+    expect(document.activeElement).toBe(panel("b").querySelector("textarea"));
+  });
+  it.each(["Escape", "Close button"])(
+    "restores view focus safely after arrow navigation with %s",
+    async (dismiss) => {
+      await render();
+      const originalComposer = required(panel("a").querySelector("textarea"));
+      originalComposer.focus();
+      await openB();
+      await act(async () =>
+        required(panel("a").querySelector("textarea")).focus(),
+      );
+      await act(async () =>
+        window.dispatchEvent(new Event("doolittle:workspace-views")),
+      );
+      const views = required(
+        container.querySelector<HTMLDetailsElement>(".session-workspace-views"),
+      );
+      const tabA = required(
+        container.querySelector<HTMLButtonElement>("#session-tab-a"),
+      );
+      await act(async () => {
+        tabA.dispatchEvent(
+          new KeyboardEvent("keydown", { bubbles: true, key: "ArrowRight" }),
+        );
+        await new Promise((resolve) => setTimeout(resolve, 5));
+      });
+      expect(panel("a").hidden).toBe(true);
+      const currentComposer = required(panel("b").querySelector("textarea"));
+      if (dismiss === "Close button") currentComposer.disabled = true;
+      try {
+        if (dismiss === "Escape") {
+          await act(async () => {
+            views.dispatchEvent(
+              new KeyboardEvent("keydown", { bubbles: true, key: "Escape" }),
+            );
+          });
+        } else {
+          await click(views, "Close workspace views");
+        }
+        expect(views.open).toBe(false);
+        expect(document.activeElement).toBe(
+          dismiss === "Escape" ? currentComposer : panel("b"),
+        );
+        expect(document.activeElement).not.toBe(originalComposer);
+      } finally {
+        currentComposer.disabled = false;
+      }
+    },
+  );
 
   it("keeps selected views text-led with full-title access and an explicit finder dismiss action", async () => {
     await render();
@@ -741,6 +808,42 @@ describe("shared session workbench behavior", () => {
     expect(localStorage.getItem(SESSION_WORKSPACE_STORAGE_KEY)).toBe(
       savedSplit,
     );
+  });
+  it("keeps Companion split commands unavailable while preserving the Canvas arrangement", async () => {
+    document.documentElement.dataset.uiLayout = "canvas";
+    await render();
+    await openB();
+    await contextMenu(
+      required(container.querySelector<HTMLElement>("#session-tab-a")),
+    );
+    await contextAction("Split right with Session B");
+    const savedSplit = localStorage.getItem(SESSION_WORKSPACE_STORAGE_KEY);
+    await act(async () => {
+      delete document.documentElement.dataset.uiLayout;
+    });
+    expect(
+      container.querySelector(".session-workspace-views details"),
+    ).toBeNull();
+    const tabA = required(
+      container.querySelector<HTMLElement>("#session-tab-a"),
+    );
+    await contextMenu(tabA);
+    for (const label of [
+      "Split right with Session B",
+      "Split below with Session B",
+    ]) {
+      const action = required(
+        [
+          ...document.body.querySelectorAll<HTMLElement>('[role="menuitem"]'),
+        ].find((item) => item.textContent === label),
+      );
+      expect(action.getAttribute("aria-disabled")).toBe("true");
+      await act(async () => action.click());
+    }
+    expect(localStorage.getItem(SESSION_WORKSPACE_STORAGE_KEY)).toBe(
+      savedSplit,
+    );
+    expect(container.querySelector("[data-session-resizer]")).toBeNull();
   });
   it("offers keyboard context actions on narrow tabs without changing the retained arrangement", async () => {
     await render();
