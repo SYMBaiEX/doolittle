@@ -2078,9 +2078,9 @@ test.describe("Doolittle desktop session workbench", () => {
 
       await openWorkspaceViews(page);
       await workbench.getByRole("button", { name: "Find session" }).click();
-      await workbench
-        .getByRole("button", { name: "Close workspace views" })
-        .click();
+      await expect(
+        workbench.locator(".session-workspace-views"),
+      ).not.toHaveAttribute("open", "");
       const finder = workbench.getByRole("region", { name: "Find a session" });
       const sessionSearch = finder.getByRole("textbox", {
         name: "Find a conversation",
@@ -2706,9 +2706,9 @@ test.describe("Doolittle desktop session workbench", () => {
       await desktopNarrowSessionTabs.getByRole("tab").nth(0).click();
       await expect(firstPanel).toBeVisible();
       await expect(secondPanel).toBeHidden();
-      await workbenchAfterReload
-        .getByRole("button", { name: "Close workspace views" })
-        .click();
+      await expect(
+        workbenchAfterReload.locator(".session-workspace-views"),
+      ).not.toHaveAttribute("open", "");
       await expectApprovalGeometry(firstPanel);
       await page.screenshot({
         animations: "disabled",
@@ -2724,9 +2724,9 @@ test.describe("Doolittle desktop session workbench", () => {
       await expect(sessionTabs.getByRole("tab")).toHaveCount(2);
       await sessionTabs.getByRole("tab").nth(0).click();
       await expect(firstPanel).toBeVisible();
-      await workbenchAfterReload
-        .getByRole("button", { name: "Close workspace views" })
-        .click();
+      await expect(
+        workbenchAfterReload.locator(".session-workspace-views"),
+      ).not.toHaveAttribute("open", "");
       await page.screenshot({
         animations: "disabled",
         fullPage: true,
@@ -2929,6 +2929,7 @@ test.describe("Doolittle desktop session workbench", () => {
           id: "approval-session-a-long-copy",
           decision: "approve",
         });
+      await openWorkspaceViews(page);
       await sessionTabs.getByRole("tab").nth(1).click();
       const mobileSecondApprovalSection = secondPanel.getByRole("region", {
         name: "Pending approvals for this session",
@@ -2953,6 +2954,7 @@ test.describe("Doolittle desktop session workbench", () => {
         mobileSecondApprovalSection.getByRole("status"),
       ).toContainText("Denied this request.", { timeout: 15_000 });
       await expect(mobileSecondRequests.getByRole("article")).toHaveCount(0);
+      await openWorkspaceViews(page);
       await sessionTabs.getByRole("tab").nth(0).click();
       const firstAction = mobileRequests
         .locator("article")
