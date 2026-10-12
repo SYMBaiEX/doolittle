@@ -11,6 +11,48 @@
   outline: 2px solid var(--focus-ring);
   outline-offset: -2px;
 }
+/* Dropdown triggers use their existing edge/background, never a second frame. */
+.desktop-shell
+button:is(
+  [role="combobox"],
+  [aria-haspopup="listbox"],
+  [aria-haspopup="menu"],
+  .composer-model-trigger,
+  .composer-project-trigger
+):focus-visible {
+  outline: none;
+  outline-width: 0;
+  box-shadow: inset 1px 0 0 var(--text-soft);
+  border-color: var(--text);
+  background-color: var(--surface-hover);
+}
+.desktop-shell .dl-field[aria-invalid="true"]:focus-visible {
+  border-color: var(--bad);
+  box-shadow: inset 1px 0 0 var(--text-soft);
+}
+@media (forced-colors: active) {
+  .desktop-shell
+    button:is(
+      [role="combobox"],
+      [aria-haspopup="listbox"],
+      [aria-haspopup="menu"],
+      .composer-model-trigger,
+      .composer-project-trigger
+    ):focus-visible,
+  .desktop-shell textarea:focus-visible,
+  .desktop-shell select:focus-visible,
+  .desktop-shell
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not(
+      [type="file"]
+    ):not([type="color"]):focus-visible {
+    outline: 1px solid Highlight;
+    outline-offset: 0;
+    box-shadow: none;
+  }
+  .desktop-shell .dl-field[aria-invalid="true"]:focus-visible {
+    box-shadow: none;
+  }
+}
 .chat-history-notice {
   display: flex;
   flex: none;

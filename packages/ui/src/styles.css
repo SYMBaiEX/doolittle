@@ -23,9 +23,23 @@
   min-width: 0;
   caret-color: var(--text);
 }
-.dl-control:focus-visible {
+.dl-field[aria-invalid="true"] {
+  border-color: var(--bad);
+}
+.dl-control:not(.dl-field):focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
+}
+.dl-field:focus-visible {
+  outline: none;
+  outline-width: 0;
+  box-shadow: inset 1px 0 0 var(--text-soft);
+}
+.dl-field:focus-visible:not([aria-invalid="true"]) {
+  border-color: var(--text);
+}
+.dl-field[aria-invalid="true"]:focus-visible {
+  box-shadow: inset 1px 0 0 var(--text-soft);
 }
 .dl-button {
   transition-property: background-color, border-color, color;
@@ -1006,6 +1020,14 @@
   .dl-select-item[data-highlighted] {
     outline: 2px solid Highlight;
     outline-offset: -2px;
+  }
+  .dl-field:focus-visible {
+    outline: 1px solid Highlight;
+    outline-offset: 0;
+    box-shadow: none;
+  }
+  .dl-field[aria-invalid="true"]:focus-visible {
+    box-shadow: none;
   }
   .dl-action-menu,
   .dl-select-content,

@@ -69,7 +69,7 @@ export function CompanionInspector({
           View
         </label>
         <select
-          className="min-h-10 min-w-0 flex-1 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] px-2 text-[length:var(--text-control)] text-[var(--text)] focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)] max-[760px]:min-h-11"
+          className="dl-field min-h-10 min-w-0 flex-1 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] px-2 text-[length:var(--text-control)] text-[var(--text)] max-[760px]:min-h-11"
           id={`${id}-view`}
           onChange={(event) => {
             const next = event.currentTarget.value;

@@ -350,6 +350,65 @@ test.describe("Doolittle desktop session workbench", () => {
       await chooser.getByRole("button", { name: /Create a new bot/u }).click();
       const creation = page.getByRole("region", { name: "Create a new bot" });
       await expect(creation).toBeVisible();
+      const answerInput = creation.locator(".bot-design-dock textarea");
+      await expect(answerInput).toBeFocused();
+      const answerForm = creation.locator(".bot-design-dock form");
+      await creation
+        .getByRole("button", { name: "Cancel bot creation" })
+        .focus();
+      const unfocusedEdge = await answerForm.evaluate(
+        (form) => getComputedStyle(form).borderTopColor,
+      );
+      await page.keyboard.press("Tab");
+      await answerInput.focus();
+      await expect
+        .poll(() =>
+          answerInput.evaluate((input) => input.matches(":focus-visible")),
+        )
+        .toBe(true);
+      await expect
+        .poll(() =>
+          answerForm.evaluate((form) => getComputedStyle(form).borderTopColor),
+        )
+        .toBe(unfocusedEdge);
+      await expect
+        .poll(() =>
+          answerInput.evaluate((input) => {
+            const style = getComputedStyle(input);
+            return {
+              outline: style.outlineStyle,
+              width: style.outlineWidth,
+              insetCue:
+                style.boxShadow.includes("inset") &&
+                style.boxShadow.includes("1px 0px 0px 0px"),
+              border: style.borderWidth,
+            };
+          }),
+        )
+        .toEqual({
+          outline: "none",
+          width: "0px",
+          insetCue: true,
+          border: "0px",
+        });
+      expect(
+        await creation
+          .locator(".bot-design-dock form")
+          .evaluate((form) => getComputedStyle(form).borderTopWidth),
+      ).toBe("1px");
+      await page.emulateMedia({
+        forcedColors: "active",
+        reducedMotion: "reduce",
+      });
+      await expect
+        .poll(() =>
+          answerInput.evaluate((input) => getComputedStyle(input).outlineWidth),
+        )
+        .toBe("1px");
+      await page.emulateMedia({
+        forcedColors: "none",
+        reducedMotion: "reduce",
+      });
       const answers = [
         "Summarize local research notes with citations.",
         "Be concise, verify claims, and ask before changing files.",
@@ -682,14 +741,131 @@ test.describe("Doolittle desktop session workbench", () => {
         focusStyle.borderWidth,
         "composer has a quiet single-pixel edge",
       ).toBeLessThanOrEqual(1);
-      await first
-        .getByRole("button", { name: /^Choose model\. Current route/ })
-        .click();
+      const modelTrigger = first.getByRole("button", {
+        name: /^Choose model\. Current route/,
+      });
+      const unfocusedModelEdge = await modelTrigger.evaluate(
+        (button) => getComputedStyle(button).borderTopColor,
+      );
+      await page.keyboard.press("Tab");
+      await modelTrigger.focus();
+      await expect
+        .poll(() =>
+          modelTrigger.evaluate((button) => button.matches(":focus-visible")),
+        )
+        .toBe(true);
+      await expect
+        .poll(() =>
+          modelTrigger.evaluate(
+            (button) => getComputedStyle(button).borderTopColor,
+          ),
+        )
+        .not.toBe(unfocusedModelEdge);
+      await expect
+        .poll(() =>
+          modelTrigger.evaluate((button) => {
+            const style = getComputedStyle(button);
+            return {
+              outline: style.outlineStyle,
+              insetCue:
+                style.boxShadow.includes("inset") &&
+                style.boxShadow.includes("1px 0px 0px 0px"),
+            };
+          }),
+        )
+        .toEqual({ outline: "none", insetCue: true });
+      await modelTrigger.click();
       await expectHitTarget(
         page
           .getByRole("dialog", { name: "Choose provider and model" })
           .getByLabel("Search models"),
       );
+      const modelSearch = page
+        .getByRole("dialog", { name: "Choose provider and model" })
+        .getByLabel("Search models");
+      // A CSS paint fixture exercises shared invalid-field focus without
+      // inventing a validation error on the SDK's borderless model search.
+      await modelSearch.evaluate((input) => {
+        const field = document.createElement("input");
+        field.id = "invalid-shared-focus-fixture";
+        field.className = "dl-field";
+        field.setAttribute("aria-label", "Invalid shared field focus fixture");
+        field.style.borderWidth = "1px";
+        field.style.borderStyle = "solid";
+        field.style.borderColor = "var(--text)";
+        input.closest('[role="dialog"]')?.appendChild(field);
+      });
+      const invalidField = page.getByRole("textbox", {
+        name: "Invalid shared field focus fixture",
+      });
+      const coincidentEdge = await invalidField.evaluate(
+        (input) => getComputedStyle(input).borderTopColor,
+      );
+      await page.keyboard.press("Tab");
+      await invalidField.focus();
+      await expect
+        .poll(() =>
+          invalidField.evaluate((input) => input.matches(":focus-visible")),
+        )
+        .toBe(true);
+      expect(
+        await invalidField.evaluate(
+          (input) => getComputedStyle(input).borderTopColor,
+        ),
+      ).toBe(coincidentEdge);
+      await expect
+        .poll(() =>
+          invalidField.evaluate((input) => getComputedStyle(input).boxShadow),
+        )
+        .toContain("1px 0px 0px 0px inset");
+      await modelSearch.focus();
+      await invalidField.evaluate((input) => {
+        (input as HTMLInputElement).style.removeProperty("border-color");
+        input.setAttribute("aria-invalid", "true");
+      });
+      const invalidEdge = await invalidField.evaluate(() => {
+        const sample = document.createElement("span");
+        sample.style.color = "var(--bad)";
+        document.body.appendChild(sample);
+        const color = getComputedStyle(sample).color;
+        sample.remove();
+        return color;
+      });
+      await expect
+        .poll(() =>
+          invalidField.evaluate(
+            (input) => getComputedStyle(input).borderTopColor,
+          ),
+        )
+        .toBe(invalidEdge);
+      await invalidField.focus();
+      await expect
+        .poll(() =>
+          invalidField.evaluate((input) => input.matches(":focus-visible")),
+        )
+        .toBe(true);
+      await expect
+        .poll(() =>
+          invalidField.evaluate((input) => getComputedStyle(input).boxShadow),
+        )
+        .toContain("inset");
+      await expect
+        .poll(() =>
+          invalidField.evaluate(
+            (input) => getComputedStyle(input).borderTopColor,
+          ),
+        )
+        .toBe(invalidEdge);
+      await page.emulateMedia({ forcedColors: "active" });
+      await expect
+        .poll(() =>
+          invalidField.evaluate(
+            (input) => getComputedStyle(input).outlineWidth,
+          ),
+        )
+        .toBe("1px");
+      await page.emulateMedia({ forcedColors: "none" });
+      await invalidField.evaluate((input) => input.remove());
       await page.keyboard.press("Escape");
       await expectCentered(first);
       await expect
@@ -923,8 +1099,41 @@ test.describe("Doolittle desktop session workbench", () => {
         .click();
       await expect(promptDialog).toHaveCount(0);
       await moreTools.press("Escape");
-      await composer.fill("/commands");
       const commands = first.getByRole("listbox", { name: "Chat commands" });
+      // Hidden panes clear and reload their command catalog. Confirm that the
+      // visible pane has real suggestions before testing a specific command.
+      await composer.fill("/");
+      const commandCatalogDiagnostic = await page.evaluate(async () => {
+        const backend = await window.doolittle.getBackendState();
+        const response = await window.doolittle.requestAgent({
+          requestId: crypto.randomUUID(),
+          path: "/commands/catalog",
+          method: "GET",
+          headers: { accept: "application/json" },
+        });
+        const payload = JSON.parse(response.body) as {
+          commands?: unknown[];
+          code?: string;
+        };
+        return {
+          phase: backend.phase,
+          status: response.status,
+          count: payload.commands?.length ?? 0,
+          code: payload.code ?? "none",
+        };
+      });
+      await testInfo.attach("native-command-catalog-readiness", {
+        body: JSON.stringify(commandCatalogDiagnostic),
+        contentType: "application/json",
+      });
+      expect(commandCatalogDiagnostic.phase).toBe("ready");
+      expect(commandCatalogDiagnostic.status).toBe(200);
+      expect(commandCatalogDiagnostic.count).toBeGreaterThan(0);
+      await expect(
+        commands,
+        `Native command catalog: ${JSON.stringify(commandCatalogDiagnostic)}`,
+      ).toBeVisible();
+      await composer.fill("/commands");
       const command = commands
         .locator('[role="option"]:not([aria-disabled="true"])')
         .first();
