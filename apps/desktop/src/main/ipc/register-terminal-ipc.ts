@@ -194,8 +194,11 @@ export function registerTerminalIpcHandlers(
     }
     bots.assertConversationOwner(botId, owner.originConversationId);
     if (
-      bots.assertAcpWorkspace(botId, owner.workspacePath) !==
-      owner.workspacePath
+      bots.assertConversationWorkspace(
+        botId,
+        owner.originConversationId,
+        owner.workspacePath,
+      ) !== owner.workspacePath
     ) {
       throw new Error("Interactive terminal workspace has changed.");
     }
@@ -215,6 +218,7 @@ export function registerTerminalIpcHandlers(
     timeoutMs = API_TIMEOUT_MS,
     expected?: { backend: BackendManager; url: string },
     beforeFetch?: () => void,
+    startOriginConversationId?: string,
   ): Promise<unknown> => {
     const target = await interactiveBackendFor(botId);
     const state = target.getState();
@@ -234,10 +238,31 @@ export function registerTerminalIpcHandlers(
       }
       assertTerminalOwner(sessionId, botId);
     }
+    const continuationSessionId =
+      method === "GET"
+        ? new URL(path, "http://desktop.local").searchParams.get("sessionId")
+        : isRecord(body) && typeof body.sessionId === "string"
+          ? body.sessionId
+          : null;
+    const originConversationId =
+      path === "/terminal/session/start"
+        ? startOriginConversationId
+        : continuationSessionId
+          ? terminalOwners.get(continuationSessionId)?.originConversationId
+          : undefined;
+    if (botId !== "default" && !originConversationId)
+      throw new Error(
+        "Interactive terminal conversation scope is unavailable.",
+      );
     beforeFetch?.();
     const response = await sensitiveFetch(`${state.url}${path}`, {
       method,
-      headers: body ? { "content-type": "application/json" } : undefined,
+      headers: {
+        ...(body ? { "content-type": "application/json" } : {}),
+        ...(originConversationId
+          ? { "x-doolittle-origin-conversation": originConversationId }
+          : {}),
+      },
       body: body ? JSON.stringify(body) : undefined,
       signal: AbortSignal.timeout(timeoutMs),
     });
@@ -593,8 +618,9 @@ export function registerTerminalIpcHandlers(
           throw new Error("This bot cannot open a mutable terminal.");
         }
         await bots.ensureConversationOwner(botId, request.originConversationId);
-        const workspacePath = bots.assertAcpWorkspace(
+        const workspacePath = bots.assertConversationWorkspace(
           botId,
+          request.originConversationId,
           request.workspacePath,
         );
         if (workspacePath !== request.workspacePath) {
@@ -818,8 +844,11 @@ export function registerTerminalIpcHandlers(
                     request.originConversationId,
                   );
                   if (
-                    bots.assertAcpWorkspace(botId, request.workspacePath) !==
-                    workspacePath
+                    bots.assertConversationWorkspace(
+                      botId,
+                      request.originConversationId,
+                      request.workspacePath,
+                    ) !== workspacePath
                   ) {
                     throw new Error(
                       "Interactive terminal workspace has changed.",
@@ -836,6 +865,7 @@ export function registerTerminalIpcHandlers(
                   );
                 }
               },
+              request.originConversationId,
             );
           } catch (error) {
             if (error instanceof TerminalStartAuthorizationError) throw error;

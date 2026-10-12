@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { runWithConversationWorkspace } from "@/runtime/workspace-scope";
 import { buildProjectPromptContext } from "./project-context";
 
 const project = {
@@ -13,6 +14,39 @@ const project = {
 };
 
 describe("buildProjectPromptContext", () => {
+  it("renders host-approved project context without reading worker project rows", async () => {
+    const context = await runWithConversationWorkspace(
+      {
+        sessionId: "chat-a",
+        botId: "bot",
+        workspacePath: "/external/project",
+        projectId: "lead-project",
+        projectContext: {
+          name: "Lead Project",
+          instructions: "Use the local source",
+        },
+      },
+      async () =>
+        buildProjectPromptContext({
+          sessions: {
+            projectIdForSession: () => {
+              throw new Error("worker project store must not be read");
+            },
+            getProject: () => {
+              throw new Error("worker project store must not be read");
+            },
+            projectResources: () => {
+              throw new Error("worker project store must not be read");
+            },
+          },
+          sessionId: "chat-a",
+          workspaceDir: "/wrong",
+        }),
+    );
+    expect(context).toContain("projectId=lead-project");
+    expect(context).toContain("effectiveWorkingDirectory=/external/project");
+    expect(context).not.toContain("/wrong");
+  });
   it("renders bounded project data without widening execution access", () => {
     const context = buildProjectPromptContext({
       sessionId: "session-1",

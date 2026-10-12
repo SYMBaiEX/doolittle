@@ -1,9 +1,16 @@
+import { currentConversationWorkspace } from "@/runtime/workspace-scope";
 import type { AgentExecutionContext } from "../../chat";
 
 export async function handleOperatorMigrationCommand(
   trimmed: string,
   context: AgentExecutionContext,
 ): Promise<string | undefined> {
+  if (
+    currentConversationWorkspace() &&
+    (trimmed.startsWith("/migrate") || trimmed.startsWith("/migration"))
+  ) {
+    return "Migration commands are unavailable in a bound conversation workspace.";
+  }
   if (
     trimmed === "/migrate" ||
     trimmed === "/migrate scan" ||

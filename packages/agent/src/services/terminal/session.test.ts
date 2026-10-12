@@ -1,8 +1,9 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { describe, expect, it } from "vitest";
+import { runWithConversationWorkspace } from "@/runtime/workspace-scope";
 import { InteractiveTerminalSessionManager } from "./session";
 
 function creationId(index: number, timestamp = Date.now()): string {
@@ -28,6 +29,59 @@ async function waitForOutput(
 }
 
 describe("InteractiveTerminalSessionManager", () => {
+  it("rejects another chat's terminal identity even when both use the same root", async () => {
+    const workspace = mkdtempSync(join(tmpdir(), "doolittle-terminal-owner-"));
+    const manager = new InteractiveTerminalSessionManager(workspace);
+    const scope = (sessionId: string) => ({
+      sessionId,
+      botId: "bot",
+      workspacePath: workspace,
+    });
+    try {
+      const started = await runWithConversationWorkspace(
+        scope("chat-a"),
+        async () => manager.start(),
+      );
+      await runWithConversationWorkspace(scope("chat-b"), async () => {
+        expect(() => manager.output(started.id)).toThrow("not found");
+        expect(() => manager.input(started.id, "whoami\n")).toThrow(
+          "not found",
+        );
+      });
+      await runWithConversationWorkspace(scope("chat-a"), async () => {
+        expect(manager.output(started.id).session.id).toBe(started.id);
+        manager.close(started.id);
+      });
+    } finally {
+      manager.dispose();
+      rmSync(workspace, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects explicit cwd outside the bound root and symlink escapes before spawn", async () => {
+    const workspace = mkdtempSync(join(tmpdir(), "doolittle-terminal-root-"));
+    const outside = mkdtempSync(join(tmpdir(), "doolittle-terminal-outside-"));
+    symlinkSync(outside, join(workspace, "escape"));
+    const manager = new InteractiveTerminalSessionManager(workspace);
+    try {
+      await runWithConversationWorkspace(
+        { sessionId: "chat", botId: "bot", workspacePath: workspace },
+        async () => {
+          expect(() => manager.start({ cwd: outside, command: "pwd" })).toThrow(
+            /inside the current workspace/,
+          );
+          expect(() =>
+            manager.start({ cwd: join(workspace, "escape"), command: "pwd" }),
+          ).toThrow(/inside the current workspace/);
+        },
+      );
+    } finally {
+      manager.dispose();
+      rmSync(workspace, { recursive: true, force: true });
+      rmSync(outside, { recursive: true, force: true });
+    }
+  });
+
   it("replays one creation receipt without another PTY and retires closed identities", () => {
     const workspace = mkdtempSync(
       join(tmpdir(), "doolittle-terminal-idempotent-"),

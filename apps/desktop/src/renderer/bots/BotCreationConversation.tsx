@@ -1,12 +1,16 @@
 import type { BotSummary, CreateBotInput } from "@doolittle/contracts/bots";
+import { isBotModelProvider } from "@doolittle/contracts/bots";
+import { NativeSelect } from "@doolittle/ui";
 import { ArrowLeft, ArrowUp, X } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import type {
   AccountPoolResponse,
+  RuntimeModelsResponse,
   RuntimeStatus,
 } from "../../shared/contracts";
-import { desktopRequest, errorMessage } from "../lib";
+import { desktopRequest, errorMessage, useApiResource } from "../lib";
 import { botCharacterDraft } from "./bot-character-draft";
+import { botModelRoutes } from "./bot-model-routes";
 
 const questions = [
   "What would you like your bot to help with?",
@@ -28,22 +32,27 @@ export function BotCreationConversation({
   onCreated,
   onDirtyChange,
   runtime,
-  workspacePath,
-  projectId,
 }: {
   onClose: () => void;
   onCreated: (bot: BotSummary) => void;
   onDirtyChange?: (dirty: boolean) => void;
   runtime: RuntimeStatus | null;
-  workspacePath: string;
-  projectId?: string;
 }) {
   const [answers, setAnswers] = useState<string[]>([]);
   const [answer, setAnswer] = useState("");
   const [reviewing, setReviewing] = useState(false);
-  const [provider, setProvider] = useState(runtime?.provider ?? "");
-  const [model, setModel] = useState(runtime?.model ?? "");
-  const [botWorkspace, setBotWorkspace] = useState(workspacePath);
+  const [currentRoute] = useState(() => ({
+    provider: runtime?.provider ?? "",
+    model: runtime?.model ?? "",
+  }));
+  const [route, setRoute] = useState(currentRoute);
+  const [liveDiscovery, setLiveDiscovery] = useState(false);
+  const models = useApiResource<RuntimeModelsResponse>(
+    liveDiscovery
+      ? "/runtime/models?refresh=true"
+      : "/runtime/models?refresh=false",
+    [liveDiscovery],
+  );
   const [connectionIds, setConnectionIds] = useState<string[]>([]);
   const [allowMutation, setAllowMutation] = useState(false);
   const [allowDelegation, setAllowDelegation] = useState(false);
@@ -59,12 +68,28 @@ export function BotCreationConversation({
   const threadRef = useRef<HTMLDivElement>(null);
   const questionId = useId();
   const errorId = useId();
+  const modelsStatusId = useId();
+  const providerId = useId();
+  const modelId = useId();
   const step = answers.length;
   const purpose = answers[0] ?? "";
   const style = answers[1] ?? "";
   const name = answers[2] ?? "New bot";
   const character = botCharacterDraft(purpose, style);
   const dirty = Boolean(answer.trim() || answers.length > 0);
+  const providerOptions = botModelRoutes(models.data, currentRoute);
+  const selectedProvider = providerOptions.find(
+    (provider) => provider.id === route.provider,
+  );
+  const modelOptions = selectedProvider?.models ?? [];
+  const selectedModel = modelOptions.find((model) => model.id === route.model);
+  const validRoute = Boolean(
+    selectedProvider && selectedModel && isBotModelProvider(route.provider),
+  );
+  const refreshModels = () => {
+    if (liveDiscovery) models.reload();
+    else setLiveDiscovery(true);
+  };
   useEffect(() => {
     onDirtyChange?.(dirty);
   }, [dirty, onDirtyChange]);
@@ -115,7 +140,7 @@ export function BotCreationConversation({
   };
   const save = async () => {
     if (savingRef.current) return;
-    if (!provider.trim() || !model.trim()) {
+    if (!validRoute) {
       setError("Choose a provider and model before creating your bot.");
       return;
     }
@@ -133,12 +158,9 @@ export function BotCreationConversation({
     const input: CreateBotInput = {
       name,
       character,
-      model: { provider: provider.trim(), model: model.trim() },
-      workspacePath: botWorkspace.trim(),
-      ...(projectId ? { projectId } : {}),
+      model: route,
       permissions: {
         connectionIds,
-        workspacePaths: botWorkspace.trim() ? [botWorkspace.trim()] : [],
         toolIds: [],
         allowMutation,
         allowDelegation,
@@ -294,30 +316,92 @@ export function BotCreationConversation({
                 No accounts or mutation permissions are granted automatically.
               </p>
               <div className="bot-design-fields">
-                <label>
+                <label htmlFor={providerId}>
                   Provider
-                  <input
-                    maxLength={80}
-                    onChange={(event) => setProvider(event.target.value)}
-                    value={provider}
-                  />
+                  <NativeSelect
+                    aria-describedby={modelsStatusId}
+                    disabled={saving || !providerOptions.length}
+                    id={providerId}
+                    onChange={(event) => {
+                      const provider = event.target.value;
+                      setRoute({
+                        provider,
+                        model:
+                          providerOptions.find((entry) => entry.id === provider)
+                            ?.models[0]?.id ?? "",
+                      });
+                      setError("");
+                    }}
+                    value={route.provider}
+                  >
+                    {!selectedProvider ? (
+                      <option value="">Choose a provider</option>
+                    ) : null}
+                    {providerOptions.map((provider) => (
+                      <option
+                        key={provider.id}
+                        value={provider.id}
+                        disabled={!isBotModelProvider(provider.id)}
+                      >
+                        {provider.label}
+                      </option>
+                    ))}
+                  </NativeSelect>
                 </label>
-                <label>
+                <label htmlFor={modelId}>
                   Model
-                  <input
-                    maxLength={160}
-                    onChange={(event) => setModel(event.target.value)}
-                    value={model}
-                  />
+                  <NativeSelect
+                    aria-describedby={modelsStatusId}
+                    disabled={saving || !modelOptions.length}
+                    id={modelId}
+                    onChange={(event) => {
+                      setRoute((current) => ({
+                        ...current,
+                        model: event.target.value,
+                      }));
+                      setError("");
+                    }}
+                    value={route.model}
+                  >
+                    {!selectedModel ? (
+                      <option value="">Choose a model</option>
+                    ) : null}
+                    {modelOptions.map((model) => (
+                      <option key={model.id} value={model.id}>
+                        {model.label}
+                      </option>
+                    ))}
+                  </NativeSelect>
                 </label>
               </div>
-              <label>
-                Workspace path
-                <input
-                  onChange={(event) => setBotWorkspace(event.target.value)}
-                  value={botWorkspace}
-                />
-              </label>
+              <div className="bot-design-model-status" id={modelsStatusId}>
+                <p className="bot-design-note" role="status">
+                  {models.loading || models.isValidating
+                    ? "Loading model catalog…"
+                    : models.error
+                      ? "Model catalog unavailable. Retry discovery."
+                      : !models.data?.providers.some(
+                            (provider) => provider.models.length,
+                          )
+                        ? "No model routes available. Refresh models or connect a provider in Settings."
+                        : selectedProvider && !modelOptions.length
+                          ? "No models for this provider. Refresh models or choose another provider."
+                          : liveDiscovery
+                            ? "Model catalog refreshed."
+                            : "Configured model catalog."}
+                  {selectedModel?.currentRoute
+                    ? " Current runtime route retained; availability has not been verified by this catalog."
+                    : ""}
+                </p>
+                <button
+                  className="bot-design-back"
+                  disabled={saving || models.loading || models.isValidating}
+                  onClick={refreshModels}
+                  type="button"
+                >
+                  {models.error ? "Retry models" : "Refresh models"}
+                </button>
+              </div>
               <fieldset>
                 <legend>Permissions</legend>
                 <label className="bot-design-check">
@@ -377,7 +461,7 @@ export function BotCreationConversation({
               <button
                 aria-busy={saving}
                 className="bot-design-primary"
-                disabled={saving}
+                disabled={saving || !validRoute}
                 onClick={() => void save()}
                 type="button"
               >

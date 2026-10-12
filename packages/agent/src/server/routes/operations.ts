@@ -5,6 +5,11 @@ import {
   getEffectiveShellHistory,
   runEffectiveShellCommand,
 } from "@/runtime/native/service-bridge/tooling";
+import {
+  currentConversationWorkspace,
+  resolveConversationWorkspace,
+  runWithConversationWorkspace,
+} from "@/runtime/workspace-scope";
 import { sdkTerminalRunTokenError } from "@/server/auth";
 import { readJsonObjectBody } from "@/server/request-body";
 import { json, streamSse } from "@/server/responses";
@@ -312,6 +317,10 @@ export async function handleOperationsRoutes(
   }
 
   if (request.method === "GET" && url.pathname === "/terminal/history") {
+    if (currentConversationWorkspace()) {
+      // The legacy shell history is process-wide and has no conversation owner.
+      return json({ commands: [] });
+    }
     return json({
       commands: getEffectiveShellHistory(context.runtime, 25),
     });
@@ -414,61 +423,73 @@ export async function handleOperationsRoutes(
     }
 
     const runId = randomUUID();
+    const originConversationId = currentConversationWorkspace()?.sessionId;
     return streamSse(async (emit) => {
-      await emit("terminal.started", {
-        runId,
-        command: input.command,
-        startedAt: new Date().toISOString(),
-      });
-
-      let streamedBytes = 0;
-      let truncationEmitted = false;
-      let emitQueue = Promise.resolve();
-      const queueChunk = (event: "terminal.stdout" | "terminal.stderr") => {
-        return (chunk: string) => {
-          const remaining = MAX_TERMINAL_STREAM_BYTES - streamedBytes;
-          if (remaining <= 0) {
-            if (!truncationEmitted) {
-              truncationEmitted = true;
-              emitQueue = emitQueue.then(() =>
-                emit("terminal.stderr", {
-                  runId,
-                  chunk:
-                    "\n[Doolittle truncated live terminal output after 2 MB. The command continues running.]\n",
-                  truncated: true,
-                }),
-              );
-            }
-            return;
-          }
-          const bounded = takeUtf8Prefix(chunk, remaining);
-          streamedBytes += new TextEncoder().encode(bounded).byteLength;
-          emitQueue = emitQueue.then(() =>
-            emit(event, {
-              runId,
-              chunk: bounded,
-            }),
-          );
-        };
-      };
-
-      const result = await context.services.terminal.runStreamingLocal(
-        input.command,
-        {
-          onStdout: queueChunk("terminal.stdout"),
-          onStderr: queueChunk("terminal.stderr"),
-        },
-        input.timeoutMs,
-        request.signal,
-      );
-      await emitQueue;
-      await emit(
-        request.signal.aborted ? "terminal.cancelled" : "terminal.completed",
-        {
+      const execute = async () => {
+        await emit("terminal.started", {
           runId,
-          result: boundedTerminalResult(result),
-        },
-      );
+          command: input.command,
+          startedAt: new Date().toISOString(),
+        });
+
+        let streamedBytes = 0;
+        let truncationEmitted = false;
+        let emitQueue = Promise.resolve();
+        const queueChunk = (event: "terminal.stdout" | "terminal.stderr") => {
+          return (chunk: string) => {
+            const remaining = MAX_TERMINAL_STREAM_BYTES - streamedBytes;
+            if (remaining <= 0) {
+              if (!truncationEmitted) {
+                truncationEmitted = true;
+                emitQueue = emitQueue.then(() =>
+                  emit("terminal.stderr", {
+                    runId,
+                    chunk:
+                      "\n[Doolittle truncated live terminal output after 2 MB. The command continues running.]\n",
+                    truncated: true,
+                  }),
+                );
+              }
+              return;
+            }
+            const bounded = takeUtf8Prefix(chunk, remaining);
+            streamedBytes += new TextEncoder().encode(bounded).byteLength;
+            emitQueue = emitQueue.then(() =>
+              emit(event, {
+                runId,
+                chunk: bounded,
+              }),
+            );
+          };
+        };
+
+        const result = await context.services.terminal.runStreamingLocal(
+          input.command,
+          {
+            onStdout: queueChunk("terminal.stdout"),
+            onStderr: queueChunk("terminal.stderr"),
+          },
+          input.timeoutMs,
+          request.signal,
+        );
+        await emitQueue;
+        await emit(
+          request.signal.aborted ? "terminal.cancelled" : "terminal.completed",
+          {
+            runId,
+            result: boundedTerminalResult(result),
+          },
+        );
+      };
+      if (originConversationId) {
+        const scope = await resolveConversationWorkspace(
+          originConversationId,
+          request.signal,
+        );
+        await runWithConversationWorkspace(scope, execute);
+      } else {
+        await execute();
+      }
     });
   }
 

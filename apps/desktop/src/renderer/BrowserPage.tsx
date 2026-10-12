@@ -36,6 +36,7 @@ import { BrowserResultPanel } from "./components/BrowserResultPanel";
 import { Button, Input } from "./components/ElizaControls";
 import { OfflineRouteState } from "./components/OfflineRouteState";
 import { UiIcon } from "./components/UiIcon";
+import type { ComputerOrigin } from "./computer-origin";
 import { copyContextText } from "./context-menu-clipboard";
 import { Badge, Notice } from "./lib";
 
@@ -57,14 +58,16 @@ export function BrowserPage({
   contextual = false,
   onSendToChat,
   botId,
+  origin,
 }: {
   active: boolean;
   /** Render browser chrome inside the Code workspace instead of as a route. */
   contextual?: boolean;
   onSendToChat?: (text: string) => boolean | Promise<boolean>;
   botId?: string;
+  origin?: ComputerOrigin;
 }) {
-  const browser = useBrowserWorkspace(active, botId);
+  const browser = useBrowserWorkspace(active, botId, origin);
   const {
     address,
     busy,

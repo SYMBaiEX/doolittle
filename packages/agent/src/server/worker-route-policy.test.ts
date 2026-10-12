@@ -22,6 +22,33 @@ describe("named worker API surface", () => {
     expect(isWorkerApiRouteAllowed("GET", "/browser/status")).toBe(true);
     expect(isWorkerApiRouteAllowed("GET", "/workspace/read")).toBe(true);
     expect(isWorkerApiRouteAllowed("GET", "/repo/patch")).toBe(true);
+    for (const path of [
+      "/workspace/checkpoints",
+      "/browser/render-targets",
+      "/execution/status",
+      "/execution/backends",
+      "/activity",
+      "/skills",
+      "/context/files",
+    ])
+      expect(isWorkerApiRouteAllowed("GET", path)).toBe(true);
+    expect(
+      isWorkerApiRouteAllowed("POST", "/workspace/checkpoints/one/restore"),
+    ).toBe(false);
+    expect(
+      isWorkerApiRouteAllowed(
+        "POST",
+        "/workspace/checkpoints/one/restore",
+        true,
+      ),
+    ).toBe(true);
+    expect(
+      isWorkerApiRouteAllowed(
+        "POST",
+        "/workspace/checkpoints/../restore",
+        true,
+      ),
+    ).toBe(false);
     expect(isWorkerApiRouteAllowed("POST", "/acp/terminal/create")).toBe(true);
     expect(
       isWorkerApiRouteAllowed("GET", "/projects/project-one/resources"),

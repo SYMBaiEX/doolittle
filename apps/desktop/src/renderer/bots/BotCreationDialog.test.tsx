@@ -10,6 +10,13 @@ import { BotCreationDialog } from "./BotCreationDialog";
 vi.mock("../lib", () => ({
   desktopRequest: vi.fn(() => Promise.resolve({ providers: {} })),
   errorMessage: vi.fn(() => "Request failed"),
+  useApiResource: vi.fn(() => ({
+    data: { providers: [] },
+    loading: false,
+    isValidating: false,
+    error: null,
+    reload: vi.fn(),
+  })),
 }));
 
 describe("BotCreationDialog accessibility", () => {
@@ -123,10 +130,13 @@ describe("BotCreationDialog accessibility", () => {
             bot.permissions.workspacePaths,
           ),
         },
-        workspacePath: "/tmp/one",
-        projectId: "original-project",
       }),
     );
+    const update = vi
+      .mocked(desktopRequest)
+      .mock.calls.find(([path]) => path === "/bots/specialist")?.[2];
+    expect(update).not.toHaveProperty("workspacePath");
+    expect(update).not.toHaveProperty("projectId");
     expect(saved).toHaveBeenCalledOnce();
   });
 

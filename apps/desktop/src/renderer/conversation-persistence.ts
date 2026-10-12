@@ -69,6 +69,7 @@ export type ConversationDrafts = Record<string, ConversationDraft>;
 export interface PersistedQueuedMessage {
   id: string;
   sessionId: string;
+  botId?: string;
   /** Missing only for legacy queue entries, which must be explicitly rebound. */
   workspacePath?: string;
   projectId?: string;
@@ -425,6 +426,7 @@ export function loadConversationQueue(
           record.workspacePath !== record.workspacePath.trim() ||
           record.workspacePath.length > MAX_CAPSULE_PATH_LENGTH)) ||
       (record.projectId !== undefined && !validSessionId(record.projectId)) ||
+      (record.botId !== undefined && !validSessionId(record.botId)) ||
       typeof content !== "string" ||
       !content.trim() ||
       content.length > MAX_DRAFT_LENGTH ||
@@ -442,6 +444,7 @@ export function loadConversationQueue(
         ? { workspacePath: record.workspacePath }
         : {}),
       ...(record.projectId ? { projectId: record.projectId } : {}),
+      ...(record.botId ? { botId: record.botId } : {}),
       content,
       ...(capsule ? { capsule } : {}),
       attachments: record.attachments,

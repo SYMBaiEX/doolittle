@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { realpathSync } from "node:fs";
 import {
   type DoolittleResearchRuntime,
   runDoolittleResearch,
@@ -8,6 +9,17 @@ import {
   ResearchPreflightError,
   researchFailureText,
 } from "@/actions/research-failure";
+import {
+  acquireExecutionLease,
+  getScopedExecutionLease,
+  runWithExecutionLease,
+  runWithSdkTaskSpawn,
+} from "@/runtime/execution-admission";
+import {
+  isDesktopWorkspaceRuntime,
+  requireConversationWorkspace,
+  resolveConversationWorkspace,
+} from "@/runtime/workspace-scope";
 import type { DelegationOrchestrationMode } from "@/types/runtime";
 import type { RuntimeLike } from "../runtime";
 import { projectOfficialTask, requireOfficialOrchestrator } from "./official";
@@ -26,6 +38,18 @@ import type {
 
 function metadataFor(input: EffectiveDelegationCreateInput) {
   const capabilityProfile = input.capabilityProfile ?? input.profile;
+  const scope = isDesktopWorkspaceRuntime()
+    ? requireConversationWorkspace()
+    : undefined;
+  if (
+    scope &&
+    input.workspaceRoot !== undefined &&
+    (input.workspaceRoot !== scope.workspacePath ||
+      realpathSync(input.workspaceRoot) !== scope.workspacePath)
+  )
+    throw new Error(
+      "Task workspaces require their own explicitly approved chat.",
+    );
   return {
     ...(input.metadata ?? {}),
     group: input.group,
@@ -41,8 +65,85 @@ function metadataFor(input: EffectiveDelegationCreateInput) {
     executionMode: input.executionMode,
     orchestrationMode: input.orchestrationMode,
     maxAttempts: input.maxAttempts,
-    workspaceRoot: input.workspaceRoot,
+    workspaceRoot: scope?.workspacePath ?? input.workspaceRoot,
+    ...(scope
+      ? {
+          doolittleWorkspaceScope: {
+            sessionId: scope.sessionId,
+            botId: scope.botId,
+            workspacePath: scope.workspacePath,
+            ...(scope.projectId ? { projectId: scope.projectId } : {}),
+          },
+        }
+      : {}),
   };
+}
+
+/** SDK task metadata is a receipt, not a file grant. Revalidate it before work. */
+async function assertDelegationTaskWorkspace(
+  metadata: Record<string, unknown>,
+): Promise<void> {
+  if (!isDesktopWorkspaceRuntime()) return;
+  const current = requireConversationWorkspace();
+  const witness = metadata.doolittleWorkspaceScope;
+  if (
+    !witness ||
+    typeof witness !== "object" ||
+    Array.isArray(witness) ||
+    typeof (witness as Record<string, unknown>).sessionId !== "string"
+  )
+    throw new Error("This task needs a new confirmed chat workspace grant.");
+  const saved = witness as Record<string, unknown>;
+  const approved = await resolveConversationWorkspace(
+    saved.sessionId as string,
+  );
+  if (
+    saved.botId !== current.botId ||
+    saved.projectId !== current.projectId ||
+    saved.workspacePath !== current.workspacePath ||
+    approved.botId !== current.botId ||
+    approved.projectId !== current.projectId ||
+    approved.workspacePath !== current.workspacePath ||
+    metadata.workspaceRoot !== current.workspacePath
+  )
+    throw new Error(
+      "Task workspace does not match this chat's approved project.",
+    );
+}
+
+async function withAdmittedSdkTaskSpawn<T>(
+  taskId: string,
+  work: () => Promise<T>,
+): Promise<T> {
+  if (!isDesktopWorkspaceRuntime()) return work();
+  const scope = requireConversationWorkspace();
+  const existing = getScopedExecutionLease();
+  if (existing && existing.sessionId !== scope.sessionId)
+    throw new Error("The desktop run does not belong to this conversation.");
+  const owned = existing
+    ? null
+    : await acquireExecutionLease({
+        runId: `task:${randomUUID()}`,
+        sessionId: scope.sessionId,
+        kind: "foreground",
+      });
+  const parent = existing ?? owned;
+  if (!parent) throw new Error("Desktop execution admission is unavailable.");
+  try {
+    return await runWithExecutionLease(parent, () =>
+      runWithSdkTaskSpawn(
+        {
+          taskId,
+          parentRunId: parent.runId,
+          sessionId: scope.sessionId,
+          workspacePath: scope.workspacePath,
+        },
+        () => parent.yieldFor(work, { deadline: Date.now() + 30 * 60_000 }),
+      ),
+    );
+  } finally {
+    await owned?.release();
+  }
 }
 
 function taskKindFor(
@@ -94,10 +195,18 @@ export async function retryEffectiveDelegationTask(
   note?: string,
   _options?: { cascadeChildren?: boolean },
 ) {
-  const task = await requireOfficialOrchestrator(runtime).retryTaskTurn(id, {
-    instruction: note?.trim() || "Retry this task from its durable context.",
-    mode: "new-session",
-  });
+  const service = requireOfficialOrchestrator(runtime);
+  if (isDesktopWorkspaceRuntime()) {
+    const existing = await service.getTask(id);
+    if (!existing) return null;
+    await assertDelegationTaskWorkspace(existing.metadata);
+  }
+  const retry = () =>
+    service.retryTaskTurn(id, {
+      instruction: note?.trim() || "Retry this task from its durable context.",
+      mode: "new-session",
+    });
+  const task = await withAdmittedSdkTaskSpawn(id, retry);
   return task ? updateProjection(projection, projectOfficialTask(task)) : null;
 }
 
@@ -144,6 +253,11 @@ export async function spawnEffectiveDelegationChild(
   },
 ) {
   const service = requireOfficialOrchestrator(runtime);
+  if (isDesktopWorkspaceRuntime()) {
+    const parent = await service.getTask(parentId);
+    if (!parent) return null;
+    await assertDelegationTaskWorkspace(parent.metadata);
+  }
   const task = await service.createTask({
     title: input.title,
     goal: input.objective,
@@ -165,6 +279,11 @@ export async function cancelEffectiveDelegationTask(
   _options?: { cascadeChildren?: boolean },
 ) {
   const service = requireOfficialOrchestrator(runtime);
+  if (isDesktopWorkspaceRuntime()) {
+    const existing = await service.getTask(id);
+    if (!existing) return null;
+    await assertDelegationTaskWorkspace(existing.metadata);
+  }
   if (note?.trim()) {
     await service.addMessage(id, {
       content: note.trim(),
@@ -214,6 +333,11 @@ export async function addEffectiveDelegationNote(
   note: string,
 ) {
   const service = requireOfficialOrchestrator(runtime);
+  if (isDesktopWorkspaceRuntime()) {
+    const existing = await service.getTask(id);
+    if (!existing) return null;
+    await assertDelegationTaskWorkspace(existing.metadata);
+  }
   const added = await service.addMessage(id, {
     content: note,
     senderKind: "orchestrator",
@@ -231,6 +355,11 @@ export async function completeEffectiveDelegationTask(
   note?: string,
 ) {
   const service = requireOfficialOrchestrator(runtime);
+  if (isDesktopWorkspaceRuntime()) {
+    const existing = await service.getTask(id);
+    if (!existing) return null;
+    await assertDelegationTaskWorkspace(existing.metadata);
+  }
   const summary = note?.trim() || "Completed by operator.";
   const task = await service.validateTask(id, {
     passed: true,
@@ -252,6 +381,7 @@ export async function failEffectiveDelegationTask(
   const summary = note?.trim() || "Failed by operator.";
   const existing = await service.getTask(id);
   if (!existing) return null;
+  await assertDelegationTaskWorkspace(existing.metadata);
   await service.addMessage(id, {
     content: summary,
     senderKind: "system",
@@ -275,6 +405,8 @@ export async function executeEffectiveDelegationTask(
   const service = requireOfficialOrchestrator(runtime);
   const detail = await service.getTask(id);
   if (!detail) return null;
+
+  await assertDelegationTaskWorkspace(detail.metadata);
 
   if (isResearchTask(detail)) {
     let executions = activeResearchExecutions.get(runtime);
@@ -456,9 +588,11 @@ export async function executeEffectiveDelegationTask(
     typeof detail.metadata.workspaceRoot === "string"
       ? detail.metadata.workspaceRoot
       : undefined;
-  const task = await service.spawnAgentForTask(id, {
-    workdir: workspaceRoot,
-    framework: detail.providerPolicy?.preferredFramework,
-  });
+  const spawn = () =>
+    service.spawnAgentForTask(id, {
+      workdir: isDesktopWorkspaceRuntime() ? undefined : workspaceRoot,
+      framework: detail.providerPolicy?.preferredFramework,
+    });
+  const task = await withAdmittedSdkTaskSpawn(id, spawn);
   return task ? updateProjection(projection, projectOfficialTask(task)) : null;
 }

@@ -37,6 +37,34 @@ function record(): BotConsultationRecord {
 }
 
 describe("BotConsultationLedger", () => {
+  it("reserves at most three slots after concurrent broker checks", async () => {
+    const directory = mkdtempSync(resolve(tmpdir(), "doolittle-consult-cap-"));
+    try {
+      const ledger = new BotConsultationLedger(directory);
+      const dispatches = Array.from({ length: 5 }, (_, index) =>
+        Promise.resolve().then(() =>
+          ledger.prepare({
+            ...record(),
+            dispatchId: `dispatch-${index}`,
+            targetRunId: `consult:dispatch-${index}`,
+          }),
+        ),
+      );
+      const results = await Promise.allSettled(dispatches);
+      expect(
+        results.filter((result) => result.status === "fulfilled"),
+      ).toHaveLength(3);
+      expect(
+        results.filter((result) => result.status === "rejected"),
+      ).toHaveLength(2);
+      expect(ledger.countRoot("run-root")).toBe(3);
+      expect(new BotConsultationLedger(directory).countRoot("run-root")).toBe(
+        3,
+      );
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
   it("persists prepared intent before acceptance and never allows duplicate dispatch", () => {
     const directory = mkdtempSync(
       resolve(tmpdir(), "doolittle-consultations-"),

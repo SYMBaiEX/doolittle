@@ -20,12 +20,17 @@ let latestHandoffNavigation: ReturnType<
 
 function HandoffProbe({
   transitionToProjectScope,
+  openScopedContextChat,
 }: {
   transitionToProjectScope: Parameters<
     typeof useDesktopContentNavigation
   >[0]["transitionToProjectScope"];
+  openScopedContextChat?: Parameters<
+    typeof useDesktopContentNavigation
+  >[0]["openScopedContextChat"];
 }) {
   const value = useDesktopContentNavigation({
+    openScopedContextChat,
     backendReady: true,
     closeUtilities: vi.fn(),
     createId: () => "handoff",
@@ -126,10 +131,16 @@ async function renderHandoffProbe(
   transitionToProjectScope: Parameters<
     typeof useDesktopContentNavigation
   >[0]["transitionToProjectScope"],
+  openScopedContextChat?: Parameters<
+    typeof useDesktopContentNavigation
+  >[0]["openScopedContextChat"],
 ) {
   await act(async () => {
     handoffRoot.render(
-      createElement(HandoffProbe, { transitionToProjectScope }),
+      createElement(HandoffProbe, {
+        transitionToProjectScope,
+        openScopedContextChat,
+      }),
     );
   });
   if (!latestHandoffNavigation)
@@ -286,6 +297,35 @@ const sessions = [
 ] satisfies SessionSummary[];
 
 describe("chat context handoff navigation", () => {
+  it("uses host-confirmed chat access without switching the shared engine root", async () => {
+    const transition = vi.fn(async () => true);
+    const scoped = vi.fn(async (_resolution, onActivated: () => boolean) =>
+      onActivated(),
+    );
+    const navigation = await renderHandoffProbe(transition, scoped);
+    await expect(
+      navigation.openChatWithContext({
+        text: "Review output",
+        workspacePath: "",
+        projectScope: "unscoped",
+      }),
+    ).resolves.toBe(true);
+    expect(scoped).toHaveBeenCalledOnce();
+    expect(transition).not.toHaveBeenCalled();
+  });
+  it("does not accept context when native chat access is cancelled", async () => {
+    const transition = vi.fn(async () => true);
+    const scoped = vi.fn(async () => false);
+    const navigation = await renderHandoffProbe(transition, scoped);
+    await expect(
+      navigation.openChatWithContext({
+        text: "Review output",
+        workspacePath: "",
+        projectScope: "unscoped",
+      }),
+    ).resolves.toBe(false);
+    expect(transition).not.toHaveBeenCalled();
+  });
   it("waits for successful project activation before accepting a handoff", async () => {
     const transitionToProjectScope = vi.fn(
       async (

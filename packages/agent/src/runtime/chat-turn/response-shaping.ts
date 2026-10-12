@@ -16,7 +16,7 @@ export function buildSystemFactsContext(context: ChatRuntimeContext): string {
     `- os=${platform()} ${release()}`,
     `- arch=${arch()}`,
     `- hostname=${hostname()}`,
-    `- workspace=${context.config.workspaceDir}`,
+    `- workspace=${context.services.workspace.root()}`,
     `- shell access=${terminalAvailable} via terminal service and /terminal run`,
     `- execution backend=${settings.execution.backend}`,
     `- provider=${settings.model.provider}`,

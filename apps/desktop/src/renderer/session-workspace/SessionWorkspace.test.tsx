@@ -178,6 +178,35 @@ const namedBot: BotSummary = {
   state: "ready",
   activeRunCount: 0,
 };
+const namedPanelScope: NonNullable<ChatPageProps["scopeForSession"]> = (
+  id,
+) => ({
+  kind: "confirmed",
+  conversation: {
+    sessionId: id,
+    botId: id === "b" ? namedBot.id : "lead-bot",
+    workspacePath: id === "b" ? "/tmp/named" : "/tmp/shared",
+    createdAt: "2026-10-04T00:00:00.000Z",
+    updatedAt: "2026-10-04T00:00:00.000Z",
+  },
+});
+function mockNamedPanelBinding() {
+  request.mockImplementation(
+    async (path: string, _method: string, body?: { sessionId?: string }) =>
+      path.startsWith("/bots/") && path.endsWith("/conversations")
+        ? {
+            conversation: (
+              namedPanelScope(body?.sessionId ?? "a") as Extract<
+                ReturnType<typeof namedPanelScope>,
+                { kind: "confirmed" }
+              >
+            ).conversation,
+          }
+        : path.startsWith("/chat/runs")
+          ? { runs: [] }
+          : { messages: [] },
+  );
+}
 let root: Root;
 let container: HTMLDivElement;
 let listener: ((event: ChatEvent) => void) | undefined;
@@ -200,6 +229,8 @@ function Harness({
   activeProject,
   selectedBotId,
   onCaptureSessionProject,
+  scopeForSession,
+  onConfirmConversationScope,
 }: Partial<
   Pick<
     ChatPageProps,
@@ -214,6 +245,8 @@ function Harness({
     | "activeProject"
     | "selectedBotId"
     | "onCaptureSessionProject"
+    | "scopeForSession"
+    | "onConfirmConversationScope"
   >
 >) {
   const [selectedId, onSelect] = useState("a");
@@ -226,6 +259,8 @@ function Harness({
       activeProject={activeProject}
       selectedBotId={selectedBotId}
       onCaptureSessionProject={onCaptureSessionProject}
+      scopeForSession={scopeForSession}
+      onConfirmConversationScope={onConfirmConversationScope}
       backend={backend}
       chromeHost={null}
       onConsumeContextHandoff={vi.fn()}
@@ -261,6 +296,8 @@ async function render(
       | "activeProject"
       | "selectedBotId"
       | "onCaptureSessionProject"
+      | "scopeForSession"
+      | "onConfirmConversationScope"
     >
   > = {},
 ) {
@@ -1630,11 +1667,13 @@ describe("shared session workbench behavior", () => {
   });
 
   it("routes a named bot panel to its own workspace even while the lead workspace is selected", async () => {
+    mockNamedPanelBinding();
     await render({
       bots: [namedBot],
       defaultBotId: "lead-bot",
       botIdForSession: (id) => (id === "b" ? namedBot.id : "lead-bot"),
       workspacePath: "/tmp/shared",
+      scopeForSession: namedPanelScope,
     });
     await openB();
     await draft("b", "Research this");
@@ -1648,13 +1687,136 @@ describe("shared session workbench behavior", () => {
     );
   });
 
+  it("keeps two project chats for one bot in their host-confirmed roots despite focus changes", async () => {
+    const roots: Record<string, { projectId: string; workspacePath: string }> =
+      {
+        a: { projectId: "alpha", workspacePath: "/tmp/project-alpha" },
+        b: { projectId: "beta", workspacePath: "/tmp/project-beta" },
+      };
+    const scopeForSession: NonNullable<ChatPageProps["scopeForSession"]> = (
+      id,
+    ) => ({
+      kind: "confirmed",
+      conversation: {
+        sessionId: id,
+        botId: namedBot.id,
+        ...roots[id],
+        createdAt: "2026-10-04T00:00:00.000Z",
+        updatedAt: "2026-10-04T00:00:00.000Z",
+      },
+    });
+    request.mockImplementation(
+      async (path: string, _method: string, body?: { sessionId?: string }) =>
+        path.startsWith("/bots/") && path.endsWith("/conversations")
+          ? {
+              conversation: (
+                scopeForSession(body?.sessionId ?? "a") as Extract<
+                  ReturnType<typeof scopeForSession>,
+                  { kind: "confirmed" }
+                >
+              ).conversation,
+            }
+          : path.startsWith("/chat/runs")
+            ? { runs: [] }
+            : { messages: [] },
+    );
+    await render({
+      bots: [namedBot],
+      defaultBotId: "lead-bot",
+      botIdForSession: () => namedBot.id,
+      scopeForSession,
+      remoteSessions: sessions.map((session) => ({
+        ...session,
+        botId: namedBot.id,
+        ...roots[session.sessionId],
+      })),
+      workspacePath: "/tmp/global-inventory",
+    });
+    await openB();
+    await draft("b", "From beta");
+    await click(panel("b"), "Send test");
+    expect(start).toHaveBeenCalledWith(
+      expect.objectContaining({
+        roomId: "b",
+        botId: namedBot.id,
+        projectId: "beta",
+        workspacePath: "/tmp/project-beta",
+      }),
+    );
+    await act(async () => selectExternal?.("a"));
+    await draft("a", "From alpha");
+    await click(panel("a"), "Send test");
+    expect(start).toHaveBeenCalledWith(
+      expect.objectContaining({
+        roomId: "a",
+        botId: namedBot.id,
+        projectId: "alpha",
+        workspacePath: "/tmp/project-alpha",
+      }),
+    );
+  });
+
+  it("retains the draft when a late host bind disagrees with the target chat", async () => {
+    const scopeForSession: NonNullable<ChatPageProps["scopeForSession"]> = (
+      id,
+    ) => ({
+      kind: "confirmed",
+      conversation: {
+        sessionId: id,
+        botId: namedBot.id,
+        projectId: "alpha",
+        workspacePath: "/tmp/alpha",
+        createdAt: "2026-10-04T00:00:00.000Z",
+        updatedAt: "2026-10-04T00:00:00.000Z",
+      },
+    });
+    request.mockImplementation(
+      async (path: string, _method: string, body?: { sessionId?: string }) =>
+        path.startsWith("/bots/") && path.endsWith("/conversations")
+          ? {
+              conversation: {
+                sessionId: body?.sessionId,
+                botId: namedBot.id,
+                projectId: "beta",
+                workspacePath: "/tmp/beta",
+              },
+            }
+          : path.startsWith("/chat/runs")
+            ? { runs: [] }
+            : { messages: [] },
+    );
+    await render({
+      bots: [namedBot],
+      defaultBotId: "lead-bot",
+      botIdForSession: () => namedBot.id,
+      scopeForSession,
+      remoteSessions: sessions.map((session) => ({
+        ...session,
+        botId: namedBot.id,
+        projectId: "alpha",
+        workspacePath: "/tmp/alpha",
+      })),
+    });
+    await draft("a", "Do not send to beta");
+    await click(panel("a"), "Send test");
+    expect(start).not.toHaveBeenCalled();
+    expect(panel("a").querySelector("textarea")?.value).toBe(
+      "Do not send to beta",
+    );
+    expect(panel("a").textContent).toContain(
+      "ownership could not be confirmed",
+    );
+  });
+
   it("hydrates lead and named bot panels in a split while retaining distinct dispatch workspaces", async () => {
     document.documentElement.dataset.uiLayout = "canvas";
+    mockNamedPanelBinding();
     await render({
       bots: [namedBot],
       defaultBotId: "lead-bot",
       botIdForSession: (id) => (id === "b" ? namedBot.id : "lead-bot"),
       workspacePath: "/tmp/shared",
+      scopeForSession: namedPanelScope,
     });
     await openB();
     await contextMenu(

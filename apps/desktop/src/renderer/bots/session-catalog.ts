@@ -1,13 +1,12 @@
 import type { BotCatalogResponse } from "@doolittle/contracts/bots";
-import type { SessionSummary, SessionsResponse } from "../../shared/contracts";
+import type {
+  BotConversationScope,
+  SessionSummary,
+  SessionsResponse,
+} from "../../shared/contracts";
 import { desktopRequest } from "../lib";
 
-type OwnedConversation = {
-  botId: string;
-  sessionId: string;
-  projectId?: string;
-  createdAt?: string;
-};
+type OwnedConversation = BotConversationScope;
 
 /** Discover stopped workers through the authoritative ledger; never start one to list chats. */
 export async function loadBotSessionCatalog(
@@ -38,9 +37,8 @@ export async function loadBotSessionCatalog(
               session.sessionId === owner.sessionId &&
               session.botId === owner.botId,
           );
-        byId.set(
-          owner.sessionId,
-          cached ?? {
+        byId.set(owner.sessionId, {
+          ...(cached ?? {
             botId: owner.botId,
             sessionId: owner.sessionId,
             ...(owner.projectId ? { projectId: owner.projectId } : {}),
@@ -49,8 +47,12 @@ export async function loadBotSessionCatalog(
             messageCount: 0,
             participants: [],
             preview: [],
-          },
-        );
+          }),
+          botId: owner.botId,
+          projectId: owner.projectId,
+          workspacePath: owner.workspacePath,
+          projectContext: owner.projectContext,
+        });
       }
       if (!bot.isDefault && ["ready", "busy", "waiting"].includes(bot.state)) {
         try {
@@ -65,7 +67,14 @@ export async function loadBotSessionCatalog(
           for (const session of actual.sessions) {
             if (session.botId !== bot.id || !byId.has(session.sessionId))
               throw new Error("Conversation ownership is inconsistent.");
-            byId.set(session.sessionId, session);
+            const owner = byId.get(session.sessionId);
+            byId.set(session.sessionId, {
+              ...session,
+              botId: owner?.botId,
+              projectId: owner?.projectId,
+              workspacePath: owner?.workspacePath,
+              projectContext: owner?.projectContext,
+            });
           }
         } catch {
           warnings.push(
@@ -74,7 +83,10 @@ export async function loadBotSessionCatalog(
         }
       }
       for (const [id, session] of byId) {
-        if (bot.isDefault && sessions.get(id)?.botId === bot.id) continue;
+        if (bot.isDefault && sessions.get(id)?.botId === bot.id) {
+          sessions.set(id, session);
+          continue;
+        }
         if (sessions.has(id))
           throw new Error("A conversation has conflicting bot owners.");
         sessions.set(id, session);

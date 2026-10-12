@@ -1,3 +1,4 @@
+import { realpathSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import type { IAgentRuntime } from "@elizaos/core";
@@ -23,7 +24,7 @@ export class SkillsService {
   private readonly bundledSkillsDir = getSkillsDir();
   private readonly managedSkillsDir = join(homedir(), ".elizaos", "skills");
   private readonly curatedSkillsDir = getCuratedActiveDir();
-  private snapshot?: SkillsSnapshot;
+  private readonly snapshots = new Map<string, SkillsSnapshot>();
   private runtime?: IAgentRuntime;
 
   constructor(
@@ -41,7 +42,7 @@ export class SkillsService {
   }
 
   invalidateWorkspace(): void {
-    this.snapshot = undefined;
+    this.snapshots.clear();
   }
 
   workspace(): SkillDocument[] {
@@ -73,16 +74,16 @@ export class SkillsService {
   }
 
   private ensureSnapshot(force = false): SkillsSnapshot {
+    const workspaceDir = realpathSync(
+      resolveWorkspaceDirectory(this.workspaceDirectory),
+    );
+    const snapshot = this.snapshots.get(workspaceDir);
     const now = Date.now();
-    if (
-      !force &&
-      this.snapshot &&
-      now - this.snapshot.capturedAt < CACHE_TTL_MS
-    ) {
-      return this.snapshot;
+    if (!force && snapshot && now - snapshot.capturedAt < CACHE_TTL_MS) {
+      return snapshot;
     }
 
-    const { workspace, native, commandSpecs } = this.loadSkills();
+    const { workspace, native, commandSpecs } = this.loadSkills(workspaceDir);
     const allBySlug = new Map<string, SkillDocument>();
 
     for (const skill of native) {
@@ -97,7 +98,7 @@ export class SkillsService {
     );
     const summary = this.buildSummary(all, commandSpecs);
 
-    this.snapshot = {
+    const nextSnapshot: SkillsSnapshot = {
       capturedAt: now,
       workspace,
       native,
@@ -106,15 +107,15 @@ export class SkillsService {
       commandSpecs,
     };
 
-    return this.snapshot;
+    this.snapshots.set(workspaceDir, nextSnapshot);
+    return nextSnapshot;
   }
 
-  private loadNativeSkills(): {
+  private loadNativeSkills(workspaceDir: string): {
     workspace: SkillDocument[];
     native: SkillDocument[];
     commandSpecs: SkillCommandSpec[];
   } {
-    const workspaceDir = resolveWorkspaceDirectory(this.workspaceDirectory);
     return loadNativeSkills({
       skillsDir: this.skillsDir,
       workspaceDir,
@@ -128,12 +129,12 @@ export class SkillsService {
     });
   }
 
-  private loadSkills(): {
+  private loadSkills(workspaceDir: string): {
     workspace: SkillDocument[];
     native: SkillDocument[];
     commandSpecs: SkillCommandSpec[];
   } {
-    const local = this.loadNativeSkills();
+    const local = this.loadNativeSkills(workspaceDir);
     const official = this.runtime?.getService(AgentSkillsService.serviceType) as
       | AgentSkillsService
       | null

@@ -1,5 +1,5 @@
 import { chmodSync, existsSync, readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { isAbsolute, resolve } from "node:path";
 import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
 
 const SESSION_ID = /^[a-zA-Z0-9:_-]{1,128}$/u;
@@ -7,10 +7,62 @@ const BOT_ID = /^[a-z0-9][a-z0-9_-]{0,63}$/u;
 const PROJECT_ID = /^[a-zA-Z0-9:_-]{1,128}$/u;
 const MAX_LEDGER_BYTES = 4_000_000;
 
+function invalidControl(value: string, multiline = false): boolean {
+  return Array.from(value).some((character) => {
+    const code = character.charCodeAt(0);
+    return (
+      code === 127 || (code < 32 && (!multiline || ![9, 10, 13].includes(code)))
+    );
+  });
+}
+
+function validWorkspacePath(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    value.length > 0 &&
+    value.length <= 4_096 &&
+    isAbsolute(value) &&
+    resolve(value) === value &&
+    !invalidControl(value)
+  );
+}
+
+function validProjectContext(
+  value: unknown,
+): value is NonNullable<BoundConversation["projectContext"]> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const context = value as Record<string, unknown>;
+  if (
+    Object.keys(context).some(
+      (key) => !["name", "description", "instructions"].includes(key),
+    )
+  )
+    return false;
+  const bounded = (field: unknown) =>
+    typeof field === "string" &&
+    field.length <= 1_200 &&
+    !invalidControl(field, true);
+  return (
+    bounded(context.name) &&
+    !/[\t\r\n]/u.test(context.name as string) &&
+    Boolean((context.name as string).trim()) &&
+    (context.description === undefined || bounded(context.description)) &&
+    (context.instructions === undefined || bounded(context.instructions))
+  );
+}
+
 export interface BoundConversation {
   sessionId: string;
   botId: string;
   projectId?: string;
+  /** Canonical, immutable execution root. Missing on pre-scope legacy records. */
+  workspacePath?: string;
+  /** Bounded read-only context from the project's owner, not a worker project. */
+  projectContext?: {
+    name: string;
+    description?: string;
+    instructions?: string;
+  };
   createdAt: string;
   updatedAt: string;
 }
@@ -101,6 +153,10 @@ function validConversation(value: unknown): value is BoundConversation {
     (item.projectId === undefined ||
       (typeof item.projectId === "string" &&
         PROJECT_ID.test(item.projectId))) &&
+    (item.workspacePath === undefined ||
+      validWorkspacePath(item.workspacePath)) &&
+    (item.projectContext === undefined ||
+      validProjectContext(item.projectContext)) &&
     typeof item.createdAt === "string" &&
     !Number.isNaN(Date.parse(item.createdAt)) &&
     typeof item.updatedAt === "string" &&
@@ -184,13 +240,25 @@ export class BotConversationLedger {
       if (
         existing &&
         (existing.botId !== record.botId ||
-          existing.projectId !== record.projectId)
+          existing.projectId !== record.projectId ||
+          (existing.workspacePath !== undefined &&
+            record.workspacePath !== undefined &&
+            existing.workspacePath !== record.workspacePath) ||
+          (existing.projectContext !== undefined &&
+            record.projectContext !== undefined &&
+            JSON.stringify(existing.projectContext) !==
+              JSON.stringify(record.projectContext)))
       ) {
         throw new Error(
           "Conversation ownership copies disagree. Repair is required.",
         );
       }
-      this.conversations.set(record.sessionId, record);
+      // An interrupted atomic dual-copy save can leave one older legacy
+      // record. Never erase an already persisted workspace grant in recovery.
+      this.conversations.set(
+        record.sessionId,
+        existing?.workspacePath && !record.workspacePath ? existing : record,
+      );
     }
     for (const run of [...(backup?.runs ?? []), ...(primary?.runs ?? [])]) {
       const existing = this.runs.get(run.runId);
@@ -250,17 +318,26 @@ export class BotConversationLedger {
     botId: string,
     sessionId: string,
     projectId?: string,
+    workspacePath?: string,
+    projectContext?: BoundConversation["projectContext"],
   ): BoundConversation {
     if (
       !BOT_ID.test(botId) ||
       !SESSION_ID.test(sessionId) ||
-      (projectId !== undefined && !PROJECT_ID.test(projectId))
+      (projectId !== undefined && !PROJECT_ID.test(projectId)) ||
+      (workspacePath !== undefined && !validWorkspacePath(workspacePath)) ||
+      (projectContext !== undefined && !validProjectContext(projectContext))
     ) {
       throw new Error("Conversation owner input is invalid.");
     }
     const existing = this.conversations.get(sessionId);
     if (existing) {
-      if (existing.botId !== botId || existing.projectId !== projectId) {
+      if (
+        existing.botId !== botId ||
+        existing.projectId !== projectId ||
+        (workspacePath !== undefined &&
+          existing.workspacePath !== workspacePath)
+      ) {
         throw new Error("Conversation belongs to a different bot or project.");
       }
       return existing;
@@ -270,6 +347,8 @@ export class BotConversationLedger {
       sessionId,
       botId,
       ...(projectId ? { projectId } : {}),
+      ...(workspacePath ? { workspacePath } : {}),
+      ...(projectContext ? { projectContext } : {}),
       createdAt: now,
       updatedAt: now,
     };
@@ -281,6 +360,29 @@ export class BotConversationLedger {
       throw error;
     }
     return created;
+  }
+
+  /** One-way legacy repair; never reassigns an established root. */
+  bindLegacyWorkspace(
+    botId: string,
+    sessionId: string,
+    workspacePath: string,
+  ): BoundConversation {
+    const current = this.get(sessionId);
+    if (!current || current.botId !== botId || current.workspacePath) {
+      throw new Error("Conversation workspace cannot be reassigned.");
+    }
+    if (!validWorkspacePath(workspacePath))
+      throw new Error("Conversation workspace is invalid.");
+    const updated = { ...current, workspacePath };
+    this.conversations.set(sessionId, updated);
+    try {
+      this.save();
+    } catch (error) {
+      this.conversations.set(sessionId, current);
+      throw error;
+    }
+    return updated;
   }
 
   touch(botId: string, sessionId: string): BoundConversation {

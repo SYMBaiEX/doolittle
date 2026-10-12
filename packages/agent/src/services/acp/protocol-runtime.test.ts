@@ -6,6 +6,7 @@ import type {
   RequestPermissionResponse,
 } from "@doolittle/acp";
 import { describe, expect, it } from "vitest";
+import { runWithConversationWorkspace } from "@/runtime/workspace-scope";
 import type { EnvConfig, SessionSummary, StoredMessage } from "@/types";
 import { DOOLITTLE_VERSION } from "@/version";
 import type { RunUpdateEvent } from "../run-controller-service";
@@ -14,6 +15,46 @@ import { AcpService } from "./service";
 import type { AcpProtocolHost } from "./types";
 
 describe("official ACP protocol runtime", () => {
+  it("pins an ACP session to its originating chat even at the same root", async () => {
+    const fixture = createFixture();
+    fixture.service.bindProtocolHost(createHost(fixture.root));
+    const scope = (sessionId: string) => ({
+      sessionId,
+      botId: "bot",
+      workspacePath: fixture.root,
+    });
+    try {
+      await fixture.service.initializeProtocol();
+      const created = await runWithConversationWorkspace(scope("chat-a"), () =>
+        fixture.service.newProtocolSession(),
+      );
+      await runWithConversationWorkspace(scope("chat-a"), async () => {
+        expect(
+          fixture.service.originForProtocolSession(created.sessionId),
+        ).toBe("chat-a");
+        expect(
+          fixture.service.protocolUpdates(created.sessionId).sessionId,
+        ).toBe(created.sessionId);
+        await expect(
+          fixture.service.readTextFile({
+            sessionId: created.sessionId,
+            path: join(fixture.root, "README.md"),
+          }),
+        ).resolves.toBeDefined();
+        await expect(
+          fixture.service.cancelProtocolSession(created.sessionId),
+        ).resolves.toBeUndefined();
+      });
+      await runWithConversationWorkspace(scope("chat-b"), async () => {
+        expect(() =>
+          fixture.service.protocolUpdates(created.sessionId),
+        ).toThrow(AcpSessionNotFoundError);
+      });
+    } finally {
+      fixture.dispose();
+    }
+  });
+
   it("negotiates, streams updates, carries editor resources, and gates writes", async () => {
     const fixture = createFixture();
     let prompt = "";

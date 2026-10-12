@@ -142,6 +142,9 @@ export function createAcpProtocolHost(context: AppContext): AcpProtocolHost {
         context,
         {
           admissionKind: "automatic-acp",
+          originConversationId: context.services.acp.originForProtocolSession(
+            input.sessionId,
+          ),
           abortSignal: input.signal,
           onProgress: ({ delta }) => input.onText(delta),
           onRunUpdate: input.onRunUpdate,

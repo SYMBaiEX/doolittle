@@ -36,6 +36,8 @@ export type {
   ActivityEventTarget,
   ActivityExportResponse,
   ActivityFeedResponse,
+  BotConversationScope,
+  BotConversationScopeResponse,
   SessionForkRequest,
   SessionForkResponse,
   SessionForkResult,

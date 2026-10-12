@@ -1,12 +1,13 @@
 import { randomUUID } from "node:crypto";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import type { AutomationJobRecord } from "@doolittle/contracts";
 import { describe, expect, it } from "vitest";
-import { type BackendManager, sourceRuntimeTarget } from "./backend";
+import { BackendManager, sourceRuntimeTarget } from "./backend";
 import { BotProcessRegistry } from "./bot-process-registry";
 import { DesktopExecutionAdmission } from "./execution-admission";
+import { releaseAbandonedExecutionClaim } from "./execution-receipt";
 
 describe.skipIf(process.env.DOOLITTLE_WORKER_E2E !== "1")(
   "named automation offline source worker",
@@ -15,41 +16,90 @@ describe.skipIf(process.env.DOOLITTLE_WORKER_E2E !== "1")(
       const directory = mkdtempSync(
         resolve(tmpdir(), "doolittle-automation-worker-"),
       );
+      const leadData = resolve(directory, "lead-data");
+      const leadWorkspace = resolve(directory, "lead-workspace");
+      mkdirSync(leadData, { recursive: true, mode: 0o700 });
+      mkdirSync(leadWorkspace, { recursive: true, mode: 0o700 });
+      const target = sourceRuntimeTarget(process.cwd());
+      const admission = new DesktopExecutionAdmission();
       const jobs: AutomationJobRecord[] = [];
       let posts = 0;
-      const lead = {
-        getState: () => ({
-          phase: "ready",
-          url: "http://lead.invalid",
-          name: "Doolittle",
-          agentId: "9f21e797-127f-0eba-b547-92f9b113fb1e",
-        }),
-        getWorkspaceDirectory: () => directory,
-      } as unknown as BackendManager;
       const runtimeFetch = (async (
         input: string | URL | Request,
         init?: RequestInit,
       ) => {
-        if (String(input) === "http://lead.invalid/cron/jobs")
+        if (String(input) === `${lead.getState().url}/cron/jobs`)
+          // The desktop scheduler fixture is deliberate; the named worker,
+          // SDK turn, and fire receipts below still use the actual engine.
           return Response.json({ jobs });
         if (String(input).endsWith("/chat/runs") && init?.method === "POST")
           posts += 1;
         return fetch(input, init);
       }) as typeof fetch;
-      const create = () =>
-        new BotProcessRegistry(
-          sourceRuntimeTarget(process.cwd()),
-          directory,
-          lead,
-          directory,
-          {
-            runtimeFetch,
-            admission: new DesktopExecutionAdmission(),
-            confirmAutomation: async () => true,
+      const lead = new BackendManager(
+        target,
+        leadData,
+        leadWorkspace,
+        runtimeFetch,
+        {
+          sharedEngine: true,
+          hostRpcBotId: "default",
+          isolatedEnvironment: {
+            PATH: process.env.PATH ?? "",
+            HOME: leadData,
+            USERPROFILE: leadData,
+            ELIZA_HOME: leadData,
+            LANG: "C.UTF-8",
+            DOOLITTLE_OFFLINE_BOOTSTRAP: "true",
+            DOOLITTLE_USE_LINKED_DEVIN_AUTH: "false",
+            ...(target.environment?.ELECTRON_RUN_AS_NODE
+              ? {
+                  ELECTRON_RUN_AS_NODE: target.environment.ELECTRON_RUN_AS_NODE,
+                }
+              : {}),
           },
-        );
+          workerHostHandler: async (request, signal) => {
+            if (request.operation === "workspace.resolve") {
+              const payload = request.payload as { sessionId?: unknown } | null;
+              if (typeof payload?.sessionId !== "string")
+                throw new Error("Conversation scope is required.");
+              return registry.resolveVerifiedConversationWorkspace(
+                "default",
+                payload.sessionId,
+              );
+            }
+            if (
+              request.operation !== "execution.claim" &&
+              request.operation !== "execution.release"
+            )
+              throw new Error("The lead host operation is unavailable.");
+            return admission.handle(
+              "default",
+              request.operation,
+              request.payload,
+              {},
+              signal,
+            );
+          },
+          workerHostOnAbandonedResult: (request, result) =>
+            releaseAbandonedExecutionClaim(
+              admission,
+              "default",
+              request,
+              result,
+            ),
+        },
+      );
+      const create = () =>
+        new BotProcessRegistry(target, directory, lead, leadWorkspace, {
+          runtimeFetch,
+          admission,
+          confirmAutomation: async () => true,
+        });
       let registry = create();
       try {
+        const leadState = await lead.start();
+        expect(leadState.phase, leadState.detail).toBe("ready");
         const bot = registry.create({
           name: "Scheduled Scout",
           persona: "Read evidence without modifying files.",
@@ -129,8 +179,15 @@ describe.skipIf(process.env.DOOLITTLE_WORKER_E2E !== "1")(
         ).rejects.toThrow(/without an authorized result/);
         expect(posts).toBe(2);
       } finally {
-        await registry.stopAll();
-        rmSync(directory, { recursive: true, force: true });
+        try {
+          await registry.stopAll();
+        } finally {
+          try {
+            await lead.stop();
+          } finally {
+            rmSync(directory, { recursive: true, force: true });
+          }
+        }
       }
     }, 120_000);
   },

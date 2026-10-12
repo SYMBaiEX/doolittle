@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { AppContext } from "@/runtime/bootstrap";
+import { currentConversationWorkspace } from "@/runtime/workspace-scope";
 import { readJsonObjectBody } from "@/server/request-body";
 import { json } from "@/server/responses";
 import type {
@@ -35,7 +36,10 @@ function decodeCommentId(rawId: string | undefined): string | undefined {
 async function currentScope(context: AppContext): Promise<ReviewRecordScope> {
   const repository = await context.services.repository.summary();
   return {
-    repositoryRoot: repository.root ?? context.config.workspaceDir,
+    repositoryRoot:
+      repository.root ??
+      currentConversationWorkspace()?.workspacePath ??
+      context.config.workspaceDir,
     branch: repository.branch ?? "detached",
     head: repository.head ?? "working-tree",
   };

@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import {
   mkdtempSync,
   readFileSync,
+  realpathSync,
   rmSync,
   statSync,
   writeFileSync,
@@ -116,7 +117,6 @@ function fixture() {
     name: "Scout",
     persona: "Read carefully.",
     model: { provider: "offline", model: "offline" },
-    permissions: { workspacePaths: [directory] },
   });
   const now = new Date().toISOString();
   const job: AutomationJobRecord = {
@@ -318,7 +318,15 @@ describe("application-owned named automation", () => {
       message: f.job.prompt,
       roomId: fire.sessionId,
       runId: fire.runId,
+      workspaceDir: realpathSync(f.bot.workspacePath),
     });
+    expect(
+      f.registry.automations.ledger.approval(f.job.targetApprovalId ?? "")
+        ?.workspacePath,
+    ).toBe(realpathSync(f.bot.workspacePath));
+    expect(f.consent.mock.calls[0][0].detail).toContain(
+      "Private scratch workspace:",
+    );
     expect(f.consent.mock.calls[0][0]).toMatchObject({
       message: expect.stringContaining("Scout"),
     });
@@ -328,6 +336,23 @@ describe("application-owned named automation", () => {
     expect(f.registry.automations.ledger.get(fire.fireId)?.status).toBe(
       "complete",
     );
+  });
+  it("requires reapproval for a legacy named approval without a frozen root", async () => {
+    const f = fixture();
+    await f.approve();
+    const original = f.registry.automations.ledger.approval(
+      f.job.targetApprovalId ?? "",
+    );
+    if (!original) throw new Error("Expected approval");
+    const legacyId = randomUUID();
+    f.registry.automations.ledger.approve({
+      ...original,
+      id: legacyId,
+      workspacePath: undefined,
+    });
+    f.job.targetApprovalId = legacyId;
+    await expect(f.dispatch()).rejects.toThrow(/reapprove/i);
+    expect(f.posts).toHaveLength(0);
   });
   it("never replays an uncertain acknowledgement, including after restart", async () => {
     const f = fixture();

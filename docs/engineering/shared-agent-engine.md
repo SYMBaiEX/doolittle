@@ -11,6 +11,8 @@ that bot. Opening a conversation or polling the catalog does not start its
 worker. The bot-card **Start now** optionally warms it early, while **Stop work**
 stops its active worker without disabling or archiving its saved profile. A
 failed or already-starting bot still requires recovery before another dispatch.
+Creating a bot warms only the newly saved worker after its first chat is bound.
+Model/account errors remain visible; readiness is never fabricated.
 Up to 64 workers may be resident, with at most two
 bootstraps in progress at once. Each currently has an internal loopback API
 listener; this is not yet one shared HTTP listener, database, or model pool.
@@ -37,8 +39,9 @@ Recovered runs release a matching ownership claim only after a terminal run
 receipt is confirmed, including when the final stream event was lost. Cancelling
 a recovered run never activates a stopped worker.
 
-Opening a terminal from an unsaved conversation first binds that captured
-bot/session/project owner. A cancellable presentation intent prevents a late
+Opening a terminal requires a confirmed bot/session/project grant; the new-chat
+chooser creates that binding. Historical rootless chats cannot infer one from
+today's open folder. A cancellable presentation intent prevents a late
 binding response from reopening a panel after navigation or close. Terminal
 creation uses one timestamped request identity per tab, retained across uncertain
 replies and reloads. The runtime rejects conflicting, retired, or expired
@@ -58,8 +61,14 @@ only its view/recovery identity, not a possibly-running shell. **Stop work** or
 quitting Doolittle is the separate shutdown action. These receipts handle lost
 responses; they do not establish the underlying socket-reset trigger.
 
-Each worker receives a distinct environment, bot profile, settings, workspace
-grant, account grant, and data directory (including its SQL state). Node worker
+Each worker receives a distinct environment, bot profile, settings, private
+startup workspace, account grant, and data directory (including its SQL state).
+Execution roots belong to immutable, host-owned chat grants. A project chat
+requires explicit native confirmation; private general chats do not acquire
+the current repository. Async request-local scope lets one bot serve different
+projects without mutating the worker's startup root. Workspace, terminal, ACP,
+skills and project context resolve that scope; legacy rootless chats fail closed
+for effects while keeping history readable. Node worker
 isolation is **not** an OS security sandbox: a fatal native crash can affect the
 shared process. The host still validates bot identity and grants, and workers
 must not inherit the lead's credentials or home directory. See
@@ -100,6 +109,11 @@ failure retain terminal receipts even if no SDK turn begins.
 Named bots can consult approved persistent bots via `DOOLITTLE_CONSULT_BOT`.
 That path checks permissions and lineage, caps consultation depth at 2 and
 consultations per root run at 3, and yields the parent seat while waiting.
+Lead Work tasks freeze the chat's root and project in their SDK task receipt.
+Creation cannot silently grant a sibling worktree; it needs its own approved
+chat. Execute, retry, child creation, and lifecycle mutations revalidate the
+original grant and current chat before invoking SDK effects. Historical tasks
+without that witness need to be recreated from an approved chat.
 The SDK ACP coding-agent orchestrator remains disabled for named bots: the
 worker's approved native Codex/Claude grants are not automatically provisioned
 to SDK coding CLIs, and the SDK's spawn defaults do not enforce a named bot's

@@ -37,7 +37,11 @@ function registry() {
     }
   >();
   const value = {
-    get: (id: string) => ({ id, isDefault: id === "default" }),
+    get: (id: string) => ({
+      id,
+      isDefault: id === "default",
+      permissions: { allowDelegation: true },
+    }),
     bindConversation: vi.fn(
       (botId: string, sessionId: string, projectId?: string) => {
         const existing = owners.get(sessionId);
@@ -55,6 +59,29 @@ function registry() {
         };
         owners.set(sessionId, owner);
         return owner;
+      },
+    ),
+    bindConversationWorkspace: vi.fn((botId: string, sessionId: string) => {
+      const owner = value.bindConversation(botId, sessionId);
+      return { ...owner, workspacePath: "/workspace" };
+    }),
+    resolveConversationWorkspace: vi.fn((botId: string, sessionId: string) => {
+      const owner = value.assertConversationOwner(botId, sessionId);
+      return { ...owner, workspacePath: "/workspace" };
+    }),
+    resolveVerifiedConversationWorkspace: vi.fn(
+      async (botId: string, sessionId: string) => {
+        const owner = value.assertConversationOwner(botId, sessionId);
+        return { ...owner, workspacePath: "/workspace" };
+      },
+    ),
+    forkConversationWorkspace: vi.fn(
+      (botId: string, sourceId: string, targetId: string) => {
+        const source = value.assertConversationOwner(botId, sourceId);
+        return {
+          ...value.bindConversation(botId, targetId, source.projectId),
+          workspacePath: "/workspace",
+        };
       },
     ),
     resolveSavedConversationOwner: (id: string) => owners.get(id) ?? null,
@@ -81,6 +108,10 @@ function registry() {
     }),
     assertAcpWorkspace: vi.fn(
       (_botId: string, workspacePath: string) => workspacePath,
+    ),
+    assertConversationWorkspace: vi.fn(
+      (_botId: string, _sessionId: string, workspacePath: string) =>
+        workspacePath,
     ),
     bindAcpSession: vi.fn(
       (
@@ -121,6 +152,55 @@ function registry() {
 }
 
 describe("bot-bound conversation transport", () => {
+  it("requires a fresh lead-chat grant for Work task mutations, including UUID lead identities", async () => {
+    const value = registry();
+    const leadId = "lead-agent-uuid";
+    value.get = (id: string) => ({
+      id,
+      isDefault: id === leadId,
+      permissions: { allowDelegation: true },
+    });
+    value.bindConversation(leadId, "work-chat", "project-1");
+    const scoped = {
+      ...request("/delegation/tasks", "POST", { title: "Task" }),
+      botId: leadId,
+      originConversationId: "work-chat",
+      workspacePath: "/workspace",
+    };
+    await assertBotSessionRequest(
+      value as unknown as BotProcessRegistry,
+      scoped,
+      leadId,
+    );
+    expect(value.resolveVerifiedConversationWorkspace).toHaveBeenCalledWith(
+      leadId,
+      "work-chat",
+    );
+    await expect(
+      assertBotSessionRequest(
+        value as unknown as BotProcessRegistry,
+        request("/delegation/tasks", "POST"),
+        leadId,
+      ),
+    ).rejects.toThrow("conversation ID");
+    await expect(
+      assertBotSessionRequest(
+        value as unknown as BotProcessRegistry,
+        scoped,
+        "named-worker",
+      ),
+    ).rejects.toThrow("approved lead-bot");
+    value.resolveVerifiedConversationWorkspace.mockRejectedValueOnce(
+      new Error("Project archived"),
+    );
+    await expect(
+      assertBotSessionRequest(
+        value as unknown as BotProcessRegistry,
+        scoped,
+        leadId,
+      ),
+    ).rejects.toThrow("archived");
+  });
   it("requires saved origin and workspace for named Computer reads", async () => {
     const bots = registry();
     bots.bindConversation("bot-one", "conversation-1");
@@ -148,8 +228,9 @@ describe("bot-bound conversation transport", () => {
       },
       "bot-one",
     );
-    expect(bots.assertAcpWorkspace).toHaveBeenCalledWith(
+    expect(bots.assertConversationWorkspace).toHaveBeenCalledWith(
       "bot-one",
+      "conversation-1",
       "/workspace",
     );
   });
@@ -224,7 +305,6 @@ describe("bot-bound conversation transport", () => {
     const created = await handleBotApiRequest(bots, {
       ...request("/bots/bot-one/conversations", "POST", {
         sessionId: "session-1",
-        projectId: "project-1",
       }),
       botId: "bot-one",
     });
@@ -249,7 +329,6 @@ describe("bot-bound conversation transport", () => {
       bots,
       request("/bots/bot-two/conversations", "POST", {
         sessionId: "session-1",
-        projectId: "project-1",
       }),
     );
     expect(conflict?.status).toBe(409);

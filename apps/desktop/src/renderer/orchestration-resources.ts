@@ -1,4 +1,5 @@
 import type { AccountPoolResponse } from "../shared/contracts";
+import type { ComputerOrigin } from "./computer-origin";
 import {
   asArray,
   asRecord,
@@ -347,6 +348,7 @@ export function useOrchestrationResources(input: {
   selectedTaskId: string;
   projectScope: string;
   workspacePath?: string;
+  computerOrigin?: ComputerOrigin;
   platform: DesktopPlatform;
 }) {
   const requestPolicy = orchestrationRequests({
@@ -355,6 +357,16 @@ export function useOrchestrationResources(input: {
     hasSelectedWorkflow: Boolean(input.selectedWorkflowId),
     hasSelectedRun: Boolean(input.selectedRunId),
   });
+  const worktreeOrigin =
+    input.computerOrigin &&
+    input.workspacePath &&
+    workspacePathsEqual(
+      input.computerOrigin.workspacePath,
+      input.workspacePath,
+      input.platform,
+    )
+      ? input.computerOrigin
+      : undefined;
   const overviewResource = useApiResource<DelegationOverviewResponse>(
     requestPolicy.overview ? orchestrationResourcePaths.overview : null,
     orchestrationResourceDependencies({
@@ -397,13 +409,17 @@ export function useOrchestrationResources(input: {
     }),
   );
   const worktreesResource = useApiResource<RepositoryWorktreesResponse>(
-    requestPolicy.worktrees ? orchestrationResourcePaths.worktrees : null,
+    requestPolicy.worktrees && worktreeOrigin
+      ? orchestrationResourcePaths.worktrees
+      : null,
     orchestrationResourceDependencies({
       enabled: requestPolicy.worktrees,
       scope: "workspace",
       projectScope: input.projectScope,
       workspacePath: input.workspacePath,
     }),
+    worktreeOrigin?.botId,
+    worktreeOrigin,
   );
   const plansResource = useApiResource<PlansResponse>(
     requestPolicy.plans ? orchestrationResourcePaths.plans : null,

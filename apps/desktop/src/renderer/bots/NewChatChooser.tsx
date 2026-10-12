@@ -2,6 +2,7 @@ import type { BotSummary } from "@doolittle/contracts/bots";
 import { Plus, Search, X } from "lucide-react";
 import { useId, useRef, useState } from "react";
 import { useModalFocusBoundary } from "../components/useModalFocusBoundary";
+import type { ProjectLike, ProjectScope } from "../project-manager/models";
 
 export function NewChatChooser({
   bots,
@@ -14,6 +15,9 @@ export function NewChatChooser({
   onClose,
   onRetry,
   returnFocusTarget,
+  projects = [],
+  scope = "unscoped",
+  onScopeChange,
 }: {
   bots: readonly BotSummary[];
   loading: boolean;
@@ -25,6 +29,9 @@ export function NewChatChooser({
   onClose: () => void;
   onRetry: () => void;
   returnFocusTarget: HTMLElement | null;
+  projects?: readonly ProjectLike[];
+  scope?: ProjectScope;
+  onScopeChange?: (scope: ProjectScope) => void;
 }) {
   const [query, setQuery] = useState("");
   const titleId = useId();
@@ -76,6 +83,29 @@ export function NewChatChooser({
             placeholder="Choose your bot"
             value={query}
           />
+        </label>
+        <label className="block px-3 py-2 text-sm">
+          Project for this new chat
+          <select
+            aria-label="Project for new chat"
+            className="mt-1 w-full rounded border border-[var(--border)] bg-[var(--surface)] px-2 py-1 text-[var(--text)] focus:outline-none focus:border-[var(--border-strong)]"
+            disabled={busy}
+            onChange={(event) =>
+              onScopeChange?.(event.target.value as ProjectScope)
+            }
+            value={scope === "all" ? "unscoped" : scope}
+          >
+            <option value="unscoped">
+              Private scratch (no project access)
+            </option>
+            {projects
+              .filter((project) => !project.archived && project.primaryPath)
+              .map((project) => (
+                <option key={project.id} value={project.id}>
+                  {project.name}
+                </option>
+              ))}
+          </select>
         </label>
         <button
           className="new-chat-choice"

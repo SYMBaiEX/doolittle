@@ -11,6 +11,7 @@ import {
   getNativePluginCatalog,
   groupNativePluginCatalog,
 } from "@/runtime/native/plugin-catalog";
+import { currentConversationWorkspace } from "@/runtime/workspace-scope";
 import { json } from "@/server/responses";
 import { runtimeInstanceId } from "@/server/runtime-instance-id";
 import { hasAsciiControlCharacters } from "@/utils/text-validation";
@@ -66,18 +67,19 @@ export async function handleRuntimeStatusRoutes(
   }
   if (request.method === "GET" && url.pathname === "/commands/catalog") {
     return json({
-      commands: getCommandCatalogEntries(context.config.workspaceDir).map(
-        (entry) => {
-          const normalized = normalizeSlashCommandSyntax(entry.command);
-          return {
-            ...entry,
-            aliases:
-              normalized === entry.command
-                ? entry.aliases
-                : [...(entry.aliases ?? []), normalized],
-          };
-        },
-      ),
+      commands: getCommandCatalogEntries(
+        currentConversationWorkspace()?.workspacePath ??
+          context.config.workspaceDir,
+      ).map((entry) => {
+        const normalized = normalizeSlashCommandSyntax(entry.command);
+        return {
+          ...entry,
+          aliases:
+            normalized === entry.command
+              ? entry.aliases
+              : [...(entry.aliases ?? []), normalized],
+        };
+      }),
     });
   }
 

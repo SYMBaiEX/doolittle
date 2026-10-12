@@ -1,16 +1,377 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import type { BotDefinition } from "@doolittle/contracts/bots";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { BackendManager } from "./backend";
 import { handleBotApiRequest } from "./bot-api";
-import type { BotProcessRegistry } from "./bot-process-registry";
+import {
+  BotProcessRegistry,
+  type BotProcessRegistryOptions,
+} from "./bot-process-registry";
 import { BotTeamCatalog } from "./bot-team-catalog";
 
 const teamDirectories: string[] = [];
 afterEach(() => {
   for (const dir of teamDirectories.splice(0))
     rmSync(dir, { recursive: true, force: true });
+});
+
+describe("activation API diagnostics", () => {
+  function activationFixture(options: BotProcessRegistryOptions) {
+    const directory = mkdtempSync(
+      resolve(tmpdir(), "doolittle-activation-api-"),
+    );
+    teamDirectories.push(directory);
+    const backend = {
+      getState: () => ({ phase: "ready" }),
+      getWorkspaceDirectory: () => directory,
+      start: async () => ({ phase: "ready" }),
+      stop: async () => undefined,
+    } as unknown as BackendManager;
+    return new BotProcessRegistry(
+      { executable: "nub", args: [], repoRoot: directory },
+      directory,
+      backend,
+      directory,
+      { createBackend: () => backend, ...options },
+    );
+  }
+
+  it.each(["grant", "backend"] as const)(
+    "returns a bounded public diagnosis for a private %s failure",
+    async (source) => {
+      const privateDetail = `fixture-only-private-diagnostic:${"x".repeat(4000)}`;
+      const fail = () => {
+        throw new Error(privateDetail);
+      };
+      const registry = activationFixture({
+        ...(source === "grant"
+          ? { tokenResolver: async () => fail() }
+          : { createBackend: fail }),
+      });
+      const bot = registry.create({
+        name: "Private diagnostic",
+        persona: "Keep startup diagnostics private.",
+        model:
+          source === "grant"
+            ? { provider: "openai", model: "gpt-5.5" }
+            : { provider: "offline", model: "offline" },
+        permissions: {
+          connectionIds: source === "grant" ? ["openai-api:account"] : [],
+        },
+      });
+      const response = await handleBotApiRequest(registry, {
+        requestId: "activation",
+        method: "POST",
+        path: `/bots/${bot.id}/activate`,
+        headers: {},
+      });
+      expect(response?.status).toBe(409);
+      expect(JSON.parse(response?.body ?? "{}")).toEqual({
+        error: "This bot could not start. Check its connection and retry.",
+        code: "bot_activation_failed",
+      });
+      expect(response?.body.length).toBeLessThan(180);
+      expect(response?.body).not.toContain("fixture-only-private-diagnostic");
+      expect(registry.summary(bot.id).state).toBe("error");
+    },
+  );
+
+  it("returns typed cancellation rather than a failure after deliberate Stop", async () => {
+    let resolveGrant!: (value: string | null) => void;
+    const grant = new Promise<string | null>((resolvePromise) => {
+      resolveGrant = resolvePromise;
+    });
+    const registry = activationFixture({ tokenResolver: () => grant });
+    const bot = registry.create({
+      name: "Cancelled startup",
+      persona: "Stop means stop.",
+      model: { provider: "openai", model: "gpt-5.5" },
+      permissions: { connectionIds: ["openai-api:account"] },
+    });
+    const activation = handleBotApiRequest(registry, {
+      requestId: "activation",
+      method: "POST",
+      path: `/bots/${bot.id}/activate`,
+      headers: {},
+    });
+    await registry.stop(bot.id);
+    resolveGrant(null);
+    const response = await activation;
+    expect(JSON.parse(response?.body ?? "{}")).toEqual({
+      error: "Bot startup was cancelled.",
+      code: "bot_activation_cancelled",
+    });
+    expect(registry.summary(bot.id).state).toBe("stopped");
+  });
+});
+
+describe("conversation workspace grants", () => {
+  function fixture() {
+    const dir = mkdtempSync(resolve(tmpdir(), "doolittle-chat-grant-"));
+    teamDirectories.push(dir);
+    const root = resolve(dir, "project-root");
+    mkdirSync(root);
+    const backend = {
+      getState: () => ({
+        phase: "ready",
+        url: "http://127.0.0.1:9",
+        agentId: "00000000-0000-4000-8000-000000000003",
+      }),
+      getWorkspaceDirectory: () => dir,
+      start: async () => ({ phase: "ready" }),
+      stop: async () => undefined,
+    } as unknown as BackendManager;
+    let projectName = "Selected project";
+    let instructions: string | undefined;
+    let primaryPath = root;
+    let oversized = false;
+    const registry = new BotProcessRegistry(
+      { executable: "nub", args: [], repoRoot: dir },
+      dir,
+      backend,
+      dir,
+      {
+        createBackend: () => backend,
+        runtimeFetch: vi.fn(async () =>
+          Response.json({
+            project: {
+              id: "project-1",
+              name: projectName,
+              primaryPath,
+              instructions,
+              ...(oversized ? { padding: "x".repeat(30_000) } : {}),
+            },
+          }),
+        ) as unknown as typeof fetch,
+      },
+    );
+    const bot = registry.create({
+      name: "Workspace bot",
+      persona: "Work only in this chat's scope.",
+      model: { provider: "offline", model: "offline" },
+    });
+    const post = (sessionId: string, projectId?: string) => ({
+      requestId: `request-${sessionId}`,
+      method: "POST" as const,
+      path: `/bots/${bot.id}/conversations`,
+      headers: {},
+      body: JSON.stringify({
+        sessionId,
+        ...(projectId ? { projectId, consent: true } : {}),
+      }),
+    });
+    return {
+      dir,
+      root,
+      registry,
+      bot,
+      post,
+      rename: (name: string) => {
+        projectName = name;
+      },
+      setInstructions: (value: string) => {
+        instructions = value;
+      },
+      setPrimaryPath: (value: string) => {
+        primaryPath = value;
+      },
+      setOversized: () => {
+        oversized = true;
+      },
+    };
+  }
+
+  it("starts a general chat in private scratch, not the current repository", async () => {
+    const { registry, bot, dir, post } = fixture();
+    const response = await handleBotApiRequest(registry, post("plain"));
+    expect(response?.status).toBe(201);
+    const root = JSON.parse(response?.body ?? "{}").conversation.workspacePath;
+    expect(root).toBe(realpathSync(resolve(dir, "bot-workspaces", bot.id)));
+    expect(root).not.toBe(dir);
+    expect(
+      registry.resolveConversationWorkspace(bot.id, "plain").workspacePath,
+    ).toBe(root);
+  });
+  it("also keeps the lead's general chat outside the operator inventory repository", async () => {
+    const { registry, dir } = fixture();
+    const bot = registry.get("default");
+    const response = await handleBotApiRequest(registry, {
+      requestId: "lead-general",
+      path: `/bots/${bot.id}/conversations`,
+      method: "POST",
+      headers: {},
+      body: JSON.stringify({ sessionId: "lead-general" }),
+    });
+    expect(response?.status).toBe(201);
+    const root = JSON.parse(response?.body ?? "{}").conversation.workspacePath;
+    expect(root).toBe(realpathSync(resolve(dir, "bot-workspaces", bot.id)));
+    expect(root).not.toBe(realpathSync(dir));
+  });
+
+  it("confirms exact project scope, rejects cancel and stale approval, and never rebinds", async () => {
+    const { registry, bot, root, post, rename } = fixture();
+    expect(
+      (await handleBotApiRequest(registry, post("cancel", "project-1")))
+        ?.status,
+    ).toBe(403);
+    expect(registry.resolveSavedConversationOwner("cancel")).toBeNull();
+    const confirm = vi.fn(async () => true);
+    const granted = await handleBotApiRequest(
+      registry,
+      post("project", "project-1"),
+      confirm,
+    );
+    expect(granted?.status).toBe(201);
+    expect(confirm).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: "conversation-workspace",
+        detail: expect.stringContaining(realpathSync(root)),
+      }),
+    );
+    expect(
+      registry.resolveConversationWorkspace(bot.id, "project"),
+    ).toMatchObject({
+      workspacePath: realpathSync(root),
+      projectId: "project-1",
+      projectContext: { name: "Selected project" },
+    });
+    const existing = await handleBotApiRequest(registry, post("project"));
+    expect(existing?.status).toBe(200);
+    expect(JSON.parse(existing?.body ?? "{}").conversation.projectId).toBe(
+      "project-1",
+    );
+    expect(
+      (
+        await handleBotApiRequest(
+          registry,
+          {
+            ...post("project", "project-1"),
+            body: JSON.stringify({
+              sessionId: "project",
+              projectId: "project-1",
+            }),
+          },
+          confirm,
+        )
+      )?.status,
+    ).toBe(200);
+    expect(confirm).toHaveBeenCalledTimes(1);
+    expect(
+      (
+        await handleBotApiRequest(
+          registry,
+          post("project", "other-project"),
+          confirm,
+        )
+      )?.status,
+    ).toBe(409);
+    expect(
+      (
+        await handleBotApiRequest(
+          registry,
+          post("stale", "project-1"),
+          async () => {
+            rename("Renamed while confirming");
+            return true;
+          },
+        )
+      )?.status,
+    ).toBe(409);
+    expect(registry.resolveSavedConversationOwner("stale")).toBeNull();
+  });
+
+  it("does not infer a historical workspace during an idempotent lookup", async () => {
+    const { registry, bot, post } = fixture();
+    registry.conversations.bind(bot.id, "historical");
+    expect(
+      (await handleBotApiRequest(registry, post("historical")))?.status,
+    ).toBe(409);
+    expect(
+      registry.conversations.get("historical")?.workspacePath,
+    ).toBeUndefined();
+  });
+  it("rejects changed project instructions and same-tick capability changes during consent", async () => {
+    const { registry, bot, post, setInstructions } = fixture();
+    const stale = await handleBotApiRequest(
+      registry,
+      post("stale-context", "project-1"),
+      async () => {
+        setInstructions("Changed project instructions");
+        return true;
+      },
+    );
+    expect(stale?.status).toBe(409);
+    expect(registry.resolveSavedConversationOwner("stale-context")).toBeNull();
+    const get = registry.get.bind(registry);
+    let changed = false;
+    vi.spyOn(registry, "get").mockImplementation((id) => {
+      const current = get(id);
+      return changed && current.id === bot.id
+        ? {
+            ...current,
+            permissions: {
+              ...current.permissions,
+              allowMutation: !current.permissions.allowMutation,
+            },
+          }
+        : current;
+    });
+    expect(
+      (
+        await handleBotApiRequest(
+          registry,
+          post("stale-permissions", "project-1"),
+          async () => {
+            changed = true;
+            return true;
+          },
+        )
+      )?.status,
+    ).toBe(409);
+    expect(
+      registry.resolveSavedConversationOwner("stale-permissions"),
+    ).toBeNull();
+  });
+  it("bounds project response reads before asking for access", async () => {
+    const { registry, post, setOversized } = fixture();
+    setOversized();
+    const confirm = vi.fn(async () => true);
+    expect(
+      (
+        await handleBotApiRequest(
+          registry,
+          post("oversized", "project-1"),
+          confirm,
+        )
+      )?.status,
+    ).toBe(409);
+    expect(confirm).not.toHaveBeenCalled();
+  });
+  it("never grants a file as a project workspace", async () => {
+    const { registry, dir, post, setPrimaryPath } = fixture();
+    const path = resolve(dir, "not-a-directory");
+    writeFileSync(path, "not a project root");
+    setPrimaryPath(path);
+    const confirm = vi.fn(async () => true);
+    expect(
+      (
+        await handleBotApiRequest(
+          registry,
+          post("file-root", "project-1"),
+          confirm,
+        )
+      )?.status,
+    ).toBe(409);
+    expect(confirm).not.toHaveBeenCalled();
+  });
 });
 
 describe("application-owned team API", () => {

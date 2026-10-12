@@ -10,6 +10,8 @@ export interface AutomationTargetApproval {
   targetRevision: string;
   definitionDigest: string;
   permissions: BotPermissions;
+  /** Native-approved canonical private scratch root; absent legacy approvals fail closed. */
+  workspacePath?: string;
   createdAt: string;
 }
 export interface AutomationTargetFire {
@@ -62,6 +64,10 @@ function parse(path: string): Stored | null {
         !date(row.createdAt) ||
         typeof row.definitionDigest !== "string" ||
         !HASH.test(row.definitionDigest) ||
+        (row.workspacePath !== undefined &&
+          (typeof row.workspacePath !== "string" ||
+            !row.workspacePath.startsWith("/") ||
+            resolve(row.workspacePath) !== row.workspacePath)) ||
         !row.permissions ||
         ![
           row.permissions.connectionIds,

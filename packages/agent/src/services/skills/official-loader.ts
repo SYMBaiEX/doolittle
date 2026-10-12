@@ -10,9 +10,23 @@ export function projectOfficialSkills(
   const localBySlug = new Map(
     [...local.native, ...local.workspace].map((skill) => [skill.slug, skill]),
   );
-  const projected = official.map((skill) =>
-    projectOfficialSkill(skill, localBySlug.get(skill.slug)),
-  );
+  const projected = official
+    .filter(
+      (skill) =>
+        (skill.source !== "workspace" && skill.source !== "extra") ||
+        localBySlug.has(skill.slug),
+    )
+    .map((skill) => projectOfficialSkill(skill, localBySlug.get(skill.slug)));
+  const known = new Set(projected.map((skill) => skill.slug));
+  // The SDK service is the catalog authority, but its process-wide snapshot
+  // cannot observe a newly selected desktop workspace. Add only the current
+  // workspace's local entries that it has not loaded.
+  for (const skill of [
+    ...local.workspace,
+    ...local.native.filter((entry) => entry.source === "project"),
+  ]) {
+    if (!known.has(skill.slug)) projected.push(skill);
+  }
 
   return {
     workspace: projected.filter(
@@ -38,7 +52,7 @@ function projectOfficialSkill(
       (basename(skill.path).toLowerCase() === "skill.md"
         ? skill.path
         : join(skill.path, "SKILL.md")),
-    content: skill.content,
+    content: local?.content ?? skill.content,
     source: local?.source ?? skill.source,
     commandName: local?.commandName,
     userInvocable: local?.userInvocable,

@@ -12,6 +12,7 @@ export interface WorkerHostRequest {
   operation:
     | "codex.auth"
     | "claude.invoke"
+    | "workspace.resolve"
     | "execution.claim"
     | "execution.release"
     | "consult.dispatch"
@@ -129,6 +130,7 @@ export function attachWorkerHostRpc(
     if (
       value.operation !== "codex.auth" &&
       value.operation !== "claude.invoke" &&
+      value.operation !== "workspace.resolve" &&
       value.operation !== "execution.claim" &&
       value.operation !== "execution.release" &&
       value.operation !== "consult.dispatch" &&

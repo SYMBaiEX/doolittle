@@ -1,12 +1,15 @@
 import type { BotSummary, CreateBotInput } from "@doolittle/contracts/bots";
-import { Button, Input, Textarea } from "@doolittle/ui";
+import { isBotModelProvider } from "@doolittle/contracts/bots";
+import { Button, Input, NativeSelect, Textarea } from "@doolittle/ui";
 import { useEffect, useId, useRef, useState } from "react";
 import type {
   AccountPoolResponse,
+  RuntimeModelsResponse,
   RuntimeStatus,
 } from "../../shared/contracts";
 import { useModalFocusBoundary } from "../components/useModalFocusBoundary";
-import { desktopRequest, errorMessage } from "../lib";
+import { desktopRequest, errorMessage, useApiResource } from "../lib";
+import { botModelRoutes } from "./bot-model-routes";
 
 const STEP_LABELS = [
   "Identity",
@@ -32,8 +35,6 @@ export function BotCreationDialog({
   onCreated,
   returnFocusTarget,
   runtime,
-  workspacePath,
-  projectId,
 }: BotCreationDialogProps) {
   const [step, setStep] = useState(0);
   const [name, setName] = useState(editingBot?.name ?? "");
@@ -45,8 +46,22 @@ export function BotCreationDialog({
   const [model, setModel] = useState(
     editingBot?.model.model ?? runtime?.model ?? "",
   );
-  const [botWorkspacePath, setBotWorkspacePath] = useState(
-    editingBot?.workspacePath ?? workspacePath,
+  const [currentRoute] = useState(() => ({ provider, model }));
+  const [liveDiscovery, setLiveDiscovery] = useState(false);
+  const models = useApiResource<RuntimeModelsResponse>(
+    liveDiscovery
+      ? "/runtime/models?refresh=true"
+      : "/runtime/models?refresh=false",
+    [liveDiscovery],
+  );
+  const providerOptions = botModelRoutes(models.data, currentRoute);
+  const selectedProvider = providerOptions.find(
+    (option) => option.id === provider,
+  );
+  const modelOptions = selectedProvider?.models ?? [];
+  const selectedModel = modelOptions.find((option) => option.id === model);
+  const validRoute = Boolean(
+    selectedProvider && selectedModel && isBotModelProvider(provider),
   );
   const [allowMutation, setAllowMutation] = useState(
     editingBot?.permissions.allowMutation ?? false,
@@ -103,7 +118,7 @@ export function BotCreationDialog({
       ? "Give this bot a name."
       : step === 1 && !persona.trim()
         ? "Describe what this bot should do."
-        : step === 2 && (!provider.trim() || !model.trim())
+        : step === 2 && !validRoute
           ? "Choose a provider and model."
           : "";
 
@@ -128,6 +143,10 @@ export function BotCreationDialog({
       setStep((current) => current + 1);
       return;
     }
+    if (!validRoute) {
+      setError("Choose a provider and model.");
+      return;
+    }
     const input: CreateBotInput = {
       name: name.trim(),
       persona: persona.trim(),
@@ -141,20 +160,11 @@ export function BotCreationDialog({
           ? { reasoningEffort: editingBot.model.reasoningEffort }
           : {}),
       },
-      workspacePath: botWorkspacePath.trim(),
-      ...((editingBot ? editingBot.projectId : projectId)
-        ? { projectId: editingBot ? editingBot.projectId : projectId }
-        : {}),
       permissions: {
         connectionIds,
-        workspacePaths: [
-          ...new Set([
-            ...(editingBot?.permissions.workspacePaths.filter(
-              (path) => path !== editingBot.workspacePath,
-            ) ?? []),
-            ...(botWorkspacePath.trim() ? [botWorkspacePath.trim()] : []),
-          ]),
-        ],
+        ...(editingBot
+          ? { workspacePaths: editingBot.permissions.workspacePaths }
+          : {}),
         toolIds: editingBot?.permissions.toolIds ?? [],
         allowMutation,
         allowDelegation,
@@ -281,7 +291,7 @@ export function BotCreationDialog({
                 htmlFor="bot-create-provider"
               >
                 Provider
-                <Input
+                <NativeSelect
                   autoFocus
                   aria-invalid={
                     validationVisible && step === 2 && !provider.trim()
@@ -294,16 +304,37 @@ export function BotCreationDialog({
                       : undefined
                   }
                   id="bot-create-provider"
-                  onChange={(event) => setProvider(event.target.value)}
+                  disabled={saving || !providerOptions.length}
+                  onChange={(event) => {
+                    setProvider(event.target.value);
+                    setModel(
+                      providerOptions.find(
+                        (option) => option.id === event.target.value,
+                      )?.models[0]?.id ?? "",
+                    );
+                  }}
                   value={provider}
-                />
+                >
+                  {!selectedProvider ? (
+                    <option value="">Choose a provider</option>
+                  ) : null}
+                  {providerOptions.map((option) => (
+                    <option
+                      key={option.id}
+                      value={option.id}
+                      disabled={!isBotModelProvider(option.id)}
+                    >
+                      {option.label}
+                    </option>
+                  ))}
+                </NativeSelect>
               </label>
               <label
                 className="grid gap-1.5 text-sm"
                 htmlFor="bot-create-model"
               >
                 Model
-                <Input
+                <NativeSelect
                   aria-invalid={
                     validationVisible && step === 2 && !model.trim()
                       ? true
@@ -315,29 +346,43 @@ export function BotCreationDialog({
                       : undefined
                   }
                   id="bot-create-model"
+                  disabled={saving || !modelOptions.length}
                   onChange={(event) => setModel(event.target.value)}
                   value={model}
-                />
+                >
+                  {!selectedModel ? (
+                    <option value="">Choose a model</option>
+                  ) : null}
+                  {modelOptions.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.label}
+                    </option>
+                  ))}
+                </NativeSelect>
               </label>
               <p className="m-0 text-xs text-[var(--muted)]">
-                Use a configured provider and model. Account setup stays in
-                Connections.
+                {models.loading
+                  ? "Loading models…"
+                  : models.error
+                    ? "Model catalog unavailable."
+                    : "Choose a configured route. Accounts stay in Connections."}
               </p>
+              <Button
+                variant="ghost"
+                type="button"
+                disabled={models.loading || models.isValidating}
+                onClick={() =>
+                  liveDiscovery ? models.reload() : setLiveDiscovery(true)
+                }
+              >
+                {models.error ? "Retry models" : "Refresh models"}
+              </Button>
             </>
           ) : step === 3 ? (
             <>
-              <label
-                className="grid gap-1.5 text-sm"
-                htmlFor="bot-create-workspace"
-              >
-                Workspace path
-                <Input
-                  autoFocus
-                  id="bot-create-workspace"
-                  onChange={(event) => setBotWorkspacePath(event.target.value)}
-                  value={botWorkspacePath}
-                />
-              </label>
+              <p className="text-sm text-[var(--text-soft)]">
+                Each chat chooses and confirms its own project access.
+              </p>
               <label className="flex items-center gap-2 text-sm">
                 <input
                   checked={allowMutation}
@@ -403,8 +448,6 @@ export function BotCreationDialog({
               <dd className="m-0">
                 {provider} / {model}
               </dd>
-              <dt className="text-[var(--muted)]">Workspace</dt>
-              <dd className="m-0 break-all">{botWorkspacePath || "None"}</dd>
               <dt className="text-[var(--muted)]">Access</dt>
               <dd className="m-0">
                 {allowMutation ? "Changes allowed" : "Read only"} ·{" "}
@@ -414,7 +457,7 @@ export function BotCreationDialog({
               <dd className="m-0">
                 {connectionIds.length
                   ? `${connectionIds.length} selected`
-                  : "None — bot remains stopped until connected"}
+                  : "None selected"}
               </dd>
             </dl>
           )}

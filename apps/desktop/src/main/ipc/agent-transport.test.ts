@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   type BackendState,
   DESKTOP_ACP_PROMPT_REQUEST_TIMEOUT_MS,
@@ -83,6 +83,44 @@ describe("desktop request timeout policy", () => {
 });
 
 describe("validateAgentTransportRequest", () => {
+  it("injects private host capability only for originless inventory GETs", async () => {
+    const capability = vi.fn(() => ({
+      "x-doolittle-desktop-control-token": "host-only",
+    }));
+    const backend = {
+      getState: () => ({ phase: "ready", url: "http://127.0.0.1:4100" }),
+      operatorInventoryHeaders: capability,
+    } as unknown as BackendManager;
+    const fetcher = vi.fn(
+      async (_input: string | URL | Request, _init?: RequestInit) =>
+        Response.json({ ok: true }),
+    );
+    const request = {
+      requestId: "inventory",
+      path: "/workspace/tree",
+      method: "GET",
+      headers: { "x-doolittle-desktop-control-token": "renderer-forged" },
+    };
+    await requestAgentTransport(backend, fetcher, request);
+    expect(fetcher.mock.calls[0]?.[1]?.headers).toEqual({
+      "x-doolittle-desktop-control-token": "host-only",
+    });
+    await requestAgentTransport(backend, fetcher, {
+      ...request,
+      originConversationId: "chat",
+    });
+    expect(fetcher.mock.calls[1]?.[1]?.headers).toEqual({
+      "x-doolittle-origin-conversation": "chat",
+    });
+    await requestAgentTransport(backend, fetcher, {
+      ...request,
+      path: "/workspace/checkpoints",
+      method: "POST",
+      body: "{}",
+    });
+    expect(fetcher.mock.calls[2]?.[1]?.headers).toEqual({});
+    expect(capability).toHaveBeenCalledOnce();
+  });
   it("keeps the official Eliza request metadata needed by the local agent", () => {
     expect(
       validateAgentTransportRequest({

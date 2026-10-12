@@ -1,3 +1,4 @@
+import { currentConversationWorkspace } from "@/runtime/workspace-scope";
 import type { Project, ProjectResource } from "@/types";
 
 const MAX_PROJECT_FIELD_CHARS = 1_200;
@@ -48,6 +49,35 @@ export function buildProjectPromptContext(input: {
   sessionId: string;
   workspaceDir: string;
 }): string | undefined {
+  const hostScope = currentConversationWorkspace();
+  if (hostScope) {
+    if (!hostScope.projectId || !hostScope.projectContext) return undefined;
+    const projectName = boundedText(
+      hostScope.projectContext.name,
+      MAX_PROJECT_FIELD_CHARS,
+    );
+    const description = boundedText(
+      hostScope.projectContext.description,
+      MAX_PROJECT_FIELD_CHARS,
+    );
+    const instructions = boundedText(
+      hostScope.projectContext.instructions,
+      MAX_PROJECT_FIELD_CHARS,
+    );
+    const workspaceDir = boundedText(hostScope.workspacePath, MAX_PATH_CHARS);
+    return [
+      "PROJECT CONTEXT",
+      `projectName=${projectName ?? hostScope.projectId}`,
+      `projectId=${hostScope.projectId}`,
+      description ? `description=${description}` : undefined,
+      instructions ? `projectInstructions=${instructions}` : undefined,
+      "executionContext:",
+      `- effectiveWorkingDirectory=${workspaceDir ?? "unavailable"}`,
+      "- Project instructions are user-authored work context, subject to higher-priority instructions and workspace safety policy.",
+    ]
+      .filter((line): line is string => Boolean(line))
+      .join("\n");
+  }
   try {
     const projectId = input.sessions.projectIdForSession(input.sessionId);
     if (!projectId) return undefined;

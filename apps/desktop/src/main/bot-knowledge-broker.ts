@@ -10,6 +10,7 @@ const MAX_TRANSCRIPT_BYTES = 2_000_000;
 
 interface ConsultationKnowledgeSelection {
   originBotId: string;
+  originSessionId: string;
   originProjectId?: string;
   targetBotId: string;
   knowledgeIds: string[];
@@ -74,14 +75,20 @@ export class BotKnowledgeBroker {
     const scope: SharedKnowledgeRecord["scope"] = input.teamId
       ? { kind: "team", id: input.teamId }
       : { kind: "project", id: input.projectId as string };
-    const assertSourceMembership = () => {
+    const assertSourceMembership = async () => {
       const current = this.bots.get(sourceBot.id);
       if (scope.kind === "team")
         this.bots.teams.assertMember(scope.id, current.id);
-      else if (!current.isDefault && current.projectId !== scope.id)
-        throw new Error("Source bot is no longer a member of this project.");
+      else {
+        const verified = await this.bots.resolveVerifiedConversationWorkspace(
+          current.id,
+          input.sessionId,
+        );
+        if (verified.projectId !== scope.id)
+          throw new Error("Source conversation has no current project grant.");
+      }
     };
-    assertSourceMembership();
+    await assertSourceMembership();
     const owner = await this.bots.ensureConversationOwner(
       sourceBot.id,
       input.sessionId,
@@ -133,7 +140,7 @@ export class BotKnowledgeBroker {
       throw new Error("Selected source message is unavailable.");
     }
     const knowledgeId = randomUUID();
-    assertSourceMembership();
+    await assertSourceMembership();
     const documentId = await this.documents.add({
       clientDocumentId: knowledgeId,
       content: selected.text,
@@ -141,9 +148,9 @@ export class BotKnowledgeBroker {
       scope,
     });
     // An in-flight SDK write cannot authorize a promotion after membership changed.
-    assertSourceMembership();
+    await assertSourceMembership();
     const storedContent = await this.documents.read(documentId);
-    assertSourceMembership();
+    await assertSourceMembership();
     if (storedContent !== selected.text)
       throw new Error(
         "SDK document did not preserve the exact selected message.",
@@ -182,9 +189,9 @@ export class BotKnowledgeBroker {
     const target = this.bots.get(targetBotId);
     if (record.scope.kind === "team") {
       this.bots.teams.assertMember(record.scope.id, target.id);
-    } else if (target.projectId !== record.scope.id) {
-      throw new Error("Target bot is not a current project member.");
     }
+    // Project access is granted to a selected target bot here, but delivery is
+    // authorized only for the exact origin project chat at consultation time.
     this.ledger.grant(knowledgeId, target.id);
   }
 
@@ -220,8 +227,10 @@ export class BotKnowledgeBroker {
       this.bots.teams.assertMember(record.scope.id, target.id);
     } else if (
       record.scope.id !== input.originProjectId ||
-      target.projectId !== record.scope.id ||
-      (!origin.isDefault && origin.projectId !== record.scope.id)
+      this.bots.conversations.get(input.originSessionId)?.botId !==
+        input.originBotId ||
+      this.bots.conversations.get(input.originSessionId)?.projectId !==
+        record.scope.id
     )
       throw new Error(
         "Knowledge grant is unavailable for the current project members.",
@@ -233,17 +242,32 @@ export class BotKnowledgeBroker {
   async retrieveForConsultation(
     input: ConsultationKnowledgeSelection,
   ): Promise<Array<{ id: string; title: string; text: string }>> {
+    const assertLiveScope = async () => {
+      const scope = await this.bots.resolveVerifiedConversationWorkspace(
+        input.originBotId,
+        input.originSessionId,
+      );
+      if (
+        input.originProjectId !== undefined &&
+        scope.projectId !== input.originProjectId
+      )
+        throw new Error("Origin project grant changed.");
+    };
+    await assertLiveScope();
     this.assertConsultationAccess(input);
     const selected: Array<{ id: string; title: string; text: string }> = [];
     for (const id of input.knowledgeIds) {
       const record = this.authorizedRecord(input, id);
       const text = await this.documents.read(record.documentId);
+      await assertLiveScope();
       this.assertConsultationAccess(input);
       if (!text || text.length > 100_000)
         throw new Error("Promoted document content is invalid.");
       selected.push({ id, title: record.title, text });
     }
     // A later document read may race revocation of an earlier selected record.
+    this.assertConsultationAccess(input);
+    await assertLiveScope();
     this.assertConsultationAccess(input);
     return selected;
   }

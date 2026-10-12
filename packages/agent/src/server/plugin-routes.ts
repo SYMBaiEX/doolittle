@@ -1,5 +1,12 @@
 import { dispatchRoute } from "@elizaos/agent/api/dispatch-route";
+import { matchPluginRoutePath } from "@elizaos/agent/api/runtime-plugin-routes";
 import type { IAgentRuntime, RouteHandlerResult } from "@elizaos/core";
+import {
+  isDesktopWorkspaceRuntime,
+  resolveConversationWorkspace,
+  runWithConversationWorkspace,
+} from "@/runtime/workspace-scope";
+import { json } from "./responses";
 
 function headersToRecord(headers: Headers): Record<string, string> {
   const record: Record<string, string> = {};
@@ -107,16 +114,58 @@ export async function dispatchRuntimePluginRoute({
   isAuthorized: () => boolean;
 }): Promise<Response | null> {
   const { body, rawBody } = await readRequestBody(request.clone());
-  const result = await dispatchRoute({
-    runtime,
-    method: request.method,
-    path: url.pathname,
-    headers: headersToRecord(request.headers),
-    query: searchParamsToQuery(url.searchParams),
-    body,
-    rawBody,
-    inProcess: false,
-    isAuthorized,
-  });
-  return result ? resultToResponse(result) : null;
+  const dispatch = async () => {
+    const result = await dispatchRoute({
+      runtime,
+      method: request.method,
+      path: url.pathname,
+      headers: headersToRecord(request.headers),
+      query: searchParamsToQuery(url.searchParams),
+      body,
+      rawBody,
+      inProcess: false,
+      isAuthorized,
+    });
+    return result ? resultToResponse(result) : null;
+  };
+  // Keep SDK matching/authorization authoritative. Only an actually matching
+  // plugin route needs scope; ordinary product routes must still fall through.
+  const matched = runtime.routes?.find(
+    (route) =>
+      route.type === request.method &&
+      (route.routeHandler || route.handler) &&
+      matchPluginRoutePath(route.path, url.pathname) !== null,
+  );
+  const processRead =
+    request.method === "GET" &&
+    ["/health", "/features", "/autonomy/status"].includes(url.pathname);
+  if (
+    !isDesktopWorkspaceRuntime() ||
+    !matched ||
+    processRead ||
+    (matched.public !== true && !isAuthorized())
+  )
+    return dispatch();
+  const origin = request.headers.get("x-doolittle-origin-conversation");
+  if (!origin)
+    return json(
+      {
+        error: "Conversation workspace scope is required.",
+        code: "session_workspace_unavailable",
+      },
+      409,
+    );
+  let scope: Awaited<ReturnType<typeof resolveConversationWorkspace>>;
+  try {
+    scope = await resolveConversationWorkspace(origin, request.signal);
+  } catch {
+    return json(
+      {
+        error: "Conversation workspace scope is unavailable.",
+        code: "session_workspace_unavailable",
+      },
+      409,
+    );
+  }
+  return runWithConversationWorkspace(scope, dispatch);
 }

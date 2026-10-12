@@ -206,7 +206,11 @@ export async function installEmptyAccountPoolFixture(
     )._invokeHandlers?.get(channel);
     if (!original)
       throw new Error("Native agent request handler is unavailable.");
-    const state = { accountPoolReads: 0, activationRequests: 0 };
+    const state = {
+      accountPoolReads: 0,
+      activationRequests: 0,
+      activatedBotIds: [] as string[],
+    };
     Object.assign(globalThis, { __doolittleOfflineAccountFixture: state });
     ipcMain.removeHandler(channel);
     ipcMain.handle(channel, (event, unsafeRequest: unknown) => {
@@ -232,6 +236,11 @@ export async function installEmptyAccountPoolFixture(
         /^\/bots\/[^/]+\/activate$/u.test(request.path)
       ) {
         state.activationRequests += 1;
+        state.activatedBotIds.push(
+          decodeURIComponent(
+            request.path.slice("/bots/".length, -"/activate".length),
+          ),
+        );
       }
       return original(event, unsafeRequest);
     });
@@ -247,6 +256,7 @@ export async function emptyAccountPoolFixtureState(
         __doolittleOfflineAccountFixture?: {
           accountPoolReads: number;
           activationRequests: number;
+          activatedBotIds: string[];
         };
       }
     ).__doolittleOfflineAccountFixture;
@@ -307,6 +317,123 @@ export async function waitForSessionRunInventory(
       { timeout: 30_000 },
     )
     .toBe("ready");
+}
+
+/** Native-consent fixture accepts only this test's exact project root. */
+export async function openApprovedProjectChat(
+  app: IsolatedDesktop["app"],
+  page: Page,
+  name: string,
+  workspacePath: string,
+): Promise<void> {
+  await app.evaluate(({ dialog }, root) => {
+    const original = dialog.showMessageBox.bind(dialog);
+    dialog.showMessageBox = (async (...args: unknown[]) => {
+      const options = args.at(-1) as Electron.MessageBoxOptions;
+      if (
+        options.title === "Give this chat project access?" &&
+        options.detail?.includes(`Workspace: ${root}.`) &&
+        options.buttons?.includes("Grant this chat access")
+      )
+        return {
+          response: options.buttons.indexOf("Grant this chat access"),
+          checkboxChecked: false,
+        };
+      return (
+        original as (
+          ...values: unknown[]
+        ) => Promise<Electron.MessageBoxReturnValue>
+      )(...args);
+    }) as typeof dialog.showMessageBox;
+  }, workspacePath);
+  const projectId = await page.evaluate(
+    async ({ projectName, root }) => {
+      const response = await window.doolittle.requestAgent({
+        requestId: crypto.randomUUID(),
+        path: "/projects?includeArchived=true",
+        method: "GET",
+        headers: {},
+      });
+      if (response.status !== 200)
+        throw new Error("Project fixture inventory is unavailable.");
+      const projects = (
+        JSON.parse(response.body) as {
+          projects: Array<{ id: string; name: string; primaryPath?: string }>;
+        }
+      ).projects;
+      const existing = projects.find(
+        (project) =>
+          project.name === projectName && project.primaryPath === root,
+      );
+      if (existing) return existing.id;
+      const created = await window.doolittle.requestAgent({
+        requestId: crypto.randomUUID(),
+        path: "/projects",
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name: projectName, primaryPath: root }),
+      });
+      if (created.status !== 200 && created.status !== 201)
+        throw new Error("Project fixture could not be created.");
+      return (JSON.parse(created.body) as { project: { id: string } }).project
+        .id;
+    },
+    { projectName: name, root: workspacePath },
+  );
+  await page.evaluate(() => {
+    window.location.hash = "#/chat";
+  });
+  await page.reload();
+  await waitForDesktopReady(page);
+  await page
+    .getByRole("complementary", { name: "Navigation and bots" })
+    .getByRole("button", { name: "New conversation", exact: true })
+    .click();
+  const chooser = page.getByRole("dialog", { name: "Start a chat with…" });
+  await chooser
+    .getByRole("combobox", { name: "Project for new chat" })
+    .selectOption(projectId);
+  await chooser
+    .getByRole("region", { name: "Available bots" })
+    .getByRole("button", { name: /^Doolittle\b/u })
+    .click();
+  await expect(chooser).toBeHidden();
+}
+
+/** Native fixture provisioning, not synthetic chat or inferred repository access. */
+export async function bindCurrentScratchChat(page: Page): Promise<void> {
+  await page.evaluate(async () => {
+    const sessionId = document
+      .querySelector("[data-session-panel]")
+      ?.getAttribute("data-session-panel");
+    if (!sessionId)
+      throw new Error("The draft fixture identity is unavailable.");
+    const catalog = await window.doolittle.requestAgent({
+      requestId: crypto.randomUUID(),
+      path: "/bots",
+      method: "GET",
+      headers: {},
+    });
+    const botId = (JSON.parse(catalog.body) as { defaultBotId: string })
+      .defaultBotId;
+    const response = await window.doolittle.requestAgent({
+      requestId: crypto.randomUUID(),
+      path: `/bots/${botId}/conversations`,
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ sessionId }),
+    });
+    if (response.status !== 200 && response.status !== 201)
+      throw new Error("The scratch fixture grant is unavailable.");
+    const selection = await window.doolittle.ui?.dispatch({
+      type: "conversation.select",
+      target: { botId, sessionId },
+    });
+    if (!selection?.accepted)
+      throw new Error("The scratch fixture selection was not persisted.");
+  });
+  await page.reload();
+  await waitForDesktopReady(page);
 }
 
 export async function closeFocusedConversationView(page: Page): Promise<void> {

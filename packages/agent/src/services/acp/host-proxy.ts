@@ -48,6 +48,10 @@ export interface AcpHostProxyDependencies {
   ensureInitialized(): Promise<void>;
   agentClient(): AgentContext;
   clientCapabilities(sessionId: string): ClientCapabilities;
+  withSessionScope<T>(
+    sessionId: string,
+    task: () => T | Promise<T>,
+  ): Promise<T>;
   recordTelemetry(event: string, detail?: Record<string, unknown>): void;
   onSessionUpdate(sessionId: string, update: SessionUpdate): void;
 }
@@ -65,47 +69,71 @@ export class AcpHostProxy {
       .onRequest(
         methods.client.session.requestPermission,
         ({ params, signal }) =>
-          this.dependencies.host().requestPermission(params, signal),
+          this.dependencies.withSessionScope(params.sessionId, () =>
+            this.dependencies.host().requestPermission(params, signal),
+          ),
       )
-      .onRequest(methods.client.fs.readTextFile, ({ params }) => {
-        this.assertCapability(params.sessionId, "read");
-        return {
-          content: this.dependencies.host().readWorkspace(params.path, params),
-        };
-      })
-      .onRequest(methods.client.fs.writeTextFile, async ({ params }) => {
-        this.assertCapability(params.sessionId, "write");
-        if (params._meta?.["doolittle/permission-granted"] !== true) {
-          throw new Error(
-            "ACP file writes require an approved permission request.",
-          );
-        }
-        await this.dependencies
-          .host()
-          .writeWorkspace(params.path, params.content);
-        return {};
-      })
+      .onRequest(methods.client.fs.readTextFile, ({ params }) =>
+        this.dependencies.withSessionScope(params.sessionId, () => {
+          this.assertCapability(params.sessionId, "read");
+          return {
+            content: this.dependencies
+              .host()
+              .readWorkspace(params.path, params),
+          };
+        }),
+      )
+      .onRequest(methods.client.fs.writeTextFile, ({ params }) =>
+        this.dependencies.withSessionScope(params.sessionId, async () => {
+          this.assertCapability(params.sessionId, "write");
+          if (params._meta?.["doolittle/permission-granted"] !== true) {
+            throw new Error(
+              "ACP file writes require an approved permission request.",
+            );
+          }
+          await this.dependencies
+            .host()
+            .writeWorkspace(params.path, params.content);
+          return {};
+        }),
+      )
       .onRequest(methods.client.terminal.create, ({ params, signal }) => {
-        this.assertCapability(params.sessionId, "terminal");
-        return this.dependencies.host().createTerminal(params, signal);
+        return this.dependencies.withSessionScope(params.sessionId, () => {
+          this.assertCapability(params.sessionId, "terminal");
+          return this.dependencies.host().createTerminal(params, signal);
+        });
       })
       .onRequest(methods.client.terminal.output, ({ params }) => {
-        this.assertCapability(params.sessionId, "terminal");
-        return this.dependencies.host().terminalOutput(params);
+        return this.dependencies.withSessionScope(params.sessionId, () => {
+          this.assertCapability(params.sessionId, "terminal");
+          return this.dependencies.host().terminalOutput(params);
+        });
       })
       .onRequest(methods.client.terminal.waitForExit, ({ params }) => {
-        this.assertCapability(params.sessionId, "terminal");
-        return this.dependencies.host().waitForTerminalExit(params);
+        return this.dependencies.withSessionScope(params.sessionId, () => {
+          this.assertCapability(params.sessionId, "terminal");
+          return this.dependencies.host().waitForTerminalExit(params);
+        });
       })
       .onRequest(methods.client.terminal.kill, async ({ params }) => {
-        this.assertCapability(params.sessionId, "terminal");
-        await this.dependencies.host().killTerminal(params);
-        return {};
+        return this.dependencies.withSessionScope(
+          params.sessionId,
+          async () => {
+            this.assertCapability(params.sessionId, "terminal");
+            await this.dependencies.host().killTerminal(params);
+            return {};
+          },
+        );
       })
       .onRequest(methods.client.terminal.release, async ({ params }) => {
-        this.assertCapability(params.sessionId, "terminal");
-        await this.dependencies.host().releaseTerminal(params);
-        return {};
+        return this.dependencies.withSessionScope(
+          params.sessionId,
+          async () => {
+            this.assertCapability(params.sessionId, "terminal");
+            await this.dependencies.host().releaseTerminal(params);
+            return {};
+          },
+        );
       })
       .onNotification(methods.client.session.update, ({ params }) => {
         this.dependencies.onSessionUpdate(params.sessionId, params.update);

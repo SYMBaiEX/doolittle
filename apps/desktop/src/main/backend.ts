@@ -302,6 +302,13 @@ export class BackendManager {
     return this.workspaceDir;
   }
 
+  /** Private main-process authorization for the lead's read-only inventory. */
+  operatorInventoryHeaders(): Record<string, string> {
+    return this.options.expectedBotId
+      ? {}
+      : { "x-doolittle-desktop-control-token": this.desktopControlToken };
+  }
+
   /** A degraded state alone does not attest process or database termination. */
   hasLiveRuntime(): boolean {
     return this.child !== null || this.startup !== null;
@@ -392,7 +399,10 @@ export class BackendManager {
 
     const response = await this.runtimeFetch(`${state.url}/runtime/workspace`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: {
+        "content-type": "application/json",
+        ...this.operatorInventoryHeaders(),
+      },
       body: JSON.stringify({ workspaceDir: nextWorkspace }),
       signal: AbortSignal.timeout(5_000),
     });

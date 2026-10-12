@@ -39,13 +39,90 @@ import { handleTrajectoryRoutes } from "./trajectories";
 import { handleTransportRoutes } from "./transport";
 import { handleWebhookRoutes } from "./webhooks";
 import { handleWorkspaceRoutes } from "./workspace";
+import { withDirectConversationWorkspace } from "./workspace-scope";
+
+const scopedAcpRoutes = withDirectConversationWorkspace(
+  handleAcpRoutes,
+  (url) => url.pathname.startsWith("/acp/"),
+);
+const scopedWorkspaceRoutes = withDirectConversationWorkspace(
+  handleWorkspaceRoutes,
+  (url) => url.pathname.startsWith("/workspace/"),
+);
+const scopedOperationsRoutes = withDirectConversationWorkspace(
+  handleOperationsRoutes,
+  (url) =>
+    url.pathname.startsWith("/terminal/") ||
+    url.pathname.startsWith("/api/terminal/") ||
+    url.pathname === "/workspace/write",
+);
+const scopedRepositoryRoutes = withDirectConversationWorkspace(
+  handleRepositoryRoutes,
+  (url) => url.pathname.startsWith("/repo/"),
+);
+const scopedRuntimeInventory = withDirectConversationWorkspace(
+  handleRuntimeRoutes,
+  (url) =>
+    url.pathname === "/commands/catalog" ||
+    url.pathname === "/runtime/workspace",
+);
+const scopedRuntimeRoutes: RouteHandler<AppContext> = (
+  context,
+  request,
+  url,
+) =>
+  // Operator folder navigation has a separate private host capability. It
+  // changes only the bootstrap inventory root, never an existing chat grant.
+  request.method === "POST" && url.pathname === "/runtime/workspace"
+    ? handleRuntimeRoutes(context, request, url)
+    : scopedRuntimeInventory(context, request, url);
+const scopedBrowserRoutes = withDirectConversationWorkspace(
+  handleBrowserRoutes,
+  (url) => url.pathname === "/browser/render-targets",
+);
+const scopedActivityRoutes = withDirectConversationWorkspace(
+  handleActivityRoutes,
+  (url) => url.pathname === "/activity" || url.pathname === "/activity/export",
+);
+const scopedExecutionRoutes = withDirectConversationWorkspace(
+  handleSettingsExecutionRoutes,
+  (url) =>
+    url.pathname === "/execution/status" ||
+    url.pathname === "/execution/backends",
+);
+const scopedReviewRecordRoutes = withDirectConversationWorkspace(
+  handleReviewRecordRoutes,
+  (url) => url.pathname.startsWith("/review-record"),
+);
+const scopedMigrationRoutes = withDirectConversationWorkspace(
+  handleMigrationRoutes,
+  (url) => url.pathname.startsWith("/migrate/"),
+);
+const scopedSkillRoutes = withDirectConversationWorkspace(
+  handleSkillRoutes,
+  (url) => url.pathname === "/skills" || url.pathname.startsWith("/skills/"),
+);
+const scopedContextDocumentRoutes = withDirectConversationWorkspace(
+  handleContextDocumentRoutes,
+  (url) =>
+    url.pathname === "/context/files" ||
+    url.pathname === "/documents/pdf/extract",
+);
+const scopedDelegationCommandRoutes = withDirectConversationWorkspace(
+  handleDelegationCommandRoutes,
+  (url) => url.pathname.startsWith("/delegation/"),
+);
+const scopedDelegationMutationRoutes = withDirectConversationWorkspace(
+  handleDelegationMutationRoutes,
+  (url) => url.pathname.startsWith("/delegation/"),
+);
 
 export const apiRouteHandlers = [
   handleKnowledgeBrokerRoutes,
-  handleRuntimeRoutes,
-  handleActivityRoutes,
+  scopedRuntimeRoutes,
+  scopedActivityRoutes,
   handleDiagnosticsRoutes,
-  handleMigrationRoutes,
+  scopedMigrationRoutes,
   handleMemoryRoutes,
   handleSessionRoutes,
   handleSessionTransferRoutes,
@@ -53,28 +130,28 @@ export const apiRouteHandlers = [
   handleGatewaySessionRoutes,
   handleTransportRoutes,
   handleGatewayRuntimeRoutes,
-  handleSkillRoutes,
+  scopedSkillRoutes,
   handleToolRoutes,
   handleMediaRoutes,
   handleManagedMediaRoutes,
   handleMcpRoutes,
-  handleAcpRoutes,
-  handleWorkspaceRoutes,
-  handleBrowserRoutes,
+  scopedAcpRoutes,
+  scopedWorkspaceRoutes,
+  scopedBrowserRoutes,
   handleFormsPlanningRoutes,
   handleSandboxRoutes,
   handleDelegationReadRoutes,
   handleCodegenRoutes,
   handleSecretsRoutes,
-  handleOperationsRoutes,
-  handleDelegationCommandRoutes,
-  handleDelegationMutationRoutes,
+  scopedOperationsRoutes,
+  scopedDelegationCommandRoutes,
+  scopedDelegationMutationRoutes,
   handleDelegationTaskFallbackRoutes,
-  handleRepositoryRoutes,
-  handleReviewRecordRoutes,
+  scopedRepositoryRoutes,
+  scopedReviewRecordRoutes,
   handleIdentityRoutes,
-  handleSettingsExecutionRoutes,
-  handleContextDocumentRoutes,
+  scopedExecutionRoutes,
+  scopedContextDocumentRoutes,
   handleCronRoutes,
   handleSkillSynthesisRoutes,
   handleTrajectoryRoutes,

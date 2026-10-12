@@ -7,6 +7,7 @@ describe("chat turn response shaping helpers", () => {
     const facts = buildSystemFactsContext({
       config: { workspaceDir: "/workspaces/demo" },
       services: {
+        workspace: { root: () => "/workspaces/demo" },
         settings: {
           get: () =>
             ({

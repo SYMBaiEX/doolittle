@@ -1,8 +1,14 @@
 import { realpathSync, statSync } from "node:fs";
 import { isAbsolute } from "node:path";
 import type { AppContext } from "@/runtime/bootstrap";
+import { readWorkerBotProfile } from "@/runtime/bootstrap/bot-profile";
+import {
+  currentConversationWorkspace,
+  isDesktopWorkspaceRuntime,
+} from "@/runtime/workspace-scope";
 import { readJsonObjectBody } from "@/server/request-body";
 import { json } from "@/server/responses";
+import { hasDesktopControlCapability } from "../workspace-scope";
 
 const MAX_WORKSPACE_PATH_LENGTH = 4_096;
 
@@ -37,6 +43,11 @@ export function switchRuntimeWorkspace(
   context: AppContext,
   value: unknown,
 ): string {
+  if (readWorkerBotProfile() || currentConversationWorkspace()) {
+    throw new Error(
+      "Bound conversation workspaces cannot be switched by the runtime API.",
+    );
+  }
   const workspaceDir = resolveRuntimeWorkspacePath(value);
   if (context.config.workspaceDir === workspaceDir) {
     return workspaceDir;
@@ -74,6 +85,12 @@ export async function handleRuntimeWorkspaceRoutes(
 ): Promise<Response | null> {
   if (request.method !== "POST" || url.pathname !== "/runtime/workspace") {
     return null;
+  }
+  if (isDesktopWorkspaceRuntime() && !hasDesktopControlCapability(request)) {
+    return json(
+      { error: "Operator workspace navigation requires host approval." },
+      403,
+    );
   }
 
   const parsed = await readJsonObjectBody(request);

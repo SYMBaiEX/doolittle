@@ -2,9 +2,10 @@ import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { type BackendManager, sourceRuntimeTarget } from "./backend";
+import { BackendManager, sourceRuntimeTarget } from "./backend";
 import { BotProcessRegistry } from "./bot-process-registry";
 import { DesktopExecutionAdmission } from "./execution-admission";
+import { releaseAbandonedExecutionClaim } from "./execution-receipt";
 
 async function waitForRun(url: string, runId: string): Promise<void> {
   const deadline = Date.now() + 20_000;
@@ -33,8 +34,12 @@ describe.skipIf(process.env.DOOLITTLE_WORKER_E2E !== "1")(
           resolve(tmpdir(), "doolittle-knowledge-consult-e2e-"),
         );
         const workspace = resolve(directory, "workspace");
-        mkdirSync(workspace, { recursive: true });
+        const leadData = resolve(directory, "lead-data");
+        const leadWorkspace = resolve(directory, "lead-workspace");
+        for (const path of [workspace, leadData, leadWorkspace])
+          mkdirSync(path, { recursive: true, mode: 0o700 });
         const target = sourceRuntimeTarget(process.cwd());
+        const admission = new DesktopExecutionAdmission();
         const commonPrefix = "Shared boilerplate. ".repeat(120);
         const sourceText = `${commonPrefix}Selected secret-free project finding: orbit 47. SECRET FROM TEAM A`;
         // The fixture keeps the source's already persisted run in its active
@@ -52,28 +57,88 @@ describe.skipIf(process.env.DOOLITTLE_WORKER_E2E !== "1")(
           }
           return fetch(input, init);
         };
-        const defaultBackend = {
-          getState: () => ({
-            phase: "ready",
-            agentId: "9f21e797-127f-0eba-b547-92f9b113fb1e",
-            name: "Doolittle",
-          }),
-          getWorkspaceDirectory: () => workspace,
-        } as unknown as BackendManager;
+        const lead = new BackendManager(
+          target,
+          leadData,
+          leadWorkspace,
+          runtimeFetch,
+          {
+            sharedEngine: true,
+            hostRpcBotId: "default",
+            isolatedEnvironment: {
+              PATH: process.env.PATH ?? "",
+              HOME: leadData,
+              USERPROFILE: leadData,
+              ELIZA_HOME: leadData,
+              LANG: "C.UTF-8",
+              DOOLITTLE_OFFLINE_BOOTSTRAP: "true",
+              DOOLITTLE_USE_LINKED_DEVIN_AUTH: "false",
+              ...(target.environment?.ELECTRON_RUN_AS_NODE
+                ? {
+                    ELECTRON_RUN_AS_NODE:
+                      target.environment.ELECTRON_RUN_AS_NODE,
+                  }
+                : {}),
+            },
+            workerHostHandler: async (request, signal) => {
+              if (request.operation === "workspace.resolve") {
+                const payload = request.payload as {
+                  sessionId?: unknown;
+                } | null;
+                if (typeof payload?.sessionId !== "string")
+                  throw new Error("Conversation scope is required.");
+                return registry.resolveVerifiedConversationWorkspace(
+                  "default",
+                  payload.sessionId,
+                );
+              }
+              if (
+                request.operation !== "execution.claim" &&
+                request.operation !== "execution.release"
+              )
+                throw new Error("The lead host operation is unavailable.");
+              return admission.handle(
+                "default",
+                request.operation,
+                request.payload,
+                {},
+                signal,
+              );
+            },
+            workerHostOnAbandonedResult: (request, result) =>
+              releaseAbandonedExecutionClaim(
+                admission,
+                "default",
+                request,
+                result,
+              ),
+          },
+        );
         const registry = new BotProcessRegistry(
           target,
           directory,
-          defaultBackend,
-          workspace,
-          { runtimeFetch, admission: new DesktopExecutionAdmission() },
+          lead,
+          leadWorkspace,
+          { runtimeFetch, admission },
         );
         let recovered: BotProcessRegistry | undefined;
         try {
+          const leadState = await lead.start();
+          expect(leadState.phase, leadState.detail).toBe("ready");
+          const created = await fetch(`${leadState.url}/projects`, {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+              id: "project-1",
+              name: "Offline project",
+              primaryPath: workspace,
+            }),
+          });
+          expect(created.status, await created.clone().text()).toBe(201);
+          const project = await registry.readLeadProject("project-1");
           const source = registry.create({
             name: "Source",
             persona: "Source bot",
-            projectId: "project-1",
-            workspacePath: workspace,
             model: { provider: "offline", model: "offline" },
             permissions: {
               allowDelegation: true,
@@ -83,10 +148,13 @@ describe.skipIf(process.env.DOOLITTLE_WORKER_E2E !== "1")(
           const recipient = registry.create({
             name: "Recipient",
             persona: "Recipient bot",
-            projectId: "project-1",
-            workspacePath: workspace,
             model: { provider: "offline", model: "offline" },
           });
+          registry.bindConversationWorkspace(
+            source.id,
+            "source-session",
+            project,
+          );
           await Promise.all([
             registry.activate(source.id),
             registry.activate(recipient.id),
@@ -97,19 +165,6 @@ describe.skipIf(process.env.DOOLITTLE_WORKER_E2E !== "1")(
             await registry.backendFor(recipient.id)
           ).getState().url;
           expect(sourceUrl && recipientUrl).toBeTruthy();
-          for (const url of [sourceUrl, recipientUrl]) {
-            const created = await fetch(`${url}/projects`, {
-              method: "POST",
-              headers: { "content-type": "application/json" },
-              body: JSON.stringify({
-                id: "project-1",
-                name: "Offline project",
-                primaryPath: workspace,
-              }),
-            });
-            expect(created.status, await created.clone().text()).toBe(201);
-          }
-          registry.bindConversation(source.id, "source-session", "project-1");
           const submitted = await fetch(`${sourceUrl}/chat/runs`, {
             method: "POST",
             headers: { "content-type": "application/json" },
@@ -214,6 +269,7 @@ describe.skipIf(process.env.DOOLITTLE_WORKER_E2E !== "1")(
               (
                 await registry.knowledge.retrieveForConsultation({
                   originBotId: source.id,
+                  originSessionId: "source-session",
                   targetBotId: recipient.id,
                   knowledgeIds: [otherRecord.id],
                 })
@@ -223,6 +279,7 @@ describe.skipIf(process.env.DOOLITTLE_WORKER_E2E !== "1")(
           await expect(
             registry.knowledge.retrieveForConsultation({
               originBotId: source.id,
+              originSessionId: "source-session",
               originProjectId: "project-1",
               targetBotId: recipient.id,
               knowledgeIds: [record.id],
@@ -233,6 +290,7 @@ describe.skipIf(process.env.DOOLITTLE_WORKER_E2E !== "1")(
             (
               await registry.knowledge.retrieveForConsultation({
                 originBotId: source.id,
+                originSessionId: "source-session",
                 originProjectId: "project-1",
                 targetBotId: recipient.id,
                 knowledgeIds: [record.id],
@@ -289,6 +347,7 @@ describe.skipIf(process.env.DOOLITTLE_WORKER_E2E !== "1")(
               (
                 await registry.knowledge.retrieveForConsultation({
                   originBotId: source.id,
+                  originSessionId: "source-session",
                   targetBotId: recipient.id,
                   knowledgeIds: [otherRecordId],
                 })
@@ -338,9 +397,9 @@ describe.skipIf(process.env.DOOLITTLE_WORKER_E2E !== "1")(
           recovered = new BotProcessRegistry(
             target,
             directory,
-            defaultBackend,
-            workspace,
-            { runtimeFetch, admission: new DesktopExecutionAdmission() },
+            lead,
+            leadWorkspace,
+            { runtimeFetch, admission },
           );
           expect(recovered.knowledge.ledger.get(record.id)).toEqual(record);
           expect(
@@ -348,6 +407,7 @@ describe.skipIf(process.env.DOOLITTLE_WORKER_E2E !== "1")(
           ).toBe(true);
           const selection = {
             originBotId: source.id,
+            originSessionId: "source-session",
             originProjectId: "project-1",
             targetBotId: recipient.id,
             knowledgeIds: [record.id],
@@ -382,6 +442,7 @@ describe.skipIf(process.env.DOOLITTLE_WORKER_E2E !== "1")(
                 (
                   await recovered.knowledge.retrieveForConsultation({
                     originBotId: source.id,
+                    originSessionId: "source-session",
                     targetBotId: recipient.id,
                     knowledgeIds: [otherRecordId],
                   })
@@ -389,9 +450,16 @@ describe.skipIf(process.env.DOOLITTLE_WORKER_E2E !== "1")(
               ).toBe(otherText);
           }
         } finally {
-          await recovered?.stopAll();
-          await registry.stopAll();
-          rmSync(directory, { recursive: true, force: true });
+          try {
+            await recovered?.stopAll();
+            await registry.stopAll();
+          } finally {
+            try {
+              await lead.stop();
+            } finally {
+              rmSync(directory, { recursive: true, force: true });
+            }
+          }
         }
       },
       120_000,

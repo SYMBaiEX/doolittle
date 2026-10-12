@@ -2,6 +2,7 @@ import { EventEmitter } from "node:events";
 import type { BrowserWindow, IpcMain, IpcMainInvokeEvent } from "electron";
 import { describe, expect, it, vi } from "vitest";
 import type { BotProcessRegistry } from "./bot-process-registry";
+import { DesktopExecutionAdmission } from "./execution-admission";
 import {
   isTrustedDesktopIpcSender,
   registerIpc,
@@ -198,6 +199,7 @@ describe("sensitive desktop actions", () => {
     }) => void;
     senderAuthorized?: boolean;
     bots?: BotProcessRegistry;
+    admission?: DesktopExecutionAdmission;
     runtimeProcessId?: () => number;
     runtimeInstanceId?: () => string;
     identityFetch?: (
@@ -272,6 +274,7 @@ describe("sensitive desktop actions", () => {
       ipcMain,
       backend,
       bots: options.bots,
+      admission: options.admission,
       getMainWindow: () => null,
       authorizeSender: () => options.senderAuthorized ?? true,
       pickFiles: async () => ({ canceled: true, paths: [] }),
@@ -1104,6 +1107,101 @@ describe("sensitive desktop actions", () => {
       },
     ]);
     expect(harness.handlers.has("api:request")).toBe(false);
+    harness.dispose();
+  });
+
+  it("locks direct checkpoint transport and releases its seat on a failed fetch", async () => {
+    const admission = new DesktopExecutionAdmission();
+    const runtime = coldChatRuntime();
+    const bots = {
+      get: () => ({ id: "writer", permissions: { allowMutation: true } }),
+      ensureConversationOwner: vi.fn(async () => undefined),
+      assertConversationWorkspace: vi.fn(() => "/approved"),
+      resolveVerifiedConversationWorkspace: vi.fn(async () => ({
+        workspacePath: "/approved",
+      })),
+      backendFor: vi.fn(async () => runtime),
+    } as unknown as BotProcessRegistry;
+    let rejectFetch: ((reason: Error) => void) | undefined;
+    const fetch = vi.fn(
+      async () =>
+        await new Promise<Response>((_resolve, reject) => {
+          rejectFetch = reject;
+        }),
+    );
+    const harness = createHarness({ confirmed: true, bots, admission, fetch });
+    const { sender } = coldChatSender(409);
+    const request = {
+      requestId: "checkpoint-write",
+      botId: "writer",
+      originConversationId: "session-1",
+      workspacePath: "/approved",
+      method: "POST",
+      path: "/workspace/checkpoints/saved/restore",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ confirmCheckpointId: "saved" }),
+    };
+    const pending = harness.handlers.get("agent:request")?.(
+      { sender },
+      request,
+    ) as Promise<unknown>;
+    const failed = expect(pending).rejects.toThrow("Checkpoint fetch failed");
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalledOnce());
+    expect(admission.list()).toMatchObject([
+      { botId: "writer", sessionId: "session-1", mutationRoot: "/approved" },
+    ]);
+    await expect(
+      harness.handlers.get("agent:request")?.(
+        { sender },
+        {
+          ...request,
+          requestId: "competing-checkpoint",
+          path: "/workspace/checkpoints",
+        },
+      ),
+    ).rejects.toThrow("mutation_conflict");
+    expect(fetch).toHaveBeenCalledOnce();
+    rejectFetch?.(new Error("Checkpoint fetch failed"));
+    await failed;
+    expect(admission.list()).toEqual([]);
+    harness.dispose();
+  });
+
+  it("denies read-only direct checkpoint transport before a runtime effect", async () => {
+    const fetch = vi.fn(async () => Response.json({}));
+    const bots = {
+      get: () => ({ id: "reader", permissions: { allowMutation: false } }),
+      ensureConversationOwner: vi.fn(async () => undefined),
+      assertConversationWorkspace: vi.fn(() => "/approved"),
+      resolveVerifiedConversationWorkspace: vi.fn(async () => ({
+        workspacePath: "/approved",
+      })),
+      backendFor: vi.fn(async () => coldChatRuntime()),
+    } as unknown as BotProcessRegistry;
+    const harness = createHarness({
+      confirmed: true,
+      bots,
+      fetch,
+      admission: new DesktopExecutionAdmission(),
+    });
+    const { sender } = coldChatSender(410);
+    await expect(
+      harness.handlers.get("agent:request")?.(
+        { sender },
+        {
+          requestId: "read-only-checkpoint",
+          botId: "reader",
+          originConversationId: "session-1",
+          workspacePath: "/approved",
+          method: "POST",
+          path: "/workspace/checkpoints",
+          headers: {},
+          body: "{}",
+        },
+      ),
+    ).rejects.toThrow("not allowed");
+    expect(fetch).not.toHaveBeenCalled();
+    expect(bots.backendFor).not.toHaveBeenCalled();
     harness.dispose();
   });
 

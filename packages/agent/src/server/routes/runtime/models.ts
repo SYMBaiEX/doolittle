@@ -340,6 +340,20 @@ function providerDefinitions(
       ? [activeModel, ...models]
       : models;
   return [
+    ...(config.offlineBootstrapMode
+      ? [
+          {
+            id: "offline",
+            label: "Offline bootstrap",
+            mode: "local" as const,
+            ready: true,
+            discovery: "configured" as const,
+            detail:
+              "Offline bootstrap responses, not a connected model provider.",
+            models: configuredModels(["offline"]),
+          },
+        ]
+      : []),
     {
       id: "ollama",
       label: "Ollama",

@@ -11,6 +11,7 @@ export const UUID_PATTERN =
 const WORKER_HOST_OPERATIONS = new Set([
   "codex.auth",
   "claude.invoke",
+  "workspace.resolve",
   "execution.claim",
   "execution.release",
   "consult.dispatch",

@@ -522,7 +522,6 @@ export function useChatConversationState({
   selectedId,
   persistenceOwner = true,
   botIdForSession,
-  projectTargetForSession,
   nativeHostReady = backendReady,
 }: {
   activeRequest: string | null;
@@ -672,16 +671,12 @@ export function useChatConversationState({
       const session = remoteSessions.find(
         (item) => item.sessionId === sessionId,
       );
-      const projectTarget = projectTargetForSession
-        ? projectTargetForSession(sessionId)
-        : session
-          ? session.projectId
-            ? { projectId: session.projectId }
-            : {}
-          : undefined;
-      // Unknown local drafts must not be silently bound as unscoped before
-      // their creating navigation has captured the project.
-      if (!projectTarget) continue;
+      // Automatic draft persistence is never an access-grant entry point.
+      // Wait for the host to surface its immutable session binding.
+      if (!session?.workspacePath) continue;
+      const projectTarget = session.projectId
+        ? { projectId: session.projectId }
+        : {};
       const target = {
         botId,
         sessionId,
@@ -705,7 +700,6 @@ export function useChatConversationState({
     selectedId,
     conversationDrafts,
     botIdForSession,
-    projectTargetForSession,
     remoteSessions,
     draftRevisions,
     setDraftStorageWarning,

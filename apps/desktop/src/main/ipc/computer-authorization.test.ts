@@ -1,9 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { BackendManager } from "../backend";
 import type { BotProcessRegistry } from "../bot-process-registry";
 import { DesktopExecutionAdmission } from "../execution-admission";
 import {
   authorizeComputerRequest,
+  isWorkspaceTransportMutation,
   validateComputerOwnerScope,
 } from "./computer-authorization";
 
@@ -34,15 +35,57 @@ function registry(options: { mutation?: boolean; wrongOwner?: boolean } = {}) {
         throw new Error("Conversation belongs to a different bot.");
       }
     },
-    assertAcpWorkspace: (_botId: string, path: string) => {
+    assertConversationWorkspace: (
+      _botId: string,
+      _sessionId: string,
+      path: string,
+    ) => {
       if (path !== "/approved") throw new Error("Workspace mismatch.");
       return path;
     },
+    resolveVerifiedConversationWorkspace: async () => ({
+      workspacePath: "/approved",
+    }),
     backendFor: async (botId: string) => (botId === "writer" ? worker : lead),
   } as unknown as BotProcessRegistry;
 }
 
 describe("Computer bot authorization", () => {
+  it("classifies direct checkpoint effects without double-locking run transports", () => {
+    expect(isWorkspaceTransportMutation("POST", "/workspace/checkpoints")).toBe(
+      true,
+    );
+    expect(
+      isWorkspaceTransportMutation(
+        "POST",
+        "/workspace/checkpoints/saved/restore",
+      ),
+    ).toBe(true);
+    expect(isWorkspaceTransportMutation("GET", "/workspace/checkpoints")).toBe(
+      false,
+    );
+    expect(isWorkspaceTransportMutation("POST", "/chat/runs")).toBe(false);
+    expect(
+      isWorkspaceTransportMutation(
+        "POST",
+        "/workspace/checkpoints/saved/restore/extra",
+      ),
+    ).toBe(false);
+  });
+  it("blocks revoked project/task grants and rootless lead changes before effects", async () => {
+    const bots = registry();
+    const backend = vi.spyOn(bots, "backendFor");
+    vi.spyOn(bots, "resolveVerifiedConversationWorkspace").mockRejectedValue(
+      new Error("Grant was revoked"),
+    );
+    await expect(
+      authorizeComputerRequest(scope, { backend: lead, bots }, true),
+    ).rejects.toThrow("revoked");
+    await expect(
+      authorizeComputerRequest({}, { backend: lead, bots }, true),
+    ).rejects.toThrow("confirmed chat workspace");
+    expect(backend).not.toHaveBeenCalled();
+  });
   it("requires a complete immutable owner scope", () => {
     expect(validateComputerOwnerScope(scope)).toEqual(scope);
     expect(() => validateComputerOwnerScope({ botId: "writer" })).toThrow();

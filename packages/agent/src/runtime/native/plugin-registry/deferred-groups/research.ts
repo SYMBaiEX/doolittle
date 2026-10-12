@@ -4,7 +4,6 @@ import type { DeferredPluginGroupContext } from "./shared";
 
 export function loadDeferredResearchPlugins({
   services,
-  config,
 }: DeferredPluginGroupContext): Plugin[] {
   return [
     createAutocoderPlugin({
@@ -18,7 +17,7 @@ export function loadDeferredResearchPlugins({
         recentCommits: (limit = 5) => services.repository.recentCommits(limit),
       },
       workspace: {
-        rootDir: () => config.workspaceDir,
+        rootDir: () => services.workspace.root(),
       },
     }),
   ];

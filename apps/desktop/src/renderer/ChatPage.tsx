@@ -20,6 +20,8 @@ import {
 import { createPortal } from "react-dom";
 import type {
   BackendState,
+  BotConversationScope,
+  BotConversationScopeResponse,
   ChatEvent,
   RuntimeStatus,
   SessionForkResponse,
@@ -105,6 +107,8 @@ import {
   type MemoryMatchSnapshot,
 } from "./memory-matches";
 import type { ProjectLike, ProjectScope } from "./project-manager/models";
+import type { SessionConversationScope } from "./session-conversation-scope";
+import { queuedMessageMatchesConfirmedScope } from "./session-conversation-scope";
 import {
   useWorkspaceRef,
   useWorkspaceState,
@@ -112,6 +116,7 @@ import {
 import type { ChatPanelViewState } from "./session-workspace/panel-view-state";
 import { SessionWorkspace } from "./session-workspace/SessionWorkspace";
 import { sessionWorkspaceBinding } from "./session-workspace/session-workspace-binding";
+import { workspacePathsEqual } from "./workspace-path";
 
 const RUN_CURSOR_STORAGE_KEY = "doolittle.desktop.chat-run-cursors.v1";
 const NARROW_WORKBENCH_QUERY = "(max-width: 720px)";
@@ -279,6 +284,8 @@ export interface ChatPageProps {
   projectTargetForSession?: (
     sessionId: string,
   ) => { projectId?: string } | undefined;
+  scopeForSession?: (sessionId: string) => SessionConversationScope;
+  onConfirmConversationScope?: (scope: BotConversationScope) => void;
   onBindSessionBot?: (sessionId: string, botId: string) => void;
   onCaptureSessionProject?: (
     sessionId: string,
@@ -331,6 +338,8 @@ export function ChatSessionPanel({
   defaultBotId = "",
   botIdForSession,
   projectTargetForSession,
+  scopeForSession,
+  onConfirmConversationScope,
   onBindSessionBot,
   onCaptureSessionProject,
   onActivateBot,
@@ -390,10 +399,7 @@ export function ChatSessionPanel({
             currentBot.error ?? `${currentBot.name} is ${currentBot.state}`,
         }
       : hostBackend;
-  const workspacePath =
-    currentBot && !currentBot.isDefault
-      ? currentBot.workspacePath
-      : hostWorkspacePath;
+  const workspacePath = hostWorkspacePath;
   const openComputerView = (view: ThreadWorkbenchFullView) =>
     onOpenWorkspaceView(
       view,
@@ -539,9 +545,15 @@ export function ChatSessionPanel({
     window.doolittle.platform,
   );
   const foreignProject =
-    workspaceBinding.kind === "foreign" ? workspaceBinding.project : undefined;
-  const workspaceBindingBlocked =
-    workspaceBinding.kind === "foreign" || workspaceBinding.kind === "unknown";
+    !scopeForSession && workspaceBinding.kind === "foreign"
+      ? workspaceBinding.project
+      : undefined;
+  const selectedScope = scopeForSession?.(selectedId);
+  const workspaceBindingBlocked = selectedScope
+    ? selectedScope.kind === "unknown" ||
+      (selectedScope.kind === "pending" && Boolean(selectedScope.projectId))
+    : workspaceBinding.kind === "foreign" ||
+      workspaceBinding.kind === "unknown";
   const botReady = currentBot
     ? ["ready", "busy", "waiting"].includes(currentBot.state)
     : !currentBotId || currentBotId === defaultBotId;
@@ -1511,15 +1523,24 @@ export function ChatSessionPanel({
       composeChatContextMessage(visibleContent, contextCapsule);
     const botId = resolveSessionBot(sessionId);
     const owner = bots?.find((bot) => bot.id === botId);
+    const targetScope = scopeForSession?.(sessionId);
+    if (
+      targetScope?.kind === "unknown" ||
+      (targetScope?.kind === "pending" && targetScope.projectId)
+    ) {
+      setDispatchFeedback((current) => ({
+        ...current,
+        [sessionId]:
+          targetScope.kind === "unknown"
+            ? "This chat has no confirmed workspace. Its history and draft are retained; start a new chat to work in a project."
+            : "Choose this project from New chat to confirm access before sending. Your draft is retained.",
+      }));
+      return false;
+    }
     const blockedReason = chatDispatchBlockReason({
       hasContent: Boolean(content),
       sessionId,
-      workspaceKind: sessionWorkspaceBinding(
-        remoteSessions.find((session) => session.sessionId === sessionId),
-        projects,
-        workspacePath,
-        window.doolittle.platform,
-      ).kind,
+      workspaceKind: targetScope?.kind === "confirmed" ? "current" : "unbound",
       alreadyClaimed: Boolean(
         activeRequestSessionsRef.current[sessionId] ||
           activeRequests[sessionId],
@@ -1556,13 +1577,19 @@ export function ChatSessionPanel({
     const memoryMatch =
       memoryMatchOverride ?? freezeMemoryMatchSnapshot(content, memoryMatches);
     const requestProjectId =
-      projectIdOverride === undefined
-        ? projectTargetForSession
-          ? projectTargetForSession(sessionId)?.projectId
-          : (remoteSessions.find((session) => session.sessionId === sessionId)
-              ?.projectId ?? activeProject?.id)
-        : (projectIdOverride ?? undefined);
+      targetScope?.kind === "confirmed"
+        ? targetScope.conversation.projectId
+        : projectIdOverride === undefined
+          ? projectTargetForSession
+            ? projectTargetForSession(sessionId)?.projectId
+            : (remoteSessions.find((session) => session.sessionId === sessionId)
+                ?.projectId ?? activeProject?.id)
+          : (projectIdOverride ?? undefined);
     const requestId = crypto.randomUUID();
+    let dispatchWorkspacePath =
+      targetScope?.kind === "confirmed"
+        ? targetScope.conversation.workspacePath
+        : "";
     const dispatchedDraftRevision = getDraftRevision(sessionId);
     if (botIdForSession && !botId) {
       setQueueAnnouncement(
@@ -1574,14 +1601,31 @@ export function ChatSessionPanel({
       activeRequestSessionsRef.current[sessionId] = true;
       setDispatchPending((current) => ({ ...current, [sessionId]: true }));
       try {
-        await desktopRequest(
+        const response = await desktopRequest<BotConversationScopeResponse>(
           `/bots/${encodeURIComponent(botId)}/conversations`,
           "POST",
-          {
-            sessionId,
-            ...(requestProjectId ? { projectId: requestProjectId } : {}),
-          },
+          { sessionId },
         );
+        const confirmed = response?.conversation;
+        if (
+          scopeForSession &&
+          (!confirmed ||
+            confirmed.sessionId !== sessionId ||
+            confirmed.botId !== botId ||
+            confirmed.projectId !== requestProjectId ||
+            !confirmed.workspacePath ||
+            (dispatchWorkspacePath &&
+              !workspacePathsEqual(
+                confirmed.workspacePath,
+                dispatchWorkspacePath,
+                window.doolittle.platform,
+              )))
+        )
+          throw new Error("Conversation scope mismatch");
+        if (confirmed) {
+          dispatchWorkspacePath = confirmed.workspacePath;
+          onConfirmConversationScope?.(confirmed);
+        } else if (!scopeForSession) dispatchWorkspacePath = workspacePath;
       } catch {
         delete activeRequestSessionsRef.current[sessionId];
         setDispatchFeedback((current) => ({
@@ -1666,7 +1710,7 @@ export function ChatSessionPanel({
         message: content,
         roomId: sessionId,
         ...(botId ? { botId } : {}),
-        workspacePath,
+        workspacePath: dispatchWorkspacePath,
         attachmentIds: messageAttachments.map((attachment) => attachment.id),
         ...(Object.keys(attachmentCleanup).length > 0
           ? { attachmentCleanup }
@@ -1752,6 +1796,21 @@ export function ChatSessionPanel({
       const fork = response.fork;
       if (sourceBotId) onBindSessionBot?.(fork.sessionId, sourceBotId);
       onCaptureSessionProject?.(fork.sessionId, fork.projectId ?? null);
+      if (sourceBotId && fork.summary.workspacePath) {
+        onConfirmConversationScope?.({
+          sessionId: fork.sessionId,
+          botId: sourceBotId,
+          ...(fork.summary.projectId
+            ? { projectId: fork.summary.projectId }
+            : {}),
+          workspacePath: fork.summary.workspacePath,
+          ...(fork.summary.projectContext
+            ? { projectContext: fork.summary.projectContext }
+            : {}),
+          createdAt: fork.summary.startedAt ?? "",
+          updatedAt: fork.summary.endedAt ?? fork.summary.startedAt ?? "",
+        });
+      }
 
       if (mode === "edit") {
         setDraftForSession(
@@ -1819,17 +1878,26 @@ export function ChatSessionPanel({
       activeRequestSessionsRef.current[next.sessionId]
     )
       return;
-    const workspaceStatus = queuedMessageWorkspaceStatus(
-      next,
-      workspacePath,
-      window.doolittle.platform,
-    );
+    const queuedScope = scopeForSession?.(next.sessionId);
+    const workspaceStatus = !scopeForSession
+      ? queuedMessageWorkspaceStatus(
+          next,
+          workspacePath,
+          window.doolittle.platform,
+        )
+      : queuedMessageMatchesConfirmedScope(
+            next,
+            queuedScope,
+            window.doolittle.platform,
+          )
+        ? "ready"
+        : "different-workspace";
     if (workspaceStatus !== "ready") {
       setQueuePaused(true);
       setQueueAnnouncement(
         workspaceStatus === "different-workspace"
-          ? "Queued delivery is paused because this message belongs to a different workspace. Switch back to that workspace before resuming."
-          : "Queued delivery is paused because this recovered message is not bound to a workspace. Resume to bind it to the current workspace.",
+          ? "Queued delivery is paused because its saved chat scope differs or is unavailable. The message is retained."
+          : "Queued delivery is paused because this recovered message has no confirmed workspace. The message is retained.",
       );
       return;
     }
@@ -1873,7 +1941,13 @@ export function ChatSessionPanel({
   ]);
 
   const queueCurrentDraft = async () => {
-    if (runHydration !== "ready" || workspaceBindingBlocked) return;
+    const queueScope = scopeForSession?.(selectedId);
+    if (
+      runHydration !== "ready" ||
+      workspaceBindingBlocked ||
+      (scopeForSession && queueScope?.kind !== "confirmed")
+    )
+      return;
     if (attachmentImportPending) {
       setAttachmentValidationError(
         "Wait for file import to finish before queueing this message.",
@@ -1897,8 +1971,18 @@ export function ChatSessionPanel({
       {
         id: crypto.randomUUID(),
         sessionId: selectedId,
-        workspacePath,
-        ...(activeProject?.id ? { projectId: activeProject.id } : {}),
+        workspacePath:
+          queueScope?.kind === "confirmed"
+            ? queueScope.conversation.workspacePath
+            : workspacePath,
+        ...(queueScope?.kind === "confirmed"
+          ? {
+              ...(queueScope.conversation.projectId
+                ? { projectId: queueScope.conversation.projectId }
+                : {}),
+              botId: queueScope.conversation.botId,
+            }
+          : {}),
         content: visibleContent,
         ...(chatContextCapsule ? { capsule: chatContextCapsule } : {}),
         attachments: attachedFiles,
@@ -1919,27 +2003,33 @@ export function ChatSessionPanel({
   const resumeQueuedMessages = () => {
     const [next] = queuedMessages;
     if (!next) return;
-    const workspaceStatus = queuedMessageWorkspaceStatus(
-      next,
-      workspacePath,
-      window.doolittle.platform,
-    );
+    const resumeScope = scopeForSession?.(next.sessionId);
+    const workspaceStatus = !scopeForSession
+      ? queuedMessageWorkspaceStatus(
+          next,
+          workspacePath,
+          window.doolittle.platform,
+        )
+      : queuedMessageMatchesConfirmedScope(
+            next,
+            resumeScope,
+            window.doolittle.platform,
+          )
+        ? "ready"
+        : "different-workspace";
     if (workspaceStatus === "different-workspace") {
       setQueuePaused(true);
       setQueueAnnouncement(
-        "This queued message belongs to a different workspace. Switch back to that workspace before resuming.",
+        "This queued message has no matching confirmed chat scope. It remains queued; start a new chat for this project.",
       );
       return;
     }
     if (workspaceStatus === "legacy-unbound") {
-      setQueuedMessages((current) =>
-        current.map((message) =>
-          message.id === next.id ? { ...message, workspacePath } : message,
-        ),
-      );
+      setQueuePaused(true);
       setQueueAnnouncement(
-        "Recovered message bound to this workspace. It will send when Doolittle is ready.",
+        "Recovered message has no confirmed workspace. Start a new chat; this queue item is retained.",
       );
+      return;
     } else {
       setQueueAnnouncement(
         "Recovered queue resumed. The next message will send when Doolittle is ready.",
@@ -1966,12 +2056,7 @@ export function ChatSessionPanel({
   const createConversation = () => {
     const id = newConversationId();
     if (currentBotId) onBindSessionBot?.(id, currentBotId);
-    onCaptureSessionProject?.(
-      id,
-      currentBot && !currentBot.isDefault
-        ? (currentBot.projectId ?? null)
-        : (activeProject?.id ?? null),
-    );
+    onCaptureSessionProject?.(id, null);
     setMessages((current) => ({ ...current, [id]: [] }));
     onSelect(id);
   };
@@ -2463,7 +2548,9 @@ export function ChatSessionPanel({
                     <span>
                       {foreignProject
                         ? `This session belongs to ${foreignProject.name}. Activate its workspace before sending. Existing runs continue in their original workspace.`
-                        : "This session's project workspace binding is unavailable. Choose its repository before sending; its draft and history are retained."}
+                        : selectedScope?.kind === "unknown"
+                          ? "This chat has no confirmed workspace. History and draft are retained. Start a new chat to work in a project."
+                          : "Choose this project from New chat to confirm access before sending. Your draft is retained."}
                     </span>
                     {foreignProject && onActivateSessionProject ? (
                       <button

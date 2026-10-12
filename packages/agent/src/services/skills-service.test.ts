@@ -10,9 +10,52 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { IAgentRuntime } from "@elizaos/core";
 import { describe, expect, test } from "vitest";
+import { runWithConversationWorkspace } from "@/runtime/workspace-scope";
 import { SkillsService } from "./skills/service";
 
 describe("SkillsService", () => {
+  test("does not reuse workspace skill instructions across roots within the cache TTL", async () => {
+    const first = mkdtempSync(join(tmpdir(), "doolittle-skills-first-"));
+    const second = mkdtempSync(join(tmpdir(), "doolittle-skills-second-"));
+    const skillsDir = mkdtempSync(join(tmpdir(), "doolittle-skills-shared-"));
+    const skillDir = join(first, ".elizaos", "skills", "first-only");
+    mkdirSync(skillDir, { recursive: true });
+    writeFileSync(
+      join(skillDir, "SKILL.md"),
+      "---\nname: first-only\ndescription: first root secret instructions\n---\n# First only\n",
+      "utf8",
+    );
+    const service = new SkillsService(skillsDir, first);
+    const scope = (sessionId: string, workspacePath: string) => ({
+      sessionId,
+      botId: "bot",
+      workspacePath,
+    });
+    try {
+      const firstSkills = await runWithConversationWorkspace(
+        scope("first", first),
+        async () => service.list(),
+      );
+      const secondSkills = await runWithConversationWorkspace(
+        scope("second", second),
+        async () => service.list(),
+      );
+      expect(
+        firstSkills.some((skill) =>
+          skill.content.includes("first root secret instructions"),
+        ),
+      ).toBe(true);
+      expect(
+        secondSkills.some((skill) =>
+          skill.content.includes("first root secret instructions"),
+        ),
+      ).toBe(false);
+    } finally {
+      rmSync(first, { recursive: true, force: true });
+      rmSync(second, { recursive: true, force: true });
+      rmSync(skillsDir, { recursive: true, force: true });
+    }
+  });
   test("summarizes workspace breadth by root family", async () => {
     const workspaceDir = fileURLToPath(
       new URL("../../../../", import.meta.url),

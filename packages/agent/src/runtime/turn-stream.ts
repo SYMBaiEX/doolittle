@@ -16,6 +16,7 @@ import type { RunUpdateEvent } from "@/services/run-controller-service";
 import type { ChatTurnRequest } from "@/types/runtime";
 
 export interface StreamedTurnHandlers {
+  originConversationId?: string;
   admissionKind?: ExecutionAdmissionKind;
   admissionLease?: ExecutionLease | null;
   /** Server-side cancellation signal, shared with the provider/tool turn. */
@@ -78,6 +79,7 @@ export async function executeAgentTurnWithProgress(
 
   try {
     const response = await handleAgentTurn(turnInput, context, {
+      originConversationId: handlers?.originConversationId,
       admissionKind: handlers?.admissionKind,
       admissionLease: handlers?.admissionLease,
       abortSignal: handlers?.abortSignal,

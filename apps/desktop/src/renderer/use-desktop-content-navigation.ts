@@ -25,7 +25,8 @@ import {
   useGlobalSearch,
 } from "./global-search";
 import type { ProjectScope } from "./project-manager/models";
-import { projectNavigationTarget } from "./project-navigation";
+
+type SetView = ((view: View) => boolean) | ((view: View) => void);
 
 export interface NavigationTransitionCoordinator {
   begin(): number;
@@ -52,7 +53,7 @@ interface GlobalSearchNavigationActions {
   readonly pathsEqual: (left: string | undefined, right: string) => boolean;
   readonly selectProjectScope: (scope: ProjectScope) => void;
   readonly setNavigationIntent: (intent: DesktopNavigationIntent) => void;
-  readonly setView: (view: View) => void;
+  readonly setView: SetView;
   readonly switchToRecentWorkspace: (
     path: string,
     options?: { announce?: boolean },
@@ -203,6 +204,10 @@ export function resolveChatContextHandoff({
 }
 
 interface UseDesktopContentNavigationOptions {
+  readonly openScopedContextChat?: (
+    resolution: Extract<ChatContextHandoffResolution, { status: "ready" }>,
+    onActivated: () => boolean,
+  ) => Promise<boolean>;
   readonly botIdForSession?: (sessionId: string) => string;
   readonly backendReady: boolean;
   readonly closeUtilities: () => void;
@@ -218,7 +223,8 @@ interface UseDesktopContentNavigationOptions {
   readonly selectProjectScope: (scope: ProjectScope) => void;
   readonly sessions: readonly SessionSummary[];
   readonly setProjectManagerOpen: (open: boolean) => void;
-  readonly setView: (view: View) => void;
+  readonly selectSession: (sessionId: string) => void;
+  readonly setView: SetView;
   readonly switchToRecentWorkspace: (
     path: string,
     options?: { announce?: boolean },
@@ -233,6 +239,7 @@ interface UseDesktopContentNavigationOptions {
 }
 
 export function useDesktopContentNavigation({
+  openScopedContextChat,
   botIdForSession,
   backendReady,
   closeUtilities,
@@ -242,12 +249,12 @@ export function useDesktopContentNavigation({
   paletteQuery,
   pathsEqual,
   projects,
-  projectScope,
   pushToast,
   selectedSession,
   selectProjectScope,
   sessions,
   setProjectManagerOpen,
+  selectSession,
   setView,
   switchToRecentWorkspace,
   transitionToProjectScope,
@@ -263,16 +270,12 @@ export function useDesktopContentNavigation({
   const navigationCoordinator = navigationCoordinatorRef.current;
 
   const openSession = useCallback(
-    (sessionId: string, projectId?: string) => {
-      const session = sessions.find((entry) => entry.sessionId === sessionId);
-      transitionToProjectScope(
-        projectId ??
-          (session ? (session.projectId ?? "unscoped") : projectScope),
-        sessionId,
-        projectNavigationTarget("open-conversation"),
-      );
+    (sessionId: string, _projectId?: string) => {
+      // A saved chat carries its own immutable scope; browsing it must not
+      // switch the lead inventory workspace or mutate its project.
+      if (setView("chat") !== false) selectSession(sessionId);
     },
-    [projectScope, sessions, transitionToProjectScope],
+    [selectSession, setView],
   );
 
   const openActivityTarget = useCallback(
@@ -323,6 +326,11 @@ export function useDesktopContentNavigation({
         return false;
       }
       try {
+        if (openScopedContextChat)
+          return await openScopedContextChat(resolution, () => {
+            setPendingChatContext(resolution.handoff);
+            return true;
+          });
         return await transitionToProjectScope(
           resolution.scope,
           resolution.sessionId,
@@ -333,12 +341,19 @@ export function useDesktopContentNavigation({
           },
         );
       } catch {
+        pushToast({
+          tone: "warning",
+          title: "Context was not sent",
+          message:
+            "Chat access could not be confirmed. Your context has not been sent.",
+        });
         return false;
       }
     },
     [
       createId,
       createSessionId,
+      openScopedContextChat,
       pathsEqual,
       projects,
       pushToast,

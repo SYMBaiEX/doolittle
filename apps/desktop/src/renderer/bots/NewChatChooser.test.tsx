@@ -132,4 +132,42 @@ describe("new chat bot chooser", () => {
     );
     expect(host.textContent).not.toContain("Bots could not be loaded");
   });
+
+  it("makes project access an explicit new-chat choice without a focus frame", async () => {
+    const onScopeChange = vi.fn();
+    await act(async () =>
+      root.render(
+        <NewChatChooser
+          bots={bots}
+          loading={false}
+          error=""
+          projects={[
+            { id: "alpha", name: "Alpha", primaryPath: "/repo/alpha" },
+            { id: "incomplete", name: "Incomplete" },
+          ]}
+          scope="unscoped"
+          onScopeChange={onScopeChange}
+          onChoose={onChoose}
+          onCreate={onCreate}
+          onClose={onClose}
+          onRetry={vi.fn()}
+          returnFocusTarget={trigger}
+        />,
+      ),
+    );
+    const select = host.querySelector<HTMLSelectElement>(
+      'select[aria-label="Project for new chat"]',
+    );
+    expect(select?.value).toBe("unscoped");
+    expect(select?.textContent).toContain("Private scratch");
+    expect(select?.textContent).toContain("Alpha");
+    expect(select?.textContent).not.toContain("Incomplete");
+    expect(select?.className).toContain("focus:outline-none");
+    await act(async () => {
+      if (!select) return;
+      select.value = "alpha";
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(onScopeChange).toHaveBeenCalledWith("alpha");
+  });
 });
