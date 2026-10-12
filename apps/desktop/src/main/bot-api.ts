@@ -7,6 +7,7 @@ import {
   BotActivationCancelledError,
   type BotProcessRegistry,
 } from "./bot-process-registry";
+import { projectAccessScope } from "./bot-project-access";
 import { parseApiPath } from "./ipc/agent-api-policy";
 import type { SensitiveActionConfirmationRequest } from "./ipc/ipc-validation";
 
@@ -386,31 +387,41 @@ export async function handleBotApiRequest(
               error: "Explicit project consent is required.",
             });
           const selected = await registry.readLeadProject(projectId);
-          const confirmed = await confirmSensitiveAction?.({
-            kind: "conversation-workspace",
-            title: "Give this chat project access?",
-            message: `${bot.name} (${bot.id}) — ${selected.name} (${selected.id})`,
-            detail: `Workspace: ${selected.workspacePath}. File changes: ${bot.permissions.allowMutation ? "allowed, subject to tool approvals" : "not allowed"}. Delegation: ${bot.permissions.allowDelegation ? "allowed within this chat's approved scope" : "not allowed"}. Other chats do not receive this access. Create a new chat to change the project.`,
-            confirmLabel: "Grant this chat access",
-          });
+          const requestedAccess = projectAccessScope(bot, selected);
+          const reusable = registry.projectAccess.has(requestedAccess);
+          const confirmed =
+            reusable ||
+            (await confirmSensitiveAction?.({
+              kind: "conversation-workspace",
+              title: "Allow this bot to work in this project?",
+              message: `${bot.name} (${bot.id}) — ${selected.name} (${selected.id})`,
+              detail: `Workspace: ${selected.workspacePath}. File changes: ${bot.permissions.allowMutation ? "allowed, subject to tool approvals" : "not allowed"}. Delegation: ${bot.permissions.allowDelegation ? "allowed within the approved project" : "not allowed"}. Remembered for future chats with this bot in this project and folder. A changed folder or changed permissions needs approval again. Other bots do not receive this access; each chat keeps its own project.`,
+              confirmLabel: "Allow project access",
+            }));
           if (confirmed !== true)
             return jsonResponse(403, {
               error: "Project access was not confirmed.",
             });
           const currentBot = registry.get(botId);
           const currentProject = await registry.readLeadProject(projectId);
+          const currentAccess = projectAccessScope(currentBot, currentProject);
           if (
             JSON.stringify(currentBot) !== JSON.stringify(bot) ||
-            JSON.stringify(currentProject) !== JSON.stringify(selected)
+            JSON.stringify(currentProject) !== JSON.stringify(selected) ||
+            JSON.stringify(currentAccess) !== JSON.stringify(requestedAccess) ||
+            (reusable && !registry.projectAccess.has(currentAccess))
           )
             throw new Error("Bot or project changed during confirmation.");
-          return jsonResponse(201, {
-            conversation: registry.bindConversationWorkspace(
-              botId,
-              sessionId,
-              currentProject,
-            ),
-          });
+          // The native dialog approves bot/project access independently of a
+          // chat. Persist that authority before publishing a scoped chat.
+          if (!reusable)
+            registry.projectAccess.rememberConfirmed(currentAccess);
+          const conversation = registry.bindConversationWorkspace(
+            botId,
+            sessionId,
+            currentProject,
+          );
+          return jsonResponse(201, { conversation });
         }
         return jsonResponse(201, {
           conversation: registry.bindConversationWorkspace(botId, sessionId),

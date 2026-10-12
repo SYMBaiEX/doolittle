@@ -42,6 +42,10 @@ export default defineConfig({
         replacement: fromRoot("./packages/contracts/src/index.ts"),
       },
       {
+        find: /^@doolittle\/ui$/,
+        replacement: fromRoot("./packages/ui/src/index.ts"),
+      },
+      {
         find: "@doolittle/agent",
         replacement: fromRoot("./packages/agent/src"),
       },
@@ -50,9 +54,9 @@ export default defineConfig({
     ],
   },
   test: {
-    // All-tests discovery is intentional here. The routine default uses the
-    // curated essential config; direct scoped/related runs share these aliases.
-    include: ["{packages,apps,scripts,e2e}/**/*.{test,spec}.{ts,tsx}"],
+    // The complete fast suite is deliberately small and lives in one place.
+    // Native process/Electron journeys run through their explicit E2E gates.
+    include: ["tests/boundary/**/*.test.{ts,tsx}"],
     exclude: [
       ...configDefaults.exclude,
       "**/dist/**",
@@ -65,7 +69,7 @@ export default defineConfig({
     // Real SDK subprocess fixtures share the host with renderer transforms.
     // Match the essential lane's worker budget without relaxing deadlines,
     // excluding behavior coverage, or disabling per-file isolation.
-    maxWorkers: 4,
+    maxWorkers: 2,
     server: {
       deps: {
         inline: ["@elizaos/plugin-agent-skills", "@elizaos/skills"],

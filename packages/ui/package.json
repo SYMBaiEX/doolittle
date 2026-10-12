@@ -14,7 +14,7 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "vitest run src"
+    "test": "nubx vitest run --root ../.. --config ../../vitest.config.ts"
   },
   "dependencies": {
     "@doolittle/contracts": "workspace:*",

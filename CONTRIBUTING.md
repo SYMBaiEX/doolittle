@@ -27,12 +27,12 @@ Vitest scoping and watch mode over a new verification system:
 
 ```bash
 nub run typecheck      # tsc --noEmit, strict
-nub run test:scope path/to/file.test.ts
+nub run test:scope tests/boundary/project-access.test.ts
 nub run test:related path/to/changed.ts
-nub run test           # essential execution/permissions/persistence checks
+nub run test           # fast execution/permissions/persistence boundaries
 nub run build          # bundle packages/agent
 nub run lint:check     # biome
-nub run check          # routine essential lane
+nub run check          # routine boundary lane
 ```
 
 Use `nub run test:all`, `nub run test:integration`, and `nub run check:release`
@@ -52,7 +52,7 @@ integrity and essential workflows, not source-text layout assertions.
   wrapper, and the consolidated `doolittle-plugin` source.
 - `packages/{acp,contracts,characters,skills}` — protocol, shared contracts,
   character data, and native skill assets.
-- `packages/{app-training,cloud-shared,plugin-remote-manifest,plugin-worker-runtime,registry}`
+- `packages/{plugin-remote-manifest,plugin-worker-runtime,registry}`
   — declared resolver shims for unpublished packages on the pinned beta train.
 - Runtime is the aligned ElizaOS 2.0 beta train declared by the root
   `elizaSdk` contract and exact dependency overrides.
@@ -72,8 +72,9 @@ them.
 1. Implement `createMyAction(services): Action` in `packages/agent/src/actions/`.
 2. Register it in the product plugin's `actions` array
    (`packages/agent/src/runtime/native/plugin-registry/product/index.ts`).
-3. Add a unit test next to the action and product-composition coverage when the
-   registered surface changes.
+3. Extend a focused behavior check in `tests/boundary/` or a real runtime journey
+   in `tests/integration/` when the registered surface changes. Maintained tests
+   live under `tests/`, not beside every implementation file.
 
 ### Add a provider (prompt context)
 

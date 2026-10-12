@@ -10,7 +10,7 @@ if (
   filters.includes("--")
 ) {
   console.error(
-    "Scoped tests require a file/filter directly after the script name, without a literal --. Example: nub run test:scope packages/agent/src/services/process-execution.test.ts. Use test:all for deliberate full coverage.",
+    "Scoped tests require a file/filter directly after the script name, without a literal --. Example: nub run test:scope tests/boundary/project-access.test.ts. Use test:e2e for native journeys.",
   );
   process.exit(1);
 }

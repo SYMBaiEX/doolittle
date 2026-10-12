@@ -75,6 +75,7 @@ export function useRuntimeWorkspaceData(
   const previousBackendPhaseRef = useRef(backend.phase);
   const backendSubscriptionUpdateRef = useRef(0);
   const refreshRequestRef = useRef(0);
+  const mountedRef = useRef(true);
   if (previousBackendPhaseRef.current !== backend.phase) {
     previousBackendPhaseRef.current = backend.phase;
     refreshRequestRef.current += 1;
@@ -95,6 +96,7 @@ export function useRuntimeWorkspaceData(
       ]),
     );
     if (
+      !mountedRef.current ||
       requestId !== refreshRequestRef.current ||
       backendPhaseRef.current !== "ready"
     ) {
@@ -140,16 +142,32 @@ export function useRuntimeWorkspaceData(
   }, [pushToast]);
 
   useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      refreshRequestRef.current += 1;
+    };
+  }, []);
+
+  useEffect(() => {
+    let disposed = false;
     const subscriptionUpdateAtStart = backendSubscriptionUpdateRef.current;
     void window.doolittle.getBackendState().then((state) => {
-      if (backendSubscriptionUpdateRef.current === subscriptionUpdateAtStart) {
+      if (
+        !disposed &&
+        backendSubscriptionUpdateRef.current === subscriptionUpdateAtStart
+      ) {
         setBackend(state);
       }
     });
-    return window.doolittle.onBackendState((state) => {
+    const detach = window.doolittle.onBackendState((state) => {
       backendSubscriptionUpdateRef.current += 1;
       setBackend(state);
     });
+    return () => {
+      disposed = true;
+      detach();
+    };
   }, []);
 
   useEffect(() => {

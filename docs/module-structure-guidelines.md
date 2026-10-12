@@ -10,8 +10,8 @@ This repo is converging on a folder-first layout with thin entrypoints.
 - keep top-level entry files orchestration-only
   - acceptable entrypoint names: `index.ts`, `service.ts`, `route.ts`, `runtime.ts`, `cli.ts`
   - push branching logic and formatting helpers into sibling modules or subfolders
-- colocate tests with the modules they exercise
-  - prefer `foo.ts` + `foo.test.ts` in the same folder
+- keep maintained tests in the small root `tests/` suite
+  - prefer end-to-end behavior journeys plus focused security/state boundaries
 - keep types in one obvious place per namespace
   - prefer `types.ts` for a small surface
   - prefer `types/` when the namespace has multiple type-only modules

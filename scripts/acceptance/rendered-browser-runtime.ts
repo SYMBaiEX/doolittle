@@ -196,8 +196,10 @@ try {
       });
     logError(...args);
   };
-  const useModel = context.runtime.useModel.bind(context.runtime);
-  context.runtime.useModel = (async (...args: Parameters<typeof useModel>) => {
+  const invokeModel = context.runtime.useModel.bind(context.runtime);
+  context.runtime.useModel = (async (
+    ...args: Parameters<typeof invokeModel>
+  ) => {
     const [, params] = args;
     const inputs = params as GenerateTextParams | undefined;
     const imageInputs =
@@ -207,7 +209,7 @@ try {
           : [],
       ).length ?? 0;
     try {
-      const result = await useModel(...args);
+      const result = await invokeModel(...args);
       process.send?.({
         type: "model-observation",
         imageInputs,

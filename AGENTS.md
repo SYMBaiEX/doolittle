@@ -27,18 +27,19 @@ behavioral — never a log or memory dump.
 ## Developer loop
 
 ```sh
-nub run test:scope path/to/changed.test.ts   # direct behavior coverage
+nub run test:scope tests/boundary/project-access.test.ts
 nub run test:related packages/agent/src/path/to/changed.ts
-nub run test:watch:scope path/to/changed.test.ts # persistent scoped loop
-nub run test                               # 8 essential behavior files
+nub run test:watch:scope tests/boundary/workspace-refresh.test.ts
+nub run test                               # small security/state boundary suite
 ```
 
 - Default `test`/`check` is a fast feedback loop, not release certification.
 - Match verification to changed behavior. Do not repeatedly run the full suite,
   builds, acceptance gates, or live evals during routine edits.
 - Use `test:all` / `check:all` for deliberate broad coverage and `check:release`
-  before release. Use `test:integration:workers`, `test:sandbox:integration`, and
-  `test:e2e` only when validating those real runtime/platform boundaries.
+  before release. `test:e2e` runs the small real-worker and native desktop suite;
+  packaged acceptance additionally checks a clean-HEAD artifact. Keep new tests
+  in `tests/` and extend behavior journeys, not implementation-detail snapshots.
 - Report exactly what ran and what remains unverified. Related tests follow
   static imports; select explicit tests for dynamic plugin/runtime wiring.
 - See [fast development](docs/engineering/fast-development.md) for scope and

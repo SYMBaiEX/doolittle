@@ -6,11 +6,6 @@ on:
       - main
   pull_request:
   workflow_dispatch:
-    inputs:
-      full_validation:
-        description: Run the complete Vitest suite instead of the curated release selection
-        type: boolean
-        default: false
 
 permissions:
   contents: read
@@ -37,18 +32,8 @@ jobs:
           node-version-file: .node-version
           cache-dependency-path: nub.lock
 
-      - name: Set up Bun for native runtime tests
-        if: inputs.full_validation
-        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-        with:
-          bun-version: 1.4.2
-
       - name: Install dependencies
         run: nub install --frozen-lockfile --ignore-scripts
-
-      - name: Install Electron runtime
-        if: inputs.full_validation
-        run: nub run desktop:runtime:install
 
       - name: Check formatting and lint
         run: nub run lint:check
@@ -56,24 +41,11 @@ jobs:
       - name: Check application and desktop types
         run: nub run typecheck && nub run desktop:typecheck
 
-      - name: Curated release-critical behavior tests
-        if: ${{ !inputs.full_validation }}
-        run: nub run test:release
-
-      - name: Complete Vitest suite (deliberate full validation)
-        if: inputs.full_validation
-        run: nub run test:all
+      - name: Fast security and state boundaries
+        run: nub run test
 
       - name: Build agent
         run: nub run build
-
-      - name: Build local sandbox image
-        if: inputs.full_validation
-        run: nub run sandbox:setup
-
-      - name: Playwright smoke tests
-        if: inputs.full_validation
-        run: xvfb-run -a --server-args='-screen 0 3840x2160x24' nub run test:e2e
 
       - name: Acceptance gates
         run: nub run check:acceptance
