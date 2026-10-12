@@ -281,6 +281,594 @@ describe("sensitive desktop actions", () => {
     return { handlers, removedChannels, confirmations, dispose };
   }
 
+  function coldChatRuntime() {
+    return {
+      getState: () => ({
+        phase: "ready" as const,
+        url: "http://127.0.0.1:4666",
+      }),
+      getWorkspaceDirectory: () => "/workspace",
+    } as unknown as BackendManager;
+  }
+
+  function coldChatBots(backendFor: () => Promise<BackendManager>) {
+    return {
+      assertConversationOwner: vi.fn((botId: string, roomId: string) => {
+        if (botId !== "bot-a" || roomId !== "desktop:room-1") {
+          throw new Error("Conversation belongs to a different bot.");
+        }
+        return { botId, projectId: "project-1" };
+      }),
+      assertRunOwner: vi.fn(async () => {
+        throw new Error("Chat run is not owned by this bot.");
+      }),
+      backendFor: vi.fn(backendFor),
+      get: vi.fn((botId: string) => ({ id: botId })),
+      bindRun: vi.fn(),
+      beginRun: vi.fn(),
+      endRun: vi.fn(),
+    } as unknown as BotProcessRegistry;
+  }
+
+  function coldChatRequest(requestId: string) {
+    return {
+      botId: "bot-a",
+      requestId,
+      message: "Start this named bot",
+      roomId: "desktop:room-1",
+      projectId: "project-1",
+      workspacePath: "/workspace",
+    };
+  }
+
+  function coldChatFetch() {
+    return vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).endsWith("/chat/runs")) {
+        const body = JSON.parse(String(init?.body)) as { runId: string };
+        return Response.json(
+          { run_id: body.runId, bot_id: "bot-a" },
+          { status: 202 },
+        );
+      }
+      return new Response(
+        'event: response.completed\ndata: {"event_id":1,"response":"done"}\n\n',
+        {
+          headers: { "content-type": "text/event-stream" },
+        },
+      );
+    });
+  }
+
+  function coldChatSender(id: number) {
+    let destroyed = false;
+    const sender = Object.assign(new EventEmitter(), {
+      id,
+      isDestroyed: () => destroyed,
+      send: vi.fn(),
+    });
+    return {
+      sender,
+      destroy: () => {
+        destroyed = true;
+        sender.emit("destroyed");
+      },
+    };
+  }
+
+  it("cancels only the authorized pending chat while shared bot startup continues", async () => {
+    let ready: ((runtime: BackendManager) => void) | undefined;
+    const startup = new Promise<BackendManager>((resolve) => {
+      ready = resolve;
+    });
+    const bots = coldChatBots(() => startup);
+    const fetch = coldChatFetch();
+    const harness = createHarness({
+      confirmed: true,
+      bots,
+      durableFetch: fetch,
+    });
+    const { sender } = coldChatSender(300);
+    const other = coldChatSender(301).sender;
+    const firstRequest = coldChatRequest("chat:cold-first");
+    const first = harness.handlers.get("chat:start")?.(
+      { sender },
+      firstRequest,
+    ) as Promise<unknown>;
+    const second = harness.handlers.get("chat:start")?.(
+      { sender },
+      coldChatRequest("chat:cold-second"),
+    ) as Promise<unknown>;
+    await expect(
+      harness.handlers.get("chat:start")?.({ sender }, firstRequest),
+    ).rejects.toThrow(/already running/i);
+    await expect(
+      harness.handlers.get("chat:cancel")?.(
+        { sender },
+        firstRequest.requestId,
+        "bot-b",
+      ),
+    ).rejects.toThrow(/different bot/i);
+    await expect(
+      harness.handlers.get("chat:cancel")?.(
+        { sender: other },
+        firstRequest.requestId,
+        "bot-a",
+      ),
+    ).rejects.toThrow(/not owned/i);
+    await expect(
+      harness.handlers.get("chat:cancel")?.(
+        { sender },
+        firstRequest.requestId,
+        "bot-a",
+      ),
+    ).resolves.toBeUndefined();
+    await expect(first).resolves.toBeUndefined();
+    expect(fetch).not.toHaveBeenCalled();
+    expect(bots.assertRunOwner).toHaveBeenCalledOnce();
+    ready?.(coldChatRuntime());
+    await expect(second).resolves.toBeUndefined();
+    expect(
+      fetch.mock.calls.filter(([input]) =>
+        String(input).endsWith("/chat/runs"),
+      ),
+    ).toHaveLength(1);
+    expect(bots.bindRun).toHaveBeenCalledOnce();
+    expect(bots.beginRun).toHaveBeenCalledOnce();
+    await expect(
+      harness.handlers.get("chat:start")?.({ sender }, firstRequest),
+    ).resolves.toBeUndefined();
+    expect(
+      fetch.mock.calls.filter(([input]) =>
+        String(input).endsWith("/chat/runs"),
+      ),
+    ).toHaveLength(2);
+    harness.dispose();
+  });
+
+  it("does not submit a pending chat after its renderer is destroyed", async () => {
+    let ready: ((runtime: BackendManager) => void) | undefined;
+    const startup = new Promise<BackendManager>((resolve) => {
+      ready = resolve;
+    });
+    const bots = coldChatBots(() => startup);
+    const fetch = coldChatFetch();
+    const harness = createHarness({
+      confirmed: true,
+      bots,
+      durableFetch: fetch,
+    });
+    const { sender, destroy } = coldChatSender(302);
+    const start = harness.handlers.get("chat:start")?.(
+      { sender },
+      coldChatRequest("chat:cold-destroy"),
+    ) as Promise<unknown>;
+    expect(sender.listenerCount("destroyed")).toBe(1);
+    destroy();
+    await expect(start).resolves.toBeUndefined();
+    ready?.(coldChatRuntime());
+    await Promise.resolve();
+    expect(fetch).not.toHaveBeenCalled();
+    expect(bots.bindRun).not.toHaveBeenCalled();
+    expect(sender.listenerCount("destroyed")).toBe(0);
+    harness.dispose();
+  });
+
+  it("does not start a bot for an already destroyed renderer", async () => {
+    const bots = coldChatBots(async () => coldChatRuntime());
+    const fetch = coldChatFetch();
+    const harness = createHarness({
+      confirmed: true,
+      bots,
+      durableFetch: fetch,
+    });
+    const { sender, destroy } = coldChatSender(304);
+    destroy();
+    await expect(
+      harness.handlers.get("chat:start")?.(
+        { sender },
+        coldChatRequest("chat:already-destroyed"),
+      ),
+    ).resolves.toBeUndefined();
+    expect(bots.backendFor).not.toHaveBeenCalled();
+    expect(fetch).not.toHaveBeenCalled();
+    harness.dispose();
+  });
+
+  it("defers server cancellation until an in-flight submission is accepted", async () => {
+    let accept: ((response: Response) => void) | undefined;
+    let submitted: () => void = () => undefined;
+    const submissionStarted = new Promise<void>((resolve) => {
+      submitted = resolve;
+    });
+    const bots = coldChatBots(async () => coldChatRuntime());
+    vi.mocked(bots.assertRunOwner).mockResolvedValue(undefined);
+    const fetch = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/chat/runs")) {
+        submitted();
+        return new Promise<Response>((resolve) => {
+          accept = resolve;
+        });
+      }
+      if (url.endsWith("/cancel")) {
+        return Promise.resolve(Response.json({ accepted: true }));
+      }
+      if (url.includes("/events?")) {
+        return new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => {
+            reject(new DOMException("Aborted", "AbortError"));
+          });
+        });
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    const harness = createHarness({
+      confirmed: true,
+      bots,
+      durableFetch: fetch,
+    });
+    const { sender } = coldChatSender(305);
+    const request = coldChatRequest("chat:deferred-cancel");
+    const start = harness.handlers.get("chat:start")?.(
+      { sender },
+      request,
+    ) as Promise<unknown>;
+    await submissionStarted;
+    const cancel = harness.handlers.get("chat:cancel")?.(
+      { sender },
+      request.requestId,
+      request.botId,
+    ) as Promise<unknown>;
+    await Promise.resolve();
+    expect(bots.assertRunOwner).not.toHaveBeenCalled();
+    expect(
+      fetch.mock.calls.some(([input]) => String(input).endsWith("/cancel")),
+    ).toBe(false);
+    accept?.(
+      Response.json(
+        { run_id: request.requestId, bot_id: request.botId },
+        { status: 202 },
+      ),
+    );
+    await expect(cancel).resolves.toBeUndefined();
+    await expect(start).resolves.toBeUndefined();
+    expect(bots.bindRun).toHaveBeenCalledOnce();
+    expect(bots.beginRun).toHaveBeenCalledOnce();
+    expect(bots.assertRunOwner).toHaveBeenCalledWith(
+      request.botId,
+      request.requestId,
+    );
+    expect(
+      fetch.mock.calls.some(([input]) => String(input).endsWith("/cancel")),
+    ).toBe(true);
+    harness.dispose();
+  });
+
+  it("reports a failed queued Stop after receipt and keeps the run retryable", async () => {
+    let accept: ((response: Response) => void) | undefined;
+    let submitted: () => void = () => undefined;
+    const submissionStarted = new Promise<void>((resolve) => {
+      submitted = resolve;
+    });
+    const bots = coldChatBots(async () => coldChatRuntime());
+    vi.mocked(bots.assertRunOwner).mockResolvedValue(undefined);
+    let cancelCalls = 0;
+    let streamSignal: AbortSignal | undefined;
+    const fetch = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/chat/runs")) {
+        submitted();
+        return new Promise<Response>((resolve) => {
+          accept = resolve;
+        });
+      }
+      if (url.endsWith("/cancel")) {
+        cancelCalls += 1;
+        return Promise.resolve(
+          cancelCalls === 1
+            ? new Response("server stop failed", { status: 500 })
+            : Response.json({ accepted: true }),
+        );
+      }
+      if (url.includes("/events?")) {
+        streamSignal = init?.signal ?? undefined;
+        return new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => {
+            reject(new DOMException("Aborted", "AbortError"));
+          });
+        });
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    const harness = createHarness({
+      confirmed: true,
+      bots,
+      durableFetch: fetch,
+    });
+    const { sender } = coldChatSender(308);
+    const request = coldChatRequest("chat:queued-stop-fails");
+    try {
+      const start = harness.handlers.get("chat:start")?.(
+        { sender },
+        request,
+      ) as Promise<unknown>;
+      await submissionStarted;
+      const stop = harness.handlers.get("chat:cancel")?.(
+        { sender },
+        request.requestId,
+        request.botId,
+      ) as Promise<unknown>;
+      const failedStop = expect(stop).rejects.toThrow("server stop failed");
+      accept?.(
+        Response.json(
+          { run_id: request.requestId, bot_id: request.botId },
+          { status: 202 },
+        ),
+      );
+      await failedStop;
+      expect(cancelCalls).toBe(1);
+      expect(streamSignal?.aborted).toBe(false);
+      expect(
+        sender.send.mock.calls.some(
+          ([, payload]) =>
+            (payload as { event?: string }).event === "cancelled",
+        ),
+      ).toBe(false);
+      await expect(
+        harness.handlers.get("chat:start")?.({ sender }, request),
+      ).rejects.toThrow(/already running/i);
+      await expect(
+        harness.handlers.get("chat:cancel")?.(
+          { sender },
+          request.requestId,
+          request.botId,
+        ),
+      ).resolves.toBeUndefined();
+      await expect(start).resolves.toBeUndefined();
+      expect(cancelCalls).toBe(2);
+      expect(bots.bindRun).toHaveBeenCalledOnce();
+    } finally {
+      harness.dispose();
+    }
+  });
+
+  it("times out an unconfirmed Stop but cancels once a late receipt arrives", async () => {
+    vi.useFakeTimers();
+    let accept: ((response: Response) => void) | undefined;
+    let submitted: () => void = () => undefined;
+    let cancellationSent: () => void = () => undefined;
+    const submissionStarted = new Promise<void>((resolve) => {
+      submitted = resolve;
+    });
+    const serverCancellation = new Promise<void>((resolve) => {
+      cancellationSent = resolve;
+    });
+    const bots = coldChatBots(async () => coldChatRuntime());
+    vi.mocked(bots.assertRunOwner).mockResolvedValue(undefined);
+    const fetch = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/chat/runs")) {
+        submitted();
+        return new Promise<Response>((resolve) => {
+          accept = resolve;
+        });
+      }
+      if (url.endsWith("/cancel")) {
+        cancellationSent();
+        return Promise.resolve(Response.json({ accepted: true }));
+      }
+      if (url.includes("/events?")) {
+        return new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => {
+            reject(new DOMException("Aborted", "AbortError"));
+          });
+        });
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    const harness = createHarness({
+      confirmed: true,
+      bots,
+      durableFetch: fetch,
+    });
+    try {
+      const { sender } = coldChatSender(306);
+      const request = coldChatRequest("chat:late-receipt");
+      const start = harness.handlers.get("chat:start")?.(
+        { sender },
+        request,
+      ) as Promise<unknown>;
+      await submissionStarted;
+      const stop = harness.handlers.get("chat:cancel")?.(
+        { sender },
+        request.requestId,
+        request.botId,
+      ) as Promise<unknown>;
+      const repeatStop = harness.handlers.get("chat:cancel")?.(
+        { sender },
+        request.requestId,
+        request.botId,
+      ) as Promise<unknown>;
+      const firstOutcome = expect(stop).rejects.toThrow(/unconfirmed/i);
+      const secondOutcome = expect(repeatStop).rejects.toThrow(/unconfirmed/i);
+      await expect(
+        harness.handlers.get("chat:cancel")?.(
+          { sender },
+          request.requestId,
+          "bot-b",
+        ),
+      ).rejects.toThrow(/different bot/i);
+      await vi.advanceTimersByTimeAsync(15_000);
+      await Promise.all([firstOutcome, secondOutcome]);
+      expect(bots.assertRunOwner).not.toHaveBeenCalled();
+      expect(
+        fetch.mock.calls.some(([input]) => String(input).endsWith("/cancel")),
+      ).toBe(false);
+      const post = fetch.mock.calls.find(([input]) =>
+        String(input).endsWith("/chat/runs"),
+      );
+      expect(post?.[1]?.signal?.aborted).toBe(false);
+      await expect(
+        harness.handlers.get("chat:start")?.({ sender }, request),
+      ).rejects.toThrow(/already running/i);
+      accept?.(
+        Response.json(
+          { run_id: request.requestId, bot_id: request.botId },
+          { status: 202 },
+        ),
+      );
+      await serverCancellation;
+      await expect(start).resolves.toBeUndefined();
+      expect(bots.bindRun).toHaveBeenCalledOnce();
+      expect(bots.beginRun).toHaveBeenCalledOnce();
+      expect(bots.assertRunOwner).toHaveBeenCalledOnce();
+      expect(
+        fetch.mock.calls.filter(([input]) => String(input).endsWith("/cancel")),
+      ).toHaveLength(1);
+    } finally {
+      harness.dispose();
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps a late accepted chat active after cancel failure and retries Stop", async () => {
+    vi.useFakeTimers();
+    let accept: ((response: Response) => void) | undefined;
+    let failFirstCancel: ((response: Response) => void) | undefined;
+    let submitted: () => void = () => undefined;
+    let firstCancelSent: () => void = () => undefined;
+    const submissionStarted = new Promise<void>((resolve) => {
+      submitted = resolve;
+    });
+    const firstServerCancel = new Promise<void>((resolve) => {
+      firstCancelSent = resolve;
+    });
+    const bots = coldChatBots(async () => coldChatRuntime());
+    vi.mocked(bots.assertRunOwner).mockResolvedValue(undefined);
+    let cancelCalls = 0;
+    let streamSignal: AbortSignal | undefined;
+    const fetch = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/chat/runs")) {
+        submitted();
+        return new Promise<Response>((resolve) => {
+          accept = resolve;
+        });
+      }
+      if (url.endsWith("/cancel")) {
+        cancelCalls += 1;
+        if (cancelCalls === 1) {
+          firstCancelSent();
+          return new Promise<Response>((resolve) => {
+            failFirstCancel = resolve;
+          });
+        }
+        return Promise.resolve(Response.json({ accepted: true }));
+      }
+      if (url.includes("/events?")) {
+        streamSignal = init?.signal ?? undefined;
+        return new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => {
+            reject(new DOMException("Aborted", "AbortError"));
+          });
+        });
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    const harness = createHarness({
+      confirmed: true,
+      bots,
+      durableFetch: fetch,
+    });
+    try {
+      const { sender } = coldChatSender(307);
+      const request = coldChatRequest("chat:late-cancel-retry");
+      const start = harness.handlers.get("chat:start")?.(
+        { sender },
+        request,
+      ) as Promise<unknown>;
+      await submissionStarted;
+      const stop = harness.handlers.get("chat:cancel")?.(
+        { sender },
+        request.requestId,
+        request.botId,
+      ) as Promise<unknown>;
+      const timedOut = expect(stop).rejects.toThrow(/unconfirmed/i);
+      await vi.advanceTimersByTimeAsync(15_000);
+      await timedOut;
+      accept?.(
+        Response.json(
+          { run_id: request.requestId, bot_id: request.botId },
+          { status: 202 },
+        ),
+      );
+      await firstServerCancel;
+      const concurrentStop = harness.handlers.get("chat:cancel")?.(
+        { sender },
+        request.requestId,
+        request.botId,
+      ) as Promise<unknown>;
+      expect(cancelCalls).toBe(1);
+      failFirstCancel?.(
+        Response.json({ error: "temporary failure" }, { status: 500 }),
+      );
+      await expect(concurrentStop).rejects.toThrow(/temporary failure/i);
+      expect(streamSignal?.aborted).toBe(false);
+      expect(
+        sender.send.mock.calls.some(
+          ([, payload]) =>
+            (payload as { event?: string }).event === "cancelled",
+        ),
+      ).toBe(false);
+      await expect(
+        harness.handlers.get("chat:start")?.({ sender }, request),
+      ).rejects.toThrow(/already running/i);
+      await expect(
+        harness.handlers.get("chat:cancel")?.(
+          { sender },
+          request.requestId,
+          request.botId,
+        ),
+      ).resolves.toBeUndefined();
+      await expect(start).resolves.toBeUndefined();
+      expect(cancelCalls).toBe(2);
+      expect(bots.bindRun).toHaveBeenCalledOnce();
+      expect(bots.beginRun).toHaveBeenCalledOnce();
+    } finally {
+      harness.dispose();
+      vi.useRealTimers();
+    }
+  });
+
+  it("cleans up failed bot startup so the same chat ID can be retried", async () => {
+    let attempts = 0;
+    const bots = coldChatBots(async () => {
+      if (attempts++ === 0) throw new Error("Bot startup failed.");
+      return coldChatRuntime();
+    });
+    const fetch = coldChatFetch();
+    const harness = createHarness({
+      confirmed: true,
+      bots,
+      durableFetch: fetch,
+    });
+    const { sender } = coldChatSender(303);
+    const request = coldChatRequest("chat:cold-retry");
+    await expect(
+      harness.handlers.get("chat:start")?.({ sender }, request),
+    ).rejects.toThrow("Bot startup failed.");
+    expect(fetch).not.toHaveBeenCalled();
+    await expect(
+      harness.handlers.get("chat:start")?.({ sender }, request),
+    ).resolves.toBeUndefined();
+    expect(
+      fetch.mock.calls.filter(([input]) =>
+        String(input).endsWith("/chat/runs"),
+      ),
+    ).toHaveLength(1);
+    harness.dispose();
+  });
+
   it("disposes exactly the handlers it registers", () => {
     const harness = createHarness({ confirmed: true });
     const registeredChannels = [...harness.handlers.keys()].sort();
@@ -1794,9 +2382,10 @@ describe("sensitive desktop actions", () => {
     harness.dispose();
   });
 
-  it("aborts and cleans up a local chat when the server cancellation fails", async () => {
+  it("keeps a local chat active after failed cancellation and permits retry", async () => {
     let chatSignal: AbortSignal | undefined;
     let chatStarts = 0;
+    let cancelCalls = 0;
     const harness = createHarness({
       confirmed: true,
       fetch: async (input, init) => {
@@ -1820,7 +2409,10 @@ data: {"response":"retried"}
             );
           });
         }
-        return new Response("runtime cancellation failed", { status: 503 });
+        cancelCalls += 1;
+        return cancelCalls === 1
+          ? new Response("runtime cancellation failed", { status: 503 })
+          : Response.json({ accepted: true });
       },
     });
     const sender = {
@@ -1845,15 +2437,22 @@ data: {"response":"retried"}
     await expect(
       harness.handlers.get("chat:cancel")?.({ sender }, "chat:cancel-fallback"),
     ).rejects.toThrow("runtime cancellation failed");
+    expect(chatSignal?.aborted).toBe(false);
+    await expect(
+      harness.handlers.get("chat:start")?.({ sender }, request),
+    ).rejects.toThrow(/already running/i);
+    await expect(
+      harness.handlers.get("chat:cancel")?.({ sender }, "chat:cancel-fallback"),
+    ).resolves.toBeUndefined();
     expect(chatSignal?.aborted).toBe(true);
     await expect(start).resolves.toBeUndefined();
 
-    // chatStart's finally block must remove the active entry, otherwise a
-    // retry with the same request ID would be rejected as already running.
+    // Only the acknowledged cancellation releases the active ID for retry.
     await expect(
       harness.handlers.get("chat:start")?.({ sender }, request),
     ).resolves.toBeUndefined();
     expect(chatStarts).toBe(2);
+    expect(cancelCalls).toBe(2);
     harness.dispose();
   });
 

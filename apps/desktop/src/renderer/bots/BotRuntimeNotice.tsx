@@ -13,7 +13,7 @@ export function BotRuntimeNotice({
   const stopped = bot.state === "stopped";
   const failed = bot.state === "error";
   const message = stopped
-    ? `${bot.name} is stopped. Its runtime starts on demand for approved requests. Your draft is retained.`
+    ? `${bot.name} is stopped. Send a message to start its runtime with approved access. Your draft is retained.`
     : failed
       ? `${bot.name} could not start. ${bot.error ? `${bot.error} ` : ""}Your draft is retained; retry when its runtime is available.`
       : bot.state === "starting"

@@ -4,9 +4,14 @@ The desktop keeps one lead OS backend process. When a named bot is needed, that
 process starts a Node worker thread with its own ElizaOS `AgentRuntime`; it does
 not switch one mutable runtime between characters. The existing bot catalog,
 profiles, run ownership, and conversation records remain authoritative. A named
-bot becomes available on demand through `backendFor`; the bot-card **Start now**
-warms it early, while **Stop work** stops its active worker without disabling or
-archiving its saved profile. Up to 64 workers may be resident, with at most two
+bot becomes available on demand through `backendFor`. A stopped named bot's
+composer accepts a draft when the lead host and run recovery are ready; the
+first send uses native conversation ownership and grant checks before starting
+that bot. Opening a conversation or polling the catalog does not start its
+worker. The bot-card **Start now** optionally warms it early, while **Stop work**
+stops its active worker without disabling or archiving its saved profile. A
+failed or already-starting bot still requires recovery before another dispatch.
+Up to 64 workers may be resident, with at most two
 bootstraps in progress at once. Each currently has an internal loopback API
 listener; this is not yet one shared HTTP listener, database, or model pool.
 
@@ -18,6 +23,16 @@ addressed stop immediately, including for a queued or booting bot, and only
 releases its host binding after the host confirms the stop. The fleet deadline
 uses production host defaults; custom programmatic boot-timeout overrides are
 not covered by that calculation.
+
+Chat IPC reserves an authorized sender/bot/request binding before waiting for a
+cold worker. Stopping that pending request prevents its later POST without
+stopping a shared bootstrap that another request may need. Stop during an
+in-flight submission waits at most 15 seconds for its receipt; an unconfirmed
+outcome retains the request and queues cancellation for a later valid receipt.
+Failed server cancellation keeps the stream and ownership claim available for
+retry rather than manufacturing a cancelled event. Existing stream recovery
+still reports unrecoverable stream failures as errors; a transport failure
+alone does not prove that provider work stopped.
 
 Each worker receives a distinct environment, bot profile, settings, workspace
 grant, account grant, and data directory (including its SQL state). Node worker

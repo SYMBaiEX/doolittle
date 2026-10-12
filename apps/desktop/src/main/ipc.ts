@@ -113,6 +113,9 @@ export function isTrustedDesktopIpcSender(
 interface ActiveChat {
   controller: AbortController;
   botId: string;
+  phase: "pending" | "submitting" | "accepted";
+  submissionSettled?: Promise<void>;
+  cancellationPromise?: Promise<void>;
 }
 
 interface ActiveAgentRequest {
@@ -130,6 +133,43 @@ function targetBotId(value: unknown): string {
 
 function chatKey(event: IpcMainInvokeEvent, requestId: string): string {
   return `${event.sender.id}:${requestId}`;
+}
+
+function isAcceptedChat(chat: ActiveChat): boolean {
+  return chat.phase === "accepted";
+}
+
+function waitForChatSubmission(
+  submissionSettled: Promise<void>,
+): Promise<void> {
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  const timedOut = new Promise<never>((_resolve, reject) => {
+    timeout = setTimeout(() => {
+      reject(
+        new Error(
+          "Chat cancellation is unconfirmed: the run submission has not returned a receipt. Stop remains queued if the runtime accepts it later.",
+        ),
+      );
+    }, API_TIMEOUT_MS);
+  });
+  return Promise.race([submissionSettled, timedOut]).finally(() => {
+    if (timeout) clearTimeout(timeout);
+  });
+}
+
+function waitForChatBackend<T>(
+  startup: Promise<T>,
+  signal: AbortSignal,
+): Promise<T> {
+  if (signal.aborted) return Promise.reject(signal.reason);
+  let onAbort: () => void = () => undefined;
+  const cancellation = new Promise<T>((_resolve, reject) => {
+    onAbort = () => reject(signal.reason);
+    signal.addEventListener("abort", onAbort, { once: true });
+  });
+  return Promise.race([startup, cancellation]).finally(() => {
+    signal.removeEventListener("abort", onAbort);
+  });
 }
 
 function agentRequestKey(event: IpcMainInvokeEvent, requestId: string): string {
@@ -683,7 +723,6 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
           "Conversation project context does not match its saved owner.",
         );
       }
-      const targetBackend = bots ? await bots.backendFor(botId) : backend;
       if (!bots && botId !== "default")
         throw new Error("Named bots are unavailable.");
       const attachmentIds = validateChatAttachmentIds(request.attachmentIds);
@@ -691,16 +730,6 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
         request.attachmentCleanup,
         attachmentIds,
       ).map((cleanup) => ({ ...cleanup, botId }));
-      const state = targetBackend.getState();
-      if (state.phase !== "ready" || !state.url) {
-        throw new Error("The local runtime is not ready.");
-      }
-      if (request.workspacePath !== targetBackend.getWorkspaceDirectory()) {
-        throw new Error(
-          "The selected workspace changed before this chat started. Switch back before sending it.",
-        );
-      }
-
       const key = chatKey(event, request.requestId);
       if (activeChats.has(key)) {
         throw new Error("This chat request is already running.");
@@ -763,12 +792,40 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
           controller.abort();
         }
       };
-      activeChats.set(key, { controller, botId });
+      activeChats.set(key, { controller, botId, phase: "pending" });
       stopTrackingSender = trackSenderCleanup(event.sender, cleanup);
+      if (event.sender.isDestroyed()) cleanup();
+
+      let runtimeUrl: string;
+      try {
+        if (controller.signal.aborted) throw controller.signal.reason;
+        const targetBackend = bots
+          ? await waitForChatBackend(bots.backendFor(botId), controller.signal)
+          : backend;
+        if (controller.signal.aborted) throw controller.signal.reason;
+        const state = targetBackend.getState();
+        if (state.phase !== "ready" || !state.url) {
+          throw new Error("The local runtime is not ready.");
+        }
+        if (request.workspacePath !== targetBackend.getWorkspaceDirectory()) {
+          throw new Error(
+            "The selected workspace changed before this chat started. Switch back before sending it.",
+          );
+        }
+        runtimeUrl = state.url;
+      } catch (error) {
+        const cancelled = controller.signal.aborted;
+        cleanup();
+        if (cancelled) {
+          emitEvent({ event: "cancelled", data: null });
+          return;
+        }
+        throw error;
+      }
 
       const streamEvents = async () => {
         const response = await sensitiveFetch(
-          `${state.url}/chat/runs/${encodeURIComponent(request.requestId)}/events?after=${lastReceivedEventId}`,
+          `${runtimeUrl}/chat/runs/${encodeURIComponent(request.requestId)}/events?after=${lastReceivedEventId}`,
           { signal: controller.signal },
         );
         if (!response.ok) {
@@ -816,8 +873,16 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
         }
       };
 
+      let settleSubmission: () => void = () => undefined;
       try {
-        const response = await sensitiveFetch(`${state.url}/chat/runs`, {
+        const active = activeChats.get(key);
+        if (active?.controller === controller) {
+          active.phase = "submitting";
+          active.submissionSettled = new Promise<void>((resolve) => {
+            settleSubmission = resolve;
+          });
+        }
+        const response = await sensitiveFetch(`${runtimeUrl}/chat/runs`, {
           method: "POST",
           headers: {
             "content-type": "application/json",
@@ -851,6 +916,8 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
         }
         bots?.bindRun(botId, request.roomId, request.requestId);
         bots?.beginRun(botId, request.requestId);
+        if (active?.controller === controller) active.phase = "accepted";
+        settleSubmission();
         // The runtime receives IDs only. Commit the local lease after its POST
         // receipt, so a desktop crash during streaming cannot orphan an import.
         if (commitChatAttachments) {
@@ -903,6 +970,7 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
           }
         }
       } catch (error) {
+        settleSubmission();
         // A terminal event is authoritative. A transport failure after it
         // should not manufacture a second terminal state for the renderer.
         if (terminalEventEmitted) {
@@ -974,7 +1042,7 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
         stopTrackingSender();
         if (!controller.signal.aborted) controller.abort();
       };
-      activeChats.set(key, { controller, botId });
+      activeChats.set(key, { controller, botId, phase: "accepted" });
       stopTrackingSender = trackSenderCleanup(event.sender, cleanup);
       const streamEvents = async () => {
         const response = await sensitiveFetch(
@@ -1100,14 +1168,23 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
         throw new Error("Chat run ID is invalid.");
       }
       const botId = targetBotId(unsafeBotId);
-      if (bots) await bots.assertRunOwner(botId, requestId);
       const active = activeChats.get(chatKey(event, requestId));
       if (active && active.botId !== botId)
         throw new Error("Chat run belongs to a different bot.");
-      const targetBackend = bots ? await bots.backendFor(botId) : backend;
-      if (!bots && botId !== "default")
-        throw new Error("Named bots are unavailable.");
-      try {
+      if (active?.phase === "pending") {
+        active.controller.abort(
+          new DOMException(
+            "Chat cancelled before runtime acceptance.",
+            "AbortError",
+          ),
+        );
+        return;
+      }
+      const cancelAcceptedRun = async () => {
+        if (bots) await bots.assertRunOwner(botId, requestId);
+        const targetBackend = bots ? await bots.backendFor(botId) : backend;
+        if (!bots && botId !== "default")
+          throw new Error("Named bots are unavailable.");
         const state = targetBackend.getState();
         if (state.phase !== "ready" || !state.url) {
           throw new Error("The local runtime is not ready.");
@@ -1139,12 +1216,35 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
             data: { type: "cancelled", sessionId: run.sessionId, run },
           });
         }
-      } finally {
-        // A failed cancellation acknowledgement must never leave local stream
-        // work alive. Preserve the server failure for the renderer, but always
-        // tear down our fetch and let chatStart clean its tracking entry.
-        active?.controller.abort();
+      };
+      if (active) {
+        const wasSubmitting = active.phase === "submitting";
+        if (!active.cancellationPromise) {
+          const attempt = (async () => {
+            if (wasSubmitting) await active.submissionSettled;
+            if (!isAcceptedChat(active)) return;
+            await cancelAcceptedRun();
+            // Only an acknowledged server cancellation can end local stream
+            // ownership. A failed request leaves it live for a later Stop.
+            active.controller.abort();
+          })();
+          active.cancellationPromise = attempt;
+          // The first Stop may time out before a late receipt. Retain the
+          // attempt meanwhile, but permit a fresh Stop after a server failure.
+          void attempt.catch(() => {
+            if (active.cancellationPromise === attempt) {
+              active.cancellationPromise = undefined;
+            }
+          });
+        }
+        const attempt = active.cancellationPromise;
+        if (wasSubmitting && active.submissionSettled) {
+          await waitForChatSubmission(active.submissionSettled);
+        }
+        await attempt;
+        return;
       }
+      await cancelAcceptedRun();
     },
   );
 

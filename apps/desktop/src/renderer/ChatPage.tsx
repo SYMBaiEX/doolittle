@@ -36,7 +36,12 @@ import {
 import { isChatNearBottom, scheduleChatScroll } from "./chat/chat-scroll";
 import { handleFailedChatTerminalEvent } from "./chat/chat-terminal-events";
 import { addUnreadMessageIds, appendedMessageIds } from "./chat/chat-unread";
-import { chatDispatchBlockReason } from "./chat/dispatch-readiness";
+import {
+  botAcceptsDispatch,
+  CANCELLATION_UNCONFIRMED_MESSAGE,
+  chatDispatchBlockReason,
+  retainCancellationFailureFeedback,
+} from "./chat/dispatch-readiness";
 import { snapshotDraftForDispatch } from "./chat/draft-dispatch-recovery";
 import {
   CHAT_WORKSPACE_CLASS,
@@ -491,6 +496,16 @@ export function ChatSessionPanel({
   const botReady = currentBot
     ? ["ready", "busy", "waiting"].includes(currentBot.state)
     : !currentBotId || currentBotId === defaultBotId;
+  const botCanDispatch = botAcceptsDispatch(
+    currentBot,
+    currentBotId,
+    defaultBotId,
+  );
+  const canDraft =
+    backend.phase === "ready" ||
+    (hostBackend.phase === "ready" &&
+      currentBot?.isDefault === false &&
+      currentBot.state === "stopped");
   const [progressBySession, setProgressBySession] = useWorkspaceState<
     Record<string, string>
   >("run.progress", {});
@@ -1023,6 +1038,11 @@ export function ChatSessionPanel({
       setProgressBySession((current) =>
         clearSessionProgress(current, completedSessionId),
       );
+      setDispatchFeedback((current) =>
+        current[completedSessionId] === CANCELLATION_UNCONFIRMED_MESSAGE
+          ? { ...current, [completedSessionId]: "" }
+          : current,
+      );
     }
     delete requestSession.current[requestId];
     delete requestBot.current[requestId];
@@ -1050,18 +1070,15 @@ export function ChatSessionPanel({
           );
         }, 8_000);
       }
-    } catch (error) {
+    } catch {
       clearCancellingRequest(requestId);
       const sessionId = requestSession.current[requestId];
       if (!sessionId) return;
-      updateAssistant(sessionId, requestId, (message) => ({
-        ...message,
-        content: `Cancellation failed: ${errorMessage(error)} Retry the response to continue.`,
-        pending: false,
-        error: true,
-      }));
-      finishRequest(requestId);
-      setQueueAnnouncement("Cancellation failed. The response can be retried.");
+      // An unconfirmed stop is not a terminal run receipt. Retain the owned
+      // request/session claim so another send cannot duplicate a live turn.
+      setDispatchFeedback((current) =>
+        retainCancellationFailureFeedback(current, sessionId),
+      );
     }
   };
 
@@ -1202,9 +1219,9 @@ export function ChatSessionPanel({
     return unsubscribe;
   }, [coordinator]);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: retry nonce deliberately reruns run recovery without changing backend phase.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: retry nonce deliberately reruns run recovery without changing the host backend phase.
   useEffect(() => {
-    if (!coordinator || backend.phase !== "ready") return;
+    if (!coordinator || hostBackend.phase !== "ready") return;
     setRunHydration("checking");
     let disposed = false;
     void loadOwnedRunInventory(recoveryBotIds ? recoveryBotIds.split(",") : [])
@@ -1303,7 +1320,7 @@ export function ChatSessionPanel({
       disposed = true;
     };
   }, [
-    backend.phase,
+    hostBackend.phase,
     coordinator,
     setMessages,
     setRunHydration,
@@ -1358,10 +1375,8 @@ export function ChatSessionPanel({
           activeRequests[sessionId],
       ),
       ownerResolved: !botIdForSession || Boolean(botId),
-      ownerReady: owner
-        ? ["ready", "busy", "waiting"].includes(owner.state)
-        : !botId || botId === defaultBotId,
-      backendReady: backend.phase === "ready",
+      ownerReady: botAcceptsDispatch(owner, botId, defaultBotId),
+      backendReady: hostBackend.phase === "ready",
       hydration: runHydration,
     });
     if (blockedReason) {
@@ -2063,11 +2078,11 @@ export function ChatSessionPanel({
       : "");
   const canSubmit =
     Boolean(draft.trim() || attachedFiles.length > 0) &&
-    backend.phase === "ready" &&
+    hostBackend.phase === "ready" &&
     !workspaceBindingBlocked &&
     (!botIdForSession || Boolean(currentBotId)) &&
     !dispatchPending[selectedId] &&
-    botReady &&
+    botCanDispatch &&
     runHydration === "ready" &&
     !attachmentImportPending &&
     !composerValidationError;
@@ -2330,7 +2345,7 @@ export function ChatSessionPanel({
                     )}
                   </div>
                 ) : null}
-                {!botReady && currentBot ? (
+                {!botReady && currentBot && !activeRequest ? (
                   <BotRuntimeNotice bot={currentBot} onStart={onActivateBot} />
                 ) : null}
                 {!botReady && !currentBot ? (
@@ -2359,6 +2374,7 @@ export function ChatSessionPanel({
             cancellingRequest={cancellingRequest}
             onCancelRequest={(requestId) => void cancelRequest(requestId)}
             canSubmit={canSubmit}
+            canDraft={canDraft}
             draft={draft}
             setDraft={setDraft}
             onSubmit={submit}

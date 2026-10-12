@@ -17,6 +17,177 @@ const fallbackResponse =
 test.describe("packaged Doolittle desktop", () => {
   test.skip(!executablePath, "DOOLITTLE_DESKTOP_EXECUTABLE is required");
 
+  test("starts a saved offline named bot on its first message without manual activation", async () => {
+    test.setTimeout(120_000);
+    const profileDir = mkdtempSync(join(tmpdir(), "doolittle-named-profile-"));
+    const workspaceDir = realpathSync(
+      mkdtempSync(join(tmpdir(), "doolittle-named-workspace-")),
+    );
+    const runtimeDir = join(profileDir, "runtime");
+    mkdirSync(runtimeDir, { recursive: true });
+    writeFileSync(
+      join(runtimeDir, "settings.json"),
+      `${JSON.stringify({ model: { provider: "offline", model: "offline", baseUrl: "", temperature: 0, maxTokens: 512 } })}\n`,
+      "utf8",
+    );
+    writeFileSync(
+      join(profileDir, "workspace-state.json"),
+      `${JSON.stringify({ currentPath: workspaceDir, recentPaths: [workspaceDir] })}\n`,
+      "utf8",
+    );
+    const app = await electron.launch({
+      executablePath,
+      args: [`--user-data-dir=${profileDir}`],
+      env: {
+        ...isolatedRuntimeEnvironment(runtimeDir),
+        DOOLITTLE_DESKTOP_CWD: workspaceDir,
+      },
+    });
+
+    try {
+      const page = await app.firstWindow();
+      await expect
+        .poll(
+          () =>
+            page.evaluate(
+              async () => (await window.doolittle.getBackendState()).phase,
+            ),
+          { timeout: 60_000 },
+        )
+        .toBe("ready");
+      const bot = await page.evaluate(async (workspacePath) => {
+        const response = await window.doolittle.requestAgent({
+          requestId: crypto.randomUUID(),
+          path: "/bots",
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            name: "Jerry",
+            persona: "Answer simply.",
+            model: { provider: "offline", model: "offline" },
+            workspacePath,
+            permissions: {
+              connectionIds: [],
+              workspacePaths: [workspacePath],
+              toolIds: [],
+              allowMutation: false,
+              allowDelegation: false,
+            },
+          }),
+        });
+        if (response.status !== 201) throw new Error(response.body);
+        return JSON.parse(response.body) as { id: string; state: string };
+      }, workspaceDir);
+      expect(bot.state).toBe("stopped");
+      await page.evaluate(() =>
+        window.dispatchEvent(new Event("doolittle:bot-catalog-changed")),
+      );
+      await page
+        .locator("#desktop-sidebar")
+        .getByText("Jerry", { exact: true })
+        .click();
+      const composer = page.getByRole("textbox", { name: "Message Jerry" });
+      await expect(composer).toBeEnabled();
+      const selectedState = await page.evaluate(async (botId) => {
+        const response = await window.doolittle.requestAgent({
+          requestId: crypto.randomUUID(),
+          path: `/bots/${botId}`,
+          method: "GET",
+          headers: {},
+        });
+        if (response.status !== 200) throw new Error(response.body);
+        return (JSON.parse(response.body) as { state: string }).state;
+      }, bot.id);
+      expect(selectedState).toBe("stopped");
+      const prompt = `Jerry first message ${Date.now()}`;
+      await composer.fill(prompt);
+      await expect(
+        page.getByRole("button", { name: "Send message" }),
+      ).toBeEnabled();
+      await composer.press("Enter");
+      await expect(
+        page
+          .getByLabel("Conversation detail")
+          .getByText(prompt, { exact: true }),
+      ).toBeVisible();
+      await expect(
+        page
+          .getByLabel("Conversation detail")
+          .getByText(fallbackResponse, { exact: false })
+          .first(),
+      ).toBeVisible({ timeout: 60_000 });
+      const runs = await page.evaluate(async (botId) => {
+        const response = await window.doolittle.requestAgent({
+          requestId: crypto.randomUUID(),
+          path: "/chat/runs?limit=20",
+          method: "GET",
+          headers: {},
+          botId,
+        });
+        if (response.status !== 200) throw new Error(response.body);
+        return JSON.parse(response.body) as {
+          runs: Array<{ botId: string; sessionId: string; source: string }>;
+        };
+      }, bot.id);
+      expect(runs.runs).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ botId: bot.id, source: "desktop" }),
+        ]),
+      );
+
+      // Missing scoped access fails before any provider call; the user's text
+      // must remain retained for an intentional retry after configuration.
+      const ungranted = await page.evaluate(async (workspacePath) => {
+        const response = await window.doolittle.requestAgent({
+          requestId: crypto.randomUUID(),
+          path: "/bots",
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            name: "No Grant",
+            persona: "Wait for approved access.",
+            model: { provider: "openai", model: "offline-test" },
+            workspacePath,
+            permissions: {
+              connectionIds: [],
+              workspacePaths: [workspacePath],
+              toolIds: [],
+              allowMutation: false,
+              allowDelegation: false,
+            },
+          }),
+        });
+        if (response.status !== 201) throw new Error(response.body);
+        return JSON.parse(response.body) as { id: string; state: string };
+      }, workspaceDir);
+      expect(ungranted.state).toBe("stopped");
+      await page.evaluate(() =>
+        window.dispatchEvent(new Event("doolittle:bot-catalog-changed")),
+      );
+      await page
+        .locator("#desktop-sidebar")
+        .getByText("No Grant", { exact: true })
+        .click();
+      const deniedComposer = page.getByRole("textbox", {
+        name: "Message No Grant",
+      });
+      await expect(deniedComposer).toBeEnabled();
+      const deniedPrompt = `Private grant required ${Date.now()}`;
+      await deniedComposer.fill(deniedPrompt);
+      await deniedComposer.press("Enter");
+      await expect(deniedComposer).toHaveValue(deniedPrompt);
+      await expect(
+        page
+          .getByLabel("Conversation detail")
+          .getByText(/Select exactly one approved account/u),
+      ).toBeVisible({ timeout: 30_000 });
+    } finally {
+      await app.close();
+      rmSync(profileDir, { recursive: true, force: true });
+      rmSync(workspaceDir, { recursive: true, force: true });
+    }
+  });
+
   test("boots the packaged preload bridge and completes an offline chat", async () => {
     test.setTimeout(120_000);
     const profileDir = mkdtempSync(
