@@ -303,11 +303,9 @@ a healthy Docker engine is selected. The setup command never installs or starts
 either engine. The image provides `python3`, `node`, `nub`, `bash`, uid 1000,
 and the `/workspace` mount contract used by `SandboxManager`.
 
-To run the opt-in engine-backed check after building it, use:
-
-```bash
-nub run test:sandbox:integration
-```
+Container-engine acceptance is not part of the new core suite. Building the
+image is not evidence that sandbox execution works; verify the intended engine
+through the desktop lifecycle before relying on it.
 
 ### Sandbox lifecycle
 
@@ -486,26 +484,11 @@ fails closed on a missing, empty, stale, or mismatched input. Run
 `nub run desktop:runtime:install` before a source package build when Electron's
 local distribution has not yet been downloaded.
 
-Capture full-page visual evidence for the three visible destinations, their
-contextual surfaces, and compatibility links at deterministic desktop and
-narrow widths:
+The legacy profile/pixel sweep and its fixture helpers were retired. The
+small maintained acceptance suite checks core chat, project access, worker
+ownership and packaged boot; it does not certify every route or visual profile.
 
-```bash
-nub run test:e2e:desktop-visual
-```
-
-The launcher requires a clean worktree and prefers the current unpacked
-repository package, using an installed app only when it hashes identically. It
-writes ignored PNGs plus `visual-manifest.json` under
-`var/playwright/route-screenshots/`. Pass `-- --executable <path>` or
-`-- --output <directory>` to override either location. The default sweep uses a
-fresh scrubbed profile; `-- --profile <directory>` is available for an explicit
-operator-approved profile and is marked as potentially private in the manifest.
-The manifest records HEAD, the exact executable and packaged `app.asar`
-SHA-256 values, actual desktop and compact viewports, and the canonical route
-count; stale packages fail before Electron launches.
-
-Run the packaged preload, runtime, chat, and route-control journeys directly:
+Run the packaged preload, private scratch terminal and offline chat journey:
 
 ```bash
 nub run test:e2e:desktop-packaged
@@ -524,15 +507,14 @@ server or linked provider:
 nub run test:e2e:desktop-workbench
 ```
 
-This serial, no-retry suite launches the actual Electron interface with an
-owned empty workspace and scrubbed profile. It exercises panel arrangement,
-resizing, focus, draft retention, keyboard navigation, narrow layouts, and
-terminal controls. Synthetic IPC fixtures test chat lifecycle and approval
-presentation, attribution, loading, errors, and decisions; they do not prove
-provider throughput, backend approval enforcement, or command execution.
-Screenshots are written to `output/playwright/session-workbench/`, with test
-results under `var/playwright/workbench-test-results/`. The suite closes its
-Electron processes and removes only its owned temporary profiles/workspaces.
+This serial, no-retry suite uses real Electron and isolated profiles. Four
+journeys cover conversational bot creation/model choices and first chat,
+durable exact project consent, cancelled/cross-bot/changed-scope refusal, and
+sidebar stability across actual polling. Source SDK workers and packaged PTY
+execution have separate gates. Failures retain traces under
+`var/playwright/desktop-core/`; successful runs do not collect private UI
+history. See [development/testing](engineering/fast-development.md) for
+coverage limits and commands.
 
 Before creating a release tag, run the release-quality gate:
 

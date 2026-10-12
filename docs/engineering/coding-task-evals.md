@@ -53,8 +53,8 @@ eval:reports` lists them and `nub run eval:compare -- --baseline PATH
 --candidate PATH` compares only identical task sets and fixture IDs. An ad hoc
 historical run can still be evaluated with `--case coding-change-v1 --run
 RUN_ID`, but it cannot be compared until it is mapped to a versioned task suite.
-A failed evaluation exits nonzero by design. `nub run test:coding-evals` runs
-deterministic fixtures without starting a provider or changing a workspace.
+A failed evaluation exits nonzero by design. Evaluation tools remain production
+diagnostics; the retired evaluator unit fixtures are not in the new test suite.
 
 ## Evidence dimensions
 
@@ -207,17 +207,10 @@ snapshot path.
 See the pinned [offscreen rendering modes](https://github.com/electron/electron/blob/v44.5.1/docs/tutorial/offscreen-rendering.md)
 and [offscreen scale contract](https://github.com/electron/electron/blob/v44.5.1/docs/api/structures/web-preferences.md).
 
-The focused real-Electron first-PNG regression avoids booting a provider or the
-full desktop API server:
-
-```sh
-nubx playwright test --config playwright.rendered.config.ts
-```
-
-The same fixture spec is discovered by the regular E2E suite. It checks owned
-complete/async/lazy/late raster images in hidden private windows, not arbitrary
-site readiness or interactive accessibility. Retain the actual platform result:
-local macOS and hosted Linux are separate checks; Windows coverage is not implied.
+The historical first-PNG fixtures and their diagnostic workflow were retired
+with the legacy corpus. Native capture remains a production capability, but is
+not certified by the new core chat/worker acceptance suite. The observations
+below describe historical samples, not commands or current coverage.
 
 The hosted cold-capture regression uses the product's constructor policy with
 no fixture backend override, at fixed display scales 1, 1.25, 1.5 and 2. Each of

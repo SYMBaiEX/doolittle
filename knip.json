@@ -12,6 +12,7 @@
       "project": ["src/**/*.ts", "src/**/*.tsx"]
     },
     "packages/agent": {
+      "ignoreDependencies": ["sharp"],
       "ignoreBinaries": ["const", "mkfifo"]
     },
     "apps/desktop": {

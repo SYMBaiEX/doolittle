@@ -66,8 +66,13 @@ responses; they do not establish the underlying socket-reset trigger.
 Each worker receives a distinct environment, bot profile, settings, private
 startup workspace, account grant, and data directory (including its SQL state).
 Execution roots belong to immutable, host-owned chat grants. A project chat
-requires explicit native confirmation; private general chats do not acquire
-the current repository. Async request-local scope lets one bot serve different
+requires native-confirmed bot/project access. The host remembers that exact
+bot, project, canonical folder identity and permission set across new chats and
+restarts; clicking the same project does not require another prompt. Changed
+folders or permissions and other bots need new confirmation. Historical chat
+rows cannot seed this approval, and corrupt approval metadata fails closed.
+Private general chats do not acquire the current repository. Async request-local
+scope lets one bot serve different
 projects without mutating the worker's startup root. Workspace, terminal, ACP,
 skills and project context resolve that scope; legacy rootless chats fail closed
 for effects while keeping history readable. Node worker

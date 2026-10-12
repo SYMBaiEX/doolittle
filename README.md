@@ -209,25 +209,26 @@ scripts/               Bootstrap, verification, and release helpers
 
 This is a Nub workspace. After `nub install --frozen-lockfile --ignore-scripts`,
 use the narrowest relevant command while working. Routine development does not
-run the complete historical suite:
+run the native acceptance suite. The historical test corpus was deleted and
+replaced with a small, maintained suite under `tests/`:
 
 ```bash
 nub run typecheck          # TypeScript, no emit
-nub run test               # small essential ownership/safety/persistence lane
-nub run test:scope path/to/file.test.ts  # one regression file
+nub run test               # small approval, ownership and state boundary suite
+nub run test:scope tests/boundary/project-access.test.ts
 nub run test:related path/to/changed.ts # Vitest dependency-related tests
-nub run test:watch         # essential tests while editing
+nub run test:watch         # fast boundaries while editing
 nub run build              # packages/agent bundle
 nub run lint:check         # Biome check
 nub run desktop:typecheck  # desktop main, preload, renderer
-nub run desktop:test       # essential desktop checks
-nub run test:all           # all unit regressions, deliberate integration milestone
-nub run test:integration   # slow integrations, explicit opt-ins still required
-nub run test:e2e           # real Electron + Playwright smoke
+nub run desktop:test       # same root boundary suite
+nub run test:all           # boundaries + source workers + native desktop
+nub run test:integration   # real offline shared-engine SDK worker journeys
+nub run test:e2e           # source workers + real Electron/Playwright
 nub run check:acceptance   # hygiene, boundaries, SDK, docs, links, audit
 ```
 
-`nub run check` is the routine essential check. Use `check:all` and
+`nub run check` is the routine fast check. Use `check:all` and
 `check:release` at deliberate integration/release milestones, not every edit or
 agent handoff. See [the fast development guide](docs/engineering/fast-development.md)
 and [the CI workflow](.github/workflows/ci.yml). A passing build or fixture is

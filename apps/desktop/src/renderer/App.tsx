@@ -1743,10 +1743,11 @@ export function App() {
         : { ...current, [sessionId]: botId },
     );
   }, []);
+  const selectedSessionOwner = botIdForSession(selectedSession);
   useEffect(() => {
-    const owner = botIdForSession(selectedSession);
+    const owner = selectedSessionOwner;
     if (owner && owner !== selectedBotId) setSelectedBotId(owner);
-  }, [botIdForSession, selectedBotId, selectedSession]);
+  }, [selectedSessionOwner, selectedBotId]);
 
   useEffect(() => {
     applyDesktopAppearance(appearance, systemPrefersDark);
@@ -2054,31 +2055,37 @@ export function App() {
     };
   }, [bindSessionBot, captureSessionProject]);
 
+  const selectedNativeScope = scopeForSession(selectedSession);
+  const selectedNativeProjectId =
+    selectedNativeScope.kind === "confirmed"
+      ? selectedNativeScope.conversation.projectId
+      : undefined;
+  const selectedNativeScopeConfirmed = selectedNativeScope.kind === "confirmed";
   useEffect(() => {
     if (!nativeSelectionRestored) return;
     if (document.documentElement.dataset.nativeInterfaceVisible === "false")
       return;
-    const botId = botIdForSession(selectedSession);
     const bridge = window.doolittle.ui;
-    if (!botId || !bridge) return;
-    const scope = scopeForSession(selectedSession);
-    if (scope.kind !== "confirmed") return;
-    const projectId = scope.conversation.projectId;
+    if (!selectedSessionOwner || !bridge || !selectedNativeScopeConfirmed)
+      return;
     void bridge
       .dispatch({
         type: "conversation.select",
         target: {
-          botId,
+          botId: selectedSessionOwner,
           sessionId: selectedSession,
-          ...(projectId ? { projectId } : {}),
+          ...(selectedNativeProjectId
+            ? { projectId: selectedNativeProjectId }
+            : {}),
         },
       })
       .catch(() => undefined);
   }, [
-    botIdForSession,
     nativeSelectionRestored,
     selectedSession,
-    scopeForSession,
+    selectedSessionOwner,
+    selectedNativeProjectId,
+    selectedNativeScopeConfirmed,
   ]);
 
   useEffect(

@@ -5,9 +5,7 @@ export default defineConfig({
   ...base,
   test: {
     ...base.test,
-    include: ["apps/**/*.e2e.test.ts", "packages/**/integration.test.ts"],
-    // Existing suites retain their explicit environment opt-ins. A skipped
-    // integration run is not evidence of worker or Docker behavior.
-    maxWorkers: 2,
+    include: ["tests/integration/runtime.e2e.test.ts"],
+    maxWorkers: 1,
   },
 });

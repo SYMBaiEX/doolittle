@@ -394,7 +394,11 @@ export class BotCatalog {
     return definition;
   }
 
-  update(id: string, input: UpdateBotInput): BotDefinition {
+  update(
+    id: string,
+    input: UpdateBotInput,
+    beforeCommit?: (next: BotDefinition) => void,
+  ): BotDefinition {
     const existing = this.get(id);
     if (!existing || existing.archivedAt) throw new Error("Bot not found.");
     if (existing.isDefault) {
@@ -440,6 +444,7 @@ export class BotCatalog {
         : {}),
       updatedAt: new Date().toISOString(),
     };
+    beforeCommit?.(updated);
     this.stored.bots = this.stored.bots.map((bot) =>
       bot.id === id ? updated : bot,
     );

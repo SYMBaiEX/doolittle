@@ -107,10 +107,10 @@ only when an upstream release passes the same installed-runtime regressions.
 Validate: an ordinary planner input remains unchanged; a tool-heavy input
 triggers SDK compaction with correlated call/result parts intact; unknown model
 limits and limit exhaustion fail truthfully without certifying completion.
-Starting coverage: [SDK yield](../../packages/agent/src/runtime/native/sdk-planner-yield.test.ts),
-[tool-size boundary](../../packages/agent/src/runtime/native/sdk-model-input-tool-size-boundary.test.ts),
-[terminal preservation](../../packages/agent/src/runtime/native/sdk-terminal-output-preservation.test.ts),
-and [web source preservation](../../packages/agent/src/runtime/native/sdk-web-source-preservation.test.ts).
+Starting coverage: `SDK yield` (historical coverage, retired with the legacy suite),
+`tool-size boundary` (historical coverage, retired with the legacy suite),
+`terminal preservation` (historical coverage, retired with the legacy suite),
+and `web source preservation` (historical coverage, retired with the legacy suite).
 
 ### 3. Canonical tool advertisement, unchanged SDK admission
 
@@ -137,8 +137,8 @@ legacy dispatch compatible. Reduced advertisement is not a proven speedup.
 
 Validate: canonical action dispatch; denied/failed action remains denied/failed;
 shared aliases, schema collisions and promoted subactions retain admission
-behavior. Starting coverage: [exposure tests](../../packages/agent/src/runtime/native/plugin-registry/planner-tool-exposure.test.ts)
-and [actual SDK subplanner payload](../../packages/agent/src/runtime/native/plugin-registry/subplanner-tool-payload.test.ts).
+behavior. Starting coverage: `exposure tests` (historical coverage, retired with the legacy suite)
+and `actual SDK subplanner payload` (historical coverage, retired with the legacy suite).
 
 Focused verification: one `nubx vitest run` invocation passed both immediate
 test files, 65 tests. Coverage includes default/rollback through the installed

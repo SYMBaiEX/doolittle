@@ -25,9 +25,12 @@ workspace root, remain supported. Each automatic markdown input is capped at
 built-in fallback; context files become blocked diagnostic entries and are
 excluded from rendered model context even when injection scanning is disabled.
 
-Validation: 17 tests passed in 3 files with:
+Historical validation: 17 tests passed in 3 files at this remediation revision.
+Those fixtures were later retired with the legacy test corpus; the new core
+suite is not a repeat of this filesystem regression evidence.
 
 ```sh
+# Historical command (requires the remediation revision, not current HEAD):
 nub run test:scope packages/agent/src/runtime/workspace-prompt-containment.test.ts packages/agent/src/runtime/workflow-commands.test.ts packages/agent/src/services/context-files-service.test.ts
 ```
 

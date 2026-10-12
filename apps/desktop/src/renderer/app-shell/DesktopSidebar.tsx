@@ -237,18 +237,15 @@ export function DesktopSidebar({
               Bots
             </h2>
           ) : null}
-          {botStatus === "refreshing" ||
-          (botStatus === "error" && bots.length > 0) ||
+          {(botStatus === "error" && bots.length > 0) ||
           (botStatus === "disabled" && bots.length > 0) ? (
             <div
               className="px-3 py-2 text-xs leading-5 text-[var(--muted)]"
               role="status"
             >
-              {botStatus === "refreshing"
-                ? "Updating bots…"
-                : botStatus === "disabled"
-                  ? "Runtime offline. Saved bots remain available."
-                  : "Could not update bots. Showing the last catalog."}
+              {botStatus === "disabled"
+                ? "Runtime offline. Saved bots remain available."
+                : "Could not update bots. Showing the last catalog."}
               {botStatus === "error" ? (
                 <button
                   className="ml-1 min-h-10 underline"
