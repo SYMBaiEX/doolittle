@@ -370,7 +370,7 @@ test.describe("Doolittle desktop session workbench", () => {
         .poll(() =>
           answerForm.evaluate((form) => getComputedStyle(form).borderTopColor),
         )
-        .not.toBe(unfocusedEdge);
+        .toBe(unfocusedEdge);
       await expect
         .poll(() =>
           answerInput.evaluate((input) => {
@@ -378,7 +378,9 @@ test.describe("Doolittle desktop session workbench", () => {
             return {
               outline: style.outlineStyle,
               width: style.outlineWidth,
-              shadow: style.boxShadow,
+              insetCue:
+                style.boxShadow.includes("inset") &&
+                style.boxShadow.includes("1px 0px 0px 0px"),
               border: style.borderWidth,
             };
           }),
@@ -386,7 +388,7 @@ test.describe("Doolittle desktop session workbench", () => {
         .toEqual({
           outline: "none",
           width: "0px",
-          shadow: "none",
+          insetCue: true,
           border: "0px",
         });
       expect(
@@ -763,10 +765,15 @@ test.describe("Doolittle desktop session workbench", () => {
         .poll(() =>
           modelTrigger.evaluate((button) => {
             const style = getComputedStyle(button);
-            return { outline: style.outlineStyle, shadow: style.boxShadow };
+            return {
+              outline: style.outlineStyle,
+              insetCue:
+                style.boxShadow.includes("inset") &&
+                style.boxShadow.includes("1px 0px 0px 0px"),
+            };
           }),
         )
-        .toEqual({ outline: "none", shadow: "none" });
+        .toEqual({ outline: "none", insetCue: true });
       await modelTrigger.click();
       await expectHitTarget(
         page
@@ -783,18 +790,54 @@ test.describe("Doolittle desktop session workbench", () => {
         field.id = "invalid-shared-focus-fixture";
         field.className = "dl-field";
         field.setAttribute("aria-label", "Invalid shared field focus fixture");
-        field.setAttribute("aria-invalid", "true");
         field.style.borderWidth = "1px";
         field.style.borderStyle = "solid";
+        field.style.borderColor = "var(--text)";
         input.closest('[role="dialog"]')?.appendChild(field);
       });
       const invalidField = page.getByRole("textbox", {
         name: "Invalid shared field focus fixture",
       });
-      const invalidEdge = await invalidField.evaluate(
+      const coincidentEdge = await invalidField.evaluate(
         (input) => getComputedStyle(input).borderTopColor,
       );
       await page.keyboard.press("Tab");
+      await invalidField.focus();
+      await expect
+        .poll(() =>
+          invalidField.evaluate((input) => input.matches(":focus-visible")),
+        )
+        .toBe(true);
+      expect(
+        await invalidField.evaluate(
+          (input) => getComputedStyle(input).borderTopColor,
+        ),
+      ).toBe(coincidentEdge);
+      await expect
+        .poll(() =>
+          invalidField.evaluate((input) => getComputedStyle(input).boxShadow),
+        )
+        .toContain("1px 0px 0px 0px inset");
+      await modelSearch.focus();
+      await invalidField.evaluate((input) => {
+        (input as HTMLInputElement).style.removeProperty("border-color");
+        input.setAttribute("aria-invalid", "true");
+      });
+      const invalidEdge = await invalidField.evaluate(() => {
+        const sample = document.createElement("span");
+        sample.style.color = "var(--bad)";
+        document.body.appendChild(sample);
+        const color = getComputedStyle(sample).color;
+        sample.remove();
+        return color;
+      });
+      await expect
+        .poll(() =>
+          invalidField.evaluate(
+            (input) => getComputedStyle(input).borderTopColor,
+          ),
+        )
+        .toBe(invalidEdge);
       await invalidField.focus();
       await expect
         .poll(() =>
@@ -806,11 +849,13 @@ test.describe("Doolittle desktop session workbench", () => {
           invalidField.evaluate((input) => getComputedStyle(input).boxShadow),
         )
         .toContain("inset");
-      expect(
-        await invalidField.evaluate(
-          (input) => getComputedStyle(input).borderTopColor,
-        ),
-      ).toBe(invalidEdge);
+      await expect
+        .poll(() =>
+          invalidField.evaluate(
+            (input) => getComputedStyle(input).borderTopColor,
+          ),
+        )
+        .toBe(invalidEdge);
       await page.emulateMedia({ forcedColors: "active" });
       await expect
         .poll(() =>
@@ -1054,8 +1099,12 @@ test.describe("Doolittle desktop session workbench", () => {
         .click();
       await expect(promptDialog).toHaveCount(0);
       await moreTools.press("Escape");
-      await composer.fill("/commands");
       const commands = first.getByRole("listbox", { name: "Chat commands" });
+      // Hidden panes clear and reload their command catalog. Confirm that the
+      // visible pane has real suggestions before testing a specific command.
+      await composer.fill("/");
+      await expect(commands).toBeVisible();
+      await composer.fill("/commands");
       const command = commands
         .locator('[role="option"]:not([aria-disabled="true"])')
         .first();

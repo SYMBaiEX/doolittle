@@ -49,13 +49,13 @@ describe("quiet shared interface style contract", () => {
       rule.selectors.includes(".dl-field:focus-visible"),
     );
     expect(focus?.declarations).toContain("outline: none");
-    expect(focus?.declarations).toContain("box-shadow: none");
+    expect(focus?.declarations).toContain("inset 1px 0 0 var(--text-soft)");
     const valid = rules.find((rule) =>
       rule.selectors.includes(
         '.dl-field:focus-visible:not([aria-invalid="true"])',
       ),
     );
-    expect(valid?.declarations).toContain("border-color: var(--text-soft)");
+    expect(valid?.declarations).toContain("border-color: var(--text)");
     const invalid = rules.find((rule) =>
       rule.selectors.includes('.dl-field[aria-invalid="true"]:focus-visible'),
     );

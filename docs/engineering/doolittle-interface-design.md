@@ -74,6 +74,8 @@ reduced transparency and forced colors have static/readable alternatives.
   triggers must not add an orange outline, glow or thick focus frame. Their
   existing single-pixel edge or small neutral control background indicates
   keyboard focus; validation colors and OS forced-color focus remain intact.
+  A tiny inset left cue remains visible even when a custom theme's focused and
+  unfocused border colors coincide; no saved theme or preference is reset.
   Context pressure is disclosed when warning/error thresholds matter, not as a
   permanent zero-usage meter. Full context remains available in Details.
   The project picker uses the SDK's portaled collision placement, with a

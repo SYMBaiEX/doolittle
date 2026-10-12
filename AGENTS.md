@@ -47,6 +47,8 @@ nub run test                               # 8 essential behavior files
 ## Conventions
 
 - Match surrounding code style; keep changes additive and well-typed.
+- Never add thick focus frames or glows to message inputs or dropdowns. Follow
+  the quiet focus treatment in `docs/engineering/doolittle-interface-design.md`.
 - Prompt construction for Doolittle-owned model calls goes through the shared
   prompt-cache layer (`runtime/prompt-cache`), never ad hoc.
 - Add or update tests alongside changes.

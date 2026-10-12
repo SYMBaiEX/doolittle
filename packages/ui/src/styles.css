@@ -33,10 +33,10 @@
 .dl-field:focus-visible {
   outline: none;
   outline-width: 0;
-  box-shadow: none;
+  box-shadow: inset 1px 0 0 var(--text-soft);
 }
 .dl-field:focus-visible:not([aria-invalid="true"]) {
-  border-color: var(--text-soft);
+  border-color: var(--text);
 }
 .dl-field[aria-invalid="true"]:focus-visible {
   box-shadow: inset 1px 0 0 var(--text-soft);
@@ -1024,6 +1024,7 @@
   .dl-field:focus-visible {
     outline: 1px solid Highlight;
     outline-offset: 0;
+    box-shadow: none;
   }
   .dl-field[aria-invalid="true"]:focus-visible {
     box-shadow: none;

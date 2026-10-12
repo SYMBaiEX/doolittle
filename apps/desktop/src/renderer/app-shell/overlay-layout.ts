@@ -14,7 +14,7 @@ export const COMMAND_PALETTE_CLOSE_CLASS =
 export const COMMAND_PALETTE_LABEL_CLASS =
   "command-palette__label block px-2.5 pt-1 pb-2";
 export const COMMAND_PALETTE_SEARCH_SHELL_CLASS =
-  "command-palette__search-shell relative block rounded-[var(--radius-xs)] border border-[var(--border)] bg-[var(--surface)] transition-[border-color] duration-150 focus-within:border-[var(--text-soft)]";
+  "command-palette__search-shell relative block rounded-[var(--radius-xs)] border border-[var(--border)] bg-[var(--surface)] transition-[border-color] duration-150 focus-within:border-[var(--text)] focus-within:shadow-[inset_1px_0_0_var(--text-soft)] forced-colors:focus-within:shadow-none";
 export const COMMAND_PALETTE_SEARCH_ICON_CLASS =
   "command-palette__search-icon pointer-events-none absolute top-1/2 left-4.25 -translate-y-1/2 font-[var(--font-mono)] text-sm text-[var(--muted)]";
 export const COMMAND_PALETTE_SEARCH_CLASS =

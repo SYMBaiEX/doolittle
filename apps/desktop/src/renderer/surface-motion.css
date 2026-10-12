@@ -22,8 +22,8 @@ button:is(
 ):focus-visible {
   outline: none;
   outline-width: 0;
-  box-shadow: none;
-  border-color: var(--text-soft);
+  box-shadow: inset 1px 0 0 var(--text-soft);
+  border-color: var(--text);
   background-color: var(--surface-hover);
 }
 .desktop-shell .dl-field[aria-invalid="true"]:focus-visible {
@@ -47,6 +47,7 @@ button:is(
     ):not([type="color"]):focus-visible {
     outline: 1px solid Highlight;
     outline-offset: 0;
+    box-shadow: none;
   }
   .desktop-shell .dl-field[aria-invalid="true"]:focus-visible {
     box-shadow: none;
