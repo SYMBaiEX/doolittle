@@ -122,11 +122,22 @@ describe("shared view primitives", () => {
     expect(css).toContain(
       "input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]):not([type=color])",
     );
-    expect(css).toContain("input:focus-visible");
-    expect(VIEW_PRIMITIVES_CLASS).toContain(
+    expect(css).toContain("focus-visible");
+    for (const element of ["textarea", "select"]) {
+      expect(VIEW_PRIMITIVES_CLASS).toContain(
+        `[&_${element}:focus-visible]:outline-none`,
+      );
+      expect(VIEW_PRIMITIVES_CLASS).not.toContain(
+        `[&_${element}:focus-visible]:outline-2`,
+      );
+    }
+    expect(VIEW_PRIMITIVES_CLASS).not.toContain(
+      "[&_input:focus-visible]:outline-2",
+    );
+    expect(VIEW_PRIMITIVES_CLASS).not.toContain(
       "[&_textarea:focus-visible]:outline-[var(--accent-text)]",
     );
-    for (const element of ["button", "a", "select", "input"]) {
+    for (const element of ["button", "a"]) {
       expect(VIEW_PRIMITIVES_CLASS).toContain(
         `[&_${element}:focus-visible]:outline-[var(--focus-ring)]`,
       );

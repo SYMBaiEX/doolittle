@@ -33,8 +33,11 @@ const standardControlClass =
 const focusControlClass =
   "dl-control rounded-[var(--radius-md)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] transition-[background-color,border-color,color,box-shadow] duration-150 ease-[var(--ease-out)] motion-reduce:transition-none disabled:cursor-not-allowed";
 
+const fieldFocusControlClass =
+  "dl-control rounded-[var(--radius-md)] transition-[background-color,border-color,color] duration-150 ease-[var(--ease-out)] motion-reduce:transition-none disabled:cursor-not-allowed";
+
 const fieldControlClass =
-  "dl-field border-[var(--border-strong)] bg-[var(--surface-raised)] text-[var(--text)] placeholder:text-[var(--muted)] focus-visible:border-[var(--focus-ring)] aria-invalid:border-[var(--bad)]";
+  "dl-field border-[var(--border-strong)] bg-[var(--surface-raised)] text-[var(--text)] placeholder:text-[var(--muted)] aria-invalid:border-[var(--bad)]";
 
 // Text entry needs room to compose; do not collapse it to a one-line control.
 const textareaControlClass =
@@ -77,7 +80,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
         {...props}
         aria-invalid={props["aria-invalid"] ?? (hasError || undefined)}
         className={cn(
-          focusControlClass,
+          fieldFocusControlClass,
           fieldControlClass,
           standard ? standardControlClass : undefined,
           hasError && "border-[var(--bad)] bg-[var(--bad-soft)]",
@@ -98,7 +101,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
       {...props}
       aria-invalid={props["aria-invalid"] ?? (hasError || undefined)}
       className={cn(
-        focusControlClass,
+        fieldFocusControlClass,
         fieldControlClass,
         density === undefined || density === "default"
           ? textareaControlClass
@@ -122,7 +125,7 @@ export const NativeSelect = forwardRef<
   <select
     {...props}
     className={cn(
-      focusControlClass,
+      fieldFocusControlClass,
       fieldControlClass,
       standardControlClass,
       "border px-2",
@@ -140,7 +143,7 @@ export const SelectTrigger = forwardRef<
   <ElizaSelectTrigger
     {...props}
     className={cn(
-      focusControlClass,
+      fieldFocusControlClass,
       fieldControlClass,
       standardControlClass,
       className,

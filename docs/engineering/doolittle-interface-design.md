@@ -70,6 +70,10 @@ reduced transparency and forced colors have static/readable alternatives.
   the lower spacer yields first. Exceptional notices remain scroll-reachable.
   Short-mode controls follow the actual pane height, including vertical splits
   inside a tall window, rather than only the window height.
+  Bot-interview inputs follow the same quiet treatment. Text fields and dropdown
+  triggers must not add an orange outline, glow or thick focus frame. Their
+  existing single-pixel edge or small neutral control background indicates
+  keyboard focus; validation colors and OS forced-color focus remain intact.
   Context pressure is disclosed when warning/error thresholds matter, not as a
   permanent zero-usage meter. Full context remains available in Details.
   The project picker uses the SDK's portaled collision placement, with a

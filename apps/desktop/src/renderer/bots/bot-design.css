@@ -52,9 +52,7 @@
   font-size: 14px;
 }
 .new-chat-search:focus-within {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: -2px;
-  border-radius: 10px;
+  border-bottom-color: var(--text-soft);
 }
 .new-chat-bots {
   min-height: 0;
@@ -293,7 +291,12 @@
   padding: 4px 0;
 }
 .bot-design-dock textarea:focus-visible {
-  outline-offset: 2px;
+  outline: none;
+  outline-width: 0;
+  box-shadow: none;
+}
+.bot-design-dock form:focus-within {
+  border-color: var(--text-soft);
 }
 .bot-design-back {
   display: inline-flex;
@@ -311,11 +314,16 @@
   font-size: 14px;
 }
 .new-chat-chooser button:focus-visible,
-.bot-design-conversation button:focus-visible,
-.bot-design-conversation input:focus-visible,
-.bot-design-conversation textarea:focus-visible {
+.bot-design-conversation button:focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
+}
+.bot-design-question-block input:not([type="checkbox"]):focus-visible,
+.bot-design-question-block textarea:focus-visible {
+  outline: none;
+  outline-width: 0;
+  box-shadow: none;
+  border-color: var(--text-soft);
 }
 .bot-design-conversation button:disabled {
   opacity: 0.5;
@@ -369,6 +377,13 @@
   }
 }
 @media (forced-colors: active) {
+  .bot-design-dock textarea:focus-visible,
+  .bot-design-question-block input:not([type="checkbox"]):focus-visible,
+  .bot-design-question-block textarea:focus-visible,
+  .new-chat-search input:focus-visible {
+    outline: 1px solid Highlight;
+    outline-offset: 0;
+  }
   .new-chat-chooser,
   .bot-design-answer,
   .bot-design-primary,

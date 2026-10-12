@@ -36,7 +36,7 @@ describe("Doolittle Eliza control density adapter", () => {
     );
   });
 
-  it("uses one visible keyboard focus ring for standalone SDK controls", () => {
+  it("keeps button focus separate from quiet field focus", () => {
     const markup = renderToStaticMarkup(
       <>
         <Button>Save</Button>
@@ -46,7 +46,7 @@ describe("Doolittle Eliza control density adapter", () => {
     );
     expect(
       markup.match(/focus-visible:outline-\[var\(--focus-ring\)\]/gu),
-    ).toHaveLength(3);
+    ).toHaveLength(1);
     expect(markup).toContain("motion-reduce:transition-none");
     expect(markup).toContain(
       "transition-[background-color,border-color,color,box-shadow]",

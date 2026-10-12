@@ -350,6 +350,63 @@ test.describe("Doolittle desktop session workbench", () => {
       await chooser.getByRole("button", { name: /Create a new bot/u }).click();
       const creation = page.getByRole("region", { name: "Create a new bot" });
       await expect(creation).toBeVisible();
+      const answerInput = creation.locator(".bot-design-dock textarea");
+      await expect(answerInput).toBeFocused();
+      const answerForm = creation.locator(".bot-design-dock form");
+      await creation
+        .getByRole("button", { name: "Cancel bot creation" })
+        .focus();
+      const unfocusedEdge = await answerForm.evaluate(
+        (form) => getComputedStyle(form).borderTopColor,
+      );
+      await page.keyboard.press("Tab");
+      await answerInput.focus();
+      await expect
+        .poll(() =>
+          answerInput.evaluate((input) => input.matches(":focus-visible")),
+        )
+        .toBe(true);
+      await expect
+        .poll(() =>
+          answerForm.evaluate((form) => getComputedStyle(form).borderTopColor),
+        )
+        .not.toBe(unfocusedEdge);
+      await expect
+        .poll(() =>
+          answerInput.evaluate((input) => {
+            const style = getComputedStyle(input);
+            return {
+              outline: style.outlineStyle,
+              width: style.outlineWidth,
+              shadow: style.boxShadow,
+              border: style.borderWidth,
+            };
+          }),
+        )
+        .toEqual({
+          outline: "none",
+          width: "0px",
+          shadow: "none",
+          border: "0px",
+        });
+      expect(
+        await creation
+          .locator(".bot-design-dock form")
+          .evaluate((form) => getComputedStyle(form).borderTopWidth),
+      ).toBe("1px");
+      await page.emulateMedia({
+        forcedColors: "active",
+        reducedMotion: "reduce",
+      });
+      await expect
+        .poll(() =>
+          answerInput.evaluate((input) => getComputedStyle(input).outlineWidth),
+        )
+        .toBe("1px");
+      await page.emulateMedia({
+        forcedColors: "none",
+        reducedMotion: "reduce",
+      });
       const answers = [
         "Summarize local research notes with citations.",
         "Be concise, verify claims, and ask before changing files.",
@@ -682,14 +739,88 @@ test.describe("Doolittle desktop session workbench", () => {
         focusStyle.borderWidth,
         "composer has a quiet single-pixel edge",
       ).toBeLessThanOrEqual(1);
-      await first
-        .getByRole("button", { name: /^Choose model\. Current route/ })
-        .click();
+      const modelTrigger = first.getByRole("button", {
+        name: /^Choose model\. Current route/,
+      });
+      const unfocusedModelEdge = await modelTrigger.evaluate(
+        (button) => getComputedStyle(button).borderTopColor,
+      );
+      await page.keyboard.press("Tab");
+      await modelTrigger.focus();
+      await expect
+        .poll(() =>
+          modelTrigger.evaluate((button) => button.matches(":focus-visible")),
+        )
+        .toBe(true);
+      await expect
+        .poll(() =>
+          modelTrigger.evaluate(
+            (button) => getComputedStyle(button).borderTopColor,
+          ),
+        )
+        .not.toBe(unfocusedModelEdge);
+      await expect
+        .poll(() =>
+          modelTrigger.evaluate((button) => {
+            const style = getComputedStyle(button);
+            return { outline: style.outlineStyle, shadow: style.boxShadow };
+          }),
+        )
+        .toEqual({ outline: "none", shadow: "none" });
+      await modelTrigger.click();
       await expectHitTarget(
         page
           .getByRole("dialog", { name: "Choose provider and model" })
           .getByLabel("Search models"),
       );
+      const modelSearch = page
+        .getByRole("dialog", { name: "Choose provider and model" })
+        .getByLabel("Search models");
+      // A CSS paint fixture exercises shared invalid-field focus without
+      // inventing a validation error on the SDK's borderless model search.
+      await modelSearch.evaluate((input) => {
+        const field = document.createElement("input");
+        field.id = "invalid-shared-focus-fixture";
+        field.className = "dl-field";
+        field.setAttribute("aria-label", "Invalid shared field focus fixture");
+        field.setAttribute("aria-invalid", "true");
+        field.style.borderWidth = "1px";
+        field.style.borderStyle = "solid";
+        input.closest('[role="dialog"]')?.appendChild(field);
+      });
+      const invalidField = page.getByRole("textbox", {
+        name: "Invalid shared field focus fixture",
+      });
+      const invalidEdge = await invalidField.evaluate(
+        (input) => getComputedStyle(input).borderTopColor,
+      );
+      await page.keyboard.press("Tab");
+      await invalidField.focus();
+      await expect
+        .poll(() =>
+          invalidField.evaluate((input) => input.matches(":focus-visible")),
+        )
+        .toBe(true);
+      await expect
+        .poll(() =>
+          invalidField.evaluate((input) => getComputedStyle(input).boxShadow),
+        )
+        .toContain("inset");
+      expect(
+        await invalidField.evaluate(
+          (input) => getComputedStyle(input).borderTopColor,
+        ),
+      ).toBe(invalidEdge);
+      await page.emulateMedia({ forcedColors: "active" });
+      await expect
+        .poll(() =>
+          invalidField.evaluate(
+            (input) => getComputedStyle(input).outlineWidth,
+          ),
+        )
+        .toBe("1px");
+      await page.emulateMedia({ forcedColors: "none" });
+      await invalidField.evaluate((input) => input.remove());
       await page.keyboard.press("Escape");
       await expectCentered(first);
       await expect

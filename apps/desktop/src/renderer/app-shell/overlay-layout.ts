@@ -14,7 +14,7 @@ export const COMMAND_PALETTE_CLOSE_CLASS =
 export const COMMAND_PALETTE_LABEL_CLASS =
   "command-palette__label block px-2.5 pt-1 pb-2";
 export const COMMAND_PALETTE_SEARCH_SHELL_CLASS =
-  "command-palette__search-shell relative block rounded-[var(--radius-xs)] border border-[var(--border)] bg-[var(--surface)] transition-[border-color,box-shadow] duration-150 focus-within:border-[var(--accent-border)] focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-[var(--focus-ring)]";
+  "command-palette__search-shell relative block rounded-[var(--radius-xs)] border border-[var(--border)] bg-[var(--surface)] transition-[border-color] duration-150 focus-within:border-[var(--text-soft)]";
 export const COMMAND_PALETTE_SEARCH_ICON_CLASS =
   "command-palette__search-icon pointer-events-none absolute top-1/2 left-4.25 -translate-y-1/2 font-[var(--font-mono)] text-sm text-[var(--muted)]";
 export const COMMAND_PALETTE_SEARCH_CLASS =
@@ -68,7 +68,7 @@ export const ROUTE_PROVIDER_READINESS_TONE = {
   bad: "bad bg-[color-mix(in_srgb,var(--bad)_14%,transparent)] text-[var(--bad)]",
 } as const;
 export const ROUTE_FIELD_GRID_CLASS =
-  "field-grid grid grid-cols-2 gap-3 max-[760px]:grid-cols-1 [&_label]:grid [&_label]:gap-1.5 [&_label>span]:font-[var(--font-mono)] [&_label>span]:text-[length:var(--text-meta)] [&_label>span]:text-[var(--muted)] [&_label>span]:uppercase [&_input]:h-9 [&_input]:w-full [&_input]:rounded-[var(--radius-xs)] [&_input]:border [&_input]:border-[var(--border)] [&_input]:bg-[var(--surface)] [&_input]:px-2.5 [&_input]:text-[var(--text)] [&_input]:outline-none [&_input]:focus-visible:border-[var(--accent-border)] [&_input]:focus-visible:ring-2 [&_input]:focus-visible:ring-[var(--focus-ring)]";
+  "field-grid grid grid-cols-2 gap-3 max-[760px]:grid-cols-1 [&_label]:grid [&_label]:gap-1.5 [&_label>span]:font-[var(--font-mono)] [&_label>span]:text-[length:var(--text-meta)] [&_label>span]:text-[var(--muted)] [&_label>span]:uppercase [&_input]:h-9 [&_input]:w-full [&_input]:rounded-[var(--radius-xs)] [&_input]:border [&_input]:border-[var(--border)] [&_input]:bg-[var(--surface)] [&_input]:px-2.5 [&_input]:text-[var(--text)] [&_input]:outline-none [&_input]:focus-visible:border-[var(--text-soft)]";
 export const ROUTE_FIELD_SPAN_CLASS =
   "field-span col-span-2 max-[760px]:col-span-1";
 export const ROUTE_DIALOG_ACTIONS_CLASS =
