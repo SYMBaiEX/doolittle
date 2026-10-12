@@ -3366,7 +3366,10 @@ test.describe("Doolittle desktop session workbench", () => {
 
       await startFixture(firstPanel, "running");
       const firstReceipt = firstPanel.locator(".chat-run-receipt").last();
-      await expect(firstReceipt).toContainText("Doolittle is working");
+      await expect(firstReceipt).toContainText(
+        /Doolittle is (?:still )?working/u,
+      );
+      await expect(firstReceipt).toHaveAttribute("data-pending", "true");
       await expect(
         firstPanel.locator(".chat-message.assistant").last(),
       ).toContainText(
@@ -3387,7 +3390,10 @@ test.describe("Doolittle desktop session workbench", () => {
       await startFixture(secondPanel, "waiting");
       const secondReceipt = secondPanel.locator(".chat-run-receipt").last();
       await expect(secondReceipt).toContainText("Approval needed");
-      await expect(firstReceipt).toContainText("Doolittle is working");
+      await expect(firstReceipt).toContainText(
+        /Doolittle is (?:still )?working/u,
+      );
+      await expect(firstReceipt).toHaveAttribute("data-pending", "true");
 
       await firstPanel.getByRole("button", { name: "Stop response" }).click();
       await expect(
