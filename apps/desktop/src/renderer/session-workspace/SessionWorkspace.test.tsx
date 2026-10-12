@@ -130,7 +130,13 @@ vi.mock("../chat/ChatTranscript", () => ({
   ChatTranscript: (props: ChatTranscriptProps) => (
     <div role="log">
       {props.messages.map((message) => (
-        <p key={message.id}>{message.content}</p>
+        <p
+          data-message-id={message.id}
+          data-pending={message.pending ? "true" : "false"}
+          key={message.id}
+        >
+          {message.content}
+        </p>
       ))}
       <div ref={props.endRef} />
     </div>
@@ -987,6 +993,269 @@ describe("shared session workbench behavior", () => {
     expect(start.mock.calls, panel("a").textContent ?? "").toHaveLength(1);
     expect(start.mock.calls[0]?.[0].roomId).toBe("a");
     expect(panel("a").querySelector("textarea")?.value).toBe("Retained draft");
+  });
+
+  it("releases a hydrated claim after Stop confirms a terminal receipt without a stream event", async () => {
+    const run = {
+      runId: "hydrated-a",
+      sessionId: "a",
+      botId: namedBot.id,
+      source: "desktop",
+      status: "thinking",
+      localMutations: [],
+      startedAt: "2026-10-03T00:00:00.000Z",
+    };
+    request.mockImplementation(async (path: string) =>
+      path === "/chat/runs/hydrated-a"
+        ? { run: { ...run, status: "cancelled" } }
+        : path.startsWith("/chat/runs?")
+          ? { runs: [run] }
+          : { messages: [] },
+    );
+    await render({
+      bots: [namedBot],
+      botIdForSession: () => namedBot.id,
+      defaultBotId: namedBot.id,
+    });
+    await draft("a", "Retained draft");
+    expect(panel("a").textContent).toContain("Stop test");
+
+    await click(panel("a"), "Stop test");
+
+    expect(cancel).toHaveBeenCalledExactlyOnceWith("hydrated-a", namedBot.id);
+    expect(request).toHaveBeenCalledWith(
+      "/chat/runs/hydrated-a",
+      "GET",
+      undefined,
+      undefined,
+      undefined,
+      namedBot.id,
+    );
+    expect(panel("a").textContent).not.toContain("Stop test");
+    expect(
+      panel("a")
+        .querySelector('[data-message-id="assistant:hydrated-a"]')
+        ?.getAttribute("data-pending"),
+    ).toBe("false");
+    await click(panel("a"), "Send test");
+    expect(start).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    ["nonterminal", { status: "thinking" }],
+    ["wrong bot", { status: "cancelled", botId: "other-bot" }],
+    ["wrong run", { status: "cancelled", runId: "old-run" }],
+  ])(
+    "retains a hydrated claim after %s Stop reconciliation",
+    async (_label, change) => {
+      const run = {
+        runId: "hydrated-a",
+        sessionId: "a",
+        botId: namedBot.id,
+        source: "desktop",
+        status: "thinking",
+        localMutations: [],
+        startedAt: "2026-10-03T00:00:00.000Z",
+      };
+      request.mockImplementation(async (path: string) =>
+        path === "/chat/runs/hydrated-a"
+          ? { run: { ...run, ...change } }
+          : path.startsWith("/chat/runs?")
+            ? { runs: [run] }
+            : { messages: [] },
+      );
+      await render({
+        bots: [namedBot],
+        botIdForSession: () => namedBot.id,
+        defaultBotId: namedBot.id,
+      });
+      await draft("a", "Retained draft");
+
+      await click(panel("a"), "Stop test");
+
+      expect(panel("a").textContent).toContain("Stop test");
+      await click(panel("a"), "Send test");
+      expect(start).not.toHaveBeenCalled();
+      await emit({ requestId: "hydrated-a", event: "cancelled", data: null });
+    },
+  );
+
+  it("retains a hydrated claim when Stop itself is unconfirmed", async () => {
+    const run = {
+      runId: "hydrated-a",
+      sessionId: "a",
+      botId: namedBot.id,
+      source: "desktop",
+      status: "thinking",
+      localMutations: [],
+      startedAt: "2026-10-03T00:00:00.000Z",
+    };
+    request.mockImplementation(async (path: string) =>
+      path.startsWith("/chat/runs?") ? { runs: [run] } : { messages: [] },
+    );
+    cancel.mockRejectedValueOnce(new Error("Stop not confirmed"));
+    await render({
+      bots: [namedBot],
+      botIdForSession: () => namedBot.id,
+      defaultBotId: namedBot.id,
+    });
+    await draft("a", "Retained draft");
+
+    await click(panel("a"), "Stop test");
+    await click(panel("a"), "Send test");
+
+    expect(start).not.toHaveBeenCalled();
+    expect(panel("a").textContent).toContain("Stop test");
+    expect(
+      request.mock.calls.some(([path]) => path === "/chat/runs/hydrated-a"),
+    ).toBe(false);
+    await emit({ requestId: "hydrated-a", event: "cancelled", data: null });
+  });
+
+  it("does not release a rehydrated claim from an older deferred Stop receipt", async () => {
+    let resolveReceipt!: (value: { run: unknown }) => void;
+    const receipt = new Promise<{ run: unknown }>((resolve) => {
+      resolveReceipt = resolve;
+    });
+    const run = {
+      runId: "hydrated-a",
+      sessionId: "a",
+      botId: namedBot.id,
+      source: "desktop",
+      status: "thinking",
+      localMutations: [],
+      startedAt: "2026-10-03T00:00:00.000Z",
+    };
+    request.mockImplementation(async (path: string) =>
+      path === "/chat/runs/hydrated-a"
+        ? receipt
+        : path.startsWith("/chat/runs?")
+          ? { runs: [run] }
+          : { messages: [] },
+    );
+    const props = {
+      bots: [namedBot],
+      botIdForSession: () => namedBot.id,
+      defaultBotId: namedBot.id,
+    };
+    await render(props);
+    await draft("a", "Retained draft");
+    await click(panel("a"), "Stop test");
+    expect(
+      request.mock.calls.some(([path]) => path === "/chat/runs/hydrated-a"),
+    ).toBe(true);
+
+    await render({
+      ...props,
+      backend: { phase: "stopped", message: "Offline" },
+    });
+    await render(props);
+    await act(async () => {
+      resolveReceipt({ run: { ...run, status: "cancelled" } });
+      await receipt;
+    });
+
+    expect(panel("a").textContent).toContain("Stop test");
+    expect(
+      panel("a")
+        .querySelector('[data-message-id="assistant:hydrated-a"]')
+        ?.getAttribute("data-pending"),
+    ).toBe("true");
+    await click(panel("a"), "Send test");
+    expect(start).not.toHaveBeenCalled();
+    await emit({ requestId: "hydrated-a", event: "cancelled", data: null });
+  });
+
+  it("releases only the matching hydrated claim when later inventory confirms terminal status", async () => {
+    let status = "thinking";
+    const run = {
+      runId: "hydrated-a",
+      sessionId: "a",
+      botId: namedBot.id,
+      source: "desktop",
+      localMutations: [],
+      startedAt: "2026-10-03T00:00:00.000Z",
+    };
+    request.mockImplementation(async (path: string) =>
+      path.startsWith("/chat/runs?")
+        ? { runs: [{ ...run, status }] }
+        : { messages: [] },
+    );
+    const props = {
+      bots: [namedBot],
+      botIdForSession: () => namedBot.id,
+      defaultBotId: namedBot.id,
+    };
+    await render(props);
+    await draft("a", "Retained draft");
+    expect(panel("a").textContent).toContain("Stop test");
+
+    status = "cancelled";
+    await render({
+      ...props,
+      backend: { phase: "stopped", message: "Offline" },
+    });
+    await render(props);
+
+    expect(panel("a").textContent).not.toContain("Stop test");
+    expect(
+      panel("a")
+        .querySelector('[data-message-id="assistant:hydrated-a"]')
+        ?.getAttribute("data-pending"),
+    ).toBe("false");
+    await click(panel("a"), "Send test");
+    expect(start).toHaveBeenCalledOnce();
+  });
+
+  it("does not release the current hydrated claim for an older terminal run", async () => {
+    let includeOldReceipt = false;
+    const currentRun = {
+      runId: "hydrated-current",
+      sessionId: "a",
+      botId: namedBot.id,
+      source: "desktop",
+      status: "thinking",
+      localMutations: [],
+      startedAt: "2026-10-03T00:00:00.000Z",
+    };
+    request.mockImplementation(async (path: string) =>
+      path.startsWith("/chat/runs?")
+        ? {
+            runs: includeOldReceipt
+              ? [
+                  {
+                    ...currentRun,
+                    runId: "hydrated-old",
+                    status: "cancelled",
+                  },
+                  currentRun,
+                ]
+              : [currentRun],
+          }
+        : { messages: [] },
+    );
+    const props = {
+      bots: [namedBot],
+      botIdForSession: () => namedBot.id,
+      defaultBotId: namedBot.id,
+    };
+    await render(props);
+    await draft("a", "Retained draft");
+    includeOldReceipt = true;
+    await render({
+      ...props,
+      backend: { phase: "stopped", message: "Offline" },
+    });
+    await render(props);
+
+    expect(panel("a").textContent).toContain("Stop test");
+    await click(panel("a"), "Send test");
+    expect(start).not.toHaveBeenCalled();
+    await emit({
+      requestId: "hydrated-current",
+      event: "cancelled",
+      data: null,
+    });
   });
 
   it("opens a new independent panel immediately from the workspace toolbar", async () => {

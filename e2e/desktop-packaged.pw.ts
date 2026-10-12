@@ -336,11 +336,14 @@ test.describe("packaged Doolittle desktop", () => {
       );
       const chatTerminal = page.getByLabel("Chat terminal panel");
       await expect(chatTerminal).toBeVisible();
+      // Opening uses a bounded 20-second post-bootstrap reconciliation budget.
+      // Allow its receipt to settle; an unconfirmed result still fails this
+      // assertion, and the test never clicks the manual retry control.
       await expect(
         chatTerminal.getByRole("button", {
           name: "Interrupt foreground process",
         }),
-      ).toBeVisible({ timeout: 15_000 });
+      ).toBeVisible({ timeout: 25_000 });
       // The detailed mode label is hidden below the widest desktop breakpoint,
       // but the status text should still stay correct in the DOM.
       await expect(

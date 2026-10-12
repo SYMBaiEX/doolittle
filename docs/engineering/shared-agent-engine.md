@@ -33,6 +33,9 @@ Failed server cancellation keeps the stream and ownership claim available for
 retry rather than manufacturing a cancelled event. Existing stream recovery
 still reports unrecoverable stream failures as errors; a transport failure
 alone does not prove that provider work stopped.
+Recovered runs release a matching ownership claim only after a terminal run
+receipt is confirmed, including when the final stream event was lost. Cancelling
+a recovered run never activates a stopped worker.
 
 Opening a terminal from an unsaved conversation first binds that captured
 bot/session/project owner. A cancellable presentation intent prevents a late
@@ -43,6 +46,8 @@ identities instead of creating another shell; its bounded identity table never
 evicts an unexpired receipt to make room. Creation reconciliation is restricted
 to the same boot instance and current grants. Its 20-second HTTP budget follows
 initial worker activation, which retains the separate bootstrap limits above.
+Read-only identity probes make at most three attempts within that existing
+budget, retrying only known socket failures or timeouts and rechecking readiness.
 
 Terminal output carries the responding runtime's boot identity. Only a matching,
 authorized missing-session receipt proves absence; transport errors preserve

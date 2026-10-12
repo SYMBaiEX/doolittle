@@ -418,7 +418,10 @@ the entire fleet on selection or catalog polling. Native pending requests are
 bound before bootstrap so cancellation or a destroyed sender cannot dispatch
 later. In-flight submission cancellation is bounded and remains explicitly
 unconfirmed without a receipt; late acceptance honors the cancellation intent,
-and failed cancellation keeps ownership and retry available. Fresh follow-up
+and failed cancellation keeps ownership and retry available.
+Recovered runs reconcile terminal receipts when final stream delivery is lost,
+releasing only their matching current claim; receipt reads, subscriptions and
+cancellation do not reactivate stopped workers. Fresh follow-up
 source checks are supplemented by native packaged tests and delivery receipts
 in [PR39](https://github.com/SYMBaiEX/doolittle/pull/39); source checks alone are
 not proof of local installation or live provider capacity.

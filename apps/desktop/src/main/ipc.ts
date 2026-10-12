@@ -24,7 +24,10 @@ import {
   resolveEditorProjectContext,
   resolveEditorProjectRevision,
 } from "./editor-project-context";
-import { validateAgentTransportRequest } from "./ipc/agent-api-policy";
+import {
+  parseApiPath,
+  validateAgentTransportRequest,
+} from "./ipc/agent-api-policy";
 import { requestAgentTransport } from "./ipc/agent-transport";
 import {
   authorizeComputerRequest,
@@ -661,7 +664,23 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
         throw new Error("Named bots are unavailable.");
       }
       if (bots) await assertBotSessionRequest(bots, request, botId);
-      const targetBackend = bots ? await bots.backendFor(botId) : backend;
+      const pathname = new URL(
+        parseApiPath(request.path, request.method),
+        "http://localhost",
+      ).pathname;
+      const passiveRunRead =
+        request.method === "GET" &&
+        (pathname === "/chat/runs" || pathname.startsWith("/chat/runs/"));
+      const targetBackend = bots
+        ? passiveRunRead
+          ? bots.readyBackendFor(botId)
+          : await bots.backendFor(botId)
+        : backend;
+      if (!targetBackend) {
+        throw new Error(
+          "The local runtime is not live; run receipt is unavailable.",
+        );
+      }
       const controller = new AbortController();
       activeAgentRequests.set(key, { controller, botId });
       const cleanupDestroyedSender = () => {
@@ -1008,7 +1027,6 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
       }
       const { requestId } = unsafeRequest;
       const botId = targetBotId(unsafeRequest.botId);
-      const targetBackend = bots ? await bots.backendFor(botId) : backend;
       if (!bots && botId !== "default")
         throw new Error("Named bots are unavailable.");
       if (!/^[a-zA-Z0-9:_-]{1,128}$/u.test(requestId)) {
@@ -1021,6 +1039,12 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
         (typeof after !== "number" || !Number.isSafeInteger(after) || after < 0)
       ) {
         throw new Error("Chat run subscription cursor is invalid.");
+      }
+      const targetBackend = bots ? bots.readyBackendFor(botId) : backend;
+      if (!targetBackend) {
+        throw new Error(
+          "The local runtime is not live; run subscription is unavailable.",
+        );
       }
       const state = targetBackend.getState();
       if (state.phase !== "ready" || !state.url) {
@@ -1182,12 +1206,19 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
       }
       const cancelAcceptedRun = async () => {
         if (bots) await bots.assertRunOwner(botId, requestId);
-        const targetBackend = bots ? await bots.backendFor(botId) : backend;
+        const targetBackend = bots ? bots.readyBackendFor(botId) : backend;
         if (!bots && botId !== "default")
           throw new Error("Named bots are unavailable.");
+        if (!targetBackend) {
+          throw new Error(
+            "The local runtime is not live; cancellation is unconfirmed.",
+          );
+        }
         const state = targetBackend.getState();
         if (state.phase !== "ready" || !state.url) {
-          throw new Error("The local runtime is not ready.");
+          throw new Error(
+            "The local runtime is not live; cancellation is unconfirmed.",
+          );
         }
         // Request server-side cancellation before closing the renderer stream.
         // This reaches the provider/tool abort signal; aborting fetch alone is
