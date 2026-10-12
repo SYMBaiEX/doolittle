@@ -16,6 +16,7 @@ import {
   openNewConversationView,
   openWorkspaceViews,
   waitForDesktopReady,
+  waitForSessionRunInventory,
 } from "./support/doolittle-workbench-app";
 import {
   installSyntheticApprovalFixture,
@@ -77,6 +78,22 @@ async function splitOpenConversations(
 }
 
 async function expectComposerGeometry(panel: Locator): Promise<void> {
+  await expect
+    .poll(
+      () =>
+        panel.locator(".chat-composer").evaluate((composer) => {
+          const owner = composer.closest("[data-session-panel]");
+          if (!owner) return false;
+          const bounds = composer.getBoundingClientRect();
+          const panelBounds = owner.getBoundingClientRect();
+          return (
+            bounds.left >= panelBounds.left - 1 &&
+            bounds.right <= panelBounds.right + 1
+          );
+        }),
+      { timeout: 5_000 },
+    )
+    .toBe(true);
   const geometry = await panel
     .locator(".chat-composer")
     .evaluate((composer) => {
@@ -518,6 +535,7 @@ test.describe("Doolittle desktop session workbench", () => {
       await activePanel
         .getByRole("textbox", { name: "Message Doolittle" })
         .fill(syntheticChatPrompt("complete"));
+      await waitForSessionRunInventory(activePanel);
       await activePanel.getByRole("button", { name: "Send message" }).click();
       await expect(
         activePanel.getByRole("heading", { name: "Fixture notes" }),
@@ -628,14 +646,7 @@ test.describe("Doolittle desktop session workbench", () => {
           first.getByRole("button", { name: "Stop response", exact: true }),
         ).toHaveCount(0);
         await composer.fill(syntheticChatPrompt("complete"));
-        await expect(
-          first.getByText("Checking active runs before sending…", {
-            exact: true,
-          }),
-        ).toHaveCount(0);
-        await expect(
-          first.getByRole("button", { name: "Retry run list", exact: true }),
-        ).toHaveCount(0);
+        await waitForSessionRunInventory(first);
         await composer.press("Enter");
       }
       await composer.focus();
@@ -795,11 +806,6 @@ test.describe("Doolittle desktop session workbench", () => {
         .poll(async () => (await layout(second)).transcriptHeight)
         .toBeGreaterThanOrEqual(128);
       await expectComposerGeometry(second);
-      await expect(
-        second.getByText("Checking active runs before sending…", {
-          exact: true,
-        }),
-      ).toHaveCount(0);
       await page.screenshot({
         path: testInfo.outputPath("chat-new-360-short.png"),
         animations: "disabled",
@@ -3058,14 +3064,7 @@ test.describe("Doolittle desktop session workbench", () => {
         await composer.fill(syntheticChatPrompt(mode));
         // Run events refresh the owned inventory independently of response
         // cleanup. Respect the same readiness boundary as a real submission.
-        await expect(
-          panel.getByText("Checking active runs before sending…", {
-            exact: true,
-          }),
-        ).toHaveCount(0);
-        await expect(
-          panel.getByRole("button", { name: "Retry run list", exact: true }),
-        ).toHaveCount(0);
+        await waitForSessionRunInventory(panel);
         await composer.press("Enter");
         const userMessage = panel
           .locator(".chat-message.user")

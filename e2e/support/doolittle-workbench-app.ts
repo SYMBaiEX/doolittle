@@ -4,6 +4,7 @@ import { join, resolve } from "node:path";
 import {
   _electron as electron,
   expect,
+  type Locator,
   type Page,
   test,
 } from "@playwright/test";
@@ -252,6 +253,23 @@ export async function openNewConversationView(page: Page): Promise<void> {
       { timeout: 30_000 },
     )
     .toBe(true);
+}
+
+export async function waitForSessionRunInventory(
+  panel: Locator,
+): Promise<void> {
+  await expect(
+    panel.getByText("Checking active runs before sending…", { exact: true }),
+  ).toHaveCount(0, { timeout: 30_000 });
+  await expect(
+    panel.getByText(
+      "Active run recovery is unavailable. Retry before sending; your draft is retained.",
+      { exact: true },
+    ),
+  ).toHaveCount(0);
+  await expect(
+    panel.getByRole("button", { name: "Retry run list", exact: true }),
+  ).toHaveCount(0);
 }
 
 export async function closeFocusedConversationView(page: Page): Promise<void> {
