@@ -66,12 +66,15 @@ import {
   applyShellOverlayState,
   utilityReturnFocusTarget,
 } from "./app-shell/shell-overlay-state";
+import { BotCreationConversation } from "./bots/BotCreationConversation";
 import { BotCreationDialog } from "./bots/BotCreationDialog";
 import {
   latestBotSession,
   sessionBotId,
   visibleBots,
 } from "./bots/bot-selection";
+import { NewChatChooser } from "./bots/NewChatChooser";
+import { commitNewChatAfterNavigation } from "./bots/new-chat-transition";
 import {
   loadSessionBindings,
   loadSessionProjectBindings,
@@ -437,6 +440,17 @@ export function App() {
     [],
   );
   const [botCreationOpen, setBotCreationOpen] = useState(false);
+  const [botCreationDirty, setBotCreationDirty] = useState(false);
+  const [newChatOpen, setNewChatOpen] = useState(false);
+  const [newChatBusy, setNewChatBusy] = useState(false);
+  const [newChatError, setNewChatError] = useState("");
+  const newChatBusyRef = useRef(false);
+  const [newChatScope, setNewChatScope] = useState<ProjectScope>(projectScope);
+  const newChatTriggerRef = useRef<HTMLElement | null>(null);
+  const botCreationOriginRef = useRef({
+    workspacePath: "",
+    projectId: undefined as string | undefined,
+  });
   const [editingBot, setEditingBot] = useState<BotSummary | undefined>();
   const botCreationTriggerRef = useRef<HTMLElement | null>(null);
   const [appearance, setAppearance] = useState<DesktopAppearance>(
@@ -1056,20 +1070,21 @@ export function App() {
   );
 
   const createConversation = useCallback(() => {
-    if (!selectedBot?.id) return;
-    const id = newConversationId();
-    setLocalBotBindings((current) => ({ ...current, [id]: selectedBot.id }));
-    captureSessionProject(
-      id,
-      selectedBot.isDefault
-        ? projectScope === "all" || projectScope === "unscoped"
-          ? null
-          : projectScope
-        : (selectedBot.projectId ?? null),
-    );
-    setSelectedSession(id);
-    setView("chat");
-  }, [selectedBot, projectScope, captureSessionProject, setView]);
+    if (newChatBusyRef.current) return;
+    newChatTriggerRef.current =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+    setNewChatScope(projectScope);
+    setNewChatError("");
+    setNewChatOpen(true);
+  }, [projectScope]);
+
+  useEffect(() => {
+    window.addEventListener("doolittle:new-chat", createConversation);
+    return () =>
+      window.removeEventListener("doolittle:new-chat", createConversation);
+  }, [createConversation]);
 
   const toggleAppearance = useCallback(() => {
     const nextAppearance = resolvedAppearance === "dark" ? "light" : "dark";
@@ -1148,21 +1163,77 @@ export function App() {
     [sessions, transitionToProjectScope],
   );
 
-  const startConversation = useCallback(
-    (scope: ProjectScope) => {
+  const startConversation = useCallback((scope: ProjectScope) => {
+    if (newChatBusyRef.current) return;
+    newChatTriggerRef.current =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+    setNewChatScope(scope);
+    setNewChatError("");
+    setNewChatOpen(true);
+  }, []);
+
+  const chooseChatBot = useCallback(
+    async (botId: string) => {
+      if (newChatBusyRef.current) return;
+      if (
+        botCreationOpen &&
+        !confirmDirtyNavigation({
+          dirty: botCreationDirty,
+          confirm: () =>
+            window.confirm(
+              "Discard this unsaved bot design and start another chat?",
+            ),
+          discard: () => undefined,
+        })
+      )
+        return;
+      const bot = bots.find((entry) => entry.id === botId && !entry.archivedAt);
+      if (!bot) return;
       const id = newConversationId();
-      if (selectedBot?.id)
-        setLocalBotBindings((current) => ({
-          ...current,
-          [id]: selectedBot.id,
-        }));
-      transitionToProjectScope(
-        scope,
-        id,
-        projectNavigationTarget("new-conversation"),
-      );
+      const scope = bot.isDefault
+        ? newChatScope
+        : (bot.projectId ?? "unscoped");
+      newChatBusyRef.current = true;
+      setNewChatBusy(true);
+      setNewChatError("");
+      try {
+        await commitNewChatAfterNavigation(
+          () =>
+            transitionToProjectScope(
+              scope,
+              id,
+              projectNavigationTarget("new-conversation"),
+            ),
+          () => {
+            setNewChatOpen(false);
+            setBotCreationOpen(false);
+            setSelectedBotId(bot.id);
+            setLocalBotBindings((current) => ({ ...current, [id]: bot.id }));
+            captureSessionProject(
+              id,
+              scope === "all" || scope === "unscoped" ? null : scope,
+            );
+          },
+        );
+      } catch {
+        setNewChatError(
+          "This conversation could not be opened. Your current draft was kept. Try again.",
+        );
+      } finally {
+        newChatBusyRef.current = false;
+        setNewChatBusy(false);
+      }
     },
-    [selectedBot?.id, transitionToProjectScope],
+    [
+      bots,
+      newChatScope,
+      captureSessionProject,
+      transitionToProjectScope,
+      botCreationOpen,
+      botCreationDirty,
+    ],
   );
 
   const openBot = useCallback(
@@ -1198,16 +1269,38 @@ export function App() {
   );
 
   const openCreateBot = useCallback(() => {
-    botCreationTriggerRef.current =
-      document.activeElement instanceof HTMLElement
+    if (!setView("chat")) return;
+    if (botCreationOpen) {
+      setNewChatOpen(false);
+      return;
+    }
+    botCreationTriggerRef.current = newChatOpen
+      ? newChatTriggerRef.current
+      : document.activeElement instanceof HTMLElement
         ? document.activeElement
         : null;
+    botCreationOriginRef.current = {
+      workspacePath: workspace.currentPath,
+      projectId:
+        projectScope === "all" || projectScope === "unscoped"
+          ? undefined
+          : projectScope,
+    };
+    setNewChatOpen(false);
+    setBotCreationDirty(false);
     setBotCreationOpen(true);
-  }, []);
+  }, [
+    workspace.currentPath,
+    projectScope,
+    newChatOpen,
+    setView,
+    botCreationOpen,
+  ]);
 
   const onBotCreated = useCallback(
     (bot: BotSummary) => {
       setBotCreationOpen(false);
+      setBotCreationDirty(false);
       setPendingCreatedBot(bot);
       botResource.reload();
       setSelectedBotId(bot.id);
@@ -1942,7 +2035,7 @@ export function App() {
       computerOrigin={computerOrigin}
     />
   );
-  const chatRouteActive = renderedView === "chat";
+  const chatRouteActive = renderedView === "chat" && !botCreationOpen;
   // Chat owns the renderer-side stream subscription and request state. Keep
   // that owner mounted while Settings, Code, or another route is visible so a
   // route transition cannot turn ordinary navigation into an interrupted run.
@@ -2053,22 +2146,34 @@ export function App() {
           toasts={toasts}
         />
       </Suspense>
-      {botCreationOpen || editingBot ? (
+      {newChatOpen ? (
+        <NewChatChooser
+          bots={bots}
+          loading={botResource.status === "loading"}
+          busy={newChatBusy}
+          error={botResource.error}
+          transitionError={newChatError}
+          onChoose={(botId) => void chooseChatBot(botId)}
+          onCreate={openCreateBot}
+          onClose={() => {
+            if (!newChatBusyRef.current) setNewChatOpen(false);
+          }}
+          onRetry={botResource.reload}
+          returnFocusTarget={newChatTriggerRef.current}
+        />
+      ) : null}
+      {editingBot ? (
         <BotCreationDialog
-          key={editingBot?.id ?? "create"}
+          key={editingBot.id}
           editingBot={editingBot}
           onClose={() => {
             setBotCreationOpen(false);
             setEditingBot(undefined);
           }}
-          onCreated={
-            editingBot
-              ? () => {
-                  setEditingBot(undefined);
-                  void botResource.reload();
-                }
-              : onBotCreated
-          }
+          onCreated={() => {
+            setEditingBot(undefined);
+            void botResource.reload();
+          }}
           returnFocusTarget={botCreationTriggerRef.current}
           runtime={runtime}
           workspacePath={workspace.currentPath}
@@ -2147,10 +2252,12 @@ export function App() {
               <div className="flex min-w-0 items-baseline gap-2">
                 <strong className="shrink-0 truncate text-sm font-semibold text-[var(--text)]">
                   {renderedView === "chat"
-                    ? (selectedBot?.name ?? "Doolittle")
+                    ? botCreationOpen
+                      ? "Create a new bot"
+                      : (selectedBot?.name ?? "Doolittle")
                     : (activeItem?.label ?? "Doolittle")}
                 </strong>
-                {renderedView === "chat" ? (
+                {renderedView === "chat" && !botCreationOpen ? (
                   <span className="truncate text-sm text-[var(--muted)]">
                     {currentRouteLabel}
                   </span>
@@ -2160,7 +2267,7 @@ export function App() {
             <span aria-live="polite" className="sr-only">
               {`${currentRouteLabel} opened`}
             </span>
-            {renderedView === "chat" ? (
+            {renderedView === "chat" && !botCreationOpen ? (
               <div
                 aria-label="Conversation controls"
                 className={CHAT_CHROME_HOST_CLASS}
@@ -2194,6 +2301,28 @@ export function App() {
             onRestart={() => void restartRuntime()}
           />
         </Suspense>
+        {botCreationOpen ? (
+          <div
+            className={`${VIEW_CONTAINER_CLASS} ${VIEW_CONTAINER_WORKSPACE_CLASS}`}
+            hidden={renderedView !== "chat"}
+            inert={renderedView !== "chat"}
+            aria-hidden={renderedView !== "chat"}
+          >
+            <BotCreationConversation
+              onClose={() => {
+                setBotCreationOpen(false);
+                const trigger = botCreationTriggerRef.current;
+                if (trigger?.isConnected)
+                  requestAnimationFrame(() => trigger.focus());
+              }}
+              onCreated={onBotCreated}
+              onDirtyChange={setBotCreationDirty}
+              runtime={runtime}
+              workspacePath={botCreationOriginRef.current.workspacePath}
+              projectId={botCreationOriginRef.current.projectId}
+            />
+          </div>
+        ) : null}
         <div
           aria-hidden={!chatRouteActive}
           className={`${VIEW_CONTAINER_CLASS} view-${persistentChatView} ${VIEW_CONTAINER_WORKSPACE_CLASS}`}
@@ -2218,7 +2347,7 @@ export function App() {
             </Suspense>
           </DesktopRouteErrorBoundary>
         </div>
-        {!chatRouteActive ? (
+        {renderedView !== "chat" ? (
           <div
             className={`${VIEW_CONTAINER_CLASS} view-${view}${
               ["code", "orchestration"].includes(renderedView)

@@ -1,4 +1,8 @@
 /** Stable product ownership. Display names must never be used as runtime IDs. */
+
+export type { BotCharacterSheet } from "./bot-character";
+
+import type { BotCharacterSheet } from "./bot-character";
 export interface BotTarget {
   botId: string;
   sessionId?: string;
@@ -34,6 +38,8 @@ export interface BotDefinition {
   agentId: string;
   name: string;
   persona: string;
+  /** Canonical, bounded ElizaOS personality fields. Legacy bots may omit it. */
+  character?: BotCharacterSheet;
   /** A local avatar key, not an arbitrary remote or filesystem URL. */
   avatar?: string;
   model: BotModelRoute;
@@ -61,7 +67,8 @@ export interface BotCatalogResponse {
 
 export interface CreateBotInput {
   name: string;
-  persona: string;
+  persona?: string;
+  character?: BotCharacterSheet;
   avatar?: string;
   model?: BotModelRoute;
   permissions?: Partial<BotPermissions>;

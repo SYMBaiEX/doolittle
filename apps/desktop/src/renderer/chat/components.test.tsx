@@ -150,6 +150,7 @@ describe("chat presentation components", () => {
     const input = host.querySelector("textarea");
     expect(input?.disabled).toBe(false);
     expect(input?.placeholder).toContain("Jerry");
+    expect(host.textContent).toContain("Jerry stopped");
     expect(
       host.querySelector<HTMLButtonElement>('button[aria-label="Send message"]')
         ?.disabled,
@@ -213,9 +214,32 @@ describe("chat presentation components", () => {
     );
     const host = document.createElement("div");
     host.innerHTML = markup;
-    expect(host.textContent).toContain("Working");
+    expect(host.textContent).toContain("Doolittle waiting");
     expect(host.textContent).toContain("3 runtime tasks active");
     expect(host.textContent).toContain("2 runtime approvals");
+  });
+  it("names active specialist work without calling a waiting or errored bot working", () => {
+    const namedBot = {
+      id: "jerry",
+      name: "Jerry",
+      isDefault: false,
+      state: "busy",
+    };
+    const renderStatus = (state: string, pendingApprovals = 0) =>
+      renderToStaticMarkup(
+        <ChatComposer
+          {...composerProps({
+            bot: { ...namedBot, state } as never,
+            activeRequest: "run-session-1",
+            pendingApprovals,
+            backend: { phase: "ready", message: "" },
+          })}
+        />,
+      );
+    expect(renderStatus("busy")).toContain("Jerry working");
+    expect(renderStatus("waiting", 1)).toContain("Jerry waiting");
+    expect(renderStatus("error")).toContain("Jerry error");
+    expect(renderStatus("error")).not.toContain("Jerry working");
   });
   it("keeps two session composers' accessibility IDs and relationships independent", () => {
     const html = renderToStaticMarkup(
@@ -1205,6 +1229,38 @@ describe("chat presentation components", () => {
 
     expect(html).toContain('role="status"');
     expect(html).toContain("Doolittle is working");
+  });
+
+  it("names the working bot when a durable run receipt arrives before text", () => {
+    const update = runUpdate();
+    update.run.status = "thinking";
+    update.run.terminalReason = undefined;
+    const html = renderToStaticMarkup(
+      <ChatMessage
+        botName="Ada"
+        actions={null}
+        message={{
+          id: "named-pending",
+          role: "assistant",
+          content: "",
+          createdAt: "2026-10-12T05:00:00Z",
+          pending: true,
+        }}
+        receipt={{ latest: update, events: [update] }}
+      />,
+    );
+    expect(html).toContain("Ada is working");
+    expect(html).not.toContain("Doolittle is working");
+    update.run.status = "cancelled";
+    update.run.terminalReason = "cancelled";
+    const stopped = renderToStaticMarkup(
+      <RunReceiptView
+        botName="Ada"
+        pending={false}
+        receipt={{ latest: update, events: [update] }}
+      />,
+    );
+    expect(stopped).not.toContain("Ada is working");
   });
 
   it("labels working, terminal, and approval-required run receipts accurately", () => {

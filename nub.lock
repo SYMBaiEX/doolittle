@@ -488,6 +488,9 @@ importers:
 
   packages/contracts:
     dependencies:
+      '@elizaos/core':
+        specifier: 2.0.3-beta.7
+        version: 2.0.3-beta.7(patch_hash=7242104d352567e5494819604c53ef11b12ecb35e0aec410c0af09c4bc5b7864)(@electric-sql/pglite@0.5.8)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       zod:
         specifier: ^4.6.5
         version: 4.6.5

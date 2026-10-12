@@ -3,7 +3,7 @@
 import { act, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { ChatTranscript, type ChatTranscriptProps } from "./ChatTranscript";
 import { CompanionInspector, type InspectorTab } from "./CompanionInspector";
 import { Welcome } from "./Welcome";
@@ -89,16 +89,10 @@ describe("chat presentation depth", () => {
     expect(html).not.toContain("starter-index");
   });
 
-  it("keeps inspector selection text-only and arrow navigation roving", async () => {
+  it("uses a native inspector view selector without a persistent tab strip", async () => {
     const host = document.createElement("div");
     document.body.append(host);
     const root = createRoot(host);
-    const frame = vi
-      .spyOn(window, "requestAnimationFrame")
-      .mockImplementation((callback) => {
-        callback(0);
-        return 1;
-      });
     function Probe() {
       const [tab, setTab] = useState<InspectorTab>("details");
       return (
@@ -119,25 +113,21 @@ describe("chat presentation depth", () => {
     }
     try {
       await act(async () => root.render(<Probe />));
-      const tabs = Array.from(
-        host.querySelectorAll<HTMLButtonElement>('[role="tab"]'),
-      );
-      expect(tabs.filter((tab) => tab.tabIndex === 0)).toHaveLength(1);
-      expect(tabs[0]?.className).not.toMatch(
-        /aria-selected:(?:bg|border)|border-b-2/u,
-      );
-      tabs[0]?.focus();
-      await act(async () =>
-        tabs[0]?.dispatchEvent(
-          new KeyboardEvent("keydown", { bubbles: true, key: "ArrowRight" }),
-        ),
-      );
-      expect(tabs[1]?.getAttribute("aria-selected")).toBe("true");
-      expect(document.activeElement).toBe(tabs[1]);
-      expect(tabs[0]?.tabIndex).toBe(-1);
+      expect(host.querySelector('[role="tablist"]')).toBeNull();
+      const selector = host.querySelector<HTMLSelectElement>("select");
+      expect(selector?.value).toBe("details");
+      expect(selector?.labels?.[0]?.textContent).toBe("View");
+      await act(async () => {
+        if (!selector) return;
+        selector.value = "library";
+        selector.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+      expect(selector?.value).toBe("library");
+      expect(
+        host.querySelector('section[aria-label="Library"]'),
+      ).not.toBeNull();
     } finally {
       await act(async () => root.unmount());
-      frame.mockRestore();
       host.remove();
     }
   });

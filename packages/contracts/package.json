@@ -7,6 +7,7 @@
     ".": "./src/index.ts",
     "./browser": "./src/types/browser.ts",
     "./bots": "./src/bots.ts",
+    "./bot-character": "./src/bot-character.ts",
     "./engine": "./src/engine.ts",
     "./ui-host": "./src/ui-host.ts",
     "./theme": "./src/theme.ts",
@@ -15,6 +16,7 @@
     "./repository": "./src/repository.ts"
   },
   "dependencies": {
+    "@elizaos/core": "2.0.3-beta.7",
     "zod": "^4.6.5"
   }
 }

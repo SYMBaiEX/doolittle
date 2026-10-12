@@ -206,13 +206,6 @@ function errorFromResult(value: unknown): string | undefined {
   return stringValue(result.error);
 }
 
-function normalizeVisibleText(value: string): string {
-  return value
-    .replace(/[ \t]+\n/gu, "\n")
-    .replace(/\n{3,}/gu, "\n\n")
-    .trim();
-}
-
 function addToolCall(
   event: EmbeddedAgentEvent,
   tools: ToolActivity[],
@@ -317,6 +310,7 @@ export function parseAgentMessage(content: string): ParsedAgentMessage {
   const toolIndex = new Map<string, number>();
   const steps: AgentStepSummary = { continued: 0, finished: 0, failed: 0 };
   const visible: string[] = [];
+  let removedEvent = false;
   let cursor = 0;
   let match = EVENT_START.exec(content);
 
@@ -333,6 +327,7 @@ export function parseAgentMessage(content: string): ParsedAgentMessage {
     }
 
     visible.push(content.slice(cursor, start));
+    removedEvent = true;
     const event = range.value;
     if (event.type === "tool_call") {
       addToolCall(event, tools, toolIndex);
@@ -349,7 +344,9 @@ export function parseAgentMessage(content: string): ParsedAgentMessage {
   visible.push(content.slice(cursor));
   EVENT_START.lastIndex = 0;
   return {
-    text: normalizeVisibleText(visible.join("")),
+    // Do not reflow authored Markdown (including blank lines in code fences).
+    // Only trim the outer whitespace introduced when event JSON is removed.
+    text: removedEvent ? visible.join("").trim() : content,
     tools,
     steps,
   };

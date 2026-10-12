@@ -53,8 +53,13 @@ export function ChatHeaderChrome({
     {
       id: "new-conversation",
       label: "New conversation",
+      onSelect: () => window.dispatchEvent(new Event("doolittle:new-chat")),
+    },
+    {
+      id: "workspace-views",
+      label: "Workspace views",
       onSelect: () =>
-        window.dispatchEvent(new Event("doolittle:new-conversation-view")),
+        window.dispatchEvent(new Event("doolittle:workspace-views")),
     },
     {
       id: "history",

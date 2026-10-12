@@ -266,11 +266,13 @@ function RunDetail({ item }: { item: RunActivityItem }) {
 }
 
 export function RunReceiptView({
+  botName,
   pending,
   receipt,
   retryDisabled = false,
   onRetry,
 }: {
+  botName?: string;
   pending: boolean;
   receipt: RunReceipt;
   retryDisabled?: boolean;
@@ -364,7 +366,13 @@ export function RunReceiptView({
             aria-live={pending ? "polite" : undefined}
             className="shrink-0 text-[length:var(--text-control)] font-semibold text-[var(--text)]"
           >
-            {stalled ? "Still working" : state.label}
+            {stalled
+              ? botName
+                ? `${botName} is still working`
+                : "Still working"
+              : botName && state.statusLabel === "working"
+                ? `${botName} is working`
+                : state.label}
           </strong>
           {currentActivity === state.label ? null : (
             <small className="truncate text-[length:var(--text-meta)] text-[var(--muted)]">

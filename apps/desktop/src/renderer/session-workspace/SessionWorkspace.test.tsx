@@ -342,6 +342,7 @@ async function contextAction(label: string) {
 }
 
 beforeEach(() => {
+  delete document.documentElement.dataset.uiLayout;
   localStorage.clear();
   sessionStorage.clear();
   narrow.value = false;
@@ -392,6 +393,8 @@ describe("shared session workbench behavior", () => {
   it.each(["tabs", "split"])(
     "keeps late dictation in its original draft without stealing the active pane's focus in %s",
     async (mode) => {
+      if (mode === "split")
+        document.documentElement.dataset.uiLayout = "canvas";
       await render();
       await draft("a", "Original draft");
       await click(panel("a"), "Record test");
@@ -438,13 +441,35 @@ describe("shared session workbench behavior", () => {
   });
   it("keeps a single conversation free of duplicate workspace controls", async () => {
     await render();
-    expect(container.querySelector('[aria-label="Find session"]')).toBeNull();
-    expect(container.querySelector('[aria-label="New session"]')).toBeNull();
+    expect(
+      container.querySelector<HTMLDetailsElement>(".session-workspace-views")
+        ?.open,
+    ).toBe(false);
     expect(container.querySelector('[role="tablist"]')).toBeNull();
     await act(async () =>
       window.dispatchEvent(new Event("doolittle:new-conversation-view")),
     );
+    expect(
+      container.querySelector<HTMLDetailsElement>(".session-workspace-views")
+        ?.open,
+    ).toBe(false);
     expect(container.querySelector('[role="tablist"]')).not.toBeNull();
+    const returnFocus = required(panel("a").querySelector("textarea"));
+    returnFocus.focus();
+    await act(async () =>
+      window.dispatchEvent(new Event("doolittle:workspace-views")),
+    );
+    const views = required(
+      container.querySelector<HTMLDetailsElement>(".session-workspace-views"),
+    );
+    expect(views.open).toBe(true);
+    await act(async () => {
+      views.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, key: "Escape" }),
+      );
+    });
+    expect(views.open).toBe(false);
+    expect(document.activeElement).toBe(returnFocus);
   });
 
   it("keeps selected views text-led with full-title access and an explicit finder dismiss action", async () => {
@@ -465,6 +490,50 @@ describe("shared session workbench behavior", () => {
     expect(document.activeElement?.getAttribute("aria-label")).toBe(
       "Find session",
     );
+  });
+  it("keeps view navigation open until a conversation is committed", async () => {
+    await render();
+    await openB();
+    await act(async () =>
+      window.dispatchEvent(new Event("doolittle:workspace-views")),
+    );
+    const views = required(
+      container.querySelector<HTMLDetailsElement>(".session-workspace-views"),
+    );
+    const tabA = required(
+      container.querySelector<HTMLButtonElement>("#session-tab-a"),
+    );
+    const tabB = required(
+      container.querySelector<HTMLButtonElement>("#session-tab-b"),
+    );
+    tabB.focus();
+    await act(async () => {
+      tabB.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, key: "Home" }),
+      );
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    });
+    expect(views.open).toBe(true);
+    expect(tabA.getAttribute("aria-selected")).toBe("true");
+    expect(document.activeElement).toBe(tabA);
+    await act(async () => {
+      tabA.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, key: "End" }),
+      );
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    });
+    expect(views.open).toBe(true);
+    expect(tabB.getAttribute("aria-selected")).toBe("true");
+    expect(document.activeElement).toBe(tabB);
+    await act(async () => tabB.click());
+    expect(views.open).toBe(false);
+    await act(async () => {
+      await vi.waitFor(() =>
+        expect(document.activeElement).toBe(
+          panel("b").querySelector("textarea"),
+        ),
+      );
+    });
   });
   it("closes the targeted running view from its context menu without cancelling or losing its draft", async () => {
     await render();
@@ -506,6 +575,7 @@ describe("shared session workbench behavior", () => {
     expect(cancel).not.toHaveBeenCalled();
   });
   it("reuses split, move and divider reset commands without duplicating session identities", async () => {
+    document.documentElement.dataset.uiLayout = "canvas";
     await render();
     await openB();
     await contextMenu(
@@ -552,6 +622,33 @@ describe("shared session workbench behavior", () => {
     expect(start).not.toHaveBeenCalled();
     expect(cancel).not.toHaveBeenCalled();
   });
+  it("shows one Companion conversation while retaining the Canvas split tree", async () => {
+    document.documentElement.dataset.uiLayout = "canvas";
+    await render();
+    await openB();
+    await contextMenu(
+      required(container.querySelector<HTMLElement>("#session-tab-a")),
+    );
+    await contextAction("Split right with Session B");
+    expect(panel("a").hidden).toBe(false);
+    expect(panel("b").hidden).toBe(false);
+    const savedSplit = localStorage.getItem(SESSION_WORKSPACE_STORAGE_KEY);
+    await act(async () => {
+      delete document.documentElement.dataset.uiLayout;
+    });
+    expect(panel("a").hidden).toBe(false);
+    expect(panel("b").hidden).toBe(true);
+    expect(localStorage.getItem(SESSION_WORKSPACE_STORAGE_KEY)).toBe(
+      savedSplit,
+    );
+    await act(async () => {
+      document.documentElement.dataset.uiLayout = "canvas";
+    });
+    expect(panel("b").hidden).toBe(false);
+    expect(localStorage.getItem(SESSION_WORKSPACE_STORAGE_KEY)).toBe(
+      savedSplit,
+    );
+  });
   it("offers keyboard context actions on narrow tabs without changing the retained arrangement", async () => {
     await render();
     await openB();
@@ -584,6 +681,7 @@ describe("shared session workbench behavior", () => {
     expect(start).not.toHaveBeenCalled();
   });
   it("keeps a menu on an unfocused split pane open without treating portal focus as pane focus", async () => {
+    document.documentElement.dataset.uiLayout = "canvas";
     await render();
     await openB();
     await contextMenu(
@@ -653,6 +751,7 @@ describe("shared session workbench behavior", () => {
     expect(cancel).not.toHaveBeenCalled();
   });
   it("bounds mounts and shared-store subscriptions through 50 cycles while restoring an evicted draft and scroll position", async () => {
+    document.documentElement.dataset.uiLayout = "canvas";
     const read = ChatWorkspaceStore.prototype.read;
     const instrumented = new WeakSet<ChatWorkspaceStore>();
     let liveSubscriptions = 0;
@@ -720,6 +819,9 @@ describe("shared session workbench behavior", () => {
       );
       expect(panel("a").querySelector(".chat-workbench-pane")).not.toBeNull();
       await openB();
+      await act(async () =>
+        window.dispatchEvent(new CustomEvent("doolittle:toggle-inspector")),
+      );
       await act(async () =>
         window.dispatchEvent(new CustomEvent("doolittle:toggle-inspector")),
       );
@@ -1488,13 +1590,20 @@ describe("shared session workbench behavior", () => {
   });
 
   it("persists keyboard resize/order and switches to a deliberate roving tabbed narrow layout", async () => {
+    document.documentElement.dataset.uiLayout = "canvas";
     await render();
     await openB();
     await act(async () => {
-      required(container.querySelector<HTMLElement>("summary")).click();
+      required(
+        container.querySelector<HTMLElement>(
+          ".session-workspace-views details summary",
+        ),
+      ).click();
     });
     const layoutMenu = required(
-      container.querySelector<HTMLDetailsElement>("details"),
+      container.querySelector<HTMLDetailsElement>(
+        ".session-workspace-views details",
+      ),
     );
     layoutMenu.open = true;
     await click(container, "Split right");
@@ -1522,6 +1631,9 @@ describe("shared session workbench behavior", () => {
     await render();
     expect(container.querySelector('[role="tablist"]')).not.toBeNull();
     expect(container.querySelector("[data-session-resizer]")).toBeNull();
+    await act(async () =>
+      window.dispatchEvent(new Event("doolittle:workspace-views")),
+    );
     const current = required(
       container.querySelector<HTMLElement>(
         '[role="tab"][aria-selected="true"]',
@@ -1535,7 +1647,26 @@ describe("shared session workbench behavior", () => {
     expect(panel("a").hidden).toBe(true);
     expect(panel("b").hidden).toBe(false);
     expect(panel("a").querySelector("textarea")?.value).toBe("Narrow draft A");
-    expect(document.activeElement?.id).toBe("session-tab-b");
+    const destination = required(
+      container.querySelector<HTMLButtonElement>(
+        '[role="tab"][aria-selected="true"]',
+      ),
+    );
+    await act(async () => {
+      await vi.waitFor(() => expect(document.activeElement).toBe(destination));
+    });
+    expect(
+      container.querySelector<HTMLDetailsElement>(".session-workspace-views")
+        ?.open,
+    ).toBe(true);
+    await act(async () => destination.click());
+    await act(async () => {
+      await vi.waitFor(() =>
+        expect(document.activeElement).toBe(
+          panel("b").querySelector("textarea"),
+        ),
+      );
+    });
     const savedSplit = localStorage.getItem(SESSION_WORKSPACE_STORAGE_KEY);
     narrow.value = false;
     short.value = true;

@@ -106,7 +106,6 @@ import type { ChatPanelViewState } from "./session-workspace/panel-view-state";
 import { SessionWorkspace } from "./session-workspace/SessionWorkspace";
 import { sessionWorkspaceBinding } from "./session-workspace/session-workspace-binding";
 
-const INSPECTOR_STORAGE_KEY = "doolittle.desktop.chat-inspector-visible.v1";
 const RUN_CURSOR_STORAGE_KEY = "doolittle.desktop.chat-run-cursors.v1";
 const NARROW_WORKBENCH_QUERY = "(max-width: 720px)";
 const ATTACHMENT_ONLY_MESSAGE = "Review the attached files.";
@@ -241,15 +240,6 @@ function MobileConversationsDialogFallback({
       </div>
     </div>
   );
-}
-
-function loadInspectorVisibility(): boolean {
-  try {
-    const value = localStorage.getItem(INSPECTOR_STORAGE_KEY);
-    return value ? JSON.parse(value) === true : false;
-  } catch {
-    return false;
-  }
 }
 
 function eventText(data: unknown): string {
@@ -527,7 +517,7 @@ export function ChatSessionPanel({
     panelViewSnapshots.current[selectedId] = {
       scrollTop: 0,
       follow: true,
-      inspectorVisible: loadInspectorVisibility(),
+      inspectorVisible: false,
       unreadMessageIds: [],
       knownMessageIds: [],
     };
@@ -536,7 +526,7 @@ export function ChatSessionPanel({
     ? undefined
     : panelViewSnapshots.current[selectedId];
   const [inspectorVisible, setInspectorVisible] = useState(
-    () => savedView?.inspectorVisible ?? loadInspectorVisibility(),
+    () => savedView?.inspectorVisible ?? false,
   );
   const [inspectorTab, setInspectorTab] = useState<InspectorTab>("details");
   useEffect(() => {
@@ -913,14 +903,6 @@ export function ChatSessionPanel({
   }, [queuedMessages]);
 
   useEffect(() => {
-    safeSetStorageItem(
-      localStorage,
-      INSPECTOR_STORAGE_KEY,
-      JSON.stringify(inspectorVisible),
-    );
-  }, [inspectorVisible]);
-
-  useEffect(() => {
     if (!queueAnnouncement) return;
     const timeout = window.setTimeout(() => setQueueAnnouncement(""), 2_500);
     return () => window.clearTimeout(timeout);
@@ -1246,7 +1228,7 @@ export function ChatSessionPanel({
           eventText(event.data) ||
             (event.event === "attachment.warning"
               ? "Attachment cleanup needs attention. Your response is still running."
-              : "Doolittle is working…"),
+              : `${bots?.find((bot) => bot.id === resolveSessionBot(sessionId))?.name ?? "Doolittle"} is working…`),
         ),
       );
       return;
@@ -1594,7 +1576,7 @@ export function ChatSessionPanel({
       setSessionProgress(
         current,
         sessionId,
-        "Doolittle is considering the request…",
+        `${owner?.name ?? "Doolittle"} is considering the request…`,
       ),
     );
     setActiveRequests((current) => ({ ...current, [sessionId]: requestId }));

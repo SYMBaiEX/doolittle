@@ -26,10 +26,75 @@ describe("safeMessageUrl", () => {
     expect(
       safeMessageUrl("data:image/svg+xml;base64,PHN2Zz4=", "src", node),
     ).toBeNull();
+    expect(safeMessageUrl("https:missing-host", "src", node)).toBeNull();
+    expect(safeMessageUrl("#local-image", "src", node)).toBeNull();
   });
 });
 
 describe("MessageContent", () => {
+  it("keeps README Markdown blocks after centered HTML", () => {
+    const content = [
+      '<p align="center">',
+      '  <img src="apps/desktop/assets/icon.png" width="112" alt="Doolittle logo" />',
+      "</p>",
+      "",
+      '<h1 align="center">Doolittle</h1>',
+      "",
+      '<p align="center">',
+      "  <strong>An ElizaOS-native, local-first agent for terminal and desktop work.</strong><br />",
+      "  One runtime for conversational work.",
+      "</p>",
+      "",
+      '<p align="center">',
+      '  <a href="https://example.com"><img src="https://example.com/badge.svg" alt="Status" /></a>',
+      "</p>",
+      "",
+      "![Doolittle Desktop welcome screen](docs/assets/readme/desktop-home.png)",
+      "",
+      "> **Alpha software.** Be careful.",
+      "",
+      "## Why Doolittle",
+      "",
+      "- **Terminal first:** inspect the project.",
+      "- **Desktop:** view the result.",
+      "",
+      "| Goal | Command |",
+      "| --- | --- |",
+      "| Start | `doolittle` |",
+    ].join("\n");
+    for (const pending of [false, true]) {
+      const html = renderToStaticMarkup(
+        <MessageContent content={content} pending={pending} />,
+      );
+      expect(html).toContain("<blockquote");
+      expect(html).toContain("<h2");
+      expect(html).toContain("<ul");
+      expect(html).toContain("<table");
+      expect(html).not.toContain("![Doolittle Desktop");
+      expect(html).not.toContain("## Why Doolittle");
+    }
+  });
+
+  it("shows one clean fallback for blocked image sources", () => {
+    const html = renderToStaticMarkup(
+      <MessageContent content="![Doolittle Desktop welcome screen](docs/assets/readme/desktop-home.png)" />,
+    );
+    expect(html).toContain("[Image blocked: Doolittle Desktop welcome screen]");
+    expect(html).toContain("Doolittle Desktop welcome screen");
+    expect(html).not.toContain("<img");
+    expect(html).not.toContain("Image not available");
+  });
+
+  it("renders allowed remote images without duplicate fallback text", () => {
+    const html = renderToStaticMarkup(
+      <MessageContent content="![Status](https://example.com/status.svg)" />,
+    );
+    expect(html).toContain("<img");
+    expect(html).toContain('src="https://example.com/status.svg"');
+    expect(html).not.toContain("Image not available");
+    expect(html).not.toContain("data-message-image-unavailable");
+  });
+
   it("renders the chat Markdown vocabulary with semantic theme surfaces", () => {
     const html = renderToStaticMarkup(
       <MessageContent
