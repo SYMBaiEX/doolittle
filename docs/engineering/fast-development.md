@@ -39,6 +39,8 @@ across actual catalog polls. Package smoke covers preload, private scratch PTY
 and offline chat using the provenance-checking runner.
 
 Fixtures use private temporary profiles/workspaces and no host credentials.
+Native fixtures wait for the SDK's deferred initialization, not just API health;
+immediate project-chat responsiveness during cold hydration is not certified.
 Offline model-unavailable output is intentional, not paid-provider quality
 evidence. Cleanup retains fixture data if shutdown fails. These cases do not
 certify every plugin, live provider, external integration, container engine,
