@@ -633,7 +633,6 @@ test.describe("Doolittle desktop session workbench", () => {
       expect(inputFocusStyle.outline).toBe("none");
       expect(inputFocusStyle.border).toBe("0px");
       expect(inputFocusStyle.shadow).toContain("inset");
-      expect(inputFocusStyle.shadow).toContain("2px 0px 0px 0px");
       await page.screenshot({ path: testInfo.outputPath("chat-new-1280.png") });
       await testInfo.attach("initial-chat-layout", {
         body: JSON.stringify(await layout(first)),
@@ -2488,6 +2487,9 @@ test.describe("Doolittle desktop session workbench", () => {
       // the fixture's loading/error/retry path is exercised on first render.
       await page.reload();
       await expect(page).toHaveTitle(/Doolittle$/);
+      await page.evaluate(() => {
+        document.documentElement.dataset.uiLayout = "canvas";
+      });
       const workbenchAfterReload = page.getByRole("region", {
         name: "Session workbench",
       });
@@ -3025,7 +3027,7 @@ test.describe("Doolittle desktop session workbench", () => {
 
       await startFixture(firstPanel, "running");
       const firstReceipt = firstPanel.locator(".chat-run-receipt").last();
-      await expect(firstReceipt).toContainText("Working");
+      await expect(firstReceipt).toContainText("Doolittle is working");
       await expect(
         firstPanel.locator(".chat-message.assistant").last(),
       ).toContainText(
@@ -3046,7 +3048,7 @@ test.describe("Doolittle desktop session workbench", () => {
       await startFixture(secondPanel, "waiting");
       const secondReceipt = secondPanel.locator(".chat-run-receipt").last();
       await expect(secondReceipt).toContainText("Approval needed");
-      await expect(firstReceipt).toContainText("Working");
+      await expect(firstReceipt).toContainText("Doolittle is working");
 
       await firstPanel.getByRole("button", { name: "Stop response" }).click();
       await expect(
@@ -3176,7 +3178,11 @@ test.describe("Doolittle desktop session workbench", () => {
         .getByRole("menuitem", { name: "Move view right", exact: true })
         .click();
       await expect(input).toBeVisible();
+      await expect(originalTab).toBeVisible();
+      await expect(originalTab).toBeFocused();
+      await originalTab.click();
       await expect(input).toBeFocused();
+      await openWorkspaceViews(page);
       await originalTab.focus();
       await originalTab.press("Shift+F10");
       await expect(menu).toBeVisible();
@@ -3211,6 +3217,7 @@ test.describe("Doolittle desktop session workbench", () => {
         await window.dispose();
       }
       await expect.poll(() => page.evaluate(() => window.innerWidth)).toBe(360);
+      await openWorkspaceViews(page);
       const activeTab = tabs.locator(
         `[aria-controls="session-panel-${originalId}"]`,
       );

@@ -365,7 +365,7 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
         `[data-session-panel="${next.focusedId}"]`,
       );
       (
-        target ??
+        (target?.closest("[hidden], [inert]") ? null : target) ??
         panel?.querySelector<HTMLElement>("textarea") ??
         finderButtonRef.current
       )?.focus({ preventScroll: true });
@@ -437,9 +437,17 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
       const target = index + direction;
       if (index < 0 || target < 0 || target >= layout.openIds.length) return;
       setLayout((current) => moveWorkspaceSession(current, id, direction));
-      // Match activating the pane's ordinary Move button: the command's
-      // explicit target becomes the focused conversation, not an ambient pane.
-      focusSession(id, true);
+      const keepViews = viewsRef.current?.open === true;
+      focusSession(id, !keepViews, !keepViews);
+      if (keepViews) {
+        // Keep the moved view control reachable for another keyboard command.
+        // Activating its row enters the composer.
+        requestAnimationFrame(() =>
+          document
+            .getElementById(`session-tab-${id}`)
+            ?.focus({ preventScroll: true }),
+        );
+      }
     };
     return [
       {
