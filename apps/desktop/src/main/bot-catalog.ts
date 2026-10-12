@@ -11,6 +11,7 @@ import {
   DEFAULT_MODEL_ROUTE,
   type UpdateBotInput,
 } from "@doolittle/contracts";
+import { normalizeBotCharacter } from "@doolittle/contracts/bot-character";
 import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
 import type { BackendManager } from "./backend";
 
@@ -58,6 +59,39 @@ function personaText(value: unknown): string {
     throw new Error("Bot persona is invalid.");
   }
   return value.trim();
+}
+
+function botPersonality(
+  input: { persona?: string; character?: unknown },
+  name: string,
+  previous?: BotDefinition,
+): Pick<BotDefinition, "persona" | "character"> {
+  if (input.character !== undefined) {
+    const character = normalizeBotCharacter(input.character, name);
+    if (
+      input.persona !== undefined &&
+      personaText(input.persona) !== character.system
+    ) {
+      throw new Error("Bot persona conflicts with its character system.");
+    }
+    return { persona: character.system, character };
+  }
+  if (input.persona !== undefined) {
+    const persona = personaText(input.persona);
+    return {
+      persona,
+      character: normalizeBotCharacter(
+        {
+          ...(previous?.character ?? {}),
+          system: persona,
+        },
+        name,
+      ),
+    };
+  }
+  if (previous)
+    return { persona: previous.persona, character: previous.character };
+  throw new Error("Bot persona or character is required.");
 }
 
 function validateWorkspacePath(value: unknown): string {
@@ -148,8 +182,13 @@ function isStoredBotDefinition(value: unknown): value is BotDefinition {
   )
     return false;
   try {
-    requiredText(bot.name, "Bot name", MAX_NAME_LENGTH);
+    const name = requiredText(bot.name, "Bot name", MAX_NAME_LENGTH);
     personaText(bot.persona);
+    if (
+      bot.character !== undefined &&
+      normalizeBotCharacter(bot.character, name).system !== bot.persona
+    )
+      return false;
     const workspacePath = validateWorkspacePath(bot.workspacePath);
     if (workspacePath !== bot.workspacePath) return false;
     if (!bot.model || !bot.permissions) return false;
@@ -230,7 +269,16 @@ export class BotCatalog {
     ) {
       throw new Error("The bot catalog is invalid.");
     }
-    return value;
+    // Legacy records remain on disk as-is until an explicit catalog save.
+    return {
+      ...value,
+      bots: value.bots.map((bot) => ({
+        ...bot,
+        character:
+          bot.character ??
+          normalizeBotCharacter({ system: bot.persona }, bot.name),
+      })),
+    };
   }
 
   private save(): void {
@@ -289,7 +337,11 @@ export class BotCatalog {
   }
 
   get(id: string): BotDefinition | undefined {
-    return id === "default" || id === this.defaultBot().id
+    return id === "default" ||
+      id ===
+        (this.stored.defaultAgentId ??
+          this.defaultBackend.getState().agentId ??
+          LEGACY_AGENT_ID)
       ? this.defaultBot()
       : this.stored.bots.find((bot) => bot.id === id);
   }
@@ -310,7 +362,7 @@ export class BotCatalog {
 
   create(input: CreateBotInput): BotDefinition {
     const name = requiredText(input.name, "Bot name", MAX_NAME_LENGTH);
-    const persona = personaText(input.persona);
+    const personality = botPersonality(input, name);
     const workspacePath = validateWorkspacePath(
       input.workspacePath ?? this.defaultBackend.getWorkspaceDirectory(),
     );
@@ -319,7 +371,7 @@ export class BotCatalog {
       id: randomUUID(),
       agentId: randomUUID(),
       name,
-      persona,
+      ...personality,
       ...(input.avatar
         ? { avatar: requiredText(input.avatar, "Bot avatar", 80) }
         : {}),
@@ -361,11 +413,13 @@ export class BotCatalog {
       ...(input.name
         ? { name: requiredText(input.name, "Bot name", MAX_NAME_LENGTH) }
         : {}),
-      ...(input.persona
-        ? {
-            persona: personaText(input.persona),
-          }
-        : {}),
+      ...botPersonality(
+        input,
+        input.name
+          ? requiredText(input.name, "Bot name", MAX_NAME_LENGTH)
+          : existing.name,
+        existing,
+      ),
       ...(input.avatar
         ? { avatar: requiredText(input.avatar, "Bot avatar", 80) }
         : {}),

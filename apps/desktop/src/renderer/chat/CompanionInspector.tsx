@@ -1,7 +1,7 @@
 import type { BotSummary } from "@doolittle/contracts/bots";
 import { InspectorFrame, StateSurface } from "@doolittle/ui";
 import { X } from "lucide-react";
-import { lazy, Suspense, useId, useRef } from "react";
+import { lazy, Suspense, useId } from "react";
 import { BotActions } from "../bots/BotActions";
 import type { ThreadWorkbenchFullView } from "../components/ThreadWorkbenchRail";
 
@@ -11,7 +11,7 @@ const ThreadWorkbenchRail = lazy(async () => {
 });
 
 export type InspectorTab = "details" | "library" | "computer";
-const tabs: readonly InspectorTab[] = ["details", "library", "computer"];
+const views: readonly InspectorTab[] = ["details", "library", "computer"];
 
 export interface CompanionInspectorProps {
   active: boolean;
@@ -45,11 +45,6 @@ export function CompanionInspector({
   workspacePath,
 }: CompanionInspectorProps) {
   const id = useId();
-  const tabRefs = useRef<Record<InspectorTab, HTMLButtonElement | null>>({
-    details: null,
-    library: null,
-    computer: null,
-  });
   return (
     <InspectorFrame
       title="Conversation inspector"
@@ -66,55 +61,35 @@ export function CompanionInspector({
           <X aria-hidden size={16} />
         </button>
       </header>
-      <div
-        aria-label="Inspector views"
-        className="chat-inspector-tabs flex border-b border-[var(--border)] px-2"
-        role="tablist"
-      >
-        {tabs.map((item, index) => (
-          <button
-            aria-controls={`${id}-${item}`}
-            aria-selected={tab === item}
-            className="chat-inspector-tab min-h-10 flex-1 px-2 text-[length:var(--text-control)] text-[var(--text-soft)] hover:text-[var(--text)] aria-selected:font-semibold aria-selected:text-[var(--text)] focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)] max-[760px]:min-h-11"
-            id={`${id}-${item}-tab`}
-            key={item}
-            onClick={() => onTabChange(item)}
-            onKeyDown={(event) => {
-              const next =
-                event.key === "ArrowRight"
-                  ? (index + 1) % tabs.length
-                  : event.key === "ArrowLeft"
-                    ? (index - 1 + tabs.length) % tabs.length
-                    : event.key === "Home"
-                      ? 0
-                      : event.key === "End"
-                        ? tabs.length - 1
-                        : -1;
-              if (next < 0) return;
-              event.preventDefault();
-              const target = tabs[next];
-              if (target) {
-                onTabChange(target);
-                requestAnimationFrame(() => tabRefs.current[target]?.focus());
-              }
-            }}
-            ref={(node) => {
-              tabRefs.current[item] = node;
-            }}
-            role="tab"
-            tabIndex={tab === item ? 0 : -1}
-            type="button"
-          >
-            {item[0]?.toUpperCase()}
-            {item.slice(1)}
-          </button>
-        ))}
+      <div className="flex items-center gap-2 border-b border-[var(--border)] px-3 py-1">
+        <label
+          className="text-[length:var(--text-meta)] text-[var(--muted)]"
+          htmlFor={`${id}-view`}
+        >
+          View
+        </label>
+        <select
+          className="min-h-10 min-w-0 flex-1 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] px-2 text-[length:var(--text-control)] text-[var(--text)] focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)] max-[760px]:min-h-11"
+          id={`${id}-view`}
+          onChange={(event) => {
+            const next = event.currentTarget.value;
+            if (views.includes(next as InspectorTab))
+              onTabChange(next as InspectorTab);
+          }}
+          value={tab}
+        >
+          {views.map((view) => (
+            <option key={view} value={view}>
+              {view[0]?.toUpperCase()}
+              {view.slice(1)}
+            </option>
+          ))}
+        </select>
       </div>
-      <div
-        aria-labelledby={`${id}-${tab}-tab`}
+      <section
+        aria-label={`${tab[0]?.toUpperCase()}${tab.slice(1)}`}
         className="min-h-0 flex-1 overflow-y-auto"
         id={`${id}-${tab}`}
-        role="tabpanel"
         // biome-ignore lint/a11y/noNoninteractiveTabindex: Details needs a reading focus target when it contains no interactive controls.
         tabIndex={0}
       >
@@ -172,7 +147,7 @@ export function CompanionInspector({
             />
           </Suspense>
         )}
-      </div>
+      </section>
     </InspectorFrame>
   );
 }

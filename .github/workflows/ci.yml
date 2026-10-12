@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       full_validation:
-        description: Run the complete Vitest suite and real Electron smoke tests
+        description: Run the complete Vitest suite instead of the curated release selection
         type: boolean
         default: false
 
@@ -27,6 +27,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
 
       - name: Set up Nub and Node
         uses: nubjs/setup-nub@47e5e7393d50f4e9544ddaf756aa277972afba2d # v0
@@ -54,9 +56,9 @@ jobs:
       - name: Check application and desktop types
         run: nub run typecheck && nub run desktop:typecheck
 
-      - name: Essential execution, cancellation, permission, and data tests
+      - name: Curated release-critical behavior tests
         if: ${{ !inputs.full_validation }}
-        run: nub run test:essential
+        run: nub run test:release
 
       - name: Complete Vitest suite (deliberate full validation)
         if: inputs.full_validation
@@ -75,3 +77,44 @@ jobs:
 
       - name: Acceptance gates
         run: nub run check:acceptance
+
+  native_acceptance:
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Nub and Node
+        uses: nubjs/setup-nub@47e5e7393d50f4e9544ddaf756aa277972afba2d # v0
+        with:
+          nub-version: 0.9.5
+          node-version-file: .node-version
+          cache-dependency-path: nub.lock
+
+      - name: Set up Bun for native runtime tests
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.2
+
+      - name: Install dependencies
+        run: nub install --frozen-lockfile --ignore-scripts
+
+      - name: Install Electron runtime
+        run: nub run desktop:runtime:install
+
+      - name: Exercise source shared-engine worker boundary
+        run: nub run test:e2e:release:source
+
+      - name: Exercise native new-chat and run lifecycle
+        run: xvfb-run -a nub run test:e2e:release:workbench-core
+
+      - name: Build clean-HEAD desktop directory package
+        run: nub run desktop:package:dir
+
+      - name: Exercise packaged offline chat with verified provenance
+        run: xvfb-run -a nub run test:e2e:release:packaged-core

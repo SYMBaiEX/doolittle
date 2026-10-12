@@ -9,7 +9,13 @@ import {
   TriangleAlert,
   Wrench,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  type ComponentProps,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Streamdown, type UrlTransform } from "streamdown";
 import "streamdown/styles.css";
 import {
@@ -53,11 +59,55 @@ function safeProtocol(value: string, protocols: string[]): boolean {
   );
 }
 
-export const safeMessageUrl: UrlTransform = (url, key) => {
-  const protocols =
-    key === "src" ? ["http", "https"] : ["http", "https", "mailto"];
-  return safeProtocol(url, protocols) ? url : null;
-};
+function safeImageUrl(url: string): string | null {
+  if (!/^https?:\/\//iu.test(url.trim())) return null;
+  try {
+    const parsed = new URL(url);
+    return (parsed.protocol === "http:" || parsed.protocol === "https:") &&
+      parsed.hostname
+      ? url
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+export const safeMessageUrl: UrlTransform = (url, key) =>
+  key === "src"
+    ? safeImageUrl(url)
+    : safeProtocol(url, ["http", "https", "mailto"])
+      ? url
+      : null;
+
+function MessageImage({
+  alt,
+  src,
+  title,
+  width,
+  height,
+}: ComponentProps<"img"> & { node?: unknown }) {
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  const safeSrc = typeof src === "string" ? safeImageUrl(src) : null;
+  if (!safeSrc || failedSrc === safeSrc) {
+    return (
+      <span data-message-image-unavailable="true">
+        {alt?.trim() || "Image unavailable"}
+      </span>
+    );
+  }
+  return (
+    <img
+      alt={alt ?? ""}
+      height={height}
+      loading="lazy"
+      onError={() => setFailedSrc(safeSrc)}
+      referrerPolicy="no-referrer"
+      src={safeSrc}
+      title={title}
+      width={width}
+    />
+  );
+}
 
 function statusLabel(status: ToolActivityStatus): string {
   switch (status) {
@@ -485,6 +535,7 @@ export function MessageContent({
           animated={false}
           caret="block"
           className={MESSAGE_RESPONSE_CLASS}
+          components={{ img: MessageImage }}
           controls={{
             code: { copy: true, download: false },
             table: { copy: true, download: false, fullscreen: false },

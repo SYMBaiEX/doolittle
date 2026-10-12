@@ -38,14 +38,23 @@ reduced transparency and forced colors have static/readable alternatives.
 
 - Navigation contains search, new conversation, bot contacts, and the selected
   bot's recent conversations. Selecting a bot resumes its latest conversation.
+  New conversation opens a chooser for an existing bot or Create a new bot.
+  Creation gathers purpose, working style and name in the conversation canvas,
+  previews an editable native Eliza character draft, then requires an explicit
+  model/access review before saving. This guided interview derives the draft
+  from the user's answers; it does not pretend to have made a model-generation
+  call. Account access and mutation/delegation remain unchecked by default.
   Add bot, Team & work and Connections are supporting destinations.
 - One 48px conversation header carries bot identity, thread title, an icon-only
   inspector toggle, adjacent Settings gear and overflow. Both icons have named
   tooltips and accessible labels. Settings lives in the header, not the sidebar.
   New/close view actions are disclosures. Closing a view never stops work.
-- Tabs and arrangement tools appear only with multiple open conversations. The
+- The default conversation has no permanent view tabs or pane-card headers.
+  Conversation options → Workspace views opens selection and arrangement
+  controls on demand. Companion shows one focused conversation; Canvas can
+  restore its saved splits without resetting them. The
   workspace supports nested right/below splits, resizing, reordering, focus and
-  closing, with a 12-view limit. Narrow layouts show the active tab and retain
+  closing, with a 12-view limit. Narrow layouts show the active view and retain
   the saved desktop arrangement; hidden panels remain mounted and inert.
 - The composer contains text, Attach, model route and Send/Stop. Advanced
   actions live in Add. Queue, files, errors and memory matches appear when relevant.
@@ -65,7 +74,8 @@ reduced transparency and forced colors have static/readable alternatives.
   permanent zero-usage meter. Full context remains available in Details.
   The project picker uses the SDK's portaled collision placement, with a
   bounded scrolling list; composer/pane clipping cannot hide its footer actions.
-- The initially closed inspector contains Details, Library and Computer.
+- The initially closed inspector contains Details, Library and Computer,
+  selected through a compact native header selector instead of a tab strip.
   Computer opens actual editor/browser/terminal resources; it is not a VM.
   Its immutable bot/conversation/workspace origin must not follow ambient focus.
 - Settings has seven flat icon-led categories: General, Models & accounts,
@@ -108,10 +118,14 @@ never the copied value or raw error. No background context action is introduced.
 ## Persistent bots and knowledge
 
 Bot contacts represent persistent workers, not cosmetic personalities. The
-authoritative catalog stores stable IDs, personas, model routes, approved
-connection references, workspace permissions and archive state. Sessions,
+authoritative catalog stores stable IDs, native Eliza character sheets, model
+routes, approved connection references, workspace permissions and archive state. Sessions,
 runs, approvals, artifacts and Computer resources retain immutable ownership.
 The lead identity and existing conversations are adopted in place.
+Personality fields use the pinned SDK's CharacterInput shape and parser, with a
+strict bounded ingress that excludes identity, settings, secrets and plugins.
+Legacy persona-only bots hydrate into character.system without changing IDs or
+access; persona remains a compatibility projection, not a second authority.
 
 Specialist consultation uses bounded durable chat dispatch with visible
 attribution, cycle checks and execution admission. Private history remains

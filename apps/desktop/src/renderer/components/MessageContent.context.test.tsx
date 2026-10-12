@@ -190,3 +190,65 @@ describe("Tool activity context actions", () => {
     expect(document.body.querySelector('[role="menu"]')).toBeNull();
   });
 });
+
+describe("Message image fallback", () => {
+  let container: HTMLDivElement;
+  let root: Root;
+  beforeEach(() => {
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+  });
+  afterEach(async () => {
+    await act(async () => root.unmount());
+    container.remove();
+  });
+
+  it("replaces a failed remote image with its alt text once", async () => {
+    await act(async () =>
+      root.render(
+        <MessageContent content="![Continuous integration status](https://example.com/badge.svg)" />,
+      ),
+    );
+    const image = container.querySelector("img");
+    expect(image).not.toBeNull();
+    await act(async () => image?.dispatchEvent(new Event("error")));
+    expect(container.querySelector("img")).toBeNull();
+    expect(
+      container.querySelectorAll("[data-message-image-unavailable]"),
+    ).toHaveLength(1);
+    expect(
+      container.textContent?.match(/Continuous integration status/gu),
+    ).toHaveLength(1);
+  });
+
+  it("retries a corrected image URL after an earlier streamed source fails", async () => {
+    await act(async () =>
+      root.render(
+        <MessageContent
+          content="![Status](https://example.com/partial)"
+          pending
+        />,
+      ),
+    );
+    const partial = container.querySelector("img");
+    expect(partial?.getAttribute("src")).toBe("https://example.com/partial");
+    await act(async () => partial?.dispatchEvent(new Event("error")));
+    expect(container.querySelector("img")).toBeNull();
+
+    await act(async () =>
+      root.render(
+        <MessageContent
+          content="![Status](https://example.com/complete.svg)"
+          pending
+        />,
+      ),
+    );
+    expect(container.querySelector("img")?.getAttribute("src")).toBe(
+      "https://example.com/complete.svg",
+    );
+    expect(
+      container.querySelector("[data-message-image-unavailable]"),
+    ).toBeNull();
+  });
+});

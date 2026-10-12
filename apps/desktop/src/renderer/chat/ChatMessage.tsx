@@ -143,6 +143,7 @@ export function ChatMessage({
       <div className="chat-message-body">
         {receipt && showRunReceipt ? (
           <RunReceiptView
+            botName={botName}
             onRetry={onRetry}
             pending={Boolean(message.pending)}
             receipt={receipt}

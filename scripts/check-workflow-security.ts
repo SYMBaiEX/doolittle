@@ -1,6 +1,7 @@
 #!/usr/bin/env nub
 
 import { readFileSync } from "node:fs";
+import { isMap, isNode, isPair, LineCounter, parseDocument, visit } from "yaml";
 import { listGitTrackedFiles } from "./git-tracked-files";
 
 const WORKFLOW_PATH = /^\.github\/workflows\/.+\.ya?ml$/u;
@@ -12,6 +13,7 @@ const USES_REFERENCE =
 const NUB_SETUP_REFERENCE = /^nubjs\/setup-nub@/u;
 const NUB_VERSION_REFERENCE =
   /^\s*nub-version:\s*(?:"([^"]+)"|'([^']+)'|([^\s#]+))/u;
+const CHECKOUT_REFERENCE = /^actions\/checkout@/iu;
 
 export interface MutableWorkflowAction {
   file: string;
@@ -93,6 +95,79 @@ export function findMismatchedWorkflowNubVersions(
   return failures;
 }
 
+export function findPersistedCheckoutCredentials(
+  source: string,
+  file: string,
+): MutableWorkflowAction[] {
+  const failures: MutableWorkflowAction[] = [];
+  const lineCounter = new LineCounter();
+  const document = parseDocument(source, {
+    lineCounter,
+    merge: true,
+    prettyErrors: false,
+  });
+  const invalid = () =>
+    new Error(
+      `Workflow YAML could not be parsed for credential checks: ${file}`,
+    );
+  if (document.errors.length) throw invalid();
+  try {
+    visit(document, {
+      Seq(_key, node, path) {
+        const keys = path
+          .filter(isPair)
+          .map((pair) =>
+            isNode(pair.key)
+              ? pair.key.toJS(document, { maxAliasCount: 100 })
+              : undefined,
+          );
+        if (
+          !(keys.length === 1 && keys[0] === "steps") &&
+          !(keys.length === 3 && keys[0] === "jobs" && keys[2] === "steps")
+        )
+          return;
+
+        // Resolve the entire sequence so an aliased step is checked too.
+        const steps = node.toJS(document, { maxAliasCount: 100 });
+        if (!Array.isArray(steps)) throw invalid();
+        for (const [index, value] of steps.entries()) {
+          if (!value || typeof value !== "object" || Array.isArray(value))
+            continue;
+          const step = value as Record<string, unknown>;
+          const reference = step.uses;
+          if (
+            typeof reference !== "string" ||
+            !CHECKOUT_REFERENCE.test(reference)
+          )
+            continue;
+          const inputs = step.with;
+          const persistence =
+            inputs && typeof inputs === "object" && !Array.isArray(inputs)
+              ? (inputs as Record<string, unknown>)["persist-credentials"]
+              : undefined;
+          if (persistence === false || persistence === "false") continue;
+          const item = node.items[index];
+          const uses = isMap(item) ? item.get("uses", true) : undefined;
+          failures.push({
+            file,
+            line: lineCounter.linePos(
+              isNode(uses)
+                ? (uses.range?.[0] ?? 0)
+                : isNode(item)
+                  ? (item.range?.[0] ?? 0)
+                  : (node.range?.[0] ?? 0),
+            ).line,
+            reference,
+          });
+        }
+      },
+    });
+  } catch {
+    throw invalid();
+  }
+  return failures;
+}
+
 export function checkTrackedWorkflowActions(
   cwd = process.cwd(),
 ): MutableWorkflowAction[] {
@@ -137,7 +212,17 @@ export function main(): void {
   const nubVersionFailures = checkTrackedWorkflowNubVersions(
     expectedNubVersion(),
   );
-  if (failures.length > 0 || nubVersionFailures.length > 0) {
+  // CI executes checked-out PR code; neither validation job needs Git auth.
+  const ciFile = ".github/workflows/ci.yml";
+  const credentialFailures = findPersistedCheckoutCredentials(
+    readFileSync(ciFile, "utf8"),
+    ciFile,
+  );
+  if (
+    failures.length > 0 ||
+    nubVersionFailures.length > 0 ||
+    credentialFailures.length > 0
+  ) {
     console.error("Workflow policy check failed:");
     for (const failure of failures) {
       console.error(
@@ -147,6 +232,11 @@ export function main(): void {
     for (const failure of nubVersionFailures) {
       console.error(
         `- ${failure.file}:${failure.line} configures Nub ${failure.actual}; expected ${failure.expected}`,
+      );
+    }
+    for (const failure of credentialFailures) {
+      console.error(
+        `- ${failure.file}:${failure.line} must set persist-credentials: false before executing PR code`,
       );
     }
     process.exitCode = 1;

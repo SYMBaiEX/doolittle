@@ -23,8 +23,12 @@ vi.mock("@elizaos/ui/hooks/useDocumentVisibility", () => ({
 vi.mock("../lib", async () => ({
   ...(await vi.importActual<typeof import("../lib")>("../lib")),
   desktopRequest: request,
-  useApiResource: (path: string | null, dependencies: unknown[]) => {
-    resource(path, dependencies);
+  useApiResource: (
+    path: string | null,
+    dependencies: unknown[],
+    botId?: string,
+  ) => {
+    resource(path, dependencies, botId);
     return {
       data: { approvals: scenario.approvals },
       error: scenario.error,
@@ -53,13 +57,19 @@ function approval(roomId: string, overrides: Record<string, unknown> = {}) {
 describe("InlineApprovalPanel session attribution and decisions", () => {
   let container: HTMLDivElement;
   let root: Root;
-  const render = (roomId = "A", active = true, compact = false) =>
+  const render = (
+    roomId = "A",
+    active = true,
+    compact = false,
+    botId?: string,
+  ) =>
     act(() =>
       root.render(
         <InlineApprovalPanel
           active={active}
           compact={compact}
           roomId={roomId}
+          botId={botId}
         />,
       ),
     );
@@ -177,6 +187,9 @@ describe("InlineApprovalPanel session attribution and decisions", () => {
       "/execution/approvals/approval%3AA/deny",
       "POST",
       {},
+      undefined,
+      undefined,
+      undefined,
     );
     expect(dialog?.textContent).toContain("Denied this request.");
     await act(async () => button("Close approvals").click());
@@ -210,6 +223,49 @@ describe("InlineApprovalPanel session attribution and decisions", () => {
     for (const text of ["GLOBAL", "CONFLICT", "KEYONLY", "UNKNOWN"])
       expect(container.textContent).not.toContain(text);
     expect(container.textContent).toContain("Other requests remain in Review");
+  });
+  it("routes same-room approvals and decisions to the named bot without carrying feedback across bots", async () => {
+    let resolveA: (() => void) | undefined;
+    request.mockImplementationOnce(
+      () =>
+        new Promise<void>((done) => {
+          resolveA = done;
+        }),
+    );
+    render("A", true, false, "bot-a");
+    expect(resource).toHaveBeenLastCalledWith(
+      "/execution/approvals?status=pending",
+      [true],
+      "bot-a",
+    );
+    click("Approve");
+    expect(request).toHaveBeenLastCalledWith(
+      "/execution/approvals/approval%3AA/approve",
+      "POST",
+      {},
+      undefined,
+      undefined,
+      "bot-a",
+    );
+    render("A", true, false, "bot-b");
+    expect(resource).toHaveBeenLastCalledWith(
+      "/execution/approvals?status=pending",
+      [true],
+      "bot-b",
+    );
+    expect(button("Approve").disabled).toBe(false);
+    await act(async () => button("Deny").click());
+    expect(request).toHaveBeenLastCalledWith(
+      "/execution/approvals/approval%3AA/deny",
+      "POST",
+      {},
+      undefined,
+      undefined,
+      "bot-b",
+    );
+    await act(async () => resolveA?.());
+    expect(container.textContent).not.toContain("Approved.");
+    expect(container.textContent).toContain("Denied this request.");
   });
   it("accepts an exact original room label without optional sessionKey, not hashes or normalized lookalikes", () => {
     scenario.approvals = [
@@ -248,7 +304,7 @@ describe("InlineApprovalPanel session attribution and decisions", () => {
       scenario.error = "offline";
       render(String(roomId), Boolean(active));
       expect(container.innerHTML).toBe("");
-      expect(resource).toHaveBeenLastCalledWith(null, [false]);
+      expect(resource).toHaveBeenLastCalledWith(null, [false], undefined);
       expect(poll).toHaveBeenLastCalledWith(reload, 5_000, false);
     },
   );
@@ -291,6 +347,9 @@ describe("InlineApprovalPanel session attribution and decisions", () => {
         `/execution/approvals/approval%3AA/${decision}`,
         "POST",
         {},
+        undefined,
+        undefined,
+        undefined,
       );
       expect(container.querySelector('[role="status"]')?.textContent).toBe(
         feedback,

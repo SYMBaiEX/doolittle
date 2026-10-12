@@ -75,14 +75,14 @@ describe("chat chrome density contract", () => {
     expect(app).toContain("WINDOW_TOOLS_CLASS");
     expect(chatPage).toContain("createPortal(");
     expect(chatPage).not.toContain('className="chat-header"');
-    expect(app).toMatch(
-      /renderedView === "chat"\s*\? \(selectedBot\?\.name \?\? "Doolittle"\)/u,
-    );
+    expect(app).toContain('"Create a new bot"');
+    expect(app).toContain('selectedBot?.name ?? "Doolittle"');
     expect(app).toContain("currentRouteLabel");
     expect(chatHeader).not.toContain("Conversation breadcrumb");
     expect(chatHeader).not.toContain('aria-label="Find conversation"');
     expect(chatHeader).toContain('aria-label="Conversation options"');
-    expect(chatHeader).toContain("doolittle:new-conversation-view");
+    expect(chatHeader).toContain("doolittle:new-chat");
+    expect(chatHeader).toContain("doolittle:workspace-views");
     expect(chatPage).toMatch(/id=\{`chat-context-history-\$\{selectedId\}`\}/);
     expect(chatPage).toMatch(/id=\{`chat-context-media-\$\{selectedId\}`\}/);
     expect(chatPage).toContain('hidden={surface !== "conversation"}');

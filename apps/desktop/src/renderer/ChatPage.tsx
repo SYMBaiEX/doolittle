@@ -65,6 +65,13 @@ import {
   type RunClaim,
 } from "./chat/run-claim-reconciliation";
 import {
+  effectiveRunHydration,
+  type RunHydrationScope,
+  type RunHydrationSnapshot,
+  sameRunHydrationScope,
+} from "./chat/run-hydration-scope";
+import { sessionPendingApprovalCount } from "./chat/session-approvals";
+import {
   completedResponseText,
   reconcileStreamedResponse,
   streamedResponseFrameKey,
@@ -92,7 +99,7 @@ import {
   saveConversationQueue,
 } from "./conversation-persistence";
 import { NativeUiHost } from "./interfaces/native-ui-host";
-import { desktopRequest, errorMessage } from "./lib";
+import { desktopRequest, errorMessage, useApiResource } from "./lib";
 import {
   freezeMemoryMatchSnapshot,
   type MemoryMatchSnapshot,
@@ -106,7 +113,6 @@ import type { ChatPanelViewState } from "./session-workspace/panel-view-state";
 import { SessionWorkspace } from "./session-workspace/SessionWorkspace";
 import { sessionWorkspaceBinding } from "./session-workspace/session-workspace-binding";
 
-const INSPECTOR_STORAGE_KEY = "doolittle.desktop.chat-inspector-visible.v1";
 const RUN_CURSOR_STORAGE_KEY = "doolittle.desktop.chat-run-cursors.v1";
 const NARROW_WORKBENCH_QUERY = "(max-width: 720px)";
 const ATTACHMENT_ONLY_MESSAGE = "Review the attached files.";
@@ -243,15 +249,6 @@ function MobileConversationsDialogFallback({
   );
 }
 
-function loadInspectorVisibility(): boolean {
-  try {
-    const value = localStorage.getItem(INSPECTOR_STORAGE_KEY);
-    return value ? JSON.parse(value) === true : false;
-  } catch {
-    return false;
-  }
-}
-
 function eventText(data: unknown): string {
   if (!data || typeof data !== "object") return "";
   const record = data as Record<string, unknown>;
@@ -295,6 +292,8 @@ export interface ChatPageProps {
   sessionMetadata?: readonly SessionSummary[];
   selectedId: string;
   workspacePath: string;
+  /** Shared host workspace identity before per-bot panel workspace overrides. */
+  inventoryWorkspacePath?: string;
   onSelect: (sessionId: string) => void;
   refreshRuntime: () => void;
   onOpenModelsPage: () => void;
@@ -341,6 +340,7 @@ export function ChatSessionPanel({
   remoteSessions,
   selectedId,
   workspacePath: hostWorkspacePath,
+  inventoryWorkspacePath,
   onSelect,
   refreshRuntime,
   onOpenModelsPage,
@@ -356,7 +356,6 @@ export function ChatSessionPanel({
   onSelectProjectForNewChat,
   onRequestNewConversation,
   onActivateSessionProject,
-  pendingApprovals,
   pendingContextHandoff,
   runningTasks,
   chromeHost,
@@ -433,9 +432,11 @@ export function ChatSessionPanel({
   );
   const nextRequestGeneration = useWorkspaceRef("run.next-claim-generation", 0);
   const activeRequest = activeRequests[selectedId] ?? null;
-  const [runHydration, setRunHydration] = useWorkspaceState<
-    "checking" | "ready" | "unavailable"
-  >("run.hydration", "checking");
+  const [runHydrationSnapshot, setRunHydrationSnapshot] =
+    useWorkspaceState<RunHydrationSnapshot>("run.hydration", {
+      scope: null,
+      status: "checking",
+    });
   const [runHydrationRetry, setRunHydrationRetry] = useWorkspaceState(
     "run.hydration-retry",
     0,
@@ -444,6 +445,44 @@ export function ChatSessionPanel({
     string[]
   >("run.hydration-warnings", []);
   const recoveryBotIds = liveBotIds(bots).join(",");
+  const botIdForSessionRef = useRef(botIdForSession);
+  botIdForSessionRef.current = botIdForSession;
+  // App may recreate the owner resolver after a sessions poll; compare its
+  // resolved owners instead of treating callback identity as a new inventory.
+  const recoverySessionOwners = remoteSessions
+    .map((session) => [session.sessionId, botIdForSession?.(session.sessionId)])
+    .sort(([left], [right]) => String(left).localeCompare(String(right)));
+  const recoverySessionOwnerKey = JSON.stringify(recoverySessionOwners);
+  const inventoryIdentityPath = inventoryWorkspacePath ?? hostWorkspacePath;
+  const recoveryScope: RunHydrationScope = useMemo(
+    () => ({
+      backend: hostBackend,
+      workspacePath: inventoryIdentityPath,
+      botIds: recoveryBotIds,
+      defaultBotId,
+      sessionOwners: recoverySessionOwnerKey,
+      retry: runHydrationRetry,
+    }),
+    [
+      hostBackend,
+      inventoryIdentityPath,
+      recoveryBotIds,
+      defaultBotId,
+      recoverySessionOwnerKey,
+      runHydrationRetry,
+    ],
+  );
+  const runHydration = effectiveRunHydration(
+    runHydrationSnapshot,
+    recoveryScope,
+    currentBotId,
+  );
+  const visibleRunHydrationWarnings = sameRunHydrationScope(
+    runHydrationSnapshot.scope,
+    recoveryScope,
+  )
+    ? runHydrationWarnings
+    : [];
   useEffect(() => {
     if (!coordinator || !window.doolittle.ui) return;
     const host = new NativeUiHost(window.doolittle.ui);
@@ -527,7 +566,7 @@ export function ChatSessionPanel({
     panelViewSnapshots.current[selectedId] = {
       scrollTop: 0,
       follow: true,
-      inspectorVisible: loadInspectorVisibility(),
+      inspectorVisible: false,
       unreadMessageIds: [],
       knownMessageIds: [],
     };
@@ -536,7 +575,7 @@ export function ChatSessionPanel({
     ? undefined
     : panelViewSnapshots.current[selectedId];
   const [inspectorVisible, setInspectorVisible] = useState(
-    () => savedView?.inspectorVisible ?? loadInspectorVisibility(),
+    () => savedView?.inspectorVisible ?? false,
   );
   const [inspectorTab, setInspectorTab] = useState<InspectorTab>("details");
   useEffect(() => {
@@ -581,6 +620,27 @@ export function ChatSessionPanel({
   }, []);
   const isNarrowViewport = useMediaQuery(NARROW_WORKBENCH_QUERY);
   const isNarrowWorkbench = isNarrowViewport || narrowPanel;
+  const approvalsVisible =
+    routeActive &&
+    visible &&
+    surface === "conversation" &&
+    !(inspectorVisible && isNarrowWorkbench);
+  // The approval panel uses this same bot-scoped resource key, then scopes rows
+  // to its room. The composer must not use App's global badge count.
+  const sessionApprovalsEnabled =
+    backend.phase === "ready" &&
+    approvalsVisible &&
+    selectedId.length > 0 &&
+    currentBotId.length > 0;
+  const sessionApprovalResource = useApiResource<{ approvals?: unknown[] }>(
+    sessionApprovalsEnabled ? "/execution/approvals?status=pending" : null,
+    [sessionApprovalsEnabled],
+    currentBotId,
+  );
+  const sessionPendingApprovals = sessionPendingApprovalCount(
+    sessionApprovalResource.data?.approvals,
+    selectedId,
+  );
   const prefersReducedMotion = useMediaQuery(
     "(prefers-reduced-motion: reduce)",
   );
@@ -913,14 +973,6 @@ export function ChatSessionPanel({
   }, [queuedMessages]);
 
   useEffect(() => {
-    safeSetStorageItem(
-      localStorage,
-      INSPECTOR_STORAGE_KEY,
-      JSON.stringify(inspectorVisible),
-    );
-  }, [inspectorVisible]);
-
-  useEffect(() => {
     if (!queueAnnouncement) return;
     const timeout = window.setTimeout(() => setQueueAnnouncement(""), 2_500);
     return () => window.clearTimeout(timeout);
@@ -1246,7 +1298,7 @@ export function ChatSessionPanel({
           eventText(event.data) ||
             (event.event === "attachment.warning"
               ? "Attachment cleanup needs attention. Your response is still running."
-              : "Doolittle is working…"),
+              : `${bots?.find((bot) => bot.id === resolveSessionBot(sessionId))?.name ?? "Doolittle"} is working…`),
         ),
       );
       return;
@@ -1296,14 +1348,17 @@ export function ChatSessionPanel({
   // biome-ignore lint/correctness/useExhaustiveDependencies: retry nonce deliberately reruns run recovery without changing the host backend phase.
   useEffect(() => {
     if (!coordinator || hostBackend.phase !== "ready") return;
-    setRunHydration("checking");
+    setRunHydrationSnapshot({ scope: recoveryScope, status: "checking" });
     let disposed = false;
     void loadOwnedRunInventory(recoveryBotIds ? recoveryBotIds.split(",") : [])
       .then((payload) => {
         if (disposed) return;
         setRunHydrationWarnings(payload.warnings);
         if (!Array.isArray(payload.runs)) {
-          setRunHydration("unavailable");
+          setRunHydrationSnapshot({
+            scope: recoveryScope,
+            status: "unavailable",
+          });
           return;
         }
         const persistedUpdates =
@@ -1322,7 +1377,7 @@ export function ChatSessionPanel({
           const botId =
             typeof run.botId === "string"
               ? run.botId
-              : botIdForSession?.(sessionId) || defaultBotId;
+              : botIdForSessionRef.current?.(sessionId) || defaultBotId;
           if (
             !["desktop", "desktop-ui", "desktop-consultation"].includes(
               String(run.source),
@@ -1396,11 +1451,18 @@ export function ChatSessionPanel({
             } as Parameters<typeof window.doolittle.subscribeChat>[0])
             .catch(() => undefined);
         }
-        setRunHydration("ready");
+        setRunHydrationSnapshot({
+          scope: recoveryScope,
+          status: "ready",
+          failedBotIds: payload.failedBotIds,
+        });
       })
       .catch(() => {
         if (!disposed) {
-          setRunHydration("unavailable");
+          setRunHydrationSnapshot({
+            scope: recoveryScope,
+            status: "unavailable",
+          });
           setRunHydrationWarnings([]);
         }
       });
@@ -1411,7 +1473,7 @@ export function ChatSessionPanel({
     hostBackend.phase,
     coordinator,
     setMessages,
-    setRunHydration,
+    setRunHydrationSnapshot,
     setRunHydrationWarnings,
     setRunReceipts,
     activeRequestSessionsRef,
@@ -1419,11 +1481,11 @@ export function ChatSessionPanel({
     setActiveRequests,
     runCursors,
     runHydrationRetry,
-    botIdForSession,
     defaultBotId,
     onBindSessionBot,
     requestBot,
     recoveryBotIds,
+    recoveryScope,
   ]);
 
   const sendMessage = async (
@@ -1594,7 +1656,7 @@ export function ChatSessionPanel({
       setSessionProgress(
         current,
         sessionId,
-        "Doolittle is considering the request…",
+        `${owner?.name ?? "Doolittle"} is considering the request…`,
       ),
     );
     setActiveRequests((current) => ({ ...current, [sessionId]: requestId }));
@@ -2257,6 +2319,7 @@ export function ChatSessionPanel({
         }
         aria-label="Conversation detail"
         className="chat-conversation"
+        data-run-hydration={runHydration}
         data-layout={isEmptyConversation ? "empty" : "active"}
         hidden={surface !== "conversation"}
         id={`chat-context-conversation-${selectedId}`}
@@ -2332,11 +2395,11 @@ export function ChatSessionPanel({
               {storageWarning}
             </div>
           ) : null}
-          {runHydrationWarnings.length > 0 ? (
+          {visibleRunHydrationWarnings.length > 0 ? (
             <div
               className="chat-storage-warning"
               role="status"
-              title={runHydrationWarnings.join("\n")}
+              title={visibleRunHydrationWarnings.join("\n")}
             >
               Some agent history is unavailable. Other conversations remain
               usable.
@@ -2349,12 +2412,8 @@ export function ChatSessionPanel({
         <div className="chat-composer-dock" ref={composerDockRef}>
           <ChatComposer
             bot={currentBot}
-            approvalsVisible={
-              routeActive &&
-              visible &&
-              surface === "conversation" &&
-              !(inspectorVisible && isNarrowWorkbench)
-            }
+            approvalBotId={currentBotId}
+            approvalsVisible={approvalsVisible}
             workspaceNotice={
               <>
                 {dispatchFeedback[selectedId] ? (
@@ -2503,7 +2562,7 @@ export function ChatSessionPanel({
             selectedId={selectedId}
             modelRouteLabel={modelRouteLabel}
             workspacePath={workspacePath}
-            pendingApprovals={pendingApprovals}
+            pendingApprovals={sessionPendingApprovals}
             runningTasks={runningTasks}
           />
         </div>

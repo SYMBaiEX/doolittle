@@ -50,8 +50,8 @@
   background: var(--material-floating);
   padding: 10px 12px 8px;
   box-shadow:
-    0 2px 4px color-mix(in srgb, var(--shadow) 4%, transparent),
-    0 9px 28px color-mix(in srgb, var(--shadow) 9%, transparent);
+    0 2px 4px color-mix(in srgb, var(--shadow) 3%, transparent),
+    0 8px 24px color-mix(in srgb, var(--shadow) 7%, transparent);
 }
 .chat-workspace .chat-composer-dock {
   padding-bottom: 20px;
@@ -73,11 +73,11 @@
 }
 .chat-workbench-pane {
   transform-origin: right center;
-  animation: dl-inspector-in var(--motion-surface) var(--ease-liquid) backwards;
+  animation: dl-inspector-in 180ms ease-out backwards;
 }
 .chat-workbench-pane[data-state="closed"] {
   pointer-events: none;
-  animation: dl-inspector-out var(--motion-dismiss) var(--ease-liquid) both;
+  animation: dl-inspector-out 150ms ease-in both;
 }
 .chat-workbench-pane .dl-inspector-frame {
   border-left-color: color-mix(in srgb, var(--border) 65%, transparent);
@@ -99,7 +99,7 @@
   box-shadow: var(--material-shadow);
   backdrop-filter: blur(24px);
   transform-origin: bottom center;
-  animation: dl-surface-in var(--motion-surface) var(--ease-liquid) backwards;
+  animation: dl-surface-in 180ms ease-out backwards;
 }
 .command-palette,
 .route-control-dialog {
@@ -107,27 +107,26 @@
   border-radius: max(20px, var(--radius-xl));
 }
 .command-palette[data-state="closed"] {
-  animation: dl-surface-out var(--motion-dismiss) var(--ease-liquid) both;
+  animation: dl-surface-out 150ms ease-in both;
 }
 .route-control-dialog[data-state="closed"] {
-  animation: dl-surface-out var(--motion-dismiss) var(--ease-liquid) both;
+  animation: dl-surface-out 150ms ease-in both;
 }
 .dialog-backdrop {
   background: color-mix(in srgb, var(--shadow) 34%, transparent);
-  animation: dl-backdrop-in var(--motion-surface) var(--ease-liquid) backwards;
+  animation: dl-backdrop-in 180ms ease-out backwards;
 }
 .dialog-backdrop[data-state="closed"] {
-  animation: dl-backdrop-in var(--motion-dismiss) var(--ease-liquid) reverse
-    both;
+  animation: dl-backdrop-in 150ms ease-in reverse both;
 }
 @keyframes dl-inspector-in {
   from {
     opacity: 0;
-    transform: translateX(18px) scale(0.985);
+    transform: translateX(12px);
   }
   to {
     opacity: 1;
-    transform: translateX(0) scale(1);
+    transform: translateX(0);
   }
 }
 @keyframes dl-inspector-out {

@@ -35,6 +35,9 @@ interface TerminalHistoryResponse {
   commands?: unknown[];
 }
 
+const EMBEDDED_LOGS_CLASS =
+  "settings-logs-section @container/observability min-w-0";
+
 export function LogsPage({
   active,
   embedded = false,
@@ -84,9 +87,7 @@ export function LogsPage({
   if (!active) {
     return (
       <PagePanel
-        className={
-          embedded ? "settings-logs-section" : OBSERVABILITY_PAGE_CLASS
-        }
+        className={embedded ? EMBEDDED_LOGS_CLASS : OBSERVABILITY_PAGE_CLASS}
         variant={embedded ? "section" : "workspace"}
       >
         {embedded ? (
@@ -132,7 +133,7 @@ export function LogsPage({
 
   return (
     <PagePanel
-      className={embedded ? "settings-logs-section" : OBSERVABILITY_PAGE_CLASS}
+      className={embedded ? EMBEDDED_LOGS_CLASS : OBSERVABILITY_PAGE_CLASS}
       variant={embedded ? "section" : "workspace"}
     >
       {embedded ? (

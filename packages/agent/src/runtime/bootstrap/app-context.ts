@@ -27,7 +27,7 @@ import {
 import { buildNativePluginAssembly } from "@/runtime/native/plugin-registry";
 import { normalizePlugin } from "@/runtime/native/plugin-registry/support";
 import { createServices } from "@/services";
-import { readWorkerBotProfile } from "./bot-profile";
+import { composeWorkerCharacter, readWorkerBotProfile } from "./bot-profile";
 
 export async function buildAppContext({
   startupMode,
@@ -154,14 +154,10 @@ export async function buildAppContext({
   const createRuntime = () =>
     new AgentRuntime({
       character: {
-        ...character,
-        ...(workerBot ? { id: workerBot.agentId as UUID } : {}),
-        name: config.agentName,
         ...(workerBot
-          ? {
-              system: `${character.system ?? ""}\n\nNamed bot persona: ${workerBot.persona}`,
-            }
-          : {}),
+          ? composeWorkerCharacter(character, workerBot)
+          : character),
+        name: config.agentName,
         advancedMemory: true,
         advancedPlanning: true,
         templates: {

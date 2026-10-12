@@ -146,7 +146,7 @@ describe("ChatHeaderChrome", () => {
     expect(button("Computer")).toBeUndefined();
     const create = vi.fn();
     const close = vi.fn();
-    window.addEventListener("doolittle:new-conversation-view", create);
+    window.addEventListener("doolittle:new-chat", create);
     window.addEventListener("doolittle:close-conversation-view", close);
     try {
       await openOptions();
@@ -156,7 +156,7 @@ describe("ChatHeaderChrome", () => {
       expect(create).toHaveBeenCalledOnce();
       expect(close).toHaveBeenCalledOnce();
     } finally {
-      window.removeEventListener("doolittle:new-conversation-view", create);
+      window.removeEventListener("doolittle:new-chat", create);
       window.removeEventListener("doolittle:close-conversation-view", close);
     }
   });

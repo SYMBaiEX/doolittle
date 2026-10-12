@@ -8,6 +8,7 @@
 @import "@elizaos/ui/styles/tailwind-theme.css";
 @import "@doolittle/ui/styles.css";
 @import "./surface-motion.css";
+@import "./bots/bot-design.css";
 
 @source "../../../../packages/ui/src";
 

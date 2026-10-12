@@ -39,6 +39,43 @@ const toolResult = {
 };
 
 describe("parseAgentMessage", () => {
+  it("preserves authored Markdown whitespace when no events are present", () => {
+    const content = [
+      '<p align="center">Doolittle</p>',
+      "",
+      "## Why Doolittle",
+      "",
+      "- **Terminal first:** inspect the project.",
+      "",
+      "```text",
+      "line one",
+      "",
+      "",
+      "line four",
+      "```",
+    ].join("\n");
+    expect(parseAgentMessage(content).text).toBe(content);
+  });
+
+  it("preserves Markdown blocks and fenced blank lines around removed events", () => {
+    const content = [
+      "## Result",
+      "",
+      JSON.stringify(toolCall),
+      "",
+      "```text",
+      "line one",
+      "",
+      "",
+      "line four",
+      "```",
+    ].join("\n");
+    const parsed = parseAgentMessage(content);
+    expect(parsed.text).toContain("## Result\n\n");
+    expect(parsed.text).toContain("line one\n\n\nline four");
+    expect(parsed.text).not.toContain('"type":"tool_call"');
+  });
+
   it("separates flattened tool calls and results from visible prose", () => {
     const content = [
       "I’ll check the current documentation.",

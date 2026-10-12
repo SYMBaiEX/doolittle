@@ -1070,6 +1070,15 @@ test.describe("Doolittle desktop navigation", () => {
         .getByRole("complementary", { name: "Navigation and bots" })
         .getByRole("button", { exact: true, name: "New conversation" })
         .click();
+      const newChatChooser = page.getByRole("dialog", {
+        name: "Start a chat with…",
+      });
+      await expect(newChatChooser).toBeVisible();
+      await newChatChooser
+        .getByRole("region", { name: "Available bots" })
+        .getByRole("button", { name: /^Doolittle\b/u })
+        .click();
+      await expect(newChatChooser).toBeHidden();
       await expect
         .poll(() => sessionPanels.count())
         .toBeGreaterThan(previousPanelCount);
@@ -2661,15 +2670,14 @@ test.describe("Doolittle desktop navigation", () => {
       });
       await inspectorToggle.click();
       const workbench = page.locator(".chat-workbench-pane");
-      const inspectorTabs = workbench.getByRole("tablist", {
-        name: "Inspector views",
-      });
-      await expect(inspectorTabs.getByRole("tab")).toHaveText([
+      const inspectorView = workbench.getByRole("combobox", { name: "View" });
+      await expect(inspectorView.locator("option")).toHaveText([
         "Details",
         "Library",
         "Computer",
       ]);
-      await inspectorTabs.getByRole("tab", { name: "Library" }).click();
+      await inspectorView.selectOption("library");
+      await expect(inspectorView).toHaveValue("library");
       const workbenchTree = workbench.getByRole("tree", {
         name: "Workspace files",
       });
@@ -2778,7 +2786,8 @@ test.describe("Doolittle desktop navigation", () => {
       await expect(inspectorToggle).toBeFocused();
       await page.setViewportSize({ width: 1280, height: 900 });
       await inspectorToggle.click();
-      await workbench.getByRole("tab", { name: "Computer" }).click();
+      await inspectorView.selectOption("computer");
+      await expect(inspectorView).toHaveValue("computer");
       const computerTabs = workbench.getByRole("tablist", {
         name: "Thread context views",
       });

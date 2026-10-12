@@ -26,6 +26,8 @@ interface ApprovalListResponse {
 
 interface InlineApprovalPanelProps {
   active: boolean;
+  /** Stable host-owned bot identity; omitted only for the legacy lead route. */
+  botId?: string;
   /** Use an explicit review dialog when the actual pane cannot fit inline actions. */
   compact?: boolean;
   /** Original chat room label, not the native runtime's hashed room UUID. */
@@ -34,11 +36,13 @@ interface InlineApprovalPanelProps {
 
 interface ApprovalScope {
   active: boolean;
+  botId?: string;
   roomId: string;
 }
 
 export function InlineApprovalPanel({
   active,
+  botId,
   compact = false,
   roomId,
 }: InlineApprovalPanelProps) {
@@ -46,10 +50,15 @@ export function InlineApprovalPanel({
   const resource = useApiResource<ApprovalListResponse>(
     enabled ? "/execution/approvals?status=pending" : null,
     [enabled],
+    botId,
   );
-  const scope = useRef<ApprovalScope>({ active: enabled, roomId });
-  if (scope.current.active !== enabled || scope.current.roomId !== roomId)
-    scope.current = { active: enabled, roomId };
+  const scope = useRef<ApprovalScope>({ active: enabled, botId, roomId });
+  if (
+    scope.current.active !== enabled ||
+    scope.current.botId !== botId ||
+    scope.current.roomId !== roomId
+  )
+    scope.current = { active: enabled, botId, roomId };
   const mounted = useRef(true);
   useEffect(() => {
     mounted.current = true;
@@ -95,11 +104,12 @@ export function InlineApprovalPanel({
     decision: "approve" | "deny",
   ) => {
     const id = asString(approval.id);
+    const decisionKey = JSON.stringify([botId ?? null, id]);
     if (
       !enabled ||
       !currentIds.current.has(id) ||
       busyId ||
-      decisionInFlight.current.has(id) ||
+      decisionInFlight.current.has(decisionKey) ||
       resource.loading ||
       resource.error
     )
@@ -111,7 +121,7 @@ export function InlineApprovalPanel({
       scope.current === submittedScope &&
       scope.current.active &&
       currentIds.current.has(id);
-    decisionInFlight.current.add(id);
+    decisionInFlight.current.add(decisionKey);
     setBusy(pending);
     setResult(null);
     try {
@@ -119,6 +129,9 @@ export function InlineApprovalPanel({
         `/execution/approvals/${encodeURIComponent(id)}/${decision}`,
         "POST",
         {},
+        undefined,
+        undefined,
+        submittedScope.botId,
       );
       if (stillCurrent()) {
         setResult({
@@ -140,7 +153,7 @@ export function InlineApprovalPanel({
           feedback: { message: errorMessage(error), tone: "bad" },
         });
     } finally {
-      decisionInFlight.current.delete(id);
+      decisionInFlight.current.delete(decisionKey);
       if (mounted.current)
         setBusy((current) => (current === pending ? null : current));
     }
@@ -207,6 +220,7 @@ export function InlineApprovalPanel({
         >
           {approvals.slice(0, 3).map((approval) => {
             const id = asString(approval.id);
+            const decisionKey = JSON.stringify([botId ?? null, id]);
             const isBusy = busyId === id;
             return (
               <article
@@ -232,7 +246,7 @@ export function InlineApprovalPanel({
                     className="!h-11 !min-h-11"
                     disabled={
                       Boolean(busyId) ||
-                      decisionInFlight.current.has(id) ||
+                      decisionInFlight.current.has(decisionKey) ||
                       resource.loading ||
                       Boolean(resource.error)
                     }
@@ -245,7 +259,7 @@ export function InlineApprovalPanel({
                     className="!h-11 !min-h-11"
                     disabled={
                       Boolean(busyId) ||
-                      decisionInFlight.current.has(id) ||
+                      decisionInFlight.current.has(decisionKey) ||
                       resource.loading ||
                       Boolean(resource.error)
                     }

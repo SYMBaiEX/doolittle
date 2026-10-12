@@ -110,6 +110,7 @@ export function chatComposerHeight(scrollHeight: number): number {
 
 export interface ChatComposerProps {
   bot?: import("@doolittle/contracts/bots").BotSummary;
+  approvalBotId?: string;
   approvalsVisible?: boolean;
   workspaceNotice?: ReactNode;
   activeProject?: {
@@ -182,6 +183,7 @@ export interface ChatComposerProps {
 
 export function ChatComposer({
   bot,
+  approvalBotId,
   approvalsVisible = true,
   workspaceNotice,
   activeProject,
@@ -438,8 +440,24 @@ export function ChatComposer({
     activeRequest ||
       backend.phase !== "ready" ||
       runningTasks > 0 ||
-      pendingApprovals > 0,
+      pendingApprovals > 0 ||
+      (bot && !bot.isDefault && bot.state !== "ready"),
   );
+  const operationalLabel = isCancellingActive
+    ? "Stopping"
+    : bot &&
+        !bot.isDefault &&
+        ["stopped", "waiting", "error", "archived"].includes(bot.state)
+      ? `${bot.name} ${bot.state}`
+      : activeRequest
+        ? pendingApprovals > 0
+          ? `${bot?.name ?? "Doolittle"} waiting`
+          : `${bot?.name ?? "Doolittle"} working`
+        : bot && !bot.isDefault && bot.state === "starting"
+          ? `${bot.name} starting`
+          : bot && !bot.isDefault && bot.state === "busy"
+            ? `${bot.name} working`
+            : backend.phase;
   const detailsLabel =
     hasMemoryMatches && hasContextDetails
       ? `${memoryMatches.matches.length} memory · ${contextSummary}`
@@ -516,7 +534,12 @@ export function ChatComposer({
     >
       {workspaceNotice}
       <InlineApprovalPanel
-        active={backend.phase === "ready" && approvalsVisible}
+        active={
+          backend.phase === "ready" &&
+          approvalsVisible &&
+          (approvalBotId === undefined || approvalBotId.length > 0)
+        }
+        botId={approvalBotId}
         compact={approvalHeightBudget !== null && approvalHeightBudget < 144}
         roomId={selectedId}
       />
@@ -929,22 +952,29 @@ export function ChatComposer({
             <div className="chat-composer-status">
               <StatusBadge
                 className="chat-status-badge !inline-flex !min-h-[18px] items-center !border-0 !bg-transparent px-[5px] py-px !font-[inherit] !text-[length:var(--text-meta)] !tracking-normal !text-[var(--text-soft)] normal-case"
-                label={
-                  isCancellingActive
-                    ? "Stopping"
-                    : activeRequest
-                      ? "Working"
-                      : backend.phase
+                label={operationalLabel}
+                pulse={
+                  Boolean(activeRequest) &&
+                  pendingApprovals === 0 &&
+                  (!bot ||
+                    bot.isDefault ||
+                    bot.state === "ready" ||
+                    bot.state === "busy")
                 }
-                pulse={Boolean(activeRequest)}
                 tone={
-                  activeRequest
-                    ? "processing"
-                    : backend.phase === "booting"
+                  bot?.state === "error"
+                    ? "danger"
+                    : bot?.state === "waiting" || pendingApprovals > 0
                       ? "warning"
-                      : backend.phase === "degraded"
-                        ? "danger"
-                        : "muted"
+                      : bot?.state === "stopped" || bot?.state === "archived"
+                        ? "muted"
+                        : activeRequest || bot?.state === "busy"
+                          ? "processing"
+                          : backend.phase === "booting"
+                            ? "warning"
+                            : backend.phase === "degraded"
+                              ? "danger"
+                              : "muted"
                 }
                 withDot
               />

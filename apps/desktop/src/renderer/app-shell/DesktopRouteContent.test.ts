@@ -184,7 +184,7 @@ describe("desktop route preloaders", () => {
 
   test("keeps the Chat stream owner mounted behind other routes", () => {
     expect(appSource).toContain(
-      'const chatRouteActive = renderedView === "chat";',
+      'const chatRouteActive = renderedView === "chat" && !botCreationOpen;',
     );
     expect(appSource).toContain(
       'const persistentChatView: View = chatRouteActive ? view : "chat";',
@@ -195,6 +195,6 @@ describe("desktop route preloaders", () => {
       "data-view={chatRouteActive ? persistentChatView : undefined}",
     );
     expect(appSource).toContain("{routeContent(persistentChatView)}");
-    expect(appSource).toContain("{!chatRouteActive ? (");
+    expect(appSource).toContain('{renderedView !== "chat" ? (');
   });
 });

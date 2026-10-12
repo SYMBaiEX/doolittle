@@ -1,8 +1,13 @@
+import { normalizeBotCharacter } from "@doolittle/contracts/bot-character";
 import type { BotDefinition } from "@doolittle/contracts/bots";
+import type { Character, UUID } from "@elizaos/core";
 
 const BOT_ID_PATTERN = /^[a-z0-9][a-z0-9_-]{0,63}$/u;
 const AGENT_ID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
+// Includes a <=24 KB sheet, its <=16 KB legacy persona projection, and
+// route/permission metadata. Keep the launch envelope finite.
+const MAX_PROFILE_LENGTH = 64_000;
 
 /** A named bot's process identity is fixed at launch, never selected per request. */
 export function readWorkerBotProfile(
@@ -10,7 +15,7 @@ export function readWorkerBotProfile(
 ): BotDefinition | null {
   if (env.DOOLITTLE_BOT_RUNTIME !== "worker") return null;
   const raw = env.DOOLITTLE_BOT_PROFILE;
-  if (!raw || raw.length > 32_000) {
+  if (!raw || raw.length > MAX_PROFILE_LENGTH) {
     throw new Error("A named bot requires a bounded launch profile.");
   }
   let value: unknown;
@@ -46,5 +51,39 @@ export function readWorkerBotProfile(
   ) {
     throw new Error("The named bot launch profile is incomplete.");
   }
-  return profile as BotDefinition;
+  const character = normalizeBotCharacter(
+    profile.character ?? { system: profile.persona },
+    profile.name,
+  );
+  if (profile.persona !== character.system) {
+    throw new Error("The named bot character conflicts with its persona.");
+  }
+  return { ...profile, character } as BotDefinition;
+}
+
+/** Preserve Doolittle's safety baseline while applying a native character sheet. */
+export function composeWorkerCharacter(
+  base: Character,
+  bot: BotDefinition,
+): Character {
+  const sheet = normalizeBotCharacter(
+    bot.character ?? { system: bot.persona },
+    bot.name,
+  );
+  if (sheet.system !== bot.persona) {
+    throw new Error("The named bot character conflicts with its persona.");
+  }
+  return {
+    ...base,
+    ...sheet,
+    bio:
+      sheet.bio === undefined
+        ? base.bio
+        : typeof sheet.bio === "string"
+          ? [sheet.bio]
+          : sheet.bio,
+    id: bot.agentId as UUID,
+    name: bot.name,
+    system: `${base.system ?? ""}\n\n${sheet.system}`,
+  };
 }

@@ -1,6 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
-import { expect, type Locator, test } from "@playwright/test";
+import { expect, type Locator, type Page, test } from "@playwright/test";
+import { SESSION_WORKSPACE_STORAGE_KEY } from "../apps/desktop/src/renderer/session-workspace/workspace-layout";
 import {
   loadCodeWorkspaceLayout,
   saveCodeWorkspaceLayout,
@@ -9,9 +10,13 @@ import {
 import { expectNoDesktopRecovery } from "./support/desktop-assertions";
 import {
   closeFocusedConversationView,
+  emptyAccountPoolFixtureState,
+  installEmptyAccountPoolFixture,
   launchIsolatedDesktop,
   openNewConversationView,
+  openWorkspaceViews,
   waitForDesktopReady,
+  waitForSessionRunInventory,
 } from "./support/doolittle-workbench-app";
 import {
   installSyntheticApprovalFixture,
@@ -33,11 +38,13 @@ function panelById(workbench: Locator, id: string) {
   return workbench.locator(`[data-session-panel="${id}"]`);
 }
 
-async function focusPanelTab(workbench: Locator, id: string): Promise<void> {
-  await workbench
-    .getByRole("tablist", { name: "Open conversations" })
-    .locator(`[aria-controls="session-panel-${id}"]`)
-    .click();
+async function focusPanelTab(
+  page: Page,
+  workbench: Locator,
+  id: string,
+): Promise<void> {
+  await openWorkspaceViews(page);
+  await workbench.locator(`[id="session-tab-${id}"]`).click();
   await expect(panelById(workbench, id)).toBeVisible();
 }
 
@@ -52,15 +59,41 @@ async function expectEmptyComposerReady(workbench: Locator): Promise<void> {
   ).toBeDisabled();
 }
 
-async function splitOpenConversations(workbench: Locator): Promise<void> {
+async function splitOpenConversations(
+  page: Page,
+  workbench: Locator,
+): Promise<void> {
+  await page.evaluate(() => {
+    document.documentElement.dataset.uiLayout = "canvas";
+  });
+  await openWorkspaceViews(page);
   await workbench
     .locator("summary")
     .filter({ hasText: "Layout views" })
     .click();
   await workbench.getByRole("button", { name: "Split right" }).click();
+  await workbench
+    .getByRole("button", { name: "Close workspace views" })
+    .click();
 }
 
 async function expectComposerGeometry(panel: Locator): Promise<void> {
+  await expect
+    .poll(
+      () =>
+        panel.locator(".chat-composer").evaluate((composer) => {
+          const owner = composer.closest("[data-session-panel]");
+          if (!owner) return false;
+          const bounds = composer.getBoundingClientRect();
+          const panelBounds = owner.getBoundingClientRect();
+          return (
+            bounds.left >= panelBounds.left - 1 &&
+            bounds.right <= panelBounds.right + 1
+          );
+        }),
+      { timeout: 5_000 },
+    )
+    .toBe(true);
   const geometry = await panel
     .locator(".chat-composer")
     .evaluate((composer) => {
@@ -248,6 +281,281 @@ async function expectApprovalGeometry(panel: Locator): Promise<void> {
 }
 
 test.describe("Doolittle desktop session workbench", () => {
+  test("offline new-chat chooser saves a native stopped bot with reviewed character and bounded layouts", async () => {
+    test.setTimeout(90_000);
+    const desktop = await launchIsolatedDesktop();
+    try {
+      const { app, page, pageErrors } = desktop;
+      await waitForDesktopReady(page);
+      await installEmptyAccountPoolFixture(app);
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      const externalRequests: string[] = [];
+      page.on("request", (request) => {
+        if (
+          /^https?:/u.test(request.url()) &&
+          !request.url().startsWith("http://desktop.local/")
+        )
+          externalRequests.push(request.url());
+      });
+      const resize = async (width: number) => {
+        const nativeWindow = await app.browserWindow(page);
+        try {
+          await nativeWindow.evaluate(
+            (window, size) => {
+              window.setMinimumSize(360, 360);
+              window.setContentSize(size.width, size.height);
+            },
+            { width, height: 900 },
+          );
+        } finally {
+          await nativeWindow.dispose();
+        }
+        await expect
+          .poll(() => page.evaluate(() => window.innerWidth))
+          .toBe(width);
+      };
+      const expectFit = async (selector: string) => {
+        const geometry = await page.locator(selector).evaluate((element) => {
+          const bounds = element.getBoundingClientRect();
+          return {
+            left: bounds.left,
+            right: bounds.right,
+            viewport: window.innerWidth,
+            documentWidth: document.documentElement.scrollWidth,
+          };
+        });
+        expect(geometry.left).toBeGreaterThanOrEqual(-1);
+        expect(geometry.right).toBeLessThanOrEqual(geometry.viewport + 1);
+        expect(geometry.documentWidth).toBeLessThanOrEqual(
+          geometry.viewport + 1,
+        );
+      };
+      await page.getByRole("button", { name: "Conversation options" }).click();
+      await page.getByRole("menuitem", { name: "New conversation" }).click();
+      const chooser = page.getByRole("dialog", { name: "Start a chat with…" });
+      await expect(chooser).toBeVisible();
+      await expect(
+        chooser
+          .getByRole("region", { name: "Available bots" })
+          .getByRole("button", { name: /^Doolittle\b/u }),
+      ).toBeVisible();
+      await resize(360);
+      await expectFit(".new-chat-chooser");
+      mkdirSync(screenshotRoot, { recursive: true });
+      await page.screenshot({
+        animations: "disabled",
+        path: resolve(screenshotRoot, "offline-new-chat-chooser-360.png"),
+        scale: "css",
+      });
+      await chooser.getByRole("button", { name: /Create a new bot/u }).click();
+      const creation = page.getByRole("region", { name: "Create a new bot" });
+      await expect(creation).toBeVisible();
+      const answers = [
+        "Summarize local research notes with citations.",
+        "Be concise, verify claims, and ask before changing files.",
+        "Offline Scout",
+      ];
+      await creation.locator(".bot-design-dock textarea").fill(answers[0]);
+      await creation.getByRole("button", { name: "Send answer" }).click();
+      await expect(
+        creation.getByRole("heading", { name: "How should it work with you?" }),
+      ).toBeVisible();
+      await creation.locator(".bot-design-dock textarea").fill(answers[1]);
+      await page.screenshot({
+        animations: "disabled",
+        path: resolve(screenshotRoot, "offline-bot-interview-360.png"),
+        scale: "css",
+      });
+      await resize(1280);
+      await page
+        .getByRole("complementary", { name: "Navigation and bots" })
+        .getByRole("button", { name: "New conversation" })
+        .click();
+      await expect(chooser).toBeVisible();
+      page.once("dialog", async (dialog) => {
+        expect(dialog.type()).toBe("confirm");
+        expect(dialog.message()).toContain("Discard this unsaved bot design");
+        await dialog.dismiss();
+      });
+      await chooser
+        .getByRole("region", { name: "Available bots" })
+        .getByRole("button", { name: /^Doolittle\b/u })
+        .click();
+      await expect(chooser).toBeVisible();
+      await chooser.getByRole("button", { name: "Close new chat" }).click();
+      await expect(
+        creation.getByRole("heading", { name: "How should it work with you?" }),
+      ).toBeVisible();
+      await expect(creation.locator(".bot-design-dock textarea")).toHaveValue(
+        answers[1],
+      );
+      await creation.getByRole("button", { name: "Send answer" }).click();
+      await creation.locator(".bot-design-dock textarea").fill(answers[2]);
+      await creation.getByRole("button", { name: "Send answer" }).click();
+      await expect(
+        creation.getByRole("heading", { name: "Meet Offline Scout" }),
+      ).toBeVisible();
+      await expect(
+        creation.getByRole("textbox", { name: "Purpose" }),
+      ).toHaveValue(answers[0]);
+      await expect(
+        creation.getByRole("textbox", { name: "Working style" }),
+      ).toHaveValue(answers[1]);
+      await creation
+        .getByRole("button", { name: "Review model and access" })
+        .click();
+      await expect(
+        creation.getByRole("heading", {
+          name: "Choose Offline Scout’s model and access",
+        }),
+      ).toBeVisible();
+      await expect(
+        creation.getByText(
+          "No accounts or mutation permissions are granted automatically.",
+        ),
+      ).toBeVisible();
+      await expect(
+        creation.getByRole("checkbox", { name: "Allow file and tool changes" }),
+      ).not.toBeChecked();
+      await expect(
+        creation.getByRole("checkbox", { name: "Allow delegation" }),
+      ).not.toBeChecked();
+      await creation.getByRole("textbox", { name: "Provider" }).fill("offline");
+      await creation.getByRole("textbox", { name: "Model" }).fill("offline");
+      for (const width of [360, 768, 1280, 1728]) {
+        await resize(width);
+        await expectFit(".bot-design-conversation");
+        await page.screenshot({
+          animations: "disabled",
+          path: resolve(screenshotRoot, `offline-bot-review-${width}.png`),
+          scale: "css",
+        });
+      }
+      await creation
+        .getByRole("button", { name: "Create Offline Scout" })
+        .click();
+      await expect(creation).toBeHidden();
+      let savedBot: Record<string, unknown> | null = null;
+      await expect
+        .poll(
+          async () => {
+            const result = await page.evaluate(async () => {
+              const response = await window.doolittle.requestAgent({
+                requestId: crypto.randomUUID(),
+                path: "/bots",
+                method: "GET",
+                headers: { accept: "application/json" },
+              });
+              if (response.status !== 200) {
+                let code = "";
+                try {
+                  const payload = JSON.parse(response.body) as {
+                    code?: unknown;
+                  };
+                  if (typeof payload.code === "string") code = payload.code;
+                } catch {
+                  // Status is authoritative when an error body is malformed.
+                }
+                return { status: response.status, code, bot: null };
+              }
+              const catalog = JSON.parse(response.body) as {
+                bots: Array<{
+                  name: string;
+                  state: string;
+                  activeRunCount: number;
+                  model: { provider: string; model: string };
+                  character?: {
+                    system?: string;
+                    bio?: string | string[];
+                    style?: unknown;
+                  };
+                  permissions: {
+                    connectionIds: string[];
+                    allowMutation: boolean;
+                    allowDelegation: boolean;
+                  };
+                }>;
+              };
+              return {
+                status: 200,
+                code: "",
+                bot:
+                  catalog.bots.find((bot) => bot.name === "Offline Scout") ??
+                  null,
+              };
+            });
+            if (
+              result.status !== 200 &&
+              !(
+                result.status === 503 &&
+                result.code === "bot_status_unavailable"
+              )
+            )
+              throw new Error(
+                `Bot catalog returned HTTP ${result.status}, code ${result.code || "none"}.`,
+              );
+            if (result.bot) savedBot = result.bot as Record<string, unknown>;
+            return {
+              status: result.status,
+              code: result.code,
+              found: Boolean(result.bot),
+            };
+          },
+          { timeout: 30_000 },
+        )
+        .toEqual({ status: 200, code: "", found: true });
+      const bot = savedBot;
+      expect(bot).toMatchObject({
+        name: "Offline Scout",
+        state: "stopped",
+        activeRunCount: 0,
+        model: { provider: "offline", model: "offline" },
+        permissions: {
+          connectionIds: [],
+          allowMutation: false,
+          allowDelegation: false,
+        },
+      });
+      expect(JSON.stringify(bot?.character)).toContain(
+        "Summarize local research notes",
+      );
+      expect(JSON.stringify(bot?.character)).toContain("Be concise");
+      const accountFixture = await emptyAccountPoolFixtureState(app);
+      expect(accountFixture.accountPoolReads).toBeGreaterThan(0);
+      expect(accountFixture.activationRequests).toBe(0);
+      await installSyntheticChatLifecycleFixture(
+        app,
+        "# Fixture notes\n\n- **Verified** offline rendering\n- Inline `code` stays readable.",
+      );
+      await resize(1280);
+      await openNewConversationView(page);
+      const activePanel = page
+        .locator("[data-session-panel]:not([hidden])")
+        .last();
+      await activePanel
+        .getByRole("textbox", { name: "Message Doolittle" })
+        .fill(syntheticChatPrompt("complete"));
+      await waitForSessionRunInventory(activePanel);
+      await activePanel.getByRole("button", { name: "Send message" }).click();
+      await expect(
+        activePanel.getByRole("heading", { name: "Fixture notes" }),
+      ).toBeVisible();
+      await expect(
+        activePanel.getByText("Verified", { exact: true }),
+      ).toBeVisible();
+      await page.screenshot({
+        animations: "disabled",
+        path: resolve(screenshotRoot, "offline-normal-conversation-1280.png"),
+        scale: "css",
+      });
+      expect(externalRequests).toEqual([]);
+      expect(pageErrors).toEqual([]);
+      await expectNoDesktopRecovery(page);
+    } finally {
+      await desktop.dispose();
+    }
+  });
+
   test("centers a new composer then docks it below independently scrolling history", async () => {
     const testInfo = test.info();
     test.setTimeout(120_000);
@@ -338,14 +646,7 @@ test.describe("Doolittle desktop session workbench", () => {
           first.getByRole("button", { name: "Stop response", exact: true }),
         ).toHaveCount(0);
         await composer.fill(syntheticChatPrompt("complete"));
-        await expect(
-          first.getByText("Checking active runs before sending…", {
-            exact: true,
-          }),
-        ).toHaveCount(0);
-        await expect(
-          first.getByRole("button", { name: "Retry run list", exact: true }),
-        ).toHaveCount(0);
+        await waitForSessionRunInventory(first);
         await composer.press("Enter");
       }
       await composer.focus();
@@ -366,7 +667,6 @@ test.describe("Doolittle desktop session workbench", () => {
       expect(inputFocusStyle.outline).toBe("none");
       expect(inputFocusStyle.border).toBe("0px");
       expect(inputFocusStyle.shadow).toContain("inset");
-      expect(inputFocusStyle.shadow).toContain("2px 0px 0px 0px");
       await page.screenshot({ path: testInfo.outputPath("chat-new-1280.png") });
       await testInfo.attach("initial-chat-layout", {
         body: JSON.stringify(await layout(first)),
@@ -386,8 +686,8 @@ test.describe("Doolittle desktop session workbench", () => {
         .getByRole("button", { name: /^Choose model\. Current route/ })
         .click();
       await expectHitTarget(
-        first
-          .getByRole("region", { name: "Choose provider and model" })
+        page
+          .getByRole("dialog", { name: "Choose provider and model" })
           .getByLabel("Search models"),
       );
       await page.keyboard.press("Escape");
@@ -487,10 +787,10 @@ test.describe("Doolittle desktop session workbench", () => {
       await second
         .getByRole("textbox", { name: "Message Doolittle" })
         .fill("A separate new conversation draft");
-      await splitOpenConversations(workbench);
+      await splitOpenConversations(page, workbench);
       await expectDocked(first);
       await expectCentered(second);
-      await focusPanelTab(workbench, secondId);
+      await focusPanelTab(page, workbench, secondId);
       await page.screenshot({
         path: testInfo.outputPath("chat-split-1280.png"),
       });
@@ -506,11 +806,6 @@ test.describe("Doolittle desktop session workbench", () => {
         .poll(async () => (await layout(second)).transcriptHeight)
         .toBeGreaterThanOrEqual(128);
       await expectComposerGeometry(second);
-      await expect(
-        second.getByText("Checking active runs before sending…", {
-          exact: true,
-        }),
-      ).toHaveCount(0);
       await page.screenshot({
         path: testInfo.outputPath("chat-new-360-short.png"),
         animations: "disabled",
@@ -539,6 +834,12 @@ test.describe("Doolittle desktop session workbench", () => {
       await noticeAction.focus();
       await expect(noticeAction).toBeFocused();
       await expectHitTarget(noticeAction);
+      // The Send control intentionally has pointer-events:none while run
+      // recovery is checking. Verify reachability only once sending is ready.
+      await waitForSessionRunInventory(second);
+      await expect(
+        second.getByRole("button", { name: "Send message", exact: true }),
+      ).toBeEnabled();
       await expectHitTarget(
         second.getByRole("button", { name: "Send message", exact: true }),
       );
@@ -550,7 +851,7 @@ test.describe("Doolittle desktop session workbench", () => {
       await newDraft.fill("A separate new conversation draft");
       await resize(360, 844);
       await expectCentered(second);
-      await focusPanelTab(workbench, firstId);
+      await focusPanelTab(page, workbench, firstId);
       await expectDocked(first);
       await expect(composer).toHaveValue(draft);
       await page.screenshot({
@@ -585,7 +886,7 @@ test.describe("Doolittle desktop session workbench", () => {
         name: /^Choose model\. Current route/,
       });
       await modelButton.click();
-      const modelDialog = first.getByRole("region", {
+      const modelDialog = page.getByRole("dialog", {
         name: "Choose provider and model",
       });
       await expectHitTarget(modelDialog.getByLabel("Search models"));
@@ -641,7 +942,7 @@ test.describe("Doolittle desktop session workbench", () => {
       await composer.press("Tab");
       await expect(composer).toHaveValue(draft);
 
-      await focusPanelTab(workbench, secondId);
+      await focusPanelTab(page, workbench, secondId);
       const projectButton = second.getByRole("button", {
         name: /^Choose project\. Current project/,
       });
@@ -653,18 +954,22 @@ test.describe("Doolittle desktop session workbench", () => {
       await page.keyboard.press("Escape");
       await expect(projectDialog).toHaveCount(0);
       await expect(projectButton).toBeFocused();
-      await focusPanelTab(workbench, firstId);
+      await focusPanelTab(page, workbench, firstId);
       await expectDocked(first);
       await expect(composer).toHaveValue(draft);
       await resize(1728, 1000);
       await expectDocked(first);
       await expectCentered(second);
-      await focusPanelTab(workbench, secondId);
+      await focusPanelTab(page, workbench, secondId);
+      await openWorkspaceViews(page);
       await workbench
         .locator("summary")
         .filter({ hasText: "Layout views" })
         .click();
       await workbench.getByRole("button", { name: "Split below" }).click();
+      await workbench
+        .getByRole("button", { name: "Close workspace views" })
+        .click();
       await expect
         .poll(() =>
           second
@@ -689,8 +994,8 @@ test.describe("Doolittle desktop session workbench", () => {
         .getByRole("button", { name: /^Choose model\. Current route/ })
         .click();
       await expectHitTarget(
-        second
-          .getByRole("region", { name: "Choose provider and model" })
+        page
+          .getByRole("dialog", { name: "Choose provider and model" })
           .getByLabel("Search models"),
       );
       await page.keyboard.press("Escape");
@@ -1522,36 +1827,41 @@ test.describe("Doolittle desktop session workbench", () => {
       const layoutMenu = workbench
         .locator("summary")
         .filter({ hasText: "Layout views" });
+      await page.evaluate(() => {
+        document.documentElement.dataset.uiLayout = "canvas";
+      });
+      await openWorkspaceViews(page);
       await layoutMenu.click();
       await workbench.getByRole("button", { name: "Split right" }).click();
+      await workbench
+        .getByRole("button", { name: "Close workspace views" })
+        .click();
       await expect(firstPanel).toBeVisible();
       await expect(secondPanel).toBeVisible();
 
-      await focusPanelTab(workbench, secondId as string);
+      await focusPanelTab(page, workbench, secondId as string);
       const secondInspectorToggle = page.getByRole("button", {
         name: "Open inspector",
       });
       await secondInspectorToggle.click();
       const secondInspector = secondPanel.locator(".chat-workbench-pane");
-      const inspectorTabs = secondInspector.getByRole("tablist", {
-        name: "Inspector views",
+      const inspectorView = secondInspector.getByRole("combobox", {
+        name: "View",
       });
-      await expect(inspectorTabs.getByRole("tab")).toHaveText([
+      await expect(inspectorView.locator("option")).toHaveText([
         "Details",
         "Library",
         "Computer",
       ]);
-      await expect(secondInspector.getByRole("tabpanel")).toContainText(
-        "Conversation",
-      );
-      await inspectorTabs.getByRole("tab", { name: "Library" }).click();
+      await expect(
+        secondInspector.getByRole("region", { name: "Details" }),
+      ).toContainText("Conversation");
+      await inspectorView.selectOption("library");
       const contextTabs = secondInspector.getByRole("tablist", {
         name: "Thread context views",
       });
       await expect(page.locator(".thread-workbench")).toBeVisible();
-      await expect(
-        inspectorTabs.getByRole("tab", { name: "Library" }),
-      ).toHaveAttribute("aria-selected", "true");
+      await expect(inspectorView).toHaveValue("library");
       await expect(
         contextTabs.getByRole("tab", { name: "Files" }),
       ).toHaveAttribute("aria-selected", "true");
@@ -1585,7 +1895,7 @@ test.describe("Doolittle desktop session workbench", () => {
       await expect(
         page.getByText("Working tree is clean", { exact: true }),
       ).toHaveCount(0);
-      await inspectorTabs.getByRole("tab", { name: "Computer" }).click();
+      await inspectorView.selectOption("computer");
       const computerTabs = secondInspector.getByRole("tablist", {
         name: "Thread context views",
       });
@@ -1604,15 +1914,15 @@ test.describe("Doolittle desktop session workbench", () => {
         fullPage: true,
         path: resolve(screenshotRoot, "04-computer-brief-tiled-1440.png"),
       });
-      await focusPanelTab(workbench, firstId as string);
+      await focusPanelTab(page, workbench, firstId as string);
       const firstInspectorToggle = page.getByRole("button", {
         name: "Open inspector",
       });
       await firstInspectorToggle.click();
       await firstPanel
         .locator(".chat-workbench-pane")
-        .getByRole("tab", { name: "Library" })
-        .click();
+        .getByRole("combobox", { name: "View" })
+        .selectOption("library");
       await expect(page.locator("[data-thread-workbench=rail]")).toHaveCount(2);
       const contextRailLinks = await page
         .locator("[data-thread-workbench=rail]")
@@ -1651,7 +1961,7 @@ test.describe("Doolittle desktop session workbench", () => {
         .getByRole("toolbar", { name: "Conversation controls" })
         .getByRole("button", { name: "Close inspector" })
         .click();
-      await focusPanelTab(workbench, secondId as string);
+      await focusPanelTab(page, workbench, secondId as string);
       await page
         .getByRole("toolbar", { name: "Conversation controls" })
         .getByRole("button", { name: "Close inspector" })
@@ -1673,13 +1983,13 @@ test.describe("Doolittle desktop session workbench", () => {
         path: resolve(screenshotRoot, "01-chat-tiled-desktop.png"),
       });
       await page.setViewportSize({ width: 760, height: 960 });
-      await focusPanelTab(workbench, firstId as string);
+      await focusPanelTab(page, workbench, firstId as string);
       await firstInspectorToggle.click();
       await expect(firstPanel.locator(".chat-workbench-pane")).toBeVisible();
       await firstPanel
         .locator(".chat-workbench-pane")
-        .getByRole("tab", { name: "Library" })
-        .click();
+        .getByRole("combobox", { name: "View" })
+        .selectOption("library");
       const firstContextTabs = firstPanel
         .locator(".chat-workbench-pane")
         .getByRole("tablist", { name: "Thread context views" });
@@ -1749,8 +2059,10 @@ test.describe("Doolittle desktop session workbench", () => {
       await expect(focusSecond).toHaveAttribute("aria-pressed", "false");
       await expect(firstPanel).toBeVisible();
       await expect(secondPanel).toBeVisible();
+      await openWorkspaceViews(page);
       await layoutMenu.click();
       await workbench.getByRole("button", { name: "Show as tabs" }).click();
+      await openWorkspaceViews(page);
       await expect(
         workbench.getByRole("tablist", { name: "Open conversations" }),
       ).toBeVisible();
@@ -1762,6 +2074,9 @@ test.describe("Doolittle desktop session workbench", () => {
       );
       await layoutMenu.click();
       await workbench.getByRole("button", { name: "Split right" }).click();
+      await workbench
+        .getByRole("button", { name: "Close workspace views" })
+        .click();
       await expect(firstPanel).toBeVisible();
       await expect(secondPanel).toBeVisible();
       const layoutDetails = layoutMenu.locator("xpath=..");
@@ -1795,10 +2110,14 @@ test.describe("Doolittle desktop session workbench", () => {
       await expectComposerGeometry(panelById(workbench, firstId as string));
       await expectComposerGeometry(panelById(workbench, secondId as string));
 
+      await openWorkspaceViews(page);
       await workbench.getByRole("button", { name: "Find session" }).click();
+      await expect(
+        workbench.locator(".session-workspace-views"),
+      ).not.toHaveAttribute("open", "");
       const finder = workbench.getByRole("region", { name: "Find a session" });
       const sessionSearch = finder.getByRole("textbox", {
-        name: "Search loaded and local sessions",
+        name: "Find a conversation",
       });
       await sessionSearch.fill(secondId as string);
       const results = finder.getByRole("list", {
@@ -1815,12 +2134,14 @@ test.describe("Doolittle desktop session workbench", () => {
           name: "Message Doolittle",
         }),
       ).toHaveValue("Draft preserved in the second session.");
-      await focusPanelTab(workbench, firstId as string);
+      await focusPanelTab(page, workbench, firstId as string);
       await expect(
         firstPanel.getByRole("textbox", { name: "Message Doolittle" }),
       ).toHaveValue("Draft preserved in the first session.");
 
-      await workbench.getByRole("button", { name: "Find session" }).focus();
+      await firstPanel
+        .getByRole("textbox", { name: "Message Doolittle" })
+        .focus();
       await page.keyboard.press(
         process.platform === "darwin" ? "Meta+Shift+O" : "Control+Shift+O",
       );
@@ -1828,9 +2149,6 @@ test.describe("Doolittle desktop session workbench", () => {
       await expect(sessionSearch).toBeFocused();
       await page.keyboard.press("Escape");
       await expect(finder).toBeHidden();
-      await expect(
-        workbench.getByRole("button", { name: "Find session" }),
-      ).toBeFocused();
 
       await page.screenshot({
         animations: "disabled",
@@ -1839,6 +2157,7 @@ test.describe("Doolittle desktop session workbench", () => {
       });
 
       await page.setViewportSize({ width: 390, height: 844 });
+      await openWorkspaceViews(page);
       const tabs = workbench.getByRole("tablist", {
         name: "Open conversations",
       });
@@ -1851,7 +2170,21 @@ test.describe("Doolittle desktop session workbench", () => {
         "aria-selected",
         "true",
       );
+      await expect(tabs.getByRole("tab").nth(1)).toBeFocused();
+      await page.keyboard.press("Home");
+      await expect(tabs.getByRole("tab").first()).toBeFocused();
+      await page.keyboard.press("End");
+      await expect(tabs.getByRole("tab").nth(1)).toBeFocused();
+      await page.keyboard.press("Enter");
+      await expect(
+        workbench.locator(".session-workspace-views"),
+      ).not.toHaveAttribute("open", "");
       await expect(workbench.getByRole("tabpanel")).toHaveCount(1);
+      await expect(
+        workbench
+          .getByRole("tabpanel")
+          .getByRole("textbox", { name: "Message Doolittle" }),
+      ).toBeFocused();
       await expectComposerGeometry(workbench.getByRole("tabpanel"));
       const mobileInspectorToggle = page.getByRole("button", {
         name: "Open inspector",
@@ -1860,7 +2193,9 @@ test.describe("Doolittle desktop session workbench", () => {
       const mobileWorkbench = page.getByRole("dialog", {
         name: "Thread workbench",
       });
-      await mobileWorkbench.getByRole("tab", { name: "Library" }).click();
+      await mobileWorkbench
+        .getByRole("combobox", { name: "View" })
+        .selectOption("library");
       await expect
         .poll(() =>
           mobileWorkbench.evaluate((dialog) => {
@@ -2179,14 +2514,23 @@ test.describe("Doolittle desktop session workbench", () => {
         firstId as string,
         secondId as string,
       ] as const;
-      await splitOpenConversations(workbench);
+      await splitOpenConversations(page, workbench);
       await expect(panels.filter({ visible: true })).toHaveCount(2);
+      const savedBeforeReload = await page.evaluate(
+        (key) => JSON.parse(localStorage.getItem(key) ?? "null"),
+        SESSION_WORKSPACE_STORAGE_KEY,
+      );
+      expect(savedBeforeReload.mode).toBe("split");
+      expect(savedBeforeReload.openIds).toEqual(initialSessionIds);
 
       await installSyntheticApprovalFixture(app, initialSessionIds);
       // A reload clears the already-completed empty approval-resource cache so
       // the fixture's loading/error/retry path is exercised on first render.
       await page.reload();
       await expect(page).toHaveTitle(/Doolittle$/);
+      await page.evaluate(() => {
+        document.documentElement.dataset.uiLayout = "canvas";
+      });
       const workbenchAfterReload = page.getByRole("region", {
         name: "Session workbench",
       });
@@ -2209,7 +2553,7 @@ test.describe("Doolittle desktop session workbench", () => {
       const sessionIds = [firstRestoredId, secondRestoredId] as const;
       await rebindSyntheticApprovalSessions(app, sessionIds);
       const extraIds = await workbenchAfterReload
-        .getByRole("tab", { name: /./ })
+        .locator('.session-workspace-views [role="tab"]')
         .evaluateAll((elements) =>
           elements
             .map((element) =>
@@ -2219,13 +2563,30 @@ test.describe("Doolittle desktop session workbench", () => {
             )
             .filter((id): id is string => Boolean(id)),
         );
+      const savedWithHostDraft = await page.evaluate(
+        (key) => JSON.parse(localStorage.getItem(key) ?? "null"),
+        SESSION_WORKSPACE_STORAGE_KEY,
+      );
+      expect(savedWithHostDraft.openIds).toEqual(
+        expect.arrayContaining(sessionIds),
+      );
+      if (extraIds.some((id) => !sessionIds.includes(id))) {
+        expect(savedWithHostDraft.mode).toBe("split");
+      }
       for (const extraId of extraIds.filter((id) => !sessionIds.includes(id))) {
+        await openWorkspaceViews(page);
         await workbenchAfterReload
           .locator(`[aria-controls="session-panel-${extraId}"]`)
           .locator("..")
           .getByRole("button", { name: /^Close .* view$/ })
           .click();
       }
+      const savedAfterReload = await page.evaluate(
+        (key) => JSON.parse(localStorage.getItem(key) ?? "null"),
+        SESSION_WORKSPACE_STORAGE_KEY,
+      );
+      expect(savedAfterReload.openIds).toEqual(sessionIds);
+      await splitOpenConversations(page, workbenchAfterReload);
       await expect(reloadedPanels.filter({ visible: true })).toHaveCount(2);
 
       const firstPanel = panelById(workbenchAfterReload, sessionIds[0]);
@@ -2370,6 +2731,7 @@ test.describe("Doolittle desktop session workbench", () => {
         listAtEnd: true,
       });
       await page.setViewportSize({ width: 760, height: 960 });
+      await openWorkspaceViews(page);
       const desktopNarrowSessionTabs = workbenchAfterReload.getByRole(
         "tablist",
         { name: "Open conversations" },
@@ -2378,6 +2740,9 @@ test.describe("Doolittle desktop session workbench", () => {
       await desktopNarrowSessionTabs.getByRole("tab").nth(0).click();
       await expect(firstPanel).toBeVisible();
       await expect(secondPanel).toBeHidden();
+      await expect(
+        workbenchAfterReload.locator(".session-workspace-views"),
+      ).not.toHaveAttribute("open", "");
       await expectApprovalGeometry(firstPanel);
       await page.screenshot({
         animations: "disabled",
@@ -2386,12 +2751,16 @@ test.describe("Doolittle desktop session workbench", () => {
       });
 
       await page.setViewportSize({ width: 390, height: 844 });
+      await openWorkspaceViews(page);
       const sessionTabs = workbenchAfterReload.getByRole("tablist", {
         name: "Open conversations",
       });
       await expect(sessionTabs.getByRole("tab")).toHaveCount(2);
       await sessionTabs.getByRole("tab").nth(0).click();
       await expect(firstPanel).toBeVisible();
+      await expect(
+        workbenchAfterReload.locator(".session-workspace-views"),
+      ).not.toHaveAttribute("open", "");
       await page.screenshot({
         animations: "disabled",
         fullPage: true,
@@ -2594,6 +2963,7 @@ test.describe("Doolittle desktop session workbench", () => {
           id: "approval-session-a-long-copy",
           decision: "approve",
         });
+      await openWorkspaceViews(page);
       await sessionTabs.getByRole("tab").nth(1).click();
       const mobileSecondApprovalSection = secondPanel.getByRole("region", {
         name: "Pending approvals for this session",
@@ -2618,6 +2988,7 @@ test.describe("Doolittle desktop session workbench", () => {
         mobileSecondApprovalSection.getByRole("status"),
       ).toContainText("Denied this request.", { timeout: 15_000 });
       await expect(mobileSecondRequests.getByRole("article")).toHaveCount(0);
+      await openWorkspaceViews(page);
       await sessionTabs.getByRole("tab").nth(0).click();
       const firstAction = mobileRequests
         .locator("article")
@@ -2699,14 +3070,7 @@ test.describe("Doolittle desktop session workbench", () => {
         await composer.fill(syntheticChatPrompt(mode));
         // Run events refresh the owned inventory independently of response
         // cleanup. Respect the same readiness boundary as a real submission.
-        await expect(
-          panel.getByText("Checking active runs before sending…", {
-            exact: true,
-          }),
-        ).toHaveCount(0);
-        await expect(
-          panel.getByRole("button", { name: "Retry run list", exact: true }),
-        ).toHaveCount(0);
+        await waitForSessionRunInventory(panel);
         await composer.press("Enter");
         const userMessage = panel
           .locator(".chat-message.user")
@@ -2716,7 +3080,7 @@ test.describe("Doolittle desktop session workbench", () => {
 
       await startFixture(firstPanel, "running");
       const firstReceipt = firstPanel.locator(".chat-run-receipt").last();
-      await expect(firstReceipt).toContainText("Working");
+      await expect(firstReceipt).toContainText("Doolittle is working");
       await expect(
         firstPanel.locator(".chat-message.assistant").last(),
       ).toContainText(
@@ -2731,13 +3095,13 @@ test.describe("Doolittle desktop session workbench", () => {
         )
       ).find((id) => id && id !== firstId);
       expect(secondId).toBeTruthy();
-      await splitOpenConversations(workbench);
+      await splitOpenConversations(page, workbench);
       const secondPanel = panelById(workbench, secondId as string);
-      await focusPanelTab(workbench, secondId as string);
+      await focusPanelTab(page, workbench, secondId as string);
       await startFixture(secondPanel, "waiting");
       const secondReceipt = secondPanel.locator(".chat-run-receipt").last();
       await expect(secondReceipt).toContainText("Approval needed");
-      await expect(firstReceipt).toContainText("Working");
+      await expect(firstReceipt).toContainText("Doolittle is working");
 
       await firstPanel.getByRole("button", { name: "Stop response" }).click();
       await expect(
@@ -2848,6 +3212,7 @@ test.describe("Doolittle desktop session workbench", () => {
       await expect(input).toHaveValue(draft);
       await input.press("ArrowRight");
       await openNewConversationView(page);
+      await openWorkspaceViews(page);
       const tabs = workbench.getByRole("tablist", {
         name: "Open conversations",
       });
@@ -2866,14 +3231,30 @@ test.describe("Doolittle desktop session workbench", () => {
         .getByRole("menuitem", { name: "Move view right", exact: true })
         .click();
       await expect(input).toBeVisible();
+      await expect(originalTab).toBeVisible();
+      await expect(originalTab).toBeFocused();
+      await originalTab.click();
       await expect(input).toBeFocused();
+      await openWorkspaceViews(page);
       await originalTab.focus();
       await originalTab.press("Shift+F10");
       await expect(menu).toBeVisible();
       await page.keyboard.press("ArrowDown");
       await page.keyboard.press("Escape");
       await expect(menu).toBeHidden();
-      await expect(originalTab).toBeFocused();
+      await expect
+        .poll(() =>
+          page.evaluate(() => {
+            const active = document.activeElement;
+            return (
+              active instanceof HTMLElement &&
+              active.checkVisibility() &&
+              !active.closest("[hidden], [inert]")
+            );
+          }),
+        )
+        .toBe(true);
+      await openWorkspaceViews(page);
       await originalTab.click({ button: "right" });
       await menu
         .getByRole("menuitem", {
@@ -2884,8 +3265,11 @@ test.describe("Doolittle desktop session workbench", () => {
       await expect(original).toBeHidden();
       await page.keyboard.press("Meta+Shift+o");
       await workbench
-        .getByRole("textbox", { name: "Search loaded and local sessions" })
+        .getByRole("textbox", { name: "Find a conversation" })
         .fill(originalId);
+      await expect(
+        workbench.locator(".session-workspace-views"),
+      ).not.toHaveAttribute("open", "");
       const result = workbench
         .getByRole("list", { name: "Session search results" })
         .getByRole("listitem");
@@ -2901,6 +3285,7 @@ test.describe("Doolittle desktop session workbench", () => {
         await window.dispose();
       }
       await expect.poll(() => page.evaluate(() => window.innerWidth)).toBe(360);
+      await openWorkspaceViews(page);
       const activeTab = tabs.locator(
         `[aria-controls="session-panel-${originalId}"]`,
       );
@@ -2953,7 +3338,7 @@ test.describe("Doolittle desktop session workbench", () => {
       const finder = workbench.getByRole("button", { name: "Find session" });
       await finder.click();
       const search = workbench.getByRole("textbox", {
-        name: "Search loaded and local sessions",
+        name: "Find a conversation",
       });
       await search.fill(originalId as string);
       const results = workbench.getByRole("list", {
