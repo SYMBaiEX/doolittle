@@ -13,6 +13,7 @@ import {
   useEffect,
   useEffectEvent,
   useId,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -83,6 +84,7 @@ import { useToasts } from "./components/ToastRegion";
 import { useModalFocusBoundary } from "./components/useModalFocusBoundary";
 import {
   type ComputerOrigin,
+  computerOriginKey,
   ensureComputerOriginOwnerBinding,
 } from "./computer-origin";
 import { observeContextMenuCopy } from "./context-menu-clipboard";
@@ -141,6 +143,7 @@ import {
   shouldHandleGlobalChatTerminalShortcut,
   shouldIgnoreShellShortcut,
 } from "./shell-shortcuts";
+import { createTerminalOpenIntent } from "./terminal-open-intent";
 import { useDesktopContentNavigation } from "./use-desktop-content-navigation";
 import { useProjectManagement } from "./use-project-management";
 import { useRuntimeWorkspaceData } from "./use-runtime-workspace-data";
@@ -358,6 +361,7 @@ export function App() {
   const [computerOrigin, setComputerOrigin] = useState<ComputerOrigin>();
   const computerOriginRef = useRef<ComputerOrigin | undefined>(undefined);
   const [terminalOrigin, setTerminalOrigin] = useState<ComputerOrigin>();
+  const terminalOpenIntent = useRef(createTerminalOpenIntent());
   const [navCollapsed, setNavCollapsed] = useState(
     () => localStorage.getItem(NAV_COLLAPSED_KEY) === "true",
   );
@@ -674,6 +678,7 @@ export function App() {
     if (utilityModalMode) {
       setPaletteOpen(false);
       setPaletteQuery("");
+      terminalOpenIntent.current.cancel();
       setChatTerminalOpen(false);
     }
     utilityReturnFocusRef.current = utilityReturnFocusTarget({
@@ -693,7 +698,22 @@ export function App() {
     else openUtilities();
   }, [closeUtilities, openUtilities, utilityOpen]);
 
+  const terminalContextKey = JSON.stringify([
+    selectedSession,
+    view,
+    workspace.currentPath,
+    projectScope,
+    computerOriginKey(computerOrigin),
+    computerOrigin?.workspacePath,
+  ]);
+  useLayoutEffect(() => {
+    const intent = terminalOpenIntent.current;
+    intent.setContext(terminalContextKey);
+    return () => intent.cancel();
+  }, [terminalContextKey]);
+
   const closeChatTerminal = useCallback((restoreFocus = true) => {
+    terminalOpenIntent.current.cancel();
     setChatTerminalOpen(false);
     const restoreTarget = chatTerminalReturnFocusRef.current;
     chatTerminalReturnFocusRef.current = null;
@@ -731,17 +751,54 @@ export function App() {
       });
       return;
     }
-    setTerminalOrigin(origin);
-    if (utilityOpen && utilityModalMode) {
-      setUtilityOpen(false);
-    }
-    chatTerminalReturnFocusRef.current =
+    const projectId = sessionProjectTarget(
+      origin.originConversationId,
+      sessions,
+      localProjectBindings,
+    )?.projectId;
+    const returnFocusTarget =
       document.activeElement instanceof HTMLElement
         ? document.activeElement
         : null;
-    setMobileSidebarOpen(false);
-    setChatTerminalMounted(true);
-    setChatTerminalOpen(true);
+    void terminalOpenIntent.current.run(
+      terminalContextKey,
+      () =>
+        ensureComputerOriginOwnerBinding(origin, {
+          savedSessionIds: new Set(
+            sessions.map((session) => session.sessionId),
+          ),
+          localBotBindings,
+          ...(projectId ? { projectId } : {}),
+          bind: async (botId, sessionId, boundProjectId) => {
+            await desktopRequest(
+              `/bots/${encodeURIComponent(botId)}/conversations`,
+              "POST",
+              {
+                sessionId,
+                ...(boundProjectId ? { projectId: boundProjectId } : {}),
+              },
+            );
+          },
+        }),
+      () => {
+        setTerminalOrigin(origin);
+        if (utilityOpen && utilityModalMode) {
+          setUtilityOpen(false);
+        }
+        chatTerminalReturnFocusRef.current = returnFocusTarget;
+        setMobileSidebarOpen(false);
+        setChatTerminalMounted(true);
+        setChatTerminalOpen(true);
+      },
+      () => {
+        pushToast({
+          tone: "error",
+          title: "Terminal is unavailable",
+          message:
+            "This draft’s bot ownership could not be confirmed. The draft was kept.",
+        });
+      },
+    );
   }, [
     setMobileSidebarOpen,
     utilityModalMode,
@@ -749,16 +806,19 @@ export function App() {
     selectedSession,
     sessions,
     localBotBindings,
+    localProjectBindings,
     defaultBotId,
     bots,
     computerOrigin,
     view,
     workspace.currentPath,
+    terminalContextKey,
     pushToast,
   ]);
 
   const toggleChatTerminal = useCallback(() => {
-    if (chatTerminalOpen) closeChatTerminal();
+    if (chatTerminalOpen || terminalOpenIntent.current.isPending())
+      closeChatTerminal();
     else openChatTerminal();
   }, [chatTerminalOpen, closeChatTerminal, openChatTerminal]);
 
