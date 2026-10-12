@@ -73,7 +73,7 @@ describe("desktop shell overlay Tailwind ownership", () => {
       /const openChatTerminal = useCallback\(\(\) => \{[\s\S]*?setTerminalOrigin\(origin\);\s*if \(utilityOpen && utilityModalMode\) \{\s*setUtilityOpen\(false\);\s*\}\s*chatTerminalReturnFocusRef/u,
     );
     expect(appSource).toMatch(
-      /const openUtilities = useCallback\(\(\) => \{\s*if \(utilityModalMode\) \{\s*setPaletteOpen\(false\);\s*setPaletteQuery\(""\);\s*setChatTerminalOpen\(false\);/u,
+      /const openUtilities = useCallback\(\(\) => \{\s*if \(utilityModalMode\) \{\s*setPaletteOpen\(false\);\s*setPaletteQuery\(""\);\s*terminalOpenIntent\.current\.cancel\(\);\s*setChatTerminalOpen\(false\);/u,
     );
   });
 
