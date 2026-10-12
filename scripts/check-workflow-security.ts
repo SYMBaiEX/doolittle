@@ -1,6 +1,7 @@
 #!/usr/bin/env nub
 
 import { readFileSync } from "node:fs";
+import { isMap, isNode, isPair, LineCounter, parseDocument, visit } from "yaml";
 import { listGitTrackedFiles } from "./git-tracked-files";
 
 const WORKFLOW_PATH = /^\.github\/workflows\/.+\.ya?ml$/u;
@@ -12,9 +13,7 @@ const USES_REFERENCE =
 const NUB_SETUP_REFERENCE = /^nubjs\/setup-nub@/u;
 const NUB_VERSION_REFERENCE =
   /^\s*nub-version:\s*(?:"([^"]+)"|'([^']+)'|([^\s#]+))/u;
-const CHECKOUT_REFERENCE = /^actions\/checkout@/u;
-const PERSIST_CREDENTIALS_REFERENCE =
-  /^\s*persist-credentials:\s*(?:"([^"]+)"|'([^']+)'|([^\s#]+))/u;
+const CHECKOUT_REFERENCE = /^actions\/checkout@/iu;
 
 export interface MutableWorkflowAction {
   file: string;
@@ -101,29 +100,70 @@ export function findPersistedCheckoutCredentials(
   file: string,
 ): MutableWorkflowAction[] {
   const failures: MutableWorkflowAction[] = [];
-  const lines = source.split("\n");
-  for (const [index, line] of lines.entries()) {
-    const match = line.match(USES_REFERENCE);
-    const reference = match?.[1] ?? match?.[2] ?? match?.[3] ?? "";
-    if (!CHECKOUT_REFERENCE.test(reference)) continue;
-    const indent = line.match(/^\s*/u)?.[0].length ?? 0;
-    let persistence: string | undefined;
-    for (let cursor = index + 1; cursor < lines.length; cursor += 1) {
-      const candidate = lines[cursor] ?? "";
-      const candidateIndent = candidate.match(/^\s*/u)?.[0].length ?? 0;
-      if (
-        candidate.trim() &&
-        (candidateIndent < indent ||
-          (candidateIndent <= indent && /^\s*-\s/u.test(candidate)))
-      ) {
-        break;
-      }
-      const input = candidate.match(PERSIST_CREDENTIALS_REFERENCE);
-      if (input) persistence = input[1] ?? input[2] ?? input[3];
-    }
-    if (persistence !== "false") {
-      failures.push({ file, line: index + 1, reference });
-    }
+  const lineCounter = new LineCounter();
+  const document = parseDocument(source, {
+    lineCounter,
+    merge: true,
+    prettyErrors: false,
+  });
+  const invalid = () =>
+    new Error(
+      `Workflow YAML could not be parsed for credential checks: ${file}`,
+    );
+  if (document.errors.length) throw invalid();
+  try {
+    visit(document, {
+      Seq(_key, node, path) {
+        const keys = path
+          .filter(isPair)
+          .map((pair) =>
+            isNode(pair.key)
+              ? pair.key.toJS(document, { maxAliasCount: 100 })
+              : undefined,
+          );
+        if (
+          !(keys.length === 1 && keys[0] === "steps") &&
+          !(keys.length === 3 && keys[0] === "jobs" && keys[2] === "steps")
+        )
+          return;
+
+        // Resolve the entire sequence so an aliased step is checked too.
+        const steps = node.toJS(document, { maxAliasCount: 100 });
+        if (!Array.isArray(steps)) throw invalid();
+        for (const [index, value] of steps.entries()) {
+          if (!value || typeof value !== "object" || Array.isArray(value))
+            continue;
+          const step = value as Record<string, unknown>;
+          const reference = step.uses;
+          if (
+            typeof reference !== "string" ||
+            !CHECKOUT_REFERENCE.test(reference)
+          )
+            continue;
+          const inputs = step.with;
+          const persistence =
+            inputs && typeof inputs === "object" && !Array.isArray(inputs)
+              ? (inputs as Record<string, unknown>)["persist-credentials"]
+              : undefined;
+          if (persistence === false || persistence === "false") continue;
+          const item = node.items[index];
+          const uses = isMap(item) ? item.get("uses", true) : undefined;
+          failures.push({
+            file,
+            line: lineCounter.linePos(
+              isNode(uses)
+                ? (uses.range?.[0] ?? 0)
+                : isNode(item)
+                  ? (item.range?.[0] ?? 0)
+                  : (node.range?.[0] ?? 0),
+            ).line,
+            reference,
+          });
+        }
+      },
+    });
+  } catch {
+    throw invalid();
   }
   return failures;
 }

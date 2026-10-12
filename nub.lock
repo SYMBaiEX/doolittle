@@ -269,6 +269,10 @@ importers:
         specifier: 5.0.3
         version: 5.0.3(@types/node@26.6.5)(vite@8.3.4(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1))
 
+      yaml:
+        specifier: 2.9.1
+        version: 2.9.1
+
   apps/desktop:
     dependencies:
       electron-updater:

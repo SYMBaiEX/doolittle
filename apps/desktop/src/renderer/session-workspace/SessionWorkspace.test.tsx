@@ -502,9 +502,21 @@ describe("shared session workbench behavior", () => {
     await openB();
     const returnFocus = required(panel("b").querySelector("textarea"));
     returnFocus.focus();
-    await act(async () =>
-      window.dispatchEvent(new Event("doolittle:workspace-views")),
-    );
+    let delayedInitialFocus: FrameRequestCallback | undefined;
+    const schedule = vi
+      .spyOn(window, "requestAnimationFrame")
+      .mockImplementation((callback) => {
+        delayedInitialFocus = callback;
+        return 1;
+      });
+    try {
+      await act(async () =>
+        window.dispatchEvent(new Event("doolittle:workspace-views")),
+      );
+    } finally {
+      schedule.mockRestore();
+    }
+    expect(delayedInitialFocus).toBeDefined();
     const views = required(
       container.querySelector<HTMLDetailsElement>(".session-workspace-views"),
     );
@@ -525,12 +537,16 @@ describe("shared session workbench behavior", () => {
     expect(layoutMenu.open).toBe(false);
     expect(views.open).toBe(true);
     expect(document.activeElement).toBe(layoutSummary);
+    await act(async () => delayedInitialFocus?.(performance.now()));
+    expect(document.activeElement).toBe(layoutSummary);
     await act(async () => {
       layoutSummary.dispatchEvent(
         new KeyboardEvent("keydown", { bubbles: true, key: "Escape" }),
       );
     });
     expect(views.open).toBe(false);
+    expect(document.activeElement).toBe(returnFocus);
+    await act(async () => delayedInitialFocus?.(performance.now()));
     expect(document.activeElement).toBe(returnFocus);
   });
   it.each(["Escape", "Close button"])(

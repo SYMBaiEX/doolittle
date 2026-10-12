@@ -163,7 +163,10 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
           : null;
       if (viewsRef.current) viewsRef.current.open = true;
       requestAnimationFrame(() => {
-        if (viewsRef.current?.open)
+        if (
+          viewsRef.current?.open &&
+          !viewsRef.current.contains(document.activeElement)
+        )
           viewsRef.current.querySelector("summary")?.focus();
       });
     };

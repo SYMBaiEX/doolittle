@@ -48,6 +48,97 @@ describe("workflow action security", () => {
     ).toEqual([]);
   });
 
+  it.each([
+    ["    env:", "      persist-credentials: false"],
+    [
+      "    with:",
+      "      sparse-checkout: |",
+      "        persist-credentials: false",
+    ],
+    [
+      "    with:",
+      "      fetch-depth: 1",
+      "    env:",
+      "      persist-credentials: false",
+    ],
+    [
+      "    with:",
+      '      sparse-checkout: "',
+      "        persist-credentials: false",
+      '        "',
+    ],
+  ])(
+    "rejects a false value outside direct checkout inputs: %j",
+    (...nested) => {
+      const source = [
+        "steps:",
+        "  - name: Checkout",
+        "    uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+        ...nested,
+      ].join("\n");
+      expect(findPersistedCheckoutCredentials(source, "ci.yml")).toHaveLength(
+        1,
+      );
+    },
+  );
+
+  it("checks aliased checkout actions and input maps", () => {
+    for (const persistence of ["false", "true"]) {
+      const source = [
+        "steps:",
+        "  - uses: &checkout actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+        "    with: &inputs",
+        `      persist-credentials: ${persistence}`,
+        "  - uses: *checkout",
+        "    with: *inputs",
+      ].join("\n");
+      expect(findPersistedCheckoutCredentials(source, "ci.yml")).toHaveLength(
+        persistence === "false" ? 0 : 2,
+      );
+    }
+  });
+
+  it("ignores checkout-shaped matrix data outside real steps", () => {
+    const source = [
+      "jobs:",
+      "  validate:",
+      "    strategy:",
+      "      matrix:",
+      "        include:",
+      "          - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+      "    steps:",
+      "      - run: echo checked",
+    ].join("\n");
+    expect(findPersistedCheckoutCredentials(source, "ci.yml")).toEqual([]);
+  });
+
+  it("rejects a whole checkout step aliased from matrix data", () => {
+    const source = [
+      "jobs:",
+      "  validate:",
+      "    strategy:",
+      "      matrix:",
+      "        include:",
+      "          - &checkout",
+      "            uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+      "    steps:",
+      "      - *checkout",
+    ].join("\n");
+    expect(findPersistedCheckoutCredentials(source, "ci.yml")).toEqual([
+      {
+        file: "ci.yml",
+        line: 9,
+        reference: "actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+      },
+    ]);
+  });
+
+  it("fails closed on malformed workflow YAML", () => {
+    expect(() =>
+      findPersistedCheckoutCredentials("steps: [", "ci.yml"),
+    ).toThrow("Workflow YAML could not be parsed");
+  });
+
   it("accepts local actions, commit-pinned actions, and digest-pinned images", () => {
     expect(isImmutableWorkflowAction("./.github/actions/setup")).toBe(true);
     expect(

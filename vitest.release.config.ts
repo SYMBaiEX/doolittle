@@ -14,6 +14,11 @@ export const releaseTests = [
   "packages/agent/src/server/auth.test.ts",
   "packages/agent/src/server/routes/knowledge-broker.test.ts",
   "apps/desktop/src/main/bot-knowledge-broker.test.ts",
+  "apps/desktop/src/renderer/components/InlineApprovalPanel.test.tsx",
+  "apps/desktop/src/renderer/bots/run-inventory.test.ts",
+  "apps/desktop/src/renderer/chat/run-hydration-scope.test.ts",
+  "apps/desktop/src/renderer/session-workspace/SessionWorkspace.test.tsx",
+  "scripts/check-workflow-security.test.ts",
 ];
 
 export default defineConfig({

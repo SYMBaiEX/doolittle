@@ -101,13 +101,17 @@ nub run test:sandbox:integration # real Docker sandbox (requires sandbox:setup)
 nub run test:e2e                 # desktop build + real Electron/Playwright smoke
 ```
 
-`test:release` uses the explicit 17-file `vitest.release.config.ts` selection:
+`test:release` uses the explicit 22-file `vitest.release.config.ts` selection:
 the eight essentials plus bot character/profile, process registry, session
 routing, host RPC on both sides, server auth, and the agent/desktop knowledge
-broker pair. `check:release:static` runs lint, application/desktop types, those
-tests, the agent build, acceptance/security gates, runtime advisory policy, and
-runtime preparation/audit. It can be run while source is uncommitted; it is not
-a release-ready result by itself.
+broker pair. Five renderer/workflow regression files also cover scoped approval
+decisions and stale feedback, partial worker-inventory failure and conflicting
+owners, hydration readiness after scope changes and retry, named-bot workspace
+routing and claim recovery, and negative workflow-security cases.
+`check:release:static` runs lint, application/desktop types, those tests, the
+agent build, acceptance/security gates, runtime advisory policy, and runtime
+preparation/audit. It can be run while source is uncommitted; it is not a
+release-ready result by itself.
 
 `check:release` then rebuilds and opts into the source shared-engine worker
 E2E, builds and runs the native Electron workbench Playwright suite, builds a
@@ -129,7 +133,7 @@ remain separate and unchanged. Actual provider or platform capability needs
 live evidence, not a successful mock or source assertion.
 
 On PRs and pushes, CI's lightweight `validate` job runs lint,
-application/desktop types, the 17 release-critical test files, the agent
+application/desktop types, the 22 release-critical test files, the agent
 build, and acceptance gates. A separate `native_acceptance` job then runs the
 opted-in shared-engine source worker test, the real Electron new-chat and run
 lifecycle journeys, and a clean-HEAD Linux directory package's named-bot
