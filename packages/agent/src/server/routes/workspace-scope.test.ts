@@ -11,6 +11,7 @@ vi.mock("@/runtime/bootstrap/worker-host-rpc", () => ({ requestWorkerHost }));
 vi.mock("@/runtime/bootstrap/bot-profile", () => ({ readWorkerBotProfile }));
 
 import { resolveWorkspaceDirectory } from "@/services/workspace-directory";
+import { apiRouteHandlers } from "./index";
 import { withDirectConversationWorkspace } from "./workspace-scope";
 
 const priorDesktop = process.env.DOOLITTLE_DESKTOP_RUNTIME;
@@ -28,6 +29,42 @@ afterEach(() => {
 });
 
 describe("direct conversation workspace routes", () => {
+  it("scopes Setup summary to private operator inventory without granting a chat", async () => {
+    process.env.DOOLITTLE_DESKTOP_RUNTIME = "1";
+    process.env.DOOLITTLE_DESKTOP_CONTROL_TOKEN = "private-host-token";
+    readWorkerBotProfile.mockReturnValue(null as never);
+    const root = realpathSync(
+      mkdtempSync(join(tmpdir(), "doolittle-setup-inventory-")),
+    );
+    roots.push(root);
+    const summary = vi.fn(async () => ({
+      workspacePath: resolveWorkspaceDirectory("/unapproved"),
+    }));
+    const context = {
+      config: { workspaceDir: root },
+      runtime: { agentId: "lead" },
+      services: { operator: { setupSummary: summary } },
+    } as never;
+    const url = new URL("http://localhost/setup/summary");
+    const invoke = async (token?: string) => {
+      const request = new Request(url, {
+        headers: token ? { "x-doolittle-desktop-control-token": token } : {},
+      });
+      for (const handler of apiRouteHandlers) {
+        const response = await handler(context, request, url);
+        if (response) return response;
+      }
+      throw new Error("Setup route was not registered.");
+    };
+    expect((await invoke()).status).toBe(409);
+    expect(summary).not.toHaveBeenCalled();
+    const response = await invoke("private-host-token");
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      summary: { workspacePath: root },
+    });
+    expect(requestWorkerHost).not.toHaveBeenCalled();
+  });
   it("allows only private lead inventory reads, not effects or named worker access", async () => {
     process.env.DOOLITTLE_DESKTOP_RUNTIME = "1";
     process.env.DOOLITTLE_DESKTOP_CONTROL_TOKEN = "private-host-token";

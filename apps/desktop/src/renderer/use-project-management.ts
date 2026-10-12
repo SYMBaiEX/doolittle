@@ -66,7 +66,10 @@ interface UseProjectManagementOptions {
   readonly pushToast: (toast: ToastInput) => string;
   readonly selectProjectScope: (scope: ProjectScope) => void;
   readonly selectedSession: string;
-  readonly startChatInProject?: (projectId: string | null) => Promise<void>;
+  readonly startChatInProject?: (
+    projectId: string | null,
+    sourceSessionId?: string,
+  ) => Promise<void>;
   readonly setProjectScope: Dispatch<SetStateAction<ProjectScope>>;
   readonly setProjects: Dispatch<SetStateAction<Project[]>>;
   readonly setSelectedSession: Dispatch<SetStateAction<string>>;
@@ -152,7 +155,7 @@ export function useProjectManagement({
   );
 
   const chooseRepositoryForConversation = useCallback(
-    async (_targetSessionId?: string) => {
+    async (targetSessionId?: string) => {
       try {
         // Picking a chat project must not switch or restart the shared engine.
         const result = await window.doolittle.pickProjectFolders();
@@ -191,7 +194,7 @@ export function useProjectManagement({
         setProjects((current) => upsertProject(current, selectedProject));
         if (!startChatInProject)
           throw new Error("New chat action is unavailable.");
-        await startChatInProject(selectedProject.id);
+        await startChatInProject(selectedProject.id, targetSessionId);
         pushToast({
           tone: "success",
           title: `Ready in ${selectedProject.name}`,

@@ -1199,6 +1199,10 @@ test.describe("Doolittle desktop navigation", () => {
         .getByRole("button", { name: /E2E repository/ })
         .click();
 
+      await expect(
+        page.getByRole("button", { name: /^Choose project\./ }),
+      ).toHaveAccessibleName(/Current project E2E repository/u);
+
       const verifyAllRoutes = async () => {
         for (const [route] of routes) {
           await page.evaluate((nextRoute) => {
@@ -2232,6 +2236,9 @@ test.describe("Doolittle desktop navigation", () => {
       await page
         .getByRole("button", { name: /General No repository context/ })
         .click();
+      await expect(
+        page.getByRole("button", { name: /^Choose project\./ }),
+      ).toHaveAccessibleName(/Current project General/u);
       await page.evaluate(() => {
         window.location.hash = "#/work/review";
       });
@@ -2248,6 +2255,9 @@ test.describe("Doolittle desktop navigation", () => {
       });
       await page.getByRole("button", { name: /^Choose project\./ }).click();
       await page.getByRole("button", { name: /E2E repository/ }).click();
+      await expect(
+        page.getByRole("button", { name: /^Choose project\./ }),
+      ).toHaveAccessibleName(/Current project E2E repository/u);
       await page.evaluate(() => {
         window.location.hash = "#/work/review";
       });
@@ -2559,6 +2569,13 @@ test.describe("Doolittle desktop navigation", () => {
       );
       expect(focusedComposerStyle.textareaOutline).toBe("none");
       await composer.fill("Draft survives project switching");
+      const retainedDraftId =
+        await focusedSessionPanel.getAttribute("data-session-panel");
+      if (!retainedDraftId)
+        throw new Error("Original draft identity is missing.");
+      const retainedDraft = page.locator(
+        `[data-session-panel="${retainedDraftId}"] textarea[aria-label="Message Doolittle"]`,
+      );
       await focusedSessionPanel
         .getByRole("button", {
           name: /Choose project\. Current project E2E repository\./,
@@ -2589,7 +2606,10 @@ test.describe("Doolittle desktop navigation", () => {
         })
         .getByRole("button", { name: /General/ })
         .click();
-      await expect(composer).toHaveValue("Draft survives project switching");
+      await expect(composer).toHaveValue("");
+      await expect(retainedDraft).toHaveValue(
+        "Draft survives project switching",
+      );
       await focusedSessionPanel
         .getByRole("button", {
           name: /Choose project\. Current project General\./,
@@ -2601,7 +2621,10 @@ test.describe("Doolittle desktop navigation", () => {
         })
         .getByRole("button", { name: /E2E repository/ })
         .click();
-      await expect(composer).toHaveValue("Draft survives project switching");
+      await expect(composer).toHaveValue("");
+      await expect(retainedDraft).toHaveValue(
+        "Draft survives project switching",
+      );
       await composer.fill("");
 
       await focusedSessionPanel

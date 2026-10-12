@@ -64,7 +64,13 @@ const scopedRuntimeInventory = withDirectConversationWorkspace(
   handleRuntimeRoutes,
   (url) =>
     url.pathname === "/commands/catalog" ||
-    url.pathname === "/runtime/workspace",
+    url.pathname === "/runtime/workspace" ||
+    [
+      "/runtime/ecosystem",
+      "/runtime/autonomous",
+      "/insights",
+      "/ecosystem",
+    ].includes(url.pathname),
 );
 const scopedRuntimeRoutes: RouteHandler<AppContext> = (
   context,
@@ -116,12 +122,22 @@ const scopedDelegationMutationRoutes = withDirectConversationWorkspace(
   handleDelegationMutationRoutes,
   (url) => url.pathname.startsWith("/delegation/"),
 );
+const scopedDiagnosticInventory = withDirectConversationWorkspace(
+  handleDiagnosticsRoutes,
+  (url) =>
+    [
+      "/setup/summary",
+      "/setup/checklist",
+      "/update/preview",
+      "/doctor",
+    ].includes(url.pathname),
+);
 
 export const apiRouteHandlers = [
   handleKnowledgeBrokerRoutes,
   scopedRuntimeRoutes,
   scopedActivityRoutes,
-  handleDiagnosticsRoutes,
+  scopedDiagnosticInventory,
   scopedMigrationRoutes,
   handleMemoryRoutes,
   handleSessionRoutes,

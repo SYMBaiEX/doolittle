@@ -39,7 +39,9 @@ Recovered runs release a matching ownership claim only after a terminal run
 receipt is confirmed, including when the final stream event was lost. Cancelling
 a recovered run never activates a stopped worker.
 
-Opening a terminal requires a confirmed bot/session/project grant; the new-chat
+Opening a terminal requires a confirmed bot/session/project grant. A human
+opening the initial fresh General draft first binds it to host-owned private
+scratch; persisted draft intent never supplies a root. The new-chat
 chooser creates that binding. Historical rootless chats cannot infer one from
 today's open folder. A cancellable presentation intent prevents a late
 binding response from reopening a panel after navigation or close. Terminal

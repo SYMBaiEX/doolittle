@@ -182,7 +182,7 @@ export async function requestAgentTransport(
   const inventory =
     request.method === "GET" &&
     !request.originConversationId &&
-    /^(?:\/(?:workspace|repo|skills|tools|context|migrate|review-record)(?:\/|\?|$)|\/(?:runtime\/workspace|commands\/catalog|browser\/render-targets|execution\/(?:status|backends)|activity(?:\/export)?)(?:\?|$))/u.test(
+    /^(?:\/(?:workspace|repo|skills|tools|context|migrate|review-record)(?:\/|\?|$)|\/(?:runtime\/(?:workspace|ecosystem)|commands\/catalog|browser\/render-targets|execution\/(?:status|backends)|activity(?:\/export)?|setup\/(?:summary|checklist)|update\/preview|doctor|insights)(?:\?|$))/u.test(
       path,
     );
   const response = await fetchBackendApi(

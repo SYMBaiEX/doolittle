@@ -92,6 +92,7 @@ import {
   type ComputerOrigin,
   computerOriginKey,
   ensureComputerOriginOwnerBinding,
+  resolveTerminalConversationOrigin,
 } from "./computer-origin";
 import { observeContextMenuCopy } from "./context-menu-clipboard";
 import { newConversationId } from "./conversation-id";
@@ -454,8 +455,18 @@ export function App() {
   const [newChatBusy, setNewChatBusy] = useState(false);
   const [newChatError, setNewChatError] = useState("");
   const newChatBusyRef = useRef(false);
-  const newChatNavigationRef = useRef({ selectedSession, view });
-  newChatNavigationRef.current = { selectedSession, view };
+  const newChatNavigationRef = useRef({ selectedSession, view, revision: 0 });
+  const previousChatNavigation = newChatNavigationRef.current;
+  newChatNavigationRef.current = {
+    selectedSession,
+    view,
+    revision:
+      previousChatNavigation.revision +
+      (previousChatNavigation.selectedSession !== selectedSession ||
+      previousChatNavigation.view !== view
+        ? 1
+        : 0),
+  };
   const [newChatScope, setNewChatScope] = useState<ProjectScope>(projectScope);
   const newChatTriggerRef = useRef<HTMLElement | null>(null);
   const [editingBot, setEditingBot] = useState<BotSummary | undefined>();
@@ -791,7 +802,10 @@ export function App() {
       return;
     }
     const originScope = scopeForSession(origin.originConversationId);
-    if (originScope.kind !== "confirmed" || !origin.workspacePath) {
+    if (
+      originScope.kind === "unknown" ||
+      (originScope.kind === "pending" && originScope.projectId)
+    ) {
       pushToast({
         tone: "error",
         title: "Terminal is unavailable",
@@ -804,35 +818,42 @@ export function App() {
       document.activeElement instanceof HTMLElement
         ? document.activeElement
         : null;
+    let prepared: Awaited<ReturnType<typeof resolveTerminalConversationOrigin>>;
     void terminalOpenIntent.current.run(
       terminalContextKey,
-      () =>
-        ensureComputerOriginOwnerBinding(origin, {
-          savedSessionIds: new Set(
-            sessions.map((session) => session.sessionId),
-          ),
-          localBotBindings,
-          ...(originScope.conversation.projectId
-            ? { projectId: originScope.conversation.projectId }
-            : {}),
-          bind: async (botId, sessionId, boundProjectId) => {
-            const response = await desktopRequest<BotConversationScopeResponse>(
-              `/bots/${encodeURIComponent(botId)}/conversations`,
-              "POST",
-              {
-                sessionId,
-                ...(boundProjectId ? { projectId: boundProjectId } : {}),
-              },
-            );
-            if (
-              response.conversation.workspacePath !== origin.workspacePath ||
-              response.conversation.projectId !== boundProjectId
-            )
-              throw new Error("Conversation scope changed");
+      async () => {
+        prepared = await resolveTerminalConversationOrigin(
+          origin,
+          originScope,
+          {
+            freshScratchDraftIds: new Set(
+              renderedViewForView(view) === "chat" &&
+                (projectScope === "all" || projectScope === "unscoped")
+                ? [initialConversation]
+                : [],
+            ),
+            savedSessionIds: new Set(
+              sessions.map((session) => session.sessionId),
+            ),
+            localBotBindings,
+            bind: async (botId, sessionId, boundProjectId) => {
+              const response =
+                await desktopRequest<BotConversationScopeResponse>(
+                  `/bots/${encodeURIComponent(botId)}/conversations`,
+                  "POST",
+                  {
+                    sessionId,
+                    ...(boundProjectId ? { projectId: boundProjectId } : {}),
+                  },
+                );
+              return response.conversation;
+            },
           },
-        }),
+        );
+      },
       () => {
-        setTerminalOrigin(origin);
+        recordConversationScope(prepared.conversation);
+        setTerminalOrigin(prepared.origin);
         if (utilityOpen && utilityModalMode) {
           setUtilityOpen(false);
         }
@@ -855,12 +876,15 @@ export function App() {
     utilityModalMode,
     utilityOpen,
     selectedSession,
+    initialConversation,
+    projectScope,
     sessions,
     localBotBindings,
     defaultBotId,
     computerOrigin,
     view,
     scopeForSession,
+    recordConversationScope,
     terminalContextKey,
     pushToast,
   ]);
@@ -1280,7 +1304,8 @@ export function App() {
         if (
           newChatNavigationRef.current.selectedSession !==
             navigationAtChoice.selectedSession ||
-          newChatNavigationRef.current.view !== navigationAtChoice.view
+          newChatNavigationRef.current.view !== navigationAtChoice.view ||
+          newChatNavigationRef.current.revision !== navigationAtChoice.revision
         ) {
           setNewChatError(
             "The chat was created, but navigation changed while access was confirmed. Open the bot to find it.",
@@ -1291,7 +1316,8 @@ export function App() {
         if (
           newChatNavigationRef.current.selectedSession !==
             navigationAtChoice.selectedSession ||
-          newChatNavigationRef.current.view !== navigationAtChoice.view
+          newChatNavigationRef.current.view !== navigationAtChoice.view ||
+          newChatNavigationRef.current.revision !== navigationAtChoice.revision
         )
           return;
         // Persist the exact host-confirmed tuple before a reload can occur.
@@ -1309,7 +1335,8 @@ export function App() {
         if (
           newChatNavigationRef.current.selectedSession !==
             navigationAtChoice.selectedSession ||
-          newChatNavigationRef.current.view !== navigationAtChoice.view
+          newChatNavigationRef.current.view !== navigationAtChoice.view ||
+          newChatNavigationRef.current.revision !== navigationAtChoice.revision
         ) {
           // Native selection may have completed while the user navigated. Keep
           // the latest confirmed chat, or the prior host selection for a draft.
@@ -1484,6 +1511,102 @@ export function App() {
     [activateBot, pushToast, setView, captureSessionProject],
   );
 
+  const startChatInProject = useCallback(
+    async (projectId: string | null, sourceSessionId = selectedSession) => {
+      if (newChatBusyRef.current)
+        throw new Error("A chat is already being opened.");
+      if (!confirmViewChange("chat"))
+        throw new Error("Navigation canceled; the current chat was kept.");
+      const navigationAtChoice = { ...newChatNavigationRef.current };
+      const botId = sessionBotId(
+        sourceSessionId,
+        sessions,
+        localBotBindings,
+        defaultBotId,
+      );
+      if (!botId) throw new Error("Chat owner unavailable");
+      newChatBusyRef.current = true;
+      try {
+        const sessionId = newConversationId();
+        const response = await desktopRequest<BotConversationScopeResponse>(
+          `/bots/${encodeURIComponent(botId)}/conversations`,
+          "POST",
+          { sessionId, ...(projectId ? { projectId, consent: true } : {}) },
+        );
+        if (
+          response.conversation.sessionId !== sessionId ||
+          response.conversation.botId !== botId ||
+          response.conversation.projectId !== (projectId ?? undefined)
+        )
+          throw new Error("Conversation scope mismatch");
+        if (
+          newChatNavigationRef.current.selectedSession !==
+            navigationAtChoice.selectedSession ||
+          newChatNavigationRef.current.view !== navigationAtChoice.view ||
+          newChatNavigationRef.current.revision !== navigationAtChoice.revision
+        )
+          throw new Error(
+            "Navigation changed while project access was confirmed. The current chat was kept.",
+          );
+        const previousSelection = await window.doolittle.ui?.getSnapshot();
+        const navigationChanged = () =>
+          newChatNavigationRef.current.selectedSession !==
+            navigationAtChoice.selectedSession ||
+          newChatNavigationRef.current.view !== navigationAtChoice.view ||
+          newChatNavigationRef.current.revision !== navigationAtChoice.revision;
+        if (navigationChanged())
+          throw new Error("Navigation changed while opening the chat.");
+        const selection = await window.doolittle.ui?.dispatch({
+          type: "conversation.select",
+          target: { botId, sessionId, ...(projectId ? { projectId } : {}) },
+        });
+        if (selection && !selection.accepted)
+          throw new Error("Chat selection was not accepted.");
+        if (navigationChanged()) {
+          const latest = scopeForSession(
+            newChatNavigationRef.current.selectedSession,
+          );
+          const target =
+            latest.kind === "confirmed"
+              ? {
+                  botId: latest.conversation.botId,
+                  sessionId: latest.conversation.sessionId,
+                  ...(latest.conversation.projectId
+                    ? { projectId: latest.conversation.projectId }
+                    : {}),
+                }
+              : previousSelection?.selected;
+          if (target)
+            await window.doolittle.ui?.dispatch({
+              type: "conversation.select",
+              target,
+            });
+          throw new Error("Navigation changed while opening the chat.");
+        }
+        recordConversationScope(response.conversation);
+        setLocalBotBindings((current) => ({ ...current, [sessionId]: botId }));
+        captureSessionProject(sessionId, projectId);
+        setSelectedSession(sessionId);
+        setSelectedBotId(botId);
+        setProjectScope(projectId ?? "unscoped");
+        setView("chat", { skipDirtyCheck: true });
+      } finally {
+        newChatBusyRef.current = false;
+      }
+    },
+    [
+      selectedSession,
+      confirmViewChange,
+      sessions,
+      localBotBindings,
+      defaultBotId,
+      recordConversationScope,
+      scopeForSession,
+      captureSessionProject,
+      setView,
+    ],
+  );
+
   const {
     addProjectResources,
     archiveProject,
@@ -1502,44 +1625,7 @@ export function App() {
     pushToast,
     selectProjectScope,
     selectedSession,
-    startChatInProject: async (projectId) => {
-      if (!confirmViewChange("chat"))
-        throw new Error("Navigation canceled; the current chat was kept.");
-      const navigationAtChoice = { ...newChatNavigationRef.current };
-      const botId = sessionBotId(
-        selectedSession,
-        sessions,
-        localBotBindings,
-        defaultBotId,
-      );
-      if (!botId) throw new Error("Chat owner unavailable");
-      const sessionId = newConversationId();
-      const response = await desktopRequest<BotConversationScopeResponse>(
-        `/bots/${encodeURIComponent(botId)}/conversations`,
-        "POST",
-        { sessionId, ...(projectId ? { projectId, consent: true } : {}) },
-      );
-      if (
-        response.conversation.sessionId !== sessionId ||
-        response.conversation.botId !== botId ||
-        response.conversation.projectId !== (projectId ?? undefined)
-      )
-        throw new Error("Conversation scope mismatch");
-      if (
-        newChatNavigationRef.current.selectedSession !==
-          navigationAtChoice.selectedSession ||
-        newChatNavigationRef.current.view !== navigationAtChoice.view
-      )
-        throw new Error(
-          "Navigation changed while project access was confirmed. The current chat was kept.",
-        );
-      recordConversationScope(response.conversation);
-      setLocalBotBindings((current) => ({ ...current, [sessionId]: botId }));
-      captureSessionProject(sessionId, projectId);
-      setSelectedSession(sessionId);
-      setSelectedBotId(botId);
-      setView("chat", { skipDirtyCheck: true });
-    },
+    startChatInProject,
     setProjectScope,
     setProjects,
     setSelectedSession,
@@ -1602,7 +1688,8 @@ export function App() {
       if (
         selection.selectedSession !==
           newChatNavigationRef.current.selectedSession ||
-        selection.view !== newChatNavigationRef.current.view
+        selection.view !== newChatNavigationRef.current.view ||
+        selection.revision !== newChatNavigationRef.current.revision
       )
         return false;
       recordConversationScope(bound);
@@ -2183,6 +2270,17 @@ export function App() {
         chooseRepositoryForConversation,
         consumeNavigationIntent,
         createConversation,
+        startChatInProject: async (projectId, sourceSessionId) => {
+          try {
+            await startChatInProject(projectId, sourceSessionId);
+          } catch {
+            pushToast({
+              tone: "error",
+              title: "Chat could not be opened",
+              message: "The chat did not open. Your original draft was kept.",
+            });
+          }
+        },
         openChatWithContext,
         openChatTerminal,
         openProjectManager,

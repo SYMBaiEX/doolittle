@@ -39,6 +39,10 @@ export interface DesktopRouteNavigation {
     targetSessionId?: string,
   ) => void | Promise<void>;
   createConversation: () => void;
+  startChatInProject: (
+    projectId: string | null,
+    sourceSessionId?: string,
+  ) => Promise<void>;
   openChatTerminal: () => void;
   openComputerView?: (view: View, origin?: ComputerOrigin) => void;
   transitionToProjectScope: (
@@ -201,11 +205,13 @@ export function DesktopRouteContent({
                 "chat",
               );
             }}
-            onSelectProjectForNewChat={(scope: ProjectScope) =>
-              navigation.transitionToProjectScope(
-                scope,
-                selectedSession,
-                "chat",
+            onSelectProjectForNewChat={(
+              scope: ProjectScope,
+              sourceSessionId?: string,
+            ) =>
+              void navigation.startChatInProject(
+                scope === "all" || scope === "unscoped" ? null : scope,
+                sourceSessionId ?? selectedSession,
               )
             }
             onSelect={navigation.selectSession}

@@ -321,7 +321,10 @@ export interface ChatPageProps {
   projectLabels?: Readonly<Record<string, string>>;
   onChooseRepository?: (sessionId?: string) => void | Promise<void>;
   onOpenProjectManager?: () => void;
-  onSelectProjectForNewChat?: (scope: ProjectScope) => void;
+  onSelectProjectForNewChat?: (
+    scope: ProjectScope,
+    sourceSessionId?: string,
+  ) => void;
   onRequestNewConversation?: () => void;
   onActivateSessionProject?: (sessionId: string, projectId: string) => void;
   pendingApprovals: number;
@@ -2598,7 +2601,11 @@ export function ChatSessionPanel({
             projects={projects}
             onChooseRepository={() => onChooseRepository?.(selectedId)}
             onOpenProjectManager={onOpenProjectManager}
-            onSelectProjectForNewChat={onSelectProjectForNewChat}
+            onSelectProjectForNewChat={
+              onSelectProjectForNewChat
+                ? (scope) => onSelectProjectForNewChat(scope, selectedId)
+                : undefined
+            }
             isNewConversation={isNewConversation}
             backend={backend}
             runtime={runtime}

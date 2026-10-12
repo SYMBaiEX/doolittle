@@ -120,6 +120,19 @@ describe("validateAgentTransportRequest", () => {
     });
     expect(fetcher.mock.calls[2]?.[1]?.headers).toEqual({});
     expect(capability).toHaveBeenCalledOnce();
+    for (const path of [
+      "/setup/summary",
+      "/setup/checklist",
+      "/update/preview",
+      "/doctor",
+      "/runtime/ecosystem",
+      "/insights",
+    ]) {
+      await requestAgentTransport(backend, fetcher, { ...request, path });
+      expect(fetcher.mock.calls.at(-1)?.[1]?.headers).toEqual({
+        "x-doolittle-desktop-control-token": "host-only",
+      });
+    }
   });
   it("keeps the official Eliza request metadata needed by the local agent", () => {
     expect(
