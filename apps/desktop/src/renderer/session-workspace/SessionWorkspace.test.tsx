@@ -487,9 +487,7 @@ describe("shared session workbench behavior", () => {
     await click(container, "Find session");
     await click(container, "Close conversation finder");
     expect(container.querySelector("#session-workspace-finder")).toBeNull();
-    expect(document.activeElement?.getAttribute("aria-label")).toBe(
-      "Find session",
-    );
+    expect(document.activeElement).toBe(panel("b").querySelector("textarea"));
   });
   it("keeps view navigation open until a conversation is committed", async () => {
     await render();
@@ -535,6 +533,101 @@ describe("shared session workbench behavior", () => {
       );
     });
   });
+  it("dismisses workspace views before opening the conversation finder", async () => {
+    await render();
+    await openB();
+    const views = required(
+      container.querySelector<HTMLDetailsElement>(".session-workspace-views"),
+    );
+    await act(async () =>
+      window.dispatchEvent(new Event("doolittle:workspace-views")),
+    );
+    expect(views.open).toBe(true);
+    await click(container, "Find session");
+    expect(views.open).toBe(false);
+    expect(container.querySelector("#session-workspace-finder")).not.toBeNull();
+    await click(container, "Close conversation finder");
+    await act(async () =>
+      window.dispatchEvent(new Event("doolittle:workspace-views")),
+    );
+    await act(async () =>
+      window.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "o",
+          metaKey: true,
+          shiftKey: true,
+          bubbles: true,
+        }),
+      ),
+    );
+    expect(views.open).toBe(false);
+    expect(container.querySelector("#session-workspace-finder")).not.toBeNull();
+    expect(document.activeElement).toBe(
+      container.querySelector("#session-workspace-search"),
+    );
+    await act(async () =>
+      window.dispatchEvent(new Event("doolittle:find-session")),
+    );
+    expect(document.activeElement).toBe(
+      container.querySelector("#session-workspace-search"),
+    );
+    await act(async () =>
+      required(
+        container.querySelector("#session-workspace-finder"),
+      ).dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, key: "Escape" }),
+      ),
+    );
+    expect(document.activeElement).toBe(panel("b").querySelector("textarea"));
+    await act(async () =>
+      window.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "o",
+          metaKey: true,
+          shiftKey: true,
+          bubbles: true,
+        }),
+      ),
+    );
+    await act(async () => {
+      window.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "o",
+          metaKey: true,
+          shiftKey: true,
+          bubbles: true,
+        }),
+      );
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    });
+    expect(container.querySelector("#session-workspace-finder")).toBeNull();
+    expect(document.activeElement).toBe(panel("b").querySelector("textarea"));
+  });
+  it.each(["disabled", "missing"])(
+    "returns finder focus to a visible pane when its composer is %s",
+    async (composerState) => {
+      await render();
+      await openB();
+      const pane = panel("b");
+      const composer = required(
+        pane.querySelector<HTMLTextAreaElement>("textarea"),
+      );
+      const composerParent = required(composer.parentElement);
+      if (composerState === "disabled") composer.disabled = true;
+      else composer.remove();
+      try {
+        await act(async () =>
+          window.dispatchEvent(new Event("doolittle:workspace-views")),
+        );
+        await click(container, "Find session");
+        await click(container, "Close conversation finder");
+        expect(document.activeElement).toBe(pane);
+        expect(document.activeElement?.closest("[hidden], [inert]")).toBeNull();
+      } finally {
+        if (composerState === "missing") composerParent.append(composer);
+      }
+    },
+  );
   it("closes the targeted running view from its context menu without cancelling or losing its draft", async () => {
     await render();
     await draft("a", "Run A");

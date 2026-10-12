@@ -47,6 +47,17 @@ type PanelProps = ChatPageProps & {
   focused: boolean;
   visible: boolean;
 };
+
+function canRestoreFocus(
+  element: HTMLElement | null | undefined,
+): element is HTMLElement {
+  return Boolean(
+    element?.isConnected &&
+      !element.matches(":disabled") &&
+      !element.closest('[hidden], [inert], [aria-hidden="true"]') &&
+      !element.closest(".session-workspace-views:not([open])"),
+  );
+}
 type WorkspaceProps = ChatPageProps & {
   renderPanel: (props: PanelProps) => ReactNode;
 };
@@ -140,9 +151,10 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
           ? document.activeElement
           : null;
       if (viewsRef.current) viewsRef.current.open = true;
-      requestAnimationFrame(() =>
-        viewsRef.current?.querySelector("summary")?.focus(),
-      );
+      requestAnimationFrame(() => {
+        if (viewsRef.current?.open)
+          viewsRef.current.querySelector("summary")?.focus();
+      });
     };
     window.addEventListener("doolittle:workspace-views", openViews);
     return () =>
@@ -159,6 +171,39 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
   const searchRef = useRef<HTMLInputElement>(null);
   const finderButtonRef = useRef<HTMLButtonElement>(null);
   const finderReturnRef = useRef<HTMLElement | null>(null);
+  const prepareFinder = useCallback(() => {
+    const active =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+    const pane = rootRef.current?.querySelector<HTMLElement>(
+      `[data-session-panel="${layout.focusedId}"]`,
+    );
+    const composer = pane?.querySelector<HTMLTextAreaElement>("textarea");
+    const candidates = viewsRef.current?.open
+      ? [composer, pane, rootRef.current]
+      : [active, composer, pane, rootRef.current];
+    finderReturnRef.current = candidates.find(canRestoreFocus) ?? null;
+    if (viewsRef.current) viewsRef.current.open = false;
+  }, [layout.focusedId]);
+  const focusAfterFinder = useCallback(() => {
+    const button = finderButtonRef.current;
+    const pane = rootRef.current?.querySelector<HTMLElement>(
+      `[data-session-panel="${layout.focusedId}"]`,
+    );
+    const composer = pane?.querySelector<HTMLTextAreaElement>("textarea");
+    for (const candidate of [
+      button,
+      finderReturnRef.current,
+      composer,
+      pane,
+      rootRef.current,
+    ]) {
+      if (!canRestoreFocus(candidate)) continue;
+      candidate.focus({ preventScroll: true });
+      if (document.activeElement === candidate) return;
+    }
+  }, [layout.focusedId]);
   const focusRequestedRef = useRef(false);
   const externalSelectionRef = useRef(props.selectedId);
   useEffect(() => {
@@ -318,16 +363,14 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
 
   useEffect(() => {
     const openFinder = () => {
-      finderReturnRef.current =
-        document.activeElement instanceof HTMLElement
-          ? document.activeElement
-          : null;
+      if (finderOpen) return;
+      prepareFinder();
       setFinderOpen(true);
     };
     window.addEventListener("doolittle:find-session", openFinder);
     return () =>
       window.removeEventListener("doolittle:find-session", openFinder);
-  }, []);
+  }, [finderOpen, prepareFinder]);
 
   useEffect(() => {
     const shortcuts = (event: KeyboardEvent) => {
@@ -343,12 +386,14 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
         return;
       if (event.key.toLowerCase() === "o") {
         event.preventDefault();
+        if (!finderOpen) prepareFinder();
         setFinderOpen((current) => !current);
+        if (finderOpen) requestAnimationFrame(focusAfterFinder);
       }
     };
     window.addEventListener("keydown", shortcuts);
     return () => window.removeEventListener("keydown", shortcuts);
-  }, [props.surface]);
+  }, [finderOpen, focusAfterFinder, prepareFinder, props.surface]);
 
   const closePanel = (id: string) => {
     const next = closeWorkspaceSession(layout, id);
@@ -517,6 +562,7 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
       ref={rootRef}
       data-session-workbench
       data-session-layout={tabbed ? "tabs" : "split"}
+      tabIndex={-1}
     >
       {renderPanel({
         ...props,
@@ -538,7 +584,7 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
             if (event.key === "Escape") {
               event.preventDefault();
               setFinderOpen(false);
-              (finderButtonRef.current ?? finderReturnRef.current)?.focus();
+              focusAfterFinder();
             }
           }}
         >
@@ -565,7 +611,7 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
               className={CONTROL}
               onClick={() => {
                 setFinderOpen(false);
-                (finderButtonRef.current ?? finderReturnRef.current)?.focus();
+                focusAfterFinder();
               }}
               type="button"
               variant="ghost"
@@ -774,7 +820,10 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
                 aria-expanded={finderOpen}
                 aria-label="Find session"
                 className={CONTROL}
-                onClick={() => setFinderOpen((value) => !value)}
+                onClick={() => {
+                  if (!finderOpen) prepareFinder();
+                  setFinderOpen((value) => !value);
+                }}
                 ref={finderButtonRef}
                 title="Find session"
                 type="button"
@@ -891,7 +940,10 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
             <Button
               variant="ghost"
               className={CONTROL}
-              onClick={() => setFinderOpen(true)}
+              onClick={() => {
+                prepareFinder();
+                setFinderOpen(true);
+              }}
               ref={finderButtonRef}
               type="button"
             >

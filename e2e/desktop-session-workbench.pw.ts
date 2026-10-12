@@ -1,6 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { expect, type Locator, type Page, test } from "@playwright/test";
+import { SESSION_WORKSPACE_STORAGE_KEY } from "../apps/desktop/src/renderer/session-workspace/workspace-layout";
 import {
   loadCodeWorkspaceLayout,
   saveCodeWorkspaceLayout,
@@ -2481,6 +2482,12 @@ test.describe("Doolittle desktop session workbench", () => {
       ] as const;
       await splitOpenConversations(page, workbench);
       await expect(panels.filter({ visible: true })).toHaveCount(2);
+      const savedBeforeReload = await page.evaluate(
+        (key) => JSON.parse(localStorage.getItem(key) ?? "null"),
+        SESSION_WORKSPACE_STORAGE_KEY,
+      );
+      expect(savedBeforeReload.mode).toBe("split");
+      expect(savedBeforeReload.openIds).toEqual(initialSessionIds);
 
       await installSyntheticApprovalFixture(app, initialSessionIds);
       // A reload clears the already-completed empty approval-resource cache so
@@ -2512,7 +2519,7 @@ test.describe("Doolittle desktop session workbench", () => {
       const sessionIds = [firstRestoredId, secondRestoredId] as const;
       await rebindSyntheticApprovalSessions(app, sessionIds);
       const extraIds = await workbenchAfterReload
-        .getByRole("tab", { name: /./ })
+        .locator('.session-workspace-views [role="tab"]')
         .evaluateAll((elements) =>
           elements
             .map((element) =>
@@ -2522,13 +2529,30 @@ test.describe("Doolittle desktop session workbench", () => {
             )
             .filter((id): id is string => Boolean(id)),
         );
+      const savedWithHostDraft = await page.evaluate(
+        (key) => JSON.parse(localStorage.getItem(key) ?? "null"),
+        SESSION_WORKSPACE_STORAGE_KEY,
+      );
+      expect(savedWithHostDraft.openIds).toEqual(
+        expect.arrayContaining(sessionIds),
+      );
+      if (extraIds.some((id) => !sessionIds.includes(id))) {
+        expect(savedWithHostDraft.mode).toBe("split");
+      }
       for (const extraId of extraIds.filter((id) => !sessionIds.includes(id))) {
+        await openWorkspaceViews(page);
         await workbenchAfterReload
           .locator(`[aria-controls="session-panel-${extraId}"]`)
           .locator("..")
           .getByRole("button", { name: /^Close .* view$/ })
           .click();
       }
+      const savedAfterReload = await page.evaluate(
+        (key) => JSON.parse(localStorage.getItem(key) ?? "null"),
+        SESSION_WORKSPACE_STORAGE_KEY,
+      );
+      expect(savedAfterReload.openIds).toEqual(sessionIds);
+      await splitOpenConversations(page, workbenchAfterReload);
       await expect(reloadedPanels.filter({ visible: true })).toHaveCount(2);
 
       const firstPanel = panelById(workbenchAfterReload, sessionIds[0]);
@@ -3189,7 +3213,19 @@ test.describe("Doolittle desktop session workbench", () => {
       await page.keyboard.press("ArrowDown");
       await page.keyboard.press("Escape");
       await expect(menu).toBeHidden();
-      await expect(originalTab).toBeFocused();
+      await expect
+        .poll(() =>
+          page.evaluate(() => {
+            const active = document.activeElement;
+            return (
+              active instanceof HTMLElement &&
+              active.checkVisibility() &&
+              !active.closest("[hidden], [inert]")
+            );
+          }),
+        )
+        .toBe(true);
+      await openWorkspaceViews(page);
       await originalTab.click({ button: "right" });
       await menu
         .getByRole("menuitem", {
@@ -3202,6 +3238,9 @@ test.describe("Doolittle desktop session workbench", () => {
       await workbench
         .getByRole("textbox", { name: "Find a conversation" })
         .fill(originalId);
+      await expect(
+        workbench.locator(".session-workspace-views"),
+      ).not.toHaveAttribute("open", "");
       const result = workbench
         .getByRole("list", { name: "Session search results" })
         .getByRole("listitem");
