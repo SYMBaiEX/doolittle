@@ -586,6 +586,7 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
       {renderPanel({
         ...props,
         ...botScopeFor(focusedSession),
+        inventoryWorkspacePath: props.workspacePath,
         remoteSessions: panelSessions,
         selectedId: focusedSession,
         chromeHost: null,
@@ -866,8 +867,9 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
                   className="relative"
                   ref={layoutMenuRef}
                   onKeyDown={(event) => {
-                    if (event.key === "Escape") {
+                    if (event.key === "Escape" && event.currentTarget.open) {
                       event.preventDefault();
+                      event.stopPropagation();
                       event.currentTarget.open = false;
                       event.currentTarget.querySelector("summary")?.focus();
                     }
@@ -1079,6 +1081,7 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
                   {renderPanel({
                     ...props,
                     ...botScopeFor(id),
+                    inventoryWorkspacePath: props.workspacePath,
                     remoteSessions: panelSessions,
                     selectedId: id,
                     onSelect: focusSession,

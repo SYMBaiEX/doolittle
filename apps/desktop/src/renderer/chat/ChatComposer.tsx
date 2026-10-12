@@ -110,6 +110,7 @@ export function chatComposerHeight(scrollHeight: number): number {
 
 export interface ChatComposerProps {
   bot?: import("@doolittle/contracts/bots").BotSummary;
+  approvalBotId?: string;
   approvalsVisible?: boolean;
   workspaceNotice?: ReactNode;
   activeProject?: {
@@ -182,6 +183,7 @@ export interface ChatComposerProps {
 
 export function ChatComposer({
   bot,
+  approvalBotId,
   approvalsVisible = true,
   workspaceNotice,
   activeProject,
@@ -532,7 +534,12 @@ export function ChatComposer({
     >
       {workspaceNotice}
       <InlineApprovalPanel
-        active={backend.phase === "ready" && approvalsVisible}
+        active={
+          backend.phase === "ready" &&
+          approvalsVisible &&
+          (approvalBotId === undefined || approvalBotId.length > 0)
+        }
+        botId={approvalBotId}
         compact={approvalHeightBudget !== null && approvalHeightBudget < 144}
         roomId={selectedId}
       />

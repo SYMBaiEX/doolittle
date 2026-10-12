@@ -3,11 +3,51 @@ import { describe, expect, it } from "vitest";
 import {
   findMismatchedWorkflowNubVersions,
   findMutableWorkflowActions,
+  findPersistedCheckoutCredentials,
   isImmutableWorkflowAction,
 } from "./check-workflow-security";
 import { listGitTrackedFiles } from "./git-tracked-files";
 
 describe("workflow action security", () => {
+  it.each([
+    { input: undefined, rejected: true },
+    { input: "true", rejected: true },
+    { input: "false", rejected: false },
+    { input: '"false"', rejected: false },
+  ])(
+    "requires explicit disabled checkout credentials: $input",
+    ({ input, rejected }) => {
+      const source = [
+        "steps:",
+        "  - name: Checkout",
+        "    uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+        ...(input ? ["    with:", `      persist-credentials: ${input}`] : []),
+        "  - name: Later step cannot satisfy the checkout input",
+        "    with:",
+        "      persist-credentials: false",
+      ].join("\n");
+      expect(findPersistedCheckoutCredentials(source, "ci.yml")).toEqual(
+        rejected
+          ? [
+              {
+                file: "ci.yml",
+                line: 3,
+                reference:
+                  "actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+              },
+            ]
+          : [],
+      );
+    },
+  );
+
+  it("keeps checked-out PR code free of persisted Git credentials", () => {
+    const file = ".github/workflows/ci.yml";
+    expect(
+      findPersistedCheckoutCredentials(readFileSync(file, "utf8"), file),
+    ).toEqual([]);
+  });
+
   it("accepts local actions, commit-pinned actions, and digest-pinned images", () => {
     expect(isImmutableWorkflowAction("./.github/actions/setup")).toBe(true);
     expect(

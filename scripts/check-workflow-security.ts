@@ -12,6 +12,9 @@ const USES_REFERENCE =
 const NUB_SETUP_REFERENCE = /^nubjs\/setup-nub@/u;
 const NUB_VERSION_REFERENCE =
   /^\s*nub-version:\s*(?:"([^"]+)"|'([^']+)'|([^\s#]+))/u;
+const CHECKOUT_REFERENCE = /^actions\/checkout@/u;
+const PERSIST_CREDENTIALS_REFERENCE =
+  /^\s*persist-credentials:\s*(?:"([^"]+)"|'([^']+)'|([^\s#]+))/u;
 
 export interface MutableWorkflowAction {
   file: string;
@@ -93,6 +96,38 @@ export function findMismatchedWorkflowNubVersions(
   return failures;
 }
 
+export function findPersistedCheckoutCredentials(
+  source: string,
+  file: string,
+): MutableWorkflowAction[] {
+  const failures: MutableWorkflowAction[] = [];
+  const lines = source.split("\n");
+  for (const [index, line] of lines.entries()) {
+    const match = line.match(USES_REFERENCE);
+    const reference = match?.[1] ?? match?.[2] ?? match?.[3] ?? "";
+    if (!CHECKOUT_REFERENCE.test(reference)) continue;
+    const indent = line.match(/^\s*/u)?.[0].length ?? 0;
+    let persistence: string | undefined;
+    for (let cursor = index + 1; cursor < lines.length; cursor += 1) {
+      const candidate = lines[cursor] ?? "";
+      const candidateIndent = candidate.match(/^\s*/u)?.[0].length ?? 0;
+      if (
+        candidate.trim() &&
+        (candidateIndent < indent ||
+          (candidateIndent <= indent && /^\s*-\s/u.test(candidate)))
+      ) {
+        break;
+      }
+      const input = candidate.match(PERSIST_CREDENTIALS_REFERENCE);
+      if (input) persistence = input[1] ?? input[2] ?? input[3];
+    }
+    if (persistence !== "false") {
+      failures.push({ file, line: index + 1, reference });
+    }
+  }
+  return failures;
+}
+
 export function checkTrackedWorkflowActions(
   cwd = process.cwd(),
 ): MutableWorkflowAction[] {
@@ -137,7 +172,17 @@ export function main(): void {
   const nubVersionFailures = checkTrackedWorkflowNubVersions(
     expectedNubVersion(),
   );
-  if (failures.length > 0 || nubVersionFailures.length > 0) {
+  // CI executes checked-out PR code; neither validation job needs Git auth.
+  const ciFile = ".github/workflows/ci.yml";
+  const credentialFailures = findPersistedCheckoutCredentials(
+    readFileSync(ciFile, "utf8"),
+    ciFile,
+  );
+  if (
+    failures.length > 0 ||
+    nubVersionFailures.length > 0 ||
+    credentialFailures.length > 0
+  ) {
     console.error("Workflow policy check failed:");
     for (const failure of failures) {
       console.error(
@@ -147,6 +192,11 @@ export function main(): void {
     for (const failure of nubVersionFailures) {
       console.error(
         `- ${failure.file}:${failure.line} configures Nub ${failure.actual}; expected ${failure.expected}`,
+      );
+    }
+    for (const failure of credentialFailures) {
+      console.error(
+        `- ${failure.file}:${failure.line} must set persist-credentials: false before executing PR code`,
       );
     }
     process.exitCode = 1;

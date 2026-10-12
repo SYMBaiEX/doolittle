@@ -7,6 +7,7 @@ export async function loadOwnedRunInventory(
   runs: unknown[];
   updates: Record<string, unknown>;
   warnings: string[];
+  failedBotIds: string[];
 }> {
   const owners = botIds.length ? [...new Set(botIds)] : [undefined];
   const results = await Promise.allSettled(
@@ -44,8 +45,10 @@ export async function loadOwnedRunInventory(
     }),
   );
   const warnings: string[] = [];
+  const failedBotIds: string[] = [];
   const batches = results.flatMap((result, index) => {
     if (result.status === "fulfilled") return [result.value];
+    if (owners[index]) failedBotIds.push(owners[index]);
     warnings.push(
       `Run history for ${owners[index] ?? "Doolittle"} is unavailable.`,
     );
@@ -91,6 +94,7 @@ export async function loadOwnedRunInventory(
   return {
     runs,
     warnings,
+    failedBotIds,
     updates: Object.assign(
       {},
       ...batches.map((batch) => batch.updates),

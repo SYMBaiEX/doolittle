@@ -20,7 +20,23 @@ describe("immutable run inventory", () => {
     );
     const result = await loadOwnedRunInventory(["working", "broken"]);
     expect(result.runs).toHaveLength(1);
+    expect(result.failedBotIds).toEqual(["broken"]);
     expect(result.warnings).toEqual([expect.stringContaining("broken")]);
+  });
+  it("clears failed owner attribution when that worker recovers", async () => {
+    request.mockImplementation(
+      async (_path, _method, _body, _signal, _timeout, botId) => {
+        if (botId === "broken") throw new Error("Unavailable");
+        return { runs: [] };
+      },
+    );
+    expect(
+      (await loadOwnedRunInventory(["working", "broken"])).failedBotIds,
+    ).toEqual(["broken"]);
+    request.mockImplementation(async () => ({ runs: [] }));
+    expect(
+      (await loadOwnedRunInventory(["working", "broken"])).failedBotIds,
+    ).toEqual([]);
   });
   it("rejects invented or conflicting owners instead of retargeting them", async () => {
     request.mockResolvedValue({

@@ -118,9 +118,6 @@ export async function waitForDesktopReady(page: Page): Promise<void> {
               "[data-session-workbench]",
             );
             if (!workbench) return "workbench:not-mounted";
-            const content = workbench.textContent ?? "";
-            if (content.includes("Active run recovery is unavailable"))
-              throw new Error("Native run inventory is unavailable.");
             const response = await window.doolittle.requestAgent({
               requestId: crypto.randomUUID(),
               path: "/bots",
@@ -141,8 +138,44 @@ export async function waitForDesktopReady(page: Page): Promise<void> {
                 `Native bot catalog readiness failed: HTTP ${response.status}, code ${code || "none"}.`,
               );
             }
-            if (content.includes("Checking active runs before sending…"))
-              return "run-inventory:checking";
+            // The route may have changed while /bots was in flight. Reacquire
+            // the current workbench and pane before sampling readiness.
+            const currentWorkbench = document.querySelector(
+              "[data-session-workbench]",
+            );
+            if (!currentWorkbench) return "workbench:not-mounted";
+            const selectedTab = currentWorkbench.querySelector<HTMLElement>(
+              '[role="tab"][aria-selected="true"][aria-controls]',
+            );
+            const selectedPanel = selectedTab
+              ? document.getElementById(
+                  selectedTab.getAttribute("aria-controls") ?? "",
+                )
+              : (() => {
+                  const visible =
+                    currentWorkbench.querySelectorAll<HTMLElement>(
+                      "[data-session-panel]:not([hidden])",
+                    );
+                  return visible.length === 1 ? visible[0] : null;
+                })();
+            if (
+              !selectedPanel?.isConnected ||
+              !currentWorkbench.contains(selectedPanel) ||
+              selectedPanel.closest("[hidden], [inert]") ||
+              !selectedPanel.checkVisibility() ||
+              selectedPanel.getClientRects().length === 0 ||
+              getComputedStyle(selectedPanel).visibility !== "visible"
+            )
+              return "workbench:selected-panel-not-visible";
+            const conversation = selectedPanel.querySelector<HTMLElement>(
+              ".chat-conversation[data-run-hydration]",
+            );
+            if (!conversation) return "run-inventory:marker-missing";
+            const hydration = conversation.dataset.runHydration;
+            if (hydration === "unavailable")
+              throw new Error("Native run inventory is unavailable.");
+            if (hydration !== "ready")
+              return `run-inventory:${hydration ?? "marker-missing"}`;
             return "ready";
           });
           observations.push({ elapsedMs: Date.now() - started, state });
@@ -258,18 +291,22 @@ export async function openNewConversationView(page: Page): Promise<void> {
 export async function waitForSessionRunInventory(
   panel: Locator,
 ): Promise<void> {
-  await expect(
-    panel.getByText("Checking active runs before sending…", { exact: true }),
-  ).toHaveCount(0, { timeout: 30_000 });
-  await expect(
-    panel.getByText(
-      "Active run recovery is unavailable. Retry before sending; your draft is retained.",
-      { exact: true },
-    ),
-  ).toHaveCount(0);
-  await expect(
-    panel.getByRole("button", { name: "Retry run list", exact: true }),
-  ).toHaveCount(0);
+  await expect(panel).toBeVisible();
+  const conversation = panel.locator(".chat-conversation[data-run-hydration]");
+  await expect(conversation).toBeVisible();
+  await expect
+    .poll(
+      async () => {
+        if (!(await panel.isVisible()) || !(await conversation.isVisible()))
+          return "panel:not-visible";
+        const hydration = await conversation.getAttribute("data-run-hydration");
+        if (hydration === "unavailable")
+          throw new Error("Native run inventory is unavailable.");
+        return hydration;
+      },
+      { timeout: 30_000 },
+    )
+    .toBe("ready");
 }
 
 export async function closeFocusedConversationView(page: Page): Promise<void> {

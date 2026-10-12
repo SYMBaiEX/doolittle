@@ -41,6 +41,12 @@ vi.mock("@elizaos/ui/hooks/useMediaQuery", () => ({
 vi.mock("../lib", () => ({
   desktopRequest: request,
   errorMessage: (value: unknown) => String(value),
+  useApiResource: () => ({
+    data: null,
+    loading: false,
+    error: "",
+    reload: vi.fn(),
+  }),
 }));
 vi.mock("../chat/useChatComposerSupport", () => ({
   useChatComposerSupport: () => ({
@@ -489,6 +495,43 @@ describe("shared session workbench behavior", () => {
     });
     expect(views.open).toBe(false);
     expect(document.activeElement).toBe(panel("b").querySelector("textarea"));
+  });
+  it("closes only the nested layout menu on its first Escape", async () => {
+    document.documentElement.dataset.uiLayout = "canvas";
+    await render();
+    await openB();
+    const returnFocus = required(panel("b").querySelector("textarea"));
+    returnFocus.focus();
+    await act(async () =>
+      window.dispatchEvent(new Event("doolittle:workspace-views")),
+    );
+    const views = required(
+      container.querySelector<HTMLDetailsElement>(".session-workspace-views"),
+    );
+    const layoutMenu = required(
+      views.querySelector<HTMLDetailsElement>("details"),
+    );
+    const layoutSummary = required(layoutMenu.querySelector("summary"));
+    const layoutAction = required(layoutMenu.querySelector("button"));
+    await act(async () => {
+      layoutMenu.open = true;
+      layoutAction.focus();
+    });
+    await act(async () => {
+      layoutAction.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, key: "Escape" }),
+      );
+    });
+    expect(layoutMenu.open).toBe(false);
+    expect(views.open).toBe(true);
+    expect(document.activeElement).toBe(layoutSummary);
+    await act(async () => {
+      layoutSummary.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, key: "Escape" }),
+      );
+    });
+    expect(views.open).toBe(false);
+    expect(document.activeElement).toBe(returnFocus);
   });
   it.each(["Escape", "Close button"])(
     "restores view focus safely after arrow navigation with %s",
@@ -1578,6 +1621,46 @@ describe("shared session workbench behavior", () => {
       workspacePath: "/tmp/shared",
     });
     await openB();
+    await draft("b", "Research this");
+    await click(panel("b"), "Send test");
+    expect(start).toHaveBeenCalledWith(
+      expect.objectContaining({
+        botId: namedBot.id,
+        workspacePath: namedBot.workspacePath,
+        roomId: "b",
+      }),
+    );
+  });
+
+  it("hydrates lead and named bot panels in a split while retaining distinct dispatch workspaces", async () => {
+    document.documentElement.dataset.uiLayout = "canvas";
+    await render({
+      bots: [namedBot],
+      defaultBotId: "lead-bot",
+      botIdForSession: (id) => (id === "b" ? namedBot.id : "lead-bot"),
+      workspacePath: "/tmp/shared",
+    });
+    await openB();
+    await contextMenu(
+      required(container.querySelector<HTMLElement>("#session-tab-a")),
+    );
+    await contextAction("Split right with Session B");
+    expect(panel("a").hidden).toBe(false);
+    expect(panel("b").hidden).toBe(false);
+    await act(async () => {
+      await vi.waitFor(() => {
+        expect(
+          panel("a")
+            .querySelector(".chat-conversation")
+            ?.getAttribute("data-run-hydration"),
+        ).toBe("ready");
+        expect(
+          panel("b")
+            .querySelector(".chat-conversation")
+            ?.getAttribute("data-run-hydration"),
+        ).toBe("ready");
+      });
+    });
     await draft("b", "Research this");
     await click(panel("b"), "Send test");
     expect(start).toHaveBeenCalledWith(
