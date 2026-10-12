@@ -18,7 +18,7 @@ test.describe("packaged Doolittle desktop", () => {
   test.skip(!executablePath, "DOOLITTLE_DESKTOP_EXECUTABLE is required");
 
   test("starts a saved offline named bot on its first message without manual activation", async () => {
-    test.setTimeout(120_000);
+    test.setTimeout(240_000);
     const profileDir = mkdtempSync(join(tmpdir(), "doolittle-named-profile-"));
     const workspaceDir = realpathSync(
       mkdtempSync(join(tmpdir(), "doolittle-named-workspace-")),
@@ -88,21 +88,64 @@ test.describe("packaged Doolittle desktop", () => {
         .click();
       const composer = page.getByRole("textbox", { name: "Message Jerry" });
       await expect(composer).toBeEnabled();
-      const selectedState = await page.evaluate(async (botId) => {
-        const response = await window.doolittle.requestAgent({
-          requestId: crypto.randomUUID(),
-          path: "/bots",
-          method: "GET",
-          headers: {},
+      const catalogObservations: Array<{
+        status: number;
+        elapsedMs: number;
+        code?: string;
+      }> = [];
+      try {
+        await expect
+          .poll(
+            async () => {
+              const began = performance.now();
+              const result = await page.evaluate(async (botId) => {
+                const response = await window.doolittle.requestAgent({
+                  requestId: crypto.randomUUID(),
+                  path: "/bots",
+                  method: "GET",
+                  headers: {},
+                });
+                const payload = JSON.parse(response.body) as {
+                  code?: string;
+                  bots?: Array<{ id: string; state: string }>;
+                };
+                return {
+                  status: response.status,
+                  code: payload.code,
+                  state: payload.bots?.find((entry) => entry.id === botId)
+                    ?.state,
+                };
+              }, bot.id);
+              catalogObservations.push({
+                status: result.status,
+                elapsedMs: Math.round(performance.now() - began),
+                ...(result.code ? { code: result.code } : {}),
+              });
+              // Health readiness alone does not certify the receipt sweep.
+              // Retry only its explicitly unavailable status, never other errors
+              // or evidence that selection already activated the named bot.
+              if (
+                result.status === 503 &&
+                result.code === "bot_status_unavailable"
+              ) {
+                return "unavailable";
+              }
+              if (result.status !== 200 || result.state !== "stopped") {
+                throw new Error(
+                  `Cold bot catalog check failed: status=${result.status}, code=${result.code ?? "none"}, state=${result.state ?? "missing"}`,
+                );
+              }
+              return "ready";
+            },
+            { timeout: 30_000 },
+          )
+          .toBe("ready");
+      } finally {
+        await test.info().attach("cold-bot-catalog-readiness", {
+          body: JSON.stringify(catalogObservations),
+          contentType: "application/json",
         });
-        if (response.status !== 200) throw new Error(response.body);
-        return (
-          JSON.parse(response.body) as {
-            bots: Array<{ id: string; state: string }>;
-          }
-        ).bots.find((entry) => entry.id === botId)?.state;
-      }, bot.id);
-      expect(selectedState).toBe("stopped");
+      }
       const prompt = `Jerry first message ${Date.now()}`;
       await composer.fill(prompt);
       await expect(
