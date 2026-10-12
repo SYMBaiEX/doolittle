@@ -834,6 +834,12 @@ test.describe("Doolittle desktop session workbench", () => {
       await noticeAction.focus();
       await expect(noticeAction).toBeFocused();
       await expectHitTarget(noticeAction);
+      // The Send control intentionally has pointer-events:none while run
+      // recovery is checking. Verify reachability only once sending is ready.
+      await waitForSessionRunInventory(second);
+      await expect(
+        second.getByRole("button", { name: "Send message", exact: true }),
+      ).toBeEnabled();
       await expectHitTarget(
         second.getByRole("button", { name: "Send message", exact: true }),
       );
