@@ -40,6 +40,10 @@ import {
   type BoundConversation,
 } from "./bot-conversation-ledger";
 import { BotKnowledgeBroker } from "./bot-knowledge-broker";
+import {
+  BotProjectAccessStore,
+  permissionsFingerprint,
+} from "./bot-project-access";
 import { BotTeamCatalog } from "./bot-team-catalog";
 import { EngineBotBackend } from "./engine-bot-backend";
 import type { DesktopExecutionAdmission } from "./execution-admission";
@@ -122,6 +126,7 @@ export class BotActivationCancelledError extends Error {
 /** Shared engine lifecycle; each named SDK runtime retains an isolated context. */
 export class BotProcessRegistry {
   readonly catalog: BotCatalog;
+  readonly projectAccess: BotProjectAccessStore;
   readonly conversations: BotConversationLedger;
   readonly acpSessions: BotAcpSessionLedger;
   readonly consultations: BotConsultationBroker;
@@ -162,6 +167,7 @@ export class BotProcessRegistry {
       defaultBackend,
       defaultWorkspacePath,
     );
+    this.projectAccess = new BotProjectAccessStore(dataDir);
     this.conversations = new BotConversationLedger(dataDir);
     this.acpSessions = new BotAcpSessionLedger(dataDir);
     this.teams = new BotTeamCatalog(dataDir, (id) => this.get(id));
@@ -985,6 +991,11 @@ export class BotProcessRegistry {
       );
     }
     const definition = this.catalog.update(id, input);
+    if (
+      permissionsFingerprint(existing.permissions) !==
+      permissionsFingerprint(definition.permissions)
+    )
+      this.projectAccess.forgetBot(definition.id);
     this.invalidateActivation(definition.id);
     // An obsolete asynchronous grant may still be pending. A new Start must
     // create its own promise instead of inheriting that stale grant.
@@ -998,6 +1009,7 @@ export class BotProcessRegistry {
     this.invalidateActivation(botId);
     try {
       await this.stop(botId);
+      this.projectAccess.forgetBot(botId);
       this.catalog.archive(botId);
       this.invalidateActivation(botId);
       return this.summary(botId);
