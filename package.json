@@ -239,7 +239,10 @@
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "uuid@<11.1.1": "11.1.1",
-    "@walletconnect/utils": "2.26.0"
+    "@walletconnect/utils": "2.26.0",
+    "@solana/buffer-layout-utils": "0.3.0",
+    "@solana/buffer-layout-utils>bigint-buffer": "-",
+    "@elizaos/ui>@solana/wallet-adapter-wallets": "-"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.3",
@@ -288,7 +291,6 @@
   },
   "packageManager": "nub@0.9.7",
   "patchedDependencies": {
-    "bigint-buffer@1.1.5": "patches/bigint-buffer+1.1.5.patch",
     "braces@3.0.3": "patches/braces+3.0.3.patch",
     "@elizaos/plugin-sql@2.0.3-beta.7": "patches/@elizaos+plugin-sql@2.0.3-beta.7.patch",
     "file-type@16.5.4": "patches/file-type+16.5.4.patch",
@@ -299,6 +301,21 @@
     "@elizaos/core@2.0.3-beta.7": "patches/@elizaos+core@2.0.3-beta.7.patch",
     "@elizaos/agent@2.0.3-beta.7": "patches/@elizaos+agent@2.0.3-beta.7.patch",
     "zod@3.25.76": "patches/zod+3.25.76.patch",
-    "zod@4.6.7": "patches/zod+4.6.7.patch"
+    "zod@4.6.7": "patches/zod+4.6.7.patch",
+    "@solana/buffer-layout-utils@0.3.0": "patches/@solana+buffer-layout-utils@0.3.0.patch",
+    "@elizaos/ui@2.0.3-beta.7": "patches/@elizaos+ui@2.0.3-beta.7.patch"
+  },
+  "packageExtensions": {
+    "@solana/buffer-layout-utils@0.3.0": {
+      "dependencies": {
+        "@noble/curves": "2.2.0"
+      }
+    },
+    "@elizaos/ui@2.0.3-beta.7": {
+      "dependencies": {
+        "@solana/wallet-adapter-phantom": "0.9.30",
+        "@solana/wallet-adapter-solflare": "0.6.34"
+      }
+    }
   }
 }

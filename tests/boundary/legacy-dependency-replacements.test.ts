@@ -1,5 +1,6 @@
 import { createRequire } from "node:module";
 import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import { describe, expect, it } from "vitest";
 
 const consumerRequire = createRequire(
@@ -49,3 +50,46 @@ it("retains WalletConnect URI parsing and shared-key encryption with the modern 
     relay: { protocol: "irn" },
   });
 });
+
+for (const format of ["CommonJS", "ESM"]) {
+  it(`retains Solana integer layout encoding with Noble in ${format}`, async () => {
+    const tokenRequire = createRequire(
+      resolve("node_modules/@solana/spl-token/package.json"),
+    );
+    const entry = tokenRequire.resolve("@solana/buffer-layout-utils");
+    const codecs =
+      format === "CommonJS"
+        ? tokenRequire("@solana/buffer-layout-utils")
+        : await import(
+            /* @vite-ignore */ pathToFileURL(
+              entry.replace("/cjs/index.js", "/esm/index.mjs"),
+            ).href
+          );
+    for (const width of [8, 16, 24, 32]) {
+      for (const endian of ["LE", "BE"]) {
+        const layout = (
+          endian === "LE" ? codecs.bigInt(width) : codecs.bigIntBE(width)
+        )();
+        const storage = Buffer.alloc(width + 4, 0x5a);
+        expect(layout.encode(1n, storage, 2)).toBe(width);
+        expect(storage.subarray(2, width + 2)).toEqual(
+          Buffer.from(
+            Array.from({ length: width }, (_, index) =>
+              index === (endian === "LE" ? 0 : width - 1) ? 1 : 0,
+            ),
+          ),
+        );
+        expect(layout.decode(storage, 2)).toBe(1n);
+        const maximum = (1n << BigInt(width * 8)) - 1n;
+        layout.encode(maximum, storage, 2);
+        expect(layout.decode(storage, 2)).toBe(maximum);
+        expect([
+          ...storage.subarray(0, 2),
+          ...storage.subarray(width + 2),
+        ]).toEqual([0x5a, 0x5a, 0x5a, 0x5a]);
+        expect(() => layout.encode(maximum + 1n, storage, 2)).toThrow();
+        expect(() => layout.encode(-1n, storage, 2)).toThrow();
+      }
+    }
+  });
+}
