@@ -1,15 +1,13 @@
 #!/usr/bin/env nub
 import { pathToFileURL } from "node:url";
+import { getDefaultRepoRoot } from "@doolittle/agent/config/env/paths";
 import { getEntrypointLogger } from "@doolittle/agent/logging/entrypoint-logger";
 import { installSharedEngineHost } from "@doolittle/agent/runtime/engine/host";
 import { installEngineWorkerTransport } from "@doolittle/agent/runtime/engine/worker-transport";
 import type { AgentRuntime } from "@elizaos/core";
 import { restoreTerminalState } from "./cli/render-utils";
 import { isCliStartupExitError, runOnboardingWizard } from "./cli/startup";
-import {
-  renderTopLevelHelp,
-  resolveEntrypointRepoRoot,
-} from "./entrypoint/help";
+import { renderTopLevelHelp } from "./entrypoint/help";
 import { handleEntrypointInitialCommandFlow } from "./entrypoint/initial-command-flow";
 import { resolveEntrypointInvocation } from "./entrypoint/invocation";
 import { writeStderrLine } from "./entrypoint/output";
@@ -30,7 +28,7 @@ const sharedEngineHost = installSharedEngineHost(
 
 async function main(): Promise<number> {
   const entryLogger = getEntrypointLogger("index");
-  const repoRoot = resolveEntrypointRepoRoot(import.meta.url);
+  const repoRoot = getDefaultRepoRoot();
   const invocation = await resolveEntrypointInvocation({ repoRoot });
   const {
     command,

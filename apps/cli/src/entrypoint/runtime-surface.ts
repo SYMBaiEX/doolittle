@@ -155,7 +155,9 @@ export async function handleEntrypointRuntimeSurface(input: {
     }
     const exitCode =
       (await input.startCli?.(input.context, {
-        onReady: input.startServerWhenShellReady,
+        onReady: input.runtimePlan.shouldStartApi
+          ? input.startServerWhenShellReady
+          : undefined,
         bootLogs: input.bootLogs,
       })) ?? 0;
     // EOF used to close readline but leave the CLI-only runtime's service

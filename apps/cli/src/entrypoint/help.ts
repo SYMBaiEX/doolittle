@@ -1,18 +1,3 @@
-import { resolve } from "node:path";
-import { fileURLToPath } from "node:url";
-
-export function resolveEntrypointRepoRoot(
-  moduleUrl: string,
-  env: NodeJS.ProcessEnv = process.env,
-): string {
-  const configuredRoot = env.DOOLITTLE_REPO_ROOT?.trim();
-  if (configuredRoot) {
-    return resolve(configuredRoot);
-  }
-  // apps/cli/src/index.ts -> ../../../ = repo root
-  return fileURLToPath(new URL("../../../", moduleUrl));
-}
-
 export function renderTopLevelHelp(): string {
   return [
     "Doolittle",
