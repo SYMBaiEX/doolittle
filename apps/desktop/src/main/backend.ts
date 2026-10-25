@@ -3,6 +3,7 @@ import { randomBytes } from "node:crypto";
 import { appendFileSync, existsSync, mkdirSync, renameSync } from "node:fs";
 import { homedir } from "node:os";
 import { delimiter, dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import type { BackendState } from "../shared/contracts";
 import { BackendUrlParser } from "./backend-url";
 import { EngineClient } from "./engine-client";
@@ -215,15 +216,29 @@ export function buildBackendEnvironment(
   return environment;
 }
 
+// Source and built main modules share the same depth under apps/desktop.
+// Resolve code from the application's own checkout, never from a workspace
+// that happens to contain a CLI-shaped file.
+const sourceRepositoryUrl = new URL("../../../../", import.meta.url);
+const sourceRepositoryRoot = resolve(fileURLToPath(sourceRepositoryUrl));
+const sourceCliEntry = new URL("apps/cli/src/index.ts", sourceRepositoryUrl);
+
 export function findRepoRoot(startPaths: string[]): string {
   for (const startPath of startPaths) {
     let current = resolve(startPath);
-    while (dirname(current) !== current) {
-      if (existsSync(resolve(current, "apps/cli/src/index.ts"))) return current;
-      current = dirname(current);
+    while (true) {
+      if (current === sourceRepositoryRoot) {
+        if (existsSync(sourceCliEntry)) return sourceRepositoryRoot;
+        break;
+      }
+      const parent = dirname(current);
+      if (parent === current) break;
+      current = parent;
     }
   }
-  throw new Error("Could not locate the Doolittle repository root.");
+  throw new Error(
+    "Could not locate the Doolittle repository root in the application's checkout.",
+  );
 }
 
 export interface BackendLaunchTarget {
