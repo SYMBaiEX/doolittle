@@ -219,8 +219,7 @@ export function findRepoRoot(startPaths: string[]): string {
   for (const startPath of startPaths) {
     let current = resolve(startPath);
     while (dirname(current) !== current) {
-      if (existsSync(resolve(current, "packages/agent/src/index.ts")))
-        return current;
+      if (existsSync(resolve(current, "apps/cli/src/index.ts"))) return current;
       current = dirname(current);
     }
   }
@@ -268,7 +267,7 @@ export function sourceRuntimeTarget(repoRoot: string): BackendLaunchTarget {
     executable: resolveNubExecutable(repoRoot),
     // Lead and worker isolates must load the same built entry. Nub's source
     // resolver is process-local and does not cross Node worker boundaries.
-    args: ["dist/index.js", "api"],
+    args: ["apps/cli/dist/index.js", "api"],
     repoRoot,
   };
 }

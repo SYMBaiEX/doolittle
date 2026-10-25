@@ -684,7 +684,7 @@ async function runHeadlessEvalSuiteAttempt(
         const child: HeadlessExecResult = await execute(
           "nub",
           [
-            "packages/agent/src/index.ts",
+            "apps/cli/src/index.ts",
             "exec",
             "--prompt",
             prompt,

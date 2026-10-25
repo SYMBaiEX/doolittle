@@ -46,8 +46,10 @@ integrity and essential workflows, not source-text layout assertions.
 
 ## Repository shape
 
-- `packages/agent` — the application: `runtime/` (chat-turn, services, providers),
-  `gateway/`, `cli/`, `server/`.
+- `apps/cli` — terminal chat, cockpit, one-shot commands and runtime process host.
+- `apps/desktop` — Electron lifecycle, preload and desktop renderer.
+- `packages/agent` — shared `runtime/` (chat-turn, services, providers),
+  `gateway/` and `server/`.
 - `packages/plugins/*` — Doolittle provider bridges, the SQL compatibility
   wrapper, and the consolidated `doolittle-plugin` source.
 - `packages/{acp,contracts,characters,skills}` — protocol, shared contracts,

@@ -139,20 +139,8 @@ console.log(
 const runtimeBuild = await build({
   absWorkingDir: repoRoot,
   entryPoints: {
-    "doolittle-runtime": resolve(
-      repoRoot,
-      "packages",
-      "agent",
-      "src",
-      "index.ts",
-    ),
-    "doolittle-acp": resolve(
-      repoRoot,
-      "packages",
-      "agent",
-      "src",
-      "acp-server.ts",
-    ),
+    "doolittle-runtime": resolve(repoRoot, "apps", "cli", "src", "index.ts"),
+    "doolittle-acp": resolve(repoRoot, "apps", "cli", "src", "acp-server.ts"),
   },
   outdir: outputDir,
   entryNames: "[name]",

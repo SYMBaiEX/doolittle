@@ -9,7 +9,7 @@
   "license": "MIT",
   "type": "module",
   "bin": {
-    "doolittle": "./packages/agent/src/index.ts"
+    "doolittle": "./apps/cli/src/index.ts"
   },
   "engines": {
     "node": ">=26.0.0"
@@ -17,6 +17,7 @@
   "description": "Monorepo for the Nub-powered ElizaOS-native Doolittle platform and vendored official workspace packages.",
   "workspaces": [
     "apps/desktop",
+    "apps/cli",
     "packages/acp",
     "packages/agent",
     "packages/contracts",
@@ -40,12 +41,12 @@
     "publish:providers:alpha": "nub run publish:providers -- --provider all --publish --tag alpha",
     "install:deps": "bash scripts/install.sh",
     "sandbox:setup": "bash scripts/sandbox-setup.sh",
-    "dev": "nub run --cwd packages/agent dev",
-    "start": "nub run --cwd packages/agent start",
-    "build": "nub run --cwd packages/agent build",
-    "native:status": "nub packages/agent/src/index.ts native status",
-    "native:coverage": "nub packages/agent/src/index.ts native coverage",
-    "native:build": "nub packages/agent/src/index.ts native build",
+    "dev": "nub run --cwd apps/cli dev",
+    "start": "nub run --cwd apps/cli start",
+    "build": "nub run --cwd apps/cli build",
+    "native:status": "nub apps/cli/src/index.ts native status",
+    "native:coverage": "nub apps/cli/src/index.ts native coverage",
+    "native:build": "nub apps/cli/src/index.ts native build",
     "native:test": "nub run native:build && nub scripts/test-native-probe.ts",
     "native:verify": "nub run native:coverage && nub run native:test",
     "desktop:dev": "nub run --cwd apps/desktop dev",
@@ -114,7 +115,10 @@
     "publish:provider-transport:dry-run": "nub run publish:providers -- --provider provider-transport",
     "publish:providers:check": "nub run publish:providers -- --provider all",
     "workspace:list": "find packages -maxdepth 2 -mindepth 1 -type f -name package.json | sort",
-    "workspace:plugins": "nub run --cwd packages/agent start --help"
+    "workspace:plugins": "nub run --cwd apps/cli start --help",
+    "cli:dev": "nub run --cwd apps/cli dev",
+    "cli:build": "nub run --cwd apps/cli build",
+    "cli:typecheck": "nub run --cwd apps/cli typecheck"
   },
   "dependencies": {
     "@discordjs/node-pre-gyp": "0.4.5",

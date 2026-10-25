@@ -1,6 +1,6 @@
 # Package Ownership and Eliza Migration Status
 
-Last reviewed: October 11, 2026
+Last reviewed: October 25, 2026
 
 This is the package-level companion to the runtime
 [plugin inventory](plugin-inventory.md). Each workspace is classified by why it
@@ -10,7 +10,8 @@ pinned `2.0.3-beta.7` train.
 | Workspace | Ownership | Status | Boundary |
 |---|---|---|---|
 | `apps/desktop` | Doolittle client over Eliza | Keep thin | Official `@elizaos/ui` `ElizaClient` owns ordinary REST request, timeout, retry, client-ID, response, and `ApiError` semantics. Electron retains only lifecycle, a context-isolated transport, its security allowlist, native capabilities, dedicated streams, and operator UX. |
-| `packages/agent` | Doolittle product over Eliza | Keep thin | Composes `AgentRuntime`, official plugins, CLI/TUI, gateway, API, product projections, and isolated product-owned native utilities. Standard runtime lifecycles remain Eliza-owned; native utilities may call but never replace them. |
+| `apps/cli` | Doolittle terminal product | Keep | Owns plain chat, cockpit, commands, jobs and runtime process startup. Imports shared runtime through declared `@doolittle/agent` exports. |
+| `packages/agent` | Shared Doolittle runtime over Eliza | Keep thin | Composes `AgentRuntime`, official plugins, gateway, API, product projections, and isolated product-owned native utilities. Standard runtime lifecycles remain Eliza-owned; native utilities may call but never replace them. |
 | `packages/acp` | Protocol adapter | Keep | Implements the Agent Client Protocol through the official ACP SDK; Eliza does not publish a replacement for Doolittle's ACP server boundary. |
 | `packages/contracts` | Doolittle product contracts | Keep | Secret-free API, desktop, gateway, and operator records. These contracts must not shadow SDK lifecycle types. |
 | `packages/ui` | Doolittle presentation system | Keep | Browser-only controlled React controls and compositions over official Eliza UI primitives. Host state, runtime, Electron, credentials, editor and terminal engines remain outside. |

@@ -287,6 +287,28 @@ importers:
         specifier: 2.9.1
         version: 2.9.1
 
+  apps/cli:
+    dependencies:
+      '@agentclientprotocol/sdk':
+        specifier: 1.5.1
+        version: 1.5.1(zod@4.6.5)
+      '@doolittle/agent':
+        specifier: workspace:*
+        version: link:../../packages/agent
+      '@doolittle/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
+      '@elizaos/core':
+        specifier: 2.0.3-beta.7
+        version: 2.0.3-beta.7(patch_hash=7242104d352567e5494819604c53ef11b12ecb35e0aec410c0af09c4bc5b7864)(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
+      blessed:
+        specifier: ^0.1.81
+        version: 0.1.81
+    devDependencies:
+      '@types/blessed':
+        specifier: ^0.1.27
+        version: 0.1.27
+
   apps/desktop:
     dependencies:
       electron-updater:
@@ -482,9 +504,6 @@ importers:
       '@lydell/node-pty':
         specifier: 1.1.0
         version: 1.1.0
-      blessed:
-        specifier: ^0.1.81
-        version: 0.1.81
       dotenv:
         specifier: ^18.0.5
         version: 18.0.7

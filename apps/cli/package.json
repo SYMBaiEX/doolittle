@@ -1,0 +1,26 @@
+{
+  "name": "@doolittle/cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Doolittle terminal chat, fullscreen cockpit, commands and runtime process host.",
+  "bin": {
+    "doolittle": "./src/index.ts"
+  },
+  "scripts": {
+    "dev": "nub watch src/index.ts",
+    "start": "nub src/index.ts",
+    "build": "nubx esbuild ./src/index.ts ./src/acp-server.ts --bundle --platform=node --format=esm --target=node26 --outdir=dist --external:sharp --external:term.js --external:pty.js --external:@elizaos/* --banner:js='import { createRequire as __doolittleCreateRequire } from \"node:module\";const require = __doolittleCreateRequire(import.meta.url);'",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@doolittle/agent": "workspace:*",
+    "@doolittle/contracts": "workspace:*",
+    "@elizaos/core": "2.0.3-beta.7",
+    "@agentclientprotocol/sdk": "1.5.1",
+    "blessed": "^0.1.81"
+  },
+  "devDependencies": {
+    "@types/blessed": "^0.1.27"
+  }
+}

@@ -633,7 +633,7 @@ the release gate.
 In development, the main process launches the checked-out agent with:
 
 ```text
-nub packages/agent/src/index.ts api
+nub apps/cli/src/index.ts api
 ```
 
 Packaged applications instead launch the bundled

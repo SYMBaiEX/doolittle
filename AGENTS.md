@@ -16,8 +16,9 @@ behavioral — never a log or memory dump.
 
 ## Repository shape
 
-- `packages/agent` — the application: runtime (chat-turn, services, providers),
-  gateway, CLI/TUI. `packages/plugins/*` — Doolittle provider bridges, the SQL
+- `apps/cli` — terminal chat, cockpit, process entrypoints and commands.
+  `apps/desktop` — Electron desktop client. `packages/agent` — shared runtime
+  (chat-turn, services, providers), API and gateway. `packages/plugins/*` — Doolittle provider bridges, the SQL
   compatibility wrapper, and `doolittle-plugin` source.
   `packages/{acp,contracts,characters,skills}` — supporting workspaces.
 - Runtime: the installable ElizaOS 2.0 beta train (`@elizaos/core`,

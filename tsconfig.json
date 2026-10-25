@@ -22,7 +22,6 @@
       "@doolittle/ui/*": ["./packages/ui/src/*"],
       "@doolittle/evals": ["./packages/evals/src/index.ts"],
       "@doolittle/evals/*": ["./packages/evals/src/*"],
-      "@doolittle/agent/*": ["./packages/agent/src/*"],
       "@plugins/*": ["./packages/plugins/*"],
       "@characters/*": ["./packages/characters/*"]
     }
@@ -35,6 +34,7 @@
     "packages/agent/src/**/*.ts",
     "packages/agent/src/**/*.d.ts",
     "packages/characters/**/*.json",
-    "packages/**/*.ts"
+    "packages/**/*.ts",
+    "apps/cli/src/**/*.ts"
   ]
 }
