@@ -1,8 +1,8 @@
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import applicationPackage from "../../../../../package.json" with {
+  type: "json",
+};
 import runtimePackage from "../../../package.json" with { type: "json" };
 
-import { getDefaultRepoRoot } from "../../config/env/paths";
 import { getNativePackageAudit } from "../../runtime/native/package-audit/index";
 import { getNativePluginCatalog } from "../../runtime/native/plugin-catalog/index";
 import type { EnvConfig } from "../../types/index";
@@ -39,11 +39,7 @@ export interface OperatorVersionSummary {
 }
 
 export function loadOperatorPackageMetadata(): PackageMetadata {
-  const packagePath = resolve(getDefaultRepoRoot(), "package.json");
-  const application = JSON.parse(
-    readFileSync(packagePath, "utf8"),
-  ) as PackageMetadata;
-  return { ...application, dependencies: runtimePackage.dependencies };
+  return { ...applicationPackage, dependencies: runtimePackage.dependencies };
 }
 
 export function buildOperatorVersionSummary(
