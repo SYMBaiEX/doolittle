@@ -49,8 +49,19 @@ not native desktop or rendered visual acceptance.
 
 ## Native acceptance
 
+After a scriptless dependency install, prepare the isolated browser fixtures:
+
 ```sh
-nub run test:integration              # build CLI; real terminal chat and SDK workers
+nub run desktop:runtime:install
+nubx playwright install chromium
+```
+
+Linux CI uses `nubx playwright install --with-deps chromium` to also install
+system libraries. These fixtures use temporary profiles, not your personal
+browser or installed Doolittle profile.
+
+```sh
+nub run test:integration              # CLI, SDK workers and isolated browser protocols
 nub run test:e2e:desktop-workbench     # build desktop; four real Electron journeys
 nub run test:e2e                      # both source runtime and native desktop
 nub run test:all                      # fast boundaries plus native acceptance
@@ -67,7 +78,9 @@ handoff and cancellation. Native desktop acceptance covers conversational bot
 creation and provider/model selections, first chat, exact remembered project
 consent across chats/reload/restart, refusal/isolation, and sidebar stability
 across actual catalog polls. Package smoke covers preload, private scratch PTY
-and offline chat using the provenance-checking runner.
+and offline chat using the provenance-checking runner. Browser acceptance uses
+the ElizaOS provider's Puppeteer dependency over CDP and WebDriver BiDi to click,
+read page state, take screenshots and reject invalid protocol requests.
 
 Fixtures use private temporary profiles/workspaces and no host credentials.
 Native fixtures wait for the SDK's deferred initialization, not just API health;
