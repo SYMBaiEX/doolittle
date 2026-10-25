@@ -1,9 +1,5 @@
 import { ElizaClient } from "@elizaos/ui/api/client-base";
-import {
-  type AgentRequestTransport,
-  bodyToString,
-  headersToRecord,
-} from "@elizaos/ui/api/transport";
+import type { AgentRequestTransport } from "@elizaos/ui/api/transport";
 import {
   type AgentTransportRequest,
   desktopRequestTimeoutMs,
@@ -86,8 +82,13 @@ export function createDesktopAgentTransport(
           requestId: crypto.randomUUID(),
           path: desktopPath(url),
           method: desktopMethod(init.method),
-          headers: headersToRecord(init.headers),
-          body: bodyToString(init.body),
+          headers: Object.fromEntries(new Headers(init.headers).entries()),
+          body:
+            typeof init.body === "string" || init.body == null
+              ? init.body
+              : init.body instanceof URLSearchParams
+                ? init.body.toString()
+                : undefined,
           ...(botId ? { botId } : {}),
           ...(capturedOrigin
             ? {

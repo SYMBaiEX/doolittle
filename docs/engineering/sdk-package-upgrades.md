@@ -9,14 +9,13 @@ release checker verifies each selected version against manifests and installatio
 The following packages advance to `2.0.11-beta.7`: logger, skills,
 plugin-agent-skills, plugin-browser, plugin-elizacloud, plugin-mcp, plugin-pdf,
 vault, contracts, prompts, security, tui, plugin-streaming,
-plugin-aosp-local-inference, plugin-app-manager, and plugin-registry. The lockfile
+plugin-aosp-local-inference, plugin-app-manager, plugin-registry, and ui. The lockfile
 records the subset actually used by Doolittle. Recheck availability on each update.
 
-Core, agent, app-core, ui, and shared were installed at `2.0.11-beta.7` and checked. That
+Core, agent, app-core, and shared were installed at `2.0.11-beta.7` and checked. That
 publication removes ShortcutDefinition/shortcutRegistry, TEXT_EMBEDDING_BATCH,
 several agent services (file-storage, global-pause, handoff, pending-prompts), the
-web-search action, the app-core account-pool export, and UI PagePanel/transport
-helpers used by Doolittle, and the shared hosted-tier constant required by the UI. They retain the working `2.0.3-beta.7` releases and
+web-search action, the app-core account-pool export, and the shared hosted-tier constant required by older SDK app code. They retain the working `2.0.3-beta.7` releases and
 existing runtime/security patches until those capabilities have supported
 replacements. This is an API compatibility limit, not release-train alignment.
 
@@ -32,3 +31,11 @@ Doolittle runs its agent in Node/Electron, with the existing patched core Node
 entry. Its renderer uses the official UI components and Doolittle transport.
 Upgrade verification must preserve both desktop and CLI behavior and must not
 remove compatibility patches merely to make installation succeed.
+
+The desktop uses UI 2.0.11 without a package patch. PagePanel uses its shipped
+index entry and the Electron transport serializes native Headers directly.
+Account views belong to the desktop client; ElizaOS still owns their account
+state, strategies and operations. This removes the fake standalone application
+store and its bundler redirect. The renderer build rejects rendered SDK state
+and hosted wallet modules so the unneeded hosted wallet aggregate cannot enter
+the desktop artifact through a future import.

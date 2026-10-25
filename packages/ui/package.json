@@ -18,7 +18,7 @@
   },
   "dependencies": {
     "@doolittle/contracts": "workspace:*",
-    "@elizaos/ui": "2.0.3-beta.7"
+    "@elizaos/ui": "2.0.11-beta.7"
   },
   "peerDependencies": {
     "react": "19.3.1"

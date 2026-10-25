@@ -118,6 +118,26 @@ function inventoryPackage(
   return { name: manifest.name, version: manifest.version, renderedBytes };
 }
 
+/** Doolittle owns its client lifecycle and never bundles the SDK's hosted wallet UI. */
+export function assertDesktopRendererBoundary(
+  bundle: DesktopOutputBundle,
+): void {
+  for (const output of Object.values(bundle)) {
+    if (output.type !== "chunk") continue;
+    for (const [id, module] of Object.entries(output.modules)) {
+      const portable = id.replaceAll("\\", "/");
+      if (
+        module.renderedLength > 0 &&
+        /\/@elizaos\/ui\/(?:cloud\/billing\/wallet\/|state\/)/u.test(portable)
+      ) {
+        throw new Error(
+          `Desktop renderer reached standalone Eliza application code: ${id}`,
+        );
+      }
+    }
+  }
+}
+
 function stablePackages(
   bundle: DesktopOutputBundle,
 ): DesktopInventoryPackage[] {
@@ -146,6 +166,7 @@ export function createDesktopBuildInventory(
   surface: DesktopBuildSurface,
   bundle: DesktopOutputBundle,
 ): DesktopBuildInventory {
+  if (surface === "renderer") assertDesktopRendererBoundary(bundle);
   const outputs = Object.values(bundle)
     .map((output) => {
       const bytes = outputBytes(output);
@@ -173,6 +194,7 @@ function createDesktopBuildInventoryFromDisk(
   bundle: DesktopOutputBundle,
   outputRoot: string,
 ): DesktopBuildInventory {
+  if (surface === "renderer") assertDesktopRendererBoundary(bundle);
   const outputs = Object.values(bundle)
     .map((output) => {
       const path = resolve(outputRoot, output.fileName);

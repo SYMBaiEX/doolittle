@@ -1,6 +1,5 @@
 import { ContextActionMenu } from "@doolittle/ui";
 import type { AccountWithCredentialFlag } from "@elizaos/ui/api/client-agent";
-import { AccountCard } from "@elizaos/ui/components/accounts/AccountCard";
 import { Button } from "@elizaos/ui/components/ui/button";
 import { Input } from "@elizaos/ui/components/ui/input";
 import { Plus } from "lucide-react";
@@ -15,6 +14,7 @@ import { toElizaAccount } from "../account-pool-ui";
 import type { AccountImportDraft } from "../agent-pages-helpers";
 import { UiIcon } from "../components/UiIcon";
 import { Badge } from "../lib";
+import { AccountCard } from "./AccountCard";
 import {
   PROVIDER_ACCOUNT_PREVIEWED_CLASS,
   PROVIDER_IMPORT_ACTION_CLASS,

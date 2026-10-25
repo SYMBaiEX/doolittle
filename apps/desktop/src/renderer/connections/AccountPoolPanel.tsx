@@ -1,6 +1,5 @@
 import { ContextActionMenu } from "@doolittle/ui";
 import type { AccountWithCredentialFlag } from "@elizaos/ui/api/client-agent";
-import { RotationStrategyPicker } from "@elizaos/ui/components/accounts/RotationStrategyPicker";
 import { Button } from "@elizaos/ui/components/ui/button";
 import { useState } from "react";
 import type {
@@ -26,6 +25,7 @@ import {
   PROVIDER_POOL_TITLE_CLASS,
   PROVIDER_POOL_TOOLBAR_CLASS,
 } from "./layout";
+import { RotationStrategyPicker } from "./RotationStrategyPicker";
 
 export function AccountPoolPanel({
   accountImport,
@@ -229,9 +229,7 @@ export function AccountPoolPanel({
             </label>
             <RotationStrategyPicker
               disabled={Boolean(busy)}
-              onChange={(strategy) =>
-                onSetStrategy(strategy as AccountPoolStrategy)
-              }
+              onChange={(strategy) => onSetStrategy(strategy)}
               providerId={descriptor.provider}
               value={snapshot.strategy}
             />

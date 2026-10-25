@@ -6,36 +6,9 @@ import { desktopBuildInventoryPlugin } from "./scripts/desktop-build-inventory.t
 
 const desktopRoot = fileURLToPath(new URL(".", import.meta.url));
 
-const elizaAccountComponentPath = "/@elizaos/ui/components/accounts/";
-const elizaAppStorePath = fileURLToPath(
-  new URL("../../node_modules/@elizaos/ui/state/app-store.js", import.meta.url),
-);
 const rendererElizaControlsPath = fileURLToPath(
   new URL("./src/renderer/components/ElizaControls.tsx", import.meta.url),
 );
-
-/**
- * Eliza UI beta account components import the broad state barrel even though
- * they only consume useAppSelector. That barrel reaches Node-only services and
- * crashes an Electron renderer where `process` is intentionally unavailable.
- * Keep the components official while routing that one dependency to Eliza's
- * own browser-safe selector store. Remove once the upstream import is narrowed.
- */
-function elizaAccountStoreShim(): Plugin {
-  return {
-    name: "doolittle-eliza-account-store",
-    enforce: "pre",
-    resolveId(source, importer) {
-      if (
-        source === "../../state/index.js" &&
-        importer?.replaceAll("\\", "/").includes(elizaAccountComponentPath)
-      ) {
-        return elizaAppStorePath;
-      }
-      return null;
-    },
-  };
-}
 
 /**
  * Keep renderer imports on the official component paths while adapting their
@@ -68,7 +41,6 @@ export default defineConfig({
   plugins: [
     desktopBuildInventoryPlugin({ surface: "renderer", desktopRoot }),
     elizaControlDensityAdapter(),
-    elizaAccountStoreShim(),
     react(),
     tailwindcss(),
   ],
