@@ -1,5 +1,5 @@
 import type { EnvConfig } from "../../../../types/runtime/index";
-import { getNativePluginCatalog } from "../../plugin-catalog/index";
+import { getNativePluginCatalog } from "../../plugin-catalog";
 import type { NativePluginEntry } from "./types";
 
 export function getMessagingPluginCatalog(

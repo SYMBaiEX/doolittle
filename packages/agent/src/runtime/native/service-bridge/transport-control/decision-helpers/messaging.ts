@@ -1,6 +1,6 @@
 import type { GatewayConfig } from "../../../../../types/gateway";
 import type { EnvConfig } from "../../../../../types/runtime/index";
-import { getNativePluginCatalog } from "../../../plugin-catalog/index";
+import { getNativePluginCatalog } from "../../../plugin-catalog";
 import { getNativeServices } from "../../runtime";
 import type { RuntimeLike } from "../../runtime-contracts";
 import type {

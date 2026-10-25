@@ -2,8 +2,8 @@ import type { AppServices } from "../../../../services/index";
 import type { GatewayConfig } from "../../../../types/gateway";
 import type { EnvConfig } from "../../../../types/runtime/index";
 import { getTuiTheme, listTuiThemes } from "../../../theme-catalog/index";
-import { getNativePackageAudit } from "../../package-audit/index";
-import { getNativePluginCatalog } from "../../plugin-catalog/index";
+import { getNativePackageAudit } from "../../package-audit";
+import { getNativePluginCatalog } from "../../plugin-catalog";
 import { getRuntimeProviderAccountsSnapshot } from "../../provider-accounts";
 import { getAutonomousControlPlane } from "../autonomous";
 import {

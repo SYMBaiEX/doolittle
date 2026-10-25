@@ -28,7 +28,7 @@ import {
   getLinkedClaudeCodeCredentials,
   getLinkedCodexCredentials,
   invalidateOfficialSubscriptionStatusCache,
-} from "../account-auth/index";
+} from "../account-auth";
 import { readJson, writeJson } from "../account-auth/shared";
 import {
   DOOLITTLE_LINKED_ACCOUNT_IDS,
