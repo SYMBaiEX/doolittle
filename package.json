@@ -239,7 +239,6 @@
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "uuid@<11.1.1": "11.1.1",
-    "@walletconnect/utils": "2.26.0",
     "@solana/buffer-layout-utils": "0.3.0",
     "@solana/buffer-layout-utils>bigint-buffer": "-",
     "@elizaos/ui>@solana/wallet-adapter-wallets": "-",
@@ -248,7 +247,10 @@
     "zod": "4.6.7",
     "abitype@>=1.0.0 <1.2.3": "1.2.3",
     "braces": "npm:@dieub/braces-depth-guard@3.0.3-pn.3",
-    "chromium-bidi": "158.0.8122-0"
+    "chromium-bidi": "158.0.8122-0",
+    "@elizaos/ui>@rainbow-me/rainbowkit": "-",
+    "@elizaos/ui>@stwd/react": "-",
+    "@elizaos/ui>wagmi": "-"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.3",
@@ -306,8 +308,7 @@
     "@elizaos/agent@2.0.3-beta.7": "patches/@elizaos+agent@2.0.3-beta.7.patch",
     "@solana/buffer-layout-utils@0.3.0": "patches/@solana+buffer-layout-utils@0.3.0.patch",
     "@jimp/core@0.22.12": "patches/@jimp+core@0.22.12.patch",
-    "@ethersproject/signing-key@5.8.0": "patches/@ethersproject+signing-key@5.8.0.patch",
-    "@coinbase/cdp-sdk@1.60.0": "patches/@coinbase+cdp-sdk@1.60.0.patch"
+    "@ethersproject/signing-key@5.8.0": "patches/@ethersproject+signing-key@5.8.0.patch"
   },
   "packageExtensions": {
     "@solana/buffer-layout-utils@0.3.0": {
