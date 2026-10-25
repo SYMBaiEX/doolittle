@@ -1,4 +1,4 @@
-import { spawnSync } from "node:child_process";
+import { auditProductionWorkspaces } from "./audit-production";
 
 type AuditAdvisory = {
   severity?: string;
@@ -115,30 +115,15 @@ export function assertRuntimeAdvisoryPolicyCoverage(report: AuditReport): void {
 }
 
 function run(): void {
-  const result = spawnSync(
-    "nub",
-    ["audit", "--production", "--audit-level", "low", "--json"],
-    { encoding: "utf8", maxBuffer: 16 * 1024 * 1024 },
+  const reports = auditProductionWorkspaces(process.cwd());
+  for (const report of reports) assertRuntimeAdvisoryPolicyCoverage(report);
+  const ids = new Set(
+    reports.flatMap((report) =>
+      Object.values(report.advisories).map((advisory) => advisory.url),
+    ),
   );
-  if (!result.stdout.trim()) {
-    throw new Error(
-      `Production audit produced no JSON.${result.stderr.trim() ? ` ${result.stderr.trim()}` : ""}`,
-    );
-  }
-  const report = JSON.parse(result.stdout) as AuditReport;
-  if (
-    result.error ||
-    result.signal ||
-    (result.status !== 0 && result.status !== 1)
-  ) {
-    throw new Error(
-      "Production audit failed before review coverage could be checked.",
-    );
-  }
-  assertRuntimeAdvisoryPolicyCoverage(report);
-  const count = Object.keys(report.advisories ?? {}).length;
   console.log(
-    `Runtime advisory review covers all ${count} production advisories; version-based findings remain visible.`,
+    `Runtime advisory review covers all ${ids.size} production advisories; version-based findings remain visible.`,
   );
 }
 
