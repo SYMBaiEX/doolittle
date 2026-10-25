@@ -80,6 +80,7 @@ overrides:
   app-builder-lib>@electron/get: 5.1.0
   body-parser@>=1.0.0 <1.20.9: 1.20.9
   body-parser@>=2.0.0 <2.4.0: 2.4.0
+  braces: npm:@dieub/braces-depth-guard@3.0.3-pn.3
   cookie@<0.7.0: 0.7.2
   cytoscape: 3.34.0
   dompurify: 3.4.14
@@ -144,9 +145,6 @@ patchedDependencies:
   '@solana/buffer-layout-utils@0.3.0':
     hash: 7b135db29f95984976d4b5b570d0e5b975dbe4e325b92a0b9fb82dd22edeb96a
     path: patches/@solana+buffer-layout-utils@0.3.0.patch
-  braces@3.0.3:
-    hash: 967d74d053d454769a943f97f4f9fede16b318c8c245d1c0b2722b83552a6a3e
-    path: patches/braces+3.0.3.patch
   chromium-bidi@17.0.2:
     hash: b18bdfa92b71bb72a6b9d91e43e7f9ed3daea0b67b414e57fdbc3f3d6940af9c
     path: patches/chromium-bidi+17.0.2.patch
@@ -158,6 +156,9 @@ importers:
       '@biomejs/biome':
         specifier: 2.6.3
         version: 2.6.3
+      '@dieub/braces-depth-guard':
+        specifier: 3.0.3-pn.3
+        version: 3.0.3-pn.3
       '@doolittle/agent':
         specifier: workspace:*
         version: link:packages/agent
@@ -1052,6 +1053,10 @@ packages:
   '@derhuerst/http-basic@8.2.4':
     resolution: {integrity: sha512-F9rL9k9Xjf5blCz8HsJRO4diy111cayL2vkY2XE4r4t3n0yPXVYy3KD3nJ1qbrSn9743UWSXH4IwuCa/HWlGFw==}
     engines: {node: '>=6.0.0'}
+
+  '@dieub/braces-depth-guard@3.0.3-pn.3':
+    resolution: {integrity: sha512-QY+Uq4s42STyIMPoRkBuUZfYyvz0uZuwuUburLwMx5N+lWqnHHaBxcKPtgKVKjTyFnS1q4ivKu9Wxi4VG7FE9Q==}
+    engines: {node: '>=8'}
 
   '@discordjs/builders@1.14.1':
     resolution: {integrity: sha512-gSKkhXLqs96TCzk66VZuHHl8z2bQMJFGwrXC0f33ngK+FLNau4hU1PYny3DNJfNdSH+gVMzE85/d5FQ2BpcNwQ==}
@@ -7592,9 +7597,10 @@ packages:
     resolution: {integrity: sha512-YovQ3rzhaLMIrDjNDMkNS01tea93qhEhG5xy8f6+R0l+dw3Ki+5sCoIoI942iuLZTHWogWktgwVDhU09iNEimQ==}
     engines: {node: 20 || >=22}
 
-  braces@3.0.3:
-    resolution: {integrity: sha512-yQbXgO/OSZVD2IsiLlro+7Hf6Q18EJrKSEsdoMzKePKXct3gvD8oLcOQdIzGupr5Fj+EDe8gO/lxc1BzfMpxvA==}
+  braces@3.0.3-pn.3:
+    resolution: {integrity: sha512-QY+Uq4s42STyIMPoRkBuUZfYyvz0uZuwuUburLwMx5N+lWqnHHaBxcKPtgKVKjTyFnS1q4ivKu9Wxi4VG7FE9Q==}
     engines: {node: '>=8'}
+    aliasOf: '@dieub/braces-depth-guard'
 
   browser-fs-access@0.35.0:
     resolution: {integrity: sha512-sLoadumpRfsjprP8XzVjpQc0jK8yqHBx0PtUTGYj2fftT+P/t+uyDAQdMgGAPKD011in/O+YYGh7fIs0oG/viw==}
@@ -13736,6 +13742,10 @@ snapshots:
       concat-stream: 2.0.0
       http-response-object: 3.0.2
       parse-cache-control: 1.0.1
+
+  '@dieub/braces-depth-guard@3.0.3-pn.3':
+    dependencies:
+      fill-range: 7.1.1
 
   '@discordjs/builders@1.14.1':
     dependencies:
@@ -23698,7 +23708,7 @@ snapshots:
     dependencies:
       balanced-match: 4.0.4
 
-  braces@3.0.3(patch_hash=967d74d053d454769a943f97f4f9fede16b318c8c245d1c0b2722b83552a6a3e):
+  braces@3.0.3-pn.3:
     dependencies:
       fill-range: 7.1.1
 
@@ -23885,7 +23895,7 @@ snapshots:
   chokidar@3.6.0:
     dependencies:
       anymatch: 3.1.3
-      braces: 3.0.3(patch_hash=967d74d053d454769a943f97f4f9fede16b318c8c245d1c0b2722b83552a6a3e)
+      braces: 3.0.3-pn.3
       glob-parent: 5.1.2
       is-binary-path: 2.1.0
       is-glob: 4.0.3
@@ -27131,7 +27141,7 @@ snapshots:
 
   micromatch@4.0.8:
     dependencies:
-      braces: 3.0.3(patch_hash=967d74d053d454769a943f97f4f9fede16b318c8c245d1c0b2722b83552a6a3e)
+      braces: 3.0.3-pn.3
       picomatch: 2.3.2
 
   mime-db@1.52.0: {}

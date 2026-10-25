@@ -245,7 +245,8 @@
     "file-type@<21.3.1": "22.2.0",
     "@ethersproject/signing-key>elliptic": "-",
     "zod": "4.6.7",
-    "abitype@>=1.0.0 <1.2.3": "1.2.3"
+    "abitype@>=1.0.0 <1.2.3": "1.2.3",
+    "braces": "npm:@dieub/braces-depth-guard@3.0.3-pn.3"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.3",
@@ -278,7 +279,8 @@
     "@elizaos/registry": "workspace:*",
     "@elizaos/plugin-sql": "2.0.3-beta.7",
     "@lydell/node-pty": "1.1.0",
-    "ethers": "6.17.0"
+    "ethers": "6.17.0",
+    "@dieub/braces-depth-guard": "3.0.3-pn.3"
   },
   "allowScripts": {
     "@nubjs/nub": true,
@@ -295,7 +297,6 @@
   },
   "packageManager": "nub@0.9.7",
   "patchedDependencies": {
-    "braces@3.0.3": "patches/braces+3.0.3.patch",
     "@elizaos/plugin-sql@2.0.3-beta.7": "patches/@elizaos+plugin-sql@2.0.3-beta.7.patch",
     "@elizaos/plugin-agent-orchestrator@2.0.3-beta.7": "patches/@elizaos+plugin-agent-orchestrator@2.0.3-beta.7.patch",
     "@elizaos/plugin-codex-cli@2.0.3-beta.7": "patches/@elizaos+plugin-codex-cli@2.0.3-beta.7.patch",
