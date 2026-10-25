@@ -118,19 +118,10 @@ export function CodingWorkspacePage({
   botId?: string;
   originConversationId?: string;
 }) {
-  function useApiResource<T>(
-    path: string | null,
-    dependencies: readonly unknown[] = [],
-  ) {
-    return useApplicationResource<T>(
-      path,
-      dependencies,
-      botId,
-      botId && originConversationId
-        ? { botId, originConversationId, workspacePath }
-        : undefined,
-    );
-  }
+  const resourceOrigin =
+    botId && originConversationId
+      ? { botId, originConversationId, workspacePath }
+      : undefined;
   const initialLayoutRef = useRef<ReturnType<
     typeof loadCodeWorkspaceLayout
   > | null>(null);
@@ -271,55 +262,73 @@ export function CodingWorkspacePage({
     utilityPane,
   ]);
 
-  const summaryResource = useApiResource<RepositorySummaryResponse>(
+  const summaryResource = useApplicationResource<RepositorySummaryResponse>(
     requestPolicy.summary ? "/repo/summary" : null,
     codingWorkspaceResourceDependencies(requestPolicy.summary, workspacePath),
+    botId,
+    resourceOrigin,
   );
-  const treeResource = useApiResource<WorkspaceTreeResponse>(
+  const treeResource = useApplicationResource<WorkspaceTreeResponse>(
     requestPolicy.tree ? "/workspace/tree?depth=12" : null,
     codingWorkspaceResourceDependencies(requestPolicy.tree, workspacePath),
+    botId,
+    resourceOrigin,
   );
-  const changesResource = useApiResource<RepositoryChangesResponse>(
+  const changesResource = useApplicationResource<RepositoryChangesResponse>(
     requestPolicy.changes ? "/repo/changes" : null,
     codingWorkspaceResourceDependencies(requestPolicy.changes, workspacePath),
+    botId,
+    resourceOrigin,
   );
-  const logResource = useApiResource<RepositoryLogResponse>(
+  const logResource = useApplicationResource<RepositoryLogResponse>(
     requestPolicy.log ? "/repo/log" : null,
     codingWorkspaceResourceDependencies(requestPolicy.log, workspacePath),
+    botId,
+    resourceOrigin,
   );
-  const worktreeResource = useApiResource<RepositoryWorktreesResponse>(
+  const worktreeResource = useApplicationResource<RepositoryWorktreesResponse>(
     requestPolicy.worktrees ? "/repo/worktrees" : null,
     codingWorkspaceResourceDependencies(requestPolicy.worktrees, workspacePath),
+    botId,
+    resourceOrigin,
   );
-  const branchesResource = useApiResource<RepositoryBranchesResponse>(
+  const branchesResource = useApplicationResource<RepositoryBranchesResponse>(
     requestPolicy.sourceControl ? "/repo/branches" : null,
     codingWorkspaceResourceDependencies(
       requestPolicy.sourceControl,
       workspacePath,
     ),
+    botId,
+    resourceOrigin,
   );
-  const remotesResource = useApiResource<RepositoryRemotesResponse>(
+  const remotesResource = useApplicationResource<RepositoryRemotesResponse>(
     requestPolicy.sourceControl ? "/repo/remotes" : null,
     codingWorkspaceResourceDependencies(
       requestPolicy.sourceControl,
       workspacePath,
     ),
+    botId,
+    resourceOrigin,
   );
-  const stashesResource = useApiResource<RepositoryStashesResponse>(
+  const stashesResource = useApplicationResource<RepositoryStashesResponse>(
     requestPolicy.sourceControl ? "/repo/stashes" : null,
     codingWorkspaceResourceDependencies(
       requestPolicy.sourceControl,
       workspacePath,
     ),
+    botId,
+    resourceOrigin,
   );
-  const conflictsResource = useApiResource<RepositoryConflictsResponse>(
+  const conflictsResource = useApplicationResource<RepositoryConflictsResponse>(
     requestPolicy.sourceControl ? "/repo/conflicts" : null,
     codingWorkspaceResourceDependencies(
       requestPolicy.sourceControl,
       workspacePath,
     ),
+    botId,
+    resourceOrigin,
   );
-  const searchResource = useApiResource<WorkspaceSearchResponse>(
+  const searchResource = useApplicationResource<WorkspaceSearchResponse>(
     requestPolicy.search
       ? `/workspace/search?query=${encodeURIComponent(searchQuery)}`
       : null,
@@ -328,6 +337,8 @@ export function CodingWorkspacePage({
       workspacePath,
       searchQuery,
     ),
+    botId,
+    resourceOrigin,
   );
 
   const changes = useMemo(
@@ -364,7 +375,7 @@ export function CodingWorkspacePage({
     () => detectCodeLanguage(selectedPath),
     [selectedPath],
   );
-  const fileResource = useApiResource<WorkspaceReadResponse>(
+  const fileResource = useApplicationResource<WorkspaceReadResponse>(
     requestPolicy.file
       ? `/workspace/read?path=${encodeURIComponent(selectedPath)}`
       : null,
@@ -373,8 +384,10 @@ export function CodingWorkspacePage({
       workspacePath,
       selectedPath,
     ),
+    botId,
+    resourceOrigin,
   );
-  const patchResource = useApiResource<RepositoryPatchResponse>(
+  const patchResource = useApplicationResource<RepositoryPatchResponse>(
     requestPolicy.patch && selectedChange
       ? `/repo/patch?path=${encodeURIComponent(selectedPath)}&staged=${stagedPatch}`
       : null,
@@ -385,6 +398,8 @@ export function CodingWorkspacePage({
       stagedPatch,
       selectedChange?.path,
     ),
+    botId,
+    resourceOrigin,
   );
   const summary = summaryResource.data?.summary ?? EMPTY_SUMMARY;
   const commits = commitRows(logResource.data?.log);
