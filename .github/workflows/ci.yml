@@ -50,6 +50,9 @@ jobs:
       - name: Acceptance gates
         run: nub run check:acceptance
 
+      - name: Require zero production dependency advisories
+        run: nub run check:runtime-advisory-policy
+
   native_acceptance:
     needs: validate
     runs-on: ubuntu-latest
