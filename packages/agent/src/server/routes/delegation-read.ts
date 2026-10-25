@@ -1,4 +1,4 @@
-import type { AppContext } from "@/runtime/bootstrap";
+import type { AppContext } from "../../runtime/bootstrap/index";
 import {
   getEffectiveDelegationChildren,
   getEffectiveDelegationOverview,
@@ -9,8 +9,8 @@ import {
   getEffectiveDelegationTasks,
   getEffectiveDelegationTree,
   getOfficialOrchestrator,
-} from "@/runtime/native/service-bridge/delegation";
-import { json } from "@/server/responses";
+} from "../../runtime/native/service-bridge/delegation/index";
+import { json } from "../responses";
 
 function parseDelegationFilters(url: URL): {
   limit: number;

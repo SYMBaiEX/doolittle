@@ -1,5 +1,5 @@
-import type { AppContext } from "@/runtime/bootstrap";
-import { json } from "@/server/responses";
+import type { AppContext } from "../../runtime/bootstrap/index";
+import { json } from "../responses";
 
 export async function handleDelegationTaskFallbackRoutes(
   _context: AppContext,

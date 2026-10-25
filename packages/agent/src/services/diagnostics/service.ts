@@ -1,8 +1,12 @@
 import { constants as fsConstants } from "node:fs";
 import { access } from "node:fs/promises";
-import type { NativeOwnershipCache } from "@/runtime/native/ownership-cache";
-import type { RuntimeLike } from "@/runtime/native/service-bridge/runtime";
-import type { DiagnosticCheck, EnvConfig, GatewayConfig } from "@/types";
+import type { NativeOwnershipCache } from "../../runtime/native/ownership-cache";
+import type { RuntimeLike } from "../../runtime/native/service-bridge/runtime";
+import type {
+  DiagnosticCheck,
+  EnvConfig,
+  GatewayConfig,
+} from "../../types/index";
 import type { AgentSdkService } from "../agent-sdk-service";
 import type { AwarenessService } from "../awareness-service";
 import type { EcosystemService } from "../ecosystem-service";

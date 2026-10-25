@@ -1,4 +1,4 @@
-import { json } from "@/server/responses";
+import { json } from "../../responses";
 import { readJsonBody } from "./helpers";
 import type { TrajectoryCompressBody, TrajectoryRouteHandler } from "./types";
 

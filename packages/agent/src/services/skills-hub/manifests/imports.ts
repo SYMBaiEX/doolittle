@@ -11,8 +11,8 @@ import {
 } from "node:fs";
 import { join, resolve } from "node:path";
 import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
-import { assertWorkspacePathResolvesInside } from "@/services/workspace-service/path";
-import { isStrictlyContainedPath } from "@/utils/path-containment";
+import { isStrictlyContainedPath } from "../../../utils/path-containment";
+import { assertWorkspacePathResolvesInside } from "../../workspace-service/path";
 import type { SkillHubImportResult, SkillHubManifest } from "../types";
 import {
   normalizeInstalledSkillHubManifest,

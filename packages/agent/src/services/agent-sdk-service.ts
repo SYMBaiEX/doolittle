@@ -3,7 +3,7 @@ import {
   getAgentSdkAudit,
   installAgentRegistryExtension,
   searchAgentRegistry,
-} from "@/runtime/native/agent-sdk";
+} from "../runtime/native/agent-sdk";
 
 type AgentSdkAudit = Awaited<ReturnType<typeof getAgentSdkAudit>>;
 type AgentRegistrySnapshot = Awaited<

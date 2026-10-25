@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import type { EnvConfig } from "@/types";
+import type { EnvConfig } from "../../../types/index";
 import type { MigrationSourceSummary } from "./types";
 
 export function getMigrationSources(

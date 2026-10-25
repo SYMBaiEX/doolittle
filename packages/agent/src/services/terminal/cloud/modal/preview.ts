@@ -1,4 +1,4 @@
-import type { ExecutionBackendPreview } from "@/types/execution";
+import type { ExecutionBackendPreview } from "../../../../types/execution";
 import type { RuntimeSettings } from "../../../settings/runtime-settings";
 import { buildBootstrapHints, renderChecks } from "../../execution/diagnostics";
 import { sanitizeCommand } from "../../execution/subprocess";

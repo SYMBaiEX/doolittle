@@ -1,6 +1,6 @@
-import type { NativeOwnershipCache } from "@/runtime/native/ownership-cache";
-import type { getNativeTransportControlPlane } from "@/runtime/native/service-bridge/transport-control";
-import type { EnvConfig } from "@/types";
+import type { NativeOwnershipCache } from "../../../runtime/native/ownership-cache";
+import type { getNativeTransportControlPlane } from "../../../runtime/native/service-bridge/transport-control/index";
+import type { EnvConfig } from "../../../types/index";
 import type { AgentSdkService } from "../../agent-sdk-service";
 import type { AutocoderPipelineService } from "../../autocoder-pipeline/service";
 import type { DiagnosticsService } from "../../diagnostics/service";

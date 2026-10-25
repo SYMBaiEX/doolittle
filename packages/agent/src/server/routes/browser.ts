@@ -1,5 +1,5 @@
-import type { AppContext } from "@/runtime/bootstrap";
-import { runModelAnalysis } from "@/runtime/model-analysis";
+import type { AppContext } from "../../runtime/bootstrap/index";
+import { runModelAnalysis } from "../../runtime/model-analysis";
 import {
   analyzeBrowserComparison,
   analyzeBrowserPage,
@@ -10,11 +10,11 @@ import {
   inspectBrowserPage,
   screenshotBrowserPage,
   snapshotBrowserPage,
-} from "@/runtime/native/service-bridge/browser";
-import { getEffectiveActivePersonality } from "@/runtime/native/service-bridge/ownership";
-import { type JsonObject, readJsonObjectBody } from "@/server/request-body";
-import { json } from "@/server/responses";
-import { hasEncodedAsciiControlCharacters } from "@/utils/text-validation";
+} from "../../runtime/native/service-bridge/browser/index";
+import { getEffectiveActivePersonality } from "../../runtime/native/service-bridge/ownership/index";
+import { hasEncodedAsciiControlCharacters } from "../../utils/text-validation";
+import { type JsonObject, readJsonObjectBody } from "../request-body";
+import { json } from "../responses";
 
 type BrowserAnalysisTurn = typeof runModelAnalysis;
 

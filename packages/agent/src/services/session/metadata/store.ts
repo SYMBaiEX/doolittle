@@ -1,5 +1,5 @@
-import type { SessionDatabase } from "@/services/session/database";
-import type { SessionSummary } from "@/types";
+import type { SessionSummary } from "../../../types/index";
+import type { SessionDatabase } from "../database";
 
 export interface SessionMetadataValue {
   title?: string;

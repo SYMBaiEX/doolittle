@@ -1,15 +1,15 @@
-import type { AppContext } from "@/runtime/bootstrap";
+import type { AppContext } from "../../../runtime/bootstrap/index";
 import {
   getEffectiveSkills,
   getEffectiveSkillsSummary,
-} from "@/runtime/native/service-bridge/autonomous";
+} from "../../../runtime/native/service-bridge/autonomous/index";
 import {
   getEffectiveSkillHubCatalog,
   getEffectiveSkillHubInstalled,
   getEffectiveSkillHubSummary,
   getEffectiveSkillHubWorkspace,
-} from "@/runtime/native/service-bridge/skill-hub";
-import { json } from "@/server/responses";
+} from "../../../runtime/native/service-bridge/skill-hub/index";
+import { json } from "../../responses";
 
 export async function handleSkillsSummaryRoutes(
   context: AppContext,

@@ -1,4 +1,4 @@
-import type { StoredMessage } from "@/types";
+import type { StoredMessage } from "../../types/index";
 
 export function estimateTokens(text: string): number {
   return Math.ceil(text.length / 4);

@@ -1,4 +1,4 @@
-import type { SessionDatabase } from "@/services/session/database";
+import type { SessionDatabase } from "./database";
 
 export function migrateSessionDatabase(db: SessionDatabase): void {
   db.exec(`

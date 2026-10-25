@@ -3,7 +3,7 @@ import type {
   UserProfileEngagementSummary,
   UserProfileRecord,
   UserProfileRelationshipSummary,
-} from "@/types";
+} from "../../types/index";
 import { normalizeEngagement, normalizeRelationship } from "./storage";
 
 export interface UserProfileSummaryReader {

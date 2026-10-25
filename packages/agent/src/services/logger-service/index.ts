@@ -9,7 +9,7 @@ import {
   type AppLogLevel,
   type AppLogRecord,
   formatLoggerError,
-} from "@/logging/logger";
+} from "../../logging/logger";
 import {
   type LoggerServiceOptions,
   mergeTags,

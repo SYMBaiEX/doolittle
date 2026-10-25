@@ -1,12 +1,12 @@
 import type { ToolProfileId } from "@elizaos/core";
-import type { AppContext } from "@/runtime/bootstrap";
+import type { AppContext } from "../../runtime/bootstrap/index";
 import {
   getEffectivePluginManagerInventory,
   getEffectiveToolInventory,
   searchEffectiveTools,
   TOOL_POLICY_PROFILES,
-} from "@/runtime/native/service-bridge/service-resolution";
-import { json } from "@/server/responses";
+} from "../../runtime/native/service-bridge/service-resolution/index";
+import { json } from "../responses";
 
 function requestedProfile(url: URL): ToolProfileId | undefined {
   const profile = url.searchParams.get("profile");

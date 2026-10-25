@@ -1,8 +1,8 @@
-import type { getNativeOwnershipControlPlane } from "@/runtime/native/service-bridge/ownership";
-import type { AgentSdkService } from "@/services/agent-sdk-service";
-import type { AutocoderPipelineService } from "@/services/autocoder-pipeline/service";
-import type { EcosystemService } from "@/services/ecosystem-service";
-import type { SkillsHubService } from "@/services/skills-hub/service";
+import type { getNativeOwnershipControlPlane } from "../../runtime/native/service-bridge/ownership/index";
+import type { AgentSdkService } from "../agent-sdk-service";
+import type { AutocoderPipelineService } from "../autocoder-pipeline/service";
+import type { EcosystemService } from "../ecosystem-service";
+import type { SkillsHubService } from "../skills-hub/service";
 
 type OwnershipControlPlane = ReturnType<typeof getNativeOwnershipControlPlane>;
 

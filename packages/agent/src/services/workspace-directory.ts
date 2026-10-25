@@ -1,8 +1,8 @@
-import { readWorkerBotProfile } from "@/runtime/bootstrap/bot-profile";
+import { readWorkerBotProfile } from "../runtime/bootstrap/bot-profile";
 import {
   currentConversationWorkspace,
   isDesktopWorkspaceRuntime,
-} from "@/runtime/workspace-scope";
+} from "../runtime/workspace-scope";
 
 export type WorkspaceDirectorySource = string | (() => string);
 

@@ -1,19 +1,19 @@
 import {
   buildTransportDrilldown,
   parseTransportPlatform,
-} from "@/gateway/control/index";
-import type { AppContext } from "@/runtime/bootstrap";
+} from "../../gateway/control/index";
+import type { AppContext } from "../../runtime/bootstrap/index";
 import {
   getNativePluginCatalog,
   groupNativePluginCatalog,
-} from "@/runtime/native/plugin-catalog";
-import { getNativeIntegrationControlPlane } from "@/runtime/native/service-bridge/control-planes";
+} from "../../runtime/native/plugin-catalog/index";
+import { getNativeIntegrationControlPlane } from "../../runtime/native/service-bridge/control-planes/index";
 import {
   getNativeOwnershipControlPlane,
   getNativeOwnershipSnapshot,
-} from "@/runtime/native/service-bridge/ownership";
-import { getNativeTransportControlPlane } from "@/runtime/native/service-bridge/transport-control";
-import { json } from "@/server/responses";
+} from "../../runtime/native/service-bridge/ownership/index";
+import { getNativeTransportControlPlane } from "../../runtime/native/service-bridge/transport-control/index";
+import { json } from "../responses";
 
 export async function handleTransportRoutes(
   context: AppContext,

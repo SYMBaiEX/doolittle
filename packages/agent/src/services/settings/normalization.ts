@@ -1,12 +1,12 @@
 import {
   createElizaMcpSettingsFromCommand,
   isElizaMcpSettings,
-} from "@/services/mcp/settings";
+} from "../mcp/settings";
 import type {
   ParsedRuntimeSettings,
   RuntimeSettings,
-} from "@/services/settings/runtime-settings";
-import { RUNTIME_REASONING_EFFORTS } from "@/services/settings/runtime-settings";
+} from "./runtime-settings";
+import { RUNTIME_REASONING_EFFORTS } from "./runtime-settings";
 
 export interface RuntimeSettingsNormalizationResult {
   dirty: boolean;

@@ -8,7 +8,7 @@ import {
   getSkillsDir,
   type SkillCommandSpec,
 } from "@elizaos/skills/index";
-import type { SkillDocument } from "@/types";
+import type { SkillDocument } from "../../types/index";
 import {
   resolveWorkspaceDirectory,
   type WorkspaceDirectorySource,

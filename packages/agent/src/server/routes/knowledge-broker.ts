@@ -1,9 +1,9 @@
 import { timingSafeEqual } from "node:crypto";
 import { getDocumentsService } from "@elizaos/agent/api/documents-service-loader";
 import type { AgentRuntime, UUID } from "@elizaos/core";
-import type { AppContext } from "@/runtime/bootstrap";
-import { readJsonObjectBody } from "@/server/request-body";
-import { json } from "@/server/responses";
+import type { AppContext } from "../../runtime/bootstrap/index";
+import { readJsonObjectBody } from "../request-body";
+import { json } from "../responses";
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;

@@ -1,4 +1,4 @@
-import type { EnvConfig } from "@/types";
+import type { EnvConfig } from "../../../types/index";
 import {
   buildOperatorVersionSummary,
   loadOperatorPackageMetadata,

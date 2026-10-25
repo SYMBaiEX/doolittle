@@ -1,5 +1,5 @@
-import { observeEffectiveAgentProfile } from "@/runtime/native/service-bridge/ownership";
-import { json } from "@/server/responses";
+import { observeEffectiveAgentProfile } from "../../../../runtime/native/service-bridge/ownership/index";
+import { json } from "../../../responses";
 import {
   badRequest,
   type IdentityProfileRouteHandler,

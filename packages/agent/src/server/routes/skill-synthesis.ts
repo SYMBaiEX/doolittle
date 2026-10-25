@@ -1,11 +1,11 @@
-import type { AppContext } from "@/runtime/bootstrap";
-import { getEffectiveDelegationTask } from "@/runtime/native/service-bridge/delegation";
-import { type JsonObject, readJsonObjectBody } from "@/server/request-body";
-import { json } from "@/server/responses";
+import type { AppContext } from "../../runtime/bootstrap/index";
+import { getEffectiveDelegationTask } from "../../runtime/native/service-bridge/delegation/index";
 import {
   type CreateSkillProposalInput,
   SkillProposalValidationError,
-} from "@/services/skill-synthesis/service";
+} from "../../services/skill-synthesis/service";
+import { type JsonObject, readJsonObjectBody } from "../request-body";
+import { json } from "../responses";
 
 const proposalIdPattern = /^skill-proposal-[0-9a-f-]{36}$/u;
 

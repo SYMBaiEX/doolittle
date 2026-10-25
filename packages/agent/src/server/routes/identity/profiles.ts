@@ -1,4 +1,4 @@
-import type { AppContext } from "@/runtime/bootstrap";
+import type { AppContext } from "../../../runtime/bootstrap/index";
 import { handleIdentityProfileGetRoute } from "./profiles-get";
 import { handleIdentityProfilePostRoute } from "./profiles-post";
 

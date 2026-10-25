@@ -1,5 +1,5 @@
-import { readJsonObjectBody } from "@/server/request-body";
-import { json } from "@/server/responses";
+import { readJsonObjectBody } from "../../request-body";
+import { json } from "../../responses";
 
 export async function readJsonBody<T>(
   request: Request,

@@ -2,7 +2,7 @@ import type {
   AgentIdentityRecord,
   UserProfileConclusionRecord,
   UserProfileRecord,
-} from "@/types";
+} from "../../../types/index";
 import type { UserProfileInteractionContext } from "../storage";
 import type { RememberKind, UserProfileMutationActions } from "../types";
 import type {

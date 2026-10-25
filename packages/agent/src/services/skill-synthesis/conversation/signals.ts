@@ -1,4 +1,4 @@
-import type { StoredMessage } from "@/types";
+import type { StoredMessage } from "../../../types/index";
 
 export const NOVELTY_SIGNALS = [
   /\b(?:step\s+\d+|first[\s,].*then|finally|workflow|pipeline)\b/iu,

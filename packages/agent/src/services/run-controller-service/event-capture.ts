@@ -1,5 +1,5 @@
-import type { RunUpdateEventBus } from "@/services/run-controller/event-bus";
-import type { RunUpdateEvent } from "@/services/run-controller/types";
+import type { RunUpdateEventBus } from "../run-controller/event-bus";
+import type { RunUpdateEvent } from "../run-controller/types";
 import type { RunControllerDependencies, RunTransition } from "./types";
 
 export function onRunUpdate(

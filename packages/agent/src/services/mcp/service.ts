@@ -1,6 +1,6 @@
 import type { IAgentRuntime } from "@elizaos/core";
-import type { McpToolDefinition } from "@/types";
-import { errorMessage } from "@/utils/error-message";
+import type { McpToolDefinition } from "../../types/index";
+import { errorMessage } from "../../utils/error-message";
 import type { ElizaMcpSettings } from "./settings";
 import { createMcpServiceStatus } from "./status";
 import {

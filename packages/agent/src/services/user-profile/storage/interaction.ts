@@ -1,4 +1,4 @@
-import type { UserProfileRecord } from "@/types";
+import type { UserProfileRecord } from "../../../types/index";
 import { nowIso, unique } from "../shared";
 import { normalizeEngagement, normalizeRelationship } from "./normalization";
 import type { UserProfileInteractionContext } from "./types";

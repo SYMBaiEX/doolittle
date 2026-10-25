@@ -9,10 +9,10 @@ import {
   writeFileSync,
 } from "node:fs";
 import { dirname, join } from "node:path";
-import { DEFAULT_LOCAL_USER_ID } from "@/runtime/message-user";
-import type { MemoryTarget } from "@/types";
-import { ensurePrivateDirectorySync } from "@/utils/private-directory";
-import { readRegularFileSync } from "@/utils/read-regular-file";
+import { DEFAULT_LOCAL_USER_ID } from "../runtime/message-user";
+import type { MemoryTarget } from "../types/index";
+import { ensurePrivateDirectorySync } from "../utils/private-directory";
+import { readRegularFileSync } from "../utils/read-regular-file";
 import type { UserProfileService } from "./user-profile/service";
 
 const ENTRY_DELIMITER = "\n§\n";

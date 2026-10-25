@@ -4,7 +4,7 @@ import type {
   ExecutionCloudSession,
   ExecutionCloudSnapshotRecord,
   RemoteLifecycleEvent,
-} from "@/types/execution";
+} from "../../../../types/execution";
 
 export interface CloudStore {
   sessions: ExecutionCloudSession[];

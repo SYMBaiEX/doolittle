@@ -8,7 +8,7 @@ import {
 import type {
   SdkTrajectoryExportOptions,
   SdkTrajectoryLogger,
-} from "@/types/trajectory/sdk";
+} from "../../types/trajectory/sdk";
 
 function isSdkRuntime(runtime: unknown): runtime is IAgentRuntime {
   return (

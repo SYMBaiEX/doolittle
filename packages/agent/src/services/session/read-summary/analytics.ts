@@ -1,9 +1,9 @@
-import type { SessionDatabase } from "@/services/session/database";
 import type {
   SessionAnalyticsDay,
   SessionAnalyticsSnapshot,
   SessionUsageSummary,
-} from "@/types";
+} from "../../../types/index";
+import type { SessionDatabase } from "../database";
 
 const DEFAULT_ANALYTICS_LIMIT = 1_000;
 const MAX_ANALYTICS_LIMIT = 2_000;

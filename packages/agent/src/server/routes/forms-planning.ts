@@ -1,4 +1,4 @@
-import type { AppContext } from "@/runtime/bootstrap";
+import type { AppContext } from "../../runtime/bootstrap/index";
 import {
   approveEffectivePlan,
   cancelEffectiveForm,
@@ -10,14 +10,14 @@ import {
   listEffectiveForms,
   listEffectivePlans,
   steerEffectivePlan,
-} from "@/runtime/native/service-bridge/autocoder";
+} from "../../runtime/native/service-bridge/autocoder/index";
 import {
   getNativeFormsControlPlane,
   getNativePlanningControlPlane,
-} from "@/runtime/native/service-bridge/control-planes";
-import { readJsonObjectBody } from "@/server/request-body";
-import { json } from "@/server/responses";
-import { parseOpaqueRouteId } from "@/server/routes/parse-opaque-id";
+} from "../../runtime/native/service-bridge/control-planes/index";
+import { readJsonObjectBody } from "../request-body";
+import { json } from "../responses";
+import { parseOpaqueRouteId } from "./parse-opaque-id";
 
 type ParsedBody = { body: Record<string, unknown> } | { response: Response };
 

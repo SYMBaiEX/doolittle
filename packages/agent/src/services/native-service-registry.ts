@@ -1,7 +1,7 @@
 import {
   type NativeServiceRegistryGroup,
   SERVICE_REGISTRY_DEFINITIONS,
-} from "@/runtime/native/service-manifest";
+} from "../runtime/native/service-manifest";
 
 export interface NativeServiceRegistry {
   officialBacked: string[];

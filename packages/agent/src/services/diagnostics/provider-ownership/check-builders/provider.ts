@@ -1,5 +1,5 @@
-import { getLatestRuntimeLine } from "@/runtime/native/package-audit";
-import type { DiagnosticCheck } from "@/types";
+import { getLatestRuntimeLine } from "../../../../runtime/native/package-audit/index";
+import type { DiagnosticCheck } from "../../../../types/index";
 import type { ProviderOwnershipContext } from "../types";
 
 export function buildProviderChecks(

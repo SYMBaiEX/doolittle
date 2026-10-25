@@ -1,4 +1,4 @@
-import type { AppContext } from "@/runtime/bootstrap";
+import type { AppContext } from "../../runtime/bootstrap/index";
 import {
   addEffectiveDelegationNote,
   cancelEffectiveDelegationTask,
@@ -6,9 +6,9 @@ import {
   failEffectiveDelegationTask,
   getOfficialOrchestrator,
   retryEffectiveDelegationTask,
-} from "@/runtime/native/service-bridge/delegation";
-import { readJsonObjectBody } from "@/server/request-body";
-import { json } from "@/server/responses";
+} from "../../runtime/native/service-bridge/delegation/index";
+import { readJsonObjectBody } from "../request-body";
+import { json } from "../responses";
 
 const MAX_BULK_TASK_MUTATIONS = 500;
 type BulkDelegationAction = "cancel" | "complete" | "fail";

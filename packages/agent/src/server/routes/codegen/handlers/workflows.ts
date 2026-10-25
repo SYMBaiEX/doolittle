@@ -1,12 +1,12 @@
-import { json } from "@/server/responses";
+import { json } from "../../../responses";
+import { parseOpaqueRouteId } from "../../parse-opaque-id";
 import {
   toPublicAutocoderBundle,
   toPublicAutocoderSummary,
   toPublicAutocoderWorkflow,
   toPublicAutocoderWorkflowView,
-} from "@/server/routes/codegen/public-dtos";
-import type { CodegenRouteHandler } from "@/server/routes/codegen/types";
-import { parseOpaqueRouteId } from "@/server/routes/parse-opaque-id";
+} from "../public-dtos";
+import type { CodegenRouteHandler } from "../types";
 
 export const handleCodegenWorkflowsRoutes: CodegenRouteHandler = async (
   context,

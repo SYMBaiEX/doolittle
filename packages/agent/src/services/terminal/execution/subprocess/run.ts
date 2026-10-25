@@ -1,4 +1,4 @@
-import { runTextProcess } from "@/services/process-execution";
+import { runTextProcess } from "../../../process-execution";
 import type {
   TerminalRunOptions,
   TerminalRunResult,

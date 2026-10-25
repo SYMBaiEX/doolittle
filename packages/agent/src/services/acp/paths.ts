@@ -1,6 +1,6 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { getDefaultRepoRoot } from "@/config/env/paths";
+import { getDefaultRepoRoot } from "../../config/env/paths";
 import type { AcpServicePaths } from "./types";
 
 export function createAcpServicePaths(dataDir: string): AcpServicePaths {

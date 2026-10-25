@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
-import type { DeliveredMessageRecord, DeliveryTarget } from "@/types";
+import type { DeliveredMessageRecord, DeliveryTarget } from "../types/index";
 
 interface DeliveryStore {
   messages: DeliveredMessageRecord[];

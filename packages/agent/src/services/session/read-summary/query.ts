@@ -1,5 +1,5 @@
-import type { SessionDatabase } from "@/services/session/database";
-import type { SessionSearchResult, SessionSummary } from "@/types";
+import type { SessionSearchResult, SessionSummary } from "../../../types/index";
+import type { SessionDatabase } from "../database";
 import type { SessionMessageRow, SessionMetadataResolver } from "./types";
 
 export function loadSummaryStats(

@@ -1,4 +1,4 @@
-import type { AppContext } from "@/runtime/bootstrap";
+import type { AppContext } from "../../../runtime/bootstrap/index";
 import {
   getEffectiveSkillHubCatalog,
   getEffectiveSkillHubFamilies,
@@ -6,8 +6,8 @@ import {
   getEffectiveSkillHubInstalled,
   getEffectiveSkillHubSummary,
   getEffectiveSkillHubWorkspace,
-} from "@/runtime/native/service-bridge/skill-hub";
-import { json } from "@/server/responses";
+} from "../../../runtime/native/service-bridge/skill-hub/index";
+import { json } from "../../responses";
 
 export async function handleSkillsHubRoutes(
   context: AppContext,

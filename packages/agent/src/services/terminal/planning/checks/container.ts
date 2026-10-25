@@ -1,4 +1,4 @@
-import type { DiagnosticCheck } from "@/types/execution";
+import type { DiagnosticCheck } from "../../../../types/execution";
 import type { RuntimeSettings } from "../../../settings/runtime-settings";
 import { isValidEnvName } from "../../cloud/planning/index";
 import {

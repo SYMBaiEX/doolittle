@@ -1,4 +1,4 @@
-import type { WorkspaceEntry } from "@/types";
+import type { WorkspaceEntry } from "../../types/index";
 
 export function summarizeWorkspaceTree(
   entries: WorkspaceEntry[],

@@ -1,6 +1,6 @@
-import type { LinkedProviderAccountsSnapshot } from "@/runtime/native/account-auth/types";
-import { createElizaMcpSettingsFromCommand } from "@/services/mcp/settings";
-import type { EnvConfig } from "@/types";
+import type { LinkedProviderAccountsSnapshot } from "../../../runtime/native/account-auth/types";
+import type { EnvConfig } from "../../../types/index";
+import { createElizaMcpSettingsFromCommand } from "../../mcp/settings";
 import { SettingsService } from "../../settings-service";
 import type { DefaultServiceModelConfig } from "../model/index";
 import {

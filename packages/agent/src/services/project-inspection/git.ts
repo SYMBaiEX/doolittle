@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { runTextProcess } from "@/services/process-execution";
+import { runTextProcess } from "../process-execution";
 import type { LocalProjectInspection } from "./types";
 
 export async function inspectGitState(

@@ -1,6 +1,6 @@
-import type { AppContext } from "@/runtime/bootstrap";
-import { json } from "@/server/responses";
-import { SessionTransferError } from "@/services/session/service";
+import type { AppContext } from "../../runtime/bootstrap/index";
+import { SessionTransferError } from "../../services/session/service/index";
+import { json } from "../responses";
 
 const ID_PATTERN = /^[a-zA-Z0-9:_-]{1,128}$/;
 

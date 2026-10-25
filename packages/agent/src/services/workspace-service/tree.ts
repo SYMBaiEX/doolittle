@@ -1,7 +1,7 @@
 import { lstatSync, readdirSync } from "node:fs";
 import { readdir } from "node:fs/promises";
 import { join, relative } from "node:path";
-import type { WorkspaceEntry } from "@/types";
+import type { WorkspaceEntry } from "../../types/index";
 import { workspaceRelativePath } from "./path-format";
 import { isWorkspacePathVisible } from "./policy";
 

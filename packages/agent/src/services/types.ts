@@ -1,5 +1,5 @@
-import type { loadGatewayConfig } from "@/config/gateway";
-import type { NativeOwnershipCache } from "@/runtime/native/ownership-cache";
+import type { loadGatewayConfig } from "../config/gateway";
+import type { NativeOwnershipCache } from "../runtime/native/ownership-cache";
 import type { AcpService } from "./acp";
 import type { AgentSdkService } from "./agent-sdk-service";
 import type { ApiTransportService } from "./api-transport-service";

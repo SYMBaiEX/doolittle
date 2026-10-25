@@ -1,10 +1,10 @@
-import type { RunUpdateEventBus } from "@/services/run-controller/event-bus";
-import type { RunControllerStore } from "@/services/run-controller/store";
+import type { RunUpdateEventBus } from "../run-controller/event-bus";
+import type { RunControllerStore } from "../run-controller/store";
 import type {
   RunSnapshot,
   RunStatus,
   RunUpdateType,
-} from "@/services/run-controller/types";
+} from "../run-controller/types";
 
 export interface RunControllerDependencies {
   events: RunUpdateEventBus;

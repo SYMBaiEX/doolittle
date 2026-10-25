@@ -15,7 +15,7 @@ import type {
 import type {
   TextProcessOptions,
   TextProcessResult,
-} from "@/services/process-execution";
+} from "../process-execution";
 import {
   assertWorkspacePathResolvesInside,
   resolveWorkspacePath,

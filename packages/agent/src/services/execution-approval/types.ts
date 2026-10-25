@@ -1,4 +1,4 @@
-import type { PlatformName } from "@/types";
+import type { PlatformName } from "../../types/index";
 
 export interface ExecutionApprovalRecord {
   id: string;

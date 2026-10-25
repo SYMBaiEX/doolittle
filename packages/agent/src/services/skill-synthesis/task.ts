@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { serializeSkillFile } from "@elizaos/skills/index";
 
-import type { DelegationTaskRecord } from "@/types";
+import type { DelegationTaskRecord } from "../../types/index";
 
 import type { GeneratedSkillRecord } from "./storage";
 

@@ -2,7 +2,7 @@ import type {
   DiagnosticCheck,
   ExecutionCloudProfile,
   ExecutionRemoteSyncPlan,
-} from "@/types/execution";
+} from "../../../types/execution";
 import type { RuntimeSettings } from "../../settings/runtime-settings";
 
 export type CloudExecutionProvider = "daytona" | "modal";

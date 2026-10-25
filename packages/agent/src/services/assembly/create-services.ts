@@ -1,5 +1,5 @@
 import type { IAgentRuntime } from "@elizaos/core";
-import type { EnvConfig } from "@/types";
+import type { EnvConfig } from "../../types/index";
 import type { DocumentsService } from "../documents-service";
 import type { AppServices } from "../types";
 import { createRuntimeBinder } from "./runtime-binding";

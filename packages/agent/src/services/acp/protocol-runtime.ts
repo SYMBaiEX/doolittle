@@ -32,9 +32,9 @@ import {
   isDesktopWorkspaceRuntime,
   resolveConversationWorkspace,
   runWithConversationWorkspace,
-} from "@/runtime/workspace-scope";
-import type { StoredMessage } from "@/types";
-import { DOOLITTLE_VERSION } from "@/version";
+} from "../../runtime/workspace-scope";
+import type { StoredMessage } from "../../types/index";
+import { DOOLITTLE_VERSION } from "../../version";
 import type { RunUpdateEvent } from "../run-controller-service";
 import { AcpHostProxy } from "./host-proxy";
 import type {

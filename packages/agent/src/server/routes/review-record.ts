@@ -1,12 +1,12 @@
 import { randomUUID } from "node:crypto";
-import type { AppContext } from "@/runtime/bootstrap";
-import { currentConversationWorkspace } from "@/runtime/workspace-scope";
-import { readJsonObjectBody } from "@/server/request-body";
-import { json } from "@/server/responses";
+import type { AppContext } from "../../runtime/bootstrap/index";
+import { currentConversationWorkspace } from "../../runtime/workspace-scope";
 import type {
   ReviewRecordComment,
   ReviewRecordScope,
-} from "@/services/review-record";
+} from "../../services/review-record/index";
+import { readJsonObjectBody } from "../request-body";
+import { json } from "../responses";
 
 const MAX_COMMENT_BODY_LENGTH = 2_000;
 const MAX_COMMENT_PATH_LENGTH = 1_024;

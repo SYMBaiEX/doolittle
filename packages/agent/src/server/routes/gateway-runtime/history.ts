@@ -1,6 +1,6 @@
-import { parseGatewayFiltersFromUrl } from "@/gateway/control/index";
-import type { AppContext } from "@/runtime/bootstrap";
-import { json } from "@/server/responses";
+import { parseGatewayFiltersFromUrl } from "../../../gateway/control/index";
+import type { AppContext } from "../../../runtime/bootstrap/index";
+import { json } from "../../responses";
 import { buildGatewayJournalResponse } from "./responses";
 
 export async function handleGatewayHistoryRoutes(

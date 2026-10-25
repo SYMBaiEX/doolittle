@@ -1,13 +1,13 @@
 import { realpathSync, statSync } from "node:fs";
 import { isAbsolute } from "node:path";
-import type { AppContext } from "@/runtime/bootstrap";
-import { readWorkerBotProfile } from "@/runtime/bootstrap/bot-profile";
+import { readWorkerBotProfile } from "../../../runtime/bootstrap/bot-profile";
+import type { AppContext } from "../../../runtime/bootstrap/index";
 import {
   currentConversationWorkspace,
   isDesktopWorkspaceRuntime,
-} from "@/runtime/workspace-scope";
-import { readJsonObjectBody } from "@/server/request-body";
-import { json } from "@/server/responses";
+} from "../../../runtime/workspace-scope";
+import { readJsonObjectBody } from "../../request-body";
+import { json } from "../../responses";
 import { hasDesktopControlCapability } from "../workspace-scope";
 
 const MAX_WORKSPACE_PATH_LENGTH = 4_096;

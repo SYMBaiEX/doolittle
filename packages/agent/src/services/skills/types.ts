@@ -1,5 +1,5 @@
 import type { SkillCommandSpec } from "@elizaos/skills/index";
-import type { SkillDocument } from "@/types";
+import type { SkillDocument } from "../../types/index";
 
 export type SkillSource = NonNullable<SkillDocument["source"]>;
 

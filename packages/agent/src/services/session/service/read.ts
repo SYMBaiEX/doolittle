@@ -2,7 +2,7 @@ import type {
   SessionSearchResult,
   SessionSummary,
   StoredMessage,
-} from "@/types";
+} from "../../../types/index";
 import type { SessionMessageStore } from "../messages";
 import type { SessionMetadataStore, SessionMetadataValue } from "../metadata";
 

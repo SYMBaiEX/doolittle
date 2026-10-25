@@ -1,4 +1,4 @@
-import type { AgentIdentityRecord } from "@/types";
+import type { AgentIdentityRecord } from "../../../types/index";
 import type { UserProfileStorage } from "../storage";
 import type { UserProfileMutationHost } from "../types";
 

@@ -1,5 +1,5 @@
-import { getTransportRequirementRecords } from "@/gateway/transport";
-import type { EnvConfig, GatewayConfig } from "@/types";
+import { getTransportRequirementRecords } from "../../gateway/transport/index";
+import type { EnvConfig, GatewayConfig } from "../../types/index";
 
 export function buildDiagnosticsSetupChecklist(
   config: EnvConfig,

@@ -1,5 +1,5 @@
-import { parseTransportPlatform } from "@/gateway/control/index";
-import type { PlatformName } from "@/types";
+import { parseTransportPlatform } from "../../../gateway/control/index";
+import type { PlatformName } from "../../../types/index";
 
 export function resolveGatewayPlatformSelection(
   rawPlatform: string | undefined,

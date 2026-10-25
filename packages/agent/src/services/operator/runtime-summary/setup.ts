@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
-import { getTransportRequirementRecords } from "@/gateway/transport";
-import { getRuntimeProviderAccountsSnapshot } from "@/runtime/native/provider-accounts";
+import { getTransportRequirementRecords } from "../../../gateway/transport/index";
+import { getRuntimeProviderAccountsSnapshot } from "../../../runtime/native/provider-accounts";
 import {
   createNativeServiceRegistry,
   describeNativeServiceRegistry,

@@ -16,7 +16,7 @@ import type {
   WorkspaceReadLinesResult,
   WorkspaceWriteResult,
 } from "@doolittle/contracts";
-import { readRegularFileSync } from "@/utils/read-regular-file";
+import { readRegularFileSync } from "../../utils/read-regular-file";
 import { resolveWorkspaceServicePath } from "./path";
 import { workspaceRelativePath } from "./path-format";
 import { isWorkspacePathVisible } from "./policy";

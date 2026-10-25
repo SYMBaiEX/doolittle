@@ -1,4 +1,7 @@
-import type { UserProfileRecord, UserProfileSearchHit } from "@/types";
+import type {
+  UserProfileRecord,
+  UserProfileSearchHit,
+} from "../../types/index";
 import { unique } from "./shared";
 import { normalizeEngagement, normalizeRelationship } from "./storage";
 

@@ -1,20 +1,20 @@
 import { timingSafeEqual } from "node:crypto";
 import { threadId } from "node:worker_threads";
-import type { AppContext } from "@/runtime/bootstrap";
-import { readWorkerBotProfile } from "@/runtime/bootstrap/bot-profile";
+import { readWorkerBotProfile } from "../../../runtime/bootstrap/bot-profile";
+import type { AppContext } from "../../../runtime/bootstrap/index";
 import {
   getCommandCatalogEntries,
   normalizeSlashCommandSyntax,
-} from "@/runtime/command-catalog";
-import { AGENT_REGISTRY_INSTALL_FAILURE } from "@/runtime/native/agent-sdk";
+} from "../../../runtime/command-catalog/index";
+import { AGENT_REGISTRY_INSTALL_FAILURE } from "../../../runtime/native/agent-sdk";
 import {
   getNativePluginCatalog,
   groupNativePluginCatalog,
-} from "@/runtime/native/plugin-catalog";
-import { currentConversationWorkspace } from "@/runtime/workspace-scope";
-import { json } from "@/server/responses";
-import { runtimeInstanceId } from "@/server/runtime-instance-id";
-import { hasAsciiControlCharacters } from "@/utils/text-validation";
+} from "../../../runtime/native/plugin-catalog/index";
+import { currentConversationWorkspace } from "../../../runtime/workspace-scope";
+import { hasAsciiControlCharacters } from "../../../utils/text-validation";
+import { json } from "../../responses";
+import { runtimeInstanceId } from "../../runtime-instance-id";
 import { resolveOwnership } from "./shared";
 
 export async function handleRuntimeStatusRoutes(

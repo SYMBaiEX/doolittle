@@ -10,8 +10,8 @@ import {
   statSync,
 } from "node:fs";
 import { basename, extname } from "node:path";
-import { isStrictlyContainedPath } from "@/utils/path-containment";
-import { readRegularFileSync } from "@/utils/read-regular-file";
+import { isStrictlyContainedPath } from "../../utils/path-containment";
+import { readRegularFileSync } from "../../utils/read-regular-file";
 
 const MAX_MANIFEST_BYTES = 128 * 1024;
 export const MAX_MEDIA_LIBRARY_ASSET_BYTES = 5 * 1024 * 1024;

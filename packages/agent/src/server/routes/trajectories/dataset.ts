@@ -1,7 +1,7 @@
 import { join } from "node:path";
-import type { AppContext } from "@/runtime/bootstrap";
-import { json } from "@/server/responses";
-import { writeSdkTrajectoryExport } from "@/services/trajectory/sdk-native";
+import type { AppContext } from "../../../runtime/bootstrap/index";
+import { writeSdkTrajectoryExport } from "../../../services/trajectory/sdk-native";
+import { json } from "../../responses";
 import { buildTrajectoryRequest, readJsonBody } from "./helpers";
 import type { TrajectoryDatasetBody, TrajectoryRouteHandler } from "./types";
 

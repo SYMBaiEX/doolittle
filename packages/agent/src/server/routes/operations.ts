@@ -1,24 +1,24 @@
 import { randomUUID } from "node:crypto";
-import type { AppContext } from "@/runtime/bootstrap";
-import { getNativeResearchControlPlane } from "@/runtime/native/service-bridge/control-planes";
+import type { AppContext } from "../../runtime/bootstrap/index";
+import { getNativeResearchControlPlane } from "../../runtime/native/service-bridge/control-planes/index";
 import {
   getEffectiveShellHistory,
   runEffectiveShellCommand,
-} from "@/runtime/native/service-bridge/tooling";
+} from "../../runtime/native/service-bridge/tooling/index";
 import {
   currentConversationWorkspace,
   resolveConversationWorkspace,
   runWithConversationWorkspace,
-} from "@/runtime/workspace-scope";
-import { sdkTerminalRunTokenError } from "@/server/auth";
-import { readJsonObjectBody } from "@/server/request-body";
-import { json, streamSse } from "@/server/responses";
-import { runtimeInstanceId } from "@/server/runtime-instance-id";
-import { TerminalCancellationUnavailableError } from "@/services/terminal/command/orchestrator";
+} from "../../runtime/workspace-scope";
+import { TerminalCancellationUnavailableError } from "../../services/terminal/command/orchestrator/index";
 import {
   TerminalCreationConflictError,
   TerminalSessionNotFoundError,
-} from "@/services/terminal/session";
+} from "../../services/terminal/session";
+import { sdkTerminalRunTokenError } from "../auth";
+import { readJsonObjectBody } from "../request-body";
+import { json, streamSse } from "../responses";
+import { runtimeInstanceId } from "../runtime-instance-id";
 
 const MAX_WORKSPACE_FILE_BYTES = 1_000_000;
 const MAX_WORKSPACE_PATH_LENGTH = 4_096;

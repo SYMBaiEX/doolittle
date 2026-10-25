@@ -4,7 +4,7 @@ import type {
   AutomationJobRecord,
   AutomationRunRecord,
   AutomationRuntimeOverrides,
-} from "@/types";
+} from "../../types/index";
 
 export type AutomationTriggerInput =
   | { type: "schedule"; schedule: string }

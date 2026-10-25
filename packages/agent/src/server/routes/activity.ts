@@ -1,7 +1,6 @@
-import type { AppContext } from "@/runtime/bootstrap";
-import { getEffectiveDelegationTasks } from "@/runtime/native/service-bridge/delegation";
-import { getNativeServices } from "@/runtime/native/service-bridge/runtime";
-import { json } from "@/server/responses";
+import type { AppContext } from "../../runtime/bootstrap/index";
+import { getEffectiveDelegationTasks } from "../../runtime/native/service-bridge/delegation/index";
+import { getNativeServices } from "../../runtime/native/service-bridge/runtime";
 import {
   ACTIVITY_FEED_MAX_LIMIT,
   type ActivityEventKind,
@@ -11,8 +10,9 @@ import {
   buildActivityExport,
   buildActivityFeed,
   decodeActivityCursor,
-} from "@/services/activity-feed";
-import { hasAsciiControlCharacters } from "@/utils/text-validation";
+} from "../../services/activity-feed/index";
+import { hasAsciiControlCharacters } from "../../utils/text-validation";
+import { json } from "../responses";
 
 const ACTIVITY_QUERY_KEYS = new Set([
   "limit",

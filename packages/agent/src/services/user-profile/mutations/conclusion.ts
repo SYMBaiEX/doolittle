@@ -1,4 +1,4 @@
-import type { UserProfileConclusionRecord } from "@/types";
+import type { UserProfileConclusionRecord } from "../../../types/index";
 import type { UserProfileStorage } from "../storage";
 import type { UserProfileMutationHost } from "../types";
 import { appendRelationshipNote } from "./relationship";

@@ -1,7 +1,7 @@
-import type { AppContext } from "@/runtime/bootstrap";
-import { getEffectiveGeneratedSkills } from "@/runtime/native/service-bridge/ownership";
-import { getEffectiveSkillHubGenerated } from "@/runtime/native/service-bridge/skill-hub";
-import { json } from "@/server/responses";
+import type { AppContext } from "../../../runtime/bootstrap/index";
+import { getEffectiveGeneratedSkills } from "../../../runtime/native/service-bridge/ownership/index";
+import { getEffectiveSkillHubGenerated } from "../../../runtime/native/service-bridge/skill-hub/index";
+import { json } from "../../responses";
 
 export async function handleGeneratedSkillsRoutes(
   context: AppContext,

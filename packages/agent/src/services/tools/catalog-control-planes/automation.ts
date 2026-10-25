@@ -1,4 +1,4 @@
-import type { ToolDefinition } from "@/types";
+import type { ToolDefinition } from "../../../types/index";
 
 export const AUTOMATION_CONTROL_PLANES = [
   {

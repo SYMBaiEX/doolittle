@@ -2,8 +2,8 @@ import type { IAgentRuntime } from "@elizaos/core";
 import {
   type NativeAgentOrchestratorService,
   ORCHESTRATOR_TASK_SERVICE,
-} from "@/runtime/native/service-bridge/runtime-contracts";
-import type { DelegationTaskRecord } from "@/types";
+} from "../../runtime/native/service-bridge/runtime-contracts/index";
+import type { DelegationTaskRecord } from "../../types/index";
 import type { DelegationTaskFilter } from "./read-model";
 import { matchDelegationTaskFilter } from "./read-model";
 import {
@@ -42,7 +42,7 @@ export class DelegationProjectionService {
   async refresh(): Promise<DelegationTaskRecord[]> {
     if (!this.runtime) return this.tasks;
     const { getEffectiveDelegationTasks } = await import(
-      "@/runtime/native/service-bridge/delegation"
+      "../../runtime/native/service-bridge/delegation/index"
     );
     const tasks = await getEffectiveDelegationTasks(this.runtime);
     this.replaceProjection(tasks);
@@ -183,7 +183,7 @@ export class DelegationProjectionService {
     const refresh = (async () => {
       if (!this.runtime) return;
       const { getEffectiveDelegationTask } = await import(
-        "@/runtime/native/service-bridge/delegation"
+        "../../runtime/native/service-bridge/delegation/index"
       );
       const task = await getEffectiveDelegationTask(this.runtime, taskId);
       if (task) this.upsertProjection(task);

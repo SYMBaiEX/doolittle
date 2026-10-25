@@ -1,4 +1,7 @@
-import type { SessionSummary, StoredMessageAttachment } from "@/types";
+import type {
+  SessionSummary,
+  StoredMessageAttachment,
+} from "../../types/index";
 
 export const DOOLITTLE_SESSION_ARCHIVE_SCHEMA = "doolittle.session.archive";
 export const DOOLITTLE_SESSION_ARCHIVE_VERSION = 1;

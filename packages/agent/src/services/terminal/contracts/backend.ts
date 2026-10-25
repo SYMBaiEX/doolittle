@@ -2,7 +2,7 @@ import type {
   ExecutionBackendHealth,
   ExecutionBackendName,
   ExecutionBackendPreview,
-} from "@/types/execution";
+} from "../../../types/execution";
 import type { RuntimeSettings } from "../../settings/runtime-settings";
 import type { TerminalRunResult } from "../execution/subprocess";
 

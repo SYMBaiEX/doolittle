@@ -1,12 +1,12 @@
-import type { AppContext } from "@/runtime/bootstrap";
+import type { AppContext } from "../../../runtime/bootstrap/index";
 import {
   getEffectiveSkillHubCatalog,
   getEffectiveSkillHubCatalogEntry,
   getEffectiveSkillHubFamilies,
   getEffectiveSkillHubFamily,
   searchEffectiveSkillHubCatalog,
-} from "@/runtime/native/service-bridge/skill-hub";
-import { json } from "@/server/responses";
+} from "../../../runtime/native/service-bridge/skill-hub/index";
+import { json } from "../../responses";
 
 export async function handleSkillsCatalogRoutes(
   context: AppContext,

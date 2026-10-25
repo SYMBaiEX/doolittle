@@ -1,4 +1,4 @@
-import type { UserProfileRecord } from "@/types";
+import type { UserProfileRecord } from "../../types/index";
 
 export const NATIVE_USER_PERSONALITY_PREFERENCES_TABLE =
   "user_personality_preferences";

@@ -1,8 +1,8 @@
-import { loadGatewayConfig, saveGatewayConfig } from "@/config/gateway";
-import type { AppContext } from "@/runtime/bootstrap";
-import { readJsonObjectBody } from "@/server/request-body";
-import { json } from "@/server/responses";
-import type { GatewayConfig } from "@/types";
+import { loadGatewayConfig, saveGatewayConfig } from "../../../config/gateway";
+import type { AppContext } from "../../../runtime/bootstrap/index";
+import type { GatewayConfig } from "../../../types/index";
+import { readJsonObjectBody } from "../../request-body";
+import { json } from "../../responses";
 
 function applyGatewayConfig(
   context: AppContext,

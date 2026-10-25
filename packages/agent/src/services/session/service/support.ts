@@ -1,9 +1,6 @@
 import { mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
-import {
-  NodeSessionDatabase,
-  type SessionDatabase,
-} from "@/services/session/database";
+import { NodeSessionDatabase, type SessionDatabase } from "../database";
 import { migrateSessionDatabase } from "../schema";
 
 export function createSessionDatabase(baseDir: string): SessionDatabase {

@@ -10,7 +10,7 @@ import type {
   PairingApprovedRecord,
   PairingRequestRecord,
   PlatformName,
-} from "@/types";
+} from "../types/index";
 import { migrateLegacyPairingStore } from "./gateway-pairing-migration";
 import {
   createAccountIdentity,

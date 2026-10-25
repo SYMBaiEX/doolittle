@@ -1,10 +1,10 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-import { getDefaultRepoRoot } from "@/config/env/paths";
-import { getNativePackageAudit } from "@/runtime/native/package-audit";
-import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
-import type { EnvConfig } from "@/types";
+import { getDefaultRepoRoot } from "../../config/env/paths";
+import { getNativePackageAudit } from "../../runtime/native/package-audit/index";
+import { getNativePluginCatalog } from "../../runtime/native/plugin-catalog/index";
+import type { EnvConfig } from "../../types/index";
 
 interface PackageMetadata {
   name: string;

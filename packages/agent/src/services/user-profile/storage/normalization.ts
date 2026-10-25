@@ -1,4 +1,7 @@
-import type { AgentIdentityRecord, UserProfileRecord } from "@/types";
+import type {
+  AgentIdentityRecord,
+  UserProfileRecord,
+} from "../../../types/index";
 import {
   createDefaultAgentIdentity,
   createDefaultEngagement,

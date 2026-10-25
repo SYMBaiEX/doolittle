@@ -1,7 +1,11 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { getTransportRequirementRecords } from "@/gateway/transport";
-import type { DiagnosticCheck, EnvConfig, GatewayConfig } from "@/types";
+import { getTransportRequirementRecords } from "../../gateway/transport/index";
+import type {
+  DiagnosticCheck,
+  EnvConfig,
+  GatewayConfig,
+} from "../../types/index";
 import type { DiagnosticsRunInput } from "./types";
 
 export async function buildDiagnosticsFilesystemChecks(

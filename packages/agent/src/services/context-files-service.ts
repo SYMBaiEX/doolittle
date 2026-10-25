@@ -1,8 +1,8 @@
 import { realpathSync } from "node:fs";
 import { join } from "node:path";
-import type { ContextDocument } from "@/types";
-import { isStrictlyContainedPath } from "@/utils/path-containment";
-import { readRegularFileSync } from "@/utils/read-regular-file";
+import type { ContextDocument } from "../types/index";
+import { isStrictlyContainedPath } from "../utils/path-containment";
+import { readRegularFileSync } from "../utils/read-regular-file";
 import { injectionScanner, type ScanResult } from "./prompt-injection-scanner";
 import {
   resolveWorkspaceDirectory,

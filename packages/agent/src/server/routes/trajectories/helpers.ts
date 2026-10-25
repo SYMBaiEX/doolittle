@@ -1,4 +1,4 @@
-import type { AppContext } from "@/runtime/bootstrap";
+import type { AppContext } from "../../../runtime/bootstrap/index";
 import type { TrajectoryBundleRecord, TrajectoryDatasetBody } from "./types";
 
 export function buildTrajectoryRequest(body: TrajectoryDatasetBody) {

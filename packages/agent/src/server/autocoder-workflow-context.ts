@@ -1,9 +1,9 @@
-import type { AppContext } from "@/runtime/bootstrap";
+import type { AppContext } from "../runtime/bootstrap/index";
 import {
   completeLinkedAutocoderWorkflow,
   createLinkedAutocoderWorkflow,
   failLinkedAutocoderWorkflow,
-} from "@/services/autocoder-workflow-context";
+} from "../services/autocoder-workflow-context";
 
 export async function createAutocoderWorkflowContext(
   context: AppContext,

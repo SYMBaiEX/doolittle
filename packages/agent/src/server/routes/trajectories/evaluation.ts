@@ -1,4 +1,4 @@
-import { json } from "@/server/responses";
+import { json } from "../../responses";
 import {
   buildPackageRequest,
   buildTrajectoryRequest,

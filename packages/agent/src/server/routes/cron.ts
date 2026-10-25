@@ -2,11 +2,11 @@ import type {
   AutomationAction,
   AutomationCondition,
 } from "@doolittle/contracts";
-import type { AppContext } from "@/runtime/bootstrap";
-import { getNativeServices } from "@/runtime/native/service-bridge/runtime";
-import { readJsonObjectBody } from "@/server/request-body";
-import { json } from "@/server/responses";
-import type { AutomationTriggerInput } from "@/services/automation/types";
+import type { AppContext } from "../../runtime/bootstrap/index";
+import { getNativeServices } from "../../runtime/native/service-bridge/runtime";
+import type { AutomationTriggerInput } from "../../services/automation/types";
+import { readJsonObjectBody } from "../request-body";
+import { json } from "../responses";
 
 export async function handleCronRoutes(
   context: AppContext,

@@ -1,7 +1,7 @@
 import type { RepositoryMutationRequest } from "@doolittle/contracts/repository";
-import type { AppContext } from "@/runtime/bootstrap";
-import { readJsonObjectBody } from "@/server/request-body";
-import { json } from "@/server/responses";
+import type { AppContext } from "../../runtime/bootstrap/index";
+import { readJsonObjectBody } from "../request-body";
+import { json } from "../responses";
 
 async function readMutationRequest(
   request: Request,

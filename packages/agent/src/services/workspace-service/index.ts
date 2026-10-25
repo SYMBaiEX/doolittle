@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
-import type { WorkspaceEntry } from "@/types";
+import type { WorkspaceEntry } from "../../types/index";
 import {
   resolveWorkspaceDirectory,
   type WorkspaceDirectorySource,

@@ -1,6 +1,6 @@
 import { resolveShellExecutionMode } from "@elizaos/agent/services/shell-execution-router";
-import * as processExecution from "@/services/process-execution";
-import type { TerminalCommandRecord } from "@/types/execution";
+import type { TerminalCommandRecord } from "../../../../types/execution";
+import * as processExecution from "../../../process-execution";
 import {
   localShellInvocation,
   normalizeBackendError,

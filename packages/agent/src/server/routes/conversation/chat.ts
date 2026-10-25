@@ -1,27 +1,27 @@
 import { randomUUID } from "node:crypto";
 import { relative } from "node:path";
-import type { AppContext } from "@/runtime/bootstrap";
-import { readWorkerBotProfile } from "@/runtime/bootstrap/bot-profile";
+import { readWorkerBotProfile } from "../../../runtime/bootstrap/bot-profile";
+import type { AppContext } from "../../../runtime/bootstrap/index";
 import {
   acquireExecutionLease,
   ExecutionAdmissionLimitError,
-} from "@/runtime/execution-admission";
-import { executeAgentTurnWithProgress } from "@/runtime/turn-stream";
+} from "../../../runtime/execution-admission";
+import { executeAgentTurnWithProgress } from "../../../runtime/turn-stream";
 import {
   isDesktopWorkspaceRuntime,
   resolveConversationWorkspace,
-} from "@/runtime/workspace-scope";
-import { readJsonObjectBody } from "@/server/request-body";
-import { json, streamSse } from "@/server/responses";
-import { resolveRuntimeWorkspacePath } from "@/server/routes/runtime/workspace";
+} from "../../../runtime/workspace-scope";
 import {
   ManagedAttachmentError,
   resolveManagedChatAttachments,
-} from "@/services/chat-attachments";
+} from "../../../services/chat-attachments";
 import type {
   RunSnapshot,
   TaskRunEvent,
-} from "@/services/run-controller-service";
+} from "../../../services/run-controller-service/index";
+import { readJsonObjectBody } from "../../request-body";
+import { json, streamSse } from "../../responses";
+import { resolveRuntimeWorkspacePath } from "../runtime/workspace";
 import type { ChatRequestBody } from "./types";
 
 const RUN_ID_PATTERN = /^[a-zA-Z0-9:_-]{1,128}$/;

@@ -1,7 +1,7 @@
-import type { AppContext } from "@/runtime/bootstrap";
-import { json } from "@/server/responses";
-import type { PlatformName } from "@/types";
-import { hasAsciiControlCharacters } from "@/utils/text-validation";
+import type { AppContext } from "../../../runtime/bootstrap/index";
+import type { PlatformName } from "../../../types/index";
+import { hasAsciiControlCharacters } from "../../../utils/text-validation";
+import { json } from "../../responses";
 
 const PAIRING_PLATFORMS = new Set<PlatformName>([
   "telegram",

@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
-import type { DelegationTaskRecord, StoredMessage } from "@/types";
+import type { DelegationTaskRecord, StoredMessage } from "../../types/index";
 import {
   analyzeConversationForSkill,
   buildConversationGeneratedSkillRecord,

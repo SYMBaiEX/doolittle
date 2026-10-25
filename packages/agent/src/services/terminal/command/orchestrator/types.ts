@@ -2,7 +2,7 @@ import type { ShellSandboxBackend } from "@elizaos/agent/services/shell-executio
 import type {
   ExecutionBackendName,
   TerminalCommandRecord,
-} from "@/types/execution";
+} from "../../../../types/execution";
 import type { RuntimeSettings } from "../../../settings/runtime-settings";
 import type { CloudStateAccessor } from "../../cloud/store";
 import type { ExecutionBackend } from "../../contracts/backend";

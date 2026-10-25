@@ -1,5 +1,5 @@
-import type { AppContext } from "@/runtime/bootstrap";
-import { withLinkedProviderMutationLock } from "@/runtime/linked-provider-accounts";
+import type { AppContext } from "../../../runtime/bootstrap/index";
+import { withLinkedProviderMutationLock } from "../../../runtime/linked-provider-accounts/index";
 import {
   applyAccountPoolApiCredentials,
   deleteDoolittleAccount,
@@ -14,11 +14,11 @@ import {
   synchronizeDoolittleAccountPoolFromNativeStores,
   testDoolittleAccountCredentials,
   updateDoolittleAccount,
-} from "@/runtime/native/account-pool";
-import { ensureDoolittleDirectApiPlugins } from "@/runtime/native/plugin-registry/providers";
-import { getEffectiveSecret } from "@/runtime/native/service-bridge/autocoder";
-import { readJsonObjectBody } from "@/server/request-body";
-import { json } from "@/server/responses";
+} from "../../../runtime/native/account-pool/index";
+import { ensureDoolittleDirectApiPlugins } from "../../../runtime/native/plugin-registry/providers";
+import { getEffectiveSecret } from "../../../runtime/native/service-bridge/autocoder/index";
+import { readJsonObjectBody } from "../../request-body";
+import { json } from "../../responses";
 import {
   activateAccount,
   buildAccountConnectAdvice,

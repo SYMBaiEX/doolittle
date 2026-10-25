@@ -1,4 +1,4 @@
-import type { ExecutionBackendHealth } from "@/types/execution";
+import type { ExecutionBackendHealth } from "../../../../types/execution";
 import type { RuntimeSettings } from "../../../settings/runtime-settings";
 import {
   buildBootstrapHints,

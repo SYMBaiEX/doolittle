@@ -1,8 +1,8 @@
 import {
   concludeEffectiveUserProfile,
   getEffectiveUserProfileContext,
-} from "@/runtime/native/service-bridge/ownership";
-import { json } from "@/server/responses";
+} from "../../../../runtime/native/service-bridge/ownership/index";
+import { json } from "../../../responses";
 import {
   badRequest,
   type IdentityProfileRouteHandler,

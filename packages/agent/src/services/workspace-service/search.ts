@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
-import { runTextProcess } from "@/services/process-execution";
-import type { WorkspaceEntry } from "@/types";
+import type { WorkspaceEntry } from "../../types/index";
+import { runTextProcess } from "../process-execution";
 import { resolveWorkspacePath } from "./path";
 import { listCompleteWorkspaceTreeAsync, listWorkspaceTree } from "./tree";
 

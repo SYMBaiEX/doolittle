@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import type { SkillDocument } from "@/types";
+import type { SkillDocument } from "../../../types/index";
 import type { SkillHubManifest, SkillHubWorkspaceRecord } from "../types";
 import type { SkillsHubManifestHost } from "./types";
 

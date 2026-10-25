@@ -1,4 +1,7 @@
-import type { AgentIdentityRecord, UserProfileRecord } from "@/types";
+import type {
+  AgentIdentityRecord,
+  UserProfileRecord,
+} from "../../../types/index";
 
 export interface UserProfileStore {
   profiles: UserProfileRecord[];

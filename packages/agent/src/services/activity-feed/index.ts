@@ -1,10 +1,13 @@
-import type { AppLogRecord } from "@/logging/logger";
-import type { AutocoderPipelineRunRecord } from "@/services/autocoder-pipeline";
-import type { RepositoryChange } from "@/services/repository-service";
-import type { AutomationRunRecord, DelegationTaskRecord } from "@/types";
-import type { TerminalCommandRecord } from "@/types/execution";
-import type { DeliveredMessageRecord } from "@/types/gateway";
+import type { AppLogRecord } from "../../logging/logger";
+import type { TerminalCommandRecord } from "../../types/execution";
+import type { DeliveredMessageRecord } from "../../types/gateway";
+import type {
+  AutomationRunRecord,
+  DelegationTaskRecord,
+} from "../../types/index";
+import type { AutocoderPipelineRunRecord } from "../autocoder-pipeline/index";
 import type { ExecutionApprovalRecord } from "../execution-approval/types";
+import type { RepositoryChange } from "../repository-service";
 import type { RunSnapshot } from "../run-controller/types";
 
 export type ActivityEventKind =

@@ -3,7 +3,7 @@ import type {
   ExecutionCloudSession,
   ExecutionCloudSnapshotRecord,
   TerminalCommandRecord,
-} from "@/types/execution";
+} from "../../../types/execution";
 import type { CloudStateAccessor } from "../cloud/store";
 import type { TerminalRunResult } from "../execution/subprocess";
 import { buildTerminalCommandRecord } from "../records/command";

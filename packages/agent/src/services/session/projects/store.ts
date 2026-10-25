@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
-import type { SessionDatabase } from "@/services/session/database";
-import type { Project, ProjectResource } from "@/types";
+import type { Project, ProjectResource } from "../../../types/index";
+import type { SessionDatabase } from "../database";
 
 export interface CreateProjectInput {
   id?: string;

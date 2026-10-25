@@ -1,5 +1,5 @@
-import { createEffectiveDelegationTask } from "@/runtime/native/service-bridge/delegation";
-import { json } from "@/server/responses";
+import { createEffectiveDelegationTask } from "../../../runtime/native/service-bridge/delegation/index";
+import { json } from "../../responses";
 import { readJsonBody } from "./helpers";
 import type { TrajectoryBatchBody, TrajectoryRouteHandler } from "./types";
 

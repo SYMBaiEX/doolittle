@@ -1,7 +1,7 @@
 import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { runTextProcess } from "@/services/process-execution";
+import { runTextProcess } from "../process-execution";
 import { classifyWorkspacePath } from "./policy";
 
 export interface WorkspaceCheckpoint {

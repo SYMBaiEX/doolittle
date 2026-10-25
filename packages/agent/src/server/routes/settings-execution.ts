@@ -1,21 +1,21 @@
-import type { AppContext } from "@/runtime/bootstrap";
-import { readWorkerBotProfile } from "@/runtime/bootstrap/bot-profile";
+import { readWorkerBotProfile } from "../../runtime/bootstrap/bot-profile";
+import type { AppContext } from "../../runtime/bootstrap/index";
 import {
   syncProviderSettings,
   withLinkedProviderMutationLock,
-} from "@/runtime/linked-provider-accounts";
-import { applyAccountPoolApiCredentials } from "@/runtime/native/account-pool";
-import { getEffectiveShellStatus } from "@/runtime/native/service-bridge/tooling";
+} from "../../runtime/linked-provider-accounts/index";
+import { applyAccountPoolApiCredentials } from "../../runtime/native/account-pool/index";
+import { getEffectiveShellStatus } from "../../runtime/native/service-bridge/tooling/index";
 import {
   getTuiTheme,
   listTuiThemes,
   nextTuiTheme,
   previousTuiTheme,
   resolveTuiThemeName,
-} from "@/runtime/theme-catalog";
-import { readJsonObjectBody } from "@/server/request-body";
-import { json } from "@/server/responses";
-import { isSafeSettingPath } from "@/services/settings/path";
+} from "../../runtime/theme-catalog/index";
+import { isSafeSettingPath } from "../../services/settings/path";
+import { readJsonObjectBody } from "../request-body";
+import { json } from "../responses";
 
 type ParsedBody = { body: Record<string, unknown> } | { response: Response };
 

@@ -5,7 +5,7 @@ import type {
   UserProfileEngagementSummary,
   UserProfileRecord,
   UserProfileRelationshipSummary,
-} from "@/types";
+} from "../../types/index";
 import type { UserProfileRecallHit } from "./types";
 
 /**

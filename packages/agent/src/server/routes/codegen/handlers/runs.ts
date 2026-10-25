@@ -1,11 +1,8 @@
-import { json } from "@/server/responses";
-import {
-  toPublicAutocoderRun,
-  toPublicAutocoderSummary,
-} from "@/server/routes/codegen/public-dtos";
-import type { CodegenRouteHandler } from "@/server/routes/codegen/types";
-import { parseOpaqueRouteId } from "@/server/routes/parse-opaque-id";
-import { AutocoderArtifactError } from "@/services/autocoder-pipeline";
+import { AutocoderArtifactError } from "../../../../services/autocoder-pipeline/index";
+import { json } from "../../../responses";
+import { parseOpaqueRouteId } from "../../parse-opaque-id";
+import { toPublicAutocoderRun, toPublicAutocoderSummary } from "../public-dtos";
+import type { CodegenRouteHandler } from "../types";
 
 const PRIVATE_ARTIFACT_HEADERS = {
   "cache-control": "no-store",

@@ -1,7 +1,7 @@
 import type {
   DelegationOrchestrationMode,
   DelegationTaskRecord,
-} from "@/types";
+} from "../../../types/index";
 import type { DelegationTaskFilter } from "./types";
 
 export function resolveDelegationOrchestrationMode(

@@ -1,16 +1,16 @@
-import type { AppContext } from "@/runtime/bootstrap";
+import type { AppContext } from "../../runtime/bootstrap/index";
 import {
   getEffectiveSecret,
   listEffectiveSecretKeys,
   setEffectiveSecret,
-} from "@/runtime/native/service-bridge/autocoder";
+} from "../../runtime/native/service-bridge/autocoder/index";
 import {
   completeAutocoderWorkflowContext,
   createAutocoderWorkflowContext,
   failAutocoderWorkflowContext,
-} from "@/server/autocoder-workflow-context";
-import { readJsonObjectBody } from "@/server/request-body";
-import { json } from "@/server/responses";
+} from "../autocoder-workflow-context";
+import { readJsonObjectBody } from "../request-body";
+import { json } from "../responses";
 
 async function readSecretBody(request: Request) {
   const parsed = await readJsonObjectBody(request);

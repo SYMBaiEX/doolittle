@@ -3,7 +3,7 @@ import type {
   ExecutionCloudArtifactRecord,
   ExecutionCloudProfile,
   ExecutionCloudSnapshotRecord,
-} from "@/types/execution";
+} from "../../../../types/execution";
 import { findCloudSession, upsertCloudSession } from "./sessions";
 import type { CaptureCloudSnapshotPatch, CloudStore } from "./types";
 

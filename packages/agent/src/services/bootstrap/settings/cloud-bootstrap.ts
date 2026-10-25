@@ -1,6 +1,6 @@
 import { DEFAULT_MODEL_ROUTE } from "@doolittle/contracts";
-import type { LinkedProviderAccountsSnapshot } from "@/runtime/native/account-auth/types";
-import type { EnvConfig } from "@/types";
+import type { LinkedProviderAccountsSnapshot } from "../../../runtime/native/account-auth/types";
+import type { EnvConfig } from "../../../types/index";
 import type { RuntimeSettingsSnapshot, SettingsSetter } from "./types";
 
 export interface PersistedProviderAvailability {

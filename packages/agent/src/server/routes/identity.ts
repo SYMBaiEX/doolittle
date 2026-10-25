@@ -1,13 +1,13 @@
-import type { AppContext } from "@/runtime/bootstrap";
+import type { AppContext } from "../../runtime/bootstrap/index";
 import {
   activateEffectivePersonality,
   getEffectiveActivePersonality,
   getEffectiveExperienceSummary,
   getEffectivePersonalityList,
   getEffectivePersonalitySummary,
-} from "@/runtime/native/service-bridge/ownership";
-import { readJsonObjectBody } from "@/server/request-body";
-import { json } from "@/server/responses";
+} from "../../runtime/native/service-bridge/ownership/index";
+import { readJsonObjectBody } from "../request-body";
+import { json } from "../responses";
 import { handleIdentityProfileRoutes } from "./identity/profiles";
 
 export async function handleIdentityRoutes(
