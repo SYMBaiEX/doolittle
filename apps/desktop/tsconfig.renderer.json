@@ -1,13 +1,7 @@
 {
   "compilerOptions": {
     "composite": true,
-    "target": "ES2022",
     "useDefineForClassFields": true,
-    "module": "ESNext",
-    "moduleResolution": "Bundler",
-    "strict": true,
-    "noEmit": true,
-    "skipLibCheck": true,
     "jsx": "react-jsx",
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "types": ["vite/client"]
@@ -17,5 +11,6 @@
     "src/renderer/**/*.tsx",
     "src/shared/**/*.ts"
   ],
-  "exclude": ["src/**/*.test.ts"]
+  "exclude": ["src/**/*.test.ts"],
+  "extends": "../../tsconfig.base.json"
 }

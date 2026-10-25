@@ -3,16 +3,6 @@ import type { NativePackageAuditRecord } from "../types";
 export const NATIVE_FOUNDATION_PACKAGE_AUDIT_RECORDS: NativePackageAuditRecord[] =
   [
     {
-      packageName: "elizaos",
-      role: "runtime",
-      currentStrategy: "official",
-      currentTag: "beta",
-      latestTagVersion: "1.7.2",
-      betaTagVersion: "2.0.3-beta.7",
-      compatibility: "beta-only",
-      note: "Primary runtime package tracks the coherent beta line.",
-    },
-    {
       packageName: "@elizaos/core",
       role: "runtime-core",
       currentStrategy: "official",

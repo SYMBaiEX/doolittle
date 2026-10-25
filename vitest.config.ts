@@ -32,25 +32,6 @@ export default defineConfig({
           "./apps/desktop/src/renderer/components/ElizaControls.tsx",
         ),
       },
-      { find: "@", replacement: fromRoot("./packages/agent/src") },
-      {
-        find: "@doolittle/acp",
-        replacement: fromRoot("./packages/acp/src/index.ts"),
-      },
-      {
-        find: /^@doolittle\/contracts$/,
-        replacement: fromRoot("./packages/contracts/src/index.ts"),
-      },
-      {
-        find: /^@doolittle\/ui$/,
-        replacement: fromRoot("./packages/ui/src/index.ts"),
-      },
-      {
-        find: "@doolittle/agent",
-        replacement: fromRoot("./packages/agent/src"),
-      },
-      { find: "@plugins", replacement: fromRoot("./packages/plugins") },
-      { find: "@characters", replacement: fromRoot("./packages/characters") },
     ],
   },
   test: {

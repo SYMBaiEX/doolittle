@@ -9,5 +9,8 @@
   },
   "dependencies": {
     "@agentclientprotocol/sdk": "1.5.1"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json"
   }
 }
