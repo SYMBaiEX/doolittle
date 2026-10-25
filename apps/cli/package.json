@@ -17,7 +17,6 @@
     "@doolittle/agent": "workspace:*",
     "@doolittle/contracts": "workspace:*",
     "@elizaos/core": "2.0.3-beta.7",
-    "@agentclientprotocol/sdk": "1.5.1",
     "blessed": "^0.1.81",
     "@elizaos/agent": "2.0.3-beta.7",
     "@elizaos/shared": "2.0.3-beta.7",

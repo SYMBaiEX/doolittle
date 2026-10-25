@@ -24,12 +24,34 @@
         "pgrep",
         "plutil",
         "wine"
+      ],
+      "entry": [
+        "src/main/index.ts",
+        "src/preload/index.ts",
+        "src/renderer/main.tsx",
+        "vite.*.config.ts",
+        "scripts/**/*.ts"
       ]
     },
     "packages/plugins": {
       "project": ["doolittle-plugin/**/*.ts"]
     },
     "packages/plugins/plugin-sql": {
+      "project": ["src/**/*.ts"]
+    },
+    ".": {
+      "entry": ["scripts/**/*.ts", "tests/**/*.ts", "*.config.ts"],
+      "project": ["scripts/**/*.ts", "tests/**/*.ts", "*.config.ts"],
+      "ignoreDependencies": [
+        "scriptc",
+        "@elizaos/plugin-remote-manifest",
+        "@elizaos/plugin-worker-runtime",
+        "@elizaos/registry",
+        "@elizaos/plugin-sql"
+      ]
+    },
+    "apps/cli": {
+      "entry": ["src/index.ts", "src/acp-server.ts"],
       "project": ["src/**/*.ts"]
     }
   }
