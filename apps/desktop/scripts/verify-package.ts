@@ -86,8 +86,20 @@ const MINIMUM_RUNTIME_DEPENDENCY_VERSIONS: Readonly<
     url: "https://github.com/advisories/GHSA-r5fr-rjxr-66jc",
   },
   "serialize-javascript": {
-    minimum: "7.0.3",
+    minimum: "7.1.3",
     url: "https://github.com/advisories/GHSA-5c6j-r48x-rmvq",
+  },
+  "ip-address": {
+    minimum: "10.7.5",
+    url: "https://github.com/advisories/GHSA-rxp7-6hxx-x8q5",
+  },
+  "markdown-it": {
+    minimum: "14.3.3",
+    url: "https://github.com/advisories/GHSA-gfr2-rv44-r23c",
+  },
+  toml: {
+    minimum: "5.0.1",
+    url: "https://github.com/advisories/GHSA-4qx8-w7c3-pj3p",
   },
   sharp: {
     minimum: "0.35.4",
@@ -134,9 +146,9 @@ function runtimeVersionAtLeast(version: string, minimum: string): boolean {
 function safeUndiciVersion(version: string): boolean {
   const parsed = parsedRuntimeVersion(version);
   if (!parsed) return false;
-  if (parsed.major === 6) return runtimeVersionAtLeast(version, "6.28.1");
-  if (parsed.major === 7) return runtimeVersionAtLeast(version, "7.29.1");
-  if (parsed.major === 8) return runtimeVersionAtLeast(version, "8.10.2");
+  if (parsed.major === 6) return runtimeVersionAtLeast(version, "6.29.1");
+  if (parsed.major === 7) return runtimeVersionAtLeast(version, "7.30.1");
+  if (parsed.major === 8) return runtimeVersionAtLeast(version, "8.12.2");
   return parsed.major > 8;
 }
 
@@ -144,7 +156,7 @@ function safeFastUriVersion(version: string): boolean {
   const parsed = parsedRuntimeVersion(version);
   if (!parsed) return false;
   if (parsed.major === 2) return runtimeVersionAtLeast(version, "2.4.6");
-  if (parsed.major === 3) return runtimeVersionAtLeast(version, "3.1.7");
+  if (parsed.major === 3) return runtimeVersionAtLeast(version, "3.1.9");
   if (parsed.major === 4) return runtimeVersionAtLeast(version, "4.1.4");
   return parsed.major > 4;
 }
@@ -170,6 +182,15 @@ export function validateRuntimeDependencySecurityPolicy(
   ]);
   const rejected: string[] = [];
   for (const dependency of dependencies) {
+    if (dependency.name === "body-parser") {
+      const version = parsedRuntimeVersion(dependency.version);
+      const minimum = version?.major === 1 ? "1.20.9" : "2.4.0";
+      if (!runtimeVersionAtLeast(dependency.version, minimum))
+        rejected.push(
+          `${dependency.name}@${dependency.version} (https://github.com/advisories/GHSA-27r3-jxmh-p828)`,
+        );
+      continue;
+    }
     if (
       dependency.name === "undici" &&
       !safeUndiciVersion(dependency.version)
