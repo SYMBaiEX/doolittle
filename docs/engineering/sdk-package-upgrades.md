@@ -39,3 +39,17 @@ state, strategies and operations. This removes the fake standalone application
 store and its bundler redirect. The renderer build rejects rendered SDK state
 and hosted wallet modules so the unneeded hosted wallet aggregate cannot enter
 the desktop artifact through a future import.
+
+Chromium BiDi advances from patched 17.0.2 to Google's unmodified
+158.0.8122-0 release, which supports Zod 4 directly. This is the latest published
+version outside the installer's 24-hour release-age window at review time.
+Google documents the move from GitHub Actions publication to its Chrome for
+Testing builder and OSS Exit Gate in the
+[upstream release instructions](https://github.com/GoogleChromeLabs/chromium-bidi#publish-new-npm-release).
+The npm publisher is `chrome-devtools-npm@google.com`; the reviewed tarball has
+integrity `sha512-MqfsTG7KDmOJZl6MFv8cMY/jRsFEN/+3kD6fu0dZw7oHwFsCHv1dn+94K9FsQbNT+u39k+dl66+ADHlc8BEz+Q==`.
+Because that infrastructure no longer supplies GitHub OIDC provenance, `.npmrc`
+allows exactly this reviewed package version through the provenance downgrade
+check. Other packages retain the default trust policy and the age floor is
+unchanged. Real isolated browser tests cover the SDK provider's Puppeteer
+consumer over both CDP and BiDi, including interaction and screenshots.

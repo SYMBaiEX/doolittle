@@ -247,7 +247,8 @@
     "@ethersproject/signing-key>elliptic": "-",
     "zod": "4.6.7",
     "abitype@>=1.0.0 <1.2.3": "1.2.3",
-    "braces": "npm:@dieub/braces-depth-guard@3.0.3-pn.3"
+    "braces": "npm:@dieub/braces-depth-guard@3.0.3-pn.3",
+    "chromium-bidi": "158.0.8122-0"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.3",
@@ -306,8 +307,7 @@
     "@solana/buffer-layout-utils@0.3.0": "patches/@solana+buffer-layout-utils@0.3.0.patch",
     "@jimp/core@0.22.12": "patches/@jimp+core@0.22.12.patch",
     "@ethersproject/signing-key@5.8.0": "patches/@ethersproject+signing-key@5.8.0.patch",
-    "@coinbase/cdp-sdk@1.60.0": "patches/@coinbase+cdp-sdk@1.60.0.patch",
-    "chromium-bidi@17.0.2": "patches/chromium-bidi+17.0.2.patch"
+    "@coinbase/cdp-sdk@1.60.0": "patches/@coinbase+cdp-sdk@1.60.0.patch"
   },
   "packageExtensions": {
     "@solana/buffer-layout-utils@0.3.0": {
