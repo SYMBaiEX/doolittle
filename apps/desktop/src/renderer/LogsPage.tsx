@@ -1,4 +1,4 @@
-import { PagePanel } from "@elizaos/ui/components/composites/page-panel";
+import { PagePanel } from "@elizaos/ui/components/composites/page-panel/index";
 import { Button } from "@elizaos/ui/components/ui/button";
 import { Input } from "@elizaos/ui/components/ui/input";
 import { ChevronDown, ChevronRight } from "lucide-react";

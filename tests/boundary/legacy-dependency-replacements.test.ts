@@ -211,7 +211,7 @@ it("retains browser protocol validation errors on Zod 4", async () => {
   const parser = await import(/* @vite-ignore */ pathToFileURL(entry).href);
   expect(
     parser.Browser.parseRemoveUserContextParameters({ userContext: "fixture" }),
-  ).toEqual({ userContext: "fixture" });
+  ).toMatchObject({ userContext: "fixture" });
   expect(() =>
     parser.Browser.parseRemoveUserContextParameters({ userContext: 1 }),
   ).toThrow(/userContext/);

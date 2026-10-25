@@ -1,4 +1,4 @@
-import { PagePanel } from "@elizaos/ui/components/composites/page-panel";
+import { PagePanel } from "@elizaos/ui/components/composites/page-panel/index";
 import { useState } from "react";
 import type { PluginsResponse } from "../shared/contracts";
 import { CompactStatStrip } from "./components/CompactStatStrip";

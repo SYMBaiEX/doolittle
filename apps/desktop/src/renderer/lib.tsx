@@ -1,5 +1,5 @@
 import { StateSurface } from "@doolittle/ui";
-import { PagePanel } from "@elizaos/ui/components/composites/page-panel";
+import { PagePanel } from "@elizaos/ui/components/composites/page-panel/index";
 import { Badge as ElizaBadge } from "@elizaos/ui/components/ui/badge";
 import { getCached, revalidate } from "@elizaos/ui/hooks/resource-cache";
 import { useCachedResource } from "@elizaos/ui/hooks/useCachedResource";

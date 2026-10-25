@@ -1,6 +1,7 @@
 # Doolittle — agent & operator guidance
 
-Doolittle is an ElizaOS-native, terminal-first agent. This file is workspace
+Doolittle is the desktop and CLI client for ElizaOS coding and daily assistance.
+ElizaOS owns the agent engine; Doolittle owns client UX and transport. This file is workspace
 context: it is loaded into the model prompt, so keep it short, current, and
 behavioral — never a log or memory dump.
 

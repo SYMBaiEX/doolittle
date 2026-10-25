@@ -5,8 +5,8 @@
 <h1 align="center">Doolittle</h1>
 
 <p align="center">
-  <strong>An ElizaOS-native, local-first agent for terminal and desktop work.</strong><br />
-  One runtime for conversational work, code and research tasks, gateway operations, and an inspectable operator console.
+  <strong>Desktop and CLI clients for ElizaOS coding and daily assistance.</strong><br />
+  One ElizaOS runtime for conversation, coding, research, local tools, and connected services.
 </p>
 
 <p align="center">

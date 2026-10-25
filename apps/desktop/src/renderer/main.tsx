@@ -12,7 +12,6 @@ import {
   loadDesktopThemeSource,
   loadStoredThemeManifest,
 } from "./desktop-theme";
-import { ElizaUiBridge } from "./ElizaUiBridge";
 import { InterfaceHost } from "./interfaces/InterfaceHost";
 import "./eliza-tailwind.css";
 
@@ -44,11 +43,9 @@ root.classList.add("h-full", "w-full", "overflow-hidden");
 createRoot(root).render(
   <StrictMode>
     <DesktopErrorBoundary>
-      <ElizaUiBridge>
-        <InterfaceHost>
-          <App />
-        </InterfaceHost>
-      </ElizaUiBridge>
+      <InterfaceHost>
+        <App />
+      </InterfaceHost>
     </DesktopErrorBoundary>
   </StrictMode>,
 );

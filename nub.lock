@@ -67,7 +67,7 @@ overrides:
   '@elizaos/shared': 2.0.3-beta.7
   '@elizaos/skills': 2.0.11-beta.7
   '@elizaos/tui': 2.0.11-beta.7
-  '@elizaos/ui': 2.0.3-beta.7
+  '@elizaos/ui': 2.0.11-beta.7
   '@elizaos/ui>@elizaos/cloud-shared': '-'
   '@elizaos/ui>@solana/wallet-adapter-wallets': '-'
   '@elizaos/vault': 2.0.11-beta.7
@@ -80,6 +80,8 @@ overrides:
   app-builder-lib>@electron/get: 5.1.0
   body-parser@>=1.0.0 <1.20.9: 1.20.9
   body-parser@>=2.0.0 <2.4.0: 2.4.0
+  braces: npm:@dieub/braces-depth-guard@3.0.3-pn.3
+  chromium-bidi: 158.0.8122-0
   cookie@<0.7.0: 0.7.2
   cytoscape: 3.34.0
   dompurify: 3.4.14
@@ -111,7 +113,7 @@ overrides:
   zod: 4.6.7
   zod@>=4.0.0 <4.6.7: 4.6.7
 
-packageExtensionsChecksum: sha256-uz414e36P8Rbh2scG+LKkSNbGyEPv3bB7+C9699kTMI=
+packageExtensionsChecksum: sha256-nMzxMQZ7b8hwYNvLjIi9JpDjVanJCsc6EtVo/8E9sIY=
 
 patchedDependencies:
   '@coinbase/cdp-sdk@1.60.0':
@@ -132,9 +134,6 @@ patchedDependencies:
   '@elizaos/plugin-sql@2.0.3-beta.7':
     hash: 94c6a4545006a5fe230360285bafd6a2c649a0a2f425563a92141974667e673f
     path: patches/@elizaos+plugin-sql@2.0.3-beta.7.patch
-  '@elizaos/ui@2.0.3-beta.7':
-    hash: 283f2b580679470b7cd389f9d5bc3ea46b94491ac53e260a8fad8b5115743cb3
-    path: patches/@elizaos+ui@2.0.3-beta.7.patch
   '@ethersproject/signing-key@5.8.0':
     hash: b7635e738f550c90e43b9ffb574c0799303bcc40ecc5b447efd39ce4ebe835b8
     path: patches/@ethersproject+signing-key@5.8.0.patch
@@ -144,12 +143,6 @@ patchedDependencies:
   '@solana/buffer-layout-utils@0.3.0':
     hash: 7b135db29f95984976d4b5b570d0e5b975dbe4e325b92a0b9fb82dd22edeb96a
     path: patches/@solana+buffer-layout-utils@0.3.0.patch
-  braces@3.0.3:
-    hash: 967d74d053d454769a943f97f4f9fede16b318c8c245d1c0b2722b83552a6a3e
-    path: patches/braces+3.0.3.patch
-  chromium-bidi@17.0.2:
-    hash: b18bdfa92b71bb72a6b9d91e43e7f9ed3daea0b67b414e57fdbc3f3d6940af9c
-    path: patches/chromium-bidi+17.0.2.patch
 
 importers:
 
@@ -158,6 +151,9 @@ importers:
       '@biomejs/biome':
         specifier: 2.6.3
         version: 2.6.3
+      '@dieub/braces-depth-guard':
+        specifier: 3.0.3-pn.3
+        version: 3.0.3-pn.3
       '@doolittle/agent':
         specifier: workspace:*
         version: link:packages/agent
@@ -178,7 +174,7 @@ importers:
         version: link:packages/plugin-remote-manifest
       '@elizaos/plugin-sql':
         specifier: 2.0.3-beta.7
-        version: 2.0.3-beta.7(patch_hash=94c6a4545006a5fe230360285bafd6a2c649a0a2f425563a92141974667e673f)(@elizaos/core@2.0.3-beta.7)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(react@19.3.1)
+        version: 2.0.3-beta.7(patch_hash=94c6a4545006a5fe230360285bafd6a2c649a0a2f425563a92141974667e673f)(@elizaos/core@2.0.3-beta.7)(@upstash/redis@1.39.0)(react@19.3.1)
       '@elizaos/plugin-worker-runtime':
         specifier: workspace:*
         version: link:packages/plugin-worker-runtime
@@ -305,8 +301,8 @@ importers:
         specifier: 2.0.3-beta.7
         version: 2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)
       '@elizaos/ui':
-        specifier: 2.0.3-beta.7
-        version: 2.0.3-beta.7(patch_hash=283f2b580679470b7cd389f9d5bc3ea46b94491ac53e260a8fad8b5115743cb3)(@babel/core@7.29.7)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)
+        specifier: 2.0.11-beta.7
+        version: 2.0.11-beta.7(@babel/core@7.29.7)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)
       '@tailwindcss/vite':
         specifier: 4.3.3
         version: 4.3.3(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1))
@@ -429,13 +425,13 @@ importers:
         version: 2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)(zod@4.6.7)
       '@elizaos/plugin-browser':
         specifier: 2.0.11-beta.7
-        version: 2.0.11-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)(ws@8.22.0)
+        version: 2.0.11-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)(ws@8.22.0)
       '@elizaos/plugin-codex-cli':
         specifier: 2.0.3-beta.7
         version: 2.0.3-beta.7(patch_hash=1d187815659907fc5e4c73991fc0ab955d29764ab473ad82d0e300368473b7fb)(@electric-sql/pglite@0.4.6(ws@8.22.0))(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)(zod@4.6.7)
       '@elizaos/plugin-discord':
         specifier: 2.0.3-beta.7
-        version: 2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@elizaos/core@2.0.3-beta.7)(@emnapi/core@1.11.2(@emnapi/runtime@1.11.2))(@emnapi/runtime@1.11.2)(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)(ws@8.22.0)
+        version: 2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@elizaos/core@2.0.3-beta.7)(@emnapi/core@1.11.2(@emnapi/runtime@1.11.2))(@emnapi/runtime@1.11.2)(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)(ws@8.22.0)
       '@elizaos/plugin-elizacloud':
         specifier: 2.0.11-beta.7
         version: 2.0.11-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)(typescript@7.0.2)(zod@4.6.7)
@@ -571,7 +567,7 @@ importers:
         version: 2.0.3-beta.7(patch_hash=7242104d352567e5494819604c53ef11b12ecb35e0aec410c0af09c4bc5b7864)(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
       '@elizaos/plugin-sql':
         specifier: 2.0.3-beta.7
-        version: 2.0.3-beta.7(patch_hash=94c6a4545006a5fe230360285bafd6a2c649a0a2f425563a92141974667e673f)(@elizaos/core@2.0.3-beta.7)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(react@19.3.1)
+        version: 2.0.3-beta.7(patch_hash=94c6a4545006a5fe230360285bafd6a2c649a0a2f425563a92141974667e673f)(@elizaos/core@2.0.3-beta.7)(@upstash/redis@1.39.0)(react@19.3.1)
 
   packages/plugins/provider-transport:
     dependencies:
@@ -591,8 +587,8 @@ importers:
         specifier: workspace:*
         version: link:../contracts
       '@elizaos/ui':
-        specifier: 2.0.3-beta.7
-        version: 2.0.3-beta.7(patch_hash=283f2b580679470b7cd389f9d5bc3ea46b94491ac53e260a8fad8b5115743cb3)(@babel/core@7.29.7)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)
+        specifier: 2.0.11-beta.7
+        version: 2.0.11-beta.7(@babel/core@7.29.7)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)
       react:
         specifier: 19.3.1
         version: 19.3.1
@@ -1053,6 +1049,10 @@ packages:
     resolution: {integrity: sha512-F9rL9k9Xjf5blCz8HsJRO4diy111cayL2vkY2XE4r4t3n0yPXVYy3KD3nJ1qbrSn9743UWSXH4IwuCa/HWlGFw==}
     engines: {node: '>=6.0.0'}
 
+  '@dieub/braces-depth-guard@3.0.3-pn.3':
+    resolution: {integrity: sha512-QY+Uq4s42STyIMPoRkBuUZfYyvz0uZuwuUburLwMx5N+lWqnHHaBxcKPtgKVKjTyFnS1q4ivKu9Wxi4VG7FE9Q==}
+    engines: {node: '>=8'}
+
   '@discordjs/builders@1.14.1':
     resolution: {integrity: sha512-gSKkhXLqs96TCzk66VZuHHl8z2bQMJFGwrXC0f33ngK+FLNau4hU1PYny3DNJfNdSH+gVMzE85/d5FQ2BpcNwQ==}
     engines: {node: '>=16.11.0'}
@@ -1294,8 +1294,18 @@ packages:
     peerDependencies:
       '@capacitor/core': ^8.3.1
 
+  '@elizaos/capacitor-bun-runtime@2.0.11-beta.7':
+    resolution: {integrity: sha512-q4QEi3Yz+oBceV8hnj59AFY0uZd0dHcyC6Vq4ZoFKpxsAiH7APONo7dorNaBn4AroCU7R7+EkC4pRY6fZHppgw==}
+    peerDependencies:
+      '@capacitor/core': ^8.3.1
+
   '@elizaos/capacitor-bun-runtime@2.0.3-beta.7':
     resolution: {integrity: sha512-V1F/lsgO+T++JxCoOzkOaaDjzgT0dcW78iITsD1zUjfnDJjr7zZSCCOtD3zTFAaixauQWJoCDhqgH/jL+mdZFA==}
+    peerDependencies:
+      '@capacitor/core': ^8.3.1
+
+  '@elizaos/capacitor-camera@2.0.11-beta.7':
+    resolution: {integrity: sha512-yiLxcleSA9Xn78a+jlfBWF5vZ8Dp8M4z0Dj0ReiMJXH/EoFcNZbVLdJdvAnqqYQEWxo6zdRL6CrNdJB3mnlJkQ==}
     peerDependencies:
       '@capacitor/core': ^8.3.1
 
@@ -1645,8 +1655,8 @@ packages:
     resolution: {integrity: sha512-27csYtYe75ClcBSrsN9Z4x2lDrHfkOF+hwLXPc4nOYsuN0XVUXLSZyQbbD7XiIm0GWR7gP4QdJJky8NqHiND4Q==}
     engines: {node: '>=24.0.0'}
 
-  '@elizaos/ui@2.0.3-beta.7':
-    resolution: {integrity: sha512-NcMFkeG/eEJnoO6TIr94aZzk2jgc4DvHSn+sJ/+ipvwnjTJMtKOJbNnKBtdl5hgsdW6dGEn5M2TKPgBpXOtn/A==}
+  '@elizaos/ui@2.0.11-beta.7':
+    resolution: {integrity: sha512-xVQATmjT09OpntGNCBfz0L/oYEk93q2QU2z8dk/1b7vTGsWFtpORDlJnJSCMtZKTVvnG2nDDTnxyftU/ou82jQ==}
     engines: {node: '>=24.0.0'}
     peerDependencies:
       react: 19.2.5
@@ -6095,12 +6105,6 @@ packages:
     peerDependencies:
       '@solana/web3.js': ^1.99.0
 
-  '@solana/wallet-adapter-phantom@0.9.30':
-    resolution: {integrity: sha512-EZlliQ0EchqsGZ4P2xbP3Zn1/YuqSvi8mCueXhVIYRcu15xSGt/JhvYaIGXtVlyQBwCMoTaSyXdMJhtrMFSgRQ==}
-    engines: {node: '>=20'}
-    peerDependencies:
-      '@solana/web3.js': ^1.99.0
-
   '@solana/wallet-adapter-react-ui@0.9.40':
     resolution: {integrity: sha512-NqwkYW+pvfKUhvO1bSff3oQ+QLl8Jv2A0QteLwoOkEvvvR576JuZJ8lB2u3cFTc3tmRCuqj780r6ItfqmE2tRA==}
     engines: {node: '>=20'}
@@ -6115,12 +6119,6 @@ packages:
     peerDependencies:
       '@solana/web3.js': ^1.99.0
       react: '*'
-
-  '@solana/wallet-adapter-solflare@0.6.34':
-    resolution: {integrity: sha512-tlbdn8ScgIqVswBDTihtIj8K5GLWtgmotWeu1GpAIfu4PtCq6DGnVYDAgP8V6XKX9x1rkm3DT52PddqaGxc8Nw==}
-    engines: {node: '>=20'}
-    peerDependencies:
-      '@solana/web3.js': ^1.99.0
 
   '@solana/wallet-standard-chains@1.1.2':
     resolution: {integrity: sha512-EZobEGclDBAFplpJC5F3d/s8Xnlqc5isNKuPrd5o9ZPZ7tWN84O0e68yIZ8MAOj9V7ieRadNiHtql7uIXCTyXg==}
@@ -6153,11 +6151,6 @@ packages:
 
   '@solana/web3.js@1.99.0':
     resolution: {integrity: sha512-QZYQ2T1z6xWisoyALPq25i/QZTsRlM02BABtAsfaQ1p8wX4SdTfxrKTRue/ZZqrhNVh5oL7T/DUFiTS9DRgxow==}
-
-  '@solflare-wallet/sdk@1.4.2':
-    resolution: {integrity: sha512-jrseNWipwl9xXZgrzwZF3hhL0eIVxuEtoZOSLmuPuef7FgHjstuTtNJAeT4icA7pzdDV4hZvu54pI2r2f7SmrQ==}
-    peerDependencies:
-      '@solana/web3.js': '*'
 
   '@standard-schema/spec@1.1.0':
     resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
@@ -7479,9 +7472,6 @@ packages:
   base-x@3.0.11:
     resolution: {integrity: sha512-xz7wQ8xDhdyP7tQxwdteLYeFfS68tSMNCZ/Y37WJ4bhGfKPpqEIlmIyueQHqOyoPhE6xNUqjzRr8ra0eF9VRvA==}
 
-  base-x@4.0.1:
-    resolution: {integrity: sha512-uAZ8x6r6S3aUM9rbHGVOIsR15U/ZSc82b3ymnCPsT45Gk1DDvhDPdIgB5MrhirZWt+5K0EEPQH985kNqZgNPFw==}
-
   base-x@5.0.1:
     resolution: {integrity: sha512-M7uio8Zt++eg3jPj+rHMfCC+IuygQHHCOU+IYsVtik6FWjuYpVt/+MRKcgsAMHh8mMFAwnB+Bs+mTrFiXjMzKg==}
 
@@ -7592,9 +7582,10 @@ packages:
     resolution: {integrity: sha512-YovQ3rzhaLMIrDjNDMkNS01tea93qhEhG5xy8f6+R0l+dw3Ki+5sCoIoI942iuLZTHWogWktgwVDhU09iNEimQ==}
     engines: {node: 20 || >=22}
 
-  braces@3.0.3:
-    resolution: {integrity: sha512-yQbXgO/OSZVD2IsiLlro+7Hf6Q18EJrKSEsdoMzKePKXct3gvD8oLcOQdIzGupr5Fj+EDe8gO/lxc1BzfMpxvA==}
+  braces@3.0.3-pn.3:
+    resolution: {integrity: sha512-QY+Uq4s42STyIMPoRkBuUZfYyvz0uZuwuUburLwMx5N+lWqnHHaBxcKPtgKVKjTyFnS1q4ivKu9Wxi4VG7FE9Q==}
     engines: {node: '>=8'}
+    aliasOf: '@dieub/braces-depth-guard'
 
   browser-fs-access@0.35.0:
     resolution: {integrity: sha512-sLoadumpRfsjprP8XzVjpQc0jK8yqHBx0PtUTGYj2fftT+P/t+uyDAQdMgGAPKD011in/O+YYGh7fIs0oG/viw==}
@@ -7609,9 +7600,6 @@ packages:
 
   bs58@4.0.1:
     resolution: {integrity: sha512-Ok3Wdf5vOIlBrgCvTq96gBkJw+JUEzdBgyaza5HLtPm7yTHkjRy8+JzNyHF7BHa0bNWOQIp3m5YF0nnFcOIKLw==}
-
-  bs58@5.0.0:
-    resolution: {integrity: sha512-r+ihvQJvahgYT50JD05dyJNKlmmSlMoOGwn1lCcEzanPglg7TxYjioQUYehQ9mAR/+hOSd2jRc/Z2y5UxBymvQ==}
 
   bs58@6.0.0:
     resolution: {integrity: sha512-PD0wEnEYg6ijszw/u8s+iI3H17cTymlrwkKhDhPZq+Sokl3AU4htyBFTjAeNAlCCmg0f53g6ih3jATyCKftTfw==}
@@ -7766,8 +7754,8 @@ packages:
     resolution: {integrity: sha512-+IxzY9BZOQd/XuYPRmrvEVjF/nqj5kgT4kEq7VofrDoM1MxoRjEWkrCC3EtLi59TVawxTAn+orJwFQcrqEN1+g==}
     engines: {node: '>=18'}
 
-  chromium-bidi@17.0.2:
-    resolution: {integrity: sha512-5v9GQFhTktFvotn/OFNJBmKLKRAb6n9r0bVCwf7sHgWc3/JryK0bj1nn93L3pHFrfgcsu6Be6EWsDi+1XHTGDg==}
+  chromium-bidi@158.0.8122-0:
+    resolution: {integrity: sha512-MqfsTG7KDmOJZl6MFv8cMY/jRsFEN/+3kD6fu0dZw7oHwFsCHv1dn+94K9FsQbNT+u39k+dl66+ADHlc8BEz+Q==}
     engines: {node: '>=20.19.0 <22.0.0 || >=22.12.0'}
     peerDependencies:
       devtools-protocol: '*'
@@ -13552,7 +13540,7 @@ snapshots:
 
   '@capacitor/core@8.4.0':
     dependencies:
-      tslib: 2.8.1
+      tslib: 2.7.0
 
   '@capacitor/haptics@8.0.2(@capacitor/core@8.4.0)':
     dependencies:
@@ -13652,7 +13640,7 @@ snapshots:
     dependencies:
       '@coral-xyz/anchor-errors': 0.31.1
       '@coral-xyz/borsh': 0.31.1(@solana/web3.js@1.98.4)(typescript@7.0.2)
-      '@noble/hashes': 1.8.0
+      '@noble/hashes': 1.3.2
       '@solana/web3.js': 1.98.4(typescript@7.0.2)
       bn.js: 5.2.5
       bs58: 4.0.1
@@ -13673,7 +13661,7 @@ snapshots:
     dependencies:
       '@coral-xyz/anchor-errors': 0.31.1
       '@coral-xyz/borsh': 0.31.1(@solana/web3.js@1.98.4)(typescript@7.0.2)
-      '@noble/hashes': 1.8.0
+      '@noble/hashes': 1.3.2
       '@solana/web3.js': 1.98.4(typescript@7.0.2)
       bn.js: 5.2.5
       bs58: 4.0.1
@@ -13737,6 +13725,10 @@ snapshots:
       http-response-object: 3.0.2
       parse-cache-control: 1.0.1
 
+  '@dieub/braces-depth-guard@3.0.3-pn.3':
+    dependencies:
+      fill-range: 7.1.1
+
   '@discordjs/builders@1.14.1':
     dependencies:
       '@discordjs/formatters': 0.6.2
@@ -13745,7 +13737,7 @@ snapshots:
       discord-api-types: 0.38.57
       fast-deep-equal: 3.1.3
       ts-mixer: 6.0.4
-      tslib: 2.8.1
+      tslib: 2.7.0
 
   '@discordjs/collection@1.5.3': {}
 
@@ -13787,7 +13779,7 @@ snapshots:
       '@vladfrangu/async_event_emitter': 2.4.7
       discord-api-types: 0.38.57
       magic-bytes.js: 1.13.1
-      tslib: 2.8.1
+      tslib: 2.7.0
       undici: 6.29.1
 
   '@discordjs/util@1.2.0':
@@ -13818,7 +13810,7 @@ snapshots:
       '@types/ws': 8.18.2
       '@vladfrangu/async_event_emitter': 2.4.7
       discord-api-types: 0.38.57
-      tslib: 2.8.1
+      tslib: 2.7.0
       ws: 8.22.0
     transitivePeerDependencies:
       - bufferutil
@@ -14052,13 +14044,13 @@ snapshots:
       '@elizaos/plugin-app-control': 2.0.3-beta.7(@babel/core@7.29.7)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)
       '@elizaos/plugin-app-manager': 2.0.11-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)(ws@8.22.0)
       '@elizaos/plugin-background-runner': 2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
-      '@elizaos/plugin-browser': 2.0.11-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)(ws@8.22.0)
+      '@elizaos/plugin-browser': 2.0.11-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)(ws@8.22.0)
       '@elizaos/plugin-capacitor-bridge': 2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
       '@elizaos/plugin-coding-tools': 2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
       '@elizaos/plugin-commands': 2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
       '@elizaos/plugin-computeruse': 2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)(zod@4.6.7)
       '@elizaos/plugin-contacts': 2.0.3-beta.7(@babel/core@7.29.7)(@capacitor/core@8.4.0)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)
-      '@elizaos/plugin-discord': 2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@elizaos/core@2.0.3-beta.7)(@emnapi/core@1.11.2(@emnapi/runtime@1.11.2))(@emnapi/runtime@1.11.2)(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)(ws@8.22.0)
+      '@elizaos/plugin-discord': 2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@elizaos/core@2.0.3-beta.7)(@emnapi/core@1.11.2(@emnapi/runtime@1.11.2))(@emnapi/runtime@1.11.2)(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)(ws@8.22.0)
       '@elizaos/plugin-elizacloud': 2.0.11-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)(typescript@7.0.2)(zod@4.6.7)
       '@elizaos/plugin-gitpathologist': 2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
       '@elizaos/plugin-imessage': 2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
@@ -14072,8 +14064,8 @@ snapshots:
       '@elizaos/plugin-shell': 2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
       '@elizaos/plugin-signal': 2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
       '@elizaos/plugin-simple-views': 2.0.3-beta.7(@babel/core@7.29.7)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)
-      '@elizaos/plugin-sql': 2.0.3-beta.7(patch_hash=94c6a4545006a5fe230360285bafd6a2c649a0a2f425563a92141974667e673f)(@elizaos/core@2.0.3-beta.7)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(react@19.3.1)
-      '@elizaos/plugin-streaming': 2.0.11-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)(ws@8.22.0)
+      '@elizaos/plugin-sql': 2.0.3-beta.7(patch_hash=94c6a4545006a5fe230360285bafd6a2c649a0a2f425563a92141974667e673f)(@elizaos/core@2.0.3-beta.7)(@upstash/redis@1.39.0)(react@19.3.1)
+      '@elizaos/plugin-streaming': 2.0.11-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)(ws@8.22.0)
       '@elizaos/plugin-task-coordinator': 2.0.3-beta.7(@babel/core@7.29.7)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)
       '@elizaos/plugin-video': 2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(debug@4.4.3)(pg@8.23.1)(react@19.3.1)
       '@elizaos/plugin-vision': 2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@elizaos/plugin-computeruse@2.0.3-beta.7(@elizaos/core@2.0.3-beta.7))(@neondatabase/serverless@1.2.0)(@types/node@26.6.5)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)(zod@4.6.7)
@@ -14082,7 +14074,7 @@ snapshots:
       '@elizaos/plugin-wifi': 2.0.3-beta.7(@babel/core@7.29.7)(@capacitor/core@8.4.0)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)
       '@elizaos/plugin-worker-runtime': 2.0.3-beta.7
       '@elizaos/plugin-workflow': 2.0.3-beta.7(17fee8bae3e0e07f37cc4035b1039c28)
-      '@elizaos/plugin-x402': 2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)(typescript@7.0.2)(zod@4.6.7)
+      '@elizaos/plugin-x402': 2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)(typescript@7.0.2)(zod@4.6.7)
       '@elizaos/registry': 2.0.3-beta.7
       '@elizaos/security': 2.0.11-beta.7
       '@elizaos/shared': 2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)
@@ -14096,7 +14088,7 @@ snapshots:
       clean-git-ref: 2.0.1
       crc-32: 1.2.2
       diff3: 0.0.4
-      drizzle-orm: 0.45.2(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
+      drizzle-orm: 0.45.2(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(pg@8.23.1)(react@19.3.1)
       e2b: 2.59.0
       esbuild: 0.28.2
       ethers: 6.17.0
@@ -14140,6 +14132,7 @@ snapshots:
       - '@miniflare/d1'
       - '@napi-rs/canvas'
       - '@op-engineering/op-sqlite'
+      - '@opentelemetry/api'
       - '@planetscale/database'
       - '@prisma/client'
       - '@safe-global/safe-apps-provider'
@@ -14152,6 +14145,7 @@ snapshots:
       - '@types/better-sqlite3'
       - '@types/pg'
       - '@types/sql.js'
+      - '@upstash/redis'
       - '@vercel/postgres'
       - '@walletconnect/ethereum-provider'
       - '@xata.io/client'
@@ -14222,7 +14216,7 @@ snapshots:
       '@elizaos/agent': 2.0.3-beta.7(patch_hash=b85fd4be037881bd9d1ace0fbf759fca4628e1c45ffdc9787c583a1e4e4ad00d)(37a545c67ccc29bb67c03b75809816dd)
       '@elizaos/core': 2.0.3-beta.7(patch_hash=7242104d352567e5494819604c53ef11b12ecb35e0aec410c0af09c4bc5b7864)(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
       '@elizaos/plugin-anthropic': 2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)(zod@4.6.7)
-      '@elizaos/plugin-browser': 2.0.11-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)(ws@8.22.0)
+      '@elizaos/plugin-browser': 2.0.11-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)(ws@8.22.0)
       '@elizaos/plugin-edge-tts': 2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
       '@elizaos/plugin-elizacloud': 2.0.11-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)(typescript@7.0.2)(zod@4.6.7)
       '@elizaos/plugin-groq': 2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)(zod@4.6.7)
@@ -14230,20 +14224,20 @@ snapshots:
       '@elizaos/plugin-local-inference': 2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@elizaos/core@2.0.3-beta.7)(@elizaos/shared@2.0.3-beta.7)(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)(zod@4.6.7)
       '@elizaos/plugin-openai': 2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)(zod@4.6.7)
       '@elizaos/plugin-registry': 2.0.11-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)(ws@8.22.0)
-      '@elizaos/plugin-sql': 2.0.3-beta.7(patch_hash=94c6a4545006a5fe230360285bafd6a2c649a0a2f425563a92141974667e673f)(@elizaos/core@2.0.3-beta.7)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(react@19.3.1)
+      '@elizaos/plugin-sql': 2.0.3-beta.7(patch_hash=94c6a4545006a5fe230360285bafd6a2c649a0a2f425563a92141974667e673f)(@elizaos/core@2.0.3-beta.7)(@upstash/redis@1.39.0)(react@19.3.1)
       '@elizaos/plugin-wechat': 2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
       '@elizaos/plugin-workflow': 2.0.3-beta.7(17fee8bae3e0e07f37cc4035b1039c28)
       '@elizaos/registry': 2.0.3-beta.7
       '@elizaos/shared': 2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)
       '@elizaos/skills': 2.0.11-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
-      '@elizaos/ui': 2.0.3-beta.7(patch_hash=283f2b580679470b7cd389f9d5bc3ea46b94491ac53e260a8fad8b5115743cb3)(@babel/core@7.29.7)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)
+      '@elizaos/ui': 2.0.11-beta.7(@babel/core@7.29.7)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)
       '@elizaos/vault': 2.0.11-beta.7(ws@8.22.0)
       '@node-rs/argon2': 2.2.2
       '@upstash/redis': 1.39.0
       chalk: 5.6.2
       commander: 15.0.0
       dotenv: 17.4.2
-      drizzle-orm: 0.45.2(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
+      drizzle-orm: 0.45.2(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
       ethers: 6.17.0
       jose: 6.2.13
       json5: 2.2.3
@@ -14298,6 +14292,7 @@ snapshots:
       - '@miniflare/d1'
       - '@napi-rs/canvas'
       - '@op-engineering/op-sqlite'
+      - '@opentelemetry/api'
       - '@planetscale/database'
       - '@prisma/client'
       - '@safe-global/safe-apps-provider'
@@ -14310,6 +14305,7 @@ snapshots:
       - '@types/better-sqlite3'
       - '@types/pg'
       - '@types/sql.js'
+      - '@upstash/redis'
       - '@vercel/postgres'
       - '@walletconnect/ethereum-provider'
       - '@xata.io/client'
@@ -14375,7 +14371,17 @@ snapshots:
       '@capacitor/core': 8.4.0
     optional: true
 
+  '@elizaos/capacitor-bun-runtime@2.0.11-beta.7(@capacitor/core@8.4.0)':
+    dependencies:
+      '@capacitor/core': 8.4.0
+    optional: true
+
   '@elizaos/capacitor-bun-runtime@2.0.3-beta.7(@capacitor/core@8.4.0)':
+    dependencies:
+      '@capacitor/core': 8.4.0
+    optional: true
+
+  '@elizaos/capacitor-camera@2.0.11-beta.7(@capacitor/core@8.4.0)':
     dependencies:
       '@capacitor/core': 8.4.0
     optional: true
@@ -14533,7 +14539,7 @@ snapshots:
       '@elizaos/core': 2.0.3-beta.7(patch_hash=7242104d352567e5494819604c53ef11b12ecb35e0aec410c0af09c4bc5b7864)(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
       '@octokit/rest': 22.0.1
       coding-agent-adapters: 0.16.3
-      drizzle-orm: 0.45.2(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
+      drizzle-orm: 0.45.2(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(pg@8.23.1)(react@19.3.1)
       effect: 3.22.4
       git-workspace-service: 0.4.5(@octokit/auth-app@6.1.4)(@octokit/rest@22.0.1)
       smithers-orchestrator: 0.22.0(4afe46b878e2b3af5d404b8b15d7481b)
@@ -14545,12 +14551,14 @@ snapshots:
       - '@libsql/client-wasm'
       - '@miniflare/d1'
       - '@op-engineering/op-sqlite'
+      - '@opentelemetry/api'
       - '@planetscale/database'
       - '@prisma/client'
       - '@tidbcloud/serverless'
       - '@types/better-sqlite3'
       - '@types/pg'
       - '@types/sql.js'
+      - '@upstash/redis'
       - '@vercel/postgres'
       - '@xata.io/client'
       - agent-adapter-monitor
@@ -14658,7 +14666,7 @@ snapshots:
       '@elizaos/core': 2.0.3-beta.7(patch_hash=7242104d352567e5494819604c53ef11b12ecb35e0aec410c0af09c4bc5b7864)(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
       '@elizaos/logger': 2.0.11-beta.7
       '@elizaos/shared': 2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)
-      '@elizaos/ui': 2.0.3-beta.7(patch_hash=283f2b580679470b7cd389f9d5bc3ea46b94491ac53e260a8fad8b5115743cb3)(@babel/core@7.29.7)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)
+      '@elizaos/ui': 2.0.11-beta.7(@babel/core@7.29.7)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)
       lucide-react: 1.61.0(@types/react@19.3.0)(react@19.3.1)
       react: 19.3.1
     transitivePeerDependencies:
@@ -14755,11 +14763,11 @@ snapshots:
     dependencies:
       '@elizaos/core': 2.0.3-beta.7(patch_hash=7242104d352567e5494819604c53ef11b12ecb35e0aec410c0af09c4bc5b7864)(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
 
-  '@elizaos/plugin-browser@2.0.11-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)(ws@8.22.0)':
+  '@elizaos/plugin-browser@2.0.11-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)(ws@8.22.0)':
     dependencies:
       '@elizaos/core': 2.0.3-beta.7(patch_hash=7242104d352567e5494819604c53ef11b12ecb35e0aec410c0af09c4bc5b7864)(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
       '@elizaos/vault': 2.0.11-beta.7(ws@8.22.0)
-      drizzle-orm: 0.45.2(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
+      drizzle-orm: 0.45.2(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
     transitivePeerDependencies:
       - '@aws-sdk/client-rds-data'
       - '@cloudflare/workers-types'
@@ -14768,6 +14776,7 @@ snapshots:
       - '@miniflare/d1'
       - '@napi-rs/canvas'
       - '@op-engineering/op-sqlite'
+      - '@opentelemetry/api'
       - '@planetscale/database'
       - '@prisma/client'
       - '@tidbcloud/serverless'
@@ -14898,7 +14907,7 @@ snapshots:
     dependencies:
       '@elizaos/capacitor-contacts': 2.0.3-beta.7(@capacitor/core@8.4.0)
       '@elizaos/core': 2.0.3-beta.7(patch_hash=7242104d352567e5494819604c53ef11b12ecb35e0aec410c0af09c4bc5b7864)(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
-      '@elizaos/ui': 2.0.3-beta.7(patch_hash=283f2b580679470b7cd389f9d5bc3ea46b94491ac53e260a8fad8b5115743cb3)(@babel/core@7.29.7)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)
+      '@elizaos/ui': 2.0.11-beta.7(@babel/core@7.29.7)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)
       lucide-react: 1.61.0(@types/react@19.3.0)(react@19.3.1)
       react: 19.3.1
       react-dom: 19.3.1(react@19.3.1)
@@ -14956,7 +14965,7 @@ snapshots:
       - vfile
       - wagmi
 
-  '@elizaos/plugin-discord@2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@elizaos/core@2.0.3-beta.7)(@emnapi/core@1.11.2(@emnapi/runtime@1.11.2))(@emnapi/runtime@1.11.2)(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)(ws@8.22.0)':
+  '@elizaos/plugin-discord@2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@elizaos/core@2.0.3-beta.7)(@emnapi/core@1.11.2(@emnapi/runtime@1.11.2))(@emnapi/runtime@1.11.2)(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)(ws@8.22.0)':
     dependencies:
       '@discordjs/builders': 1.14.1
       '@discordjs/collection': 2.1.1
@@ -14967,7 +14976,7 @@ snapshots:
       '@discordjs/voice': 0.19.2(@discordjs/opus@0.10.0)(@emnapi/core@1.11.2(@emnapi/runtime@1.11.2))(@emnapi/runtime@1.11.2)
       '@discordjs/ws': 1.2.3
       '@elizaos/core': 2.0.3-beta.7(patch_hash=7242104d352567e5494819604c53ef11b12ecb35e0aec410c0af09c4bc5b7864)(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
-      '@elizaos/plugin-browser': 2.0.11-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)(ws@8.22.0)
+      '@elizaos/plugin-browser': 2.0.11-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)(ws@8.22.0)
       '@elizaos/plugin-commands': 2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
       '@sapphire/snowflake': 3.5.5
       discord-api-types: 0.38.57
@@ -14981,7 +14990,7 @@ snapshots:
       magic-bytes.js: 1.13.1
       opusscript: 0.1.1
       prism-media: 1.3.5(@discordjs/opus@0.10.0)
-      tslib: 2.8.1
+      tslib: 2.7.0
       undici: 8.12.2
       zod: 4.6.7
     transitivePeerDependencies:
@@ -14992,6 +15001,7 @@ snapshots:
       - '@miniflare/d1'
       - '@napi-rs/canvas'
       - '@op-engineering/op-sqlite'
+      - '@opentelemetry/api'
       - '@planetscale/database'
       - '@prisma/client'
       - '@tidbcloud/serverless'
@@ -15199,7 +15209,7 @@ snapshots:
     dependencies:
       '@elizaos/core': 2.0.3-beta.7(patch_hash=7242104d352567e5494819604c53ef11b12ecb35e0aec410c0af09c4bc5b7864)(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
       '@elizaos/shared': 2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)
-      '@elizaos/ui': 2.0.3-beta.7(patch_hash=283f2b580679470b7cd389f9d5bc3ea46b94491ac53e260a8fad8b5115743cb3)(@babel/core@7.29.7)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)
+      '@elizaos/ui': 2.0.11-beta.7(@babel/core@7.29.7)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)
       lucide-react: 1.61.0(@types/react@19.3.0)(react@19.3.1)
       react: 19.3.1
       react-dom: 19.3.1(react@19.3.1)
@@ -15411,9 +15421,9 @@ snapshots:
       '@capacitor/push-notifications': 8.1.3(@capacitor/core@8.4.0)
       '@elizaos/capacitor-phone': 2.0.3-beta.7(@capacitor/core@8.4.0)
       '@elizaos/core': 2.0.3-beta.7(patch_hash=7242104d352567e5494819604c53ef11b12ecb35e0aec410c0af09c4bc5b7864)(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
-      '@elizaos/plugin-browser': 2.0.11-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)(ws@8.22.0)
+      '@elizaos/plugin-browser': 2.0.11-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)(ws@8.22.0)
       '@elizaos/shared': 2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)
-      '@elizaos/ui': 2.0.3-beta.7(patch_hash=283f2b580679470b7cd389f9d5bc3ea46b94491ac53e260a8fad8b5115743cb3)(@babel/core@7.29.7)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)
+      '@elizaos/ui': 2.0.11-beta.7(@babel/core@7.29.7)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)
       lucide-react: 1.61.0(@types/react@19.3.0)(react@19.3.1)
       react: 19.3.1
       react-dom: 19.3.1(react@19.3.1)
@@ -15429,6 +15439,7 @@ snapshots:
       - '@miniflare/d1'
       - '@napi-rs/canvas'
       - '@op-engineering/op-sqlite'
+      - '@opentelemetry/api'
       - '@planetscale/database'
       - '@prisma/client'
       - '@safe-global/safe-apps-provider'
@@ -15554,7 +15565,7 @@ snapshots:
   '@elizaos/plugin-simple-views@2.0.3-beta.7(@babel/core@7.29.7)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)':
     dependencies:
       '@elizaos/core': 2.0.3-beta.7(patch_hash=7242104d352567e5494819604c53ef11b12ecb35e0aec410c0af09c4bc5b7864)(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
-      '@elizaos/ui': 2.0.3-beta.7(patch_hash=283f2b580679470b7cd389f9d5bc3ea46b94491ac53e260a8fad8b5115743cb3)(@babel/core@7.29.7)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)
+      '@elizaos/ui': 2.0.11-beta.7(@babel/core@7.29.7)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)
       lucide-react: 1.61.0(@types/react@19.3.0)(react@19.3.1)
       react: 19.3.1
       react-dom: 19.3.1(react@19.3.1)
@@ -15624,13 +15635,13 @@ snapshots:
       - supports-color
       - utf-8-validate
 
-  '@elizaos/plugin-sql@2.0.3-beta.7(patch_hash=94c6a4545006a5fe230360285bafd6a2c649a0a2f425563a92141974667e673f)(@elizaos/core@2.0.3-beta.7)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(react@19.3.1)':
+  '@elizaos/plugin-sql@2.0.3-beta.7(patch_hash=94c6a4545006a5fe230360285bafd6a2c649a0a2f425563a92141974667e673f)(@elizaos/core@2.0.3-beta.7)(@upstash/redis@1.39.0)(react@19.3.1)':
     dependencies:
       '@electric-sql/pglite': 0.4.6(ws@8.22.0)
       '@electric-sql/pglite-sync': 0.5.6(@electric-sql/pglite@0.4.6(ws@8.22.0))
       '@elizaos/core': 2.0.3-beta.7(patch_hash=7242104d352567e5494819604c53ef11b12ecb35e0aec410c0af09c4bc5b7864)(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
       '@neondatabase/serverless': 1.2.0
-      drizzle-orm: 0.45.2(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
+      drizzle-orm: 0.45.2(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
       pg: 8.23.1
       uuid: 14.0.3
       ws: 8.22.0
@@ -15641,6 +15652,7 @@ snapshots:
       - '@libsql/client-wasm'
       - '@miniflare/d1'
       - '@op-engineering/op-sqlite'
+      - '@opentelemetry/api'
       - '@planetscale/database'
       - '@prisma/client'
       - '@tidbcloud/serverless'
@@ -15665,11 +15677,11 @@ snapshots:
       - sqlite3
       - utf-8-validate
 
-  '@elizaos/plugin-streaming@2.0.11-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)(ws@8.22.0)':
+  '@elizaos/plugin-streaming@2.0.11-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)(ws@8.22.0)':
     dependencies:
       '@elizaos/cloud-routing': 2.0.11-beta.7
       '@elizaos/core': 2.0.3-beta.7(patch_hash=7242104d352567e5494819604c53ef11b12ecb35e0aec410c0af09c4bc5b7864)(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
-      '@elizaos/plugin-browser': 2.0.11-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)(ws@8.22.0)
+      '@elizaos/plugin-browser': 2.0.11-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)(ws@8.22.0)
     transitivePeerDependencies:
       - '@aws-sdk/client-rds-data'
       - '@cloudflare/workers-types'
@@ -15678,6 +15690,7 @@ snapshots:
       - '@miniflare/d1'
       - '@napi-rs/canvas'
       - '@op-engineering/op-sqlite'
+      - '@opentelemetry/api'
       - '@planetscale/database'
       - '@prisma/client'
       - '@tidbcloud/serverless'
@@ -15706,7 +15719,7 @@ snapshots:
       '@elizaos/core': 2.0.3-beta.7(patch_hash=7242104d352567e5494819604c53ef11b12ecb35e0aec410c0af09c4bc5b7864)(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
       '@elizaos/plugin-commands': 2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
       '@elizaos/shared': 2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)
-      '@elizaos/ui': 2.0.3-beta.7(patch_hash=283f2b580679470b7cd389f9d5bc3ea46b94491ac53e260a8fad8b5115743cb3)(@babel/core@7.29.7)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)
+      '@elizaos/ui': 2.0.11-beta.7(@babel/core@7.29.7)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)
       '@xterm/addon-fit': 0.10.0(@xterm/xterm@5.5.0)
       '@xterm/xterm': 5.5.0
       lucide-react: 1.61.0(@types/react@19.3.0)(react@19.3.1)
@@ -15981,7 +15994,7 @@ snapshots:
       '@elizaos/capacitor-wifi': 2.0.3-beta.7(@capacitor/core@8.4.0)
       '@elizaos/core': 2.0.3-beta.7(patch_hash=7242104d352567e5494819604c53ef11b12ecb35e0aec410c0af09c4bc5b7864)(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
       '@elizaos/shared': 2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)
-      '@elizaos/ui': 2.0.3-beta.7(patch_hash=283f2b580679470b7cd389f9d5bc3ea46b94491ac53e260a8fad8b5115743cb3)(@babel/core@7.29.7)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)
+      '@elizaos/ui': 2.0.11-beta.7(@babel/core@7.29.7)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)
       lucide-react: 1.61.0(@types/react@19.3.0)(react@19.3.1)
       react: 19.3.1
       react-dom: 19.3.1(react@19.3.1)
@@ -16042,7 +16055,7 @@ snapshots:
   '@elizaos/plugin-workflow@2.0.3-beta.7(17fee8bae3e0e07f37cc4035b1039c28)':
     dependencies:
       '@elizaos/core': 2.0.3-beta.7(patch_hash=7242104d352567e5494819604c53ef11b12ecb35e0aec410c0af09c4bc5b7864)(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
-      drizzle-orm: 0.45.2(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
+      drizzle-orm: 0.45.2(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
       effect: 3.22.4
       quickjs-emscripten: 0.32.0
       smithers-orchestrator: 0.22.0(4afe46b878e2b3af5d404b8b15d7481b)
@@ -16054,6 +16067,7 @@ snapshots:
       - '@libsql/client-wasm'
       - '@miniflare/d1'
       - '@op-engineering/op-sqlite'
+      - '@opentelemetry/api'
       - '@planetscale/database'
       - '@prisma/client'
       - '@tidbcloud/serverless'
@@ -16083,11 +16097,11 @@ snapshots:
       - supports-color
       - utf-8-validate
 
-  '@elizaos/plugin-x402@2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)(typescript@7.0.2)(zod@4.6.7)':
+  '@elizaos/plugin-x402@2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)(typescript@7.0.2)(zod@4.6.7)':
     dependencies:
       '@elizaos/core': 2.0.3-beta.7(patch_hash=7242104d352567e5494819604c53ef11b12ecb35e0aec410c0af09c4bc5b7864)(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
       '@solana/web3.js': 1.98.4(typescript@7.0.2)
-      drizzle-orm: 0.45.2(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
+      drizzle-orm: 0.45.2(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(pg@8.23.1)(react@19.3.1)
       viem: 2.57.11(typescript@7.0.2)(zod@4.6.7)
     transitivePeerDependencies:
       - '@aws-sdk/client-rds-data'
@@ -16096,12 +16110,14 @@ snapshots:
       - '@libsql/client-wasm'
       - '@miniflare/d1'
       - '@op-engineering/op-sqlite'
+      - '@opentelemetry/api'
       - '@planetscale/database'
       - '@prisma/client'
       - '@tidbcloud/serverless'
       - '@types/better-sqlite3'
       - '@types/pg'
       - '@types/sql.js'
+      - '@upstash/redis'
       - '@vercel/postgres'
       - '@xata.io/client'
       - better-sqlite3
@@ -16214,7 +16230,7 @@ snapshots:
       marked: 18.1.1
       mime-types: 3.0.2
 
-  '@elizaos/ui@2.0.3-beta.7(patch_hash=283f2b580679470b7cd389f9d5bc3ea46b94491ac53e260a8fad8b5115743cb3)(@babel/core@7.29.7)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)':
+  '@elizaos/ui@2.0.11-beta.7(@babel/core@7.29.7)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)':
     dependencies:
       '@capacitor/core': 8.4.0
       '@elizaos/cloud-sdk': 2.0.3-beta.7
@@ -16231,7 +16247,6 @@ snapshots:
       '@radix-ui/react-avatar': 1.3.1(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(react@19.3.1)(react-dom@19.3.1(react@19.3.1))
       '@radix-ui/react-checkbox': 1.4.1(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(react@19.3.1)(react-dom@19.3.1(react@19.3.1))
       '@radix-ui/react-collapsible': 1.2.1(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(react@19.3.1)(react-dom@19.3.1(react@19.3.1))
-      '@radix-ui/react-compose-refs': 1.1.5(@types/react@19.3.0)(react@19.3.1)
       '@radix-ui/react-dialog': 1.3.1(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(react@19.3.1)(react-dom@19.3.1(react@19.3.1))
       '@radix-ui/react-dropdown-menu': 2.2.1(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(react@19.3.1)(react-dom@19.3.1(react@19.3.1))
       '@radix-ui/react-hover-card': 1.2.1(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(react@19.3.1)(react-dom@19.3.1(react@19.3.1))
@@ -16249,10 +16264,8 @@ snapshots:
       '@radix-ui/react-use-controllable-state': 1.3.0(@types/react@19.3.0)(react@19.3.1)
       '@rainbow-me/rainbowkit': 2.2.11(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@tanstack/react-query@5.104.5(@types/react@19.3.0)(react@19.3.1))(@upstash/redis@1.39.0)(bufferutil@4.1.0)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(undici@8.12.2)(utf-8-validate@5.0.10)(viem@2.57.11(typescript@7.0.2))(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(wagmi@2.19.5(@tanstack/react-query@5.104.5(@types/react@19.3.0)(react@19.3.1))(react@19.3.1)(typescript@7.0.2)(viem@2.57.11(typescript@7.0.2)))(zod@4.6.7)
       '@solana/spl-token': 0.4.15(@solana/web3.js@1.98.4)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@7.0.2)
-      '@solana/wallet-adapter-phantom': 0.9.30(@solana/web3.js@1.99.0)
       '@solana/wallet-adapter-react': 0.15.40(@babel/core@7.29.7)(@solana/web3.js@1.99.0)(bs58@6.0.0)(electron@45.0.0)(react@19.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(typescript@7.0.2)
       '@solana/wallet-adapter-react-ui': 0.9.40(@babel/core@7.29.7)(@solana/web3.js@1.99.0)(bs58@6.0.0)(electron@45.0.0)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(typescript@7.0.2)
-      '@solana/wallet-adapter-solflare': 0.6.34(@solana/web3.js@1.99.0)
       '@solana/web3.js': 1.98.4(typescript@7.0.2)
       '@stwd/react': 0.7.2(ed537262bb07e8bd38013453c4d63ddf)
       '@stwd/sdk': 0.11.0
@@ -16291,8 +16304,8 @@ snapshots:
       wagmi: 3.7.9(@tanstack/react-query@5.104.5(@types/react@19.3.0)(react@19.3.1))(react@19.3.1)(typescript@7.0.2)(viem@2.57.11(typescript@7.0.2))(zod@4.6.7)
       ws: 8.22.0
     optionalDependencies:
-      '@elizaos/capacitor-bun-runtime': 2.0.3-beta.7(@capacitor/core@8.4.0)
-      '@elizaos/capacitor-camera': 2.0.3-beta.7(@capacitor/core@8.4.0)
+      '@elizaos/capacitor-bun-runtime': 2.0.11-beta.7(@capacitor/core@8.4.0)
+      '@elizaos/capacitor-camera': 2.0.11-beta.7(@capacitor/core@8.4.0)
     transitivePeerDependencies:
       - '@aws-sdk/client-rds-data'
       - '@base-org/account'
@@ -16356,22 +16369,22 @@ snapshots:
     dependencies:
       '@emnapi/runtime': 1.11.2
       '@emnapi/wasi-threads': 1.2.2
-      tslib: 2.8.1
+      tslib: 2.7.0
     optional: true
 
   '@emnapi/runtime@1.11.2':
     dependencies:
-      tslib: 2.8.1
+      tslib: 2.7.0
     optional: true
 
   '@emnapi/runtime@1.11.3':
     dependencies:
-      tslib: 2.8.1
+      tslib: 2.7.0
     optional: true
 
   '@emnapi/wasi-threads@1.2.2':
     dependencies:
-      tslib: 2.8.1
+      tslib: 2.7.0
     optional: true
 
   '@emotion/hash@0.9.2': {}
@@ -17607,7 +17620,7 @@ snapshots:
       pump: 3.0.4
       readable-stream: 3.6.2
       socket.io-client: 4.8.4(bufferutil@4.1.0)(utf-8-validate@5.0.10)
-      tslib: 2.8.1
+      tslib: 2.7.0
       util: 0.12.5
       uuid: 11.1.1
     transitivePeerDependencies:
@@ -17622,7 +17635,7 @@ snapshots:
       '@ethereumjs/tx': 4.2.0(@noble/curves@2.2.0)
       '@metamask/scure-bip39': 2.1.1
       '@metamask/superstruct': 3.4.1
-      '@noble/hashes': 1.8.0
+      '@noble/hashes': 1.3.2
       '@scure/base': 1.2.6
       '@types/debug': 4.1.13
       '@types/lodash': 4.17.27
@@ -17648,7 +17661,7 @@ snapshots:
     dependencies:
       '@ethereumjs/tx': 4.2.0(@noble/curves@2.2.0)
       '@metamask/superstruct': 3.4.1
-      '@noble/hashes': 1.8.0
+      '@noble/hashes': 1.3.2
       '@scure/base': 1.2.6
       '@types/debug': 4.1.13
       debug: 4.4.3
@@ -17662,7 +17675,7 @@ snapshots:
     dependencies:
       '@ethereumjs/tx': 4.2.0(@noble/curves@2.2.0)
       '@metamask/superstruct': 3.4.1
-      '@noble/hashes': 1.8.0
+      '@noble/hashes': 1.3.2
       '@scure/base': 1.2.6
       '@types/debug': 4.1.13
       debug: 4.4.3
@@ -18552,7 +18565,7 @@ snapshots:
 
   '@peculiar/json-schema@1.1.12':
     dependencies:
-      tslib: 2.8.1
+      tslib: 2.7.0
 
   '@peculiar/utils@2.0.3':
     dependencies:
@@ -19890,6 +19903,7 @@ snapshots:
       - '@libsql/client-wasm'
       - '@miniflare/d1'
       - '@op-engineering/op-sqlite'
+      - '@opentelemetry/api'
       - '@planetscale/database'
       - '@prisma/client'
       - '@tidbcloud/serverless'
@@ -19934,11 +19948,11 @@ snapshots:
       '@smithers-orchestrator/observability': 0.22.0(42bb564cc3ff298bab24cfe2860b1de7)
       '@smithers-orchestrator/openapi': 0.22.0(a12d8f93caa583c477785ef6f7b7c74a)
       '@smithers-orchestrator/protocol': 0.22.0
-      '@smithers-orchestrator/scheduler': 0.22.0(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
+      '@smithers-orchestrator/scheduler': 0.22.0(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
       '@smithers-orchestrator/server': 0.22.0(835725d32671bc76415043ab3ea9d52f)
       '@smithers-orchestrator/time-travel': 0.22.0(a12d8f93caa583c477785ef6f7b7c74a)
       cron-parser: 5.10.2
-      drizzle-orm: 0.45.2(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
+      drizzle-orm: 0.45.2(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
       effect: 3.22.4
       incur: 0.4.26
       picocolors: 1.1.1
@@ -19953,6 +19967,7 @@ snapshots:
       - '@libsql/client-wasm'
       - '@miniflare/d1'
       - '@op-engineering/op-sqlite'
+      - '@opentelemetry/api'
       - '@planetscale/database'
       - '@prisma/client'
       - '@tidbcloud/serverless'
@@ -19988,11 +20003,11 @@ snapshots:
       '@smithers-orchestrator/db': 0.22.0(52f414712e52a97f339e635f6dec9559)
       '@smithers-orchestrator/driver': 0.22.0(ba660dbf877eefef521e71efed033a06)
       '@smithers-orchestrator/errors': 0.22.0
-      '@smithers-orchestrator/graph': 0.22.0(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
+      '@smithers-orchestrator/graph': 0.22.0(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
       '@smithers-orchestrator/memory': 0.22.0(ba660dbf877eefef521e71efed033a06)
       '@smithers-orchestrator/observability': 0.22.0(42bb564cc3ff298bab24cfe2860b1de7)
       '@smithers-orchestrator/react-reconciler': 0.22.0(c938fab97a21ed6e80d78726ad7ff3c3)
-      '@smithers-orchestrator/scheduler': 0.22.0(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
+      '@smithers-orchestrator/scheduler': 0.22.0(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
       bippy: 0.5.43(react@19.3.1)
       react: 19.3.1
       react-dom: 19.3.1(react@19.3.1)
@@ -20004,6 +20019,7 @@ snapshots:
       - '@libsql/client-wasm'
       - '@miniflare/d1'
       - '@op-engineering/op-sqlite'
+      - '@opentelemetry/api'
       - '@planetscale/database'
       - '@prisma/client'
       - '@tidbcloud/serverless'
@@ -20039,11 +20055,11 @@ snapshots:
       '@effect/experimental': 0.60.0(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4)
       '@effect/sql': 0.51.1(@effect/experimental@0.60.0(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4)
       '@smithers-orchestrator/errors': 0.22.0
-      '@smithers-orchestrator/graph': 0.22.0(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
+      '@smithers-orchestrator/graph': 0.22.0(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
       '@smithers-orchestrator/observability': 0.22.0(42bb564cc3ff298bab24cfe2860b1de7)
-      '@smithers-orchestrator/scheduler': 0.22.0(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
-      drizzle-orm: 0.45.2(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
-      drizzle-zod: 0.8.3(drizzle-orm@0.45.2(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1))(zod@4.6.7)
+      '@smithers-orchestrator/scheduler': 0.22.0(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
+      drizzle-orm: 0.45.2(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
+      drizzle-zod: 0.8.3(drizzle-orm@0.45.2(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1))(zod@4.6.7)
       effect: 3.22.4
       zod: 4.6.7
     transitivePeerDependencies:
@@ -20053,6 +20069,7 @@ snapshots:
       - '@libsql/client-wasm'
       - '@miniflare/d1'
       - '@op-engineering/op-sqlite'
+      - '@opentelemetry/api'
       - '@planetscale/database'
       - '@prisma/client'
       - '@tidbcloud/serverless'
@@ -20085,9 +20102,9 @@ snapshots:
     dependencies:
       '@smithers-orchestrator/db': 0.22.0(52f414712e52a97f339e635f6dec9559)
       '@smithers-orchestrator/errors': 0.22.0
-      '@smithers-orchestrator/graph': 0.22.0(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
+      '@smithers-orchestrator/graph': 0.22.0(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
       '@smithers-orchestrator/observability': 0.22.0(42bb564cc3ff298bab24cfe2860b1de7)
-      '@smithers-orchestrator/scheduler': 0.22.0(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
+      '@smithers-orchestrator/scheduler': 0.22.0(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
       effect: 3.22.4
       zod: 4.6.7
     transitivePeerDependencies:
@@ -20097,6 +20114,7 @@ snapshots:
       - '@libsql/client-wasm'
       - '@miniflare/d1'
       - '@op-engineering/op-sqlite'
+      - '@opentelemetry/api'
       - '@planetscale/database'
       - '@prisma/client'
       - '@tidbcloud/serverless'
@@ -20137,16 +20155,16 @@ snapshots:
       '@smithers-orchestrator/db': 0.22.0(52f414712e52a97f339e635f6dec9559)
       '@smithers-orchestrator/driver': 0.22.0(ba660dbf877eefef521e71efed033a06)
       '@smithers-orchestrator/errors': 0.22.0
-      '@smithers-orchestrator/graph': 0.22.0(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
+      '@smithers-orchestrator/graph': 0.22.0(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
       '@smithers-orchestrator/observability': 0.22.0(42bb564cc3ff298bab24cfe2860b1de7)
       '@smithers-orchestrator/react-reconciler': 0.22.0(c938fab97a21ed6e80d78726ad7ff3c3)
       '@smithers-orchestrator/sandbox': 0.22.0(@effect/platform@0.96.3(effect@3.22.4))(@effect/sql@0.51.1(@effect/experimental@0.60.0(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/workflow@0.18.2(@effect/experimental@0.60.0(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.96.3(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(effect@3.22.4))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@opentelemetry/resources@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-logs@0.223.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-metrics@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-node@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-web@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/semantic-conventions@1.43.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
-      '@smithers-orchestrator/scheduler': 0.22.0(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
+      '@smithers-orchestrator/scheduler': 0.22.0(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
       '@smithers-orchestrator/scorers': 0.22.0(ba660dbf877eefef521e71efed033a06)
       '@smithers-orchestrator/time-travel': 0.22.0(a12d8f93caa583c477785ef6f7b7c74a)
       '@smithers-orchestrator/vcs': 0.22.0(42bb564cc3ff298bab24cfe2860b1de7)
       diff: 9.0.0
-      drizzle-orm: 0.45.2(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
+      drizzle-orm: 0.45.2(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
       effect: 3.22.4
       react: 19.3.1
       react-dom: 19.3.1(react@19.3.1)
@@ -20158,6 +20176,7 @@ snapshots:
       - '@libsql/client-wasm'
       - '@miniflare/d1'
       - '@op-engineering/op-sqlite'
+      - '@opentelemetry/api'
       - '@planetscale/database'
       - '@prisma/client'
       - '@tidbcloud/serverless'
@@ -20201,10 +20220,10 @@ snapshots:
 
   '@smithers-orchestrator/gateway@0.22.0': {}
 
-  '@smithers-orchestrator/graph@0.22.0(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)':
+  '@smithers-orchestrator/graph@0.22.0(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)':
     dependencies:
       '@smithers-orchestrator/errors': 0.22.0
-      drizzle-orm: 0.45.2(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
+      drizzle-orm: 0.45.2(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
       zod: 4.6.7
     transitivePeerDependencies:
       - '@aws-sdk/client-rds-data'
@@ -20213,6 +20232,7 @@ snapshots:
       - '@libsql/client-wasm'
       - '@miniflare/d1'
       - '@op-engineering/op-sqlite'
+      - '@opentelemetry/api'
       - '@planetscale/database'
       - '@prisma/client'
       - '@tidbcloud/serverless'
@@ -20238,10 +20258,10 @@ snapshots:
     dependencies:
       '@smithers-orchestrator/db': 0.22.0(52f414712e52a97f339e635f6dec9559)
       '@smithers-orchestrator/errors': 0.22.0
-      '@smithers-orchestrator/graph': 0.22.0(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
+      '@smithers-orchestrator/graph': 0.22.0(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
       '@smithers-orchestrator/observability': 0.22.0(42bb564cc3ff298bab24cfe2860b1de7)
-      '@smithers-orchestrator/scheduler': 0.22.0(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
-      drizzle-orm: 0.45.2(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
+      '@smithers-orchestrator/scheduler': 0.22.0(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
+      drizzle-orm: 0.45.2(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
       effect: 3.22.4
       zod: 4.6.7
     transitivePeerDependencies:
@@ -20251,6 +20271,7 @@ snapshots:
       - '@libsql/client-wasm'
       - '@miniflare/d1'
       - '@op-engineering/op-sqlite'
+      - '@opentelemetry/api'
       - '@planetscale/database'
       - '@prisma/client'
       - '@tidbcloud/serverless'
@@ -20291,6 +20312,7 @@ snapshots:
       - '@libsql/client-wasm'
       - '@miniflare/d1'
       - '@op-engineering/op-sqlite'
+      - '@opentelemetry/api'
       - '@planetscale/database'
       - '@prisma/client'
       - '@tidbcloud/serverless'
@@ -20321,7 +20343,7 @@ snapshots:
     dependencies:
       '@smithers-orchestrator/errors': 0.22.0
       '@smithers-orchestrator/observability': 0.22.0(42bb564cc3ff298bab24cfe2860b1de7)
-      '@smithers-orchestrator/scheduler': 0.22.0(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
+      '@smithers-orchestrator/scheduler': 0.22.0(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
       ai: 6.0.315(zod@4.6.7)
       effect: 3.22.4
       yaml: 2.9.1
@@ -20333,6 +20355,7 @@ snapshots:
       - '@libsql/client-wasm'
       - '@miniflare/d1'
       - '@op-engineering/op-sqlite'
+      - '@opentelemetry/api'
       - '@planetscale/database'
       - '@prisma/client'
       - '@tidbcloud/serverless'
@@ -20366,7 +20389,7 @@ snapshots:
       '@smithers-orchestrator/devtools': 0.22.0
       '@smithers-orchestrator/driver': 0.22.0(ba660dbf877eefef521e71efed033a06)
       '@smithers-orchestrator/errors': 0.22.0
-      '@smithers-orchestrator/graph': 0.22.0(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
+      '@smithers-orchestrator/graph': 0.22.0(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
       bippy: 0.5.43(react@19.3.1)
       react: 19.3.1
       react-reconciler: 0.33.0(react@19.3.1)
@@ -20377,6 +20400,7 @@ snapshots:
       - '@libsql/client-wasm'
       - '@miniflare/d1'
       - '@op-engineering/op-sqlite'
+      - '@opentelemetry/api'
       - '@planetscale/database'
       - '@prisma/client'
       - '@tidbcloud/serverless'
@@ -20411,7 +20435,7 @@ snapshots:
       '@smithers-orchestrator/driver': 0.22.0(ba660dbf877eefef521e71efed033a06)
       '@smithers-orchestrator/errors': 0.22.0
       '@smithers-orchestrator/observability': 0.22.0(42bb564cc3ff298bab24cfe2860b1de7)
-      '@smithers-orchestrator/scheduler': 0.22.0(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
+      '@smithers-orchestrator/scheduler': 0.22.0(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
       effect: 3.22.4
     transitivePeerDependencies:
       - '@aws-sdk/client-rds-data'
@@ -20420,6 +20444,7 @@ snapshots:
       - '@libsql/client-wasm'
       - '@miniflare/d1'
       - '@op-engineering/op-sqlite'
+      - '@opentelemetry/api'
       - '@planetscale/database'
       - '@prisma/client'
       - '@tidbcloud/serverless'
@@ -20446,10 +20471,10 @@ snapshots:
       - sqlite3
       - utf-8-validate
 
-  '@smithers-orchestrator/scheduler@0.22.0(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)':
+  '@smithers-orchestrator/scheduler@0.22.0(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)':
     dependencies:
       '@smithers-orchestrator/errors': 0.22.0
-      '@smithers-orchestrator/graph': 0.22.0(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
+      '@smithers-orchestrator/graph': 0.22.0(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
       effect: 3.22.4
     transitivePeerDependencies:
       - '@aws-sdk/client-rds-data'
@@ -20458,6 +20483,7 @@ snapshots:
       - '@libsql/client-wasm'
       - '@miniflare/d1'
       - '@op-engineering/op-sqlite'
+      - '@opentelemetry/api'
       - '@planetscale/database'
       - '@prisma/client'
       - '@tidbcloud/serverless'
@@ -20484,10 +20510,10 @@ snapshots:
       '@smithers-orchestrator/agents': 0.22.0(ba660dbf877eefef521e71efed033a06)
       '@smithers-orchestrator/db': 0.22.0(52f414712e52a97f339e635f6dec9559)
       '@smithers-orchestrator/errors': 0.22.0
-      '@smithers-orchestrator/graph': 0.22.0(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
+      '@smithers-orchestrator/graph': 0.22.0(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
       '@smithers-orchestrator/observability': 0.22.0(42bb564cc3ff298bab24cfe2860b1de7)
-      '@smithers-orchestrator/scheduler': 0.22.0(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
-      drizzle-orm: 0.45.2(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
+      '@smithers-orchestrator/scheduler': 0.22.0(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
+      drizzle-orm: 0.45.2(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
       effect: 3.22.4
       zod: 4.6.7
     transitivePeerDependencies:
@@ -20497,6 +20523,7 @@ snapshots:
       - '@libsql/client-wasm'
       - '@miniflare/d1'
       - '@op-engineering/op-sqlite'
+      - '@opentelemetry/api'
       - '@planetscale/database'
       - '@prisma/client'
       - '@tidbcloud/serverless'
@@ -20535,10 +20562,10 @@ snapshots:
       '@smithers-orchestrator/gateway': 0.22.0
       '@smithers-orchestrator/observability': 0.22.0(42bb564cc3ff298bab24cfe2860b1de7)
       '@smithers-orchestrator/protocol': 0.22.0
-      '@smithers-orchestrator/scheduler': 0.22.0(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
+      '@smithers-orchestrator/scheduler': 0.22.0(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
       '@smithers-orchestrator/time-travel': 0.22.0(a12d8f93caa583c477785ef6f7b7c74a)
       cron-parser: 5.10.2
-      drizzle-orm: 0.45.2(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
+      drizzle-orm: 0.45.2(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
       effect: 3.22.4
       hono: 4.13.13
       ws: 8.22.0
@@ -20549,6 +20576,7 @@ snapshots:
       - '@libsql/client-wasm'
       - '@miniflare/d1'
       - '@op-engineering/op-sqlite'
+      - '@opentelemetry/api'
       - '@planetscale/database'
       - '@prisma/client'
       - '@tidbcloud/serverless'
@@ -20582,9 +20610,9 @@ snapshots:
       '@smithers-orchestrator/db': 0.22.0(52f414712e52a97f339e635f6dec9559)
       '@smithers-orchestrator/errors': 0.22.0
       '@smithers-orchestrator/observability': 0.22.0(42bb564cc3ff298bab24cfe2860b1de7)
-      '@smithers-orchestrator/scheduler': 0.22.0(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
+      '@smithers-orchestrator/scheduler': 0.22.0(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
       '@smithers-orchestrator/vcs': 0.22.0(42bb564cc3ff298bab24cfe2860b1de7)
-      drizzle-orm: 0.45.2(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
+      drizzle-orm: 0.45.2(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
       effect: 3.22.4
       picocolors: 1.1.1
     transitivePeerDependencies:
@@ -20594,6 +20622,7 @@ snapshots:
       - '@libsql/client-wasm'
       - '@miniflare/d1'
       - '@op-engineering/op-sqlite'
+      - '@opentelemetry/api'
       - '@planetscale/database'
       - '@prisma/client'
       - '@tidbcloud/serverless'
@@ -20632,6 +20661,7 @@ snapshots:
       - '@libsql/client-wasm'
       - '@miniflare/d1'
       - '@op-engineering/op-sqlite'
+      - '@opentelemetry/api'
       - '@planetscale/database'
       - '@prisma/client'
       - '@tidbcloud/serverless'
@@ -21837,11 +21867,6 @@ snapshots:
       '@wallet-standard/features': 1.1.1
       eventemitter3: 5.0.4
 
-  '@solana/wallet-adapter-phantom@0.9.30(@solana/web3.js@1.99.0)':
-    dependencies:
-      '@solana/wallet-adapter-base': 0.9.28(@solana/web3.js@1.99.0)
-      '@solana/web3.js': 1.99.0
-
   '@solana/wallet-adapter-react-ui@0.9.40(@babel/core@7.29.7)(@solana/web3.js@1.99.0)(bs58@6.0.0)(electron@45.0.0)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(typescript@7.0.2)':
     dependencies:
       '@solana/wallet-adapter-base': 0.9.28(@solana/web3.js@1.99.0)
@@ -21868,12 +21893,6 @@ snapshots:
       - bufferutil
       - fastestsmallesttextencoderdecoder
       - utf-8-validate
-
-  '@solana/wallet-adapter-solflare@0.6.34(@solana/web3.js@1.99.0)':
-    dependencies:
-      '@solana/wallet-adapter-base': 0.9.28(@solana/web3.js@1.99.0)
-      '@solana/web3.js': 1.99.0
-      '@solflare-wallet/sdk': 1.4.2(@solana/web3.js@1.99.0)
 
   '@solana/wallet-standard-chains@1.1.2':
     dependencies:
@@ -21964,13 +21983,6 @@ snapshots:
       - node-gyp
       - typescript
       - utf-8-validate
-
-  '@solflare-wallet/sdk@1.4.2(@solana/web3.js@1.99.0)':
-    dependencies:
-      '@solana/web3.js': 1.99.0
-      bs58: 5.0.0
-      eventemitter3: 5.0.4
-      uuid: 11.1.1
 
   '@standard-schema/spec@1.1.0': {}
 
@@ -22200,7 +22212,7 @@ snapshots:
 
   '@tybys/wasm-util@0.10.4':
     dependencies:
-      tslib: 2.8.1
+      tslib: 2.7.0
     optional: true
 
   '@types/blessed@0.1.27':
@@ -22469,7 +22481,7 @@ snapshots:
       jsbi: 3.2.5
       tiny-invariant: 1.3.3
       toformat: 2.0.0
-      tslib: 2.8.1
+      tslib: 2.7.0
 
   '@uniswap/swap-router-contracts@1.3.1(hardhat@2.29.1(typescript@7.0.2))':
     dependencies:
@@ -23491,7 +23503,7 @@ snapshots:
 
   aria-hidden@1.2.6:
     dependencies:
-      tslib: 2.8.1
+      tslib: 2.7.0
 
   array-flatten@1.1.1: {}
 
@@ -23515,15 +23527,15 @@ snapshots:
 
   async-mutex@0.2.6:
     dependencies:
-      tslib: 2.8.1
+      tslib: 2.7.0
 
   async-mutex@0.3.2:
     dependencies:
-      tslib: 2.8.1
+      tslib: 2.7.0
 
   async-mutex@0.5.0:
     dependencies:
-      tslib: 2.8.1
+      tslib: 2.7.0
 
   async@0.2.10: {}
 
@@ -23567,8 +23579,6 @@ snapshots:
   base-x@3.0.11:
     dependencies:
       safe-buffer: 5.2.1
-
-  base-x@4.0.1: {}
 
   base-x@5.0.1: {}
 
@@ -23615,7 +23625,7 @@ snapshots:
 
   bitcoinjs-lib@7.0.4(typescript@7.0.2):
     dependencies:
-      '@noble/hashes': 1.8.0
+      '@noble/hashes': 1.3.2
       bech32: 2.0.0
       bip174: 3.0.1
       bs58check: 4.0.0
@@ -23698,7 +23708,7 @@ snapshots:
     dependencies:
       balanced-match: 4.0.4
 
-  braces@3.0.3(patch_hash=967d74d053d454769a943f97f4f9fede16b318c8c245d1c0b2722b83552a6a3e):
+  braces@3.0.3-pn.3:
     dependencies:
       fill-range: 7.1.1
 
@@ -23718,17 +23728,13 @@ snapshots:
     dependencies:
       base-x: 3.0.11
 
-  bs58@5.0.0:
-    dependencies:
-      base-x: 4.0.1
-
   bs58@6.0.0:
     dependencies:
       base-x: 5.0.1
 
   bs58check@4.0.0:
     dependencies:
-      '@noble/hashes': 1.8.0
+      '@noble/hashes': 1.3.2
       bs58: 6.0.0
 
   bser@2.1.2:
@@ -23885,7 +23891,7 @@ snapshots:
   chokidar@3.6.0:
     dependencies:
       anymatch: 3.1.3
-      braces: 3.0.3(patch_hash=967d74d053d454769a943f97f4f9fede16b318c8c245d1c0b2722b83552a6a3e)
+      braces: 3.0.3-pn.3
       glob-parent: 5.1.2
       is-binary-path: 2.1.0
       is-glob: 4.0.3
@@ -23904,7 +23910,7 @@ snapshots:
 
   chownr@3.0.0: {}
 
-  chromium-bidi@17.0.2(patch_hash=b18bdfa92b71bb72a6b9d91e43e7f9ed3daea0b67b414e57fdbc3f3d6940af9c)(devtools-protocol@0.0.1687809):
+  chromium-bidi@158.0.8122-0(devtools-protocol@0.0.1687809):
     dependencies:
       devtools-protocol: 0.0.1687809
       mitt: 3.0.1
@@ -24333,7 +24339,7 @@ snapshots:
       fast-deep-equal: 3.1.3
       lodash.snakecase: 4.1.1
       magic-bytes.js: 1.13.1
-      tslib: 2.8.1
+      tslib: 2.7.0
       undici: 6.29.1
     transitivePeerDependencies:
       - bufferutil
@@ -24421,9 +24427,24 @@ snapshots:
       pg: 8.23.1
       react: 19.3.1
 
-  drizzle-zod@0.8.3(drizzle-orm@0.45.2(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1))(zod@4.6.7):
+  drizzle-orm@0.45.2(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1):
     dependencies:
-      drizzle-orm: 0.45.2(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
+      '@electric-sql/pglite': 0.4.6(ws@8.22.0)
+      '@neondatabase/serverless': 1.2.0
+      '@upstash/redis': 1.39.0
+      pg: 8.23.1
+      react: 19.3.1
+
+  drizzle-orm@0.45.2(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(pg@8.23.1)(react@19.3.1):
+    dependencies:
+      '@electric-sql/pglite': 0.4.6(ws@8.22.0)
+      '@neondatabase/serverless': 1.2.0
+      pg: 8.23.1
+      react: 19.3.1
+
+  drizzle-zod@0.8.3(drizzle-orm@0.45.2(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1))(zod@4.6.7):
+    dependencies:
+      drizzle-orm: 0.45.2(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
       zod: 4.6.7
 
   duck@0.1.12:
@@ -25218,7 +25239,7 @@ snapshots:
       motion-utils: 12.39.0
       react: 19.3.1
       react-dom: 19.3.1(react@19.3.1)
-      tslib: 2.8.1
+      tslib: 2.7.0
 
   fresh@0.5.2: {}
 
@@ -27131,7 +27152,7 @@ snapshots:
 
   micromatch@4.0.8:
     dependencies:
-      braces: 3.0.3(patch_hash=967d74d053d454769a943f97f4f9fede16b318c8c245d1c0b2722b83552a6a3e)
+      braces: 3.0.3-pn.3
       picomatch: 2.3.2
 
   mime-db@1.52.0: {}
@@ -27253,7 +27274,7 @@ snapshots:
       framer-motion: 12.43.0(react@19.3.1)(react-dom@19.3.1(react@19.3.1))
       react: 19.3.1
       react-dom: 19.3.1(react@19.3.1)
-      tslib: 2.8.1
+      tslib: 2.7.0
     transitivePeerDependencies:
       - '@emotion/is-prop-valid'
 
@@ -28031,7 +28052,7 @@ snapshots:
   puppeteer-core@25.12.0:
     dependencies:
       '@puppeteer/browsers': 3.2.3
-      chromium-bidi: 17.0.2(patch_hash=b18bdfa92b71bb72a6b9d91e43e7f9ed3daea0b67b414e57fdbc3f3d6940af9c)(devtools-protocol@0.0.1687809)
+      chromium-bidi: 158.0.8122-0(devtools-protocol@0.0.1687809)
       devtools-protocol: 0.0.1687809
       typed-query-selector: 2.12.3
       webdriver-bidi-protocol: 0.4.3
@@ -28216,7 +28237,7 @@ snapshots:
       '@types/react': 19.3.0
       react: 19.3.1
       react-style-singleton: 2.2.3(@types/react@19.3.0)(react@19.3.1)
-      tslib: 2.8.1
+      tslib: 2.7.0
 
   react-remove-scroll@2.7.2(@types/react@19.3.0)(react@19.3.1):
     dependencies:
@@ -28224,7 +28245,7 @@ snapshots:
       react: 19.3.1
       react-remove-scroll-bar: 2.3.8(@types/react@19.3.0)(react@19.3.1)
       react-style-singleton: 2.2.3(@types/react@19.3.0)(react@19.3.1)
-      tslib: 2.8.1
+      tslib: 2.7.0
       use-callback-ref: 1.3.3(@types/react@19.3.0)(react@19.3.1)
       use-sidecar: 1.1.3(@types/react@19.3.0)(react@19.3.1)
 
@@ -28246,7 +28267,7 @@ snapshots:
       '@types/react': 19.3.0
       get-nonce: 1.0.1
       react: 19.3.1
-      tslib: 2.8.1
+      tslib: 2.7.0
 
   react-syntax-highlighter@16.1.2(react@19.3.1):
     dependencies:
@@ -28802,20 +28823,20 @@ snapshots:
       '@smithers-orchestrator/errors': 0.22.0
       '@smithers-orchestrator/gateway-client': 0.22.0
       '@smithers-orchestrator/gateway-react': 0.22.0(react@19.3.1)(react-dom@19.3.1(react@19.3.1))
-      '@smithers-orchestrator/graph': 0.22.0(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
+      '@smithers-orchestrator/graph': 0.22.0(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
       '@smithers-orchestrator/memory': 0.22.0(ba660dbf877eefef521e71efed033a06)
       '@smithers-orchestrator/observability': 0.22.0(42bb564cc3ff298bab24cfe2860b1de7)
       '@smithers-orchestrator/openapi': 0.22.0(a12d8f93caa583c477785ef6f7b7c74a)
       '@smithers-orchestrator/react-reconciler': 0.22.0(c938fab97a21ed6e80d78726ad7ff3c3)
       '@smithers-orchestrator/sandbox': 0.22.0(@effect/platform@0.96.3(effect@3.22.4))(@effect/sql@0.51.1(@effect/experimental@0.60.0(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/workflow@0.18.2(@effect/experimental@0.60.0(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.96.3(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(effect@3.22.4))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@opentelemetry/resources@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-logs@0.223.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-metrics@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-node@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-web@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/semantic-conventions@1.43.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
-      '@smithers-orchestrator/scheduler': 0.22.0(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
+      '@smithers-orchestrator/scheduler': 0.22.0(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
       '@smithers-orchestrator/scorers': 0.22.0(ba660dbf877eefef521e71efed033a06)
       '@smithers-orchestrator/server': 0.22.0(835725d32671bc76415043ab3ea9d52f)
       '@smithers-orchestrator/time-travel': 0.22.0(a12d8f93caa583c477785ef6f7b7c74a)
       '@smithers-orchestrator/vcs': 0.22.0(42bb564cc3ff298bab24cfe2860b1de7)
       ai: 6.0.315(zod@4.6.7)
       diff: 9.0.0
-      drizzle-orm: 0.45.2(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
+      drizzle-orm: 0.45.2(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
       effect: 3.22.4
       incur: 0.4.26
       react: 19.3.1
@@ -28828,6 +28849,7 @@ snapshots:
       - '@libsql/client-wasm'
       - '@miniflare/d1'
       - '@op-engineering/op-sqlite'
+      - '@opentelemetry/api'
       - '@planetscale/database'
       - '@prisma/client'
       - '@tidbcloud/serverless'
@@ -29502,14 +29524,14 @@ snapshots:
     dependencies:
       '@types/react': 19.3.0
       react: 19.3.1
-      tslib: 2.8.1
+      tslib: 2.7.0
 
   use-sidecar@1.1.3(@types/react@19.3.0)(react@19.3.1):
     dependencies:
       '@types/react': 19.3.0
       detect-node-es: 1.1.0
       react: 19.3.1
-      tslib: 2.8.1
+      tslib: 2.7.0
 
   use-sync-external-store@1.2.0(react@19.3.1):
     dependencies:

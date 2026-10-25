@@ -82,6 +82,9 @@ jobs:
       - name: Install Electron runtime
         run: nub run desktop:runtime:install
 
+      - name: Install isolated browser fixture
+        run: nubx playwright install --with-deps chromium
+
       - name: Exercise CLI chat and shared-engine workers
         run: nub run test:e2e:release:source
 
