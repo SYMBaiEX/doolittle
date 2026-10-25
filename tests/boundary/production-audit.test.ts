@@ -1,7 +1,7 @@
 import { expect, it } from "vitest";
 import { parse } from "yaml";
 import { productionAuditScopes } from "../../scripts/audit-production";
-import { assertRuntimeAdvisoryPolicyCoverage } from "../../scripts/check-runtime-advisory-policy";
+import { assertNoRuntimeAdvisories } from "../../scripts/check-runtime-advisory-policy";
 
 it("audits workspace production roots when the root package contains only tools", () => {
   const source = `lockfileVersion: '9.0'
@@ -53,16 +53,28 @@ snapshots:
   expect(() => productionAuditScopes(source, [])).toThrow("empty audit");
 });
 
-it("keeps newly discovered advisories outside the reviewed policy", () => {
-  expect(() =>
-    assertRuntimeAdvisoryPolicyCoverage({
-      advisories: {
-        newFinding: {
-          severity: "high",
-          url: "https://github.com/advisories/GHSA-NEW1-NEW2-NEW3",
-          vulnerable_versions: "<2.0.0",
+it.each(["low", "moderate", "high", "critical"])(
+  "rejects %s advisories including previously backported packages",
+  (severity) => {
+    expect(() =>
+      assertNoRuntimeAdvisories({
+        advisories: {
+          finding: {
+            severity,
+            url: "https://github.com/advisories/GHSA-3gc7-fjrx-p6mg",
+          },
         },
-      },
-    }),
-  ).toThrow("unreviewed advisories");
+      }),
+    ).toThrow("advisories must be resolved");
+  },
+);
+
+it("accepts a clean inventory and fails closed on invalid reports", () => {
+  expect(() => assertNoRuntimeAdvisories({ advisories: {} })).not.toThrow();
+  expect(() => assertNoRuntimeAdvisories({})).toThrow(
+    "valid advisory inventory",
+  );
+  expect(() =>
+    assertNoRuntimeAdvisories({ error: "registry failed", advisories: {} }),
+  ).toThrow("valid advisory inventory");
 });

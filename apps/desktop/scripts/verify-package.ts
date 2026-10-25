@@ -69,6 +69,18 @@ const MINIMUM_RUNTIME_DEPENDENCY_VERSIONS: Readonly<
     minimum: "1.18.0",
     url: "https://github.com/advisories/GHSA-gcfj-64vw-6mp9",
   },
+  "file-type": {
+    minimum: "21.3.1",
+    url: "https://github.com/advisories/GHSA-5v7r-6r5c-r473",
+  },
+  uuid: {
+    minimum: "11.1.1",
+    url: "https://github.com/advisories/GHSA-w5hq-g745-h8pq",
+  },
+  zod: {
+    minimum: "4.6.6",
+    url: "https://github.com/advisories/GHSA-mrhx-c7xc-m3w5",
+  },
   "bigint-buffer": {
     minimum: "1.1.6",
     url: "https://github.com/advisories/GHSA-3gc7-fjrx-p6mg",

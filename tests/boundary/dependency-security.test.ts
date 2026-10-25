@@ -11,6 +11,9 @@ function inventory(name: string, version: string): Manifest {
 }
 describe("packaged runtime security floors", () => {
   it.each([
+    ["file-type", "16.5.4", "22.2.0"],
+    ["uuid", "9.0.1", "11.1.1"],
+    ["zod", "3.25.76", "4.6.7"],
     ["body-parser", "1.20.8", "1.20.9"],
     ["body-parser", "2.3.0", "2.4.0"],
     ["undici", "6.29.0", "6.29.1"],

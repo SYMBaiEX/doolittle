@@ -1,84 +1,12 @@
 import { auditProductionWorkspaces } from "./audit-production";
 
-type AuditAdvisory = {
-  severity?: string;
-  url?: string;
-  vulnerable_versions?: string;
-};
-
 type AuditReport = {
-  advisories?: Record<string, AuditAdvisory>;
+  advisories?: Record<string, { url?: string; severity?: string }>;
   error?: unknown;
 };
 
-/**
- * Every reviewed high advisory remains listed even when a dependency override
- * removes it from today's graph. This makes a newly published high advisory a
- * release-policy change instead of silently treating it as development-only.
- */
-export const REVIEWED_RUNTIME_HIGH_ADVISORIES = new Map([
-  ["GHSA-3GC7-FJRX-P6MG", "<=1.1.5"],
-  // No patched v3 publication exists. The locked 3.25.76 backport and the v3
-  // surface in 4.6.7 are exercised by zod-collection-bounds.test.ts.
-  ["GHSA-MRHX-C7XC-M3W5", "<4.6.6"],
-  ["GHSA-82X6-Q7MM-W9CF", "<4.2.0"],
-  ["GHSA-4CWX-7WF7-3272", ">=7.0.0 <7.29.0 || >=8.0.0 <8.9.0"],
-  ["GHSA-5C6J-R48X-RMVQ", "<=7.0.2"],
-  ["GHSA-5P2G-FCMC-QVQQ", "<=2.0.2"],
-  ["GHSA-96HV-2XVQ-FX4P", ">=8.0.0 <8.21.0"],
-  ["GHSA-F88M-G3JW-G9CJ", "<0.35.0"],
-  ["GHSA-GCFJ-64VW-6MP9", ">=1.15.2 <1.18.0"],
-  ["GHSA-JMR9-QJV8-65GV", "<=2.0.1"],
-  ["GHSA-PH9P-34F9-6G65", "<0.2.6"],
-  ["GHSA-R5FR-RJXR-66JC", ">=4.0.0 <=4.17.23"],
-  ["GHSA-V5MP-JGW5-2X6J", "<4.1.2"],
-  ["GHSA-V9P9-HFJ2-HCW8", "<6.24.0"],
-  ["GHSA-VRM6-8VPV-QV8Q", "<6.24.0"],
-  ["GHSA-VXPW-J846-P89Q", "<6.27.0"],
-  ["GHSA-W3RX-R6R6-PGPR", "<=2.0.2"],
-  ["GHSA-XCPC-8H2W-3J85", "<0.6.0"],
-  ["GHSA-58MR-GQGX-XQ4G", "=3.1.6"],
-  ["GHSA-7Q85-XJ36-VMFC", "<0.6.1"],
-  ["GHSA-8238-W5PM-2374", "<=0.6.0"],
-  ["GHSA-J5F4-CC29-5X44", "<=0.6.0"],
-  ["GHSA-QW65-CVWX-89V3", ">=3.0.0 <3.1.7"],
-  ["GHSA-RCW4-F5RP-G42V", "<=0.6.0"],
-  ["GHSA-RFGV-XXQX-MFG5", ">=8.0.0 <8.10.2"],
-  ["GHSA-RGJ7-G3M4-5G8C", "<0.35.4"],
-  ["GHSA-VFJ7-8CJW-P6XM", "<=3.0.3"],
-  ["GHSA-VP8M-P9JH-Q5PM", ">=8.10.0 <8.10.2"],
-  ["GHSA-W293-VG96-WGC3", ">=8.0.0 <8.10.2"],
-  ["GHSA-X8MW-P69M-V3MX", ">=1.0.0 <3.2.1"],
-]);
-
-/** All current lower-severity residuals have tested, version-preserving patches.
- * New advisories at any severity still require review; this is not an audit waiver.
- */
-export const REVIEWED_RUNTIME_ADVISORIES = new Map([
-  ...REVIEWED_RUNTIME_HIGH_ADVISORIES,
-  ["GHSA-VCC3-GHJQ-M6FR", "<=0.4.2"],
-  ["GHSA-848J-6MX2-7J84", "<=6.6.1"],
-  ["GHSA-5V7R-6R5C-R473", ">=13.0.0 <21.3.1"],
-  ["GHSA-HP3W-G68C-FV3C", "<=1.1.3"],
-  ["GHSA-W5HQ-G745-H8PQ", "<11.1.1"],
-]);
-
-const REVIEWED_SEVERITIES = new Map([
-  ...[...REVIEWED_RUNTIME_HIGH_ADVISORIES.keys()].map(
-    (id) => [id, "high"] as const,
-  ),
-  ["GHSA-VCC3-GHJQ-M6FR", "moderate"],
-  ["GHSA-848J-6MX2-7J84", "low"],
-  ["GHSA-5V7R-6R5C-R473", "moderate"],
-  ["GHSA-HP3W-G68C-FV3C", "moderate"],
-  ["GHSA-W5HQ-G745-H8PQ", "moderate"],
-]);
-
-function advisoryId(url: string): string | undefined {
-  return url.match(/\/advisories\/(GHSA-[0-9a-z-]+)$/iu)?.[1]?.toUpperCase();
-}
-
-export function assertRuntimeAdvisoryPolicyCoverage(report: AuditReport): void {
+/** Release dependencies must be clean at every severity, with no backport exceptions. */
+export function assertNoRuntimeAdvisories(report: AuditReport): void {
   if (
     report.error ||
     !report.advisories ||
@@ -89,44 +17,22 @@ export function assertRuntimeAdvisoryPolicyCoverage(report: AuditReport): void {
       "Production audit did not provide a valid advisory inventory.",
     );
   }
-  const unknown: string[] = [];
-  for (const advisory of Object.values(report.advisories)) {
-    if (!advisory || typeof advisory !== "object") {
-      unknown.push("INVALID-ADVISORY");
-      continue;
-    }
-    const id = advisoryId(advisory.url ?? "") ?? "MISSING-GHSA-URL";
-    const reviewedRange = REVIEWED_RUNTIME_ADVISORIES.get(id);
-    if (!reviewedRange) {
-      unknown.push(id);
-    } else if (reviewedRange !== advisory.vulnerable_versions) {
-      unknown.push(
-        `${id} changed range from ${reviewedRange} to ${advisory.vulnerable_versions ?? "missing"}`,
-      );
-    } else if (REVIEWED_SEVERITIES.get(id) !== advisory.severity) {
-      unknown.push(
-        `${id} changed severity to ${advisory.severity ?? "missing"}`,
-      );
-    }
-  }
-  unknown.sort();
-  if (unknown.length > 0) {
+  const findings = Object.values(report.advisories);
+  if (findings.length) {
     throw new Error(
-      `Production audit contains unreviewed advisories: ${unknown.join(", ")}`,
+      `Production dependency advisories must be resolved: ${findings
+        .map((finding) => finding?.url ?? "INVALID-ADVISORY")
+        .sort()
+        .join(", ")}`,
     );
   }
 }
 
 function run(): void {
   const reports = auditProductionWorkspaces(process.cwd());
-  for (const report of reports) assertRuntimeAdvisoryPolicyCoverage(report);
-  const ids = new Set(
-    reports.flatMap((report) =>
-      Object.values(report.advisories).map((advisory) => advisory.url),
-    ),
-  );
+  for (const report of reports) assertNoRuntimeAdvisories(report);
   console.log(
-    `Runtime advisory review covers all ${ids.size} production advisories; version-based findings remain visible.`,
+    "Production dependency audit clean: zero advisories at every severity.",
   );
 }
 
