@@ -1,25 +1,14 @@
 import { createRequire } from "node:module";
-import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { describe, expect, it } from "vitest";
 
 const rootRequire = createRequire(import.meta.url);
-const legacyRequire = createRequire(
-  resolve("node_modules/@jimp/plugin-crop/package.json"),
-);
-const legacyEntry = legacyRequire.resolve("zod");
 const v4Entry = rootRequire.resolve("zod");
 
-// Exercise the actual installed CommonJS and ESM entrypoints used by consumers,
-// including the legacy compatibility surface bundled in current Zod releases.
+// Exercise the unpatched upstream v4 entrypoints used by migrated consumers.
 for (const [label, entry] of [
-  ["legacy CommonJS", legacyEntry],
-  ["legacy ESM", legacyEntry.replace(/index\.cjs$/, "index.js")],
-  ["legacy v4 CommonJS", legacyEntry.replace(/index\.cjs$/, "v4/index.cjs")],
-  ["legacy v4 ESM", legacyEntry.replace(/index\.cjs$/, "v4/index.js")],
-  ["current v3 CommonJS", v4Entry.replace(/index\.cjs$/, "v3/index.cjs")],
-  ["current v3 ESM", v4Entry.replace(/index\.cjs$/, "v3/index.js")],
-  ["current v4", v4Entry],
+  ["v4 CommonJS", v4Entry],
+  ["v4 ESM", v4Entry.replace(/index\.cjs$/, "index.js")],
 ] as const) {
   describe(label, () => {
     it("rejects oversized arrays before element work or refinements", async () => {

@@ -1,5 +1,5 @@
 import { createRequire } from "node:module";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import * as modern from "ethers";
 import { describe, expect, it } from "vitest";
@@ -165,4 +165,70 @@ it("retains ethers v5 signing, recovery, ECDH and transaction encoding with ethe
   expect(modern.Transaction.from(encoded).from).toBe(
     "0x7E5F4552091A69125d5DfCb7b8C2659029395Bdf",
   );
+});
+
+it("retains vision image transforms and invalid-option rejection on Zod 4", async () => {
+  const visionRequire = createRequire(
+    resolve("node_modules/@elizaos/plugin-vision/package.json"),
+  );
+  const { Jimp } = visionRequire("jimp");
+  const image = new Jimp({ width: 4, height: 4, color: 0x00ff00ff });
+  image.crop({ x: 1, y: 1, w: 2, h: 2 }).resize({ w: 3, h: 3 });
+  expect([image.bitmap.width, image.bitmap.height]).toEqual([3, 3]);
+  const png = await image.getBuffer("image/png");
+  expect((await Jimp.read(png)).getPixelColor(0, 0)).toBe(0x00ff00ff);
+  expect(() => image.crop({ x: "invalid", y: 0, w: 1, h: 1 })).toThrow();
+});
+
+it("retains Coinbase typed-data record validation on Zod 4", () => {
+  const entry = createRequire(import.meta.url).resolve("@coinbase/cdp-sdk");
+  const { SignEvmTypedDataFieldCriterionSchema } = createRequire(entry)(
+    resolve(dirname(entry), "policies/evmSchema.js"),
+  );
+  const criterion = {
+    type: "evmTypedDataField",
+    types: {
+      types: { Mail: [{ name: "amount", type: "uint256" }] },
+      primaryType: "Mail",
+    },
+    conditions: [{ path: "amount", operator: "==", value: "1" }],
+  };
+  expect(SignEvmTypedDataFieldCriterionSchema.parse(criterion)).toEqual(
+    criterion,
+  );
+  expect(
+    SignEvmTypedDataFieldCriterionSchema.safeParse({
+      ...criterion,
+      types: { ...criterion.types, types: { Mail: "invalid" } },
+    }).success,
+  ).toBe(false);
+});
+
+it("retains browser protocol validation errors on Zod 4", async () => {
+  const entry = resolve(
+    "node_modules/chromium-bidi/out/Default/gen/src/protocol-parser/protocol-parser.js",
+  );
+  const parser = await import(/* @vite-ignore */ pathToFileURL(entry).href);
+  expect(
+    parser.Browser.parseRemoveUserContextParameters({ userContext: "fixture" }),
+  ).toEqual({ userContext: "fixture" });
+  expect(() =>
+    parser.Browser.parseRemoveUserContextParameters({ userContext: 1 }),
+  ).toThrow(/userContext/);
+});
+
+it("retains ABI schema validation after the Zod 4 compatible abitype update", () => {
+  const viemRequire = createRequire(resolve("node_modules/viem/package.json"));
+  const { Abi } = viemRequire("abitype/zod");
+  const abi = [
+    {
+      type: "function",
+      name: "balanceOf",
+      inputs: [{ name: "owner", type: "address" }],
+      outputs: [{ type: "uint256" }],
+      stateMutability: "view",
+    },
+  ];
+  expect(Abi.parse(abi)).toEqual(abi);
+  expect(Abi.safeParse([{ ...abi[0], inputs: "invalid" }]).success).toBe(false);
 });
