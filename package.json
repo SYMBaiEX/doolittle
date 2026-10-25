@@ -237,7 +237,8 @@
     "@elizaos/registry": "workspace:*",
     "zod@>=3.0.0 <4.0.0": "3.25.76",
     "react": "19.3.1",
-    "react-dom": "19.3.1"
+    "react-dom": "19.3.1",
+    "uuid@<11.1.1": "11.1.1"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.3",
@@ -293,8 +294,6 @@
     "sprintf-js@1.0.3": "patches/sprintf-js+1.0.3.patch",
     "elliptic@6.6.1": "patches/elliptic+6.6.1.patch",
     "decode-uri-component@0.2.2": "patches/decode-uri-component+0.2.2.patch",
-    "uuid@8.3.2": "patches/uuid+8.3.2.patch",
-    "uuid@9.0.1": "patches/uuid+9.0.1.patch",
     "@elizaos/plugin-agent-orchestrator@2.0.3-beta.7": "patches/@elizaos+plugin-agent-orchestrator@2.0.3-beta.7.patch",
     "@elizaos/plugin-codex-cli@2.0.3-beta.7": "patches/@elizaos+plugin-codex-cli@2.0.3-beta.7.patch",
     "@elizaos/core@2.0.3-beta.7": "patches/@elizaos+core@2.0.3-beta.7.patch",

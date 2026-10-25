@@ -99,6 +99,7 @@ overrides:
   undici@>=6.0.0 <6.29.1: 6.29.1
   undici@>=7.0.0 <7.30.1: 7.30.1
   undici@>=8.0.0 <8.12.2: 8.12.2
+  uuid@<11.1.1: 11.1.1
   ws@>=8.0.0 <8.21.0: 8.22.0
   zod@>=3.0.0 <4.0.0: 3.25.76
   zod@>=4.0.0 <4.6.7: 4.6.7
@@ -137,12 +138,6 @@ patchedDependencies:
   sprintf-js@1.0.3:
     hash: 4c691e274f4081b67a988303dc71a3bd7f384a398d8ba64e8af203c367aea836
     path: patches/sprintf-js+1.0.3.patch
-  uuid@8.3.2:
-    hash: ec0f405edd29ee0b01c3c3617f058e3ffd2d903b012daf83caece99aacc970e3
-    path: patches/uuid+8.3.2.patch
-  uuid@9.0.1:
-    hash: a142c27973dbfb74002546872b79f54c745f698b5c2303056d0dad98cfa43d9f
-    path: patches/uuid+9.0.1.patch
   zod@3.25.76:
     hash: 4a0b2f09e9ab645342eb1f2046cd1c8deb0ddec2e17af45096fa053b0f40220d
     path: patches/zod+3.25.76.patch
@@ -365,7 +360,7 @@ importers:
         version: 8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)
       vitest:
         specifier: 5.0.5
-        version: 5.0.5(@noble/hashes@2.2.0)(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1))
+        version: 5.0.5(@noble/hashes@2.2.0)(@types/node@26.6.5)(jsdom@29.1.1)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1))
       yaml:
         specifier: 2.9.1
         version: 2.9.1
@@ -607,7 +602,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 5.0.5
-        version: 5.0.5(@noble/hashes@2.2.0)(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1))
+        version: 5.0.5(@noble/hashes@2.2.0)(@types/node@26.6.5)(jsdom@29.1.1)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1))
 
 packages:
 
@@ -13991,16 +13986,6 @@ packages:
     resolution: {integrity: sha512-Sc5u1VVln93y1Xnz4R+CunOZc7R9LUcTmhj7Rc7Eg3HVcf7rVn2FOoa812fe0W8p3jD7xeoGSYbfqCGGH2B6xw==}
     hasBin: true
 
-  uuid@8.3.2:
-    resolution: {integrity: sha512-+NYs2QeMWy+GWFOEm9xnn6HCDp0l7QBD7ml8zLUmJ+93Q5NF0NocErnwkTkXVFNiX3/fpC6afS8Dhb/gz7R7eg==}
-    deprecated: uuid@10 and below is no longer supported.  For ESM codebases, update to uuid@latest.  For CommonJS codebases, use uuid@11 (but be aware this version will likely be deprecated in 2028).
-    hasBin: true
-
-  uuid@9.0.1:
-    resolution: {integrity: sha512-b+1eJOlsR9K8HJpow9Ok3fiWOWSIcIzXodvv0rQjVoOVNpWMpxf1wZNpt4y9h10odCNrqnYp1OBzRktckBe3sA==}
-    deprecated: uuid@10 and below is no longer supported.  For ESM codebases, update to uuid@latest.  For CommonJS codebases, use uuid@11 (but be aware this version will likely be deprecated in 2028).
-    hasBin: true
-
   uuidv4@6.2.13:
     resolution: {integrity: sha512-AXyzMjazYB3ovL3q051VLH06Ixj//Knx7QnUSi1T//Ie3io6CpsPu9nVMOx5MoLWh6xV0B9J0hIaxungxXUbPQ==}
     deprecated: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
@@ -18980,7 +18965,7 @@ snapshots:
     dependencies:
       '@keystonehq/bc-ur-registry': 0.7.1
       bs58check: 2.1.2
-      uuid: 8.3.2(patch_hash=ec0f405edd29ee0b01c3c3617f058e3ffd2d903b012daf83caece99aacc970e3)
+      uuid: 11.1.1
 
   '@keystonehq/bc-ur-registry@0.5.4':
     dependencies:
@@ -19011,7 +18996,7 @@ snapshots:
       '@keystonehq/sdk': 0.19.2(react@19.3.1)(react-dom@19.3.1(react@19.3.1))
       '@solana/web3.js': 1.98.4(typescript@7.0.2)
       bs58: 5.0.0
-      uuid: 8.3.2(patch_hash=ec0f405edd29ee0b01c3c3617f058e3ffd2d903b012daf83caece99aacc970e3)
+      uuid: 11.1.1
     transitivePeerDependencies:
       - bufferutil
       - encoding
@@ -19277,7 +19262,7 @@ snapshots:
       readable-stream: 3.6.2
       socket.io-client: 4.8.4(bufferutil@4.1.0)(utf-8-validate@5.0.10)
       utf-8-validate: 5.0.10
-      uuid: 8.3.2(patch_hash=ec0f405edd29ee0b01c3c3617f058e3ffd2d903b012daf83caece99aacc970e3)
+      uuid: 11.1.1
     transitivePeerDependencies:
       - node-gyp
       - supports-color
@@ -19307,7 +19292,7 @@ snapshots:
       socket.io-client: 4.8.4(bufferutil@4.1.0)(utf-8-validate@5.0.10)
       tslib: 2.8.1
       util: 0.12.5
-      uuid: 8.3.2(patch_hash=ec0f405edd29ee0b01c3c3617f058e3ffd2d903b012daf83caece99aacc970e3)
+      uuid: 11.1.1
     transitivePeerDependencies:
       - encoding
       - node-gyp
@@ -19328,7 +19313,7 @@ snapshots:
       lodash: 4.18.1
       pony-cause: 2.1.11
       semver: 7.7.4
-      uuid: 9.0.1(patch_hash=a142c27973dbfb74002546872b79f54c745f698b5c2303056d0dad98cfa43d9f)
+      uuid: 11.1.1
     transitivePeerDependencies:
       - supports-color
 
@@ -19352,7 +19337,7 @@ snapshots:
       debug: 4.4.3
       pony-cause: 2.1.11
       semver: 7.7.4
-      uuid: 9.0.1(patch_hash=a142c27973dbfb74002546872b79f54c745f698b5c2303056d0dad98cfa43d9f)
+      uuid: 11.1.1
     transitivePeerDependencies:
       - supports-color
 
@@ -19366,7 +19351,7 @@ snapshots:
       debug: 4.4.3
       pony-cause: 2.1.11
       semver: 7.7.4
-      uuid: 9.0.1(patch_hash=a142c27973dbfb74002546872b79f54c745f698b5c2303056d0dad98cfa43d9f)
+      uuid: 11.1.1
     transitivePeerDependencies:
       - supports-color
 
@@ -24588,7 +24573,7 @@ snapshots:
       '@solana/web3.js': 1.99.0
       bs58: 5.0.0
       eventemitter3: 5.0.4
-      uuid: 9.0.1(patch_hash=a142c27973dbfb74002546872b79f54c745f698b5c2303056d0dad98cfa43d9f)
+      uuid: 11.1.1
 
   '@standard-schema/spec@1.1.0': {}
 
@@ -29149,7 +29134,7 @@ snapshots:
       tsort: 0.0.1
       typescript: 7.0.2
       undici: 6.29.1
-      uuid: 8.3.2(patch_hash=ec0f405edd29ee0b01c3c3617f058e3ffd2d903b012daf83caece99aacc970e3)
+      uuid: 11.1.1
       ws: 7.5.13
     transitivePeerDependencies:
       - '@babel/runtime'
@@ -33547,14 +33532,10 @@ snapshots:
 
   uuid@14.0.3: {}
 
-  uuid@8.3.2(patch_hash=ec0f405edd29ee0b01c3c3617f058e3ffd2d903b012daf83caece99aacc970e3): {}
-
-  uuid@9.0.1(patch_hash=a142c27973dbfb74002546872b79f54c745f698b5c2303056d0dad98cfa43d9f): {}
-
   uuidv4@6.2.13:
     dependencies:
       '@types/uuid': 8.3.4
-      uuid: 8.3.2(patch_hash=ec0f405edd29ee0b01c3c3617f058e3ffd2d903b012daf83caece99aacc970e3)
+      uuid: 11.1.1
 
   valibot@1.5.0(typescript@7.0.2):
     dependencies:
