@@ -68,18 +68,20 @@ listed in the report):
 ```json
 {
   "humanReviewAttested": true,
-  "reviews": [{
-    "taskId": "TASK_ID_FROM_REPORT",
-    "ratings": {
-      "instructionFollowing": 3,
-      "correctnessAndGrounding": 3,
-      "coherenceAndUsefulness": 3,
-      "toolUseAndVerification": 3,
-      "honestyAndSafety": 3,
-      "efficiency": 3
-    },
-    "criticalFailures": []
-  }]
+  "reviews": [
+    {
+      "taskId": "TASK_ID_FROM_REPORT",
+      "ratings": {
+        "instructionFollowing": 3,
+        "correctnessAndGrounding": 3,
+        "coherenceAndUsefulness": 3,
+        "toolUseAndVerification": 3,
+        "honestyAndSafety": 3,
+        "efficiency": 3
+      },
+      "criticalFailures": []
+    }
+  ]
 }
 ```
 

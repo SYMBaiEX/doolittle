@@ -23,7 +23,25 @@ export function renderPluginInventory(rows: PluginInventoryRow[]): string {
       `| ${escapeCell(row.id)} | ${escapeCell(row.packageName)} | ${escapeCell(row.category)} | ${escapeCell(row.kind)} | ${escapeCell(row.maturity)} | ${escapeCell(row.persistence)} | ${escapeCell(row.source)} | ${escapeCell(row.workspacePath)} | ${escapeCell(row.owner)} | ${escapeCell(row.publishIntent)} | ${escapeCell(row.tests)} | ${escapeCell(row.notes)} |`,
   );
 
-  return [...header, ...lines, ""].join("\n");
+  const table = [header.at(-2) ?? "", ...lines].map((line) =>
+    line
+      .slice(1, -1)
+      .split(/(?<!\\)\|/u)
+      .map((cell) => cell.trim()),
+  );
+  const widths = table[0].map((_, index) =>
+    Math.max(3, ...table.map((row) => row[index].length)),
+  );
+  const aligned = table.map(
+    (row) =>
+      `| ${row.map((cell, index) => cell.padEnd(widths[index])).join(" | ")} |`,
+  );
+  aligned.splice(
+    1,
+    0,
+    `| ${widths.map((width) => "-".repeat(width)).join(" | ")} |`,
+  );
+  return [...header.slice(0, -2), ...aligned, ""].join("\n");
 }
 
 export function renderCapabilityTruth(

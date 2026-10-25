@@ -71,15 +71,15 @@ and Electron-builder get 5 upgrades remove the three stream-json advisories.
 Seven version-based findings remain (2 high, 4 moderate, 1 low), each covered
 by a mechanism patch while retaining its truthful published version:
 
-| Dependency | Mechanism repair |
-|---|---|
-| bigint-buffer 1.1.5 | Existing pure-JavaScript replacement avoids the vulnerable native binding. |
-| braces 3.0.3 | Existing bounded nesting/ancestor traversal patch. |
-| decode-uri-component 0.2.2 | Upstream single-pass decoder backport, preserving CommonJS/plus-as-space. |
-| elliptic 6.6.1 | Preserve raw DRBG byte length before nonce truncation; public P-521 vector. |
-| file-type 16.5.4 | Reject invalid ASF sizes and enforce monotonic, bounded scanning. |
-| sprintf-js 1.0.3 | Clamp numeric precision before formatting; do not replace one uncaught RangeError with another. |
-| uuid 8.3.2 / 9.0.1 | Validate output buffer bounds before mutation across published entrypoints. |
+| Dependency                 | Mechanism repair                                                                                |
+| -------------------------- | ----------------------------------------------------------------------------------------------- |
+| bigint-buffer 1.1.5        | Existing pure-JavaScript replacement avoids the vulnerable native binding.                      |
+| braces 3.0.3               | Existing bounded nesting/ancestor traversal patch.                                              |
+| decode-uri-component 0.2.2 | Upstream single-pass decoder backport, preserving CommonJS/plus-as-space.                       |
+| elliptic 6.6.1             | Preserve raw DRBG byte length before nonce truncation; public P-521 vector.                     |
+| file-type 16.5.4           | Reject invalid ASF sizes and enforce monotonic, bounded scanning.                               |
+| sprintf-js 1.0.3           | Clamp numeric precision before formatting; do not replace one uncaught RangeError with another. |
+| uuid 8.3.2 / 9.0.1         | Validate output buffer bounds before mutation across published entrypoints.                     |
 
 SDK atomic JSON now uses exclusive random temporary files and owned descriptors;
 failed creation cannot remove another writer's temporary entry. Its additive
@@ -443,4 +443,3 @@ Seven version-based dependency advisories remain visible despite reviewed
 mechanism patches; Dependabot #4 is not hidden. Native Windows, hostile same-UID
 ancestor mutation, live provider behavior and a live 50-agent workload remain
 unverified.
-

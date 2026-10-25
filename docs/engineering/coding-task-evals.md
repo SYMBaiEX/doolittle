@@ -15,14 +15,14 @@ telemetry; it does not launch an agent or mutate the target project.
 
 ## Cases
 
-| Case | Required evidence |
-| --- | --- |
-| `coding-change-v1` | Verified implementation/configuration changes in the exact workspace, a parent-shell production build with exit code 0, and a terminal-complete run. |
-| `coding-app-handoff-v1` | Everything in `coding-change-v1`, plus a managed-app receipt in `ready` state with an HTTP(S) URL and working directory matching the requested workspace. A `starting` receipt is not ready. |
-| `coding-bun-app-handoff-v1` | Everything in `coding-app-handoff-v1`, plus a successful parent-shell `bun install` receipt scoped to the requested workspace (110 points total). |
-| `app-start-v1` | A managed-app receipt in `ready` state with an HTTP(S) URL and working directory matching the requested workspace. Use when starting an existing app without requesting code changes. |
-| `api-runtime-fix-v1` | Everything in `coding-change-v1`, plus a successful parent-shell HTTP smoke command against a local API route, using fail-on-HTTP-error and returning parseable JSON. |
-| `verified-noop-v1` | No mutation required, but a parent-shell production build and terminal-complete run are still required. Use only when the request can be satisfied without edits. |
+| Case                        | Required evidence                                                                                                                                                                            |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `coding-change-v1`          | Verified implementation/configuration changes in the exact workspace, a parent-shell production build with exit code 0, and a terminal-complete run.                                         |
+| `coding-app-handoff-v1`     | Everything in `coding-change-v1`, plus a managed-app receipt in `ready` state with an HTTP(S) URL and working directory matching the requested workspace. A `starting` receipt is not ready. |
+| `coding-bun-app-handoff-v1` | Everything in `coding-app-handoff-v1`, plus a successful parent-shell `bun install` receipt scoped to the requested workspace (110 points total).                                            |
+| `app-start-v1`              | A managed-app receipt in `ready` state with an HTTP(S) URL and working directory matching the requested workspace. Use when starting an existing app without requesting code changes.        |
+| `api-runtime-fix-v1`        | Everything in `coding-change-v1`, plus a successful parent-shell HTTP smoke command against a local API route, using fail-on-HTTP-error and returning parseable JSON.                        |
+| `verified-noop-v1`          | No mutation required, but a parent-shell production build and terminal-complete run are still required. Use only when the request can be satisfied without edits.                            |
 
 Workspace paths must be supplied explicitly; never infer the requested target
 from the selected project or silently retarget the run. A verified delegated
@@ -360,11 +360,11 @@ The selected receipts were all scoped to `/Users/symbiex/dev/austin/test`. The
 event journal is written in UTC, so the late-evening local activity appears on
 September 24 in the raw timestamps.
 
-| Evaluation set | Result | What the evidence says |
-| --- | --- | --- |
-| `coding-change-v1` | 0/7 pass; 200/560 points (35.7%) | Five runs had in-scope implementation edits but no successful parent-shell production build. Two attempts stopped before any verified file change because the selected Codex model was unavailable to the installed/account-linked adapter. Median wall time was 150.1s, median first action 24.5s, and median observed actions 2. |
-| `api-runtime-fix-v1` | 0/1 pass; 70/100 points | The API route and database source changed in the intended folder and the parent `npm run build` exited 0. A live local API smoke was blocked by a sandbox port-bind denial and was not retried outside that worker; therefore the JSON runtime behavior remains unverified. |
-| `app-start-v1` | 0/1 pass; 0/30 points | The run completed after shell activity, but no managed-app `ready` receipt and URL for the selected workspace were recorded. |
+| Evaluation set       | Result                           | What the evidence says                                                                                                                                                                                                                                                                                                             |
+| -------------------- | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `coding-change-v1`   | 0/7 pass; 200/560 points (35.7%) | Five runs had in-scope implementation edits but no successful parent-shell production build. Two attempts stopped before any verified file change because the selected Codex model was unavailable to the installed/account-linked adapter. Median wall time was 150.1s, median first action 24.5s, and median observed actions 2. |
+| `api-runtime-fix-v1` | 0/1 pass; 70/100 points          | The API route and database source changed in the intended folder and the parent `npm run build` exited 0. A live local API smoke was blocked by a sandbox port-bind denial and was not retried outside that worker; therefore the JSON runtime behavior remains unverified.                                                        |
+| `app-start-v1`       | 0/1 pass; 0/30 points            | The run completed after shell activity, but no managed-app `ready` receipt and URL for the selected workspace were recorded.                                                                                                                                                                                                       |
 
 Main failure patterns: child-side dependency installation/build failures were not
 consistently recovered by the parent turn; complete runs frequently lacked a

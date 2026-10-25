@@ -107,22 +107,22 @@ Tagged releases build platform installers; Windows uses a per-user x64 NSIS inst
 
 ![Doolittle Desktop runtime screen: offline-bootstrap state, active model, plugin catalog, and account-routing readiness](docs/assets/readme/desktop-runtime.png)
 
-*A real local, offline-bootstrap desktop run. The Runtime page makes provider, model, plugin, and account-pool state visible rather than assuming they are configured.*
+_A real local, offline-bootstrap desktop run. The Runtime page makes provider, model, plugin, and account-pool state visible rather than assuming they are configured._
 
 ## Everyday commands
 
-| Goal | Command |
-| --- | --- |
-| Start the conversational shell | `doolittle` or `doolittle plain` |
-| Open the fullscreen terminal cockpit | `doolittle cockpit` |
-| Launch the desktop app | `doolittle desktop` |
-| Check runtime readiness | `doolittle status` or `/status` |
-| Inspect tools and skills | `doolittle tools`, `doolittle skills` |
-| Inspect native assembly | `doolittle runtime` or `/runtime status` |
-| Execute one bounded prompt | `doolittle exec -p "summarize this repo"` |
-| Run the local API | `doolittle api` |
-| Operate transports | `doolittle gateway` |
-| Reconfigure or diagnose | `doolittle setup`, `doolittle doctor` |
+| Goal                                 | Command                                   |
+| ------------------------------------ | ----------------------------------------- |
+| Start the conversational shell       | `doolittle` or `doolittle plain`          |
+| Open the fullscreen terminal cockpit | `doolittle cockpit`                       |
+| Launch the desktop app               | `doolittle desktop`                       |
+| Check runtime readiness              | `doolittle status` or `/status`           |
+| Inspect tools and skills             | `doolittle tools`, `doolittle skills`     |
+| Inspect native assembly              | `doolittle runtime` or `/runtime status`  |
+| Execute one bounded prompt           | `doolittle exec -p "summarize this repo"` |
+| Run the local API                    | `doolittle api`                           |
+| Operate transports                   | `doolittle gateway`                       |
+| Reconfigure or diagnose              | `doolittle setup`, `doolittle doctor`     |
 
 Real one-shot CLI prompts own a temporary, terminal-only `127.0.0.1` listener
 for Eliza's native `SHELL` action. It uses an OS-selected port and a fresh
@@ -151,15 +151,15 @@ The API's runtime-owned routes come from Eliza first; Doolittle-specific REST ad
 
 ## What is in the runtime
 
-| Area | What Doolittle provides | Important boundary |
-| --- | --- | --- |
-| Conversation and progress | Multi-step message handling, approvals, events, transcripts, run depth, and terminal/desktop status | Natural-language turns go through ElizaOS `messageService.handleMessage(...)`; Doolittle does not maintain a competing intent pipeline. |
-| Code and workspace work | Repository inspection, file/search/patch/terminal surfaces, ACP workers, and operator UI | Coding delegation is owned by the official Eliza orchestrator; Doolittle owns its workspace-facing product tools. |
-| Research | Explicit research task path, durable receipts, and cited-report workflow | Live research needs a configured `RESEARCH` model. A missing model produces a clear unavailable result. |
-| MCP tools and resources | Multi-server status, discovered tools, marketplace lookup, and terminal/desktop inspection | Official `@elizaos/plugin-mcp` owns validation, stdio/HTTP/SSE transports, retries, provider context, resources, and invocation. Doolittle only projects the operator UX. |
-| Providers and accounts | Local Ollama, official Eliza Codex and Eliza Cloud providers, plus Doolittle's Claude Code and Devin bridges | Codex and Claude account pools use Eliza's account-store and selector bridge. Tokens are not returned to the API or renderer. |
-| Desktop and API | Electron lifecycle, context-isolated IPC, React presentation, loopback API, sessions and diagnostics | Official `@elizaos/ui` `ElizaClient` owns ordinary request/error semantics; Electron owns native process capabilities and a strict transport allowlist; the API remains authoritative for runtime behavior and durable state. |
-| Skills, gateway, and operations | Curated skills, configured messaging adapters, scheduling and local diagnostics | Availability depends on installed plugins and configuration; inspect `/doctor`, `/runtime status`, or the desktop Runtime view. |
+| Area                            | What Doolittle provides                                                                                      | Important boundary                                                                                                                                                                                                            |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Conversation and progress       | Multi-step message handling, approvals, events, transcripts, run depth, and terminal/desktop status          | Natural-language turns go through ElizaOS `messageService.handleMessage(...)`; Doolittle does not maintain a competing intent pipeline.                                                                                       |
+| Code and workspace work         | Repository inspection, file/search/patch/terminal surfaces, ACP workers, and operator UI                     | Coding delegation is owned by the official Eliza orchestrator; Doolittle owns its workspace-facing product tools.                                                                                                             |
+| Research                        | Explicit research task path, durable receipts, and cited-report workflow                                     | Live research needs a configured `RESEARCH` model. A missing model produces a clear unavailable result.                                                                                                                       |
+| MCP tools and resources         | Multi-server status, discovered tools, marketplace lookup, and terminal/desktop inspection                   | Official `@elizaos/plugin-mcp` owns validation, stdio/HTTP/SSE transports, retries, provider context, resources, and invocation. Doolittle only projects the operator UX.                                                     |
+| Providers and accounts          | Local Ollama, official Eliza Codex and Eliza Cloud providers, plus Doolittle's Claude Code and Devin bridges | Codex and Claude account pools use Eliza's account-store and selector bridge. Tokens are not returned to the API or renderer.                                                                                                 |
+| Desktop and API                 | Electron lifecycle, context-isolated IPC, React presentation, loopback API, sessions and diagnostics         | Official `@elizaos/ui` `ElizaClient` owns ordinary request/error semantics; Electron owns native process capabilities and a strict transport allowlist; the API remains authoritative for runtime behavior and durable state. |
+| Skills, gateway, and operations | Curated skills, configured messaging adapters, scheduling and local diagnostics                              | Availability depends on installed plugins and configuration; inspect `/doctor`, `/runtime status`, or the desktop Runtime view.                                                                                               |
 
 ### Providers and models
 

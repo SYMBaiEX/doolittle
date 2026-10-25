@@ -1,7 +1,8 @@
 ---
+
 name: transport
 description: Use this skill when working on gateway delivery, platform routing,
-  or message lifecycle behavior.
+or message lifecycle behavior.
 ---
 
 # Doolittle Transport Lifecycle

@@ -1,7 +1,8 @@
 ---
+
 name: inbox
 description: Use this skill when triaging inbound messages, preserving thread
-  continuity, or shaping replies across connected channels.
+continuity, or shaping replies across connected channels.
 ---
 
 # Doolittle Communications Inbox

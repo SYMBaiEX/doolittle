@@ -5,25 +5,25 @@ is an operator guide, generated runtime truth, or a maintainer design record.
 
 ## Use Doolittle
 
-| Document | Purpose |
-| --- | --- |
-| [Quickstart](./quickstart.md) | Install Doolittle, configure a first provider, and verify the runtime. |
-| [Operator loop](./operator-loop.md) | Learn the shortest daily shell, runtime, and gateway workflow. |
-| [Desktop](./desktop.md) | Install, develop, package, and understand the Electron security boundary. |
+| Document                                                                | Purpose                                                                                              |
+| ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| [Quickstart](./quickstart.md)                                           | Install Doolittle, configure a first provider, and verify the runtime.                               |
+| [Operator loop](./operator-loop.md)                                     | Learn the shortest daily shell, runtime, and gateway workflow.                                       |
+| [Desktop](./desktop.md)                                                 | Install, develop, package, and understand the Electron security boundary.                            |
 | [Desktop IA checklist](./desktop-information-architecture-checklist.md) | Track the consolidation to Chat, Code, Settings, and contextual operations with acceptance evidence. |
-| [Native tools](./native-tools.md) | Build the optional Doolittle-owned native utilities without changing ElizaOS runtime ownership. |
-| [Skills Hub](./skills-hub.md) | Understand native Eliza skill ownership and Doolittle's operator projection. |
-| [v0.1.0 release notes](./releases/v0.1.0.md) | Supported artifacts, compatibility, limitations, and release provenance. |
+| [Native tools](./native-tools.md)                                       | Build the optional Doolittle-owned native utilities without changing ElizaOS runtime ownership.      |
+| [Skills Hub](./skills-hub.md)                                           | Understand native Eliza skill ownership and Doolittle's operator projection.                         |
+| [v0.1.0 release notes](./releases/v0.1.0.md)                            | Supported artifacts, compatibility, limitations, and release provenance.                             |
 
 ## Understand the Runtime
 
 These files are generated from code and are the canonical reference for
 assembled runtime behavior. Do not edit them directly.
 
-| Document | Source of truth |
-| --- | --- |
+| Document                                  | Source of truth                                   |
+| ----------------------------------------- | ------------------------------------------------- |
 | [Plugin inventory](./plugin-inventory.md) | Runtime plugin catalog plus workspace inspection. |
-| [Capability truth](./capability-truth.md) | Code-backed real, degraded, and caveat records. |
+| [Capability truth](./capability-truth.md) | Code-backed real, degraded, and caveat records.   |
 
 Regenerate and validate them from the repository root:
 
@@ -34,13 +34,13 @@ nub run check:docs-truth
 
 ## Contribute and Maintain
 
-| Document | Purpose |
-| --- | --- |
-| [Monorepo layout](./monorepo.md) | Workspace roles, ownership boundaries, bootstrap, and validation. |
-| [Module structure guidelines](./module-structure-guidelines.md) | Folder, filename, entrypoint, and test-placement conventions. |
-| [Package ownership](./package-ownership.md) | Current Eliza-native, product-owned, compatibility, and data-package boundaries. |
-| [Eliza maximization matrix](./eliza-maximization-matrix.md) | Dated maintainer audit of native SDK ownership and remaining adapters. |
-| [October cleanup](./engineering/october-2026-cleanup.md) | Scoped removal rationale, retained coverage, and verification boundaries. |
+| Document                                                        | Purpose                                                                          |
+| --------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| [Monorepo layout](./monorepo.md)                                | Workspace roles, ownership boundaries, bootstrap, and validation.                |
+| [Module structure guidelines](./module-structure-guidelines.md) | Folder, filename, entrypoint, and test-placement conventions.                    |
+| [Package ownership](./package-ownership.md)                     | Current Eliza-native, product-owned, compatibility, and data-package boundaries. |
+| [Eliza maximization matrix](./eliza-maximization-matrix.md)     | Dated maintainer audit of native SDK ownership and remaining adapters.           |
+| [October cleanup](./engineering/october-2026-cleanup.md)        | Scoped removal rationale, retained coverage, and verification boundaries.        |
 
 ## Documentation Rules
 

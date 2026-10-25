@@ -25,15 +25,15 @@ to renderer boundaries; they do not provide a Node/Electron backend security
 specification. Backend findings here rely on concrete source/caller inspection,
 regression tests, and the published CodeQL query definitions.
 
-| Source-review disposition | Alerts | Meaning |
-| --- | ---: | --- |
-| Fixed | 23 | A demonstrated boundary/correctness issue has a local remediation. Several alerts can describe one issue. |
-| Hardening | 30 | Defense-in-depth implemented; the original scanner impact was not necessarily demonstrated. |
-| Intentional local authority | 116 | Operator-selected paths/executables or local tooling, with per-alert caller constraints and prerequisites. Not automatically a false positive. |
-| Test-only | 18 | Fixture/test execution rather than a production capability; specific inputs and trust boundaries documented. |
-| False positive | 7 | The reported security boundary is not present, with source evidence. |
-| Guarded | 2 | An existing validating control dominates the flagged operation. |
-| Unreviewed | 0 | No baseline alert is missing a disposition. |
+| Source-review disposition   | Alerts | Meaning                                                                                                                                        |
+| --------------------------- | -----: | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Fixed                       |     23 | A demonstrated boundary/correctness issue has a local remediation. Several alerts can describe one issue.                                      |
+| Hardening                   |     30 | Defense-in-depth implemented; the original scanner impact was not necessarily demonstrated.                                                    |
+| Intentional local authority |    116 | Operator-selected paths/executables or local tooling, with per-alert caller constraints and prerequisites. Not automatically a false positive. |
+| Test-only                   |     18 | Fixture/test execution rather than a production capability; specific inputs and trust boundaries documented.                                   |
+| False positive              |      7 | The reported security boundary is not present, with source evidence.                                                                           |
+| Guarded                     |      2 | An existing validating control dominates the flagged operation.                                                                                |
+| Unreviewed                  |      0 | No baseline alert is missing a disposition.                                                                                                    |
 
 **These are local review dispositions, not GitHub closure counts.** No alert was
 dismissed to reduce the backlog. Changed-code PR analysis does not establish
@@ -209,16 +209,16 @@ review validated all 196 unique evidence-backed dispositions, source locations,
 and normal/failure/recovery coverage without missing or duplicate IDs. The
 baseline ledger's two coverage checks also passed.
 
-| Validation | Result |
-| --- | --- |
-| `nub run typecheck` | Passed, including the UI workspace. |
-| `nub run desktop:typecheck` | Passed. |
-| `nub run test` | Passed: 56 tests across 8 essential files. |
-| `nub run test:all` | 6,716 passed, 74 failed, 7 skipped across 1,050 files. The 74 failures are reproduced on the unchanged baseline below. |
-| `nub run build` | Passed: agent and ACP bundles. This is not desktop packaging. |
-| `nub run lint:check` | Passed with 9 existing unused-suppression warnings in unchanged files. |
-| `nub run check:acceptance` | Passed: hygiene, workflow security, plugin/SDK boundaries, documentation, links, dependency analysis, and production critical-advisory audit. |
-| `git diff --check` | Passed. |
+| Validation                  | Result                                                                                                                                        |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `nub run typecheck`         | Passed, including the UI workspace.                                                                                                           |
+| `nub run desktop:typecheck` | Passed.                                                                                                                                       |
+| `nub run test`              | Passed: 56 tests across 8 essential files.                                                                                                    |
+| `nub run test:all`          | 6,716 passed, 74 failed, 7 skipped across 1,050 files. The 74 failures are reproduced on the unchanged baseline below.                        |
+| `nub run build`             | Passed: agent and ACP bundles. This is not desktop packaging.                                                                                 |
+| `nub run lint:check`        | Passed with 9 existing unused-suppression warnings in unchanged files.                                                                        |
+| `nub run check:acceptance`  | Passed: hygiene, workflow security, plugin/SDK boundaries, documentation, links, dependency analysis, and production critical-advisory audit. |
+| `git diff --check`          | Passed.                                                                                                                                       |
 
 The full suite is **not green**. A disposable archive of the exact baseline
 `473fb15c093c622962b3ca3df3e50f3c01d1c50a`, using the same installed dependencies,

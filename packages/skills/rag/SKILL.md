@@ -1,7 +1,8 @@
 ---
+
 name: rag
 description: Use this skill when ingesting documents, retrieving supporting
-  context, or wiring Doolittle memory to a source-backed answer.
+context, or wiring Doolittle memory to a source-backed answer.
 ---
 
 # Doolittle Knowledge Retrieval

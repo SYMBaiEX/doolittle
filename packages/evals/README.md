@@ -97,13 +97,13 @@ The full suite defines **5 tasks, 7 planned CLI turns and 18 deterministic
 checks**, with human review required for all 5 tasks. Failed execution can stop
 follow-up turns; report actual invocation counts separately:
 
-| Task ID | CLI turns | Check IDs |
-| --- | --- | --- |
-| `conversation-project-handoff-v2` | 3 | `complete-three-turn-exchange`, `retains-constraints-and-corrected-facts`, `no-recorded-actions` |
-| `coding-seeded-invoice-regression-v1` | 1 | `fixture-scope-preserved`, `preserved-regression-passes`, `final-contract-unattested` |
-| `research-local-reconciliation-v2` | 1 | `fixture-scope-preserved`, `reconciliation-artifact-exact`, `final-contract-unattested` |
-| `reliability-local-fallback-v1` | 1 | `fixture-scope-preserved`, `fallback-status-artifact-exact`, `recorded-action-started`, `final-artifact-contract` |
-| `research-codex-web-search-options-v1` | 1 | `original-search-returned-data`, `original-primary-source-retrieved`, `literal-answer-agrees-with-retrieval`, `citation-agrees-with-retrieval`, `original-execution-integrity` |
+| Task ID                                | CLI turns | Check IDs                                                                                                                                                                      |
+| -------------------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `conversation-project-handoff-v2`      | 3         | `complete-three-turn-exchange`, `retains-constraints-and-corrected-facts`, `no-recorded-actions`                                                                               |
+| `coding-seeded-invoice-regression-v1`  | 1         | `fixture-scope-preserved`, `preserved-regression-passes`, `final-contract-unattested`                                                                                          |
+| `research-local-reconciliation-v2`     | 1         | `fixture-scope-preserved`, `reconciliation-artifact-exact`, `final-contract-unattested`                                                                                        |
+| `reliability-local-fallback-v1`        | 1         | `fixture-scope-preserved`, `fallback-status-artifact-exact`, `recorded-action-started`, `final-artifact-contract`                                                              |
+| `research-codex-web-search-options-v1` | 1         | `original-search-returned-data`, `original-primary-source-retrieved`, `literal-answer-agrees-with-retrieval`, `citation-agrees-with-retrieval`, `original-execution-integrity` |
 
 ```sh
 nub run eval:headless -- --suite headless-representative-v3

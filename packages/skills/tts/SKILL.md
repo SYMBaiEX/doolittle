@@ -1,7 +1,8 @@
 ---
+
 name: tts
 description: Use this skill when generating or evaluating speech artifacts,
-  voice prompts, or TTS provider behavior.
+voice prompts, or TTS provider behavior.
 ---
 
 # Doolittle Text To Speech

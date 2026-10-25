@@ -1,4 +1,5 @@
 ---
+
 name: command-guard
 description: Harden operator commands before they run.
 ---

@@ -76,14 +76,14 @@ or SDK dependency paths needs a separate compatibility decision and validation.
 
 The residual consumer boundaries are explicit:
 
-| Package | Remaining consumer | Why a blanket override is not a completed fix |
-| --- | --- | --- |
-| decode-uri-component 0.2.2 | WalletConnect's query-string 7.1.3 | The fixed 0.5.0 is ESM; the caller requires a callable CommonJS export. |
-| elliptic 6.6.1 | Wallet and ethers dependency paths | No upstream patched release; replacing signing primitives requires cryptographic compatibility validation. |
-| file-type 16.5.4 | Jimp 0.22 under nut-tree-fork | The fix requires a newer file-type/Jimp API train. |
-| sprintf-js 1.0.3 / 1.1.3 | Mammoth/argparse and Electron's global-agent/roarr | The latest installed upstream train remains affected; there is no patched release. |
-| stream-json 1.9.1 | Jayson 4.3 | The fixed 3.6+ package changes module format, constructors, and subpaths used by Jayson. |
-| uuid 8.3.2 / 9.0.1 | Jayson, Hardhat, and wallet packages | The fix starts at 11.1.1; each parent contract needs verification before a scoped major override. |
+| Package                    | Remaining consumer                                 | Why a blanket override is not a completed fix                                                              |
+| -------------------------- | -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| decode-uri-component 0.2.2 | WalletConnect's query-string 7.1.3                 | The fixed 0.5.0 is ESM; the caller requires a callable CommonJS export.                                    |
+| elliptic 6.6.1             | Wallet and ethers dependency paths                 | No upstream patched release; replacing signing primitives requires cryptographic compatibility validation. |
+| file-type 16.5.4           | Jimp 0.22 under nut-tree-fork                      | The fix requires a newer file-type/Jimp API train.                                                         |
+| sprintf-js 1.0.3 / 1.1.3   | Mammoth/argparse and Electron's global-agent/roarr | The latest installed upstream train remains affected; there is no patched release.                         |
+| stream-json 1.9.1          | Jayson 4.3                                         | The fixed 3.6+ package changes module format, constructors, and subpaths used by Jayson.                   |
+| uuid 8.3.2 / 9.0.1         | Jayson, Hardhat, and wallet packages               | The fix starts at 11.1.1; each parent contract needs verification before a scoped major override.          |
 
 The first installed desktop runtime inventory contained no affected versions
 from that remaining set. This is artifact-specific evidence, not a claim that
