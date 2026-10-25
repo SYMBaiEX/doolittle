@@ -1,26 +1,26 @@
 import { EventEmitter } from "node:events";
 import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
-import type { GatewayRuntimeStatus } from "@/gateway/read/read-model";
-import { appendGatewayJournalRecord } from "@/gateway/recording/journal";
-import {
-  recordGatewayInboxJournalEntry,
-  recordGatewayOutboxJournalEntry,
-} from "@/gateway/recording/message-journal";
-import type { GatewayPlatformStateView } from "@/gateway/state/state-snapshot";
-import type { GatewaySupervisionRecord } from "@/gateway/supervision/index";
 import type {
   DeliveredMessageRecord,
   IncomingPlatformMessage,
   OutboundPlatformMessage,
   PlatformName,
-} from "@/types/gateway";
+} from "../../types/gateway";
 import type {
   GatewayAttachmentRecord,
   GatewayInboxRecord,
   GatewayOutboxRecord,
   GatewayTraceRecord,
 } from "../read/history-view";
+import type { GatewayRuntimeStatus } from "../read/read-model/index";
 import type { GatewayReceiveOutcome } from "../receive/outcome-types";
+import { appendGatewayJournalRecord } from "../recording/journal";
+import {
+  recordGatewayInboxJournalEntry,
+  recordGatewayOutboxJournalEntry,
+} from "../recording/message-journal";
+import type { GatewayPlatformStateView } from "../state/state-snapshot/index";
+import type { GatewaySupervisionRecord } from "../supervision/index";
 
 export interface GatewayRunnerUpdateEvent {
   kind: GatewayTraceRecord["kind"];

@@ -1,8 +1,10 @@
 ---
+
 command: /review
 title: Repo Review
 description: Review the current repo or target codebase and return the important structure, entrypoints, and risks.
 ---
+
 Review {{TARGET}} in the local workspace.
 
 Inspect first, then answer directly.

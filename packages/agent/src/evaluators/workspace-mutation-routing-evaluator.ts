@@ -1,8 +1,8 @@
 import type { ResponseHandlerEvaluator } from "@elizaos/core";
-import { DOOLITTLE_CODING_ACTION } from "@/actions/coding-action";
-import { hasExplicitNoToolsIntent } from "@/runtime/no-tools-intent";
-import { hasExplicitWorkspaceMutationIntent } from "@/runtime/workspace-mutation-intent";
-import { messageText } from "@/utils/eliza-compat";
+import { DOOLITTLE_CODING_ACTION } from "../actions/coding-action";
+import { hasExplicitNoToolsIntent } from "../runtime/no-tools-intent";
+import { hasExplicitWorkspaceMutationIntent } from "../runtime/workspace-mutation-intent";
+import { messageText } from "../utils/eliza-compat";
 
 /**
  * Eliza-native Stage-1 routing patch for explicit workspace mutations.

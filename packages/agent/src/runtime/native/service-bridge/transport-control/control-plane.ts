@@ -1,5 +1,5 @@
-import type { GatewayConfig } from "@/types/gateway";
-import type { EnvConfig } from "@/types/runtime";
+import type { GatewayConfig } from "../../../../types/gateway";
+import type { EnvConfig } from "../../../../types/runtime/index";
 import type { RuntimeLike } from "../runtime-contracts";
 import { getMessagingPluginCatalog } from "./catalog";
 import { getEffectiveTransportInventory } from "./inventory";

@@ -1,4 +1,4 @@
-import type { StoredMessage } from "@/types";
+import type { StoredMessage } from "../../types/index";
 import { estimateMessagesTokens } from "./estimators";
 import type { CompressionConfig, UsageStats } from "./types";
 import { DEFAULT_CONTEXT_WINDOW, resolveContextWindow } from "./windows";

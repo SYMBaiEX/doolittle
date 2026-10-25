@@ -6,13 +6,13 @@ Use this when you already have Doolittle installed and want the shortest truthfu
 
 Doolittle has one runtime and a few ways to drive it:
 
-| Surface | Command | Use when |
-|---|---|---|
-| Plain shell | `doolittle` | Everyday conversation, approvals, slash commands, and live work |
-| Cockpit | `doolittle cockpit` | Fullscreen observability and longer-running operator sessions |
-| One-shot aliases | `doolittle status`, `doolittle tools`, `doolittle skills`, `doolittle runtime` | Fast orientation without opening the shell first |
-| API | `doolittle api` | Scripted clients, editor integrations, and REST consumers |
-| Gateway | `doolittle gateway` | Messaging transports, delivery flow, and gateway supervision |
+| Surface          | Command                                                                        | Use when                                                        |
+| ---------------- | ------------------------------------------------------------------------------ | --------------------------------------------------------------- |
+| Plain shell      | `doolittle`                                                                    | Everyday conversation, approvals, slash commands, and live work |
+| Cockpit          | `doolittle cockpit`                                                            | Fullscreen observability and longer-running operator sessions   |
+| One-shot aliases | `doolittle status`, `doolittle tools`, `doolittle skills`, `doolittle runtime` | Fast orientation without opening the shell first                |
+| API              | `doolittle api`                                                                | Scripted clients, editor integrations, and REST consumers       |
+| Gateway          | `doolittle gateway`                                                            | Messaging transports, delivery flow, and gateway supervision    |
 
 The important part is that these are not separate products. The shell, API, and gateway all sit on the same assembled runtime.
 
@@ -30,11 +30,11 @@ The normal loop is:
 
 These are the fastest way to regain context:
 
-| Alias | Maps to | Use when |
-|---|---|---|
-| `doolittle status` | `/status` | Check readiness, hydration, and operator summary |
-| `doolittle tools` | `/tools summary` by default | See the current tool surface quickly |
-| `doolittle skills` | `/skills` by default | See installed, generated, and hub-backed skills |
+| Alias               | Maps to                      | Use when                                                      |
+| ------------------- | ---------------------------- | ------------------------------------------------------------- |
+| `doolittle status`  | `/status`                    | Check readiness, hydration, and operator summary              |
+| `doolittle tools`   | `/tools summary` by default  | See the current tool surface quickly                          |
+| `doolittle skills`  | `/skills` by default         | See installed, generated, and hub-backed skills               |
 | `doolittle runtime` | `/runtime status` by default | Inspect startup state, plugin inventory, and native ownership |
 
 If you stay inside the shell, the equivalent first commands are:

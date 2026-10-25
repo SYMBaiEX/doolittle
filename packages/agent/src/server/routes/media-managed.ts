@@ -1,10 +1,8 @@
-import type { AppContext } from "@/runtime/bootstrap";
-import { readJsonObjectBody } from "@/server/request-body";
-import { json } from "@/server/responses";
+import type { AppContext } from "../../runtime/bootstrap/index";
 import {
   ManagedAttachmentError,
   resolveManagedAttachmentPath,
-} from "@/services/chat-attachments";
+} from "../../services/chat-attachments";
 import {
   createTransientDictationOutputDir,
   materializeTransientDictationInput,
@@ -12,7 +10,9 @@ import {
   removeTransientDictationById,
   resolveTransientDictation,
   TransientDictationError,
-} from "@/services/transient-dictation";
+} from "../../services/transient-dictation";
+import { readJsonObjectBody } from "../request-body";
+import { json } from "../responses";
 
 function throwIfRequestAborted(signal: AbortSignal): void {
   if (!signal.aborted) return;

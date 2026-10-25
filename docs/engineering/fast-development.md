@@ -19,10 +19,38 @@ No source-text snapshots or skipped environment opt-ins count as coverage.
 static imports; select explicit tests for dynamic runtime/IPC registration.
 No matching tests is a failure. Desktop/UI test commands reuse this root suite.
 
+## Completion and appearance boundaries
+
+The provider turn handler owns SDK execution, cancellation and planner budgets.
+Its completion rules have explicit owners under
+`packages/agent/src/runtime/chat-turn/`:
+
+- `provider-receipts.ts` merges SDK projections with scoped originals once for
+  both success and failure recovery. Preserve receipt occurrence order; a later
+  server observation invalidates that session's earlier readiness.
+- `workspace-evidence.ts` pins mutation scope and rejects unverified chronology
+  before applying the existing `workspace-noop-completion.ts` receipt contract.
+- `frontend-review.ts` owns server constraints, review freshness and captured
+  interactive-text blockers. An attempted review is not a quality pass.
+- `workspace-continuation.ts` owns unfinished-work admissions, fresh requested
+  checks, bounded continuation evidence and incomplete-result messages.
+
+Run `nub run test:scope tests/boundary/workspace-completion.test.ts` when changing
+these rules. The cases exercise receipt recovery, no-edit handoffs, stopped
+servers, workspace isolation, check identities and blocker clearance. They do
+not replace the real-worker journey when SDK registration or execution changes.
+
+Desktop appearance state and theme subscriptions belong to
+`apps/desktop/src/renderer/use-desktop-appearance.ts`; `App.tsx` consumes its
+resolved appearance and setter. Use
+`nub run test:scope tests/boundary/desktop-appearance.test.ts` for saved
+preferences and settings/shell synchronization. This is DOM behavior coverage,
+not native desktop or rendered visual acceptance.
+
 ## Native acceptance
 
 ```sh
-nub run test:integration              # build agent; real shared-engine SDK workers
+nub run test:integration              # build CLI; real terminal chat and SDK workers
 nub run test:e2e:desktop-workbench     # build desktop; four real Electron journeys
 nub run test:e2e                      # both source runtime and native desktop
 nub run test:all                      # fast boundaries plus native acceptance
@@ -30,7 +58,10 @@ nub run check:release:static          # lint, types, boundaries, build, security
 nub run check:release                 # static + native + clean-HEAD package smoke
 ```
 
-Runtime acceptance covers two named workers in one engine, chat-specific roots,
+CLI acceptance exercises the built executable from an external directory and a
+real pseudo-terminal: help/version, JSON output, interactive chat, session
+commands and clean shutdown. Its offline recovery path never echoes assembled
+model prompts. Runtime acceptance covers two named workers in one engine, chat-specific roots,
 offline run attribution, ACP ownership, worker restart/history, automation
 handoff and cancellation. Native desktop acceptance covers conversational bot
 creation and provider/model selections, first chat, exact remembered project

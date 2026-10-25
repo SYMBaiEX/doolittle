@@ -1,10 +1,10 @@
 import type { JsonValue } from "@elizaos/core";
+import type { AppServices } from "../../../../services/index";
+import type { EnvConfig } from "../../../../types/runtime/index";
 import type {
   getLinkedClaudeCodeCredentials,
   getLinkedElizaCloudCredentials,
-} from "@/runtime/native/account-auth";
-import type { AppServices } from "@/services";
-import type { EnvConfig } from "@/types/runtime";
+} from "../../../native/account-auth/index";
 
 type RuntimeSettings = ReturnType<AppServices["settings"]["get"]>;
 

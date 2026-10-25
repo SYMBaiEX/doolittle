@@ -1,14 +1,15 @@
 import { DEFAULT_MODEL_ROUTE } from "@doolittle/contracts";
+import type { AgentExecutionContext } from "../chat";
 import {
   activateLinkedProvider,
   type LinkedProviderName,
   resolveLinkedProviderName,
   syncProviderSettings,
   withLinkedProviderMutationLock,
-} from "@/runtime/linked-provider-accounts";
-import { applyAccountPoolApiCredentials } from "@/runtime/native/account-pool";
-import { checkOllamaReadiness } from "@/runtime/native/plugin-registry/ollama-readiness";
-import { getEffectiveShellStatus } from "@/runtime/native/service-bridge/tooling";
+} from "../linked-provider-accounts/index";
+import { applyAccountPoolApiCredentials } from "../native/account-pool/index";
+import { checkOllamaReadiness } from "../native/plugin-registry/ollama-readiness";
+import { getEffectiveShellStatus } from "../native/service-bridge/tooling/index";
 import {
   DEFAULT_TUI_THEME,
   getTuiTheme,
@@ -16,8 +17,7 @@ import {
   nextTuiTheme,
   previousTuiTheme,
   resolveTuiThemeName,
-} from "@/runtime/theme-catalog";
-import type { AgentExecutionContext } from "../chat";
+} from "../theme-catalog/index";
 
 type ModelRoute = {
   id: "ollama" | LinkedProviderName;

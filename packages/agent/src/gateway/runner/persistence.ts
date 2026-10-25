@@ -6,13 +6,13 @@ import {
   type GatewayInboxRecord,
   type GatewayOutboxRecord,
   type GatewayTraceRecord,
-} from "@/gateway/read/history-view";
+} from "../read/history-view/index";
 import {
   ensureGatewayJournalFile,
   loadGatewayJournal,
-} from "@/gateway/recording/journal";
-import type { GatewayRunnerContext } from "@/gateway/runner/context";
-import type { GatewaySupervisionRecord } from "@/gateway/supervision/index";
+} from "../recording/journal";
+import type { GatewaySupervisionRecord } from "../supervision/index";
+import type { GatewayRunnerContext } from "./context";
 
 export interface GatewayRunnerPersistenceState {
   snapshotDir: string;

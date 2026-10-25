@@ -1,5 +1,5 @@
-import { readWorkerBotProfile } from "@/runtime/bootstrap/bot-profile";
-import type { ChatTurnRequest } from "@/types/runtime";
+import type { ChatTurnRequest } from "../../types/runtime/index";
+import { readWorkerBotProfile } from "../bootstrap/bot-profile";
 import type { AgentExecutionContext, AgentTurnHooks } from "../chat";
 import {
   displayCommand,

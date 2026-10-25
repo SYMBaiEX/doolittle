@@ -5,9 +5,9 @@ import {
   formatLinkedProviderAdviceAlternate,
   formatLinkedProviderAdviceNextStep,
   refreshLinkedAccounts,
-} from "@/runtime/linked-provider-accounts";
-import { getLinkedProviderConnectAdvice } from "@/runtime/native/account-auth";
-import { getRuntimeProviderAccountsSnapshot } from "@/runtime/native/provider-accounts";
+} from "../../linked-provider-accounts/index";
+import { getLinkedProviderConnectAdvice } from "../../native/account-auth/index";
+import { getRuntimeProviderAccountsSnapshot } from "../../native/provider-accounts";
 import type { AccountsCommandContext } from "./types";
 
 export async function handleAccountsReadCommand(

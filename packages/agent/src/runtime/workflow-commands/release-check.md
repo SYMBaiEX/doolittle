@@ -1,8 +1,10 @@
 ---
+
 command: /release-check
 title: Release Check
 description: Check whether the current repo or target codebase looks ready to ship and call out blockers.
 ---
+
 Run a release-readiness review for {{TARGET}}.
 
 Inspect first, then answer directly.

@@ -4,7 +4,7 @@ import type {
   ExecutionCloudProfile,
   ExecutionCloudSession,
   ExecutionCloudSnapshotRecord,
-} from "@/types/execution";
+} from "../../../types/execution";
 import type { TerminalRunResult } from "../execution/subprocess";
 import type { CloudStateAccessor } from "./store";
 

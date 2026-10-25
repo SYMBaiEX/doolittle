@@ -1,4 +1,4 @@
-import { currentConversationWorkspace } from "@/runtime/workspace-scope";
+import { currentConversationWorkspace } from "../../../workspace-scope";
 import type { RuntimeLike } from "../runtime-contracts";
 import { requireNativeShell } from "./native-services";
 

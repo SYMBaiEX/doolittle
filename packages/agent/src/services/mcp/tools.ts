@@ -1,4 +1,4 @@
-import type { McpToolDefinition } from "@/types";
+import type { McpToolDefinition } from "../../types/index";
 
 export function findCachedMcpTool(
   tools: McpToolDefinition[],

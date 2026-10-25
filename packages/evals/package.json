@@ -11,12 +11,16 @@
     "./coding/cases": "./src/coding/cases.ts",
     "./coding/report": "./src/coding/report.ts",
     "./headless": "./src/headless/cases.ts",
-    "./headless/runner": "./src/headless/runner.ts"
+    "./headless/runner": "./src/headless/runner.ts",
+    "./runtime-environment": "./src/runtime-environment.ts"
   },
   "dependencies": {
     "@doolittle/agent": "workspace:*",
     "@doolittle/contracts": "workspace:*",
     "mdast-util-from-markdown": "2.1.0",
-    "unist-util-visit": "5.1.0"
+    "unist-util-visit": "5.2.0"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json"
   }
 }

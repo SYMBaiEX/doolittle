@@ -1,4 +1,4 @@
-import { canonicalizeSlashCommandSyntax } from "@/runtime/slash-command-syntax";
+import { canonicalizeSlashCommandSyntax } from "../slash-command-syntax";
 import { getCommandCatalogEntries } from "./registry";
 import type { CommandCatalogEntry } from "./types";
 

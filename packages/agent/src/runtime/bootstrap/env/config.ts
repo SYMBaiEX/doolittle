@@ -1,7 +1,7 @@
-import { loadConfig } from "@/config/env";
-import { bootstrapRuntimeEnvironment } from "@/runtime/bootstrap/env/runtime";
-import { appendBootstrapTrace } from "@/runtime/bootstrap/trace";
-import type { EnvConfig } from "@/types/runtime";
+import { loadConfig } from "../../../config/env/index";
+import type { EnvConfig } from "../../../types/runtime/index";
+import { appendBootstrapTrace } from "../trace";
+import { bootstrapRuntimeEnvironment } from "./runtime";
 
 export function loadBootstrapConfig(): EnvConfig {
   appendBootstrapTrace("phase:loadConfig:start");

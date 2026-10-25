@@ -1,4 +1,4 @@
-import { hasExplicitNoToolsIntent } from "@/runtime/no-tools-intent";
+import { hasExplicitNoToolsIntent } from "../no-tools-intent";
 
 export type ExactOutputIntent = "json" | "json-object" | "verbatim";
 const OUTPUT_VERB = /\b(?:return|reply|respond|output|print)\b/iu;

@@ -1,7 +1,7 @@
 import { installRuntimePluginLifecycle } from "@elizaos/agent/runtime/plugin-lifecycle";
 import type { AgentRuntime } from "@elizaos/core";
-import { appendBootstrapTrace } from "@/runtime/bootstrap/trace";
-import { shutdownElizaRuntime } from "@/runtime/lifecycle/shutdown";
+import { shutdownElizaRuntime } from "../../lifecycle/shutdown";
+import { appendBootstrapTrace } from "../trace";
 import { validateCriticalRuntimeServices } from "./critical";
 
 export interface ElizaRuntimeLifecycle {

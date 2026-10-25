@@ -1,4 +1,4 @@
-import type { ChatTurnRequest } from "@/types/runtime";
+import type { ChatTurnRequest } from "../../../types/runtime/index";
 import type { AgentExecutionContext, AgentTurnHooks } from "../../chat";
 import { handleOperatorMigrationCommand } from "./migrations";
 import { handleOperatorRepositoryCommand } from "./repository";

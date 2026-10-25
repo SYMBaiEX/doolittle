@@ -8,7 +8,7 @@ import type {
   UserProfileRelationshipSummary,
   UserProfileSearchHit,
   UserProfileWorkspaceSummary,
-} from "@/types";
+} from "../../../types/index";
 import type { ProfileReader } from "../insights";
 import { buildNativeUserPersonalityPreferences } from "../native-personality";
 import type { ProfileRenderReader } from "../render/reader";

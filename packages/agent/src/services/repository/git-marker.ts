@@ -1,5 +1,5 @@
 import { lstatSync } from "node:fs";
-import { readRegularFileSync } from "@/utils/read-regular-file";
+import { readRegularFileSync } from "../../utils/read-regular-file";
 
 // Git's linked-worktree marker is one short line. Bound it before decoding.
 export const MAX_GIT_MARKER_BYTES = 4_096;

@@ -1,4 +1,4 @@
-import type { NativeOwnershipCache } from "@/runtime/native/ownership-cache";
+import type { NativeOwnershipCache } from "../../../runtime/native/ownership-cache";
 import type { AcpService } from "../../acp";
 import type { AgentSdkService } from "../../agent-sdk-service";
 import type { McpService } from "../../mcp";

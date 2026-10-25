@@ -4,30 +4,24 @@ import {
   DocumentService,
   type UUID,
 } from "@elizaos/core";
-import character from "@/character";
-import { configureBootstrapContext } from "@/runtime/bootstrap/context";
-import {
-  buildPluginSettings,
-  loadBootstrapConfig,
-} from "@/runtime/bootstrap/env";
-import {
-  createProviderFailureTemplates,
-  initializeElizaRuntime,
-} from "@/runtime/bootstrap/runtime";
-import { DOOLITTLE_RUNTIME_CAPABILITY_OPTIONS } from "@/runtime/bootstrap/runtime/capability-options";
-import { appendBootstrapTrace } from "@/runtime/bootstrap/trace";
-import type {
-  AppContext,
-  AppContextBuildOptions,
-} from "@/runtime/bootstrap/types";
+import character from "../../character";
+import { createServices } from "../../services/index";
 import {
   applyAccountPoolApiCredentials,
   initializeDoolittleAccountPool,
-} from "@/runtime/native/account-pool";
-import { buildNativePluginAssembly } from "@/runtime/native/plugin-registry";
-import { normalizePlugin } from "@/runtime/native/plugin-registry/support";
-import { createServices } from "@/services";
+} from "../native/account-pool/index";
+import { buildNativePluginAssembly } from "../native/plugin-registry/index";
+import { normalizePlugin } from "../native/plugin-registry/support";
 import { composeWorkerCharacter, readWorkerBotProfile } from "./bot-profile";
+import { configureBootstrapContext } from "./context";
+import { buildPluginSettings, loadBootstrapConfig } from "./env/index";
+import { DOOLITTLE_RUNTIME_CAPABILITY_OPTIONS } from "./runtime/capability-options";
+import {
+  createProviderFailureTemplates,
+  initializeElizaRuntime,
+} from "./runtime/index";
+import { appendBootstrapTrace } from "./trace";
+import type { AppContext, AppContextBuildOptions } from "./types";
 
 export async function buildAppContext({
   startupMode,

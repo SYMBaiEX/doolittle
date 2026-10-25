@@ -1,4 +1,4 @@
-import type { AppContext } from "@/runtime/bootstrap";
+import type { AppContext } from "../../../runtime/bootstrap/index";
 import { handleRuntimeAccountRoutes } from "./accounts";
 import { handleRuntimeEcosystemRoutes } from "./ecosystem";
 import { handleRuntimeModelRoutes } from "./models";

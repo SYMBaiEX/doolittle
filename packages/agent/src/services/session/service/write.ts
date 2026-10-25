@@ -1,11 +1,11 @@
 import { randomUUID } from "node:crypto";
-import type { SessionDatabase } from "@/services/session/database";
 import type {
   SessionForkInput,
   SessionForkResult,
   SessionSummary,
   StoredMessage,
-} from "@/types";
+} from "../../../types/index";
+import type { SessionDatabase } from "../database";
 import type {
   SessionMessageActivityEvent,
   SessionMessageStore,

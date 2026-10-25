@@ -1,6 +1,6 @@
 import { lstatSync } from "node:fs";
 import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
-import { readRegularFileSync } from "@/utils/read-regular-file";
+import { readRegularFileSync } from "../../../utils/read-regular-file";
 import { cloneAgent, cloneProfile } from "./clone";
 import { createDefaultAgentIdentity, createEmptyProfile } from "./defaults";
 import { recordInteraction } from "./interaction";

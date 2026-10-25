@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type { IncomingPlatformMessage, SessionRoute } from "@/types";
+import type { IncomingPlatformMessage, SessionRoute } from "../../types/index";
 
 export interface SessionRouteStore {
   sessions: SessionRoute[];

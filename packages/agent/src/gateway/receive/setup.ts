@@ -1,6 +1,6 @@
-import { loadGatewayConfig } from "@/config/gateway";
-import { authorizeMessage } from "@/gateway/authorization";
-import type { SessionRoute } from "@/types/gateway";
+import { loadGatewayConfig } from "../../config/gateway";
+import type { SessionRoute } from "../../types/gateway";
+import { authorizeMessage } from "../authorization";
 import type { GatewayReceiveDependencies, GatewayReceiveResult } from "./types";
 
 export interface GatewayReceiveSetupResult {

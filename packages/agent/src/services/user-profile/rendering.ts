@@ -1,4 +1,4 @@
-import type { UserProfileWorkspaceSummary } from "@/types";
+import type { UserProfileWorkspaceSummary } from "../../types/index";
 import type { ProfileRenderReader } from "./render/reader";
 import {
   renderAgentProfile,

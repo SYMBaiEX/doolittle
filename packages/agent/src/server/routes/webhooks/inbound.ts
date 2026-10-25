@@ -1,7 +1,7 @@
-import { normalizeInboundMessage } from "@/gateway/message-normalization/index";
-import { GatewayIngressError } from "@/gateway/receive/ingress-spool";
-import type { AppContext } from "@/runtime/bootstrap";
-import { json, onResponseCommitted } from "@/server/responses";
+import { normalizeInboundMessage } from "../../../gateway/message-normalization/index";
+import { GatewayIngressError } from "../../../gateway/receive/ingress-spool";
+import type { AppContext } from "../../../runtime/bootstrap/index";
+import { json, onResponseCommitted } from "../../responses";
 
 export async function readJsonBody(request: Request): Promise<unknown | null> {
   return (await request.json().catch(() => null)) as unknown;

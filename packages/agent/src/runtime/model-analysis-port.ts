@@ -2,9 +2,9 @@ import type { IAgentRuntime } from "@elizaos/core";
 import type {
   ModelAnalysisOptions,
   ModelAnalysisPort,
-} from "@/services/model-analysis-port";
-import type { SettingsService } from "@/services/settings-service";
-import type { EnvConfig } from "@/types";
+} from "../services/model-analysis-port";
+import type { SettingsService } from "../services/settings-service";
+import type { EnvConfig } from "../types/index";
 import { runModelAnalysis } from "./model-analysis";
 
 /** Eliza runtime adapter shared by model-assisted product services. */

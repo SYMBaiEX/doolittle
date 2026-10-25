@@ -1,4 +1,4 @@
-import type { EnvConfig } from "@/types/runtime";
+import type { EnvConfig } from "../../../types/runtime/index";
 
 export const TELEGRAM_CONFIGURED_DETAIL =
   "Telegram token configured; replies and threaded session routing are enabled.";

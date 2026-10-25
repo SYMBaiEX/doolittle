@@ -123,17 +123,6 @@ export function ReviewPage({
         window.doolittle.platform,
       ),
   );
-  function useReviewResource<T>(
-    path: string | null,
-    dependencies: readonly unknown[],
-  ) {
-    return useApiResource<T>(
-      path,
-      dependencies,
-      computerOrigin?.botId,
-      computerOrigin,
-    );
-  }
   const [filter, setFilter] = useState<ReviewFilter>("all");
   const [query, setQuery] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
@@ -157,47 +146,67 @@ export function ReviewPage({
     sourceControlOpen,
   });
 
-  const approvals = useReviewResource<ApprovalResponse>(
+  const approvals = useApiResource<ApprovalResponse>(
     requestPolicy.primary ? "/execution/approvals" : null,
     [requestPolicy.primary, scopeKey],
+    computerOrigin?.botId,
+    computerOrigin,
   );
-  const changes = useReviewResource<ChangesResponse>(
+  const changes = useApiResource<ChangesResponse>(
     requestPolicy.primary && repositoryEnabled ? "/repo/changes" : null,
     [requestPolicy.primary, scopeKey],
+    computerOrigin?.botId,
+    computerOrigin,
   );
-  const branches = useReviewResource<RepositoryBranchesResponse>(
+  const branches = useApiResource<RepositoryBranchesResponse>(
     requestPolicy.sourceControl && repositoryEnabled ? "/repo/branches" : null,
     [requestPolicy.sourceControl, scopeKey],
+    computerOrigin?.botId,
+    computerOrigin,
   );
-  const remotes = useReviewResource<RepositoryRemotesResponse>(
+  const remotes = useApiResource<RepositoryRemotesResponse>(
     requestPolicy.sourceControl && repositoryEnabled ? "/repo/remotes" : null,
     [requestPolicy.sourceControl, scopeKey],
+    computerOrigin?.botId,
+    computerOrigin,
   );
-  const stashes = useReviewResource<RepositoryStashesResponse>(
+  const stashes = useApiResource<RepositoryStashesResponse>(
     requestPolicy.sourceControl && repositoryEnabled ? "/repo/stashes" : null,
     [requestPolicy.sourceControl, scopeKey],
+    computerOrigin?.botId,
+    computerOrigin,
   );
-  const conflicts = useReviewResource<RepositoryConflictsResponse>(
+  const conflicts = useApiResource<RepositoryConflictsResponse>(
     requestPolicy.sourceControl && repositoryEnabled ? "/repo/conflicts" : null,
     [requestPolicy.sourceControl, scopeKey],
+    computerOrigin?.botId,
+    computerOrigin,
   );
-  const worktrees = useReviewResource<RepositoryWorktreesResponse>(
+  const worktrees = useApiResource<RepositoryWorktreesResponse>(
     requestPolicy.sourceControl && repositoryEnabled ? "/repo/worktrees" : null,
     [requestPolicy.sourceControl, scopeKey],
+    computerOrigin?.botId,
+    computerOrigin,
   );
-  const runs = useReviewResource<RunsResponse>(
+  const runs = useApiResource<RunsResponse>(
     requestPolicy.primary ? "/codegen/runs" : null,
     [requestPolicy.primary, scopeKey],
+    computerOrigin?.botId,
+    computerOrigin,
   );
-  const repositoryReview = useReviewResource<RepositoryReviewResponse>(
+  const repositoryReview = useApiResource<RepositoryReviewResponse>(
     requestPolicy.primary && repositoryEnabled ? "/repo/review" : null,
     [requestPolicy.primary, scopeKey],
+    computerOrigin?.botId,
+    computerOrigin,
   );
-  const branchRecord = useReviewResource<ReviewRecordResponse>(
+  const branchRecord = useApiResource<ReviewRecordResponse>(
     requestPolicy.primary && repositoryEnabled
       ? "/review-record?limit=80"
       : null,
     [requestPolicy.primary, scopeKey],
+    computerOrigin?.botId,
+    computerOrigin,
   );
   const review = repositoryReview.data?.review;
   const originBotId = computerOrigin?.botId;
@@ -228,7 +237,7 @@ export function ReviewPage({
     visibleItems.find((item) => item.id === selectedId) ?? visibleItems[0];
   const activeCommentTarget =
     commentTarget?.path === selected?.path ? commentTarget : null;
-  const patch = useReviewResource<PatchResponse>(
+  const patch = useApiResource<PatchResponse>(
     active && repositoryEnabled && selected?.kind === "changes" && selected.path
       ? `/repo/patch?path=${encodeURIComponent(selected.path)}&staged=${
           selected.status === "staged"
@@ -241,6 +250,8 @@ export function ReviewPage({
       selected?.path,
       selected?.status === "staged",
     ),
+    computerOrigin?.botId,
+    computerOrigin,
   );
   const pendingCount = items.filter(
     (item) => item.kind === "approvals" && item.status === "pending",

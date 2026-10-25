@@ -7,7 +7,7 @@ import type {
   Memory,
   State,
 } from "@elizaos/core";
-import { hasGlobalSessionOperatorAccess } from "@/runtime/session-operator-policy";
+import { hasGlobalSessionOperatorAccess } from "../../runtime/session-operator-policy";
 import { executeWorkspaceIntent } from "./execution";
 import { WORKSPACE_ACTION_FALLBACK_MESSAGE } from "./output";
 import { resolveWorkspaceActionIntent } from "./parsing";

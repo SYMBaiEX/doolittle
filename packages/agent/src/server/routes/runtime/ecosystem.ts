@@ -1,7 +1,7 @@
-import type { AppContext } from "@/runtime/bootstrap";
-import { getAutonomousControlPlane } from "@/runtime/native/service-bridge/autonomous";
-import { getNativeEcosystemSnapshot } from "@/runtime/native/service-bridge/ownership";
-import { json } from "@/server/responses";
+import type { AppContext } from "../../../runtime/bootstrap/index";
+import { getAutonomousControlPlane } from "../../../runtime/native/service-bridge/autonomous/index";
+import { getNativeEcosystemSnapshot } from "../../../runtime/native/service-bridge/ownership/index";
+import { json } from "../../responses";
 import { resolveOwnership } from "./shared";
 
 export async function handleRuntimeEcosystemRoutes(

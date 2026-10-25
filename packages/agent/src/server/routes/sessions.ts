@@ -1,11 +1,11 @@
-import type { AppContext } from "@/runtime/bootstrap";
-import { readWorkerBotProfile } from "@/runtime/bootstrap/bot-profile";
-import { readJsonObjectBody } from "@/server/request-body";
-import { json } from "@/server/responses";
+import { readWorkerBotProfile } from "../../runtime/bootstrap/bot-profile";
+import type { AppContext } from "../../runtime/bootstrap/index";
 import {
   SessionForkError,
   SessionRunBoundaryUnavailableError,
-} from "@/services/session/service";
+} from "../../services/session/service/index";
+import { readJsonObjectBody } from "../request-body";
+import { json } from "../responses";
 
 const ID_PATTERN = /^[a-zA-Z0-9:_-]{1,128}$/;
 

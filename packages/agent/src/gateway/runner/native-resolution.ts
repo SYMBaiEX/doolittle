@@ -1,11 +1,11 @@
 import type { IAgentRuntime } from "@elizaos/core";
-import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
+import { getNativePluginCatalog } from "../../runtime/native/plugin-catalog/index";
 import {
   getNativeMessagingTransportState,
   getNativeTransportControlPlane,
-} from "@/runtime/native/service-bridge/transport-control";
-import type { GatewayConfig, PlatformName } from "@/types/gateway";
-import type { EnvConfig } from "@/types/runtime";
+} from "../../runtime/native/service-bridge/transport-control/index";
+import type { GatewayConfig, PlatformName } from "../../types/gateway";
+import type { EnvConfig } from "../../types/runtime/index";
 
 export function resolveNativeMessagingPlugin(options: {
   config: EnvConfig;

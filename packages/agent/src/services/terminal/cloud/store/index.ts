@@ -2,7 +2,7 @@ import type {
   ExecutionCloudProfile,
   ExecutionCloudSession,
   ExecutionCloudSnapshotRecord,
-} from "@/types/execution";
+} from "../../../../types/execution";
 import {
   ensureCloudStoreFile,
   readCloudStore,

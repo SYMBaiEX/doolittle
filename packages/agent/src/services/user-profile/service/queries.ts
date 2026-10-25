@@ -6,7 +6,7 @@ import type {
   UserProfileRecord,
   UserProfileRelationshipSummary,
   UserProfileSearchHit,
-} from "@/types";
+} from "../../../types/index";
 import {
   context as getUserProfileContext,
   recall as getUserProfileRecall,

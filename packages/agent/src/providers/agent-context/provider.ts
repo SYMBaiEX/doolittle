@@ -6,26 +6,26 @@ import {
   type ProviderResult,
   type State,
 } from "@elizaos/core";
-import { messageUserId } from "@/runtime/message-user";
-import { getEffectiveSkills } from "@/runtime/native/service-bridge/autonomous";
-import { getEffectiveDelegationTasks } from "@/runtime/native/service-bridge/delegation";
+import { messageUserId } from "../../runtime/message-user";
+import { getEffectiveSkills } from "../../runtime/native/service-bridge/autonomous/index";
+import { getEffectiveDelegationTasks } from "../../runtime/native/service-bridge/delegation/index";
 import {
   getEffectiveActivePersonality,
   getEffectiveUserProfile,
   listEffectiveUserProfiles,
-} from "@/runtime/native/service-bridge/ownership";
-import { getNativeServices } from "@/runtime/native/service-bridge/runtime";
-import { getEffectiveToolInventory } from "@/runtime/native/service-bridge/service-resolution";
-import { getEffectiveShellHistory } from "@/runtime/native/service-bridge/tooling";
-import { buildProjectPromptContext } from "@/runtime/prompt-cache";
-import { renderDoolittleSoulContext } from "@/runtime/soul";
-import { renderWorkspaceMutationExecutionContract } from "@/runtime/workspace-mutation-intent";
-import type { AppServices } from "@/services";
+} from "../../runtime/native/service-bridge/ownership/index";
+import { getNativeServices } from "../../runtime/native/service-bridge/runtime";
+import { getEffectiveToolInventory } from "../../runtime/native/service-bridge/service-resolution/index";
+import { getEffectiveShellHistory } from "../../runtime/native/service-bridge/tooling/index";
+import { buildProjectPromptContext } from "../../runtime/prompt-cache/index";
+import { renderDoolittleSoulContext } from "../../runtime/soul";
+import { renderWorkspaceMutationExecutionContract } from "../../runtime/workspace-mutation-intent";
 import {
   buildDelegationProjectionOverview,
   buildDelegationProjectionWorkers,
-} from "@/services/delegation/reporting";
-import { messageText } from "@/utils/eliza-compat";
+} from "../../services/delegation/reporting";
+import type { AppServices } from "../../services/index";
+import { messageText } from "../../utils/eliza-compat";
 import { renderRecentRunFailureContext } from "./run-failure-context";
 import { renderIdentitySections } from "./sections/identity";
 import { renderMemorySections } from "./sections/memory";

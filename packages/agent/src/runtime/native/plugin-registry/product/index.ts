@@ -1,55 +1,55 @@
 import { join } from "node:path";
 
 import { type BotDefinition, bindPluginStorage } from "@doolittle/contracts";
+import { createDoolittlePlugin } from "@doolittle/plugins/doolittle-plugin/plugin";
+import { createDoolittleRuntimeRoutes } from "@doolittle/plugins/doolittle-plugin/routes";
+import {
+  createSdkCapabilitiesRuntimeService,
+  createSdkCapabilityEvents,
+} from "@doolittle/plugins/doolittle-plugin/sdk-capabilities";
+import {
+  createShortcutCompatibleWebSearchAction,
+  DOOLITTLE_SDK_SHORTCUTS,
+} from "@doolittle/plugins/doolittle-plugin/sdk-native-surface";
+import { createSecretsVaultPersistenceService } from "@doolittle/plugins/doolittle-plugin/secrets-vault";
 import { memoryAction } from "@elizaos/agent/actions/memories";
 import { triggerAction } from "@elizaos/agent/actions/trigger";
 import { webFetch } from "@elizaos/agent/runtime/actions/web-fetch";
 import type { Action, Evaluator, Plugin, Provider } from "@elizaos/core";
 import { getSessionProviders } from "@elizaos/core";
-import { createDoolittlePlugin } from "@plugins/doolittle-plugin/plugin";
-import { createDoolittleRuntimeRoutes } from "@plugins/doolittle-plugin/routes";
-import {
-  createSdkCapabilitiesRuntimeService,
-  createSdkCapabilityEvents,
-} from "@plugins/doolittle-plugin/sdk-capabilities";
-import {
-  createShortcutCompatibleWebSearchAction,
-  DOOLITTLE_SDK_SHORTCUTS,
-} from "@plugins/doolittle-plugin/sdk-native-surface";
-import { createSecretsVaultPersistenceService } from "@plugins/doolittle-plugin/secrets-vault";
-import { createAppServerAction } from "@/actions/app-server-action";
-import { createBrowserAnalysisAction } from "@/actions/browser-analysis-action";
-import { createCodingAction } from "@/actions/coding-action";
+import { createAppServerAction } from "../../../../actions/app-server-action";
+import { createBrowserAnalysisAction } from "../../../../actions/browser-analysis-action";
+import { createCodingAction } from "../../../../actions/coding-action";
 import {
   createCommandAction,
   createCommandShortcut,
-} from "@/actions/command-action";
-import { createConsultBotAction } from "@/actions/consult-bot-action";
-import { createFileActions } from "@/actions/file-action";
-import { createMediaActions } from "@/actions/media-action";
-import { createRepositoryAction } from "@/actions/repository-action";
-import { createResearchAction } from "@/actions/research-action";
-import { createSdkTerminalAction } from "@/actions/sdk-terminal-action";
-import { createSessionSearchAction } from "@/actions/session-search-action";
+} from "../../../../actions/command-action";
+import { createConsultBotAction } from "../../../../actions/consult-bot-action";
+import { createFileActions } from "../../../../actions/file-action/index";
+import { createMediaActions } from "../../../../actions/media-action";
+import { createRepositoryAction } from "../../../../actions/repository-action";
+import { createResearchAction } from "../../../../actions/research-action";
+import { createSdkTerminalAction } from "../../../../actions/sdk-terminal-action";
+import { createSessionSearchAction } from "../../../../actions/session-search-action";
 import {
   createShellCommandAction,
   createShellCommandShortcut,
-} from "@/actions/shell-command-action";
-import { createWorkspaceAction } from "@/actions/workspace-action";
-import { createMemoryNudgeEvaluator } from "@/evaluators/memory-nudge-evaluator";
-import { noToolsResponseField } from "@/evaluators/no-tools-response-field";
-import { noToolsRoutingEvaluator } from "@/evaluators/no-tools-routing-evaluator";
-import { workspaceMutationRoutingEvaluator } from "@/evaluators/workspace-mutation-routing-evaluator";
-import { createAgentContextProviders } from "@/providers/agent-context";
-import { createSelfAwarenessProvider } from "@/providers/self-awareness";
+} from "../../../../actions/shell-command-action";
+import { createWorkspaceAction } from "../../../../actions/workspace-action/index";
+import { createMemoryNudgeEvaluator } from "../../../../evaluators/memory-nudge-evaluator";
+import { noToolsResponseField } from "../../../../evaluators/no-tools-response-field";
+import { noToolsRoutingEvaluator } from "../../../../evaluators/no-tools-routing-evaluator";
+import { workspaceMutationRoutingEvaluator } from "../../../../evaluators/workspace-mutation-routing-evaluator";
+import { createAgentContextProviders } from "../../../../providers/agent-context/index";
+import { createSelfAwarenessProvider } from "../../../../providers/self-awareness/index";
+import type { AppServices } from "../../../../services/index";
+import type { EnvConfig } from "../../../../types/runtime/index";
+import { createAutomationExecutor } from "../../../bootstrap/runtime/automation-executor";
+import { createGatewayAccessor } from "../../../bootstrap/runtime/gateway-factory";
 import {
   createRunProgressEvents,
   createRunProgressRuntimeService,
-} from "@/runtime/bootstrap/runtime";
-import { createAutomationExecutor } from "@/runtime/bootstrap/runtime/automation-executor";
-import { createGatewayAccessor } from "@/runtime/bootstrap/runtime/gateway-factory";
-import type { AppServices } from "@/services";
-import type { EnvConfig } from "@/types/runtime";
+} from "../../../bootstrap/runtime/index";
 import { createAwarenessRuntimeService } from "./awareness-service";
 import { createBrowserRuntimeService } from "./browser-service";
 import { createGatewayRuntimeService } from "./gateway-service";

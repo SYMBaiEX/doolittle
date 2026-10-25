@@ -1,5 +1,5 @@
 import { ApprovalService, type IAgentRuntime, type UUID } from "@elizaos/core";
-import type { PlatformName } from "@/types";
+import type { PlatformName } from "../../types/index";
 
 export function bindNativeApprovals(
   runtime: IAgentRuntime,

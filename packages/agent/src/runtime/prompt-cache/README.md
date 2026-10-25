@@ -45,11 +45,11 @@ this module; SDK message-service prompts must not.
 
 ## Provider awareness (`provider-policy.ts`)
 
-| Mode | Providers | Behavior |
-|---|---|---|
-| `implicit` | `ollama` / local | No hints; an identical leading prefix is reused by the KV cache automatically. |
-| `explicit` | Anthropic API key, linked Claude Code OAuth, OpenAI | Stable prompt segments and provider-native cache controls. |
-| `none` | codex, devin, official Eliza Cloud, unknown | No-op — on the pinned beta, those handlers build their request from `params.prompt` and ignore segments. Explicit Claude CLI fallback accepts the same lossless prompt and ignores native Anthropic cache hints. |
+| Mode       | Providers                                           | Behavior                                                                                                                                                                                                         |
+| ---------- | --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `implicit` | `ollama` / local                                    | No hints; an identical leading prefix is reused by the KV cache automatically.                                                                                                                                   |
+| `explicit` | Anthropic API key, linked Claude Code OAuth, OpenAI | Stable prompt segments and provider-native cache controls.                                                                                                                                                       |
+| `none`     | codex, devin, official Eliza Cloud, unknown         | No-op — on the pinned beta, those handlers build their request from `params.prompt` and ignore segments. Explicit Claude CLI fallback accepts the same lossless prompt and ignores native Anthropic cache hints. |
 
 ## Cache keys & invalidation
 
@@ -95,7 +95,7 @@ hit-rate requires the SDK to forward cache usage — see "Known limitations".
 ## Known limitations / follow-ups
 
 - Real hit-rate/token-savings telemetry needs the SDK to forward provider cache
-  usage through `MODEL_USED` (or a usage callback). Today only the *plan* is
+  usage through `MODEL_USED` (or a usage callback). Today only the _plan_ is
   observable.
 - `ModelType.RESEARCH` accepts structured `ResearchParams` and does not expose
   `promptSegments` or `providerOptions`. Its Doolittle prompt still uses this

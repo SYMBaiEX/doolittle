@@ -1,0 +1,264 @@
+--- a/lib/index.js
++++ b/lib/index.js
+@@ -1,88 +1,79 @@
+ "use strict";
+-Object.defineProperty(exports, "__esModule", { value: true });
+-exports.computePublicKey = exports.recoverPublicKey = exports.SigningKey = void 0;
+-var elliptic_1 = require("./elliptic");
+-var bytes_1 = require("@ethersproject/bytes");
+-var properties_1 = require("@ethersproject/properties");
+-var logger_1 = require("@ethersproject/logger");
+-var _version_1 = require("./_version");
+-var logger = new logger_1.Logger(_version_1.version);
+-var _curve = null;
+-function getCurve() {
+-    if (!_curve) {
+-        _curve = new elliptic_1.EC("secp256k1");
++var __defProp = Object.defineProperty;
++var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
++var __getOwnPropNames = Object.getOwnPropertyNames;
++var __hasOwnProp = Object.prototype.hasOwnProperty;
++var __export = (target, all) => {
++  for (var name in all)
++    __defProp(target, name, { get: all[name], enumerable: true });
++};
++var __copyProps = (to, from, except, desc) => {
++  if (from && typeof from === "object" || typeof from === "function") {
++    for (let key of __getOwnPropNames(from))
++      if (!__hasOwnProp.call(to, key) && key !== except)
++        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
++  }
++  return to;
++};
++var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
++var doolittle_modern_signing_esm_exports = {};
++__export(doolittle_modern_signing_esm_exports, {
++  SigningKey: () => SigningKey,
++  computePublicKey: () => computePublicKey,
++  recoverPublicKey: () => recoverPublicKey
++});
++module.exports = __toCommonJS(doolittle_modern_signing_esm_exports);
++var import_ethers = require("ethers");
++var import_bytes = require("@ethersproject/bytes");
++var import_properties = require("@ethersproject/properties");
++var import_logger = require("@ethersproject/logger");
++var import_version = require("./_version");
++const logger = new import_logger.Logger(import_version.version);
++class SigningKey {
++  constructor(privateKey) {
++    (0, import_properties.defineReadOnly)(this, "curve", "secp256k1");
++    (0, import_properties.defineReadOnly)(this, "privateKey", (0, import_bytes.hexlify)(privateKey));
++    if ((0, import_bytes.hexDataLength)(this.privateKey) !== 32) {
++      logger.throwArgumentError("invalid private key", "privateKey", "[[ REDACTED ]]");
+     }
+-    return _curve;
++    const key = new import_ethers.SigningKey(this.privateKey);
++    (0, import_properties.defineReadOnly)(this, "publicKey", key.publicKey);
++    (0, import_properties.defineReadOnly)(this, "compressedPublicKey", key.compressedPublicKey);
++    (0, import_properties.defineReadOnly)(this, "_isSigningKey", true);
++  }
++  _addPoint(other) {
++    return import_ethers.SigningKey.addPoints(this.publicKey, (0, import_bytes.hexlify)(other), true);
++  }
++  signDigest(digest) {
++    const digestBytes = (0, import_bytes.arrayify)(digest);
++    if (digestBytes.length !== 32) {
++      logger.throwArgumentError("bad digest length", "digest", digest);
++    }
++    const signature = new import_ethers.SigningKey(this.privateKey).sign(digestBytes);
++    return (0, import_bytes.splitSignature)({ r: signature.r, s: signature.s, recoveryParam: signature.yParity });
++  }
++  computeSharedSecret(otherKey) {
++    const point = new import_ethers.SigningKey(this.privateKey).computeSharedSecret(computePublicKey(otherKey));
++    return "0x" + point.slice(4, 68);
++  }
++  static isSigningKey(value) {
++    return !!(value && value._isSigningKey);
++  }
+ }
+-var SigningKey = /** @class */ (function () {
+-    function SigningKey(privateKey) {
+-        (0, properties_1.defineReadOnly)(this, "curve", "secp256k1");
+-        (0, properties_1.defineReadOnly)(this, "privateKey", (0, bytes_1.hexlify)(privateKey));
+-        if ((0, bytes_1.hexDataLength)(this.privateKey) !== 32) {
+-            logger.throwArgumentError("invalid private key", "privateKey", "[[ REDACTED ]]");
+-        }
+-        var keyPair = getCurve().keyFromPrivate((0, bytes_1.arrayify)(this.privateKey));
+-        (0, properties_1.defineReadOnly)(this, "publicKey", "0x" + keyPair.getPublic(false, "hex"));
+-        (0, properties_1.defineReadOnly)(this, "compressedPublicKey", "0x" + keyPair.getPublic(true, "hex"));
+-        (0, properties_1.defineReadOnly)(this, "_isSigningKey", true);
+-    }
+-    SigningKey.prototype._addPoint = function (other) {
+-        var p0 = getCurve().keyFromPublic((0, bytes_1.arrayify)(this.publicKey));
+-        var p1 = getCurve().keyFromPublic((0, bytes_1.arrayify)(other));
+-        return "0x" + p0.pub.add(p1.pub).encodeCompressed("hex");
+-    };
+-    SigningKey.prototype.signDigest = function (digest) {
+-        var keyPair = getCurve().keyFromPrivate((0, bytes_1.arrayify)(this.privateKey));
+-        var digestBytes = (0, bytes_1.arrayify)(digest);
+-        if (digestBytes.length !== 32) {
+-            logger.throwArgumentError("bad digest length", "digest", digest);
+-        }
+-        var signature = keyPair.sign(digestBytes, { canonical: true });
+-        return (0, bytes_1.splitSignature)({
+-            recoveryParam: signature.recoveryParam,
+-            r: (0, bytes_1.hexZeroPad)("0x" + signature.r.toString(16), 32),
+-            s: (0, bytes_1.hexZeroPad)("0x" + signature.s.toString(16), 32),
+-        });
+-    };
+-    SigningKey.prototype.computeSharedSecret = function (otherKey) {
+-        var keyPair = getCurve().keyFromPrivate((0, bytes_1.arrayify)(this.privateKey));
+-        var otherKeyPair = getCurve().keyFromPublic((0, bytes_1.arrayify)(computePublicKey(otherKey)));
+-        return (0, bytes_1.hexZeroPad)("0x" + keyPair.derive(otherKeyPair.getPublic()).toString(16), 32);
+-    };
+-    SigningKey.isSigningKey = function (value) {
+-        return !!(value && value._isSigningKey);
+-    };
+-    return SigningKey;
+-}());
+-exports.SigningKey = SigningKey;
+ function recoverPublicKey(digest, signature) {
+-    var sig = (0, bytes_1.splitSignature)(signature);
+-    var rs = { r: (0, bytes_1.arrayify)(sig.r), s: (0, bytes_1.arrayify)(sig.s) };
+-    return "0x" + getCurve().recoverPubKey((0, bytes_1.arrayify)(digest), rs, sig.recoveryParam).encode("hex", false);
++  const sig = (0, import_bytes.splitSignature)(signature);
++  return import_ethers.SigningKey.recoverPublicKey((0, import_bytes.hexlify)(digest), { r: sig.r, s: sig.s, yParity: sig.recoveryParam });
+ }
+-exports.recoverPublicKey = recoverPublicKey;
+ function computePublicKey(key, compressed) {
+-    var bytes = (0, bytes_1.arrayify)(key);
+-    if (bytes.length === 32) {
+-        var signingKey = new SigningKey(bytes);
+-        if (compressed) {
+-            return "0x" + getCurve().keyFromPrivate(bytes).getPublic(true, "hex");
+-        }
+-        return signingKey.publicKey;
+-    }
+-    else if (bytes.length === 33) {
+-        if (compressed) {
+-            return (0, bytes_1.hexlify)(bytes);
+-        }
+-        return "0x" + getCurve().keyFromPublic(bytes).getPublic(false, "hex");
+-    }
+-    else if (bytes.length === 65) {
+-        if (!compressed) {
+-            return (0, bytes_1.hexlify)(bytes);
+-        }
+-        return "0x" + getCurve().keyFromPublic(bytes).getPublic(true, "hex");
+-    }
++  const bytes = (0, import_bytes.arrayify)(key);
++  if (![32, 33, 65].includes(bytes.length)) {
+     return logger.throwArgumentError("invalid public or private key", "key", "[REDACTED]");
++  }
++  return import_ethers.SigningKey.computePublicKey(bytes, !!compressed);
+ }
+-exports.computePublicKey = computePublicKey;
+-//# sourceMappingURL=index.js.map
+\ No newline at end of file
++// Annotate the CommonJS export names for ESM import in node:
++0 && (module.exports = {
++  SigningKey,
++  computePublicKey,
++  recoverPublicKey
++});
+--- a/lib.esm/index.js
++++ b/lib.esm/index.js
+@@ -1,17 +1,10 @@
+ "use strict";
+-import { EC } from "./elliptic";
+-import { arrayify, hexDataLength, hexlify, hexZeroPad, splitSignature } from "@ethersproject/bytes";
++import { SigningKey as ModernSigningKey } from "ethers";
++import { arrayify, hexDataLength, hexlify, splitSignature } from "@ethersproject/bytes";
+ import { defineReadOnly } from "@ethersproject/properties";
+ import { Logger } from "@ethersproject/logger";
+ import { version } from "./_version";
+ const logger = new Logger(version);
+-let _curve = null;
+-function getCurve() {
+-    if (!_curve) {
+-        _curve = new EC("secp256k1");
+-    }
+-    return _curve;
+-}
+ export class SigningKey {
+     constructor(privateKey) {
+         defineReadOnly(this, "curve", "secp256k1");
+@@ -19,33 +12,26 @@
+         if (hexDataLength(this.privateKey) !== 32) {
+             logger.throwArgumentError("invalid private key", "privateKey", "[[ REDACTED ]]");
+         }
+-        const keyPair = getCurve().keyFromPrivate(arrayify(this.privateKey));
+-        defineReadOnly(this, "publicKey", "0x" + keyPair.getPublic(false, "hex"));
+-        defineReadOnly(this, "compressedPublicKey", "0x" + keyPair.getPublic(true, "hex"));
++        const key = new ModernSigningKey(this.privateKey);
++        defineReadOnly(this, "publicKey", key.publicKey);
++        defineReadOnly(this, "compressedPublicKey", key.compressedPublicKey);
+         defineReadOnly(this, "_isSigningKey", true);
+     }
+     _addPoint(other) {
+-        const p0 = getCurve().keyFromPublic(arrayify(this.publicKey));
+-        const p1 = getCurve().keyFromPublic(arrayify(other));
+-        return "0x" + p0.pub.add(p1.pub).encodeCompressed("hex");
++        return ModernSigningKey.addPoints(this.publicKey, hexlify(other), true);
+     }
+     signDigest(digest) {
+-        const keyPair = getCurve().keyFromPrivate(arrayify(this.privateKey));
+         const digestBytes = arrayify(digest);
+         if (digestBytes.length !== 32) {
+             logger.throwArgumentError("bad digest length", "digest", digest);
+         }
+-        const signature = keyPair.sign(digestBytes, { canonical: true });
+-        return splitSignature({
+-            recoveryParam: signature.recoveryParam,
+-            r: hexZeroPad("0x" + signature.r.toString(16), 32),
+-            s: hexZeroPad("0x" + signature.s.toString(16), 32),
+-        });
++        const signature = new ModernSigningKey(this.privateKey).sign(digestBytes);
++        return splitSignature({ r: signature.r, s: signature.s, recoveryParam: signature.yParity });
+     }
+     computeSharedSecret(otherKey) {
+-        const keyPair = getCurve().keyFromPrivate(arrayify(this.privateKey));
+-        const otherKeyPair = getCurve().keyFromPublic(arrayify(computePublicKey(otherKey)));
+-        return hexZeroPad("0x" + keyPair.derive(otherKeyPair.getPublic()).toString(16), 32);
++        const point = new ModernSigningKey(this.privateKey).computeSharedSecret(computePublicKey(otherKey));
++        // v5 exposes the 32-byte ECDH x-coordinate; v6 returns the full public point.
++        return "0x" + point.slice(4, 68);
+     }
+     static isSigningKey(value) {
+         return !!(value && value._isSigningKey);
+@@ -53,30 +39,12 @@
+ }
+ export function recoverPublicKey(digest, signature) {
+     const sig = splitSignature(signature);
+-    const rs = { r: arrayify(sig.r), s: arrayify(sig.s) };
+-    return "0x" + getCurve().recoverPubKey(arrayify(digest), rs, sig.recoveryParam).encode("hex", false);
++    return ModernSigningKey.recoverPublicKey(hexlify(digest), { r: sig.r, s: sig.s, yParity: sig.recoveryParam });
+ }
+ export function computePublicKey(key, compressed) {
+     const bytes = arrayify(key);
+-    if (bytes.length === 32) {
+-        const signingKey = new SigningKey(bytes);
+-        if (compressed) {
+-            return "0x" + getCurve().keyFromPrivate(bytes).getPublic(true, "hex");
+-        }
+-        return signingKey.publicKey;
++    if (![32, 33, 65].includes(bytes.length)) {
++        return logger.throwArgumentError("invalid public or private key", "key", "[REDACTED]");
+     }
+-    else if (bytes.length === 33) {
+-        if (compressed) {
+-            return hexlify(bytes);
+-        }
+-        return "0x" + getCurve().keyFromPublic(bytes).getPublic(false, "hex");
+-    }
+-    else if (bytes.length === 65) {
+-        if (!compressed) {
+-            return hexlify(bytes);
+-        }
+-        return "0x" + getCurve().keyFromPublic(bytes).getPublic(true, "hex");
+-    }
+-    return logger.throwArgumentError("invalid public or private key", "key", "[REDACTED]");
++    return ModernSigningKey.computePublicKey(bytes, !!compressed);
+ }
+-//# sourceMappingURL=index.js.map
+\ No newline at end of file

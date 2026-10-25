@@ -1,5 +1,5 @@
 import { resolve } from "node:path";
-import { isRecord } from "@/utils/records";
+import { isRecord } from "../../../utils/records";
 import { DelegationEvidence } from "./evidence";
 import { initialSelectionEvidence } from "./selection-evidence";
 import type {

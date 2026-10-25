@@ -1,14 +1,14 @@
 import { timingSafeEqual } from "node:crypto";
 import { realpathSync, statSync } from "node:fs";
-import type { AppContext } from "@/runtime/bootstrap";
-import { readWorkerBotProfile } from "@/runtime/bootstrap/bot-profile";
+import { readWorkerBotProfile } from "../../runtime/bootstrap/bot-profile";
+import type { AppContext } from "../../runtime/bootstrap/index";
 import {
   isDesktopWorkspaceRuntime,
   resolveConversationWorkspace,
   runWithConversationWorkspace,
-} from "@/runtime/workspace-scope";
-import { json } from "@/server/responses";
-import type { RouteHandler } from "@/server/router";
+} from "../../runtime/workspace-scope";
+import { json } from "../responses";
+import type { RouteHandler } from "../router";
 
 const ORIGIN_HEADER = "x-doolittle-origin-conversation";
 

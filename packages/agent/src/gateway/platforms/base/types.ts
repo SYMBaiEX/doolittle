@@ -3,9 +3,9 @@ import type {
   IncomingPlatformMessage,
   OutboundPlatformMessage,
   PlatformName,
-} from "@/types/gateway";
+} from "../../../types/gateway";
 
-export type { PlatformName } from "@/types/gateway";
+export type { PlatformName } from "../../../types/gateway";
 
 export interface PlatformCapabilitySet {
   inbound: boolean;

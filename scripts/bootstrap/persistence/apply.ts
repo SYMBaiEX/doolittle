@@ -1,6 +1,6 @@
+import { loadConfig } from "@doolittle/agent/config/env";
+import { summarizeAutonomousConnection } from "@doolittle/agent/runtime/native/autonomous-stack";
 import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
-import { loadConfig } from "@/config/env";
-import { summarizeAutonomousConnection } from "@/runtime/native/autonomous-stack";
 import { updateEnvFile } from "../core/env-file";
 import type { BootstrapOptions, WizardAnswers } from "../types";
 import { loadBootstrapGatewayConfig, loadBootstrapSettings } from "./defaults";

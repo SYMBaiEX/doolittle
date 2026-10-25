@@ -1,4 +1,4 @@
-import type { PlatformName } from "@/types/gateway";
+import type { PlatformName } from "../../../types/gateway";
 import { capabilitiesForPlatform } from "../../platforms/base";
 import {
   LIGHTWEIGHT_WEBHOOK_PLATFORMS,

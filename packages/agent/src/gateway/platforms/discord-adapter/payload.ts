@@ -1,4 +1,4 @@
-import type { OutboundPlatformMessage } from "@/types/gateway";
+import type { OutboundPlatformMessage } from "../../../types/gateway";
 
 export function buildDiscordPayload(
   message: OutboundPlatformMessage,

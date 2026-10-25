@@ -1,4 +1,4 @@
-import { getNativeOwnershipControlPlane } from "@/runtime/native/service-bridge/ownership";
+import { getNativeOwnershipControlPlane } from "../../../runtime/native/service-bridge/ownership/index";
 import type { OperatorRuntimeSummaryDependencies } from "./types";
 
 export function resolveOwnership(

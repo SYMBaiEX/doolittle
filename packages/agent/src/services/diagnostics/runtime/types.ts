@@ -1,4 +1,4 @@
-import type { DiagnosticCheck, EnvConfig } from "@/types";
+import type { DiagnosticCheck, EnvConfig } from "../../../types/index";
 
 export interface DiagnosticsExecutionControlLike {
   approvals: {

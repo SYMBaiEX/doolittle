@@ -6,7 +6,7 @@ import {
   type LookupFn,
   type SsrfPolicy,
 } from "@elizaos/core";
-import { runTextProcess } from "@/services/process-execution";
+import { runTextProcess } from "../process-execution";
 import type { BrowserConfig } from "./service-types";
 
 type FetchLike = (

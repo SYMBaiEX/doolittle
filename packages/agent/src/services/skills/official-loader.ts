@@ -1,6 +1,6 @@
 import { basename, join } from "node:path";
 import type { LoadedSkillWithSource } from "@elizaos/plugin-agent-skills";
-import type { SkillDocument } from "@/types";
+import type { SkillDocument } from "../../types/index";
 import type { LoadedNativeSkills } from "./native-loader";
 
 export function projectOfficialSkills(

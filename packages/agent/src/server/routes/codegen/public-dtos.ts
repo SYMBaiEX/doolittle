@@ -3,7 +3,7 @@ import type {
   AutocoderPipelineRunRecord,
   AutocoderPipelineService,
   AutocoderPipelineWorkflowRecord,
-} from "@/services/autocoder-pipeline";
+} from "../../../services/autocoder-pipeline/index";
 
 export interface PublicArtifactDescriptor {
   index: number;

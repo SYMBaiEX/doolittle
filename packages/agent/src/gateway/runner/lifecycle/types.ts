@@ -1,17 +1,16 @@
-import type { GatewayDaemonState } from "@/gateway/daemon-state";
-import type { GatewayRunnerContext } from "@/gateway/runner/context";
-import type {
-  GatewayHistorySnapshot,
-  GatewayStateSnapshot,
-} from "@/gateway/state/state-snapshot";
-import type { GatewaySupervisionRecord } from "@/gateway/supervision/index";
-import type { PlatformName } from "@/types/gateway";
-
+import type { PlatformName } from "../../../types/gateway";
+import type { GatewayDaemonState } from "../../daemon-state";
 import type {
   PlatformAdapter,
   PlatformHealth,
   PlatformLifecycleEvent,
 } from "../../platforms/base";
+import type {
+  GatewayHistorySnapshot,
+  GatewayStateSnapshot,
+} from "../../state/state-snapshot/index";
+import type { GatewaySupervisionRecord } from "../../supervision/index";
+import type { GatewayRunnerContext } from "../context";
 
 export interface GatewayRunnerLifecycleTraceEntry {
   traceId: string;

@@ -25,6 +25,8 @@ export interface UserProfileObservationHost {
   nowIso(): string;
   unique(items: string[]): string[];
   normalizeRelationship(
-    relationship?: import("@/types").UserProfileRecord["relationship"],
-  ): NonNullable<import("@/types").UserProfileRecord["relationship"]>;
+    relationship?: import("../../../types/index").UserProfileRecord["relationship"],
+  ): NonNullable<
+    import("../../../types/index").UserProfileRecord["relationship"]
+  >;
 }

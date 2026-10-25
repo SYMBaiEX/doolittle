@@ -11,7 +11,7 @@ import type {
 import {
   NodeSessionDatabase,
   type SessionDatabase,
-} from "@/services/session/database";
+} from "../../../../services/session/database";
 
 interface LongTermMemoryRow {
   id: string;

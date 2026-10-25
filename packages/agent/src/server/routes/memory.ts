@@ -1,7 +1,7 @@
-import type { AppContext } from "@/runtime/bootstrap";
-import { DEFAULT_LOCAL_USER_ID } from "@/runtime/message-user";
-import { getEffectiveMemorySnapshot } from "@/runtime/native/service-bridge/ownership";
-import { json } from "@/server/responses";
+import type { AppContext } from "../../runtime/bootstrap/index";
+import { DEFAULT_LOCAL_USER_ID } from "../../runtime/message-user";
+import { getEffectiveMemorySnapshot } from "../../runtime/native/service-bridge/ownership/index";
+import { json } from "../responses";
 
 function resolveMemoryTarget(url: URL): "memory" | "user" {
   return url.searchParams.get("target") === "user" ? "user" : "memory";

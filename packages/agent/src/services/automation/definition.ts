@@ -4,7 +4,7 @@ import type {
   AutomationCondition,
   AutomationJobRecord,
   AutomationTrigger,
-} from "@/types";
+} from "../../types/index";
 import type {
   AutomationExecutionContext,
   AutomationTriggerInput,

@@ -1,0 +1,152 @@
+#!/usr/bin/env nub
+import { pathToFileURL } from "node:url";
+import { getDefaultRepoRoot } from "@doolittle/agent/config/env/paths";
+import { getEntrypointLogger } from "@doolittle/agent/logging/entrypoint-logger";
+import { installSharedEngineHost } from "@doolittle/agent/runtime/engine/host";
+import { installEngineWorkerTransport } from "@doolittle/agent/runtime/engine/worker-transport";
+import type { AgentRuntime } from "@elizaos/core";
+import { restoreTerminalState } from "./cli/render-utils";
+import { isCliStartupExitError, runOnboardingWizard } from "./cli/startup";
+import { renderTopLevelHelp } from "./entrypoint/help";
+import { handleEntrypointInitialCommandFlow } from "./entrypoint/initial-command-flow";
+import { resolveEntrypointInvocation } from "./entrypoint/invocation";
+import { writeStderrLine } from "./entrypoint/output";
+import { prepareEntrypointRuntimeBoot } from "./entrypoint/runtime-boot";
+import { installRuntimeProcessLifecycle } from "./entrypoint/runtime-process-lifecycle";
+import { handleEntrypointRuntimeSurface } from "./entrypoint/runtime-surface";
+import {
+  formatTopLevelError,
+  isRecoverableTopLevelRuntimeError,
+} from "./entrypoint/static-prompts";
+
+installEngineWorkerTransport();
+const sharedEngineHost = installSharedEngineHost(
+  process.env.DOOLITTLE_ENGINE_WORKER_ENTRY
+    ? pathToFileURL(process.env.DOOLITTLE_ENGINE_WORKER_ENTRY)
+    : import.meta.url,
+);
+
+async function main(): Promise<number> {
+  const entryLogger = getEntrypointLogger("index");
+  const repoRoot = getDefaultRepoRoot();
+  const invocation = await resolveEntrypointInvocation({ repoRoot });
+  const {
+    command,
+    rest,
+    commandPlan,
+    shellIsInteractive,
+    stdinIsTTY,
+    oneShot,
+    immediatePrompt,
+    staticPromptResult,
+    jobControlDir,
+  } = invocation;
+
+  if (
+    await handleEntrypointInitialCommandFlow({
+      command,
+      rest,
+      repoRoot,
+      renderTopLevelHelp,
+      entryLogger,
+      runOnboardingWizard,
+      oneShot,
+      immediatePrompt,
+      staticPromptResult,
+      jobControlDir,
+      launcherPath: process.argv[1],
+      writeStderrLine,
+    })
+  ) {
+    return 0;
+  }
+
+  const {
+    context,
+    bootLogs,
+    runtimePlan,
+    runtimeLogger,
+    startCli,
+    runCliPrompt,
+    runCliPromptWithEvents,
+    startServer,
+    startServerWhenShellReady,
+  } = await prepareEntrypointRuntimeBoot({
+    command,
+    commandPlan,
+    shellIsInteractive,
+    stdinIsTTY,
+    immediatePrompt,
+    writeStderrLine,
+    formatTopLevelError,
+  });
+
+  if (commandPlan.shouldUseApiSurface) {
+    installRuntimeProcessLifecycle({
+      runtime: context.runtime as AgentRuntime,
+      label: `${context.config.agentName} ${command}`,
+      beforeShutdown: sharedEngineHost
+        ? () => sharedEngineHost.stopAll()
+        : undefined,
+      captureFatal: (error, origin) => {
+        entryLogger.captureError("runtime-process-fatal", error, {
+          command,
+          origin,
+        });
+      },
+    });
+  }
+
+  if (runtimePlan.shouldStartApi && runtimePlan.shouldStartApiImmediately) {
+    await startServer();
+  }
+
+  const runtimeSurface = await handleEntrypointRuntimeSurface({
+    command,
+    shellIsInteractive,
+    immediatePrompt,
+    oneShot,
+    jobControlDir,
+    context,
+    runtimePlan,
+    runtimeLogger,
+    startCli,
+    startServerWhenShellReady,
+    runCliPrompt,
+    runCliPromptWithEvents,
+    bootLogs,
+  });
+
+  if (runtimeSurface.handled) {
+    return runtimeSurface.exitCode ?? 0;
+  }
+
+  return 0;
+}
+
+// Keep one lightweight handle alive while long-lived TUI/server startup
+// promises are being assembled.
+const entryKeepAlive = setInterval(() => {}, 60_000);
+
+main()
+  .then((exitCode) => {
+    process.exitCode = exitCode;
+  })
+  .catch((error) => {
+    const entryLogger = getEntrypointLogger("index");
+    restoreTerminalState();
+    if (isCliStartupExitError(error)) {
+      process.exitCode = error.exitCode;
+      return;
+    }
+    entryLogger.captureError("entrypoint-main-failed", error);
+    if (isRecoverableTopLevelRuntimeError(error)) {
+      writeStderrLine(formatTopLevelError(error));
+    } else {
+      writeStderrLine(String(error));
+    }
+    process.exit(1);
+  })
+  .finally(() => {
+    clearInterval(entryKeepAlive);
+  });

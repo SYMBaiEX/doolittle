@@ -11,8 +11,8 @@ import {
   getEffectiveUserRelationship,
   listEffectiveUserProfiles,
   recallEffectiveUserProfile,
-} from "@/runtime/native/service-bridge/ownership";
-import { json } from "@/server/responses";
+} from "../../../runtime/native/service-bridge/ownership/index";
+import { json } from "../../responses";
 import {
   badRequest,
   getPositiveLimit,

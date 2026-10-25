@@ -1,4 +1,4 @@
-import { parseGatewayFiltersFromText } from "@/gateway/control/index";
+import { parseGatewayFiltersFromText } from "../../../../gateway/control/index";
 import type { AgentExecutionContext } from "../../../chat";
 import {
   GATEWAY_UNAVAILABLE_MESSAGE,

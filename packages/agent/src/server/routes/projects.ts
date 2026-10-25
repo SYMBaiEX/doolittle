@@ -1,8 +1,8 @@
 import { existsSync, statSync } from "node:fs";
 import { isAbsolute, normalize } from "node:path";
-import type { AppContext } from "@/runtime/bootstrap";
-import { readJsonObjectBody } from "@/server/request-body";
-import { json } from "@/server/responses";
+import type { AppContext } from "../../runtime/bootstrap/index";
+import { readJsonObjectBody } from "../request-body";
+import { json } from "../responses";
 
 const ID_PATTERN = /^[a-zA-Z0-9:_-]{1,128}$/;
 const MAX_NAME_LENGTH = 120;

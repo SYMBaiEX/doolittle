@@ -15,8 +15,8 @@ import {
   writeFileSync,
 } from "node:fs";
 import { basename, extname, resolve } from "node:path";
-import { isStrictlyContainedPath } from "@/utils/path-containment";
-import { readRegularFileSync } from "@/utils/read-regular-file";
+import { isStrictlyContainedPath } from "../utils/path-containment";
+import { readRegularFileSync } from "../utils/read-regular-file";
 
 const RECORDING_ID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u;

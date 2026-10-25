@@ -10,17 +10,17 @@ The latest failed desktop coding request was recorded once, in General chat,
 without attachments or a project association. Its provider was `codex`, model
 `gpt-5.6-luna`, reasoning effort `medium`.
 
-| Evidence | Identity / time (UTC) |
-| --- | --- |
-| Conversation | `desktop:31232f25-b424-4929-b2ab-352fc6489968` |
-| Run | `09dfae49-70bc-4583-9d92-57e2b1198c1b` |
+| Evidence               | Identity / time (UTC)                                |
+| ---------------------- | ---------------------------------------------------- |
+| Conversation           | `desktop:31232f25-b424-4929-b2ab-352fc6489968`       |
+| Run                    | `09dfae49-70bc-4583-9d92-57e2b1198c1b`               |
 | Canonical user message | `044f053c-0b24-47a8-a9f7-b90f0596f421`, 11:50:36.017 |
-| Run start | 11:50:36.020 |
-| Only observed action | `TASKS_SPAWN_AGENT`, 11:51:07.202 |
-| Coding child | `6f7176c5-6ca1-40fa-b8d5-3f3fa6c087a8` |
-| Spawn returned ready | 11:51:12.273 |
-| Run failure | 11:51:17.132 |
-| Canonical assistant | `a2f42715-6dff-44f3-989b-7d24352b4852`, 11:51:17.130 |
+| Run start              | 11:50:36.020                                         |
+| Only observed action   | `TASKS_SPAWN_AGENT`, 11:51:07.202                    |
+| Coding child           | `6f7176c5-6ca1-40fa-b8d5-3f3fa6c087a8`               |
+| Spawn returned ready   | 11:51:12.273                                         |
+| Run failure            | 11:51:17.132                                         |
+| Canonical assistant    | `a2f42715-6dff-44f3-989b-7d24352b4852`, 11:51:17.130 |
 
 Local evidence sources were the desktop runtime's `state.db`,
 `run-receipts.json`, and `trajectories/trajectory-events.jsonl`, plus the
@@ -141,13 +141,13 @@ These checks used the installed application and its configured `codex` /
 `gpt-5.6-luna` route. They were read-only checks in the existing `test` project,
 not a substitute directory for the requested new blog.
 
-| Check | Run / session | Observed result (UTC) |
-| --- | --- | --- |
-| Read-only inspection before classifier repair | `fb5d2a90-66cd-4abb-b01c-c4d24cfee4eb` / `desktop:383b2edd-fadd-48f7-9f3b-1a528ec1ecba` | 12:38:35–12:38:54; read the correct package.json, then incorrectly failed the mutation check. This prompted `81824191`. |
-| Background shell, marker C | `8732bbdd-5943-43e6-ac33-8285f4bab08d` / `desktop:762f3629-7751-4170-a653-40872cef0332` | 12:41:31–12:42:09; `pwd; sleep 20; printf ...` continued after opening Settings, then returned `/Users/symbiex/dev/austin/test` and the correct marker. |
-| Concurrent independent chat, marker D | `a4195a6d-1283-4587-bfb9-d66178721deb` / `desktop:90c07bb9-e516-4a15-8d3f-cf6150261e3d` | 12:41:53–12:41:56, overlapping C; returned 133 and only its own marker. |
-| Retry and Stop | `78bdf633-b503-4963-bee3-1aa92ef96549` / `fork:91e99cf0-88e5-4591-ad2c-c80d92d6f622` | 12:42:43–12:42:58; Retry created a separate branch. Stop cancelled that running shell, preserving the original completed C and D runs. |
-| Global CLI from HOME, isolated test data | `fde09bff-8c35-4c99-a1c2-f83023b43322` / `cli:932f9df2-647f-4530-aa3f-7471be7ed6ee` | 12:27:27; startup survived offline Ollama, `/model` reported actual unavailability, and a text request failed actionably in 23 ms. EOF shut down services and exited 0. |
+| Check                                         | Run / session                                                                           | Observed result (UTC)                                                                                                                                                   |
+| --------------------------------------------- | --------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Read-only inspection before classifier repair | `fb5d2a90-66cd-4abb-b01c-c4d24cfee4eb` / `desktop:383b2edd-fadd-48f7-9f3b-1a528ec1ecba` | 12:38:35–12:38:54; read the correct package.json, then incorrectly failed the mutation check. This prompted `81824191`.                                                 |
+| Background shell, marker C                    | `8732bbdd-5943-43e6-ac33-8285f4bab08d` / `desktop:762f3629-7751-4170-a653-40872cef0332` | 12:41:31–12:42:09; `pwd; sleep 20; printf ...` continued after opening Settings, then returned `/Users/symbiex/dev/austin/test` and the correct marker.                 |
+| Concurrent independent chat, marker D         | `a4195a6d-1283-4587-bfb9-d66178721deb` / `desktop:90c07bb9-e516-4a15-8d3f-cf6150261e3d` | 12:41:53–12:41:56, overlapping C; returned 133 and only its own marker.                                                                                                 |
+| Retry and Stop                                | `78bdf633-b503-4963-bee3-1aa92ef96549` / `fork:91e99cf0-88e5-4591-ad2c-c80d92d6f622`    | 12:42:43–12:42:58; Retry created a separate branch. Stop cancelled that running shell, preserving the original completed C and D runs.                                  |
+| Global CLI from HOME, isolated test data      | `fde09bff-8c35-4c99-a1c2-f83023b43322` / `cli:932f9df2-647f-4530-aa3f-7471be7ed6ee`     | 12:27:27; startup survived offline Ollama, `/model` reported actual unavailability, and a text request failed actionably in 23 ms. EOF shut down services and exited 0. |
 
 Further live checks on `81824191` found two additional acceptance failures:
 

@@ -41,15 +41,15 @@ blocked context diagnostics, and recovery after replacing a blocked link.
 
 ## Intended operator path capabilities
 
-| Operational path | Authority and constraints |
-| --- | --- |
-| Runtime/service storage | Launch environment becomes EnvConfig; service assembly selects fixed child directories and basenames. Message/user/account IDs remain JSON or SQL fields. Explicit absolute/external storage roots remain supported. |
-| Gateway storage | Startup gatewayDataDir feeds fixed config/session/approval/delivery names. Gateway messages do not change these roots. |
-| Local CLI onboarding/version | Operator repo/data/PGLite overrides select source runtime locations. Reads append fixed file names; onboarding argument text does not select those file paths. |
-| Provider auth/model cache | Operator HOME/CODEX_HOME/data roots select fixed credential/cache basenames. Account routes do not accept a home override. Official SDK account storage and existing atomic JSON helpers remain in use. |
-| Shell/executable discovery | SHELL/ComSpec/PATH/PATHEXT/DEVIN_CLI_COMMAND are trusted launch configuration; command text is separate. This is local executable authority, not merely a claim that shell:false is universally safe. |
-| Project inspection/trajectory imports | Explicit local project/manifest file capabilities intentionally support targets outside the active workspace; they are not a host sandbox. Flagged trajectory listing itself uses configured service state. |
-| Eval metrics | Explicit opt-in capture flag plus configured data root and fixed filename; timing/token-count arguments never select the output path. |
+| Operational path                      | Authority and constraints                                                                                                                                                                                            |
+| ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Runtime/service storage               | Launch environment becomes EnvConfig; service assembly selects fixed child directories and basenames. Message/user/account IDs remain JSON or SQL fields. Explicit absolute/external storage roots remain supported. |
+| Gateway storage                       | Startup gatewayDataDir feeds fixed config/session/approval/delivery names. Gateway messages do not change these roots.                                                                                               |
+| Local CLI onboarding/version          | Operator repo/data/PGLite overrides select source runtime locations. Reads append fixed file names; onboarding argument text does not select those file paths.                                                       |
+| Provider auth/model cache             | Operator HOME/CODEX_HOME/data roots select fixed credential/cache basenames. Account routes do not accept a home override. Official SDK account storage and existing atomic JSON helpers remain in use.              |
+| Shell/executable discovery            | SHELL/ComSpec/PATH/PATHEXT/DEVIN_CLI_COMMAND are trusted launch configuration; command text is separate. This is local executable authority, not merely a claim that shell:false is universally safe.                |
+| Project inspection/trajectory imports | Explicit local project/manifest file capabilities intentionally support targets outside the active workspace; they are not a host sandbox. Flagged trajectory listing itself uses configured service state.          |
+| Eval metrics                          | Explicit opt-in capture flag plus configured data root and fixed filename; timing/token-count arguments never select the output path.                                                                                |
 
 Desktop backend launch fixes private data/DB/service roots. Worker launch assigns
 private HOME/CODEX_HOME and skips repository dotenv. This pass traced those

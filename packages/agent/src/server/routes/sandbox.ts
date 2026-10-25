@@ -1,14 +1,14 @@
 import { isPlainObject } from "@elizaos/shared/type-guards";
-import type { AppContext } from "@/runtime/bootstrap";
+import type { AppContext } from "../../runtime/bootstrap/index";
 import {
   createEffectiveSandbox,
   executeEffectiveSandboxCode,
   killEffectiveSandbox,
   listEffectiveSandboxes,
-} from "@/runtime/native/service-bridge/autocoder";
-import { getNativeExecutionControlPlane } from "@/runtime/native/service-bridge/control-planes";
-import { type JsonObject, readJsonObjectBody } from "@/server/request-body";
-import { json } from "@/server/responses";
+} from "../../runtime/native/service-bridge/autocoder/index";
+import { getNativeExecutionControlPlane } from "../../runtime/native/service-bridge/control-planes/index";
+import { type JsonObject, readJsonObjectBody } from "../request-body";
+import { json } from "../responses";
 
 function badRequest(error: string): Response {
   return json({ error }, 400);

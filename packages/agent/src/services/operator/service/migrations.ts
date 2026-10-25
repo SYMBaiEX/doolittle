@@ -1,7 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 
-import type { EnvConfig } from "@/types";
+import type { EnvConfig } from "../../../types/index";
 import {
   applyMigration,
   getMigrationHistory,

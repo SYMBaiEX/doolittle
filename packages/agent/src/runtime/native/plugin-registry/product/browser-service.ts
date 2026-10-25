@@ -10,8 +10,8 @@ import {
   type BrowserService,
   type BrowserWorkspaceCommand,
 } from "@elizaos/plugin-browser";
-import type { AppServices } from "@/services";
-import type { BrowserAnalysisBundle } from "@/services/web/service";
+import type { AppServices } from "../../../../services/index";
+import type { BrowserAnalysisBundle } from "../../../../services/web/service";
 import {
   createDoolittleBrowserTarget,
   DOOLITTLE_BROWSER_TARGET_ID,

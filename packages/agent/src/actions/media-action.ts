@@ -7,9 +7,9 @@ import type {
   Memory,
   State,
 } from "@elizaos/core";
-import { getScopedTurnAbortSignal } from "@/runtime/turn-runtime-scope";
-import type { AppServices } from "@/services";
-import { isMediaAbort } from "@/services/media/abort";
+import { getScopedTurnAbortSignal } from "../runtime/turn-runtime-scope";
+import type { AppServices } from "../services/index";
+import { isMediaAbort } from "../services/media/abort";
 
 export const DOOLITTLE_MEDIA_ACTIONS = [
   "DOOLITTLE_GENERATE_IMAGE",

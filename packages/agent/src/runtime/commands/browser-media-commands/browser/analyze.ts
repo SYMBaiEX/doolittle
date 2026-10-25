@@ -1,8 +1,8 @@
+import type { AgentExecutionContext } from "../../../chat";
 import {
   analyzeBrowserComparison,
   analyzeBrowserPage,
-} from "@/runtime/native/service-bridge/browser";
-import type { AgentExecutionContext } from "../../../chat";
+} from "../../../native/service-bridge/browser/index";
 import type { BrowserMediaCommandOptions, CommandResult } from "../types";
 
 export async function handleBrowserAnalyzeCommand(

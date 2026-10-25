@@ -1,4 +1,3 @@
-import { resolveModelPromptText } from "@doolittle/provider-transport";
 import {
   type GenerateTextParams,
   type IAgentRuntime,
@@ -86,7 +85,6 @@ export function createOfflineBootstrapTextModel(
       selectedProvider,
       runtime.getSetting("ANTHROPIC_AUTH_MODE"),
     );
-    const promptText = resolveModelPromptText(params);
 
     if (provider && (await selectedOllamaIsReachable(runtime))) {
       try {
@@ -103,9 +101,6 @@ export function createOfflineBootstrapTextModel(
       selectedProvider
         ? `Reconnect ${selectedProvider} or choose another provider in Settings to continue.`
         : "Choose a model provider in Settings to continue.",
-      "",
-      "Your message is still here:",
-      promptText.slice(0, 600),
     ].join("\n");
   };
 }

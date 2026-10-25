@@ -1,26 +1,26 @@
 import type {
+  DeliveredMessageRecord,
+  PlatformName,
+  SessionRoute,
+} from "../../../types/gateway";
+import type {
   GatewayDaemonState,
   GatewayRestartState,
-} from "@/gateway/daemon-state";
-import type { PlatformAdapter } from "@/gateway/platforms/base";
+} from "../../daemon-state";
+import type { PlatformAdapter } from "../../platforms/base/index";
 import type {
   GatewayAttachmentRecord,
   GatewayHistoryFilter,
   GatewayInboxRecord,
   GatewayOutboxRecord,
   GatewayTraceRecord,
-} from "@/gateway/read/history-view";
-import type { GatewayNativePluginInfo } from "@/gateway/state/platform-state";
+} from "../../read/history-view/index";
+import type { GatewayNativePluginInfo } from "../../state/platform-state";
 import type {
   GatewayControlPlaneView,
   GatewayHistorySnapshot,
   GatewayPlatformStateView,
-} from "@/gateway/state/state-snapshot";
-import type {
-  DeliveredMessageRecord,
-  PlatformName,
-  SessionRoute,
-} from "@/types/gateway";
+} from "../../state/state-snapshot/index";
 
 export interface GatewayRunnerHistoryWindow {
   allTraces: GatewayTraceRecord[];

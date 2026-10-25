@@ -1,7 +1,7 @@
 import { lstatSync, realpathSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
-import { isStrictlyContainedPath } from "@/utils/path-containment";
-import { readRegularFileSync } from "@/utils/read-regular-file";
+import { isStrictlyContainedPath } from "../utils/path-containment";
+import { readRegularFileSync } from "../utils/read-regular-file";
 
 const MAX_SOUL_CHARS = 5000;
 const MAX_SOUL_BYTES = 1024 * 1024;

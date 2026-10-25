@@ -1,5 +1,5 @@
+import type { AppContext } from "@doolittle/agent/runtime/bootstrap";
 import type { GenerateTextParams, Memory } from "@elizaos/core";
-import type { AppContext } from "@/runtime/bootstrap";
 
 function errorDiagnostic(error: unknown) {
   const message =
@@ -50,15 +50,15 @@ function errorDiagnostic(error: unknown) {
   };
 }
 
-import { getAppContext } from "@/runtime/bootstrap";
+import { getAppContext } from "@doolittle/agent/runtime/bootstrap";
 import {
   ensureLocalInteractiveSettingsState,
   ensureTurnConnection,
-} from "@/runtime/chat-turn/connection";
-import { createTurnState } from "@/runtime/chat-turn/state";
-import { runWithTurnRuntimeScope } from "@/runtime/turn-runtime-scope";
-import { startApiServer, stopApiServer } from "@/server";
-import { shellQuote } from "@/services/terminal/execution/subprocess/shell";
+} from "@doolittle/agent/runtime/chat-turn/connection";
+import { createTurnState } from "@doolittle/agent/runtime/chat-turn/state";
+import { runWithTurnRuntimeScope } from "@doolittle/agent/runtime/turn-runtime-scope";
+import { startApiServer, stopApiServer } from "@doolittle/agent/server";
+import { shellQuote } from "@doolittle/agent/services/terminal/execution/subprocess/shell";
 
 // Test driver: a fresh, isolated real runtime. Only the synthetic fixture is owned.
 let context: AppContext | undefined;

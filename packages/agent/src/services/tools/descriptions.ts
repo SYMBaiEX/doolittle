@@ -1,4 +1,4 @@
-import type { ToolDefinition } from "@/types";
+import type { ToolDefinition } from "../../types/index";
 import type { ToolRegistryDynamicState } from "./types";
 
 type DescriptionPatcher = (

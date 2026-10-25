@@ -2,9 +2,9 @@ import {
   RuntimeCodingVerificationEventBus,
   RunUpdateEventBus,
   TaskRunEventBus,
-} from "@/services/run-controller/event-bus";
-import { RunControllerStore } from "@/services/run-controller/store";
-import { createRunStartTransition } from "@/services/run-controller/transitions";
+} from "../run-controller/event-bus";
+import { RunControllerStore } from "../run-controller/store";
+import { createRunStartTransition } from "../run-controller/transitions";
 import type {
   LocalMutationInput,
   RunSnapshot,
@@ -15,8 +15,8 @@ import type {
   TaskRunClaimInput,
   TaskRunClaimResult,
   TaskRunEvent,
-} from "@/services/run-controller/types";
-import { cloneRun } from "@/services/run-controller/utils";
+} from "../run-controller/types";
+import { cloneRun } from "../run-controller/utils";
 import { emitRunUpdate, onRunUpdate } from "./event-capture";
 import { getRunByRoomId, withSessionForRoom } from "./room-mapping";
 import {
@@ -46,7 +46,7 @@ export type {
   TaskRunClaimInput,
   TaskRunClaimResult,
   TaskRunEvent,
-} from "@/services/run-controller/types";
+} from "../run-controller/types";
 
 export class RunControllerService {
   private static readonly SERVER_RUN_FAILURE_MESSAGE =

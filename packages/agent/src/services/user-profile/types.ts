@@ -33,8 +33,8 @@ export interface UserProfileMutationHost {
   nowIso(): string;
   unique(items: string[]): string[];
   normalizeRelationship(
-    relationship?: import("@/types").UserProfileRecord["relationship"],
-  ): NonNullable<import("@/types").UserProfileRecord["relationship"]>;
+    relationship?: import("../../types/index").UserProfileRecord["relationship"],
+  ): NonNullable<import("../../types/index").UserProfileRecord["relationship"]>;
 }
 
 export interface UserProfileMutationActions {
@@ -44,12 +44,12 @@ export interface UserProfileMutationActions {
     strengths?: string[];
     workStyle?: string[];
     notes?: string[];
-  }): import("@/types").AgentIdentityRecord;
+  }): import("../../types/index").AgentIdentityRecord;
   setMode(
     userId: string,
-    mode: import("@/types").UserProfileRecord["memoryMode"],
+    mode: import("../../types/index").UserProfileRecord["memoryMode"],
     context?: import("./storage").UserProfileInteractionContext,
-  ): import("@/types").UserProfileRecord;
+  ): import("../../types/index").UserProfileRecord;
   configureModeling(
     userId: string,
     settings: {
@@ -58,39 +58,39 @@ export interface UserProfileMutationActions {
       dialecticMode?: "off" | "assist" | "conclude";
     },
     context?: import("./storage").UserProfileInteractionContext,
-  ): import("@/types").UserProfileRecord;
+  ): import("../../types/index").UserProfileRecord;
   addNote(
     userId: string,
     note: string,
     source?: string,
     context?: import("./storage").UserProfileInteractionContext,
-  ): import("@/types").UserProfileRecord;
+  ): import("../../types/index").UserProfileRecord;
   remember(
     userId: string,
     kind: RememberKind,
     value: string,
     source?: string,
     context?: import("./storage").UserProfileInteractionContext,
-  ): import("@/types").UserProfileRecord;
+  ): import("../../types/index").UserProfileRecord;
   setExplicitMemories(
     userId: string,
     memories: string[],
     source?: string,
-  ): import("@/types").UserProfileRecord;
+  ): import("../../types/index").UserProfileRecord;
   observe(
     userId: string,
     message: string,
     source?: string,
     context?: import("./storage").UserProfileInteractionContext,
-  ): import("@/types").UserProfileRecord;
+  ): import("../../types/index").UserProfileRecord;
   observeAgent(
     note: string,
     source?: string,
-  ): import("@/types").AgentIdentityRecord;
+  ): import("../../types/index").AgentIdentityRecord;
   conclude(
     userId: string,
     query: string,
     conclusion: string,
     source?: string,
-  ): import("@/types").UserProfileConclusionRecord;
+  ): import("../../types/index").UserProfileConclusionRecord;
 }

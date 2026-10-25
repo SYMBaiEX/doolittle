@@ -8,5 +8,8 @@
       "types": "./src/error.d.ts",
       "default": "./src/error.js"
     }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json"
   }
 }

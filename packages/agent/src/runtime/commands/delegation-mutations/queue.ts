@@ -1,5 +1,5 @@
-import { superviseEffectiveDelegationQueue } from "@/runtime/native/service-bridge/delegation";
 import type { AgentExecutionContext } from "../../chat";
+import { superviseEffectiveDelegationQueue } from "../../native/service-bridge/delegation/index";
 import type { DelegationMutationOptions } from "./types";
 
 export async function handleDelegationQueueMutation(

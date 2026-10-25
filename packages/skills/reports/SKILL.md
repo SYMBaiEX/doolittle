@@ -1,7 +1,8 @@
 ---
+
 name: reports
 description: Use this skill when creating scheduled summaries, cron jobs, or
-  recurring operational reports.
+recurring operational reports.
 ---
 
 # Automation Reports

@@ -14,15 +14,15 @@ resource ownership, reduced motion and interruptibility.
 
 ## Implementation DAG
 
-| Task | Owner / files | Depends on | Output / small completion check | State |
-| --- | --- | --- | --- | --- |
-| A: architecture + bounded primary-source research | harness_architecture; harness decision doc, planner advertisement, core security patch | Existing source / prior research | Concrete SDK-boundary choices with sources | Complete |
-| B: shared runtime foundations | runtime_harness; runtime + native execution/plugin context | A findings, D dogfood feedback | Execution/context improvements; focused regressions | Complete |
-| C: fast development loop | developer_workflow; scripts/config/CI/AGENTS, provider readiness, lock metadata | Current test inventory | Related/watch + essential checks; one timed run | Complete |
-| D: real product dogfood | integration owner; existing CLI/API | Existing runnable product, then B | Bounded repository tasks with actual receipts | Complete; external launcher limit recorded below |
-| E: safe debloat | repository_debloat; unused sources/docs/tests outside B/F | C retained-check list; traced references | Recoverable deletions with concise inventory | Complete |
-| F: crafted liquid interface | liquid_product_ui; UI package + desktop renderer | Existing interface design | Reusable motion/materials; focused UI check | Complete; native visual spot-check passed |
-| G: integration + local release | integration owner; release/build artifacts | B, C, E, F | One integration milestone, committed runnable build, local install | Complete; local macOS delivery |
+| Task                                              | Owner / files                                                                          | Depends on                               | Output / small completion check                                    | State                                            |
+| ------------------------------------------------- | -------------------------------------------------------------------------------------- | ---------------------------------------- | ------------------------------------------------------------------ | ------------------------------------------------ |
+| A: architecture + bounded primary-source research | harness_architecture; harness decision doc, planner advertisement, core security patch | Existing source / prior research         | Concrete SDK-boundary choices with sources                         | Complete                                         |
+| B: shared runtime foundations                     | runtime_harness; runtime + native execution/plugin context                             | A findings, D dogfood feedback           | Execution/context improvements; focused regressions                | Complete                                         |
+| C: fast development loop                          | developer_workflow; scripts/config/CI/AGENTS, provider readiness, lock metadata        | Current test inventory                   | Related/watch + essential checks; one timed run                    | Complete                                         |
+| D: real product dogfood                           | integration owner; existing CLI/API                                                    | Existing runnable product, then B        | Bounded repository tasks with actual receipts                      | Complete; external launcher limit recorded below |
+| E: safe debloat                                   | repository_debloat; unused sources/docs/tests outside B/F                              | C retained-check list; traced references | Recoverable deletions with concise inventory                       | Complete                                         |
+| F: crafted liquid interface                       | liquid_product_ui; UI package + desktop renderer                                       | Existing interface design                | Reusable motion/materials; focused UI check                        | Complete; native visual spot-check passed        |
+| G: integration + local release                    | integration owner; release/build artifacts                                             | B, C, E, F                               | One integration milestone, committed runnable build, local install | Complete; local macOS delivery                   |
 
 A feeds B; C feeds E; D feeds B. B, C, E and F converge at G. Owners share a
 checkout with disjoint edit boundaries; conflicting ownership must be resolved
@@ -99,11 +99,11 @@ exercised.
 These were real source-CLI/provider runs against this repository, not fixtures
 or tasks performed solely by the surrounding development agents:
 
-| Useful task | Actual result |
-| --- | --- |
-| Inspect the one-shot prompt command and identify a correctness problem | After fixing false mutation intent, one `READ_FILE` completed the task in 9.1 s and identified cancellation reporting as successful completion. |
-| Implement a cancellation regression with Doolittle's own tools | `READ_FILE` and `PATCH_FILE` added the resolved-cancellation test to `prompt-command.test.ts` in 19.2 s. Doolittle honestly said it had not run the test. |
-| Run that regression using the product's shell tool | One `SHELL` action ran the scoped command; all seven tests in that file passed, with a successful receipt in 6.2 s. |
+| Useful task                                                            | Actual result                                                                                                                                             |
+| ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Inspect the one-shot prompt command and identify a correctness problem | After fixing false mutation intent, one `READ_FILE` completed the task in 9.1 s and identified cancellation reporting as successful completion.           |
+| Implement a cancellation regression with Doolittle's own tools         | `READ_FILE` and `PATCH_FILE` added the resolved-cancellation test to `prompt-command.test.ts` in 19.2 s. Doolittle honestly said it had not run the test. |
+| Run that regression using the product's shell tool                     | One `SHELL` action ran the scoped command; all seven tests in that file passed, with a successful receipt in 6.2 s.                                       |
 
 Earlier dogfood also exposed twelve repeated reads for a read-only request and
 failed execution being presented as completed by the CLI. Those findings drove

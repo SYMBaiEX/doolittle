@@ -1,15 +1,12 @@
-import type { TuiThemeName } from "@/runtime/theme-catalog";
-import type {
-  ElizaMcpSettings,
-  LegacyMcpSettings,
-} from "@/services/mcp/settings";
+import type { TuiThemeName } from "../../runtime/theme-catalog/index";
 import type {
   ExecutionBackendName,
   RemoteArtifactPolicy,
   RemoteWorkspaceSyncMode,
   RunDepth,
   ToolProgressMode,
-} from "@/types";
+} from "../../types/index";
+import type { ElizaMcpSettings, LegacyMcpSettings } from "../mcp/settings";
 
 export const RUNTIME_REASONING_EFFORTS = [
   "none",

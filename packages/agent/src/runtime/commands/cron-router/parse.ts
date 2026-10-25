@@ -1,4 +1,4 @@
-import type { AutomationRuntimeOverrides } from "@/types/runtime";
+import type { AutomationRuntimeOverrides } from "../../../types/runtime/index";
 import type { ParsedCronSegments } from "./types";
 
 export function parseCronSegments(raw: string): ParsedCronSegments | null {

@@ -1,4 +1,4 @@
-import type { RuntimeLike } from "@/runtime/native/service-bridge/runtime";
+import type { RuntimeLike } from "../../../runtime/native/service-bridge/runtime";
 
 export interface OperatorRuntimeAttachment {
   runtime?: RuntimeLike;

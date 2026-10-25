@@ -1,6 +1,6 @@
-import { getNativeServices } from "@/runtime/native/service-bridge/runtime";
-import type { ChatTurnRequest } from "@/types/runtime";
+import type { ChatTurnRequest } from "../../../types/runtime/index";
 import type { AgentExecutionContext } from "../../chat";
+import { getNativeServices } from "../../native/service-bridge/runtime";
 import {
   parseCronDelivery,
   parseCronRuntimeOptions,

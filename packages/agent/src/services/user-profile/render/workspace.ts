@@ -1,4 +1,7 @@
-import type { UserProfileRecord, UserProfileWorkspaceSummary } from "@/types";
+import type {
+  UserProfileRecord,
+  UserProfileWorkspaceSummary,
+} from "../../../types/index";
 import { unique } from "../shared";
 import { normalizeEngagement, normalizeRelationship } from "../storage";
 import type { ProfileRenderReader } from "./reader";

@@ -1,5 +1,5 @@
 import { DEFAULT_MODEL_ROUTE } from "@doolittle/contracts";
-import type { EnvConfig } from "@/types";
+import type { EnvConfig } from "../../../types/index";
 import type { SettingsService } from "../../settings-service";
 
 export type DefaultServiceModelProvider =

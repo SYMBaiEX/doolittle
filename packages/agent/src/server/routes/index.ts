@@ -1,4 +1,4 @@
-import type { AppContext } from "@/runtime/bootstrap";
+import type { AppContext } from "../../runtime/bootstrap/index";
 import type { RouteHandler } from "../router";
 import { handleAcpRoutes } from "./acp";
 import { handleActivityRoutes } from "./activity";

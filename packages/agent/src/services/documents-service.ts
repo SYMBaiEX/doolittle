@@ -3,7 +3,7 @@ import type { IAgentRuntime } from "@elizaos/core";
 import {
   type NativePdfService,
   PDF_SERVICE,
-} from "@/runtime/native/service-bridge/runtime-contracts";
+} from "../runtime/native/service-bridge/runtime-contracts/index";
 import {
   resolveWorkspaceDirectory,
   type WorkspaceDirectorySource,

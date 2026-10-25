@@ -2,7 +2,7 @@ import type {
   ExecutionCloudArtifactRecord,
   ExecutionCloudProfile,
   ExecutionCloudSnapshotRecord,
-} from "@/types/execution";
+} from "../../../../types/execution";
 import type { CloudStore } from "./types";
 
 export function listCloudSnapshots(

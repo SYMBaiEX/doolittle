@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
-import type { PersonalityProfile } from "@/types";
+import type { PersonalityProfile } from "../types/index";
 
 interface PersonalityStore {
   activeId: string;

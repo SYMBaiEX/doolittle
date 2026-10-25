@@ -1,6 +1,6 @@
-import { clearMaterializedAccountPoolApiCredentials } from "@/runtime/native/account-pool";
-import { getRuntimeProviderAccountsSnapshot } from "@/runtime/native/provider-accounts";
 import type { AgentExecutionContext } from "../chat";
+import { clearMaterializedAccountPoolApiCredentials } from "../native/account-pool/index";
+import { getRuntimeProviderAccountsSnapshot } from "../native/provider-accounts";
 import { normalizeElizaCloudBaseUrl } from "./messages";
 import {
   resolveDefaultProviderBaseUrl,

@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { realpathSync } from "node:fs";
 import { basename, isAbsolute, relative, sep } from "node:path";
 import { type IPty, spawn as spawnPty } from "@lydell/node-pty";
-import { currentConversationWorkspace } from "@/runtime/workspace-scope";
+import { currentConversationWorkspace } from "../../runtime/workspace-scope";
 import {
   resolveWorkspaceDirectory,
   type WorkspaceDirectorySource,

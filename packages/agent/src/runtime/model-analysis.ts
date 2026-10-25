@@ -1,17 +1,17 @@
 import { type ChatMessage, ModelType } from "@elizaos/core";
+import type { ModelAnalysisImage } from "../services/model-analysis-port";
+import type { AutomationRuntimeOverrides } from "../types/runtime/index";
+import { applyRuntimeOverrides } from "./chat-turn/overrides";
 import {
   buildProviderRuntimeSettings,
   type ProviderRuntimeSettingsContext,
-} from "@/runtime/linked-provider-accounts";
+} from "./linked-provider-accounts/index";
 import {
   buildCacheablePrompt,
   hashParts,
   promptCacheMetrics,
-} from "@/runtime/prompt-cache";
-import { runWithTurnRuntimeScope } from "@/runtime/turn-runtime-scope";
-import type { ModelAnalysisImage } from "@/services/model-analysis-port";
-import type { AutomationRuntimeOverrides } from "@/types/runtime";
-import { applyRuntimeOverrides } from "./chat-turn/overrides";
+} from "./prompt-cache/index";
+import { runWithTurnRuntimeScope } from "./turn-runtime-scope";
 
 export interface ModelAnalysisOptions {
   label: string;

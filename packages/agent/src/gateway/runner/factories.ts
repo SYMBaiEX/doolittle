@@ -1,26 +1,23 @@
-import type {
-  GatewayDaemonState,
-  GatewayRestartState,
-} from "@/gateway/daemon-state";
-import type { GatewayTraceRecord } from "@/gateway/read/history-view";
-import type { GatewayRunnerContext } from "@/gateway/runner/context";
-import type { GatewayRunnerLifecycleHost } from "@/gateway/runner/lifecycle/types";
-import type {
-  GatewayHistorySnapshot,
-  GatewayPlatformStateView,
-  GatewayStateSnapshot,
-} from "@/gateway/state/state-snapshot";
-import type {
-  GatewaySupervisionDependencies,
-  GatewaySupervisionRecord,
-} from "@/gateway/supervision/index";
-import type { PlatformName } from "@/types/gateway";
+import type { PlatformName } from "../../types/gateway";
+import type { GatewayDaemonState, GatewayRestartState } from "../daemon-state";
 import {
   nowIso,
   type PlatformAdapter,
   type PlatformHealth,
   type PlatformLifecycleEvent,
 } from "../platforms/base";
+import type { GatewayTraceRecord } from "../read/history-view/index";
+import type {
+  GatewayHistorySnapshot,
+  GatewayPlatformStateView,
+  GatewayStateSnapshot,
+} from "../state/state-snapshot/index";
+import type {
+  GatewaySupervisionDependencies,
+  GatewaySupervisionRecord,
+} from "../supervision/index";
+import type { GatewayRunnerContext } from "./context";
+import type { GatewayRunnerLifecycleHost } from "./lifecycle/types";
 
 export interface GatewayRunnerLifecycleAccessors {
   getRunning(): boolean;

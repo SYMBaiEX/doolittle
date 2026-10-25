@@ -1,7 +1,7 @@
-import type { AppContext } from "@/runtime/bootstrap";
-import { readJsonObjectBody } from "@/server/request-body";
-import { json } from "@/server/responses";
-import type { PlatformName } from "@/types";
+import type { AppContext } from "../../runtime/bootstrap/index";
+import type { PlatformName } from "../../types/index";
+import { readJsonObjectBody } from "../request-body";
+import { json } from "../responses";
 
 function bodyError(reason: "invalid_json" | "not_object"): Response {
   return json(

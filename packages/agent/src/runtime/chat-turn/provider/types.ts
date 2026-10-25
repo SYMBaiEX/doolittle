@@ -1,10 +1,10 @@
 import { createMessageMemory } from "@elizaos/core";
 import { resolveStreamingUpdate } from "@elizaos/shared/utils/streaming-text";
-import type { AgentExecutionContext, AgentTurnHooks } from "@/runtime/chat";
+import type { AgentExecutionContext, AgentTurnHooks } from "../../chat";
 import {
   buildProviderFailureMessage,
   syncProviderSettings,
-} from "@/runtime/linked-provider-accounts";
+} from "../../linked-provider-accounts/index";
 import { extractCompatTextContent } from "../state";
 
 export type ModelSettingsSnapshot = ReturnType<

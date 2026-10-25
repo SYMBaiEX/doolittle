@@ -5,9 +5,9 @@ import {
   type Service,
   type ServiceClass,
 } from "@elizaos/core";
-import { GatewayRunner } from "@/gateway/runner";
-import type { AppServices } from "@/services";
-import type { EnvConfig } from "@/types/runtime";
+import { GatewayRunner } from "../../../../gateway/runner/index";
+import type { AppServices } from "../../../../services/index";
+import type { EnvConfig } from "../../../../types/runtime/index";
 
 /** Adapts the agent-owned gateway runner to Eliza's service lifecycle. */
 export function createGatewayRuntimeService({

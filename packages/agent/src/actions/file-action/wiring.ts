@@ -9,22 +9,22 @@ import {
   type State,
   validateActionParams,
 } from "@elizaos/core";
-import { buildActionResultData } from "@/runtime/action-result-metadata";
+import { buildActionResultData } from "../../runtime/action-result-metadata";
 import {
   createNativeWorkspaceDirectory,
   patchNativeWorkspaceFile,
   readNativeWorkspaceFileLines,
   searchNativeWorkspaceFiles,
   writeNativeWorkspaceFileResult,
-} from "@/runtime/native/service-bridge/tooling";
+} from "../../runtime/native/service-bridge/tooling/index";
 import {
   getScopedTurnAbortSignal,
   recordScopedTurnActionResult,
-} from "@/runtime/turn-runtime-scope";
+} from "../../runtime/turn-runtime-scope";
 import type {
   WorkspaceFileSearchResult,
   WorkspaceReadLinesResult,
-} from "@/services/workspace-service";
+} from "../../services/workspace-service/index";
 
 type ParamRecord = Record<string, unknown>;
 type ActionParameters = NonNullable<Action["parameters"]>;

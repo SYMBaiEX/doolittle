@@ -1,4 +1,4 @@
-import type { UserProfileRecord } from "@/types";
+import type { UserProfileRecord } from "../../../types/index";
 import type {
   UserProfileInteractionContext,
   UserProfileStorage,

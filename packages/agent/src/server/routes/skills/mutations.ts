@@ -1,13 +1,13 @@
-import type { AppContext } from "@/runtime/bootstrap";
+import type { AppContext } from "../../../runtime/bootstrap/index";
 import {
   exportEffectiveSkillHubBundle,
   exportEffectiveSkillHubManifest,
   importEffectiveSkillHubManifest,
   installEffectiveSkill,
   syncEffectiveSkillCatalog,
-} from "@/runtime/native/service-bridge/skill-hub";
-import { readJsonObjectBody } from "@/server/request-body";
-import { json } from "@/server/responses";
+} from "../../../runtime/native/service-bridge/skill-hub/index";
+import { readJsonObjectBody } from "../../request-body";
+import { json } from "../../responses";
 
 type ParsedBody = { body: Record<string, unknown> } | { response: Response };
 

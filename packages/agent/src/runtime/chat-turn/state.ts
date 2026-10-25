@@ -1,13 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { type Content, createUniqueUuid } from "@elizaos/core";
-import type { AgentExecutionContext } from "@/runtime/chat";
-import { observeEffectiveUserProfile } from "@/runtime/native/service-bridge/ownership";
-import { stableRuntimeUuid } from "@/runtime/stable-runtime-uuid";
 import type {
   ChatTurnRequest,
   RunDepth,
   ToolProgressMode,
-} from "@/types/runtime";
+} from "../../types/runtime/index";
+import type { AgentExecutionContext } from "../chat";
+import { observeEffectiveUserProfile } from "../native/service-bridge/ownership/index";
+import { stableRuntimeUuid } from "../stable-runtime-uuid";
 import type { NativeUserMemoryOwner } from "./conversation-persistence";
 import { persistUserTurnMemory } from "./conversation-persistence";
 import { recordEvaluationTraceEvent } from "./trajectory";

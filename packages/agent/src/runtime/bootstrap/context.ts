@@ -1,26 +1,23 @@
 import { DOOLITTLE_SCHEDULER_SERVICE } from "@doolittle/contracts";
 import type { AgentRuntime } from "@elizaos/core";
-import { installNativeDiscordInboundHandoff } from "@/gateway/platforms/native-discord-inbound";
-import { installNativeSignalInboundHandoff } from "@/gateway/platforms/native-signal-inbound";
-import { installNativeSlackInboundHandoff } from "@/gateway/platforms/native-slack-inbound";
-import { installNativeTelegramInboundHandoff } from "@/gateway/platforms/native-telegram-inbound";
-import { installNativeWhatsAppInboundHandoff } from "@/gateway/platforms/native-whatsapp-inbound";
+import { installNativeDiscordInboundHandoff } from "../../gateway/platforms/native-discord-inbound";
+import { installNativeSignalInboundHandoff } from "../../gateway/platforms/native-signal-inbound";
+import { installNativeSlackInboundHandoff } from "../../gateway/platforms/native-slack-inbound";
+import { installNativeTelegramInboundHandoff } from "../../gateway/platforms/native-telegram-inbound";
+import { installNativeWhatsAppInboundHandoff } from "../../gateway/platforms/native-whatsapp-inbound";
+import { createAcpProtocolHost } from "../../services/acp/host";
+import type { AppServices } from "../../services/index";
+import { getNativeServices } from "../native/service-bridge/runtime";
+import { getRuntimeToolProjection } from "../native/service-bridge/service-resolution/index";
+import { readWorkerBotProfile } from "./bot-profile";
+import { createDeferredHydrator } from "./runtime/deferred-hydration";
+import { createGatewayAccessor } from "./runtime/gateway-factory";
 import {
   finalizeCoreRuntimeServices,
   requireRuntimeService,
-} from "@/runtime/bootstrap/runtime";
-import { createDeferredHydrator } from "@/runtime/bootstrap/runtime/deferred-hydration";
-import { createGatewayAccessor } from "@/runtime/bootstrap/runtime/gateway-factory";
-import { appendBootstrapTrace } from "@/runtime/bootstrap/trace";
-import type {
-  BootstrapContext,
-  BootstrapContextParams,
-} from "@/runtime/bootstrap/types";
-import { getNativeServices } from "@/runtime/native/service-bridge/runtime";
-import { getRuntimeToolProjection } from "@/runtime/native/service-bridge/service-resolution";
-import type { AppServices } from "@/services";
-import { createAcpProtocolHost } from "@/services/acp/host";
-import { readWorkerBotProfile } from "./bot-profile";
+} from "./runtime/index";
+import { appendBootstrapTrace } from "./trace";
+import type { BootstrapContext, BootstrapContextParams } from "./types";
 
 type RuntimeBindableServices = AppServices & {
   __bindRuntime?: (nextRuntime: AgentRuntime) => void;

@@ -1,5 +1,8 @@
-import type { SetupSummary, UpdatePreview } from "@/services/operator/service";
-import type { DiagnosticCheck } from "@/types";
+import type {
+  SetupSummary,
+  UpdatePreview,
+} from "../../../services/operator/service/index";
+import type { DiagnosticCheck } from "../../../types/index";
 
 function normalizeDiagnosticStatus(status: string): string {
   return status === "ok" ? "pass" : status;

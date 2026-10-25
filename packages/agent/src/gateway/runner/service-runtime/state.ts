@@ -1,11 +1,11 @@
+import type { PlatformName } from "../../../types/gateway";
 import type {
   GatewayDaemonState,
   GatewayRestartState,
-} from "@/gateway/daemon-state";
-import type { PlatformAdapter } from "@/gateway/platforms/base";
-import type { GatewayRunnerRuntimeMeta } from "@/gateway/runner/bootstrap";
-import type { GatewayPlatformStateView } from "@/gateway/state/state-snapshot";
-import type { PlatformName } from "@/types/gateway";
+} from "../../daemon-state";
+import type { PlatformAdapter } from "../../platforms/base/index";
+import type { GatewayPlatformStateView } from "../../state/state-snapshot/index";
+import type { GatewayRunnerRuntimeMeta } from "../bootstrap";
 
 const DEFAULT_DAEMON_STATE: GatewayDaemonState = {
   heartbeatRuns: 0,

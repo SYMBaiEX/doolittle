@@ -1,4 +1,4 @@
-import type { EnvConfig } from "@/types";
+import type { EnvConfig } from "../../types/index";
 import type { DocumentsService } from "../documents-service";
 import { createServiceAssemblyResult } from "./construction/groups";
 import { createServiceConstructionState } from "./construction/state";

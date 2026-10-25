@@ -1,5 +1,5 @@
 import { posix, win32 } from "node:path";
-import type { StoredMessageAttachment } from "@/types";
+import type { StoredMessageAttachment } from "../../types/index";
 import {
   DOOLITTLE_SESSION_ARCHIVE_SCHEMA,
   DOOLITTLE_SESSION_ARCHIVE_VERSION,

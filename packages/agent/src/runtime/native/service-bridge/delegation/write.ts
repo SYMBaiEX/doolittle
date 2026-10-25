@@ -3,24 +3,24 @@ import { realpathSync } from "node:fs";
 import {
   type DoolittleResearchRuntime,
   runDoolittleResearch,
-} from "@/actions/research-action";
+} from "../../../../actions/research-action";
 import {
   classifyResearchFailure,
   ResearchPreflightError,
   researchFailureText,
-} from "@/actions/research-failure";
+} from "../../../../actions/research-failure";
+import type { DelegationOrchestrationMode } from "../../../../types/runtime/index";
 import {
   acquireExecutionLease,
   getScopedExecutionLease,
   runWithExecutionLease,
   runWithSdkTaskSpawn,
-} from "@/runtime/execution-admission";
+} from "../../../execution-admission";
 import {
   isDesktopWorkspaceRuntime,
   requireConversationWorkspace,
   resolveConversationWorkspace,
-} from "@/runtime/workspace-scope";
-import type { DelegationOrchestrationMode } from "@/types/runtime";
+} from "../../../workspace-scope";
 import type { RuntimeLike } from "../runtime";
 import { projectOfficialTask, requireOfficialOrchestrator } from "./official";
 import {

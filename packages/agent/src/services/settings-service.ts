@@ -1,15 +1,15 @@
 import { lstatSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
-import { normalizeRuntimeSettings } from "@/services/settings/normalization";
-import { setSettingPath } from "@/services/settings/path";
+import { readRegularFileSync } from "../utils/read-regular-file";
+import { normalizeRuntimeSettings } from "./settings/normalization";
+import { setSettingPath } from "./settings/path";
 import type {
   ParsedRuntimeSettings,
   RuntimeSettings,
-} from "@/services/settings/runtime-settings";
-import { readRegularFileSync } from "@/utils/read-regular-file";
+} from "./settings/runtime-settings";
 
-export type { RuntimeSettings } from "@/services/settings/runtime-settings";
+export type { RuntimeSettings } from "./settings/runtime-settings";
 
 const MAX_SETTINGS_BYTES = 1024 * 1024;
 

@@ -2,9 +2,9 @@ import {
   DOOLITTLE_PERSONALITY_SERVICE,
   DOOLITTLE_ROLODEX_SERVICE,
 } from "@doolittle/contracts";
-import { getScopedTurnPersonalityId } from "@/runtime/turn-runtime-scope";
-import type { AppServices } from "@/services";
-import type { PersonalityProfile } from "@/types";
+import type { AppServices } from "../../../../services/index";
+import type { PersonalityProfile } from "../../../../types/index";
+import { getScopedTurnPersonalityId } from "../../../turn-runtime-scope";
 import { getNativeServices, type RuntimeLike } from "../runtime";
 import type {
   NativePersonalityService,

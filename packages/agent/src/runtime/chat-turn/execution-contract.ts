@@ -2,8 +2,8 @@ import type { ActionResult } from "@elizaos/core";
 import {
   actionResultMutationActionName,
   extractVerifiedLocalMutationFromActionResult,
-} from "@/runtime/action-result-metadata";
-import { hasWorkspaceMutationObligation } from "@/runtime/workspace-mutation-intent";
+} from "../action-result-metadata";
+import { hasWorkspaceMutationObligation } from "../workspace-mutation-intent";
 import {
   verifyWorkspaceNoopCompletion,
   type WorkspaceNoopRequirements,

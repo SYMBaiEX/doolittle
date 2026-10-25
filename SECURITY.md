@@ -2,9 +2,9 @@
 
 ## Supported versions
 
-| Version | Security updates |
-| --- | --- |
-| `0.1.x` | Supported after the first public `0.1.0` release |
+| Version                                | Security updates                                               |
+| -------------------------------------- | -------------------------------------------------------------- |
+| `0.1.x`                                | Supported after the first public `0.1.0` release               |
 | Development builds and older snapshots | Not supported; update or reinstall the latest verified release |
 
 ## Reporting a vulnerability

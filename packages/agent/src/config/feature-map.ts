@@ -1,4 +1,4 @@
-import type { FeatureMapping } from "@/types/runtime";
+import type { FeatureMapping } from "../types/runtime/index";
 
 export const featureMap: FeatureMapping[] = [
   {

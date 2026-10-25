@@ -1,6 +1,6 @@
 import type { Plugin } from "@elizaos/core";
-import { formatError } from "@/runtime/bootstrap/recovery/error-format";
-import type { AppServices } from "@/services";
+import type { AppServices } from "../../../services/index";
+import { formatError } from "../recovery/error-format";
 
 const MAX_DEFERRED_PLUGIN_ATTEMPTS = 3;
 

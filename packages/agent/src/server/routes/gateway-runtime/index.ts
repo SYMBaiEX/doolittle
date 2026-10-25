@@ -1,4 +1,4 @@
-import type { AppContext } from "@/runtime/bootstrap";
+import type { AppContext } from "../../../runtime/bootstrap/index";
 import { handleGatewayConfigRoutes } from "./config";
 import { handleGatewayControlRoutes } from "./control";
 import { handleGatewayHealthRoutes } from "./health";

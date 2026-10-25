@@ -1,9 +1,9 @@
+import type { AgentExecutionContext } from "../../chat";
 import {
   getEffectivePluginManagerInventory,
   getEffectiveToolInventory,
   searchEffectiveTools,
-} from "@/runtime/native/service-bridge/service-resolution";
-import type { AgentExecutionContext } from "../../chat";
+} from "../../native/service-bridge/service-resolution/index";
 
 export async function handleToolsCommand(
   trimmed: string,

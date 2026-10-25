@@ -1,10 +1,10 @@
-import { getNativePackageAudit } from "@/runtime/native/package-audit";
-import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
-import { getRuntimeProviderAccountsSnapshot } from "@/runtime/native/provider-accounts";
-import { getTuiTheme, listTuiThemes } from "@/runtime/theme-catalog";
-import type { AppServices } from "@/services";
-import type { GatewayConfig } from "@/types/gateway";
-import type { EnvConfig } from "@/types/runtime";
+import type { AppServices } from "../../../../services/index";
+import type { GatewayConfig } from "../../../../types/gateway";
+import type { EnvConfig } from "../../../../types/runtime/index";
+import { getTuiTheme, listTuiThemes } from "../../../theme-catalog/index";
+import { getNativePackageAudit } from "../../package-audit";
+import { getNativePluginCatalog } from "../../plugin-catalog";
+import { getRuntimeProviderAccountsSnapshot } from "../../provider-accounts";
 import { getAutonomousControlPlane } from "../autonomous";
 import {
   getEffectivePluginManagerInventory,

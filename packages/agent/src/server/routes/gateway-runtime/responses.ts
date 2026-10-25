@@ -1,10 +1,10 @@
-import { parseGatewayFiltersFromUrl } from "@/gateway/control/index";
-import type { AppContext } from "@/runtime/bootstrap";
+import { parseGatewayFiltersFromUrl } from "../../../gateway/control/index";
+import type { AppContext } from "../../../runtime/bootstrap/index";
 import {
   getNativePluginCatalog,
   groupNativePluginCatalog,
-} from "@/runtime/native/plugin-catalog";
-import { getNativeOwnershipControlPlane } from "@/runtime/native/service-bridge/ownership";
+} from "../../../runtime/native/plugin-catalog/index";
+import { getNativeOwnershipControlPlane } from "../../../runtime/native/service-bridge/ownership/index";
 
 function buildGatewaySummaryBlock(input: {
   headline: string;

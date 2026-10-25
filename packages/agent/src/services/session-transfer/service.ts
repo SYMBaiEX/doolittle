@@ -1,10 +1,10 @@
 import { createHash, randomUUID } from "node:crypto";
-import type { SessionDatabase } from "@/services/session/database";
-import type { SessionMessageStore } from "@/services/session/messages";
-import type { SessionMetadataStore } from "@/services/session/metadata";
-import type { ProjectStore } from "@/services/session/projects/store";
-import type { SessionSummaryOperations } from "@/services/session/service/summary";
-import type { StoredMessage } from "@/types";
+import type { StoredMessage } from "../../types/index";
+import type { SessionDatabase } from "../session/database";
+import type { SessionMessageStore } from "../session/messages/index";
+import type { SessionMetadataStore } from "../session/metadata/index";
+import type { ProjectStore } from "../session/projects/store";
+import type { SessionSummaryOperations } from "../session/service/summary";
 import {
   DOOLITTLE_SESSION_ARCHIVE_SCHEMA,
   DOOLITTLE_SESSION_ARCHIVE_VERSION,

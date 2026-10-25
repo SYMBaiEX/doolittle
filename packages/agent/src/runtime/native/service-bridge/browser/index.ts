@@ -6,7 +6,7 @@ import type {
   BrowserComparisonBundle,
   BrowserInspection,
   WebPageSnapshot,
-} from "@/services/web/service";
+} from "../../../../services/web/service";
 import { getNativeServices } from "../runtime";
 import type { NativeBrowserService, RuntimeLike } from "../runtime-contracts";
 

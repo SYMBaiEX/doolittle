@@ -5,7 +5,7 @@ import {
   readJsonFileSync,
   writeJsonAtomicSync,
 } from "@elizaos/agent/utils/atomic-json";
-import { runTextProcessSync } from "@/services/process-execution";
+import { runTextProcessSync } from "../../../services/process-execution";
 
 export const DEFAULT_REFRESH_SKEW_SECONDS = 120;
 const COMMAND_CACHE_TTL_MS = 1_000;

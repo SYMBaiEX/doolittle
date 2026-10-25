@@ -26,7 +26,6 @@ import {
   type Task,
   type UUID,
 } from "@elizaos/core";
-import { requestWorkerHost } from "@/runtime/bootstrap/worker-host-rpc";
 import {
   automationTriggerMatches,
   buildAutomationDefinition,
@@ -34,14 +33,15 @@ import {
   normalizeAutomationAction,
   normalizeAutomationCondition,
   normalizeAutomationTrigger,
-} from "@/services/automation/definition";
+} from "../../../../services/automation/definition";
 import type {
   AutomationExecutionContext,
   AutomationExecutor,
   AutomationJobRecord,
   AutomationRunRecord,
   AutomationRuntimeOverrides,
-} from "@/services/automation/types";
+} from "../../../../services/automation/types";
+import { requestWorkerHost } from "../../../bootstrap/worker-host-rpc";
 
 type AutomationInput = Omit<
   AutomationJobRecord,

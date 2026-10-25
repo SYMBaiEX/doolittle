@@ -1,8 +1,8 @@
-import type { AppContext } from "@/runtime/bootstrap";
-import { getEffectiveSkillsSummary } from "@/runtime/native/service-bridge/autonomous";
-import { getNativeServices } from "@/runtime/native/service-bridge/runtime";
-import { getEffectiveShellHistory } from "@/runtime/native/service-bridge/tooling";
-import { json } from "@/server/responses";
+import type { AppContext } from "../../runtime/bootstrap/index";
+import { getEffectiveSkillsSummary } from "../../runtime/native/service-bridge/autonomous/index";
+import { getNativeServices } from "../../runtime/native/service-bridge/runtime";
+import { getEffectiveShellHistory } from "../../runtime/native/service-bridge/tooling/index";
+import { json } from "../responses";
 
 export async function handleDiagnosticsRoutes(
   context: AppContext,

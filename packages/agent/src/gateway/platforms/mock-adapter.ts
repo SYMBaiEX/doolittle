@@ -1,5 +1,8 @@
-import type { DeliveryService } from "@/services/delivery-service";
-import type { OutboundPlatformMessage, PlatformName } from "@/types/gateway";
+import type { DeliveryService } from "../../services/delivery-service";
+import type {
+  OutboundPlatformMessage,
+  PlatformName,
+} from "../../types/gateway";
 import {
   capabilitiesForPlatform,
   createLifecycleHistory,

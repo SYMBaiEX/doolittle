@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { basename, resolve } from "node:path";
-import { runTextProcess } from "@/services/process-execution";
+import { runTextProcess } from "../process-execution";
 import type { LocalCodebaseMatch } from "./types";
 
 const SEARCH_ROOT_SUFFIXES = ["dev", "code", "projects"] as const;

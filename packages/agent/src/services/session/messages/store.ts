@@ -1,11 +1,11 @@
 import type { EventEmitter } from "node:events";
-import type { SessionDatabase } from "@/services/session/database";
 import type {
   SessionExchangeMutationResult,
   SessionSearchResult,
   StoredMessage,
   StoredMessageAttachment,
-} from "@/types";
+} from "../../../types/index";
+import type { SessionDatabase } from "../database";
 
 export interface SessionMessageActivityEvent {
   kind: "message";

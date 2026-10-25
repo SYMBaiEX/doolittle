@@ -1,6 +1,6 @@
-import type { AppServices } from "@/services";
-import type { GatewayConfig } from "@/types/gateway";
-import type { EnvConfig } from "@/types/runtime";
+import type { AppServices } from "../../services/index";
+import type { GatewayConfig } from "../../types/gateway";
+import type { EnvConfig } from "../../types/runtime/index";
 import {
   getNativeOwnershipControlPlane,
   getNativeOwnershipSnapshot,

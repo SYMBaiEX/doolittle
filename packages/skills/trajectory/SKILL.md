@@ -1,7 +1,8 @@
 ---
+
 name: trajectory
 description: Use this skill when exporting, replaying, or analyzing session
-  trajectories and evaluation bundles.
+trajectories and evaluation bundles.
 ---
 
 # Doolittle Trajectory Research

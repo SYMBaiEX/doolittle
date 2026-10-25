@@ -89,21 +89,21 @@ If these all return and report readiness, the product boundary is active.
 
 Doolittle has one runtime and a few ways to drive it:
 
-| Surface | Command | Use when |
-|---|---|---|
-| Plain shell | `doolittle` | Everyday work, approvals, and slash commands |
-| Cockpit | `doolittle cockpit` | Fullscreen observability |
+| Surface           | Command                                                                        | Use when                                         |
+| ----------------- | ------------------------------------------------------------------------------ | ------------------------------------------------ |
+| Plain shell       | `doolittle`                                                                    | Everyday work, approvals, and slash commands     |
+| Cockpit           | `doolittle cockpit`                                                            | Fullscreen observability                         |
 | Runtime check-ins | `doolittle status`, `doolittle tools`, `doolittle skills`, `doolittle runtime` | Fast orientation without opening the shell first |
-| API | `doolittle api` | REST and scripted clients |
-| Gateway | `doolittle gateway` | Messaging transports and delivery ops |
+| API               | `doolittle api`                                                                | REST and scripted clients                        |
+| Gateway           | `doolittle gateway`                                                            | Messaging transports and delivery ops            |
 
 The top-level aliases are shortcuts onto the same runtime surfaces:
 
-| Alias | Default mapping |
-|---|---|
-| `doolittle status` | `/status` |
-| `doolittle tools` | `/tools summary` |
-| `doolittle skills` | `/skills` |
+| Alias               | Default mapping   |
+| ------------------- | ----------------- |
+| `doolittle status`  | `/status`         |
+| `doolittle tools`   | `/tools summary`  |
+| `doolittle skills`  | `/skills`         |
 | `doolittle runtime` | `/runtime status` |
 
 For the daily shell rhythm in one place, use [`operator-loop.md`](./operator-loop.md).
@@ -112,20 +112,20 @@ For the daily shell rhythm in one place, use [`operator-loop.md`](./operator-loo
 
 ### Shell-level entrypoints
 
-| Goal | Command |
-|---|---|
-| Everyday operator loop | `doolittle` |
-| Fullscreen operator UI | `doolittle cockpit` |
-| One-shot shell health | `doolittle status` |
-| One-shot tools inventory | `doolittle tools` |
-| One-shot skills inventory | `doolittle skills` |
-| One-shot runtime summary | `doolittle runtime` |
+| Goal                        | Command                        |
+| --------------------------- | ------------------------------ |
+| Everyday operator loop      | `doolittle`                    |
+| Fullscreen operator UI      | `doolittle cockpit`            |
+| One-shot shell health       | `doolittle status`             |
+| One-shot tools inventory    | `doolittle tools`              |
+| One-shot skills inventory   | `doolittle skills`             |
+| One-shot runtime summary    | `doolittle runtime`            |
 | Scripted one-shot execution | `doolittle exec -p "<prompt>"` |
-| API-only server mode | `doolittle api` |
-| Gateway runner mode | `doolittle gateway` |
-| Re-run setup | `doolittle setup` |
-| Read diagnostics | `doolittle doctor` |
-| Reinstall artifacts | `doolittle install` |
+| API-only server mode        | `doolittle api`                |
+| Gateway runner mode         | `doolittle gateway`            |
+| Re-run setup                | `doolittle setup`              |
+| Read diagnostics            | `doolittle doctor`             |
+| Reinstall artifacts         | `doolittle install`            |
 
 ### In-shell discoverability (minimal)
 

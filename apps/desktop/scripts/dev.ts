@@ -24,7 +24,7 @@ async function waitForRenderer(url: string): Promise<void> {
   throw new Error(`Renderer did not start at ${url}.`);
 }
 
-const agentBuild = run("nub", ["run", "--cwd", "../..", "build"]);
+const agentBuild = run("nub", ["run", "--cwd", "../..", "cli:build"]);
 const agentBuildExit = await new Promise<number>((resolve) => {
   agentBuild.once("exit", (code) => resolve(code ?? 1));
 });

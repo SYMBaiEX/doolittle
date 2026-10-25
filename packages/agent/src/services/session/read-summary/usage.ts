@@ -1,13 +1,13 @@
-import {
-  ContextCompressionService,
-  DEFAULT_CONTEXT_WINDOW,
-} from "@/services/context-compression";
-import type { SessionDatabase } from "@/services/session/database";
 import type {
   SessionUsageOptions,
   SessionUsageSummary,
   StoredMessage,
-} from "@/types";
+} from "../../../types/index";
+import {
+  ContextCompressionService,
+  DEFAULT_CONTEXT_WINDOW,
+} from "../../context-compression/index";
+import type { SessionDatabase } from "../database";
 import type { SessionMetadataResolver } from "./types";
 
 const DEFAULT_USAGE_SAMPLE_LIMIT = 500;

@@ -1,4 +1,4 @@
-import type { LinkedProviderAccountsSnapshot } from "@/runtime/native/account-auth";
+import type { LinkedProviderAccountsSnapshot } from "@doolittle/agent/runtime/native/account-auth";
 import { finalizeWizardAnswers, summarizeAnswers } from "../answers";
 import type { BootstrapWizardContext } from "../bootstrap-context";
 import { askYesNo } from "../core/prompt-ops";

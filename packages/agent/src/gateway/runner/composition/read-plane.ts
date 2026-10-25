@@ -1,15 +1,15 @@
 import {
   bootstrapGatewayRunnerReadPlane,
   type GatewayRunnerBootstrapResult,
-} from "@/gateway/runner/bootstrap";
+} from "../bootstrap";
 import {
   createGatewayRunnerOperationsDelegate,
   type GatewayRunnerOperationsDelegate,
-} from "@/gateway/runner/composition/operations-delegate";
+} from "./operations-delegate";
 import type {
   GatewayRunnerRuntimeAssemblyFactories,
   GatewayRunnerRuntimeAssemblyInput,
-} from "@/gateway/runner/composition/types";
+} from "./types";
 
 interface GatewayRunnerReadPlaneAssembly {
   plane: GatewayRunnerBootstrapResult;

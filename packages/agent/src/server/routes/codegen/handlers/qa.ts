@@ -1,16 +1,16 @@
-import { performEffectiveCodeQa } from "@/runtime/native/service-bridge/autocoder";
+import { performEffectiveCodeQa } from "../../../../runtime/native/service-bridge/autocoder/index";
 import {
   completeAutocoderWorkflowContext,
   createAutocoderWorkflowContext,
   failAutocoderWorkflowContext,
-} from "@/server/autocoder-workflow-context";
-import { readJsonObjectBody } from "@/server/request-body";
-import { json } from "@/server/responses";
+} from "../../../autocoder-workflow-context";
+import { readJsonObjectBody } from "../../../request-body";
+import { json } from "../../../responses";
 import {
   executeTrackedAutocoderRun,
   isAutocoderCancellation,
-} from "@/server/routes/codegen/run-execution";
-import type { CodegenRouteHandler } from "@/server/routes/codegen/types";
+} from "../run-execution";
+import type { CodegenRouteHandler } from "../types";
 
 export const handleCodegenQA: CodegenRouteHandler = async (
   context,

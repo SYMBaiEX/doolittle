@@ -1,5 +1,5 @@
-import { compareBrowserPages } from "@/runtime/native/service-bridge/browser";
 import type { AgentExecutionContext } from "../../../chat";
+import { compareBrowserPages } from "../../../native/service-bridge/browser/index";
 import type { BrowserMediaCommandOptions, CommandResult } from "../types";
 import { handleBrowserComparisonAnalysisCommand } from "./analyze";
 

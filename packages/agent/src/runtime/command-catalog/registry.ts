@@ -1,5 +1,5 @@
-import { canonicalizeSlashCommandSyntax } from "@/runtime/slash-command-syntax";
-import { getWorkflowCommandCatalogEntries } from "@/runtime/workflow-commands";
+import { canonicalizeSlashCommandSyntax } from "../slash-command-syntax";
+import { getWorkflowCommandCatalogEntries } from "../workflow-commands/index";
 import { COMMAND_CATALOG_DEFINITIONS } from "./definitions";
 import type { CommandCatalogEntry } from "./types";
 

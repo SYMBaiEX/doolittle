@@ -1,5 +1,5 @@
-import type { AgentExecutionContext } from "@/runtime/chat";
-import type { RunDepth, ToolProgressMode } from "@/types/runtime";
+import type { RunDepth, ToolProgressMode } from "../../../types/runtime/index";
+import type { AgentExecutionContext } from "../../chat";
 import type { TurnState } from "../state";
 
 export type SettingsSnapshot = ReturnType<

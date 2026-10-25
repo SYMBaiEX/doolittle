@@ -1,7 +1,8 @@
 ---
+
 name: engagement
 description: Use this skill when drafting replies, onboarding guidance, or
-  outward-facing notes for Doolittle users and collaborators.
+outward-facing notes for Doolittle users and collaborators.
 ---
 
 # Doolittle Community Engagement

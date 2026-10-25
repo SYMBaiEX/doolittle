@@ -3,12 +3,12 @@ import type {
   BotRunOwner,
 } from "@doolittle/contracts/bots";
 import type { Action, ActionResult, HandlerOptions } from "@elizaos/core";
-import { readWorkerBotProfile } from "@/runtime/bootstrap/bot-profile";
-import { requestWorkerHost } from "@/runtime/bootstrap/worker-host-rpc";
-import { getScopedExecutionLease } from "@/runtime/execution-admission";
-import { getScopedTurnAbortSignal } from "@/runtime/turn-runtime-scope";
-import { currentConversationWorkspace } from "@/runtime/workspace-scope";
-import type { AppServices } from "@/services";
+import { readWorkerBotProfile } from "../runtime/bootstrap/bot-profile";
+import { requestWorkerHost } from "../runtime/bootstrap/worker-host-rpc";
+import { getScopedExecutionLease } from "../runtime/execution-admission";
+import { getScopedTurnAbortSignal } from "../runtime/turn-runtime-scope";
+import { currentConversationWorkspace } from "../runtime/workspace-scope";
+import type { AppServices } from "../services/index";
 
 interface DispatchReceipt {
   dispatchId: string;

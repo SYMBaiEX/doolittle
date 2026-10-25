@@ -1,4 +1,4 @@
-import type { EnvConfig } from "@/types";
+import type { EnvConfig } from "../../../../types/index";
 import type { RuntimeSettingsSnapshot, SettingsSetter } from "../types";
 import {
   ARRAY_DEFAULTS,

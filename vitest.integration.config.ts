@@ -5,7 +5,7 @@ export default defineConfig({
   ...base,
   test: {
     ...base.test,
-    include: ["tests/integration/runtime.e2e.test.ts"],
+    include: ["tests/integration/*.e2e.test.ts"],
     maxWorkers: 1,
   },
 });

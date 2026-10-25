@@ -1,4 +1,4 @@
-import type { EnvConfig } from "@/types/runtime";
+import type { EnvConfig } from "../../../types/runtime/index";
 import { getNativePluginCatalog } from "../plugin-catalog";
 import { getNativePackageAuditRecords } from "./records";
 import { getLatestRuntimeLine } from "./runtime-line";

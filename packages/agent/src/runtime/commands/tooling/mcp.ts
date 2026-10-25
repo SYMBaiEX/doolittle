@@ -1,3 +1,4 @@
+import type { AgentExecutionContext } from "../../chat";
 import {
   describeEffectiveCachedMcpTools,
   describeEffectiveMcpTool,
@@ -9,8 +10,7 @@ import {
   invokeEffectiveMcpTool,
   searchEffectiveCachedMcpTools,
   searchEffectiveMcpMarketplace,
-} from "@/runtime/native/service-bridge/tooling";
-import type { AgentExecutionContext } from "../../chat";
+} from "../../native/service-bridge/tooling/index";
 import { parseNamedToolPayload } from "./shared";
 
 const MAX_CACHED_TOOL_DESCRIPTIONS = 20;

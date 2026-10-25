@@ -3,7 +3,7 @@ import type {
   BrowserWorkspaceCommand,
   BrowserWorkspaceCommandResult,
 } from "@elizaos/plugin-browser";
-import type { AppServices } from "@/services";
+import type { AppServices } from "../../../../services/index";
 
 export const DOOLITTLE_BROWSER_TARGET_ID = "doolittle-evidence";
 

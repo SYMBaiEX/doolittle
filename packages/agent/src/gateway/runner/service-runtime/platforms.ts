@@ -1,10 +1,10 @@
-import { createPlatformAdapter } from "@/gateway/adapters/platform-adapter-factory";
-import type { GatewayRunnerContext } from "@/gateway/runner/context";
-import type { PlatformName } from "@/types/gateway";
+import type { PlatformName } from "../../../types/gateway";
+import { createPlatformAdapter } from "../../adapters/platform-adapter-factory";
 import type {
   PlatformAdapter,
   PlatformLifecycleEvent,
 } from "../../platforms/base";
+import type { GatewayRunnerContext } from "../context";
 import type { GatewayRunnerRuntimeState } from "./state";
 
 export function createGatewayRunnerAdapter(

@@ -30,7 +30,7 @@ nub run typecheck      # tsc --noEmit, strict
 nub run test:scope tests/boundary/project-access.test.ts
 nub run test:related path/to/changed.ts
 nub run test           # fast execution/permissions/persistence boundaries
-nub run build          # bundle packages/agent
+nub run build          # build CLI and desktop applications
 nub run lint:check     # biome
 nub run check          # routine boundary lane
 ```
@@ -46,8 +46,10 @@ integrity and essential workflows, not source-text layout assertions.
 
 ## Repository shape
 
-- `packages/agent` — the application: `runtime/` (chat-turn, services, providers),
-  `gateway/`, `cli/`, `server/`.
+- `apps/cli` — terminal chat, cockpit, one-shot commands and runtime process host.
+- `apps/desktop` — Electron lifecycle, preload and desktop renderer.
+- `packages/agent` — shared `runtime/` (chat-turn, services, providers),
+  `gateway/` and `server/`.
 - `packages/plugins/*` — Doolittle provider bridges, the SQL compatibility
   wrapper, and the consolidated `doolittle-plugin` source.
 - `packages/{acp,contracts,characters,skills}` — protocol, shared contracts,

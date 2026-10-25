@@ -5,7 +5,10 @@ import {
   type PairingService,
   stringToUuid,
 } from "@elizaos/core";
-import type { PairingAllowlistEntry, PairingRequestRecord } from "@/types";
+import type {
+  PairingAllowlistEntry,
+  PairingRequestRecord,
+} from "../types/index";
 
 interface LegacyPairingStore {
   requests?: PairingRequestRecord[];

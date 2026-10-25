@@ -1,10 +1,10 @@
-import type { SessionDatabase } from "@/services/session/database";
 import type {
   SessionAnalyticsSnapshot,
   SessionSummary,
   SessionUsageOptions,
   SessionUsageSummary,
-} from "@/types";
+} from "../../../types/index";
+import type { SessionDatabase } from "../database";
 import { resolveSessionAnalytics } from "./analytics";
 import { findContinuitySessions } from "./continuity";
 import { listSessionSummaries, listTitledSessions } from "./listing";

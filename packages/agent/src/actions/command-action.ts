@@ -4,21 +4,21 @@ import type {
   Memory,
   ShortcutDefinition,
 } from "@elizaos/core";
-import { executeSlashCommand } from "@/runtime/chat";
-import { getCommandCatalogEntries } from "@/runtime/command-catalog";
+import { executeSlashCommand } from "../runtime/chat";
+import { getCommandCatalogEntries } from "../runtime/command-catalog/index";
 import {
   DOOLITTLE_COMMAND_ACTION,
   matchesRegisteredCommandShortcut,
-} from "@/runtime/command-shortcut-match";
+} from "../runtime/command-shortcut-match";
 import {
   getScopedTurnAbortSignal,
   getScopedTurnCommandHooks,
-} from "@/runtime/turn-runtime-scope";
-import type { AppServices } from "@/services";
-import type { EnvConfig } from "@/types/runtime";
-import { messageText } from "@/utils/eliza-compat";
+} from "../runtime/turn-runtime-scope";
+import type { AppServices } from "../services/index";
+import type { EnvConfig } from "../types/runtime/index";
+import { messageText } from "../utils/eliza-compat";
 
-export { DOOLITTLE_COMMAND_ACTION } from "@/runtime/command-shortcut-match";
+export { DOOLITTLE_COMMAND_ACTION } from "../runtime/command-shortcut-match";
 
 function commandInput(message: Memory) {
   const metadata = message.metadata as

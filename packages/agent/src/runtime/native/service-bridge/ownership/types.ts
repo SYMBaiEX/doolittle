@@ -1,7 +1,7 @@
-import type { getTuiTheme, listTuiThemes } from "@/runtime/theme-catalog";
-import type { AppServices } from "@/services";
-import type { MemorySummary } from "@/services/experience-memory-service";
-import type { UserProfileWorkspaceSummary } from "@/types/user-profile";
+import type { MemorySummary } from "../../../../services/experience-memory-service";
+import type { AppServices } from "../../../../services/index";
+import type { UserProfileWorkspaceSummary } from "../../../../types/user-profile";
+import type { getTuiTheme, listTuiThemes } from "../../../theme-catalog/index";
 import type { AutonomousControlPlaneSummary } from "../autonomous";
 import type {
   getEffectivePluginManagerInventory,
@@ -68,13 +68,13 @@ export interface NativeEcosystemSnapshot {
     beta: string;
   };
   accounts: ReturnType<
-    typeof import("@/runtime/native/provider-accounts").getRuntimeProviderAccountsSnapshot
+    typeof import("../../provider-accounts").getRuntimeProviderAccountsSnapshot
   >;
   packageAudit: ReturnType<
-    typeof import("@/runtime/native/package-audit").getNativePackageAudit
+    typeof import("../../package-audit/index").getNativePackageAudit
   >;
   pluginCatalog: ReturnType<
-    typeof import("@/runtime/native/plugin-catalog").getNativePluginCatalog
+    typeof import("../../plugin-catalog/index").getNativePluginCatalog
   >;
   sdk: Awaited<ReturnType<AppServices["agentSdk"]["overview"]>>;
   workspace: {

@@ -13,31 +13,31 @@ import {
   resolveTerminalRunRejection,
 } from "@elizaos/agent/api/server-helpers-auth";
 import { syncResolvedApiPort } from "@elizaos/shared";
-import { formatLoggerError } from "@/logging/logger";
-import type { AppContext } from "@/runtime/bootstrap";
-import { readWorkerBotProfile } from "@/runtime/bootstrap/bot-profile";
-import { notifyEngineWorkerReady } from "@/runtime/engine/worker-transport";
+import { formatLoggerError } from "./logging/logger";
+import { readWorkerBotProfile } from "./runtime/bootstrap/bot-profile";
+import type { AppContext } from "./runtime/bootstrap/index";
+import { notifyEngineWorkerReady } from "./runtime/engine/worker-transport";
 import {
   applyDoolittleCors,
   isProviderAuthenticatedWebhookRequest,
   remoteTerminalMutationTokenError,
-} from "@/server/auth";
-import { dispatchRuntimePluginRoute } from "@/server/plugin-routes";
+} from "./server/auth";
+import { dispatchRuntimePluginRoute } from "./server/plugin-routes";
 import {
   assertDeclaredRequestBodyLimit,
   RequestBodyTimeoutError,
   RequestBodyTooLargeError,
   readBoundedRequestBody,
   requestBodyFraming,
-} from "@/server/request-body";
-import { createRequestAbortController } from "@/server/request-lifecycle";
-import { json, runResponsePostCommit } from "@/server/responses";
-import { dispatchRouteHandlers } from "@/server/router";
-import { apiRouteHandlers } from "@/server/routes";
-import { handleOperationsRoutes } from "@/server/routes/operations";
-import { handleRuntimeRoutes } from "@/server/routes/runtime";
-import { withDirectConversationWorkspace } from "@/server/routes/workspace-scope";
-import { isWorkerApiRouteAllowed } from "@/server/worker-route-policy";
+} from "./server/request-body";
+import { createRequestAbortController } from "./server/request-lifecycle";
+import { json, runResponsePostCommit } from "./server/responses";
+import { dispatchRouteHandlers } from "./server/router";
+import { apiRouteHandlers } from "./server/routes/index";
+import { handleOperationsRoutes } from "./server/routes/operations";
+import { handleRuntimeRoutes } from "./server/routes/runtime/index";
+import { withDirectConversationWorkspace } from "./server/routes/workspace-scope";
+import { isWorkerApiRouteAllowed } from "./server/worker-route-policy";
 
 const INTERACTIVE_TERMINAL_MUTATION_PATHS = new Set([
   "/terminal/session/start",

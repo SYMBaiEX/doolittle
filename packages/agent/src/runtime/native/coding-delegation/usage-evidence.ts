@@ -1,4 +1,4 @@
-import { isRecord } from "@/utils/records";
+import { isRecord } from "../../../utils/records";
 import type { DelegatedUsageEvidence } from "./types";
 
 const MAX_USAGE_EVENTS = 128;

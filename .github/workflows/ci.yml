@@ -28,7 +28,7 @@ jobs:
       - name: Set up Nub and Node
         uses: nubjs/setup-nub@47e5e7393d50f4e9544ddaf756aa277972afba2d # v0
         with:
-          nub-version: 0.9.5
+          nub-version: 0.9.7
           node-version-file: .node-version
           cache-dependency-path: nub.lock
 
@@ -38,17 +38,20 @@ jobs:
       - name: Check formatting and lint
         run: nub run lint:check
 
-      - name: Check application and desktop types
-        run: nub run typecheck && nub run desktop:typecheck
+      - name: Check every workspace and tooling types
+        run: nub run typecheck
 
       - name: Fast security and state boundaries
         run: nub run test
 
-      - name: Build agent
+      - name: Build CLI and desktop
         run: nub run build
 
       - name: Acceptance gates
         run: nub run check:acceptance
+
+      - name: Require zero production dependency advisories
+        run: nub run check:runtime-advisory-policy
 
   native_acceptance:
     needs: validate
@@ -64,7 +67,7 @@ jobs:
       - name: Set up Nub and Node
         uses: nubjs/setup-nub@47e5e7393d50f4e9544ddaf756aa277972afba2d # v0
         with:
-          nub-version: 0.9.5
+          nub-version: 0.9.7
           node-version-file: .node-version
           cache-dependency-path: nub.lock
 
@@ -79,7 +82,7 @@ jobs:
       - name: Install Electron runtime
         run: nub run desktop:runtime:install
 
-      - name: Exercise source shared-engine worker boundary
+      - name: Exercise CLI chat and shared-engine workers
         run: nub run test:e2e:release:source
 
       - name: Exercise native new-chat and run lifecycle

@@ -87,13 +87,13 @@ must not inherit the lead's credentials or home directory. See
 
 The desktop main process owns a fair, per-bot waiting queue. Its defaults are:
 
-| Boundary | Default |
-| --- | --- |
-| Active executions across the fleet | `min(availableParallelism(), 12)` |
-| Active executions per bot | 2 |
-| Automatic ACP executions | `max(1, floor(fleet limit / 2))` (6 when fleet limit is 12) |
-| Waiting executions | 512 total, 16 per bot |
-| Queue wait timeout | 45 seconds |
+| Boundary                           | Default                                                     |
+| ---------------------------------- | ----------------------------------------------------------- |
+| Active executions across the fleet | `min(availableParallelism(), 12)`                           |
+| Active executions per bot          | 2                                                           |
+| Automatic ACP executions           | `max(1, floor(fleet limit / 2))` (6 when fleet limit is 12) |
+| Waiting executions                 | 512 total, 16 per bot                                       |
+| Queue wait timeout                 | 45 seconds                                                  |
 
 The main process alone can set `DOOLITTLE_ENGINE_MAX_EXECUTIONS`,
 `DOOLITTLE_ENGINE_MAX_AUTOMATIC_ACP`, `DOOLITTLE_ENGINE_MAX_EXECUTIONS_PER_BOT`,

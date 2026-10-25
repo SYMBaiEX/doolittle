@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import type {
   ExecutionBackendHealth,
   ExecutionBackendPreview,
-} from "@/types/execution";
+} from "../../../types/execution";
 import type { RuntimeSettings } from "../../settings/runtime-settings";
 import type { ExecutionBackend } from "../contracts/backend";
 import {

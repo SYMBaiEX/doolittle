@@ -1,4 +1,4 @@
-import type { ToolDefinition } from "@/types";
+import type { ToolDefinition } from "../../types/index";
 import { TOOL_CATALOG } from "./catalog";
 import { expandPluginTools, patchToolDescription } from "./descriptions";
 import { buildToolRegistrySummary } from "./summary";

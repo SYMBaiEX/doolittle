@@ -1,30 +1,30 @@
+import type { PlatformName } from "../../../types/gateway";
 import {
   buildGatewayDaemonRuntimeState,
   ensureGatewayRestartState,
   GATEWAY_DAEMON_POLICY,
   type GatewayDaemonRuntimeState,
   type GatewayRestartState,
-} from "@/gateway/daemon-state";
-import { nowIso, type PlatformHealth } from "@/gateway/platforms/base";
+} from "../../daemon-state";
+import { nowIso, type PlatformHealth } from "../../platforms/base/index";
 import type {
   GatewayHistoryFilter,
   GatewayTraceRecord,
-} from "@/gateway/read/history-view";
+} from "../../read/history-view/index";
 import {
   collectGatewayReadiness,
   mergePlatformHealthState,
-} from "@/gateway/read/status-readiness";
+} from "../../read/status-readiness/index";
 import {
   applyGatewayHealthToPlatformState,
   createGatewayPlatformState,
   type GatewayNativePluginInfo,
-} from "@/gateway/state/platform-state";
+} from "../../state/platform-state";
 import type {
   GatewayPlatformStateView,
   GatewayStateSnapshot,
-} from "@/gateway/state/state-snapshot";
-import { applyGatewayTraceToPlatformState } from "@/gateway/state/trace-state";
-import type { PlatformName } from "@/types/gateway";
+} from "../../state/state-snapshot/index";
+import { applyGatewayTraceToPlatformState } from "../../state/trace-state";
 import { buildGatewayRunnerPresence } from "./projections";
 import {
   buildGatewayRunnerHistorySnapshot,

@@ -1,13 +1,13 @@
-import {
-  type SessionMetadataResolver,
-  SessionReadSummaryHelpers,
-} from "@/services/session/read-summary";
 import type {
   SessionAnalyticsSnapshot,
   SessionSummary,
   SessionUsageOptions,
   SessionUsageSummary,
-} from "@/types";
+} from "../../../types/index";
+import {
+  type SessionMetadataResolver,
+  SessionReadSummaryHelpers,
+} from "../read-summary/index";
 
 export class SessionSummaryOperations {
   private readonly helpers: SessionReadSummaryHelpers;

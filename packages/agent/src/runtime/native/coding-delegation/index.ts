@@ -8,20 +8,20 @@ import type {
   Memory,
   Plugin,
 } from "@elizaos/core";
+import { isRecord } from "../../../utils/records";
 import {
   actionResultActionName,
   buildActionResultData,
-} from "@/runtime/action-result-metadata";
-import { workspaceNoopRequirements } from "@/runtime/chat-turn/workspace-noop-completion";
-import { getScopedExecutionLease } from "@/runtime/execution-admission";
-import { buildCacheablePrompt } from "@/runtime/prompt-cache";
+} from "../../action-result-metadata";
+import { workspaceNoopRequirements } from "../../chat-turn/workspace-noop-completion";
+import { getScopedExecutionLease } from "../../execution-admission";
+import { buildCacheablePrompt } from "../../prompt-cache/index";
 import {
   getScopedTurnAbortSignal,
   getScopedTurnActionResults,
   recordScopedTurnActionResult,
   runWithAdditionalTurnRuntimeSettings,
-} from "@/runtime/turn-runtime-scope";
-import { isRecord } from "@/utils/records";
+} from "../../turn-runtime-scope";
 import {
   delegationFailureMessage,
   executeManagedDelegation,

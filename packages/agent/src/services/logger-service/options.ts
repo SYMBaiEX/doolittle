@@ -1,4 +1,4 @@
-import type { AppLogLevel } from "@/logging/logger";
+import type { AppLogLevel } from "../../logging/logger";
 
 export interface LoggerServiceOptions {
   scope?: string;

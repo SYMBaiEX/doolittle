@@ -1,4 +1,4 @@
-import type { AppContext } from "@/runtime/bootstrap";
+import type { AppContext } from "../../runtime/bootstrap/index";
 import {
   describeEffectiveCachedMcpTools,
   describeEffectiveMcpTool,
@@ -11,10 +11,10 @@ import {
   probeEffectiveMcp,
   searchEffectiveCachedMcpTools,
   searchEffectiveMcpMarketplace,
-} from "@/runtime/native/service-bridge/tooling";
-import { readJsonObjectBody } from "@/server/request-body";
-import { json } from "@/server/responses";
-import { hasAsciiControlCharacters } from "@/utils/text-validation";
+} from "../../runtime/native/service-bridge/tooling/index";
+import { hasAsciiControlCharacters } from "../../utils/text-validation";
+import { readJsonObjectBody } from "../request-body";
+import { json } from "../responses";
 
 const MAX_MARKETPLACE_QUERY_LENGTH = 128;
 const MAX_MARKETPLACE_SERVER_NAME_LENGTH = 256;

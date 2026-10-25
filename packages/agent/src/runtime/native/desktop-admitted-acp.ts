@@ -11,12 +11,12 @@ import {
   type ExecutionLease,
   getScopedExecutionLease,
   getScopedSdkTaskSpawn,
-} from "@/runtime/execution-admission";
-import { getScopedTurnAbortSignal } from "@/runtime/turn-runtime-scope";
+} from "../execution-admission";
+import { getScopedTurnAbortSignal } from "../turn-runtime-scope";
 import {
   requireConversationWorkspace,
   resolveConversationWorkspace,
-} from "@/runtime/workspace-scope";
+} from "../workspace-scope";
 
 type PendingAdmission = {
   sessionId?: string;

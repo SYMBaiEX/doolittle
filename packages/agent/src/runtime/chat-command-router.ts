@@ -1,5 +1,4 @@
-import { normalizeSlashCommandSyntax } from "@/runtime/command-catalog";
-import type { ChatTurnRequest } from "@/types/runtime";
+import type { ChatTurnRequest } from "../types/runtime/index";
 import type { AgentExecutionContext, AgentTurnHooks } from "./chat";
 import { CHAT_COMMAND_ROUTE_GROUPS } from "./chat-command-router/registry";
 import { runCommandRouteGroup } from "./chat-command-router/shared";
@@ -7,6 +6,7 @@ import type {
   ChatCommandRouterDependencies,
   ChatCommandRouteState,
 } from "./chat-command-router/types";
+import { normalizeSlashCommandSyntax } from "./command-catalog/index";
 
 function createCommandRouteState(
   input: ChatTurnRequest,

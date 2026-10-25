@@ -1,4 +1,5 @@
 ---
+
 name: release-adoption
 description: Guide adoption of a new release, optional pack, or integration path.
 ---

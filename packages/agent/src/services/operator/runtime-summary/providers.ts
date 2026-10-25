@@ -1,4 +1,4 @@
-import type { EnvConfig } from "@/types";
+import type { EnvConfig } from "../../../types/index";
 import type { LinkedAccounts, SetupProviders } from "./types";
 
 export function buildProviderSummaries(

@@ -1,5 +1,5 @@
-import type { GatewayConfig, PlatformName } from "@/types/gateway";
-import type { EnvConfig } from "@/types/runtime";
+import type { GatewayConfig, PlatformName } from "../../../types/gateway";
+import type { EnvConfig } from "../../../types/runtime/index";
 import type { TransportRequirementRecord } from "../types";
 import { TRANSPORT_REQUIREMENTS } from "./data";
 import { evaluateTransportRequirement } from "./recording";

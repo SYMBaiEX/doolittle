@@ -1,11 +1,11 @@
+import type { AgentExecutionContext } from "../chat";
 import {
   activateEffectivePersonality,
   getEffectiveActivePersonality,
   getEffectiveExperienceSummary,
   getEffectivePersonalityList,
   getEffectivePersonalitySummary,
-} from "@/runtime/native/service-bridge/ownership";
-import type { AgentExecutionContext } from "../chat";
+} from "../native/service-bridge/ownership/index";
 
 export async function handleIdentityStatusCommand(
   trimmed: string,

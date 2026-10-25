@@ -1,11 +1,11 @@
+import type { AgentExecutionContext } from "../../chat";
 import {
   createEffectiveSandbox,
   executeEffectiveSandboxCode,
   killEffectiveSandbox,
   listEffectiveSandboxes,
-} from "@/runtime/native/service-bridge/autocoder";
-import { getNativeExecutionControlPlane } from "@/runtime/native/service-bridge/control-planes";
-import type { AgentExecutionContext } from "../../chat";
+} from "../../native/service-bridge/autocoder/index";
+import { getNativeExecutionControlPlane } from "../../native/service-bridge/control-planes/index";
 import { stringifyCodegenResponse } from "./support";
 
 export async function handleCodegenE2bCommand(

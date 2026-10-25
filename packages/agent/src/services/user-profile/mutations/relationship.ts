@@ -1,4 +1,4 @@
-import type { UserProfileRecord } from "@/types";
+import type { UserProfileRecord } from "../../../types/index";
 import type { UserProfileMutationHost } from "../types";
 
 export function appendRelationshipNote(

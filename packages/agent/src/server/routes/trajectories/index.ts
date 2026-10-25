@@ -1,6 +1,6 @@
-import type { AppContext } from "@/runtime/bootstrap";
-import { json } from "@/server/responses";
-import { TrajectoryInputError } from "@/services/trajectory/bundle-storage/safe-read";
+import type { AppContext } from "../../../runtime/bootstrap/index";
+import { TrajectoryInputError } from "../../../services/trajectory/bundle-storage/safe-read";
+import { json } from "../../responses";
 import { handleTrajectoryBatchRoutes } from "./batch";
 import { handleTrajectoryBenchmarkRoutes } from "./benchmark";
 import { handleTrajectoryComparisonRoutes } from "./compare";

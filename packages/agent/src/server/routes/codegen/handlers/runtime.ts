@@ -1,6 +1,6 @@
-import { getNativeExecutionControlPlane } from "@/runtime/native/service-bridge/control-planes";
-import { json } from "@/server/responses";
-import type { CodegenRouteHandler } from "@/server/routes/codegen/types";
+import { getNativeExecutionControlPlane } from "../../../../runtime/native/service-bridge/control-planes/index";
+import { json } from "../../../responses";
+import type { CodegenRouteHandler } from "../types";
 
 export const handleCodegenRuntimeRoutes: CodegenRouteHandler = async (
   context,

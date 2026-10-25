@@ -1,5 +1,5 @@
-import { setEffectiveUserProfileMode } from "@/runtime/native/service-bridge/ownership";
-import { json } from "@/server/responses";
+import { setEffectiveUserProfileMode } from "../../../../runtime/native/service-bridge/ownership/index";
+import { json } from "../../../responses";
 import {
   badRequest,
   type IdentityProfileRouteHandler,

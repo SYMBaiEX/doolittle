@@ -2,7 +2,7 @@ import {
   DEFAULT_TUI_THEME,
   listTuiThemes,
   type TuiThemeName,
-} from "@/runtime/theme-catalog";
+} from "@doolittle/agent/runtime/theme-catalog";
 import type { BootstrapWizardContext } from "../bootstrap-context";
 import { ask, chooseOne } from "../core/prompt-ops";
 import type { PromptHandle } from "../prompting/types";

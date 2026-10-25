@@ -6,12 +6,12 @@ import {
   type SkillDetails,
   searchSkillsMarketplace,
 } from "@elizaos/plugin-agent-skills";
-import type { AppServices } from "@/services";
+import type { AppServices } from "../../../../services/index";
 import type {
   SkillHubCatalogRecord,
   SkillHubInstalledRecord,
   SkillHubManifest,
-} from "@/services/skills-hub/types";
+} from "../../../../services/skills-hub/types";
 import { getNativeServices, type RuntimeLike } from "../runtime";
 import type { NativeAgentSkillsService } from "../runtime-contracts";
 

@@ -1,4 +1,4 @@
-import type { PlatformHealth } from "@/gateway/platforms/base";
+import type { PlatformHealth } from "../../platforms/base/index";
 import type { GatewayPlatformStateView } from "../../state/state-snapshot";
 
 export interface TransportActivityContext {

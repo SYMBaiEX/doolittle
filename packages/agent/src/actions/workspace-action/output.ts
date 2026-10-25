@@ -1,5 +1,5 @@
 import type { IAgentRuntime } from "@elizaos/core";
-import { inspectNativeProject } from "@/runtime/native/service-bridge/tooling";
+import { inspectNativeProject } from "../../runtime/native/service-bridge/tooling/index";
 
 export const WORKSPACE_ACTION_FALLBACK_MESSAGE =
   "I can show the project tree, summarize the selected workspace, or locate a local codebase. Use the dedicated file actions for concrete reads, searches, and edits.";

@@ -1,40 +1,9 @@
 {
-  "compilerOptions": {
-    "target": "ES2022",
-    "module": "ESNext",
-    "moduleResolution": "Bundler",
-    "lib": ["ES2022", "DOM"],
-    "strict": true,
-    "noEmit": true,
-    "jsx": "react-jsx",
-    "allowJs": false,
-    "skipLibCheck": true,
-    "resolveJsonModule": true,
-    "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true,
-    "types": ["node"],
-    "paths": {
-      "@/*": ["./packages/agent/src/*"],
-      "@doolittle/acp": ["./packages/acp/src/index.ts"],
-      "@doolittle/contracts": ["./packages/contracts/src/index.ts"],
-      "@doolittle/contracts/*": ["./packages/contracts/src/*"],
-      "@doolittle/ui": ["./packages/ui/src/index.ts"],
-      "@doolittle/ui/*": ["./packages/ui/src/*"],
-      "@doolittle/evals": ["./packages/evals/src/index.ts"],
-      "@doolittle/evals/*": ["./packages/evals/src/*"],
-      "@doolittle/agent/*": ["./packages/agent/src/*"],
-      "@plugins/*": ["./packages/plugins/*"],
-      "@characters/*": ["./packages/characters/*"]
-    }
-  },
+  "extends": "./tsconfig.base.json",
   "include": [
+    "scripts/**/*.ts",
     "tests/**/*.ts",
     "tests/**/*.tsx",
-    "apps/desktop/src/renderer/global.d.ts",
-    "scripts/**/*.ts",
-    "packages/agent/src/**/*.ts",
-    "packages/agent/src/**/*.d.ts",
-    "packages/characters/**/*.json",
-    "packages/**/*.ts"
+    "apps/desktop/src/renderer/global.d.ts"
   ]
 }

@@ -1,15 +1,15 @@
 import { randomUUID } from "node:crypto";
-import type { AppContext } from "@/runtime/bootstrap";
+import type { AppContext } from "../../../runtime/bootstrap/index";
 import {
   createResponseTextAccumulator,
   formatRunEvent,
   nextResponseTextFrame,
   shouldRenderRunEvent,
-} from "@/runtime/run-progress";
-import { readJsonObjectBody } from "@/server/request-body";
-import { json, streamSse } from "@/server/responses";
-import { createApiResponseId } from "@/services/api-transport-service";
-import type { RunUpdateEvent } from "@/services/run-controller-service";
+} from "../../../runtime/run-progress";
+import { createApiResponseId } from "../../../services/api-transport-service";
+import type { RunUpdateEvent } from "../../../services/run-controller-service/index";
+import { readJsonObjectBody } from "../../request-body";
+import { json, streamSse } from "../../responses";
 import { buildResponsePayload } from "./payload";
 import type { ResponsesRequestBody } from "./types";
 

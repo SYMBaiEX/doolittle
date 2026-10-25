@@ -1,8 +1,8 @@
 import {
   createGatewayRunnerOperations,
   type GatewayRunnerOperations,
-} from "@/gateway/runner/operations";
-import type { GatewayRunnerRecording } from "@/gateway/runner/recording";
+} from "../operations";
+import type { GatewayRunnerRecording } from "../recording";
 import type { GatewayRunnerOperationsDelegate } from "./operations-delegate";
 import type {
   GatewayRunnerRuntimeAssemblyFactories,

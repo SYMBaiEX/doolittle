@@ -1,5 +1,5 @@
 import { asRecord } from "@elizaos/shared/type-guards";
-import { runTextProcess } from "@/services/process-execution";
+import { runTextProcess } from "./process-execution";
 
 const REVIEW_PROCESS_TIMEOUT_MS = 8_000;
 const REVIEW_PROCESS_OUTPUT_BYTES = 512 * 1024;

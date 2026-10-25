@@ -1,4 +1,4 @@
-import { escapeXml } from "@/utils/eliza-compat";
+import { escapeXml } from "../../../utils/eliza-compat";
 
 export function renderGenerationSvg(
   prompt: string,

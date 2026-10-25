@@ -1,4 +1,4 @@
-import type { RunControllerStore } from "@/services/run-controller/store";
+import type { RunControllerStore } from "../run-controller/store";
 import {
   actionCompletedTransition,
   actionStartedTransition,
@@ -9,11 +9,8 @@ import {
   streamTransition,
   thinkingTransition,
   waitingTransition,
-} from "@/services/run-controller/transitions";
-import type {
-  LocalMutationInput,
-  RunSnapshot,
-} from "@/services/run-controller/types";
+} from "../run-controller/transitions";
+import type { LocalMutationInput, RunSnapshot } from "../run-controller/types";
 import { applyRunTransition } from "./event-capture";
 import type { RunControllerDependencies } from "./types";
 

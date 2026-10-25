@@ -171,6 +171,7 @@ export function readActionOutcomes(dataDir: string): ActionOutcomes {
     const byteLimit = BigInt(ACTION_DIAGNOSTIC_BYTE_LIMIT);
     output.truncated = stat.size > byteLimit;
     const bytes = Buffer.alloc(
+      // biome-ignore lint/complexity/useMathMinMax: Math.min does not accept bigint file sizes.
       Number(stat.size < byteLimit ? stat.size : byteLimit),
     );
     while (output.bytesRead < bytes.length) {

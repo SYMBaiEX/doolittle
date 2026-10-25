@@ -1,7 +1,7 @@
-import { readWorkerBotProfile } from "@/runtime/bootstrap/bot-profile";
-import { stableRuntimeUuid } from "@/runtime/stable-runtime-uuid";
-import type { ChatTurnRequest } from "@/types/runtime";
+import type { ChatTurnRequest } from "../../../types/runtime/index";
+import { readWorkerBotProfile } from "../../bootstrap/bot-profile";
 import type { AgentExecutionContext } from "../../chat";
+import { stableRuntimeUuid } from "../../stable-runtime-uuid";
 import { resolveRemoteExecutionPlatform } from "./platforms";
 import type { ExecutionApprovalScopeRecord } from "./types";
 

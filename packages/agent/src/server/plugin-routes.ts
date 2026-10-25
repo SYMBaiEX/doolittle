@@ -5,7 +5,7 @@ import {
   isDesktopWorkspaceRuntime,
   resolveConversationWorkspace,
   runWithConversationWorkspace,
-} from "@/runtime/workspace-scope";
+} from "../runtime/workspace-scope";
 import { json } from "./responses";
 
 function headersToRecord(headers: Headers): Record<string, string> {

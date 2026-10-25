@@ -2,16 +2,16 @@ import { join } from "node:path";
 import {
   resolveCloudApiBaseUrl,
   validateCloudBaseUrl,
-} from "@/runtime/linked-provider-accounts/cloud-url";
-import { getNativePackageAudit } from "@/runtime/native/package-audit";
-import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
-import { getRuntimeProviderAccountsSnapshot } from "@/runtime/native/provider-accounts";
+} from "../../../runtime/linked-provider-accounts/cloud-url";
+import { getNativePackageAudit } from "../../../runtime/native/package-audit/index";
+import { getNativePluginCatalog } from "../../../runtime/native/plugin-catalog/index";
+import { getRuntimeProviderAccountsSnapshot } from "../../../runtime/native/provider-accounts";
 import {
   getNativeExecutionControlPlane,
   getNativeFormsControlPlane,
   getNativeIntegrationControlPlane,
-} from "@/runtime/native/service-bridge/control-planes";
-import { getNativeOwnershipControlPlane } from "@/runtime/native/service-bridge/ownership";
+} from "../../../runtime/native/service-bridge/control-planes/index";
+import { getNativeOwnershipControlPlane } from "../../../runtime/native/service-bridge/ownership/index";
 import type { AgentSdkService } from "../../agent-sdk-service";
 import type { EcosystemService } from "../../ecosystem-service";
 import type { SkillsHubService } from "../../skills-hub/service";

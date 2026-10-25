@@ -1,26 +1,26 @@
-import type {
-  GatewayRunnerLifecycleHost,
-  GatewayRunnerLifecycleHostInputs,
-  GatewayRunnerSupervisionHostInputs,
-} from "@/gateway/runner/host";
-import {
-  buildGatewayRunnerLifecycleHost,
-  buildGatewayRunnerSupervisionDeps,
-} from "@/gateway/runner/host";
-import { heartbeatGatewayRunner } from "@/gateway/runner/lifecycle/heartbeat";
-import { startGatewayRunnerLifecycle } from "@/gateway/runner/lifecycle/startup";
-import { stopGatewayRunnerLifecycle } from "@/gateway/runner/lifecycle/stop";
-import type { GatewayStateSnapshot } from "@/gateway/state/state-snapshot";
+import type { PlatformName } from "../../types/gateway";
+import type { GatewayStateSnapshot } from "../state/state-snapshot/index";
 import type {
   GatewaySupervisionDependencies,
   GatewaySupervisionRecord,
-} from "@/gateway/supervision/index";
+} from "../supervision/index";
 import {
   runGatewayRestart,
   runGatewayWatch,
   runGatewayWatchdog,
-} from "@/gateway/supervision/index";
-import type { PlatformName } from "@/types/gateway";
+} from "../supervision/index";
+import type {
+  GatewayRunnerLifecycleHost,
+  GatewayRunnerLifecycleHostInputs,
+  GatewayRunnerSupervisionHostInputs,
+} from "./host";
+import {
+  buildGatewayRunnerLifecycleHost,
+  buildGatewayRunnerSupervisionDeps,
+} from "./host";
+import { heartbeatGatewayRunner } from "./lifecycle/heartbeat";
+import { startGatewayRunnerLifecycle } from "./lifecycle/startup";
+import { stopGatewayRunnerLifecycle } from "./lifecycle/stop";
 
 export interface GatewayRunnerControlPlaneDependencies {
   lifecycle: GatewayRunnerLifecycleHostInputs;

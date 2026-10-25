@@ -1,4 +1,4 @@
-import type { DelegationTaskRecord } from "@/types";
+import type { DelegationTaskRecord } from "../../../types/index";
 import { durationMs, matchDelegationTaskFilter } from "./helpers";
 import type { DelegationTaskFilter, DelegationWorkerStatus } from "./types";
 

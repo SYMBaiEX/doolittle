@@ -1,7 +1,10 @@
-import { GatewayDeliveryRetryError } from "@/gateway/runner/operations";
-import type { AppContext } from "@/runtime/bootstrap";
-import { json } from "@/server/responses";
-import type { IncomingPlatformMessage, PlatformName } from "@/types";
+import { GatewayDeliveryRetryError } from "../../../gateway/runner/operations";
+import type { AppContext } from "../../../runtime/bootstrap/index";
+import type {
+  IncomingPlatformMessage,
+  PlatformName,
+} from "../../../types/index";
+import { json } from "../../responses";
 import { readJsonBody } from "./body";
 import {
   getGatewayMessageEditValidationError,

@@ -1,5 +1,5 @@
-import type { RunControllerStore } from "@/services/run-controller/store";
-import type { RunSnapshot } from "@/services/run-controller/types";
+import type { RunControllerStore } from "../run-controller/store";
+import type { RunSnapshot } from "../run-controller/types";
 
 export function getRunByRoomId(
   store: RunControllerStore,

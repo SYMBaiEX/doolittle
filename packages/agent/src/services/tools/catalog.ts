@@ -1,4 +1,4 @@
-import type { ToolDefinition } from "@/types";
+import type { ToolDefinition } from "../../types/index";
 import { TOOL_CONTROL_PLANE_CATALOG } from "./catalog-control-planes";
 import { TOOL_DOCUMENT_CATALOG } from "./catalog-documents";
 

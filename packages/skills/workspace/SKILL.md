@@ -1,7 +1,8 @@
 ---
+
 name: workspace
 description: Use this skill when evaluating, wiring, or documenting external
-  integrations and native plugin coverage for Doolittle.
+integrations and native plugin coverage for Doolittle.
 ---
 
 # Doolittle Integrations Workspace

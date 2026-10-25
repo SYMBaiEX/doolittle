@@ -1,5 +1,5 @@
 import { arch, hostname, platform, release } from "node:os";
-import type { AppContext } from "@/runtime/bootstrap";
+import type { AppContext } from "../bootstrap/index";
 
 type ChatRuntimeContext = Pick<
   AppContext,

@@ -1,5 +1,5 @@
+import type { LinkedProviderAccountsSnapshot } from "@doolittle/agent/runtime/native/account-auth";
 import { DEFAULT_MODEL_ROUTE } from "@doolittle/contracts";
-import type { LinkedProviderAccountsSnapshot } from "@/runtime/native/account-auth";
 import { readEnvBase } from "../answers";
 import type { WizardAnswers } from "../types";
 

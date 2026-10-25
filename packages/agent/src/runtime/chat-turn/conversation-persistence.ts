@@ -6,9 +6,9 @@ import {
   type Memory,
   type UUID,
 } from "@elizaos/core";
-import type { AgentExecutionContext } from "@/runtime/chat";
-import { stableRuntimeUuid } from "@/runtime/stable-runtime-uuid";
-import type { StoredMessage, StoredMessageAttachment } from "@/types";
+import type { StoredMessage, StoredMessageAttachment } from "../../types/index";
+import type { AgentExecutionContext } from "../chat";
+import { stableRuntimeUuid } from "../stable-runtime-uuid";
 import type { TurnState } from "./state";
 
 export type NativeUserMemoryOwner = "doolittle" | "eliza-message-service";

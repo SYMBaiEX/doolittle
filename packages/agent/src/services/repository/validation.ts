@@ -1,6 +1,6 @@
 import { existsSync, realpathSync } from "node:fs";
 import { dirname, isAbsolute, normalize, sep } from "node:path";
-import { hasAsciiControlCharacters } from "@/utils/text-validation";
+import { hasAsciiControlCharacters } from "../../utils/text-validation";
 import { resolveWorkspacePath } from "../workspace-service/path";
 
 const MAX_BRANCH_LENGTH = 255;

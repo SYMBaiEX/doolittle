@@ -3,7 +3,7 @@ import type {
   OutboundPlatformMessage,
   PlatformName,
   SessionRoute,
-} from "@/types/gateway";
+} from "../../types/gateway";
 import type {
   PlatformAdapter,
   PlatformLifecycleEvent,

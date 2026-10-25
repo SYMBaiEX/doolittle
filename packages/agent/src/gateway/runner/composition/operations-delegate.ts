@@ -1,5 +1,5 @@
-import type { GatewayRunnerBootstrapInputs } from "@/gateway/runner/bootstrap";
-import type { GatewayRunnerOperations } from "@/gateway/runner/operations";
+import type { GatewayRunnerBootstrapInputs } from "../bootstrap";
+import type { GatewayRunnerOperations } from "../operations";
 
 export interface GatewayRunnerOperationsDelegate {
   receive: GatewayRunnerBootstrapInputs["receive"];

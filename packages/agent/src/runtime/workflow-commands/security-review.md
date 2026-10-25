@@ -1,8 +1,10 @@
 ---
+
 command: /security-review
 title: Security Review
 description: Review the current repo or target codebase for security risks and missing hardening.
 ---
+
 Review {{TARGET}} for security issues and operational hardening gaps.
 
 Inspect first. Findings come first.

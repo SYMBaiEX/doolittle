@@ -1,6 +1,6 @@
 import type { Memory } from "@elizaos/core";
-import type { RunControllerService } from "@/services/run-controller-service";
-import { escapeXml } from "@/utils/eliza-compat";
+import type { RunControllerService } from "../../services/run-controller-service/index";
+import { escapeXml } from "../../utils/eliza-compat";
 
 type RunFailureContextController = Pick<
   RunControllerService,

@@ -1,17 +1,17 @@
-import type { AppContext } from "@/runtime/bootstrap";
+import type { AppContext } from "../../../runtime/bootstrap/index";
 import {
   activateLinkedProvider,
   connectLinkedProvider,
   refreshLinkedAccounts,
-} from "@/runtime/linked-provider-accounts";
+} from "../../../runtime/linked-provider-accounts/index";
 import {
   buildLinkedProviderConnectAdvice,
   getLinkedProviderLoginCommand,
   getLinkedProviderSetupCommand,
   type LinkedProviderAccountsSnapshot,
-} from "@/runtime/native/account-auth";
-import { getRuntimeProviderAccountsSnapshot } from "@/runtime/native/provider-accounts";
-import { getNativeOwnershipControlPlane } from "@/runtime/native/service-bridge/ownership";
+} from "../../../runtime/native/account-auth/index";
+import { getRuntimeProviderAccountsSnapshot } from "../../../runtime/native/provider-accounts";
+import { getNativeOwnershipControlPlane } from "../../../runtime/native/service-bridge/ownership/index";
 
 type LinkedProvider = "elizacloud" | "codex" | "claude-code" | "devin";
 

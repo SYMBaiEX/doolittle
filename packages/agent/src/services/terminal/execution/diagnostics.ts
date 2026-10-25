@@ -1,7 +1,7 @@
 import type {
   DiagnosticCheck,
   ExecutionBackendLimits,
-} from "@/types/execution";
+} from "../../../types/execution";
 import type { RuntimeSettings } from "../../settings/runtime-settings";
 
 export function createCheck(

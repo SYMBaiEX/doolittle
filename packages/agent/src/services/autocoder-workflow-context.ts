@@ -4,7 +4,7 @@ import {
   cancelEffectiveDelegationTask,
   completeEffectiveDelegationTask,
   createEffectiveDelegationTask,
-} from "@/runtime/native/service-bridge/delegation";
+} from "../runtime/native/service-bridge/delegation/index";
 import type { AppServices } from "./index";
 
 interface AutocoderWorkflowContext {

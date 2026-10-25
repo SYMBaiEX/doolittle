@@ -1,6 +1,6 @@
 import { isPlainObject } from "@elizaos/shared/type-guards";
-import type { AppContext } from "@/runtime/bootstrap";
-import { handleAgentTurn } from "@/runtime/chat";
+import type { AppContext } from "../../runtime/bootstrap/index";
+import { handleAgentTurn } from "../../runtime/chat";
 import {
   createEffectiveDelegationTask,
   executeEffectiveDelegationTask,
@@ -8,10 +8,10 @@ import {
   projectOfficialTask,
   spawnEffectiveDelegationChild,
   superviseEffectiveDelegationQueue,
-} from "@/runtime/native/service-bridge/delegation";
-import { currentConversationWorkspace } from "@/runtime/workspace-scope";
-import { readJsonObjectBody } from "@/server/request-body";
-import { json } from "@/server/responses";
+} from "../../runtime/native/service-bridge/delegation/index";
+import { currentConversationWorkspace } from "../../runtime/workspace-scope";
+import { readJsonObjectBody } from "../request-body";
+import { json } from "../responses";
 
 type DelegationTaskBody = {
   title?: string;

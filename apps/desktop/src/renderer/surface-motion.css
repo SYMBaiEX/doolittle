@@ -13,13 +13,13 @@
 }
 /* Dropdown triggers use their existing edge/background, never a second frame. */
 .desktop-shell
-button:is(
-  [role="combobox"],
-  [aria-haspopup="listbox"],
-  [aria-haspopup="menu"],
-  .composer-model-trigger,
-  .composer-project-trigger
-):focus-visible {
+  button:is(
+    [role="combobox"],
+    [aria-haspopup="listbox"],
+    [aria-haspopup="menu"],
+    .composer-model-trigger,
+    .composer-project-trigger
+  ):focus-visible {
   outline: none;
   outline-width: 0;
   box-shadow: inset 1px 0 0 var(--text-soft);

@@ -4,12 +4,12 @@ import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createEvalRuntimeEnvironment } from "@doolittle/evals/runtime-environment";
-import { build } from "esbuild";
 import type {
   BrowserAnalysisBundle,
   BrowserCaptureBundle,
-} from "@/services/web/service";
+} from "@doolittle/agent/services/web/service";
+import { createEvalRuntimeEnvironment } from "@doolittle/evals/runtime-environment";
+import { build } from "esbuild";
 import {
   type BackendManager,
   terminateBackendChild,

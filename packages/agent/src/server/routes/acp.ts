@@ -1,8 +1,8 @@
-import type { AppContext } from "@/runtime/bootstrap";
-import { readJsonObjectBody } from "@/server/request-body";
-import { json } from "@/server/responses";
-import { isAcpSessionNotFoundError } from "@/services/acp/protocol-runtime";
-import type { AcpEditorContext } from "@/services/acp/types";
+import type { AppContext } from "../../runtime/bootstrap/index";
+import { isAcpSessionNotFoundError } from "../../services/acp/protocol-runtime";
+import type { AcpEditorContext } from "../../services/acp/types";
+import { readJsonObjectBody } from "../request-body";
+import { json } from "../responses";
 
 export async function handleAcpRoutes(
   context: AppContext,

@@ -1,4 +1,4 @@
-import type { ExecutionBackendName } from "@/types/execution";
+import type { ExecutionBackendName } from "../../../types/execution";
 import type { ExecutionBackend } from "../contracts/backend";
 import { createContainerExecutionBackends } from "./container";
 import { createLocalExecutionBackend } from "./local";

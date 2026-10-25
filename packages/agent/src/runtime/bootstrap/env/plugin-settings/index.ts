@@ -1,5 +1,5 @@
-import type { AppServices } from "@/services";
-import type { EnvConfig } from "@/types/runtime";
+import type { AppServices } from "../../../../services/index";
+import type { EnvConfig } from "../../../../types/runtime/index";
 import { applyAmbientProcessSettings } from "./ambient";
 import { buildBaseSettings } from "./base";
 import { applyEmbeddingSettings } from "./embedding";

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { resolveCloudApiBaseUrl } from "@/runtime/linked-provider-accounts/cloud-url";
+import { resolveCloudApiBaseUrl } from "../../runtime/linked-provider-accounts/cloud-url";
 
 function strictEnvBoolean(defaultValue: boolean) {
   return z

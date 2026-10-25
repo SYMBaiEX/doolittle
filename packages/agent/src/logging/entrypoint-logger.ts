@@ -1,11 +1,7 @@
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import {
-  type AppLogger,
-  type AppLogLevel,
-  createNoopLogger,
-} from "@/logging/logger";
-import { LoggerService } from "@/services/logger-service";
+import { LoggerService } from "../services/logger-service/index";
+import { type AppLogger, type AppLogLevel, createNoopLogger } from "./logger";
 
 const loggerCache = new Map<string, AppLogger>();
 

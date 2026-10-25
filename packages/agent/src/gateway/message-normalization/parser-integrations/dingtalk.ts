@@ -1,4 +1,4 @@
-import type { IncomingPlatformMessage } from "@/types/gateway";
+import type { IncomingPlatformMessage } from "../../../types/gateway";
 import { normalizeMetadata } from "../helpers";
 
 export function parseDingtalkMessage(

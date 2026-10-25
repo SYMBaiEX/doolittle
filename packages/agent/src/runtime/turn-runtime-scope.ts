@@ -1,8 +1,8 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { randomUUID } from "node:crypto";
 import type { ActionResult, runV5MessageRuntimeStage1 } from "@elizaos/core";
-import { actionResultActionName } from "@/runtime/action-result-metadata";
-import type { LinkedProviderName } from "@/runtime/linked-provider-accounts";
+import { actionResultActionName } from "./action-result-metadata";
+import type { LinkedProviderName } from "./linked-provider-accounts/index";
 
 type RuntimeSettingsReader = {
   getSetting: (key: string) => unknown;

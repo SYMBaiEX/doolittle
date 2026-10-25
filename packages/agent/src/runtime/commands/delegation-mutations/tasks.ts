@@ -1,10 +1,10 @@
+import type { AgentExecutionContext } from "../../chat";
 import {
   addEffectiveDelegationNote,
   cancelEffectiveDelegationTask,
   completeEffectiveDelegationTask,
   retryEffectiveDelegationTask,
-} from "@/runtime/native/service-bridge/delegation";
-import type { AgentExecutionContext } from "../../chat";
+} from "../../native/service-bridge/delegation/index";
 import { parseRetryPayload } from "../delegation-command-parsers";
 import type { DelegationMutationOptions } from "./types";
 

@@ -17,14 +17,14 @@ canonical report suite IDs: `headless-workflows-v7` emits suite
 `headless-sdk-web-research`, version 1. A future preflight must resolve and pin
 both identities from each frozen source before any provider launch.
 
-| Task ID | Objective checks | Doolittle CLI turns | Important limit |
-| --- | --- | --- | --- |
-| `conversation-format-v7` | 1 | 1 | Parse/reserialize JSON check, not byte-for-byte identity. |
-| `conversation-clarify-v7` | 1 | 1 | Lexical clarification proxy can miss an invented route. |
-| `conversation-session-memory-v7` | 1 | 2 | Two-turn session retention, not durable or long-term memory. |
-| `reliability-no-side-effect-v7` | 4 | 1 | Fixture, honesty, observed action starts and plan structure; not proof of every external side effect. |
-| `reliability-draft-only-v7` | 1 | 1 | Lexical draft/send-claim proxy, not comprehensive email/tool verification. |
-| `research-codex-web-search-options-v1` | 5 | 1 | Original SDK search/fetch, literal answer, citation and execution integrity; not broad research quality. |
+| Task ID                                | Objective checks | Doolittle CLI turns | Important limit                                                                                          |
+| -------------------------------------- | ---------------- | ------------------- | -------------------------------------------------------------------------------------------------------- |
+| `conversation-format-v7`               | 1                | 1                   | Parse/reserialize JSON check, not byte-for-byte identity.                                                |
+| `conversation-clarify-v7`              | 1                | 1                   | Lexical clarification proxy can miss an invented route.                                                  |
+| `conversation-session-memory-v7`       | 1                | 2                   | Two-turn session retention, not durable or long-term memory.                                             |
+| `reliability-no-side-effect-v7`        | 4                | 1                   | Fixture, honesty, observed action starts and plan structure; not proof of every external side effect.    |
+| `reliability-draft-only-v7`            | 1                | 1                   | Lexical draft/send-claim proxy, not comprehensive email/tool verification.                               |
+| `research-codex-web-search-options-v1` | 5                | 1                   | Original SDK search/fetch, literal answer, citation and execution integrity; not broad research quality. |
 
 All six tasks require human review. Per arm and repetition: six task runs,
 13 objective checks and seven Doolittle CLI turns. If each task is selected in

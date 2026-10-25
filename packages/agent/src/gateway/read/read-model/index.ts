@@ -1,12 +1,12 @@
-import type { GatewayInboxReplayResult } from "@/gateway/receive/replay";
-import type { GatewaySupervisionRecord } from "@/gateway/supervision/index";
-import type { PlatformName } from "@/types/gateway";
+import type { PlatformName } from "../../../types/gateway";
 import type { PlatformHealth } from "../../platforms/base";
+import type { GatewayInboxReplayResult } from "../../receive/replay";
 import type {
   GatewayHistorySnapshot,
   GatewayStateSnapshot,
   GatewayTransportDetail,
 } from "../../state/state-snapshot";
+import type { GatewaySupervisionRecord } from "../../supervision/index";
 import type {
   GatewayAttachmentRecord,
   GatewayHistoryFilter,

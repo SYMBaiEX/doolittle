@@ -1,4 +1,4 @@
-import type { LinkedProviderAccountsSnapshot } from "@/runtime/native/account-auth";
+import type { LinkedProviderAccountsSnapshot } from "@doolittle/agent/runtime/native/account-auth";
 
 export type CloudRecoveryChoice =
   | "retry"

@@ -1,7 +1,7 @@
 import { DOOLITTLE_GATEWAY_SERVICE } from "@doolittle/contracts";
 import type { IAgentRuntime } from "@elizaos/core";
-import type { GatewayRunner } from "@/gateway/runner";
-import type { AppServices } from "@/services";
+import type { GatewayRunner } from "../../../gateway/runner/index";
+import type { AppServices } from "../../../services/index";
 import { requireRuntimeService } from "./required-service";
 
 export function createGatewayAccessor(params: {

@@ -1,8 +1,8 @@
+import type { AgentExecutionContext } from "../../../chat";
 import {
   generateEffectivePrd,
   performEffectiveCodeResearch,
-} from "@/runtime/native/service-bridge/autocoder";
-import type { AgentExecutionContext } from "../../../chat";
+} from "../../../native/service-bridge/autocoder/index";
 import { CODEGEN_PRD_USAGE, parseCodegenDescriptor } from "../parsers";
 import { stringifyCodegenResponse, withAutocoderWorkflow } from "../support";
 import { createAutocoderRunRecord } from "./shared";

@@ -1,4 +1,4 @@
-import type { ToolDefinition } from "@/types";
+import type { ToolDefinition } from "../../../types/index";
 
 export const CORE_STATUS_CONTROL_PLANES = [
   {

@@ -1,5 +1,5 @@
-import { seedEffectiveAgentProfile } from "@/runtime/native/service-bridge/ownership";
-import { json } from "@/server/responses";
+import { seedEffectiveAgentProfile } from "../../../../runtime/native/service-bridge/ownership/index";
+import { json } from "../../../responses";
 import {
   type IdentityProfileRouteHandler,
   readJsonBody,

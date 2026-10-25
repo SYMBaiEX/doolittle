@@ -1,10 +1,13 @@
 import { createHash, randomUUID } from "node:crypto";
-import { createProgressiveDeliveryQueue } from "@/gateway/outbound/builders";
-import { formatRunEvent, shouldRenderRunEvent } from "@/runtime/run-progress";
-import { hasGlobalSessionOperatorAccess } from "@/runtime/session-operator-policy";
-import { executeAgentTurnWithProgress } from "@/runtime/turn-stream";
-import type { RunUpdateEvent } from "@/services/run-controller-service";
-import type { SessionRoute } from "@/types/gateway";
+import {
+  formatRunEvent,
+  shouldRenderRunEvent,
+} from "../../runtime/run-progress";
+import { hasGlobalSessionOperatorAccess } from "../../runtime/session-operator-policy";
+import { executeAgentTurnWithProgress } from "../../runtime/turn-stream";
+import type { RunUpdateEvent } from "../../services/run-controller-service/index";
+import type { SessionRoute } from "../../types/gateway";
+import { createProgressiveDeliveryQueue } from "../outbound/builders";
 import { gatewayInboundIdempotencyKey } from "./idempotency";
 import type {
   GatewayReceiveDependencies,

@@ -9,8 +9,8 @@ import {
   writeFileSync,
 } from "node:fs";
 import { join } from "node:path";
-import type { EnvConfig } from "@/types/runtime";
-import { readRegularFileDescriptorSync } from "@/utils/read-regular-file";
+import type { EnvConfig } from "../../../types/runtime/index";
+import { readRegularFileDescriptorSync } from "../../../utils/read-regular-file";
 
 export function ensureSecretSalt(config: EnvConfig): string {
   const provided =

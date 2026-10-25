@@ -1,9 +1,9 @@
-import type { AppContext } from "@/runtime/bootstrap";
+import type { AppContext } from "../../../runtime/bootstrap/index";
 import {
   type AutocoderPipelineRunKind,
   type AutocoderPipelineRunRecord,
   AutocoderRunCancelledError,
-} from "@/services/autocoder-pipeline";
+} from "../../../services/autocoder-pipeline/index";
 
 interface AutocoderRunInput {
   workflowId: string;

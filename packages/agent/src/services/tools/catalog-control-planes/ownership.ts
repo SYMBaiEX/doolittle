@@ -1,4 +1,4 @@
-import type { ToolDefinition } from "@/types";
+import type { ToolDefinition } from "../../../types/index";
 
 export const OWNERSHIP_CONTROL_PLANES = [
   {

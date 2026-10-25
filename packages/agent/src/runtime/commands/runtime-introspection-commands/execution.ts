@@ -1,4 +1,4 @@
-import { getNativeExecutionControlPlane } from "@/runtime/native/service-bridge/control-planes";
+import { getNativeExecutionControlPlane } from "../../native/service-bridge/control-planes/index";
 import type { RuntimeIntrospectionCommandHandler } from "./types";
 
 export const handleExecutionRuntimeIntrospectionCommand: RuntimeIntrospectionCommandHandler =

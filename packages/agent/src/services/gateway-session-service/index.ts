@@ -4,7 +4,7 @@ import type {
   IncomingPlatformMessage,
   PlatformName,
   SessionRoute,
-} from "@/types";
+} from "../../types/index";
 import {
   createLegacyTelegramAccountSessionKey,
   createSessionKey,

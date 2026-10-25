@@ -1,5 +1,5 @@
-import { generateEffectiveCode } from "@/runtime/native/service-bridge/autocoder";
 import type { AgentExecutionContext } from "../../../chat";
+import { generateEffectiveCode } from "../../../native/service-bridge/autocoder/index";
 import { stringifyCodegenResponse, withAutocoderWorkflow } from "../support";
 import { createAutocoderRunRecord } from "./shared";
 

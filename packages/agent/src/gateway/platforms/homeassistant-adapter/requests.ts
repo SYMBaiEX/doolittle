@@ -1,6 +1,9 @@
 import { randomUUID } from "node:crypto";
-import type { OutboundPlatformMessage, PlatformName } from "@/types/gateway";
-import type { EnvConfig } from "@/types/runtime";
+import type {
+  OutboundPlatformMessage,
+  PlatformName,
+} from "../../../types/gateway";
+import type { EnvConfig } from "../../../types/runtime/index";
 import { fetchPlatform, readPlatformResponseText } from "../platform-http";
 
 type HomeAssistantConnection = {

@@ -14,7 +14,7 @@ import type {
   EnvConfig,
   SessionSummary,
   ToolDefinition,
-} from "@/types";
+} from "../../types/index";
 import type { AcpTelemetrySnapshot } from "./telemetry";
 import type { AcpServicePaths, AcpSessionSummarySource } from "./types";
 

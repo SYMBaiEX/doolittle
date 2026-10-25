@@ -1,13 +1,13 @@
 import { homedir } from "node:os";
 import { resolve } from "node:path";
 import { getModelOptions } from "@elizaos/agent/api/model-provider-helpers";
-import type { AppContext } from "@/runtime/bootstrap";
-import { getRuntimeProviderAccountsSnapshot } from "@/runtime/native/provider-accounts";
-import { json } from "@/server/responses";
-import { listRuntimeModelCapabilities } from "@/services/operator/runtime-model-capabilities";
-import type { RuntimeReasoningEffort } from "@/services/settings/runtime-settings";
-import type { EnvConfig } from "@/types";
-import { readRegularFileSync } from "@/utils/read-regular-file";
+import type { AppContext } from "../../../runtime/bootstrap/index";
+import { getRuntimeProviderAccountsSnapshot } from "../../../runtime/native/provider-accounts";
+import { listRuntimeModelCapabilities } from "../../../services/operator/runtime-model-capabilities";
+import type { RuntimeReasoningEffort } from "../../../services/settings/runtime-settings";
+import type { EnvConfig } from "../../../types/index";
+import { readRegularFileSync } from "../../../utils/read-regular-file";
+import { json } from "../../responses";
 
 const MODEL_DISCOVERY_TIMEOUT_MS = 2_500;
 

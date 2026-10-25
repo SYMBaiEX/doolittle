@@ -13,8 +13,8 @@ import {
   writeFileSync,
 } from "node:fs";
 import { dirname, isAbsolute, join, relative } from "node:path";
-import { listNativeCapabilityTruth } from "@/runtime/native/capability-truth";
-import { readRegularFileSync } from "@/utils/read-regular-file";
+import { listNativeCapabilityTruth } from "@doolittle/agent/runtime/native/capability-truth";
+import { readRegularFileSync } from "@doolittle/agent/utils/read-regular-file";
 import { buildInventoryRows } from "./inventory";
 import {
   renderCapabilityTruth,

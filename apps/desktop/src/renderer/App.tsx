@@ -22,7 +22,6 @@ import type {
   ActivityFeedResponse,
   BotConversationScope,
   BotConversationScopeResponse,
-  ThemeResponse,
   WorkspaceState,
 } from "../shared/contracts";
 import {
@@ -110,20 +109,7 @@ import {
   type View,
 } from "./desktop-navigation";
 import {
-  announceAppearanceApplied,
-  applyDesktopAppearance,
-  applyDesktopDensity,
-  applyDesktopTheme,
-  applyThemeManifest,
-  type DesktopAppearance,
-  type DesktopDensity,
-  loadAppearancePreference,
-  loadDensityPreference,
-  loadDesktopThemeSource,
   loadStoredThemeManifest,
-  parseDesktopThemeProfile,
-  resolveAppearance,
-  subscribeToDesktopThemeChanges,
   THEME_MANIFEST_CHANGE_EVENT,
 } from "./desktop-theme";
 import { confirmDirtyNavigation } from "./dirty-navigation";
@@ -152,6 +138,7 @@ import {
   shouldIgnoreShellShortcut,
 } from "./shell-shortcuts";
 import { createTerminalOpenIntent } from "./terminal-open-intent";
+import { useDesktopAppearance } from "./use-desktop-appearance";
 import { useDesktopContentNavigation } from "./use-desktop-content-navigation";
 import { useProjectManagement } from "./use-project-management";
 import { useRuntimeWorkspaceData } from "./use-runtime-workspace-data";
@@ -471,12 +458,6 @@ export function App() {
   const newChatTriggerRef = useRef<HTMLElement | null>(null);
   const [editingBot, setEditingBot] = useState<BotSummary | undefined>();
   const botCreationTriggerRef = useRef<HTMLElement | null>(null);
-  const [appearance, setAppearance] = useState<DesktopAppearance>(
-    loadAppearancePreference,
-  );
-  const [density, setDensity] = useState<DesktopDensity>(loadDensityPreference);
-  const systemPrefersDark = useMediaQuery("(prefers-color-scheme: dark)");
-  const resolvedAppearance = resolveAppearance(appearance, systemPrefersDark);
 
   useEffect(() => {
     let cancelled = false;
@@ -1156,6 +1137,10 @@ export function App() {
       window.removeEventListener("doolittle:new-chat", createConversation);
   }, [createConversation]);
 
+  const { resolvedAppearance, setAppearance } = useDesktopAppearance(
+    backend.phase,
+  );
+
   const toggleAppearance = useCallback(() => {
     const nextAppearance = resolvedAppearance === "dark" ? "light" : "dark";
     setAppearance(nextAppearance);
@@ -1164,7 +1149,7 @@ export function App() {
       title: `${nextAppearance === "dark" ? "Dark" : "Light"} appearance`,
       message: "Your desktop preference was saved.",
     });
-  }, [pushToast, resolvedAppearance]);
+  }, [pushToast, resolvedAppearance, setAppearance]);
 
   const toggleNavigation = useCallback(() => {
     setNavCollapsed((value) => !value);
@@ -1748,49 +1733,6 @@ export function App() {
     const owner = selectedSessionOwner;
     if (owner && owner !== selectedBotId) setSelectedBotId(owner);
   }, [selectedSessionOwner, selectedBotId]);
-
-  useEffect(() => {
-    applyDesktopAppearance(appearance, systemPrefersDark);
-    announceAppearanceApplied(resolveAppearance(appearance, systemPrefersDark));
-  }, [appearance, systemPrefersDark]);
-
-  useEffect(() => {
-    applyDesktopDensity(density);
-  }, [density]);
-
-  useEffect(() => {
-    applyThemeManifest(
-      loadStoredThemeManifest(),
-      loadDesktopThemeSource() ?? "builtin",
-    );
-  }, []);
-
-  useEffect(() => {
-    if (backend.phase !== "ready") return;
-    let disposed = false;
-    void desktopRequest<ThemeResponse>("/theme")
-      .then((response) => {
-        if (disposed) return;
-        if (["imported", "builtin"].includes(loadDesktopThemeSource() ?? ""))
-          return;
-        const profile = parseDesktopThemeProfile(response.profile);
-        if (profile) applyDesktopTheme(profile, "runtime");
-      })
-      .catch(() => {
-        // The cached profile preserves the visual theme while the runtime recovers.
-      });
-    return () => {
-      disposed = true;
-    };
-  }, [backend.phase]);
-
-  useEffect(() => {
-    return subscribeToDesktopThemeChanges({
-      onAppearance: setAppearance,
-      onDensity: setDensity,
-      onTheme: applyDesktopTheme,
-    });
-  }, []);
 
   useEffect(() => {
     localStorage.setItem(PROJECT_SCOPE_KEY, projectScope);

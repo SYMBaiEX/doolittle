@@ -1,5 +1,5 @@
-import { createEffectiveDelegationTask } from "@/runtime/native/service-bridge/delegation";
 import type { AgentExecutionContext } from "../../chat";
+import { createEffectiveDelegationTask } from "../../native/service-bridge/delegation/index";
 import { parseTrajectoryArgs } from "./shared";
 
 export async function handleTrajectoryBatchCommands(

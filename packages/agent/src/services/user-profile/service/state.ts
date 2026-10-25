@@ -1,7 +1,7 @@
 import { linkSync, lstatSync, mkdirSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
-import { ensurePrivateDirectorySync } from "@/utils/private-directory";
-import { readRegularFileSync } from "@/utils/read-regular-file";
+import { ensurePrivateDirectorySync } from "../../../utils/private-directory";
+import { readRegularFileSync } from "../../../utils/read-regular-file";
 import { createUserProfileMutations } from "../mutations";
 import type { UserProfileStorage } from "../storage";
 import { createUserProfileStorage, normalizeRelationship } from "../storage";

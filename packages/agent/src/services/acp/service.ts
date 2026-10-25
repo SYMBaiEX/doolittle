@@ -11,7 +11,6 @@ import type {
   WaitForTerminalExitRequest,
   WriteTextFileRequest,
 } from "@doolittle/acp";
-import { resolveWorkspaceDirectory } from "@/services/workspace-directory";
 import type {
   AcpEditorSummary,
   AcpPackageMetadata,
@@ -22,7 +21,8 @@ import type {
   SessionSummary,
   StoredMessage,
   ToolDefinition,
-} from "@/types";
+} from "../../types/index";
+import { resolveWorkspaceDirectory } from "../workspace-directory";
 import { AcpCatalog } from "./catalog";
 import { createAcpServicePaths } from "./paths";
 import { AcpPersistence } from "./persistence";

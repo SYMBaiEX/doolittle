@@ -1,4 +1,4 @@
-import type { PlatformName, SessionRoute } from "@/types/gateway";
+import type { PlatformName, SessionRoute } from "../../../types/gateway";
 import type {
   DeliveredMessageRecord,
   GatewayAttachmentRecord,

@@ -1,10 +1,10 @@
-import type { AppContext } from "@/runtime/bootstrap";
+import type { AppContext } from "../../runtime/bootstrap/index";
 import type {
   DeliveredMessageRecord,
   IncomingPlatformMessage,
   OutboundPlatformMessage,
   SessionRoute,
-} from "@/types/gateway";
+} from "../../types/gateway";
 import type { PlatformAdapter } from "../platforms/base";
 
 type MediaService = AppContext["services"]["media"];

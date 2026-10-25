@@ -1,4 +1,4 @@
-import type { EnvConfig } from "@/types/runtime";
+import type { EnvConfig } from "../../../types/runtime/index";
 import type { MessagingPlatformState } from "../messaging-state";
 
 export const DISCORD_CONFIGURED_DETAIL =

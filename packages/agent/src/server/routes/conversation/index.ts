@@ -1,5 +1,5 @@
-import type { AppContext } from "@/runtime/bootstrap";
-import { readWorkerBotProfile } from "@/runtime/bootstrap/bot-profile";
+import { readWorkerBotProfile } from "../../../runtime/bootstrap/bot-profile";
+import type { AppContext } from "../../../runtime/bootstrap/index";
 import {
   handleChatRoute,
   handleChatRunEventsRoute,

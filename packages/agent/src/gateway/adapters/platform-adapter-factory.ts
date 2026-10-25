@@ -1,6 +1,6 @@
-import { getNativeServices } from "@/runtime/native/service-bridge/runtime";
-import { getNativeMessagingTransportState } from "@/runtime/native/service-bridge/transport-control";
-import type { PlatformName } from "@/types/gateway";
+import { getNativeServices } from "../../runtime/native/service-bridge/runtime";
+import { getNativeMessagingTransportState } from "../../runtime/native/service-bridge/transport-control/index";
+import type { PlatformName } from "../../types/gateway";
 import type { PlatformAdapter } from "../platforms/base";
 import { DingtalkPlatformAdapter } from "../platforms/dingtalk-adapter";
 import { DiscordPlatformAdapter } from "../platforms/discord-adapter";

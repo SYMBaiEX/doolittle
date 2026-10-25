@@ -8,14 +8,14 @@ import {
 import {
   hasSuccessfulWorkspaceBuild,
   hasWorkspaceCodingAttempt,
-} from "@/runtime/chat-turn/workspace-noop-completion";
-import { resolveRemoteExecutionPlatform } from "@/runtime/commands/command-execution";
+} from "../runtime/chat-turn/workspace-noop-completion";
+import { resolveRemoteExecutionPlatform } from "../runtime/commands/command-execution";
 import {
   getScopedTurnAbortSignal,
   getScopedTurnActionResults,
   recordScopedTurnActionResult,
-} from "@/runtime/turn-runtime-scope";
-import type { AppServices } from "@/services";
+} from "../runtime/turn-runtime-scope";
+import type { AppServices } from "../services/index";
 
 export const DOOLITTLE_APP_SERVER_ACTION = "DOOLITTLE_APP_SERVER";
 

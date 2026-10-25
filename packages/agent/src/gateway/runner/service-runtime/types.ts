@@ -1,5 +1,8 @@
-import type { GatewayTraceRecord } from "@/gateway/read/history-view";
-import type { DeliveredMessageRecord, PlatformName } from "@/types/gateway";
+import type {
+  DeliveredMessageRecord,
+  PlatformName,
+} from "../../../types/gateway";
+import type { GatewayTraceRecord } from "../../read/history-view/index";
 
 export interface GatewayRunnerSendToHomesOptions {
   metadata?: Record<string, string>;

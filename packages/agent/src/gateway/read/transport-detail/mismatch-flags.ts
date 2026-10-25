@@ -1,5 +1,5 @@
-import type { PlatformHealth } from "@/gateway/platforms/base";
-import type { PlatformName } from "@/types/gateway";
+import type { PlatformName } from "../../../types/gateway";
+import type { PlatformHealth } from "../../platforms/base/index";
 import type {
   GatewayControlPlaneView,
   GatewayPlatformStateView,

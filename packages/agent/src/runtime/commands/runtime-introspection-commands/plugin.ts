@@ -1,7 +1,7 @@
 import {
   getNativePluginCatalog,
   groupNativePluginCatalog,
-} from "@/runtime/native/plugin-catalog";
+} from "../../native/plugin-catalog/index";
 import {
   renderRuntimeOperatorBlock,
   resolveOwnershipControlPlane,

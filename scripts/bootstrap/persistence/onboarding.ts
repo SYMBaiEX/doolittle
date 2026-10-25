@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
-import { loadConfig } from "@/config/env";
-import { summarizeAutonomousConnection } from "@/runtime/native/autonomous-stack";
+import { loadConfig } from "@doolittle/agent/config/env";
+import { summarizeAutonomousConnection } from "@doolittle/agent/runtime/native/autonomous-stack";
 import type { OnboardingSummary, WizardAnswers } from "../types";
 
 function fingerprint(

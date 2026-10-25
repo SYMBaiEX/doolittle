@@ -1,4 +1,4 @@
-import { executeRepositoryCommand } from "@/actions/repository-action";
+import { executeRepositoryCommand } from "../../../actions/repository-action";
 import type { AgentExecutionContext } from "../../chat";
 
 export async function handleOperatorRepositoryCommand(

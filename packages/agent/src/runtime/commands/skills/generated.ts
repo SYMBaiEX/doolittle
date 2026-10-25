@@ -1,5 +1,5 @@
-import { getEffectiveDelegationTask } from "@/runtime/native/service-bridge/delegation";
-import { getEffectiveGeneratedSkills } from "@/runtime/native/service-bridge/ownership";
+import { getEffectiveDelegationTask } from "../../native/service-bridge/delegation/index";
+import { getEffectiveGeneratedSkills } from "../../native/service-bridge/ownership/index";
 
 import type { SkillCommandHandler } from "./types";
 

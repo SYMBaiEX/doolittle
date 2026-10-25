@@ -1,10 +1,10 @@
-import { describeAutonomousAlignment } from "@/runtime/native/autonomous-stack";
+import { describeAutonomousAlignment } from "../../runtime/native/autonomous-stack/index";
 import {
   getNativeMediaControlPlane,
   getNativeResearchControlPlane,
-} from "@/runtime/native/service-bridge/control-planes";
-import type { RuntimeLike } from "@/runtime/native/service-bridge/runtime";
-import type { DiagnosticCheck, EnvConfig } from "@/types";
+} from "../../runtime/native/service-bridge/control-planes/index";
+import type { RuntimeLike } from "../../runtime/native/service-bridge/runtime";
+import type { DiagnosticCheck, EnvConfig } from "../../types/index";
 import type { AwarenessService } from "../awareness-service";
 import type { RunControllerService } from "../run-controller-service";
 import type { SettingsService } from "../settings-service";

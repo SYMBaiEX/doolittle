@@ -1,42 +1,39 @@
 import type { UUID } from "@elizaos/core";
-import { buildCommandResponse } from "@/runtime/chat-command-router";
+import { resolveManagedChatAttachments } from "../services/chat-attachments";
+import type {
+  AutomationRuntimeOverrides,
+  ChatTurnRequest,
+} from "../types/runtime/index";
+import type { AppContext } from "./bootstrap";
+import { buildCommandResponse } from "./chat-command-router";
 import {
   deleteNativeConversationMemories,
   rollbackNativeConversationReplay,
   snapshotNativeConversationMemories,
-} from "@/runtime/chat-turn/conversation-persistence";
-import { runPostCommandTurn } from "@/runtime/chat-turn/post-command";
-import {
-  type PreparedTurnState,
-  prepareTurnState,
-} from "@/runtime/chat-turn/state";
+} from "./chat-turn/conversation-persistence";
+import { runPostCommandTurn } from "./chat-turn/post-command";
+import { type PreparedTurnState, prepareTurnState } from "./chat-turn/state";
 import {
   acquireExecutionLease,
   type ExecutionAdmissionKind,
   type ExecutionLease,
   runWithExecutionLease,
-} from "@/runtime/execution-admission";
+} from "./execution-admission";
 import {
   connectLinkedProvider,
   type LinkedProviderName,
   syncProviderSettings,
-} from "@/runtime/linked-provider-accounts";
-import { executeEffectiveDelegationTask } from "@/runtime/native/service-bridge/delegation";
-import { getEffectiveActivePersonality } from "@/runtime/native/service-bridge/ownership";
-import type { TurnCommandHooks } from "@/runtime/turn-runtime-scope";
-import { resolveWorkflowCommandPrompt } from "@/runtime/workflow-commands";
+} from "./linked-provider-accounts/index";
+import { runModelAnalysis } from "./model-analysis";
+import { executeEffectiveDelegationTask } from "./native/service-bridge/delegation/index";
+import { getEffectiveActivePersonality } from "./native/service-bridge/ownership/index";
+import type { TurnCommandHooks } from "./turn-runtime-scope";
+import { resolveWorkflowCommandPrompt } from "./workflow-commands/index";
 import {
   isDesktopWorkspaceRuntime,
   resolveConversationWorkspace,
   runWithConversationWorkspace,
-} from "@/runtime/workspace-scope";
-import { resolveManagedChatAttachments } from "@/services/chat-attachments";
-import type {
-  AutomationRuntimeOverrides,
-  ChatTurnRequest,
-} from "@/types/runtime";
-import type { AppContext } from "./bootstrap";
-import { runModelAnalysis } from "./model-analysis";
+} from "./workspace-scope";
 
 export type { LinkedProviderName };
 export { connectLinkedProvider, syncProviderSettings };

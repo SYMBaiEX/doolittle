@@ -7,13 +7,13 @@ import type {
   Memory,
   State,
 } from "@elizaos/core";
-import { searchNativeSessions } from "@/runtime/native/service-bridge/tooling";
+import { searchNativeSessions } from "../runtime/native/service-bridge/tooling/index";
 import {
   GLOBAL_SESSION_ACCESS_DENIED,
   hasGlobalSessionOperatorAccess,
-} from "@/runtime/session-operator-policy";
-import type { SessionSearchResult } from "@/types";
-import { messageText } from "@/utils/eliza-compat";
+} from "../runtime/session-operator-policy";
+import type { SessionSearchResult } from "../types/index";
+import { messageText } from "../utils/eliza-compat";
 
 function optionQuery(options: HandlerOptions | undefined): string | undefined {
   const parameters =

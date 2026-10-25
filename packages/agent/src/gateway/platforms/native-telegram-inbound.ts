@@ -1,6 +1,6 @@
-import { normalizeInboundMessage } from "@/gateway/message-normalization";
-import type { GatewayRunner } from "@/gateway/runner";
-import type { IncomingPlatformMessage } from "@/types/gateway";
+import type { IncomingPlatformMessage } from "../../types/gateway";
+import { normalizeInboundMessage } from "../message-normalization/index";
+import type { GatewayRunner } from "../runner/index";
 
 const TELEGRAM_SERVICE = "telegram";
 const HANDOFF_INSTALLED = Symbol.for(

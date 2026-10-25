@@ -1,9 +1,9 @@
-import type { Plugin } from "@elizaos/core";
 import {
   createExperiencePlugin,
   createPersonalityPlugin,
   createRolodexPlugin,
-} from "@plugins/doolittle-plugin";
+} from "@doolittle/plugins/doolittle-plugin";
+import type { Plugin } from "@elizaos/core";
 import type { AppServices } from "../../../services";
 
 export async function loadHotIdentityPlugins(

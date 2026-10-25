@@ -1,7 +1,7 @@
-import type { AppContext } from "@/runtime/bootstrap";
-import { readJsonObjectBody } from "@/server/request-body";
-import { json } from "@/server/responses";
-import { resolveHookEventBinding } from "@/services/hook-projection-service";
+import type { AppContext } from "../../../runtime/bootstrap/index";
+import { resolveHookEventBinding } from "../../../services/hook-projection-service";
+import { readJsonObjectBody } from "../../request-body";
+import { json } from "../../responses";
 
 export async function handleHookRoutes(
   context: AppContext,

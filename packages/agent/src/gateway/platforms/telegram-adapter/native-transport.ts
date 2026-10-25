@@ -4,8 +4,8 @@ import type {
   NativeTelegramMessageManager,
   NativeTelegramSentMessage,
   NativeTelegramTransportService,
-} from "@/runtime/native/service-bridge/runtime-contracts";
-import type { OutboundPlatformMessage } from "@/types/gateway";
+} from "../../../runtime/native/service-bridge/runtime-contracts/index";
+import type { OutboundPlatformMessage } from "../../../types/gateway";
 import { resolveVoiceAttachment } from "../messaging-utils";
 
 export interface TelegramDeliveryMetadata {

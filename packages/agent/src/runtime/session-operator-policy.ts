@@ -1,4 +1,4 @@
-import type { ChatTurnRequest } from "@/types/runtime";
+import type { ChatTurnRequest } from "../types/runtime/index";
 
 const TRUSTED_OPERATOR_SOURCES = new Set([
   "api",

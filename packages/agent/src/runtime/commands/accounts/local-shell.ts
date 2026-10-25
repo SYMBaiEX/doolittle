@@ -1,10 +1,10 @@
-import { displayCommand } from "@/runtime/commands/command-execution";
 import {
   getLinkedProviderConnectAdvice,
   getLinkedProviderLoginCommand,
   getLinkedProviderSetupCommand,
   type LinkedProviderName,
-} from "@/runtime/native/account-auth";
+} from "../../native/account-auth/index";
+import { displayCommand } from "../command-execution";
 import type { AccountsCommandHooks } from "./types";
 
 export async function handleAccountLogin(

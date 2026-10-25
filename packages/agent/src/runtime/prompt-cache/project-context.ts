@@ -1,5 +1,5 @@
-import { currentConversationWorkspace } from "@/runtime/workspace-scope";
-import type { Project, ProjectResource } from "@/types";
+import type { Project, ProjectResource } from "../../types/index";
+import { currentConversationWorkspace } from "../workspace-scope";
 
 const MAX_PROJECT_FIELD_CHARS = 1_200;
 const MAX_PATH_CHARS = 500;

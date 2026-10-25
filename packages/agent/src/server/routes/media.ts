@@ -1,8 +1,8 @@
-import type { AppContext } from "@/runtime/bootstrap";
-import { getNativeMediaControlPlane } from "@/runtime/native/service-bridge/control-planes";
-import { readJsonObjectBody } from "@/server/request-body";
-import { json } from "@/server/responses";
-import { MediaLibraryError } from "@/services/media/library";
+import type { AppContext } from "../../runtime/bootstrap/index";
+import { getNativeMediaControlPlane } from "../../runtime/native/service-bridge/control-planes/index";
+import { MediaLibraryError } from "../../services/media/library";
+import { readJsonObjectBody } from "../request-body";
+import { json } from "../responses";
 
 async function readMediaBody(
   request: Request,

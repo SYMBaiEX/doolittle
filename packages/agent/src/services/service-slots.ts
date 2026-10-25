@@ -1,5 +1,5 @@
-import type { NativeOwnershipCache } from "@/runtime/native/ownership-cache";
-import type { EnvConfig } from "@/types";
+import type { NativeOwnershipCache } from "../runtime/native/ownership-cache";
+import type { EnvConfig } from "../types/index";
 import type { AgentSdkService } from "./agent-sdk-service";
 import type { AutocoderPipelineService } from "./autocoder-pipeline/service";
 import type { AwarenessService } from "./awareness-service";
@@ -36,7 +36,7 @@ export function createEcosystemServiceSlot(
 export function createDiagnosticsServiceSlot(params: {
   config: EnvConfig;
   gatewayConfig: ReturnType<
-    typeof import("@/config/gateway").loadGatewayConfig
+    typeof import("../config/gateway").loadGatewayConfig
   >;
   agentSdk: AgentSdkService;
   nativeOwnership: NativeOwnershipCache;

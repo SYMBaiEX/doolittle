@@ -1,8 +1,8 @@
-import type { AppContext } from "@/runtime/bootstrap";
-import { readWorkerBotProfile } from "@/runtime/bootstrap/bot-profile";
-import { currentConversationWorkspace } from "@/runtime/workspace-scope";
-import { readJsonObjectBody } from "@/server/request-body";
-import { json } from "@/server/responses";
+import { readWorkerBotProfile } from "../../runtime/bootstrap/bot-profile";
+import type { AppContext } from "../../runtime/bootstrap/index";
+import { currentConversationWorkspace } from "../../runtime/workspace-scope";
+import { readJsonObjectBody } from "../request-body";
+import { json } from "../responses";
 
 export async function handleMigrationRoutes(
   context: AppContext,

@@ -1,5 +1,5 @@
 import type { CodingVerificationReceipt } from "@doolittle/contracts";
-import type { RunDepth, ToolProgressMode } from "@/types";
+import type { RunDepth, ToolProgressMode } from "../../types/index";
 
 /** In-process-only context envelope. Never add this to snapshots or journals. */
 export interface RuntimeCodingVerificationEvent {

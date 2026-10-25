@@ -1,9 +1,9 @@
 import {
   createRunStartTransition,
   finishTransition,
-} from "@/services/run-controller/transitions";
-import type { StartTurnInput } from "@/services/run-controller/types";
-import { cloneRun } from "@/services/run-controller/utils";
+} from "../run-controller/transitions";
+import type { StartTurnInput } from "../run-controller/types";
+import { cloneRun } from "../run-controller/utils";
 import { emitRunUpdate } from "./event-capture";
 import type { FinishRunStatus, RunControllerDependencies } from "./types";
 

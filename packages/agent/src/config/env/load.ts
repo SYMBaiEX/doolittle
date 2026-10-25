@@ -1,7 +1,7 @@
 import { lstatSync } from "node:fs";
 import { resolve } from "node:path";
 import { parse, populate } from "dotenv";
-import { readRegularFileSync } from "@/utils/read-regular-file";
+import { readRegularFileSync } from "../../utils/read-regular-file";
 
 const MAX_REPO_ENV_BYTES = 256 * 1024;
 const UNSAFE_ENV_ERROR = "Unable to read application .env safely.";

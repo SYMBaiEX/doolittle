@@ -1,10 +1,10 @@
-import type { AppContext } from "@/runtime/bootstrap";
+import type { AppContext } from "../../runtime/bootstrap/index";
 import {
   getNativePluginCatalog,
   groupNativePluginCatalog,
-} from "@/runtime/native/plugin-catalog";
-import { getNativeTransportControlPlane } from "@/runtime/native/service-bridge/transport-control";
-import type { PlatformName } from "@/types/gateway";
+} from "../../runtime/native/plugin-catalog/index";
+import { getNativeTransportControlPlane } from "../../runtime/native/service-bridge/transport-control/index";
+import type { PlatformName } from "../../types/gateway";
 
 export interface TransportDrilldown {
   platform: PlatformName;

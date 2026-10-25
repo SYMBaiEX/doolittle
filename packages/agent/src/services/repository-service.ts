@@ -8,7 +8,7 @@ import type {
   RepositoryRemote,
   RepositoryStash,
 } from "@doolittle/contracts/repository";
-import { runTextProcess } from "@/services/process-execution";
+import { runTextProcess } from "./process-execution";
 import { readGitMarker } from "./repository/git-marker";
 import type {
   CreateRepositoryWorktreeInput,

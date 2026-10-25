@@ -1,7 +1,10 @@
-import type { NativeMessagingTransportState } from "@/runtime/native/service-bridge/transport-control";
-import type { DeliveryService } from "@/services/delivery-service";
-import type { OutboundPlatformMessage, PlatformName } from "@/types/gateway";
-import type { EnvConfig } from "@/types/runtime";
+import type { NativeMessagingTransportState } from "../../../runtime/native/service-bridge/transport-control/index";
+import type { DeliveryService } from "../../../services/delivery-service";
+import type {
+  OutboundPlatformMessage,
+  PlatformName,
+} from "../../../types/gateway";
+import type { EnvConfig } from "../../../types/runtime/index";
 import type { PlatformAdapter, PlatformLifecycleEvent } from "../base";
 import {
   buildMessagingRunningDetail,

@@ -1,8 +1,13 @@
 import { randomUUID } from "node:crypto";
+import type {
+  DeliveredMessageRecord,
+  IncomingPlatformMessage,
+  PlatformName,
+} from "../../types/gateway";
 import {
   buildGatewayOutboundForSession,
   buildGatewayOutboundMessageFromDelivery,
-} from "@/gateway/outbound/builders";
+} from "../outbound/builders";
 import {
   editDeliveryOutbound,
   type GatewayEditDeliveryDependencies,
@@ -10,25 +15,20 @@ import {
   type GatewaySendToHomesDependencies,
   sendProgressiveOutbound,
   sendToHomesOutbound,
-} from "@/gateway/outbound/dispatch";
-import { sanitizeGatewayDeliveryFailure } from "@/gateway/receive/delivery";
-import { GatewayReceiveIdempotencyCoordinator } from "@/gateway/receive/idempotency";
-import type {
-  GatewayReceiveOptions,
-  GatewayReceiveResult,
-} from "@/gateway/receive/index";
-import { processGatewayReceive } from "@/gateway/receive/index";
-import type { GatewayRunnerContext } from "@/gateway/runner/context";
-import type { GatewayRunnerRecording } from "@/gateway/runner/recording";
-import type {
-  DeliveredMessageRecord,
-  IncomingPlatformMessage,
-  PlatformName,
-} from "@/types/gateway";
+} from "../outbound/dispatch";
 import type {
   PlatformAdapter,
   PlatformLifecycleEvent,
 } from "../platforms/base";
+import { sanitizeGatewayDeliveryFailure } from "../receive/delivery";
+import { GatewayReceiveIdempotencyCoordinator } from "../receive/idempotency";
+import type {
+  GatewayReceiveOptions,
+  GatewayReceiveResult,
+} from "../receive/index";
+import { processGatewayReceive } from "../receive/index";
+import type { GatewayRunnerContext } from "./context";
+import type { GatewayRunnerRecording } from "./recording";
 
 export interface GatewayRunnerOperationDependencies {
   context: GatewayRunnerContext;

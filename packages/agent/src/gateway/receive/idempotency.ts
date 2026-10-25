@@ -1,4 +1,4 @@
-import type { IncomingPlatformMessage } from "@/types/gateway";
+import type { IncomingPlatformMessage } from "../../types/gateway";
 import {
   GATEWAY_PAIRING_RETRY_RESPONSE,
   type GatewayReceiveOutcome,

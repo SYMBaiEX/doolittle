@@ -10,7 +10,7 @@ import type {
   SessionUsageOptions,
   SessionUsageSummary,
   StoredMessage,
-} from "@/types";
+} from "../../../types/index";
 import type {
   DoolittleSessionArchiveV1,
   ImportSessionArchiveInput,

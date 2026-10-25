@@ -1,9 +1,9 @@
 import type { ActionResult } from "@elizaos/core";
-import { extractCommandResultFromActionResult } from "@/runtime/action-result-metadata";
-import type { AgentExecutionContext } from "@/runtime/chat";
-import { runModelAnalysis } from "@/runtime/model-analysis";
-import type { AutomationRuntimeOverrides } from "@/types/runtime";
-import { escapeXml } from "@/utils/eliza-compat";
+import type { AutomationRuntimeOverrides } from "../../types/runtime/index";
+import { escapeXml } from "../../utils/eliza-compat";
+import { extractCommandResultFromActionResult } from "../action-result-metadata";
+import type { AgentExecutionContext } from "../chat";
+import { runModelAnalysis } from "../model-analysis";
 import { resolveExactOutputIntent } from "./exact-output-intent";
 
 const MAX_RESULT_CHARS = 6_000;

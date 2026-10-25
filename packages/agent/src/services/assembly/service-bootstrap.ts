@@ -1,10 +1,10 @@
-import { loadGatewayConfig } from "@/config/gateway";
+import { loadGatewayConfig } from "../../config/gateway";
 import {
   getLinkedProviderAccountsSnapshot,
   type LinkedProviderName,
-} from "@/runtime/native/account-auth";
-import { NativeOwnershipCache } from "@/runtime/native/ownership-cache";
-import type { EnvConfig } from "@/types";
+} from "../../runtime/native/account-auth/index";
+import { NativeOwnershipCache } from "../../runtime/native/ownership-cache";
+import type { EnvConfig } from "../../types/index";
 import type {
   DefaultServiceModelConfig,
   ServiceModelContext,

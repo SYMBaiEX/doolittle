@@ -1,4 +1,4 @@
-import type { StoredMessage } from "@/types";
+import type { StoredMessage } from "../../../types/index";
 
 export function extractStepsFromMessages(messages: StoredMessage[]): string[] {
   const steps: string[] = [];

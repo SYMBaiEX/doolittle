@@ -1,4 +1,4 @@
-import type { PlatformName } from "@/types/gateway";
+import type { PlatformName } from "../../types/gateway";
 import type { GatewayDaemonState, GatewayRestartState } from "../daemon-state";
 import type { PlatformAdapter, PlatformHealth } from "../platforms/base";
 import type { GatewayTraceRecord } from "../read/history-view";

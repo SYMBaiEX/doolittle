@@ -242,19 +242,9 @@ export function useThreadWorkbenchRailController({
   workspacePath: string;
   onInsertContext: (text: string) => void;
 }) {
-  function useApiResource<T>(
-    path: string | null,
-    dependencies: readonly unknown[] = [],
-  ) {
-    return useApplicationResource<T>(
-      path,
-      dependencies,
-      botId,
-      botId
-        ? { botId, originConversationId: sessionId, workspacePath }
-        : undefined,
-    );
-  }
+  const resourceOrigin = botId
+    ? { botId, originConversationId: sessionId, workspacePath }
+    : undefined;
   const storage = useMemo(() => browserThreadWorkbenchStorage(), []);
   const [model, setModel] = useState<ThreadWorkbenchState>(() =>
     loadThreadWorkbenchState({ sessionId, workspacePath }, storage),
@@ -277,75 +267,102 @@ export function useThreadWorkbenchRailController({
     selectedFile,
     selectedChange,
   );
-  const summary = useApiResource<RepositorySummaryResponse>(basePaths.summary, [
-    active,
-    workspacePath,
-  ]);
-  const tree = useApiResource<WorkspaceTreeResponse>(basePaths.tree, [
-    active,
-    model.selectedTab,
-    workspacePath,
-  ]);
-  const changes = useApiResource<RepositoryChangesResponse>(basePaths.changes, [
-    active,
-    model.selectedTab,
-    workspacePath,
-  ]);
-  const branches = useApiResource<RepositoryBranchesResponse>(
+  const summary = useApplicationResource<RepositorySummaryResponse>(
+    basePaths.summary,
+    [active, workspacePath],
+    botId,
+    resourceOrigin,
+  );
+  const tree = useApplicationResource<WorkspaceTreeResponse>(
+    basePaths.tree,
+    [active, model.selectedTab, workspacePath],
+    botId,
+    resourceOrigin,
+  );
+  const changes = useApplicationResource<RepositoryChangesResponse>(
+    basePaths.changes,
+    [active, model.selectedTab, workspacePath],
+    botId,
+    resourceOrigin,
+  );
+  const branches = useApplicationResource<RepositoryBranchesResponse>(
     basePaths.branches,
     [active, model.selectedTab, workspacePath],
+    botId,
+    resourceOrigin,
   );
-  const remotes = useApiResource<RepositoryRemotesResponse>(basePaths.remotes, [
-    active,
-    model.selectedTab,
-    workspacePath,
-  ]);
-  const stashes = useApiResource<RepositoryStashesResponse>(basePaths.stashes, [
-    active,
-    model.selectedTab,
-    workspacePath,
-  ]);
-  const conflicts = useApiResource<RepositoryConflictsResponse>(
+  const remotes = useApplicationResource<RepositoryRemotesResponse>(
+    basePaths.remotes,
+    [active, model.selectedTab, workspacePath],
+    botId,
+    resourceOrigin,
+  );
+  const stashes = useApplicationResource<RepositoryStashesResponse>(
+    basePaths.stashes,
+    [active, model.selectedTab, workspacePath],
+    botId,
+    resourceOrigin,
+  );
+  const conflicts = useApplicationResource<RepositoryConflictsResponse>(
     basePaths.conflicts,
     [active, model.selectedTab, workspacePath],
+    botId,
+    resourceOrigin,
   );
-  const worktrees = useApiResource<RepositoryWorktreesResponse>(
+  const worktrees = useApplicationResource<RepositoryWorktreesResponse>(
     basePaths.worktrees,
     [active, model.selectedTab, workspacePath],
+    botId,
+    resourceOrigin,
   );
-  const checkpoints = useApiResource<WorkspaceCheckpointResponse>(
+  const checkpoints = useApplicationResource<WorkspaceCheckpointResponse>(
     basePaths.checkpoints,
     [active, model.selectedTab, workspacePath],
+    botId,
+    resourceOrigin,
   );
-  const terminal = useApiResource<TerminalHistoryResponse>(basePaths.terminal, [
-    active,
-    model.selectedTab,
-    workspacePath,
-  ]);
-  const plans = useApiResource<PlansResponse>(basePaths.plans, [
-    active,
-    model.selectedTab,
-  ]);
-  const settings = useApiResource<SettingsResponse>(basePaths.settings, [
-    active,
-    model.selectedTab,
-  ]);
-  const delegationTasks = useApiResource<DelegationTasksResponse>(
+  const terminal = useApplicationResource<TerminalHistoryResponse>(
+    basePaths.terminal,
+    [active, model.selectedTab, workspacePath],
+    botId,
+    resourceOrigin,
+  );
+  const plans = useApplicationResource<PlansResponse>(
+    basePaths.plans,
+    [active, model.selectedTab],
+    botId,
+    resourceOrigin,
+  );
+  const settings = useApplicationResource<SettingsResponse>(
+    basePaths.settings,
+    [active, model.selectedTab],
+    botId,
+    resourceOrigin,
+  );
+  const delegationTasks = useApplicationResource<DelegationTasksResponse>(
     basePaths.delegationTasks,
     [active, model.selectedTab],
+    botId,
+    resourceOrigin,
   );
-  const codegen = useApiResource<CodegenRunsResponse>(basePaths.codegen, [
-    active,
-    model.selectedTab,
-  ]);
-  const approvals = useApiResource<ExecutionApprovalsResponse>(
+  const codegen = useApplicationResource<CodegenRunsResponse>(
+    basePaths.codegen,
+    [active, model.selectedTab],
+    botId,
+    resourceOrigin,
+  );
+  const approvals = useApplicationResource<ExecutionApprovalsResponse>(
     basePaths.approvals,
     [active, model.selectedTab],
+    botId,
+    resourceOrigin,
   );
-  const preview = useApiResource<BrowserStatusResponse>(basePaths.preview, [
-    active,
-    model.selectedTab,
-  ]);
+  const preview = useApplicationResource<BrowserStatusResponse>(
+    basePaths.preview,
+    [active, model.selectedTab],
+    botId,
+    resourceOrigin,
+  );
   const fileEntries = useMemo(
     () => normalizeFileEntries(tree.data?.entries),
     [tree.data],
@@ -398,7 +415,7 @@ export function useThreadWorkbenchRailController({
     currentFile,
     currentChange ?? "",
   );
-  const file = useApiResource<WorkspaceReadResponse>(
+  const file = useApplicationResource<WorkspaceReadResponse>(
     paths.file,
     workbenchResourceDependencies(
       active,
@@ -406,8 +423,10 @@ export function useThreadWorkbenchRailController({
       model.selectedTab,
       currentFile,
     ),
+    botId,
+    resourceOrigin,
   );
-  const patch = useApiResource<RepositoryPatchResponse>(
+  const patch = useApplicationResource<RepositoryPatchResponse>(
     paths.patch,
     workbenchResourceDependencies(
       active,
@@ -415,6 +434,8 @@ export function useThreadWorkbenchRailController({
       model.selectedTab,
       currentChange,
     ),
+    botId,
+    resourceOrigin,
   );
   useEffect(() => {
     setModel(

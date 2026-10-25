@@ -1,5 +1,5 @@
-import { OrchestratorTaskServiceUnavailableError } from "@/runtime/native/service-bridge/delegation";
 import type { AgentExecutionContext } from "../chat";
+import { OrchestratorTaskServiceUnavailableError } from "../native/service-bridge/delegation/index";
 import { handleDelegationMutationCommand } from "./delegation-command-mutations";
 import { handleDelegationReadCommand } from "./delegation-read";
 

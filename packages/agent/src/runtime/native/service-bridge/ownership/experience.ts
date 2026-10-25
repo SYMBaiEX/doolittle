@@ -1,6 +1,6 @@
 import { DOOLITTLE_EXPERIENCE_SERVICE } from "@doolittle/contracts";
-import type { AppServices } from "@/services";
-import type { MemorySummary } from "@/services/experience-memory-service";
+import type { MemorySummary } from "../../../../services/experience-memory-service";
+import type { AppServices } from "../../../../services/index";
 import { getNativeServices, type RuntimeLike } from "../runtime";
 import type { NativeExperienceSummary } from "./types";
 

@@ -1,10 +1,10 @@
+import type { AppContext } from "../../../bootstrap";
+import type { AgentExecutionContext } from "../../../chat";
 import {
   getNativePluginCatalog,
   groupNativePluginCatalog,
-} from "@/runtime/native/plugin-catalog";
-import { getNativeTransportControlPlane } from "@/runtime/native/service-bridge/transport-control";
-import type { AppContext } from "../../../bootstrap";
-import type { AgentExecutionContext } from "../../../chat";
+} from "../../../native/plugin-catalog/index";
+import { getNativeTransportControlPlane } from "../../../native/service-bridge/transport-control/index";
 
 export const GATEWAY_UNAVAILABLE_MESSAGE =
   "Gateway runtime is not attached to this execution context.";

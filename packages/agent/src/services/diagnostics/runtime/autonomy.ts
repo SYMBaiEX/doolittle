@@ -1,4 +1,4 @@
-import type { DiagnosticCheck } from "@/types";
+import type { DiagnosticCheck } from "../../../types/index";
 import type { DiagnosticsAutonomyChecksInput } from "./types";
 
 export function buildAutonomyChecks(

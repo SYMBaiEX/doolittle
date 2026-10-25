@@ -30,9 +30,9 @@ import {
   TrajectoriesService,
 } from "@elizaos/core";
 import { AgentSkillsService } from "@elizaos/plugin-agent-skills";
-import { readWorkerBotProfile } from "@/runtime/bootstrap/bot-profile";
-import { appendBootstrapTrace } from "@/runtime/bootstrap/trace";
-import { PDF_SERVICE } from "@/runtime/native/service-bridge/runtime-contracts";
+import { PDF_SERVICE } from "../../native/service-bridge/runtime-contracts/index";
+import { readWorkerBotProfile } from "../bot-profile";
+import { appendBootstrapTrace } from "../trace";
 
 // These advanced-capability service types are not public exports in Eliza 2.0.3-beta.7.
 const EXPERIENCE_SERVICE_TYPE = "EXPERIENCE";

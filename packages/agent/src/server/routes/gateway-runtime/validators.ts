@@ -1,4 +1,4 @@
-import type { PlatformName } from "@/types";
+import type { PlatformName } from "../../../types/index";
 
 type GatewayReplayPayload = {
   recordId?: string;

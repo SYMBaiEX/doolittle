@@ -9,7 +9,7 @@ import {
   ServiceType,
 } from "@elizaos/core";
 import { asNonEmptyString } from "@elizaos/shared/type-guards";
-import type { HookDefinition, HookInvocation } from "@/types";
+import type { HookDefinition, HookInvocation } from "../types/index";
 
 interface HooksStore {
   hooks: HookDefinition[];

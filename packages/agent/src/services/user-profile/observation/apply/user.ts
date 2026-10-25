@@ -1,4 +1,4 @@
-import type { UserProfileRecord } from "@/types";
+import type { UserProfileRecord } from "../../../../types/index";
 import { parseUserObservation } from "../parsing/user";
 import type { UserProfileObservationHost } from "../types";
 

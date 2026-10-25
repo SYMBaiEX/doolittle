@@ -1,7 +1,7 @@
-import { getEffectiveSkillsSummary } from "@/runtime/native/service-bridge/autonomous";
-import { getNativeServices } from "@/runtime/native/service-bridge/runtime";
-import { getEffectiveShellHistory } from "@/runtime/native/service-bridge/tooling";
 import type { AgentExecutionContext } from "../../chat";
+import { getEffectiveSkillsSummary } from "../../native/service-bridge/autonomous/index";
+import { getNativeServices } from "../../native/service-bridge/runtime";
+import { getEffectiveShellHistory } from "../../native/service-bridge/tooling/index";
 import {
   formatDoctorSummary,
   formatSetupSummary,

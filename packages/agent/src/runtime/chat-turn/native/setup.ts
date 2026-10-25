@@ -1,6 +1,6 @@
-import type { AgentExecutionContext } from "@/runtime/chat";
-import { hasWorkspaceMutationObligation } from "@/runtime/workspace-mutation-intent";
-import type { ChatTurnRequest } from "@/types/runtime";
+import type { ChatTurnRequest } from "../../../types/runtime/index";
+import type { AgentExecutionContext } from "../../chat";
+import { hasWorkspaceMutationObligation } from "../../workspace-mutation-intent";
 import {
   type PreparedTurnState,
   prepareTurnState,

@@ -1,4 +1,4 @@
-import type { AgentIdentityRecord } from "@/types";
+import type { AgentIdentityRecord } from "../../../../types/index";
 import { parseAgentObservation } from "../parsing/agent";
 import type { UserProfileObservationHost } from "../types";
 

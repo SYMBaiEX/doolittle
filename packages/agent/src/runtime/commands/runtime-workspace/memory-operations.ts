@@ -1,5 +1,5 @@
-import type { AppServices } from "@/services";
-import type { MemoryTarget } from "@/types";
+import type { AppServices } from "../../../services/index";
+import type { MemoryTarget } from "../../../types/index";
 
 export type MemoryCommandOperation =
   | { action: "list"; target: MemoryTarget }

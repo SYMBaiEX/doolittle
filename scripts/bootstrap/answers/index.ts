@@ -1,4 +1,4 @@
-import type { getLinkedProviderAccountsSnapshot } from "@/runtime/native/account-auth";
+import type { getLinkedProviderAccountsSnapshot } from "@doolittle/agent/runtime/native/account-auth";
 import type { ReviewResult, WizardAnswers } from "../types";
 import { readEnvBase } from "./base-env";
 import { createHeadlessAnswers } from "./headless";

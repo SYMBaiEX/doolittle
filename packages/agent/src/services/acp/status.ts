@@ -4,7 +4,7 @@ import type {
   AcpPackageMetadata,
   AcpRegistryEntry,
   AcpSessionSummary,
-} from "@/types";
+} from "../../types/index";
 import {
   type CommandBridgeStatusBase,
   createCommandBridgeStatus,

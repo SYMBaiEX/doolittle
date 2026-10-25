@@ -1,4 +1,4 @@
-import { normalizeSlashCommandSyntax } from "@/runtime/slash-command-syntax";
+import { normalizeSlashCommandSyntax } from "../slash-command-syntax";
 import { getCommandCatalogEntries } from "./registry";
 import { rankCommandCatalogEntries } from "./search";
 

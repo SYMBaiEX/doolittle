@@ -1,6 +1,6 @@
 import type { ToolProfileId } from "@elizaos/core";
-import type { AppServices } from "@/services";
-import type { ToolDefinition } from "@/types";
+import type { AppServices } from "../../../../services/index";
+import type { ToolDefinition } from "../../../../types/index";
 import type { RuntimeLike } from "../runtime";
 import { getNativeServices } from "../runtime";
 

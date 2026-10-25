@@ -1,7 +1,7 @@
 import type {
   DelegationOrchestrationMode,
   DelegationTaskRecord,
-} from "@/types";
+} from "../../../types/index";
 
 export interface DelegationWorkerStatus {
   id: string;

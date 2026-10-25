@@ -1,15 +1,15 @@
+import type { ChatTurnRequest } from "../../../types/runtime/index";
 import {
   getAutonomousControlPlane,
   getEffectiveSkillsSummary,
-} from "@/runtime/native/service-bridge/autonomous";
+} from "../../native/service-bridge/autonomous/index";
 import {
   getEffectiveActivePersonality,
   getEffectiveMemorySnapshot,
   getNativeOwnershipControlPlane,
-} from "@/runtime/native/service-bridge/ownership";
-import { getNativeServices } from "@/runtime/native/service-bridge/runtime";
-import { promptCacheMetrics } from "@/runtime/prompt-cache";
-import type { ChatTurnRequest } from "@/types/runtime";
+} from "../../native/service-bridge/ownership/index";
+import { getNativeServices } from "../../native/service-bridge/runtime";
+import { promptCacheMetrics } from "../../prompt-cache/index";
 
 function formatPromptCacheSummary(): string {
   const snapshot = promptCacheMetrics.snapshot();

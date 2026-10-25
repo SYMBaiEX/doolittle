@@ -8,8 +8,8 @@ import type {
   ExecutionCloudArtifactRecord,
   ExecutionCloudSnapshotRecord,
   TerminalCommandRecord,
-} from "@/types";
-import { inspectWorkspaceCommands } from "@/utils/workspace-commands";
+} from "../../types/index";
+import { inspectWorkspaceCommands } from "../../utils/workspace-commands";
 import type { RuntimeSettings } from "../settings/runtime-settings";
 import {
   resolveWorkspaceDirectory,

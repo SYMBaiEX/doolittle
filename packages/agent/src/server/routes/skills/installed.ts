@@ -1,9 +1,9 @@
-import type { AppContext } from "@/runtime/bootstrap";
+import type { AppContext } from "../../../runtime/bootstrap/index";
 import {
   getEffectiveSkillHubInstalled,
   getEffectiveSkillHubInstalledManifest,
-} from "@/runtime/native/service-bridge/skill-hub";
-import { json } from "@/server/responses";
+} from "../../../runtime/native/service-bridge/skill-hub/index";
+import { json } from "../../responses";
 
 export async function handleSkillsInstalledRoutes(
   context: AppContext,

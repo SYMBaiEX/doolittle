@@ -1,5 +1,5 @@
 import type { AutomationJobRecord } from "@doolittle/contracts";
-import type { AppServices } from "@/services";
+import type { AppServices } from "../../../services/index";
 
 interface EnabledTool {
   id: string;

@@ -1,7 +1,7 @@
 import {
   getLinkedClaudeCodeCredentials,
   getLinkedElizaCloudCredentials,
-} from "@/runtime/native/account-auth";
+} from "../../../native/account-auth/index";
 import type {
   BuildPluginSettingsDependencies,
   EnvConfig,

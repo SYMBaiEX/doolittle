@@ -31,5 +31,8 @@
   "dependencies": {
     "@elizaos/core": "2.0.3-beta.7",
     "@doolittle/provider-transport": "0.1.0"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json"
   }
 }

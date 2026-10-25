@@ -1,4 +1,7 @@
-import type { IncomingPlatformMessage, PlatformName } from "@/types/gateway";
+import type {
+  IncomingPlatformMessage,
+  PlatformName,
+} from "../../types/gateway";
 import {
   parseDingtalkMessage,
   parseDiscordMessage,

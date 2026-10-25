@@ -1,15 +1,15 @@
 import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import type { ActionResult } from "@elizaos/core";
+import { isRecord } from "../../utils/records";
+import {
+  inspectWorkspaceCommands,
+  type WorkspaceCommand,
+} from "../../utils/workspace-commands";
 import {
   actionResultActionName,
   extractCommandResultFromActionResult,
   extractLocalMutationsFromActionResult,
-} from "@/runtime/action-result-metadata";
-import { isRecord } from "@/utils/records";
-import {
-  inspectWorkspaceCommands,
-  type WorkspaceCommand,
-} from "@/utils/workspace-commands";
+} from "../action-result-metadata";
 
 const LOCAL_MUTATION_ACTIONS = new Set([
   "WRITE_FILE",

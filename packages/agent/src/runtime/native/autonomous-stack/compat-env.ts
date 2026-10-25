@@ -1,4 +1,4 @@
-import type { EnvConfig } from "@/types/runtime";
+import type { EnvConfig } from "../../../types/runtime/index";
 
 export function buildAutonomousCompatEnv(config: EnvConfig): NodeJS.ProcessEnv {
   return {

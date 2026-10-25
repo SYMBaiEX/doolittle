@@ -8,7 +8,7 @@ import type {
   AcpRegistryEntry,
   AcpSessionSummary,
   AcpToolDefinition,
-} from "@/types";
+} from "../../types/index";
 import type { AcpServiceStatus } from "./status";
 import type { AcpImportBundlePayload, AcpServicePaths } from "./types";
 

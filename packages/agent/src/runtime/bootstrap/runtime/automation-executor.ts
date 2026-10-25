@@ -1,17 +1,17 @@
 import type { IAgentRuntime } from "@elizaos/core";
-import type { GatewayRunner } from "@/gateway/runner";
-import { requestWorkerHost } from "@/runtime/bootstrap/worker-host-rpc";
-import { applyRuntimeOverrides } from "@/runtime/chat-turn/overrides";
-import { getEffectiveSkills } from "@/runtime/native/service-bridge/autonomous";
+import type { GatewayRunner } from "../../../gateway/runner/index";
+import type { AutomationExecutionContext } from "../../../services/automation/types";
+import type { AppServices } from "../../../services/index";
+import type { AutomationJobRecord } from "../../../types/index";
+import type { EnvConfig } from "../../../types/runtime/index";
+import { applyRuntimeOverrides } from "../../chat-turn/overrides";
+import { getEffectiveSkills } from "../../native/service-bridge/autonomous/index";
 import {
   buildCacheablePrompt,
   hashParts,
   promptCacheMetrics,
-} from "@/runtime/prompt-cache";
-import type { AppServices } from "@/services";
-import type { AutomationExecutionContext } from "@/services/automation/types";
-import type { AutomationJobRecord } from "@/types";
-import type { EnvConfig } from "@/types/runtime";
+} from "../../prompt-cache/index";
+import { requestWorkerHost } from "../worker-host-rpc";
 
 export function buildAutomationPrompt(
   runtime: IAgentRuntime,
@@ -273,7 +273,7 @@ export function createAutomationExecutor(params: {
       return responseBody || `Webhook accepted with ${response.status}.`;
     }
 
-    const { handleAgentTurn } = await import("@/runtime/chat");
+    const { handleAgentTurn } = await import("../../chat");
     const identity = automationIdentity(job);
     const executionId = executionContext.executionId ?? crypto.randomUUID();
     await notifyProgress(

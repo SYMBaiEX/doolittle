@@ -1,4 +1,4 @@
-import type { PlatformName } from "@/types/gateway";
+import type { PlatformName } from "../../../types/gateway";
 import type { PlatformHealth } from "../../platforms/base";
 import type {
   GatewayControlPlaneView,
@@ -148,7 +148,7 @@ interface TransportJournalSummaryContext {
   operational: boolean;
   ready: boolean;
   transportState?: GatewayPlatformStateView["transportState"];
-  status?: import("@/gateway/platforms/base").PlatformHealth["status"];
+  status?: import("../../platforms/base/index").PlatformHealth["status"];
   restartCount?: number;
   restartFailures?: number;
   backoffUntilAt?: string;

@@ -3,7 +3,7 @@ import {
   findNativeLocalCodebases,
   getNativeWorkspaceSummary,
   resolveNativeProjectTarget,
-} from "@/runtime/native/service-bridge/tooling";
+} from "../../runtime/native/service-bridge/tooling/index";
 import { formatFoundCodebases, summarizeProjectForOutput } from "./output";
 import { sanitizeFindQuery, type WorkspaceIntent } from "./parsing";
 
