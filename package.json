@@ -297,7 +297,6 @@
   "patchedDependencies": {
     "braces@3.0.3": "patches/braces+3.0.3.patch",
     "@elizaos/plugin-sql@2.0.3-beta.7": "patches/@elizaos+plugin-sql@2.0.3-beta.7.patch",
-    "sprintf-js@1.0.3": "patches/sprintf-js+1.0.3.patch",
     "@elizaos/plugin-agent-orchestrator@2.0.3-beta.7": "patches/@elizaos+plugin-agent-orchestrator@2.0.3-beta.7.patch",
     "@elizaos/plugin-codex-cli@2.0.3-beta.7": "patches/@elizaos+plugin-codex-cli@2.0.3-beta.7.patch",
     "@elizaos/core@2.0.3-beta.7": "patches/@elizaos+core@2.0.3-beta.7.patch",

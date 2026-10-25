@@ -150,9 +150,6 @@ patchedDependencies:
   chromium-bidi@17.0.2:
     hash: b18bdfa92b71bb72a6b9d91e43e7f9ed3daea0b67b414e57fdbc3f3d6940af9c
     path: patches/chromium-bidi+17.0.2.patch
-  sprintf-js@1.0.3:
-    hash: 4c691e274f4081b67a988303dc71a3bd7f384a398d8ba64e8af203c367aea836
-    path: patches/sprintf-js+1.0.3.patch
 
 importers:
 
@@ -23488,7 +23485,7 @@ snapshots:
 
   argparse@1.0.10:
     dependencies:
-      sprintf-js: 1.0.3(patch_hash=4c691e274f4081b67a988303dc71a3bd7f384a398d8ba64e8af203c367aea836)
+      sprintf-js: 1.0.3
 
   argparse@2.0.1: {}
 
@@ -28924,7 +28921,7 @@ snapshots:
 
   split2@4.2.0: {}
 
-  sprintf-js@1.0.3(patch_hash=4c691e274f4081b67a988303dc71a3bd7f384a398d8ba64e8af203c367aea836): {}
+  sprintf-js@1.0.3: {}
 
   sql.js@1.15.1: {}
 
