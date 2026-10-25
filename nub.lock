@@ -71,6 +71,7 @@ overrides:
   '@elizaos/ui>@elizaos/cloud-shared': '-'
   '@elizaos/vault': 2.0.11-beta.7
   '@solana/web3.js>jayson': 5.0.0
+  '@walletconnect/utils': 2.26.0
   app-builder-lib>@electron/get: 5.1.0
   body-parser@>=1.0.0 <1.20.9: 1.20.9
   body-parser@>=2.0.0 <2.4.0: 2.4.0
@@ -126,9 +127,6 @@ patchedDependencies:
   braces@3.0.3:
     hash: 967d74d053d454769a943f97f4f9fede16b318c8c245d1c0b2722b83552a6a3e
     path: patches/braces+3.0.3.patch
-  decode-uri-component@0.2.2:
-    hash: 6e95f5ebf0374da22b2556c89aaf3d85d1620ee7d134ccb45a569bc5f0d37080
-    path: patches/decode-uri-component+0.2.2.patch
   elliptic@6.6.1:
     hash: f5c7aa5eb9ea9b96b6353661631aeaa881536a9b66503bba7fd745f9857f65f7
     path: patches/elliptic+6.6.1.patch
@@ -163,7 +161,7 @@ importers:
         version: link:packages/evals
       '@elizaos/agent':
         specifier: 2.0.3-beta.7
-        version: 2.0.3-beta.7(patch_hash=b85fd4be037881bd9d1ace0fbf759fca4628e1c45ffdc9787c583a1e4e4ad00d)(0ff46775038f64871d97ee0469265dbe)
+        version: 2.0.3-beta.7(patch_hash=b85fd4be037881bd9d1ace0fbf759fca4628e1c45ffdc9787c583a1e4e4ad00d)(4565bb2412bf6163483b5fdd252bacb5)
       '@elizaos/core':
         specifier: 2.0.3-beta.7
         version: 2.0.3-beta.7(patch_hash=7242104d352567e5494819604c53ef11b12ecb35e0aec410c0af09c4bc5b7864)(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
@@ -253,7 +251,7 @@ importers:
         version: link:../../packages/contracts
       '@elizaos/agent':
         specifier: 2.0.3-beta.7
-        version: 2.0.3-beta.7(patch_hash=b85fd4be037881bd9d1ace0fbf759fca4628e1c45ffdc9787c583a1e4e4ad00d)(0ff46775038f64871d97ee0469265dbe)
+        version: 2.0.3-beta.7(patch_hash=b85fd4be037881bd9d1ace0fbf759fca4628e1c45ffdc9787c583a1e4e4ad00d)(4565bb2412bf6163483b5fdd252bacb5)
       '@elizaos/core':
         specifier: 2.0.3-beta.7
         version: 2.0.3-beta.7(patch_hash=7242104d352567e5494819604c53ef11b12ecb35e0aec410c0af09c4bc5b7864)(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
@@ -288,7 +286,7 @@ importers:
         version: 4.3.1
       '@elizaos/agent':
         specifier: 2.0.3-beta.7
-        version: 2.0.3-beta.7(patch_hash=b85fd4be037881bd9d1ace0fbf759fca4628e1c45ffdc9787c583a1e4e4ad00d)(0ff46775038f64871d97ee0469265dbe)
+        version: 2.0.3-beta.7(patch_hash=b85fd4be037881bd9d1ace0fbf759fca4628e1c45ffdc9787c583a1e4e4ad00d)(4565bb2412bf6163483b5fdd252bacb5)
       '@elizaos/logger':
         specifier: 2.0.11-beta.7
         version: 2.0.11-beta.7
@@ -297,7 +295,7 @@ importers:
         version: 2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)
       '@elizaos/ui':
         specifier: 2.0.3-beta.7
-        version: 2.0.3-beta.7(@babel/core@7.29.7)(@babel/runtime@7.29.10)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@solana/sysvars@2.3.0(@solana/addresses@2.3.0(typescript@7.0.2))(@solana/rpc-parsed-types@2.3.0(typescript@7.0.2))(typescript@7.0.2))(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(@walletconnect/types@2.19.1)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(tslib@2.8.1)(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)
+        version: 2.0.3-beta.7(@babel/core@7.29.7)(@babel/runtime@7.29.10)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@solana/sysvars@2.3.0(@solana/addresses@2.3.0(typescript@7.0.2))(@solana/rpc-parsed-types@2.3.0(typescript@7.0.2))(typescript@7.0.2))(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(@walletconnect/types@2.19.1)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(tslib@2.8.1)(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)
       '@tailwindcss/vite':
         specifier: 4.3.3
         version: 4.3.3(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1))
@@ -399,10 +397,10 @@ importers:
         version: link:../plugins/provider-transport
       '@elizaos/agent':
         specifier: 2.0.3-beta.7
-        version: 2.0.3-beta.7(patch_hash=b85fd4be037881bd9d1ace0fbf759fca4628e1c45ffdc9787c583a1e4e4ad00d)(0ff46775038f64871d97ee0469265dbe)
+        version: 2.0.3-beta.7(patch_hash=b85fd4be037881bd9d1ace0fbf759fca4628e1c45ffdc9787c583a1e4e4ad00d)(4565bb2412bf6163483b5fdd252bacb5)
       '@elizaos/app-core':
         specifier: 2.0.3-beta.7
-        version: 2.0.3-beta.7(4e0c8ab24093b68b4d9b7e91330186c2)
+        version: 2.0.3-beta.7(c1e4aa73cfc2b312957b348eef9dcc0c)
       '@elizaos/core':
         specifier: 2.0.3-beta.7
         version: 2.0.3-beta.7(patch_hash=7242104d352567e5494819604c53ef11b12ecb35e0aec410c0af09c4bc5b7864)(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
@@ -523,7 +521,7 @@ importers:
         version: link:provider-transport
       '@elizaos/agent':
         specifier: 2.0.3-beta.7
-        version: 2.0.3-beta.7(patch_hash=b85fd4be037881bd9d1ace0fbf759fca4628e1c45ffdc9787c583a1e4e4ad00d)(0ff46775038f64871d97ee0469265dbe)
+        version: 2.0.3-beta.7(patch_hash=b85fd4be037881bd9d1ace0fbf759fca4628e1c45ffdc9787c583a1e4e4ad00d)(4565bb2412bf6163483b5fdd252bacb5)
       '@elizaos/core':
         specifier: 2.0.3-beta.7
         version: 2.0.3-beta.7(patch_hash=7242104d352567e5494819604c53ef11b12ecb35e0aec410c0af09c4bc5b7864)(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
@@ -583,7 +581,7 @@ importers:
         version: link:../contracts
       '@elizaos/ui':
         specifier: 2.0.3-beta.7
-        version: 2.0.3-beta.7(@babel/core@7.29.7)(@babel/runtime@7.29.10)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@solana/sysvars@2.3.0(@solana/addresses@2.3.0(typescript@7.0.2))(@solana/rpc-parsed-types@2.3.0(typescript@7.0.2))(typescript@7.0.2))(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(@walletconnect/types@2.19.1)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(tslib@2.8.1)(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)
+        version: 2.0.3-beta.7(@babel/core@7.29.7)(@babel/runtime@7.29.10)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@solana/sysvars@2.3.0(@solana/addresses@2.3.0(typescript@7.0.2))(@solana/rpc-parsed-types@2.3.0(typescript@7.0.2))(typescript@7.0.2))(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(@walletconnect/types@2.19.1)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(tslib@2.8.1)(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)
       react:
         specifier: 19.3.1
         version: 19.3.1
@@ -2818,6 +2816,10 @@ packages:
     resolution: {integrity: sha512-/KEo3ZJ50HlagHp0lz2vPgfBZFtXHu6zTBXT9XqPc+4O9i4+IbBVWKq/a9yAfv/ifp0u3+mRo8SUk5kMKzhN8A==}
     engines: {node: '>=20'}
 
+  '@msgpack/msgpack@3.1.3':
+    resolution: {integrity: sha512-47XIizs9XZXvuJgoaJUIE2lFoID8ugvc0jzSHP+Ptfk8nTbnR8g788wv48N03Kx0UkAv559HWRQ3yzOgzlRNUA==}
+    engines: {node: '>= 18'}
+
   '@msgpackr-extract/msgpackr-extract-darwin-arm64@3.0.4':
     resolution: {integrity: sha512-LCkGo6JDfaBhgST7UpPWgNgLINpcpabaHfyz5OBx75nUYxBsaEPxjnyNjWpeb/xBup/682QnBfRBy2/LvPutZQ==}
     cpu: [arm64]
@@ -2962,10 +2964,6 @@ packages:
 
   '@ngraveio/bc-ur@1.1.13':
     resolution: {integrity: sha512-j73akJMV4+vLR2yQ4AphPIT5HZmxVjn/LxpL7YHoINnXoH6ccc90Zzck6/n6a3bCXOVZwBxq+YHwbAKRV+P8Zg==}
-
-  '@noble/ciphers@1.2.1':
-    resolution: {integrity: sha512-rONPWMC7PeExE077uLE4oqWrZ1IvAfz3oH9LibVAcVCopJiA9R62uavnbEzdkVmJYI6M6Zgkbeb07+tWjlq2XA==}
-    engines: {node: ^14.21.3 || >=16}
 
   '@noble/ciphers@1.3.0':
     resolution: {integrity: sha512-2I0gnIVPtfnMw9ee9h1dJG7tp81+8Ob3OJb3Mv37rx5L40/b0i7djjCVvGOVqc9AEIQyvyu1i6ypKdFw8R8gQw==}
@@ -5029,9 +5027,6 @@ packages:
   '@scure/bip32@1.4.0':
     resolution: {integrity: sha512-sVUpc0Vq3tXCkDGYVWGIZTRfnvu8LoTDaev7vbwh0omSvVORONr960MQWdKqJDCReIEmTj3PAr73O3aoxz7OPg==}
 
-  '@scure/bip32@1.6.2':
-    resolution: {integrity: sha512-t96EPDMbtGgtb7onKKqxRLfE5g05k7uHnHRM2xdE6BP/ZmxaLtPek4J4KfVn/90IQNrU1IOAqMgiDtUdtbe3nw==}
-
   '@scure/bip32@1.7.0':
     resolution: {integrity: sha512-E4FFX/N3f4B80AKWp5dP6ow+flD1LQZo/w8UnLGYZO674jS6YnYeepycOOksv+vLPSpgN35wgKgy+ybfTb2SMw==}
 
@@ -5040,9 +5035,6 @@ packages:
 
   '@scure/bip39@1.3.0':
     resolution: {integrity: sha512-disdg7gHuTDZtY+ZdkmLpPCk7fxZSu3gBiEGuoC1XYxv9cGx3Z6cpTggCgW6odSOOIXCiDjuGejW+aJKCY/pIQ==}
-
-  '@scure/bip39@1.5.4':
-    resolution: {integrity: sha512-TFM4ni0vKvCfBpohoh+/lY05i9gRbSwXWngAsF4CABQxoaOHijxuaZ2R6cStDQ5CHtHO9aGJTr4ksVJASRRyMA==}
 
   '@scure/bip39@1.6.0':
     resolution: {integrity: sha512-+lF0BbLiJNwVlev4eKelw1WWLaiKXw7sSl8T6FvBlWkdX+94aGJ4o8XjUdlyhTCjd8c+B3KT3JfS8P0bLRNU6A==}
@@ -7869,6 +7861,9 @@ packages:
   '@walletconnect/logger@2.1.2':
     resolution: {integrity: sha512-aAb28I3S6pYXZHQm5ESB+V6rDqIYfsnHaQyzFbwUUBFY4H0OXx/YtTl8lvhUNhMMfb9UxbwEBS253TlXUYJWSw==}
 
+  '@walletconnect/logger@3.0.2':
+    resolution: {integrity: sha512-7wR3wAwJTOmX4gbcUZcFMov8fjftY05+5cO/d4cpDD8wDzJ+cIlKdYOXaXfxHLSYeDazMXIsxMYjHYVDfkx+nA==}
+
   '@walletconnect/relay-api@1.0.11':
     resolution: {integrity: sha512-tLPErkze/HmC9aCmdZOhtVmYZq1wKfWTJtygQHoWtgg722Jd4homo54Cs4ak2RUFUZIGO2RsOpIcWipaua5D5Q==}
 
@@ -7915,6 +7910,9 @@ packages:
   '@walletconnect/types@2.21.1':
     resolution: {integrity: sha512-UeefNadqP6IyfwWC1Yi7ux+ljbP2R66PLfDrDm8izmvlPmYlqRerJWJvYO4t0Vvr9wrG4Ko7E0c4M7FaPKT/sQ==}
 
+  '@walletconnect/types@2.26.0':
+    resolution: {integrity: sha512-XmM6ZFeIvL0oJ+cK8xq8FKk6G9qVXGhXIsWl0lyTZ921Tjvn5eYOd3qIZW34E+8V2alP6uv8c7Fy5GWgz/j7aw==}
+
   '@walletconnect/universal-provider@2.19.0':
     resolution: {integrity: sha512-e9JvadT5F8QwdLmd7qBrmACq04MT7LQEe1m3X2Fzvs3DWo8dzY8QbacnJy4XSv5PCdxMWnua+2EavBk8nrI9QA==}
     deprecated: 'Reliability and performance improvements. See: https://github.com/WalletConnect/walletconnect-monorepo/releases'
@@ -7931,32 +7929,8 @@ packages:
     resolution: {integrity: sha512-Wjx9G8gUHVMnYfxtasC9poGm8QMiPCpXpbbLFT+iPoQskDDly8BwueWnqKs4Mx2SdIAWAwuXeZ5ojk5qQOxJJg==}
     deprecated: 'Reliability and performance improvements. See: https://github.com/WalletConnect/walletconnect-monorepo/releases'
 
-  '@walletconnect/utils@2.19.0':
-    resolution: {integrity: sha512-LZ0D8kevknKfrfA0Sq3Hf3PpmM8oWyNfsyWwFR51t//2LBgtN2Amz5xyoDDJcjLibIbKAxpuo/i0JYAQxz+aPA==}
-    peerDependencies:
-      '@walletconnect/jsonrpc-types': '*'
-    peerDependenciesMeta:
-      '@walletconnect/jsonrpc-types':
-        optional: true
-
-  '@walletconnect/utils@2.19.1':
-    resolution: {integrity: sha512-aOwcg+Hpph8niJSXLqkU25pmLR49B8ECXp5gFQDW5IeVgXHoOoK7w8a79GBhIBheMLlIt1322sTKQ7Rq5KzzFg==}
-    peerDependencies:
-      '@walletconnect/jsonrpc-types': '*'
-    peerDependenciesMeta:
-      '@walletconnect/jsonrpc-types':
-        optional: true
-
-  '@walletconnect/utils@2.21.0':
-    resolution: {integrity: sha512-zfHLiUoBrQ8rP57HTPXW7rQMnYxYI4gT9yTACxVW6LhIFROTF6/ytm5SKNoIvi4a5nX5dfXG4D9XwQUCu8Ilig==}
-    peerDependencies:
-      '@walletconnect/jsonrpc-types': '*'
-    peerDependenciesMeta:
-      '@walletconnect/jsonrpc-types':
-        optional: true
-
-  '@walletconnect/utils@2.21.1':
-    resolution: {integrity: sha512-VPZvTcrNQCkbGOjFRbC24mm/pzbRMUq2DSQoiHlhh0X1U7ZhuIrzVtAoKsrzu6rqjz0EEtGxCr3K1TGRqDG4NA==}
+  '@walletconnect/utils@2.26.0':
+    resolution: {integrity: sha512-zCpuG8vVvL+vHiX2wE+pChr123prvlQE37lJoHNcRiD2+3RxXFPoHnjJ/zAhN+ivdjK743FHsrP2DRXXqno1fg==}
     peerDependencies:
       '@walletconnect/jsonrpc-types': '*'
     peerDependenciesMeta:
@@ -8041,17 +8015,6 @@ packages:
 
   abitype@1.0.6:
     resolution: {integrity: sha512-MMSqYh4+C/aVqI2RQaWqbvI4Kxo5cQV40WQ4QFtDnNzCkqChm8MuENhElmynZlO0qUy/ObkEUaXtKqYnx1Kp3A==}
-    peerDependencies:
-      typescript: '>=5.0.4'
-      zod: ^3 >=3.22.0
-    peerDependenciesMeta:
-      typescript:
-        optional: true
-      zod:
-        optional: true
-
-  abitype@1.0.8:
-    resolution: {integrity: sha512-ZeiI6h3GnW06uYDLx0etQtX/p8E24UaHHBj57RSjK7YBFe7iuVn07EDpOeP451D06sF27VOz9JJPlIKJmXgkEg==}
     peerDependencies:
       typescript: '>=5.0.4'
       zod: ^3 >=3.22.0
@@ -9180,10 +9143,6 @@ packages:
   decode-named-character-reference@1.3.0:
     resolution: {integrity: sha512-GtpQYB283KrPp6nRw50q3U9/VfOutZOe103qlN7BPP6Ad27xYnOIWv4lPzo8HCAL+mMZofJ9KEy30fq6MfaK6Q==}
 
-  decode-uri-component@0.2.2:
-    resolution: {integrity: sha512-FqUYQ+8o158GyGTrMFJms9qh3CqTKvAqgqsTnkLI8sKu0028orqBhxNMFkFen0zGyg6epACD32pjVk58ngIErQ==}
-    engines: {node: '>=0.10'}
-
   decompress-response@6.0.0:
     resolution: {integrity: sha512-aW35yZM6Bb/4oJlZncMH2LCoZtJXTRxES17vE3hoRiowU2kWHaJKFkSBDnDR+cm9J+9QhXmREyIfv0pji9ejCQ==}
     engines: {node: '>=10'}
@@ -9926,10 +9885,6 @@ packages:
     resolution: {integrity: sha512-YsGpe3WHLK8ZYi4tWDg2Jy3ebRz2rXowDxnld4bkQB00cc/1Zw9AWnC0i9ztDJitivtQvaI9KaLyKrc+hBW0yg==}
     engines: {node: '>=8'}
 
-  filter-obj@1.1.0:
-    resolution: {integrity: sha512-8rXg1ZnX7xzy2NGDVkBVaAy+lSlPNwad13BtgSlLuxfIslyt5Vg64U7tFcCt4WS1R0hvtnQybT/IyCkGZ3DpXQ==}
-    engines: {node: '>=0.10.0'}
-
   finalhandler@1.1.2:
     resolution: {integrity: sha512-aAWcW57uxVNrQZqFXjITpW3sIUQmHGG3qSb9mUah9MgMC4NeWhNOlNjXEYq3HjRAvL6arUviZGGJsBg6z0zsWA==}
     engines: {node: '>= 0.8'}
@@ -10593,11 +10548,6 @@ packages:
 
   isomorphic-ws@4.0.1:
     resolution: {integrity: sha512-BhBvN2MBpWTaSHdWRb/bwdZJ1WaehQ2L1KngkCkfLUGF0mAWAT1sQUQacEmQ0jXkFw/czDXPNQSL5u2/Krsz1w==}
-    peerDependencies:
-      ws: '*'
-
-  isows@1.0.6:
-    resolution: {integrity: sha512-lPHCayd40oW98/I0uvgaHKWCSvkzY27LjWLbtzOm64yQ+G3Q5npjjbdppU65iZXkK1Zt+kH9pfegli0AYfwYYw==}
     peerDependencies:
       ws: '*'
 
@@ -11962,14 +11912,6 @@ packages:
       typescript:
         optional: true
 
-  ox@0.6.7:
-    resolution: {integrity: sha512-17Gk/eFsFRAZ80p5eKqv89a57uXjd3NgIf1CaXojATPBuujVc/fQSVhBeAU9JCRB+k7J50WQAyWTxK19T9GgbA==}
-    peerDependencies:
-      typescript: '>=5.4.0'
-    peerDependenciesMeta:
-      typescript:
-        optional: true
-
   ox@0.6.9:
     resolution: {integrity: sha512-wi5ShvzE4eOcTwQVsIPdFr+8ycyX+5le/96iAJutaZAvCes1J0+RvpEPg5QDPDiaR0XQQAvZVl7AwqQcINuUug==}
     peerDependencies:
@@ -11980,6 +11922,14 @@ packages:
 
   ox@0.9.17:
     resolution: {integrity: sha512-rKAnhzhRU3Xh3hiko+i1ZxywZ55eWQzeS/Q4HRKLx2PqfHOolisZHErSsJVipGlmQKHW5qwOED/GighEw9dbLg==}
+    peerDependencies:
+      typescript: '>=5.4.0'
+    peerDependenciesMeta:
+      typescript:
+        optional: true
+
+  ox@0.9.3:
+    resolution: {integrity: sha512-KzyJP+fPV4uhuuqrTZyok4DC7vFzi7HLUFiUNEmpbyh59htKWkOC98IONC1zgXJPbHAhQgqs6B0Z6StCGhmQvg==}
     peerDependencies:
       typescript: '>=5.4.0'
     peerDependenciesMeta:
@@ -12238,6 +12188,10 @@ packages:
 
   pino-std-serializers@7.1.0:
     resolution: {integrity: sha512-BndPH67/JxGExRgiX1dX0w1FvZck5Wa4aal9198SrRhZjH3GxKQUKIBnYJTdj2HDN3UQAS06HlfcSbQj2OHmaw==}
+
+  pino@10.0.0:
+    resolution: {integrity: sha512-eI9pKwWEix40kfvSzqEP6ldqOoBIN7dwD/o91TY5z8vQI12sAffpR/pOqAD1IVVwIVHDpHjkq0joBPdJD0rafA==}
+    hasBin: true
 
   pino@10.4.0:
     resolution: {integrity: sha512-bk1ZMTwG/Vymx+zPoa28MhNzucFvXJWp3csrSuxuHPSMeUettaCoQ5Jvg07mtC4JGNpcfTwz41oVCnNgBK9+vA==}
@@ -12561,10 +12515,6 @@ packages:
   qs@6.16.1:
     resolution: {integrity: sha512-5Px6J7rfHBAGUhNQ3es4YzcOdBBw0SDcVtThJml4RdnKw4tKs2epA0kPZ+K8X+WiHktT93RHVcQ/3ym5aTCgtg==}
     engines: {node: '>=0.6'}
-
-  query-string@7.1.3:
-    resolution: {integrity: sha512-hh2WYhq4fi8+b+/2Kg9CEge4fDPvHS534aOOvOZeQ3+Vf2mCFsaFBYj0i+iXcAq6I9Vzp5fjMFBlONvayDC1qg==}
-    engines: {node: '>=6'}
 
   quick-format-unescaped@4.0.4:
     resolution: {integrity: sha512-tYC1Q1hgyRuHgloV/YXs2w15unPVh8qfu/qCTfhTYamaw7fyhumKa2yGpdSo87vY32rIclj+4fWYQXUMs9EHvg==}
@@ -13178,6 +13128,9 @@ packages:
   slide@1.1.6:
     resolution: {integrity: sha512-NwrtjCg+lZoqhFU8fOwl4ay2ei8PaqCBOUV3/ektPY9trO1yQ1oXEfmHAhKArUVUr/hOHvy5f6AdP17dCM0zMw==}
 
+  slow-redact@0.3.2:
+    resolution: {integrity: sha512-MseHyi2+E/hBRqdOi5COy6wZ7j7DxXRz9NkseavNYSvvWC06D8a5cidVZX3tcG5eCW3NIyVU4zT63hw0Q486jw==}
+
   smart-buffer@4.2.0:
     resolution: {integrity: sha512-94hK0Hh8rPqQl2xXc3HsaBoOXKV20MToPkcXvwbISWLEs+64sBq5kFgn2kJDHb1Pry9yrP0dxrCI9RRci7RXKg==}
     engines: {node: '>= 6.0.0', npm: '>= 3.0.0'}
@@ -13249,10 +13202,6 @@ packages:
   space-separated-tokens@2.0.2:
     resolution: {integrity: sha512-PEGlAwrG8yXGXRjW32fGbg66JAlOAwbObuqVoJpv/mRgoWDQfgH1wDPvtzWyUSNAXBGSk8h755YDbbcEy3SH2Q==}
 
-  split-on-first@1.1.0:
-    resolution: {integrity: sha512-43ZssAJaMusuKWL8sKUBQXHWOpq8d6CfN/u1p4gUzfJkM05C8rxTmYrkIPTXapZpORA6LkkzcUulJ8FqA7Uudw==}
-    engines: {node: '>=6'}
-
   split2@4.2.0:
     resolution: {integrity: sha512-UcjcJOWknrNkF6PLX83qcHM6KHgVKNkV62Y8a5uYDVv9ydGQVwAHMKqHdJje1VTWpljG0WYpCDhrCdAOYH4TWg==}
     engines: {node: '>= 10.x'}
@@ -13313,10 +13262,6 @@ packages:
     peerDependenciesMeta:
       hast:
         optional: true
-
-  strict-uri-encode@2.0.0:
-    resolution: {integrity: sha512-QwiXZgpRcKkhTj2Scnn++4PKtWsH0kpzZ62L2R6c/LUVYv7hVnZqcg2+sMuT6R7Jusu1vviK/MFsu6kNJfWlEQ==}
-    engines: {node: '>=4'}
 
   string-width-cjs@4.2.3:
     resolution: {integrity: sha512-wKyQRQpjJ0sIp62ErSZdGsjMJWsap5oRNihHhu6G7JVO/9jIB6UyevL+tXuOqrng8j/cxKTWyWUwvSTriiZz/g==}
@@ -13729,6 +13674,9 @@ packages:
   uint8arrays@3.1.0:
     resolution: {integrity: sha512-ei5rfKtoRO8OyOIor2Rz5fhzjThwIHJZ3uyDPnDHTXbP0aMQ1RN/6AI5B5d9dBxJOU+BvOAk7ZQ1xphsX8Lrog==}
 
+  uint8arrays@3.1.1:
+    resolution: {integrity: sha512-+QJa8QRnbdXVpHYjLoTpJIdCTiw9Ir62nocClWuXIq2JIh4Uta0cQsTSpFL678p2CN8B+XSApwcU+pQEqVpKWg==}
+
   unbash@6.0.1:
     resolution: {integrity: sha512-0db9eS5iqybux41zLkX69nk90KTci7F7eZ+gXzEG/Q7E0tAqEBhRh5fkZvk1N7jT7QkGWqq34i8SFGPFEe1V8A==}
     engines: {node: '>=14'}
@@ -14037,14 +13985,6 @@ packages:
 
   victory-vendor@37.3.6:
     resolution: {integrity: sha512-SbPDPdDBYp+5MJHhBCAyI7wKM3d5ivekigc2Dk2s7pgbZ9wIgIBYGVw4zGHBml/qTFbexrofXW6Gu4noGxrOwQ==}
-
-  viem@2.23.2:
-    resolution: {integrity: sha512-NVmW/E0c5crMOtbEAqMF0e3NmvQykFXhLOc/CkLIXOlzHSA6KXVz3CYVmaKqBF8/xtjsjHAGjdJN3Ru1kFJLaA==}
-    peerDependencies:
-      typescript: '>=5.0.4'
-    peerDependenciesMeta:
-      typescript:
-        optional: true
 
   viem@2.57.11:
     resolution: {integrity: sha512-kvcBGXzIGmZu3GqaA83ZOLzVC57YO7WCgQrGcUHNKqZ8Cjqc9vV//uGna4Nhv0NGHn2gekw1FNdSvQePNnYePQ==}
@@ -15379,19 +15319,19 @@ snapshots:
       - supports-color
     optional: true
 
-  '@elizaos/agent@2.0.3-beta.7(patch_hash=b85fd4be037881bd9d1ace0fbf759fca4628e1c45ffdc9787c583a1e4e4ad00d)(0ff46775038f64871d97ee0469265dbe)':
+  '@elizaos/agent@2.0.3-beta.7(patch_hash=b85fd4be037881bd9d1ace0fbf759fca4628e1c45ffdc9787c583a1e4e4ad00d)(4565bb2412bf6163483b5fdd252bacb5)':
     dependencies:
       '@ai-sdk/anthropic': 3.0.135(zod@4.6.7)
       '@ai-sdk/google': 3.0.138(zod@4.6.7)
       '@ai-sdk/openai': 3.0.131(zod@4.6.7)
       '@clack/prompts': 1.8.1
-      '@elizaos/app-core': 2.0.3-beta.7(4e0c8ab24093b68b4d9b7e91330186c2)
+      '@elizaos/app-core': 2.0.3-beta.7(c1e4aa73cfc2b312957b348eef9dcc0c)
       '@elizaos/core': 2.0.3-beta.7(patch_hash=7242104d352567e5494819604c53ef11b12ecb35e0aec410c0af09c4bc5b7864)(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
       '@elizaos/plugin-agent-orchestrator': 2.0.3-beta.7(patch_hash=71401e5b29d17ab7336b9c74422d0fcb17888465b1b34a821fcfdba6054c8ed2)(8323cab110439ed19631ef2a22a41893)
       '@elizaos/plugin-agent-skills': 2.0.11-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
       '@elizaos/plugin-anthropic': 2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)(zod@4.6.7)
       '@elizaos/plugin-aosp-local-inference': 2.0.11-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
-      '@elizaos/plugin-app-control': 2.0.3-beta.7(@babel/core@7.29.7)(@babel/runtime@7.29.10)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@solana/sysvars@2.3.0(@solana/addresses@2.3.0(typescript@7.0.2))(@solana/rpc-parsed-types@2.3.0(typescript@7.0.2))(typescript@7.0.2))(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(@walletconnect/types@2.19.1)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(tslib@2.8.1)(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)
+      '@elizaos/plugin-app-control': 2.0.3-beta.7(@babel/core@7.29.7)(@babel/runtime@7.29.10)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@solana/sysvars@2.3.0(@solana/addresses@2.3.0(typescript@7.0.2))(@solana/rpc-parsed-types@2.3.0(typescript@7.0.2))(typescript@7.0.2))(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(@walletconnect/types@2.19.1)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(tslib@2.8.1)(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)
       '@elizaos/plugin-app-manager': 2.0.11-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)(ws@8.22.0)
       '@elizaos/plugin-background-runner': 2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
       '@elizaos/plugin-browser': 2.0.11-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)(ws@8.22.0)
@@ -15399,7 +15339,7 @@ snapshots:
       '@elizaos/plugin-coding-tools': 2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
       '@elizaos/plugin-commands': 2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
       '@elizaos/plugin-computeruse': 2.0.3-beta.7(@babel/runtime@7.29.10)(@electric-sql/pglite@0.4.6(ws@8.22.0))(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)(zod@4.6.7)
-      '@elizaos/plugin-contacts': 2.0.3-beta.7(@babel/core@7.29.7)(@babel/runtime@7.29.10)(@capacitor/core@8.4.0)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@solana/sysvars@2.3.0(@solana/addresses@2.3.0(typescript@7.0.2))(@solana/rpc-parsed-types@2.3.0(typescript@7.0.2))(typescript@7.0.2))(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(@walletconnect/types@2.19.1)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(tslib@2.8.1)(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)
+      '@elizaos/plugin-contacts': 2.0.3-beta.7(@babel/core@7.29.7)(@babel/runtime@7.29.10)(@capacitor/core@8.4.0)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@solana/sysvars@2.3.0(@solana/addresses@2.3.0(typescript@7.0.2))(@solana/rpc-parsed-types@2.3.0(typescript@7.0.2))(typescript@7.0.2))(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(@walletconnect/types@2.19.1)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(tslib@2.8.1)(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)
       '@elizaos/plugin-discord': 2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@elizaos/core@2.0.3-beta.7)(@emnapi/core@1.11.2(@emnapi/runtime@1.11.2))(@emnapi/runtime@1.11.2)(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)(ws@8.22.0)
       '@elizaos/plugin-elizacloud': 2.0.11-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)(typescript@7.0.2)(zod@4.6.7)
       '@elizaos/plugin-gitpathologist': 2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
@@ -15408,20 +15348,20 @@ snapshots:
       '@elizaos/plugin-mcp': 2.0.11-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)(zod@4.6.7)
       '@elizaos/plugin-ollama': 2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
       '@elizaos/plugin-openai': 2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)(zod@4.6.7)
-      '@elizaos/plugin-phone': 2.0.3-beta.7(@babel/core@7.29.7)(@babel/runtime@7.29.10)(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@solana/sysvars@2.3.0(@solana/addresses@2.3.0(typescript@7.0.2))(@solana/rpc-parsed-types@2.3.0(typescript@7.0.2))(typescript@7.0.2))(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(@walletconnect/types@2.19.1)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(tslib@2.8.1)(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(ws@8.22.0)(zod@4.6.7)
+      '@elizaos/plugin-phone': 2.0.3-beta.7(@babel/core@7.29.7)(@babel/runtime@7.29.10)(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@solana/sysvars@2.3.0(@solana/addresses@2.3.0(typescript@7.0.2))(@solana/rpc-parsed-types@2.3.0(typescript@7.0.2))(typescript@7.0.2))(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(@walletconnect/types@2.19.1)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(tslib@2.8.1)(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(ws@8.22.0)(zod@4.6.7)
       '@elizaos/plugin-registry': 2.0.11-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)(ws@8.22.0)
       '@elizaos/plugin-remote-manifest': 2.0.3-beta.7
       '@elizaos/plugin-shell': 2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
       '@elizaos/plugin-signal': 2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
-      '@elizaos/plugin-simple-views': 2.0.3-beta.7(@babel/core@7.29.7)(@babel/runtime@7.29.10)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@solana/sysvars@2.3.0(@solana/addresses@2.3.0(typescript@7.0.2))(@solana/rpc-parsed-types@2.3.0(typescript@7.0.2))(typescript@7.0.2))(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(@walletconnect/types@2.19.1)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(tslib@2.8.1)(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)
+      '@elizaos/plugin-simple-views': 2.0.3-beta.7(@babel/core@7.29.7)(@babel/runtime@7.29.10)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@solana/sysvars@2.3.0(@solana/addresses@2.3.0(typescript@7.0.2))(@solana/rpc-parsed-types@2.3.0(typescript@7.0.2))(typescript@7.0.2))(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(@walletconnect/types@2.19.1)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(tslib@2.8.1)(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)
       '@elizaos/plugin-sql': 2.0.3-beta.7(patch_hash=94c6a4545006a5fe230360285bafd6a2c649a0a2f425563a92141974667e673f)(@elizaos/core@2.0.3-beta.7)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(react@19.3.1)
       '@elizaos/plugin-streaming': 2.0.11-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)(ws@8.22.0)
-      '@elizaos/plugin-task-coordinator': 2.0.3-beta.7(@babel/core@7.29.7)(@babel/runtime@7.29.10)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@solana/sysvars@2.3.0(@solana/addresses@2.3.0(typescript@7.0.2))(@solana/rpc-parsed-types@2.3.0(typescript@7.0.2))(typescript@7.0.2))(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(@walletconnect/types@2.19.1)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(tslib@2.8.1)(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)
+      '@elizaos/plugin-task-coordinator': 2.0.3-beta.7(@babel/core@7.29.7)(@babel/runtime@7.29.10)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@solana/sysvars@2.3.0(@solana/addresses@2.3.0(typescript@7.0.2))(@solana/rpc-parsed-types@2.3.0(typescript@7.0.2))(typescript@7.0.2))(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(@walletconnect/types@2.19.1)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(tslib@2.8.1)(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)
       '@elizaos/plugin-video': 2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(debug@4.4.3)(pg@8.23.1)(react@19.3.1)
       '@elizaos/plugin-vision': 2.0.3-beta.7(@babel/runtime@7.29.10)(@electric-sql/pglite@0.4.6(ws@8.22.0))(@elizaos/plugin-computeruse@2.0.3-beta.7(@elizaos/core@2.0.3-beta.7))(@neondatabase/serverless@1.2.0)(@types/node@26.6.5)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)(zod@4.6.7)
       '@elizaos/plugin-wallet': 2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@elizaos/core@2.0.3-beta.7)(@elizaos/plugin-elizacloud@2.0.11-beta.7(zod@4.6.7))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@solana/wallet-adapter-base@0.9.28(@solana/web3.js@1.99.0))(@types/react@19.3.0)(@upstash/redis@1.39.0)(fastestsmallesttextencoderdecoder@1.0.22)(hardhat@2.29.1(typescript@7.0.2))(pg@8.23.1)(react@19.3.1)(typescript@7.0.2)(yaml@2.9.1)
       '@elizaos/plugin-whatsapp': 2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)(sharp@0.35.5(@types/node@26.6.5))
-      '@elizaos/plugin-wifi': 2.0.3-beta.7(@babel/core@7.29.7)(@babel/runtime@7.29.10)(@capacitor/core@8.4.0)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@solana/sysvars@2.3.0(@solana/addresses@2.3.0(typescript@7.0.2))(@solana/rpc-parsed-types@2.3.0(typescript@7.0.2))(typescript@7.0.2))(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(@walletconnect/types@2.19.1)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(tslib@2.8.1)(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)
+      '@elizaos/plugin-wifi': 2.0.3-beta.7(@babel/core@7.29.7)(@babel/runtime@7.29.10)(@capacitor/core@8.4.0)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@solana/sysvars@2.3.0(@solana/addresses@2.3.0(typescript@7.0.2))(@solana/rpc-parsed-types@2.3.0(typescript@7.0.2))(typescript@7.0.2))(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(@walletconnect/types@2.19.1)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(tslib@2.8.1)(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)
       '@elizaos/plugin-worker-runtime': 2.0.3-beta.7
       '@elizaos/plugin-workflow': 2.0.3-beta.7(17fee8bae3e0e07f37cc4035b1039c28)
       '@elizaos/plugin-x402': 2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)(typescript@7.0.2)(zod@4.6.7)
@@ -15510,6 +15450,7 @@ snapshots:
       - '@vercel/kv'
       - '@vercel/postgres'
       - '@walletconnect/ethereum-provider'
+      - '@walletconnect/jsonrpc-types'
       - '@xata.io/client'
       - accounts
       - agent-adapter-monitor
@@ -15570,9 +15511,8 @@ snapshots:
       - vue
       - wagmi
       - yauzl
-      - zod
 
-  '@elizaos/app-core@2.0.3-beta.7(4e0c8ab24093b68b4d9b7e91330186c2)':
+  '@elizaos/app-core@2.0.3-beta.7(c1e4aa73cfc2b312957b348eef9dcc0c)':
     dependencies:
       '@capacitor-community/sqlite': 8.1.1(@capacitor/core@8.4.0)
       '@capacitor/background-runner': 3.0.0(@capacitor/core@8.4.0)
@@ -15584,14 +15524,14 @@ snapshots:
       '@capacitor/preferences': 8.0.1(@capacitor/core@8.4.0)
       '@capacitor/push-notifications': 8.1.3(@capacitor/core@8.4.0)
       '@clack/prompts': 1.8.1
-      '@elizaos/agent': 2.0.3-beta.7(patch_hash=b85fd4be037881bd9d1ace0fbf759fca4628e1c45ffdc9787c583a1e4e4ad00d)(0ff46775038f64871d97ee0469265dbe)
+      '@elizaos/agent': 2.0.3-beta.7(patch_hash=b85fd4be037881bd9d1ace0fbf759fca4628e1c45ffdc9787c583a1e4e4ad00d)(4565bb2412bf6163483b5fdd252bacb5)
       '@elizaos/core': 2.0.3-beta.7(patch_hash=7242104d352567e5494819604c53ef11b12ecb35e0aec410c0af09c4bc5b7864)(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
       '@elizaos/plugin-anthropic': 2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)(zod@4.6.7)
       '@elizaos/plugin-browser': 2.0.11-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)(ws@8.22.0)
       '@elizaos/plugin-edge-tts': 2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
       '@elizaos/plugin-elizacloud': 2.0.11-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)(typescript@7.0.2)(zod@4.6.7)
       '@elizaos/plugin-groq': 2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)(zod@4.6.7)
-      '@elizaos/plugin-health': 2.0.3-beta.7(@babel/core@7.29.7)(@babel/runtime@7.29.10)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@solana/sysvars@2.3.0(@solana/addresses@2.3.0(typescript@7.0.2))(@solana/rpc-parsed-types@2.3.0(typescript@7.0.2))(typescript@7.0.2))(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(@walletconnect/types@2.19.1)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(tslib@2.8.1)(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)
+      '@elizaos/plugin-health': 2.0.3-beta.7(@babel/core@7.29.7)(@babel/runtime@7.29.10)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@solana/sysvars@2.3.0(@solana/addresses@2.3.0(typescript@7.0.2))(@solana/rpc-parsed-types@2.3.0(typescript@7.0.2))(typescript@7.0.2))(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(@walletconnect/types@2.19.1)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(tslib@2.8.1)(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)
       '@elizaos/plugin-local-inference': 2.0.3-beta.7(@babel/runtime@7.29.10)(@electric-sql/pglite@0.4.6(ws@8.22.0))(@elizaos/core@2.0.3-beta.7)(@elizaos/shared@2.0.3-beta.7)(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)(zod@4.6.7)
       '@elizaos/plugin-openai': 2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)(zod@4.6.7)
       '@elizaos/plugin-registry': 2.0.11-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)(ws@8.22.0)
@@ -15601,7 +15541,7 @@ snapshots:
       '@elizaos/registry': 2.0.3-beta.7
       '@elizaos/shared': 2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)
       '@elizaos/skills': 2.0.11-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
-      '@elizaos/ui': 2.0.3-beta.7(@babel/core@7.29.7)(@babel/runtime@7.29.10)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@solana/sysvars@2.3.0(@solana/addresses@2.3.0(typescript@7.0.2))(@solana/rpc-parsed-types@2.3.0(typescript@7.0.2))(typescript@7.0.2))(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(@walletconnect/types@2.19.1)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(tslib@2.8.1)(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)
+      '@elizaos/ui': 2.0.3-beta.7(@babel/core@7.29.7)(@babel/runtime@7.29.10)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@solana/sysvars@2.3.0(@solana/addresses@2.3.0(typescript@7.0.2))(@solana/rpc-parsed-types@2.3.0(typescript@7.0.2))(typescript@7.0.2))(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(@walletconnect/types@2.19.1)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(tslib@2.8.1)(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)
       '@elizaos/vault': 2.0.11-beta.7(ws@8.22.0)
       '@node-rs/argon2': 2.2.2
       '@upstash/redis': 1.39.0
@@ -15691,6 +15631,7 @@ snapshots:
       - '@vercel/kv'
       - '@vercel/postgres'
       - '@walletconnect/ethereum-provider'
+      - '@walletconnect/jsonrpc-types'
       - '@xata.io/client'
       - accounts
       - agent-adapter-monitor
@@ -15756,7 +15697,6 @@ snapshots:
       - wagmi
       - yargs
       - yauzl
-      - zod
 
   '@elizaos/capacitor-appblocker@2.0.3-beta.7(@capacitor/core@8.4.0)':
     dependencies:
@@ -16041,12 +15981,12 @@ snapshots:
       - sqlite3
       - supports-color
 
-  '@elizaos/plugin-app-control@2.0.3-beta.7(@babel/core@7.29.7)(@babel/runtime@7.29.10)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@solana/sysvars@2.3.0(@solana/addresses@2.3.0(typescript@7.0.2))(@solana/rpc-parsed-types@2.3.0(typescript@7.0.2))(typescript@7.0.2))(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(@walletconnect/types@2.19.1)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(tslib@2.8.1)(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)':
+  '@elizaos/plugin-app-control@2.0.3-beta.7(@babel/core@7.29.7)(@babel/runtime@7.29.10)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@solana/sysvars@2.3.0(@solana/addresses@2.3.0(typescript@7.0.2))(@solana/rpc-parsed-types@2.3.0(typescript@7.0.2))(typescript@7.0.2))(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(@walletconnect/types@2.19.1)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(tslib@2.8.1)(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)':
     dependencies:
       '@elizaos/core': 2.0.3-beta.7(patch_hash=7242104d352567e5494819604c53ef11b12ecb35e0aec410c0af09c4bc5b7864)(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
       '@elizaos/logger': 2.0.11-beta.7
       '@elizaos/shared': 2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)
-      '@elizaos/ui': 2.0.3-beta.7(@babel/core@7.29.7)(@babel/runtime@7.29.10)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@solana/sysvars@2.3.0(@solana/addresses@2.3.0(typescript@7.0.2))(@solana/rpc-parsed-types@2.3.0(typescript@7.0.2))(typescript@7.0.2))(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(@walletconnect/types@2.19.1)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(tslib@2.8.1)(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)
+      '@elizaos/ui': 2.0.3-beta.7(@babel/core@7.29.7)(@babel/runtime@7.29.10)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@solana/sysvars@2.3.0(@solana/addresses@2.3.0(typescript@7.0.2))(@solana/rpc-parsed-types@2.3.0(typescript@7.0.2))(typescript@7.0.2))(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(@walletconnect/types@2.19.1)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(tslib@2.8.1)(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)
       lucide-react: 1.49.0(@types/react@19.3.0)(react@19.3.1)
       react: 19.3.1
     transitivePeerDependencies:
@@ -16088,6 +16028,7 @@ snapshots:
       - '@vercel/kv'
       - '@vercel/postgres'
       - '@walletconnect/ethereum-provider'
+      - '@walletconnect/jsonrpc-types'
       - '@xata.io/client'
       - accounts
       - aws4fetch
@@ -16126,7 +16067,6 @@ snapshots:
       - vfile
       - vue
       - wagmi
-      - zod
 
   '@elizaos/plugin-app-manager@2.0.11-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)(ws@8.22.0)':
     dependencies:
@@ -16307,11 +16247,11 @@ snapshots:
       - utf-8-validate
       - yauzl
 
-  '@elizaos/plugin-contacts@2.0.3-beta.7(@babel/core@7.29.7)(@babel/runtime@7.29.10)(@capacitor/core@8.4.0)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@solana/sysvars@2.3.0(@solana/addresses@2.3.0(typescript@7.0.2))(@solana/rpc-parsed-types@2.3.0(typescript@7.0.2))(typescript@7.0.2))(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(@walletconnect/types@2.19.1)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(tslib@2.8.1)(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)':
+  '@elizaos/plugin-contacts@2.0.3-beta.7(@babel/core@7.29.7)(@babel/runtime@7.29.10)(@capacitor/core@8.4.0)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@solana/sysvars@2.3.0(@solana/addresses@2.3.0(typescript@7.0.2))(@solana/rpc-parsed-types@2.3.0(typescript@7.0.2))(typescript@7.0.2))(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(@walletconnect/types@2.19.1)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(tslib@2.8.1)(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)':
     dependencies:
       '@elizaos/capacitor-contacts': 2.0.3-beta.7(@capacitor/core@8.4.0)
       '@elizaos/core': 2.0.3-beta.7(patch_hash=7242104d352567e5494819604c53ef11b12ecb35e0aec410c0af09c4bc5b7864)(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
-      '@elizaos/ui': 2.0.3-beta.7(@babel/core@7.29.7)(@babel/runtime@7.29.10)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@solana/sysvars@2.3.0(@solana/addresses@2.3.0(typescript@7.0.2))(@solana/rpc-parsed-types@2.3.0(typescript@7.0.2))(typescript@7.0.2))(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(@walletconnect/types@2.19.1)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(tslib@2.8.1)(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)
+      '@elizaos/ui': 2.0.3-beta.7(@babel/core@7.29.7)(@babel/runtime@7.29.10)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@solana/sysvars@2.3.0(@solana/addresses@2.3.0(typescript@7.0.2))(@solana/rpc-parsed-types@2.3.0(typescript@7.0.2))(typescript@7.0.2))(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(@walletconnect/types@2.19.1)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(tslib@2.8.1)(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)
       lucide-react: 1.49.0(@types/react@19.3.0)(react@19.3.1)
       react: 19.3.1
       react-dom: 19.3.1(react@19.3.1)
@@ -16354,6 +16294,7 @@ snapshots:
       - '@vercel/kv'
       - '@vercel/postgres'
       - '@walletconnect/ethereum-provider'
+      - '@walletconnect/jsonrpc-types'
       - '@xata.io/client'
       - accounts
       - aws4fetch
@@ -16392,7 +16333,6 @@ snapshots:
       - vfile
       - vue
       - wagmi
-      - zod
 
   '@elizaos/plugin-discord@2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@elizaos/core@2.0.3-beta.7)(@emnapi/core@1.11.2(@emnapi/runtime@1.11.2))(@emnapi/runtime@1.11.2)(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)(ws@8.22.0)':
     dependencies:
@@ -16633,11 +16573,11 @@ snapshots:
       - sqlite3
       - supports-color
 
-  '@elizaos/plugin-health@2.0.3-beta.7(@babel/core@7.29.7)(@babel/runtime@7.29.10)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@solana/sysvars@2.3.0(@solana/addresses@2.3.0(typescript@7.0.2))(@solana/rpc-parsed-types@2.3.0(typescript@7.0.2))(typescript@7.0.2))(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(@walletconnect/types@2.19.1)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(tslib@2.8.1)(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)':
+  '@elizaos/plugin-health@2.0.3-beta.7(@babel/core@7.29.7)(@babel/runtime@7.29.10)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@solana/sysvars@2.3.0(@solana/addresses@2.3.0(typescript@7.0.2))(@solana/rpc-parsed-types@2.3.0(typescript@7.0.2))(typescript@7.0.2))(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(@walletconnect/types@2.19.1)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(tslib@2.8.1)(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)':
     dependencies:
       '@elizaos/core': 2.0.3-beta.7(patch_hash=7242104d352567e5494819604c53ef11b12ecb35e0aec410c0af09c4bc5b7864)(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
       '@elizaos/shared': 2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)
-      '@elizaos/ui': 2.0.3-beta.7(@babel/core@7.29.7)(@babel/runtime@7.29.10)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@solana/sysvars@2.3.0(@solana/addresses@2.3.0(typescript@7.0.2))(@solana/rpc-parsed-types@2.3.0(typescript@7.0.2))(typescript@7.0.2))(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(@walletconnect/types@2.19.1)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(tslib@2.8.1)(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)
+      '@elizaos/ui': 2.0.3-beta.7(@babel/core@7.29.7)(@babel/runtime@7.29.10)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@solana/sysvars@2.3.0(@solana/addresses@2.3.0(typescript@7.0.2))(@solana/rpc-parsed-types@2.3.0(typescript@7.0.2))(typescript@7.0.2))(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(@walletconnect/types@2.19.1)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(tslib@2.8.1)(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)
       lucide-react: 1.49.0(@types/react@19.3.0)(react@19.3.1)
       react: 19.3.1
       react-dom: 19.3.1(react@19.3.1)
@@ -16680,6 +16620,7 @@ snapshots:
       - '@vercel/kv'
       - '@vercel/postgres'
       - '@walletconnect/ethereum-provider'
+      - '@walletconnect/jsonrpc-types'
       - '@xata.io/client'
       - accounts
       - aws4fetch
@@ -16718,7 +16659,6 @@ snapshots:
       - vfile
       - vue
       - wagmi
-      - zod
 
   '@elizaos/plugin-imessage@2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)':
     dependencies:
@@ -16865,7 +16805,7 @@ snapshots:
       - sqlite3
       - supports-color
 
-  '@elizaos/plugin-phone@2.0.3-beta.7(@babel/core@7.29.7)(@babel/runtime@7.29.10)(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@solana/sysvars@2.3.0(@solana/addresses@2.3.0(typescript@7.0.2))(@solana/rpc-parsed-types@2.3.0(typescript@7.0.2))(typescript@7.0.2))(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(@walletconnect/types@2.19.1)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(tslib@2.8.1)(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(ws@8.22.0)(zod@4.6.7)':
+  '@elizaos/plugin-phone@2.0.3-beta.7(@babel/core@7.29.7)(@babel/runtime@7.29.10)(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@solana/sysvars@2.3.0(@solana/addresses@2.3.0(typescript@7.0.2))(@solana/rpc-parsed-types@2.3.0(typescript@7.0.2))(typescript@7.0.2))(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(@walletconnect/types@2.19.1)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(tslib@2.8.1)(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(ws@8.22.0)(zod@4.6.7)':
     dependencies:
       '@capacitor/barcode-scanner': 3.1.3(@capacitor/core@8.4.0)
       '@capacitor/core': 8.4.0
@@ -16876,7 +16816,7 @@ snapshots:
       '@elizaos/core': 2.0.3-beta.7(patch_hash=7242104d352567e5494819604c53ef11b12ecb35e0aec410c0af09c4bc5b7864)(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
       '@elizaos/plugin-browser': 2.0.11-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)(ws@8.22.0)
       '@elizaos/shared': 2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)
-      '@elizaos/ui': 2.0.3-beta.7(@babel/core@7.29.7)(@babel/runtime@7.29.10)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@solana/sysvars@2.3.0(@solana/addresses@2.3.0(typescript@7.0.2))(@solana/rpc-parsed-types@2.3.0(typescript@7.0.2))(typescript@7.0.2))(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(@walletconnect/types@2.19.1)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(tslib@2.8.1)(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)
+      '@elizaos/ui': 2.0.3-beta.7(@babel/core@7.29.7)(@babel/runtime@7.29.10)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@solana/sysvars@2.3.0(@solana/addresses@2.3.0(typescript@7.0.2))(@solana/rpc-parsed-types@2.3.0(typescript@7.0.2))(typescript@7.0.2))(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(@walletconnect/types@2.19.1)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(tslib@2.8.1)(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)
       lucide-react: 1.49.0(@types/react@19.3.0)(react@19.3.1)
       react: 19.3.1
       react-dom: 19.3.1(react@19.3.1)
@@ -16919,6 +16859,7 @@ snapshots:
       - '@vercel/kv'
       - '@vercel/postgres'
       - '@walletconnect/ethereum-provider'
+      - '@walletconnect/jsonrpc-types'
       - '@xata.io/client'
       - accounts
       - aws4fetch
@@ -16957,7 +16898,6 @@ snapshots:
       - vfile
       - vue
       - wagmi
-      - zod
 
   '@elizaos/plugin-registry@2.0.11-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)(ws@8.22.0)':
     dependencies:
@@ -17039,10 +16979,10 @@ snapshots:
       '@elizaos/core': 2.0.3-beta.7(patch_hash=7242104d352567e5494819604c53ef11b12ecb35e0aec410c0af09c4bc5b7864)(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
       qrcode: 1.5.4
 
-  '@elizaos/plugin-simple-views@2.0.3-beta.7(@babel/core@7.29.7)(@babel/runtime@7.29.10)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@solana/sysvars@2.3.0(@solana/addresses@2.3.0(typescript@7.0.2))(@solana/rpc-parsed-types@2.3.0(typescript@7.0.2))(typescript@7.0.2))(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(@walletconnect/types@2.19.1)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(tslib@2.8.1)(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)':
+  '@elizaos/plugin-simple-views@2.0.3-beta.7(@babel/core@7.29.7)(@babel/runtime@7.29.10)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@solana/sysvars@2.3.0(@solana/addresses@2.3.0(typescript@7.0.2))(@solana/rpc-parsed-types@2.3.0(typescript@7.0.2))(typescript@7.0.2))(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(@walletconnect/types@2.19.1)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(tslib@2.8.1)(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)':
     dependencies:
       '@elizaos/core': 2.0.3-beta.7(patch_hash=7242104d352567e5494819604c53ef11b12ecb35e0aec410c0af09c4bc5b7864)(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
-      '@elizaos/ui': 2.0.3-beta.7(@babel/core@7.29.7)(@babel/runtime@7.29.10)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@solana/sysvars@2.3.0(@solana/addresses@2.3.0(typescript@7.0.2))(@solana/rpc-parsed-types@2.3.0(typescript@7.0.2))(typescript@7.0.2))(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(@walletconnect/types@2.19.1)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(tslib@2.8.1)(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)
+      '@elizaos/ui': 2.0.3-beta.7(@babel/core@7.29.7)(@babel/runtime@7.29.10)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@solana/sysvars@2.3.0(@solana/addresses@2.3.0(typescript@7.0.2))(@solana/rpc-parsed-types@2.3.0(typescript@7.0.2))(typescript@7.0.2))(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(@walletconnect/types@2.19.1)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(tslib@2.8.1)(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)
       lucide-react: 1.49.0(@types/react@19.3.0)(react@19.3.1)
       react: 19.3.1
       react-dom: 19.3.1(react@19.3.1)
@@ -17085,6 +17025,7 @@ snapshots:
       - '@vercel/kv'
       - '@vercel/postgres'
       - '@walletconnect/ethereum-provider'
+      - '@walletconnect/jsonrpc-types'
       - '@xata.io/client'
       - accounts
       - aws4fetch
@@ -17123,7 +17064,6 @@ snapshots:
       - vfile
       - vue
       - wagmi
-      - zod
 
   '@elizaos/plugin-slack@2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.2.0)(@types/express@5.0.6)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)':
     dependencies:
@@ -17214,12 +17154,12 @@ snapshots:
       - sqlite3
       - supports-color
 
-  '@elizaos/plugin-task-coordinator@2.0.3-beta.7(@babel/core@7.29.7)(@babel/runtime@7.29.10)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@solana/sysvars@2.3.0(@solana/addresses@2.3.0(typescript@7.0.2))(@solana/rpc-parsed-types@2.3.0(typescript@7.0.2))(typescript@7.0.2))(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(@walletconnect/types@2.19.1)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(tslib@2.8.1)(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)':
+  '@elizaos/plugin-task-coordinator@2.0.3-beta.7(@babel/core@7.29.7)(@babel/runtime@7.29.10)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@solana/sysvars@2.3.0(@solana/addresses@2.3.0(typescript@7.0.2))(@solana/rpc-parsed-types@2.3.0(typescript@7.0.2))(typescript@7.0.2))(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(@walletconnect/types@2.19.1)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(tslib@2.8.1)(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)':
     dependencies:
       '@elizaos/core': 2.0.3-beta.7(patch_hash=7242104d352567e5494819604c53ef11b12ecb35e0aec410c0af09c4bc5b7864)(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
       '@elizaos/plugin-commands': 2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
       '@elizaos/shared': 2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)
-      '@elizaos/ui': 2.0.3-beta.7(@babel/core@7.29.7)(@babel/runtime@7.29.10)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@solana/sysvars@2.3.0(@solana/addresses@2.3.0(typescript@7.0.2))(@solana/rpc-parsed-types@2.3.0(typescript@7.0.2))(typescript@7.0.2))(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(@walletconnect/types@2.19.1)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(tslib@2.8.1)(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)
+      '@elizaos/ui': 2.0.3-beta.7(@babel/core@7.29.7)(@babel/runtime@7.29.10)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@solana/sysvars@2.3.0(@solana/addresses@2.3.0(typescript@7.0.2))(@solana/rpc-parsed-types@2.3.0(typescript@7.0.2))(typescript@7.0.2))(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(@walletconnect/types@2.19.1)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(tslib@2.8.1)(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)
       '@xterm/addon-fit': 0.10.0(@xterm/xterm@5.5.0)
       '@xterm/xterm': 5.5.0
       lucide-react: 1.49.0(@types/react@19.3.0)(react@19.3.1)
@@ -17265,6 +17205,7 @@ snapshots:
       - '@vercel/kv'
       - '@vercel/postgres'
       - '@walletconnect/ethereum-provider'
+      - '@walletconnect/jsonrpc-types'
       - '@xata.io/client'
       - accounts
       - aws4fetch
@@ -17303,7 +17244,6 @@ snapshots:
       - vfile
       - vue
       - wagmi
-      - zod
 
   '@elizaos/plugin-telegram@2.0.3-beta.7(@babel/runtime@7.29.10)(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)':
     dependencies:
@@ -17513,13 +17453,13 @@ snapshots:
       - supports-color
       - utf-8-validate
 
-  '@elizaos/plugin-wifi@2.0.3-beta.7(@babel/core@7.29.7)(@babel/runtime@7.29.10)(@capacitor/core@8.4.0)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@solana/sysvars@2.3.0(@solana/addresses@2.3.0(typescript@7.0.2))(@solana/rpc-parsed-types@2.3.0(typescript@7.0.2))(typescript@7.0.2))(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(@walletconnect/types@2.19.1)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(tslib@2.8.1)(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)':
+  '@elizaos/plugin-wifi@2.0.3-beta.7(@babel/core@7.29.7)(@babel/runtime@7.29.10)(@capacitor/core@8.4.0)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@solana/sysvars@2.3.0(@solana/addresses@2.3.0(typescript@7.0.2))(@solana/rpc-parsed-types@2.3.0(typescript@7.0.2))(typescript@7.0.2))(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(@walletconnect/types@2.19.1)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(tslib@2.8.1)(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)':
     dependencies:
       '@elizaos/capacitor-system': 2.0.3-beta.7(@capacitor/core@8.4.0)
       '@elizaos/capacitor-wifi': 2.0.3-beta.7(@capacitor/core@8.4.0)
       '@elizaos/core': 2.0.3-beta.7(patch_hash=7242104d352567e5494819604c53ef11b12ecb35e0aec410c0af09c4bc5b7864)(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
       '@elizaos/shared': 2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)
-      '@elizaos/ui': 2.0.3-beta.7(@babel/core@7.29.7)(@babel/runtime@7.29.10)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@solana/sysvars@2.3.0(@solana/addresses@2.3.0(typescript@7.0.2))(@solana/rpc-parsed-types@2.3.0(typescript@7.0.2))(typescript@7.0.2))(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(@walletconnect/types@2.19.1)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(tslib@2.8.1)(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)
+      '@elizaos/ui': 2.0.3-beta.7(@babel/core@7.29.7)(@babel/runtime@7.29.10)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@solana/sysvars@2.3.0(@solana/addresses@2.3.0(typescript@7.0.2))(@solana/rpc-parsed-types@2.3.0(typescript@7.0.2))(typescript@7.0.2))(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(@walletconnect/types@2.19.1)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(tslib@2.8.1)(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)
       lucide-react: 1.49.0(@types/react@19.3.0)(react@19.3.1)
       react: 19.3.1
       react-dom: 19.3.1(react@19.3.1)
@@ -17562,6 +17502,7 @@ snapshots:
       - '@vercel/kv'
       - '@vercel/postgres'
       - '@walletconnect/ethereum-provider'
+      - '@walletconnect/jsonrpc-types'
       - '@xata.io/client'
       - accounts
       - aws4fetch
@@ -17600,7 +17541,6 @@ snapshots:
       - vfile
       - vue
       - wagmi
-      - zod
 
   '@elizaos/plugin-workflow@2.0.3-beta.7(17fee8bae3e0e07f37cc4035b1039c28)':
     dependencies:
@@ -17777,7 +17717,7 @@ snapshots:
       marked: 18.1.1
       mime-types: 3.0.2
 
-  '@elizaos/ui@2.0.3-beta.7(@babel/core@7.29.7)(@babel/runtime@7.29.10)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@solana/sysvars@2.3.0(@solana/addresses@2.3.0(typescript@7.0.2))(@solana/rpc-parsed-types@2.3.0(typescript@7.0.2))(typescript@7.0.2))(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(@walletconnect/types@2.19.1)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(tslib@2.8.1)(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)':
+  '@elizaos/ui@2.0.3-beta.7(@babel/core@7.29.7)(@babel/runtime@7.29.10)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@opentelemetry/api@1.9.1)(@solana/sysvars@2.3.0(@solana/addresses@2.3.0(typescript@7.0.2))(@solana/rpc-parsed-types@2.3.0(typescript@7.0.2))(typescript@7.0.2))(@types/react@19.3.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@upstash/redis@1.39.0)(@walletconnect/types@2.19.1)(bs58@6.0.0)(bufferutil@4.1.0)(electron@45.0.0)(fastestsmallesttextencoderdecoder@1.0.22)(pg@8.23.1)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-is@18.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(tslib@2.8.1)(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)':
     dependencies:
       '@capacitor/core': 8.4.0
       '@elizaos/cloud-sdk': 2.0.3-beta.7
@@ -17814,9 +17754,9 @@ snapshots:
       '@solana/spl-token': 0.4.14(@solana/web3.js@1.98.4)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@7.0.2)
       '@solana/wallet-adapter-react': 0.15.40(@babel/core@7.29.7)(@solana/web3.js@1.99.0)(bs58@6.0.0)(electron@45.0.0)(react@19.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(typescript@7.0.2)
       '@solana/wallet-adapter-react-ui': 0.9.40(@babel/core@7.29.7)(@solana/web3.js@1.99.0)(bs58@6.0.0)(electron@45.0.0)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(typescript@7.0.2)
-      '@solana/wallet-adapter-wallets': 0.19.40(@babel/runtime@7.29.10)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@solana/sysvars@2.3.0(@solana/addresses@2.3.0(typescript@7.0.2))(@solana/rpc-parsed-types@2.3.0(typescript@7.0.2))(typescript@7.0.2))(@solana/web3.js@1.99.0)(@types/react@19.3.0)(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(@walletconnect/types@2.19.1)(bs58@4.0.1)(bufferutil@4.1.0)(fastestsmallesttextencoderdecoder@1.0.22)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(tslib@2.8.1)(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(ws@8.22.0)(zod@4.6.7)
+      '@solana/wallet-adapter-wallets': 0.19.40(@babel/runtime@7.29.10)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@solana/sysvars@2.3.0(@solana/addresses@2.3.0(typescript@7.0.2))(@solana/rpc-parsed-types@2.3.0(typescript@7.0.2))(typescript@7.0.2))(@solana/web3.js@1.99.0)(@types/react@19.3.0)(@upstash/redis@1.39.0)(@walletconnect/types@2.19.1)(bs58@4.0.1)(bufferutil@4.1.0)(fastestsmallesttextencoderdecoder@1.0.22)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(tslib@2.8.1)(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(ws@8.22.0)(zod@4.6.7)
       '@solana/web3.js': 1.98.4(typescript@7.0.2)
-      '@stwd/react': 0.7.2(7e72169e97911623ffa102f7fae0e67a)
+      '@stwd/react': 0.7.2(8d290c4ee11bfe507f35f12b61dd5d3e)
       '@stwd/sdk': 0.11.0
       '@tanstack/react-query': 5.104.5(@types/react@19.3.0)(react@19.3.1)
       '@tsparticles/basic': 3.9.1
@@ -17894,6 +17834,7 @@ snapshots:
       - '@vercel/kv'
       - '@vercel/postgres'
       - '@walletconnect/ethereum-provider'
+      - '@walletconnect/jsonrpc-types'
       - '@xata.io/client'
       - accounts
       - aws4fetch
@@ -17932,7 +17873,6 @@ snapshots:
       - vfile
       - vue
       - wagmi
-      - zod
 
   '@elizaos/vault@2.0.11-beta.7(ws@8.22.0)':
     dependencies:
@@ -19403,6 +19343,8 @@ snapshots:
     dependencies:
       zod: 4.6.7(patch_hash=6461b918131c140d2f2a01654ad5d97770e039ca19d8c0b0e560847558628ff5)
 
+  '@msgpack/msgpack@3.1.3': {}
+
   '@msgpackr-extract/msgpackr-extract-darwin-arm64@3.0.4':
     optional: true
 
@@ -19531,8 +19473,6 @@ snapshots:
       crc: 3.8.0
       jsbi: 3.2.5
       sha.js: 2.4.12
-
-  '@noble/ciphers@1.2.1': {}
 
   '@noble/ciphers@1.3.0': {}
 
@@ -21060,7 +21000,6 @@ snapshots:
       - ioredis
       - uploadthing
       - utf-8-validate
-      - zod
 
   '@reown/appkit-controllers@1.7.8(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@noble/hashes@2.2.0)(@types/react@19.3.0)(@upstash/redis@1.39.0)(@walletconnect/types@2.21.1)(react@19.3.1)(typescript@7.0.2)(undici@8.12.2)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)':
     dependencies:
@@ -21095,7 +21034,6 @@ snapshots:
       - ioredis
       - uploadthing
       - utf-8-validate
-      - zod
 
   '@reown/appkit-pay@1.7.8(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@noble/hashes@2.2.0)(@types/react@19.3.0)(@upstash/redis@1.39.0)(@walletconnect/types@2.21.1)(react@19.3.1)(typescript@7.0.2)(undici@8.12.2)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)':
     dependencies:
@@ -21129,7 +21067,6 @@ snapshots:
       - uploadthing
       - utf-8-validate
       - vue
-      - zod
 
   '@reown/appkit-polyfills@1.7.2':
     dependencies:
@@ -21171,7 +21108,6 @@ snapshots:
       - uploadthing
       - utf-8-validate
       - vue
-      - zod
 
   '@reown/appkit-scaffold-ui@1.7.8(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@noble/hashes@2.2.0)(@types/react@19.3.0)(@upstash/redis@1.39.0)(@walletconnect/types@2.21.1)(react@19.3.1)(typescript@7.0.2)(undici@8.12.2)(valtio@1.13.2(@types/react@19.3.0)(react@19.3.1))(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)':
     dependencies:
@@ -21205,7 +21141,6 @@ snapshots:
       - uploadthing
       - utf-8-validate
       - vue
-      - zod
 
   '@reown/appkit-ui@1.7.2(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@noble/hashes@2.2.0)(@types/react@19.3.0)(@upstash/redis@1.39.0)(@walletconnect/types@2.19.1)(react@19.3.1)(typescript@7.0.2)(undici@8.12.2)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)':
     dependencies:
@@ -21238,7 +21173,6 @@ snapshots:
       - uploadthing
       - utf-8-validate
       - vue
-      - zod
 
   '@reown/appkit-ui@1.7.8(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@noble/hashes@2.2.0)(@types/react@19.3.0)(@upstash/redis@1.39.0)(@walletconnect/types@2.21.1)(react@19.3.1)(typescript@7.0.2)(undici@8.12.2)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)':
     dependencies:
@@ -21271,7 +21205,6 @@ snapshots:
       - uploadthing
       - utf-8-validate
       - vue
-      - zod
 
   '@reown/appkit-utils@1.7.2(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@noble/hashes@2.2.0)(@upstash/redis@1.39.0)(@walletconnect/types@2.19.1)(typescript@7.0.2)(undici@8.12.2)(valtio@1.13.2(@types/react@19.3.0)(react@19.3.1))(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)':
     dependencies:
@@ -21307,7 +21240,6 @@ snapshots:
       - uploadthing
       - utf-8-validate
       - vue
-      - zod
 
   '@reown/appkit-utils@1.7.8(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@noble/hashes@2.2.0)(@upstash/redis@1.39.0)(@walletconnect/types@2.21.1)(typescript@7.0.2)(undici@8.12.2)(valtio@1.13.2(@types/react@19.3.0)(react@19.3.1))(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)':
     dependencies:
@@ -21343,7 +21275,6 @@ snapshots:
       - uploadthing
       - utf-8-validate
       - vue
-      - zod
 
   '@reown/appkit-wallet@1.7.2(typescript@7.0.2)':
     dependencies:
@@ -21404,7 +21335,6 @@ snapshots:
       - uploadthing
       - utf-8-validate
       - vue
-      - zod
 
   '@reown/appkit@1.7.8(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@noble/hashes@2.2.0)(@types/react@19.3.0)(@upstash/redis@1.39.0)(@walletconnect/types@2.21.1)(react@19.3.1)(typescript@7.0.2)(undici@8.12.2)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)':
     dependencies:
@@ -21446,7 +21376,6 @@ snapshots:
       - uploadthing
       - utf-8-validate
       - vue
-      - zod
 
   '@rolldown/binding-android-arm-eabi@1.2.15':
     optional: true
@@ -21662,12 +21591,6 @@ snapshots:
       '@noble/hashes': 1.4.0
       '@scure/base': 1.1.9
 
-  '@scure/bip32@1.6.2':
-    dependencies:
-      '@noble/curves': 1.8.1
-      '@noble/hashes': 1.7.1
-      '@scure/base': 1.2.6
-
   '@scure/bip32@1.7.0':
     dependencies:
       '@noble/curves': 1.9.7
@@ -21683,11 +21606,6 @@ snapshots:
     dependencies:
       '@noble/hashes': 1.4.0
       '@scure/base': 1.1.9
-
-  '@scure/bip39@1.5.4':
-    dependencies:
-      '@noble/hashes': 1.7.1
-      '@scure/base': 1.2.6
 
   '@scure/bip39@1.6.0':
     dependencies:
@@ -24364,11 +24282,11 @@ snapshots:
     transitivePeerDependencies:
       - fastestsmallesttextencoderdecoder
 
-  '@solana/wallet-adapter-walletconnect@0.1.22(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@noble/hashes@2.2.0)(@solana/web3.js@1.99.0)(@types/react@19.3.0)(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(@walletconnect/types@2.19.1)(react@19.3.1)(typescript@7.0.2)(undici@8.12.2)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)':
+  '@solana/wallet-adapter-walletconnect@0.1.22(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@noble/hashes@2.2.0)(@solana/web3.js@1.99.0)(@types/react@19.3.0)(@upstash/redis@1.39.0)(@walletconnect/types@2.19.1)(react@19.3.1)(typescript@7.0.2)(undici@8.12.2)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)':
     dependencies:
       '@solana/wallet-adapter-base': 0.9.28(@solana/web3.js@1.99.0)
       '@solana/web3.js': 1.99.0
-      '@walletconnect/solana-adapter': 0.0.8(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@noble/hashes@2.2.0)(@solana/wallet-adapter-base@0.9.28(@solana/web3.js@1.99.0))(@solana/web3.js@1.99.0)(@types/react@19.3.0)(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(@walletconnect/types@2.19.1)(react@19.3.1)(typescript@7.0.2)(undici@8.12.2)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)
+      '@walletconnect/solana-adapter': 0.0.8(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@noble/hashes@2.2.0)(@solana/wallet-adapter-base@0.9.28(@solana/web3.js@1.99.0))(@solana/web3.js@1.99.0)(@types/react@19.3.0)(@upstash/redis@1.39.0)(@walletconnect/types@2.19.1)(react@19.3.1)(typescript@7.0.2)(undici@8.12.2)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)
     transitivePeerDependencies:
       - '@azure/app-configuration'
       - '@azure/cosmos'
@@ -24385,6 +24303,7 @@ snapshots:
       - '@vercel/blob'
       - '@vercel/functions'
       - '@vercel/kv'
+      - '@walletconnect/jsonrpc-types'
       - aws4fetch
       - bufferutil
       - bun
@@ -24394,9 +24313,8 @@ snapshots:
       - uploadthing
       - utf-8-validate
       - vue
-      - zod
 
-  '@solana/wallet-adapter-wallets@0.19.40(@babel/runtime@7.29.10)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@solana/sysvars@2.3.0(@solana/addresses@2.3.0(typescript@7.0.2))(@solana/rpc-parsed-types@2.3.0(typescript@7.0.2))(typescript@7.0.2))(@solana/web3.js@1.99.0)(@types/react@19.3.0)(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(@walletconnect/types@2.19.1)(bs58@4.0.1)(bufferutil@4.1.0)(fastestsmallesttextencoderdecoder@1.0.22)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(tslib@2.8.1)(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(ws@8.22.0)(zod@4.6.7)':
+  '@solana/wallet-adapter-wallets@0.19.40(@babel/runtime@7.29.10)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@solana/sysvars@2.3.0(@solana/addresses@2.3.0(typescript@7.0.2))(@solana/rpc-parsed-types@2.3.0(typescript@7.0.2))(typescript@7.0.2))(@solana/web3.js@1.99.0)(@types/react@19.3.0)(@upstash/redis@1.39.0)(@walletconnect/types@2.19.1)(bs58@4.0.1)(bufferutil@4.1.0)(fastestsmallesttextencoderdecoder@1.0.22)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(tslib@2.8.1)(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(ws@8.22.0)(zod@4.6.7)':
     dependencies:
       '@solana/wallet-adapter-alpha': 0.1.15(@solana/web3.js@1.99.0)
       '@solana/wallet-adapter-avana': 0.1.18(@solana/web3.js@1.99.0)
@@ -24432,7 +24350,7 @@ snapshots:
       '@solana/wallet-adapter-trezor': 0.1.7(@noble/curves@2.2.0)(@solana/sysvars@2.3.0(@solana/addresses@2.3.0(typescript@7.0.2))(@solana/rpc-parsed-types@2.3.0(typescript@7.0.2))(typescript@7.0.2))(@solana/web3.js@1.99.0)(fastestsmallesttextencoderdecoder@1.0.22)(tslib@2.8.1)(typescript@7.0.2)(ws@8.22.0)
       '@solana/wallet-adapter-trust': 0.1.18(@solana/web3.js@1.99.0)
       '@solana/wallet-adapter-unsafe-burner': 0.1.13(@solana/web3.js@1.99.0)(typescript@7.0.2)
-      '@solana/wallet-adapter-walletconnect': 0.1.22(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@noble/hashes@2.2.0)(@solana/web3.js@1.99.0)(@types/react@19.3.0)(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(@walletconnect/types@2.19.1)(react@19.3.1)(typescript@7.0.2)(undici@8.12.2)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)
+      '@solana/wallet-adapter-walletconnect': 0.1.22(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@noble/hashes@2.2.0)(@solana/web3.js@1.99.0)(@types/react@19.3.0)(@upstash/redis@1.39.0)(@walletconnect/types@2.19.1)(react@19.3.1)(typescript@7.0.2)(undici@8.12.2)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)
       '@solana/wallet-adapter-xdefi': 0.1.12(@solana/web3.js@1.99.0)
       '@solana/web3.js': 1.99.0
     transitivePeerDependencies:
@@ -24454,6 +24372,7 @@ snapshots:
       - '@vercel/blob'
       - '@vercel/functions'
       - '@vercel/kv'
+      - '@walletconnect/jsonrpc-types'
       - aws4fetch
       - bufferutil
       - bun
@@ -24471,7 +24390,6 @@ snapshots:
       - uploadthing
       - utf-8-validate
       - vue
-      - zod
 
   '@solana/wallet-adapter-xdefi@0.1.12(@solana/web3.js@1.99.0)':
     dependencies:
@@ -24638,12 +24556,12 @@ snapshots:
       '@rollup/rollup-win32-arm64-msvc': 4.44.0
       '@rollup/rollup-win32-x64-msvc': 4.44.0
 
-  '@stwd/react@0.7.2(7e72169e97911623ffa102f7fae0e67a)':
+  '@stwd/react@0.7.2(8d290c4ee11bfe507f35f12b61dd5d3e)':
     dependencies:
       '@rainbow-me/rainbowkit': 2.2.11(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@tanstack/react-query@5.104.5(@types/react@19.3.0)(react@19.3.1))(@upstash/redis@1.39.0)(bufferutil@4.1.0)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(undici@8.12.2)(utf-8-validate@5.0.10)(viem@2.57.11(typescript@7.0.2))(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(wagmi@2.19.5(@tanstack/react-query@5.104.5(@types/react@19.3.0)(react@19.3.1))(react@19.3.1)(typescript@7.0.2)(viem@2.57.11(typescript@7.0.2)))(zod@4.6.7)
       '@solana/wallet-adapter-react': 0.15.40(@babel/core@7.29.7)(@solana/web3.js@1.99.0)(bs58@6.0.0)(electron@45.0.0)(react@19.3.1)(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(typescript@7.0.2)
       '@solana/wallet-adapter-react-ui': 0.9.40(@babel/core@7.29.7)(@solana/web3.js@1.99.0)(bs58@6.0.0)(electron@45.0.0)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(react-native@0.88.0(@types/react@19.3.0)(react@19.3.1))(typescript@7.0.2)
-      '@solana/wallet-adapter-wallets': 0.19.40(@babel/runtime@7.29.10)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@solana/sysvars@2.3.0(@solana/addresses@2.3.0(typescript@7.0.2))(@solana/rpc-parsed-types@2.3.0(typescript@7.0.2))(typescript@7.0.2))(@solana/web3.js@1.99.0)(@types/react@19.3.0)(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(@walletconnect/types@2.19.1)(bs58@4.0.1)(bufferutil@4.1.0)(fastestsmallesttextencoderdecoder@1.0.22)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(tslib@2.8.1)(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(ws@8.22.0)(zod@4.6.7)
+      '@solana/wallet-adapter-wallets': 0.19.40(@babel/runtime@7.29.10)(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@solana/sysvars@2.3.0(@solana/addresses@2.3.0(typescript@7.0.2))(@solana/rpc-parsed-types@2.3.0(typescript@7.0.2))(typescript@7.0.2))(@solana/web3.js@1.99.0)(@types/react@19.3.0)(@upstash/redis@1.39.0)(@walletconnect/types@2.19.1)(bs58@4.0.1)(bufferutil@4.1.0)(fastestsmallesttextencoderdecoder@1.0.22)(react@19.3.1)(react-dom@19.3.1(react@19.3.1))(tslib@2.8.1)(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(ws@8.22.0)(zod@4.6.7)
       '@solana/web3.js': 1.98.4(typescript@7.0.2)
       '@stwd/sdk': 0.8.1
       '@tanstack/react-query': 5.104.5(@types/react@19.3.0)(react@19.3.1)
@@ -25650,7 +25568,6 @@ snapshots:
       - uploadthing
       - utf-8-validate
       - vue
-      - zod
 
   '@wagmi/connectors@8.2.2(@types/react@19.3.0)(@wagmi/core@3.6.7(typescript@7.0.2)(viem@2.57.11(typescript@7.0.2)))(react@19.3.1)(typescript@7.0.2)(use-sync-external-store@1.4.0(react@19.3.1))(viem@2.57.11(typescript@7.0.2))(zod@4.6.7)':
     dependencies:
@@ -25727,7 +25644,7 @@ snapshots:
       '@walletconnect/safe-json': 1.0.2
       '@walletconnect/time': 1.0.2
       '@walletconnect/types': 2.19.0(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(undici@8.12.2)
-      '@walletconnect/utils': 2.19.0(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(typescript@7.0.2)(undici@8.12.2)(zod@4.6.7)
+      '@walletconnect/utils': 2.26.0(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(typescript@7.0.2)(undici@8.12.2)(zod@4.6.7)
       '@walletconnect/window-getters': 1.0.1
       events: 3.3.0
       lodash.isequal: 4.5.0
@@ -25754,7 +25671,6 @@ snapshots:
       - ioredis
       - uploadthing
       - utf-8-validate
-      - zod
 
   '@walletconnect/core@2.19.1(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(typescript@7.0.2)(undici@8.12.2)(zod@4.6.7)':
     dependencies:
@@ -25770,7 +25686,7 @@ snapshots:
       '@walletconnect/safe-json': 1.0.2
       '@walletconnect/time': 1.0.2
       '@walletconnect/types': 2.19.1(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(undici@8.12.2)
-      '@walletconnect/utils': 2.19.1(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(typescript@7.0.2)(undici@8.12.2)(zod@4.6.7)
+      '@walletconnect/utils': 2.26.0(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(typescript@7.0.2)(undici@8.12.2)(zod@4.6.7)
       '@walletconnect/window-getters': 1.0.1
       es-toolkit: 1.33.0
       events: 3.3.0
@@ -25797,7 +25713,6 @@ snapshots:
       - ioredis
       - uploadthing
       - utf-8-validate
-      - zod
 
   '@walletconnect/core@2.21.0(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(typescript@7.0.2)(undici@8.12.2)(zod@4.6.7)':
     dependencies:
@@ -25813,7 +25728,7 @@ snapshots:
       '@walletconnect/safe-json': 1.0.2
       '@walletconnect/time': 1.0.2
       '@walletconnect/types': 2.21.0(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(undici@8.12.2)
-      '@walletconnect/utils': 2.21.0(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(typescript@7.0.2)(undici@8.12.2)(zod@4.6.7)
+      '@walletconnect/utils': 2.26.0(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(typescript@7.0.2)(undici@8.12.2)(zod@4.6.7)
       '@walletconnect/window-getters': 1.0.1
       es-toolkit: 1.33.0
       events: 3.3.0
@@ -25840,7 +25755,6 @@ snapshots:
       - ioredis
       - uploadthing
       - utf-8-validate
-      - zod
 
   '@walletconnect/core@2.21.1(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(typescript@7.0.2)(undici@8.12.2)(zod@4.6.7)':
     dependencies:
@@ -25856,7 +25770,7 @@ snapshots:
       '@walletconnect/safe-json': 1.0.2
       '@walletconnect/time': 1.0.2
       '@walletconnect/types': 2.21.1(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(undici@8.12.2)
-      '@walletconnect/utils': 2.21.1(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(typescript@7.0.2)(undici@8.12.2)(zod@4.6.7)
+      '@walletconnect/utils': 2.26.0(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(typescript@7.0.2)(undici@8.12.2)(zod@4.6.7)
       '@walletconnect/window-getters': 1.0.1
       es-toolkit: 1.33.0
       events: 3.3.0
@@ -25883,7 +25797,6 @@ snapshots:
       - ioredis
       - uploadthing
       - utf-8-validate
-      - zod
 
   '@walletconnect/environment@1.0.1':
     dependencies:
@@ -25900,7 +25813,7 @@ snapshots:
       '@walletconnect/sign-client': 2.21.1(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(typescript@7.0.2)(undici@8.12.2)(zod@4.6.7)
       '@walletconnect/types': 2.21.1(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(undici@8.12.2)
       '@walletconnect/universal-provider': 2.21.1(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(typescript@7.0.2)(undici@8.12.2)(zod@4.6.7)
-      '@walletconnect/utils': 2.21.1(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(typescript@7.0.2)(undici@8.12.2)(zod@4.6.7)
+      '@walletconnect/utils': 2.26.0(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(typescript@7.0.2)(undici@8.12.2)(zod@4.6.7)
       events: 3.3.0
     transitivePeerDependencies:
       - '@azure/app-configuration'
@@ -25927,7 +25840,6 @@ snapshots:
       - uploadthing
       - utf-8-validate
       - vue
-      - zod
 
   '@walletconnect/events@1.0.1':
     dependencies:
@@ -26006,6 +25918,11 @@ snapshots:
       '@walletconnect/safe-json': 1.0.2
       pino: 7.11.0
 
+  '@walletconnect/logger@3.0.2':
+    dependencies:
+      '@walletconnect/safe-json': 1.0.2
+      pino: 10.0.0
+
   '@walletconnect/relay-api@1.0.11':
     dependencies:
       '@walletconnect/jsonrpc-types': 1.0.4
@@ -26031,7 +25948,7 @@ snapshots:
       '@walletconnect/logger': 2.1.2
       '@walletconnect/time': 1.0.2
       '@walletconnect/types': 2.19.0(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(undici@8.12.2)
-      '@walletconnect/utils': 2.19.0(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(typescript@7.0.2)(undici@8.12.2)(zod@4.6.7)
+      '@walletconnect/utils': 2.26.0(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(typescript@7.0.2)(undici@8.12.2)(zod@4.6.7)
       events: 3.3.0
     transitivePeerDependencies:
       - '@azure/app-configuration'
@@ -26055,7 +25972,6 @@ snapshots:
       - ioredis
       - uploadthing
       - utf-8-validate
-      - zod
 
   '@walletconnect/sign-client@2.19.1(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(typescript@7.0.2)(undici@8.12.2)(zod@4.6.7)':
     dependencies:
@@ -26066,7 +25982,7 @@ snapshots:
       '@walletconnect/logger': 2.1.2
       '@walletconnect/time': 1.0.2
       '@walletconnect/types': 2.19.1(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(undici@8.12.2)
-      '@walletconnect/utils': 2.19.1(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(typescript@7.0.2)(undici@8.12.2)(zod@4.6.7)
+      '@walletconnect/utils': 2.26.0(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(typescript@7.0.2)(undici@8.12.2)(zod@4.6.7)
       events: 3.3.0
     transitivePeerDependencies:
       - '@azure/app-configuration'
@@ -26090,7 +26006,6 @@ snapshots:
       - ioredis
       - uploadthing
       - utf-8-validate
-      - zod
 
   '@walletconnect/sign-client@2.21.0(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(typescript@7.0.2)(undici@8.12.2)(zod@4.6.7)':
     dependencies:
@@ -26101,7 +26016,7 @@ snapshots:
       '@walletconnect/logger': 2.1.2
       '@walletconnect/time': 1.0.2
       '@walletconnect/types': 2.21.0(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(undici@8.12.2)
-      '@walletconnect/utils': 2.21.0(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(typescript@7.0.2)(undici@8.12.2)(zod@4.6.7)
+      '@walletconnect/utils': 2.26.0(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(typescript@7.0.2)(undici@8.12.2)(zod@4.6.7)
       events: 3.3.0
     transitivePeerDependencies:
       - '@azure/app-configuration'
@@ -26125,7 +26040,6 @@ snapshots:
       - ioredis
       - uploadthing
       - utf-8-validate
-      - zod
 
   '@walletconnect/sign-client@2.21.1(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(typescript@7.0.2)(undici@8.12.2)(zod@4.6.7)':
     dependencies:
@@ -26136,7 +26050,7 @@ snapshots:
       '@walletconnect/logger': 2.1.2
       '@walletconnect/time': 1.0.2
       '@walletconnect/types': 2.21.1(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(undici@8.12.2)
-      '@walletconnect/utils': 2.21.1(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(typescript@7.0.2)(undici@8.12.2)(zod@4.6.7)
+      '@walletconnect/utils': 2.26.0(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(typescript@7.0.2)(undici@8.12.2)(zod@4.6.7)
       events: 3.3.0
     transitivePeerDependencies:
       - '@azure/app-configuration'
@@ -26160,15 +26074,14 @@ snapshots:
       - ioredis
       - uploadthing
       - utf-8-validate
-      - zod
 
-  '@walletconnect/solana-adapter@0.0.8(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@noble/hashes@2.2.0)(@solana/wallet-adapter-base@0.9.28(@solana/web3.js@1.99.0))(@solana/web3.js@1.99.0)(@types/react@19.3.0)(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(@walletconnect/types@2.19.1)(react@19.3.1)(typescript@7.0.2)(undici@8.12.2)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)':
+  '@walletconnect/solana-adapter@0.0.8(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@noble/hashes@2.2.0)(@solana/wallet-adapter-base@0.9.28(@solana/web3.js@1.99.0))(@solana/web3.js@1.99.0)(@types/react@19.3.0)(@upstash/redis@1.39.0)(@walletconnect/types@2.19.1)(react@19.3.1)(typescript@7.0.2)(undici@8.12.2)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)':
     dependencies:
       '@reown/appkit': 1.7.2(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@noble/hashes@2.2.0)(@types/react@19.3.0)(@upstash/redis@1.39.0)(@walletconnect/types@2.19.1)(react@19.3.1)(typescript@7.0.2)(undici@8.12.2)(vitest@5.0.5(@types/node@26.6.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)
       '@solana/wallet-adapter-base': 0.9.28(@solana/web3.js@1.99.0)
       '@solana/web3.js': 1.99.0
       '@walletconnect/universal-provider': 2.19.0(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(typescript@7.0.2)(undici@8.12.2)(zod@4.6.7)
-      '@walletconnect/utils': 2.19.0(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(typescript@7.0.2)(undici@8.12.2)(zod@4.6.7)
+      '@walletconnect/utils': 2.26.0(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(typescript@7.0.2)(undici@8.12.2)(zod@4.6.7)
       bs58: 6.0.0
     transitivePeerDependencies:
       - '@azure/app-configuration'
@@ -26186,6 +26099,7 @@ snapshots:
       - '@vercel/blob'
       - '@vercel/functions'
       - '@vercel/kv'
+      - '@walletconnect/jsonrpc-types'
       - aws4fetch
       - bufferutil
       - bun
@@ -26195,7 +26109,6 @@ snapshots:
       - uploadthing
       - utf-8-validate
       - vue
-      - zod
 
   '@walletconnect/time@1.0.2':
     dependencies:
@@ -26317,6 +26230,35 @@ snapshots:
       - ioredis
       - uploadthing
 
+  '@walletconnect/types@2.26.0(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(undici@8.12.2)':
+    dependencies:
+      '@walletconnect/events': 1.0.1
+      '@walletconnect/heartbeat': 1.2.2
+      '@walletconnect/jsonrpc-types': 1.0.4
+      '@walletconnect/keyvaluestorage': 1.1.1(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(undici@8.12.2)
+      '@walletconnect/logger': 3.0.2
+      events: 3.3.0
+    transitivePeerDependencies:
+      - '@azure/app-configuration'
+      - '@azure/cosmos'
+      - '@azure/data-tables'
+      - '@azure/identity'
+      - '@azure/keyvault-secrets'
+      - '@azure/storage-blob'
+      - '@cloudflare/workers-types'
+      - '@deno/kv'
+      - '@netlify/blobs'
+      - '@planetscale/database'
+      - '@react-native-async-storage/async-storage'
+      - '@vercel/blob'
+      - '@vercel/functions'
+      - '@vercel/kv'
+      - aws4fetch
+      - bun
+      - db0
+      - ioredis
+      - uploadthing
+
   '@walletconnect/universal-provider@2.19.0(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(typescript@7.0.2)(undici@8.12.2)(zod@4.6.7)':
     dependencies:
       '@walletconnect/events': 1.0.1
@@ -26328,7 +26270,7 @@ snapshots:
       '@walletconnect/logger': 2.1.2
       '@walletconnect/sign-client': 2.19.0(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(typescript@7.0.2)(undici@8.12.2)(zod@4.6.7)
       '@walletconnect/types': 2.19.0(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(undici@8.12.2)
-      '@walletconnect/utils': 2.19.0(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(typescript@7.0.2)(undici@8.12.2)(zod@4.6.7)
+      '@walletconnect/utils': 2.26.0(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(typescript@7.0.2)(undici@8.12.2)(zod@4.6.7)
       events: 3.3.0
       lodash: 4.18.1
     transitivePeerDependencies:
@@ -26354,7 +26296,6 @@ snapshots:
       - ioredis
       - uploadthing
       - utf-8-validate
-      - zod
 
   '@walletconnect/universal-provider@2.19.1(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(typescript@7.0.2)(undici@8.12.2)(zod@4.6.7)':
     dependencies:
@@ -26367,7 +26308,7 @@ snapshots:
       '@walletconnect/logger': 2.1.2
       '@walletconnect/sign-client': 2.19.1(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(typescript@7.0.2)(undici@8.12.2)(zod@4.6.7)
       '@walletconnect/types': 2.19.1(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(undici@8.12.2)
-      '@walletconnect/utils': 2.19.1(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(typescript@7.0.2)(undici@8.12.2)(zod@4.6.7)
+      '@walletconnect/utils': 2.26.0(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(typescript@7.0.2)(undici@8.12.2)(zod@4.6.7)
       es-toolkit: 1.33.0
       events: 3.3.0
     transitivePeerDependencies:
@@ -26393,7 +26334,6 @@ snapshots:
       - ioredis
       - uploadthing
       - utf-8-validate
-      - zod
 
   '@walletconnect/universal-provider@2.21.0(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(typescript@7.0.2)(undici@8.12.2)(zod@4.6.7)':
     dependencies:
@@ -26406,7 +26346,7 @@ snapshots:
       '@walletconnect/logger': 2.1.2
       '@walletconnect/sign-client': 2.21.0(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(typescript@7.0.2)(undici@8.12.2)(zod@4.6.7)
       '@walletconnect/types': 2.21.0(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(undici@8.12.2)
-      '@walletconnect/utils': 2.21.0(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(typescript@7.0.2)(undici@8.12.2)(zod@4.6.7)
+      '@walletconnect/utils': 2.26.0(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(typescript@7.0.2)(undici@8.12.2)(zod@4.6.7)
       es-toolkit: 1.33.0
       events: 3.3.0
     transitivePeerDependencies:
@@ -26432,7 +26372,6 @@ snapshots:
       - ioredis
       - uploadthing
       - utf-8-validate
-      - zod
 
   '@walletconnect/universal-provider@2.21.1(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(typescript@7.0.2)(undici@8.12.2)(zod@4.6.7)':
     dependencies:
@@ -26445,7 +26384,7 @@ snapshots:
       '@walletconnect/logger': 2.1.2
       '@walletconnect/sign-client': 2.21.1(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(typescript@7.0.2)(undici@8.12.2)(zod@4.6.7)
       '@walletconnect/types': 2.21.1(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(undici@8.12.2)
-      '@walletconnect/utils': 2.21.1(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(typescript@7.0.2)(undici@8.12.2)(zod@4.6.7)
+      '@walletconnect/utils': 2.26.0(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(typescript@7.0.2)(undici@8.12.2)(zod@4.6.7)
       es-toolkit: 1.33.0
       events: 3.3.0
     transitivePeerDependencies:
@@ -26471,28 +26410,28 @@ snapshots:
       - ioredis
       - uploadthing
       - utf-8-validate
-      - zod
 
-  '@walletconnect/utils@2.19.0(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(typescript@7.0.2)(undici@8.12.2)(zod@4.6.7)':
+  '@walletconnect/utils@2.26.0(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(typescript@7.0.2)(undici@8.12.2)(zod@4.6.7)':
     dependencies:
-      '@noble/ciphers': 1.2.1
-      '@noble/curves': 1.8.1
-      '@noble/hashes': 1.7.1
+      '@msgpack/msgpack': 3.1.3
+      '@noble/ciphers': 1.3.0
+      '@noble/curves': 1.9.7
+      '@noble/hashes': 1.8.0
+      '@scure/base': 1.2.6
       '@walletconnect/jsonrpc-types': 1.0.4
       '@walletconnect/jsonrpc-utils': 1.0.8
       '@walletconnect/keyvaluestorage': 1.1.1(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(undici@8.12.2)
+      '@walletconnect/logger': 3.0.2
       '@walletconnect/relay-api': 1.0.11
       '@walletconnect/relay-auth': 1.1.0
-      '@walletconnect/safe-json': 1.0.2
       '@walletconnect/time': 1.0.2
-      '@walletconnect/types': 2.19.0(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(undici@8.12.2)
+      '@walletconnect/types': 2.26.0(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(undici@8.12.2)
       '@walletconnect/window-getters': 1.0.1
       '@walletconnect/window-metadata': 1.0.1
+      blakejs: 1.2.1
       detect-browser: 5.3.0
-      elliptic: 6.6.1(patch_hash=f5c7aa5eb9ea9b96b6353661631aeaa881536a9b66503bba7fd745f9857f65f7)
-      query-string: 7.1.3
-      uint8arrays: 3.1.0
-      viem: 2.23.2(typescript@7.0.2)(zod@4.6.7)
+      ox: 0.9.3(typescript@7.0.2)(zod@4.6.7)
+      uint8arrays: 3.1.1
     transitivePeerDependencies:
       - '@azure/app-configuration'
       - '@azure/cosmos'
@@ -26509,35 +26448,31 @@ snapshots:
       - '@vercel/functions'
       - '@vercel/kv'
       - aws4fetch
-      - bufferutil
       - bun
       - db0
       - ioredis
       - uploadthing
-      - utf-8-validate
-      - zod
 
-  '@walletconnect/utils@2.19.1(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(typescript@7.0.2)(undici@8.12.2)(zod@4.6.7)':
+  '@walletconnect/utils@2.26.0(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(typescript@7.0.2)(undici@8.12.2)(zod@4.6.7)':
     dependencies:
-      '@noble/ciphers': 1.2.1
-      '@noble/curves': 1.8.1
-      '@noble/hashes': 1.7.1
-      '@walletconnect/jsonrpc-types': 1.0.4
+      '@msgpack/msgpack': 3.1.3
+      '@noble/ciphers': 1.3.0
+      '@noble/curves': 1.9.7
+      '@noble/hashes': 1.8.0
+      '@scure/base': 1.2.6
       '@walletconnect/jsonrpc-utils': 1.0.8
       '@walletconnect/keyvaluestorage': 1.1.1(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(undici@8.12.2)
+      '@walletconnect/logger': 3.0.2
       '@walletconnect/relay-api': 1.0.11
       '@walletconnect/relay-auth': 1.1.0
-      '@walletconnect/safe-json': 1.0.2
       '@walletconnect/time': 1.0.2
-      '@walletconnect/types': 2.19.1(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(undici@8.12.2)
+      '@walletconnect/types': 2.26.0(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(undici@8.12.2)
       '@walletconnect/window-getters': 1.0.1
       '@walletconnect/window-metadata': 1.0.1
-      bs58: 6.0.0
+      blakejs: 1.2.1
       detect-browser: 5.3.0
-      elliptic: 6.6.1(patch_hash=f5c7aa5eb9ea9b96b6353661631aeaa881536a9b66503bba7fd745f9857f65f7)
-      query-string: 7.1.3
-      uint8arrays: 3.1.0
-      viem: 2.23.2(typescript@7.0.2)(zod@4.6.7)
+      ox: 0.9.3(typescript@7.0.2)(zod@4.6.7)
+      uint8arrays: 3.1.1
     transitivePeerDependencies:
       - '@azure/app-configuration'
       - '@azure/cosmos'
@@ -26554,101 +26489,10 @@ snapshots:
       - '@vercel/functions'
       - '@vercel/kv'
       - aws4fetch
-      - bufferutil
       - bun
       - db0
       - ioredis
       - uploadthing
-      - utf-8-validate
-      - zod
-
-  '@walletconnect/utils@2.21.0(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(typescript@7.0.2)(undici@8.12.2)(zod@4.6.7)':
-    dependencies:
-      '@noble/ciphers': 1.2.1
-      '@noble/curves': 1.8.1
-      '@noble/hashes': 1.7.1
-      '@walletconnect/jsonrpc-types': 1.0.4
-      '@walletconnect/jsonrpc-utils': 1.0.8
-      '@walletconnect/keyvaluestorage': 1.1.1(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(undici@8.12.2)
-      '@walletconnect/relay-api': 1.0.11
-      '@walletconnect/relay-auth': 1.1.0
-      '@walletconnect/safe-json': 1.0.2
-      '@walletconnect/time': 1.0.2
-      '@walletconnect/types': 2.21.0(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(undici@8.12.2)
-      '@walletconnect/window-getters': 1.0.1
-      '@walletconnect/window-metadata': 1.0.1
-      bs58: 6.0.0
-      detect-browser: 5.3.0
-      query-string: 7.1.3
-      uint8arrays: 3.1.0
-      viem: 2.23.2(typescript@7.0.2)(zod@4.6.7)
-    transitivePeerDependencies:
-      - '@azure/app-configuration'
-      - '@azure/cosmos'
-      - '@azure/data-tables'
-      - '@azure/identity'
-      - '@azure/keyvault-secrets'
-      - '@azure/storage-blob'
-      - '@cloudflare/workers-types'
-      - '@deno/kv'
-      - '@netlify/blobs'
-      - '@planetscale/database'
-      - '@react-native-async-storage/async-storage'
-      - '@vercel/blob'
-      - '@vercel/functions'
-      - '@vercel/kv'
-      - aws4fetch
-      - bufferutil
-      - bun
-      - db0
-      - ioredis
-      - uploadthing
-      - utf-8-validate
-      - zod
-
-  '@walletconnect/utils@2.21.1(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(@walletconnect/jsonrpc-types@1.0.4)(typescript@7.0.2)(undici@8.12.2)(zod@4.6.7)':
-    dependencies:
-      '@noble/ciphers': 1.2.1
-      '@noble/curves': 1.8.1
-      '@noble/hashes': 1.7.1
-      '@walletconnect/jsonrpc-types': 1.0.4
-      '@walletconnect/jsonrpc-utils': 1.0.8
-      '@walletconnect/keyvaluestorage': 1.1.1(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(undici@8.12.2)
-      '@walletconnect/relay-api': 1.0.11
-      '@walletconnect/relay-auth': 1.1.0
-      '@walletconnect/safe-json': 1.0.2
-      '@walletconnect/time': 1.0.2
-      '@walletconnect/types': 2.21.1(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@upstash/redis@1.39.0)(undici@8.12.2)
-      '@walletconnect/window-getters': 1.0.1
-      '@walletconnect/window-metadata': 1.0.1
-      bs58: 6.0.0
-      detect-browser: 5.3.0
-      query-string: 7.1.3
-      uint8arrays: 3.1.0
-      viem: 2.23.2(typescript@7.0.2)(zod@4.6.7)
-    transitivePeerDependencies:
-      - '@azure/app-configuration'
-      - '@azure/cosmos'
-      - '@azure/data-tables'
-      - '@azure/identity'
-      - '@azure/keyvault-secrets'
-      - '@azure/storage-blob'
-      - '@cloudflare/workers-types'
-      - '@deno/kv'
-      - '@netlify/blobs'
-      - '@planetscale/database'
-      - '@react-native-async-storage/async-storage'
-      - '@vercel/blob'
-      - '@vercel/functions'
-      - '@vercel/kv'
-      - aws4fetch
-      - bufferutil
-      - bun
-      - db0
-      - ioredis
-      - uploadthing
-      - utf-8-validate
-      - zod
 
   '@walletconnect/window-getters@1.0.1':
     dependencies:
@@ -26754,10 +26598,6 @@ snapshots:
     dependencies:
       typescript: 7.0.2
       zod: 3.25.76(patch_hash=4a0b2f09e9ab645342eb1f2046cd1c8deb0ddec2e17af45096fa053b0f40220d)
-
-  abitype@1.0.8(typescript@7.0.2):
-    dependencies:
-      typescript: 7.0.2
 
   abitype@1.2.3(typescript@7.0.2)(zod@4.6.7):
     dependencies:
@@ -27864,8 +27704,6 @@ snapshots:
     dependencies:
       character-entities: 2.0.2
 
-  decode-uri-component@0.2.2(patch_hash=6e95f5ebf0374da22b2556c89aaf3d85d1620ee7d134ccb45a569bc5f0d37080): {}
-
   decompress-response@6.0.0:
     dependencies:
       mimic-response: 3.1.0
@@ -28776,8 +28614,6 @@ snapshots:
     dependencies:
       to-regex-range: 5.0.1
 
-  filter-obj@1.1.0: {}
-
   finalhandler@1.1.2:
     dependencies:
       debug: 2.6.9
@@ -29568,10 +29404,6 @@ snapshots:
   isomorphic-ws@4.0.1(ws@7.5.13):
     dependencies:
       ws: 7.5.13
-
-  isows@1.0.6(ws@8.22.0):
-    dependencies:
-      ws: 8.22.0
 
   isows@1.0.7(ws@8.21.0):
     dependencies:
@@ -31292,17 +31124,6 @@ snapshots:
       eventemitter3: 5.0.1
       typescript: 7.0.2
 
-  ox@0.6.7(typescript@7.0.2)(zod@4.6.7):
-    dependencies:
-      '@adraffy/ens-normalize': 1.11.1
-      '@noble/curves': 1.9.7
-      '@noble/hashes': 1.8.0
-      '@scure/bip32': 1.7.0
-      '@scure/bip39': 1.6.0
-      abitype: 1.2.3(typescript@7.0.2)(zod@4.6.7)
-      eventemitter3: 5.0.1
-      typescript: 7.0.2
-
   ox@0.6.9(typescript@7.0.2)(zod@4.6.7):
     dependencies:
       '@adraffy/ens-normalize': 1.11.1
@@ -31315,6 +31136,18 @@ snapshots:
       typescript: 7.0.2
 
   ox@0.9.17(typescript@7.0.2)(zod@4.6.7):
+    dependencies:
+      '@adraffy/ens-normalize': 1.11.1
+      '@noble/ciphers': 1.3.0
+      '@noble/curves': 1.9.1
+      '@noble/hashes': 1.8.0
+      '@scure/bip32': 1.7.0
+      '@scure/bip39': 1.6.0
+      abitype: 1.2.3(typescript@7.0.2)(zod@4.6.7)
+      eventemitter3: 5.0.1
+      typescript: 7.0.2
+
+  ox@0.9.3(typescript@7.0.2)(zod@4.6.7):
     dependencies:
       '@adraffy/ens-normalize': 1.11.1
       '@noble/ciphers': 1.3.0
@@ -31584,6 +31417,20 @@ snapshots:
   pino-std-serializers@4.0.0: {}
 
   pino-std-serializers@7.1.0: {}
+
+  pino@10.0.0:
+    dependencies:
+      atomic-sleep: 1.0.0
+      on-exit-leak-free: 2.1.2
+      pino-abstract-transport: 2.0.0
+      pino-std-serializers: 7.1.0
+      process-warning: 5.1.1
+      quick-format-unescaped: 4.0.4
+      real-require: 0.2.0
+      safe-stable-stringify: 2.5.0
+      slow-redact: 0.3.2
+      sonic-boom: 4.2.1
+      thread-stream: 3.2.0
 
   pino@10.4.0:
     dependencies:
@@ -31877,13 +31724,6 @@ snapshots:
     dependencies:
       es-define-property: 1.0.1
       side-channel: 1.1.1
-
-  query-string@7.1.3:
-    dependencies:
-      decode-uri-component: 0.2.2(patch_hash=6e95f5ebf0374da22b2556c89aaf3d85d1620ee7d134ccb45a569bc5f0d37080)
-      filter-obj: 1.1.0
-      split-on-first: 1.1.0
-      strict-uri-encode: 2.0.0
 
   quick-format-unescaped@4.0.4: {}
 
@@ -32681,6 +32521,8 @@ snapshots:
 
   slide@1.1.6: {}
 
+  slow-redact@0.3.2: {}
+
   smart-buffer@4.2.0: {}
 
   smithers-orchestrator@0.22.0(4afe46b878e2b3af5d404b8b15d7481b):
@@ -32821,8 +32663,6 @@ snapshots:
 
   space-separated-tokens@2.0.2: {}
 
-  split-on-first@1.1.0: {}
-
   split2@4.2.0: {}
 
   sprintf-js@1.0.3(patch_hash=4c691e274f4081b67a988303dc71a3bd7f384a398d8ba64e8af203c367aea836): {}
@@ -32899,8 +32739,6 @@ snapshots:
       - hast
       - supports-color
       - vfile
-
-  strict-uri-encode@2.0.0: {}
 
   string-width-cjs@4.2.3:
     dependencies:
@@ -33346,6 +33184,10 @@ snapshots:
     dependencies:
       multiformats: 9.9.0
 
+  uint8arrays@3.1.1:
+    dependencies:
+      multiformats: 9.9.0
+
   unbash@6.0.1: {}
 
   uncrypto@0.1.3: {}
@@ -33597,22 +33439,6 @@ snapshots:
       d3-time: 3.1.0
       d3-timer: 3.0.1
 
-  viem@2.23.2(typescript@7.0.2)(zod@4.6.7):
-    dependencies:
-      '@noble/curves': 1.8.1
-      '@noble/hashes': 1.7.1
-      '@scure/bip32': 1.6.2
-      '@scure/bip39': 1.5.4
-      abitype: 1.0.8(typescript@7.0.2)
-      isows: 1.0.6(ws@8.22.0)
-      ox: 0.6.7(typescript@7.0.2)(zod@4.6.7)
-      typescript: 7.0.2
-      ws: 8.22.0
-    transitivePeerDependencies:
-      - bufferutil
-      - utf-8-validate
-      - zod
-
   viem@2.57.11(typescript@7.0.2)(zod@4.6.7):
     dependencies:
       '@noble/curves': 1.9.1
@@ -33743,7 +33569,6 @@ snapshots:
       - uploadthing
       - utf-8-validate
       - vue
-      - zod
 
   wagmi@3.7.9(@tanstack/react-query@5.104.5(@types/react@19.3.0)(react@19.3.1))(react@19.3.1)(typescript@7.0.2)(viem@2.57.11(typescript@7.0.2))(zod@4.6.7):
     dependencies:

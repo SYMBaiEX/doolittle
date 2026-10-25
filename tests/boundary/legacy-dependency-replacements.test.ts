@@ -23,3 +23,29 @@ describe("modern dependency consumer contracts", () => {
     }
   });
 });
+
+it("retains WalletConnect URI parsing and shared-key encryption with the modern crypto implementation", async () => {
+  const walletRequire = createRequire(
+    resolve("node_modules/@walletconnect/core/package.json"),
+  );
+  const utils = walletRequire("@walletconnect/utils");
+  const first = utils.generateKeyPair();
+  const second = utils.generateKeyPair();
+  const shared = utils.deriveSymKey(first.privateKey, second.publicKey);
+  expect(shared).toBe(utils.deriveSymKey(second.privateKey, first.publicKey));
+  const encoded = utils.encrypt({
+    symKey: shared,
+    message: "private fixture message",
+  });
+  expect(utils.decrypt({ symKey: shared, encoded })).toBe(
+    "private fixture message",
+  );
+  expect(
+    utils.parseUri(`wc:fixture@2?relay-protocol=irn&symKey=${shared}`),
+  ).toMatchObject({
+    topic: "fixture",
+    version: 2,
+    symKey: shared,
+    relay: { protocol: "irn" },
+  });
+});

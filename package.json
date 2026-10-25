@@ -238,7 +238,8 @@
     "zod@>=3.0.0 <4.0.0": "3.25.76",
     "react": "19.3.1",
     "react-dom": "19.3.1",
-    "uuid@<11.1.1": "11.1.1"
+    "uuid@<11.1.1": "11.1.1",
+    "@walletconnect/utils": "2.26.0"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.3",
@@ -293,7 +294,6 @@
     "file-type@16.5.4": "patches/file-type+16.5.4.patch",
     "sprintf-js@1.0.3": "patches/sprintf-js+1.0.3.patch",
     "elliptic@6.6.1": "patches/elliptic+6.6.1.patch",
-    "decode-uri-component@0.2.2": "patches/decode-uri-component+0.2.2.patch",
     "@elizaos/plugin-agent-orchestrator@2.0.3-beta.7": "patches/@elizaos+plugin-agent-orchestrator@2.0.3-beta.7.patch",
     "@elizaos/plugin-codex-cli@2.0.3-beta.7": "patches/@elizaos+plugin-codex-cli@2.0.3-beta.7.patch",
     "@elizaos/core@2.0.3-beta.7": "patches/@elizaos+core@2.0.3-beta.7.patch",
