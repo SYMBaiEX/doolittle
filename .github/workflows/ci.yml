@@ -38,13 +38,13 @@ jobs:
       - name: Check formatting and lint
         run: nub run lint:check
 
-      - name: Check application and desktop types
-        run: nub run typecheck && nub run desktop:typecheck
+      - name: Check every workspace and tooling types
+        run: nub run typecheck
 
       - name: Fast security and state boundaries
         run: nub run test
 
-      - name: Build agent
+      - name: Build CLI and desktop
         run: nub run build
 
       - name: Acceptance gates
@@ -79,7 +79,7 @@ jobs:
       - name: Install Electron runtime
         run: nub run desktop:runtime:install
 
-      - name: Exercise source shared-engine worker boundary
+      - name: Exercise CLI chat and shared-engine workers
         run: nub run test:e2e:release:source
 
       - name: Exercise native new-chat and run lifecycle

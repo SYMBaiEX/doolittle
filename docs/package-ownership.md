@@ -78,7 +78,9 @@ gateway, skill, or runtime-service ownership. See
 
 ## Enforcement
 
-`nub run check:eliza-sdk` scans every workspace manifest, enforces the exact
+`nub run check:monorepo` enforces declared dependencies and exports, rejects
+shared-package dependencies on apps, and detects dependency cycles. Root aliases
+no longer bypass workspace boundaries. `nub run check:eliza-sdk` scans every workspace manifest, enforces the exact
 official package train, rejects undeclared local packages in the `@elizaos/*`
 namespace, checks installed versions, and validates the three remaining
 compatibility contracts. `nub run check:plugin-boundaries` guards runtime ownership and prevents

@@ -174,10 +174,10 @@ Research and coding are deliberately different paths. Research runs through `Mod
 ## Architecture and ownership
 
 ```text
-CLI / Cockpit / Desktop / Gateway / local HTTP API
+CLI / Cockpit (apps/cli)     Desktop (apps/desktop)
                      │
                      ▼
-          Doolittle application (packages/agent)
+          Shared Doolittle runtime (packages/agent)
           runtime assembly, product services, UI contracts
                      │
       ┌──────────────┼──────────────┐
@@ -195,8 +195,11 @@ This separation is intentional. Doolittle uses ElizaOS SDK primitives for messag
 ## Project layout
 
 ```text
+apps/cli/              Terminal chat, cockpit, commands and process host
 apps/desktop/          Electron main/preload and React renderer
-packages/agent/        Doolittle runtime, CLI, API, gateway, services
+packages/agent/        Shared Eliza runtime, API, gateway and services
+packages/ui/           Browser-only presentation components
+packages/evals/        Workflow evaluation and evidence reporting
 packages/plugins/      Provider bridges and consolidated product plugin
 packages/skills/       Curated and generated skill content
 packages/acp/          Agent Communication Protocol support
@@ -213,17 +216,17 @@ run the native acceptance suite. The historical test corpus was deleted and
 replaced with a small, maintained suite under `tests/`:
 
 ```bash
-nub run typecheck          # TypeScript, no emit
+nub run typecheck          # every code workspace and repository tooling
 nub run test               # small approval, ownership and state boundary suite
 nub run test:scope tests/boundary/project-access.test.ts
 nub run test:related path/to/changed.ts # Vitest dependency-related tests
 nub run test:watch         # fast boundaries while editing
-nub run build              # packages/agent bundle
+nub run build              # CLI and desktop applications
 nub run lint:check         # Biome check
 nub run desktop:typecheck  # desktop main, preload, renderer
 nub run desktop:test       # same root boundary suite
 nub run test:all           # boundaries + source workers + native desktop
-nub run test:integration   # real offline shared-engine SDK worker journeys
+nub run test:integration   # real terminal chat and shared-engine SDK workers
 nub run test:e2e           # source workers + real Electron/Playwright
 nub run check:acceptance   # hygiene, boundaries, SDK, docs, links, audit
 ```

@@ -14,7 +14,7 @@
   "engines": {
     "node": ">=26.0.0"
   },
-  "description": "Monorepo for the Nub-powered ElizaOS-native Doolittle platform and vendored official workspace packages.",
+  "description": "Nub monorepo for Doolittle desktop, terminal chat, shared ElizaOS runtime and tools.",
   "workspaces": [
     "apps/desktop",
     "apps/cli",
@@ -64,7 +64,7 @@
     "desktop:package:linux": "nub run --cwd apps/desktop package:linux",
     "desktop:package:all": "nub run --cwd apps/desktop package:all",
     "test:e2e:desktop-packaged": "nub scripts/run-desktop-packaged-tests.ts",
-    "test:e2e:desktop-workbench": "nub run desktop:build && nubx playwright test --config playwright.workbench.config.ts",
+    "test:e2e:desktop-workbench": "nub run cli:build && nub run desktop:build && nubx playwright test --config playwright.workbench.config.ts",
     "lint": "nubx biome check --write .",
     "lint:check": "nubx biome check .",
     "knip:deps": "nubx knip --config knip.json --dependencies --no-progress --no-config-hints --no-tag-hints",
@@ -108,7 +108,7 @@
     "check:acceptance": "nub run check:monorepo && nub run check:repo-hygiene && nub run check:workflow-security && nub run check:plugin-boundaries && nub run check:eliza-sdk && nub run check:docs-truth && nub run check:local-links && nub run knip:deps && nub run audit:production:critical",
     "check": "nub run test",
     "check:all": "nub run check:release",
-    "check:release:static": "nub run lint:check && nub run typecheck && nub run desktop:typecheck && nub run test:release && nub run build && nub run check:acceptance && nub run check:runtime-advisory-policy && nub run desktop:runtime:prepare && nub run desktop:runtime:audit",
+    "check:release:static": "nub run lint:check && nub run typecheck && nub run test:release && nub run build && nub run check:acceptance && nub run check:runtime-advisory-policy && nub run desktop:runtime:prepare && nub run desktop:runtime:audit",
     "check:release": "nub run check:release:static && nub run test:e2e:release",
     "publish:claude-code:dry-run": "nub run publish:providers -- --provider claude-code",
     "publish:devin:dry-run": "nub run publish:providers -- --provider devin",

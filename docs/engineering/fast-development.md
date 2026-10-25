@@ -50,7 +50,7 @@ not native desktop or rendered visual acceptance.
 ## Native acceptance
 
 ```sh
-nub run test:integration              # build agent; real shared-engine SDK workers
+nub run test:integration              # build CLI; real terminal chat and SDK workers
 nub run test:e2e:desktop-workbench     # build desktop; four real Electron journeys
 nub run test:e2e                      # both source runtime and native desktop
 nub run test:all                      # fast boundaries plus native acceptance
@@ -58,7 +58,10 @@ nub run check:release:static          # lint, types, boundaries, build, security
 nub run check:release                 # static + native + clean-HEAD package smoke
 ```
 
-Runtime acceptance covers two named workers in one engine, chat-specific roots,
+CLI acceptance exercises the built executable from an external directory and a
+real pseudo-terminal: help/version, JSON output, interactive chat, session
+commands and clean shutdown. Its offline recovery path never echoes assembled
+model prompts. Runtime acceptance covers two named workers in one engine, chat-specific roots,
 offline run attribution, ACP ownership, worker restart/history, automation
 handoff and cancellation. Native desktop acceptance covers conversational bot
 creation and provider/model selections, first chat, exact remembered project
