@@ -144,3 +144,32 @@ it("rejects SDK standalone state and hosted wallet modules when they enter the r
     expect(() => assertDesktopRendererBoundary(bundle)).not.toThrow();
   }
 });
+
+it("rejects a hosted wallet client imported directly into the renderer", () => {
+  const bundle = {
+    main: {
+      type: "chunk" as const,
+      fileName: "main.js",
+      code: "fixture",
+      modules: {
+        "/fixture/node_modules/@coinbase/cdp-sdk/_esm/index.js": {
+          renderedLength: 1,
+        },
+      },
+    },
+  };
+  expect(() => assertDesktopRendererBoundary(bundle)).toThrow(
+    "standalone Eliza",
+  );
+  const primitive = {
+    main: {
+      ...bundle.main,
+      modules: {
+        "/fixture/node_modules/@elizaos/ui/components/ui/button.js": {
+          renderedLength: 1,
+        },
+      },
+    },
+  };
+  expect(() => assertDesktopRendererBoundary(primitive)).not.toThrow();
+});

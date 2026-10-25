@@ -128,7 +128,9 @@ export function assertDesktopRendererBoundary(
       const portable = id.replaceAll("\\", "/");
       if (
         module.renderedLength > 0 &&
-        /\/@elizaos\/ui\/(?:cloud\/billing\/wallet\/|state\/)/u.test(portable)
+        /(?:\/@elizaos\/ui\/(?:cloud\/billing\/wallet\/|state\/)|\/node_modules\/(?:@rainbow-me\/rainbowkit|@stwd\/react|wagmi|@coinbase\/cdp-sdk)\/)/u.test(
+          portable,
+        )
       ) {
         throw new Error(
           `Desktop renderer reached standalone Eliza application code: ${id}`,
