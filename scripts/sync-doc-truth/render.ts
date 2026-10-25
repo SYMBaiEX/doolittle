@@ -1,4 +1,4 @@
-import type { NativeCapabilityTruthRecord } from "@/runtime/native/capability-truth";
+import type { NativeCapabilityTruthRecord } from "@doolittle/agent/runtime/native/capability-truth";
 import type { PluginInventoryRow } from "./types";
 
 function escapeCell(value: string): string {

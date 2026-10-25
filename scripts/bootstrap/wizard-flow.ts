@@ -1,6 +1,6 @@
 import { stdin as input, stdout as output } from "node:process";
 import { createInterface } from "node:readline/promises";
-import { getLinkedProviderAccountsSnapshot } from "@/runtime/native/account-auth";
+import { getLinkedProviderAccountsSnapshot } from "@doolittle/agent/runtime/native/account-auth";
 import { createHeadlessAnswers } from "./answers";
 import type { BootstrapWizardContext } from "./bootstrap-context";
 import type { PromptHandle } from "./prompting/types";

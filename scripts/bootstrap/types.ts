@@ -1,7 +1,7 @@
-import type { TuiThemeName } from "@/runtime/theme-catalog";
-import type { ElizaMcpSettings } from "@/services/mcp/settings";
-import type { RuntimeSettings as ServiceRuntimeSettings } from "@/services/settings/runtime-settings";
-import type { RunDepth, ToolProgressMode } from "@/types";
+import type { TuiThemeName } from "@doolittle/agent/runtime/theme-catalog";
+import type { ElizaMcpSettings } from "@doolittle/agent/services/mcp/settings";
+import type { RuntimeSettings as ServiceRuntimeSettings } from "@doolittle/agent/services/settings/runtime-settings";
+import type { RunDepth, ToolProgressMode } from "@doolittle/agent/types";
 
 export type ExecutionBackendName =
   | "local"

@@ -2,7 +2,7 @@ import {
   getReadableTextColor,
   getTuiTheme,
   type TuiThemeName,
-} from "@/runtime/theme-catalog";
+} from "@doolittle/agent/runtime/theme-catalog";
 import {
   WIZARD_MIN_COLS,
   WIZARD_MIN_ROWS,

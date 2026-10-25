@@ -1,4 +1,4 @@
-import type { LinkedProviderAccountsSnapshot } from "@/runtime/native/account-auth";
+import type { LinkedProviderAccountsSnapshot } from "@doolittle/agent/runtime/native/account-auth";
 import type { BootstrapWizardContext } from "../../../bootstrap-context";
 import { ask, askSecret, chooseOne } from "../../../core/prompt-ops";
 import type { PromptHandle } from "../../../prompting/types";

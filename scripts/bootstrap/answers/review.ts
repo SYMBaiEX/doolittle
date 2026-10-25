@@ -1,4 +1,4 @@
-import type { getLinkedProviderAccountsSnapshot } from "@/runtime/native/account-auth";
+import type { getLinkedProviderAccountsSnapshot } from "@doolittle/agent/runtime/native/account-auth";
 import type { ReviewResult, TransportName, WizardAnswers } from "../types";
 
 export interface LinkedProviderReadiness {

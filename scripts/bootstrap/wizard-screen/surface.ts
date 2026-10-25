@@ -1,5 +1,8 @@
+import {
+  DEFAULT_TUI_THEME,
+  type TuiThemeName,
+} from "@doolittle/agent/runtime/theme-catalog";
 import blessed from "blessed";
-import { DEFAULT_TUI_THEME, type TuiThemeName } from "@/runtime/theme-catalog";
 import { installWizardScreenEvents } from "./events";
 import { createWizardOverlay } from "./overlay";
 import { createWizardPromptHandlers } from "./prompt-overlays";

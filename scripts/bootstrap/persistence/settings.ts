@@ -1,5 +1,5 @@
+import { createElizaMcpSettingsFromCommand } from "@doolittle/agent/services/mcp/settings";
 import { DEFAULT_MODEL_ROUTE } from "@doolittle/contracts";
-import { createElizaMcpSettingsFromCommand } from "@/services/mcp/settings";
 import type { RuntimeSettings, WizardAnswers } from "../types";
 
 export function buildBootstrapSettings(

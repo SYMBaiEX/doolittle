@@ -1,11 +1,11 @@
-import type { AppContext } from "@/runtime/bootstrap";
-import { getAppContext } from "@/runtime/bootstrap";
+import type { AppContext } from "@doolittle/agent/runtime/bootstrap";
+import { getAppContext } from "@doolittle/agent/runtime/bootstrap";
 import {
   connectLinkedProvider,
   type LinkedProviderName,
   syncProviderSettings,
-} from "@/runtime/chat";
-import { getLinkedProviderAccountsSnapshot } from "@/runtime/native/account-auth";
+} from "@doolittle/agent/runtime/chat";
+import { getLinkedProviderAccountsSnapshot } from "@doolittle/agent/runtime/native/account-auth";
 
 type SmokeContext = AppContext;
 
