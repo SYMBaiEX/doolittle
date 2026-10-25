@@ -59,7 +59,7 @@ consumer over both CDP and BiDi, including interaction and screenshots.
 ## Remaining upstream requirements
 
 Doolittle is an ElizaOS desktop and CLI client for coding and daily assistance.
-Dependency cleanup must preserve that engine and its registered tools. Nine
+Dependency cleanup must preserve that engine and its registered tools. Eight
 package patches remain; none are advisory exceptions:
 
 | Dependency                 | Why its patch remains                                                                                                                              |
@@ -72,7 +72,6 @@ package patches remain; none are advisory exceptions:
 | Solana buffer-layout-utils | Replaces vulnerable bigint-buffer with modern Noble while retaining binary layouts; published 0.3.0 still requires the old buffer library.         |
 | ethers signing-key         | Uses ethers 6 signing instead of vulnerable elliptic; published 5.8.0 still requires elliptic.                                                     |
 | Jimp core                  | Adapts the nut-js image consumer to current file-type; latest nut-js 4.2.6 still pins Jimp 0.22.10.                                                |
-| Coinbase CDP SDK           | Adapts the current 1.60.0 EVM schema to Zod 4; its upstream manifest still requests Zod 3.                                                         |
 
 The local braces patch is gone. The `braces` dependency resolves to the published
 MIT-licensed `@dieub/braces-depth-guard@3.0.3-pn.3` fork, retaining compatible glob
@@ -82,3 +81,12 @@ exercise the actual micromatch consumer as well as the parser guard.
 Recheck the parent publications before removing each remaining patch. Replacing
 ElizaOS, copying its implementation into this repository, or dropping registered
 SDK tools would change the product instead of resolving these upstream limits.
+
+The UI's hosted wallet dependencies (`@rainbow-me/rainbowkit`, `@stwd/react`,
+and `wagmi`) are excluded from this client installation, alongside the already
+excluded aggregate Solana wallet UI. Their modules are outside the renderer
+boundary and are not needed for ElizaOS's wallet tools. Removing those unused UI
+edges eliminates Coinbase CDP SDK, its Zod compatibility patch, and the old
+WalletConnect connector tree. ElizaOS wallet, computer-use, and vision plugins
+remain installed. Renderer builds reject direct imports of the excluded hosted
+wallet clients as well as SDK-hosted wallet modules.
