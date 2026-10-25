@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 
-import type { AccountWithCredentialFlag } from "@elizaos/ui/api/client-agent";
-import { act, createElement } from "react";
+import { act, type ComponentProps, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
@@ -26,7 +25,7 @@ const account = {
   hasCredential: true,
   createdAt: 1,
   usage: { sessionPct: 35, weeklyPct: 72 },
-} as AccountWithCredentialFlag;
+} as ComponentProps<typeof AccountCard>["account"];
 const onPatch = vi.fn().mockResolvedValue(undefined);
 const onDelete = vi.fn().mockResolvedValue(undefined);
 const onTest = vi.fn().mockResolvedValue(undefined);
