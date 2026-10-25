@@ -1,14 +1,14 @@
+import type { AgentExecutionContext } from "../chat";
 import {
   getLinkedProviderConnectAdvice,
   refreshLinkedClaudeCodeCredentials,
   refreshLinkedCodexCredentials,
   resolveLinkedProviderCredentials,
-} from "@/runtime/native/account-auth";
+} from "../native/account-auth/index";
 import {
   getRuntimeProviderAccountsSnapshot,
   refreshRuntimeProviderAccount,
-} from "@/runtime/native/provider-accounts";
-import type { AgentExecutionContext } from "../chat";
+} from "../native/provider-accounts";
 import { activateLinkedProvider } from "./activation";
 import type { LinkedProviderName } from "./types";
 

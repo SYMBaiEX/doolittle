@@ -1,11 +1,11 @@
+import type { ChatTurnRequest } from "../../../types/runtime/index";
+import type { AgentExecutionContext, AgentTurnHooks } from "../../chat";
+import { getEffectiveShellHistory } from "../../native/service-bridge/tooling/index";
 import {
   executeTerminalCommandForTurn,
   formatTerminalCommandResponse,
   requestTerminalCommandApproval,
-} from "@/runtime/commands/shell-command-facade";
-import { getEffectiveShellHistory } from "@/runtime/native/service-bridge/tooling";
-import type { ChatTurnRequest } from "@/types/runtime";
-import type { AgentExecutionContext, AgentTurnHooks } from "../../chat";
+} from "../shell-command-facade";
 
 export async function handleOperatorTerminalCommand(
   input: ChatTurnRequest,

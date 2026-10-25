@@ -1,10 +1,10 @@
-import { handleBrowserMediaCommand } from "@/runtime/commands/browser-media-commands";
-import { handleCodegenCommand } from "@/runtime/commands/codegen";
-import { handleCronCommand } from "@/runtime/commands/cron-router";
-import { handleDelegationCommand } from "@/runtime/commands/delegation-commands";
-import { handleSkillCommand } from "@/runtime/commands/skills";
-import { handleToolingCommand } from "@/runtime/commands/tooling-commands";
-import { handleTrajectoryCommand } from "@/runtime/commands/trajectory";
+import { handleBrowserMediaCommand } from "../commands/browser-media-commands/index";
+import { handleCodegenCommand } from "../commands/codegen/index";
+import { handleCronCommand } from "../commands/cron-router/index";
+import { handleDelegationCommand } from "../commands/delegation-commands";
+import { handleSkillCommand } from "../commands/skills/index";
+import { handleToolingCommand } from "../commands/tooling-commands";
+import { handleTrajectoryCommand } from "../commands/trajectory/index";
 import type { ChatCommandRouteGroup } from "./types";
 
 export const workflowAndToolingRoutes = [

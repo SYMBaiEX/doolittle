@@ -2,7 +2,7 @@ import {
   ProviderTransportError,
   providerErrorCodeForStatus,
 } from "@doolittle/provider-transport";
-import { displayCommand } from "@/runtime/commands/command-execution";
+import { displayCommand } from "../commands/command-execution";
 import { resolveCloudApiBaseUrl } from "./cloud-url";
 
 export const ELIZA_CLOUD_BILLING_URL =

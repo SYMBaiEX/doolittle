@@ -7,8 +7,8 @@ import type {
 import { validateCodingIteration } from "@doolittle/contracts";
 import type { ActionResult, ProviderDataRecord } from "@elizaos/core";
 import { asNonEmptyString } from "@elizaos/shared/type-guards";
-import type { LocalMutationInput } from "@/services/run-controller-service";
-import { isRecord } from "@/utils/records";
+import type { LocalMutationInput } from "../services/run-controller-service/index";
+import { isRecord } from "../utils/records";
 
 type RecordLike = Record<string, unknown>;
 type CommandResultSource = RecordLike & { command: unknown; exitCode: unknown };

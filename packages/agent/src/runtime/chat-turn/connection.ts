@@ -1,5 +1,5 @@
 import type { UUID } from "@elizaos/core";
-import type { AgentExecutionContext } from "@/runtime/chat";
+import type { AgentExecutionContext } from "../chat";
 import type { TurnState } from "./state";
 
 const ensuredConnectionCache = new WeakMap<object, Set<string>>();

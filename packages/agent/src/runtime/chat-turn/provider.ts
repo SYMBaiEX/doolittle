@@ -9,12 +9,12 @@ import {
   type SessionEntry,
   type UUID,
 } from "@elizaos/core";
-import type { AgentExecutionContext } from "@/runtime/chat";
-import { buildProviderRuntimeSettings } from "@/runtime/linked-provider-accounts";
+import type { AgentExecutionContext } from "../chat";
+import { buildProviderRuntimeSettings } from "../linked-provider-accounts/index";
 import {
   runWithTurnRuntimeScope,
   TurnPlannerBudget,
-} from "@/runtime/turn-runtime-scope";
+} from "../turn-runtime-scope";
 import type { NativeMessagePolicy } from "./native/types";
 import {
   type ModelSettingsSnapshot,

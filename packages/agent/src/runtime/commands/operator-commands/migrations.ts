@@ -1,5 +1,5 @@
-import { currentConversationWorkspace } from "@/runtime/workspace-scope";
 import type { AgentExecutionContext } from "../../chat";
+import { currentConversationWorkspace } from "../../workspace-scope";
 
 export async function handleOperatorMigrationCommand(
   trimmed: string,

@@ -10,17 +10,17 @@ import {
   type Service,
   type ServiceClass,
 } from "@elizaos/core";
+import type { AppServices } from "../../../services/index";
+import type { RunSnapshot } from "../../../services/run-controller-service/index";
+import type { ToolProgressMode } from "../../../types/runtime/index";
 import {
   extractCommandResultFromActionResult,
   extractFileOperationFromActionResult,
   extractLocalMutationFromActionResult,
   extractLocalMutationsFromActionResult,
-} from "@/runtime/action-result-metadata";
-import { formatError } from "@/runtime/bootstrap/recovery/error-format";
-import { resolveRunTerminalWriter } from "@/runtime/chat-turn/post-provider/types";
-import type { AppServices } from "@/services";
-import type { RunSnapshot } from "@/services/run-controller-service";
-import type { ToolProgressMode } from "@/types/runtime";
+} from "../../action-result-metadata";
+import { resolveRunTerminalWriter } from "../../chat-turn/post-provider/types";
+import { formatError } from "../recovery/error-format";
 import {
   CodingVerificationReceiptTracker,
   type CodingVerificationRunIdentity,

@@ -6,8 +6,8 @@ import {
   type TrajectoryContext,
   withStandaloneTrajectory,
 } from "@elizaos/core";
-import type { AgentExecutionContext } from "@/runtime/chat";
-import type { TrajectoryEventInput } from "@/types/trajectory";
+import type { TrajectoryEventInput } from "../../types/trajectory/index";
+import type { AgentExecutionContext } from "../chat";
 
 type TrajectoryRecorder = {
   recordEvent(input: TrajectoryEventInput): unknown;

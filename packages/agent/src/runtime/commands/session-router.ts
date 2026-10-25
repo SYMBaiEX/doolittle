@@ -1,12 +1,12 @@
 import { randomUUID } from "node:crypto";
-import { getEffectiveUserProfile } from "@/runtime/native/service-bridge/ownership";
-import type { ChatTurnRequest } from "@/types/runtime";
+import type { ChatTurnRequest } from "../../types/runtime/index";
 import type { AgentExecutionContext, AgentTurnHooks } from "../chat";
 import type { ChatCommandRouterDependencies } from "../chat-command-router/types";
 import {
   deleteNativeConversationMemories,
   replaceNativeConversationContext,
 } from "../chat-turn/conversation-persistence";
+import { getEffectiveUserProfile } from "../native/service-bridge/ownership/index";
 import {
   GLOBAL_SESSION_ACCESS_DENIED,
   hasGlobalSessionOperatorAccess,

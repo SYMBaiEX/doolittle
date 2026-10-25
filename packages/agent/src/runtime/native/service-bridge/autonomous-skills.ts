@@ -1,4 +1,4 @@
-import type { AppServices } from "@/services";
+import type { AppServices } from "../../../services/index";
 import type { RuntimeLike } from "./runtime";
 import { requireOfficialAgentSkills } from "./skill-hub";
 

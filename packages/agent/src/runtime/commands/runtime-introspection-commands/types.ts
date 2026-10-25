@@ -1,4 +1,4 @@
-import type { AgentExecutionContext } from "@/runtime/chat";
+import type { AgentExecutionContext } from "../../chat";
 
 export type RuntimeIntrospectionCommandHandler = (
   trimmed: string,

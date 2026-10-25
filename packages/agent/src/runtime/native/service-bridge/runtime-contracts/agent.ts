@@ -7,8 +7,8 @@ import type {
   WorkspacePatchResult,
   WorkspaceReadLinesResult,
   WorkspaceWriteResult,
-} from "@/services/workspace-service";
-import type { SdkTrajectoryLogger } from "@/types/trajectory/sdk";
+} from "../../../../services/workspace-service/index";
+import type { SdkTrajectoryLogger } from "../../../../types/trajectory/sdk";
 
 // The official package does not export its service key separately from the
 // service class. Keep the structural bridge free of a runtime class import;

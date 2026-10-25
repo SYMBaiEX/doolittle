@@ -3,5 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Local Doolittle character definitions."
+  "description": "Local Doolittle character definitions.",
+  "exports": {
+    "./doolittle.character.json": "./doolittle.character.json"
+  }
 }

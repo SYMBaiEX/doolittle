@@ -1,8 +1,8 @@
+import type { AgentExecutionContext } from "../../chat";
 import {
   createEffectiveDelegationTask,
   spawnEffectiveDelegationChild,
-} from "@/runtime/native/service-bridge/delegation";
-import type { AgentExecutionContext } from "../../chat";
+} from "../../native/service-bridge/delegation/index";
 import {
   parseDelegationLabels,
   parseDelegationMetadata,

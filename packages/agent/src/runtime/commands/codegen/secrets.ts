@@ -1,9 +1,9 @@
+import type { AgentExecutionContext } from "../../chat";
 import {
   getEffectiveSecret,
   listEffectiveSecretKeys,
   setEffectiveSecret,
-} from "@/runtime/native/service-bridge/autocoder";
-import type { AgentExecutionContext } from "../../chat";
+} from "../../native/service-bridge/autocoder/index";
 import { stringifyCodegenResponse, withAutocoderWorkflow } from "./support";
 
 export async function handleCodegenSecretsCommand(

@@ -2,8 +2,8 @@ import {
   buildTransportDrilldown,
   formatTransportDrilldown,
   parseTransportPlatform,
-} from "@/gateway/control/index";
-import { summarizeTransportInventory } from "@/gateway/transport";
+} from "../../../../gateway/control/index";
+import { summarizeTransportInventory } from "../../../../gateway/transport/index";
 import type { AgentExecutionContext } from "../../../chat";
 import {
   asAppContext,

@@ -1,7 +1,7 @@
-import { handleAccountsCommand } from "@/runtime/commands/accounts";
-import { handleGatewayRuntimeCommand } from "@/runtime/commands/gateway-runtime";
-import { handleOperatorCommand } from "@/runtime/commands/operator-commands";
-import { handleRuntimeIntrospectionCommand } from "@/runtime/commands/runtime-introspection-commands";
+import { handleAccountsCommand } from "../commands/accounts/index";
+import { handleGatewayRuntimeCommand } from "../commands/gateway-runtime/index";
+import { handleOperatorCommand } from "../commands/operator-commands/index";
+import { handleRuntimeIntrospectionCommand } from "../commands/runtime-introspection-commands/index";
 import type { ChatCommandRouteGroup } from "./types";
 
 export const runtimeOperationsRoutes = [

@@ -1,9 +1,9 @@
-import { appendBootstrapTrace } from "@/runtime/bootstrap/trace";
+import { appendBootstrapTrace } from "./trace";
 import type {
   AppContext,
   AppContextBuildOptions,
   AppContextOptions,
-} from "@/runtime/bootstrap/types";
+} from "./types";
 
 export type AppContextBuilder = (
   options: AppContextBuildOptions,

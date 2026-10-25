@@ -1,8 +1,8 @@
-import type { AgentExecutionContext, AgentTurnHooks } from "@/runtime/chat";
 import type {
   AutomationRuntimeOverrides,
   ChatTurnRequest,
-} from "@/types/runtime";
+} from "../../types/runtime/index";
+import type { AgentExecutionContext, AgentTurnHooks } from "../chat";
 import {
   ensureLocalInteractiveSettingsState,
   ensureTurnConnection,

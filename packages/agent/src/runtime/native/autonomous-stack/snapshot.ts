@@ -1,4 +1,4 @@
-import type { EnvConfig } from "@/types/runtime";
+import type { EnvConfig } from "../../../types/runtime/index";
 import { buildAutonomousCompatEnv } from "./compat-env";
 import type { AutonomousCompatConfig, AutonomousCompatSnapshot } from "./types";
 

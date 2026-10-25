@@ -1,8 +1,8 @@
 import { readdirSync, readFileSync, realpathSync } from "node:fs";
 import { basename, join } from "node:path";
-import { canonicalizeSlashCommandSyntax } from "@/runtime/slash-command-syntax";
-import { isStrictlyContainedPath } from "@/utils/path-containment";
-import { readRegularFileSync } from "@/utils/read-regular-file";
+import { isStrictlyContainedPath } from "../../utils/path-containment";
+import { readRegularFileSync } from "../../utils/read-regular-file";
+import { canonicalizeSlashCommandSyntax } from "../slash-command-syntax";
 import { parseWorkflowFrontmatter } from "./frontmatter";
 import type { WorkflowCommandDefinition, WorkflowCommandSeed } from "./types";
 

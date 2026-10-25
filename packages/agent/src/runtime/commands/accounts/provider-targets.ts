@@ -1,8 +1,8 @@
-import { displayCommand } from "@/runtime/commands/command-execution";
 import {
   formatLinkedAccountSummary,
   refreshLinkedAccounts,
-} from "@/runtime/linked-provider-accounts";
+} from "../../linked-provider-accounts/index";
+import { displayCommand } from "../command-execution";
 import { handleAccountLogin, handleClaudeSetupToken } from "./local-shell";
 import {
   formatProviderActivation,

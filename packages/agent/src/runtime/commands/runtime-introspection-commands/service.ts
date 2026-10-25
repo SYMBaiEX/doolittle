@@ -1,4 +1,4 @@
-import { getNativeIntegrationControlPlane } from "@/runtime/native/service-bridge/control-planes";
+import { getNativeIntegrationControlPlane } from "../../native/service-bridge/control-planes/index";
 import {
   renderRuntimeOperatorBlock,
   resolveOwnershipControlPlane,

@@ -3,7 +3,7 @@ import {
   formatSdkTrajectoryExportReceipt,
   resolveNativeSdkTrajectoryLogger,
   writeSdkTrajectoryExport,
-} from "@/services/trajectory/sdk-native";
+} from "../../../services/trajectory/sdk-native";
 import type { AgentExecutionContext } from "../../chat";
 import {
   formatTrajectoryBundleList,

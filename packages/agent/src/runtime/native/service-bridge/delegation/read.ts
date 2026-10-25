@@ -2,8 +2,8 @@ import {
   buildDelegationProjectionAggregation,
   buildDelegationProjectionOverview,
   buildDelegationProjectionTree,
-} from "@/services/delegation/reporting";
-import type { DelegationTaskRecord } from "@/types";
+} from "../../../../services/delegation/reporting";
+import type { DelegationTaskRecord } from "../../../../types/index";
 import type { RuntimeLike } from "../runtime";
 import type {
   NativeAgentOrchestratorService,

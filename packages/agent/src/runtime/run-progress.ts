@@ -1,7 +1,7 @@
 import type {
   RunSnapshot,
   RunUpdateEvent,
-} from "@/services/run-controller-service";
+} from "../services/run-controller-service/index";
 
 export interface ResponseTextAccumulator {
   text: string;

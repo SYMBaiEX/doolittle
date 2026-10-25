@@ -1,5 +1,5 @@
-import type { AgentExecutionContext } from "@/runtime/chat";
-import type { AutomationRuntimeOverrides } from "@/types/runtime";
+import type { AutomationRuntimeOverrides } from "../../types/runtime/index";
+import type { AgentExecutionContext } from "../chat";
 
 export function applyRuntimeOverrides(
   settings: ReturnType<AgentExecutionContext["services"]["settings"]["get"]>,

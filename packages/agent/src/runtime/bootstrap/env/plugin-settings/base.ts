@@ -2,11 +2,11 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import type { JsonValue } from "@elizaos/core";
 import { getSkillsDir } from "@elizaos/skills/index";
-import { featureMap } from "@/config/feature-map";
-import { getPgliteDataDir } from "@/runtime/bootstrap/env/pglite";
-import { ensureSecretSalt } from "@/runtime/bootstrap/env/secret-salt";
-import { describeAutonomousAlignment } from "@/runtime/native/autonomous-stack";
-import type { AppServices } from "@/services";
+import { featureMap } from "../../../../config/feature-map";
+import type { AppServices } from "../../../../services/index";
+import { describeAutonomousAlignment } from "../../../native/autonomous-stack/index";
+import { getPgliteDataDir } from "../pglite";
+import { ensureSecretSalt } from "../secret-salt";
 import { shouldUseCloudEmbeddings } from "./embedding";
 import type {
   BuildPluginSettingsDependencies,

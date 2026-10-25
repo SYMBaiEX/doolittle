@@ -1,4 +1,4 @@
-import type { RunControllerService } from "@/services/run-controller-service";
+import type { RunControllerService } from "../../../services/run-controller-service/index";
 
 export interface DelegatedToolObservation {
   id: string;

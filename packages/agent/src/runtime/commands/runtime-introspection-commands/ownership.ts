@@ -1,4 +1,4 @@
-import { getNativeEcosystemSnapshot } from "@/runtime/native/service-bridge/ownership";
+import { getNativeEcosystemSnapshot } from "../../native/service-bridge/ownership/index";
 import {
   resolveOwnershipControlPlane,
   resolveOwnershipSnapshot,

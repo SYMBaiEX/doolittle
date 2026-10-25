@@ -1,5 +1,5 @@
+import { createAutocoderPlugin } from "@doolittle/plugins/doolittle-plugin";
 import type { Plugin } from "@elizaos/core";
-import { createAutocoderPlugin } from "@plugins/doolittle-plugin";
 import type { DeferredPluginGroupContext } from "./shared";
 
 export function loadDeferredResearchPlugins({

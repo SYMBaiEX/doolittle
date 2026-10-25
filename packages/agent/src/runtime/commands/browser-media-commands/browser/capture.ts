@@ -1,9 +1,9 @@
+import type { AgentExecutionContext } from "../../../chat";
 import {
   captureBrowserPage,
   screenshotBrowserPage,
   snapshotBrowserPage,
-} from "@/runtime/native/service-bridge/browser";
-import type { AgentExecutionContext } from "../../../chat";
+} from "../../../native/service-bridge/browser/index";
 import type { CommandResult } from "../types";
 
 export async function handleBrowserCaptureCommand(

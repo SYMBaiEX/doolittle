@@ -1,9 +1,9 @@
 import {
   parseGatewayFiltersFromText,
   parseTransportPlatform,
-} from "@/gateway/control/index";
-import type { PlatformName } from "@/types/gateway";
-import type { ChatTurnRequest } from "@/types/runtime";
+} from "../../../gateway/control/index";
+import type { PlatformName } from "../../../types/gateway";
+import type { ChatTurnRequest } from "../../../types/runtime/index";
 import type { AgentExecutionContext } from "../../chat";
 import {
   describeGatewayRuntimeSnapshot,

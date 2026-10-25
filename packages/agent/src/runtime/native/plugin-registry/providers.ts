@@ -1,10 +1,10 @@
 import type { BotDefinition } from "@doolittle/contracts/bots";
 import type { IAgentRuntime, Plugin } from "@elizaos/core";
 import type { CodexAuth } from "@elizaos/plugin-codex-cli";
-import { requireConversationWorkspace } from "@/runtime/workspace-scope";
-import { resolveWorkspaceDirectory } from "@/services/workspace-directory";
+import { resolveWorkspaceDirectory } from "../../../services/workspace-directory";
 import type { EnvConfig } from "../../../types/runtime";
 import { requestWorkerHost } from "../../bootstrap/worker-host-rpc";
+import { requireConversationWorkspace } from "../../workspace-scope";
 import { refreshLinkedClaudeCodeCredentials } from "../account-auth";
 import { getClaudeCodeAccountStatus } from "../account-auth/claude-code";
 import { getDevinAccountStatus } from "../account-auth/devin";

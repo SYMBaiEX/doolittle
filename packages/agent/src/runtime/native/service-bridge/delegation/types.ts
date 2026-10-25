@@ -1,5 +1,5 @@
-import type { DelegationTaskRecord } from "@/types";
-import type { DelegationOrchestrationMode } from "@/types/runtime";
+import type { DelegationTaskRecord } from "../../../../types/index";
+import type { DelegationOrchestrationMode } from "../../../../types/runtime/index";
 
 export interface EffectiveDelegationCreateInput {
   title: string;

@@ -1,8 +1,7 @@
-import { displayCommand } from "@/runtime/commands/command-execution";
-import type { RunDepth, ToolProgressMode } from "@/types/runtime";
-import { RUN_DEPTH_ITERATION_PRESETS } from "@/types/runtime";
-
+import type { RunDepth, ToolProgressMode } from "../../../types/runtime/index";
+import { RUN_DEPTH_ITERATION_PRESETS } from "../../../types/runtime/index";
 import type { AgentExecutionContext } from "../../chat";
+import { displayCommand } from "../command-execution";
 import {
   formatRunPolicy,
   parseRunDepth,

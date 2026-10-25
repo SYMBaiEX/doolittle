@@ -1,11 +1,11 @@
+import {
+  createFormsPlugin,
+  localSandboxPlugin,
+} from "@doolittle/plugins/doolittle-plugin";
 import type { Plugin } from "@elizaos/core";
 import { formAction, formPlugin } from "@elizaos/plugin-form";
 import { githubPlugin } from "@elizaos/plugin-github";
 import mcpPlugin from "@elizaos/plugin-mcp";
-import {
-  createFormsPlugin,
-  localSandboxPlugin,
-} from "@plugins/doolittle-plugin";
 import { normalizePlugin } from "../support";
 import {
   type DeferredPluginGroupContext,

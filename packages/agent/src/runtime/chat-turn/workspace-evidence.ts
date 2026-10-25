@@ -1,12 +1,12 @@
 import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import type { ActionResult } from "@elizaos/core";
+import { isRecord } from "../../utils/records";
+import { inspectWorkspaceCommands } from "../../utils/workspace-commands";
 import {
   actionResultActionName,
   extractCommandResultFromActionResult,
   extractLocalMutationsFromActionResult,
-} from "@/runtime/action-result-metadata";
-import { isRecord } from "@/utils/records";
-import { inspectWorkspaceCommands } from "@/utils/workspace-commands";
+} from "../action-result-metadata";
 import {
   missingWorkspaceMutationRequirements as missingVerifiedWorkspaceRequirements,
   verifyWorkspaceNoopCompletion as verifyChronologicalWorkspaceNoop,

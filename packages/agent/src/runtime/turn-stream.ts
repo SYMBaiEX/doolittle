@@ -1,19 +1,19 @@
 import { randomUUID } from "node:crypto";
-import type { AppContext } from "@/runtime/bootstrap";
-import type { AgentTurnHooks } from "@/runtime/chat";
-import { handleAgentTurn } from "@/runtime/chat";
+import type { RunUpdateEvent } from "../services/run-controller-service/index";
+import type { ChatTurnRequest } from "../types/runtime/index";
+import type { AppContext } from "./bootstrap/index";
+import type { AgentTurnHooks } from "./chat";
+import { handleAgentTurn } from "./chat";
 import type {
   ExecutionAdmissionKind,
   ExecutionLease,
-} from "@/runtime/execution-admission";
+} from "./execution-admission";
 import {
   createResponseTextAccumulator,
   formatRunEvent,
   nextResponseTextFrame,
   shouldRenderRunEvent,
-} from "@/runtime/run-progress";
-import type { RunUpdateEvent } from "@/services/run-controller-service";
-import type { ChatTurnRequest } from "@/types/runtime";
+} from "./run-progress";
 
 export interface StreamedTurnHandlers {
   originConversationId?: string;

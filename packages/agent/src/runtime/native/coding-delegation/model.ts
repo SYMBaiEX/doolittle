@@ -1,4 +1,4 @@
-import { isRecord } from "@/utils/records";
+import { isRecord } from "../../../utils/records";
 
 const DEFAULT_CODEX_ACP_COMMAND =
   "npx -y @agentclientprotocol/codex-acp@1.13.1";

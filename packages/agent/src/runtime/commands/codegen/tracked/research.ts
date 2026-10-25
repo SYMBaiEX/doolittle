@@ -1,5 +1,5 @@
-import { performEffectiveCodeResearch } from "@/runtime/native/service-bridge/autocoder";
 import type { AgentExecutionContext } from "../../../chat";
+import { performEffectiveCodeResearch } from "../../../native/service-bridge/autocoder/index";
 import { CODEGEN_RESEARCH_USAGE, parseCodegenDescriptor } from "../parsers";
 import { stringifyCodegenResponse, withAutocoderWorkflow } from "../support";
 import { createAutocoderRunRecord } from "./shared";

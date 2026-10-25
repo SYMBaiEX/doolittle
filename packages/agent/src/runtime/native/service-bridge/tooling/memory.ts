@@ -1,4 +1,4 @@
-import type { SessionSearchResult } from "@/types";
+import type { SessionSearchResult } from "../../../../types/index";
 import type { RuntimeLike } from "../runtime-contracts";
 import { requireNativeMemoryStorage } from "./native-services";
 

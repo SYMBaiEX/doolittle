@@ -1,4 +1,4 @@
-import type { ChatTurnRequest } from "@/types/runtime";
+import type { ChatTurnRequest } from "../../types/runtime/index";
 import type { AgentExecutionContext } from "../chat";
 import { handleRuntimePolicyCommand } from "./runtime-workspace/policy";
 import { handleRuntimeStatusCommand } from "./runtime-workspace/status";

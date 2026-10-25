@@ -1,5 +1,5 @@
-import { getNativeExecutionControlPlane } from "@/runtime/native/service-bridge/control-planes";
 import type { AgentExecutionContext } from "../../chat";
+import { getNativeExecutionControlPlane } from "../../native/service-bridge/control-planes/index";
 import { handleCodegenE2bCommand } from "./e2b";
 import { stringifyCodegenResponse } from "./support";
 

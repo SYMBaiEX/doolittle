@@ -1,14 +1,14 @@
 import { join } from "node:path";
+import {
+  createCodingAgentPlugin,
+  createPlanningPlugin,
+} from "@doolittle/plugins/doolittle-plugin";
 import type { Plugin } from "@elizaos/core";
 import {
   AcpService,
   agentOrchestratorPlugin,
 } from "@elizaos/plugin-agent-orchestrator";
 import { agentSkillsPlugin } from "@elizaos/plugin-agent-skills";
-import {
-  createCodingAgentPlugin,
-  createPlanningPlugin,
-} from "@plugins/doolittle-plugin";
 import type { AppServices } from "../../../services";
 import {
   findLocalCodebases,

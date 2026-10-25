@@ -6,18 +6,18 @@ import {
 import {
   actionResultActionName,
   extractLocalMutationsFromActionResult,
-} from "@/runtime/action-result-metadata";
-import type { AgentExecutionContext } from "@/runtime/chat";
-import { matchesRegisteredCommandShortcut } from "@/runtime/command-shortcut-match";
-import { checkOllamaReadiness } from "@/runtime/native/plugin-registry/ollama-readiness";
+} from "../action-result-metadata";
+import type { AgentExecutionContext } from "../chat";
+import { matchesRegisteredCommandShortcut } from "../command-shortcut-match";
+import { checkOllamaReadiness } from "../native/plugin-registry/ollama-readiness";
 import {
   getScopedTurnActionResults,
   getScopedTurnPlannerBudget,
   recordScopedTurnActionResult,
   resolveScopedTurnActionResult,
   TurnPlannerBudget,
-} from "@/runtime/turn-runtime-scope";
-import { hasWorkspaceMutationObligation } from "@/runtime/workspace-mutation-intent";
+} from "../turn-runtime-scope";
+import { hasWorkspaceMutationObligation } from "../workspace-mutation-intent";
 import {
   CONSTRAINED_FRONTEND_REVIEW_FAILURE,
   frontendRequirements,

@@ -8,7 +8,7 @@ import {
   type SessionSummary,
   type UUID,
 } from "@elizaos/core";
-import type { SessionService } from "@/services/session/service";
+import type { SessionService } from "../../../../services/session/service/index";
 import { ElizaMemoryStorageStore } from "./memory-storage-store";
 
 /**

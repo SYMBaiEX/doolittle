@@ -1,5 +1,5 @@
-import type { AgentExecutionContext, AgentTurnHooks } from "@/runtime/chat";
-import type { ChatTurnRequest } from "@/types/runtime";
+import type { ChatTurnRequest } from "../../../types/runtime/index";
+import type { AgentExecutionContext, AgentTurnHooks } from "../../chat";
 import { runPostProviderTurn } from "../post-provider";
 import { runProviderModelTurn } from "../provider";
 import type { NativeTurnSetup, SettingsSnapshot, TurnPerfTrace } from "./types";

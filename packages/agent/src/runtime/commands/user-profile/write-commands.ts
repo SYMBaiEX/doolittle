@@ -1,3 +1,5 @@
+import type { ChatTurnRequest } from "../../../types/runtime/index";
+import type { AgentExecutionContext } from "../../chat";
 import {
   concludeEffectiveUserProfile,
   configureEffectiveUserProfileModeling,
@@ -7,9 +9,7 @@ import {
   rememberEffectiveUserProfile,
   seedEffectiveAgentProfile,
   setEffectiveUserProfileMode,
-} from "@/runtime/native/service-bridge/ownership";
-import type { ChatTurnRequest } from "@/types/runtime";
-import type { AgentExecutionContext } from "../../chat";
+} from "../../native/service-bridge/ownership/index";
 import {
   isUserMemoryKind,
   parseAgentSeed,

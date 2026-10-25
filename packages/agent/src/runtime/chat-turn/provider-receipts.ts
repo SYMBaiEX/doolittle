@@ -1,11 +1,11 @@
 import type { ActionResult } from "@elizaos/core";
-import { actionResultActionName } from "@/runtime/action-result-metadata";
+import { isRecord } from "../../utils/records";
+import { actionResultActionName } from "../action-result-metadata";
 import {
   getScopedTurnActionResults,
   hasScopedTurnActionReceipts,
   resolveScopedTurnActionResult,
-} from "@/runtime/turn-runtime-scope";
-import { isRecord } from "@/utils/records";
+} from "../turn-runtime-scope";
 import { chronologyUnverified } from "./workspace-evidence";
 
 /** Merge Eliza's projected, settled, and Doolittle-scoped action receipts. */

@@ -1,12 +1,12 @@
-import { renderCommandCatalog } from "@/runtime/command-catalog";
-import { displayCommand } from "@/runtime/commands/command-execution";
+import type { AppServices } from "../../services/index";
+import type { ChatTurnRequest } from "../../types/runtime/index";
+import type { AgentExecutionContext } from "../chat";
+import { renderCommandCatalog } from "../command-catalog/index";
 import {
   getEffectiveActivePersonality,
   listEffectiveUserProfiles,
-} from "@/runtime/native/service-bridge/ownership";
-import type { AppServices } from "@/services";
-import type { ChatTurnRequest } from "@/types/runtime";
-import type { AgentExecutionContext } from "../chat";
+} from "../native/service-bridge/ownership/index";
+import { displayCommand } from "./command-execution";
 
 function compact(value: string | undefined, maxLength: number): string {
   const normalized = (value ?? "").replace(/\s+/gu, " ").trim();

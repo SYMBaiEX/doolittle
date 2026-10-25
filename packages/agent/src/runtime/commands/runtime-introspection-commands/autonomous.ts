@@ -1,4 +1,4 @@
-import { getAutonomousControlPlane } from "@/runtime/native/service-bridge/autonomous";
+import { getAutonomousControlPlane } from "../../native/service-bridge/autonomous/index";
 import type { RuntimeIntrospectionCommandHandler } from "./types";
 
 export const handleAutonomousRuntimeIntrospectionCommand: RuntimeIntrospectionCommandHandler =

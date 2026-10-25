@@ -1,6 +1,6 @@
 import type { ActionResult, Memory } from "@elizaos/core";
-import type { AgentExecutionContext, AgentTurnHooks } from "@/runtime/chat";
-import type { ChatTurnRequest } from "@/types/runtime";
+import type { ChatTurnRequest } from "../../../types/runtime/index";
+import type { AgentExecutionContext, AgentTurnHooks } from "../../chat";
 import type { TurnState } from "../state";
 
 /**

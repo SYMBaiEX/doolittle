@@ -1,12 +1,12 @@
 import type { ActionResult, Memory } from "@elizaos/core";
+import { escapeXml } from "../../utils/eliza-compat";
+import { isRecord } from "../../utils/records";
+import { inspectWorkspaceCommands } from "../../utils/workspace-commands";
 import {
   actionResultActionName,
   extractCommandResultFromActionResult,
   extractLocalMutationsFromActionResult,
-} from "@/runtime/action-result-metadata";
-import { escapeXml } from "@/utils/eliza-compat";
-import { isRecord } from "@/utils/records";
-import { inspectWorkspaceCommands } from "@/utils/workspace-commands";
+} from "../action-result-metadata";
 import {
   frontendReviewAttempt,
   frontendReviewRequired,

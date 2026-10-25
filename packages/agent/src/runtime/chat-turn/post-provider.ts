@@ -1,4 +1,4 @@
-import { summarizeActionResults } from "@/runtime/action-result-metadata";
+import { summarizeActionResults } from "../action-result-metadata";
 import {
   assessTurnExecutionContract,
   buildTurnExecutionContract,

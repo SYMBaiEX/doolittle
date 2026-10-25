@@ -1,15 +1,15 @@
 import type { ActionResult } from "@elizaos/core";
 import {
+  interactiveTextSummary,
+  readInteractiveTextCheck,
+} from "../../services/web/interactive-text-check";
+import { isRecord } from "../../utils/records";
+import { inspectWorkspaceCommands } from "../../utils/workspace-commands";
+import {
   actionResultActionName,
   extractCommandResultFromActionResult,
   extractLocalMutationsFromActionResult,
-} from "@/runtime/action-result-metadata";
-import {
-  interactiveTextSummary,
-  readInteractiveTextCheck,
-} from "@/services/web/interactive-text-check";
-import { isRecord } from "@/utils/records";
-import { inspectWorkspaceCommands } from "@/utils/workspace-commands";
+} from "../action-result-metadata";
 import {
   admittedWorkspace,
   chronologyUnverified,

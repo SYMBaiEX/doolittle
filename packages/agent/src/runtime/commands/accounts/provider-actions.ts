@@ -5,7 +5,7 @@ import {
   formatLinkedProviderAdviceAlternate,
   formatLinkedProviderAdviceNextStep,
   type LinkedProviderName,
-} from "@/runtime/linked-provider-accounts";
+} from "../../linked-provider-accounts/index";
 import type { AccountsCommandContext } from "./types";
 
 export function formatProviderActivation(

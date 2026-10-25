@@ -8,7 +8,7 @@ import {
   searchEffectiveSkillHubCatalog,
   searchEffectiveSkillsMarketplace,
   syncEffectiveSkillCatalog,
-} from "@/runtime/native/service-bridge/skill-hub";
+} from "../../native/service-bridge/skill-hub/index";
 
 import type { SkillCommandHandler } from "./types";
 

@@ -4,7 +4,7 @@ import {
   NoModelProviderConfiguredError,
   type Plugin,
 } from "@elizaos/core";
-import type { EnvConfig } from "@/types/runtime";
+import type { EnvConfig } from "../../../types/runtime/index";
 import { checkOllamaReadiness } from "./ollama-readiness";
 
 function setting(runtime: IAgentRuntime, name: string, fallback: string) {

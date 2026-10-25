@@ -1,5 +1,5 @@
-import { getNativeEcosystemSnapshot } from "@/runtime/native/service-bridge/ownership";
-import { getNativeTransportControlPlane } from "@/runtime/native/service-bridge/transport-control";
+import { getNativeEcosystemSnapshot } from "../../native/service-bridge/ownership/index";
+import { getNativeTransportControlPlane } from "../../native/service-bridge/transport-control/index";
 import type { RuntimeIntrospectionCommandHandler } from "./types";
 
 export const handleEcosystemRuntimeIntrospectionCommand: RuntimeIntrospectionCommandHandler =

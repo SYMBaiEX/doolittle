@@ -1,4 +1,4 @@
-import { resolveCloudApiBaseUrl } from "@/runtime/linked-provider-accounts/cloud-url";
+import { resolveCloudApiBaseUrl } from "../../linked-provider-accounts/cloud-url";
 import { commandExists } from "./shared";
 import {
   getStoredElizaCloudCredentials,

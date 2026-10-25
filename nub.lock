@@ -232,6 +232,9 @@ importers:
       '@biomejs/biome':
         specifier: 2.5.15
         version: 2.5.15
+      '@doolittle/agent':
+        specifier: workspace:*
+        version: link:packages/agent
       '@nubjs/nub':
         specifier: 0.9.5
         version: 0.9.5
@@ -417,6 +420,9 @@ importers:
       '@doolittle/acp':
         specifier: workspace:*
         version: link:../acp
+      '@doolittle/characters':
+        specifier: workspace:*
+        version: link:../characters
       '@doolittle/contracts':
         specifier: workspace:*
         version: link:../contracts
@@ -429,6 +435,9 @@ importers:
       '@doolittle/plugin-sql-relationships':
         specifier: workspace:*
         version: link:../plugins/plugin-sql
+      '@doolittle/plugins':
+        specifier: workspace:*
+        version: link:../plugins
       '@doolittle/provider-transport':
         specifier: workspace:*
         version: link:../plugins/provider-transport

@@ -1,5 +1,5 @@
-import type { RunDepth, ToolProgressMode } from "@/types/runtime";
-import type { UserProfileWorkspaceSummary } from "@/types/user-profile";
+import type { RunDepth, ToolProgressMode } from "../../types/runtime/index";
+import type { UserProfileWorkspaceSummary } from "../../types/user-profile";
 
 export function formatMemorySummary(summary: {
   target: string;

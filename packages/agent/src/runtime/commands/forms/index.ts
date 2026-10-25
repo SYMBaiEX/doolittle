@@ -1,12 +1,12 @@
+import type { AgentExecutionContext } from "../../chat";
 import {
   cancelEffectiveForm,
   createEffectiveForm,
   getEffectiveForm,
   getEffectiveFormTemplates,
   listEffectiveForms,
-} from "@/runtime/native/service-bridge/autocoder";
-import { getNativeFormsControlPlane } from "@/runtime/native/service-bridge/control-planes";
-import type { AgentExecutionContext } from "../../chat";
+} from "../../native/service-bridge/autocoder/index";
+import { getNativeFormsControlPlane } from "../../native/service-bridge/control-planes/index";
 
 export async function handleFormsCommand(
   trimmed: string,

@@ -1,4 +1,4 @@
-import type { AgentExecutionContext } from "@/runtime/chat";
+import type { AgentExecutionContext } from "../chat";
 
 const SKILL_SYNTHESIS_NUDGE_INTERVAL = 12;
 

@@ -1,9 +1,6 @@
-import {
-  getPgliteDataDir,
-  preparePgliteRuntime,
-} from "@/runtime/bootstrap/env/pglite";
-import { ensureSecretSalt } from "@/runtime/bootstrap/env/secret-salt";
-import type { EnvConfig } from "@/types/runtime";
+import type { EnvConfig } from "../../../types/runtime/index";
+import { getPgliteDataDir, preparePgliteRuntime } from "./pglite";
+import { ensureSecretSalt } from "./secret-salt";
 
 export function bootstrapRuntimeEnvironment(config: EnvConfig): void {
   process.env.LOG_LEVEL ||= "error";

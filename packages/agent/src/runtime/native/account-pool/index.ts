@@ -28,14 +28,14 @@ import {
   getLinkedClaudeCodeCredentials,
   getLinkedCodexCredentials,
   invalidateOfficialSubscriptionStatusCache,
-} from "@/runtime/native/account-auth";
-import { readJson, writeJson } from "@/runtime/native/account-auth/shared";
+} from "../account-auth/index";
+import { readJson, writeJson } from "../account-auth/shared";
 import {
   DOOLITTLE_LINKED_ACCOUNT_IDS,
   getProviderAuthStorePath,
   getStoredClaudeCodeCredentials,
   getStoredCodexCredentials,
-} from "@/runtime/native/account-auth/store";
+} from "../account-auth/store";
 import {
   type CodingBridge,
   getCodingAgentBridge,

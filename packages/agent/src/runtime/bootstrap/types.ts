@@ -1,7 +1,7 @@
 import type { AgentRuntime, IAgentRuntime, Plugin } from "@elizaos/core";
-import type { GatewayRunner } from "@/gateway/runner";
-import type { AppServices } from "@/services";
-import type { EnvConfig } from "@/types/runtime";
+import type { GatewayRunner } from "../../gateway/runner/index";
+import type { AppServices } from "../../services/index";
+import type { EnvConfig } from "../../types/runtime/index";
 
 export interface AppContext {
   config: EnvConfig;

@@ -1,7 +1,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { realpathSync } from "node:fs";
 import { isAbsolute } from "node:path";
-import { requestWorkerHost } from "@/runtime/bootstrap/worker-host-rpc";
+import { requestWorkerHost } from "./bootstrap/worker-host-rpc";
 
 export interface ConversationWorkspaceScope {
   sessionId: string;

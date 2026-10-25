@@ -2,7 +2,7 @@ import {
   completeLinkedAutocoderWorkflow,
   createLinkedAutocoderWorkflow,
   failLinkedAutocoderWorkflow,
-} from "@/services/autocoder-workflow-context";
+} from "../../services/autocoder-workflow-context";
 import type { AgentExecutionContext } from "../chat";
 
 function currentCliSessionId(context: AgentExecutionContext): string {

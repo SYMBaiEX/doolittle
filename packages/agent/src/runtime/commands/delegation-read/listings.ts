@@ -2,7 +2,7 @@ import {
   getEffectiveDelegationOverviews,
   getEffectiveDelegationQueue,
   getEffectiveDelegationTasks,
-} from "@/runtime/native/service-bridge/delegation";
+} from "../../native/service-bridge/delegation/index";
 import {
   type DelegationReadHandler,
   type DelegationReadTask,

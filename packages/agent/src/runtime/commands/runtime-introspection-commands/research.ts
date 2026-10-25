@@ -1,4 +1,4 @@
-import { getNativeResearchControlPlane } from "@/runtime/native/service-bridge/control-planes";
+import { getNativeResearchControlPlane } from "../../native/service-bridge/control-planes/index";
 import type { RuntimeIntrospectionCommandHandler } from "./types";
 
 export const handleResearchRuntimeIntrospectionCommand: RuntimeIntrospectionCommandHandler =

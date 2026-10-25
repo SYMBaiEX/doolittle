@@ -1,4 +1,4 @@
-import type { ChatTurnRequest } from "@/types/runtime";
+import type { ChatTurnRequest } from "../../types/runtime/index";
 import type { AgentExecutionContext } from "../chat";
 import { handleUserProfileReadCommand } from "./user-profile/read-commands";
 import { handleUserProfileWriteCommand } from "./user-profile/write-commands";

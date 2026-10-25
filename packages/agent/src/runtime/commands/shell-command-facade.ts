@@ -1,8 +1,8 @@
 import type { IAgentRuntime } from "@elizaos/core";
-import { runEffectiveShellCommand } from "@/runtime/native/service-bridge/tooling";
-import type { AppServices } from "@/services";
-import type { ChatTurnRequest } from "@/types/runtime";
+import type { AppServices } from "../../services/index";
+import type { ChatTurnRequest } from "../../types/runtime/index";
 import type { AgentExecutionContext, AgentTurnHooks } from "../chat";
+import { runEffectiveShellCommand } from "../native/service-bridge/tooling/index";
 import type {
   RemoteExecutionApprovalPrompt,
   ShellCommandTurnResult,

@@ -1,9 +1,9 @@
 import {
   getEffectiveSkills,
   getEffectiveSkillsSummary,
-} from "@/runtime/native/service-bridge/autonomous";
-import { getEffectiveGeneratedSkills } from "@/runtime/native/service-bridge/ownership";
-import { getNativeServices } from "@/runtime/native/service-bridge/runtime";
+} from "../../native/service-bridge/autonomous/index";
+import { getEffectiveGeneratedSkills } from "../../native/service-bridge/ownership/index";
+import { getNativeServices } from "../../native/service-bridge/runtime";
 import {
   getEffectiveSkillHubCatalog,
   getEffectiveSkillHubFamilies,
@@ -12,7 +12,7 @@ import {
   getEffectiveSkillHubInstalledManifest,
   getEffectiveSkillHubSummary,
   getEffectiveSkillHubWorkspace,
-} from "@/runtime/native/service-bridge/skill-hub";
+} from "../../native/service-bridge/skill-hub/index";
 
 import type { SkillCommandHandler } from "./types";
 

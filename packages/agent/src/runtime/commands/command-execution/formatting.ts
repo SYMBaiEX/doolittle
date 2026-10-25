@@ -1,5 +1,5 @@
-import { normalizeSlashCommandSyntax } from "@/runtime/command-catalog";
-import { sanitizeTerminalText } from "@/utils/terminal-text";
+import { sanitizeTerminalText } from "../../../utils/terminal-text";
+import { normalizeSlashCommandSyntax } from "../../command-catalog/index";
 import type {
   ExecutionApprovalListRecord,
   ExecutionApprovalPromptInput,

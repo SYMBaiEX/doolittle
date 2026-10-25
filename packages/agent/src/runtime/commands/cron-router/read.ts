@@ -1,6 +1,6 @@
-import { getNativeServices } from "@/runtime/native/service-bridge/runtime";
-import type { ChatTurnRequest } from "@/types/runtime";
+import type { ChatTurnRequest } from "../../../types/runtime/index";
 import type { AgentExecutionContext } from "../../chat";
+import { getNativeServices } from "../../native/service-bridge/runtime";
 
 const TRIGGER_RUNTIME_UNAVAILABLE =
   "Trigger runtime service is not ready. Start the Eliza runtime and try again.";

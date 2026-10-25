@@ -1,7 +1,7 @@
 import {
   canonicalizeSlashCommandSyntax,
   normalizeSlashCommandSyntax,
-} from "@/runtime/slash-command-syntax";
+} from "../slash-command-syntax";
 import { parseWorkflowFrontmatter } from "./frontmatter";
 import { listWorkflowCommands } from "./listing";
 import type { WorkflowCommandDefinition } from "./types";

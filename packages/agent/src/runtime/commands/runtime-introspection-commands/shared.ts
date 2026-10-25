@@ -1,8 +1,8 @@
-import type { AgentExecutionContext } from "@/runtime/chat";
+import type { AgentExecutionContext } from "../../chat";
 import {
   getNativeOwnershipControlPlane,
   getNativeOwnershipSnapshot,
-} from "@/runtime/native/service-bridge/ownership";
+} from "../../native/service-bridge/ownership/index";
 
 export function resolveOwnershipControlPlane(context: AgentExecutionContext) {
   return (

@@ -10,7 +10,7 @@ import type {
   AccountCredentialProvider,
   OAuthCredentials,
 } from "@elizaos/agent/auth/types";
-import { resolveCloudApiBaseUrl } from "@/runtime/linked-provider-accounts/cloud-url";
+import { resolveCloudApiBaseUrl } from "../../linked-provider-accounts/cloud-url";
 import { hasTokenCredentials } from "./credentials";
 import { readJson, writeJson } from "./shared";
 import type {

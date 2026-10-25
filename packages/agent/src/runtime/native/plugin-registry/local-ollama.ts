@@ -7,8 +7,8 @@ import {
   type Plugin,
   type TextGenerationModelType,
 } from "@elizaos/core";
-import type { EnvConfig } from "@/types/runtime";
-import { isRecord } from "@/utils/records";
+import type { EnvConfig } from "../../../types/runtime/index";
+import { isRecord } from "../../../utils/records";
 import { checkOllamaReadiness } from "./ollama-readiness";
 
 type MutableRecord = Record<string, unknown>;

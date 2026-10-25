@@ -1,3 +1,6 @@
+import type { AppServices } from "../../../services/index";
+import type { ChatTurnRequest } from "../../../types/runtime/index";
+import type { AgentExecutionContext } from "../../chat";
 import {
   getEffectiveAgentProfileCard,
   getEffectiveUserBeliefs,
@@ -7,10 +10,7 @@ import {
   getEffectiveUserProfileSummary,
   getEffectiveUserRelationship,
   listEffectiveUserProfiles,
-} from "@/runtime/native/service-bridge/ownership";
-import type { AppServices } from "@/services";
-import type { ChatTurnRequest } from "@/types/runtime";
-import type { AgentExecutionContext } from "../../chat";
+} from "../../native/service-bridge/ownership/index";
 import { stringifyCommandResult } from "./shared";
 
 export function handleUserProfileReadCommand(

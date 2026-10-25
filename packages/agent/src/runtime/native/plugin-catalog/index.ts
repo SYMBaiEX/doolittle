@@ -3,7 +3,7 @@ import type {
   NativePluginDescriptor,
   PluginPersistence,
 } from "@doolittle/contracts";
-import type { EnvConfig } from "@/types/runtime";
+import type { EnvConfig } from "../../../types/runtime/index";
 import { describeAutonomousAlignment } from "../autonomous-stack";
 import { distributedDesktopIncludesMessagingPlugin } from "../plugin-registry/distribution-policy";
 import {

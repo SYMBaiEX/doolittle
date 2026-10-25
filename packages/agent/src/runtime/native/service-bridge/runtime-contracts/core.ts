@@ -17,8 +17,8 @@ import type {
   BrowserInspection,
   BrowserStatus,
   WebPageSnapshot,
-} from "@/services/web/service";
-import type { TerminalCommandRecord } from "@/types/execution";
+} from "../../../../services/web/service";
+import type { TerminalCommandRecord } from "../../../../types/execution";
 
 export const PDF_SERVICE = "pdf";
 export {

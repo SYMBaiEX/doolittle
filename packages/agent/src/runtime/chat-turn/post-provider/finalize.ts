@@ -1,11 +1,11 @@
 import type { ActionResult, Memory } from "@elizaos/core";
+import type { ChatTurnRequest } from "../../../types/runtime/index";
 import {
   buildCodingIterationFromActionResults,
   summarizeActionResults,
-} from "@/runtime/action-result-metadata";
-import type { AgentExecutionContext, AgentTurnHooks } from "@/runtime/chat";
-import { buildProviderNoResponseMessage } from "@/runtime/linked-provider-accounts";
-import type { ChatTurnRequest } from "@/types/runtime";
+} from "../../action-result-metadata";
+import type { AgentExecutionContext, AgentTurnHooks } from "../../chat";
+import { buildProviderNoResponseMessage } from "../../linked-provider-accounts/index";
 import {
   persistAssistantTurnMemory,
   projectNativeResponseMemories,

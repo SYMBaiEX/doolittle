@@ -1,10 +1,10 @@
-import { displayCommand } from "@/runtime/commands/command-execution";
-import { buildLinkedProviderConnectAdvice } from "@/runtime/native/account-auth/connect-advice";
+import { displayCommand } from "../commands/command-execution";
+import { buildLinkedProviderConnectAdvice } from "../native/account-auth/connect-advice";
 import type {
   LinkedProviderAccountsSnapshot,
   LinkedProviderConnectAdvice,
   LinkedProviderName,
-} from "@/runtime/native/account-auth/types";
+} from "../native/account-auth/types";
 
 export function formatLinkedAccountSummary(
   provider: LinkedProviderName,

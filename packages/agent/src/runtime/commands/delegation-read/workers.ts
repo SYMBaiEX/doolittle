@@ -39,8 +39,8 @@ export const handleDelegationWorkersRead: DelegationReadHandler = async (
   return lines.join("\n");
 };
 
+import { buildDelegationProjectionWorkers } from "../../../services/delegation/reporting";
 import {
   getEffectiveDelegationOverview,
   getEffectiveDelegationTasks,
-} from "@/runtime/native/service-bridge/delegation";
-import { buildDelegationProjectionWorkers } from "@/services/delegation/reporting";
+} from "../../native/service-bridge/delegation/index";

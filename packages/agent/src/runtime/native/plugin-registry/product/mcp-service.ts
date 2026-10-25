@@ -5,7 +5,7 @@ import {
   type Service,
   type ServiceClass,
 } from "@elizaos/core";
-import type { AppServices } from "@/services";
+import type { AppServices } from "../../../../services/index";
 
 export function createMcpRuntimeService(services: AppServices): ServiceClass {
   class McpRuntimeService extends ElizaService {

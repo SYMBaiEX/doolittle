@@ -1,6 +1,6 @@
-import { handleFormsCommand } from "@/runtime/commands/forms";
-import { handlePlansCommand } from "@/runtime/commands/plans";
-import { handleSettingsThemeCommand } from "@/runtime/commands/settings-theme-commands";
+import { handleFormsCommand } from "../commands/forms/index";
+import { handlePlansCommand } from "../commands/plans/index";
+import { handleSettingsThemeCommand } from "../commands/settings-theme-commands";
 import type { ChatCommandRouteGroup } from "./types";
 
 export const planningAndSettingsRoutes = [

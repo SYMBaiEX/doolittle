@@ -1,7 +1,7 @@
-import { displayCommand } from "@/runtime/commands/command-execution";
-import { resolveLinkedProviderCredentials } from "@/runtime/native/account-auth";
-import { getRuntimeProviderAccountsSnapshot } from "@/runtime/native/provider-accounts";
 import type { AgentExecutionContext } from "../chat";
+import { displayCommand } from "../commands/command-execution";
+import { resolveLinkedProviderCredentials } from "../native/account-auth/index";
+import { getRuntimeProviderAccountsSnapshot } from "../native/provider-accounts";
 import { validateCloudBaseUrl } from "./cloud-url";
 import { normalizeElizaCloudBaseUrl } from "./messages";
 

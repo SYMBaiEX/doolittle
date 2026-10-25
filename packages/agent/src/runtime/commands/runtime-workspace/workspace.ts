@@ -1,12 +1,12 @@
-import { createEffectiveDelegationTask } from "@/runtime/native/service-bridge/delegation";
-import { getEffectiveMemorySnapshot } from "@/runtime/native/service-bridge/ownership";
+import type { MemoryTarget } from "../../../types/runtime/index";
+import { createEffectiveDelegationTask } from "../../native/service-bridge/delegation/index";
+import { getEffectiveMemorySnapshot } from "../../native/service-bridge/ownership/index";
 import {
   getNativeWorkspaceSummary,
   readNativeWorkspaceFile,
   searchNativeWorkspace,
   writeNativeWorkspaceFile,
-} from "@/runtime/native/service-bridge/tooling";
-import type { MemoryTarget } from "@/types/runtime";
+} from "../../native/service-bridge/tooling/index";
 import { formatMemorySummary } from "../runtime-status-formatters";
 import {
   executeMemoryCommandOperation,
