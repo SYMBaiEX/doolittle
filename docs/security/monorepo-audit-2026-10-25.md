@@ -1,5 +1,11 @@
 # Workspace audit coverage follow-up — October 25, 2026
 
+Current status: the [dependency replacements](dependency-replacements-2026-10-25.md) remove all six
+remaining advisory sources and eight backport files. Audit inventories are clean;
+the release policy now requires zero advisories. The details below describe the
+earlier remediation snapshot.
+
+
 The monorepo refactor moves runtime dependencies into their owning workspaces.
 Nub's audit command inspects the current lockfile importer rather than all
 workspace importers. Running it against the new tooling-only root printed
@@ -22,7 +28,7 @@ findings in body-parser, Electron, fast-uri, ip-address, markdown-it,
 serialize-javascript, TOML, Undici and Zod. That superseded the earlier release
 result; the tooling-only audit had never established full workspace coverage.
 
-## Remediation
+## Remediation snapshot
 
 The follow-up updates those affected release lines and refreshes the direct app,
 protocol and development dependencies, including Electron 45, ACP SDK 2.0.2,

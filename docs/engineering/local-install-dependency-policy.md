@@ -1,5 +1,11 @@
 # Local desktop dependency policy
 
+Current status: the [dependency replacements](../security/dependency-replacements-2026-10-25.md) remove all six
+remaining advisory sources and eight backport files. Audit inventories are clean;
+the release policy now requires zero advisories. The details below describe the
+earlier remediation snapshot.
+
+
 The October 25, 2026 update selects the newest usable SDK packages independently;
 see [SDK upgrade evidence](sdk-package-upgrades.md) for publication/API limits.
 
