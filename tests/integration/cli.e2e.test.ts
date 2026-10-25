@@ -75,11 +75,10 @@ afterEach(async () => {
 describe("built CLI product acceptance", () => {
   it("starts help, version and JSON commands from outside the repository", async () => {
     const options = { cwd: profile, env: environment, timeout: 15_000 };
-    const version = await execute(
-      process.execPath,
-      [entry, "--version"],
-      options,
-    );
+    const version = await execute(process.execPath, [entry, "--version"], {
+      ...options,
+      env: { ...environment, DOOLITTLE_REPO_ROOT: undefined },
+    });
     expect(version.stdout.trim()).toBe(`Doolittle ${cliManifest.version}`);
     const help = await execute(process.execPath, [entry, "--help"], options);
     expect(help.stdout).toContain("doolittle cockpit");
