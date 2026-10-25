@@ -1,8 +1,8 @@
+import type { PlatformName } from "../../../types/gateway";
 import {
   type GatewayInboxReplayResult,
   replayGatewayInboxRecord,
-} from "@/gateway/receive/replay";
-import type { PlatformName } from "@/types/gateway";
+} from "../../receive/replay";
 import type { GatewayTransportDetail } from "../../state/state-snapshot";
 import type { GatewayInboxRecord } from "../history-view";
 import type { GatewayRunnerReadModelDeps } from "./types";

@@ -1,20 +1,20 @@
+import { getNativeTransportControlPlane } from "../../../runtime/native/service-bridge/transport-control/index";
+import type { PlatformName } from "../../../types/gateway";
+import type { PlatformLifecycleEvent } from "../../platforms/base";
 import type {
   GatewayHistoryFilter,
   GatewayOutboxRecord,
-} from "@/gateway/read/history-view";
-import type { GatewayRuntimeStatus } from "@/gateway/read/read-model";
+} from "../../read/history-view/index";
+import type { GatewayRuntimeStatus } from "../../read/read-model/index";
+import type { GatewayHistorySnapshot } from "../../state/state-snapshot/index";
+import { composeGatewayRunnerRuntime } from "../composition/compose";
 import type {
   GatewayRunnerRuntimeAssembly,
   GatewayRunnerRuntimeAssemblyInput,
-} from "@/gateway/runner/composition/types";
-import type { GatewayRunnerContext } from "@/gateway/runner/context";
-import { resolveNativeMessagingPlugin } from "@/gateway/runner/native-resolution";
-import { createGatewayRunnerPlatformAccessors } from "@/gateway/runner/platform-accessors";
-import type { GatewayHistorySnapshot } from "@/gateway/state/state-snapshot";
-import { getNativeTransportControlPlane } from "@/runtime/native/service-bridge/transport-control";
-import type { PlatformName } from "@/types/gateway";
-import type { PlatformLifecycleEvent } from "../../platforms/base";
-import { composeGatewayRunnerRuntime } from "../composition/compose";
+} from "../composition/types";
+import type { GatewayRunnerContext } from "../context";
+import { resolveNativeMessagingPlugin } from "../native-resolution";
+import { createGatewayRunnerPlatformAccessors } from "../platform-accessors";
 import type { GatewayRunnerRuntimeState } from "./state";
 
 interface GatewayRunnerRuntimeDependencies {

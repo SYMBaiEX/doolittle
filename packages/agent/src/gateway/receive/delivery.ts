@@ -1,9 +1,9 @@
+import { redactTrajectoryText } from "../../services/trajectory/event-journal";
+import type { SessionRoute } from "../../types/gateway";
 import {
   buildGatewayOutboundResponse,
   shouldUseFreshDelivery,
-} from "@/gateway/outbound/builders";
-import { redactTrajectoryText } from "@/services/trajectory/event-journal";
-import type { SessionRoute } from "@/types/gateway";
+} from "../outbound/builders";
 import type { GatewayDeliveryStatus } from "./outcome-types";
 import type { GatewayReceiveDependencies } from "./types";
 

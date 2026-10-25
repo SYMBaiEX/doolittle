@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import type { PlatformName } from "@/types/gateway";
+import type { PlatformName } from "../../types/gateway";
 import type {
   GatewaySupervisionDependencies,
   GatewaySupervisionRecord,

@@ -4,17 +4,17 @@ import {
   type ActionResult,
   isLocalCodeExecutionAllowed,
 } from "@elizaos/core";
-import { analyzeBrowserPage } from "@/runtime/native/service-bridge/browser";
+import { analyzeBrowserPage } from "../runtime/native/service-bridge/browser/index";
 import {
   getScopedTurnAbortSignal,
   recordScopedTurnActionResult,
-} from "@/runtime/turn-runtime-scope";
-import type { AppServices } from "@/services";
+} from "../runtime/turn-runtime-scope";
+import type { AppServices } from "../services/index";
 import {
   assessInteractiveText,
   interactiveTextSummary,
-} from "@/services/web/interactive-text-check";
-import type { BrowserCaptureBundle } from "@/services/web/service";
+} from "../services/web/interactive-text-check";
+import type { BrowserCaptureBundle } from "../services/web/service";
 
 export const DOOLITTLE_BROWSER_ANALYZE_ACTION = "DOOLITTLE_BROWSER_ANALYZE";
 const MAX_CRITIQUE_LENGTH = 8192;

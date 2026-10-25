@@ -1,4 +1,4 @@
-import type { PlatformName } from "@/types/gateway";
+import type { PlatformName } from "../../types/gateway";
 import { GATEWAY_DAEMON_POLICY } from "../daemon-state";
 import type { PlatformAdapter } from "../platforms/base";
 import { applySupervisionOutcome } from "./outcome";

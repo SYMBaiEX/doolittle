@@ -1,4 +1,7 @@
-import { type EnvConfig, RUN_DEPTH_ITERATION_PRESETS } from "@/types/runtime";
+import {
+  type EnvConfig,
+  RUN_DEPTH_ITERATION_PRESETS,
+} from "../../types/runtime/index";
 import type { ManagedDirectories } from "./directories";
 import type { ParsedEnvValues } from "./schema";
 

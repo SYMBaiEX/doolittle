@@ -5,12 +5,12 @@ import type {
   MessageConnector,
   TargetInfo,
 } from "@elizaos/core";
-import type { DeliveryService } from "@/services/delivery-service";
+import type { DeliveryService } from "../../services/delivery-service";
 import type {
   DeliveredMessageRecord,
   OutboundPlatformMessage,
   PlatformName,
-} from "@/types/gateway";
+} from "../../types/gateway";
 import type { PlatformAdapter } from "./base";
 import { capabilitiesForPlatform } from "./base";
 import { resolveVoiceAttachment } from "./messaging-utils";

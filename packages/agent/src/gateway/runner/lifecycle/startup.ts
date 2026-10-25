@@ -1,6 +1,6 @@
-import { loadGatewayConfig } from "@/config/gateway";
-import { GATEWAY_DAEMON_POLICY } from "@/gateway/daemon-state";
-import type { PlatformName } from "@/types/gateway";
+import { loadGatewayConfig } from "../../../config/gateway";
+import type { PlatformName } from "../../../types/gateway";
+import { GATEWAY_DAEMON_POLICY } from "../../daemon-state";
 
 import { nowIso } from "../../platforms/base";
 import { recordLifecycleTrace } from "./tracing";

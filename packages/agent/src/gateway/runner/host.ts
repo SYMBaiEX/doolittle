@@ -1,30 +1,27 @@
-import type {
-  GatewayDaemonState,
-  GatewayRestartState,
-} from "@/gateway/daemon-state";
-import type { GatewayTraceRecord } from "@/gateway/read/history-view";
-import type { GatewayRunnerContext } from "@/gateway/runner/context";
-import {
-  createGatewayRunnerLifecycleHost,
-  createGatewayRunnerSupervisionDeps,
-} from "@/gateway/runner/factories";
-import type { GatewayRunnerLifecycleHost } from "@/gateway/runner/lifecycle/types";
-import type {
-  GatewayHistorySnapshot,
-  GatewayPlatformStateView,
-  GatewayStateSnapshot,
-} from "@/gateway/state/state-snapshot";
-import type {
-  GatewaySupervisionAction,
-  GatewaySupervisionDependencies,
-  GatewaySupervisionRecord,
-} from "@/gateway/supervision/index";
-import type { PlatformName } from "@/types/gateway";
+import type { PlatformName } from "../../types/gateway";
+import type { GatewayDaemonState, GatewayRestartState } from "../daemon-state";
 import type {
   PlatformAdapter,
   PlatformHealth,
   PlatformLifecycleEvent,
 } from "../platforms/base";
+import type { GatewayTraceRecord } from "../read/history-view/index";
+import type {
+  GatewayHistorySnapshot,
+  GatewayPlatformStateView,
+  GatewayStateSnapshot,
+} from "../state/state-snapshot/index";
+import type {
+  GatewaySupervisionAction,
+  GatewaySupervisionDependencies,
+  GatewaySupervisionRecord,
+} from "../supervision/index";
+import type { GatewayRunnerContext } from "./context";
+import {
+  createGatewayRunnerLifecycleHost,
+  createGatewayRunnerSupervisionDeps,
+} from "./factories";
+import type { GatewayRunnerLifecycleHost } from "./lifecycle/types";
 
 export interface GatewayRunnerLifecycleHostInputs {
   context: GatewayRunnerContext;
@@ -157,4 +154,4 @@ export function buildGatewayRunnerSupervisionDeps(
   });
 }
 
-export type { GatewayRunnerLifecycleHost } from "@/gateway/runner/lifecycle/types";
+export type { GatewayRunnerLifecycleHost } from "./lifecycle/types";

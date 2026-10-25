@@ -1,6 +1,6 @@
 import type { ResponseHandlerEvaluator } from "@elizaos/core";
-import { hasExplicitNoToolsIntent } from "@/runtime/no-tools-intent";
-import { messageText } from "@/utils/eliza-compat";
+import { hasExplicitNoToolsIntent } from "../runtime/no-tools-intent";
+import { messageText } from "../utils/eliza-compat";
 
 /** Apply the user's explicit tool ban to this message's SDK route only. */
 export const noToolsRoutingEvaluator: ResponseHandlerEvaluator = {

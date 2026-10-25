@@ -10,11 +10,11 @@ import {
   executeTerminalCommand,
   formatTerminalCommandResponse,
   requestTerminalCommandApprovalDetails,
-} from "@/runtime/commands/shell-command-facade";
-import { getScopedTurnAbortSignal } from "@/runtime/turn-runtime-scope";
-import type { AppServices } from "@/services";
-import type { ChatTurnRequest, EnvConfig } from "@/types/runtime";
-import { messageText } from "@/utils/eliza-compat";
+} from "../runtime/commands/shell-command-facade";
+import { getScopedTurnAbortSignal } from "../runtime/turn-runtime-scope";
+import type { AppServices } from "../services/index";
+import type { ChatTurnRequest, EnvConfig } from "../types/runtime/index";
+import { messageText } from "../utils/eliza-compat";
 
 export const DOOLITTLE_SHELL_SHORTCUT_ACTION = "DOOLITTLE_SHELL_SHORTCUT";
 

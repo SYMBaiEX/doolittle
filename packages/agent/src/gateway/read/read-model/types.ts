@@ -1,13 +1,16 @@
-import type { GatewayDaemonRuntimeState } from "@/gateway/daemon-state";
-import type { GatewayReceiveResult } from "@/gateway/receive/index";
-import type { GatewaySupervisionRecord } from "@/gateway/supervision/index";
-import type { IncomingPlatformMessage, PlatformName } from "@/types/gateway";
+import type {
+  IncomingPlatformMessage,
+  PlatformName,
+} from "../../../types/gateway";
+import type { GatewayDaemonRuntimeState } from "../../daemon-state";
+import type { GatewayReceiveResult } from "../../receive/index";
 import type {
   GatewayControlPlaneView,
   GatewayHistorySnapshot,
   GatewayNativeMessagingStateView,
   GatewayStateSnapshot,
 } from "../../state/state-snapshot";
+import type { GatewaySupervisionRecord } from "../../supervision/index";
 import type {
   GatewayAttachmentRecord,
   GatewayHistoryFilter,

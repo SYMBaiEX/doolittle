@@ -1,11 +1,11 @@
-import type { AppContext } from "@/runtime/bootstrap";
-import type { RunUpdateEvent } from "@/services/run-controller-service";
+import type { AppContext } from "../../runtime/bootstrap/index";
+import type { RunUpdateEvent } from "../../services/run-controller-service/index";
 import type {
   DeliveredMessageRecord,
   IncomingPlatformMessage,
   OutboundPlatformMessage,
   PlatformName,
-} from "@/types/gateway";
+} from "../../types/gateway";
 import type { PlatformAdapter } from "../platforms/base";
 import type {
   GatewayInboxRecord,

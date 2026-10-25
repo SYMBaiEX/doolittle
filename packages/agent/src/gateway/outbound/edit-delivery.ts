@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import type {
   DeliveredMessageRecord,
   OutboundPlatformMessage,
-} from "@/types/gateway";
+} from "../../types/gateway";
 import type {
   GatewayEditDeliveryDependencies,
   GatewayEditDeliveryOptions,

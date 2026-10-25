@@ -1,5 +1,5 @@
-import type { PlatformName } from "@/types/gateway";
-import type { EnvConfig } from "@/types/runtime";
+import type { PlatformName } from "../../../types/gateway";
+import type { EnvConfig } from "../../../types/runtime/index";
 
 export interface TransportRequirementDefinition {
   platform: PlatformName;

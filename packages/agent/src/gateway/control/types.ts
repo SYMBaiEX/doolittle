@@ -12,7 +12,7 @@ export type GatewayTraceKind =
 
 export interface GatewayFilterOptions {
   limit?: number;
-  platform?: import("@/types/gateway").PlatformName;
+  platform?: import("../../types/gateway").PlatformName;
   sessionId?: string;
   kind?: GatewayTraceKind;
 }

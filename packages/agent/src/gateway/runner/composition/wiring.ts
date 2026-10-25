@@ -1,6 +1,6 @@
-import type { GatewayRunnerBootstrapResult } from "@/gateway/runner/bootstrap";
-import { createGatewayRunnerControlPlane } from "@/gateway/runner/control-plane";
-import { GatewayRunnerRecording } from "@/gateway/runner/recording";
+import type { GatewayRunnerBootstrapResult } from "../bootstrap";
+import { createGatewayRunnerControlPlane } from "../control-plane";
+import { GatewayRunnerRecording } from "../recording";
 import {
   buildGatewayRunnerControlPlaneDependencies,
   buildGatewayRunnerRecordingDeps,

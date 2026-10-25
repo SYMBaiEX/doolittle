@@ -3,7 +3,7 @@ import type {
   OutboundPlatformMessage,
   PlatformName,
   SessionRoute,
-} from "@/types/gateway";
+} from "../../../types/gateway";
 import type { GatewayReceiveOutcome } from "../../receive/outcome-types";
 
 export type { DeliveredMessageRecord, SessionRoute };

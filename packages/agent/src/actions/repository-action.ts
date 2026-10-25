@@ -12,7 +12,7 @@ import {
   getNativeRepositoryDiff,
   getNativeRepositoryLog,
   getNativeRepositoryStatus,
-} from "@/runtime/native/service-bridge/tooling";
+} from "../runtime/native/service-bridge/tooling/index";
 
 type RepositoryIntent = "status" | "diff" | "log";
 

@@ -3,7 +3,7 @@ import type {
   DeliveredMessageRecord,
   OutboundPlatformMessage,
   SessionRoute,
-} from "@/types/gateway";
+} from "../../types/gateway";
 import type {
   GatewaySendToHomesDependencies,
   GatewaySendToHomesOptions,

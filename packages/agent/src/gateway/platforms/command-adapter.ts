@@ -1,7 +1,10 @@
-import type { DeliveryService } from "@/services/delivery-service";
-import { runTextProcess } from "@/services/process-execution";
-import { localShellInvocation } from "@/services/terminal/execution/subprocess";
-import type { OutboundPlatformMessage, PlatformName } from "@/types/gateway";
+import type { DeliveryService } from "../../services/delivery-service";
+import { runTextProcess } from "../../services/process-execution";
+import { localShellInvocation } from "../../services/terminal/execution/subprocess/index";
+import type {
+  OutboundPlatformMessage,
+  PlatformName,
+} from "../../types/gateway";
 import {
   buildConfiguredTransportHealth,
   capabilitiesForPlatform,

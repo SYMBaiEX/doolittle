@@ -1,12 +1,12 @@
 import type {
   getNativeMessagingTransportState,
   getNativeTransportControlPlane,
-} from "@/runtime/native/service-bridge/transport-control";
+} from "../../../runtime/native/service-bridge/transport-control/index";
 import type {
   DeliveredMessageRecord,
   PlatformName,
   SessionRoute,
-} from "@/types/gateway";
+} from "../../../types/gateway";
 import type { GatewayDaemonRuntimeState } from "../../daemon-state";
 import type {
   PlatformHealth,

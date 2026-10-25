@@ -1,4 +1,4 @@
-import type { GatewayRunnerContext } from "@/gateway/runner/context";
+import type { GatewayRunnerContext } from "../context";
 import type { GatewayRunnerRuntimeApi } from "./api";
 import { createGatewayRunnerRuntimeApi } from "./api";
 import { assembleGatewayRunnerRuntime } from "./assembly";

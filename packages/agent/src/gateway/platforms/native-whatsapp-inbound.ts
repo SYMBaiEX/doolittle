@@ -1,5 +1,5 @@
-import type { GatewayRunner } from "@/gateway/runner";
-import type { IncomingPlatformMessage } from "@/types/gateway";
+import type { IncomingPlatformMessage } from "../../types/gateway";
+import type { GatewayRunner } from "../runner/index";
 
 const WHATSAPP_SERVICE = "whatsapp";
 const HANDOFF_INSTALLED = Symbol.for(

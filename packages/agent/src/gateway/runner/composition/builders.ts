@@ -1,9 +1,9 @@
-import type { GatewayRunnerBootstrapResult } from "@/gateway/runner/bootstrap";
-import type { GatewayRunnerControlPlaneDependencies } from "@/gateway/runner/control-plane";
+import type { GatewayRunnerBootstrapResult } from "../bootstrap";
+import type { GatewayRunnerControlPlaneDependencies } from "../control-plane";
 import type {
   GatewayRunnerRecording,
   GatewayRunnerRecordingDeps,
-} from "@/gateway/runner/recording";
+} from "../recording";
 import type { GatewayRunnerRuntimeAssemblyInput } from "./types";
 
 export function buildGatewayRunnerRecordingDeps(

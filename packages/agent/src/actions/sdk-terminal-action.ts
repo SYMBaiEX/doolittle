@@ -3,9 +3,9 @@ import type { Action, ActionResult } from "@elizaos/core";
 import {
   getScopedTurnAbortSignal,
   recordScopedTurnActionResult,
-} from "@/runtime/turn-runtime-scope";
-import type { AppServices } from "@/services";
-import { isRecord } from "@/utils/records";
+} from "../runtime/turn-runtime-scope";
+import type { AppServices } from "../services/index";
+import { isRecord } from "../utils/records";
 
 function commandParameter(options: unknown): string | undefined {
   if (!options || typeof options !== "object" || Array.isArray(options)) {

@@ -1,4 +1,4 @@
-import type { PlatformName } from "@/types/gateway";
+import type { PlatformName } from "../../../types/gateway";
 import type { TransportRecordBucket } from "./types";
 
 export function getPlatformRecords<

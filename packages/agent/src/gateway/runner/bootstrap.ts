@@ -1,32 +1,32 @@
+import type { NativeTransportControlPlane } from "../../runtime/native/service-bridge/transport-control/index";
 import type {
-  GatewayDaemonState,
-  GatewayRestartState,
-} from "@/gateway/daemon-state";
+  IncomingPlatformMessage,
+  PlatformName,
+} from "../../types/gateway";
+import type { GatewayDaemonState, GatewayRestartState } from "../daemon-state";
+import type { PlatformAdapter } from "../platforms/base";
 import type {
   GatewayAttachmentRecord,
   GatewayInboxRecord,
   GatewayOutboxRecord,
   GatewayTraceRecord,
-} from "@/gateway/read/history-view";
-import { GatewayRunnerReadModel } from "@/gateway/read/read-model";
+} from "../read/history-view/index";
+import { GatewayRunnerReadModel } from "../read/read-model/index";
 import type {
   GatewayReceiveOptions,
   GatewayReceiveResult,
-} from "@/gateway/receive/index";
-import { persistGatewaySnapshotFiles } from "@/gateway/recording/journal";
-import type { GatewayRunnerContext } from "@/gateway/runner/context";
-import { initializeGatewayRunnerPersistence } from "@/gateway/runner/persistence";
-import { GatewayRunnerStateBookkeeping } from "@/gateway/runner/state";
-import type { GatewayNativePluginInfo } from "@/gateway/state/platform-state";
+} from "../receive/index";
+import { persistGatewaySnapshotFiles } from "../recording/journal";
+import type { GatewayNativePluginInfo } from "../state/platform-state";
 import type {
   GatewayHistorySnapshot,
   GatewayNativeMessagingStateView,
   GatewayPlatformStateView,
-} from "@/gateway/state/state-snapshot";
-import type { GatewaySupervisionRecord } from "@/gateway/supervision/index";
-import type { NativeTransportControlPlane } from "@/runtime/native/service-bridge/transport-control";
-import type { IncomingPlatformMessage, PlatformName } from "@/types/gateway";
-import type { PlatformAdapter } from "../platforms/base";
+} from "../state/state-snapshot/index";
+import type { GatewaySupervisionRecord } from "../supervision/index";
+import type { GatewayRunnerContext } from "./context";
+import { initializeGatewayRunnerPersistence } from "./persistence";
+import { GatewayRunnerStateBookkeeping } from "./state/index";
 
 export interface GatewayRunnerRuntimeMeta {
   pid: number;

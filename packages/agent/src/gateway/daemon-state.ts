@@ -1,4 +1,4 @@
-import type { PlatformName } from "@/types/gateway";
+import type { PlatformName } from "../types/gateway";
 
 export interface GatewayDaemonPolicy {
   heartbeatIntervalMs: number;

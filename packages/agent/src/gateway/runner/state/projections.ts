@@ -1,7 +1,7 @@
-import type { PlatformPresenceState } from "@/gateway/platforms/base";
-import { nowIso } from "@/gateway/platforms/base";
-import { buildGatewayPlatformPresence } from "@/gateway/state/platform-state";
-import type { GatewayPlatformStateView } from "@/gateway/state/state-snapshot";
+import type { PlatformPresenceState } from "../../platforms/base/index";
+import { nowIso } from "../../platforms/base/index";
+import { buildGatewayPlatformPresence } from "../../state/platform-state";
+import type { GatewayPlatformStateView } from "../../state/state-snapshot/index";
 
 export function buildGatewayRunnerPresence(
   status: PlatformPresenceState["status"],

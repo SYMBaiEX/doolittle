@@ -1,7 +1,7 @@
-import type { GatewayRunnerBootstrapResult } from "@/gateway/runner/bootstrap";
-import type { GatewayRunnerControlPlane } from "@/gateway/runner/control-plane";
-import type { GatewayRunnerOperations } from "@/gateway/runner/operations";
-import type { GatewayRunnerRecording } from "@/gateway/runner/recording";
+import type { GatewayRunnerBootstrapResult } from "../bootstrap";
+import type { GatewayRunnerControlPlane } from "../control-plane";
+import type { GatewayRunnerOperations } from "../operations";
+import type { GatewayRunnerRecording } from "../recording";
 import type { GatewayRunnerRuntimeAssembly } from "./types";
 
 interface GatewayRunnerRuntimeAssemblyOutputInput {

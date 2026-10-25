@@ -1,7 +1,7 @@
-import type { GatewayRuntimeStatus } from "@/gateway/read/read-model";
-import type { GatewayTransportDetail } from "@/gateway/state/state-snapshot";
-import type { AppContext } from "@/runtime/bootstrap";
-import type { PlatformName } from "@/types/gateway";
+import type { AppContext } from "../../runtime/bootstrap/index";
+import type { PlatformName } from "../../types/gateway";
+import type { GatewayRuntimeStatus } from "../read/read-model/index";
+import type { GatewayTransportDetail } from "../state/state-snapshot/index";
 
 export interface GatewayRunnerSurface {
   runtimeStatus(): GatewayRuntimeStatus;

@@ -1,48 +1,48 @@
+import type { NativeTransportControlPlane } from "../../../runtime/native/service-bridge/transport-control/index";
+import type { PlatformName } from "../../../types/gateway";
 import type {
   GatewayDaemonState,
   GatewayRestartState,
-} from "@/gateway/daemon-state";
-import type { PlatformAdapter } from "@/gateway/platforms/base";
+} from "../../daemon-state";
+import type { PlatformAdapter } from "../../platforms/base/index";
 import type {
   GatewayAttachmentRecord,
   GatewayHistoryFilter,
   GatewayInboxRecord,
   GatewayOutboxRecord,
   GatewayTraceRecord,
-} from "@/gateway/read/history-view";
+} from "../../read/history-view/index";
 import type {
   GatewayRunnerReadModel,
   GatewayRuntimeStatus,
-} from "@/gateway/read/read-model";
-import type {
-  GatewayRunnerBootstrapInputs,
-  GatewayRunnerBootstrapResult,
-  GatewayRunnerRuntimeMeta,
-} from "@/gateway/runner/bootstrap";
-import type { GatewayRunnerContext } from "@/gateway/runner/context";
-import type {
-  GatewayRunnerControlPlane,
-  GatewayRunnerControlPlaneDependencies,
-} from "@/gateway/runner/control-plane";
-import type {
-  GatewayRunnerOperationDependencies,
-  GatewayRunnerOperations,
-} from "@/gateway/runner/operations";
-import type {
-  GatewayRunnerRecording,
-  GatewayRunnerRecordingDeps,
-} from "@/gateway/runner/recording";
-import type { GatewayRunnerStateBookkeeping } from "@/gateway/runner/state";
-import type { GatewayNativePluginInfo } from "@/gateway/state/platform-state";
+} from "../../read/read-model/index";
+import type { GatewayNativePluginInfo } from "../../state/platform-state";
 import type {
   GatewayHistorySnapshot,
   GatewayNativeMessagingStateView,
   GatewayPlatformStateView,
   GatewayStateSnapshot,
-} from "@/gateway/state/state-snapshot";
-import type { GatewaySupervisionRecord } from "@/gateway/supervision/index";
-import type { NativeTransportControlPlane } from "@/runtime/native/service-bridge/transport-control";
-import type { PlatformName } from "@/types/gateway";
+} from "../../state/state-snapshot/index";
+import type { GatewaySupervisionRecord } from "../../supervision/index";
+import type {
+  GatewayRunnerBootstrapInputs,
+  GatewayRunnerBootstrapResult,
+  GatewayRunnerRuntimeMeta,
+} from "../bootstrap";
+import type { GatewayRunnerContext } from "../context";
+import type {
+  GatewayRunnerControlPlane,
+  GatewayRunnerControlPlaneDependencies,
+} from "../control-plane";
+import type {
+  GatewayRunnerOperationDependencies,
+  GatewayRunnerOperations,
+} from "../operations";
+import type {
+  GatewayRunnerRecording,
+  GatewayRunnerRecordingDeps,
+} from "../recording";
+import type { GatewayRunnerStateBookkeeping } from "../state/index";
 
 export interface GatewayRunnerRuntimeAssembly {
   snapshotPath: string;

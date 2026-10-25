@@ -1,5 +1,5 @@
-import type { GatewayPairingProjection } from "@/services/gateway-pairing";
-import type { GatewayConfig, IncomingPlatformMessage } from "@/types/gateway";
+import type { GatewayPairingProjection } from "../services/gateway-pairing";
+import type { GatewayConfig, IncomingPlatformMessage } from "../types/gateway";
 
 export async function authorizeMessage(
   message: IncomingPlatformMessage,

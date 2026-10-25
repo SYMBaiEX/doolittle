@@ -1,5 +1,5 @@
 import { syncElizaEnvAliases } from "@elizaos/shared";
-import type { EnvConfig } from "@/types/runtime";
+import type { EnvConfig } from "../../types/runtime/index";
 import { stageLegacyApiAliases } from "./aliases";
 import { buildEnvConfig } from "./build";
 import {

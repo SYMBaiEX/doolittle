@@ -1,35 +1,35 @@
 import type {
+  DeliveredMessageRecord,
+  IncomingPlatformMessage,
+  PlatformName,
+} from "../../../types/gateway";
+import type { PlatformHealth } from "../../platforms/base";
+import type {
   GatewayAttachmentRecord,
   GatewayHistoryFilter,
   GatewayInboxRecord,
   GatewayOutboxRecord,
   GatewayTraceRecord,
-} from "@/gateway/read/history-view";
+} from "../../read/history-view/index";
 import type {
   GatewayRunnerReadModel,
   GatewayRuntimeStatus,
-} from "@/gateway/read/read-model";
+} from "../../read/read-model/index";
 import type {
   GatewayReceiveOptions,
   GatewayReceiveResult,
-} from "@/gateway/receive/index";
-import type { GatewayInboxReplayResult } from "@/gateway/receive/replay";
-import type { GatewayRunnerControlPlane } from "@/gateway/runner/control-plane";
-import type { GatewayRunnerOperations } from "@/gateway/runner/operations";
-import type { GatewayRunnerRecording } from "@/gateway/runner/recording";
-import type { GatewayRunnerStateBookkeeping } from "@/gateway/runner/state";
+} from "../../receive/index";
+import type { GatewayInboxReplayResult } from "../../receive/replay";
 import type {
   GatewayHistorySnapshot,
   GatewayStateSnapshot,
   GatewayTransportDetail,
-} from "@/gateway/state/state-snapshot";
-import type { GatewaySupervisionRecord } from "@/gateway/supervision/index";
-import type {
-  DeliveredMessageRecord,
-  IncomingPlatformMessage,
-  PlatformName,
-} from "@/types/gateway";
-import type { PlatformHealth } from "../../platforms/base";
+} from "../../state/state-snapshot/index";
+import type { GatewaySupervisionRecord } from "../../supervision/index";
+import type { GatewayRunnerControlPlane } from "../control-plane";
+import type { GatewayRunnerOperations } from "../operations";
+import type { GatewayRunnerRecording } from "../recording";
+import type { GatewayRunnerStateBookkeeping } from "../state/index";
 import type {
   GatewayRunnerEditDeliveryOptions,
   GatewayRunnerProgressiveTarget,

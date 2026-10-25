@@ -1,4 +1,4 @@
-import type { EnvConfig } from "@/types/runtime";
+import type { EnvConfig } from "../../../types/runtime/index";
 
 export const HOMEASSISTANT_MISSING_DETAIL =
   "HOMEASSISTANT_URL and HOMEASSISTANT_TOKEN are required.";

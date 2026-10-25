@@ -1,8 +1,8 @@
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
-import type { GatewayConfig, PlatformName } from "@/types/gateway";
-import type { EnvConfig } from "@/types/runtime";
+import type { GatewayConfig, PlatformName } from "../types/gateway";
+import type { EnvConfig } from "../types/runtime/index";
 
 function basePlatformConfig() {
   return {

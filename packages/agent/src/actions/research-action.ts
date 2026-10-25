@@ -13,9 +13,9 @@ import {
   buildCacheablePrompt,
   hashParts,
   promptCacheMetrics,
-} from "@/runtime/prompt-cache";
-import { getScopedTurnAbortSignal } from "@/runtime/turn-runtime-scope";
-import { messageText } from "@/utils/eliza-compat";
+} from "../runtime/prompt-cache/index";
+import { getScopedTurnAbortSignal } from "../runtime/turn-runtime-scope";
+import { messageText } from "../utils/eliza-compat";
 import {
   classifyResearchFailure,
   ResearchPreflightError,

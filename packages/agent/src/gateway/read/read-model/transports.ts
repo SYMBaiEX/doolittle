@@ -1,4 +1,4 @@
-import type { PlatformName } from "@/types/gateway";
+import type { PlatformName } from "../../../types/gateway";
 import type { GatewayTransportDetail } from "../../state/state-snapshot";
 import { buildGatewayTransportDetail } from "../transport-detail";
 import { readGatewayHealth, readGatewayState } from "./snapshots";

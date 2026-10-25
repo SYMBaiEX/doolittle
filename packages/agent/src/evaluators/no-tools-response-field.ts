@@ -1,6 +1,6 @@
 import { ChannelType, type ResponseHandlerFieldEvaluator } from "@elizaos/core";
-import { hasExplicitNoToolsIntent } from "@/runtime/no-tools-intent";
-import { messageText } from "@/utils/eliza-compat";
+import { hasExplicitNoToolsIntent } from "../runtime/no-tools-intent";
+import { messageText } from "../utils/eliza-compat";
 
 const DIRECT_TEXT_CHANNELS = new Set<ChannelType>([
   ChannelType.DM,

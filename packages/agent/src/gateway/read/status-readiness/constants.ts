@@ -1,4 +1,4 @@
-import type { PlatformName } from "@/types/gateway";
+import type { PlatformName } from "../../../types/gateway";
 
 export const LIGHTWEIGHT_WEBHOOK_PLATFORMS = new Set<PlatformName>([
   "signal",

@@ -1,34 +1,34 @@
 import type {
+  DeliveredMessageRecord,
+  IncomingPlatformMessage,
+  PlatformName,
+} from "../../types/gateway";
+import type { PlatformHealth } from "../platforms/base";
+import type {
   GatewayAttachmentRecord,
   GatewayHistoryFilter,
   GatewayInboxRecord,
   GatewayOutboxRecord,
   GatewayTraceRecord,
-} from "@/gateway/read/history-view";
-import type { GatewayRuntimeStatus } from "@/gateway/read/read-model";
+} from "../read/history-view/index";
+import type { GatewayRuntimeStatus } from "../read/read-model/index";
 import type {
   GatewayReceiveOptions,
   GatewayReceiveResult,
-} from "@/gateway/receive/index";
+} from "../receive/index";
 import {
   type GatewayIngressHistoryEntry,
   type GatewayIngressReceipt,
   GatewayIngressSpool,
-} from "@/gateway/receive/ingress-spool";
-import { GatewayIngressWorker } from "@/gateway/receive/ingress-worker";
-import type { GatewayInboxReplayResult } from "@/gateway/receive/replay";
+} from "../receive/ingress-spool";
+import { GatewayIngressWorker } from "../receive/ingress-worker";
+import type { GatewayInboxReplayResult } from "../receive/replay";
 import type {
   GatewayHistorySnapshot,
   GatewayStateSnapshot,
   GatewayTransportDetail,
-} from "@/gateway/state/state-snapshot";
-import type { GatewaySupervisionRecord } from "@/gateway/supervision/index";
-import type {
-  DeliveredMessageRecord,
-  IncomingPlatformMessage,
-  PlatformName,
-} from "@/types/gateway";
-import type { PlatformHealth } from "../platforms/base";
+} from "../state/state-snapshot/index";
+import type { GatewaySupervisionRecord } from "../supervision/index";
 import type { GatewayRunnerContext } from "./context";
 import type { GatewayRunnerRuntimeApi } from "./service-runtime/api";
 import { GatewayRunnerRuntimeState } from "./service-runtime/state";
@@ -242,11 +242,11 @@ export type {
   GatewayInboxRecord,
   GatewayOutboxRecord,
   GatewayTraceRecord,
-} from "@/gateway/read/history-view";
-export type { GatewayRuntimeStatus } from "@/gateway/read/read-model";
+} from "../read/history-view/index";
+export type { GatewayRuntimeStatus } from "../read/read-model/index";
 export type {
   GatewayHistorySnapshot,
   GatewayPlatformStateView,
   GatewayStateSnapshot,
   GatewayTransportDetail,
-} from "@/gateway/state/state-snapshot";
+} from "../state/state-snapshot/index";

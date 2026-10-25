@@ -1,4 +1,4 @@
-import characterJson from "@characters/doolittle.character.json" with {
+import characterJson from "@doolittle/characters/doolittle.character.json" with {
   type: "json",
 };
 import { createCharacter } from "@elizaos/core";

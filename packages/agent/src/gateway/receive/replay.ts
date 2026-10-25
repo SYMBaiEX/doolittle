@@ -1,4 +1,4 @@
-import type { PlatformName } from "@/types/gateway";
+import type { PlatformName } from "../../types/gateway";
 import type { PlatformHealth } from "../platforms/base";
 import type { GatewayInboxRecord } from "../read/history-view";
 import { summarizeTransportJournalEntry } from "../trace-summary";

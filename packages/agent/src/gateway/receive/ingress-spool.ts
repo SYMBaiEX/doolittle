@@ -8,14 +8,14 @@ import {
   writeFileSync,
 } from "node:fs";
 import { dirname, join } from "node:path";
-import { gatewayInboundIdempotencyKey } from "@/gateway/receive/idempotency";
+import { redactTrajectoryText } from "../../services/trajectory/event-journal";
+import type { IncomingPlatformMessage } from "../../types/gateway";
 import {
   appendGatewayJournalRecordDurably,
   ensureGatewayJournalFile,
   loadGatewayJournal,
-} from "@/gateway/recording/journal";
-import { redactTrajectoryText } from "@/services/trajectory/event-journal";
-import type { IncomingPlatformMessage } from "@/types/gateway";
+} from "../recording/journal";
+import { gatewayInboundIdempotencyKey } from "./idempotency";
 
 const VERSION = 1;
 /** Retain recent terminal duplicate receipts; older provider retries fall back to receive idempotency. */

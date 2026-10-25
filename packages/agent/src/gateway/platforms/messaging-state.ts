@@ -1,9 +1,9 @@
-import type { NativeMessagingTransportState } from "@/runtime/native/service-bridge/transport-control";
+import type { NativeMessagingTransportState } from "../../runtime/native/service-bridge/transport-control/index";
 import type {
   DeliveredMessageRecord,
   OutboundPlatformMessage,
   PlatformName,
-} from "@/types/gateway";
+} from "../../types/gateway";
 import {
   buildConfiguredTransportHealth,
   capabilitiesForPlatform,

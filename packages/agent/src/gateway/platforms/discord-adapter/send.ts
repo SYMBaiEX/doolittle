@@ -1,5 +1,5 @@
 import { openAsBlob } from "node:fs";
-import type { OutboundPlatformMessage } from "@/types/gateway";
+import type { OutboundPlatformMessage } from "../../../types/gateway";
 import { fetchPlatform, readPlatformResponseText } from "../platform-http";
 
 const DISCORD_API_ROOT = "https://discord.com/api/v10";

@@ -4,7 +4,7 @@ import type {
   IncomingPlatformMessage,
   OutboundPlatformMessage,
   PlatformName,
-} from "@/types/gateway";
+} from "../../types/gateway";
 import type {
   GatewayAttachmentRecord,
   GatewayInboxRecord,

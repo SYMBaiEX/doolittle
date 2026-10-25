@@ -1,6 +1,6 @@
 import type { Evaluator, Memory } from "@elizaos/core";
-import { messageUserId } from "@/runtime/message-user";
-import type { AppServices } from "@/services";
+import { messageUserId } from "../runtime/message-user";
+import type { AppServices } from "../services/index";
 
 type MemoryNudgePrepared = {
   fact: string;

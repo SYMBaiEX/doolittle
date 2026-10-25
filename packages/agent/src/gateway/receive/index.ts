@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 
-import { redactTrajectoryText } from "@/services/trajectory/event-journal";
-import type { SessionRoute } from "@/types/gateway";
+import { redactTrajectoryText } from "../../services/trajectory/event-journal";
+import type { SessionRoute } from "../../types/gateway";
 import { deliverGatewayReceiveResponse } from "./delivery";
 import { executeGatewayReceiveTurn } from "./execution";
 import { setupGatewayReceive } from "./setup";

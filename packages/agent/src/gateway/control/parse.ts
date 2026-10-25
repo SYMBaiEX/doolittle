@@ -1,4 +1,4 @@
-import type { PlatformName } from "@/types/gateway";
+import type { PlatformName } from "../../types/gateway";
 
 import { GATEWAY_TRACE_KINDS, TRANSPORT_PLATFORM_NAMES } from "./constants";
 import type {

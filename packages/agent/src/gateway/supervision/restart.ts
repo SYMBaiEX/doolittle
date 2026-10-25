@@ -1,4 +1,4 @@
-import type { PlatformName } from "@/types/gateway";
+import type { PlatformName } from "../../types/gateway";
 import {
   computeGatewayRestartBackoffMs,
   GATEWAY_DAEMON_POLICY,

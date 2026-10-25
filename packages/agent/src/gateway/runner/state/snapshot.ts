@@ -1,9 +1,9 @@
-import type { PlatformHealth } from "@/gateway/platforms/base";
+import type { PlatformHealth } from "../../platforms/base/index";
 import {
   buildGatewayStateSnapshot,
   type GatewayHistorySnapshot,
   type GatewayStateSnapshot,
-} from "@/gateway/state/state-snapshot";
+} from "../../state/state-snapshot/index";
 import { deriveGatewayRunnerHeartbeatAt } from "./projections";
 import type {
   GatewayRunnerHistoryWindow,
@@ -22,7 +22,7 @@ interface BuildGatewayRunnerStateSnapshotParams {
   reason: string;
   readiness: PlatformHealth[];
   daemon: ReturnType<
-    typeof import("@/gateway/daemon-state").buildGatewayDaemonRuntimeState
+    typeof import("../../daemon-state").buildGatewayDaemonRuntimeState
   >;
   window: GatewayRunnerHistoryWindow;
 }
