@@ -98,6 +98,7 @@ overrides:
   undici@>=7.0.0 <7.30.1: 7.30.1
   undici@>=8.0.0 <8.12.2: 8.12.2
   ws@>=8.0.0 <8.21.0: 8.22.0
+  zod@>=3.0.0 <4.0.0: 3.25.76
   zod@>=4.0.0 <4.6.7: 4.6.7
 
 patchedDependencies:
@@ -140,6 +141,12 @@ patchedDependencies:
   uuid@9.0.1:
     hash: a142c27973dbfb74002546872b79f54c745f698b5c2303056d0dad98cfa43d9f
     path: patches/uuid+9.0.1.patch
+  zod@3.25.76:
+    hash: 4a0b2f09e9ab645342eb1f2046cd1c8deb0ddec2e17af45096fa053b0f40220d
+    path: patches/zod+3.25.76.patch
+  zod@4.6.7:
+    hash: 6461b918131c140d2f2a01654ad5d97770e039ca19d8c0b0e560847558628ff5
+    path: patches/zod+4.6.7.patch
 
 importers:
 
@@ -473,7 +480,7 @@ importers:
         version: 1.11.0
       zod:
         specifier: ^4.6.7
-        version: 4.6.7
+        version: 4.6.7(patch_hash=6461b918131c140d2f2a01654ad5d97770e039ca19d8c0b0e560847558628ff5)
     devDependencies:
       sharp:
         specifier: 0.35.5
@@ -488,7 +495,7 @@ importers:
         version: 2.0.3-beta.7(patch_hash=7242104d352567e5494819604c53ef11b12ecb35e0aec410c0af09c4bc5b7864)(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)
       zod:
         specifier: ^4.6.7
-        version: 4.6.7
+        version: 4.6.7(patch_hash=6461b918131c140d2f2a01654ad5d97770e039ca19d8c0b0e560847558628ff5)
 
   packages/evals:
     dependencies:
@@ -14427,9 +14434,6 @@ packages:
     peerDependencies:
       zod: ^3.25.28 || ^4
 
-  zod@3.22.4:
-    resolution: {integrity: sha512-iC+8Io04lddc+mVqQ9AZ7OQ2MrUKGN+oIQyq1vemgt46jwCwLfhq7/pwnBnNXXXZb8VTVLKwp9EDkx+ryxIWmg==}
-
   zod@3.25.76:
     resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
 
@@ -14524,45 +14528,45 @@ snapshots:
 
   '@agentclientprotocol/sdk@1.5.1(zod@4.6.7)':
     dependencies:
-      zod: 4.6.7
+      zod: 4.6.7(patch_hash=6461b918131c140d2f2a01654ad5d97770e039ca19d8c0b0e560847558628ff5)
 
   '@ai-sdk/anthropic@3.0.135(zod@4.6.7)':
     dependencies:
       '@ai-sdk/provider': 3.0.19
       '@ai-sdk/provider-utils': 4.0.62(zod@4.6.7)
-      zod: 4.6.7
+      zod: 4.6.7(patch_hash=6461b918131c140d2f2a01654ad5d97770e039ca19d8c0b0e560847558628ff5)
 
   '@ai-sdk/gateway@3.0.133(zod@4.6.7)':
     dependencies:
       '@ai-sdk/provider': 3.0.10
       '@ai-sdk/provider-utils': 4.0.57(zod@4.6.7)
       '@vercel/oidc': 3.2.0
-      zod: 4.6.7
+      zod: 4.6.7(patch_hash=6461b918131c140d2f2a01654ad5d97770e039ca19d8c0b0e560847558628ff5)
 
   '@ai-sdk/gateway@3.0.221(zod@4.6.7)':
     dependencies:
       '@ai-sdk/provider': 3.0.19
       '@ai-sdk/provider-utils': 4.0.62(zod@4.6.7)
       '@vercel/oidc': 3.2.0
-      zod: 4.6.7
+      zod: 4.6.7(patch_hash=6461b918131c140d2f2a01654ad5d97770e039ca19d8c0b0e560847558628ff5)
 
   '@ai-sdk/google@3.0.138(zod@4.6.7)':
     dependencies:
       '@ai-sdk/provider': 3.0.19
       '@ai-sdk/provider-utils': 4.0.62(zod@4.6.7)
-      zod: 4.6.7
+      zod: 4.6.7(patch_hash=6461b918131c140d2f2a01654ad5d97770e039ca19d8c0b0e560847558628ff5)
 
   '@ai-sdk/groq@3.0.79(zod@4.6.7)':
     dependencies:
       '@ai-sdk/provider': 3.0.19
       '@ai-sdk/provider-utils': 4.0.62(zod@4.6.7)
-      zod: 4.6.7
+      zod: 4.6.7(patch_hash=6461b918131c140d2f2a01654ad5d97770e039ca19d8c0b0e560847558628ff5)
 
   '@ai-sdk/openai@3.0.131(zod@4.6.7)':
     dependencies:
       '@ai-sdk/provider': 3.0.19
       '@ai-sdk/provider-utils': 4.0.62(zod@4.6.7)
-      zod: 4.6.7
+      zod: 4.6.7(patch_hash=6461b918131c140d2f2a01654ad5d97770e039ca19d8c0b0e560847558628ff5)
 
   '@ai-sdk/provider-utils@4.0.57(zod@4.6.7)':
     dependencies:
@@ -14570,7 +14574,7 @@ snapshots:
       '@standard-schema/spec': 1.1.0
       eventsource-parser: 3.1.1
       undici: 6.29.1
-      zod: 4.6.7
+      zod: 4.6.7(patch_hash=6461b918131c140d2f2a01654ad5d97770e039ca19d8c0b0e560847558628ff5)
 
   '@ai-sdk/provider-utils@4.0.62(zod@4.6.7)':
     dependencies:
@@ -14578,7 +14582,7 @@ snapshots:
       '@standard-schema/spec': 1.1.0
       eventsource-parser: 3.1.1
       undici: 6.29.1
-      zod: 4.6.7
+      zod: 4.6.7(patch_hash=6461b918131c140d2f2a01654ad5d97770e039ca19d8c0b0e560847558628ff5)
 
   '@ai-sdk/provider@3.0.10':
     dependencies:
@@ -14901,7 +14905,7 @@ snapshots:
       md5: 2.3.0
       uncrypto: 0.1.3
       viem: 2.57.11(typescript@7.0.2)(zod@4.6.7)
-      zod: 3.25.76
+      zod: 3.25.76(patch_hash=4a0b2f09e9ab645342eb1f2046cd1c8deb0ddec2e17af45096fa053b0f40220d)
     transitivePeerDependencies:
       - '@solana/rpc-spec'
       - bufferutil
@@ -15405,7 +15409,7 @@ snapshots:
       sha.js: 2.4.12
       simple-get: 4.0.1
       ws: 8.22.0
-      zod: 4.6.7
+      zod: 4.6.7(patch_hash=6461b918131c140d2f2a01654ad5d97770e039ca19d8c0b0e560847558628ff5)
     transitivePeerDependencies:
       - '@aws-sdk/client-rds-data'
       - '@azure/app-configuration'
@@ -15565,7 +15569,7 @@ snapshots:
       three: 0.184.0
       undici: 8.12.2
       ws: 8.22.0
-      zod: 4.6.7
+      zod: 4.6.7(patch_hash=6461b918131c140d2f2a01654ad5d97770e039ca19d8c0b0e560847558628ff5)
     optionalDependencies:
       '@elizaos/capacitor-appblocker': 2.0.3-beta.7(@capacitor/core@8.4.0)
       '@elizaos/capacitor-bun-runtime': 2.0.3-beta.7(@capacitor/core@8.4.0)
@@ -15826,7 +15830,7 @@ snapshots:
       unpdf: 1.9.1
       uuid: 14.0.3
       yaml: 2.9.1
-      zod: 4.6.7
+      zod: 4.6.7(patch_hash=6461b918131c140d2f2a01654ad5d97770e039ca19d8c0b0e560847558628ff5)
     transitivePeerDependencies:
       - '@aws-sdk/client-rds-data'
       - '@cloudflare/workers-types'
@@ -16162,14 +16166,14 @@ snapshots:
   '@elizaos/plugin-codex-cli@2.0.3-beta.7(patch_hash=1d187815659907fc5e4c73991fc0ab955d29764ab473ad82d0e300368473b7fb)(@electric-sql/pglite@0.4.6(ws@8.22.0))(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(zod@4.6.7)':
     dependencies:
       '@elizaos/core': 2.0.3-beta.7(patch_hash=7242104d352567e5494819604c53ef11b12ecb35e0aec410c0af09c4bc5b7864)(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)
-      zod: 4.6.7
+      zod: 4.6.7(patch_hash=6461b918131c140d2f2a01654ad5d97770e039ca19d8c0b0e560847558628ff5)
 
   '@elizaos/plugin-coding-tools@2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)':
     dependencies:
       '@elizaos/core': 2.0.3-beta.7(patch_hash=7242104d352567e5494819604c53ef11b12ecb35e0aec410c0af09c4bc5b7864)(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)
       '@elizaos/shared': 2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)
       '@vscode/ripgrep': 1.18.0
-      zod: 4.6.7
+      zod: 4.6.7(patch_hash=6461b918131c140d2f2a01654ad5d97770e039ca19d8c0b0e560847558628ff5)
     transitivePeerDependencies:
       - '@aws-sdk/client-rds-data'
       - '@cloudflare/workers-types'
@@ -16368,7 +16372,7 @@ snapshots:
       prism-media: 1.3.5(@discordjs/opus@0.10.0)
       tslib: 2.8.1
       undici: 8.12.2
-      zod: 4.6.7
+      zod: 4.6.7(patch_hash=6461b918131c140d2f2a01654ad5d97770e039ca19d8c0b0e560847558628ff5)
     transitivePeerDependencies:
       - '@aws-sdk/client-rds-data'
       - '@cloudflare/workers-types'
@@ -16466,7 +16470,7 @@ snapshots:
       undici: 8.12.2
       viem: 2.57.11(typescript@7.0.2)(zod@4.6.7)
       ws: 8.21.0
-      zod: 4.6.7
+      zod: 4.6.7(patch_hash=6461b918131c140d2f2a01654ad5d97770e039ca19d8c0b0e560847558628ff5)
     transitivePeerDependencies:
       - '@aws-sdk/client-rds-data'
       - '@cloudflare/workers-types'
@@ -16670,7 +16674,7 @@ snapshots:
   '@elizaos/plugin-imessage@2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)':
     dependencies:
       '@elizaos/core': 2.0.3-beta.7(patch_hash=7242104d352567e5494819604c53ef11b12ecb35e0aec410c0af09c4bc5b7864)(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)
-      zod: 4.6.7
+      zod: 4.6.7(patch_hash=6461b918131c140d2f2a01654ad5d97770e039ca19d8c0b0e560847558628ff5)
     transitivePeerDependencies:
       - '@aws-sdk/client-rds-data'
       - '@cloudflare/workers-types'
@@ -16767,7 +16771,7 @@ snapshots:
       '@elizaos/core': 2.0.3-beta.7(patch_hash=7242104d352567e5494819604c53ef11b12ecb35e0aec410c0af09c4bc5b7864)(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)
       ai: 6.0.315(zod@4.6.7)
       ollama-ai-provider-v2: 3.6.0(ai@6.0.315(zod@4.6.7))(zod@4.6.7)
-      zod: 4.6.7
+      zod: 4.6.7(patch_hash=6461b918131c140d2f2a01654ad5d97770e039ca19d8c0b0e560847558628ff5)
 
   '@elizaos/plugin-openai@2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(zod@4.6.7)':
     dependencies:
@@ -16775,7 +16779,7 @@ snapshots:
       '@elizaos/core': 2.0.3-beta.7(patch_hash=7242104d352567e5494819604c53ef11b12ecb35e0aec410c0af09c4bc5b7864)(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)
       ai: 6.0.315(zod@4.6.7)
       js-tiktoken: 1.0.21
-      zod: 4.6.7
+      zod: 4.6.7(patch_hash=6461b918131c140d2f2a01654ad5d97770e039ca19d8c0b0e560847558628ff5)
 
   '@elizaos/plugin-pdf@2.0.11-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)':
     dependencies:
@@ -16947,7 +16951,7 @@ snapshots:
       '@elizaos/core': 2.0.3-beta.7(patch_hash=7242104d352567e5494819604c53ef11b12ecb35e0aec410c0af09c4bc5b7864)(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)
       '@elizaos/shared': 2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)
       cross-spawn: 7.0.6
-      zod: 4.6.7
+      zod: 4.6.7(patch_hash=6461b918131c140d2f2a01654ad5d97770e039ca19d8c0b0e560847558628ff5)
     optionalDependencies:
       '@lydell/node-pty': 1.1.0
     transitivePeerDependencies:
@@ -17392,7 +17396,7 @@ snapshots:
       tweetnacl: 1.0.3
       uuid: 11.1.1
       viem: 2.57.11(typescript@7.0.2)(zod@4.6.7)
-      zod: 4.6.7
+      zod: 4.6.7(patch_hash=6461b918131c140d2f2a01654ad5d97770e039ca19d8c0b0e560847558628ff5)
     transitivePeerDependencies:
       - '@aws-sdk/client-rds-data'
       - '@cloudflare/workers-types'
@@ -17635,7 +17639,7 @@ snapshots:
 
   '@elizaos/security@2.0.11-beta.7':
     dependencies:
-      zod: 4.6.7
+      zod: 4.6.7(patch_hash=6461b918131c140d2f2a01654ad5d97770e039ca19d8c0b0e560847558628ff5)
 
   '@elizaos/shared@2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)':
     dependencies:
@@ -17647,7 +17651,7 @@ snapshots:
       phonemizer: 1.2.1
       react: 19.3.0
       yaml: 2.9.1
-      zod: 4.6.7
+      zod: 4.6.7(patch_hash=6461b918131c140d2f2a01654ad5d97770e039ca19d8c0b0e560847558628ff5)
     optionalDependencies:
       figlet: 1.12.0
     transitivePeerDependencies:
@@ -18518,7 +18522,7 @@ snapshots:
     dependencies:
       '@jimp/types': 1.6.1
       '@jimp/utils': 1.6.1
-      zod: 3.25.76
+      zod: 3.25.76(patch_hash=4a0b2f09e9ab645342eb1f2046cd1c8deb0ddec2e17af45096fa053b0f40220d)
 
   '@jimp/plugin-blur@0.22.12(@babel/runtime@7.29.10)(@jimp/custom@0.22.12)(@jimp/types@0.22.12(@jimp/custom@0.22.12))':
     dependencies:
@@ -18542,7 +18546,7 @@ snapshots:
   '@jimp/plugin-circle@1.6.1':
     dependencies:
       '@jimp/types': 1.6.1
-      zod: 3.25.76
+      zod: 3.25.76(patch_hash=4a0b2f09e9ab645342eb1f2046cd1c8deb0ddec2e17af45096fa053b0f40220d)
 
   '@jimp/plugin-color@0.22.12(@babel/runtime@7.29.10)(@jimp/custom@0.22.12)':
     dependencies:
@@ -18556,7 +18560,7 @@ snapshots:
       '@jimp/types': 1.6.1
       '@jimp/utils': 1.6.1
       tinycolor2: 1.6.0
-      zod: 3.25.76
+      zod: 3.25.76(patch_hash=4a0b2f09e9ab645342eb1f2046cd1c8deb0ddec2e17af45096fa053b0f40220d)
     transitivePeerDependencies:
       - supports-color
 
@@ -18575,7 +18579,7 @@ snapshots:
       '@jimp/plugin-resize': 1.6.1
       '@jimp/types': 1.6.1
       '@jimp/utils': 1.6.1
-      zod: 3.25.76
+      zod: 3.25.76(patch_hash=4a0b2f09e9ab645342eb1f2046cd1c8deb0ddec2e17af45096fa053b0f40220d)
     transitivePeerDependencies:
       - supports-color
 
@@ -18593,7 +18597,7 @@ snapshots:
       '@jimp/plugin-crop': 1.6.1
       '@jimp/plugin-resize': 1.6.1
       '@jimp/types': 1.6.1
-      zod: 3.25.76
+      zod: 3.25.76(patch_hash=4a0b2f09e9ab645342eb1f2046cd1c8deb0ddec2e17af45096fa053b0f40220d)
     transitivePeerDependencies:
       - supports-color
 
@@ -18607,7 +18611,7 @@ snapshots:
       '@jimp/core': 1.6.1
       '@jimp/types': 1.6.1
       '@jimp/utils': 1.6.1
-      zod: 3.25.76
+      zod: 3.25.76(patch_hash=4a0b2f09e9ab645342eb1f2046cd1c8deb0ddec2e17af45096fa053b0f40220d)
     transitivePeerDependencies:
       - supports-color
 
@@ -18620,7 +18624,7 @@ snapshots:
     dependencies:
       '@jimp/types': 1.6.1
       '@jimp/utils': 1.6.1
-      zod: 3.25.76
+      zod: 3.25.76(patch_hash=4a0b2f09e9ab645342eb1f2046cd1c8deb0ddec2e17af45096fa053b0f40220d)
 
   '@jimp/plugin-dither@0.22.12(@babel/runtime@7.29.10)(@jimp/custom@0.22.12)':
     dependencies:
@@ -18640,7 +18644,7 @@ snapshots:
     dependencies:
       '@jimp/types': 1.6.1
       '@jimp/utils': 1.6.1
-      zod: 3.25.76
+      zod: 3.25.76(patch_hash=4a0b2f09e9ab645342eb1f2046cd1c8deb0ddec2e17af45096fa053b0f40220d)
 
   '@jimp/plugin-flip@0.22.12(@babel/runtime@7.29.10)(@jimp/custom@0.22.12)(@jimp/plugin-rotate@0.22.12(@jimp/custom@0.22.12)(@jimp/plugin-blit@0.22.12(@jimp/custom@0.22.12))(@jimp/plugin-crop@0.22.12(@jimp/custom@0.22.12))(@jimp/plugin-resize@0.22.12(@jimp/custom@0.22.12)))':
     dependencies:
@@ -18651,7 +18655,7 @@ snapshots:
   '@jimp/plugin-flip@1.6.1':
     dependencies:
       '@jimp/types': 1.6.1
-      zod: 3.25.76
+      zod: 3.25.76(patch_hash=4a0b2f09e9ab645342eb1f2046cd1c8deb0ddec2e17af45096fa053b0f40220d)
 
   '@jimp/plugin-gaussian@0.22.12(@babel/runtime@7.29.10)(@jimp/custom@0.22.12)':
     dependencies:
@@ -18687,7 +18691,7 @@ snapshots:
   '@jimp/plugin-mask@1.6.1':
     dependencies:
       '@jimp/types': 1.6.1
-      zod: 3.25.76
+      zod: 3.25.76(patch_hash=4a0b2f09e9ab645342eb1f2046cd1c8deb0ddec2e17af45096fa053b0f40220d)
 
   '@jimp/plugin-normalize@0.22.12(@babel/runtime@7.29.10)(@jimp/custom@0.22.12)':
     dependencies:
@@ -18714,14 +18718,14 @@ snapshots:
       parse-bmfont-binary: 1.0.6
       parse-bmfont-xml: 1.1.6
       simple-xml-to-json: 1.2.7
-      zod: 3.25.76
+      zod: 3.25.76(patch_hash=4a0b2f09e9ab645342eb1f2046cd1c8deb0ddec2e17af45096fa053b0f40220d)
     transitivePeerDependencies:
       - supports-color
 
   '@jimp/plugin-quantize@1.6.1':
     dependencies:
       image-q: 4.0.0
-      zod: 3.25.76
+      zod: 3.25.76(patch_hash=4a0b2f09e9ab645342eb1f2046cd1c8deb0ddec2e17af45096fa053b0f40220d)
 
   '@jimp/plugin-resize@0.22.12(@babel/runtime@7.29.10)(@jimp/custom@0.22.12)':
     dependencies:
@@ -18732,7 +18736,7 @@ snapshots:
     dependencies:
       '@jimp/core': 1.6.1
       '@jimp/types': 1.6.1
-      zod: 3.25.76
+      zod: 3.25.76(patch_hash=4a0b2f09e9ab645342eb1f2046cd1c8deb0ddec2e17af45096fa053b0f40220d)
     transitivePeerDependencies:
       - supports-color
 
@@ -18751,7 +18755,7 @@ snapshots:
       '@jimp/plugin-resize': 1.6.1
       '@jimp/types': 1.6.1
       '@jimp/utils': 1.6.1
-      zod: 3.25.76
+      zod: 3.25.76(patch_hash=4a0b2f09e9ab645342eb1f2046cd1c8deb0ddec2e17af45096fa053b0f40220d)
     transitivePeerDependencies:
       - supports-color
 
@@ -18782,7 +18786,7 @@ snapshots:
       '@jimp/plugin-hash': 1.6.1
       '@jimp/types': 1.6.1
       '@jimp/utils': 1.6.1
-      zod: 3.25.76
+      zod: 3.25.76(patch_hash=4a0b2f09e9ab645342eb1f2046cd1c8deb0ddec2e17af45096fa053b0f40220d)
     transitivePeerDependencies:
       - node
       - supports-color
@@ -18844,7 +18848,7 @@ snapshots:
 
   '@jimp/types@1.6.1':
     dependencies:
-      zod: 3.25.76
+      zod: 3.25.76(patch_hash=4a0b2f09e9ab645342eb1f2046cd1c8deb0ddec2e17af45096fa053b0f40220d)
 
   '@jimp/utils@0.22.12':
     dependencies:
@@ -18899,7 +18903,7 @@ snapshots:
 
   '@json-render/core@0.19.0(zod@4.6.7)':
     dependencies:
-      zod: 4.6.7
+      zod: 4.6.7(patch_hash=6461b918131c140d2f2a01654ad5d97770e039ca19d8c0b0e560847558628ff5)
 
   '@json-render/react@0.19.0(react@19.3.0)(zod@4.6.7)':
     dependencies:
@@ -19341,14 +19345,14 @@ snapshots:
       json-schema-typed: 8.0.2
       pkce-challenge: 5.0.1
       raw-body: 3.0.2
-      zod: 4.6.7
+      zod: 4.6.7(patch_hash=6461b918131c140d2f2a01654ad5d97770e039ca19d8c0b0e560847558628ff5)
       zod-to-json-schema: 3.25.2(zod@4.6.7)
     transitivePeerDependencies:
       - supports-color
 
   '@modelcontextprotocol/server@2.0.0-alpha.4':
     dependencies:
-      zod: 4.6.7
+      zod: 4.6.7(patch_hash=6461b918131c140d2f2a01654ad5d97770e039ca19d8c0b0e560847558628ff5)
 
   '@msgpackr-extract/msgpackr-extract-darwin-arm64@3.0.4':
     optional: true
@@ -19934,7 +19938,7 @@ snapshots:
       '@ai-sdk/provider': 3.0.10
       '@ai-sdk/provider-utils': 4.0.57(zod@4.6.7)
       ai: 6.0.315(zod@4.6.7)
-      zod: 4.6.7
+      zod: 4.6.7(patch_hash=6461b918131c140d2f2a01654ad5d97770e039ca19d8c0b0e560847558628ff5)
 
   '@opentelemetry/api-logs@0.223.0':
     dependencies:
@@ -21299,7 +21303,7 @@ snapshots:
       '@reown/appkit-common': 1.7.2(typescript@7.0.2)(zod@4.6.7)
       '@reown/appkit-polyfills': 1.7.2
       '@walletconnect/logger': 2.1.2
-      zod: 3.22.4
+      zod: 3.25.76(patch_hash=4a0b2f09e9ab645342eb1f2046cd1c8deb0ddec2e17af45096fa053b0f40220d)
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate
@@ -21309,7 +21313,7 @@ snapshots:
       '@reown/appkit-common': 1.7.8(typescript@7.0.2)(zod@4.6.7)
       '@reown/appkit-polyfills': 1.7.8
       '@walletconnect/logger': 2.1.2
-      zod: 3.22.4
+      zod: 3.25.76(patch_hash=4a0b2f09e9ab645342eb1f2046cd1c8deb0ddec2e17af45096fa053b0f40220d)
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate
@@ -21811,7 +21815,7 @@ snapshots:
       '@smithers-orchestrator/observability': 0.22.0(42bb564cc3ff298bab24cfe2860b1de7)
       ai: 6.0.315(zod@4.6.7)
       effect: 3.22.4
-      zod: 4.6.7
+      zod: 4.6.7(patch_hash=6461b918131c140d2f2a01654ad5d97770e039ca19d8c0b0e560847558628ff5)
     transitivePeerDependencies:
       - '@aws-sdk/client-rds-data'
       - '@cloudflare/workers-types'
@@ -21873,7 +21877,7 @@ snapshots:
       picocolors: 1.1.1
       react: 19.3.0
       yaml: 2.9.1
-      zod: 4.6.7
+      zod: 4.6.7(patch_hash=6461b918131c140d2f2a01654ad5d97770e039ca19d8c0b0e560847558628ff5)
     transitivePeerDependencies:
       - '@aws-sdk/client-rds-data'
       - '@cfworker/json-schema'
@@ -21925,7 +21929,7 @@ snapshots:
       bippy: 0.5.43(react@19.3.0)
       react: 19.3.0
       react-dom: 19.3.0(react@19.3.0)
-      zod: 4.6.7
+      zod: 4.6.7(patch_hash=6461b918131c140d2f2a01654ad5d97770e039ca19d8c0b0e560847558628ff5)
     transitivePeerDependencies:
       - '@aws-sdk/client-rds-data'
       - '@cloudflare/workers-types'
@@ -21974,7 +21978,7 @@ snapshots:
       drizzle-orm: 0.45.2(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)
       drizzle-zod: 0.8.3(drizzle-orm@0.45.2(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0))(zod@4.6.7)
       effect: 3.22.4
-      zod: 4.6.7
+      zod: 4.6.7(patch_hash=6461b918131c140d2f2a01654ad5d97770e039ca19d8c0b0e560847558628ff5)
     transitivePeerDependencies:
       - '@aws-sdk/client-rds-data'
       - '@cloudflare/workers-types'
@@ -22018,7 +22022,7 @@ snapshots:
       '@smithers-orchestrator/observability': 0.22.0(42bb564cc3ff298bab24cfe2860b1de7)
       '@smithers-orchestrator/scheduler': 0.22.0(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)
       effect: 3.22.4
-      zod: 4.6.7
+      zod: 4.6.7(patch_hash=6461b918131c140d2f2a01654ad5d97770e039ca19d8c0b0e560847558628ff5)
     transitivePeerDependencies:
       - '@aws-sdk/client-rds-data'
       - '@cloudflare/workers-types'
@@ -22079,7 +22083,7 @@ snapshots:
       effect: 3.22.4
       react: 19.3.0
       react-dom: 19.3.0(react@19.3.0)
-      zod: 4.6.7
+      zod: 4.6.7(patch_hash=6461b918131c140d2f2a01654ad5d97770e039ca19d8c0b0e560847558628ff5)
     transitivePeerDependencies:
       - '@aws-sdk/client-rds-data'
       - '@cloudflare/workers-types'
@@ -22134,7 +22138,7 @@ snapshots:
     dependencies:
       '@smithers-orchestrator/errors': 0.22.0
       drizzle-orm: 0.45.2(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)
-      zod: 4.6.7
+      zod: 4.6.7(patch_hash=6461b918131c140d2f2a01654ad5d97770e039ca19d8c0b0e560847558628ff5)
     transitivePeerDependencies:
       - '@aws-sdk/client-rds-data'
       - '@cloudflare/workers-types'
@@ -22172,7 +22176,7 @@ snapshots:
       '@smithers-orchestrator/scheduler': 0.22.0(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)
       drizzle-orm: 0.45.2(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)
       effect: 3.22.4
-      zod: 4.6.7
+      zod: 4.6.7(patch_hash=6461b918131c140d2f2a01654ad5d97770e039ca19d8c0b0e560847558628ff5)
     transitivePeerDependencies:
       - '@aws-sdk/client-rds-data'
       - '@cloudflare/workers-types'
@@ -22254,7 +22258,7 @@ snapshots:
       ai: 6.0.315(zod@4.6.7)
       effect: 3.22.4
       yaml: 2.9.1
-      zod: 4.6.7
+      zod: 4.6.7(patch_hash=6461b918131c140d2f2a01654ad5d97770e039ca19d8c0b0e560847558628ff5)
     transitivePeerDependencies:
       - '@aws-sdk/client-rds-data'
       - '@cloudflare/workers-types'
@@ -22418,7 +22422,7 @@ snapshots:
       '@smithers-orchestrator/scheduler': 0.22.0(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)
       drizzle-orm: 0.45.2(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)
       effect: 3.22.4
-      zod: 4.6.7
+      zod: 4.6.7(patch_hash=6461b918131c140d2f2a01654ad5d97770e039ca19d8c0b0e560847558628ff5)
     transitivePeerDependencies:
       - '@aws-sdk/client-rds-data'
       - '@cloudflare/workers-types'
@@ -26735,7 +26739,7 @@ snapshots:
   abitype@1.0.6(typescript@7.0.2)(zod@3.25.76):
     dependencies:
       typescript: 7.0.2
-      zod: 3.25.76
+      zod: 3.25.76(patch_hash=4a0b2f09e9ab645342eb1f2046cd1c8deb0ddec2e17af45096fa053b0f40220d)
 
   abitype@1.0.8(typescript@7.0.2):
     dependencies:
@@ -26744,7 +26748,7 @@ snapshots:
   abitype@1.2.3(typescript@7.0.2)(zod@4.6.7):
     dependencies:
       typescript: 7.0.2
-      zod: 4.6.7
+      zod: 4.6.7(patch_hash=6461b918131c140d2f2a01654ad5d97770e039ca19d8c0b0e560847558628ff5)
 
   abort-controller@3.0.0(@babel/runtime@7.29.10):
     dependencies:
@@ -26800,7 +26804,7 @@ snapshots:
       '@ai-sdk/provider': 3.0.19
       '@ai-sdk/provider-utils': 4.0.62(zod@4.6.7)
       '@opentelemetry/api': 1.9.1
-      zod: 4.6.7
+      zod: 4.6.7(patch_hash=6461b918131c140d2f2a01654ad5d97770e039ca19d8c0b0e560847558628ff5)
 
   ajv-formats@3.0.1(ajv@8.20.0):
     dependencies:
@@ -27434,7 +27438,7 @@ snapshots:
     dependencies:
       devtools-protocol: 0.0.1687809
       mitt: 3.0.1
-      zod: 3.25.76
+      zod: 3.25.76(patch_hash=4a0b2f09e9ab645342eb1f2046cd1c8deb0ddec2e17af45096fa053b0f40220d)
 
   chromium-pickle-js@0.2.0: {}
 
@@ -28040,7 +28044,7 @@ snapshots:
   drizzle-zod@0.8.3(drizzle-orm@0.45.2(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0))(zod@4.6.7):
     dependencies:
       drizzle-orm: 0.45.2(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)
-      zod: 4.6.7
+      zod: 4.6.7(patch_hash=6461b918131c140d2f2a01654ad5d97770e039ca19d8c0b0e560847558628ff5)
 
   duck@0.1.12:
     dependencies:
@@ -29376,7 +29380,7 @@ snapshots:
       '@toon-format/toon': 2.3.1
       tokenx: 1.6.0
       yaml: 2.9.1
-      zod: 4.6.7
+      zod: 4.6.7(patch_hash=6461b918131c140d2f2a01654ad5d97770e039ca19d8c0b0e560847558628ff5)
 
   indent-string@4.0.0: {}
 
@@ -29823,7 +29827,7 @@ snapshots:
       tinyglobby: 0.2.17
       unbash: 4.0.12
       yaml: 2.9.1
-      zod: 4.6.7
+      zod: 4.6.7(patch_hash=6461b918131c140d2f2a01654ad5d97770e039ca19d8c0b0e560847558628ff5)
     transitivePeerDependencies:
       - '@oxc-parser/binding-wasm32-wasi'
       - '@oxc-resolver/binding-win32-ia32-msvc'
@@ -31172,7 +31176,7 @@ snapshots:
       '@ai-sdk/provider': 3.0.10
       '@ai-sdk/provider-utils': 4.0.57(zod@4.6.7)
       ai: 6.0.315(zod@4.6.7)
-      zod: 4.6.7
+      zod: 4.6.7(patch_hash=6461b918131c140d2f2a01654ad5d97770e039ca19d8c0b0e560847558628ff5)
 
   omggif@1.0.10: {}
 
@@ -31644,7 +31648,7 @@ snapshots:
       typescript: 7.0.2
       viem: 2.57.11(typescript@7.0.2)(zod@4.6.7)
       wagmi: 2.19.5(@capacitor/preferences@8.0.1(@capacitor/core@8.4.0))(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@tanstack/react-query@5.104.5(@types/react@19.3.0)(react@19.3.0))(@upstash/redis@1.39.0)(bufferutil@4.1.0)(react@19.3.0)(typescript@7.0.2)(undici@8.12.2)(utf-8-validate@5.0.10)(viem@2.57.11(typescript@7.0.2))(vitest@5.0.3(@types/node@26.6.5)(jsdom@29.1.1)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))(zod@4.6.7)
-      zod: 4.6.7
+      zod: 4.6.7(patch_hash=6461b918131c140d2f2a01654ad5d97770e039ca19d8c0b0e560847558628ff5)
       zustand: 5.0.16(@types/react@19.3.0)(react@19.3.0)(use-sync-external-store@1.4.0(react@19.3.0))
     transitivePeerDependencies:
       - immer
@@ -32668,7 +32672,7 @@ snapshots:
       effect: 3.22.4
       incur: 0.4.26
       react: 19.3.0
-      zod: 4.6.7
+      zod: 4.6.7(patch_hash=6461b918131c140d2f2a01654ad5d97770e039ca19d8c0b0e560847558628ff5)
     transitivePeerDependencies:
       - '@aws-sdk/client-rds-data'
       - '@cfworker/json-schema'
@@ -33943,13 +33947,11 @@ snapshots:
 
   zod-to-json-schema@3.25.2(zod@4.6.7):
     dependencies:
-      zod: 4.6.7
+      zod: 4.6.7(patch_hash=6461b918131c140d2f2a01654ad5d97770e039ca19d8c0b0e560847558628ff5)
 
-  zod@3.22.4: {}
+  zod@3.25.76(patch_hash=4a0b2f09e9ab645342eb1f2046cd1c8deb0ddec2e17af45096fa053b0f40220d): {}
 
-  zod@3.25.76: {}
-
-  zod@4.6.7: {}
+  zod@4.6.7(patch_hash=6461b918131c140d2f2a01654ad5d97770e039ca19d8c0b0e560847558628ff5): {}
 
   zustand@4.5.7(@types/react@19.3.0)(react@19.3.0):
     dependencies:

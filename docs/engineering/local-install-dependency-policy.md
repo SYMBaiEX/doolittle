@@ -1,13 +1,21 @@
 # Local desktop dependency policy
 
-The October 4, 2026 integration retains ElizaOS `2.0.3-beta.7` and its tracked
-patches. Dependency updates do not change the SDK release train.
+The October 25, 2026 update selects the newest usable SDK packages independently;
+see [SDK upgrade evidence](sdk-package-upgrades.md) for publication/API limits.
 
-The root override selects `fast-uri@3.1.7`; locked Undici 6 consumers retain their patched release,
-and the existing Cloud, app-core, and Discord overrides select `8.10.2`.
-The direct agent-development Sharp dependency is `0.35.4`, with a regenerated
-Nub lockfile. Existing Undici 5.x and newer 6.x consumers retain their versions.
-Transitive source-only Sharp versions may still be vulnerable.
+Networking/parser overrides now select fast-uri 3.1.9, Undici 6.29.1 / 7.30.1 /
+8.12.2, body-parser 1.20.9 / 2.4.0, ip-address 10.7.5, markdown-it 14.3.3,
+serialize-javascript 7.1.3, and toml 5.0.1. Electron is 44.9.3.
+
+Zod 4 consumers use 4.6.7. Version 3 consumers consolidate on 3.25.76 with a
+version-preserving backport of the leading collection-size gate from
+[colinhacks/zod a0ebf97](https://github.com/colinhacks/zod/commit/a0ebf970f2d752e5f58527cd2942ff48be4f46bd).
+The same backport protects the legacy v3 surface inside 4.6.7. Oversized arrays
+and sets now fail before element parsing, async work, or outer refinements.
+The legacy package's v4 array/set/map paths also check leading upper bounds.
+Valid input and transformation behavior remain intact. Both CommonJS and ESM
+consumer entrypoints run in the release boundary suite. The v3 advisory remains
+visible to version scanners; this is a tested patch, not a claim of zero alerts.
 
 ## Reviewed high advisories
 
@@ -21,7 +29,7 @@ in the top-level manifest:
 - Undici: [WebSocket subprotocol handling](https://github.com/advisories/GHSA-rfgv-xxqx-mfg5),
   [BalancedPool TLS options](https://github.com/advisories/GHSA-w293-vg96-wgc3),
   and [cross-origin cache isolation](https://github.com/advisories/GHSA-vp8m-p9jh-q5pm).
-  Artifact floors are `6.28.1`, `7.29.1`, and `8.10.2` on their respective majors.
+  Artifact floors are `6.29.1`, `7.30.1`, and `8.12.2` on their respective majors.
 - Sharp: [libheif vulnerabilities](https://github.com/advisories/GHSA-rgj7-g3m4-5g8c);
   a future emitted/copy dependency must be at least `0.35.4`.
 - adm-zip: [allocation](https://github.com/advisories/GHSA-7q85-xj36-vmfc),
@@ -35,7 +43,7 @@ in the top-level manifest:
   reviewed patched release is available, so the verifier rejects braces in an
   artifact rather than inventing a safe version.
 
-The freshly prepared integration inventory must contain fast-uri `3.1.7` and
+The freshly prepared integration inventory must contain fast-uri `3.1.9` and
 Undici 6 / 8 releases at or above their reviewed floors. Sharp, adm-zip, busboy, and braces are absent from
 both its emitted-package inventory and copied native-package closure. The
 verifier blocks their vulnerable versions if later packaging includes them.

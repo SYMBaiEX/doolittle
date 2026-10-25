@@ -18,6 +18,9 @@ type AuditReport = {
  */
 export const REVIEWED_RUNTIME_HIGH_ADVISORIES = new Map([
   ["GHSA-3GC7-FJRX-P6MG", "<=1.1.5"],
+  // No patched v3 publication exists. The locked 3.25.76 backport and the v3
+  // surface in 4.6.7 are exercised by zod-collection-bounds.test.ts.
+  ["GHSA-MRHX-C7XC-M3W5", "<4.6.6"],
   ["GHSA-82X6-Q7MM-W9CF", "<4.2.0"],
   ["GHSA-4CWX-7WF7-3272", ">=7.0.0 <7.29.0 || >=8.0.0 <8.9.0"],
   ["GHSA-5C6J-R48X-RMVQ", "<=7.0.2"],
