@@ -12,3 +12,18 @@ export function officialElizaDependencyVersion(
   }
   return value;
 }
+
+/** Packages can advance independently; exceptions must remain exact and reviewable. */
+export function expectedElizaPackageVersion(
+  name: string,
+  baseline: string,
+  packageVersions: Readonly<Record<string, string>> = {},
+): string {
+  const version = packageVersions[name] ?? baseline;
+  if (!/^\d+\.\d+\.\d+(?:-[\da-z.-]+)?$/iu.test(version)) {
+    throw new Error(
+      `ElizaOS ${name} requires an exact package version: ${version}`,
+    );
+  }
+  return version;
+}

@@ -2,7 +2,10 @@
 
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
-import { officialElizaDependencyVersion } from "./eliza-sdk-version-policy";
+import {
+  expectedElizaPackageVersion,
+  officialElizaDependencyVersion,
+} from "./eliza-sdk-version-policy";
 import {
   ELIZA_WORKSPACE_COMPATIBILITY,
   normalizeCompatibilityPackagePath,
@@ -15,6 +18,7 @@ type PackageJson = {
   elizaSdk?: {
     channel?: string;
     version?: string;
+    packageVersions?: Record<string, string>;
   };
   dependencies?: Record<string, string>;
   devDependencies?: Record<string, string>;
@@ -63,6 +67,12 @@ function packageJsonPaths(directory: string): string[] {
 const rootPackagePath = join(ROOT, "package.json");
 const rootPackage = readPackageJson(rootPackagePath);
 const expectedVersion = rootPackage.elizaSdk?.version;
+const expectedPackageVersion = (name: string) =>
+  expectedElizaPackageVersion(
+    name,
+    expectedVersion ?? "",
+    rootPackage.elizaSdk?.packageVersions,
+  );
 const productVersion = rootPackage.version;
 const channel = rootPackage.elizaSdk?.channel;
 if (!expectedVersion || channel !== "beta") {
@@ -167,7 +177,7 @@ for (const path of packagePaths) {
       ) {
         installedPackages.add(name);
       }
-      if (declaredVersion !== expectedVersion) {
+      if (declaredVersion !== expectedPackageVersion(name)) {
         mismatches.push(
           `${relative(ROOT, path)} ${section}.${name}=${declaredVersion}`,
         );
@@ -183,7 +193,7 @@ for (const name of installedPackages) {
     continue;
   }
   const installedVersion = readPackageJson(manifestPath).version;
-  if (installedVersion !== expectedVersion) {
+  if (installedVersion !== expectedPackageVersion(name)) {
     mismatches.push(
       `node_modules/${name}=${installedVersion ?? "unknown"} (installed)`,
     );
@@ -200,5 +210,5 @@ if (mismatches.length > 0) {
 }
 
 console.log(
-  `ElizaOS SDK aligned: ${externalPackages.size} official packages on ${channel}@${expectedVersion}; ${ELIZA_WORKSPACE_COMPATIBILITY.length} workspace compatibility boundaries declared.`,
+  `ElizaOS SDK verified: ${externalPackages.size} official packages with ${channel}@${expectedVersion} and explicit package exceptions; ${ELIZA_WORKSPACE_COMPATIBILITY.length} workspace compatibility boundaries declared.`,
 );

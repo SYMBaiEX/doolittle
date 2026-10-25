@@ -21,9 +21,10 @@ behavioral — never a log or memory dump.
   (chat-turn, services, providers), API and gateway. `packages/plugins/*` — Doolittle provider bridges, the SQL
   compatibility wrapper, and `doolittle-plugin` source.
   `packages/{acp,contracts,characters,skills}` — supporting workspaces.
-- Runtime: the installable ElizaOS 2.0 beta train (`@elizaos/core`,
-  `@elizaos/agent`, and `@elizaos/skills` at `2.0.3-beta.7`). Keep the exact
-  root overrides aligned.
+- Runtime: prefer the newest usable ElizaOS packages. The root `elizaSdk`
+  contract records the core baseline and explicit per-package exceptions for
+  incomplete upstream publications. Recheck tarball exports when upgrading;
+  do not hold usable releases back to keep every package on one train.
 
 ## Developer loop
 

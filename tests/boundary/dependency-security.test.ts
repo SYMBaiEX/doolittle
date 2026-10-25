@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { validateRuntimeDependencySecurityPolicy } from "../../apps/desktop/scripts/verify-package";
+import { expectedElizaPackageVersion } from "../../scripts/eliza-sdk-version-policy";
 
 type Manifest = Parameters<typeof validateRuntimeDependencySecurityPolicy>[0];
 function inventory(name: string, version: string): Manifest {
@@ -27,5 +28,24 @@ describe("packaged runtime security floors", () => {
     expect(() =>
       validateRuntimeDependencySecurityPolicy(inventory(name, after)),
     ).not.toThrow();
+  });
+});
+
+describe("independent SDK package versions", () => {
+  it("allows a newer package without forcing the core baseline to move", () => {
+    const versions = { "@elizaos/skills": "2.0.11-beta.7" };
+    expect(
+      expectedElizaPackageVersion("@elizaos/skills", "2.0.3-beta.7", versions),
+    ).toBe("2.0.11-beta.7");
+    expect(
+      expectedElizaPackageVersion("@elizaos/core", "2.0.3-beta.7", versions),
+    ).toBe("2.0.3-beta.7");
+  });
+  it("rejects floating package exceptions", () => {
+    expect(() =>
+      expectedElizaPackageVersion("@elizaos/skills", "2.0.3-beta.7", {
+        "@elizaos/skills": "^2.0.11-beta.7",
+      }),
+    ).toThrow("exact package version");
   });
 });
