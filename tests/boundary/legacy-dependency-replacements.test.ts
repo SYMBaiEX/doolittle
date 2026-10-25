@@ -93,3 +93,17 @@ for (const format of ["CommonJS", "ESM"]) {
     }
   });
 }
+
+it("retains native computer-use image decoding with the current file parser", async () => {
+  const nativeRequire = createRequire(
+    resolve("node_modules/@nut-tree-fork/nut-js/package.json"),
+  );
+  const Jimp = nativeRequire("jimp");
+  const image = new Jimp(2, 2, 0xff0000ff);
+  const png = await image.getBufferAsync(Jimp.MIME_PNG);
+  const decoded = await Jimp.read(png);
+  expect(decoded.bitmap.width).toBe(2);
+  expect(decoded.bitmap.height).toBe(2);
+  expect(decoded.getPixelColor(0, 0)).toBe(0xff0000ff);
+  await expect(Jimp.read(Buffer.from("not an image"))).rejects.toThrow();
+});

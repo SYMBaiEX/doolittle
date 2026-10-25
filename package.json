@@ -242,7 +242,8 @@
     "@walletconnect/utils": "2.26.0",
     "@solana/buffer-layout-utils": "0.3.0",
     "@solana/buffer-layout-utils>bigint-buffer": "-",
-    "@elizaos/ui>@solana/wallet-adapter-wallets": "-"
+    "@elizaos/ui>@solana/wallet-adapter-wallets": "-",
+    "file-type@<21.3.1": "22.2.0"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.3",
@@ -293,7 +294,6 @@
   "patchedDependencies": {
     "braces@3.0.3": "patches/braces+3.0.3.patch",
     "@elizaos/plugin-sql@2.0.3-beta.7": "patches/@elizaos+plugin-sql@2.0.3-beta.7.patch",
-    "file-type@16.5.4": "patches/file-type+16.5.4.patch",
     "sprintf-js@1.0.3": "patches/sprintf-js+1.0.3.patch",
     "elliptic@6.6.1": "patches/elliptic+6.6.1.patch",
     "@elizaos/plugin-agent-orchestrator@2.0.3-beta.7": "patches/@elizaos+plugin-agent-orchestrator@2.0.3-beta.7.patch",
@@ -303,7 +303,8 @@
     "zod@3.25.76": "patches/zod+3.25.76.patch",
     "zod@4.6.7": "patches/zod+4.6.7.patch",
     "@solana/buffer-layout-utils@0.3.0": "patches/@solana+buffer-layout-utils@0.3.0.patch",
-    "@elizaos/ui@2.0.3-beta.7": "patches/@elizaos+ui@2.0.3-beta.7.patch"
+    "@elizaos/ui@2.0.3-beta.7": "patches/@elizaos+ui@2.0.3-beta.7.patch",
+    "@jimp/core@0.22.12": "patches/@jimp+core@0.22.12.patch"
   },
   "packageExtensions": {
     "@solana/buffer-layout-utils@0.3.0": {
