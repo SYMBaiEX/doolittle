@@ -5,8 +5,11 @@ import { expect, it } from "vitest";
 
 // Exercise the dependency as resolved by the ElizaOS browser provider, including
 // the BiDi-over-CDP mapper that is otherwise loaded only on demand.
+const agentRequire = createRequire(
+  new URL("../../packages/agent/package.json", import.meta.url),
+);
 const providerRequire = createRequire(
-  import.meta.resolve("@elizaos/plugin-browser"),
+  agentRequire.resolve("@elizaos/plugin-browser"),
 );
 for (const protocol of ["cdp", "webDriverBiDi"] as const) {
   it(`operates an isolated browser through the Eliza provider's ${protocol} client`, async () => {
