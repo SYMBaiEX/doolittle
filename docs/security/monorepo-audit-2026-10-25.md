@@ -16,18 +16,34 @@ invalid reports and registry failures. Regression tests cover the tooling-only
 root, local links, optional dependencies, version conflicts and unchanged
 snapshots. Unknown advisories still fail the review policy.
 
-The corrected scan examined 36 dependency roots against 2,629 lockfile packages.
-No critical findings were reported. The existing review policy rejects newly
-reported IDs affecting body-parser, Electron, fast-uri, ip-address, markdown-it,
-serialize-javascript, TOML, Undici and Zod. Registry version findings and actual
-shipped runtime evidence are separate: the packaged runtime inventory/policy
-check still runs independently, including existing version-preserving patches.
+The initial corrected scan examined 36 dependency roots against 2,629 lockfile
+packages. It found no critical advisories, but exposed previously hidden
+findings in body-parser, Electron, fast-uri, ip-address, markdown-it,
+serialize-javascript, TOML, Undici and Zod. That superseded the earlier release
+result; the tooling-only audit had never established full workspace coverage.
 
-Consequently, the earlier complete release-gate result is superseded. Runtime,
-terminal and native desktop behavior passed, but release certification remains
-blocked by unreviewed dependency advisories. No allowlist entries were added to
-hide the newly visible findings. Remediation must preserve the exact ElizaOS
-beta train and review compatibility before changing transitive major versions.
+## Remediation
+
+The follow-up updates those affected release lines and refreshes the direct app,
+protocol and development dependencies, including Electron 45, ACP SDK 2.0.2,
+React 19.3.1 and Nub 0.9.7. The emitted-runtime verifier enforces the updated
+parser/networking floors, with before/after regression cases. New SDK packages
+advance independently where their published files and APIs work with Doolittle;
+see [the package compatibility record](../engineering/sdk-package-upgrades.md).
+
+Zod 4 uses 4.6.7. The remaining v3 consumers require the v3 API, whose newest
+publication is 3.25.76. Tracked patches backport the upstream collection-size
+fix to that package and the legacy v3 entrypoints still shipped inside 4.6.7.
+Seventeen tests exercise installed CommonJS/ESM consumers, early rejection,
+async parsing, nested paths, maps, sets and valid transformations. The advisory
+policy records that tested remediation with its exact ID, range and severity;
+it does not suppress the scanner result or describe a patched v3 publication
+that does not exist.
+
+The corrected production advisory review now passes. Version-only findings for
+these legacy backports remain visible. Full release verification separately
+checks source behavior, native desktop journeys, runtime inventory and a
+clean-HEAD packaged app; a successful advisory review alone is not certification.
 
 Primary advisory examples:
 

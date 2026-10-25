@@ -5,7 +5,7 @@ see [SDK upgrade evidence](sdk-package-upgrades.md) for publication/API limits.
 
 Networking/parser overrides now select fast-uri 3.1.9, Undici 6.29.1 / 7.30.1 /
 8.12.2, body-parser 1.20.9 / 2.4.0, ip-address 10.7.5, markdown-it 14.3.3,
-serialize-javascript 7.1.3, and toml 5.0.1. Electron is 44.9.3.
+serialize-javascript 7.1.3, and toml 5.0.1. Electron is 45.0.0.
 
 Zod 4 consumers use 4.6.7. Version 3 consumers consolidate on 3.25.76 with a
 version-preserving backport of the leading collection-size gate from
@@ -52,7 +52,7 @@ This exclusion is not a claim that source/CLI execution paths are safe.
 `check:runtime-advisory-policy` retains exact reviewed ranges and severities
 for production advisories at every severity. Unknown advisories, changed ranges
 or severities, and missing/error audit inventories fail closed. This gate checks
-review coverage, not scanner closure. Seven version-based findings remain in
+review coverage, not scanner closure. Version-based findings remain in
 the source graph; their tested patches retain truthful upstream versions.
 Consumer regressions and packaged artifact verification remain separate gates.
 

@@ -8,7 +8,8 @@ release checker verifies each selected version against manifests and installatio
 
 The following packages advance to `2.0.11-beta.7`: logger, skills,
 plugin-agent-skills, plugin-browser, plugin-elizacloud, plugin-mcp, plugin-pdf,
-vault, contracts, prompts, security, tui, and plugin-streaming. The lockfile
+vault, contracts, prompts, security, tui, plugin-streaming,
+plugin-aosp-local-inference, plugin-app-manager, and plugin-registry. The lockfile
 records the subset actually used by Doolittle. Recheck availability on each update.
 
 Core, agent, app-core, ui, and shared were installed at `2.0.11-beta.7` and checked. That
