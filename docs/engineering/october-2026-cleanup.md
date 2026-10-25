@@ -60,3 +60,36 @@ Scoped checks: `git diff --check`, `nub run check:local-links`,
 reference scans. No full test suite, commit, installation, or release is part of
 this cleanup. These checks do not establish runtime or installed-desktop
 behavior; release verification belongs to the owning overhaul workflow.
+
+## Completion boundaries and orphaned helpers (October 25)
+
+The provider turn handler now delegates receipt recovery, workspace evidence,
+frontend review and continuation decisions to four explicit modules. Successful
+turns and provider failures share one ordered receipt collection path; the three
+post-merge backfills were redundant because the merge already includes scoped
+originals. Recovery summaries now ignore an earlier ready server observation
+when that session has a later stopped/unhealthy observation. The regression
+was reproduced before changing the lookup.
+
+Desktop appearance preferences and theme subscriptions now have one lifecycle
+in `use-desktop-appearance.ts`. The shell consumes the resolved appearance and
+setter. Completion and preference checks live in `tests/boundary/`; their scope
+is documented in [fast development](fast-development.md).
+
+Removed eight orphaned files, totaling 587 lines:
+
+- Renderer `bots/new-chat-transition.ts` and
+  `composer-selectors/useDismissPopover.ts` had no callers.
+- Agent `gateway/platforms/test-helpers.ts`,
+  `server/routes/identity/test-context.ts`,
+  `services/terminal/backends/testing.ts`, `testing/fetch-server.ts`,
+  `testing/mock-mcp.ts` and `testing/official-orchestrator.ts` were fixtures
+  without remaining consumers after the old test corpus was retired.
+
+Knip's unused-file scan was followed by repository-wide filename and exported
+symbol checks, including tracked hidden configuration. Historical security
+records mentioning the retired fetch fixture remain historical evidence.
+Electron, native-tool, acceptance and build entry points reported by the same
+scan remain active and were preserved. This does not resolve all unused-file
+scanner output or complete the remaining chat-page, bot-registry and app-shell
+refactors.

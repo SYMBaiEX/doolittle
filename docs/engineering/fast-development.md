@@ -19,6 +19,34 @@ No source-text snapshots or skipped environment opt-ins count as coverage.
 static imports; select explicit tests for dynamic runtime/IPC registration.
 No matching tests is a failure. Desktop/UI test commands reuse this root suite.
 
+## Completion and appearance boundaries
+
+The provider turn handler owns SDK execution, cancellation and planner budgets.
+Its completion rules have explicit owners under
+`packages/agent/src/runtime/chat-turn/`:
+
+- `provider-receipts.ts` merges SDK projections with scoped originals once for
+  both success and failure recovery. Preserve receipt occurrence order; a later
+  server observation invalidates that session's earlier readiness.
+- `workspace-evidence.ts` pins mutation scope and rejects unverified chronology
+  before applying the existing `workspace-noop-completion.ts` receipt contract.
+- `frontend-review.ts` owns server constraints, review freshness and captured
+  interactive-text blockers. An attempted review is not a quality pass.
+- `workspace-continuation.ts` owns unfinished-work admissions, fresh requested
+  checks, bounded continuation evidence and incomplete-result messages.
+
+Run `nub run test:scope tests/boundary/workspace-completion.test.ts` when changing
+these rules. The cases exercise receipt recovery, no-edit handoffs, stopped
+servers, workspace isolation, check identities and blocker clearance. They do
+not replace the real-worker journey when SDK registration or execution changes.
+
+Desktop appearance state and theme subscriptions belong to
+`apps/desktop/src/renderer/use-desktop-appearance.ts`; `App.tsx` consumes its
+resolved appearance and setter. Use
+`nub run test:scope tests/boundary/desktop-appearance.test.ts` for saved
+preferences and settings/shell synchronization. This is DOM behavior coverage,
+not native desktop or rendered visual acceptance.
+
 ## Native acceptance
 
 ```sh
