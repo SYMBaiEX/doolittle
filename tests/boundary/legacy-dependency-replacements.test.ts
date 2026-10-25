@@ -1,6 +1,7 @@
 import { createRequire } from "node:module";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+import * as modern from "ethers";
 import { describe, expect, it } from "vitest";
 
 const consumerRequire = createRequire(
@@ -106,4 +107,62 @@ it("retains native computer-use image decoding with the current file parser", as
   expect(decoded.bitmap.height).toBe(2);
   expect(decoded.getPixelColor(0, 0)).toBe(0xff0000ff);
   await expect(Jimp.read(Buffer.from("not an image"))).rejects.toThrow();
+});
+
+it("retains ethers v5 signing, recovery, ECDH and transaction encoding with ethers v6 crypto", async () => {
+  const transactionRequire = createRequire(
+    resolve("node_modules/@ethersproject/transactions/package.json"),
+  );
+  const legacy = transactionRequire("@ethersproject/signing-key");
+  // Public test vectors only. No network calls or funded wallets.
+  const firstKey = `0x${"1".padStart(64, "0")}`;
+  const secondKey = `0x${"2".padStart(64, "0")}`;
+  const first = new legacy.SigningKey(firstKey);
+  const second = new legacy.SigningKey(secondKey);
+  expect(first.compressedPublicKey).toBe(
+    "0x0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798",
+  );
+  expect(first._addPoint(first.publicKey)).toBe(second.compressedPublicKey);
+  expect(first.computeSharedSecret(second.compressedPublicKey)).toBe(
+    second.computeSharedSecret(first.publicKey),
+  );
+  expect(first.computeSharedSecret(secondKey)).toHaveLength(66);
+  const digest = modern.keccak256(
+    modern.toUtf8Bytes("signing migration fixture"),
+  );
+  const signature = first.signDigest(digest);
+  const expected = new modern.SigningKey(firstKey).sign(digest);
+  expect([signature.r, signature.s, signature.recoveryParam]).toEqual([
+    expected.r,
+    expected.s,
+    expected.yParity,
+  ]);
+  expect(legacy.recoverPublicKey(digest, signature)).toBe(first.publicKey);
+  expect(legacy.computePublicKey(first.compressedPublicKey)).toBe(
+    first.publicKey,
+  );
+  expect(legacy.SigningKey.isSigningKey(first)).toBe(true);
+  expect(() => first.signDigest("0x01")).toThrow();
+  expect(() => new legacy.SigningKey(`0x${"0".repeat(64)}`)).toThrow();
+  const transaction = {
+    to: "0x0000000000000000000000000000000000000001",
+    type: 2,
+    chainId: 1,
+    nonce: 0,
+    gasLimit: 21000,
+    maxFeePerGas: 10,
+    maxPriorityFeePerGas: 1,
+    value: 1,
+  };
+  const { serialize } = transactionRequire("@ethersproject/transactions");
+  const encoded = serialize(
+    transaction,
+    first.signDigest(modern.keccak256(serialize(transaction))),
+  );
+  expect(encoded).toBe(
+    await new modern.Wallet(firstKey).signTransaction(transaction),
+  );
+  expect(modern.Transaction.from(encoded).from).toBe(
+    "0x7E5F4552091A69125d5DfCb7b8C2659029395Bdf",
+  );
 });

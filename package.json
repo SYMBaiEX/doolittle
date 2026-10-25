@@ -243,7 +243,8 @@
     "@solana/buffer-layout-utils": "0.3.0",
     "@solana/buffer-layout-utils>bigint-buffer": "-",
     "@elizaos/ui>@solana/wallet-adapter-wallets": "-",
-    "file-type@<21.3.1": "22.2.0"
+    "file-type@<21.3.1": "22.2.0",
+    "@ethersproject/signing-key>elliptic": "-"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.3",
@@ -275,7 +276,8 @@
     "@elizaos/plugin-worker-runtime": "workspace:*",
     "@elizaos/registry": "workspace:*",
     "@elizaos/plugin-sql": "2.0.3-beta.7",
-    "@lydell/node-pty": "1.1.0"
+    "@lydell/node-pty": "1.1.0",
+    "ethers": "6.17.0"
   },
   "allowScripts": {
     "@nubjs/nub": true,
@@ -295,7 +297,6 @@
     "braces@3.0.3": "patches/braces+3.0.3.patch",
     "@elizaos/plugin-sql@2.0.3-beta.7": "patches/@elizaos+plugin-sql@2.0.3-beta.7.patch",
     "sprintf-js@1.0.3": "patches/sprintf-js+1.0.3.patch",
-    "elliptic@6.6.1": "patches/elliptic+6.6.1.patch",
     "@elizaos/plugin-agent-orchestrator@2.0.3-beta.7": "patches/@elizaos+plugin-agent-orchestrator@2.0.3-beta.7.patch",
     "@elizaos/plugin-codex-cli@2.0.3-beta.7": "patches/@elizaos+plugin-codex-cli@2.0.3-beta.7.patch",
     "@elizaos/core@2.0.3-beta.7": "patches/@elizaos+core@2.0.3-beta.7.patch",
@@ -304,7 +305,8 @@
     "zod@4.6.7": "patches/zod+4.6.7.patch",
     "@solana/buffer-layout-utils@0.3.0": "patches/@solana+buffer-layout-utils@0.3.0.patch",
     "@elizaos/ui@2.0.3-beta.7": "patches/@elizaos+ui@2.0.3-beta.7.patch",
-    "@jimp/core@0.22.12": "patches/@jimp+core@0.22.12.patch"
+    "@jimp/core@0.22.12": "patches/@jimp+core@0.22.12.patch",
+    "@ethersproject/signing-key@5.8.0": "patches/@ethersproject+signing-key@5.8.0.patch"
   },
   "packageExtensions": {
     "@solana/buffer-layout-utils@0.3.0": {
@@ -316,6 +318,11 @@
       "dependencies": {
         "@solana/wallet-adapter-phantom": "0.9.30",
         "@solana/wallet-adapter-solflare": "0.6.34"
+      }
+    },
+    "@ethersproject/signing-key@5.8.0": {
+      "dependencies": {
+        "ethers": "6.17.0"
       }
     }
   }
