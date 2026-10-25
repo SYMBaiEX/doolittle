@@ -18,11 +18,46 @@ const PROPOSED_MUTATION_PREFIX =
 // Keep offsets and quoted filenames intact in the original text, but do not
 // interpret example commands or quoted instructions as the user's actions.
 function unquotedInstructions(message: string): string {
-  return message
-    .replace(
-      /```[\s\S]*?(?:```|$)|`[^`\n]*`|"(?:\\.|[^"\\])*"|“[^”]*”|(?:^|\s)'[^'\n]+'|‘[^’]*’/gu,
-      (quote) => " ".repeat(quote.length),
-    )
+  const characters = message.split("");
+  let closing: string | undefined;
+  let start = 0;
+  for (let index = 0; index < message.length; index++) {
+    const character = message[index];
+    if (closing) {
+      if (closing === '"' && character === "\\") {
+        index++;
+        continue;
+      }
+      if (message.startsWith(closing, index)) {
+        const end = index + closing.length;
+        characters.fill(" ", start, end);
+        index = end - 1;
+        closing = undefined;
+      } else if ((closing === "`" || closing === "'") && character === "\n") {
+        characters.fill(" ", start, index);
+        closing = undefined;
+      }
+      continue;
+    }
+    if (message.startsWith("```", index)) {
+      closing = "```";
+      start = index;
+      index += 2;
+    } else if (
+      character === '"' ||
+      character === "`" ||
+      character === "“" ||
+      character === "‘" ||
+      (character === "'" && (index === 0 || /\s/u.test(message[index - 1])))
+    ) {
+      closing = character === "“" ? "”" : character === "‘" ? "’" : character;
+      start = index;
+    }
+  }
+  // An unterminated quotation is still example text, not permission to mutate.
+  if (closing) characters.fill(" ", start);
+  return characters
+    .join("")
     .replace(
       /\bmake\s+no\s+(?:(?:file|workspace|code)\s+)?changes\b/giu,
       (phrase) => " ".repeat(phrase.length),
