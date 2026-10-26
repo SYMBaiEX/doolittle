@@ -1,6 +1,5 @@
 import { Buffer } from "node:buffer";
 import path from "node:path";
-import { Worker } from "node:worker_threads";
 import {
   resolveShellExecutionMode,
   runShell,
@@ -24,8 +23,6 @@ export interface TextProcessOptions {
   abortSignal?: AbortSignal;
   toolName: string;
 }
-
-const SYNC_RESULT_BYTES = 2 * 1024 * 1024;
 
 const PROCESS_ID_MARKER = "__DOOLITTLE_ROUTER_PID__";
 const ABORT_WRAPPER_SCRIPT = `printf '${PROCESS_ID_MARKER}%s\\n' "$$" >&2
@@ -150,120 +147,6 @@ export async function runInheritedTextProcess(
     onStdout: (chunk) => process.stdout.write(chunk),
     onStderr: (chunk) => process.stderr.write(chunk),
   });
-}
-
-/**
- * Compatibility bridge for pre-runtime synchronous callers. A worker thread
- * owns the async wait; the command itself still executes exclusively through
- * the SDK router.
- */
-export function runTextProcessSync(
-  command: string,
-  args: readonly string[],
-  options: Omit<TextProcessOptions, "onStdout" | "onStderr" | "abortSignal">,
-): TextProcessResult {
-  const timeoutMs = options.timeoutMs ?? 30_000;
-  const shared = new SharedArrayBuffer(SYNC_RESULT_BYTES);
-  const state = new Int32Array(shared, 0, 2);
-  const workerSource = `
-    const { workerData } = require("node:worker_threads");
-    const state = new Int32Array(workerData.shared, 0, 2);
-    const bytes = new Uint8Array(workerData.shared, 8);
-    const runPackagedArgvFallback = () => {
-      const { spawnSync } = require("node:child_process");
-      const startedAt = Date.now();
-      const request = workerData.request;
-      const child = spawnSync(request.command, request.args, {
-        cwd: request.cwd,
-        env: { ...process.env, ...(request.env || {}) },
-        encoding: "utf8",
-        timeout: request.timeoutMs,
-        windowsHide: true,
-        shell: false,
-      });
-      if (child.error && child.error.code !== "ETIMEDOUT") {
-        throw child.error;
-      }
-      return {
-        exitCode:
-          child.error?.code === "ETIMEDOUT"
-            ? 124
-            : typeof child.status === "number"
-              ? child.status
-              : 1,
-        stdout: child.stdout || "",
-        stderr:
-          child.error?.code === "ETIMEDOUT"
-            ? [child.stderr, "Command timed out."].filter(Boolean).join("\\n")
-            : child.stderr || "",
-        durationMs: Date.now() - startedAt,
-        sandbox: "none",
-      };
-    };
-    (async () => {
-      try {
-        let result;
-        try {
-          const { runShell } = await import("@elizaos/agent/services/shell-execution-router");
-          result = await runShell(workerData.request);
-        } catch (error) {
-          const missingBundledRouter =
-            error &&
-            typeof error === "object" &&
-            (error.code === "ERR_MODULE_NOT_FOUND" ||
-              String(error.message || "").includes("Cannot find package '@elizaos/agent'"));
-          if (!missingBundledRouter) throw error;
-          // Electron bundles the router into the runtime entrypoint, so an
-          // eval worker cannot import its package path. This argv-only fallback
-          // is limited to synchronous bootstrap/status probes; interactive and
-          // user-authored commands continue through the SDK shell router.
-          result = runPackagedArgvFallback();
-        }
-        const encoded = new TextEncoder().encode(JSON.stringify({ ok: true, result }));
-        if (encoded.byteLength > bytes.byteLength) throw new Error("Synchronous shell result exceeded 2 MB.");
-        bytes.set(encoded);
-        Atomics.store(state, 1, encoded.byteLength);
-        Atomics.store(state, 0, 1);
-      } catch (error) {
-        const encoded = new TextEncoder().encode(JSON.stringify({
-          ok: false,
-          error: error instanceof Error ? error.message : String(error),
-        }));
-        bytes.set(encoded.slice(0, bytes.byteLength));
-        Atomics.store(state, 1, Math.min(encoded.byteLength, bytes.byteLength));
-        Atomics.store(state, 0, 2);
-      } finally {
-        Atomics.notify(state, 0);
-      }
-    })();
-  `;
-  const worker = new Worker(workerSource, {
-    eval: true,
-    workerData: {
-      shared,
-      request: {
-        command,
-        args,
-        cwd: options.cwd,
-        env: definedEnvironment(options.env),
-        timeoutMs,
-        toolName: options.toolName,
-      },
-    },
-  });
-  const wait = Atomics.wait(state, 0, 0, timeoutMs + 2_000);
-  void worker.terminate();
-  if (wait === "timed-out") {
-    throw new Error(`Synchronous shell bridge timed out after ${timeoutMs}ms.`);
-  }
-  const length = Atomics.load(state, 1);
-  const payload = JSON.parse(
-    new TextDecoder().decode(new Uint8Array(shared, 8, length)),
-  ) as { ok: true; result: TextProcessResult } | { ok: false; error: string };
-  if (!payload.ok) {
-    throw new Error(payload.error);
-  }
-  return payload.result;
 }
 
 async function runAbortableWindowsHostProcess(
