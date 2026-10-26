@@ -241,4 +241,14 @@ it("admits a new job beyond the old lifetime approval cap without losing previou
   expect(restored.approval(unused[1998].id)).toEqual(unused[1998]);
   expect(restored.approval(f.approval.id)).toEqual(f.approval);
   expect(JSON.parse(readFileSync(f.path, "utf8")).approvals).toHaveLength(1);
+  const started = {
+    ...f.fire(7000, "prepared"),
+    jobId: added.jobId,
+    approvalId: added.id,
+  };
+  started.sessionId = `automation:${added.jobId}:${started.fireId}`;
+  restored.prepare(started);
+  const active = new BotAutomationLedger(f.dir);
+  expect(active.get(started.fireId)).toEqual(started);
+  expect(active.approval(added.id)).toEqual(added);
 });
