@@ -1,7 +1,7 @@
 import type { ActionResult, Memory } from "@elizaos/core";
-import { escapeXml } from "../../utils/eliza-compat";
 import { isRecord } from "../../utils/records";
 import { inspectWorkspaceCommands } from "../../utils/workspace-commands";
+import { escapeXml } from "../../utils/xml";
 import {
   actionResultActionName,
   extractCommandResultFromActionResult,

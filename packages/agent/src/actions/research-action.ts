@@ -1,6 +1,7 @@
 import {
   type Action,
   type ActionResult,
+  getMemoryText,
   type HandlerCallback,
   type HandlerOptions,
   type IAgentRuntime,
@@ -15,7 +16,6 @@ import {
   promptCacheMetrics,
 } from "../runtime/prompt-cache/index";
 import { getScopedTurnAbortSignal } from "../runtime/turn-runtime-scope";
-import { messageText } from "../utils/eliza-compat";
 import {
   classifyResearchFailure,
   ResearchPreflightError,
@@ -113,7 +113,7 @@ function resolveResearchQuestion(
   if (typeof shortcutQuestion === "string" && shortcutQuestion.trim()) {
     return shortcutQuestion.trim();
   }
-  return parseResearchQuestion(messageText(message));
+  return parseResearchQuestion(getMemoryText(message));
 }
 
 function sourcesFromAnnotations(

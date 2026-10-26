@@ -1,6 +1,6 @@
 import type { ActionResult } from "@elizaos/core";
 import type { AutomationRuntimeOverrides } from "../../types/runtime/index";
-import { escapeXml } from "../../utils/eliza-compat";
+import { escapeXml } from "../../utils/xml";
 import { extractCommandResultFromActionResult } from "../action-result-metadata";
 import type { AgentExecutionContext } from "../chat";
 import { runModelAnalysis } from "../model-analysis";
