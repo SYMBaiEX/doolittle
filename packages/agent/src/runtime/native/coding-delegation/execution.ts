@@ -147,6 +147,14 @@ export async function executeManagedDelegation(input: {
   };
   let closure: Promise<void> | undefined;
   const close = () => (closure ??= service.stopSession(session.sessionId));
+  // Own the child as soon as spawn succeeds, including failures while taking
+  // the workspace baseline or attaching the SDK event subscription. Normal
+  // completion below still reports cleanup failures in the execution receipt.
+  await using _sessionCleanup = {
+    [Symbol.asyncDispose]: async () => {
+      await close().catch(() => undefined);
+    },
+  };
   let initialSelection = initialSelectionEvidence(session);
   let returnedSession = session;
   try {
@@ -292,8 +300,12 @@ export async function executeManagedDelegation(input: {
       const childError = await finalChildError(service, session.sessionId);
       eventFailure = childError || eventFailure;
     }
-    unsubscribe();
     signal?.removeEventListener("abort", cancel);
+    try {
+      unsubscribe();
+    } catch {
+      eventFailure ||= "Coding session event cleanup failed";
+    }
     await cancellation;
     // Close only this worker. Stop waits for provider cleanup before the parent
     // can accept a retry, preventing late detached writes from the old session.
