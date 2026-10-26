@@ -169,19 +169,30 @@ export class BotAutomationHistory {
         )
           throw new Error("Automation approval histories disagree.");
       }
-      const lookup = db.prepare("SELECT * FROM fires WHERE fire_id = ?");
+      const lookup = db.prepare(
+        "SELECT * FROM fires WHERE fire_id = ? OR (job_id = ? AND digest = ?)",
+      );
       return fires.filter((fire) => {
-        const archived = this.decode(lookup.get(fire.fireId));
-        if (!archived) return true;
-        const { status: _oldStatus, updatedAt: _oldTime, ...identity } = fire;
-        const {
-          status: _status,
-          updatedAt: _time,
-          ...archivedIdentity
-        } = archived;
-        if (!isDeepStrictEqual(identity, archivedIdentity))
-          throw new Error("Automation history identities disagree.");
-        return false;
+        const matches = lookup.all(fire.fireId, fire.jobId, fire.fireKeyDigest);
+        for (const row of matches) {
+          const archived = this.decode(row);
+          if (!archived)
+            throw new Error("Automation history receipt is unavailable.");
+          const { status: _oldStatus, updatedAt: _oldTime, ...identity } = fire;
+          const {
+            status: _status,
+            updatedAt: _time,
+            ...archivedIdentity
+          } = archived;
+          if (!isDeepStrictEqual(identity, archivedIdentity))
+            throw new Error("Automation history identities disagree.");
+          if (
+            ["complete", "cancelled", "error"].includes(fire.status) &&
+            fire.status !== archived.status
+          )
+            throw new Error("Automation history terminal statuses disagree.");
+        }
+        return matches.length === 0;
       });
     } finally {
       db.close();

@@ -205,3 +205,19 @@ it("refuses to initialize an empty archive once persisted history is required", 
   expect(() => new BotAutomationLedger(f.dir)).toThrow();
   expect(readFileSync(archive).byteLength).toBe(0);
 });
+
+it("refuses a hot receipt that conflicts with an archived job/fire identity", () => {
+  const f = fixture();
+  new BotAutomationLedger(f.dir).prepare(f.fire(6000, "prepared"));
+  const hot = JSON.parse(readFileSync(f.path, "utf8"));
+  const fireId = randomUUID();
+  hot.fires.push({
+    ...f.fires[4999],
+    fireId,
+    sessionId: `automation:${f.jobId}:${fireId}`,
+    runId: `automation:${fireId}`,
+  });
+  for (const path of [f.path, f.backup])
+    writeFileSync(path, JSON.stringify(hot));
+  expect(() => new BotAutomationLedger(f.dir)).toThrow(/identities disagree/);
+});
