@@ -84,3 +84,36 @@ it("encodes Uniswap V2-quoter calls from shipped contract artifacts without cont
   expect(transaction?.args[0].tokenOut).toBe(usdc.address);
   expect(transaction?.args[0].amountIn).toBe(1000n);
 });
+
+it("keeps signing and typed-data recovery on the wallet plugin's actual ethers dependency", async () => {
+  const walletRequire = createRequire(
+    agentRequire.resolve("@elizaos/plugin-wallet"),
+  );
+  const { Wallet, Transaction, verifyTypedData } = walletRequire("ethers");
+  // Public test vector only; no RPC, funded account, or transaction submission.
+  const wallet = new Wallet(`0x${"1".padStart(64, "0")}`);
+  const signed = await wallet.signTransaction({
+    to: "0x0000000000000000000000000000000000000001",
+    type: 2,
+    chainId: 1,
+    nonce: 0,
+    gasLimit: 21000n,
+    maxFeePerGas: 10n,
+    maxPriorityFeePerGas: 1n,
+    value: 123456789012345678901n,
+  });
+  const transaction = Transaction.from(signed);
+  expect(transaction.from).toBe("0x7E5F4552091A69125d5DfCb7b8C2659029395Bdf");
+  expect(transaction.value).toBe(123456789012345678901n);
+  const domain = { name: "Doolittle test", version: "1", chainId: 1 };
+  const types = { Amount: [{ name: "value", type: "uint256" }] };
+  const value = { value: "123456789012345678901" };
+  expect(
+    verifyTypedData(
+      domain,
+      types,
+      value,
+      await wallet.signTypedData(domain, types, value),
+    ),
+  ).toBe(wallet.address);
+});
