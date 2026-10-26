@@ -127,9 +127,6 @@ patchedDependencies:
   '@elizaos/plugin-agent-orchestrator@2.0.3-beta.7':
     hash: 71401e5b29d17ab7336b9c74422d0fcb17888465b1b34a821fcfdba6054c8ed2
     path: patches/@elizaos+plugin-agent-orchestrator@2.0.3-beta.7.patch
-  '@elizaos/plugin-codex-cli@2.0.3-beta.7':
-    hash: 1d187815659907fc5e4c73991fc0ab955d29764ab473ad82d0e300368473b7fb
-    path: patches/@elizaos+plugin-codex-cli@2.0.3-beta.7.patch
   '@elizaos/plugin-sql@2.0.3-beta.7':
     hash: 94c6a4545006a5fe230360285bafd6a2c649a0a2f425563a92141974667e673f
     path: patches/@elizaos+plugin-sql@2.0.3-beta.7.patch
@@ -427,7 +424,7 @@ importers:
         version: 2.0.11-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)(ws@8.22.0)
       '@elizaos/plugin-codex-cli':
         specifier: 2.0.3-beta.7
-        version: 2.0.3-beta.7(patch_hash=1d187815659907fc5e4c73991fc0ab955d29764ab473ad82d0e300368473b7fb)(@electric-sql/pglite@0.4.6(ws@8.22.0))(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)(zod@4.6.7)
+        version: 2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)(zod@4.6.7)
       '@elizaos/plugin-discord':
         specifier: 2.0.3-beta.7
         version: 2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@elizaos/core@2.0.3-beta.7)(@emnapi/core@1.11.2(@emnapi/runtime@1.11.2))(@emnapi/runtime@1.11.2)(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)(ws@8.22.0)
@@ -476,6 +473,12 @@ importers:
       dotenv:
         specifier: ^18.0.9
         version: 18.0.9
+      file-type:
+        specifier: 22.2.0
+        version: 22.2.0
+      openai:
+        specifier: 7.43.0
+        version: 7.43.0(zod@4.6.7)
       shell-quote:
         specifier: 1.12.0
         version: 1.12.0
@@ -9686,6 +9689,33 @@ packages:
     resolution: {integrity: sha512-7x81NCL719oNbsq/3mh+hVrAWmFuEYUqrq/Iw3kUzH8ReypT9QQ0BLoJS7/G9k6N81XjW4qHWtjWwe/9eLy1EQ==}
     engines: {node: '>=12'}
 
+  openai@7.43.0:
+    resolution: {integrity: sha512-fBjKaDFG8AVfkGYoIo/E+xNRlNk7nx2nQ9GoQtXfePzPjg4QcT6nejkhXayJnEwSpFGfthOrAPI2KXj5yAqg9A==}
+    engines: {node: '>=22.0.0'}
+    peerDependencies:
+      '@aws-sdk/credential-provider-node': '>=3.972.0 <4'
+      '@smithy/hash-node': '>=4.3.0 <5'
+      '@smithy/signature-v4': '>=5.4.0 <6'
+      google-auth-library: '>=9.15.1 <11'
+      undici: '>=5 <9'
+      ws: ^8.21.0
+      zod: ^3.25 || ^4.0
+    peerDependenciesMeta:
+      '@aws-sdk/credential-provider-node':
+        optional: true
+      '@smithy/hash-node':
+        optional: true
+      '@smithy/signature-v4':
+        optional: true
+      google-auth-library:
+        optional: true
+      undici:
+        optional: true
+      ws:
+        optional: true
+      zod:
+        optional: true
+
   openapi-fetch@0.17.0:
     resolution: {integrity: sha512-PsbZR1wAPcG91eEthKhN+Zn92FMHxv+/faECIwjXdxfTODGSGegYv0sc1Olz+HYPvKOuoXfp+0pA2XVt2cI0Ig==}
 
@@ -13317,7 +13347,7 @@ snapshots:
       - bufferutil
       - utf-8-validate
 
-  '@elizaos/plugin-codex-cli@2.0.3-beta.7(patch_hash=1d187815659907fc5e4c73991fc0ab955d29764ab473ad82d0e300368473b7fb)(@electric-sql/pglite@0.4.6(ws@8.22.0))(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)(zod@4.6.7)':
+  '@elizaos/plugin-codex-cli@2.0.3-beta.7(@electric-sql/pglite@0.4.6(ws@8.22.0))(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)(zod@4.6.7)':
     dependencies:
       '@elizaos/core': 2.0.3-beta.7(patch_hash=7242104d352567e5494819604c53ef11b12ecb35e0aec410c0af09c4bc5b7864)(@electric-sql/pglite@0.4.6(ws@8.22.0))(@neondatabase/serverless@1.2.0)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.1)
       zod: 4.6.7
@@ -24098,6 +24128,10 @@ snapshots:
       define-lazy-prop: 2.0.0
       is-docker: 2.2.1
       is-wsl: 2.2.0
+
+  openai@7.43.0(zod@4.6.7):
+    dependencies:
+      zod: 4.6.7
 
   openapi-fetch@0.17.0:
     dependencies:

@@ -62,7 +62,6 @@ export async function loadProviderPlugins(
     createDoolittleCodexReasoningPlugin(normalizePlugin(codexCliPlugin), {
       ...(workerBot?.model.provider === "codex"
         ? {
-            forceBackend: true,
             createBackend: (runtime: IAgentRuntime) =>
               createCodexReasoningBackend(runtime, {
                 authPath: `${config.dataDir}/host-codex-auth-not-on-disk`,
