@@ -1,9 +1,12 @@
 import {
-  chmodSync,
+  closeSync,
+  constants,
   existsSync,
+  fchmodSync,
+  fstatSync,
   lstatSync,
   mkdirSync,
-  writeFileSync,
+  openSync,
 } from "node:fs";
 import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
@@ -29,12 +32,30 @@ export class BotAutomationHistory {
 
   private open(): DatabaseSync {
     mkdirSync(dirname(this.path), { recursive: true, mode: 0o700 });
-    const created = !existsSync(this.path);
-    if (created) writeFileSync(this.path, "", { flag: "wx", mode: 0o600 });
-    const info = lstatSync(this.path);
-    if (!info.isFile() || info.isSymbolicLink())
-      throw new Error("Automation history is not a regular file.");
-    chmodSync(this.path, 0o600);
+    let created = false;
+    let fd: number;
+    const flags =
+      constants.O_RDWR |
+      (constants.O_NOFOLLOW ?? 0) |
+      (constants.O_NONBLOCK ?? 0);
+    try {
+      fd = openSync(this.path, "wx+", 0o600);
+      created = true;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+      fd = openSync(this.path, flags);
+    }
+    try {
+      if (
+        !fstatSync(fd).isFile() ||
+        (!constants.O_NOFOLLOW && lstatSync(this.path).isSymbolicLink())
+      ) {
+        throw new Error("Automation history is not a regular file.");
+      }
+      fchmodSync(fd, 0o600);
+    } finally {
+      closeSync(fd);
+    }
     const db = new DatabaseSync(this.path);
     try {
       if (created)

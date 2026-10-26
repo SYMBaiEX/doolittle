@@ -5,6 +5,7 @@ import {
   readFileSync,
   renameSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -158,4 +159,17 @@ it("refuses corrupt cold history instead of treating archived fires as unsubmitt
   );
   expect(() => ledger.forKey(f.jobId, f.fires[4999].fireKeyDigest)).toThrow();
   expect(() => new BotAutomationLedger(f.dir)).toThrow();
+});
+
+it("rejects a symlinked archive without touching the target", () => {
+  const f = fixture();
+  const ledger = new BotAutomationLedger(f.dir);
+  ledger.prepare(f.fire(6000, "prepared"));
+  const archive = resolve(f.dir, "bots/automation-history.sqlite");
+  const outside = resolve(f.dir, "outside");
+  writeFileSync(outside, "preserved");
+  rmSync(archive);
+  symlinkSync(outside, archive);
+  expect(() => ledger.forKey(f.jobId, f.fires[4999].fireKeyDigest)).toThrow();
+  expect(readFileSync(outside, "utf8")).toBe("preserved");
 });
