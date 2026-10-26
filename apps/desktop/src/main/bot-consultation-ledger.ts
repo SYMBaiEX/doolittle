@@ -143,7 +143,7 @@ export class BotConsultationLedger {
     const next = { ...this.stored, revision: this.stored.revision + 1 };
     if (
       next.records.length > MAX_RECORDS ||
-      Buffer.byteLength(JSON.stringify(next)) > MAX_LEDGER_BYTES
+      Buffer.byteLength(JSON.stringify(next, null, 2)) + 1 > MAX_LEDGER_BYTES
     ) {
       throw new Error("The consultation ledger is full.");
     }

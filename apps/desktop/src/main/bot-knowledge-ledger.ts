@@ -154,7 +154,7 @@ export class BotKnowledgeLedger {
   private save(next: StoredKnowledge): void {
     if (this.failed) throw new Error("Knowledge ledger requires recovery.");
     const value = { ...next, revision: this.stored.revision + 1 };
-    if (Buffer.byteLength(JSON.stringify(value)) > MAX_BYTES)
+    if (Buffer.byteLength(JSON.stringify(value, null, 2)) + 1 > MAX_BYTES)
       throw new Error("Knowledge ledger is full.");
     try {
       mkdirSync(dirname(this.path), { recursive: true, mode: 0o700 });

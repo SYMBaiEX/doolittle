@@ -158,7 +158,7 @@ export class BotAutomationLedger {
       throw new Error("Automation dispatch ledger requires recovery.");
     const value = { ...next, revision: this.stored.revision + 1 };
     if (
-      Buffer.byteLength(JSON.stringify(value)) > 8_000_000 ||
+      Buffer.byteLength(JSON.stringify(value, null, 2)) + 1 > 8_000_000 ||
       value.approvals.length > 2_000 ||
       value.fires.length > 5_000
     )

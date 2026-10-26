@@ -282,17 +282,22 @@ export class BotCatalog {
     };
   }
 
-  private save(): void {
+  private save(next: StoredBotCatalog): void {
+    if (
+      Buffer.byteLength(JSON.stringify(next, null, 2)) + 1 >
+      MAX_CATALOG_BYTES
+    )
+      throw new Error("The bot catalog is full. No change was saved.");
     mkdirSync(resolve(this.filePath, ".."), { recursive: true, mode: 0o700 });
-    writeJsonAtomicSync(this.filePath, this.stored, { trailingNewline: true });
+    writeJsonAtomicSync(this.filePath, next, { trailingNewline: true });
     chmodSync(this.filePath, 0o600);
+    this.stored = next;
   }
 
   defaultBot(): BotDefinition {
     const state = this.defaultBackend.getState();
     if (state.agentId && !this.stored.defaultAgentId) {
-      this.stored.defaultAgentId = state.agentId;
-      this.save();
+      this.save({ ...this.stored, defaultAgentId: state.agentId });
     }
     const agentId =
       this.stored.defaultAgentId ?? state.agentId ?? LEGACY_AGENT_ID;
@@ -390,8 +395,7 @@ export class BotCatalog {
       createdAt: now,
       updatedAt: now,
     };
-    this.stored.bots.push(definition);
-    this.save();
+    this.save({ ...this.stored, bots: [...this.stored.bots, definition] });
     return definition;
   }
 
@@ -406,12 +410,10 @@ export class BotCatalog {
       if (Object.keys(input).some((key) => key !== "name")) {
         throw new Error("The lead bot only supports display-name changes.");
       }
-      this.stored.defaultName = requiredText(
-        input.name,
-        "Bot name",
-        MAX_NAME_LENGTH,
-      );
-      this.save();
+      this.save({
+        ...this.stored,
+        defaultName: requiredText(input.name, "Bot name", MAX_NAME_LENGTH),
+      });
       return this.defaultBot();
     }
     const workspacePath = input.workspacePath
@@ -446,10 +448,10 @@ export class BotCatalog {
       updatedAt: new Date().toISOString(),
     };
     beforeCommit?.(updated);
-    this.stored.bots = this.stored.bots.map((bot) =>
-      bot.id === id ? updated : bot,
-    );
-    this.save();
+    this.save({
+      ...this.stored,
+      bots: this.stored.bots.map((bot) => (bot.id === id ? updated : bot)),
+    });
     return updated;
   }
 
@@ -461,10 +463,10 @@ export class BotCatalog {
     if (existing.archivedAt) return existing;
     const now = new Date().toISOString();
     const archived = { ...existing, archivedAt: now, updatedAt: now };
-    this.stored.bots = this.stored.bots.map((bot) =>
-      bot.id === id ? archived : bot,
-    );
-    this.save();
+    this.save({
+      ...this.stored,
+      bots: this.stored.bots.map((bot) => (bot.id === id ? archived : bot)),
+    });
     return archived;
   }
 }

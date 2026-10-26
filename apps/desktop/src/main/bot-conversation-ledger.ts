@@ -511,6 +511,13 @@ export class BotConversationLedger {
       projects: [...this.projects.values()],
       resources: [...this.resources.values()],
     };
+    if (
+      Buffer.byteLength(JSON.stringify(value, null, 2)) + 1 >
+      MAX_LEDGER_BYTES
+    )
+      throw new Error(
+        "The conversation owner ledger is full. No change was saved.",
+      );
     // Two independently atomic copies allow recovery after an interrupted
     // upgrade without permitting a conflicting owner to be silently adopted.
     writeJsonAtomicSync(this.backupPath, value, { trailingNewline: true });

@@ -128,7 +128,7 @@ export class BotAcpSessionLedger {
       revision: this.stored.revision + 1,
       sessions: [...this.stored.sessions, record],
     };
-    const serialized = JSON.stringify(next);
+    const serialized = `${JSON.stringify(next, null, 2)}\n`;
     if (
       next.sessions.length > MAX_RECORDS ||
       Buffer.byteLength(serialized) > MAX_BYTES

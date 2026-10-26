@@ -155,7 +155,7 @@ export class BotTeamCatalog {
       revision: this.stored.revision + 1,
       teams,
     };
-    if (Buffer.byteLength(JSON.stringify(next)) > MAX_BYTES)
+    if (Buffer.byteLength(JSON.stringify(next, null, 2)) + 1 > MAX_BYTES)
       throw new Error("Team catalog is full.");
     try {
       mkdirSync(dirname(this.path), { recursive: true, mode: 0o700 });
