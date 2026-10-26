@@ -1,11 +1,12 @@
-import { chmodSync, existsSync, mkdirSync, readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { chmodSync, existsSync, mkdirSync } from "node:fs";
+import { isAbsolute, resolve } from "node:path";
 import type {
   BotConsultationResult,
   BotPermissions,
   BotRunOwner,
 } from "@doolittle/contracts/bots";
 import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
+import { readBoundedRegularFile } from "./regular-file";
 
 const ID = /^[A-Za-z0-9:_-]{1,128}$/u;
 const MAX_LEDGER_BYTES = 8_000_000;
@@ -46,9 +47,7 @@ interface StoredConsultations {
 
 function parse(path: string): StoredConsultations | null {
   if (!existsSync(path)) return null;
-  const raw = readFileSync(path, "utf8");
-  if (Buffer.byteLength(raw) > MAX_LEDGER_BYTES)
-    throw new Error("The consultation ledger is too large.");
+  const raw = readBoundedRegularFile(path, MAX_LEDGER_BYTES).toString("utf8");
   const value = JSON.parse(raw) as Partial<StoredConsultations>;
   if (
     value.version !== 1 ||
@@ -66,7 +65,7 @@ function parse(path: string): StoredConsultations | null {
         !ID.test(record.targetBotId) ||
         (record.workspacePath !== undefined &&
           (typeof record.workspacePath !== "string" ||
-            !record.workspacePath.startsWith("/") ||
+            !isAbsolute(record.workspacePath) ||
             resolve(record.workspacePath) !== record.workspacePath)) ||
         !ID.test(record.origin?.runId) ||
         !Array.isArray(record.ancestry) ||
@@ -144,7 +143,7 @@ export class BotConsultationLedger {
     const next = { ...this.stored, revision: this.stored.revision + 1 };
     if (
       next.records.length > MAX_RECORDS ||
-      Buffer.byteLength(JSON.stringify(next)) > MAX_LEDGER_BYTES
+      Buffer.byteLength(JSON.stringify(next, null, 2)) + 1 > MAX_LEDGER_BYTES
     ) {
       throw new Error("The consultation ledger is full.");
     }

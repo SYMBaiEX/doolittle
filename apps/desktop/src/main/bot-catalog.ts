@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { chmodSync, existsSync, mkdirSync, readFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync } from "node:fs";
 import { isAbsolute, resolve } from "node:path";
 import {
   type BotCatalogResponse,
@@ -14,6 +14,7 @@ import {
 import { normalizeBotCharacter } from "@doolittle/contracts/bot-character";
 import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
 import type { BackendManager } from "./backend";
+import { readBoundedRegularFile } from "./regular-file";
 
 const BOT_ID_PATTERN = /^[a-z0-9][a-z0-9_-]{0,63}$/u;
 // AgentRuntime derives this id from the unmodified Doolittle character name.
@@ -252,10 +253,10 @@ export class BotCatalog {
 
   private load(): StoredBotCatalog {
     if (!existsSync(this.filePath)) return { version: 1, bots: [] };
-    const raw = readFileSync(this.filePath, "utf8");
-    if (Buffer.byteLength(raw) > MAX_CATALOG_BYTES) {
-      throw new Error("The bot catalog exceeds its supported size.");
-    }
+    const raw = readBoundedRegularFile(
+      this.filePath,
+      MAX_CATALOG_BYTES,
+    ).toString("utf8");
     const value = JSON.parse(raw) as StoredBotCatalog;
     if (
       value.version !== 1 ||
@@ -281,17 +282,22 @@ export class BotCatalog {
     };
   }
 
-  private save(): void {
+  private save(next: StoredBotCatalog): void {
+    if (
+      Buffer.byteLength(JSON.stringify(next, null, 2)) + 1 >
+      MAX_CATALOG_BYTES
+    )
+      throw new Error("The bot catalog is full. No change was saved.");
     mkdirSync(resolve(this.filePath, ".."), { recursive: true, mode: 0o700 });
-    writeJsonAtomicSync(this.filePath, this.stored, { trailingNewline: true });
+    writeJsonAtomicSync(this.filePath, next, { trailingNewline: true });
     chmodSync(this.filePath, 0o600);
+    this.stored = next;
   }
 
   defaultBot(): BotDefinition {
     const state = this.defaultBackend.getState();
     if (state.agentId && !this.stored.defaultAgentId) {
-      this.stored.defaultAgentId = state.agentId;
-      this.save();
+      this.save({ ...this.stored, defaultAgentId: state.agentId });
     }
     const agentId =
       this.stored.defaultAgentId ?? state.agentId ?? LEGACY_AGENT_ID;
@@ -389,8 +395,7 @@ export class BotCatalog {
       createdAt: now,
       updatedAt: now,
     };
-    this.stored.bots.push(definition);
-    this.save();
+    this.save({ ...this.stored, bots: [...this.stored.bots, definition] });
     return definition;
   }
 
@@ -405,12 +410,10 @@ export class BotCatalog {
       if (Object.keys(input).some((key) => key !== "name")) {
         throw new Error("The lead bot only supports display-name changes.");
       }
-      this.stored.defaultName = requiredText(
-        input.name,
-        "Bot name",
-        MAX_NAME_LENGTH,
-      );
-      this.save();
+      this.save({
+        ...this.stored,
+        defaultName: requiredText(input.name, "Bot name", MAX_NAME_LENGTH),
+      });
       return this.defaultBot();
     }
     const workspacePath = input.workspacePath
@@ -445,10 +448,10 @@ export class BotCatalog {
       updatedAt: new Date().toISOString(),
     };
     beforeCommit?.(updated);
-    this.stored.bots = this.stored.bots.map((bot) =>
-      bot.id === id ? updated : bot,
-    );
-    this.save();
+    this.save({
+      ...this.stored,
+      bots: this.stored.bots.map((bot) => (bot.id === id ? updated : bot)),
+    });
     return updated;
   }
 
@@ -460,10 +463,10 @@ export class BotCatalog {
     if (existing.archivedAt) return existing;
     const now = new Date().toISOString();
     const archived = { ...existing, archivedAt: now, updatedAt: now };
-    this.stored.bots = this.stored.bots.map((bot) =>
-      bot.id === id ? archived : bot,
-    );
-    this.save();
+    this.save({
+      ...this.stored,
+      bots: this.stored.bots.map((bot) => (bot.id === id ? archived : bot)),
+    });
     return archived;
   }
 }

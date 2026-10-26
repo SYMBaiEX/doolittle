@@ -1,7 +1,8 @@
-import { chmodSync, existsSync, mkdirSync, readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { chmodSync, existsSync, mkdirSync } from "node:fs";
+import { isAbsolute, resolve } from "node:path";
 import type { BotPermissions } from "@doolittle/contracts/bots";
 import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
+import { readBoundedRegularFile } from "./regular-file";
 
 export interface AutomationTargetApproval {
   id: string;
@@ -42,9 +43,7 @@ function date(value: unknown): boolean {
 }
 function parse(path: string): Stored | null {
   if (!existsSync(path)) return null;
-  const raw = readFileSync(path, "utf8");
-  if (Buffer.byteLength(raw) > 8_000_000)
-    throw new Error("Automation dispatch ledger is full.");
+  const raw = readBoundedRegularFile(path, 8_000_000).toString("utf8");
   const value = JSON.parse(raw) as Stored;
   if (
     value?.version !== 1 ||
@@ -66,7 +65,7 @@ function parse(path: string): Stored | null {
         !HASH.test(row.definitionDigest) ||
         (row.workspacePath !== undefined &&
           (typeof row.workspacePath !== "string" ||
-            !row.workspacePath.startsWith("/") ||
+            !isAbsolute(row.workspacePath) ||
             resolve(row.workspacePath) !== row.workspacePath)) ||
         !row.permissions ||
         ![
@@ -159,7 +158,7 @@ export class BotAutomationLedger {
       throw new Error("Automation dispatch ledger requires recovery.");
     const value = { ...next, revision: this.stored.revision + 1 };
     if (
-      Buffer.byteLength(JSON.stringify(value)) > 8_000_000 ||
+      Buffer.byteLength(JSON.stringify(value, null, 2)) + 1 > 8_000_000 ||
       value.approvals.length > 2_000 ||
       value.fires.length > 5_000
     )

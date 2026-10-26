@@ -73,7 +73,10 @@ test.describe("fresh native desktop", () => {
       const composer = page.getByRole("textbox", {
         name: "Message Fresh Scout",
       });
-      await expect(composer).toBeEnabled();
+      // Creating a named bot starts a second cold SDK worker after the lead
+      // runtime is ready. Wait for its observable readiness, not the default
+      // five-second assertion budget; the journey still has its 60s deadline.
+      await expect(composer).toBeEnabled({ timeout: 30_000 });
       await composer.fill("A short offline hello");
       await composer.press("Enter");
       await expect(

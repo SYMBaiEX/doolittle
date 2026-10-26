@@ -1,6 +1,7 @@
-import { chmodSync, existsSync, readFileSync } from "node:fs";
+import { chmodSync, existsSync } from "node:fs";
 import { isAbsolute, resolve } from "node:path";
 import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
+import { readBoundedRegularFile } from "./regular-file";
 
 const SESSION_ID = /^[a-zA-Z0-9:_-]{1,128}$/u;
 const BOT_ID = /^[a-z0-9][a-z0-9_-]{0,63}$/u;
@@ -166,9 +167,7 @@ function validConversation(value: unknown): value is BoundConversation {
 
 function parseLedger(path: string): StoredLedger | null {
   if (!existsSync(path)) return null;
-  const raw = readFileSync(path, "utf8");
-  if (Buffer.byteLength(raw, "utf8") > MAX_LEDGER_BYTES)
-    throw new Error("The conversation owner ledger is too large.");
+  const raw = readBoundedRegularFile(path, MAX_LEDGER_BYTES).toString("utf8");
   const value = JSON.parse(raw) as Partial<StoredLedger>;
   if (
     value.version !== 1 ||
@@ -298,7 +297,7 @@ export class BotConversationLedger {
         );
       this.resources.set(resource.resourceId, resource);
     }
-    if ((!primary && backup) || (primary && !backup)) this.save();
+    if ((!primary && backup) || (primary && !backup)) this.save("repair");
   }
 
   get(sessionId: string): BoundConversation | null {
@@ -504,7 +503,7 @@ export class BotConversationLedger {
     return created;
   }
 
-  private save(): void {
+  private save(mode: "mutation" | "repair" = "mutation"): void {
     const value: StoredLedger = {
       version: 1,
       conversations: [...this.conversations.values()],
@@ -512,6 +511,17 @@ export class BotConversationLedger {
       projects: [...this.projects.values()],
       resources: [...this.resources.values()],
     };
+    if (
+      Buffer.byteLength(JSON.stringify(value, null, 2)) + 1 >
+      MAX_LEDGER_BYTES
+    ) {
+      // A valid legacy copy can fit on disk while the normalized, pretty
+      // representation does not. Keep that sole recovery source untouched.
+      if (mode === "repair") return;
+      throw new Error(
+        "The conversation owner ledger is full. No change was saved.",
+      );
+    }
     // Two independently atomic copies allow recovery after an interrupted
     // upgrade without permitting a conflicting owner to be silently adopted.
     writeJsonAtomicSync(this.backupPath, value, { trailingNewline: true });

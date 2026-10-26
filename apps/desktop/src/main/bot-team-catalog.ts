@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { chmodSync, existsSync, mkdirSync, readFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import type {
   BotDefinition,
@@ -9,6 +9,7 @@ import type {
   UpdateBotTeamInput,
 } from "@doolittle/contracts/bots";
 import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
+import { readBoundedRegularFile } from "./regular-file";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
 const MAX_BYTES = 1_000_000;
@@ -17,9 +18,7 @@ function date(value: unknown): boolean {
 }
 function parse(path: string): BotTeamCatalogResponse | null {
   if (!existsSync(path)) return null;
-  const raw = readFileSync(path, "utf8");
-  if (Buffer.byteLength(raw) > MAX_BYTES)
-    throw new Error("Team catalog is too large.");
+  const raw = readBoundedRegularFile(path, MAX_BYTES).toString("utf8");
   const data = JSON.parse(raw) as BotTeamCatalogResponse;
   if (
     data?.version !== 1 ||
@@ -156,7 +155,7 @@ export class BotTeamCatalog {
       revision: this.stored.revision + 1,
       teams,
     };
-    if (Buffer.byteLength(JSON.stringify(next)) > MAX_BYTES)
+    if (Buffer.byteLength(JSON.stringify(next, null, 2)) + 1 > MAX_BYTES)
       throw new Error("Team catalog is full.");
     try {
       mkdirSync(dirname(this.path), { recursive: true, mode: 0o700 });
