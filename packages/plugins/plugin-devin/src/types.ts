@@ -17,6 +17,7 @@ export interface DevinCliPrintParams {
   command?: string;
   cwd?: string;
   timeoutMs?: number;
+  signal?: AbortSignal;
   permissionMode?: "auto" | "dangerous";
 }
 

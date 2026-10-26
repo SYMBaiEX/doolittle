@@ -96,3 +96,22 @@ jobs:
 
       - name: Exercise packaged offline chat with verified provenance
         run: xvfb-run -a nub run test:e2e:release:packaged-core
+
+  windows_provider_acceptance:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Set up Nub and Node
+        uses: nubjs/setup-nub@47e5e7393d50f4e9544ddaf756aa277972afba2d # v0
+        with:
+          nub-version: 0.9.7
+          node-version-file: .node-version
+          cache-dependency-path: nub.lock
+      - name: Install dependencies
+        run: nub install --frozen-lockfile --ignore-scripts
+      - name: Verify provider process trees and capture budgets on Windows
+        run: nub run test:scope tests/boundary/provider-command.test.ts

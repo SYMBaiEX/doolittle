@@ -1,4 +1,5 @@
-import { type ChildProcess, spawn } from "node:child_process";
+import { type ChildProcess, execFile, spawn } from "node:child_process";
+import { win32 } from "node:path";
 import process from "node:process";
 import { StringDecoder } from "node:string_decoder";
 import { sanitizeSpawnEnv } from "@elizaos/core";
@@ -7,7 +8,8 @@ export type ProviderCommandTermination =
   | "exit"
   | "spawn_error"
   | "timeout"
-  | "output_limit";
+  | "output_limit"
+  | "termination_error";
 
 export interface ProviderCommandRequest {
   command: string;
@@ -49,19 +51,33 @@ function sanitizedEnvironment(
   };
 }
 
-function killProcessTree(child: ChildProcess): void {
-  try {
-    if (process.platform !== "win32" && child.pid !== undefined) {
-      process.kill(-child.pid, "SIGKILL");
-      return;
-    }
-  } catch {
-    // The process may have exited between the close check and the kill.
+async function killProcessTree(child: ChildProcess): Promise<void> {
+  if (child.pid === undefined) return;
+  if (process.platform === "win32") {
+    const root = process.env.SystemRoot?.trim() || process.env.WINDIR?.trim();
+    if (!root || !/^[A-Za-z]:[\\/]/u.test(root))
+      throw new Error("Windows SystemRoot is invalid.");
+    await new Promise<void>((resolve, reject) => {
+      execFile(
+        win32.join(root, "System32", "taskkill.exe"),
+        ["/PID", String(child.pid), "/T", "/F"],
+        { timeout: 5000, maxBuffer: 16 * 1024, windowsHide: true },
+        (error) =>
+          error
+            ? reject(
+                new Error("Windows provider process-tree termination failed.", {
+                  cause: error,
+                }),
+              )
+            : resolve(),
+      );
+    });
+    return;
   }
   try {
-    child.kill("SIGKILL");
-  } catch {
-    // The process is already gone.
+    process.kill(-child.pid, "SIGKILL");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ESRCH") throw error;
   }
 }
 
@@ -131,6 +147,8 @@ export async function runProviderCommand(
     let cancelled = false;
     let outputExceeded = false;
     let outputBytes = 0;
+    let stopping: Promise<void> | undefined;
+    let terminationFailure = false;
 
     const cleanup = () => {
       clearTimeout(timer);
@@ -140,13 +158,32 @@ export async function runProviderCommand(
       stdout += stdoutDecoder.end();
       stderr += stderrDecoder.end();
     };
+    const stop = () => {
+      if (stopping || settled) return;
+      stopping = killProcessTree(child)
+        .catch(() => {
+          terminationFailure = true;
+          // Best effort fallback; report that descendant termination was not verified.
+          try {
+            child.kill("SIGKILL");
+          } catch {
+            /* termination failure is reported below */
+          }
+        })
+        .finally(() => {
+          // A descendant retaining a pipe must not keep this request pending forever.
+          child.stdout?.destroy();
+          child.stderr?.destroy();
+          finish(null);
+        });
+    };
     const onAbort = () => {
       cancelled = true;
-      killProcessTree(child);
+      stop();
     };
     const timer = setTimeout(() => {
       timedOut = true;
-      killProcessTree(child);
+      stop();
     }, timeoutMs);
     timer.unref?.();
 
@@ -158,7 +195,7 @@ export async function runProviderCommand(
       outputBytes += accepted.byteLength;
       if (chunk.byteLength > remaining) {
         outputExceeded = true;
-        killProcessTree(child);
+        stop();
       }
       return decoder.write(accepted);
     };
@@ -181,11 +218,29 @@ export async function runProviderCommand(
         termination: "spawn_error",
       });
     });
-    child.once("close", (code) => {
+    const finish = (code: number | null) => {
       if (settled) return;
       settled = true;
       cleanup();
       flushOutput();
+      if (terminationFailure) {
+        if (cancelled) {
+          reject(
+            new Error(
+              "Provider cancellation could not terminate its process tree.",
+            ),
+          );
+          return;
+        }
+        resolve({
+          exitCode: 126,
+          stdout,
+          stderr: `${stderr}\n[provider-transport] process-tree termination failed`,
+          durationMs: Date.now() - startedAt,
+          termination: "termination_error",
+        });
+        return;
+      }
       if (cancelled && request.signal) {
         reject(commandAbortReason(request.signal));
         return;
@@ -218,6 +273,10 @@ export async function runProviderCommand(
         durationMs: Date.now() - startedAt,
         termination: "exit",
       });
+    };
+    child.once("close", (code) => {
+      if (!stopping) finish(code);
     });
+    if (request.signal?.aborted) onAbort();
   });
 }

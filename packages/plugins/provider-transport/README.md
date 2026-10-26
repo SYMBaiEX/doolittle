@@ -35,5 +35,15 @@ const result = await runProviderCommand({
 ```
 
 The runner does not invoke a shell. It preserves stdout and stderr separately,
-applies Eliza core's environment policy, and terminates the process group on a
-deadline or caller cancellation.
+applies Eliza core's environment policy, and terminates the POSIX process group
+or Windows process tree on a deadline, caller cancellation, or excessive output.
+The combined stdout/stderr budget defaults to 8 MiB (`maxOutputBytes` can select
+1 byte through 64 MiB). Overflow returns exit code 125 and `output_limit`, never
+successful truncated output. The bounded diagnostic can add up to 256 bytes to
+the captured output budget.
+
+Windows termination uses the system `taskkill.exe` with `/T /F` and a five-second
+termination deadline. Failed tree termination is reported as `termination_error`
+(exit code 126), or rejects cancellation explicitly. Retained descendant pipes
+cannot keep the request pending indefinitely; failure is not reported as a
+successful cancellation.
