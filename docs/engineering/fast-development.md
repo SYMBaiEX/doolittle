@@ -19,6 +19,50 @@ No source-text snapshots or skipped environment opt-ins count as coverage.
 static imports; select explicit tests for dynamic runtime/IPC registration.
 No matching tests is a failure. Desktop/UI test commands reuse this root suite.
 
+## Live desktop development
+
+```sh
+nub run desktop:dev
+```
+
+Vite serves the renderer with hot module replacement. Watch builds compile the
+Electron main/preload code and both CLI runtime entries incrementally, including
+imported shared workspace sources. Skills and character Markdown/JSON changes
+also reload the dev app. Changes are coalesced into one restart after all affected
+builds succeed. Compilation failures keep the current app alive and recover on
+the next successful edit. A nonzero Electron exit keeps the watchers running so
+fixing the source can relaunch it.
+
+A restart asks the dev Electron process to quit through its normal SDK/runtime
+shutdown path and waits for exit before opening a replacement. This stops active
+dev runs and flushes saved state. A refused or stalled safe quit pauses reload;
+quit that dev app normally and restart the command. The supervisor does not
+force-kill a runtime with open data files.
+
+The persistent default profile is `var/desktop-dev/profile`, separate from the
+installed app. To choose another profile or renderer port:
+
+```sh
+DOOLITTLE_DEV_PORT=5174 nub run desktop:dev -- --user-data-dir=/absolute/private/dev-profile
+```
+
+No package/install command is part of this loop. Restart the dev command after
+installing dependencies or changing the dev supervisor/build configuration.
+
+For changes to this workflow, use:
+
+```sh
+nub run test:scope tests/boundary/desktop-dev-reload.test.ts
+nub run test:dev:desktop
+```
+
+The opt-in native journey uses a temporary offline profile and real Electron. It
+temporarily adds/removes uniquely tagged edits in the checkout to verify UI hot
+updates, main/preload/runtime replacement, old-runtime exit, compile-error
+recovery and supervisor cleanup. It preserves other edits and is separate from
+the ordinary release journeys. Its process-ownership probe currently uses POSIX
+`ps`, so that journey runs on macOS/Linux and explicitly skips Windows.
+
 ## Completion and appearance boundaries
 
 The provider turn handler owns SDK execution, cancellation and planner budgets.
