@@ -115,3 +115,32 @@ retains an old Noble dependency; it is not a safe v5 replacement. The public
 nut-tree fork still pins Jimp 0.22.10. Core/agent security and behavior fixes
 remain required by the currently usable SDK. No SDK engine or registered tool
 was removed to reduce the patch count.
+
+## Follow-up retirement review
+
+The follow-up registry review checked all 56 published ElizaOS package selections
+in the root overrides against full version histories, not just dist-tags.
+`2.0.11-beta.7` has a higher version number but was published June 20; the working
+`2.0.3-beta.7` core, agent, SQL and orchestrator releases were published June 28.
+Their retained versions are not an attempt to keep the packages on one train.
+
+The higher-numbered SQL and orchestrator archive hashes were verified against
+current npm registry integrity metadata. SQL still lacks
+`src/dist/node/index.node.js`; orchestrator still lacks
+`dist/node/index.node.js` and `dist/cjs/index.node.cjs`. The other retained plugin
+candidates also lack runtime entries. The core/agent/app-core/shared candidates
+contain runtime files but still have the API and behavior limits described above.
+No further package upgrade or patch retirement passed this review. All seven
+package patches and the published braces guard remain required.
+
+The product-owned autonomous configuration projection was removed instead: it
+constructed an unused second environment/configuration, including credential
+copies, solely to render diagnostics. Connection summaries and enabled connector
+names now come directly from the active settings. Linked Claude connections are
+reported correctly, and Codex summaries report the selected model. The obsolete
+remote-provider branch had no configuration producer and is removed.
+
+The legacy message-text compatibility helper is also removed. Actions, providers
+and routing evaluators use ElizaOS's public `getMemoryText` contract directly.
+XML escaping remains a client utility; it has no SDK compatibility behavior.
+These are source removals, not relocation of package patches into local forks.
