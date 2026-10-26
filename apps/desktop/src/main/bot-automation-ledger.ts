@@ -2,6 +2,7 @@ import { chmodSync, existsSync, mkdirSync } from "node:fs";
 import { isAbsolute, resolve } from "node:path";
 import type { BotPermissions } from "@doolittle/contracts/bots";
 import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
+import { BotAutomationHistory } from "./bot-automation-history";
 import { readBoundedRegularFile } from "./regular-file";
 
 export interface AutomationTargetApproval {
@@ -29,6 +30,7 @@ export interface AutomationTargetFire {
 }
 interface Stored {
   version: 1;
+  historyRequired?: true;
   revision: number;
   approvals: AutomationTargetApproval[];
   fires: AutomationTargetFire[];
@@ -47,6 +49,7 @@ function parse(path: string): Stored | null {
   const value = JSON.parse(raw) as Stored;
   if (
     value?.version !== 1 ||
+    (value.historyRequired !== undefined && value.historyRequired !== true) ||
     !Number.isSafeInteger(value.revision) ||
     value.revision < 0 ||
     !Array.isArray(value.approvals) ||
@@ -120,7 +123,11 @@ export class BotAutomationLedger {
   private readonly backup: string;
   private stored: Stored;
   private failed = false;
+  private readonly history: BotAutomationHistory;
   constructor(dataDir: string) {
+    this.history = new BotAutomationHistory(
+      resolve(dataDir, "bots", "automation-history.sqlite"),
+    );
     this.path = resolve(dataDir, "bots", "automation-dispatches.json");
     this.backup = resolve(dataDir, "bots", "automation-dispatches.backup.json");
     let primary: Stored | null = null;
@@ -152,11 +159,47 @@ export class BotAutomationLedger {
       primary && (!secondary || primary.revision >= secondary.revision)
         ? primary
         : (secondary ?? { version: 1, revision: 0, approvals: [], fires: [] });
+    this.history.setRecoveryRequirement(this.stored.historyRequired === true);
+    if (this.stored.historyRequired && !this.history.exists())
+      throw new Error("Automation history is missing. Recovery is required.");
+    this.stored.fires = this.history.reconcile(
+      this.stored.fires,
+      this.stored.approvals,
+    );
   }
   private save(next: Stored): void {
     if (this.failed)
       throw new Error("Automation dispatch ledger requires recovery.");
-    const value = { ...next, revision: this.stored.revision + 1 };
+    const terminal = next.fires
+      .filter((fire) =>
+        ["complete", "cancelled", "error"].includes(fire.status),
+      )
+      .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
+    const retired = terminal.slice(256);
+    const retiredIds = new Set(retired.map((fire) => fire.fireId));
+    const fires = next.fires.filter((fire) => !retiredIds.has(fire.fireId));
+    const referenced = new Set(fires.map((fire) => fire.approvalId));
+    const approvals = [...referenced].map((id) => {
+      const approval =
+        next.approvals.find((row) => row.id === id) ??
+        this.history.approval(id);
+      if (!approval)
+        throw new Error("The original automation approval is unavailable.");
+      return approval;
+    });
+    const retainedApprovals = new Set(approvals.map((approval) => approval.id));
+    const archivedApprovals = next.approvals.filter(
+      (approval) => !retainedApprovals.has(approval.id),
+    );
+    const value: Stored = {
+      ...next,
+      revision: this.stored.revision + 1,
+      fires,
+      ...(this.history.exists() || retired.length || archivedApprovals.length
+        ? { historyRequired: true }
+        : {}),
+      approvals,
+    };
     if (
       Buffer.byteLength(JSON.stringify(value, null, 2)) + 1 > 8_000_000 ||
       value.approvals.length > 2_000 ||
@@ -166,6 +209,8 @@ export class BotAutomationLedger {
         "Automation dispatch ledger is full. No run was submitted.",
       );
     try {
+      // Commit immutable replay receipts before removing them from either hot copy.
+      this.history.retire(retired, archivedApprovals);
       mkdirSync(resolve(this.path, ".."), { recursive: true, mode: 0o700 });
       writeJsonAtomicSync(this.path, value, { trailingNewline: true });
       chmodSync(this.path, 0o600);
@@ -180,7 +225,10 @@ export class BotAutomationLedger {
   approval(id: string): AutomationTargetApproval | undefined {
     if (this.failed)
       throw new Error("Automation dispatch ledger requires recovery.");
-    return structuredClone(this.stored.approvals.find((row) => row.id === id));
+    return structuredClone(
+      this.stored.approvals.find((row) => row.id === id) ??
+        this.history.approval(id),
+    );
   }
   approve(row: AutomationTargetApproval): void {
     this.save({
@@ -191,15 +239,27 @@ export class BotAutomationLedger {
   get(id: string): AutomationTargetFire | undefined {
     if (this.failed)
       throw new Error("Automation dispatch ledger requires recovery.");
-    return structuredClone(this.stored.fires.find((row) => row.fireId === id));
+    return structuredClone(
+      this.stored.fires.find((row) => row.fireId === id) ??
+        this.history.find("fire_id", id),
+    );
   }
   forKey(jobId: string, digest: string): AutomationTargetFire | undefined {
-    return this.list().find(
-      (row) => row.jobId === jobId && row.fireKeyDigest === digest,
+    if (this.failed)
+      throw new Error("Automation dispatch ledger requires recovery.");
+    return structuredClone(
+      this.stored.fires.find(
+        (row) => row.jobId === jobId && row.fireKeyDigest === digest,
+      ) ?? this.history.find("job_id", jobId, digest),
     );
   }
   byRun(runId: string): AutomationTargetFire | undefined {
-    return this.list().find((row) => row.runId === runId);
+    if (this.failed)
+      throw new Error("Automation dispatch ledger requires recovery.");
+    return structuredClone(
+      this.stored.fires.find((row) => row.runId === runId) ??
+        this.history.find("run_id", runId),
+    );
   }
   list(): AutomationTargetFire[] {
     if (this.failed)

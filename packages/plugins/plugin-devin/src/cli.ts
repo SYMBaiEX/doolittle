@@ -32,6 +32,7 @@ async function runDevinProcess(
       NO_COLOR: "1",
     },
     timeoutMs,
+    signal: params.signal,
   });
   const cleanStdout = stripAnsi(result.stdout).trim();
   const cleanStderr = stripAnsi(result.stderr).trim();

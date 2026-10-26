@@ -1,4 +1,6 @@
 import { spawnSync } from "node:child_process";
+import { createRequire } from "node:module";
+import { dirname, resolve } from "node:path";
 
 // Nub forwards a literal `--` to Vitest, where it can hide every file filter.
 // Guard only argument forwarding; selection and execution remain Vitest's job.
@@ -16,8 +18,16 @@ if (
 }
 
 const result = spawnSync(
-  "nubx",
-  ["vitest", mode, ...(mode === "related" ? ["--run"] : []), ...filters],
+  process.execPath,
+  [
+    resolve(
+      dirname(createRequire(import.meta.url).resolve("vitest/package.json")),
+      "vitest.mjs",
+    ),
+    mode,
+    ...(mode === "related" ? ["--run"] : []),
+    ...filters,
+  ],
   { stdio: "inherit" },
 );
 if (result.error) console.error(result.error.message);

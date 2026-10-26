@@ -55,6 +55,7 @@ export async function runDevinTextGeneration(
       cwd: options.getCwd?.() ?? options.cwd,
       timeoutMs: options.timeoutMs ?? DEFAULT_DEVIN_TIMEOUT_MS,
       permissionMode: "auto",
+      signal: params.signal,
     });
     runtime.logger?.info(
       {
