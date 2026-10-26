@@ -5,7 +5,7 @@ import * as modern from "ethers";
 import { describe, expect, it } from "vitest";
 
 const consumerRequire = createRequire(
-  resolve("node_modules/hardhat/package.json"),
+  resolve("node_modules/@elizaos/agent/package.json"),
 );
 describe("modern dependency consumer contracts", () => {
   it("retains UUID CommonJS and RFC name-based generation while rejecting short output buffers", () => {

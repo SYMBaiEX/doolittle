@@ -72,10 +72,14 @@ package patches remain; none are advisory exceptions:
 | ethers signing-key         | Uses ethers 6 signing instead of vulnerable elliptic; published 5.8.0 still requires elliptic.                                                     |
 | Jimp core                  | Adapts the nut-js image consumer to current file-type; latest nut-js 4.2.6 still pins Jimp 0.22.10.                                                |
 
-The local braces patch is gone. The `braces` dependency resolves to the published
-MIT-licensed `@dieub/braces-depth-guard@3.0.3-pn.3` fork, retaining compatible glob
-behavior and rejecting unsafe nesting without a local backport. Boundary tests
-exercise the actual micromatch consumer as well as the parser guard.
+The braces guard is retired. The desktop excludes the SDK's unused hosted
+Solana wallet UI, which pulled in React Native, Metro and micromatch. The
+Uniswap contract artifact package also excludes `hardhat-watcher`, a contract
+source development tool absent from its published runtime files. This removes
+Chokidar 3, Hardhat and the final braces consumer without changing the ElizaOS
+wallet/trading action surface or its shipped contract ABIs. Offline regression
+checks import the real wallet plugin and encode a Uniswap quoter call from those
+artifacts. Renderer builds reject hosted/mobile wallet clients.
 
 Recheck the parent publications before removing each remaining patch. Replacing
 ElizaOS, copying its implementation into this repository, or dropping registered
@@ -131,7 +135,8 @@ current npm registry integrity metadata. SQL still lacks
 candidates also lack runtime entries. The core/agent/app-core/shared candidates
 contain runtime files but still have the API and behavior limits described above.
 No further package upgrade or patch retirement passed this review. All seven
-package patches and the published braces guard remain required.
+package patches remain required; the obsolete dependency consumers that required
+the braces guard have now been removed.
 
 The product-owned autonomous configuration projection was removed instead: it
 constructed an unused second environment/configuration, including credential
