@@ -43,7 +43,9 @@ successful truncated output. The bounded diagnostic can add up to 256 bytes to
 the captured output budget.
 
 Windows termination uses the system `taskkill.exe` with `/T /F` and a five-second
-termination deadline. Failed tree termination is reported as `termination_error`
+termination deadline. Its executable is selected from fixed `Windows/System32`
+locations on local drives, rather than executing an environment-supplied path.
+Nonstandard Windows system directories fail explicitly. Failed tree termination is reported as `termination_error`
 (exit code 126), or rejects cancellation explicitly. Retained descendant pipes
 cannot keep the request pending indefinitely; failure is not reported as a
 successful cancellation.

@@ -45,7 +45,9 @@ each stream separately, their combined budget, UTF-8, and invalid budgets.
 Windows cancellation, deadlines and output overflow use the system `taskkill.exe`
 with `/T /F`; POSIX uses the owned process group. Cleanup has a bounded Windows
 termination attempt, and retained pipes cannot hold the request open forever.
-Failed termination is reported explicitly. Natural exit racing cleanup is handled
+Failed termination is reported explicitly and has a failure-injection test.
+The executable comes from a fixed local-drive Windows system-directory allowlist;
+nonstandard Windows system directories fail explicitly. Natural exit racing cleanup is handled
 separately. Devin now forwards the SDK cancellation signal to its subprocess.
 
 The process tests start a real launcher and a worker that holds inherited pipes,

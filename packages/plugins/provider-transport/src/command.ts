@@ -54,9 +54,24 @@ function sanitizedEnvironment(
 async function killProcessTree(child: ChildProcess): Promise<void> {
   if (child.pid === undefined) return;
   if (process.platform === "win32") {
-    const root = process.env.SystemRoot?.trim() || process.env.WINDIR?.trim();
-    if (!root || !/^[A-Za-z]:[\\/]/u.test(root))
-      throw new Error("Windows SystemRoot is invalid.");
+    const configuredRoot =
+      process.env.SystemRoot?.trim() || process.env.WINDIR?.trim();
+    // Select a fixed system-tool location, never execute an environment-supplied path.
+    const root = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+      .split("")
+      .map((drive) => `${drive}:\\Windows`)
+      .find(
+        (candidate) =>
+          candidate.toLowerCase() ===
+          win32
+            .normalize(configuredRoot ?? "")
+            .replace(/\\$/u, "")
+            .toLowerCase(),
+      );
+    if (!root)
+      throw new Error(
+        "Windows SystemRoot must use the standard Windows directory on a local drive.",
+      );
     await new Promise<void>((resolve, reject) => {
       execFile(
         win32.join(root, "System32", "taskkill.exe"),

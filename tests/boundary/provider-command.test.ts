@@ -1,4 +1,4 @@
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
 import { runProviderCommand } from "../../packages/plugins/provider-transport/src/command";
 
 it("preserves separate UTF-8 streams below the capture budget", async () => {
@@ -160,4 +160,34 @@ it("cancels a Devin model request through its linked provider transport", async 
   });
   controller.abort();
   await assertion;
+});
+
+it("reports an unsuccessful tree termination instead of claiming cancellation succeeded", async () => {
+  const controller = new AbortController();
+  const previousRoot = process.env.SystemRoot;
+  const kill =
+    process.platform === "win32"
+      ? undefined
+      : vi.spyOn(process, "kill").mockImplementation(() => {
+          throw Object.assign(new Error("forced termination failure"), {
+            code: "EPERM",
+          });
+        });
+  try {
+    const request = runProviderCommand({
+      command: process.execPath,
+      args: ["-e", "setInterval(()=>{},1000)"],
+      signal: controller.signal,
+    });
+    const rejected = expect(request).rejects.toThrow(
+      "could not terminate its process tree",
+    );
+    if (process.platform === "win32") process.env.SystemRoot = "invalid";
+    controller.abort();
+    await rejected;
+  } finally {
+    kill?.mockRestore();
+    if (previousRoot === undefined) delete process.env.SystemRoot;
+    else process.env.SystemRoot = previousRoot;
+  }
 });
