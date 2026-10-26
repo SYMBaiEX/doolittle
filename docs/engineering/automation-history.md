@@ -17,7 +17,9 @@ retrieval checks the original approval, never substitutes the current approval.
 
 Archive inserts commit in one SQLite transaction before either hot JSON copy is
 replaced. Restart reconciles overlapping records left by an interrupted write.
-Identity conflicts fail closed. A ledger that requires an archive refuses new
+Both archive tables are created in one transaction. An interrupted, empty first
+archive can be initialized only before the ledger requires history; an empty
+required archive is never reset. Identity conflicts fail closed. A ledger that requires an archive refuses new
 submissions if the archive is missing; a corrupt or symlinked archive also fails
 closed. Existing version-one ledgers migrate on their next successful write.
 

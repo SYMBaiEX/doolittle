@@ -19,8 +19,14 @@ import type {
 /** Cold receipts remain indexed on disk for permanent duplicate prevention. */
 export class BotAutomationHistory {
   private required: boolean;
+  private allowInitializeEmpty = false;
   constructor(private readonly path: string) {
     this.required = existsSync(path);
+  }
+
+  setRecoveryRequirement(required: boolean): void {
+    this.required ||= required;
+    this.allowInitializeEmpty = !required;
   }
 
   exists(): boolean {
@@ -32,7 +38,6 @@ export class BotAutomationHistory {
 
   private open(): DatabaseSync {
     mkdirSync(dirname(this.path), { recursive: true, mode: 0o700 });
-    let created = false;
     let fd: number;
     const flags =
       constants.O_RDWR |
@@ -40,7 +45,6 @@ export class BotAutomationHistory {
       (constants.O_NONBLOCK ?? 0);
     try {
       fd = openSync(this.path, "wx+", 0o600);
-      created = true;
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
       fd = openSync(this.path, flags);
@@ -58,18 +62,31 @@ export class BotAutomationHistory {
     }
     const db = new DatabaseSync(this.path);
     try {
-      if (created)
-        db.exec(`CREATE TABLE fires (
-        fire_id TEXT PRIMARY KEY, job_id TEXT NOT NULL, digest TEXT NOT NULL,
-        run_id TEXT NOT NULL UNIQUE, record TEXT NOT NULL,
-        UNIQUE(job_id, digest)
-      ); CREATE TABLE approvals (id TEXT PRIMARY KEY, record TEXT NOT NULL)`);
-      else
-        db.prepare(
-          "SELECT fire_id, job_id, digest, run_id, record FROM fires LIMIT 0",
-        ).all();
+      const tables = db
+        .prepare(
+          "SELECT name FROM sqlite_schema WHERE type = 'table' AND name NOT LIKE 'sqlite_%'",
+        )
+        .all();
+      if (!tables.length && this.allowInitializeEmpty) {
+        db.exec("BEGIN IMMEDIATE");
+        try {
+          db.exec(`CREATE TABLE fires (
+            fire_id TEXT PRIMARY KEY, job_id TEXT NOT NULL, digest TEXT NOT NULL,
+            run_id TEXT NOT NULL UNIQUE, record TEXT NOT NULL,
+            UNIQUE(job_id, digest)
+          ); CREATE TABLE approvals (id TEXT PRIMARY KEY, record TEXT NOT NULL)`);
+          db.exec("COMMIT");
+        } catch (error) {
+          db.exec("ROLLBACK");
+          throw error;
+        }
+      }
+      db.prepare(
+        "SELECT fire_id, job_id, digest, run_id, record FROM fires LIMIT 0",
+      ).all();
       db.prepare("SELECT id, record FROM approvals LIMIT 0").all();
       this.required = true;
+      this.allowInitializeEmpty = false;
       return db;
     } catch (error) {
       db.close();

@@ -159,6 +159,7 @@ export class BotAutomationLedger {
       primary && (!secondary || primary.revision >= secondary.revision)
         ? primary
         : (secondary ?? { version: 1, revision: 0, approvals: [], fires: [] });
+    this.history.setRecoveryRequirement(this.stored.historyRequired === true);
     if (this.stored.historyRequired && !this.history.exists())
       throw new Error("Automation history is missing. Recovery is required.");
     this.stored.fires = this.history.reconcile(

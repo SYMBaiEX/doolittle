@@ -173,3 +173,35 @@ it("rejects a symlinked archive without touching the target", () => {
   expect(() => ledger.forKey(f.jobId, f.fires[4999].fireKeyDigest)).toThrow();
   expect(readFileSync(outside, "utf8")).toBe("preserved");
 });
+
+for (const kind of ["zero-byte", "empty-sqlite"]) {
+  it(`recovers an interrupted first archive creation (${kind}) before history is required`, async () => {
+    const f = fixture();
+    const archive = resolve(f.dir, "bots/automation-history.sqlite");
+    if (kind === "zero-byte") writeFileSync(archive, "");
+    else {
+      const { DatabaseSync } = await import("node:sqlite");
+      const db = new DatabaseSync(archive);
+      db.exec("PRAGMA user_version = 0");
+      db.close();
+    }
+    const ledger = new BotAutomationLedger(f.dir);
+    ledger.prepare(f.fire(6000, "prepared"));
+    expect(
+      new BotAutomationLedger(f.dir).forKey(
+        f.jobId,
+        f.fires[4999].fireKeyDigest,
+      ),
+    ).toEqual(f.fires[4999]);
+  });
+}
+it("refuses to initialize an empty archive once persisted history is required", () => {
+  const f = fixture();
+  const ledger = new BotAutomationLedger(f.dir);
+  ledger.prepare(f.fire(6000, "prepared"));
+  const archive = resolve(f.dir, "bots/automation-history.sqlite");
+  writeFileSync(archive, "");
+  expect(() => ledger.forKey(f.jobId, f.fires[4999].fireKeyDigest)).toThrow();
+  expect(() => new BotAutomationLedger(f.dir)).toThrow();
+  expect(readFileSync(archive).byteLength).toBe(0);
+});

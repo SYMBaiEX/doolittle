@@ -12,7 +12,8 @@ duplicate prevention survive restart. Superseded approvals are archived too;
 retrieving an old result checks its original authorization.
 
 Archive commits precede hot-ledger publication. Restart reconciles overlaps from
-interrupted writes. Missing, corrupt or conflicting required history refuses
+interrupted writes. Schema creation is transactional; empty first-creation
+recovery is allowed only before persisted history is required. Missing, corrupt or conflicting required history refuses
 new work instead of forgetting a fire identity. Tests exercise the former
 5,000-record capacity, restart/replay, interrupted publication, original approval
 lookup, and unavailable history. See [automation history](automation-history.md)
