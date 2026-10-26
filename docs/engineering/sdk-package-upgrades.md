@@ -72,10 +72,14 @@ package patches remain; none are advisory exceptions:
 | ethers signing-key         | Uses ethers 6 signing instead of vulnerable elliptic; published 5.8.0 still requires elliptic.                                                     |
 | Jimp core                  | Adapts the nut-js image consumer to current file-type; latest nut-js 4.2.6 still pins Jimp 0.22.10.                                                |
 
-The local braces patch is gone. The `braces` dependency resolves to the published
-MIT-licensed `@dieub/braces-depth-guard@3.0.3-pn.3` fork, retaining compatible glob
-behavior and rejecting unsafe nesting without a local backport. Boundary tests
-exercise the actual micromatch consumer as well as the parser guard.
+The braces guard is retired. The desktop excludes the SDK's unused hosted
+Solana wallet UI, which pulled in React Native, Metro and micromatch. The
+Uniswap contract artifact package also excludes `hardhat-watcher`, a contract
+source development tool absent from its published runtime files. This removes
+Chokidar 3, Hardhat and the final braces consumer without changing the ElizaOS
+wallet/trading action surface or its shipped contract ABIs. Offline regression
+checks import the real wallet plugin and encode a Uniswap quoter call from those
+artifacts. Renderer builds reject hosted/mobile wallet clients.
 
 Recheck the parent publications before removing each remaining patch. Replacing
 ElizaOS, copying its implementation into this repository, or dropping registered
@@ -115,3 +119,40 @@ retains an old Noble dependency; it is not a safe v5 replacement. The public
 nut-tree fork still pins Jimp 0.22.10. Core/agent security and behavior fixes
 remain required by the currently usable SDK. No SDK engine or registered tool
 was removed to reduce the patch count.
+
+## Follow-up retirement review
+
+The follow-up registry review checked all 56 published ElizaOS package selections
+in the root overrides against full version histories, not just dist-tags.
+`2.0.11-beta.7` has a higher version number but was published June 20; the working
+`2.0.3-beta.7` core, agent, SQL and orchestrator releases were published June 28.
+Their retained versions are not an attempt to keep the packages on one train.
+
+The higher-numbered SQL and orchestrator archive hashes were verified against
+current npm registry integrity metadata. SQL still lacks
+`src/dist/node/index.node.js`; orchestrator still lacks
+`dist/node/index.node.js` and `dist/cjs/index.node.cjs`. The other retained plugin
+candidates also lack runtime entries. The core/agent/app-core/shared candidates
+contain runtime files but still have the API and behavior limits described above.
+No further package upgrade or patch retirement passed this review. All seven
+package patches remain required; the obsolete dependency consumers that required
+the braces guard have now been removed.
+
+The product-owned autonomous configuration projection was removed instead: it
+constructed an unused second environment/configuration, including credential
+copies, solely to render diagnostics. Connection summaries and enabled connector
+names now come directly from the active settings. Linked Claude connections are
+reported correctly, and Codex summaries report the selected model. The obsolete
+remote-provider branch had no configuration producer and is removed.
+
+The legacy message-text compatibility helper is also removed. Actions, providers
+and routing evaluators use ElizaOS's public `getMemoryText` contract directly.
+XML escaping remains a client utility; it has no SDK compatibility behavior.
+These are source removals, not relocation of package patches into local forks.
+
+The desktop keeps a compact wallet activity widget in chat rather than embedding
+the hosted wallet application. It reads the SDK's structured wallet action
+receipts and distinguishes prepared actions, simulations and submitted
+transactions awaiting confirmation. Amount strings retain their precision. The
+widget renders only public receipt fields and adds no signing, submission or
+confirmation path; ElizaOS remains responsible for wallet operations.

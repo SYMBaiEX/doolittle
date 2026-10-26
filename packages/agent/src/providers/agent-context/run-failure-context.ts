@@ -1,6 +1,6 @@
-import type { Memory } from "@elizaos/core";
+import { getMemoryText, type Memory } from "@elizaos/core";
 import type { RunControllerService } from "../../services/run-controller-service/index";
-import { escapeXml } from "../../utils/eliza-compat";
+import { escapeXml } from "../../utils/xml";
 
 type RunFailureContextController = Pick<
   RunControllerService,
@@ -10,17 +10,12 @@ type RunFailureContextController = Pick<
 const FAILURE_FOLLOW_UP =
   /\b(?:why|what\s+(?:caused|went\s+wrong)|how\s+come)\b.{0,100}\b(?:run|task|attempt|response)\b|\b(?:run|task|attempt|response)\b.{0,100}\b(?:fail(?:ed|ure)?|error|stop(?:ped)?)\b/iu;
 
-function messageText(message: Memory): string {
-  const content = message.content as { text?: unknown } | undefined;
-  return typeof content?.text === "string" ? content.text.trim() : "";
-}
-
 /** Adds bounded failure evidence only to a diagnostic follow-up in that same chat. */
 export function renderRecentRunFailureContext(
   runController: RunFailureContextController,
   message: Memory,
 ): string {
-  const question = messageText(message);
+  const question = getMemoryText(message);
   const roomId = String(message.roomId ?? "");
   if (!roomId || !FAILURE_FOLLOW_UP.test(question)) return "";
 

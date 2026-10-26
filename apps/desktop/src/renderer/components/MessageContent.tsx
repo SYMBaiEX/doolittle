@@ -17,7 +17,6 @@ import {
   useState,
 } from "react";
 import { Streamdown, type UrlTransform } from "streamdown";
-import "streamdown/styles.css";
 import {
   MESSAGE_AGENT_STEPS_CLASS,
   MESSAGE_RESPONSE_CLASS,

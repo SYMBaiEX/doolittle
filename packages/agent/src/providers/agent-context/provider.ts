@@ -1,5 +1,6 @@
 import {
   extractSessionContext,
+  getMemoryText,
   type IAgentRuntime,
   type Memory,
   type Provider,
@@ -25,7 +26,6 @@ import {
   buildDelegationProjectionWorkers,
 } from "../../services/delegation/reporting";
 import type { AppServices } from "../../services/index";
-import { messageText } from "../../utils/eliza-compat";
 import { renderRecentRunFailureContext } from "./run-failure-context";
 import { renderIdentitySections } from "./sections/identity";
 import { renderMemorySections } from "./sections/memory";
@@ -219,7 +219,7 @@ async function workspaceContextResult(
     text: [
       renderRecentRunFailureContext(services.runController, message),
       ...renderWorkspaceMutationExecutionContract(
-        messageText(message),
+        getMemoryText(message),
         recentMessages,
       ),
       ...renderWorkspaceSections({

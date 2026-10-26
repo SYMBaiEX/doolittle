@@ -4,6 +4,7 @@ import type {
   Memory,
   ShortcutDefinition,
 } from "@elizaos/core";
+import { getMemoryText } from "@elizaos/core";
 import { executeSlashCommand } from "../runtime/chat";
 import { getCommandCatalogEntries } from "../runtime/command-catalog/index";
 import {
@@ -16,7 +17,6 @@ import {
 } from "../runtime/turn-runtime-scope";
 import type { AppServices } from "../services/index";
 import type { EnvConfig } from "../types/runtime/index";
-import { messageText } from "../utils/eliza-compat";
 
 export { DOOLITTLE_COMMAND_ACTION } from "../runtime/command-shortcut-match";
 
@@ -31,7 +31,7 @@ function commandInput(message: Memory) {
         ? metadata.doolittle.source
         : "api";
   return {
-    message: messageText(message),
+    message: getMemoryText(message),
     userId: String(message.entityId),
     roomId:
       typeof metadata?.sessionId === "string"
@@ -83,7 +83,7 @@ export function createCommandAction(
       "Executes an explicit Doolittle slash command through the Eliza shortcut and action lifecycle.",
     similes: [],
     validate: async (runtime, message) =>
-      matchesRegisteredCommandShortcut(runtime, messageText(message)),
+      matchesRegisteredCommandShortcut(runtime, getMemoryText(message)),
     handler: async (
       runtime,
       message,
@@ -115,7 +115,7 @@ export function createCommandAction(
         text: response,
         userFacingText: response,
         verifiedUserFacing: true,
-        data: { command: messageText(message) },
+        data: { command: getMemoryText(message) },
       };
     },
   };

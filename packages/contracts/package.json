@@ -13,7 +13,8 @@
     "./theme": "./src/theme.ts",
     "./ui-plugin": "./src/ui-plugin.ts",
     "./model-route": "./src/model-route.ts",
-    "./repository": "./src/repository.ts"
+    "./repository": "./src/repository.ts",
+    "./wallet-activity": "./src/wallet-activity.ts"
   },
   "dependencies": {
     "@elizaos/core": "2.0.3-beta.7",

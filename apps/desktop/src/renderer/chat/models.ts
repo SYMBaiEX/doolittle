@@ -81,6 +81,7 @@ export function runEventKey(update: DesktopRunUpdate): string {
     update.run.statusDetail,
     update.run.pendingApprovals,
     mutation?.recordedAt,
+    update.run.walletActivities?.at(-1)?.id,
   ].join(":");
 }
 

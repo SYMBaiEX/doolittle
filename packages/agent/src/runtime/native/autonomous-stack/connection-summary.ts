@@ -1,5 +1,4 @@
 import type { EnvConfig } from "../../../types/runtime/index";
-import { buildAutonomousCompatSnapshot } from "./snapshot";
 import type { AutonomousConnectionSummary } from "./types";
 
 function summarizeCloudManagedConnection(
@@ -14,24 +13,6 @@ function summarizeCloudManagedConnection(
     detail: `cloud-managed via Eliza Cloud (${smallModel ?? "small-model-unset"} / ${largeModel ?? "large-model-unset"})`,
     smallModel,
     largeModel,
-  };
-}
-
-function summarizeRemoteProviderConnection(
-  provider: string | null | undefined,
-  remoteApiBase: string,
-  primaryModel?: string,
-): AutonomousConnectionSummary {
-  const providerLabel = provider ? provider : "none";
-
-  return {
-    source: "provider-switch-config",
-    configured: true,
-    kind: "remote-provider",
-    provider: provider ?? "remote",
-    detail: `remote-provider via ${remoteApiBase} (local=${providerLabel}${primaryModel ? ` model=${primaryModel}` : ""})`,
-    primaryModel,
-    remoteApiBase,
   };
 }
 
@@ -94,36 +75,39 @@ export function summarizeAutonomousConnection(
     return localConnection;
   }
 
-  const snapshot = buildAutonomousCompatSnapshot(config);
-  const connection = snapshot?.connection;
-  if (!connection) {
-    return {
-      source: "provider-switch-config",
-      configured: false,
-      kind: "missing",
-      provider: null,
-      detail:
-        "No native cloud-managed, local-provider, or remote-provider connection could be derived from the current env.",
-    };
-  }
-
-  if (connection.kind === "cloud-managed") {
+  if (config.elizaCloudEnabled) {
     return summarizeCloudManagedConnection(
-      connection.smallModel,
-      connection.largeModel,
+      config.elizaCloudSmallModel,
+      config.elizaCloudLargeModel,
     );
   }
 
-  if (connection.kind === "remote-provider") {
-    return summarizeRemoteProviderConnection(
-      connection.provider,
-      connection.remoteApiBase,
-      connection.primaryModel,
+  if (config.useLinkedCodexAuth) {
+    return summarizeLocalProviderConnection(
+      "openai-subscription",
+      config.openAiModel,
     );
   }
-
-  return summarizeLocalProviderConnection(
-    connection.provider,
-    connection.primaryModel,
-  );
+  if (config.useLinkedClaudeCodeAuth || config.claudeCodeCliFallback) {
+    return summarizeLocalProviderConnection(
+      "anthropic-subscription",
+      config.anthropicLargeModel,
+    );
+  }
+  if (config.openAiApiKey) {
+    return summarizeLocalProviderConnection("configured", config.openAiModel);
+  }
+  if (config.anthropicApiKey) {
+    return summarizeLocalProviderConnection(
+      "configured",
+      config.anthropicLargeModel,
+    );
+  }
+  return {
+    source: "provider-switch-config",
+    configured: false,
+    kind: "missing",
+    provider: null,
+    detail: "No native connection could be derived from the current env.",
+  };
 }

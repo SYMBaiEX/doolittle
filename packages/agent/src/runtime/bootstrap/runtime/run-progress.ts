@@ -396,6 +396,14 @@ export function createRunProgressEvents(services: AppServices): PluginEvents {
           ) {
             services.runController.noteRuntimeActionCompleted(roomId, action);
           }
+          services.runController.recordRuntimeWalletActivity(
+            roomId,
+            action,
+            actionResult,
+            "runId" in payload && typeof payload.runId === "string"
+              ? payload.runId
+              : undefined,
+          );
           const mutations = extractLocalMutationsFromActionResult(actionResult);
           for (const mutation of mutations) {
             services.runController.recordRuntimeLocalMutation(roomId, mutation);

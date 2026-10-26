@@ -1,6 +1,9 @@
-import { ChannelType, type ResponseHandlerFieldEvaluator } from "@elizaos/core";
+import {
+  ChannelType,
+  getMemoryText,
+  type ResponseHandlerFieldEvaluator,
+} from "@elizaos/core";
 import { hasExplicitNoToolsIntent } from "../runtime/no-tools-intent";
-import { messageText } from "../utils/eliza-compat";
 
 const DIRECT_TEXT_CHANNELS = new Set<ChannelType>([
   ChannelType.DM,
@@ -25,7 +28,7 @@ export const noToolsResponseField: ResponseHandlerFieldEvaluator<string> = {
   },
   shouldRun: ({ message }) =>
     DIRECT_TEXT_CHANNELS.has(message.content.channelType as ChannelType) &&
-    hasExplicitNoToolsIntent(messageText(message)),
+    hasExplicitNoToolsIntent(getMemoryText(message)),
   parse: (value) => (typeof value === "string" ? value.trim() : ""),
   handle: ({ value, parsed, turnSignal }) => {
     turnSignal.throwIfAborted();

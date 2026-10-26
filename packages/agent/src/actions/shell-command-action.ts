@@ -6,6 +6,7 @@ import type {
   Memory,
   ShortcutDefinition,
 } from "@elizaos/core";
+import { getMemoryText } from "@elizaos/core";
 import {
   executeTerminalCommand,
   formatTerminalCommandResponse,
@@ -14,7 +15,6 @@ import {
 import { getScopedTurnAbortSignal } from "../runtime/turn-runtime-scope";
 import type { AppServices } from "../services/index";
 import type { ChatTurnRequest, EnvConfig } from "../types/runtime/index";
-import { messageText } from "../utils/eliza-compat";
 
 export const DOOLITTLE_SHELL_SHORTCUT_ACTION = "DOOLITTLE_SHELL_SHORTCUT";
 
@@ -66,7 +66,7 @@ export function createShellCommandShortcut(): ShortcutDefinition {
 function shellCommandInput(message: Memory): ChatTurnRequest {
   const metadata = message.metadata as { sessionId?: unknown } | undefined;
   return {
-    message: messageText(message),
+    message: getMemoryText(message),
     userId: String(message.entityId),
     roomId:
       typeof metadata?.sessionId === "string"
@@ -149,7 +149,7 @@ export function createShellCommandAction(
     suppressPostActionContinuation: true,
     suppressEarlyReply: true,
     validate: async (runtime, message) =>
-      matchesRegisteredShellShortcut(runtime, messageText(message)),
+      matchesRegisteredShellShortcut(runtime, getMemoryText(message)),
     handler: async (
       runtime,
       message,
@@ -157,7 +157,7 @@ export function createShellCommandAction(
       _options,
       callback,
     ): Promise<ActionResult> => {
-      const command = parseExplicitShellCommand(messageText(message));
+      const command = parseExplicitShellCommand(getMemoryText(message));
       if (!command) {
         const text = "Usage: !<shell command>";
         await callback?.({ text, source: "doolittle-shell-command" });

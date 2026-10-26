@@ -128,7 +128,7 @@ export function assertDesktopRendererBoundary(
       const portable = id.replaceAll("\\", "/");
       if (
         module.renderedLength > 0 &&
-        /(?:\/@elizaos\/ui\/(?:cloud\/billing\/wallet\/|state\/)|\/node_modules\/(?:@rainbow-me\/rainbowkit|@stwd\/react|wagmi|@coinbase\/cdp-sdk)\/)/u.test(
+        /(?:\/@elizaos\/ui\/(?:cloud\/billing\/wallet\/|state\/)|\/node_modules\/(?:@rainbow-me\/rainbowkit|@stwd\/react|wagmi|@coinbase\/cdp-sdk|@solana\/wallet-adapter-react(?:-ui)?|@solana-mobile\/[^/]+|react-native)\/)/u.test(
           portable,
         )
       ) {

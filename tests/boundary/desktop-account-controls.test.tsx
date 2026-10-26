@@ -145,14 +145,20 @@ it("rejects SDK standalone state and hosted wallet modules when they enter the r
   }
 });
 
-it("rejects a hosted wallet client imported directly into the renderer", () => {
+it.each([
+  "@coinbase/cdp-sdk/_esm/index.js",
+  "@solana/wallet-adapter-react/lib/esm/index.js",
+  "@solana/wallet-adapter-react-ui/lib/esm/index.js",
+  "@solana-mobile/wallet-adapter-mobile/lib/index.js",
+  "react-native/index.js",
+])("rejects hosted or mobile wallet code in the renderer: %s", (path) => {
   const bundle = {
     main: {
       type: "chunk" as const,
       fileName: "main.js",
       code: "fixture",
       modules: {
-        "/fixture/node_modules/@coinbase/cdp-sdk/_esm/index.js": {
+        [`/fixture/node_modules/${path}`]: {
           renderedLength: 1,
         },
       },

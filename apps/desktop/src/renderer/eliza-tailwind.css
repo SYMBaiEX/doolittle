@@ -7,6 +7,7 @@
 @import "@elizaos/ui/styles/base.css";
 @import "@elizaos/ui/styles/tailwind-theme.css";
 @import "@doolittle/ui/styles.css";
+@import "streamdown/styles.css";
 @import "./surface-motion.css";
 @import "./bots/bot-design.css";
 

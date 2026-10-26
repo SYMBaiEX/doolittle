@@ -1,5 +1,5 @@
 import { deflateSync } from "node:zlib";
-import { escapeXml } from "../../utils/eliza-compat";
+import { escapeXml } from "../../utils/xml";
 
 interface CaptureCardPageSnapshot {
   url: string;

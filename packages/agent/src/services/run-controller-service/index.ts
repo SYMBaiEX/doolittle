@@ -1,10 +1,15 @@
+import { randomUUID } from "node:crypto";
+import { walletActivityFromAction } from "@doolittle/contracts/wallet-activity";
 import {
   RuntimeCodingVerificationEventBus,
   RunUpdateEventBus,
   TaskRunEventBus,
 } from "../run-controller/event-bus";
 import { RunControllerStore } from "../run-controller/store";
-import { createRunStartTransition } from "../run-controller/transitions";
+import {
+  createPatchedTransition,
+  createRunStartTransition,
+} from "../run-controller/transitions";
 import type {
   LocalMutationInput,
   RunSnapshot,
@@ -17,7 +22,11 @@ import type {
   TaskRunEvent,
 } from "../run-controller/types";
 import { cloneRun } from "../run-controller/utils";
-import { emitRunUpdate, onRunUpdate } from "./event-capture";
+import {
+  applyRunTransition,
+  emitRunUpdate,
+  onRunUpdate,
+} from "./event-capture";
 import { getRunByRoomId, withSessionForRoom } from "./room-mapping";
 import {
   getActiveRun,
@@ -399,6 +408,29 @@ export class RunControllerService {
     withSessionForRoom(this.store, roomId, (sessionId) => {
       this.noteActionCompleted(sessionId, action);
     });
+  }
+
+  recordRuntimeWalletActivity(
+    roomId: string,
+    action: string | undefined,
+    result: unknown,
+    sourceRunId?: string,
+  ): void {
+    const receipt = walletActivityFromAction(action, result);
+    const run = this.getByRoomId(roomId);
+    if (!receipt || !run || (sourceRunId && sourceRunId !== run.runId)) return;
+    applyRunTransition(this.dependencies, run.sessionId, (current) =>
+      createPatchedTransition(
+        current,
+        {
+          walletActivities: [
+            ...(current.walletActivities ?? []),
+            { ...receipt, id: randomUUID() },
+          ].slice(-32),
+        },
+        "action-completed",
+      ),
+    );
   }
 
   recordRuntimeLocalMutation(

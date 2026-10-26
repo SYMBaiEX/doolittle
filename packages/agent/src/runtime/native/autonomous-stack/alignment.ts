@@ -5,18 +5,19 @@ import {
   autonomousNativeControlPlanes,
   autonomousPatternAreas,
 } from "./constants";
-import { buildAutonomousCompatSnapshot } from "./snapshot";
 
 export function describeAutonomousAlignment(config?: EnvConfig) {
-  const snapshot = buildAutonomousCompatSnapshot(config);
-
   return {
     foundationPackages: [...autonomousFoundationPackages],
     patternAreas: [...autonomousPatternAreas],
     nativeControlPlanes: [...autonomousNativeControlPlanes],
-    pluginAutoEnable: snapshot?.pluginAutoEnable ?? {
-      allow: [],
-      changes: [],
+    pluginAutoEnable: {
+      allow: [
+        config?.telegramBotToken ? "@elizaos/plugin-telegram" : undefined,
+        config?.discordBotToken ? "@elizaos/plugin-discord" : undefined,
+        config?.elizaCloudEnabled ? "@elizaos/plugin-elizacloud" : undefined,
+      ].filter((name): name is string => Boolean(name)),
+      changes: [] as unknown[],
     },
     connection: summarizeAutonomousConnection(config),
   };

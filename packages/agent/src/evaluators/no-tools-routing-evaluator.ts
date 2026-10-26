@@ -1,6 +1,6 @@
 import type { ResponseHandlerEvaluator } from "@elizaos/core";
+import { getMemoryText } from "@elizaos/core";
 import { hasExplicitNoToolsIntent } from "../runtime/no-tools-intent";
-import { messageText } from "../utils/eliza-compat";
 
 /** Apply the user's explicit tool ban to this message's SDK route only. */
 export const noToolsRoutingEvaluator: ResponseHandlerEvaluator = {
@@ -8,7 +8,7 @@ export const noToolsRoutingEvaluator: ResponseHandlerEvaluator = {
   description:
     "Keeps explicit tool-free requests on the SDK direct-reply path.",
   priority: 50,
-  shouldRun: ({ message }) => hasExplicitNoToolsIntent(messageText(message)),
+  shouldRun: ({ message }) => hasExplicitNoToolsIntent(getMemoryText(message)),
   evaluate: () => ({
     requiresTool: false,
     setContexts: ["simple"],
