@@ -1,5 +1,5 @@
 import { chmodSync, existsSync, mkdirSync } from "node:fs";
-import { resolve } from "node:path";
+import { isAbsolute, resolve } from "node:path";
 import type {
   BotConsultationResult,
   BotPermissions,
@@ -65,7 +65,7 @@ function parse(path: string): StoredConsultations | null {
         !ID.test(record.targetBotId) ||
         (record.workspacePath !== undefined &&
           (typeof record.workspacePath !== "string" ||
-            !record.workspacePath.startsWith("/") ||
+            !isAbsolute(record.workspacePath) ||
             resolve(record.workspacePath) !== record.workspacePath)) ||
         !ID.test(record.origin?.runId) ||
         !Array.isArray(record.ancestry) ||

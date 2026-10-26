@@ -1,5 +1,5 @@
 import { chmodSync, existsSync, mkdirSync } from "node:fs";
-import { resolve } from "node:path";
+import { isAbsolute, resolve } from "node:path";
 import type { BotPermissions } from "@doolittle/contracts/bots";
 import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
 import { readBoundedRegularFile } from "./regular-file";
@@ -65,7 +65,7 @@ function parse(path: string): Stored | null {
         !HASH.test(row.definitionDigest) ||
         (row.workspacePath !== undefined &&
           (typeof row.workspacePath !== "string" ||
-            !row.workspacePath.startsWith("/") ||
+            !isAbsolute(row.workspacePath) ||
             resolve(row.workspacePath) !== row.workspacePath)) ||
         !row.permissions ||
         ![
