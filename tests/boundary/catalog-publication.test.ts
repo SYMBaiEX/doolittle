@@ -111,3 +111,41 @@ it("refuses a pretty-printed ACP update before replacing the last readable ledge
   expect(readFileSync(path, "utf8")).toBe(before);
   expect(new BotAcpSessionLedger(dir).get("new")).toBeNull();
 });
+
+for (const copy of ["primary", "backup"]) {
+  it(`recovers a full compact legacy conversation ${copy} without an oversized repair`, async () => {
+    const { BotConversationLedger } = await import(
+      "../../apps/desktop/src/main/bot-conversation-ledger"
+    );
+    const { existsSync, readFileSync, writeFileSync } = await import("node:fs");
+    const dir = mkdtempSync(resolve(tmpdir(), "doolittle-legacy-recovery-"));
+    dirs.push(dir);
+    mkdirSync(resolve(dir, "bots"));
+    const stamp = "2026-10-25T00:00:00.000Z";
+    const conversations = Array.from({ length: 25_000 }, (_, index) => ({
+      sessionId: `session-${index}`,
+      botId: "bot",
+      createdAt: stamp,
+      updatedAt: stamp,
+    }));
+    const legacy = { version: 1, conversations };
+    const raw = JSON.stringify(legacy);
+    expect(Buffer.byteLength(raw)).toBeLessThanOrEqual(4_000_000);
+    expect(Buffer.byteLength(JSON.stringify(legacy, null, 2))).toBeGreaterThan(
+      4_000_000,
+    );
+    const primary = resolve(dir, "bots/conversation-owners.json");
+    const backup = resolve(dir, "bots/conversation-owners.backup.json");
+    const source = copy === "primary" ? primary : backup;
+    const missing = copy === "primary" ? backup : primary;
+    writeFileSync(source, raw);
+    const ledger = new BotConversationLedger(dir);
+    expect(ledger.get("session-0")?.botId).toBe("bot");
+    expect(ledger.get("session-24999")?.botId).toBe("bot");
+    expect(existsSync(missing)).toBe(false);
+    expect(() => ledger.bind("bot", "new-session")).toThrow(/full/);
+    expect(ledger.get("new-session")).toBeNull();
+    expect(readFileSync(source, "utf8")).toBe(raw);
+    expect(new BotConversationLedger(dir).get("session-0")?.botId).toBe("bot");
+  });
+}

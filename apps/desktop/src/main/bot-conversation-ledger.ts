@@ -297,7 +297,7 @@ export class BotConversationLedger {
         );
       this.resources.set(resource.resourceId, resource);
     }
-    if ((!primary && backup) || (primary && !backup)) this.save();
+    if ((!primary && backup) || (primary && !backup)) this.save("repair");
   }
 
   get(sessionId: string): BoundConversation | null {
@@ -503,7 +503,7 @@ export class BotConversationLedger {
     return created;
   }
 
-  private save(): void {
+  private save(mode: "mutation" | "repair" = "mutation"): void {
     const value: StoredLedger = {
       version: 1,
       conversations: [...this.conversations.values()],
@@ -514,10 +514,14 @@ export class BotConversationLedger {
     if (
       Buffer.byteLength(JSON.stringify(value, null, 2)) + 1 >
       MAX_LEDGER_BYTES
-    )
+    ) {
+      // A valid legacy copy can fit on disk while the normalized, pretty
+      // representation does not. Keep that sole recovery source untouched.
+      if (mode === "repair") return;
       throw new Error(
         "The conversation owner ledger is full. No change was saved.",
       );
+    }
     // Two independently atomic copies allow recovery after an interrupted
     // upgrade without permitting a conflicting owner to be silently adopted.
     writeJsonAtomicSync(this.backupPath, value, { trailingNewline: true });

@@ -34,11 +34,12 @@ flowchart TD
 
 ### What changed in this pass
 
-Three focused commits address real persistence problems:
+Focused commits address real persistence problems:
 
 1. Seven desktop state readers now reuse the existing bounded regular-file reader. Limits apply before allocating the entire file; symlinked primary files are rejected and supported backup recovery is preserved.
 2. Bot catalog changes become visible only after their durable write succeeds. JSON size budgets now measure the actual pretty-printed on-disk representation; conversation writes also enforce their read budget before replacing either copy.
-3. Automation and consultation ledger parsers accept canonical native Windows workspace paths. They previously accepted such records on write and rejected them on reload.
+3. A valid legacy conversation copy stays readable when its normalized repair would exceed the write budget. Recovery leaves that source untouched and new writes still fail closed.
+4. Automation and consultation ledger parsers accept canonical native Windows workspace paths. They previously accepted such records on write and rejected them on reload.
 
 The new regression cases were run against the old behavior first. Seven unsafe-read cases, four failed-catalog-publication cases, and two Windows-path cases failed before their fixes. Additional tests cover valid reads, backup recovery, and the serialized-size boundary. The Windows-path tests emulate native path semantics on macOS; they are not a native Windows acceptance run.
 
@@ -83,13 +84,13 @@ The review map counted approximately 295,000 TypeScript/JavaScript source and te
 ## Verification in this pass
 
 - All tooling and workspace type checks: passed.
-- Fast boundary suite: **159 tests in 28 files passed**.
+- Fast boundary suite: **161 tests in 28 files passed**.
 - Formatting/lint: passed.
 - Monorepo, hygiene, workflow security, plugin boundaries, SDK declarations, documentation truth, local links, unused dependencies: passed.
 - Production advisory policy: passed, zero advisories at every severity.
 - Source-worker acceptance: **7 tests in 3 files passed**.
 - Native desktop workbench: **4 tests passed**, covering first chat, grants across restart, denied cross-bot/root access, and stable catalog polling.
-- Live coding: **both CLI and desktop passed** against the real linked Codex provider through ElizaOS, with source repair independently verified (38.5 seconds and 43.3 seconds).
+- Live coding: **both CLI and desktop passed** against the real linked Codex provider through ElizaOS, with source repair independently verified (38.5 seconds and 43.3 seconds). These runs preceded the final legacy-copy recovery correction; that correction is covered by the new failure regressions and final branch CI.
 - The first Linux CI run failed the fresh-bot composer check at its default five-second assertion timeout; the other three native journeys passed. That journey now waits up to 30 seconds for the independently started bot worker, within its unchanged 60-second overall deadline. It does not retry or skip the assertion.
 - Packaged installer/signing acceptance was not rerun locally in this pass. PR CI runs its own packaged acceptance.
 
