@@ -248,7 +248,10 @@
     "@elizaos/ui>@solana/wallet-adapter-react": "-",
     "@elizaos/ui>@solana/wallet-adapter-react-ui": "-",
     "@uniswap/swap-router-contracts>hardhat-watcher": "-",
-    "@ethersproject/hash>@ethersproject/abstract-signer": "npm:ethers@6.17.0"
+    "@ethersproject/hash>@ethersproject/abstract-signer": "npm:ethers@6.17.0",
+    "@elizaos/plugin-computeruse>@nut-tree-fork/nut-js": "npm:@dyw1234/nut-js@4.2.7",
+    "@nut-tree-fork/shared": "npm:@dyw1234/nut-shared@4.2.7",
+    "@nut-tree-fork/provider-interfaces": "npm:@dyw1234/nut-provider-interfaces@4.2.7"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.3",
@@ -302,8 +305,7 @@
     "@elizaos/plugin-agent-orchestrator@2.0.3-beta.7": "patches/@elizaos+plugin-agent-orchestrator@2.0.3-beta.7.patch",
     "@elizaos/core@2.0.3-beta.7": "patches/@elizaos+core@2.0.3-beta.7.patch",
     "@elizaos/agent@2.0.3-beta.7": "patches/@elizaos+agent@2.0.3-beta.7.patch",
-    "@solana/buffer-layout-utils@0.3.0": "patches/@solana+buffer-layout-utils@0.3.0.patch",
-    "@jimp/core@0.22.12": "patches/@jimp+core@0.22.12.patch"
+    "@solana/buffer-layout-utils@0.3.0": "patches/@solana+buffer-layout-utils@0.3.0.patch"
   },
   "packageExtensions": {
     "@solana/buffer-layout-utils@0.3.0": {

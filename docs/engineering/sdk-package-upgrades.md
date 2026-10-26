@@ -59,8 +59,9 @@ consumer over both CDP and BiDi, including interaction and screenshots.
 ## Remaining upstream requirements
 
 Doolittle is an ElizaOS desktop and CLI client for coding and daily assistance.
-Dependency cleanup must preserve that engine and its registered tools. Six
-package patches remain; none are advisory exceptions:
+Dependency cleanup must preserve that engine and its registered tools. Five
+package patches remain; the target is zero, using supported integrations and
+published replacements. None are advisory exceptions:
 
 | Dependency                 | Why its patch remains                                                                                                                              |
 | -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -69,7 +70,6 @@ package patches remain; none are advisory exceptions:
 | ElizaOS SQL                | Prevents automatic traversal into unrelated parent `.env` files.                                                                                   |
 | ElizaOS agent orchestrator | Native/CLI session ownership, workspace service interoperability, and validated model-selection receipts.                                          |
 | Solana buffer-layout-utils | Replaces vulnerable bigint-buffer with modern Noble while retaining binary layouts; published 0.3.0 still requires the old buffer library.         |
-| Jimp core                  | Adapts the nut-js image consumer to current file-type; latest nut-js 4.2.6 still pins Jimp 0.22.10.                                                |
 
 The braces guard is retired. The desktop excludes the SDK's unused hosted
 Solana wallet UI, which pulled in React Native, Metro and micromatch. The
@@ -109,7 +109,7 @@ client otherwise makes no automatic retries. Failed or incomplete streams fail
 the turn. Provider response bodies and image bytes are excluded from errors.
 See the [official image input contract](https://developers.openai.com/api/docs/guides/images-vision).
 
-The current six patches and their retirement requirements are listed above.
+The current five patches and their retirement requirements are listed above.
 The ethers signing closure has since been removed through its type-only
 dependency boundary, as described below. No SDK engine or registered tool was
 removed to reduce the patch count.
@@ -129,7 +129,7 @@ current npm registry integrity metadata. SQL still lacks
 candidates also lack runtime entries. The core/agent/app-core/shared candidates
 contain runtime files but still have the API and behavior limits described above.
 These missing runtime entries still block those package upgrades. The current
-six-patch count reflects the subsequent ethers retirement; the dependency
+five-patch count reflects the subsequent ethers and Jimp retirements; the dependency
 consumers that required the braces guard have also been removed.
 
 The product-owned autonomous configuration projection was removed instead: it
@@ -172,8 +172,7 @@ recovery through the real wallet plugin's ethers dependency. The wallet/trading
 action surface and Uniswap quoter artifact checks remain intact. These are
 offline tests, not funded transaction submissions.
 
-Six patches remain: core, agent, SQL, orchestrator, Solana layout utilities and
-Jimp core. Full npm version histories were checked again on October 26. Core,
+Five patches remain: core, agent, SQL, orchestrator and Solana layout utilities. Full npm version histories were checked again on October 26. Core,
 agent, SQL and orchestrator still have no publication newer than June 28's
 `2.0.3-beta.7`; the higher-numbered `2.0.11-beta.7` candidates remain older
 publications with the limitations above. The three compatibility package names
@@ -241,3 +240,25 @@ async disposal guard. Setup failures await shutdown; subscription cleanup errors
 cannot skip shutdown or produce a successful receipt. Normal completion and
 cancellation reuse one shutdown promise. This fixes the client boundary without
 claiming that the SDK's separate native-session patch has been retired.
+
+
+## Modern native image dependency
+
+The computer-use plugin now resolves nut-js to the published
+`@dyw1234/nut-js@4.2.7` release, with its matching shared and provider-interface
+packages. This release adopts Jimp 1.6.1 in the image reader, writer, processor
+and shared RGB/BGR conversion functions. The Jimp 0.22 patch and its dependency
+chain are removed; Doolittle adds no image adapter or replacement input driver.
+
+The three October 8 archives were checked against their registry SHA-512
+integrities and their JavaScript differences were reviewed against nut-tree-fork
+4.2.6. Changes cover Jimp APIs, copied image buffers and color conversion, plus
+compiler-generated export ordering. The native libnut dependency remains 4.2.6.
+The new packages have no install lifecycle scripts; installer trust and release
+age policies are unchanged.
+
+Regression tests exercise the actual image providers: PNG decode/write/read,
+pixel colors, malformed input, coordinate bounds and three-/four-channel
+RGB/BGR round trips without mutating sliced caller buffers. A local native
+module-load probe also verified mouse and keyboard APIs. This is not a claim of
+physical input acceptance on every OS.
