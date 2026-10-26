@@ -144,20 +144,22 @@ the [ACP session-config contract](https://agentclientprotocol.com/protocol/v1/se
 and retire this projection patch when an upstream SDK provides equivalent
 bounded exact-session evidence and passes those regressions.
 
-The second pinned patch,
-`patches/@elizaos+plugin-codex-cli@2.0.3-beta.7.patch`, preserves user image parts
-in the official Codex backend's Responses request. It accepts HTTP(S) image
-URLs without embedded credentials, supported image data URLs, and PNG/JPEG/
-WebP/GIF bytes (with explicit MIME or a recognized signature). Base64 strings
-require a supported MIME. It never reads local paths or fetches the image
-itself. Unsupported image inputs or non-user image roles fail before provider
-authentication and do not echo image data in errors. Text-only grouping,
-prompt deduplication, tool correlation, OAuth and SSE remain SDK-owned.
-The public-backend regression test uses synthetic auth and fetch to inspect
-actual request serialization; that is not proof of model vision or screenshot
-capture. Record both SDK patch hashes for comparisons, and retire each patch
-only after an upstream release passes its regression coverage. The image wire
-format follows the [official image-input guide](https://developers.openai.com/api/docs/guides/images-vision).
+The Codex image package patch has been retired. Doolittle's ElizaOS provider
+adapter maps the SDK chat/tool contract into the current official OpenAI
+Responses client. ElizaOS still owns OAuth loading/refresh and model
+registration. The Responses SDK owns HTTP and SSE; Doolittle maps image and tool
+content at that public provider boundary. It never reads local image paths or
+fetches image URLs itself. Invalid image input and non-user image roles fail
+before provider authentication, without echoing image data in errors.
+
+The boundary tests exercise actual SDK request serialization with synthetic
+auth/fetch, including tool correlation, refresh, cancellation, incomplete
+streams and credential destinations. These checks are not proof of model vision
+or screenshot capture. The opt-in `nub run test:live:coding` separately exercises
+real linked-account coding through CLI and native desktop chat, with independent
+parent verification of changed files and an unchanged supplied test. Its live
+model calls are excluded from the ordinary release gate. The image wire format
+follows the [official image-input guide](https://developers.openai.com/api/docs/guides/images-vision).
 
 ### Native rendered evidence
 

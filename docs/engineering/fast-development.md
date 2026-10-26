@@ -101,3 +101,16 @@ gate first, then source workers, native desktop and the packaged smoke.
 Security scanners, dependency policy, bundled-runtime audits, SDK patch checks
 and local-link validation remain enabled. A small test suite complements them;
 it does not replace security review or upstream integration evidence.
+
+## Live coding acceptance
+
+`nub run test:live:coding` explicitly uses the existing linked Codex account.
+It runs a small repair once through the built CLI and once through native desktop
+chat. Each client receives a private temporary workspace and SDK state directory;
+the existing account is reused without copying credentials into test fixtures.
+Traces, screenshots and video are disabled. The parent checks the implementation
+changed, the supplied verifier stayed unchanged, the run reached completion, and
+`node --test` passed independently. The command can make paid/subscription model
+calls and requires usable linked authentication; it is excluded from CI and the
+offline release gate. Failed fixtures remain private for diagnosis; successful
+fixtures are removed after shutdown.
