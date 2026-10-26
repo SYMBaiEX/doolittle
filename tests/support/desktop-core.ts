@@ -5,7 +5,7 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { join, relative, resolve } from "node:path";
 import {
   type ElectronApplication,
@@ -47,7 +47,11 @@ function removeOwned(path: string, prefix: string): void {
 
 export async function launchDesktop(
   executablePath?: string,
+  options: { liveCoding?: boolean } = {},
 ): Promise<DesktopFixture> {
+  if (options.liveCoding && process.env.DOOLITTLE_RUN_LIVE_CODING !== "true") {
+    throw new Error("Live coding requires explicit opt-in.");
+  }
   const profile = realpathSync(
     mkdtempSync(join(tmpdir(), "doolittle-fresh-profile-")),
   );
@@ -58,7 +62,7 @@ export async function launchDesktop(
   mkdirSync(runtime, { recursive: true });
   writeFileSync(
     join(runtime, "settings.json"),
-    `${JSON.stringify({ model: offlineModel })}\n`,
+    `${JSON.stringify({ model: options.liveCoding ? { provider: "codex", model: "gpt-6-luna", reasoningEffort: "medium", baseUrl: "https://chatgpt.com/backend-api/codex", maxTokens: 8192 } : offlineModel })}\n`,
   );
   writeFileSync(
     join(profile, "workspace-state.json"),
@@ -75,6 +79,17 @@ export async function launchDesktop(
       cwd: repoRoot,
       env: {
         ...isolatedRuntimeEnvironment(runtime),
+        ...(options.liveCoding
+          ? {
+              // Reuse existing linked authentication without copying credentials.
+              // Every SDK/app store remains in the isolated fixture runtime.
+              HOME: homedir(),
+              USERPROFILE: homedir(),
+              DOOLITTLE_OFFLINE_BOOTSTRAP: "false",
+              DOOLITTLE_USE_LINKED_CODEX_AUTH: "true",
+              DOOLITTLE_EVAL_CAPTURE_MODEL_USAGE: "true",
+            }
+          : {}),
         DOOLITTLE_DESKTOP_CWD: workspace,
         ...(!executablePath ? { DOOLITTLE_DESKTOP_SOURCE_ROOT: repoRoot } : {}),
       },
@@ -189,13 +204,15 @@ export async function agentRequest<T = unknown>(
   path: string,
   method: "GET" | "POST" | "PATCH" | "DELETE" = "GET",
   body?: unknown,
+  botId?: string,
 ) {
   return page.evaluate(
-    async ({ path, method, body }) => {
+    async ({ path, method, body, botId }) => {
       const result = await window.doolittle.requestAgent({
         requestId: crypto.randomUUID(),
         path,
         method,
+        ...(botId ? { botId } : {}),
         headers: body ? { "content-type": "application/json" } : {},
         ...(body ? { body: JSON.stringify(body) } : {}),
       });
@@ -203,7 +220,7 @@ export async function agentRequest<T = unknown>(
         throw new Error(`${path}: HTTP ${result.status} ${result.body}`);
       return JSON.parse(result.body) as unknown;
     },
-    { path, method, body },
+    { path, method, body, botId },
   ) as Promise<T>;
 }
 

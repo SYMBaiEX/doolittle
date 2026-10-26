@@ -1,8 +1,7 @@
 ---
 
 name: install
-description: Use this skill when preparing installation, bootstrap, or delivery
-guidance for Doolittle and its workspace packages.
+description: "Use this skill when preparing installation, bootstrap, or delivery guidance for Doolittle and its workspace packages."
 ---
 
 # Doolittle Distribution Install

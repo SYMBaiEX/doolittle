@@ -1,8 +1,7 @@
 ---
 
 name: vision
-description: Use this skill when analyzing images, screenshots, or visual
-evidence for Doolittle.
+description: "Use this skill when analyzing images, screenshots, or visual evidence for Doolittle."
 ---
 
 # Doolittle Vision

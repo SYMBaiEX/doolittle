@@ -1,8 +1,7 @@
 ---
 
 name: telemetry
-description: Use this skill when reviewing logs, metrics, traces, or operator
-snapshots to explain what the system is doing.
+description: "Use this skill when reviewing logs, metrics, traces, or operator snapshots to explain what the system is doing."
 ---
 
 # Doolittle Observability Telemetry

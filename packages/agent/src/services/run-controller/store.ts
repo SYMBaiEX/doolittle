@@ -91,10 +91,10 @@ export class RunControllerStore {
     ) {
       throw new Error("Run receipt capacity is full.");
     }
+    this.indexRoom(run);
     this.activeRuns.set(run.sessionId, run);
     this.receipts.set(run.runId, cloneRun(run));
     this.trimReceipts();
-    this.roomIndex.set(run.roomId, run.sessionId);
     this.persistenceDirty = true;
     this.flushPersistence();
   }
@@ -211,11 +211,24 @@ export class RunControllerStore {
   }
 
   apply(sessionId: string, next: RunSnapshot): void {
+    this.indexRoom(next);
     this.activeRuns.set(sessionId, next);
     this.receipts.set(next.runId, cloneRun(next));
     this.trimReceipts();
     this.persistenceDirty = true;
     this.flushPersistence();
+  }
+
+  private indexRoom(run: RunSnapshot): void {
+    const previous = this.activeRuns.get(run.sessionId);
+    if (
+      previous &&
+      previous.roomId !== run.roomId &&
+      this.roomIndex.get(previous.roomId) === run.sessionId
+    ) {
+      this.roomIndex.delete(previous.roomId);
+    }
+    this.roomIndex.set(run.roomId, run.sessionId);
   }
 
   private trimReceipts(): void {

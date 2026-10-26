@@ -59,7 +59,7 @@ consumer over both CDP and BiDi, including interaction and screenshots.
 ## Remaining upstream requirements
 
 Doolittle is an ElizaOS desktop and CLI client for coding and daily assistance.
-Dependency cleanup must preserve that engine and its registered tools. Eight
+Dependency cleanup must preserve that engine and its registered tools. Seven
 package patches remain; none are advisory exceptions:
 
 | Dependency                 | Why its patch remains                                                                                                                              |
@@ -68,7 +68,6 @@ package patches remain; none are advisory exceptions:
 | ElizaOS agent              | Atomic JSON publication and exclusive writes protect local state and credentials.                                                                  |
 | ElizaOS SQL                | Prevents automatic traversal into unrelated parent `.env` files.                                                                                   |
 | ElizaOS agent orchestrator | Native/CLI session ownership, workspace service interoperability, and validated model-selection receipts.                                          |
-| ElizaOS Codex CLI          | Image input and nested-tool/contract support for coding sessions.                                                                                  |
 | Solana buffer-layout-utils | Replaces vulnerable bigint-buffer with modern Noble while retaining binary layouts; published 0.3.0 still requires the old buffer library.         |
 | ethers signing-key         | Uses ethers 6 signing instead of vulnerable elliptic; published 5.8.0 still requires elliptic.                                                     |
 | Jimp core                  | Adapts the nut-js image consumer to current file-type; latest nut-js 4.2.6 still pins Jimp 0.22.10.                                                |
@@ -90,3 +89,29 @@ edges eliminates Coinbase CDP SDK, its Zod compatibility patch, and the old
 WalletConnect connector tree. ElizaOS wallet, computer-use, and vision plugins
 remain installed. Renderer builds reject direct imports of the excluded hosted
 wallet clients as well as SDK-hosted wallet modules.
+
+## Codex transport patch retirement
+
+Doolittle's ElizaOS model provider now uses the official `openai@7.43.0`
+Responses client for requests, image input and streamed events. ElizaOS still
+owns model registration, OAuth loading/refresh, planning, tools, tasks and
+sessions. Every Codex model handler uses the new transport, including calls
+without a reasoning override. The SDK's image serialization patch, the private
+request-builder import and the outbound JSON-rewriting shim are removed.
+
+The client preserves paired tool history, usage, selected reasoning and
+cancellation. It accepts only ChatGPT or explicit loopback base URLs and
+refuses redirects. A 401 can trigger one SDK credential refresh; the Responses
+client otherwise makes no automatic retries. Failed or incomplete streams fail
+the turn. Provider response bodies and image bytes are excluded from errors.
+See the [official image input contract](https://developers.openai.com/api/docs/guides/images-vision).
+
+The other seven patches were rechecked against current publications. Newer SQL,
+orchestrator and Codex plugin tarballs still omit their advertised runtime
+entries. The published `bigint-buffer-fixed@1.1.6` fork silently truncates
+out-of-range values in its JS path and does not replace the existing strict
+layout contract. Ethers signing-key's 6.0 beta changes signing/recovery APIs and
+retains an old Noble dependency; it is not a safe v5 replacement. The public
+nut-tree fork still pins Jimp 0.22.10. Core/agent security and behavior fixes
+remain required by the currently usable SDK. No SDK engine or registered tool
+was removed to reduce the patch count.

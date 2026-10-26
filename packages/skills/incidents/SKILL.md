@@ -1,8 +1,7 @@
 ---
 
 name: incidents
-description: Use this skill when triaging outages, degraded behavior, or
-operator-visible regressions that need a fast, calm response.
+description: "Use this skill when triaging outages, degraded behavior, or operator-visible regressions that need a fast, calm response."
 ---
 
 # Doolittle Incident Support

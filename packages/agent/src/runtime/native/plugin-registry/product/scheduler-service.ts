@@ -5,7 +5,10 @@ import {
   type Service,
   type ServiceClass,
 } from "@elizaos/core";
+import { createLogger } from "@elizaos/logger";
 import type { AppServices } from "../../../../services/index";
+
+const logger = createLogger({ namespace: "doolittle.session-maintenance" });
 
 export function createSchedulerRuntimeService(
   services: AppServices,
@@ -33,14 +36,20 @@ export function createSchedulerRuntimeService(
       }
       this.#started = true;
       this.#intervalId = setInterval(async () => {
-        const settings = services.settings.get();
-        const expired = services.gatewaySessions.expireOlderThan(
-          settings.gateway.sessionTimeoutMinutes,
-        );
-        if (expired.length > 0) {
-          await services.hooks.emit("session:expired", {
-            count: expired.length,
-          });
+        try {
+          const settings = services.settings.get();
+          const expired = services.gatewaySessions.expireOlderThan(
+            settings.gateway.sessionTimeoutMinutes,
+          );
+          if (expired.length > 0) {
+            await services.hooks.emit("session:expired", {
+              count: expired.length,
+            });
+          }
+        } catch {
+          // A transient read/hook failure must not terminate an active chat.
+          // Avoid logging settings or provider credentials from the exception.
+          logger.warn("Session maintenance failed; retrying on the next tick.");
         }
       }, 60_000);
       this.#intervalId.unref?.();

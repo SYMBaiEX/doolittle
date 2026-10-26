@@ -1,8 +1,7 @@
 ---
 
 name: batch
-description: Use this skill when reviewing multiple trajectories, replays, or
-evaluation bundles at once.
+description: "Use this skill when reviewing multiple trajectories, replays, or evaluation bundles at once."
 ---
 
 # Doolittle Batch Research

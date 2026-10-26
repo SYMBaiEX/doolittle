@@ -1,15 +1,15 @@
 import { performance } from "node:perf_hooks";
+import { DEFAULT_MODEL_ROUTE } from "@doolittle/contracts";
 import { getRuntimeModelSettings } from "@doolittle/provider-transport";
 import type { GenerateTextParams, IAgentRuntime, Plugin } from "@elizaos/core";
-import {
-  __INTERNAL_buildCodexGenerateParams,
-  type CodexAuth,
-  CodexBackend,
-} from "@elizaos/plugin-codex-cli";
+import type { CodexAuth, CodexBackend } from "@elizaos/plugin-codex-cli";
+import type { CodexGenerateParams } from "@elizaos/plugin-codex-cli/src/codex-backend";
+import { CodexResponsesBackend } from "./codex-responses-backend";
 import type { CodexModelCallMetric } from "./eval-model-metrics";
 
 export const CODEX_REASONING_EFFORTS = [
   "none",
+  "minimal",
   "low",
   "medium",
   "high",
@@ -48,7 +48,9 @@ type CodexGenerateResult = {
   };
 };
 
-type CodexBackendFactory = (runtime: IAgentRuntime) => CodexBackend;
+type CodexBackendFactory = (
+  runtime: IAgentRuntime,
+) => Pick<CodexBackend, "generate">;
 type CodexModelCallObserver = (metric: CodexModelCallMetric) => void;
 type CodexModelObservationContext = (
   runtime: IAgentRuntime,
@@ -107,30 +109,9 @@ function selectedCodexReasoningEffort(
     : undefined;
 }
 
-function withCodexReasoningBody(
-  body: BodyInit | null | undefined,
-  effort: CodexReasoningEffort | undefined,
-): BodyInit | null | undefined {
-  if (!effort || typeof body !== "string") return body;
-  try {
-    const parsed = JSON.parse(body) as unknown;
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-      return body;
-    }
-    return JSON.stringify({
-      ...parsed,
-      reasoning: { effort },
-    });
-  } catch {
-    return body;
-  }
-}
-
 function requestAbortSignal(
   params: GenerateTextParams,
 ): AbortSignal | undefined {
-  // `signal` is Eliza's public model contract. Keep accepting the pinned
-  // Codex plugin's older alias for callers that use it directly.
   return (
     params.signal ??
     (params as GenerateTextParams & { abortSignal?: AbortSignal }).abortSignal
@@ -152,34 +133,16 @@ function getCodexRuntimeSetting(
     : String(value);
 }
 
-/**
- * Adds the Doolittle route's selected effort at the narrow outbound seam the
- * pinned Codex plugin does not yet expose. The official backend continues to
- * own OAuth, refresh, request serialization, SSE parsing, and tool handling.
- */
-export function createCodexReasoningFetch(
-  runtime: IAgentRuntime,
-  fetchImplementation: typeof fetch = fetch,
-): typeof fetch {
-  return (input, init) => {
-    const effort = selectedCodexReasoningEffort(runtime);
-    return fetchImplementation(input, {
-      ...init,
-      body: withCodexReasoningBody(init?.body, effort),
-    });
-  };
-}
-
+/** Preserve SDK account/route settings while the official Responses client owns HTTP. */
 export function createCodexReasoningBackend(
   runtime: IAgentRuntime,
   config: CodexBackendOptions = {},
-): CodexBackend {
-  // Mirror the pinned plugin's createBackend(runtime) settings so the
-  // reasoning-compatible backend remains a drop-in replacement for it.
+): Pick<CodexBackend, "generate"> {
+  // Reuse SDK account paths and the client's selected model/effort settings.
   const jitterRaw = getCodexRuntimeSetting(runtime, "CODEX_JITTER_MS_MAX");
   const runtimeJitterMaxMs =
     jitterRaw === undefined ? undefined : Number.parseInt(jitterRaw, 10);
-  return new CodexBackend({
+  return new CodexResponsesBackend({
     authPath:
       config.authPath ?? getCodexRuntimeSetting(runtime, "CODEX_AUTH_PATH"),
     baseUrl:
@@ -187,14 +150,15 @@ export function createCodexReasoningBackend(
     model:
       config.model ??
       getCodexRuntimeSetting(runtime, "CODEX_MODEL") ??
-      "gpt-5.5",
+      DEFAULT_MODEL_ROUTE.model,
     userAgent: config.userAgent,
     originator:
       config.originator ?? getCodexRuntimeSetting(runtime, "CODEX_ORIGINATOR"),
     jitterMaxMs:
       config.jitterMaxMs ??
       (Number.isFinite(runtimeJitterMaxMs) ? runtimeJitterMaxMs : undefined),
-    fetchImpl: createCodexReasoningFetch(runtime, config.fetchImpl),
+    fetchImpl: config.fetchImpl,
+    reasoningEffort: () => selectedCodexReasoningEffort(runtime),
     loadAuth: config.loadAuth,
     refreshAuth: config.refreshAuth,
   });
@@ -227,13 +191,11 @@ function observePromiseRejection<T>(promise: Promise<T>): Promise<T> {
 }
 
 function createReasoningModelHandler(
-  fallback: CodexModelHandler,
   createBackend: CodexBackendFactory = createCodexReasoningBackend,
   observeUsage?: CodexModelCallObserver,
   observeContext?: CodexModelObservationContext,
-  forceBackend = false,
 ): CodexModelHandler {
-  const backends = new WeakMap<IAgentRuntime, CodexBackend>();
+  const backends = new WeakMap<IAgentRuntime, Pick<CodexBackend, "generate">>();
   const backendFor = (runtime: IAgentRuntime) => {
     let backend = backends.get(runtime);
     if (!backend) {
@@ -244,9 +206,21 @@ function createReasoningModelHandler(
   };
 
   return async (runtime, params) => {
-    if (!forceBackend && !selectedCodexReasoningEffort(runtime))
-      return fallback(runtime, params);
-    const request = __INTERNAL_buildCodexGenerateParams(runtime, params);
+    const requestedModel = (params as GenerateTextParams & { model?: string })
+      .model;
+    const request: CodexGenerateParams = {
+      ...params,
+      prompt: params.prompt ?? "",
+      model:
+        requestedModel?.trim() ||
+        getCodexRuntimeSetting(runtime, "CODEX_MODEL") ||
+        DEFAULT_MODEL_ROUTE.model,
+      responseFormat:
+        params.responseFormat ??
+        (params.responseSchema
+          ? { type: "json_schema", schema: params.responseSchema }
+          : undefined),
+    };
     const abortSignal = requestAbortSignal(params);
     if (params.stream) {
       const startedAt = performance.now();
@@ -373,27 +347,24 @@ function createReasoningModelHandler(
   };
 }
 
-/** Wrap the official plugin only for selected Codex reasoning levels. */
+/** Keep ElizaOS model registration/auth while the current Responses SDK owns transport. */
 export function createDoolittleCodexReasoningPlugin(
   plugin: Plugin,
   dependencies: {
     createBackend?: CodexBackendFactory;
     observeUsage?: CodexModelCallObserver;
     observeContext?: CodexModelObservationContext;
-    forceBackend?: boolean;
   } = {},
 ): Plugin {
   return {
     ...plugin,
     models: Object.fromEntries(
-      Object.entries(plugin.models ?? {}).map(([modelType, handler]) => [
+      Object.keys(plugin.models ?? {}).map((modelType) => [
         modelType,
         createReasoningModelHandler(
-          handler as CodexModelHandler,
           dependencies.createBackend,
           dependencies.observeUsage,
           dependencies.observeContext,
-          dependencies.forceBackend,
         ),
       ]),
     ) as Plugin["models"],
