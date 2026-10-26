@@ -90,6 +90,7 @@ The review map counted approximately 295,000 TypeScript/JavaScript source and te
 - Source-worker acceptance: **7 tests in 3 files passed**.
 - Native desktop workbench: **4 tests passed**, covering first chat, grants across restart, denied cross-bot/root access, and stable catalog polling.
 - Live coding: **both CLI and desktop passed** against the real linked Codex provider through ElizaOS, with source repair independently verified (38.5 seconds and 43.3 seconds).
+- The first Linux CI run failed the fresh-bot composer check at its default five-second assertion timeout; the other three native journeys passed. That journey now waits up to 30 seconds for the independently started bot worker, within its unchanged 60-second overall deadline. It does not retry or skip the assertion.
 - Packaged installer/signing acceptance was not rerun locally in this pass. PR CI runs its own packaged acceptance.
 
 ## Readiness
