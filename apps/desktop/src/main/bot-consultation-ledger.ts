@@ -1,4 +1,4 @@
-import { chmodSync, existsSync, mkdirSync, readFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import type {
   BotConsultationResult,
@@ -6,6 +6,7 @@ import type {
   BotRunOwner,
 } from "@doolittle/contracts/bots";
 import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
+import { readBoundedRegularFile } from "./regular-file";
 
 const ID = /^[A-Za-z0-9:_-]{1,128}$/u;
 const MAX_LEDGER_BYTES = 8_000_000;
@@ -46,9 +47,7 @@ interface StoredConsultations {
 
 function parse(path: string): StoredConsultations | null {
   if (!existsSync(path)) return null;
-  const raw = readFileSync(path, "utf8");
-  if (Buffer.byteLength(raw) > MAX_LEDGER_BYTES)
-    throw new Error("The consultation ledger is too large.");
+  const raw = readBoundedRegularFile(path, MAX_LEDGER_BYTES).toString("utf8");
   const value = JSON.parse(raw) as Partial<StoredConsultations>;
   if (
     value.version !== 1 ||

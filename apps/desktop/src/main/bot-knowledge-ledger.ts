@@ -1,10 +1,11 @@
-import { chmodSync, existsSync, mkdirSync, readFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import type {
   KnowledgeGrant,
   SharedKnowledgeRecord,
 } from "@doolittle/contracts/bots";
 import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
+import { readBoundedRegularFile } from "./regular-file";
 
 const ID = /^[A-Za-z0-9:_-]{1,128}$/u;
 const UUID = /^[0-9a-f-]{36}$/iu;
@@ -33,9 +34,7 @@ interface StoredKnowledge {
 
 function parse(path: string): StoredKnowledge | null {
   if (!existsSync(path)) return null;
-  const raw = readFileSync(path, "utf8");
-  if (Buffer.byteLength(raw) > MAX_BYTES)
-    throw new Error("Knowledge ledger is too large.");
+  const raw = readBoundedRegularFile(path, MAX_BYTES).toString("utf8");
   const value = JSON.parse(raw) as Partial<StoredKnowledge>;
   if (
     (value.version !== 1 && value.version !== 2) ||

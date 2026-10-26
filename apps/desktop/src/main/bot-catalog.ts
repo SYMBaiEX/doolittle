@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { chmodSync, existsSync, mkdirSync, readFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync } from "node:fs";
 import { isAbsolute, resolve } from "node:path";
 import {
   type BotCatalogResponse,
@@ -14,6 +14,7 @@ import {
 import { normalizeBotCharacter } from "@doolittle/contracts/bot-character";
 import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
 import type { BackendManager } from "./backend";
+import { readBoundedRegularFile } from "./regular-file";
 
 const BOT_ID_PATTERN = /^[a-z0-9][a-z0-9_-]{0,63}$/u;
 // AgentRuntime derives this id from the unmodified Doolittle character name.
@@ -252,10 +253,10 @@ export class BotCatalog {
 
   private load(): StoredBotCatalog {
     if (!existsSync(this.filePath)) return { version: 1, bots: [] };
-    const raw = readFileSync(this.filePath, "utf8");
-    if (Buffer.byteLength(raw) > MAX_CATALOG_BYTES) {
-      throw new Error("The bot catalog exceeds its supported size.");
-    }
+    const raw = readBoundedRegularFile(
+      this.filePath,
+      MAX_CATALOG_BYTES,
+    ).toString("utf8");
     const value = JSON.parse(raw) as StoredBotCatalog;
     if (
       value.version !== 1 ||

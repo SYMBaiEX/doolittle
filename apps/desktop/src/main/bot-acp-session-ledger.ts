@@ -1,6 +1,7 @@
-import { chmodSync, existsSync, mkdirSync, readFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync } from "node:fs";
 import { dirname, isAbsolute, resolve } from "node:path";
 import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
+import { readBoundedRegularFile } from "./regular-file";
 
 const ID = /^[A-Za-z0-9:_-]{1,128}$/u;
 const MAX_BYTES = 2_000_000;
@@ -22,9 +23,7 @@ interface StoredAcpSessions {
 
 function parse(path: string): StoredAcpSessions | null {
   if (!existsSync(path)) return null;
-  const raw = readFileSync(path, "utf8");
-  if (Buffer.byteLength(raw) > MAX_BYTES)
-    throw new Error("ACP owner ledger is too large.");
+  const raw = readBoundedRegularFile(path, MAX_BYTES).toString("utf8");
   const value = JSON.parse(raw) as Partial<StoredAcpSessions>;
   if (
     value.version !== 1 ||

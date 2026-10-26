@@ -1,7 +1,8 @@
-import { chmodSync, existsSync, mkdirSync, readFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import type { BotPermissions } from "@doolittle/contracts/bots";
 import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
+import { readBoundedRegularFile } from "./regular-file";
 
 export interface AutomationTargetApproval {
   id: string;
@@ -42,9 +43,7 @@ function date(value: unknown): boolean {
 }
 function parse(path: string): Stored | null {
   if (!existsSync(path)) return null;
-  const raw = readFileSync(path, "utf8");
-  if (Buffer.byteLength(raw) > 8_000_000)
-    throw new Error("Automation dispatch ledger is full.");
+  const raw = readBoundedRegularFile(path, 8_000_000).toString("utf8");
   const value = JSON.parse(raw) as Stored;
   if (
     value?.version !== 1 ||
