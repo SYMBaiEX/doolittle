@@ -3,7 +3,11 @@ import process from "node:process";
 import { StringDecoder } from "node:string_decoder";
 import { sanitizeSpawnEnv } from "@elizaos/core";
 
-export type ProviderCommandTermination = "exit" | "spawn_error" | "timeout";
+export type ProviderCommandTermination =
+  | "exit"
+  | "spawn_error"
+  | "timeout"
+  | "output_limit";
 
 export interface ProviderCommandRequest {
   command: string;
@@ -12,6 +16,8 @@ export interface ProviderCommandRequest {
   env?: Record<string, string | undefined>;
   timeoutMs?: number;
   signal?: AbortSignal;
+  /** Combined stdout/stderr capture budget; defaults to 8 MiB. */
+  maxOutputBytes?: number;
 }
 
 export interface ProviderCommandResult {
@@ -84,6 +90,16 @@ export async function runProviderCommand(
     throw commandAbortReason(request.signal);
   }
 
+  const maxOutputBytes = request.maxOutputBytes ?? 8 * 1024 * 1024;
+  if (
+    !Number.isSafeInteger(maxOutputBytes) ||
+    maxOutputBytes <= 0 ||
+    maxOutputBytes > 64 * 1024 * 1024
+  ) {
+    throw new RangeError(
+      "Provider command maxOutputBytes must be an integer between 1 and 64 MiB.",
+    );
+  }
   const startedAt = Date.now();
   return await new Promise<ProviderCommandResult>((resolve, reject) => {
     let child: ChildProcess;
@@ -113,6 +129,8 @@ export async function runProviderCommand(
     let settled = false;
     let timedOut = false;
     let cancelled = false;
+    let outputExceeded = false;
+    let outputBytes = 0;
 
     const cleanup = () => {
       clearTimeout(timer);
@@ -133,11 +151,22 @@ export async function runProviderCommand(
     timer.unref?.();
 
     request.signal?.addEventListener("abort", onAbort, { once: true });
+    const capture = (chunk: Buffer, decoder: StringDecoder): string => {
+      if (outputExceeded) return "";
+      const remaining = maxOutputBytes - outputBytes;
+      const accepted = chunk.subarray(0, remaining);
+      outputBytes += accepted.byteLength;
+      if (chunk.byteLength > remaining) {
+        outputExceeded = true;
+        killProcessTree(child);
+      }
+      return decoder.write(accepted);
+    };
     child.stdout?.on("data", (chunk: Buffer) => {
-      stdout += stdoutDecoder.write(chunk);
+      stdout += capture(chunk, stdoutDecoder);
     });
     child.stderr?.on("data", (chunk: Buffer) => {
-      stderr += stderrDecoder.write(chunk);
+      stderr += capture(chunk, stderrDecoder);
     });
     child.once("error", (error) => {
       if (settled) return;
@@ -159,6 +188,16 @@ export async function runProviderCommand(
       flushOutput();
       if (cancelled && request.signal) {
         reject(commandAbortReason(request.signal));
+        return;
+      }
+      if (outputExceeded) {
+        resolve({
+          exitCode: 125,
+          stdout,
+          stderr: `${stderr}\n[provider-transport] combined output exceeded ${maxOutputBytes} bytes`,
+          durationMs: Date.now() - startedAt,
+          termination: "output_limit",
+        });
         return;
       }
       if (timedOut) {
