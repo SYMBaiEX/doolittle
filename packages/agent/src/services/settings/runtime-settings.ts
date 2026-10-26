@@ -88,7 +88,12 @@ export interface RuntimeSettings {
 }
 
 export interface ParsedRuntimeSettings
-  extends Omit<RuntimeSettings, "execution" | "mcp" | "agent" | "ui"> {
+  extends Omit<
+    RuntimeSettings,
+    "model" | "gateway" | "execution" | "mcp" | "agent" | "ui"
+  > {
+  model?: Partial<RuntimeSettings["model"]>;
+  gateway?: Partial<RuntimeSettings["gateway"]>;
   execution?: Partial<RuntimeSettings["execution"]>;
   mcp?: Partial<RuntimeSettings["mcp"]> & LegacyMcpSettings;
   agent?: Partial<RuntimeSettings["agent"]>;

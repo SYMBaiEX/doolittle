@@ -197,6 +197,33 @@ export function normalizeRuntimeSettings(
 ): RuntimeSettingsNormalizationResult {
   let dirty = false;
 
+  if (
+    !parsed.model ||
+    typeof parsed.model !== "object" ||
+    Array.isArray(parsed.model)
+  ) {
+    parsed.model = { ...defaults.model };
+    dirty = true;
+  }
+  for (const key of Object.keys(defaults.model) as Array<
+    keyof RuntimeSettings["model"]
+  >) {
+    dirty = assignWhenUndefined(parsed.model, defaults.model, key) || dirty;
+  }
+  if (
+    !parsed.gateway ||
+    typeof parsed.gateway !== "object" ||
+    Array.isArray(parsed.gateway)
+  ) {
+    parsed.gateway = { ...defaults.gateway };
+    dirty = true;
+  }
+  for (const key of Object.keys(defaults.gateway) as Array<
+    keyof RuntimeSettings["gateway"]
+  >) {
+    dirty = assignWhenUndefined(parsed.gateway, defaults.gateway, key) || dirty;
+  }
+
   if (parsed.model.provider === "openai-compatible") {
     parsed.model.provider = "openai";
     dirty = true;
