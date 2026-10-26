@@ -11,8 +11,8 @@ excess simultaneous work rather than dropping it.
 Completed, cancelled and failed receipts move into the private
 `bots/automation-history.sqlite` archive. Indexed lookups by fire, run, and job/fire
 identity retain duplicate protection across restarts without reading or rewriting
-the entire history. The current approval per job and approvals referenced by hot
-fires stay in the hot ledger; superseded approvals remain in the archive. Result
+the entire history. Only approvals referenced by hot fires stay in the hot ledger; all other
+approvals remain available in the archive, including current unused approvals. Result
 retrieval checks the original approval, never substitutes the current approval.
 
 Archive inserts commit in one SQLite transaction before either hot JSON copy is

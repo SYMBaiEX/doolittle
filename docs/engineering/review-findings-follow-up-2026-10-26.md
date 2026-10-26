@@ -8,7 +8,7 @@ ElizaOS remains the engine for desktop and CLI; wallet/trading tools remain inst
 
 Terminal receipts move into indexed SQLite history, leaving active work and the
 256 newest terminal receipts in the hot ledger. Historical fire/run lookup and
-duplicate prevention survive restart. Superseded approvals are archived too;
+duplicate prevention survive restart. Unreferenced approvals are archived too, avoiding a lifetime job-approval cap;
 retrieving an old result checks its original authorization.
 
 Archive commits precede hot-ledger publication. Restart reconciles overlaps from

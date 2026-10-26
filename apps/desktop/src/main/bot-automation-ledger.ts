@@ -179,14 +179,14 @@ export class BotAutomationLedger {
     const retiredIds = new Set(retired.map((fire) => fire.fireId));
     const fires = next.fires.filter((fire) => !retiredIds.has(fire.fireId));
     const referenced = new Set(fires.map((fire) => fire.approvalId));
-    const latest = new Map<string, string>();
-    for (const approval of next.approvals)
-      latest.set(approval.jobId, approval.id);
-    const approvals = next.approvals.filter(
-      (approval) =>
-        referenced.has(approval.id) ||
-        latest.get(approval.jobId) === approval.id,
-    );
+    const approvals = [...referenced].map((id) => {
+      const approval =
+        next.approvals.find((row) => row.id === id) ??
+        this.history.approval(id);
+      if (!approval)
+        throw new Error("The original automation approval is unavailable.");
+      return approval;
+    });
     const retainedApprovals = new Set(approvals.map((approval) => approval.id));
     const archivedApprovals = next.approvals.filter(
       (approval) => !retainedApprovals.has(approval.id),

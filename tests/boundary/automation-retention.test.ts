@@ -221,3 +221,24 @@ it("refuses a hot receipt that conflicts with an archived job/fire identity", ()
     writeFileSync(path, JSON.stringify(hot));
   expect(() => new BotAutomationLedger(f.dir)).toThrow(/identities disagree/);
 });
+
+it("admits a new job beyond the old lifetime approval cap without losing previous consent", () => {
+  const f = fixture();
+  const unused = Array.from({ length: 1999 }, () => ({
+    ...f.approval,
+    id: randomUUID(),
+    jobId: randomUUID(),
+  }));
+  const stored = JSON.parse(readFileSync(f.path, "utf8"));
+  stored.approvals.push(...unused);
+  for (const path of [f.path, f.backup])
+    writeFileSync(path, JSON.stringify(stored));
+  const ledger = new BotAutomationLedger(f.dir);
+  const added = { ...f.approval, id: randomUUID(), jobId: randomUUID() };
+  ledger.approve(added);
+  const restored = new BotAutomationLedger(f.dir);
+  expect(restored.approval(added.id)).toEqual(added);
+  expect(restored.approval(unused[1998].id)).toEqual(unused[1998]);
+  expect(restored.approval(f.approval.id)).toEqual(f.approval);
+  expect(JSON.parse(readFileSync(f.path, "utf8")).approvals).toHaveLength(1);
+});
