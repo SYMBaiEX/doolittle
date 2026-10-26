@@ -74,7 +74,7 @@ function fixture() {
   const backup = resolve(dir, "bots/automation-dispatches.backup.json");
   writeFileSync(path, raw);
   writeFileSync(backup, raw);
-  return { dir, path, backup, fires, fire, jobId };
+  return { dir, path, backup, fires, fire, jobId, approval };
 }
 it("runs beyond the old capacity and retains active work and permanent replay identities across restart", () => {
   const f = fixture();
@@ -116,4 +116,46 @@ it("refuses a missing archive instead of forgetting old replay identities", () =
     /history is missing/,
   );
   expect(() => new BotAutomationLedger(f.dir)).toThrow(/history is missing/);
+});
+
+it("archives superseded approvals without substituting the current authorization", () => {
+  const f = fixture();
+  const ledger = new BotAutomationLedger(f.dir);
+  ledger.prepare(f.fire(6000, "prepared"));
+  const next = {
+    ...f.approval,
+    id: randomUUID(),
+    definitionDigest: "b".repeat(64),
+  };
+  ledger.approve(next);
+  // The old active run still pins its original approval in the hot ledger.
+  expect(ledger.approval(f.approval.id)).toEqual(f.approval);
+  ledger.update(f.fires[0].fireId, "complete");
+  // A fresh job without fires can retire its previous approval immediately.
+  const other = { ...f.approval, id: randomUUID(), jobId: randomUUID() };
+  ledger.approve(other);
+  ledger.approve({
+    ...other,
+    id: randomUUID(),
+    definitionDigest: "c".repeat(64),
+  });
+  const restored = new BotAutomationLedger(f.dir);
+  expect(restored.approval(other.id)).toEqual(other);
+  expect(
+    JSON.parse(readFileSync(f.path, "utf8")).approvals.some(
+      (row: { id: string }) => row.id === other.id,
+    ),
+  ).toBe(false);
+});
+
+it("refuses corrupt cold history instead of treating archived fires as unsubmitted", () => {
+  const f = fixture();
+  const ledger = new BotAutomationLedger(f.dir);
+  ledger.prepare(f.fire(6000, "prepared"));
+  writeFileSync(
+    resolve(f.dir, "bots/automation-history.sqlite"),
+    "not a database",
+  );
+  expect(() => ledger.forKey(f.jobId, f.fires[4999].fireKeyDigest)).toThrow();
+  expect(() => new BotAutomationLedger(f.dir)).toThrow();
 });

@@ -8,7 +8,10 @@ import {
 import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { isDeepStrictEqual } from "node:util";
-import type { AutomationTargetFire } from "./bot-automation-ledger";
+import type {
+  AutomationTargetApproval,
+  AutomationTargetFire,
+} from "./bot-automation-ledger";
 
 /** Cold receipts remain indexed on disk for permanent duplicate prevention. */
 export class BotAutomationHistory {
@@ -39,11 +42,12 @@ export class BotAutomationHistory {
         fire_id TEXT PRIMARY KEY, job_id TEXT NOT NULL, digest TEXT NOT NULL,
         run_id TEXT NOT NULL UNIQUE, record TEXT NOT NULL,
         UNIQUE(job_id, digest)
-      )`);
+      ); CREATE TABLE approvals (id TEXT PRIMARY KEY, record TEXT NOT NULL)`);
       else
         db.prepare(
           "SELECT fire_id, job_id, digest, run_id, record FROM fires LIMIT 0",
         ).all();
+      db.prepare("SELECT id, record FROM approvals LIMIT 0").all();
       this.required = true;
       return db;
     } catch (error) {
@@ -89,11 +93,44 @@ export class BotAutomationHistory {
     }
   }
 
+  approval(id: string): AutomationTargetApproval | undefined {
+    if (!this.exists()) return undefined;
+    const db = this.open();
+    try {
+      const row = db
+        .prepare("SELECT record FROM approvals WHERE id = ?")
+        .get(id);
+      if (!row) return undefined;
+      const approval = JSON.parse(
+        String(row.record),
+      ) as AutomationTargetApproval;
+      if (approval.id !== id)
+        throw new Error("Automation approval history is invalid.");
+      return approval;
+    } finally {
+      db.close();
+    }
+  }
+
   /** An archive commit may precede an interrupted hot-ledger publication. */
-  reconcile(fires: AutomationTargetFire[]): AutomationTargetFire[] {
+  reconcile(
+    fires: AutomationTargetFire[],
+    approvals: AutomationTargetApproval[],
+  ): AutomationTargetFire[] {
     if (!this.exists()) return fires;
     const db = this.open();
     try {
+      const lookupApproval = db.prepare(
+        "SELECT record FROM approvals WHERE id = ?",
+      );
+      for (const approval of approvals) {
+        const archived = lookupApproval.get(approval.id);
+        if (
+          archived &&
+          !isDeepStrictEqual(JSON.parse(String(archived.record)), approval)
+        )
+          throw new Error("Automation approval histories disagree.");
+      }
       const lookup = db.prepare("SELECT * FROM fires WHERE fire_id = ?");
       return fires.filter((fire) => {
         const archived = this.decode(lookup.get(fire.fireId));
@@ -113,8 +150,11 @@ export class BotAutomationHistory {
     }
   }
 
-  retire(fires: AutomationTargetFire[]): void {
-    if (!fires.length) return;
+  retire(
+    fires: AutomationTargetFire[],
+    approvals: AutomationTargetApproval[],
+  ): void {
+    if (!fires.length && !approvals.length) return;
     const db = this.open();
     try {
       db.exec("BEGIN IMMEDIATE");
@@ -136,6 +176,17 @@ export class BotAutomationHistory {
           fire.runId,
           JSON.stringify(fire),
         );
+      }
+      const lookupApproval = db.prepare(
+        "SELECT record FROM approvals WHERE id = ?",
+      );
+      const insertApproval = db.prepare("INSERT INTO approvals VALUES (?, ?)");
+      for (const approval of approvals) {
+        const previous = lookupApproval.get(approval.id);
+        if (previous) {
+          if (!isDeepStrictEqual(JSON.parse(String(previous.record)), approval))
+            throw new Error("Automation approval histories disagree.");
+        } else insertApproval.run(approval.id, JSON.stringify(approval));
       }
       db.exec("COMMIT");
     } catch (error) {

@@ -484,12 +484,12 @@ export class BotAutomationBroker {
           ),
         );
         const job = await this.job(fire.jobId);
-        this.check(job, this.ledger.approval(fire.approvalId));
+        const fireApproval = this.ledger.approval(fire.approvalId);
+        if (!fireApproval)
+          throw new Error("The original automation approval is unavailable.");
+        this.check(job, fireApproval);
         await this.bots.validateAutomationConnection(fire.targetBotId);
-        this.check(
-          await this.job(fire.jobId),
-          this.ledger.approval(fire.approvalId),
-        );
+        this.check(await this.job(fire.jobId), fireApproval);
         signal?.throwIfAborted();
         if (
           ["cancelled", "error"].includes(

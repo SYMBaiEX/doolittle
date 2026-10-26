@@ -161,7 +161,10 @@ export class BotAutomationLedger {
         : (secondary ?? { version: 1, revision: 0, approvals: [], fires: [] });
     if (this.stored.historyRequired && !this.history.exists())
       throw new Error("Automation history is missing. Recovery is required.");
-    this.stored.fires = this.history.reconcile(this.stored.fires);
+    this.stored.fires = this.history.reconcile(
+      this.stored.fires,
+      this.stored.approvals,
+    );
   }
   private save(next: Stored): void {
     if (this.failed)
@@ -178,18 +181,23 @@ export class BotAutomationLedger {
     const latest = new Map<string, string>();
     for (const approval of next.approvals)
       latest.set(approval.jobId, approval.id);
+    const approvals = next.approvals.filter(
+      (approval) =>
+        referenced.has(approval.id) ||
+        latest.get(approval.jobId) === approval.id,
+    );
+    const retainedApprovals = new Set(approvals.map((approval) => approval.id));
+    const archivedApprovals = next.approvals.filter(
+      (approval) => !retainedApprovals.has(approval.id),
+    );
     const value: Stored = {
       ...next,
       revision: this.stored.revision + 1,
       fires,
-      ...(this.history.exists() || retired.length
+      ...(this.history.exists() || retired.length || archivedApprovals.length
         ? { historyRequired: true }
         : {}),
-      approvals: next.approvals.filter(
-        (approval) =>
-          referenced.has(approval.id) ||
-          latest.get(approval.jobId) === approval.id,
-      ),
+      approvals,
     };
     if (
       Buffer.byteLength(JSON.stringify(value, null, 2)) + 1 > 8_000_000 ||
@@ -201,7 +209,7 @@ export class BotAutomationLedger {
       );
     try {
       // Commit immutable replay receipts before removing them from either hot copy.
-      this.history.retire(retired);
+      this.history.retire(retired, archivedApprovals);
       mkdirSync(resolve(this.path, ".."), { recursive: true, mode: 0o700 });
       writeJsonAtomicSync(this.path, value, { trailingNewline: true });
       chmodSync(this.path, 0o600);
@@ -216,7 +224,10 @@ export class BotAutomationLedger {
   approval(id: string): AutomationTargetApproval | undefined {
     if (this.failed)
       throw new Error("Automation dispatch ledger requires recovery.");
-    return structuredClone(this.stored.approvals.find((row) => row.id === id));
+    return structuredClone(
+      this.stored.approvals.find((row) => row.id === id) ??
+        this.history.approval(id),
+    );
   }
   approve(row: AutomationTargetApproval): void {
     this.save({
