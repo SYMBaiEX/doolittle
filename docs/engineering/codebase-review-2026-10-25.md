@@ -2,6 +2,8 @@
 
 **What this repo does:** Doolittle supplies desktop and terminal clients for an ElizaOS agent, including coding tools, conversations, background work, account connections, and wallet/trading tools. Both clients share the engine and application services. This review assumes one local operator, several bots and concurrent sessions, and recurring jobs left running for weeks.
 
+> Follow-up: the four findings below are addressed in the [October 26 reliability changes](review-findings-follow-up-2026-10-26.md). The assessment below records the original review, including its verification limits.
+
 ## Assessment
 
 This is a substantial, functioning alpha with real monorepo boundaries. It is beyond a prototype, but its current evidence does not establish a dependable replacement for a mature coding assistant across long sessions and every supported platform. The next work should strengthen recovery and long-running operation before adding more surface area.
