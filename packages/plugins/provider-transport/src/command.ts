@@ -143,6 +143,7 @@ export async function runProviderCommand(
     let stdout = "";
     let stderr = "";
     let settled = false;
+    let closed = false;
     let timedOut = false;
     let cancelled = false;
     let outputExceeded = false;
@@ -162,6 +163,9 @@ export async function runProviderCommand(
       if (stopping || settled) return;
       stopping = killProcessTree(child)
         .catch(() => {
+          // A short command may close naturally while Windows taskkill starts.
+          // Closed stdio needs no further drain; do not mislabel output overflow.
+          if (closed) return;
           terminationFailure = true;
           // Best effort fallback; report that descendant termination was not verified.
           try {
@@ -275,6 +279,7 @@ export async function runProviderCommand(
       });
     };
     child.once("close", (code) => {
+      closed = true;
       if (!stopping) finish(code);
     });
     if (request.signal?.aborted) onAbort();
