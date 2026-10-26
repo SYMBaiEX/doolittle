@@ -1,8 +1,7 @@
 ---
 
 name: autocoder
-description: Use this skill when evaluating code-generation workflows, SWE-bench
-style tasks, or the impact of autocoder-style plugins on Doolittle.
+description: "Use this skill when evaluating code-generation workflows, SWE-bench style tasks, or the impact of autocoder-style plugins on Doolittle."
 ---
 
 # Doolittle Autocoder Research

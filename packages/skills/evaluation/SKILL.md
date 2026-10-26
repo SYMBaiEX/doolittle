@@ -1,8 +1,7 @@
 ---
 
 name: evaluation
-description: Use this skill when comparing workflows, scoring bundles, or
-evaluating whether Doolittle behavior has improved.
+description: "Use this skill when comparing workflows, scoring bundles, or evaluating whether Doolittle behavior has improved."
 ---
 
 # Doolittle Research Evaluation

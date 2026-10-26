@@ -1,8 +1,7 @@
 ---
 
 name: ingestion
-description: Use this skill when pulling external data into Doolittle memory,
-catalogs, or research bundles.
+description: "Use this skill when pulling external data into Doolittle memory, catalogs, or research bundles."
 ---
 
 # Doolittle Data Ingestion

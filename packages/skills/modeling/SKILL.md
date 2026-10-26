@@ -1,8 +1,7 @@
 ---
 
 name: modeling
-description: Use this skill when refining a person or workspace profile from
-recent interaction evidence.
+description: "Use this skill when refining a person or workspace profile from recent interaction evidence."
 ---
 
 # Doolittle Identity Modeling

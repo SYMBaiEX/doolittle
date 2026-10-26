@@ -1,8 +1,7 @@
 ---
 
 name: regression
-description: Use this skill when protecting Doolittle behavior with repeatable
-tests, smoke checks, or regression comparisons.
+description: "Use this skill when protecting Doolittle behavior with repeatable tests, smoke checks, or regression comparisons."
 ---
 
 # Doolittle Regression Testing

@@ -1,8 +1,7 @@
 ---
 
 name: voice
-description: Use this skill when handling audio, video, images, speech
-synthesis, or transcription work for Doolittle.
+description: "Use this skill when handling audio, video, images, speech synthesis, or transcription work for Doolittle."
 ---
 
 # Doolittle Media and Voice

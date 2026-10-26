@@ -1,8 +1,7 @@
 ---
 
 name: profile-learning
-description: Use this skill when distilling session history into reusable memory
-for future turns.
+description: "Use this skill when distilling session history into reusable memory for future turns."
 ---
 
 # Doolittle Memory Profile Learning
