@@ -1,5 +1,6 @@
+import { readdirSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import * as modern from "ethers";
 import { describe, expect, it } from "vitest";
@@ -83,62 +84,89 @@ it("retains native computer-use image decoding with the current file parser", as
   await expect(Jimp.read(Buffer.from("not an image"))).rejects.toThrow();
 });
 
-it("retains ethers v5 signing, recovery, ECDH and transaction encoding with ethers v6 crypto", async () => {
-  const transactionRequire = createRequire(
-    resolve("node_modules/@ethersproject/transactions/package.json"),
+it("retains legacy ABI and typed-data hashes while using the current ethers domain types", async () => {
+  const abiRequire = createRequire(
+    resolve("node_modules/@ethersproject/abi/package.json"),
   );
-  const legacy = transactionRequire("@ethersproject/signing-key");
-  // Public test vectors only. No network calls or funded wallets.
-  const firstKey = `0x${"1".padStart(64, "0")}`;
-  const secondKey = `0x${"2".padStart(64, "0")}`;
-  const first = new legacy.SigningKey(firstKey);
-  const second = new legacy.SigningKey(secondKey);
-  expect(first.compressedPublicKey).toBe(
-    "0x0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798",
+  const hash = abiRequire("@ethersproject/hash");
+  const { Interface } = abiRequire("@ethersproject/abi");
+  const abi = [
+    "function quoteExactInputSingle(address,address,uint24,uint256,uint160) returns (uint256)",
+  ];
+  const args = [
+    "0x0000000000000000000000000000000000000001",
+    "0x0000000000000000000000000000000000000002",
+    3000,
+    123456789012345678901n,
+    0,
+  ];
+  expect(
+    new Interface(abi).encodeFunctionData("quoteExactInputSingle", args),
+  ).toBe(
+    new modern.Interface(abi).encodeFunctionData("quoteExactInputSingle", args),
   );
-  expect(first._addPoint(first.publicKey)).toBe(second.compressedPublicKey);
-  expect(first.computeSharedSecret(second.compressedPublicKey)).toBe(
-    second.computeSharedSecret(first.publicKey),
-  );
-  expect(first.computeSharedSecret(secondKey)).toHaveLength(66);
-  const digest = modern.keccak256(
-    modern.toUtf8Bytes("signing migration fixture"),
-  );
-  const signature = first.signDigest(digest);
-  const expected = new modern.SigningKey(firstKey).sign(digest);
-  expect([signature.r, signature.s, signature.recoveryParam]).toEqual([
-    expected.r,
-    expected.s,
-    expected.yParity,
-  ]);
-  expect(legacy.recoverPublicKey(digest, signature)).toBe(first.publicKey);
-  expect(legacy.computePublicKey(first.compressedPublicKey)).toBe(
-    first.publicKey,
-  );
-  expect(legacy.SigningKey.isSigningKey(first)).toBe(true);
-  expect(() => first.signDigest("0x01")).toThrow();
-  expect(() => new legacy.SigningKey(`0x${"0".repeat(64)}`)).toThrow();
-  const transaction = {
-    to: "0x0000000000000000000000000000000000000001",
-    type: 2,
+  const domain = {
+    name: "Doolittle fixture",
+    version: "1",
     chainId: 1,
-    nonce: 0,
-    gasLimit: 21000,
-    maxFeePerGas: 10,
-    maxPriorityFeePerGas: 1,
-    value: 1,
+    verifyingContract: "0x0000000000000000000000000000000000000001",
   };
-  const { serialize } = transactionRequire("@ethersproject/transactions");
-  const encoded = serialize(
-    transaction,
-    first.signDigest(modern.keccak256(serialize(transaction))),
+  const types = {
+    Order: [
+      { name: "amount", type: "uint256" },
+      { name: "recipient", type: "address" },
+    ],
+  };
+  const value = { amount: "123456789012345678901", recipient: args[1] };
+  expect(hash._TypedDataEncoder.hash(domain, types, value)).toBe(
+    modern.TypedDataEncoder.hash(domain, types, value),
   );
-  expect(encoded).toBe(
-    await new modern.Wallet(firstKey).signTransaction(transaction),
+  expect(
+    hash.id("quoteExactInputSingle(address,address,uint24,uint256,uint160)"),
+  ).toBe(
+    modern.id("quoteExactInputSingle(address,address,uint24,uint256,uint160)"),
   );
-  expect(modern.Transaction.from(encoded).from).toBe(
-    "0x7E5F4552091A69125d5DfCb7b8C2659029395Bdf",
+  const hashRequire = createRequire(abiRequire.resolve("@ethersproject/hash"));
+  expect(hashRequire("@ethersproject/abstract-signer").version).toBe(
+    modern.version,
   );
+  // The alias supplies domain/field declarations only. A future runtime import
+  // would require an explicit compatibility review of the signer API.
+  const hashRoot = resolve(
+    dirname(abiRequire.resolve("@ethersproject/hash")),
+    "..",
+  );
+  for (const folder of ["lib", "lib.esm"]) {
+    for (const file of readdirSync(resolve(hashRoot, folder)).filter((file) =>
+      file.endsWith(".js"),
+    )) {
+      expect(
+        readFileSync(resolve(hashRoot, folder, file), "utf8"),
+      ).not.toContain("@ethersproject/abstract-signer");
+    }
+  }
+  expect(() => hashRequire.resolve("@ethersproject/signing-key")).toThrow();
+  expect(() => hashRequire.resolve("@ethersproject/transactions")).toThrow();
+  // Check declarations with library checking enabled, rather than relying on
+  // the application's existing skipLibCheck setting to hide a missing type.
+  const { default: ts } = await import("typescript-legacy");
+  const program = ts.createProgram([resolve(hashRoot, "lib/typed-data.d.ts")], {
+    strict: true,
+    skipLibCheck: false,
+    noEmit: true,
+    target: ts.ScriptTarget.ES2022,
+    module: ts.ModuleKind.NodeNext,
+    moduleResolution: ts.ModuleResolutionKind.NodeNext,
+    types: ["node"],
+    typeRoots: [resolve("node_modules/@types")],
+  });
+  expect(
+    ts
+      .getPreEmitDiagnostics(program)
+      .map((diagnostic) =>
+        ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n"),
+      ),
+  ).toEqual([]);
 });
 
 it("retains vision image transforms and invalid-option rejection on Zod 4", async () => {

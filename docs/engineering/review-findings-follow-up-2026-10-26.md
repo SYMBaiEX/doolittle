@@ -67,6 +67,6 @@ clean-HEAD packaged acceptance are distinct checks in the delivery workflow.
 Their run results belong in the PR and completion report. A passing small coding
 fixture does not establish long-task quality or reliability over weeks.
 
-Seven dependency patches and three SDK compatibility workspaces remain. This
-change addresses the four review findings; it does not remove those upstream
-compatibility requirements.
+At completion of this reliability pass, seven dependency patches and three SDK
+compatibility workspaces remained. The subsequent [SDK retirement review](sdk-package-upgrades.md)
+removes the ethers signing patch; six patches and three workspaces remain.

@@ -59,7 +59,7 @@ consumer over both CDP and BiDi, including interaction and screenshots.
 ## Remaining upstream requirements
 
 Doolittle is an ElizaOS desktop and CLI client for coding and daily assistance.
-Dependency cleanup must preserve that engine and its registered tools. Seven
+Dependency cleanup must preserve that engine and its registered tools. Six
 package patches remain; none are advisory exceptions:
 
 | Dependency                 | Why its patch remains                                                                                                                              |
@@ -69,7 +69,6 @@ package patches remain; none are advisory exceptions:
 | ElizaOS SQL                | Prevents automatic traversal into unrelated parent `.env` files.                                                                                   |
 | ElizaOS agent orchestrator | Native/CLI session ownership, workspace service interoperability, and validated model-selection receipts.                                          |
 | Solana buffer-layout-utils | Replaces vulnerable bigint-buffer with modern Noble while retaining binary layouts; published 0.3.0 still requires the old buffer library.         |
-| ethers signing-key         | Uses ethers 6 signing instead of vulnerable elliptic; published 5.8.0 still requires elliptic.                                                     |
 | Jimp core                  | Adapts the nut-js image consumer to current file-type; latest nut-js 4.2.6 still pins Jimp 0.22.10.                                                |
 
 The braces guard is retired. The desktop excludes the SDK's unused hosted
@@ -134,8 +133,8 @@ current npm registry integrity metadata. SQL still lacks
 `dist/node/index.node.js` and `dist/cjs/index.node.cjs`. The other retained plugin
 candidates also lack runtime entries. The core/agent/app-core/shared candidates
 contain runtime files but still have the API and behavior limits described above.
-No further package upgrade or patch retirement passed this review. All seven
-package patches remain required; the obsolete dependency consumers that required
+No further package upgrade or patch retirement passed that review. At that point,
+all seven package patches remained required; the obsolete dependency consumers that required
 the braces guard have now been removed.
 
 The product-owned autonomous configuration projection was removed instead: it
@@ -156,3 +155,60 @@ receipts and distinguishes prepared actions, simulations and submitted
 transactions awaiting confirmation. Amount strings retain their precision. The
 widget renders only public receipt fields and adds no signing, submission or
 confirmation path; ElizaOS remains responsible for wallet operations.
+
+## October 26: retire the legacy ethers signing closure
+
+The product stays on published SDK releases while the current desktop and CLI
+are completed and stabilized. This review does not migrate to upstream Git
+source builds or add product features.
+
+The signing-key patch is retired. The only incoming legacy signer chain came
+from `@ethersproject/hash` through a type-only `@ethersproject/abstract-signer`
+dependency. Its CommonJS and ESM JavaScript do not import that package. A scoped
+npm alias supplies the current `ethers@6.17.0` domain/field declarations instead.
+No runtime adapter, vendored signer, missing-type suppression, or fake SDK
+package was introduced. The old abstract provider, signing-key, transactions,
+network and web packages disappear from the installed graph.
+
+Regression checks verify the published hash package still has no runtime import
+of the signer alias, compile its declarations with `skipLibCheck: false`, compare
+ABI calldata and typed-data hashes with current ethers, and retain signing and
+recovery through the real wallet plugin's ethers dependency. The wallet/trading
+action surface and Uniswap quoter artifact checks remain intact. These are
+offline tests, not funded transaction submissions.
+
+Six patches remain: core, agent, SQL, orchestrator, Solana layout utilities and
+Jimp core. Full npm version histories were checked again on October 26. Core,
+agent, SQL and orchestrator still have no publication newer than June 28's
+`2.0.3-beta.7`; the higher-numbered `2.0.11-beta.7` candidates remain older
+publications with the limitations above. The three compatibility package names
+still return 404 from the public registry. The installed agent statically imports
+worker-runtime's error helpers and registry JSON; app-core also imports registry
+JSON. Remote-manifest is a declared agent dependency and supplies its bridge's
+public message type. Removing or renaming those workspaces would leave unresolved
+SDK imports or merely relocate the compatibility code.
+
+The current upstream source commit `4ecd597505ddabd135d8719f7bd113c9fef4013c`
+has reorganized these packages and SDK exports, but depends on additional
+unpublished workspaces. It is not an installable replacement for the chosen SDK
+release contract. The following public registry records are the release evidence:
+[core](https://registry.npmjs.org/@elizaos/core),
+[agent](https://registry.npmjs.org/@elizaos/agent),
+[SQL](https://registry.npmjs.org/@elizaos/plugin-sql), and
+[orchestrator](https://registry.npmjs.org/@elizaos/plugin-agent-orchestrator).
+
+The atomic publication patch also has direct regression coverage now. An isolated
+probe of the integrity-verified, unmodified agent tarball overwrote an exclusive
+destination, followed a predictable temporary-file symlink, and rejected 15 of
+16 simultaneous writes in one clock tick. The maintained SDK tests require all
+16 writes to finish, preserve an existing exclusive owner, and leave the symlink
+target untouched in both sync and async paths. This is a reason to retain the
+patch until a published replacement passes the contract, not an advisory waiver.
+
+Alternative bigint-buffer publications were inspected as well. The Exodus and
+Truffle variants and the newer bigint-buffer2 JS fallback still truncate values
+to the requested width; the latter also wraps negative values. The current
+Solana boundary requires rejecting overflow and negative unsigned values.
+Replacing the strict layout patch with those packages would change amounts
+rather than safely retiring a patch. The public nut-tree fork still pins Jimp
+0.22.10; Jimp 1.x changes constructor/export APIs and is not a drop-in override.
