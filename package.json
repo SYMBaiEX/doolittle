@@ -140,7 +140,8 @@
     "cli:typecheck": "nub run --cwd apps/cli typecheck",
     "typecheck:tools": "nubx tsc --noEmit",
     "check:monorepo": "nub scripts/check-monorepo.ts",
-    "test:live:coding": "nub run cli:build && nub run desktop:build && DOOLITTLE_RUN_LIVE_CODING=true nubx playwright test --config playwright.live.config.ts"
+    "test:live:coding": "nub run cli:build && nub run desktop:build && DOOLITTLE_RUN_LIVE_CODING=true nubx playwright test --config playwright.live.config.ts",
+    "test:dev:desktop": "nubx playwright test --config playwright.dev.config.ts"
   },
   "overrides": {
     "@elizaos/agent": "2.0.3-beta.7",

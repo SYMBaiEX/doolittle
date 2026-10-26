@@ -99,6 +99,18 @@ nub run desktop:runtime:install
 nub run desktop:dev
 ```
 
+After that initial setup, use `nub run desktop:dev` for the editing loop. UI
+changes update live. Main, preload and shared agent-runtime changes compile
+incrementally and automatically restart the dev app after successful builds.
+A compile error leaves the last working app running until the edit is fixed.
+No packaging or reinstall is needed.
+
+The dev app keeps its own persistent profile in `var/desktop-dev/profile`.
+Configure it once; chats and settings remain across reloads. Main/runtime reloads
+stop active dev runs through normal shutdown. Quit the dev app or press Ctrl+C
+to stop the watchers. Dependency installation changes require restarting the dev
+command. See [development and testing](docs/engineering/fast-development.md).
+
 Dependency lifecycle scripts are disabled deliberately; Doolittle installs the
 trusted Electron runtime explicitly instead of executing transitive package
 scripts during workspace installation.
