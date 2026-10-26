@@ -1,9 +1,11 @@
+import { parseWalletActivityReceipt } from "@doolittle/contracts/wallet-activity";
 import type { ReactNode } from "react";
 import { MessageContent } from "../components/MessageContent";
 import {
   type ParsedAgentMessage,
   parseAgentMessage,
 } from "../components/message-output";
+import { WalletActivityCard } from "../components/WalletActivityCard";
 import { displayTimestamp } from "../lib";
 import { ContextCapsuleIcon } from "./ContextCapsuleIcon";
 import { MessageAttachmentList } from "./MessageAttachmentList";
@@ -150,6 +152,16 @@ export function ChatMessage({
             retryDisabled={retryDisabled}
           />
         ) : null}
+        {message.role === "assistant" &&
+          receipt?.latest.run.walletActivities?.map((value) => {
+            const wallet = parseWalletActivityReceipt(value);
+            return wallet ? (
+              <WalletActivityCard
+                key={wallet.id ?? JSON.stringify(wallet)}
+                receipt={wallet}
+              />
+            ) : null;
+          })}
         {visibleContent ? (
           <MessageContent
             content={visibleContent}

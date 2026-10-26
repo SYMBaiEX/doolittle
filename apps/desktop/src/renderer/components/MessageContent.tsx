@@ -40,7 +40,6 @@ import {
   webSearchResults,
 } from "./message-output";
 import { UiIcon } from "./UiIcon";
-import { WalletActivityCard } from "./WalletActivityCard";
 
 interface MessageContentProps {
   content: string;
@@ -557,9 +556,6 @@ export function MessageContent({
           </span>
         </p>
       ) : null}
-      {parsed.tools.map((activity) => (
-        <WalletActivityCard key={activity.id} activity={activity} />
-      ))}
       {parsed.tools.length > 0 ? (
         <section aria-label="Agent tool activity" className="mt-0.5 grid">
           <ToolActivityGroup pending={pending} tools={parsed.tools} />

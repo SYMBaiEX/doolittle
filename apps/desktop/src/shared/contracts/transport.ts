@@ -1,3 +1,4 @@
+import type { WalletActivityReceipt } from "@doolittle/contracts/wallet-activity";
 export type HttpMethod = "GET" | "POST" | "PATCH" | "DELETE";
 
 export const DESKTOP_REQUEST_TIMEOUT_MS = 15_000;
@@ -122,6 +123,7 @@ export interface RunSnapshot {
   statusDetail?: string;
   lastAction?: string;
   localMutations: LocalMutation[];
+  walletActivities?: WalletActivityReceipt[];
   pendingApprovals: number;
   startedAt: string;
   firstStatusAt?: string;

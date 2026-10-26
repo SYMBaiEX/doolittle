@@ -1,4 +1,5 @@
 import type { CodingVerificationReceipt } from "@doolittle/contracts";
+import type { WalletActivityReceipt } from "@doolittle/contracts/wallet-activity";
 import type { RunDepth, ToolProgressMode } from "../../types/index";
 
 /** In-process-only context envelope. Never add this to snapshots or journals. */
@@ -46,6 +47,7 @@ export interface RunSnapshot {
   statusDetail?: string;
   lastAction?: string;
   localMutations: LocalMutationRecord[];
+  walletActivities?: WalletActivityReceipt[];
   pendingApprovals: number;
   startedAt: string;
   /** First operator-visible lifecycle update, used for queue-to-status telemetry. */
