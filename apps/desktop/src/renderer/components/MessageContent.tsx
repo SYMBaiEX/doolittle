@@ -17,7 +17,6 @@ import {
   useState,
 } from "react";
 import { Streamdown, type UrlTransform } from "streamdown";
-import "streamdown/styles.css";
 import {
   MESSAGE_AGENT_STEPS_CLASS,
   MESSAGE_RESPONSE_CLASS,
@@ -41,6 +40,7 @@ import {
   webSearchResults,
 } from "./message-output";
 import { UiIcon } from "./UiIcon";
+import { WalletActivityCard } from "./WalletActivityCard";
 
 interface MessageContentProps {
   content: string;
@@ -557,6 +557,9 @@ export function MessageContent({
           </span>
         </p>
       ) : null}
+      {parsed.tools.map((activity) => (
+        <WalletActivityCard key={activity.id} activity={activity} />
+      ))}
       {parsed.tools.length > 0 ? (
         <section aria-label="Agent tool activity" className="mt-0.5 grid">
           <ToolActivityGroup pending={pending} tools={parsed.tools} />

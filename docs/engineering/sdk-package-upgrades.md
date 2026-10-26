@@ -149,3 +149,10 @@ The legacy message-text compatibility helper is also removed. Actions, providers
 and routing evaluators use ElizaOS's public `getMemoryText` contract directly.
 XML escaping remains a client utility; it has no SDK compatibility behavior.
 These are source removals, not relocation of package patches into local forks.
+
+The desktop keeps a compact wallet activity widget in chat rather than embedding
+the hosted wallet application. It reads the SDK's structured wallet action
+receipts and distinguishes prepared actions, simulations and submitted
+transactions awaiting confirmation. Amount strings retain their precision. The
+widget renders only public receipt fields and adds no signing, submission or
+confirmation path; ElizaOS remains responsible for wallet operations.
