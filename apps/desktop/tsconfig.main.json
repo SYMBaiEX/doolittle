@@ -10,7 +10,8 @@
     "src/preload/**/*.ts",
     "src/shared/**/*.ts",
     "vite.*.config.ts",
-    "scripts/**/*.ts"
+    "scripts/**/*.ts",
+    "../../scripts/cli-build-options.ts"
   ],
   "exclude": ["src/**/*.test.ts"],
   "extends": "../../tsconfig.base.json"

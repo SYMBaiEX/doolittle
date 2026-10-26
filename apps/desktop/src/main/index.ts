@@ -714,8 +714,9 @@ function createWindow(): BrowserWindow {
   return window;
 }
 
+let desktopStartup: Promise<void> = Promise.resolve();
 if (ownsSingleInstance)
-  app.whenReady().then(async () => {
+  desktopStartup = app.whenReady().then(async () => {
     const sourceRoot = sourceRootOverride(
       app.isPackaged,
       process.env.DOOLITTLE_DESKTOP_SOURCE_ROOT,
@@ -1050,7 +1051,9 @@ if (ownsSingleInstance)
             request.operation === "consult.wait" ||
             request.operation === "consult.cancel"
           ) {
-            const payload = request.payload as { dispatchId?: unknown } | null;
+            const payload = request.payload as {
+              dispatchId?: unknown;
+            } | null;
             if (
               !payload ||
               typeof payload.dispatchId !== "string" ||
@@ -1334,7 +1337,9 @@ if (ownsSingleInstance)
         ),
       desktopControls: {
         getLifecycleState: () =>
-          desktopPreferences?.getState() ?? { keepRunningInBackground: false },
+          desktopPreferences?.getState() ?? {
+            keepRunningInBackground: false,
+          },
         setKeepRunningInBackground: (enabled) =>
           desktopPreferences?.setBackgroundMode(enabled) ?? {
             keepRunningInBackground: false,
@@ -1396,3 +1401,23 @@ app.on("window-all-closed", () => {
     app.quit();
   }
 });
+
+// Only the dev supervisor owns this IPC channel. Packaged apps never accept it.
+if (
+  !app.isPackaged &&
+  process.env.DOOLITTLE_DESKTOP_DEV === "1" &&
+  process.send
+) {
+  const quitDevelopmentApp = () => {
+    void desktopStartup.then(
+      () => app.quit(),
+      () => app.quit(),
+    );
+  };
+  process.on("message", (message) => {
+    if (message === "doolittle:dev:quit") quitDevelopmentApp();
+  });
+  process.once("disconnect", quitDevelopmentApp);
+  process.on("SIGINT", quitDevelopmentApp);
+  process.on("SIGTERM", quitDevelopmentApp);
+}
