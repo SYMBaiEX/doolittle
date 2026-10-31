@@ -35,6 +35,8 @@ import {
 } from "./desktop-theme-transfer";
 import {
   asArray,
+  asRecord,
+  asString,
   Badge,
   desktopRequest,
   ErrorBlock,
@@ -569,7 +571,15 @@ export function SettingsPage({
             onThemeExport={exportTheme}
             onThemeImport={(file) => void importTheme(file)}
             onThemeChange={(theme) => void changeTheme(theme)}
-            themes={[...BUILT_IN_THEMES, ...asArray(themes.data?.themes)]}
+            themes={[
+              ...BUILT_IN_THEMES,
+              ...asArray(themes.data?.themes).filter(
+                (value) =>
+                  !BUILT_IN_THEMES.some(
+                    (theme) => theme.id === asString(asRecord(value).name),
+                  ),
+              ),
+            ]}
             themesLoading={themes.loading}
             themesError={themes.error}
             onThemeReload={themes.reload}

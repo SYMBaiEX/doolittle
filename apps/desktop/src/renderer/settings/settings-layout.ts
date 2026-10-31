@@ -18,8 +18,6 @@ export const SETTINGS_INLINE_CHOICE_CLASS =
   "settings-inline-choice dl-settings-preference-row";
 export const SETTINGS_THEME_GRID_CLASS = "theme-grid dl-settings-theme-grid";
 export const SETTINGS_THEME_BUTTON_CLASS = "dl-settings-theme-choice";
-export const SETTINGS_THEME_SIGNAL_CLASS =
-  "theme-card-signal grid size-6 grid-cols-3 gap-0.5 rounded-[var(--radius-xs)] border border-[var(--border)] p-1 [&>i]:h-2 [&>i]:w-1";
 export const SETTINGS_ROW_LAYOUT_CLASS =
   "setting-row dl-settings-field-row min-h-10";
 export const SETTINGS_SWITCH_CLASS =

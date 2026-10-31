@@ -605,6 +605,7 @@ export function applyThemeManifest(
   const root = document.documentElement;
   const appearance = root.dataset.appearance === "light" ? "light" : "dark";
   root.dataset.theme = theme.id;
+  root.dataset.uiMaterial = theme.material ?? "flat";
   root.dataset.uiLayout = theme.layout;
   setCssTokens(themeCssVariables(theme, appearance, loadDensityPreference()));
   const legacyRaw = localStorage.getItem(THEME_STORAGE_KEY);

@@ -1,4 +1,7 @@
-import type { TuiThemeProfile } from "@doolittle/agent/runtime/theme-catalog";
+import {
+  getReadableTextColor,
+  type TuiThemeProfile,
+} from "@doolittle/agent/runtime/theme-catalog";
 import { buildHeaderContent } from "./cockpit-chrome";
 import { panelStyle, type TuiWidgetSet } from "./tui-widget-factory/index";
 
@@ -24,7 +27,7 @@ export function applyTuiTheme(
     footer,
   } = widgets;
 
-  header.style.fg = theme.baseFg;
+  header.style.fg = getReadableTextColor(theme.primary);
   header.style.bg = theme.primary;
   header.setContent(buildHeaderContent(agentName, theme));
 

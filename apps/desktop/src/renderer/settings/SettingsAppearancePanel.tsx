@@ -20,7 +20,6 @@ import {
   SETTINGS_INLINE_CHOICE_CLASS,
   SETTINGS_THEME_BUTTON_CLASS,
   SETTINGS_THEME_GRID_CLASS,
-  SETTINGS_THEME_SIGNAL_CLASS,
 } from "./settings-layout";
 
 export function SettingsAppearancePanel({
@@ -248,26 +247,64 @@ export function SettingsAppearancePanel({
               type="button"
             >
               <span
-                className={SETTINGS_THEME_SIGNAL_CLASS}
+                aria-hidden="true"
+                className="dl-theme-preview"
                 style={{
-                  background: "var(--surface)",
+                  background: asString(darkColors.background, "var(--bg)"),
                 }}
               >
-                <i style={{ background: primary }} />
-                <i style={{ background: secondary }} />
-                <i
+                <span
                   style={{
                     background: asString(
-                      entry.greenGlow,
-                      asString(darkColors.success, "var(--good)"),
+                      darkColors.navigation,
+                      "var(--surface)",
                     ),
                   }}
-                />
+                >
+                  <i style={{ background: primary }} />
+                  <i
+                    style={{
+                      background: asString(
+                        darkColors.borderStrong,
+                        "var(--border-strong)",
+                      ),
+                    }}
+                  />
+                  <i
+                    style={{
+                      background: asString(
+                        darkColors.borderStrong,
+                        "var(--border-strong)",
+                      ),
+                    }}
+                  />
+                </span>
+                <span className="dl-theme-preview-chat">
+                  <b
+                    style={{
+                      background: asString(
+                        darkColors.secondaryText,
+                        "var(--text-soft)",
+                      ),
+                    }}
+                  />
+                  <b
+                    style={{
+                      background: asString(
+                        darkColors.mutedText,
+                        "var(--muted)",
+                      ),
+                      width: "58%",
+                    }}
+                  />
+                  <b style={{ background: secondary }} />
+                </span>
               </span>
               <strong>{label}</strong>
               {activeTheme?.name === name ? (
                 <UiIcon icon={Check} size="xs" />
               ) : null}
+              <span className="dl-theme-description">{tagline}</span>
             </button>
           );
         })}

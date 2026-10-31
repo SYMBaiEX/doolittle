@@ -14,9 +14,10 @@ async function expectQuietFocus(control: Locator) {
   await control.focus();
   const style = await control.evaluate((node) => ({
     outline: getComputedStyle(node).outlineWidth,
+    outlineStyle: getComputedStyle(node).outlineStyle,
     shadow: getComputedStyle(node).boxShadow,
   }));
-  expect(style.outline).toBe("0px");
+  expect(style.outline === "0px" || style.outlineStyle === "none").toBe(true);
   const dimensions =
     style.shadow.replace(/rgba?\([^)]*\)/gu, "").match(/-?[0-9.]+px/gu) ?? [];
   // The documented one-pixel inset caret is allowed; frames/glows are not.
@@ -324,6 +325,86 @@ test.describe("fresh native desktop", () => {
           .getByLabel("Conversation detail")
           .getByText("Stable sidebar marker"),
       ).toBeVisible();
+    } finally {
+      await desktop.dispose();
+    }
+  });
+  test("switches expressive themes without losing drafts and restores appearance after restart", async () => {
+    test.setTimeout(120_000);
+    const desktop = await launchDesktop();
+    try {
+      let page = desktop.page;
+      const composer = page.getByRole("textbox", { name: /^Message /u });
+      await composer.fill("Keep this coding draft while I change the theme.");
+      await page
+        .getByRole("button", { name: "Open settings", exact: true })
+        .click();
+      for (const [name, id, material] of [
+        ["Anime Atelier", "anime-atelier", "cel"],
+        ["Golden Gate Glass", "golden-gate-glass", "glass"],
+      ]) {
+        await page
+          .getByRole("button", { name: new RegExp(`^${name}:`) })
+          .click();
+        await expect(page.locator("html")).toHaveAttribute("data-theme", id);
+        await expect(page.locator("html")).toHaveAttribute(
+          "data-ui-material",
+          material,
+        );
+        for (const appearance of ["light", "dark"]) {
+          await page
+            .getByRole("button", {
+              name: `${appearance === "light" ? "Light" : "Dark"}: ${appearance === "light" ? "Light" : "Dark"} surfaces`,
+              exact: true,
+            })
+            .click();
+          await expect(page.locator("html")).toHaveAttribute(
+            "data-appearance",
+            appearance,
+          );
+          await page.screenshot({
+            path: test.info().outputPath(`${id}-${appearance}.png`),
+          });
+          await page.getByRole("button", { name: /^Back to /u }).click();
+          await expect(
+            page.getByRole("textbox", { name: /^Message /u }),
+          ).toHaveValue("Keep this coding draft while I change the theme.");
+          await page.screenshot({
+            path: test.info().outputPath(`${id}-${appearance}-chat.png`),
+          });
+          await page
+            .getByRole("button", { name: "Open settings", exact: true })
+            .click();
+        }
+      }
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      await expect(page.locator(".desktop-shell")).toHaveCSS(
+        "transition-duration",
+        "0s",
+      );
+      await desktop.restart();
+      page = desktop.page;
+      await expect(page.locator("html")).toHaveAttribute(
+        "data-theme",
+        "golden-gate-glass",
+      );
+      await expect(
+        page.getByRole("textbox", { name: /^Message /u }),
+      ).toHaveValue("Keep this coding draft while I change the theme.");
+      await desktop.app.evaluate(({ BrowserWindow }) => {
+        BrowserWindow.getAllWindows()[0]?.setSize(520, 780);
+      });
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth,
+        ),
+      ).toBe(true);
+      await expectQuietFocus(page.getByRole("textbox", { name: /^Message /u }));
+      await page.emulateMedia({ forcedColors: "active" });
+      await expect(page.locator(".chat-composer")).toHaveCSS(
+        "backdrop-filter",
+        "none",
+      );
     } finally {
       await desktop.dispose();
     }
