@@ -2,6 +2,13 @@
 
 ## Design direction
 
+The optional Anime Atelier and Golden Gate Glass themes extend this baseline
+with cel-style depth or translucent materials and original welcome artwork.
+Their treatments preserve conversation ownership and workspace composition.
+They retain quiet input focus, readable code, light/dark contrast, reduced
+motion and opaque/forced-color alternatives. Companion remains the quiet
+default; short panes omit decorative artwork.
+
 The default Companion composition is a contact-sidebar messenger: one readable
 conversation, one compact composer, supporting tools on demand. Canvas hides
 navigation until requested and gives conversations and supporting panes more room.
