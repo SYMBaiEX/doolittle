@@ -194,8 +194,6 @@ export async function executeManagedDelegation(input: {
         .then(close)
         .catch(() => undefined);
     };
-    signal?.addEventListener("abort", cancel, { once: true });
-    if (signal?.aborted) cancel();
     const unsubscribe = service.onSessionEvent((sessionId, event, data) => {
       if (sessionId !== session.sessionId || !current()) return;
       if (event === "usage_update") {
@@ -265,6 +263,8 @@ export async function executeManagedDelegation(input: {
         if (event !== "error") cancel();
       }
     });
+    signal?.addEventListener("abort", cancel, { once: true });
+    if (signal?.aborted) cancel();
     let stopReason = "error";
     let exitCode: number | null = null;
     try {

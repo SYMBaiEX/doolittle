@@ -54,7 +54,8 @@ it("awaits child shutdown when attaching the SDK event subscription fails", asyn
   });
   service.stopSession.mockImplementation(() => stopped);
   let settled = false;
-  const result = execute().catch((error: unknown) => {
+  const controller = new AbortController();
+  const result = execute(controller.signal).catch((error: unknown) => {
     settled = true;
     return error;
   });
@@ -65,6 +66,8 @@ it("awaits child shutdown when attaching the SDK event subscription fails", asyn
   expect(service.sendPrompt).not.toHaveBeenCalled();
   release();
   expect(await result).toMatchObject({ message: "subscription failed" });
+  controller.abort();
+  expect(service.cancelSession).not.toHaveBeenCalled();
   expect(service.stopSession).toHaveBeenCalledTimes(1);
 });
 
