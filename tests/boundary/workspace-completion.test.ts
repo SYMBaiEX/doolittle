@@ -22,7 +22,10 @@ import {
   missingWorkspaceMutationRequirements,
   verifyWorkspaceNoopCompletion,
 } from "../../packages/agent/src/runtime/chat-turn/workspace-evidence";
-import type { WorkspaceNoopRequirements } from "../../packages/agent/src/runtime/chat-turn/workspace-noop-completion";
+import {
+  type WorkspaceNoopRequirements,
+  workspaceNoopRequirements,
+} from "../../packages/agent/src/runtime/chat-turn/workspace-noop-completion";
 import {
   recordScopedTurnActionResult,
   runWithTurnRuntimeScope,
@@ -363,4 +366,24 @@ describe("workspace completion across SDK turns", () => {
       },
     );
   });
+});
+
+it("requires builds for build instructions, not command-parser descriptions", () => {
+  for (const request of [
+    "Repair the parser so it recognizes Nub build, typecheck and scoped-test commands. Run nub run test:scope.",
+    "Document the build workflow and explain the build output.",
+    "Fix the package runner used to build Doolittle. Run the scoped tests.",
+  ])
+    expect(workspaceNoopRequirements(request).requireBuild).toBe(false);
+  for (const request of [
+    "Build a todo application.",
+    "Fix the bug, then build.",
+    "Run the production build.",
+    "Run nub run build.",
+    "Verify with `npm run build`.",
+    "Ensure the production build passes.",
+    "nub run build",
+    "Start the application.",
+  ])
+    expect(workspaceNoopRequirements(request).requireBuild).toBe(true);
 });

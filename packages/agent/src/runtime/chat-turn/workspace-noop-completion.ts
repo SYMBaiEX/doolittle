@@ -51,7 +51,15 @@ export function workspaceNoopRequirements(
     // has passed. Make that prerequisite explicit even if the user did not
     // separately say “build”.
     requireBuild:
-      /\b(?:production\s+)?build\b/iu.test(userRequest) ||
+      // A command parser or build-system repair can mention "build" as data.
+      // Require an instruction to build, rather than every occurrence of it.
+      /(?:^|[.!?;]\s*|\b(?:then|and|please)\s+)(?:production\s+)?build\b|\b(?:run|execute|perform|complete|verify|check|pass)\s+(?:(?:a|the|its|final|successful|production)\s+)*build\b|\b(?:run|execute|verify\s+with|check\s+with)\s+`?(?:bun|nub|npm|pnpm|yarn)\s+(?:run\s+)?build\b|\b(?:ensure|confirm)\s+(?:(?:a|the|its|final|successful|production)\s+)*build\s+(?:passes|succeeds|completes)\b/iu.test(
+        userRequest,
+      ) ||
+      inspectWorkspaceCommands(userRequest).some(
+        (operation) =>
+          operation.kind === "build" || operation.kind === "bundle",
+      ) ||
       requireManagedApplication,
     requireManagedApplication,
   };
