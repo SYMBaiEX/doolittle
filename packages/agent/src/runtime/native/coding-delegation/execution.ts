@@ -150,207 +150,207 @@ export async function executeManagedDelegation(input: {
   // Own the child as soon as spawn succeeds, including failures while taking
   // the workspace baseline or attaching the SDK event subscription. Normal
   // completion below still reports cleanup failures in the execution receipt.
-  await using _sessionCleanup = {
-    [Symbol.asyncDispose]: async () => {
-      await close().catch(() => undefined);
-    },
-  };
-  let initialSelection = initialSelectionEvidence(session);
-  let returnedSession = session;
   try {
-    initialSelection = initialSelectionEvidence(spawnedSession);
-    // Do not evaluate or return raw selection to action result/event payloads.
-    const returnedDescriptors =
-      Object.getOwnPropertyDescriptors(spawnedSession);
-    delete returnedDescriptors.initialModelSelection;
-    returnedSession = Object.defineProperties(
-      {},
-      returnedDescriptors,
-    ) as AcpSession;
-  } catch {
-    // Optional introspection may be refused by a Proxy. Preserve the core
-    // session, normal lifecycle, and unavailable evidence; never expose errors.
-    initialSelection = initialSelectionEvidence(session);
-  }
-  if (
-    signal?.aborted ||
-    resolve(session.workdir) !== resolve(text(options.workdir))
-  ) {
-    await close();
-    signal?.throwIfAborted();
-    throw new Error("CODING_WORKSPACE_MISMATCH");
-  }
-  // ACP may prepare AGENTS.md/identity files while creating a session. Those
-  // are harness setup, not implementation evidence for the user's task.
-  await evidence.start();
-  const tools = new Map<string, DelegatedToolObservation>();
-  const usage = new DelegatedUsageCollector();
-  const pendingEvidence: Promise<void>[] = [];
-  let response = "";
-  let eventFailure = "";
-  let streamedProviderFailure = "";
-  let lastProgress = 0;
-  let cancellation: Promise<void> | undefined;
-  const cancel = () => {
-    cancellation ??= service
-      .cancelSession(session.sessionId)
-      .catch(() => undefined)
-      .then(close)
-      .catch(() => undefined);
-  };
-  signal?.addEventListener("abort", cancel, { once: true });
-  if (signal?.aborted) cancel();
-  const unsubscribe = service.onSessionEvent((sessionId, event, data) => {
-    if (sessionId !== session.sessionId || !current()) return;
-    if (event === "usage_update") {
-      usage.observe(data);
-      return;
+    let initialSelection = initialSelectionEvidence(session);
+    let returnedSession = session;
+    try {
+      initialSelection = initialSelectionEvidence(spawnedSession);
+      // Do not evaluate or return raw selection to action result/event payloads.
+      const returnedDescriptors =
+        Object.getOwnPropertyDescriptors(spawnedSession);
+      delete returnedDescriptors.initialModelSelection;
+      returnedSession = Object.defineProperties(
+        {},
+        returnedDescriptors,
+      ) as AcpSession;
+    } catch {
+      // Optional introspection may be refused by a Proxy. Preserve the core
+      // session, normal lifecycle, and unavailable evidence; never expose errors.
+      initialSelection = initialSelectionEvidence(session);
     }
-    if (!isRecord(data)) return;
-    if (event === "message") {
-      response = `${response}${text(data.text)}`.slice(-64_000);
-      if (Date.now() - lastProgress >= 250) {
-        const safeProgress = /(?:^|\n)\s*(?:data:\s*)?\{/u.test(response)
-          ? `${session.agentType} is returning a structured response…`
-          : `${session.agentType}: ${response.slice(-300)}`;
+    if (
+      signal?.aborted ||
+      resolve(session.workdir) !== resolve(text(options.workdir))
+    ) {
+      await close();
+      signal?.throwIfAborted();
+      throw new Error("CODING_WORKSPACE_MISMATCH");
+    }
+    // ACP may prepare AGENTS.md/identity files while creating a session. Those
+    // are harness setup, not implementation evidence for the user's task.
+    await evidence.start();
+    const tools = new Map<string, DelegatedToolObservation>();
+    const usage = new DelegatedUsageCollector();
+    const pendingEvidence: Promise<void>[] = [];
+    let response = "";
+    let eventFailure = "";
+    let streamedProviderFailure = "";
+    let lastProgress = 0;
+    let cancellation: Promise<void> | undefined;
+    const cancel = () => {
+      cancellation ??= service
+        .cancelSession(session.sessionId)
+        .catch(() => undefined)
+        .then(close)
+        .catch(() => undefined);
+    };
+    signal?.addEventListener("abort", cancel, { once: true });
+    if (signal?.aborted) cancel();
+    const unsubscribe = service.onSessionEvent((sessionId, event, data) => {
+      if (sessionId !== session.sessionId || !current()) return;
+      if (event === "usage_update") {
+        usage.observe(data);
+        return;
+      }
+      if (!isRecord(data)) return;
+      if (event === "message") {
+        response = `${response}${text(data.text)}`.slice(-64_000);
+        if (Date.now() - lastProgress >= 250) {
+          const safeProgress = /(?:^|\n)\s*(?:data:\s*)?\{/u.test(response)
+            ? `${session.agentType} is returning a structured response…`
+            : `${session.agentType}: ${response.slice(-300)}`;
+          services.runController.noteRuntimeStream(
+            roomId,
+            "action",
+            safeProgress,
+          );
+          lastProgress = Date.now();
+        }
+      } else if (event === "tool_running" && isRecord(data.toolCall)) {
+        const tool = data.toolCall;
+        const id = text(tool.id);
+        if (!id || (tools.size >= 200 && !tools.has(id))) return;
+        const previous = tools.get(id);
+        const observed = {
+          id,
+          title: text(tool.title) || previous?.title || "Coding tool",
+          kind: text(tool.kind) || previous?.kind || "other",
+          status: text(tool.status) || "running",
+        };
+        tools.set(id, observed);
         services.runController.noteRuntimeStream(
           roomId,
           "action",
-          safeProgress,
+          `${session.agentType}: ${observed.title.slice(0, 250)} (${observed.status})`,
         );
-        lastProgress = Date.now();
-      }
-    } else if (event === "tool_running" && isRecord(data.toolCall)) {
-      const tool = data.toolCall;
-      const id = text(tool.id);
-      if (!id || (tools.size >= 200 && !tools.has(id))) return;
-      const previous = tools.get(id);
-      const observed = {
-        id,
-        title: text(tool.title) || previous?.title || "Coding tool",
-        kind: text(tool.kind) || previous?.kind || "other",
-        status: text(tool.status) || "running",
-      };
-      tools.set(id, observed);
-      services.runController.noteRuntimeStream(
-        roomId,
-        "action",
-        `${session.agentType}: ${observed.title.slice(0, 250)} (${observed.status})`,
-      );
-      if (run)
-        services.runController.appendTaskEvent(run.runId, "delegation.tool", {
-          sessionId,
-          ...observed,
-        });
-      // Capture before an edit, never treat a post-edit existence check as proof.
-      if (
-        !previous &&
-        !["completed", "failed", "error"].includes(observed.status) &&
-        ["edit", "delete", "move"].includes(observed.kind)
-      ) {
-        for (const location of Array.isArray(tool.locations)
-          ? tool.locations
-          : []) {
-          if (isRecord(location) && text(location.path))
-            pendingEvidence.push(evidence.track(text(location.path)));
+        if (run)
+          services.runController.appendTaskEvent(run.runId, "delegation.tool", {
+            sessionId,
+            ...observed,
+          });
+        // Capture before an edit, never treat a post-edit existence check as proof.
+        if (
+          !previous &&
+          !["completed", "failed", "error"].includes(observed.status) &&
+          ["edit", "delete", "move"].includes(observed.kind)
+        ) {
+          for (const location of Array.isArray(tool.locations)
+            ? tool.locations
+            : []) {
+            if (isRecord(location) && text(location.path))
+              pendingEvidence.push(evidence.track(text(location.path)));
+          }
+          const rawInput = isRecord(tool.rawInput) ? tool.rawInput : {};
+          for (const key of ["path", "file_path", "filePath"])
+            if (text(rawInput[key]))
+              pendingEvidence.push(evidence.track(text(rawInput[key])));
         }
-        const rawInput = isRecord(tool.rawInput) ? tool.rawInput : {};
-        for (const key of ["path", "file_path", "filePath"])
-          if (text(rawInput[key]))
-            pendingEvidence.push(evidence.track(text(rawInput[key])));
+      } else if (["error", "blocked", "login_required"].includes(event)) {
+        eventFailure = text(data.message) || event;
+        services.runController.noteRuntimeStream(
+          roomId,
+          "action",
+          delegationFailureMessage(session.agentType, eventFailure),
+        );
+        if (event !== "error") cancel();
       }
-    } else if (["error", "blocked", "login_required"].includes(event)) {
-      eventFailure = text(data.message) || event;
-      services.runController.noteRuntimeStream(
-        roomId,
-        "action",
-        delegationFailureMessage(session.agentType, eventFailure),
-      );
-      if (event !== "error") cancel();
-    }
-  });
-  let stopReason = "error";
-  let exitCode: number | null = null;
-  try {
-    if (!signal?.aborted) {
-      const result = await service.sendPrompt(session.sessionId, task, {
-        model: input.model,
-        timeoutMs: options.timeoutMs ?? 20 * 60_000,
-      });
-      stopReason = result.stopReason ?? "unknown";
-      exitCode = result.exitCode ?? null;
-      // A final provider error is authoritative; an earlier advisory is not
-      // the reason the request failed (for example, model metadata warnings).
-      streamedProviderFailure = providerStreamError(response);
-      eventFailure = streamedProviderFailure || result.error || eventFailure;
-    }
-  } catch (error) {
-    eventFailure ||= error instanceof Error ? error.message : "provider error";
-  } finally {
-    streamedProviderFailure ||= providerStreamError(response);
-    if (streamedProviderFailure) eventFailure = streamedProviderFailure;
-    if (
-      !streamedProviderFailure &&
-      (eventFailure ||
-        stopReason === "error" ||
-        (exitCode !== null && exitCode !== 0))
-    ) {
-      // Read this exact child's durable SDK error before closing its process.
-      // Some native transports surface the detailed RPC error only here.
-      const childError = await finalChildError(service, session.sessionId);
-      eventFailure = childError || eventFailure;
-    }
-    signal?.removeEventListener("abort", cancel);
-    try {
-      unsubscribe();
-    } catch {
-      eventFailure ||= "Coding session event cleanup failed";
-    }
-    await cancellation;
-    // Close only this worker. Stop waits for provider cleanup before the parent
-    // can accept a retry, preventing late detached writes from the old session.
-    await close().catch(() => {
-      eventFailure ||= "Coding session cleanup failed";
     });
-  }
-  await Promise.all(pendingEvidence);
-  const changedFiles = await evidence.finish();
-  const cancelled =
-    signal?.aborted || stopReason === "cancelled" || stopReason === "stopped";
-  const completed =
-    !cancelled &&
-    !eventFailure &&
-    stopReason === "end_turn" &&
-    (exitCode === null || exitCode === 0);
-  const status = cancelled ? "cancelled" : completed ? "completed" : "failed";
-  const failureMessage = completed
-    ? undefined
-    : delegationFailureMessage(
-        session.agentType,
-        cancelled ? "cancelled" : eventFailure || stopReason,
+    let stopReason = "error";
+    let exitCode: number | null = null;
+    try {
+      if (!signal?.aborted) {
+        const result = await service.sendPrompt(session.sessionId, task, {
+          model: input.model,
+          timeoutMs: options.timeoutMs ?? 20 * 60_000,
+        });
+        stopReason = result.stopReason ?? "unknown";
+        exitCode = result.exitCode ?? null;
+        // A final provider error is authoritative; an earlier advisory is not
+        // the reason the request failed (for example, model metadata warnings).
+        streamedProviderFailure = providerStreamError(response);
+        eventFailure = streamedProviderFailure || result.error || eventFailure;
+      }
+    } catch (error) {
+      eventFailure ||=
+        error instanceof Error ? error.message : "provider error";
+    } finally {
+      streamedProviderFailure ||= providerStreamError(response);
+      if (streamedProviderFailure) eventFailure = streamedProviderFailure;
+      if (
+        !streamedProviderFailure &&
+        (eventFailure ||
+          stopReason === "error" ||
+          (exitCode !== null && exitCode !== 0))
+      ) {
+        // Read this exact child's durable SDK error before closing its process.
+        // Some native transports surface the detailed RPC error only here.
+        const childError = await finalChildError(service, session.sessionId);
+        eventFailure = childError || eventFailure;
+      }
+      signal?.removeEventListener("abort", cancel);
+      try {
+        unsubscribe();
+      } catch {
+        eventFailure ||= "Coding session event cleanup failed";
+      }
+      await cancellation;
+      // Close only this worker. Stop waits for provider cleanup before the parent
+      // can accept a retry, preventing late detached writes from the old session.
+      await close().catch(() => {
+        eventFailure ||= "Coding session cleanup failed";
+      });
+    }
+    await Promise.all(pendingEvidence);
+    const changedFiles = await evidence.finish();
+    const cancelled =
+      signal?.aborted || stopReason === "cancelled" || stopReason === "stopped";
+    const completed =
+      !cancelled &&
+      !eventFailure &&
+      stopReason === "end_turn" &&
+      (exitCode === null || exitCode === 0);
+    const status = cancelled ? "cancelled" : completed ? "completed" : "failed";
+    const failureMessage = completed
+      ? undefined
+      : delegationFailureMessage(
+          session.agentType,
+          cancelled ? "cancelled" : eventFailure || stopReason,
+        );
+    const receipt: DelegatedExecutionReceipt = {
+      sessionId: session.sessionId,
+      agentType: session.agentType,
+      workdir: session.workdir,
+      status,
+      stopReason,
+      exitCode,
+      // Structured provider errors may contain account or request diagnostics.
+      // Keep the actionable classification, not the raw provider envelope.
+      summary: streamedProviderFailure ? "" : response.trim(),
+      failureMessage,
+      observedTools: [...tools.values()],
+      changedFiles,
+      verifiedLocalMutation: changedFiles.length > 0,
+      usage: usage.receipt(),
+      initialSelection,
+    };
+    if (run)
+      services.runController.appendTaskEvent(
+        run.runId,
+        "delegation.completed",
+        receipt,
       );
-  const receipt: DelegatedExecutionReceipt = {
-    sessionId: session.sessionId,
-    agentType: session.agentType,
-    workdir: session.workdir,
-    status,
-    stopReason,
-    exitCode,
-    // Structured provider errors may contain account or request diagnostics.
-    // Keep the actionable classification, not the raw provider envelope.
-    summary: streamedProviderFailure ? "" : response.trim(),
-    failureMessage,
-    observedTools: [...tools.values()],
-    changedFiles,
-    verifiedLocalMutation: changedFiles.length > 0,
-    usage: usage.receipt(),
-    initialSelection,
-  };
-  if (run)
-    services.runController.appendTaskEvent(
-      run.runId,
-      "delegation.completed",
-      receipt,
-    );
-  return { session: { ...returnedSession, status }, receipt };
+    return { session: { ...returnedSession, status }, receipt };
+  } finally {
+    await close().catch(() => undefined);
+  }
 }
