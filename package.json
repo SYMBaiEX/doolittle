@@ -251,7 +251,16 @@
     "@ethersproject/hash>@ethersproject/abstract-signer": "npm:ethers@6.17.0",
     "@elizaos/plugin-computeruse>@nut-tree-fork/nut-js": "npm:@dyw1234/nut-js@4.2.7",
     "@nut-tree-fork/shared": "npm:@dyw1234/nut-shared@4.2.7",
-    "@nut-tree-fork/provider-interfaces": "npm:@dyw1234/nut-provider-interfaces@4.2.7"
+    "@nut-tree-fork/provider-interfaces": "npm:@dyw1234/nut-provider-interfaces@4.2.7",
+    "glob@>=9.0.0 <14.0.3": "14.0.3",
+    "minimatch": "11.0.3",
+    "follow-redirects": "1.16.2",
+    "@electron/universal": "3.0.6",
+    "filelist": "2.0.2",
+    "@electron/asar": "4.3.1",
+    "app-builder-lib>electron-builder-squirrel-windows": "-",
+    "@elizaos/plugin-discord>@discordjs/opus": "-",
+    "prism-media>@discordjs/opus": "-"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.3",

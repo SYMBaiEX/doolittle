@@ -262,3 +262,22 @@ pixel colors, malformed input, coordinate bounds and three-/four-channel
 RGB/BGR round trips without mutating sliced caller buffers. A local native
 module-load probe also verified mouse and keyboard APIs. This is not a claim of
 physical input acceptance on every OS.
+
+## October 31 dependency refresh
+
+The release graph uses glob 14.0.3, minimatch 11.0.3 and follow-redirects 1.16.2
+to resolve the new [glob cancellation](https://github.com/advisories/GHSA-3g3m-2fjr-6pw4),
+[matcher amplification](https://github.com/advisories/GHSA-g3hv-75wg-m249) and
+[redirect-header](https://github.com/advisories/GHSA-mrwp-f3q8-3g9p) advisories.
+No new patch or advisory exception is introduced.
+
+Legacy glob/minimatch consumers are removed through their parents: ASAR 4.3.1,
+Electron Universal 3.0.6 and FileList 2.0.2. The unconfigured Squirrel.Windows
+packaging peer is excluded; the supported Windows target remains NSIS.
+Discord uses the SDK's already supplied `opusscript` WebAssembly codec instead
+of the optional native Opus package and its old pre-gyp/rimraf/glob closure.
+This keeps voice encoding/decoding through prism-media's supported codec loader.
+
+Tests exercise ASAR unpack rules, Jake file-list filtering, aborted glob calls,
+a real audio encode/decode round trip and cross-realm custom credential stripping
+over loopback redirects. They do not claim a live Discord voice-call test.
