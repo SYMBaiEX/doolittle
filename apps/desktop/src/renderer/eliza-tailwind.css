@@ -9,6 +9,7 @@
 @import "@doolittle/ui/styles.css";
 @import "streamdown/styles.css";
 @import "./surface-motion.css";
+@import "./theme-materials.css";
 @import "./bots/bot-design.css";
 
 @source "../../../../packages/ui/src";

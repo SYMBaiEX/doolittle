@@ -24,6 +24,10 @@ export function Welcome({
           prompt: "Investigate a bug",
           detail: "Trace a failure from evidence to a likely cause",
         },
+        {
+          prompt: "Review my changes",
+          detail: "Inspect the diff for bugs, missing tests and risks",
+        },
       ]
     : [
         {
@@ -41,7 +45,7 @@ export function Welcome({
       ];
   return (
     <div className="chat-welcome">
-      <h1>What’s on your mind?</h1>
+      <h1>{projectName ? "What should we build?" : "What’s on your mind?"}</h1>
       <p>
         {projectName
           ? `${botName} can help with ${projectName}, or anything else you’re working on.`

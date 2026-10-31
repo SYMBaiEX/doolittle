@@ -1,6 +1,8 @@
 import { readdirSync, readFileSync } from "node:fs";
+import { mkdtemp, rm } from "node:fs/promises";
 import { createRequire } from "node:module";
-import { dirname, resolve } from "node:path";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import * as modern from "ethers";
 import { describe, expect, it } from "vitest";
@@ -70,19 +72,94 @@ for (const format of ["CommonJS", "ESM"]) {
   });
 }
 
-it("retains native computer-use image decoding with the current file parser", async () => {
-  const nativeRequire = createRequire(
-    resolve("node_modules/@nut-tree-fork/nut-js/package.json"),
-  );
-  const Jimp = nativeRequire("jimp");
-  const image = new Jimp(2, 2, 0xff0000ff);
-  const png = await image.getBufferAsync(Jimp.MIME_PNG);
-  const decoded = await Jimp.read(png);
-  expect(decoded.bitmap.width).toBe(2);
-  expect(decoded.bitmap.height).toBe(2);
-  expect(decoded.getPixelColor(0, 0)).toBe(0xff0000ff);
-  await expect(Jimp.read(Buffer.from("not an image"))).rejects.toThrow();
+const computerRequire = createRequire(
+  consumerRequire.resolve("@elizaos/plugin-computeruse/package.json"),
+);
+const nativeRequire = createRequire(
+  computerRequire.resolve("@nut-tree-fork/nut-js/package.json"),
+);
+
+it("round-trips native computer-use image providers with modern Jimp", async () => {
+  const { Jimp } = nativeRequire("jimp");
+  const providers = nativeRequire(
+    "./dist/lib/provider/provider-registry.class.js",
+  ).default;
+  const { Point } = nativeRequire("@nut-tree-fork/shared");
+  const root = await mkdtemp(join(tmpdir(), "doolittle-native-image-"));
+  try {
+    const png = await new Jimp({
+      width: 2,
+      height: 2,
+      color: 0xff0000ff,
+    }).getBuffer("image/png");
+    const decoded = await providers.getImageReader().load(png);
+    expect([decoded.width, decoded.height]).toEqual([2, 2]);
+    expect([...decoded.data.subarray(0, 4)]).toEqual([0, 0, 255, 255]);
+    expect(
+      await providers.getImageProcessor().colorAt(decoded, new Point(0, 0)),
+    ).toMatchObject({ R: 255, G: 0, B: 0, A: 255 });
+    const path = join(root, "roundtrip.png");
+    await providers.getImageWriter().store({ image: decoded, path });
+    expect((await Jimp.read(path)).getPixelColor(0, 0)).toBe(0xff0000ff);
+    await expect(
+      providers.getImageReader().load(Buffer.from("not an image")),
+    ).rejects.toThrow();
+    await expect(
+      providers.getImageProcessor().colorAt(decoded, new Point(2, 0)),
+    ).rejects.toThrow();
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });
+
+it.each([3, 4])(
+  "preserves %i-channel native image buffers and color conversions",
+  async (channels) => {
+    const { Image, ColorMode, imageToJimp } = nativeRequire(
+      "@nut-tree-fork/shared",
+    );
+    const parent = Buffer.from([
+      90,
+      90,
+      255,
+      0,
+      0,
+      ...(channels === 4 ? [255] : []),
+      90,
+    ]);
+    const source = parent.subarray(2, 2 + channels);
+    const image = new Image(
+      1,
+      1,
+      source,
+      channels,
+      "red",
+      channels,
+      channels,
+      ColorMode.RGB,
+    );
+    const bgr = await image.toBGR();
+    expect([...bgr.data]).toEqual([
+      0,
+      0,
+      255,
+      ...(channels === 4 ? [255] : []),
+    ]);
+    expect(bgr.channels).toBe(channels);
+    expect([...(await bgr.toRGB()).data]).toEqual([...source]);
+    const converted = imageToJimp(bgr);
+    expect(converted.getPixelColor(0, 0)).toBe(0xff0000ff);
+    converted.bitmap.data.fill(0);
+    expect([...source]).toEqual([255, 0, 0, ...(channels === 4 ? [255] : [])]);
+    expect([...bgr.data]).toEqual([
+      0,
+      0,
+      255,
+      ...(channels === 4 ? [255] : []),
+    ]);
+    expect(parent[0]).toBe(90);
+  },
+);
 
 it("retains legacy ABI and typed-data hashes while using the current ethers domain types", async () => {
   const abiRequire = createRequire(

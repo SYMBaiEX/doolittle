@@ -133,6 +133,11 @@ import { projectNavigationTarget } from "./project-navigation";
 import { resolveSessionConversationScope } from "./session-conversation-scope";
 import { compactSessionPreview } from "./session-preview";
 import {
+  LEGACY_SESSION_WORKSPACE_STORAGE_KEY,
+  restoreWorkspaceLayout,
+  SESSION_WORKSPACE_STORAGE_KEY,
+} from "./session-workspace/workspace-layout";
+import {
   isCommandPaletteShortcut,
   shouldHandleGlobalChatTerminalShortcut,
   shouldIgnoreShellShortcut,
@@ -338,7 +343,21 @@ export function CommandPaletteLoadingFallback({
 }
 
 export function App() {
-  const initialConversation = useMemo(newConversationId, []);
+  const initialConversation = useMemo(() => {
+    try {
+      // Unsent local chats have no native selection yet; retain their saved ID.
+      // The authoritative host selection still takes precedence after hydration.
+      return (
+        restoreWorkspaceLayout(
+          localStorage.getItem(SESSION_WORKSPACE_STORAGE_KEY) ??
+            localStorage.getItem(LEGACY_SESSION_WORKSPACE_STORAGE_KEY),
+          "",
+        ).focusedId || newConversationId()
+      );
+    } catch {
+      return newConversationId();
+    }
+  }, []);
   const routeFocus = useRef<DesktopRouteFocusStore>(new Map());
   const [view, setViewState] = useState<View>(() => resolveDesktopHash().view);
   const [navigationHistory, setNavigationHistory] = useState(() =>

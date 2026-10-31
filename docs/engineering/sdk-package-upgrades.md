@@ -59,8 +59,9 @@ consumer over both CDP and BiDi, including interaction and screenshots.
 ## Remaining upstream requirements
 
 Doolittle is an ElizaOS desktop and CLI client for coding and daily assistance.
-Dependency cleanup must preserve that engine and its registered tools. Six
-package patches remain; none are advisory exceptions:
+Dependency cleanup must preserve that engine and its registered tools. Five
+package patches remain; the target is zero, using supported integrations and
+published replacements. None are advisory exceptions:
 
 | Dependency                 | Why its patch remains                                                                                                                              |
 | -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -69,7 +70,6 @@ package patches remain; none are advisory exceptions:
 | ElizaOS SQL                | Prevents automatic traversal into unrelated parent `.env` files.                                                                                   |
 | ElizaOS agent orchestrator | Native/CLI session ownership, workspace service interoperability, and validated model-selection receipts.                                          |
 | Solana buffer-layout-utils | Replaces vulnerable bigint-buffer with modern Noble while retaining binary layouts; published 0.3.0 still requires the old buffer library.         |
-| Jimp core                  | Adapts the nut-js image consumer to current file-type; latest nut-js 4.2.6 still pins Jimp 0.22.10.                                                |
 
 The braces guard is retired. The desktop excludes the SDK's unused hosted
 Solana wallet UI, which pulled in React Native, Metro and micromatch. The
@@ -109,15 +109,10 @@ client otherwise makes no automatic retries. Failed or incomplete streams fail
 the turn. Provider response bodies and image bytes are excluded from errors.
 See the [official image input contract](https://developers.openai.com/api/docs/guides/images-vision).
 
-The other seven patches were rechecked against current publications. Newer SQL,
-orchestrator and Codex plugin tarballs still omit their advertised runtime
-entries. The published `bigint-buffer-fixed@1.1.6` fork silently truncates
-out-of-range values in its JS path and does not replace the existing strict
-layout contract. Ethers signing-key's 6.0 beta changes signing/recovery APIs and
-retains an old Noble dependency; it is not a safe v5 replacement. The public
-nut-tree fork still pins Jimp 0.22.10. Core/agent security and behavior fixes
-remain required by the currently usable SDK. No SDK engine or registered tool
-was removed to reduce the patch count.
+The current five patches and their retirement requirements are listed above.
+The ethers signing closure has since been removed through its type-only
+dependency boundary, as described below. No SDK engine or registered tool was
+removed to reduce the patch count.
 
 ## Follow-up retirement review
 
@@ -133,9 +128,9 @@ current npm registry integrity metadata. SQL still lacks
 `dist/node/index.node.js` and `dist/cjs/index.node.cjs`. The other retained plugin
 candidates also lack runtime entries. The core/agent/app-core/shared candidates
 contain runtime files but still have the API and behavior limits described above.
-No further package upgrade or patch retirement passed that review. At that point,
-all seven package patches remained required; the obsolete dependency consumers that required
-the braces guard have now been removed.
+These missing runtime entries still block those package upgrades. The current
+five-patch count reflects the subsequent ethers and Jimp retirements; the dependency
+consumers that required the braces guard have also been removed.
 
 The product-owned autonomous configuration projection was removed instead: it
 constructed an unused second environment/configuration, including credential
@@ -177,8 +172,7 @@ recovery through the real wallet plugin's ethers dependency. The wallet/trading
 action surface and Uniswap quoter artifact checks remain intact. These are
 offline tests, not funded transaction submissions.
 
-Six patches remain: core, agent, SQL, orchestrator, Solana layout utilities and
-Jimp core. Full npm version histories were checked again on October 26. Core,
+Five patches remain: core, agent, SQL, orchestrator and Solana layout utilities. Full npm version histories were checked again on October 26. Core,
 agent, SQL and orchestrator still have no publication newer than June 28's
 `2.0.3-beta.7`; the higher-numbered `2.0.11-beta.7` candidates remain older
 publications with the limitations above. The three compatibility package names
@@ -212,3 +206,78 @@ Solana boundary requires rejecting overflow and negative unsigned values.
 Replacing the strict layout patch with those packages would change amounts
 rather than safely retiring a patch. The public nut-tree fork still pins Jimp
 0.22.10; Jimp 1.x changes constructor/export APIs and is not a drop-in override.
+
+
+## Client refactoring boundary
+
+Prefer replacing an integration through a published public API to modifying a
+package. Removing the patch file is the last step: the installed and packaged
+runtime must pass the same behavior and security checks without it. Moving a
+fix into a renamed workspace, vendoring an SDK implementation, or overriding a
+private method does not retire the compatibility requirement.
+
+The October 26 integration inspection found these specific limits:
+
+- **SQL:** the public `createDatabaseAdapter` PGlite path loads parent `.env`
+  files even when passed an explicit data directory in the unmodified release.
+  The package publishes PGlite class declarations without matching importable
+  JavaScript entrypoints. The public PostgreSQL path bypasses that loader, but
+  switching the desktop's embedded database to an external server would change
+  its operating requirements and require a user-data migration.
+- **Agent persistence:** Doolittle is not the only caller of the atomic writer.
+  SDK authentication, wallet profiles, virtual filesystem snapshots and repository
+  operations also call it internally. Replacing client imports would leave those
+  SDK writes exposed to the demonstrated publication failures. AccountPool accepts
+  storage dependencies, but that does not replace these other internal callers.
+- **Native coding:** the orchestrator constructs its native transport internally.
+  The published public service has no transport-factory injection point for
+  replacing its reconciliation and cleanup behavior. A second client-owned
+  orchestrator would duplicate the engine rather than simplify the integration.
+
+Doolittle does own the lifetime of the coding session it requests. That lifetime
+now includes baseline capture and event subscription setup, with a language-level
+async disposal guard. Setup failures await shutdown; subscription cleanup errors
+cannot skip shutdown or produce a successful receipt. Normal completion and
+cancellation reuse one shutdown promise. This fixes the client boundary without
+claiming that the SDK's separate native-session patch has been retired.
+
+
+## Modern native image dependency
+
+The computer-use plugin now resolves nut-js to the published
+`@dyw1234/nut-js@4.2.7` release, with its matching shared and provider-interface
+packages. This release adopts Jimp 1.6.1 in the image reader, writer, processor
+and shared RGB/BGR conversion functions. The Jimp 0.22 patch and its dependency
+chain are removed; Doolittle adds no image adapter or replacement input driver.
+
+The three October 8 archives were checked against their registry SHA-512
+integrities and their JavaScript differences were reviewed against nut-tree-fork
+4.2.6. Changes cover Jimp APIs, copied image buffers and color conversion, plus
+compiler-generated export ordering. The native libnut dependency remains 4.2.6.
+The new packages have no install lifecycle scripts; installer trust and release
+age policies are unchanged.
+
+Regression tests exercise the actual image providers: PNG decode/write/read,
+pixel colors, malformed input, coordinate bounds and three-/four-channel
+RGB/BGR round trips without mutating sliced caller buffers. A local native
+module-load probe also verified mouse and keyboard APIs. This is not a claim of
+physical input acceptance on every OS.
+
+## October 31 dependency refresh
+
+The release graph uses glob 14.0.3, minimatch 11.0.3 and follow-redirects 1.16.2
+to resolve the new [glob cancellation](https://github.com/advisories/GHSA-3g3m-2fjr-6pw4),
+[matcher amplification](https://github.com/advisories/GHSA-g3hv-75wg-m249) and
+[redirect-header](https://github.com/advisories/GHSA-mrwp-f3q8-3g9p) advisories.
+No new patch or advisory exception is introduced.
+
+Legacy glob/minimatch consumers are removed through their parents: ASAR 4.3.1,
+Electron Universal 3.0.6 and FileList 2.0.2. The unconfigured Squirrel.Windows
+packaging peer is excluded; the supported Windows target remains NSIS.
+Discord uses the SDK's already supplied `opusscript` WebAssembly codec instead
+of the optional native Opus package and its old pre-gyp/rimraf/glob closure.
+This keeps voice encoding/decoding through prism-media's supported codec loader.
+
+Tests exercise ASAR unpack rules, Jake file-list filtering, aborted glob calls,
+a real audio encode/decode round trip and cross-realm custom credential stripping
+over loopback redirects. They do not claim a live Discord voice-call test.

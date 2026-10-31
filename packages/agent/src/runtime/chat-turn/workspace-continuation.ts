@@ -312,7 +312,9 @@ function requestedCheckScripts(userRequest: string): {
     let offset = verb.index + verb[0].length;
     const lead = userRequest
       .slice(offset)
-      .match(/^\s+(?:the\s+)?(?:(?:bun|npm|pnpm|yarn|next)\s+(?:run\s+)?)?/iu);
+      .match(
+        /^\s+(?:the\s+)?(?:(?:bun|nub|npm|pnpm|yarn|next)\s+(?:run\s+)?)?/iu,
+      );
     if (!lead) continue;
     offset += lead[0].length;
     let checkClause = false;

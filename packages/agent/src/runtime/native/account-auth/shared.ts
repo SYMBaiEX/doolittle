@@ -1,11 +1,13 @@
+import { type SpawnSyncReturns, spawnSync } from "node:child_process";
 import { accessSync, constants, existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { delimiter, isAbsolute, join } from "node:path";
+import { resolveShellExecutionMode } from "@elizaos/agent/services/shell-execution-router";
 import {
   readJsonFileSync,
   writeJsonAtomicSync,
 } from "@elizaos/agent/utils/atomic-json";
-import { runTextProcessSync } from "../../../services/process-execution";
+import { sanitizeSpawnEnv } from "@elizaos/core";
 
 export const DEFAULT_REFRESH_SKEW_SECONDS = 120;
 const COMMAND_CACHE_TTL_MS = 1_000;
@@ -13,7 +15,7 @@ const commandCache = new Map<
   string,
   {
     capturedAt: number;
-    result: ReturnType<typeof runTextProcessSync>;
+    result: SpawnSyncReturns<string>;
   }
 >();
 
@@ -51,7 +53,7 @@ export function readCommandText(
   homePath?: string,
 ): string {
   try {
-    const result = runCachedCommand(command, args, homePath, "command-text");
+    const result = runCachedCommand(command, args, homePath);
     return [result.stdout, result.stderr].filter(Boolean).join("\n").trim();
   } catch {
     return "";
@@ -62,21 +64,26 @@ function runCachedCommand(
   command: string,
   args: string[],
   homePath: string | undefined,
-  purpose: string,
 ) {
+  // Local credential probes must never turn restricted execution into host access.
+  if (resolveShellExecutionMode() !== "local-yolo")
+    throw new Error("Local account CLI probes require host execution.");
   const home = resolveHome(homePath);
   const key = JSON.stringify([command, args, home]);
   const cached = commandCache.get(key);
   if (cached && Date.now() - cached.capturedAt < COMMAND_CACHE_TTL_MS) {
     return cached.result;
   }
-  const result = runTextProcessSync(command, args, {
-    env: {
-      HOME: home,
-    },
-    timeoutMs: 10_000,
-    toolName: `doolittle.account-auth.${purpose}`,
+  const result = spawnSync(command, args, {
+    env: { ...sanitizeSpawnEnv(process.env), HOME: home },
+    timeout: 10_000,
+    killSignal: "SIGKILL",
+    maxBuffer: 2 * 1024 * 1024,
+    encoding: "utf8",
+    windowsHide: true,
+    shell: false,
   });
+  if (result.error) throw result.error;
   commandCache.set(key, {
     capturedAt: Date.now(),
     result,
@@ -89,13 +96,13 @@ export function readCommandJson(
   args: string[],
   homePath?: string,
 ): unknown {
-  let result: ReturnType<typeof runTextProcessSync>;
+  let result: SpawnSyncReturns<string>;
   try {
-    result = runCachedCommand(command, args, homePath, "command-json");
+    result = runCachedCommand(command, args, homePath);
   } catch {
     return undefined;
   }
-  if (result.exitCode !== 0 || !result.stdout.trim()) {
+  if (result.status !== 0 || !result.stdout.trim()) {
     return undefined;
   }
   try {

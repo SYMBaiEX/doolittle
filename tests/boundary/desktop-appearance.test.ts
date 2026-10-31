@@ -6,8 +6,15 @@ import {
   APPEARANCE_STORAGE_KEY,
   announceAppearance,
   announceDensity,
+  applyThemeManifest,
   DENSITY_STORAGE_KEY,
+  loadStoredThemeManifest,
 } from "../../apps/desktop/src/renderer/desktop-theme";
+import {
+  ANIME_ATELIER_THEME,
+  COMPANION_THEME,
+  GOLDEN_GATE_GLASS_THEME,
+} from "../../packages/ui/src/themes";
 
 const { request } = vi.hoisted(() => ({ request: vi.fn() }));
 vi.mock("../../apps/desktop/src/renderer/lib", () => ({
@@ -60,4 +67,23 @@ it("restores preferences and synchronizes changes from settings and the shell", 
   act(() => appearance.setAppearance("light"));
   expect(document.documentElement.dataset.appearance).toBe("light");
   expect(localStorage.getItem(APPEARANCE_STORAGE_KEY)).toBe("light");
+});
+
+it("persists expressive themes across appearance changes and clears their material on return", () => {
+  act(() => root.render(createElement(Probe)));
+  for (const theme of [ANIME_ATELIER_THEME, GOLDEN_GATE_GLASS_THEME]) {
+    act(() => applyThemeManifest(theme, "builtin"));
+    expect(document.documentElement.dataset.uiMaterial).toBe(theme.material);
+    act(() => announceAppearance("light"));
+    expect(document.documentElement.style.getPropertyValue("--bg")).toBe(
+      theme.colors.light.background,
+    );
+    expect(loadStoredThemeManifest()).toEqual(theme);
+    act(() => announceAppearance("dark"));
+    expect(document.documentElement.style.getPropertyValue("--bg")).toBe(
+      theme.colors.dark.background,
+    );
+  }
+  act(() => applyThemeManifest(COMPANION_THEME, "builtin"));
+  expect(document.documentElement.dataset.uiMaterial).toBe("flat");
 });

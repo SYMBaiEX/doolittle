@@ -8,6 +8,7 @@ is an operator guide, generated runtime truth, or a maintainer design record.
 | Document                                                                | Purpose                                                                                              |
 | ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
 | [Quickstart](./quickstart.md)                                           | Install Doolittle, configure a first provider, and verify the runtime.                               |
+| [Build Doolittle with Doolittle](./self-hosting.md)                     | Use a stable coding assistant, preview changes, choose themes and run an external test.              |
 | [Operator loop](./operator-loop.md)                                     | Learn the shortest daily shell, runtime, and gateway workflow.                                       |
 | [Desktop](./desktop.md)                                                 | Install, develop, package, and understand the Electron security boundary.                            |
 | [Desktop IA checklist](./desktop-information-architecture-checklist.md) | Track the consolidation to Chat, Code, Settings, and contextual operations with acceptance evidence. |

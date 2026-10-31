@@ -39,6 +39,7 @@ export const themeManifestV2Schema = z
     name: z.string().trim().min(1).max(80),
     description: z.string().max(240),
     layout: z.enum(UI_LAYOUT_PRESETS),
+    material: z.enum(["flat", "cel", "glass"]).optional(),
     colors: z
       .object({ light: semanticPaletteSchema, dark: semanticPaletteSchema })
       .strict(),
