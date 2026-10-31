@@ -30,7 +30,7 @@ test.beforeAll(() => {
   if (process.env.DOOLITTLE_RUN_LIVE_CODING !== "true")
     throw new Error("Explicit live coding opt-in is required.");
 });
-test("CLI repairs a project with the real linked Codex provider", async () => {
+test("CLI repairs Doolittle code with the real linked Codex provider", async () => {
   const root = realpathSync(mkdtempSync(join(tmpdir(), "doolittle-live-cli-")));
   const workspace = join(root, "workspace");
   mkdirSync(workspace);
@@ -99,7 +99,7 @@ test("CLI repairs a project with the real linked Codex provider", async () => {
     else console.error(`Live CLI fixture retained: ${root}`);
   }
 });
-test("desktop chat repairs a project through ElizaOS with real linked Codex", async () => {
+test("desktop chat repairs Doolittle code through ElizaOS with real linked Codex", async () => {
   const desktop = await launchDesktop(undefined, { liveCoding: true });
   let passed = false;
   try {

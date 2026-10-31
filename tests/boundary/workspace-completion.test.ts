@@ -209,6 +209,27 @@ describe("workspace completion across SDK turns", () => {
     ).toBe(false);
   });
 
+  it("accepts fresh Nub checks without substituting a smaller check for the requested gate", () => {
+    const results = [
+      mutation(`${workdir}/server.ts`),
+      shell("nub run check:release"),
+    ];
+    const passes = (extra: ActionResult[]) =>
+      hasPostAdmissionWorkspaceVerification(
+        [...results, ...extra],
+        results.length,
+        "checks",
+        requirements,
+        "Run nub run check:release.",
+        workdir,
+      );
+    expect(passes([shell("nub run check")])).toBe(false);
+    expect(passes([shell("nub run check:release", "/workspace/other")])).toBe(
+      false,
+    );
+    expect(passes([shell("nub run check:release")])).toBe(true);
+  });
+
   it("keeps unfinished implementation stronger than unfinished verification", () => {
     expect(
       explicitlyReportsIncompleteWork(

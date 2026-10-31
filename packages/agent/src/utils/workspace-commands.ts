@@ -2,7 +2,7 @@ import { isAbsolute, resolve } from "node:path";
 import { parse } from "shell-quote";
 
 export interface WorkspaceCommand {
-  runner: "bun" | "npm" | "pnpm" | "yarn" | "next" | "git";
+  runner: "bun" | "nub" | "npm" | "pnpm" | "yarn" | "next" | "git";
   kind: "install" | "build" | "bundle" | "verification" | "script";
   script?: string;
   directory?: string;
@@ -75,7 +75,8 @@ const INSTALL_FLAGS = new Set([
   "--verbose",
 ]);
 
-function bunCommand(
+function nativeScriptCommand(
+  runner: "bun" | "nub",
   args: string[],
   base: string | undefined,
   order: number,
@@ -84,6 +85,7 @@ function bunCommand(
   let verb: string | undefined;
   let script: string | undefined;
   let cwdSeen = false;
+  const scopedTests: string[] = [];
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index] as string;
     if (arg === "--cwd" || arg.startsWith("--cwd=")) {
@@ -113,17 +115,26 @@ function bunCommand(
     } else if (verb === "run" && !script) {
       if (!/^[a-z][a-z0-9:_-]*$/iu.test(arg)) return undefined;
       script = arg;
+    } else if (
+      verb === "run" &&
+      script === "test:scope" &&
+      /^(?:[a-z0-9_.-]+\/)*[a-z0-9_.-]+\.(?:test|spec)\.[cm]?[jt]sx?$/iu.test(
+        arg,
+      ) &&
+      !arg.split("/").includes("..")
+    ) {
+      scopedTests.push(arg);
     } else return undefined;
   }
   if (verb === "install" || verb === "i") {
-    return { runner: "bun", kind: "install", directory, order };
+    return { runner, kind: "install", directory, order };
   }
   if (verb === "build") {
-    return { runner: "bun", kind: "bundle", directory, order };
+    return { runner, kind: "bundle", directory, order };
   }
   if (verb === "test") {
     return {
-      runner: "bun",
+      runner,
       kind: "verification",
       script: "test",
       directory,
@@ -132,14 +143,14 @@ function bunCommand(
   }
   if (verb !== "run" || !script) return undefined;
   return {
-    runner: "bun",
+    runner,
     directory,
     order,
-    script,
+    script: scopedTests.length ? `${script} ${scopedTests.join(" ")}` : script,
     kind:
       script === "build"
         ? "build"
-        : /^(?:test|check|lint|typecheck|type-check|validate|verify)$/u.test(
+        : /^(?:test|check|lint|typecheck|type-check|validate|verify)(?::[a-z0-9_-]+)*$/u.test(
               script,
             )
           ? "verification"
@@ -149,7 +160,7 @@ function bunCommand(
 
 /**
  * Inspect literal successful-chain workspace commands without executing them.
- * A Bun --cwd override belongs to that invocation only; cd changes later ones.
+ * A Bun/Nub --cwd override belongs to that invocation only; cd changes later ones.
  * Unknown syntax fails closed, rather than finding command names inside text.
  */
 export function inspectWorkspaceCommands(
@@ -169,8 +180,8 @@ export function inspectWorkspaceCommands(
       directory = directoryAt(path, directory);
       continue;
     }
-    if (runner === "bun") {
-      const operation = bunCommand(args, directory, order);
+    if (runner === "bun" || runner === "nub") {
+      const operation = nativeScriptCommand(runner, args, directory, order);
       if (!operation) return [];
       operations.push(operation);
     } else if (["npm", "pnpm", "yarn", "next"].includes(runner ?? "")) {
