@@ -22,7 +22,8 @@
       "@elizaos/prompts": "2.0.11-beta.7",
       "@elizaos/security": "2.0.11-beta.7",
       "@elizaos/tui": "2.0.11-beta.7",
-      "@elizaos/ui": "2.0.11-beta.7"
+      "@elizaos/ui": "2.0.11-beta.7",
+      "@elizaos/shared": "2.0.11-beta.7"
     }
   },
   "license": "MIT",
@@ -42,9 +43,6 @@
     "packages/contracts",
     "packages/ui",
     "packages/evals",
-    "packages/plugin-remote-manifest",
-    "packages/plugin-worker-runtime",
-    "packages/registry",
     "packages/skill-packs-optional",
     "packages/plugins",
     "packages/plugins/*",
@@ -165,11 +163,10 @@
     "@elizaos/plugin-signal": "2.0.3-beta.7",
     "@elizaos/plugin-slack": "2.0.3-beta.7",
     "@elizaos/plugin-sql": "2.0.3-beta.7",
-    "@elizaos/plugin-remote-manifest": "workspace:*",
     "@elizaos/plugin-telegram": "2.0.3-beta.7",
     "@elizaos/plugin-whatsapp": "2.0.3-beta.7",
     "@elizaos/plugin-wechat": "2.0.3-beta.7",
-    "@elizaos/shared": "2.0.3-beta.7",
+    "@elizaos/shared": "2.0.11-beta.7",
     "@elizaos/ui": "2.0.11-beta.7",
     "@elizaos/vault": "2.0.11-beta.7",
     "fast-uri": "3.1.9",
@@ -230,8 +227,6 @@
     "@elizaos/prompts": "2.0.11-beta.7",
     "@elizaos/security": "2.0.11-beta.7",
     "@elizaos/tui": "2.0.11-beta.7",
-    "@elizaos/plugin-worker-runtime": "workspace:*",
-    "@elizaos/registry": "workspace:*",
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "uuid@<11.1.1": "11.1.1",
@@ -260,7 +255,14 @@
     "@electron/asar": "4.3.1",
     "app-builder-lib>electron-builder-squirrel-windows": "-",
     "@elizaos/plugin-discord>@discordjs/opus": "-",
-    "prism-media>@discordjs/opus": "-"
+    "prism-media>@discordjs/opus": "-",
+    "@elizaos/agent>@elizaos/plugin-remote-manifest": "-",
+    "@elizaos/agent>@elizaos/plugin-worker-runtime": "-",
+    "@elizaos/agent>@elizaos/registry": "-",
+    "@elizaos/app-core>@elizaos/registry": "-",
+    "@elizaos/shared>@elizaos/registry": "-",
+    "eliza-http>@elizaos/plugin-remote-manifest": "-",
+    "eliza-http>@elizaos/plugin-worker-runtime": "-"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.3",
@@ -285,12 +287,9 @@
     "@doolittle/contracts": "workspace:*",
     "@elizaos/agent": "2.0.3-beta.7",
     "@elizaos/core": "2.0.3-beta.7",
-    "@elizaos/shared": "2.0.3-beta.7",
+    "@elizaos/shared": "2.0.11-beta.7",
     "blessed": "^0.1.81",
     "@types/blessed": "^0.1.27",
-    "@elizaos/plugin-remote-manifest": "workspace:*",
-    "@elizaos/plugin-worker-runtime": "workspace:*",
-    "@elizaos/registry": "workspace:*",
     "@elizaos/plugin-sql": "2.0.3-beta.7",
     "@lydell/node-pty": "1.1.0",
     "ethers": "6.17.0"
@@ -322,5 +321,8 @@
         "@noble/curves": "2.2.0"
       }
     }
+  },
+  "dependencies": {
+    "eliza-http": "npm:@elizaos/agent@2.0.11-beta.7"
   }
 }

@@ -9,6 +9,7 @@ import {
   applyThemeManifest,
   DENSITY_STORAGE_KEY,
   loadStoredThemeManifest,
+  THEME_V2_STORAGE_KEY,
 } from "../../apps/desktop/src/renderer/desktop-theme";
 import {
   ANIME_ATELIER_THEME,
@@ -87,3 +88,29 @@ it("persists expressive themes across appearance changes and clears their materi
   act(() => applyThemeManifest(COMPANION_THEME, "builtin"));
   expect(document.documentElement.dataset.uiMaterial).toBe("flat");
 });
+
+for (const theme of [ANIME_ATELIER_THEME, GOLDEN_GATE_GLASS_THEME]) {
+  const previous = {
+    ...theme,
+    description: "Previously saved preset",
+    colors: {
+      ...theme.colors,
+      dark: {
+        ...theme.colors.dark,
+        accent: theme.material === "cel" ? "#f38aaf" : "#ff9a73",
+      },
+    },
+  };
+  it(`updates a saved built-in ${theme.name} selection to its current design`, () => {
+    applyThemeManifest(previous, "builtin");
+    expect(
+      JSON.parse(localStorage.getItem(THEME_V2_STORAGE_KEY) ?? "{}")
+        .description,
+    ).toBe("Previously saved preset");
+    expect(loadStoredThemeManifest()).toEqual(theme);
+  });
+  it(`preserves imported customization with the ${theme.name} identifier`, () => {
+    applyThemeManifest(previous, "imported");
+    expect(loadStoredThemeManifest()).toEqual(previous);
+  });
+}

@@ -11,7 +11,7 @@
     "@elizaos/plugin-form": "2.0.3-beta.7",
     "@doolittle/provider-transport": "workspace:*",
     "@elizaos/vault": "2.0.11-beta.7",
-    "@elizaos/shared": "2.0.3-beta.7"
+    "@elizaos/shared": "2.0.11-beta.7"
   },
   "exports": {
     "./doolittle-plugin": "./doolittle-plugin/index.ts",

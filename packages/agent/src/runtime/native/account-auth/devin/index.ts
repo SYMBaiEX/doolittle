@@ -12,10 +12,6 @@ export const DEVIN_LOGIN_COMMAND = "devin auth login";
 export const DEFAULT_DEVIN_COMMAND = "devin";
 export const DEFAULT_DEVIN_MODEL = "swe-1-6-fast";
 
-function resolveDevinCommand(): string {
-  return process.env.DEVIN_CLI_COMMAND?.trim() || DEFAULT_DEVIN_COMMAND;
-}
-
 function resolveDevinModel(): string {
   return process.env.DEVIN_MODEL?.trim() || DEFAULT_DEVIN_MODEL;
 }
@@ -34,7 +30,11 @@ function parseAccountLabel(text: string): string | undefined {
   return user || undefined;
 }
 
-export function getDevinCliAuthStatus(homePath?: string): {
+export function getDevinCliAuthStatus(
+  homePath?: string,
+  configuredCommand = process.env.DEVIN_CLI_COMMAND?.trim() ||
+    DEFAULT_DEVIN_COMMAND,
+): {
   available: boolean;
   loggedIn: boolean;
   source?: string;
@@ -42,7 +42,18 @@ export function getDevinCliAuthStatus(homePath?: string): {
   authMethod?: string;
   accountLabel?: string;
 } {
-  const command = resolveDevinCommand();
+  if (
+    configuredCommand.trim() &&
+    configuredCommand.trim() !== DEFAULT_DEVIN_COMMAND
+  ) {
+    return {
+      available: false,
+      loggedIn: false,
+      detail:
+        "Custom Devin executables are not supported by linked-account discovery. Remove DEVIN_CLI_COMMAND and make devin available on the launch PATH.",
+    };
+  }
+  const command = DEFAULT_DEVIN_COMMAND;
   if (!commandExists(command)) {
     return {
       available: false,
@@ -50,7 +61,7 @@ export function getDevinCliAuthStatus(homePath?: string): {
     };
   }
 
-  const text = readCommandText(command, ["auth", "status"], homePath);
+  const text = readCommandText("devin", ["auth", "status"], homePath);
   const loggedIn = /logged in/i.test(text) && !/not logged in/i.test(text);
   return {
     available: true,
@@ -68,9 +79,10 @@ export function getDevinCliAuthStatus(homePath?: string): {
 
 export function getDevinAccountStatus(
   homePath?: string,
+  configuredCommand?: string,
 ): LinkedProviderAccountStatus {
-  const command = resolveDevinCommand();
-  const cliStatus = getDevinCliAuthStatus(homePath);
+  const command = DEFAULT_DEVIN_COMMAND;
+  const cliStatus = getDevinCliAuthStatus(homePath, configuredCommand);
   if (cliStatus.loggedIn) {
     return buildReusableProviderStatus({
       provider: "devin",
@@ -91,9 +103,11 @@ export function getDevinAccountStatus(
     authMode: cliStatus.authMethod,
     accountLabel: cliStatus.accountLabel,
     loginCommand: DEVIN_LOGIN_COMMAND,
-    detail: cliStatus.available
-      ? "Devin CLI is installed, but no active login was detected. Run `devin auth login`."
-      : `Devin CLI command \`${command}\` was not found. Install Devin for Terminal, then run \`devin auth login\`.`,
+    detail:
+      cliStatus.detail ||
+      (cliStatus.available
+        ? "Devin CLI is installed, but no active login was detected. Run `devin auth login`."
+        : `Devin CLI command \`${command}\` was not found. Install Devin for Terminal, then run \`devin auth login\`.`),
   });
 }
 
@@ -105,7 +119,7 @@ export function getLinkedDevinCredentials(
     return undefined;
   }
   return {
-    command: resolveDevinCommand(),
+    command: DEFAULT_DEVIN_COMMAND,
     model: resolveDevinModel(),
     authMode: status.authMethod || "cli",
     accountLabel: status.accountLabel,

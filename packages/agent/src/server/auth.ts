@@ -4,7 +4,7 @@ import {
   isTrustedLocalRequest,
   resolveTerminalRunRejection,
   type TerminalRunRejection,
-} from "@elizaos/agent/api/server-helpers-auth";
+} from "eliza-http/api/server-helpers-auth";
 
 const DOOLITTLE_CORS_METHODS = "GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS";
 const TERMINAL_MUTATION_PATHS = new Set([

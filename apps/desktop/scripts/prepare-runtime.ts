@@ -163,14 +163,6 @@ const runtimeBuild = await build({
     "process.env.DOOLITTLE_DISTRIBUTED_DESKTOP_RUNTIME": '"1"',
   },
   alias: {
-    "@elizaos/registry/first-party/curated-app-definitions.json": resolve(
-      repoRoot,
-      "packages",
-      "registry",
-      "src",
-      "first-party",
-      "curated-app-definitions.json",
-    ),
     dotenv: repoRequire.resolve("dotenv"),
   },
   banner: {

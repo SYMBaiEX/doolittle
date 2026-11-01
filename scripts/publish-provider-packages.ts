@@ -64,12 +64,6 @@ const PROVIDERS: readonly Provider[] = [
   "devin",
 ];
 
-const LOCAL_COMPATIBILITY_PACKAGE_PATHS = [
-  "packages/plugin-remote-manifest",
-  "packages/plugin-worker-runtime",
-  "packages/registry",
-] as const;
-
 const TRUSTED_PUBLISH_REPOSITORY = "SYMBaiEX/doolittle";
 const TRUSTED_PUBLISH_WORKFLOW = "provider-publish.yml";
 const PROVIDER_RELEASE_TAG =
@@ -441,49 +435,6 @@ function packSupportingTransport(): {
   }
 }
 
-function packLocalCompatibilityPackages(): {
-  temporaryPath?: string;
-  tarballPaths: string[];
-} {
-  const packagePaths = LOCAL_COMPATIBILITY_PACKAGE_PATHS.map((path) =>
-    join(repoRoot(), path),
-  ).filter((path) => existsSync(join(path, "package.json")));
-  if (packagePaths.length === 0) {
-    return { tarballPaths: [] };
-  }
-
-  const temporaryPath = mkdtempSync(
-    join(tmpdir(), "doolittle-provider-compat-"),
-  );
-  try {
-    const tarballPaths = packagePaths.map((packagePath, index) => {
-      const archivePath = join(temporaryPath, String(index));
-      mkdirSync(archivePath, { recursive: true });
-      const packed = run(
-        "npm",
-        ["pack", "--json", "--pack-destination", archivePath, packagePath],
-        repoRoot(),
-      );
-      if (!packed.ok) {
-        throw new Error(packed.output || `Could not pack ${packagePath}.`);
-      }
-      const archive = JSON.parse(packed.stdout) as Array<{ filename: string }>;
-      const filename = archive[0]?.filename;
-      const tarballPath = filename ? join(archivePath, filename) : "";
-      if (!tarballPath || !existsSync(tarballPath)) {
-        throw new Error(
-          `npm pack did not produce a tarball for ${packagePath}.`,
-        );
-      }
-      return tarballPath;
-    });
-    return { temporaryPath, tarballPaths };
-  } catch (error) {
-    rmSync(temporaryPath, { recursive: true, force: true });
-    throw error;
-  }
-}
-
 function smokePackedConsumer(
   tarballPath: string,
   manifest: PackageManifest,
@@ -594,28 +545,14 @@ function publishPackage(targetPath: string, tag: string): CommandResult {
   return run("npm", args, targetPath);
 }
 
-function successfulPreflightDetail(
-  dryRun: boolean,
-  usedCompatibilityPackages: boolean,
-): string {
-  const supportConditions = [
-    usedCompatibilityPackages
-      ? "explicit local Eliza beta compatibility packages"
-      : undefined,
-  ].filter(Boolean);
-  const supportDetail =
-    supportConditions.length > 0
-      ? ` with ${supportConditions.join(" and ")}`
-      : "";
-  const verified = `Built dist JavaScript and declarations, then security-audited and imported the packed artifact${supportDetail} in an isolated consumer.`;
+function successfulPreflightDetail(dryRun: boolean): string {
+  const verified =
+    "Built dist JavaScript and declarations, then security-audited and imported the packed artifact in an isolated consumer.";
   return dryRun ? verified : `${verified} Publish is pending.`;
 }
 
-function successfulReleaseDetail(usedCompatibilityPackages: boolean): string {
-  const supportDetail = usedCompatibilityPackages
-    ? " with explicit local Eliza beta compatibility packages"
-    : "";
-  return `Built dist JavaScript and declarations, security-audited and imported the packed artifact${supportDetail} in an isolated consumer, then published and verified its exact version from the registry.`;
+function successfulReleaseDetail(): string {
+  return "Built dist JavaScript and declarations, security-audited and imported the packed artifact in an isolated consumer, then published and verified its exact version from the registry.";
 }
 
 async function main() {
@@ -693,18 +630,15 @@ async function main() {
   }
   const transportTarball =
     selectedTransportTarball ?? supportingTransport?.tarballPath;
-  let compatibilityPackages: ReturnType<typeof packLocalCompatibilityPackages> =
-    { tarballPaths: [] };
   try {
     if (supportingTransportError) {
       throw supportingTransportError;
     }
-    compatibilityPackages = packLocalCompatibilityPackages();
     for (const staged of stagedPackages) {
       const localDependencies =
         staged.provider === "provider-transport" || !transportTarball
-          ? compatibilityPackages.tarballPaths
-          : [...compatibilityPackages.tarballPaths, transportTarball];
+          ? []
+          : [transportTarball];
       try {
         const smoke = smokePackedConsumer(
           staged.tarballPath,
@@ -721,10 +655,7 @@ async function main() {
           ok: smoke.ok,
           command: smoke.command,
           detail: smoke.ok
-            ? successfulPreflightDetail(
-                args.dryRun,
-                compatibilityPackages.tarballPaths.length > 0,
-              )
+            ? successfulPreflightDetail(args.dryRun)
             : smoke.output ||
               "Provider package build, pack, or import smoke test failed.",
           tag: args.tag,
@@ -763,9 +694,7 @@ async function main() {
         result.ok = release.ok;
         result.command = release.command;
         result.detail = release.ok
-          ? successfulReleaseDetail(
-              compatibilityPackages.tarballPaths.length > 0,
-            )
+          ? successfulReleaseDetail()
           : release.output ||
             "Provider package publishing or registry verification failed.";
         result.output = release.output || undefined;
@@ -796,19 +725,13 @@ async function main() {
         ok: false,
         command: supportingTransportError
           ? "provider-transport-pack"
-          : "compatibility-pack",
+          : "transport-pack",
         detail: message,
         tag: args.tag,
         output: message,
       });
     }
   } finally {
-    if (compatibilityPackages.temporaryPath) {
-      rmSync(compatibilityPackages.temporaryPath, {
-        recursive: true,
-        force: true,
-      });
-    }
     if (supportingTransport) {
       rmSync(supportingTransport.temporaryPath, {
         recursive: true,

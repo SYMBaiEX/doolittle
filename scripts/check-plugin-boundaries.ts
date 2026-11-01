@@ -231,6 +231,12 @@ const INTERNAL_FACADE_GUARDS: Array<{
     include: /packages\/agent\/src\/.+\.(?:[cm]?ts|tsx)$/u,
     patterns: [
       {
+        pattern:
+          /(?:from\s+|import\s*\(|require\s*\()["']eliza-http(?!\/api\/server-helpers-auth["'])[^"']*["']/u,
+        reason:
+          "uses the isolated published HTTP SDK alias outside its HTTP policy boundary",
+      },
+      {
         pattern: SERVICE_BRIDGE_ROOT_IMPORT_PATTERN,
         reason:
           "imports from the runtime/native service-bridge root instead of a domain entrypoint",

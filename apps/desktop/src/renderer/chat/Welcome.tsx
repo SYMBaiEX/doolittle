@@ -1,5 +1,16 @@
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, Command, Sparkles } from "lucide-react";
+import { useSyncExternalStore } from "react";
 import { UiIcon } from "../components/UiIcon";
+import { THEME_MANIFEST_CHANGE_EVENT } from "../desktop-theme";
+
+function subscribeMaterial(listener: () => void) {
+  window.addEventListener(THEME_MANIFEST_CHANGE_EVENT, listener);
+  return () =>
+    window.removeEventListener(THEME_MANIFEST_CHANGE_EVENT, listener);
+}
+function materialSnapshot() {
+  return document.documentElement.dataset.uiMaterial ?? "flat";
+}
 
 export function Welcome({
   onSelect,
@@ -10,6 +21,12 @@ export function Welcome({
   projectName?: string;
   botName?: string;
 }) {
+  const material = useSyncExternalStore(
+    subscribeMaterial,
+    materialSnapshot,
+    () => "flat",
+  );
+  const illustrated = material === "cel" || material === "glass";
   const prompts = projectName
     ? [
         {
@@ -45,33 +62,86 @@ export function Welcome({
       ];
   return (
     <div className="chat-welcome">
-      <h1>{projectName ? "What should we build?" : "What’s on your mind?"}</h1>
-      <p>
-        {projectName
-          ? `${botName} can help with ${projectName}, or anything else you’re working on.`
-          : `Talk to ${botName}. Start wherever you like.`}
-      </p>
-      <details className="chat-starter-ideas">
+      {illustrated ? (
+        <div className="welcome-edition">
+          <span>
+            {material === "cel"
+              ? "DOOLITTLE / FIELD NOTES"
+              : "YOUR PERSONAL WORKSPACE"}
+          </span>
+          <span>{projectName ?? "Ideas • Code • Everyday"}</span>
+        </div>
+      ) : null}
+      <div className="welcome-title-group">
+        {material === "glass" ? (
+          <div className="welcome-app-icon" aria-hidden="true">
+            <Command className="welcome-app-glyph" />
+          </div>
+        ) : null}
+        <h1>
+          {material === "cel" ? (
+            <>
+              Your next
+              <br />
+              <em>great chapter.</em>
+            </>
+          ) : material === "glass" ? (
+            "A little clarity. A lot of possibility."
+          ) : projectName ? (
+            "What should we build?"
+          ) : (
+            "What’s on your mind?"
+          )}
+        </h1>
+        <p>
+          {projectName
+            ? `${botName} can help with ${projectName}, or anything else you’re working on.`
+            : `Talk to ${botName}. Start wherever you like.`}
+        </p>
+      </div>
+      {illustrated ? (
+        <div className="welcome-art" aria-hidden="true">
+          <div className="welcome-art-panel">
+            <Sparkles className="welcome-art-spark" />
+            <span className="welcome-art-word">
+              DO
+              <br />
+              MORE.
+            </span>
+            <i className="welcome-art-diamond" />
+          </div>
+        </div>
+      ) : null}
+      <details className="chat-starter-ideas" open={illustrated || undefined}>
         <summary>Ideas to get started</summary>
         <ul
           aria-label="Conversation starters"
           className="starter-grid chat-welcome-starters"
         >
-          {prompts.map(({ prompt, detail }) => (
+          {prompts.map(({ prompt, detail }, index) => (
             <li key={prompt}>
               <button
                 className="chat-welcome-starter"
                 onClick={(event) => {
                   onSelect(prompt);
                   const ideas = event.currentTarget.closest("details");
-                  ideas?.removeAttribute("open");
-                  ideas?.querySelector("summary")?.focus();
+                  if (!illustrated) ideas?.removeAttribute("open");
+                  if (!illustrated) ideas?.querySelector("summary")?.focus();
                 }}
                 type="button"
               >
+                {illustrated ? (
+                  <span className="welcome-card-index" aria-hidden="true">
+                    {String(index + 1).padStart(2, "0")}
+                  </span>
+                ) : null}
                 <strong>{prompt}</strong>
                 <small>{detail}</small>
-                <UiIcon icon={ArrowUpRight} size="sm" />
+                <UiIcon
+                  icon={ArrowUpRight}
+                  size="sm"
+                  className="welcome-card-arrow"
+                />
               </button>
             </li>
           ))}

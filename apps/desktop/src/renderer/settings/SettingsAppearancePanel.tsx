@@ -249,6 +249,7 @@ export function SettingsAppearancePanel({
               <span
                 aria-hidden="true"
                 className="dl-theme-preview"
+                data-material={asString(entry.material, "flat")}
                 style={{
                   background: asString(darkColors.background, "var(--bg)"),
                 }}

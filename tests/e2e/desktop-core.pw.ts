@@ -1,6 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { expect, type Locator, test } from "@playwright/test";
+import { themeContrast } from "../../packages/ui/src/themes";
 import {
   agentRequest,
   installProjectDialog,
@@ -9,6 +10,7 @@ import {
   openProjectChat,
   projectDialogCount,
 } from "../support/desktop-core";
+import { themeContrastFixture } from "../support/theme-contrast";
 
 async function expectQuietFocus(control: Locator) {
   await control.focus();
@@ -362,7 +364,75 @@ test.describe("fresh native desktop", () => {
             "data-appearance",
             appearance,
           );
+          const pairs = await page.evaluate((markup) => {
+            const probe = document.createElement("div");
+            probe.setAttribute("aria-hidden", "true");
+            probe.style.cssText =
+              "position:fixed;left:-10000px;top:0;width:400px;pointer-events:none";
+            probe.innerHTML = markup;
+            document.querySelector(".desktop-shell")?.append(probe);
+            try {
+              const canvas = document.createElement("canvas");
+              canvas.width = canvas.height = 1;
+              const ctx = canvas.getContext("2d");
+              if (!ctx) throw new Error("Color sampling unavailable");
+              const color = (value: string) => {
+                ctx.clearRect(0, 0, 1, 1);
+                ctx.fillStyle = value;
+                ctx.fillRect(0, 0, 1, 1);
+                const [r = 0, g = 0, b = 0, a = 0] = ctx.getImageData(
+                  0,
+                  0,
+                  1,
+                  1,
+                ).data;
+                return {
+                  hex: `#${[r, g, b].map((v) => v.toString(16).padStart(2, "0")).join("")}`,
+                  alpha: a,
+                };
+              };
+              const controls: [string, string, string][] = [
+                ["metadata", ".dl-meta", ".dl-contact"],
+                ["status", ".dl-run-state", ".dl-contact"],
+                ["avatar", ".dl-avatar", ".dl-avatar"],
+                [
+                  "primary",
+                  "[data-contrast-primary]",
+                  "[data-contrast-primary]",
+                ],
+                [
+                  "destructive",
+                  "[data-contrast-destructive]",
+                  "[data-contrast-destructive]",
+                ],
+              ];
+              return controls.map(([label, fgSelector, bgSelector]) => {
+                const fg = probe.querySelector(fgSelector);
+                const bg = probe.querySelector(bgSelector);
+                if (!fg || !bg)
+                  throw new Error("Shared contrast control missing");
+                return {
+                  label,
+                  fg: color(getComputedStyle(fg).color),
+                  bg: color(getComputedStyle(bg).backgroundColor),
+                };
+              });
+            } finally {
+              probe.remove();
+            }
+          }, themeContrastFixture());
+          for (const pair of pairs) {
+            expect(
+              pair.bg.alpha,
+              `${id}/${appearance}/${pair.label} opaque pair`,
+            ).toBe(255);
+            expect(
+              themeContrast(pair.fg.hex, pair.bg.hex),
+              `${id}/${appearance}/${pair.label} contrast`,
+            ).toBeGreaterThanOrEqual(4.5);
+          }
           await page.screenshot({
+            animations: "disabled",
             path: test.info().outputPath(`${id}-${appearance}.png`),
           });
           await page.getByRole("button", { name: /^Back to /u }).click();
@@ -370,8 +440,13 @@ test.describe("fresh native desktop", () => {
             page.getByRole("textbox", { name: /^Message /u }),
           ).toHaveValue("Keep this coding draft while I change the theme.");
           await page.screenshot({
+            animations: "disabled",
             path: test.info().outputPath(`${id}-${appearance}-chat.png`),
           });
+          await page.locator(".chat-welcome-starter").first().click();
+          const draft = page.getByRole("textbox", { name: /^Message /u });
+          await expect(draft).toHaveValue("Help me think something through");
+          await draft.fill("Keep this coding draft while I change the theme.");
           await page
             .getByRole("button", { name: "Open settings", exact: true })
             .click();
@@ -400,11 +475,82 @@ test.describe("fresh native desktop", () => {
         ),
       ).toBe(true);
       await expectQuietFocus(page.getByRole("textbox", { name: /^Message /u }));
+      await desktop.app.evaluate(({ BrowserWindow }) => {
+        BrowserWindow.getAllWindows()[0]?.setSize(520, 430);
+      });
+      await expect(
+        page.getByRole("textbox", { name: /^Message /u }),
+      ).toBeInViewport({ ratio: 1 });
       await page.emulateMedia({ forcedColors: "active" });
       await expect(page.locator(".chat-composer")).toHaveCSS(
         "backdrop-filter",
         "none",
       );
+    } finally {
+      await desktop.dispose();
+    }
+  });
+  test("preserves a code transcript while changing complete theme compositions", async () => {
+    const desktop = await launchDesktop();
+    try {
+      const page = desktop.page;
+      const composer = page.getByRole("textbox", { name: "Message Doolittle" });
+      await composer.fill(
+        "Reference snippet:\n```ts\nexport const greeting = 'Hello, Doolittle';\n```",
+      );
+      await composer.press("Enter");
+      const message = page.locator(".chat-message.user").first();
+      await expect(message).toContainText("Hello, Doolittle");
+      await expect(
+        page.locator(".chat-message.assistant").first(),
+      ).toBeVisible();
+      await expect
+        .poll(
+          async () => {
+            const { runs } = await agentRequest<{ runs: { status: string }[] }>(
+              page,
+              "/chat/runs",
+            );
+            return runs.some((run) =>
+              ["complete", "error", "cancelled"].includes(run.status),
+            );
+          },
+          { timeout: 30_000 },
+        )
+        .toBe(true);
+      const selected = await page.evaluate(
+        async () => (await window.doolittle.ui?.getSnapshot())?.selected,
+      );
+      expect(selected).toBeTruthy();
+      for (const name of ["Anime Atelier", "Golden Gate Glass"]) {
+        await page
+          .getByRole("button", { name: "Open settings", exact: true })
+          .click();
+        await page
+          .getByRole("button", { name: new RegExp(`^${name}:`) })
+          .click();
+        await page
+          .getByRole("button", { name: "Light: Light surfaces", exact: true })
+          .click();
+        await page.getByRole("button", { name: /^Back to /u }).click();
+        await expect(message).toContainText("Hello, Doolittle");
+        expect(
+          await page.evaluate(
+            async () => (await window.doolittle.ui?.getSnapshot())?.selected,
+          ),
+        ).toEqual(selected);
+        await expect(page.locator(".chat-message.user")).toHaveCount(1);
+        await expect(message.locator("pre")).toBeVisible();
+        await expectQuietFocus(composer);
+        await page.screenshot({
+          animations: "disabled",
+          path: test
+            .info()
+            .outputPath(
+              `${name.replaceAll(" ", "-").toLowerCase()}-code-chat.png`,
+            ),
+        });
+      }
     } finally {
       await desktop.dispose();
     }

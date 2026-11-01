@@ -8,19 +8,11 @@ export default defineConfig({
   resolve: {
     alias: [
       {
-        find: /^@elizaos\/registry$/,
-        replacement: fromRoot("./packages/registry/src/index.js"),
-      },
-      {
         // 2.0.3-beta.7 publishes a development export that points at an
         // unpublished src/index.ts. Vitest enables that condition, so tests
         // must use the package's shipped production entrypoint.
         find: /^@elizaos\/skills$/,
         replacement: fromRoot("./node_modules/@elizaos/skills/dist/index.js"),
-      },
-      {
-        find: /^@elizaos\/registry\/first-party\/(.+)$/,
-        replacement: `${fromRoot("./packages/registry/src/first-party")}/$1`,
       },
       {
         find: /^dotenv$/,

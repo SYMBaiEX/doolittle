@@ -4,21 +4,20 @@ Doolittle is organized as a Nub workspace monorepo running on stock Node.js.
 
 ## Workspace roles
 
-| Workspace                                                                                | Role                                                                                                                                                                                    |
-| ---------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Root package                                                                             | Workspace manifest, exact ElizaOS release contract, shared scripts, documentation, and toolchain configuration.                                                                         |
-| `apps/desktop`                                                                           | Electron lifecycle and native capabilities, context-isolated preload contract, and React operator UI. See the [desktop guide](./desktop.md).                                            |
-| `apps/cli`                                                                               | Terminal chat, fullscreen cockpit, one-shot commands, background jobs and runtime process entrypoints.                                                                                  |
-| `packages/agent`                                                                         | Shared Eliza runtime assembly, API, gateway, product services and optional native utilities.                                                                                            |
-| `packages/acp`                                                                           | Agent Client Protocol server and in-process bridge built on the official ACP SDK.                                                                                                       |
-| `packages/ui`                                                                            | Browser-only shared presentation components; no runtime or privileged host access.                                                                                                      |
-| `packages/evals`                                                                         | Workflow evaluations and evidence reports; depends on the runtime without owning its lifecycle.                                                                                         |
-| `packages/contracts`                                                                     | Secret-free contracts shared across the agent, desktop, gateway, and plugins.                                                                                                           |
-| `packages/plugins`                                                                       | Doolittle product facets plus the Claude Code and Devin provider bridges. Official Codex, Eliza Cloud, SQL, browser, MCP, messaging, and model plugins remain upstream-owned.           |
-| `packages/characters`                                                                    | Character and persona data loaded by Eliza.                                                                                                                                             |
-| `packages/skills`                                                                        | Curated and generated native skill documents. See the [skills index](../packages/skills/index.md).                                                                                      |
-| `packages/skill-packs-optional`                                                          | Optional native skill documents kept outside the default curated tier.                                                                                                                  |
-| `packages/plugin-remote-manifest`, `packages/plugin-worker-runtime`, `packages/registry` | Narrow compatibility workspaces for an SDK bridge type, worker error wire helpers, and curated registry JSON. They expose only used contracts and are guarded by the SDK release check. |
+| Workspace                       | Role                                                                                                                                                                          |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Root package                    | Workspace manifest, exact ElizaOS release contract, shared scripts, documentation, and toolchain configuration.                                                               |
+| `apps/desktop`                  | Electron lifecycle and native capabilities, context-isolated preload contract, and React operator UI. See the [desktop guide](./desktop.md).                                  |
+| `apps/cli`                      | Terminal chat, fullscreen cockpit, one-shot commands, background jobs and runtime process entrypoints.                                                                        |
+| `packages/agent`                | Shared Eliza runtime assembly, API, gateway, product services and optional native utilities.                                                                                  |
+| `packages/acp`                  | Agent Client Protocol server and in-process bridge built on the official ACP SDK.                                                                                             |
+| `packages/ui`                   | Browser-only shared presentation components; no runtime or privileged host access.                                                                                            |
+| `packages/evals`                | Workflow evaluations and evidence reports; depends on the runtime without owning its lifecycle.                                                                               |
+| `packages/contracts`            | Secret-free contracts shared across the agent, desktop, gateway, and plugins.                                                                                                 |
+| `packages/plugins`              | Doolittle product facets plus the Claude Code and Devin provider bridges. Official Codex, Eliza Cloud, SQL, browser, MCP, messaging, and model plugins remain upstream-owned. |
+| `packages/characters`           | Character and persona data loaded by Eliza.                                                                                                                                   |
+| `packages/skills`               | Curated and generated native skill documents. See the [skills index](../packages/skills/index.md).                                                                            |
+| `packages/skill-packs-optional` | Optional native skill documents kept outside the default curated tier.                                                                                                        |
 
 ## Dependency direction
 
@@ -59,8 +58,8 @@ artifacts live in `apps/cli/dist/`; desktop artifacts live in
   ownership and an acyclic dependency graph. It runs in CI's acceptance gate.
 - `knip:deps` audits the entire workspace set, including the CLI and repository
   scripts. Its root exceptions are the optional ScriptC compiler and the SDK
-  compatibility/SQL packages provisioned for upstream resolution and packaging.
-  The three unpublished SDK contracts remain exact-version workspace overrides.
+  SQL packages provisioned for upstream resolution and packaging.
+  Unused unpublished SDK branches are excluded; no local SDK namespace packages remain.
 
 See the [module structure guidelines](./module-structure-guidelines.md) for
 folder, filename, entrypoint, and test-placement conventions.

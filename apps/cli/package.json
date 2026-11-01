@@ -19,7 +19,7 @@
     "@elizaos/core": "2.0.3-beta.7",
     "blessed": "^0.1.81",
     "@elizaos/agent": "2.0.3-beta.7",
-    "@elizaos/shared": "2.0.3-beta.7",
+    "@elizaos/shared": "2.0.11-beta.7",
     "@doolittle/acp": "workspace:*"
   },
   "devDependencies": {

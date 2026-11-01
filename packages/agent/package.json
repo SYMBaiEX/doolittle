@@ -32,7 +32,7 @@
     "@elizaos/plugin-slack": "2.0.3-beta.7",
     "@elizaos/plugin-telegram": "2.0.3-beta.7",
     "@elizaos/plugin-whatsapp": "2.0.3-beta.7",
-    "@elizaos/shared": "2.0.3-beta.7",
+    "@elizaos/shared": "2.0.11-beta.7",
     "@elizaos/skills": "2.0.11-beta.7",
     "@lydell/node-pty": "1.1.0",
     "dotenv": "^18.0.9",
@@ -41,7 +41,8 @@
     "@doolittle/plugins": "workspace:*",
     "@doolittle/characters": "workspace:*",
     "openai": "7.43.0",
-    "file-type": "22.2.0"
+    "file-type": "22.2.0",
+    "eliza-http": "npm:@elizaos/agent@2.0.11-beta.7"
   },
   "devDependencies": {
     "sharp": "0.35.5"
