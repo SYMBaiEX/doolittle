@@ -12,10 +12,6 @@ export const DEVIN_LOGIN_COMMAND = "devin auth login";
 export const DEFAULT_DEVIN_COMMAND = "devin";
 export const DEFAULT_DEVIN_MODEL = "swe-1-6-fast";
 
-function resolveDevinCommand(): string {
-  return process.env.DEVIN_CLI_COMMAND?.trim() || DEFAULT_DEVIN_COMMAND;
-}
-
 function resolveDevinModel(): string {
   return process.env.DEVIN_MODEL?.trim() || DEFAULT_DEVIN_MODEL;
 }
@@ -42,7 +38,7 @@ export function getDevinCliAuthStatus(homePath?: string): {
   authMethod?: string;
   accountLabel?: string;
 } {
-  const command = resolveDevinCommand();
+  const command = DEFAULT_DEVIN_COMMAND;
   if (!commandExists(command)) {
     return {
       available: false,
@@ -50,7 +46,7 @@ export function getDevinCliAuthStatus(homePath?: string): {
     };
   }
 
-  const text = readCommandText(command, ["auth", "status"], homePath);
+  const text = readCommandText("devin", ["auth", "status"], homePath);
   const loggedIn = /logged in/i.test(text) && !/not logged in/i.test(text);
   return {
     available: true,
@@ -69,7 +65,7 @@ export function getDevinCliAuthStatus(homePath?: string): {
 export function getDevinAccountStatus(
   homePath?: string,
 ): LinkedProviderAccountStatus {
-  const command = resolveDevinCommand();
+  const command = DEFAULT_DEVIN_COMMAND;
   const cliStatus = getDevinCliAuthStatus(homePath);
   if (cliStatus.loggedIn) {
     return buildReusableProviderStatus({
@@ -105,7 +101,7 @@ export function getLinkedDevinCredentials(
     return undefined;
   }
   return {
-    command: resolveDevinCommand(),
+    command: DEFAULT_DEVIN_COMMAND,
     model: resolveDevinModel(),
     authMode: status.authMethod || "cli",
     accountLabel: status.accountLabel,
