@@ -38,6 +38,22 @@ it("keeps simultaneous SDK writes independent even within the same clock tick", 
   expect(saved.index).toBeLessThan(16);
   expect(readdirSync(f.dir)).toEqual(["state.json"]);
 });
+it("publishes exactly one owner when exclusive SDK writers race", async () => {
+  const f = fixture();
+  const outcomes = await Promise.allSettled(
+    Array.from({ length: 16 }, (_, owner) =>
+      writeJsonAtomic(f.path, { owner }, { exclusive: true }),
+    ),
+  );
+  const winner = outcomes.findIndex(
+    (outcome) => outcome.status === "fulfilled",
+  );
+  expect(
+    outcomes.filter((outcome) => outcome.status === "fulfilled"),
+  ).toHaveLength(1);
+  expect(JSON.parse(readFileSync(f.path, "utf8"))).toEqual({ owner: winner });
+  expect(readdirSync(f.dir)).toEqual(["state.json"]);
+});
 for (const mode of ["sync", "async"] as const) {
   it(`does not replace an existing owner during exclusive ${mode} publication`, async () => {
     const f = fixture();
