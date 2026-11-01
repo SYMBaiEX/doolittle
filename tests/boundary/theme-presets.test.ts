@@ -52,6 +52,8 @@ it("limits imported materials to declarative built-in treatments", () => {
 
 it("offers matching CLI palettes and keeps terminal header text readable", () => {
   expect(getTuiTheme("anime").name).toBe("anime-atelier");
+  expect(getTuiTheme("manga").name).toBe("anime-atelier");
+  expect(getTuiTheme("glass").name).toBe("obsidian");
   expect(getTuiTheme("golden-gate").name).toBe("golden-gate-glass");
   for (const summary of listTuiThemes()) {
     const profile = getTuiTheme(summary.name);

@@ -225,7 +225,7 @@ export const TUI_THEME_PROFILES = {
     name: "golden-gate-glass",
     label: "Golden Gate Glass",
     tagline: "Pacific blue and macOS clarity for focused coding.",
-    aliases: ["golden-gate", "pacific", "glass", "macos"],
+    aliases: ["golden-gate", "pacific", "macos"],
     sigil: "[::]",
     shellGlyph: "::",
     idleFace: "[ok]",
