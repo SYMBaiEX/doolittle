@@ -35,7 +35,9 @@ export async function runDevinTextGeneration(
   const ready = status.nativeReady ?? status.reusable ?? status.fallbackReady;
   if (!ready) {
     throw new ProviderTransportError(
-      "No reusable linked Devin CLI session is available. Run `devin auth login`, then `/accounts connect devin`.",
+      status.available
+        ? "No reusable linked Devin CLI session is available. Run `devin auth login`, then `/accounts connect devin`."
+        : "Devin CLI is unavailable. Check the provider status and executable configuration in Settings before connecting an account.",
       {
         code: "no_credentials",
         provider: "devin",

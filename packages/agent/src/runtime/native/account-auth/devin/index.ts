@@ -30,7 +30,11 @@ function parseAccountLabel(text: string): string | undefined {
   return user || undefined;
 }
 
-export function getDevinCliAuthStatus(homePath?: string): {
+export function getDevinCliAuthStatus(
+  homePath?: string,
+  configuredCommand = process.env.DEVIN_CLI_COMMAND?.trim() ||
+    DEFAULT_DEVIN_COMMAND,
+): {
   available: boolean;
   loggedIn: boolean;
   source?: string;
@@ -38,6 +42,17 @@ export function getDevinCliAuthStatus(homePath?: string): {
   authMethod?: string;
   accountLabel?: string;
 } {
+  if (
+    configuredCommand.trim() &&
+    configuredCommand.trim() !== DEFAULT_DEVIN_COMMAND
+  ) {
+    return {
+      available: false,
+      loggedIn: false,
+      detail:
+        "Custom Devin executables are not supported by linked-account discovery. Remove DEVIN_CLI_COMMAND and make devin available on the launch PATH.",
+    };
+  }
   const command = DEFAULT_DEVIN_COMMAND;
   if (!commandExists(command)) {
     return {
@@ -64,9 +79,10 @@ export function getDevinCliAuthStatus(homePath?: string): {
 
 export function getDevinAccountStatus(
   homePath?: string,
+  configuredCommand?: string,
 ): LinkedProviderAccountStatus {
   const command = DEFAULT_DEVIN_COMMAND;
-  const cliStatus = getDevinCliAuthStatus(homePath);
+  const cliStatus = getDevinCliAuthStatus(homePath, configuredCommand);
   if (cliStatus.loggedIn) {
     return buildReusableProviderStatus({
       provider: "devin",
@@ -87,9 +103,11 @@ export function getDevinAccountStatus(
     authMode: cliStatus.authMethod,
     accountLabel: cliStatus.accountLabel,
     loginCommand: DEVIN_LOGIN_COMMAND,
-    detail: cliStatus.available
-      ? "Devin CLI is installed, but no active login was detected. Run `devin auth login`."
-      : `Devin CLI command \`${command}\` was not found. Install Devin for Terminal, then run \`devin auth login\`.`,
+    detail:
+      cliStatus.detail ||
+      (cliStatus.available
+        ? "Devin CLI is installed, but no active login was detected. Run `devin auth login`."
+        : `Devin CLI command \`${command}\` was not found. Install Devin for Terminal, then run \`devin auth login\`.`),
   });
 }
 

@@ -191,3 +191,32 @@ it("reports an unsuccessful tree termination instead of claiming cancellation su
     else process.env.SystemRoot = previousRoot;
   }
 });
+
+it("refuses unavailable Devin execution before invoking a configured process", async () => {
+  const { runDevinTextGeneration } = await import(
+    "../../packages/plugins/plugin-devin/src/generate"
+  );
+  let invoked = false;
+  await expect(
+    runDevinTextGeneration(
+      {
+        getSetting: () => JSON.stringify({ model: { provider: "devin" } }),
+      } as unknown as import("@elizaos/core").IAgentRuntime,
+      { prompt: "fixture" },
+      {
+        getStatus: () => ({
+          provider: "devin",
+          available: false,
+          reusable: false,
+          nativeReady: false,
+          detail: "Unsupported executable configuration",
+        }),
+        invokeCliPrint: async () => {
+          invoked = true;
+          return "unreachable";
+        },
+      },
+    ),
+  ).rejects.toThrow("Check the provider status and executable configuration");
+  expect(invoked).toBe(false);
+});

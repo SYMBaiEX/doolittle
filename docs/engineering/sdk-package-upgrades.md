@@ -95,8 +95,9 @@ reduce the patch count.
 
 ## Account discovery
 
-Automatic account discovery invokes known provider status commands and ignores
-`DEVIN_CLI_COMMAND`. This removes CodeQL #370's environment-to-executable path
+Automatic account discovery invokes known provider status commands and rejects
+a custom `DEVIN_CLI_COMMAND` with an actionable provider-status error. Execution
+uses the same fixed Devin command; a differing configured command cannot report ready. This removes CodeQL #370's environment-to-executable path
 instead of suppressing the finding. Probes check the SDK's host-execution policy
 before reading either cached or fresh results, use literal argv and the sanitized
 environment, and retain bounded output and shutdown behavior.

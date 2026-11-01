@@ -7,7 +7,10 @@ import { requestWorkerHost } from "../../bootstrap/worker-host-rpc";
 import { requireConversationWorkspace } from "../../workspace-scope";
 import { refreshLinkedClaudeCodeCredentials } from "../account-auth";
 import { getClaudeCodeAccountStatus } from "../account-auth/claude-code";
-import { getDevinAccountStatus } from "../account-auth/devin";
+import {
+  DEFAULT_DEVIN_COMMAND,
+  getDevinAccountStatus,
+} from "../account-auth/devin";
 import {
   createCodexReasoningBackend,
   createDoolittleCodexReasoningPlugin,
@@ -179,11 +182,11 @@ export async function loadProviderPlugins(
     }),
     createDevinPlugin({
       enabled: true,
-      command: config.devinCliCommand,
+      command: DEFAULT_DEVIN_COMMAND,
       model: config.devinModel,
       timeoutMs: config.devinTimeoutMs,
       getCwd: () => resolveWorkspaceDirectory(() => config.workspaceDir),
-      getStatus: () => getDevinAccountStatus(),
+      getStatus: () => getDevinAccountStatus(undefined, config.devinCliCommand),
     }),
     normalizePlugin({
       ...elizaCloudPlugin,
