@@ -42,13 +42,7 @@
     ".": {
       "entry": ["scripts/**/*.ts", "tests/**/*.ts", "*.config.ts"],
       "project": ["scripts/**/*.ts", "tests/**/*.ts", "*.config.ts"],
-      "ignoreDependencies": [
-        "scriptc",
-        "@elizaos/plugin-remote-manifest",
-        "@elizaos/plugin-worker-runtime",
-        "@elizaos/registry",
-        "@elizaos/plugin-sql"
-      ]
+      "ignoreDependencies": ["scriptc", "@elizaos/plugin-sql"]
     },
     "apps/cli": {
       "entry": ["src/index.ts", "src/acp-server.ts"],
