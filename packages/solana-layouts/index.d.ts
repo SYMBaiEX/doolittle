@@ -1,0 +1,20 @@
+import type { Layout } from "@solana/buffer-layout";
+import type { PublicKey } from "@solana/web3.js";
+import type BigNumber from "bignumber.js";
+
+export type EncodeDecode<T> = Pick<Layout<T>, "encode" | "decode">;
+export function encodeDecode<T>(layout: Layout<T>): EncodeDecode<T>;
+export function bigInt(length: number): (property?: string) => Layout<bigint>;
+export function bigIntBE(length: number): (property?: string) => Layout<bigint>;
+export const u64: (property?: string) => Layout<bigint>;
+export const u64be: typeof u64;
+export const u128: typeof u64;
+export const u128be: typeof u64;
+export const u192: typeof u64;
+export const u192be: typeof u64;
+export const u256: typeof u64;
+export const u256be: typeof u64;
+export const WAD: BigNumber;
+export function decimal(property?: string): Layout<BigNumber>;
+export function bool(property?: string): Layout<boolean>;
+export function publicKey(property?: string): Layout<PublicKey>;

@@ -47,7 +47,8 @@
     "packages/plugins",
     "packages/plugins/*",
     "packages/skills",
-    "packages/characters"
+    "packages/characters",
+    "packages/solana-layouts"
   ],
   "scripts": {
     "bootstrap": "nub scripts/bootstrap.ts",
@@ -230,8 +231,7 @@
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "uuid@<11.1.1": "11.1.1",
-    "@solana/buffer-layout-utils": "0.3.0",
-    "@solana/buffer-layout-utils>bigint-buffer": "-",
+    "@solana/buffer-layout-utils": "link:packages/solana-layouts",
     "@elizaos/ui>@solana/wallet-adapter-wallets": "-",
     "file-type@<21.3.1": "22.2.0",
     "zod": "4.6.7",
@@ -292,7 +292,8 @@
     "@types/blessed": "^0.1.27",
     "@elizaos/plugin-sql": "2.0.3-beta.7",
     "@lydell/node-pty": "1.1.0",
-    "ethers": "6.17.0"
+    "ethers": "6.17.0",
+    "@solana/buffer-layout-utils": "link:packages/solana-layouts"
   },
   "allowScripts": {
     "@nubjs/nub": true,
@@ -312,15 +313,7 @@
     "@elizaos/plugin-sql@2.0.3-beta.7": "patches/@elizaos+plugin-sql@2.0.3-beta.7.patch",
     "@elizaos/plugin-agent-orchestrator@2.0.3-beta.7": "patches/@elizaos+plugin-agent-orchestrator@2.0.3-beta.7.patch",
     "@elizaos/core@2.0.3-beta.7": "patches/@elizaos+core@2.0.3-beta.7.patch",
-    "@elizaos/agent@2.0.3-beta.7": "patches/@elizaos+agent@2.0.3-beta.7.patch",
-    "@solana/buffer-layout-utils@0.3.0": "patches/@solana+buffer-layout-utils@0.3.0.patch"
-  },
-  "packageExtensions": {
-    "@solana/buffer-layout-utils@0.3.0": {
-      "dependencies": {
-        "@noble/curves": "2.2.0"
-      }
-    }
+    "@elizaos/agent@2.0.3-beta.7": "patches/@elizaos+agent@2.0.3-beta.7.patch"
   },
   "dependencies": {
     "eliza-http": "npm:@elizaos/agent@2.0.11-beta.7"

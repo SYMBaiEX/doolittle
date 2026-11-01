@@ -1,0 +1,25 @@
+{
+  "name": "@doolittle/solana-layouts",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Strict unsigned Solana layouts using maintained byte converters, with the legacy layout API required by wallet SDKs.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./index.cjs",
+  "types": "./index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./index.cjs"
+    }
+  },
+  "dependencies": {
+    "@solana/buffer-layout": "4.0.1",
+    "@solana/web3.js": "1.98.4",
+    "bignumber.js": "11.0.0",
+    "noble-layout-codecs": "npm:@noble/curves@2.2.0"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  }
+}
