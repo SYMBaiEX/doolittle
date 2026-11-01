@@ -92,6 +92,41 @@ exclusive publication. Additional published layout forks and `bigint-buffer-fixe
 retain the vulnerable dependency or truncate unsigned values. They are not
 substituted merely to make the patch count smaller.
 
+## Pinned-source qualification
+
+Pinned upstream source builds are now authorized. They are being qualified before
+replacing the installed SDK; ordinary installs still use the published releases
+and the four declared patches above. No experimental source archive is part of
+the product dependency graph.
+
+The pre-split upstream commit
+`24c7a013a443ff7ecf2c63b49e7155adce530b02` builds core with its public build script,
+including declarations and its packed Node, browser and edge consumer checks.
+Prompts, shared, registry and SQL also compile from that commit without changing
+tracked upstream implementation. Core's scheduler concurrency contract passes
+against this build. SQL is not independently compatible with our published core:
+its imports require additional core capabilities. Installing only its archive
+would break startup.
+
+Source migration must carry the actual package closure and preserve these
+boundaries before replacing the release dependencies:
+
+- Message delivery now returns a delivery outcome or a memory. Pending/refused
+  outcomes must never be recorded as confirmed delivery.
+- Authentication moved into the upstream auth package with explicit state-root
+  policies and encrypted storage. Qualification must use isolated accounts and
+  must not migrate real user credentials as a test side effect.
+- Native failure receipts replace local response annotations. Per-turn planner
+  budgets and media-link classification still require behavior verification;
+  a successful compilation does not retire those fixes.
+- Source provenance, build tools and artifact integrity must be reproducible and
+  checked before adopting archives. Builds must not inherit provider credentials.
+
+The newer modular core commit
+`b2dbeff3ab689a69f7e518deb7d608d1c4607790` also builds, but moves services used by
+Doolittle and existing SDK plugins into separate packages. It is not a compatible
+single-package upgrade. Neither build is represented as a completed migration.
+
 ## Retired legacy consumers
 
 - The archived Solana layout utility is replaced by `@doolittle/solana-layouts`,
