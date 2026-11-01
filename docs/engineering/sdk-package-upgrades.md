@@ -40,17 +40,16 @@ Current registry records:
 
 ## Remaining patches
 
-Five package patches remain. Removing a patch requires the unmodified installed
+Four package patches remain. Removing a patch requires the unmodified installed
 and packaged consumer to pass its behavior/security contract. Moving a fix into
 a local fork, build transform or renamed compatibility workspace is not retirement.
 
-| Package                    | Required behavior                                                                                                                                            |
-| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Core                       | Maintained template compiler; correct task timing/concurrency; planner limits and failure receipts; cache/relationship updates and media URL classification. |
-| Agent                      | Concurrent, exclusive and symlink-safe atomic state/credential publication. SDK-internal callers need the same protection as client callers.                 |
-| SQL                        | Explicit embedded database creation must not read unrelated parent `.env` files.                                                                             |
-| Agent orchestrator         | Native worker ownership, portable workspace loading and truthful initial model-selection receipts.                                                           |
-| Solana buffer-layout-utils | Preserve wallet amounts and reject negative/overflowing unsigned layouts without vulnerable bigint-buffer.                                                   |
+| Package            | Required behavior                                                                                                                                            |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Core               | Maintained template compiler; correct task timing/concurrency; planner limits and failure receipts; cache/relationship updates and media URL classification. |
+| Agent              | Concurrent, exclusive and symlink-safe atomic state/credential publication. SDK-internal callers need the same protection as client callers.                 |
+| SQL                | Explicit embedded database creation must not read unrelated parent `.env` files.                                                                             |
+| Agent orchestrator | Native worker ownership, portable workspace loading and truthful initial model-selection receipts.                                                           |
 
 The browser core patch now carries template security changes only. Doolittle's
 engine runs in Node/Electron; its renderer does not run task scheduling, planning
@@ -94,6 +93,15 @@ retain the vulnerable dependency or truncate unsigned values. They are not
 substituted merely to make the patch count smaller.
 
 ## Retired legacy consumers
+
+- The archived Solana layout utility is replaced by `@doolittle/solana-layouts`,
+  a first-party compatibility package explicitly approved for the existing wallet
+  SDKs. It uses maintained Noble converters and the standard Solana layout API;
+  no installed dependency is patched. A root-owned `link:` alias keeps source
+  edits live and preserves the exotic-dependency trust policy. The converter
+  alias pins Noble 2.2 independently of legacy Solana cryptography consumers.
+  Real SPL checked-transfer encoding, all unsigned widths/byte orders, decimals,
+  public keys and booleans are checked without sending a transaction.
 
 - Codex requests use the official OpenAI Responses client. ElizaOS owns model
   registration, OAuth refresh, tools, planning and sessions. No outbound JSON
