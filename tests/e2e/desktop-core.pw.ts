@@ -448,8 +448,9 @@ test.describe("fresh native desktop", () => {
         )
         .toBe(true);
       const selected = await page.evaluate(
-        () => window.doolittle.ui?.getSnapshot().selected,
+        async () => (await window.doolittle.ui?.getSnapshot())?.selected,
       );
+      expect(selected).toBeTruthy();
       for (const name of ["Anime Atelier", "Golden Gate Glass"]) {
         await page
           .getByRole("button", { name: "Open settings", exact: true })
@@ -464,7 +465,7 @@ test.describe("fresh native desktop", () => {
         await expect(message).toContainText("Hello, Doolittle");
         expect(
           await page.evaluate(
-            () => window.doolittle.ui?.getSnapshot().selected,
+            async () => (await window.doolittle.ui?.getSnapshot())?.selected,
           ),
         ).toEqual(selected);
         await expect(page.locator(".chat-message.user")).toHaveCount(1);
