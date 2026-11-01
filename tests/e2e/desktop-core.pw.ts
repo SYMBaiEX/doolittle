@@ -363,6 +363,7 @@ test.describe("fresh native desktop", () => {
             appearance,
           );
           await page.screenshot({
+            animations: "disabled",
             path: test.info().outputPath(`${id}-${appearance}.png`),
           });
           await page.getByRole("button", { name: /^Back to /u }).click();
@@ -370,6 +371,7 @@ test.describe("fresh native desktop", () => {
             page.getByRole("textbox", { name: /^Message /u }),
           ).toHaveValue("Keep this coding draft while I change the theme.");
           await page.screenshot({
+            animations: "disabled",
             path: test.info().outputPath(`${id}-${appearance}-chat.png`),
           });
           await page.locator(".chat-welcome-starter").first().click();
@@ -472,6 +474,7 @@ test.describe("fresh native desktop", () => {
         await expect(message.locator("pre")).toBeVisible();
         await expectQuietFocus(composer);
         await page.screenshot({
+          animations: "disabled",
           path: test
             .info()
             .outputPath(

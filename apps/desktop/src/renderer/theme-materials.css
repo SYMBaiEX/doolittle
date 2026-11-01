@@ -65,6 +65,8 @@
 [data-ui-material="cel"] {
   --comic-ink: var(--text);
   --comic-paper: var(--surface-raised);
+  --material-edge: var(--comic-ink);
+  --material-floating: var(--comic-paper);
 }
 [data-ui-material="cel"] .desktop-shell {
   background: var(--surface);
@@ -306,6 +308,8 @@
 /* Glass has its own desktop, floating navigation and layered content surfaces. */
 [data-ui-material="glass"] {
   --glass-fill: var(--surface-raised);
+  --material-edge: var(--glass-edge);
+  --material-floating: var(--glass-fill);
   --glass-edge: color-mix(in srgb, var(--text) 17%, transparent);
   --glass-shadow: 0 14px 44px #09224826, inset 0 1px 0 #ffffff88;
 }
@@ -764,4 +768,14 @@
   [data-ui-material="glass"] .chat-welcome .welcome-title-group h1 {
     font-size: 32px;
   }
+}
+
+[data-ui-material="glass"]
+  .desktop-shell
+  :is([data-session-workbench], [data-session-panel], .dl-settings-frame) {
+  background: transparent;
+}
+[data-ui-material="cel"] .chat-welcome .starter-grid,
+[data-ui-material="glass"] .chat-welcome .starter-grid {
+  border: 0;
 }
