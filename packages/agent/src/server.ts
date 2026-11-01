@@ -6,13 +6,13 @@ import {
 } from "node:http";
 import type { Socket } from "node:net";
 import { Readable } from "node:stream";
+import { syncResolvedApiPort } from "@elizaos/shared";
 import {
   ensureApiTokenForBindHost,
   isAllowedHost,
   isAuthorized,
   resolveTerminalRunRejection,
 } from "eliza-http/api/server-helpers-auth";
-import { syncResolvedApiPort } from "@elizaos/shared";
 import { formatLoggerError } from "./logging/logger";
 import { readWorkerBotProfile } from "./runtime/bootstrap/bot-profile";
 import type { AppContext } from "./runtime/bootstrap/index";
