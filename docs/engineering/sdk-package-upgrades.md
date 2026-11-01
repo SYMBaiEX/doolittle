@@ -57,10 +57,27 @@ engine runs in Node/Electron; its renderer does not run task scheduling, plannin
 or database mutation. Removing unused browser behavior hunks retired **289 lines**;
 Node behavior and browser/edge template-security fixes remain.
 
+SQL and orchestration now patch only their consumed Node ESM implementation.
+Both Node `import` and `require` select that entry; unused CommonJS changes,
+including the build-host workspace path fix, are removed (**146 lines**).
+The module-boundary test checks both resolutions so a publication changing
+that contract cannot silently select an unprotected implementation.
+
 Regression checks exercise concurrent/exclusive state publication, all wallet
 64/128/192/256-bit layouts with offsets and range errors, and explicit database
 creation in a separate process with an unrelated parent environment witness.
 Real desktop and CLI coding journeys independently verify edits and test results.
+The task scheduler test holds an execution open across multiple dirty ticks;
+the native-maintenance journey checks restart reconciliation and ACPX lock
+ownership through the public service start/stop API in an isolated home.
+Atomic publication also races exclusive owners. Wallet checks use asymmetric
+byte-order vectors and verify that rejected amounts leave the buffer intact.
+
+Run these retirement contracts without rebuilding either client:
+
+```sh
+nub run test:scope tests/boundary/sdk-module-boundaries.test.ts tests/boundary/sdk-task-scheduling.test.ts tests/boundary/sdk-native-maintenance.test.ts tests/boundary/sdk-patch-contracts.test.ts tests/boundary/sdk-atomic-publication.test.ts
+```
 
 The other core/agent candidates do not supply supported replacements for these
 contracts. SQL and orchestrator higher-numbered archives still omit their
@@ -68,6 +85,13 @@ advertised runtime entries. Published bigint conversion alternatives inspected
 on October 31 still truncate overflow or wrap unsigned negatives; they do not
 satisfy the wallet boundary. No security or amount validation was removed to
 reduce the patch count.
+
+Registry and archive checks on November 1 found no later publications for these
+five packages. SQL `2.0.3-beta.6` and `1.7.2` still traverse parent environment
+files; agent `2.0.3-beta.6` still uses predictable temporary names without
+exclusive publication. Additional published layout forks and `bigint-buffer-fixed`
+retain the vulnerable dependency or truncate unsigned values. They are not
+substituted merely to make the patch count smaller.
 
 ## Retired legacy consumers
 

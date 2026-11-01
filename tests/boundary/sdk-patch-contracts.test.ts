@@ -33,8 +33,17 @@ for (const bits of [64, 128, 192, 256]) {
       expect(layout.decode(buffer, 2)).toBe(max);
       expect([...buffer.subarray(0, 2)]).toEqual([0xa5, 0xa5]);
       expect([...buffer.subarray(-2)]).toEqual([0xa5, 0xa5]);
+      const asymmetric = 0x0102030405060708n;
+      const expected = Buffer.alloc(bytes);
+      expected.writeBigUInt64LE(asymmetric);
+      if (suffix === "be") expected.reverse();
+      layout.encode(asymmetric, buffer, 2);
+      expect(buffer.subarray(2, bytes + 2)).toEqual(expected);
+      expect(layout.decode(buffer, 2)).toBe(asymmetric);
+      const before = Buffer.from(buffer);
       expect(() => layout.encode(-1n, buffer, 2)).toThrow();
       expect(() => layout.encode(max + 1n, buffer, 2)).toThrow();
+      expect(buffer).toEqual(before);
     });
   }
 }

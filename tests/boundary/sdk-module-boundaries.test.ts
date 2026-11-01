@@ -5,6 +5,17 @@ import { afterEach, expect, it, vi } from "vitest";
 
 const requireFromRepo = createRequire(import.meta.url);
 afterEach(() => vi.unstubAllEnvs());
+it("resolves SQL and orchestration to their supported Node ESM entries for both import and require", () => {
+  for (const [name, suffix] of [
+    ["@elizaos/plugin-sql", "/src/dist/node/index.node.js"],
+    ["@elizaos/plugin-agent-orchestrator", "/dist/node/index.node.js"],
+  ]) {
+    expect(import.meta.resolve(name).endsWith(suffix)).toBe(true);
+    expect(
+      requireFromRepo.resolve(name).replaceAll("\\", "/").endsWith(suffix),
+    ).toBe(true);
+  }
+});
 it("runs the published HTTP policy without unpublished SDK compatibility packages", () => {
   for (const name of [
     "@elizaos/registry",
