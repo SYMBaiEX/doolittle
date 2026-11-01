@@ -1,6 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { expect, type Locator, test } from "@playwright/test";
+import { themeContrast } from "../../packages/ui/src/themes";
 import {
   agentRequest,
   installProjectDialog,
@@ -9,6 +10,7 @@ import {
   openProjectChat,
   projectDialogCount,
 } from "../support/desktop-core";
+import { themeContrastFixture } from "../support/theme-contrast";
 
 async function expectQuietFocus(control: Locator) {
   await control.focus();
@@ -362,6 +364,73 @@ test.describe("fresh native desktop", () => {
             "data-appearance",
             appearance,
           );
+          const pairs = await page.evaluate((markup) => {
+            const probe = document.createElement("div");
+            probe.setAttribute("aria-hidden", "true");
+            probe.style.cssText =
+              "position:fixed;left:-10000px;top:0;width:400px;pointer-events:none";
+            probe.innerHTML = markup;
+            document.querySelector(".desktop-shell")?.append(probe);
+            try {
+              const canvas = document.createElement("canvas");
+              canvas.width = canvas.height = 1;
+              const ctx = canvas.getContext("2d");
+              if (!ctx) throw new Error("Color sampling unavailable");
+              const color = (value: string) => {
+                ctx.clearRect(0, 0, 1, 1);
+                ctx.fillStyle = value;
+                ctx.fillRect(0, 0, 1, 1);
+                const [r = 0, g = 0, b = 0, a = 0] = ctx.getImageData(
+                  0,
+                  0,
+                  1,
+                  1,
+                ).data;
+                return {
+                  hex: `#${[r, g, b].map((v) => v.toString(16).padStart(2, "0")).join("")}`,
+                  alpha: a,
+                };
+              };
+              const controls: [string, string, string][] = [
+                ["metadata", ".dl-meta", ".dl-contact"],
+                ["status", ".dl-run-state", ".dl-contact"],
+                ["avatar", ".dl-avatar", ".dl-avatar"],
+                [
+                  "primary",
+                  "[data-contrast-primary]",
+                  "[data-contrast-primary]",
+                ],
+                [
+                  "destructive",
+                  "[data-contrast-destructive]",
+                  "[data-contrast-destructive]",
+                ],
+              ];
+              return controls.map(([label, fgSelector, bgSelector]) => {
+                const fg = probe.querySelector(fgSelector);
+                const bg = probe.querySelector(bgSelector);
+                if (!fg || !bg)
+                  throw new Error("Shared contrast control missing");
+                return {
+                  label,
+                  fg: color(getComputedStyle(fg).color),
+                  bg: color(getComputedStyle(bg).backgroundColor),
+                };
+              });
+            } finally {
+              probe.remove();
+            }
+          }, themeContrastFixture());
+          for (const pair of pairs) {
+            expect(
+              pair.bg.alpha,
+              `${id}/${appearance}/${pair.label} opaque pair`,
+            ).toBe(255);
+            expect(
+              themeContrast(pair.fg.hex, pair.bg.hex),
+              `${id}/${appearance}/${pair.label} contrast`,
+            ).toBeGreaterThanOrEqual(4.5);
+          }
           await page.screenshot({
             animations: "disabled",
             path: test.info().outputPath(`${id}-${appearance}.png`),

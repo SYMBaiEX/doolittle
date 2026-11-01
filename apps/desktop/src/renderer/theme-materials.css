@@ -704,12 +704,7 @@
   box-shadow: var(--glass-shadow);
 }
 [data-ui-material="glass"]
-  :is(
-    .dl-button,
-    .dl-settings-choice,
-    .dl-settings-theme-choice,
-    .dl-select-content
-  ) {
+  :is(.dl-settings-choice, .dl-settings-theme-choice, .dl-select-content) {
   border: 1px solid var(--glass-edge);
   border-radius: 14px;
   background: var(--glass-fill);
@@ -745,7 +740,6 @@
       .dl-settings-menu,
       .dl-settings-group,
       .dl-select-content,
-      .dl-button,
       .dl-settings-choice,
       .dl-settings-theme-choice
     ) {
@@ -778,4 +772,19 @@
 [data-ui-material="cel"] .chat-welcome .starter-grid,
 [data-ui-material="glass"] .chat-welcome .starter-grid {
   border: 0;
+}
+
+[data-ui-material="cel"]
+  .app-sidebar
+  .dl-contact[aria-current]
+  :is(.dl-meta, .dl-run-state),
+[data-ui-material="glass"]
+  .app-sidebar
+  .dl-contact[aria-current]
+  .dl-run-state {
+  color: var(--accent-ink);
+}
+[data-ui-material="cel"] .app-sidebar .dl-contact[aria-current] .dl-avatar {
+  color: var(--text);
+  background: var(--surface-raised);
 }
