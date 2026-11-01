@@ -1,9 +1,8 @@
 # Plugin Workspace
 
-This workspace mixes three different kinds of package-shaped code:
+This workspace contains provider bridges and product adapters:
 
 - public provider bridges such as [`plugin-claude-code`](./plugin-claude-code) and [`plugin-devin`](./plugin-devin); Codex is supplied directly by `@elizaos/plugin-codex-cli`
-- vendored compatibility packages kept local for the current ElizaOS beta line
 - internal adapters that expose Doolittle runtime services through plugin contracts
 
 ## Canonical Truth
@@ -24,7 +23,7 @@ Runtime truth is exposed directly from:
 - Product-specific orchestration belongs in `packages/agent/src/` or [`doolittle-plugin`](./doolittle-plugin).
 - Public provider bridges should stay honest about readiness and publish intent.
 - Internal adapters should not present themselves as independent subsystems when they are thin wrappers over runtime services.
-- Vendored compatibility work should stay close to the package boundary instead of leaking runtime-line patches deeper into the product.
+- Consume published SDK modules directly; do not recreate unpublished packages in the SDK namespace.
 
 ## Linked Providers
 
