@@ -372,6 +372,10 @@ test.describe("fresh native desktop", () => {
           await page.screenshot({
             path: test.info().outputPath(`${id}-${appearance}-chat.png`),
           });
+          await page.locator(".chat-welcome-starter").first().click();
+          const draft = page.getByRole("textbox", { name: /^Message /u });
+          await expect(draft).toHaveValue("Help me think something through");
+          await draft.fill("Keep this coding draft while I change the theme.");
           await page
             .getByRole("button", { name: "Open settings", exact: true })
             .click();
@@ -400,11 +404,80 @@ test.describe("fresh native desktop", () => {
         ),
       ).toBe(true);
       await expectQuietFocus(page.getByRole("textbox", { name: /^Message /u }));
+      await desktop.app.evaluate(({ BrowserWindow }) => {
+        BrowserWindow.getAllWindows()[0]?.setSize(520, 430);
+      });
+      await expect(
+        page.getByRole("textbox", { name: /^Message /u }),
+      ).toBeInViewport({ ratio: 1 });
       await page.emulateMedia({ forcedColors: "active" });
       await expect(page.locator(".chat-composer")).toHaveCSS(
         "backdrop-filter",
         "none",
       );
+    } finally {
+      await desktop.dispose();
+    }
+  });
+  test("preserves a code transcript while changing complete theme compositions", async () => {
+    const desktop = await launchDesktop();
+    try {
+      const page = desktop.page;
+      const composer = page.getByRole("textbox", { name: "Message Doolittle" });
+      await composer.fill(
+        "Reference snippet:\n```ts\nexport const greeting = 'Hello, Doolittle';\n```",
+      );
+      await composer.press("Enter");
+      const message = page.locator(".chat-message.user").first();
+      await expect(message).toContainText("Hello, Doolittle");
+      await expect(
+        page.locator(".chat-message.assistant").first(),
+      ).toBeVisible();
+      await expect
+        .poll(
+          async () => {
+            const { runs } = await agentRequest<{ runs: { status: string }[] }>(
+              page,
+              "/chat/runs",
+            );
+            return runs.some((run) =>
+              ["complete", "error", "cancelled"].includes(run.status),
+            );
+          },
+          { timeout: 30_000 },
+        )
+        .toBe(true);
+      const selected = await page.evaluate(
+        () => window.doolittle.ui?.getSnapshot().selected,
+      );
+      for (const name of ["Anime Atelier", "Golden Gate Glass"]) {
+        await page
+          .getByRole("button", { name: "Open settings", exact: true })
+          .click();
+        await page
+          .getByRole("button", { name: new RegExp(`^${name}:`) })
+          .click();
+        await page
+          .getByRole("button", { name: "Light: Light surfaces", exact: true })
+          .click();
+        await page.getByRole("button", { name: /^Back to /u }).click();
+        await expect(message).toContainText("Hello, Doolittle");
+        expect(
+          await page.evaluate(
+            () => window.doolittle.ui?.getSnapshot().selected,
+          ),
+        ).toEqual(selected);
+        await expect(page.locator(".chat-message.user")).toHaveCount(1);
+        await expect(message.locator("pre")).toBeVisible();
+        await expectQuietFocus(composer);
+        await page.screenshot({
+          path: test
+            .info()
+            .outputPath(
+              `${name.replaceAll(" ", "-").toLowerCase()}-code-chat.png`,
+            ),
+        });
+      }
     } finally {
       await desktop.dispose();
     }

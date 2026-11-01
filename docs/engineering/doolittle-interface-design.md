@@ -2,12 +2,20 @@
 
 ## Design direction
 
-The optional Anime Atelier and Golden Gate Glass themes extend this baseline
-with cel-style depth or translucent materials and original welcome artwork.
-Their treatments preserve conversation ownership and workspace composition.
-They retain quiet input focus, readable code, light/dark contrast, reduced
-motion and opaque/forced-color alternatives. Companion remains the quiet
-default; short panes omit decorative artwork.
+The optional themes are complete visual compositions on the same client:
+
+- Anime Atelier uses manga paper, screentone texture, inked frames, chapter
+  headings and speech-panel messages. Display lettering uses the locally bundled
+  Bangers font under its [included SIL Open Font License](../../apps/desktop/public/licenses/Bangers-OFL.txt); code stays monospace.
+- Golden Gate Glass uses an original local landscape, floating translucent
+  navigation and content panes, macOS-blue controls and refractive component edges.
+  Reduced transparency replaces the glass with opaque reading surfaces.
+
+Both use the same conversation, workspace, draft and permission owners. Their
+welcome task cards are real composer shortcuts; they never start a task without
+Send. Compact widths simplify the artwork and let content scroll. The following
+quiet-default rules apply to Companion/Canvas; expressive themes may change
+composition and persistent surface edges, but never add input focus frames.
 
 The default Companion composition is a contact-sidebar messenger: one readable
 conversation, one compact composer, supporting tools on demand. Canvas hides
