@@ -303,3 +303,24 @@ Historical compatibility requirements above describe the previous integration.
 Automatic account discovery no longer reads DEVIN_CLI_COMMAND. It invokes only
 known provider status commands. This removes the environment-to-executable path
 reported by CodeQL #370 rather than dismissing the security finding.
+
+## Narrow the remaining patch surface
+
+The browser core entry now carries template security changes only. Doolittle's
+engine runs in Node/Electron; its browser renderer does not run task scheduling,
+planning or database mutation. The unused duplicate browser behavior hunks are
+removed (289 lines), while Node behavior and both template-security entries remain.
+
+The five remaining package patches still have independent removal gates:
+
+- Core: maintained template compiler plus task timing and planner failure receipts.
+- Agent: concurrent, exclusive and symlink-safe state publication.
+- SQL: explicit embedded database creation must not read unrelated parent `.env` files.
+- Orchestrator: native worker ownership and truthful initial model selection.
+- Solana layouts: preserve wallet amounts and reject negative/overflowing unsigned values.
+
+Regression coverage now exercises the actual wallet dependency for all unsigned
+64/128/192/256-bit layouts, including offsets, sentinels and range errors. A separate
+process verifies that creating the SDK's embedded database leaves a parent `.env`
+witness unloaded. Atomic publication and real coding tests remain required.
+These fixes have not been moved into a local SDK fork or hidden in build transforms.
