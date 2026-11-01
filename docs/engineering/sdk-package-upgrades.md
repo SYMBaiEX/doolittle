@@ -281,3 +281,25 @@ This keeps voice encoding/decoding through prism-media's supported codec loader.
 Tests exercise ASAR unpack rules, Jake file-list filtering, aborted glob calls,
 a real audio encode/decode round trip and cross-realm custom credential stripping
 over loopback redirects. They do not claim a live Discord voice-call test.
+
+
+## Current client boundaries: compatibility workspaces retired
+
+All three SDK compatibility workspaces are removed. The SDK's unpublished
+remote-manifest and worker-runtime packages belong to unused remote-worker and
+aggregate entrypoints; Doolittle consumes individual published SDK modules.
+The declared dependency edges are excluded rather than supplied by fake packages.
+The registry dependency is retired by advancing shared to its published
+2.0.11-beta.7 release. HTTP policy uses that release's matching public agent
+helper through the explicit `eliza-http` npm alias. The core engine and other
+agent services remain on their independently usable release; no SDK source is
+copied or rewritten. The desktop registry bundler alias is also removed.
+
+The package checker now rejects every local package in the SDK namespace.
+The standalone provider publish preflight no longer manufactures missing SDK
+packages; its real isolated install/import checks must pass before publication.
+Historical compatibility requirements above describe the previous integration.
+
+Automatic account discovery no longer reads DEVIN_CLI_COMMAND. It invokes only
+known provider status commands. This removes the environment-to-executable path
+reported by CodeQL #370 rather than dismissing the security finding.

@@ -11,7 +11,7 @@ import {
   isAllowedHost,
   isAuthorized,
   resolveTerminalRunRejection,
-} from "@elizaos/agent/api/server-helpers-auth";
+} from "eliza-http/api/server-helpers-auth";
 import { syncResolvedApiPort } from "@elizaos/shared";
 import { formatLoggerError } from "./logging/logger";
 import { readWorkerBotProfile } from "./runtime/bootstrap/bot-profile";

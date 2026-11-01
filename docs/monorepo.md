@@ -18,7 +18,6 @@ Doolittle is organized as a Nub workspace monorepo running on stock Node.js.
 | `packages/characters`                                                                    | Character and persona data loaded by Eliza.                                                                                                                                             |
 | `packages/skills`                                                                        | Curated and generated native skill documents. See the [skills index](../packages/skills/index.md).                                                                                      |
 | `packages/skill-packs-optional`                                                          | Optional native skill documents kept outside the default curated tier.                                                                                                                  |
-| `packages/plugin-remote-manifest`, `packages/plugin-worker-runtime`, `packages/registry` | Narrow compatibility workspaces for an SDK bridge type, worker error wire helpers, and curated registry JSON. They expose only used contracts and are guarded by the SDK release check. |
 
 ## Dependency direction
 
@@ -59,8 +58,8 @@ artifacts live in `apps/cli/dist/`; desktop artifacts live in
   ownership and an acyclic dependency graph. It runs in CI's acceptance gate.
 - `knip:deps` audits the entire workspace set, including the CLI and repository
   scripts. Its root exceptions are the optional ScriptC compiler and the SDK
-  compatibility/SQL packages provisioned for upstream resolution and packaging.
-  The three unpublished SDK contracts remain exact-version workspace overrides.
+  SQL packages provisioned for upstream resolution and packaging.
+  Unused unpublished SDK branches are excluded; no local SDK namespace packages remain.
 
 See the [module structure guidelines](./module-structure-guidelines.md) for
 folder, filename, entrypoint, and test-placement conventions.
