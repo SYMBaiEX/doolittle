@@ -3,6 +3,7 @@ import {
   type ThemeManifestV2,
 } from "@doolittle/contracts/theme";
 import {
+  BUILT_IN_THEMES,
   COMPANION_THEME,
   migrateLegacyThemeBundle,
   themeCssVariables,
@@ -672,6 +673,11 @@ export function loadStoredThemeManifest(): ThemeManifestV2 {
     try {
       const theme = parseThemeManifestV2(JSON.parse(stored));
       validateThemeAccessibility(theme);
+      if (localStorage.getItem(THEME_SOURCE_STORAGE_KEY) === "builtin") {
+        return (
+          BUILT_IN_THEMES.find((preset) => preset.id === theme.id) ?? theme
+        );
+      }
       return theme;
     } catch {
       themeMigrationError =
