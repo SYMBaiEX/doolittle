@@ -33,38 +33,3 @@ diff --git a/src/dist/node/index.node.js b/src/dist/node/index.node.js
    let monoPath;
    if (existsSync2(path.join(process.cwd(), "packages", "core"))) {
      monoPath = process.cwd();
-diff --git a/src/dist/cjs/index.node.cjs b/src/dist/cjs/index.node.cjs
---- a/src/dist/cjs/index.node.cjs
-+++ b/src/dist/cjs/index.node.cjs
-@@ -13363,7 +13363,6 @@
- // utils.ts
- var import_node_fs2 = require("node:fs");
- var import_node_path = __toESM(require("node:path"));
--var import_dotenv = __toESM(require("dotenv"));
- function expandTildePath(filepath) {
-   if (filepath.startsWith("~")) {
-     return import_node_path.default.join(process.cwd(), filepath.slice(1));
-@@ -13373,23 +13372,6 @@
--function resolveEnvFile(startDir = process.cwd()) {
--  let currentDir = startDir;
--  while (true) {
--    const candidate = import_node_path.default.join(currentDir, ".env");
--    if (import_node_fs2.existsSync(candidate)) {
--      return candidate;
--    }
--    const parentDir = import_node_path.default.dirname(currentDir);
--    if (parentDir === currentDir) {
--      break;
--    }
--    currentDir = parentDir;
--  }
--  return import_node_path.default.join(startDir, ".env");
--}
- function resolvePgliteDir(dir, fallbackDir) {
--  const envPath = resolveEnvFile();
--  if (import_node_fs2.existsSync(envPath)) {
--    import_dotenv.default.config({ path: envPath });
--  }
-   let monoPath;
-   if (import_node_fs2.existsSync(import_node_path.default.join(process.cwd(), "packages", "core"))) {
-     monoPath = process.cwd();
