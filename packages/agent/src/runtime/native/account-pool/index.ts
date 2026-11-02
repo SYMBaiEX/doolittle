@@ -23,7 +23,7 @@ import type {
   AccountCredentialProvider,
   OAuthCredentials,
 } from "@elizaos/auth/auth/types";
-import * as elizaCore from "@elizaos/core";
+import { getCodingAgentSelectorBridge } from "@elizaos/core";
 import {
   getLinkedClaudeCodeCredentials,
   getLinkedCodexCredentials,
@@ -37,12 +37,6 @@ import {
   getStoredClaudeCodeCredentials,
   getStoredCodexCredentials,
 } from "../account-auth/store";
-import {
-  type CodingBridge,
-  getCodingAgentBridge,
-  hasOfficialCodingAgentBridgeAccessors,
-  setCodingAgentBridge,
-} from "./coding-bridge-compat";
 
 export const ACCOUNT_POOL_PROVIDERS = [
   "openai-codex",
@@ -74,8 +68,6 @@ const materializedApiEnv = new Map<
   MaterializedApiEnvKey,
   { value: string; previous?: string }
 >();
-
-const DOOLITTLE_BRIDGE_MARKER = "__doolittleAccountPoolBridge";
 
 export interface AccountPoolAccountSnapshot {
   providerId: AccountPoolProvider;
@@ -157,55 +149,6 @@ function configurePoolSelection(): void {
 
 function readStrategy(providerId: AccountPoolProvider): AccountPoolStrategy {
   return readStrategies()[providerId] ?? "priority";
-}
-
-type DoolittleCodingBridge = CodingBridge & {
-  [DOOLITTLE_BRIDGE_MARKER]?: boolean;
-};
-
-function providerForCodingAgent(
-  agentType: string,
-): AccountPoolProvider | undefined {
-  switch (agentType.toLowerCase()) {
-    case "codex":
-      return "openai-codex";
-    case "claude":
-      return "anthropic-subscription";
-    default:
-      return undefined;
-  }
-}
-
-/**
- * beta.7's bridge only applies its global environment strategy. Wrap that
- * legacy selection call narrowly so Doolittle's persisted per-provider choice
- * reaches Codex/Claude spawns. Newer SDKs expose public bridge accessors and
- * honor configured accountStrategies directly, so they bypass this wrapper.
- */
-function installDoolittleCodingBridge(): void {
-  if (hasOfficialCodingAgentBridgeAccessors(elizaCore)) return;
-  const bridge = getCodingAgentBridge(
-    elizaCore,
-  ) as DoolittleCodingBridge | null;
-  if (!bridge || bridge[DOOLITTLE_BRIDGE_MARKER]) return;
-  const select = bridge.select.bind(bridge);
-  const wrappedBridge: DoolittleCodingBridge = {
-    ...bridge,
-    [DOOLITTLE_BRIDGE_MARKER]: true,
-    select: (
-      agentType: string,
-      options?: { strategy?: string; [key: string]: unknown },
-    ) => {
-      const providerId = providerForCodingAgent(agentType);
-      return select(agentType, {
-        ...options,
-        strategy:
-          options?.strategy ??
-          (providerId ? readStrategy(providerId) : undefined),
-      });
-    },
-  };
-  setCodingAgentBridge(elizaCore, wrappedBridge);
 }
 
 export function setDoolittleAccountPoolStrategy(
@@ -508,7 +451,6 @@ export function initializeDoolittleAccountPool(dataDir?: string): AccountPool {
   configurePoolSelection();
   importLegacyDoolittleAccounts();
   const pool = getDefaultAccountPool();
-  installDoolittleCodingBridge();
   startAccountPoolKeepAlive();
   return pool;
 }
@@ -564,7 +506,7 @@ export function snapshotDoolittleAccountPool(
   pool = getDoolittleAccountPool(),
 ): AccountPoolSnapshot {
   return {
-    bridgeInstalled: Boolean(getCodingAgentBridge(elizaCore)),
+    bridgeInstalled: Boolean(getCodingAgentSelectorBridge()),
     providers: Object.fromEntries(
       ACCOUNT_POOL_PROVIDERS.map((providerId) => [
         providerId,
