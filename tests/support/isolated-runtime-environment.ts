@@ -1,4 +1,7 @@
+import { createHmac, randomBytes } from "node:crypto";
 import { isAbsolute, join, parse } from "node:path";
+
+const fixtureVaultKey = randomBytes(32);
 
 // Explicit empty values prevent dotenv's override:false from activating a
 // connector whose credentials were absent from the parent process environment.
@@ -88,6 +91,11 @@ export function isolatedRuntimeEnvironment(
     LOCALAPPDATA: join(runtimeDir, "local-appdata"),
     DOOLITTLE_DATA_DIR: runtimeDir,
     ELIZA_HOME: runtimeDir,
+    ELIZA_STATE_DIR: runtimeDir,
+    ELIZA_VAULT_DISABLE_KEYCHAIN: "1",
+    ELIZA_VAULT_PASSPHRASE: createHmac("sha256", fixtureVaultKey)
+      .update(runtimeDir)
+      .digest("hex"),
     ELIZA_CONFIG_PATH: join(runtimeDir, "eliza.json"),
     ELIZA_ACP_STATE_DIR: join(runtimeDir, "plugin-acp"),
     ACP_AUDIT_LOG_PATH: join(runtimeDir, "plugin-acp", "audit.ndjson"),

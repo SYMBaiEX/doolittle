@@ -66,6 +66,7 @@ export class KnowledgeDocumentWorker {
       HOME: workerDir,
       USERPROFILE: workerDir,
       ELIZA_HOME: workerDir,
+      ELIZA_STATE_DIR: workerDir,
       CODEX_HOME: resolve(workerDir, "codex-home"),
       CLAUDE_CONFIG_DIR: resolve(workerDir, "claude-config"),
       DOOLITTLE_NAME: profile.name,
