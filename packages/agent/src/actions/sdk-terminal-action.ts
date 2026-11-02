@@ -1,9 +1,11 @@
 import { terminalAction } from "@elizaos/agent/actions/terminal";
 import type { Action, ActionResult } from "@elizaos/core";
+import { leaseTerminalActionScope } from "../runtime/terminal-action-scope";
 import {
   getScopedTurnAbortSignal,
   recordScopedTurnActionResult,
 } from "../runtime/turn-runtime-scope";
+import { isDesktopWorkspaceRuntime } from "../runtime/workspace-scope";
 import type { AppServices } from "../services/index";
 import { isRecord } from "../utils/records";
 
@@ -107,7 +109,13 @@ export function createSdkTerminalAction(
           data: { actionName: "SHELL", command },
         };
       } else {
+        let releaseScope: (() => void) | undefined;
         try {
+          if (command && isDesktopWorkspaceRuntime())
+            releaseScope = leaseTerminalActionScope(
+              command,
+              getScopedTurnAbortSignal(runtime),
+            );
           result = resultWithAccurateExitStatus(
             resultWithVerifiedDirectory(
               await sdkHandler(runtime, message, state, options),
@@ -122,6 +130,8 @@ export function createSdkTerminalAction(
             text: error instanceof Error ? error.message : String(error),
             data: { actionName: "SHELL", ...(command ? { command } : {}) },
           };
+        } finally {
+          releaseScope?.();
         }
       }
       if (result) recordScopedTurnActionResult(runtime, result);

@@ -46,6 +46,10 @@ Do not create compatibility stubs to satisfy missing publications.
 - Coding orchestration uses the official CLI ACPX transport with real restart
   reconciliation and process ownership. Unverified initial model selection must
   remain unavailable rather than reported as attested.
+- Desktop SDK shell self-requests use a process-private, one-shot action lease.
+  The exact command and verified conversation are revalidated before dispatch;
+  unleased or replayed requests gain no workspace authority. The SDK action and
+  its receipts, redaction and attachments remain unchanged.
 - SDK outcomes distinguish completion, failure, denial and cancellation. Only
   confirmed connector outcomes may become delivery records.
 - Account storage uses explicit state-root policies and encrypted SDK vaults.
