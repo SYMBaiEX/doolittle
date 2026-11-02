@@ -1,6 +1,6 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { delimiter, dirname, join } from "node:path";
 import { afterEach, expect, it } from "vitest";
 import {
   assertEvalRuntimeEnvironment,
@@ -27,7 +27,10 @@ it("keeps SDK account and vault state private to each fixture without using the 
   const options = fixture();
   const env = createEvalRuntimeEnvironment(options);
   expect(env.ELIZA_STATE_DIR).toBe(join(options.root, "data"));
+  expect(env.PATH?.split(delimiter)[0]).toBe(dirname(process.execPath));
   expect(env.ELIZA_VAULT_DISABLE_KEYCHAIN).toBe("1");
+  expect(env.ELIZAOS_CLOUD_API_KEY).toBe("");
+  expect(env.ELIZA_CLOUD_API_KEY).toBe("");
   expect(env.ELIZA_VAULT_PASSPHRASE).toHaveLength(64);
   expect(createEvalRuntimeEnvironment(options).ELIZA_VAULT_PASSPHRASE).toBe(
     env.ELIZA_VAULT_PASSPHRASE,

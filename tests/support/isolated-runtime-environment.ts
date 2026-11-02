@@ -1,5 +1,5 @@
 import { createHmac, randomBytes } from "node:crypto";
-import { isAbsolute, join, parse } from "node:path";
+import { delimiter, dirname, isAbsolute, join, parse } from "node:path";
 
 const fixtureVaultKey = randomBytes(32);
 
@@ -85,6 +85,11 @@ export function isolatedRuntimeEnvironment(
   }
   return {
     ...environment,
+    // The fixture's private HOME has no Nub runtime cache. Reuse the trusted
+    // Node already executing the tests instead of provisioning it per child.
+    PATH: [dirname(process.execPath), environment.PATH]
+      .filter(Boolean)
+      .join(delimiter),
     HOME: runtimeDir,
     USERPROFILE: runtimeDir,
     APPDATA: join(runtimeDir, "appdata"),

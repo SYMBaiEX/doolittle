@@ -105,8 +105,10 @@ export function createEvalRuntimeEnvironment(
     DOOLITTLE_EVAL_CAPTURE_MODEL_USAGE: "true",
     ELIZAOS_CLOUD_ENABLED: "false",
   };
-  delete environment.ELIZAOS_CLOUD_API_KEY;
-  delete environment.ELIZA_CLOUD_API_KEY;
+  // Empty values also shadow project dotenv files; deleting these keys would
+  // allow environment loading to reactivate the operator's cloud credentials.
+  environment.ELIZAOS_CLOUD_API_KEY = "";
+  environment.ELIZA_CLOUD_API_KEY = "";
   if (options.mode === "api") {
     environment.ELIZA_API_BIND = "127.0.0.1";
     environment.ELIZA_API_PORT = "0";
