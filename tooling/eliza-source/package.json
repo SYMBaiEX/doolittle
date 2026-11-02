@@ -1,0 +1,22 @@
+{
+  "name": "doolittle-sdk-build-tools",
+  "private": true,
+  "dependencies": {
+    "typescript": "npm:@typescript/typescript6@6.0.2",
+    "@types/bun": "1.3.5",
+    "react-test-renderer": "19.3.1",
+    "@types/node": "26.6.3",
+    "@types/markdown-it": "14.1.2",
+    "@elizaos/vitest-vite": "npm:vite@7.3.5",
+    "bun-types": "1.3.5",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0"
+  },
+  "devEngines": {
+    "packageManager": {
+      "name": "nub",
+      "version": "^0.9.7",
+      "onFail": "ignore"
+    }
+  }
+}

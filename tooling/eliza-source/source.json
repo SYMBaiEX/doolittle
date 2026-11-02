@@ -1,0 +1,20 @@
+{
+  "repository": "https://github.com/elizaos/eliza",
+  "commit": "24c7a013a443ff7ecf2c63b49e7155adce530b02",
+  "bun": "1.4.2",
+  "packages": [
+    "packages/prompts",
+    "packages/registry",
+    "packages/shared",
+    "packages/core",
+    "packages/auth",
+    "packages/agent",
+    "packages/app-core",
+    "plugins/plugin-sql"
+  ],
+  "node": "26.5.0",
+  "nub": "0.9.7",
+  "aliases": {
+    "@elizaos/agent": "eliza-http"
+  }
+}
