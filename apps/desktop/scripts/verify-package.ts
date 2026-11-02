@@ -15,6 +15,7 @@ import {
 } from "./desktop-artifact";
 import {
   assertPackageComposition,
+  isInstalledPackageManifestPath,
   MAX_APP_ASAR_BYTES,
   type ProductionPackageManifest,
   packageNamesFromAsarEntries,
@@ -643,9 +644,7 @@ function packagedProductionInventory(
   entries: readonly string[],
 ): DesktopArtifactDependency[] {
   const packages = new Map<string, DesktopArtifactDependency>();
-  for (const entry of entries.filter(
-    (path) => path.includes("/node_modules/") && path.endsWith("/package.json"),
-  )) {
+  for (const entry of entries.filter(isInstalledPackageManifestPath)) {
     let manifest: { name?: unknown; version?: unknown };
     try {
       manifest = JSON.parse(

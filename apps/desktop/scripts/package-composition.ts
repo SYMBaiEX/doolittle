@@ -1,5 +1,11 @@
 export const MAX_APP_ASAR_BYTES = 128 * 1024 * 1024;
 
+export function isInstalledPackageManifestPath(path: string): boolean {
+  return /(?:^|\/)node_modules\/(?:@[^/]+\/)?[^/@][^/]*\/package\.json$/u.test(
+    path,
+  );
+}
+
 export type ProductionPackageManifest = {
   dependencies?: Record<string, string>;
   optionalDependencies?: Record<string, string>;
@@ -16,11 +22,9 @@ export function packageNamesFromAsarEntries(
       const segments = entry.slice(index + marker.length).split("/");
       const first = segments[0];
       if (first) {
-        names.add(
-          first.startsWith("@") && segments[1]
-            ? `${first}/${segments[1]}`
-            : first,
-        );
+        if (first.startsWith("@")) {
+          if (segments[1]) names.add(`${first}/${segments[1]}`);
+        } else names.add(first);
       }
       index = entry.indexOf(marker, index + marker.length);
     }

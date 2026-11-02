@@ -3,6 +3,37 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, it } from "vitest";
 import { installedDesktopProductionPackages } from "../../apps/desktop/scripts/desktop-artifact";
+import {
+  isInstalledPackageManifestPath,
+  packageNamesFromAsarEntries,
+} from "../../apps/desktop/scripts/package-composition";
+
+it("inventories package roots and nested dependencies rather than internal module settings", () => {
+  const paths = [
+    "/node_modules/@tanstack/react-query/package.json",
+    "/node_modules/@tanstack/react-query/build/query-codemods/package.json",
+    "/node_modules/client/package.json",
+    "/node_modules/client/node_modules/@scope/dependency/package.json",
+    "/node_modules/@scope/package.json",
+  ];
+  expect(paths.filter(isInstalledPackageManifestPath)).toEqual([
+    paths[0],
+    paths[2],
+    paths[3],
+  ]);
+});
+
+it("distinguishes scope directories from packages without hiding nested dependencies", () => {
+  expect(
+    packageNamesFromAsarEntries([
+      "/node_modules/@tanstack",
+      "/node_modules/@doolittle/",
+      "/node_modules/@tanstack/query-core/package.json",
+      "/node_modules/client/index.js",
+      "/node_modules/client/node_modules/@unknown/package/index.js",
+    ]),
+  ).toEqual(["@tanstack/query-core", "@unknown/package", "client"]);
+});
 
 it("inventories dependencies whose public exports hide package manifests", () => {
   const root = mkdtempSync(join(tmpdir(), "doolittle-manifest-exports-"));
