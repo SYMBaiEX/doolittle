@@ -1,6 +1,7 @@
 #!/usr/bin/env nub
 
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, realpathSync } from "node:fs";
+import { createRequire } from "node:module";
 import { dirname, join, relative, resolve } from "node:path";
 import {
   expectedElizaPackageVersion,
@@ -102,12 +103,16 @@ const packagePaths = [
 ];
 const mismatches: string[] = [];
 const externalPackages = new Set<string>();
-const installedPackages = new Set<string>();
+const installedPackages = new Map<string, { name: string; owner: string }>();
 for (const [name, source] of Object.entries(sourceBuilds)) {
   const pin = `workspace:${source.version}`;
-  if (rootPackage.dependencies?.[name] !== pin)
-    mismatches.push(`Root source dependency ${name} must pin ${pin}`);
-  installedPackages.add(name);
+  if (rootPackage.overrides?.[name] !== pin)
+    mismatches.push(`Root source override ${name} must pin ${pin}`);
+  const installed = readPackageJson(
+    join(ROOT, sourceWorkspaceDirectory(name), "package.json"),
+  );
+  if (!sourceBuildMatches(source, installed))
+    mismatches.push(`Upstream SDK workspace ${name} has invalid provenance`);
   if (
     sourceTreeDigest(join(ROOT, sourceWorkspaceDirectory(name))) !==
     source.treeSha256
@@ -157,18 +162,19 @@ for (const path of packagePaths) {
         mismatches.push(
           `${relativePath} declares an unqualified SDK workspace ${name}=${version}`,
         );
+      if (
+        isOfficialElizaPackage(name) &&
+        ["dependencies", "devDependencies", "optionalDependencies"].includes(
+          section,
+        )
+      ) {
+        installedPackages.set(`${path}:${name}`, { name, owner: path });
+      }
       const declaredVersion = officialElizaDependencyVersion(name, version);
       if (!declaredVersion) {
         continue;
       }
       externalPackages.add(name);
-      if (
-        section === "dependencies" ||
-        section === "devDependencies" ||
-        section === "optionalDependencies"
-      ) {
-        installedPackages.add(name);
-      }
       const source = sourceBuilds[name];
       const qualifiedSourcePin =
         source &&
@@ -187,15 +193,40 @@ for (const path of packagePaths) {
   }
 }
 
-for (const name of installedPackages) {
-  const manifestPath = join(ROOT, "node_modules", name, "package.json");
-  if (!existsSync(manifestPath)) {
-    mismatches.push(`node_modules/${name} is not installed`);
+for (const { name, owner } of installedPackages.values()) {
+  let manifestPath: string;
+  try {
+    const resolver = createRequire(owner);
+    try {
+      manifestPath = resolver.resolve(`${name}/package.json`);
+    } catch {
+      let directory = dirname(resolver.resolve(name));
+      while (
+        !existsSync(join(directory, "package.json")) ||
+        readPackageJson(join(directory, "package.json")).name !== name
+      ) {
+        const parent = dirname(directory);
+        if (parent === directory)
+          throw new Error(`Package root missing: ${name}`);
+        directory = parent;
+      }
+      manifestPath = join(directory, "package.json");
+    }
+  } catch {
+    mismatches.push(
+      `${relative(ROOT, owner)} cannot resolve installed ${name}`,
+    );
     continue;
   }
   const installed = readPackageJson(manifestPath);
   const installedVersion = installed.version;
   const source = sourceBuilds[name];
+  if (
+    source &&
+    realpathSync(dirname(manifestPath)) !==
+      realpathSync(join(ROOT, sourceWorkspaceDirectory(name)))
+  )
+    mismatches.push(`${name} resolves outside its verified upstream workspace`);
   if (source && !sourceBuildMatches(source, installed)) {
     mismatches.push(
       `node_modules/${name} source provenance differs from its qualified archive`,
