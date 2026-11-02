@@ -83,6 +83,13 @@ export async function validateCriticalRuntimeServices(
     : CRITICAL_RUNTIME_SERVICES;
   for (const serviceType of requiredServices) {
     appendBootstrapTrace(`phase:${serviceType}:load:start`);
+    if (
+      !runtime.getRegisteredServiceTypes().some((type) => type === serviceType)
+    ) {
+      throw new Error(
+        `Required runtime service was not registered: ${serviceType}`,
+      );
+    }
     await runtime.getServiceLoadPromise(serviceType);
     appendBootstrapTrace(`phase:${serviceType}:load:done`);
   }

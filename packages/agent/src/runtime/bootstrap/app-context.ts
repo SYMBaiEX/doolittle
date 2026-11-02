@@ -60,9 +60,7 @@ export async function buildAppContext({
         "Private knowledge storage requires its fixed offline broker identity.",
       );
     }
-    const { default: sqlPlugin } = await import(
-      "@doolittle/plugin-sql-relationships"
-    );
+    const { default: sqlPlugin } = await import("@elizaos/plugin-sql");
     const runtime = new AgentRuntime({
       character: {
         ...character,

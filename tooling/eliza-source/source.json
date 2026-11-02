@@ -20,6 +20,7 @@
     "plugins/plugin-discord",
     "plugins/plugin-form",
     "plugins/plugin-mcp",
+    "plugins/plugin-anthropic",
     "plugins/plugin-openai",
     "plugins/plugin-telegram",
     "plugins/plugin-web-search",

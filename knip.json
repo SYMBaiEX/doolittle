@@ -37,16 +37,18 @@
     "packages/plugins": {
       "project": ["doolittle-plugin/**/*.ts"]
     },
-    "packages/plugins/plugin-sql": {
-      "project": ["src/**/*.ts"]
-    },
     ".": {
       "entry": ["scripts/**/*.ts", "tests/**/*.ts", "*.config.ts"],
       "project": ["scripts/**/*.ts", "tests/**/*.ts", "*.config.ts"],
       "ignoreDependencies": ["scriptc", "@elizaos/plugin-sql"]
     },
     "apps/cli": {
-      "entry": ["src/index.ts", "src/acp-server.ts"],
+      "entry": [
+        "src/index.ts",
+        "src/acp-server.ts",
+        "dist/index.js",
+        "dist/acp-server.js"
+      ],
       "project": ["src/**/*.ts"]
     }
   },

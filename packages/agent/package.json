@@ -10,14 +10,13 @@
     "@doolittle/contracts": "workspace:*",
     "@doolittle/plugin-claude-code": "workspace:*",
     "@doolittle/plugin-devin": "workspace:*",
-    "@doolittle/plugin-sql-relationships": "workspace:*",
     "@doolittle/provider-transport": "workspace:*",
     "@elizaos/agent": "workspace:2.0.12-beta.0",
     "@elizaos/core": "workspace:2.0.12-beta.0",
     "@elizaos/logger": "2.0.11-beta.7",
     "@elizaos/plugin-agent-orchestrator": "workspace:2.0.12-beta.0",
     "@elizaos/plugin-agent-skills": "2.0.0-beta.1",
-    "@elizaos/plugin-anthropic": "2.0.3-beta.7",
+    "@elizaos/plugin-anthropic": "workspace:2.0.12-beta.0",
     "@elizaos/plugin-browser": "workspace:2.0.12-beta.0",
     "@elizaos/plugin-codex-cli": "2.0.3-beta.7",
     "@elizaos/plugin-discord": "workspace:2.0.12-beta.0",
@@ -44,7 +43,8 @@
     "@elizaos/host": "workspace:2.0.12-beta.0",
     "@elizaos/plugin-assistant": "workspace:2.0.12-beta.0",
     "semver": "7.7.4",
-    "@doolittle/storage": "workspace:*"
+    "@doolittle/storage": "workspace:*",
+    "@elizaos/plugin-sql": "workspace:2.0.12-beta.0"
   },
   "devDependencies": {
     "sharp": "0.35.5",

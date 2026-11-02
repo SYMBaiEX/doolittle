@@ -19,8 +19,7 @@ behavioral — never a log or memory dump.
 
 - `apps/cli` — terminal chat, cockpit, process entrypoints and commands.
   `apps/desktop` — Electron desktop client. `packages/agent` — shared runtime
-  (chat-turn, services, providers), API and gateway. `packages/plugins/*` — Doolittle provider bridges, the SQL
-  compatibility wrapper, and `doolittle-plugin` source.
+  (chat-turn, services, providers), API and gateway. `packages/plugins/*` — Doolittle provider bridges and `doolittle-plugin` source.
   `packages/{acp,contracts,characters,skills}` — supporting workspaces.
 - Runtime: prefer the newest usable ElizaOS packages. The root `elizaSdk`
   contract records the pinned upstream source baseline and explicit published

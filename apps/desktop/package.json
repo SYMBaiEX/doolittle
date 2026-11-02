@@ -69,7 +69,10 @@
     "typescript-legacy": "npm:@typescript/typescript6@^6.0.2",
     "vite": "^8.3.5",
     "vitest": "5.0.5",
-    "yaml": "2.9.1"
+    "yaml": "2.9.1",
+    "@vercel/nft": "1.11.0",
+    "spdx-expression-parse": "5.0.0",
+    "@types/spdx-expression-parse": "4.0.0"
   },
   "trustedDependencies": [
     "electron"

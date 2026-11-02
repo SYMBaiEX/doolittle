@@ -23,6 +23,12 @@ commands and the orchestrator CommonJS reproducibility limitation. Doolittle
 qualifies Node ESM entrypoints; archive integrity is not a claim that every
 upstream distribution format works.
 
+The desktop traces real SDK and native modules with Node File Trace, preserving
+package paths, dependency versions and process-worker imports. It does not rewrite
+SDK runners, generate replacement packages, or relocate database implementation.
+SQL and vault storage use the current SDK directly. The compiled CLI declares its
+external SDK dependencies and checks them during its build.
+
 ## Published exceptions
 
 Use the newest usable release of each independent package. UI remains on
@@ -75,9 +81,9 @@ Do not infer working desktop or CLI behavior from typechecking alone.
   The chat wallet widget renders SDK receipts without adding signing or submission.
 - Computer-use resolves the published nut-js 4.2.7 image providers with Jimp 1.6.1.
   This removed the Jimp 0.22 patch. Tests cover actual image conversion and I/O.
-- Chromium BiDi uses Google's unmodified release with Zod 4 support. The exact
-  reviewed publication is allowed by the provenance policy; the release-age
-  floor and other package trust rules remain intact.
+- Puppeteer's Chromium BiDi uses Google's unmodified release with Zod 4 support.
+  Playwright retains its compatible BiDi 15 API; each consumer resolves its own
+  dependency version. The release-age floor and package trust rules remain intact.
 - The legacy ethers signing closure, unused hosted wallet dependencies and
   contract-source build tooling are excluded through their actual incoming edges.
   The braces guard is removed. Wallet action loading and Uniswap ABI encoding

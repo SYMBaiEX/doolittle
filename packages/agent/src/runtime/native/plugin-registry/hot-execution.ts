@@ -3,12 +3,15 @@ import {
   createCodingAgentPlugin,
   createPlanningPlugin,
 } from "@doolittle/plugins/doolittle-plugin";
-import type { Plugin } from "@elizaos/core";
+import type { IAgentRuntime, Plugin } from "@elizaos/core";
 import {
   AcpService,
   agentOrchestratorPlugin,
 } from "@elizaos/plugin-agent-orchestrator";
-import { agentSkillsPlugin } from "@elizaos/plugin-agent-skills";
+import {
+  AgentSkillsService,
+  agentSkillsPlugin,
+} from "@elizaos/plugin-agent-skills";
 import type { AppServices } from "../../../services";
 import {
   findLocalCodebases,
@@ -18,6 +21,22 @@ import {
 import type { EnvConfig } from "../../../types/runtime";
 import { withManagedCodingDelegation } from "../coding-delegation";
 import { DesktopAdmittedAcpService } from "../desktop-admitted-acp";
+
+// Pass startup policy through the service's public configuration API. Catalog
+// refresh is optional network work and must not delay the local client boot.
+class ClientAgentSkillsService extends AgentSkillsService {
+  constructor(runtime?: IAgentRuntime) {
+    if (!runtime) throw new Error("Skills require an Eliza runtime.");
+    super(runtime);
+  }
+
+  static override start(runtime: IAgentRuntime) {
+    const sync = runtime.getSetting("SKILLS_SYNC_CATALOG_ON_START");
+    return AgentSkillsService.start(runtime, {
+      syncCatalogOnStart: sync === true || sync === "true",
+    });
+  }
+}
 
 export async function loadHotExecutionPlugins(
   services: AppServices,
@@ -52,7 +71,10 @@ export async function loadHotExecutionPlugins(
         : agentOrchestratorPlugin,
       services,
     ),
-    agentSkillsPlugin,
+    {
+      ...agentSkillsPlugin,
+      services: [ClientAgentSkillsService],
+    },
     createPlanningPlugin({
       storage: {
         dataRoot: join(config.dataDir, "plugins"),

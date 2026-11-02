@@ -38,6 +38,7 @@ const ROOT = process.cwd();
 const SKIPPED_DIRECTORIES = new Set([
   ".git",
   "coverage",
+  "build",
   "dist",
   "node_modules",
   "release",

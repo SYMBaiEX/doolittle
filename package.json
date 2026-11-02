@@ -8,7 +8,6 @@
     "packageVersions": {
       "@elizaos/logger": "2.0.11-beta.7",
       "@elizaos/plugin-agent-skills": "2.0.0-beta.1",
-      "@elizaos/plugin-anthropic": "2.0.3-beta.7",
       "@elizaos/plugin-aosp-local-inference": "2.0.11-beta.7",
       "@elizaos/plugin-app-control": "2.0.3-beta.7",
       "@elizaos/plugin-app-manager": "2.0.11-beta.7",
@@ -44,7 +43,6 @@
       "@elizaos/shared": "2.0.11-beta.7",
       "@elizaos/skills": "2.0.11-beta.7",
       "@elizaos/tui": "2.0.11-beta.7",
-      "@elizaos/vault": "2.0.11-beta.7",
       "@elizaos/ui": "2.0.11-beta.7"
     },
     "sourceBuilds": "vendor/elizaos/source-builds.json"
@@ -181,7 +179,7 @@
     "@elizaos/plugin-form": "workspace:2.0.12-beta.0",
     "@elizaos/plugin-github": "2.0.3-beta.7",
     "@elizaos/skills": "2.0.11-beta.7",
-    "@elizaos/plugin-anthropic": "2.0.3-beta.7",
+    "@elizaos/plugin-anthropic": "workspace:2.0.12-beta.0",
     "@elizaos/plugin-browser": "workspace:2.0.12-beta.0",
     "@elizaos/plugin-elizacloud": "workspace:2.0.12-beta.0",
     "@elizaos/plugin-ollama": "2.0.3-beta.7",
@@ -196,7 +194,6 @@
     "@elizaos/plugin-wechat": "2.0.3-beta.7",
     "@elizaos/shared": "2.0.11-beta.7",
     "@elizaos/ui": "2.0.11-beta.7",
-    "@elizaos/vault": "2.0.11-beta.7",
     "fast-uri": "3.1.9",
     "cookie@<0.7.0": "0.7.2",
     "esbuild@>=0.27.3 <0.28.1": "0.28.2",
@@ -260,7 +257,6 @@
     "file-type@<21.3.1": "22.2.0",
     "zod": "4.6.7",
     "abitype@>=1.0.0 <1.2.3": "1.2.3",
-    "chromium-bidi": "158.0.8122-0",
     "@elizaos/ui>@rainbow-me/rainbowkit": "-",
     "@elizaos/ui>@stwd/react": "-",
     "@elizaos/ui>wagmi": "-",
@@ -309,7 +305,8 @@
     "@elizaos/capacitor-camera": "workspace:2.0.12-beta.0",
     "@elizaos/capacitor-secure-store": "workspace:2.0.12-beta.0",
     "katex": "0.19.1",
-    "@toon-format/toon": "4.4.0"
+    "@toon-format/toon": "4.4.0",
+    "puppeteer-core>chromium-bidi": "158.0.8122-0"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.3",
@@ -360,6 +357,7 @@
     "@elizaos/agent": "workspace:2.0.12-beta.0",
     "@elizaos/ui": "2.0.11-beta.7",
     "@elizaos/plugin-calendar": "workspace:2.0.12-beta.0",
-    "@elizaos/plugin-todos": "workspace:2.0.12-beta.0"
+    "@elizaos/plugin-todos": "workspace:2.0.12-beta.0",
+    "chromium-bidi": "15.0.0"
   }
 }
