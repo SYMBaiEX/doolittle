@@ -21,10 +21,7 @@ import {
   stableRuntimeDependencyInventory,
   writeRuntimeThirdPartyNotices,
 } from "./runtime-requirements";
-import {
-  copySdkRuntimePackages,
-  SDK_RUNTIME_PACKAGES,
-} from "./sdk-runtime-packages";
+import { copySdkRuntimePackages } from "./sdk-runtime-packages";
 
 const desktopRoot = fileURLToPath(new URL("..", import.meta.url));
 const repoRoot = fileURLToPath(new URL("../../..", import.meta.url));
@@ -156,7 +153,7 @@ const runtimeBuild = await build({
     "@napi-rs/keyring-*",
     "@node-llama-cpp/*",
     ...nativeExternalPackages,
-    ...SDK_RUNTIME_PACKAGES,
+    "@elizaos/*",
     "@elizaos/plugin-local-inference",
     "@elizaos/plugin-aosp-local-inference",
   ],
@@ -166,6 +163,17 @@ const tracedSdk = await copySdkRuntimePackages(
   repoRoot,
   outputDir,
   nativeExternalPackages,
+  [
+    ...new Set(
+      Object.values(runtimeBuild.metafile.outputs).flatMap((output) =>
+        output.imports
+          .filter(
+            (entry) => entry.external && entry.path.startsWith("@elizaos/"),
+          )
+          .map((entry) => entry.path),
+      ),
+    ),
+  ],
 );
 const copiedNativePackages = [...nativeExternalPackages].sort((a, b) =>
   a.localeCompare(b),

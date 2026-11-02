@@ -38,8 +38,31 @@ export async function copySdkRuntimePackages(
   repoRoot: string,
   outputDir: string,
   nativePackages: readonly string[],
+  sdkImports: readonly string[],
 ) {
   const repoRequire = createRequire(resolve(repoRoot, "package.json"));
+  const agentRequire = createRequire(
+    resolve(repoRoot, "packages/agent/package.json"),
+  );
+  const sdkRoots = new Map<string, string>(
+    SDK_RUNTIME_PACKAGES.map((name) => [
+      name,
+      resolve(
+        repoRoot,
+        "vendor/elizaos/packages",
+        name.slice("@elizaos/".length),
+      ),
+    ]),
+  );
+  for (const specifier of sdkImports) {
+    const owner = runtimePackageForSource(
+      repoRoot,
+      relative(repoRoot, agentRequire.resolve(specifier)),
+    );
+    if (!owner)
+      throw new Error(`SDK import has no owning package: ${specifier}`);
+    sdkRoots.set(owner.name, owner.directory);
+  }
   const entries = SDK_RUNTIME_PACKAGES.filter(
     (name) => name !== "@elizaos/agent",
   ).map((name) =>
@@ -93,6 +116,9 @@ export async function copySdkRuntimePackages(
       "**/*.map",
       "**/*.test.*",
       "**/__tests__/**",
+      // Discord's optional helper falls back to a system ffmpeg/avconv binary.
+      // Preserve the existing distribution policy by leaving it out of the app.
+      "**/node_modules/ffmpeg-static/**",
       "**/.env",
       "**/.env.*",
       "**/.npmrc",
@@ -142,6 +168,22 @@ export async function copySdkRuntimePackages(
         : source;
     },
   });
+  const addAssets = (path: string) => {
+    for (const entry of readdirSync(path)) {
+      if (entry === "node_modules") continue;
+      const asset = resolve(path, entry);
+      if (lstatSync(asset).isDirectory()) addAssets(asset);
+      else if (!asset.endsWith(".d.ts") && !asset.endsWith(".map"))
+        traced.fileList.add(relative(repoRoot, asset));
+    }
+  };
+  // The public skills resolver scans this package-owned asset directory.
+  addAssets(
+    resolve(
+      dirname(agentRequire.resolve("@elizaos/skills/package.json")),
+      "skills",
+    ),
+  );
   // Native wrappers can compute platform package names inside require(). Their
   // installed optional packages contain the addon and executable helper assets.
   for (const name of nativePackages) {
@@ -171,15 +213,6 @@ export async function copySdkRuntimePackages(
         }
       }
       if (!directory) continue;
-      const addAssets = (path: string) => {
-        for (const entry of readdirSync(path)) {
-          if (entry === "node_modules") continue;
-          const asset = resolve(path, entry);
-          if (lstatSync(asset).isDirectory()) addAssets(asset);
-          else if (!asset.endsWith(".d.ts") && !asset.endsWith(".map"))
-            traced.fileList.add(relative(repoRoot, asset));
-        }
-      };
       addAssets(directory);
     }
   }
@@ -189,15 +222,12 @@ export async function copySdkRuntimePackages(
     traced.fileList,
     bundleEntries,
   );
-  for (const name of SDK_RUNTIME_PACKAGES) {
-    const target = resolve(
-      outputDir,
-      "vendor/elizaos/packages",
-      name.slice("@elizaos/".length),
-    );
+  for (const [name, sourceDirectory] of sdkRoots) {
+    const target = resolve(outputDir, relative(repoRoot, sourceDirectory));
     const destination = resolve(outputDir, "node_modules", name);
     if (!existsSync(resolve(target, "package.json")))
       throw new Error(`SDK trace omitted ${name}`);
+    if (target === destination) continue;
     mkdirSync(dirname(destination), { recursive: true });
     rmSync(destination, { recursive: true, force: true });
     symlinkSync(relative(dirname(destination), target), destination, "dir");
