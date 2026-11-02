@@ -107,6 +107,7 @@ overrides:
   '@nut-tree-fork/shared': npm:@dyw1234/nut-shared@4.2.7
   '@solana/buffer-layout-utils': link:packages/solana-layouts
   '@solana/web3.js>jayson': 5.0.0
+  '@toon-format/toon': 4.4.0
   '@uniswap/swap-router-contracts>hardhat-watcher': '-'
   abitype@>=1.0.0 <1.2.3: 1.2.3
   app-builder-lib>@electron/get: 5.1.0
@@ -116,7 +117,7 @@ overrides:
   chromium-bidi: 158.0.8122-0
   cookie@<0.7.0: 0.7.2
   cytoscape: 3.34.0
-  dompurify: 3.4.14
+  dompurify: 3.4.17
   esbuild@>=0.27.3 <0.28.1: 0.28.2
   fast-uri: 3.1.9
   file-type@<21.3.1: 22.2.0
@@ -125,6 +126,7 @@ overrides:
   glob@>=9.0.0 <14.0.3: 14.0.3
   handlebars: 4.7.10
   ip-address@>=10.0.0 <10.7.5: 10.7.5
+  katex: 0.19.1
   lodash@>=4.0.0 <4.18.0: 4.18.1
   markdown-it@>=14.0.0 <14.3.3: 14.3.3
   minimatch: 11.0.3
@@ -159,9 +161,6 @@ importers:
       '@elizaos/plugin-calendar':
         specifier: workspace:2.0.12-beta.0
         version: link:vendor/elizaos/packages/plugin-calendar
-      '@elizaos/plugin-elizacloud':
-        specifier: workspace:2.0.12-beta.0
-        version: link:vendor/elizaos/packages/plugin-elizacloud
       '@elizaos/plugin-sql':
         specifier: workspace:2.0.12-beta.0
         version: link:vendor/elizaos/packages/plugin-sql
@@ -6592,8 +6591,8 @@ packages:
   '@tokenizer/token@0.3.0':
     resolution: {integrity: sha512-OvjF+z51L3ov0OyAU0duzsYuvO01PH7x4t6DJx+guahgTnBHkhJdG7soQeTSFLWN3efnHyibZ4Z8l2EuWwJN3A==}
 
-  '@toon-format/toon@2.3.0':
-    resolution: {integrity: sha512-/Ew9etdRQKVMnm9fDaCG0JjyAOK/O7T0M97oum1aW4W+UR8ZhVVPBanIV7oWgHBiGlnVxV9M55PWQCHofDV07w==}
+  '@toon-format/toon@4.4.0':
+    resolution: {integrity: sha512-A6UcsVoWbNdhdLNhJbe6JpRlocmf/DZGG57fur3bd8oQtsjBaKWo2hHbOU2zTuy+byUmLIOyP1xJeitopCZzpQ==}
 
   '@tsparticles/basic@3.9.1':
     resolution: {integrity: sha512-ijr2dHMx0IQHqhKW3qA8tfwrR2XYbbWYdaJMQuBo2CkwBVIhZ76U+H20Y492j/NXpd1FUnt2aC0l4CEVGVGdeQ==}
@@ -8028,10 +8027,6 @@ packages:
     resolution: {integrity: sha512-NOKm8xhkzAjzFx8B2v5OAHT+u5pRQc2UCa2Vq9jYL/31o2wi9mxBA7LIFs3sV5VSC49z6pEhfbMULvShKj26WA==}
     engines: {node: '>= 6'}
 
-  commander@8.3.0:
-    resolution: {integrity: sha512-OkTL9umf+He2DZkUq8f8J9of7yL6RJKI24dVITBmNfZBmri9zYZQrKkuXiKhyfPSu8tUhnVBB1iKXevvnlR4Ww==}
-    engines: {node: '>= 12'}
-
   compare-version@0.1.2:
     resolution: {integrity: sha512-pJDh5/4wrEnXX/VWRZvruAGHkzKdr46z11OlTPN+VrATlWWhSKewNCJ1futCO5C7eJB3nPMFZA1LeYtcFboZ2A==}
     engines: {node: '>=0.10.0'}
@@ -8345,8 +8340,8 @@ packages:
     resolution: {integrity: sha512-GrwoxYN+uWlzO8uhUXRl0P+kHE4GtVPfYzVLcUxPL7KNdHKj66vvlhiweIHqYYXWlw+T8iLMp42Lm67ghw4WMQ==}
     engines: {node: '>= 4'}
 
-  dompurify@3.4.14:
-    resolution: {integrity: sha512-dVoH9z+MY+C9IilgGCk3YfFqjLi3fChm2OiKJMzh6axrJ5qwxqWaZamgmHrpv22CN/KdbZJuGEGgfQoL00LTdg==}
+  dompurify@3.4.17:
+    resolution: {integrity: sha512-B/pSlYVHQ58kqISD/yDjuJ1yfzI34m1gF4lAod2bwSRhiN4K5Cl3H8Af7hqB2PmTL911tdEudnnXn5FnhRoz0w==}
 
   domutils@2.8.0:
     resolution: {integrity: sha512-w96Cjofp72M5IIhpjgobBimYEfoPjx1Vx0BSX9P30WBdZW2WIKU0T1Bd0kz2eNZ9ikjKgHbEyKx8BB6H1L3h3A==}
@@ -9621,12 +9616,8 @@ packages:
   jws@4.0.1:
     resolution: {integrity: sha512-EKI/M/yqPncGUUh44xz0PxSidXFr/+r0pA70+gIYhjv+et7yxM+s29Y+VGDkovRofQem0fs7Uvf4+YmAdyRduA==}
 
-  katex@0.16.47:
-    resolution: {integrity: sha512-Eeo8Ys1doU1z+x8AZsPpQu+p/QcZBI5PeOo7QGQdy2x2m0MU/hYagBbGOmXwr5KVbEfVuWv9LpnQWeehogurjg==}
-    hasBin: true
-
-  katex@0.17.0:
-    resolution: {integrity: sha512-Vdw0ATsQ9V+LuegM/BTwQqV/6cTl5lbGcIrU+BCgLxyf6bo38ybOr372tuSIxir3CN720flu1meYR6XzNMwQnw==}
+  katex@0.19.1:
+    resolution: {integrity: sha512-jG8uKntjSEcm2EpQOh0XturpPuuC9r3Sq5HLHdsFdWZT27E672SF19QEi+of0/YeOy15lDgRhKvr5614uRrEfA==}
     hasBin: true
 
   knip@6.43.0:
@@ -14967,7 +14958,7 @@ snapshots:
       '@milkdown/utils': 7.21.2
       '@types/lodash-es': 4.17.12
       clsx: 2.1.1
-      dompurify: 3.4.14
+      dompurify: 3.4.17
       lodash-es: 4.18.1
       nanoid: 5.1.16
       unist-util-visit: 5.2.0
@@ -15055,8 +15046,8 @@ snapshots:
       '@types/lodash-es': 4.17.12
       clsx: 2.1.1
       codemirror: 6.0.2
-      dompurify: 3.4.14
-      katex: 0.17.0
+      dompurify: 3.4.17
+      katex: 0.19.1
       lodash-es: 4.18.1
       prosemirror-virtual-cursor: 0.4.2
       remark-math: 6.0.0
@@ -18464,7 +18455,7 @@ snapshots:
       '@smthrs/time-travel': 0.35.0(@electric-sql/pglite@0.5.14)(@opentelemetry/api@1.9.1)(@opentelemetry/semantic-conventions@1.44.0)(pg@8.23.1)(react@19.3.1)
       '@smthrs/usage': 0.35.0
       '@smthrs/vcs': 0.35.0(@opentelemetry/semantic-conventions@1.44.0)
-      '@toon-format/toon': 2.3.0
+      '@toon-format/toon': 4.4.0
       '@xterm/addon-fit': 0.11.0
       '@xterm/xterm': 6.0.0
       cron-parser: 5.10.3
@@ -20367,7 +20358,7 @@ snapshots:
 
   '@tokenizer/token@0.3.0': {}
 
-  '@toon-format/toon@2.3.0': {}
+  '@toon-format/toon@4.4.0': {}
 
   '@tsparticles/basic@3.9.1':
     dependencies:
@@ -21558,8 +21549,6 @@ snapshots:
 
   commander@4.1.1: {}
 
-  commander@8.3.0: {}
-
   compare-version@0.1.2: {}
 
   concat-stream@2.0.0:
@@ -21874,7 +21863,7 @@ snapshots:
     dependencies:
       domelementtype: 2.3.0
 
-  dompurify@3.4.14:
+  dompurify@3.4.17:
     optionalDependencies:
       '@types/trusted-types': 2.0.7
 
@@ -23032,7 +23021,7 @@ snapshots:
       '@cfworker/json-schema': 4.1.4
       '@modelcontextprotocol/server': 2.0.0-alpha.4
       '@scalar/openapi-types': 0.8.0
-      '@toon-format/toon': 2.3.0
+      '@toon-format/toon': 4.4.0
       tokenx: 1.6.0
       yaml: 2.9.1
       zod: 4.6.7
@@ -23311,13 +23300,9 @@ snapshots:
       jwa: 2.0.1
       safe-buffer: 5.2.1
 
-  katex@0.16.47:
+  katex@0.19.1:
     dependencies:
-      commander: 8.3.0
-
-  katex@0.17.0:
-    dependencies:
-      commander: 8.3.0
+      commander: 15.0.0
 
   knip@6.43.0:
     dependencies:
@@ -23848,7 +23833,7 @@ snapshots:
     dependencies:
       '@types/katex': 0.16.8
       devlop: 1.1.0
-      katex: 0.16.47
+      katex: 0.19.1
       micromark-factory-space: 2.1.0
       micromark-util-character: 2.1.1
       micromark-util-symbol: 2.0.1
@@ -24099,7 +24084,7 @@ snapshots:
 
   monaco-editor@0.57.0:
     dependencies:
-      dompurify: 3.4.14
+      dompurify: 3.4.17
       marked: 14.0.0
 
   motion-dom@12.43.0:

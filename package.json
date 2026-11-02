@@ -212,7 +212,7 @@
     "@solana/web3.js>jayson": "5.0.0",
     "app-builder-lib>@electron/get": "5.1.0",
     "cytoscape": "3.34.0",
-    "dompurify": "3.4.14",
+    "dompurify": "3.4.17",
     "protobufjs": "8.7.2",
     "sharp": "0.35.5",
     "toml": "5.0.1",
@@ -307,7 +307,9 @@
     "@elizaos/plugin-google-workspace": "workspace:2.0.12-beta.0",
     "@elizaos/capacitor-bun-runtime": "workspace:2.0.12-beta.0",
     "@elizaos/capacitor-camera": "workspace:2.0.12-beta.0",
-    "@elizaos/capacitor-secure-store": "workspace:2.0.12-beta.0"
+    "@elizaos/capacitor-secure-store": "workspace:2.0.12-beta.0",
+    "katex": "0.19.1",
+    "@toon-format/toon": "4.4.0"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.3",
