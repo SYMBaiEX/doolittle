@@ -1,0 +1,148 @@
+{
+  "name": "@elizaos/core",
+  "version": "2.0.12-beta.0",
+  "description": "Core runtime, plugin abstractions, and AgentRuntime for elizaOS — actions, providers, evaluators, services, models, and types.",
+  "homepage": "https://github.com/elizaOS/eliza",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/elizaOS/eliza.git",
+    "directory": "packages/core"
+  },
+  "keywords": [
+    "elizaos",
+    "agent",
+    "runtime",
+    "ai",
+    "llm",
+    "plugins"
+  ],
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "sideEffects": true,
+  "exports": {
+    ".": {
+      "eliza-source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./catalog/channel-plugin-map.json": {
+      "eliza-source": "./src/catalog/channel-plugin-map.json",
+      "default": "./dist/catalog/channel-plugin-map.json"
+    },
+    "./catalog/curated-app-definitions.json": {
+      "eliza-source": "./src/catalog/curated-app-definitions.json",
+      "default": "./dist/catalog/curated-app-definitions.json"
+    },
+    "./catalog/generated.json": {
+      "eliza-source": "./src/catalog/generated.json",
+      "default": "./dist/catalog/generated.json"
+    },
+    "./catalog/provider-plugin-map.json": {
+      "eliza-source": "./src/catalog/provider-plugin-map.json",
+      "default": "./dist/catalog/provider-plugin-map.json"
+    },
+    "./catalog/short-id-plugin-map.json": {
+      "eliza-source": "./src/catalog/short-id-plugin-map.json",
+      "default": "./dist/catalog/short-id-plugin-map.json"
+    },
+    "./restart-exit-code.json": {
+      "eliza-source": "./src/restart-exit-code.json",
+      "default": "./dist/restart-exit-code.json"
+    },
+    "./logging": {
+      "eliza-source": "./src/logging.ts",
+      "types": "./dist/logging.d.ts",
+      "import": "./dist/logging.js",
+      "default": "./dist/logging.js"
+    },
+    "./view-interaction": {
+      "eliza-source": "./src/view-interaction.ts",
+      "types": "./dist/view-interaction.d.ts",
+      "import": "./dist/view-interaction.js",
+      "default": "./dist/view-interaction.js"
+    },
+    "./protocol": {
+      "eliza-source": "./src/protocol.ts",
+      "types": "./dist/protocol.d.ts",
+      "import": "./dist/protocol.js",
+      "default": "./dist/protocol.js"
+    },
+    "./permissions": {
+      "eliza-source": "./src/types/permissions.ts",
+      "types": "./dist/types/permissions.d.ts",
+      "import": "./dist/types/permissions.js",
+      "default": "./dist/types/permissions.js"
+    },
+    "./security/redact": {
+      "eliza-source": "./src/security/redact.ts",
+      "types": "./dist/security/redact.d.ts",
+      "import": "./dist/security/redact.js",
+      "default": "./dist/security/redact.js"
+    },
+    "./speech": {
+      "eliza-source": "./src/speech.ts",
+      "types": "./dist/speech.d.ts",
+      "import": "./dist/speech.js",
+      "default": "./dist/speech.js"
+    },
+    "./task-widgets": {
+      "eliza-source": "./src/messaging/task-widgets.ts",
+      "types": "./dist/messaging/task-widgets.d.ts",
+      "import": "./dist/messaging/task-widgets.js",
+      "default": "./dist/messaging/task-widgets.js"
+    },
+    "./read-memo": {
+      "eliza-source": "./src/read-memo.ts",
+      "types": "./dist/read-memo.d.ts",
+      "import": "./dist/read-memo.js",
+      "default": "./dist/read-memo.js"
+    },
+    "./schema-types": {
+      "eliza-source": "./src/schema-types.ts",
+      "types": "./dist/schema-types.d.ts",
+      "import": "./dist/schema-types.js",
+      "default": "./dist/schema-types.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "author": "elizaOS",
+  "license": "MIT",
+  "dependencies": {
+    "zod": "^4.6.5",
+    "adze": "^2.2.5",
+    "json5": "^2.2.3",
+    "file-type": "^22.0.0",
+    "markdown-it": "^14.3.3",
+    "yaml": "^2.9.1"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "gitHead": "cb192f7b21c441e9463d1af2f890c145814baad2",
+  "elizaos": {
+    "scripts": {
+      "coreBuild": true,
+      "buildOnInstall": {},
+      "testLanes": [
+        "server"
+      ]
+    }
+  },
+  "doolittleSourceBuild": {
+    "repository": "https://github.com/elizaos/eliza",
+    "commit": "b2dbeff3ab689a69f7e518deb7d608d1c4607790",
+    "package": "packages/core",
+    "bun": "1.4.2",
+    "node": "26.5.0",
+    "nub": "0.9.7",
+    "toolLockSha256": "61328582d89e162bc299241eba0f120ceaf7d7cdaff4ab043143d2f3b18ef2e0"
+  }
+}

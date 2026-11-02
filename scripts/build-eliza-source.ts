@@ -7,14 +7,14 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
-  readdirSync,
   readFileSync,
   rmSync,
   symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
+import { sourceTreeDigest } from "./eliza-source-policy";
 
 const root = resolve(import.meta.dirname, "..");
 const config = JSON.parse(
@@ -25,16 +25,19 @@ const config = JSON.parse(
   bun: string;
   node: string;
   nub: string;
-  aliases: Record<string, string>;
   packages: string[];
+  sourceInputs?: string[];
 };
 const expected = process.argv.includes("--verify")
   ? JSON.parse(
       readFileSync(join(root, "vendor/elizaos/source-builds.json"), "utf8"),
     )
   : undefined;
-const cache = join(root, "var/eliza-source/integration");
-const output = join(root, "vendor/elizaos");
+const cache = join(root, "var/eliza-source/builds", config.commit);
+let checkout = cache;
+let registeredWorktree = false;
+const destination = join(root, "vendor/elizaos");
+const output = mkdtempSync(join(tmpdir(), "doolittle-sdk-archives-"));
 const tools = mkdtempSync(join(tmpdir(), "doolittle-source-tools-"));
 const home = join(tools, "home");
 mkdirSync(home);
@@ -47,7 +50,7 @@ const env = {
 };
 const nub = join(root, "node_modules/.bin/nub");
 
-function run(command: string, args: string[], cwd = cache, input?: string) {
+function run(command: string, args: string[], cwd = checkout, input?: string) {
   const result = spawnSync(command, args, {
     cwd,
     env,
@@ -56,12 +59,20 @@ function run(command: string, args: string[], cwd = cache, input?: string) {
     stdio: input === undefined ? ["ignore", "inherit", "inherit"] : "pipe",
   });
   if (result.error) throw result.error;
-  if (result.status !== 0)
+  if (result.status !== 0) {
+    if (input !== undefined && result.stderr)
+      process.stderr.write(result.stderr);
     throw new Error(`${command} ${args.join(" ")} failed (${result.status})`);
+  }
 }
 
-function capture(command: string, args: string[], cwd = cache) {
-  const result = spawnSync(command, args, { cwd, env, encoding: "utf8" });
+function capture(command: string, args: string[], cwd = checkout) {
+  const result = spawnSync(command, args, {
+    cwd,
+    env,
+    encoding: "utf8",
+    maxBuffer: 32 * 1024 * 1024,
+  });
   if (result.error) throw result.error;
   if (result.status !== 0) throw new Error(result.stderr);
   return result.stdout.trim();
@@ -78,27 +89,6 @@ function copy(from: string, to: string) {
     // unchanged; no implementation rewrites or patches are applied here.
     filter: (path) => !path.endsWith(".map") && !path.endsWith(".tsbuildinfo"),
   });
-}
-
-function copyRegistryAssets(from: string, to: string) {
-  mkdirSync(to, { recursive: true });
-  for (const entry of readdirSync(from, { withFileTypes: true })) {
-    const source = join(from, entry.name);
-    const target = join(to, entry.name);
-    if (entry.isDirectory()) copyRegistryAssets(source, target);
-    else if (!/\.tsx?$/u.test(entry.name)) cpSync(source, target);
-  }
-}
-
-function modulePaths(value: unknown): unknown {
-  if (typeof value === "string")
-    return value.replace(/^\.\/src\//u, "./dist/").replace(/\.ts$/u, ".js");
-  if (Array.isArray(value)) return value.map(modulePaths);
-  if (value && typeof value === "object")
-    return Object.fromEntries(
-      Object.entries(value).map(([key, entry]) => [key, modulePaths(entry)]),
-    );
-  return value;
 }
 
 try {
@@ -124,88 +114,102 @@ try {
     throw new Error("Unexpected source remote");
   if (capture("git", ["status", "--porcelain", "--untracked-files=no"]))
     throw new Error("Source checkout contains implementation edits");
-  run("git", [
-    "fetch",
-    "--depth=1",
-    "--filter=blob:none",
-    "origin",
-    config.commit,
-  ]);
+  const cachedCommit =
+    spawnSync("git", ["cat-file", "-e", `${config.commit}^{commit}`], {
+      cwd: cache,
+      env,
+      stdio: "ignore",
+    }).status === 0;
+  if (!cachedCommit)
+    run("git", [
+      "fetch",
+      "--depth=1",
+      "--filter=blob:none",
+      "origin",
+      config.commit,
+    ]);
+  const isolatedSource = join(tools, "source");
+  run(
+    "git",
+    [
+      "worktree",
+      "add",
+      "--detach",
+      "--no-checkout",
+      isolatedSource,
+      config.commit,
+    ],
+    cache,
+  );
+  registeredWorktree = true;
+  checkout = isolatedSource;
   const sparse = [
     "/*",
     "!/packages/",
     "!/plugins/",
-    "/packages/*/package.json",
-    "/plugins/*/package.json",
+    ...capture("git", ["ls-tree", "-r", "--name-only", config.commit])
+      .split("\n")
+      .filter((path) => path.endsWith("/package.json"))
+      .map((path) => `/${path}`),
     "/packages/scripts/",
-    "/plugins/plugin-build.ts",
-    ...config.packages.map((path) => `/${path}/`),
+    "/plugins/*.ts",
+    "/plugins/*.json",
+    ...[...config.packages, ...(config.sourceInputs ?? [])].map(
+      (path) => `/${path}/`,
+    ),
   ];
   run(
     "git",
     ["sparse-checkout", "set", "--no-cone", "--stdin"],
-    cache,
+    checkout,
     `${sparse.join("\n")}\n`,
   );
+  run("git", ["reset", "--hard", config.commit]);
   run("git", ["checkout", "--detach", config.commit]);
-  rmSync(join(cache, "node_modules"), { recursive: true, force: true });
-  symlinkSync(join(tools, "node_modules"), join(cache, "node_modules"), "dir");
-  // Type emission must resolve the matching prompt API, not another installed
-  // release. This is ordinary upstream workspace resolution, not copied code.
-  const promptLink = join(cache, "packages/core/node_modules/@elizaos");
-  mkdirSync(promptLink, { recursive: true });
-  rmSync(join(promptLink, "prompts"), { recursive: true, force: true });
+  rmSync(join(checkout, "node_modules"), { recursive: true, force: true });
   symlinkSync(
-    join(cache, "packages/prompts"),
-    join(promptLink, "prompts"),
+    join(tools, "node_modules"),
+    join(checkout, "node_modules"),
     "dir",
   );
+  for (const path of config.packages) {
+    const manifest = JSON.parse(
+      readFileSync(join(checkout, path, "package.json"), "utf8"),
+    );
+    const target = join(tools, "node_modules", manifest.name);
+    mkdirSync(dirname(target), { recursive: true });
+    rmSync(target, { recursive: true, force: true });
+    symlinkSync(join(checkout, path), target, "dir");
+  }
 
   const workspaceVersions = JSON.parse(
     capture("node", [
       "--input-type=module",
       "--eval",
-      "import {collectWorkspaceVersions} from './packages/scripts/prepare-package-dist.mjs'; console.log(JSON.stringify(Object.fromEntries(collectWorkspaceVersions(process.cwd()))))",
+      "import {collectWorkspaceVersions} from './packages/scripts/prepare-package-dist.ts'; console.log(JSON.stringify(Object.fromEntries(collectWorkspaceVersions(process.cwd()))))",
     ]),
   ) as Record<string, string>;
   const artifacts: Record<string, { sha256: string; [key: string]: unknown }> =
     {};
   mkdirSync(output, { recursive: true });
   for (const path of config.packages) {
-    const directory = join(cache, path);
+    const directory = join(checkout, path);
     console.log(`Building unmodified upstream ${path}`);
-    if (path === "packages/registry") {
-      run(
-        "tsc6",
-        [
-          "-p",
-          "tsconfig.json",
-          "--noCheck",
-          "--noEmit",
-          "false",
-          "--declaration",
-          "--rewriteRelativeImportExtensions",
-          "true",
-          "--outDir",
-          "dist",
-          "--rootDir",
-          "src",
-        ],
-        directory,
-      );
-      copyRegistryAssets(join(directory, "src"), join(directory, "dist"));
-    } else if (path === "packages/core") {
-      run("node", ["../shared/scripts/generate-keywords.mjs"], directory);
+    if (path === "packages/core") {
+      if (
+        existsSync(join(directory, "../shared/scripts/generate-keywords.mjs"))
+      )
+        run("node", ["../shared/scripts/generate-keywords.mjs"], directory);
       run("bun", ["build.ts"], directory);
     } else {
-      const script =
-        path === "packages/prompts"
-          ? "build:package"
-          : path === "packages/app-core"
-            ? "build:dist:unlocked"
-            : ["packages/shared", "packages/agent"].includes(path)
-              ? "build:dist"
-              : "build";
+      const scripts = JSON.parse(
+        readFileSync(join(directory, "package.json"), "utf8"),
+      ).scripts;
+      const script = scripts["build:package"]
+        ? "build:package"
+        : scripts["build:dist"]
+          ? "build:dist"
+          : "build";
       run("bun", ["run", script], directory);
     }
 
@@ -220,17 +224,10 @@ try {
       );
       if (existsSync(prepared)) copy(join(directory, "dist"), stage);
       else {
-        const files =
-          path === "packages/registry" ? ["dist", "entries"] : manifest.files;
+        const files = manifest.files;
         for (const file of files) {
           const source = join(directory, file);
           if (existsSync(source)) copy(source, join(stage, file));
-        }
-        if (path === "packages/registry") {
-          manifest.main = "./dist/index.js";
-          manifest.types = "./dist/index.d.ts";
-          manifest.exports = modulePaths(manifest.exports);
-          manifest.files = ["dist", "entries"];
         }
       }
       for (const file of ["LICENSE", "SDK-LICENSE", "README.md"])
@@ -277,10 +274,18 @@ try {
       const filename = `${manifest.name.replace(/^@/u, "").replaceAll("/", "-")}-${manifest.version}-${config.commit.slice(0, 8)}.tgz`;
       cpSync(original, join(output, filename));
       rmSync(original);
-      artifacts[config.aliases[manifest.name] ?? manifest.name] = {
+      rmSync(stage, { recursive: true, force: true });
+      mkdirSync(stage);
+      run(
+        "tar",
+        ["-xzf", join(output, filename), "--strip-components=1", "-C", stage],
+        tools,
+      );
+      artifacts[manifest.name] = {
         artifact: `vendor/elizaos/${filename}`,
         version: manifest.version,
         sha256: digest(join(output, filename)),
+        treeSha256: sourceTreeDigest(stage),
         ...manifest.doolittleSourceBuild,
       };
     } finally {
@@ -298,13 +303,24 @@ try {
         `Source build is not reproducible: ${changed.join(", ")}`,
       );
   }
-  writeFileSync(
-    join(output, "source-builds.json"),
-    `${JSON.stringify(artifacts, null, 2)}\n`,
-  );
+  if (!expected) {
+    mkdirSync(destination, { recursive: true });
+    for (const entry of Object.values(artifacts)) {
+      const filename = String(entry.artifact).split("/").at(-1);
+      if (!filename) throw new Error("Source artifact filename missing");
+      cpSync(join(output, filename), join(destination, filename));
+    }
+    writeFileSync(
+      join(destination, "source-builds.json"),
+      `${JSON.stringify(artifacts, null, 2)}\n`,
+    );
+  }
   console.log(
     "Source builds complete; installation is a separate reviewed step.",
   );
 } finally {
+  if (registeredWorktree)
+    run("git", ["worktree", "remove", "--force", checkout], cache);
+  rmSync(output, { recursive: true, force: true });
   rmSync(tools, { recursive: true, force: true });
 }

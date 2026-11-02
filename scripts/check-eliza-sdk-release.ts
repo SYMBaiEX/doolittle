@@ -1,11 +1,18 @@
 #!/usr/bin/env nub
 
 import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { join, relative } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 import {
   expectedElizaPackageVersion,
   officialElizaDependencyVersion,
 } from "./eliza-sdk-version-policy";
+import {
+  readElizaSourceBuilds,
+  type SourceBuild,
+  sourceBuildMatches,
+  sourceTreeDigest,
+  sourceWorkspaceDirectory,
+} from "./eliza-source-policy";
 import { findDoolittleWorkspaceVersionMismatch } from "./workspace-version-policy";
 
 type PackageJson = {
@@ -13,6 +20,7 @@ type PackageJson = {
   version?: string;
   elizaSdk?: {
     channel?: string;
+    sourceBuilds?: string;
     version?: string;
     packageVersions?: Record<string, string>;
   };
@@ -22,6 +30,7 @@ type PackageJson = {
   peerDependencies?: Record<string, string>;
   overrides?: Record<string, unknown>;
   exports?: string | Record<string, unknown>;
+  doolittleSourceBuild?: Partial<SourceBuild>;
 };
 
 const ROOT = process.cwd();
@@ -62,6 +71,10 @@ function packageJsonPaths(directory: string): string[] {
 
 const rootPackagePath = join(ROOT, "package.json");
 const rootPackage = readPackageJson(rootPackagePath);
+const sourceBuilds =
+  rootPackage.elizaSdk?.sourceBuilds === "vendor/elizaos/source-builds.json"
+    ? readElizaSourceBuilds(ROOT)
+    : {};
 const expectedVersion = rootPackage.elizaSdk?.version;
 const expectedPackageVersion = (name: string) =>
   expectedElizaPackageVersion(
@@ -90,6 +103,19 @@ const packagePaths = [
 const mismatches: string[] = [];
 const externalPackages = new Set<string>();
 const installedPackages = new Set<string>();
+for (const [name, source] of Object.entries(sourceBuilds)) {
+  const pin = `workspace:${source.version}`;
+  if (rootPackage.dependencies?.[name] !== pin)
+    mismatches.push(`Root source dependency ${name} must pin ${pin}`);
+  installedPackages.add(name);
+  if (
+    sourceTreeDigest(join(ROOT, sourceWorkspaceDirectory(name))) !==
+    source.treeSha256
+  )
+    mismatches.push(
+      `Upstream SDK workspace ${name} differs from its qualified archive; run sdk:source:prepare.`,
+    );
+}
 for (const path of packagePaths) {
   const manifest = readPackageJson(path);
   const relativePath = relative(ROOT, path).replaceAll("\\", "/");
@@ -121,6 +147,16 @@ for (const path of packagePaths) {
     peerDependencies: manifest.peerDependencies,
   })) {
     for (const [name, version] of Object.entries(dependencies ?? {})) {
+      if (section === "overrides" && version === "-") continue;
+      if (
+        isOfficialElizaPackage(name) &&
+        typeof version === "string" &&
+        version.startsWith("workspace:") &&
+        version !== `workspace:${sourceBuilds[name]?.version}`
+      )
+        mismatches.push(
+          `${relativePath} declares an unqualified SDK workspace ${name}=${version}`,
+        );
       const declaredVersion = officialElizaDependencyVersion(name, version);
       if (!declaredVersion) {
         continue;
@@ -133,7 +169,16 @@ for (const path of packagePaths) {
       ) {
         installedPackages.add(name);
       }
-      if (declaredVersion !== expectedPackageVersion(name)) {
+      const source = sourceBuilds[name];
+      const qualifiedSourcePin =
+        source &&
+        declaredVersion.startsWith("file:") &&
+        resolve(dirname(path), declaredVersion.slice(5)) ===
+          resolve(ROOT, source.artifact);
+      if (
+        !qualifiedSourcePin &&
+        declaredVersion !== expectedPackageVersion(name)
+      ) {
         mismatches.push(
           `${relative(ROOT, path)} ${section}.${name}=${declaredVersion}`,
         );
@@ -148,7 +193,14 @@ for (const name of installedPackages) {
     mismatches.push(`node_modules/${name} is not installed`);
     continue;
   }
-  const installedVersion = readPackageJson(manifestPath).version;
+  const installed = readPackageJson(manifestPath);
+  const installedVersion = installed.version;
+  const source = sourceBuilds[name];
+  if (source && !sourceBuildMatches(source, installed)) {
+    mismatches.push(
+      `node_modules/${name} source provenance differs from its qualified archive`,
+    );
+  }
   if (installedVersion !== expectedPackageVersion(name)) {
     mismatches.push(
       `node_modules/${name}=${installedVersion ?? "unknown"} (installed)`,

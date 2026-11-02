@@ -1,11 +1,12 @@
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { lstatSync, readdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 
 export type SourceBuild = {
   artifact: string;
   version: string;
   sha256: string;
+  treeSha256: string;
   repository: string;
   commit: string;
   package: string;
@@ -14,6 +15,35 @@ export type SourceBuild = {
   nub: string;
   toolLockSha256: string;
 };
+
+export function sourceWorkspaceDirectory(name: string): string {
+  if (!/^@elizaos\/[a-z\d-]+$/u.test(name))
+    throw new Error("Invalid upstream package name");
+  return `vendor/elizaos/packages/${name.slice("@elizaos/".length)}`;
+}
+
+/** Verify upstream bytes independently of package-manager links and peers. */
+export function sourceTreeDigest(directory: string): string {
+  const hash = createHash("sha256");
+  function walk(relative: string) {
+    for (const entry of readdirSync(join(directory, relative)).sort()) {
+      if (entry === "node_modules") continue;
+      const path = relative ? `${relative}/${entry}` : entry;
+      const stat = lstatSync(join(directory, path));
+      if (stat.isDirectory()) walk(path);
+      else if (stat.isFile()) {
+        hash.update(JSON.stringify(path)).update("\0");
+        hash.update(
+          createHash("sha256")
+            .update(readFileSync(join(directory, path)))
+            .digest(),
+        );
+      } else throw new Error(`Unsupported upstream source entry: ${path}`);
+    }
+  }
+  walk("");
+  return hash.digest("hex");
+}
 
 /** Only reviewed, integrity-checked archives may replace a registry SDK pin. */
 export function readElizaSourceBuilds(
@@ -27,7 +57,6 @@ export function readElizaSourceBuilds(
     bun: string;
     node: string;
     nub: string;
-    aliases?: Record<string, string>;
     packages: string[];
   };
   const builds = JSON.parse(
@@ -38,10 +67,10 @@ export function readElizaSourceBuilds(
     .digest("hex");
   for (const [name, build] of Object.entries(builds)) {
     if (
-      (!name.startsWith("@elizaos/") &&
-        !Object.values(config.aliases ?? {}).includes(name)) ||
+      !name.startsWith("@elizaos/") ||
       !/^vendor\/elizaos\/[a-z\d.-]+\.tgz$/u.test(build.artifact) ||
       !/^[a-f\d]{64}$/u.test(build.sha256) ||
+      !/^[a-f\d]{64}$/u.test(build.treeSha256) ||
       build.commit !== config.commit ||
       !/^[a-f\d]{40}$/u.test(build.commit) ||
       build.repository !== config.repository ||
@@ -58,7 +87,11 @@ export function readElizaSourceBuilds(
     if (actual !== build.sha256)
       throw new Error(`ElizaOS source archive integrity mismatch: ${name}`);
   }
-  if (Object.keys(builds).length !== config.packages.length)
+  if (
+    Object.keys(builds).length !== config.packages.length ||
+    new Set(Object.values(builds).map((build) => build.package)).size !==
+      config.packages.length
+  )
     throw new Error("ElizaOS source package closure is incomplete");
   return builds;
 }

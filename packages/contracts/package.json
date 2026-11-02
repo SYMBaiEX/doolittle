@@ -17,7 +17,7 @@
     "./wallet-activity": "./src/wallet-activity.ts"
   },
   "dependencies": {
-    "@elizaos/core": "2.0.3-beta.7",
+    "@elizaos/core": "workspace:2.0.12-beta.0",
     "zod": "^4.6.7"
   },
   "scripts": {

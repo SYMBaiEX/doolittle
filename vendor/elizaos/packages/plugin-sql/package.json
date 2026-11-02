@@ -1,0 +1,82 @@
+{
+  "name": "@elizaos/plugin-sql",
+  "version": "2.0.12-beta.0",
+  "description": "",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "eliza-source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./schema": {
+      "eliza-source": "./src/schema.ts",
+      "types": "./dist/schema.d.ts",
+      "import": "./dist/schema.js",
+      "default": "./dist/schema.js"
+    },
+    "./package.json": "./package.json",
+    "./errors": {
+      "eliza-source": "./src/pglite/errors.ts",
+      "types": "./dist/errors.d.ts",
+      "import": "./dist/errors.js",
+      "default": "./dist/errors.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "keywords": [],
+  "author": "elizaOS",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/elizaos-plugins/plugin-sql"
+  },
+  "dependencies": {
+    "@noble/hashes": "2.2.0",
+    "@electric-sql/pglite": "^0.4.0",
+    "dotenv": "^17.2.3",
+    "drizzle-orm": "0.45.4",
+    "pg": "^8.23.1",
+    "uuid": "^14.0.0",
+    "@elizaos/core": "2.0.12-beta.0"
+  },
+  "peerDependencies": {
+    "@elizaos/core": "2.0.12-beta.0"
+  },
+  "gitHead": "05d4ca11d769db8c7f54a722ee24b2ce2b951543",
+  "publishConfig": {
+    "access": "public"
+  },
+  "elizaos": {
+    "scripts": {
+      "testSerial": true,
+      "publish": {
+        "registryFallbackTag": "beta"
+      },
+      "devStack": {
+        "harnessBuild": true
+      },
+      "contentContextEvidence": {
+        "role": "sql"
+      }
+    }
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "doolittleSourceBuild": {
+    "repository": "https://github.com/elizaos/eliza",
+    "commit": "b2dbeff3ab689a69f7e518deb7d608d1c4607790",
+    "package": "plugins/plugin-sql",
+    "bun": "1.4.2",
+    "node": "26.5.0",
+    "nub": "0.9.7",
+    "toolLockSha256": "61328582d89e162bc299241eba0f120ceaf7d7cdaff4ab043143d2f3b18ef2e0"
+  }
+}

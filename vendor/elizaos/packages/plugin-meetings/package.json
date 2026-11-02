@@ -1,0 +1,56 @@
+{
+  "name": "@elizaos/plugin-meetings",
+  "version": "2.0.12-beta.0",
+  "description": "Meeting transcription plugin for elizaOS agents — browser bots that join Google Meet / Microsoft Teams / Zoom as guests, capture per-speaker audio, transcribe through the runtime model layer, and land diarized transcripts in the Transcripts view and knowledge store",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "eliza-source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./*": {
+      "eliza-source": "./src/*.ts",
+      "types": "./dist/*.d.ts",
+      "import": "./dist/*.js",
+      "default": "./dist/*.js"
+    }
+  },
+  "files": [
+    "dist",
+    "auto-enable.ts",
+    "NOTICE"
+  ],
+  "elizaos": {
+    "plugin": {
+      "autoEnableModule": "./auto-enable.ts",
+      "capabilities": [
+        "meeting-transcription"
+      ]
+    }
+  },
+  "dependencies": {
+    "@elizaos/core": "2.0.12-beta.0",
+    "@elizaos/host": "2.0.12-beta.0",
+    "playwright-core": "^1.56.0"
+  },
+  "peerDependencies": {
+    "@elizaos/core": "2.0.12-beta.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "doolittleSourceBuild": {
+    "repository": "https://github.com/elizaos/eliza",
+    "commit": "b2dbeff3ab689a69f7e518deb7d608d1c4607790",
+    "package": "plugins/plugin-meetings",
+    "bun": "1.4.2",
+    "node": "26.5.0",
+    "nub": "0.9.7",
+    "toolLockSha256": "61328582d89e162bc299241eba0f120ceaf7d7cdaff4ab043143d2f3b18ef2e0"
+  }
+}

@@ -7,7 +7,8 @@
         "src/surfaces.tsx",
         "src/host.ts",
         "src/themes.ts",
-        "src/ag-ui.ts"
+        "src/ag-ui.ts",
+        "src/environment.ts"
       ],
       "project": ["src/**/*.ts", "src/**/*.tsx"]
     },
@@ -48,5 +49,6 @@
       "entry": ["src/index.ts", "src/acp-server.ts"],
       "project": ["src/**/*.ts"]
     }
-  }
+  },
+  "ignoreWorkspaces": ["vendor/elizaos/packages/*"]
 }

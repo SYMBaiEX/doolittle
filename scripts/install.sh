@@ -210,6 +210,7 @@ ensure_nub
 
 if [[ "$CHECK_ONLY" -eq 0 ]]; then
   printf "%s\n" "${amber}Feeding the body with workspace dependencies...${reset}"
+  "$NUB_COMMAND" scripts/prepare-eliza-source.ts
   "$NUB_COMMAND" install --frozen-lockfile --ignore-scripts
   printf "%s\n" "${amber}Installing Electron's standalone desktop runtime...${reset}"
   "$NUB_COMMAND" run desktop:runtime:install

@@ -98,6 +98,7 @@ $Nub = Resolve-Nub
 
 if (-not $Check) {
   Write-Section "Installing workspace dependencies..."
+  & $Nub scripts/prepare-eliza-source.ts
   & $Nub install --frozen-lockfile --ignore-scripts
   if ($LASTEXITCODE -ne 0) {
     throw "Dependency installation failed with exit code $LASTEXITCODE."

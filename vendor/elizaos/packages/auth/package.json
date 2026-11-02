@@ -1,0 +1,397 @@
+{
+  "name": "@elizaos/auth",
+  "version": "2.0.12-beta.0",
+  "description": "Browser login, identity sessions, Node account authentication and encrypted credential storage for elizaOS.",
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/elizaOS/eliza.git",
+    "directory": "packages/auth"
+  },
+  "main": "./sdk/index.js",
+  "types": "./sdk/index.d.ts",
+  "exports": {
+    ".": {
+      "eliza-source": "./sdk/index.js",
+      "types": "./sdk/index.d.ts",
+      "import": "./sdk/index.js",
+      "default": "./sdk/index.js"
+    },
+    "./package.json": "./package.json",
+    "./server": {
+      "eliza-source": "./server/app.js",
+      "types": "./server/app.d.ts",
+      "import": "./server/app.js"
+    },
+    "./embedded": {
+      "eliza-source": "./server/embedded.js",
+      "types": "./server/embedded.d.ts",
+      "import": "./server/embedded.js"
+    },
+    "./start": {
+      "eliza-source": "./server/start.js",
+      "types": "./server/start.d.ts",
+      "import": "./server/start.js"
+    },
+    "./auth": {
+      "eliza-source": "./auth/index.js",
+      "types": "./auth/index.d.ts",
+      "import": "./auth/index.js",
+      "default": "./auth/index.js"
+    },
+    "./vault": {
+      "eliza-source": "./vault/index.js",
+      "types": "./vault/index.d.ts",
+      "import": "./vault/index.js",
+      "default": "./vault/index.js"
+    },
+    "./kms": {
+      "eliza-source": "./kms/index.js",
+      "types": "./kms/index.d.ts",
+      "import": "./kms/index.js",
+      "default": "./kms/index.js"
+    },
+    "./credentials": {
+      "eliza-source": "./index.js",
+      "types": "./index.d.ts",
+      "import": "./index.js",
+      "default": "./index.js"
+    },
+    "./native-host": {
+      "types": "./native-host/cloud-enrollment.d.mts",
+      "import": "./native-host/cloud-enrollment.mjs",
+      "default": "./native-host/cloud-enrollment.mjs"
+    },
+    "./testing": {
+      "eliza-source": "./testing/index.js",
+      "types": "./testing/index.d.ts",
+      "import": "./testing/index.js"
+    },
+    "./auth/account-storage": {
+      "eliza-source": "./auth/account-storage.js",
+      "types": "./auth/account-storage.d.ts",
+      "import": "./auth/account-storage.js",
+      "default": "./auth/account-storage.js"
+    },
+    "./auth/anthropic": {
+      "eliza-source": "./auth/anthropic.js",
+      "types": "./auth/anthropic.d.ts",
+      "import": "./auth/anthropic.js",
+      "default": "./auth/anthropic.js"
+    },
+    "./auth/cloud-resident-binding": {
+      "eliza-source": "./auth/cloud-resident-binding.js",
+      "types": "./auth/cloud-resident-binding.d.ts",
+      "import": "./auth/cloud-resident-binding.js",
+      "default": "./auth/cloud-resident-binding.js"
+    },
+    "./auth/codex-device": {
+      "eliza-source": "./auth/codex-device.js",
+      "types": "./auth/codex-device.d.ts",
+      "import": "./auth/codex-device.js",
+      "default": "./auth/codex-device.js"
+    },
+    "./auth/codex-usage": {
+      "eliza-source": "./providers/codex-usage.js",
+      "types": "./providers/codex-usage.d.ts",
+      "import": "./providers/codex-usage.js",
+      "default": "./providers/codex-usage.js"
+    },
+    "./auth/credentials": {
+      "eliza-source": "./auth/credentials.js",
+      "types": "./auth/credentials.d.ts",
+      "import": "./auth/credentials.js",
+      "default": "./auth/credentials.js"
+    },
+    "./auth/direct-api-probe": {
+      "eliza-source": "./providers/direct-api-probe.js",
+      "types": "./providers/direct-api-probe.d.ts",
+      "import": "./providers/direct-api-probe.js",
+      "default": "./providers/direct-api-probe.js"
+    },
+    "./auth/index": {
+      "eliza-source": "./auth/index.js",
+      "types": "./auth/index.d.ts",
+      "import": "./auth/index.js",
+      "default": "./auth/index.js"
+    },
+    "./auth/native-cloud-sign-in": {
+      "eliza-source": "./auth/native-cloud-sign-in.js",
+      "types": "./auth/native-cloud-sign-in.d.ts",
+      "import": "./auth/native-cloud-sign-in.js",
+      "default": "./auth/native-cloud-sign-in.js"
+    },
+    "./auth/oauth-flow": {
+      "eliza-source": "./auth/oauth-flow.js",
+      "types": "./auth/oauth-flow.d.ts",
+      "import": "./auth/oauth-flow.js",
+      "default": "./auth/oauth-flow.js"
+    },
+    "./auth/openai-codex": {
+      "eliza-source": "./auth/openai-codex.js",
+      "types": "./auth/openai-codex.d.ts",
+      "import": "./auth/openai-codex.js",
+      "default": "./auth/openai-codex.js"
+    },
+    "./auth/refresh-mutex": {
+      "eliza-source": "./auth/refresh-mutex.js",
+      "types": "./auth/refresh-mutex.d.ts",
+      "import": "./auth/refresh-mutex.js",
+      "default": "./auth/refresh-mutex.js"
+    },
+    "./auth/subscription-auth/adopt-codex-cli-login": {
+      "eliza-source": "./auth/subscription-auth/adopt-codex-cli-login.js",
+      "types": "./auth/subscription-auth/adopt-codex-cli-login.d.ts",
+      "import": "./auth/subscription-auth/adopt-codex-cli-login.js",
+      "default": "./auth/subscription-auth/adopt-codex-cli-login.js"
+    },
+    "./auth/subscription-auth/builtin-providers": {
+      "eliza-source": "./auth/subscription-auth/builtin-providers.js",
+      "types": "./auth/subscription-auth/builtin-providers.d.ts",
+      "import": "./auth/subscription-auth/builtin-providers.js",
+      "default": "./auth/subscription-auth/builtin-providers.js"
+    },
+    "./auth/subscription-auth/index": {
+      "eliza-source": "./auth/subscription-auth/index.js",
+      "types": "./auth/subscription-auth/index.d.ts",
+      "import": "./auth/subscription-auth/index.js",
+      "default": "./auth/subscription-auth/index.js"
+    },
+    "./auth/subscription-auth/registry": {
+      "eliza-source": "./auth/subscription-auth/registry.js",
+      "types": "./auth/subscription-auth/registry.d.ts",
+      "import": "./auth/subscription-auth/registry.js",
+      "default": "./auth/subscription-auth/registry.js"
+    },
+    "./auth/subscription-auth/types": {
+      "eliza-source": "./auth/subscription-auth/types.js",
+      "types": "./auth/subscription-auth/types.d.ts",
+      "import": "./auth/subscription-auth/types.js",
+      "default": "./auth/subscription-auth/types.js"
+    },
+    "./auth/token-expiry": {
+      "eliza-source": "./auth/token-expiry.js",
+      "types": "./auth/token-expiry.d.ts",
+      "import": "./auth/token-expiry.js",
+      "default": "./auth/token-expiry.js"
+    },
+    "./auth/types": {
+      "eliza-source": "./auth/types.js",
+      "types": "./auth/types.d.ts",
+      "import": "./auth/types.js",
+      "default": "./auth/types.js"
+    },
+    "./auth/vendor/pi-oauth/anthropic-login": {
+      "eliza-source": "./auth/vendor/pi-oauth/anthropic-login.js",
+      "types": "./auth/vendor/pi-oauth/anthropic-login.d.ts",
+      "import": "./auth/vendor/pi-oauth/anthropic-login.js",
+      "default": "./auth/vendor/pi-oauth/anthropic-login.js"
+    },
+    "./auth/vendor/pi-oauth/openai-codex-login": {
+      "eliza-source": "./auth/vendor/pi-oauth/openai-codex-login.js",
+      "types": "./auth/vendor/pi-oauth/openai-codex-login.d.ts",
+      "import": "./auth/vendor/pi-oauth/openai-codex-login.js",
+      "default": "./auth/vendor/pi-oauth/openai-codex-login.js"
+    },
+    "./vault/audit": {
+      "eliza-source": "./vault/audit.js",
+      "types": "./vault/audit.d.ts",
+      "import": "./vault/audit.js",
+      "default": "./vault/audit.js"
+    },
+    "./vault/credentials": {
+      "eliza-source": "./vault/credentials.js",
+      "types": "./vault/credentials.d.ts",
+      "import": "./vault/credentials.js",
+      "default": "./vault/credentials.js"
+    },
+    "./vault/crypto": {
+      "eliza-source": "./vault/crypto.js",
+      "types": "./vault/crypto.d.ts",
+      "import": "./vault/crypto.js",
+      "default": "./vault/crypto.js"
+    },
+    "./vault/external-credentials": {
+      "eliza-source": "./vault/external-credentials.js",
+      "types": "./vault/external-credentials.d.ts",
+      "import": "./vault/external-credentials.js",
+      "default": "./vault/external-credentials.js"
+    },
+    "./vault/index": {
+      "eliza-source": "./vault/index.js",
+      "types": "./vault/index.d.ts",
+      "import": "./vault/index.js",
+      "default": "./vault/index.js"
+    },
+    "./vault/install": {
+      "eliza-source": "./vault/install.js",
+      "types": "./vault/install.d.ts",
+      "import": "./vault/install.js",
+      "default": "./vault/install.js"
+    },
+    "./vault/internal-utils": {
+      "eliza-source": "./vault/internal-utils.js",
+      "types": "./vault/internal-utils.d.ts",
+      "import": "./vault/internal-utils.js",
+      "default": "./vault/internal-utils.js"
+    },
+    "./vault/inventory": {
+      "eliza-source": "./vault/inventory.js",
+      "types": "./vault/inventory.d.ts",
+      "import": "./vault/inventory.js",
+      "default": "./vault/inventory.js"
+    },
+    "./vault/keychain-process": {
+      "eliza-source": "./vault/keychain-process.js",
+      "types": "./vault/keychain-process.d.ts",
+      "import": "./vault/keychain-process.js",
+      "default": "./vault/keychain-process.js"
+    },
+    "./vault/manager": {
+      "eliza-source": "./vault/manager.js",
+      "types": "./vault/manager.d.ts",
+      "import": "./vault/manager.js",
+      "default": "./vault/manager.js"
+    },
+    "./vault/master-key": {
+      "eliza-source": "./vault/master-key.js",
+      "types": "./vault/master-key.d.ts",
+      "import": "./vault/master-key.js",
+      "default": "./vault/master-key.js"
+    },
+    "./vault/password-managers": {
+      "eliza-source": "./vault/password-managers.js",
+      "types": "./vault/password-managers.d.ts",
+      "import": "./vault/password-managers.js",
+      "default": "./vault/password-managers.js"
+    },
+    "./vault/pglite-vault": {
+      "eliza-source": "./vault/pglite-vault.js",
+      "types": "./vault/pglite-vault.d.ts",
+      "import": "./vault/pglite-vault.js",
+      "default": "./vault/pglite-vault.js"
+    },
+    "./vault/profiles": {
+      "eliza-source": "./vault/profiles.js",
+      "types": "./vault/profiles.d.ts",
+      "import": "./vault/profiles.js",
+      "default": "./vault/profiles.js"
+    },
+    "./vault/store": {
+      "eliza-source": "./vault/store.js",
+      "types": "./vault/store.d.ts",
+      "import": "./vault/store.js",
+      "default": "./vault/store.js"
+    },
+    "./vault/testing": {
+      "eliza-source": "./testing/index.js",
+      "types": "./testing/index.d.ts",
+      "import": "./testing/index.js",
+      "default": "./testing/index.js"
+    },
+    "./vault/types": {
+      "eliza-source": "./vault/types.js",
+      "types": "./vault/types.d.ts",
+      "import": "./vault/types.js",
+      "default": "./vault/types.js"
+    },
+    "./vault/vault-paths": {
+      "eliza-source": "./vault/vault-paths.js",
+      "types": "./vault/vault-paths.d.ts",
+      "import": "./vault/vault-paths.js",
+      "default": "./vault/vault-paths.js"
+    },
+    "./vault/vault-types": {
+      "eliza-source": "./vault/vault-types.js",
+      "types": "./vault/vault-types.d.ts",
+      "import": "./vault/vault-types.js",
+      "default": "./vault/vault-types.js"
+    },
+    "./vault/vault": {
+      "eliza-source": "./vault/vault.js",
+      "types": "./vault/vault.d.ts",
+      "import": "./vault/vault.js",
+      "default": "./vault/vault.js"
+    },
+    "./vault/verified-write": {
+      "eliza-source": "./vault/verified-write.js",
+      "types": "./vault/verified-write.d.ts",
+      "import": "./vault/verified-write.js",
+      "default": "./vault/verified-write.js"
+    },
+    "./providers": {
+      "eliza-source": "./providers/index.js",
+      "types": "./providers/index.d.ts",
+      "import": "./providers/index.js"
+    },
+    "./auth/vendor/pi-oauth/pkce": {
+      "eliza-source": "./contracts/crypto.js",
+      "types": "./contracts/crypto.d.ts",
+      "import": "./contracts/crypto.js",
+      "default": "./contracts/crypto.js"
+    },
+    "./accounts": {
+      "browser": null,
+      "eliza-source": "./accounts/index.js",
+      "types": "./accounts/index.d.ts",
+      "import": "./accounts/index.js",
+      "default": "./accounts/index.js"
+    },
+    "./app-return": {
+      "eliza-source": "./sdk/app-return.js",
+      "types": "./sdk/app-return.d.ts",
+      "import": "./sdk/app-return.js",
+      "default": "./sdk/app-return.js"
+    }
+  },
+  "dependencies": {
+    "@elizaos/core": "^2.0.12-beta.0",
+    "@electric-sql/pglite": "^0.4.2",
+    "@napi-rs/keyring": "^1.1.6",
+    "bs58": "^6.0.0",
+    "@simplewebauthn/browser": "^14.0.0",
+    "drizzle-orm": "0.45.4",
+    "postgres": "^3.4.7",
+    "@upstash/redis": "^1.34.3",
+    "ioredis": "^5.6.1",
+    "@noble/curves": "^1.6.0",
+    "@noble/hashes": "^1.7.0",
+    "@scure/bip32": "^1.6.0",
+    "@scure/bip39": "^1.6.0",
+    "@scure/btc-signer": "^2.2.0",
+    "@solana/web3.js": "^1",
+    "viem": "^2.56.9",
+    "@aws-sdk/client-kms": "^3.1136.0",
+    "graphene-pk11": "^2.2.0",
+    "hono": "^4.13.11",
+    "jose": "^6.2.1",
+    "siwe": "^3.0.0",
+    "@node-saml/node-saml": "5.1.0",
+    "@simplewebauthn/server": "^14.0.3",
+    "resend": "^6.9.4",
+    "@elizaos/host": "^2.0.12-beta.0",
+    "@elizaos/contracts": "^2.0.12-beta.0",
+    "@cloudflare/containers": "^0.3.7"
+  },
+  "elizaos": {
+    "scripts": {
+      "testLanes": [
+        "server"
+      ],
+      "coreBuild": true
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "doolittleSourceBuild": {
+    "repository": "https://github.com/elizaos/eliza",
+    "commit": "b2dbeff3ab689a69f7e518deb7d608d1c4607790",
+    "package": "packages/auth",
+    "bun": "1.4.2",
+    "node": "26.5.0",
+    "nub": "0.9.7",
+    "toolLockSha256": "61328582d89e162bc299241eba0f120ceaf7d7cdaff4ab043143d2f3b18ef2e0"
+  }
+}

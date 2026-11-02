@@ -1,0 +1,63 @@
+{
+  "name": "@elizaos/plugin-form",
+  "version": "2.0.12-beta.0",
+  "type": "module",
+  "description": "Eliza plugin-form: conversational forms as guardrails for guided user journeys.",
+  "main": "./dist/index.js",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "eliza-source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./*.css": "./dist/*.css",
+    "./*": {
+      "eliza-source": "./src/*.ts",
+      "types": "./dist/*.d.ts",
+      "import": "./dist/*.js",
+      "default": "./dist/*.js"
+    }
+  },
+  "dependencies": {
+    "@elizaos/core": "2.0.12-beta.0",
+    "@elizaos/host": "2.0.12-beta.0",
+    "@elizaos/plugin-assistant": "2.0.12-beta.0",
+    "uuid": "^14.0.0"
+  },
+  "agentConfig": {
+    "pluginType": "elizaos:plugin:1.0.0",
+    "pluginParameters": {},
+    "description": "Conversational forms for structured data collection."
+  },
+  "elizaos": {
+    "app": {
+      "heroImage": "assets/hero.png"
+    },
+    "plugin": {
+      "autoEnableModule": "./auto-enable.ts",
+      "capabilities": [
+        "forms"
+      ]
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "types": "./dist/index.d.ts",
+  "files": [
+    "registry-entry.json",
+    "dist",
+    "auto-enable.ts"
+  ],
+  "doolittleSourceBuild": {
+    "repository": "https://github.com/elizaos/eliza",
+    "commit": "b2dbeff3ab689a69f7e518deb7d608d1c4607790",
+    "package": "plugins/plugin-form",
+    "bun": "1.4.2",
+    "node": "26.5.0",
+    "nub": "0.9.7",
+    "toolLockSha256": "61328582d89e162bc299241eba0f120ceaf7d7cdaff4ab043143d2f3b18ef2e0"
+  }
+}

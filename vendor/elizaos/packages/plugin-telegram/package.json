@@ -1,0 +1,93 @@
+{
+  "name": "@elizaos/plugin-telegram",
+  "version": "2.0.12-beta.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "eliza-source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./*.css": "./dist/*.css"
+  },
+  "files": [
+    "registry-entry.json",
+    "dist"
+  ],
+  "dependencies": {
+    "@elizaos/auth": "2.0.12-beta.0",
+    "@elizaos/core": "2.0.12-beta.0",
+    "@elizaos/host": "2.0.12-beta.0",
+    "@elizaos/plugin-assistant": "2.0.12-beta.0",
+    "@telegraf/types": "^7.1.0",
+    "@types/node": "^24.0.10",
+    "strip-literal": "^3.0.0",
+    "telegraf": "4.16.3",
+    "telegram": "^2.26.22",
+    "type-detect": "^4.1.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "gitHead": "646c632924826e2b75c2304a75ee56959fe4a460",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/elizaos-plugins/plugin-telegram.git"
+  },
+  "agentConfig": {
+    "pluginType": "elizaos:plugin:1.0.0",
+    "pluginParameters": {
+      "TELEGRAM_API_ROOT": {
+        "type": "string",
+        "description": "Base URL for Telegram Bot API used by the TelegramService, allowing override of the default API endpoint.",
+        "required": false,
+        "sensitive": false
+      },
+      "TELEGRAM_BOT_TOKEN": {
+        "type": "string",
+        "description": "Telegram bot token used for authenticating and operating the Telegram bot.",
+        "required": true,
+        "sensitive": true
+      },
+      "TELEGRAM_ALLOWED_CHATS": {
+        "type": "string",
+        "description": "JSON-encoded array of Telegram chat IDs that are authorized to interact with the bot.",
+        "required": false,
+        "sensitive": false
+      },
+      "TELEGRAM_TEST_CHAT_ID": {
+        "type": "string",
+        "description": "Telegram chat ID used by the test suite to send, receive, and validate messages during Telegram bot tests.",
+        "required": false,
+        "sensitive": false
+      }
+    },
+    "configUiHints": {
+      "TELEGRAM_ALLOWED_CHATS": {
+        "modeToggle": {
+          "kind": "mode-toggle-with-hidden-field",
+          "enabledLabel": "Allow all chats",
+          "disabledLabel": "Allow only specific chats",
+          "enabledHelp": "Bot will respond in any chat",
+          "disabledHelp": "Bot will only respond in listed chat IDs",
+          "hiddenValue": "",
+          "restoreValue": "[]"
+        }
+      }
+    }
+  },
+  "doolittleSourceBuild": {
+    "repository": "https://github.com/elizaos/eliza",
+    "commit": "b2dbeff3ab689a69f7e518deb7d608d1c4607790",
+    "package": "plugins/plugin-telegram",
+    "bun": "1.4.2",
+    "node": "26.5.0",
+    "nub": "0.9.7",
+    "toolLockSha256": "61328582d89e162bc299241eba0f120ceaf7d7cdaff4ab043143d2f3b18ef2e0"
+  }
+}
