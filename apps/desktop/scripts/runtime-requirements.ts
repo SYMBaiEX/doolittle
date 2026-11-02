@@ -2,6 +2,7 @@ import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Metafile } from "esbuild";
+import parseSpdx from "spdx-expression-parse";
 
 const DYNAMIC_COMMONJS_REQUIRE = /import\.meta\.url\)\("([^"]+)"\)/gu;
 const RUNTIME_ASSET_REFERENCE =
@@ -71,9 +72,30 @@ export function runtimePackageForSource(
 type PackageLicenseManifest = RuntimeDependencyInventoryEntry & {
   license?: unknown;
   licenses?: unknown;
+  doolittleSourceBuild?: { repository?: string; commit?: string };
 };
 
 const STRONG_COPYLEFT_LICENSE = /(?:^|\b)(?:AGPL|GPL)-/iu;
+
+function requiresStrongCopyleft(
+  expression: ReturnType<typeof parseSpdx>,
+): boolean {
+  if ("license" in expression)
+    return STRONG_COPYLEFT_LICENSE.test(expression.license);
+  return expression.conjunction === "or"
+    ? requiresStrongCopyleft(expression.left) &&
+        requiresStrongCopyleft(expression.right)
+    : requiresStrongCopyleft(expression.left) ||
+        requiresStrongCopyleft(expression.right);
+}
+
+export function hasOnlyStrongCopyleftOptions(license: string): boolean {
+  try {
+    return requiresStrongCopyleft(parseSpdx(license));
+  } catch {
+    return STRONG_COPYLEFT_LICENSE.test(license);
+  }
+}
 
 // This package is published from the AI SDK monorepo without its own license
 // text. Its sibling provider package carries the same Apache-2.0 repository
@@ -88,6 +110,11 @@ const REVIEWED_SHARED_LICENSE_FILES: Readonly<Record<string, string>> = {
 // local ffmpeg-static copy was only the source for this one-time repository
 // addition; runtime preparation never reads legal text from node_modules.
 const CHECKED_IN_LICENSE_ASSETS: Readonly<Record<string, string>> = {
+  // The beta.1 tarball omits legal metadata. Its exact published gitHead contains
+  // this package under the monorepo MIT license (fb5c65dd89117b393a3c8d0962fe19302efc7cc7).
+  "@elizaos/plugin-agent-skills@2.0.0-beta.1": fileURLToPath(
+    new URL("./licenses/eliza-MIT.txt", import.meta.url),
+  ),
   "adapter-types@0.2.1": fileURLToPath(
     new URL("./licenses/MIT.txt", import.meta.url),
   ),
@@ -144,6 +171,7 @@ function licenseFile(
   directory: string,
   packageKey: string,
   metadataLicense: string | undefined,
+  sourceBuild?: PackageLicenseManifest["doolittleSourceBuild"],
 ): { displayName: string; path: string } | undefined {
   const localName = readdirSync(directory)
     .filter((name) => /^licen[cs]e(?:\..+)?$/iu.test(name))
@@ -151,6 +179,16 @@ function licenseFile(
   if (localName) {
     return { displayName: localName, path: resolve(directory, localName) };
   }
+  // This root license was verified byte-for-byte at the pinned source commit.
+  if (
+    !metadataLicense &&
+    sourceBuild?.repository === "https://github.com/elizaos/eliza" &&
+    sourceBuild.commit === "b2dbeff3ab689a69f7e518deb7d608d1c4607790"
+  )
+    return {
+      displayName: "LICENSE (verified upstream source commit)",
+      path: fileURLToPath(new URL("./licenses/eliza-MIT.txt", import.meta.url)),
+    };
   const packageIdentity = packageKey.replace("\u0000", "@");
   const checkedInAsset = CHECKED_IN_LICENSE_ASSETS[packageIdentity];
   if (checkedInAsset) {
@@ -226,6 +264,7 @@ export function runtimeThirdPartyNoticesText(
         source.directory,
         key,
         metadataLicense,
+        manifest.doolittleSourceBuild,
       );
       if (!licenseFileEntry) {
         throw new Error(
@@ -321,7 +360,7 @@ export function assertDesktopDistributionLicensePolicy(
       declaredLicense(
         Array.isArray(manifest.licenses) ? manifest.licenses[0] : undefined,
       );
-    if (license && STRONG_COPYLEFT_LICENSE.test(license)) {
+    if (license && hasOnlyStrongCopyleftOptions(license)) {
       throw new Error(
         `Packaged desktop runtime cannot bundle strong-copyleft dependency ${dependency.name}@${dependency.version} (${license}).`,
       );

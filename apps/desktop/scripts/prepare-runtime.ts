@@ -1,19 +1,15 @@
 import { createHash } from "node:crypto";
 import {
-  copyFileSync,
-  cpSync,
   existsSync,
   mkdirSync,
-  readdirSync,
   readFileSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
 import { createRequire } from "node:module";
-import { basename, dirname, relative, resolve } from "node:path";
+import { basename, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { build, type Metafile, type Plugin } from "esbuild";
-import { assertOptionalDependencyEntry } from "./dependency-key";
+import { build, type Metafile } from "esbuild";
 import {
   assertDesktopDistributionLicensePolicy,
   discoverDynamicCommonJsPackages,
@@ -21,21 +17,22 @@ import {
   emittedMetafileInputPaths,
   type RuntimeDependencyInventoryEntry,
   type RuntimeDependencyLicenseSource,
-  type RuntimePackageManifest,
-  runtimePackageClosure,
   runtimePackageForSource,
   stableRuntimeDependencyInventory,
   writeRuntimeThirdPartyNotices,
 } from "./runtime-requirements";
 import {
-  bundleSmithersRuntime,
-  SMITHERS_RUNTIME_ASSET,
-  smithersBundlePaths,
-} from "./smithers-runtime";
+  copySdkRuntimePackages,
+  SDK_RUNTIME_PACKAGES,
+} from "./sdk-runtime-packages";
 
 const desktopRoot = fileURLToPath(new URL("..", import.meta.url));
 const repoRoot = fileURLToPath(new URL("../../..", import.meta.url));
 const repoRequire = createRequire(resolve(repoRoot, "package.json"));
+// Playwright imports these optional modules without declaring a dependency.
+// Qualify the real published CJS entrypoints before producing the artifact.
+import.meta.resolve("chromium-bidi/lib/cjs/bidiMapper/BidiMapper");
+import.meta.resolve("chromium-bidi/lib/cjs/cdp/CdpConnection");
 const outputDir = resolve(desktopRoot, "build", "runtime");
 const outputPath = resolve(outputDir, "doolittle-runtime.mjs");
 const acpOutputPath = resolve(outputDir, "doolittle-acp.mjs");
@@ -47,44 +44,10 @@ const nativeExternalPackages = [
   "@napi-rs/keyring",
   "acpx",
 ] as const;
-const pluginSqlRequire = createRequire(
-  repoRequire.resolve("@elizaos/plugin-sql/package.json"),
-);
-const pgliteDist = dirname(pluginSqlRequire.resolve("@electric-sql/pglite"));
-
 rmSync(outputDir, { recursive: true, force: true });
 mkdirSync(outputDir, { recursive: true });
 
-const pgliteAssets = readdirSync(pgliteDist)
-  .filter(
-    (fileName) =>
-      fileName.endsWith(".tar.gz") ||
-      fileName.endsWith(".wasm") ||
-      fileName === "pglite.data",
-  )
-  .sort();
-
-for (const fileName of pgliteAssets) {
-  copyFileSync(resolve(pgliteDist, fileName), resolve(outputDir, fileName));
-}
-
-const pgliteBundlePaths: Plugin = {
-  name: "pglite-bundle-paths",
-  setup(esbuild) {
-    esbuild.onLoad(
-      { filter: /@electric-sql[\\/]pglite[\\/]dist[\\/].*\.js$/ },
-      ({ path }) => ({
-        contents: readFileSync(path, "utf8").replaceAll(
-          /new URL\("\.\.\/([^"]+\.tar\.gz)",import\.meta\.url\)/g,
-          'new URL("./$1",import.meta.url)',
-        ),
-        loader: "js",
-      }),
-    );
-  },
-};
-
-type PackageJson = RuntimePackageManifest & {
+type PackageJson = {
   name?: string;
   version?: string;
 };
@@ -114,8 +77,12 @@ function bundledPackageLicenseSources(
 function thirdPartyRuntimeLicenseSources(
   sources: readonly RuntimeDependencyLicenseSource[],
 ): RuntimeDependencyLicenseSource[] {
-  return sources.filter((source) =>
-    relative(repoRoot, source.directory).startsWith("node_modules/"),
+  return sources.filter(
+    (source) =>
+      relative(repoRoot, source.directory).startsWith("node_modules/") ||
+      relative(repoRoot, source.directory).startsWith(
+        "vendor/elizaos/packages/",
+      ),
   );
 }
 
@@ -139,7 +106,7 @@ function installedPackageInventory(
 }
 
 console.log(
-  `Bundling the Doolittle runtime for Electron's embedded Node (${pgliteAssets.length} database assets)…`,
+  "Bundling Doolittle's client runtime while preserving native SDK package paths…",
 );
 
 const runtimeBuild = await build({
@@ -162,7 +129,6 @@ const runtimeBuild = await build({
   legalComments: "none",
   metafile: true,
   logLevel: "info",
-  plugins: [pgliteBundlePaths, smithersBundlePaths],
   define: {
     // Make the distribution policy a build-time constant so esbuild removes
     // the guarded optional imports and their full dependency closures.
@@ -190,153 +156,29 @@ const runtimeBuild = await build({
     "@napi-rs/keyring-*",
     "@node-llama-cpp/*",
     ...nativeExternalPackages,
+    ...SDK_RUNTIME_PACKAGES,
     "@elizaos/plugin-local-inference",
     "@elizaos/plugin-aosp-local-inference",
   ],
 });
 
-function installedRuntimePackageGraph(rootPackages: readonly string[]): {
-  manifests: Map<string, RuntimePackageManifest | undefined>;
-  sourceDirectories: Map<string, string>;
-} {
-  const manifests = new Map<string, RuntimePackageManifest | undefined>();
-  const sourceDirectories = new Map<string, string>();
-  const pending: Array<{ name: string; resolver: NodeRequire }> =
-    rootPackages.map((name) => ({ name, resolver: repoRequire }));
-
-  while (pending.length > 0) {
-    const next = pending.pop();
-    if (!next || manifests.has(next.name)) continue;
-    const manifestPath = next.resolver.resolve(`${next.name}/package.json`);
-    const manifest = JSON.parse(
-      readFileSync(manifestPath, "utf8"),
-    ) as RuntimePackageManifest;
-    const packageResolver = createRequire(manifestPath);
-    const installedOptionalDependencies: Record<string, string> =
-      Object.create(null);
-
-    for (const dependency of Object.keys(manifest.dependencies ?? {})) {
-      packageResolver.resolve(`${dependency}/package.json`);
-      pending.push({ name: dependency, resolver: packageResolver });
-    }
-    for (const [dependency, version] of Object.entries(
-      manifest.optionalDependencies ?? {},
-    )) {
-      assertOptionalDependencyEntry(dependency, version, manifestPath);
-      try {
-        packageResolver.resolve(`${dependency}/package.json`);
-        installedOptionalDependencies[dependency] = version;
-        pending.push({ name: dependency, resolver: packageResolver });
-      } catch {
-        // Platform-specific optional packages are absent by design.
-      }
-    }
-
-    manifests.set(next.name, {
-      dependencies: manifest.dependencies,
-      optionalDependencies: installedOptionalDependencies,
-    });
-    sourceDirectories.set(next.name, dirname(manifestPath));
-  }
-
-  return { manifests, sourceDirectories };
-}
-
-function copyNativeRuntimePackages(rootPackages: readonly string[]): {
-  packageNames: string[];
-  licenseSources: RuntimeDependencyLicenseSource[];
-} {
-  const { manifests, sourceDirectories } =
-    installedRuntimePackageGraph(rootPackages);
-  const packageNames = runtimePackageClosure(rootPackages, manifests);
-  for (const packageName of packageNames) {
-    const sourceDirectory = sourceDirectories.get(packageName);
-    if (!sourceDirectory) {
-      throw new Error(
-        `Native runtime package was not resolved: ${packageName}`,
-      );
-    }
-    const destination = resolve(
-      runtimeNodeModulesDir,
-      ...packageName.split("/"),
-    );
-    mkdirSync(dirname(destination), { recursive: true });
-    cpSync(sourceDirectory, destination, {
-      recursive: true,
-      dereference: true,
-    });
-  }
-  return {
-    packageNames,
-    licenseSources: packageNames.map((name) => {
-      const directory = sourceDirectories.get(name);
-      if (!directory) {
-        throw new Error(`Native runtime package was not resolved: ${name}`);
-      }
-      const manifest = JSON.parse(
-        readFileSync(resolve(directory, "package.json"), "utf8"),
-      ) as PackageJson;
-      if (!manifest.name?.trim() || !manifest.version?.trim()) {
-        throw new Error(`Runtime package has no name or version: ${directory}`);
-      }
-      return { name: manifest.name, version: manifest.version, directory };
-    }),
-  };
-}
-
-const copiedNativeRuntime = copyNativeRuntimePackages(nativeExternalPackages);
-const copiedNativePackages = copiedNativeRuntime.packageNames;
-
-async function bundleCommonJsRuntimePackage(
-  name: string,
-  entry: string,
-): Promise<Metafile> {
-  const packageDir = resolve(runtimeNodeModulesDir, name);
-  mkdirSync(packageDir, { recursive: true });
-  const result = await build({
-    absWorkingDir: repoRoot,
-    entryPoints: [entry],
-    outfile: resolve(packageDir, "index.cjs"),
-    bundle: true,
-    platform: "node",
-    format: "cjs",
-    target: "node24",
-    minify: true,
-    sourcemap: false,
-    legalComments: "none",
-    metafile: true,
-    logLevel: "info",
-  });
-  writeFileSync(
-    resolve(packageDir, "package.json"),
-    `${JSON.stringify({ name, private: true, main: "index.cjs" }, null, 2)}\n`,
-    "utf8",
-  );
-  return result.metafile;
-}
-
-const gitWorkspaceServiceBuild = await bundleCommonJsRuntimePackage(
-  "git-workspace-service",
-  resolve(
-    repoRoot,
-    "node_modules",
-    "git-workspace-service",
-    "dist",
-    "index.cjs",
-  ),
+const tracedSdk = await copySdkRuntimePackages(
+  repoRoot,
+  outputDir,
+  nativeExternalPackages,
 );
-const smithersRuntimeBuild = await bundleSmithersRuntime(repoRoot, outputDir);
+const copiedNativePackages = [...nativeExternalPackages].sort((a, b) =>
+  a.localeCompare(b),
+);
+const copiedNativeRuntime = { licenseSources: tracedSdk.licenseSources };
 
 const bundledPackages = stableRuntimeDependencyInventory([
   ...bundledPackageInventory(runtimeBuild.metafile),
-  ...bundledPackageInventory(gitWorkspaceServiceBuild),
-  ...bundledPackageInventory(smithersRuntimeBuild),
 ]);
 
 const thirdPartyBundledLicenseSources = thirdPartyRuntimeLicenseSources([
   ...bundledPackageLicenseSources(runtimeBuild.metafile),
-  ...bundledPackageLicenseSources(gitWorkspaceServiceBuild),
-  ...bundledPackageLicenseSources(smithersRuntimeBuild),
+  ...tracedSdk.licenseSources,
 ]);
 const thirdPartyNoticePackages = stableRuntimeDependencyInventory([
   ...thirdPartyBundledLicenseSources.map(({ name, version }) => ({
@@ -361,36 +203,6 @@ const thirdPartyNotices = {
     .update(readFileSync(thirdPartyNoticesPath))
     .digest("hex"),
 };
-
-const readableStreamShimDir = resolve(
-  runtimeNodeModulesDir,
-  "node-readable-to-web-readable-stream",
-);
-mkdirSync(readableStreamShimDir, { recursive: true });
-writeFileSync(
-  resolve(readableStreamShimDir, "index.cjs"),
-  [
-    '"use strict";',
-    'const { Readable } = require("node:stream");',
-    "exports.makeDefaultReadableStreamFromNodeReadable = (stream) =>",
-    "  Readable.toWeb(stream);",
-    "",
-  ].join("\n"),
-  "utf8",
-);
-writeFileSync(
-  resolve(readableStreamShimDir, "package.json"),
-  `${JSON.stringify(
-    {
-      name: "node-readable-to-web-readable-stream",
-      private: true,
-      main: "index.cjs",
-    },
-    null,
-    2,
-  )}\n`,
-  "utf8",
-);
 
 // Source entrypoints use `#!/usr/bin/env nub` for source-checkout launches.
 // Packaged apps execute these bundles through Electron's embedded Node, so
@@ -438,12 +250,13 @@ writeFileSync(
       entry: basename(outputPath),
       acpEntry: basename(acpOutputPath),
       node: "electron-embedded",
-      assets: [...pgliteAssets, SMITHERS_RUNTIME_ASSET].sort(),
+      assets: [...new Set(tracedSdk.files)].sort((a, b) => a.localeCompare(b)),
+      tracedPackages: tracedSdk.packages,
       nativeEntryPackages: [...nativeExternalPackages].sort(),
       nativePackages: copiedNativePackages,
       bundledPackages,
       nativeExternalPackages: installedPackageInventory(nativeExternalPackages),
-      nativePackageClosure: installedPackageInventory(copiedNativePackages),
+      nativePackageClosure: tracedSdk.packages,
       thirdPartyNotices,
     },
     null,

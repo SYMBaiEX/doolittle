@@ -20,7 +20,6 @@ import {
   productionDependencyClosure,
 } from "./package-composition";
 import { readRegularFile } from "./regular-file";
-import { SMITHERS_RUNTIME_ASSET } from "./smithers-runtime";
 
 const desktopRoot = fileURLToPath(new URL("..", import.meta.url));
 const args = process.argv.slice(2);
@@ -29,6 +28,7 @@ type RuntimeManifest = {
   acpEntry: string;
   assets: string[];
   bundledPackages: RuntimeDependencyInventoryEntry[];
+  tracedPackages?: RuntimeDependencyInventoryEntry[];
   entry: string;
   nativeEntryPackages: string[];
   nativeExternalPackages: RuntimeDependencyInventoryEntry[];
@@ -190,6 +190,7 @@ export function validateRuntimeDependencySecurityPolicy(
 ): void {
   const dependencies = stableRuntimeDependencies([
     ...manifest.bundledPackages,
+    ...(manifest.tracedPackages ?? []),
     ...manifest.nativePackageClosure,
   ]);
   const rejected: string[] = [];
@@ -448,20 +449,12 @@ export function validateRuntimeManifest(value: unknown): RuntimeManifest {
     !inventoryIsStable(manifest.bundledPackages) ||
     manifest.bundledPackages.length === 0 ||
     !inventoryIsStable(manifest.nativeExternalPackages) ||
-    !inventoryIsStable(manifest.nativePackageClosure)
+    !inventoryIsStable(manifest.nativePackageClosure) ||
+    (manifest.tracedPackages !== undefined &&
+      !inventoryIsStable(manifest.tracedPackages))
   ) {
     throw new Error(
       "Packaged runtime manifest has an invalid bundled dependency inventory.",
-    );
-  }
-  if (
-    manifest.bundledPackages.some(
-      ({ name }) => name === "@elizaos/plugin-agent-orchestrator",
-    ) &&
-    !manifest.assets.includes(SMITHERS_RUNTIME_ASSET)
-  ) {
-    throw new Error(
-      "Packaged native task runner is missing its Smithers companion.",
     );
   }
   if (
@@ -469,10 +462,11 @@ export function validateRuntimeManifest(value: unknown): RuntimeManifest {
       inventoryNames(manifest.nativeExternalPackages),
       manifest.nativeEntryPackages,
     ) ||
-    !sameStringSet(
-      inventoryNames(manifest.nativePackageClosure),
-      manifest.nativePackages,
-    )
+    (!manifest.tracedPackages &&
+      !sameStringSet(
+        inventoryNames(manifest.nativePackageClosure),
+        manifest.nativePackages,
+      ))
   ) {
     throw new Error(
       "Packaged runtime manifest native dependency inventory does not match copied packages.",
