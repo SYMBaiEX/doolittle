@@ -116,7 +116,10 @@ function packageIdentity(path: string): {
   };
 }
 
-function resolveManifest(resolver: NodeRequire, packageName: string): string {
+export function resolveInstalledPackageManifest(
+  resolver: NodeRequire,
+  packageName: string,
+): string {
   try {
     return resolver.resolve(`${packageName}/package.json`);
   } catch (error) {
@@ -160,7 +163,10 @@ export function installedDesktopProductionPackages(desktopRoot: string): {
   while (pending.length > 0) {
     const next = pending.pop();
     if (!next) continue;
-    const manifestPath = resolveManifest(next.resolver, next.name);
+    const manifestPath = resolveInstalledPackageManifest(
+      next.resolver,
+      next.name,
+    );
     if (visitedManifests.has(manifestPath)) continue;
     visitedManifests.add(manifestPath);
     const identity = packageIdentity(manifestPath);
@@ -182,7 +188,7 @@ export function installedDesktopProductionPackages(desktopRoot: string): {
       identity.manifest.optionalDependencies ?? {},
     )) {
       try {
-        resolveManifest(childResolver, name);
+        resolveInstalledPackageManifest(childResolver, name);
         pending.push({ name, resolver: childResolver });
       } catch {
         // A platform-specific optional dependency is absent from this package.
@@ -234,7 +240,7 @@ function exactPackageSource(
   const candidates = new Set<string>();
   const resolver = createRequire(resolve(desktopRoot, "package.json"));
   try {
-    candidates.add(resolveManifest(resolver, dependency.name));
+    candidates.add(resolveInstalledPackageManifest(resolver, dependency.name));
   } catch {
     // Nested versions may not be addressable from the desktop root.
   }
@@ -419,7 +425,7 @@ function electronSources(desktopRoot: string): {
   chromiumLicenses: string;
 } {
   const resolver = createRequire(resolve(desktopRoot, "package.json"));
-  const manifestPath = resolveManifest(resolver, "electron");
+  const manifestPath = resolveInstalledPackageManifest(resolver, "electron");
   const identity = packageIdentity(manifestPath);
   const license = resolve(identity.directory, "LICENSE");
   const distribution = process.env.ELECTRON_OVERRIDE_DIST_PATH?.trim()

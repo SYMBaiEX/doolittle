@@ -10,6 +10,7 @@ import {
   DESKTOP_ARTIFACT_FILES,
   type DesktopArtifactDependency,
   type DesktopArtifactManifest,
+  resolveInstalledPackageManifest,
   validateDesktopArtifactManifest,
 } from "./desktop-artifact";
 import {
@@ -320,13 +321,16 @@ function installedProductionClosure(
     if (!pendingPackage || visited.has(pendingPackage.packageName)) continue;
     const { packageName, resolver: packageResolver } = pendingPackage;
     visited.add(packageName);
-    const manifestPath = packageResolver.resolve(`${packageName}/package.json`);
+    const manifestPath = resolveInstalledPackageManifest(
+      packageResolver,
+      packageName,
+    );
     const manifest = loadManifest(manifestPath);
     const childResolver = createRequire(manifestPath);
     const installedOptionalDependencies: Record<string, string> =
       Object.create(null);
     for (const childPackage of Object.keys(manifest.dependencies ?? {})) {
-      childResolver.resolve(`${childPackage}/package.json`);
+      resolveInstalledPackageManifest(childResolver, childPackage);
       pending.push({ packageName: childPackage, resolver: childResolver });
     }
     for (const [childPackage, version] of Object.entries(
@@ -334,7 +338,7 @@ function installedProductionClosure(
     )) {
       assertOptionalDependencyEntry(childPackage, version, manifestPath);
       try {
-        childResolver.resolve(`${childPackage}/package.json`);
+        resolveInstalledPackageManifest(childResolver, childPackage);
         installedOptionalDependencies[childPackage] = version;
         pending.push({ packageName: childPackage, resolver: childResolver });
       } catch {
@@ -575,7 +579,10 @@ export function verifyPackagedNativeRuntime(
     ]),
   );
   for (const packageName of nativePackages) {
-    const manifestPath = runtimeRequire.resolve(`${packageName}/package.json`);
+    const manifestPath = resolveInstalledPackageManifest(
+      runtimeRequire,
+      packageName,
+    );
     const packagedManifest = JSON.parse(readFileSync(manifestPath, "utf8")) as {
       name?: unknown;
       version?: unknown;
