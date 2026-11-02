@@ -55,6 +55,7 @@ const bridge: DoolittleDesktopBridge = {
   platform,
   ui: {
     getSnapshot: () => ipcRenderer.invoke(uiInterfaceChannels.snapshot),
+    getSelection: () => ipcRenderer.invoke(uiInterfaceChannels.selection),
     dispatch: (command) =>
       ipcRenderer.invoke(uiInterfaceChannels.dispatch, command),
     subscribe: (id, after) =>

@@ -72,6 +72,13 @@ aborted Eliza request cancels its sender-scoped main-process fetch. Chat,
 terminal, and PTY traffic retain dedicated cancellable channels instead of
 imitating a stream through this adapter.
 
+Native chat creation and restoration use client-owned metadata: project consent
+reads the runtime's committed project store through a read-only connection, and
+selection restoration reads the owned native selection directly. Neither waits
+for the engine's live inventory. Project roots and permissions are still checked
+before publication and rechecked after a native approval dialog. Missing or
+corrupt stores fail closed; reads never initialize or repair them.
+
 ## Operator surfaces
 
 The desktop organizes everyday agent work around three stable destinations

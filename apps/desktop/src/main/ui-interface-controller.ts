@@ -721,6 +721,12 @@ export class UiInterfaceController {
         return operation(...args);
       });
     handle(uiInterfaceChannels.snapshot, () => this.options.host.getSnapshot());
+    handle(uiInterfaceChannels.selection, async () => {
+      const selected = this.options.host.getSelected();
+      return selected && (await this.options.ownsTarget(selected))
+        ? { ...selected }
+        : undefined;
+    });
     handle(uiInterfaceChannels.dispatch, (command) => {
       if (this.options.commandsDisabled)
         throw new Error(

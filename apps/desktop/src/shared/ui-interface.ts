@@ -14,6 +14,7 @@ import type {
 
 export const uiInterfaceChannels = {
   snapshot: "desktop-ui:snapshot",
+  selection: "desktop-ui:selection",
   dispatch: "desktop-ui:dispatch",
   subscribe: "desktop-ui:subscribe",
   unsubscribe: "desktop-ui:unsubscribe",
@@ -63,6 +64,7 @@ export interface UiInterfaceActivation {
 /** Main-window only. Community renderers receive the separate minimal broker. */
 export interface DesktopUiInterfaceBridge {
   getSnapshot(): Promise<UiSnapshot>;
+  getSelection(): Promise<UiTarget | undefined>;
   dispatch(command: UiHostCommand): Promise<UiHostResult>;
   subscribe(subscriptionId: string, after?: number): Promise<void>;
   unsubscribe(subscriptionId: string): Promise<void>;

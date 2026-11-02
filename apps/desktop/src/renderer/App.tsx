@@ -1315,7 +1315,7 @@ export function App() {
           );
           return;
         }
-        const previousSelection = await window.doolittle.ui?.getSnapshot();
+        const previousSelection = await window.doolittle.ui?.getSelection();
         if (
           newChatNavigationRef.current.selectedSession !==
             navigationAtChoice.selectedSession ||
@@ -1355,7 +1355,7 @@ export function App() {
                     ? { projectId: currentScope.conversation.projectId }
                     : {}),
                 }
-              : previousSelection?.selected;
+              : previousSelection;
           if (currentTarget)
             await window.doolittle.ui?.dispatch({
               type: "conversation.select",
@@ -1551,7 +1551,7 @@ export function App() {
           throw new Error(
             "Navigation changed while project access was confirmed. The current chat was kept.",
           );
-        const previousSelection = await window.doolittle.ui?.getSnapshot();
+        const previousSelection = await window.doolittle.ui?.getSelection();
         const navigationChanged = () =>
           newChatNavigationRef.current.selectedSession !==
             navigationAtChoice.selectedSession ||
@@ -1578,7 +1578,7 @@ export function App() {
                     ? { projectId: latest.conversation.projectId }
                     : {}),
                 }
-              : previousSelection?.selected;
+              : previousSelection;
           if (target)
             await window.doolittle.ui?.dispatch({
               type: "conversation.select",
@@ -1984,10 +1984,9 @@ export function App() {
     const restoreSelection = () => {
       const request = ++generation;
       void bridge
-        ?.getSnapshot()
-        .then((snapshot) => {
-          if (disposed || request !== generation || !snapshot.selected) return;
-          const target = snapshot.selected;
+        ?.getSelection()
+        .then((target) => {
+          if (disposed || request !== generation || !target) return;
           bindSessionBot(target.sessionId, target.botId);
           captureSessionProject(target.sessionId, target.projectId ?? null);
           setSelectedBotId(target.botId);
