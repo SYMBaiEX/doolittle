@@ -120,6 +120,22 @@ function resolveManifest(resolver: NodeRequire, packageName: string): string {
   try {
     return resolver.resolve(`${packageName}/package.json`);
   } catch (error) {
+    if (
+      (error as NodeJS.ErrnoException).code === "ERR_PACKAGE_PATH_NOT_EXPORTED"
+    ) {
+      let directory = dirname(resolver.resolve(packageName));
+      while (true) {
+        const path = resolve(directory, "package.json");
+        if (
+          existsSync(path) &&
+          (readJson(path) as PackageManifest).name === packageName
+        )
+          return path;
+        const parent = dirname(directory);
+        if (parent === directory) break;
+        directory = parent;
+      }
+    }
     throw new Error(
       `Desktop artifact package cannot be resolved: ${packageName}`,
       {
