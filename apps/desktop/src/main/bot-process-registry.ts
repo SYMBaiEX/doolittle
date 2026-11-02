@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, realpathSync, statSync } from "node:fs";
 import { isAbsolute, relative, resolve } from "node:path";
+import { readStoredProject } from "@doolittle/agent/services/session/project-reader";
 import type {
   BotCatalogResponse,
   BotDefinition,
@@ -279,18 +280,14 @@ export class BotProcessRegistry {
   }> {
     if (!/^[a-zA-Z0-9:_-]{1,128}$/u.test(projectId))
       throw new Error("Project ID is invalid.");
-    const state = this.defaultBackend.getState();
-    if (state.phase !== "ready" || !state.url)
+    if (this.defaultBackend.getState().phase !== "ready")
       throw new Error("The lead runtime is not ready.");
-    const signal = AbortSignal.timeout(10_000);
-    const response = await this.runtimeFetch(
-      `${state.url}/projects/${encodeURIComponent(projectId)}`,
-      { signal },
+    // Native project consent is client-owned state, independent of a busy
+    // engine's HTTP listener. Read the same committed store without writing it.
+    const project = readStoredProject(
+      this.defaultBackend.getRuntimeDataDirectory(),
+      projectId,
     );
-    if (!response.ok) throw new Error("Selected project is unavailable.");
-    const body = await readBoundedResponseText(response, 20_000, signal);
-    const project = (JSON.parse(body) as { project?: Record<string, unknown> })
-      .project;
     if (
       !project ||
       project.id !== projectId ||

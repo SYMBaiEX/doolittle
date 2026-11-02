@@ -1,5 +1,6 @@
 import {
   DatabaseSync,
+  type DatabaseSyncOptions,
   type SQLInputValue,
   type StatementResultingChanges,
 } from "node:sqlite";
@@ -45,8 +46,8 @@ function normalizeChanges(result: StatementResultingChanges): {
 export class NodeSessionDatabase implements SessionDatabase {
   private readonly database: DatabaseSync;
 
-  constructor(path: string) {
-    this.database = new DatabaseSync(path);
+  constructor(path: string, options: DatabaseSyncOptions = {}) {
+    this.database = new DatabaseSync(path, options);
   }
 
   exec(sql: string): void {

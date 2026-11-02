@@ -529,6 +529,7 @@ export function App() {
     backend,
     globalError,
     projects,
+    publishConfirmedConversation,
     refreshRuntime,
     refreshWithFeedback,
     restartRuntime,
@@ -547,12 +548,16 @@ export function App() {
       ),
     [sessions, confirmedConversationScopes, localProjectBindings],
   );
-  const recordConversationScope = useCallback((scope: BotConversationScope) => {
-    setConfirmedConversationScopes((current) => ({
-      ...current,
-      [scope.sessionId]: scope,
-    }));
-  }, []);
+  const recordConversationScope = useCallback(
+    (scope: BotConversationScope) => {
+      publishConfirmedConversation(scope);
+      setConfirmedConversationScopes((current) => ({
+        ...current,
+        [scope.sessionId]: scope,
+      }));
+    },
+    [publishConfirmedConversation],
+  );
   const botResource = useApiResource<BotCatalogResponse>("/bots", [
     backend.phase,
   ]);
@@ -1315,7 +1320,7 @@ export function App() {
           );
           return;
         }
-        const previousSelection = await window.doolittle.ui?.getSnapshot();
+        const previousSelection = await window.doolittle.ui?.getSelection();
         if (
           newChatNavigationRef.current.selectedSession !==
             navigationAtChoice.selectedSession ||
@@ -1355,7 +1360,7 @@ export function App() {
                     ? { projectId: currentScope.conversation.projectId }
                     : {}),
                 }
-              : previousSelection?.selected;
+              : previousSelection;
           if (currentTarget)
             await window.doolittle.ui?.dispatch({
               type: "conversation.select",
@@ -1370,10 +1375,7 @@ export function App() {
           setNewChatOpen(false);
           setBotCreationOpen(false);
           setSelectedBotId(bot.id);
-          setConfirmedConversationScopes((current) => ({
-            ...current,
-            [id]: bound.conversation,
-          }));
+          recordConversationScope(bound.conversation);
           setLocalBotBindings((current) => ({ ...current, [id]: bot.id }));
           captureSessionProject(id, bound.conversation.projectId ?? null);
           setProjectScope(bound.conversation.projectId ?? "unscoped");
@@ -1390,6 +1392,7 @@ export function App() {
     },
     [
       bots,
+      recordConversationScope,
       newChatScope,
       captureSessionProject,
       scopeForSession,
@@ -1551,7 +1554,7 @@ export function App() {
           throw new Error(
             "Navigation changed while project access was confirmed. The current chat was kept.",
           );
-        const previousSelection = await window.doolittle.ui?.getSnapshot();
+        const previousSelection = await window.doolittle.ui?.getSelection();
         const navigationChanged = () =>
           newChatNavigationRef.current.selectedSession !==
             navigationAtChoice.selectedSession ||
@@ -1578,7 +1581,7 @@ export function App() {
                     ? { projectId: latest.conversation.projectId }
                     : {}),
                 }
-              : previousSelection?.selected;
+              : previousSelection;
           if (target)
             await window.doolittle.ui?.dispatch({
               type: "conversation.select",
@@ -1984,10 +1987,9 @@ export function App() {
     const restoreSelection = () => {
       const request = ++generation;
       void bridge
-        ?.getSnapshot()
-        .then((snapshot) => {
-          if (disposed || request !== generation || !snapshot.selected) return;
-          const target = snapshot.selected;
+        ?.getSelection()
+        .then((target) => {
+          if (disposed || request !== generation || !target) return;
           bindSessionBot(target.sessionId, target.botId);
           captureSessionProject(target.sessionId, target.projectId ?? null);
           setSelectedBotId(target.botId);
