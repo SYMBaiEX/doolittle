@@ -151,3 +151,42 @@ it("does not retry a read rejected by authorization", async () => {
   expect(element.textContent).toContain("Access denied");
   expect(desktopRequest).toHaveBeenCalledOnce();
 });
+
+it("recovers catalog status before publishing a durable new conversation", async () => {
+  const { loadBotSessionCatalog } = await import(
+    "../../apps/desktop/src/renderer/bots/session-catalog"
+  );
+  let reads = 0;
+  vi.mocked(desktopRequest).mockImplementation(async (path) => {
+    if (path === "/bots") {
+      if (++reads === 1)
+        throw new ApiError({
+          kind: "http",
+          path,
+          status: 503,
+          message: "Status unavailable",
+        });
+      return {
+        defaultBotId: "lead",
+        bots: [{ id: "lead", isDefault: true, state: "ready" }],
+      };
+    }
+    if (path === "/bots/lead/conversations")
+      return {
+        conversations: [
+          { botId: "lead", sessionId: "new-chat", projectId: "project" },
+        ],
+      };
+    throw new Error("Unexpected request");
+  });
+  const result = await loadBotSessionCatalog({ sessions: [] }, []);
+  expect(result.sessions).toEqual([
+    expect.objectContaining({
+      botId: "lead",
+      sessionId: "new-chat",
+      projectId: "project",
+    }),
+  ]);
+  expect(reads).toBe(2);
+  expect(desktopRequest).toHaveBeenCalledTimes(3);
+});
