@@ -88,6 +88,7 @@
     "./runtime/turn-runtime-scope": "./src/runtime/turn-runtime-scope.ts",
     "./server": "./src/server.ts",
     "./services": "./src/services/index.ts",
+    "./services/session/project-reader": "./src/services/session/projects/read.ts",
     "./services/acp/host": "./src/services/acp/host.ts",
     "./services/mcp/settings": "./src/services/mcp/settings.ts",
     "./services/process-execution": "./src/services/process-execution.ts",

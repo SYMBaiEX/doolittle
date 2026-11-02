@@ -23,9 +23,13 @@ import {
   projectAccessScope,
 } from "../../apps/desktop/src/main/bot-project-access";
 import { readRegularFileDescriptor } from "../../apps/desktop/src/main/regular-file";
+import { ProjectStore } from "../../packages/agent/src/services/session/projects/store";
+import { createSessionDatabase } from "../../packages/agent/src/services/session/service/support";
 
 const directories: string[] = [];
+const closeDatabases: (() => void)[] = [];
 afterEach(() => {
+  for (const close of closeDatabases.splice(0)) close();
   for (const directory of directories.splice(0))
     rmSync(directory, { recursive: true, force: true });
 });
@@ -44,14 +48,21 @@ function fixture() {
       agentId: "00000000-0000-4000-8000-000000000003",
     }),
     getWorkspaceDirectory: () => dir,
+    getRuntimeDataDirectory: () => dir,
     start: async () => ({ phase: "ready" }),
     stop: async () => undefined,
   } as unknown as BackendManager;
-  let name = "Selected project";
-  let primaryPath = root;
-  const runtimeFetch = vi.fn(async () =>
-    Response.json({ project: { id: "project-1", name, primaryPath } }),
-  ) as unknown as typeof fetch;
+  const database = createSessionDatabase(dir);
+  closeDatabases.push(() => database.close());
+  const projects = new ProjectStore(database);
+  projects.create({
+    id: "project-1",
+    name: "Selected project",
+    primaryPath: root,
+  });
+  const runtimeFetch = vi.fn(async () => {
+    throw new Error("Agent HTTP is unavailable");
+  }) as unknown as typeof fetch;
   const makeRegistry = () =>
     new BotProcessRegistry(
       { executable: "nub", args: [], repoRoot: dir },
@@ -93,10 +104,10 @@ function fixture() {
     runtimeFetch,
     post,
     setName: (value: string) => {
-      name = value;
+      projects.update("project-1", { name: value });
     },
     setPath: (value: string) => {
-      primaryPath = value;
+      projects.update("project-1", { primaryPath: value });
     },
   };
 }
@@ -155,15 +166,30 @@ describe("native project approval", () => {
     expect(
       (await f.post(f.registry, f.bot.id, "second", true, confirm))?.status,
     ).toBe(201);
-    expect(f.runtimeFetch).toHaveBeenCalledTimes(3);
+    expect(f.runtimeFetch).not.toHaveBeenCalled();
     const rebuilt = f.makeRegistry();
     expect(
       (await f.post(rebuilt, f.bot.id, "third", true, confirm))?.status,
     ).toBe(201);
     expect(confirm).toHaveBeenCalledTimes(1);
-    expect(f.runtimeFetch).toHaveBeenCalledTimes(4);
+    expect(f.runtimeFetch).not.toHaveBeenCalled();
     expect(
       rebuilt.resolveConversationWorkspace(f.bot.id, "third").workspacePath,
+    ).toBe(f.root);
+  });
+
+  it("opens a project without consulting the engine HTTP listener", async () => {
+    const f = fixture();
+    const confirm = vi.fn(async () => true);
+    expect(
+      (await f.post(f.registry, f.bot.id, "independent", true, confirm))
+        ?.status,
+    ).toBe(201);
+    expect(confirm).toHaveBeenCalledOnce();
+    expect(f.runtimeFetch).not.toHaveBeenCalled();
+    expect(
+      f.registry.resolveConversationWorkspace(f.bot.id, "independent")
+        .workspacePath,
     ).toBe(f.root);
   });
 

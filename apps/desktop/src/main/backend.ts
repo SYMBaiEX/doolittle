@@ -312,6 +312,10 @@ export class BackendManager {
     return { ...this.state };
   }
 
+  getRuntimeDataDirectory(): string {
+    return this.runtimeDataDir;
+  }
+
   getWorkspaceDirectory(): string {
     return this.workspaceDir;
   }
