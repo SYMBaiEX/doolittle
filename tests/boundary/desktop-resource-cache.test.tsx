@@ -1,4 +1,6 @@
 // @vitest-environment jsdom
+
+import { ApiError } from "@elizaos/ui/api/client-types";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vitest";
@@ -106,4 +108,46 @@ it("retains useful data on reload failure and leaves disabled resources idle", a
   expect(element.textContent).toContain("saved");
   expect(element.textContent).toContain("temporarily offline");
   expect(desktopRequest).toHaveBeenCalledTimes(2);
+});
+
+it("recovers one transient read failure while retaining the current resource", async () => {
+  vi.mocked(desktopRequest)
+    .mockResolvedValueOnce({ owner: "saved" })
+    .mockRejectedValueOnce(
+      new ApiError({
+        kind: "http",
+        path: "/api/status",
+        status: 503,
+        message: "Status temporarily unavailable",
+      }),
+    )
+    .mockResolvedValueOnce({ owner: "fresh" });
+  const { element, root } = mount();
+  act(() => root.render(<View bot="a" />));
+  await flush();
+  act(() => element.querySelector("button")?.click());
+  await flush();
+  expect(element.textContent).toContain("saved");
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 300));
+  });
+  await flush();
+  expect(element.textContent).toContain("fresh");
+  expect(desktopRequest).toHaveBeenCalledTimes(3);
+});
+
+it("does not retry a read rejected by authorization", async () => {
+  vi.mocked(desktopRequest).mockRejectedValue(
+    new ApiError({
+      kind: "http",
+      path: "/api/status",
+      status: 403,
+      message: "Access denied",
+    }),
+  );
+  const { element, root } = mount();
+  act(() => root.render(<View bot="a" />));
+  await flush();
+  expect(element.textContent).toContain("Access denied");
+  expect(desktopRequest).toHaveBeenCalledOnce();
 });

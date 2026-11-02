@@ -1,4 +1,5 @@
 import { StateSurface } from "@doolittle/ui";
+import { ApiError } from "@elizaos/ui/api/client-types";
 import { PagePanel } from "@elizaos/ui/components/composites/page-panel/index";
 import { Badge as ElizaBadge } from "@elizaos/ui/components/ui/badge";
 import { QueryClient, useQuery } from "@tanstack/react-query";
@@ -65,7 +66,13 @@ export const desktopQueryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: API_RESOURCE_STALE_TIME_MS,
-      retry: false,
+      // Resource queries are GET-only. Recover one transient host-status
+      // failure without replaying mutations or retrying authorization errors.
+      retry: (count, error) =>
+        count < 1 &&
+        error instanceof ApiError &&
+        [502, 503, 504].includes(error.status ?? 0),
+      retryDelay: 250,
       refetchOnWindowFocus: false,
     },
   },
