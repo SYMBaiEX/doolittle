@@ -29,7 +29,7 @@ jobs:
           bun-version: 1.4.2
 
       - name: Install dependencies
-        run: nub install --frozen-lockfile --ignore-scripts
+        run: nub run deps:install -- --frozen-lockfile --ignore-scripts
 
       - name: Install Electron runtime
         run: nub run desktop:runtime:install
