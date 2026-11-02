@@ -5,6 +5,7 @@ import type {
   SessionsResponse,
 } from "../../shared/contracts";
 import { desktopQueryClient, desktopRequest } from "../lib";
+import { confirmedConversationSummary } from "../session-conversation-scope";
 
 type OwnedConversation = BotConversationScope;
 
@@ -44,22 +45,7 @@ export async function loadBotSessionCatalog(
               session.sessionId === owner.sessionId &&
               session.botId === owner.botId,
           );
-        byId.set(owner.sessionId, {
-          ...(cached ?? {
-            botId: owner.botId,
-            sessionId: owner.sessionId,
-            ...(owner.projectId ? { projectId: owner.projectId } : {}),
-            ...(owner.createdAt ? { startedAt: owner.createdAt } : {}),
-            title: "Conversation",
-            messageCount: 0,
-            participants: [],
-            preview: [],
-          }),
-          botId: owner.botId,
-          projectId: owner.projectId,
-          workspacePath: owner.workspacePath,
-          projectContext: owner.projectContext,
-        });
+        byId.set(owner.sessionId, confirmedConversationSummary(owner, cached));
       }
       if (!bot.isDefault && ["ready", "busy", "waiting"].includes(bot.state)) {
         try {

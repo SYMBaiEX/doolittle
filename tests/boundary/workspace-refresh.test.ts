@@ -130,3 +130,35 @@ it("does not let a late refresh or initial snapshot revive an offline backend", 
   expect(value.runtime).toBeNull();
   expect(value.sessions).toEqual([]);
 });
+
+it("publishes a host-confirmed chat immediately and rejects an older inventory completion", async () => {
+  const stale = batch("before-host-commit");
+  request.mockImplementation(stale.read);
+  await mount();
+  const scope = {
+    botId: "lead",
+    sessionId: "created",
+    projectId: "project",
+    workspacePath: "/owned/project",
+    createdAt: "2026-11-02T00:00:00Z",
+    updatedAt: "2026-11-02T00:00:00Z",
+  };
+  act(() => value.publishConfirmedConversation(scope));
+  expect(value.sessions[0]).toMatchObject({
+    sessionId: "created",
+    botId: "lead",
+    projectId: "project",
+    workspacePath: "/owned/project",
+    messageCount: 0,
+  });
+  await act(async () => {
+    stale.gate.resolve();
+    await Promise.resolve();
+  });
+  expect(value.sessions.map((row) => row.sessionId)).toEqual(["created"]);
+  request.mockRejectedValue(new Error("History temporarily unavailable"));
+  await act(async () => {
+    expect(await value.refreshRuntime()).toBe(false);
+  });
+  expect(value.sessions[0]?.sessionId).toBe("created");
+});

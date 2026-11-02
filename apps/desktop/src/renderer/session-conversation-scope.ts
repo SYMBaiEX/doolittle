@@ -64,3 +64,26 @@ export function queuedMessageMatchesConfirmedScope(
     ) === "ready"
   );
 }
+
+/** A host-confirmed binding is already a durable chat, even before history loads. */
+export function confirmedConversationSummary(
+  owner: BotConversationScope,
+  previous?: SessionSummary,
+): SessionSummary {
+  if (previous?.botId && previous.botId !== owner.botId)
+    throw new Error("Conversation belongs to another bot.");
+  return {
+    ...(previous ?? {
+      sessionId: owner.sessionId,
+      startedAt: owner.createdAt,
+      title: "Conversation",
+      messageCount: 0,
+      participants: [],
+      preview: [],
+    }),
+    botId: owner.botId,
+    projectId: owner.projectId,
+    workspacePath: owner.workspacePath,
+    projectContext: owner.projectContext,
+  };
+}

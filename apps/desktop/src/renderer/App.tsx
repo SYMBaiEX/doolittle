@@ -529,6 +529,7 @@ export function App() {
     backend,
     globalError,
     projects,
+    publishConfirmedConversation,
     refreshRuntime,
     refreshWithFeedback,
     restartRuntime,
@@ -547,12 +548,16 @@ export function App() {
       ),
     [sessions, confirmedConversationScopes, localProjectBindings],
   );
-  const recordConversationScope = useCallback((scope: BotConversationScope) => {
-    setConfirmedConversationScopes((current) => ({
-      ...current,
-      [scope.sessionId]: scope,
-    }));
-  }, []);
+  const recordConversationScope = useCallback(
+    (scope: BotConversationScope) => {
+      publishConfirmedConversation(scope);
+      setConfirmedConversationScopes((current) => ({
+        ...current,
+        [scope.sessionId]: scope,
+      }));
+    },
+    [publishConfirmedConversation],
+  );
   const botResource = useApiResource<BotCatalogResponse>("/bots", [
     backend.phase,
   ]);
@@ -1370,10 +1375,7 @@ export function App() {
           setNewChatOpen(false);
           setBotCreationOpen(false);
           setSelectedBotId(bot.id);
-          setConfirmedConversationScopes((current) => ({
-            ...current,
-            [id]: bound.conversation,
-          }));
+          recordConversationScope(bound.conversation);
           setLocalBotBindings((current) => ({ ...current, [id]: bot.id }));
           captureSessionProject(id, bound.conversation.projectId ?? null);
           setProjectScope(bound.conversation.projectId ?? "unscoped");
@@ -1390,6 +1392,7 @@ export function App() {
     },
     [
       bots,
+      recordConversationScope,
       newChatScope,
       captureSessionProject,
       scopeForSession,

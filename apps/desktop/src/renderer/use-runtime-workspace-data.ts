@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type {
   BackendState,
+  BotConversationScope,
   Project,
   ProjectsResponse,
   RuntimeStatus,
@@ -10,6 +11,7 @@ import type {
 import { loadBotSessionCatalog } from "./bots/session-catalog";
 import type { ToastInput } from "./components/ToastRegion";
 import { desktopRequest } from "./lib";
+import { confirmedConversationSummary } from "./session-conversation-scope";
 
 type RuntimeWorkspaceResults = readonly [
   PromiseSettledResult<RuntimeStatus>,
@@ -81,6 +83,39 @@ export function useRuntimeWorkspaceData(
     refreshRequestRef.current += 1;
   }
   backendPhaseRef.current = backend.phase;
+
+  const publishConfirmedConversation = useCallback(
+    (scope: BotConversationScope) => {
+      if (!mountedRef.current) return;
+      const previous = sessionsRef.current.find(
+        (row) => row.sessionId === scope.sessionId,
+      );
+      const confirmed = confirmedConversationSummary(scope, previous);
+      if (
+        previous &&
+        previous.botId === confirmed.botId &&
+        previous.projectId === confirmed.projectId &&
+        previous.workspacePath === confirmed.workspacePath &&
+        JSON.stringify(previous.projectContext) ===
+          JSON.stringify(confirmed.projectContext)
+      )
+        return;
+      // An inventory started before this host commit cannot erase or move its row.
+      refreshRequestRef.current++;
+      setSessions((current) => {
+        const existing = current.find(
+          (row) => row.sessionId === scope.sessionId,
+        );
+        const next = [
+          confirmedConversationSummary(scope, existing),
+          ...current.filter((row) => row.sessionId !== scope.sessionId),
+        ];
+        sessionsRef.current = next;
+        return next;
+      });
+    },
+    [],
+  );
 
   const refreshRuntime = useCallback(async () => {
     if (backend.phase !== "ready") return false;
@@ -182,6 +217,7 @@ export function useRuntimeWorkspaceData(
     backend,
     globalError,
     projects,
+    publishConfirmedConversation,
     refreshRuntime,
     refreshWithFeedback,
     restartRuntime,

@@ -77,7 +77,9 @@ reads the runtime's committed project store through a read-only connection, and
 selection restoration reads the owned native selection directly. Neither waits
 for the engine's live inventory. Project roots and permissions are still checked
 before publication and rechecked after a native approval dialog. Missing or
-corrupt stores fail closed; reads never initialize or repair them.
+corrupt stores fail closed; reads never initialize or repair them. A host-confirmed
+chat appears immediately, and an inventory started before that binding cannot
+erase its row.
 
 ## Operator surfaces
 
