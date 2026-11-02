@@ -1,7 +1,6 @@
 import { ContextActionMenu } from "@doolittle/ui";
-import type { AccountWithCredentialFlag } from "@elizaos/ui/api/client-agent";
-import { Button } from "@elizaos/ui/components/ui/button";
-import { Input } from "@elizaos/ui/components/ui/input";
+import { Button } from "@elizaos/ui/button";
+import { Input } from "@elizaos/ui/input";
 import { Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import type {
@@ -10,7 +9,8 @@ import type {
   AccountPoolProviderSnapshot,
   ProviderAuthProvider,
 } from "../../shared/contracts";
-import { toElizaAccount } from "../account-pool-ui";
+import type { DisplayAccount } from "../account-pool-ui";
+import { toDisplayAccount } from "../account-pool-ui";
 import type { AccountImportDraft } from "../agent-pages-helpers";
 import { UiIcon } from "../components/UiIcon";
 import { Badge } from "../lib";
@@ -31,7 +31,7 @@ import {
 
 function sortedAccounts(snapshot: AccountPoolProviderSnapshot) {
   return snapshot.accounts
-    .map(toElizaAccount)
+    .map(toDisplayAccount)
     .sort((left, right) =>
       left.priority === right.priority
         ? left.createdAt - right.createdAt
@@ -67,7 +67,7 @@ export function AccountPoolDirectory({
   onDelete: (account: AccountPoolAccount) => Promise<void>;
   onImportDirect?: (draft: AccountImportDraft) => Promise<void>;
   onMove: (
-    accounts: AccountWithCredentialFlag[],
+    accounts: DisplayAccount[],
     accountId: string,
     direction: "up" | "down",
   ) => Promise<void>;
@@ -77,9 +77,9 @@ export function AccountPoolDirectory({
       Pick<AccountPoolAccount, "label" | "enabled" | "priority">
     >,
   ) => Promise<void>;
-  onRefreshUsage: (account: AccountWithCredentialFlag) => Promise<void>;
+  onRefreshUsage: (account: DisplayAccount) => Promise<void>;
   onSignIn: (provider: ProviderAuthProvider) => void;
-  onTest: (account: AccountWithCredentialFlag) => Promise<void>;
+  onTest: (account: DisplayAccount) => Promise<void>;
   selectedAccountId?: string;
   snapshot: AccountPoolProviderSnapshot;
   direct?: boolean;

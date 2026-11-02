@@ -1,5 +1,4 @@
-import type { AccountWithCredentialFlag } from "@elizaos/ui/api/client-agent";
-import { useIntervalWhenDocumentVisible } from "@elizaos/ui/hooks/useDocumentVisibility";
+import { useVisibleInterval } from "@doolittle/ui/environment";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type {
   AccountPoolAccount,
@@ -10,6 +9,7 @@ import type {
   ProviderAuthProvider,
   ProviderAuthState,
 } from "../../shared/contracts";
+import type { DisplayAccount } from "../account-pool-ui";
 import {
   type AccountImportDraft,
   clearAccountImportDraft,
@@ -127,7 +127,7 @@ export function useConnectionsActions({
       return phase === "launching" || phase === "waiting";
     },
   );
-  useIntervalWhenDocumentVisible(
+  useVisibleInterval(
     () => {
       for (const provider of pendingAuthProviders) {
         void window.doolittle
@@ -307,7 +307,7 @@ export function useConnectionsActions({
 
   const testPoolAccount = async (
     provider: AccountPoolProvider,
-    account: AccountWithCredentialFlag,
+    account: DisplayAccount,
   ) => {
     setBusy(`${provider}:${account.id}:test`);
     setFeedback(null);
@@ -336,7 +336,7 @@ export function useConnectionsActions({
 
   const refreshPoolAccountUsage = async (
     provider: AccountPoolProvider,
-    account: AccountWithCredentialFlag,
+    account: DisplayAccount,
   ) => {
     setBusy(`${provider}:${account.id}:usage`);
     setFeedback(null);
@@ -361,7 +361,7 @@ export function useConnectionsActions({
 
   const movePoolAccount = async (
     provider: AccountPoolProvider,
-    poolAccounts: AccountWithCredentialFlag[],
+    poolAccounts: DisplayAccount[],
     accountId: string,
     direction: "up" | "down",
   ) => {

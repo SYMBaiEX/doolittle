@@ -1,6 +1,6 @@
-import { Button } from "@elizaos/ui/components/ui/button";
-import { Input } from "@elizaos/ui/components/ui/input";
+import { Button } from "@elizaos/ui/button";
 import { Textarea } from "@elizaos/ui/components/ui/textarea";
+import { Input } from "@elizaos/ui/input";
 import { X } from "lucide-react";
 import { type FormEvent, useId, useRef, useState } from "react";
 import { UiIcon } from "../components/UiIcon";

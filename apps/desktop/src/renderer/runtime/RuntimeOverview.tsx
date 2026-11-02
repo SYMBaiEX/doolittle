@@ -1,9 +1,9 @@
+import { Button } from "@doolittle/ui";
 import type {
   AccountPoolResponse,
   RuntimeStatus,
 } from "../../shared/contracts";
 import { CompactStatStrip } from "../components/CompactStatStrip";
-import { Button } from "../components/ElizaControls";
 import {
   NativeAutonomyPanel,
   type NativeAutonomyResponse,

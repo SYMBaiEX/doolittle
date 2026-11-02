@@ -1,5 +1,4 @@
-import type { AccountWithCredentialFlag } from "@elizaos/ui/api/client-agent";
-import { Button } from "@elizaos/ui/components/ui/button";
+import { Button } from "@elizaos/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -8,12 +7,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@elizaos/ui/components/ui/dialog";
-import { Input } from "@elizaos/ui/components/ui/input";
+import { Input } from "@elizaos/ui/input";
 import { useState } from "react";
+import type { DisplayAccount } from "../account-pool-ui";
 import { Badge } from "../lib";
 
 type AccountCardProps = {
-  account: AccountWithCredentialFlag;
+  account: DisplayAccount;
   isFirst: boolean;
   isLast: boolean;
   saving: boolean;
@@ -101,6 +101,7 @@ export function AccountCard({
       "rate-limited": "Rate-limited",
       "needs-reauth": "Needs reauth",
       invalid: "Invalid credential",
+      expired: "Expired",
       unknown: "Unknown",
     }[account.health] ?? "Unknown";
   return (
@@ -161,13 +162,8 @@ export function AccountCard({
           </Button>
         )}
         <small>
-          {account.providerId === "zai-coding" ||
-          account.providerId === "kimi-coding"
-            ? "Coding plan"
-            : account.source === "oauth"
-              ? "OAuth"
-              : "API key"}{" "}
-          · #{account.priority}
+          {account.source === "oauth" ? "OAuth" : "API key"} · #
+          {account.priority}
         </small>
         <small>
           Last used{" "}

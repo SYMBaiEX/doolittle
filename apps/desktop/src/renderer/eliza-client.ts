@@ -1,5 +1,6 @@
-import { ElizaClient } from "@elizaos/ui/api/client-base";
+import { ApiError } from "@elizaos/ui/api/client-types";
 import type { AgentRequestTransport } from "@elizaos/ui/api/transport";
+import { createFetch, FetchError } from "ofetch";
 import {
   type AgentTransportRequest,
   desktopRequestTimeoutMs,
@@ -111,32 +112,6 @@ export function createDesktopAgentTransport(
 
 export const desktopAgentTransport = createDesktopAgentTransport();
 
-export const desktopElizaClient = new ElizaClient(DESKTOP_AGENT_ORIGIN);
-desktopElizaClient.setRequestTransport(desktopAgentTransport);
-
-const botClients = new Map<string, ElizaClient>();
-function clientFor(botId?: string, origin?: ComputerOrigin): ElizaClient {
-  if (origin && origin.botId !== botId)
-    throw new Error("Computer request ownership conflicts.");
-  if (!botId) return desktopElizaClient;
-  if (!/^[a-zA-Z0-9:_-]{1,128}$/u.test(botId))
-    throw new Error("Invalid bot owner.");
-  const key = JSON.stringify([
-    botId,
-    origin?.originConversationId,
-    origin?.workspacePath,
-  ]);
-  let client = botClients.get(key);
-  if (!client) {
-    client = new ElizaClient(DESKTOP_AGENT_ORIGIN);
-    client.setRequestTransport(createDesktopAgentTransport(botId, origin));
-    if (botClients.size >= 64)
-      botClients.delete(botClients.keys().next().value ?? "");
-    botClients.set(key, client);
-  }
-  return client;
-}
-
 export async function desktopRequest<T>(
   path: string,
   method: HttpMethod = "GET",
@@ -146,13 +121,34 @@ export async function desktopRequest<T>(
   botId?: string,
   origin?: ComputerOrigin,
 ): Promise<T> {
-  return clientFor(botId, origin).fetch<T>(
-    path,
-    {
+  if (botId && !/^[a-zA-Z0-9:_-]{1,128}$/u.test(botId))
+    throw new Error("Invalid bot owner.");
+  const transport = createDesktopAgentTransport(botId, origin);
+  const request = createFetch({
+    fetch: (url, init) => transport.request(String(url), init ?? {}),
+  });
+  try {
+    return await request<T>(path, {
       method,
-      signal,
+      signal: signal
+        ? AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)])
+        : AbortSignal.timeout(timeoutMs),
+      retry: 0,
+      parseResponse: JSON.parse,
+      headers: { "Content-Type": "application/json" },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-    },
-    { timeoutMs },
-  );
+    });
+  } catch (error) {
+    if (!(error instanceof FetchError) || !error.response) throw error;
+    const payload = error.data;
+    throw new ApiError({
+      kind: "http",
+      path,
+      status: error.response.status,
+      message:
+        typeof payload?.error === "string" ? payload.error : error.message,
+      code: typeof payload?.code === "string" ? payload.code : undefined,
+      cause: error,
+    });
+  }
 }

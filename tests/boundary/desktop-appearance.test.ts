@@ -21,7 +21,7 @@ const { request } = vi.hoisted(() => ({ request: vi.fn() }));
 vi.mock("../../apps/desktop/src/renderer/lib", () => ({
   desktopRequest: request,
 }));
-vi.mock("@elizaos/ui/hooks/useMediaQuery", () => ({
+vi.mock("../../packages/ui/src/environment", () => ({
   useMediaQuery: () => false,
 }));
 

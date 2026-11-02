@@ -309,4 +309,4 @@ export function AnalyticsPage({
   );
 }
 
-import { Button } from "../components/ElizaControls";
+import { Button } from "@doolittle/ui";

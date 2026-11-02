@@ -1,11 +1,10 @@
-import { ContextActionMenu } from "@doolittle/ui";
+import { Button, ContextActionMenu, Input } from "@doolittle/ui";
 import { MoreHorizontal } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import type {
   SessionSearchResponse,
   SessionSummary,
 } from "../../shared/contracts";
-import { Button, Input } from "../components/ElizaControls";
 import { progressiveWindow } from "../components/progressive-window";
 import { UiIcon } from "../components/UiIcon";
 import { copyContextText } from "../context-menu-clipboard";

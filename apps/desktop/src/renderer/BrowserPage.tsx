@@ -1,4 +1,9 @@
-import { type ContextAction, ContextActionMenu } from "@doolittle/ui";
+import {
+  Button,
+  type ContextAction,
+  ContextActionMenu,
+  Input,
+} from "@doolittle/ui";
 import {
   ArrowLeft,
   ArrowRight,
@@ -33,7 +38,6 @@ import {
   useBrowserWorkspace,
 } from "./browser/useBrowserWorkspace";
 import { BrowserResultPanel } from "./components/BrowserResultPanel";
-import { Button, Input } from "./components/ElizaControls";
 import { OfflineRouteState } from "./components/OfflineRouteState";
 import { UiIcon } from "./components/UiIcon";
 import type { ComputerOrigin } from "./computer-origin";

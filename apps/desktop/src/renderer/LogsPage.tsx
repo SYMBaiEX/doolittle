@@ -1,6 +1,6 @@
+import { Button } from "@elizaos/ui/button";
 import { PagePanel } from "@elizaos/ui/components/composites/page-panel/index";
-import { Button } from "@elizaos/ui/components/ui/button";
-import { Input } from "@elizaos/ui/components/ui/input";
+import { Input } from "@elizaos/ui/input";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { CompactStatStrip } from "./components/CompactStatStrip";

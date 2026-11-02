@@ -1,3 +1,4 @@
+import { Button, Input } from "@doolittle/ui";
 import { useMemo, useRef, useState } from "react";
 import type {
   ActivityEventKind,
@@ -12,7 +13,6 @@ import {
   visibleActivityWindow,
 } from "./activity/activity-model";
 import { CompactStatStrip } from "./components/CompactStatStrip";
-import { Button, Input } from "./components/ElizaControls";
 import { OfflineRouteState } from "./components/OfflineRouteState";
 import {
   desktopRequest,

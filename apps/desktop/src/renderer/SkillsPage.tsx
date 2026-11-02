@@ -1,3 +1,4 @@
+import { Button } from "@doolittle/ui";
 import {
   type KeyboardEvent,
   lazy,
@@ -10,7 +11,6 @@ import type { SkillsResponse } from "../shared/contracts";
 import { buildSkillCatalogEntries } from "./catalog-entry-models";
 import { CatalogFilterBar } from "./components/CatalogFilterBar";
 import { CompactStatStrip } from "./components/CompactStatStrip";
-import { Button } from "./components/ElizaControls";
 import { OfflineRouteState } from "./components/OfflineRouteState";
 import { ResourceStatusBar } from "./components/ResourceStatusBar";
 import {

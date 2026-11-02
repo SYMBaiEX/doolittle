@@ -1,7 +1,6 @@
-import { ContextActionMenu } from "@doolittle/ui";
+import { Button, ContextActionMenu } from "@doolittle/ui";
 import { useState } from "react";
 import type { SessionSummary } from "../../shared/contracts";
-import { Button } from "../components/ElizaControls";
 import { OfflineRouteState } from "../components/OfflineRouteState";
 import { EmptyBlock, PageHeader } from "../lib";
 import { SessionDetail } from "./SessionDetail";

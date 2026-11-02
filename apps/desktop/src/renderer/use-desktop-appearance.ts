@@ -1,4 +1,4 @@
-import { useMediaQuery } from "@elizaos/ui/hooks/useMediaQuery";
+import { useMediaQuery } from "@doolittle/ui/environment";
 import { useEffect, useState } from "react";
 import type { BackendState, ThemeResponse } from "../shared/contracts";
 import {

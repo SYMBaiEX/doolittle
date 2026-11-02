@@ -1,8 +1,8 @@
+import { Button } from "@doolittle/ui";
 import { LoaderCircle } from "lucide-react";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { CatalogFilterBar } from "./components/CatalogFilterBar";
 import { CompactStatStrip } from "./components/CompactStatStrip";
-import { Button } from "./components/ElizaControls";
 import { OfflineRouteState } from "./components/OfflineRouteState";
 import { ResourceStatusBar } from "./components/ResourceStatusBar";
 import { UiIcon } from "./components/UiIcon";
@@ -39,15 +39,6 @@ interface ToolsResponse {
   policyError?: string;
   summary?: Record<string, unknown>;
 }
-
-type ToolProfile = "minimal" | "coding" | "messaging" | "full";
-
-const TOOL_PROFILES: readonly ToolProfile[] = [
-  "minimal",
-  "coding",
-  "messaging",
-  "full",
-];
 
 type McpControlPanelModule = typeof import("./components/McpControlPanel");
 let mcpControlPanelModule: Promise<McpControlPanelModule> | null = null;
@@ -101,22 +92,15 @@ export function ToolsPage({
   active: boolean;
   embedded?: boolean;
 }) {
-  const [profile, setProfile] = useState<ToolProfile>("full");
   const [integrationsOpen, setIntegrationsOpen] = useState(false);
-  const toolsPath = active ? `/tools?profile=${profile}` : null;
-  const tools = useApiResource<ToolsResponse>(toolsPath, [active, profile]);
-  const cachedCatalog = useRef<{
-    profile: ToolProfile;
-    data: ToolsResponse;
-  } | null>(null);
+  const tools = useApiResource<ToolsResponse>(active ? "/tools" : null, [
+    active,
+  ]);
+  const cachedCatalog = useRef<ToolsResponse | null>(null);
   useEffect(() => {
-    if (tools.data) cachedCatalog.current = { profile, data: tools.data };
-  }, [profile, tools.data]);
-  const catalogData =
-    tools.data ??
-    (cachedCatalog.current?.profile === profile
-      ? cachedCatalog.current.data
-      : null);
+    if (tools.data) cachedCatalog.current = tools.data;
+  }, [tools.data]);
+  const catalogData = tools.data ?? cachedCatalog.current;
   const refresh = () => {
     if (active) tools.reload();
   };
@@ -233,16 +217,10 @@ export function ToolsPage({
           },
           { label: "Categories", value: asArray(totals.categories).length },
           {
-            label: "Policy",
-            value: catalogData?.policyOwned
-              ? titleCase(catalogData.effectiveProfile ?? profile)
-              : "Unverified",
-            detail: catalogData?.policyError
-              ? catalogData.policyError
-              : catalogData?.policyOwned
-                ? `Eliza ToolPolicyService · ${asNumber(totals.pluginTools)} plugin tools`
-                : "Registered actions only",
-            tone: catalogData?.policyOwned ? "good" : "warn",
+            label: "Permissions",
+            value: "Per request",
+            detail: "Checked when each action runs",
+            tone: "good",
           },
         ]}
       />
@@ -296,17 +274,6 @@ export function ToolsPage({
               </option>
             ))}
           </select>
-          <select
-            aria-label="Eliza tool profile"
-            value={profile}
-            onChange={(event) => setProfile(event.target.value as ToolProfile)}
-          >
-            {TOOL_PROFILES.map((value) => (
-              <option key={value} value={value}>
-                {titleCase(value)} profile
-              </option>
-            ))}
-          </select>
         </CatalogFilterBar>
       </div>
       {tools.loading && !catalogData ? (
@@ -317,7 +284,7 @@ export function ToolsPage({
         <Suspense fallback={<LoadingBlock label="Opening tool index…" />}>
           <LazyToolCatalogWorkspace
             entries={filtered}
-            resetKey={`${profile}:${category}:${query.trim().toLowerCase()}`}
+            resetKey={`${category}:${query.trim().toLowerCase()}`}
           />
         </Suspense>
       ) : (

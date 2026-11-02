@@ -1,4 +1,4 @@
-import { Button } from "@elizaos/ui/components/ui/button";
+import { Button } from "@elizaos/ui/button";
 import { Textarea } from "@elizaos/ui/components/ui/textarea";
 import { Badge, Notice } from "../lib";
 import { SKILL_WORKSHOP_CARD_CLASS } from "./skill-workshop-layout";

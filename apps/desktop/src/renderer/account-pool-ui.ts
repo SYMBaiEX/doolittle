@@ -1,12 +1,34 @@
-import type { AccountWithCredentialFlag } from "@elizaos/ui/api/client-agent";
 import type { AccountPoolAccount } from "../shared/contracts";
 import { asRecord } from "./value-guards";
 
-const HEALTH_STATES = new Set<AccountWithCredentialFlag["health"]>([
+export type DisplayAccount = Omit<
+  AccountPoolAccount,
+  "accountId" | "health" | "healthDetail" | "usage"
+> & {
+  id: string;
+  health:
+    | "ok"
+    | "rate-limited"
+    | "needs-reauth"
+    | "invalid"
+    | "expired"
+    | "unknown";
+  healthDetail?: { until?: number; lastChecked?: number; lastError?: string };
+  usage?: {
+    sessionPct?: number;
+    weeklyPct?: number;
+    resetsAt?: number;
+    refreshedAt: number;
+  };
+  hasCredential: boolean;
+};
+
+const HEALTH_STATES = new Set<DisplayAccount["health"]>([
   "ok",
   "rate-limited",
   "needs-reauth",
   "invalid",
+  "expired",
   "unknown",
 ]);
 
@@ -16,13 +38,9 @@ function optionalNumber(value: unknown): number | undefined {
     : undefined;
 }
 
-export function toElizaAccount(
-  account: AccountPoolAccount,
-): AccountWithCredentialFlag {
-  const health = HEALTH_STATES.has(
-    account.health as AccountWithCredentialFlag["health"],
-  )
-    ? (account.health as AccountWithCredentialFlag["health"])
+export function toDisplayAccount(account: AccountPoolAccount): DisplayAccount {
+  const health = HEALTH_STATES.has(account.health as DisplayAccount["health"])
+    ? (account.health as DisplayAccount["health"])
     : "unknown";
   const healthDetail = asRecord(account.healthDetail);
   const usage = asRecord(account.usage);

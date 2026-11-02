@@ -1,6 +1,5 @@
 import { ContextActionMenu } from "@doolittle/ui";
-import type { AccountWithCredentialFlag } from "@elizaos/ui/api/client-agent";
-import { Button } from "@elizaos/ui/components/ui/button";
+import { Button } from "@elizaos/ui/button";
 import { useState } from "react";
 import type {
   AccountPoolAccount,
@@ -9,6 +8,7 @@ import type {
   AccountPoolStrategy,
   ProviderAuthProvider,
 } from "../../shared/contracts";
+import type { DisplayAccount } from "../account-pool-ui";
 import type { AccountImportDraft } from "../agent-pages-helpers";
 import { accountPoolProgress } from "../agent-pages-helpers";
 import { Badge, EmptyBlock } from "../lib";
@@ -60,7 +60,7 @@ export function AccountPoolPanel({
   onDelete: (account: AccountPoolAccount) => Promise<void>;
   onImportDirect?: (draft: AccountImportDraft) => Promise<void>;
   onMove: (
-    accounts: AccountWithCredentialFlag[],
+    accounts: DisplayAccount[],
     accountId: string,
     direction: "up" | "down",
   ) => Promise<void>;
@@ -71,10 +71,10 @@ export function AccountPoolPanel({
     >,
   ) => Promise<void>;
   onPreview: () => void;
-  onRefreshUsage: (account: AccountWithCredentialFlag) => Promise<void>;
+  onRefreshUsage: (account: DisplayAccount) => Promise<void>;
   onSetStrategy: (strategy: AccountPoolStrategy) => void;
   onSignIn: (provider: ProviderAuthProvider) => void;
-  onTest: (account: AccountWithCredentialFlag) => Promise<void>;
+  onTest: (account: DisplayAccount) => Promise<void>;
   selectedAccountId?: string;
   snapshot?: AccountPoolProviderSnapshot;
   direct?: boolean;

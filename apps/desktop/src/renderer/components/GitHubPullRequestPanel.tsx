@@ -2,9 +2,9 @@ import type {
   RepositoryMutationRequest,
   RepositoryMutationResult,
 } from "@doolittle/contracts/repository";
-import { Button } from "@elizaos/ui/components/ui/button";
-import { Input } from "@elizaos/ui/components/ui/input";
+import { Button } from "@elizaos/ui/button";
 import { Textarea } from "@elizaos/ui/components/ui/textarea";
+import { Input } from "@elizaos/ui/input";
 import { ExternalLink } from "lucide-react";
 import { type FormEvent, useEffect, useState } from "react";
 import type { RepositoryReview } from "../../shared/contracts";

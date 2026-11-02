@@ -1,5 +1,5 @@
-import { Button } from "@elizaos/ui/components/ui/button";
-import { Input } from "@elizaos/ui/components/ui/input";
+import { Button } from "@elizaos/ui/button";
+import { Input } from "@elizaos/ui/input";
 import { Plus, Search, X } from "lucide-react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useDialogFocus } from "../project-manager/dialog-focus";

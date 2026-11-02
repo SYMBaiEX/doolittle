@@ -1,6 +1,6 @@
-import { Button } from "@elizaos/ui/components/ui/button";
-import { Input } from "@elizaos/ui/components/ui/input";
+import { Button } from "@elizaos/ui/button";
 import { Textarea } from "@elizaos/ui/components/ui/textarea";
+import { Input } from "@elizaos/ui/input";
 import { type FormEvent, lazy, Suspense, useMemo, useState } from "react";
 import {
   asArray,

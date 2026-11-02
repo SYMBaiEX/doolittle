@@ -1,7 +1,6 @@
 import type { BotCatalogResponse, BotSummary } from "@doolittle/contracts/bots";
 import { WorkspaceShell } from "@doolittle/ui";
-import { useIntervalWhenDocumentVisible } from "@elizaos/ui/hooks/useDocumentVisibility";
-import { useMediaQuery } from "@elizaos/ui/hooks/useMediaQuery";
+import { useMediaQuery, useVisibleInterval } from "@doolittle/ui/environment";
 import { ArrowLeft } from "lucide-react";
 import {
   type CSSProperties,
@@ -2090,7 +2089,7 @@ export function App() {
 
   useBotCatalogPolling(backend.phase === "ready", botResource);
 
-  useIntervalWhenDocumentVisible(
+  useVisibleInterval(
     () => {
       if (utilityOpen) activityResource.reload();
       approvalsResource.reload();

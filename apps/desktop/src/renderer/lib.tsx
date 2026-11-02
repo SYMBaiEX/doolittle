@@ -1,8 +1,7 @@
 import { StateSurface } from "@doolittle/ui";
 import { PagePanel } from "@elizaos/ui/components/composites/page-panel/index";
 import { Badge as ElizaBadge } from "@elizaos/ui/components/ui/badge";
-import { getCached, revalidate } from "@elizaos/ui/hooks/resource-cache";
-import { useCachedResource } from "@elizaos/ui/hooks/useCachedResource";
+import { QueryClient, useQuery } from "@tanstack/react-query";
 import { ChevronRight } from "lucide-react";
 import {
   type DependencyList,
@@ -62,22 +61,27 @@ export function apiResourceCacheKey(
 
 const API_RESOURCE_STALE_TIME_MS = 30_000;
 
-/**
- * Warm the same Eliza resource-cache slot consumed by useApiResource.
- * Navigation can start data I/O alongside a lazy route import, so the first
- * render no longer has to wait for the JavaScript chunk before issuing GET.
- */
+export const desktopQueryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: API_RESOURCE_STALE_TIME_MS,
+      retry: false,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
+
+/** Navigation and mounted views share the same scoped query cache. */
 export async function prefetchApiResource<T>(
   path: string | null,
   dependencies: DependencyList = [],
 ): Promise<T | null> {
   const key = apiResourceCacheKey(path, dependencies);
   if (!key || !path) return null;
-  const cached = getCached<T | null>(key);
-  if (cached && Date.now() - cached.updatedAt < API_RESOURCE_STALE_TIME_MS) {
-    return cached.data;
-  }
-  return revalidate(key, () => desktopRequest<T>(path, "GET"));
+  return desktopQueryClient.fetchQuery({
+    queryKey: [key],
+    queryFn: ({ signal }) => desktopRequest<T>(path, "GET", undefined, signal),
+  });
 }
 
 export function errorMessage(error: unknown): string {
@@ -122,49 +126,57 @@ export function useApiResource<T>(
   botId?: string,
   origin?: ComputerOrigin,
 ): ApiResource<T> {
-  const resource = useCachedResource<T | null>(
-    apiResourceCacheKey(
-      path,
-      botId
-        ? [
-            ...dependencies,
-            botId,
-            origin?.originConversationId,
-            origin?.workspacePath,
-          ]
-        : dependencies,
-    ),
-    (signal) =>
-      path
-        ? desktopRequest<T>(
-            path,
-            "GET",
-            undefined,
-            signal,
-            undefined,
-            botId,
-            origin,
-          )
-        : Promise.resolve(null),
-    { staleTime: API_RESOURCE_STALE_TIME_MS },
+  const key = apiResourceCacheKey(
+    path,
+    botId || origin
+      ? [
+          ...dependencies,
+          botId,
+          origin?.botId,
+          origin?.originConversationId,
+          origin?.workspacePath,
+        ]
+      : dependencies,
   );
-
+  const query = useQuery<T>(
+    {
+      queryKey: [key],
+      enabled: key !== null,
+      queryFn: ({ signal }) =>
+        desktopRequest<T>(
+          path ?? "",
+          "GET",
+          undefined,
+          signal,
+          undefined,
+          botId,
+          origin,
+        ),
+    },
+    desktopQueryClient,
+  );
+  const hasData = query.data !== undefined;
+  const status: ApiResourceStatus = !key
+    ? "disabled"
+    : query.isFetching
+      ? hasData
+        ? "refreshing"
+        : "loading"
+      : query.isError
+        ? "error"
+        : hasData
+          ? "ready"
+          : "loading";
   return {
-    data: resource.status === "success" ? resource.data : null,
-    error: resource.status === "error" ? errorMessage(resource.error) : "",
-    loading: Boolean(path) && resource.status === "loading",
-    reload: resource.refetch,
-    status: !path
-      ? "disabled"
-      : resource.status === "loading"
-        ? "loading"
-        : resource.status === "error"
-          ? "error"
-          : resource.isValidating
-            ? "refreshing"
-            : "ready",
-    isValidating: resource.isValidating,
-    hasData: resource.status === "success" && resource.data != null,
+    data: query.data ?? null,
+    error: query.error ? errorMessage(query.error) : "",
+    loading: status === "loading",
+    reload: () => {
+      if (key) void query.refetch();
+    },
+    status,
+    isValidating: query.isFetching,
+    hasData,
   };
 }
 

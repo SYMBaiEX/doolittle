@@ -1,5 +1,5 @@
 import { type ContextAction, ContextActionMenu } from "@doolittle/ui";
-import { Button } from "@elizaos/ui/components/ui/button";
+import { Button } from "@elizaos/ui/button";
 import { MoreHorizontal } from "lucide-react";
 import type {
   ProviderAuthProvider,

@@ -1,5 +1,10 @@
-import { type ContextAction, ContextActionMenu } from "@doolittle/ui";
-import { useMediaQuery } from "@elizaos/ui/hooks/useMediaQuery";
+import {
+  Button,
+  type ContextAction,
+  ContextActionMenu,
+  Input,
+} from "@doolittle/ui";
+import { useMediaQuery } from "@doolittle/ui/environment";
 import { ArrowLeft, ArrowRight, Columns2, Plus, Search, X } from "lucide-react";
 import {
   type ReactNode,
@@ -12,7 +17,6 @@ import type { SessionSummary } from "../../shared/contracts";
 import type { ChatPageProps } from "../ChatPage";
 import type { ConversationStore, RunReceiptStore } from "../chat/models";
 import { loadStoredChatMessages } from "../chat/useChatConversationState";
-import { Button, Input } from "../components/ElizaControls";
 import { copyContextText } from "../context-menu-clipboard";
 import { newConversationId } from "../conversation-id";
 import {

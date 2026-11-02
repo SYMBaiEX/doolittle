@@ -1,5 +1,5 @@
+import { Button } from "@doolittle/ui";
 import { CompactStatStrip } from "../components/CompactStatStrip";
-import { Button } from "../components/ElizaControls";
 import type {
   DashboardNextAction,
   DashboardRepoSnapshot,

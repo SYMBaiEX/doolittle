@@ -1,4 +1,4 @@
-import { ContextActionMenu } from "@doolittle/ui";
+import { Button, ContextActionMenu, Input } from "@doolittle/ui";
 import { MoreHorizontal } from "lucide-react";
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import type {
@@ -7,7 +7,6 @@ import type {
   SessionUsageSummary,
   StoredMessage,
 } from "../../shared/contracts";
-import { Button, Input } from "../components/ElizaControls";
 import { MessageContent } from "../components/MessageContent";
 import { visibleAssistantText } from "../components/message-output";
 import { UiIcon } from "../components/UiIcon";

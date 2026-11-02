@@ -1,3 +1,4 @@
+import { Button, Input } from "@doolittle/ui";
 import { type FormEvent, useState } from "react";
 import type {
   AcpBridgeSessionSummary,
@@ -17,7 +18,6 @@ import {
   Notice,
   useApiResource,
 } from "../lib";
-import { Button, Input } from "./ElizaControls";
 
 const PANEL_CLASS =
   "grid gap-3.5 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] p-[18px]";
