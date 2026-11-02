@@ -37,6 +37,10 @@ export function createAwarenessRuntimeService(
       return services.awareness.contributorCount();
     }
 
+    invalidate(): void {
+      services.awareness.invalidate("config-changed");
+    }
+
     async stop(): Promise<void> {}
   }
 

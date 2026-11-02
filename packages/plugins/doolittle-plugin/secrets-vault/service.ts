@@ -1,14 +1,13 @@
 import { rmSync } from "node:fs";
 import { join } from "node:path";
-
 import { DOOLITTLE_SECRETS_VAULT_SERVICE } from "@doolittle/contracts";
-import { readJsonFileSync } from "@elizaos/agent/utils/atomic-json";
+import { readOptionalJson } from "@doolittle/storage";
 import {
   Service as ElizaService,
   type IAgentRuntime,
-  SECRETS_SERVICE_TYPE,
   type Service,
 } from "@elizaos/core";
+import { SECRETS_SERVICE_TYPE } from "@elizaos/plugin-assistant";
 import { createVault, type Vault } from "@elizaos/vault";
 
 type VaultWithClose = Vault & { close?: () => Promise<void> };
@@ -44,7 +43,7 @@ interface ElizaSecretsService {
 }
 
 function readLegacySecrets(path: string): Record<string, string> | undefined {
-  const parsed = readJsonFileSync<{ secrets?: unknown }>(path);
+  const parsed = readOptionalJson<{ secrets?: unknown }>(path);
   if (!parsed?.secrets || typeof parsed.secrets !== "object") {
     return undefined;
   }

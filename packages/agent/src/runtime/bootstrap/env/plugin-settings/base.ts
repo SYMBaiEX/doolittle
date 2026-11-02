@@ -1,5 +1,6 @@
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import type { JsonValue } from "@elizaos/core";
 import { getSkillsDir } from "@elizaos/skills/index";
 import { featureMap } from "../../../../config/feature-map";
@@ -49,6 +50,8 @@ export function buildBaseSettings(
     env.ENCRYPTION_SALT?.trim() ??
     ensureSecretSalt(config);
   return {
+    ELIZA_ACP_TRANSPORT: "cli",
+    ELIZA_ACP_CLI: fileURLToPath(import.meta.resolve("acpx")),
     mcp: runtimeSettings.mcp as unknown as JsonValue,
     featureMap: JSON.stringify(featureMap),
     runtimeSettings: JSON.stringify(runtimeSettings),

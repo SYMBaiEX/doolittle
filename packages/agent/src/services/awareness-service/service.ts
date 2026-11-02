@@ -1,12 +1,9 @@
-import {
-  AwarenessRegistry,
-  setGlobalAwarenessRegistry,
-} from "@elizaos/agent/awareness/registry";
+import type { IAgentRuntime } from "@elizaos/core";
+import { AwarenessRegistry } from "@elizaos/shared/awareness/registry";
 import type {
   AwarenessContributor,
   AwarenessInvalidationEvent,
-} from "@elizaos/agent/contracts/awareness";
-import type { IAgentRuntime } from "@elizaos/core";
+} from "@elizaos/shared/contracts/awareness";
 import type { AppServices } from "../types";
 import { createRunContributor } from "./budget";
 import { countContributors, createAwarenessServiceState } from "./state";
@@ -32,7 +29,6 @@ export class AwarenessService {
       registry.register(createStartupContributor(services));
       registry.register(createSettingsContributor(services));
       registry.register(createCapabilitiesContributor());
-      setGlobalAwarenessRegistry(registry);
       this.state.registry = registry;
     } catch {
       this.state.registry = null;

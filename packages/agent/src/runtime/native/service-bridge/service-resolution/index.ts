@@ -32,9 +32,6 @@ export function getEffectivePluginManagerInventory(runtime: RuntimeLike): {
   categories: unknown;
   summary: NativePluginManagerSummary;
 } | null {
-  const pluginManager = getNativeServices(runtime).pluginManager;
-  if (!pluginManager) {
-    return null;
-  }
-  return readNativePluginManagerInventory(pluginManager);
+  if (typeof runtime.getAllPluginOwnership !== "function") return null;
+  return readNativePluginManagerInventory(runtime.getAllPluginOwnership());
 }

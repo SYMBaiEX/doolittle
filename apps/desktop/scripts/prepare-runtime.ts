@@ -40,7 +40,13 @@ const outputDir = resolve(desktopRoot, "build", "runtime");
 const outputPath = resolve(outputDir, "doolittle-runtime.mjs");
 const acpOutputPath = resolve(outputDir, "doolittle-acp.mjs");
 const runtimeNodeModulesDir = resolve(outputDir, "node_modules");
-const nativeExternalPackages = ["@snazzah/davey", "@lydell/node-pty"] as const;
+// Keep native modules and executable packages at their real filesystem paths.
+const nativeExternalPackages = [
+  "@snazzah/davey",
+  "@lydell/node-pty",
+  "@napi-rs/keyring",
+  "acpx",
+] as const;
 const pluginSqlRequire = createRequire(
   repoRequire.resolve("@elizaos/plugin-sql/package.json"),
 );
@@ -181,7 +187,6 @@ const runtimeBuild = await build({
     // to a system ffmpeg/avconv binary. Do not fold the GPL executable helper
     // into Doolittle's single-file MIT desktop runtime.
     "ffmpeg-static",
-    "@napi-rs/keyring",
     "@napi-rs/keyring-*",
     "@node-llama-cpp/*",
     ...nativeExternalPackages,

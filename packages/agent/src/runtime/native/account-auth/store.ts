@@ -2,14 +2,15 @@ import { existsSync } from "node:fs";
 import { dirname, isAbsolute, join } from "node:path";
 import {
   type AccountCredentialRecord,
+  createRuntimeAccountStoragePolicy,
   loadAccount,
   saveAccount,
-} from "@elizaos/agent/auth/account-storage";
-import { saveCredentials } from "@elizaos/agent/auth/credentials";
+} from "@elizaos/auth/auth/account-storage";
+import { saveCredentials } from "@elizaos/auth/auth/credentials";
 import type {
   AccountCredentialProvider,
   OAuthCredentials,
-} from "@elizaos/agent/auth/types";
+} from "@elizaos/auth/auth/types";
 import { resolveCloudApiBaseUrl } from "../../linked-provider-accounts/cloud-url";
 import { hasTokenCredentials } from "./credentials";
 import { readJson, writeJson } from "./shared";
@@ -65,26 +66,20 @@ function writeProviderAuthStore(store: ProviderAuthStoreShape): void {
   writeJson(getProviderAuthStorePath(), store);
 }
 
-export function withOfficialAuthHome<T>(operation: () => T): T {
-  if (process.env.ELIZA_HOME?.trim()) return operation();
-  const previous = process.env.ELIZA_HOME;
-  process.env.ELIZA_HOME = dirname(dirname(getProviderAuthStorePath()));
-  try {
-    return operation();
-  } finally {
-    if (previous === undefined) delete process.env.ELIZA_HOME;
-    else process.env.ELIZA_HOME = previous;
-  }
+export function getOfficialAccountStoragePolicy() {
+  return createRuntimeAccountStoragePolicy(
+    process.env.ELIZA_HOME?.trim() ||
+      dirname(dirname(getProviderAuthStorePath())),
+  );
 }
 
 function linkedProviderRecord(
   provider: OfficialLinkedProvider,
 ): AccountCredentialRecord | null {
-  return withOfficialAuthHome(() =>
-    loadAccount(
-      OFFICIAL_PROVIDER_IDS[provider],
-      DOOLITTLE_LINKED_ACCOUNT_IDS[provider],
-    ),
+  return loadAccount(
+    OFFICIAL_PROVIDER_IDS[provider],
+    DOOLITTLE_LINKED_ACCOUNT_IDS[provider],
+    getOfficialAccountStoragePolicy(),
   );
 }
 
@@ -166,51 +161,62 @@ function saveOfficialProviderCredentials(
   const providerId = OFFICIAL_PROVIDER_IDS[provider];
   const accountId = DOOLITTLE_LINKED_ACCOUNT_IDS[provider];
   const official = officialCredentials(provider, credentials);
-  return withOfficialAuthHome(() => {
-    saveCredentials(providerId, official, accountId);
-    const saved = loadAccount(providerId, accountId);
-    if (!officialRecordMatches(saved, official)) {
-      throw new Error(
-        `Official ${provider} credentials failed write/read-back verification`,
-      );
-    }
-
-    const discoveredLabel =
-      provider === "claude-code"
-        ? (credentials as LinkedClaudeCodeCredentials).accountLabel?.trim()
-        : "Codex on this Mac";
-    const label =
-      discoveredLabel &&
-      (provider === "claude-code" || saved.label === saved.id)
-        ? discoveredLabel
-        : undefined;
-    const organizationId =
-      provider === "codex"
-        ? (credentials as LinkedCodexCredentials).accountId?.trim()
-        : undefined;
-    if (
-      (label && saved.label !== label) ||
-      (organizationId && saved.organizationId !== organizationId)
-    ) {
-      saveAccount({
+  saveCredentials(
+    providerId,
+    official,
+    accountId,
+    getOfficialAccountStoragePolicy(),
+  );
+  const saved = loadAccount(
+    providerId,
+    accountId,
+    getOfficialAccountStoragePolicy(),
+  );
+  if (!officialRecordMatches(saved, official)) {
+    throw new Error(
+      `Official ${provider} credentials failed write/read-back verification`,
+    );
+  }
+  const discoveredLabel =
+    provider === "claude-code"
+      ? (credentials as LinkedClaudeCodeCredentials).accountLabel?.trim()
+      : "Codex on this Mac";
+  const label =
+    discoveredLabel && (provider === "claude-code" || saved.label === saved.id)
+      ? discoveredLabel
+      : undefined;
+  const organizationId =
+    provider === "codex"
+      ? (credentials as LinkedCodexCredentials).accountId?.trim()
+      : undefined;
+  if (
+    (label && saved.label !== label) ||
+    (organizationId && saved.organizationId !== organizationId)
+  ) {
+    saveAccount(
+      {
         ...saved,
         ...(label ? { label } : {}),
         ...(organizationId ? { organizationId } : {}),
-      });
-    }
-
-    const verified = loadAccount(providerId, accountId);
-    if (
-      !officialRecordMatches(verified, official) ||
-      (label && verified.label !== label) ||
-      (organizationId && verified.organizationId !== organizationId)
-    ) {
-      throw new Error(
-        `Official ${provider} account metadata failed write/read-back verification`,
-      );
-    }
-    return verified;
-  });
+      },
+      getOfficialAccountStoragePolicy(),
+    );
+  }
+  const verified = loadAccount(
+    providerId,
+    accountId,
+    getOfficialAccountStoragePolicy(),
+  );
+  if (
+    !officialRecordMatches(verified, official) ||
+    (label && verified.label !== label) ||
+    (organizationId && verified.organizationId !== organizationId)
+  ) {
+    throw new Error(
+      `Official ${provider} account metadata failed write/read-back verification`,
+    );
+  }
+  return verified;
 }
 
 function legacyProviderCredentials(
@@ -236,9 +242,13 @@ function ensureOfficialProviderRecord(
     if (existing) {
       // Re-write and verify the official value itself before deleting a stale
       // legacy source. Legacy data never replaces an existing official account.
-      const verified = withOfficialAuthHome(() => {
-        saveAccount(existing);
-        const readBack = loadAccount(existing.providerId, existing.id);
+      const verified = (() => {
+        saveAccount(existing, getOfficialAccountStoragePolicy());
+        const readBack = loadAccount(
+          existing.providerId,
+          existing.id,
+          getOfficialAccountStoragePolicy(),
+        );
         if (
           !readBack ||
           readBack.credentials.access !== existing.credentials.access ||
@@ -251,7 +261,7 @@ function ensureOfficialProviderRecord(
           );
         }
         return readBack;
-      });
+      })();
       removeLegacyProviderRecord(provider);
       return verified;
     }
@@ -282,7 +292,7 @@ function officialCodexCredentials(
     ...(record.organizationId ? { accountId: record.organizationId } : {}),
     authMode: "chatgpt",
     lastRefresh: new Date(record.updatedAt).toISOString(),
-    source: `@elizaos/agent/auth/${record.providerId}/${record.id}`,
+    source: `@elizaos/auth/${record.providerId}/${record.id}`,
   };
 }
 
@@ -299,7 +309,7 @@ function officialClaudeCredentials(
     expiresAt: String(record.credentials.expires),
     ...(record.label !== record.id ? { accountLabel: record.label } : {}),
     authMode: "oauth",
-    source: `@elizaos/agent/auth/${record.providerId}/${record.id}`,
+    source: `@elizaos/auth/${record.providerId}/${record.id}`,
   };
 }
 

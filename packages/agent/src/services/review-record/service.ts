@@ -1,10 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { existsSync, mkdirSync } from "node:fs";
 import { join, normalize, resolve } from "node:path";
-import {
-  readJsonFileSync,
-  writeJsonAtomicSync,
-} from "@elizaos/agent/utils/atomic-json";
+import { readOptionalJson } from "@doolittle/storage";
+import { writeJsonAtomicSync } from "@elizaos/core";
 import type {
   ReviewRecord,
   ReviewRecordAnchor,
@@ -383,7 +381,7 @@ export class ReviewRecordService {
   }
 
   private read(): PersistedReviewRecords {
-    const raw = readJsonFileSync<{ records?: unknown }>(this.filePath);
+    const raw = readOptionalJson<{ records?: unknown }>(this.filePath);
     return {
       records: Array.isArray(raw?.records)
         ? raw.records

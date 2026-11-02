@@ -1,6 +1,6 @@
 import { copyFileSync, cpSync, existsSync, mkdirSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
-import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
+import { writeJsonAtomicSync } from "@elizaos/core";
 import { currentConversationWorkspace } from "../../../runtime/workspace-scope";
 import type { EnvConfig } from "../../../types/index";
 import { findSkillRoot, inspectMigrationSource } from "./inspection";

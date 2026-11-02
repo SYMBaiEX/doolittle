@@ -2,12 +2,8 @@ import type { ToolProfileId } from "@elizaos/core";
 import type { AppServices } from "../../../../services/index";
 import type { ToolDefinition } from "../../../../types/index";
 import type { RuntimeLike } from "../runtime";
-import { getNativeServices } from "../runtime";
 
 export const TOOL_POLICY_PROFILES = [
-  "minimal",
-  "coding",
-  "messaging",
   "full",
 ] as const satisfies readonly ToolProfileId[];
 
@@ -112,108 +108,34 @@ interface ToolPolicyProjection {
   policyError?: string;
 }
 
-function normalizeToolNames(names: string[]): Set<string> {
-  return new Set(
-    names.map((name) => name.trim().toLowerCase()).filter(Boolean),
-  );
-}
-
 function configuredToolProfile(runtime: RuntimeLike): ToolProfileId {
-  const configured = runtime.character?.settings?.toolProfile;
-  return (
-    TOOL_POLICY_PROFILES.find((profile) => profile === configured) ?? "full"
-  );
+  const profile = runtime.character?.settings?.toolProfile;
+  if (profile !== undefined && profile !== "full")
+    throw new Error(
+      "Static tool profiles were retired by ElizaOS. Action authority is evaluated for each request.",
+    );
+  return "full";
 }
 
 function projectToolPolicy(
   runtime: RuntimeLike,
   tools: EffectiveToolDefinition[],
-  effectiveProfile: ToolProfileId,
+  profile: ToolProfileId,
 ): ToolPolicyProjection {
-  const policy = getNativeServices(runtime).toolPolicy;
-  if (typeof policy?.getAllowedTools !== "function") {
-    return {
-      tools,
-      policyOwned: false,
-      profiles: [],
-      pluginTools: 0,
-      pluginGroups: [],
-    };
-  }
-
-  const names = tools.map((tool) => tool.id);
-  try {
-    const allowedByProfile = new Map<ToolProfileId, Set<string>>();
-    for (const profile of TOOL_POLICY_PROFILES) {
-      allowedByProfile.set(
-        profile,
-        normalizeToolNames(policy.getAllowedTools({ profile }, names)),
-      );
-    }
-
-    const deniedReasons = new Map<string, string>();
-    if (typeof policy.getDeniedTools === "function") {
-      for (const denial of policy.getDeniedTools(
-        { profile: effectiveProfile },
-        names,
-      )) {
-        const name = denial.name.trim().toLowerCase();
-        const reason = denial.reason.trim();
-        if (name && reason) {
-          deniedReasons.set(name, reason);
-        }
-      }
-    }
-
-    const effectiveAllowed =
-      allowedByProfile.get(effectiveProfile) ?? new Set<string>();
-    const pluginToolGroups = policy.getPluginToolGroups?.();
-    return {
-      tools: tools.map((tool) => {
-        const key = tool.id.toLowerCase();
-        const allowedProfiles = TOOL_POLICY_PROFILES.filter((profile) =>
-          allowedByProfile.get(profile)?.has(key),
-        );
-        const enabled = effectiveAllowed.has(key);
-        return {
-          ...tool,
-          enabled,
-          allowedProfiles,
-          ...(!enabled && deniedReasons.has(key)
-            ? { policyReason: deniedReasons.get(key) }
-            : {}),
-        };
-      }),
-      policyOwned: true,
-      profiles: TOOL_POLICY_PROFILES.map((profile) => {
-        const allowed = allowedByProfile.get(profile)?.size ?? 0;
-        return {
-          profile,
-          total: tools.length,
-          allowed,
-          denied: tools.length - allowed,
-        };
-      }),
-      pluginTools: pluginToolGroups?.all.length ?? 0,
-      pluginGroups: pluginToolGroups
-        ? [...pluginToolGroups.byPlugin.entries()]
-            .map(([plugin, entries]) => ({
-              plugin,
-              tools: entries.length,
-            }))
-            .sort((left, right) => left.plugin.localeCompare(right.plugin))
-        : [],
-    };
-  } catch (error) {
-    return {
-      tools,
-      policyOwned: false,
-      profiles: [],
-      pluginTools: 0,
-      pluginGroups: [],
-      policyError: error instanceof Error ? error.message : String(error),
-    };
-  }
+  if (profile !== "full")
+    throw new Error("Static tool profiles were retired by ElizaOS.");
+  const groups =
+    runtime.getAllPluginOwnership?.().map((entry) => ({
+      plugin: entry.pluginName,
+      tools: entry.actions.length,
+    })) ?? [];
+  return {
+    tools,
+    policyOwned: false,
+    profiles: [],
+    pluginTools: groups.reduce((sum, group) => sum + group.tools, 0),
+    pluginGroups: groups,
+  };
 }
 
 function summarize(
@@ -285,7 +207,7 @@ export function getEffectiveToolInventory(
 }
 
 /**
- * Resolve registered Eliza actions through ToolPolicyService without consulting
+ * Project registered Eliza actions from the kernel without consulting
  * Doolittle's product capability catalog. Protocol adapters use this projection
  * to avoid owning a second tool registry or recursing through their own status.
  */

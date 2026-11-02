@@ -1,9 +1,7 @@
 import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import {
-  readJsonFileSync,
-  writeJsonAtomicSync,
-} from "@elizaos/agent/utils/atomic-json";
+import { readOptionalJson } from "@doolittle/storage";
+import { writeJsonAtomicSync } from "@elizaos/core";
 import type { RunSnapshot, TaskRunEvent } from "./types";
 import { cloneRun } from "./utils";
 
@@ -253,7 +251,7 @@ export class RunControllerStore {
 
   private loadReceipts(): void {
     if (!this.filePath || !existsSync(this.filePath)) return;
-    const parsed = readJsonFileSync<Partial<PersistedRunReceipts>>(
+    const parsed = readOptionalJson<Partial<PersistedRunReceipts>>(
       this.filePath,
     );
     if (!Array.isArray(parsed?.receipts)) return;

@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
+import { writeJsonAtomicSync } from "@elizaos/core";
 import { nowIso, toSkillHubBundleSlug } from "./records";
 import type {
   SkillHubCatalogRecord,

@@ -7,7 +7,6 @@ import { installNativeTelegramInboundHandoff } from "../../gateway/platforms/nat
 import { installNativeWhatsAppInboundHandoff } from "../../gateway/platforms/native-whatsapp-inbound";
 import { createAcpProtocolHost } from "../../services/acp/host";
 import type { AppServices } from "../../services/index";
-import { getNativeServices } from "../native/service-bridge/runtime";
 import { getRuntimeToolProjection } from "../native/service-bridge/service-resolution/index";
 import { readWorkerBotProfile } from "./bot-profile";
 import { createDeferredHydrator } from "./runtime/deferred-hydration";
@@ -53,7 +52,6 @@ export async function configureBootstrapContext({
     loadDeferredPlugins,
     registerPlugin: async (plugin) => {
       await runtime.registerPlugin(plugin);
-      getNativeServices(runtime).toolPolicy?.updatePluginGroups?.();
       installNativeDiscordInboundHandoff(runtime, gateway.get());
       installNativeSlackInboundHandoff(runtime, gateway.get());
       installNativeTelegramInboundHandoff(runtime, gateway.get());

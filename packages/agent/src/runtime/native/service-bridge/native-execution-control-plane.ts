@@ -45,27 +45,13 @@ export function getNativeExecutionControlPlaneDetails(
         native.agentEvent?.getLastHeartbeat?.()?.status ?? null,
     },
     e2b: e2bControl,
-    toolPolicy: {
-      source: native.toolPolicy
-        ? ("native" as const)
-        : ("unavailable" as const),
-      available: Boolean(native.toolPolicy),
+    actionAuthority: {
+      source:
+        typeof runtime.runActionsByMode === "function"
+          ? ("native" as const)
+          : ("unavailable" as const),
+      available: typeof runtime.runActionsByMode === "function",
       actions: runtimeActions.length,
-      codingAllowed:
-        native.toolPolicy?.getAllowedTools?.(
-          { profile: "coding" },
-          runtimeActions,
-        ).length ?? runtimeActions.length,
-      messagingAllowed:
-        native.toolPolicy?.getAllowedTools?.(
-          { profile: "messaging" },
-          runtimeActions,
-        ).length ?? runtimeActions.length,
-      fullAllowed:
-        native.toolPolicy?.getAllowedTools?.(
-          { profile: "full" },
-          runtimeActions,
-        ).length ?? runtimeActions.length,
     },
     planning: planningControl,
     codeGeneration: {

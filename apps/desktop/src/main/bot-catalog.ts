@@ -12,7 +12,7 @@ import {
   type UpdateBotInput,
 } from "@doolittle/contracts";
 import { normalizeBotCharacter } from "@doolittle/contracts/bot-character";
-import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
+import { writeJsonAtomicSync } from "@elizaos/core";
 import type { BackendManager } from "./backend";
 import { readBoundedRegularFile } from "./regular-file";
 

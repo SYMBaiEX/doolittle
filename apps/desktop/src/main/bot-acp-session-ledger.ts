@@ -1,6 +1,6 @@
 import { chmodSync, existsSync, mkdirSync } from "node:fs";
 import { dirname, isAbsolute, resolve } from "node:path";
-import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
+import { writeJsonAtomicSync } from "@elizaos/core";
 import { readBoundedRegularFile } from "./regular-file";
 
 const ID = /^[A-Za-z0-9:_-]{1,128}$/u;

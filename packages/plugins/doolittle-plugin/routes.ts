@@ -1,4 +1,5 @@
-import type { IAgentRuntime, Route } from "@elizaos/core";
+import type { IAgentRuntime } from "@elizaos/core";
+import type { Route } from "@elizaos/host/protocol";
 
 interface DoolittleRuntimeRouteDependencies {
   services: { workspace: { root(): string } };

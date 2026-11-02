@@ -1,7 +1,10 @@
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
-import { fetchRemoteMedia, ModelType } from "@elizaos/core";
+import {
+  fetchRemoteMedia,
+  ModelType,
+  writeJsonAtomicSync,
+} from "@elizaos/core";
 import { isMediaAbort, throwIfMediaAborted } from "../abort";
 import type { ElizaImageGenerationResult } from "../eliza-runtime";
 import { slugifyMediaText } from "../paths";

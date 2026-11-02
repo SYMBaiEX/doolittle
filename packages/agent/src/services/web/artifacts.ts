@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
+import { writeJsonAtomicSync } from "@elizaos/core";
 import { createCaptureCardPng, createScreenshotSvg } from "./capture-cards";
 import type { WebPageSnapshot } from "./service-types";
 

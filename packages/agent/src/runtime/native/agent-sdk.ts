@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import {
   getConfiguredEndpoints,
   getPluginInfo,
@@ -7,16 +9,31 @@ import {
   searchNonAppPlugins,
 } from "@elizaos/agent/services/registry-client";
 import { CHANNEL_DIST_TAGS } from "@elizaos/agent/services/update-checker";
-import {
-  AI_PROVIDER_PLUGINS,
-  getInstalledVersion,
-  validatePluginCompat,
-} from "@elizaos/agent/services/version-compat";
+import { AI_PROVIDER_PLUGINS } from "@elizaos/agent/services/version-compat";
+import { satisfies } from "semver";
 import { evaluateExtensionInstallPolicy } from "./extension-policy";
 
+const require = createRequire(import.meta.url);
+function installedManifest(
+  name: string,
+): { version?: string; peerDependencies?: Record<string, string> } | undefined {
+  try {
+    return JSON.parse(
+      readFileSync(require.resolve(`${name}/package.json`), "utf8"),
+    );
+  } catch {
+    return undefined;
+  }
+}
+function installedVersion(name: string): string | null {
+  return installedManifest(name)?.version ?? null;
+}
 const FOUNDATION_PACKAGES = [
   "@elizaos/agent",
-  "elizaos",
+  "@elizaos/core",
+  "@elizaos/host",
+  "@elizaos/plugin-assistant",
+  "@elizaos/auth",
   "@elizaos/skills",
 ] as const;
 
@@ -29,12 +46,12 @@ export const AGENT_REGISTRY_INSTALL_FAILURE =
   "Eliza could not install the registry plugin.";
 
 export async function getAgentSdkAudit() {
-  const coreVersion = (await getInstalledVersion("@elizaos/core")) ?? "unknown";
+  const coreVersion = (await installedVersion("@elizaos/core")) ?? "unknown";
   const installed = Object.fromEntries(
     await Promise.all(
       FOUNDATION_PACKAGES.map(async (packageName) => [
         packageName,
-        await getInstalledVersion(packageName),
+        await installedVersion(packageName),
       ]),
     ),
   );
@@ -43,7 +60,7 @@ export async function getAgentSdkAudit() {
     await Promise.all(
       ecosystemPackages.map(async (packageName) => [
         packageName,
-        await getInstalledVersion(packageName),
+        await installedVersion(packageName),
       ]),
     ),
   );
@@ -51,11 +68,25 @@ export async function getAgentSdkAudit() {
     ...new Set([...AI_PROVIDER_PLUGINS, ...ecosystemPackages]),
   ];
 
-  const compatibility = await Promise.all(
-    compatibilityTargets.map((plugin) =>
-      validatePluginCompat(plugin, coreVersion),
-    ),
-  );
+  // This is a declared peer-range audit. Export and behavior compatibility
+  // are established by the local release gate, never by version inference.
+  const compatibility = compatibilityTargets.map((pluginName) => {
+    const manifest = installedManifest(pluginName);
+    const requiredCoreRange = manifest?.peerDependencies?.["@elizaos/core"];
+    return {
+      plugin: pluginName,
+      installedVersion: manifest?.version ?? null,
+      requiredCoreRange: requiredCoreRange ?? null,
+      compatible: Boolean(
+        manifest &&
+          (!requiredCoreRange ||
+            satisfies(coreVersion, requiredCoreRange, {
+              includePrerelease: true,
+            })),
+      ),
+      scope: "declared-peer-range" as const,
+    };
+  });
 
   return {
     foundationPackages: [...FOUNDATION_PACKAGES],

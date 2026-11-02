@@ -3,13 +3,10 @@ import {
   DOOLITTLE_PERSONALITY_SERVICE,
   DOOLITTLE_ROLODEX_SERVICE,
 } from "@doolittle/contracts";
-import { KNOWLEDGE_GRAPH_SERVICE } from "@elizaos/agent/services/knowledge-graph/index";
 import {
-  PluginManagerService,
   SECRETS_SERVICE_TYPE,
-  ToolPolicyService,
   TrajectoriesService,
-} from "@elizaos/core";
+} from "@elizaos/plugin-assistant";
 import type { NativeServices } from "./service-bridge/runtime-contracts";
 import {
   AGENT_SKILLS_SERVICE,
@@ -98,12 +95,6 @@ export const SERVICE_RESOLUTION_DEFINITIONS: readonly ServiceResolutionDefinitio
       requirement: "required Eliza memory storage service",
     },
     {
-      capability: "knowledgeGraph",
-      nativeKey: "knowledgeGraph",
-      nativeService: KNOWLEDGE_GRAPH_SERVICE,
-      requirement: "required official Eliza knowledge graph service",
-    },
-    {
       capability: "pdf",
       nativeKey: "pdf",
       nativeService: PDF_SERVICE,
@@ -174,18 +165,6 @@ export const SERVICE_RESOLUTION_DEFINITIONS: readonly ServiceResolutionDefinitio
       nativeKey: "codingAgent",
       nativeService: DOOLITTLE_CODING_AGENT_SERVICE,
       requirement: "required Doolittle coding workspace service",
-    },
-    {
-      capability: "pluginManager",
-      nativeKey: "pluginManager",
-      nativeService: PluginManagerService.serviceType,
-      requirement: "required official Eliza plugin manager service",
-    },
-    {
-      capability: "toolPolicy",
-      nativeKey: "toolPolicy",
-      nativeService: ToolPolicyService.serviceType,
-      requirement: "required official Eliza ToolPolicyService",
     },
     {
       capability: "secrets",

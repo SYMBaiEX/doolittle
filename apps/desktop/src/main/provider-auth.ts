@@ -1,9 +1,7 @@
 import { homedir } from "node:os";
 import { delimiter, resolve } from "node:path";
-import type {
-  FlowState,
-  OAuthFlowHandle,
-} from "@elizaos/agent/auth/oauth-flow";
+import { createRuntimeAccountStoragePolicy } from "@elizaos/auth/auth/account-storage";
+import type { FlowState, OAuthFlowHandle } from "@elizaos/auth/auth/oauth-flow";
 import type {
   ProviderAuthProvider,
   ProviderAuthStartOptions,
@@ -59,16 +57,30 @@ let officialProviderAuthFlows:
   | undefined;
 
 function loadOfficialProviderAuthFlows(): Promise<ProviderAuthFlowDependencies> {
-  officialProviderAuthFlows ??= import("@elizaos/agent/auth/oauth-flow").then(
+  officialProviderAuthFlows ??= import("@elizaos/auth/auth/oauth-flow").then(
     (module) => ({
-      startCodex: module.startCodexOAuthFlow,
-      startAnthropic: module.startAnthropicOAuthFlow,
+      startCodex: (options) =>
+        module.startCodexOAuthFlow({
+          ...options,
+          storagePolicy: desktopStoragePolicy(),
+        }),
+      startAnthropic: (options) =>
+        module.startAnthropicOAuthFlow({
+          ...options,
+          storagePolicy: desktopStoragePolicy(),
+        }),
       subscribe: module.subscribeFlow,
       cancel: module.cancelFlow,
       submitCode: module.submitFlowCode,
     }),
   );
   return officialProviderAuthFlows;
+}
+
+function desktopStoragePolicy() {
+  const root = process.env.ELIZA_STATE_DIR?.trim();
+  if (!root) throw new Error("Desktop account storage is not configured.");
+  return createRuntimeAccountStoragePolicy(root);
 }
 
 function executableName(name: string, platform: NodeJS.Platform): string {

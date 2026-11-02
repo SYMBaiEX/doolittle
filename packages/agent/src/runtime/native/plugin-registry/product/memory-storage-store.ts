@@ -5,7 +5,6 @@ import type {
   JsonValue,
   LongTermMemory,
   LongTermMemoryCategory,
-  SessionSummary,
   UUID,
 } from "@elizaos/core";
 import {
@@ -27,23 +26,6 @@ interface LongTermMemoryRow {
   updated_at: string;
   last_accessed_at: string | null;
   access_count: number | null;
-}
-
-interface SessionSummaryRow {
-  id: string;
-  agent_id: string;
-  room_id: string;
-  entity_id: string | null;
-  summary: string;
-  message_count: number;
-  last_message_offset: number;
-  start_time: string;
-  end_time: string;
-  topics: string | null;
-  metadata: string | null;
-  embedding: string | null;
-  created_at: string;
-  updated_at: string;
 }
 
 interface AssignmentBuilder {
@@ -103,25 +85,6 @@ function mapLongTermMemory(
   };
 }
 
-function mapSessionSummary(row: SessionSummaryRow): SessionSummary {
-  return {
-    id: row.id as UUID,
-    agentId: row.agent_id as UUID,
-    roomId: row.room_id as UUID,
-    entityId: row.entity_id ? (row.entity_id as UUID) : undefined,
-    summary: row.summary,
-    messageCount: row.message_count,
-    lastMessageOffset: row.last_message_offset,
-    startTime: new Date(row.start_time),
-    endTime: new Date(row.end_time),
-    topics: parseJson<string[]>(row.topics),
-    metadata: parseJson<Record<string, JsonValue>>(row.metadata),
-    embedding: parseJson<number[]>(row.embedding),
-    createdAt: new Date(row.created_at),
-    updatedAt: new Date(row.updated_at),
-  };
-}
-
 function migrate(db: SessionDatabase): void {
   db.exec(`
     PRAGMA busy_timeout = 5000;
@@ -148,25 +111,7 @@ function migrate(db: SessionDatabase): void {
     CREATE INDEX IF NOT EXISTS idx_long_term_memories_agent_entity_category
       ON long_term_memories (agent_id, entity_id, category, created_at DESC);
 
-    CREATE TABLE IF NOT EXISTS session_summaries (
-      id TEXT PRIMARY KEY,
-      agent_id TEXT NOT NULL,
-      room_id TEXT NOT NULL,
-      entity_id TEXT,
-      summary TEXT NOT NULL,
-      message_count INTEGER NOT NULL,
-      last_message_offset INTEGER NOT NULL,
-      start_time TEXT NOT NULL,
-      end_time TEXT NOT NULL,
-      topics TEXT,
-      metadata TEXT,
-      embedding TEXT,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL
-    );
 
-    CREATE INDEX IF NOT EXISTS idx_session_summaries_agent_room
-      ON session_summaries (agent_id, room_id, end_time DESC, updated_at DESC);
   `);
 }
 
@@ -316,115 +261,5 @@ export class ElizaMemoryStorageStore {
          WHERE id = ?1 AND agent_id = ?2 AND entity_id = ?3`,
       )
       .run(id, agentId, entityId);
-  }
-
-  async storeSessionSummary(
-    summary: Omit<SessionSummary, "id" | "createdAt" | "updatedAt">,
-  ): Promise<SessionSummary> {
-    const now = new Date();
-    const stored: SessionSummary = {
-      ...summary,
-      id: randomUUID() as UUID,
-      createdAt: now,
-      updatedAt: now,
-    };
-    this.db
-      .query(
-        `INSERT INTO session_summaries (
-          id, agent_id, room_id, entity_id, summary, message_count,
-          last_message_offset, start_time, end_time, topics, metadata,
-          embedding, created_at, updated_at
-        ) VALUES (
-          ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14
-        )`,
-      )
-      .run(
-        stored.id,
-        stored.agentId,
-        stored.roomId,
-        stored.entityId ?? null,
-        stored.summary,
-        stored.messageCount,
-        stored.lastMessageOffset,
-        stored.startTime.toISOString(),
-        stored.endTime.toISOString(),
-        stored.topics ? JSON.stringify(stored.topics) : null,
-        stored.metadata ? JSON.stringify(stored.metadata) : null,
-        stored.embedding ? JSON.stringify(stored.embedding) : null,
-        stored.createdAt.toISOString(),
-        stored.updatedAt.toISOString(),
-      );
-    return stored;
-  }
-
-  async getCurrentSessionSummary(
-    agentId: UUID,
-    roomId: UUID,
-  ): Promise<SessionSummary | null> {
-    const row = this.db
-      .query(
-        `SELECT * FROM session_summaries
-         WHERE agent_id = ?1 AND room_id = ?2
-         ORDER BY end_time DESC, updated_at DESC LIMIT 1`,
-      )
-      .get(agentId, roomId) as SessionSummaryRow | null;
-    return row ? mapSessionSummary(row) : null;
-  }
-
-  async updateSessionSummary(
-    id: UUID,
-    agentId: UUID,
-    roomId: UUID,
-    updates: Partial<
-      Omit<
-        SessionSummary,
-        "id" | "agentId" | "roomId" | "createdAt" | "updatedAt"
-      >
-    >,
-  ): Promise<void> {
-    const patch = assignments();
-    if (updates.entityId !== undefined)
-      patch.push("entity_id", updates.entityId ?? null);
-    if (updates.summary !== undefined) patch.push("summary", updates.summary);
-    if (updates.messageCount !== undefined)
-      patch.push("message_count", updates.messageCount);
-    if (updates.lastMessageOffset !== undefined)
-      patch.push("last_message_offset", updates.lastMessageOffset);
-    if (updates.startTime !== undefined)
-      patch.push("start_time", updates.startTime.toISOString());
-    if (updates.endTime !== undefined)
-      patch.push("end_time", updates.endTime.toISOString());
-    if (updates.topics !== undefined)
-      patch.push("topics", JSON.stringify(updates.topics));
-    if (updates.metadata !== undefined)
-      patch.push("metadata", JSON.stringify(updates.metadata));
-    if (updates.embedding !== undefined)
-      patch.push("embedding", JSON.stringify(updates.embedding));
-    patch.push("updated_at", new Date().toISOString());
-    const values = [...patch.values, id, agentId, roomId];
-    const count = values.length;
-    this.db
-      .query(
-        `UPDATE session_summaries SET ${patch.assignments.join(", ")}
-         WHERE id = ?${count - 2}
-           AND agent_id = ?${count - 1}
-           AND room_id = ?${count}`,
-      )
-      .run(...values);
-  }
-
-  async getSessionSummaries(
-    agentId: UUID,
-    roomId: UUID,
-    limit = 5,
-  ): Promise<SessionSummary[]> {
-    const rows = this.db
-      .query(
-        `SELECT * FROM session_summaries
-         WHERE agent_id = ?1 AND room_id = ?2
-         ORDER BY end_time DESC, updated_at DESC LIMIT ?3`,
-      )
-      .all(agentId, roomId, Math.max(1, limit)) as SessionSummaryRow[];
-    return rows.map(mapSessionSummary);
   }
 }

@@ -1,17 +1,3 @@
-export interface NativePluginManagerService {
-  getAllPlugins?(): unknown[];
-  getLoadedPlugins?(): unknown[];
-  list?(): unknown[];
-  categories?(): unknown;
-  summary?(): {
-    total: number;
-    enabled: number;
-    official: number;
-    vendored: number;
-    categories: number;
-  };
-}
-
 export interface NativeDiscordTransportService {
   status?: () => unknown;
   history?: (limit?: number) => unknown[];

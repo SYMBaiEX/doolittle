@@ -1,5 +1,7 @@
-import { DOOLITTLE_SDK_CAPABILITIES_SERVICE } from "@doolittle/contracts";
-import { getGlobalAwarenessRegistry } from "@elizaos/agent/awareness/registry";
+import {
+  DOOLITTLE_AWARENESS_SERVICE,
+  DOOLITTLE_SDK_CAPABILITIES_SERVICE,
+} from "@doolittle/contracts";
 import {
   registerTriggerTaskWorker,
   triggersFeatureEnabled,
@@ -75,7 +77,13 @@ async function registerSelfMaintenanceTask(
     const worker: TaskWorker = {
       name: SELF_MAINTENANCE_TASK,
       execute: async () => {
-        getGlobalAwarenessRegistry()?.invalidate("config-changed");
+        const awareness = runtime.getService(DOOLITTLE_AWARENESS_SERVICE);
+        if (
+          awareness &&
+          "invalidate" in awareness &&
+          typeof awareness.invalidate === "function"
+        )
+          awareness.invalidate();
         return { nextInterval: SELF_MAINTENANCE_INTERVAL_MS };
       },
     };

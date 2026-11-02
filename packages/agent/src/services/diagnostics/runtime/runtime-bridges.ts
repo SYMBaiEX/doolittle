@@ -51,11 +51,13 @@ export const buildRuntimeBridgeChecks: DiagnosticsCheckBuilder<
       : "Runtime not attached; agent-event bridge cannot be inspected.",
   },
   {
-    id: "runtime.tool-policy",
-    status: runtimeExecutionControl?.toolPolicy.available ? "pass" : "warn",
-    summary: "Native tool policy service",
+    id: "runtime.action-authority",
+    status: runtimeExecutionControl?.actionAuthority.available
+      ? "pass"
+      : "warn",
+    summary: "Native per-request action authority",
     detail: runtimeExecutionControl
-      ? `native=${runtimeExecutionControl.toolPolicy.available} actions=${runtimeExecutionControl.toolPolicy.actions} codingAllowed=${runtimeExecutionControl.toolPolicy.codingAllowed} messagingAllowed=${runtimeExecutionControl.toolPolicy.messagingAllowed} fullAllowed=${runtimeExecutionControl.toolPolicy.fullAllowed}`
-      : "Runtime not attached; tool policy bridge cannot be inspected.",
+      ? `native=${runtimeExecutionControl.actionAuthority.available} registeredActions=${runtimeExecutionControl.actionAuthority.actions}`
+      : "Runtime not attached; action authority cannot be inspected.",
   },
 ];

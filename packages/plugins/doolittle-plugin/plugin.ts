@@ -1,5 +1,6 @@
 import { createElizaTextGenerationModelHandlers } from "@doolittle/provider-transport";
-import { ModelType, type Plugin } from "@elizaos/core";
+import { ModelType } from "@elizaos/core";
+import type { HttpPlugin as Plugin } from "@elizaos/host/protocol";
 import {
   createOfflineBootstrapEmbeddingModel,
   createOfflineBootstrapTextModel,

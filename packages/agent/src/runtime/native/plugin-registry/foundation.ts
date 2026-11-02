@@ -1,26 +1,24 @@
+import { createAssistantPlugins } from "@elizaos/agent/runtime/assistant-plugins";
 import { ElizaCharacterPersistenceService } from "@elizaos/agent/services/character-persistence";
 import { LocalFileStorageService } from "@elizaos/agent/services/file-storage";
-import { GlobalPauseService } from "@elizaos/agent/services/global-pause/index";
-import { HandoffService } from "@elizaos/agent/services/handoff/index";
-import {
-  KnowledgeGraphService,
-  knowledgeGraphSchema,
-} from "@elizaos/agent/services/knowledge-graph/index";
 import { AgentMediaGenerationService } from "@elizaos/agent/services/media-generation";
-import { PendingPromptsService } from "@elizaos/agent/services/pending-prompts/index";
 import { PermissionRegistry } from "@elizaos/agent/services/permissions-registry";
 import {
   AgentEventService,
   ApprovalService,
-  autonomyCapabilities,
   HookService,
   PairingService,
-  type Plugin,
-  PluginManagerService,
   type ServiceClass,
-  ToolPolicyService,
 } from "@elizaos/core";
+import type { HttpPlugin as Plugin } from "@elizaos/host/protocol";
+import {
+  autonomyCapabilities,
+  GlobalPauseService,
+  HandoffService,
+  PendingPromptsService,
+} from "@elizaos/plugin-assistant";
 import { browserPlugin } from "@elizaos/plugin-browser";
+import character from "../../../character";
 
 const autonomyRoutes = autonomyCapabilities.routes.map((route) => ({
   ...route,
@@ -63,25 +61,26 @@ const MediaGenerationServiceClass =
  */
 export function loadFoundationPlugins(worker = false): Plugin[] {
   return [
+    ...createAssistantPlugins({
+      ...character,
+      advancedMemory: true,
+      advancedPlanning: true,
+    }),
     {
       name: "doolittle-eliza-foundation",
       description:
         "Official ElizaOS knowledge, hooks, approval, policy, plugin-management, and autonomy capabilities.",
       actions: worker ? [] : autonomyCapabilities.actions,
       providers: worker ? [] : autonomyCapabilities.providers,
-      schema: knowledgeGraphSchema,
       services: [
         AgentEventService,
         HookService,
         PermissionRegistryClass,
-        KnowledgeGraphService,
         PendingPromptsServiceClass,
         GlobalPauseServiceClass,
         HandoffServiceClass,
         ApprovalService,
         ...(worker ? [] : [PairingServiceClass]),
-        ToolPolicyService,
-        PluginManagerService,
         CharacterPersistenceServiceClass,
         LocalFileStorageServiceClass,
         MediaGenerationServiceClass,

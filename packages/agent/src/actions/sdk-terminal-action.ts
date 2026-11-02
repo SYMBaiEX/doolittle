@@ -125,7 +125,13 @@ export function createSdkTerminalAction(
         }
       }
       if (result) recordScopedTurnActionResult(runtime, result);
-      return result;
+      return (
+        result ?? {
+          success: false,
+          error: "SHELL_RESULT_MISSING",
+          text: "The shell action returned no result.",
+        }
+      );
     },
   };
 }

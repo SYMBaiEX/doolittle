@@ -1,16 +1,23 @@
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
-import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { pathToFileURL } from "node:url";
 import { expect, it } from "vitest";
 
-const sdk = pathToFileURL(
-  createRequire(import.meta.url).resolve("@elizaos/plugin-agent-orchestrator"),
-).href;
+import { applyAmbientProcessSettings } from "../../packages/agent/src/runtime/bootstrap/env/plugin-settings/ambient";
+import type { PluginSettings } from "../../packages/agent/src/runtime/bootstrap/env/plugin-settings/types";
 
-for (const mode of ["native", "cli"]) {
+const sdk = import.meta.resolve("@elizaos/plugin-agent-orchestrator");
+
+it("rejects native ACP configuration before any SDK maintenance can start", () => {
+  expect(() =>
+    applyAmbientProcessSettings({} as PluginSettings, {
+      ELIZA_ACP_TRANSPORT: "native",
+    }),
+  ).toThrow("must be cli");
+});
+
+for (const mode of ["cli"]) {
   it(`keeps ${mode} restart reconciliation within its own transport's ownership`, () => {
     const home = mkdtempSync(join(tmpdir(), "doolittle-acp-maintenance-"));
     try {
@@ -39,8 +46,8 @@ for (const mode of ["native", "cli"]) {
         try {
           await service.start();
           assert.equal((await service.getSession('prior-session')).status,
-            mode === 'native' ? 'errored' : 'busy');
-          assert.equal(existsSync(lock), mode === 'native');
+            'busy');
+          assert.equal(existsSync(lock), false);
         } finally { await service.stop(); }
       `;
       expect(() =>

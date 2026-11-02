@@ -1,26 +1,11 @@
-import {
-  generateMcpConfigFromServerDetails,
-  getMcpServerDetails,
-  searchMcpMarketplace,
-} from "@elizaos/agent/services/mcp-marketplace";
+import { getMcpServerDetails, searchMcpMarketplace } from "@elizaos/plugin-mcp";
 import type { RuntimeLike } from "../runtime-contracts";
 import { requireNativeMcp } from "./native-services";
 
-const MCP_MARKETPLACE_SOURCE = "@elizaos/agent/services/mcp-marketplace";
+const MCP_MARKETPLACE_SOURCE = "@elizaos/plugin-mcp";
 
-// beta.7 ignores extra JavaScript arguments. PR elizaOS/eliza#18200 adds these
-// options to the public signatures, so this structural boundary starts
-// forwarding request cancellation now and becomes fully typed on upgrade.
-type McpMarketplaceRequestOptions = { signal?: AbortSignal };
-const searchMarketplace = searchMcpMarketplace as unknown as (
-  query: string,
-  limit: number,
-  options?: McpMarketplaceRequestOptions,
-) => ReturnType<typeof searchMcpMarketplace>;
-const getMarketplaceServer = getMcpServerDetails as unknown as (
-  name: string,
-  options?: McpMarketplaceRequestOptions,
-) => ReturnType<typeof getMcpServerDetails>;
+const searchMarketplace = searchMcpMarketplace;
+const getMarketplaceServer = getMcpServerDetails;
 
 function marketplaceAbortError(signal: AbortSignal): Error {
   const reason = signal.reason;
@@ -162,7 +147,9 @@ export async function getEffectiveMcpMarketplaceServer(
       source: MCP_MARKETPLACE_SOURCE,
       name,
       server,
-      config: server ? generateMcpConfigFromServerDetails(server) : null,
+      config: server?.remotes?.[0]
+        ? { type: server.remotes[0].type, url: server.remotes[0].url }
+        : null,
     };
   } catch {
     if (signal?.aborted) throw marketplaceAbortError(signal);

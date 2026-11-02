@@ -4,6 +4,14 @@ export function applyAmbientProcessSettings(
   settings: PluginSettings,
   env: NodeJS.ProcessEnv,
 ): void {
+  if (
+    env.ELIZA_ACP_TRANSPORT?.trim() &&
+    env.ELIZA_ACP_TRANSPORT.trim() !== "cli"
+  ) {
+    throw new Error(
+      "Doolittle uses the SDK's ACPX CLI transport; ELIZA_ACP_TRANSPORT must be cli.",
+    );
+  }
   settings.E2B_MODE = env.E2B_MODE ?? "local";
   settings.NODE_ENV = env.NODE_ENV ?? "development";
   // Core getSetting reads character/runtime settings, not process.env. In

@@ -2,8 +2,9 @@ import {
   DOOLITTLE_RUN_PROGRESS_SERVICE,
   DOOLITTLE_SDK_CAPABILITIES_SERVICE,
 } from "@doolittle/contracts";
-import { installDatabaseTrajectoryLogger } from "@elizaos/agent/runtime/trajectory-persistence";
-import { type AgentRuntime, TrajectoriesService } from "@elizaos/core";
+import { installDatabaseTrajectoryLogger } from "@elizaos/agent/runtime/trajectory-storage";
+import type { AgentRuntime } from "@elizaos/core";
+import { TrajectoriesService } from "@elizaos/plugin-assistant";
 
 /**
  * Completes configuration that requires an initialized runtime.

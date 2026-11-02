@@ -1,10 +1,9 @@
 import { createHash } from "node:crypto";
 import { basename, join } from "node:path";
-import {
-  type LoadedSkillWithSource,
-  type SkillCatalogEntry,
-  type SkillDetails,
-  searchSkillsMarketplace,
+import type {
+  LoadedSkillWithSource,
+  SkillCatalogEntry,
+  SkillDetails,
 } from "@elizaos/plugin-agent-skills";
 import type { AppServices } from "../../../../services/index";
 import type {
@@ -240,6 +239,7 @@ export async function searchEffectiveSkillHubCatalog(
 }
 
 export async function searchEffectiveSkillsMarketplace(
+  runtime: RuntimeLike,
   query: string,
   limit = 15,
 ) {
@@ -249,7 +249,7 @@ export async function searchEffectiveSkillsMarketplace(
       source: OFFICIAL_SOURCE,
       query,
       limit,
-      results: await searchSkillsMarketplace(query, { limit }),
+      results: await requireOfficialAgentSkills(runtime).search(query, limit),
     };
   } catch {
     return {

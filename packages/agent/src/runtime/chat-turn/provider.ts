@@ -13,7 +13,7 @@ import type { AgentExecutionContext } from "../chat";
 import { buildProviderRuntimeSettings } from "../linked-provider-accounts/index";
 import {
   runWithTurnRuntimeScope,
-  TurnPlannerBudget,
+  TurnContinuationBudget,
 } from "../turn-runtime-scope";
 import type { NativeMessagePolicy } from "./native/types";
 import {
@@ -189,9 +189,8 @@ export async function runProviderModelTurn(
         runLocalShellCommand: input.options?.runLocalShellCommand,
       },
       settledActionResults: [],
-      plannerBudget: new TurnPlannerBudget(
+      continuationBudget: new TurnContinuationBudget(
         input.messagePolicy.maxIterations,
-        input.settingsDuring.model.model,
       ),
     },
     async () => {

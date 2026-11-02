@@ -1,9 +1,7 @@
 import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import {
-  readJsonFileSync,
-  writeJsonAtomicSync,
-} from "@elizaos/agent/utils/atomic-json";
+import { readOptionalJson } from "@doolittle/storage";
+import { writeJsonAtomicSync } from "@elizaos/core";
 import type { SkillProposalRecord } from "./proposal";
 
 export interface GeneratedSkillRecord {
@@ -45,7 +43,7 @@ export function createGeneratedSkillStorage(skillsDir: string) {
       if (!existsSync(indexPath)) {
         return { skills: [] };
       }
-      const parsed = readJsonFileSync<{
+      const parsed = readOptionalJson<{
         skills?: Array<Partial<GeneratedSkillRecord>>;
       }>(indexPath);
       return {
@@ -85,7 +83,7 @@ export function createGeneratedSkillStorage(skillsDir: string) {
     },
     readProposals(): SkillProposalIndex {
       if (!existsSync(proposalsPath)) return { proposals: [] };
-      const parsed = readJsonFileSync<{
+      const parsed = readOptionalJson<{
         proposals?: SkillProposalRecord[];
       }>(proposalsPath);
       return {

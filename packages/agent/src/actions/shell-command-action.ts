@@ -1,10 +1,8 @@
 import type {
   Action,
   ActionResult,
-  AgentRuntime,
   IAgentRuntime,
   Memory,
-  ShortcutDefinition,
 } from "@elizaos/core";
 import { getMemoryText } from "@elizaos/core";
 import {
@@ -12,7 +10,10 @@ import {
   formatTerminalCommandResponse,
   requestTerminalCommandApprovalDetails,
 } from "../runtime/commands/shell-command-facade";
-import { getScopedTurnAbortSignal } from "../runtime/turn-runtime-scope";
+import {
+  getScopedTurnAbortSignal,
+  recordScopedTurnActionResult,
+} from "../runtime/turn-runtime-scope";
 import type { AppServices } from "../services/index";
 import type { ChatTurnRequest, EnvConfig } from "../types/runtime/index";
 
@@ -39,28 +40,13 @@ function matchesRegisteredShellShortcut(
   runtime: IAgentRuntime,
   text: string,
 ): boolean {
-  const shortcutRegistry = (
-    runtime as IAgentRuntime & Pick<AgentRuntime, "shortcutRegistry">
-  ).shortcutRegistry;
-  const match = shortcutRegistry.match(text, {
-    actions: runtime.actions.map((action) => action.name),
-    allowNatural: false,
-  });
   return (
-    match?.shortcut.target.kind === "action" &&
-    match.shortcut.target.name === DOOLITTLE_SHELL_SHORTCUT_ACTION
+    runtime.actions.some(
+      (action) => action.name === DOOLITTLE_SHELL_SHORTCUT_ACTION,
+    ) &&
+    text.trim().startsWith("!") &&
+    !/^!web(?:\s|:|$)/iu.test(text.trim())
   );
-}
-
-export function createShellCommandShortcut(): ShortcutDefinition {
-  return {
-    id: "doolittle-shell-command",
-    kind: "explicit",
-    aliases: ["!"],
-    target: { kind: "action", name: DOOLITTLE_SHELL_SHORTCUT_ACTION },
-    requiresAction: DOOLITTLE_SHELL_SHORTCUT_ACTION,
-    priority: 60,
-  };
 }
 
 function shellCommandInput(message: Memory): ChatTurnRequest {
@@ -144,6 +130,7 @@ export function createShellCommandAction(
     description:
       "Executes an explicit ! shell command through the Eliza shortcut, action, permission, and service lifecycle.",
     similes: [],
+    mode: "ALWAYS_BEFORE",
     // The handler emits the canonical terminal result itself. Let the SDK own
     // the action lifecycle, but do not ask a planner to add a second reply.
     suppressPostActionContinuation: true,
@@ -226,8 +213,7 @@ export function createShellCommandAction(
         );
         throwIfShellActionAborted(abortSignal);
         const text = formatTerminalCommandResponse(result);
-        await callback?.({ text, source: "doolittle-shell-command" });
-        return {
+        const actionResult: ActionResult = {
           success: result.exitCode === 0,
           text,
           userFacingText: text,
@@ -242,6 +228,9 @@ export function createShellCommandAction(
             durationMs: result.durationMs,
           },
         };
+        recordScopedTurnActionResult(runtime, actionResult);
+        await callback?.({ text, source: "doolittle-shell-command" });
+        return actionResult;
       } catch (error) {
         if (abortSignal?.aborted) throw error;
         const text = `Shell command failed: ${

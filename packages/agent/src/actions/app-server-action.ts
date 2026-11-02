@@ -1,10 +1,7 @@
 import { hasOwnerAccess } from "@elizaos/agent/security/access";
 import { resolveShellExecutionMode } from "@elizaos/agent/services/shell-execution-router";
-import {
-  type Action,
-  type ActionResult,
-  isLocalCodeExecutionAllowed,
-} from "@elizaos/core";
+import type { Action, ActionResult } from "@elizaos/core";
+import { isLocalCodeExecutionAllowed } from "@elizaos/host";
 import {
   hasSuccessfulWorkspaceBuild,
   hasWorkspaceCodingAttempt,

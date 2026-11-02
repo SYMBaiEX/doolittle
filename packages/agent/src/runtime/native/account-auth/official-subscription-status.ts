@@ -1,9 +1,8 @@
 import {
   getSubscriptionStatus,
   type SubscriptionAccountStatus,
-} from "@elizaos/agent/auth/credentials";
+} from "@elizaos/auth/auth/credentials";
 import { buildProviderStatus } from "./account-auth-helpers";
-import { withOfficialAuthHome } from "./store";
 import type { LinkedProviderAccountStatus } from "./types";
 
 const CACHE_TTL_MS = 3_000;
@@ -21,8 +20,7 @@ interface OfficialSubscriptionStatusDependencies {
 }
 
 const defaultDependencies: OfficialSubscriptionStatusDependencies = {
-  getSubscriptionStatus: () =>
-    withOfficialAuthHome(() => getSubscriptionStatus()),
+  getSubscriptionStatus,
   now: Date.now,
 };
 

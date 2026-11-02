@@ -7,7 +7,7 @@ import {
 } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { readRegularFileSync } from "@doolittle/agent/utils/read-regular-file";
-import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
+import { writeJsonAtomicSync } from "@elizaos/core";
 import type { CliJobIndex, CliJobRecord, CliJobStatus } from "../types";
 import { reconcileJobRecords } from "./events";
 

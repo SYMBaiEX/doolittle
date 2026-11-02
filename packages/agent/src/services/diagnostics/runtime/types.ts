@@ -11,13 +11,7 @@ export interface DiagnosticsExecutionControlLike {
     heartbeat: boolean;
     lastHeartbeatStatus?: string | null;
   };
-  toolPolicy: {
-    available: boolean;
-    actions: number;
-    codingAllowed: number;
-    messagingAllowed: number;
-    fullAllowed: number;
-  };
+  actionAuthority: { available: boolean; actions: number };
 }
 
 export interface DiagnosticsIntegrationControlLike {

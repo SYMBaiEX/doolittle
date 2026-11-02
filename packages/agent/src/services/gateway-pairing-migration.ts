@@ -1,9 +1,9 @@
 import { existsSync, readFileSync } from "node:fs";
-import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
 import {
   type IAgentRuntime,
   type PairingService,
   stringToUuid,
+  writeJsonAtomicSync,
 } from "@elizaos/core";
 import type {
   PairingAllowlistEntry,

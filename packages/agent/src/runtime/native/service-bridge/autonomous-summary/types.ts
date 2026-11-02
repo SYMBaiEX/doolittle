@@ -11,12 +11,10 @@ export type NativeServicesSnapshot = {
   agentOrchestrator: NativeAgentOrchestratorService;
   codingAgent: NativeCodingAgentService;
   trajectoryLogger: NativeTrajectoryLoggerService;
-  pluginManager?: unknown;
   actionPlanning?: unknown;
   operatorPlanning?: unknown;
   approval?: unknown;
   agentEvent?: unknown;
-  toolPolicy?: unknown;
   forms?: unknown;
   e2b?: unknown;
   codeGeneration?: unknown;
@@ -51,12 +49,7 @@ export type ExecutionControlLike = {
   e2b: {
     sandboxes: number;
   };
-  toolPolicy: {
-    actions: number;
-    codingAllowed: number;
-    messagingAllowed: number;
-    fullAllowed: number;
-  };
+  actionAuthority: { available: boolean; actions: number };
   planning: {
     plans: {
       total: number;

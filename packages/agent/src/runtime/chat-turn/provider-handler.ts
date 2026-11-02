@@ -1,6 +1,7 @@
 import {
   type ActionResult,
   type Memory,
+  type MessageProcessingResult,
   setTrajectoryPurpose,
 } from "@elizaos/core";
 import {
@@ -8,14 +9,17 @@ import {
   extractLocalMutationsFromActionResult,
 } from "../action-result-metadata";
 import type { AgentExecutionContext } from "../chat";
-import { matchesRegisteredCommandShortcut } from "../command-shortcut-match";
+import {
+  matchesRegisteredClientControl,
+  matchesRegisteredCommandShortcut,
+} from "../command-shortcut-match";
 import { checkOllamaReadiness } from "../native/plugin-registry/ollama-readiness";
 import {
   getScopedTurnActionResults,
-  getScopedTurnPlannerBudget,
+  getScopedTurnContinuationBudget,
   recordScopedTurnActionResult,
   resolveScopedTurnActionResult,
-  TurnPlannerBudget,
+  TurnContinuationBudget,
 } from "../turn-runtime-scope";
 import { hasWorkspaceMutationObligation } from "../workspace-mutation-intent";
 import {
@@ -122,22 +126,15 @@ function responseText(memory: Memory | undefined): string {
   return typeof content?.text === "string" ? content.text.trim() : "";
 }
 
-type SdkResponseContent = {
-  text?: unknown;
-  failureKind?: unknown;
-  thought?: unknown;
-};
-
-function isSdkFailureReply(content: SdkResponseContent | null | undefined) {
-  // beta.7 annotates no-provider replies, but its structured-failure builder
-  // only supplies this fixed internal marker. Do not classify ordinary prose
-  // (including a user asking about errors) by matching the displayed text.
-  return (
-    content?.failureKind === "no_provider" ||
-    content?.failureKind === "trajectory_limit" ||
-    content?.thought ===
-      "Handle a temporary reply failure during running the native tool message runtime."
-  );
+function sdkFailure(result: MessageProcessingResult | undefined) {
+  if (!result || result.outcome.status === "completed") return undefined;
+  if (result.outcome.status === "failed") return result.outcome.error;
+  return { kind: result.outcome.status, message: result.outcome.reason };
+}
+function isSdkFailureReply(
+  result: MessageProcessingResult | undefined,
+): boolean {
+  return result !== undefined && result.outcome.status !== "completed";
 }
 
 function actionResultsFromState(state: unknown): ActionResult[] {
@@ -196,7 +193,7 @@ type SdkResponseOrigin =
   | "empty";
 
 function resolveSdkMessageResponse(input: {
-  responseContent?: SdkResponseContent | null;
+  responseContent?: { text?: unknown } | null;
   responseMessages: Memory[];
   provisionalResponse: string;
   actionResults: ActionResult[];
@@ -290,11 +287,10 @@ export async function executeProviderMessageTurn(
   let actionResults: ActionResult[] = [];
   const settledActionResults: ActionResult[] = [];
   let responseMessages: Memory[] = [];
-  const plannerBudget =
-    getScopedTurnPlannerBudget(input.context.runtime) ??
-    new TurnPlannerBudget(
+  const continuationBudget =
+    getScopedTurnContinuationBudget(input.context.runtime) ??
+    new TurnContinuationBudget(
       input.messagePolicy.maxIterations,
-      input.settingsDuring.model.model,
       MAX_MUTATION_CONTINUATION_PASSES,
     );
 
@@ -359,6 +355,25 @@ export async function executeProviderMessageTurn(
       try {
         throwIfTurnAborted(input.abortSignal);
         setTrajectoryPurpose("response");
+        if (matchesRegisteredClientControl(input.context.runtime, prompt)) {
+          const executed = await input.context.runtime.runActionsByMode(
+            "ALWAYS_BEFORE",
+            input.memory,
+            undefined,
+            { callback: input.streamState.onCallbackContent },
+          );
+          throwIfTurnAborted(input.abortSignal);
+          handledMessage = true;
+          actionResults = getScopedTurnActionResults(input.context.runtime);
+          response = input.streamState.getResponse();
+          if (!executed.length || !response.trim()) {
+            response =
+              "The client command could not complete under the current action permissions.";
+            runFailureMessage = response;
+          }
+          input.streamState.setResponse(response);
+          return;
+        }
         const messageService = input.context.runtime.messageService;
         if (!messageService) {
           throw new Error("ElizaOS message service is not registered.");
@@ -396,17 +411,13 @@ export async function executeProviderMessageTurn(
         const allResponseMessages: Memory[] = [];
         let consecutiveNoActionPasses = 0;
 
-        // Check workspace mutations against Doolittle's receipt gate after
-        // each SDK message pass. The installed beta.7 planner ignores the
-        // legacy iteration/continuation hints below: one handleMessage call
-        // can execute multiple actions before returning. The shared allowance
-        // now forwards real SDK limits and bounds both passes and tool calls.
-        // Continuing on the same
-        // memory ID preserves the original room/session without another
-        // visible user message; the SDK still owns its internal planner.
-        for (let attempt = 0; !plannerBudget.exhausted; attempt += 1) {
+        // The SDK owns each complete planner pass and its native limits.
+        // Doolittle only bounds receipt-continuation passes on the same room
+        // and memory identity, without patching SDK planner configuration.
+        for (let attempt = 0; !continuationBudget.exhausted; attempt += 1) {
           throwIfTurnAborted(input.abortSignal);
           const settledCountBeforeAttempt = settledActionResults.length;
+          continuationBudget.beginPass();
           messageResult = await messageService.handleMessage(
             input.context.runtime,
             messageMemory,
@@ -418,20 +429,16 @@ export async function executeProviderMessageTurn(
                 : input.messagePolicy.useMultiStep
                   ? input.messagePolicy.maxIterations
                   : 1,
-              // Compatibility hint, not an enforceable one-action yield on
-              // beta.7. sdk-planner-yield.test.ts exercises the installed SDK;
-              // a hard tool-call refusal is not a completion-preserving yield.
+              // Let the client inspect committed effects before continuing a
+              // mutation turn through the SDK planner.
               continueAfterActions: !mutationObligation,
               abortSignal: input.abortSignal,
-              plannerLoopConfig: plannerBudget.beginPass(),
               // Once a managed coding child has completed, its final response
               // must come from the terminal receipt below. Suppress the SDK's
-              // provisional follow-up text so beta.7's streamed no-provider
-              // fallback cannot appear as a false error before its structured
-              // failure marker is available. Run and tool progress still
+              // provisional follow-up text before its structured outcome is
+              // available. Run and tool progress still
               // streams; post-provider emits the selected final answer once.
               onStreamChunk: async (chunk: string) => {
-                plannerBudget.observeStreamChunk(chunk);
                 const streamResults = [
                   ...actionResults,
                   ...settledActionResults,
@@ -440,8 +447,7 @@ export async function executeProviderMessageTurn(
                 if (completedManagedDelegationResponse(streamResults)) return;
                 await input.streamState.onStreamChunk(chunk);
               },
-              // Available in current Eliza develop and ignored by beta.7. Keep
-              // committed action evidence even if a later planner stage fails.
+              // Keep committed action evidence if a later planner stage fails.
               onSettledActionResult: (result: ActionResult) => {
                 if (
                   !resolveScopedTurnActionResult(input.context.runtime, result)
@@ -450,8 +456,6 @@ export async function executeProviderMessageTurn(
                 }
                 settledActionResults.push(result);
               },
-            } as Parameters<typeof messageService.handleMessage>[3] & {
-              onSettledActionResult: (result: ActionResult) => void;
             },
           );
           throwIfTurnAborted(input.abortSignal);
@@ -471,7 +475,6 @@ export async function executeProviderMessageTurn(
               : stateActionResults.length > 0
                 ? stateActionResults
                 : settledThisAttempt;
-          plannerBudget.finishPass(attemptActionResults.length);
           actionResults = collectProviderActionResults(
             input.context.runtime,
             actionResults,
@@ -593,10 +596,10 @@ export async function executeProviderMessageTurn(
               prompt,
             ) ||
             !mutationObligation ||
-            isSdkFailureReply(messageResult?.responseContent) ||
+            isSdkFailureReply(messageResult) ||
             hasPendingApproval(input.context, sessionId) ||
             attempt >= MAX_MUTATION_CONTINUATION_PASSES - 1 ||
-            plannerBudget.exhausted ||
+            continuationBudget.exhausted ||
             consecutiveNoActionPasses >= MAX_CONSECUTIVE_NO_ACTION_PASSES ||
             // A strict no-op receipt includes the completed coding-agent
             // attestation plus the requested parent install/build and ready
@@ -711,17 +714,15 @@ export async function executeProviderMessageTurn(
           runFailureMessage = delegatedFailure.message;
           response = delegatedFailure.message;
         }
-        if (
-          !runFailureMessage &&
-          isSdkFailureReply(messageResult?.responseContent)
-        ) {
+        if (!runFailureMessage && isSdkFailureReply(messageResult)) {
           const providerFailure =
+            sdkFailure(messageResult)?.message ||
             response ||
             "The model provider could not complete this turn. Check provider status and retry.";
           const completedPass =
             completedManagedDelegationResponse(actionResults);
           const plannerLimitReached =
-            messageResult?.responseContent?.failureKind === "trajectory_limit";
+            sdkFailure(messageResult)?.kind === "planner_exhaustion";
           if (admittedIncomplete !== undefined) {
             runFailureMessage =
               incompleteAdmittedWorkspaceFailure(actionResults);
@@ -745,7 +746,7 @@ export async function executeProviderMessageTurn(
                 roomId: input.roomId,
                 provider: input.settingsDuring.model.provider,
                 model: input.settingsDuring.model.model,
-                failureKind: messageResult?.responseContent?.failureKind,
+                failureKind: sdkFailure(messageResult)?.kind,
                 verifiedMutation: hasVerifiedWorkspaceMutation(actionResults),
                 managedAppReady: Boolean(appServerSummary),
               },
@@ -828,10 +829,8 @@ export async function executeProviderMessageTurn(
           response = runFailureMessage;
         }
         if (!runFailureMessage && verifiedNoopCompletion) {
-          const providerUnavailable = isSdkFailureReply(
-            messageResult?.responseContent,
-          )
-            ? messageResult?.responseContent?.failureKind === "trajectory_limit"
+          const providerUnavailable = isSdkFailureReply(messageResult)
+            ? sdkFailure(messageResult)?.kind === "planner_exhaustion"
               ? "The parent planner reached its configured execution limit; completion is based on the verified coding, build, server, and HTTP receipts."
               : "The configured response provider did not produce a final message; completion is based on the verified coding, build, server, and HTTP receipts."
             : undefined;

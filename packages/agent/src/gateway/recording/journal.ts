@@ -13,7 +13,7 @@ import {
   writeSync,
 } from "node:fs";
 import { dirname } from "node:path";
-import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
+import { writeJsonAtomicSync } from "@elizaos/core";
 
 export function ensureGatewayJournalFile(pathname: string): void {
   const directory = dirname(pathname);

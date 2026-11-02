@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, statSync, writeFileSync } from "node:fs";
 import { extname, resolve } from "node:path";
-import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
+import { writeJsonAtomicSync } from "@elizaos/core";
 import {
   resolveWorkspaceDirectory,
   type WorkspaceDirectorySource,

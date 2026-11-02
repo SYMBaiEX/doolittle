@@ -1,28 +1,28 @@
 import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import {
-  type AccountCredentialRecord,
-  loadAccount,
-  saveAccount,
-} from "@elizaos/agent/auth/account-storage";
-import {
-  deleteCredentials,
-  getAccessToken,
-  listProviderAccounts,
-  saveCredentials,
-} from "@elizaos/agent/auth/credentials";
-import type {
-  AccountCredentialProvider,
-  OAuthCredentials,
-} from "@elizaos/agent/auth/types";
-import {
   type AccountPool,
   applyAccountPoolApiCredentials as applyOfficialAccountPoolApiCredentials,
   configureDefaultAccountPoolSelection,
   getDefaultAccountPool,
   type Strategy,
   startAccountPoolKeepAlive,
-} from "@elizaos/app-core/account-pool";
+} from "@elizaos/auth/accounts";
+import {
+  type AccountCredentialRecord,
+  loadAccount,
+  saveAccount,
+} from "@elizaos/auth/auth/account-storage";
+import {
+  deleteCredentials,
+  getAccessToken,
+  listProviderAccounts,
+  saveCredentials,
+} from "@elizaos/auth/auth/credentials";
+import type {
+  AccountCredentialProvider,
+  OAuthCredentials,
+} from "@elizaos/auth/auth/types";
 import * as elizaCore from "@elizaos/core";
 import {
   getLinkedClaudeCodeCredentials,
@@ -32,6 +32,7 @@ import {
 import { readJson, writeJson } from "../account-auth/shared";
 import {
   DOOLITTLE_LINKED_ACCOUNT_IDS,
+  getOfficialAccountStoragePolicy,
   getProviderAuthStorePath,
   getStoredClaudeCodeCredentials,
   getStoredCodexCredentials,
@@ -290,7 +291,11 @@ function linkedOfficialAccount(
 ): AccountCredentialRecord | null {
   if (providerId === "openai-codex") getStoredCodexCredentials();
   else getStoredClaudeCodeCredentials();
-  return loadAccount(providerId, LINKED_ACCOUNT_IDS[providerId]);
+  return loadAccount(
+    providerId,
+    LINKED_ACCOUNT_IDS[providerId],
+    getOfficialAccountStoragePolicy(),
+  );
 }
 
 function isDirectApiProvider(value: unknown): value is DirectApiProvider {
@@ -330,22 +335,38 @@ function importLegacyAccount(
   organizationId?: string,
   overwriteExisting = false,
 ): boolean {
-  const existing = loadAccount(providerId, accountId);
+  const existing = loadAccount(
+    providerId,
+    accountId,
+    getOfficialAccountStoragePolicy(),
+  );
   if (!credentials || (existing && !overwriteExisting)) {
     return false;
   }
-  saveCredentials(providerId, credentials, accountId);
-  const record = loadAccount(providerId, accountId);
+  saveCredentials(
+    providerId,
+    credentials,
+    accountId,
+    getOfficialAccountStoragePolicy(),
+  );
+  const record = loadAccount(
+    providerId,
+    accountId,
+    getOfficialAccountStoragePolicy(),
+  );
   if (
     record &&
     ((!existing && record.label !== label) ||
       (organizationId && record.organizationId !== organizationId))
   ) {
-    saveAccount({
-      ...record,
-      ...(!existing && record.label !== label ? { label } : {}),
-      ...(organizationId ? { organizationId } : {}),
-    });
+    saveAccount(
+      {
+        ...record,
+        ...(!existing && record.label !== label ? { label } : {}),
+        ...(organizationId ? { organizationId } : {}),
+      },
+      getOfficialAccountStoragePolicy(),
+    );
   }
   return true;
 }
@@ -376,7 +397,10 @@ export function importCurrentDoolittleAccount(
     linked?.organizationId,
     true,
   );
-  if (!imported && !loadAccount(providerId, normalizedId)) {
+  if (
+    !imported &&
+    !loadAccount(providerId, normalizedId, getOfficialAccountStoragePolicy())
+  ) {
     return null;
   }
   invalidateOfficialSubscriptionStatusCache();
@@ -400,21 +424,28 @@ export function importDoolittleApiAccount(
   );
   const value = secretValue.trim();
   if (!value) throw new Error("resolved secret value must be non-empty");
-  const existing = loadAccount(providerId, normalizedId);
-  const now = Date.now();
-  saveAccount({
-    id: normalizedId,
+  const existing = loadAccount(
     providerId,
-    label: normalizedLabel,
-    source: "api-key",
-    createdAt: existing?.createdAt ?? now,
-    updatedAt: now,
-    credentials: {
-      access: value,
-      refresh: "",
-      expires: Number.MAX_SAFE_INTEGER,
+    normalizedId,
+    getOfficialAccountStoragePolicy(),
+  );
+  const now = Date.now();
+  saveAccount(
+    {
+      id: normalizedId,
+      providerId,
+      label: normalizedLabel,
+      source: "api-key",
+      createdAt: existing?.createdAt ?? now,
+      updatedAt: now,
+      credentials: {
+        access: value,
+        refresh: "",
+        expires: Number.MAX_SAFE_INTEGER,
+      },
     },
-  });
+    getOfficialAccountStoragePolicy(),
+  );
   const account = getDoolittleAccountPool().get(normalizedId, providerId);
   return account ? toSnapshot(account as never) : null;
 }
@@ -427,14 +458,38 @@ export function importDoolittleApiAccount(
 export function importLegacyDoolittleAccounts(): number {
   const codexId = LINKED_ACCOUNT_IDS["openai-codex"];
   const claudeId = LINKED_ACCOUNT_IDS["anthropic-subscription"];
-  const hadCodex = Boolean(loadAccount("openai-codex", codexId));
-  const hadClaude = Boolean(loadAccount("anthropic-subscription", claudeId));
+  const hadCodex = Boolean(
+    loadAccount("openai-codex", codexId, getOfficialAccountStoragePolicy()),
+  );
+  const hadClaude = Boolean(
+    loadAccount(
+      "anthropic-subscription",
+      claudeId,
+      getOfficialAccountStoragePolicy(),
+    ),
+  );
   getStoredCodexCredentials();
   getStoredClaudeCodeCredentials();
   const imported =
-    Number(!hadCodex && Boolean(loadAccount("openai-codex", codexId))) +
     Number(
-      !hadClaude && Boolean(loadAccount("anthropic-subscription", claudeId)),
+      !hadCodex &&
+        Boolean(
+          loadAccount(
+            "openai-codex",
+            codexId,
+            getOfficialAccountStoragePolicy(),
+          ),
+        ),
+    ) +
+    Number(
+      !hadClaude &&
+        Boolean(
+          loadAccount(
+            "anthropic-subscription",
+            claudeId,
+            getOfficialAccountStoragePolicy(),
+          ),
+        ),
     );
   if (imported > 0) invalidateOfficialSubscriptionStatusCache();
   return imported;
@@ -448,6 +503,7 @@ export function initializeDoolittleAccountPool(dataDir?: string): AccountPool {
   if (dataDir?.trim()) {
     process.env.DOOLITTLE_DATA_DIR ??= dataDir;
     process.env.ELIZA_HOME ??= dataDir;
+    process.env.ELIZA_STATE_DIR ??= process.env.ELIZA_HOME;
   }
   configurePoolSelection();
   importLegacyDoolittleAccounts();
@@ -540,7 +596,11 @@ export async function synchronizeDoolittleAccountPoolFromNativeStores(
   const now = Date.now();
   for (const providerId of ACCOUNT_POOL_PROVIDERS) {
     for (const account of pool.list(providerId)) {
-      const record = loadAccount(providerId, account.id);
+      const record = loadAccount(
+        providerId,
+        account.id,
+        getOfficialAccountStoragePolicy(),
+      );
       const credentials = record?.credentials;
       const accessUsable = Boolean(
         credentials?.access &&
@@ -617,7 +677,9 @@ export async function testDoolittleAccountCredentials(
   if (!pool.get(accountId, providerId)) return null;
   const startedAt = Date.now();
   try {
-    const accessToken = await resolveAccessToken(providerId, accountId);
+    const accessToken = await resolveAccessToken(providerId, accountId, {
+      storagePolicy: getOfficialAccountStoragePolicy(),
+    });
     const latencyMs = Date.now() - startedAt;
     if (!accessToken) {
       await markCredentialFailure(pool, providerId, accountId);
@@ -670,7 +732,9 @@ export async function refreshDoolittleAccountUsage(
   const linked = pool.get(accountId, providerId);
   if (!linked) return null;
   try {
-    const accessToken = await resolveAccessToken(providerId, accountId);
+    const accessToken = await resolveAccessToken(providerId, accountId, {
+      storagePolicy: getOfficialAccountStoragePolicy(),
+    });
     if (!accessToken) {
       await markCredentialFailure(pool, providerId, accountId);
       const account = pool.get(accountId, providerId);
@@ -740,9 +804,16 @@ export async function updateDoolittleAccount(
   ) {
     throw new Error("set at least one of label, enabled, or priority");
   }
-  const credentialRecord = loadAccount(providerId, accountId);
+  const credentialRecord = loadAccount(
+    providerId,
+    accountId,
+    getOfficialAccountStoragePolicy(),
+  );
   if (label && credentialRecord) {
-    saveAccount({ ...credentialRecord, label });
+    saveAccount(
+      { ...credentialRecord, label },
+      getOfficialAccountStoragePolicy(),
+    );
   }
   await pool.upsert({
     ...account,
@@ -764,6 +835,7 @@ export async function deleteDoolittleAccount(
   deleteCredentials(
     providerId as Parameters<typeof deleteCredentials>[0],
     accountId,
+    getOfficialAccountStoragePolicy(),
   );
   invalidateOfficialSubscriptionStatusCache();
   return true;
@@ -772,5 +844,5 @@ export async function deleteDoolittleAccount(
 export function listDoolittleProviderCredentials(
   providerId: AccountPoolProvider,
 ): AccountCredentialRecord[] {
-  return listProviderAccounts(providerId);
+  return listProviderAccounts(providerId, getOfficialAccountStoragePolicy());
 }

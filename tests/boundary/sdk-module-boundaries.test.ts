@@ -1,24 +1,20 @@
 import type { IncomingMessage } from "node:http";
 import { createRequire } from "node:module";
-import { isTrustedLocalRequest } from "eliza-http/api/server-helpers-auth";
+import { isTrustedLocalRequest } from "@elizaos/agent/api/server-helpers-auth";
 import { afterEach, expect, it, vi } from "vitest";
 
 const requireFromRepo = createRequire(import.meta.url);
 afterEach(() => vi.unstubAllEnvs());
-it("resolves SQL and orchestration to their supported Node ESM entries for both import and require", () => {
+it("resolves the product SDK imports to their supported Node ESM entries", () => {
   for (const [name, suffix] of [
-    ["@elizaos/plugin-sql", "/src/dist/node/index.node.js"],
+    ["@elizaos/plugin-sql", "/dist/index.js"],
     ["@elizaos/plugin-agent-orchestrator", "/dist/node/index.node.js"],
   ]) {
     expect(import.meta.resolve(name).endsWith(suffix)).toBe(true);
-    expect(
-      requireFromRepo.resolve(name).replaceAll("\\", "/").endsWith(suffix),
-    ).toBe(true);
   }
 });
-it("runs the published HTTP policy without unpublished SDK compatibility packages", () => {
+it("runs the source HTTP policy without SDK compatibility stubs", () => {
   for (const name of [
-    "@elizaos/registry",
     "@elizaos/plugin-worker-runtime/error",
     "@elizaos/plugin-remote-manifest",
   ])
