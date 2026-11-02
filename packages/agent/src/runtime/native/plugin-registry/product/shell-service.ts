@@ -26,7 +26,7 @@ export function createShellRuntimeService(services: AppServices): ServiceClass {
       command: string,
       timeoutMs?: number,
       abortSignal?: AbortSignal,
-      options?: { requireCancellation?: boolean },
+      options?: { requireCancellation?: boolean; runId?: string },
     ): Promise<unknown> {
       return options
         ? services.terminal.run(command, timeoutMs, abortSignal, options)

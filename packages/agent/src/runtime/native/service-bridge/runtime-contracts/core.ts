@@ -50,7 +50,7 @@ export interface NativeShellService {
     command: string,
     timeoutMs?: number,
     abortSignal?: AbortSignal,
-    options?: { requireCancellation?: boolean },
+    options?: { requireCancellation?: boolean; runId?: string },
   ): Promise<TerminalCommandRecord>;
   history(limit?: number): TerminalCommandRecord[];
   status(): Promise<unknown>;

@@ -46,6 +46,15 @@ function requireCancellation(
 }
 
 export class TerminalServiceCommandOrchestrator {
+  private readonly identifiedRuns = new Map<
+    string,
+    {
+      command: string;
+      cwd: string;
+      timeoutMs: number;
+      result: Promise<TerminalCommandRecord>;
+    }
+  >();
   constructor(
     private readonly options: TerminalServiceCommandOrchestratorOptions,
   ) {}
@@ -54,7 +63,54 @@ export class TerminalServiceCommandOrchestrator {
     command: string,
     timeoutMs?: number,
     abortSignal?: AbortSignal,
-    options?: { requireCancellation?: boolean },
+    options?: { requireCancellation?: boolean; runId?: string },
+  ): Promise<TerminalCommandRecord> {
+    if (!options?.runId)
+      return this.executeOnce(command, timeoutMs, abortSignal, options);
+    const cwd = this.workspaceDir();
+    const { safeCommand, effectiveTimeoutMs } = resolveExecutionContext({
+      command,
+      timeoutMs,
+      getSettings: this.options.getSettings,
+    });
+    const completed = this.options.historyStore
+      .read()
+      .commands.find((record) => record.id === options.runId);
+    const pending = this.identifiedRuns.get(options.runId);
+    const existing = completed ?? pending;
+    if (
+      existing &&
+      (existing.command !== safeCommand ||
+        existing.cwd !== cwd ||
+        existing.timeoutMs !== effectiveTimeoutMs)
+    )
+      throw new Error(
+        "Terminal run identity is already bound to a different request.",
+      );
+    if (completed) return completed;
+    if (pending) return pending.result;
+    const result = this.executeOnce(command, timeoutMs, abortSignal, options);
+    this.identifiedRuns.set(options.runId, {
+      command: safeCommand,
+      cwd,
+      timeoutMs: effectiveTimeoutMs,
+      result,
+    });
+    const id = options.runId;
+    // A durable completed record is replayable. Retain ambiguous failures in
+    // memory so the same identity cannot dispatch a possibly accepted effect again.
+    void result.then(
+      () => this.identifiedRuns.delete(id),
+      () => undefined,
+    );
+    return result;
+  }
+
+  private async executeOnce(
+    command: string,
+    timeoutMs?: number,
+    abortSignal?: AbortSignal,
+    options?: { requireCancellation?: boolean; runId?: string },
   ): Promise<TerminalCommandRecord> {
     const workspaceDir = this.workspaceDir();
     this.options.onMutation?.();
@@ -87,6 +143,7 @@ export class TerminalServiceCommandOrchestrator {
     });
 
     return persistAndNotifyCommand({
+      runId: options?.runId,
       command: safeCommand,
       backend: backend.name,
       preview,

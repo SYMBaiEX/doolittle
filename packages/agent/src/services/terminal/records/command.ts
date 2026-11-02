@@ -12,6 +12,7 @@ export interface TerminalStore {
 }
 
 export interface BuildTerminalCommandRecordInput {
+  runId?: string;
   command: string;
   backend: TerminalCommandRecord["backend"];
   preview: ExecutionBackendPreview;
@@ -31,7 +32,7 @@ export function buildTerminalCommandRecord(
   const cloudSnapshot =
     input.latestCloudSnapshot ?? input.preview.cloudSnapshot;
   return {
-    id: randomUUID(),
+    id: input.runId ?? randomUUID(),
     command: input.command,
     backend: input.backend,
     backendMode: input.preview.mode,
