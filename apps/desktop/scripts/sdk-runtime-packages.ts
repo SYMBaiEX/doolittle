@@ -237,7 +237,19 @@ export function copyRuntimeTrace(
     copyFileSync(actual, destination);
     files.add(relative(outputRoot, destination));
     const owner = runtimePackageForSource(base, relative(base, actual));
-    if (owner) packages.set(`${owner.name}@${owner.version}`, owner);
+    if (owner) {
+      packages.set(`${owner.name}@${owner.version}`, owner);
+      // Explicitly seeded CJS entries may not make NFT read package.json.
+      // Node still needs the original manifest to locate main/exports at boot.
+      const manifest = resolve(owner.directory, "package.json");
+      const packagedManifest = packagedPath(manifest);
+      const manifestAsset = relative(outputRoot, packagedManifest);
+      if (!files.has(manifestAsset)) {
+        mkdirSync(dirname(packagedManifest), { recursive: true });
+        copyFileSync(manifest, packagedManifest);
+        files.add(manifestAsset);
+      }
+    }
   }
   for (const { source, destination } of links.sort(
     (a, b) => a.destination.length - b.destination.length,

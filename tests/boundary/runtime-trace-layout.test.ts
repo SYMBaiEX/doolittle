@@ -90,3 +90,27 @@ it("rejects traced links that escape the dependency installation", () => {
     copyRuntimeTrace(root, join(root, "artifact"), ["escape.js"]),
   ).toThrow("escaped its installation");
 });
+
+it("includes the original manifest when tracing a CJS entry below the package root", () => {
+  const root = fixture();
+  const out = join(root, "artifact");
+  const manifest = JSON.stringify({
+    name: "cjs-runtime",
+    version: "1.0.0",
+    main: "dist/entry.cjs",
+  });
+  put(root, "node_modules/cjs-runtime/package.json", manifest);
+  put(
+    root,
+    "node_modules/cjs-runtime/dist/entry.cjs",
+    "module.exports = 'native-package';",
+  );
+  const result = copyRuntimeTrace(root, out, [
+    "node_modules/cjs-runtime/dist/entry.cjs",
+  ]);
+  expect(loadArtifactPackage(out, "cjs-runtime")).toBe("native-package");
+  expect(
+    readFileSync(join(out, "node_modules/cjs-runtime/package.json"), "utf8"),
+  ).toBe(manifest);
+  expect(result.files.has("node_modules/cjs-runtime/package.json")).toBe(true);
+});
