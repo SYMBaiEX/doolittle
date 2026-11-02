@@ -1,5 +1,6 @@
 import {
   type ActionResult,
+  bindIncomingMessagePersistence,
   type Memory,
   type MessageProcessingResult,
   setTrajectoryPurpose,
@@ -706,6 +707,21 @@ export async function executeProviderMessageTurn(
             response,
             currentRequirements,
           );
+          // Continuation instructions are prompt-only. Keep the SDK's durable
+          // ingress identity bound to the original message and its exact bytes.
+          if (!input.memory.id)
+            throw new Error(
+              "Cannot continue a turn without its message identity.",
+            );
+          const [persisted] = await input.context.runtime.getMemoriesByIds(
+            [input.memory.id],
+            "messages",
+          );
+          if (!persisted)
+            throw new Error(
+              "Cannot continue a turn without its persisted user message.",
+            );
+          bindIncomingMessagePersistence(messageMemory, persisted);
         }
 
         throwIfTurnAborted(input.abortSignal);

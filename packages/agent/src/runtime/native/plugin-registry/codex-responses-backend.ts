@@ -120,6 +120,9 @@ export class CodexResponsesBackend {
                   type: "json_schema",
                   name: "response",
                   schema: format.schema,
+                  // Eliza's planner schemas contain optional fields. Keep that
+                  // contract instead of requesting OpenAI's all-fields-required mode.
+                  strict: false,
                 },
               },
             }

@@ -124,6 +124,8 @@ export function createProviderMessageMemory(
 ): ReturnType<ProviderModelTurnExecutionContext["createMessageMemory"]> {
   const memory = executionContext.createMessageMemory({
     id: input.turn.messageId as UUID,
+    agentId: input.context.runtime.agentId,
+    scope: "shared",
     entityId: input.turn.entityId as UUID,
     roomId: input.turn.roomId as UUID,
     content: {

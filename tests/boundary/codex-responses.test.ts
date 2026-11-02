@@ -89,6 +89,37 @@ it("uses the official Responses client for text, image, reasoning, tools and usa
   });
   expect(delta).toHaveBeenCalledWith("Verified");
 });
+it("preserves optional SDK response fields through the supported non-strict schema mode", async () => {
+  let body: Record<string, unknown> = {};
+  const schema = {
+    type: "object",
+    properties: {
+      copyToClipboard: {
+        type: "object",
+        properties: { tags: { type: "array", items: { type: "string" } } },
+        additionalProperties: false,
+      },
+    },
+    additionalProperties: false,
+  };
+  const backend = new CodexResponsesBackend({
+    jitterMaxMs: 0,
+    loadAuth: async () => auth,
+    fetchImpl: async (_url, init) => {
+      body = JSON.parse(String(init?.body));
+      return response();
+    },
+  });
+  await backend.generate({
+    prompt: "Reply",
+    responseFormat: { type: "json_schema", schema },
+  });
+  expect(body.text).toEqual({
+    format: { type: "json_schema", name: "response", schema, strict: false },
+  });
+  expect(schema.properties.copyToClipboard).not.toHaveProperty("required");
+});
+
 it("retains paired, out-of-order tool results and avoids duplicate calls", async () => {
   const input = await codexResponsesInput([
     {
