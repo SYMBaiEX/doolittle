@@ -20,7 +20,7 @@ Electron main process
             ▼
 React renderer
   ├─ owns navigation and presentation state
-  ├─ uses the official ElizaClient through an AgentRequestTransport adapter
+  ├─ uses SDK transport DTOs through bounded native requests and TanStack Query
   ├─ renders chat, code, browser evidence, review, and agent orchestration
   └─ default renderer has no Node.js or filesystem access
             │
@@ -56,9 +56,11 @@ deadlines and tab expiry, rather than immediate network cancellation; owned
 tabs are closed when the call settles. Already-written evidence is not rolled
 back.
 
-Ordinary renderer requests use `@elizaos/ui`'s `ElizaClient`, so Eliza owns
-client identity, request deadlines, resume retries, response parsing, and
-structured `ApiError` failures. Because Electron cannot structured-clone native
+Ordinary renderer requests use `ofetch` over the public `@elizaos/ui`
+`AgentRequestTransport` DTOs and structured `ApiError` failures. TanStack Query
+shares GET resources across views and retries one transient 502/503/504 response;
+mutations are never automatically replayed. Doolittle owns native deadlines and
+cancellation. Because Electron cannot structured-clone native
 `Request`, `Response`, or streaming bodies, the preload carries only path,
 method, request ID, approved headers, serialized body, status, and response
 text. The main process still enforces the route, query, method, header,
