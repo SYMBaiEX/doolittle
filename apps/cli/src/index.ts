@@ -1,4 +1,5 @@
 #!/usr/bin/env nub
+import "./entrypoint/host-execution";
 import { pathToFileURL } from "node:url";
 import { getDefaultRepoRoot } from "@doolittle/agent/config/env/paths";
 import { getEntrypointLogger } from "@doolittle/agent/logging/entrypoint-logger";

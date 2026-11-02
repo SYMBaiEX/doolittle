@@ -1,5 +1,4 @@
 import type { getAgentEventService } from "@elizaos/agent/runtime/agent-event-service";
-import type { KnowledgeGraphService } from "@elizaos/agent/services/knowledge-graph/index";
 
 import type { HookService, PairingService } from "@elizaos/core";
 import type {
@@ -16,7 +15,6 @@ import type {
   NativeMcpService,
   NativePdfService,
   NativeShellService,
-  NativeToolPolicyService,
 } from "./core";
 import type {
   NativeActionPlanningService,
@@ -25,7 +23,6 @@ import type {
   NativeFormsService,
   NativeGitHubPlanningService,
   NativeOperatorPlanningService,
-  NativePluginManagerService,
   NativeSecretsService,
   NativeTelegramTransportService,
 } from "./integrations";
@@ -44,7 +41,6 @@ export * from "./runtime";
 
 export type NativeServices = {
   memoryStorage: NativeMemoryStorageService | undefined;
-  knowledgeGraph: KnowledgeGraphService | undefined;
   pdf: NativePdfService | undefined;
   personality: NativePersonalityService | undefined;
   rolodex: NativeRolodexService | undefined;
@@ -61,8 +57,6 @@ export type NativeServices = {
   pairing: PairingService | undefined;
   hooks: HookService | undefined;
   agentEvent: ReturnType<typeof getAgentEventService> | null;
-  pluginManager: NativePluginManagerService | undefined;
-  toolPolicy: NativeToolPolicyService | undefined;
   telegram: NativeTelegramTransportService | undefined;
   discordTransport: NativeDiscordTransportService | undefined;
   codeGeneration: NativeCodeGenerationService | undefined;

@@ -35,12 +35,6 @@ export async function loadProviderPlugins(
   config: EnvConfig,
   workerBot?: BotDefinition | null,
 ): Promise<Plugin[]> {
-  const enableCloudEmbeddings =
-    Boolean(config.elizaCloudEmbeddingUrl?.trim()) ||
-    Boolean(config.elizaCloudEmbeddingApiKey?.trim()) ||
-    Boolean(config.elizaCloudEmbeddingDimensions) ||
-    process.env.DOOLITTLE_EMBEDDING_PROVIDER?.trim().toLowerCase() ===
-      "elizacloud";
   const [
     { default: sqlPlugin },
     { pdfPlugin },
@@ -50,7 +44,7 @@ export async function loadProviderPlugins(
     { createDevinPlugin },
     { default: elizaCloudPlugin },
   ] = await Promise.all([
-    import("@doolittle/plugin-sql-relationships"),
+    import("@elizaos/plugin-sql"),
     import("@elizaos/plugin-pdf"),
     import("@elizaos/plugin-codex-cli"),
     import("@elizaos/plugin-anthropic"),
@@ -188,16 +182,7 @@ export async function loadProviderPlugins(
       getCwd: () => resolveWorkspaceDirectory(() => config.workspaceDir),
       getStatus: () => getDevinAccountStatus(undefined, config.devinCliCommand),
     }),
-    normalizePlugin({
-      ...elizaCloudPlugin,
-      models: enableCloudEmbeddings
-        ? elizaCloudPlugin.models
-        : Object.fromEntries(
-            Object.entries(elizaCloudPlugin.models ?? {}).filter(
-              ([modelType]) => !modelType.includes("EMBEDDING"),
-            ),
-          ),
-    }),
+    normalizePlugin(elizaCloudPlugin),
   ];
 
   if (config.ollamaApiEndpoint?.trim()) {

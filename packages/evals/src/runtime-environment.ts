@@ -1,6 +1,9 @@
+import { createHmac, randomBytes } from "node:crypto";
 import { isAbsolute, join, resolve } from "node:path";
 import { resolveManagedDirectories } from "@doolittle/agent/config/env/directories";
 import { parseEnv } from "@doolittle/agent/config/env/schema";
+
+const evalVaultKey = randomBytes(32);
 
 interface EvalRuntimeEnvironmentOptions {
   repoRoot: string;
@@ -35,6 +38,8 @@ export function assertEvalRuntimeEnvironment(
     ELIZA_ACP_STATE_DIR: join(options.root, "acp"),
     ACP_AUDIT_LOG_PATH: join(options.root, "acp", "audit.ndjson"),
     ELIZA_HOME: expected.dataDir,
+    ELIZA_STATE_DIR: expected.dataDir,
+    ELIZA_VAULT_DISABLE_KEYCHAIN: "1",
     PGLITE_DATA_DIR: join(expected.dataDir, "pglite"),
   };
   for (const [key, value] of Object.entries(sdkState)) {
@@ -83,6 +88,11 @@ export function createEvalRuntimeEnvironment(
     ELIZA_ACP_STATE_DIR: join(options.root, "acp"),
     ACP_AUDIT_LOG_PATH: join(options.root, "acp", "audit.ndjson"),
     ELIZA_HOME: join(options.root, "data"),
+    ELIZA_STATE_DIR: join(options.root, "data"),
+    ELIZA_VAULT_DISABLE_KEYCHAIN: "1",
+    ELIZA_VAULT_PASSPHRASE: createHmac("sha256", evalVaultKey)
+      .update(options.root)
+      .digest("hex"),
     PGLITE_DATA_DIR: join(options.root, "data", "pglite"),
     // Empty values shadow repo dotenv inputs (override:false), so an inherited
     // database URL cannot redirect an evaluation into shared or remote SQL.
@@ -95,8 +105,10 @@ export function createEvalRuntimeEnvironment(
     DOOLITTLE_EVAL_CAPTURE_MODEL_USAGE: "true",
     ELIZAOS_CLOUD_ENABLED: "false",
   };
-  delete environment.ELIZAOS_CLOUD_API_KEY;
-  delete environment.ELIZA_CLOUD_API_KEY;
+  // Empty values also shadow project dotenv files; deleting these keys would
+  // allow environment loading to reactivate the operator's cloud credentials.
+  environment.ELIZAOS_CLOUD_API_KEY = "";
+  environment.ELIZA_CLOUD_API_KEY = "";
   if (options.mode === "api") {
     environment.ELIZA_API_BIND = "127.0.0.1";
     environment.ELIZA_API_PORT = "0";

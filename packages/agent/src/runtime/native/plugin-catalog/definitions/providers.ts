@@ -9,8 +9,7 @@ export const PROVIDER_PLUGIN_CATALOG_SEEDS: NativePluginCatalogSeed[] = [
     kind: "provider",
     maturity: "production",
     enablement: "always",
-    notes:
-      "Official SQL persistence plugin; a private @doolittle/plugin-sql-relationships layer adds Doolittle's merge-on-write relationship semantics.",
+    notes: "Official ElizaOS SQL persistence and relationship semantics.",
   },
   {
     id: "providers.pdf",

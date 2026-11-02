@@ -1,0 +1,102 @@
+{
+  "name": "@elizaos/plugin-native-phone",
+  "version": "2.0.12-beta.0",
+  "type": "module",
+  "description": "Phone app for Eliza — Android dialer/call-log overlay (@elizaos/plugin-native-phone/bridge) and the iOS Phone Companion (pairing, chat-mirror, remote-session).",
+  "main": "./dist/index.js",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "eliza-source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./plugin": {
+      "eliza-source": "./src/plugin.ts",
+      "types": "./dist/plugin.d.ts",
+      "import": "./dist/plugin.js",
+      "default": "./dist/plugin.js"
+    },
+    "./*.css": "./dist/*.css",
+    "./*": {
+      "eliza-source": "./src/*.ts",
+      "types": "./dist/*.d.ts",
+      "import": "./dist/*.js",
+      "default": "./dist/*.js"
+    },
+    "./bridge": {
+      "eliza-source": "./src/bridge.ts",
+      "types": "./dist/bridge.d.ts",
+      "import": "./dist/bridge.js",
+      "default": "./dist/bridge.js"
+    },
+    "./companion": {
+      "eliza-source": "./src/companion/index.ts",
+      "types": "./dist/companion/index.d.ts",
+      "import": "./dist/companion/index.js",
+      "default": "./dist/companion/index.js"
+    }
+  },
+  "dependencies": {
+    "@capacitor/barcode-scanner": "^3.1.2",
+    "@capacitor/core": "8.4.0",
+    "@capacitor/haptics": "8.0.2",
+    "@capacitor/preferences": "^8.0.1",
+    "@capacitor/push-notifications": "^8.0.0",
+    "@elizaos/contracts": "2.0.12-beta.0",
+    "@elizaos/core": "2.0.12-beta.0",
+    "@elizaos/plugin-browser": "2.0.12-beta.0",
+    "@elizaos/ui": "2.0.12-beta.0",
+    "lucide-react": "^1.0.0"
+  },
+  "peerDependencies": {
+    "@capacitor/core": "^8.3.1",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "elizaos": {
+    "app": {
+      "displayName": "Phone",
+      "category": "system",
+      "androidOnly": true,
+      "heroImage": "assets/hero.png"
+    },
+    "appRegister": {
+      "subpath": "register",
+      "export": "registerApp"
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "android/src/main/",
+    "android/build.gradle"
+  ],
+  "capacitor": {
+    "android": {
+      "src": "android"
+    }
+  },
+  "sideEffects": [
+    "./src/register.ts",
+    "./src/bridge.ts",
+    "./src/companion/services/eliza-intent.ts",
+    "./dist/register.js",
+    "./dist/bridge.js",
+    "./dist/companion/services/eliza-intent.js",
+    "**/*.css"
+  ],
+  "doolittleSourceBuild": {
+    "repository": "https://github.com/elizaos/eliza",
+    "commit": "b2dbeff3ab689a69f7e518deb7d608d1c4607790",
+    "package": "plugins/plugin-native-phone",
+    "bun": "1.4.2",
+    "node": "26.5.0",
+    "nub": "0.9.7",
+    "toolLockSha256": "61328582d89e162bc299241eba0f120ceaf7d7cdaff4ab043143d2f3b18ef2e0"
+  }
+}

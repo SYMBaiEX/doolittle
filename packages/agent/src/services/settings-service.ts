@@ -1,6 +1,6 @@
 import { lstatSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
+import { writeJsonAtomicSync } from "@elizaos/core";
 import { readRegularFileSync } from "../utils/read-regular-file";
 import { normalizeRuntimeSettings } from "./settings/normalization";
 import { setSettingPath } from "./settings/path";

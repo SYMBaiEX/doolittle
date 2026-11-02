@@ -1,4 +1,4 @@
-import { useIntervalWhenDocumentVisible } from "@elizaos/ui/hooks/useDocumentVisibility";
+import { useVisibleInterval } from "@doolittle/ui/environment";
 import type { ApiResource } from "../lib";
 
 /** A transient catalog failure must not disable recovery while the backend stays ready. */
@@ -9,7 +9,7 @@ export function useBotCatalogPolling(
     "loading" | "status" | "isValidating" | "reload"
   >,
 ): void {
-  useIntervalWhenDocumentVisible(
+  useVisibleInterval(
     () => {
       if (
         resource.loading ||

@@ -1,4 +1,4 @@
-import type { AwarenessRegistry } from "@elizaos/agent/awareness/registry";
+import type { AwarenessRegistry } from "@elizaos/shared/awareness/registry";
 import type { AppServices } from "../types";
 
 export interface AwarenessServiceState {

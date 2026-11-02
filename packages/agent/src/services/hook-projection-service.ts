@@ -1,12 +1,12 @@
 import { randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
 import {
   EventType,
   type IAgentRuntime,
   type IHookService,
   ServiceType,
+  writeJsonAtomicSync,
 } from "@elizaos/core";
 import { asNonEmptyString } from "@elizaos/shared/type-guards";
 import type { HookDefinition, HookInvocation } from "../types/index";

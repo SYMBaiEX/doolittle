@@ -1,9 +1,7 @@
 import { existsSync, mkdirSync } from "node:fs";
 import type { StoredPlanRecord } from "@doolittle/contracts";
-import {
-  readJsonFileSync,
-  writeJsonAtomicSync,
-} from "@elizaos/agent/utils/atomic-json";
+import { readOptionalJson } from "@doolittle/storage";
+import { writeJsonAtomicSync } from "@elizaos/core";
 import { nowIso } from "../record-utils";
 import {
   normalizeMetadata,
@@ -23,7 +21,7 @@ export function ensureStoreInitialized(
 }
 
 export function readStore(storePath: string): PlanningStore {
-  const parsed = readJsonFileSync<{
+  const parsed = readOptionalJson<{
     plans?: Array<Partial<StoredPlanRecord>>;
   }>(storePath);
   return {

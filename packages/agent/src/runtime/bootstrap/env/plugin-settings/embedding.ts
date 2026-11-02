@@ -17,7 +17,9 @@ export function applyEmbeddingSettings(
   config: EnvConfig,
   env: NodeJS.ProcessEnv,
 ): void {
-  if (!shouldUseCloudEmbeddings(config, env)) {
+  const enabled = shouldUseCloudEmbeddings(config, env);
+  settings.ELIZAOS_CLOUD_USE_EMBEDDINGS = String(enabled);
+  if (!enabled) {
     return;
   }
 

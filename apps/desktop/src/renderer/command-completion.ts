@@ -1,8 +1,3 @@
-import {
-  filterCommands,
-  parseSlashDraft,
-  type SlashCommandCatalogItem,
-} from "@elizaos/ui/chat/slash-menu";
 import type { CommandCatalogItem } from "../shared/contracts";
 
 const MAX_COMMAND_COMPLETIONS = 8;
@@ -20,18 +15,37 @@ export function commandCompletions(
   const query = commandCompletionQuery(draft);
   if (!query) return [];
 
-  const parsed = parseSlashDraft(query);
-  if (!parsed.isSlash) return [];
-
-  // Reuse Eliza's ranked matcher while keeping Doolittle's richer catalog and
-  // desktop transport. The upstream React controller talks to /api/commands,
-  // so only its pure catalog functions belong in this adapter.
-  const entries = commands.map(toSlashCommandCatalogItem);
-  const ranked = filterCommands(entries, parsed.commandToken).slice(0, limit);
-  const byKey = new Map(commands.map((command) => [command.command, command]));
-  return ranked
-    .map((entry) => byKey.get(entry.key))
-    .filter((entry): entry is CommandCatalogItem => Boolean(entry));
+  const token = query.slice(1).split(/\s/u, 1)[0].toLowerCase();
+  return commands
+    .map((command, index) => {
+      const names = [command.command, ...(command.aliases ?? [])].map((name) =>
+        withoutArgumentPlaceholders(name).replace(/^\//u, "").toLowerCase(),
+      );
+      const score = token
+        ? Math.min(
+            ...names.map((name) =>
+              name === token
+                ? 0
+                : name.startsWith(token)
+                  ? 1
+                  : name.includes(token)
+                    ? 2
+                    : 3,
+            ),
+          )
+        : 0;
+      return { command, index, score };
+    })
+    .filter((entry) => entry.score < 3)
+    .sort((left, right) => left.score - right.score || left.index - right.index)
+    .slice(
+      0,
+      Math.max(
+        0,
+        Math.floor(Number.isFinite(limit) ? limit : MAX_COMMAND_COMPLETIONS),
+      ),
+    )
+    .map((entry) => entry.command);
 }
 
 /** The canonical text inserted when a catalog item is selected. */
@@ -44,36 +58,4 @@ export function commandCompletionText(command: CommandCatalogItem): string {
 
 function withoutArgumentPlaceholders(value: string): string {
   return value.replace(/\s+[<[][^>\]]*[>\]]/gu, "").trim();
-}
-
-function argumentNames(value: string): string[] {
-  return [...value.matchAll(/(?:<([^>]+)>|\[([^\]]+)\])/gu)].map(
-    (match) => match[1] ?? match[2] ?? "argument",
-  );
-}
-
-function toSlashCommandCatalogItem(
-  command: CommandCatalogItem,
-): SlashCommandCatalogItem {
-  const canonical = withoutArgumentPlaceholders(command.command);
-  const aliases = (command.aliases ?? []).map(withoutArgumentPlaceholders);
-  const names = [canonical, ...aliases].filter(Boolean);
-  const nativeName = canonical.replace(/^\//u, "");
-  const args = argumentNames(command.command).map((name) => ({
-    name,
-    description: `${name} for ${nativeName}`,
-  }));
-  return {
-    key: command.command,
-    nativeName,
-    description: command.description,
-    textAliases: names,
-    scope: "text",
-    category: command.category,
-    acceptsArgs: args.length > 0,
-    args,
-    requiresAuth: false,
-    requiresElevated: false,
-    target: { kind: "agent" },
-  };
 }

@@ -1,21 +1,21 @@
 import { rmSync } from "node:fs";
 import { join } from "node:path";
-
 import { DOOLITTLE_SECRETS_VAULT_SERVICE } from "@doolittle/contracts";
-import { readJsonFileSync } from "@elizaos/agent/utils/atomic-json";
+import { readOptionalJson } from "@doolittle/storage";
+import { createVault, type Vault } from "@elizaos/auth/vault";
 import {
   Service as ElizaService,
   type IAgentRuntime,
-  SECRETS_SERVICE_TYPE,
   type Service,
 } from "@elizaos/core";
-import { createVault, type Vault } from "@elizaos/vault";
+import { SECRETS_SERVICE_TYPE } from "@elizaos/plugin-assistant";
 
 type VaultWithClose = Vault & { close?: () => Promise<void> };
 
 type GlobalSecretContext = {
   level: "global";
   agentId: IAgentRuntime["agentId"];
+  requesterId: IAgentRuntime["agentId"];
 };
 
 const SECRET_CONFIG_KEY_PREFIX = "__doolittle_eliza_secret_config__/";
@@ -44,7 +44,7 @@ interface ElizaSecretsService {
 }
 
 function readLegacySecrets(path: string): Record<string, string> | undefined {
-  const parsed = readJsonFileSync<{ secrets?: unknown }>(path);
+  const parsed = readOptionalJson<{ secrets?: unknown }>(path);
   if (!parsed?.secrets || typeof parsed.secrets !== "object") {
     return undefined;
   }
@@ -137,6 +137,7 @@ export function createSecretsVaultPersistenceService(
       const nativeMetadata = await secrets.list({
         level: "global",
         agentId: runtime.agentId,
+        requesterId: runtime.agentId,
       });
       const nativeKeys = new Set(Object.keys(nativeMetadata));
       const vaultKeys = (await this.vault.list()).filter(
@@ -205,6 +206,7 @@ export function createSecretsVaultPersistenceService(
       const config = await secrets.getConfig(key, {
         level: "global",
         agentId: runtime.agentId,
+        requesterId: runtime.agentId,
       });
       if (!config) {
         await this.vault.remove(this.configKey(key));

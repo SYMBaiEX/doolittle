@@ -6,7 +6,6 @@ import type {
   HandlerOptions,
   JsonValue,
   Memory,
-  ShortcutDefinition,
 } from "@elizaos/core";
 import { getMemoryText } from "@elizaos/core";
 
@@ -277,22 +276,3 @@ export function createShortcutCompatibleWebSearchAction(
     },
   };
 }
-
-export const DOOLITTLE_SDK_SHORTCUTS: ShortcutDefinition[] = [
-  {
-    id: "doolittle-web-search-command",
-    kind: "explicit",
-    aliases: ["/web", "!web"],
-    target: { kind: "action", name: "WEB_SEARCH" },
-    requiresAction: "WEB_SEARCH",
-    priority: 100,
-  },
-  {
-    id: "doolittle-research-command",
-    kind: "explicit",
-    aliases: ["/research"],
-    target: { kind: "action", name: "DOOLITTLE_RESEARCH" },
-    requiresAction: "DOOLITTLE_RESEARCH",
-    priority: 100,
-  },
-];

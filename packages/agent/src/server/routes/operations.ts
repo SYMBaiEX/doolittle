@@ -383,12 +383,19 @@ export async function handleOperationsRoutes(
       );
     }
 
+    const runId = request.headers.get("x-eliza-terminal-run-id") ?? undefined;
+    if (
+      runId &&
+      !/^run-[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/iu.test(runId)
+    )
+      return json({ error: "Invalid terminal run identity." }, 400);
+
     const run = runEffectiveShellCommand(
       context.runtime,
       input.command,
       input.timeoutMs,
-      options.captureOutputRequired ? request.signal : undefined,
-      options.captureOutputRequired ? { requireCancellation: true } : undefined,
+      body.captureOutput === true ? request.signal : undefined,
+      { requireCancellation: options.captureOutputRequired, runId },
     );
     if (body.captureOutput !== true) {
       void run.catch((error) => {

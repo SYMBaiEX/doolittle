@@ -1,6 +1,6 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { randomUUID } from "node:crypto";
-import type { ActionResult, runV5MessageRuntimeStage1 } from "@elizaos/core";
+import type { ActionResult } from "@elizaos/core";
 import { actionResultActionName } from "./action-result-metadata";
 import type { LinkedProviderName } from "./linked-provider-accounts/index";
 
@@ -22,7 +22,7 @@ type TurnRuntimeScope = {
   personalityId?: string;
   commandHooks?: TurnCommandHooks;
   settledActionResults?: ActionResult[];
-  plannerBudget?: TurnPlannerBudget;
+  continuationBudget?: TurnContinuationBudget;
   actionReceipts: {
     originals: WeakMap<ActionResult, string>;
     byId: Map<string, ActionResult>;
@@ -32,79 +32,31 @@ type TurnRuntimeScope = {
 const turnRuntimeScope = new AsyncLocalStorage<TurnRuntimeScope>();
 const originalSettingReaders = new WeakMap<object, (key: string) => unknown>();
 
-type NativePlannerConfig = NonNullable<
-  Parameters<typeof runV5MessageRuntimeStage1>[0]["plannerLoopConfig"]
->;
-
-/** One allowance shared by all native SDK message passes in a user turn. */
-export class TurnPlannerBudget {
+/** Bounds client receipt-continuation passes; ElizaOS owns tool/token limits. */
+export class TurnContinuationBudget {
   private remaining: number;
-  private callsInPass = 0;
-  private passes = 0;
 
-  constructor(
-    maxToolCalls: number,
-    private readonly model: string,
-    private readonly maxPasses = 12,
-  ) {
-    this.remaining = Number.isFinite(maxToolCalls)
-      ? Math.max(1, Math.floor(maxToolCalls))
-      : 16;
+  constructor(maxPasses: number, ceiling = 12) {
+    this.remaining = Number.isFinite(maxPasses)
+      ? Math.max(1, Math.min(ceiling, Math.floor(maxPasses)))
+      : ceiling;
   }
 
   get exhausted(): boolean {
-    return this.remaining <= 0 || this.passes >= this.maxPasses;
+    return this.remaining <= 0;
   }
 
-  beginPass(): NativePlannerConfig {
-    if (this.exhausted)
-      throw new Error("Native planner turn budget exhausted.");
-    this.passes += 1;
-    this.callsInPass = 0;
-    return {
-      // Keep the SDK's default per-pass ceiling, shrinking it as this turn's
-      // allowance is spent. A ceiling is a refusal, never a graceful yield.
-      maxToolCalls: Math.min(16, this.remaining),
-      contextWindowModelName: this.model,
-      compactionEnabled: true,
-    };
-  }
-
-  observeStreamChunk(chunk: string): void {
-    // beta.7 emits one pending tool_call before every admitted native call,
-    // even when a failed/repeated call never reaches its returned action list.
-    // Count only that SDK envelope, not model tokens or a tool-result message.
-    try {
-      const event = JSON.parse(chunk) as {
-        type?: unknown;
-        toolCall?: { name?: unknown; status?: unknown };
-        metadata?: { iteration?: unknown };
-      } | null;
-      if (
-        event?.type === "tool_call" &&
-        typeof event.toolCall?.name === "string" &&
-        event.toolCall.status === "pending" &&
-        typeof event.metadata?.iteration === "number"
-      )
-        this.callsInPass += 1;
-    } catch {
-      // Ordinary streamed prose is not a native tool event.
-    }
-  }
-
-  finishPass(observedActionCount: number): void {
-    // Older/test message-service adapters may omit streaming events. Use their
-    // results conservatively; do not charge both projections for the same pass.
-    this.remaining -= Math.max(this.callsInPass, observedActionCount);
-    this.callsInPass = 0;
+  beginPass(): void {
+    if (this.exhausted) throw new Error("Turn continuation limit reached.");
+    this.remaining -= 1;
   }
 }
 
-export function getScopedTurnPlannerBudget(
+export function getScopedTurnContinuationBudget(
   runtime: object,
-): TurnPlannerBudget | undefined {
+): TurnContinuationBudget | undefined {
   const scope = turnRuntimeScope.getStore();
-  return scope?.runtime === runtime ? scope.plannerBudget : undefined;
+  return scope?.runtime === runtime ? scope.continuationBudget : undefined;
 }
 
 /**

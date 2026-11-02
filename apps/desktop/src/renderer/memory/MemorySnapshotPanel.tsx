@@ -1,4 +1,4 @@
-import { Button } from "@elizaos/ui/components/ui/button";
+import { Button } from "@elizaos/ui/button";
 import { CompactStatStrip } from "../components/CompactStatStrip";
 import {
   type ApiResource,

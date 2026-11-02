@@ -1,8 +1,8 @@
+import { Button } from "@doolittle/ui";
 import { ChevronRight } from "lucide-react";
 import { useState } from "react";
 import type { AccountPoolResponse } from "../shared/contracts";
 import { CompactStatStrip } from "./components/CompactStatStrip";
-import { Button } from "./components/ElizaControls";
 import { UiIcon } from "./components/UiIcon";
 import {
   DIAGNOSTICS_CHEVRON_CLASS,

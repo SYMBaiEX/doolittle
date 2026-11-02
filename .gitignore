@@ -21,3 +21,6 @@ output/
 skills/generated/index.json
 packages/skills/.generated/
 tmp/
+!vendor/elizaos/*-b2dbeff3.tgz
+vendor/elizaos/packages/*/**
+!vendor/elizaos/packages/*/package.json

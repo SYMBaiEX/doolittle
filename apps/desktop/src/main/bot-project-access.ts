@@ -8,7 +8,7 @@ import {
 } from "node:fs";
 import { isAbsolute, resolve } from "node:path";
 import type { BotDefinition, BotPermissions } from "@doolittle/contracts/bots";
-import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
+import { writeJsonAtomicSync } from "@elizaos/core";
 import { readBoundedRegularFile } from "./regular-file";
 
 const BOT_ID = /^[a-z0-9][a-z0-9_-]{0,63}$/u;

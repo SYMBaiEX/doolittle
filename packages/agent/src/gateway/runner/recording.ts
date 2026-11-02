@@ -1,5 +1,5 @@
 import { EventEmitter } from "node:events";
-import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
+import { writeJsonAtomicSync } from "@elizaos/core";
 import type {
   DeliveredMessageRecord,
   IncomingPlatformMessage,

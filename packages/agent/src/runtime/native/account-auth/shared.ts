@@ -2,12 +2,9 @@ import { type SpawnSyncReturns, spawnSync } from "node:child_process";
 import { accessSync, constants, existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { delimiter, isAbsolute, join } from "node:path";
+import { readOptionalJson } from "@doolittle/storage";
 import { resolveShellExecutionMode } from "@elizaos/agent/services/shell-execution-router";
-import {
-  readJsonFileSync,
-  writeJsonAtomicSync,
-} from "@elizaos/agent/utils/atomic-json";
-import { sanitizeSpawnEnv } from "@elizaos/core";
+import { sanitizeSpawnEnv, writeJsonAtomicSync } from "@elizaos/core";
 
 export const DEFAULT_REFRESH_SKEW_SECONDS = 120;
 const COMMAND_CACHE_TTL_MS = 1_000;
@@ -113,7 +110,7 @@ export function readCommandJson(
 }
 
 export function readJson(path: string): unknown {
-  return readJsonFileSync(path) ?? undefined;
+  return readOptionalJson<unknown>(path) ?? undefined;
 }
 
 export function readJsonIfExists(

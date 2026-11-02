@@ -1,5 +1,5 @@
 import { writeFileSync } from "node:fs";
-import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
+import { writeJsonAtomicSync } from "@elizaos/core";
 
 export function writeMediaTextFile(path: string, contents: string): void {
   writeFileSync(path, contents, "utf8");

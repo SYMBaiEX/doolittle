@@ -5,7 +5,7 @@ import type {
   UiPluginArtifactIdentity,
   UiPluginContributionSelection,
 } from "@doolittle/contracts/ui-plugin";
-import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
+import { writeJsonAtomicSync } from "@elizaos/core";
 import type {
   BrowserWindow,
   IpcMain,

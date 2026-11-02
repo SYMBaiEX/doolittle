@@ -1,6 +1,6 @@
 import { chmodSync, existsSync } from "node:fs";
 import { isAbsolute, resolve } from "node:path";
-import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
+import { writeJsonAtomicSync } from "@elizaos/core";
 import { readBoundedRegularFile } from "./regular-file";
 
 const SESSION_ID = /^[a-zA-Z0-9:_-]{1,128}$/u;

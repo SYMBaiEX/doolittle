@@ -14,16 +14,6 @@ export default defineConfig({
         find: /^@elizaos\/skills$/,
         replacement: fromRoot("./node_modules/@elizaos/skills/dist/index.js"),
       },
-      {
-        find: /^dotenv$/,
-        replacement: fromRoot("./node_modules/dotenv/dist/index.cjs"),
-      },
-      {
-        find: /^@elizaos\/ui\/components\/ui\/(button|input|textarea|select)$/,
-        replacement: fromRoot(
-          "./apps/desktop/src/renderer/components/ElizaControls.tsx",
-        ),
-      },
     ],
   },
   test: {

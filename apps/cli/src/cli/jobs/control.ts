@@ -5,15 +5,34 @@ import {
   existsSync,
   fstatSync,
   ftruncateSync,
+  linkSync,
   lstatSync,
+  mkdtempSync,
   openSync,
+  rmSync,
   writeFileSync,
 } from "node:fs";
+import { dirname, join } from "node:path";
 import { readRegularFileSync } from "@doolittle/agent/utils/read-regular-file";
-import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
+import { writeJsonAtomicSync } from "@elizaos/core";
 import { assertJobPaths, isJobId, jobPaths } from "./store/index-store";
 
 const MAX_CONTROL_BYTES = 1024;
+// Job control is a create-once capability. Stage privately with the SDK's
+// atomic writer, then publish without replacing another process's capability.
+function publishControl(
+  path: string,
+  control: { id: string; nonce: string },
+): void {
+  const staging = mkdtempSync(join(dirname(path), ".job-control-"));
+  try {
+    const payload = join(staging, "control.json");
+    writeJsonAtomicSync(payload, control, { skipMkdir: true });
+    linkSync(payload, path);
+  } finally {
+    rmSync(staging, { recursive: true, force: true });
+  }
+}
 function readControl(path: string): { id: string; nonce: string } {
   const value: unknown = JSON.parse(
     readRegularFileSync(path, MAX_CONTROL_BYTES, { singleLink: true }).toString(
@@ -35,14 +54,7 @@ function readControl(path: string): { id: string; nonce: string } {
 export function createJobControl(dataDir: string, id: string): string {
   assertJobPaths(dataDir, id);
   const nonce = randomBytes(32).toString("hex");
-  writeJsonAtomicSync(
-    jobPaths(dataDir, id).controlPath,
-    { id, nonce },
-    {
-      exclusive: true,
-      skipMkdir: true,
-    },
-  );
+  publishControl(jobPaths(dataDir, id).controlPath, { id, nonce });
   return nonce;
 }
 export function requestJobCancel(
@@ -61,10 +73,7 @@ export function requestJobCancel(
         : "cannot-request";
     }
     try {
-      writeJsonAtomicSync(paths.requestPath, control, {
-        exclusive: true,
-        skipMkdir: true,
-      });
+      publishControl(paths.requestPath, control);
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
       const existing = readControl(paths.requestPath);

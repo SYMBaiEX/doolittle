@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { resolve } from "node:path";
+import { delimiter, dirname, resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import type {
   BackendManager,
@@ -63,7 +63,10 @@ describe("host-owned execution boundaries", () => {
         HOME: "/operator-home",
       },
     );
-    expect(environment.PATH).toBe("/fixture/bin");
+    expect(environment.PATH?.split(delimiter)).toEqual([
+      dirname(process.execPath),
+      "/fixture/bin",
+    ]);
     expect(environment.OPENAI_API_KEY).toBe("");
     expect(environment.DATABASE_URL).toBeUndefined();
     expect(environment.NODE_OPTIONS).toBeUndefined();

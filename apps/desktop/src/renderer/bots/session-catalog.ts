@@ -4,7 +4,7 @@ import type {
   SessionSummary,
   SessionsResponse,
 } from "../../shared/contracts";
-import { desktopRequest } from "../lib";
+import { desktopQueryClient, desktopRequest } from "../lib";
 
 type OwnedConversation = BotConversationScope;
 
@@ -13,7 +13,14 @@ export async function loadBotSessionCatalog(
   lead: SessionsResponse,
   previous: readonly SessionSummary[],
 ): Promise<SessionsResponse & { warnings?: string[] }> {
-  const catalog = await desktopRequest<BotCatalogResponse>("/bots");
+  const catalog = await desktopQueryClient.fetchQuery({
+    queryKey: ["doolittle:session-catalog:bots"],
+    queryFn: ({ signal }) =>
+      desktopRequest<BotCatalogResponse>("/bots", "GET", undefined, signal),
+    // This inventory follows a durable chat write. Deduplicate concurrent reads
+    // and recover transient status errors without reusing an older bot list.
+    staleTime: 0,
+  });
   const sessions = new Map<string, SessionSummary>(
     lead.sessions.map((session) => [
       session.sessionId,

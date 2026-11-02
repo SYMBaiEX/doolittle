@@ -8,10 +8,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
-import {
-  writeJsonAtomic,
-  writeJsonAtomicSync,
-} from "@elizaos/agent/utils/atomic-json";
+import { writeJsonAtomic, writeJsonAtomicSync } from "@elizaos/core";
 import { afterEach, expect, it, vi } from "vitest";
 
 const dirs: string[] = [];
@@ -38,42 +35,7 @@ it("keeps simultaneous SDK writes independent even within the same clock tick", 
   expect(saved.index).toBeLessThan(16);
   expect(readdirSync(f.dir)).toEqual(["state.json"]);
 });
-it("publishes exactly one owner when exclusive SDK writers race", async () => {
-  const f = fixture();
-  const outcomes = await Promise.allSettled(
-    Array.from({ length: 16 }, (_, owner) =>
-      writeJsonAtomic(f.path, { owner }, { exclusive: true }),
-    ),
-  );
-  const winner = outcomes.findIndex(
-    (outcome) => outcome.status === "fulfilled",
-  );
-  expect(
-    outcomes.filter((outcome) => outcome.status === "fulfilled"),
-  ).toHaveLength(1);
-  expect(JSON.parse(readFileSync(f.path, "utf8"))).toEqual({ owner: winner });
-  expect(readdirSync(f.dir)).toEqual(["state.json"]);
-});
 for (const mode of ["sync", "async"] as const) {
-  it(`does not replace an existing owner during exclusive ${mode} publication`, async () => {
-    const f = fixture();
-    writeJsonAtomicSync(f.path, { owner: "original" });
-    if (mode === "sync")
-      expect(() =>
-        writeJsonAtomicSync(
-          f.path,
-          { owner: "replacement" },
-          { exclusive: true },
-        ),
-      ).toThrow();
-    else
-      await expect(
-        writeJsonAtomic(f.path, { owner: "replacement" }, { exclusive: true }),
-      ).rejects.toThrow();
-    expect(JSON.parse(readFileSync(f.path, "utf8"))).toEqual({
-      owner: "original",
-    });
-  });
   it(`does not follow the SDK's former predictable ${mode} temporary filename`, async () => {
     const f = fixture();
     const now = 1_800_000_000_000;

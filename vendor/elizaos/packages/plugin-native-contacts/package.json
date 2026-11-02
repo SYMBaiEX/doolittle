@@ -1,0 +1,81 @@
+{
+  "name": "@elizaos/plugin-native-contacts",
+  "version": "2.0.12-beta.0",
+  "type": "module",
+  "description": "Android Contacts overlay app — wraps the @elizaos/plugin-native-contacts/bridge native plugin.",
+  "main": "./dist/index.js",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "eliza-source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./plugin": {
+      "eliza-source": "./src/plugin.ts",
+      "types": "./dist/plugin.d.ts",
+      "import": "./dist/plugin.js",
+      "default": "./dist/plugin.js"
+    },
+    "./*.css": "./dist/*.css",
+    "./*": {
+      "eliza-source": "./src/*.ts",
+      "types": "./dist/*.d.ts",
+      "import": "./dist/*.js",
+      "default": "./dist/*.js"
+    },
+    "./bridge": {
+      "eliza-source": "./src/bridge.ts",
+      "types": "./dist/bridge.d.ts",
+      "import": "./dist/bridge.js",
+      "default": "./dist/bridge.js"
+    }
+  },
+  "dependencies": {
+    "@elizaos/core": "2.0.12-beta.0",
+    "@elizaos/ui": "2.0.12-beta.0",
+    "lucide-react": "^1.0.0",
+    "@capacitor/core": "8.4.0"
+  },
+  "peerDependencies": {
+    "@capacitor/core": "^8.3.1",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "elizaos": {
+    "app": {
+      "displayName": "Contacts",
+      "category": "system",
+      "androidOnly": true,
+      "heroImage": "assets/hero.png"
+    },
+    "appRegister": {
+      "subpath": "register",
+      "export": "registerApp"
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "android/src/main/",
+    "android/build.gradle"
+  ],
+  "capacitor": {
+    "android": {
+      "src": "android"
+    }
+  },
+  "doolittleSourceBuild": {
+    "repository": "https://github.com/elizaos/eliza",
+    "commit": "b2dbeff3ab689a69f7e518deb7d608d1c4607790",
+    "package": "plugins/plugin-native-contacts",
+    "bun": "1.4.2",
+    "node": "26.5.0",
+    "nub": "0.9.7",
+    "toolLockSha256": "61328582d89e162bc299241eba0f120ceaf7d7cdaff4ab043143d2f3b18ef2e0"
+  }
+}

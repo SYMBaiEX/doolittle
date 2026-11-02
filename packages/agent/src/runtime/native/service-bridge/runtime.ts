@@ -8,19 +8,11 @@ import {
   DOOLITTLE_ROLODEX_SERVICE,
 } from "@doolittle/contracts";
 import { getAgentEventService } from "@elizaos/agent/runtime/agent-event-service";
+import { ApprovalService, HookService, PairingService } from "@elizaos/core";
 import {
-  KNOWLEDGE_GRAPH_SERVICE,
-  type KnowledgeGraphService,
-} from "@elizaos/agent/services/knowledge-graph/index";
-import {
-  ApprovalService,
-  HookService,
-  PairingService,
-  PluginManagerService,
   SECRETS_SERVICE_TYPE,
-  ToolPolicyService,
   TrajectoriesService,
-} from "@elizaos/core";
+} from "@elizaos/plugin-assistant";
 import type {
   NativeActionPlanningService,
   NativeAgentOrchestratorService,
@@ -40,13 +32,11 @@ import type {
   NativeOperatorPlanningService,
   NativePdfService,
   NativePersonalityService,
-  NativePluginManagerService,
   NativeRolodexService,
   NativeSecretsService,
   NativeServices,
   NativeShellService,
   NativeTelegramTransportService,
-  NativeToolPolicyService,
   NativeTrajectoryLoggerService,
   RuntimeLike,
 } from "./runtime-contracts";
@@ -83,10 +73,6 @@ function buildNativeServices(runtime: RuntimeLike): NativeServices {
     memoryStorage: service<NativeMemoryStorageService>(
       runtime,
       "memoryStorage",
-    ),
-    knowledgeGraph: service<KnowledgeGraphService>(
-      runtime,
-      KNOWLEDGE_GRAPH_SERVICE,
     ),
     pdf: service<NativePdfService>(runtime, PDF_SERVICE),
     personality: service<NativePersonalityService>(
@@ -128,14 +114,6 @@ function buildNativeServices(runtime: RuntimeLike): NativeServices {
     pairing: service<PairingService>(runtime, PairingService.serviceType),
     hooks: service<HookService>(runtime, HookService.serviceType),
     agentEvent,
-    pluginManager: service<NativePluginManagerService>(
-      runtime,
-      PluginManagerService.serviceType,
-    ),
-    toolPolicy: service<NativeToolPolicyService>(
-      runtime,
-      ToolPolicyService.serviceType,
-    ),
     telegram: service<NativeTelegramTransportService>(runtime, "telegram"),
     discordTransport: service<NativeDiscordTransportService>(
       runtime,

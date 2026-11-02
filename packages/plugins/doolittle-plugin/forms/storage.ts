@@ -1,9 +1,7 @@
 import { existsSync, mkdirSync } from "node:fs";
 import type { StoredFormRecord } from "@doolittle/contracts";
-import {
-  readJsonFileSync,
-  writeJsonAtomicSync,
-} from "@elizaos/agent/utils/atomic-json";
+import { readOptionalJson } from "@doolittle/storage";
+import { writeJsonAtomicSync } from "@elizaos/core";
 import { nowIso } from "../record-utils";
 import { normalizeMetadata } from "./normalization";
 import type { FormsStore } from "./types";
@@ -19,7 +17,7 @@ export function ensureStoreInitialized(
 }
 
 export function readStore(storePath: string): FormsStore {
-  const parsed = readJsonFileSync<{
+  const parsed = readOptionalJson<{
     forms?: Array<Partial<StoredFormRecord>>;
   }>(storePath);
   return {

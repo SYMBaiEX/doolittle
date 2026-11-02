@@ -13,7 +13,7 @@ import type { AgentExecutionContext } from "../chat";
 import { buildProviderRuntimeSettings } from "../linked-provider-accounts/index";
 import {
   runWithTurnRuntimeScope,
-  TurnPlannerBudget,
+  TurnContinuationBudget,
 } from "../turn-runtime-scope";
 import type { NativeMessagePolicy } from "./native/types";
 import {
@@ -124,6 +124,8 @@ export function createProviderMessageMemory(
 ): ReturnType<ProviderModelTurnExecutionContext["createMessageMemory"]> {
   const memory = executionContext.createMessageMemory({
     id: input.turn.messageId as UUID,
+    agentId: input.context.runtime.agentId,
+    scope: "shared",
     entityId: input.turn.entityId as UUID,
     roomId: input.turn.roomId as UUID,
     content: {
@@ -189,9 +191,8 @@ export async function runProviderModelTurn(
         runLocalShellCommand: input.options?.runLocalShellCommand,
       },
       settledActionResults: [],
-      plannerBudget: new TurnPlannerBudget(
+      continuationBudget: new TurnContinuationBudget(
         input.messagePolicy.maxIterations,
-        input.settingsDuring.model.model,
       ),
     },
     async () => {

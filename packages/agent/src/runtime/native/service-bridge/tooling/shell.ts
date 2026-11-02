@@ -7,7 +7,7 @@ export async function runEffectiveShellCommand(
   command: string,
   timeoutMs?: number,
   abortSignal?: AbortSignal,
-  options?: { requireCancellation?: boolean },
+  options?: { requireCancellation?: boolean; runId?: string },
 ) {
   const shell = requireNativeShell(runtime);
   return options

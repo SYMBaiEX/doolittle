@@ -8,7 +8,6 @@ import {
   DOOLITTLE_OPERATOR_PLANNING_SERVICE,
   DOOLITTLE_SHELL_SERVICE,
 } from "@doolittle/contracts";
-import type { ToolProfileId } from "@elizaos/core";
 import type {
   BrowserAnalysisBundle,
   BrowserCaptureBundle,
@@ -51,7 +50,7 @@ export interface NativeShellService {
     command: string,
     timeoutMs?: number,
     abortSignal?: AbortSignal,
-    options?: { requireCancellation?: boolean },
+    options?: { requireCancellation?: boolean; runId?: string },
   ): Promise<TerminalCommandRecord>;
   history(limit?: number): TerminalCommandRecord[];
   status(): Promise<unknown>;
@@ -117,25 +116,4 @@ export interface NativeApprovalService {
   requestApprovalAsync?(input: unknown): Promise<string>;
   handleSelection?(taskId: string, selectedOption: string): Promise<void>;
   getPendingApprovals?(roomId: string): Promise<unknown[]>;
-}
-
-export interface NativeToolPolicyService {
-  updatePluginGroups?(): void;
-  getPluginToolGroups?(): {
-    all: string[];
-    byPlugin: Map<string, string[]>;
-  };
-  getAllowedTools?(
-    context: {
-      profile?: ToolProfileId;
-    },
-    availableTools: string[],
-  ): string[];
-  getDeniedTools?(
-    context: {
-      profile?: ToolProfileId;
-    },
-    availableTools: string[],
-  ): Array<{ name: string; reason: string }>;
-  getEffectivePolicy?(context?: { profile?: ToolProfileId }): unknown;
 }

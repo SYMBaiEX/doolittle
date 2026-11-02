@@ -1,6 +1,10 @@
 import { dispatchRoute } from "@elizaos/agent/api/dispatch-route";
 import { matchPluginRoutePath } from "@elizaos/agent/api/runtime-plugin-routes";
-import type { IAgentRuntime, RouteHandlerResult } from "@elizaos/core";
+import type { IAgentRuntime } from "@elizaos/core";
+import {
+  getHttpRuntime,
+  type RouteHandlerResult,
+} from "@elizaos/host/protocol";
 import {
   isDesktopWorkspaceRuntime,
   resolveConversationWorkspace,
@@ -130,7 +134,7 @@ export async function dispatchRuntimePluginRoute({
   };
   // Keep SDK matching/authorization authoritative. Only an actually matching
   // plugin route needs scope; ordinary product routes must still fall through.
-  const matched = runtime.routes?.find(
+  const matched = getHttpRuntime(runtime).routes.find(
     (route) =>
       route.type === request.method &&
       (route.routeHandler || route.handler) &&

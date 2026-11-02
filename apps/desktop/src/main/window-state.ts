@@ -1,7 +1,6 @@
-import {
-  readJsonFileSync,
-  writeJsonAtomicSync,
-} from "@elizaos/agent/utils/atomic-json";
+import { readOptionalJson } from "@doolittle/storage";
+
+import { writeJsonAtomicSync } from "@elizaos/core";
 import { asRecord } from "@elizaos/shared/type-guards";
 
 // Keep the native window aligned with the renderer's narrowest supported
@@ -169,7 +168,7 @@ export function loadWindowState(
 ): PersistedWindowState {
   const normalizedOptions = normalizeWindowStateOptions(options);
 
-  const raw = asRecord(readJsonFileSync<unknown>(statePath));
+  const raw = asRecord(readOptionalJson<unknown>(statePath));
   if (!raw) return normalizedOptions.defaultState;
 
   const boundsRaw = asRecord(raw.bounds);

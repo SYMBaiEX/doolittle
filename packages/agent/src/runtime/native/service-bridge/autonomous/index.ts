@@ -101,13 +101,10 @@ export interface AutonomousControlPlaneSummary {
       available: boolean;
       sandboxes: number;
     };
-    toolPolicy: {
+    actionAuthority: {
       source: "native" | "unavailable";
       available: boolean;
       actions: number;
-      codingAllowed: number;
-      messagingAllowed: number;
-      fullAllowed: number;
     };
     planning: {
       source: "native" | "product-plugin" | "unavailable";

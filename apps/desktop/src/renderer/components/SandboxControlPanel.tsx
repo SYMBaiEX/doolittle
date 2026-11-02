@@ -1,4 +1,4 @@
-import { Button } from "@elizaos/ui/components/ui/button";
+import { Button } from "@elizaos/ui/button";
 import { Textarea } from "@elizaos/ui/components/ui/textarea";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { desktopRequest } from "../eliza-client";

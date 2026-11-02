@@ -1,14 +1,13 @@
-import {
-  readJsonFileSync,
-  writeJsonAtomicSync,
-} from "@elizaos/agent/utils/atomic-json";
+import { readOptionalJson } from "@doolittle/storage";
+
+import { writeJsonAtomicSync } from "@elizaos/core";
 import type { SkillHubInstalledRecord, SkillHubManifest } from "../types";
 import type { SkillsHubManifestHost } from "./types";
 
 export function readSkillHubInstalledIndex(
   installedIndexPath: string,
 ): SkillHubManifest[] {
-  const parsed = readJsonFileSync<{ manifests?: SkillHubManifest[] }>(
+  const parsed = readOptionalJson<{ manifests?: SkillHubManifest[] }>(
     installedIndexPath,
   );
   return parsed?.manifests ?? [];

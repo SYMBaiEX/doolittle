@@ -8,7 +8,7 @@ import type {
   CreateBotTeamInput,
   UpdateBotTeamInput,
 } from "@doolittle/contracts/bots";
-import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
+import { writeJsonAtomicSync } from "@elizaos/core";
 import { readBoundedRegularFile } from "./regular-file";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;

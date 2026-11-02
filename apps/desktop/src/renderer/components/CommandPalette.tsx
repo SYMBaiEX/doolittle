@@ -1,12 +1,11 @@
-import { Button } from "@elizaos/ui/components/ui/button";
+import { Button } from "@elizaos/ui/button";
 import {
   Dialog,
   DialogClose,
   DialogContent,
   DialogTitle,
 } from "@elizaos/ui/components/ui/dialog";
-import { Input } from "@elizaos/ui/components/ui/input";
-import { ScrollArea } from "@elizaos/ui/components/ui/scroll-area";
+import { Input } from "@elizaos/ui/input";
 import { Search } from "lucide-react";
 import {
   type ChangeEvent,
@@ -341,7 +340,7 @@ export function CommandPalette<TData = unknown>({
           </span>
         </label>
 
-        <ScrollArea className={COMMAND_PALETTE_SCROLL_CLASS}>
+        <div className={`${COMMAND_PALETTE_SCROLL_CLASS} overflow-y-auto`}>
           <div
             ref={listboxRef}
             id={listId}
@@ -416,7 +415,7 @@ export function CommandPalette<TData = unknown>({
               ))
             )}
           </div>
-        </ScrollArea>
+        </div>
         <footer className={COMMAND_PALETTE_FOOTER_CLASS}>
           <span aria-live="polite">
             {resultCount} {resultCount === 1 ? "result" : "results"}

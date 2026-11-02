@@ -4,7 +4,6 @@ import {
   DialogContent,
   DialogTitle,
 } from "@elizaos/ui/components/ui/dialog";
-import { ScrollArea } from "@elizaos/ui/components/ui/scroll-area";
 import { BookOpen, Search, Settings2, X } from "lucide-react";
 import {
   type Dispatch,
@@ -502,7 +501,7 @@ export function PromptLibrary({
               value={query}
             />
           </label>
-          <ScrollArea className="min-h-0">
+          <div className="min-h-0 overflow-y-auto">
             {managedEntries.length > 0 ? (
               <ul className="grid gap-1.5 pr-3">
                 {managedEntries.map((entry) => (
@@ -581,7 +580,7 @@ export function PromptLibrary({
                   : "No saved prompts yet."}
               </div>
             )}
-          </ScrollArea>
+          </div>
         </DialogContent>
       </Dialog>
     </Fragment>

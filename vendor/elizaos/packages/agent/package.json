@@ -1,0 +1,328 @@
+{
+  "name": "@elizaos/agent",
+  "version": "2.0.12-beta.0",
+  "description": "Standalone elizaOS-based agent and backend server package.",
+  "type": "module",
+  "license": "MIT",
+  "homepage": "https://github.com/elizaos/eliza",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/elizaos/eliza.git",
+    "directory": "packages/agent"
+  },
+  "keywords": [
+    "eliza",
+    "agent",
+    "backend",
+    "runtime",
+    "elizaos"
+  ],
+  "main": "./index.js",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "bin": {
+    "eliza-autonomous": "./bin.js"
+  },
+  "exports": {
+    ".": {
+      "eliza-source": "./index.js",
+      "types": "./index.d.ts",
+      "bun": "./index.js",
+      "import": "./index.js",
+      "default": "./index.js"
+    },
+    "./services/interactive-task-runtime": {
+      "eliza-source": "./services/interactive-task-runtime.js",
+      "types": "./services/interactive-task-runtime.d.ts",
+      "import": "./services/interactive-task-runtime.js",
+      "default": "./services/interactive-task-runtime.js"
+    },
+    "./services/interactive-task-http": {
+      "eliza-source": "./services/interactive-task-http.js",
+      "types": "./services/interactive-task-http.d.ts",
+      "import": "./services/interactive-task-http.js",
+      "default": "./services/interactive-task-http.js"
+    },
+    "./services/interactive-task-store": {
+      "eliza-source": "./services/interactive-task-store.js",
+      "types": "./services/interactive-task-store.d.ts",
+      "import": "./services/interactive-task-store.js",
+      "default": "./services/interactive-task-store.js"
+    },
+    "./package.json": "./package.json",
+    "./api/*": {
+      "eliza-source": "./api/*.js",
+      "types": "./api/*.d.ts",
+      "bun": "./api/*.js",
+      "import": "./api/*.js",
+      "default": "./api/*.js"
+    },
+    "./config/character-schema": {
+      "types": "./config/character-schema.d.ts",
+      "import": "./config/character-schema.js",
+      "default": "./config/character-schema.js"
+    },
+    "./config/plugin-auto-enable": null,
+    "./runtime": null,
+    "./runtime/runtime-installation-id": null,
+    "./runtime/runtime-installation-id.windows": null,
+    "./runtime/*": {
+      "eliza-source": "./runtime/*.js",
+      "types": "./runtime/*.d.ts",
+      "bun": "./runtime/*.js",
+      "import": "./runtime/*.js",
+      "default": "./runtime/*.js"
+    },
+    "./services/app-session-gate": {
+      "eliza-source": "./services/app-session-gate.js",
+      "types": "./services/app-session-gate.d.ts",
+      "bun": "./services/app-session-gate.js",
+      "import": "./services/app-session-gate.js",
+      "default": "./services/app-session-gate.js"
+    },
+    "./services/tee-evidence": {
+      "eliza-source": "./services/tee-evidence.js",
+      "types": "./services/tee-evidence.d.ts",
+      "bun": "./services/tee-evidence.js",
+      "import": "./services/tee-evidence.js",
+      "default": "./services/tee-evidence.js"
+    },
+    "./services/tee-evidence-provider": {
+      "eliza-source": "./services/tee-evidence-provider.js",
+      "types": "./services/tee-evidence-provider.d.ts",
+      "bun": "./services/tee-evidence-provider.js",
+      "import": "./services/tee-evidence-provider.js",
+      "default": "./services/tee-evidence-provider.js"
+    },
+    "./services/permissions/probers/index": {
+      "eliza-source": "./services/permissions/probers/index.js",
+      "types": "./services/permissions/probers/index.d.ts",
+      "bun": "./services/permissions/probers/index.js",
+      "import": "./services/permissions/probers/index.js",
+      "default": "./services/permissions/probers/index.js"
+    },
+    "./services/permissions/probers/*": {
+      "eliza-source": "./services/permissions/probers/*.js",
+      "types": "./services/permissions/probers/*.d.ts",
+      "bun": "./services/permissions/probers/*.js",
+      "import": "./services/permissions/probers/*.js",
+      "default": "./services/permissions/probers/*.js"
+    },
+    "./security/access": {
+      "eliza-source": "./security/access.js",
+      "types": "./security/access.d.ts",
+      "bun": "./security/access.js",
+      "import": "./security/access.js",
+      "default": "./security/access.js"
+    },
+    "./services/*": {
+      "eliza-source": "./services/*.js",
+      "types": "./services/*.d.ts",
+      "bun": "./services/*.js",
+      "import": "./services/*.js",
+      "default": "./services/*.js"
+    },
+    "./config/*": {
+      "eliza-source": "./config/*.js",
+      "types": "./config/*.d.ts",
+      "bun": "./config/*.js",
+      "import": "./config/*.js",
+      "default": "./config/*.js"
+    },
+    "./utils/*": {
+      "eliza-source": "./utils/*.js",
+      "types": "./utils/*.d.ts",
+      "bun": "./utils/*.js",
+      "import": "./utils/*.js",
+      "default": "./utils/*.js"
+    },
+    "./*.css": "./*.css",
+    "./*": {
+      "eliza-source": "./*.js",
+      "types": "./*.d.ts",
+      "import": "./*.js",
+      "default": "./*.js"
+    },
+    "./host-use-cases": {
+      "eliza-source": "./host-use-cases.js",
+      "types": "./host-use-cases.d.ts",
+      "import": "./host-use-cases.js",
+      "default": "./host-use-cases.js"
+    },
+    "./sandbox-registry": {
+      "eliza-source": "./sandbox-registry.js",
+      "types": "./sandbox-registry.d.ts",
+      "import": "./sandbox-registry.js",
+      "default": "./sandbox-registry.js"
+    },
+    "./host-manifests/app-manifest": {
+      "eliza-source": "./host-manifests/app-manifest.js",
+      "types": "./host-manifests/app-manifest.d.ts",
+      "import": "./host-manifests/app-manifest.js",
+      "default": "./host-manifests/app-manifest.js"
+    },
+    "./host-manifests/plugin-manifest": {
+      "eliza-source": "./host-manifests/plugin-manifest.js",
+      "types": "./host-manifests/plugin-manifest.d.ts",
+      "import": "./host-manifests/plugin-manifest.js",
+      "default": "./host-manifests/plugin-manifest.js"
+    },
+    "./api/loopback-trust": {
+      "eliza-source": "./api/loopback-trust.js",
+      "types": "./api/loopback-trust.d.ts",
+      "import": "./api/loopback-trust.js",
+      "default": "./api/loopback-trust.js"
+    },
+    "./services/index": null,
+    "./awareness/index": null,
+    "./awareness/registry": null,
+    "./contracts/awareness": null,
+    "./services/permissions/contracts": null,
+    "./hooks/index": null,
+    "./types/index": null,
+    "./diagnostics/integration-observability": null,
+    "./security/index": null,
+    "./actions/index": null,
+    "./api/augmented-request": null,
+    "./api/credit-detection": null,
+    "./runtime/owner-entity": null,
+    "./runtime/local-execution-mode": null,
+    "./runtime/index": null,
+    "./runtime/roles": null,
+    "./runtime/trajectory-persistence": null,
+    "./runtime/roles/src/types": null,
+    "./runtime/roles/src/utils": null,
+    "./runtime/tool-call-cache/index": null,
+    "./runtime/operations/index": null,
+    "./services/interactive-task-choices": {
+      "eliza-source": "./services/interactive-task-choices.js",
+      "types": "./services/interactive-task-choices.d.ts",
+      "import": "./services/interactive-task-choices.js",
+      "default": "./services/interactive-task-choices.js"
+    },
+    "./services/interactive-task-presentation": {
+      "eliza-source": "./services/interactive-task-presentation.js",
+      "types": "./services/interactive-task-presentation.d.ts",
+      "import": "./services/interactive-task-presentation.js",
+      "default": "./services/interactive-task-presentation.js"
+    },
+    "./services/sqlite-message-interaction-session-store": {
+      "eliza-source": "./services/sqlite-message-interaction-session-store.js",
+      "types": "./services/sqlite-message-interaction-session-store.d.ts",
+      "import": "./services/sqlite-message-interaction-session-store.js",
+      "default": "./services/sqlite-message-interaction-session-store.js"
+    },
+    "./actions/views": {
+      "eliza-source": "./actions/views.js",
+      "types": "./actions/views.d.ts",
+      "import": "./actions/views.js",
+      "default": "./actions/views.js"
+    }
+  },
+  "publishConfig": {
+    "access": "public",
+    "directory": "dist"
+  },
+  "dependencies": {
+    "es-module-lexer": "^2.3.2",
+    "@elizaos/plugin-web-search": "^2.0.12-beta.0",
+    "@ai-sdk/anthropic": "^3.0.13",
+    "@ai-sdk/google": "^3.0.130",
+    "@ai-sdk/openai": "^3.0.58",
+    "@clack/prompts": "^1.0.0",
+    "@electric-sql/pglite": "^0.4.0",
+    "@elizaos/plugin-native-contacts": "^2.0.12-beta.0",
+    "@elizaos/plugin-native-phone": "^2.0.12-beta.0",
+    "@elizaos/plugin-native-wifi": "^2.0.12-beta.0",
+    "@elizaos/core": "^2.0.12-beta.0",
+    "@elizaos/plugin-agent-orchestrator": "^2.0.12-beta.0",
+    "@elizaos/plugin-anthropic": "^2.0.12-beta.0",
+    "@elizaos/plugin-native-inference": "^2.0.12-beta.0",
+    "@elizaos/plugin-browser": "^2.0.12-beta.0",
+    "@elizaos/plugin-calendar": "^2.0.12-beta.0",
+    "@elizaos/plugin-coding-tools": "^2.0.12-beta.0",
+    "@elizaos/plugin-computeruse": "^2.0.12-beta.0",
+    "@elizaos/plugin-discord": "^2.0.12-beta.0",
+    "@elizaos/plugin-elizacloud": "^2.0.12-beta.0",
+    "@elizaos/plugin-imessage": "^2.0.12-beta.0",
+    "@elizaos/plugin-local-inference": "^2.0.12-beta.0",
+    "@elizaos/plugin-maps": "^2.0.12-beta.0",
+    "@elizaos/plugin-mcp": "^2.0.12-beta.0",
+    "@elizaos/plugin-native-filesystem": "^2.0.12-beta.0",
+    "@elizaos/plugin-openai": "^2.0.12-beta.0",
+    "@elizaos/plugin-pty": "^2.0.12-beta.0",
+    "@elizaos/plugin-scheduling": "^2.0.12-beta.0",
+    "@elizaos/plugin-notes": "^2.0.12-beta.0",
+    "@elizaos/plugin-sql": "^2.0.12-beta.0",
+    "@elizaos/plugin-todos": "^2.0.12-beta.0",
+    "@elizaos/plugin-video": "^2.0.12-beta.0",
+    "@elizaos/plugin-vision": "^2.0.12-beta.0",
+    "@elizaos/plugin-wallet": "^2.0.12-beta.0",
+    "@elizaos/plugin-workflow": "^2.0.12-beta.0",
+    "@noble/curves": "2.2.0",
+    "@noble/hashes": "2.2.0",
+    "drizzle-orm": "0.45.4",
+    "esbuild": "^0.28.0",
+    "ethers": "^6.16.0",
+    "hono": "^4.13.11",
+    "isomorphic-git": "^1.42.2",
+    "jpeg-js": "^0.4.4",
+    "json5": "^2.2.3",
+    "pg": "^8.23.1",
+    "pngjs": "^7.0.0",
+    "ws": "^8.21.3",
+    "zod": "^4.6.5",
+    "@elizaos/auth": "^2.0.12-beta.0",
+    "@elizaos/cloud-routing": "^2.0.12-beta.0",
+    "@elizaos/plugin-assistant": "^2.0.12-beta.0",
+    "@elizaos/plugin-relationships": "^2.0.12-beta.0",
+    "@elizaos/plugin-sqlite": "^2.0.12-beta.0",
+    "@elizaos/plugin-embeddings": "^2.0.12-beta.0",
+    "react": "^19.3.1",
+    "@elizaos/capacitor-system": "^2.0.12-beta.0",
+    "@elizaos/host": "^2.0.12-beta.0",
+    "@elizaos/contracts": "^2.0.12-beta.0"
+  },
+  "peerDependencies": {
+    "@elizaos/plugin-calendar": "^2.0.12-beta.0",
+    "@elizaos/plugin-knowledge": "^2.0.12-beta.0",
+    "@elizaos/plugin-inbox": "^2.0.12-beta.0",
+    "@elizaos/plugin-todos": "^2.0.12-beta.0",
+    "@elizaos/plugin-x402": "*"
+  },
+  "peerDependenciesMeta": {
+    "@elizaos/plugin-calendar": {
+      "optional": true
+    },
+    "@elizaos/plugin-knowledge": {
+      "optional": true
+    },
+    "@elizaos/plugin-inbox": {
+      "optional": true
+    },
+    "@elizaos/plugin-todos": {
+      "optional": true
+    },
+    "@elizaos/plugin-x402": {
+      "optional": true
+    }
+  },
+  "elizaos": {
+    "scripts": {
+      "testLanes": [
+        "server"
+      ]
+    }
+  },
+  "types": "./index.d.ts",
+  "doolittleSourceBuild": {
+    "repository": "https://github.com/elizaos/eliza",
+    "commit": "b2dbeff3ab689a69f7e518deb7d608d1c4607790",
+    "package": "packages/agent",
+    "bun": "1.4.2",
+    "node": "26.5.0",
+    "nub": "0.9.7",
+    "toolLockSha256": "61328582d89e162bc299241eba0f120ceaf7d7cdaff4ab043143d2f3b18ef2e0"
+  }
+}

@@ -1,26 +1,24 @@
+import { createAssistantPlugins } from "@elizaos/agent/runtime/assistant-plugins";
 import { ElizaCharacterPersistenceService } from "@elizaos/agent/services/character-persistence";
 import { LocalFileStorageService } from "@elizaos/agent/services/file-storage";
-import { GlobalPauseService } from "@elizaos/agent/services/global-pause/index";
-import { HandoffService } from "@elizaos/agent/services/handoff/index";
-import {
-  KnowledgeGraphService,
-  knowledgeGraphSchema,
-} from "@elizaos/agent/services/knowledge-graph/index";
 import { AgentMediaGenerationService } from "@elizaos/agent/services/media-generation";
-import { PendingPromptsService } from "@elizaos/agent/services/pending-prompts/index";
 import { PermissionRegistry } from "@elizaos/agent/services/permissions-registry";
 import {
   AgentEventService,
   ApprovalService,
-  autonomyCapabilities,
   HookService,
   PairingService,
-  type Plugin,
-  PluginManagerService,
   type ServiceClass,
-  ToolPolicyService,
 } from "@elizaos/core";
+import type { HttpPlugin as Plugin } from "@elizaos/host/protocol";
+import {
+  autonomyCapabilities,
+  GlobalPauseService,
+  HandoffService,
+  PendingPromptsService,
+} from "@elizaos/plugin-assistant";
 import { browserPlugin } from "@elizaos/plugin-browser";
+import character from "../../../character";
 
 const autonomyRoutes = autonomyCapabilities.routes.map((route) => ({
   ...route,
@@ -31,12 +29,12 @@ const autonomyRoutes = autonomyCapabilities.routes.map((route) => ({
   rawPath: true,
 }));
 
-// beta.7's PairingService constructor requires a runtime while ServiceClass
+// PairingService's constructor requires a runtime while ServiceClass
 // still declares that constructor argument optional. Runtime registration uses
 // the compatible static start contract, so keep the mismatch isolated here.
 const PairingServiceClass = PairingService as unknown as ServiceClass;
 
-// beta.7's ServiceClass declaration permits an optional constructor runtime,
+// The SDK ServiceClass declaration permits an optional constructor runtime,
 // while several official service classes require one. Their static start
 // methods are the runtime registration contract, so isolate that declaration
 // mismatch rather than wrapping or reimplementing the services.
@@ -55,33 +53,31 @@ const MediaGenerationServiceClass =
 /**
  * Mount the stable, independently importable Eliza foundation services.
  *
- * The beta.7 aggregate Eliza plugin currently imports an unpublished
- * relationships-graph-builder module at runtime and also registers product
- * actions, routes, and init hooks. Registering only these official service
- * classes keeps Doolittle on SDK primitives without copying, wrapping, or
- * introducing those desktop/API-incompatible aggregate-plugin side effects.
+ * Use the SDK's public assistant composition and explicit host services while
+ * retaining Doolittle's own client actions and transport routes.
  */
 export function loadFoundationPlugins(worker = false): Plugin[] {
   return [
+    ...createAssistantPlugins({
+      ...character,
+      advancedMemory: true,
+      advancedPlanning: true,
+    }),
     {
       name: "doolittle-eliza-foundation",
       description:
-        "Official ElizaOS knowledge, hooks, approval, policy, plugin-management, and autonomy capabilities.",
+        "Official ElizaOS knowledge, hooks, approval, action authority and autonomy capabilities.",
       actions: worker ? [] : autonomyCapabilities.actions,
       providers: worker ? [] : autonomyCapabilities.providers,
-      schema: knowledgeGraphSchema,
       services: [
         AgentEventService,
         HookService,
         PermissionRegistryClass,
-        KnowledgeGraphService,
         PendingPromptsServiceClass,
         GlobalPauseServiceClass,
         HandoffServiceClass,
         ApprovalService,
         ...(worker ? [] : [PairingServiceClass]),
-        ToolPolicyService,
-        PluginManagerService,
         CharacterPersistenceServiceClass,
         LocalFileStorageServiceClass,
         MediaGenerationServiceClass,

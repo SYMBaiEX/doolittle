@@ -1,9 +1,4 @@
-import type {
-  Action,
-  ActionResult,
-  Memory,
-  ShortcutDefinition,
-} from "@elizaos/core";
+import type { Action, ActionResult, Memory } from "@elizaos/core";
 import { getMemoryText } from "@elizaos/core";
 import { executeSlashCommand } from "../runtime/chat";
 import { getCommandCatalogEntries } from "../runtime/command-catalog/index";
@@ -14,6 +9,7 @@ import {
 import {
   getScopedTurnAbortSignal,
   getScopedTurnCommandHooks,
+  recordScopedTurnActionResult,
 } from "../runtime/turn-runtime-scope";
 import type { AppServices } from "../services/index";
 import type { EnvConfig } from "../types/runtime/index";
@@ -60,19 +56,6 @@ export function commandShortcutAliases(workspaceDir?: string): string[] {
   return [...aliases].sort();
 }
 
-export function createCommandShortcut(
-  workspaceDir?: string,
-): ShortcutDefinition {
-  return {
-    id: "doolittle-command-catalog",
-    kind: "explicit",
-    aliases: commandShortcutAliases(workspaceDir),
-    target: { kind: "action", name: DOOLITTLE_COMMAND_ACTION },
-    requiresAction: DOOLITTLE_COMMAND_ACTION,
-    priority: 50,
-  };
-}
-
 export function createCommandAction(
   services: AppServices,
   config: EnvConfig,
@@ -82,6 +65,7 @@ export function createCommandAction(
     description:
       "Executes an explicit Doolittle slash command through the Eliza shortcut and action lifecycle.",
     similes: [],
+    mode: "ALWAYS_BEFORE",
     validate: async (runtime, message) =>
       matchesRegisteredCommandShortcut(runtime, getMemoryText(message)),
     handler: async (
@@ -109,14 +93,16 @@ export function createCommandAction(
           error: "COMMAND_NOT_FOUND",
         };
       }
-      await callback?.({ text: response, source: "doolittle-command" });
-      return {
+      const result: ActionResult = {
         success: true,
         text: response,
         userFacingText: response,
         verifiedUserFacing: true,
         data: { command: getMemoryText(message) },
       };
+      recordScopedTurnActionResult(runtime, result);
+      await callback?.({ text: response, source: "doolittle-command" });
+      return result;
     },
   };
 }

@@ -1,5 +1,6 @@
 import type { ChatTurnRequest } from "../../../types/runtime/index";
 import type { AgentExecutionContext } from "../../chat";
+import { matchesRegisteredClientControl } from "../../command-shortcut-match";
 import { hasWorkspaceMutationObligation } from "../../workspace-mutation-intent";
 import {
   type PreparedTurnState,
@@ -67,7 +68,12 @@ export async function prepareNativeTurnSetup(input: {
     input.context,
     turn,
     messagePolicy,
-    "eliza-message-service",
+    matchesRegisteredClientControl(
+      input.context.runtime,
+      input.effectiveInput.message,
+    )
+      ? "doolittle"
+      : "eliza-message-service",
   );
   const modelSettings = turn.settings?.model ?? {};
   recordEvaluationTraceEvent(input.context, {

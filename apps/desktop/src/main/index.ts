@@ -786,6 +786,7 @@ if (ownsSingleInstance)
     // ELIZA_HOME. Bind the desktop main process to the same private data root
     // passed to the backend so newly saved accounts appear in the live pool.
     process.env.ELIZA_HOME ??= runtimeDataDir;
+    process.env.ELIZA_STATE_DIR ??= process.env.ELIZA_HOME;
     ensureDesktopRuntimeState(
       runtimeDataDir,
       sourceRepoRoot ? resolve(sourceRepoRoot, ".doolittle") : undefined,

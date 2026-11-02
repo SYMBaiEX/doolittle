@@ -1,0 +1,76 @@
+{
+  "name": "@elizaos/capacitor-bun-runtime",
+  "version": "2.0.12-beta.0",
+  "description": "Embedded Bun-shape JS runtime bridge for iOS and Android",
+  "keywords": [
+    "capacitor",
+    "bun",
+    "javascriptcore",
+    "embedded-runtime",
+    "eliza"
+  ],
+  "main": "./dist/plugin.cjs.js",
+  "module": "./dist/esm/index.js",
+  "types": "./dist/esm/index.d.ts",
+  "exports": {
+    ".": {
+      "eliza-source": "./src/index.ts",
+      "types": "./dist/esm/index.d.ts",
+      "bun": "./src/index.ts",
+      "development": "./src/index.ts",
+      "import": "./dist/esm/index.js",
+      "require": "./dist/plugin.cjs.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "unpkg": "dist/plugin.js",
+  "files": [
+    "android/src/main/",
+    "android/build.gradle",
+    "ios/Sources/",
+    "ios/Tests/",
+    "ElizaosCapacitorBunRuntime.podspec",
+    "dist/",
+    "src/",
+    "README.md",
+    "ElizaBunEngine.podspec",
+    "engine/Sources/",
+    "engine/patches/",
+    "engine/README.md",
+    "engine/artifacts/ElizaBunEngine.xcframework/",
+    "ios/sqlite-vec/build-ios.sh",
+    "ios/sqlite-vec/VERSION",
+    "ios/sqlite-vec/README.md"
+  ],
+  "author": "elizaOS",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/elizaOS/eliza.git",
+    "directory": "plugins/plugin-native-bun-runtime"
+  },
+  "peerDependencies": {
+    "@capacitor/core": "^8.3.1"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "capacitor": {
+    "android": {
+      "src": "android"
+    },
+    "ios": {
+      "src": "ios",
+      "podName": "ElizaosCapacitorBunRuntime"
+    }
+  },
+  "doolittleSourceBuild": {
+    "repository": "https://github.com/elizaos/eliza",
+    "commit": "b2dbeff3ab689a69f7e518deb7d608d1c4607790",
+    "package": "plugins/plugin-native-bun-runtime",
+    "bun": "1.4.2",
+    "node": "26.5.0",
+    "nub": "0.9.7",
+    "toolLockSha256": "61328582d89e162bc299241eba0f120ceaf7d7cdaff4ab043143d2f3b18ef2e0"
+  }
+}

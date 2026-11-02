@@ -1,4 +1,4 @@
-import { Button } from "@elizaos/ui/components/ui/button";
+import { Button } from "@elizaos/ui/button";
 import type { RuntimeStatus } from "../../shared/contracts";
 import type { DashboardAccountPoolSummary } from "../dashboard-helpers";
 import { summarizeDashboardValue } from "../dashboard-helpers";

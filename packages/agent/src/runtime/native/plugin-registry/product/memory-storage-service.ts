@@ -5,7 +5,6 @@ import {
   type LongTermMemoryCategory,
   type MemoryStorageProvider,
   type Service,
-  type SessionSummary,
   type UUID,
 } from "@elizaos/core";
 import type { SessionService } from "../../../../services/session/service/index";
@@ -71,34 +70,6 @@ export function createMemoryStorageService(
 
     deleteLongTermMemory(id: UUID, agentId: UUID, entityId: UUID) {
       return this.store.deleteLongTermMemory(id, agentId, entityId);
-    }
-
-    storeSessionSummary(
-      summary: Omit<SessionSummary, "id" | "createdAt" | "updatedAt">,
-    ) {
-      return this.store.storeSessionSummary(summary);
-    }
-
-    getCurrentSessionSummary(agentId: UUID, roomId: UUID) {
-      return this.store.getCurrentSessionSummary(agentId, roomId);
-    }
-
-    updateSessionSummary(
-      id: UUID,
-      agentId: UUID,
-      roomId: UUID,
-      updates: Partial<
-        Omit<
-          SessionSummary,
-          "id" | "agentId" | "roomId" | "createdAt" | "updatedAt"
-        >
-      >,
-    ) {
-      return this.store.updateSessionSummary(id, agentId, roomId, updates);
-    }
-
-    getSessionSummaries(agentId: UUID, roomId: UUID, limit?: number) {
-      return this.store.getSessionSummaries(agentId, roomId, limit);
     }
 
     searchSessions(query: string, limit: number) {

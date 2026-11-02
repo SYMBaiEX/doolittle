@@ -12,6 +12,7 @@ import type {
 } from "./types";
 
 export function persistAndNotifyCommand(input: {
+  runId?: string;
   command: string;
   backend: TerminalCommandRecord["backend"];
   preview: ExecutionBackendPreview;
@@ -25,6 +26,7 @@ export function persistAndNotifyCommand(input: {
   onExecutionResult?: (event: TerminalExecutionObservation) => void;
 }): TerminalCommandRecord {
   const { record } = persistTerminalCommandExecution({
+    runId: input.runId,
     command: input.command,
     backend: input.backend,
     preview: input.preview,

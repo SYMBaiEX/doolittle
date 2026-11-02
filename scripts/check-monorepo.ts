@@ -3,6 +3,11 @@ import { builtinModules } from "node:module";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
 import ts from "typescript-legacy";
 import {
+  readElizaSourceBuilds,
+  sourceTreeDigest,
+  sourceWorkspaceDirectory,
+} from "./eliza-source-policy";
+import {
   readWorkspaces,
   type Workspace,
   type WorkspaceManifest,
@@ -142,8 +147,22 @@ export function checkMonorepo(root: string): string[] {
         !path.startsWith("..\\")
       );
     });
+  let upstreamSources: ReturnType<typeof readElizaSourceBuilds> | undefined;
   for (const workspace of workspaces) {
     const { manifest, directory } = workspace;
+    if (directory.startsWith("vendor/elizaos/packages/")) {
+      upstreamSources ??= readElizaSourceBuilds(root);
+      const source = upstreamSources[manifest.name];
+      if (
+        !source ||
+        directory !== sourceWorkspaceDirectory(manifest.name) ||
+        sourceTreeDigest(resolve(root, directory)) !== source.treeSha256
+      )
+        failures.push(
+          `${directory}: upstream bytes differ from the qualified source archive.`,
+        );
+      continue;
+    }
     if (!/^(?:apps|packages)\//u.test(directory))
       failures.push(
         `${directory}: workspace belongs under apps/ or packages/.`,
@@ -186,9 +205,12 @@ export function checkMonorepo(root: string): string[] {
     validateExports(manifest.exports);
   }
   failures.push(
-    ...workspaceCycles(workspaces).map(
-      (cycle) => `Workspace dependency cycle: ${cycle}`,
-    ),
+    ...workspaceCycles(
+      workspaces.filter(
+        (workspace) =>
+          !workspace.directory.startsWith("vendor/elizaos/packages/"),
+      ),
+    ).map((cycle) => `Workspace dependency cycle: ${cycle}`),
   );
   const files = [
     ...sourceFiles(resolve(root, "apps")),

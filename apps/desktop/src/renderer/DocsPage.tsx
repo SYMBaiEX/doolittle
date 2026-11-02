@@ -1,7 +1,7 @@
+import { Button } from "@doolittle/ui";
 import { ArrowRight, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { CompactStatStrip } from "./components/CompactStatStrip";
-import { Button } from "./components/ElizaControls";
 import { OfflineRouteState } from "./components/OfflineRouteState";
 import { UiIcon } from "./components/UiIcon";
 import {

@@ -1,4 +1,4 @@
-import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
+import { writeJsonAtomicSync } from "@elizaos/core";
 import type { SkillHubManifest } from "../types";
 
 export * from "./builders";

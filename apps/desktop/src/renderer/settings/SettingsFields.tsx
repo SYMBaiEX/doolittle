@@ -1,6 +1,5 @@
-import { NativeSelect } from "@doolittle/ui";
+import { Input, NativeSelect, Textarea } from "@doolittle/ui";
 import { useEffect, useRef, useState } from "react";
-import { Input, Textarea } from "../components/ElizaControls";
 import { desktopRequest, EmptyBlock, errorMessage, titleCase } from "../lib";
 import {
   SETTINGS_ROW_LAYOUT_CLASS,

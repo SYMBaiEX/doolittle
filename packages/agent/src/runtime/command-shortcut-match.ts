@@ -1,22 +1,31 @@
-import type { AgentRuntime, IAgentRuntime } from "@elizaos/core";
+import type { IAgentRuntime } from "@elizaos/core";
+import { commandShortcutAliases } from "../actions/command-action";
 
 export const DOOLITTLE_COMMAND_ACTION = "DOOLITTLE_COMMAND";
 
-/** Identify control-plane input without executing or authorizing the command. */
+/** Match only registered client controls; execution stays behind SDK gates. */
 export function matchesRegisteredCommandShortcut(
   runtime: IAgentRuntime,
   text: string,
 ): boolean {
-  const shortcutRegistry = (
-    runtime as IAgentRuntime & Pick<AgentRuntime, "shortcutRegistry">
-  ).shortcutRegistry;
-  if (!shortcutRegistry) return false;
-  const match = shortcutRegistry.match(text, {
-    actions: runtime.actions.map((action) => action.name),
-    allowNatural: false,
-  });
+  if (
+    !runtime.actions.some((action) => action.name === DOOLITTLE_COMMAND_ACTION)
+  )
+    return false;
+  const command = text.trim().split(/\s|:/u, 1)[0];
+  return commandShortcutAliases().includes(command);
+}
+
+export function matchesRegisteredClientControl(
+  runtime: IAgentRuntime,
+  text: string,
+): boolean {
   return (
-    match?.shortcut.target.kind === "action" &&
-    match.shortcut.target.name === DOOLITTLE_COMMAND_ACTION
+    matchesRegisteredCommandShortcut(runtime, text) ||
+    (runtime.actions.some(
+      (action) => action.name === "DOOLITTLE_SHELL_SHORTCUT",
+    ) &&
+      text.trim().startsWith("!") &&
+      !/^!web(?:\s|:|$)/iu.test(text.trim()))
   );
 }

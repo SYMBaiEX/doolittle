@@ -1,5 +1,5 @@
-import { Button } from "@elizaos/ui/components/ui/button";
-import { Input } from "@elizaos/ui/components/ui/input";
+import { Button } from "@elizaos/ui/button";
+import { Input } from "@elizaos/ui/input";
 import { Badge, EmptyBlock, LoadingBlock, Notice } from "../../lib";
 import {
   MCP_DETAIL_CLASS,

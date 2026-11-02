@@ -1,7 +1,3 @@
-import { PagePanel } from "@elizaos/ui/components/composites/page-panel/index";
-import { useState } from "react";
-import type { PluginsResponse } from "../shared/contracts";
-import { CompactStatStrip } from "./components/CompactStatStrip";
 import {
   Button,
   Input,
@@ -10,7 +6,11 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "./components/ElizaControls";
+} from "@doolittle/ui";
+import { PagePanel } from "@elizaos/ui/components/composites/page-panel/index";
+import { useState } from "react";
+import type { PluginsResponse } from "../shared/contracts";
+import { CompactStatStrip } from "./components/CompactStatStrip";
 import { OfflineRouteState } from "./components/OfflineRouteState";
 import {
   asArray,

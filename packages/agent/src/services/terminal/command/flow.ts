@@ -10,6 +10,7 @@ import { buildTerminalCommandRecord } from "../records/command";
 import type { TerminalCommandHistoryStore } from "../records/history";
 
 export interface PersistTerminalCommandInput {
+  runId?: string;
   command: string;
   backend: TerminalCommandRecord["backend"];
   preview: ExecutionBackendPreview;
@@ -66,6 +67,7 @@ export function persistTerminalCommandExecution(
     resolveCloudSnapshotAndSession(preview, input.cloudState);
 
   const record = buildTerminalCommandRecord({
+    runId: input.runId,
     command,
     backend,
     preview,

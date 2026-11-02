@@ -23,6 +23,7 @@ export interface PluginSettings {
   ELIZAOS_CLOUD_SMALL_MODEL: string;
   ELIZAOS_CLOUD_LARGE_MODEL: string;
   ELIZAOS_CLOUD_EMBEDDING_MODEL: string;
+  ELIZAOS_CLOUD_USE_EMBEDDINGS?: string;
   ELIZAOS_CLOUD_ENABLED: string;
   DOOLITTLE_EMBEDDING_PROVIDER: string;
   OLLAMA_API_ENDPOINT: string;
@@ -50,6 +51,8 @@ export interface PluginSettings {
   ENCRYPTION_SALT: string;
   PGLITE_DATA_DIR: string;
   ELIZA_ACP_STATE_DIR?: string;
+  ELIZA_ACP_TRANSPORT: "cli";
+  ELIZA_ACP_CLI: string;
   ACP_AUDIT_LOG_PATH?: string;
   USE_MULTI_STEP: string;
   MAX_MULTISTEP_ITERATIONS: string;

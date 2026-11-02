@@ -1,7 +1,11 @@
-import { type ContextAction, ContextActionMenu } from "@doolittle/ui";
+import {
+  Button,
+  type ContextAction,
+  ContextActionMenu,
+  Input,
+} from "@doolittle/ui";
 import { Film, Image, Music2, RefreshCw } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Button, Input } from "../components/ElizaControls";
 import { UiIcon } from "../components/UiIcon";
 import { copyContextText } from "../context-menu-clipboard";
 import { ErrorBlock, LoadingBlock, useApiResource } from "../lib";

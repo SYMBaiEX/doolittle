@@ -94,7 +94,7 @@ doolittle desktop
 For development:
 
 ```bash
-nub install --frozen-lockfile --ignore-scripts
+nub run deps:install -- --frozen-lockfile --ignore-scripts
 nub run desktop:runtime:install
 nub run desktop:dev
 ```
@@ -222,7 +222,7 @@ scripts/               Bootstrap, verification, and release helpers
 
 ## Development and verification
 
-This is a Nub workspace. After `nub install --frozen-lockfile --ignore-scripts`,
+This is a Nub workspace. After `nub run deps:install -- --frozen-lockfile --ignore-scripts`,
 use the narrowest relevant command while working. Routine development does not
 run the native acceptance suite. The historical test corpus was deleted and
 replaced with a small, maintained suite under `tests/`:

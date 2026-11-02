@@ -10,7 +10,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { join, resolve } from "node:path";
-import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
+import { writeJsonAtomicSync } from "@elizaos/core";
 import { isStrictlyContainedPath } from "../../../utils/path-containment";
 import { assertWorkspacePathResolvesInside } from "../../workspace-service/path";
 import type { SkillHubImportResult, SkillHubManifest } from "../types";

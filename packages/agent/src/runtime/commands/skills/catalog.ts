@@ -68,7 +68,7 @@ export const handleSkillCatalogCommand: SkillCommandHandler = async (
       return "Usage: /skills marketplace search <query>";
     }
     return JSON.stringify(
-      await searchEffectiveSkillsMarketplace(query),
+      await searchEffectiveSkillsMarketplace(context.runtime, query),
       null,
       2,
     );

@@ -1,4 +1,4 @@
-import { Button } from "@elizaos/ui/components/ui/button";
+import { Button } from "@elizaos/ui/button";
 import type { SkillCatalogItem } from "../catalog-entry-models";
 import {
   CATALOG_BROWSER_CLASS,

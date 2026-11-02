@@ -3,7 +3,7 @@ import {
   useLiquidLayout,
   useSurfacePresence,
 } from "@doolittle/ui";
-import { useMediaQuery } from "@elizaos/ui/hooks/useMediaQuery";
+import { useMediaQuery } from "@doolittle/ui/environment";
 import {
   type FormEvent,
   lazy,

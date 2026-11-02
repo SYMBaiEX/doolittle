@@ -1,5 +1,4 @@
 import { join } from "node:path";
-
 import { type BotDefinition, bindPluginStorage } from "@doolittle/contracts";
 import { createDoolittlePlugin } from "@doolittle/plugins/doolittle-plugin/plugin";
 import { createDoolittleRuntimeRoutes } from "@doolittle/plugins/doolittle-plugin/routes";
@@ -7,23 +6,18 @@ import {
   createSdkCapabilitiesRuntimeService,
   createSdkCapabilityEvents,
 } from "@doolittle/plugins/doolittle-plugin/sdk-capabilities";
-import {
-  createShortcutCompatibleWebSearchAction,
-  DOOLITTLE_SDK_SHORTCUTS,
-} from "@doolittle/plugins/doolittle-plugin/sdk-native-surface";
+import { createShortcutCompatibleWebSearchAction } from "@doolittle/plugins/doolittle-plugin/sdk-native-surface";
 import { createSecretsVaultPersistenceService } from "@doolittle/plugins/doolittle-plugin/secrets-vault";
-import { memoryAction } from "@elizaos/agent/actions/memories";
 import { triggerAction } from "@elizaos/agent/actions/trigger";
 import { webFetch } from "@elizaos/agent/runtime/actions/web-fetch";
-import type { Action, Evaluator, Plugin, Provider } from "@elizaos/core";
+import type { Evaluator, Provider } from "@elizaos/core";
 import { getSessionProviders } from "@elizaos/core";
+import type { HttpPlugin as Plugin } from "@elizaos/host/protocol";
+import { memoryAction } from "@elizaos/plugin-assistant";
 import { createAppServerAction } from "../../../../actions/app-server-action";
 import { createBrowserAnalysisAction } from "../../../../actions/browser-analysis-action";
 import { createCodingAction } from "../../../../actions/coding-action";
-import {
-  createCommandAction,
-  createCommandShortcut,
-} from "../../../../actions/command-action";
+import { createCommandAction } from "../../../../actions/command-action";
 import { createConsultBotAction } from "../../../../actions/consult-bot-action";
 import { createFileActions } from "../../../../actions/file-action/index";
 import { createMediaActions } from "../../../../actions/media-action";
@@ -31,10 +25,7 @@ import { createRepositoryAction } from "../../../../actions/repository-action";
 import { createResearchAction } from "../../../../actions/research-action";
 import { createSdkTerminalAction } from "../../../../actions/sdk-terminal-action";
 import { createSessionSearchAction } from "../../../../actions/session-search-action";
-import {
-  createShellCommandAction,
-  createShellCommandShortcut,
-} from "../../../../actions/shell-command-action";
+import { createShellCommandAction } from "../../../../actions/shell-command-action";
 import { createWorkspaceAction } from "../../../../actions/workspace-action/index";
 import { createMemoryNudgeEvaluator } from "../../../../evaluators/memory-nudge-evaluator";
 import { noToolsResponseField } from "../../../../evaluators/no-tools-response-field";
@@ -61,18 +52,12 @@ import { createTriggerRuntimeServices } from "./trigger-runtime-service";
 
 export const DOOLITTLE_RUNTIME_PLUGIN_ID = "doolittle-runtime";
 
-function withToolPolicyOwnership(actions: Action[]): Action[] {
-  return actions.map((action) =>
-    Object.assign(action, { pluginId: DOOLITTLE_RUNTIME_PLUGIN_ID }),
-  );
-}
-
 export function createDoolittleProductPlugin(
   services: AppServices,
   config: EnvConfig,
   workerBot?: BotDefinition | null,
 ): Plugin {
-  const availableActions = withToolPolicyOwnership([
+  const availableActions = [
     createCodingAction(),
     createConsultBotAction(services),
     createAppServerAction(services),
@@ -90,7 +75,7 @@ export function createDoolittleProductPlugin(
     webFetch,
     createResearchAction(),
     ...createMediaActions(services),
-  ]);
+  ];
   const actions = workerBot
     ? availableActions.filter(
         (action) =>
@@ -128,11 +113,6 @@ export function createDoolittleProductPlugin(
         "Persistent memory, skills, search, and scheduling for Doolittle on ElizaOS.",
       actions,
       providers,
-      shortcuts: [
-        ...DOOLITTLE_SDK_SHORTCUTS,
-        createShellCommandShortcut(),
-        createCommandShortcut(config.workspaceDir),
-      ],
       evaluators,
       responseHandlerEvaluators: [
         workspaceMutationRoutingEvaluator,

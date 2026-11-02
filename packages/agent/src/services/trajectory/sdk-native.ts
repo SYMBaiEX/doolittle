@@ -1,10 +1,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import {
-  type IAgentRuntime,
-  resolveTrajectoryLogger,
-  TrajectoriesService,
-} from "@elizaos/core";
+import { type IAgentRuntime, resolveTrajectoryLogger } from "@elizaos/core";
+import { TrajectoriesService } from "@elizaos/plugin-assistant";
 import type {
   SdkTrajectoryExportOptions,
   SdkTrajectoryLogger,

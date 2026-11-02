@@ -3,7 +3,6 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { pathToFileURL } from "node:url";
 import { expect, it } from "vitest";
 
 const agentRequire = createRequire(
@@ -57,7 +56,7 @@ it("does not load an unrelated parent environment during explicit embedded datab
       join(root, ".env"),
       "DOOLITTLE_PARENT_ENV_WITNESS=unrelated\n",
     );
-    const sdk = pathToFileURL(agentRequire.resolve("@elizaos/plugin-sql")).href;
+    const sdk = import.meta.resolve("@elizaos/plugin-sql");
     const code = `import { createDatabaseAdapter } from ${JSON.stringify(sdk)};
       createDatabaseAdapter({dataDir:${JSON.stringify(join(root, "database"))}}, '00000000-0000-4000-8000-000000000001');
       if (process.env.DOOLITTLE_PARENT_ENV_WITNESS) process.exit(2);
@@ -67,7 +66,11 @@ it("does not load an unrelated parent environment during explicit embedded datab
         cwd,
         timeout: 15_000,
         stdio: "pipe",
-        env: { PATH: process.env.PATH, HOME: root },
+        env: {
+          PATH: process.env.PATH,
+          HOME: root,
+          ELIZA_BENCH_DISABLE_DOTENV: "1",
+        },
       }),
     ).not.toThrow();
   } finally {

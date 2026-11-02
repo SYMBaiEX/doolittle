@@ -260,9 +260,17 @@ it("retains vision image transforms and invalid-option rejection on Zod 4", asyn
 });
 
 it("retains browser protocol validation errors on Zod 4", async () => {
-  const entry = resolve(
-    "node_modules/chromium-bidi/out/Default/gen/src/protocol-parser/protocol-parser.js",
+  const sdkRequire = createRequire(
+    resolve("node_modules/@elizaos/agent/package.json"),
   );
+  const computerRequire = createRequire(
+    sdkRequire.resolve("@elizaos/plugin-computeruse"),
+  );
+  const puppeteerRequire = createRequire(
+    computerRequire.resolve("puppeteer-core"),
+  );
+  const bidiRequire = createRequire(puppeteerRequire.resolve("chromium-bidi"));
+  const entry = bidiRequire.resolve("./protocol-parser/protocol-parser.js");
   const parser = await import(/* @vite-ignore */ pathToFileURL(entry).href);
   expect(
     parser.Browser.parseRemoveUserContextParameters({ userContext: "fixture" }),

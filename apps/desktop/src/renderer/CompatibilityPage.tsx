@@ -1,9 +1,9 @@
+import { Button } from "@doolittle/ui";
 import { CircleDashed } from "lucide-react";
 import {
   type CompactCatalogEntry,
   CompactCatalogList,
 } from "./components/CompactCatalogList";
-import { Button } from "./components/ElizaControls";
 import { OfflineRouteState } from "./components/OfflineRouteState";
 import { UiIcon } from "./components/UiIcon";
 import { COMPATIBILITY_EMPTY_CLASS } from "./diagnostics-layout";

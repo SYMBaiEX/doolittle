@@ -1,9 +1,8 @@
+import { AgentRuntime, type UUID } from "@elizaos/core";
 import {
-  AgentRuntime,
   createDocumentsPlugin,
   DocumentService,
-  type UUID,
-} from "@elizaos/core";
+} from "@elizaos/plugin-assistant";
 import character from "../../character";
 import { createServices } from "../../services/index";
 import {
@@ -27,6 +26,9 @@ export async function buildAppContext({
   startupMode,
   eagerDeferredHydration,
 }: AppContextBuildOptions): Promise<AppContext> {
+  // Doolittle owns environment loading. Use the SDK's opt-out so embedded
+  // database creation cannot discover a different project's parent .env.
+  process.env.ELIZA_BENCH_DISABLE_DOTENV = "1";
   const config = loadBootstrapConfig();
   const workerBot = readWorkerBotProfile();
   if (workerBot && config.agentName !== workerBot.name) {
@@ -58,9 +60,7 @@ export async function buildAppContext({
         "Private knowledge storage requires its fixed offline broker identity.",
       );
     }
-    const { default: sqlPlugin } = await import(
-      "@doolittle/plugin-sql-relationships"
-    );
+    const { default: sqlPlugin } = await import("@elizaos/plugin-sql");
     const runtime = new AgentRuntime({
       character: {
         ...character,

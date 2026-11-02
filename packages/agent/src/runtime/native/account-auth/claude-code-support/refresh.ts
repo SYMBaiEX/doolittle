@@ -1,4 +1,4 @@
-import { refreshAnthropicToken } from "@elizaos/agent/auth/anthropic";
+import { refreshAnthropicToken } from "@elizaos/auth/auth/anthropic";
 import type { LinkedClaudeCodeCredentials } from "../types";
 
 export async function refreshClaudeOAuthCredentialsFromRecord(

@@ -1,6 +1,6 @@
 import { realpathSync, statSync } from "node:fs";
 import { resolve } from "node:path";
-import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
+import { writeJsonAtomicSync } from "@elizaos/core";
 import type { WorkspacePickResult, WorkspaceState } from "../shared/contracts";
 import { readBoundedRegularFile } from "./regular-file";
 

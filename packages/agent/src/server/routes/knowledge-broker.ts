@@ -1,6 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
-import { getDocumentsService } from "@elizaos/agent/api/documents-service-loader";
-import type { AgentRuntime, UUID } from "@elizaos/core";
+import type { UUID } from "@elizaos/core";
+import { DocumentService } from "@elizaos/plugin-assistant";
 import type { AppContext } from "../../runtime/bootstrap/index";
 import { readJsonObjectBody } from "../request-body";
 import { json } from "../responses";
@@ -36,8 +36,9 @@ export async function handleKnowledgeBrokerRoutes(
   if (process.env.DOOLITTLE_KNOWLEDGE_BROKER !== "1")
     return json({ error: "Not found" }, 404);
   if (!authorized(request)) return json({ error: "Forbidden" }, 403);
-  const { service } = await getDocumentsService(
-    context.runtime as AgentRuntime,
+  await context.runtime.getServiceLoadPromise(DocumentService.serviceType);
+  const service = context.runtime.getService<DocumentService>(
+    DocumentService.serviceType,
   );
   if (!service) return json({ error: "SDK document service unavailable" }, 503);
 

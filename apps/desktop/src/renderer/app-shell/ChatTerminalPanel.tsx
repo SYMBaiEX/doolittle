@@ -1,6 +1,6 @@
+import { Button } from "@doolittle/ui";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { DoolittleDesktopBridge } from "../../shared/contracts";
-import { Button } from "../components/ElizaControls";
 import { InteractiveTerminal } from "../components/InteractiveTerminal";
 import { PanelResizeHandle } from "../components/PanelResizeHandle";
 import { useModalFocusBoundary } from "../components/useModalFocusBoundary";

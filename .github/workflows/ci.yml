@@ -33,7 +33,7 @@ jobs:
           cache-dependency-path: nub.lock
 
       - name: Install dependencies
-        run: nub install --frozen-lockfile --ignore-scripts
+        run: nub run deps:install -- --frozen-lockfile --ignore-scripts
 
       - name: Check formatting and lint
         run: nub run lint:check
@@ -77,7 +77,7 @@ jobs:
           bun-version: 1.4.2
 
       - name: Install dependencies
-        run: nub install --frozen-lockfile --ignore-scripts
+        run: nub run deps:install -- --frozen-lockfile --ignore-scripts
 
       - name: Install Electron runtime
         run: nub run desktop:runtime:install
@@ -112,6 +112,6 @@ jobs:
           node-version-file: .node-version
           cache-dependency-path: nub.lock
       - name: Install dependencies
-        run: nub install --frozen-lockfile --ignore-scripts
+        run: nub run deps:install -- --frozen-lockfile --ignore-scripts
       - name: Verify provider process trees and capture budgets on Windows
         run: nub run test:scope tests/boundary/provider-command.test.ts

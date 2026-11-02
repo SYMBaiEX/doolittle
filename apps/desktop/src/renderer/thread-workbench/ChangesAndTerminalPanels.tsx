@@ -4,7 +4,7 @@ import type {
   RepositoryRemote,
   RepositoryStash,
 } from "@doolittle/contracts/repository";
-import { Button } from "../components/ElizaControls";
+import { Button } from "@doolittle/ui";
 import { GitControlPanel } from "../components/GitControlPanel";
 import {
   asArray,

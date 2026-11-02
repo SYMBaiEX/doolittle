@@ -1,0 +1,88 @@
+{
+  "name": "@elizaos/capacitor-calendar",
+  "version": "2.0.12-beta.0",
+  "description": "Apple EventKit Calendar and an explicit host-configured Android CalendarProvider adapter.",
+  "keywords": [
+    "calendar",
+    "eventkit",
+    "ios",
+    "permissions"
+  ],
+  "main": "./dist/plugin.cjs.js",
+  "module": "./dist/esm/index.js",
+  "types": "./dist/esm/index.d.ts",
+  "exports": {
+    ".": {
+      "eliza-source": "./src/index.ts",
+      "types": "./dist/esm/index.d.ts",
+      "import": "./dist/esm/index.js",
+      "require": "./dist/plugin.cjs.js"
+    },
+    "./macos-bridge-policy": {
+      "eliza-source": "./src/macos-bridge-policy.ts",
+      "types": "./dist/esm/macos-bridge-policy.d.ts",
+      "import": "./dist/esm/macos-bridge-policy.js",
+      "require": "./dist/plugin.cjs.js"
+    },
+    "./package.json": "./package.json",
+    "./android": {
+      "eliza-source": "./src/android.ts",
+      "types": "./dist/esm/android.d.ts",
+      "import": "./dist/esm/android.js"
+    }
+  },
+  "unpkg": "dist/plugin.js",
+  "files": [
+    "dist/",
+    "ios/Sources/",
+    "*.podspec",
+    "dist",
+    "android/build.gradle",
+    "android/README.md",
+    "android/src/",
+    "src/"
+  ],
+  "author": "elizaOS",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/elizaOS/eliza.git"
+  },
+  "capacitor": {
+    "ios": {
+      "src": "ios",
+      "podName": "ElizaosCapacitorCalendar"
+    },
+    "android": {
+      "src": "android"
+    }
+  },
+  "peerDependencies": {
+    "@capacitor/core": "^8.3.1"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "elizaos": {
+    "platforms": [
+      "browser",
+      "node"
+    ],
+    "runtime": "both",
+    "platformDetails": {
+      "browser": "Graceful unsupported fallback.",
+      "ios": true,
+      "node": "macOS uses the Electrobun EventKit dylib instead.",
+      "android": "Explicit host-configured CalendarProvider adapter through the ./android ESM entrypoint."
+    }
+  },
+  "doolittleSourceBuild": {
+    "repository": "https://github.com/elizaos/eliza",
+    "commit": "b2dbeff3ab689a69f7e518deb7d608d1c4607790",
+    "package": "plugins/plugin-native-calendar",
+    "bun": "1.4.2",
+    "node": "26.5.0",
+    "nub": "0.9.7",
+    "toolLockSha256": "61328582d89e162bc299241eba0f120ceaf7d7cdaff4ab043143d2f3b18ef2e0"
+  }
+}

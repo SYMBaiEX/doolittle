@@ -1,6 +1,6 @@
+import { Button } from "@doolittle/ui";
 import { useMemo, useState } from "react";
 import { CompactStatStrip } from "./components/CompactStatStrip";
-import { Button } from "./components/ElizaControls";
 import { OfflineRouteState } from "./components/OfflineRouteState";
 import { ResourceStatusBar } from "./components/ResourceStatusBar";
 import { GatewayPairingPanel } from "./gateway/GatewayPairingPanel";

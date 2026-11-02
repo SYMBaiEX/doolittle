@@ -2,6 +2,7 @@ import { timingSafeEqual } from "node:crypto";
 import { realpathSync, statSync } from "node:fs";
 import { readWorkerBotProfile } from "../../runtime/bootstrap/bot-profile";
 import type { AppContext } from "../../runtime/bootstrap/index";
+import { claimTerminalActionScope } from "../../runtime/terminal-action-scope";
 import {
   isDesktopWorkspaceRuntime,
   resolveConversationWorkspace,
@@ -32,7 +33,16 @@ export function withDirectConversationWorkspace(
     if (!matches(url) || !isDesktopWorkspaceRuntime()) {
       return handler(context, request, url);
     }
-    const origin = request.headers.get(ORIGIN_HEADER);
+    let origin = request.headers.get(ORIGIN_HEADER);
+    let terminalLease: Awaited<ReturnType<typeof claimTerminalActionScope>>;
+    if (
+      !origin &&
+      request.method === "POST" &&
+      url.pathname === "/api/terminal/run"
+    ) {
+      terminalLease = await claimTerminalActionScope(request);
+      if (terminalLease) origin = terminalLease.scope.sessionId;
+    }
     if (!origin) {
       if (request.method === "GET" && hasDesktopControlCapability(request)) {
         try {
@@ -70,6 +80,19 @@ export function withDirectConversationWorkspace(
         },
         409,
       );
+    }
+    if (terminalLease) {
+      const expected = terminalLease.scope;
+      if (
+        scope.botId !== expected.botId ||
+        scope.projectId !== expected.projectId ||
+        scope.workspacePath !== expected.workspacePath ||
+        terminalLease.signal.aborted
+      )
+        return json({ error: "Terminal workspace authority changed." }, 409);
+      request = new Request(request, {
+        signal: AbortSignal.any([request.signal, terminalLease.signal]),
+      });
     }
     return runWithConversationWorkspace(scope, () =>
       Promise.resolve(handler(context, request, url)),

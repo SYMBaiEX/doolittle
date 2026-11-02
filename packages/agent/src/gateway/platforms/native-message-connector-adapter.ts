@@ -1,9 +1,10 @@
-import type {
-  Content,
-  IAgentRuntime,
-  Media,
-  MessageConnector,
-  TargetInfo,
+import {
+  type Content,
+  type IAgentRuntime,
+  type Media,
+  type MessageConnector,
+  requireConfirmedSendHandlerDelivery,
+  type TargetInfo,
 } from "@elizaos/core";
 import type { DeliveryService } from "../../services/delivery-service";
 import type {
@@ -66,13 +67,22 @@ function nativeContent(message: OutboundPlatformMessage): Content {
 function memoryMetadata(
   memory: Awaited<ReturnType<IAgentRuntime["sendMessageToTarget"]>>,
 ): Record<string, string> {
-  const metadata = memory?.metadata;
-  if (!metadata || typeof metadata !== "object") return {};
-  return Object.fromEntries(
-    Object.entries(metadata).flatMap(([key, value]) =>
-      typeof value === "string" ? [[key, value]] : [],
+  const confirmed = requireConfirmedSendHandlerDelivery(memory);
+  const metadata = confirmed.memories.at(-1)?.metadata;
+  if (!metadata || typeof metadata !== "object")
+    return confirmed.providerMessageId
+      ? { platformMessageId: confirmed.providerMessageId }
+      : {};
+  return {
+    ...Object.fromEntries(
+      Object.entries(metadata).flatMap(([key, value]) =>
+        typeof value === "string" ? [[key, value]] : [],
+      ),
     ),
-  );
+    ...(confirmed.providerMessageId
+      ? { platformMessageId: confirmed.providerMessageId }
+      : {}),
+  };
 }
 
 export class NativeMessageConnectorAdapter implements PlatformAdapter {

@@ -403,7 +403,12 @@ export async function handleBotApiRequest(
               error: "Project access was not confirmed.",
             });
           const currentBot = registry.get(botId);
-          const currentProject = await registry.readLeadProject(projectId);
+          // Reusing a grant has no asynchronous confirmation gap. Bind the
+          // freshly verified project directly; only a native dialog requires
+          // another read to detect changes while the user was deciding.
+          const currentProject = reusable
+            ? selected
+            : await registry.readLeadProject(projectId);
           const currentAccess = projectAccessScope(currentBot, currentProject);
           if (
             JSON.stringify(currentBot) !== JSON.stringify(bot) ||

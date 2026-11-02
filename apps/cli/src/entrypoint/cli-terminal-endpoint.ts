@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import type { AppContext } from "@doolittle/agent/runtime/bootstrap";
 import type { OwnedApiServer } from "@doolittle/agent/server";
-import { syncResolvedApiPort } from "@elizaos/shared";
+import { syncResolvedApiPort } from "@elizaos/host/protocol";
 
 let leased = false;
 

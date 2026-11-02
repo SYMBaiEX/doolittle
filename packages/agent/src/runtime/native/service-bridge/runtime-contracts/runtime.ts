@@ -7,6 +7,8 @@ export type RuntimeLike = Partial<
     | "getService"
     | "getModel"
     | "getAllActions"
+    | "getAllPluginOwnership"
+    | "runActionsByMode"
     | "getMessageConnectors"
     | "character"
   >

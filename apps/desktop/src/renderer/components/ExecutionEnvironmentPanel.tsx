@@ -1,5 +1,5 @@
-import { Button } from "@elizaos/ui/components/ui/button";
-import { Input } from "@elizaos/ui/components/ui/input";
+import { Button } from "@elizaos/ui/button";
+import { Input } from "@elizaos/ui/input";
 import { type FormEvent, useMemo, useState } from "react";
 import type { WorkspacePickResult } from "../../shared/contracts";
 import {

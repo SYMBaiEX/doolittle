@@ -25,12 +25,10 @@ export function collectServiceSources(
     native.agentOrchestrator,
     native.codingAgent,
     native.trajectoryLogger,
-    native.pluginManager,
     native.actionPlanning,
     native.operatorPlanning,
     native.approval,
     native.agentEvent,
-    native.toolPolicy,
   ];
 }
 
@@ -113,8 +111,8 @@ export function buildPluginManagerSection(
   input: AutonomousSummaryInput,
 ): AutonomousControlPlaneSummary["pluginManager"] {
   return {
-    source: input.native.pluginManager ? "native" : "unavailable",
-    available: Boolean(input.native.pluginManager),
+    source: input.pluginInventory ? "native" : "unavailable",
+    available: Boolean(input.pluginInventory),
     plugins: input.pluginInventory?.summary?.total ?? 0,
     categories: input.pluginInventory?.summary?.categories ?? 0,
     enabled: input.pluginInventory?.summary?.enabled ?? 0,
@@ -181,13 +179,12 @@ export function buildExecutionSection(
       available: Boolean(input.native.e2b),
       sandboxes: input.executionControl.e2b.sandboxes,
     },
-    toolPolicy: {
-      source: input.native.toolPolicy ? "native" : "unavailable",
-      available: Boolean(input.native.toolPolicy),
-      actions: input.executionControl.toolPolicy.actions,
-      codingAllowed: input.executionControl.toolPolicy.codingAllowed,
-      messagingAllowed: input.executionControl.toolPolicy.messagingAllowed,
-      fullAllowed: input.executionControl.toolPolicy.fullAllowed,
+    actionAuthority: {
+      source: input.executionControl.actionAuthority.available
+        ? "native"
+        : "unavailable",
+      available: input.executionControl.actionAuthority.available,
+      actions: input.executionControl.actionAuthority.actions,
     },
     planning: {
       source: input.native.operatorPlanning

@@ -1,5 +1,5 @@
+import type { PluginOwnership } from "@elizaos/core";
 import { asNonEmptyString } from "@elizaos/shared/type-guards";
-import type { NativePluginManagerService } from "../runtime-contracts";
 import { buildDerivedPluginManagerSummary } from "./plugin-manager-summary";
 import type { NativePluginManagerSummary } from "./types";
 
@@ -53,29 +53,23 @@ function groupRuntimePlugins(
 }
 
 export function readNativePluginManagerInventory(
-  pluginManager: NativePluginManagerService,
+  ownership: readonly PluginOwnership[],
 ): {
   plugins: unknown[];
   categories: unknown;
   summary: NativePluginManagerSummary;
 } {
-  const runtimePlugins = pluginManager.getAllPlugins?.();
-  const plugins = runtimePlugins
-    ? runtimePlugins.map(normalizeRuntimePluginState)
-    : (pluginManager.list?.() ?? []);
-  const categories =
-    pluginManager.categories?.() ??
-    groupRuntimePlugins(
-      runtimePlugins
-        ? (plugins as ReturnType<typeof normalizeRuntimePluginState>[])
-        : [],
-    );
-
+  const plugins = ownership.map((entry) =>
+    normalizeRuntimePluginState({
+      name: entry.pluginName,
+      status: "loaded",
+      plugin: entry.registeredPlugin ?? entry.plugin,
+    }),
+  );
+  const categories = groupRuntimePlugins(plugins);
   return {
     plugins,
     categories,
-    summary:
-      pluginManager.summary?.() ??
-      buildDerivedPluginManagerSummary(plugins, categories),
+    summary: buildDerivedPluginManagerSummary(plugins, categories),
   };
 }

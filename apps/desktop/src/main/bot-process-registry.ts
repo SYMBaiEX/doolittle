@@ -15,7 +15,7 @@ import {
   getAccessToken,
   getSubscriptionStatus,
   type SubscriptionAccountStatus,
-} from "@elizaos/agent/auth/credentials";
+} from "@elizaos/auth/auth/credentials";
 import type {
   BackendLaunchTarget,
   BackendManager,
@@ -1611,6 +1611,7 @@ export class BotProcessRegistry {
       HOME: botDataDir,
       USERPROFILE: botDataDir,
       ELIZA_HOME: botDataDir,
+      ELIZA_STATE_DIR: botDataDir,
       CODEX_HOME: resolve(botDataDir, "codex-home"),
       CLAUDE_CONFIG_DIR: resolve(botDataDir, "claude-config"),
       DOOLITTLE_NAME: definition.name,

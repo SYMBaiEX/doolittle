@@ -22,23 +22,6 @@ export async function loadDeferredMessagingPlugins({
         normalizePlugin(plugin),
       ),
     );
-  if (
-    process.env.DOOLITTLE_DISTRIBUTED_DESKTOP_RUNTIME !== "1" &&
-    config.whatsappAccessToken &&
-    config.whatsappPhoneNumberId &&
-    config.whatsappVerifyToken
-  )
-    imports.push(
-      import("@elizaos/plugin-whatsapp").then(({ default: plugin }) =>
-        normalizePlugin(plugin),
-      ),
-    );
-  if (config.signalAccountNumber)
-    imports.push(
-      import("@elizaos/plugin-signal").then(({ default: plugin }) =>
-        normalizePlugin(plugin),
-      ),
-    );
   if (config.slackBotToken && config.slackAppToken)
     imports.push(
       import("@elizaos/plugin-slack").then(({ default: plugin }) =>

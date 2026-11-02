@@ -69,7 +69,9 @@ it("packages and extracts ASAR content while preserving native-file unpack rules
 
 it("encodes and decodes Discord audio through the SDK's existing WebAssembly codec", async () => {
   const discordRequire = createRequire(
-    desktopRequire.resolve("@elizaos/plugin-discord/package.json"),
+    createRequire(resolve("packages/agent/package.json")).resolve(
+      "@elizaos/plugin-discord/package.json",
+    ),
   );
   const prism = discordRequire("prism-media");
   const options = { rate: 48_000, channels: 2, frameSize: 960 };

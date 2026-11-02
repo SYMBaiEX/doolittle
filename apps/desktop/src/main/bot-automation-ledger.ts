@@ -1,7 +1,7 @@
 import { chmodSync, existsSync, mkdirSync } from "node:fs";
 import { isAbsolute, resolve } from "node:path";
 import type { BotPermissions } from "@doolittle/contracts/bots";
-import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
+import { writeJsonAtomicSync } from "@elizaos/core";
 import { BotAutomationHistory } from "./bot-automation-history";
 import { readBoundedRegularFile } from "./regular-file";
 

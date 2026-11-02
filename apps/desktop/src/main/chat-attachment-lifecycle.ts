@@ -1,10 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { chmodSync, existsSync, mkdirSync, rmSync } from "node:fs";
 import { basename, dirname, resolve } from "node:path";
-import {
-  readJsonFileSync,
-  writeJsonAtomicSync,
-} from "@elizaos/agent/utils/atomic-json";
+import { readOptionalJson } from "@doolittle/storage";
+import { writeJsonAtomicSync } from "@elizaos/core";
 import type { ManagedAttachmentDescriptor } from "./attachment-import";
 
 const ATTACHMENT_ID =
@@ -106,7 +104,7 @@ export class ChatAttachmentLifecycle {
     if (!existsSync(leasePath)) return undefined;
     let persisted: PersistedLease;
     try {
-      persisted = readJsonFileSync<PersistedLease>(leasePath) as PersistedLease;
+      persisted = readOptionalJson<PersistedLease>(leasePath) as PersistedLease;
     } catch {
       throw new Error("Attachment cleanup lease is invalid.");
     }
@@ -146,7 +144,7 @@ export class ChatAttachmentLifecycle {
     if (!existsSync(metadataPath)) return;
     let metadata: ManagedAttachmentMetadata;
     try {
-      metadata = readJsonFileSync<ManagedAttachmentMetadata>(
+      metadata = readOptionalJson<ManagedAttachmentMetadata>(
         metadataPath,
       ) as ManagedAttachmentMetadata;
     } catch {

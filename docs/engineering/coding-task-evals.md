@@ -108,41 +108,19 @@ different evaluator versions are not directly score-compatible.
 
 ## Disposable-runtime preflight
 
-The root `patchedDependencies` entry applies
-`patches/@elizaos+plugin-agent-orchestrator@2.0.3-beta.7.patch` during Nub install.
-It corrects the published ESM and CJS health checks without replacing the SDK
-service or changing its version: native ACP protocol IDs have no acpx state
-files, and a tracked CLI process is not an orphan. Native operation no longer
-scans the shared legacy acpx directory. Genuine native transport errors,
-restart-orphan errors, CLI file-loss failures and terminal-session cleanup
-remain visible. The CJS bundle's two workspace-service imports also resolve
-from the installed bundle instead of its embedded build-host path. The
-regression test loads both installed SDK bundles without a loader substitute;
-retire the patch only after an upstream release passes the same tests. A patch
-change is a new harness revision, not directly attributable speed evidence.
+The four legacy SDK patches have been retired through the pinned, unmodified
+ElizaOS source integration described in [SDK package upgrades](sdk-package-upgrades.md).
+Doolittle qualifies Node ESM entrypoints and uses the official CLI ACPX transport;
+it does not rewrite the orchestrator's distribution or synthesize native ACP
+support. The upstream CommonJS build-host path limitation remains documented
+and that entrypoint is not used by Doolittle.
 
-The same orchestrator patch also projects bounded initial Codex model selection
-from the awaited, exact-session ACP `session/new` result. Selected `configOptions`
-values are primary; the older `models.currentModelId` format is parsed only for
-the configured `codex-acp@1.13.1` command. This command marker is configuration
-provenance, not proof of the executable that ran. Missing configuration effort
-stays null, and malformed, truncated or contradictory observations fail closed.
-The delegation receipt's optional `initialSelection` stores model/selection
-SHA-256 digests and a closed effort value, not raw model IDs, catalogs or adapter
-metadata. Raw selection is excluded from action results, events and SDK stores.
-
-This is adapter-reported **initial selection only**. The adapter can supply
-defaults, and configuration can change later; neither the snapshot nor the
-requested route proves server-effective or per-prompt execution. The receipt
-therefore keeps `effectiveExecution=unavailable`. Unsupported adapters/options
-remain unavailable or rejected without changing task grading. Existing receipts
-remain valid; coding reports do not yet aggregate this optional field. Real ESM
-and CJS regression tests use a synthetic ACP wire responder, not a live provider.
-Separate delegation/projection tests cover descriptor/getter failures and
-exact-child cleanup. Follow
-the [ACP session-config contract](https://agentclientprotocol.com/protocol/v1/session-config-options)
-and retire this projection patch when an upstream SDK provides equivalent
-bounded exact-session evidence and passes those regressions.
+Delegation evidence accepts only bounded adapter-reported initial selection when
+actually present. Missing evidence stays unavailable. Initial selection is not
+proof of server-effective or per-prompt execution, so `effectiveExecution` remains
+`unavailable`. Historical receipts from the retired patch are not new evidence
+for this source integration. Real coding qualification separately verifies the
+resulting file edits and supplied tests.
 
 The Codex image package patch has been retired. Doolittle's ElizaOS provider
 adapter maps the SDK chat/tool contract into the current official OpenAI

@@ -1,5 +1,12 @@
 import type { BotSummary } from "@doolittle/contracts/bots";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@doolittle/ui";
+import {
   Popover,
   PopoverContent,
   PopoverTrigger,
@@ -42,13 +49,6 @@ import {
   defaultBaseUrlForProvider,
   routeProviderOption,
 } from "../model-routing";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "./ElizaControls";
 import { UiIcon } from "./UiIcon";
 
 export { ComposerProjectSelector } from "../composer-selectors/ComposerProjectSelector";

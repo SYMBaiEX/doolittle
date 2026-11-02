@@ -1,0 +1,55 @@
+{
+  "name": "@elizaos/plugin-sqlite",
+  "version": "2.0.12-beta.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "description": "Durable per-agent SQLite storage with atomic transactions and restart recovery",
+  "publishConfig": {
+    "access": "public"
+  },
+  "exports": {
+    ".": {
+      "eliza-source": "./index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json",
+    "./portable": {
+      "eliza-source": "./portable.ts",
+      "types": "./dist/portable.d.ts",
+      "import": "./dist/portable.js",
+      "default": "./dist/portable.js"
+    }
+  },
+  "sideEffects": false,
+  "files": [
+    "registry-entry.json",
+    "dist"
+  ],
+  "dependencies": {
+    "@elizaos/core": "2.0.12-beta.0",
+    "devalue": "6.0.1",
+    "sql.js": "1.14.2"
+  },
+  "eliza": {
+    "platforms": [
+      "node"
+    ],
+    "runtime": "node",
+    "platformDetails": {
+      "node": "Node 24.15.0 node:sqlite or Bun 1.4.2 bun:sqlite; one database per agent; Android device qualification required"
+    }
+  },
+  "doolittleSourceBuild": {
+    "repository": "https://github.com/elizaos/eliza",
+    "commit": "b2dbeff3ab689a69f7e518deb7d608d1c4607790",
+    "package": "plugins/plugin-sqlite",
+    "bun": "1.4.2",
+    "node": "26.5.0",
+    "nub": "0.9.7",
+    "toolLockSha256": "61328582d89e162bc299241eba0f120ceaf7d7cdaff4ab043143d2f3b18ef2e0"
+  }
+}

@@ -1,5 +1,5 @@
+import { Button } from "@elizaos/ui/button";
 import { PagePanel } from "@elizaos/ui/components/composites/page-panel/index";
-import { Button } from "@elizaos/ui/components/ui/button";
 import { Tabs, TabsContent } from "@elizaos/ui/components/ui/tabs";
 import { lazy, Suspense, useState } from "react";
 import { OfflineRouteState } from "./components/OfflineRouteState";

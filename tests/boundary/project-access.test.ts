@@ -90,6 +90,7 @@ function fixture() {
     registry,
     bot,
     makeRegistry,
+    runtimeFetch,
     post,
     setName: (value: string) => {
       name = value;
@@ -154,11 +155,13 @@ describe("native project approval", () => {
     expect(
       (await f.post(f.registry, f.bot.id, "second", true, confirm))?.status,
     ).toBe(201);
+    expect(f.runtimeFetch).toHaveBeenCalledTimes(3);
     const rebuilt = f.makeRegistry();
     expect(
       (await f.post(rebuilt, f.bot.id, "third", true, confirm))?.status,
     ).toBe(201);
     expect(confirm).toHaveBeenCalledTimes(1);
+    expect(f.runtimeFetch).toHaveBeenCalledTimes(4);
     expect(
       rebuilt.resolveConversationWorkspace(f.bot.id, "third").workspacePath,
     ).toBe(f.root);

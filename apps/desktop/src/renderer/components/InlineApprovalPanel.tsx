@@ -1,3 +1,5 @@
+import { Button } from "@doolittle/ui";
+import { useVisibleInterval } from "@doolittle/ui/environment";
 import {
   Dialog,
   DialogClose,
@@ -6,7 +8,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@elizaos/ui/components/ui/dialog";
-import { useIntervalWhenDocumentVisible } from "@elizaos/ui/hooks/useDocumentVisibility";
 import { useEffect, useRef, useState } from "react";
 import {
   type ActionFeedback,
@@ -18,7 +19,6 @@ import {
   errorMessage,
   useApiResource,
 } from "../lib";
-import { Button } from "./ElizaControls";
 
 interface ApprovalListResponse {
   approvals?: unknown[];
@@ -97,7 +97,7 @@ export function InlineApprovalPanel({
     approvals.map((approval) => asString(approval.id)),
   );
 
-  useIntervalWhenDocumentVisible(resource.reload, 5_000, enabled);
+  useVisibleInterval(resource.reload, 5_000, enabled);
 
   const decide = async (
     approval: Record<string, unknown>,

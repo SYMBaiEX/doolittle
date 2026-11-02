@@ -16,7 +16,8 @@
       "!!**/var",
       "!!**/playwright-report",
       "!!**/test-results",
-      "!!skills/generated/index.json"
+      "!!skills/generated/index.json",
+      "!!vendor/elizaos"
     ]
   },
   "formatter": {
