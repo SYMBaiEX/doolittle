@@ -269,7 +269,14 @@ export async function openProjectChat(
     .getByRole("button", { name: botName })
     .click();
   // Creating a chat awaits its durable host binding, not just a UI animation.
-  await expect(chooser).toBeHidden({ timeout: DESKTOP_REQUEST_TIMEOUT_MS });
+  try {
+    await expect(chooser).toBeHidden({ timeout: DESKTOP_REQUEST_TIMEOUT_MS });
+  } catch (error) {
+    throw new Error(
+      `Conversation chooser did not close: ${await chooser.innerText()}`,
+      { cause: error },
+    );
+  }
   let id: string | null = null;
   await expect
     .poll(
