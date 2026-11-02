@@ -31,6 +31,7 @@ export const SDK_RUNTIME_PACKAGES = [
   "@elizaos/plugin-assistant",
   "@elizaos/plugin-elizacloud",
   "@elizaos/plugin-agent-orchestrator",
+  "@elizaos/plugin-mcp",
 ] as const;
 
 export async function copySdkRuntimePackages(
@@ -51,12 +52,22 @@ export async function copySdkRuntimePackages(
       ),
     ).resolve(name),
   );
-  const orchestratorRequire = createRequire(entries.at(-1) ?? "");
+  const orchestratorRequire = createRequire(
+    resolve(
+      repoRoot,
+      "vendor/elizaos/packages/plugin-agent-orchestrator/package.json",
+    ),
+  );
   entries.push(...nativePackages.map((name) => repoRequire.resolve(name)));
   // This import lives inside the SDK-generated Bun worker, beyond static JS tracing.
   entries.push(orchestratorRequire.resolve("smthrs"));
   // The SDK also invokes this published CJS package through createRequire.
   entries.push(orchestratorRequire.resolve("git-workspace-service"));
+  // MCP validates untrusted tool schemas in a worker that loads Ajv by path.
+  const mcpRequire = createRequire(
+    resolve(repoRoot, "vendor/elizaos/packages/plugin-mcp/package.json"),
+  );
+  entries.push(mcpRequire.resolve("ajv"), mcpRequire.resolve("ajv/dist/2020"));
   const bundleEntries = [
     resolve(outputDir, "doolittle-runtime.mjs"),
     resolve(outputDir, "doolittle-acp.mjs"),
