@@ -1,4 +1,5 @@
 import { resolve } from "node:path";
+import { resolveAtDeadline } from "@elizaos/core/protocol";
 import { isRecord } from "../../../utils/records";
 import { DelegationEvidence } from "./evidence";
 import { initialSelectionEvidence } from "./selection-evidence";
@@ -46,20 +47,15 @@ async function finalChildError(
   sessionId: string,
 ): Promise<string> {
   if (!service.getSession) return "";
-  let timeout: ReturnType<typeof setTimeout> | undefined;
   try {
-    // Optional diagnostics must not prevent cancellation/process cleanup.
-    const snapshot = await Promise.race([
+    // Optional diagnostics must not own process lifetime or delay cleanup indefinitely.
+    const snapshot = await resolveAtDeadline(
       Promise.resolve().then(() => service.getSession?.(sessionId)),
-      new Promise<undefined>((resolve) => {
-        timeout = setTimeout(() => resolve(undefined), 1_000);
-      }),
-    ]);
+      { timeoutMs: 1_000, onTimeout: () => undefined },
+    );
     return text(snapshot?.lastError);
   } catch {
     return "";
-  } finally {
-    clearTimeout(timeout);
   }
 }
 

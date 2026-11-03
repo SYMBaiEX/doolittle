@@ -1,5 +1,6 @@
 import { Buffer } from "node:buffer";
 import path from "node:path";
+import type { ExecutionBackendCapabilities } from "@doolittle/contracts/execution";
 import {
   resolveShellExecutionMode,
   runShell,
@@ -21,7 +22,25 @@ export interface TextProcessOptions {
   onStdout?: (chunk: string) => void;
   onStderr?: (chunk: string) => void;
   abortSignal?: AbortSignal;
+  /** Refuse dispatch unless this adapter can request owned-process teardown. */
+  requireOwnedCancellation?: boolean;
   toolName: string;
+}
+
+/** The SDK router does not currently expose abort handling outside local-yolo. */
+export function textProcessCapabilities(): ExecutionBackendCapabilities {
+  return { ownedCancellation: resolveShellExecutionMode() === "local-yolo" };
+}
+
+export class TextProcessCancellationUnavailableError extends Error {
+  readonly code = "TEXT_PROCESS_CANCELLATION_UNAVAILABLE";
+
+  constructor() {
+    super(
+      "The selected SDK execution policy cannot confirm owned process cancellation. Execution policy was not changed.",
+    );
+    this.name = "TextProcessCancellationUnavailableError";
+  }
 }
 
 const PROCESS_ID_MARKER = "__DOOLITTLE_ROUTER_PID__";
@@ -99,7 +118,15 @@ export async function runTextProcess(
     };
   }
 
-  if (options.abortSignal && resolveShellExecutionMode() === "local-yolo") {
+  const capabilities = textProcessCapabilities();
+  if (
+    options.requireOwnedCancellation &&
+    (!options.abortSignal || !capabilities.ownedCancellation)
+  ) {
+    throw new TextProcessCancellationUnavailableError();
+  }
+
+  if (options.abortSignal && capabilities.ownedCancellation) {
     if (process.platform === "win32") {
       return runAbortableWindowsHostProcess(command, args, options);
     }

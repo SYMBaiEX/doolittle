@@ -1,4 +1,3 @@
-import { resolveShellExecutionMode } from "@elizaos/agent/services/shell-execution-router";
 import type { TerminalCommandRecord } from "../../../../types/execution";
 import * as processExecution from "../../../process-execution";
 import {
@@ -7,6 +6,7 @@ import {
 } from "../../execution/subprocess";
 import {
   previewWithBackend,
+  requireOwnedCancellation,
   resolveConfiguredBackend,
   resolveLocalBackend,
 } from "./backend";
@@ -20,30 +20,10 @@ import type {
 
 const ROUTER_TIMEOUT_MARKER = "[shell-router] command timed out";
 
-export class TerminalCancellationUnavailableError extends Error {
-  constructor() {
-    super(
-      "Owned CLI terminal cancellation is unavailable for this execution capability. Only the local backend in SDK local-yolo mode supports captured-command cancellation; execution policy was not changed.",
-    );
-    this.name = "TerminalCancellationUnavailableError";
-  }
-}
-
-function requireCancellation(
-  backend: { name: string },
-  configuredBackend: string,
-  signal?: AbortSignal,
-): void {
-  signal?.throwIfAborted();
-  if (
-    !signal ||
-    configuredBackend !== "local" ||
-    backend.name !== "local" ||
-    resolveShellExecutionMode() !== "local-yolo"
-  ) {
-    throw new TerminalCancellationUnavailableError();
-  }
-}
+export {
+  ExecutionBackendUnavailableError,
+  TerminalCancellationUnavailableError,
+} from "./backend";
 
 export class TerminalServiceCommandOrchestrator {
   private readonly identifiedRuns = new Map<
@@ -122,7 +102,7 @@ export class TerminalServiceCommandOrchestrator {
       });
     const backend = resolveConfiguredBackend(this.options.backends, settings);
     if (options?.requireCancellation)
-      requireCancellation(backend, settings.execution.backend, abortSignal);
+      requireOwnedCancellation(backend, abortSignal);
     const preview = previewWithBackend({
       backend,
       command: safeCommand,
@@ -134,7 +114,7 @@ export class TerminalServiceCommandOrchestrator {
     // No await separates this check from the actual local backend's router
     // dispatch. Recheck after preview in case callbacks changed SDK policy.
     if (options?.requireCancellation)
-      requireCancellation(backend, settings.execution.backend, abortSignal);
+      requireOwnedCancellation(backend, abortSignal);
     const result = await backend.run(safeCommand, {
       cwd: workspaceDir,
       timeoutMs: effectiveTimeoutMs,

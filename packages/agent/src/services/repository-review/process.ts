@@ -1,4 +1,7 @@
-import { runTextProcess } from "../process-execution";
+import {
+  runTextProcess,
+  TextProcessCancellationUnavailableError,
+} from "../process-execution";
 import type {
   RepositoryReviewProcessRunner,
   RepositoryReviewResult,
@@ -7,7 +10,12 @@ import type {
 const REVIEW_PROCESS_TIMEOUT_MS = 8_000;
 const REVIEW_PROCESS_OUTPUT_BYTES = 512 * 1024;
 
-type ProcessFailureKind = "missing" | "timeout" | "output_limit" | "aborted";
+type ProcessFailureKind =
+  | "missing"
+  | "timeout"
+  | "output_limit"
+  | "aborted"
+  | "execution_unavailable";
 
 export class RepositoryReviewProcessError extends Error {
   constructor(readonly kind: ProcessFailureKind) {
@@ -45,6 +53,7 @@ export const runRepositoryReviewProcess: RepositoryReviewProcessRunner =
         },
         timeoutMs: REVIEW_PROCESS_TIMEOUT_MS,
         abortSignal: controller.signal,
+        requireOwnedCancellation: true,
         onStdout: countOutput,
         onStderr: countOutput,
         toolName: "doolittle.repository-review",
@@ -67,6 +76,11 @@ export const runRepositoryReviewProcess: RepositoryReviewProcessRunner =
         stderr: result.stderr,
         exitCode: result.exitCode,
       };
+    } catch (error) {
+      if (error instanceof TextProcessCancellationUnavailableError) {
+        throw new RepositoryReviewProcessError("execution_unavailable");
+      }
+      throw error;
     } finally {
       signal?.removeEventListener("abort", abort);
     }
@@ -77,6 +91,13 @@ export function classifyFailure(
   missingTool?: "git" | "gh",
 ): Pick<NonNullable<RepositoryReviewResult["degraded"]>, "reason" | "detail"> {
   if (failure instanceof RepositoryReviewProcessError) {
+    if (failure.kind === "execution_unavailable") {
+      return {
+        reason: "execution_unavailable",
+        detail:
+          "Repository review requires owned process cancellation to enforce its output limit, but the selected SDK execution policy does not provide it. No command was started and execution policy was not changed.",
+      };
+    }
     if (failure.kind === "missing" && missingTool) {
       return missingTool === "git"
         ? {

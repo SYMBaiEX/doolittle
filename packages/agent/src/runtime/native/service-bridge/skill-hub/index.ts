@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { basename, join } from "node:path";
+import { resolveAtDeadline } from "@elizaos/core/protocol";
 import type {
   LoadedSkillWithSource,
   SkillCatalogEntry,
@@ -65,18 +66,14 @@ async function boundedCatalogRead(
   forceRefresh: boolean,
 ): Promise<SkillCatalogEntry[] | undefined> {
   const request = officialCatalogRead(official, forceRefresh);
-  let timeout: ReturnType<typeof setTimeout> | undefined;
   try {
-    return await Promise.race([
-      request,
-      new Promise<undefined>((resolve) => {
-        timeout = setTimeout(() => resolve(undefined), CATALOG_READ_TIMEOUT_MS);
-      }),
-    ]);
+    // This optional read does not own process lifetime or cancel the catalog request.
+    return await resolveAtDeadline(request, {
+      timeoutMs: CATALOG_READ_TIMEOUT_MS,
+      onTimeout: () => undefined,
+    });
   } catch {
     return undefined;
-  } finally {
-    if (timeout) clearTimeout(timeout);
   }
 }
 

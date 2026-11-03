@@ -33,6 +33,7 @@ it("binds SDK run identities to command, timeout and workspace and replays their
     });
     const backend: ExecutionBackend = {
       name: "local",
+      capabilities: () => ({ ownedCancellation: false }),
       run,
       preview: (command, { cwd, timeoutMs }) => ({
         backend: "local",

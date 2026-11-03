@@ -21,6 +21,10 @@ import { buildSingularityChecks, buildSingularityCommand } from "../planning";
 class SingularityExecutionBackend implements ExecutionBackend {
   readonly name = "singularity" as const;
 
+  capabilities() {
+    return { ownedCancellation: false } as const;
+  }
+
   preview(
     command: string,
     options: { cwd: string; timeoutMs: number; settings: RuntimeSettings },

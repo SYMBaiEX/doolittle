@@ -14,6 +14,10 @@ class DaytonaExecutionBackend implements ExecutionBackend {
 
   constructor(private readonly cloudState: CloudStateAccessor) {}
 
+  capabilities() {
+    return { ownedCancellation: false } as const;
+  }
+
   preview(
     command: string,
     options: { cwd: string; timeoutMs: number; settings: RuntimeSettings },

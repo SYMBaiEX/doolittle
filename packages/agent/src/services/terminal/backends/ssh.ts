@@ -26,6 +26,10 @@ import {
 class SshExecutionBackend implements ExecutionBackend {
   readonly name = "ssh" as const;
 
+  capabilities() {
+    return { ownedCancellation: false } as const;
+  }
+
   preview(
     command: string,
     options: { cwd: string; timeoutMs: number; settings: RuntimeSettings },

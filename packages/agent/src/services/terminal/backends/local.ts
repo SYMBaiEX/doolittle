@@ -3,6 +3,7 @@ import type {
   ExecutionBackendHealth,
   ExecutionBackendPreview,
 } from "../../../types/execution";
+import { textProcessCapabilities } from "../../process-execution";
 import type { RuntimeSettings } from "../../settings/runtime-settings";
 import type { ExecutionBackend } from "../contracts/backend";
 import {
@@ -20,6 +21,10 @@ import {
 
 class LocalExecutionBackend implements ExecutionBackend {
   readonly name = "local" as const;
+
+  capabilities() {
+    return textProcessCapabilities();
+  }
 
   preview(
     command: string,

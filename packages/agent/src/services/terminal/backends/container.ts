@@ -19,6 +19,10 @@ class ContainerExecutionBackend implements ExecutionBackend {
     this.name = spec.name;
   }
 
+  capabilities() {
+    return { ownedCancellation: false } as const;
+  }
+
   preview(
     command: string,
     options: { cwd: string; timeoutMs: number; settings: RuntimeSettings },

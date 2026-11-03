@@ -1,4 +1,5 @@
 import type {
+  ExecutionBackendCapabilities,
   ExecutionBackendHealth,
   ExecutionBackendName,
   ExecutionBackendPreview,
@@ -8,6 +9,8 @@ import type { TerminalRunResult } from "../execution/subprocess";
 
 export interface ExecutionBackend {
   readonly name: ExecutionBackendName;
+  /** Read at admission time; SDK policy can change between invocations. */
+  capabilities(): ExecutionBackendCapabilities;
   preview(
     command: string,
     options: { cwd: string; timeoutMs: number; settings: RuntimeSettings },
