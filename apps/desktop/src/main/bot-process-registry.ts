@@ -42,6 +42,14 @@ import {
 } from "./bot-conversation-ledger";
 import { BotKnowledgeBroker } from "./bot-knowledge-broker";
 import {
+  assertClaudeSubscriptionAvailable,
+  codexAccountId,
+  type ProviderGrant,
+  resolveBotProviderGrant,
+  type TokenResolver,
+} from "./bot-process/provider-connections";
+import { buildBotWorkerEnvironment } from "./bot-process/worker-environment";
+import {
   BotProjectAccessStore,
   permissionsFingerprint,
 } from "./bot-project-access";
@@ -57,46 +65,11 @@ import { releaseAbandonedExecutionClaim } from "./execution-receipt";
 import { readBoundedResponseText } from "./ipc/runtime-http";
 import type { WorkerHostHandler } from "./worker-host-rpc";
 
-const CONNECTION_ID_PATTERN =
-  /^(openai-api|anthropic-api|openai-codex|anthropic-subscription):([a-zA-Z0-9][a-zA-Z0-9._-]{0,119})$/u;
-
-type TokenResolver = (
-  provider: "openai-api" | "anthropic-api" | "openai-codex",
-  accountId: string,
-) => Promise<string | null>;
-
 async function officialTokenResolver(
   provider: "openai-api" | "anthropic-api" | "openai-codex",
   accountId: string,
 ): Promise<string | null> {
   return getAccessToken(provider, accountId);
-}
-
-type ProviderGrant =
-  | { kind: "offline" }
-  | { kind: "direct"; provider: "openai-api" | "anthropic-api"; token: string }
-  | {
-      kind: "native";
-      provider: "openai-codex" | "anthropic-subscription";
-      accountId: string;
-    };
-
-function codexAccountId(accessToken: string): string {
-  try {
-    const payload = JSON.parse(
-      Buffer.from(accessToken.split(".")[1] ?? "", "base64url").toString(
-        "utf8",
-      ),
-    ) as Record<string, unknown>;
-    const auth = payload["https://api.openai.com/auth"];
-    if (auth && typeof auth === "object") {
-      const id = (auth as Record<string, unknown>).chatgpt_account_id;
-      if (typeof id === "string" && id.length > 0) return id;
-    }
-  } catch {
-    // A malformed token must never be used against an unscoped account.
-  }
-  throw new Error("The selected Codex account is unavailable.");
 }
 
 export interface BotProcessRegistryOptions {
@@ -1083,7 +1056,11 @@ export class BotProcessRegistry {
       }
     }
 
-    const grant = await this.resolveProviderGrant(definition);
+    const grant = await resolveBotProviderGrant(
+      definition,
+      this.tokenResolver,
+      this.subscriptionStatus,
+    );
     if (
       generation !== (this.activationGeneration.get(definition.id) ?? 0) ||
       this.get(definition.id).updatedAt !== definition.updatedAt
@@ -1095,7 +1072,12 @@ export class BotProcessRegistry {
 
     const botDataDir = resolve(this.dataDir, "bots", definition.id);
     mkdirSync(botDataDir, { recursive: true, mode: 0o700 });
-    const environment = this.workerEnvironment(definition, botDataDir, grant);
+    const environment = buildBotWorkerEnvironment(
+      definition,
+      botDataDir,
+      grant,
+      this.target.environment,
+    );
     const foregroundParents = new Map<string, ForegroundParentWitness>();
     const backend = this.createBackend(
       this.target,
@@ -1267,81 +1249,14 @@ export class BotProcessRegistry {
     }
   }
 
-  private async resolveProviderGrant(
-    definition: BotDefinition,
-  ): Promise<ProviderGrant> {
-    const provider = definition.model.provider;
-    if (provider === "offline") return { kind: "offline" };
-    const expectedProvider =
-      provider === "openai"
-        ? "openai-api"
-        : provider === "anthropic"
-          ? "anthropic-api"
-          : provider === "codex"
-            ? "openai-codex"
-            : provider === "claude-code"
-              ? "anthropic-subscription"
-              : null;
-    if (!expectedProvider) {
-      throw new Error(
-        "This model route needs a scoped native provider grant before activation.",
-      );
-    }
-    const references = definition.permissions.connectionIds.map((id) => {
-      const match = CONNECTION_ID_PATTERN.exec(id);
-      if (!match) throw new Error("A bot connection reference is invalid.");
-      return { provider: match[1], accountId: match[2] };
-    });
-    const matches = references.filter(
-      (reference) => reference.provider === expectedProvider,
-    );
-    if (matches.length !== 1 || !matches[0]?.accountId) {
-      throw new Error(
-        "Select exactly one approved account for this bot's model provider.",
-      );
-    }
-    if (expectedProvider === "anthropic-subscription") {
-      const status = this.subscriptionStatus().find(
-        (row) =>
-          row.provider === "anthropic-subscription" &&
-          row.accountId === matches[0]?.accountId &&
-          row.source === "claude-code-cli" &&
-          row.configured &&
-          row.valid &&
-          row.available !== false,
-      );
-      if (!status)
-        throw new Error("The selected Claude Code CLI account is unavailable.");
-      return {
-        kind: "native",
-        provider: expectedProvider,
-        accountId: matches[0].accountId,
-      };
-    }
-    const token = await this.tokenResolver(
-      expectedProvider,
-      matches[0].accountId,
-    );
-    if (!token) {
-      throw new Error(
-        "The selected bot connection is unavailable. Reconnect it and retry.",
-      );
-    }
-    if (expectedProvider === "openai-codex") {
-      codexAccountId(token);
-      return {
-        kind: "native",
-        provider: expectedProvider,
-        accountId: matches[0].accountId,
-      };
-    }
-    return { kind: "direct", provider: expectedProvider, token };
-  }
-
   /** Fresh application-owned connection check; credentials never enter receipts. */
   async validateAutomationConnection(botId: string): Promise<void> {
     const definition = this.get(botId);
-    await this.resolveProviderGrant(definition);
+    await resolveBotProviderGrant(
+      definition,
+      this.tokenResolver,
+      this.subscriptionStatus,
+    );
     if (this.get(botId).updatedAt !== definition.updatedAt)
       throw new Error("The automation bot's connection grant changed.");
   }
@@ -1541,19 +1456,10 @@ export class BotProcessRegistry {
         grant.kind === "native" &&
         grant.provider === "anthropic-subscription"
       ) {
-        const status = this.subscriptionStatus().find(
-          (row) =>
-            row.provider === "anthropic-subscription" &&
-            row.accountId === grant.accountId &&
-            row.source === "claude-code-cli" &&
-            row.configured &&
-            row.valid &&
-            row.available !== false,
+        assertClaudeSubscriptionAvailable(
+          grant.accountId,
+          this.subscriptionStatus,
         );
-        if (!status)
-          throw new Error(
-            "The selected Claude Code CLI account is unavailable.",
-          );
         const payload = request.payload;
         if (!payload || typeof payload !== "object" || Array.isArray(payload))
           throw new Error("Invalid Claude request.");
@@ -1588,43 +1494,5 @@ export class BotProcessRegistry {
       }
       throw new Error("The bot is not approved for this host operation.");
     };
-  }
-
-  private workerEnvironment(
-    definition: BotDefinition,
-    botDataDir: string,
-    grant: ProviderGrant,
-  ): NodeJS.ProcessEnv {
-    const source = process.env;
-    const environment: NodeJS.ProcessEnv = {
-      PATH: source.PATH,
-      LANG: source.LANG,
-      LC_ALL: source.LC_ALL,
-      TMPDIR: source.TMPDIR,
-      TEMP: source.TEMP,
-      TMP: source.TMP,
-      SYSTEMROOT: source.SYSTEMROOT,
-      WINDIR: source.WINDIR,
-      HOME: botDataDir,
-      USERPROFILE: botDataDir,
-      ELIZA_HOME: botDataDir,
-      ELIZA_STATE_DIR: botDataDir,
-      CODEX_HOME: resolve(botDataDir, "codex-home"),
-      CLAUDE_CONFIG_DIR: resolve(botDataDir, "claude-config"),
-      DOOLITTLE_NAME: definition.name,
-      DOOLITTLE_BOT_RUNTIME: "worker",
-      DOOLITTLE_BOT_PROFILE: JSON.stringify(definition),
-      DOOLITTLE_OFFLINE_BOOTSTRAP:
-        definition.model.provider === "offline" ? "true" : "false",
-      ...(this.target.environment?.ELECTRON_RUN_AS_NODE
-        ? { ELECTRON_RUN_AS_NODE: this.target.environment.ELECTRON_RUN_AS_NODE }
-        : {}),
-    };
-    if (grant.kind === "direct") {
-      environment[
-        grant.provider === "openai-api" ? "OPENAI_API_KEY" : "ANTHROPIC_API_KEY"
-      ] = grant.token;
-    }
-    return environment;
   }
 }
