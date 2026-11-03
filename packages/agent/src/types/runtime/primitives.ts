@@ -1,6 +1,8 @@
+import type { RunDepth } from "@doolittle/contracts/run";
+
+export type { RunDepth, ToolProgressMode } from "@doolittle/contracts/run";
+
 export type MemoryTarget = "memory" | "user";
-export type RunDepth = "quick" | "standard" | "deep" | "explore";
-export type ToolProgressMode = "off" | "new" | "all" | "verbose";
 export type DelegationOrchestrationMode =
   | "sequential"
   | "parallel"

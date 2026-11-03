@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
+import { isRunSnapshot } from "@doolittle/contracts/run";
 import { readOptionalJson } from "@doolittle/storage";
 import { writeJsonAtomicSync } from "@elizaos/core";
 import type { RunSnapshot, TaskRunEvent } from "./types";
@@ -21,38 +22,8 @@ export interface RunControllerStoreOptions {
   writer?: PersistedRunWriter;
 }
 
-const RUN_STATUSES = new Set<RunSnapshot["status"]>([
-  "thinking",
-  "acting",
-  "waiting",
-  "complete",
-  "cancelled",
-  "error",
-]);
 const MAX_DELTA_EVENT_BYTES = 32 * 1024;
 const MAX_JOURNAL_BYTES_PER_RUN = 512 * 1024;
-
-function isRunSnapshot(value: unknown): value is RunSnapshot {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
-  const run = value as Partial<RunSnapshot>;
-  return (
-    typeof run.runId === "string" &&
-    typeof run.sessionId === "string" &&
-    typeof run.roomId === "string" &&
-    typeof run.source === "string" &&
-    typeof run.message === "string" &&
-    typeof run.runDepth === "string" &&
-    typeof run.configuredMaxIterations === "number" &&
-    typeof run.observedActionCount === "number" &&
-    typeof run.progressMode === "string" &&
-    typeof run.status === "string" &&
-    RUN_STATUSES.has(run.status as RunSnapshot["status"]) &&
-    Array.isArray(run.localMutations) &&
-    typeof run.pendingApprovals === "number" &&
-    typeof run.startedAt === "string" &&
-    typeof run.updatedAt === "string"
-  );
-}
 
 export class RunControllerStore {
   // Desktop admission allows 512 queued plus active runs. Keep that fleet's

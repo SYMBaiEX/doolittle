@@ -8,6 +8,7 @@ import type {
   CreateBotInput,
   UpdateBotInput,
 } from "@doolittle/contracts/bots";
+import { isActiveRunStatus } from "@doolittle/contracts/run";
 import {
   invokeClaudeCodeCliPrint,
   resolveClaudeCliModel,
@@ -895,7 +896,7 @@ export class BotProcessRegistry {
           if (typeof run.runId !== "string" || typeof run.status !== "string") {
             throw new Error("Bot run status is invalid.");
           }
-          if (["thinking", "acting", "waiting"].includes(run.status))
+          if (isActiveRunStatus(run.status))
             active.add(run.runId);
         }
         // Do not reintroduce a stopped or replaced runtime's stale receipts.

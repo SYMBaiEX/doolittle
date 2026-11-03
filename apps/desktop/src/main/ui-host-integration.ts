@@ -3,6 +3,10 @@ import type {
   BotCatalogResponse,
   BotDefinition,
 } from "@doolittle/contracts/bots";
+import {
+  isRunStatus,
+  isTerminalRunStatus,
+} from "@doolittle/contracts/run";
 import type {
   UiConversation,
   UiMessage,
@@ -129,14 +133,7 @@ function checkRun(
     value.runId !== runId ||
     value.sessionId !== target.sessionId ||
     (value.botId !== undefined && value.botId !== target.botId) ||
-    ![
-      "thinking",
-      "acting",
-      "waiting",
-      "complete",
-      "cancelled",
-      "error",
-    ].includes(String(value.status))
+    !isRunStatus(value.status)
   )
     throw new Error(
       "Canonical run receipt has a conflicting owner or identity.",
@@ -250,9 +247,7 @@ export class NativeUiBackend implements UiHostBackend {
             !object(candidate) ||
             typeof candidate.runId !== "string" ||
             typeof candidate.sessionId !== "string" ||
-            ["complete", "cancelled", "error"].includes(
-              String(candidate.status),
-            )
+            isTerminalRunStatus(candidate.status)
           )
             continue;
           await this.options.registry.assertRunOwner(bot.id, candidate.runId);

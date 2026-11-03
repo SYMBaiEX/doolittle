@@ -1,6 +1,14 @@
 import type { CodingVerificationReceipt } from "@doolittle/contracts";
-import type { WalletActivityReceipt } from "@doolittle/contracts/wallet-activity";
-import type { RunDepth, ToolProgressMode } from "../../types/index";
+import type { RunDepth, ToolProgressMode } from "@doolittle/contracts/run";
+
+export type {
+  LocalMutationInput,
+  LocalMutationRecord,
+  RunSnapshot,
+  RunStatus,
+  RunUpdateEvent,
+  RunUpdateType,
+} from "@doolittle/contracts/run";
 
 /** In-process-only context envelope. Never add this to snapshots or journals. */
 export interface RuntimeCodingVerificationEvent {
@@ -8,82 +16,6 @@ export interface RuntimeCodingVerificationEvent {
   runId: string;
   roomId: string;
   receipt: CodingVerificationReceipt;
-}
-
-export type RunStatus =
-  | "thinking"
-  | "acting"
-  | "waiting"
-  | "complete"
-  | "cancelled"
-  | "error";
-
-export interface LocalMutationRecord {
-  action: string;
-  requestedPath?: string;
-  resolvedPath?: string;
-  success: boolean;
-  message?: string;
-  bytes?: number;
-  replacements?: number;
-  recordedAt: string;
-}
-
-export type LocalMutationInput = Omit<LocalMutationRecord, "recordedAt">;
-
-export interface RunSnapshot {
-  runId: string;
-  sessionId: string;
-  roomId: string;
-  source: string;
-  message: string;
-  runDepth: RunDepth;
-  configuredMaxIterations: number;
-  observedActionCount: number;
-  progressMode: ToolProgressMode;
-  status: RunStatus;
-  activeAction?: string;
-  activeStream?: string;
-  statusDetail?: string;
-  lastAction?: string;
-  localMutations: LocalMutationRecord[];
-  walletActivities?: WalletActivityReceipt[];
-  pendingApprovals: number;
-  startedAt: string;
-  /** First operator-visible lifecycle update, used for queue-to-status telemetry. */
-  firstStatusAt?: string;
-  /** First model/message activity observed for this run. */
-  firstMessageAt?: string;
-  /** First tool/action activity observed for this run. */
-  firstActionAt?: string;
-  /** Most recent non-heartbeat activity. Heartbeats must not hide a stalled run. */
-  lastMeaningfulActivityAt?: string;
-  updatedAt: string;
-  lastHeartbeatAt?: string;
-  endedAt?: string;
-  /** The final lifecycle outcome, retained after a run leaves the active session slot. */
-  terminalReason?: "completed" | "cancelled" | "error";
-  errorMessage?: string;
-}
-
-export interface RunUpdateEvent {
-  type:
-    | "started"
-    | "thinking"
-    | "acting"
-    | "waiting"
-    | "message"
-    | "action-started"
-    | "action-completed"
-    | "local-mutation"
-    | "stream"
-    | "heartbeat"
-    | "completed"
-    | "cancelled"
-    | "error"
-    | "approvals";
-  sessionId: string;
-  run: RunSnapshot;
 }
 
 export interface TaskRunEvent {
@@ -110,8 +42,6 @@ export type TaskRunClaimResult =
       reason: "run_exists" | "session_active";
       conflictingRunId?: string;
     };
-
-export type RunUpdateType = RunUpdateEvent["type"];
 
 export interface StartTurnInput {
   sessionId: string;

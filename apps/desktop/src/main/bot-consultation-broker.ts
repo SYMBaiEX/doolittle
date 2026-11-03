@@ -8,6 +8,10 @@ import type {
   BotRunOwner,
 } from "@doolittle/contracts/bots";
 import {
+  isActiveRunStatus,
+  isTerminalRunStatus,
+} from "@doolittle/contracts/run";
+import {
   BotConsultationLedger,
   type BotConsultationRecord,
 } from "./bot-consultation-ledger";
@@ -17,7 +21,6 @@ const MAX_BODY = 2_000_000;
 const MAX_OBJECTIVE = 32_000;
 const MAX_CONTEXT = 8;
 const MAX_DEADLINE_MS = 10 * 60_000;
-const TERMINAL = new Set(["complete", "cancelled", "error"]);
 
 export interface BotConsultationDispatchInput {
   origin: BotRunOwner;
@@ -160,7 +163,7 @@ export class BotConsultationBroker {
     if (
       run?.runId !== origin.runId ||
       run.sessionId !== origin.sessionId ||
-      !["thinking", "acting", "waiting"].includes(String(run.status))
+      !isActiveRunStatus(run.status)
     )
       throw new Error("The originating run is no longer active.");
   }
@@ -460,7 +463,7 @@ export class BotConsultationBroker {
         ) {
           throw new Error("Consultation run ownership changed.");
         }
-        if (TERMINAL.has(String(run.status))) {
+        if (isTerminalRunStatus(run.status)) {
           const outcome = run.status as BotConsultationResult["outcome"];
           let text = "";
           if (outcome === "complete") {

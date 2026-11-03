@@ -1,4 +1,8 @@
-import type { WalletActivityReceipt } from "@doolittle/contracts/wallet-activity";
+import type {
+  LocalMutationRecord,
+  RunSnapshot as RuntimeRunSnapshot,
+  RunUpdateEvent,
+} from "@doolittle/contracts/run";
 export type HttpMethod = "GET" | "POST" | "PATCH" | "DELETE";
 
 export const DESKTOP_REQUEST_TIMEOUT_MS = 15_000;
@@ -90,69 +94,14 @@ export interface ChatRunSubscription {
   /** The last durable event id rendered by this desktop window. */
   after?: number;
 }
-export interface LocalMutation {
-  action: string;
-  requestedPath?: string;
-  resolvedPath?: string;
-  success: boolean;
-  message?: string;
-  bytes?: number;
-  replacements?: number;
-  recordedAt: string;
-}
-export interface RunSnapshot {
+export type LocalMutation = LocalMutationRecord;
+
+/** Desktop routing context supplements, but does not authorize, runtime evidence. */
+export interface RunSnapshot extends RuntimeRunSnapshot {
   botId?: string;
-  runId: string;
-  sessionId: string;
-  roomId: string;
-  source: string;
-  message: string;
-  runDepth: "quick" | "standard" | "deep" | "explore";
-  configuredMaxIterations: number;
-  observedActionCount: number;
-  progressMode: "off" | "new" | "all" | "verbose";
-  status:
-    | "thinking"
-    | "acting"
-    | "waiting"
-    | "complete"
-    | "cancelled"
-    | "error";
-  activeAction?: string;
-  activeStream?: string;
-  statusDetail?: string;
-  lastAction?: string;
-  localMutations: LocalMutation[];
-  walletActivities?: WalletActivityReceipt[];
-  pendingApprovals: number;
-  startedAt: string;
-  firstStatusAt?: string;
-  firstMessageAt?: string;
-  firstActionAt?: string;
-  lastMeaningfulActivityAt?: string;
-  updatedAt: string;
-  lastHeartbeatAt?: string;
-  endedAt?: string;
-  terminalReason?: "completed" | "cancelled" | "error";
-  errorMessage?: string;
 }
-export interface DesktopRunUpdate {
-  type:
-    | "started"
-    | "thinking"
-    | "acting"
-    | "waiting"
-    | "message"
-    | "action-started"
-    | "action-completed"
-    | "local-mutation"
-    | "stream"
-    | "heartbeat"
-    | "completed"
-    | "cancelled"
-    | "error"
-    | "approvals";
-  sessionId: string;
+
+export interface DesktopRunUpdate extends RunUpdateEvent {
   run: RunSnapshot;
 }
 
