@@ -62,6 +62,7 @@ const CANCELLATION_GRACE_MS = 250;
 const TERMINATION_CONFIRMATION_MS = 1_000;
 const POSIX_CANCELLATION_SETTLEMENT_MS = 1_750;
 const WINDOWS_CANCELLATION_SETTLEMENT_MS = 6_500;
+const MAX_TIMER_DELAY_MS = 2_147_483_647;
 
 // A caller's bounded wait can end while the SDK still owns open pipes. Retain
 // and observe the operation until it settles so late PID discovery can still
@@ -80,8 +81,20 @@ async function runOwnedTextProcess(
   options: TextProcessOptions,
   runner: OwnedTextProcessRunner,
 ): Promise<TextProcessResult> {
+  const requestedTimeoutMs = options.timeoutMs ?? 30_000;
+  // The SDK host router passes this value directly to setTimeout. Refuse
+  // invalid/overflow delays rather than allowing Node to replace them with 1ms.
+  if (
+    !Number.isFinite(requestedTimeoutMs) ||
+    requestedTimeoutMs < 1 ||
+    requestedTimeoutMs > MAX_TIMER_DELAY_MS
+  ) {
+    throw new RangeError(
+      `Owned process timeoutMs must be finite and between 1 and ${MAX_TIMER_DELAY_MS}.`,
+    );
+  }
+  const timeoutMs = Math.trunc(requestedTimeoutMs);
   const controller = new AbortController();
-  const timeoutMs = options.timeoutMs ?? 30_000;
   let stopReason: "aborted" | "timeout" | undefined;
   let settlementTimer: ReturnType<typeof setTimeout> | undefined;
   let rejectSettlement!: (error: TextProcessTerminationUnconfirmedError) => void;
@@ -111,17 +124,18 @@ async function runOwnedTextProcess(
   // This request owns its deadline even if the router is waiting only on an
   // unresolved promise. The timeout and teardown waits both stay referenced.
   const timeout = setTimeout(() => stop("timeout"), timeoutMs);
-  const operation = runner(command, args, {
-    ...options,
-    abortSignal: controller.signal,
-  });
-  pendingOwnedProcesses.add(operation);
-  void operation.then(
-    () => pendingOwnedProcesses.delete(operation),
-    () => pendingOwnedProcesses.delete(operation),
-  );
-  if (options.abortSignal?.aborted) abort();
   try {
+    const operation = runner(command, args, {
+      ...options,
+      timeoutMs,
+      abortSignal: controller.signal,
+    });
+    pendingOwnedProcesses.add(operation);
+    void operation.then(
+      () => pendingOwnedProcesses.delete(operation),
+      () => pendingOwnedProcesses.delete(operation),
+    );
+    if (options.abortSignal?.aborted) abort();
     const result = await Promise.race([operation, settlement]);
     if (stopReason === "timeout") {
       return {
