@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { parseFrontmatter } from "@elizaos/skills/index";
+import { getDefaultRepoRoot } from "../config/env/paths";
 
 export interface OptionalSkillPackRecord {
   slug: string;
@@ -20,7 +21,7 @@ export interface EcosystemSummary {
 }
 
 function defaultPackagesRoot(): string {
-  return fileURLToPath(new URL("../../../../packages/", import.meta.url));
+  return join(getDefaultRepoRoot(), "packages");
 }
 
 function collectSkillPackRecords(rootDir: string): OptionalSkillPackRecord[] {
@@ -46,14 +47,16 @@ function collectSkillPackRecords(rootDir: string): OptionalSkillPackRecord[] {
         const relative = fullPath.slice(rootDir.length + 1);
         const parts = relative.split(/[\\/]/u);
         const title = parts.at(-2)?.replace(/-/gu, " ") ?? entry.name;
+        const { frontmatter, body } = parseFrontmatter(
+          readFileSync(fullPath, "utf8"),
+        );
         records.push({
           slug: parts.slice(0, -1).join("/"),
           title: title.replace(/\b\w/g, (letter) => letter.toUpperCase()),
-          description: readFileSync(fullPath, "utf8")
-            .split(/\r?\n/u)
-            .slice(0, 12)
-            .join("\n")
-            .trim(),
+          description:
+            typeof frontmatter.description === "string"
+              ? frontmatter.description.trim()
+              : body.trim(),
           path: fullPath,
           category: parts.slice(0, -2).join("/") || "optional",
         });
