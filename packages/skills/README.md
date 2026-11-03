@@ -1,84 +1,47 @@
-# Doolittle Skills
+# Doolittle skills
 
-This workspace holds curated and generated Doolittle skill documents in the
-official Agent Skills filesystem shape: every active skill is a direct child
-directory containing `SKILL.md`.
+`@doolittle/skills` is an asset workspace containing native ElizaOS skill
+documents. It has no JavaScript entrypoint or build step. The current skill list
+is in [`index.md`](index.md); avoid maintaining a second inventory here.
 
-See the current registry in [`index.md`](./index.md).
-The skills hub surfaces these families directly through `/skills families` and `/skills hub families`.
+## Layout
 
-Optional, higher-breadth packs live under [`.optional/`](./.optional/) and remain outside the direct-child default skill tier. The optional catalog and `/skills optional` continue to expose them.
+- Default skills are direct child directories containing `SKILL.md`.
+- [`.optional/`](.optional/) holds the separate optional catalog surfaced by
+  `/skills optional`; its hidden root stays outside default SDK discovery.
+- `.generated/` holds ignored local bookkeeping. Approved generated skills use
+  the same direct-child layout as curated skills, with provenance in frontmatter.
 
-## Capability map
+The runtime consumes these files through the official skills parser and agent
+skills services. Desktop development watches skill assets, and packaged builds
+copy the workspace and explicitly include the optional catalog.
 
-- `modeling`
-  - user profile extraction, preference tracking, and continuity summaries
-- `profile-learning`
-  - session-to-profile distillation and recall alignment
-- `repo-ops`
-  - local repository work, verification, and durable project notes
-- `reports`
-  - scheduled summaries and recurring operational reports
-- `inbox`
-  - inbound triage, reply shaping, routing, and continuity management
-- `authoring`
-  - operator docs, workspace guides, and user-facing procedural writing
-- `ingestion`
-  - source normalization, import pipelines, and memory/catalog ingestion
-- `install`
-  - bootstrap guidance, install flows, and release delivery notes
-- `regression`
-  - smoke checks, regression coverage, and repeatable behavior validation
-- `rag`
-  - source-backed retrieval, document ingestion, and citation-aware context
-- `release`
-  - release planning, rollout validation, rollback safety, and upgrade notes
-- `telemetry`
-  - logs, metrics, traces, incident summaries, and operator signal review
-- `workspace`
-  - plugin coverage, native versus custom integration choices, and compatibility notes
-- `review`
-  - risk checks, guardrails, approval gates, and safe fallback planning
-- `coordination`
-  - roadmap shaping, workstream alignment, dependency tracking, and milestone planning
-- `incidents`
-  - outage triage, containment, operator impact, and follow-up investigation
-- `engagement`
-  - outward-facing replies, onboarding guidance, and Doolittle communication
-- `execution`
-  - local, container, and remote execution backend planning
-- `transport`
-  - gateway, delivery, and transport lifecycle work
-- `delegation`
-  - supervised work queues, child tasks, and handoff tracking
-- `mcp`
-  - model context protocol server discovery and tool invocation
-- `research`
-  - page capture, page comparison, and browser evidence gathering
-- `voice`
-  - transcription, captioning, speech synthesis, and media analysis
-- `vision`
-  - image inspection, screenshot analysis, and visual evidence capture
-- `trajectory`
-  - session replay, trajectory export, bundle review, and learning loops
-- `evaluation`
-  - repeatable scoring, bundle comparison, and regression-oriented review
-- `batch`
-  - replay bundles, evaluation sweeps, and higher-volume review runs
-- `autocoder`
-  - code-generation evaluation, SWE-bench style review, and patch-quality checks
-- `tts`
-  - provider-backed text-to-speech, voice artifact generation, and speech audit notes
-- generated skills
-  - generated skills created from completed workstreams
+## Add or update a skill
 
-## Conventions
+Create `<skill-name>/SKILL.md` with YAML frontmatter:
 
-- Every `SKILL.md` is a native ElizaOS skill document with YAML frontmatter:
-  `name` must match the skill directory, and `description` should be the routing
-  sentence the native loader can use for discovery.
-- Keep each `SKILL.md` short, specific, and Doolittle branded.
-- Prefer concrete deliverables over broad advisory language.
-- Keep category and provenance information in the skill document rather than
-  adding another directory layer; the official filesystem store discovers
-  direct child directories.
+```md
+---
+name: example
+description: Explain the concrete request that should route to this skill.
+---
+
+# Example
+
+Give focused instructions and an observable deliverable.
+```
+
+Match `name` to the directory. Keep routing descriptions specific and instructions
+short. Record category and provenance in the document instead of creating extra
+directory layers under the default skill root. Update `index.md` when curated
+skills change.
+
+From the repository root, verify parsing and catalog discovery:
+
+```sh
+nub run test:scope tests/boundary/bundled-skills.test.ts tests/boundary/ecosystem-skills.test.ts
+nub run check:local-links
+```
+
+See [architecture](../../docs/architecture.md) for runtime ownership and
+[development](../../docs/development.md) for the asset reload loop.

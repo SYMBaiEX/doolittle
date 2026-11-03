@@ -1,16 +1,38 @@
-# Doolittle Contracts
+# Doolittle contracts
 
-This package owns serializable Doolittle product contracts shared across the
-agent, desktop, and private plugin workspaces. It does not redefine ElizaOS
-lifecycle or plugin types.
+`@doolittle/contracts` owns serializable product contracts shared by the agent,
+desktop, CLI, and plugins. It contains records, validators, and stable service
+identifiers; engine lifecycle types remain owned by ElizaOS.
 
-The source layout follows ownership rather than consumers:
+## Usage
 
-- `coding-agent.ts` validates persisted coding sessions and iterations.
-- `coding-workspace.ts` describes filesystem-facing coding results.
-- `repository.ts` defines repository reads and mutation requests.
-- `types/` holds focused cross-surface records and stable service identifiers.
+Import ordinary shared contracts from the package root. Use a declared subpath
+when a consumer needs a focused surface, for example:
 
-Consumers import the package root unless a documented subpath exists. Runtime
-validation belongs beside the contract it protects and uses Zod rather than
-unchecked casts or shallow shape checks.
+```ts
+import { DEFAULT_MODEL_ROUTE } from "@doolittle/contracts/model-route";
+```
+
+Check [`package.json`](package.json) for supported subpaths and
+[`src/index.ts`](src/index.ts) for root exports. Do not import private source
+paths from another workspace.
+
+The source layout follows domain ownership: coding sessions and verification,
+workspace results, repositories, bots, model routes, themes, UI hosts and plugins,
+and cross-surface records under `src/types`. Keep runtime validation beside the
+contract it protects. Use the existing Zod schemas rather than unchecked casts
+when accepting persisted or external data.
+
+## Development
+
+From the repository root:
+
+```sh
+nub run --cwd packages/contracts typecheck
+nub run check:monorepo
+```
+
+A contract change can affect several clients. Update the producers, consumers,
+and relevant behavior tests together; select those tests using
+[testing](../../docs/testing.md). See [architecture](../../docs/architecture.md)
+before adding another shared package or lifecycle abstraction.

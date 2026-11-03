@@ -1,17 +1,42 @@
-# Solana layouts
+# Doolittle Solana layouts
 
-Doolittle's first-party replacement for the archived `@solana/buffer-layout-utils`.
-It retains that package's public layout API for the existing wallet/trading SDKs,
-using `@solana/buffer-layout` and maintained Noble byte converters. Unsigned
-encoders reject negative and overflowing amounts before changing the destination.
-Public-key, boolean and 18-place decimal layouts remain available.
+`@doolittle/solana-layouts` provides the layout API required by upstream wallet
+and trading consumers of `@solana/buffer-layout-utils`. The root `link:` override
+maps that legacy import to this first-party compatibility package.
 
-This is compatibility code, deliberately owned here instead of modifying an
-installed dependency. It contains no native addon or `bigint-buffer`. The CommonJS
-entry is also importable from ESM and runs directly in both supported Node hosts
-without generating or installing a second build artifact.
+## API
 
-`noble-layout-codecs` is an npm alias of `@noble/curves@2.2.0`; it prevents
-legacy Solana crypto dependencies from selecting an older converter version.
-The root-owned `link:` override maps the legacy import name to this workspace,
-so changes do not require rebuilding or reinstalling the package.
+[`index.d.ts`](index.d.ts) defines the public surface: unsigned integer layouts
+in both byte orders, `publicKey`, `bool`, the 18-place `decimal` layout, and
+`encodeDecode`. [`index.cjs`](index.cjs) implements it using
+`@solana/buffer-layout`, Solana public keys, BigNumber, and Noble byte converters.
+
+Existing consumers continue to import the legacy package name:
+
+```ts
+import { u64 } from "@solana/buffer-layout-utils";
+
+const bytes = Buffer.alloc(8);
+u64().encode(42n, bytes);
+const amount = u64().decode(bytes);
+```
+
+Unsigned encoders reject invalid and overflowing values before touching the
+destination buffer. Keep the established API and byte representation compatible
+with real upstream consumers. This package has no native addon or generated
+build output; its CommonJS implementation is also loadable from ESM.
+
+## Development
+
+From the repository root:
+
+```sh
+nub run --cwd packages/solana-layouts typecheck
+nub run test:scope tests/boundary/solana-layouts.test.ts
+```
+
+The manifest pins `noble-layout-codecs` as an npm alias so legacy Solana crypto
+dependencies cannot select another converter version. Keep changes in this
+workspace and the root override; do not patch installed dependencies.
+See [SDK maintenance](../../docs/sdk.md) for dependency qualification and
+[testing](../../docs/testing.md) for validation scope.

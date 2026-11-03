@@ -1,32 +1,39 @@
 # Doolittle CLI
 
-The terminal product owns plain chat, the optional fullscreen cockpit, slash
-commands, one-shot output and background jobs. It also hosts API/gateway and ACP
-process modes using the shared `@doolittle/agent` runtime.
+`@doolittle/cli` owns terminal chat, the fullscreen cockpit, command dispatch,
+one-shot output, and background jobs. It also hosts API, gateway, and ACP process
+modes using the shared `@doolittle/agent` runtime.
 
-From the repository root:
+## Development
+
+Run from the repository root after [setup](../../docs/setup.md):
 
 ```sh
-nub run start                    # interactive terminal chat
-nub run start cockpit            # fullscreen operator deck
+nub run dev                     # watch the terminal entrypoint
+nub run start                   # interactive terminal chat
+nub run start cockpit           # fullscreen interface
 nub run start exec -p "/help" --json
-nub run cli:build                # apps/cli/dist/index.js and acp-server.js
+nub run start api               # loopback API process
+nub run cli:build
 nub run cli:typecheck
 ```
 
-The source installer links `doolittle` to `apps/cli/src/index.ts`. The compiled
-entry can run with Node from another working directory. Application-root
-discovery is independent of the user's current project directory; explicit
-`DOOLITTLE_REPO_ROOT` remains available for packaged runtimes.
+[`src/index.ts`](src/index.ts) is the source executable. The build writes
+`dist/index.js` and `dist/acp-server.js`; the source installer links `doolittle`
+to the source entrypoint. Application-root discovery is independent of the
+current project directory. Packaged hosts can provide `DOOLITTLE_REPO_ROOT`.
 
-Internal terminal imports are relative. Shared runtime imports use its declared
-package exports; runtime code never imports this application. Prompts, model
-routing and plugin lifecycles remain in the runtime/SDK.
+## Ownership
 
-`DOOLITTLE_MODE=cli` keeps interactive chat without an API listener. `both` may
-start the API after the terminal is ready. The desktop launches explicit `api`
-mode; it does not load terminal UI code into its renderer.
+Keep terminal presentation and process entrypoints here. Runtime behavior,
+prompts, model routing, plugin lifecycles, and shared services belong in
+`packages/agent` or the SDK. Import shared workspaces through their declared
+exports; runtime code must not import the CLI application.
 
-`nub run test:integration` exercises the built CLI in a private profile and a
-real terminal, then checks shared-engine workers. These tests are offline and
-make no claim about paid-provider response quality.
+`DOOLITTLE_MODE=cli` keeps chat without an API listener. `both` can start the API
+after terminal readiness. Desktop uses explicit API mode rather than loading
+terminal UI into its renderer.
+
+Use `nub run test:integration` when process entrypoints or runtime registration
+change. See [testing](../../docs/testing.md) for fixtures and coverage boundaries,
+and [architecture](../../docs/architecture.md) for package direction.

@@ -1,32 +1,44 @@
-# ACP
+# Doolittle ACP
 
-Doolittle's stable ACP v1 foundation is built on
-the official `@agentclientprotocol/sdk`. The pinned version is recorded in
-[`package.json`](./package.json).
+`@doolittle/acp` adapts Doolittle to the Agent Client Protocol using the official
+`@agentclientprotocol/sdk`. Its pinned dependency and public export are defined
+in [`package.json`](package.json).
 
-The package keeps the official wire lifecycle in `src/protocol.ts`, Doolittle's
-registry/editor metadata in `src/registry.ts`, and a public-only barrel in
-`src/index.ts`. This prevents product metadata from becoming coupled to ACP
-request registration while retaining one stable package import.
+## API and layout
 
-`createDoolittleAcpAgent()` registers only the stable lifecycle used by
-Doolittle: `initialize`, `session/new`, `session/load`, `session/prompt`,
-`session/update`, and `session/cancel`. Client-side permission, filesystem, and
-terminal methods are handled by the runtime bridge in `packages/agent`.
+Import from `@doolittle/acp`:
 
-The registry executable is:
+- [`src/protocol.ts`](src/protocol.ts) exports `createDoolittleAcpAgent`, its
+  adapter contract, request parsing, and SDK protocol types.
+- [`src/registry.ts`](src/registry.ts) exports tool classifications and
+  registry/editor metadata helpers.
+- [`src/index.ts`](src/index.ts) is the package's public barrel.
+
+The agent factory registers initialization, session creation/loading, prompting,
+and cancellation. The host adapter implements those operations and emits session
+updates. Client permissions, filesystem access, and terminal operations remain
+in the agent runtime bridge.
+
+## Run and verify
+
+The installed CLI exposes the protocol process:
 
 ```sh
 doolittle acp
 ```
 
-It reserves stdout for newline-delimited ACP JSON-RPC and redirects application
-logs to stderr. This is an installed command, so editor registries never depend
-on a checkout-relative source path. Desktop bundles include the matching
-`doolittle-acp.mjs` runtime entrypoint. Doolittle's API/desktop runtime also
-uses the same official SDK agent and client apps in-process.
+It reserves stdout for ACP JSON-RPC and sends application logs to stderr.
+Desktop packaging includes the matching `doolittle-acp.mjs` runtime entrypoint.
+Editor registries should use the installed command rather than a source path.
 
-Editor focus and rich context are not advertised as stable ACP capabilities.
-Clients opt in with `doolittle/editor-context` and `doolittle/resources` in
-`_meta`; context resources remain extensibility metadata until ACP standardizes
-the newer editor surface.
+From the repository root:
+
+```sh
+nub run --cwd packages/acp typecheck
+nub run test:integration
+```
+
+Run integration coverage when changing the wire lifecycle or runtime bridge.
+Editor focus and rich resources are optional Doolittle `_meta` extensions, not
+advertised stable ACP capabilities. See [architecture](../../docs/architecture.md)
+and [testing](../../docs/testing.md) for ownership and verification guidance.
