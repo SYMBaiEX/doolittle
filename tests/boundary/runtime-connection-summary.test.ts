@@ -22,11 +22,6 @@ describe("runtime connection diagnostics", () => {
       "fallback-model",
     ],
     [
-      { useLinkedDevinAuth: true, devinModel: "devin-model" },
-      "devin",
-      "devin-model",
-    ],
-    [
       {
         ollamaApiEndpoint: "http://localhost:11434",
         ollamaLargeModel: "local-model",

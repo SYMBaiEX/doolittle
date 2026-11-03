@@ -33,9 +33,6 @@ export interface PluginSettings {
   OLLAMA_RESPONSE_HANDLER_MODEL: string;
   OLLAMA_ACTION_PLANNER_MODEL: string;
   OLLAMA_EMBEDDING_MODEL: string;
-  DEVIN_CLI_COMMAND: string;
-  DEVIN_MODEL: string;
-  DEVIN_TIMEOUT_MS: string;
   SMALL_MODEL: string;
   LARGE_MODEL: string;
   OPENAI_BASE_URL: string;

@@ -127,41 +127,6 @@ for (const mode of ["cancel", "timeout"] as const) {
   });
 }
 
-it("cancels a Devin model request through its linked provider transport", async () => {
-  const { runDevinTextGeneration } = await import(
-    "../../packages/plugins/plugin-devin/src/generate"
-  );
-  const controller = new AbortController();
-  const request = runDevinTextGeneration(
-    {
-      getSetting: () => JSON.stringify({ model: { provider: "devin" } }),
-    } as unknown as import("@elizaos/core").IAgentRuntime,
-    { prompt: "Cancellation fixture", signal: controller.signal },
-    {
-      getStatus: () => ({
-        provider: "devin",
-        available: true,
-        reusable: true,
-        detail: "fixture",
-      }),
-      invokeCliPrint: async (params) => {
-        const result = await runProviderCommand({
-          command: process.execPath,
-          args: ["-e", "setInterval(()=>{}, 1000)"],
-          signal: params.signal,
-          timeoutMs: 3000,
-        });
-        return result.stdout;
-      },
-    },
-  );
-  const assertion = expect(request).rejects.toMatchObject({
-    code: "cancelled",
-  });
-  controller.abort();
-  await assertion;
-});
-
 it("reports an unsuccessful tree termination instead of claiming cancellation succeeded", async () => {
   const controller = new AbortController();
   const previousRoot = process.env.SystemRoot;
@@ -190,33 +155,4 @@ it("reports an unsuccessful tree termination instead of claiming cancellation su
     if (previousRoot === undefined) delete process.env.SystemRoot;
     else process.env.SystemRoot = previousRoot;
   }
-});
-
-it("refuses unavailable Devin execution before invoking a configured process", async () => {
-  const { runDevinTextGeneration } = await import(
-    "../../packages/plugins/plugin-devin/src/generate"
-  );
-  let invoked = false;
-  await expect(
-    runDevinTextGeneration(
-      {
-        getSetting: () => JSON.stringify({ model: { provider: "devin" } }),
-      } as unknown as import("@elizaos/core").IAgentRuntime,
-      { prompt: "fixture" },
-      {
-        getStatus: () => ({
-          provider: "devin",
-          available: false,
-          reusable: false,
-          nativeReady: false,
-          detail: "Unsupported executable configuration",
-        }),
-        invokeCliPrint: async () => {
-          invoked = true;
-          return "unreachable";
-        },
-      },
-    ),
-  ).rejects.toThrow("Check the provider status and executable configuration");
-  expect(invoked).toBe(false);
 });

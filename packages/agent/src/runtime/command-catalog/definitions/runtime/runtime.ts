@@ -15,7 +15,7 @@ export const RuntimeCoreCommandCatalogEntries = [
     ["/models"],
   ),
   runtimeCommand(
-    "/model use <ollama|devin|codex|claude-code|elizacloud> [model]",
+    "/model use <ollama|codex|claude-code|elizacloud> [model]",
     "Switch the active provider route with a safe default model, optionally overriding the model id.",
   ),
   runtimeCommand(

@@ -15,9 +15,7 @@ export function formatLinkedAccountSummary(
       ? snapshot.codex
       : provider === "claude-code"
         ? snapshot.claudeCode
-        : provider === "devin"
-          ? snapshot.devin
-          : snapshot.elizaCloud;
+        : snapshot.elizaCloud;
   return [
     `${provider}`,
     `  nativeReady: ${status.nativeReady ? "yes" : "no"}`,
@@ -69,7 +67,6 @@ export function formatAccountsOverview(
     "claude-code",
     accounts.claudeCode,
   );
-  const devinAdvice = buildLinkedProviderConnectAdvice("devin", accounts.devin);
 
   const blocks: string[] = [
     `active-provider: ${activeProvider}`,
@@ -110,18 +107,6 @@ export function formatAccountsOverview(
   const claudeAlt = formatLinkedProviderAdviceAlternate(claudeAdvice);
   if (claudeAlt) {
     blocks.push(`  ${claudeAlt}`);
-  }
-
-  blocks.push(
-    `- devin (${formatProviderModeLabel("devin")})`,
-    `  nativeReady: ${accounts.devin.nativeReady ? "yes" : "no"}`,
-    `  fallbackReady: ${accounts.devin.fallbackReady ? "yes" : "no"}`,
-    `  detail: ${accounts.devin.detail}`,
-    `  ${formatLinkedProviderAdviceNextStep(devinAdvice)}`,
-  );
-  const devinAlt = formatLinkedProviderAdviceAlternate(devinAdvice);
-  if (devinAlt) {
-    blocks.push(`  ${devinAlt}`);
   }
 
   return blocks.join("\n");

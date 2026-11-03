@@ -42,8 +42,6 @@ function resolveNativePluginEnablement(
       return true;
     case "claudeCode":
       return true;
-    case "devin":
-      return true;
     case "openai":
       return enabled(config.openAiApiKey);
     case "anthropic":

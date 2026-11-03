@@ -66,16 +66,6 @@ export const PROVIDER_PLUGIN_CATALOG_SEEDS: NativePluginCatalogSeed[] = [
       "Official Anthropic provider for linked Claude OAuth, account-pool rotation, native tools, structured output, streaming, and prompt caching; a narrow Doolittle bridge remains only for explicit structured CLI fallback.",
   },
   {
-    id: "providers.devin",
-    packageName: "@doolittle/plugin-devin",
-    category: "providers",
-    source: "custom",
-    kind: "provider",
-    maturity: "alpha",
-    enablement: "devin",
-    notes: "Doolittle-owned Devin CLI provider bridge for SWE model workflows.",
-  },
-  {
     id: "providers.openai",
     packageName: "@elizaos/plugin-openai",
     category: "providers",

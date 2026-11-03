@@ -86,15 +86,6 @@ async function modelRoutes(
       detail: availability.detail,
     },
     {
-      id: "devin",
-      label: "Devin SWE",
-      model: config.devinModel,
-      baseUrl: "",
-      mode: "linked",
-      ready: "check",
-      detail: "linked Devin CLI provider route",
-    },
-    {
       id: "codex",
       label: "Codex",
       model:
@@ -228,14 +219,14 @@ export async function handleSettingsThemeCommand(
     const [providerRaw, ...modelParts] = payload.split(/\s+/u);
     const modelOverride = modelParts.join(" ").trim() || undefined;
     if (!providerRaw) {
-      return "Usage: /model use <ollama|devin|codex|claude-code|elizacloud> [model]";
+      return "Usage: /model use <ollama|codex|claude-code|elizacloud> [model]";
     }
     if (providerRaw === "ollama" || providerRaw === "local") {
       return await activateOllamaRoute(context, modelOverride);
     }
     const linked = resolveLinkedProviderName(providerRaw);
     if (!linked) {
-      return `Unknown provider route: ${providerRaw}\nUsage: /model use <ollama|devin|codex|claude-code|elizacloud> [model]`;
+      return `Unknown provider route: ${providerRaw}\nUsage: /model use <ollama|codex|claude-code|elizacloud> [model]`;
     }
     return await activateLinkedRoute(context, linked, modelOverride);
   }

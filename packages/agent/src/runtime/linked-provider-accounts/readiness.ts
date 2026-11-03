@@ -160,12 +160,19 @@ async function computeProviderReadinessMessage(
     return message;
   }
 
+  if (provider === "devin") {
+    message =
+      "The saved Devin provider has been removed. Choose another provider in Settings or with /model use.";
+    cacheProviderReadiness(runtimeKey, provider, message);
+    return message;
+  }
+
   const snapshot = getRuntimeProviderAccountsSnapshot(context.runtime);
 
   if (provider === "offline") {
     message = context.config.offlineBootstrapMode
       ? undefined
-      : `No active model provider is configured. Run \`${displayCommand("/accounts")}\` to bind Eliza Cloud, Codex, Claude Code, or Devin, or set \`DOOLITTLE_OFFLINE_BOOTSTRAP=true\` for explicit bootstrap-only fallback replies.`;
+      : `No active model provider is configured. Run \`${displayCommand("/accounts")}\` to bind Eliza Cloud, Codex, or Claude Code, or set \`DOOLITTLE_OFFLINE_BOOTSTRAP=true\` for explicit bootstrap-only fallback replies.`;
     cacheProviderReadiness(runtimeKey, provider, message);
     return message;
   }
@@ -236,15 +243,6 @@ async function computeProviderReadinessMessage(
     message = `Claude Code is selected, but no native Claude Code credentials are available. Run \`claude auth login\` or \`claude setup-token\`, then \`${displayCommand("/accounts connect claude-code")}\` to bind it in Eliza.`;
     cacheProviderReadiness(runtimeKey, provider, message);
     return message;
-  }
-
-  if (provider === "devin") {
-    const devinStatus = snapshot.devin;
-    if (!(devinStatus.nativeReady || devinStatus.reusable)) {
-      message = `Devin is selected, but no active Devin CLI login is available. Run \`devin auth login\`, then \`${displayCommand("/accounts connect devin")}\` to bind SWE model execution.`;
-      cacheProviderReadiness(runtimeKey, provider, message);
-      return message;
-    }
   }
 
   cacheProviderReadiness(runtimeKey, provider, undefined);

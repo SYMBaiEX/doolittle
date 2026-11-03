@@ -42,30 +42,30 @@ export const RuntimeAdminCommandCatalogEntries = [
   ),
   runtimeCommand(
     "/accounts",
-    "Show managed Eliza Cloud status plus local Codex, Claude Code, and Devin specialist provider readiness.",
+    "Show managed Eliza Cloud status plus local Codex and Claude Code specialist provider readiness.",
   ),
   runtimeCommand(
-    "/accounts refresh [elizacloud|codex|claude-code|devin]",
+    "/accounts refresh [elizacloud|codex|claude-code]",
     "Refresh managed-cloud or local specialist-provider state from the workspace and auth stores.",
   ),
   runtimeCommand(
-    "/accounts connect <elizacloud|codex|claude-code|devin>",
-    "Activate Eliza Cloud managed mode or bind a local Codex/Claude Code/Devin specialist provider when auth is ready.",
+    "/accounts connect <elizacloud|codex|claude-code>",
+    "Activate Eliza Cloud managed mode or bind a local Codex/Claude Code specialist provider when auth is ready.",
   ),
   runtimeCommand(
     "/accounts doctor",
     "Show managed-cloud readiness, local specialist-provider readiness, and the exact next-step commands.",
   ),
   runtimeCommand(
-    "/accounts login <elizacloud|codex|claude-code|devin>",
-    "Show the exact local CLI login command and the follow-up activation step for Cloud, Codex, Claude Code, or Devin.",
+    "/accounts login <elizacloud|codex|claude-code>",
+    "Show the exact local CLI login command and the follow-up activation step for Cloud, Codex, or Claude Code.",
   ),
   runtimeCommand(
     "/accounts setup-token claude-code",
     "Show the Claude setup-token flow used to finish native Claude Code binding.",
   ),
   runtimeCommand(
-    "/accounts use <elizacloud|codex|claude-code|devin>",
-    "Switch the active runtime provider to Eliza Cloud managed inference or a local Codex/Claude Code/Devin specialist provider.",
+    "/accounts use <elizacloud|codex|claude-code>",
+    "Switch the active runtime provider to Eliza Cloud managed inference or a local Codex/Claude Code specialist provider.",
   ),
 ];

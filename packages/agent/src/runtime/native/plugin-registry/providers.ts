@@ -1,16 +1,11 @@
 import type { BotDefinition } from "@doolittle/contracts/bots";
 import type { IAgentRuntime, Plugin } from "@elizaos/core";
 import type { CodexAuth } from "@elizaos/plugin-codex-cli";
-import { resolveWorkspaceDirectory } from "../../../services/workspace-directory";
 import type { EnvConfig } from "../../../types/runtime";
 import { requestWorkerHost } from "../../bootstrap/worker-host-rpc";
 import { requireConversationWorkspace } from "../../workspace-scope";
 import { refreshLinkedClaudeCodeCredentials } from "../account-auth";
 import { getClaudeCodeAccountStatus } from "../account-auth/claude-code";
-import {
-  DEFAULT_DEVIN_COMMAND,
-  getDevinAccountStatus,
-} from "../account-auth/devin";
 import {
   createCodexReasoningBackend,
   createDoolittleCodexReasoningPlugin,
@@ -41,7 +36,6 @@ export async function loadProviderPlugins(
     { codexCliPlugin },
     { default: anthropicPlugin },
     { createClaudeCodePlugin },
-    { createDevinPlugin },
     { default: elizaCloudPlugin },
   ] = await Promise.all([
     import("@elizaos/plugin-sql"),
@@ -49,7 +43,6 @@ export async function loadProviderPlugins(
     import("@elizaos/plugin-codex-cli"),
     import("@elizaos/plugin-anthropic"),
     import("@doolittle/plugin-claude-code"),
-    import("@doolittle/plugin-devin"),
     import("@elizaos/plugin-elizacloud"),
   ]);
 
@@ -173,14 +166,6 @@ export async function loadProviderPlugins(
             },
           }
         : {}),
-    }),
-    createDevinPlugin({
-      enabled: true,
-      command: DEFAULT_DEVIN_COMMAND,
-      model: config.devinModel,
-      timeoutMs: config.devinTimeoutMs,
-      getCwd: () => resolveWorkspaceDirectory(() => config.workspaceDir),
-      getStatus: () => getDevinAccountStatus(undefined, config.devinCliCommand),
     }),
     normalizePlugin(elizaCloudPlugin),
   ];

@@ -23,9 +23,6 @@ export function buildProviderNoResponseMessage(
   if (provider === "claude-code") {
     return `I couldn't get a usable response from Claude Code (${model}). Run \`${displayCommand("/accounts doctor")}\` to verify the linked account, then \`${displayCommand("/accounts connect claude-code")}\` if it needs a rebind.`;
   }
-  if (provider === "devin") {
-    return `I couldn't get a usable response from Devin (${model}). Run \`${displayCommand("/accounts doctor")}\` to verify the local Devin login, then \`${displayCommand("/accounts connect devin")}\` if it needs a rebind.`;
-  }
   if (provider === "openai") {
     return `I couldn't get a usable response from OpenAI (${model}). Check \`OPENAI_API_KEY\` or switch to a linked provider with \`${displayCommand("/accounts")}\`.`;
   }
@@ -125,11 +122,7 @@ function buildStructuredProviderFailureMessage(
     if (provider === "elizacloud") {
       return `Eliza Cloud (${model}) is not authorized for this workspace. Run \`${displayCommand("/accounts doctor")}\`, then \`${displayCommand("/accounts connect elizacloud")}\` or \`elizaos login\` to refresh the managed bond.`;
     }
-    if (
-      provider === "codex" ||
-      provider === "claude-code" ||
-      provider === "devin"
-    ) {
+    if (provider === "codex" || provider === "claude-code") {
       return `The linked ${provider} session for ${model} is not available or no longer authorized. Run \`${displayCommand(`/accounts connect ${provider}`)}\` after refreshing the local login.`;
     }
   }

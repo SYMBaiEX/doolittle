@@ -42,7 +42,6 @@ const PROVIDERS = [
   "elizaOSCloud",
   "ollama",
   "claude-code",
-  "devin",
 ] as const;
 
 // Fixed-key descriptor reads never evaluate accessors or inherited values.

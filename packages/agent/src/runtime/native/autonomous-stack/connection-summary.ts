@@ -23,7 +23,6 @@ function summarizeLocalProviderConnection(
   const providerLabel =
     {
       ollama: "Ollama",
-      devin: "Devin",
       openai: "OpenAI",
       anthropic: "Anthropic",
     }[provider] ?? provider;
@@ -43,10 +42,6 @@ function summarizeDoolittleLocalConnection(
 ): AutonomousConnectionSummary | undefined {
   if (config.elizaCloudEnabled) {
     return undefined;
-  }
-
-  if (config.useLinkedDevinAuth) {
-    return summarizeLocalProviderConnection("devin", config.devinModel);
   }
 
   if (config.ollamaApiEndpoint?.trim()) {

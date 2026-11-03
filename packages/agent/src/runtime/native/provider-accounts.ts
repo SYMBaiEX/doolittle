@@ -17,14 +17,12 @@ type ProviderAccountRuntime = {
 const SERVICE_TYPE_BY_PROVIDER = {
   codex: "codex",
   "claude-code": "claude_code",
-  devin: "devin",
   elizacloud: "elizacloud",
 } as const satisfies Record<LinkedProviderName, string>;
 
 const SNAPSHOT_KEY_BY_PROVIDER = {
   codex: "codex",
   "claude-code": "claudeCode",
-  devin: "devin",
   elizacloud: "elizaCloud",
 } as const satisfies Record<
   LinkedProviderName,

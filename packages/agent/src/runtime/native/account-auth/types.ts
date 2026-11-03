@@ -1,8 +1,4 @@
-export type LinkedProviderName =
-  | "codex"
-  | "claude-code"
-  | "devin"
-  | "elizacloud";
+export type LinkedProviderName = "codex" | "claude-code" | "elizacloud";
 
 export interface LinkedProviderAccountStatus {
   provider: LinkedProviderName;
@@ -22,7 +18,6 @@ export interface LinkedProviderAccountStatus {
 export interface LinkedProviderAccountsSnapshot {
   codex: LinkedProviderAccountStatus;
   claudeCode: LinkedProviderAccountStatus;
-  devin: LinkedProviderAccountStatus;
   elizaCloud: LinkedProviderAccountStatus;
 }
 
@@ -62,14 +57,6 @@ export interface LinkedElizaCloudCredentials {
   baseUrl?: string;
 }
 
-export interface LinkedDevinCredentials {
-  command?: string;
-  model?: string;
-  accountLabel?: string;
-  authMode?: string;
-  source?: string;
-}
-
 export interface CliAuthStatus {
   available: boolean;
   loggedIn: boolean;
@@ -83,7 +70,6 @@ export interface ProviderAuthStoreShape {
   providers: Partial<{
     codex: LinkedCodexCredentials & { storedAt?: string };
     "claude-code": LinkedClaudeCodeCredentials & { storedAt?: string };
-    devin: LinkedDevinCredentials & { storedAt?: string };
     elizacloud: LinkedElizaCloudCredentials & { storedAt?: string };
   }>;
 }

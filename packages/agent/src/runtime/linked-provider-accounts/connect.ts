@@ -35,9 +35,7 @@ export async function connectLinkedProvider(
       ? accounts.codex
       : provider === "claude-code"
         ? accounts.claudeCode
-        : provider === "devin"
-          ? accounts.devin
-          : accounts.elizaCloud;
+        : accounts.elizaCloud;
   const nativeReady = status.nativeReady ?? status.reusable;
   const fallbackReady = status.fallbackReady ?? false;
   const canActivate =
@@ -71,10 +69,9 @@ export async function refreshLinkedAccounts(
 ): Promise<ReturnType<typeof getRuntimeProviderAccountsSnapshot>> {
   if (!provider || provider === "all") {
     await Promise.all(
-      (
-        ["elizacloud", "codex", "claude-code", "devin"] as LinkedProviderName[]
-      ).map((providerName) =>
-        refreshProviderAccount(providerName, runtime).catch(() => undefined),
+      (["elizacloud", "codex", "claude-code"] as LinkedProviderName[]).map(
+        (providerName) =>
+          refreshProviderAccount(providerName, runtime).catch(() => undefined),
       ),
     );
     return getRuntimeProviderAccountsSnapshot(runtime);

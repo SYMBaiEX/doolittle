@@ -13,9 +13,6 @@ export function getLinkedProviderLoginCommand(
   if (provider === "elizacloud") {
     return "elizaos login";
   }
-  if (provider === "devin") {
-    return "devin auth login";
-  }
   return "claude auth login";
 }
 
@@ -44,9 +41,7 @@ export function buildLinkedProviderConnectAdvice(
           ? "Codex is already bound for native Eliza execution. Run `/accounts connect codex` to activate it here."
           : provider === "elizacloud"
             ? "Eliza Cloud is already available in this workspace. Run `/accounts connect elizacloud` to activate managed cloud inference here."
-            : provider === "devin"
-              ? "Devin is already signed in locally. Run `/accounts connect devin` to activate SWE model execution here."
-              : "Claude Code is already bound for native Eliza execution. Run `/accounts connect claude-code` to activate it here.",
+            : "Claude Code is already bound for native Eliza execution. Run `/accounts connect claude-code` to activate it here.",
     };
   }
 
@@ -75,8 +70,6 @@ export function buildLinkedProviderConnectAdvice(
         ? "Codex still needs a linked local login. Run `codex login`, then `/accounts connect codex` to bind it in Eliza."
         : provider === "elizacloud"
           ? "Eliza Cloud is not active yet. Run `elizaos login` from this project to save ELIZAOS_CLOUD_API_KEY, then `/accounts connect elizacloud` to use the managed cloud path."
-          : provider === "devin"
-            ? "Devin still needs a local login. Run `devin auth login`, then `/accounts connect devin` to use SWE model execution."
-            : "Claude Code still needs an official login. Run `claude auth login`, then `/accounts connect claude-code` to bind it in Eliza.",
+          : "Claude Code still needs an official login. Run `claude auth login`, then `/accounts connect claude-code` to bind it in Eliza.",
   };
 }

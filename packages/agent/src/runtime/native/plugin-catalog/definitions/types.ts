@@ -9,7 +9,6 @@ export type NativePluginEnablement =
   | "ollama"
   | "codex"
   | "claudeCode"
-  | "devin"
   | "openai"
   | "anthropic"
   | "telegram"
