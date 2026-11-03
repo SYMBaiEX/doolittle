@@ -1,26 +1,62 @@
-export type EntrypointSubcommand =
-  | "help"
-  | "version"
-  | "commands"
-  | "status"
-  | "progress"
-  | "tools"
-  | "skills"
-  | "runtime"
-  | "start"
-  | "cockpit"
-  | "desktop"
-  | "setup"
-  | "install"
-  | "doctor"
-  | "native"
-  | "dev"
-  | "api"
-  | "acp"
-  | "gateway"
-  | "plain"
-  | "exec"
-  | "jobs";
+const ENTRYPOINT_COMMANDS = [
+  "help",
+  "version",
+  "commands",
+  "status",
+  "progress",
+  "tools",
+  "skills",
+  "runtime",
+  "start",
+  "cockpit",
+  "desktop",
+  "setup",
+  "install",
+  "doctor",
+  "native",
+  "dev",
+  "api",
+  "acp",
+  "gateway",
+  "plain",
+  "exec",
+  "jobs",
+] as const;
+
+export type EntrypointSubcommand = (typeof ENTRYPOINT_COMMANDS)[number];
+
+const COMMAND_ALIASES = new Map<string, EntrypointSubcommand>([
+  ...ENTRYPOINT_COMMANDS.map((command) => [command, command] as const),
+  ["tui", "cockpit"],
+  ["gui", "desktop"],
+  ["onboard", "setup"],
+  ["bootstrap", "setup"],
+  ["check", "doctor"],
+  ["plain-cli", "plain"],
+  ["run", "exec"],
+]);
+
+// Order preserves the global flag precedence. Desktop consumes its own flags.
+const FLAG_COMMANDS: ReadonlyArray<{
+  command: EntrypointSubcommand;
+  flags: readonly string[];
+}> = [
+  { command: "cockpit", flags: ["--cli"] },
+  { command: "help", flags: ["--help", "-h"] },
+  { command: "version", flags: ["--version", "-v"] },
+  { command: "cockpit", flags: ["--cockpit"] },
+  { command: "plain", flags: ["--plain-cli"] },
+  { command: "api", flags: ["--api-only"] },
+  { command: "gateway", flags: ["--gateway"] },
+];
+
+const ALIAS_DEFAULT_PROMPTS = new Map<EntrypointSubcommand, string>([
+  ["status", "/status"],
+  ["progress", "/progress"],
+  ["tools", "/tools summary"],
+  ["skills", "/skills"],
+  ["runtime", "/runtime status"],
+]);
 
 export interface OneShotOptions {
   prompt?: string;
@@ -42,87 +78,19 @@ export function resolveSubcommand(userArgs: string[] = process.argv.slice(2)): {
       rest: userArgs.slice(1),
     };
   }
-  if (userArgs.includes("--cli")) {
-    return {
-      command: "cockpit",
-      rest: userArgs.filter((value) => value !== "--cli"),
-    };
-  }
-  if (userArgs.includes("--help") || userArgs.includes("-h")) {
-    return {
-      command: "help",
-      rest: userArgs.filter((value) => value !== "--help" && value !== "-h"),
-    };
-  }
-  if (userArgs.includes("--version") || userArgs.includes("-v")) {
-    return {
-      command: "version",
-      rest: userArgs.filter((value) => value !== "--version" && value !== "-v"),
-    };
-  }
-  if (userArgs.includes("--cockpit")) {
-    return {
-      command: "cockpit",
-      rest: userArgs.filter((value) => value !== "--cockpit"),
-    };
-  }
-  if (userArgs.includes("--plain-cli")) {
-    return {
-      command: "plain",
-      rest: userArgs.filter((value) => value !== "--plain-cli"),
-    };
-  }
-  if (userArgs.includes("--api-only")) {
-    return {
-      command: "api",
-      rest: userArgs.filter((value) => value !== "--api-only"),
-    };
-  }
-  if (userArgs.includes("--gateway")) {
-    return {
-      command: "gateway",
-      rest: userArgs.filter((value) => value !== "--gateway"),
-    };
+  for (const { command, flags } of FLAG_COMMANDS) {
+    if (userArgs.some((argument) => flags.includes(argument))) {
+      return {
+        command,
+        rest: userArgs.filter((argument) => !flags.includes(argument)),
+      };
+    }
   }
 
-  const first = userArgs[0] ?? "start";
-  const rest = userArgs.slice(1);
-
-  const aliases: Record<string, EntrypointSubcommand> = {
-    start: "start",
-    help: "help",
-    version: "version",
-    commands: "commands",
-    status: "status",
-    progress: "progress",
-    tools: "tools",
-    skills: "skills",
-    runtime: "runtime",
-    cockpit: "cockpit",
-    tui: "cockpit",
-    desktop: "desktop",
-    gui: "desktop",
-    setup: "setup",
-    onboard: "setup",
-    bootstrap: "setup",
-    install: "install",
-    doctor: "doctor",
-    check: "doctor",
-    native: "native",
-    dev: "dev",
-    api: "api",
-    acp: "acp",
-    gateway: "gateway",
-    plain: "plain",
-    "plain-cli": "plain",
-    exec: "exec",
-    run: "exec",
-    jobs: "jobs",
-  };
-
+  const command = COMMAND_ALIASES.get(userArgs[0] ?? "start");
   return {
-    command: aliases[first] ?? "start",
-    rest: aliases[first] ? rest : userArgs,
+    command: command ?? "start",
+    rest: command ? userArgs.slice(1) : userArgs,
   };
 }
 
@@ -130,35 +98,16 @@ export function resolveEntrypointAliasPrompt(
   command: EntrypointSubcommand,
   rest: string[],
 ): string | undefined {
+  const defaultPrompt = ALIAS_DEFAULT_PROMPTS.get(command);
+  if (!defaultPrompt) return undefined;
   const suffix = rest.join(" ").trim();
-  if (command === "status") {
-    return suffix ? `/status ${suffix}` : "/status";
-  }
-  if (command === "progress") {
-    return suffix ? `/progress ${suffix}` : "/progress";
-  }
-  if (command === "tools") {
-    return suffix ? `/tools ${suffix}` : "/tools summary";
-  }
-  if (command === "skills") {
-    return suffix ? `/skills ${suffix}` : "/skills";
-  }
-  if (command === "runtime") {
-    return suffix ? `/runtime ${suffix}` : "/runtime status";
-  }
-  return undefined;
+  return suffix ? `/${command} ${suffix}` : defaultPrompt;
 }
 
 export function isEntrypointAliasCommand(
   command: EntrypointSubcommand,
 ): boolean {
-  return (
-    command === "status" ||
-    command === "progress" ||
-    command === "tools" ||
-    command === "skills" ||
-    command === "runtime"
-  );
+  return ALIAS_DEFAULT_PROMPTS.has(command);
 }
 
 export function parseOneShotOptions(args: string[]): OneShotOptions {
