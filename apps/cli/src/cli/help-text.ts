@@ -1,5 +1,5 @@
 import { getCliHelpExamples, getCliHotkeyBindings } from "./command-surface";
-import { macAwareKeyLabel } from "./shell-chrome";
+import { macAwareKeyLabel } from "./terminal-labels";
 
 export function buildHelpText(agentName: string): string {
   const command = (value: string) => value.trim();

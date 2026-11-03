@@ -1,18 +1,28 @@
-import { platform } from "node:os";
-import { basename, relative } from "node:path";
 import { stdout as output } from "node:process";
 import type { AppContext } from "@doolittle/agent/runtime/bootstrap";
-import { normalizeSlashCommandSyntax } from "@doolittle/agent/runtime/command-catalog";
-import { getNativePluginCatalog } from "@doolittle/agent/runtime/native/plugin-catalog";
-import { getNativeTransportControlPlane } from "@doolittle/agent/runtime/native/service-bridge/control-planes";
 import {
   formatElapsedMs,
   getRunElapsedMs,
 } from "@doolittle/agent/runtime/run-progress";
 import { getTuiTheme } from "@doolittle/agent/runtime/theme-catalog";
+import {
+  buildCliOperatorSnapshot,
+  type ShellChromeDependencies,
+} from "./operator-snapshot";
 import { sanitizeSingleLineTerminalText } from "./render-utils";
+import { currentProjectLabel } from "./terminal-labels";
 
-const IS_MACOS = platform() === "darwin";
+export {
+  buildCliOperatorSnapshot,
+  type CliOperatorSnapshot,
+} from "./operator-snapshot";
+export {
+  currentProjectLabel,
+  currentWorkspaceLabel,
+  macAwareKeyLabel,
+  shortModelId,
+  shortSessionLabel,
+} from "./terminal-labels";
 
 const ANSI = {
   reset: "\x1b[0m",
@@ -28,212 +38,10 @@ function paint(text: string, color: string, enabled: boolean): string {
   return enabled ? `${color}${text}${ANSI.reset}` : text;
 }
 
-export function shortModelId(model: string): string {
-  const normalized = model.trim();
-  if (!normalized) {
-    return "unconfigured";
-  }
-  const segments = normalized.split("/");
-  return segments.at(-1) ?? normalized;
-}
-
-export function macAwareKeyLabel(label: string): string {
-  if (!IS_MACOS) {
-    return label;
-  }
-  return label
-    .replaceAll("Alt-", "Option-")
-    .replaceAll("Alt", "Option")
-    .replaceAll("PageUp/PageDown", "Fn-↑/Fn-↓ or PageUp/PageDown")
-    .replaceAll("PgUp/PgDn", "Fn-↑/Fn-↓ or PgUp/PgDn");
-}
-
-export function currentWorkspaceLabel(): string {
-  const cwd = process.cwd();
-  const home = process.env.HOME;
-  if (home && cwd.startsWith(home)) {
-    const rel = relative(home, cwd);
-    return rel ? `~/${rel}` : "~";
-  }
-  return cwd;
-}
-
-export function currentProjectLabel(): string {
-  return basename(process.cwd()) || currentWorkspaceLabel();
-}
-
-export function shortSessionLabel(sessionId: string): string {
-  return sessionId.startsWith("cli:")
-    ? sessionId.slice(4, 12)
-    : sessionId.slice(0, 12);
-}
-
-function truncateInline(text: string, maxLength: number): string {
-  if (text.length <= maxLength) {
-    return text;
-  }
-  return `${text.slice(0, Math.max(1, maxLength - 1))}…`;
-}
-
-function summarizeLaggingStartupPhases(
-  startup: ReturnType<AppContext["services"]["startupState"]["getSnapshot"]>,
-): string {
-  const lagging = Object.entries(startup.phases)
-    .filter(
-      ([name, phase]) =>
-        name !== "runtime" &&
-        phase.status !== "ready" &&
-        phase.status !== "deferred",
-    )
-    .map(([name, phase]) => `${name}:${phase.status}`);
-  return lagging.length > 0 ? ` · ${lagging.join(" · ")}` : "";
-}
-
-function summarizeBackgroundStartup(
-  startup: ReturnType<AppContext["services"]["startupState"]["getSnapshot"]>,
-): string {
-  const backgroundPhases = Object.entries(startup.phases).filter(
-    ([name]) => name !== "runtime",
-  );
-  if (backgroundPhases.some(([, phase]) => phase.status === "error")) {
-    return "attention";
-  }
-  if (startup.deferredReady) {
-    return "ready";
-  }
-  if (backgroundPhases.some(([, phase]) => phase.status === "warming")) {
-    return "warming";
-  }
-  if (backgroundPhases.some(([, phase]) => phase.status === "deferred")) {
-    return "queued";
-  }
-  return "ready";
-}
-
-export interface CliOperatorSnapshot {
-  project: string;
-  workspace: string;
-  sessionLabel: string;
-  providerSummary: string;
-  startupSummary: string;
-  transportSummary: string;
-  pluginSummary: string;
-  liveSummary: string;
-  nextPlainHint: string;
-  nextCockpitHint: string;
-}
-
-type ShellChromeDependencies = {
-  getNativePluginCatalog: typeof getNativePluginCatalog;
-  getNativeTransportControlPlane: typeof getNativeTransportControlPlane;
-};
-
-const defaultShellChromeDependencies: ShellChromeDependencies = {
-  getNativePluginCatalog,
-  getNativeTransportControlPlane,
-};
-
-export function buildCliOperatorSnapshot(
-  context: AppContext,
-  state: { activeSessionId: string },
-  dependencies: ShellChromeDependencies = defaultShellChromeDependencies,
-): CliOperatorSnapshot {
-  const settings = context.services.settings.get();
-  const startup = context.services.startupState.getSnapshot();
-  const activeRun = context.services.runController.getActive(
-    state.activeSessionId,
-  );
-  const sessions = context.services.sessions.listSessions(20);
-  const sessionSummary = sessions.find(
-    (entry) => entry.sessionId === state.activeSessionId,
-  );
-  const transportControl = dependencies.getNativeTransportControlPlane(
-    context.runtime,
-    context.config,
-    context.services.gatewayConfig,
-  );
-  const plugins = dependencies.getNativePluginCatalog(context.config);
-  const enabledPlugins = plugins.filter((entry) => entry.enabled);
-  const productionPlugins = enabledPlugins.filter(
-    (entry) => entry.maturity === "production",
-  ).length;
-  const alphaPlugins = enabledPlugins.filter(
-    (entry) => entry.maturity === "alpha",
-  ).length;
-  const experimentalPlugins = enabledPlugins.filter(
-    (entry) => entry.maturity === "experimental",
-  ).length;
-
-  const project = currentProjectLabel();
-  const workspace = currentWorkspaceLabel();
-  const smallModel =
-    settings.model.provider === "elizacloud"
-      ? context.config.elizaCloudSmallModel
-      : settings.model.model;
-
-  const liveSummary = activeRun
-    ? [
-        activeRun.status,
-        `${activeRun.observedActionCount} steps`,
-        activeRun.activeAction
-          ? truncateInline(activeRun.activeAction, 28)
-          : activeRun.statusDetail
-            ? truncateInline(activeRun.statusDetail, 28)
-            : null,
-      ]
-        .filter((entry) => Boolean(entry))
-        .join(" · ")
-    : "idle";
-
-  const startupSummary =
-    `${startup.hotPathReady ? "hot-ready" : "warming"} · background ${summarizeBackgroundStartup(startup)}` +
-    summarizeLaggingStartupPhases(startup);
-  const transportSummary = `live ${transportControl.totals.liveServices} · ready ${transportControl.totals.operationalTransports} · configured ${transportControl.totals.gatewayEnabled}`;
-  const pluginSummary = [
-    `enabled ${enabledPlugins.length}/${plugins.length}`,
-    productionPlugins > 0 ? `prod ${productionPlugins}` : null,
-    alphaPlugins > 0 ? `alpha ${alphaPlugins}` : null,
-    experimentalPlugins > 0 ? `exp ${experimentalPlugins}` : null,
-  ]
-    .filter((entry) => Boolean(entry))
-    .join(" · ");
-
-  const nextPlainHint = activeRun
-    ? `Live turn in progress. Check ${normalizeSlashCommandSyntax("/progress")} or let the run finish before starting another deep task.`
-    : !startup.deferredReady || !startup.hotPathReady
-      ? `Background services are hydrating. Use ${normalizeSlashCommandSyntax("/status")} if you want a readiness check before heavier work.`
-      : transportControl.totals.gatewayEnabled > 0 &&
-          transportControl.totals.operationalTransports === 0
-        ? `Gateway is configured but not live yet. Use ${normalizeSlashCommandSyntax("/gateway readiness")} before relying on transports.`
-        : `Daily checks: ${normalizeSlashCommandSyntax("/status")}, ${normalizeSlashCommandSyntax("/commands")}, ${normalizeSlashCommandSyntax("/jobs")}, ${normalizeSlashCommandSyntax("/accounts doctor")}.`;
-  const nextCockpitHint = activeRun
-    ? `${macAwareKeyLabel("Ctrl-S")} focuses the live response. ${normalizeSlashCommandSyntax("/progress")} gives the structured run view.`
-    : !startup.deferredReady || !startup.hotPathReady
-      ? `Background services are hydrating. Check Status or run ${normalizeSlashCommandSyntax("/status")}.`
-      : transportControl.totals.gatewayEnabled > 0 &&
-          transportControl.totals.operationalTransports === 0
-        ? `${macAwareKeyLabel("Ctrl-G")} opens gateway detail. ${normalizeSlashCommandSyntax("/gateway readiness")} explains what is missing.`
-        : `${macAwareKeyLabel("Ctrl-P")} opens the command palette. ${normalizeSlashCommandSyntax("/commands")} shows the full operator catalog.`;
-
-  return {
-    project,
-    workspace,
-    sessionLabel:
-      sessionSummary?.title ?? shortSessionLabel(state.activeSessionId),
-    providerSummary: `${settings.model.provider}   fast ${shortModelId(smallModel)}   deep ${shortModelId(settings.model.model)}`,
-    startupSummary,
-    transportSummary,
-    pluginSummary,
-    liveSummary,
-    nextPlainHint,
-    nextCockpitHint,
-  };
-}
-
 export function renderPlainBanner(
   context: AppContext,
   state: { activeSessionId: string },
-  dependencies: ShellChromeDependencies = defaultShellChromeDependencies,
+  dependencies?: ShellChromeDependencies,
 ): string {
   const settings = context.services.settings.get();
   const theme = getTuiTheme(settings.ui.theme);
@@ -274,7 +82,7 @@ export function renderPlainBanner(
 export function renderPlainShellHints(
   context: AppContext,
   state: { activeSessionId: string },
-  dependencies: ShellChromeDependencies = defaultShellChromeDependencies,
+  dependencies?: ShellChromeDependencies,
 ): string {
   const snapshot = buildCliOperatorSnapshot(context, state, dependencies);
   return [

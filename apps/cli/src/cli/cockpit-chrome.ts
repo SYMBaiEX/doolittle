@@ -1,7 +1,7 @@
 import { normalizeSlashCommandSyntax } from "@doolittle/agent/runtime/command-catalog";
 import type { TuiThemeProfile } from "@doolittle/agent/runtime/theme-catalog";
 import { escapeBlessed } from "./render-utils";
-import { currentProjectLabel, macAwareKeyLabel } from "./shell-chrome";
+import { currentProjectLabel, macAwareKeyLabel } from "./terminal-labels";
 
 export function buildHeaderContent(
   agentName: string,

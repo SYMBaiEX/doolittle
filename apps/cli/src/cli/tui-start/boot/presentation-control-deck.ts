@@ -8,7 +8,7 @@ import {
   renderResponsesContent,
   renderSuggestionsContent,
 } from "../../control-deck/index";
-import { macAwareKeyLabel } from "../../shell-chrome";
+import { macAwareKeyLabel } from "../../terminal-labels";
 import { installTuiControlDeck } from "../../tui-control-deck";
 import { renderFooter } from "../../tui-renderers";
 import type { TuiStateStore } from "../../tui-state";

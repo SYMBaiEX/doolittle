@@ -8,13 +8,13 @@ import {
 import { getTuiTheme } from "@doolittle/agent/runtime/theme-catalog";
 import { runStatusFace } from "./activity-chrome";
 import type { CliState } from "./execution/index";
+import { buildCliOperatorSnapshot } from "./operator-snapshot";
 import { escapeBlessed } from "./render-utils";
 import {
-  buildCliOperatorSnapshot,
   currentProjectLabel,
   macAwareKeyLabel,
   shortModelId,
-} from "./shell-chrome";
+} from "./terminal-labels";
 import { truncate } from "./text-utils";
 
 export function renderStatusContent(
