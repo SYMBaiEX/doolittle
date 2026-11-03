@@ -41,6 +41,21 @@ A late reply must not mutate a newly selected conversation. Revoke stale menus
 and intents when ownership changes. Closing a view removes presentation;
 execution stops only through the explicit runtime cancellation flow.
 
+Workspace views keep the saved arrangement when the window temporarily requires
+one visible conversation. Canvas supports balanced side-by-side and stacked
+arrangements, nested splits, physical reordering, size balancing, and temporary
+focus/restore. The Panels menu also closes other views and reopens the last
+closed view. Opening another conversation preserves the split mode. Keep the
+12-view limit separate from runtime task admission, and preserve keyboard focus
+when moving or closing a view.
+
+Inspector width is measured against its conversation pane and reserves room for
+the transcript. Narrow panes use the full-width inspector sheet without
+rewriting the preferred width. Closing the inspector retains its selected view.
+Library and Computer remember independent tabs and resource selections under
+bot, conversation, and workspace ownership. Persist presentation choices only;
+document contents, command output, and repository facts stay runtime-owned.
+
 Use the existing controlled context menu for app objects. Right-click,
 Shift-F10, and overflow controls should expose the same supported actions.
 Callbacks retain permission, busy-state, and confirmation checks. Text inputs

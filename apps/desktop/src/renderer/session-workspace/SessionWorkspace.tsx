@@ -32,9 +32,13 @@ import {
 } from "./chat-workspace-store";
 import { sessionPanelStatus } from "./session-status";
 import {
+  arrangeWorkspaceSessions,
+  balanceWorkspaceSizes,
+  closeOtherWorkspaceSessions,
   closeWorkspaceSession,
   LEGACY_SESSION_WORKSPACE_STORAGE_KEY,
   MAX_OPEN_PANELS,
+  MAX_RETAINED_CLOSED_PANELS,
   moveWorkspaceSession,
   openWorkspaceSession,
   resizeWorkspaceSplit,
@@ -100,6 +104,8 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
     }
   });
   const [finderOpen, setFinderOpen] = useState(false);
+  const [focusView, setFocusView] = useState(false);
+  const [closedIds, setClosedIds] = useState<string[]>([]);
   const [retainedIds, setRetainedIds] = useState(layout.openIds);
   const visitedIds = useRef(new Set(layout.openIds));
   for (const id of layout.openIds) visitedIds.current.add(id);
@@ -135,13 +141,14 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
   );
   const rootRef = useRef<HTMLElement>(null);
   const panelsRef = useRef<HTMLDivElement>(null);
-  const layoutMenuRef = useRef<HTMLDetailsElement>(null);
+  const panelsButtonRef = useRef<HTMLButtonElement>(null);
   const viewsRef = useRef<HTMLDetailsElement>(null);
   const viewsReturnRef = useRef<HTMLElement | null>(null);
   const [panelSize, setPanelSize] = useState({ width: 0, height: 0 });
   const requiredSize = workspaceRequiredSize(layout.tree);
   const tabbed =
     !isCanvas ||
+    focusView ||
     isNarrow ||
     isShort ||
     layout.mode === "tabs" ||
@@ -178,14 +185,6 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
     return () =>
       window.removeEventListener("doolittle:workspace-views", openViews);
   }, []);
-  const selectLayout = (apply: (current: typeof layout) => typeof layout) => {
-    const menu = layoutMenuRef.current;
-    if (menu) {
-      menu.open = false;
-      menu.querySelector("summary")?.focus();
-    }
-    setLayout(apply);
-  };
   const searchRef = useRef<HTMLInputElement>(null);
   const finderButtonRef = useRef<HTMLButtonElement>(null);
   const finderReturnRef = useRef<HTMLElement | null>(null);
@@ -432,10 +431,17 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
 
   const closePanel = (id: string) => {
     const next = closeWorkspaceSession(layout, id);
+    if (next === layout) return;
+    if (next.openIds.length < 2) setFocusView(false);
+    setClosedIds((current) =>
+      [...current.filter((closedId) => closedId !== id), id].slice(
+        -MAX_RETAINED_CLOSED_PANELS,
+      ),
+    );
     setLayout(next);
     if (next.focusedId) props.onSelect(next.focusedId);
     setAnnouncement(
-      "Panel closed. Its draft, history, and any active run are retained. Reopen it with Find session.",
+      "View closed. Its draft, history, and any active run are retained. Reopen it from Panels or Find session.",
     );
     requestAnimationFrame(() => {
       const target = rootRef.current?.querySelector<HTMLElement>(
@@ -447,7 +453,8 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
       (
         (target?.closest("[hidden], [inert]") ? null : target) ??
         panel?.querySelector<HTMLElement>("textarea") ??
-        finderButtonRef.current
+        finderButtonRef.current ??
+        panelsButtonRef.current
       )?.focus({ preventScroll: true });
     });
   };
@@ -493,6 +500,122 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
   const focusedSession = layout.focusedId || props.selectedId;
   const conversationSurface =
     (props.surface ?? "conversation") === "conversation";
+  const lastClosedId = [...closedIds]
+    .reverse()
+    .find((id) => !layout.openIds.includes(id));
+  const closeOtherPanels = (id: string) => {
+    const closing = layout.openIds.filter((openId) => openId !== id);
+    if (!closing.length) return;
+    setClosedIds((current) =>
+      [
+        ...current.filter((closedId) => !closing.includes(closedId)),
+        ...closing,
+      ].slice(-MAX_RETAINED_CLOSED_PANELS),
+    );
+    setLayout((current) => closeOtherWorkspaceSessions(current, id));
+    setFocusView(false);
+    focusSession(id, true);
+    setAnnouncement(
+      "Other views closed. Drafts, history, and active runs are retained.",
+    );
+  };
+  const arrangementActions: ContextAction[] = [
+    {
+      id: "tabs",
+      label: "Tabs",
+      disabled: layout.mode === "tabs" && !focusView,
+      onSelect: () => {
+        setFocusView(false);
+        setLayout((current) => ({ ...current, mode: "tabs" }));
+      },
+    },
+    {
+      id: "side-by-side",
+      label: "Side by side",
+      disabled: !isCanvas || layout.openIds.length < 2,
+      onSelect: () => {
+        setFocusView(false);
+        setLayout((current) => arrangeWorkspaceSessions(current, "horizontal"));
+      },
+    },
+    {
+      id: "stacked",
+      label: "Stacked",
+      disabled: !isCanvas || layout.openIds.length < 2,
+      onSelect: () => {
+        setFocusView(false);
+        setLayout((current) => arrangeWorkspaceSessions(current, "vertical"));
+      },
+    },
+    {
+      id: "balance",
+      label: "Balance sizes",
+      disabled: layout.openIds.length < 2,
+      onSelect: () => setLayout((current) => balanceWorkspaceSizes(current)),
+    },
+    {
+      id: "focus-view",
+      label: focusView ? "Restore arrangement" : "Focus view",
+      disabled:
+        !focusView &&
+        (!isCanvas || layout.mode !== "split" || layout.openIds.length < 2),
+      separatorBefore: true,
+      onSelect: () => {
+        setFocusView((current) => !current);
+        focusSession(layout.focusedId, true);
+      },
+    },
+    {
+      id: "close-others",
+      label: "Close other views (work continues)",
+      disabled: layout.openIds.length < 2,
+      onSelect: () => closeOtherPanels(layout.focusedId),
+    },
+    {
+      id: "reopen-last",
+      label: "Reopen last closed view",
+      disabled: !lastClosedId || layout.openIds.length >= MAX_OPEN_PANELS,
+      onSelect: () => {
+        if (lastClosedId) focusSession(lastClosedId, true);
+      },
+    },
+    {
+      id: "find-session",
+      label: "Find session",
+      separatorBefore: true,
+      onSelect: () => {
+        finderReturnRef.current = panelsButtonRef.current;
+        setFinderOpen(true);
+      },
+    },
+    {
+      id: "new-session",
+      label: "New session",
+      disabled: layout.openIds.length >= MAX_OPEN_PANELS,
+      onSelect: createSession,
+    },
+    {
+      id: "close-view",
+      label: "Close view (work continues)",
+      disabled: !layout.focusedId,
+      onSelect: () => closePanel(layout.focusedId),
+    },
+  ];
+  const movePanel = (id: string, direction: -1 | 1) => {
+    const index = layout.openIds.indexOf(id);
+    const target = index + direction;
+    if (index < 0 || target < 0 || target >= layout.openIds.length) return;
+    setLayout((current) => moveWorkspaceSession(current, id, direction));
+    const keepViews = viewsRef.current?.open === true;
+    focusSession(id, !keepViews, !keepViews);
+    if (keepViews) {
+      requestAnimationFrame(() =>
+        document
+          .getElementById(`session-tab-${id}`)
+          ?.focus({ preventScroll: true }),
+      );
+    }
+  };
   const panelActions = (id: string): ContextAction[] => {
     const index = layout.openIds.indexOf(id);
     const companionId =
@@ -504,25 +627,10 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
       const sourceId = layout.focusedId === id ? id : companionId;
       const targetId = layout.focusedId === id ? companionId : id;
       const next = splitWorkspaceSession(layout, sourceId, targetId, axis);
+      setFocusView(false);
       setLayout(next);
       focusRequestedRef.current = true;
       if (next.focusedId) props.onSelect(next.focusedId);
-    };
-    const move = (direction: -1 | 1) => {
-      const target = index + direction;
-      if (index < 0 || target < 0 || target >= layout.openIds.length) return;
-      setLayout((current) => moveWorkspaceSession(current, id, direction));
-      const keepViews = viewsRef.current?.open === true;
-      focusSession(id, !keepViews, !keepViews);
-      if (keepViews) {
-        // Keep the moved view control reachable for another keyboard command.
-        // Activating its row enters the composer.
-        requestAnimationFrame(() =>
-          document
-            .getElementById(`session-tab-${id}`)
-            ?.focus({ preventScroll: true }),
-        );
-      }
     };
     return [
       {
@@ -534,13 +642,13 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
         id: "move-left",
         label: "Move view left",
         disabled: index <= 0,
-        onSelect: () => move(-1),
+        onSelect: () => movePanel(id, -1),
       },
       {
         id: "move-right",
         label: "Move view right",
         disabled: index < 0 || index >= layout.openIds.length - 1,
-        onSelect: () => move(1),
+        onSelect: () => movePanel(id, 1),
       },
       ...(companionId
         ? [
@@ -563,7 +671,10 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
         id: "show-tabs",
         label: "Show as tabs",
         disabled: layout.mode === "tabs",
-        onSelect: () => setLayout((current) => ({ ...current, mode: "tabs" })),
+        onSelect: () => {
+          setFocusView(false);
+          setLayout((current) => ({ ...current, mode: "tabs" }));
+        },
       },
       {
         id: "copy-title",
@@ -575,6 +686,13 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
         id: "copy-id",
         label: "Copy conversation ID",
         onSelect: () => void copyContextText(id),
+      },
+      {
+        id: "close-other-views",
+        label: "Close other views (work continues)",
+        disabled: layout.openIds.length < 2,
+        separatorBefore: true,
+        onSelect: () => closeOtherPanels(id),
       },
       {
         id: "close-view",
@@ -593,6 +711,7 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
       data-session-workbench
       data-session-layout={tabbed ? "tabs" : "split"}
       tabIndex={-1}
+      data-session-focus-view={focusView || undefined}
     >
       {renderPanel({
         ...props,
@@ -739,7 +858,7 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
           {layoutWarning || announcement}
         </div>
       ) : null}
-      {conversationSurface && layout.openIds.length > 0 ? (
+      {conversationSurface ? (
         <details
           className="session-workspace-views absolute right-3 top-13 z-30 w-[min(680px,calc(100%_-_24px))] [&:not([open])]:hidden max-[720px]:right-2"
           onKeyDown={(event) => {
@@ -873,80 +992,30 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
               >
                 <Plus aria-hidden size={14} />
               </Button>
-              {isCanvas && !isNarrow && !isShort ? (
-                <details
-                  className="relative"
-                  ref={layoutMenuRef}
-                  onKeyDown={(event) => {
-                    if (event.key === "Escape" && event.currentTarget.open) {
-                      event.preventDefault();
-                      event.stopPropagation();
-                      event.currentTarget.open = false;
-                      event.currentTarget.querySelector("summary")?.focus();
+              <ContextActionMenu
+                items={arrangementActions}
+                label="Manage conversation panels"
+                scopeKey={`panels:${layout.focusedId}:${layout.mode}:${focusView}`}
+                trigger={
+                  <Button
+                    aria-label="Panels"
+                    className={CONTROL}
+                    ref={panelsButtonRef}
+                    title={
+                      isCanvas && layout.mode === "split" && tabbed && !focusView
+                        ? "Panels · arrangement saved; tabs shown to fit this window"
+                        : "Manage conversation panels"
                     }
-                  }}
-                >
-                  <summary className={`${CONTROL} list-none cursor-pointer`}>
+                    type="button"
+                    variant="ghost"
+                  >
                     <Columns2 aria-hidden size={14} />
-                    <span className="sr-only">Layout views</span>
-                  </summary>
-                  <div className="absolute right-0 z-40 mt-1 grid max-h-64 w-56 overflow-y-auto rounded-[var(--radius-floating,16px)] border border-[var(--border)] bg-[var(--surface-raised)] p-1 shadow-[var(--shell-shadow-md)]">
-                    <button
-                      className="min-h-10 rounded px-2 text-left text-sm hover:bg-[var(--surface-hover)]"
-                      onClick={() =>
-                        selectLayout((current) => ({
-                          ...current,
-                          mode: "tabs",
-                        }))
-                      }
-                      type="button"
-                    >
-                      Show as tabs
-                    </button>
-                    {layout.openIds
-                      .filter((id) => id !== layout.focusedId)
-                      .map((id) => (
-                        <div className="grid" key={id}>
-                          <span className="truncate px-2 pt-2 text-xs text-[var(--muted)]">
-                            {titleFor(id)}
-                          </span>
-                          <button
-                            className="min-h-10 rounded px-2 text-left text-sm hover:bg-[var(--surface-hover)]"
-                            onClick={() =>
-                              selectLayout((current) =>
-                                splitWorkspaceSession(
-                                  current,
-                                  current.focusedId,
-                                  id,
-                                  "horizontal",
-                                ),
-                              )
-                            }
-                            type="button"
-                          >
-                            Split right
-                          </button>
-                          <button
-                            className="min-h-10 rounded px-2 text-left text-sm hover:bg-[var(--surface-hover)]"
-                            onClick={() =>
-                              selectLayout((current) =>
-                                splitWorkspaceSession(
-                                  current,
-                                  current.focusedId,
-                                  id,
-                                  "vertical",
-                                ),
-                              )
-                            }
-                            type="button"
-                          >
-                            Split below
-                          </button>
-                        </div>
-                      ))}
-                  </div>
-                </details>
-              ) : null}
+                    Panels
+                  </Button>
+                }
+              >
+                {null}
+              </ContextActionMenu>
             </div>
           </div>
         </details>
@@ -1052,11 +1121,7 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
                         aria-label={`Move ${title} left`}
                         className={CONTROL}
                         disabled={index === 0}
-                        onClick={() =>
-                          setLayout((current) =>
-                            moveWorkspaceSession(current, id, -1),
-                          )
-                        }
+                        onClick={() => movePanel(id, -1)}
                         type="button"
                       >
                         <ArrowLeft aria-hidden size={13} />
@@ -1066,11 +1131,7 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
                         aria-label={`Move ${title} right`}
                         className={CONTROL}
                         disabled={!nextId}
-                        onClick={() =>
-                          setLayout((current) =>
-                            moveWorkspaceSession(current, id, 1),
-                          )
-                        }
+                        onClick={() => movePanel(id, 1)}
                         type="button"
                       >
                         <ArrowRight aria-hidden size={13} />
@@ -1157,11 +1218,25 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
                   }}
                   onPointerDown={(event) => {
                     event.preventDefault();
+                    event.currentTarget.focus({ preventScroll: true });
                     event.currentTarget.setPointerCapture(event.pointerId);
                     event.currentTarget.dataset.start = String(
                       divider.axis === "horizontal"
                         ? event.clientX
                         : event.clientY,
+                    );
+                    event.currentTarget.dataset.ratio = String(divider.ratio);
+                    const bounds = panelsRef.current?.getBoundingClientRect();
+                    const size =
+                      divider.axis === "horizontal"
+                        ? bounds?.width || panelSize.width
+                        : bounds?.height || panelSize.height;
+                    const percent =
+                      divider.axis === "horizontal"
+                        ? divider.parentWidth
+                        : divider.parentHeight;
+                    event.currentTarget.dataset.extent = String(
+                      Math.max(1, (size * percent) / 100),
                     );
                   }}
                   onPointerMove={(event) => {
@@ -1172,26 +1247,23 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
                         ? event.clientX
                         : event.clientY;
                     const previous = Number(event.currentTarget.dataset.start);
-                    const size =
-                      divider.axis === "horizontal"
-                        ? panelSize.width
-                        : panelSize.height;
-                    const percent =
-                      divider.axis === "horizontal"
-                        ? divider.width || 100
-                        : divider.height || 100;
+                    const ratio = Number(event.currentTarget.dataset.ratio);
+                    const extent = Number(event.currentTarget.dataset.extent);
                     setLayout((current) =>
                       resizeWorkspaceSplit(
                         current,
                         divider.path,
-                        divider.ratio +
-                          (coordinate - previous) /
-                            Math.max(1, (size * percent) / 100),
+                        ratio + (coordinate - previous) / extent,
                       ),
                     );
-                    event.currentTarget.dataset.start = String(coordinate);
                   }}
                   onPointerUp={(event) => {
+                    if (event.currentTarget.hasPointerCapture(event.pointerId))
+                      event.currentTarget.releasePointerCapture(
+                        event.pointerId,
+                      );
+                  }}
+                  onPointerCancel={(event) => {
                     if (event.currentTarget.hasPointerCapture(event.pointerId))
                       event.currentTarget.releasePointerCapture(
                         event.pointerId,

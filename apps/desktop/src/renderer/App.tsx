@@ -16,6 +16,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 import type {
   ActivityFeedResponse,
@@ -114,16 +115,21 @@ import {
 import { confirmDirtyNavigation } from "./dirty-navigation";
 import { asArray, desktopRequest, useApiResource } from "./lib";
 import {
+  APP_SIDEBAR_COMPACT_WIDTH,
   APP_SIDEBAR_WIDTH,
   APP_SIDEBAR_WIDTH_KEY,
   CHAT_TERMINAL_HEIGHT,
   CHAT_TERMINAL_HEIGHT_KEY,
+  dockedPanelResizeBounds,
   loadPanelSize,
   loadPanelWidth,
   minimumDockedUtilityViewportWidth,
+  navigationToggleAction,
   resolveUtilityPanelLayout,
   savePanelSize,
   savePanelWidth,
+  shellViewportWidth,
+  subscribeShellViewportWidth,
   UTILITY_DRAWER_WIDTH,
   UTILITY_DRAWER_WIDTH_KEY,
 } from "./panel-layout";
@@ -342,6 +348,10 @@ export function CommandPaletteLoadingFallback({
 }
 
 export function App() {
+  const viewportWidth = useSyncExternalStore(
+    subscribeShellViewportWidth,
+    shellViewportWidth,
+  );
   const initialConversation = useMemo(() => {
     try {
       // Unsent local chats have no native selection yet; retain their saved ID.
@@ -390,6 +400,10 @@ export function App() {
       default: loadStoredThemeManifest().geometry.inspectorWidth,
     }),
   );
+  const [shellResizeGeometry, setShellResizeGeometry] = useState<{
+    sidebarWidth: number;
+    utilityWidth: number;
+  } | null>(null);
   const [chatTerminalHeight, setChatTerminalHeight] = useState(() =>
     loadPanelSize(localStorage, CHAT_TERMINAL_HEIGHT_KEY, CHAT_TERMINAL_HEIGHT),
   );
@@ -652,13 +666,13 @@ export function App() {
   const mobileSidebarOpen = sidebarOpen && isMobileSidebarMode;
   const minimumExpandedUtilityDockWidth = minimumDockedUtilityViewportWidth({
     navCollapsed: false,
-    sidebarWidth,
-    utilityWidth: utilityDrawerWidth,
+    sidebarWidth: shellResizeGeometry?.sidebarWidth ?? sidebarWidth,
+    utilityWidth: shellResizeGeometry?.utilityWidth ?? utilityDrawerWidth,
   });
   const minimumCollapsedUtilityDockWidth = minimumDockedUtilityViewportWidth({
     navCollapsed: true,
-    sidebarWidth,
-    utilityWidth: utilityDrawerWidth,
+    sidebarWidth: shellResizeGeometry?.sidebarWidth ?? sidebarWidth,
+    utilityWidth: shellResizeGeometry?.utilityWidth ?? utilityDrawerWidth,
   });
   const canDockWithExpandedNavigation = useMediaQuery(
     `(min-width: ${minimumExpandedUtilityDockWidth}px)`,
@@ -681,6 +695,28 @@ export function App() {
     // navigation width from an active settings form.
     allowNavigationAutoCollapse: primaryViewForView(view) !== "settings",
   });
+  const shellResizeActiveChange = useCallback(
+    (active: boolean) => {
+      setShellResizeGeometry(
+        active ? { sidebarWidth, utilityWidth: utilityDrawerWidth } : null,
+      );
+    },
+    [sidebarWidth, utilityDrawerWidth],
+  );
+  const utilityResizeBounds = utilityDocked
+    ? dockedPanelResizeBounds(
+        UTILITY_DRAWER_WIDTH,
+        viewportWidth,
+        effectiveNavCollapsed ? APP_SIDEBAR_COMPACT_WIDTH : sidebarWidth,
+      )
+    : UTILITY_DRAWER_WIDTH;
+  const sidebarResizeBounds = utilityDocked
+    ? dockedPanelResizeBounds(
+        APP_SIDEBAR_WIDTH,
+        viewportWidth,
+        utilityDrawerWidth,
+      )
+    : APP_SIDEBAR_WIDTH;
 
   const setMobileSidebarOpen = useCallback(
     (open: boolean, restoreFocus = true) => {
@@ -1175,8 +1211,29 @@ export function App() {
   }, [pushToast, resolvedAppearance, setAppearance]);
 
   const toggleNavigation = useCallback(() => {
+    const action = navigationToggleAction({
+      isMobileSidebarMode,
+      navigationAutoCollapsed,
+    });
+    if (action === "toggle-mobile") {
+      if (utilityOpen && utilityModalMode) closeUtilities();
+      setMobileSidebarOpen(!mobileSidebarOpen);
+      return;
+    }
+    if (action === "close-utility") {
+      closeUtilities();
+      return;
+    }
     setNavCollapsed((value) => !value);
-  }, []);
+  }, [
+    closeUtilities,
+    isMobileSidebarMode,
+    mobileSidebarOpen,
+    navigationAutoCollapsed,
+    setMobileSidebarOpen,
+    utilityModalMode,
+    utilityOpen,
+  ]);
 
   const toggleInspector = useCallback(() => {
     window.dispatchEvent(new CustomEvent("doolittle:toggle-inspector"));
@@ -2395,7 +2452,9 @@ export function App() {
           <LazyCommandPalette
             backendPhase={backend.phase}
             isOpen={paletteOpen}
-            navCollapsed={effectiveNavCollapsed}
+            navCollapsed={
+              isMobileSidebarMode ? !mobileSidebarOpen : effectiveNavCollapsed
+            }
             onChooseRepository={chooseRepositoryForConversation}
             onClose={() => {
               setPaletteOpen(false);
@@ -2529,9 +2588,9 @@ export function App() {
           onSidebarKeyDown={handleSidebarKeyDown}
           onClose={() => setMobileSidebarOpen(false)}
           onResize={resizeSidebar}
-          onToggleNavigation={
-            navigationAutoCollapsed ? closeUtilities : toggleNavigation
-          }
+          resizeBounds={sidebarResizeBounds}
+          onResizeActiveChange={shellResizeActiveChange}
+          onToggleNavigation={toggleNavigation}
           onOpenPalette={openCommandPalette}
           onStartConversation={startConversation}
           onOpenSession={openSession}
@@ -2747,6 +2806,8 @@ export function App() {
             onClose={closeUtilities}
             onKeyDown={handleUtilityKeyDown}
             onResize={resizeUtilityDrawer}
+            resizeBounds={utilityResizeBounds}
+            onResizeActiveChange={shellResizeActiveChange}
             utilityDrawerWidth={utilityDrawerWidth}
             utilityRef={utilityRef}
             mobileModal={utilityModalMode}

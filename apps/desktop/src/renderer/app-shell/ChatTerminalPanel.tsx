@@ -201,6 +201,7 @@ export function ChatTerminalPanel({
           : `invisible border-transparent opacity-0 pointer-events-none ${compact ? "" : "translate-y-3 scale-y-[0.985]"}`
       }`}
       data-compact={compact}
+      data-chat-terminal-panel=""
       data-open={open}
       inert={!open}
       ref={panelRef}

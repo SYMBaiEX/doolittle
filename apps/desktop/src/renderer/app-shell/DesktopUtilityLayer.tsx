@@ -1,7 +1,8 @@
-import type {
-  KeyboardEvent as ReactKeyboardEvent,
-  ReactNode,
-  RefObject,
+import {
+  type KeyboardEvent as ReactKeyboardEvent,
+  type ReactNode,
+  type RefObject,
+  useEffect,
 } from "react";
 import { PanelResizeHandle } from "../components/PanelResizeHandle";
 import { Icon } from "../lib";
@@ -15,6 +16,8 @@ export interface DesktopUtilityLayerProps {
   onKeyDown: (event: ReactKeyboardEvent<HTMLElement>) => void;
   onClose: () => void;
   onResize: (width: number) => void;
+  resizeBounds?: { default: number; min: number; max: number };
+  onResizeActiveChange?: (active: boolean) => void;
 }
 
 export function DesktopUtilityLayer({
@@ -25,7 +28,15 @@ export function DesktopUtilityLayer({
   onKeyDown,
   onClose,
   onResize,
+  resizeBounds = UTILITY_DRAWER_WIDTH,
+  onResizeActiveChange,
 }: DesktopUtilityLayerProps) {
+  useEffect(() => {
+    if (!mobileModal) return;
+    const panel = utilityRef.current;
+    if (!panel || panel.contains(document.activeElement)) return;
+    panel.querySelector<HTMLButtonElement>("button")?.focus();
+  }, [mobileModal, utilityRef]);
   const accessibility = mobileModal
     ? { "aria-modal": true, role: "dialog" as const }
     : { role: "complementary" as const };
@@ -94,12 +105,13 @@ export function DesktopUtilityLayer({
             {activity}
           </div>
           <PanelResizeHandle
-            bounds={UTILITY_DRAWER_WIDTH}
-            className="inset-y-0 -left-1.25 z-4 max-[700px]:hidden"
+            bounds={resizeBounds}
+            className="inset-y-0 left-0 z-4 max-[700px]:hidden"
             controls="activity-panel"
             direction="grow-left"
             label="Resize Activity panel"
             onResize={onResize}
+            onResizeActiveChange={onResizeActiveChange}
             value={utilityDrawerWidth}
           />
         </aside>
