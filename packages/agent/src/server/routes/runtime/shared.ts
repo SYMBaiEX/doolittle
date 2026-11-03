@@ -13,7 +13,7 @@ import {
 import { getRuntimeProviderAccountsSnapshot } from "../../../runtime/native/provider-accounts";
 import { getNativeOwnershipControlPlane } from "../../../runtime/native/service-bridge/ownership/index";
 
-type LinkedProvider = "elizacloud" | "codex" | "claude-code" | "devin";
+type LinkedProvider = "elizacloud" | "codex" | "claude-code";
 
 export function resolveOwnership(context: AppContext) {
   return (
@@ -32,8 +32,7 @@ export function readLinkedProvider(
 ): LinkedProvider | undefined {
   return provider === "elizacloud" ||
     provider === "codex" ||
-    provider === "claude-code" ||
-    provider === "devin"
+    provider === "claude-code"
     ? provider
     : undefined;
 }
@@ -51,7 +50,6 @@ export function buildAccountConnectAdvice(
       "claude-code",
       accounts.claudeCode,
     ),
-    devin: buildLinkedProviderConnectAdvice("devin", accounts.devin),
   };
 }
 
@@ -83,9 +81,7 @@ export function getAccountLoginDetails(
       ? accounts.codex
       : provider === "claude-code"
         ? accounts.claudeCode
-        : provider === "devin"
-          ? accounts.devin
-          : accounts.elizaCloud;
+        : accounts.elizaCloud;
   return {
     provider,
     command: getLinkedProviderLoginCommand(provider),

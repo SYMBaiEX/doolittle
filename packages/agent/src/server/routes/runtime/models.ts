@@ -58,7 +58,7 @@ interface ModelDiscoveryResult {
 }
 
 type LinkedProviderReadiness = Partial<
-  Record<"claude-code" | "codex" | "devin" | "elizacloud", boolean>
+  Record<"claude-code" | "codex" | "elizacloud", boolean>
 >;
 
 export function modelDiscoveryRequested(url: URL): boolean {
@@ -242,7 +242,6 @@ export async function handleRuntimeModelRoutes(
       "claude-code": Boolean(
         accounts.claudeCode.nativeReady || accounts.claudeCode.fallbackReady,
       ),
-      devin: Boolean(accounts.devin.nativeReady || accounts.devin.reusable),
       elizacloud: Boolean(
         accounts.elizaCloud.nativeReady || accounts.elizaCloud.reusable,
       ),
@@ -411,15 +410,6 @@ function providerDefinitions(
       models: configuredModels(
         withActive("claude-code", [...CLAUDE_CODE_LINKED_MODELS]),
       ),
-    },
-    {
-      id: "devin",
-      label: "Devin",
-      mode: "linked",
-      ready: Boolean(config.useLinkedDevinAuth || linkedReadiness.devin),
-      discovery: "configured",
-      detail: "The model configured for the linked Devin CLI.",
-      models: configuredModels(withActive("devin", [config.devinModel])),
     },
     {
       id: "openai",

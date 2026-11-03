@@ -30,10 +30,8 @@ export function buildProviderChecks(
         linkedAccounts.elizaCloud.reusable ||
         linkedAccounts.codex.nativeReady ||
         linkedAccounts.claudeCode.nativeReady ||
-        linkedAccounts.devin.nativeReady ||
         linkedAccounts.codex.reusable ||
-        linkedAccounts.claudeCode.reusable ||
-        linkedAccounts.devin.reusable
+        linkedAccounts.claudeCode.reusable
           ? "pass"
           : "warn",
       summary: "Model provider credentials",
@@ -46,14 +44,12 @@ export function buildProviderChecks(
                 linkedAccounts.elizaCloud.reusable
               ? "A managed Eliza Cloud account is available."
               : linkedAccounts.codex.nativeReady ||
-                  linkedAccounts.claudeCode.nativeReady ||
-                  linkedAccounts.devin.nativeReady
-                ? "A native linked Codex, Claude Code, or Devin account is available."
+                  linkedAccounts.claudeCode.nativeReady
+                ? "A native linked Codex or Claude Code account is available."
                 : linkedAccounts.codex.reusable ||
-                    linkedAccounts.claudeCode.reusable ||
-                    linkedAccounts.devin.reusable
+                    linkedAccounts.claudeCode.reusable
                   ? "A linked provider fallback path is available, but native auth may still need to be completed."
-                  : "No OpenAI, Anthropic, Eliza Cloud, Codex, Claude Code, or Devin provider credentials are configured, and explicit offline bootstrap mode is disabled.",
+                  : "No OpenAI, Anthropic, Eliza Cloud, Codex or Claude Code provider credentials are configured, and explicit offline bootstrap mode is disabled.",
     },
     {
       id: "provider.linked-accounts",
@@ -62,14 +58,12 @@ export function buildProviderChecks(
         linkedAccounts.elizaCloud.reusable ||
         linkedAccounts.codex.nativeReady ||
         linkedAccounts.claudeCode.nativeReady ||
-        linkedAccounts.devin.nativeReady ||
         linkedAccounts.codex.reusable ||
-        linkedAccounts.claudeCode.reusable ||
-        linkedAccounts.devin.reusable
+        linkedAccounts.claudeCode.reusable
           ? "pass"
           : "warn",
       summary: "Linked CLI account detection",
-      detail: `elizacloud=${linkedAccounts.elizaCloud.nativeReady ? "native" : linkedAccounts.elizaCloud.available ? "detected" : "missing"} codex=${linkedAccounts.codex.nativeReady ? "native" : linkedAccounts.codex.available ? "detected" : "missing"} claudeCode=${linkedAccounts.claudeCode.nativeReady ? "native" : linkedAccounts.claudeCode.fallbackReady ? "fallback" : linkedAccounts.claudeCode.available ? "detected" : "missing"} devin=${linkedAccounts.devin.nativeReady ? "native" : linkedAccounts.devin.available ? "detected" : "missing"}`,
+      detail: `elizacloud=${linkedAccounts.elizaCloud.nativeReady ? "native" : linkedAccounts.elizaCloud.available ? "detected" : "missing"} codex=${linkedAccounts.codex.nativeReady ? "native" : linkedAccounts.codex.available ? "detected" : "missing"} claudeCode=${linkedAccounts.claudeCode.nativeReady ? "native" : linkedAccounts.claudeCode.fallbackReady ? "fallback" : linkedAccounts.claudeCode.available ? "detected" : "missing"}`,
     },
     {
       id: "provider.elizacloud-base-url",

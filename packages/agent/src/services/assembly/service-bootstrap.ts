@@ -38,7 +38,6 @@ function linkedProviderName(provider: string): LinkedProviderName | undefined {
   if (
     provider === "codex" ||
     provider === "claude-code" ||
-    provider === "devin" ||
     provider === "elizacloud"
   ) {
     return provider;

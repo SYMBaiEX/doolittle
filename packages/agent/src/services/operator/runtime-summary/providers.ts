@@ -5,15 +5,6 @@ export function buildProviderSummaries(
   config: EnvConfig,
   linkedAccounts: LinkedAccounts,
 ): SetupProviders {
-  const devin = linkedAccounts.devin ?? {
-    provider: "devin",
-    available: false,
-    reusable: false,
-    nativeReady: false,
-    fallbackReady: false,
-    detail: "No reusable Devin account is linked.",
-  };
-
   return [
     {
       id: "ollama",
@@ -46,16 +37,6 @@ export function buildProviderSummaries(
             : linkedAccounts.claudeCode.available
               ? linkedAccounts.claudeCode.detail
               : "No reusable Claude Code account is linked.",
-    },
-    {
-      id: "devin",
-      ready: devin.nativeReady ?? devin.reusable,
-      detail:
-        (devin.nativeReady ?? devin.reusable)
-          ? `Linked Devin CLI is ready for ${config.devinModel} SWE model execution.`
-          : devin.available
-            ? devin.detail
-            : "No reusable Devin CLI login is linked.",
     },
     {
       id: "openai",

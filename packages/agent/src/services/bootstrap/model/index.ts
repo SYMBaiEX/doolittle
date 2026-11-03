@@ -9,7 +9,6 @@ export type DefaultServiceModelProvider =
   | "ollama"
   | "codex"
   | "claude-code"
-  | "devin"
   | "offline";
 
 export interface DefaultServiceModelConfig {

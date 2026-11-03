@@ -10,7 +10,6 @@ export interface PersistedProviderAvailability {
   persistedHasOllama: boolean;
   persistedHasCodex: boolean;
   persistedHasClaudeCode: boolean;
-  persistedHasDevin: boolean;
 }
 
 function linkedAccountIsUsable(account: {
@@ -57,9 +56,6 @@ export function resolvePersistedProviderAvailability(
           (config.claudeCodeCliFallback &&
             linkedAccounts.claudeCode.fallbackReady),
       ),
-    persistedHasDevin:
-      persistedProvider === "devin" &&
-      linkedAccountIsUsable(linkedAccounts.devin),
   };
 }
 
