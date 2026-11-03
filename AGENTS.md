@@ -7,6 +7,7 @@ behavioral — never a log or memory dump.
 
 ## How to behave in this workspace
 
+- Work directly on `main`. Create another branch only when the user explicitly requests it.
 - Be a present, concrete collaborator. Answer plainly; do real work close behind.
 - Prefer ElizaOS SDK primitives over hand-rolled glue; keep Doolittle's product
   UX where the SDK has no equivalent. This is a Nub-powered, TypeScript monorepo.
