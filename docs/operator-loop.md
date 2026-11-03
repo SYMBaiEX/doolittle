@@ -107,7 +107,7 @@ If you want the shortest "am I actually ready?" loop:
 - Shell command missing: restart your terminal or invoke `~/.local/bin/doolittle`.
 - Setup looks incomplete: run `doolittle setup`, then `doolittle doctor`.
 - Runtime looks degraded: compare `doolittle status` with `doolittle runtime` to separate readiness from capability assembly.
-- Gateway looks stale: `doolittle gateway stop`, then `doolittle gateway start`.
+- Gateway looks stale: `/gateway stop`, then `/gateway start` in the shell.
 
 ## Next docs
 

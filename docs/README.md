@@ -14,7 +14,7 @@ is an operator guide, generated runtime truth, or a maintainer design record.
 | [Desktop IA checklist](./desktop-information-architecture-checklist.md) | Track the consolidation to Chat, Code, Settings, and contextual operations with acceptance evidence. |
 | [Native tools](./native-tools.md)                                       | Build the optional Doolittle-owned native utilities without changing ElizaOS runtime ownership.      |
 | [Skills Hub](./skills-hub.md)                                           | Understand native Eliza skill ownership and Doolittle's operator projection.                         |
-| [v0.1.0 release notes](./releases/v0.1.0.md)                            | Supported artifacts, compatibility, limitations, and release provenance.                             |
+| [v0.1.0 release plan](./releases/v0.1.0.md)                             | Planned artifacts, compatibility, limitations, and release provenance; verify publication separately. |
 
 ## Understand the Runtime
 
@@ -42,8 +42,10 @@ nub run check:docs-truth
 | [Package ownership](./package-ownership.md)                     | Current Eliza-native, product-owned, compatibility, and data-package boundaries. |
 | [Eliza maximization matrix](./eliza-maximization-matrix.md)     | Dated maintainer audit of native SDK ownership and remaining adapters.           |
 | [Scripts and release tooling](./engineering/scripts.md) | Entry points for installation, development, SDK qualification, and releases. |
+| [Engineering documentation](./engineering/README.md) | Maintainer guides and dated engineering records. |
 | [Development and testing](./engineering/fast-development.md) | Local feedback loops and deliberate release checks. |
 | [SDK upgrades](./engineering/sdk-package-upgrades.md) | Pinned upstream packages and source qualification. |
+| [Security guide and evidence](./security/README.md) | Current security guidance and historical audit records. |
 
 ## Documentation Rules
 

@@ -170,7 +170,7 @@ The API's runtime-owned routes come from Eliza first; Doolittle-specific REST ad
 | Research                        | Explicit research task path, durable receipts, and cited-report workflow                                     | Live research needs a configured `RESEARCH` model. A missing model produces a clear unavailable result.                                                                                                                       |
 | MCP tools and resources         | Multi-server status, discovered tools, marketplace lookup, and terminal/desktop inspection                   | Official `@elizaos/plugin-mcp` owns validation, stdio/HTTP/SSE transports, retries, provider context, resources, and invocation. Doolittle only projects the operator UX.                                                     |
 | Providers and accounts          | Local Ollama, official Eliza Codex and Eliza Cloud providers, plus Doolittle's Claude Code and Devin bridges | Codex and Claude account pools use Eliza's account-store and selector bridge. Tokens are not returned to the API or renderer.                                                                                                 |
-| Desktop and API                 | Electron lifecycle, context-isolated IPC, React presentation, loopback API, sessions and diagnostics         | Official `@elizaos/ui` `ElizaClient` owns ordinary request/error semantics; Electron owns native process capabilities and a strict transport allowlist; the API remains authoritative for runtime behavior and durable state. |
+| Desktop and API                 | Electron lifecycle, context-isolated IPC, React presentation, loopback API, sessions and diagnostics         | The renderer uses `ofetch` with the SDK transport and error types; Electron owns native process capabilities and a strict transport allowlist; the API remains authoritative for runtime behavior and durable state. |
 | Skills, gateway, and operations | Curated skills, configured messaging adapters, scheduling and local diagnostics                              | Availability depends on installed plugins and configuration; inspect `/doctor`, `/runtime status`, or the desktop Runtime view.                                                                                               |
 
 ### Providers and models
@@ -213,7 +213,11 @@ packages/agent/        Shared Eliza runtime, API, gateway and services
 packages/ui/           Browser-only presentation components
 packages/evals/        Workflow evaluation and evidence reporting
 packages/plugins/      Provider bridges and consolidated product plugin
-packages/skills/       Curated and generated skill content
+packages/skills/       Curated, generated, and optional skill content
+packages/storage/      Strict JSON reads shared by desktop, agent, and plugins
+packages/solana-layouts/  Solana layout compatibility package
+vendor/elizaos/        Pinned upstream source-build artifacts and receipts
+tooling/eliza-source/  Isolated upstream source-build inputs
 packages/acp/          Agent Communication Protocol support
 packages/contracts/    Shared contracts
 docs/                  Operator, desktop, capability, and architecture guides
@@ -264,9 +268,9 @@ nub run publish:providers -- --provider all --tag alpha     # dry-run alpha publ
 
 Doolittle is designed to keep its default operating boundary local:
 
-- The HTTP API binds to `127.0.0.1` by default. A non-loopback bind requires `ELIZA_API_TOKEN`.
+- The HTTP API binds to `127.0.0.1` by default. For usable non-loopback access, set `ELIZA_API_TOKEN`; otherwise Eliza generates a temporary process token.
 - The desktop renderer has no direct Node.js or filesystem access; privileged work is constrained to its preload IPC contract.
-- Workspace context and tool inputs are scanned before model use. Treat `.env`, the Doolittle data directory, and any workspace credentials as sensitive.
+- Doolittle scans workspace context files through its context-files service. Treat `.env`, the Doolittle data directory, and any workspace credentials as sensitive; do not assume every tool input is scanned.
 - Use approval controls and inspect run receipts before accepting commands that affect your machine or repository.
 
 Please report vulnerabilities privately—do not open a public issue for an unpatched problem. Full reporting instructions and operator hardening guidance are in [SECURITY.md](SECURITY.md).

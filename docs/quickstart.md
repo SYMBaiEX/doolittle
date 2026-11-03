@@ -42,14 +42,14 @@ bash scripts/install.sh --check
 bash scripts/install.sh --yes
 ```
 
-On Windows, install the standalone desktop build:
+For Windows, a locally built or published standalone desktop artifact uses this path:
 
 ```text
 apps/desktop/release/Doolittle-<version>-win-x64.exe
 ```
 
 See [the desktop guide](./desktop.md) for Windows packaging, installation, and first-launch
-details. The source bootstrap remains a macOS/Linux/WSL workflow.
+details. For a Windows source checkout, the guide also documents the PowerShell bootstrap.
 
 `--check` is the dry-run receipt. It reports the directories and files that setup
 would touch, including `.env`, `.doolittle/settings.json`,
@@ -75,7 +75,7 @@ Run these health checks:
 /setup checklist
 ```
 
-From API mode:
+Start `doolittle api` in a separate terminal, then query the default local port:
 
 ```bash
 curl http://127.0.0.1:3000/health
@@ -83,7 +83,7 @@ curl http://127.0.0.1:3000/runtime/status
 curl http://127.0.0.1:3000/runtime/plugins
 ```
 
-If these all return and report readiness, the product boundary is active.
+These endpoints show whether the local API and runtime respond; check their reported provider and plugin states before assuming a live integration is ready. If you changed the configured port, use that port instead.
 
 ## 3) Learn the operator shape quickly
 
@@ -158,7 +158,7 @@ For the full command catalog, see [Everyday commands in the README](../README.md
 - PATH not updated: restart shell or run `~/.local/bin/doolittle`.
 - Provider setup appears wrong: run `doolittle setup`, then `/doctor` and `/setup summary`.
 - Missing commands in runtime: confirm installer completion and `nub` on PATH.
-- Gateway state is stale: `doolittle gateway stop` then `doolittle gateway start`.
+- Gateway state is stale: `/gateway stop` then `/gateway start` in the shell.
 
 ## 6) Truth-first references
 

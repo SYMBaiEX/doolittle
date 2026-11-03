@@ -8,10 +8,12 @@ manifest export, and the API/CLI projection of official service results.
 
 ## On-Disk Layout
 
-- `data/skills-hub/manifests/` stores exported local workspace manifests
-- `data/skills-hub/installs/` stores explicitly imported portable manifests
-- `data/skills-hub/imports/` stores imported manifests staged into the hub
-- `data/skills-hub/exports/` stores bundle exports
+- `<dataDir>/skills-hub/manifests/` stores exported local workspace manifests
+- `<dataDir>/skills-hub/installs/` stores explicitly imported portable manifests
+- `<dataDir>/skills-hub/imports/` stores imported manifests staged into the hub
+- `<dataDir>/skills-hub/exports/` stores bundle exports
+
+The default data directory is `.doolittle/`; `DOOLITTLE_DATA_DIR` can select another directory. Optional bundled packs live under `packages/skills/.optional` and can be inspected with `/skills optional` or `GET /skills/optional`. They remain separate from default skill discovery.
 
 The hub does not load or persist a second catalog cache. Catalog and
 managed-install records are read from `AGENT_SKILLS_SERVICE`, retained only as
