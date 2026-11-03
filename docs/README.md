@@ -1,59 +1,19 @@
-# Doolittle Documentation
+# Developer handbook
 
-Use this page to find the right document without having to infer whether a file
-is an operator guide, generated runtime truth, or a maintainer design record.
+This handbook explains how to build, change, test, and release Doolittle.
 
-## Use Doolittle
+| Guide | Use it for |
+| --- | --- |
+| [Setup](setup.md) | Toolchain, dependency installation, configuration, and first launch. |
+| [Architecture](architecture.md) | Package ownership, runtime flow, and extension points. |
+| [Development](development.md) | CLI and Electron development loops. |
+| [Testing](testing.md) | Scoped tests, native acceptance, and local checks. |
+| [Interface](interface.md) | Desktop components, state ownership, accessibility, and motion. |
+| [SDK dependencies](sdk.md) | Source archives, vendor workspaces, and upstream upgrades. |
+| [Evaluations](evaluations.md) | Task suites, private evidence, and report comparison. |
+| [Security](security.md) | Trust boundaries, secrets, and developer checks. |
+| [Releases](releases.md) | Artifact preparation, provenance, and distribution. |
 
-| Document                                                                | Purpose                                                                                              |
-| ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| [Quickstart](./quickstart.md)                                           | Install Doolittle, configure a first provider, and verify the runtime.                               |
-| [Build Doolittle with Doolittle](./self-hosting.md)                     | Use a stable coding assistant, preview changes, choose themes and run an external test.              |
-| [Operator loop](./operator-loop.md)                                     | Learn the shortest daily shell, runtime, and gateway workflow.                                       |
-| [Desktop](./desktop.md)                                                 | Install, develop, package, and understand the Electron security boundary.                            |
-| [Desktop IA checklist](./desktop-information-architecture-checklist.md) | Track the consolidation to Chat, Code, Settings, and contextual operations with acceptance evidence. |
-| [Native tools](./native-tools.md)                                       | Build the optional Doolittle-owned native utilities without changing ElizaOS runtime ownership.      |
-| [Skills Hub](./skills-hub.md)                                           | Understand native Eliza skill ownership and Doolittle's operator projection.                         |
-| [v0.1.0 release plan](./releases/v0.1.0.md)                             | Planned artifacts, compatibility, limitations, and release provenance; verify publication separately. |
-
-## Understand the Runtime
-
-These files are generated from code and are the canonical reference for
-assembled runtime behavior. Do not edit them directly.
-
-| Document                                  | Source of truth                                   |
-| ----------------------------------------- | ------------------------------------------------- |
-| [Plugin inventory](./plugin-inventory.md) | Runtime plugin catalog plus workspace inspection. |
-| [Capability truth](./capability-truth.md) | Code-backed real, degraded, and caveat records.   |
-
-Regenerate and validate them from the repository root:
-
-```bash
-nub scripts/sync-doc-truth.ts --write
-nub run check:docs-truth
-```
-
-## Contribute and Maintain
-
-| Document                                                        | Purpose                                                                          |
-| --------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| [Monorepo layout](./monorepo.md)                                | Workspace roles, ownership boundaries, bootstrap, and validation.                |
-| [Module structure guidelines](./module-structure-guidelines.md) | Folder, filename, entrypoint, and test-placement conventions.                    |
-| [Package ownership](./package-ownership.md)                     | Current Eliza-native, product-owned, compatibility, and data-package boundaries. |
-| [Eliza maximization matrix](./eliza-maximization-matrix.md)     | Dated maintainer audit of native SDK ownership and remaining adapters.           |
-| [Scripts and release tooling](./engineering/scripts.md) | Entry points for installation, development, SDK qualification, and releases. |
-| [Engineering documentation](./engineering/README.md) | Maintainer guides and dated engineering records. |
-| [Development and testing](./engineering/fast-development.md) | Local feedback loops and deliberate release checks. |
-| [SDK upgrades](./engineering/sdk-package-upgrades.md) | Pinned upstream packages and source qualification. |
-| [Security guide and evidence](./security/README.md) | Current security guidance and historical audit records. |
-
-## Documentation Rules
-
-- Treat the root `package.json` `elizaSdk` field and overrides as authoritative
-  for the supported ElizaOS version.
-- Treat the runtime command catalog and `doolittle --help` as authoritative for
-  command names.
-- Keep operator guidance focused on observable behavior and degraded states.
-- Link to repository files instead of copying long implementation inventories
-  into hand-maintained guides.
-- Run `nub run check:local-links` after moving, adding, or removing Markdown.
+The package manifests define commands and versions. Runtime catalogs, validators,
+and tests define behavior. Link to those sources when a detailed inventory would
+duplicate implementation. Keep these chapters current as behavior changes.

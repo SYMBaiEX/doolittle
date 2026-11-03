@@ -1,116 +1,41 @@
-# Contributing to Doolittle
+# Contributing
 
-Thanks for helping build Doolittle — an ElizaOS-native, terminal-first agent.
+Read the [developer handbook](docs/README.md), then follow the
+[setup guide](docs/setup.md) and [development loop](docs/development.md).
+Participation follows the [Code of Conduct](CODE_OF_CONDUCT.md).
 
-Participation is governed by our [Code of Conduct](CODE_OF_CONDUCT.md).
+## Changes
 
-## Prerequisites
+Keep a change focused on one behavior. Match surrounding TypeScript style and
+package boundaries. Use ElizaOS SDK primitives for agent-engine behavior and
+keep Doolittle's client and product behavior in its existing owners; see
+[architecture](docs/architecture.md).
 
-- [Nub](https://nubjs.com/docs) `0.9.7` with Node.js `26.5.0`.
-- Node `26.5.0` is pinned in `.node-version`; the packaged desktop uses
-  Electron's embedded Node.
+Add or extend behavior tests under `tests/` for changes to runtime wiring,
+permissions, cancellation, state, or user workflows. Use the smallest relevant
+verification command from [testing](docs/testing.md). Format changed paths with
+Biome; avoid unrelated formatting changes.
 
-```bash
-nub run deps:install -- --frozen-lockfile --ignore-scripts
-cp .env.example .env   # then fill in provider keys you want
-nub run dev            # start the paired shell
-```
+Doolittle-owned model prompts use the shared
+[prompt-cache layer](packages/agent/src/runtime/prompt-cache/README.md).
+Secrets, user content, and per-request data must not be marked cache-stable.
+Follow the [interface conventions](docs/interface.md) for desktop work.
 
-The dependency command verifies and materializes the pinned ElizaOS source
-archives before installing. The scriptless install is intentional: dependency
-lifecycle scripts are not a trusted bootstrap boundary. Use
-`nub run desktop:runtime:install` when working on the Electron app.
+## Pull requests
 
-## Fast development loop
-
-Run the smallest relevant behavioral regression once per change. Prefer existing
-Vitest scoping and watch mode over a new verification system:
-
-```bash
-nub run typecheck      # tsc --noEmit, strict
-nub run test:scope tests/boundary/project-access.test.ts
-nub run test:related path/to/changed.ts
-nub run test           # fast execution/permissions/persistence boundaries
-nub run build          # build CLI and desktop applications
-nub run lint:check     # biome
-nub run check          # routine boundary lane
-```
-
-Use `nub run test:all`, `nub run test:integration`, and `nub run check:release`
-only at deliberate integration/release milestones. Live integrations retain
-their explicit environment opt-ins. Do not repeat an unchanged passed suite
-at each agent handoff. See [the fast development guide](docs/engineering/fast-development.md).
-
-Format changed paths with Biome before committing; avoid rewriting unrelated
-files. Keep small behavior tests for ownership, cancellation, permissions, data
-integrity and essential workflows, not source-text layout assertions.
-
-## Repository shape
-
-- `apps/cli` — terminal chat, cockpit, one-shot commands and runtime process host.
-- `apps/desktop` — Electron lifecycle, preload and desktop renderer.
-- `packages/agent` — shared `runtime/` (chat-turn, services, providers),
-  `gateway/` and `server/`.
-- `packages/plugins/*` — Doolittle provider bridges, the SQL compatibility
-  wrapper, and the consolidated `doolittle-plugin` source.
-- `packages/{acp,contracts,characters,skills}` — protocol, shared contracts,
-  character data, and native skill assets.
-- `packages/{storage,solana-layouts}` — shared JSON reads and Solana layout
-  compatibility, respectively.
-- The root `elizaSdk` contract and overrides declare the upstream source
-  baseline and explicit published-package exceptions.
-
-See the [monorepo layout](docs/monorepo.md) and [package ownership
-matrix](docs/package-ownership.md) before adding another workspace boundary.
-
-## Extension recipes
-
-Application composition belongs to `packages/agent`; reusable plugin facets
-must depend on SDK or `@doolittle/contracts` types and accept host services
-through explicit ports. Plugins must not import the application that hosts
-them.
-
-### Add an action
-
-1. Implement `createMyAction(services): Action` in `packages/agent/src/actions/`.
-2. Register it in the product plugin's `availableActions` list
-   (`packages/agent/src/runtime/native/plugin-registry/product/index.ts`).
-3. Extend a focused behavior check in `tests/boundary/` or a real runtime journey
-   in `tests/integration/` when the registered surface changes. Maintained tests
-   live under `tests/`, not beside every implementation file.
-
-### Add a provider (prompt context)
-
-1. Implement `createMyProvider(services): Provider` in
-   `packages/agent/src/providers/`.
-2. Register it in the `providers` list in
-   `packages/agent/src/runtime/native/plugin-registry/product/index.ts`.
-
-### Add a model provider
-
-Add a workspace plugin under `packages/plugins/` that registers the model
-handlers; wire its selection through the provider registry. To benefit from
-prompt caching, make it consume `params.promptSegments` (see
-`packages/agent/src/runtime/prompt-cache/README.md`).
-
-## Conventions
-
-- Match the surrounding code style; keep changes additive and strongly typed.
-- Doolittle-owned model prompts go through the shared prompt-cache layer, never
-  ad hoc.
-- Add or update tests alongside implementation.
-- Never mark user input, secrets, or per-request data as cache-stable.
+Describe the problem, resulting behavior, checks actually run, and material
+unverified behavior. Include screenshots for visual changes when useful.
+Keep dependency changes and lockfile updates together. All `@doolittle/*`
+workspace versions follow the root product version; official package versions
+follow the root `elizaSdk` contract and its explicit exceptions.
 
 ## Documentation
 
-- Start with the [documentation index](docs/README.md) and update the narrowest
-  canonical guide for the behavior you changed.
-- Do not hand-edit `docs/plugin-inventory.md` or `docs/capability-truth.md`;
-  update their code-backed sources and run
-  `nub scripts/sync-doc-truth.ts --write`.
-- Keep every `@doolittle/*` workspace on the root product version. Keep official
-  `@elizaos/*` packages aligned with the root `elizaSdk` source baseline and
-  its explicit published-package exceptions.
-- Keep audit and planning notes dated. Do not present them as runtime proof.
-- Run the relevant documentation check when changing generated truth or links;
-  acceptance gates remain a deliberate release milestone.
+Update the relevant handbook chapter with the code change. Keep documentation
+current, practical, and developer-facing. Link to implementation or package
+manifests for detailed inventories. Use `CHANGELOG.md` for release notes;
+audit logs, dated cleanup reports, and planning transcripts do not belong in
+`docs/`.
+
+Run `nub run check:local-links` after changing documentation or moving files.
+Report vulnerabilities through [Security](SECURITY.md).

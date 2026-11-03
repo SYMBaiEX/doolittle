@@ -97,7 +97,7 @@ jobs:
         run: |
           version="$(node --input-type=module --eval 'import manifest from "./apps/desktop/package.json" with { type: "json" }; console.log(manifest.version)')"
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
-          test -f "docs/releases/v${version}.md"
+          test -s CHANGELOG.md
           cp LICENSE release/LICENSE
           nub scripts/create-desktop-release.ts \
             --directory release \
@@ -149,7 +149,7 @@ jobs:
         with:
           tag_name: ${{ github.ref_name }}
           name: Doolittle v${{ needs.assemble.outputs.version }}
-          body_path: docs/releases/v${{ needs.assemble.outputs.version }}.md
+          body_path: CHANGELOG.md
           files: release/*
           fail_on_unmatched_files: true
           generate_release_notes: false

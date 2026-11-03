@@ -53,7 +53,7 @@ windows_installer_notice() {
   printf "%s\n" "     nub run desktop:package:win"
   printf "%s\n" "  2) Copy apps/desktop/release/Doolittle-<version>-win-x64.exe to Windows."
   printf "%s\n" "  3) Run the .exe, then launch 'Doolittle Desktop' or use 'doolittle.exe' from Start Menu."
-  printf "%s\n" "  4) See docs/desktop.md -> Windows installer section."
+  printf "%s\n" "  4) See docs/releases.md for Windows packaging requirements."
 }
 
 while [[ $# -gt 0 ]]; do

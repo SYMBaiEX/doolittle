@@ -1,49 +1,20 @@
-# Plugin Workspace
+# Doolittle plugins
 
-This workspace contains provider bridges and product adapters:
+This workspace contains the consolidated
+[`doolittle-plugin`](doolittle-plugin) product layer and the
+[`plugin-claude-code`](plugin-claude-code) provider bridge. Shared provider
+transport code lives in [`provider-transport`](provider-transport).
 
-- the public provider bridge [`plugin-claude-code`](./plugin-claude-code); Codex is supplied directly by `@elizaos/plugin-codex-cli`
-- internal adapters that expose Doolittle runtime services through plugin contracts
+Official ElizaOS packages own model transport, coding orchestration, SQL,
+MCP, and messaging. Keep product-specific actions and service projections in
+the existing Doolittle layer; plugins must not depend on the application that
+hosts them.
 
-## Canonical Truth
+The [plugin catalog](../agent/src/runtime/native/plugin-catalog/index.ts) defines
+runtime registration metadata, and the
+[capability definitions](../agent/src/runtime/native/capability-truth.ts)
+define observable behavior and degraded states. Inspect `/runtime/plugins` and
+`/runtime/status` for a running profile's state.
 
-Human-readable truth is generated from the runtime catalog:
-
-- [`docs/plugin-inventory.md`](../../docs/plugin-inventory.md)
-- [`docs/capability-truth.md`](../../docs/capability-truth.md)
-
-Runtime truth is exposed directly from:
-
-- `GET /runtime/plugins`
-- `GET /browser/status`
-- `GET /runtime/media`
-
-## Working Rule
-
-- Product-specific orchestration belongs in `packages/agent/src/` or [`doolittle-plugin`](./doolittle-plugin).
-- Public provider bridges should stay honest about readiness and publish intent.
-- Internal adapters should not present themselves as independent subsystems when they are thin wrappers over runtime services.
-- Consume published SDK modules directly; do not recreate unpublished packages in the SDK namespace.
-
-## Linked Providers
-
-The intentionally user-facing provider bridges are:
-
-- [`plugin-claude-code`](./plugin-claude-code)
-- `@elizaos/plugin-codex-cli` is consumed directly from the official ElizaOS release rather than vendored here.
-- `@elizaos/plugin-elizacloud` is consumed directly from the official ElizaOS release rather than vendored here.
-
-Shared Doolittle-only provider implementation stays in
-[`provider-transport`](./provider-transport). The private
-[`doolittle-plugin`](./doolittle-plugin) contains product-specific actions and
-service projections.
-
-Suggested runtime flow:
-
-- `/accounts connect codex`
-- `/accounts connect claude-code`
-- `/accounts connect elizacloud`
-- `/accounts doctor`
-- `/accounts use codex`
-- `/accounts use claude-code`
-- `/accounts use elizacloud`
+See [architecture](../../docs/architecture.md) for extension boundaries and
+[releases](../../docs/releases.md) for provider package verification.

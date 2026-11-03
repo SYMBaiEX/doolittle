@@ -44,14 +44,14 @@ nub run test                               # small security/state boundary suite
   in `tests/` and extend behavior journeys, not implementation-detail snapshots.
 - Report exactly what ran and what remains unverified. Related tests follow
   static imports; select explicit tests for dynamic plugin/runtime wiring.
-- See [fast development](docs/engineering/fast-development.md) for scope and
+- See [development and testing](docs/testing.md) for scope and
   failure/recovery coverage.
 
 ## Conventions
 
 - Match surrounding code style; keep changes additive and well-typed.
 - Never add thick focus frames or glows to message inputs or dropdowns. Follow
-  the quiet focus treatment in `docs/engineering/doolittle-interface-design.md`.
+  the quiet focus treatment in `docs/interface.md`.
 - Prompt construction for Doolittle-owned model calls goes through the shared
   prompt-cache layer (`runtime/prompt-cache`), never ad hoc.
 - Add or update tests alongside changes.
