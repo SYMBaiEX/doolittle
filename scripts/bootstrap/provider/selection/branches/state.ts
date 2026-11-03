@@ -3,10 +3,6 @@ export interface ProviderSelectionState {
   openaiApiKey: string;
   useLinkedCodexAuth: boolean;
   openaiModel: string;
-  useLinkedDevinAuth: boolean;
-  devinCliCommand: string;
-  devinModel: string;
-  devinTimeoutMs: number;
   elizaCloudApiKey: string;
   elizaCloudEnabled: boolean;
   elizaCloudSmallModel: string;

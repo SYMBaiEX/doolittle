@@ -28,7 +28,6 @@ export function buildBootstrapOnboardingSummary(args: {
     provider: answers.provider,
     accounts: {
       elizaCloudLinked: Boolean(answers.elizaCloudApiKey),
-      devinLinked: Boolean(answers.useLinkedDevinAuth),
       codexLinked: answers.useLinkedCodexAuth,
       claudeCodeLinked: answers.useLinkedClaudeCodeAuth,
     },

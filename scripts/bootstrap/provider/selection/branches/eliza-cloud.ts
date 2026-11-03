@@ -159,9 +159,6 @@ export async function runElizaCloudProviderBranch(args: {
       } else {
         state.provider = "offline";
       }
-    } else if (recovery === "devin") {
-      state.provider = "devin";
-      state.useLinkedDevinAuth = true;
     } else if (recovery === "codex") {
       state.provider = "codex";
       state.useLinkedCodexAuth = true;

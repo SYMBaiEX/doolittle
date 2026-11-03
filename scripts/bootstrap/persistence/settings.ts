@@ -52,10 +52,6 @@ export function buildBootstrapSettings(
     nextSettings.model.provider = "ollama";
     nextSettings.model.model = answers.ollamaLargeModel;
     nextSettings.model.baseUrl = answers.ollamaApiEndpoint;
-  } else if (answers.provider === "devin") {
-    nextSettings.model.provider = "devin";
-    nextSettings.model.model = answers.devinModel ?? "swe-1-6-fast";
-    nextSettings.model.baseUrl = "";
   } else if (
     answers.provider === "anthropic" ||
     answers.provider === "claude-code"

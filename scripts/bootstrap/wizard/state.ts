@@ -10,20 +10,20 @@ export function resolveInteractiveProviderDefault(
     ? "elizacloud"
     : existingEnv.get("DOOLITTLE_USE_LINKED_CODEX_AUTH") === "true"
       ? "codex"
-      : existingEnv.get("DOOLITTLE_USE_LINKED_DEVIN_AUTH") === "true"
-        ? "devin"
-        : existingEnv.get("ANTHROPIC_API_KEY")
-          ? existingEnv.get("OPENAI_API_KEY")
-            ? "hybrid"
-            : "anthropic"
-          : existingEnv.get("OPENAI_API_KEY")
-            ? "openai"
-            : existingEnv.get("CLAUDE_CODE_OAUTH_TOKEN") ||
-                existingEnv.get("CLAUDE_CODE_SETUP_TOKEN")
+      : existingEnv.get("ANTHROPIC_API_KEY")
+        ? existingEnv.get("OPENAI_API_KEY")
+          ? "hybrid"
+          : "anthropic"
+        : existingEnv.get("OPENAI_API_KEY")
+          ? "openai"
+          : existingEnv.get("CLAUDE_CODE_OAUTH_TOKEN") ||
+              existingEnv.get("CLAUDE_CODE_SETUP_TOKEN")
+            ? "claude-code"
+            : existingEnv.get("DOOLITTLE_USE_LINKED_CLAUDE_CODE_AUTH") ===
+                "true"
               ? "claude-code"
-              : existingEnv.get("DOOLITTLE_USE_LINKED_CLAUDE_CODE_AUTH") ===
-                  "true"
-                ? "claude-code"
+              : existingEnv.get("DOOLITTLE_USE_LINKED_DEVIN_AUTH") === "true"
+                ? "offline"
                 : "codex";
 }
 
@@ -47,11 +47,6 @@ export function createInteractiveWizardAnswers(
     useLinkedCodexAuth:
       existingEnv.get("DOOLITTLE_USE_LINKED_CODEX_AUTH") === "true" ||
       Boolean(linkedAccounts.codex.nativeReady),
-    useLinkedDevinAuth:
-      existingEnv.get("DOOLITTLE_USE_LINKED_DEVIN_AUTH") === "true" ||
-      Boolean(
-        linkedAccounts.devin?.nativeReady || linkedAccounts.devin?.reusable,
-      ),
     useLinkedClaudeCodeAuth:
       existingEnv.get("DOOLITTLE_USE_LINKED_CLAUDE_CODE_AUTH") === "true" ||
       Boolean(linkedAccounts.claudeCode.nativeReady),

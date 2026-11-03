@@ -18,7 +18,6 @@ export interface BootstrapOnboardingSummary {
     provider: string | null;
   };
   accounts: {
-    devinLinked?: boolean;
     codexLinked: boolean;
     claudeCodeLinked: boolean;
   };
@@ -81,7 +80,7 @@ export function buildBootstrapPulseSummary(args: {
       `body: ${onboarding.backend}`,
       `cadence: ${onboarding.agent.runDepth} cap=${onboarding.agent.maxIterations} progress=${onboarding.agent.toolProgressMode}`,
       `native connection: ${onboarding.nativeConnection.kind}${onboarding.nativeConnection.provider ? ` via ${onboarding.nativeConnection.provider}` : ""}`,
-      `threads: devin=${onboarding.accounts.devinLinked ? "bound" : "idle"} codex=${onboarding.accounts.codexLinked ? "bound" : "idle"} claude=${onboarding.accounts.claudeCodeLinked ? "bound" : "idle"}`,
+      `threads: codex=${onboarding.accounts.codexLinked ? "bound" : "idle"} claude=${onboarding.accounts.claudeCodeLinked ? "bound" : "idle"}`,
       `channels: ${onboarding.transports.join(", ") || "api, cli only"}`,
       `pulseprint: ${onboarding.profile}`,
     ],

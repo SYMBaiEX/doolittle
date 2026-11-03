@@ -64,8 +64,6 @@ export function createDefaultSettings(
         "OLLAMA_API_ENDPOINT",
         "OPENAI_API_KEY",
         "ANTHROPIC_API_KEY",
-        "DEVIN_MODEL",
-        "DEVIN_CLI_COMMAND",
       ],
       singularityImage: "",
       daytonaTarget: "",

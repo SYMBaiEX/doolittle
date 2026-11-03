@@ -12,6 +12,7 @@ import {
   resolveBootstrapDirectories,
   resolveBootstrapPaths,
 } from "./paths";
+import { assertHeadlessProviderAvailable } from "./provider-guard";
 import { printBootstrapSummary } from "./summary";
 
 export async function runBootstrapProgram(
@@ -61,6 +62,9 @@ export async function runBootstrapProgram(
   }
 
   const existingEnv = readEnvEntries(paths.envPath);
+  if (bootstrapOptions.headless || bootstrapOptions.skipWizard) {
+    assertHeadlessProviderAvailable(paths.settingsPath);
+  }
   let answers: WizardAnswers;
   try {
     answers = await runWizard(existingEnv, wizardContext);

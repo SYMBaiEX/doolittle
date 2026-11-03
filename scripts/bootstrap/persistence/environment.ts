@@ -36,10 +36,6 @@ export function buildBootstrapEnvUpdates(
       answers.provider === "codex"
         ? answers.openaiModel
         : "gpt-5.4",
-    DOOLITTLE_USE_LINKED_DEVIN_AUTH: String(answers.provider === "devin"),
-    DEVIN_CLI_COMMAND: answers.devinCliCommand || "devin",
-    DEVIN_MODEL: answers.devinModel || "swe-1-6-fast",
-    DEVIN_TIMEOUT_MS: String(answers.devinTimeoutMs || 120_000),
     ANTHROPIC_API_KEY:
       answers.provider === "anthropic" || answers.provider === "hybrid"
         ? answers.anthropicApiKey

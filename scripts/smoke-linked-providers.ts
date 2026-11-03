@@ -55,10 +55,11 @@ function parseArgs(argv: string[]): SmokeArgs {
     const arg = argv[index];
     if (arg === "--provider") {
       const value = argv[index + 1]?.trim().toLowerCase();
-      if (value === "codex" || value === "claude-code" || value === "devin") {
-        provider = value;
-        index += 1;
+      if (value !== "codex" && value !== "claude-code" && value !== "all") {
+        throw new Error(`Unknown provider: ${value || "(missing)"}.`);
       }
+      provider = value;
+      index += 1;
       continue;
     }
     if (arg === "--live") {
@@ -87,9 +88,6 @@ function mapProviderToServiceType(provider: LinkedProviderName): string {
   if (provider === "codex") {
     return "codex";
   }
-  if (provider === "devin") {
-    return "devin";
-  }
   return "claude_code";
 }
 
@@ -111,9 +109,7 @@ export async function runSmokeChecks(
   deps: SmokeDependencies = buildDependencies(),
 ): Promise<SmokeResult[]> {
   const providers: LinkedProviderName[] =
-    args.provider === "all"
-      ? ["codex", "claude-code", "devin"]
-      : [args.provider];
+    args.provider === "all" ? ["codex", "claude-code"] : [args.provider];
   const context = await deps.getContext();
   const settingsBefore = context.services.settings.get();
   const results: SmokeResult[] = [];
@@ -122,11 +118,7 @@ export async function runSmokeChecks(
   try {
     for (const provider of providers) {
       const account =
-        provider === "codex"
-          ? snapshot.codex
-          : provider === "devin"
-            ? snapshot.devin
-            : snapshot.claudeCode;
+        provider === "codex" ? snapshot.codex : snapshot.claudeCode;
       const serviceType = mapProviderToServiceType(provider);
       const result: SmokeResult = {
         provider,

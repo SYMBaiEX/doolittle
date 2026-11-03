@@ -49,11 +49,6 @@ export async function applyBootstrapAnswers(
       answers.provider === "codex"
         ? answers.openaiModel
         : "gpt-5.4",
-    useLinkedDevinAuth:
-      answers.useLinkedDevinAuth || answers.provider === "devin",
-    devinCliCommand: answers.devinCliCommand ?? "devin",
-    devinModel: answers.devinModel ?? "swe-1-6-fast",
-    devinTimeoutMs: answers.devinTimeoutMs ?? 120_000,
     anthropicApiKey:
       answers.provider === "anthropic" || answers.provider === "hybrid"
         ? answers.anthropicApiKey || undefined

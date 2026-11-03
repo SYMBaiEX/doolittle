@@ -3,7 +3,6 @@ import type { LinkedProviderAccountsSnapshot } from "@doolittle/agent/runtime/na
 export type CloudRecoveryChoice =
   | "retry"
   | "key"
-  | "devin"
   | "codex"
   | "claude-code"
   | "ollama"
@@ -35,14 +34,6 @@ export function buildCloudRecoveryOptions(
     },
   ];
 
-  if (linkedAccounts.devin?.nativeReady || linkedAccounts.devin?.reusable) {
-    options.push({
-      value: "devin",
-      label: "Switch to Devin",
-      detail:
-        "Use the local Devin SWE model path for now instead of managed Cloud.",
-    });
-  }
   if (linkedAccounts.codex.nativeReady || linkedAccounts.codex.reusable) {
     options.push({
       value: "codex",

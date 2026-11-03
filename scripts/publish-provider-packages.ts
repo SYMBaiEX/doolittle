@@ -16,7 +16,7 @@ import { buildSync } from "esbuild";
 
 const require = createRequire(import.meta.url);
 
-type Provider = "provider-transport" | "claude-code" | "devin";
+type Provider = "provider-transport" | "claude-code";
 
 interface PublishArgs {
   provider: Provider | "all";
@@ -58,11 +58,7 @@ interface PackedPackage {
   tarballPath?: string;
 }
 
-const PROVIDERS: readonly Provider[] = [
-  "provider-transport",
-  "claude-code",
-  "devin",
-];
+const PROVIDERS: readonly Provider[] = ["provider-transport", "claude-code"];
 
 const TRUSTED_PUBLISH_REPOSITORY = "SYMBaiEX/doolittle";
 const TRUSTED_PUBLISH_WORKFLOW = "provider-publish.yml";

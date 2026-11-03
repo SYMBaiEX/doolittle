@@ -51,9 +51,6 @@ export function readEnvBase(existingEnv: Map<string, string>) {
     },
     openaiApiKey: existingEnv.get("OPENAI_API_KEY") || "",
     openaiModel: existingEnv.get("OPENAI_MODEL") || "gpt-5.4",
-    devinCliCommand: existingEnv.get("DEVIN_CLI_COMMAND") || "devin",
-    devinModel: existingEnv.get("DEVIN_MODEL") || "swe-1-6-fast",
-    devinTimeoutMs: Number(existingEnv.get("DEVIN_TIMEOUT_MS") || 120_000),
     elizaCloudApiKey,
     elizaCloudSmallModel: normalizeElizaCloudSmallModel(
       existingEnv.get("ELIZAOS_CLOUD_SMALL_MODEL"),
