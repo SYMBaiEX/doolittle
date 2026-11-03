@@ -693,11 +693,12 @@ the continuation gate, not proof that an admission is accurate, app quality,
 effective model execution, or a causal explanation of latency. No diagnostic is
 emitted for a pass that ends the loop; absence is not a completion receipt.
 
-The pinned ElizaOS 2.0.3-beta.7 message service ignores the legacy
+The ElizaOS 2.0.3-beta.7 message service evaluated at the time ignored the legacy
 `maxMultiStepIterations` and `continueAfterActions` hints. The installed-SDK
-behavioral test (`sdk-planner-yield.test.ts`) demonstrates multiple actions
+historical behavioral test (`sdk-planner-yield.test.ts`) demonstrated multiple actions
 inside one `handleMessage` call with a requested iteration limit of one.
-Doolittle's continuation cap bounds outer message passes, not those inner
+Those observations are specific to that historical SDK; reassess the current
+pin before relying on them. Doolittle's continuation cap bounds outer message passes, not those inner
 actions or model calls. Stage1's supported `maxToolCalls` ceiling produces a
 refusal, while an actual `continueChain: false` terminal receipt stops normally;
 neither establishes a graceful non-terminal yield. Do not infer an effective

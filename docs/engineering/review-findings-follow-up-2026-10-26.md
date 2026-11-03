@@ -1,5 +1,7 @@
 # Reliability review follow-up — October 26, 2026
 
+> This is a historical review follow-up. Its changes and verification describe the recorded revision, not a current audit.
+
 This follows the [October 25 codebase review](codebase-review-2026-10-25.md).
 All four findings have implementation or regression-test coverage in this change.
 ElizaOS remains the engine for desktop and CLI; wallet/trading tools remain installed.

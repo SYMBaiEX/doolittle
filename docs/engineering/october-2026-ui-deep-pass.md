@@ -1,5 +1,7 @@
 # October 2026 interface deep pass
 
+> This is a historical UI delivery record. The recorded coverage and verification apply only to that revision.
+
 This is the follow-up to the lean overhaul, not a new runtime architecture or
 a claim that every capability has been exercised live. The request was a
 deeper pass over chat and all interface families, with no side-card or tab

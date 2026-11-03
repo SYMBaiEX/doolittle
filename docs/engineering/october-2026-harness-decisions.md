@@ -1,5 +1,7 @@
 # October 2026 harness decisions
 
+> This is a historical decision record. SDK versions and implementation details reflect the review date; check the current SDK contract and source before applying them.
+
 Reviewed 2026-10-11. This is an implementation decision note, not a release
 certification. All three priorities have scoped local implementations and
 focused regressions. Broad architectural extraction remains future work, not

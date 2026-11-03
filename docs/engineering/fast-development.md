@@ -12,9 +12,10 @@ nub run test:related apps/desktop/src/main/bot-api.ts
 nub run test:watch:scope tests/boundary/workspace-refresh.test.ts
 ```
 
-The fast suite tests actual approval persistence, cancellation and stale-dialog
-refusal, cross-bot ownership, execution-parent admission, and refresh races.
-No source-text snapshots or skipped environment opt-ins count as coverage.
+The default suite runs the maintained boundary tests under `tests/boundary/`.
+Native process and Electron journeys run through their explicit E2E gates.
+Check the test configuration and individual cases for the current coverage;
+a skipped or environment-gated case is not evidence that a behavior passed.
 `test:scope` needs a direct filter without a literal `--`. Related tests follow
 static imports; select explicit tests for dynamic runtime/IPC registration.
 No matching tests is a failure. Desktop/UI test commands reuse this root suite.
@@ -139,8 +140,8 @@ thousands of implementation-detail assertions.
 The package gate requires committed, clean source and an artifact manifest
 matching HEAD and app.asar. It does not install or publish the app or certify
 notarization. `test:essential` and `test:release` are compatibility aliases for
-the fast suite; `check:all` aliases the complete release gate. CI runs the fast
-gate first, then source workers, native desktop and the packaged smoke.
+the fast suite; `check:all` aliases the complete release gate. The commands
+above define what each local gate runs.
 
 Security scanners, dependency policy, bundled-runtime audits, SDK patch checks
 and local-link validation remain enabled. A small test suite complements them;

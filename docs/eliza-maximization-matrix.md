@@ -2,17 +2,19 @@
 
 Last updated: August 10, 2026
 
-> Maintainer audit: this is a dated ownership review, not generated runtime
-> truth. Use the [plugin inventory](./plugin-inventory.md) and [capability
-> truth](./capability-truth.md) for current assembled behavior.
+> Historical maintainer audit. Package versions, ownership gaps, paths, and
+> recommendations below record the August review and may no longer apply.
+> For current versions, use the root `elizaSdk` contract and
+> [SDK upgrades](engineering/sdk-package-upgrades.md); use the
+> [plugin inventory](./plugin-inventory.md), [capability truth](./capability-truth.md),
+> and [package ownership](./package-ownership.md) for current boundaries.
 
 This matrix tracks where Doolittle is aligned with the ElizaOS beta-targeted
 runtime stack and where native service ownership can still increase.
 
-The verified runtime target remains `2.0.3-beta.7`. Do not treat the
-semver-higher `2.0.11-beta.7` artifacts as an upgrade: they do not map to the
-later beta.7 source tag and include an agent-orchestrator package without
-runtime code.
+At the time of this review, the verified runtime target was `2.0.3-beta.7`.
+That version guidance has been superseded by the root SDK contract and the
+current SDK upgrade guide.
 
 ## Foundation
 

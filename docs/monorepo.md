@@ -80,7 +80,7 @@ Production audit commands project all declared workspace production roots into
 isolated importer views of the existing lockfile. They preserve its exact
 package snapshots and never install or resolve new versions. The audit refuses
 an empty graph, so a tooling-only root cannot silently remove runtime coverage.
-New advisory IDs, ranges or severities still fail the separate review policy.
+The separate runtime advisory policy requires zero advisories at every severity.
 See the [October 25 audit follow-up](security/monorepo-audit-2026-10-25.md) for
 findings exposed by correcting the audit scope.
 

@@ -1,5 +1,7 @@
 # Coding harness repair — 2026-09-22
 
+> This is a historical investigation and verification record. Results, pending work, and environment details describe the recorded runs only.
+
 Status: repairs and repository verification completed; live acceptance is
 partial. The original blog task is blocked on confirmation of its absolute
 target directory. This is not yet a certification of the complete coding demo.

@@ -1,5 +1,7 @@
 # Desktop information architecture consolidation
 
+> This is a historical migration checklist. Checked items and verification results record that migration; use current code and current tests to assess today’s behavior.
+
 This checklist is the durable implementation record for simplifying Doolittle
 Desktop without removing product capability. The visible product shell has
 three stable destinations: **Chat**, **Code**, and **Settings**. Activity is a
@@ -7,9 +9,8 @@ global drawer. Task, review, automation, inbox, dashboard, and analytics routes
 remain contextual or compatibility entry points instead of permanent modes;
 help and other short-lived surfaces are overlays or contextual panels.
 
-Update this file as implementation evidence changes. A checked item means the
-behavior exists in the current checkout and has the listed proof, not merely
-that code was written for it.
+Checked items describe the recorded migration and the evidence available then.
+They do not establish behavior or test coverage in a later checkout.
 
 ## Acceptance contract
 

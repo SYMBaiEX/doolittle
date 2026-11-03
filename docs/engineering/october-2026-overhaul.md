@@ -1,5 +1,7 @@
 # October 2026 lean overhaul
 
+> This is a historical delivery record. Build, installation, and verification results apply only to the recorded revision and environment.
+
 ## Architecture assessment
 
 Retain the installed ElizaOS message service as the execution owner. Doolittle
@@ -147,9 +149,8 @@ signing, not a notarized public release.
 Installed location: `/Applications/Doolittle.app`. Built and installed
 `app.asar` SHA-256 both equal
 `333ad4b352f24266f9c82907565ab408e9b9aee65fdc506db2e10081a842e8b3`.
-`codesign --verify --deep --strict` passed. The previous app was copied to
-`/Users/symbiex/.local/state/doolittle/local-install/october-2026-czZNaj/Doolittle-before-overhaul.app`
-before replacement, independently of the installer's temporary rollback copy.
+`codesign --verify --deep --strict` passed. The previous app was copied to a private local backup before replacement,
+independently of the installer's temporary rollback copy.
 
 The installed native app launched and reached Ready. Native UI inspection
 confirmed the centered new-chat composer, readable existing conversation bubbles,

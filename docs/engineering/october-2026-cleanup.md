@@ -1,5 +1,7 @@
 # October 2026 repository cleanup
 
+> This is a historical cleanup record. Its file inventory and coverage describe that change, not the current repository.
+
 This scoped source/test cleanup removes disconnected implementations and old
 layout snapshots. It does not change the installed application, runtime state,
 credentials, dependency overrides, generated runtime-truth documents, or
