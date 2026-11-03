@@ -67,14 +67,6 @@ const accountProviders = [
     shortLabel: "CC",
     accountSignIn: true,
   },
-  {
-    key: "devin",
-    snapshot: "devin",
-    poolProvider: undefined,
-    label: "Devin",
-    shortLabel: "DV",
-    accountSignIn: false,
-  },
 ] as const;
 
 const directAccountProviders = [

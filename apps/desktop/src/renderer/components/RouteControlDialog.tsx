@@ -193,6 +193,13 @@ export function RouteControlDialog({
   const save = async (event: FormEvent) => {
     event.preventDefault();
     const submittedDraft = effectiveDraft;
+    if (submittedDraft.provider === "devin") {
+      setFeedback({
+        message: "This saved provider is unavailable. Choose another route.",
+        tone: "bad",
+      });
+      return;
+    }
     setSaving(true);
     setFeedback(null);
     try {

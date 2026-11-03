@@ -75,7 +75,6 @@ const selectOptions: Record<string, string[]> = {
     "elizacloud",
     "codex",
     "claude-code",
-    "devin",
     "openai",
     "anthropic",
   ],
@@ -347,7 +346,15 @@ export function SettingControl({
             onChange={(event) => edit(event.target.value)}
           >
             {!options.includes(String(value)) ? (
-              <option value={String(value)}>{String(value)}</option>
+              <option
+                value={String(value)}
+                disabled={field.path === "model.provider" && value === "devin"}
+              >
+                {String(value)}
+                {field.path === "model.provider" && value === "devin"
+                  ? " (unavailable)"
+                  : ""}
+              </option>
             ) : null}
             {options.map((option) => (
               <option key={option} value={option}>

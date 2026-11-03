@@ -5,7 +5,6 @@ export type RouteProviderId =
   | "elizacloud"
   | "codex"
   | "claude-code"
-  | "devin"
   | "openai"
   | "anthropic";
 
@@ -28,7 +27,6 @@ export interface LinkedProviderStatus {
 export interface LinkedProviderAccountsLike {
   codex?: LinkedProviderStatus;
   claudeCode?: LinkedProviderStatus;
-  devin?: LinkedProviderStatus;
   elizaCloud?: LinkedProviderStatus;
 }
 
@@ -69,13 +67,6 @@ export const ROUTE_PROVIDER_OPTIONS: readonly RouteProviderOption[] = [
     eyebrow: "Reasoning",
     description: "Route through the linked Claude Code CLI when it is ready.",
     defaultModel: "claude-opus-4.1",
-  },
-  {
-    id: "devin",
-    label: "Devin",
-    eyebrow: "Agentic coding",
-    description: "Prefer Devin when you want deeper autonomous coding help.",
-    defaultModel: "devin",
   },
   {
     id: "elizacloud",
@@ -164,16 +155,22 @@ export function providerReadiness(
     };
   }
 
+  if (provider === "devin") {
+    return {
+      ready: false,
+      tone: "warn",
+      detail: "This saved provider is unavailable. Choose another route.",
+    };
+  }
+
   const status =
     provider === "codex"
       ? accounts?.codex
       : provider === "claude-code"
         ? accounts?.claudeCode
-        : provider === "devin"
-          ? accounts?.devin
-          : provider === "elizacloud"
-            ? accounts?.elizaCloud
-            : undefined;
+        : provider === "elizacloud"
+          ? accounts?.elizaCloud
+          : undefined;
 
   const ready = Boolean(
     status?.nativeReady || status?.fallbackReady || status?.reusable,

@@ -189,8 +189,6 @@ export function buildBackendEnvironment(
     DOOLITTLE_DESKTOP_RUNTIME: "1",
     DOOLITTLE_OFFLINE_BOOTSTRAP:
       baseEnvironment.DOOLITTLE_OFFLINE_BOOTSTRAP || "true",
-    DOOLITTLE_USE_LINKED_DEVIN_AUTH:
-      baseEnvironment.DOOLITTLE_USE_LINKED_DEVIN_AUTH || "false",
     // Desktop provider sign-in explicitly supports the official Claude CLI
     // session. Do not let a project-local .env disable that app capability
     // merely because Doolittle was launched from the project directory.

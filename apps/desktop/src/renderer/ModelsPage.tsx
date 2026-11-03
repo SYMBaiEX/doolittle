@@ -66,13 +66,6 @@ const accountProviders = [
     label: "Claude Code",
     accountSignIn: true,
   },
-  {
-    key: "devin",
-    snapshot: "devin",
-    poolProvider: undefined,
-    label: "Devin",
-    accountSignIn: false,
-  },
 ] as const;
 
 export function ModelsPage({
