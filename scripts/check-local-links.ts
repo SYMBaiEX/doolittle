@@ -2,14 +2,14 @@
 
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
-import { listGitTrackedFiles } from "./git-tracked-files";
+import { listGitProjectFiles } from "./git-tracked-files";
 
 const MARKDOWN_LINK_PATTERN =
   /!?\[[^\]]*\]\((?<destination><[^>]+>|[^)\s]+)(?:\s+["'][^"']*["'])?\)/gu;
 const URI_SCHEME_PATTERN = /^[a-z][a-z\d+.-]*:/iu;
 
-function trackedMarkdownFiles(): string[] {
-  return listGitTrackedFiles().filter(
+function projectMarkdownFiles(): string[] {
+  return listGitProjectFiles().filter(
     (path) => path.toLowerCase().endsWith(".md") && existsSync(path),
   );
 }
@@ -39,7 +39,7 @@ function localLinkTarget(destination: string): string | undefined {
 }
 
 function main(): void {
-  const markdownFiles = trackedMarkdownFiles();
+  const markdownFiles = projectMarkdownFiles();
   const failures: string[] = [];
   let checkedLinks = 0;
 
