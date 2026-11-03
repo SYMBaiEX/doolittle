@@ -60,6 +60,90 @@ export class TextProcessTerminationUnconfirmedError extends Error {
 
 const CANCELLATION_GRACE_MS = 250;
 const TERMINATION_CONFIRMATION_MS = 1_000;
+const POSIX_CANCELLATION_SETTLEMENT_MS = 1_750;
+const WINDOWS_CANCELLATION_SETTLEMENT_MS = 6_500;
+
+// A caller's bounded wait can end while the SDK still owns open pipes. Retain
+// and observe the operation until it settles so late PID discovery can still
+// trigger teardown and a later rejection can never become unhandled.
+const pendingOwnedProcesses = new Set<Promise<TextProcessResult>>();
+
+type OwnedTextProcessRunner = (
+  command: string,
+  args: readonly string[],
+  options: TextProcessOptions,
+) => Promise<TextProcessResult>;
+
+async function runOwnedTextProcess(
+  command: string,
+  args: readonly string[],
+  options: TextProcessOptions,
+  runner: OwnedTextProcessRunner,
+): Promise<TextProcessResult> {
+  const controller = new AbortController();
+  const timeoutMs = options.timeoutMs ?? 30_000;
+  let stopReason: "aborted" | "timeout" | undefined;
+  let settlementTimer: ReturnType<typeof setTimeout> | undefined;
+  let rejectSettlement!: (error: TextProcessTerminationUnconfirmedError) => void;
+  const settlement = new Promise<never>((_resolve, reject) => {
+    rejectSettlement = reject;
+  });
+  const stop = (reason: "aborted" | "timeout") => {
+    if (stopReason) return;
+    stopReason = reason;
+    // This timer is referenced and does not depend on SDK close/error events,
+    // PID discovery, or successful delivery of a signal to the child.
+    settlementTimer = setTimeout(
+      () =>
+        rejectSettlement(
+          new TextProcessTerminationUnconfirmedError(
+            "The routed operation did not settle within the owned teardown deadline. The operation remains observed until it settles; owned processes may still be running.",
+          ),
+        ),
+      process.platform === "win32"
+        ? WINDOWS_CANCELLATION_SETTLEMENT_MS
+        : POSIX_CANCELLATION_SETTLEMENT_MS,
+    );
+    controller.abort();
+  };
+  const abort = () => stop("aborted");
+  options.abortSignal?.addEventListener("abort", abort, { once: true });
+  // This request owns its deadline even if the router is waiting only on an
+  // unresolved promise. The timeout and teardown waits both stay referenced.
+  const timeout = setTimeout(() => stop("timeout"), timeoutMs);
+  const operation = runner(command, args, {
+    ...options,
+    abortSignal: controller.signal,
+  });
+  pendingOwnedProcesses.add(operation);
+  void operation.then(
+    () => pendingOwnedProcesses.delete(operation),
+    () => pendingOwnedProcesses.delete(operation),
+  );
+  if (options.abortSignal?.aborted) abort();
+  try {
+    const result = await Promise.race([operation, settlement]);
+    if (stopReason === "timeout") {
+      return {
+        ...result,
+        exitCode: 124,
+        stderr: [
+          result.stderr,
+          `[shell-router] command timed out after ${timeoutMs}ms (owned request deadline)`,
+        ]
+          .filter(Boolean)
+          .join("\n"),
+      };
+    }
+    return result;
+  } finally {
+    clearTimeout(timeout);
+    if (settlementTimer) clearTimeout(settlementTimer);
+    options.abortSignal?.removeEventListener("abort", abort);
+    // Do not await the losing SDK operation here: it may retain pipes forever.
+    // Its promise and teardown callbacks remain owned above until it settles.
+  }
+}
 
 /** These waits retain process ownership independently of the aborted request. */
 function waitForTeardown(ms: number): Promise<void> {
@@ -193,10 +277,14 @@ export async function runTextProcess(
   }
 
   if (options.abortSignal && capabilities.ownedCancellation) {
-    if (process.platform === "win32") {
-      return runAbortableWindowsHostProcess(command, args, options);
-    }
-    return runAbortableHostProcess(command, args, options);
+    return runOwnedTextProcess(
+      command,
+      args,
+      options,
+      process.platform === "win32"
+        ? runAbortableWindowsHostProcess
+        : runAbortableHostProcess,
+    );
   }
 
   return runShell({
