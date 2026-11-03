@@ -52,26 +52,38 @@ export interface LocalMutationRecord {
 
 export type LocalMutationInput = Omit<LocalMutationRecord, "recordedAt">;
 
-/** Runtime-owned run evidence. Client routing context belongs outside this record. */
-export interface RunSnapshot {
+/**
+ * Forward-compatible receipt admitted from storage. Only the required envelope
+ * fields are validated; nested evidence and all other recorded fields are unknown.
+ * Recorded policy strings are evidence, never permission to select runtime policy.
+ */
+export interface RunReceiptEnvelope extends Record<string, unknown> {
   runId: string;
   sessionId: string;
   roomId: string;
   source: string;
   message: string;
-  runDepth: RunDepth;
+  runDepth: string;
   configuredMaxIterations: number;
   observedActionCount: number;
-  progressMode: ToolProgressMode;
+  progressMode: string;
   status: RunStatus;
+  localMutations: unknown[];
+  pendingApprovals: number;
+  startedAt: string;
+  updatedAt: string;
+}
+
+/** Runtime-produced evidence. Client routing context belongs outside this record. */
+export interface RunSnapshot extends RunReceiptEnvelope {
+  runDepth: RunDepth;
+  progressMode: ToolProgressMode;
   activeAction?: string;
   activeStream?: string;
   statusDetail?: string;
   lastAction?: string;
   localMutations: LocalMutationRecord[];
   walletActivities?: WalletActivityReceipt[];
-  pendingApprovals: number;
-  startedAt: string;
   /** First operator-visible lifecycle update, used for queue-to-status telemetry. */
   firstStatusAt?: string;
   /** First model/message activity observed for this run. */
@@ -80,7 +92,6 @@ export interface RunSnapshot {
   firstActionAt?: string;
   /** Most recent non-heartbeat activity. Heartbeats must not hide a stalled run. */
   lastMeaningfulActivityAt?: string;
-  updatedAt: string;
   lastHeartbeatAt?: string;
   endedAt?: string;
   /** Final lifecycle outcome, retained after a run leaves the active session slot. */
@@ -89,28 +100,42 @@ export interface RunSnapshot {
 }
 
 /**
- * Existing shallow receipt admission contract. Optional fields and nested action
- * records remain consumer-owned; this is not authorization or a deep validator.
- * Depth and progress strings retain the persisted format's forward compatibility.
+ * Shallow receipt admission, preserving the existing persisted format's acceptance.
+ * This does not validate a runtime snapshot, nested evidence, or execution policy.
  */
-export function isRunSnapshot(value: unknown): value is RunSnapshot {
+export function isRunReceiptEnvelope(
+  value: unknown,
+): value is RunReceiptEnvelope {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
-  const run = value as Partial<RunSnapshot>;
   return (
-    typeof run.runId === "string" &&
-    typeof run.sessionId === "string" &&
-    typeof run.roomId === "string" &&
-    typeof run.source === "string" &&
-    typeof run.message === "string" &&
-    typeof run.runDepth === "string" &&
-    typeof run.configuredMaxIterations === "number" &&
-    typeof run.observedActionCount === "number" &&
-    typeof run.progressMode === "string" &&
-    isRunStatus(run.status) &&
-    Array.isArray(run.localMutations) &&
-    typeof run.pendingApprovals === "number" &&
-    typeof run.startedAt === "string" &&
-    typeof run.updatedAt === "string"
+    "runId" in value &&
+    typeof value.runId === "string" &&
+    "sessionId" in value &&
+    typeof value.sessionId === "string" &&
+    "roomId" in value &&
+    typeof value.roomId === "string" &&
+    "source" in value &&
+    typeof value.source === "string" &&
+    "message" in value &&
+    typeof value.message === "string" &&
+    "runDepth" in value &&
+    typeof value.runDepth === "string" &&
+    "configuredMaxIterations" in value &&
+    typeof value.configuredMaxIterations === "number" &&
+    "observedActionCount" in value &&
+    typeof value.observedActionCount === "number" &&
+    "progressMode" in value &&
+    typeof value.progressMode === "string" &&
+    "status" in value &&
+    isRunStatus(value.status) &&
+    "localMutations" in value &&
+    Array.isArray(value.localMutations) &&
+    "pendingApprovals" in value &&
+    typeof value.pendingApprovals === "number" &&
+    "startedAt" in value &&
+    typeof value.startedAt === "string" &&
+    "updatedAt" in value &&
+    typeof value.updatedAt === "string"
   );
 }
 

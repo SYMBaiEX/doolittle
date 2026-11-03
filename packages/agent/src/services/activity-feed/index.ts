@@ -8,7 +8,7 @@ import type {
 import type { AutocoderPipelineRunRecord } from "../autocoder-pipeline/index";
 import type { ExecutionApprovalRecord } from "../execution-approval/types";
 import type { RepositoryChange } from "../repository-service";
-import type { RunSnapshot } from "../run-controller/types";
+import type { RunReceiptEnvelope } from "../run-controller/types";
 
 export type ActivityEventKind =
   | "chat-run"
@@ -59,7 +59,7 @@ export interface ActivityEvent {
 
 export interface ActivityFeedServices {
   runController: {
-    listReceipts(limit?: number): RunSnapshot[];
+    listReceipts(limit?: number): RunReceiptEnvelope[];
   };
   executionApprovals: {
     list(): ExecutionApprovalRecord[];
@@ -155,7 +155,7 @@ function eventId(kind: ActivityEventKind, sourceId: string): string {
   return `${kind}:${sourceId}`;
 }
 
-function normalizeRun(run: RunSnapshot): ActivityEvent | null {
+function normalizeRun(run: RunReceiptEnvelope): ActivityEvent | null {
   if (!validSourceId(run.runId) || !validTimestamp(run.updatedAt)) return null;
   const status: ActivityEventStatus =
     run.status === "complete"

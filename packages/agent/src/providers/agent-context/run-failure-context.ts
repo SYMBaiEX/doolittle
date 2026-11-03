@@ -28,6 +28,7 @@ export function renderRecentRunFailureContext(
         (run) =>
           run.roomId === roomId &&
           run.runId !== currentRun.runId &&
+          typeof run.endedAt === "string" &&
           run.endedAt &&
           (run.status === "error" || run.status === "cancelled"),
       );
@@ -38,11 +39,11 @@ export function renderRecentRunFailureContext(
       "The user is asking about this earlier run. Use these fields as evidence, not as a new task. Answer the failure question directly; do not retry or continue the old task unless asked.",
       `runId=${previous.runId}`,
       `status=${previous.status}`,
-      `lastAction=${previous.lastAction ?? "(none recorded)"}`,
+      `lastAction=${typeof previous.lastAction === "string" ? previous.lastAction : "(none recorded)"}`,
       `observedActions=${previous.observedActionCount}`,
       `startedAt=${previous.startedAt}`,
       `endedAt=${previous.endedAt}`,
-      `failure=${escapeXml(previous.errorMessage ?? "No failure detail was recorded.").slice(0, 1_200)}`,
+      `failure=${escapeXml(typeof previous.errorMessage === "string" ? previous.errorMessage : "No failure detail was recorded.").slice(0, 1_200)}`,
       `<previous_user_request>${escapeXml(previous.message).slice(0, 1_200)}</previous_user_request>`,
     ];
     return details.join("\n");

@@ -16,7 +16,7 @@ import {
   resolveManagedChatAttachments,
 } from "../../../services/chat-attachments";
 import type {
-  RunSnapshot,
+  RunReceiptEnvelope,
   TaskRunEvent,
 } from "../../../services/run-controller-service/index";
 import { readJsonObjectBody } from "../../request-body";
@@ -60,17 +60,39 @@ function elapsedFrom(startedAt: string, endedAt?: string): number {
 }
 
 /** Stable terminal evidence for desktop, CLI, and API clients. */
-export function summarizeChatRun(run: RunSnapshot): ChatRunResultSummary {
-  const changedFiles = Array.from(
-    new Set(
-      run.localMutations
-        .filter((mutation) => mutation.success)
-        .map((mutation) => mutation.resolvedPath || mutation.requestedPath)
-        .filter((path): path is string => Boolean(path)),
-    ),
-  );
-  const timing = (value?: string) =>
-    value ? elapsedFrom(run.startedAt, value) : undefined;
+export function summarizeChatRun(run: RunReceiptEnvelope): ChatRunResultSummary {
+  const changedFiles = new Set<string>();
+  let failedChanges = 0;
+  for (const mutation of run.localMutations) {
+    if (
+      !mutation ||
+      typeof mutation !== "object" ||
+      Array.isArray(mutation) ||
+      !("success" in mutation)
+    ) {
+      continue;
+    }
+    if (mutation.success === false) {
+      failedChanges += 1;
+      continue;
+    }
+    if (mutation.success !== true) continue;
+    const resolvedPath =
+      "resolvedPath" in mutation &&
+      typeof mutation.resolvedPath === "string"
+        ? mutation.resolvedPath
+        : undefined;
+    const requestedPath =
+      "requestedPath" in mutation && typeof mutation.requestedPath === "string"
+        ? mutation.requestedPath
+        : undefined;
+    const path = resolvedPath || requestedPath;
+    if (path) changedFiles.add(path);
+  }
+  const timing = (value: unknown) =>
+    typeof value === "string" && value
+      ? elapsedFrom(run.startedAt, value)
+      : undefined;
   return {
     outcome:
       run.terminalReason === "cancelled"
@@ -78,12 +100,14 @@ export function summarizeChatRun(run: RunSnapshot): ChatRunResultSummary {
         : run.terminalReason === "error" || run.status === "error"
           ? "failed"
           : "completed",
-    changedFiles,
-    failedChanges: run.localMutations.filter((mutation) => !mutation.success)
-      .length,
+    changedFiles: Array.from(changedFiles),
+    failedChanges,
     actionCount: run.observedActionCount,
-    lastAction: run.lastAction,
-    durationMs: elapsedFrom(run.startedAt, run.endedAt || run.updatedAt),
+    lastAction: typeof run.lastAction === "string" ? run.lastAction : undefined,
+    durationMs: elapsedFrom(
+      run.startedAt,
+      typeof run.endedAt === "string" && run.endedAt ? run.endedAt : run.updatedAt,
+    ),
     timeToFirstMessageMs: timing(run.firstMessageAt),
     timeToFirstActionMs: timing(run.firstActionAt),
   };

@@ -1,14 +1,14 @@
 import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { isRunSnapshot } from "@doolittle/contracts/run";
+import { isRunReceiptEnvelope } from "@doolittle/contracts/run";
 import { readOptionalJson } from "@doolittle/storage";
 import { writeJsonAtomicSync } from "@elizaos/core";
-import type { RunSnapshot, TaskRunEvent } from "./types";
+import type { RunReceiptEnvelope, RunSnapshot, TaskRunEvent } from "./types";
 import { cloneRun } from "./utils";
 
 interface PersistedRunReceipts {
   version: 1 | 2;
-  receipts: RunSnapshot[];
+  receipts: RunReceiptEnvelope[];
   events?: Record<string, TaskRunEvent[]>;
 }
 
@@ -32,7 +32,7 @@ export class RunControllerStore {
   private static readonly MAX_EVENTS_PER_RUN = 1_500;
   private static readonly DEFAULT_PERSISTENCE_DEBOUNCE_MS = 50;
   private readonly activeRuns = new Map<string, RunSnapshot>();
-  private readonly receipts = new Map<string, RunSnapshot>();
+  private readonly receipts = new Map<string, RunReceiptEnvelope>();
   private readonly eventJournals = new Map<string, TaskRunEvent[]>();
   private readonly roomIndex = new Map<string, string>();
   private readonly filePath?: string;
@@ -111,9 +111,9 @@ export class RunControllerStore {
     return this.get(sessionId);
   }
 
-  getByRunId(runId: string): RunSnapshot | undefined {
+  getByRunId(runId: string): RunReceiptEnvelope | undefined {
     const run = this.receipts.get(runId);
-    return run ? cloneRun(run) : undefined;
+    return run ? structuredClone(run) : undefined;
   }
 
   hasRunId(runId: string): boolean {
@@ -164,11 +164,11 @@ export class RunControllerStore {
     return event ? cloneTaskEvent(event) : undefined;
   }
 
-  listReceipts(limit = 30): RunSnapshot[] {
+  listReceipts(limit = 30): RunReceiptEnvelope[] {
     return Array.from(this.receipts.values())
       .slice(-Math.max(1, Math.min(limit, RunControllerStore.MAX_RECEIPTS)))
       .reverse()
-      .map(cloneRun);
+      .map((receipt) => structuredClone(receipt));
   }
 
   getSessionByRoom(roomId: string): string | undefined {
@@ -222,12 +222,22 @@ export class RunControllerStore {
 
   private loadReceipts(): void {
     if (!this.filePath || !existsSync(this.filePath)) return;
-    const parsed = readOptionalJson<Partial<PersistedRunReceipts>>(
-      this.filePath,
-    );
-    if (!Array.isArray(parsed?.receipts)) return;
+    const parsed = readOptionalJson<unknown>(this.filePath);
+    if (
+      !parsed ||
+      typeof parsed !== "object" ||
+      Array.isArray(parsed) ||
+      !("receipts" in parsed) ||
+      !Array.isArray(parsed.receipts)
+    ) {
+      return;
+    }
     const restoredAt = new Date().toISOString();
-    if (parsed.events && typeof parsed.events === "object") {
+    if (
+      "events" in parsed &&
+      parsed.events &&
+      typeof parsed.events === "object"
+    ) {
       for (const [runId, events] of Object.entries(parsed.events)) {
         if (!Array.isArray(events)) continue;
         const validEvents = events
@@ -238,12 +248,12 @@ export class RunControllerStore {
       }
     }
     for (const receipt of parsed.receipts
-      .filter(isRunSnapshot)
+      .filter(isRunReceiptEnvelope)
       .slice(-RunControllerStore.MAX_RECEIPTS)) {
       const restored = receipt.endedAt
-        ? cloneRun(receipt)
+        ? structuredClone(receipt)
         : {
-            ...cloneRun(receipt),
+            ...structuredClone(receipt),
             status: "error" as const,
             terminalReason: "error" as const,
             statusDetail: "Interrupted by runtime restart",
@@ -301,7 +311,9 @@ export class RunControllerStore {
     if (!this.filePath || !this.persistenceDirty) return;
     const payload: PersistedRunReceipts = {
       version: 2,
-      receipts: Array.from(this.receipts.values(), cloneRun),
+      receipts: Array.from(this.receipts.values(), (receipt) =>
+        structuredClone(receipt),
+      ),
       events: Object.fromEntries(
         Array.from(this.eventJournals, ([runId, events]) => [
           runId,

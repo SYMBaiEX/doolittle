@@ -4,6 +4,7 @@ import type { RunDepth, ToolProgressMode } from "@doolittle/contracts/run";
 export type {
   LocalMutationInput,
   LocalMutationRecord,
+  RunReceiptEnvelope,
   RunSnapshot,
   RunStatus,
   RunUpdateEvent,

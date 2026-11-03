@@ -12,6 +12,7 @@ import {
 } from "../run-controller/transitions";
 import type {
   LocalMutationInput,
+  RunReceiptEnvelope,
   RunSnapshot,
   RunStatus,
   RuntimeCodingVerificationEvent,
@@ -47,6 +48,7 @@ import type { RunControllerDependencies } from "./types";
 export type {
   LocalMutationInput,
   LocalMutationRecord,
+  RunReceiptEnvelope,
   RunSnapshot,
   RunStatus,
   RuntimeCodingVerificationEvent,
@@ -322,7 +324,7 @@ export class RunControllerService {
     return undefined;
   }
 
-  cancelRun(runId: string): { accepted: boolean; run?: RunSnapshot } {
+  cancelRun(runId: string): { accepted: boolean; run?: RunReceiptEnvelope } {
     const controller = this.abortControllers.get(runId);
     const receipt = this.store.getByRunId(runId);
     const task = this.activeTasks.get(runId);
@@ -368,11 +370,11 @@ export class RunControllerService {
     return active.size;
   }
 
-  getByRunId(runId: string): RunSnapshot | undefined {
+  getByRunId(runId: string): RunReceiptEnvelope | undefined {
     return this.store.getByRunId(runId);
   }
 
-  listReceipts(limit?: number): RunSnapshot[] {
+  listReceipts(limit?: number): RunReceiptEnvelope[] {
     return this.store.listReceipts(limit);
   }
 
