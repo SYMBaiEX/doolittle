@@ -8,8 +8,7 @@ the desktop runtime does not depend on it.
 
 ```sh
 nub run eval:list
-nub run test:coding-evals
-nub run test:headless-evals
+nub run test:scope tests/boundary/eval-state-isolation.test.ts
 ```
 
 The first frozen suite, `coding-harness-v1`, contains a Next.js + shadcn + Bun
@@ -440,10 +439,10 @@ Do not promote its pass to original agent-run test or honesty evidence. The
 separate v7 original-verification contract does not rewrite historical reports
 or grading.
 
-The pinned core beta.7 patch repairs one proven citation-loss mechanism:
+An earlier core beta.7 patch addressed one observed citation-loss mechanism:
 generic document `data.url` values are no longer stripped as delivered media
 unless explicitly typed image/video/audio. Named media URL behavior is
-preserved. The public-SDK regression suite is synthetic and network-blocked.
+preserved. That historical public-SDK regression evidence was synthetic and network-blocked.
 Two subsequent clean-source SDK-web repetitions at `37403cf3` passed 5/5
 checks each, including exact citations. They are descriptive new-source
 samples, not a matched comparison or a substitute for human-quality review

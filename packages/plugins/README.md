@@ -34,9 +34,10 @@ The intentionally user-facing provider bridges are:
 - `@elizaos/plugin-codex-cli` is consumed directly from the official ElizaOS release rather than vendored here.
 - `@elizaos/plugin-elizacloud` is consumed directly from the official ElizaOS release rather than vendored here.
 
-Shared Doolittle-only implementation stays in
+Shared Doolittle-only provider implementation stays in
 [`provider-transport`](./provider-transport). The private
-plugin and adds only Doolittle's merge-on-write product semantics.
+[`doolittle-plugin`](./doolittle-plugin) contains product-specific actions and
+service projections.
 
 Suggested runtime flow:
 
