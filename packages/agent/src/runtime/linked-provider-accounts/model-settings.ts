@@ -56,7 +56,7 @@ export function resolveDefaultProviderModel(
   if (provider === "elizacloud") {
     return context.config.elizaCloudLargeModel;
   }
-  return "claude-sonnet-4.6";
+  return context.config.anthropicLargeModel;
 }
 
 export function resolveDefaultProviderBaseUrl(

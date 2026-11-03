@@ -1,52 +1,31 @@
 import { homedir } from "node:os";
 import { resolve } from "node:path";
+import {
+  DEFAULT_MODEL_ROUTE,
+  isRuntimeReasoningEffort,
+  MODEL_PROVIDER_DEFINITIONS,
+  type RuntimeModelOption,
+  type RuntimeModelProvider,
+  type RuntimeModelReasoningCapability,
+  type RuntimeModelReasoningOption,
+  type RuntimeModelsResponse,
+  type RuntimeReasoningEffort,
+} from "@doolittle/contracts/model-route";
 import { getModelOptions } from "@elizaos/agent/api/model-provider-helpers";
 import type { AppContext } from "../../../runtime/bootstrap/index";
 import { getRuntimeProviderAccountsSnapshot } from "../../../runtime/native/provider-accounts";
 import { listRuntimeModelCapabilities } from "../../../services/operator/runtime-model-capabilities";
-import type { RuntimeReasoningEffort } from "../../../services/settings/runtime-settings";
 import type { EnvConfig } from "../../../types/index";
 import { readRegularFileSync } from "../../../utils/read-regular-file";
 import { json } from "../../responses";
 
 const MODEL_DISCOVERY_TIMEOUT_MS = 2_500;
 
-type ModelSource = "configured" | "discovered";
-
-interface ModelCatalogEntry {
-  id: string;
-  label: string;
-  reasoning?: ModelReasoningCapability;
-}
-
-interface ModelReasoningOption {
-  id: RuntimeReasoningEffort;
-  label: string;
-  description?: string;
-}
-
-interface ModelReasoningCapability {
-  default?: RuntimeReasoningEffort;
-  options: ModelReasoningOption[];
-}
-
-interface DiscoveredModel {
-  id: string;
-  label: string;
-  source: ModelSource;
-  reasoning?: ModelReasoningCapability;
-}
-
-interface ModelProvider {
-  id: string;
-  label: string;
-  mode: "cloud" | "linked" | "local";
-  ready: boolean;
-  baseUrl?: string;
-  discovery: "configured" | "live" | "unavailable";
-  detail: string;
-  models: DiscoveredModel[];
-}
+type ModelCatalogEntry = Omit<RuntimeModelOption, "source">;
+type ModelReasoningOption = RuntimeModelReasoningOption;
+type ModelReasoningCapability = RuntimeModelReasoningCapability;
+type DiscoveredModel = RuntimeModelOption;
+type ModelProvider = RuntimeModelProvider;
 
 interface ModelDiscoveryResult {
   models: Array<{
@@ -257,7 +236,7 @@ export async function handleRuntimeModelRoutes(
     refreshedAt: new Date().toISOString(),
     providers,
     capabilities: listRuntimeModelCapabilities(context.runtime),
-  });
+  } satisfies RuntimeModelsResponse);
 }
 
 export async function discoverModelProviders(
@@ -342,9 +321,8 @@ function providerDefinitions(
     ...(config.offlineBootstrapMode
       ? [
           {
-            id: "offline",
-            label: "Offline bootstrap",
-            mode: "local" as const,
+            ...MODEL_PROVIDER_DEFINITIONS.offline,
+            defaultModel: "offline",
             ready: true,
             discovery: "configured" as const,
             detail:
@@ -354,9 +332,8 @@ function providerDefinitions(
         ]
       : []),
     {
-      id: "ollama",
-      label: "Ollama",
-      mode: "local",
+      ...MODEL_PROVIDER_DEFINITIONS.ollama,
+      defaultModel: config.ollamaLargeModel,
       ready: Boolean(config.ollamaApiEndpoint?.trim()),
       baseUrl: config.ollamaApiEndpoint,
       discovery: "configured",
@@ -369,9 +346,8 @@ function providerDefinitions(
       ),
     },
     {
-      id: "elizacloud",
-      label: "Eliza Cloud",
-      mode: "cloud",
+      ...MODEL_PROVIDER_DEFINITIONS.elizacloud,
+      defaultModel: config.elizaCloudLargeModel,
       ready: Boolean(
         config.elizaCloudEnabled ||
           config.elizaCloudApiKey?.trim() ||
@@ -389,9 +365,9 @@ function providerDefinitions(
       ),
     },
     {
-      id: "codex",
-      label: "ChatGPT / Codex",
-      mode: "linked",
+      ...MODEL_PROVIDER_DEFINITIONS.codex,
+      defaultModel: DEFAULT_MODEL_ROUTE.model,
+      baseUrl: DEFAULT_MODEL_ROUTE.baseUrl,
       ready: Boolean(config.useLinkedCodexAuth || linkedReadiness.codex),
       discovery: "configured",
       detail:
@@ -399,22 +375,24 @@ function providerDefinitions(
       models: configuredModels(withActive("codex", [...CODEX_LINKED_MODELS])),
     },
     {
-      id: "claude-code",
-      label: "Claude Code",
-      mode: "linked",
+      ...MODEL_PROVIDER_DEFINITIONS["claude-code"],
+      defaultModel: config.anthropicLargeModel,
       ready: Boolean(
         config.useLinkedClaudeCodeAuth || linkedReadiness["claude-code"],
       ),
       discovery: "configured",
       detail: "Current models supported by the linked Claude Code account.",
       models: configuredModels(
-        withActive("claude-code", [...CLAUDE_CODE_LINKED_MODELS]),
+        withActive("claude-code", [
+          config.anthropicLargeModel,
+          config.anthropicSmallModel,
+          ...CLAUDE_CODE_LINKED_MODELS,
+        ]),
       ),
     },
     {
-      id: "openai",
-      label: "OpenAI",
-      mode: "cloud",
+      ...MODEL_PROVIDER_DEFINITIONS.openai,
+      defaultModel: config.openAiModel,
       ready: Boolean(openAiApiKey?.trim()),
       baseUrl: config.openAiBaseUrl,
       discovery: "configured",
@@ -432,9 +410,8 @@ function providerDefinitions(
       ),
     },
     {
-      id: "anthropic",
-      label: "Anthropic",
-      mode: "cloud",
+      ...MODEL_PROVIDER_DEFINITIONS.anthropic,
+      defaultModel: config.anthropicLargeModel,
       ready: Boolean(anthropicApiKey?.trim()),
       baseUrl: config.anthropicBaseUrl ?? "https://api.anthropic.com/v1",
       discovery: "configured",
@@ -562,10 +539,7 @@ function parseCodexReasoningCapability(
     if (!entry || typeof entry !== "object" || Array.isArray(entry)) return [];
     const record = entry as Record<string, unknown>;
     const id = record.effort;
-    if (
-      typeof id !== "string" ||
-      !["none", "low", "medium", "high", "xhigh", "max", "ultra"].includes(id)
-    ) {
+    if (!isRuntimeReasoningEffort(id)) {
       return [];
     }
     const description =
@@ -574,7 +548,7 @@ function parseCodexReasoningCapability(
         : undefined;
     return [
       {
-        id: id as RuntimeReasoningEffort,
+        id,
         label: id,
         ...(description ? { description } : {}),
       },

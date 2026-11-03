@@ -1,3 +1,4 @@
+import type { ModelProviderId } from "@doolittle/contracts/model-route";
 import type { TuiThemeName } from "@doolittle/agent/runtime/theme-catalog";
 import type { ElizaMcpSettings } from "@doolittle/agent/services/mcp/settings";
 import type { RuntimeSettings as ServiceRuntimeSettings } from "@doolittle/agent/services/settings/runtime-settings";
@@ -16,15 +17,8 @@ export type PairingMode = "pair" | "allow" | "deny";
 
 export type WizardMode = "quick" | "ritual";
 
-export type ProviderMode =
-  | "elizacloud"
-  | "ollama"
-  | "openai"
-  | "anthropic"
-  | "codex"
-  | "claude-code"
-  | "hybrid"
-  | "offline";
+/** Hybrid is an onboarding recipe, not a persisted model-provider identity. */
+export type ProviderMode = ModelProviderId | "hybrid";
 
 export type BrowserMode = "lightpanda" | "basic";
 

@@ -1,3 +1,4 @@
+import { isRuntimeReasoningEffort } from "@doolittle/contracts/model-route";
 import {
   createElizaMcpSettingsFromCommand,
   isElizaMcpSettings,
@@ -6,7 +7,6 @@ import type {
   ParsedRuntimeSettings,
   RuntimeSettings,
 } from "./runtime-settings";
-import { RUNTIME_REASONING_EFFORTS } from "./runtime-settings";
 
 export interface RuntimeSettingsNormalizationResult {
   dirty: boolean;
@@ -230,13 +230,7 @@ export function normalizeRuntimeSettings(
   }
 
   const effort = parsed.model.reasoningEffort;
-  if (
-    effort !== undefined &&
-    (typeof effort !== "string" ||
-      !RUNTIME_REASONING_EFFORTS.includes(
-        effort as (typeof RUNTIME_REASONING_EFFORTS)[number],
-      ))
-  ) {
+  if (effort !== undefined && !isRuntimeReasoningEffort(effort)) {
     delete parsed.model.reasoningEffort;
     dirty = true;
   }

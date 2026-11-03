@@ -45,10 +45,7 @@ import {
   COMPOSER_SELECTOR_ROOT_CLASS,
 } from "../composer-selectors/layout";
 import { desktopRequest, errorMessage, useApiResource } from "../lib";
-import {
-  defaultBaseUrlForProvider,
-  routeProviderOption,
-} from "../model-routing";
+import { defaultBaseUrlForProvider } from "../model-routing";
 import { UiIcon } from "./UiIcon";
 
 export { ComposerProjectSelector } from "../composer-selectors/ComposerProjectSelector";
@@ -251,11 +248,11 @@ export function ComposerModelSelector({
     try {
       const baseUrl =
         provider.baseUrl ??
-        routeProviderOption(provider.id)?.defaultBaseUrl ??
         defaultBaseUrlForProvider(
           provider.id,
           runtime?.provider,
           provider.id === runtime?.provider ? provider.baseUrl : undefined,
+          modelCatalog,
         );
       const resolvedEffort = model.reasoning
         ? resolvedReasoningEffort(model, effort)

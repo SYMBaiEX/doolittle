@@ -40,21 +40,9 @@ import {
   ROUTE_PROVIDER_OPTIONS,
   type RouteProviderId,
 } from "../model-routing";
+import type { SettingsResponse } from "../settings/settings-types";
 import { UiIcon } from "./UiIcon";
 import { useModalFocusBoundary } from "./useModalFocusBoundary";
-
-interface SettingsResponse {
-  settings?: {
-    model?: {
-      provider?: string;
-      model?: string;
-      baseUrl?: string;
-      temperature?: number;
-      maxTokens?: number;
-      reasoningEffort?: RuntimeReasoningEffort;
-    };
-  };
-}
 
 interface AccountsResponse {
   activeProvider?: string;
@@ -65,14 +53,13 @@ interface RouteDraft {
   provider: string;
   model: string;
   baseUrl: string;
-  temperature: string;
-  maxTokens: string;
   reasoningEffort: string;
 }
 
 function draftFromSettings(
   settings: SettingsResponse | null,
   runtime: RuntimeStatus | null,
+  catalog: RuntimeModelsResponse | null,
 ): RouteDraft {
   const model = settings?.settings?.model;
   const provider =
@@ -83,13 +70,10 @@ function draftFromSettings(
     model:
       model?.model ??
       runtime?.model ??
-      defaultModelForProvider(provider, undefined, undefined),
+      defaultModelForProvider(provider, undefined, undefined, catalog),
     baseUrl:
-      model?.baseUrl ?? (isDefaultRoute ? DEFAULT_MODEL_ROUTE.baseUrl : ""),
-    temperature:
-      typeof model?.temperature === "number" ? String(model.temperature) : "",
-    maxTokens:
-      typeof model?.maxTokens === "number" ? String(model.maxTokens) : "",
+      model?.baseUrl ??
+      defaultBaseUrlForProvider(provider, undefined, undefined, catalog),
     reasoningEffort:
       model?.reasoningEffort ??
       runtime?.reasoningEffort ??
@@ -148,9 +132,10 @@ export function RouteControlDialog({
     [accounts.data?.accounts],
   );
 
-  const effectiveDraft = draft ?? draftFromSettings(settings.data, runtime);
+  const effectiveDraft =
+    draft ?? draftFromSettings(settings.data, runtime, models.data);
   const activeProvider = effectiveDraft.provider;
-  const readiness = providerReadiness(activeProvider, linkedAccounts);
+  const readiness = providerReadiness(activeProvider, linkedAccounts, models.data);
   const selectedModel = useMemo(
     () =>
       models.data?.providers
@@ -170,7 +155,8 @@ export function RouteControlDialog({
 
   const chooseProvider = (provider: RouteProviderId) => {
     setDraft((current) => {
-      const previous = current ?? draftFromSettings(settings.data, runtime);
+      const previous =
+        current ?? draftFromSettings(settings.data, runtime, models.data);
       const currentSettings = settings.data?.settings?.model;
       return {
         ...previous,
@@ -179,11 +165,13 @@ export function RouteControlDialog({
           provider,
           currentSettings?.provider ?? runtime?.provider,
           currentSettings?.model ?? runtime?.model,
+          models.data,
         ),
         baseUrl: defaultBaseUrlForProvider(
           provider,
           currentSettings?.provider ?? runtime?.provider,
           currentSettings?.baseUrl,
+          models.data,
         ),
       };
     });
@@ -193,9 +181,15 @@ export function RouteControlDialog({
   const save = async (event: FormEvent) => {
     event.preventDefault();
     const submittedDraft = effectiveDraft;
-    if (submittedDraft.provider === "devin") {
+    if (
+      !models.data?.providers.some(
+        (provider) => provider.id === submittedDraft.provider,
+      )
+    ) {
       setFeedback({
-        message: "This saved provider is unavailable. Choose another route.",
+        message: models.loading
+          ? "The model catalog is still loading. Try again when it is ready."
+          : "This provider is unavailable in the current model catalog. Choose another route.",
         tone: "bad",
       });
       return;
@@ -206,6 +200,7 @@ export function RouteControlDialog({
       const changes: Array<{ path: string; value: string | number | null }> = [
         { path: "model.provider", value: submittedDraft.provider },
         { path: "model.model", value: submittedDraft.model.trim() },
+        { path: "model.baseUrl", value: submittedDraft.baseUrl },
         {
           path: "model.reasoningEffort",
           value: reasoningOptions.length ? resolvedReasoningEffort : null,
@@ -293,13 +288,22 @@ export function RouteControlDialog({
 
           <div className={ROUTE_PROVIDER_GRID_CLASS}>
             {ROUTE_PROVIDER_OPTIONS.map((option) => {
-              const summary = providerReadiness(option.id, linkedAccounts);
+              const summary = providerReadiness(
+                option.id,
+                linkedAccounts,
+                models.data,
+              );
               const selected = effectiveDraft.provider === option.id;
               return (
                 <button
                   aria-pressed={selected}
                   className={`${ROUTE_PROVIDER_CARD_CLASS} ${selected ? ROUTE_PROVIDER_CARD_SELECTED_CLASS : ""}`}
                   key={option.id}
+                  disabled={
+                    !models.data?.providers.some(
+                      (provider) => provider.id === option.id,
+                    )
+                  }
                   onClick={() => chooseProvider(option.id)}
                   type="button"
                 >
@@ -329,7 +333,7 @@ export function RouteControlDialog({
                 onChange={(event) =>
                   setDraft({ ...effectiveDraft, model: event.target.value })
                 }
-                placeholder={DEFAULT_MODEL_ROUTE.model}
+                placeholder="Choose a configured model"
                 value={effectiveDraft.model}
               />
               <datalist id="route-model-options">

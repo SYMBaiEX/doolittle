@@ -1,20 +1,18 @@
-import { DEFAULT_MODEL_ROUTE } from "@doolittle/contracts/model-route";
+import {
+  DEFAULT_MODEL_ROUTE,
+  isModelProviderId,
+  MODEL_PROVIDER_DEFINITIONS,
+  type ModelProviderId,
+  type RuntimeModelsResponse,
+} from "@doolittle/contracts/model-route";
 
-export type RouteProviderId =
-  | "ollama"
-  | "elizacloud"
-  | "codex"
-  | "claude-code"
-  | "openai"
-  | "anthropic";
+export type RouteProviderId = Exclude<ModelProviderId, "offline">;
 
 export interface RouteProviderOption {
   id: RouteProviderId;
   label: string;
   eyebrow: string;
   description: string;
-  defaultModel: string;
-  defaultBaseUrl?: string;
 }
 
 export interface LinkedProviderStatus {
@@ -45,52 +43,36 @@ export interface LinkedProviderAccessSummary {
 
 export const ROUTE_PROVIDER_OPTIONS: readonly RouteProviderOption[] = [
   {
-    id: "ollama",
-    label: "Ollama",
+    ...MODEL_PROVIDER_DEFINITIONS.ollama,
     eyebrow: "Local first",
     description:
       "Keep fast turns on this machine with an offline-capable route.",
-    defaultModel: "granite4.1:3b",
-    defaultBaseUrl: "http://127.0.0.1:11434/v1",
   },
   {
-    id: "codex",
-    label: "Codex",
+    ...MODEL_PROVIDER_DEFINITIONS.codex,
     eyebrow: "Coding",
     description: "Use the linked Codex account for software-heavy work.",
-    defaultModel: DEFAULT_MODEL_ROUTE.model,
-    defaultBaseUrl: DEFAULT_MODEL_ROUTE.baseUrl,
   },
   {
-    id: "claude-code",
-    label: "Claude Code",
+    ...MODEL_PROVIDER_DEFINITIONS["claude-code"],
     eyebrow: "Reasoning",
     description: "Route through the linked Claude Code CLI when it is ready.",
-    defaultModel: "claude-opus-4.1",
   },
   {
-    id: "elizacloud",
-    label: "Eliza Cloud",
+    ...MODEL_PROVIDER_DEFINITIONS.elizacloud,
     eyebrow: "Managed",
     description: "Use Eliza Cloud when you want managed remote routing.",
-    defaultModel: "gpt-5-mini",
   },
   {
-    id: "openai",
-    label: "OpenAI-compatible",
+    ...MODEL_PROVIDER_DEFINITIONS.openai,
     eyebrow: "Custom endpoint",
     description: "Point Doolittle at a compatible endpoint you control.",
-    defaultModel: "gpt-5-mini",
-    defaultBaseUrl: "https://api.openai.com/v1",
   },
   {
-    id: "anthropic",
-    label: "Anthropic",
+    ...MODEL_PROVIDER_DEFINITIONS.anthropic,
     eyebrow: "Custom endpoint",
     description:
       "Use Anthropic-compatible credentials configured on this machine.",
-    defaultModel: "claude-sonnet-4.5",
-    defaultBaseUrl: "https://api.anthropic.com/v1",
   },
 ] as const;
 
@@ -100,44 +82,63 @@ export function routeProviderOption(
   return ROUTE_PROVIDER_OPTIONS.find((entry) => entry.id === provider);
 }
 
+/** Retain a saved model; new provider selections use the runtime catalog. */
 export function defaultModelForProvider(
   provider: string | undefined,
   currentProvider: string | undefined,
   currentModel: string | undefined,
+  catalog?: RuntimeModelsResponse | null,
 ): string {
-  if (
-    provider &&
-    currentProvider &&
-    provider === currentProvider &&
-    currentModel?.trim()
-  ) {
+  if (provider === currentProvider && currentModel?.trim())
     return currentModel.trim();
+  const configured = catalog?.providers.find((entry) => entry.id === provider);
+  if (configured) {
+    return (
+      configured.defaultModel?.trim() ||
+      configured.models.find((model) => model.source === "configured")?.id ||
+      ""
+    );
   }
-  return (
-    routeProviderOption(provider)?.defaultModel ?? currentModel?.trim() ?? ""
-  );
+  return provider === DEFAULT_MODEL_ROUTE.provider
+    ? DEFAULT_MODEL_ROUTE.model
+    : "";
 }
 
 export function defaultBaseUrlForProvider(
   provider: string | undefined,
   currentProvider: string | undefined,
   currentBaseUrl: string | undefined,
+  catalog?: RuntimeModelsResponse | null,
 ): string {
-  if (
-    provider &&
-    currentProvider &&
-    provider === currentProvider &&
-    currentBaseUrl?.trim()
-  ) {
+  if (provider === currentProvider && typeof currentBaseUrl === "string")
     return currentBaseUrl.trim();
-  }
-  return routeProviderOption(provider)?.defaultBaseUrl ?? "";
+  const configured = catalog?.providers.find((entry) => entry.id === provider);
+  if (configured) return configured.baseUrl ?? "";
+  return provider === DEFAULT_MODEL_ROUTE.provider
+    ? DEFAULT_MODEL_ROUTE.baseUrl
+    : "";
 }
 
 export function providerReadiness(
   provider: string | undefined,
   accounts: LinkedProviderAccountsLike | null | undefined,
+  catalog?: RuntimeModelsResponse | null,
 ): ProviderReadinessSummary {
+  const configured = catalog?.providers.find((entry) => entry.id === provider);
+  if (configured) {
+    return {
+      ready: configured.ready,
+      tone: configured.ready ? "good" : "warn",
+      detail: configured.detail,
+    };
+  }
+  if (!isModelProviderId(provider)) {
+    return {
+      ready: false,
+      tone: "warn",
+      detail: "This saved provider is unavailable. Choose another route.",
+    };
+  }
   if (provider === "ollama") {
     return {
       ready: true,
@@ -152,14 +153,6 @@ export function providerReadiness(
       ready: false,
       tone: "warn",
       detail: "Manual API credentials or a custom base URL are required.",
-    };
-  }
-
-  if (provider === "devin") {
-    return {
-      ready: false,
-      tone: "warn",
-      detail: "This saved provider is unavailable. Choose another route.",
     };
   }
 

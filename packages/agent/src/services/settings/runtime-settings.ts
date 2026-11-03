@@ -1,3 +1,4 @@
+import type { RuntimeModelSettings } from "@doolittle/contracts/model-route";
 import type { TuiThemeName } from "../../runtime/theme-catalog/index";
 import type {
   ExecutionBackendName,
@@ -8,28 +9,13 @@ import type {
 } from "../../types/index";
 import type { ElizaMcpSettings, LegacyMcpSettings } from "../mcp/settings";
 
-export const RUNTIME_REASONING_EFFORTS = [
-  "none",
-  "minimal",
-  "low",
-  "medium",
-  "high",
-  "xhigh",
-  "max",
-  "ultra",
-] as const;
-
-export type RuntimeReasoningEffort = (typeof RUNTIME_REASONING_EFFORTS)[number];
+export {
+  RUNTIME_REASONING_EFFORTS,
+  type RuntimeReasoningEffort,
+} from "@doolittle/contracts/model-route";
 
 export interface RuntimeSettings {
-  model: {
-    provider: string;
-    model: string;
-    baseUrl: string;
-    temperature: number;
-    maxTokens: number;
-    reasoningEffort?: RuntimeReasoningEffort;
-  };
+  model: RuntimeModelSettings;
   gateway: {
     sessionTimeoutMinutes: number;
     mirrorResponsesToHistory: boolean;

@@ -1,20 +1,10 @@
+import type { RuntimeModelCapability } from "@doolittle/contracts/model-route";
 import { type IAgentRuntime, ModelType } from "@elizaos/core";
 
-export type RuntimeModelCapabilityId =
-  | "chat"
-  | "research"
-  | "image"
-  | "speech"
-  | "transcription";
-
-export interface RuntimeModelCapability {
-  id: RuntimeModelCapabilityId;
-  label: string;
-  modelType: string;
-  handlerRegistered: boolean;
-  state: "available" | "unavailable";
-  detail: string;
-}
+export type {
+  RuntimeModelCapability,
+  RuntimeModelCapabilityId,
+} from "@doolittle/contracts/model-route";
 
 const MODEL_CAPABILITIES: Array<
   Omit<RuntimeModelCapability, "handlerRegistered" | "state" | "detail">

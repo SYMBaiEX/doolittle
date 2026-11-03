@@ -1,3 +1,5 @@
+import type { RuntimeReasoningEffort } from "@doolittle/contracts/model-route";
+
 export interface RuntimeStatus {
   provider: string;
   model: string;
@@ -10,62 +12,16 @@ export interface RuntimeStatus {
   ownership?: Record<string, unknown>;
 }
 
-export type RuntimeReasoningEffort =
-  | "none"
-  | "minimal"
-  | "low"
-  | "medium"
-  | "high"
-  | "xhigh"
-  | "max"
-  | "ultra";
-export interface RuntimeModelReasoningOption {
-  id: RuntimeReasoningEffort;
-  label: string;
-  description?: string;
-}
-export interface RuntimeModelReasoningCapability {
-  default?: RuntimeReasoningEffort;
-  options: RuntimeModelReasoningOption[];
-}
-export interface RuntimeModelOption {
-  id: string;
-  label: string;
-  source: "configured" | "discovered";
-  reasoning?: RuntimeModelReasoningCapability;
-}
-export interface RuntimeModelProvider {
-  id: string;
-  label: string;
-  mode: "cloud" | "linked" | "local";
-  ready: boolean;
-  baseUrl?: string;
-  discovery: "configured" | "live" | "unavailable";
-  detail: string;
-  models: RuntimeModelOption[];
-}
-export type RuntimeModelCapabilityId =
-  | "chat"
-  | "research"
-  | "image"
-  | "speech"
-  | "transcription";
-export interface RuntimeModelCapability {
-  id: RuntimeModelCapabilityId;
-  label: string;
-  modelType: string;
-  handlerRegistered: boolean;
-  state: "available" | "unavailable";
-  detail: string;
-}
-export interface RuntimeModelsResponse {
-  activeProvider: string;
-  activeModel: string;
-  activeReasoningEffort?: RuntimeReasoningEffort;
-  refreshedAt: string;
-  providers: RuntimeModelProvider[];
-  capabilities: RuntimeModelCapability[];
-}
+export type {
+  RuntimeReasoningEffort,
+  RuntimeModelReasoningOption,
+  RuntimeModelReasoningCapability,
+  RuntimeModelOption,
+  RuntimeModelProvider,
+  RuntimeModelCapabilityId,
+  RuntimeModelCapability,
+  RuntimeModelsResponse,
+} from "@doolittle/contracts/model-route";
 export interface PluginsResponse {
   catalog?: unknown[];
   grouped?: Record<string, unknown[]>;

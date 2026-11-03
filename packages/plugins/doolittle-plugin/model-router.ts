@@ -1,3 +1,4 @@
+import { sdkModelProviderForRoute } from "@doolittle/contracts/model-route";
 import { createElizaTextGenerationModelHandlers } from "@doolittle/provider-transport";
 import {
   type GenerateTextParams,
@@ -15,30 +16,11 @@ export const DOOLITTLE_MODEL_ROUTER_PRIORITY = 1_000;
 
 const DOOLITTLE_MODEL_ROUTER_PROVIDER = "doolittle-runtime";
 
-const PROVIDER_PLUGIN_NAMES: Readonly<Record<string, string>> = {
-  anthropic: "anthropic",
-  codex: "codex-cli",
-  elizacloud: "elizaOSCloud",
-  ollama: "ollama",
-  openai: "openai",
-};
-
 export function resolveSelectedModelProviderPlugin(
   provider: string | undefined,
   anthropicAuthMode?: unknown,
 ): string | undefined {
-  const normalizedProvider = provider?.trim();
-  if (!normalizedProvider) {
-    return undefined;
-  }
-
-  if (normalizedProvider === "claude-code") {
-    return anthropicAuthMode === "claude-cli"
-      ? "@doolittle/plugin-claude-code"
-      : "anthropic";
-  }
-
-  return PROVIDER_PLUGIN_NAMES[normalizedProvider] ?? normalizedProvider;
+  return sdkModelProviderForRoute(provider, anthropicAuthMode === "claude-cli");
 }
 
 function resolveRuntimeModelProviderPlugin(

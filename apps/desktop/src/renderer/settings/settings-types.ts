@@ -1,13 +1,6 @@
-import type { RuntimeReasoningEffort } from "../../shared/contracts";
+import type { RuntimeModelSettings } from "@doolittle/contracts/model-route";
 
-export interface ModelSettings {
-  provider?: string;
-  model?: string;
-  baseUrl?: string;
-  temperature?: number;
-  maxTokens?: number;
-  reasoningEffort?: RuntimeReasoningEffort;
-}
+export type ModelSettings = Partial<RuntimeModelSettings>;
 
 /** The runtime settings document shared by Settings and its model subsection. */
 export interface SettingsResponse {
