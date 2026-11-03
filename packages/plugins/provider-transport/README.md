@@ -30,6 +30,18 @@ contract. Model-setting readers consume Doolittle's `runtimeSettings` envelope.
 The root also exports full text-model handler registration helpers and the
 `ProviderTransportError` normalization and HTTP-status helpers.
 
+## Implementation
+
+The public root stays stable while implementation is grouped by responsibility:
+
+- [runtime-settings.ts](src/runtime-settings.ts) reads the model settings envelope.
+- [prompt.ts](src/prompt.ts) adapts messages and tool contracts to plain text.
+- [text-models.ts](src/text-models.ts) registers the SDK text-generation surface.
+- [errors.ts](src/errors.ts) carries structured failures and recovery metadata.
+- [command.ts](src/command.ts) owns subprocess execution and termination.
+
+Consumers should keep importing the package root rather than these private paths.
+
 ## Process boundary
 
 The [command runner](src/command.ts) uses literal argv without a shell, keeps
