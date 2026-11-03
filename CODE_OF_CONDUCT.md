@@ -32,10 +32,10 @@ other conduct that they judge inconsistent with this Code of Conduct.
 ## Reporting
 
 Report incidents privately; do not open a public issue. Email the repository
-owner at [solsymbaiex@gmail.com](mailto:solsymbaiex@gmail.com), as described in
-[SECURITY.md](SECURITY.md). If GitHub's private reporting form is enabled, it
-may also be used. Reports will be handled respectfully and as confidentially
-as practical; do not include sensitive details in a public channel.
+owner at [solsymbaiex@gmail.com](mailto:solsymbaiex@gmail.com). Reports will be
+handled respectfully and as confidentially as practical; do not include
+sensitive details in a public channel. For software vulnerabilities, use
+the reporting channels described in [SECURITY.md](SECURITY.md).
 
 ## Attribution
 

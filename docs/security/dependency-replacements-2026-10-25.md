@@ -1,10 +1,10 @@
 # Legacy dependency replacements — October 25, 2026
 
-The production workspace audit and the root audit including development tools
-now report zero advisories at every severity. The release gate requires an empty
-advisory inventory and has no per-advisory exceptions. It still rejects missing,
-empty-graph and failed audit reports. Packaged runtime floors separately reject
-old file-type, UUID and Zod versions if future dependency changes reintroduce them.
+This is a historical record of a dependency migration on October 25, 2026.
+Its audit results, patch state, release-gate descriptions, versions, and test
+results describe that revision only. They do not establish the current advisory
+status or present-day release policy. See the [security index](README.md) for
+current commands and policy sources.
 
 | Former dependency          | Replacement                             | Consumer compatibility                                                                                                 |
 | -------------------------- | --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |

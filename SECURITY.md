@@ -43,14 +43,18 @@ Doolittle is terminal-first and **local-first**:
   including chunked transfers. Oversized bodies receive `413`. Requests
   rejected before routing are not drained; body-framed rejected requests close
   their connection. GET, HEAD, and OPTIONS requests with bodies are rejected.
-- Context files (`AGENTS.md`, `SOUL.md`, …) and tool inputs pass through a
-  prompt-injection scanner before reaching the model.
-- Credentials and secrets are stored under the data directory and are not
-  returned to non-local/unauthenticated callers.
+- Context files loaded through the context-files service are checked by a
+  prompt-injection scanner. This is a heuristic, not a guarantee that all
+  model inputs or tool content are safe; review untrusted workspace content.
+- Treat the data directory, provider credentials, and workspace files as
+  sensitive. Local processes with access to the same account may be able to
+  read them.
 
 ## Hardening checklist for operators
 
 - Keep `ELIZA_API_BIND=127.0.0.1` unless you intentionally need remote access.
+  When unset, the host falls back to `DOOLITTLE_HOST`, which defaults to
+  `127.0.0.1`.
 - If you set a non-loopback host, set a long random `ELIZA_API_TOKEN` and put
   the API behind TLS / a reverse proxy.
 - Set a separate long random `ELIZA_TERMINAL_RUN_TOKEN` before allowing remote

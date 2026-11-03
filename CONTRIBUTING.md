@@ -6,19 +6,20 @@ Participation is governed by our [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## Prerequisites
 
-- [Nub](https://nubjs.com/docs) `0.9.5` with Node.js `26.5.0`.
+- [Nub](https://nubjs.com/docs) `0.9.7` with Node.js `26.5.0`.
 - Node `26.5.0` is pinned in `.node-version`; the packaged desktop uses
   Electron's embedded Node.
 
 ```bash
-nub install --frozen-lockfile --ignore-scripts
+nub run deps:install -- --frozen-lockfile --ignore-scripts
 cp .env.example .env   # then fill in provider keys you want
 nub run dev            # start the paired shell
 ```
 
-The scriptless install is intentional: dependency lifecycle scripts are not a
-trusted bootstrap boundary. Use `nub run desktop:runtime:install` when working
-on the Electron app; the source installer and CI follow the same split.
+The dependency command verifies and materializes the pinned ElizaOS source
+archives before installing. The scriptless install is intentional: dependency
+lifecycle scripts are not a trusted bootstrap boundary. Use
+`nub run desktop:runtime:install` when working on the Electron app.
 
 ## Fast development loop
 
@@ -54,10 +55,10 @@ integrity and essential workflows, not source-text layout assertions.
   wrapper, and the consolidated `doolittle-plugin` source.
 - `packages/{acp,contracts,characters,skills}` — protocol, shared contracts,
   character data, and native skill assets.
-- `packages/{plugin-remote-manifest,plugin-worker-runtime,registry}`
-  — declared resolver shims for unpublished packages on the pinned beta train.
-- Runtime is the aligned ElizaOS 2.0 beta train declared by the root
-  `elizaSdk` contract and exact dependency overrides.
+- `packages/{storage,solana-layouts}` — shared JSON reads and Solana layout
+  compatibility, respectively.
+- The root `elizaSdk` contract and overrides declare the upstream source
+  baseline and explicit published-package exceptions.
 
 See the [monorepo layout](docs/monorepo.md) and [package ownership
 matrix](docs/package-ownership.md) before adding another workspace boundary.
@@ -72,7 +73,7 @@ them.
 ### Add an action
 
 1. Implement `createMyAction(services): Action` in `packages/agent/src/actions/`.
-2. Register it in the product plugin's `actions` array
+2. Register it in the product plugin's `availableActions` list
    (`packages/agent/src/runtime/native/plugin-registry/product/index.ts`).
 3. Extend a focused behavior check in `tests/boundary/` or a real runtime journey
    in `tests/integration/` when the registered surface changes. Maintained tests
@@ -82,7 +83,7 @@ them.
 
 1. Implement `createMyProvider(services): Provider` in
    `packages/agent/src/providers/`.
-2. Add it to the `providers` array in
+2. Register it in the `providers` list in
    `packages/agent/src/runtime/native/plugin-registry/product/index.ts`.
 
 ### Add a model provider
@@ -108,8 +109,8 @@ prompt caching, make it consume `params.promptSegments` (see
   update their code-backed sources and run
   `nub scripts/sync-doc-truth.ts --write`.
 - Keep every `@doolittle/*` workspace on the root product version. Keep official
-  `@elizaos/*` packages and compatibility workspaces pinned independently to the
-  exact root `elizaSdk.version`.
+  `@elizaos/*` packages aligned with the root `elizaSdk` source baseline and
+  its explicit published-package exceptions.
 - Keep audit and planning notes dated. Do not present them as runtime proof.
 - Run the relevant documentation check when changing generated truth or links;
   acceptance gates remain a deliberate release milestone.

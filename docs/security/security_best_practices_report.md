@@ -1,5 +1,9 @@
 # Security remediation — 2026-10-11
 
+This is historical evidence for the reviewed revisions, not a current security
+status or policy. Source paths, patches, findings, and test outcomes may have
+changed. See the [security index](README.md) for current verification commands.
+
 ## Executive summary
 
 PR #32 was closed unmerged; its checkpoint branch remains at `9439a4b2`.
@@ -9,7 +13,7 @@ advisories (2 high, 7 moderate, 1 low)**. These scanner ratings are not a count
 of demonstrated exploitable application vulnerabilities. No alert is dismissed,
 query disabled, or scanned path excluded by this work.
 
-The current per-alert baseline is
+The reviewed per-alert baseline was
 [remediation-baseline-2026-10-11.json](code-scanning/remediation-baseline-2026-10-11.json).
 Existing triage is evidence to revalidate, not proof of current closure.
 The updated [162-alert source disposition ledger](code-scanning/remediation-dispositions-2026-10-11.json)

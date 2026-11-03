@@ -1,10 +1,10 @@
 # Workspace audit coverage follow-up — October 25, 2026
 
-Current status: the [dependency replacements](dependency-replacements-2026-10-25.md) remove all six
-remaining advisory sources and eight backport files. Audit inventories are clean;
-the release policy now requires zero advisories. The details below describe the
-earlier remediation snapshot.
-
+This is a historical audit and remediation snapshot from October 25, 2026.
+The later [dependency replacements record](dependency-replacements-2026-10-25.md)
+describes subsequent work from that date. Neither document establishes current
+advisory status, dependency patches, test results, or release policy; consult the
+[security index](README.md) and current scripts for those.
 
 The monorepo refactor moves runtime dependencies into their owning workspaces.
 Nub's audit command inspects the current lockfile importer rather than all
