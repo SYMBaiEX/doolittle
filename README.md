@@ -38,6 +38,28 @@ Commands are defined in the root and workspace manifests. Runtime plugin and
 capability definitions live in code; the developer handbook links to those
 sources instead of copying their inventories.
 
+## Workspaces
+
+| Workspace | Guide |
+| --- | --- |
+| Desktop client | [apps/desktop](apps/desktop/README.md) |
+| Terminal client | [apps/cli](apps/cli/README.md) |
+| Shared runtime | [packages/agent](packages/agent/README.md) |
+| ACP adapter | [packages/acp](packages/acp/README.md) |
+| Shared contracts | [packages/contracts](packages/contracts/README.md) |
+| Browser controls | [packages/ui](packages/ui/README.md) |
+| Evaluations | [packages/evals](packages/evals/README.md) |
+| Product plugins | [packages/plugins](packages/plugins/README.md) |
+| Claude CLI fallback | [plugin-claude-code](packages/plugins/plugin-claude-code/README.md) |
+| Provider transport | [provider-transport](packages/plugins/provider-transport/README.md) |
+| Skill documents | [packages/skills](packages/skills/README.md) |
+| Character definitions | [packages/characters](packages/characters/README.md) |
+| Shared state reads | [packages/storage](packages/storage/README.md) |
+| Solana compatibility | [packages/solana-layouts](packages/solana-layouts/README.md) |
+
+Upstream SDK packages under `vendor/elizaos` are qualified artifacts; use the
+[source-build tools guide](tooling/eliza-source/README.md) when changing them.
+
 Read [Contributing](CONTRIBUTING.md) before changing the workspace, and
 [Security](SECURITY.md) for private vulnerability reporting.
 

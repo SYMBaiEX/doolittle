@@ -1,36 +1,46 @@
-# ElizaOS source builds
+# ElizaOS source-build tools
 
-`source.json` pins the upstream commit, selected packages and exact host tools.
-`package.json` and `nub.lock` define the isolated TypeScript build toolchain.
+Isolated dependency toolchain and source selection for qualifying Doolittle's
+upstream SDK archives. This is a private build-tools package, outside the product
+workspaces; applications must not depend on it.
 
-Run `nub scripts/build-eliza-source.ts` deliberately when qualifying a source
-upgrade. It fetches the public upstream into `var/`, uses upstream build scripts,
-and packs generated output into `vendor/elizaos/`. The selected packages include
-ElizaOS's modular kernel, host, account authentication, assistant behavior,
-providers and coding tools. All use the same immutable upstream commit.
+- [`source.json`](source.json) selects the upstream commit and source packages.
+- [`package.json`](package.json) and [`nub.lock`](nub.lock) pin build dependencies.
+- [`build-eliza-source.ts`](../../scripts/build-eliza-source.ts) fetches and builds
+  the selected unmodified source, then records archive and tree hashes.
+- [`vendor/elizaos`](../../vendor/elizaos) contains the resulting archives,
+  provenance receipts, and materialized SDK workspace manifests.
 
-Builds receive a fresh home and an explicit environment without provider secrets.
-Upstream implementation edits are rejected before and after building. The pack
-step removes development scripts and debug maps, resolves workspace versions from
-upstream's own manifest discovery, and records provenance. It does not rewrite
-runtime implementation or apply patches. `--verify` rebuilds and requires the
-archive hashes to match the existing receipt.
+## Normal development
 
-Normal dependency installation consumes the checked archives, without fetching
-Git source or rebuilding ElizaOS. The SDK release check verifies their SHA-256
-hashes and the installed provenance receipts. Keep Nub's exotic-subdependency
-restriction enabled. `nub run sdk:source:prepare` verifies and unpacks the archives
-into ordinary upstream workspaces before installing. `nub run deps:install --
---frozen-lockfile --ignore-scripts` performs both steps. Only generated manifests
-are tracked in those workspaces; archive and unpacked-tree hashes are checked.
+Run from the repository root:
 
-`--verify` is a strict byte comparison, not a source-provenance check. The pinned
-orchestrator CommonJS build embeds its temporary build path and does not currently
-pass this comparison across locations. Doolittle uses and qualifies the Node ESM
-entrypoints. Do not describe the complete archive set as bit-for-bit reproducible.
+```sh
+nub run deps:install -- --frozen-lockfile --ignore-scripts
+nub run check:eliza-sdk
+```
 
-The desktop retains the independent published UI primitives. The pinned UI build
-emits an invalid CSS import, while the published aggregate API client imports a
-retired core API. Client requests use `ofetch` over the SDK transport interface;
-TanStack Query owns scoped caching, deduplication and cancellation. Neither
-requires modifying SDK implementation. Wallet and engine use pinned source.
+Normal installation consumes the checked archives without fetching upstream Git
+or rebuilding the SDK. `nub run sdk:source:prepare` verifies and materializes the
+archives without installing the remaining dependencies.
+
+## Qualify a source change
+
+```sh
+nub run sdk:source:build
+nub run sdk:source:build -- --verify
+```
+
+The source builder fetches into ignored `var/`, uses a fresh home and an explicit
+environment, and rejects upstream implementation edits before and after building.
+It uses upstream build scripts, removes development metadata when packing, and
+records exact inputs. Do not modify implementation under `vendor` or
+`node_modules`, or add local SDK patches to make an upgrade pass.
+
+`--verify` compares archive bytes with existing receipts. Some upstream CommonJS
+output embeds temporary build paths, so complete byte reproducibility is not
+guaranteed. Doolittle qualifies the Node ESM entrypoints it consumes. Archive
+integrity and working runtime behavior require separate verification.
+
+See [SDK maintenance](../../docs/sdk.md) for upgrading the source contract and
+published exceptions, and [releases](../../docs/releases.md) for artifact checks.

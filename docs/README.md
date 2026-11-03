@@ -17,3 +17,6 @@ This handbook explains how to build, change, test, and release Doolittle.
 The package manifests define commands and versions. Runtime catalogs, validators,
 and tests define behavior. Link to those sources when a detailed inventory would
 duplicate implementation. Keep these chapters current as behavior changes.
+
+Each first-party workspace has its own README for local exports, commands, and
+ownership. Use the [workspace index](../README.md#workspaces) to find it.

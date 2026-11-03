@@ -1,110 +1,71 @@
 # Doolittle prompt caching
 
-Provider-aware prompt caching for the prompts **Doolittle itself owns** — i.e.
-the direct `runtime.useModel` calls Doolittle makes outside the ElizaOS SDK
-message pipeline.
+Shared prompt construction for model calls owned by Doolittle. Ordinary chat
+uses the SDK message lifecycle and its cache policy. Direct Doolittle calls use
+this module so stable and volatile content have one consistent contract.
 
-## TL;DR
+## Build a prompt
 
-- The **SDK already caches** everything routed through `runtime.messageService.handleMessage`
-  (the action / evaluator / planner path). `@elizaos/core` builds `promptSegments`
-  and a full provider cache plan there. **Do not reimplement that.**
-- Normal chat turns no longer contain a Doolittle-owned `useModel` fast path.
-  They enter the SDK message service, so its cache plan is authoritative.
-- This module remains the shared abstraction for non-chat prompts Doolittle
-  owns. The deep-research action uses it for a stable research contract plus a
-  volatile question; there is intentionally no normal-chat integration point.
+Internal callers import [`index.ts`](index.ts):
 
-## Where it lives
+```ts
+import { buildCacheablePrompt, promptCacheMetrics } from "./prompt-cache/index";
 
-```
-runtime/prompt-cache/
-  types.ts             # PromptBlock, CacheablePrompt, ProviderCachePolicy, stats
-  provider-policy.ts   # provider id -> caching capability (explicit | implicit | none)
-  digest.ts            # deterministic hashing + the stable-prefix version fingerprint
-  cacheable-prompt.ts  # buildCacheablePrompt(): the segment builder
-  metrics.ts           # promptCacheMetrics: observability recorder + snapshot
+const plan = buildCacheablePrompt({
+  stableBlocks: ["Reusable product instructions."],
+  volatile: currentQuestion,
+  provider: settings.model.provider,
+  model: settings.model.model,
+  versionDigest: "my-product-prompt-v1",
+});
+promptCacheMetrics.recordPlan(plan.stats);
 ```
 
-The former chat-turn shortcut integration was removed with the SDK-native
-message-lifecycle migration. New Doolittle-owned prompt construction must use
-this module; SDK message-service prompts must not.
+Pass `plan.prompt` and any supported `plan.promptSegments` and
+`plan.providerOptions` to the model API. The builder keeps the plain prompt
+identical to the concatenated segments. APIs such as structured research may
+accept only the plain prompt; the shared construction and plan telemetry still
+apply.
 
-## How it works
+Stable blocks are reusable product instructions. User input, credentials, fresh
+memory, timestamps, and per-request data stay volatile. If a caller supplies an
+entire prompt without a reliable stable split, use no stable blocks.
 
-1. A Doolittle-owned prompt is described as a **stable prefix** (character
-   voice, soul, or another reusable contract) plus a **volatile suffix** (fresh
-   context and user-derived input).
-2. `buildCacheablePrompt` turns that into SDK `promptSegments` (`{content, stable}`)
-   plus `providerOptions`, preserving the invariant
-   `prompt === promptSegments.map(s => s.content).join("")`.
-3. The segments are passed straight to `runtime.useModel`. The provider plugin
-   does the rest: `@elizaos/plugin-anthropic` emits `cache_control: ephemeral`
-   on the stable segments; `@elizaos/plugin-openai` keys prefix caching by
-   `providerOptions.openai.promptCacheKey`.
+## Policy and keys
 
-## Provider awareness (`provider-policy.ts`)
+[`provider-policy.ts`](provider-policy.ts) classifies current handlers:
 
-| Mode       | Providers                                           | Behavior                                                                                                                                                                                                         |
-| ---------- | --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `implicit` | `ollama` / local                                    | No hints; an identical leading prefix is reused by the KV cache automatically.                                                                                                                                   |
-| `explicit` | Anthropic API key, linked Claude Code OAuth, OpenAI | Stable prompt segments and provider-native cache controls.                                                                                                                                                       |
-| `none`     | codex, official Eliza Cloud, unknown         | No-op — on the pinned beta, those handlers build their request from `params.prompt` and ignore segments. Explicit Claude CLI fallback accepts the same lossless prompt and ignores native Anthropic cache hints. |
+| Mode | Provider family | Output |
+| --- | --- | --- |
+| Explicit | Anthropic/linked Claude OAuth, OpenAI | Stable segments and supported provider options. |
+| Implicit | Ollama/local | Unchanged plain prompt; the provider may reuse prefix state. |
+| None | Codex, Eliza Cloud, unknown | Unchanged plain prompt without cache hints. |
 
-## Cache keys & invalidation
+Explicit Claude CLI fallback receives the same plain prompt and ignores native
+cache hints. Cache eligibility is not proof that a provider used its cache.
 
-The cache key is `sha256(templateVersion + versionDigest + provider + model + ...stableBlocks)`.
-It rotates automatically — and the provider therefore treats the prompt as new —
-whenever any of these change:
+Keys depend on the template version, supplied version digest, provider, model,
+and stable block content. Bump the template or caller version when changing
+prompt construction semantics. Volatile text does not enter the cache key.
+See [`cacheable-prompt.ts`](cacheable-prompt.ts) and [`digest.ts`](digest.ts).
 
-- **Template** — bump `PROMPT_CACHE_TEMPLATE_VERSION` when segment shape/ordering changes.
-- **Stable content** — character voice, soul, or contract text (hashed directly).
-- **Persona / character** — via `versionDigest` (the active personality ID on the pinned beta;
-  extend with `computeStablePrefixVersion` for character/tool/settings digests).
-- **Provider / model** — part of the key string.
+## Consumers and verification
 
-Volatile content (user input, fresh memory) is **never** part of the key, so it
-can never cause a stale or cross-request hit.
+Current consumers include direct model analysis, automation, research, and coding
+delegation. Their call sites choose which model parameters are supported; do not
+add a parallel prompt path inside the SDK message lifecycle.
 
-## Observability (`promptCacheMetrics`)
+[`metrics.ts`](metrics.ts) records construction plans and can accept explicit
+provider usage samples. No current runtime caller feeds `recordUsage`; plan
+counts alone do not establish cache hits or token savings.
 
-`recordPlan` is called for every cacheable prompt (what we attempted). The
-snapshot reports calls, eligible calls, segments emitted, and stable/volatile
-volume per provider. Each plan is also debug-logged (`src: "doolittle:prompt-cache"`).
+After changing the module, run the consuming agent typecheck and relevant caller
+tests from the repository root:
 
-`recordUsage` accepts provider cache-token reports (hits/misses/savings) but is
-**not wired** on the pinned beta: the SDK `MODEL_USED` event exposes only
-`{prompt, completion, total}` tokens, not `cacheReadInputTokens`. Surfacing real
-hit-rate requires the SDK to forward cache usage — see "Known limitations".
+```sh
+nub run --cwd packages/agent typecheck
+nub run test:related packages/agent/src/runtime/prompt-cache/cacheable-prompt.ts
+```
 
-## Extending
-
-- **A new caching provider:** add a branch to `resolveProviderCachePolicy`.
-- **A new Doolittle-owned `useModel` call:** build a stable/volatile split and
-  route it through `buildCacheablePrompt`. Never pass cache hints ad hoc.
-- **Make a custom provider plugin cacheable:** teach it to read
-  `params.promptSegments` / `params.providerOptions`, then move it to `explicit`.
-
-## When NOT to use it
-
-- Don't segment SDK-pipeline prompts (handleMessage) — core already does it.
-- Don't mark anything user-derived, secret, credential-bearing, or per-request
-  as `stable`. Correctness beats cache rate: a wrong stable flag is a stale or
-  leaked prompt.
-
-## Known limitations / follow-ups
-
-- Real hit-rate/token-savings telemetry needs the SDK to forward provider cache
-  usage through `MODEL_USED` (or a usage callback). Today only the _plan_ is
-  observable.
-- `ModelType.RESEARCH` accepts structured `ResearchParams` and does not expose
-  `promptSegments` or `providerOptions`. Its Doolittle prompt still uses this
-  module for stable/volatile construction and plan telemetry, but is recorded
-  under the non-cacheable `research` transport until the SDK supports cache
-  hints for that model type.
-- The Doolittle Codex and Claude Code bridges and the official Eliza Cloud
-  plugin ignore `promptSegments`; extend explicit caching only through their
-  public handlers.
-- There is intentionally no Doolittle prelude in the SDK message path. Stable
-  product context belongs in registered Providers so core can own its cache
-  policy.
+Select explicit caller tests when related discovery finds no matching case;
+see [testing](../../../../../docs/testing.md).
