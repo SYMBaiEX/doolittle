@@ -1,13 +1,3 @@
-import { createHash, randomUUID } from "node:crypto";
-import {
-  closeSync,
-  openSync,
-  readFileSync,
-  unlinkSync,
-  writeFileSync,
-} from "node:fs";
-import { tmpdir, userInfo } from "node:os";
-import { join, resolve } from "node:path";
 import { DOOLITTLE_LOCAL_SANDBOX_SERVICE } from "@doolittle/contracts";
 import {
   SandboxManager,
@@ -19,20 +9,18 @@ import {
 } from "@elizaos/agent/services/shell-execution-router";
 import { Service as ElizaService, type IAgentRuntime } from "@elizaos/core";
 
+import { resolveSandboxPaths, SandboxOwnershipLease } from "./ownership";
 import { collectProcessEnv, resolveExecutionCommand } from "./runtime";
 import { SandboxStore } from "./sandbox-store";
 import {
   DOOLITTLE_SANDBOX_IMAGE,
-  DOOLITTLE_SANDBOX_PREFIX,
   type E2BExecutionResult,
   type E2BSandboxOptions,
   type E2BSandboxRecord,
   type LocalSandboxServiceOptions,
-  SANDBOX_OWNER_LOCK_SUFFIX,
   SandboxCleanupVerificationError,
   SandboxClosingError,
   type SandboxManagerLike,
-  type SandboxOwnerRecord,
   SandboxOwnershipError,
 } from "./types";
 
@@ -48,39 +36,6 @@ interface SandboxHandle {
   closePromise?: Promise<void>;
 }
 
-function isNodeError(error: unknown): error is NodeJS.ErrnoException {
-  return error instanceof Error && "code" in error;
-}
-
-function stableHash(value: string, length = 24): string {
-  return createHash("sha256").update(value).digest("hex").slice(0, length);
-}
-
-function currentUserIdentity(): string {
-  if (typeof process.getuid === "function") {
-    return `uid:${process.getuid()}`;
-  }
-  return `user:${userInfo().username}`;
-}
-
-function resolveSandboxPaths(options: LocalSandboxServiceOptions): {
-  rootDir: string;
-  containerPrefix: string;
-} {
-  const userIdentity = currentUserIdentity();
-  const userNamespace = stableHash(userIdentity, 16);
-  const rootDir = resolve(
-    options.rootDir ??
-      join(tmpdir(), `${DOOLITTLE_SANDBOX_PREFIX}-${userNamespace}`),
-  );
-  return {
-    rootDir,
-    containerPrefix:
-      options.containerPrefix ??
-      `${DOOLITTLE_SANDBOX_PREFIX}-${stableHash(`${userIdentity}\0${rootDir}`)}`,
-  };
-}
-
 export class LocalSandboxService extends ElizaService {
   static serviceType = DOOLITTLE_LOCAL_SANDBOX_SERVICE;
 
@@ -93,12 +48,7 @@ export class LocalSandboxService extends ElizaService {
   private readonly managerFactory: (
     config: SandboxManagerConfig,
   ) => SandboxManagerLike;
-  private readonly ownershipLockPath: string;
-  private readonly ownershipRecoveryLockPath: string;
-  private readonly processId: number;
-  private readonly nonceFactory: () => string;
-  private readonly isProcessAlive: (processId: number) => boolean;
-  private ownership?: SandboxOwnerRecord;
+  private readonly ownershipLease: SandboxOwnershipLease;
   private acceptingOperations = false;
 
   constructor(
@@ -111,11 +61,7 @@ export class LocalSandboxService extends ElizaService {
     this.containerPrefix = paths.containerPrefix;
     this.managerFactory =
       options.managerFactory ?? ((config) => new SandboxManager(config));
-    this.ownershipLockPath = `${paths.rootDir}${SANDBOX_OWNER_LOCK_SUFFIX}`;
-    this.ownershipRecoveryLockPath = `${this.ownershipLockPath}.recovery`;
-    this.processId = options.processId ?? process.pid;
-    this.nonceFactory = options.nonceFactory ?? randomUUID;
-    this.isProcessAlive = options.isProcessAlive ?? this.checkProcessAlive;
+    this.ownershipLease = new SandboxOwnershipLease(paths.rootDir, options);
   }
 
   static async start(
@@ -123,14 +69,14 @@ export class LocalSandboxService extends ElizaService {
     options: LocalSandboxServiceOptions = {},
   ): Promise<LocalSandboxService> {
     const service = new LocalSandboxService(runtime, options);
-    service.acquireOwnership();
+    service.ownershipLease.acquire();
     try {
       await service.cleanupOrphans();
       service.acceptingOperations = true;
       return service;
     } catch (error) {
       try {
-        service.releaseOwnership();
+        service.ownershipLease.release();
       } catch (releaseError) {
         throw new AggregateError(
           [error, releaseError],
@@ -157,7 +103,7 @@ export class LocalSandboxService extends ElizaService {
     if (errors.length > 0) {
       throw new AggregateError(errors, "Failed to stop all local sandboxes");
     }
-    this.releaseOwnership();
+    this.ownershipLease.release();
   }
 
   async createSandbox(options: E2BSandboxOptions = {}): Promise<string> {
@@ -274,174 +220,12 @@ export class LocalSandboxService extends ElizaService {
     this.sandboxStore.cleanupRoot();
   }
 
-  private acquireOwnership(): void {
-    const owner = { pid: this.processId, nonce: this.nonceFactory() };
-    if (this.tryCreateOwnershipLock(this.ownershipLockPath, owner)) {
-      this.ownership = owner;
-      return;
-    }
-
-    const existing = this.readOwnershipLock(this.ownershipLockPath);
-    if (!existing) {
-      this.acquireOwnership();
-      return;
-    }
-    if (this.isProcessAlive(existing.pid)) {
-      throw new SandboxOwnershipError(
-        `Local sandbox is already owned by live process ${existing.pid}`,
-        this.ownershipLockPath,
-        existing.pid,
-      );
-    }
-
-    const recoveryOwner = {
-      pid: this.processId,
-      nonce: `${owner.nonce}:recovery`,
-    };
-    if (
-      !this.tryCreateOwnershipLock(
-        this.ownershipRecoveryLockPath,
-        recoveryOwner,
-      )
-    ) {
-      throw new SandboxOwnershipError(
-        "Local sandbox ownership recovery is already in progress",
-        this.ownershipRecoveryLockPath,
-      );
-    }
-
-    try {
-      const current = this.readOwnershipLock(this.ownershipLockPath);
-      if (current && this.isProcessAlive(current.pid)) {
-        throw new SandboxOwnershipError(
-          `Local sandbox is already owned by live process ${current.pid}`,
-          this.ownershipLockPath,
-          current.pid,
-        );
-      }
-      if (current) {
-        unlinkSync(this.ownershipLockPath);
-      }
-      if (!this.tryCreateOwnershipLock(this.ownershipLockPath, owner)) {
-        const winner = this.readOwnershipLock(this.ownershipLockPath);
-        throw new SandboxOwnershipError(
-          winner
-            ? `Local sandbox ownership was acquired by process ${winner.pid}`
-            : "Local sandbox ownership changed during recovery",
-          this.ownershipLockPath,
-          winner?.pid,
-        );
-      }
-      this.ownership = owner;
-    } finally {
-      this.releaseOwnedLock(this.ownershipRecoveryLockPath, recoveryOwner);
-    }
-  }
-
-  private releaseOwnership(): void {
-    if (!this.ownership) {
-      return;
-    }
-    this.releaseOwnedLock(this.ownershipLockPath, this.ownership);
-    this.ownership = undefined;
-  }
-
   private assertAcceptingOperations(): void {
-    if (!this.acceptingOperations || !this.ownership) {
+    if (!this.acceptingOperations || !this.ownershipLease.held) {
       throw new SandboxOwnershipError(
         "Local sandbox service is not accepting operations",
-        this.ownershipLockPath,
+        this.ownershipLease.lockPath,
       );
-    }
-  }
-
-  private tryCreateOwnershipLock(
-    lockPath: string,
-    owner: SandboxOwnerRecord,
-  ): boolean {
-    let descriptor: number;
-    try {
-      descriptor = openSync(lockPath, "wx", 0o600);
-    } catch (error) {
-      if (isNodeError(error) && error.code === "EEXIST") {
-        return false;
-      }
-      throw error;
-    }
-
-    try {
-      if (
-        !Number.isSafeInteger(owner.pid) ||
-        owner.pid <= 0 ||
-        owner.nonce.length === 0 ||
-        /[\r\n]/.test(owner.nonce)
-      ) {
-        throw new SandboxOwnershipError(
-          "Local sandbox ownership record is invalid",
-          lockPath,
-          owner.pid,
-        );
-      }
-      writeFileSync(descriptor, `${owner.pid}\n${owner.nonce}\n`, "utf8");
-    } catch (error) {
-      closeSync(descriptor);
-      unlinkSync(lockPath);
-      throw error;
-    }
-    closeSync(descriptor);
-    return true;
-  }
-
-  private readOwnershipLock(lockPath: string): SandboxOwnerRecord | undefined {
-    let raw: string;
-    try {
-      raw = readFileSync(lockPath, "utf8");
-    } catch (error) {
-      if (isNodeError(error) && error.code === "ENOENT") {
-        return undefined;
-      }
-      throw error;
-    }
-
-    const match = /^([1-9][0-9]*)\n([^\r\n]+)\n$/.exec(raw);
-    const pid = match ? Number(match[1]) : Number.NaN;
-    if (!match || !Number.isSafeInteger(pid)) {
-      throw new SandboxOwnershipError(
-        "Local sandbox ownership lock is unreadable; refusing unsafe recovery",
-        lockPath,
-      );
-    }
-    return { pid, nonce: match[2] ?? "" };
-  }
-
-  private releaseOwnedLock(
-    lockPath: string,
-    expected: SandboxOwnerRecord,
-  ): void {
-    const current = this.readOwnershipLock(lockPath);
-    if (
-      !current ||
-      current.pid !== expected.pid ||
-      current.nonce !== expected.nonce
-    ) {
-      throw new SandboxOwnershipError(
-        "Local sandbox ownership changed; refusing to release another owner",
-        lockPath,
-        current?.pid,
-      );
-    }
-    unlinkSync(lockPath);
-  }
-
-  private checkProcessAlive(processId: number): boolean {
-    try {
-      process.kill(processId, 0);
-      return true;
-    } catch (error) {
-      if (isNodeError(error) && error.code === "ESRCH") {
-        return false;
-      }
-      return true;
     }
   }
 
