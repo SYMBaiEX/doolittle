@@ -69,7 +69,7 @@ export class EcosystemService {
   private readonly optionalSkillPackRecords: OptionalSkillPackRecord[];
 
   constructor(packagesRoot = defaultPackagesRoot()) {
-    this.optionalSkillPacksDir = join(packagesRoot, "skill-packs-optional");
+    this.optionalSkillPacksDir = join(packagesRoot, "skills", ".optional");
     this.optionalSkillPackRecords = collectSkillPackRecords(
       this.optionalSkillPacksDir,
     );
@@ -84,7 +84,7 @@ export class EcosystemService {
       optionalSkillPacks: this.optionalSkillPacks().length,
       packageRoots: [
         {
-          label: "skill-packs-optional",
+          label: "skills/.optional",
           path: this.optionalSkillPacksDir,
           exists: existsSync(this.optionalSkillPacksDir),
         },

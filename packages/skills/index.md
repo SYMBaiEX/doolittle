@@ -35,6 +35,8 @@ Curated skills:
 - [`voice`](./voice/SKILL.md)
 - [`workspace`](./workspace/SKILL.md)
 
+Optional packs remain in [`.optional/`](./.optional/) and are listed by `/skills optional`.
+
 Generated skills use the same direct-child layout after approval. Their
 provenance is recorded in frontmatter. Local bookkeeping lives under the
 ignored `.generated` metadata directory and should not be committed.

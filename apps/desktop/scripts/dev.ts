@@ -210,11 +210,7 @@ try {
   });
   await own(() => runtime.dispose());
   await runtime.watch();
-  for (const directory of [
-    "packages/skills",
-    "packages/skill-packs-optional",
-    "packages/characters",
-  ]) {
+  for (const directory of ["packages/skills", "packages/characters"]) {
     const watcher = watch(
       resolve(repoRoot, directory),
       { recursive: true },

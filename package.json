@@ -64,7 +64,6 @@
     "packages/contracts",
     "packages/ui",
     "packages/evals",
-    "packages/skill-packs-optional",
     "packages/plugins",
     "packages/plugins/*",
     "packages/skills",

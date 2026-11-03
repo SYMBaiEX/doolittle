@@ -150,13 +150,10 @@
         ]
       },
       {
-        "from": "../../packages/skill-packs-optional",
-        "to": "runtime/packages/skill-packs-optional",
+        "from": "../../packages/skills/.optional",
+        "to": "runtime/packages/skills/.optional",
         "filter": [
-          "**/*",
-          "!**/dist/**",
-          "!**/node_modules/**",
-          "!**/*.test.ts"
+          "**/*"
         ]
       },
       {

@@ -13,7 +13,8 @@ const { parseFrontmatter } = await import(
 
 it("loads every bundled skill through the SDK parser used by workspace context", () => {
   const files = [
-    ...globSync("packages/{skills,skill-packs-optional}/**/SKILL.md"),
+    ...globSync("packages/skills/**/SKILL.md"),
+    ...globSync("packages/skills/.optional/**/SKILL.md"),
   ];
   expect(files.length).toBeGreaterThan(20);
   for (const file of files) {

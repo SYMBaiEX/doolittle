@@ -16,8 +16,9 @@ Doolittle is organized as a Nub workspace monorepo running on stock Node.js.
 | `packages/contracts`            | Secret-free contracts shared across the agent, desktop, gateway, and plugins.                                                                                                 |
 | `packages/plugins`              | Doolittle product facets plus the Claude Code and Devin provider bridges. Official Codex, Eliza Cloud, SQL, browser, MCP, messaging, and model plugins remain upstream-owned. |
 | `packages/characters`           | Character and persona data loaded by Eliza.                                                                                                                                   |
-| `packages/skills`               | Curated and generated native skill documents. See the [skills index](../packages/skills/index.md).                                                                            |
-| `packages/skill-packs-optional` | Optional native skill documents kept outside the default curated tier.                                                                                                        |
+| `packages/skills`               | Curated, generated, and optional skill documents. See the [skills index](../packages/skills/index.md). |
+| `packages/storage`              | Strict shared JSON state reads for desktop, runtime, and plugins. |
+| `packages/solana-layouts`       | Compatibility implementation for the upstream Solana layout dependency. |
 
 ## Dependency direction
 

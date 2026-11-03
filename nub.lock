@@ -686,8 +686,6 @@ importers:
         specifier: workspace:2.0.12-beta.0
         version: link:../../../vendor/elizaos/packages/core
 
-  packages/skill-packs-optional: {}
-
   packages/skills: {}
 
   packages/solana-layouts:

@@ -1,87 +1,24 @@
-# Package Ownership and Eliza Migration Status
+# Package ownership
 
-Last reviewed: October 25, 2026
+The root workspace manifest lists the current packages and pins the ElizaOS
+source baseline and published package exceptions. The [monorepo guide](monorepo.md)
+describes their roles. Keep Doolittle's client and product behavior separate
+from upstream agent-engine ownership.
 
-This is the package-level companion to the runtime
-[plugin inventory](plugin-inventory.md). Each workspace is classified by why it
-exists and whether an official Eliza package can own the same behavior on the
-pinned `2.0.3-beta.7` train.
+`packages/skills` contains the default native skill documents and an `.optional/`
+catalog. The latter remains outside the default direct-child skill layout; the
+runtime's optional-skills command and API expose it separately.
 
-| Workspace                             | Ownership                           | Status            | Boundary                                                                                                                                                                                                                                                                                                             |
-| ------------------------------------- | ----------------------------------- | ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `apps/desktop`                        | Doolittle client over Eliza         | Keep thin         | Official `@elizaos/ui` `ElizaClient` owns ordinary REST request, timeout, retry, client-ID, response, and `ApiError` semantics. Electron retains only lifecycle, a context-isolated transport, its security allowlist, native capabilities, dedicated streams, and operator UX.                                      |
-| `apps/cli`                            | Doolittle terminal product          | Keep              | Owns plain chat, cockpit, commands, jobs and runtime process startup. Imports shared runtime through declared `@doolittle/agent` exports.                                                                                                                                                                            |
-| `packages/agent`                      | Shared Doolittle runtime over Eliza | Keep thin         | Composes `AgentRuntime`, official plugins, gateway, API, product projections, and isolated product-owned native utilities. Standard runtime lifecycles remain Eliza-owned; native utilities may call but never replace them.                                                                                         |
-| `packages/acp`                        | Protocol adapter                    | Keep              | Implements the Agent Client Protocol through the official ACP SDK; Eliza does not publish a replacement for Doolittle's ACP server boundary.                                                                                                                                                                         |
-| `packages/contracts`                  | Doolittle product contracts         | Keep              | Secret-free API, desktop, gateway, and operator records. These contracts must not shadow SDK lifecycle types.                                                                                                                                                                                                        |
-| `packages/ui`                         | Doolittle presentation system       | Keep              | Browser-only controlled React controls and compositions over official Eliza UI primitives. Host state, runtime, Electron, credentials, editor and terminal engines remain outside.                                                                                                                                   |
-| `packages/evals`                      | Doolittle workflow evaluation       | Keep              | Versioned task suites, evidence-based workflow scoring, and privacy-preserving reports for repeatable route comparisons. Evaluation criteria remain separate from Eliza runtime ownership.                                                                                                                           |
-| `packages/characters`                 | Eliza configuration                 | Native data       | Character JSON is loaded by Eliza and contains no competing runtime implementation.                                                                                                                                                                                                                                  |
-| `packages/plugins`                    | Workspace aggregator                | Keep              | Groups shared plugin dependencies and contains the namespaced `doolittle-plugin` product actions and projections. Official service identifiers stay reserved for upstream owners.                                                                                                                                    |
-| `packages/plugins/plugin-sql`         | Doolittle relationship projection   | Keep while needed | Wraps official `@elizaos/plugin-sql` without replacing its persistence lifecycle, adding only normalized tag and metadata merge-on-write semantics that the official create API intentionally does not provide.                                                                                                      |
-| `packages/plugins/plugin-claude-code` | Provider fallback                   | Keep narrow       | Official `@elizaos/plugin-anthropic` owns linked OAuth inference, account-pool rotation, native tools, structured responses, streaming, and prompt caching. This package retains only schema-constrained local Claude CLI fallback with nested-tool suppression, which the pinned official CLI mode does not expose. |
-| `packages/plugins/plugin-devin`       | Provider gap                        | Keep for now      | Adapts the sanctioned Devin CLI; no official Eliza Devin provider exists on the pinned release.                                                                                                                                                                                                                      |
-| `packages/plugins/provider-transport` | Shared Doolittle adapter            | Keep while used   | Down-converts Eliza generation inputs only for the remaining custom Claude Code and Devin transports.                                                                                                                                                                                                                |
-| `packages/plugin-remote-manifest`     | Type compatibility                  | Temporary         | Exposes the SDK bridge's `RemotePluginWorkerMessage` type only; there is no runtime root export.                                                                                                                                                                                                                     |
-| `packages/plugin-worker-runtime`      | Runtime compatibility               | Temporary         | Exposes the worker error wire contract at `./error`; there is no empty root export.                                                                                                                                                                                                                                  |
-| `packages/registry`                   | Data compatibility                  | Temporary         | Exposes curated registry JSON subpaths required by the SDK and desktop packaging; there is no empty root export.                                                                                                                                                                                                     |
-| `packages/skills`                     | Eliza skill assets                  | Native data       | Skill manifests are consumed by official `@elizaos/skills` and Agent Skills services.                                                                                                                                                                                                                                |
-| `packages/skill-packs-optional`       | Distribution assets                 | Keep              | Optional curated skill content; installation and catalog lifecycle remain Eliza-owned.                                                                                                                                                                                                                               |
+`packages/storage` owns the shared strict JSON state reader used by desktop,
+agent services, and Doolittle plugins. It treats missing files as optional while
+surfacing unreadable or malformed state. Keeping one small package avoids a
+client-to-agent dependency or divergent error handling across these consumers.
 
-`packages/plugins/doolittle-plugin` is source inside the private
-`@doolittle/plugins` workspace rather than an additional package. It remains the
-home for product-only actions and service projections.
+`packages/solana-layouts` is a local dependency compatibility package; see its
+[README](../packages/solana-layouts/README.md). `vendor/elizaos` contains pinned
+source-build archives, receipts, and workspace manifests. `tooling/eliza-source`
+contains their isolated build inputs. See [SDK upgrades](engineering/sdk-package-upgrades.md)
+and [source qualification](../tooling/eliza-source/README.md) before changing either.
 
-`packages/agent/src/native-tools` is a deliberately narrower boundary for
-standalone Doolittle utilities compiled with ScriptC. These sources cannot
-import Eliza packages or recreate model, provider, plugin, task, memory,
-gateway, skill, or runtime-service ownership. See
-[Doolittle native tools](native-tools.md).
-
-## Migration results
-
-- Removed the local `@doolittle/plugin-codex` workspace and its duplicate HTTP,
-  SSE, OAuth refresh, and model-registration code.
-- Registered official `@elizaos/plugin-codex-cli` directly and routed provider
-  selection through its native `codex-cli` model owner.
-- Stopped projecting a Codex subscription token into `OPENAI_API_KEY`; the
-  official plugin reads and refreshes the Codex CLI OAuth file itself.
-- Removed Codex from Doolittle's provider publishing pipeline because the
-  package is now upstream-owned.
-- Routed linked Claude OAuth through official `@elizaos/plugin-anthropic`,
-  including account-pool rotation, native tool/response contracts, streaming,
-  and prompt caching. The Doolittle Claude package now contains only the
-  explicit structured local-CLI fallback missing from the pinned plugin.
-- Replaced Doolittle's copied Anthropic OAuth refresh client identity and HTTP
-  exchange with the official `@elizaos/agent/auth/anthropic` helper.
-- Made official `@elizaos/agent/auth/credentials` subscription status the
-  default-machine readiness source for Codex and Claude accounts, including
-  macOS Keychain and CLI discovery. Doolittle retains only the product
-  projection that distinguishes native model credentials from explicit Claude
-  CLI fallback, plus path-aware readers for isolated homes and tests.
-- Replaced the custom `secrets-manager` runtime with the official core
-  `SECRETS` service and retained only a namespaced `@elizaos/vault` persistence
-  mirror for global-secret restart durability and legacy plaintext import.
-- Namespaced the remaining Doolittle-owned coding, code-generation, forms,
-  local-sandbox, personality, rolodex, and experience services so official
-  Eliza identifiers remain reserved for upstream owners.
-- Declared the official Form and GitHub packages in the workspaces that import
-  them directly instead of relying on root dependency hoisting.
-- Replaced the desktop renderer's custom JSON request helper and duplicate
-  route-type union with the official `@elizaos/ui` `ElizaClient` plus a narrow,
-  structured-clone-safe Electron `AgentRequestTransport` adapter. Non-streaming
-  API failures now retain native Eliza `ApiError` metadata.
-- Removed unused `app-training` and `cloud-shared` placeholders. Doolittle's
-  desktop imports only leaf `@elizaos/ui` controls and API client modules, not
-  its cloud screens; the unused `@elizaos/ui` to `@elizaos/cloud-shared`
-  dependency is excluded from the resolved graph.
-
-## Enforcement
-
-`nub run check:monorepo` enforces declared dependencies and exports, rejects
-shared-package dependencies on apps, and detects dependency cycles. Root aliases
-no longer bypass workspace boundaries. `nub run check:eliza-sdk` scans every workspace manifest, enforces the exact
-official package train, rejects undeclared local packages in the `@elizaos/*`
-namespace, checks installed versions, and validates the three remaining
-compatibility contracts. `nub run check:plugin-boundaries` guards runtime ownership and prevents
-retired custom SDK facades from returning.
+Use `nub run check:monorepo` to validate workspace dependencies and boundaries,
+and `nub run check:eliza-sdk` to validate the SDK release contract.

@@ -7,7 +7,7 @@ directory containing `SKILL.md`.
 See the current registry in [`index.md`](./index.md).
 The skills hub surfaces these families directly through `/skills families` and `/skills hub families`.
 
-Optional, higher-breadth packs live in the sibling [`packages/skill-packs-optional`](../skill-packs-optional) workspace so the curated tier stays clean and the optional tier can evolve independently.
+Optional, higher-breadth packs live under [`.optional/`](./.optional/) and remain outside the direct-child default skill tier. The optional catalog and `/skills optional` continue to expose them.
 
 ## Capability map
 

@@ -257,7 +257,7 @@ Provider publishing is explicit and opt-in. Validate the linked packages and dry
 nub run smoke:linked-providers                              # validate all providers
 nub run publish:providers:check                             # verify publish readiness
 nub run publish:providers -- --provider all                 # dry-run all publish contracts
-nub run publish:providers:alpha                             # dry-run alpha publish contract
+nub run publish:providers -- --provider all --tag alpha     # dry-run alpha publish contract
 ```
 
 ## Security and privacy
