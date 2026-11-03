@@ -6,6 +6,11 @@ import {
   SHARED_ENGINE_MAX_WORKERS,
 } from "@doolittle/contracts/engine";
 import {
+  WORKER_HOST_MAX_PENDING_EXECUTION_CLAIMS,
+  WORKER_HOST_MAX_PENDING_REQUESTS,
+  WORKER_HOST_PROTOCOL,
+} from "@doolittle/contracts/worker-host";
+import {
   BOT_ID_PATTERN,
   boundedMessage,
   ENGINE_HOST_PROTOCOL,
@@ -246,8 +251,10 @@ export function installSharedEngineHost(
             ].filter((entry) => entry.isClaim).length;
             const error = pending
               ? STATIC_ERRORS.duplicate
-              : resident.pendingHostRequests.size >= 32 ||
-                  (isClaim && activeClaims >= 16)
+              : resident.pendingHostRequests.size >=
+                    WORKER_HOST_MAX_PENDING_REQUESTS ||
+                  (isClaim &&
+                    activeClaims >= WORKER_HOST_MAX_PENDING_EXECUTION_CLAIMS)
                 ? STATIC_ERRORS.quota
                 : undefined;
             if (error) {
@@ -256,7 +263,7 @@ export function installSharedEngineHost(
                   protocol: ENGINE_WORKER_PROTOCOL,
                   type: "host-message",
                   message: {
-                    protocol: "doolittle-worker-host-v1",
+                    protocol: WORKER_HOST_PROTOCOL,
                     id,
                     sequence,
                     botId: resident.botId,

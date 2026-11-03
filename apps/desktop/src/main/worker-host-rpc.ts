@@ -1,30 +1,16 @@
 import type { ChildProcess } from "node:child_process";
+import {
+  isWorkerHostClientMessage,
+  isWorkerHostMessageWithinLimit,
+  type WorkerHostRequest,
+  type WorkerHostResponseMessage,
+  WORKER_HOST_MAX_PENDING_EXECUTION_CLAIMS,
+  WORKER_HOST_MAX_PENDING_REQUESTS,
+  WORKER_HOST_PROTOCOL as PROTOCOL,
+  WORKER_HOST_RECEIPT_TIMEOUT_MS,
+} from "@doolittle/contracts/worker-host";
 
-const PROTOCOL = "doolittle-worker-host-v1";
-const REQUEST_ID =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
-const MAX_REQUEST_BYTES = 1_000_000;
-const MAX_PENDING = 32;
-const MAX_PENDING_CLAIMS = 16;
-const RECEIPT_TIMEOUT_MS = 55_000;
-
-export interface WorkerHostRequest {
-  operation:
-    | "codex.auth"
-    | "claude.invoke"
-    | "workspace.resolve"
-    | "execution.claim"
-    | "execution.release"
-    | "consult.dispatch"
-    | "consult.wait"
-    | "consult.cancel"
-    | "automation.validate"
-    | "automation.dispatch"
-    | "automation.wait"
-    | "automation.status"
-    | "automation.cancel";
-  payload: unknown;
-}
+export type { WorkerHostRequest } from "@doolittle/contracts/worker-host";
 
 export type WorkerHostHandler = (
   request: WorkerHostRequest,
@@ -48,10 +34,6 @@ interface PendingRequest {
   timer?: ReturnType<typeof setTimeout>;
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
 /** Bind one child's requests to the identity attested at process launch. */
 export function attachWorkerHostRpc(
   child: Pick<ChildProcess, "on" | "removeListener" | "send" | "connected">,
@@ -72,7 +54,7 @@ export function attachWorkerHostRpc(
         sequence,
         ok: false,
         code: "host_backpressure",
-      });
+      } satisfies WorkerHostResponseMessage);
     } catch {
       // Child exit releases its bot's leases.
     }
@@ -100,12 +82,8 @@ export function attachWorkerHostRpc(
   const onMessage = (value: unknown) => {
     if (
       disposed ||
-      !isRecord(value) ||
-      value.protocol !== PROTOCOL ||
-      typeof value.id !== "string" ||
-      !REQUEST_ID.test(value.id) ||
-      !Number.isSafeInteger(value.sequence) ||
-      (value.sequence as number) < 1 ||
+      !isWorkerHostClientMessage(value) ||
+      !isWorkerHostMessageWithinLimit(value) ||
       value.botId !== botId
     )
       return;
@@ -127,32 +105,9 @@ export function attachWorkerHostRpc(
       }
       return;
     }
-    if (
-      value.operation !== "codex.auth" &&
-      value.operation !== "claude.invoke" &&
-      value.operation !== "workspace.resolve" &&
-      value.operation !== "execution.claim" &&
-      value.operation !== "execution.release" &&
-      value.operation !== "consult.dispatch" &&
-      value.operation !== "consult.wait" &&
-      value.operation !== "consult.cancel" &&
-      value.operation !== "automation.validate" &&
-      value.operation !== "automation.dispatch" &&
-      value.operation !== "automation.wait" &&
-      value.operation !== "automation.status" &&
-      value.operation !== "automation.cancel"
-    )
-      return;
-    let size: number;
-    try {
-      size = Buffer.byteLength(JSON.stringify(value), "utf8");
-    } catch {
-      return;
-    }
-    if (size > MAX_REQUEST_BYTES) return;
     const id = value.id;
-    const sequence = value.sequence as number;
-    const operation = value.operation as WorkerHostRequest["operation"];
+    const sequence = value.sequence;
+    const operation = value.operation;
     if (sequence <= lastSequence) {
       rejectRequest(id, sequence);
       return;
@@ -160,11 +115,11 @@ export function attachWorkerHostRpc(
     lastSequence = sequence;
     if (
       requests.has(id) ||
-      requests.size >= MAX_PENDING ||
+      requests.size >= WORKER_HOST_MAX_PENDING_REQUESTS ||
       (operation === "execution.claim" &&
         [...requests.values()].filter(
           (entry) => entry.request.operation === "execution.claim",
-        ).length >= MAX_PENDING_CLAIMS)
+        ).length >= WORKER_HOST_MAX_PENDING_EXECUTION_CLAIMS)
     ) {
       rejectRequest(id, sequence);
       return;
@@ -193,11 +148,18 @@ export function attachWorkerHostRpc(
           }
           entry.timer = setTimeout(
             () => abandon(id, entry),
-            RECEIPT_TIMEOUT_MS,
+            WORKER_HOST_RECEIPT_TIMEOUT_MS,
           );
           try {
             child.send(
-              { protocol: PROTOCOL, id, botId, sequence, ok: true, result },
+              {
+                protocol: PROTOCOL,
+                id,
+                botId,
+                sequence,
+                ok: true,
+                result,
+              } satisfies WorkerHostResponseMessage,
               (error) => {
                 if (error) abandon(id, entry);
               },
@@ -225,7 +187,7 @@ export function attachWorkerHostRpc(
                       "Named automation approval, grant, or worker is unavailable. Review the target and saved fire identity before retrying; uncertain submissions are never replayed.",
                   }
                 : {}),
-            });
+            } satisfies WorkerHostResponseMessage);
           } catch {
             /* child exited */
           }

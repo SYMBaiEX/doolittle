@@ -1,22 +1,24 @@
 import { randomUUID } from "node:crypto";
+import {
+  isWorkerHostMessageWithinLimit,
+  isWorkerHostOperation,
+  isWorkerHostResponseMessage,
+  type WorkerHostAcknowledgement,
+  type WorkerHostCallMessage,
+  type WorkerHostCancelMessage,
+  type WorkerHostOperation,
+  WORKER_HOST_BOT_ID_PATTERN,
+  WORKER_HOST_DEFAULT_REQUEST_TIMEOUT_MS,
+  WORKER_HOST_MAX_PENDING_EXECUTION_CLAIMS,
+  WORKER_HOST_MAX_PENDING_REQUESTS,
+  WORKER_HOST_PROTOCOL as WORKER_HOST_RPC_PROTOCOL,
+} from "@doolittle/contracts/worker-host";
 import { readWorkerBotProfile } from "./bot-profile";
 
-export const WORKER_HOST_RPC_PROTOCOL = "doolittle-worker-host-v1";
-
-export type WorkerHostOperation =
-  | "codex.auth"
-  | "claude.invoke"
-  | "workspace.resolve"
-  | "execution.claim"
-  | "execution.release"
-  | "consult.dispatch"
-  | "consult.wait"
-  | "consult.cancel"
-  | "automation.validate"
-  | "automation.dispatch"
-  | "automation.wait"
-  | "automation.status"
-  | "automation.cancel";
+export {
+  type WorkerHostOperation,
+  WORKER_HOST_PROTOCOL as WORKER_HOST_RPC_PROTOCOL,
+} from "@doolittle/contracts/worker-host";
 
 interface PendingRequest {
   operation: WorkerHostOperation;
@@ -28,11 +30,8 @@ interface PendingRequest {
 }
 
 const pending = new Map<string, PendingRequest>();
-const MAX_PENDING = 32;
-const MAX_PENDING_CLAIMS = 16;
 let lastSequence = 0;
 let listening = false;
-const BOT_ID = /^[a-z0-9][a-z0-9_-]{0,63}$/u;
 
 function hostBotId(): string | null {
   const worker = readWorkerBotProfile();
@@ -40,13 +39,9 @@ function hostBotId(): string | null {
   const lead = process.env.DOOLITTLE_HOST_BOT_ID;
   return process.env.DOOLITTLE_DESKTOP_RUNTIME === "1" &&
     typeof lead === "string" &&
-    BOT_ID.test(lead)
+    WORKER_HOST_BOT_ID_PATTERN.test(lead)
     ? lead
     : null;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 function ensureListener(): void {
@@ -54,31 +49,24 @@ function ensureListener(): void {
   listening = true;
   process.on("message", (message: unknown) => {
     if (
-      !isRecord(message) ||
-      message.protocol !== WORKER_HOST_RPC_PROTOCOL ||
+      !isWorkerHostResponseMessage(message) ||
+      !isWorkerHostMessageWithinLimit(message) ||
       message.botId !== hostBotId()
     ) {
       return;
     }
     const id = message.id;
-    if (typeof id !== "string") return;
     const request = pending.get(id);
     if (!request || message.sequence !== request.sequence) {
       // A grant may have raced a local timeout/cancel. The host still owns the
       // receipt until ACK, so explicitly abandon this late successful reply.
-      if (
-        (message.ok === true || message.ok === false) &&
-        Number.isSafeInteger(message.sequence) &&
-        (message.sequence as number) > 0
-      ) {
-        process.send?.({
-          protocol: WORKER_HOST_RPC_PROTOCOL,
-          id,
-          botId: message.botId,
-          sequence: message.sequence,
-          cancel: true,
-        });
-      }
+      process.send?.({
+        protocol: WORKER_HOST_RPC_PROTOCOL,
+        id,
+        botId: message.botId,
+        sequence: message.sequence,
+        cancel: true,
+      } satisfies WorkerHostCancelMessage);
       return;
     }
     pending.delete(id);
@@ -91,7 +79,7 @@ function ensureListener(): void {
         botId: message.botId,
         sequence: request.sequence,
         ack: true,
-      });
+      } satisfies WorkerHostAcknowledgement);
     } catch {
       request.reject(new Error("The approved host connection is unavailable."));
       return;
@@ -128,20 +116,25 @@ export function requestWorkerHost(
   payload: unknown,
   options: { timeoutMs?: number; signal?: AbortSignal } = {},
 ): Promise<unknown> {
+  if (!isWorkerHostOperation(operation)) {
+    return Promise.reject(
+      new Error("The requested host operation is unavailable."),
+    );
+  }
   const botId = hostBotId();
   if (!botId || typeof process.send !== "function") {
     return Promise.reject(
       new Error("The desktop execution host is unavailable."),
     );
   }
-  if (pending.size >= MAX_PENDING) {
+  if (pending.size >= WORKER_HOST_MAX_PENDING_REQUESTS) {
     return Promise.reject(new Error("Too many host requests are in flight."));
   }
   if (
     operation === "execution.claim" &&
     [...pending.values()].filter(
       (request) => request.operation === "execution.claim",
-    ).length >= MAX_PENDING_CLAIMS
+    ).length >= WORKER_HOST_MAX_PENDING_EXECUTION_CLAIMS
   ) {
     return Promise.reject(
       new Error("Too many execution claims are in flight."),
@@ -160,6 +153,19 @@ export function requestWorkerHost(
   }
   const id = randomUUID();
   const sequence = ++lastSequence;
+  const message: WorkerHostCallMessage = {
+    protocol: WORKER_HOST_RPC_PROTOCOL,
+    id,
+    botId,
+    sequence,
+    operation,
+    payload,
+  };
+  if (!isWorkerHostMessageWithinLimit(message)) {
+    return Promise.reject(
+      new Error("The host request is not serializable within its wire budget."),
+    );
+  }
   return new Promise<unknown>((resolve, reject) => {
     const sendCancel = () => {
       if (!pending.has(id)) return;
@@ -172,7 +178,7 @@ export function requestWorkerHost(
         botId,
         sequence,
         cancel: true,
-      });
+      } satisfies WorkerHostCancelMessage);
       reject(new DOMException("The host request was cancelled.", "AbortError"));
     };
     const timeout = setTimeout(() => {
@@ -184,9 +190,9 @@ export function requestWorkerHost(
         botId,
         sequence,
         cancel: true,
-      });
+      } satisfies WorkerHostCancelMessage);
       reject(new Error("The approved host request timed out."));
-    }, options.timeoutMs ?? 30_000);
+    }, options.timeoutMs ?? WORKER_HOST_DEFAULT_REQUEST_TIMEOUT_MS);
     pending.set(id, {
       operation,
       sequence,
@@ -202,14 +208,7 @@ export function requestWorkerHost(
       return;
     }
     process.send?.(
-      {
-        protocol: WORKER_HOST_RPC_PROTOCOL,
-        id,
-        botId,
-        sequence,
-        operation,
-        payload,
-      },
+      message,
       (error) => {
         if (!error) return;
         const request = pending.get(id);

@@ -1,28 +1,24 @@
+import {
+  isWorkerHostClientMessage,
+  isWorkerHostMessageWithinLimit,
+  isWorkerHostResponseMessage,
+  type WorkerHostClientMessage,
+  type WorkerHostResponseMessage,
+  WORKER_HOST_BOT_ID_PATTERN,
+} from "@doolittle/contracts/worker-host";
+
+export {
+  WORKER_HOST_MAX_MESSAGE_BYTES as MAX_HOST_MESSAGE_BYTES,
+  WORKER_HOST_PROTOCOL,
+} from "@doolittle/contracts/worker-host";
+
 export const ENGINE_PROTOCOL = "doolittle-engine-v1";
 export const ENGINE_HOST_PROTOCOL = "doolittle-engine-host-v1";
 export const ENGINE_WORKER_PROTOCOL = "doolittle-engine-worker-v1";
-export const WORKER_HOST_PROTOCOL = "doolittle-worker-host-v1";
-export const MAX_HOST_MESSAGE_BYTES = 1_000_000;
 
-export const BOT_ID_PATTERN = /^[a-z0-9][a-z0-9_-]{0,63}$/u;
+export const BOT_ID_PATTERN = WORKER_HOST_BOT_ID_PATTERN;
 export const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
-
-const WORKER_HOST_OPERATIONS = new Set([
-  "codex.auth",
-  "claude.invoke",
-  "workspace.resolve",
-  "execution.claim",
-  "execution.release",
-  "consult.dispatch",
-  "consult.wait",
-  "consult.cancel",
-  "automation.validate",
-  "automation.dispatch",
-  "automation.wait",
-  "automation.status",
-  "automation.cancel",
-]);
 
 export interface EngineReady {
   url: string;
@@ -56,40 +52,20 @@ export function boundedMessage(value: unknown, limit = 256_000): boolean {
   }
 }
 
+/** Validate the canonical wire envelope and its transport budget. */
 export function isWorkerHostRequest(
   value: unknown,
-): value is Record<string, unknown> {
+): value is WorkerHostClientMessage {
   return (
-    isRecord(value) &&
-    value.protocol === WORKER_HOST_PROTOCOL &&
-    typeof value.id === "string" &&
-    UUID_PATTERN.test(value.id) &&
-    typeof value.sequence === "number" &&
-    Number.isSafeInteger(value.sequence) &&
-    value.sequence > 0 &&
-    ((value.cancel === true && value.ack === undefined) ||
-      (value.ack === true && value.cancel === undefined) ||
-      (value.cancel === undefined &&
-        value.ack === undefined &&
-        typeof value.operation === "string" &&
-        WORKER_HOST_OPERATIONS.has(value.operation))) &&
-    boundedMessage(value, MAX_HOST_MESSAGE_BYTES)
+    isWorkerHostClientMessage(value) && isWorkerHostMessageWithinLimit(value)
   );
 }
 
 export function isWorkerHostResponse(
   value: unknown,
-): value is Record<string, unknown> {
+): value is WorkerHostResponseMessage {
   return (
-    isRecord(value) &&
-    value.protocol === WORKER_HOST_PROTOCOL &&
-    typeof value.id === "string" &&
-    UUID_PATTERN.test(value.id) &&
-    typeof value.sequence === "number" &&
-    Number.isSafeInteger(value.sequence) &&
-    value.sequence > 0 &&
-    typeof value.ok === "boolean" &&
-    boundedMessage(value, MAX_HOST_MESSAGE_BYTES)
+    isWorkerHostResponseMessage(value) && isWorkerHostMessageWithinLimit(value)
   );
 }
 
