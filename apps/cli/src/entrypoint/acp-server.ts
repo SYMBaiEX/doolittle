@@ -1,21 +1,12 @@
 import { Readable } from "node:stream";
 import { ndJsonStream } from "@doolittle/acp";
-import { getAppContext } from "@doolittle/agent/runtime/bootstrap";
-import { loadBootstrapConfig } from "@doolittle/agent/runtime/bootstrap/env";
-import { getRuntimeToolProjection } from "@doolittle/agent/runtime/native/service-bridge/service-resolution";
-import { createServices } from "@doolittle/agent/services";
-import { createAcpProtocolHost } from "@doolittle/agent/services/acp/host";
+import { getApplicationSession } from "@doolittle/agent/runtime/application";
 
-/**
- * Runs Doolittle's ACP stdio server.
- *
- * ACP owns stdout end-to-end: every byte written there must be newline-delimited
- * JSON-RPC. Application logs therefore move to stderr before booting the
- * runtime. Keep this separate from the HTTP/API entrypoint so editor clients
- * never receive an API banner or structured application log as protocol input.
- */
+/** ACP owns stdout; this adapter owns stdio and the application's process lifetime. */
 export async function startAcpServer(): Promise<void> {
+  const application = getApplicationSession();
   const writeProtocolBytes = process.stdout.write.bind(process.stdout);
+  const originalStdoutWrite = process.stdout.write;
   process.stdout.write = process.stderr.write.bind(
     process.stderr,
   ) as typeof process.stdout.write;
@@ -29,34 +20,59 @@ export async function startAcpServer(): Promise<void> {
       });
     },
   });
+  const shutdown = (signal: "SIGINT" | "SIGTERM" | "disconnect") => {
+    void application.dispose(`ACP received ${signal}`, { fast: true }).then(
+      () => process.exit(
+        signal === "SIGINT" ? 130 : signal === "disconnect" ? 1 : 0,
+      ),
+      (error) => {
+        const detail = error instanceof Error ? error.message : String(error);
+        process.stderr.write(`ACP shutdown failed: ${detail}\n`);
+        process.exit(1);
+      },
+    );
+  };
+  const onSigint = () => shutdown("SIGINT");
+  const onSigterm = () => shutdown("SIGTERM");
+  const onDisconnect = () => shutdown("disconnect");
+  const watchHostDisconnect =
+    process.env.DOOLITTLE_DESKTOP_RUNTIME === "1" &&
+    typeof process.send === "function";
+  process.once("SIGINT", onSigint);
+  process.once("SIGTERM", onSigterm);
+  if (watchHostDisconnect) {
+    process.once("disconnect", onDisconnect);
+    if (process.connected === false) onDisconnect();
+  }
 
-  const config = loadBootstrapConfig();
-  const services = createServices(config);
-  const lightweightContext = {
-    config,
-    services,
-  } as Parameters<typeof createAcpProtocolHost>[0];
-  const localHost = createAcpProtocolHost(lightweightContext);
-  services.acp.bindProtocolHost({
-    ...localHost,
-    async executeTurn(input) {
-      const context = await getAppContext({
-        startupMode: "api",
-        eagerDeferredHydration: true,
-      });
-      services.acp.bindRuntimeTools(() =>
-        getRuntimeToolProjection(context.runtime).tools.filter(
-          (tool) => tool.enabled,
-        ),
-      );
-      return createAcpProtocolHost(context).executeTurn(input);
-    },
-  });
-  const stream = ndJsonStream(
-    protocolOutput,
-    Readable.toWeb(process.stdin) as ReadableStream<Uint8Array>,
-  );
-  const connection = services.acp.agentApp().connect(stream);
-
-  await connection.closed;
+  let connectionFailure: { error: unknown } | undefined;
+  try {
+    const stream = ndJsonStream(
+      protocolOutput,
+      Readable.toWeb(process.stdin) as ReadableStream<Uint8Array>,
+    );
+    const connection = application.services.acp.agentApp().connect(stream);
+    await connection.closed;
+  } catch (error) {
+    connectionFailure = { error };
+  } finally {
+    process.removeListener("SIGINT", onSigint);
+    process.removeListener("SIGTERM", onSigterm);
+    if (watchHostDisconnect) process.removeListener("disconnect", onDisconnect);
+    try {
+      await application.dispose("ACP connection closed", { fast: true });
+    } catch (error) {
+      connectionFailure = {
+        error: connectionFailure
+          ? new AggregateError(
+              [connectionFailure.error, error],
+              "ACP connection and application shutdown failed.",
+            )
+          : error,
+      };
+    } finally {
+      process.stdout.write = originalStdoutWrite;
+    }
+  }
+  if (connectionFailure) throw connectionFailure.error;
 }

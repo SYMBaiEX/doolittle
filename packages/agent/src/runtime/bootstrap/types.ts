@@ -1,3 +1,4 @@
+import type { BotDefinition } from "@doolittle/contracts/bots";
 import type { AgentRuntime, IAgentRuntime, Plugin } from "@elizaos/core";
 import type { GatewayRunner } from "../../gateway/runner/index";
 import type { AppServices } from "../../services/index";
@@ -24,9 +25,9 @@ export interface BootstrapContextParams {
   config: EnvConfig;
   services: AppServices;
   runtime: AgentRuntime;
-  eagerDeferredHydration: boolean;
-  startupMode?: "cli" | "api" | "worker";
   loadDeferredPlugins(): Promise<Plugin[]>;
+  bindRuntime(runtime: IAgentRuntime): void;
+  workerBot: BotDefinition | null;
 }
 
 export interface AppContextBuildOptions {

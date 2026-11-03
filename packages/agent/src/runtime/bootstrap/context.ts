@@ -1,14 +1,10 @@
 import { DOOLITTLE_SCHEDULER_SERVICE } from "@doolittle/contracts";
-import type { AgentRuntime } from "@elizaos/core";
 import { installNativeDiscordInboundHandoff } from "../../gateway/platforms/native-discord-inbound";
 import { installNativeSignalInboundHandoff } from "../../gateway/platforms/native-signal-inbound";
 import { installNativeSlackInboundHandoff } from "../../gateway/platforms/native-slack-inbound";
 import { installNativeTelegramInboundHandoff } from "../../gateway/platforms/native-telegram-inbound";
 import { installNativeWhatsAppInboundHandoff } from "../../gateway/platforms/native-whatsapp-inbound";
-import { createAcpProtocolHost } from "../../services/acp/host";
-import type { AppServices } from "../../services/index";
 import { getRuntimeToolProjection } from "../native/service-bridge/service-resolution/index";
-import { readWorkerBotProfile } from "./bot-profile";
 import { createDeferredHydrator } from "./runtime/deferred-hydration";
 import { createGatewayAccessor } from "./runtime/gateway-factory";
 import {
@@ -18,25 +14,18 @@ import {
 import { appendBootstrapTrace } from "./trace";
 import type { BootstrapContext, BootstrapContextParams } from "./types";
 
-type RuntimeBindableServices = AppServices & {
-  __bindRuntime?: (nextRuntime: AgentRuntime) => void;
-};
-
 export async function configureBootstrapContext({
   config,
   services,
   runtime,
-  eagerDeferredHydration,
-  startupMode,
   loadDeferredPlugins,
+  bindRuntime,
+  workerBot,
 }: BootstrapContextParams): Promise<BootstrapContext> {
   appendBootstrapTrace("phase:finalizeCoreRuntimeServices:start");
   await finalizeCoreRuntimeServices(runtime);
   appendBootstrapTrace("phase:finalizeCoreRuntimeServices:done");
   services.nativeOwnership.attachRuntime(runtime, services);
-  (services as RuntimeBindableServices).__bindRuntime?.(runtime);
-
-  const workerBot = readWorkerBotProfile();
 
   const schedulerService = workerBot
     ? null
@@ -76,8 +65,7 @@ export async function configureBootstrapContext({
     : hostDeferredHydration;
   gateway.setDeferredHydration(ensureDeferredHydration);
 
-  services.startupState.markReady("runtime", "runtime ready");
-  const context = {
+  const context: BootstrapContext = {
     config,
     services,
     runtime,
@@ -85,17 +73,12 @@ export async function configureBootstrapContext({
       return gateway.get();
     },
     ensureDeferredHydration,
-  } as BootstrapContext;
-  services.acp.bindProtocolHost(createAcpProtocolHost(context));
+  };
+  // Rebind every runtime-aware service on each successful activation.
+  bindRuntime(runtime);
   services.acp.bindRuntimeTools(() =>
     getRuntimeToolProjection(runtime).tools.filter((tool) => tool.enabled),
   );
-
-  if (eagerDeferredHydration) {
-    appendBootstrapTrace("phase:deferredHydration:start");
-    await context.ensureDeferredHydration(startupMode);
-    appendBootstrapTrace("phase:deferredHydration:done");
-  }
-
+  services.startupState.markReady("runtime", "runtime ready");
   return context;
 }

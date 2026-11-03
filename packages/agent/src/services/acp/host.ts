@@ -13,13 +13,11 @@ import type {
   WaitForTerminalExitRequest,
   WaitForTerminalExitResponse,
 } from "@doolittle/acp";
-import { readWorkerBotProfile } from "../../runtime/bootstrap/bot-profile";
-import type { AppContext } from "../../runtime/bootstrap/index";
-import { executeAgentTurnWithProgress } from "../../runtime/turn-stream";
 import {
   assertWorkspacePathResolvesInside,
   resolveWorkspacePath,
 } from "../workspace-service/path";
+import type { AppServices } from "../types";
 import type { AcpProtocolHost } from "./types";
 
 interface AcpTerminalState {
@@ -33,42 +31,73 @@ interface AcpTerminalState {
   completion: Promise<{ exitCode?: number | null; signal?: string | null }>;
 }
 
-export function createAcpProtocolHost(context: AppContext): AcpProtocolHost {
+export interface AcpHostDependencies {
+  workspace: Pick<AppServices["workspace"], "root" | "read" | "write">;
+  terminal: Pick<AppServices["terminal"], "runStreamingLocal">;
+  runController: Pick<AppServices["runController"], "getActive">;
+  executionApprovals: Pick<AppServices["executionApprovals"], "request" | "get">;
+  actorId(): Promise<string>;
+  executeTurn: AcpProtocolHost["executeTurn"];
+}
+
+export interface OwnedAcpProtocolHost extends AcpProtocolHost {
+  dispose(): Promise<void>;
+}
+
+/** ACP filesystem/terminal policy depends on explicit host ports, not bootstrap. */
+export function createAcpProtocolHost(
+  dependencies: AcpHostDependencies,
+): OwnedAcpProtocolHost {
   const terminals = new Map<string, AcpTerminalState>();
+  let disposed = false;
+  const lifetime = new AbortController();
+  const assertOpen = () => {
+    if (disposed) throw new Error("The ACP application session is closed.");
+  };
   return {
     assertWorkspacePath(path) {
+      assertOpen();
       const resolved = resolveWorkspacePath(
-        context.services.workspace.root(),
+        dependencies.workspace.root(),
         path,
       );
       assertWorkspacePathResolvesInside(
-        context.services.workspace.root(),
+        dependencies.workspace.root(),
         resolved,
       );
     },
     readWorkspace(path, options) {
-      const content = context.services.workspace.read(path);
+      assertOpen();
+      const content = dependencies.workspace.read(path);
       return sliceTextFile(content, options);
     },
     writeWorkspace(path, content) {
-      return context.services.workspace.write(path, content);
+      assertOpen();
+      return dependencies.workspace.write(path, content);
     },
     requestPermission(params, signal) {
-      return requestPermission(context, params, signal);
+      assertOpen();
+      return requestPermission(
+        dependencies,
+        params,
+        AbortSignal.any([signal, lifetime.signal]),
+      );
     },
     createTerminal(params, signal) {
+      assertOpen();
+      signal.throwIfAborted();
       if (params._meta?.["doolittle/permission-granted"] !== true) {
         throw new Error(
           "ACP terminal creation requires an approved permission request.",
         );
       }
-      const cwd = params.cwd ?? context.services.workspace.root();
+      const cwd = params.cwd ?? dependencies.workspace.root();
       const resolvedCwd = resolveWorkspacePath(
-        context.services.workspace.root(),
+        dependencies.workspace.root(),
         cwd,
       );
       assertWorkspacePathResolvesInside(
-        context.services.workspace.root(),
+        dependencies.workspace.root(),
         resolvedCwd,
       );
       const id = `terminal:${randomUUID()}`;
@@ -84,7 +113,7 @@ export function createAcpProtocolHost(context: AppContext): AcpProtocolHost {
         outputByteLimit: params.outputByteLimit ?? undefined,
         completion: Promise.resolve({}),
       };
-      state.completion = context.services.terminal
+      state.completion = dependencies.terminal
         .runStreamingLocal(
           buildTerminalCommand(params, resolvedCwd),
           {
@@ -132,35 +161,35 @@ export function createAcpProtocolHost(context: AppContext): AcpProtocolHost {
       terminals.delete(state.id);
     },
     async executeTurn(input) {
-      const result = await executeAgentTurnWithProgress(
-        {
-          message: input.message,
-          userId: "acp-user",
-          roomId: input.sessionId,
-          source: "api",
-        },
-        context,
-        {
-          admissionKind: "automatic-acp",
-          originConversationId: context.services.acp.originForProtocolSession(
-            input.sessionId,
-          ),
-          abortSignal: input.signal,
-          onProgress: ({ delta }) => input.onText(delta),
-          onRunUpdate: input.onRunUpdate,
-        },
+      assertOpen();
+      return dependencies.executeTurn(input);
+    },
+    async dispose() {
+      if (disposed) return;
+      disposed = true;
+      lifetime.abort(new Error("The ACP application session is closed."));
+      const active = [...terminals.values()];
+      for (const terminal of active) terminal.controller.abort();
+      const results = await Promise.allSettled(
+        active.map((terminal) => terminal.completion),
       );
-      return result.response;
+      terminals.clear();
+      const errors = results.flatMap((result) =>
+        result.status === "rejected" ? [result.reason] : [],
+      );
+      if (errors.length) {
+        throw new AggregateError(errors, "ACP terminal shutdown failed.");
+      }
     },
   };
 }
 
 async function requestPermission(
-  context: AppContext,
+  dependencies: AcpHostDependencies,
   params: RequestPermissionRequest,
   signal: AbortSignal,
 ): Promise<RequestPermissionResponse> {
-  const active = context.services.runController.getActive(params.sessionId);
+  const active = dependencies.runController.getActive(params.sessionId);
   if (signal.aborted || !active || active.sessionId !== params.sessionId) {
     return { outcome: { outcome: "cancelled" } };
   }
@@ -170,18 +199,28 @@ async function requestPermission(
   const rejectOptions = params.options.filter((option) =>
     option.kind.startsWith("reject"),
   );
-  const record = await context.services.executionApprovals.request({
+  const actorId = await dependencies.actorId();
+  const current = dependencies.runController.getActive(params.sessionId);
+  if (
+    signal.aborted ||
+    !current ||
+    current.runId !== active.runId ||
+    current.sessionId !== active.sessionId
+  ) {
+    return { outcome: { outcome: "cancelled" } };
+  }
+  const record = await dependencies.executionApprovals.request({
     platform: "api",
     userId: "acp-user",
     roomId: params.sessionId,
     sessionKey: params.sessionId,
-    botId: readWorkerBotProfile()?.id ?? String(context.runtime.agentId),
+    botId: actorId,
     sessionId: active.sessionId,
     runId: active.runId,
     command: permissionCommand(params),
     reason: params.toolCall.title ?? "ACP tool request",
   });
-  const status = await waitForApproval(context, record.id, signal);
+  const status = await waitForApproval(dependencies, record.id, signal);
   if (status === "approved" || status === "used") {
     const option = allowOptions[0];
     return option
@@ -201,7 +240,7 @@ async function requestPermission(
 }
 
 async function waitForApproval(
-  context: AppContext,
+  dependencies: AcpHostDependencies,
   id: string,
   signal: AbortSignal,
 ): Promise<"approved" | "denied" | "expired" | "used"> {
@@ -217,7 +256,7 @@ async function waitForApproval(
     const onAbort = () =>
       finish(new Error("ACP permission request cancelled."));
     const poll = () => {
-      const status = context.services.executionApprovals.get(id)?.status;
+      const status = dependencies.executionApprovals.get(id)?.status;
       if (
         status === "approved" ||
         status === "denied" ||

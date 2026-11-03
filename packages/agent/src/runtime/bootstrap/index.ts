@@ -1,18 +1,13 @@
-import { buildAppContext } from "./app-context";
-import { AppContextManager } from "./app-context-manager";
-
-export { validateCriticalRuntimeServices } from "./runtime";
-export type {
-  AppContext,
-  AppContextOptions,
-} from "./types";
-
+import { getApplicationSession } from "../application/index";
 import type { AppContext, AppContextOptions } from "./types";
 
-const appContextManager = new AppContextManager(buildAppContext);
+export { validateCriticalRuntimeServices } from "./runtime";
+export { getApplicationSession } from "../application/index";
+export type { AppContext, AppContextOptions } from "./types";
 
+/** Compatibility entrypoint backed by the process-owned application session. */
 export async function getAppContext(
   options: AppContextOptions = {},
 ): Promise<AppContext> {
-  return appContextManager.get(options);
+  return getApplicationSession().ensureRuntime(options);
 }

@@ -1,4 +1,5 @@
-import { disposeRuntime } from "@doolittle/agent/runtime/bootstrap/runtime/initialization";
+import { shutdownApplicationRuntime } from "@doolittle/agent/runtime/application";
+import type { disposeRuntime } from "@doolittle/agent/runtime/bootstrap/runtime/initialization";
 import type { AgentRuntime } from "@elizaos/core";
 
 export type RuntimeShutdownSignal = "SIGINT" | "SIGTERM";
@@ -47,11 +48,18 @@ export interface RuntimeProcessLifecycle {
  * signal-to-runtime handoff; Eliza owns service shutdown and database-adapter
  * closure through `shutdownRuntime`.
  */
+const shutdownOwnedRuntime: typeof disposeRuntime = (
+  runtime,
+  context,
+  _lifecycle,
+  options,
+) => shutdownApplicationRuntime(runtime, context, options);
+
 export function installRuntimeProcessLifecycle({
   runtime,
   label,
   signalHost = process,
-  shutdownRuntime = disposeRuntime,
+  shutdownRuntime = shutdownOwnedRuntime,
   onExit = (exitCode) => process.exit(exitCode),
   writeError = (message) => process.stderr.write(`${message}\n`),
   beforeShutdown,

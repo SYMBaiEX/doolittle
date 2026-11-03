@@ -4,16 +4,23 @@ import {
   DocumentService,
 } from "@elizaos/plugin-assistant";
 import character from "../../character";
-import { createServices } from "../../services/index";
+import {
+  type ApplicationServiceGraph,
+  createApplicationServiceGraph,
+} from "../application/service-graph";
 import {
   applyAccountPoolApiCredentials,
   initializeDoolittleAccountPool,
 } from "../native/account-pool/index";
 import { buildNativePluginAssembly } from "../native/plugin-registry/index";
 import { normalizePlugin } from "../native/plugin-registry/support";
-import { composeWorkerCharacter, readWorkerBotProfile } from "./bot-profile";
+import { composeWorkerCharacter } from "./bot-profile";
 import { configureBootstrapContext } from "./context";
-import { buildPluginSettings, loadBootstrapConfig } from "./env/index";
+import { buildPluginSettings } from "./env/index";
+import {
+  disposeRuntime,
+  type RuntimeOwnershipObserver,
+} from "./runtime/initialization";
 import { DOOLITTLE_RUNTIME_CAPABILITY_OPTIONS } from "./runtime/capability-options";
 import {
   createProviderFailureTemplates,
@@ -22,35 +29,12 @@ import {
 import { appendBootstrapTrace } from "./trace";
 import type { AppContext, AppContextBuildOptions } from "./types";
 
-export async function buildAppContext({
-  startupMode,
-  eagerDeferredHydration,
-}: AppContextBuildOptions): Promise<AppContext> {
-  // Doolittle owns environment loading. Use the SDK's opt-out so embedded
-  // database creation cannot discover a different project's parent .env.
-  process.env.ELIZA_BENCH_DISABLE_DOTENV = "1";
-  const config = loadBootstrapConfig();
-  const workerBot = readWorkerBotProfile();
-  if (workerBot && config.agentName !== workerBot.name) {
-    throw new Error("The named bot identity does not match its runtime name.");
-  }
-  appendBootstrapTrace("phase:createServices:start");
-  const services = createServices(config);
-  if (workerBot) {
-    services.settings.setMany([
-      { path: "model.provider", value: workerBot.model.provider },
-      { path: "model.model", value: workerBot.model.model },
-      ...(workerBot.model.reasoningEffort
-        ? [
-            {
-              path: "model.reasoningEffort",
-              value: workerBot.model.reasoningEffort,
-            },
-          ]
-        : []),
-    ]);
-  }
-  appendBootstrapTrace("phase:createServices:done");
+export async function buildAppContext(
+  { eagerDeferredHydration }: AppContextBuildOptions,
+  graph: ApplicationServiceGraph = createApplicationServiceGraph(),
+  ownership?: RuntimeOwnershipObserver,
+): Promise<AppContext> {
+  const { config, services, workerBot, bindRuntime } = graph;
   if (process.env.DOOLITTLE_KNOWLEDGE_BROKER === "1") {
     if (
       workerBot?.id !== "knowledge-broker" ||
@@ -75,8 +59,14 @@ export async function buildAppContext({
       ],
       ...DOOLITTLE_RUNTIME_CAPABILITY_OPTIONS,
     });
-    await runtime.initialize();
-    await runtime.getServiceLoadPromise(DocumentService.serviceType);
+    ownership?.acquired(runtime);
+    try {
+      await runtime.initialize();
+      await runtime.getServiceLoadPromise(DocumentService.serviceType);
+    } catch (error) {
+      await rollbackRuntime(runtime, ownership, error);
+      throw error;
+    }
     services.startupState.markReady(
       "runtime",
       "private SDK document worker ready",
@@ -171,15 +161,45 @@ export async function buildAppContext({
     });
 
   appendBootstrapTrace("phase:initializeRuntime:start");
-  const runtime = await initializeElizaRuntime(createRuntime);
+  const runtime = await initializeElizaRuntime(
+    createRuntime,
+    undefined,
+    ownership,
+  );
   appendBootstrapTrace("phase:initializeRuntime:done");
 
-  return configureBootstrapContext({
-    config,
-    services,
-    runtime,
-    eagerDeferredHydration,
-    startupMode,
-    loadDeferredPlugins,
-  });
+  try {
+    return await configureBootstrapContext({
+      config,
+      services,
+      runtime,
+      loadDeferredPlugins,
+      bindRuntime,
+      workerBot,
+    });
+  } catch (error) {
+    await rollbackRuntime(runtime, ownership, error);
+    throw error;
+  }
+}
+
+async function rollbackRuntime(
+  runtime: AgentRuntime,
+  ownership: RuntimeOwnershipObserver | undefined,
+  activationError: unknown,
+): Promise<void> {
+  try {
+    await disposeRuntime(
+      runtime,
+      "Doolittle application activation failure",
+      undefined,
+      { fast: true },
+    );
+    ownership?.released(runtime);
+  } catch (cleanupError) {
+    throw new AggregateError(
+      [activationError, cleanupError],
+      "Application activation failed and runtime cleanup is incomplete.",
+    );
+  }
 }

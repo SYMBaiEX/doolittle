@@ -9,10 +9,16 @@ import { createServiceDirectoryLayout } from "./service-directories";
 import { createServiceNativeWiring } from "./service-native";
 import { defineSlotBackedProperties } from "./slot-properties";
 
-export function createServices(
+export interface AppServiceAssembly {
+  readonly services: AppServices;
+  bindRuntime(runtime: IAgentRuntime): void;
+}
+
+/** Compose one service graph; runtime attachment is an explicit owner operation. */
+export function createServiceAssembly(
   config: EnvConfig,
   runtime?: ConstructorParameters<typeof DocumentsService>[0],
-): AppServices {
+): AppServiceAssembly {
   const bootstrap = createServiceBootstrapState(config);
   const directories = createServiceDirectoryLayout(config);
   const native = createServiceNativeWiring(config);
@@ -21,17 +27,15 @@ export function createServices(
   const services = defineSlotBackedProperties(
     eagerServices,
     lazyServices,
-  ) satisfies AppServices & {
-    __bindRuntime?: (nextRuntime: IAgentRuntime) => void;
-  };
+  ) satisfies AppServices;
+  const bindRuntime = createRuntimeBinder(runtimeBinding);
+  return { services, bindRuntime };
+}
 
-  Object.defineProperty(services, "__bindRuntime", {
-    enumerable: false,
-    value: createRuntimeBinder({
-      ...runtimeBinding,
-      createDocumentsService: runtimeBinding.createDocumentsService,
-    }),
-  });
-
-  return services;
+/** Standalone service construction; application owners retain the full assembly. */
+export function createServices(
+  config: EnvConfig,
+  runtime?: ConstructorParameters<typeof DocumentsService>[0],
+): AppServices {
+  return createServiceAssembly(config, runtime).services;
 }

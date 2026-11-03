@@ -4,6 +4,11 @@ import { shutdownElizaRuntime } from "../../lifecycle/shutdown";
 import { appendBootstrapTrace } from "../trace";
 import { validateCriticalRuntimeServices } from "./critical";
 
+export interface RuntimeOwnershipObserver {
+  acquired(runtime: AgentRuntime): void;
+  released(runtime: AgentRuntime): void;
+}
+
 export interface ElizaRuntimeLifecycle {
   installRuntimePluginLifecycle(runtime: AgentRuntime): void;
   shutdownRuntime(
@@ -33,8 +38,10 @@ const officialElizaRuntimeLifecycle: ElizaRuntimeLifecycle = {
 export async function initializeElizaRuntime(
   createRuntime: () => AgentRuntime,
   lifecycle: ElizaRuntimeLifecycle = officialElizaRuntimeLifecycle,
+  ownership?: RuntimeOwnershipObserver,
 ): Promise<AgentRuntime> {
   const runtime = createRuntime();
+  ownership?.acquired(runtime);
 
   try {
     appendBootstrapTrace("phase:runtime.plugin-lifecycle:call");
@@ -57,6 +64,7 @@ export async function initializeElizaRuntime(
         lifecycle,
         { fast: true },
       );
+      ownership?.released(runtime);
     } catch (shutdownError) {
       appendBootstrapTrace(
         "phase:runtime.shutdown:error",

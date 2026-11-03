@@ -1,6 +1,6 @@
 import type { AppLogger } from "@doolittle/agent/logging/logger";
 import type { AppContext } from "@doolittle/agent/runtime/bootstrap";
-import { shutdownElizaRuntime } from "@doolittle/agent/runtime/lifecycle/shutdown";
+import { shutdownApplicationRuntime } from "@doolittle/agent/runtime/application";
 import type { AgentRuntime } from "@elizaos/core";
 import { acquireCliTerminalEndpoint } from "./cli-terminal-endpoint";
 import { handleRuntimePromptCommand } from "./prompt-command";
@@ -50,7 +50,7 @@ export async function handleEntrypointRuntimeSurface(input: {
   bootLogs: BootLogEntry[];
   printLine?: (message: string) => void;
   pushArg?: (arg: string) => void;
-  shutdownRuntime?: typeof shutdownElizaRuntime;
+  shutdownRuntime?: typeof shutdownApplicationRuntime;
   exit?: (code: number) => void;
   acquireTerminalEndpoint?: typeof acquireCliTerminalEndpoint;
 }): Promise<EntrypointRuntimeSurfaceResult> {
@@ -80,7 +80,7 @@ export async function handleEntrypointRuntimeSurface(input: {
         )
       : undefined;
   } catch (error) {
-    await (input.shutdownRuntime ?? shutdownElizaRuntime)(
+    await (input.shutdownRuntime ?? shutdownApplicationRuntime)(
       input.context.runtime as AgentRuntime,
       "Doolittle one-shot startup failure",
       { fast: true },
@@ -123,7 +123,7 @@ export async function handleEntrypointRuntimeSurface(input: {
       await endpoint?.close();
     }
   } catch (error) {
-    await (input.shutdownRuntime ?? shutdownElizaRuntime)(
+    await (input.shutdownRuntime ?? shutdownApplicationRuntime)(
       input.context.runtime as AgentRuntime,
       "Doolittle one-shot failure",
       { fast: true },
@@ -133,7 +133,7 @@ export async function handleEntrypointRuntimeSurface(input: {
     signalLifecycle?.dispose();
   }
   if (handledPrompt) {
-    await (input.shutdownRuntime ?? shutdownElizaRuntime)(
+    await (input.shutdownRuntime ?? shutdownApplicationRuntime)(
       input.context.runtime as AgentRuntime,
       "Doolittle one-shot completion",
       { fast: true },
@@ -164,7 +164,7 @@ export async function handleEntrypointRuntimeSurface(input: {
     // timers and database alive, so `doolittle` never returned to the shell.
     // An explicitly shared API keeps ownership until its own lifecycle ends.
     if (!input.runtimePlan.shouldStartApi) {
-      await (input.shutdownRuntime ?? shutdownElizaRuntime)(
+      await (input.shutdownRuntime ?? shutdownApplicationRuntime)(
         input.context.runtime as AgentRuntime,
         "Doolittle CLI completion",
         { fast: true },

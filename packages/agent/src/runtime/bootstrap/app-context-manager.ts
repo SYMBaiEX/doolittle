@@ -38,19 +38,25 @@ export class AppContextManager {
       });
     }
 
+    const attempt = this.contextPromise;
+    let resolved: AppContext;
     try {
-      const resolved = await this.contextPromise;
-      this.contextValue = resolved;
-      if (eagerDeferredHydration) {
-        await resolved.ensureDeferredHydration(options.startupMode);
-      }
-      appendBootstrapTrace("getAppContext:return");
-      return resolved;
+      resolved = await attempt;
     } catch (error) {
-      this.contextPromise = undefined;
-      this.contextValue = undefined;
+      if (this.contextPromise === attempt) this.contextPromise = undefined;
       throw error;
     }
+    // Deferred hydration may degrade or be retried; it does not erase a live core.
+    this.contextValue = resolved;
+    if (eagerDeferredHydration) {
+      await resolved.ensureDeferredHydration(options.startupMode);
+    }
+    appendBootstrapTrace("getAppContext:return");
+    return resolved;
+  }
+
+  current(): AppContext | undefined {
+    return this.contextValue;
   }
 
   reset(): void {
