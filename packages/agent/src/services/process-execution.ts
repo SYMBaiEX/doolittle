@@ -22,7 +22,7 @@ export interface TextProcessOptions {
   onStdout?: (chunk: string) => void;
   onStderr?: (chunk: string) => void;
   abortSignal?: AbortSignal;
-  /** Refuse dispatch unless this adapter can request owned-process teardown. */
+  /** Refuse dispatch unless this adapter can attempt and confirm owned teardown. */
   requireOwnedCancellation?: boolean;
   toolName: string;
 }
@@ -41,6 +41,72 @@ export class TextProcessCancellationUnavailableError extends Error {
     );
     this.name = "TextProcessCancellationUnavailableError";
   }
+}
+
+/** A teardown attempt failed to establish that the owned execution stopped. */
+export class TextProcessTerminationUnconfirmedError extends Error {
+  readonly code = "TEXT_PROCESS_TERMINATION_UNCONFIRMED";
+
+  constructor(
+    readonly detail: string,
+    readonly result?: TextProcessResult,
+  ) {
+    super(
+      `Command cancellation could not be confirmed; owned processes may still be running: ${detail}`,
+    );
+    this.name = "TextProcessTerminationUnconfirmedError";
+  }
+}
+
+const CANCELLATION_GRACE_MS = 250;
+const TERMINATION_CONFIRMATION_MS = 1_000;
+
+/** These waits retain process ownership independently of the aborted request. */
+function waitForTeardown(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function processAbsent(error: unknown): boolean {
+  return (error as NodeJS.ErrnoException | undefined)?.code === "ESRCH";
+}
+
+async function confirmProcessAbsent(id: number): Promise<string | undefined> {
+  const deadline = Date.now() + TERMINATION_CONFIRMATION_MS;
+  while (true) {
+    try {
+      process.kill(id, 0);
+    } catch (error) {
+      if (processAbsent(error)) return undefined;
+      return `Process termination could not be inspected: ${boundedErrorMessage(error)}`;
+    }
+    if (Date.now() >= deadline) {
+      return "The owned process or process group still exists after teardown.";
+    }
+    await waitForTeardown(25);
+  }
+}
+
+async function terminateProcessGroup(
+  groupId: number,
+): Promise<string | undefined> {
+  let signalFailure: string | undefined;
+  try {
+    process.kill(-groupId, "SIGINT");
+  } catch (error) {
+    if (processAbsent(error)) return undefined;
+    signalFailure = `SIGINT failed: ${boundedErrorMessage(error)}`;
+  }
+  await waitForTeardown(CANCELLATION_GRACE_MS);
+  try {
+    process.kill(-groupId, "SIGKILL");
+  } catch (error) {
+    if (processAbsent(error)) return undefined;
+    signalFailure = `SIGKILL failed: ${boundedErrorMessage(error)}`;
+  }
+  const confirmationFailure = await confirmProcessAbsent(-groupId);
+  return confirmationFailure
+    ? [signalFailure, confirmationFailure].filter(Boolean).join(" ")
+    : undefined;
 }
 
 const PROCESS_ID_MARKER = "__DOOLITTLE_ROUTER_PID__";
@@ -199,14 +265,18 @@ async function runAbortableWindowsHostProcess(
 
   const killProcessTree = () => {
     if (processId === undefined || killPromise) return;
+    const ownedProcessId = processId;
     killPromise = runShell({
       command: taskkillExecutable,
-      args: ["/PID", String(processId), "/T", "/F"],
+      args: ["/PID", String(ownedProcessId), "/T", "/F"],
       timeoutMs: 5_000,
       toolName: options.toolName,
     })
-      .then((result) => {
-        if (result.exitCode === 0) return;
+      .then(async (result) => {
+        if (result.exitCode === 0 && result.sandbox === "host") {
+          terminationFailure = await confirmProcessAbsent(ownedProcessId);
+          return;
+        }
         const detail = result.stderr.trim().slice(0, 500);
         terminationFailure = `taskkill exited with code ${result.exitCode}${
           detail ? `: ${detail}` : "."
@@ -270,26 +340,24 @@ async function runAbortableWindowsHostProcess(
       onStderr,
       toolName: options.toolName,
     });
+    const timedOut =
+      result.exitCode === 124 &&
+      result.stderr.includes("[shell-router] command timed out");
+    if (timedOut) killProcessTree();
     await killPromise;
     const stderr = result.stderr.replace(
       new RegExp(`^${PROCESS_ID_MARKER}\\d+\\r?\\n?`, "u"),
       "",
     );
-    if (aborted && processId === undefined) {
+    if ((aborted || timedOut) && processId === undefined) {
       terminationFailure =
         "the routed Windows process ID was unavailable before exit.";
     }
-    if (aborted && terminationFailure) {
-      return {
+    if ((aborted || timedOut) && terminationFailure) {
+      throw new TextProcessTerminationUnconfirmedError(terminationFailure, {
         ...result,
-        exitCode: result.exitCode === 0 ? 1 : result.exitCode,
-        stderr: [
-          stderr,
-          `Command cancellation could not be confirmed; the process tree may have continued: ${terminationFailure}`,
-        ]
-          .filter(Boolean)
-          .join("\n"),
-      };
+        stderr,
+      });
     }
     return {
       ...result,
@@ -298,6 +366,16 @@ async function runAbortableWindowsHostProcess(
         stderr ||
         (aborted ? "Command cancelled by operator." : stderrPrefix.trim()),
     };
+  } catch (error) {
+    if (error instanceof TextProcessTerminationUnconfirmedError) throw error;
+    if (aborted) {
+      await killPromise;
+      throw new TextProcessTerminationUnconfirmedError(
+        terminationFailure ??
+          `The router failed before cancellation could be confirmed: ${boundedErrorMessage(error)}`,
+      );
+    }
+    throw error;
   } finally {
     options.abortSignal?.removeEventListener("abort", abort);
     await killPromise;
@@ -311,26 +389,21 @@ async function runAbortableHostProcess(
 ): Promise<TextProcessResult> {
   let processGroupId: number | undefined;
   let aborted = false;
-  let forceKillTimer: ReturnType<typeof setTimeout> | undefined;
+  let termination: Promise<string | undefined> | undefined;
   let stderrPrefix = "";
 
-  const killProcessGroup = (signal: NodeJS.Signals) => {
-    if (processGroupId === undefined) return;
-    try {
-      process.kill(-processGroupId, signal);
-    } catch {
-      // The routed process may already have exited.
+  const terminate = () => {
+    if (processGroupId !== undefined && !termination) {
+      termination = terminateProcessGroup(processGroupId);
     }
   };
   const abort = () => {
     aborted = true;
-    killProcessGroup("SIGINT");
-    forceKillTimer = setTimeout(() => killProcessGroup("SIGKILL"), 250);
-    forceKillTimer.unref?.();
+    terminate();
   };
   const onStderr = (chunk: string) => {
     if (processGroupId !== undefined) {
-      options.onStderr?.(chunk);
+      if (!aborted) options.onStderr?.(chunk);
       return;
     }
     stderrPrefix += chunk;
@@ -347,13 +420,13 @@ async function runAbortableHostProcess(
       parsedPid > 0
     ) {
       processGroupId = parsedPid;
-      if (aborted) killProcessGroup("SIGINT");
+      if (aborted) terminate();
       const remainder = stderrPrefix.slice(newline + 1);
-      if (remainder) options.onStderr?.(remainder);
+      if (remainder && !aborted) options.onStderr?.(remainder);
       stderrPrefix = "";
       return;
     }
-    options.onStderr?.(stderrPrefix);
+    if (!aborted) options.onStderr?.(stderrPrefix);
     stderrPrefix = "";
   };
 
@@ -365,7 +438,9 @@ async function runAbortableHostProcess(
       cwd: options.cwd,
       env: definedEnvironment(options.env),
       timeoutMs: options.timeoutMs,
-      onStdout: options.onStdout,
+      onStdout: (chunk) => {
+        if (!aborted) options.onStdout?.(chunk);
+      },
       onStderr,
       toolName: options.toolName,
     });
@@ -373,6 +448,22 @@ async function runAbortableHostProcess(
       new RegExp(`^${PROCESS_ID_MARKER}\\d+\\r?\\n?`, "u"),
       "",
     );
+    const timedOut =
+      result.exitCode === 124 &&
+      result.stderr.includes("[shell-router] command timed out");
+    if (timedOut) terminate();
+    if (aborted || timedOut) {
+      const failure =
+        processGroupId === undefined
+          ? "The routed process group ID was unavailable before exit."
+          : await termination;
+      if (failure) {
+        throw new TextProcessTerminationUnconfirmedError(failure, {
+          ...result,
+          stderr,
+        });
+      }
+    }
     return {
       ...result,
       exitCode: aborted ? 130 : result.exitCode,
@@ -380,8 +471,19 @@ async function runAbortableHostProcess(
         stderr ||
         (aborted ? "Command cancelled by operator." : stderrPrefix.trim()),
     };
+  } catch (error) {
+    if (error instanceof TextProcessTerminationUnconfirmedError) throw error;
+    if (aborted) {
+      const failure = await termination;
+      throw new TextProcessTerminationUnconfirmedError(
+        failure ??
+          `The router failed before cancellation could be confirmed: ${boundedErrorMessage(error)}`,
+      );
+    }
+    throw error;
   } finally {
     options.abortSignal?.removeEventListener("abort", abort);
-    if (forceKillTimer) clearTimeout(forceKillTimer);
+    // The router settling does not prove that background group members stopped.
+    await termination;
   }
 }

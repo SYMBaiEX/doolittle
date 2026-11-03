@@ -29,6 +29,7 @@ export type RepositoryReviewDegradedReason =
   | "network_error"
   | "malformed_response"
   | "execution_unavailable"
+  | "termination_unconfirmed"
   | "timeout";
 export interface RepositoryReviewLocalSummary {
   isRepository: boolean;

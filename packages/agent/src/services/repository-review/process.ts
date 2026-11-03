@@ -1,6 +1,7 @@
 import {
   runTextProcess,
   TextProcessCancellationUnavailableError,
+  TextProcessTerminationUnconfirmedError,
 } from "../process-execution";
 import type {
   RepositoryReviewProcessRunner,
@@ -15,7 +16,8 @@ type ProcessFailureKind =
   | "timeout"
   | "output_limit"
   | "aborted"
-  | "execution_unavailable";
+  | "execution_unavailable"
+  | "termination_unconfirmed";
 
 export class RepositoryReviewProcessError extends Error {
   constructor(readonly kind: ProcessFailureKind) {
@@ -77,6 +79,9 @@ export const runRepositoryReviewProcess: RepositoryReviewProcessRunner =
         exitCode: result.exitCode,
       };
     } catch (error) {
+      if (error instanceof TextProcessTerminationUnconfirmedError) {
+        throw new RepositoryReviewProcessError("termination_unconfirmed");
+      }
       if (error instanceof TextProcessCancellationUnavailableError) {
         throw new RepositoryReviewProcessError("execution_unavailable");
       }
@@ -91,6 +96,13 @@ export function classifyFailure(
   missingTool?: "git" | "gh",
 ): Pick<NonNullable<RepositoryReviewResult["degraded"]>, "reason" | "detail"> {
   if (failure instanceof RepositoryReviewProcessError) {
+    if (failure.kind === "termination_unconfirmed") {
+      return {
+        reason: "termination_unconfirmed",
+        detail:
+          "Repository review stopped waiting after process teardown could not be confirmed. Owned processes may still be running; cancellation and timeout are not confirmed.",
+      };
+    }
     if (failure.kind === "execution_unavailable") {
       return {
         reason: "execution_unavailable",
