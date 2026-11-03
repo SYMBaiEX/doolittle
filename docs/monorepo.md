@@ -14,7 +14,7 @@ Doolittle is organized as a Nub workspace monorepo running on stock Node.js.
 | `packages/ui`                   | Browser-only shared presentation components; no runtime or privileged host access.                                                                                            |
 | `packages/evals`                | Workflow evaluations and evidence reports; depends on the runtime without owning its lifecycle.                                                                               |
 | `packages/contracts`            | Secret-free contracts shared across the agent, desktop, gateway, and plugins.                                                                                                 |
-| `packages/plugins`              | Doolittle product facets plus the Claude Code and Devin provider bridges. Official Codex, Eliza Cloud, SQL, browser, MCP, messaging, and model plugins remain upstream-owned. |
+| `packages/plugins`              | Doolittle product facets plus the Claude Code provider bridge. Official Codex, Eliza Cloud, SQL, browser, MCP, messaging, and model plugins remain upstream-owned. |
 | `packages/characters`           | Character and persona data loaded by Eliza.                                                                                                                                   |
 | `packages/skills`               | Curated, generated, and optional skill documents. See the [skills index](../packages/skills/index.md). |
 | `packages/storage`              | Strict shared JSON state reads for desktop, runtime, and plugins. |

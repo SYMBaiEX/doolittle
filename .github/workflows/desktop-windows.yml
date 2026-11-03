@@ -151,7 +151,6 @@ jobs:
           $env:DOOLITTLE_PORT = "43199"
           $env:DOOLITTLE_MODE = "api"
           $env:DOOLITTLE_OFFLINE_BOOTSTRAP = "true"
-          $env:DOOLITTLE_USE_LINKED_DEVIN_AUTH = "false"
           $env:DATABASE_URL = ""
           $env:POSTGRES_URL = ""
 

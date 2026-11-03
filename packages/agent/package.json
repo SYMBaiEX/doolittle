@@ -9,7 +9,6 @@
     "@doolittle/acp": "workspace:*",
     "@doolittle/contracts": "workspace:*",
     "@doolittle/plugin-claude-code": "workspace:*",
-    "@doolittle/plugin-devin": "workspace:*",
     "@doolittle/provider-transport": "workspace:*",
     "@elizaos/agent": "workspace:2.0.12-beta.0",
     "@elizaos/core": "workspace:2.0.12-beta.0",

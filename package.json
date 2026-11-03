@@ -148,7 +148,6 @@
     "check:release:static": "nub run lint:check && nub run typecheck && nub run test:release && nub run build && nub run check:acceptance && nub run check:runtime-advisory-policy && nub run desktop:runtime:prepare && nub run desktop:runtime:audit",
     "check:release": "nub run check:release:static && nub run test:e2e:release",
     "publish:claude-code:dry-run": "nub run publish:providers -- --provider claude-code",
-    "publish:devin:dry-run": "nub run publish:providers -- --provider devin",
     "publish:provider-transport:dry-run": "nub run publish:providers -- --provider provider-transport",
     "publish:providers:check": "nub run publish:providers -- --provider all",
     "workspace:list": "nub scripts/workspaces.ts",

@@ -171,7 +171,6 @@ jobs:
           export DOOLITTLE_PORT="43199"
           export DOOLITTLE_MODE="api"
           export DOOLITTLE_OFFLINE_BOOTSTRAP="true"
-          export DOOLITTLE_USE_LINKED_DEVIN_AUTH="false"
           export DATABASE_URL=""
           export POSTGRES_URL=""
           export ELECTRON_RUN_AS_NODE="1"

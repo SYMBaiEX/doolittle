@@ -6,7 +6,6 @@ name: Publish public provider packages
 # namespace and the npm-publish GitHub environment before enabling releases.
 # - @doolittle/provider-transport
 # - @doolittle/plugin-claude-code
-# - @doolittle/plugin-devin
 on:
   push:
     tags:
@@ -121,7 +120,6 @@ jobs:
             const paths = [
               "packages/plugins/provider-transport/package.json",
               "packages/plugins/plugin-claude-code/package.json",
-              "packages/plugins/plugin-devin/package.json",
             ];
             for (const path of paths) {
               const manifest = JSON.parse(readFileSync(path, "utf8"));

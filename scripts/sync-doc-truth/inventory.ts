@@ -69,10 +69,13 @@ function resolveWorkspacePath(root: string, packageName: string): string {
   const workspaceDir = join(root, "packages", "plugins", packageDir);
   return workspaceHasPackageName(workspaceDir, packageName)
     ? relative(root, workspaceDir)
-    : "(external)";
+    : packageScope === "@doolittle/"
+      ? "(missing workspace)"
+      : "(external)";
 }
 
 function detectTestStatus(root: string, workspacePath: string): string {
+  if (workspacePath === "(missing workspace)") return "unavailable";
   if (workspacePath === "(external)" || workspacePath.endsWith(".ts")) {
     return workspacePath === "(external)" ? "external" : "covered in agent";
   }
@@ -85,6 +88,7 @@ function detectTestStatus(root: string, workspacePath: string): string {
 }
 
 function describeOwner(source: string, workspacePath: string): string {
+  if (workspacePath === "(missing workspace)") return "doolittle-runtime";
   if (workspacePath === "(external)") {
     return source === "official" ? "upstream" : "third-party";
   }
@@ -99,6 +103,7 @@ function describePublishIntent(
   if (id === "product.doolittle-runtime") {
     return "internal-product-layer";
   }
+  if (workspacePath === "(missing workspace)") return "missing-workspace";
   if (workspacePath === "(external)") {
     return "upstream-dependency";
   }
@@ -127,7 +132,10 @@ export function buildInventoryRows(root: string): PluginInventoryRow[] {
       owner: describeOwner(entry.source, workspacePath),
       publishIntent: describePublishIntent(entry.id, entry.kind, workspacePath),
       tests: detectTestStatus(root, workspacePath),
-      notes: entry.notes,
+      notes:
+        workspacePath === "(missing workspace)"
+          ? `Unavailable: workspace missing; runtime catalog still references it. ${entry.notes}`
+          : entry.notes,
     };
   });
 }

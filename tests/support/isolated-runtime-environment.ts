@@ -105,7 +105,6 @@ export function isolatedRuntimeEnvironment(
     ELIZA_ACP_STATE_DIR: join(runtimeDir, "plugin-acp"),
     ACP_AUDIT_LOG_PATH: join(runtimeDir, "plugin-acp", "audit.ndjson"),
     DOOLITTLE_OFFLINE_BOOTSTRAP: "true",
-    DOOLITTLE_USE_LINKED_DEVIN_AUTH: "false",
     ELIZA_ACCOUNT_POOL_KEEPALIVE: "false",
   };
 }

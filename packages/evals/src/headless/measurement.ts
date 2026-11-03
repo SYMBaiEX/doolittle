@@ -19,7 +19,7 @@ const PROVIDERS = [
   "claude-code",
   "ollama",
   "elizacloud",
-  "devin",
+  "devin", // Historical reports may still identify this retired provider.
   "offline",
 ];
 const EFFORTS = [

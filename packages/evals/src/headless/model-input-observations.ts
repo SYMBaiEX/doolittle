@@ -40,7 +40,7 @@ const PROVIDERS = [
   "elizaOSCloud",
   "ollama",
   "claude-code",
-  "devin",
+  "devin", // Historical reports may still identify this retired provider.
 ] as const;
 type Slot = (typeof SLOTS)[number];
 type Provider = (typeof PROVIDERS)[number];

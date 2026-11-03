@@ -487,9 +487,6 @@ importers:
       '@doolittle/plugin-claude-code':
         specifier: workspace:*
         version: link:../plugins/plugin-claude-code
-      '@doolittle/plugin-devin':
-        specifier: workspace:*
-        version: link:../plugins/plugin-devin
       '@doolittle/plugins':
         specifier: workspace:*
         version: link:../plugins
@@ -663,15 +660,6 @@ importers:
         version: 2.0.11-beta.7
 
   packages/plugins/plugin-claude-code:
-    dependencies:
-      '@doolittle/provider-transport':
-        specifier: 0.1.0
-        version: link:../provider-transport
-      '@elizaos/core':
-        specifier: workspace:2.0.12-beta.0
-        version: link:../../../vendor/elizaos/packages/core
-
-  packages/plugins/plugin-devin:
     dependencies:
       '@doolittle/provider-transport':
         specifier: 0.1.0

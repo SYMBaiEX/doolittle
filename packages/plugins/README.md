@@ -2,7 +2,7 @@
 
 This workspace contains provider bridges and product adapters:
 
-- public provider bridges such as [`plugin-claude-code`](./plugin-claude-code) and [`plugin-devin`](./plugin-devin); Codex is supplied directly by `@elizaos/plugin-codex-cli`
+- the public provider bridge [`plugin-claude-code`](./plugin-claude-code); Codex is supplied directly by `@elizaos/plugin-codex-cli`
 - internal adapters that expose Doolittle runtime services through plugin contracts
 
 ## Canonical Truth
@@ -30,7 +30,6 @@ Runtime truth is exposed directly from:
 The intentionally user-facing provider bridges are:
 
 - [`plugin-claude-code`](./plugin-claude-code)
-- [`plugin-devin`](./plugin-devin)
 - `@elizaos/plugin-codex-cli` is consumed directly from the official ElizaOS release rather than vendored here.
 - `@elizaos/plugin-elizacloud` is consumed directly from the official ElizaOS release rather than vendored here.
 
@@ -44,9 +43,7 @@ Suggested runtime flow:
 - `/accounts connect codex`
 - `/accounts connect claude-code`
 - `/accounts connect elizacloud`
-- `/accounts connect devin`
 - `/accounts doctor`
 - `/accounts use codex`
 - `/accounts use claude-code`
 - `/accounts use elizacloud`
-- `/accounts use devin`
