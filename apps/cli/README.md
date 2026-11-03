@@ -30,6 +30,11 @@ prompts, model routing, plugin lifecycles, and shared services belong in
 `packages/agent` or the SDK. Import shared workspaces through their declared
 exports; runtime code must not import the CLI application.
 
+The ACP entrypoint adapts stdin/stdout to the official protocol stream. It uses
+`ApplicationSession` for configuration, services, lazy engine activation, and
+shutdown. Its session origins and terminal/approval ports stay attached to that
+same graph before and after the first model turn.
+
 `DOOLITTLE_MODE=cli` keeps chat without an API listener. `both` can start the API
 after terminal readiness. Desktop uses explicit API mode rather than loading
 terminal UI into its renderer.

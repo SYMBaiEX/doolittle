@@ -12,11 +12,18 @@ barrel export. For example:
 
 ```ts
 import { loadConfig } from "@doolittle/agent/config/env";
-import { getAppContext } from "@doolittle/agent/runtime/bootstrap";
+import { getApplicationSession } from "@doolittle/agent/runtime/application";
+
+const application = getApplicationSession();
+const context = await application.ensureRuntime({ startupMode: "api" });
+// The process host closes its application through application.dispose().
 ```
 
-These are runtime APIs, not browser APIs. Bootstrap can start persistent services
-and provider discovery; applications own startup, shutdown, and profile choice.
+These are runtime APIs, not browser APIs. ApplicationSession owns one profile
+configuration/service graph and lazy SDK activation. Use its disposal boundary
+when closing that application.
+`getAppContext` remains a compatibility entrypoint backed by the same process
+session; do not build a second service graph for ACP or another transport.
 Use the [CLI entrypoints](../../apps/cli/README.md) to run the application.
 
 ## Source map
@@ -24,7 +31,8 @@ Use the [CLI entrypoints](../../apps/cli/README.md) to run the application.
 | Source | Responsibility |
 | --- | --- |
 | [config](src/config) | Environment parsing, defaults, and runtime configuration. |
-| [runtime/bootstrap](src/runtime/bootstrap) | Application context and SDK startup. |
+| [runtime/application](src/runtime/application) | Configuration/service ownership, lazy runtime activation, and disposal. |
+| [runtime/bootstrap](src/runtime/bootstrap) | SDK composition and activation inside the application owner. |
 | [runtime/chat-turn](src/runtime/chat-turn) | Turn execution, receipts, cancellation, and continuation. |
 | [runtime/engine](src/runtime/engine) | Shared host and named-bot worker lifecycle. |
 | [runtime/native/plugin-registry](src/runtime/native/plugin-registry) | Official plugins and product action/provider assembly. |

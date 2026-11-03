@@ -61,7 +61,12 @@ app installation are separate workflows from this reload loop.
 Put shared runtime behavior in `packages/agent`; put terminal presentation in
 `apps/cli` and Electron or renderer behavior in `apps/desktop`. Keep shared API
 records in `packages/contracts` and reusable browser controls in `packages/ui`.
-Import other workspaces through their declared exports.
+Import other workspaces through their declared exports. Shared run, model-route,
+execution, and worker-host records belong in `packages/contracts`; extend those
+records with local routing context instead of copying them into a client.
+Application entrypoints use `ApplicationSession` to own the profile's service
+graph and lazy SDK runtime. Stdio and IPC adapters consume explicit domain ports;
+they do not construct a second application context.
 
 Doolittle composes the ElizaOS engine. Use official SDK lifecycles for model
 calls, plugins, tasks, account selection, memory, and coding orchestration.

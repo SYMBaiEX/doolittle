@@ -89,6 +89,14 @@ export class TerminalService {
     this.appServers = new AppServerManager(this.interactiveSessions);
   }
 
+  /** Admission is separate from delivery; execution rechecks the live policy. */
+  assertExecutionAvailable(options: {
+    requireCancellation?: boolean;
+    abortSignal?: AbortSignal;
+  } = {}): void {
+    this.commandOrchestrator.assertExecutionAvailable(options);
+  }
+
   async run(
     command: string,
     timeoutMs?: number,

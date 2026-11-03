@@ -99,6 +99,7 @@
     "./utils/read-regular-file": "./src/utils/read-regular-file.ts",
     "./utils/terminal-text": "./src/utils/terminal-text.ts",
     "./utils/workspace-commands": "./src/utils/workspace-commands.ts",
-    "./version": "./src/version.ts"
+    "./version": "./src/version.ts",
+    "./runtime/application": "./src/runtime/application/index.ts"
   }
 }

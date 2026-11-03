@@ -28,7 +28,8 @@ another instance; see [development](../../docs/development.md).
 - [`src/preload`](src/preload) exposes the context-isolated client contract.
 - [`src/renderer`](src/renderer) owns presentation over the host transport and
   controlled components from `@doolittle/ui`.
-- [`src/shared`](src/shared) holds desktop-local shared contracts.
+- [`src/shared`](src/shared) holds desktop routing/presentation additions and
+  re-exports canonical run/model contracts from `@doolittle/contracts`.
 - [`scripts`](scripts) contains development, runtime tracing, artifact,
   provenance, and packaging helpers.
 

@@ -17,11 +17,25 @@ Check [`package.json`](package.json) for supported subpaths and
 [`src/index.ts`](src/index.ts) for root exports. Do not import private source
 paths from another workspace.
 
-The source layout follows domain ownership: coding sessions and verification,
-workspace results, repositories, bots, model routes, themes, UI hosts and plugins,
-and cross-surface records under `src/types`. Keep runtime validation beside the
-contract it protects. Use the existing Zod schemas rather than unchecked casts
-when accepting persisted or external data.
+## Canonical primitives
+
+| Contract | Ownership |
+| --- | --- |
+| [worker-host](src/worker-host.ts) | RPC envelopes, operation vocabulary, request identity, and framing limits. |
+| [run](src/run.ts) | Serializable run evidence, lifecycle status vocabulary, and receipt admission. |
+| [model-route](src/model-route.ts) | Product provider identities, reasoning vocabulary, settings, and model catalog. |
+| [execution](src/execution.ts) | Execution targets, supported capabilities, and execution records. |
+| [bots](src/bots.ts) and [ui-host](src/ui-host.ts) | Bot definitions and explicitly projected client interactions. |
+
+Contracts describe evidence and boundary shapes. They do not attest a sender,
+grant workspace access, run processes, or own application/service lifetimes.
+Use each guard or schema only for the guarantee it documents; a known status
+value is not a validated run receipt. Preserve the distinction between persisted
+open identifiers and finite input choices.
+
+Other contracts cover coding sessions, verification, workspaces, repositories,
+themes, plugins, and cross-surface records under `src/types`. Producers and
+consumers import the same vocabulary rather than redeclaring matching shapes.
 
 ## Development
 

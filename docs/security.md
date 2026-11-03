@@ -24,6 +24,12 @@ Worker threads isolate runtime state, not operating-system authority. Plugins
 and tools may execute code with the current user's permissions. Approval,
 cancellation, and ownership controls must remain effective in every client.
 
+Configured execution targets fail explicitly when unavailable; they never fall
+back to local execution. Required cancellation is admitted through the backend's
+actual capability. A deadline settling or a cancellation signal being sent does
+not establish that underlying work stopped. Surface unconfirmed termination and
+retain operation ownership until the outcome is authoritative.
+
 ## Persistent state and credentials
 
 Keep `.env`, `.doolittle/`, provider homes, evaluation evidence, and runtime data

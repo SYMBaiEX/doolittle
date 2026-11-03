@@ -14,7 +14,10 @@
     "./ui-plugin": "./src/ui-plugin.ts",
     "./model-route": "./src/model-route.ts",
     "./repository": "./src/repository.ts",
-    "./wallet-activity": "./src/wallet-activity.ts"
+    "./wallet-activity": "./src/wallet-activity.ts",
+    "./worker-host": "./src/worker-host.ts",
+    "./run": "./src/run.ts",
+    "./execution": "./src/execution.ts"
   },
   "dependencies": {
     "@elizaos/core": "workspace:2.0.12-beta.0",

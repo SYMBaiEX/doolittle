@@ -10,7 +10,11 @@ import {
   resolveConversationWorkspace,
   runWithConversationWorkspace,
 } from "../../runtime/workspace-scope";
-import { TerminalCancellationUnavailableError } from "../../services/terminal/command/orchestrator/index";
+import {
+  ExecutionBackendUnavailableError,
+  TerminalCancellationUnavailableError,
+} from "../../services/terminal/command/orchestrator/index";
+import { TextProcessTerminationUnconfirmedError } from "../../services/process-execution";
 import {
   TerminalCreationConflictError,
   TerminalSessionNotFoundError,
@@ -134,6 +138,26 @@ function terminalSessionError(error: unknown, instanceId?: string): Response {
       400,
     );
   return json({ error: "Terminal session request failed." }, 500);
+}
+
+function terminalExecutionError(error: unknown): Response | undefined {
+  if (error instanceof TextProcessTerminationUnconfirmedError) {
+    return json(
+      {
+        code: error.code,
+        error: error.message,
+        executionMayStillBeRunning: true,
+      },
+      409,
+    );
+  }
+  if (error instanceof ExecutionBackendUnavailableError) {
+    return json({ code: error.code, error: error.message }, 503);
+  }
+  if (error instanceof TerminalCancellationUnavailableError) {
+    return json({ code: error.code, error: error.message }, 501);
+  }
+  return undefined;
 }
 
 function terminalSessionId(body: Record<string, unknown>): string {
@@ -340,13 +364,20 @@ export async function handleOperationsRoutes(
     if ("error" in input) {
       return json({ error: input.error }, input.status);
     }
-    return json({
-      result: await runEffectiveShellCommand(
-        context.runtime,
-        input.command,
-        input.timeoutMs,
-      ),
-    });
+    try {
+      context.services.terminal.assertExecutionAvailable();
+      return json({
+        result: await runEffectiveShellCommand(
+          context.runtime,
+          input.command,
+          input.timeoutMs,
+        ),
+      });
+    } catch (error) {
+      const unavailable = terminalExecutionError(error);
+      if (unavailable) return unavailable;
+      throw error;
+    }
   }
 
   if (request.method === "POST" && url.pathname === "/api/terminal/run") {
@@ -390,6 +421,17 @@ export async function handleOperationsRoutes(
     )
       return json({ error: "Invalid terminal run identity." }, 400);
 
+    try {
+      context.services.terminal.assertExecutionAvailable({
+        requireCancellation: options.captureOutputRequired,
+        abortSignal: body.captureOutput === true ? request.signal : undefined,
+      });
+    } catch (error) {
+      const unavailable = terminalExecutionError(error);
+      if (unavailable) return unavailable;
+      throw error;
+    }
+
     const run = runEffectiveShellCommand(
       context.runtime,
       input.command,
@@ -410,12 +452,8 @@ export async function handleOperationsRoutes(
     try {
       return json(sdkTerminalRunResult(await run, input.timeoutMs));
     } catch (error) {
-      if (
-        options.captureOutputRequired &&
-        error instanceof TerminalCancellationUnavailableError
-      ) {
-        return json({ error: error.message }, 501);
-      }
+      const unavailable = terminalExecutionError(error);
+      if (unavailable) return unavailable;
       throw error;
     }
   }
@@ -427,6 +465,14 @@ export async function handleOperationsRoutes(
     const input = parseTerminalCommandInput(body);
     if ("error" in input) {
       return json({ error: input.error }, input.status);
+    }
+
+    try {
+      context.services.terminal.assertExecutionAvailable();
+    } catch (error) {
+      const unavailable = terminalExecutionError(error);
+      if (unavailable) return unavailable;
+      throw error;
     }
 
     const runId = randomUUID();

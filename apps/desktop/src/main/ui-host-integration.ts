@@ -6,6 +6,7 @@ import type {
 import {
   isRunStatus,
   isTerminalRunStatus,
+  type RunStatus,
 } from "@doolittle/contracts/run";
 import type {
   UiConversation,
@@ -15,7 +16,7 @@ import type {
   UiSnapshot,
   UiTarget,
 } from "@doolittle/contracts/ui-host";
-import type { BackendState, RunSnapshot } from "../shared/contracts";
+import type { BackendState } from "../shared/contracts";
 import { SseParser } from "../shared/sse";
 import { readBoundedResponseText } from "./ipc/runtime-http";
 import {
@@ -92,8 +93,16 @@ function object(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
 }
 
+interface UiRunEvidence {
+  runId: string;
+  sessionId: string;
+  botId?: string;
+  status: RunStatus;
+  pendingApprovals: number;
+}
+
 export function nativeUiRunState(
-  run: Pick<RunSnapshot, "status" | "pendingApprovals">,
+  run: Pick<UiRunEvidence, "status" | "pendingApprovals">,
 ): UiRunState {
   if (run.status === "complete") return "complete";
   if (run.status === "cancelled") return "stopped";
@@ -127,18 +136,27 @@ function checkRun(
   value: unknown,
   target: UiTarget,
   runId: string,
-): RunSnapshot {
+): UiRunEvidence {
   if (
     !object(value) ||
     value.runId !== runId ||
     value.sessionId !== target.sessionId ||
     (value.botId !== undefined && value.botId !== target.botId) ||
-    !isRunStatus(value.status)
+    !isRunStatus(value.status) ||
+    typeof value.pendingApprovals !== "number" ||
+    !Number.isSafeInteger(value.pendingApprovals) ||
+    value.pendingApprovals < 0
   )
     throw new Error(
       "Canonical run receipt has a conflicting owner or identity.",
     );
-  return value as unknown as RunSnapshot;
+  return {
+    runId,
+    sessionId: target.sessionId,
+    ...(value.botId === undefined ? {} : { botId: target.botId }),
+    status: value.status,
+    pendingApprovals: value.pendingApprovals,
+  };
 }
 
 /** Projection only. Execution, approval policy and cancellation remain in the durable runtime. */
