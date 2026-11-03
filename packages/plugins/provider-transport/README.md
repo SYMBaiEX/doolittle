@@ -1,31 +1,21 @@
 # @doolittle/provider-transport
 
-Shared transport helpers for ElizaOS provider plugins that ultimately accept a
-plain-text prompt.
+Shared helpers for ElizaOS providers whose destination accepts a plain-text
+prompt. This is the compatibility boundary for input conversion, subprocess
+execution, and structured transport failures; native providers should consume
+the SDK's messages, attachments, and tools directly.
 
-The adapter preserves the native `GenerateTextParams` contract for as long as
-possible, delegates chat rendering to `@elizaos/core`, and only down-converts
-attachments and tool selection when the destination transport cannot accept
-them natively.
+## API
+
+Import helpers from the [package root](src/index.ts):
 
 ```ts
 import {
-  getRuntimeModelSettings,
-  getRuntimeProvider,
   resolveModelPromptText,
+  runProviderCommand,
 } from "@doolittle/provider-transport";
 
 const prompt = resolveModelPromptText(params);
-const provider = getRuntimeProvider(runtime);
-const model = getRuntimeModelSettings(runtime);
-```
-
-Provider CLIs can use the package's narrow Node command runner without pulling
-the full Eliza agent package into their published dependency graph:
-
-```ts
-import { runProviderCommand } from "@doolittle/provider-transport";
-
 const result = await runProviderCommand({
   command: "provider-cli",
   args: ["--print", prompt],
@@ -34,18 +24,38 @@ const result = await runProviderCommand({
 });
 ```
 
-The runner does not invoke a shell. It preserves stdout and stderr separately,
-applies Eliza core's environment policy, and terminates the POSIX process group
-or Windows process tree on a deadline, caller cancellation, or excessive output.
-The combined stdout/stderr budget defaults to 8 MiB (`maxOutputBytes` can select
-1 byte through 64 MiB). Overflow returns exit code 125 and `output_limit`, never
-successful truncated output. The bounded diagnostic can add up to 256 bytes to
-the captured output budget.
+`resolveModelPromptText` preserves prompt-segment text, falls back to the prompt
+or SDK-rendered messages, and appends the applicable text-transport tool
+contract. Model-setting readers consume Doolittle's `runtimeSettings` envelope.
+The root also exports full text-model handler registration helpers and the
+`ProviderTransportError` normalization and HTTP-status helpers.
 
-Windows termination uses the system `taskkill.exe` with `/T /F` and a five-second
-termination deadline. Its executable is selected from fixed `Windows/System32`
-locations on local drives, rather than executing an environment-supplied path.
-Nonstandard Windows system directories fail explicitly. Failed tree termination is reported as `termination_error`
-(exit code 126), or rejects cancellation explicitly. Retained descendant pipes
-cannot keep the request pending indefinitely; failure is not reported as a
-successful cancellation.
+## Process boundary
+
+The [command runner](src/command.ts) uses literal argv without a shell, keeps
+stdout and stderr separate, and sanitizes supplied environment overrides with
+the SDK policy. It bounds
+execution and combined output, propagates cancellation, and terminates the
+POSIX process group or Windows process tree.
+
+The default output budget is 8 MiB; callers can select 1 byte through 64 MiB.
+Overflow reports `output_limit` with exit code 125. Windows uses a fixed system
+`taskkill.exe` location with a bounded termination deadline. Failed tree
+termination reports `termination_error` with exit code 126, or explicitly rejects
+cancellation. Consumers must preserve these failures rather than treating
+partial output or an uncertain termination as success.
+
+## Develop
+
+From the repository root:
+
+```sh
+nub run --cwd packages/plugins/provider-transport typecheck
+nub run test:scope tests/boundary/provider-command.test.ts
+nub run publish:provider-transport:dry-run
+```
+
+Source is exported directly; provider publication builds and verifies its staged
+artifact through the root publishing script. See
+[releases](../../../docs/releases.md) for distribution and
+[architecture](../../../docs/architecture.md) for dependency ownership.

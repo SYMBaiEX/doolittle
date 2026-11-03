@@ -1,78 +1,42 @@
 # @doolittle/plugin-claude-code
 
-Doolittle's narrow structured local-CLI fallback behind the official Eliza
-Anthropic provider.
+Structured local Claude CLI fallback behind the official Eliza Anthropic
+provider. Normal linked OAuth inference, account rotation, Messages API
+transport, tools, streaming, and prompt caching belong to
+`@elizaos/plugin-anthropic`.
 
-## What It Does
+## Integration
 
-- Exposes linked Claude Code status to Doolittle's operator surfaces
-- Converts Eliza's single required response schema to Claude CLI structured output
-- Prevents the CLI from starting a second nested tool/agent loop
-- Runs only when explicit CLI fallback is enabled and reusable OAuth is absent
+The [package root](src/index.ts) exports `createClaudeCodePlugin`,
+`resolveClaudeCliModel`, `invokeClaudeCodeCliPrint`, and the live-generation
+parameter type. The host supplies the account-status callback and can supply
+credential refresh and CLI invocation ports.
 
-Official `@elizaos/plugin-anthropic` owns OAuth inference, credential/account
-rotation, Messages API transport, tools, response handling, streaming, and
-prompt caching.
+The host selects the CLI route and supplies account readiness. Generation
+requires `allowCliFallback` and rejects a different active provider; see the
+[generation boundary](src/anthropic.ts). The bridge converts a single
+required response schema to structured CLI output and suppresses a nested
+CLI tool/agent loop. It does not implement OAuth or the Anthropic API.
 
-## Expected Local Login State
+Doolittle wires this plugin through its
+[provider registry](../../agent/src/runtime/native/plugin-registry/providers.ts).
+Provider identity is `claude-code`; native OAuth inference uses the SDK's
+`anthropic` owner. Keep credentials in the provider's account store and return
+only status projections to clients.
 
-This plugin expects the user to already be signed in through the local Claude Code CLI.
+## Develop and verify
 
-Credential sources:
+From the repository root:
 
-- `~/.claude/.credentials.json`
-- `~/.claude.json`
-
-## Runtime Behavior
-
-- Product provider id: `claude-code`
-- Runtime model owner with OAuth: `anthropic`
-- Runtime fallback owner without OAuth: `@doolittle/plugin-claude-code`
-- Default model: `claude-sonnet-4.6`
-
-## Operator Flows
-
-- `/accounts connect claude-code`
-- `/accounts`
-- `/accounts doctor`
-- `/accounts login claude-code`
-- `/accounts setup-token claude-code`
-- `/accounts refresh claude-code`
-- `/accounts use claude-code`
-
-## Example
-
-```ts
-import { createClaudeCodePlugin } from "@doolittle/plugin-claude-code";
-
-export const claudeCodePlugin = createClaudeCodePlugin({
-  enabled: true,
-  allowCliFallback: false,
-  getStatus: () => ({
-    provider: "claude-code",
-    available: true,
-    reusable: false,
-    fallbackReady: true,
-    authMode: "claude.ai",
-    source: "claude status",
-    detail: "Claude CLI is signed in.",
-  }),
-});
-```
-
-## Verification
-
-From the repo root:
-
-```bash
+```sh
+nub run --cwd packages/plugins/plugin-claude-code typecheck
+nub run test:scope tests/boundary/provider-command.test.ts
 nub run smoke:linked-providers -- --provider claude-code
-nub run smoke:linked-providers -- --provider claude-code --live
+nub run publish:claude-code:dry-run
 ```
 
-The live smoke command succeeds only when a reusable local Claude Code login is
-available and returns `LINKED_PROVIDER_OK` when the provider round trip passes.
-
-## Notes
-
-This package is not an OAuth or Anthropic API implementation. Remove it once
-the official plugin's CLI mode supports native messages/tools/response schemas.
+The smoke command inspects readiness without inference by default. Add `--live`
+only when you intend to use the existing local authentication for a provider
+round trip; it may consume model quota. A dry run validates publishing contracts
+without publishing a package. See [testing](../../../docs/testing.md) and
+[releases](../../../docs/releases.md).
