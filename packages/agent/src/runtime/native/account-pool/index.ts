@@ -438,7 +438,7 @@ export function importLegacyDoolittleAccounts(): number {
   return imported;
 }
 
-/** Construct the SDK singleton and its official orchestrator bridge at boot. */
+/** Install SDK routing at boot without opening or migrating saved credentials. */
 export function initializeDoolittleAccountPool(dataDir?: string): AccountPool {
   // The official storage helpers resolve ELIZA_HOME themselves. Bind it once
   // before the first SDK call so pool metadata and credentials share
@@ -449,9 +449,7 @@ export function initializeDoolittleAccountPool(dataDir?: string): AccountPool {
     process.env.ELIZA_STATE_DIR ??= process.env.ELIZA_HOME;
   }
   configurePoolSelection();
-  importLegacyDoolittleAccounts();
   const pool = getDefaultAccountPool();
-  startAccountPoolKeepAlive();
   return pool;
 }
 
@@ -530,6 +528,7 @@ export function snapshotDoolittleAccountPool(
 export async function synchronizeDoolittleAccountPoolFromNativeStores(
   pool = getDoolittleAccountPool(),
   discoverNativeCredentials: () => void = () => {
+    importLegacyDoolittleAccounts();
     getLinkedCodexCredentials();
     getLinkedClaudeCodeCredentials();
   },
@@ -558,7 +557,11 @@ export async function synchronizeDoolittleAccountPoolFromNativeStores(
       }
     }
   }
-  return snapshotDoolittleAccountPool(pool);
+  const snapshot = snapshotDoolittleAccountPool(pool);
+  // Opening account controls explicitly authorizes discovery. Start background
+  // refresh only after that access succeeded, never during shell startup.
+  startAccountPoolKeepAlive();
+  return snapshot;
 }
 
 export async function selectDoolittleAccount(

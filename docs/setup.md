@@ -97,6 +97,20 @@ profiles and the source checkout's `.doolittle/` state are separate. Supply
 `--user-data-dir` when you need another isolated desktop profile; see
 [development](development.md).
 
+### macOS saved accounts
+
+Opening the desktop does not migrate saved accounts or start credential refresh
+scans. Account discovery and legacy migration run when account controls are
+opened; API credentials are loaded at boot only for a selected direct API provider.
+
+macOS may request access to the existing `eliza` Keychain item when encrypted
+credentials are used. This requires the Mac login Keychain password, not an Apple
+ID password. Doolittle never collects that password. Locked or denied access must
+not replace the existing encryption key or delete saved accounts. After unlocking
+the login Keychain, retry the operation. Replacing an ad-hoc signed development
+build can cause macOS to ask again; a stable signed release identity is needed
+for consistent trust across updates.
+
 ## Confirm the checkout
 
 ```sh

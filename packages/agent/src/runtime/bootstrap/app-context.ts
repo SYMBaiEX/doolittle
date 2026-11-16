@@ -17,15 +17,15 @@ import { normalizePlugin } from "../native/plugin-registry/support";
 import { composeWorkerCharacter } from "./bot-profile";
 import { configureBootstrapContext } from "./context";
 import { buildPluginSettings } from "./env/index";
-import {
-  disposeRuntime,
-  type RuntimeOwnershipObserver,
-} from "./runtime/initialization";
 import { DOOLITTLE_RUNTIME_CAPABILITY_OPTIONS } from "./runtime/capability-options";
 import {
   createProviderFailureTemplates,
   initializeElizaRuntime,
 } from "./runtime/index";
+import {
+  disposeRuntime,
+  type RuntimeOwnershipObserver,
+} from "./runtime/initialization";
 import { appendBootstrapTrace } from "./trace";
 import type { AppContext, AppContextBuildOptions } from "./types";
 
@@ -95,9 +95,11 @@ export async function buildAppContext(
     initializeDoolittleAccountPool(config.dataDir);
     // The lead alone owns account selection, refresh, and the credential
     // catalog. Workers receive one approved provider grant from their host.
-    await applyAccountPoolApiCredentials({
-      activeBackend: runtimeSettings.model.provider,
-    });
+    if (["openai", "anthropic"].includes(runtimeSettings.model.provider)) {
+      await applyAccountPoolApiCredentials({
+        activeBackend: runtimeSettings.model.provider,
+      });
+    }
   }
   appendBootstrapTrace("phase:buildNativePluginAssembly:start");
   const nativePluginAssembly = await buildNativePluginAssembly(

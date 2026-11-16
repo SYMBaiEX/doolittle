@@ -48,7 +48,7 @@ function removeOwned(path: string, prefix: string): void {
 
 export async function launchDesktop(
   executablePath?: string,
-  options: { liveCoding?: boolean } = {},
+  options: { liveCoding?: boolean; lockedAccounts?: boolean } = {},
 ): Promise<DesktopFixture> {
   if (options.liveCoding && process.env.DOOLITTLE_RUN_LIVE_CODING !== "true") {
     throw new Error("Live coding requires explicit opt-in.");
@@ -61,6 +61,27 @@ export async function launchDesktop(
   );
   const runtime = join(profile, "runtime");
   mkdirSync(runtime, { recursive: true });
+  if (options.lockedAccounts) {
+    const accounts = join(runtime, "auth", "openai-codex");
+    mkdirSync(accounts, { recursive: true });
+    writeFileSync(
+      join(accounts, "doolittle-legacy-codex.json"),
+      JSON.stringify({
+        id: "doolittle-legacy-codex",
+        providerId: "openai-codex",
+        label: "Locked fixture",
+        source: "oauth",
+        createdAt: 1,
+        updatedAt: 1,
+        credentials: {
+          access: "synthetic-fixture-only",
+          refresh: "",
+          expires: 0,
+        },
+      }),
+      { mode: 0o600 },
+    );
+  }
   writeFileSync(
     join(runtime, "settings.json"),
     `${JSON.stringify({ model: options.liveCoding ? { provider: "codex", model: "gpt-6-luna", reasoningEffort: "medium", baseUrl: "https://chatgpt.com/backend-api/codex", maxTokens: 8192 } : offlineModel })}\n`,
@@ -80,6 +101,7 @@ export async function launchDesktop(
       cwd: repoRoot,
       env: {
         ...isolatedRuntimeEnvironment(runtime),
+        ...(options.lockedAccounts ? { ELIZA_VAULT_PASSPHRASE: "" } : {}),
         ...(options.liveCoding
           ? {
               // Reuse existing linked authentication without copying credentials.

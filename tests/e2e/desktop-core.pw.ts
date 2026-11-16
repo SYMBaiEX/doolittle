@@ -1,4 +1,4 @@
-import { mkdirSync } from "node:fs";
+import { mkdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, type Locator, test } from "@playwright/test";
 import { themeContrast } from "../../packages/ui/src/themes";
@@ -31,6 +31,34 @@ async function expectQuietFocus(control: Locator) {
 }
 
 test.describe("fresh native desktop", () => {
+  test("starts with locked saved accounts and preserves them across restart", async () => {
+    const desktop = await launchDesktop(undefined, { lockedAccounts: true });
+    const credential = join(
+      desktop.profile,
+      "runtime/auth/openai-codex/doolittle-legacy-codex.json",
+    );
+    try {
+      const before = readFileSync(credential, "utf8");
+      await expect(
+        desktop.page.locator("[data-session-workbench]"),
+      ).toBeVisible();
+      expect(
+        await desktop.page.evaluate(
+          async () => (await window.doolittle.getBackendState()).phase,
+        ),
+      ).toBe("ready");
+      await desktop.restart();
+      expect(
+        await desktop.page.evaluate(
+          async () => (await window.doolittle.getBackendState()).phase,
+        ),
+      ).toBe("ready");
+      expect(readFileSync(credential, "utf8")).toBe(before);
+    } finally {
+      await desktop.dispose();
+    }
+  });
+
   test("creates an offline bot through the native chooser and sends its first chat", async () => {
     const desktop = await launchDesktop();
     try {
