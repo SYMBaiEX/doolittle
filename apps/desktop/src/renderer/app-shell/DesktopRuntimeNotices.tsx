@@ -11,6 +11,9 @@ const NOTICE_ACTION =
   "inline-flex min-h-10 shrink-0 items-center justify-center rounded-[var(--radius-md)] border border-current bg-transparent px-3 text-sm font-medium hover:bg-[var(--surface-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] max-[760px]:min-h-11";
 
 function runtimeRecoveryMessage(diagnostic: string): string {
+  if (/OS Keychain|master key unavailable/iu.test(diagnostic)) {
+    return "Your saved accounts are locked. Unlock your Mac’s login Keychain, then retry. If macOS asks, use your Mac login password, not your Apple ID password. Your saved credentials have not been replaced.";
+  }
   if (
     /acquireDataDirLockIfNeeded|data.directory.*(?:lock|in use)|already.*(?:running|locked)/iu.test(
       diagnostic,
@@ -49,6 +52,15 @@ export function DesktopRuntimeNotices({
 }: DesktopRuntimeNoticesProps) {
   return (
     <>
+      {backend.phase === "booting" ? (
+        <div
+          aria-live="polite"
+          className="shrink-0 border-b border-[var(--border)] px-4 py-2 text-sm text-[var(--muted)]"
+          role="status"
+        >
+          Starting Doolittle… Your conversations will appear when it’s ready.
+        </div>
+      ) : null}
       {backend.phase === "degraded" ? (
         <section className="shrink-0 border-b border-[var(--border)] bg-[var(--warn-soft)] px-4 py-2 text-[var(--warn)]">
           <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
