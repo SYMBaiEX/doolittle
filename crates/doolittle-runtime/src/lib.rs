@@ -6,7 +6,7 @@ mod stream;
 
 pub use models::*;
 
-use std::{io::Read, time::Duration};
+use std::{io::Read, path::Path, time::Duration};
 
 use reqwest::{
     Method,
@@ -25,6 +25,8 @@ const STREAM_TIMEOUT: Duration = Duration::from_secs(120);
 const MAX_JSON_BYTES: u64 = 8 * 1024 * 1024;
 const MAX_ERROR_BYTES: u64 = 16 * 1024;
 const MAX_MESSAGE_BYTES: usize = 256 * 1024;
+const MAX_WORKSPACE_FILE_BYTES: usize = 1_000_000;
+const MAX_WORKSPACE_SAVE_REQUEST_BYTES: usize = 8 * 1024 * 1024;
 const MAX_EVENT_ID: u64 = (1 << 53) - 1;
 const CONVERSATION_HEADER: &str = "x-doolittle-origin-conversation";
 
@@ -50,10 +52,14 @@ pub enum RuntimeError {
     },
     #[error("The runtime response exceeded the supported size.")]
     ResponseTooLarge,
+    #[error("The original file and edited text exceed the supported save size.")]
+    SaveTooLarge,
     #[error("The runtime returned invalid JSON for this endpoint.")]
     InvalidResponse,
     #[error("The runtime response did not match the requested run or conversation.")]
     ResponseMismatch,
+    #[error("The runtime did not confirm the requested workspace file.")]
+    SaveReceiptMismatch,
     #[error("The runtime returned an invalid event stream.")]
     InvalidEvent,
     #[error("The event stream disconnected after update {cursor}. The run may still be active.")]
@@ -257,6 +263,62 @@ impl RuntimeClient {
         Ok(file)
     }
 
+    /// Compares the saved buffer with the version originally opened in this
+    /// editor. The runtime owns the workspace grant and performs the write.
+    /// If the request disconnects, read the file before initiating another save.
+    pub fn save_file(
+        &self,
+        session_id: &str,
+        path: &str,
+        expected_content: &str,
+        content: &str,
+    ) -> Result<WorkspaceSaveOutcome> {
+        validate_workspace_path(path)?;
+        // The runtime trims paths before resolving them. Reject ambiguous
+        // spellings before posting a mutation.
+        if path.trim() != path {
+            return Err(RuntimeError::InvalidInput("workspace-relative path"));
+        }
+        if expected_content.len() > MAX_WORKSPACE_FILE_BYTES
+            || content.len() > MAX_WORKSPACE_FILE_BYTES
+        {
+            return Err(RuntimeError::SaveTooLarge);
+        }
+        let request = self.request(Method::POST, "/workspace/write", Some(session_id))?;
+        let body = serde_json::to_vec(&SaveFileRequest {
+            path,
+            expected_content,
+            content,
+        })
+        .map_err(|_| RuntimeError::InvalidInput("save request"))?;
+        if body.len() > MAX_WORKSPACE_SAVE_REQUEST_BYTES {
+            return Err(RuntimeError::SaveTooLarge);
+        }
+        let response = request
+            .header(CONTENT_TYPE, "application/json")
+            .body(body)
+            .send()
+            .map_err(transport)?;
+        if response.status() == reqwest::StatusCode::CONFLICT {
+            let error = read_error_response(response);
+            if error.conflict {
+                return Ok(WorkspaceSaveOutcome::Conflict {
+                    message: error
+                        .error
+                        .map(|text| sanitized_text(&text))
+                        .unwrap_or_else(|| "File changed after it was opened.".into()),
+                });
+            }
+            return Err(http_failure(409, error));
+        }
+        let receipt: SaveFileResponse = decode(response)?;
+        let saved_path = Path::new(&receipt.path);
+        if !saved_path.is_absolute() || !saved_path.ends_with(path) {
+            return Err(RuntimeError::SaveReceiptMismatch);
+        }
+        Ok(WorkspaceSaveOutcome::Saved { path: path.into() })
+    }
+
     /// Reads a read-only API resource on the connected loopback instance.
     /// The runtime still owns route admission and workspace authorization.
     pub fn get_json(&self, path: &str, session_id: Option<&str>) -> Result<Value> {
@@ -316,10 +378,25 @@ struct ChatRequest<'a> {
     source: &'static str,
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct SaveFileRequest<'a> {
+    path: &'a str,
+    expected_content: &'a str,
+    content: &'a str,
+}
+
 #[derive(Deserialize)]
+struct SaveFileResponse {
+    path: String,
+}
+
+#[derive(Default, Deserialize)]
 struct ErrorResponse {
     error: Option<String>,
     code: Option<String>,
+    #[serde(default)]
+    conflict: bool,
 }
 
 fn checked_response(response: Response) -> Result<Response> {
@@ -327,17 +404,27 @@ fn checked_response(response: Response) -> Result<Response> {
         return Ok(response);
     }
     let status = response.status().as_u16();
-    let error: Option<ErrorResponse> = bounded_body(response, MAX_ERROR_BYTES)
+    Err(http_failure(status, read_error_response(response)))
+}
+
+fn read_error_response(response: Response) -> ErrorResponse {
+    bounded_body(response, MAX_ERROR_BYTES)
         .ok()
-        .and_then(|body| serde_json::from_slice(&body).ok());
-    let (code, message) = error
-        .map(|error| (error.code, error.error.map(|text| sanitized_text(&text))))
-        .unwrap_or_default();
-    Err(RuntimeError::Http {
+        .and_then(|body| serde_json::from_slice(&body).ok())
+        .unwrap_or_default()
+}
+
+fn http_failure(status: u16, error: ErrorResponse) -> RuntimeError {
+    RuntimeError::Http {
         status,
-        code: code.filter(|value| validate_id("error code", value).is_ok()),
-        message: message.unwrap_or_else(|| "request rejected".into()),
-    })
+        code: error
+            .code
+            .filter(|value| validate_id("error code", value).is_ok()),
+        message: error
+            .error
+            .map(|text| sanitized_text(&text))
+            .unwrap_or_else(|| "request rejected".into()),
+    }
 }
 
 fn decode<T: DeserializeOwned>(response: Response) -> Result<T> {

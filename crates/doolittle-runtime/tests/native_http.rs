@@ -1,4 +1,4 @@
-use doolittle_runtime::{RunStatus, RuntimeClient, RuntimeError};
+use doolittle_runtime::{RunStatus, RuntimeClient, RuntimeError, WorkspaceSaveOutcome};
 use serde_json::{Value, json};
 use std::{
     io::{BufRead, BufReader, Read, Write},
@@ -147,6 +147,90 @@ fn does_not_return_messages_from_a_different_conversation() {
     assert!(matches!(
         client.messages("mine", 20, 0),
         Err(RuntimeError::ResponseMismatch)
+    ));
+    server.join().unwrap();
+}
+
+#[test]
+fn saves_against_the_exact_buffer_and_distinguishes_conflict_from_busy() {
+    let mut requests = 0;
+    let (client, server) = serve(3, move |request| {
+        assert_eq!(request.method, "POST");
+        assert_eq!(request.target, "/workspace/write");
+        assert_eq!(
+            request.header("x-doolittle-origin-conversation"),
+            Some("native:demo")
+        );
+        let body: Value = serde_json::from_slice(&request.body).unwrap();
+        assert_eq!(
+            body,
+            json!({"path":"src/main.rs","expectedContent":"base\r\n","content":"edited\r\n"})
+        );
+        requests += 1;
+        match requests {
+            1 => Reply::json(
+                409,
+                json!({"conflict":true,"error":"Reload the changed file."}),
+            ),
+            2 => Reply::json(
+                409,
+                json!({"code":"workspace_busy","error":"An active run owns the workspace."}),
+            ),
+            _ => Reply::json(
+                200,
+                json!({"path":std::env::temp_dir().join("fixture-project/src/main.rs")}),
+            ),
+        }
+    });
+    let save = || client.save_file("native:demo", "src/main.rs", "base\r\n", "edited\r\n");
+
+    assert_eq!(
+        save().unwrap(),
+        WorkspaceSaveOutcome::Conflict {
+            message: "Reload the changed file.".into(),
+        }
+    );
+    assert!(matches!(
+        save(),
+        Err(RuntimeError::Http { status: 409, code: Some(code), .. }) if code == "workspace_busy"
+    ));
+    assert_eq!(
+        save().unwrap(),
+        WorkspaceSaveOutcome::Saved {
+            path: "src/main.rs".into(),
+        }
+    );
+    server.join().unwrap();
+}
+
+#[test]
+fn rejects_ambiguous_or_large_saves_and_checks_the_receipt_path() {
+    let (client, server) = serve(1, |request| {
+        assert_eq!(request.target, "/workspace/write");
+        Reply::json(
+            200,
+            json!({"path":std::env::temp_dir().join("fixture-project/other.rs")}),
+        )
+    });
+    for path in ["../other.rs", " src/main.rs", "src/main.rs "] {
+        assert!(matches!(
+            client.save_file("native:demo", path, "", "content"),
+            Err(RuntimeError::InvalidInput(_))
+        ));
+    }
+    let unencoded = "a".repeat(1_000_001);
+    assert!(matches!(
+        client.save_file("native:demo", "src/main.rs", "", &unencoded),
+        Err(RuntimeError::SaveTooLarge)
+    ));
+    let escaped = "\0".repeat(1_000_000);
+    assert!(matches!(
+        client.save_file("native:demo", "src/main.rs", &escaped, &escaped),
+        Err(RuntimeError::SaveTooLarge)
+    ));
+    assert!(matches!(
+        client.save_file("native:demo", "src/main.rs", "", "content"),
+        Err(RuntimeError::SaveReceiptMismatch)
     ));
     server.join().unwrap();
 }

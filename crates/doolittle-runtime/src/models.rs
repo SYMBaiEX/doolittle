@@ -170,3 +170,9 @@ pub struct WorkspaceFile {
     pub path: String,
     pub content: String,
 }
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum WorkspaceSaveOutcome {
+    Saved { path: String },
+    Conflict { message: String },
+}
