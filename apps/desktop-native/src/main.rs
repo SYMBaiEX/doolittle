@@ -3,6 +3,7 @@ mod control_plane;
 mod markdown_text;
 mod navigation;
 mod operations;
+mod panes;
 mod session_transfer;
 mod themes;
 mod ui;

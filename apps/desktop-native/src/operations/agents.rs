@@ -200,6 +200,20 @@ fn agent_row(agent: &Value, busy: bool, colors: &Palette, cx: &mut Context<Workb
         return item;
     }
     let mut actions = group();
+    if state == "ready" {
+        let worker_id = id.to_owned();
+        let worker_name = name.to_owned();
+        actions = actions.child(
+            button(format!("chat-bot-{id}"))
+                .small()
+                .primary()
+                .label("Chat")
+                .disabled(busy)
+                .on_click(cx.listener(move |this, _, window, cx| {
+                    this.open_named_agent(worker_id.clone(), worker_name.clone(), window, cx);
+                })),
+        );
+    }
     let available = match state {
         "stopped" | "error" | "failed" => Some(("activate", "Start", "Agent started.")),
         "ready" | "starting" | "busy" | "waiting" => Some(("stop", "Stop", "Agent stopped.")),

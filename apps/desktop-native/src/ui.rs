@@ -12,7 +12,9 @@ pub(crate) use crate::themes::Palette;
 use crate::{
     connections::{self, ConnectionsPage},
     navigation::DESTINATIONS,
-    operations, session_transfer,
+    operations,
+    panes::{PRIMARY_PANE, SplitDirection},
+    session_transfer,
     themes::Surface,
     workbench::{AgentView, IdeView, NewConversation, OpenNavigation, SaveFile, View, Workbench},
     workspace_tools,
@@ -21,6 +23,27 @@ use crate::{
 impl Render for Workbench {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let colors = Palette::current(cx);
+        if self.is_auxiliary_pane() {
+            return div()
+                .id("doolittle-conversation-pane")
+                .key_context("Doolittle")
+                .on_action(cx.listener(|this, _: &NewConversation, window, cx| {
+                    cx.stop_propagation();
+                    this.start_conversation(window, cx);
+                }))
+                .on_action(cx.listener(|this, _: &OpenNavigation, window, cx| {
+                    cx.stop_propagation();
+                    this.open_navigation(window, cx);
+                }))
+                .flex()
+                .size_full()
+                .min_w_0()
+                .min_h_0()
+                .overflow_hidden()
+                .text_color(colors.text)
+                .child(self.chat(colors, window, cx))
+                .into_any_element();
+        }
         let file_dirty = self
             .workspace
             .file
@@ -28,7 +51,9 @@ impl Render for Workbench {
             .is_some_and(|file| file.is_dirty(cx));
         window.set_window_edited(file_dirty);
         let wide = window.viewport_size().width >= px(880.);
-        let compact = self.view == View::Ide || colors.compact_navigation();
+        let compact = self.view == View::Ide
+            || colors.compact_navigation()
+            || self.pane_layout.open_count() > 1;
         let reveal_sidebar = self.sidebar_open || (wide && !compact);
         let render_workbench = wide || !self.sidebar_open;
         div()
@@ -85,7 +110,7 @@ impl Render for Workbench {
                                 .min_w_0()
                                 .overflow_hidden()
                                 .child(match self.view {
-                                    View::Agent => self.chat(colors, window, cx),
+                                    View::Agent => self.conversation_panes(colors, window, cx),
                                     View::Ide => self.ide(colors, file_dirty, window, cx),
                                     View::Operations(page) => {
                                         operations::render(page, self, &colors, window, cx)
@@ -98,6 +123,7 @@ impl Render for Workbench {
                     }),
             )
             .children(Root::render_dialog_layer(window, cx))
+            .into_any_element()
     }
 }
 
@@ -123,7 +149,10 @@ impl Workbench {
             .border_b_1()
             .border_color(colors.divider)
             .when(
-                !wide || self.view == View::Ide || colors.compact_navigation(),
+                !wide
+                    || self.view == View::Ide
+                    || colors.compact_navigation()
+                    || self.pane_layout.open_count() > 1,
                 |this| {
                     this.child(
                         Button::new("sidebar-toggle")
@@ -248,6 +277,30 @@ impl Workbench {
                             colors.muted
                         }))
                         .child(status),
+                )
+            })
+    }
+
+    fn conversation_panes(
+        &self,
+        colors: Palette,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        if window.viewport_size().width < px(980.) {
+            let selected = self.pane_layout.focused();
+            if selected != PRIMARY_PANE
+                && let Some(pane) = self.pane_entities.get(&selected)
+            {
+                return pane.clone().into_any_element();
+            }
+            return self.chat(colors, window, cx);
+        }
+        self.pane_layout
+            .render(self.chat(colors, window, cx), |id| {
+                self.pane_entities.get(&id).map_or_else(
+                    || div().into_any_element(),
+                    |pane| pane.clone().into_any_element(),
                 )
             })
     }
@@ -402,6 +455,11 @@ impl Workbench {
             .title
             .clone()
             .unwrap_or_else(|| "New conversation".into());
+        let title = if self.uses_named_agent() {
+            format!("{} · {title}", self.assistant_name())
+        } else {
+            title
+        };
         let has_run = conversation.active_run.is_some();
         let can_send = self.ready()
             && !self.composer.read(cx).value().trim().is_empty()
@@ -449,7 +507,80 @@ impl Workbench {
                         .text_color(if stopped { colors.danger } else { colors.muted })
                         .child(run.status.clone()),
                 )
-            });
+            })
+            .when(
+                !self.is_auxiliary_pane() && self.pane_layout.open_count() > 1,
+                |row| {
+                    row.child(
+                        Button::new("next-conversation-pane")
+                            .small()
+                            .ghost()
+                            .label("Next pane")
+                            .on_click(
+                                cx.listener(|this, _, window, cx| this.next_pane(window, cx)),
+                            ),
+                    )
+                },
+            )
+            .when(self.ready(), |row| {
+                row.child(
+                    Button::new("split-pane-right")
+                        .small()
+                        .ghost()
+                        .label("Split right")
+                        .on_click(cx.listener(|this, _, window, cx| {
+                            this.split_pane(SplitDirection::Right, window, cx)
+                        })),
+                )
+                .child(
+                    Button::new("split-pane-down")
+                        .small()
+                        .ghost()
+                        .label("Split below")
+                        .on_click(cx.listener(|this, _, window, cx| {
+                            this.split_pane(SplitDirection::Down, window, cx)
+                        })),
+                )
+            })
+            .when(self.is_auxiliary_pane(), |row| {
+                row.child(
+                    Button::new("next-conversation-pane")
+                        .small()
+                        .ghost()
+                        .label("Next pane")
+                        .on_click(cx.listener(|this, _, window, cx| this.next_pane(window, cx))),
+                )
+                .child(
+                    Button::new("switch-pane-chat")
+                        .small()
+                        .ghost()
+                        .label("Chats")
+                        .on_click(
+                            cx.listener(|this, _, window, cx| this.open_navigation(window, cx)),
+                        ),
+                )
+                .child(
+                    Button::new("close-conversation-pane")
+                        .small()
+                        .ghost()
+                        .label("Close pane")
+                        .on_click(cx.listener(|this, _, window, cx| this.close_pane(window, cx))),
+                )
+            })
+            .when(
+                !self.is_auxiliary_pane() && self.pane_layout.can_reopen(),
+                |row| {
+                    row.child(
+                        Button::new("reopen-conversation-pane")
+                            .small()
+                            .ghost()
+                            .label("Reopen pane")
+                            .on_click(
+                                cx.listener(|this, _, window, cx| this.reopen_pane(window, cx)),
+                            ),
+                    )
+                },
+            );
         let thread = div()
             .id("transcript")
             .flex_1()
@@ -546,13 +677,14 @@ impl Workbench {
                                             },
                                         ),
                                     );
-                                message_row(&message.role, content, colors)
+                                message_row(&message.role, self.assistant_name(), content, colors)
                             }),
                     )
                     .when_some(conversation.active_run.as_ref(), |thread, run| {
                         thread
                             .child(message_row(
                                 "user",
+                                self.assistant_name(),
                                 div()
                                     .flex()
                                     .flex_col()
@@ -568,6 +700,7 @@ impl Workbench {
                             ))
                             .child(message_row(
                                 "assistant",
+                                self.assistant_name(),
                                 div()
                                     .flex()
                                     .flex_col()
@@ -666,12 +799,12 @@ impl Workbench {
                                     .items_center()
                                     .justify_between()
                                     .gap(px(8.))
-                                    .child(Button::new("attach-files").small().ghost()
+                                    .when(!self.uses_named_agent(), |row| row.child(Button::new("attach-files").small().ghost()
                                         .label(if conversation.choosing_attachments { "Attaching…" } else { "Attach" })
                                         .disabled(has_run || !self.ready() || conversation.choosing_attachments || conversation.draft_attachments.len() >= 8)
                                         .on_click(cx.listener(|this, _, _, cx| this.choose_attachments(cx))))
                                     .child(Button::new("chat-model-settings").small().ghost().label("Model")
-                                        .on_click(cx.listener(|this, _, window, cx| this.set_view(View::Connections(ConnectionsPage::Models), window, cx))))
+                                        .on_click(cx.listener(|this, _, window, cx| this.set_view(View::Connections(ConnectionsPage::Models), window, cx)))))
                                     .child(
                                         div()
                                             .min_w_0()
@@ -951,10 +1084,15 @@ fn session_button(
         }))
 }
 
-fn message_row(role: &str, content: impl IntoElement, colors: Palette) -> impl IntoElement {
+fn message_row(
+    role: &str,
+    assistant: &str,
+    content: impl IntoElement,
+    colors: Palette,
+) -> impl IntoElement {
     let title = match role {
         "user" => "You",
-        "assistant" => "Doolittle",
+        "assistant" => assistant,
         "tool" => "Tool",
         _ => "System",
     };
@@ -968,7 +1106,7 @@ fn message_row(role: &str, content: impl IntoElement, colors: Palette) -> impl I
                 .text_xs()
                 .font_weight(FontWeight::SEMIBOLD)
                 .text_color(colors.muted)
-                .child(title),
+                .child(title.to_owned()),
         )
         .child(
             div()

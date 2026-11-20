@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet};
+use std::rc::Rc;
 
 use anyhow::Result;
 use async_channel::{Sender, bounded};
@@ -9,7 +10,7 @@ use doolittle_runtime::{
 };
 use gpui::{
     App, AppContext, Context, Entity, KeyBinding, PathPromptOptions, PromptButton, PromptLevel,
-    ScrollHandle, SharedString, Subscription, Window, actions, px,
+    ScrollHandle, SharedString, Subscription, WeakEntity, Window, actions, px,
 };
 use gpui_component::{
     Rope,
@@ -25,6 +26,7 @@ use crate::{
     control_plane::ControlState,
     markdown_text,
     operations::{OperationsState, OpsPage},
+    panes::{PRIMARY_PANE, PaneId, PaneLayout, SplitDirection},
     session_transfer::TransferState,
     workspace_tools::WorkspaceTools,
 };
@@ -128,6 +130,13 @@ struct LiveRuntime {
     workspace_identity: (u64, u64),
 }
 
+#[derive(Clone)]
+struct NamedConversation {
+    id: String,
+    name: String,
+    client: RuntimeClient,
+}
+
 enum RunUpdate {
     Accepted,
     Rejected(String),
@@ -173,7 +182,12 @@ pub struct Workbench {
     pub(crate) transfer: TransferState,
     pub(crate) connections: ConnectionsState,
     pub(crate) workspace_tools: WorkspaceTools,
-    runtime: Option<LiveRuntime>,
+    pub(crate) pane_layout: PaneLayout,
+    pub(crate) pane_entities: HashMap<PaneId, Entity<Workbench>>,
+    pane_host: Option<WeakEntity<Workbench>>,
+    pub(crate) pane_id: PaneId,
+    named: Option<NamedConversation>,
+    runtime: Option<Rc<LiveRuntime>>,
 }
 
 impl Workbench {
@@ -193,6 +207,12 @@ impl Workbench {
     }
 
     pub fn new(options: Options, window: &mut Window, cx: &mut Context<Self>) -> Self {
+        let mut this = Self::build(options, window, cx);
+        this.connect(cx);
+        this
+    }
+
+    fn build(options: Options, window: &mut Window, cx: &mut Context<Self>) -> Self {
         let composer = cx.new(|cx| {
             InputState::new(window, cx)
                 .placeholder("Message Doolittle")
@@ -211,7 +231,7 @@ impl Workbench {
                 },
             );
         let selected = Uuid::new_v4().to_string();
-        let mut this = Self {
+        Self {
             options,
             view: View::Agent,
             selected: selected.clone(),
@@ -236,10 +256,158 @@ impl Workbench {
             transfer: TransferState::default(),
             connections: ConnectionsState::default(),
             workspace_tools: WorkspaceTools::default(),
+            pane_layout: PaneLayout::default(),
+            pane_entities: HashMap::new(),
+            pane_host: None,
+            pane_id: PRIMARY_PANE,
+            named: None,
             runtime: None,
+        }
+    }
+
+    pub(crate) fn is_auxiliary_pane(&self) -> bool {
+        self.pane_host.is_some()
+    }
+
+    pub(crate) fn split_pane(
+        &mut self,
+        direction: SplitDirection,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if let Some(host) = self.pane_host.as_ref() {
+            let anchor = self.pane_id;
+            let named = self.named.clone();
+            let _ = host.update(cx, |parent, cx| {
+                parent.add_pane(anchor, direction, named, window, cx)
+            });
+        } else {
+            self.add_pane(PRIMARY_PANE, direction, None, window, cx);
+        }
+    }
+
+    pub(crate) fn open_named_agent(
+        &mut self,
+        id: String,
+        name: String,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(runtime) = &self.runtime else {
+            return;
         };
-        this.connect(cx);
-        this
+        let Ok(client) = runtime.client.for_named_bot(&id) else {
+            return;
+        };
+        let open = self.pane_entities.iter().find_map(|(pane_id, pane)| {
+            (pane.read(cx).named.as_ref()?.id == id).then_some(*pane_id)
+        });
+        self.set_view(View::Agent, window, cx);
+        if let Some(pane) = open
+            && self.pane_layout.focus(pane)
+        {
+            self.focus_pane_composer(pane, window, cx);
+            cx.notify();
+        } else {
+            self.add_pane(
+                PRIMARY_PANE,
+                SplitDirection::Right,
+                Some(NamedConversation { id, name, client }),
+                window,
+                cx,
+            );
+        }
+    }
+
+    pub(crate) fn assistant_name(&self) -> &str {
+        self.named
+            .as_ref()
+            .map_or("Doolittle", |named| named.name.as_str())
+    }
+
+    pub(crate) fn uses_named_agent(&self) -> bool {
+        self.named.is_some()
+    }
+
+    fn add_pane(
+        &mut self,
+        anchor: PaneId,
+        direction: SplitDirection,
+        named: Option<NamedConversation>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(runtime) = self.runtime.as_ref().cloned() else {
+            return;
+        };
+        let Some(id) = self.pane_layout.split(anchor, direction) else {
+            self.error = Some("Close a conversation pane before opening another.".into());
+            cx.notify();
+            return;
+        };
+        self.error = None;
+        let options = self.options.clone();
+        let parent = cx.entity().downgrade();
+        let pane = cx.new(|cx| {
+            let mut pane = Self::build(options, window, cx);
+            pane.runtime = Some(runtime);
+            pane.pane_id = id;
+            pane.pane_host = Some(parent);
+            pane.named = named;
+            pane.refresh_sessions(cx);
+            pane
+        });
+        self.pane_entities.insert(id, pane.clone());
+        self.pane_layout.focus(id);
+        pane.update(cx, |pane, cx| pane.focus_composer(window, cx));
+        cx.notify();
+    }
+
+    pub(crate) fn close_pane(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(host) = self.pane_host.as_ref() else {
+            return;
+        };
+        let id = self.pane_id;
+        let _ = host.update(cx, |parent, cx| {
+            if parent.pane_layout.close(id) {
+                parent
+                    .pane_entities
+                    .retain(|id, _| parent.pane_layout.retains(*id));
+                parent.focus_pane_composer(parent.pane_layout.focused(), window, cx);
+                cx.notify();
+            }
+        });
+    }
+
+    pub(crate) fn reopen_pane(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if let Some(id) = self.pane_layout.reopen() {
+            self.focus_pane_composer(id, window, cx);
+            cx.notify();
+        }
+    }
+
+    pub(crate) fn next_pane(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if let Some(host) = self.pane_host.as_ref() {
+            let anchor = self.pane_id;
+            let _ = host.update(cx, |parent, cx| parent.advance_pane(anchor, window, cx));
+        } else {
+            self.advance_pane(PRIMARY_PANE, window, cx);
+        }
+    }
+
+    fn advance_pane(&mut self, anchor: PaneId, window: &mut Window, cx: &mut Context<Self>) {
+        self.pane_layout.focus(anchor);
+        let selected = self.pane_layout.cycle_focus();
+        self.focus_pane_composer(selected, window, cx);
+        cx.notify();
+    }
+
+    fn focus_pane_composer(&self, selected: PaneId, window: &mut Window, cx: &mut Context<Self>) {
+        if let Some(pane) = self.pane_entities.get(&selected) {
+            pane.update(cx, |pane, cx| pane.focus_composer(window, cx));
+        } else {
+            self.focus_composer(window, cx);
+        }
     }
 
     pub fn workspace_title(&self) -> String {
@@ -330,7 +498,10 @@ impl Workbench {
     }
 
     pub(crate) fn runtime_client(&self) -> Option<RuntimeClient> {
-        self.runtime.as_ref().map(|runtime| runtime.client.clone())
+        self.named
+            .as_ref()
+            .map(|named| named.client.clone())
+            .or_else(|| self.runtime.as_ref().map(|runtime| runtime.client.clone()))
     }
 
     pub fn conversation(&self) -> &Conversation {
@@ -383,7 +554,7 @@ impl Workbench {
                 this.connecting = false;
                 match result {
                     Ok(runtime) => {
-                        this.runtime = Some(runtime);
+                        this.runtime = Some(Rc::new(runtime));
                         this.refresh_sessions(cx);
                         if this.view == View::Ide {
                             this.refresh_workspace(cx);
@@ -415,6 +586,9 @@ impl Workbench {
     ) {
         if self.selected == id {
             self.sidebar_open = false;
+            if !self.is_auxiliary_pane() {
+                self.pane_layout.focus(PRIMARY_PANE);
+            }
             if !matches!(self.view, View::Agent | View::Ide) {
                 self.set_view(View::Agent, window, cx);
             }
@@ -436,6 +610,9 @@ impl Workbench {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if !self.is_auxiliary_pane() {
+            self.pane_layout.focus(PRIMARY_PANE);
+        }
         let draft = self.composer.read(cx).value().to_string();
         self.active
             .get_mut(&self.selected)
@@ -468,6 +645,10 @@ impl Workbench {
     }
 
     pub fn set_view(&mut self, view: View, window: &mut Window, cx: &mut Context<Self>) {
+        if let Some(host) = self.pane_host.as_ref().filter(|_| view != View::Agent) {
+            let _ = host.update(cx, |parent, cx| parent.set_view(view, window, cx));
+            return;
+        }
         if self.view != view && matches!(self.view, View::Connections(_)) {
             self.connections.clear_sensitive_drafts();
         }
@@ -507,7 +688,7 @@ impl Workbench {
     }
 
     pub fn refresh_sessions(&mut self, cx: &mut Context<Self>) {
-        let Some(client) = self.runtime.as_ref().map(|runtime| runtime.client.clone()) else {
+        let Some(client) = self.runtime_client() else {
             return;
         };
         if self.sessions_loading {
@@ -535,7 +716,7 @@ impl Workbench {
     }
 
     pub fn load_history(&mut self, earlier: bool, cx: &mut Context<Self>) {
-        let Some(client) = self.runtime.as_ref().map(|runtime| runtime.client.clone()) else {
+        let Some(client) = self.runtime_client() else {
             return;
         };
         let id = self.selected.clone();
@@ -594,6 +775,9 @@ impl Workbench {
     }
 
     pub(crate) fn choose_attachments(&mut self, cx: &mut Context<Self>) {
+        if self.uses_named_agent() {
+            return;
+        }
         let Some(client) = self.runtime_client() else {
             return;
         };
@@ -675,7 +859,7 @@ impl Workbench {
     }
 
     pub fn send(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let Some(client) = self.runtime.as_ref().map(|runtime| runtime.client.clone()) else {
+        let Some(client) = self.runtime_client() else {
             return;
         };
         let prompt = self.composer.read(cx).value().trim().to_owned();
@@ -886,7 +1070,7 @@ impl Workbench {
     }
 
     pub fn resume_run(&mut self, cx: &mut Context<Self>) {
-        let Some(client) = self.runtime.as_ref().map(|runtime| runtime.client.clone()) else {
+        let Some(client) = self.runtime_client() else {
             return;
         };
         let session = self.selected.clone();
@@ -909,7 +1093,7 @@ impl Workbench {
     }
 
     pub fn cancel_run(&mut self, cx: &mut Context<Self>) {
-        let Some(client) = self.runtime.as_ref().map(|runtime| runtime.client.clone()) else {
+        let Some(client) = self.runtime_client() else {
             return;
         };
         let session = self.selected.clone();
@@ -957,7 +1141,7 @@ impl Workbench {
     }
 
     pub fn refresh_workspace(&mut self, cx: &mut Context<Self>) {
-        let Some(client) = self.runtime.as_ref().map(|runtime| runtime.client.clone()) else {
+        let Some(client) = self.runtime_client() else {
             return;
         };
         if self.workspace.loading_tree {
@@ -1034,7 +1218,7 @@ impl Workbench {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let Some(client) = self.runtime.as_ref().map(|runtime| runtime.client.clone()) else {
+        let Some(client) = self.runtime_client() else {
             return;
         };
         if self.workspace.loading_file.is_some() {
@@ -1104,7 +1288,7 @@ impl Workbench {
         if self.confirming_discard || self.workspace.loading_file.is_some() {
             return;
         }
-        let Some(client) = self.runtime.as_ref().map(|runtime| runtime.client.clone()) else {
+        let Some(client) = self.runtime_client() else {
             return;
         };
         let Some(file) = self.workspace.file.as_mut() else {
