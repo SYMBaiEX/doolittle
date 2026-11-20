@@ -1,4 +1,7 @@
+import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import type { AutomationJobRecord } from "@doolittle/contracts";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
@@ -99,6 +102,83 @@ describe("fresh shared-engine source runtime acceptance", () => {
     expect((await fetch(`${urlA}/runtime/bots/${b.id}`)).status).toBe(404);
     expect((await fetch(`${urlB}/runtime/bots/${a.id}`)).status).toBe(404);
   }, 60_000);
+
+  it("limits workspace writes and Git staging to an authorized conversation and worker", async () => {
+    const [urlA, urlB] = h.urls;
+    const [sessionA, , sessionOther] = h.sessions;
+    const [workspaceA, workspaceB] = h.workspaces;
+    const workingFile = "scope.txt";
+    execFileSync("git", ["init", "--quiet", workspaceA]);
+    const post = (
+      url: string,
+      session: string,
+      route: string,
+      body: Record<string, unknown>,
+    ) =>
+      fetch(`${url}${route}`, {
+        method: "POST",
+        redirect: "error",
+        headers: {
+          "content-type": "application/json",
+          "x-doolittle-origin-conversation": session,
+        },
+        body: JSON.stringify(body),
+      });
+    const write = {
+      path: workingFile,
+      expectedContent: "scope-0",
+      content: "scoped edit",
+    };
+    const stage = { type: "stage", paths: [workingFile] };
+    expect(
+      (await post(urlA, sessionOther, "/workspace/write", write)).status,
+    ).toBe(409);
+    expect((await post(urlA, sessionOther, "/repo/mutate", stage)).status).toBe(
+      409,
+    );
+    const unauthorized = await post(urlB, sessionOther, "/workspace/write", {
+      ...write,
+      expectedContent: "scope-1",
+    });
+    expect([403, 404]).toContain(unauthorized.status);
+    expect([403, 404]).toContain(
+      (await post(urlB, sessionOther, "/repo/mutate", stage)).status,
+    );
+
+    const wrongVersion = await post(urlA, sessionA, "/workspace/write", {
+      ...write,
+      expectedContent: "outdated contents",
+    });
+    expect(wrongVersion.status).toBe(409);
+    expect(await wrongVersion.json()).toMatchObject({ conflict: true });
+    expect(readFileSync(join(workspaceA, workingFile), "utf8")).toBe("scope-0");
+
+    const written = await post(urlA, sessionA, "/workspace/write", write);
+    expect(written.status, await written.clone().text()).toBe(200);
+    expect(readFileSync(join(workspaceA, workingFile), "utf8")).toBe(
+      "scoped edit",
+    );
+    expect(readFileSync(join(workspaceB, workingFile), "utf8")).toBe("scope-1");
+    const staged = await post(urlA, sessionA, "/repo/mutate", stage);
+    expect(staged.status, await staged.clone().text()).toBe(200);
+    expect(await staged.json()).toMatchObject({ result: { ok: true } });
+    expect(
+      execFileSync("git", ["show", `:${workingFile}`], {
+        cwd: workspaceA,
+        encoding: "utf8",
+      }),
+    ).toBe("scoped edit");
+    // The following runtime journey expects the original scoped read fixture.
+    expect(
+      (
+        await post(urlA, sessionA, "/workspace/write", {
+          ...write,
+          expectedContent: write.content,
+          content: write.expectedContent,
+        })
+      ).status,
+    ).toBe(200);
+  }, 30_000);
 
   it("admits and attributes offline SDK tasks, binds ACP ownership, and restores history after one-worker restart", async () => {
     const [a, b] = h.bots;

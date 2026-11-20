@@ -16,7 +16,7 @@ export async function forwardNativeApprovalSelection(
   selection: "approve" | "deny",
 ): Promise<void> {
   if (!approvals) {
-    return;
+    throw new Error("Native execution approval is unavailable.");
   }
   await approvals.handleSelection(id as UUID, selection);
 }

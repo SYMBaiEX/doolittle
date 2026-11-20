@@ -35,7 +35,6 @@ export async function requestExecutionApproval(input: {
   input: RequestExecutionApprovalInput;
 }): Promise<ExecutionApprovalRecord> {
   const ttlMinutes = input.input.ttlMinutes ?? 15;
-  const storeData = input.store.read();
   let nativeTaskId: string | undefined;
 
   if (input.nativeApprovals && input.input.runtimeRoomId) {
@@ -55,7 +54,7 @@ export async function requestExecutionApproval(input: {
           return;
         }
         safeMutateApprovalRecord(input.store, nativeTaskId, (record) => {
-          markApprovalApproved(record);
+          if (record.status === "pending") markApprovalApproved(record);
         });
       },
       onDeny: () => {
@@ -63,7 +62,7 @@ export async function requestExecutionApproval(input: {
           return;
         }
         safeMutateApprovalRecord(input.store, nativeTaskId, (record) => {
-          markApprovalDenied(record);
+          if (record.status === "pending") markApprovalDenied(record);
         });
       },
       onTimeout: () => {
@@ -71,7 +70,7 @@ export async function requestExecutionApproval(input: {
           return;
         }
         safeMutateApprovalRecord(input.store, nativeTaskId, (record) => {
-          markApprovalExpired(record);
+          if (record.status === "pending") markApprovalExpired(record);
         });
       },
     });
@@ -91,6 +90,9 @@ export async function requestExecutionApproval(input: {
     nativeTaskId,
   });
 
+  // Read after the asynchronous native request so concurrent receipts are
+  // applied to the latest local store without dropping an earlier request.
+  const storeData = input.store.read();
   storeData.approvals.push(record);
   pruneApprovalStore(storeData);
   input.store.write(storeData);

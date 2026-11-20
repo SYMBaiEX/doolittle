@@ -549,7 +549,15 @@ export function registerRepositoryIpcHandlers({
           `${state.url}/repo/worktrees/create`,
           {
             method: "POST",
-            headers: { "content-type": "application/json" },
+            headers: {
+              "content-type": "application/json",
+              ...(scope.originConversationId
+                ? {
+                    "x-doolittle-origin-conversation":
+                      scope.originConversationId,
+                  }
+                : {}),
+            },
             body: JSON.stringify({
               branch: request.branch,
               path: request.path,
@@ -619,7 +627,14 @@ export function registerRepositoryIpcHandlers({
           throw new Error("The local runtime is not ready.");
         const response = await sensitiveFetch(`${state.url}/repo/mutate`, {
           method: "POST",
-          headers: { "content-type": "application/json" },
+          headers: {
+            "content-type": "application/json",
+            ...(scope.originConversationId
+              ? {
+                  "x-doolittle-origin-conversation": scope.originConversationId,
+                }
+              : {}),
+          },
           body: JSON.stringify(request),
           signal: AbortSignal.timeout(MAX_COMMAND_TIMEOUT_MS),
         });
