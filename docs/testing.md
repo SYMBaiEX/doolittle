@@ -14,7 +14,6 @@ nub run test
 
 `test` runs the boundary tests selected by
 [`vitest.config.ts`](../vitest.config.ts). `check` uses the same lane.
-`test:essential` and `test:release` are compatibility aliases for it.
 The scope runner takes direct file filters; no matching tests is a failure.
 Related mode follows static imports and cannot establish dynamic registration.
 
@@ -115,10 +114,11 @@ versions, route settings, repeated samples, and human review coverage explicit.
 
 ## Release gate and reporting
 
-`nub run check:release:static` combines lint, types, boundary tests, builds,
+`nub run check:release:static` combines lint, types, builds,
 repository/security checks, and runtime preparation/audit. `nub run check:release`
-adds native and packaged acceptance. `check:all` aliases the complete release
-gate. Use these deliberately at release or integration milestones.
+adds the boundary suite and native and packaged acceptance. `check:all` aliases
+the complete release gate. Use these deliberately at release or integration
+milestones.
 
 Report exactly which commands ran and their results. Distinguish static checks,
 unit/DOM tests, real process or Electron journeys, packaged acceptance, and live
