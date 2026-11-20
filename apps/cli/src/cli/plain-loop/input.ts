@@ -18,17 +18,25 @@ export async function readPlainLoopLine(
   options: PlainLineReaderOptions,
 ): Promise<string | null> {
   const { rl, interactiveShell, context, state, lifecycleState } = options;
+  if (lifecycleState.closed) return null;
 
+  // Closing readline can leave an already pending question unresolved.
+  const controller = new AbortController();
+  const cancelQuestion = () => controller.abort();
+  rl.once("close", cancelQuestion);
   try {
     return (
       await rl.question(
         interactiveShell ? renderPlainPrompt(context, state) : "",
+        { signal: controller.signal },
       )
     ).trim();
   } catch (error) {
-    if (lifecycleState.closed || isReadlineClosedError(error)) {
+    if (controller.signal.aborted || isReadlineClosedError(error)) {
       return null;
     }
     throw error;
+  } finally {
+    rl.removeListener("close", cancelQuestion);
   }
 }
