@@ -6,10 +6,11 @@ use clap::Parser as _;
 use doolittle_runtime::RuntimeClient;
 use rustyline::{DefaultEditor, error::ReadlineError};
 use serde_json::Value;
+use uuid::Uuid;
 
 use crate::{
     Args, Command, accounts::AccountCommand, checked_prompt, new_id, operator, print_approvals,
-    print_file, print_sessions, print_tree, terminal_text, turn,
+    print_file, print_message_page, print_sessions, print_tree, terminal_text, turn,
 };
 
 const PAGE_SIZE: usize = 20;
@@ -19,16 +20,23 @@ pub fn run(
     mut session: String,
     signals: &AtomicUsize,
     cockpit: bool,
+    bot: Option<Uuid>,
 ) -> Result<()> {
     let mut editor = DefaultEditor::new().context("Initialize terminal input")?;
     let _screen = cockpit.then(CockpitScreen::enter).transpose()?;
-    let mut theme = TerminalTheme::load(client);
+    let named = bot.is_some();
+    let mut theme = if named {
+        TerminalTheme::default()
+    } else {
+        TerminalTheme::load(client)
+    };
     let mut offset = 0;
     if cockpit {
         print_cockpit(client, &session, &theme)?;
     } else {
+        let name = bot.map_or_else(|| "Doolittle".into(), |id| format!("Named agent {id}"));
         println!(
-            "Doolittle · {}\nType /help for commands.",
+            "{name} · {}\nType /help for commands.",
             theme.primary(&terminal_text(&session))
         );
     }
@@ -51,7 +59,7 @@ pub fn run(
             continue;
         }
         let _ = editor.add_history_entry(line.as_str());
-        let edit_theme = line.split_whitespace().next() == Some("/theme");
+        let edit_theme = !named && line.split_whitespace().next() == Some("/theme");
         let response = if line.trim_start().starts_with('/') {
             if matches!(line.trim(), "/quit" | "/exit") {
                 break;
@@ -66,10 +74,11 @@ pub fn run(
                     &mut offset,
                     &mut editor,
                     signals,
+                    named,
                 )
             }
         } else {
-            send(client, &session, line, signals, &mut editor)
+            send(client, &session, line, signals, &mut editor, named)
         };
         if let Err(error) = response {
             eprintln!("{}", terminal_text(&format!("{error:#}")));
@@ -189,10 +198,15 @@ fn send(
     line: String,
     signals: &AtomicUsize,
     editor: &mut DefaultEditor,
+    named: bool,
 ) -> Result<()> {
     let prompt = checked_prompt(line)?;
     println!("Doolittle");
-    let outcome = turn::send_interactive(client, session, &prompt, signals, editor)?;
+    let outcome = if named {
+        turn::send(client, session, &prompt, signals, turn::Output::Terminal)?
+    } else {
+        turn::send_interactive(client, session, &prompt, signals, editor)?
+    };
     match outcome.status {
         turn::OutcomeStatus::Cancelled => eprintln!("Cancelled {}", outcome.run_id),
         _ => {
@@ -211,13 +225,36 @@ fn handle_command(
     offset: &mut usize,
     editor: &mut DefaultEditor,
     signals: &AtomicUsize,
+    named: bool,
 ) -> Result<()> {
     let trimmed = line.trim();
     let (command, value) = trimmed
         .split_once(char::is_whitespace)
         .map(|(command, value)| (command, value.trim()))
         .unwrap_or((trimmed, ""));
+    if named
+        && !matches!(
+            (command, value),
+            ("/help" | "/new" | "/sessions" | "/history" | "/older", "")
+                | ("/use", _)
+                | ("/workspace", "tree")
+        )
+    {
+        anyhow::bail!(
+            "This command is unavailable in a named-agent chat. Type /help for conversation commands."
+        );
+    }
     match (command, value) {
+        ("/help", "") if named => println!(
+            "/new            Start another conversation\n\
+             /sessions       List this agent's conversations\n\
+             /use ID         Resume a conversation\n\
+             /history        Show the latest messages\n\
+             /older          Show earlier messages\n\
+             /workspace tree List the agent workspace\n\
+             /quit           Leave terminal chat\n\
+             Ctrl+C          Clear input or cancel the active run"
+        ),
         ("/help", "") => println!(
             "/new            Start another conversation\n\
              /sessions       List recent conversations\n\
@@ -263,9 +300,9 @@ fn handle_command(
         ("/older", "") if *offset > 0 => show_history(client, session, offset)?,
         ("/older", "") => println!("No earlier messages."),
         ("/tree", "") => print_tree(client, session, 2)?,
-        ("/workspace", "tree") => send(client, session, trimmed.into(), signals, editor)?,
+        ("/workspace", "tree") => send(client, session, trimmed.into(), signals, editor, named)?,
         ("/review" | "/security-review" | "/release-check", _) => {
-            send(client, session, trimmed.into(), signals, editor)?;
+            send(client, session, trimmed.into(), signals, editor, named)?;
         }
         ("/read", path) if !path.is_empty() => print_file(client, session, path)?,
         ("/approvals", "") => print_approvals(client, false)?,
@@ -281,6 +318,7 @@ fn handle_command(
                 .into_iter()
                 .chain(arguments.split_whitespace());
             let options = Args::try_parse_from(args)?;
+            options.validate_runtime_target()?;
             if let Some(Command::Accounts { action, .. }) = options.command {
                 action
                     .unwrap_or(AccountCommand::List)
@@ -308,14 +346,7 @@ fn handle_command(
 
 fn show_history(client: &RuntimeClient, session: &str, offset: &mut usize) -> Result<()> {
     let page = client.messages(session, PAGE_SIZE, *offset)?;
-    for message in page.messages {
-        let name = match message.role.as_str() {
-            "user" => "You",
-            "assistant" => "Doolittle",
-            _ => continue,
-        };
-        println!("{name} › {}", terminal_text(&message.text));
-    }
+    print_message_page(&page);
     *offset = if page.has_earlier {
         page.next_offset
     } else {

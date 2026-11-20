@@ -33,11 +33,13 @@ nested workspace launches even with different profiles. Avoid sharing a live
 Electron or TypeScript CLI data directory with the native sidecar.
 
 Agent and IDE views share the selected conversation. Use Command-K to find a
-destination. The chat composer can import files through the system picker, and
+destination. Conversation panes can split right or below, resize, and reopen in
+the same window. A narrow window shows one pane at a time and preserves the
+split layout. The chat composer can import files through the system picker, and
 the transcript shows wallet and trading receipts recorded by ElizaOS. In IDE
-view, use **Search** for workspace text, **Changes** for repository diffs and
-**Terminal** for a manually operated local shell, and **Preview** to open a
-loopback development server in the system browser. Save existing text files with
+view, use **Search** for workspace text, **Git** for diffs, staging, commits,
+branches, stashes, and remotes, and **Terminal** for a manually operated shell.
+**Preview** opens a loopback development server in the system browser. Save existing text files with
 **Save** or Command-S. Switching files, reloading a file, and closing the window
 prompt before discarding local edits. A busy workspace or changed file leaves
 the draft in the editor.
@@ -50,14 +52,17 @@ runtime profile's theme settings.
 Open **Work**, **Review**, **Automations**, **Agents**, and **Inbox** to inspect
 or act on the runtime's work. **Home**, **Activity**, **Insights**, and
 **Assets** are native views of runtime status, activity, usage, and managed
-media. Named agents can be created, renamed, started, stopped, and archived in
-private offline workspaces. The chat sidebar imports and exports individual
+media. Named agents can be created, renamed, started, chatted with, stopped,
+and archived in private offline workspaces. Their conversation histories are
+separate. The chat sidebar imports and exports individual
 conversation archives between profiles.
 
 For terminal use, run `nub run native:chat -- --help` to see one-shot runs,
 the cockpit, accounts, approvals, automations, and background jobs. The `acp`
 subcommand starts the existing ElizaOS ACP stdio service. Explicit `api` and
 `gateway` launches bind to loopback and require a configured `ELIZA_API_TOKEN`.
+Use `--bot <uuid>` with `chat`, `run`, `sessions`, `history`, `receipt`, or
+`cancel` to operate on an existing private named agent in the selected profile.
 
 ## Runtime boundary
 
@@ -73,10 +78,11 @@ Saves compare the original editor buffer with the current file and use the same
 workspace admission as native agent turns. Wallet tools still execute inside
 ElizaOS, subject to its existing permissions and approval flow.
 
-The remaining Electron cutover includes nested Canvas splits, embedded browser
-preview, the full Git workflow, named-agent chat and project grants, public
-connector ingress, and the updater. Native profiles use their own data folders.
-Individual conversation archives are available for manual transfer.
+The remaining Electron cutover includes saved pane layouts across restarts,
+embedded browser preview, advanced Git panels, provider and project grants for
+named agents, public connector ingress, and the updater. Native profiles use
+their own data folders. Individual conversation archives are available for
+manual transfer.
 
 ## Verify and package
 

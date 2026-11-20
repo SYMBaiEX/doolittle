@@ -5,7 +5,7 @@ use std::process::ExitCode;
 use anyhow::{Context, Result, ensure};
 use clap::{Parser, Subcommand};
 use doolittle_host::{RuntimeService, RuntimeSidecar, SidecarConfig};
-use doolittle_runtime::{RunStatus, RuntimeClient, SessionSummary};
+use doolittle_runtime::{MessagePage, RunStatus, RuntimeClient, SessionSummary};
 use serde::Serialize;
 use serde_json::{Value, json};
 use uuid::Uuid;
@@ -28,6 +28,9 @@ struct Args {
     /// Connect to an existing loopback runtime with the ELIZA_API_TOKEN environment variable
     #[arg(long, global = true)]
     url: Option<String>,
+    /// Route conversation commands to an existing isolated named agent
+    #[arg(long, global = true, value_name = "UUID", value_parser = named_bot_id)]
+    bot: Option<Uuid>,
     /// Workspace for a new managed runtime (defaults to the current directory)
     #[arg(long, global = true, value_name = "DIRECTORY")]
     workspace: Option<PathBuf>,
@@ -61,6 +64,26 @@ impl Args {
                     && !self.offline),
             "--url cannot be combined with managed runtime options"
         );
+        if self.bot.is_some() {
+            ensure!(
+                !self.cockpit
+                    && matches!(
+                        &self.command,
+                        None | Some(
+                            Command::Chat { .. }
+                                | Command::Run {
+                                    background: false,
+                                    ..
+                                }
+                                | Command::Sessions { .. }
+                                | Command::History { .. }
+                                | Command::Receipt { .. }
+                                | Command::Cancel { .. }
+                        )
+                    ),
+                "--bot supports interactive chat, foreground runs, sessions, history, receipts, and cancellation"
+            );
+        }
         Ok(())
     }
 
@@ -73,6 +96,13 @@ impl Args {
             self.offline,
         )
     }
+}
+
+fn named_bot_id(raw: &str) -> std::result::Result<Uuid, String> {
+    Uuid::parse_str(raw)
+        .ok()
+        .filter(|id| !id.is_nil() && id.hyphenated().to_string() == raw)
+        .ok_or_else(|| "Use the named agent's lowercase UUID".into())
 }
 
 #[derive(Subcommand)]
@@ -125,6 +155,15 @@ enum Command {
         limit: u16,
         #[arg(long)]
         json: bool,
+    },
+    /// Show the current page of messages for one conversation
+    History {
+        #[arg(long, alias = "session-id")]
+        session: String,
+        #[arg(long, default_value_t = 20, value_parser = clap::value_parser!(u16).range(1..=500))]
+        limit: u16,
+        #[arg(long, default_value_t = 0, value_parser = clap::value_parser!(u32).range(0..=1_000_000_000))]
+        offset: u32,
     },
     /// Show runtime, provider and startup status
     Status {
@@ -298,21 +337,22 @@ struct Connection {
 
 impl Connection {
     fn open(args: &Args) -> Result<Self> {
-        if let Some(url) = &args.url {
+        let (client, sidecar) = if let Some(url) = &args.url {
             let token = std::env::var("ELIZA_API_TOKEN")
                 .context("Set ELIZA_API_TOKEN to connect to an existing runtime")?;
-            return Ok(Self {
-                client: RuntimeClient::new(url, &token)?,
-                _sidecar: None,
-            });
-        }
-
-        let config = args.sidecar_config()?;
-        let sidecar = RuntimeSidecar::launch(&config.with_controls())?;
-        let client = RuntimeClient::new(sidecar.endpoint(), sidecar.token())?;
+            (RuntimeClient::new(url, &token)?, None)
+        } else {
+            let config = args.sidecar_config()?;
+            let sidecar = RuntimeSidecar::launch(&config.with_controls())?;
+            let client = RuntimeClient::new(sidecar.endpoint(), sidecar.token())?;
+            (client, Some(sidecar))
+        };
         Ok(Self {
-            client,
-            _sidecar: Some(sidecar),
+            client: match args.bot {
+                Some(bot) => client.for_named_bot(&bot.to_string())?,
+                None => client,
+            },
+            _sidecar: sidecar,
         })
     }
 }
@@ -370,6 +410,12 @@ fn execute(mut args: Args) -> Result<ExitCode> {
             "The cockpit needs an interactive terminal"
         );
     }
+    if args.bot.is_some() && matches!(&command, Command::Chat { .. }) {
+        ensure!(
+            io::stdin().is_terminal(),
+            "Use `run --prompt-stdin` to send a piped prompt to a named agent"
+        );
+    }
 
     // Read and validate prompt input before starting a managed agent.
     let prompt = match &command {
@@ -416,11 +462,11 @@ fn execute(mut args: Args) -> Result<ExitCode> {
                     false,
                 );
             }
-            repl::run(client, session, &signals, false)?;
+            repl::run(client, session, &signals, false, args.bot)?;
         }
         Command::Cockpit { session } => {
             let signals = turn::interrupts()?;
-            repl::run(client, session.unwrap_or_else(new_id), &signals, true)?;
+            repl::run(client, session.unwrap_or_else(new_id), &signals, true, None)?;
         }
         Command::Run {
             session,
@@ -449,6 +495,20 @@ fn execute(mut args: Args) -> Result<ExitCode> {
                 print_json(&sessions)?;
             } else {
                 print_sessions(&sessions);
+            }
+        }
+        Command::History {
+            session,
+            limit,
+            offset,
+        } => {
+            let page = client.messages(&session, usize::from(limit), offset as usize)?;
+            print_message_page(&page);
+            if page.has_earlier {
+                eprintln!(
+                    "Use `--offset {}` to read earlier messages.",
+                    page.next_offset
+                );
             }
         }
         Command::Status { json } => operator::inspect(client, "status", &[], json)?,
@@ -588,6 +648,17 @@ fn print_sessions(sessions: &[SessionSummary]) {
     }
 }
 
+fn print_message_page(page: &MessagePage) {
+    for message in &page.messages {
+        let name = match message.role.as_str() {
+            "user" => "You",
+            "assistant" => "Doolittle",
+            _ => continue,
+        };
+        println!("{name} › {}", terminal_text(&message.text));
+    }
+}
+
 fn print_approvals(client: &RuntimeClient, json: bool) -> Result<()> {
     let payload = client.get_json("/execution/approvals?status=pending", None)?;
     if json {
@@ -696,5 +767,47 @@ mod tests {
             "/tmp",
         ]);
         assert!(parsed.unwrap().validate_runtime_target().is_err());
+    }
+
+    #[test]
+    fn named_bot_arguments_only_allow_conversation_commands() {
+        const BOT: &str = "877aaf43-8995-4b0f-b53a-bfe6f479744f";
+        for command in [
+            vec!["chat"],
+            vec!["run", "--prompt-stdin"],
+            vec!["sessions"],
+            vec!["history", "--session", BOT],
+            vec!["receipt", "run"],
+            vec!["cancel", "run"],
+        ] {
+            let args = Args::try_parse_from(
+                ["doolittle-native", "--bot", BOT]
+                    .into_iter()
+                    .chain(command),
+            )
+            .unwrap();
+            assert!(args.validate_runtime_target().is_ok());
+        }
+        for command in [
+            vec!["status"],
+            vec!["--cli"],
+            vec!["run", "--background", "prompt"],
+            vec!["acp"],
+        ] {
+            let args = Args::try_parse_from(
+                ["doolittle-native", "--bot", BOT]
+                    .into_iter()
+                    .chain(command),
+            )
+            .unwrap();
+            assert!(args.validate_runtime_target().is_err());
+        }
+        for invalid in [
+            "default",
+            "00000000-0000-0000-0000-000000000000",
+            "877AAF43-8995-4B0F-B53A-BFE6F479744F",
+        ] {
+            assert!(Args::try_parse_from(["doolittle-native", "--bot", invalid, "chat"]).is_err());
+        }
     }
 }

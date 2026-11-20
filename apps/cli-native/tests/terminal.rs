@@ -82,6 +82,127 @@ fn attached_cli(endpoint: &str) -> Command {
 }
 
 #[test]
+fn named_agent_commands_stay_on_the_selected_loopback_scope() {
+    const BOT: &str = "877aaf43-8995-4b0f-b53a-bfe6f479744f";
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    listener.set_nonblocking(true).unwrap();
+    let endpoint = format!("http://{}", listener.local_addr().unwrap());
+    let server = thread::spawn(move || {
+        let submit = accept(&listener);
+        let input = request(&submit);
+        assert_eq!(input.line, format!("POST /bots/{BOT}/chat/runs HTTP/1.1"));
+        assert_eq!(input.body["roomId"], SESSION);
+        let run = input.body["runId"].as_str().unwrap();
+        respond(
+            submit,
+            "202 Accepted",
+            "application/json",
+            &json!({
+                "run_id": run, "bot_id": BOT, "response_id": "named-response", "room_id": SESSION,
+                "events_url": format!("/chat/runs/{run}/events"),
+            })
+            .to_string(),
+        );
+        let events = accept(&listener);
+        assert_eq!(
+            request(&events).line,
+            format!("GET /bots/{BOT}/chat/runs/{run}/events?after=0 HTTP/1.1")
+        );
+        respond(
+            events,
+            "200 OK",
+            "text/event-stream",
+            "event: response.completed\ndata: {\"event_id\":1,\"response\":\"Named reply\"}\n\n",
+        );
+        let history = accept(&listener);
+        assert_eq!(
+            request(&history).line,
+            format!(
+                "GET /bots/{BOT}/sessions/messages?sessionId={SESSION}&limit=20&offset=0 HTTP/1.1"
+            )
+        );
+        respond(history, "200 OK", "application/json", &json!({
+            "messages": [{"sessionId": SESSION, "role": "assistant", "text": "Named reply", "createdAt": "2026-11-20T00:00:00Z"}],
+            "hasEarlier": false, "nextOffset": 0, "totalMessages": 1,
+        }).to_string());
+        let receipt = accept(&listener);
+        assert_eq!(
+            request(&receipt).line,
+            format!("GET /bots/{BOT}/chat/runs/{run} HTTP/1.1")
+        );
+        let run_record = json!({
+            "runId": run, "sessionId": SESSION, "roomId": SESSION, "botId": BOT, "status": "complete",
+            "pendingApprovals": 0, "localMutations": [], "startedAt": "2026-11-20T00:00:00Z", "updatedAt": "2026-11-20T00:00:00Z",
+        });
+        respond(
+            receipt,
+            "200 OK",
+            "application/json",
+            &json!({"run": run_record}).to_string(),
+        );
+        let cancel = accept(&listener);
+        assert_eq!(
+            request(&cancel).line,
+            format!("POST /bots/{BOT}/chat/runs/{run}/cancel HTTP/1.1")
+        );
+        respond(
+            cancel,
+            "200 OK",
+            "application/json",
+            &json!({"accepted": true, "run": run_record}).to_string(),
+        );
+    });
+
+    let result = attached_cli(&endpoint)
+        .args([
+            "--bot",
+            BOT,
+            "exec",
+            "--session",
+            SESSION,
+            "--json",
+            "Test prompt",
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    let result: Value = serde_json::from_slice(&result.stdout).unwrap();
+    assert_eq!(result["text"], "Named reply");
+    let run = result["runId"].as_str().unwrap();
+
+    let history = attached_cli(&endpoint)
+        .args(["history", "--bot", BOT, "--session", SESSION])
+        .output()
+        .unwrap();
+    assert!(
+        history.status.success(),
+        "{}",
+        String::from_utf8_lossy(&history.stderr)
+    );
+    assert_eq!(
+        String::from_utf8_lossy(&history.stdout),
+        "Doolittle › Named reply\n"
+    );
+    for command in ["receipt", "cancel"] {
+        let out = attached_cli(&endpoint)
+            .args([command, run, "--bot", BOT])
+            .output()
+            .unwrap();
+        assert!(
+            out.status.success(),
+            "{}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+        assert!(String::from_utf8_lossy(&out.stdout).contains(run));
+    }
+    server.join().unwrap();
+}
+
+#[test]
 fn piped_prompt_resumes_event_stream_without_repeating_submission() {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     listener.set_nonblocking(true).unwrap();
