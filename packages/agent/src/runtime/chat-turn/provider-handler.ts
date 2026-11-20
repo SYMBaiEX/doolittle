@@ -10,6 +10,7 @@ import {
 } from "../action-result-metadata";
 import type { AgentExecutionContext } from "../chat";
 import {
+  DOOLITTLE_COMMAND_ACTION,
   matchesRegisteredClientControl,
   matchesRegisteredCommandShortcut,
 } from "../command-shortcut-match";
@@ -253,6 +254,20 @@ export async function executeProviderMessageTurn(
           handledMessage = true;
           actionResults = getScopedTurnActionResults(input.context.runtime);
           response = input.streamState.getResponse();
+          if (
+            !response.trim() &&
+            executed.some((action) => action.name === DOOLITTLE_COMMAND_ACTION)
+          ) {
+            // SDK action callbacks are filtered from the assistant stream. Use
+            // the verified client reply recorded by the executed shortcut.
+            const commandReceipt = actionResults.find(
+              (result) =>
+                result.success === true &&
+                result.verifiedUserFacing === true &&
+                result.data?.command === prompt,
+            );
+            response = commandReceipt?.userFacingText ?? "";
+          }
           if (!executed.length || !response.trim()) {
             response =
               "The client command could not complete under the current action permissions.";

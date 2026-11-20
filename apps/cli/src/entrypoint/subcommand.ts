@@ -16,6 +16,7 @@ const ENTRYPOINT_COMMANDS = [
   "native",
   "dev",
   "api",
+  "native-api",
   "acp",
   "gateway",
   "plain",
@@ -77,6 +78,9 @@ export function resolveSubcommand(userArgs: string[] = process.argv.slice(2)): {
       command: "desktop",
       rest: userArgs.slice(1),
     };
+  }
+  if (userArgs[0] === "native-api") {
+    return { command: "native-api", rest: userArgs.slice(1) };
   }
   for (const { command, flags } of FLAG_COMMANDS) {
     if (userArgs.some((argument) => flags.includes(argument))) {

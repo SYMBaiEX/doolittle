@@ -222,6 +222,7 @@ function resolveChatWorkspace(
 async function prepareChatRun(
   context: AppContext,
   request: Request,
+  options?: { nativeClient?: boolean },
 ): Promise<PreparedChatRun | Response> {
   const parsed = await readJsonObjectBody(request);
   if (!parsed.ok) {
@@ -236,6 +237,11 @@ async function prepareChatRun(
     );
   }
   const body = parsed.value as ChatRequestBody;
+  if (options?.nativeClient) {
+    // Native local identity belongs to the authenticated process, not the body.
+    body.userId = "local-user";
+    body.source = "cli";
+  }
   if (body.stream !== undefined && typeof body.stream !== "boolean") {
     return json({ error: "stream must be a boolean" }, 400);
   }
@@ -264,6 +270,15 @@ async function prepareChatRun(
     return json({ error: "message is required" }, 400);
   }
   const message = body.message.trim();
+  if (
+    options?.nativeClient &&
+    ((message.startsWith("/") &&
+      message !== "/help" &&
+      message !== "/workspace tree") ||
+      message.startsWith("!"))
+  ) {
+    return json({ error: "This native client command is unavailable." }, 403);
+  }
   let attachments: Awaited<ReturnType<typeof resolveManagedChatAttachments>>;
   try {
     attachments = await resolveManagedChatAttachments({
@@ -694,8 +709,9 @@ async function waitForTerminalEvent(
 export async function handleChatSubmitRoute(
   context: AppContext,
   request: Request,
+  options?: { nativeClient?: boolean },
 ): Promise<Response> {
-  const prepared = await prepareChatRun(context, request);
+  const prepared = await prepareChatRun(context, request, options);
   if (prepared instanceof Response) return prepared;
   const conflict = await startServerOwnedChatRun(context, prepared);
   if (conflict) return conflict;

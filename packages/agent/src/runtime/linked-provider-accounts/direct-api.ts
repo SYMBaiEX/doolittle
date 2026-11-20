@@ -6,7 +6,8 @@ import { withLinkedProviderMutationLock } from "./mutation-lock";
 export function deferDesktopDirectApiCredentials(): boolean {
   return (
     process.platform === "darwin" &&
-    process.env.DOOLITTLE_DESKTOP_RUNTIME === "1"
+    (process.env.DOOLITTLE_DESKTOP_RUNTIME === "1" ||
+      process.env.DOOLITTLE_NATIVE_RUNTIME === "1")
   );
 }
 

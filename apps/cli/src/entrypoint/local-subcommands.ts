@@ -49,6 +49,14 @@ export async function handleLocalEntrypointSubcommand(input: {
     case "acp":
       await (await import("./acp-server")).startAcpServer();
       return 0;
+    case "native-api":
+      if (rest.length) {
+        writeStderrLine("Native API takes no command arguments.");
+        return 1;
+      }
+      await (await import("./native-api")).runNativeApi();
+      // SDK background retry timers may outlive the disposed runtime.
+      return process.exit(0);
     case "install": {
       const installScript = resolve(repoRoot, "scripts", "install.sh");
       if (!existsSync(installScript)) {
