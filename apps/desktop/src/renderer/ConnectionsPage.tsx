@@ -31,7 +31,6 @@ import {
   ErrorBlock,
   LoadingBlock,
   Notice,
-  PageHeader,
   titleCase,
   useApiResource,
 } from "./lib";
@@ -93,13 +92,7 @@ export function providerSelectionLabel({
   return providerRouteLabel(configuredProvider);
 }
 
-export function ConnectionsPage({
-  active,
-  embedded = false,
-}: {
-  active: boolean;
-  embedded?: boolean;
-}) {
+export function ConnectionsPage({ active }: { active: boolean }) {
   const [poolOpen, setPoolOpen] = useState(false);
   const resourcePolicy = connectionsResourcePolicy(active, poolOpen);
   const accountPool = useApiResource<AccountPoolResponse>(
@@ -111,12 +104,9 @@ export function ConnectionsPage({
     [resourcePolicy.accounts],
   );
   const inventory = accountPool.data?.inventory;
-  const displayedProviders = embedded
-    ? [...accountProviders].sort(
-        (left, right) =>
-          Number(right.accountSignIn) - Number(left.accountSignIn),
-      )
-    : accountProviders;
+  const displayedProviders = [...accountProviders].sort(
+    (left, right) => Number(right.accountSignIn) - Number(left.accountSignIn),
+  );
   const {
     accountImports,
     authStates,
@@ -154,7 +144,7 @@ export function ConnectionsPage({
       {checkingSaved ? "Checking saved accounts…" : "Check saved accounts"}
     </Button>
   ) : null;
-  const header = embedded ? (
+  const header = (
     <header className="settings-section-header">
       <div>
         <h2>Provider accounts</h2>
@@ -162,21 +152,11 @@ export function ConnectionsPage({
       </div>
       {checkAction}
     </header>
-  ) : (
-    <PageHeader
-      actions={checkAction}
-      description={description}
-      eyebrow="Agent"
-      title="Providers & accounts"
-    />
   );
 
   if (!active) {
     return (
-      <PagePanel
-        className={embedded ? "settings-provider-section" : "page"}
-        variant={embedded ? "section" : "workspace"}
-      >
+      <PagePanel className="settings-provider-section" variant="section">
         {header}
         <OfflineRouteState>
           Provider accounts are available when the local runtime is ready.
@@ -209,10 +189,7 @@ export function ConnectionsPage({
     (provider) => provider.ready,
   ).length;
   return (
-    <PagePanel
-      className={embedded ? "settings-provider-section" : "page"}
-      variant={embedded ? "section" : "workspace"}
-    >
+    <PagePanel className="settings-provider-section" variant="section">
       {header}
       {(!resource.data ||
         inventory === "unchecked" ||
@@ -257,9 +234,7 @@ export function ConnectionsPage({
         <ErrorBlock error={resource.error} retry={resource.reload} />
       ) : null}
       {resource.data ? (
-        <div
-          className={`${PROVIDER_CONSOLE_CLASS} ${embedded ? "is-embedded" : ""}`}
-        >
+        <div className={`${PROVIDER_CONSOLE_CLASS} is-embedded`}>
           <section
             className={PROVIDER_SURFACE_CLASS}
             aria-labelledby="provider-connections-title"

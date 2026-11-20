@@ -3,7 +3,7 @@ import { PagePanel } from "@elizaos/ui/components/composites/page-panel/index";
 import { Tabs, TabsContent } from "@elizaos/ui/components/ui/tabs";
 import { lazy, Suspense, useState } from "react";
 import { OfflineRouteState } from "./components/OfflineRouteState";
-import { PageHeader, useApiResource } from "./lib";
+import { useApiResource } from "./lib";
 import { MemoryProfilesPanel } from "./memory/MemoryProfilesPanel";
 import { MemorySnapshotPanel } from "./memory/MemorySnapshotPanel";
 import {
@@ -15,7 +15,6 @@ import {
 } from "./memory/models";
 import { RuntimeSectionNav } from "./runtime-state/RuntimeSectionNav";
 
-const MEMORY_PAGE_CLASS = "page @container/memory min-w-0 gap-4";
 const ProjectKnowledgePanel = lazy(async () => ({
   default: (await import("./memory/ProjectKnowledgePanel"))
     .ProjectKnowledgePanel,
@@ -53,13 +52,7 @@ const MEMORY_SECTIONS: Array<{
   },
 ];
 
-export function MemoryPage({
-  active,
-  embedded = false,
-}: {
-  active: boolean;
-  embedded?: boolean;
-}) {
+export function MemoryPage({ active }: { active: boolean }) {
   const [section, setSection] = useState<MemorySection>("shared");
   const policy = memoryResourcePolicy(section, active);
   const sharedMemory = useApiResource<MemoryResponse>(
@@ -94,48 +87,25 @@ export function MemoryPage({
   if (!active) {
     return (
       <PagePanel
-        className={
-          embedded
-            ? "settings-memory-section @container/memory min-w-0 gap-4"
-            : MEMORY_PAGE_CLASS
-        }
-        variant={embedded ? "section" : "workspace"}
+        className="settings-memory-section @container/memory min-w-0 gap-4"
+        variant="section"
       >
-        {embedded ? (
-          <header className="settings-section-header">
-            <div>
-              <span className="eyebrow">Workspace knowledge</span>
-              <h2>Memory & recall</h2>
-              <p>Inspect memory and profile recall.</p>
-            </div>
-            <Button
-              className="secondary-button"
-              disabled
-              onClick={reloadVisibleSection}
-              type="button"
-              variant="secondary"
-            >
-              Refresh memory
-            </Button>
-          </header>
-        ) : (
-          <PageHeader
-            actions={
-              <Button
-                className="secondary-button"
-                disabled
-                onClick={reloadVisibleSection}
-                type="button"
-                variant="secondary"
-              >
-                Refresh memory
-              </Button>
-            }
-            description="Inspect memory and profile recall."
-            eyebrow="Operator Workspace"
-            title="Memory"
-          />
-        )}
+        <header className="settings-section-header">
+          <div>
+            <span className="eyebrow">Workspace knowledge</span>
+            <h2>Memory & recall</h2>
+            <p>Inspect memory and profile recall.</p>
+          </div>
+          <Button
+            className="secondary-button"
+            disabled
+            onClick={reloadVisibleSection}
+            type="button"
+            variant="secondary"
+          >
+            Refresh memory
+          </Button>
+        </header>
         <OfflineRouteState>
           Memory snapshots and profile recall are unavailable until the local
           runtime is ready.
@@ -146,58 +116,26 @@ export function MemoryPage({
 
   return (
     <PagePanel
-      className={
-        embedded
-          ? "settings-memory-section @container/memory min-w-0 gap-4"
-          : MEMORY_PAGE_CLASS
-      }
-      variant={embedded ? "section" : "workspace"}
+      className="settings-memory-section @container/memory min-w-0 gap-4"
+      variant="section"
     >
-      {embedded ? (
-        <header className="settings-section-header">
-          <div>
-            <span className="eyebrow">Workspace knowledge</span>
-            <h2>Memory & recall</h2>
-            <p>
-              Inspect private memory, promoted findings, and profile recall.
-            </p>
-          </div>
-          <Button
-            className="secondary-button"
-            disabled={!active}
-            onClick={reloadVisibleSection}
-            type="button"
-            variant="secondary"
-          >
-            Refresh{" "}
-            {
-              MEMORY_SECTIONS.find((entry) => entry.id === section)
-                ?.refreshLabel
-            }
-          </Button>
-        </header>
-      ) : (
-        <PageHeader
-          actions={
-            <Button
-              className="secondary-button"
-              disabled={!active}
-              onClick={reloadVisibleSection}
-              type="button"
-              variant="secondary"
-            >
-              Refresh{" "}
-              {
-                MEMORY_SECTIONS.find((entry) => entry.id === section)
-                  ?.refreshLabel
-              }
-            </Button>
-          }
-          description="Inspect private memory, promoted findings, and profile recall."
-          eyebrow="Operator Workspace"
-          title="Memory"
-        />
-      )}
+      <header className="settings-section-header">
+        <div>
+          <span className="eyebrow">Workspace knowledge</span>
+          <h2>Memory & recall</h2>
+          <p>Inspect private memory, promoted findings, and profile recall.</p>
+        </div>
+        <Button
+          className="secondary-button"
+          disabled={!active}
+          onClick={reloadVisibleSection}
+          type="button"
+          variant="secondary"
+        >
+          Refresh{" "}
+          {MEMORY_SECTIONS.find((entry) => entry.id === section)?.refreshLabel}
+        </Button>
+      </header>
       <Tabs
         className="grid min-h-0 content-start gap-2.5"
         onValueChange={(value) => setSection(value as MemorySection)}

@@ -1,17 +1,5 @@
 export const REVIEW_PAGE_CLASS =
-  "page review-page flex h-full min-h-0 flex-col gap-2 overflow-hidden bg-[var(--bg)] px-3.5 pt-3 pb-3.5 max-[760px]:overflow-auto";
-
-export const REVIEW_PAGE_EMBEDDED_CLASS = "review-page--embedded gap-0 p-0";
-
-export function reviewPageClass(embedded: boolean): string {
-  return `${REVIEW_PAGE_CLASS} ${embedded ? REVIEW_PAGE_EMBEDDED_CLASS : ""}`;
-}
-
-export const REVIEW_HEADER_CLASS =
-  "review-header flex min-h-13.5 shrink-0 items-center justify-between gap-5.5 border-[color-mix(in_srgb,var(--border)_72%,transparent)] border-b px-px pt-0 pb-2 [&>div:first-child]:min-w-0 [&_h1]:mt-0.5 [&_h1]:mb-0.5 [&_h1]:font-[var(--font-display)] [&_h1]:text-base [&_h1]:tracking-[-0.025em] [&_p]:m-0 [&_p]:max-w-190 [&_p]:text-[length:var(--text-meta)] [&_p]:leading-[1.45] [&_p]:text-[var(--muted)] max-[940px]:[&_p]:hidden";
-
-export const REVIEW_HEADER_STATUS_CLASS =
-  "review-header-status flex shrink-0 items-center gap-3.5 [&>span]:grid [&>span]:gap-0.5 [&>span]:text-right [&>span]:font-[var(--font-mono)] [&>span]:text-[length:var(--text-meta)] [&>span]:text-[var(--muted)] [&>span]:uppercase [&_strong]:text-[13px] [&_strong]:text-[var(--text)] max-[940px]:[&>span]:hidden";
+  "page review-page flex h-full min-h-0 flex-col gap-2 overflow-hidden bg-[var(--bg)] px-3.5 pt-3 pb-3.5 max-[760px]:overflow-auto review-page--embedded gap-0 p-0";
 
 const REVIEW_OVERVIEW_BASE =
   "review-work-overview grid min-h-16.5 shrink-0 grid-cols-[minmax(260px,1fr)_auto_minmax(132px,0.24fr)] items-stretch overflow-hidden rounded-none border border-x-0 border-[color-mix(in_srgb,var(--border)_76%,transparent)] bg-transparent shadow-[inset_2px_0_var(--border-strong)] max-[1180px]:grid-cols-[minmax(280px,1fr)_auto] max-[860px]:grid-cols-[minmax(0,1fr)_auto]";

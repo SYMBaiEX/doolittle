@@ -38,7 +38,6 @@ import {
   errorMessage,
   LoadingBlock,
   Notice,
-  PageHeader,
   titleCase,
   useApiResource,
 } from "./lib";
@@ -92,13 +91,7 @@ function sessionMetadata(session: unknown) {
   };
 }
 
-export function GatewayPage({
-  active,
-  embedded = false,
-}: {
-  active: boolean;
-  embedded?: boolean;
-}) {
+export function GatewayPage({ active }: { active: boolean }) {
   const [pairingOpen, setPairingOpen] = useState(false);
   const [routesOpen, setRoutesOpen] = useState(false);
   const resourcePolicy = gatewayResourcePolicy(active, pairingOpen, routesOpen);
@@ -241,18 +234,6 @@ export function GatewayPage({
   if (!active) {
     return (
       <section className={GATEWAY_PAGE_CLASS}>
-        {!embedded ? (
-          <PageHeader
-            eyebrow="Observe / gateway"
-            title="Gateway inbox"
-            description="Local transport history, thread routes, and sender approvals."
-            actions={
-              <Button disabled onClick={refresh} type="button">
-                Refresh records
-              </Button>
-            }
-          />
-        ) : null}
         <OfflineRouteState>
           Gateway history, routes, and sender approvals are unavailable until
           the local runtime is ready.
@@ -263,25 +244,11 @@ export function GatewayPage({
 
   return (
     <section className={GATEWAY_PAGE_CLASS}>
-      {!embedded ? (
-        <PageHeader
-          eyebrow="Observe / gateway"
-          title="Gateway inbox"
-          description="Local transport history, thread routes, and sender approvals."
-          actions={
-            <Button onClick={refresh} type="button" variant="secondary">
-              Refresh records
-            </Button>
-          }
-        />
-      ) : null}
-      {embedded ? (
-        <div className="flex justify-end">
-          <Button onClick={refresh} type="button" variant="secondary">
-            Refresh records
-          </Button>
-        </div>
-      ) : null}
+      <div className="flex justify-end">
+        <Button onClick={refresh} type="button" variant="secondary">
+          Refresh records
+        </Button>
+      </div>
 
       <ResourceStatusBar resources={statusResources} />
 

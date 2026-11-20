@@ -704,7 +704,6 @@ export function OrchestrationPage({
             <ReviewPage
               active={active}
               computerOrigin={computerOrigin}
-              embedded
               key={JSON.stringify([
                 projectScope,
                 workspacePath ?? "",
@@ -721,9 +720,7 @@ export function OrchestrationPage({
           {activeTab === "automations" ? (
             <AutomationsPage active={active} />
           ) : null}
-          {activeTab === "inbox" ? (
-            <GatewayPage active={active} embedded />
-          ) : null}
+          {activeTab === "inbox" ? <GatewayPage active={active} /> : null}
           {activeTab === "tasks" ? (
             <TaskQueuePanel
               active={active}

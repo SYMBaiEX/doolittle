@@ -24,9 +24,9 @@ export const DESKTOP_ROUTE_RESOURCE_PREFETCHES: Readonly<
   Partial<Record<View, readonly DesktopRouteResourcePrefetch[]>>
 > = {
   activity: [{ path: "/activity?limit=200", dependencies: [true] }],
+  advanced: [{ path: "/settings", dependencies: [true] }],
   analytics: [{ path: "/analytics", dependencies: [true] }],
   automations: [{ path: "/cron/jobs", dependencies: [true] }],
-  browser: [{ path: "/browser/status", dependencies: [true] }],
   compatibility: [{ path: "/runtime/compatibility", dependencies: [true] }],
   connections: [{ path: "/runtime/accounts", dependencies: [true] }],
   dashboard: [
@@ -34,6 +34,7 @@ export const DESKTOP_ROUTE_RESOURCE_PREFETCHES: Readonly<
     { path: "/setup/summary", dependencies: [true] },
     { path: "/runtime/account-pool", dependencies: [true] },
   ],
+  execution: [{ path: "/settings", dependencies: [true] }],
   gateway: [
     { path: "/gateway/state", dependencies: [true] },
     { path: "/gateway/inbox?limit=25", dependencies: [true] },
@@ -66,9 +67,8 @@ export const DESKTOP_ROUTE_RESOURCE_PREFETCHES: Readonly<
     { path: "/runtime/account-pool", dependencies: [true] },
     { path: "/autonomy/status", dependencies: [true] },
   ],
-  settings: [{ path: "/settings", dependencies: [true] }],
   skills: [{ path: "/skills", dependencies: [true] }],
-  tools: [{ path: "/tools?profile=full", dependencies: [true, "full"] }],
+  tools: [{ path: "/tools", dependencies: [true] }],
 };
 
 interface DesktopRoutePrefetchIntent {

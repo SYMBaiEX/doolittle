@@ -1,5 +1,4 @@
 import { Button } from "@elizaos/ui/button";
-import { PagePanel } from "@elizaos/ui/components/composites/page-panel/index";
 import { Tabs, TabsContent } from "@elizaos/ui/components/ui/tabs";
 import { type ReactNode, useState } from "react";
 import type {
@@ -9,7 +8,7 @@ import type {
 } from "../shared/contracts";
 import type { NativeAutonomyResponse } from "./components/NativeAutonomyPanel";
 import { OfflineRouteState } from "./components/OfflineRouteState";
-import { PageHeader, type UnknownRecord, useApiResource } from "./lib";
+import { type UnknownRecord, useApiResource } from "./lib";
 import {
   type GatewayHealthResponse,
   type GatewayRuntimeResponse,
@@ -19,7 +18,6 @@ import {
 import { RuntimeGateway } from "./runtime/RuntimeGateway";
 import { RuntimeInventory } from "./runtime/RuntimeInventory";
 import { RuntimeOverview } from "./runtime/RuntimeOverview";
-import { RUNTIME_PAGE_CLASS } from "./runtime/runtime-layout";
 import { RuntimeSectionNav } from "./runtime-state/RuntimeSectionNav";
 
 const RUNTIME_SECTIONS: Array<{
@@ -32,70 +30,36 @@ const RUNTIME_SECTIONS: Array<{
   { id: "inventory", label: "Inventory", detail: "Plugins and ecosystem" },
 ];
 
-function RuntimePageFrame({
-  children,
-  embedded,
-}: {
-  children: ReactNode;
-  embedded: boolean;
-}) {
-  if (embedded) {
-    return (
-      <div
-        className="settings-embedded-section @container/runtime min-w-0"
-        data-settings-embedded="true"
-      >
-        {children}
-      </div>
-    );
-  }
-
+function RuntimePageFrame({ children }: { children: ReactNode }) {
   return (
-    <PagePanel className={RUNTIME_PAGE_CLASS} variant="workspace">
+    <div
+      className="settings-embedded-section @container/runtime min-w-0"
+      data-settings-embedded="true"
+    >
       {children}
-    </PagePanel>
+    </div>
   );
 }
 
-function RuntimePageHeader({
-  actions,
-  embedded,
-}: {
-  actions: ReactNode;
-  embedded: boolean;
-}) {
-  if (embedded) {
-    return (
-      <header className="settings-section-header">
-        <div>
-          <span className="eyebrow">Runtime</span>
-          <h2>Runtime</h2>
-          <p>Inspect the model, services, gateway, and capabilities.</p>
-        </div>
-        {actions}
-      </header>
-    );
-  }
-
+function RuntimePageHeader({ actions }: { actions: ReactNode }) {
   return (
-    <PageHeader
-      actions={actions}
-      description="Inspect the model, services, gateway, and capabilities."
-      eyebrow="Runtime"
-      title="Runtime"
-    />
+    <header className="settings-section-header">
+      <div>
+        <span className="eyebrow">Runtime</span>
+        <h2>Runtime</h2>
+        <p>Inspect the model, services, gateway, and capabilities.</p>
+      </div>
+      {actions}
+    </header>
   );
 }
 
 export function RuntimePage({
   active,
-  embedded = false,
   readOnly = false,
   onOpenProviders,
 }: {
   active: boolean;
-  /** Render inside the Settings content pane without a second page frame. */
-  embedded?: boolean;
   readOnly?: boolean;
   onOpenProviders?: () => void;
 }) {
@@ -148,7 +112,7 @@ export function RuntimePage({
 
   if (!active) {
     return (
-      <RuntimePageFrame embedded={embedded}>
+      <RuntimePageFrame>
         <RuntimePageHeader
           actions={
             <Button
@@ -161,7 +125,6 @@ export function RuntimePage({
               Refresh
             </Button>
           }
-          embedded={embedded}
         />
         <OfflineRouteState>
           Runtime diagnostics and capability inventory are unavailable until the
@@ -172,7 +135,7 @@ export function RuntimePage({
   }
 
   return (
-    <RuntimePageFrame embedded={embedded}>
+    <RuntimePageFrame>
       <RuntimePageHeader
         actions={
           <Button
@@ -186,7 +149,6 @@ export function RuntimePage({
             {RUNTIME_SECTIONS.find((entry) => entry.id === section)?.label}
           </Button>
         }
-        embedded={embedded}
       />
 
       <Tabs

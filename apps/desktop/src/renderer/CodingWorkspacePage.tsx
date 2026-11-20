@@ -834,7 +834,6 @@ export function CodingWorkspacePage({
         <BrowserPage
           botId={botId}
           active={active && surface === "preview"}
-          contextual
           onSendToChat={(text) => {
             onSendToChat({
               text,

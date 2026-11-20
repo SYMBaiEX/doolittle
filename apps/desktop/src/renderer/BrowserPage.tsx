@@ -23,12 +23,9 @@ import {
   BROWSER_COMPARE_SUMMARY_CLASS,
   BROWSER_EMBEDDED_PAGE_CLASS,
   BROWSER_FRAME_STAGE_CLASS,
-  BROWSER_HEADER_CLASS,
   BROWSER_NAV_BUTTON_CLASS,
-  BROWSER_PAGE_CLASS,
   BROWSER_PLACEHOLDER_CLASS,
   BROWSER_PREVIEW_WIDTH_CLASS,
-  BROWSER_STATUS_CLASS,
   BROWSER_TOOLS_CLASS,
   BROWSER_WORKSPACE_CLASS,
 } from "./browser/browser-layout";
@@ -59,14 +56,11 @@ export function BrowserEmptyEvidence() {
 
 export function BrowserPage({
   active,
-  contextual = false,
   onSendToChat,
   botId,
   origin,
 }: {
   active: boolean;
-  /** Render browser chrome inside the Code workspace instead of as a route. */
-  contextual?: boolean;
   onSendToChat?: (text: string) => boolean | Promise<boolean>;
   botId?: string;
   origin?: ComputerOrigin;
@@ -92,15 +86,10 @@ export function BrowserPage({
     resultStatusMessage,
     runAction,
     setPreviewSize,
-    status,
-    statusLabel,
     travelHistory,
     updateAddress,
     updateCompareUrl,
   } = browser;
-  const refreshStatus = () => {
-    if (active) status.reload();
-  };
   const previewActions: ContextAction[] = [
     {
       id: "back",
@@ -147,33 +136,7 @@ export function BrowserPage({
 
   if (!active) {
     return (
-      <div
-        className={
-          contextual ? BROWSER_EMBEDDED_PAGE_CLASS : BROWSER_PAGE_CLASS
-        }
-      >
-        {!contextual ? (
-          <header className={BROWSER_HEADER_CLASS}>
-            <div>
-              <span className="eyebrow">Build and verify</span>
-              <h1>Browser &amp; preview</h1>
-              <p>Preview localhost. Capture evidence from any URL.</p>
-            </div>
-            <div className={BROWSER_STATUS_CLASS}>
-              <i className="size-1.75 rounded-full bg-[var(--bad)]" />
-              <strong>Offline</strong>
-              <Button
-                disabled
-                onClick={refreshStatus}
-                size="sm"
-                type="button"
-                variant="ghost"
-              >
-                Refresh
-              </Button>
-            </div>
-          </header>
-        ) : null}
+      <div className={BROWSER_EMBEDDED_PAGE_CLASS}>
         <OfflineRouteState>
           Browser preview and evidence capture are unavailable until the local
           runtime is ready.
@@ -183,38 +146,10 @@ export function BrowserPage({
   }
 
   return (
-    <div
-      className={contextual ? BROWSER_EMBEDDED_PAGE_CLASS : BROWSER_PAGE_CLASS}
-    >
+    <div className={BROWSER_EMBEDDED_PAGE_CLASS}>
       <div aria-live="polite" className="sr-only" role="status">
         {resultStatusMessage}
       </div>
-      {!contextual ? (
-        <header className={BROWSER_HEADER_CLASS}>
-          <div>
-            <span className="eyebrow">Build and verify</span>
-            <h1>Browser & preview</h1>
-            <p>Preview localhost. Capture evidence from any URL.</p>
-          </div>
-          <div className={BROWSER_STATUS_CLASS}>
-            <i
-              className={`size-1.75 rounded-full ${
-                status.error ? "bg-[var(--bad)]" : "bg-[var(--good)]"
-              }`}
-            />
-            <strong>{status.error ? "Unavailable" : statusLabel}</strong>
-            <Button
-              disabled={!active}
-              onClick={refreshStatus}
-              size="sm"
-              type="button"
-              variant="ghost"
-            >
-              Refresh
-            </Button>
-          </div>
-        </header>
-      ) : null}
 
       <ContextActionMenu
         items={previewActions}

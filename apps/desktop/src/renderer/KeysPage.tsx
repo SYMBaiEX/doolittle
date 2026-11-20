@@ -18,11 +18,8 @@ import {
   errorMessage,
   LoadingBlock,
   Notice,
-  PageHeader,
   useApiResource,
 } from "./lib";
-
-const KEYS_PAGE_CLASS = "page @container/keys min-w-0 gap-4";
 
 const KEYS_TOOLBAR_CLASS =
   "flex items-start justify-between gap-4 [&>div]:grid [&>div]:gap-0.5 [&_h2]:mt-1 [&_h2]:font-[var(--font-display)] [&_h2]:text-sm [&_h2]:font-semibold [&_h2]:leading-[1.2] [&_h2]:tracking-[-0.015em]";
@@ -39,13 +36,7 @@ interface SecretValueResponse {
   value?: string | null;
 }
 
-export function KeysPage({
-  active,
-  embedded = false,
-}: {
-  active: boolean;
-  embedded?: boolean;
-}) {
+export function KeysPage({ active }: { active: boolean }) {
   const secrets = useApiResource<SecretsResponse>(active ? "/secrets" : null, [
     active,
   ]);
@@ -143,48 +134,24 @@ export function KeysPage({
   };
 
   return (
-    <div
-      className={
-        embedded
-          ? "settings-keys-section @container/keys flex min-w-0 flex-col gap-4"
-          : KEYS_PAGE_CLASS
-      }
-    >
-      {embedded ? (
-        <header className="settings-section-header">
-          <div>
-            <span className="eyebrow">Credentials</span>
-            <h2>Secret store</h2>
-            <p>
-              Inspect, reveal, and update credentials in the local secret store.
-            </p>
-          </div>
-          <Button
-            disabled={!active}
-            onClick={secrets.reload}
-            type="button"
-            variant="secondary"
-          >
-            Refresh
-          </Button>
-        </header>
-      ) : (
-        <PageHeader
-          eyebrow="Credentials"
-          title="Keys"
-          description="Inspect, reveal, and update credentials in the local secret store."
-          actions={
-            <Button
-              disabled={!active}
-              onClick={secrets.reload}
-              type="button"
-              variant="secondary"
-            >
-              Refresh
-            </Button>
-          }
-        />
-      )}
+    <div className="settings-keys-section @container/keys flex min-w-0 flex-col gap-4">
+      <header className="settings-section-header">
+        <div>
+          <span className="eyebrow">Credentials</span>
+          <h2>Secret store</h2>
+          <p>
+            Inspect, reveal, and update credentials in the local secret store.
+          </p>
+        </div>
+        <Button
+          disabled={!active}
+          onClick={secrets.reload}
+          type="button"
+          variant="secondary"
+        >
+          Refresh
+        </Button>
+      </header>
       {active && feedback ? (
         <Notice tone={feedback.tone}>{feedback.message}</Notice>
       ) : null}

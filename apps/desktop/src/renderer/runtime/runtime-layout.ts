@@ -1,5 +1,3 @@
-export const RUNTIME_PAGE_CLASS = "page @container/runtime min-w-0";
-
 export const RUNTIME_SECTION_STACK_CLASS = "grid min-h-0 gap-5";
 
 export const RUNTIME_TWO_COLUMN_GRID_CLASS =

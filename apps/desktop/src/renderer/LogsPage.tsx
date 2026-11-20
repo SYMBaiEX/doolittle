@@ -10,7 +10,6 @@ import {
   asArray,
   asRecord,
   asString,
-  PageHeader,
   useApiResource,
   useDebouncedValue,
 } from "./lib";
@@ -20,7 +19,6 @@ import { RuntimeLogStream } from "./logs/RuntimeLogStream";
 import {
   OBSERVABILITY_CONTROL_CLASS,
   OBSERVABILITY_FILTER_CLASS,
-  OBSERVABILITY_PAGE_CLASS,
 } from "./observability-layout";
 
 interface LogsResponse {
@@ -38,13 +36,7 @@ interface TerminalHistoryResponse {
 const EMBEDDED_LOGS_CLASS =
   "settings-logs-section @container/observability min-w-0";
 
-export function LogsPage({
-  active,
-  embedded = false,
-}: {
-  active: boolean;
-  embedded?: boolean;
-}) {
+export function LogsPage({ active }: { active: boolean }) {
   const [level, setLevel] = useState("all");
   const [query, setQuery] = useState("");
   const debouncedQuery = useDebouncedValue(query.trim());
@@ -86,43 +78,17 @@ export function LogsPage({
 
   if (!active) {
     return (
-      <PagePanel
-        className={embedded ? EMBEDDED_LOGS_CLASS : OBSERVABILITY_PAGE_CLASS}
-        variant={embedded ? "section" : "workspace"}
-      >
-        {embedded ? (
-          <header className="settings-section-header">
-            <div>
-              <span className="eyebrow">Operations</span>
-              <h2>Logs</h2>
-              <p>Redacted runtime events and local operational traces.</p>
-            </div>
-            <Button
-              disabled
-              onClick={refresh}
-              type="button"
-              variant="secondary"
-            >
-              Refresh
-            </Button>
-          </header>
-        ) : (
-          <PageHeader
-            eyebrow="Operations"
-            title="Logs"
-            description="Redacted runtime events and local operational traces."
-            actions={
-              <Button
-                disabled
-                onClick={refresh}
-                type="button"
-                variant="secondary"
-              >
-                Refresh
-              </Button>
-            }
-          />
-        )}
+      <PagePanel className={EMBEDDED_LOGS_CLASS} variant="section">
+        <header className="settings-section-header">
+          <div>
+            <span className="eyebrow">Operations</span>
+            <h2>Logs</h2>
+            <p>Redacted runtime events and local operational traces.</p>
+          </div>
+          <Button disabled onClick={refresh} type="button" variant="secondary">
+            Refresh
+          </Button>
+        </header>
         <OfflineRouteState>
           Runtime logs and secondary traces are unavailable until the local
           runtime is ready.
@@ -132,33 +98,17 @@ export function LogsPage({
   }
 
   return (
-    <PagePanel
-      className={embedded ? EMBEDDED_LOGS_CLASS : OBSERVABILITY_PAGE_CLASS}
-      variant={embedded ? "section" : "workspace"}
-    >
-      {embedded ? (
-        <header className="settings-section-header">
-          <div>
-            <span className="eyebrow">Operations</span>
-            <h2>Logs</h2>
-            <p>Redacted runtime events and local operational traces.</p>
-          </div>
-          <Button onClick={refresh} type="button" variant="secondary">
-            Refresh
-          </Button>
-        </header>
-      ) : (
-        <PageHeader
-          eyebrow="Operations"
-          title="Logs"
-          description="Redacted runtime events and local operational traces."
-          actions={
-            <Button onClick={refresh} type="button" variant="secondary">
-              Refresh
-            </Button>
-          }
-        />
-      )}
+    <PagePanel className={EMBEDDED_LOGS_CLASS} variant="section">
+      <header className="settings-section-header">
+        <div>
+          <span className="eyebrow">Operations</span>
+          <h2>Logs</h2>
+          <p>Redacted runtime events and local operational traces.</p>
+        </div>
+        <Button onClick={refresh} type="button" variant="secondary">
+          Refresh
+        </Button>
+      </header>
       <CompactStatStrip
         label="Operations summary"
         stats={[

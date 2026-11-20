@@ -20,7 +20,6 @@ import {
   EmptyBlock,
   ErrorBlock,
   LoadingBlock,
-  PageHeader,
   useApiResource,
 } from "./lib";
 import { SkillCatalogWorkspace } from "./skills/SkillCatalogWorkspace";
@@ -51,13 +50,7 @@ export function skillsSectionForKey(
   return undefined;
 }
 
-export function SkillsPage({
-  active,
-  embedded = false,
-}: {
-  active: boolean;
-  embedded?: boolean;
-}) {
+export function SkillsPage({ active }: { active: boolean }) {
   const skills = useApiResource<SkillsResponse>(active ? "/skills" : null, [
     active,
   ]);
@@ -77,48 +70,22 @@ export function SkillsPage({
   });
   if (!active) {
     return (
-      <div
-        className={
-          embedded
-            ? "settings-skills-section flex min-w-0 flex-col gap-2"
-            : "page page-skills gap-3"
-        }
-      >
-        {embedded ? (
-          <header className="settings-section-header">
-            <div>
-              <span className="eyebrow">Agent</span>
-              <h2>Skill catalog</h2>
-              <p>
-                Browse reusable skills or review proposals before activation.
-              </p>
-            </div>
-            <button
-              className="secondary-button"
-              disabled
-              onClick={refresh}
-              type="button"
-            >
-              Refresh
-            </button>
-          </header>
-        ) : (
-          <PageHeader
-            actions={
-              <button
-                className="secondary-button"
-                disabled
-                onClick={refresh}
-                type="button"
-              >
-                Refresh
-              </button>
-            }
-            description="Browse reusable skills or review proposals before activation."
-            eyebrow="Agent"
-            title="Skills"
-          />
-        )}
+      <div className="settings-skills-section flex min-w-0 flex-col gap-2">
+        <header className="settings-section-header">
+          <div>
+            <span className="eyebrow">Agent</span>
+            <h2>Skill catalog</h2>
+            <p>Browse reusable skills or review proposals before activation.</p>
+          </div>
+          <button
+            className="secondary-button"
+            disabled
+            onClick={refresh}
+            type="button"
+          >
+            Refresh
+          </button>
+        </header>
         <OfflineRouteState>
           Skill catalog and proposal review are unavailable until the local
           runtime is ready.
@@ -159,46 +126,22 @@ export function SkillsPage({
   };
 
   return (
-    <div
-      className={
-        embedded
-          ? "settings-skills-section flex min-w-0 flex-col gap-2"
-          : "page page-skills gap-3"
-      }
-    >
-      {embedded ? (
-        <header className="settings-section-header">
-          <div>
-            <span className="eyebrow">Agent</span>
-            <h2>Skill catalog</h2>
-            <p>Browse reusable skills or review proposals before activation.</p>
-          </div>
-          <button
-            className="secondary-button"
-            disabled={!active}
-            onClick={refresh}
-            type="button"
-          >
-            Refresh
-          </button>
-        </header>
-      ) : (
-        <PageHeader
-          eyebrow="Agent"
-          title="Skills"
-          description="Browse reusable skills or review proposals before activation."
-          actions={
-            <button
-              className="secondary-button"
-              disabled={!active}
-              onClick={refresh}
-              type="button"
-            >
-              Refresh
-            </button>
-          }
-        />
-      )}
+    <div className="settings-skills-section flex min-w-0 flex-col gap-2">
+      <header className="settings-section-header">
+        <div>
+          <span className="eyebrow">Agent</span>
+          <h2>Skill catalog</h2>
+          <p>Browse reusable skills or review proposals before activation.</p>
+        </div>
+        <button
+          className="secondary-button"
+          disabled={!active}
+          onClick={refresh}
+          type="button"
+        >
+          Refresh
+        </button>
+      </header>
       <CompactStatStrip
         label="Skill catalog summary"
         stats={[

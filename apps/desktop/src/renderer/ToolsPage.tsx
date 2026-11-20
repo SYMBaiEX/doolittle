@@ -13,7 +13,6 @@ import {
   EmptyBlock,
   ErrorBlock,
   LoadingBlock,
-  PageHeader,
   titleCase,
   useApiResource,
 } from "./lib";
@@ -85,13 +84,7 @@ export function McpControlPanelFallback() {
   );
 }
 
-export function ToolsPage({
-  active,
-  embedded = false,
-}: {
-  active: boolean;
-  embedded?: boolean;
-}) {
+export function ToolsPage({ active }: { active: boolean }) {
   const [integrationsOpen, setIntegrationsOpen] = useState(false);
   const tools = useApiResource<ToolsResponse>(active ? "/tools" : null, [
     active,
@@ -108,48 +101,22 @@ export function ToolsPage({
   const [category, setCategory] = useState("all");
   if (!active) {
     return (
-      <div
-        className={
-          embedded
-            ? "settings-tools-section flex min-w-0 flex-col gap-2"
-            : "page page-tools gap-3"
-        }
-      >
-        {embedded ? (
-          <header className="settings-section-header">
-            <div>
-              <span className="eyebrow">Agent</span>
-              <h2>Tool registry</h2>
-              <p>
-                Search runtime capabilities and inspect integration bridges.
-              </p>
-            </div>
-            <button
-              className="secondary-button"
-              disabled
-              onClick={refresh}
-              type="button"
-            >
-              Refresh
-            </button>
-          </header>
-        ) : (
-          <PageHeader
-            actions={
-              <button
-                className="secondary-button"
-                disabled
-                onClick={refresh}
-                type="button"
-              >
-                Refresh
-              </button>
-            }
-            description="Search runtime capabilities and inspect integration bridges."
-            eyebrow="Agent"
-            title="Tools"
-          />
-        )}
+      <div className="settings-tools-section flex min-w-0 flex-col gap-2">
+        <header className="settings-section-header">
+          <div>
+            <span className="eyebrow">Agent</span>
+            <h2>Tool registry</h2>
+            <p>Search runtime capabilities and inspect integration bridges.</p>
+          </div>
+          <button
+            className="secondary-button"
+            disabled
+            onClick={refresh}
+            type="button"
+          >
+            Refresh
+          </button>
+        </header>
         <OfflineRouteState>
           Tool inventory and integration bridges are unavailable until the local
           runtime is ready.
@@ -163,46 +130,22 @@ export function ToolsPage({
   const totals = catalogData?.summary ?? {};
 
   return (
-    <div
-      className={
-        embedded
-          ? "settings-tools-section flex min-w-0 flex-col gap-2"
-          : "page page-tools gap-3"
-      }
-    >
-      {embedded ? (
-        <header className="settings-section-header">
-          <div>
-            <span className="eyebrow">Agent</span>
-            <h2>Tool registry</h2>
-            <p>Search runtime capabilities and inspect integration bridges.</p>
-          </div>
-          <button
-            className="secondary-button"
-            disabled={!active}
-            onClick={refresh}
-            type="button"
-          >
-            Refresh
-          </button>
-        </header>
-      ) : (
-        <PageHeader
-          eyebrow="Agent"
-          title="Tools"
-          description="Search runtime capabilities and inspect integration bridges."
-          actions={
-            <button
-              className="secondary-button"
-              disabled={!active}
-              onClick={refresh}
-              type="button"
-            >
-              Refresh
-            </button>
-          }
-        />
-      )}
+    <div className="settings-tools-section flex min-w-0 flex-col gap-2">
+      <header className="settings-section-header">
+        <div>
+          <span className="eyebrow">Agent</span>
+          <h2>Tool registry</h2>
+          <p>Search runtime capabilities and inspect integration bridges.</p>
+        </div>
+        <button
+          className="secondary-button"
+          disabled={!active}
+          onClick={refresh}
+          type="button"
+        >
+          Refresh
+        </button>
+      </header>
       <CompactStatStrip
         label="Tool catalog summary"
         stats={[

@@ -5,14 +5,7 @@ import {
   buildBrowserResultViewModel,
 } from "../browser-result-model";
 import type { ComputerOrigin } from "../computer-origin";
-import {
-  asRecord,
-  asString,
-  desktopRequest,
-  errorMessage,
-  titleCase,
-  useApiResource,
-} from "../lib";
+import { desktopRequest, errorMessage, titleCase } from "../lib";
 import {
   type BrowserPreviewSize,
   browserNavigationMatches,
@@ -21,10 +14,6 @@ import {
   isLocalPreviewUrl,
   normalizeBrowserUrl,
 } from "./browser-navigation";
-
-interface BrowserStatusResponse {
-  browser?: unknown;
-}
 
 export type BrowserErrorField = "address" | "compare" | null;
 
@@ -62,19 +51,8 @@ export function useBrowserWorkspace(
   const [error, setError] = useState("");
   const [errorField, setErrorField] = useState<BrowserErrorField>(null);
   const [result, setResult] = useState<BrowserResult | null>(null);
-  const status = useApiResource<BrowserStatusResponse>(
-    active ? "/browser/status" : null,
-    [active],
-    botId,
-    origin,
-  );
-  const statusRecord = asRecord(status.data?.browser);
   const embedded =
     Boolean(navigation.currentUrl) && isLocalPreviewUrl(navigation.currentUrl);
-  const statusLabel =
-    asString(statusRecord.mode) ||
-    asString(statusRecord.captureMode) ||
-    (status.loading ? "Checking" : "Available");
   const resultView = useMemo(
     () => (result ? buildBrowserResultViewModel(result) : null),
     [result],
@@ -255,8 +233,6 @@ export function useBrowserWorkspace(
     resultStatusMessage,
     runAction,
     setPreviewSize,
-    status,
-    statusLabel,
     travelHistory,
     updateAddress,
     updateCompareUrl,

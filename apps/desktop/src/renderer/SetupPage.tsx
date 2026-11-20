@@ -19,7 +19,6 @@ import {
   EmptyBlock,
   ErrorBlock,
   LoadingBlock,
-  PageHeader,
   RawDataDisclosure,
   type UnknownRecord,
   useApiResource,
@@ -42,12 +41,9 @@ export {
 
 export function SetupPage({
   active,
-  embedded = false,
   onOpenProviders,
 }: {
   active: boolean;
-  /** Render inside the Settings content pane without a second page frame. */
-  embedded?: boolean;
   onOpenProviders?: () => void;
 }) {
   const [checklistOpen, setChecklistOpen] = useState(false);
@@ -74,55 +70,28 @@ export function SetupPage({
   const primarySummaryEntries = selectPrimarySetupSnapshot(summaryEntries);
 
   return (
-    <div
-      className={embedded ? "settings-embedded-section" : "page"}
-      data-settings-embedded={embedded || undefined}
-    >
-      {embedded ? (
-        <header className="settings-section-header">
-          <div>
-            <span className="eyebrow">Operator</span>
-            <h2>Setup</h2>
-            <p>Confirm local readiness, then configure optional extensions.</p>
-          </div>
-          {active ? (
-            <Button
-              onClick={() => {
-                accountPool.reload();
-                summary.reload();
-                if (requestPolicy.checklist) checklist.reload();
-              }}
-              size="sm"
-              type="button"
-              variant="ghost"
-            >
-              Refresh
-            </Button>
-          ) : null}
-        </header>
-      ) : (
-        <PageHeader
-          actions={
-            active ? (
-              <Button
-                onClick={() => {
-                  accountPool.reload();
-                  summary.reload();
-                  if (requestPolicy.checklist) checklist.reload();
-                }}
-                size="sm"
-                type="button"
-                variant="ghost"
-              >
-                Refresh
-              </Button>
-            ) : null
-          }
-          eyebrow="Operator"
-          title="Setup"
-          description="Confirm local readiness, then configure optional extensions."
-        />
-      )}
+    <div className="settings-embedded-section" data-settings-embedded="true">
+      <header className="settings-section-header">
+        <div>
+          <span className="eyebrow">Operator</span>
+          <h2>Setup</h2>
+          <p>Confirm local readiness, then configure optional extensions.</p>
+        </div>
+        {active ? (
+          <Button
+            onClick={() => {
+              accountPool.reload();
+              summary.reload();
+              if (requestPolicy.checklist) checklist.reload();
+            }}
+            size="sm"
+            type="button"
+            variant="ghost"
+          >
+            Refresh
+          </Button>
+        ) : null}
+      </header>
       {!active ? (
         <EmptyBlock title="Setup checks are offline">
           Restart the local runtime to inspect onboarding and readiness.

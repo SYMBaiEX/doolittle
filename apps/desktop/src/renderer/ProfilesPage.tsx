@@ -12,7 +12,6 @@ import {
   errorMessage,
   LoadingBlock,
   Notice,
-  PageHeader,
   titleCase,
   useApiResource,
 } from "./lib";
@@ -56,13 +55,7 @@ export function normalizePersonalityProfiles(
   };
 }
 
-export function ProfilesPage({
-  active,
-  embedded = false,
-}: {
-  active: boolean;
-  embedded?: boolean;
-}) {
+export function ProfilesPage({ active }: { active: boolean }) {
   const resource = useApiResource<PersonalityResponse>(
     active ? "/personality" : null,
     [active],
@@ -119,31 +112,15 @@ export function ProfilesPage({
   });
 
   return (
-    <div
-      className={embedded ? "settings-profiles-section" : "page page-profiles"}
-    >
-      <div
-        className={
-          embedded
-            ? "flex w-full flex-col gap-2"
-            : "mx-auto flex w-full max-w-[1040px] flex-col gap-4"
-        }
-      >
-        {embedded ? (
-          <header className="settings-section-header">
-            <div>
-              <span className="eyebrow">Identity</span>
-              <h2>Profiles</h2>
-              <p>Choose Doolittle’s voice and working style.</p>
-            </div>
-          </header>
-        ) : (
-          <PageHeader
-            eyebrow="Identity"
-            title="Profiles"
-            description="Choose Doolittle’s voice and working style."
-          />
-        )}
+    <div className="settings-profiles-section">
+      <div className="flex w-full flex-col gap-2">
+        <header className="settings-section-header">
+          <div>
+            <span className="eyebrow">Identity</span>
+            <h2>Profiles</h2>
+            <p>Choose Doolittle’s voice and working style.</p>
+          </div>
+        </header>
         {error ? <Notice tone="bad">{error}</Notice> : null}
         {resource.loading ? (
           <LoadingBlock label="Loading personality profiles…" />

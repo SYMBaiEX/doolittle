@@ -13,7 +13,6 @@ import {
 } from "./connections/provider-accounts";
 import {
   type ActionFeedback,
-  type ApiResource,
   asRecord,
   asString,
   Badge,
@@ -22,7 +21,6 @@ import {
   errorMessage,
   LoadingBlock,
   Notice,
-  PageHeader,
   titleCase,
   useApiResource,
 } from "./lib";
@@ -47,26 +45,21 @@ export function ModelsPage({
   active,
   runtime,
   refreshRuntime,
-  embedded = false,
   onOpenProviders,
-  settingsResource,
 }: {
   active: boolean;
   runtime: RuntimeStatus | null;
   refreshRuntime: () => void;
-  embedded?: boolean;
   onOpenProviders?: () => void;
-  settingsResource?: ApiResource<SettingsResponse>;
 }) {
   const [readinessOpen, setReadinessOpen] = useState(false);
   const [tuningOpen, setTuningOpen] = useState(false);
   const [liveDiscovery, setLiveDiscovery] = useState(false);
   const resourcePolicy = modelRequests({ active, readinessOpen });
-  const ownedSettings = useApiResource<SettingsResponse>(
-    !settingsResource && resourcePolicy.primary ? "/settings" : null,
-    [Boolean(settingsResource), resourcePolicy.primary],
+  const settings = useApiResource<SettingsResponse>(
+    resourcePolicy.primary ? "/settings" : null,
+    [resourcePolicy.primary],
   );
-  const settings = settingsResource ?? ownedSettings;
   const accounts = useApiResource<AccountsResponse>(
     resourcePolicy.accounts ? "/runtime/accounts" : null,
     [resourcePolicy.accounts],
@@ -176,56 +169,29 @@ export function ModelsPage({
   };
 
   return (
-    <div
-      className={`${embedded ? "settings-model-section" : "page"} ${MODELS_PAGE_CLASS}`}
-    >
-      {embedded ? (
-        <header className="settings-section-header">
-          <div>
-            <span className="eyebrow">Inference</span>
-            <h2>Provider & model</h2>
-            <p>Choose the provider and model used by the next turn.</p>
-          </div>
-          <div className={MODELS_ROW_ACTIONS_CLASS}>
-            {active && runtime ? (
-              <Badge tone="good">
-                {runtime.provider} · {runtime.model}
-              </Badge>
-            ) : null}
-            <button
-              className="text-button"
-              disabled={!active}
-              onClick={discoverModels}
-              type="button"
-            >
-              {liveDiscovery ? "Refresh catalog" : "Discover live models"}
-            </button>
-          </div>
-        </header>
-      ) : (
-        <PageHeader
-          eyebrow="Agent"
-          title="Models"
-          description="Choose the provider and model used by the next turn."
-          actions={
-            <div className={MODELS_ROW_ACTIONS_CLASS}>
-              {active && runtime ? (
-                <Badge tone="good">
-                  {runtime.provider} · {runtime.model}
-                </Badge>
-              ) : null}
-              <button
-                className="text-button"
-                disabled={!active}
-                onClick={discoverModels}
-                type="button"
-              >
-                {liveDiscovery ? "Refresh catalog" : "Discover live models"}
-              </button>
-            </div>
-          }
-        />
-      )}
+    <div className={`settings-model-section ${MODELS_PAGE_CLASS}`}>
+      <header className="settings-section-header">
+        <div>
+          <span className="eyebrow">Inference</span>
+          <h2>Provider & model</h2>
+          <p>Choose the provider and model used by the next turn.</p>
+        </div>
+        <div className={MODELS_ROW_ACTIONS_CLASS}>
+          {active && runtime ? (
+            <Badge tone="good">
+              {runtime.provider} · {runtime.model}
+            </Badge>
+          ) : null}
+          <button
+            className="text-button"
+            disabled={!active}
+            onClick={discoverModels}
+            type="button"
+          >
+            {liveDiscovery ? "Refresh catalog" : "Discover live models"}
+          </button>
+        </div>
+      </header>
       {!active ? (
         <OfflineRouteState>
           Model settings and provider catalogs are unavailable until the local

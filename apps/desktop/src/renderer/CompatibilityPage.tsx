@@ -13,7 +13,6 @@ import {
   asString,
   ErrorBlock,
   LoadingBlock,
-  PageHeader,
   RawDataDisclosure,
   titleCase,
   type UnknownRecord,
@@ -77,14 +76,7 @@ export function CompatibilityEmptyState({ onRetry }: { onRetry: () => void }) {
   );
 }
 
-export function CompatibilityPage({
-  active,
-  embedded = false,
-}: {
-  active: boolean;
-  /** Render inside the Settings content pane without a second page frame. */
-  embedded?: boolean;
-}) {
+export function CompatibilityPage({ active }: { active: boolean }) {
   const compatibility = useApiResource<UnknownRecord>(
     active ? "/runtime/compatibility" : null,
     [active],
@@ -95,47 +87,23 @@ export function CompatibilityPage({
   };
 
   return (
-    <div
-      className={
-        embedded ? "settings-embedded-section" : "page compatibility-page"
-      }
-      data-settings-embedded={embedded || undefined}
-    >
-      {embedded ? (
-        <header className="settings-section-header">
-          <div>
-            <span className="eyebrow">Runtime</span>
-            <h2>Compatibility</h2>
-            <p>Review provider and runtime readiness.</p>
-          </div>
-          <Button
-            disabled={!active}
-            onClick={refresh}
-            size="sm"
-            type="button"
-            variant="ghost"
-          >
-            Refresh
-          </Button>
-        </header>
-      ) : (
-        <PageHeader
-          eyebrow="Runtime"
-          title="Compatibility"
-          description="Review compatibility diagnostics for provider and runtime readiness."
-          actions={
-            <Button
-              disabled={!active}
-              onClick={refresh}
-              size="sm"
-              type="button"
-              variant="ghost"
-            >
-              Refresh
-            </Button>
-          }
-        />
-      )}
+    <div className="settings-embedded-section" data-settings-embedded="true">
+      <header className="settings-section-header">
+        <div>
+          <span className="eyebrow">Runtime</span>
+          <h2>Compatibility</h2>
+          <p>Review provider and runtime readiness.</p>
+        </div>
+        <Button
+          disabled={!active}
+          onClick={refresh}
+          size="sm"
+          type="button"
+          variant="ghost"
+        >
+          Refresh
+        </Button>
+      </header>
       {!active ? (
         <OfflineRouteState>
           Compatibility checks are unavailable until the local runtime is ready.

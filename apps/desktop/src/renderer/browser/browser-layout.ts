@@ -1,15 +1,5 @@
-export const BROWSER_PAGE_CLASS =
-  "page h-full gap-2 overflow-hidden px-2.5 pt-2 pb-2.5 max-[1080px]:h-auto max-[1080px]:min-h-full max-[1080px]:overflow-auto";
-
-/** Browser chrome when it is shown within the Code workspace. */
 export const BROWSER_EMBEDDED_PAGE_CLASS =
   "flex h-full min-h-0 min-w-0 flex-1 flex-col gap-2 overflow-hidden p-1 max-[1080px]:h-auto max-[1080px]:min-h-full max-[1080px]:overflow-auto";
-
-export const BROWSER_HEADER_CLASS =
-  "flex min-h-14 shrink-0 flex-wrap items-center justify-between gap-4 [&_h1]:m-0 [&_h1]:font-[var(--font-display)] [&_h1]:text-[length:var(--text-section)] [&_h1]:font-semibold [&_p]:mt-1 [&_p]:mb-0 [&_p]:text-[length:var(--text-control)] [&_p]:text-[var(--muted)]";
-
-export const BROWSER_STATUS_CLASS =
-  "grid grid-cols-[auto_auto_auto] items-center gap-2 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] py-1 pr-1.5 pl-2 font-mono text-[length:var(--text-meta)] shadow-none [&>strong]:text-[var(--text-soft)] [&>strong]:uppercase";
 
 export const BROWSER_ADDRESS_CLASS =
   "grid min-h-9.5 shrink-0 grid-cols-[auto_auto_auto_auto_minmax(0,1fr)_auto] items-center gap-2 rounded-[var(--radius-sm)] border border-[var(--line-subtle)] bg-[var(--surface)] p-1 shadow-none";

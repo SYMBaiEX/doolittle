@@ -11,8 +11,6 @@ import {
   REVIEW_BRANCH_EVIDENCE_CLASS,
   REVIEW_BRANCH_HEADING_CLASS,
   REVIEW_BRANCH_RECORD_CLASS,
-  REVIEW_HEADER_CLASS,
-  REVIEW_HEADER_STATUS_CLASS,
   REVIEW_WORK_METRICS_CLASS,
   REVIEW_WORK_OUTCOME_CLASS,
   REVIEW_WORK_REVISION_CLASS,
@@ -26,52 +24,6 @@ const workStateIcons = {
   ready: Check,
   empty: CircleDashed,
 } as const;
-
-export interface ReviewHeaderProps {
-  active: boolean;
-  embedded: boolean;
-  pendingCount: number;
-  itemCount: number;
-  onRefresh: () => void;
-}
-
-export function ReviewHeader({
-  active,
-  embedded,
-  pendingCount,
-  itemCount,
-  onRefresh,
-}: ReviewHeaderProps) {
-  if (embedded) return null;
-  return (
-    <header className={REVIEW_HEADER_CLASS}>
-      <div>
-        <span className="eyebrow">Tasks</span>
-        <h1>Review completed work</h1>
-        <p>
-          Inspect outcomes, changed files, checks, and decisions without
-          reconstructing the entire conversation.
-        </p>
-      </div>
-      <div className={REVIEW_HEADER_STATUS_CLASS}>
-        <span>
-          <strong>{pendingCount}</strong> needs you
-        </span>
-        <span>
-          <strong>{itemCount}</strong> work events
-        </span>
-        <button
-          className="secondary-button"
-          disabled={!active}
-          onClick={onRefresh}
-          type="button"
-        >
-          Refresh
-        </button>
-      </div>
-    </header>
-  );
-}
 
 export interface ReviewOverviewProps {
   workState: ReviewWorkState;

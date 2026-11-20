@@ -19,11 +19,10 @@ import {
   errorMessage,
   LoadingBlock,
   Notice,
-  PageHeader,
   useApiResource,
 } from "./lib";
 import { reviewRequests } from "./resource-request-policy";
-import { REVIEW_WORKSPACE_CLASS, reviewPageClass } from "./review/layout";
+import { REVIEW_PAGE_CLASS, REVIEW_WORKSPACE_CLASS } from "./review/layout";
 import {
   type ApprovalResponse,
   type ChangesResponse,
@@ -44,7 +43,7 @@ import {
 } from "./review/models";
 import { ReviewDetail } from "./review/ReviewDetail";
 import { ReviewEvidence } from "./review/ReviewEvidence";
-import { ReviewHeader, ReviewOverview } from "./review/ReviewOverview";
+import { ReviewOverview } from "./review/ReviewOverview";
 import { ReviewQueue } from "./review/ReviewQueue";
 import {
   compileReviewFeedback,
@@ -93,7 +92,6 @@ export function ReviewPage({
   active,
   computerOrigin,
   contextScope,
-  embedded = false,
   onOpenWorkspaceFile,
   onSendToChat,
   projectScope,
@@ -103,7 +101,6 @@ export function ReviewPage({
   computerOrigin?: ComputerOrigin;
   /** Optional immutable bot/conversation origin supplied by the owning host. */
   contextScope?: string;
-  embedded?: boolean;
   onOpenWorkspaceFile?: (path: string) => void;
   onSendToChat: (request: ChatContextRequest) => void;
   projectScope: string;
@@ -665,27 +662,10 @@ export function ReviewPage({
   if (!active) {
     return (
       <div
-        className={reviewPageClass(embedded)}
+        className={REVIEW_PAGE_CLASS}
         data-project-scope={projectScope}
         data-workspace-path={workspacePath}
       >
-        {!embedded ? (
-          <PageHeader
-            actions={
-              <button
-                className="secondary-button"
-                disabled
-                onClick={reload}
-                type="button"
-              >
-                Refresh
-              </button>
-            }
-            description="Inspect outcomes, changes, checks, and decisions."
-            eyebrow="Tasks"
-            title="Review"
-          />
-        ) : null}
         <OfflineRouteState>
           Review evidence and approval actions are unavailable until the local
           runtime is ready.
@@ -695,17 +675,10 @@ export function ReviewPage({
   }
   return (
     <div
-      className={reviewPageClass(embedded)}
+      className={REVIEW_PAGE_CLASS}
       data-project-scope={projectScope}
       data-workspace-path={workspacePath}
     >
-      <ReviewHeader
-        active={active}
-        embedded={embedded}
-        itemCount={items.length}
-        onRefresh={reload}
-        pendingCount={pendingCount}
-      />
       <ResourceStatusBar resources={statusResources} />
       {branchRecord.error ? (
         <Notice tone="warn">

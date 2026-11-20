@@ -18,7 +18,6 @@ import {
   EmptyBlock,
   ErrorBlock,
   LoadingBlock,
-  PageHeader,
   titleCase,
   useApiResource,
 } from "./lib";
@@ -28,13 +27,7 @@ import { buildPluginCatalogEntries } from "./plugins/plugin-catalog-model";
 const PLUGIN_DESCRIPTION = "ElizaOS runtime packages.";
 const FILTER_LABEL_CLASS = "plugins-filter-label text-sm text-[var(--muted)]";
 
-export function PluginsPage({
-  active,
-  embedded = false,
-}: {
-  active: boolean;
-  embedded?: boolean;
-}) {
+export function PluginsPage({ active }: { active: boolean }) {
   const resource = useApiResource<PluginsResponse>(
     active ? "/runtime/plugins?view=catalog" : null,
     [active],
@@ -71,45 +64,23 @@ export function PluginsPage({
   const enabled = entries.filter((entry) => entry.enabled).length;
 
   return (
-    <PagePanel
-      className={embedded ? "settings-plugins-section" : "page plugins-page"}
-      variant={embedded ? "section" : "workspace"}
-    >
-      {embedded ? (
-        <header className="settings-section-header">
-          <div>
-            <span className="eyebrow">Agent</span>
-            <h2>Plugin catalog</h2>
-            <p>{PLUGIN_DESCRIPTION}</p>
-          </div>
-          <Button
-            className="secondary-button"
-            disabled={!active}
-            onClick={resource.reload}
-            type="button"
-            variant="secondary"
-          >
-            Refresh
-          </Button>
-        </header>
-      ) : (
-        <PageHeader
-          eyebrow="Agent"
-          title="Plugins"
-          description={PLUGIN_DESCRIPTION}
-          actions={
-            <Button
-              className="secondary-button"
-              disabled={!active}
-              onClick={resource.reload}
-              type="button"
-              variant="secondary"
-            >
-              Refresh
-            </Button>
-          }
-        />
-      )}
+    <PagePanel className="settings-plugins-section" variant="section">
+      <header className="settings-section-header">
+        <div>
+          <span className="eyebrow">Agent</span>
+          <h2>Plugin catalog</h2>
+          <p>{PLUGIN_DESCRIPTION}</p>
+        </div>
+        <Button
+          className="secondary-button"
+          disabled={!active}
+          onClick={resource.reload}
+          type="button"
+          variant="secondary"
+        >
+          Refresh
+        </Button>
+      </header>
       {!active ? (
         <OfflineRouteState>
           Plugin assembly is unavailable until the local runtime is ready.

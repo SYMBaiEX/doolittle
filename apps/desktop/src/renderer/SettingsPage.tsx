@@ -602,7 +602,6 @@ export function SettingsPage({
           >
             <EmbeddedPanel
               active={active}
-              embedded
               onOpenProviders={() => selectSection("accounts")}
               readOnly={!writesAllowed}
               refreshRuntime={() => refreshRuntime?.()}

@@ -21,7 +21,6 @@ import {
   Badge,
   ErrorBlock,
   LoadingBlock,
-  PageHeader,
   titleCase,
   useApiResource,
 } from "./lib";
@@ -114,14 +113,7 @@ function DoctorCheckRow({ check }: { check: DoctorCheckView }) {
   );
 }
 
-export function DocsPage({
-  active,
-  embedded = false,
-}: {
-  active: boolean;
-  /** Render inside the Settings content pane without a second page frame. */
-  embedded?: boolean;
-}) {
+export function DocsPage({ active }: { active: boolean }) {
   const [doctorRequested, setDoctorRequested] = useState(false);
   const doctorPath = doctorResourcePath(active, doctorRequested);
   const doctor = useApiResource<DoctorResponse>(doctorPath, [doctorPath]);
@@ -138,25 +130,14 @@ export function DocsPage({
   ).length;
 
   return (
-    <div
-      className={embedded ? "settings-embedded-section" : "page"}
-      data-settings-embedded={embedded || undefined}
-    >
-      {embedded ? (
-        <header className="settings-section-header">
-          <div>
-            <span className="eyebrow">Help</span>
-            <h2>About Doolittle</h2>
-            <p>Local runtime status and operator diagnostics.</p>
-          </div>
-        </header>
-      ) : (
-        <PageHeader
-          eyebrow="Help"
-          title="About Doolittle"
-          description="Private ElizaOS workspace, local runtime status, and operator diagnostics."
-        />
-      )}
+    <div className="settings-embedded-section" data-settings-embedded="true">
+      <header className="settings-section-header">
+        <div>
+          <span className="eyebrow">Help</span>
+          <h2>About Doolittle</h2>
+          <p>Local runtime status and operator diagnostics.</p>
+        </div>
+      </header>
       <CompactStatStrip
         label="Application summary"
         stats={[
