@@ -93,6 +93,6 @@
     "bun": "1.4.2",
     "node": "26.5.0",
     "nub": "0.9.7",
-    "toolLockSha256": "61328582d89e162bc299241eba0f120ceaf7d7cdaff4ab043143d2f3b18ef2e0"
+    "toolLockSha256": "c637bec3934c7a44e04ea5dfbca7ef167049a88a4387e9defef0bc67dc5ca221"
   }
 }
