@@ -2,7 +2,7 @@ import { defineConfig } from "@playwright/test";
 
 export default defineConfig({
   testDir: "./tests/e2e",
-  testMatch: "desktop-core.pw.ts",
+  testMatch: ["desktop-core.pw.ts", "desktop-automations.pw.ts"],
   fullyParallel: false,
   workers: 1,
   retries: 0,

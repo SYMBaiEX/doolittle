@@ -72,9 +72,8 @@ export async function generateMediaSpeechArtifact(
       generation.model,
     ),
   );
-  writeMediaManifestFile(
-    manifestPath,
-    buildMediaSpeechManifest(
+  writeMediaManifestFile(manifestPath, {
+    ...buildMediaSpeechManifest(
       new Date().toISOString(),
       input.text,
       refinedText,
@@ -87,7 +86,8 @@ export async function generateMediaSpeechArtifact(
       generation.artifactKind,
       responsePath,
     ),
-  );
+    ...(input.origin ? { origin: input.origin } : {}),
+  });
   writeMediaTextFile(
     reportPath,
     buildMediaSpeechReport(

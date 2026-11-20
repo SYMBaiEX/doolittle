@@ -39,10 +39,13 @@ export async function handleCronRoutes(
     if (!token || token.includes("/")) {
       return json({ error: "webhook token is required" }, 400);
     }
-    const payload = await readRecordBody(request);
+    const payload = request.body
+      ? await readRouteJsonBody(request)
+      : { body: {} };
+    if ("response" in payload) return payload.response;
     try {
       return json({
-        run: await cron.triggerWebhook?.(token, payload),
+        run: await cron.triggerWebhook?.(token, payload.body),
       });
     } catch (error) {
       return automationErrorResponse(error);
@@ -60,10 +63,13 @@ export async function handleCronRoutes(
     if (!id) {
       return json({ error: "cron job id is required" }, 400);
     }
-    const payload = await readRecordBody(request);
+    const payload = request.body
+      ? await readRouteJsonBody(request)
+      : { body: {} };
+    if ("response" in payload) return payload.response;
     try {
       return json({
-        run: await cron.triggerNow?.(id, "manual", payload),
+        run: await cron.triggerNow?.(id, "manual", payload.body),
       });
     } catch (error) {
       return automationErrorResponse(error);
@@ -84,19 +90,17 @@ export async function handleCronRoutes(
     if (!id) {
       return json({ error: "cron job id is required" }, 400);
     }
-    if (lifecycleAction === "pause") {
-      return json({
-        job: await cron.pause?.(id),
-      });
+    try {
+      const job =
+        lifecycleAction === "pause"
+          ? await cron.pause?.(id)
+          : lifecycleAction === "resume"
+            ? await cron.resume?.(id)
+            : await cron.runNow?.(id);
+      return json({ job });
+    } catch (error) {
+      return automationErrorResponse(error);
     }
-    if (lifecycleAction === "resume") {
-      return json({
-        job: await cron.resume?.(id),
-      });
-    }
-    return json({
-      job: await cron.runNow?.(id),
-    });
   }
 
   if (request.method === "GET" && url.pathname === "/cron/jobs") {
@@ -182,8 +186,12 @@ export async function handleCronRoutes(
     if (!id || id === "/cron/jobs") {
       return json({ error: "cron job id is required" }, 400);
     }
-    await cron.remove?.(id);
-    return json({ deleted: true, id });
+    try {
+      await cron.remove?.(id);
+      return json({ deleted: true, id });
+    } catch (error) {
+      return automationErrorResponse(error);
+    }
   }
 
   if (request.method === "PATCH" && url.pathname.startsWith("/cron/jobs/")) {
@@ -242,15 +250,6 @@ export async function handleCronRoutes(
   return null;
 }
 
-async function readRecordBody(
-  request: Request,
-): Promise<Record<string, unknown>> {
-  const body = await request.json().catch(() => ({}));
-  return body && typeof body === "object" && !Array.isArray(body)
-    ? (body as Record<string, unknown>)
-    : {};
-}
-
 function automationErrorResponse(error: unknown): Response {
   const message = error instanceof Error ? error.message : "";
   const validationMessages = [
@@ -283,6 +282,32 @@ function automationErrorResponse(error: unknown): Response {
     return json(
       { error: "Named automation host approval is unavailable." },
       503,
+    );
+  if (
+    message.startsWith(
+      "Named automation approval, grant, or worker is unavailable.",
+    )
+  )
+    return json(
+      {
+        error:
+          "Named automation authorization is unavailable. Check the target bot’s connection and permissions, then try again.",
+      },
+      503,
+    );
+  if (
+    /^Named automation approval was cancelled(?: or its scope changed)?\.$/u.test(
+      message,
+    )
+  )
+    return json({ error: "Automation approval was cancelled." }, 409);
+  if (
+    message === "The automation target changed during approval." ||
+    message.startsWith("Automation changed during approval.")
+  )
+    return json(
+      { error: "Automation changed during approval. Reload and try again." },
+      409,
     );
   if (
     /^Unsupported automation (?:trigger|condition|action) ".*"\.$/u.test(

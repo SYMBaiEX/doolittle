@@ -1,8 +1,11 @@
+import type { ProjectResourceKind } from "../../shared/contracts";
+import type { DesktopNavigationIntent } from "../desktop-navigation-intent";
+
 export type ProjectScope = "all" | "unscoped" | string;
 
 export interface ProjectResourceLike {
   id: string;
-  kind: "file" | "folder";
+  kind: ProjectResourceKind;
   path: string;
   label?: string;
   createdAt?: string;
@@ -38,6 +41,11 @@ export interface ProjectManagerProps {
   currentChatId?: string | null;
   currentChatProjectId?: string | null;
   isOpen: boolean;
+  navigationIntent?: Extract<
+    DesktopNavigationIntent,
+    { kind: "project-source" }
+  > | null;
+  onConsumeNavigationIntent?: (id: string) => void;
   onClose: () => void;
   onScopeChange: (scope: ProjectScope) => void;
   onCreateProject?: (draft: ProjectDraft) => void | Promise<void>;

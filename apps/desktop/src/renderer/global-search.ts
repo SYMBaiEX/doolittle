@@ -14,7 +14,7 @@ export type GlobalSearchTarget =
   | { kind: "projectSource"; projectId: string; resourceId: string }
   | { kind: "workspace"; path: string }
   | { kind: "task"; taskId: string; workspacePath?: string }
-  | { kind: "log"; id: string };
+  | { kind: "log"; id: string; query: string };
 
 export interface GlobalSearchResult {
   id: string;
@@ -130,7 +130,7 @@ export function normalizeGlobalSearchResults(
           const resource = asRecord(value);
           const id = asString(resource.id);
           const label = concise(asString(resource.label), 88);
-          const sourceValue = concise(asString(resource.value));
+          const sourceValue = asString(resource.value);
           const kind = asString(resource.kind, "source");
           const searchable = [projectName, label, sourceValue, kind].join(" ");
           if (!id || !label || !includesQuery(searchable, normalizedQuery)) {
@@ -140,7 +140,7 @@ export function normalizeGlobalSearchResults(
             id: `project-source:${projectId}:${id}`,
             group: "Project sources",
             label,
-            description: `${projectName} · ${kind}${sourceValue ? ` · ${sourceValue}` : ""}`,
+            description: `${projectName} · ${kind}${sourceValue ? ` · ${concise(sourceValue)}` : ""}`,
             keywords: [projectName, label, sourceValue, kind, normalizedQuery],
             target: { kind: "projectSource", projectId, resourceId: id },
           };
@@ -229,20 +229,20 @@ export function normalizeGlobalSearchResults(
 
   const logResults = boundedUnique(
     asArray(asRecord(payloads.logs).logs)
-      .map((value, index): GlobalSearchResult | null => {
+      .map((value): GlobalSearchResult | null => {
         const log = asRecord(value);
+        const id = asString(log.id);
         const message = concise(asString(log.message), 88);
         const detail = concise(asString(log.detail));
         const scope = asString(log.scope, "runtime");
-        const at = asString(log.at);
-        if (!message) return null;
+        if (!id || !message) return null;
         return {
-          id: `log:${at || index}:${scope}:${message}`,
+          id: `log:${id}`,
           group: "Logs",
           label: message,
           description: `${asString(log.level, "info")} · ${scope}${detail ? ` · ${detail}` : ""}`,
           keywords: [scope, message, detail, normalizedQuery],
-          target: { kind: "log", id: at || `${index}` },
+          target: { kind: "log", id, query: query.trim() },
         };
       })
       .filter((result): result is GlobalSearchResult => result !== null),
@@ -287,25 +287,22 @@ export function useGlobalSearch(
   active: boolean,
   workspacePath = "",
 ) {
-  const [results, setResults] = useState<GlobalSearchResult[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [snapshot, setSnapshot] = useState<{
+    query: string;
+    workspacePath: string;
+    results: GlobalSearchResult[];
+    error: string;
+  } | null>(null);
   const sequence = useRef(0);
   const trimmedQuery = query.trim();
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: workspace changes intentionally restart current-workspace search requests.
   useEffect(() => {
     const requestSequence = ++sequence.current;
     if (!active || trimmedQuery.length < 2) {
-      setResults([]);
-      setLoading(false);
-      setError("");
+      setSnapshot(null);
       return;
     }
 
-    setLoading(true);
-    setError("");
-    setResults([]);
     const controller = new AbortController();
     const timer = window.setTimeout(() => {
       void Promise.allSettled([
@@ -346,8 +343,10 @@ export function useGlobalSearch(
           (response) =>
             response.status === "rejected" && !isAbortError(response.reason),
         );
-        setResults(
-          normalizeGlobalSearchResults(
+        setSnapshot({
+          query: trimmedQuery,
+          workspacePath,
+          results: normalizeGlobalSearchResults(
             {
               projects: projects.status === "fulfilled" ? projects.value : {},
               sessions: sessions.status === "fulfilled" ? sessions.value : {},
@@ -358,13 +357,10 @@ export function useGlobalSearch(
             },
             trimmedQuery,
           ),
-        );
-        setError(
-          failures.length
+          error: failures.length
             ? `Some local search sources are unavailable (${failures.length}/5).`
             : "",
-        );
-        setLoading(false);
+        });
       });
     }, 180);
 
@@ -375,8 +371,18 @@ export function useGlobalSearch(
     };
   }, [active, trimmedQuery, workspacePath]);
 
-  return useMemo(
-    () => ({ results, loading, error }),
-    [error, loading, results],
-  );
+  return useMemo(() => {
+    const eligible = active && trimmedQuery.length >= 2;
+    const current =
+      eligible &&
+      snapshot?.query === trimmedQuery &&
+      snapshot.workspacePath === workspacePath
+        ? snapshot
+        : null;
+    return {
+      results: current?.results ?? [],
+      error: current?.error ?? "",
+      loading: eligible && !current,
+    };
+  }, [active, snapshot, trimmedQuery, workspacePath]);
 }

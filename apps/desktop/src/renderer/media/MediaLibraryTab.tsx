@@ -22,6 +22,7 @@ interface MediaLibraryAsset {
   prompt: string;
   provider: string;
   model: string;
+  origin?: { botId: string; sessionId: string };
 }
 
 interface LibraryResponse {
@@ -50,14 +51,25 @@ function assetUrl(payload: AssetPayload): string {
 
 export function MediaLibraryTab({
   active,
-  revision,
+  botId,
+  onOpenConversation,
+  sessionId,
 }: {
   active: boolean;
-  revision: number;
+  botId?: string;
+  onOpenConversation?: (sessionId: string) => void;
+  sessionId?: string;
 }) {
+  const [allAssets, setAllAssets] = useState(false);
+  const chatFilter = !allAssets && sessionId;
   const library = useApiResource<LibraryResponse>(
-    active ? "/media/library" : null,
-    [revision],
+    active
+      ? chatFilter
+        ? `/media/library?${new URLSearchParams({ sessionId: chatFilter })}`
+        : "/media/library"
+      : null,
+    [],
+    botId,
   );
   const assets = library.data?.assets ?? [];
   const [selectedId, setSelectedId] = useState("");
@@ -82,6 +94,7 @@ export function MediaLibraryTab({
       ? `/media/library/${encodeURIComponent(selectedAsset.id)}`
       : null,
     [selectedAsset?.id],
+    botId,
   );
   const assetActions = (asset: MediaLibraryAsset): ContextAction[] => [
     {
@@ -152,6 +165,29 @@ export function MediaLibraryTab({
               <UiIcon icon={RefreshCw} size="xs" />
             </Button>
           </div>
+          {sessionId ? (
+            <fieldset
+              className="flex gap-1 border-0 p-0"
+              aria-label="Asset scope"
+            >
+              <Button
+                aria-pressed={!allAssets}
+                onClick={() => setAllAssets(false)}
+                type="button"
+                variant="ghost"
+              >
+                This chat
+              </Button>
+              <Button
+                aria-pressed={allAssets}
+                onClick={() => setAllAssets(true)}
+                type="button"
+                variant="ghost"
+              >
+                All agent assets
+              </Button>
+            </fieldset>
+          ) : null}
           <Input
             ref={searchInputRef}
             aria-label="Search generated assets"
@@ -187,7 +223,11 @@ export function MediaLibraryTab({
           ) : visibleAssets.length === 0 ? (
             <div className="grid gap-1 p-3">
               <strong className="text-[length:var(--text-control)] text-[var(--text)]">
-                {assets.length === 0 ? "No generated assets yet" : "No matches"}
+                {assets.length === 0
+                  ? chatFilter
+                    ? "No assets in this chat"
+                    : "No generated assets yet"
+                  : "No matches"}
               </strong>
               <span className="text-[length:var(--text-control)] leading-[1.45] text-[var(--muted)]">
                 {assets.length === 0
@@ -258,7 +298,9 @@ export function MediaLibraryTab({
             <h2 className="m-0 text-sm">
               {assets.length
                 ? "No assets match these filters"
-                : "Generated work, in one place"}
+                : chatFilter
+                  ? "No assets in this chat"
+                  : "Generated work, in one place"}
             </h2>
             <p className="m-0 text-[length:var(--text-body)] leading-[1.55] text-[var(--muted)]">
               {assets.length
@@ -289,6 +331,23 @@ export function MediaLibraryTab({
                   {selectedAsset.provider} · {selectedAsset.model} ·{" "}
                   {compactBytes(selectedAsset.sizeBytes)}
                 </p>
+                {selectedAsset.origin?.botId === botId &&
+                selectedAsset.origin?.sessionId &&
+                onOpenConversation ? (
+                  <Button
+                    className="justify-self-start"
+                    onClick={() => {
+                      if (selectedAsset.origin)
+                        onOpenConversation(selectedAsset.origin.sessionId);
+                    }}
+                    type="button"
+                    variant="ghost"
+                  >
+                    {selectedAsset.origin.sessionId === sessionId
+                      ? "Return to source chat"
+                      : "Open source chat"}
+                  </Button>
+                ) : null}
               </header>
               {payload.loading ? (
                 <LoadingBlock label="Loading preview…" />

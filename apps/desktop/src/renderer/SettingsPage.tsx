@@ -3,6 +3,7 @@ import { BUILT_IN_THEMES } from "@doolittle/ui/themes";
 import { Suspense, useEffect, useId, useMemo, useRef, useState } from "react";
 import type { RuntimeStatus } from "../shared/contracts";
 import { OfflineRouteState } from "./components/OfflineRouteState";
+import type { DesktopNavigationIntent } from "./desktop-navigation-intent";
 import {
   APPEARANCE_APPLIED_EVENT,
   announceAppearance,
@@ -125,6 +126,8 @@ export function SettingsPage({
   onSectionChange,
   writesAllowed = active,
   runtime,
+  runtimeLogIntent,
+  onConsumeNavigationIntent,
   refreshRuntime,
 }: {
   active: boolean;
@@ -132,6 +135,11 @@ export function SettingsPage({
   onSectionChange: (section: SettingsShellSection) => void;
   writesAllowed?: boolean;
   runtime?: RuntimeStatus | null;
+  runtimeLogIntent?: Extract<
+    DesktopNavigationIntent,
+    { kind: "runtime-log" }
+  > | null;
+  onConsumeNavigationIntent?: (id: string) => void;
   refreshRuntime?: () => void;
 }) {
   const panelId = useId();
@@ -475,6 +483,8 @@ export function SettingsPage({
           >
             <EmbeddedPanel
               active={active}
+              runtimeLogIntent={runtimeLogIntent}
+              onConsumeNavigationIntent={onConsumeNavigationIntent}
               onOpenProviders={() => selectSection("accounts")}
               readOnly={!writesAllowed}
               refreshRuntime={() => refreshRuntime?.()}

@@ -142,6 +142,8 @@ export interface ChatComposerProps {
   queuedMessages: PersistedQueuedMessage[];
   queueDispatchingId: string | null;
   queuePaused: boolean;
+  queueStatus?: string;
+  onOpenQueueHead?: () => void;
   resumeQueuedMessages: () => void;
   setQueueAnnouncement: Dispatch<SetStateAction<string>>;
   clearQueuedMessages: () => void;
@@ -211,6 +213,8 @@ export function ChatComposer({
   queuedMessages,
   queueDispatchingId,
   queuePaused,
+  queueStatus,
+  onOpenQueueHead,
   resumeQueuedMessages,
   setQueueAnnouncement,
   clearQueuedMessages,
@@ -579,6 +583,18 @@ export function ChatComposer({
               </button>
             </span>
           </div>
+          {queueStatus ? (
+            <div className="flex flex-wrap items-center justify-between gap-x-2">
+              <span className="text-sm text-[var(--text-soft)]" role="status">
+                {queueStatus}
+              </span>
+              {onOpenQueueHead ? (
+                <button onClick={onOpenQueueHead} type="button">
+                  Open earlier chat
+                </button>
+              ) : null}
+            </div>
+          ) : null}
           <ol aria-label="Queued messages">
             {queuedMessages.map((message, index) => (
               <li key={message.id}>

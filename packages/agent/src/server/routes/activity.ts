@@ -21,6 +21,7 @@ const ACTIVITY_QUERY_KEYS = new Set([
   "status",
   "target",
   "sessionId",
+  "query",
 ]);
 
 function hasInvalidActivityQuery(url: URL): boolean {
@@ -116,7 +117,11 @@ function parseFilters(url: URL): ActivityFeedFilters | Response {
   ) {
     return json({ error: "sessionId is invalid" }, 400);
   }
-  return { kind, status, target, ...(sessionId ? { sessionId } : {}) };
+  const query = url.searchParams.get("query")?.trim();
+  if (query && (query.length > 256 || hasAsciiControlCharacters(query))) {
+    return json({ error: "query is invalid" }, 400);
+  }
+  return { kind, status, target, sessionId, query };
 }
 
 export async function handleActivityRoutes(

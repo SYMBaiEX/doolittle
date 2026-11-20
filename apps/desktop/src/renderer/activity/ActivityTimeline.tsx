@@ -35,17 +35,15 @@ function dotStateClass(event: ActivityEvent): string {
 }
 
 export function ActivityTimeline({
-  filteredCount,
+  eventCount,
   groups,
   onShowMore,
   remainingGroups,
-  totalCount,
 }: {
-  filteredCount: number;
+  eventCount: number;
   groups: readonly ActivityEventGroup<ActivityEvent>[];
   onShowMore: () => void;
   remainingGroups: number;
-  totalCount: number;
 }) {
   return (
     <section className="overflow-hidden rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)]">
@@ -58,11 +56,7 @@ export function ActivityTimeline({
         </div>
         <small>
           {groups.length} visible
-          {groups.length + remainingGroups !== filteredCount
-            ? ` · ${filteredCount} events`
-            : totalCount !== filteredCount
-              ? ` of ${totalCount}`
-              : ""}
+          {groups.length !== eventCount ? ` · ${eventCount} events` : ""}
         </small>
       </div>
 

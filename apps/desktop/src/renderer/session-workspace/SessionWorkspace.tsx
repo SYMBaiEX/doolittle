@@ -27,6 +27,8 @@ import {
   safeSetStorageItem,
 } from "../conversation-persistence";
 import {
+  CHAT_COMPOSER_FOCUS_STATE_KEY,
+  CHAT_DRAFTS_STATE_KEY,
   ChatWorkspaceProvider,
   useWorkspaceState,
 } from "./chat-workspace-store";
@@ -131,8 +133,12 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
     () => loadStoredChatMessages(localStorage),
   );
   const [drafts] = useWorkspaceState<Record<string, ConversationDraft>>(
-    "conversation.drafts",
+    CHAT_DRAFTS_STATE_KEY,
     () => loadConversationDrafts(localStorage),
+  );
+  const [composerFocusId, setComposerFocusId] = useWorkspaceState(
+    CHAT_COMPOSER_FOCUS_STATE_KEY,
+    "",
   );
   const isNarrow = useMediaQuery("(max-width: 900px)");
   const isShort = useMediaQuery("(max-height: 640px)");
@@ -390,6 +396,35 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
       preventScroll: true,
     });
   }, [layout.focusedId]);
+
+  useEffect(() => {
+    if (
+      !composerFocusId ||
+      props.routeActive === false ||
+      (props.surface ?? "conversation") !== "conversation"
+    )
+      return;
+    if (props.selectedId !== composerFocusId) {
+      setComposerFocusId("");
+      return;
+    }
+    if (layout.focusedId !== composerFocusId) return;
+    const frame = requestAnimationFrame(() => {
+      const panel = rootRef.current?.querySelector<HTMLElement>(
+        `[data-session-panel="${composerFocusId}"]`,
+      );
+      focusFirstAvailable([panel?.querySelector("textarea"), panel]);
+      setComposerFocusId("");
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [
+    composerFocusId,
+    layout.focusedId,
+    props.routeActive,
+    props.selectedId,
+    props.surface,
+    setComposerFocusId,
+  ]);
 
   useEffect(() => {
     if (finderOpen) searchRef.current?.focus();

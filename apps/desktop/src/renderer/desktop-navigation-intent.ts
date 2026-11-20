@@ -10,6 +10,16 @@ export type DesktopNavigationIntent =
       id: string;
       kind: "orchestration-task";
       target: { taskId: string };
+    }
+  | {
+      id: string;
+      kind: "project-source";
+      target: { projectId: string; resourceId: string };
+    }
+  | {
+      id: string;
+      kind: "runtime-log";
+      target: { logId: string; query: string };
     };
 
 export function createWorkspaceFileNavigationIntent(
@@ -30,6 +40,28 @@ export function createOrchestrationTaskNavigationIntent(
     id: crypto.randomUUID(),
     kind: "orchestration-task",
     target: { taskId },
+  };
+}
+
+export function createProjectSourceNavigationIntent(
+  projectId: string,
+  resourceId: string,
+): DesktopNavigationIntent {
+  return {
+    id: crypto.randomUUID(),
+    kind: "project-source",
+    target: { projectId, resourceId },
+  };
+}
+
+export function createRuntimeLogNavigationIntent(
+  logId: string,
+  query: string,
+): DesktopNavigationIntent {
+  return {
+    id: crypto.randomUUID(),
+    kind: "runtime-log",
+    target: { logId, query },
   };
 }
 

@@ -5,8 +5,11 @@ import {
   Folder,
   FolderOpen,
   FolderPlus,
+  Link2,
+  NotebookText,
   X,
 } from "lucide-react";
+import type { RefObject } from "react";
 import { UiIcon } from "../components/UiIcon";
 import {
   formatCount,
@@ -21,6 +24,8 @@ export function ProjectDetail({
   project,
   currentChatId,
   currentChatProjectId,
+  highlightedResourceId,
+  focusedResourceRef,
   onEdit,
   onArchive,
   onPin,
@@ -35,6 +40,8 @@ export function ProjectDetail({
   project: ProjectLike;
   currentChatId?: string | null;
   currentChatProjectId?: string | null;
+  highlightedResourceId?: string;
+  focusedResourceRef?: RefObject<HTMLLIElement | null>;
   onEdit: () => void;
   onArchive: () => void;
   onPin: () => void;
@@ -219,15 +226,34 @@ export function ProjectDetail({
           <ul className="project-manager__resources mt-2.75 grid list-none gap-0 p-0">
             {resources.map((resource) => (
               <li
-                className="grid min-h-12 grid-cols-[22px_minmax(0,1fr)_auto_28px] items-center gap-2.25 border-[var(--border)] border-b py-1.25 pr-1.5 pl-2.25"
+                className="grid min-h-12 grid-cols-[22px_minmax(0,1fr)_auto_28px] items-center gap-2.25 border-[var(--border)] border-b py-1.25 pr-1.5 pl-2.25 data-[search-target]:bg-[var(--surface-raised)] focus-visible:-outline-offset-1 focus-visible:outline-1 focus-visible:outline-[var(--focus-ring)]"
+                data-search-target={
+                  resource.id === highlightedResourceId ? "" : undefined
+                }
                 key={resource.id}
+                ref={
+                  resource.id === highlightedResourceId
+                    ? focusedResourceRef
+                    : undefined
+                }
+                tabIndex={
+                  resource.id === highlightedResourceId ? -1 : undefined
+                }
               >
                 <span
                   className={`inline-flex items-center justify-center ${resource.kind === "folder" ? "text-[var(--warn)]" : "text-[var(--accent)]"}`}
                   aria-hidden="true"
                 >
                   <UiIcon
-                    icon={resource.kind === "folder" ? Folder : File}
+                    icon={
+                      {
+                        file: File,
+                        folder: Folder,
+                        link: Link2,
+                        note: NotebookText,
+                        source: File,
+                      }[resource.kind]
+                    }
                     size="md"
                   />
                 </span>

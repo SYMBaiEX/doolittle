@@ -18,7 +18,21 @@ export async function handleMediaRoutes(
   url: URL,
 ): Promise<Response | null> {
   if (request.method === "GET" && url.pathname === "/media/library") {
-    return json({ assets: context.services.media.listLibraryAssets() });
+    const sessionId = url.searchParams.get("sessionId");
+    if (sessionId !== null && !/^[a-zA-Z0-9:_-]{1,128}$/u.test(sessionId))
+      return json({ error: "Conversation identity is invalid." }, 400);
+    try {
+      return json({
+        assets: context.services.media.listLibraryAssets(
+          sessionId ?? undefined,
+        ),
+      });
+    } catch (error) {
+      if (error instanceof MediaLibraryError) {
+        return json({ error: error.message }, error.status);
+      }
+      throw error;
+    }
   }
 
   if (request.method === "GET" && url.pathname.startsWith("/media/library/")) {

@@ -7,6 +7,7 @@ export type AppLogLevel =
   | "fatal";
 
 export interface AppLogRecord {
+  id?: string;
   at: string;
   level: AppLogLevel;
   scope: string;

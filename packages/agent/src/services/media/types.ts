@@ -122,6 +122,11 @@ export interface MediaTextRequestMetadata {
 
 export type MediaTextAnalysisPort = ModelAnalysisPort;
 
+export interface MediaAssetOrigin {
+  botId: string;
+  sessionId: string;
+}
+
 export interface MediaGenerationOptions {
   name?: string;
   size?: string;

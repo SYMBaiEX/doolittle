@@ -1,3 +1,4 @@
+import { createHash, randomUUID } from "node:crypto";
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import {
@@ -147,19 +148,29 @@ function appendRecord(path: string, record: AppLogRecord): void {
 function readRecordTail(path: string, limit: number): AppLogRecord[] {
   if (!existsSync(path)) return [];
   try {
+    const legacyOccurrences = new Map<string, number>();
     return readFileSync(path, "utf8")
       .trim()
       .split("\n")
       .filter(Boolean)
       .slice(-Math.max(1, limit))
+      .reverse()
       .flatMap((line) => {
         try {
           const record = JSON.parse(line) as AppLogRecord;
-          return record && typeof record.message === "string" ? [record] : [];
+          if (!record || typeof record.message !== "string") return [];
+          if (record.id) return [record];
+          // Old JSONL entries use a content digest and count from the tail so
+          // their identity stays the same at different page limits.
+          const digest = createHash("sha256").update(line).digest("hex");
+          const occurrence = legacyOccurrences.get(digest) ?? 0;
+          legacyOccurrences.set(digest, occurrence + 1);
+          return [{ ...record, id: `legacy-${digest}-${occurrence}` }];
         } catch {
           return [];
         }
-      });
+      })
+      .reverse();
   } catch {
     return [];
   }
@@ -271,6 +282,7 @@ export class LoggerService implements AppLogger {
     };
     this.logger[level](context, message);
     appendRecord(this.state.eventLogPath, {
+      id: randomUUID(),
       at: new Date().toISOString(),
       level,
       scope: this.scope,

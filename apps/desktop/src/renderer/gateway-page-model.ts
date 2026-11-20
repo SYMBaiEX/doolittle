@@ -2,6 +2,7 @@ import type { ActionFeedback } from "./lib";
 import { asNumber, asRecord, asString } from "./value-guards";
 
 export type GatewayDirection = "inbox" | "outbox";
+export const GATEWAY_HISTORY_LIMIT = 25;
 
 export interface GatewayTimelineItem {
   id: string;

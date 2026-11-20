@@ -53,14 +53,18 @@ function AutomationJobCard({
   entry,
   index,
   busy,
+  builderOpen,
   onAction,
+  onEdit,
   onFeedback,
   botNames,
 }: {
   entry: UnknownRecord;
   index: number;
   busy: string;
+  builderOpen: boolean;
   onAction(id: string, action: AutomationAction): Promise<boolean>;
+  onEdit(entry: UnknownRecord): void;
   onFeedback(message: string): void;
   botNames: Readonly<Record<string, string>>;
 }) {
@@ -93,6 +97,12 @@ function AutomationJobCard({
           label: "Run now",
           disabled: Boolean(busy) || status === "paused" || confirmDelete,
           onSelect: () => void onAction(id, "trigger"),
+        },
+        {
+          id: "edit",
+          label: "Edit…",
+          disabled: Boolean(busy) || builderOpen || confirmDelete,
+          onSelect: () => onEdit(entry),
         },
         {
           id: "pause-resume",
@@ -196,6 +206,14 @@ function AutomationJobCard({
               {busy === `${id}:trigger` ? "Running…" : "Run now"}
             </Button>
             <Button
+              disabled={Boolean(busy) || builderOpen}
+              onClick={() => onEdit(entry)}
+              type="button"
+              variant="secondary"
+            >
+              Edit
+            </Button>
+            <Button
               disabled={Boolean(busy)}
               onClick={() =>
                 void onAction(id, status === "paused" ? "resume" : "pause")
@@ -228,6 +246,7 @@ export function AutomationWorkspace({
   jobsLoading,
   onAction,
   onCreate,
+  onEdit,
   onFeedback,
   onReloadJobs,
   onReloadRuns,
@@ -247,6 +266,7 @@ export function AutomationWorkspace({
   jobsLoading: boolean;
   onAction(id: string, action: AutomationAction): Promise<boolean>;
   onCreate(starter: AutomationStarterChoice): void;
+  onEdit(entry: UnknownRecord): void;
   onFeedback(message: string): void;
   onReloadJobs(): void;
   onReloadRuns(): void;
@@ -280,11 +300,13 @@ export function AutomationWorkspace({
               {jobs.map((entry, index) => (
                 <AutomationJobCard
                   botNames={botNames}
+                  builderOpen={builderOpen}
                   busy={busy}
                   entry={entry}
                   index={index}
                   key={asString(entry.id, String(index))}
                   onAction={onAction}
+                  onEdit={onEdit}
                   onFeedback={onFeedback}
                 />
               ))}

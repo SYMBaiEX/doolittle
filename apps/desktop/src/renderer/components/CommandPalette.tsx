@@ -46,6 +46,7 @@ import {
   COMMAND_PALETTE_TITLE_CLASS,
 } from "../app-shell/overlay-layout";
 import {
+  activeCommandIndex,
   buildCommandPaletteMatches,
   type CommandGroup,
   type CommandItem,
@@ -113,10 +114,11 @@ export function CommandPalette<TData = unknown>({
   const listId = useId();
 
   const [query, setQuery] = useState(initialQuery);
-  const [activeIndex, setActiveIndex] = useState<number>(-1);
+  const [selectedOption, setSelectedOption] = useState<string>();
 
   const listboxRef = useRef<HTMLDivElement | null>(null);
   const searchRef = useRef<HTMLInputElement | null>(null);
+  const composingRef = useRef(false);
 
   const matches = useMemo(
     () => buildCommandPaletteMatches(groups, query),
@@ -129,6 +131,12 @@ export function CommandPalette<TData = unknown>({
     () => getFocusableCommandIndexes(flattenedMatches),
     [flattenedMatches],
   );
+  const activeIndex = activeCommandIndex(
+    flattenedMatches,
+    focusableIndexes,
+    selectedOption,
+  );
+  const activeOptionId = flattenedMatches[activeIndex]?.optionId;
 
   const selectCommand = useCallback(
     (match: CommandMatch<TData>) => {
@@ -152,7 +160,13 @@ export function CommandPalette<TData = unknown>({
         HTMLButtonElement | HTMLInputElement | HTMLDivElement
       >,
     ) => {
-      if (!isOpen) {
+      if (
+        !isOpen ||
+        event.defaultPrevented ||
+        composingRef.current ||
+        event.nativeEvent.isComposing ||
+        event.nativeEvent.keyCode === 229
+      ) {
         return;
       }
 
@@ -166,31 +180,33 @@ export function CommandPalette<TData = unknown>({
         return;
       }
 
-      if (event.key === "ArrowDown") {
+      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
         event.preventDefault();
-        setActiveIndex((current) =>
-          nextFocusableCommandIndex(focusableIndexes, current, 1),
+        setSelectedOption(
+          (current) =>
+            flattenedMatches[
+              nextFocusableCommandIndex(
+                focusableIndexes,
+                activeCommandIndex(flattenedMatches, focusableIndexes, current),
+                event.key === "ArrowDown" ? 1 : -1,
+              )
+            ]?.optionId,
         );
         return;
       }
 
-      if (event.key === "ArrowUp") {
+      if (
+        (event.key === "Home" || event.key === "End") &&
+        event.target !== searchRef.current
+      ) {
         event.preventDefault();
-        setActiveIndex((current) =>
-          nextFocusableCommandIndex(focusableIndexes, current, -1),
+        setSelectedOption(
+          flattenedMatches[
+            event.key === "Home"
+              ? (focusableIndexes.at(0) ?? -1)
+              : (focusableIndexes.at(-1) ?? -1)
+          ]?.optionId,
         );
-        return;
-      }
-
-      if (event.key === "Home") {
-        event.preventDefault();
-        setActiveIndex(focusableIndexes[0] ?? -1);
-        return;
-      }
-
-      if (event.key === "End") {
-        event.preventDefault();
-        setActiveIndex(focusableIndexes[focusableIndexes.length - 1] ?? -1);
         return;
       }
 
@@ -216,25 +232,24 @@ export function CommandPalette<TData = unknown>({
     if (isOpen && resetOnOpen) {
       setQuery(initialQuery);
     }
+    if (!isOpen) {
+      composingRef.current = false;
+      setSelectedOption(undefined);
+    }
   }, [isOpen, initialQuery, resetOnOpen]);
 
   useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
-
-    const firstFocus = focusableIndexes[0];
-    setActiveIndex(firstFocus ?? -1);
-  }, [focusableIndexes, isOpen]);
+    if (isOpen) setSelectedOption(activeOptionId);
+  }, [activeOptionId, isOpen]);
 
   const onSearchChange = useCallback(
     (event: ChangeEvent<HTMLInputElement>) => {
       const next = event.target.value;
       setQuery(next);
-      onQueryChange?.(next);
-      setActiveIndex(focusableIndexes[0] ?? -1);
+      setSelectedOption(undefined);
+      if (!composingRef.current) onQueryChange?.(next);
     },
-    [onQueryChange, focusableIndexes],
+    [onQueryChange],
   );
 
   const onItemClick = useCallback(
@@ -244,23 +259,13 @@ export function CommandPalette<TData = unknown>({
     [selectCommand],
   );
 
-  const onMouseMove = useCallback(
-    (index: number) => {
-      const target = flattenedMatches[index];
-      if (!target || target.disabled) {
-        return;
-      }
-      setActiveIndex(index);
-    },
-    [flattenedMatches],
-  );
-
   const onOptionMouseDown = useCallback((event: MouseEvent<HTMLElement>) => {
     event.preventDefault();
   }, []);
 
-  const activeOptionId =
-    activeIndex >= 0 ? flattenedMatches[activeIndex]?.optionId : undefined;
+  const activeDescendant = activeOptionId
+    ? `${listId}-${activeOptionId}`
+    : undefined;
 
   useEffect(() => {
     if (!activeOptionId) return;
@@ -282,6 +287,14 @@ export function CommandPalette<TData = unknown>({
         className={COMMAND_PALETTE_CLASS}
         aria-labelledby={titleId}
         showCloseButton={false}
+        onEscapeKeyDown={(event) => {
+          if (
+            composingRef.current ||
+            event.isComposing ||
+            event.keyCode === 229
+          )
+            event.preventDefault();
+        }}
         onOpenAutoFocus={(event) => {
           event.preventDefault();
           searchRef.current?.focus();
@@ -329,12 +342,19 @@ export function CommandPalette<TData = unknown>({
               type="search"
               value={query}
               onChange={onSearchChange}
+              onCompositionStart={() => {
+                composingRef.current = true;
+              }}
+              onCompositionEnd={(event) => {
+                composingRef.current = false;
+                onQueryChange?.(event.currentTarget.value);
+              }}
               onKeyDown={handleKeyDown}
               placeholder={searchPlaceholder}
               role="combobox"
               aria-autocomplete="list"
               aria-controls={listId}
-              aria-activedescendant={activeOptionId}
+              aria-activedescendant={activeDescendant}
               aria-expanded="true"
             />
           </span>
@@ -347,7 +367,7 @@ export function CommandPalette<TData = unknown>({
             className={COMMAND_PALETTE_LIST_CLASS}
             role="listbox"
             aria-label="Command list"
-            aria-activedescendant={activeOptionId}
+            aria-activedescendant={activeDescendant}
             onKeyDown={handleKeyDown}
             tabIndex={-1}
           >
@@ -370,25 +390,20 @@ export function CommandPalette<TData = unknown>({
                   </legend>
                   {group.items.map((item) => {
                     const optionId = `${group.groupId}:${item.id}`;
-                    const isActive =
-                      flattenedMatches[activeIndex]?.optionId === optionId;
+                    const isActive = activeOptionId === optionId;
                     return (
                       <div
                         aria-disabled={item.disabled}
                         aria-selected={isActive}
                         className={COMMAND_PALETTE_ITEM_CLASS}
-                        id={optionId}
+                        id={`${listId}-${optionId}`}
                         key={optionId}
                         onClick={() => onItemClick(item)}
                         onKeyDown={handleKeyDown}
                         onMouseDown={onOptionMouseDown}
-                        onMouseMove={() =>
-                          onMouseMove(
-                            flattenedMatches.findIndex(
-                              (match) => match.optionId === optionId,
-                            ),
-                          )
-                        }
+                        onMouseMove={() => {
+                          if (!item.disabled) setSelectedOption(optionId);
+                        }}
                         role="option"
                         tabIndex={-1}
                       >

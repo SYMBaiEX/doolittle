@@ -1,5 +1,5 @@
 import { Button } from "@doolittle/ui";
-import { ArrowRight, ChevronRight } from "lucide-react";
+import { ArrowRight, ChevronRight, ExternalLink } from "lucide-react";
 import { useState } from "react";
 import { CompactStatStrip } from "./components/CompactStatStrip";
 import { OfflineRouteState } from "./components/OfflineRouteState";
@@ -114,6 +114,8 @@ function DoctorCheckRow({ check }: { check: DoctorCheckView }) {
 }
 
 export function DocsPage({ active }: { active: boolean }) {
+  const version = import.meta.env.VITE_DOOLITTLE_DESKTOP_VERSION;
+  const homepage = import.meta.env.VITE_DOOLITTLE_DESKTOP_HOMEPAGE;
   const [doctorRequested, setDoctorRequested] = useState(false);
   const doctorPath = doctorResourcePath(active, doctorRequested);
   const doctor = useApiResource<DoctorResponse>(doctorPath, [doctorPath]);
@@ -135,7 +137,7 @@ export function DocsPage({ active }: { active: boolean }) {
         <div>
           <span className="eyebrow">Help</span>
           <h2>About Doolittle</h2>
-          <p>Local runtime status and operator diagnostics.</p>
+          <p>Doolittle Desktop {version}</p>
         </div>
       </header>
       <CompactStatStrip
@@ -238,44 +240,39 @@ export function DocsPage({ active }: { active: boolean }) {
         <section className={DIAGNOSTICS_CARD_CLASS}>
           <div className={DIAGNOSTICS_CARD_HEADING_CLASS}>
             <div>
-              <span className="eyebrow">Quick reference</span>
-              <h2>Run Doolittle</h2>
+              <h2>Support and release notes</h2>
             </div>
           </div>
-          <div className="grid gap-2">
-            <div className="grid gap-1 border-t border-[var(--border)] pt-2 first:border-t-0 first:pt-0">
-              <code className="text-[length:var(--text-control)] text-[var(--accent)]">
-                ./scripts/install.sh
-              </code>
-              <span className="text-[length:var(--text-meta)] text-[var(--muted)]">
-                Install or update the local command.
-              </span>
-            </div>
-            <div className="grid gap-1 border-t border-[var(--border)] pt-2">
-              <code className="text-[length:var(--text-control)] text-[var(--accent)]">
-                doolittle desktop
-              </code>
-              <span className="text-[length:var(--text-meta)] text-[var(--muted)]">
-                Open this desktop application.
-              </span>
-            </div>
-            <div className="grid gap-1 border-t border-[var(--border)] pt-2">
-              <code className="text-[length:var(--text-control)] text-[var(--accent)]">
-                doolittle doctor
-              </code>
-              <span className="text-[length:var(--text-meta)] text-[var(--muted)]">
-                Check runtime and provider readiness.
-              </span>
-            </div>
-            <div className="grid gap-1 border-t border-[var(--border)] pt-2">
-              <code className="text-[length:var(--text-control)] text-[var(--accent)]">
-                doolittle
-              </code>
-              <span className="text-[length:var(--text-meta)] text-[var(--muted)]">
-                Open the terminal interface.
-              </span>
-            </div>
-          </div>
+          <nav aria-label="Doolittle support" className="grid gap-1">
+            {[
+              ["Read the documentation", homepage],
+              ["View release notes", `${homepage}/releases`],
+              ["Report an issue", `${homepage}/issues`],
+            ].map(([label, href]) => (
+              <a
+                className="flex items-center justify-between gap-2 rounded-[var(--radius-sm)] px-2 py-2 text-sm hover:bg-[var(--surface-hover)]"
+                href={href}
+                key={label}
+                rel="noreferrer"
+                target="_blank"
+              >
+                {label}
+                <UiIcon icon={ExternalLink} size="xs" />
+              </a>
+            ))}
+          </nav>
+          {import.meta.env.DEV ? (
+            <details className="border-t border-[var(--border)] pt-2 text-sm">
+              <summary className="cursor-pointer">Development commands</summary>
+              <p>
+                <code>nub run desktop:dev</code> starts the desktop from source.
+              </p>
+              <p>
+                <code>doolittle doctor</code> checks runtime and provider
+                readiness.
+              </p>
+            </details>
+          ) : null}
         </section>
       </div>
       <details

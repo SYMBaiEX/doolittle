@@ -1,4 +1,10 @@
-import { mkdirSync, readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import {
+  appendFileSync,
+  mkdirSync,
+  readFileSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 import { expect, type Locator, test } from "@playwright/test";
 import { themeContrast } from "../../packages/ui/src/themes";
@@ -210,6 +216,103 @@ test.describe("fresh native desktop", () => {
     }
   });
 
+  test("lands search on the project source and the exact log record", async () => {
+    const desktop = await launchDesktop();
+    const { page, profile, workspace } = desktop;
+    try {
+      const projectId = await makeProject(page, "Search fixture", workspace);
+      await agentRequest(page, `/projects/${projectId}/resources`, "POST", {
+        kind: "note",
+        label: "Searchable project note",
+        value: "A local project resource for this desktop journey.",
+      });
+      const log = {
+        at: new Date().toISOString(),
+        level: "error",
+        scope: "search-fixture",
+        message: "Unique local log for desktop navigation",
+      };
+      const logsPath = join(profile, "runtime", "logs");
+      mkdirSync(logsPath, { recursive: true });
+      appendFileSync(
+        join(logsPath, "doolittle.jsonl"),
+        `${JSON.stringify(log)}\n`,
+      );
+      await page.reload();
+      await expect(page.locator("[data-session-workbench]")).toBeVisible();
+      await expect
+        .poll(() =>
+          page.evaluate(
+            async () => (await window.doolittle.getBackendState()).phase,
+          ),
+        )
+        .toBe("ready");
+
+      const initial = await page.evaluate(() =>
+        window.doolittle.ui?.getSelection(),
+      );
+      const search = page.getByRole("button", { name: "Search", exact: true });
+      const commandMenu = page.getByRole("dialog", { name: "Command menu" });
+      const query = commandMenu.getByRole("combobox");
+      await search.click();
+      await query.fill("Searchable project note");
+      const resourceMatch = commandMenu.getByRole("option", {
+        name: /Searchable project note/u,
+      });
+      await expect(resourceMatch).toBeVisible();
+      await query.dispatchEvent("keydown", { key: "Enter", isComposing: true });
+      await expect(commandMenu).toBeVisible();
+      const caretKeys = await query.evaluate((input) =>
+        ["Home", "End"].map((key) =>
+          input.dispatchEvent(
+            new KeyboardEvent("keydown", {
+              key,
+              bubbles: true,
+              cancelable: true,
+            }),
+          ),
+        ),
+      );
+      expect(caretKeys).toEqual([true, true]);
+      await resourceMatch.click();
+      const projects = page.getByRole("dialog", { name: "Projects" });
+      const source = projects.locator("[data-search-target]");
+      await expect(source).toContainText("Searchable project note");
+      await expect(source).toBeFocused();
+      expect(
+        await page.evaluate(() => window.doolittle.ui?.getSelection()),
+      ).toEqual(initial);
+      await projects.getByRole("button", { name: "Close projects" }).click();
+
+      await search.click();
+      await query.fill(log.message);
+      await commandMenu
+        .getByRole("option", { name: new RegExp(log.message, "u") })
+        .click();
+      const event = page.getByRole("log").locator("[data-search-target]");
+      await expect(event).toContainText(log.message);
+      await expect(event).toBeFocused();
+
+      const params = "kind=log&query=runtime+failure";
+      const feed = await agentRequest<{ events: { title: string }[] }>(
+        page,
+        `/activity?${params}`,
+      );
+      const exported = await agentRequest<{ events: { title: string }[] }>(
+        page,
+        `/activity/export?${params}`,
+      );
+      expect(feed.events.map(({ title }) => title)).toContain(
+        "Runtime failure recorded",
+      );
+      expect(exported.events.map(({ title }) => title)).toEqual(
+        feed.events.map(({ title }) => title),
+      );
+    } finally {
+      await desktop.dispose();
+    }
+  });
+
   test("creates an offline bot through the native chooser and sends its first chat", async () => {
     const desktop = await launchDesktop();
     try {
@@ -260,16 +363,36 @@ test.describe("fresh native desktop", () => {
       // five-second assertion budget; the journey still has its 60s deadline.
       await expect(composer).toBeEnabled({ timeout: 30_000 });
       await composer.fill("A short offline hello");
-      await composer.press("Enter");
+      const navigation = page.getByRole("complementary", {
+        name: "Navigation and bots",
+      });
+      await navigation
+        .getByRole("button", { name: /^Doolittle(?:,|$)/u })
+        .click();
       await expect(
-        page
-          .getByLabel("Conversation detail")
-          .getByText("A short offline hello"),
+        page.getByRole("textbox", { name: "Message Doolittle" }),
+      ).toBeVisible();
+      await navigation
+        .getByRole("button", { name: /^Fresh Scout(?:,|$)/u })
+        .click();
+      await expect(composer).toHaveValue("A short offline hello");
+      const conversation = page.getByLabel("Conversation detail").filter({
+        has: composer,
+      });
+      // The draft remains editable during worker startup. Wait for dispatch
+      // readiness before attempting the first turn.
+      await expect(
+        conversation.getByRole("button", { name: "Send message" }),
+      ).toBeEnabled({ timeout: 30_000 });
+      await composer.press("Enter");
+      await expect(composer).toHaveValue("");
+      await expect(
+        conversation.getByText("A short offline hello", { exact: true }),
       ).toBeVisible();
       await expect(
-        page
-          .getByLabel("Conversation detail")
-          .getByText("model provider is unavailable", { exact: false }),
+        conversation.getByText("model provider is unavailable", {
+          exact: false,
+        }),
       ).toBeVisible({ timeout: 60_000 });
       const catalog = await agentRequest<{
         bots: Array<{ name: string; model: { provider: string } }>;
@@ -338,6 +461,108 @@ test.describe("fresh native desktop", () => {
     }
   });
 
+  test("requires native approval for Git discard and worktree creation", async () => {
+    const desktop = await launchDesktop();
+    const { app, page, workspace } = desktop;
+    const file = "approval-fixture.txt";
+    const path = join(workspace, file);
+    const worktreePath = ".doolittle/worktrees/approval-fixture";
+    const git = (...args: string[]) =>
+      execFileSync(
+        "git",
+        [
+          "-C",
+          workspace,
+          "-c",
+          "user.name=SYMBaiEX",
+          "-c",
+          "user.email=solsymbaiex@gmail.com",
+          "-c",
+          "commit.gpgsign=false",
+          "-c",
+          "core.hooksPath=/dev/null",
+          ...args,
+        ],
+        { encoding: "utf8" },
+      );
+    try {
+      git("init", "-qb", "main");
+      writeFileSync(path, "original content\n");
+      git("add", "--", file);
+      git("commit", "-qm", "Create fixture");
+      writeFileSync(path, "unsaved to git\n");
+      const projectId = await makeProject(page, "Approval fixture", workspace);
+      await installProjectDialog(app, workspace);
+      await openProjectChat(page, projectId);
+      await app.evaluate(
+        ({ dialog }, { file, worktreePath }) => {
+          const original = dialog.showMessageBox;
+          let prompted = false;
+          dialog.showMessageBox = (async (...args: unknown[]) => {
+            const options = args.at(-1) as Electron.MessageBoxOptions;
+            if (
+              options.title === "Confirm destructive Git operation" &&
+              options.message === `discard: ${file}` &&
+              options.defaultId === options.cancelId &&
+              options.buttons?.[1] === "Cancel"
+            ) {
+              const response = prompted ? 0 : 1;
+              prompted = true;
+              return { response, checkboxChecked: false };
+            }
+            if (
+              options.title === "Create Git worktree?" &&
+              options.message === "approval-fixture" &&
+              options.detail?.includes(worktreePath)
+            ) {
+              return { response: 0, checkboxChecked: false };
+            }
+            return Reflect.apply(original, dialog, args);
+          }) as typeof dialog.showMessageBox;
+        },
+        { file, worktreePath },
+      );
+      await page.getByRole("button", { name: "IDE View" }).click();
+      await page.getByRole("button", { name: "Tools", exact: true }).click();
+      const gitTab = page.getByRole("tab", { name: /^Git(?:\s+\d+)?$/u });
+      await gitTab.click();
+      const discard = page.getByRole("button", {
+        name: `Discard ${file}`,
+        exact: true,
+      });
+      await discard.click();
+      await expect(page.getByText(/Git operation cancelled/i)).toBeVisible();
+      expect(readFileSync(path, "utf8")).toBe("unsaved to git\n");
+
+      await discard.click();
+      await expect
+        .poll(() => readFileSync(path, "utf8"))
+        .toBe("original content\n");
+      expect(git("status", "--porcelain", "--", file)).toBe("");
+      await page.getByRole("tab", { name: /^Trees(?:\s+\d+)?$/u }).click();
+      const environments = page.getByRole("region", {
+        name: "Local execution environments",
+      });
+      await environments
+        .getByRole("textbox", { name: "New branch" })
+        .fill("approval-fixture");
+      await environments
+        .getByRole("textbox", { name: "Workspace-relative path" })
+        .fill(worktreePath);
+      await environments
+        .getByRole("button", { name: "Review & create" })
+        .click();
+      await expect(
+        environments.getByText(/Created.*approval-fixture/u),
+      ).toBeVisible();
+      expect(readFileSync(join(workspace, worktreePath, file), "utf8")).toBe(
+        "original content\n",
+      );
+    } finally {
+      await desktop.dispose();
+    }
+  });
+
   test("cancelled, cross-bot and different-root access never inherit the grant", async () => {
     const desktop = await launchDesktop();
     try {
@@ -394,6 +619,7 @@ test.describe("fresh native desktop", () => {
       ).toBeVisible();
       await openProjectChat(page, projectId, "Other Scout");
       expect(await projectDialogCount(desktop.app)).toBe(2);
+      await agentRequest(page, `/bots/${otherBot.id}/stop`, "POST");
       await agentRequest(page, `/bots/${otherBot.id}`, "PATCH", {
         permissions: { allowDelegation: true },
       });

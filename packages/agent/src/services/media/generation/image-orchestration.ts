@@ -59,9 +59,8 @@ export async function generateMediaImageArtifact(
   const response = generation.response;
   const responsePath = generation.responsePath;
 
-  writeMediaManifestFile(
-    manifestPath,
-    buildMediaImageManifest(
+  writeMediaManifestFile(manifestPath, {
+    ...buildMediaImageManifest(
       new Date().toISOString(),
       input.prompt,
       refinedPrompt || input.prompt,
@@ -72,7 +71,8 @@ export async function generateMediaImageArtifact(
       artifactKind,
       responsePath,
     ),
-  );
+    ...(input.origin ? { origin: input.origin } : {}),
+  });
   writeMediaTextFile(
     promptPath,
     buildMediaImagePrompt(

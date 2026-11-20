@@ -3,8 +3,10 @@ import { Button } from "@doolittle/ui";
 import { type FormEvent, useRef, useState } from "react";
 import {
   type AutomationDraft,
+  buildAutomationEditRequest,
   buildAutomationRequest,
   createAutomationDraft,
+  editAutomationDraft,
 } from "./automation-model";
 import { AutomationBuilder } from "./automations/AutomationBuilder";
 import {
@@ -24,6 +26,7 @@ import {
   desktopRequest,
   errorMessage,
   Notice,
+  type UnknownRecord,
   useApiResource,
 } from "./lib";
 import { automationRequests } from "./resource-request-policy";
@@ -44,7 +47,11 @@ export function AutomationsPage({ active }: { active: boolean }) {
     resourcePolicy.runs ? "/cron/runs" : null,
     [resourcePolicy.runs],
   );
-  const [showCreate, setShowCreate] = useState(false);
+  const [builderOpen, setBuilderOpen] = useState(false);
+  const [editing, setEditing] = useState<{
+    id: string;
+    initial: AutomationDraft;
+  } | null>(null);
   const [draft, setDraft] = useState<AutomationDraft>(createAutomationDraft);
   const [busy, setBusy] = useState("");
   const mutationInFlight = useRef(false);
@@ -57,8 +64,8 @@ export function AutomationsPage({ active }: { active: boolean }) {
     runEntries[0];
   const hasJobs = entries.length > 0;
   const bots = useApiResource<BotCatalogResponse>(
-    active && (showCreate || hasJobs) ? "/bots" : null,
-    [active, showCreate, hasJobs],
+    active && (builderOpen || hasJobs) ? "/bots" : null,
+    [active, builderOpen || hasJobs],
   );
   const updateDraft = <Key extends keyof AutomationDraft>(
     key: Key,
@@ -68,22 +75,52 @@ export function AutomationsPage({ active }: { active: boolean }) {
     setFeedback(null);
   };
 
-  const create = async (event: FormEvent) => {
+  const closeBuilder = () => {
+    setBuilderOpen(false);
+    if (editing) setDraft(createAutomationDraft());
+    setEditing(null);
+  };
+
+  const edit = (entry: UnknownRecord) => {
+    const id = asString(entry.id);
+    if (!active || !id || mutationInFlight.current) return;
+    const initial = editAutomationDraft(entry);
+    setEditing({ id, initial });
+    setDraft(initial);
+    setFeedback(null);
+    setBuilderOpen(true);
+  };
+
+  const save = async (event: FormEvent) => {
     event.preventDefault();
     if (!active || mutationInFlight.current) return;
-    const request = buildAutomationRequest(draft);
+    const request = editing
+      ? buildAutomationEditRequest(draft, editing.initial)
+      : buildAutomationRequest(draft);
     if (!request.ok) {
       setFeedback({ message: request.error, tone: "bad" });
       return;
     }
+    if (editing && Object.keys(request.payload).length === 0) {
+      closeBuilder();
+      setFeedback({ message: "No changes to save.", tone: "neutral" });
+      return;
+    }
     mutationInFlight.current = true;
-    setBusy("create");
+    setBusy("save");
     setFeedback(null);
     try {
-      await desktopRequest("/cron/jobs", "POST", request.payload);
+      await desktopRequest(
+        editing ? `/cron/jobs/${encodeURIComponent(editing.id)}` : "/cron/jobs",
+        editing ? "PATCH" : "POST",
+        request.payload,
+      );
       setDraft(createAutomationDraft());
-      setShowCreate(false);
-      setFeedback({ message: "Automation created.", tone: "good" });
+      closeBuilder();
+      setFeedback({
+        message: editing ? "Automation updated." : "Automation created.",
+        tone: "good",
+      });
       jobs.reload();
     } catch (error) {
       setFeedback({ message: errorMessage(error), tone: "bad" });
@@ -140,13 +177,17 @@ export function AutomationsPage({ active }: { active: boolean }) {
         <h2 className="m-0 text-base font-semibold">Scheduled work</h2>
         {active ? (
           <Button
-            disabled={busy === "create"}
-            onClick={() => setShowCreate((value) => !value)}
+            aria-controls="automation-builder"
+            disabled={Boolean(busy)}
+            onClick={() => {
+              if (builderOpen) closeBuilder();
+              else setBuilderOpen(true);
+            }}
             type="button"
-            variant={showCreate ? "secondary" : "default"}
-            aria-expanded={showCreate}
+            variant={builderOpen ? "secondary" : "default"}
+            aria-expanded={builderOpen}
           >
-            {showCreate ? "Close builder" : "New automation"}
+            {builderOpen ? "Close builder" : "New automation"}
           </Button>
         ) : null}
       </header>
@@ -158,13 +199,16 @@ export function AutomationsPage({ active }: { active: boolean }) {
         </OfflineRouteState>
       ) : null}
 
-      {active && showCreate ? (
+      {active && builderOpen ? (
         <AutomationBuilder
           bots={bots.data?.bots}
           botsError={bots.error}
-          busy={busy === "create" ? "creating" : busy ? "occupied" : undefined}
+          botsLoading={bots.loading}
+          busy={busy === "save" ? "saving" : busy ? "occupied" : undefined}
           draft={draft}
-          onSubmit={create}
+          editing={Boolean(editing)}
+          key={editing?.id ?? "new"}
+          onSubmit={save}
           onUpdate={updateDraft}
         />
       ) : null}
@@ -180,7 +224,7 @@ export function AutomationsPage({ active }: { active: boolean }) {
           botNames={Object.fromEntries(
             (bots.data?.bots ?? []).map((bot) => [bot.id, bot.name]),
           )}
-          builderOpen={showCreate}
+          builderOpen={builderOpen}
           busy={busy}
           jobs={entries}
           jobsError={jobs.error}
@@ -189,8 +233,9 @@ export function AutomationsPage({ active }: { active: boolean }) {
           onCreate={(starter) => {
             setDraft(createAutomationDraft(starter));
             setFeedback(null);
-            setShowCreate(true);
+            setBuilderOpen(true);
           }}
+          onEdit={edit}
           onFeedback={(message) => setFeedback({ message, tone: "good" })}
           onReloadJobs={jobs.reload}
           onReloadRuns={runs.reload}

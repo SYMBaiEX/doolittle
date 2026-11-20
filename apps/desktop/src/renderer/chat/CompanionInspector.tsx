@@ -29,6 +29,7 @@ const views = [
 export interface CompanionInspectorProps {
   active: boolean;
   bot?: BotSummary;
+  botId?: string;
   contextLabel: string;
   fullWidth?: boolean;
   width?: number;
@@ -45,12 +46,14 @@ export interface CompanionInspectorProps {
   sessionId: string;
   tab: InspectorTab;
   title: string;
+  workspaceLabel: string;
   workspacePath: string;
 }
 
 export function CompanionInspector({
   active,
   bot,
+  botId,
   contextLabel,
   fullWidth = false,
   width,
@@ -63,6 +66,7 @@ export function CompanionInspector({
   sessionId,
   tab,
   title,
+  workspaceLabel,
   workspacePath,
 }: CompanionInspectorProps) {
   const id = useId();
@@ -91,7 +95,15 @@ export function CompanionInspector({
       <header className="chat-inspector-heading">
         <span>
           <UiIcon icon={PanelRight} size="sm" />
-          <h2>Conversation context</h2>
+          <span className="grid min-w-0 gap-0.5">
+            <h2>Conversation context</h2>
+            <span
+              className="truncate text-[length:var(--text-meta)] text-[var(--muted)]"
+              title={`${bot?.name ?? "Selected agent"} · ${title} · ${workspaceLabel}`}
+            >
+              {bot?.name ?? "Selected agent"} · {workspaceLabel}
+            </span>
+          </span>
         </span>
         <button
           aria-label="Close inspector"
@@ -129,7 +141,10 @@ export function CompanionInspector({
               <div>
                 <dt>Agent</dt>
                 <dd>
-                  {bot?.name ?? "Doolittle"}
+                  {bot?.name ??
+                    (botId
+                      ? "Agent details unavailable"
+                      : "No confirmed agent")}
                   {bot ? (
                     <span className="chat-inspector-agent-status">
                       {bot.state}
@@ -155,7 +170,7 @@ export function CompanionInspector({
               </div>
               <div>
                 <dt>Workspace</dt>
-                <dd>{workspacePath || "No workspace selected"}</dd>
+                <dd title={workspacePath || undefined}>{workspaceLabel}</dd>
               </div>
             </dl>
             {bot ? <BotActions bot={bot} /> : null}
@@ -165,8 +180,8 @@ export function CompanionInspector({
             fallback={<StateSurface kind="loading" title={`Loading ${tab}…`} />}
           >
             <ThreadWorkbenchRail
-              botId={bot?.id}
-              active={active}
+              botId={botId}
+              active={active && Boolean(botId)}
               tab={tab}
               onInsertContext={onInsertContext}
               onOpenFullView={onOpenFullView}

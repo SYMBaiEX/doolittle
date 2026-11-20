@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import {
   Badge,
   displayTimestamp,
@@ -19,6 +20,8 @@ export function RuntimeLogStream({
   filtered,
   loading,
   onRetry,
+  focusedLogId,
+  focusRequestId,
 }: {
   className?: string;
   entries: RuntimeLogEntry[];
@@ -26,7 +29,22 @@ export function RuntimeLogStream({
   filtered: boolean;
   loading: boolean;
   onRetry: () => void;
+  focusedLogId?: string;
+  focusRequestId?: string;
 }) {
+  const focusedEntryRef = useRef<HTMLElement>(null);
+  const visibleTarget =
+    !loading && !error && entries.some((entry) => entry.id === focusedLogId);
+  useEffect(() => {
+    if (!visibleTarget || !focusRequestId) return;
+    const frame = window.requestAnimationFrame(() => {
+      const element = focusedEntryRef.current;
+      element?.focus({ preventScroll: true });
+      element?.scrollIntoView({ block: "center" });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [focusRequestId, visibleTarget]);
+
   return (
     <section
       aria-labelledby="runtime-log-stream-title"
@@ -74,9 +92,12 @@ export function RuntimeLogStream({
         >
           {entries.map((entry) => (
             <article
-              className={`grid min-h-9 grid-cols-[54px_minmax(0,1fr)_92px] items-start gap-2 border-[var(--line-subtle)] border-b border-l-2 px-2.25 py-1.75 last:border-b-0 max-[700px]:grid-cols-[52px_minmax(0,1fr)] ${logEntryClassName(entry)}`}
+              className={`grid min-h-9 grid-cols-[54px_minmax(0,1fr)_92px] items-start gap-2 border-[var(--line-subtle)] border-b border-l-2 px-2.25 py-1.75 last:border-b-0 data-[search-target]:bg-[var(--surface-raised)] focus-visible:-outline-offset-1 focus-visible:outline-1 focus-visible:outline-[var(--focus-ring)] max-[700px]:grid-cols-[52px_minmax(0,1fr)] ${logEntryClassName(entry)}`}
+              data-search-target={entry.id === focusedLogId ? "" : undefined}
               key={entry.id}
+              ref={entry.id === focusedLogId ? focusedEntryRef : undefined}
               style={{ borderLeftColor: logEntryBorderColor(entry.level) }}
+              tabIndex={entry.id === focusedLogId ? -1 : undefined}
             >
               <Badge tone={logEntryTone(entry.level)}>
                 {entry.level.toUpperCase()}

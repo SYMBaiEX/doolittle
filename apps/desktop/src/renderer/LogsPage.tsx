@@ -2,14 +2,16 @@ import { Button } from "@elizaos/ui/button";
 import { PagePanel } from "@elizaos/ui/components/composites/page-panel/index";
 import { Input } from "@elizaos/ui/input";
 import { ChevronDown, ChevronRight } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CompactStatStrip } from "./components/CompactStatStrip";
 import { OfflineRouteState } from "./components/OfflineRouteState";
 import { UiIcon } from "./components/UiIcon";
+import type { DesktopNavigationIntent } from "./desktop-navigation-intent";
 import {
   asArray,
   asRecord,
   asString,
+  Notice,
   useApiResource,
   useDebouncedValue,
 } from "./lib";
@@ -36,17 +38,43 @@ interface TerminalHistoryResponse {
 const EMBEDDED_LOGS_CLASS =
   "settings-logs-section @container/observability min-w-0";
 
-export function LogsPage({ active }: { active: boolean }) {
+type RuntimeLogIntent = Extract<
+  DesktopNavigationIntent,
+  { kind: "runtime-log" }
+>;
+
+export function LogsPage({
+  active,
+  runtimeLogIntent,
+  onConsumeNavigationIntent,
+}: {
+  active: boolean;
+  runtimeLogIntent?: RuntimeLogIntent | null;
+  onConsumeNavigationIntent?: (id: string) => void;
+}) {
   const [level, setLevel] = useState("all");
   const [query, setQuery] = useState("");
+  const [logSelection, setLogSelection] = useState<RuntimeLogIntent | null>(
+    null,
+  );
+  const selectedLog = runtimeLogIntent ?? logSelection;
   const debouncedQuery = useDebouncedValue(query.trim());
   const [historyOpen, setHistoryOpen] = useState(false);
+  const effectiveQuery = selectedLog?.target.query ?? debouncedQuery;
+  const effectiveLevel = selectedLog ? "all" : level;
+  useEffect(() => {
+    if (!runtimeLogIntent) return;
+    setLogSelection(runtimeLogIntent);
+    setQuery(runtimeLogIntent.target.query);
+    setLevel("all");
+    onConsumeNavigationIntent?.(runtimeLogIntent.id);
+  }, [onConsumeNavigationIntent, runtimeLogIntent]);
   const params = new URLSearchParams({ limit: "500" });
-  if (level !== "all") params.set("level", level);
-  if (debouncedQuery) params.set("query", debouncedQuery);
+  if (effectiveLevel !== "all") params.set("level", effectiveLevel);
+  if (effectiveQuery) params.set("query", effectiveQuery);
   const resource = useApiResource<LogsResponse>(
     active ? `/logs?${params.toString()}` : null,
-    [active, level, debouncedQuery],
+    [active, effectiveLevel, effectiveQuery],
   );
   const deliveries = useApiResource<DeliveriesResponse>(
     active && historyOpen ? "/deliveries" : null,
@@ -125,15 +153,21 @@ export function LogsPage({ active }: { active: boolean }) {
             id="runtime-log-search"
             placeholder="Search logs"
             type="search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            value={selectedLog?.target.query ?? query}
+            onChange={(event) => {
+              setLogSelection(null);
+              setQuery(event.target.value);
+            }}
           />
         </label>
         <select
           aria-label="Log level"
           className={OBSERVABILITY_CONTROL_CLASS}
-          value={level}
-          onChange={(event) => setLevel(event.target.value)}
+          value={effectiveLevel}
+          onChange={(event) => {
+            setLogSelection(null);
+            setLevel(event.target.value);
+          }}
         >
           <option value="all">All levels</option>
           <option value="trace">Trace</option>
@@ -144,13 +178,22 @@ export function LogsPage({ active }: { active: boolean }) {
           <option value="fatal">Fatal</option>
         </select>
       </div>
+      {selectedLog &&
+      resource.status === "ready" &&
+      !logEntries.some((entry) => entry.id === selectedLog.target.logId) ? (
+        <Notice tone="neutral">
+          This event is no longer in the recent log history.
+        </Notice>
+      ) : null}
       <RuntimeLogStream
         className="[&>[role=log]]:h-[clamp(18rem,56vh,35rem)] max-[700px]:[&>[role=log]]:h-[clamp(18rem,54svh,26rem)]"
         entries={logEntries}
         error={resource.error || undefined}
-        filtered={Boolean(query.trim() || level !== "all")}
+        filtered={Boolean(effectiveQuery || effectiveLevel !== "all")}
         loading={resource.loading}
         onRetry={resource.reload}
+        focusedLogId={selectedLog?.target.logId}
+        focusRequestId={selectedLog?.id}
       />
       <details
         className="operations-trace-details overflow-hidden rounded-[var(--radius-xs)] border border-[var(--border)] bg-[var(--surface)] open:[&>summary]:border-b open:[&>summary]:border-[var(--border)]"

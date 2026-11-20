@@ -4,10 +4,16 @@ import { MediaLibraryTab } from "./media/MediaLibraryTab";
 
 export function MediaPage({
   active,
+  botId,
   embedded = false,
+  onOpenConversation,
+  sessionId,
 }: {
   active: boolean;
+  botId?: string;
   embedded?: boolean;
+  onOpenConversation?: (sessionId: string) => void;
+  sessionId?: string;
 }) {
   return (
     <div
@@ -26,11 +32,16 @@ export function MediaPage({
       )}
 
       {!active ? (
-        <OfflineRouteState>
-          Media operations are unavailable until the local runtime is ready.
+        <OfflineRouteState title="Asset library unavailable">
+          Open this view when the chat’s agent is ready.
         </OfflineRouteState>
       ) : (
-        <MediaLibraryTab active revision={0} />
+        <MediaLibraryTab
+          active
+          botId={botId}
+          onOpenConversation={onOpenConversation}
+          sessionId={sessionId}
+        />
       )}
     </div>
   );

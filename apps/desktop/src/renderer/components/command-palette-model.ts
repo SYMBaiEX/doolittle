@@ -140,6 +140,18 @@ export function getFocusableCommandIndexes<TData>(
     .filter((index) => index >= 0);
 }
 
+export function activeCommandIndex<TData>(
+  matches: readonly FlattenedCommandMatch<TData>[],
+  candidates: readonly number[],
+  optionId: string | undefined,
+): number {
+  return (
+    candidates.find((index) => matches[index]?.optionId === optionId) ??
+    candidates[0] ??
+    -1
+  );
+}
+
 export function nextFocusableCommandIndex(
   candidates: readonly number[],
   current: number,

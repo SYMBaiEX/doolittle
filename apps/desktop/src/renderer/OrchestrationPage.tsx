@@ -93,10 +93,13 @@ function SummaryChip({
 
 export function OrchestrationPage({
   active,
+  delegationReady,
+  delegationBlockReason,
   navigationIntent,
   onAcknowledgeNavigationIntent,
   onSectionChange,
   onSendToChat,
+  onOpenLeadChat,
   onOpenWorkspaceFile,
   projectScope = "all",
   requestedTab,
@@ -107,10 +110,13 @@ export function OrchestrationPage({
   computerOrigin,
 }: {
   active: boolean;
+  delegationReady: boolean;
+  delegationBlockReason: string;
   navigationIntent: DesktopNavigationIntent | null;
   onAcknowledgeNavigationIntent: (id: string) => void;
   onSectionChange: (section: WorkTabId) => void;
   onSendToChat: (request: ChatContextRequest) => Promise<boolean>;
+  onOpenLeadChat?: () => void;
   onOpenWorkspaceFile?: (path: string, origin?: ComputerOrigin) => void;
   projectScope?: string;
   requestedTab?: LinkedWorkTab;
@@ -127,6 +133,7 @@ export function OrchestrationPage({
       : "tasks";
   });
   const activeTab = requestedTab ?? localTab;
+  const canDelegate = active && delegationReady;
   const [selectedTaskId, setSelectedTaskId] = useState(
     () => focusState?.selectedTaskId ?? "",
   );
@@ -434,6 +441,7 @@ export function OrchestrationPage({
     taskCreateWorkspaceRoot,
   } = useOrchestrationActions({
     active,
+    canDelegate,
     computerOrigin,
     codegenExecution,
     codegenReady,
@@ -593,7 +601,7 @@ export function OrchestrationPage({
             <>
               {tasks.length > 0 ? (
                 <TaskSupervisionControls
-                  active={active}
+                  active={canDelegate}
                   busy={Boolean(busyKeys["task:supervise"])}
                   concurrency={superviseConcurrency}
                   onConcurrencyChange={setSuperviseConcurrency}
@@ -607,7 +615,7 @@ export function OrchestrationPage({
                   showTaskCreate ? setShowTaskCreate(false) : openTaskCreate()
                 }
                 aria-expanded={showTaskCreate}
-                disabled={!active || Boolean(busyKeys["task:create"])}
+                disabled={!canDelegate || Boolean(busyKeys["task:create"])}
               >
                 New task
               </button>
@@ -642,7 +650,22 @@ export function OrchestrationPage({
         </Notice>
       ) : null}
 
-      {activeTab === "tasks" && showTaskCreate ? (
+      {active && activeTab === "tasks" && !canDelegate ? (
+        <Notice tone="neutral">
+          <span>{delegationBlockReason}</span>
+          {onOpenLeadChat ? (
+            <button
+              className="secondary-button"
+              onClick={onOpenLeadChat}
+              type="button"
+            >
+              Open a Lead chat
+            </button>
+          ) : null}
+        </Notice>
+      ) : null}
+
+      {activeTab === "tasks" && showTaskCreate && canDelegate ? (
         <TaskCreateForm
           active={active}
           busy={Boolean(busyKeys["task:create"])}
@@ -723,7 +746,7 @@ export function OrchestrationPage({
           {activeTab === "inbox" ? <GatewayPage active={active} /> : null}
           {activeTab === "tasks" ? (
             <TaskQueuePanel
-              active={active}
+              active={canDelegate}
               projectScope={projectScope}
               workspaceLabel={workspaceLabel}
               effectiveOverview={effectiveOverview}

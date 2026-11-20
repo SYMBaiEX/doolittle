@@ -84,6 +84,7 @@ function paneToggleSelector(pane: SidePane) {
 
 export function CodingWorkspacePage({
   active,
+  canCreateWorktree,
   editingLocked,
   navigationIntent,
   onAcknowledgeNavigationIntent,
@@ -101,6 +102,7 @@ export function CodingWorkspacePage({
   origin: resourceOrigin,
 }: {
   active: boolean;
+  canCreateWorktree: boolean;
   editingLocked: boolean;
   navigationIntent: DesktopNavigationIntent | null;
   onAcknowledgeNavigationIntent: (id: string) => void;
@@ -895,6 +897,7 @@ export function CodingWorkspacePage({
         {utilityVisible ? (
           <CodingWorkspaceUtility
             active={active && !editingLocked}
+            canCreateWorktree={canCreateWorktree}
             branchesResource={branchesResource}
             changes={changes}
             conflictsResource={conflictsResource}

@@ -75,6 +75,40 @@ export function createAutomationDraft(
   return draft;
 }
 
+export function editAutomationDraft(entry: UnknownRecord): AutomationDraft {
+  const draft = createAutomationDraft();
+  const trigger = asRecord(entry.trigger);
+  const condition = asRecord(entry.condition);
+  const action = asRecord(entry.action);
+  const { triggerType, actionType } = summarizeAutomation(entry);
+  return {
+    ...draft,
+    targetBotId: asString(entry.targetBotId) || undefined,
+    name: asString(entry.name),
+    triggerType,
+    schedule:
+      triggerType === "schedule"
+        ? asString(trigger.schedule, asString(entry.schedule))
+        : draft.schedule,
+    conditionType:
+      condition.type === "payload"
+        ? asChoice(
+            condition.operator,
+            ["exists", "equals", "contains"],
+            "always",
+          )
+        : "always",
+    conditionPath: asString(condition.path),
+    conditionValue: asString(condition.value),
+    actionType,
+    prompt:
+      actionType === "webhook"
+        ? ""
+        : asString(action.prompt, asString(entry.prompt)),
+    webhookUrl: asString(action.url),
+  };
+}
+
 export function buildAutomationRequest(
   draft: AutomationDraft,
 ): AutomationRequestResult {
@@ -169,7 +203,7 @@ export function buildAutomationRequest(
     payload: {
       ...(namedTarget ? { targetBotId } : {}),
       name: name || "Untitled automation",
-      schedule: schedule || draft.triggerType,
+      schedule: draft.triggerType === "schedule" ? schedule : draft.triggerType,
       prompt: prompt || `POST ${webhookUrl}`,
       delivery: "local",
       trigger,
@@ -177,6 +211,30 @@ export function buildAutomationRequest(
       action,
     },
   };
+}
+
+/** Send only changed, editable fields. The scheduler owns the target and trigger token. */
+export function buildAutomationEditRequest(
+  draft: AutomationDraft,
+  initial: AutomationDraft,
+): AutomationRequestResult {
+  const next = buildAutomationRequest({
+    ...draft,
+    targetBotId: initial.targetBotId,
+  });
+  if (!next.ok) return next;
+  const previous = buildAutomationRequest(initial);
+  const payload: UnknownRecord = {};
+  for (const field of ["name", "trigger", "condition", "action"] as const) {
+    if (
+      !previous.ok ||
+      JSON.stringify(next.payload[field]) !==
+        JSON.stringify(previous.payload[field])
+    ) {
+      payload[field] = next.payload[field];
+    }
+  }
+  return { ok: true, payload };
 }
 
 export function summarizeAutomation(

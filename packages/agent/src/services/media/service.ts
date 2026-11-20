@@ -1,6 +1,7 @@
 import { mkdirSync } from "node:fs";
 import type { IAgentRuntime } from "@elizaos/core";
 import { prepareDesktopDirectApiCredentials } from "../../runtime/linked-provider-accounts/direct-api";
+import { currentConversationWorkspace } from "../../runtime/workspace-scope";
 import type { WorkspaceDirectorySource } from "../workspace-directory";
 import { raceMediaAbort, throwIfMediaAborted } from "./abort";
 import {
@@ -43,6 +44,11 @@ import type {
   MediaTranscriptionOptions,
 } from "./types";
 
+function currentAssetOrigin() {
+  const scope = currentConversationWorkspace();
+  return scope && { botId: scope.botId, sessionId: scope.sessionId };
+}
+
 export class MediaService {
   private readonly inspectionSupport: MediaInspectionSupport;
   private runtime?: IAgentRuntime;
@@ -80,8 +86,8 @@ export class MediaService {
     return runtime;
   }
 
-  listLibraryAssets(): MediaLibraryAsset[] {
-    return listMediaLibraryAssets(this.outputDir);
+  listLibraryAssets(sessionId?: string): MediaLibraryAsset[] {
+    return listMediaLibraryAssets(this.outputDir, sessionId);
   }
 
   readLibraryAsset(id: string): MediaLibraryAssetPayload {
@@ -257,6 +263,7 @@ export class MediaService {
       outputDir: this.outputDir,
       prompt,
       options,
+      origin: currentAssetOrigin(),
       modelContext,
       dependencies: {
         requestModelText: (requestPrompt, _modelContext, metadata) =>
@@ -281,6 +288,7 @@ export class MediaService {
       outputDir: this.outputDir,
       text,
       options,
+      origin: currentAssetOrigin(),
       modelContext,
       dependencies: {
         requestModelText: (requestPrompt, _modelContext, metadata) =>

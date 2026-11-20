@@ -31,6 +31,7 @@ import { NativeDraftBridge } from "../interfaces/native-draft-bridge";
 import { NativeUiHost } from "../interfaces/native-ui-host";
 import { desktopRequest, errorMessage } from "../lib";
 import {
+  CHAT_DRAFTS_STATE_KEY,
   useWorkspaceRef,
   useWorkspaceState,
 } from "../session-workspace/chat-workspace-store";
@@ -38,6 +39,11 @@ import {
   canRestoreRejectedDispatch,
   type DraftDispatchRecovery,
 } from "./draft-dispatch-recovery";
+import {
+  extendHistoryPage,
+  type HistoryPageState,
+  refreshHistoryPage,
+} from "./history-pagination";
 import type {
   ChatContextMessageCapsule,
   ConversationStore,
@@ -55,12 +61,8 @@ const HISTORY_PAGE_SIZE = 500;
 type PagedSessionMessagesResponse = SessionMessagesResponse & {
   hasEarlier?: boolean;
   nextOffset?: number;
+  totalMessages?: number;
 };
-
-interface HistoryPageState {
-  hasEarlier: boolean;
-  nextOffset: number;
-}
 
 function pruneAttachmentCleanup(
   attachments: readonly ManagedAttachmentDescriptor[],
@@ -219,6 +221,8 @@ async function fetchHistoryPage(
     page: {
       hasEarlier: Boolean(response.hasEarlier),
       nextOffset: response.nextOffset ?? offset + response.messages.length,
+      totalMessages: response.totalMessages,
+      messageIds: response.messages.map(({ id }) => id),
     },
   };
 }
@@ -555,7 +559,7 @@ export function useChatConversationState({
   );
   const draftSessionId = selectedId || initialId;
   const [conversationDrafts, setConversationDrafts] = useWorkspaceState(
-    "conversation.drafts",
+    CHAT_DRAFTS_STATE_KEY,
     () => loadConversationDrafts(localStorage),
   );
   const [pinnedSessions, setPinnedSessions] = useWorkspaceState(
@@ -568,6 +572,8 @@ export function useChatConversationState({
   const [historyPages, setHistoryPages] = useWorkspaceState<
     Record<string, HistoryPageState>
   >("conversation.history-pages", {});
+  const historyPagesRef = useRef(historyPages);
+  historyPagesRef.current = historyPages;
   const [transcriptStorageWarning, setTranscriptStorageWarning] =
     useWorkspaceState("conversation.transcript-warning", "");
   const [draftStorageWarning, setDraftStorageWarning] = useWorkspaceState(
@@ -585,6 +591,10 @@ export function useChatConversationState({
   const [historyRetryVersion, setHistoryRetryVersion] = useWorkspaceState(
     `conversation.retry.${selectedId}`,
     0,
+  );
+  const historyRequests = useWorkspaceRef(
+    "conversation.history-requests",
+    new Map<string, AbortController>(),
   );
   const requestedHistory = useRef(new Set<string>());
   const draftRevisions = useWorkspaceRef<Record<string, number>>(
@@ -872,18 +882,23 @@ export function useChatConversationState({
       !selectedId ||
       !remoteSession ||
       (botIdForSession && !owner) ||
-      selectedRequestIsActive
+      selectedRequestIsActive ||
+      loadingEarlierHistory === selectedId
     ) {
       return;
     }
     const historyVersion = [
       selectedId,
+      owner ?? "",
       remoteSession.messageCount,
       remoteSession.endedAt ?? "",
     ].join(":");
     if (requestedHistory.current.has(historyVersion)) return;
 
+    if (historyRequests.current.has(selectedId)) return;
     requestedHistory.current.add(historyVersion);
+    const controller = new AbortController();
+    historyRequests.current.set(selectedId, controller);
     setLoadingHistory(selectedId);
     setHistoryErrors((current) => {
       if (!current[selectedId]) return current;
@@ -891,25 +906,34 @@ export function useChatConversationState({
       delete next[selectedId];
       return next;
     });
-    const controller = new AbortController();
     let settled = false;
     void fetchHistoryPage(selectedId, owner, 0, controller.signal)
       .then(({ messages: history, page }) => {
         if (controller.signal.aborted) return;
         settled = true;
+        const refreshed = refreshHistoryPage(
+          historyPagesRef.current[selectedId],
+          page,
+        );
         setMessages((current) => {
           const currentMessages = current[selectedId] ?? [];
           const activeRequestIds = runClaims.current.activeIds(selectedId);
+          const previousPrefix = currentMessages.filter((message) =>
+            refreshed.retainIds.has(message.id),
+          );
           return {
             ...current,
             [selectedId]: mergeConversationHistory(
               currentMessages,
-              history,
+              [...previousPrefix, ...history],
               activeRequestIds,
             ),
           };
         });
-        setHistoryPages((current) => ({ ...current, [selectedId]: page }));
+        setHistoryPages((current) => ({
+          ...current,
+          [selectedId]: refreshed.page,
+        }));
       })
       .catch((error) => {
         if (controller.signal.aborted) return;
@@ -921,18 +945,26 @@ export function useChatConversationState({
         }));
       })
       .finally(() => {
-        if (!controller.signal.aborted) setLoadingHistory("");
+        if (historyRequests.current.get(selectedId) === controller) {
+          historyRequests.current.delete(selectedId);
+          setLoadingHistory("");
+        }
       });
 
     return () => {
       controller.abort();
       if (!settled) requestedHistory.current.delete(historyVersion);
-      setLoadingHistory("");
+      if (historyRequests.current.get(selectedId) === controller) {
+        historyRequests.current.delete(selectedId);
+        setLoadingHistory("");
+      }
     };
   }, [
     activeRequest,
     backendReady,
+    historyRequests,
     historyRetryVersion,
+    loadingEarlierHistory,
     remoteSessions,
     runClaims,
     selectedId,
@@ -948,6 +980,7 @@ export function useChatConversationState({
       if (!session) return;
       const historyVersion = [
         sessionId,
+        botIdForSession?.(sessionId) ?? "",
         session.messageCount,
         session.endedAt ?? "",
       ].join(":");
@@ -960,7 +993,13 @@ export function useChatConversationState({
       });
       setHistoryRetryVersion((current) => current + 1);
     },
-    [loadingHistory, remoteSessions, setHistoryErrors, setHistoryRetryVersion],
+    [
+      botIdForSession,
+      loadingHistory,
+      remoteSessions,
+      setHistoryErrors,
+      setHistoryRetryVersion,
+    ],
   );
 
   const loadEarlierHistory = useCallback(
@@ -971,16 +1010,19 @@ export function useChatConversationState({
         !backendReady ||
         (botIdForSession && !owner) ||
         !page?.hasEarlier ||
-        loadingEarlierHistory === sessionId
+        historyRequests.current.has(sessionId)
       ) {
         return;
       }
+      const controller = new AbortController();
+      historyRequests.current.set(sessionId, controller);
       setLoadingEarlierHistory(sessionId);
       try {
         const { messages: older, page: nextPage } = await fetchHistoryPage(
           sessionId,
           owner,
           page.nextOffset,
+          controller.signal,
         );
         setMessages((current) => {
           const existing = current[sessionId] ?? [];
@@ -993,8 +1035,12 @@ export function useChatConversationState({
           );
           return { ...current, [sessionId]: merged };
         });
-        setHistoryPages((current) => ({ ...current, [sessionId]: nextPage }));
+        setHistoryPages((current) => ({
+          ...current,
+          [sessionId]: extendHistoryPage(page, nextPage),
+        }));
       } finally {
+        historyRequests.current.delete(sessionId);
         setLoadingEarlierHistory((current) =>
           current === sessionId ? "" : current,
         );
@@ -1003,7 +1049,7 @@ export function useChatConversationState({
     [
       backendReady,
       historyPages,
-      loadingEarlierHistory,
+      historyRequests,
       setMessages,
       setLoadingEarlierHistory,
       setHistoryPages,

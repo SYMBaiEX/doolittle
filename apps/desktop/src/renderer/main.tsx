@@ -13,6 +13,7 @@ import {
   loadStoredThemeManifest,
 } from "./desktop-theme";
 import { InterfaceHost } from "./interfaces/InterfaceHost";
+import { ChatWorkspaceProvider } from "./session-workspace/chat-workspace-store";
 import "./eliza-tailwind.css";
 
 document.documentElement.dataset.platform = window.doolittle.platform;
@@ -44,7 +45,9 @@ createRoot(root).render(
   <StrictMode>
     <DesktopErrorBoundary>
       <InterfaceHost>
-        <App />
+        <ChatWorkspaceProvider>
+          <App />
+        </ChatWorkspaceProvider>
       </InterfaceHost>
     </DesktopErrorBoundary>
   </StrictMode>,

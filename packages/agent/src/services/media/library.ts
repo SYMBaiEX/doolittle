@@ -12,6 +12,7 @@ import {
 import { basename, extname } from "node:path";
 import { readRegularFileSync } from "@doolittle/storage";
 import { isStrictlyContainedPath } from "../../utils/path-containment";
+import type { MediaAssetOrigin } from "./types";
 
 const MAX_MANIFEST_BYTES = 128 * 1024;
 export const MAX_MEDIA_LIBRARY_ASSET_BYTES = 5 * 1024 * 1024;
@@ -29,6 +30,7 @@ export interface MediaLibraryAsset {
   prompt: string;
   provider: string;
   model: string;
+  origin?: MediaAssetOrigin;
 }
 
 export interface MediaLibraryAssetPayload {
@@ -54,7 +56,20 @@ type GeneratedManifest = Record<string, unknown> & {
   prompt?: unknown;
   provider?: unknown;
   model?: unknown;
+  origin?: unknown;
 };
+
+function parseAssetOrigin(value: unknown): MediaAssetOrigin | undefined {
+  if (!value || typeof value !== "object") return;
+  const { botId, sessionId } = value as Partial<MediaAssetOrigin>;
+  if (
+    typeof botId === "string" &&
+    /^[a-z0-9][a-z0-9_-]{0,63}$/u.test(botId) &&
+    typeof sessionId === "string" &&
+    /^[a-zA-Z0-9:_-]{1,128}$/u.test(sessionId)
+  )
+    return { botId, sessionId };
+}
 
 const ASSET_TYPES: Record<
   string,
@@ -117,6 +132,7 @@ function manifestAsset(
       typeof manifest.createdAt === "string"
         ? manifest.createdAt
         : statSync(canonicalArtifact).mtime.toISOString();
+    const origin = parseAssetOrigin(manifest.origin);
     return {
       id,
       name: basename(canonicalArtifact),
@@ -128,28 +144,28 @@ function manifestAsset(
       provider:
         typeof manifest.provider === "string" ? manifest.provider : "unknown",
       model: typeof manifest.model === "string" ? manifest.model : "unknown",
+      ...(origin ? { origin } : {}),
     };
   } catch {
     return null;
   }
 }
 
-export function listMediaLibraryAssets(outputDir: string): MediaLibraryAsset[] {
-  let canonicalRoot: string;
+export function listMediaLibraryAssets(
+  outputDir: string,
+  sessionId?: string,
+): MediaLibraryAsset[] {
   try {
-    canonicalRoot = realpathSync(outputDir);
-  } catch {
-    return [];
-  }
-  try {
+    const canonicalRoot = realpathSync(outputDir);
     return readdirSync(outputDir, { withFileTypes: true })
       .filter((entry) => entry.isFile() && !entry.isSymbolicLink())
       .map((entry) => manifestAsset(outputDir, canonicalRoot, entry.name))
       .filter((asset): asset is MediaLibraryAsset => Boolean(asset))
+      .filter((asset) => !sessionId || asset.origin?.sessionId === sessionId)
       .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
       .slice(0, 200);
   } catch {
-    return [];
+    throw new MediaLibraryError("The asset library could not be read.", 503);
   }
 }
 
@@ -160,18 +176,15 @@ export function readMediaLibraryAsset(
   if (!MEDIA_LIBRARY_ID.test(id)) {
     throw new MediaLibraryError("Media asset id is invalid.", 400);
   }
-  const asset = listMediaLibraryAssets(outputDir).find(
-    (candidate) => candidate.id === id,
-  );
-  if (!asset) throw new MediaLibraryError("Media asset not found.", 404);
-
   let descriptor: number | undefined;
   try {
+    const canonicalRoot = realpathSync(outputDir);
+    const asset = manifestAsset(outputDir, canonicalRoot, `${id}.json`);
+    if (!asset) throw new MediaLibraryError("Media asset not found.", 404);
     const manifest = readManifest(`${outputDir}/${id}.json`);
     if (!manifest || typeof manifest.artifactPath !== "string") {
       throw new MediaLibraryError("Media asset not found.", 404);
     }
-    const canonicalRoot = realpathSync(outputDir);
     const artifactInfo = lstatSync(manifest.artifactPath);
     if (!artifactInfo.isFile() || artifactInfo.isSymbolicLink()) {
       throw new MediaLibraryError("Media asset is not a regular file.", 403);

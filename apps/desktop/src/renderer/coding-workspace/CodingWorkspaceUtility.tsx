@@ -49,6 +49,7 @@ import { PaneTabs, paneTabId } from "./PaneTabs";
 
 export function CodingWorkspaceUtility({
   active,
+  canCreateWorktree,
   summary,
   utilityPane,
   onUtilityPaneChange,
@@ -72,6 +73,7 @@ export function CodingWorkspaceUtility({
   onOpenTerminal,
 }: {
   active: boolean;
+  canCreateWorktree: boolean;
   summary: RepositorySummary;
   utilityPane: UtilityPane;
   onUtilityPaneChange: (value: UtilityPane) => void;
@@ -222,6 +224,7 @@ export function CodingWorkspaceUtility({
         {utilityPane === "worktrees" ? (
           <ExecutionEnvironmentPanel
             active={active}
+            canCreateWorktree={canCreateWorktree}
             error={worktreeResource.error}
             isRepository={summary.isRepository}
             loading={worktreeResource.loading}

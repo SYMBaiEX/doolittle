@@ -20,6 +20,7 @@ import {
   approvedPairingSenders,
   buildGatewayTimeline,
   filterGatewayTimeline,
+  GATEWAY_HISTORY_LIMIT,
   gatewayActionFeedback,
   gatewayResourcePolicy,
   pairingRequests,
@@ -117,11 +118,15 @@ export function GatewayPage({ active }: { active: boolean }) {
     [resourcePolicy.primary],
   );
   const inbox = useApiResource<GatewayHistoryResponse>(
-    resourcePolicy.primary ? "/gateway/inbox?limit=25" : null,
+    resourcePolicy.primary
+      ? `/gateway/inbox?limit=${GATEWAY_HISTORY_LIMIT}`
+      : null,
     [resourcePolicy.primary],
   );
   const outbox = useApiResource<GatewayHistoryResponse>(
-    resourcePolicy.primary ? "/gateway/outbox?limit=25" : null,
+    resourcePolicy.primary
+      ? `/gateway/outbox?limit=${GATEWAY_HISTORY_LIMIT}`
+      : null,
     [resourcePolicy.primary],
   );
   const sessions = useApiResource<GatewaySessionsResponse>(

@@ -1,6 +1,6 @@
 import type { BotSummary } from "@doolittle/contracts/bots";
 import { Button, Input, NativeSelect, Textarea } from "@doolittle/ui";
-import type { FormEvent } from "react";
+import { type FormEvent, useEffect, useRef } from "react";
 import type {
   AutomationActionChoice,
   AutomationConditionChoice,
@@ -58,21 +58,27 @@ function ChoiceButtons({
 export function AutomationBuilder({
   busy,
   draft,
+  editing = false,
   onSubmit,
   onUpdate,
   bots = [],
   botsError,
+  botsLoading = false,
 }: {
-  busy?: "creating" | "occupied";
+  busy?: "saving" | "occupied";
   bots?: readonly BotSummary[];
   botsError?: string | null;
+  botsLoading?: boolean;
   draft: AutomationDraft;
+  editing?: boolean;
   onSubmit(event: FormEvent): void;
   onUpdate<Key extends keyof AutomationDraft>(
     key: Key,
     value: AutomationDraft[Key],
   ): void;
 }) {
+  const nameInput = useRef<HTMLInputElement>(null);
+  useEffect(() => nameInput.current?.focus(), []);
   const namedTarget = Boolean(
     draft.targetBotId && draft.targetBotId !== "default",
   );
@@ -101,20 +107,24 @@ export function AutomationBuilder({
 
   return (
     <form
-      aria-busy={busy === "creating"}
+      aria-busy={busy === "saving"}
       className={AUTOMATION_BUILDER_CLASS}
+      id="automation-builder"
       onSubmit={onSubmit}
     >
       <div className={AUTOMATION_BUILDER_HEADER_CLASS}>
-        <h3 className="m-0 text-sm font-semibold">New automation</h3>
+        <h3 className="m-0 text-sm font-semibold">
+          {editing ? "Edit automation" : "New automation"}
+        </h3>
         <label
           className={`automation-name-field ${AUTOMATION_FIELD_LABEL_CLASS}`}
           htmlFor="automation-name"
         >
           <span>Name</span>
           <Input
-            disabled={busy === "creating"}
+            disabled={busy === "saving"}
             id="automation-name"
+            ref={nameInput}
             value={draft.name}
             onChange={(event) => onUpdate("name", event.target.value)}
             placeholder="Release readiness"
@@ -128,12 +138,17 @@ export function AutomationBuilder({
           <NativeSelect
             id="automation-target-bot"
             value={draft.targetBotId || "default"}
-            disabled={busy === "creating"}
+            disabled={busy === "saving" || editing}
             onChange={(event) => onUpdate("targetBotId", event.target.value)}
           >
             <option value="default">
               {bots.find((bot) => bot.isDefault)?.name ?? "Doolittle"}
             </option>
+            {namedTarget && !targetAvailable ? (
+              <option value={draft.targetBotId}>
+                {botsLoading ? "Loading bot…" : "Unavailable bot"}
+              </option>
+            ) : null}
             {bots
               .filter((bot) => !bot.isDefault && !bot.archivedAt)
               .map((bot) => (
@@ -143,25 +158,24 @@ export function AutomationBuilder({
               ))}
           </NativeSelect>
         </label>
-        {botsError || !targetAvailable ? (
+        {botsError || (!botsLoading && !targetAvailable) ? (
           <p role="alert" className="m-0 text-sm text-[var(--bad)]">
-            Bot catalog is unavailable or this target is no longer active.{" "}
-            {botsError} No unavailable bot will be substituted.
+            {botsError || "This automation’s bot is no longer active."}
           </p>
         ) : null}
         {namedTarget ? (
           <p className="m-0 text-sm text-[var(--muted)]">
             This bot keeps its own history and approved workspace access. Saving
-            requires native confirmation. Scheduled/manual prompt and agent runs
-            are supported; external app access is not implied. Target ownership
-            cannot be changed after saving.
+            requires native confirmation. This target supports scheduled or
+            manual prompt and agent runs. Target ownership is fixed after
+            creation.
           </p>
         ) : null}
       </div>
 
       <fieldset
         className="automation-builder__fieldset m-0 min-w-0 border-0 p-0"
-        disabled={busy === "creating"}
+        disabled={busy === "saving"}
       >
         <legend className="sr-only">Automation definition</legend>
         <div className={AUTOMATION_BUILDER_GRID_CLASS}>
@@ -341,7 +355,13 @@ export function AutomationBuilder({
           Output and each phase result stay in the local trace archive.
         </span>
         <Button disabled={Boolean(busy) || !targetAvailable} type="submit">
-          {busy === "creating" ? "Creating…" : "Create automation"}
+          {busy === "saving"
+            ? editing
+              ? "Saving…"
+              : "Creating…"
+            : editing
+              ? "Save changes"
+              : "Create automation"}
         </Button>
       </div>
     </form>

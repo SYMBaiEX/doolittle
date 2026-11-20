@@ -68,7 +68,7 @@ export function toLogViewerEntries(logs: unknown[]): RuntimeLogEntry[] {
       .join(" · ");
 
     return {
-      id: `${at}:${scope}:${message}:${index}`,
+      id: asString(entry.id) || `${at}:${scope}:${message}:${index}`,
       timestamp: at || undefined,
       level: asString(entry.level, "info"),
       message: renderedMessage,

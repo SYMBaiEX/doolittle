@@ -230,6 +230,7 @@ export async function handleSessionRoutes(
       messages,
       hasEarlier: pageOffset > 0,
       nextOffset: offset + messages.length,
+      totalMessages: total,
     });
   }
 

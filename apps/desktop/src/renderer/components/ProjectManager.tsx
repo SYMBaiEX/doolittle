@@ -31,6 +31,8 @@ export function ProjectManager(props: ProjectManagerProps) {
     currentChatId,
     currentChatProjectId,
     isOpen,
+    navigationIntent,
+    onConsumeNavigationIntent,
     onClose,
     onScopeChange,
     onCreateProject,
@@ -48,11 +50,16 @@ export function ProjectManager(props: ProjectManagerProps) {
   const [showArchived, setShowArchived] = useState(false);
   const [editing, setEditing] = useState<ProjectLike | "new" | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [highlightedResourceId, setHighlightedResourceId] = useState<
+    string | null
+  >(null);
+  const [missingSource, setMissingSource] = useState(false);
   const [working, setWorking] = useState(false);
   const [error, setError] = useState("");
   const dialogRef = useRef<HTMLDivElement>(null);
   const backdropRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const focusedResourceRef = useRef<HTMLLIElement>(null);
   const titleId = useId();
   const searchId = useId();
   useDialogFocus(
@@ -90,14 +97,44 @@ export function ProjectManager(props: ProjectManagerProps) {
           a.name.localeCompare(b.name),
       );
   }, [projects, query, showArchived]);
+  const requestedSource = navigationIntent?.target;
+  const requestedProject = projects.find(
+    (project) => project.id === requestedSource?.projectId,
+  );
   const selected =
+    requestedProject ??
     projects.find((project) => project.id === selectedId) ??
     (typeof activeScope === "string"
       ? projects.find((project) => project.id === activeScope)
       : undefined) ??
     visibleProjects.at(0);
+  const resourceId = requestedSource
+    ? requestedProject?.resources?.find(
+        (resource) => resource.id === requestedSource.resourceId,
+      )?.id
+    : (highlightedResourceId ?? undefined);
   const pinned = visibleProjects.filter((project) => project.pinned);
   const regular = visibleProjects.filter((project) => !project.pinned);
+
+  useEffect(() => {
+    if (!isOpen || !navigationIntent) return;
+    if (requestedProject) setSelectedId(requestedProject.id);
+    setHighlightedResourceId(resourceId ?? null);
+    setMissingSource(!resourceId);
+    const frame = window.requestAnimationFrame(() => {
+      const source = focusedResourceRef.current;
+      source?.focus({ preventScroll: true });
+      source?.scrollIntoView({ block: "center" });
+      onConsumeNavigationIntent?.(navigationIntent.id);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [
+    isOpen,
+    navigationIntent,
+    onConsumeNavigationIntent,
+    requestedProject,
+    resourceId,
+  ]);
 
   const call = async (action: (() => void | Promise<void>) | undefined) => {
     if (!action) return;
@@ -121,6 +158,8 @@ export function ProjectManager(props: ProjectManagerProps) {
       setSelectedId(scope);
   };
   const selectProject = (project: ProjectLike) => {
+    setHighlightedResourceId(null);
+    setMissingSource(false);
     setSelectedId(project.id);
     selectScope(project.id);
   };
@@ -188,6 +227,14 @@ export function ProjectManager(props: ProjectManagerProps) {
             {error}
           </p>
         ) : null}
+        {missingSource ? (
+          <p
+            className="m-0 px-4 py-2 text-xs text-[var(--muted)]"
+            role="status"
+          >
+            This source is no longer attached to the project.
+          </p>
+        ) : null}
         <div className={PROJECT_MANAGER_BODY_CLASS}>
           <ProjectList
             activeScope={activeScope}
@@ -208,6 +255,8 @@ export function ProjectManager(props: ProjectManagerProps) {
             {selected ? (
               <ProjectDetail
                 project={selected}
+                highlightedResourceId={resourceId}
+                focusedResourceRef={focusedResourceRef}
                 currentChatId={currentChatId}
                 currentChatProjectId={currentChatProjectId}
                 onEdit={() => setEditing(selected)}

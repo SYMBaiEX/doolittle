@@ -15,6 +15,7 @@ export interface DesktopUtilityLayerProps {
   mobileModal: boolean;
   onKeyDown: (event: ReactKeyboardEvent<HTMLElement>) => void;
   onClose: () => void;
+  onOpenActivity: () => void;
   onResize: (width: number) => void;
   resizeBounds?: { default: number; min: number; max: number };
   onResizeActiveChange?: (active: boolean) => void;
@@ -27,6 +28,7 @@ export function DesktopUtilityLayer({
   mobileModal,
   onKeyDown,
   onClose,
+  onOpenActivity,
   onResize,
   resizeBounds = UTILITY_DRAWER_WIDTH,
   onResizeActiveChange,
@@ -63,7 +65,7 @@ export function DesktopUtilityLayer({
       >
         <aside
           id="activity-panel"
-          aria-label="Activity"
+          aria-label="Activity preview"
           className={`relative flex h-full min-w-0 flex-col bg-[var(--surface)] text-[var(--text)] ${
             mobileModal
               ? "border-[var(--line-subtle)] border-l shadow-[-8px_0_28px_color-mix(in_srgb,var(--shadow)_18%,transparent)]"
@@ -88,7 +90,7 @@ export function DesktopUtilityLayer({
                   className="m-0 font-semibold text-sm text-[var(--text)] tracking-[-0.015em] [font-family:var(--font-display)]"
                   id="utility-drawer-title"
                 >
-                  Activity
+                  Activity preview
                 </h2>
               </div>
             </div>
@@ -103,6 +105,15 @@ export function DesktopUtilityLayer({
           </header>
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2.5 pt-1.75 pb-3 [scrollbar-gutter:stable]">
             {activity}
+          </div>
+          <div className="border-[var(--border)] border-t px-3 py-2">
+            <button
+              className="rounded-[var(--radius-sm)] px-2 py-1.5 text-xs text-[var(--text-soft)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-[var(--focus-ring)] max-[760px]:min-h-11"
+              onClick={onOpenActivity}
+              type="button"
+            >
+              Open full activity
+            </button>
           </div>
           <PanelResizeHandle
             bounds={resizeBounds}

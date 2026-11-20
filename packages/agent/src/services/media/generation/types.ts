@@ -1,5 +1,6 @@
 import type { ElizaImageGenerationResult } from "../eliza-runtime";
 import type {
+  MediaAssetOrigin,
   MediaGenerationOptions,
   MediaGenerationBundle as MediaGenerationResult,
   MediaModelContext,
@@ -36,6 +37,7 @@ export interface MediaImageGenerationInput {
   outputDir: string;
   prompt: string;
   options?: MediaGenerationOptions;
+  origin?: MediaAssetOrigin;
   modelContext?: MediaModelContext;
   dependencies: MediaImageGenerationDependencies;
 }
@@ -44,6 +46,7 @@ export interface MediaSpeechGenerationInput {
   outputDir: string;
   text: string;
   options?: MediaSpeechOptions;
+  origin?: MediaAssetOrigin;
   modelContext?: MediaModelContext;
   dependencies: MediaSpeechGenerationDependencies;
 }

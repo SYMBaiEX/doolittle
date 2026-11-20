@@ -48,7 +48,7 @@ export function ProjectKnowledgePanel({ active }: { active: boolean }) {
     action: "grant" | "revoke",
     targetBotId?: string,
   ) => {
-    if (busy) return;
+    if (!active || busy) return;
     setBusy(id);
     setFeedback({});
     try {
@@ -72,6 +72,17 @@ export function ProjectKnowledgePanel({ active }: { active: boolean }) {
   };
   const records = knowledge.data?.knowledge ?? [];
   const bots = catalog.data?.bots ?? [];
+  const teamsById = new Map(
+    (teams.data?.teams ?? []).map((team) => [team.id, team]),
+  );
+  const botsById = new Map(bots.map((bot) => [bot.id, bot]));
+  const hasBotInventory = catalog.hasData && !catalog.error;
+  const hasTeamInventory = teams.hasData && !teams.error;
+  const botLabel = (id: string) => {
+    const bot = botsById.get(id);
+    if (bot) return bot.archivedAt ? `${bot.name} (archived)` : bot.name;
+    return catalog.loading ? "Loading bot…" : "Unavailable bot";
+  };
   return (
     <section className="grid gap-4" aria-label="Shared knowledge">
       <header className="flex items-start justify-between gap-3">
@@ -104,9 +115,15 @@ export function ProjectKnowledgePanel({ active }: { active: boolean }) {
           {feedback.message}
         </p>
       ) : null}
-      {knowledge.error || catalog.error ? (
+      {knowledge.error ? (
         <StateSurface kind="error" title="Knowledge is unavailable">
-          {knowledge.error || catalog.error}
+          {knowledge.error}
+        </StateSurface>
+      ) : null}
+      {catalog.error ? (
+        <StateSurface kind="error" title="Bot inventory is unavailable">
+          {catalog.error} Refresh knowledge to verify bot access before granting
+          it.
         </StateSurface>
       ) : null}
       {teams.error ? (
@@ -118,7 +135,23 @@ export function ProjectKnowledgePanel({ active }: { active: boolean }) {
       {knowledge.loading && !knowledge.data ? (
         <StateSurface kind="loading" title="Loading shared knowledge" />
       ) : null}
-      {!knowledge.loading && !knowledge.error && records.length === 0 ? (
+      {active && (catalog.loading || teams.loading) ? (
+        <p className="text-sm text-[var(--muted)]" role="status">
+          Checking{" "}
+          {catalog.loading && teams.loading
+            ? "bot and team"
+            : catalog.loading
+              ? "bot"
+              : "team"}{" "}
+          membership…
+        </p>
+      ) : null}
+      {!active ? (
+        <StateSurface kind="empty" title="Shared knowledge is offline">
+          The runtime must be ready to load findings and sharing permissions.
+        </StateSurface>
+      ) : null}
+      {knowledge.hasData && !knowledge.error && records.length === 0 ? (
         <StateSurface kind="empty" title="Nothing shared yet">
           Use a completed message's bookmark action to choose its project or
           team. Promotion does not automatically share it.
@@ -126,16 +159,26 @@ export function ProjectKnowledgePanel({ active }: { active: boolean }) {
       ) : null}
       <ul className="m-0 list-none p-0 divide-y divide-[var(--line-subtle)]">
         {records.map((record) => {
-          const team = teams.data?.teams.find(
-            (candidate) =>
-              candidate.id === record.scope.id && !candidate.archivedAt,
-          );
-          const sourceBot = bots.find((bot) => bot.id === record.source.botId);
+          const team = teamsById.get(record.scope.id);
+          const sourceBot = botsById.get(record.source.botId);
+          const teamLabel = team
+            ? team.archivedAt
+              ? `${team.name} (archived)`
+              : team.name
+            : teams.loading
+              ? "Loading team…"
+              : "Unavailable team";
+          const membershipKnown =
+            hasBotInventory &&
+            (record.scope.kind !== "team" || hasTeamInventory);
           const sourceEligible =
+            membershipKnown &&
             sourceBot &&
             !sourceBot.archivedAt &&
             (record.scope.kind === "team"
-              ? team?.memberBotIds.includes(sourceBot.id)
+              ? team &&
+                !team.archivedAt &&
+                team.memberBotIds.includes(sourceBot.id)
               : sourceBot.projectId === record.scope.id);
           const eligible = bots.filter(
             (bot) =>
@@ -153,17 +196,14 @@ export function ProjectKnowledgePanel({ active }: { active: boolean }) {
             knowledge.data?.grants.filter(
               (grant) => grant.knowledgeId === record.id && !grant.revokedAt,
             ) ?? [];
-          const sourceName =
-            bots.find((bot) => bot.id === record.source.botId)?.name ??
-            "Archived bot";
+          const sourceName = botLabel(record.source.botId);
           const grantDisabled =
             !active ||
             !selected ||
             Boolean(busy) ||
             Boolean(record.integrity) ||
             Boolean(knowledge.error) ||
-            Boolean(catalog.error) ||
-            (record.scope.kind === "team" && Boolean(teams.error)) ||
+            !membershipKnown ||
             grants.some((grant) => grant.botId === selected);
           const contextScope = JSON.stringify([
             record.id,
@@ -215,9 +255,7 @@ export function ProjectKnowledgePanel({ active }: { active: boolean }) {
                   <h3 className="text-base font-medium">{record.title}</h3>
                   <p className="text-sm text-[var(--muted)]">
                     From {sourceName} · {record.scope.kind}{" "}
-                    {record.scope.kind === "team"
-                      ? (team?.name ?? "Archived or unavailable team")
-                      : record.scope.id}{" "}
+                    {record.scope.kind === "team" ? teamLabel : record.scope.id}{" "}
                     · {record.revokedAt ? "Revoked" : "Privately promoted"}
                   </p>
                 </div>
@@ -240,7 +278,7 @@ export function ProjectKnowledgePanel({ active }: { active: boolean }) {
                             className="flex flex-wrap items-center justify-between gap-2"
                           >
                             <ContextActionMenu
-                              label={`Knowledge access: ${bots.find((bot) => bot.id === grant.botId)?.name ?? "archived bot"}`}
+                              label={`Knowledge access: ${botLabel(grant.botId)}`}
                               scopeKey={`${contextScope}:${grant.botId}`}
                               items={[
                                 {
@@ -259,10 +297,9 @@ export function ProjectKnowledgePanel({ active }: { active: boolean }) {
                               ]}
                             >
                               <span className="text-sm">
-                                Shared with{" "}
-                                {bots.find((bot) => bot.id === grant.botId)
-                                  ?.name ?? "Archived bot"}
-                                {!eligible.some((bot) => bot.id === grant.botId)
+                                Shared with {botLabel(grant.botId)}
+                                {membershipKnown &&
+                                !eligible.some((bot) => bot.id === grant.botId)
                                   ? " · Membership inactive"
                                   : ""}
                               </span>
@@ -302,7 +339,9 @@ export function ProjectKnowledgePanel({ active }: { active: boolean }) {
                       >
                         {!eligible.length ? (
                           <option value="">
-                            No eligible bots in this {record.scope.kind}
+                            {membershipKnown
+                              ? `No eligible bots in this ${record.scope.kind}`
+                              : "Membership needs verification"}
                           </option>
                         ) : (
                           eligible.map((bot) => (

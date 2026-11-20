@@ -93,6 +93,7 @@ export interface ActivityFeedFilters {
   status?: ActivityEventStatus;
   target?: ActivityEventTarget;
   sessionId?: string;
+  query?: string;
 }
 
 export interface ActivityFeedSourceData {
@@ -492,13 +493,26 @@ function isAfterCursor(event: ActivityEvent, cursor: ActivityCursor): boolean {
 function matchesFilters(
   event: ActivityEvent,
   filters: ActivityFeedFilters | undefined,
+  text: string,
 ): boolean {
   if (!filters) return true;
   return (
     (!filters.kind || event.kind === filters.kind) &&
     (!filters.status || event.status === filters.status) &&
     (!filters.target || event.target === filters.target) &&
-    (!filters.sessionId || event.sessionId === filters.sessionId)
+    (!filters.sessionId || event.sessionId === filters.sessionId) &&
+    (!text ||
+      [
+        event.title,
+        event.safeSummary,
+        event.kind,
+        event.status,
+        event.target,
+        event.occurredAt,
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(text))
   );
 }
 
@@ -557,10 +571,11 @@ export function buildActivityFeed(
     MAX_ACTIVITY_EVENTS,
     Math.max(1, Math.floor(options.limit ?? 50)),
   );
+  const text = options.filters?.query?.trim().toLowerCase() ?? "";
   const events = (
     after ? deduped.filter((event) => isAfterCursor(event, after)) : deduped
   )
-    .filter((event) => matchesFilters(event, options.filters))
+    .filter((event) => matchesFilters(event, options.filters, text))
     .slice(0, limit);
   const lastEvent = events.at(-1);
   return {

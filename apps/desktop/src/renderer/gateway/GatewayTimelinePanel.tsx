@@ -3,6 +3,7 @@ import { Input } from "@elizaos/ui/input";
 import { useState } from "react";
 import { InlineActionConfirmation } from "../components/InlineActionConfirmation";
 import {
+  GATEWAY_HISTORY_LIMIT,
   type GatewayTimelineItem,
   gatewayStatusTone,
 } from "../gateway-page-model";
@@ -69,6 +70,9 @@ export function GatewayTimelinePanel({
           <h2 className="m-0 text-sm" id="gateway-timeline-title">
             Message history
           </h2>
+          <p className={GATEWAY_META_CLASS}>
+            Latest {GATEWAY_HISTORY_LIMIT} records in each direction
+          </p>
         </div>
         {loading && !entries.length ? (
           <span className={GATEWAY_META_CLASS}>Reading…</span>
@@ -217,8 +221,27 @@ export function GatewayTimelinePanel({
         </div>
       ) : null}
       {entries.length > 0 && !visibleEntries.length ? (
-        <EmptyBlock density="compact" title="No records match these filters">
-          Adjust the direction, platform, or text filter.
+        <EmptyBlock
+          actions={
+            <Button
+              onClick={() => {
+                onDirectionChange("all");
+                onPlatformChange("all");
+                onQueryChange("");
+                document.getElementById("gateway-record-query")?.focus();
+              }}
+              size="sm"
+              type="button"
+              variant="secondary"
+            >
+              Clear filters
+            </Button>
+          }
+          density="compact"
+          title="No recent records match"
+        >
+          Search covers the latest {GATEWAY_HISTORY_LIMIT} inbound and{" "}
+          {GATEWAY_HISTORY_LIMIT} outbound records.
         </EmptyBlock>
       ) : null}
       <ol className={GATEWAY_TIMELINE_CLASS}>

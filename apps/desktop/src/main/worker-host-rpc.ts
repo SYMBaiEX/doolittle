@@ -168,7 +168,7 @@ export function attachWorkerHostRpc(
             abandon(id, entry);
           }
         },
-        () => {
+        (error: unknown) => {
           if (entry.abandoned || disposed || !child.connected) {
             finish(id, entry);
             return;
@@ -183,8 +183,7 @@ export function attachWorkerHostRpc(
               ...(operation.startsWith("automation.")
                 ? {
                     code: "automation_host_failure",
-                    error:
-                      "Named automation approval, grant, or worker is unavailable. Review the target and saved fire identity before retrying; uncertain submissions are never replayed.",
+                    error: automationHostFailure(operation, error),
                   }
                 : {}),
             } satisfies WorkerHostResponseMessage);
@@ -201,4 +200,17 @@ export function attachWorkerHostRpc(
     for (const [id, entry] of requests) abandon(id, entry);
     child.removeListener("message", onMessage);
   };
+}
+
+function automationHostFailure(operation: string, error: unknown): string {
+  if (operation === "automation.validate" && error instanceof Error) {
+    switch (error.message) {
+      case "Named automation approval was cancelled or its scope changed.":
+      case "Named automation approval was cancelled.":
+      case "The automation target changed during approval.":
+      case "Automation changed during approval. Reload its current definition.":
+        return error.message;
+    }
+  }
+  return "Named automation approval, grant, or worker is unavailable. Review the target and saved fire identity before retrying; uncertain submissions are never replayed.";
 }

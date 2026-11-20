@@ -199,7 +199,7 @@ export function TaskQueuePanel({
             </select>
           </label>
         </div>
-        {actionableTasks.length > 1 ? (
+        {active && actionableTasks.length > 1 ? (
           <div className={oc("orchestration-bulk-bar")}>
             {bulkAction ? (
               <>

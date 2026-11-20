@@ -296,6 +296,13 @@ export function DesktopRouteContent({
         return (
           <Route
             active={active}
+            canCreateWorktree={Boolean(
+              bots.find((bot) =>
+                computerOrigin.botId === "default"
+                  ? bot.isDefault
+                  : bot.id === computerOrigin.botId,
+              )?.permissions.allowMutation,
+            )}
             editingLocked={codeEditingLocked}
             key={focusScope}
             origin={computerOrigin}
@@ -335,21 +342,50 @@ export function DesktopRouteContent({
       }
       case "orchestration": {
         const workScope = scopeForSession?.(selectedSession);
+        const matchesWorkProject = (projectId?: string) =>
+          projectScope === "all" ||
+          (projectScope === "unscoped"
+            ? !projectId
+            : projectScope === projectId);
         const workOrigin =
           workScope?.kind === "confirmed" &&
-          (projectScope === "all" ||
-            (projectScope === "unscoped"
-              ? !workScope.conversation.projectId
-              : workScope.conversation.projectId === projectScope))
+          matchesWorkProject(workScope.conversation.projectId)
             ? {
                 botId: workScope.conversation.botId,
                 originConversationId: selectedSession,
                 workspacePath: workScope.conversation.workspacePath,
               }
             : undefined;
+        const lead = bots.find((bot) => bot.isDefault);
+        const leadCanDelegate = lead?.permissions.allowDelegation ?? false;
+        const delegationReady =
+          leadCanDelegate &&
+          Boolean(workOrigin?.workspacePath) &&
+          (workOrigin?.botId === lead?.id || workOrigin?.botId === "default");
+        const openLeadChat = () => {
+          const session = (sessionMetadata ?? scopedSessions).find((entry) => {
+            if ((entry.botId ?? defaultBotId) !== lead?.id) return false;
+            const scope = scopeForSession?.(entry.sessionId);
+            return (
+              scope?.kind === "confirmed" &&
+              Boolean(scope.conversation.workspacePath) &&
+              matchesWorkProject(scope.conversation.projectId)
+            );
+          });
+          if (session) navigation.openSession(session.sessionId);
+          else navigation.createConversation();
+        };
         return (
           <Route
             active={active}
+            delegationReady={delegationReady}
+            delegationBlockReason={
+              lead
+                ? leadCanDelegate
+                  ? `Open a workspace chat with ${lead.name} (Lead) before starting or changing delegated tasks.`
+                  : `Delegation is disabled for ${lead.name} (Lead).`
+                : "Waiting for the Lead bot's permissions."
+            }
             key={`${workspacePath}\u0000${projectScope}`}
             focusState={focusForScope?.work}
             onFocusStateChange={(state: OrchestrationFocusState) => {
@@ -365,6 +401,7 @@ export function DesktopRouteContent({
               if (targetView !== view) navigation.setView(targetView);
             }}
             onSendToChat={navigation.openChatWithContext}
+            onOpenLeadChat={leadCanDelegate ? openLeadChat : undefined}
             onOpenWorkspaceFile={navigation.openWorkspaceFile}
             projectScope={projectScope}
             requestedTab={
@@ -392,6 +429,12 @@ export function DesktopRouteContent({
         return (
           <Route
             active={active}
+            runtimeLogIntent={
+              view === "logs" && pendingNavigationIntent?.kind === "runtime-log"
+                ? pendingNavigationIntent
+                : null
+            }
+            onConsumeNavigationIntent={navigation.consumeNavigationIntent}
             onSectionChange={(section: string) =>
               navigation.setView(settingsViewForSection(section))
             }

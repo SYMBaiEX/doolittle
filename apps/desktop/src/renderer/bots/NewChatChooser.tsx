@@ -14,7 +14,6 @@ export function NewChatChooser({
   onCreate,
   onClose,
   onRetry,
-  returnFocusTarget,
   projects = [],
   scope = "unscoped",
   onScopeChange,
@@ -28,7 +27,6 @@ export function NewChatChooser({
   onCreate: () => void;
   onClose: () => void;
   onRetry: () => void;
-  returnFocusTarget: HTMLElement | null;
   projects?: readonly ProjectLike[];
   scope?: ProjectScope;
   onScopeChange?: (scope: ProjectScope) => void;
@@ -44,8 +42,7 @@ export function NewChatChooser({
     onClose: () => {
       if (!busy) onClose();
     },
-    restoreFocus: true,
-    restoreFocusTarget: returnFocusTarget,
+    restoreFocus: false,
   });
   const matches = bots.filter(
     (bot) =>

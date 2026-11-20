@@ -78,6 +78,7 @@ import { BotCreationConversation } from "./bots/BotCreationConversation";
 import { BotCreationDialog } from "./bots/BotCreationDialog";
 import { shouldReportBotActivationFailure } from "./bots/bot-activation-feedback";
 import {
+  firstPrivateBotDraft,
   latestBotSession,
   sessionBotId,
   visibleBots,
@@ -103,6 +104,7 @@ import {
 } from "./computer-origin";
 import { observeContextMenuCopy } from "./context-menu-clipboard";
 import { newConversationId } from "./conversation-id";
+import { loadConversationDrafts } from "./conversation-persistence";
 import {
   collectSidebarFocusables,
   desktopHashForView,
@@ -146,6 +148,11 @@ import type { ProjectLike, ProjectScope } from "./project-manager/models";
 import { projectNavigationTarget } from "./project-navigation";
 import { resolveSessionConversationScope } from "./session-conversation-scope";
 import { compactSessionPreview } from "./session-preview";
+import {
+  CHAT_COMPOSER_FOCUS_STATE_KEY,
+  CHAT_DRAFTS_STATE_KEY,
+  useChatWorkspaceStore,
+} from "./session-workspace/chat-workspace-store";
 import {
   LEGACY_SESSION_WORKSPACE_STORAGE_KEY,
   restoreWorkspaceLayout,
@@ -351,6 +358,7 @@ export function CommandPaletteLoadingFallback({
 }
 
 export function App() {
+  const chatStore = useChatWorkspaceStore();
   const viewportWidth = useSyncExternalStore(
     subscribeShellViewportWidth,
     shellViewportWidth,
@@ -1561,6 +1569,7 @@ export function App() {
           captureSessionProject(id, bound.conversation.projectId ?? null);
           setProjectScope(bound.conversation.projectId ?? "unscoped");
           setSelectedSession(id);
+          chatStore?.update(CHAT_COMPOSER_FOCUS_STATE_KEY, id);
         }
       } catch {
         setNewChatError(
@@ -1573,6 +1582,7 @@ export function App() {
     },
     [
       bots,
+      chatStore,
       recordConversationScope,
       newChatScope,
       captureSessionProject,
@@ -1591,7 +1601,21 @@ export function App() {
       if (!setView("chat")) return;
       setSelectedBotId(botId);
       const latest = latestBotSession(sessions, botId, defaultBotId);
-      if (latest) {
+      const scratchDraft = firstPrivateBotDraft({
+        botId,
+        defaultBotId,
+        drafts:
+          chatStore?.read(CHAT_DRAFTS_STATE_KEY, () =>
+            loadConversationDrafts(localStorage),
+          ) ?? loadConversationDrafts(localStorage),
+        sessions,
+        botBindings: localBotBindings,
+        projectBindings: localProjectBindings,
+      });
+      if (scratchDraft) {
+        setProjectScope("unscoped");
+        setSelectedSession(scratchDraft);
+      } else if (latest) {
         setSelectedSession(latest.sessionId);
       } else {
         const id = newConversationId();
@@ -1602,7 +1626,10 @@ export function App() {
     },
     [
       bots,
+      chatStore,
       defaultBotId,
+      localBotBindings,
+      localProjectBindings,
       sessions,
       setSelectedSession,
       setView,
@@ -1675,13 +1702,11 @@ export function App() {
         );
         if (
           bound.conversation.sessionId !== id ||
-          bound.conversation.botId !== bot.id
+          bound.conversation.botId !== bot.id ||
+          bound.conversation.projectId
         )
           throw new Error("Binding mismatch");
-        setConfirmedConversationScopes((current) => ({
-          ...current,
-          [id]: bound.conversation,
-        }));
+        recordConversationScope(bound.conversation);
       } catch {
         pushToast({
           tone: "error",
@@ -1694,8 +1719,10 @@ export function App() {
       setSelectedBotId(bot.id);
       setLocalBotBindings((current) => ({ ...current, [id]: bot.id }));
       captureSessionProject(id, null);
+      setProjectScope("unscoped");
       setSelectedSession(id);
       setView("chat");
+      chatStore?.update(CHAT_COMPOSER_FOCUS_STATE_KEY, id);
       pushToast({
         tone: "success",
         title: `${bot.name} saved`,
@@ -1703,7 +1730,14 @@ export function App() {
           "Starting in its private scratch chat. Project access can be chosen for another chat.",
       });
     },
-    [pushToast, setSelectedSession, setView, captureSessionProject],
+    [
+      captureSessionProject,
+      chatStore,
+      pushToast,
+      recordConversationScope,
+      setSelectedSession,
+      setView,
+    ],
   );
 
   const startChatInProject = useCallback(
@@ -1972,6 +2006,10 @@ export function App() {
   });
 
   useEffect(() => {
+    if (pendingNavigationIntent?.kind === "runtime-log" && view !== "logs") {
+      consumeNavigationIntent(pendingNavigationIntent.id);
+      return;
+    }
     if (
       pendingNavigationIntent?.kind === "workspace-file" &&
       (renderedViewForView(view) !== "code" ||
@@ -2456,18 +2494,13 @@ export function App() {
         chatCount: sessions.filter(
           (session) => session.projectId === project.id,
         ).length,
-        resources: project.resources
-          .filter(
-            (resource) =>
-              resource.kind === "file" || resource.kind === "folder",
-          )
-          .map((resource) => ({
-            id: resource.id,
-            kind: resource.kind as "file" | "folder",
-            path: resource.value,
-            label: resource.label,
-            createdAt: resource.createdAt,
-          })),
+        resources: project.resources.map((resource) => ({
+          id: resource.id,
+          kind: resource.kind,
+          path: resource.value,
+          label: resource.label,
+          createdAt: resource.createdAt,
+        })),
         updatedAt: project.updatedAt,
       })),
     [projects, sessions],
@@ -2740,6 +2773,12 @@ export function App() {
             currentChatId={selectedSession}
             currentChatProjectId={selectedSessionProjectId}
             isOpen
+            navigationIntent={
+              pendingNavigationIntent?.kind === "project-source"
+                ? pendingNavigationIntent
+                : null
+            }
+            onConsumeNavigationIntent={consumeNavigationIntent}
             onAddFiles={(project) => addProjectResources(project, "file")}
             onAddFolders={(project) => addProjectResources(project, "folder")}
             onArchiveProject={archiveProject}
@@ -2774,13 +2813,17 @@ export function App() {
           onChoose={(botId) => void chooseChatBot(botId)}
           onCreate={openCreateBot}
           onClose={() => {
-            if (!newChatBusyRef.current) setNewChatOpen(false);
+            if (newChatBusyRef.current) return;
+            setNewChatOpen(false);
+            const trigger = newChatTriggerRef.current;
+            requestAnimationFrame(() => {
+              if (trigger?.isConnected) trigger.focus({ preventScroll: true });
+            });
           }}
           onRetry={botResource.reload}
           projects={projectCards}
           scope={newChatScope}
           onScopeChange={setNewChatScope}
-          returnFocusTarget={newChatTriggerRef.current}
         />
       ) : null}
       {editingBot ? (
@@ -3032,6 +3075,9 @@ export function App() {
               </Suspense>
             }
             onClose={closeUtilities}
+            onOpenActivity={() => {
+              if (setView("activity")) closeUtilities();
+            }}
             onKeyDown={handleUtilityKeyDown}
             onResize={resizeUtilityDrawer}
             resizeBounds={utilityResizeBounds}

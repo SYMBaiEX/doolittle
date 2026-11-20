@@ -113,6 +113,7 @@ export function codegenRequestBody({
 
 export type UseOrchestrationActionsOptions = {
   active: boolean;
+  canDelegate: boolean;
   computerOrigin?: ComputerOrigin;
   codegenExecution: UnknownRecord;
   codegenReady: boolean;
@@ -139,6 +140,7 @@ export type UseOrchestrationActionsOptions = {
 
 export function useOrchestrationActions({
   active,
+  canDelegate,
   computerOrigin,
   codegenExecution,
   codegenReady,
@@ -267,6 +269,7 @@ export function useOrchestrationActions({
 
   const onSubmitCreateTask = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!canDelegate) return;
     if (!taskCreateTitle.trim() || !taskCreateObjective.trim()) {
       publishNotice({
         tone: "bad",
@@ -343,7 +346,7 @@ export function useOrchestrationActions({
 
   const onSubmitSpawn = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!active || !selectedTask || !childObjective.trim()) return;
+    if (!canDelegate || !selectedTask || !childObjective.trim()) return;
     const key = `task:${selectedTask.id}:spawn`;
     runBusy(key, true);
     try {
@@ -384,7 +387,7 @@ export function useOrchestrationActions({
     task: DelegationTaskRecord,
     action: TaskAction,
   ) => {
-    if (!active) return;
+    if (!canDelegate) return;
     const key = `task:${task.id}:${action}`;
     const note = taskNotes[task.id]?.trim() ?? "";
     if (action === "note" && !note) {
@@ -429,7 +432,7 @@ export function useOrchestrationActions({
     tasks: readonly DelegationTaskRecord[],
     action: BulkTaskAction,
   ) => {
-    if (!active || tasks.length === 0) return;
+    if (!canDelegate || tasks.length === 0) return;
     const key = `task:bulk:${action}`;
     runBusy(key, true);
     try {
@@ -466,6 +469,7 @@ export function useOrchestrationActions({
     action: "cancel" | "fail",
     returnTarget: HTMLButtonElement,
   ) => {
+    if (!canDelegate) return;
     confirmReturnRef.current = returnTarget;
     setConfirmedAction({ taskId: task.id, action });
   };
@@ -476,6 +480,7 @@ export function useOrchestrationActions({
   };
 
   const runSupervise = async () => {
+    if (!canDelegate) return;
     const key = "task:supervise";
     runBusy(key, true);
     try {

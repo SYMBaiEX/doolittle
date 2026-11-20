@@ -23,6 +23,7 @@ import {
   Notice,
   PageHeader,
   useApiResource,
+  useDebouncedValue,
 } from "./lib";
 import {
   OBSERVABILITY_CONTROL_CLASS,
@@ -39,14 +40,6 @@ export {
   visibleActivityWindow,
 } from "./activity/activity-model";
 
-export function activityShowsEmptyState(
-  rowCount: number,
-  filteredCount: number,
-  error: string,
-): boolean {
-  return (!error || rowCount > 0) && filteredCount === 0;
-}
-
 export function ActivityPage({ active }: { active: boolean }) {
   const [query, setQuery] = useState("");
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -54,32 +47,20 @@ export function ActivityPage({ active }: { active: boolean }) {
   const [visibleCount, setVisibleCount] = useState(ACTIVITY_PAGE_SIZE);
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState("");
+  const [exportTruncated, setExportTruncated] = useState(false);
 
+  const debouncedQuery = useDebouncedValue(query.trim());
+  const params = new URLSearchParams({ limit: "200" });
+  if (source !== "all") params.set("kind", source);
+  if (debouncedQuery) params.set("query", debouncedQuery);
+  const filterParams = params.toString();
   const timeline = useApiResource<ActivityFeedResponse>(
-    active ? "/activity?limit=200" : null,
+    active ? `/activity?${filterParams}` : null,
     [active],
   );
   const rows = timeline.data?.events ?? [];
-
-  const filtered = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
-    return rows.filter((row) => {
-      if (source !== "all" && row.kind !== source) return false;
-      if (!normalizedQuery) return true;
-      const haystack = [
-        row.title,
-        row.safeSummary,
-        row.kind,
-        row.status,
-        row.target,
-        row.occurredAt,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-      return haystack.includes(normalizedQuery);
-    });
-  }, [rows, source, query]);
+  const searchPending = query.trim() !== debouncedQuery;
+  const hasFilters = Boolean(query.trim() || source !== "all");
 
   const overview = useMemo(() => {
     const needsAttention = (row: (typeof rows)[number]) =>
@@ -95,31 +76,22 @@ export function ActivityPage({ active }: { active: boolean }) {
     };
   }, [rows]);
 
-  const loading = timeline.loading;
+  const loading = timeline.loading || searchPending;
   const errors = timeline.error ? [timeline.error] : [];
-  const grouped = useMemo(
-    () => groupConsecutiveActivityEvents(filtered),
-    [filtered],
-  );
+  const grouped = useMemo(() => groupConsecutiveActivityEvents(rows), [rows]);
   const visibleGroups = visibleActivityWindow(grouped, visibleCount);
   const remainingGroups = Math.max(0, grouped.length - visibleGroups.length);
-  const showEmptyState = activityShowsEmptyState(
-    rows.length,
-    filtered.length,
-    timeline.error,
-  );
 
   const exportTimeline = async () => {
-    if (!active || exporting) return;
+    if (!active || exporting || loading || !rows.length) return;
     setExporting(true);
     setExportError("");
+    setExportTruncated(false);
     try {
-      const params = new URLSearchParams({ limit: "200" });
-      if (source !== "all") params.set("kind", source);
       const exported = await desktopRequest<ActivityExportResponse>(
-        `/activity/export?${params.toString()}`,
+        `/activity/export?${filterParams}`,
       );
-      const blob = new Blob([JSON.stringify(exported, null, 2)], {
+      const blob = new Blob([JSON.stringify(exported)], {
         type: "application/json",
       });
       const url = URL.createObjectURL(blob);
@@ -131,6 +103,7 @@ export function ActivityPage({ active }: { active: boolean }) {
       link.click();
       link.remove();
       setTimeout(() => URL.revokeObjectURL(url), 0);
+      setExportTruncated(exported.truncated);
     } catch (cause) {
       setExportError(`Activity export failed: ${errorMessage(cause)}`);
     } finally {
@@ -149,10 +122,14 @@ export function ActivityPage({ active }: { active: boolean }) {
             <Button
               onClick={() => void exportTimeline()}
               type="button"
-              disabled={!active || exporting}
+              disabled={!active || exporting || loading || !rows.length}
               variant="outline"
             >
-              {exporting ? "Exporting…" : "Export JSON"}
+              {exporting
+                ? "Exporting…"
+                : hasFilters
+                  ? "Export matches"
+                  : "Export JSON"}
             </Button>
             <Button
               onClick={() => {
@@ -175,6 +152,7 @@ export function ActivityPage({ active }: { active: boolean }) {
             ref={searchInputRef}
             className="h-[34px]"
             id="activity-query"
+            maxLength={256}
             type="search"
             value={query}
             onChange={(event) => {
@@ -217,13 +195,19 @@ export function ActivityPage({ active }: { active: boolean }) {
           ))
         : null}
       {active && exportError ? <Notice tone="bad">{exportError}</Notice> : null}
+      {active && exportTruncated ? (
+        <Notice tone="warn">
+          The export reached its size limit. Narrow the filters to include more
+          of the events you need.
+        </Notice>
+      ) : null}
       <div aria-live="polite" className="sr-only" role="status">
         {!active
           ? "Activity is unavailable until the local runtime is ready."
           : loading
             ? "Loading activity sources."
-            : `${filtered.length} activity ${
-                filtered.length === 1 ? "event" : "events"
+            : `${rows.length} activity ${
+                rows.length === 1 ? "event" : "events"
               } loaded.`}
       </div>
 
@@ -233,10 +217,12 @@ export function ActivityPage({ active }: { active: boolean }) {
         </OfflineRouteState>
       ) : loading ? (
         <LoadingBlock label="Loading activity sources…" />
-      ) : filtered.length ? (
+      ) : rows.length ? (
         <>
           <CompactStatStrip
-            label="Activity overview"
+            label={
+              hasFilters ? "Matching activity overview" : "Activity overview"
+            }
             stats={[
               {
                 label: "Pending",
@@ -253,16 +239,15 @@ export function ActivityPage({ active }: { active: boolean }) {
           />
 
           <ActivityTimeline
-            filteredCount={filtered.length}
+            eventCount={rows.length}
             groups={visibleGroups}
             onShowMore={() =>
               setVisibleCount((count) => count + ACTIVITY_PAGE_SIZE)
             }
             remainingGroups={remainingGroups}
-            totalCount={rows.length}
           />
         </>
-      ) : showEmptyState ? (
+      ) : !timeline.error ? (
         <EmptyBlock
           title={
             query.trim() || source !== "all"

@@ -54,6 +54,7 @@ import {
   type DisplayMessage,
   isCommandMessage,
 } from "./chat/models";
+import { queueHeadStatus } from "./chat/queue-status";
 import { queuedMessageRemovalTargets } from "./chat/queued-message-removal";
 import { useChatAttachments } from "./chat/useChatAttachments";
 import { useChatComposerSupport } from "./chat/useChatComposerSupport";
@@ -162,7 +163,7 @@ export interface ChatPageProps {
   workspacePath: string;
   /** Shared host workspace identity before per-bot panel workspace overrides. */
   inventoryWorkspacePath?: string;
-  onSelect: (sessionId: string) => void;
+  onSelect: (sessionId: string, restoreFocus?: boolean) => void;
   refreshRuntime: () => void;
   onOpenModelsPage: () => void;
   onOpenProvidersPage: () => void;
@@ -1161,19 +1162,21 @@ export function ChatSessionPanel({
   }
 
   const queuedDeliveryStatus = (message: PersistedQueuedMessage) =>
-    scopeForSession
-      ? queuedMessageMatchesConfirmedScope(
-          message,
-          scopeForSession(message.sessionId),
-          window.doolittle.platform,
-        )
-        ? "ready"
-        : "different-workspace"
-      : queuedMessageWorkspaceStatus(
-          message,
-          workspacePath,
-          window.doolittle.platform,
-        );
+    !message.workspacePath
+      ? "legacy-unbound"
+      : scopeForSession
+        ? queuedMessageMatchesConfirmedScope(
+            message,
+            scopeForSession(message.sessionId),
+            window.doolittle.platform,
+          )
+          ? "ready"
+          : "different-workspace"
+        : queuedMessageWorkspaceStatus(
+            message,
+            workspacePath,
+            window.doolittle.platform,
+          );
 
   const dispatchQueuedMessage = useEffectEvent(
     async (next: PersistedQueuedMessage) => {
@@ -1212,17 +1215,19 @@ export function ChatSessionPanel({
     },
   );
 
-  const queueHead = coordinator ? queuedMessages[0] : undefined;
+  const queueHead = queuedMessages[0];
   const queueRun = queueHead && activeRequests[queueHead.sessionId];
   const queueDispatchPending =
     queueHead && dispatchPending[queueHead.sessionId];
+  const queueHeadHydration = queueHead
+    ? runHydrationForBot(resolveSessionBot(queueHead.sessionId))
+    : "checking";
   const queueTargetReady =
-    hostBackend.phase === "ready" &&
-    queueHead &&
-    runHydrationForBot(resolveSessionBot(queueHead.sessionId)) === "ready";
+    hostBackend.phase === "ready" && queueHeadHydration === "ready";
   const queueWorkspaceStatus = queueHead && queuedDeliveryStatus(queueHead);
   useEffect(() => {
     if (
+      !coordinator ||
       !queueHead ||
       !queueTargetReady ||
       queuePaused ||
@@ -1244,6 +1249,7 @@ export function ChatSessionPanel({
     }
     void dispatchQueuedMessage(queueHead);
   }, [
+    coordinator,
     queueDispatchPending,
     queueDispatchRef,
     queueHead,
@@ -1411,6 +1417,22 @@ export function ChatSessionPanel({
   const visibleQueuedMessages = queuedMessages.filter(
     (message) => message.sessionId === selectedId,
   );
+  const queueHeadInAnotherChat = queueHead?.sessionId !== selectedId;
+  const queueStatus =
+    queueHead && queueWorkspaceStatus && visibleQueuedMessages.length > 0
+      ? queueHeadStatus({
+          otherConversation: queueHeadInAnotherChat,
+          workspaceStatus: queueWorkspaceStatus,
+          paused: queuePaused,
+          runtimeReady: hostBackend.phase === "ready",
+          hydration: queueHeadHydration,
+          busy: Boolean(
+            queueRun ||
+              queueDispatchPending ||
+              runClaims.current.forSession(queueHead.sessionId),
+          ),
+        })
+      : "";
 
   const removeQueuedMessages = (messageId?: string) => {
     const dispatchingId = queueDispatchRef.current;
@@ -1570,7 +1592,10 @@ export function ChatSessionPanel({
             forkingMessageId={forkingMessageId}
             historyError={historyError}
             hasEarlierMessages={hasEarlierMessages}
-            loadingEarlierHistory={loadingEarlierHistory === selectedId}
+            loadingEarlierHistory={
+              loadingEarlierHistory === selectedId ||
+              loadingHistory === selectedId
+            }
             loading={loadingHistory === selectedId}
             messages={selectedMessages}
             onBranch={(message, mode) => void branchMessage(message, mode)}
@@ -1785,7 +1810,13 @@ export function ChatSessionPanel({
             queueRef={queueRef}
             queuedMessages={visibleQueuedMessages}
             queueDispatchingId={queueDispatchRef.current}
-            queuePaused={queuePaused}
+            queuePaused={queuePaused && !queueHeadInAnotherChat}
+            queueStatus={queueStatus}
+            onOpenQueueHead={
+              queueHead && queueHeadInAnotherChat
+                ? () => onSelect(queueHead.sessionId, true)
+                : undefined
+            }
             resumeQueuedMessages={resumeQueuedMessages}
             setQueueAnnouncement={setQueueAnnouncement}
             clearQueuedMessages={() => removeQueuedMessages()}
@@ -1860,8 +1891,18 @@ export function ChatSessionPanel({
         inert={surface !== "media"}
       >
         <MediaPage
-          active={backend.phase === "ready" && surface === "media"}
+          active={
+            backend.phase === "ready" &&
+            surface === "media" &&
+            Boolean(currentBotId)
+          }
+          botId={currentBotId || undefined}
           embedded
+          onOpenConversation={(sessionId) => {
+            onSelect(sessionId, true);
+            onSurfaceChange?.("conversation");
+          }}
+          sessionId={selectedId}
         />
       </section>
       {inspectorPresence.present ? (
@@ -1882,6 +1923,7 @@ export function ChatSessionPanel({
               visible
             }
             bot={currentBot}
+            botId={currentBotId || undefined}
             contextLabel={selectedContextLabel}
             fullWidth={isNarrowWorkbench}
             messageCount={selectedMessageCount}
@@ -1903,6 +1945,15 @@ export function ChatSessionPanel({
             title={selectedSession?.title || "New conversation"}
             width={isNarrowWorkbench ? undefined : inspectorWidth}
             workspacePath={workspacePath}
+            workspaceLabel={
+              activeProject?.name ??
+              (selectedScope?.kind === "confirmed"
+                ? selectedScope.conversation.projectId
+                  ? (selectedScope.conversation.projectContext?.name ??
+                    "Project workspace")
+                  : "Private scratch"
+                : workspacePath || "Workspace unconfirmed")
+            }
           />
         </div>
       ) : null}

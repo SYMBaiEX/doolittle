@@ -145,6 +145,7 @@ const API_ALLOWLIST: Record<HttpMethod, AllowedApiPath[]> = {
         "status",
         "target",
         "sessionId",
+        "query",
       ],
       validateQuery: validateActivityFilters,
     },
@@ -157,6 +158,7 @@ const API_ALLOWLIST: Record<HttpMethod, AllowedApiPath[]> = {
         "status",
         "target",
         "sessionId",
+        "query",
       ],
       validateQuery: validateActivityFilters,
     },
@@ -400,7 +402,12 @@ const API_ALLOWLIST: Record<HttpMethod, AllowedApiPath[]> = {
     },
     { exact: "/memory", allowedQueries: ["target"] },
     { exact: "/memory/summary", allowedQueries: ["target"] },
-    { exact: "/media/library" },
+    {
+      exact: "/media/library",
+      allowedQueries: ["sessionId"],
+      validateQuery: (query) =>
+        validateTextQuery(query, "sessionId", { maxLength: 128 }),
+    },
     {
       predicate: (pathname) =>
         /^\/media\/library\/[a-z0-9][a-z0-9-]{0,180}$/u.test(pathname),
@@ -653,6 +660,7 @@ const API_ALLOWLIST: Record<HttpMethod, AllowedApiPath[]> = {
         matchesResourceActionPath(pathname, "/plans", ["approve", "steer"]),
     },
     { exact: "/delegation/tasks" },
+    { exact: "/delegation/tasks/bulk" },
     { exact: "/delegation/tasks/start-coding" },
     { exact: "/delegation/supervise" },
     {
@@ -943,7 +951,8 @@ function validateActivityFilters(query: URLSearchParams): boolean {
     validateEnumQuery(query, "kind", ACTIVITY_KINDS) &&
     validateEnumQuery(query, "status", ACTIVITY_STATUSES) &&
     validateEnumQuery(query, "target", ACTIVITY_TARGETS) &&
-    validateTextQuery(query, "sessionId", { maxLength: 256 })
+    validateTextQuery(query, "sessionId", { maxLength: 256 }) &&
+    validateTextQuery(query, "query", { maxLength: 256 })
   );
 }
 

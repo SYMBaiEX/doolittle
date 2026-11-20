@@ -73,6 +73,7 @@ function isCurrentWorkspace(path: string, workspacePath: string): boolean {
 
 export function ExecutionEnvironmentPanel({
   active,
+  canCreateWorktree,
   isRepository,
   workspaceRoot,
   worktrees,
@@ -84,6 +85,7 @@ export function ExecutionEnvironmentPanel({
   origin,
 }: {
   active: boolean;
+  canCreateWorktree: boolean;
   isRepository: boolean;
   workspaceRoot: string;
   worktrees: unknown;
@@ -103,13 +105,14 @@ export function ExecutionEnvironmentPanel({
     () => normalizeExecutionWorktrees(worktrees),
     [worktrees],
   );
+  const worktreeFormEnabled = active && canCreateWorktree && isRepository;
 
   const chooseWorkspace = async () => {
     if (!active || opening) return;
     setOpening(true);
     setNotice({
       tone: "neutral",
-      message: "Choose the worktree directory in the native workspace picker.",
+      message: "Choose a folder in the native workspace picker.",
     });
     try {
       const result = await onChooseWorkspace();
@@ -161,7 +164,7 @@ export function ExecutionEnvironmentPanel({
     event.preventDefault();
     const nextBranch = branch.trim();
     const nextPath = path.trim();
-    if (!active || !nextBranch || !nextPath || creating) return;
+    if (!worktreeFormEnabled || !nextBranch || !nextPath || creating) return;
     setCreating(true);
     setNotice({
       tone: "neutral",
@@ -235,7 +238,7 @@ export function ExecutionEnvironmentPanel({
           <Input
             autoCapitalize="none"
             autoComplete="off"
-            disabled={!active || creating || !isRepository}
+            disabled={!worktreeFormEnabled || creating}
             id="worktree-branch"
             onChange={(event) => setBranch(event.target.value)}
             placeholder="feature/short-name"
@@ -248,7 +251,7 @@ export function ExecutionEnvironmentPanel({
           <Input
             autoCapitalize="none"
             autoComplete="off"
-            disabled={!active || creating || !isRepository}
+            disabled={!worktreeFormEnabled || creating}
             id="worktree-path"
             onChange={(event) => setPath(event.target.value)}
             placeholder=".doolittle/worktrees/short-name"
@@ -258,27 +261,20 @@ export function ExecutionEnvironmentPanel({
         </label>
         <Button
           disabled={
-            !active ||
-            !isRepository ||
-            !branch.trim() ||
-            !path.trim() ||
-            creating
+            !worktreeFormEnabled || !branch.trim() || !path.trim() || creating
           }
           size="sm"
           type="submit"
         >
           {creating ? "Waiting…" : "Review & create"}
         </Button>
-        {!isRepository ? (
-          <small className={EXECUTION_DESCRIPTION_CLASS}>
-            This selected workspace is not a Git repository.
-          </small>
-        ) : (
-          <small className={EXECUTION_DESCRIPTION_CLASS}>
-            Creation is local and requires native confirmation. It creates a
-            branch and contained worktree only.
-          </small>
-        )}
+        <small className={EXECUTION_DESCRIPTION_CLASS}>
+          {!isRepository
+            ? "Choose a Git repository to create a worktree."
+            : !canCreateWorktree
+              ? "This chat's bot needs workspace write permission to create a worktree."
+              : "Review and confirm the branch and worktree path in the native dialog."}
+        </small>
       </form>
 
       {notice ? (

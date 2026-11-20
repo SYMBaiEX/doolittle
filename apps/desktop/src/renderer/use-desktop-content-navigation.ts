@@ -17,6 +17,8 @@ import type { View } from "./desktop-navigation";
 import {
   acknowledgeNavigationIntent,
   createOrchestrationTaskNavigationIntent,
+  createProjectSourceNavigationIntent,
+  createRuntimeLogNavigationIntent,
   createWorkspaceFileNavigationIntent,
   type DesktopNavigationIntent,
 } from "./desktop-navigation-intent";
@@ -80,7 +82,12 @@ export async function navigateGlobalSearchTarget(
       actions.selectProjectScope(target.projectId);
       return;
     case "projectSource":
-      actions.selectProjectScope(target.projectId);
+      actions.setNavigationIntent(
+        createProjectSourceNavigationIntent(
+          target.projectId,
+          target.resourceId,
+        ),
+      );
       actions.openProjectManager();
       return;
     case "workspace":
@@ -105,7 +112,10 @@ export async function navigateGlobalSearchTarget(
       return;
     }
     case "log":
-      actions.setView("logs");
+      if (actions.setView("logs") !== false)
+        actions.setNavigationIntent(
+          createRuntimeLogNavigationIntent(target.id, target.query),
+        );
   }
 }
 

@@ -55,10 +55,17 @@ export class ChatWorkspaceStore {
 }
 
 const ChatWorkspaceContext = createContext<ChatWorkspaceStore | null>(null);
+export const CHAT_DRAFTS_STATE_KEY = "conversation.drafts";
+export const CHAT_COMPOSER_FOCUS_STATE_KEY = "conversation.focus-composer";
 const noSubscribe = () => () => undefined;
 
+export function useChatWorkspaceStore() {
+  return useContext(ChatWorkspaceContext);
+}
+
 export function ChatWorkspaceProvider({ children }: { children: ReactNode }) {
-  const [store] = useState(() => new ChatWorkspaceStore());
+  const inherited = useChatWorkspaceStore();
+  const [store] = useState(() => inherited ?? new ChatWorkspaceStore());
   return (
     <ChatWorkspaceContext.Provider value={store}>
       {children}
