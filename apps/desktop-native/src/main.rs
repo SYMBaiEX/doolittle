@@ -51,6 +51,23 @@ fn options() -> Result<Option<Options>> {
     Ok(Some(options))
 }
 
+fn open_workbench(options: Options, cx: &mut App) -> Result<()> {
+    let window_bounds = Bounds::centered(None, size(px(1180.), px(820.)), cx);
+    cx.open_window(
+        WindowOptions {
+            window_bounds: Some(WindowBounds::Windowed(window_bounds)),
+            window_min_size: Some(size(px(520.), px(420.))),
+            ..WindowOptions::default()
+        },
+        move |window, cx| {
+            window.set_window_title("Doolittle");
+            let view = cx.new(|cx| Workbench::new(options, window, cx));
+            cx.new(|cx| Root::new(view, window, cx))
+        },
+    )?;
+    Ok(())
+}
+
 fn main() -> Result<()> {
     let Some(options) = options()? else {
         return Ok(());
@@ -58,21 +75,8 @@ fn main() -> Result<()> {
     Application::new().run(move |cx: &mut App| {
         gpui_component::init(cx);
         Workbench::bind_keys(cx);
-        let window_bounds = Bounds::centered(None, size(px(1180.), px(820.)), cx);
-        let window = cx.open_window(
-            WindowOptions {
-                window_bounds: Some(WindowBounds::Windowed(window_bounds)),
-                window_min_size: Some(size(px(520.), px(420.))),
-                ..WindowOptions::default()
-            },
-            move |window, cx| {
-                window.set_window_title("Doolittle");
-                let view = cx.new(|cx| Workbench::new(options, window, cx));
-                cx.new(|cx| Root::new(view, window, cx))
-            },
-        );
-        match window {
-            Ok(_) => {
+        match open_workbench(options, cx) {
+            Ok(()) => {
                 cx.on_window_closed(|cx| {
                     if cx.windows().is_empty() {
                         cx.quit();

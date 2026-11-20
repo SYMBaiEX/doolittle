@@ -195,7 +195,7 @@ impl Workbench {
     }
 
     pub fn choose_workspace(&mut self, cx: &mut Context<Self>) {
-        if self.choosing_workspace || self.connecting || self.ready() {
+        if self.choosing_workspace || self.connecting {
             return;
         }
         self.choosing_workspace = true;
@@ -212,8 +212,19 @@ impl Workbench {
                 match selected {
                     Ok(Ok(Some(paths))) => {
                         if let Some(path) = paths.into_iter().next() {
-                            this.options.workspace = Some(path);
-                            this.connect(cx);
+                            if let Some(current) = &this.options.workspace {
+                                if current != &path {
+                                    let mut options = this.options.clone();
+                                    options.workspace = Some(path);
+                                    options.profile = None;
+                                    if let Err(error) = crate::open_workbench(options, cx) {
+                                        this.error = Some(error.to_string());
+                                    }
+                                }
+                            } else {
+                                this.options.workspace = Some(path);
+                                this.connect(cx);
+                            }
                         }
                     }
                     Ok(Err(error)) => this.error = Some(error.to_string()),

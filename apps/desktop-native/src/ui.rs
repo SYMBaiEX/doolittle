@@ -205,13 +205,15 @@ impl Workbench {
                     .text_color(colors.muted)
                     .child(self.workspace_title()),
             )
-            .when(!self.ready() && !self.connecting, |this| {
+            .when(!self.connecting, |this| {
                 this.child(
                     Button::new("open-workspace")
                         .small()
                         .outline()
                         .label(if self.choosing_workspace {
                             "Opening…"
+                        } else if wide && !self.needs_workspace() {
+                            "New workspace"
                         } else {
                             "Open folder"
                         })
