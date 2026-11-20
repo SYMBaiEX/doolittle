@@ -40,6 +40,7 @@ import {
   formatToolPayload,
   type ParsedAgentMessage,
   parseAgentMessage,
+  safeHttpMessageUrl,
   type ToolActivity,
   type ToolActivityStatus,
   webSearchResults,
@@ -47,39 +48,17 @@ import {
 import { UiIcon } from "./UiIcon";
 
 interface MessageContentProps {
-  content: string;
+  content: string | ParsedAgentMessage;
   pending?: boolean;
-  parsedAgentMessage?: ParsedAgentMessage;
   separateAgentEvents?: boolean;
 }
 
 const MAX_TOOL_PAYLOAD_LENGTH = 40_000;
 
-function safeProtocol(value: string, protocols: string[]): boolean {
-  const normalized = value.trim().toLowerCase();
-  return (
-    normalized.startsWith("#") ||
-    protocols.some((protocol) => normalized.startsWith(`${protocol}:`))
-  );
-}
-
-function safeImageUrl(url: string): string | null {
-  if (!/^https?:\/\//iu.test(url.trim())) return null;
-  try {
-    const parsed = new URL(url);
-    return (parsed.protocol === "http:" || parsed.protocol === "https:") &&
-      parsed.hostname
-      ? url
-      : null;
-  } catch {
-    return null;
-  }
-}
-
 export const safeMessageUrl: UrlTransform = (url, key) =>
   key === "src"
-    ? safeImageUrl(url)
-    : safeProtocol(url, ["http", "https", "mailto"])
+    ? safeHttpMessageUrl(url)
+    : /^(?:#|https?:|mailto:)/iu.test(url.trim())
       ? url
       : null;
 
@@ -91,7 +70,7 @@ function MessageImage({
   height,
 }: ComponentProps<"img"> & { node?: unknown }) {
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
-  const safeSrc = typeof src === "string" ? safeImageUrl(src) : null;
+  const safeSrc = typeof src === "string" ? safeHttpMessageUrl(src) : null;
   if (!safeSrc || failedSrc === safeSrc) {
     return (
       <span data-message-image-unavailable="true">
@@ -517,20 +496,20 @@ function AgentSteps({
 export const MessageContent = memo(function MessageContent({
   content,
   pending = false,
-  parsedAgentMessage,
   separateAgentEvents = false,
 }: MessageContentProps) {
   const parsed = useMemo(
     () =>
-      parsedAgentMessage ??
-      (separateAgentEvents
-        ? parseAgentMessage(content)
-        : {
-            text: content,
-            tools: [],
-            steps: { continued: 0, failed: 0, finished: 0 },
-          }),
-    [content, parsedAgentMessage, separateAgentEvents],
+      typeof content !== "string"
+        ? content
+        : separateAgentEvents
+          ? parseAgentMessage(content)
+          : {
+              text: content,
+              tools: [],
+              steps: { continued: 0, failed: 0, finished: 0 },
+            },
+    [content, separateAgentEvents],
   );
   const hasActivity =
     parsed.tools.length > 0 ||

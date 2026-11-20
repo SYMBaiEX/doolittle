@@ -1,3 +1,4 @@
+import { cn } from "@elizaos/ui/lib/utils";
 import {
   type ComponentPropsWithRef,
   type HTMLAttributes,
@@ -6,9 +7,6 @@ import {
   useId,
 } from "react";
 import type { UiRunState } from "./host";
-
-const classes = (...values: Array<string | undefined | false>) =>
-  values.filter(Boolean).join(" ");
 
 export interface WorkspaceShellProps extends ComponentPropsWithRef<"div"> {
   navigation?: ReactNode;
@@ -35,7 +33,7 @@ export function WorkspaceShell({
       {...props}
       data-layout={layout}
       data-layout-mode={hostSlots ? "host-slots" : undefined}
-      className={classes("dl-workspace", className)}
+      className={cn("dl-workspace", className)}
     >
       {hostSlots ? (
         children
@@ -135,7 +133,7 @@ export function ConversationFrame({
   ...props
 }: HTMLAttributes<HTMLDivElement> & { composer?: ReactNode }) {
   return (
-    <div {...props} className={classes("dl-conversation", className)}>
+    <div {...props} className={cn("dl-conversation", className)}>
       {composer === undefined ? (
         children
       ) : (
@@ -165,7 +163,7 @@ export function ComposerFrame({
       {context && <div className="dl-composer-context">{context}</div>}
     </>
   );
-  const frameClass = classes("dl-composer", className);
+  const frameClass = cn("dl-composer", className);
   return as === "form" ? (
     <form {...(props as ComponentPropsWithRef<"form">)} className={frameClass}>
       {content}
@@ -191,7 +189,7 @@ export function InspectorFrame({
   return (
     <aside
       {...props}
-      className={classes("dl-inspector-frame", className)}
+      className={cn("dl-inspector-frame", className)}
       aria-label={title}
     >
       {navigation}
@@ -252,7 +250,7 @@ export function DialogFrame({
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
-        className={classes(
+        className={cn(
           "dl-dialog grid max-h-[calc(100dvh-32px)] w-[min(100%,520px)] gap-4 overflow-y-auto rounded-[var(--radius-xl)] border border-[var(--border-strong)] bg-[var(--surface-raised)] p-5 text-[var(--text)] shadow-[var(--shell-shadow-lg)]",
           className,
         )}

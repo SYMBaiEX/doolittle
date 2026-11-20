@@ -5,8 +5,8 @@ import {
   isTerminalClaimReceipt,
   RunClaims,
 } from "../../apps/desktop/src/renderer/chat/run-claim-reconciliation";
-import { bufferStreamedResponse } from "../../apps/desktop/src/renderer/chat/streamed-response";
 
+import { pendingApprovalsForSession } from "../../apps/desktop/src/renderer/chat/session-approvals";
 import type { ChatEvent } from "../../apps/desktop/src/shared/contracts";
 
 const runId = "run-a";
@@ -67,14 +67,6 @@ it("keeps a recovered run in control when it appears during pending scope confir
   expect(claims.reserve("another-run", sessionId, botId)).toBeUndefined();
 });
 
-it("keeps deltas that follow a full response within the same render frame", () => {
-  const first = bufferStreamedResponse(undefined, { delta: "the old partial" });
-  const replacement = bufferStreamedResponse(first, { response: "result" });
-  const last = bufferStreamedResponse(replacement, { delta: " completed" });
-
-  expect(last).toEqual({ replace: true, text: "result completed" });
-});
-
 it("distinguishes an accepted stream disconnect from the owned terminal events", () => {
   const disconnected: ChatEvent = {
     requestId: runId,
@@ -105,4 +97,22 @@ it("ignores stale inventory after reconciling the detached run's terminal receip
   expect(claims.settle(claim)).toBe(true);
   expect(claims.recover(runId, sessionId, botId)).toBe(false);
   expect(claims.reserve("new-send", sessionId, botId)).toBeDefined();
+});
+
+it("admits only pending approvals for the current conversation and saved scope", () => {
+  const approval = { status: "pending", roomId: sessionId };
+  const own = { ...approval, id: "approval-owned" };
+
+  expect(
+    pendingApprovalsForSession(
+      [
+        own,
+        { ...approval, id: "bad/id" },
+        { ...approval, id: "other-room", roomId: "other-session" },
+        { ...approval, id: "other-owner", sessionKey: "other-session" },
+        { ...approval, id: "closed", status: "approved" },
+      ],
+      sessionId,
+    ),
+  ).toEqual([own]);
 });

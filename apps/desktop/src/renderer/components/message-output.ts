@@ -97,15 +97,18 @@ function stringValue(value: unknown): string | undefined {
   return typeof value === "string" && value.trim() ? value : undefined;
 }
 
-function isValidWebSearchUrl(value: string): boolean {
+/** Only explicit HTTP(S) resources may load into transcripts or evidence. */
+export function safeHttpMessageUrl(value: string): string | null {
+  const url = value.trim();
+  if (!/^https?:\/\//iu.test(url)) return null;
   try {
-    const parsed = new URL(value);
-    return (
-      (parsed.protocol === "http:" || parsed.protocol === "https:") &&
-      Boolean(parsed.hostname)
-    );
+    const parsed = new URL(url);
+    return (parsed.protocol === "http:" || parsed.protocol === "https:") &&
+      parsed.hostname
+      ? url
+      : null;
   } catch {
-    return false;
+    return null;
   }
 }
 
@@ -149,9 +152,19 @@ function readJsonObject(source: string, start: number): JsonRange | undefined {
   return undefined;
 }
 
-function isInsideCodeFence(source: string, offset: number): boolean {
-  const before = source.slice(0, offset);
-  return (before.match(/```/gu)?.length ?? 0) % 2 === 1;
+/** Source offsets preserve original whitespace and the active fence length. */
+export function* markdownCodeFences(source: string) {
+  let open: { start: number; marker: string } | undefined;
+  for (const match of source.matchAll(/^ {0,3}(`{3,}|~{3,})([^\n]*)/gmu)) {
+    const marker = match[1];
+    if (!open) {
+      open = { start: match.index, marker };
+    } else if (marker.startsWith(open.marker) && !match[2].trim()) {
+      yield { start: open.start, end: match.index + match[0].length };
+      open = undefined;
+    }
+  }
+  if (open) yield { start: open.start, end: source.length };
 }
 
 function isEmbeddedAgentEvent(value: unknown): value is EmbeddedAgentEvent {
@@ -312,17 +325,23 @@ export function parseAgentMessage(content: string): ParsedAgentMessage {
   const visible: string[] = [];
   let removedEvent = false;
   let cursor = 0;
-  let match = EVENT_START.exec(content);
+  const eventStart = new RegExp(EVENT_START);
+  const fences = markdownCodeFences(content);
+  let fence = fences.next().value;
+  let match = eventStart.exec(content);
 
   while (match) {
     const start = match.index;
-    const visiblePrefix = `${visible.join("")}${content.slice(cursor, start)}`;
-    const range = isInsideCodeFence(visiblePrefix, visiblePrefix.length)
-      ? undefined
-      : readJsonObject(content, start);
+    while (fence && fence.end <= start) fence = fences.next().value;
+    if (fence && fence.start <= start) {
+      eventStart.lastIndex = fence.end;
+      match = eventStart.exec(content);
+      continue;
+    }
+    const range = readJsonObject(content, start);
     if (!range || !isEmbeddedAgentEvent(range.value)) {
-      EVENT_START.lastIndex = start + 1;
-      match = EVENT_START.exec(content);
+      eventStart.lastIndex = start + 1;
+      match = eventStart.exec(content);
       continue;
     }
 
@@ -337,12 +356,11 @@ export function parseAgentMessage(content: string): ParsedAgentMessage {
       addEvaluation(event, steps);
     }
     cursor = range.end;
-    EVENT_START.lastIndex = range.end;
-    match = EVENT_START.exec(content);
+    eventStart.lastIndex = range.end;
+    match = eventStart.exec(content);
   }
 
   visible.push(content.slice(cursor));
-  EVENT_START.lastIndex = 0;
   return {
     // Do not reflow authored Markdown (including blank lines in code fences).
     // Only trim the outer whitespace introduced when event JSON is removed.
@@ -390,15 +408,9 @@ export function webSearchResults(value: unknown): WebSearchResult[] {
     if (!results) continue;
     return results.flatMap((candidate) => {
       const result = asRecordOrUndefined(candidate);
-      const url = stringValue(result?.url);
-      if (
-        !result ||
-        !url ||
-        !/^https?:\/\//iu.test(url) ||
-        !isValidWebSearchUrl(url)
-      ) {
-        return [];
-      }
+      const url =
+        typeof result?.url === "string" ? safeHttpMessageUrl(result.url) : null;
+      if (!result || !url) return [];
       const excerpts = Array.isArray(result.excerpts)
         ? result.excerpts.filter(
             (excerpt): excerpt is string => typeof excerpt === "string",

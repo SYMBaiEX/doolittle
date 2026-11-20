@@ -3,7 +3,7 @@
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { useChatAttachments } from "../../apps/desktop/src/renderer/chat/page/useChatAttachments";
+import { useChatAttachments } from "../../apps/desktop/src/renderer/chat/useChatAttachments";
 import { desktopRequest } from "../../apps/desktop/src/renderer/lib";
 import { ChatWorkspaceProvider } from "../../apps/desktop/src/renderer/session-workspace/chat-workspace-store";
 import type {

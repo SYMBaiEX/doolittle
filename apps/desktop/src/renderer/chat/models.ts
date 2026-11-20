@@ -4,6 +4,11 @@ import type {
 } from "../../shared/contracts";
 import type { MemoryMatchSnapshot, SavedProfileMatch } from "../memory-matches";
 
+/** Both slash and historical bang commands route through the runtime catalog. */
+export function isCommandMessage(message: string): boolean {
+  return message.startsWith("/") || message.startsWith("!");
+}
+
 export type Role = "user" | "assistant";
 export type CopyState = "copied" | "failed";
 export type BranchMode = "edit" | "fork" | "retry";

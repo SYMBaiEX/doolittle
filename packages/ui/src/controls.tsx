@@ -2,10 +2,10 @@ import { Button as ElizaButton } from "@elizaos/ui/button";
 import {
   SelectContent as ElizaSelectContent,
   SelectItem as ElizaSelectItem,
-  SelectLabel as ElizaSelectLabel,
   SelectTrigger as ElizaSelectTrigger,
   Select,
   SelectGroup,
+  SelectLabel,
   SelectScrollDownButton,
   SelectScrollUpButton,
   SelectSeparator,
@@ -155,18 +155,6 @@ export function SelectItem({
   );
 }
 
-export function SelectLabel({
-  className,
-  ...props
-}: ComponentPropsWithRef<typeof ElizaSelectLabel>) {
-  return (
-    <ElizaSelectLabel
-      {...props}
-      className={cn(ELIZA_SELECT_TEXT_CLASS, className)}
-    />
-  );
-}
-
 /** Keep SDK collision, portal and keyboard behavior with Doolittle's material. */
 export function SelectContent({
   className,
@@ -183,6 +171,7 @@ export function SelectContent({
 export {
   Select,
   SelectGroup,
+  SelectLabel,
   SelectScrollDownButton,
   SelectScrollUpButton,
   SelectSeparator,

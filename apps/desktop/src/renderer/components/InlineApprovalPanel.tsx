@@ -1,5 +1,4 @@
 import { Button } from "@doolittle/ui";
-import { useVisibleInterval } from "@doolittle/ui/environment";
 import {
   Dialog,
   DialogClose,
@@ -9,25 +8,21 @@ import {
   DialogTrigger,
 } from "@elizaos/ui/components/ui/dialog";
 import { useEffect, useRef, useState } from "react";
+import type { PendingSessionApproval } from "../chat/session-approvals";
 import {
   type ActionFeedback,
-  asArray,
-  asRecord,
+  type ApiResource,
   asString,
   desktopRequest,
   displayTimestamp,
   errorMessage,
-  useApiResource,
 } from "../lib";
-
-interface ApprovalListResponse {
-  approvals?: unknown[];
-}
 
 interface InlineApprovalPanelProps {
   active: boolean;
-  /** Stable host-owned bot identity; omitted only for the legacy lead route. */
-  botId?: string;
+  approvals: readonly PendingSessionApproval[];
+  botId: string;
+  resource: Pick<ApiResource<unknown>, "error" | "loading" | "reload">;
   /** Use an explicit review dialog when the actual pane cannot fit inline actions. */
   compact?: boolean;
   /** Original chat room label, not the native runtime's hashed room UUID. */
@@ -36,22 +31,18 @@ interface InlineApprovalPanelProps {
 
 interface ApprovalScope {
   active: boolean;
-  botId?: string;
+  botId: string;
   roomId: string;
 }
 
 export function InlineApprovalPanel({
-  active,
+  active: enabled,
+  approvals,
   botId,
   compact = false,
+  resource,
   roomId,
 }: InlineApprovalPanelProps) {
-  const enabled = active && roomId.length > 0;
-  const resource = useApiResource<ApprovalListResponse>(
-    enabled ? "/execution/approvals?status=pending" : null,
-    [enabled],
-    botId,
-  );
   const scope = useRef<ApprovalScope>({ active: enabled, botId, roomId });
   if (
     scope.current.active !== enabled ||
@@ -81,30 +72,15 @@ export function InlineApprovalPanel({
   const dialogOpenerScope = useRef<ApprovalScope | null>(null);
   const busyId = busy?.scope === scope.current ? busy.id : "";
   const feedback = result?.scope === scope.current ? result.feedback : null;
-  const approvals = asArray(resource.data?.approvals)
-    .map((approval) => asRecord(approval))
-    .filter(
-      (approval) =>
-        approval.status === "pending" &&
-        typeof approval.id === "string" &&
-        approval.id.length <= 256 &&
-        /^[\p{L}\p{N}][\p{L}\p{N}._:-]*$/u.test(approval.id) &&
-        approval.roomId === roomId &&
-        (approval.sessionKey === undefined || approval.sessionKey === roomId),
-    );
   const currentIds = useRef(new Set<string>());
-  currentIds.current = new Set(
-    approvals.map((approval) => asString(approval.id)),
-  );
-
-  useVisibleInterval(resource.reload, 5_000, enabled);
+  currentIds.current = new Set(approvals.map((approval) => approval.id));
 
   const decide = async (
-    approval: Record<string, unknown>,
+    approval: PendingSessionApproval,
     decision: "approve" | "deny",
   ) => {
-    const id = asString(approval.id);
-    const decisionKey = JSON.stringify([botId ?? null, id]);
+    const { id } = approval;
+    const decisionKey = JSON.stringify([botId, id]);
     if (
       !enabled ||
       !currentIds.current.has(id) ||
@@ -219,8 +195,8 @@ export function InlineApprovalPanel({
           tabIndex={0}
         >
           {approvals.slice(0, 3).map((approval) => {
-            const id = asString(approval.id);
-            const decisionKey = JSON.stringify([botId ?? null, id]);
+            const { id } = approval;
+            const decisionKey = JSON.stringify([botId, id]);
             const isBusy = busyId === id;
             return (
               <article

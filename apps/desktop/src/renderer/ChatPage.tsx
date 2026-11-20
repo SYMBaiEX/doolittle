@@ -4,6 +4,7 @@ import {
   useSurfacePresence,
 } from "@doolittle/ui";
 import { useMediaQuery } from "@doolittle/ui/environment";
+import { asRecordOrUndefined } from "@elizaos/shared/type-guards";
 import {
   type FormEvent,
   lazy,
@@ -62,12 +63,12 @@ import {
   type BranchMode,
   type DisplayMessage,
   historicalRunReceipt,
+  isCommandMessage,
   isDesktopRunUpdate,
   type RunReceipt,
   type RunReceiptStore,
   runEventKey,
 } from "./chat/models";
-import { useChatAttachments } from "./chat/page/useChatAttachments";
 import {
   isTerminalClaimReceipt,
   mergeTerminalRunReceipt,
@@ -80,14 +81,7 @@ import {
   type RunHydrationSnapshot,
   sameRunHydrationScope,
 } from "./chat/run-hydration-scope";
-import { sessionPendingApprovalCount } from "./chat/session-approvals";
-import {
-  type BufferedResponse,
-  bufferStreamedResponse,
-  completedResponseText,
-  type StreamedResponsePayload,
-  streamedResponseFrameKey,
-} from "./chat/streamed-response";
+import { useChatAttachments } from "./chat/useChatAttachments";
 import { useChatComposerSupport } from "./chat/useChatComposerSupport";
 import { useChatConversationState } from "./chat/useChatConversationState";
 import { useChatMessageActions } from "./chat/useChatMessageActions";
@@ -110,7 +104,7 @@ import {
   saveConversationQueue,
 } from "./conversation-persistence";
 import { NativeUiHost } from "./interfaces/native-ui-host";
-import { desktopRequest, errorMessage, useApiResource } from "./lib";
+import { desktopRequest, errorMessage } from "./lib";
 import {
   freezeMemoryMatchSnapshot,
   type MemoryMatchSnapshot,
@@ -218,9 +212,6 @@ function eventText(data: unknown): string {
   );
 }
 
-function isCommandMessage(message: string): boolean {
-  return message.startsWith("/") || message.startsWith("!");
-}
 export function ChatPage(props: ChatPageProps) {
   return (
     <SessionWorkspace
@@ -592,22 +583,6 @@ export function ChatSessionPanel({
     visible &&
     surface === "conversation" &&
     !(inspectorVisible && isNarrowWorkbench);
-  // The approval panel uses this same bot-scoped resource key, then scopes rows
-  // to its room. The composer must not use App's global badge count.
-  const sessionApprovalsEnabled =
-    backend.phase === "ready" &&
-    approvalsVisible &&
-    selectedId.length > 0 &&
-    currentBotId.length > 0;
-  const sessionApprovalResource = useApiResource<{ approvals?: unknown[] }>(
-    sessionApprovalsEnabled ? "/execution/approvals?status=pending" : null,
-    [sessionApprovalsEnabled],
-    currentBotId,
-  );
-  const sessionPendingApprovals = sessionPendingApprovalCount(
-    sessionApprovalResource.data?.approvals,
-    selectedId,
-  );
   const inspectorBounds = inspectorResizeBounds(
     inspectorGeometry.paneWidth,
     inspectorGeometry.themeWidth,
@@ -683,16 +658,12 @@ export function ChatSessionPanel({
     null,
   );
   runCursors.current ??= loadRunCursors();
-  const seenStreamParts = useWorkspaceRef<Record<string, Set<string>>>(
-    "run.seen-parts",
-    {},
-  );
   const cancellationTimers = useWorkspaceRef<Record<string, number>>(
     "run.cancel-timers",
     {},
   );
   const pendingDeltas = useWorkspaceRef<
-    Record<string, { claim: RunClaim; update: BufferedResponse }>
+    Record<string, { claim: RunClaim; text: string }>
   >("run.pending-deltas", {});
   const deltaFrame = useWorkspaceRef<number | null>("run.delta-frame", null);
   const [forkingMessageId, setForkingMessageId] = useState("");
@@ -1035,14 +1006,11 @@ export function ChatSessionPanel({
     if (!updates.length) return;
     setMessages((current) => {
       const next = { ...current };
-      for (const { claim, update } of updates) {
+      for (const { claim, text } of updates) {
         const { sessionId, runId } = claim;
         next[sessionId] = (next[sessionId] ?? []).map((message) =>
           message.id === `assistant:${runId}`
-            ? {
-                ...message,
-                content: (update.replace ? "" : message.content) + update.text,
-              }
+            ? { ...message, content: message.content + text }
             : message,
         );
       }
@@ -1080,7 +1048,6 @@ export function ChatSessionPanel({
     }
     clearCancellingRequest(requestId);
     setRunConnection(requestId);
-    delete seenStreamParts.current[requestId];
     setActiveRequests((current) => {
       if (current[completedSessionId] !== requestId) {
         return current;
@@ -1243,28 +1210,14 @@ export function ChatSessionPanel({
       return;
     }
     if (event.event === "response.output_text.delta") {
-      const payload =
-        event.data && typeof event.data === "object"
-          ? (event.data as StreamedResponsePayload)
-          : {};
-      const frameKey = streamedResponseFrameKey(payload);
-      if (frameKey) {
-        let seen = seenStreamParts.current[event.requestId];
-        if (!seen) {
-          seen = new Set();
-          seenStreamParts.current[event.requestId] = seen;
-        }
-        if (seen.has(frameKey)) return;
-        seen.add(frameKey);
-        if (seen.size > 500) seen.delete(seen.values().next().value ?? "");
-      }
+      // Only the durable journal emits append-only text frames. Its cursor
+      // already suppresses duplicates across reconnects and replay.
+      const delta = asRecordOrUndefined(event.data)?.delta;
+      if (eventId === undefined || typeof delta !== "string" || !delta) return;
       const prior = pendingDeltas.current[event.requestId];
       pendingDeltas.current[event.requestId] = {
         claim,
-        update: bufferStreamedResponse(
-          prior?.claim === claim ? prior.update : undefined,
-          payload,
-        ),
+        text: (prior?.claim === claim ? prior.text : "") + delta,
       };
       if (deltaFrame.current === null) {
         deltaFrame.current = requestAnimationFrame(flushPendingDeltas);
@@ -1289,12 +1242,12 @@ export function ChatSessionPanel({
       return;
     }
     if (event.event === "response.completed") {
-      const response =
-        event.data && typeof event.data === "object"
-          ? (event.data as { response?: unknown }).response
-          : undefined;
-      settleRequest(claim, "completed", (content) =>
-        completedResponseText(content, response),
+      const response = asRecordOrUndefined(event.data)?.response;
+      settleRequest(
+        claim,
+        "completed",
+        (content) =>
+          (typeof response === "string" && response) || content || "Done.",
       );
     } else if (failure === "terminal") {
       settleRequest(claim, "error", (content) =>
@@ -2406,7 +2359,6 @@ export function ChatSessionPanel({
             selectedId={selectedId}
             modelRouteLabel={modelRouteLabel}
             workspacePath={workspacePath}
-            pendingApprovals={sessionPendingApprovals}
             runningTasks={runningTasks}
           />
         </div>

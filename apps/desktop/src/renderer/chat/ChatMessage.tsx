@@ -2,6 +2,7 @@ import { parseWalletActivityReceipt } from "@doolittle/contracts/wallet-activity
 import { type ReactNode, useMemo } from "react";
 import { MessageContent } from "../components/MessageContent";
 import {
+  markdownCodeFences,
   type ParsedAgentMessage,
   parseAgentMessage,
 } from "../components/message-output";
@@ -38,25 +39,18 @@ export function messageContentAfterReceipt(
     receipt?.latest.run.status !== "error"
   )
     return content;
-  let fence: { marker: string; length: number } | undefined;
+  const fences = markdownCodeFences(content);
+  let fence = fences.next().value;
+  let offset = 0;
   content = content
     .split("\n")
     .map((line) => {
-      const marker = /^ {0,3}(`{3,}|~{3,})(.*)$/u.exec(line);
-      if (marker?.[1]) {
-        if (!fence) {
-          fence = { marker: marker[1][0] ?? "`", length: marker[1].length };
-        } else if (
-          marker[1][0] === fence.marker &&
-          marker[1].length >= fence.length &&
-          !marker[2]?.trim()
-        ) {
-          fence = undefined;
-        }
-        return line;
-      }
+      const start = offset;
+      offset += line.length + 1;
+      while (fence && fence.end <= start) fence = fences.next().value;
       // Failure phrases can also appear in literal code or quoted test fixtures.
-      if (fence || /^(?: {4}|\t)/u.test(line)) return line;
+      if ((fence && fence.start <= start) || /^(?: {4}|\t)/u.test(line))
+        return line;
       let cleaned = line.replace(
         UNFINISHED_MUTATION_FAILURE,
         "No verified file change was completed.",
@@ -169,10 +163,8 @@ export function ChatMessage({
           })}
         {visibleContent ? (
           <MessageContent
-            content={visibleContent}
-            parsedAgentMessage={parsedAgentMessage}
+            content={parsedAgentMessage ?? visibleContent}
             pending={message.pending}
-            separateAgentEvents={message.role === "assistant"}
           />
         ) : message.pending && !receipt ? (
           <span aria-live="polite" className="thinking" role="status">

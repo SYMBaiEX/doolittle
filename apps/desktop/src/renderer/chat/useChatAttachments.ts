@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useRef } from "react";
-import type { ManagedAttachmentDescriptor } from "../../../shared/contracts";
-import type { VoiceRecorderMime } from "../../components/VoiceComposerButton";
-import type { AttachmentCleanupMap } from "../../conversation-persistence";
-import { desktopRequest, errorMessage } from "../../lib";
-import { useWorkspaceState } from "../../session-workspace/chat-workspace-store";
+import type { ManagedAttachmentDescriptor } from "../../shared/contracts";
+import type { VoiceRecorderMime } from "../components/VoiceComposerButton";
+import type { AttachmentCleanupMap } from "../conversation-persistence";
+import { desktopRequest, errorMessage } from "../lib";
+import { useWorkspaceState } from "../session-workspace/chat-workspace-store";
 import {
   MAX_MESSAGE_ATTACHMENT_BYTES,
   MAX_MESSAGE_ATTACHMENTS,
-} from "../models";
+} from "./models";
 
 interface ChatAttachmentOptions {
   selectedId: string;

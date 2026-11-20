@@ -29,7 +29,7 @@ import {
   canRecallSavedProfileMatches,
   normalizeSavedProfileMatches,
 } from "../memory-matches";
-import type { ChatMemoryMatchState } from "./models";
+import { type ChatMemoryMatchState, isCommandMessage } from "./models";
 
 const MEMORY_MATCH_DEBOUNCE_MS = 380;
 
@@ -69,10 +69,6 @@ export interface ChatComposerSupportState {
   selectedContextTone: ContextPressureTone;
   selectedUsageError: string | undefined;
   usageLoading: string;
-}
-
-function isCommandMessage(message: string): boolean {
-  return message.startsWith("/") || message.startsWith("!");
 }
 
 export function useChatComposerSupport({

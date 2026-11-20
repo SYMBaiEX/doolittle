@@ -1,4 +1,5 @@
 import { ComposerFrame, Button as ElizaButton } from "@doolittle/ui";
+import { useVisibleInterval } from "@doolittle/ui/environment";
 import { StatusBadge } from "@elizaos/ui/components/ui/status-badge";
 import { Textarea as ElizaTextarea } from "@elizaos/ui/components/ui/textarea";
 import {
@@ -51,7 +52,13 @@ import {
   PROMPT_LIBRARY_CHANGE_EVENT,
   PROMPT_LIBRARY_STORAGE_KEY,
 } from "../conversation-persistence";
-import { asArray, asRecord, desktopRequest, errorMessage } from "../lib";
+import {
+  asArray,
+  asRecord,
+  desktopRequest,
+  errorMessage,
+  useApiResource,
+} from "../lib";
 import type { ProjectLike, ProjectScope } from "../project-manager/models";
 import { ContextCapsuleIcon, contextCapsuleLabel } from "./ContextCapsuleIcon";
 import type { ChatMemoryMatchState } from "./models";
@@ -61,6 +68,8 @@ import {
   type ReusableCompletion,
   reusableCompletions,
 } from "./reusable-completion";
+
+import { pendingApprovalsForSession } from "./session-approvals";
 
 /** Border-box approval allowance from actual chrome, never empty-track slack. */
 export function chatApprovalHeightBudget(
@@ -99,7 +108,7 @@ export function chatApprovalHeightBudget(
 
 export interface ChatComposerProps {
   bot?: import("@doolittle/contracts/bots").BotSummary;
-  approvalBotId?: string;
+  approvalBotId: string;
   approvalsVisible?: boolean;
   workspaceNotice?: ReactNode;
   activeProject?: {
@@ -167,7 +176,6 @@ export interface ChatComposerProps {
   selectedId: string;
   modelRouteLabel: string;
   workspacePath: string;
-  pendingApprovals: number;
   runningTasks: number;
 }
 
@@ -230,9 +238,24 @@ export function ChatComposer({
   selectedId,
   modelRouteLabel,
   workspacePath,
-  pendingApprovals,
   runningTasks,
 }: ChatComposerProps) {
+  const approvalsEnabled =
+    backend.phase === "ready" &&
+    approvalsVisible &&
+    approvalBotId.length > 0 &&
+    selectedId.length > 0;
+  const approvalResource = useApiResource<{ approvals?: unknown[] }>(
+    approvalsEnabled ? "/execution/approvals?status=pending" : null,
+    [approvalsEnabled],
+    approvalBotId,
+  );
+  useVisibleInterval(approvalResource.reload, 5_000, approvalsEnabled);
+  const approvals = pendingApprovalsForSession(
+    approvalResource.data?.approvals,
+    selectedId,
+  );
+  const pendingApprovals = approvals.length;
   const formRef = useRef<HTMLFormElement>(null);
   const [approvalHeightBudget, setApprovalHeightBudget] = useState<
     number | null
@@ -518,13 +541,11 @@ export function ChatComposer({
     >
       {workspaceNotice}
       <InlineApprovalPanel
-        active={
-          backend.phase === "ready" &&
-          approvalsVisible &&
-          (approvalBotId === undefined || approvalBotId.length > 0)
-        }
+        active={approvalsEnabled}
+        approvals={approvals}
         botId={approvalBotId}
         compact={approvalHeightBudget !== null && approvalHeightBudget < 144}
+        resource={approvalResource}
         roomId={selectedId}
       />
       {queuedMessages.length > 0 ? (
