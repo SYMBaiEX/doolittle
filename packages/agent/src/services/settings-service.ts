@@ -1,7 +1,7 @@
 import { lstatSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
+import { readRegularFileSync } from "@doolittle/storage";
 import { writeJsonAtomicSync } from "@elizaos/core";
-import { readRegularFileSync } from "../utils/read-regular-file";
 import { normalizeRuntimeSettings } from "./settings/normalization";
 import { setSettingPath } from "./settings/path";
 import type {

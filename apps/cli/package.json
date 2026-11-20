@@ -16,6 +16,7 @@
   "dependencies": {
     "@doolittle/agent": "workspace:*",
     "@doolittle/contracts": "workspace:*",
+    "@doolittle/storage": "workspace:*",
     "@elizaos/core": "workspace:2.0.12-beta.0",
     "blessed": "^0.1.81",
     "@doolittle/acp": "workspace:*",

@@ -2,7 +2,7 @@ import { type ChildProcess, spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { join, resolve } from "node:path";
 import type { EnvConfig } from "@doolittle/agent/types";
-import { readRegularFileSync } from "@doolittle/agent/utils/read-regular-file";
+import { readRegularFileSync } from "@doolittle/storage";
 import type { CliTurnEvent } from "../turn-events";
 import { parseCliTurnEvent } from "../turn-events";
 import { createJobControl, requestJobCancel } from "./control";

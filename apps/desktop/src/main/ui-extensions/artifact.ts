@@ -15,7 +15,7 @@ import {
   type UiPluginArtifactIdentity,
   type UiPluginManifestV1,
 } from "@doolittle/contracts/ui-plugin";
-import { readBoundedRegularFile } from "../regular-file";
+import { readRegularFileSync } from "@doolittle/storage";
 
 const MAX_MANIFEST_BYTES = 64 * 1024;
 const MAX_ARTIFACT_BYTES = 32 * 1024 * 1024;
@@ -35,10 +35,6 @@ function hash(bytes: Uint8Array): string {
 
 function isWithin(root: string, candidate: string): boolean {
   return candidate === root || candidate.startsWith(`${root}${sep}`);
-}
-
-function readRegularFile(path: string, maxBytes: number): Buffer {
-  return readBoundedRegularFile(path, maxBytes);
 }
 
 function inspectDirectory(
@@ -73,7 +69,7 @@ export function verifyUiArtifact(directory: string): VerifiedUiArtifact {
     throw new Error("UI artifact must be a directory.");
   const found = new Set<string>();
   inspectDirectory(root, root, found);
-  const manifestBytes = readRegularFile(
+  const manifestBytes = readRegularFileSync(
     resolve(root, "manifest.json"),
     MAX_MANIFEST_BYTES,
   );
@@ -106,7 +102,7 @@ export function verifyUiArtifact(directory: string): VerifiedUiArtifact {
     const path = resolve(root, asset.path);
     if (!isWithin(root, path))
       throw new Error("UI asset escapes artifact root.");
-    const bytes = readRegularFile(path, asset.bytes);
+    const bytes = readRegularFileSync(path, asset.bytes);
     if (bytes.byteLength !== asset.bytes || hash(bytes) !== asset.sha256) {
       throw new Error(`UI asset integrity check failed: ${asset.path}`);
     }
@@ -178,7 +174,7 @@ export function installUiArtifact(
   const stage = resolve(parent, `.stage-${randomUUID()}`);
   mkdirSync(stage, { mode: 0o700 });
   try {
-    const manifestBytes = readRegularFile(
+    const manifestBytes = readRegularFileSync(
       resolve(sourceDirectory, "manifest.json"),
       MAX_MANIFEST_BYTES,
     );

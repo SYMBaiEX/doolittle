@@ -11,12 +11,12 @@ import {
   type RuntimeModelsResponse,
   type RuntimeReasoningEffort,
 } from "@doolittle/contracts/model-route";
+import { readRegularFileSync } from "@doolittle/storage";
 import { getModelOptions } from "@elizaos/agent/api/model-provider-helpers";
 import type { AppContext } from "../../../runtime/bootstrap/index";
 import { getRuntimeProviderAccountsSnapshot } from "../../../runtime/native/provider-accounts";
 import { listRuntimeModelCapabilities } from "../../../services/operator/runtime-model-capabilities";
 import type { EnvConfig } from "../../../types/index";
-import { readRegularFileSync } from "../../../utils/read-regular-file";
 import { json } from "../../responses";
 
 const MODEL_DISCOVERY_TIMEOUT_MS = 2_500;

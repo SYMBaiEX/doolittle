@@ -22,9 +22,9 @@ import {
   permissionsFingerprint,
   projectAccessScope,
 } from "../../apps/desktop/src/main/bot-project-access";
-import { readRegularFileDescriptor } from "../../apps/desktop/src/main/regular-file";
 import { ProjectStore } from "../../packages/agent/src/services/session/projects/store";
 import { createSessionDatabase } from "../../packages/agent/src/services/session/service/support";
+import { readRegularFileDescriptorSync } from "../../packages/storage/src/index";
 
 const directories: string[] = [];
 const closeDatabases: (() => void)[] = [];
@@ -281,9 +281,9 @@ describe("native project approval", () => {
       renameSync(path, resolve(f.dir, "previous-store.json"));
       writeFileSync(path, "{replacement", { mode: 0o600 });
       expect(
-        readRegularFileDescriptor(opened, 2_000_000).toString("utf8"),
+        readRegularFileDescriptorSync(opened, 2_000_000).toString("utf8"),
       ).toBe(saved);
-      expect(() => readRegularFileDescriptor(opened, 1)).toThrow();
+      expect(() => readRegularFileDescriptorSync(opened, 1)).toThrow();
       expect(new BotProjectAccessStore(f.dir).has(scope)).toBe(false);
     } finally {
       closeSync(opened);

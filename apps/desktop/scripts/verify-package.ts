@@ -4,6 +4,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { readRegularFileSync } from "@doolittle/storage";
 import { extractFile, listPackage } from "@electron/asar";
 import { assertOptionalDependencyEntry } from "./dependency-key";
 import {
@@ -21,7 +22,6 @@ import {
   packageNamesFromAsarEntries,
   productionDependencyClosure,
 } from "./package-composition";
-import { readRegularFile } from "./regular-file";
 
 const desktopRoot = fileURLToPath(new URL("..", import.meta.url));
 const args = process.argv.slice(2);
@@ -488,7 +488,7 @@ export function verifyRuntimeManifestFile(
 ): RuntimeManifest {
   let bytes: Buffer;
   try {
-    bytes = readRegularFile(path);
+    bytes = readRegularFileSync(path);
   } catch (error) {
     throw new Error(`Packaged runtime manifest is missing or unsafe: ${path}`, {
       cause: error,
@@ -531,7 +531,7 @@ export function verifyPackagedNativeRuntime(
   );
   let notices: string;
   try {
-    notices = readRegularFile(noticesPath).toString("utf8");
+    notices = readRegularFileSync(noticesPath).toString("utf8");
   } catch (error) {
     throw new Error(
       `Packaged runtime third-party notices are missing or unsafe: ${noticesPath}`,
@@ -613,7 +613,7 @@ function verifyPackagedLicense(appAsarPath: string): void {
   const licensePath = resolve(dirname(appAsarPath), "LICENSE");
   let license: string;
   try {
-    license = readRegularFile(licensePath).toString("utf8");
+    license = readRegularFileSync(licensePath).toString("utf8");
   } catch (error) {
     throw new Error(
       `Packaged Doolittle license is missing or unsafe: ${licensePath}`,
@@ -683,7 +683,7 @@ export function verifyPackagedDesktopArtifact(
   const manifestPath = resolve(resources, "desktop-artifact-manifest.json");
   let manifestBytes: Buffer;
   try {
-    manifestBytes = readRegularFile(manifestPath);
+    manifestBytes = readRegularFileSync(manifestPath);
   } catch (error) {
     throw new Error(
       `Packaged desktop artifact manifest is missing or unsafe: ${manifestPath}`,
@@ -711,7 +711,7 @@ export function verifyPackagedDesktopArtifact(
     const path = resolve(resources, legal.path);
     let bytes: Buffer;
     try {
-      bytes = readRegularFile(path);
+      bytes = readRegularFileSync(path);
     } catch (error) {
       throw new Error(
         `Packaged desktop legal asset was tampered with: ${legal.path}`,
@@ -733,7 +733,7 @@ export function verifyPackagedDesktopArtifact(
   );
   let runtimeManifestBytes: Buffer;
   try {
-    runtimeManifestBytes = readRegularFile(runtimeManifestPath);
+    runtimeManifestBytes = readRegularFileSync(runtimeManifestPath);
   } catch (error) {
     throw new Error("Packaged desktop runtime manifest was tampered with.", {
       cause: error,

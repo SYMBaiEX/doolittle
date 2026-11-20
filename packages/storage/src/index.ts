@@ -1,5 +1,12 @@
 import { readFileSync } from "node:fs";
 
+export {
+  RegularFileError,
+  readRegularFileDescriptorSync,
+  readRegularFileSync,
+  writeVerifiedFileSync,
+} from "./regular-file";
+
 /** Missing state is optional; unreadable or corrupt state must remain visible. */
 export function readOptionalJson<T = unknown>(path: string): T | null {
   let text: string;

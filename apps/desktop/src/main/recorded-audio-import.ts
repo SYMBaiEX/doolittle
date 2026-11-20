@@ -14,8 +14,8 @@ import {
   rmSync,
 } from "node:fs";
 import { basename, isAbsolute, relative, resolve, sep } from "node:path";
+import { writeVerifiedFileSync } from "@doolittle/storage";
 import { hasFilenameControlCharacters } from "./ipc/input-validation";
-import { writeVerifiedFileSync } from "./regular-file";
 
 export const RECORDED_AUDIO_IMPORT_MAX_BYTES = 20 * 1024 * 1024;
 export const RECORDED_AUDIO_IMPORT_PRUNE_LIMIT = 256;

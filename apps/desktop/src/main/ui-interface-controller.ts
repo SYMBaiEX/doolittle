@@ -5,6 +5,7 @@ import type {
   UiPluginArtifactIdentity,
   UiPluginContributionSelection,
 } from "@doolittle/contracts/ui-plugin";
+import { readRegularFileSync } from "@doolittle/storage";
 import { writeJsonAtomicSync } from "@elizaos/core";
 import type {
   BrowserWindow,
@@ -18,7 +19,6 @@ import {
   type UiInterfaceState,
   uiInterfaceChannels,
 } from "../shared/ui-interface";
-import { readBoundedRegularFile } from "./regular-file";
 import {
   installUiArtifact,
   loadUiArtifact,
@@ -191,7 +191,7 @@ export class UiInterfaceController {
             "manifest.json",
           );
           const manifest = JSON.parse(
-            readBoundedRegularFile(manifestPath, 64 * 1024).toString("utf8"),
+            readRegularFileSync(manifestPath, 64 * 1024).toString("utf8"),
           ) as {
             pluginVersion?: unknown;
           };
@@ -234,9 +234,7 @@ export class UiInterfaceController {
     if (!existsSync(this.options.statePath)) return;
     try {
       const saved = JSON.parse(
-        readBoundedRegularFile(this.options.statePath, 64 * 1024).toString(
-          "utf8",
-        ),
+        readRegularFileSync(this.options.statePath, 64 * 1024).toString("utf8"),
       ) as { version?: unknown; active?: unknown };
       if (saved.version !== 1) throw new Error("Invalid interface state.");
       if (saved.active) {

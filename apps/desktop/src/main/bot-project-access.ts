@@ -8,8 +8,8 @@ import {
 } from "node:fs";
 import { isAbsolute, resolve } from "node:path";
 import type { BotDefinition, BotPermissions } from "@doolittle/contracts/bots";
+import { readRegularFileSync } from "@doolittle/storage";
 import { writeJsonAtomicSync } from "@elizaos/core";
-import { readBoundedRegularFile } from "./regular-file";
 
 const BOT_ID = /^[a-z0-9][a-z0-9_-]{0,63}$/u;
 const PROJECT_ID = /^[a-zA-Z0-9:_-]{1,128}$/u;
@@ -126,7 +126,7 @@ export class BotProjectAccessStore {
       this.assertOwnedStore();
       // Validate and bound the opened inode, not a pathname checked earlier.
       const stored = JSON.parse(
-        readBoundedRegularFile(this.path, MAX_BYTES).toString("utf8"),
+        readRegularFileSync(this.path, MAX_BYTES).toString("utf8"),
       );
       if (
         stored?.version !== 1 ||

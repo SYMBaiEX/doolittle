@@ -4,8 +4,8 @@ import type {
   KnowledgeGrant,
   SharedKnowledgeRecord,
 } from "@doolittle/contracts/bots";
+import { readRegularFileSync } from "@doolittle/storage";
 import { writeJsonAtomicSync } from "@elizaos/core";
-import { readBoundedRegularFile } from "./regular-file";
 
 const ID = /^[A-Za-z0-9:_-]{1,128}$/u;
 const UUID = /^[0-9a-f-]{36}$/iu;
@@ -34,7 +34,7 @@ interface StoredKnowledge {
 
 function parse(path: string): StoredKnowledge | null {
   if (!existsSync(path)) return null;
-  const raw = readBoundedRegularFile(path, MAX_BYTES).toString("utf8");
+  const raw = readRegularFileSync(path, MAX_BYTES).toString("utf8");
   const value = JSON.parse(raw) as Partial<StoredKnowledge>;
   if (
     (value.version !== 1 && value.version !== 2) ||

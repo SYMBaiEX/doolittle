@@ -1,8 +1,21 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+  closeSync,
+  linkSync,
+  mkdirSync,
+  mkdtempSync,
+  openSync,
+  readSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, expect, it } from "vitest";
-import { readOptionalJson } from "../../packages/storage/src/index";
+import {
+  readOptionalJson,
+  readRegularFileDescriptorSync,
+  readRegularFileSync,
+} from "../../packages/storage/src/index";
 
 const roots: string[] = [];
 function fixture() {
@@ -29,4 +42,27 @@ it("does not hide corrupt JSON or invalid filesystem structure as missing state"
   ).toThrow();
   mkdirSync(join(root, "directory.json"));
   expect(() => readOptionalJson(join(root, "directory.json"))).toThrow();
+});
+
+it("bounds regular-file reads without changing caller-owned descriptor offsets", () => {
+  const root = fixture();
+  const path = join(root, "state");
+  writeFileSync(path, "abc");
+  const descriptor = openSync(path, "r");
+  try {
+    const byte = Buffer.alloc(1);
+    readSync(descriptor, byte, 0, 1, null);
+    expect(readRegularFileDescriptorSync(descriptor, 3).toString()).toBe("abc");
+    readSync(descriptor, byte, 0, 1, null);
+    expect(byte.toString()).toBe("b");
+  } finally {
+    closeSync(descriptor);
+  }
+  expect(() => readRegularFileSync(path, 2)).toThrow(
+    expect.objectContaining({ code: "too_large" }),
+  );
+  linkSync(path, join(root, "linked"));
+  expect(() => readRegularFileSync(path, 3, { singleLink: true })).toThrow(
+    expect.objectContaining({ code: "not_regular" }),
+  );
 });

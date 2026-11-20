@@ -1,8 +1,8 @@
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, relative, resolve, sep } from "node:path";
+import { readRegularFileSync } from "@doolittle/storage";
 import type { Plugin } from "vite";
-import { readRegularFile } from "./regular-file";
 
 type DesktopOutputChunk = {
   type: "chunk";
@@ -202,7 +202,7 @@ function createDesktopBuildInventoryFromDisk(
       const path = resolve(outputRoot, output.fileName);
       let contents: Buffer;
       try {
-        contents = readRegularFile(path);
+        contents = readRegularFileSync(path);
       } catch (error) {
         throw new Error(
           `Desktop ${surface} output is missing or unsafe after write: ${output.fileName}`,
@@ -271,7 +271,7 @@ export function validateDesktopBuildInventory(
     }
     let contents: Buffer;
     try {
-      contents = readRegularFile(absolutePath);
+      contents = readRegularFileSync(absolutePath);
     } catch (error) {
       throw new Error(
         `Desktop ${expectedSurface} output was tampered with: ${output.path}`,

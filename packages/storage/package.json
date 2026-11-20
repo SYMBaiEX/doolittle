@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Strict JSON reads for persistent desktop, CLI and client state.",
+  "description": "Strict state reads and bounded regular-file I/O for Doolittle's Node workspaces.",
   "exports": {
     ".": "./src/index.ts"
   },

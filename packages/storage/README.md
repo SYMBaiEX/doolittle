@@ -1,8 +1,7 @@
 # @doolittle/storage
 
-Small shared Node helper for reading optional JSON state. Desktop main-process
-code, agent services, and product plugins use it to keep filesystem and parse
-failures visible without depending on another application's runtime.
+Shared Node file operations for desktops, terminal jobs, agent services, and
+release tooling. Callers retain ownership of path authorization and schemas.
 
 ## API
 
@@ -19,8 +18,15 @@ file containing `null` also returns `null`.
 
 The generic parameter supplies a TypeScript type; it does not validate the
 parsed value. Use `unknown` and validate at the consuming state boundary when
-the file's schema or trust matters. This package does not write files, migrate
-schemas, or replace SDK database and credential persistence.
+the file's schema or trust matters.
+
+Use [the regular-file helpers](src/regular-file.ts) when reading untrusted or
+size-bounded inputs. They reject final symlinks, pin the opened file, and detect
+changes during reading. Callers can require a single hard link and set a tighter
+byte limit. Callers with an already-open descriptor can read from byte zero
+without moving its offset. Exclusive verified writes are available for private
+staging files. Database, credential, and schema migration stay with their
+existing owners.
 
 ## Development
 

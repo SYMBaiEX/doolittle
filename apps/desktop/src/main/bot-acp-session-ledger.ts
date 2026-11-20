@@ -1,7 +1,7 @@
 import { chmodSync, existsSync, mkdirSync } from "node:fs";
 import { dirname, isAbsolute, resolve } from "node:path";
+import { readRegularFileSync } from "@doolittle/storage";
 import { writeJsonAtomicSync } from "@elizaos/core";
-import { readBoundedRegularFile } from "./regular-file";
 
 const ID = /^[A-Za-z0-9:_-]{1,128}$/u;
 const MAX_BYTES = 2_000_000;
@@ -23,7 +23,7 @@ interface StoredAcpSessions {
 
 function parse(path: string): StoredAcpSessions | null {
   if (!existsSync(path)) return null;
-  const raw = readBoundedRegularFile(path, MAX_BYTES).toString("utf8");
+  const raw = readRegularFileSync(path, MAX_BYTES).toString("utf8");
   const value = JSON.parse(raw) as Partial<StoredAcpSessions>;
   if (
     value.version !== 1 ||

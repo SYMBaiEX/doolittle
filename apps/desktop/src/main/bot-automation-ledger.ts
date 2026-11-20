@@ -1,9 +1,9 @@
 import { chmodSync, existsSync, mkdirSync } from "node:fs";
 import { isAbsolute, resolve } from "node:path";
 import type { BotPermissions } from "@doolittle/contracts/bots";
+import { readRegularFileSync } from "@doolittle/storage";
 import { writeJsonAtomicSync } from "@elizaos/core";
 import { BotAutomationHistory } from "./bot-automation-history";
-import { readBoundedRegularFile } from "./regular-file";
 
 export interface AutomationTargetApproval {
   id: string;
@@ -45,7 +45,7 @@ function date(value: unknown): boolean {
 }
 function parse(path: string): Stored | null {
   if (!existsSync(path)) return null;
-  const raw = readBoundedRegularFile(path, 8_000_000).toString("utf8");
+  const raw = readRegularFileSync(path, 8_000_000).toString("utf8");
   const value = JSON.parse(raw) as Stored;
   if (
     value?.version !== 1 ||

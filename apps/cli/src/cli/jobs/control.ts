@@ -13,7 +13,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { dirname, join } from "node:path";
-import { readRegularFileSync } from "@doolittle/agent/utils/read-regular-file";
+import { readRegularFileSync } from "@doolittle/storage";
 import { writeJsonAtomicSync } from "@elizaos/core";
 import { assertJobPaths, isJobId, jobPaths } from "./store/index-store";
 

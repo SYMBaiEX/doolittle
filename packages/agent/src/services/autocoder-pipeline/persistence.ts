@@ -1,8 +1,8 @@
 import { lstatSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
+import { readRegularFileSync } from "@doolittle/storage";
 import { writeJsonAtomicSync } from "@elizaos/core";
 import { ensurePrivateDirectorySync } from "../../utils/private-directory";
-import { readRegularFileSync } from "../../utils/read-regular-file";
 import type {
   AutocoderPipelineRunRecord,
   AutocoderPipelineWorkflowRecord,

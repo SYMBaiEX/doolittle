@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import { readRegularFileSync } from "@doolittle/agent/utils/read-regular-file";
+import { readRegularFileSync } from "@doolittle/storage";
 import type { CliTurnEvent } from "../../turn-events";
 import { parseCliTurnEvent } from "../../turn-events";
 import type { CliJobIndex } from "../types";

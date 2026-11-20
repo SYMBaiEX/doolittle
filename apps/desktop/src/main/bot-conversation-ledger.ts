@@ -1,7 +1,7 @@
 import { chmodSync, existsSync } from "node:fs";
 import { isAbsolute, resolve } from "node:path";
+import { readRegularFileSync } from "@doolittle/storage";
 import { writeJsonAtomicSync } from "@elizaos/core";
-import { readBoundedRegularFile } from "./regular-file";
 
 const SESSION_ID = /^[a-zA-Z0-9:_-]{1,128}$/u;
 const BOT_ID = /^[a-z0-9][a-z0-9_-]{0,63}$/u;
@@ -167,7 +167,7 @@ function validConversation(value: unknown): value is BoundConversation {
 
 function parseLedger(path: string): StoredLedger | null {
   if (!existsSync(path)) return null;
-  const raw = readBoundedRegularFile(path, MAX_LEDGER_BYTES).toString("utf8");
+  const raw = readRegularFileSync(path, MAX_LEDGER_BYTES).toString("utf8");
   const value = JSON.parse(raw) as Partial<StoredLedger>;
   if (
     value.version !== 1 ||

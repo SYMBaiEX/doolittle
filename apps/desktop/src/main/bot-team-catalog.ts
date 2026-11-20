@@ -8,8 +8,8 @@ import type {
   CreateBotTeamInput,
   UpdateBotTeamInput,
 } from "@doolittle/contracts/bots";
+import { readRegularFileSync } from "@doolittle/storage";
 import { writeJsonAtomicSync } from "@elizaos/core";
-import { readBoundedRegularFile } from "./regular-file";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
 const MAX_BYTES = 1_000_000;
@@ -18,7 +18,7 @@ function date(value: unknown): boolean {
 }
 function parse(path: string): BotTeamCatalogResponse | null {
   if (!existsSync(path)) return null;
-  const raw = readBoundedRegularFile(path, MAX_BYTES).toString("utf8");
+  const raw = readRegularFileSync(path, MAX_BYTES).toString("utf8");
   const data = JSON.parse(raw) as BotTeamCatalogResponse;
   if (
     data?.version !== 1 ||

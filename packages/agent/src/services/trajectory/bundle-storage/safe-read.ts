@@ -1,6 +1,6 @@
 import { lstatSync, realpathSync } from "node:fs";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
-import { readRegularFileSync } from "../../../utils/read-regular-file";
+import { readRegularFileSync } from "@doolittle/storage";
 
 // Bundles may contain many records; these caps bound a single synchronous read.
 export const MAX_TRAJECTORY_MANIFEST_BYTES = 1024 * 1024;

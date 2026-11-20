@@ -8,12 +8,12 @@ import {
   rmSync,
 } from "node:fs";
 import { basename, extname, resolve } from "node:path";
-import { hasFilenameControlCharacters } from "./ipc/input-validation";
 import {
   RegularFileError,
-  readBoundedRegularFile,
+  readRegularFileSync,
   writeVerifiedFileSync,
-} from "./regular-file";
+} from "@doolittle/storage";
+import { hasFilenameControlCharacters } from "./ipc/input-validation";
 
 export const ATTACHMENT_IMPORT_LIMITS = {
   maxCount: 8,
@@ -239,7 +239,7 @@ function prepareAttachment(inputPath: string): PreparedAttachment {
   }
 
   try {
-    const contents = readBoundedRegularFile(
+    const contents = readRegularFileSync(
       canonicalPath,
       ATTACHMENT_IMPORT_LIMITS.maxFileBytes,
     );

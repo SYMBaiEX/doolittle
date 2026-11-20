@@ -149,11 +149,19 @@ Drafts, streams, queued messages, editor documents, and terminals retain their
 conversation owner across presentation changes. Transport errors preserve
 uncertain operation state until an authoritative receipt resolves it.
 
+Desktop lead and named runtimes use the same
+[host bridge](../apps/desktop/src/main/bot-process/host-bridge.ts) to resolve
+workspaces and admit execution. Each worker supplies its own authorization
+and account grant. The bridge binds accepted foreground claims to their
+conversation, and removes the exact claim if its receipt is abandoned.
+
 ## Workspace responsibilities
 
 The [root workspace index](../README.md#workspaces) links each package's README.
-`packages/ui` owns browser presentation; `packages/storage` supplies strict JSON
-reads; `packages/characters` and `packages/skills` supply native data. Optional
+`packages/ui` owns browser presentation. `packages/storage` supplies strict JSON
+reads and bounded file I/O used by desktop, CLI, and runtime. Path authorization
+and schema validation stay with the calling domain. `packages/characters` and
+`packages/skills` supply native data. Optional
 skills remain in an explicit catalog outside default discovery.
 
 Keep normal SDK persistence and lifecycle ownership upstream. Product state must

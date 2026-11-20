@@ -1,8 +1,8 @@
 import { realpathSync, statSync } from "node:fs";
 import { resolve } from "node:path";
+import { readRegularFileSync } from "@doolittle/storage";
 import { writeJsonAtomicSync } from "@elizaos/core";
 import type { WorkspacePickResult, WorkspaceState } from "../shared/contracts";
-import { readBoundedRegularFile } from "./regular-file";
 
 export const MAX_RECENT_WORKSPACES = 8;
 const MAX_STATE_FILE_BYTES = 64_000;
@@ -115,7 +115,7 @@ export function loadWorkspaceState(
       }
     : { currentPath: "", recentPaths: [] };
   try {
-    const contents = readBoundedRegularFile(
+    const contents = readRegularFileSync(
       statePath,
       MAX_STATE_FILE_BYTES,
     ).toString("utf8");

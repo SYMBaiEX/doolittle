@@ -13,12 +13,12 @@ import {
 import { createRequire } from "node:module";
 import { dirname, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { readRegularFileSync } from "@doolittle/storage";
 import {
   type DesktopBuildInventory,
   type DesktopInventoryPackage,
   validateDesktopBuildInventory,
 } from "./desktop-build-inventory";
-import { readRegularFile } from "./regular-file";
 import {
   assertDesktopDistributionLicensePolicy,
   type RuntimeDependencyInventoryEntry,
@@ -89,7 +89,7 @@ function sha256(value: string | Uint8Array): string {
 
 function readJson(path: string): unknown {
   try {
-    return JSON.parse(readRegularFile(path).toString("utf8"));
+    return JSON.parse(readRegularFileSync(path).toString("utf8"));
   } catch (error) {
     throw new Error(`Desktop artifact JSON is invalid: ${path}`, {
       cause: error,
@@ -461,7 +461,7 @@ function legalEntry(
   path: string,
 ): { path: string; bytes: number; sha256: string } {
   const absolute = resolve(root, path);
-  const contents = readRegularFile(absolute);
+  const contents = readRegularFileSync(absolute);
   return {
     path: relative(root, absolute).replaceAll("\\", "/"),
     bytes: contents.byteLength,
@@ -611,7 +611,7 @@ export function prepareDesktopArtifact({
     desktopRoot,
     "build/runtime/runtime-manifest.json",
   );
-  const runtimeManifestBytes = readRegularFile(runtimeManifestPath);
+  const runtimeManifestBytes = readRegularFileSync(runtimeManifestPath);
   const runtimeManifest = JSON.parse(
     runtimeManifestBytes.toString("utf8"),
   ) as RuntimeManifest;

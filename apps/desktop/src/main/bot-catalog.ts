@@ -12,9 +12,9 @@ import {
   type UpdateBotInput,
 } from "@doolittle/contracts";
 import { normalizeBotCharacter } from "@doolittle/contracts/bot-character";
+import { readRegularFileSync } from "@doolittle/storage";
 import { writeJsonAtomicSync } from "@elizaos/core";
 import type { BackendManager } from "./backend";
-import { readBoundedRegularFile } from "./regular-file";
 
 const BOT_ID_PATTERN = /^[a-z0-9][a-z0-9_-]{0,63}$/u;
 // AgentRuntime derives this id from the unmodified Doolittle character name.
@@ -253,10 +253,9 @@ export class BotCatalog {
 
   private load(): StoredBotCatalog {
     if (!existsSync(this.filePath)) return { version: 1, bots: [] };
-    const raw = readBoundedRegularFile(
-      this.filePath,
-      MAX_CATALOG_BYTES,
-    ).toString("utf8");
+    const raw = readRegularFileSync(this.filePath, MAX_CATALOG_BYTES).toString(
+      "utf8",
+    );
     const value = JSON.parse(raw) as StoredBotCatalog;
     if (
       value.version !== 1 ||

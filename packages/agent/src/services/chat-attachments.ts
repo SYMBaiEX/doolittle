@@ -1,9 +1,9 @@
 import { createHash } from "node:crypto";
 import { realpathSync, statSync } from "node:fs";
 import { basename, join } from "node:path";
+import { readRegularFileSync } from "@doolittle/storage";
 import type { ContentType, Media } from "@elizaos/core";
 import { isStrictlyContainedPath } from "../utils/path-containment";
-import { readRegularFileSync } from "../utils/read-regular-file";
 import { hasAsciiControlCharacters } from "../utils/text-validation";
 
 export const MAX_CHAT_ATTACHMENTS = 8;

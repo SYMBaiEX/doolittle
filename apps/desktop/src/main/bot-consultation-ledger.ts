@@ -5,8 +5,8 @@ import type {
   BotPermissions,
   BotRunOwner,
 } from "@doolittle/contracts/bots";
+import { readRegularFileSync } from "@doolittle/storage";
 import { writeJsonAtomicSync } from "@elizaos/core";
-import { readBoundedRegularFile } from "./regular-file";
 
 const ID = /^[A-Za-z0-9:_-]{1,128}$/u;
 const MAX_LEDGER_BYTES = 8_000_000;
@@ -47,7 +47,7 @@ interface StoredConsultations {
 
 function parse(path: string): StoredConsultations | null {
   if (!existsSync(path)) return null;
-  const raw = readBoundedRegularFile(path, MAX_LEDGER_BYTES).toString("utf8");
+  const raw = readRegularFileSync(path, MAX_LEDGER_BYTES).toString("utf8");
   const value = JSON.parse(raw) as Partial<StoredConsultations>;
   if (
     value.version !== 1 ||
