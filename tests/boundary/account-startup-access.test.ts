@@ -8,8 +8,12 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { delimiter, dirname, join, resolve } from "node:path";
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
 import { sourceRuntimeTarget } from "../../apps/desktop/src/main/backend";
+import {
+  readDoolittleAccountPoolSnapshot,
+  refreshDoolittleAccountPoolInventory,
+} from "../../packages/agent/src/runtime/native/account-pool";
 
 it("boots account routing with a locked legacy credential without reading or rewriting it", () => {
   const root = mkdtempSync(join(tmpdir(), "doolittle-account-startup-"));
@@ -30,8 +34,15 @@ it("boots account routing with a locked legacy credential without reading or rew
     script,
     `
     import assert from 'node:assert/strict';
-    const {initializeDoolittleAccountPool, importLegacyDoolittleAccounts} = await import(${JSON.stringify(resolve("packages/agent/src/runtime/native/account-pool/index.ts"))});
-    assert.ok(initializeDoolittleAccountPool(${JSON.stringify(root)}));
+    const {initializeDoolittleAccountPool, importLegacyDoolittleAccounts, readDoolittleAccountPoolSnapshot} = await import(${JSON.stringify(resolve("packages/agent/src/runtime/native/account-pool/index.ts"))});
+    const pool = initializeDoolittleAccountPool(${JSON.stringify(root)});
+    assert.ok(pool);
+    assert.equal(readDoolittleAccountPoolSnapshot(pool).providers["openai-codex"].accounts.length, 0);
+    const {getRuntimeProviderAccountsSnapshot} = await import(${JSON.stringify(resolve("packages/agent/src/runtime/native/provider-accounts.ts"))});
+    const runtime = {getService: () => { throw new Error("unexpected provider probe"); }};
+    const accounts = getRuntimeProviderAccountsSnapshot(runtime);
+    assert.equal(accounts.codex.reusable, false);
+    assert.match(accounts.codex.detail, /not probed/i);
     assert.throws(() => importLegacyDoolittleAccounts(), /master key unavailable|OS keychain is unsafe/i);
     console.log('LOCKED_STARTUP_OK');
   `,
@@ -60,4 +71,43 @@ it("boots account routing with a locked legacy credential without reading or rew
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+it("keeps passive inventory read-only and retains its last observed accounts when storage is unavailable", () => {
+  const list = vi.fn(() => [
+    {
+      providerId: "openai-api",
+      id: "saved-openai",
+      source: "api-key",
+      label: "Development",
+      enabled: true,
+      priority: 1,
+      createdAt: 1,
+      health: "ok",
+    },
+  ]);
+  const pool = { list } as unknown as Parameters<
+    typeof refreshDoolittleAccountPoolInventory
+  >[0];
+  expect(readDoolittleAccountPoolSnapshot(pool).inventory).toBe("unchecked");
+  expect(list).not.toHaveBeenCalled();
+
+  const inventory = refreshDoolittleAccountPoolInventory(pool);
+  expect(inventory.inventory).toBe("ready");
+  expect(inventory.providers["openai-api"].accounts[0]?.accountId).toBe(
+    "saved-openai",
+  );
+
+  list.mockImplementationOnce(() => {
+    throw new Error("Locked secure storage");
+  });
+  expect(() => refreshDoolittleAccountPoolInventory(pool)).toThrow(
+    "Saved accounts could not be read",
+  );
+  const unavailable = readDoolittleAccountPoolSnapshot(pool);
+  expect(unavailable.inventory).toBe("unavailable");
+  expect(unavailable.providers["openai-api"].accounts).toEqual(
+    inventory.providers["openai-api"].accounts,
+  );
+  expect(list).toHaveBeenCalledTimes(2);
 });

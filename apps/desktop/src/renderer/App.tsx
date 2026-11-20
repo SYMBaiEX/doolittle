@@ -440,14 +440,11 @@ export function App() {
     () => !window.doolittle.ui,
   );
   const chatSelectionRevision = useRef(0);
+  const lastCredentialWarmup = useRef<typeof chatSelection | null>(null);
   const setSelectedSession = useCallback((sessionId: string) => {
     chatSelectionRevision.current++;
     setNativeSelectionRestored(true);
-    setChatSelection((current) =>
-      current.sessionId === sessionId && current.interactiveSelection
-        ? current
-        : { sessionId, interactiveSelection: true },
-    );
+    setChatSelection({ sessionId, interactiveSelection: true });
   }, []);
   const [selectedBotId, setSelectedBotId] = useState("");
   const [pendingCreatedBot, setPendingCreatedBot] = useState<BotSummary | null>(
@@ -2187,22 +2184,27 @@ export function App() {
           ?.id
       : undefined;
   const warmForegroundBot = useEffectEvent(
-    (botId: string, interactive: boolean) => {
+    (botId: string, selection: typeof chatSelection) => {
       if (document.documentElement.dataset.nativeInterfaceVisible === "false")
         return;
       const bot = bots.find((entry) => entry.id === botId);
-      if (bot?.state !== "stopped") return;
-      // Only a deliberate selection may prompt macOS to unlock an account vault.
-      if (interactive || bot.model.provider === "offline")
-        void activateBot(botId, false);
+      if (!bot) return;
+      if (bot.model.provider !== "offline") {
+        // A selection authorizes one warm-up. Remounts and engine restarts
+        // must not retry a credential read made for an earlier selection.
+        if (
+          !selection.interactiveSelection ||
+          lastCredentialWarmup.current === selection
+        )
+          return;
+        lastCredentialWarmup.current = selection;
+      }
+      if (bot.state === "stopped") void activateBot(botId, false);
     },
   );
   useEffect(() => {
     if (backend.phase === "ready" && foregroundNamedBotId)
-      warmForegroundBot(
-        foregroundNamedBotId,
-        chatSelection.interactiveSelection,
-      );
+      warmForegroundBot(foregroundNamedBotId, chatSelection);
     // A catalog refresh after an explicit Stop must not start the bot again.
   }, [backend.phase, foregroundNamedBotId, chatSelection]);
   const activeSection = navigation.find((section) =>

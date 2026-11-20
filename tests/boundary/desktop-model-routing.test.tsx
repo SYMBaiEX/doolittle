@@ -4,10 +4,24 @@ import { act, createElement } from "react";
 import { createRoot } from "react-dom/client";
 import { expect, it } from "vitest";
 import {
+  linkedProviderAccess,
   providerReadiness,
   ROUTE_PROVIDER_OPTIONS,
 } from "../../apps/desktop/src/renderer/model-routing";
 import { SettingControl } from "../../apps/desktop/src/renderer/settings/SettingsFields";
+
+it("presents passive credential status as unchecked until the user verifies it", () => {
+  const codex = { checked: false, nativeReady: false };
+  expect(providerReadiness("codex", { codex })).toMatchObject({
+    checked: false,
+    ready: false,
+    tone: "neutral",
+  });
+  expect(linkedProviderAccess(codex)).toMatchObject({
+    label: "Not checked",
+    mode: "unchecked",
+  });
+});
 
 it("keeps a removed saved provider visible but unavailable until another route is selected", () => {
   expect(ROUTE_PROVIDER_OPTIONS.map((option) => option.id)).not.toContain(

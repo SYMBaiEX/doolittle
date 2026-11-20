@@ -1,7 +1,7 @@
 import type { AgentExecutionContext } from "../chat";
 import { displayCommand } from "../commands/command-execution";
 import { resolveLinkedProviderCredentials } from "../native/account-auth/index";
-import { getRuntimeProviderAccountsSnapshot } from "../native/provider-accounts";
+import { getRuntimeProviderAccountStatus } from "../native/provider-accounts";
 import { validateCloudBaseUrl } from "./cloud-url";
 import { normalizeElizaCloudBaseUrl } from "./messages";
 
@@ -167,8 +167,6 @@ async function computeProviderReadinessMessage(
     return message;
   }
 
-  const snapshot = getRuntimeProviderAccountsSnapshot(context.runtime);
-
   if (provider === "offline") {
     message = context.config.offlineBootstrapMode
       ? undefined
@@ -178,7 +176,8 @@ async function computeProviderReadinessMessage(
   }
 
   if (provider === "openai" && !context.config.openAiApiKey?.trim()) {
-    if (snapshot.codex.nativeReady || snapshot.codex.reusable) {
+    const status = getRuntimeProviderAccountStatus(context.runtime, "codex");
+    if (status.nativeReady || status.reusable) {
       message = [
         "OpenAI is selected, but OPENAI_API_KEY is not configured.",
         "A linked Codex account is ready on this machine.",
@@ -193,7 +192,11 @@ async function computeProviderReadinessMessage(
   }
 
   if (provider === "anthropic" && !context.config.anthropicApiKey?.trim()) {
-    if (snapshot.claudeCode.nativeReady || snapshot.claudeCode.reusable) {
+    const status = getRuntimeProviderAccountStatus(
+      context.runtime,
+      "claude-code",
+    );
+    if (status.nativeReady || status.reusable) {
       message = [
         "Anthropic is selected, but ANTHROPIC_API_KEY is not configured.",
         "A linked Claude Code account is ready on this machine.",
@@ -208,7 +211,10 @@ async function computeProviderReadinessMessage(
   }
 
   if (provider === "elizacloud") {
-    const cloudStatus = snapshot.elizaCloud;
+    const cloudStatus = getRuntimeProviderAccountStatus(
+      context.runtime,
+      "elizacloud",
+    );
     if (!(cloudStatus.nativeReady || cloudStatus.reusable)) {
       message = `Eliza Cloud is selected, but no managed cloud key is active in this workspace. Run \`elizaos login\`, then \`${displayCommand("/accounts connect elizacloud")}\` to bind the native cloud path.`;
       cacheProviderReadiness(runtimeKey, provider, message);
@@ -217,7 +223,10 @@ async function computeProviderReadinessMessage(
   }
 
   if (provider === "codex") {
-    const codexStatus = snapshot.codex;
+    const codexStatus = getRuntimeProviderAccountStatus(
+      context.runtime,
+      "codex",
+    );
     if (!(codexStatus.nativeReady || codexStatus.reusable)) {
       message = `Codex is selected, but no reusable Codex credentials are available. Run \`codex login\`, then \`${displayCommand("/accounts connect codex")}\` to bind it in Eliza.`;
       cacheProviderReadiness(runtimeKey, provider, message);
@@ -226,7 +235,10 @@ async function computeProviderReadinessMessage(
   }
 
   if (provider === "claude-code") {
-    const claudeStatus = snapshot.claudeCode;
+    const claudeStatus = getRuntimeProviderAccountStatus(
+      context.runtime,
+      "claude-code",
+    );
     if (context.config.claudeCodeCliFallback && claudeStatus.fallbackReady) {
       cacheProviderReadiness(runtimeKey, provider, undefined);
       return undefined;

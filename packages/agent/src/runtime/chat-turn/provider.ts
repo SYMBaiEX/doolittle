@@ -10,6 +10,7 @@ import {
   type UUID,
 } from "@elizaos/core";
 import type { AgentExecutionContext } from "../chat";
+import { prepareDesktopDirectApiCredentials } from "../linked-provider-accounts/direct-api";
 import { buildProviderRuntimeSettings } from "../linked-provider-accounts/index";
 import {
   runWithTurnRuntimeScope,
@@ -168,6 +169,11 @@ export async function runProviderModelTurn(
   actionResults: ActionResult[];
   responseMessages: import("@elizaos/core").Memory[];
 }> {
+  await prepareDesktopDirectApiCredentials(
+    input.context.runtime,
+    input.settingsDuring.model.provider,
+    input.options?.abortSignal,
+  );
   const memory = createProviderMessageMemory(input, executionContext);
   const sessionKey =
     memory.sessionKey ??

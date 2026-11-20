@@ -13,11 +13,6 @@ import {
   invokeClaudeCodeCliPrint,
   resolveClaudeCliModel,
 } from "@doolittle/plugin-claude-code";
-import {
-  getAccessToken,
-  getSubscriptionStatus,
-  type SubscriptionAccountStatus,
-} from "@elizaos/auth/auth/credentials";
 import type {
   BackendLaunchTarget,
   BackendManager,
@@ -48,6 +43,7 @@ import {
   codexAccountId,
   type ProviderGrant,
   resolveBotProviderGrant,
+  type SubscriptionStatusReader,
   type TokenResolver,
 } from "./bot-process/provider-connections";
 import { buildBotWorkerEnvironment } from "./bot-process/worker-environment";
@@ -60,18 +56,11 @@ import { EngineBotBackend } from "./engine-bot-backend";
 import type { DesktopExecutionAdmission } from "./execution-admission";
 import { readBoundedResponseText } from "./ipc/runtime-http";
 
-async function officialTokenResolver(
-  provider: "openai-api" | "anthropic-api" | "openai-codex",
-  accountId: string,
-): Promise<string | null> {
-  return getAccessToken(provider, accountId);
-}
-
 export interface BotProcessRegistryOptions {
   confirmAutomation?: (request: AutomationNativeConsent) => Promise<boolean>;
   admission?: DesktopExecutionAdmission;
   tokenResolver?: TokenResolver;
-  subscriptionStatus?: () => SubscriptionAccountStatus[];
+  subscriptionStatus?: SubscriptionStatusReader;
   invokeClaudeCli?: typeof invokeClaudeCodeCliPrint;
   runtimeFetch?: typeof fetch;
   createBackend?: (
@@ -115,7 +104,7 @@ export class BotProcessRegistry {
   // persisting startup failures or manufacturing a ready backend.
   private readonly activationStates = new Map<string, "starting" | "error">();
   private readonly tokenResolver: TokenResolver;
-  private readonly subscriptionStatus: () => SubscriptionAccountStatus[];
+  private readonly subscriptionStatus: SubscriptionStatusReader;
   private readonly invokeClaudeCli: typeof invokeClaudeCodeCliPrint;
   private readonly runtimeFetch: typeof fetch;
   private readonly admission?: DesktopExecutionAdmission;
@@ -157,9 +146,22 @@ export class BotProcessRegistry {
       options.runtimeFetch ?? fetch,
       options.confirmAutomation,
     );
-    this.tokenResolver = options.tokenResolver ?? officialTokenResolver;
+    this.tokenResolver =
+      options.tokenResolver ??
+      (async (provider, accountId) => {
+        const { getAccessToken } = await import(
+          "@elizaos/auth/auth/credentials"
+        );
+        return getAccessToken(provider, accountId);
+      });
     this.subscriptionStatus =
-      options.subscriptionStatus ?? getSubscriptionStatus;
+      options.subscriptionStatus ??
+      (async () => {
+        const { getSubscriptionStatus } = await import(
+          "@elizaos/auth/auth/credentials"
+        );
+        return getSubscriptionStatus();
+      });
     this.invokeClaudeCli = options.invokeClaudeCli ?? invokeClaudeCodeCliPrint;
     this.runtimeFetch = options.runtimeFetch ?? fetch;
     this.admission = options.admission;
@@ -1280,10 +1282,11 @@ export class BotProcessRegistry {
           grant.kind === "native" &&
           grant.provider === "anthropic-subscription"
         ) {
-          assertClaudeSubscriptionAvailable(
+          await assertClaudeSubscriptionAvailable(
             grant.accountId,
             this.subscriptionStatus,
           );
+          if (signal.aborted) throw new Error("Host request was cancelled.");
           const payload = request.payload;
           if (!payload || typeof payload !== "object" || Array.isArray(payload))
             throw new Error("Invalid Claude request.");

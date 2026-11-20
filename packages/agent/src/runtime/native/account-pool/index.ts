@@ -6,7 +6,6 @@ import {
   configureDefaultAccountPoolSelection,
   getDefaultAccountPool,
   type Strategy,
-  startAccountPoolKeepAlive,
 } from "@elizaos/auth/accounts";
 import {
   type AccountCredentialRecord,
@@ -24,11 +23,7 @@ import type {
   OAuthCredentials,
 } from "@elizaos/auth/auth/types";
 import { getCodingAgentSelectorBridge } from "@elizaos/core";
-import {
-  getLinkedClaudeCodeCredentials,
-  getLinkedCodexCredentials,
-  invalidateOfficialSubscriptionStatusCache,
-} from "../account-auth";
+import { invalidateOfficialSubscriptionStatusCache } from "../account-auth";
 import { readJson, writeJson } from "../account-auth/shared";
 import {
   DOOLITTLE_LINKED_ACCOUNT_IDS,
@@ -64,6 +59,7 @@ const MATERIALIZED_API_ENV_KEYS = [
   "OPENAI_BASE_URL",
 ] as const;
 type MaterializedApiEnvKey = (typeof MATERIALIZED_API_ENV_KEYS)[number];
+let projectedAccountApiBackend: string | undefined;
 const materializedApiEnv = new Map<
   MaterializedApiEnvKey,
   { value: string; previous?: string }
@@ -90,6 +86,7 @@ export interface AccountPoolAccountSnapshot {
 
 export interface AccountPoolSnapshot {
   bridgeInstalled: boolean;
+  inventory: "unchecked" | "ready" | "unavailable";
   providers: Record<
     AccountPoolProvider,
     { strategy: AccountPoolStrategy; accounts: AccountPoolAccountSnapshot[] }
@@ -347,8 +344,11 @@ export function importCurrentDoolittleAccount(
     return null;
   }
   invalidateOfficialSubscriptionStatusCache();
-  const account = getDoolittleAccountPool().get(normalizedId, providerId);
-  return account ? toSnapshot(account as never) : null;
+  const pool = getDoolittleAccountPool();
+  const account = pool.get(normalizedId, providerId);
+  return account
+    ? rememberPoolAccount(pool, toSnapshot(account as never))
+    : null;
 }
 
 /** Import a resolved API key into the SDK-owned direct-provider account store. */
@@ -389,8 +389,11 @@ export function importDoolittleApiAccount(
     },
     getOfficialAccountStoragePolicy(),
   );
-  const account = getDoolittleAccountPool().get(normalizedId, providerId);
-  return account ? toSnapshot(account as never) : null;
+  const pool = getDoolittleAccountPool();
+  const account = pool.get(normalizedId, providerId);
+  return account
+    ? rememberPoolAccount(pool, toSnapshot(account as never))
+    : null;
 }
 
 /**
@@ -463,6 +466,7 @@ export function applyAccountPoolApiCredentials(
     MATERIALIZED_API_ENV_KEYS.map((key) => [key, process.env[key]]),
   ) as Record<MaterializedApiEnvKey, string | undefined>;
   return applyOfficialAccountPoolApiCredentials(options).then(() => {
+    projectedAccountApiBackend = options.activeBackend ?? undefined;
     for (const key of MATERIALIZED_API_ENV_KEYS) {
       const value = process.env[key];
       if (value && value !== previous[key]) {
@@ -472,6 +476,18 @@ export function applyAccountPoolApiCredentials(
   });
 }
 
+export async function ensureActiveDirectApiAccountCredentials(
+  backend: "openai" | "anthropic",
+): Promise<void> {
+  const envKey = backend === "openai" ? "OPENAI_API_KEY" : "ANTHROPIC_API_KEY";
+  const current = process.env[envKey];
+  const explicitlyConfigured =
+    current?.trim() && current !== materializedApiEnv.get(envKey)?.value;
+  if (!explicitlyConfigured && projectedAccountApiBackend !== backend) {
+    await applyAccountPoolApiCredentials({ activeBackend: backend });
+  }
+}
+
 /**
  * Restore operator-owned environment values before a linked provider takes
  * over. The official bridge applies all direct API accounts, so activation of
@@ -479,6 +495,7 @@ export function applyAccountPoolApiCredentials(
  * immediately re-materializing another direct token.
  */
 export function clearMaterializedAccountPoolApiCredentials(): void {
+  projectedAccountApiBackend = undefined;
   for (const [key, materialized] of materializedApiEnv) {
     if (process.env[key] !== materialized.value) continue;
     if (materialized.previous === undefined) delete process.env[key];
@@ -500,68 +517,88 @@ export function isAccountPoolProvider(
   );
 }
 
-export function snapshotDoolittleAccountPool(
+type ObservedAccountPool = {
+  inventory: AccountPoolSnapshot["inventory"];
+  accounts: AccountPoolAccountSnapshot[];
+};
+
+const observedPoolAccounts = new WeakMap<AccountPool, ObservedAccountPool>();
+
+/** Read only metadata captured during explicitly authorized account actions. */
+export function readDoolittleAccountPoolSnapshot(
   pool = getDoolittleAccountPool(),
 ): AccountPoolSnapshot {
+  const observed = observedPoolAccounts.get(pool);
+  const accounts = observed?.accounts ?? [];
+  const strategies = readStrategies();
   return {
     bridgeInstalled: Boolean(getCodingAgentSelectorBridge()),
+    inventory: observed?.inventory ?? "unchecked",
     providers: Object.fromEntries(
       ACCOUNT_POOL_PROVIDERS.map((providerId) => [
         providerId,
         {
-          strategy: readStrategy(providerId),
-          accounts: pool
-            .list(providerId)
-            .map((account) => toSnapshot(account as never)),
+          strategy: strategies[providerId] ?? "priority",
+          accounts: accounts.filter(
+            (account) => account.providerId === providerId,
+          ),
         },
       ]),
     ) as AccountPoolSnapshot["providers"],
   };
 }
 
-/**
- * Discover current native CLI files without network I/O and synchronize them
- * into Eliza's official credential records. A demonstrably unexpired access
- * token can heal stale pool metadata immediately; refreshable expired tokens
- * remain untouched until the explicit provider refresh performs OAuth I/O.
- */
-export async function synchronizeDoolittleAccountPoolFromNativeStores(
+export class AccountPoolInventoryUnavailableError extends Error {}
+
+export function markDoolittleAccountPoolInventoryUnavailable(
   pool = getDoolittleAccountPool(),
-  discoverNativeCredentials: () => void = () => {
-    importLegacyDoolittleAccounts();
-    getLinkedCodexCredentials();
-    getLinkedClaudeCodeCredentials();
-  },
-): Promise<AccountPoolSnapshot> {
-  discoverNativeCredentials();
-  const now = Date.now();
-  for (const providerId of ACCOUNT_POOL_PROVIDERS) {
-    for (const account of pool.list(providerId)) {
-      const record = loadAccount(
-        providerId,
-        account.id,
-        getOfficialAccountStoragePolicy(),
-      );
-      const credentials = record?.credentials;
-      const accessUsable = Boolean(
-        credentials?.access &&
-          (credentials.expires === Number.MAX_SAFE_INTEGER ||
-            credentials.expires > now + 60_000),
-      );
-      if (accessUsable) {
-        await pool.markHealthy(account.id, { providerId });
-      } else if (!credentials?.access && !credentials?.refresh) {
-        await pool.markNeedsReauth(account.id, credentialError(), {
-          providerId,
-        });
-      }
-    }
+): void {
+  observedPoolAccounts.set(pool, {
+    inventory: "unavailable",
+    accounts: observedPoolAccounts.get(pool)?.accounts ?? [],
+  });
+}
+
+export function refreshDoolittleAccountPoolInventory(
+  pool = getDoolittleAccountPool(),
+): AccountPoolSnapshot {
+  try {
+    const accounts = pool
+      .list()
+      .filter((account) => isAccountPoolProvider(account.providerId))
+      .map((account) => toSnapshot(account as never));
+    observedPoolAccounts.set(pool, { inventory: "ready", accounts });
+    return readDoolittleAccountPoolSnapshot(pool);
+  } catch (error) {
+    markDoolittleAccountPoolInventoryUnavailable(pool);
+    throw new AccountPoolInventoryUnavailableError(
+      "Saved accounts could not be read. Unlock credential storage and try Check accounts again.",
+      { cause: error },
+    );
   }
-  const snapshot = snapshotDoolittleAccountPool(pool);
-  // Opening account controls explicitly authorizes discovery. Start background
-  // refresh only after that access succeeded, never during shell startup.
-  startAccountPoolKeepAlive();
-  return snapshot;
+}
+
+function rememberPoolAccount(
+  pool: AccountPool,
+  account: AccountPoolAccountSnapshot,
+): AccountPoolAccountSnapshot {
+  const observed = observedPoolAccounts.get(pool);
+  const accounts = observed?.accounts ?? [];
+  const index = accounts.findIndex(
+    (entry) =>
+      entry.providerId === account.providerId &&
+      entry.accountId === account.accountId,
+  );
+  observedPoolAccounts.set(pool, {
+    inventory: observed?.inventory ?? "unchecked",
+    accounts:
+      index < 0
+        ? [...accounts, account]
+        : accounts.map((entry, current) =>
+            current === index ? account : entry,
+          ),
+  });
+  return account;
 }
 
 export async function selectDoolittleAccount(
@@ -579,7 +616,9 @@ export async function selectDoolittleAccount(
       ? { sessionKey: input.sessionKey.trim() }
       : {}),
   });
-  return account ? toSnapshot(account as never) : null;
+  return account
+    ? rememberPoolAccount(pool, toSnapshot(account as never))
+    : null;
 }
 
 function credentialError(): string {
@@ -621,25 +660,27 @@ export async function testDoolittleAccountCredentials(
 ): Promise<AccountPoolCredentialTestResult | null> {
   if (!pool.get(accountId, providerId)) return null;
   const startedAt = Date.now();
+  let failure: string | undefined;
   try {
-    const accessToken = await resolveAccessToken(providerId, accountId, {
+    const token = await resolveAccessToken(providerId, accountId, {
       storagePolicy: getOfficialAccountStoragePolicy(),
     });
-    const latencyMs = Date.now() - startedAt;
-    if (!accessToken) {
+    if (token) {
+      await pool.markHealthy(accountId, { providerId });
+    } else {
+      failure = credentialError();
       await markCredentialFailure(pool, providerId, accountId);
-      return { ok: false, latencyMs, error: credentialError() };
     }
-    await pool.markHealthy(accountId, { providerId });
-    return { ok: true, latencyMs };
   } catch (error) {
+    failure = credentialError();
     await markCredentialFailure(pool, providerId, accountId, error);
-    return {
-      ok: false,
-      latencyMs: Date.now() - startedAt,
-      error: credentialError(),
-    };
   }
+  const latencyMs = Date.now() - startedAt;
+  const updated = pool.get(accountId, providerId);
+  if (updated) rememberPoolAccount(pool, toSnapshot(updated as never));
+  return failure
+    ? { ok: false, latencyMs, error: failure }
+    : { ok: true, latencyMs };
 }
 
 /**
@@ -664,7 +705,7 @@ export async function reconcileDoolittleAccountPoolCredentials(
       );
     }
   }
-  return snapshotDoolittleAccountPool(pool);
+  return refreshDoolittleAccountPoolInventory(pool);
 }
 
 /** Refresh the SDK-owned usage view after resolving the account credential. */
@@ -685,7 +726,7 @@ export async function refreshDoolittleAccountUsage(
       const account = pool.get(accountId, providerId);
       return account
         ? {
-            account: toSnapshot(account as never),
+            account: rememberPoolAccount(pool, toSnapshot(account as never)),
             source: "credential",
             error: credentialError(),
           }
@@ -699,14 +740,17 @@ export async function refreshDoolittleAccountUsage(
     });
     const account = pool.get(accountId, providerId);
     return account
-      ? { account: toSnapshot(account as never), source: "pool" }
+      ? {
+          account: rememberPoolAccount(pool, toSnapshot(account as never)),
+          source: "pool",
+        }
       : null;
   } catch (error) {
     await markCredentialFailure(pool, providerId, accountId, error);
     const account = pool.get(accountId, providerId);
     return account
       ? {
-          account: toSnapshot(account as never),
+          account: rememberPoolAccount(pool, toSnapshot(account as never)),
           source: "credential",
           error: credentialError(),
         }
@@ -766,7 +810,10 @@ export async function updateDoolittleAccount(
     ...(typeof patch.enabled === "boolean" ? { enabled: patch.enabled } : {}),
     ...(typeof priority === "number" ? { priority } : {}),
   });
-  return toSnapshot(pool.get(accountId, providerId) as never);
+  return rememberPoolAccount(
+    pool,
+    toSnapshot(pool.get(accountId, providerId) as never),
+  );
 }
 
 /** Removes the official credential record and its SDK metadata overlay. */
@@ -782,6 +829,16 @@ export async function deleteDoolittleAccount(
     accountId,
     getOfficialAccountStoragePolicy(),
   );
+  const observed = observedPoolAccounts.get(pool);
+  if (observed) {
+    observedPoolAccounts.set(pool, {
+      inventory: observed.inventory,
+      accounts: observed.accounts.filter(
+        (entry) =>
+          entry.providerId !== providerId || entry.accountId !== accountId,
+      ),
+    });
+  }
   invalidateOfficialSubscriptionStatusCache();
   return true;
 }

@@ -1,5 +1,6 @@
 import { mkdirSync } from "node:fs";
 import type { IAgentRuntime } from "@elizaos/core";
+import { prepareDesktopDirectApiCredentials } from "../../runtime/linked-provider-accounts/direct-api";
 import type { WorkspaceDirectorySource } from "../workspace-directory";
 import { raceMediaAbort, throwIfMediaAborted } from "./abort";
 import {
@@ -62,6 +63,21 @@ export class MediaService {
   bindRuntime(runtime: IAgentRuntime): void {
     this.runtime = runtime;
     this.textAnalysisPort?.bindRuntime(runtime);
+  }
+
+  private async prepareRuntime(
+    modelContext: MediaModelContext | undefined,
+    signal?: AbortSignal,
+  ): Promise<IAgentRuntime | undefined> {
+    const runtime = this.runtime;
+    if (runtime && modelContext) {
+      await prepareDesktopDirectApiCredentials(
+        runtime,
+        modelContext.provider,
+        signal,
+      );
+    }
+    return runtime;
   }
 
   listLibraryAssets(): MediaLibraryAsset[] {
@@ -202,11 +218,12 @@ export class MediaService {
     outputDir: string,
     inspectionSupport: MediaInspectionSupport,
   ): Promise<MediaTranscriptionBundle> {
+    const modelContext = this.getModelContext?.();
     return executeMediaTranscription({
       outputDir,
       path,
       options,
-      modelContext: this.getModelContext?.(),
+      modelContext,
       dependencies: {
         inspect: (p) => inspectionSupport.inspect(p),
         bundle: (p) => inspectionSupport.bundle(p),
@@ -214,8 +231,12 @@ export class MediaService {
           inspectionSupport.buildSignals(inspection),
         requestModelText: (requestPrompt, _modelContext, metadata) =>
           this.requestTextAnalysis(requestPrompt, metadata, options.signal),
-        requestTranscription: (mediaPath) =>
-          transcribeWithEliza(this.runtime, mediaPath, options),
+        requestTranscription: async (mediaPath) =>
+          transcribeWithEliza(
+            await this.prepareRuntime(modelContext, options.signal),
+            mediaPath,
+            options,
+          ),
       },
     });
   }
@@ -231,16 +252,22 @@ export class MediaService {
     prompt: string,
     options: MediaGenerationOptions = {},
   ): Promise<MediaGenerationBundle> {
+    const modelContext = this.getModelContext?.();
     return generateMediaImageArtifact({
       outputDir: this.outputDir,
       prompt,
       options,
-      modelContext: this.getModelContext?.(),
+      modelContext,
       dependencies: {
         requestModelText: (requestPrompt, _modelContext, metadata) =>
           this.requestTextAnalysis(requestPrompt, metadata, options.signal),
-        generateImage: (refinedPrompt, size, signal) =>
-          generateImageWithEliza(this.runtime, refinedPrompt, size, signal),
+        generateImage: async (refinedPrompt, size, signal) =>
+          generateImageWithEliza(
+            await this.prepareRuntime(modelContext, signal),
+            refinedPrompt,
+            size,
+            signal,
+          ),
       },
     });
   }
@@ -249,16 +276,21 @@ export class MediaService {
     text: string,
     options: MediaSpeechOptions = {},
   ): Promise<MediaSpeechBundle> {
+    const modelContext = this.getModelContext?.();
     return generateMediaSpeechArtifact({
       outputDir: this.outputDir,
       text,
       options,
-      modelContext: this.getModelContext?.(),
+      modelContext,
       dependencies: {
         requestModelText: (requestPrompt, _modelContext, metadata) =>
           this.requestTextAnalysis(requestPrompt, metadata, options.signal),
-        synthesizeSpeech: (script, speechOptions) =>
-          synthesizeSpeechWithEliza(this.runtime, script, speechOptions),
+        synthesizeSpeech: async (script, speechOptions) =>
+          synthesizeSpeechWithEliza(
+            await this.prepareRuntime(modelContext, speechOptions.signal),
+            script,
+            speechOptions,
+          ),
       },
     });
   }

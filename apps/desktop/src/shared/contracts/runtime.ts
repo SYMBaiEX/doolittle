@@ -71,6 +71,7 @@ export interface AccountPoolProviderSnapshot {
 }
 export interface AccountPoolResponse {
   bridgeInstalled: boolean;
+  inventory?: "unchecked" | "ready" | "unavailable";
   providers: Partial<Record<AccountPoolProvider, AccountPoolProviderSnapshot>>;
 }
 export interface AccountPoolDeleteResponse {

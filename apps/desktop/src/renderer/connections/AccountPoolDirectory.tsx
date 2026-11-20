@@ -112,8 +112,9 @@ export function AccountPoolDirectory({
 
       {accounts.length === 0 ? (
         <p className={PROVIDER_POOL_EMPTY_CLASS}>
-          Connect one account to start agent sessions. Add a second for
-          automatic fallback.
+          {direct
+            ? "Add an API account to use this pool."
+            : "Check saved accounts above to find existing sign-ins, or add an account below."}
         </p>
       ) : (
         <ul className={PROVIDER_POOL_ACCOUNTS_CLASS}>

@@ -1,7 +1,4 @@
-import {
-  getLinkedClaudeCodeCredentials,
-  getLinkedElizaCloudCredentials,
-} from "../../../native/account-auth/index";
+import { getStoredElizaCloudCredentials } from "../../../native/account-auth/store";
 import type {
   BuildPluginSettingsDependencies,
   EnvConfig,
@@ -19,12 +16,7 @@ export function applyLinkedProviderSettings(
   const linkedElizaCloud =
     dependencies.linkedCredentials?.elizaCloud ??
     (modelProvider === "elizacloud"
-      ? getLinkedElizaCloudCredentials()
-      : undefined);
-  const linkedClaudeCode =
-    dependencies.linkedCredentials?.claudeCode ??
-    (config.useLinkedClaudeCodeAuth && modelProvider === "claude-code"
-      ? getLinkedClaudeCodeCredentials()
+      ? getStoredElizaCloudCredentials()
       : undefined);
 
   if (linkedElizaCloud?.apiKey) {
@@ -32,7 +24,10 @@ export function applyLinkedProviderSettings(
     settings.ELIZAOS_CLOUD_ENABLED = "true";
     settings.ELIZAOS_CLOUD_BASE_URL =
       linkedElizaCloud.baseUrl || config.elizaCloudBaseUrl;
-  } else if (config.elizaCloudEnabled && config.elizaCloudApiKey) {
+  } else if (
+    (config.elizaCloudEnabled || modelProvider === "elizacloud") &&
+    config.elizaCloudApiKey
+  ) {
     // An explicitly enabled Cloud account can back secondary model types
     // (such as ModelType.RESEARCH) even when another provider is the primary
     // text route. The default false flag keeps dormant keys out of runtime.
@@ -50,7 +45,10 @@ export function applyLinkedProviderSettings(
   }
 
   if (modelProvider === "claude-code") {
-    settings.ANTHROPIC_AUTH_MODE = linkedClaudeCode?.accessToken
+    // The execution settings resolve Claude credentials only for an actual
+    // Claude request. Shell startup must never open the account vault.
+    settings.ANTHROPIC_AUTH_MODE = dependencies.linkedCredentials?.claudeCode
+      ?.accessToken
       ? "oauth"
       : config.claudeCodeCliFallback
         ? "claude-cli"

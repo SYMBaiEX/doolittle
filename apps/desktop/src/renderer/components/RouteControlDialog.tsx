@@ -22,9 +22,9 @@ import {
   ROUTE_PROVIDER_READINESS_TONE,
 } from "../app-shell/overlay-layout";
 import { ICON_BUTTON_CLASS } from "../app-shell/shell-layout";
+import type { AccountsResponse } from "../connections/provider-accounts";
 import {
   type ActionFeedback,
-  asRecord,
   asString,
   Badge,
   desktopRequest,
@@ -35,7 +35,6 @@ import {
 import {
   defaultBaseUrlForProvider,
   defaultModelForProvider,
-  type LinkedProviderAccountsLike,
   providerReadiness,
   ROUTE_PROVIDER_OPTIONS,
   type RouteProviderId,
@@ -43,11 +42,6 @@ import {
 import type { SettingsResponse } from "../settings/settings-types";
 import { UiIcon } from "./UiIcon";
 import { useModalFocusBoundary } from "./useModalFocusBoundary";
-
-interface AccountsResponse {
-  activeProvider?: string;
-  accounts?: LinkedProviderAccountsLike;
-}
 
 interface RouteDraft {
   provider: string;
@@ -126,11 +120,7 @@ export function RouteControlDialog({
     }
   }, [isOpen]);
 
-  const linkedAccounts = useMemo(
-    () =>
-      (asRecord(accounts.data?.accounts) as LinkedProviderAccountsLike) ?? null,
-    [accounts.data?.accounts],
-  );
+  const linkedAccounts = accounts.data?.accounts;
 
   const effectiveDraft =
     draft ?? draftFromSettings(settings.data, runtime, models.data);
@@ -277,7 +267,13 @@ export function RouteControlDialog({
         <form className={ROUTE_DIALOG_FORM_CLASS} onSubmit={save}>
           <div className={ROUTE_DIALOG_STATUS_CLASS}>
             <Badge tone={readiness.tone}>
-              {readiness.ready ? "Ready now" : "Needs setup"}
+              {accounts.loading
+                ? "Loading"
+                : readiness.ready
+                  ? "Ready now"
+                  : readiness.checked === false
+                    ? "Not checked"
+                    : "Needs setup"}
             </Badge>
             <strong>
               {asString(runtime?.provider, effectiveDraft.provider)} ·{" "}
@@ -285,7 +281,7 @@ export function RouteControlDialog({
             </strong>
             <small>
               {accounts.loading
-                ? "Checking linked accounts…"
+                ? "Loading linked account status…"
                 : readiness.detail}
             </small>
           </div>
@@ -318,10 +314,12 @@ export function RouteControlDialog({
                     className={`${ROUTE_PROVIDER_READINESS_CLASS} ${ROUTE_PROVIDER_READINESS_TONE[summary.tone]}`}
                   >
                     {accounts.loading
-                      ? "Checking"
+                      ? "Loading"
                       : summary.ready
                         ? "Ready"
-                        : "Manual"}
+                        : summary.checked === false
+                          ? "Not checked"
+                          : "Manual"}
                   </i>
                 </button>
               );

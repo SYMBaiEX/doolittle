@@ -16,6 +16,7 @@ export interface RouteProviderOption {
 }
 
 export interface LinkedProviderStatus {
+  checked?: boolean;
   nativeReady?: boolean;
   fallbackReady?: boolean;
   reusable?: boolean;
@@ -29,14 +30,15 @@ export interface LinkedProviderAccountsLike {
 }
 
 export interface ProviderReadinessSummary {
+  checked?: boolean;
   detail: string;
   ready: boolean;
   tone: "bad" | "good" | "neutral" | "warn";
 }
 
 export interface LinkedProviderAccessSummary {
-  label: "CLI fallback" | "Ready" | "Setup needed";
-  mode: "fallback" | "native" | "unavailable";
+  label: "CLI fallback" | "Not checked" | "Ready" | "Setup needed";
+  mode: "fallback" | "native" | "unchecked" | "unavailable";
   tone: "neutral" | "warn";
   usable: boolean;
 }
@@ -125,6 +127,22 @@ export function providerReadiness(
   catalog?: RuntimeModelsResponse | null,
 ): ProviderReadinessSummary {
   const configured = catalog?.providers.find((entry) => entry.id === provider);
+  const status =
+    provider === "codex"
+      ? accounts?.codex
+      : provider === "claude-code"
+        ? accounts?.claudeCode
+        : provider === "elizacloud"
+          ? accounts?.elizaCloud
+          : undefined;
+  if (status?.checked === false && !configured?.ready) {
+    return {
+      checked: false,
+      ready: false,
+      tone: "neutral",
+      detail: "Check saved accounts under Providers & accounts in Settings.",
+    };
+  }
   if (configured) {
     return {
       ready: configured.ready,
@@ -155,15 +173,6 @@ export function providerReadiness(
       detail: "Manual API credentials or a custom base URL are required.",
     };
   }
-
-  const status =
-    provider === "codex"
-      ? accounts?.codex
-      : provider === "claude-code"
-        ? accounts?.claudeCode
-        : provider === "elizacloud"
-          ? accounts?.elizaCloud
-          : undefined;
 
   const ready = Boolean(
     status?.nativeReady || status?.fallbackReady || status?.reusable,
@@ -201,6 +210,14 @@ export function linkedProviderAccess(
       mode: "fallback",
       tone: "neutral",
       usable: true,
+    };
+  }
+  if (status?.checked === false) {
+    return {
+      label: "Not checked",
+      mode: "unchecked",
+      tone: "neutral",
+      usable: false,
     };
   }
   return {

@@ -5,6 +5,8 @@ import {
   type LinkedProviderName,
 } from "./account-auth";
 
+import { buildProviderStatus } from "./account-auth/account-auth-helpers";
+
 interface RuntimeProviderAccountService {
   status(): LinkedProviderAccountStatus;
   refreshRuntimeCredentials?(): Promise<unknown>;
@@ -58,22 +60,42 @@ function getRuntimeProviderAccountService(
   }
 }
 
+const observedAccounts = new WeakMap<
+  ProviderAccountRuntime,
+  LinkedProviderAccountsSnapshot
+>();
+
+const LINKED_PROVIDERS = Object.keys(
+  SERVICE_TYPE_BY_PROVIDER,
+) as LinkedProviderName[];
+
+/** Presentation-only read. Never call an SDK service or open a managed vault. */
 export function getRuntimeProviderAccountsSnapshot(
   runtime?: ProviderAccountRuntime | null,
 ): LinkedProviderAccountsSnapshot {
-  const snapshot = getBootstrapAccountsSnapshot();
-  for (const provider of Object.keys(
-    SERVICE_TYPE_BY_PROVIDER,
-  ) as LinkedProviderName[]) {
-    const runtimeStatus = getRuntimeAccountStatus(runtime, provider);
-    if (!runtimeStatus) continue;
+  return (
+    (runtime && observedAccounts.get(runtime)) ??
+    getBootstrapAccountsSnapshot(undefined, [])
+  );
+}
+
+export function probeRuntimeProviderAccounts(
+  runtime?: ProviderAccountRuntime | null,
+  providers: readonly LinkedProviderName[] = LINKED_PROVIDERS,
+): LinkedProviderAccountsSnapshot {
+  const snapshot = { ...getRuntimeProviderAccountsSnapshot(runtime) };
+  const probed = getBootstrapAccountsSnapshot(undefined, providers);
+  for (const provider of providers) {
     const key = SNAPSHOT_KEY_BY_PROVIDER[provider];
-    snapshot[key] = {
-      ...snapshot[key],
-      ...runtimeStatus,
+    // Project SDK status fields before the result crosses the HTTP boundary.
+    snapshot[key] = buildProviderStatus({
+      ...probed[key],
+      ...getRuntimeAccountStatus(runtime, provider),
       provider,
-    };
+      loginCommand: probed[key].loginCommand ?? "",
+    });
   }
+  if (runtime) observedAccounts.set(runtime, snapshot);
   return snapshot;
 }
 
@@ -81,8 +103,9 @@ export function getRuntimeProviderAccountStatus(
   runtime: ProviderAccountRuntime | null | undefined,
   provider: LinkedProviderName,
 ): LinkedProviderAccountStatus {
-  const snapshot = getRuntimeProviderAccountsSnapshot(runtime);
-  return snapshot[SNAPSHOT_KEY_BY_PROVIDER[provider]];
+  return probeRuntimeProviderAccounts(runtime, [provider])[
+    SNAPSHOT_KEY_BY_PROVIDER[provider]
+  ];
 }
 
 export async function refreshRuntimeProviderAccount(

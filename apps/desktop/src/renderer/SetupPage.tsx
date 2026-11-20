@@ -64,6 +64,7 @@ export function SetupPage({
     requestPolicy.primary ? "/runtime/account-pool" : null,
     [requestPolicy.primary],
   );
+  const inventory = accountPool.data?.inventory;
   const pooledEnabled = Object.values(accountPool.data?.providers ?? {})
     .flatMap((provider) => provider.accounts)
     .filter((account) => account.enabled).length;
@@ -167,13 +168,21 @@ export function SetupPage({
                 <span className="overflow-hidden text-ellipsis whitespace-nowrap text-[length:var(--text-meta)] text-[var(--muted)]">
                   Checking…
                 </span>
-              ) : accountPool.error ? (
+              ) : accountPool.error || inventory === "unavailable" ? (
                 <Badge tone="warn">Unavailable</Badge>
               ) : (
-                <Badge tone={pooledEnabled ? "good" : "neutral"}>
-                  {pooledEnabled
-                    ? `${pooledEnabled} enabled`
-                    : "Not configured"}
+                <Badge
+                  tone={
+                    inventory !== "unchecked" && pooledEnabled
+                      ? "good"
+                      : "neutral"
+                  }
+                >
+                  {inventory === "unchecked"
+                    ? "Not checked"
+                    : pooledEnabled
+                      ? `${pooledEnabled} enabled`
+                      : "None configured"}
                 </Badge>
               )}
               <Button
@@ -183,7 +192,7 @@ export function SetupPage({
                 type="button"
                 variant="ghost"
               >
-                Manage accounts
+                Manage provider accounts
               </Button>
             </div>
           </section>

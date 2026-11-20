@@ -1,63 +1,6 @@
 import { DEFAULT_MODEL_ROUTE } from "@doolittle/contracts";
-import type { LinkedProviderAccountsSnapshot } from "../../../runtime/native/account-auth/types";
 import type { EnvConfig } from "../../../types/index";
 import type { RuntimeSettingsSnapshot, SettingsSetter } from "./types";
-
-export interface PersistedProviderAvailability {
-  persistedHasOpenAi: boolean;
-  persistedHasAnthropic: boolean;
-  persistedHasElizaCloud: boolean;
-  persistedHasOllama: boolean;
-  persistedHasCodex: boolean;
-  persistedHasClaudeCode: boolean;
-}
-
-function linkedAccountIsUsable(account: {
-  nativeReady?: boolean;
-  reusable?: boolean;
-}): boolean {
-  // The persisted route is explicit user intent. Desktop environment flags
-  // gate automatic discovery, but must not erase a route whose linked account
-  // is already native-ready or reusable.
-  return Boolean(account.nativeReady || account.reusable);
-}
-
-export function resolvePersistedProviderAvailability(
-  config: EnvConfig,
-  currentSettings: RuntimeSettingsSnapshot,
-  linkedAccounts: LinkedProviderAccountsSnapshot,
-): PersistedProviderAvailability {
-  const persistedProvider = currentSettings.model.provider;
-  return {
-    persistedHasOpenAi:
-      persistedProvider === "openai" && Boolean(config.openAiApiKey?.trim()),
-    persistedHasAnthropic:
-      persistedProvider === "anthropic" &&
-      Boolean(config.anthropicApiKey?.trim()),
-    persistedHasElizaCloud:
-      persistedProvider === "elizacloud" &&
-      (Boolean(config.elizaCloudEnabled && config.elizaCloudApiKey?.trim()) ||
-        linkedAccountIsUsable(linkedAccounts.elizaCloud)),
-    persistedHasOllama:
-      persistedProvider === "ollama" &&
-      Boolean(
-        currentSettings.model.model.trim() ||
-          currentSettings.model.baseUrl.trim() ||
-          config.ollamaApiEndpoint?.trim(),
-      ),
-    persistedHasCodex:
-      persistedProvider === "codex" &&
-      linkedAccountIsUsable(linkedAccounts.codex),
-    persistedHasClaudeCode:
-      persistedProvider === "claude-code" &&
-      Boolean(
-        (config.useLinkedClaudeCodeAuth &&
-          linkedAccountIsUsable(linkedAccounts.claudeCode)) ||
-          (config.claudeCodeCliFallback &&
-            linkedAccounts.claudeCode.fallbackReady),
-      ),
-  };
-}
 
 export function cloudModelLooksStale(model: string): boolean {
   const normalized = model.trim().toLowerCase();

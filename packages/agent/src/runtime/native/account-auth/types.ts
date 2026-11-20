@@ -2,6 +2,8 @@ export type LinkedProviderName = "codex" | "claude-code" | "elizacloud";
 
 export interface LinkedProviderAccountStatus {
   provider: LinkedProviderName;
+  /** False when a passive request has no observed account check. */
+  checked?: boolean;
   available: boolean;
   reusable: boolean;
   nativeReady?: boolean;

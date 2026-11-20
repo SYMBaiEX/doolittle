@@ -10,7 +10,10 @@ import {
   getLinkedProviderSetupCommand,
   type LinkedProviderAccountsSnapshot,
 } from "../../../runtime/native/account-auth/index";
-import { getRuntimeProviderAccountsSnapshot } from "../../../runtime/native/provider-accounts";
+import {
+  getRuntimeProviderAccountsSnapshot,
+  probeRuntimeProviderAccounts,
+} from "../../../runtime/native/provider-accounts";
 import { getNativeOwnershipControlPlane } from "../../../runtime/native/service-bridge/ownership/index";
 
 type LinkedProvider = "elizacloud" | "codex" | "claude-code";
@@ -93,4 +96,8 @@ export function getAccountLoginDetails(
 
 export function getAccountsSnapshot(context: AppContext) {
   return getRuntimeProviderAccountsSnapshot(context.runtime);
+}
+
+export function probeAccounts(context: AppContext) {
+  return probeRuntimeProviderAccounts(context.runtime);
 }

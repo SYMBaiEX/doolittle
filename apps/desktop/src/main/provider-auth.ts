@@ -1,6 +1,5 @@
 import { homedir } from "node:os";
 import { delimiter, resolve } from "node:path";
-import { createRuntimeAccountStoragePolicy } from "@elizaos/auth/auth/account-storage";
 import type { FlowState, OAuthFlowHandle } from "@elizaos/auth/auth/oauth-flow";
 import type {
   ProviderAuthProvider,
@@ -57,30 +56,32 @@ let officialProviderAuthFlows:
   | undefined;
 
 function loadOfficialProviderAuthFlows(): Promise<ProviderAuthFlowDependencies> {
-  officialProviderAuthFlows ??= import("@elizaos/auth/auth/oauth-flow").then(
-    (module) => ({
+  officialProviderAuthFlows ??= Promise.all([
+    import("@elizaos/auth/auth/oauth-flow"),
+    import("@elizaos/auth/auth/account-storage"),
+  ]).then(([flows, { createRuntimeAccountStoragePolicy }]) => {
+    const storagePolicy = () => {
+      const root = process.env.ELIZA_STATE_DIR?.trim();
+      if (!root) throw new Error("Desktop account storage is not configured.");
+      return createRuntimeAccountStoragePolicy(root);
+    };
+    return {
       startCodex: (options) =>
-        module.startCodexOAuthFlow({
+        flows.startCodexOAuthFlow({
           ...options,
-          storagePolicy: desktopStoragePolicy(),
+          storagePolicy: storagePolicy(),
         }),
       startAnthropic: (options) =>
-        module.startAnthropicOAuthFlow({
+        flows.startAnthropicOAuthFlow({
           ...options,
-          storagePolicy: desktopStoragePolicy(),
+          storagePolicy: storagePolicy(),
         }),
-      subscribe: module.subscribeFlow,
-      cancel: module.cancelFlow,
-      submitCode: module.submitFlowCode,
-    }),
-  );
+      subscribe: flows.subscribeFlow,
+      cancel: flows.cancelFlow,
+      submitCode: flows.submitFlowCode,
+    };
+  });
   return officialProviderAuthFlows;
-}
-
-function desktopStoragePolicy() {
-  const root = process.env.ELIZA_STATE_DIR?.trim();
-  if (!root) throw new Error("Desktop account storage is not configured.");
-  return createRuntimeAccountStoragePolicy(root);
 }
 
 function executableName(name: string, platform: NodeJS.Platform): string {

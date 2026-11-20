@@ -8,6 +8,7 @@ import {
   type ApplicationServiceGraph,
   createApplicationServiceGraph,
 } from "../application/service-graph";
+import { deferDesktopDirectApiCredentials } from "../linked-provider-accounts/direct-api";
 import {
   applyAccountPoolApiCredentials,
   initializeDoolittleAccountPool,
@@ -99,7 +100,10 @@ export async function buildAppContext(
     initializeDoolittleAccountPool(config.dataDir);
     // The lead alone owns account selection, refresh, and the credential
     // catalog. Workers receive one approved provider grant from their host.
-    if (["openai", "anthropic"].includes(runtimeSettings.model.provider)) {
+    if (
+      !deferDesktopDirectApiCredentials() &&
+      ["openai", "anthropic"].includes(runtimeSettings.model.provider)
+    ) {
       await applyAccountPoolApiCredentials({
         activeBackend: runtimeSettings.model.provider,
       });

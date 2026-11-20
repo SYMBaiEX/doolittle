@@ -2,6 +2,7 @@ import { type ChatMessage, ModelType } from "@elizaos/core";
 import type { ModelAnalysisImage } from "../services/model-analysis-port";
 import type { AutomationRuntimeOverrides } from "../types/runtime/index";
 import { applyRuntimeOverrides } from "./chat-turn/overrides";
+import { prepareDesktopDirectApiCredentials } from "./linked-provider-accounts/direct-api";
 import {
   buildProviderRuntimeSettings,
   type ProviderRuntimeSettingsContext,
@@ -78,6 +79,11 @@ export async function runModelAnalysis(
   const settings = applyRuntimeOverrides(
     context.services.settings.get(),
     options.runtimeOverrides,
+  );
+  await prepareDesktopDirectApiCredentials(
+    context.runtime,
+    settings.model.provider,
+    options.abortSignal,
   );
   const cacheable = buildCacheablePrompt({
     // Browser/media callers supply their complete product prompt. Keeping it

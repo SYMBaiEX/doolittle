@@ -1,3 +1,4 @@
+import { Button } from "@doolittle/ui";
 import { type FormEvent, useMemo, useState } from "react";
 import type {
   RuntimeModelsResponse,
@@ -6,6 +7,10 @@ import type {
 } from "../shared/contracts";
 import { OfflineRouteState } from "./components/OfflineRouteState";
 import { ResourceStatusBar } from "./components/ResourceStatusBar";
+import {
+  type AccountsResponse,
+  accountProviders,
+} from "./connections/provider-accounts";
 import {
   type ActionFeedback,
   type ApiResource,
@@ -38,47 +43,19 @@ import {
 import { modelRequests } from "./resource-request-policy";
 import type { SettingsResponse } from "./settings/settings-types";
 
-interface AccountsResponse {
-  activeProvider?: string;
-  accounts?: Record<string, unknown>;
-  connect?: Record<string, unknown>;
-}
-
-const accountProviders = [
-  {
-    key: "elizacloud",
-    snapshot: "elizaCloud",
-    poolProvider: undefined,
-    label: "Eliza Cloud",
-    accountSignIn: false,
-  },
-  {
-    key: "codex",
-    snapshot: "codex",
-    poolProvider: "openai-codex",
-    label: "Codex",
-    accountSignIn: true,
-  },
-  {
-    key: "claude-code",
-    snapshot: "claudeCode",
-    poolProvider: "anthropic-subscription",
-    label: "Claude Code",
-    accountSignIn: true,
-  },
-] as const;
-
 export function ModelsPage({
   active,
   runtime,
   refreshRuntime,
   embedded = false,
+  onOpenProviders,
   settingsResource,
 }: {
   active: boolean;
   runtime: RuntimeStatus | null;
   refreshRuntime: () => void;
   embedded?: boolean;
+  onOpenProviders?: () => void;
   settingsResource?: ApiResource<SettingsResponse>;
 }) {
   const [readinessOpen, setReadinessOpen] = useState(false);
@@ -139,12 +116,16 @@ export function ModelsPage({
       ? (requestedEffort as RuntimeReasoningEffort)
       : (selectedModel?.reasoning?.default ?? reasoningOptions[0]?.id);
   })();
-  const usableProviderCount = accountProviders.filter(
-    (provider) =>
-      linkedProviderAccess(
-        asRecord(accounts.data?.accounts?.[provider.snapshot]),
-      ).usable,
+  const linkedAccounts = accountProviders.map((provider) => {
+    const status = asRecord(accounts.data?.accounts?.[provider.snapshot]);
+    return { provider, status, access: linkedProviderAccess(status) };
+  });
+  const usableProviderCount = linkedAccounts.filter(
+    ({ access }) => access.usable,
   ).length;
+  const hasUncheckedAccounts = linkedAccounts.some(
+    ({ access }) => access.mode === "unchecked",
+  );
   const registeredCapabilityCount = (models.data?.capabilities ?? []).filter(
     (capability) => capability.handlerRegistered,
   ).length;
@@ -499,12 +480,16 @@ export function ModelsPage({
                         readinessOpen
                           ? usableProviderCount
                             ? "good"
-                            : "warn"
+                            : hasUncheckedAccounts
+                              ? "neutral"
+                              : "warn"
                           : "neutral"
                       }
                     >
                       {readinessOpen
-                        ? `${usableProviderCount}/${accountProviders.length} usable`
+                        ? hasUncheckedAccounts && !usableProviderCount
+                          ? "Accounts unchecked"
+                          : `${usableProviderCount}/${linkedAccounts.length} usable`
                         : "Open to load"}
                     </Badge>
                   </summary>
@@ -519,39 +504,57 @@ export function ModelsPage({
                         />
                       ) : (
                         <div className="stack-list">
-                          {accountProviders.map((provider) => {
-                            const status = asRecord(
-                              accounts.data?.accounts?.[provider.snapshot],
-                            );
-                            const access = linkedProviderAccess(status);
-                            const selected =
-                              accounts.data?.activeProvider === provider.key;
-                            return (
-                              <div className="status-row" key={provider.key}>
-                                <div>
-                                  <strong>{provider.label}</strong>
-                                  <small>
-                                    {asString(status.detail, "Not configured")}
-                                  </small>
+                          {hasUncheckedAccounts && onOpenProviders ? (
+                            <Button
+                              onClick={onOpenProviders}
+                              size="sm"
+                              type="button"
+                              variant="secondary"
+                            >
+                              Manage provider accounts
+                            </Button>
+                          ) : null}
+                          {linkedAccounts.map(
+                            ({ access, provider, status }) => {
+                              const unchecked = access.mode === "unchecked";
+                              const selected =
+                                accounts.data?.activeProvider === provider.key;
+                              return (
+                                <div className="status-row" key={provider.key}>
+                                  <div>
+                                    <strong>{provider.label}</strong>
+                                    <small>
+                                      {unchecked
+                                        ? "Check saved accounts in Providers & accounts."
+                                        : asString(
+                                            status.detail,
+                                            "Not configured",
+                                          )}
+                                    </small>
+                                  </div>
+                                  <Badge
+                                    tone={
+                                      unchecked
+                                        ? "neutral"
+                                        : selected && access.usable
+                                          ? "good"
+                                          : access.tone
+                                    }
+                                  >
+                                    {unchecked
+                                      ? "Not checked"
+                                      : selected
+                                        ? access.mode === "fallback"
+                                          ? "Active · fallback"
+                                          : access.usable
+                                            ? "Active"
+                                            : "Selected · blocked"
+                                        : access.label}
+                                  </Badge>
                                 </div>
-                                <Badge
-                                  tone={
-                                    selected && access.usable
-                                      ? "good"
-                                      : access.tone
-                                  }
-                                >
-                                  {selected
-                                    ? access.mode === "fallback"
-                                      ? "Active · fallback"
-                                      : access.usable
-                                        ? "Active"
-                                        : "Selected · blocked"
-                                    : access.label}
-                                </Badge>
-                              </div>
-                            );
-                          })}
+                              );
+                            },
+                          )}
                         </div>
                       )}
                     </div>

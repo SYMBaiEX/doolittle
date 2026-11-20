@@ -1,4 +1,4 @@
-import { Button } from "@elizaos/ui/button";
+import { Button } from "@doolittle/ui";
 import { PagePanel } from "@elizaos/ui/components/composites/page-panel/index";
 import { useState } from "react";
 import type {
@@ -22,8 +22,9 @@ import { ProviderConnectionRow } from "./connections/ProviderConnectionRow";
 import { ProviderRouteSummary } from "./connections/ProviderRouteSummary";
 import {
   type AccountsResponse,
-  useConnectionsActions,
-} from "./connections/useConnectionsActions";
+  accountProviders,
+} from "./connections/provider-accounts";
+import { useConnectionsActions } from "./connections/useConnectionsActions";
 import {
   asRecord,
   asString,
@@ -41,33 +42,6 @@ export function connectionsResourcePolicy(active: boolean, poolOpen: boolean) {
     accountPool: active && poolOpen,
   };
 }
-
-const accountProviders = [
-  {
-    key: "elizacloud",
-    snapshot: "elizaCloud",
-    poolProvider: undefined,
-    label: "Eliza Cloud",
-    shortLabel: "EC",
-    accountSignIn: false,
-  },
-  {
-    key: "codex",
-    snapshot: "codex",
-    poolProvider: "openai-codex",
-    label: "Codex",
-    shortLabel: "CX",
-    accountSignIn: true,
-  },
-  {
-    key: "claude-code",
-    snapshot: "claudeCode",
-    poolProvider: "anthropic-subscription",
-    label: "Claude Code",
-    shortLabel: "CC",
-    accountSignIn: true,
-  },
-] as const;
 
 const directAccountProviders = [
   { provider: "openai-api", label: "OpenAI API", shortLabel: "OA" },
@@ -102,14 +76,19 @@ export function providerRouteLabel(
 export function providerSelectionLabel({
   configuredProvider,
   selectedProviderLabel,
+  selectedProviderChecked,
   selectedProviderReady,
 }: {
   configuredProvider?: string;
   selectedProviderLabel?: string;
+  selectedProviderChecked?: boolean;
   selectedProviderReady: boolean;
 }): string | undefined {
   if (selectedProviderLabel) {
-    return selectedProviderReady ? selectedProviderLabel : "Needs sign-in";
+    if (selectedProviderReady) return selectedProviderLabel;
+    return selectedProviderChecked === false
+      ? `${selectedProviderLabel} · unchecked`
+      : "Needs sign-in";
   }
   return providerRouteLabel(configuredProvider);
 }
@@ -131,6 +110,7 @@ export function ConnectionsPage({
     resourcePolicy.accounts ? "/runtime/accounts" : null,
     [resourcePolicy.accounts],
   );
+  const inventory = accountPool.data?.inventory;
   const displayedProviders = embedded
     ? [...accountProviders].sort(
         (left, right) =>
@@ -158,10 +138,38 @@ export function ConnectionsPage({
     updateAccount,
   } = useConnectionsActions({ accountPool, active, accounts: resource });
 
-  const refresh = () => {
-    if (!active) return;
-    void mutate("all", "refresh");
-  };
+  const checkingSaved = busy === "all:refresh";
+  const description =
+    "Check for existing provider sign-ins or connect a new account.";
+  const pendingSignIn = Object.values(authStates).some(
+    (state) => state.phase === "launching" || state.phase === "waiting",
+  );
+  const checkAction = active ? (
+    <Button
+      disabled={Boolean(busy) || pendingSignIn}
+      onClick={() => void mutate("all", "refresh")}
+      type="button"
+      variant="secondary"
+    >
+      {checkingSaved ? "Checking saved accounts…" : "Check saved accounts"}
+    </Button>
+  ) : null;
+  const header = embedded ? (
+    <header className="settings-section-header">
+      <div>
+        <h2>Provider accounts</h2>
+        <p>{description}</p>
+      </div>
+      {checkAction}
+    </header>
+  ) : (
+    <PageHeader
+      actions={checkAction}
+      description={description}
+      eyebrow="Agent"
+      title="Providers & accounts"
+    />
+  );
 
   if (!active) {
     return (
@@ -169,47 +177,9 @@ export function ConnectionsPage({
         className={embedded ? "settings-provider-section" : "page"}
         variant={embedded ? "section" : "workspace"}
       >
-        {embedded ? (
-          <header className="settings-section-header">
-            <div>
-              <span className="eyebrow">Accounts</span>
-              <h2>Provider sign in</h2>
-              <p>
-                Use your Codex or Claude subscription. Doolittle opens the
-                official account flow and keeps credentials outside the UI.
-              </p>
-            </div>
-            <Button
-              className="secondary-button"
-              disabled
-              onClick={refresh}
-              type="button"
-              variant="secondary"
-            >
-              Refresh all
-            </Button>
-          </header>
-        ) : (
-          <PageHeader
-            actions={
-              <Button
-                className="secondary-button"
-                disabled
-                onClick={refresh}
-                type="button"
-                variant="secondary"
-              >
-                Refresh all
-              </Button>
-            }
-            description="Use Codex or Claude subscriptions. Credentials stay outside the UI."
-            eyebrow="Agent"
-            title="Providers & accounts"
-          />
-        )}
+        {header}
         <OfflineRouteState>
-          Provider connections and account pools are unavailable until the local
-          runtime is ready.
+          Provider accounts are available when the local runtime is ready.
         </OfflineRouteState>
       </PagePanel>
     );
@@ -243,44 +213,16 @@ export function ConnectionsPage({
       className={embedded ? "settings-provider-section" : "page"}
       variant={embedded ? "section" : "workspace"}
     >
-      {embedded ? (
-        <header className="settings-section-header">
-          <div>
-            <span className="eyebrow">Accounts</span>
-            <h2>Provider sign in</h2>
-            <p>
-              Use your Codex or Claude subscription. Doolittle opens the
-              official account flow and keeps credentials outside the UI.
-            </p>
-          </div>
-          <Button
-            className="secondary-button"
-            disabled={!active || Boolean(busy)}
-            onClick={refresh}
-            type="button"
-            variant="secondary"
-          >
-            Refresh all
-          </Button>
-        </header>
-      ) : (
-        <PageHeader
-          eyebrow="Agent"
-          title="Providers & accounts"
-          description="Use Codex or Claude subscriptions. Credentials stay outside the UI."
-          actions={
-            <Button
-              className="secondary-button"
-              disabled={!active || Boolean(busy)}
-              onClick={refresh}
-              type="button"
-              variant="secondary"
-            >
-              Refresh all
-            </Button>
-          }
-        />
-      )}
+      {header}
+      {(!resource.data ||
+        inventory === "unchecked" ||
+        inventory === "unavailable" ||
+        providerViews.some((entry) => entry.status.checked === false)) &&
+      window.doolittle.platform === "darwin" ? (
+        <p className="m-0 text-sm text-[var(--muted)]">
+          Checking saved accounts may open a macOS Keychain prompt.
+        </p>
+      ) : null}
       {feedback ? (
         <Notice tone={feedback.tone}>{feedback.message}</Notice>
       ) : null}
@@ -310,7 +252,7 @@ export function ConnectionsPage({
         ) : null}
       </ResourceStatusBar>
       {resource.loading && !resource.data ? (
-        <LoadingBlock label="Checking the default chat provider…" />
+        <LoadingBlock label="Loading provider status…" />
       ) : resource.error && !resource.data ? (
         <ErrorBlock error={resource.error} retry={resource.reload} />
       ) : null}
@@ -331,6 +273,8 @@ export function ConnectionsPage({
                 activeProvider={providerSelectionLabel({
                   configuredProvider,
                   selectedProviderLabel: activeDefault?.provider.label,
+                  selectedProviderChecked:
+                    activeDefault?.status.checked === false ? false : undefined,
                   selectedProviderReady: Boolean(activeDefault?.ready),
                 })}
                 ready={readyProviderCount}
@@ -374,6 +318,14 @@ export function ConnectionsPage({
               <span>{poolOpen ? "Hide" : "Manage"}</span>
             </summary>
             <div className={PROVIDER_ROUTING_CONTENT_CLASS}>
+              {accountPool.data?.bridgeInstalled &&
+              (inventory === "unchecked" || inventory === "unavailable") ? (
+                <Notice tone={inventory === "unavailable" ? "warn" : "neutral"}>
+                  {inventory === "unavailable"
+                    ? "The saved account list could not be checked. Any previously shown accounts are still available here."
+                    : "Use Check saved accounts above to load the full account list."}
+                </Notice>
+              ) : null}
               {accountPool.error ? (
                 <ErrorBlock
                   error={accountPool.error}

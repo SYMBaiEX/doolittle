@@ -1,4 +1,3 @@
-import type { LinkedProviderAccountsSnapshot } from "../../../runtime/native/account-auth/types";
 import type { EnvConfig } from "../../../types/index";
 import { createElizaMcpSettingsFromCommand } from "../../mcp/settings";
 import { SettingsService } from "../../settings-service";
@@ -87,7 +86,6 @@ export function createServiceSettings(
 export function applyServiceSettingsBootstrap(
   config: EnvConfig,
   currentSettings: RuntimeSettingsSnapshot,
-  _linkedAccounts: LinkedProviderAccountsSnapshot,
   stableElizaCloudSmallModel: string,
   stableElizaCloudLargeModel: string,
   set: SettingsSetter,

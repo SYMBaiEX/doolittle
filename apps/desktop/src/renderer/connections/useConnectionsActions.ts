@@ -17,17 +17,15 @@ import {
 import {
   type ActionFeedback,
   type ApiResource,
+  apiResourceCacheKey,
   asString,
+  desktopQueryClient,
   desktopRequest,
   errorMessage,
   titleCase,
 } from "../lib";
 
-export interface AccountsResponse {
-  activeProvider?: string;
-  accounts?: Record<string, unknown>;
-  connect?: Record<string, unknown>;
-}
+import type { AccountsResponse } from "./provider-accounts";
 
 function accountPoolProviderFor(
   provider: ProviderAuthProvider,
@@ -214,16 +212,33 @@ export function useConnectionsActions({
         "POST",
         { provider },
       );
-      const detail =
-        asString(result.detail) ||
-        asString(result.advice) ||
-        `${titleCase(provider)} ${action} request completed.`;
-      setFeedback({ message: detail, tone: "good" });
-      accounts.reload();
-      accountPool.reload();
+      if (action === "refresh") {
+        setFeedback({
+          message: "Finished checking saved accounts.",
+          tone: "good",
+        });
+      } else {
+        setFeedback({
+          message:
+            asString(result.detail) ||
+            asString(result.advice) ||
+            `${titleCase(provider)} ${action} request completed.`,
+          tone: "good",
+        });
+        accounts.reload();
+        accountPool.reload();
+      }
     } catch (error) {
       setFeedback({ message: errorMessage(error), tone: "bad" });
     } finally {
+      if (action === "refresh") {
+        await Promise.allSettled([
+          accounts.reload(),
+          desktopQueryClient.invalidateQueries({
+            queryKey: [apiResourceCacheKey("/runtime/account-pool", [true])],
+          }),
+        ]);
+      }
       setBusy("");
     }
   };

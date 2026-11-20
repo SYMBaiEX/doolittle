@@ -1,12 +1,14 @@
 import type { AgentExecutionContext } from "../chat";
 import {
-  getLinkedProviderConnectAdvice,
+  buildLinkedProviderConnectAdvice,
+  type getLinkedProviderConnectAdvice,
   refreshLinkedClaudeCodeCredentials,
   refreshLinkedCodexCredentials,
   resolveLinkedProviderCredentials,
 } from "../native/account-auth/index";
 import {
-  getRuntimeProviderAccountsSnapshot,
+  type getRuntimeProviderAccountsSnapshot,
+  probeRuntimeProviderAccounts,
   refreshRuntimeProviderAccount,
 } from "../native/provider-accounts";
 import { activateLinkedProvider } from "./activation";
@@ -27,15 +29,14 @@ export async function connectLinkedProvider(
   const fallbackAllowed =
     provider === "claude-code" ? context.config.claudeCodeCliFallback : false;
 
-  await refreshLinkedAccounts(provider, context.runtime);
-  const accounts = getRuntimeProviderAccountsSnapshot(context.runtime);
-  const advice = getLinkedProviderConnectAdvice(provider);
+  const accounts = await refreshLinkedAccounts(provider, context.runtime);
   const status =
     provider === "codex"
       ? accounts.codex
       : provider === "claude-code"
         ? accounts.claudeCode
         : accounts.elizaCloud;
+  const advice = buildLinkedProviderConnectAdvice(provider, status);
   const nativeReady = status.nativeReady ?? status.reusable;
   const fallbackReady = status.fallbackReady ?? false;
   const canActivate =
@@ -74,11 +75,11 @@ export async function refreshLinkedAccounts(
           refreshProviderAccount(providerName, runtime).catch(() => undefined),
       ),
     );
-    return getRuntimeProviderAccountsSnapshot(runtime);
+    return probeRuntimeProviderAccounts(runtime);
   }
 
   await refreshProviderAccount(provider, runtime);
-  return getRuntimeProviderAccountsSnapshot(runtime);
+  return probeRuntimeProviderAccounts(runtime, [provider]);
 }
 
 async function refreshProviderAccount(

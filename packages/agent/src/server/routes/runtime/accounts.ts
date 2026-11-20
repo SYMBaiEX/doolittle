@@ -1,17 +1,20 @@
 import type { AppContext } from "../../../runtime/bootstrap/index";
 import { withLinkedProviderMutationLock } from "../../../runtime/linked-provider-accounts/index";
 import {
+  AccountPoolInventoryUnavailableError,
   applyAccountPoolApiCredentials,
   deleteDoolittleAccount,
   importCurrentDoolittleAccount,
   importDoolittleApiAccount,
   isAccountPoolProvider,
   isDoolittleDirectApiProvider,
+  markDoolittleAccountPoolInventoryUnavailable,
+  readDoolittleAccountPoolSnapshot,
   reconcileDoolittleAccountPoolCredentials,
+  refreshDoolittleAccountPoolInventory,
   refreshDoolittleAccountUsage,
   selectDoolittleAccount,
   setDoolittleAccountPoolStrategy,
-  synchronizeDoolittleAccountPoolFromNativeStores,
   testDoolittleAccountCredentials,
   updateDoolittleAccount,
 } from "../../../runtime/native/account-pool/index";
@@ -25,6 +28,7 @@ import {
   connectAccount,
   getAccountLoginDetails,
   getAccountsSnapshot,
+  probeAccounts,
   readLinkedProvider,
   refreshAccounts,
 } from "./shared";
@@ -57,7 +61,7 @@ export async function handleRuntimeAccountRoutes(
     /^\/runtime\/account-pool\/(openai-codex|anthropic-subscription|openai-api|anthropic-api)(?:\/([^/]+)(?:\/(test|refresh-usage))?)?$/,
   );
   if (request.method === "GET" && url.pathname === "/runtime/account-pool") {
-    return json(await synchronizeDoolittleAccountPoolFromNativeStores());
+    return json(readDoolittleAccountPoolSnapshot());
   }
 
   if (accountPoolRoute) {
@@ -270,7 +274,7 @@ export async function handleRuntimeAccountRoutes(
   }
 
   if (request.method === "GET" && url.pathname === "/accounts/doctor") {
-    const accounts = getAccountsSnapshot(context);
+    const accounts = probeAccounts(context);
     return json({
       accounts,
       connect: buildAccountConnectAdvice(accounts),
@@ -303,14 +307,33 @@ export async function handleRuntimeAccountRoutes(
           ? "openai-codex"
           : provider === "claude-code"
             ? "anthropic-subscription"
-            : provider === "all"
-              ? "all"
-              : undefined;
+            : undefined;
       if (poolProvider) {
         await reconcileDoolittleAccountPoolCredentials(poolProvider);
+      } else if (provider === "all") {
+        // Inventory is an explicit local vault read. Checking the directory
+        // must not re-test stored API keys or refresh their model usage.
+        refreshDoolittleAccountPoolInventory();
       }
       return json(accounts);
     } catch (error) {
+      const storageFailure =
+        error instanceof AccountPoolInventoryUnavailableError ||
+        (error instanceof Error &&
+          "code" in error &&
+          typeof error.code === "string" &&
+          error.code.startsWith("AUTH_CREDENTIAL_"));
+      if (storageFailure) {
+        markDoolittleAccountPoolInventoryUnavailable();
+        return json(
+          {
+            error:
+              "Saved accounts could not be read. Unlock credential storage and try Check accounts again.",
+            code: "account_inventory_unavailable",
+          },
+          503,
+        );
+      }
       return json(
         {
           error: error instanceof Error ? error.message : "refresh failed",

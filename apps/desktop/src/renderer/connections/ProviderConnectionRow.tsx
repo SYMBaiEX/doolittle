@@ -1,5 +1,4 @@
-import { type ContextAction, ContextActionMenu } from "@doolittle/ui";
-import { Button } from "@elizaos/ui/button";
+import { Button, type ContextAction, ContextActionMenu } from "@doolittle/ui";
 import { MoreHorizontal } from "lucide-react";
 import type {
   ProviderAuthProvider,
@@ -58,6 +57,7 @@ export function ProviderConnectionRow({
     authState?.phase === "launching" || authState?.phase === "waiting";
   const nativeReady = Boolean(status.nativeReady) || Boolean(status.reusable);
   const fallbackReady = Boolean(status.fallbackReady) && !nativeReady;
+  const unchecked = status.checked === false && !ready;
   const needsCodeSubmission =
     Boolean(authState?.needsCodeSubmission) && !authState?.codeSubmitted;
   const stateLabel = signingIn
@@ -68,22 +68,28 @@ export function ProviderConnectionRow({
         : "Ready"
       : fallbackReady
         ? "CLI fallback"
-        : "Needs sign-in";
+        : unchecked
+          ? "Not checked"
+          : "Needs sign-in";
   const runtimeLabel = nativeReady
     ? "Native"
     : fallbackReady
       ? "CLI fallback"
-      : "Offline";
+      : unchecked
+        ? ""
+        : "Offline";
   const detail = signingIn
     ? authState?.message || `Waiting for ${descriptor.label} sign-in…`
     : fallbackReady
       ? "CLI fallback is available; subscription sign-in needs attention."
-      : asString(
-          status.detail,
-          authProvider
-            ? `Use your ${descriptor.label} subscription; API keys remain optional.`
-            : "No account details available.",
-        );
+      : unchecked
+        ? "Check saved accounts to find an existing sign-in."
+        : asString(
+            status.detail,
+            authProvider
+              ? `Use your ${descriptor.label} subscription; API keys remain optional.`
+              : "No account details available.",
+          );
   const facts = [
     { label: "Runtime", value: runtimeLabel },
     { label: "Account", value: asString(status.accountLabel) },
@@ -137,7 +143,12 @@ export function ProviderConnectionRow({
             onClick: () => onCancelSignIn(authProvider),
           }
         : null;
-  const badgeTone = nativeReady ? (isDefault ? "good" : "neutral") : "warn";
+  const badgeTone =
+    signingIn || unchecked || (nativeReady && !isDefault)
+      ? "neutral"
+      : nativeReady
+        ? "good"
+        : "warn";
   const statusClass = signingIn
     ? "is-pending [&>span]:animate-pulse [&>span]:bg-[var(--accent)] motion-reduce:[&>span]:animate-none"
     : fallbackReady
@@ -196,7 +207,9 @@ export function ProviderConnectionRow({
                   ? "fallback"
                   : ready
                     ? "ready"
-                    : "offline"
+                    : unchecked
+                      ? "unchecked"
+                      : "offline"
             }
             aria-live="polite"
           >

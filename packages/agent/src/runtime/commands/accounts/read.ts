@@ -6,8 +6,8 @@ import {
   formatLinkedProviderAdviceNextStep,
   refreshLinkedAccounts,
 } from "../../linked-provider-accounts/index";
-import { getLinkedProviderConnectAdvice } from "../../native/account-auth/index";
-import { getRuntimeProviderAccountsSnapshot } from "../../native/provider-accounts";
+import { buildLinkedProviderConnectAdvice } from "../../native/account-auth/index";
+import { probeRuntimeProviderAccounts } from "../../native/provider-accounts";
 import type { AccountsCommandContext } from "./types";
 
 export async function handleAccountsReadCommand(
@@ -21,15 +21,24 @@ export async function handleAccountsReadCommand(
   ) {
     return formatAccountsOverview(
       context.services.settings.get().model.provider,
-      getRuntimeProviderAccountsSnapshot(context.runtime),
+      probeRuntimeProviderAccounts(context.runtime),
     );
   }
 
   if (trimmed === "/accounts doctor") {
-    const accounts = getRuntimeProviderAccountsSnapshot(context.runtime);
-    const elizaCloudAdvice = getLinkedProviderConnectAdvice("elizacloud");
-    const codexAdvice = getLinkedProviderConnectAdvice("codex");
-    const claudeAdvice = getLinkedProviderConnectAdvice("claude-code");
+    const accounts = probeRuntimeProviderAccounts(context.runtime);
+    const elizaCloudAdvice = buildLinkedProviderConnectAdvice(
+      "elizacloud",
+      accounts.elizaCloud,
+    );
+    const codexAdvice = buildLinkedProviderConnectAdvice(
+      "codex",
+      accounts.codex,
+    );
+    const claudeAdvice = buildLinkedProviderConnectAdvice(
+      "claude-code",
+      accounts.claudeCode,
+    );
     const cloudDoctor = await describeElizaCloudDoctorState(context);
     return [
       "Managed cloud",

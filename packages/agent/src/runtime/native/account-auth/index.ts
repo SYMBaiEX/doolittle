@@ -153,13 +153,15 @@ export function getLinkedProviderAccountsSnapshot(
   const selected = providers ? new Set(providers) : undefined;
   const shouldProbe = (provider: LinkedProviderName) =>
     selected === undefined || selected.has(provider);
-  const unprobed = (provider: LinkedProviderName) =>
-    buildUnavailableProviderStatus({
+  const unprobed = (provider: LinkedProviderName) => ({
+    ...buildUnavailableProviderStatus({
       provider,
       loginCommand: getLinkedProviderLoginCommand(provider),
       setupCommand: getLinkedProviderSetupCommand(provider),
       detail: "Provider account not probed during startup.",
-    });
+    }),
+    checked: false,
+  });
 
   return {
     codex: shouldProbe("codex")

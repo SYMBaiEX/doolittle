@@ -8,6 +8,9 @@ export type TokenResolver = (
   provider: "openai-api" | "anthropic-api" | "openai-codex",
   accountId: string,
 ) => Promise<string | null>;
+export type SubscriptionStatusReader = () =>
+  | SubscriptionAccountStatus[]
+  | Promise<SubscriptionAccountStatus[]>;
 
 export type ProviderGrant =
   | { kind: "offline" }
@@ -36,11 +39,11 @@ export function codexAccountId(accessToken: string): string {
   throw new Error("The selected Codex account is unavailable.");
 }
 
-export function assertClaudeSubscriptionAvailable(
+export async function assertClaudeSubscriptionAvailable(
   accountId: string,
-  subscriptionStatus: () => SubscriptionAccountStatus[],
-): void {
-  const status = subscriptionStatus().find(
+  subscriptionStatus: SubscriptionStatusReader,
+): Promise<void> {
+  const status = (await subscriptionStatus()).find(
     (row) =>
       row.provider === "anthropic-subscription" &&
       row.accountId === accountId &&
@@ -56,7 +59,7 @@ export function assertClaudeSubscriptionAvailable(
 export async function resolveBotProviderGrant(
   definition: BotDefinition,
   tokenResolver: TokenResolver,
-  subscriptionStatus: () => SubscriptionAccountStatus[],
+  subscriptionStatus: SubscriptionStatusReader,
 ): Promise<ProviderGrant> {
   const provider = definition.model.provider;
   if (provider === "offline") return { kind: "offline" };
@@ -89,7 +92,10 @@ export async function resolveBotProviderGrant(
     );
   }
   if (expectedProvider === "anthropic-subscription") {
-    assertClaudeSubscriptionAvailable(matches[0].accountId, subscriptionStatus);
+    await assertClaudeSubscriptionAvailable(
+      matches[0].accountId,
+      subscriptionStatus,
+    );
     return {
       kind: "native",
       provider: expectedProvider,
