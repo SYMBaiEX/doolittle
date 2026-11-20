@@ -1,11 +1,7 @@
 import { SettingsFrame, SettingsTabs } from "@doolittle/ui";
 import { BUILT_IN_THEMES } from "@doolittle/ui/themes";
 import { Suspense, useEffect, useId, useMemo, useRef, useState } from "react";
-import type {
-  DesktopLifecycleState,
-  DesktopUpdateState,
-  RuntimeStatus,
-} from "../shared/contracts";
+import type { RuntimeStatus } from "../shared/contracts";
 import { OfflineRouteState } from "./components/OfflineRouteState";
 import {
   APPEARANCE_APPLIED_EVENT,
@@ -74,6 +70,7 @@ import {
   settingsTabsForCategory,
 } from "./settings/settings-sections";
 import type { SettingsResponse } from "./settings/settings-types";
+import { useDesktopPreferences } from "./settings/use-desktop-preferences";
 
 interface ThemeResponse {
   active?: string;
@@ -175,18 +172,7 @@ export function SettingsPage({
     loadStoredDesktopTheme,
   );
   const [themeMigrationError] = useState(getThemeMigrationError);
-  const [lifecycle, setLifecycle] = useState<DesktopLifecycleState | null>(
-    null,
-  );
-  const [update, setUpdate] = useState<DesktopUpdateState | null>(null);
-  const [updateBusy, setUpdateBusy] = useState(false);
-  const updateInFlightRef = useRef(false);
-  const [lifecycleBusy, setLifecycleBusy] = useState(false);
-  const lifecycleInFlightRef = useRef(false);
-  const lifecycleWriteRevision = useRef(0);
-  const [lifecycleError, setLifecycleError] = useState("");
-  const [desktopReadRevision, setDesktopReadRevision] = useState(0);
-  const installInFlightRef = useRef(false);
+  const desktopPreferences = useDesktopPreferences(resourcePolicy.desktop);
   useEffect(() => {
     const syncAppliedAppearance = () =>
       setAppearance(loadAppearancePreference());
@@ -212,55 +198,6 @@ export function SettingsPage({
     const content = panelRef.current?.parentElement;
     if (content) content.scrollTop = 0;
   }, [category]);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: explicit retry revision reloads host-owned state.
-  useEffect(() => {
-    if (!resourcePolicy.desktop) return;
-    let disposed = false;
-    const readRevision = lifecycleWriteRevision.current;
-    const canApplyLifecycle = () =>
-      !disposed &&
-      !lifecycleInFlightRef.current &&
-      readRevision === lifecycleWriteRevision.current;
-    void window.doolittle
-      .getLifecycleState()
-      .then((state) => {
-        if (!canApplyLifecycle()) return;
-        setLifecycle(state);
-        setLifecycleError("");
-      })
-      .catch(() => {
-        if (canApplyLifecycle())
-          setLifecycleError(
-            "Desktop behavior could not be loaded. Retry to manage background work.",
-          );
-      });
-    let observedUpdate = false;
-    void window.doolittle
-      .getUpdateState()
-      .then((state) => !disposed && !observedUpdate && setUpdate(state))
-      .catch(() => {
-        if (!disposed && !observedUpdate)
-          setUpdate({
-            phase: "error",
-            message:
-              "Update status could not be loaded. Check for updates to retry.",
-          });
-      });
-    const unsubscribe = window.doolittle.onUpdateState((state) => {
-      if (disposed) return;
-      observedUpdate = true;
-      if (state.phase === "error" && installInFlightRef.current) {
-        installInFlightRef.current = false;
-        setUpdateBusy(false);
-        setPreferenceFeedback({ kind: "error", message: state.message });
-      }
-      setUpdate(state);
-    });
-    return () => {
-      disposed = true;
-      unsubscribe();
-    };
-  }, [resourcePolicy.desktop, desktopReadRevision]);
   useEffect(() => {
     if (["imported", "builtin"].includes(loadDesktopThemeSource() ?? ""))
       return;
@@ -419,70 +356,6 @@ export function SettingsPage({
   const reloadSettings = () => {
     if (active) settings.reload();
   };
-  const updateLifecycleBackground = (enabled: boolean) => {
-    if (lifecycleInFlightRef.current) return;
-    lifecycleInFlightRef.current = true;
-    lifecycleWriteRevision.current += 1;
-    setLifecycleBusy(true);
-    setLifecycleError("");
-    void window.doolittle
-      .setKeepRunningInBackground(enabled)
-      .then(setLifecycle)
-      .catch(() => {
-        setLifecycle(null);
-        setLifecycleError(
-          "Background behavior could not be confirmed. Retry desktop state before changing it again.",
-        );
-      })
-      .finally(() => {
-        lifecycleInFlightRef.current = false;
-        setLifecycleBusy(false);
-      });
-  };
-  const checkForUpdates = () => {
-    if (updateInFlightRef.current || installInFlightRef.current) return;
-    updateInFlightRef.current = true;
-    setUpdateBusy(true);
-    void window.doolittle
-      .checkForUpdates()
-      .then(setUpdate)
-      .catch((error) =>
-        setUpdate({ phase: "error", message: errorMessage(error) }),
-      )
-      .finally(() => {
-        updateInFlightRef.current = false;
-        setUpdateBusy(false);
-      });
-  };
-  const downloadUpdate = () => {
-    if (updateInFlightRef.current || installInFlightRef.current) return;
-    updateInFlightRef.current = true;
-    setUpdateBusy(true);
-    void window.doolittle
-      .downloadUpdate()
-      .then(setUpdate)
-      .catch((error) =>
-        setUpdate({ phase: "error", message: errorMessage(error) }),
-      )
-      .finally(() => {
-        updateInFlightRef.current = false;
-        setUpdateBusy(false);
-      });
-  };
-  const installUpdate = () => {
-    if (installInFlightRef.current || updateInFlightRef.current) return;
-    installInFlightRef.current = true;
-    setUpdateBusy(true);
-    setPreferenceFeedback({
-      kind: "status",
-      message: "Installing update and restarting Doolittle…",
-    });
-    void window.doolittle.installUpdate().catch((error) => {
-      setPreferenceFeedback({ kind: "error", message: errorMessage(error) });
-      installInFlightRef.current = false;
-      setUpdateBusy(false);
-    });
-  };
   const runtimeCategoryOffline = settingsCategoryOffline(category, active);
   const EmbeddedPanel =
     !runtimeCategoryOffline && isEmbeddedSettingsFeature(category)
@@ -610,21 +483,7 @@ export function SettingsPage({
           </Suspense>
         ) : null}
         {showPreferences ? (
-          <DesktopSettingsPanel
-            lifecycle={lifecycle}
-            lifecycleBusy={lifecycleBusy}
-            lifecycleError={lifecycleError}
-            onLifecycleRetry={() => {
-              setLifecycleError("");
-              setDesktopReadRevision((revision) => revision + 1);
-            }}
-            onBackgroundChange={updateLifecycleBackground}
-            onCheckUpdates={checkForUpdates}
-            onDownloadUpdate={downloadUpdate}
-            onInstallUpdate={installUpdate}
-            update={update}
-            updateBusy={updateBusy}
-          />
+          <DesktopSettingsPanel {...desktopPreferences} />
         ) : null}
         {resourcePolicy.settings && !settings.loading && !settings.error ? (
           <section className={SETTINGS_GROUP_CLASS}>
