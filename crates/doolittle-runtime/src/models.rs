@@ -114,6 +114,8 @@ pub struct RunReceipt {
     pub active_action: Option<String>,
     pub pending_approvals: usize,
     pub local_mutations: Vec<Value>,
+    #[serde(default)]
+    pub wallet_activities: Vec<Value>,
     pub started_at: String,
     pub updated_at: String,
     pub ended_at: Option<String>,

@@ -1,4 +1,6 @@
-use doolittle_runtime::{RunStatus, RuntimeClient, RuntimeError, WorkspaceSaveOutcome};
+use doolittle_runtime::{
+    ControlMethod, RunStatus, RuntimeClient, RuntimeError, WorkspaceSaveOutcome,
+};
 use serde_json::{Value, json};
 use std::{
     io::{BufRead, BufReader, Read, Write},
@@ -148,6 +150,108 @@ fn does_not_return_messages_from_a_different_conversation() {
         client.messages("mine", 20, 0),
         Err(RuntimeError::ResponseMismatch)
     ));
+    server.join().unwrap();
+}
+
+#[test]
+fn controls_keep_query_and_method_and_never_follow_redirects() {
+    let (client, server) = serve(2, |request| match request.target.as_str() {
+        "/activity?query=cli+setup&limit=30" => {
+            assert_eq!(request.method, "GET");
+            assert!(request.body.is_empty());
+            Reply::json(200, json!({"events": []}))
+        }
+        "/cron/jobs/fixture" => {
+            assert_eq!(request.method, "PATCH");
+            assert_eq!(request.header("content-type"), Some("application/json"));
+            assert_eq!(
+                serde_json::from_slice::<Value>(&request.body).unwrap(),
+                json!({"name": "fixture"})
+            );
+            let mut response = Reply::json(307, json!({"error": "moved"}));
+            response.headers.push((
+                "location".into(),
+                "https://example.invalid/untrusted".into(),
+            ));
+            response
+        }
+        _ => panic!("Unexpected native operation"),
+    });
+    for path in [
+        "//example.invalid/settings",
+        "/../settings",
+        "/%2e%2e/settings",
+    ] {
+        assert!(matches!(
+            client.control(ControlMethod::Get, path, None),
+            Err(RuntimeError::InvalidInput(_))
+        ));
+    }
+    assert_eq!(
+        client
+            .control(
+                ControlMethod::Get,
+                "/activity?query=cli+setup&limit=30",
+                None
+            )
+            .unwrap(),
+        json!({"events": []})
+    );
+    assert!(matches!(
+        client.control(
+            ControlMethod::Patch,
+            "/cron/jobs/fixture",
+            Some(&json!({"name":"fixture"}))
+        ),
+        Err(RuntimeError::Http { status: 307, .. })
+    ));
+    server.join().unwrap();
+}
+
+#[test]
+fn managed_attachment_is_imported_then_sent_with_its_exact_identity() {
+    let id = "fcff54b2-1701-49dc-8f1a-7907e4d11274";
+    let (client, server) = serve(2, move |request| {
+        let body: Value = serde_json::from_slice(&request.body).unwrap();
+        if request.target == "/media/attachments/import" {
+            assert_eq!(
+                body,
+                json!({"paths": [std::env::temp_dir().join("notes.txt")]})
+            );
+            Reply::json(
+                200,
+                json!({"attachments": [{"id":id,"name":"notes.txt","kind":"document","mimeType":"text/plain","sizeBytes":7}]}),
+            )
+        } else {
+            assert_eq!(request.target, "/chat/runs");
+            assert_eq!(
+                request.header("x-doolittle-origin-conversation"),
+                Some("fixture-session")
+            );
+            assert_eq!(body["attachmentIds"], json!([id]));
+            Reply::json(
+                202,
+                json!({"run_id":"fixture-run","bot_id":"lead","response_id":"fixture-response","room_id":"fixture-session","events_url":"/chat/runs/fixture-run/events"}),
+            )
+        }
+    });
+    let files = client
+        .import_attachments(&[std::env::temp_dir().join("notes.txt")])
+        .unwrap();
+    assert_eq!(files[0].name, "notes.txt");
+    let ids = [files[0].id.clone()];
+    assert_eq!(
+        client
+            .start_chat_with_attachments(
+                "fixture-session",
+                "Summarize the exact selection",
+                "fixture-run",
+                &ids
+            )
+            .unwrap()
+            .run_id,
+        "fixture-run"
+    );
     server.join().unwrap();
 }
 

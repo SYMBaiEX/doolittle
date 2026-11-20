@@ -5,7 +5,7 @@ use std::{
     fs::{DirBuilder, File},
     io::{BufRead, BufReader, Read},
     path::{Path, PathBuf},
-    process::{Child, ChildStdin, Command, Stdio},
+    process::{Child, ChildStdin, Command, ExitStatus, Stdio},
     sync::mpsc::{self, RecvTimeoutError, SyncSender},
     thread,
     time::{Duration, Instant},
@@ -30,6 +30,13 @@ pub struct SidecarConfig {
     node: PathBuf,
     offline: bool,
     allow_workspace_saves: bool,
+    allow_controls: bool,
+}
+
+pub enum RuntimeService {
+    Acp,
+    Api,
+    Gateway,
 }
 
 impl SidecarConfig {
@@ -84,6 +91,7 @@ impl SidecarConfig {
             node,
             offline,
             allow_workspace_saves: false,
+            allow_controls: false,
         })
     }
 
@@ -92,8 +100,119 @@ impl SidecarConfig {
         self
     }
 
+    pub fn with_controls(mut self) -> Self {
+        self.allow_controls = true;
+        self
+    }
+
     pub fn profile(&self) -> &Path {
         &self.profile
+    }
+
+    fn leases(&self) -> Result<(File, WorkspaceLock)> {
+        let profile = File::options()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(false)
+            .open(self.profile.join("native-runtime.lock"))
+            .context("Could not open the native profile lock")?;
+        profile
+            .try_lock()
+            .context("The native profile is already open or cannot be locked")?;
+        let workspace = WorkspaceLock::acquire(
+            &native_data_root()?.join("workspace-locks"),
+            &self.workspace,
+        )?;
+        Ok((profile, workspace))
+    }
+
+    pub fn serve(&self, mode: RuntimeService) -> Result<ExitStatus> {
+        let (profile, workspace) = self.leases()?;
+        let (entry, subcommand) = match mode {
+            RuntimeService::Acp => {
+                let bundled = self.runtime_root.join("doolittle-acp.mjs");
+                if bundled.is_file() {
+                    (bundled, None)
+                } else {
+                    (
+                        runtime_entry(&self.runtime_root)
+                            .context("The built ElizaOS runtime is missing")?,
+                        Some("acp"),
+                    )
+                }
+            }
+            RuntimeService::Api | RuntimeService::Gateway => {
+                let token = env::var("ELIZA_API_TOKEN")
+                    .context("Set ELIZA_API_TOKEN before starting this service")?;
+                ensure!(
+                    (32..=4096).contains(&token.len())
+                        && token.bytes().all(|byte| byte.is_ascii_graphic()),
+                    "ELIZA_API_TOKEN must be a printable token of at least 32 bytes"
+                );
+                let subcommand = if matches!(mode, RuntimeService::Api) {
+                    "api"
+                } else {
+                    "gateway"
+                };
+                (
+                    runtime_entry(&self.runtime_root)
+                        .context("The built ElizaOS runtime is missing")?,
+                    Some(subcommand),
+                )
+            }
+        };
+        let mut command = self.command(&entry);
+        if let Some(subcommand) = subcommand {
+            command.arg(subcommand);
+        }
+        command.env("ELIZA_API_BIND", "127.0.0.1");
+        #[cfg(unix)]
+        workspace.keep_in_child(&mut command, &profile);
+        let result = command
+            .status()
+            .context("Could not start the ElizaOS service");
+        drop((profile, workspace));
+        result
+    }
+
+    fn command(&self, entry: &Path) -> Command {
+        let mut command = Command::new(&self.node);
+        command
+            .arg(entry)
+            .current_dir(&self.runtime_root)
+            .env("DOOLITTLE_REPO_ROOT", &self.runtime_root)
+            .env("DOOLITTLE_WORKSPACE_DIR", &self.workspace)
+            .env("DOOLITTLE_DATA_DIR", &self.profile)
+            .env("DOOLITTLE_GATEWAY_DATA_DIR", self.profile.join("gateway"))
+            .env("DOOLITTLE_HOOKS_DIR", self.profile.join("hooks"))
+            .env("DOOLITTLE_SKILLS_DIR", self.profile.join("skills"))
+            .env(
+                "ELIZAOS_BUNDLED_SKILLS_DIR",
+                self.runtime_root.join("packages/skills"),
+            )
+            .env("PGLITE_DATA_DIR", self.profile.join("pglite"))
+            .env("ELIZA_HOME", &self.profile)
+            .env("ELIZA_STATE_DIR", &self.profile)
+            .env(
+                "DOOLITTLE_OFFLINE_BOOTSTRAP",
+                if self.offline { "true" } else { "false" },
+            )
+            .env("DATABASE_URL", "")
+            .env("POSTGRES_URL", "");
+        for variable in [
+            "NODE_OPTIONS",
+            "NODE_PATH",
+            "DOOLITTLE_DESKTOP_RUNTIME",
+            "DOOLITTLE_DESKTOP_CONTROL_TOKEN",
+            "DOOLITTLE_SHARED_ENGINE",
+            "DOOLITTLE_ENGINE_WORKER_ENTRY",
+            "DOOLITTLE_BOT_RUNTIME",
+            "DOOLITTLE_HOST_BOT_ID",
+        ] {
+            command.env_remove(variable);
+        }
+        command
     }
 }
 
@@ -186,20 +305,7 @@ pub struct RuntimeSidecar {
 
 impl RuntimeSidecar {
     pub fn launch(config: &SidecarConfig) -> Result<Self> {
-        let profile_lock = File::options()
-            .read(true)
-            .write(true)
-            .create(true)
-            .truncate(false)
-            .open(config.profile.join("native-runtime.lock"))
-            .context("Could not open the native profile lock")?;
-        profile_lock
-            .try_lock()
-            .context("The native profile is already open or cannot be locked")?;
-        let workspace_lock = WorkspaceLock::acquire(
-            &native_data_root()?.join("workspace-locks"),
-            &config.workspace,
-        )?;
+        let (profile_lock, workspace_lock) = config.leases()?;
 
         let entry =
             runtime_entry(&config.runtime_root).context("The built ElizaOS runtime is missing")?;
@@ -211,13 +317,14 @@ impl RuntimeSidecar {
             .map(|byte| format!("{byte:02x}"))
             .collect::<String>();
 
-        let mut command = Command::new(&config.node);
+        let mut command = config.command(&entry);
         command
-            .arg(entry)
             .arg("native-api")
-            .current_dir(&config.runtime_root)
-            .env("DOOLITTLE_REPO_ROOT", &config.runtime_root)
             .env("DOOLITTLE_MODE", "api")
+            .env(
+                "DOOLITTLE_NATIVE_CONTROL_PLANE",
+                if config.allow_controls { "1" } else { "0" },
+            )
             .env(
                 "DOOLITTLE_NATIVE_WORKSPACE_SAVE",
                 if config.allow_workspace_saves {
@@ -226,43 +333,12 @@ impl RuntimeSidecar {
                     "0"
                 },
             )
-            .env("DOOLITTLE_WORKSPACE_DIR", &config.workspace)
-            .env("DOOLITTLE_DATA_DIR", &config.profile)
-            .env("DOOLITTLE_GATEWAY_DATA_DIR", config.profile.join("gateway"))
-            .env("DOOLITTLE_HOOKS_DIR", config.profile.join("hooks"))
-            .env("DOOLITTLE_SKILLS_DIR", config.profile.join("skills"))
-            .env(
-                "ELIZAOS_BUNDLED_SKILLS_DIR",
-                config.runtime_root.join("packages/skills"),
-            )
-            .env("PGLITE_DATA_DIR", config.profile.join("pglite"))
-            .env("ELIZA_HOME", &config.profile)
-            .env("ELIZA_STATE_DIR", &config.profile)
             .env("ELIZA_API_BIND", "127.0.0.1")
             .env("ELIZA_API_PORT", "0")
             .env("ELIZA_API_TOKEN", &token)
-            .env(
-                "DOOLITTLE_OFFLINE_BOOTSTRAP",
-                if config.offline { "true" } else { "false" },
-            )
-            .env("DATABASE_URL", "")
-            .env("POSTGRES_URL", "")
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::null());
-
-        for variable in [
-            "NODE_OPTIONS",
-            "NODE_PATH",
-            "DOOLITTLE_DESKTOP_RUNTIME",
-            "DOOLITTLE_DESKTOP_CONTROL_TOKEN",
-            "DOOLITTLE_SHARED_ENGINE",
-            "DOOLITTLE_ENGINE_WORKER_ENTRY",
-            "DOOLITTLE_BOT_RUNTIME",
-            "DOOLITTLE_HOST_BOT_ID",
-        ] {
-            command.env_remove(variable);
-        }
 
         #[cfg(unix)]
         {

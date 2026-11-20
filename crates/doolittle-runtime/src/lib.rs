@@ -27,10 +27,20 @@ const MAX_ERROR_BYTES: u64 = 16 * 1024;
 const MAX_MESSAGE_BYTES: usize = 256 * 1024;
 const MAX_WORKSPACE_FILE_BYTES: usize = 1_000_000;
 const MAX_WORKSPACE_SAVE_REQUEST_BYTES: usize = 8 * 1024 * 1024;
+const MAX_CONTROL_BODY_BYTES: usize = 1024 * 1024;
 const MAX_EVENT_ID: u64 = (1 << 53) - 1;
 const CONVERSATION_HEADER: &str = "x-doolittle-origin-conversation";
 
 pub type Result<T> = std::result::Result<T, RuntimeError>;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ControlMethod {
+    Get,
+    Post,
+    Patch,
+    Put,
+    Delete,
+}
 
 #[derive(Debug, Error)]
 pub enum RuntimeError {
@@ -132,6 +142,40 @@ impl RuntimeClient {
         )
     }
 
+    /// Use a native control route on the authenticated sidecar. The sidecar
+    /// owns the method/path allowlist and all operator permissions.
+    pub fn control(
+        &self,
+        method: ControlMethod,
+        path: &str,
+        body: Option<&Value>,
+    ) -> Result<Value> {
+        let method = match method {
+            ControlMethod::Get => Method::GET,
+            ControlMethod::Post => Method::POST,
+            ControlMethod::Patch => Method::PATCH,
+            ControlMethod::Put => Method::PUT,
+            ControlMethod::Delete => Method::DELETE,
+        };
+        if method == Method::GET && body.is_some() {
+            return Err(RuntimeError::InvalidInput("control request body"));
+        }
+        let mut request = self.request(method, path, None)?;
+        if let Some(body) = body {
+            let body = serde_json::to_vec(body)
+                .map_err(|_| RuntimeError::InvalidInput("control request body"))?;
+            if body.len() > MAX_CONTROL_BODY_BYTES {
+                return Err(RuntimeError::InvalidInput("control request body size"));
+            }
+            request = request.header(CONTENT_TYPE, "application/json").body(body);
+        }
+        let response = checked_response(request.send().map_err(transport)?)?;
+        if response.status() == reqwest::StatusCode::NO_CONTENT {
+            return Ok(Value::Null);
+        }
+        decode(response)
+    }
+
     pub fn sessions(&self, limit: usize) -> Result<Vec<SessionSummary>> {
         let request = self
             .request(Method::GET, "/sessions", None)?
@@ -172,10 +216,24 @@ impl RuntimeClient {
         message: &str,
         run_id: &str,
     ) -> Result<ChatRunStart> {
+        self.start_chat_with_attachments(session_id, message, run_id, &[])
+    }
+
+    pub fn start_chat_with_attachments(
+        &self,
+        session_id: &str,
+        message: &str,
+        run_id: &str,
+        attachment_ids: &[String],
+    ) -> Result<ChatRunStart> {
         validate_id("conversation ID", session_id)?;
         validate_id("run ID", run_id)?;
         if message.trim().is_empty() || message.len() > MAX_MESSAGE_BYTES {
             return Err(RuntimeError::InvalidInput("message"));
+        }
+        if attachment_ids.len() > 8 || attachment_ids.iter().any(|id| Uuid::parse_str(id).is_err())
+        {
+            return Err(RuntimeError::InvalidInput("attachment selection"));
         }
         let response = self
             .request(Method::POST, "/chat/runs", Some(session_id))?
@@ -184,6 +242,7 @@ impl RuntimeClient {
                 run_id,
                 message,
                 source: "native",
+                attachment_ids,
             })
             .send()
             .map_err(transport)?;
@@ -192,6 +251,39 @@ impl RuntimeClient {
             return Err(RuntimeError::ResponseMismatch);
         }
         Ok(started)
+    }
+
+    pub fn import_attachments(
+        &self,
+        paths: &[std::path::PathBuf],
+    ) -> Result<Vec<MessageAttachment>> {
+        if paths.is_empty() || paths.len() > 8 {
+            return Err(RuntimeError::InvalidInput("attachment selection"));
+        }
+        let names = paths
+            .iter()
+            .map(|path| {
+                path.to_str()
+                    .filter(|name| path.is_absolute() && name.len() <= 4096)
+                    .ok_or(RuntimeError::InvalidInput("attachment path"))
+            })
+            .collect::<Result<Vec<_>>>()?;
+        let value = self.control(
+            ControlMethod::Post,
+            "/media/attachments/import",
+            Some(&serde_json::json!({"paths": names})),
+        )?;
+        let imported: ImportedAttachments =
+            serde_json::from_value(value).map_err(|_| RuntimeError::InvalidResponse)?;
+        if imported.attachments.len() != paths.len()
+            || imported
+                .attachments
+                .iter()
+                .any(|file| Uuid::parse_str(&file.id).is_err())
+        {
+            return Err(RuntimeError::InvalidResponse);
+        }
+        Ok(imported.attachments)
     }
 
     pub fn run(&self, run_id: &str) -> Result<RunReceipt> {
@@ -376,6 +468,13 @@ struct ChatRequest<'a> {
     run_id: &'a str,
     message: &'a str,
     source: &'static str,
+    #[serde(skip_serializing_if = "<[String]>::is_empty")]
+    attachment_ids: &'a [String],
+}
+
+#[derive(Deserialize)]
+struct ImportedAttachments {
+    attachments: Vec<MessageAttachment>,
 }
 
 #[derive(Serialize)]
