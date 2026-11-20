@@ -1,14 +1,20 @@
 import { ContextActionMenu } from "@doolittle/ui";
+import {
+  GitBranch,
+  Maximize2,
+  PanelLeft,
+  PanelRight,
+  RefreshCw,
+} from "lucide-react";
 import { PanelTabs } from "../components/PanelTabs";
+import { UiIcon } from "../components/UiIcon";
 import { copyContextText } from "../context-menu-clipboard";
+import { workspaceName } from "../desktop-navigation";
 import { Badge, ErrorBlock } from "../lib";
 import { compactWorkspacePath } from "../workspace-path";
 import {
   CODING_GLOBAL_NOTICE_CLASS,
-  CODING_INLINE_STATE_CLASS,
   CODING_LAYOUT_BUTTON_CLASS,
-  CODING_LAYOUT_BUTTON_SELECTED_CLASS,
-  CODING_LAYOUT_CONTROLS_CLASS,
   CODING_REPO_HEADER_CLASS,
   CODING_REPO_IDENTITY_CLASS,
   CODING_REPO_PATH_CLASS,
@@ -58,6 +64,36 @@ export function CodingWorkspaceHeader({
 }) {
   const hasRepository = hasSummary && summary.isRepository;
   const repositoryReady = hasRepository && !summaryLoading && !summaryError;
+  const path = summary.root ?? "Local workspace";
+  const divergence = [
+    summary.ahead ? `${summary.ahead} ahead` : null,
+    summary.behind ? `${summary.behind} behind` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  const tools = [
+    {
+      label: "Explorer",
+      hint: "Toggle explorer (⌘/Ctrl B)",
+      icon: PanelLeft,
+      pressed: explorerVisible,
+      onClick: onToggleExplorer,
+    },
+    {
+      label: "Tools",
+      hint: "Toggle utility rail (⌘/Ctrl J)",
+      icon: PanelRight,
+      pressed: utilityVisible,
+      onClick: onToggleUtility,
+    },
+    {
+      label: "Focus mode",
+      hint: "Toggle focus mode (⌘/Ctrl Shift Z)",
+      icon: Maximize2,
+      pressed: zenMode,
+      onClick: onToggleZen,
+    },
+  ];
   return (
     <>
       <ContextActionMenu
@@ -115,104 +151,82 @@ export function CodingWorkspaceHeader({
         ]}
       >
         <header className={CODING_REPO_HEADER_CLASS}>
-          <div className={CODING_REPO_IDENTITY_CLASS}>
-            <div>
-              <div className={CODING_REPO_TITLE_CLASS}>
-                <h1>{(hasRepository && summary.branch) || "Workspace"}</h1>
-                {hasRepository && summary.head ? (
-                  <code>{summary.head}</code>
-                ) : null}
-                {summaryLoading ? (
-                  <Badge>Syncing</Badge>
-                ) : summaryError || !hasSummary ? (
-                  <Badge tone={summaryError ? "bad" : "neutral"}>
-                    Unavailable
-                  </Badge>
-                ) : !summary.isRepository ? (
-                  <Badge>No Git repository</Badge>
-                ) : (
-                  <Badge tone={summary.dirty ? "warn" : "good"}>
-                    {summary.dirty ? "Changes" : "Clean"}
-                  </Badge>
-                )}
-              </div>
-              <p className={CODING_REPO_PATH_CLASS} title={summary.root}>
-                {compactWorkspacePath(summary.root ?? "Local workspace")}
+          <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-4 gap-y-2 px-3 pt-2">
+            <div className={CODING_REPO_IDENTITY_CLASS}>
+              <h1 className={CODING_REPO_TITLE_CLASS}>
+                {summary.root ? workspaceName(path) : "Workspace"}
+              </h1>
+              <p className={CODING_REPO_PATH_CLASS} title={path}>
+                {compactWorkspacePath(path)}
               </p>
             </div>
-          </div>
-          <div className={CODING_REPO_STATE_CLASS}>
-            {repositoryReady ? (
-              <span aria-label="Repository status" role="status">
-                {summary.changedFiles} changed · {summary.ahead} ahead ·{" "}
-                {summary.behind} behind
-              </span>
-            ) : null}
-            <button
-              className="secondary-button"
-              disabled={!active}
-              onClick={onRefresh}
-              type="button"
-            >
-              Refresh
-            </button>
-            <div
-              aria-label="Workspace layout"
-              className={CODING_LAYOUT_CONTROLS_CLASS}
-              role="toolbar"
-            >
-              <button
-                aria-pressed={explorerVisible}
-                className={`${CODING_LAYOUT_BUTTON_CLASS} ${explorerVisible ? CODING_LAYOUT_BUTTON_SELECTED_CLASS : ""}`}
-                onClick={onToggleExplorer}
-                title="Toggle explorer (⌘/Ctrl B)"
-                type="button"
-              >
-                Explorer
-              </button>
-              <button
-                aria-pressed={utilityVisible}
-                className={`${CODING_LAYOUT_BUTTON_CLASS} ${utilityVisible ? CODING_LAYOUT_BUTTON_SELECTED_CLASS : ""}`}
-                onClick={onToggleUtility}
-                title="Toggle utility rail (⌘/Ctrl J)"
-                type="button"
-              >
-                Tools
-              </button>
-              <button
-                aria-pressed={zenMode}
-                className={`${CODING_LAYOUT_BUTTON_CLASS} ${zenMode ? CODING_LAYOUT_BUTTON_SELECTED_CLASS : ""}`}
-                onClick={onToggleZen}
-                title="Toggle focus mode (⌘/Ctrl Shift Z)"
-                type="button"
-              >
-                Focus
-              </button>
+            <div className={CODING_REPO_STATE_CLASS}>
+              {repositoryReady ? (
+                <>
+                  <span
+                    className="inline-flex min-w-0 items-center gap-1.5"
+                    title={summary.head}
+                  >
+                    <UiIcon icon={GitBranch} size="xs" />
+                    <span className="truncate font-mono">
+                      {summary.branch ?? "Detached HEAD"}
+                    </span>
+                  </span>
+                  <Badge tone={summary.dirty ? "warn" : "good"}>
+                    {summary.dirty
+                      ? `${summary.changedFiles} changed`
+                      : "Clean"}
+                  </Badge>
+                  {divergence ? <span>{divergence}</span> : null}
+                </>
+              ) : summaryLoading ? (
+                <span role="status">Syncing workspace…</span>
+              ) : hasSummary && !summary.isRepository && !summaryError ? (
+                <Badge>No Git repository</Badge>
+              ) : null}
             </div>
+          </div>
+          <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-2 px-1">
+            <PanelTabs
+              id="code-surface"
+              label="Workspace views"
+              items={SURFACES}
+              selected={surface}
+              onSelect={onSurfaceChange}
+            />
+            <fieldset className="m-0 flex min-w-0 shrink-0 items-center gap-1 border-0 px-1 py-0">
+              <legend className="sr-only">Workspace controls</legend>
+              <button
+                aria-label="Refresh workspace"
+                className={CODING_LAYOUT_BUTTON_CLASS}
+                disabled={!active}
+                onClick={onRefresh}
+                title="Refresh workspace"
+                type="button"
+              >
+                <UiIcon icon={RefreshCw} size="sm" />
+              </button>
+              {tools.map((tool) => (
+                <button
+                  aria-label={tool.label}
+                  aria-pressed={tool.pressed}
+                  className={CODING_LAYOUT_BUTTON_CLASS}
+                  key={tool.label}
+                  onClick={tool.onClick}
+                  title={tool.hint}
+                  type="button"
+                >
+                  <UiIcon icon={tool.icon} size="sm" />
+                </button>
+              ))}
+            </fieldset>
           </div>
         </header>
       </ContextActionMenu>
-      <div className="shrink-0 border-b border-[var(--border)]">
-        <PanelTabs
-          id="code-surface"
-          label="Workspace views"
-          items={SURFACES}
-          selected={surface}
-          onSelect={onSurfaceChange}
-        />
-      </div>
 
       {summaryError ? (
         <div className={CODING_GLOBAL_NOTICE_CLASS}>
           <ErrorBlock error={summaryError} retry={onRetrySummary} />
-        </div>
-      ) : null}
-      {!summaryLoading && hasSummary && !summary.isRepository ? (
-        <div className={CODING_GLOBAL_NOTICE_CLASS}>
-          <div className={CODING_INLINE_STATE_CLASS}>
-            This workspace is not inside a Git repository. Files remain
-            available, while changes, commits, and worktrees will be empty.
-          </div>
         </div>
       ) : null}
     </>

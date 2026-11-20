@@ -300,6 +300,7 @@ export function DesktopRouteContent({
         );
       case "gateway":
       case "automations":
+      case "agents":
       case "review":
       case "orchestration": {
         const workScope = scopeForSession?.(selectedSession);
@@ -328,26 +329,24 @@ export function DesktopRouteContent({
             onAcknowledgeNavigationIntent={navigation.consumeNavigationIntent}
             onSectionChange={(section: string) => {
               const targetView =
-                section === "review"
-                  ? "review"
-                  : section === "automations"
-                    ? "automations"
-                    : section === "inbox"
-                      ? "gateway"
-                      : "orchestration";
+                section === "review" ||
+                section === "automations" ||
+                section === "agents"
+                  ? section
+                  : section === "inbox"
+                    ? "gateway"
+                    : "orchestration";
               if (targetView !== view) navigation.setView(targetView);
             }}
             onSendToChat={navigation.openChatWithContext}
             onOpenWorkspaceFile={navigation.openWorkspaceFile}
             projectScope={projectScope}
             requestedTab={
-              view === "review"
-                ? "review"
-                : view === "automations"
-                  ? "automations"
-                  : view === "gateway"
-                    ? "inbox"
-                    : undefined
+              view === "review" || view === "automations" || view === "agents"
+                ? view
+                : view === "gateway"
+                  ? "inbox"
+                  : undefined
             }
             workspaceLabel={
               activeProject?.name ??

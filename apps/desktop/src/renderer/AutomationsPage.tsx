@@ -1,6 +1,6 @@
 import type { BotCatalogResponse } from "@doolittle/contracts/bots";
 import { Button } from "@doolittle/ui";
-import { type FormEvent, useEffect, useState } from "react";
+import { type FormEvent, useRef, useState } from "react";
 import {
   type AutomationDraft,
   buildAutomationRequest,
@@ -47,6 +47,7 @@ export function AutomationsPage({ active }: { active: boolean }) {
   const [showCreate, setShowCreate] = useState(false);
   const [draft, setDraft] = useState<AutomationDraft>(createAutomationDraft);
   const [busy, setBusy] = useState("");
+  const mutationInFlight = useRef(false);
   const [feedback, setFeedback] = useState<ActionFeedback | null>(null);
   const [selectedRunId, setSelectedRunId] = useState("");
   const entries = asArray(jobs.data?.jobs).map(asRecord);
@@ -59,15 +60,6 @@ export function AutomationsPage({ active }: { active: boolean }) {
     active && (showCreate || hasJobs) ? "/bots" : null,
     [active, showCreate, hasJobs],
   );
-  useEffect(() => {
-    if (
-      selectedRunId &&
-      !runEntries.some((entry) => asString(entry.id) === selectedRunId)
-    ) {
-      setSelectedRunId("");
-    }
-  }, [runEntries, selectedRunId]);
-
   const updateDraft = <Key extends keyof AutomationDraft>(
     key: Key,
     value: AutomationDraft[Key],
@@ -78,12 +70,13 @@ export function AutomationsPage({ active }: { active: boolean }) {
 
   const create = async (event: FormEvent) => {
     event.preventDefault();
-    if (!active) return;
+    if (!active || mutationInFlight.current) return;
     const request = buildAutomationRequest(draft);
     if (!request.ok) {
       setFeedback({ message: request.error, tone: "bad" });
       return;
     }
+    mutationInFlight.current = true;
     setBusy("create");
     setFeedback(null);
     try {
@@ -95,12 +88,14 @@ export function AutomationsPage({ active }: { active: boolean }) {
     } catch (error) {
       setFeedback({ message: errorMessage(error), tone: "bad" });
     } finally {
+      mutationInFlight.current = false;
       setBusy("");
     }
   };
 
   const act = async (id: string, action: AutomationAction) => {
-    if (!active) return false;
+    if (!active || mutationInFlight.current) return false;
+    mutationInFlight.current = true;
     setBusy(`${id}:${action}`);
     setFeedback(null);
     try {
@@ -134,6 +129,7 @@ export function AutomationsPage({ active }: { active: boolean }) {
       setFeedback({ message: errorMessage(error), tone: "bad" });
       return false;
     } finally {
+      mutationInFlight.current = false;
       setBusy("");
     }
   };
@@ -144,6 +140,7 @@ export function AutomationsPage({ active }: { active: boolean }) {
         <h2 className="m-0 text-base font-semibold">Scheduled work</h2>
         {active ? (
           <Button
+            disabled={busy === "create"}
             onClick={() => setShowCreate((value) => !value)}
             type="button"
             variant={showCreate ? "secondary" : "default"}
@@ -165,7 +162,7 @@ export function AutomationsPage({ active }: { active: boolean }) {
         <AutomationBuilder
           bots={bots.data?.bots}
           botsError={bots.error}
-          busy={busy === "create"}
+          busy={busy === "create" ? "creating" : busy ? "occupied" : undefined}
           draft={draft}
           onSubmit={create}
           onUpdate={updateDraft}

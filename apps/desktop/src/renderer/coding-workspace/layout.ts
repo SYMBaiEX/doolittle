@@ -33,28 +33,21 @@ export function codingGridClass(
 }
 
 export const CODING_REPO_HEADER_CLASS =
-  "coding-repo-header flex min-h-11 shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-2 border-[color-mix(in_srgb,var(--border)_72%,transparent)] border-b px-px pt-0 pb-1.25";
+  "coding-repo-header grid shrink-0 gap-1 border-[var(--border)] border-b";
 
-export const CODING_REPO_IDENTITY_CLASS =
-  "coding-repo-identity flex min-w-0 flex-[1_1_18rem] items-center gap-2.25 [&_.eyebrow]:hidden [&>div:last-child]:min-w-0 [&>div:last-child]:flex-1";
+export const CODING_REPO_IDENTITY_CLASS = "coding-repo-identity min-w-0 flex-1";
 
 export const CODING_REPO_TITLE_CLASS =
-  "coding-repo-title flex min-w-0 flex-wrap items-center gap-1.75 [&_h1]:m-0 [&_h1]:min-w-0 [&_h1]:max-w-full [&_h1]:truncate [&_h1]:font-[var(--font-display)] [&_h1]:text-sm [&_h1]:font-[680] [&_h1]:tracking-[-0.02em] [&_code]:min-w-0 [&_code]:max-w-full [&_code]:truncate [&_code]:rounded-[3px] [&_code]:bg-[var(--surface-soft)] [&_code]:px-1.25 [&_code]:py-0.5 [&_code]:text-[length:var(--text-meta)] [&_code]:text-[var(--muted)] [&_.badge]:shrink-0";
+  "coding-repo-title m-0 truncate font-[var(--font-display)] text-base font-semibold tracking-[-0.02em]";
 
 export const CODING_REPO_PATH_CLASS =
-  "mt-0.5 mb-0 max-w-[min(46vw,650px)] truncate font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--muted)]";
+  "mt-0.5 mb-0 truncate font-mono text-[length:var(--text-meta)] text-[var(--muted)]";
 
 export const CODING_REPO_STATE_CLASS =
-  "coding-repo-state flex min-w-0 max-w-full flex-[0_1_auto] flex-wrap items-center justify-end gap-2.75 [&>span]:flex [&>span]:flex-col [&>span]:gap-0.5 [&>span]:font-[var(--font-mono)] [&>span]:text-[length:var(--text-meta)] [&>span]:tracking-[0.03em] [&>span]:text-[var(--muted)] [&>span]:uppercase";
-
-export const CODING_LAYOUT_CONTROLS_CLASS =
-  "coding-layout-controls flex flex-wrap gap-1";
+  "coding-repo-state flex min-w-0 max-w-full flex-wrap items-center gap-2 text-[length:var(--text-meta)] text-[var(--muted)]";
 
 export const CODING_LAYOUT_BUTTON_CLASS =
-  "min-h-10 rounded-md border-0 bg-transparent px-3 py-2 text-[length:var(--text-control)] font-medium text-[var(--muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--focus-ring)] max-[760px]:min-h-11";
-
-export const CODING_LAYOUT_BUTTON_SELECTED_CLASS =
-  "selected font-semibold text-[var(--text)]";
+  "grid size-9 shrink-0 place-items-center rounded-[var(--radius-sm)] border border-transparent text-[var(--muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] aria-pressed:border-[var(--border)] aria-pressed:bg-[var(--surface-raised)] aria-pressed:text-[var(--text)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--focus-ring)] disabled:opacity-50 max-[760px]:size-11";
 
 export const CODING_GLOBAL_NOTICE_CLASS =
   "coding-global-notice mb-2 shrink-0 [&_.notice]:min-h-0 [&_.notice]:px-2.75 [&_.notice]:py-2";
@@ -82,15 +75,6 @@ export const CODING_EXPLORER_RESIZER_CLASS =
 
 export const CODING_UTILITY_RESIZER_CLASS =
   "coding-utility-resizer top-0 bottom-0 left-[-5px] @max-[960px]/coding-route:hidden";
-
-export const CODING_TABS_CLASS =
-  "coding-tabs flex min-h-10 shrink-0 items-stretch gap-1 overflow-x-auto border-b border-[var(--border)] bg-transparent px-2 [scrollbar-width:thin] max-[760px]:min-h-11";
-
-export const CODING_TAB_BUTTON_CLASS =
-  "relative inline-flex min-h-10 min-w-0 shrink-0 items-center justify-center gap-2 rounded-md border-0 bg-transparent px-3 py-2 font-sans text-[length:var(--text-control)] font-medium text-[var(--muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--focus-ring)] max-[760px]:min-h-11 [&>.coding-tab-label]:truncate [&>.coding-tab-count]:text-[length:var(--text-meta)] [&>.coding-tab-count]:text-[var(--muted)]";
-
-export const CODING_TAB_SELECTED_CLASS =
-  "selected font-semibold text-[var(--text)]";
 
 export const CODING_PANE_BODY_CLASS =
   "coding-pane-body min-h-0 flex-1 overflow-auto [scrollbar-color:var(--border-strong)_transparent] [scrollbar-gutter:stable] [scrollbar-width:thin] [&>.loading-block]:m-3 [&>.notice]:m-3 [&>.empty-block]:m-3";
@@ -122,7 +106,7 @@ export const CODING_WORKTREE_FIELD_CLASS =
   "coding-worktree-field grid gap-1 font-[var(--font-mono)] text-[length:var(--text-meta)] tracking-[0.04em] text-[var(--muted)] uppercase";
 
 export const CODING_WORKTREE_INPUT_CLASS =
-  "coding-worktree-input w-full min-w-0 rounded-[var(--radius-xs)] border border-[var(--border)] bg-[var(--bg)] px-2 py-1.75 font-[var(--font-mono)] text-[length:var(--text-control)] text-[var(--text)] outline-0 focus:border-[var(--accent)] focus:shadow-[0_0_0_2px_color-mix(in_srgb,var(--accent)_13%,transparent)]";
+  "coding-worktree-input w-full min-w-0 rounded-[var(--radius-xs)] border border-[var(--border)] bg-[var(--bg)] px-2 py-1.75 font-[var(--font-mono)] text-[length:var(--text-control)] text-[var(--text)] outline-0 focus-visible:border-[var(--text-soft)]";
 
 export const CODING_SEARCH_RESULTS_CLASS =
   "coding-search-results px-1 py-0.75 [&>button]:flex [&>button]:min-h-9 [&>button]:w-full [&>button]:flex-col [&>button]:gap-1 [&>button]:rounded-none [&>button]:border-0 [&>button]:border-[color-mix(in_srgb,var(--border)_72%,transparent)] [&>button]:border-b [&>button]:bg-transparent [&>button]:px-1.75 [&>button]:py-1.5 [&>button]:text-left [&>button:hover]:bg-[var(--surface-hover)]";

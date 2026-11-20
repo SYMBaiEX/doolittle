@@ -63,7 +63,7 @@ export function AutomationBuilder({
   bots = [],
   botsError,
 }: {
-  busy: boolean;
+  busy?: "creating" | "occupied";
   bots?: readonly BotSummary[];
   botsError?: string | null;
   draft: AutomationDraft;
@@ -100,7 +100,11 @@ export function AutomationBuilder({
       : "The prompt is stored with the workflow and added to each run trace.";
 
   return (
-    <form className={AUTOMATION_BUILDER_CLASS} onSubmit={onSubmit}>
+    <form
+      aria-busy={busy === "creating"}
+      className={AUTOMATION_BUILDER_CLASS}
+      onSubmit={onSubmit}
+    >
       <div className={AUTOMATION_BUILDER_HEADER_CLASS}>
         <h3 className="m-0 text-sm font-semibold">New automation</h3>
         <label
@@ -109,6 +113,7 @@ export function AutomationBuilder({
         >
           <span>Name</span>
           <Input
+            disabled={busy === "creating"}
             id="automation-name"
             value={draft.name}
             onChange={(event) => onUpdate("name", event.target.value)}
@@ -123,7 +128,7 @@ export function AutomationBuilder({
           <NativeSelect
             id="automation-target-bot"
             value={draft.targetBotId || "default"}
-            disabled={busy}
+            disabled={busy === "creating"}
             onChange={(event) => onUpdate("targetBotId", event.target.value)}
           >
             <option value="default">
@@ -154,7 +159,10 @@ export function AutomationBuilder({
         ) : null}
       </div>
 
-      <fieldset className="automation-builder__fieldset m-0 border-0 p-0">
+      <fieldset
+        className="automation-builder__fieldset m-0 min-w-0 border-0 p-0"
+        disabled={busy === "creating"}
+      >
         <legend className="sr-only">Automation definition</legend>
         <div className={AUTOMATION_BUILDER_GRID_CLASS}>
           <section className={AUTOMATION_BUILDER_SECTION_CLASS}>
@@ -332,8 +340,8 @@ export function AutomationBuilder({
         <span>
           Output and each phase result stay in the local trace archive.
         </span>
-        <Button disabled={busy || !targetAvailable} type="submit">
-          {busy ? "Creating…" : "Create automation"}
+        <Button disabled={Boolean(busy) || !targetAvailable} type="submit">
+          {busy === "creating" ? "Creating…" : "Create automation"}
         </Button>
       </div>
     </form>

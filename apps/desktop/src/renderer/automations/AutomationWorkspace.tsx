@@ -1,12 +1,10 @@
 import { Button, ContextActionMenu } from "@doolittle/ui";
-import { ChevronRight } from "lucide-react";
 import { useState } from "react";
 import {
   type AutomationStarterChoice,
   summarizeAutomation,
 } from "../automation-model";
 import { InlineActionConfirmation } from "../components/InlineActionConfirmation";
-import { UiIcon } from "../components/UiIcon";
 import { copyContextText } from "../context-menu-clipboard";
 import {
   asString,
@@ -121,7 +119,7 @@ function AutomationJobCard({
       <article className={AUTOMATION_JOB_CARD_CLASS}>
         <header className="flex items-center justify-between gap-2.5">
           <div className="automation-job-card__heading flex min-w-0 flex-col gap-1">
-            <strong className="truncate text-xs">{name}</strong>
+            <strong className="truncate text-sm">{name}</strong>
             <span className="text-sm text-[var(--muted)]">
               Runs as{" "}
               {asString(entry.targetBotId) &&
@@ -138,42 +136,22 @@ function AutomationJobCard({
             {titleCase(status)}
           </Badge>
         </header>
-        <div className={AUTOMATION_JOB_SUMMARY_CLASS}>
-          <span className="automation-job-summary__segment inline-flex min-w-0 items-center gap-1.5 max-[620px]:justify-between">
-            <i className="font-[var(--font-mono)] text-[length:var(--text-meta)] not-italic text-[var(--accent)] uppercase">
-              Trigger
-            </i>
-            <span className="truncate text-[length:var(--text-control)] text-[var(--text-soft)]">
-              {summary.triggerLabel}
-            </span>
-          </span>
-          <UiIcon
-            className="mx-auto text-[var(--accent)] opacity-60 max-[620px]:hidden"
-            icon={ChevronRight}
-            size="xs"
-          />
-          <span className="automation-job-summary__segment inline-flex min-w-0 items-center gap-1.5 max-[620px]:justify-between">
-            <i className="font-[var(--font-mono)] text-[length:var(--text-meta)] not-italic text-[var(--accent)] uppercase">
-              Condition
-            </i>
-            <span className="truncate text-[length:var(--text-control)] text-[var(--text-soft)]">
-              {summary.conditionLabel}
-            </span>
-          </span>
-          <UiIcon
-            className="mx-auto text-[var(--accent)] opacity-60 max-[620px]:hidden"
-            icon={ChevronRight}
-            size="xs"
-          />
-          <span className="automation-job-summary__segment inline-flex min-w-0 items-center gap-1.5 max-[620px]:justify-between">
-            <i className="font-[var(--font-mono)] text-[length:var(--text-meta)] not-italic text-[var(--accent)] uppercase">
-              Action
-            </i>
-            <span className="truncate text-[length:var(--text-control)] text-[var(--text-soft)]">
-              {summary.actionLabel}
-            </span>
-          </span>
-        </div>
+        <dl className={AUTOMATION_JOB_SUMMARY_CLASS}>
+          {[
+            ["Trigger", summary.triggerLabel],
+            ["Condition", summary.conditionLabel],
+            ["Action", summary.actionLabel],
+          ].map(([label, value]) => (
+            <div className="grid min-w-0 gap-1" key={label}>
+              <dt className="text-xs font-medium text-[var(--muted)]">
+                {label}
+              </dt>
+              <dd className="m-0 break-words text-sm text-[var(--text-soft)]">
+                {value}
+              </dd>
+            </div>
+          ))}
+        </dl>
         <details className="automation-job-details my-2">
           <summary className={AUTOMATION_DETAILS_SUMMARY_CLASS}>
             Details
@@ -215,7 +193,7 @@ function AutomationJobCard({
               type="button"
               variant="secondary"
             >
-              Run now
+              {busy === `${id}:trigger` ? "Running…" : "Run now"}
             </Button>
             <Button
               disabled={Boolean(busy)}

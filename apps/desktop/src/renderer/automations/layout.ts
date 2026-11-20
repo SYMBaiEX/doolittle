@@ -26,10 +26,10 @@ export const AUTOMATION_CHOICE_GRID_CLASS =
   "automation-choice-grid grid grid-cols-3 gap-1 border-b border-[var(--border)] bg-transparent";
 
 export const AUTOMATION_CHOICE_BUTTON_CLASS =
-  "min-h-[var(--control-height)] rounded-[var(--radius-sm)] px-2 py-1.5 text-[length:var(--text-control)] font-medium text-[var(--muted)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)] max-[760px]:min-h-11 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-50";
+  "min-h-[var(--control-height)] rounded-[var(--radius-sm)] border border-transparent px-2 py-1.5 text-[length:var(--text-control)] font-medium text-[var(--muted)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)] max-[760px]:min-h-11 focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--focus-ring)] motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-50";
 
 export const AUTOMATION_CHOICE_SELECTED_CLASS =
-  "selected font-semibold text-[var(--text)]";
+  "selected border-[var(--border)] bg-[var(--surface-raised)] font-semibold text-[var(--text)]";
 
 export const AUTOMATION_BUILDER_FOOTER_CLASS =
   "automation-builder__footer flex items-center justify-between gap-3 px-4 pt-1 pb-3 max-[720px]:items-stretch max-[720px]:flex-col [&>span]:text-[length:var(--text-control)] [&>span]:text-[var(--muted)]";
@@ -41,7 +41,7 @@ export const AUTOMATION_JOB_CARD_CLASS =
   "automation-job-card border-b border-[var(--line-subtle)] bg-transparent py-4";
 
 export const AUTOMATION_JOB_SUMMARY_CLASS =
-  "automation-job-summary my-3 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 max-[620px]:grid-cols-1";
+  "automation-job-summary my-3 grid grid-cols-3 gap-x-3 gap-y-2 rounded-[var(--radius-sm)] border border-[var(--line-subtle)] bg-[var(--surface-soft)] px-3 py-2.5 max-[620px]:grid-cols-1";
 
 export const AUTOMATION_DETAILS_SUMMARY_CLASS =
   "flex min-h-8 cursor-pointer list-none items-center justify-between rounded-[var(--radius-xs)] px-1.5 py-1.5 text-[length:var(--text-control)] font-semibold text-[var(--muted)] hover:bg-[var(--surface-hover)] [&::-webkit-details-marker]:hidden after:text-[var(--faint)] after:content-['+'] [details[open]_&]:after:content-['−']";
@@ -50,7 +50,7 @@ export const AUTOMATION_RUNS_PANEL_CLASS =
   "automation-runs-panel overflow-hidden [&[open]>summary]:border-b [&[open]>summary]:border-[var(--border)] [&>summary]:flex [&>summary]:min-h-14 [&>summary]:cursor-pointer [&>summary]:list-none [&>summary]:items-center [&>summary]:justify-between [&>summary]:gap-3 [&>summary]:px-4 [&>summary]:py-3 [&>summary::-webkit-details-marker]:hidden [&>summary>span:first-child]:grid [&>summary>span:first-child]:gap-0.5 [&>summary_small]:text-[length:var(--text-meta)] [&>summary_small]:text-[var(--muted)]";
 
 export const AUTOMATION_RUN_BUTTON_CLASS =
-  "grid min-h-14 w-full grid-cols-[10px_minmax(0,1fr)_auto] items-center gap-3 border-b border-[var(--border-subtle)] px-3 py-3 text-left transition-colors hover:bg-[var(--surface-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--focus-ring)] motion-reduce:transition-none";
+  "grid min-h-14 w-full grid-cols-[10px_minmax(0,1fr)_auto] items-center gap-3 rounded-[var(--radius-sm)] border border-transparent px-3 py-2.5 text-left text-[var(--text-soft)] transition-colors hover:bg-[var(--surface-hover)] aria-pressed:border-[var(--border)] aria-pressed:bg-[var(--surface-hover)] aria-pressed:text-[var(--text)] aria-pressed:[&_strong]:font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--focus-ring)] motion-reduce:transition-none";
 
 export const AUTOMATION_TRACE_CLASS =
   "automation-trace rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-raised)] p-3.5";

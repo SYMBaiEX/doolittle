@@ -710,12 +710,8 @@ export function useOrchestrationActions({
     }
   };
 
-  const openTaskCreate = (capability: TaskCapability) => {
-    setTaskCreateCapability(capability);
+  const openTaskCreate = () => {
     setTaskCreateFramework((current) => current || recommendedPooledFramework);
-    setTaskCreateWorkspaceRoot((current) =>
-      capability === "coding" ? "" : current || workspacePath || "",
-    );
     setShowTaskCreate(true);
   };
 

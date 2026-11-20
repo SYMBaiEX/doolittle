@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 
 export function PanelTabs<T extends string>({
   id,
@@ -6,24 +6,35 @@ export function PanelTabs<T extends string>({
   items,
   selected,
   onSelect,
-  disabled,
+  variant = "section",
 }: {
   id: string;
   label: string;
   items: readonly { id: T; label: ReactNode; panelId?: string }[];
   selected: T;
   onSelect: (id: T) => void;
-  disabled?: boolean;
+  variant?: "section" | "pane";
 }) {
+  const [focused, setFocused] = useState<T | undefined>();
+  // Capability refreshes can remove a tab before the owner updates selection.
+  const focusableId =
+    items.find((item) => item.id === focused)?.id ??
+    items.find((item) => item.id === selected)?.id ??
+    items[0]?.id;
+  const pane = variant === "pane";
   return (
     <div
       aria-label={label}
-      className="flex min-w-0 items-center gap-1 overflow-x-auto overscroll-x-contain px-2 [scrollbar-width:thin]"
+      className={`flex min-w-0 shrink-0 items-center gap-1 overflow-x-auto overscroll-x-contain p-1 [scrollbar-width:thin] ${pane ? "coding-tabs border-[var(--border)] border-b" : ""}`}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget))
+          setFocused(undefined);
+      }}
       role="tablist"
       onKeyDown={(event) => {
         const tabs = Array.from(
           event.currentTarget.querySelectorAll<HTMLButtonElement>(
-            "button:not(:disabled)",
+            'button[role="tab"]',
           ),
         );
         if (!(event.target instanceof HTMLButtonElement)) return;
@@ -49,13 +60,13 @@ export function PanelTabs<T extends string>({
         <button
           aria-controls={item.panelId ?? `${id}-panel`}
           aria-selected={item.id === selected}
-          className="min-h-10 shrink-0 whitespace-nowrap border-b-2 border-transparent px-2.5 text-sm text-[var(--muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] aria-selected:border-[var(--accent)] aria-selected:font-semibold aria-selected:text-[var(--text)] focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-[var(--focus-ring)] disabled:opacity-50"
-          disabled={disabled}
-          id={`${id}-${item.id}-tab`}
+          className={`inline-flex shrink-0 items-center gap-1.75 whitespace-nowrap rounded-[var(--radius-sm)] border border-transparent px-2.5 font-medium text-[var(--muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] aria-selected:border-[var(--border)] aria-selected:bg-[var(--surface-raised)] aria-selected:font-semibold aria-selected:text-[var(--text)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--focus-ring)] forced-colors:aria-selected:border-[Highlight] ${pane ? "min-h-8 text-[length:var(--text-control)] max-[760px]:min-h-10" : "min-h-9 text-sm"}`}
+          id={panelTabId(id, item.id)}
           key={item.id}
           onClick={() => onSelect(item.id)}
+          onFocus={() => setFocused(item.id)}
           role="tab"
-          tabIndex={item.id === selected ? 0 : -1}
+          tabIndex={item.id === focusableId ? 0 : -1}
           type="button"
         >
           {item.label}
@@ -63,4 +74,8 @@ export function PanelTabs<T extends string>({
       ))}
     </div>
   );
+}
+
+export function panelTabId(id: string, tabId: string): string {
+  return `${id}-${tabId}-tab`;
 }

@@ -1,5 +1,4 @@
-import { ContextActionMenu } from "@doolittle/ui";
-import { Button } from "@elizaos/ui/button";
+import { Button, ContextActionMenu } from "@doolittle/ui";
 import { useMemo } from "react";
 import { copyContextText } from "../context-menu-clipboard";
 import {
@@ -137,10 +136,7 @@ export function AutomationRunHistory({
     >
       <summary>
         <span>
-          <strong>{quiet ? "Run history" : "Trace receipts"}</strong>
-          <small>
-            {quiet ? "Receipts appear after execution" : "Execution history"}
-          </small>
+          <strong>Run history</strong>
         </span>
         <span className="automation-runs-panel__meta font-[var(--font-mono)] text-[length:var(--text-control)] text-[var(--muted)]">
           {open
@@ -153,7 +149,7 @@ export function AutomationRunHistory({
       {open ? (
         <div className="automation-runs-body m-4 mt-3.5">
           <div className="automation-runs-toolbar mb-2.5 flex items-center justify-between gap-3 text-[length:var(--text-control)] text-[var(--muted)]">
-            <span>Latest durable execution receipts</span>
+            <span>Recent runs</span>
             <Button onClick={onReload} size="sm" type="button" variant="ghost">
               Refresh
             </Button>
@@ -191,7 +187,7 @@ export function AutomationRunHistory({
                       >
                         <button
                           aria-pressed={asString(selectedRun?.id) === id}
-                          className={`${AUTOMATION_RUN_BUTTON_CLASS} ${asString(selectedRun?.id) === id ? "selected font-semibold [&_strong]:font-semibold text-[var(--text)]" : "text-[var(--text-soft)]"}`}
+                          className={AUTOMATION_RUN_BUTTON_CLASS}
                           onClick={() => onSelectRun(id)}
                           type="button"
                         >

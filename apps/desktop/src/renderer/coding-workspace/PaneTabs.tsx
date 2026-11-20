@@ -1,12 +1,8 @@
-import { ContextActionMenu } from "@doolittle/ui";
 import type { LucideIcon } from "lucide-react";
-import type { KeyboardEvent } from "react";
+import { PanelTabs, panelTabId } from "../components/PanelTabs";
 import { UiIcon } from "../components/UiIcon";
-import {
-  CODING_TAB_BUTTON_CLASS,
-  CODING_TAB_SELECTED_CLASS,
-  CODING_TABS_CLASS,
-} from "./layout";
+
+export { panelTabId as paneTabId };
 
 export function PaneTabs<T extends string>({
   label,
@@ -26,79 +22,28 @@ export function PaneTabs<T extends string>({
   value: T;
   onChange: (value: T) => void;
 }) {
-  // An async capability refresh can remove the current option before its
-  // owner updates value. Keep the remaining controls keyboard-reachable,
-  // without claiming a different tab is selected or changing owner state.
-  const focusableId = options.some((option) => option.id === value)
-    ? value
-    : options[0]?.id;
-  const selectAt = (index: number) => {
-    const option = options[index];
-    if (option) onChange(option.id);
-  };
-  const focusAt = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
-    selectAt(index);
-    const tabs = event.currentTarget
-      .closest('[role="tablist"]')
-      ?.querySelectorAll<HTMLButtonElement>('button[role="tab"]');
-    requestAnimationFrame(() => tabs?.[index]?.focus());
-  };
-
   return (
-    <ContextActionMenu
+    <PanelTabs
+      id={panelId}
       label={label}
-      scopeKey={panelId}
       items={options.map((option) => ({
         id: option.id,
-        label: `Show ${option.label}`,
-        onSelect: () => onChange(option.id),
-      }))}
-    >
-      <div
-        aria-label={label}
-        aria-orientation="horizontal"
-        className={CODING_TABS_CLASS}
-        role="tablist"
-      >
-        {options.map((option, index) => (
-          <button
-            aria-controls={panelId}
-            aria-selected={value === option.id}
-            className={`${CODING_TAB_BUTTON_CLASS} ${value === option.id ? CODING_TAB_SELECTED_CLASS : ""}`}
-            id={paneTabId(panelId, option.id)}
-            key={option.id}
-            onClick={() => onChange(option.id)}
-            onKeyDown={(event: KeyboardEvent<HTMLButtonElement>) => {
-              if (event.key === "ArrowRight" || event.key === "ArrowDown") {
-                event.preventDefault();
-                focusAt(event, (index + 1) % options.length);
-              } else if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
-                event.preventDefault();
-                focusAt(event, (index - 1 + options.length) % options.length);
-              } else if (event.key === "Home") {
-                event.preventDefault();
-                focusAt(event, 0);
-              } else if (event.key === "End") {
-                event.preventDefault();
-                focusAt(event, options.length - 1);
-              }
-            }}
-            role="tab"
-            tabIndex={focusableId === option.id ? 0 : -1}
-            type="button"
-          >
+        panelId,
+        label: (
+          <>
             {option.icon ? <UiIcon icon={option.icon} size="xs" /> : null}
-            <span className="coding-tab-label">{option.label}</span>
+            {option.label}
             {option.count === undefined ? null : (
-              <span className="coding-tab-count">{option.count}</span>
+              <span className="text-xs text-[var(--muted)] tabular-nums">
+                {option.count}
+              </span>
             )}
-          </button>
-        ))}
-      </div>
-    </ContextActionMenu>
+          </>
+        ),
+      }))}
+      selected={value}
+      onSelect={onChange}
+      variant="pane"
+    />
   );
-}
-
-export function paneTabId(panelId: string, tabId: string): string {
-  return `${panelId}-tab-${tabId}`;
 }

@@ -1,15 +1,18 @@
 import type { BotSummary } from "@doolittle/contracts/bots";
 import { ContactRow, ContextActionMenu, StateSurface } from "@doolittle/ui";
 import {
+  AlertCircle,
   CalendarClock,
   Files,
   ListTodo,
+  LoaderCircle,
   MoreHorizontal,
   PanelLeftClose,
   PanelLeftOpen,
   Plus,
   Search,
   Settings,
+  WifiOff,
   X,
 } from "lucide-react";
 import type { KeyboardEvent as ReactKeyboardEvent, RefObject } from "react";
@@ -84,6 +87,9 @@ function botRunState(bot: BotSummary) {
 const ROW_MENU_TRIGGER_CLASS =
   "grid size-10 shrink-0 place-items-center rounded-[var(--radius-md)] text-[var(--muted)] hover:bg-[var(--surface-hover)] focus-visible:bg-[var(--surface-hover)] max-[760px]:size-11 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 pointer-coarse:opacity-100";
 
+const SIDEBAR_ACTION_CLASS =
+  "flex min-h-10 items-center gap-2 rounded-[var(--radius-md)] px-2 text-left text-sm text-[var(--text-soft)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] aria-current:bg-[var(--surface-hover)] aria-current:font-semibold aria-current:text-[var(--text)] disabled:cursor-default disabled:opacity-50 max-[760px]:min-h-11";
+
 export function DesktopSidebar({
   isMobileSidebarMode,
   mobileSidebarOpen,
@@ -116,7 +122,8 @@ export function DesktopSidebar({
 }: DesktopSidebarProps) {
   const area = desktopWorkspaceArea(navigationView);
   const compact = navCollapsed && !isMobileSidebarMode;
-  const botSessions = [...sessions]
+  const sidebarAction = `${SIDEBAR_ACTION_CLASS}${compact ? " justify-center" : ""}`;
+  const botSessions = sessions
     .filter((session) => (session.botId ?? defaultBotId) === selectedBotId)
     .sort((left, right) =>
       (right.endedAt ?? right.startedAt ?? "").localeCompare(
@@ -210,7 +217,7 @@ export function DesktopSidebar({
         </div>
         <div className="grid shrink-0 gap-1 px-1 pb-3 [-webkit-app-region:no-drag]">
           <button
-            className={`flex min-h-10 items-center gap-2 rounded-[var(--radius-md)] px-2 text-left text-sm hover:bg-[var(--surface-hover)] max-[760px]:min-h-11 ${compact ? "justify-center" : ""}`}
+            className={sidebarAction}
             onClick={onOpenPalette}
             title={compact ? "Search" : undefined}
             type="button"
@@ -219,7 +226,7 @@ export function DesktopSidebar({
             <span className={compact ? "sr-only" : ""}>Search</span>
           </button>
           <button
-            className={`flex min-h-10 items-center gap-2 rounded-[var(--radius-md)] px-2 text-left text-sm hover:bg-[var(--surface-hover)] disabled:cursor-default disabled:opacity-50 max-[760px]:min-h-11 ${compact ? "justify-center" : ""}`}
+            className={sidebarAction}
             disabled={!selectedBotId}
             onClick={() => onStartConversation(projectScope)}
             type="button"
@@ -244,8 +251,37 @@ export function DesktopSidebar({
               Bots
             </h2>
           ) : null}
-          {(botStatus === "error" && bots.length > 0) ||
-          (botStatus === "disabled" && bots.length > 0) ? (
+          {compact && botStatus === "error" ? (
+            <button
+              className={`${sidebarAction} mx-auto`}
+              onClick={onRetryBots}
+              title="Could not load bots. Retry"
+              type="button"
+            >
+              <UiIcon icon={AlertCircle} size="sm" />
+              <span className="sr-only">Could not load bots. Retry</span>
+            </button>
+          ) : null}
+          {compact && (botStatus === "disabled" || botStatus === "loading") ? (
+            <div
+              className="grid min-h-10 place-items-center text-[var(--muted)]"
+              role="status"
+              title={
+                botStatus === "disabled" ? "Runtime offline" : "Loading bots"
+              }
+            >
+              <UiIcon
+                icon={botStatus === "disabled" ? WifiOff : LoaderCircle}
+                size="sm"
+              />
+              <span className="sr-only">
+                {botStatus === "disabled" ? "Runtime offline" : "Loading bots"}
+              </span>
+            </div>
+          ) : null}
+          {!compact &&
+          bots.length > 0 &&
+          (botStatus === "error" || botStatus === "disabled") ? (
             <div
               className="px-3 py-2 text-xs leading-5 text-[var(--muted)]"
               role="status"
@@ -266,32 +302,38 @@ export function DesktopSidebar({
           ) : null}
           {botStatus === "loading" ||
           (botStatus === "disabled" && bots.length === 0) ? (
-            <StateSurface
-              kind={botStatus === "disabled" ? "offline" : "loading"}
-              title={
-                botStatus === "disabled" ? "Runtime offline" : "Loading bots"
-              }
-            />
+            !compact && (
+              <StateSurface
+                kind={botStatus === "disabled" ? "offline" : "loading"}
+                title={
+                  botStatus === "disabled" ? "Runtime offline" : "Loading bots"
+                }
+              />
+            )
           ) : botStatus === "error" && bots.length === 0 ? (
-            <StateSurface
-              action={
-                <button
-                  className="text-sm underline"
-                  onClick={onRetryBots}
-                  type="button"
-                >
-                  Retry
-                </button>
-              }
-              kind="error"
-              title="Bots unavailable"
-            >
-              {botError}
-            </StateSurface>
+            !compact && (
+              <StateSurface
+                action={
+                  <button
+                    className="text-sm underline"
+                    onClick={onRetryBots}
+                    type="button"
+                  >
+                    Retry
+                  </button>
+                }
+                kind="error"
+                title="Bots unavailable"
+              >
+                {botError}
+              </StateSurface>
+            )
           ) : bots.length === 0 ? (
-            <StateSurface kind="empty" title="No bots available">
-              The local runtime has not returned a bot catalog.
-            </StateSurface>
+            !compact && (
+              <StateSurface kind="empty" title="No bots available">
+                The local runtime has not returned a bot catalog.
+              </StateSurface>
+            )
           ) : (
             <>
               {bots.map((bot) => (
@@ -307,7 +349,7 @@ export function DesktopSidebar({
                       {
                         id: "manage",
                         label: "Manage bots…",
-                        onSelect: () => onSetView("orchestration"),
+                        onSelect: () => onSetView("agents"),
                       },
                       {
                         id: "copy-name",
@@ -346,15 +388,6 @@ export function DesktopSidebar({
                   </ContextActionMenu>
                 </div>
               ))}
-              <button
-                className={`mt-1 flex min-h-10 w-full items-center gap-2 rounded-[var(--radius-md)] px-3 text-left text-sm text-[var(--text-soft)] hover:bg-[var(--surface-hover)] max-[760px]:min-h-11 ${compact ? "justify-center" : ""}`}
-                onClick={onAddBot}
-                title={compact ? "Add bot" : undefined}
-                type="button"
-              >
-                <UiIcon icon={Plus} size="sm" />
-                <span className={compact ? "sr-only" : ""}>Add bot</span>
-              </button>
               {!compact ? (
                 <section aria-label="Recent conversations" className="mt-5">
                   <h2 className="px-3 pb-1 text-xs font-medium text-[var(--muted)]">
@@ -400,16 +433,19 @@ export function DesktopSidebar({
                       >
                         <button
                           aria-current={
+                            navigationView === "chat" &&
                             session.sessionId === selectedSession
                               ? "page"
                               : undefined
                           }
-                          className="block min-h-10 min-w-0 flex-1 truncate rounded-[var(--radius-md)] px-3 text-left text-sm text-[var(--text-soft)] hover:bg-[var(--surface-hover)] aria-current:font-semibold aria-current:text-[var(--text)] max-[760px]:min-h-11"
+                          className={`${SIDEBAR_ACTION_CLASS} min-w-0 flex-1 px-3`}
                           onClick={() => onOpenSession(session.sessionId)}
                           title={session.title || "New conversation"}
                           type="button"
                         >
-                          {session.title || "New conversation"}
+                          <span className="min-w-0 truncate">
+                            {session.title || "New conversation"}
+                          </span>
                         </button>
                       </ContextActionMenu>
                     ))
@@ -433,6 +469,17 @@ export function DesktopSidebar({
             </>
           )}
         </nav>
+        {botStatus === "ready" || botStatus === "refreshing" ? (
+          <button
+            className={`${sidebarAction} mx-1 mb-2 shrink-0 [-webkit-app-region:no-drag]`}
+            onClick={onAddBot}
+            title={compact ? "Add bot" : undefined}
+            type="button"
+          >
+            <UiIcon icon={Plus} size="sm" />
+            <span className={compact ? "sr-only" : ""}>Add bot</span>
+          </button>
+        ) : null}
         <nav
           aria-label="Workspace navigation"
           className="grid shrink-0 gap-1 border-t border-[var(--border)] px-1 py-2 [-webkit-app-region:no-drag]"
@@ -447,7 +494,7 @@ export function DesktopSidebar({
           ).map(([target, label, icon]) => (
             <button
               aria-current={area === target ? "page" : undefined}
-              className={`flex min-h-10 items-center gap-2 rounded-[var(--radius-md)] px-2 text-left text-sm text-[var(--text-soft)] hover:bg-[var(--surface-hover)] aria-current:bg-[var(--surface-hover)] aria-current:font-semibold aria-current:text-[var(--text)] max-[760px]:min-h-11 ${compact ? "justify-center" : ""}`}
+              className={sidebarAction}
               key={target}
               onClick={() => onSetView(target)}
               type="button"

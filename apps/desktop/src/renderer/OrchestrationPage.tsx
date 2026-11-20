@@ -173,7 +173,7 @@ export function OrchestrationPage({
       setActiveTab("review");
     } else {
       setActiveTab((current) =>
-        ["review", "automations", "inbox"].includes(current)
+        ["review", "automations", "inbox", "agents"].includes(current)
           ? "tasks"
           : current,
       );
@@ -494,12 +494,14 @@ export function OrchestrationPage({
     }
     consumedNavigationIntents.current.add(navigationIntent.id);
     setActiveTab("tasks");
+    onSectionChange?.("tasks");
     setSelectedTaskId(resolution.taskId);
     onAcknowledgeNavigationIntent(navigationIntent.id);
   }, [
     active,
     navigationIntent,
     onAcknowledgeNavigationIntent,
+    onSectionChange,
     publishNotice,
     tasks,
     tasksResource.error,
@@ -591,7 +593,6 @@ export function OrchestrationPage({
 
       <div className={oc("orchestration-nav-row")}>
         <PanelTabs
-          disabled={!active}
           id="work"
           label="Work views"
           items={WORK_TABS}
@@ -613,20 +614,13 @@ export function OrchestrationPage({
               <button
                 className="primary-button"
                 type="button"
-                onClick={() => openTaskCreate("coding")}
+                onClick={() =>
+                  showTaskCreate ? setShowTaskCreate(false) : openTaskCreate()
+                }
                 aria-expanded={showTaskCreate}
-                disabled={!active}
+                disabled={!active || Boolean(busyKeys["task:create"])}
               >
-                New coding task
-              </button>
-              <button
-                className="secondary-button"
-                type="button"
-                onClick={() => openTaskCreate("research")}
-                aria-expanded={showTaskCreate}
-                disabled={!active}
-              >
-                New research task
+                New task
               </button>
             </>
           ) : null}
@@ -652,7 +646,7 @@ export function OrchestrationPage({
         </div>
       </div>
 
-      {!active ? (
+      {!active && activeTab !== "automations" && activeTab !== "inbox" ? (
         <Notice tone="warn">
           <strong>Runtime unavailable.</strong>
           <span>Commands unlock when the local runtime is ready.</span>

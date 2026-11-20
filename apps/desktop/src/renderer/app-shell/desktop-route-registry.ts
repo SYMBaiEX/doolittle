@@ -89,7 +89,7 @@ export const CodingWorkspacePage = lazyNamedRoute(
   "CodingWorkspacePage",
 );
 export const OrchestrationPage = lazyNamedRoute(
-  ["gateway", "review", "orchestration", "automations"],
+  ["gateway", "review", "orchestration", "automations", "agents"],
   () => import("../OrchestrationPage"),
   "OrchestrationPage",
 );

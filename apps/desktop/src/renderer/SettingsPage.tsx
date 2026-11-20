@@ -172,8 +172,14 @@ export function SettingsPage({
   );
   const [query, setQuery] = useState("");
   const [sectionQuery, setSectionQuery] = useState("");
-  const [savedMessage, setSavedMessage] = useState("");
-  const [operationError, setOperationError] = useState("");
+  const [preferenceFeedback, setPreferenceFeedback] = useState<{
+    message: string;
+    kind: "status" | "error";
+  } | null>(null);
+  const [savedField, setSavedField] = useState<{
+    section: string;
+    path: string;
+  } | null>(null);
   const [themeBusy, setThemeBusy] = useState(false);
   const themeInFlightRef = useRef(false);
   const [appearance, setAppearance] = useState<DesktopAppearance>(
@@ -192,6 +198,7 @@ export function SettingsPage({
   const updateInFlightRef = useRef(false);
   const [lifecycleBusy, setLifecycleBusy] = useState(false);
   const lifecycleInFlightRef = useRef(false);
+  const lifecycleWriteRevision = useRef(0);
   const [lifecycleError, setLifecycleError] = useState("");
   const [desktopReadRevision, setDesktopReadRevision] = useState(0);
   const installInFlightRef = useRef(false);
@@ -229,15 +236,20 @@ export function SettingsPage({
   useEffect(() => {
     if (!resourcePolicy.desktop) return;
     let disposed = false;
+    const readRevision = lifecycleWriteRevision.current;
+    const canApplyLifecycle = () =>
+      !disposed &&
+      !lifecycleInFlightRef.current &&
+      readRevision === lifecycleWriteRevision.current;
     void window.doolittle
       .getLifecycleState()
       .then((state) => {
-        if (disposed) return;
+        if (!canApplyLifecycle()) return;
         setLifecycle(state);
         setLifecycleError("");
       })
       .catch(() => {
-        if (!disposed)
+        if (canApplyLifecycle())
           setLifecycleError(
             "Desktop behavior could not be loaded. Retry to manage background work.",
           );
@@ -260,8 +272,7 @@ export function SettingsPage({
       if (state.phase === "error" && installInFlightRef.current) {
         installInFlightRef.current = false;
         setUpdateBusy(false);
-        setSavedMessage("");
-        setOperationError(state.message);
+        setPreferenceFeedback({ kind: "error", message: state.message });
       }
       setUpdate(state);
     });
@@ -283,20 +294,12 @@ export function SettingsPage({
   // All runtime fields stay accessible in Advanced, without changing the menu
   // when a resource loads or unloads during navigation.
   const categories = SETTINGS_CATEGORIES;
-  const fieldCategory =
-    category === "appearance"
-      ? "ui"
-      : category === "advanced"
-        ? "all"
-        : category;
-  const visibleFields = fields.filter((field) => {
-    const normalized = query.trim().toLowerCase();
-    return (
-      (fieldCategory === "all" || field.category === fieldCategory) &&
-      (fieldCategory === "all" || field.path !== "ui.theme") &&
-      (!normalized || field.path.toLowerCase().includes(normalized))
-    );
-  });
+  const normalizedQuery = query.trim().toLowerCase();
+  const visibleFields = fields.filter(
+    (field) =>
+      (category === "advanced" || field.category === category) &&
+      (!normalizedQuery || field.path.toLowerCase().includes(normalizedQuery)),
+  );
   const activeCategory = settingsCategoryForSection(category);
   const activeSection = SETTINGS_SHELL_SECTIONS.find(
     (entry) => entry.id === category,
@@ -314,25 +317,23 @@ export function SettingsPage({
   const selectSection = (id: string) => {
     setCategory(id);
     setQuery("");
-    setSavedMessage("");
-    setOperationError("");
     onSectionChange?.(id as SettingsShellSection);
   };
-  const categorySupportsSearch =
-    !["appearance", "desktop"].includes(category) &&
-    !isEmbeddedSettingsFeature(category);
+  const showPreferences = settingsPreferencesVisible(category);
 
   const changeTheme = async (theme: string) => {
     if (themeInFlightRef.current) return;
     const builtIn = BUILT_IN_THEMES.find((candidate) => candidate.id === theme);
-    setOperationError("");
-    setSavedMessage("");
+    setPreferenceFeedback(null);
     if (builtIn) {
       applyThemeManifest(builtIn, "builtin");
       const profile = legacyThemeProfile(builtIn);
       setActiveThemeProfile(profile);
       announceTheme(profile);
-      setSavedMessage(`${builtIn.name} layout is now active.`);
+      setPreferenceFeedback({
+        kind: "status",
+        message: `${builtIn.name} layout is now active.`,
+      });
       return;
     }
     if (!active) return;
@@ -349,11 +350,14 @@ export function SettingsPage({
       applyDesktopTheme(profile, "runtime");
       setActiveThemeProfile(profile);
       announceTheme(profile);
-      setSavedMessage(`${profile.label} is now active everywhere.`);
+      setPreferenceFeedback({
+        kind: "status",
+        message: `${profile.label} is now active.`,
+      });
       themes.reload();
       settings.reload();
     } catch (error) {
-      setOperationError(errorMessage(error));
+      setPreferenceFeedback({ kind: "error", message: errorMessage(error) });
     } finally {
       themeInFlightRef.current = false;
       setThemeBusy(false);
@@ -361,31 +365,35 @@ export function SettingsPage({
   };
 
   const changeAppearance = (next: DesktopAppearance) => {
-    setOperationError("");
+    setPreferenceFeedback(null);
     setAppearance(next);
     applyDesktopAppearance(next);
     announceAppearance(next);
-    setSavedMessage(
-      next === "system"
-        ? "Appearance now follows your system."
-        : `${titleCase(next)} appearance is now active.`,
-    );
+    setPreferenceFeedback({
+      kind: "status",
+      message:
+        next === "system"
+          ? "Appearance follows your system."
+          : `${titleCase(next)} appearance is now active.`,
+    });
   };
 
   const changeDensity = (next: DesktopDensity) => {
-    setOperationError("");
+    setPreferenceFeedback(null);
     setDensity(next);
     applyDesktopDensity(next);
     announceDensity(next);
-    setSavedMessage(`${titleCase(next)} interface density is now active.`);
+    setPreferenceFeedback({
+      kind: "status",
+      message: `${titleCase(next)} interface density is now active.`,
+    });
   };
 
   const importTheme = async (file: File) => {
     if (themeInFlightRef.current) return;
     themeInFlightRef.current = true;
     setThemeBusy(true);
-    setOperationError("");
-    setSavedMessage("");
+    setPreferenceFeedback(null);
     try {
       if (file.size > DESKTOP_THEME_IMPORT_MAX_BYTES)
         throw new Error("Theme files must be 64 KB or smaller.");
@@ -400,9 +408,12 @@ export function SettingsPage({
       const profile = legacyThemeProfile(bundle.theme);
       setActiveThemeProfile(profile);
       announceTheme(profile);
-      setSavedMessage(`${bundle.theme.name} was imported and applied.`);
+      setPreferenceFeedback({
+        kind: "status",
+        message: `${bundle.theme.name} was imported and applied.`,
+      });
     } catch (error) {
-      setOperationError(errorMessage(error));
+      setPreferenceFeedback({ kind: "error", message: errorMessage(error) });
     } finally {
       themeInFlightRef.current = false;
       setThemeBusy(false);
@@ -410,14 +421,16 @@ export function SettingsPage({
   };
 
   const exportTheme = () => {
-    setOperationError("");
-    setSavedMessage("");
+    setPreferenceFeedback(null);
     const theme = loadStoredThemeManifest();
     try {
       downloadDesktopThemeBundle(theme, appearance, density);
-      setSavedMessage(`${theme.name} was exported as a Doolittle theme file.`);
+      setPreferenceFeedback({
+        kind: "status",
+        message: `${theme.name} was exported.`,
+      });
     } catch (error) {
-      setOperationError(errorMessage(error));
+      setPreferenceFeedback({ kind: "error", message: errorMessage(error) });
     }
   };
 
@@ -427,6 +440,7 @@ export function SettingsPage({
   const updateLifecycleBackground = (enabled: boolean) => {
     if (lifecycleInFlightRef.current) return;
     lifecycleInFlightRef.current = true;
+    lifecycleWriteRevision.current += 1;
     setLifecycleBusy(true);
     setLifecycleError("");
     void window.doolittle
@@ -477,10 +491,12 @@ export function SettingsPage({
     if (installInFlightRef.current || updateInFlightRef.current) return;
     installInFlightRef.current = true;
     setUpdateBusy(true);
-    setSavedMessage("Installing update and restarting Doolittle…");
+    setPreferenceFeedback({
+      kind: "status",
+      message: "Installing update and restarting Doolittle…",
+    });
     void window.doolittle.installUpdate().catch((error) => {
-      setSavedMessage("");
-      setOperationError(errorMessage(error));
+      setPreferenceFeedback({ kind: "error", message: errorMessage(error) });
       installInFlightRef.current = false;
       setUpdateBusy(false);
     });
@@ -531,15 +547,20 @@ export function SettingsPage({
         id={panelId}
         ref={panelRef}
       >
-        {savedMessage ? <Notice>{savedMessage}</Notice> : null}
-        {operationError ? <ErrorBlock error={operationError} /> : null}
+        {showPreferences && preferenceFeedback ? (
+          preferenceFeedback.kind === "error" ? (
+            <ErrorBlock error={preferenceFeedback.message} />
+          ) : (
+            <Notice announce="status">{preferenceFeedback.message}</Notice>
+          )
+        ) : null}
         {runtimeCategoryOffline ? (
           <OfflineRouteState>
             Runtime configuration and execution controls are unavailable until
             the local runtime is ready.
           </OfflineRouteState>
         ) : null}
-        {!runtimeCategoryOffline && categorySupportsSearch ? (
+        {resourcePolicy.settings ? (
           <label className="search-field settings-search max-w-80">
             <span className="sr-only">Search settings</span>
             <input
@@ -550,14 +571,14 @@ export function SettingsPage({
             />
           </label>
         ) : null}
-        {!runtimeCategoryOffline && categorySupportsSearch ? (
+        {resourcePolicy.settings ? (
           settings.loading ? (
             <LoadingBlock label="Loading runtime configuration…" />
           ) : settings.error ? (
             <ErrorBlock error={settings.error} retry={reloadSettings} />
           ) : null
         ) : null}
-        {!runtimeCategoryOffline && settingsPreferencesVisible(category) ? (
+        {showPreferences ? (
           <SettingsAppearancePanel
             active={active}
             activeTheme={activeThemeProfile}
@@ -678,7 +699,7 @@ export function SettingsPage({
             <LazyDocsPage active={active} embedded />
           </Suspense>
         ) : null}
-        {!runtimeCategoryOffline && settingsPreferencesVisible(category) ? (
+        {showPreferences ? (
           <DesktopSettingsPanel
             lifecycle={lifecycle}
             lifecycleBusy={lifecycleBusy}
@@ -695,30 +716,26 @@ export function SettingsPage({
             updateBusy={updateBusy}
           />
         ) : null}
-        {!["desktop", "appearance"].includes(category) &&
-        !isEmbeddedSettingsFeature(category) &&
-        !runtimeCategoryOffline &&
-        !settings.loading &&
-        !settings.error ? (
+        {resourcePolicy.settings && !settings.loading && !settings.error ? (
           <section className={SETTINGS_GROUP_CLASS}>
             <div className="settings-group-heading">
               <div>
-                <span className="eyebrow">{activeSection?.label}</span>
                 <h2>
-                  {category === "advanced"
-                    ? "Complete configuration"
-                    : `${activeSection?.label} settings`}
+                  {category === "advanced" ? "All settings" : "Configuration"}
                 </h2>
               </div>
               <Badge>{visibleFields.length} fields</Badge>
             </div>
+            {savedField?.section === category ? (
+              <Notice announce="status">{savedField.path} saved.</Notice>
+            ) : null}
             <SettingsFieldCollection
               readOnly={!writesAllowed}
               advanced={category === "advanced"}
               fields={visibleFields}
               onReload={settings.reload}
               onSaved={(field: FlatSetting) => {
-                setSavedMessage(`${field.path} saved.`);
+                setSavedField({ section: category, path: field.path });
                 settings.reload();
                 if (field.category === "execution") execution.reload();
               }}

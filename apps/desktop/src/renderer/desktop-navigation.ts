@@ -10,6 +10,7 @@ export type View =
   | "gateway"
   | "review"
   | "orchestration"
+  | "agents"
   | "sessions"
   | "activity"
   | "analytics"
@@ -43,6 +44,7 @@ export const views = new Set<View>([
   "gateway",
   "review",
   "orchestration",
+  "agents",
   "sessions",
   "activity",
   "analytics",
@@ -78,6 +80,7 @@ export type DesktopSection =
   | "media"
   | "preview"
   | "review"
+  | "agents"
   | "automations"
   | "inbox"
   | "models"
@@ -141,6 +144,11 @@ export const DESKTOP_ROUTE_LOCATIONS: Readonly<
     primaryView: "code",
   },
   orchestration: { destination: "work", primaryView: "orchestration" },
+  agents: {
+    destination: "work",
+    section: "agents",
+    primaryView: "orchestration",
+  },
   review: {
     destination: "work",
     section: "review",
@@ -355,7 +363,8 @@ export const navigation: NavigationSection[] = [
     id: "work",
     label: "Operations",
     items: [
-      { id: "orchestration", label: "Runs" },
+      { id: "orchestration", label: "Work" },
+      { id: "agents", label: "Agents" },
       { id: "review", label: "Review" },
       { id: "automations", label: "Automations" },
       { id: "gateway", label: "Inbox" },
@@ -397,6 +406,7 @@ export const VIEW_DESCRIPTIONS: Record<View, string> = {
   review: "Approve decisions and inspect workspace changes and agent outputs",
   orchestration:
     "Start, supervise, inspect, and approve tasks, agents, plans, and runs",
+  agents: "Manage bot teams and inspect runtime workers",
   sessions: "Search and inspect conversation history",
   activity: "Review deliveries, commands, and runtime events",
   analytics: "Understand local usage and activity",
