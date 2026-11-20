@@ -26,6 +26,7 @@ import {
 import {
   chatFailureDisposition,
   failedResponseContent,
+  markChatReplayGap,
 } from "./chat-terminal-events";
 import {
   CANCELLATION_UNCONFIRMED_MESSAGE,
@@ -327,19 +328,17 @@ export function useChatRunLifecycle({
   const settleRequest = (
     claim: RunClaim,
     type: "completed" | "cancelled" | "error",
-    content?: (previous: string) => string,
+    update?: (message: DisplayMessage) => DisplayMessage,
     durable = true,
   ) => {
     if (runClaims.current.get(claim.runId) !== claim) return;
     const { runId: requestId, sessionId: completedSessionId } = claim;
     flushPendingDeltas();
     updateAssistant(completedSessionId, requestId, (message) => ({
-      ...message,
-      content: content
-        ? content(message.content)
-        : type === "cancelled"
-          ? message.content || "Response stopped."
-          : message.content,
+      ...(update ? update(message) : message),
+      ...(type === "cancelled" && !message.content
+        ? { content: "Response stopped." }
+        : {}),
       pending: false,
       ...(type === "error" ? { error: true } : {}),
     }));
@@ -534,6 +533,14 @@ export function useChatRunLifecycle({
       return;
     }
     if (
+      event.event === "response.notice" &&
+      asRecordOrUndefined(event.data)?.code === "replay_gap"
+    ) {
+      flushPendingDeltas();
+      updateAssistant(sessionId, claim.runId, markChatReplayGap);
+      return;
+    }
+    if (
       event.event === "agent.progress" ||
       event.event === "response.notice" ||
       event.event === "attachment.warning"
@@ -552,16 +559,16 @@ export function useChatRunLifecycle({
     }
     if (event.event === "response.completed") {
       const response = asRecordOrUndefined(event.data)?.response;
-      settleRequest(
-        claim,
-        "completed",
-        (content) =>
-          (typeof response === "string" && response) || content || "Done.",
+      settleRequest(claim, "completed", (message) =>
+        typeof response === "string" && response
+          ? { ...message, content: response, replayGap: undefined }
+          : { ...message, content: message.content || "Done." },
       );
     } else if (failure === "terminal") {
-      settleRequest(claim, "error", (content) =>
-        failedResponseContent(content, event.data),
-      );
+      settleRequest(claim, "error", (message) => ({
+        ...message,
+        content: failedResponseContent(message.content, event.data),
+      }));
     } else if (
       event.event === "cancelled" ||
       event.event === "response.cancelled"

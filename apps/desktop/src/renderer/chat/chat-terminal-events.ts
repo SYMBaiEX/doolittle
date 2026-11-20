@@ -1,4 +1,5 @@
 import type { ChatEvent } from "../../shared/contracts";
+import type { DisplayMessage } from "./models";
 
 export function chatFailureDisposition(
   event: ChatEvent,
@@ -13,6 +14,11 @@ function terminalFailureText(data: unknown): string {
   if (!data || typeof data !== "object") return "";
   const record = data as Record<string, unknown>;
   return typeof record.message === "string" ? record.message : "";
+}
+
+/** Start a new contiguous text segment when the journal skipped frames. */
+export function markChatReplayGap(message: DisplayMessage): DisplayMessage {
+  return { ...message, content: "", replayGap: true };
 }
 
 function terminalFailureNotice(data: unknown): string {

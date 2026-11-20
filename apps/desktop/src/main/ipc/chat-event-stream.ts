@@ -39,6 +39,9 @@ export async function followChatEventStream({
         : undefined;
     const eventId =
       typeof id === "number" && Number.isSafeInteger(id) ? id : undefined;
+    if (frame.event === "error" && eventId === undefined) {
+      throw new Error("The runtime could not deliver the chat stream.");
+    }
     if (eventId !== undefined) {
       if (eventId <= cursor) return false;
       cursor = eventId;
@@ -80,6 +83,7 @@ export async function followChatEventStream({
         )
           return;
       } finally {
+        void reader.cancel().catch(() => undefined);
         reader.releaseLock();
       }
       throw new Error(

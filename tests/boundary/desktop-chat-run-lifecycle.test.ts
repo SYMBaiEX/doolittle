@@ -1,5 +1,8 @@
 import { expect, it } from "vitest";
-import { chatFailureDisposition } from "../../apps/desktop/src/renderer/chat/chat-terminal-events";
+import {
+  chatFailureDisposition,
+  markChatReplayGap,
+} from "../../apps/desktop/src/renderer/chat/chat-terminal-events";
 import type { RunReceipt } from "../../apps/desktop/src/renderer/chat/models";
 import {
   isTerminalClaimReceipt,
@@ -88,6 +91,22 @@ it("distinguishes an accepted stream disconnect from the owned terminal events",
   expect(
     chatFailureDisposition({ ...disconnected, event: "response.failed" }),
   ).toBe("terminal");
+});
+
+it("starts a new partial segment when retained chat updates contain a gap", () => {
+  const partial = {
+    id: "assistant:run-a",
+    runId,
+    role: "assistant",
+    content: "An incomplete code fence:\n```ts\n",
+    pending: true,
+    createdAt: "2026-11-20T00:00:00Z",
+  } as const;
+  expect(markChatReplayGap(partial)).toEqual({
+    ...partial,
+    content: "",
+    replayGap: true,
+  });
 });
 
 it("ignores stale inventory after reconciling the detached run's terminal receipt", () => {

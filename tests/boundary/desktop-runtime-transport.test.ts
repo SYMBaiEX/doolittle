@@ -154,3 +154,35 @@ it("resumes a chat stream from its last cursor with one terminal event", async (
     [2, true],
   ]);
 });
+
+it("retries a stream-level error and forwards a replay gap before a durable terminal error", async () => {
+  const delta = 'event: response.output_text.delta\ndata: {"event_id":1}\n\n';
+  const transport = 'event: error\ndata: {"message":"Stream failed."}\n\n';
+  const gap = 'event: response.notice\ndata: {"code":"replay_gap"}\n\n';
+  const terminal = 'event: error\ndata: {"event_id":3}\n\n';
+  const fetchRuntime = vi
+    .fn()
+    .mockResolvedValueOnce(new Response(delta + transport))
+    .mockResolvedValueOnce(new Response(gap + terminal));
+  const onEvent = vi.fn();
+
+  await followChatEventStream({
+    runtimeUrl: "http://localhost",
+    requestId: "run",
+    signal: new AbortController().signal,
+    fetchRuntime,
+    onEvent,
+  });
+
+  expect(fetchRuntime).toHaveBeenLastCalledWith(
+    "http://localhost/chat/runs/run/events?after=1",
+    expect.anything(),
+  );
+  expect(
+    onEvent.mock.calls.map(([frame, id, ended]) => [frame.event, id, ended]),
+  ).toEqual([
+    ["response.output_text.delta", 1, false],
+    ["response.notice", undefined, false],
+    ["error", 3, true],
+  ]);
+});

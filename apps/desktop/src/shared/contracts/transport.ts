@@ -134,7 +134,7 @@ export interface ChatCompletedPayload {
 }
 export interface ChatEvent {
   requestId: string;
-  /** Monotonic server event id. Undefined only for local transport failures. */
+  /** Monotonic journal event id. Transient notices and transport events have no id. */
   eventId?: number;
   /** The stream disconnected after the run was accepted. Ownership is unchanged. */
   transportError?: true;

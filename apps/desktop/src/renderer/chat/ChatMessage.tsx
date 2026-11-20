@@ -161,6 +161,11 @@ export function ChatMessage({
               />
             ) : null;
           })}
+        {message.replayGap ? (
+          <p className="chat-history-notice" role="status">
+            Some earlier response updates expired.
+          </p>
+        ) : null}
         {visibleContent ? (
           <MessageContent
             content={parsedAgentMessage ?? visibleContent}

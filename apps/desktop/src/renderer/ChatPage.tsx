@@ -1023,7 +1023,12 @@ export function ChatSessionPanel({
       return true;
     } catch (error) {
       if (runClaims.current.get(requestId) !== claim) return false;
-      settleRequest(claim, "error", () => errorMessage(error), false);
+      settleRequest(
+        claim,
+        "error",
+        (message) => ({ ...message, content: errorMessage(error) }),
+        false,
+      );
       if (dispatchRecovery) {
         const restored = restoreDraftAfterRejectedDispatch(dispatchRecovery);
         if (!restored && Object.keys(attachmentCleanup).length > 0) {

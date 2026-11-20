@@ -170,6 +170,7 @@ function isStoredDisplayMessage(value: unknown): value is DisplayMessage {
     (message.role === "user" || message.role === "assistant") &&
     typeof message.content === "string" &&
     typeof message.createdAt === "string" &&
+    (message.replayGap === undefined || message.replayGap === true) &&
     validCapsule
   );
 }

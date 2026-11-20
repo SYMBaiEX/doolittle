@@ -38,6 +38,7 @@ export interface DisplayMessage {
   createdAt: string;
   pending?: boolean;
   error?: boolean;
+  replayGap?: true;
   memoryMatch?: MemoryMatchSnapshot;
   contextCapsule?: ChatContextMessageCapsule;
 }
