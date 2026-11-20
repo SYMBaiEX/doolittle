@@ -1,6 +1,21 @@
 import type { BotDefinition } from "@doolittle/contracts/bots";
 import type { SubscriptionAccountStatus } from "@elizaos/auth/auth/credentials";
 
+export const NAMED_ACCOUNT_ID = /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,119}$/u;
+
+export const NAMED_PROVIDER_POOLS = {
+  openai: "openai-api",
+  anthropic: "anthropic-api",
+  codex: "openai-codex",
+  "claude-code": "anthropic-subscription",
+} as const;
+
+export function namedProviderPool(provider: string) {
+  return Object.hasOwn(NAMED_PROVIDER_POOLS, provider)
+    ? NAMED_PROVIDER_POOLS[provider as keyof typeof NAMED_PROVIDER_POOLS]
+    : undefined;
+}
+
 const CONNECTION_ID_PATTERN =
   /^(openai-api|anthropic-api|openai-codex|anthropic-subscription):([a-zA-Z0-9][a-zA-Z0-9._-]{0,119})$/u;
 
@@ -63,16 +78,7 @@ export async function resolveBotProviderGrant(
 ): Promise<ProviderGrant> {
   const provider = definition.model.provider;
   if (provider === "offline") return { kind: "offline" };
-  const expectedProvider =
-    provider === "openai"
-      ? "openai-api"
-      : provider === "anthropic"
-        ? "anthropic-api"
-        : provider === "codex"
-          ? "openai-codex"
-          : provider === "claude-code"
-            ? "anthropic-subscription"
-            : null;
+  const expectedProvider = namedProviderPool(provider);
   if (!expectedProvider) {
     throw new Error(
       "This model route needs a scoped native provider grant before activation.",

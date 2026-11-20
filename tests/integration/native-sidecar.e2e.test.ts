@@ -14,6 +14,11 @@ import { join } from "node:path";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 import { expect, it, vi } from "vitest";
+import { BotCatalog } from "../../apps/desktop/src/main/bot-catalog";
+import { BotConversationLedger } from "../../apps/desktop/src/main/bot-conversation-ledger";
+import { composeSessionServiceState } from "../../packages/agent/src/services/session/service/composition";
+import { legacyProfileId } from "../../packages/agent/src/services/session/service/legacy-profile";
+import { createSessionDatabase } from "../../packages/agent/src/services/session/service/support";
 import { isolatedRuntimeEnvironment } from "../support/isolated-runtime-environment";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
@@ -26,6 +31,56 @@ it.runIf(process.env.DOOLITTLE_RUN_RUNTIME_E2E === "1")(
     const workspace = join(sandbox, "workspace");
     await mkdir(profile, { mode: 0o700 });
     await mkdir(workspace);
+    const environment = isolatedRuntimeEnvironment(profile);
+    const legacyHome = join(await realpath(sandbox), "legacy-home");
+    const legacyConfig = join(legacyHome, "config");
+    const legacyRoot = join(
+      process.platform === "darwin"
+        ? join(legacyHome, "Library", "Application Support")
+        : legacyConfig,
+      "Doolittle",
+    );
+    const legacyData = join(legacyRoot, "runtime");
+    const canonicalWorkspace = await realpath(workspace);
+    await mkdir(join(legacyData, "bots"), { recursive: true, mode: 0o700 });
+    await writeFile(
+      join(legacyRoot, "workspace-state.json"),
+      JSON.stringify({ currentPath: canonicalWorkspace }),
+    );
+    const legacyAgentId = randomUUID();
+    new BotCatalog(
+      legacyData,
+      {
+        getState: () => ({
+          phase: "ready",
+          agentId: legacyAgentId,
+          message: "",
+        }),
+        getWorkspaceDirectory: () => canonicalWorkspace,
+      },
+      canonicalWorkspace,
+    ).defaultBot();
+    const legacyRoom = randomUUID();
+    new BotConversationLedger(legacyData).bind(
+      legacyAgentId,
+      legacyRoom,
+      undefined,
+      canonicalWorkspace,
+    );
+    const oldDatabase = createSessionDatabase(legacyData);
+    try {
+      composeSessionServiceState(oldDatabase).writes.storeMessage({
+        id: randomUUID(),
+        sessionId: legacyRoom,
+        roomId: legacyRoom,
+        entityId: "local-user",
+        role: "user",
+        text: "Legacy conversation witness",
+        createdAt: new Date().toISOString(),
+      });
+    } finally {
+      oldDatabase.close();
+    }
     await writeFile(join(workspace, "native-note.txt"), "workspace witness");
     await writeFile(join(workspace, "[ab].txt"), "literal index fixture\n");
     await writeFile(join(workspace, "a.txt"), "untouched index fixture\n");
@@ -72,11 +127,16 @@ it.runIf(process.env.DOOLITTLE_RUN_RUNTIME_E2E === "1")(
       {
         cwd: root,
         env: {
-          ...isolatedRuntimeEnvironment(profile),
+          ...environment,
+          HOME: legacyHome,
+          USERPROFILE: legacyHome,
+          APPDATA: legacyConfig,
+          XDG_CONFIG_HOME: legacyConfig,
           DOOLITTLE_REPO_ROOT: sandbox,
           DOOLITTLE_WORKSPACE_DIR: workspace,
           DOOLITTLE_NATIVE_WORKSPACE_SAVE: "1",
           DOOLITTLE_NATIVE_CONTROL_PLANE: "1",
+          DOOLITTLE_NATIVE_MIGRATE_LEGACY: "1",
           ELIZA_API_TOKEN: token,
         },
         stdio: ["pipe", "pipe", "pipe"],
@@ -87,14 +147,18 @@ it.runIf(process.env.DOOLITTLE_RUN_RUNTIME_E2E === "1")(
     });
     const output = createInterface({ input: child.stdout });
     let endpoint: string | undefined;
+    let migration: unknown;
     output.on("line", (line) => {
       if (!line.startsWith("DOOLITTLE_NATIVE_READY ")) return;
-      const { url } = JSON.parse(
+      const ready = JSON.parse(
         line.slice("DOOLITTLE_NATIVE_READY ".length),
       ) as {
         url: string;
+        migration?: unknown;
       };
-      if (/^http:\/\/127\.0\.0\.1:[1-9][0-9]{0,4}$/u.test(url)) endpoint = url;
+      if (/^http:\/\/127\.0\.0\.1:[1-9][0-9]{0,4}$/u.test(ready.url))
+        endpoint = ready.url;
+      migration = ready.migration;
     });
     let runtimeErrors = "";
     child.stderr.setEncoding("utf8");
@@ -136,6 +200,23 @@ it.runIf(process.env.DOOLITTLE_RUN_RUNTIME_E2E === "1")(
         ).status,
       ).toBe(403);
       expect((await request("/health")).status).toBe(200);
+      expect(migration).toEqual({
+        importedConversations: 1,
+        skippedConversations: 0,
+        settingsImported: false,
+        deferred: false,
+      });
+      const migratedRoom = legacyProfileId(
+        join(legacyData, "state.db"),
+        legacyRoom,
+      );
+      const history = await request(
+        `/sessions/messages?sessionId=${migratedRoom}`,
+      );
+      expect(history.status).toBe(200);
+      expect((await history.json()).messages).toMatchObject([
+        { text: "Legacy conversation witness" },
+      ]);
       expect((await post("/repo/mutate", {})).status).toBe(400);
       expect(
         (await post("/secrets/get", { key: "OPENAI_API_KEY" })).status,

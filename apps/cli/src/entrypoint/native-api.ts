@@ -3,8 +3,13 @@ import {
   NativeWorkspaceAdmission,
   runWithNativeWorkspaceAdmission,
 } from "@doolittle/agent/runtime/execution-admission";
+import { readDoolittleAccountPoolSnapshot } from "@doolittle/agent/runtime/native/account-pool";
 import { createNativeBotHost } from "@doolittle/desktop/named-bot-host";
 import { loadLocalRuntimeEnv } from "../cli/startup";
+import {
+  defaultLegacyDesktopProfile,
+  prepareLegacyProfileMigration,
+} from "./native-legacy-profile";
 import { prepareNativeProfile } from "./native-profile";
 import { installRuntimeProcessLifecycle } from "./runtime-process-lifecycle";
 
@@ -14,6 +19,11 @@ export async function runNativeApi(): Promise<void> {
   const allowWorkspaceSave =
     process.env.DOOLITTLE_NATIVE_WORKSPACE_SAVE === "1";
   const controlPlane = process.env.DOOLITTLE_NATIVE_CONTROL_PLANE === "1";
+  const legacyProfile =
+    process.env.DOOLITTLE_NATIVE_MIGRATE_LEGACY === "1"
+      ? defaultLegacyDesktopProfile()
+      : undefined;
+  delete process.env.DOOLITTLE_NATIVE_MIGRATE_LEGACY;
   delete process.env.DOOLITTLE_NATIVE_WORKSPACE_SAVE;
   delete process.env.DOOLITTLE_NATIVE_CONTROL_PLANE;
   if (!bearerToken || !/^[a-f0-9]{64}$/u.test(bearerToken)) {
@@ -33,6 +43,7 @@ export async function runNativeApi(): Promise<void> {
       runOwnedNativeApi(profile, bearerToken, {
         allowWorkspaceSave,
         controlPlane,
+        legacyProfile,
       }),
   );
 }
@@ -40,7 +51,11 @@ export async function runNativeApi(): Promise<void> {
 async function runOwnedNativeApi(
   profile: ReturnType<typeof prepareNativeProfile>,
   bearerToken: string,
-  capabilities: { allowWorkspaceSave: boolean; controlPlane: boolean },
+  capabilities: {
+    allowWorkspaceSave: boolean;
+    controlPlane: boolean;
+    legacyProfile: string | undefined;
+  },
 ): Promise<void> {
   // The capability belongs to this listener only. Never forward it to agent tools.
   process.env.ELIZA_API_TOKEN = "";
@@ -57,6 +72,7 @@ async function runOwnedNativeApi(
   process.env.POSTGRES_URL = "";
   loadLocalRuntimeEnv();
   delete process.env.ELIZA_API_TOKEN;
+  delete process.env.DOOLITTLE_NATIVE_MIGRATE_LEGACY;
 
   let requestStop = () => {};
   let finishClose = () => {};
@@ -112,6 +128,14 @@ async function runOwnedNativeApi(
       import("@doolittle/agent/server"),
     ]);
     if (closingReason) return;
+    const profileMigration =
+      capabilities.legacyProfile && profile.workspaceIsCurrent()
+        ? prepareLegacyProfileMigration(
+            capabilities.legacyProfile,
+            profile.dataDir,
+            profile.workspace,
+          )
+        : undefined;
     application = getApplicationSession();
     const context = await application.ensureRuntime({
       startupMode: "api",
@@ -120,6 +144,12 @@ async function runOwnedNativeApi(
     cancelActiveRuns = () =>
       context.services.runController.cancelAllActiveRuns();
     if (closingReason) return;
+    const migration = profile.workspaceIsCurrent()
+      ? profileMigration?.finish({
+          id: context.runtime.agentId,
+          name: context.config.agentName,
+        })
+      : undefined;
     if (capabilities.controlPlane) {
       botHost = createNativeBotHost({
         endpoint: () => listener?.address.url,
@@ -128,12 +158,21 @@ async function runOwnedNativeApi(
         dataDir: profile.dataDir,
         workspace: profile.workspace,
         bearerToken,
+        desktopGrants: capabilities.allowWorkspaceSave
+          ? {
+              readAccounts: readDoolittleAccountPoolSnapshot,
+              listProjects: () => context.services.sessions.listProjects(),
+              createProject: (project) =>
+                context.services.sessions.createProject(project),
+            }
+          : undefined,
       });
     }
     listener = await createApiServer(context, {
       nativeClient: {
         bearerToken,
-        ...capabilities,
+        allowWorkspaceSave: capabilities.allowWorkspaceSave,
+        controlPlane: capabilities.controlPlane,
         dispatchNamedBotControl: botHost?.dispatch,
         reserveLeadConversation: botHost?.reserveLeadConversation,
         workspaceIsCurrent: () =>
@@ -147,7 +186,7 @@ async function runOwnedNativeApi(
     });
     if (closingReason) return;
     console.log(
-      `DOOLITTLE_NATIVE_READY ${JSON.stringify({ url: listener.address.url })}`,
+      `DOOLITTLE_NATIVE_READY ${JSON.stringify({ url: listener.address.url, migration })}`,
     );
     hydrationTimer = setTimeout(() => {
       void context.ensureDeferredHydration("native-api").catch((error) => {

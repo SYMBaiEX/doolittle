@@ -508,6 +508,25 @@ export function getDoolittleAccountPool(): AccountPool {
   return getDefaultAccountPool();
 }
 
+/** Resolve one selected SDK account without falling back to ambient credentials. */
+export function isDoolittleAccountEnabled(
+  provider: AccountPoolProvider,
+  accountId: string,
+): boolean {
+  return getDoolittleAccountPool().get(accountId, provider)?.enabled === true;
+}
+
+export async function resolveEnabledDoolittleAccountToken(
+  provider: AccountPoolProvider,
+  accountId: string,
+): Promise<string | null> {
+  if (!isDoolittleAccountEnabled(provider, accountId)) return null;
+  const token = await getAccessToken(provider, accountId, {
+    storagePolicy: getOfficialAccountStoragePolicy(),
+  });
+  return isDoolittleAccountEnabled(provider, accountId) ? token : null;
+}
+
 export function isAccountPoolProvider(
   value: unknown,
 ): value is AccountPoolProvider {

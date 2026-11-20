@@ -50,6 +50,7 @@ import { buildBotWorkerEnvironment } from "./bot-process/worker-environment";
 import {
   BotProjectAccessStore,
   permissionsFingerprint,
+  projectAccessScope,
 } from "./bot-project-access";
 import { BotTeamCatalog } from "./bot-team-catalog";
 import { EngineBotBackend } from "./engine-bot-backend";
@@ -57,7 +58,14 @@ import type { DesktopExecutionAdmission } from "./execution-admission";
 import { readBoundedResponseText } from "./ipc/runtime-http";
 import type { RuntimeEndpoint } from "./runtime-endpoint";
 
+export class NamedProjectGrantUnavailableError extends Error {
+  constructor() {
+    super("This conversation’s project access has expired or was revoked.");
+  }
+}
+
 export interface BotProcessRegistryOptions {
+  requireCurrentProjectGrant?: boolean;
   confirmAutomation?: (request: AutomationNativeConsent) => Promise<boolean>;
   admission?: DesktopExecutionAdmission;
   tokenResolver?: TokenResolver;
@@ -112,6 +120,7 @@ export class BotProcessRegistry {
   private readonly invokeClaudeCli: typeof invokeClaudeCodeCliPrint;
   private readonly runtimeFetch: typeof fetch;
   private readonly admission?: DesktopExecutionAdmission;
+  private readonly requireCurrentProjectGrant: boolean;
   private readonly usesSharedEngine: boolean;
   private readonly createBackend: NonNullable<
     BotProcessRegistryOptions["createBackend"]
@@ -169,6 +178,8 @@ export class BotProcessRegistry {
     this.invokeClaudeCli = options.invokeClaudeCli ?? invokeClaudeCodeCliPrint;
     this.runtimeFetch = options.runtimeFetch ?? fetch;
     this.admission = options.admission;
+    this.requireCurrentProjectGrant =
+      options.requireCurrentProjectGrant ?? false;
     this.usesSharedEngine = !options.createBackend;
     this.createBackend =
       options.createBackend ??
@@ -299,6 +310,21 @@ export class BotProcessRegistry {
     };
   }
 
+  assertNamedBotStopped(id: string): void {
+    const backend = this.backends.get(id);
+    if (
+      this.fleetStop ||
+      this.executionStop ||
+      this.activations.has(id) ||
+      this.stops.has(id) ||
+      this.archiving.has(id) ||
+      backend?.hasLiveRuntime?.() ||
+      (backend && !["stopped", "degraded"].includes(backend.getState().phase))
+    ) {
+      throw new Error("Stop this agent before changing its access.");
+    }
+  }
+
   /** Called only after main-process native confirmation for project grants. */
   bindConversationWorkspace(
     botId: string,
@@ -309,6 +335,12 @@ export class BotProcessRegistry {
     const root = project?.workspacePath ?? this.scratchWorkspace(bot.id);
     if (!statSync(root).isDirectory() || realpathSync(root) !== root)
       throw new Error("Selected project root changed.");
+    const scope =
+      project && this.requireCurrentProjectGrant && !bot.isDefault
+        ? projectAccessScope(bot, project)
+        : undefined;
+    if (scope && !this.projectAccess.has(scope))
+      throw new NamedProjectGrantUnavailableError();
     return this.conversations.bind(
       bot.id,
       sessionId,
@@ -325,6 +357,10 @@ export class BotProcessRegistry {
               : {}),
           }
         : undefined,
+      scope && {
+        directoryIdentity: scope.directoryIdentity,
+        permissionsFingerprint: scope.permissionsFingerprint,
+      },
     );
   }
 
@@ -454,11 +490,28 @@ export class BotProcessRegistry {
         );
     }
     if (owner.projectId) {
-      const project = await this.readLeadProject(owner.projectId);
-      if (project.workspacePath !== owner.workspacePath)
-        throw new Error(
-          "Conversation project root changed; repair is required.",
-        );
+      const bot = this.get(botId);
+      try {
+        const project = await this.readLeadProject(owner.projectId);
+        if (project.workspacePath !== owner.workspacePath)
+          throw new Error(
+            "Conversation project root changed; repair is required.",
+          );
+        if (this.requireCurrentProjectGrant && !bot.isDefault) {
+          const scope = projectAccessScope(bot, project);
+          if (
+            owner.projectGrant?.directoryIdentity !== scope.directoryIdentity ||
+            owner.projectGrant.permissionsFingerprint !==
+              scope.permissionsFingerprint ||
+            !this.projectAccess.has(scope)
+          )
+            throw new NamedProjectGrantUnavailableError();
+        }
+      } catch (error) {
+        if (this.requireCurrentProjectGrant && !bot.isDefault)
+          throw new NamedProjectGrantUnavailableError();
+        throw error;
+      }
     }
     return owner;
   }

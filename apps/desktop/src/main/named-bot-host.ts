@@ -3,14 +3,27 @@ import { EventEmitter } from "node:events";
 import { pathToFileURL } from "node:url";
 import { getDefaultRepoRoot } from "@doolittle/agent/config/env/paths";
 import { installSharedEngineHost } from "@doolittle/agent/runtime/engine/host";
+import {
+  isDoolittleAccountEnabled,
+  resolveEnabledDoolittleAccountToken,
+} from "@doolittle/agent/runtime/native/account-pool";
 import type { BackendState } from "../shared/contracts";
 import { handleBotApiRequest } from "./bot-api";
-import { BotProcessRegistry } from "./bot-process-registry";
+import {
+  BotProcessRegistry,
+  NamedProjectGrantUnavailableError,
+} from "./bot-process-registry";
 import { EngineBotBackend } from "./engine-bot-backend";
 import { EngineClient, type EngineTransport } from "./engine-client";
 import { DesktopExecutionAdmission } from "./execution-admission";
 import { isRecord } from "./ipc/input-validation";
 import { readBoundedResponseText } from "./ipc/runtime-http";
+import {
+  createNativeBotGrants,
+  type NativeBotGrantOptions,
+  nativeNamedDefinition,
+  nativeNamedProviderAccount,
+} from "./native-bot-grants";
 import { RuntimeEndpoint } from "./runtime-endpoint";
 
 type OwnedLead = {
@@ -20,6 +33,7 @@ type OwnedLead = {
   dataDir: string;
   workspace: string;
   bearerToken: string;
+  desktopGrants?: NativeBotGrantOptions;
 };
 
 const BOT_MUTATION =
@@ -140,11 +154,14 @@ function offlineBotBody(input: unknown, creating: boolean): string {
   if (fields.model !== undefined) {
     const model = fields.model as Partial<typeof OFFLINE_MODEL> | null;
     if (
+      !creating ||
       model?.provider !== "offline" ||
       model.model !== "offline" ||
       Object.keys(model).some((key) => key !== "provider" && key !== "model")
     )
-      throw new Error("Native named bots currently use the offline model.");
+      throw new Error(
+        "Use the named agent’s provider controls to change models.",
+      );
   }
   return JSON.stringify({
     ...fields,
@@ -164,27 +181,6 @@ const EMPTY_MESSAGES = {
   nextOffset: 0,
   totalMessages: 0,
 };
-
-function privateOfflineBot(registry: BotProcessRegistry, id: string): boolean {
-  try {
-    const bot = registry.get(id);
-    return (
-      !bot.isDefault &&
-      bot.model.provider === OFFLINE_MODEL.provider &&
-      bot.model.model === OFFLINE_MODEL.model &&
-      !bot.projectId &&
-      !bot.permissions.allowMutation &&
-      !bot.permissions.allowDelegation &&
-      bot.permissions.connectionIds.length === 0 &&
-      bot.permissions.toolIds.length === 0 &&
-      bot.permissions.workspacePaths.length === 1 &&
-      bot.permissions.workspacePaths[0] === bot.workspacePath &&
-      bot.workspacePath === registry.privateBotWorkspace(id)
-    );
-  } catch {
-    return false;
-  }
-}
 
 function namedNotFound() {
   return Response.json(
@@ -282,7 +278,8 @@ async function dispatchNamedChat(
     (runId && !ordinaryRunId(runId))
   )
     return namedNotFound();
-  if (!privateOfflineBot(registry, botId)) return namedNotFound();
+  const bot = nativeNamedDefinition(registry, botId);
+  if (!bot) return namedNotFound();
 
   const query = boundedQuery(
     url,
@@ -316,8 +313,9 @@ async function dispatchNamedChat(
     const owner = registry.resolveSavedConversationOwner(sessionId);
     return (
       owner?.botId === botId &&
-      !owner.projectId &&
-      owner.workspacePath === scratch
+      (owner.projectId
+        ? owner.workspacePath !== undefined
+        : owner.workspacePath === scratch)
     );
   };
   let sessionId = query.get("sessionId");
@@ -378,6 +376,16 @@ async function dispatchNamedChat(
   }
 
   try {
+    const account = submitting ? nativeNamedProviderAccount(bot) : null;
+    if (account && !isDoolittleAccountEnabled(account.pool, account.accountId))
+      return Response.json(
+        {
+          error:
+            "This agent’s provider account is disabled or unavailable. Check Connections before sending another message.",
+          code: "named_provider_account_unavailable",
+        },
+        { status: 409 },
+      );
     if (sessionId && !isOwned(sessionId)) {
       if (registry.resolveSavedConversationOwner(sessionId))
         return namedNotFound();
@@ -417,6 +425,8 @@ async function dispatchNamedChat(
       // The lead lookup above may have raced a local lead submission. Recheck
       // and reserve both IDs in the shared durable ledger before yielding.
       if (!current) registry.bindConversationWorkspace(botId, sessionId);
+      await registry.resolveVerifiedConversationWorkspace(botId, sessionId);
+      if (registry.readyBackendFor(botId) !== backend) return stopped();
       registry.bindRun(botId, sessionId, submissionId);
     }
     if (runId) {
@@ -425,8 +435,6 @@ async function dispatchNamedChat(
         return namedNotFound();
       sessionId = owner.sessionId;
     }
-    if (sessionId)
-      await registry.resolveVerifiedConversationWorkspace(botId, sessionId);
     if (registry.readyBackendFor(botId) !== backend) return stopped();
     const workerPath = runId
       ? `/chat/runs/${encodeURIComponent(runId)}${suffix ? `/${suffix}` : ""}`
@@ -512,7 +520,12 @@ async function dispatchNamedChat(
         throw new Error("Named worker returned a different transcript owner.");
     }
     return Response.json(response, { status: upstream.status });
-  } catch {
+  } catch (error) {
+    if (error instanceof NamedProjectGrantUnavailableError)
+      return Response.json(
+        { error: error.message, code: "named_project_access_revoked" },
+        { status: 409 },
+      );
     return Response.json(
       { error: "The named bot request could not be completed." },
       { status: 502 },
@@ -564,6 +577,8 @@ export function createNativeBotHost(lead: OwnedLead) {
     new LeadEndpoint(lead, engine, runtimeFetch),
     lead.workspace,
     {
+      requireCurrentProjectGrant: true,
+      tokenResolver: resolveEnabledDoolittleAccountToken,
       admission: new DesktopExecutionAdmission(),
       runtimeFetch,
       createBackend(target, dataDir, workspace, workerFetch, options) {
@@ -596,6 +611,8 @@ export function createNativeBotHost(lead: OwnedLead) {
       },
     },
   );
+  const dispatchGrants =
+    lead.desktopGrants && createNativeBotGrants(registry, lead.desktopGrants);
   let closing = false;
   return {
     reserveLeadConversation(input: {
@@ -639,6 +656,8 @@ export function createNativeBotHost(lead: OwnedLead) {
           { error: "The bot host is stopping." },
           { status: 503 },
         );
+      const grant = await dispatchGrants?.(request, url);
+      if (grant) return grant;
       const chat = await dispatchNamedChat(
         registry,
         runtimeFetch,
@@ -665,7 +684,7 @@ export function createNativeBotHost(lead: OwnedLead) {
         mutation?.[2] === "activate" &&
         mutation[1] !== "default" &&
         mutation[1] !== lead.agentId &&
-        !privateOfflineBot(registry, mutation[1])
+        !nativeNamedDefinition(registry, mutation[1])
       )
         return namedNotFound();
       let body: string | undefined;

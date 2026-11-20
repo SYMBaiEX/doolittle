@@ -1,3 +1,4 @@
+import { isNativeNamedBotGrantRoute } from "@doolittle/contracts/bots";
 import { parseOpaqueRouteId } from "./routes/parse-opaque-id";
 
 // Only sidecars started by the native operator host receive these routes. Keep
@@ -183,6 +184,7 @@ const SKILL_PROPOSAL =
   /^\/skills\/proposals\/skill-proposal-[0-9a-f-]{36}(?:\/(approve|reject))?$/u;
 
 export function isNativeNamedBotRoute(method: string, path: string): boolean {
+  if (isNativeNamedBotGrantRoute(method, path)) return true;
   if (path === "/bots") return method === "GET" || method === "POST";
   const bot =
     /^\/bots\/(?:default|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})(?:\/(activate|stop|archive))?$/iu.exec(

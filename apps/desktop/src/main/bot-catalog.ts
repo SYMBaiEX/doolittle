@@ -216,7 +216,7 @@ function isStoredBotDefinition(value: unknown): value is BotDefinition {
 
 function publicState(
   definition: BotDefinition,
-  backend?: RuntimeEndpoint,
+  backend?: Pick<RuntimeEndpoint, "getState">,
 ): BotSummary {
   const state = backend?.getState();
   return {
@@ -237,6 +237,47 @@ function publicState(
   };
 }
 
+function readStoredBotCatalog(filePath: string): StoredBotCatalog {
+  if (!existsSync(filePath)) return { version: 1, bots: [] };
+  const raw = readRegularFileSync(filePath, MAX_CATALOG_BYTES).toString("utf8");
+  const value = JSON.parse(raw) as StoredBotCatalog;
+  if (
+    value.version !== 1 ||
+    (value.defaultAgentId !== undefined &&
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu.test(
+        value.defaultAgentId,
+      )) ||
+    !Array.isArray(value.bots) ||
+    value.bots.some((bot) => !isStoredBotDefinition(bot)) ||
+    new Set(value.bots.map((bot) => bot.id)).size !== value.bots.length
+  ) {
+    throw new Error("The bot catalog is invalid.");
+  }
+  // Legacy records remain on disk as-is until an explicit catalog save.
+  return {
+    ...value,
+    bots: value.bots.map((bot) => ({
+      ...bot,
+      character:
+        bot.character ??
+        normalizeBotCharacter({ system: bot.persona }, bot.name),
+    })),
+  };
+}
+
+export function readStoredBotProfiles(dataDir: string): {
+  lead: string;
+  named: BotDefinition[];
+} {
+  const catalog = readStoredBotCatalog(
+    resolve(dataDir, "bots", "catalog.json"),
+  );
+  return {
+    lead: catalog.defaultAgentId ?? LEGACY_AGENT_ID,
+    named: catalog.bots,
+  };
+}
+
 /** Main-process-owned, additive catalog. The legacy default is synthesized. */
 export class BotCatalog {
   private readonly filePath: string;
@@ -244,41 +285,14 @@ export class BotCatalog {
 
   constructor(
     private readonly dataDir: string,
-    private readonly defaultBackend: RuntimeEndpoint,
+    private readonly defaultBackend: Pick<
+      RuntimeEndpoint,
+      "getState" | "getWorkspaceDirectory"
+    >,
     private readonly defaultWorkspacePath: string,
   ) {
     this.filePath = resolve(dataDir, "bots", "catalog.json");
-    this.stored = this.load();
-  }
-
-  private load(): StoredBotCatalog {
-    if (!existsSync(this.filePath)) return { version: 1, bots: [] };
-    const raw = readRegularFileSync(this.filePath, MAX_CATALOG_BYTES).toString(
-      "utf8",
-    );
-    const value = JSON.parse(raw) as StoredBotCatalog;
-    if (
-      value.version !== 1 ||
-      (value.defaultAgentId !== undefined &&
-        !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu.test(
-          value.defaultAgentId,
-        )) ||
-      !Array.isArray(value.bots) ||
-      value.bots.some((bot) => !isStoredBotDefinition(bot)) ||
-      new Set(value.bots.map((bot) => bot.id)).size !== value.bots.length
-    ) {
-      throw new Error("The bot catalog is invalid.");
-    }
-    // Legacy records remain on disk as-is until an explicit catalog save.
-    return {
-      ...value,
-      bots: value.bots.map((bot) => ({
-        ...bot,
-        character:
-          bot.character ??
-          normalizeBotCharacter({ system: bot.persona }, bot.name),
-      })),
-    };
+    this.stored = readStoredBotCatalog(this.filePath);
   }
 
   private save(next: StoredBotCatalog): void {
@@ -366,9 +380,35 @@ export class BotCatalog {
   }
 
   create(input: CreateBotInput): BotDefinition {
+    return this.createBot(input, randomUUID(), randomUUID());
+  }
+
+  /** Restores identity and personality under the same policy as a new private bot. */
+  restorePrivateBot(
+    input: Pick<BotDefinition, "name" | "avatar" | "persona" | "character">,
+    id: string,
+    agentId: string,
+  ): BotDefinition | undefined {
+    const existing = this.get(id);
+    if (existing) {
+      return !existing.archivedAt && existing.agentId === agentId
+        ? existing
+        : undefined;
+    }
+    return this.createBot(
+      { ...input, model: { provider: "offline", model: "offline" } },
+      id,
+      agentId,
+    );
+  }
+
+  private createBot(
+    input: CreateBotInput,
+    id: string,
+    agentId: string,
+  ): BotDefinition {
     const name = requiredText(input.name, "Bot name", MAX_NAME_LENGTH);
     const personality = botPersonality(input, name);
-    const id = randomUUID();
     const scratchPath = resolve(this.dataDir, "bot-workspaces", id);
     const workspacePath = validateWorkspacePath(
       input.workspacePath ?? scratchPath,
@@ -378,7 +418,7 @@ export class BotCatalog {
     const now = new Date().toISOString();
     const definition: BotDefinition = {
       id,
-      agentId: randomUUID(),
+      agentId,
       name,
       ...personality,
       ...(input.avatar

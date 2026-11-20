@@ -108,6 +108,51 @@ export class SessionTransferService {
   importSessionArchive(
     input: ImportSessionArchiveInput,
   ): ImportSessionArchiveResult {
+    const result = this.writeArchive(input, this.createSessionId());
+    if (!result) {
+      throw new SessionTransferError(
+        "invalid_archive",
+        "The imported session ID already exists.",
+      );
+    }
+    return result;
+  }
+
+  /** A legacy room can be projected once without replacing native work. */
+  importLegacySessionArchive(
+    archive: DoolittleSessionArchiveV1,
+    sessionId: string,
+  ): "imported" | "existing" | "conflict" {
+    if (this.writeArchive({ archive }, sessionId)) return "imported";
+    return this.legacyImportStatus(archive.source.sessionId, sessionId) ===
+      "existing"
+      ? "existing"
+      : "conflict";
+  }
+
+  legacyImportStatus(
+    sourceSessionId: string,
+    sessionId: string,
+  ): "available" | "existing" | "conflict" {
+    const source = this.db
+      .query(
+        "SELECT source_session_id FROM session_imports WHERE session_id = ?",
+      )
+      .get(sessionId) as { source_session_id: string } | undefined;
+    if (source)
+      return source.source_session_id === sourceSessionId
+        ? "existing"
+        : "conflict";
+    return this.messages.hasSession(sessionId) ||
+      this.metadata.metadata(sessionId)
+      ? "conflict"
+      : "available";
+  }
+
+  private writeArchive(
+    input: ImportSessionArchiveInput,
+    sessionId: string,
+  ): ImportSessionArchiveResult | undefined {
     const { archive, preview } = validateSessionArchive(input.archive);
     const project = input.projectId
       ? this.projects.get(input.projectId)
@@ -119,7 +164,6 @@ export class SessionTransferService {
       );
     }
 
-    const sessionId = this.createSessionId();
     const storedMessages: StoredMessage[] = archive.messages.map((message) => ({
       id: message.id,
       originMessageId: message.originMessageId,
@@ -142,6 +186,16 @@ export class SessionTransferService {
 
     this.db.exec("BEGIN IMMEDIATE");
     try {
+      if (
+        this.messages.hasSession(sessionId) ||
+        this.metadata.metadata(sessionId) ||
+        this.db
+          .query("SELECT 1 FROM session_imports WHERE session_id = ?")
+          .get(sessionId)
+      ) {
+        this.db.exec("ROLLBACK");
+        return undefined;
+      }
       this.messages.copyMessagesToSession(
         archive.source.sessionId,
         sessionId,

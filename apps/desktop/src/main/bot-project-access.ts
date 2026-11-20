@@ -179,6 +179,23 @@ export class BotProjectAccessStore {
       this.save(this.grants.filter((grant) => grant.botId !== botId));
   }
 
+  list(botId: string): ProjectAccessGrant[] {
+    return this.failed
+      ? []
+      : this.grants
+          .filter((grant) => grant.botId === botId)
+          .map((grant) => ({ ...grant }));
+  }
+
+  forgetProject(botId: string, projectId: string): void {
+    if (!BOT_ID.test(botId) || !PROJECT_ID.test(projectId))
+      throw new Error("Project approval scope is invalid.");
+    const grants = this.grants.filter(
+      (grant) => grant.botId !== botId || grant.projectId !== projectId,
+    );
+    if (grants.length !== this.grants.length) this.save(grants);
+  }
+
   private save(grants: ProjectAccessGrant[]): void {
     const value = { version: 1, grants };
     if (

@@ -37,17 +37,25 @@ export async function runNativeProviderStage(
   const messagePolicy = input.turnSetup.messagePolicy;
   const settingsBefore = input.turnSetup.settingsBefore;
   const responseSource = input.input.source ?? "cli";
-  const providerResult = await dependencies.runProviderModelTurn({
-    context: input.context,
-    turn,
-    userId: input.effectiveInput.userId,
-    effectiveMessage: input.effectiveInput.message,
-    settingsBefore,
-    settingsDuring: input.settingsDuring,
-    messagePolicy,
-    options: input.options,
-    attachments: input.effectiveInput.attachments,
-  });
+  const providerResult = input.turnSetup.inspectWorkspace
+    ? {
+        handledMessage: false,
+        response: await input.context.services.workspace.summaryAsync(40),
+        runFailureMessage: undefined,
+        actionResults: [],
+        responseMessages: [],
+      }
+    : await dependencies.runProviderModelTurn({
+        context: input.context,
+        turn,
+        userId: input.effectiveInput.userId,
+        effectiveMessage: input.effectiveInput.message,
+        settingsBefore,
+        settingsDuring: input.settingsDuring,
+        messagePolicy,
+        options: input.options,
+        attachments: input.effectiveInput.attachments,
+      });
   if (providerResult.handledMessage) {
     input.perf.mark("native-handle-message");
   }

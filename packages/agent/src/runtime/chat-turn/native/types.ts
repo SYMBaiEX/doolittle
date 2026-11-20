@@ -30,4 +30,5 @@ export type NativeTurnSetup = {
   scheduleProfileObservation: () => void;
   messagePolicy: NativeMessagePolicy;
   settingsBefore: SettingsSnapshot;
+  inspectWorkspace?: boolean;
 };

@@ -1,4 +1,5 @@
 import type { IncomingMessage } from "node:http";
+import { isNativeNamedBotGrantRoute } from "@doolittle/contracts/bots";
 import { tokenMatches } from "@elizaos/agent/api/server-helpers-auth";
 import {
   ExecutionAdmissionLimitError,
@@ -147,7 +148,9 @@ export function createNativeClientPolicy(options: NativeClientSecurityOptions) {
       options.controlPlane === true &&
       (nativeControlRouteAllowed(method, path) ||
         (options.dispatchNamedBotControl !== undefined &&
-          isNativeNamedBotRoute(method, path)));
+          isNativeNamedBotRoute(method, path) &&
+          (options.allowWorkspaceSave === true ||
+            !isNativeNamedBotGrantRoute(method, path))));
     if (
       ((path === NATIVE_WORKSPACE_SAVE_PATH ||
         path === NATIVE_ATTACHMENT_IMPORT ||

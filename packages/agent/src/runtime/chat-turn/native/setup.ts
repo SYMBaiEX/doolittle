@@ -1,7 +1,9 @@
 import type { ChatTurnRequest } from "../../../types/runtime/index";
+import { readWorkerBotProfile } from "../../bootstrap/bot-profile";
 import type { AgentExecutionContext } from "../../chat";
 import { matchesRegisteredClientControl } from "../../command-shortcut-match";
 import { hasWorkspaceMutationObligation } from "../../workspace-mutation-intent";
+import { currentConversationWorkspace } from "../../workspace-scope";
 import {
   type PreparedTurnState,
   prepareTurnState,
@@ -59,12 +61,17 @@ export async function prepareNativeTurnSetup(input: {
       recentMessages,
     ),
   );
-  const routingOwner = matchesRegisteredClientControl(
-    input.context.runtime,
-    input.effectiveInput.message,
-  )
-    ? "doolittle"
-    : "eliza-message-service";
+  const inspectWorkspace =
+    input.effectiveInput.message.trim() === "/workspace tree" &&
+    Boolean(currentConversationWorkspace() && readWorkerBotProfile());
+  const routingOwner =
+    inspectWorkspace ||
+    matchesRegisteredClientControl(
+      input.context.runtime,
+      input.effectiveInput.message,
+    )
+      ? "doolittle"
+      : "eliza-message-service";
   await startTrackedTurn(
     input.input,
     input.context,
@@ -96,5 +103,6 @@ export async function prepareNativeTurnSetup(input: {
     scheduleProfileObservation,
     messagePolicy,
     settingsBefore: turn.settings,
+    inspectWorkspace,
   };
 }

@@ -1,5 +1,6 @@
 import { EventEmitter } from "node:events";
 import { SessionTransferService } from "../../session-transfer";
+import type { SessionDatabase } from "../database";
 import { SessionMessageStore } from "../messages";
 import { SessionMetadataStore } from "../metadata";
 import { ProjectStore } from "../projects/store";
@@ -12,7 +13,12 @@ import { SessionWriteOperations } from "./write";
 export function createSessionServiceState(
   baseDir: string,
 ): SessionServiceState {
-  const db = createSessionDatabase(baseDir);
+  return composeSessionServiceState(createSessionDatabase(baseDir));
+}
+
+export function composeSessionServiceState(
+  db: SessionDatabase,
+): SessionServiceState {
   const events = new EventEmitter();
   const messageStore = new SessionMessageStore(db, events);
   const projects = new ProjectStore(db);

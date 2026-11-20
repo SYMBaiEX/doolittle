@@ -244,6 +244,46 @@ describe("the native runtime boundary", () => {
     }
   });
 
+  it("keeps agent access setup inside the native desktop capability", () => {
+    const options = {
+      bearerToken: token,
+      workspaceIsCurrent: () => true,
+      controlPlane: true,
+      dispatchNamedBotControl: async () => null,
+    };
+    const desktop = createNativeClientPolicy({
+      ...options,
+      allowWorkspaceSave: true,
+    });
+    const cli = createNativeClientPolicy(options);
+    const named = "/bots/8efb0a77-6108-4891-a37a-c31ae7347e60";
+    for (const [method, suffix] of [
+      ["GET", "/provider"],
+      ["POST", "/provider/preview"],
+      ["POST", "/provider/confirm"],
+      ["GET", "/project-grants"],
+      ["POST", "/project-grants/preview"],
+      ["POST", "/project-grants/confirm"],
+      ["POST", "/project-grants/revoke"],
+      ["POST", "/project-chats"],
+    ] as const) {
+      const target = named + suffix;
+      expect(desktop(request(target, method), target)).toBeNull();
+      expect(cli(request(target, method), target)).toMatchObject({
+        status: 404,
+      });
+    }
+    for (const target of [
+      "/bots/default/provider/confirm",
+      `${named}/project-chats/confirm`,
+      `${named}/provider/revoke`,
+    ]) {
+      expect(desktop(request(target, "POST"), target)).toMatchObject({
+        status: 404,
+      });
+    }
+  });
+
   it("enforces dedicated service bearer auth before ordinary and webhook routes", () => {
     const strict = createStrictLoopbackTokenPolicy(token);
     expect(strict(request("/health"))).toBeNull();

@@ -177,3 +177,20 @@ export interface SharedKnowledgeResponse {
   knowledge: SharedKnowledgeRecord[];
   grants: KnowledgeGrant[];
 }
+
+export const NATIVE_NAMED_BOT_GRANT_PATH =
+  /^\/bots\/([0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})\/(provider|project-grants|project-chats)(?:\/(preview|confirm|revoke))?$/u;
+
+export function isNativeNamedBotGrantRoute(
+  method: string,
+  path: string,
+): boolean {
+  const route = NATIVE_NAMED_BOT_GRANT_PATH.exec(path);
+  if (!route) return false;
+  const [, , resource, action] = route;
+  if (resource === "project-chats") return method === "POST" && !action;
+  if (!action) return method === "GET";
+  return (
+    method === "POST" && (action !== "revoke" || resource === "project-grants")
+  );
+}

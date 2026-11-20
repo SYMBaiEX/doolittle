@@ -5,6 +5,7 @@ import {
   mkdtemp,
   readFile,
   realpath,
+  rename,
   rm,
   stat,
   writeFile,
@@ -19,11 +20,13 @@ import { isolatedRuntimeEnvironment } from "../support/isolated-runtime-environm
 const root = fileURLToPath(new URL("../../", import.meta.url));
 
 it.runIf(process.env.DOOLITTLE_RUN_RUNTIME_E2E === "1")(
-  "starts, stops and persists a native named bot using the actual isolated SDK worker",
+  "scopes native named SDK workers to selected accounts and approved project conversations",
   async () => {
     const sandbox = await mkdtemp(join(tmpdir(), "doolittle-native-bots-"));
     const profile = join(sandbox, "data");
     const workspace = join(sandbox, "workspace");
+    const project = join(sandbox, "scoped project");
+    const marker = "project-only-witness.txt";
     const trace = join(sandbox, "owned-http-requests.jsonl");
     const observer = join(sandbox, "observe-owned-fetch.mjs");
     const raceRoom = randomUUID();
@@ -31,6 +34,8 @@ it.runIf(process.env.DOOLITTLE_RUN_RUNTIME_E2E === "1")(
     const leadLookupRelease = join(sandbox, "lead-lookup-release");
     await mkdir(profile, { mode: 0o700 });
     await mkdir(workspace, { mode: 0o700 });
+    await mkdir(project, { mode: 0o700 });
+    await writeFile(join(project, marker), "Project content", { mode: 0o600 });
     // Observe test-owned runtime endpoints without publishing a worker URL or
     // capability in the product API. The trace stores only origins and status.
     await writeFile(
@@ -38,11 +43,13 @@ it.runIf(process.env.DOOLITTLE_RUN_RUNTIME_E2E === "1")(
       `import { appendFileSync, existsSync, writeFileSync } from "node:fs";
 import { setTimeout as delay } from "node:timers/promises";
 import { isMainThread } from "node:worker_threads";
-if (isMainThread) {
-  const fetch = globalThis.fetch;
-  globalThis.fetch = async (input, init) => {
-    const response = await fetch(input, init);
-    const url = new URL(input instanceof Request ? input.url : input);
+const fetch = globalThis.fetch;
+globalThis.fetch = async (input, init) => {
+  const url = new URL(input instanceof Request ? input.url : input);
+  if ((url.protocol === "http:" || url.protocol === "https:") && url.hostname !== "127.0.0.1")
+    throw new Error("External provider requests are unavailable in this fixture.");
+  const response = await fetch(input, init);
+  if (isMainThread) {
     if (url.protocol === "http:" && url.hostname === "127.0.0.1" &&
         url.pathname === "/chat/runs" && url.search === "?limit=100") {
       appendFileSync(${JSON.stringify(trace)}, JSON.stringify({
@@ -58,9 +65,9 @@ if (isMainThread) {
       while (!existsSync(${JSON.stringify(leadLookupRelease)}) && Date.now() < deadline)
         await delay(10);
     }
-    return response;
-  };
-}
+  }
+  return response;
+};
 `,
       { mode: 0o600 },
     );
@@ -92,6 +99,7 @@ if (isMainThread) {
           DOOLITTLE_REPO_ROOT: sandbox,
           DOOLITTLE_WORKSPACE_DIR: workspace,
           DOOLITTLE_NATIVE_CONTROL_PLANE: "1",
+          DOOLITTLE_NATIVE_WORKSPACE_SAVE: "1",
           ELIZA_API_TOKEN: token,
         },
         stdio: ["pipe", "pipe", "pipe"],
@@ -165,6 +173,142 @@ if (isMainThread) {
       expect(record.workspacePath).toBe(
         await realpath(join(profile, "bot-workspaces", record.id)),
       );
+      const named = (botId: string, resource: string) =>
+        `/bots/${botId}/${resource}`;
+      const control = (resource: string, body: unknown) =>
+        request(named(record.id, resource), "POST", body);
+      const receivePreview = async (response: Response) => {
+        expect(response.status, await response.clone().text()).toBe(200);
+        const preview = await response.json();
+        expect(preview.previewId).toEqual(expect.any(String));
+        return preview as { previewId: string; detail: string };
+      };
+      const fixtureKey = "sk-private-fixture-not-a-live-key";
+      const savedAccount = await request(
+        "/runtime/account-pool/openai-api/credentials",
+        "POST",
+        {
+          accountId: "named-fixture",
+          label: "Fixture Model",
+          apiKey: fixtureKey,
+        },
+      );
+      expect(savedAccount.status, await savedAccount.clone().text()).toBe(200);
+      const inventory = await request(named(record.id, "provider"));
+      expect(inventory.status, await inventory.clone().text()).toBe(200);
+      const inventoryText = await inventory.text();
+      expect(inventoryText).not.toContain(fixtureKey);
+      expect(JSON.parse(inventoryText).accounts).toContainEqual({
+        provider: "openai",
+        accountId: "named-fixture",
+        label: "Fixture Model",
+      });
+      expect(
+        (
+          await control("provider/preview", {
+            provider: "openai",
+            model: "gpt-4.1-mini",
+            accountId: "unapproved-account",
+          })
+        ).status,
+      ).toBe(409);
+      const provider = await receivePreview(
+        await control("provider/preview", {
+          provider: "openai",
+          model: "gpt-4.1-mini",
+          accountId: "named-fixture",
+        }),
+      );
+      expect(provider.detail).toContain("Fixture Model (named-fixture)");
+      const providerApplied = await control("provider/confirm", {
+        previewId: provider.previewId,
+      });
+      expect(providerApplied.status, await providerApplied.clone().text()).toBe(
+        200,
+      );
+      const configured = (await (await request("/bots")).json()).bots.find(
+        (bot: { id: string }) => bot.id === record.id,
+      );
+      expect(configured).toMatchObject({
+        state: "stopped",
+        model: { provider: "openai", model: "gpt-4.1-mini" },
+        permissions: { connectionIds: ["openai-api:named-fixture"] },
+      });
+      expect(JSON.stringify(configured)).not.toContain(fixtureKey);
+      expect(
+        (await control("provider/confirm", { previewId: provider.previewId }))
+          .status,
+      ).toBe(409);
+      const providerStart = await request(named(record.id, "activate"), "POST");
+      expect(providerStart.status, await providerStart.clone().text()).toBe(
+        200,
+      );
+      expect((await providerStart.json()).state).toBe("ready");
+      const disabled = await request(
+        "/runtime/account-pool/openai-api/named-fixture",
+        "PATCH",
+        { enabled: false },
+      );
+      expect(disabled.status, await disabled.clone().text()).toBe(200);
+      const deniedProviderRun = await control("chat/runs", {
+        roomId: randomUUID(),
+        runId: randomUUID(),
+        message: "Do not use the disabled account.",
+        source: "native",
+      });
+      expect(deniedProviderRun.status).toBe(409);
+      expect(await deniedProviderRun.json()).toMatchObject({
+        code: "named_provider_account_unavailable",
+      });
+      const providerStop = await request(named(record.id, "stop"), "POST");
+      expect(providerStop.status).toBe(200);
+      const offline = await receivePreview(
+        await control("provider/preview", {
+          provider: "offline",
+          model: "offline",
+        }),
+      );
+      expect(
+        (await control("provider/confirm", { previewId: offline.previewId }))
+          .status,
+      ).toBe(200);
+
+      const staleDirectory = await receivePreview(
+        await control("project-grants/preview", { folder: project }),
+      );
+      await rename(project, `${project}-moved`);
+      await mkdir(project, { mode: 0o700 });
+      expect(
+        (
+          await control("project-grants/confirm", {
+            previewId: staleDirectory.previewId,
+          })
+        ).status,
+      ).toBe(409);
+      await rm(project, { recursive: true });
+      await rename(`${project}-moved`, project);
+      const directory = await receivePreview(
+        await control("project-grants/preview", { folder: project }),
+      );
+      expect(directory.detail).toContain(await realpath(project));
+      expect(directory.detail).toContain("read-only");
+      expect(
+        (await (await request(named(record.id, "project-grants"))).json())
+          .projects,
+      ).toEqual([]);
+      const granted = await control("project-grants/confirm", {
+        previewId: directory.previewId,
+      });
+      expect(granted.status, await granted.clone().text()).toBe(200);
+      const { projects } = await (
+        await request(named(record.id, "project-grants"))
+      ).json();
+      expect(projects).toMatchObject([
+        { name: "scoped project", workspacePath: await realpath(project) },
+      ]);
+      const projectId = projects[0].id as string;
+      expect((await control("project-chats", { projectId })).status).toBe(409);
+
       const activate = await request(`/bots/${record.id}/activate`, "POST");
       const running = await activate.json();
       expect(activate.status, JSON.stringify(running)).toBe(200);
@@ -241,8 +385,6 @@ if (isMainThread) {
       const roomB = randomUUID();
       const runA = randomUUID();
       const runB = randomUUID();
-      const named = (botId: string, resource: string) =>
-        `/bots/${botId}/${resource}`;
       const start = (
         botId: string,
         roomId: string,
@@ -451,6 +593,45 @@ if (isMainThread) {
           )
         ).status,
       ).toBe(404);
+      expect(
+        (await request(named(other.id, "project-chats"), "POST", { projectId }))
+          .status,
+      ).toBe(409);
+      expect(
+        (await control("project-grants/revoke", { projectId })).status,
+      ).toBe(409);
+      const scopedChat = await control("project-chats", { projectId });
+      expect(scopedChat.status, await scopedChat.clone().text()).toBe(201);
+      const { sessionId: projectSession } = await scopedChat.json();
+      const projectRun = randomUUID();
+      const projectSubmitted = await start(
+        record.id,
+        projectSession,
+        projectRun,
+        "/workspace tree",
+      );
+      expect(
+        projectSubmitted.status,
+        await projectSubmitted.clone().text(),
+      ).toBe(202);
+      const projectEvents = await request(
+        named(record.id, `chat/runs/${projectRun}/events?after=0`),
+      );
+      expect(await projectEvents.text()).toContain(marker);
+      const heldProject = JSON.parse(
+        await readFile(join(profile, "bots/conversation-owners.json"), "utf8"),
+      ).conversations.find(
+        (entry: { sessionId: string }) => entry.sessionId === projectSession,
+      );
+      expect(heldProject).toMatchObject({
+        projectId,
+        workspacePath: await realpath(project),
+        projectGrant: {
+          directoryIdentity: expect.any(String),
+          permissionsFingerprint: expect.any(String),
+        },
+      });
+
       const stop = await request(`/bots/${record.id}/stop`, "POST");
       expect(stop.status).toBe(200);
       expect((await stop.json()).state).toBe("stopped");
@@ -481,8 +662,44 @@ if (isMainThread) {
         allowDelegation: false,
         connectionIds: [],
       });
+      await rename(project, `${project}-moved`);
+      const unavailable = await request(named(record.id, "project-grants"));
+      expect(await unavailable.json()).toMatchObject({
+        projects: [{ id: projectId, available: false }],
+      });
+      const revoked = await receivePreview(
+        await control("project-grants/revoke", { projectId }),
+      );
+      expect(revoked.detail).toContain(projects[0].workspacePath);
+      expect(
+        (
+          await control("project-grants/confirm", {
+            previewId: revoked.previewId,
+          })
+        ).status,
+      ).toBe(200);
+      expect(
+        (await (await request(named(record.id, "project-grants"))).json())
+          .projects,
+      ).toEqual([]);
+      await rename(`${project}-moved`, project);
       const restarted = await request(`/bots/${record.id}/activate`, "POST");
       expect(restarted.status, await restarted.clone().text()).toBe(200);
+      const revokedTurn = await start(
+        record.id,
+        projectSession,
+        randomUUID(),
+        "/workspace tree",
+      );
+      expect(revokedTurn.status, await revokedTurn.clone().text()).toBe(409);
+      expect(await revokedTurn.json()).toMatchObject({
+        code: "named_project_access_revoked",
+      });
+      const historical = await request(
+        named(record.id, `sessions/messages?sessionId=${projectSession}`),
+      );
+      expect(historical.status).toBe(200);
+      expect(await historical.text()).toContain(marker);
       const restored = await request(
         named(record.id, `sessions/messages?sessionId=${roomA}`),
       );

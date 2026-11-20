@@ -52,12 +52,31 @@ function validProjectContext(
   );
 }
 
+type ProjectGrantFingerprint = {
+  directoryIdentity: string;
+  permissionsFingerprint: string;
+};
+
+function validProjectGrant(value: unknown): value is ProjectGrantFingerprint {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const grant = value as Partial<ProjectGrantFingerprint>;
+  return (
+    Object.keys(grant).length === 2 &&
+    typeof grant.directoryIdentity === "string" &&
+    /^[0-9]{1,40}:[0-9]{1,40}:[0-9]{1,40}$/u.test(grant.directoryIdentity) &&
+    typeof grant.permissionsFingerprint === "string" &&
+    /^[a-f0-9]{64}$/u.test(grant.permissionsFingerprint)
+  );
+}
+
 export interface BoundConversation {
   sessionId: string;
   botId: string;
   projectId?: string;
   /** Canonical, immutable execution root. Missing on pre-scope legacy records. */
   workspacePath?: string;
+  /** The directory and capability identity originally confirmed for this room. */
+  projectGrant?: ProjectGrantFingerprint;
   /** Bounded read-only context from the project's owner, not a worker project. */
   projectContext?: {
     name: string;
@@ -156,6 +175,10 @@ function validConversation(value: unknown): value is BoundConversation {
         PROJECT_ID.test(item.projectId))) &&
     (item.workspacePath === undefined ||
       validWorkspacePath(item.workspacePath)) &&
+    (item.projectGrant === undefined ||
+      (item.projectId !== undefined &&
+        item.workspacePath !== undefined &&
+        validProjectGrant(item.projectGrant))) &&
     (item.projectContext === undefined ||
       validProjectContext(item.projectContext)) &&
     typeof item.createdAt === "string" &&
@@ -205,7 +228,7 @@ export class BotConversationLedger {
   private readonly projects = new Map<string, BoundProject>();
   private readonly resources = new Map<string, BoundResource>();
 
-  constructor(runtimeDataDir: string) {
+  constructor(runtimeDataDir: string, { repair = true } = {}) {
     this.path = resolve(runtimeDataDir, "bots", "conversation-owners.json");
     this.backupPath = resolve(
       runtimeDataDir,
@@ -243,6 +266,10 @@ export class BotConversationLedger {
           (existing.workspacePath !== undefined &&
             record.workspacePath !== undefined &&
             existing.workspacePath !== record.workspacePath) ||
+          (existing.projectGrant !== undefined &&
+            record.projectGrant !== undefined &&
+            JSON.stringify(existing.projectGrant) !==
+              JSON.stringify(record.projectGrant)) ||
           (existing.projectContext !== undefined &&
             record.projectContext !== undefined &&
             JSON.stringify(existing.projectContext) !==
@@ -256,7 +283,10 @@ export class BotConversationLedger {
       // record. Never erase an already persisted workspace grant in recovery.
       this.conversations.set(
         record.sessionId,
-        existing?.workspacePath && !record.workspacePath ? existing : record,
+        (existing?.workspacePath && !record.workspacePath) ||
+          (existing?.projectGrant && !record.projectGrant)
+          ? existing
+          : record,
       );
     }
     for (const run of [...(backup?.runs ?? []), ...(primary?.runs ?? [])]) {
@@ -297,7 +327,8 @@ export class BotConversationLedger {
         );
       this.resources.set(resource.resourceId, resource);
     }
-    if ((!primary && backup) || (primary && !backup)) this.save("repair");
+    if (repair && ((!primary && backup) || (primary && !backup)))
+      this.save("repair");
   }
 
   get(sessionId: string): BoundConversation | null {
@@ -319,13 +350,16 @@ export class BotConversationLedger {
     projectId?: string,
     workspacePath?: string,
     projectContext?: BoundConversation["projectContext"],
+    projectGrant?: ProjectGrantFingerprint,
   ): BoundConversation {
     if (
       !BOT_ID.test(botId) ||
       !SESSION_ID.test(sessionId) ||
       (projectId !== undefined && !PROJECT_ID.test(projectId)) ||
       (workspacePath !== undefined && !validWorkspacePath(workspacePath)) ||
-      (projectContext !== undefined && !validProjectContext(projectContext))
+      (projectContext !== undefined && !validProjectContext(projectContext)) ||
+      (projectGrant !== undefined &&
+        (!projectId || !workspacePath || !validProjectGrant(projectGrant)))
     ) {
       throw new Error("Conversation owner input is invalid.");
     }
@@ -335,7 +369,10 @@ export class BotConversationLedger {
         existing.botId !== botId ||
         existing.projectId !== projectId ||
         (workspacePath !== undefined &&
-          existing.workspacePath !== workspacePath)
+          existing.workspacePath !== workspacePath) ||
+        (projectGrant !== undefined &&
+          JSON.stringify(existing.projectGrant) !==
+            JSON.stringify(projectGrant))
       ) {
         throw new Error("Conversation belongs to a different bot or project.");
       }
@@ -348,6 +385,7 @@ export class BotConversationLedger {
       ...(projectId ? { projectId } : {}),
       ...(workspacePath ? { workspacePath } : {}),
       ...(projectContext ? { projectContext } : {}),
+      ...(projectGrant ? { projectGrant } : {}),
       createdAt: now,
       updatedAt: now,
     };
