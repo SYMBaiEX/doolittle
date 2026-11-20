@@ -59,6 +59,118 @@ test.describe("fresh native desktop", () => {
     }
   });
 
+  test("uses the same panel navigation for chat context, workspace and scheduled work", async () => {
+    const desktop = await launchDesktop();
+    try {
+      const { page } = desktop;
+      const navigation = page.getByRole("navigation", {
+        name: "Workspace navigation",
+      });
+      await installProjectDialog(desktop.app, desktop.workspace);
+      await desktop.app.evaluate(({ dialog }, root) => {
+        dialog.showOpenDialog = (async (...args) => {
+          const options = args.at(-1) as Electron.OpenDialogOptions;
+          if (options.title !== "Add folders to this project")
+            throw new Error("Unexpected folder picker");
+          return { canceled: false, filePaths: [root] };
+        }) as typeof dialog.showOpenDialog;
+      }, desktop.workspace);
+      await navigation
+        .getByRole("button", { name: "Workspace", exact: true })
+        .click();
+      await page
+        .getByRole("button", { name: "Choose a project folder" })
+        .click();
+      await expect.poll(() => projectDialogCount(desktop.app)).toBe(1);
+      const composer = page.getByRole("textbox", { name: "Message Doolittle" });
+      await expect(composer).toBeEnabled({ timeout: 15_000 });
+      await composer.fill("Keep this draft through panel changes");
+
+      await page.getByRole("button", { name: "Open inspector" }).click();
+      const context = page.getByRole("tablist", {
+        name: "Conversation context views",
+      });
+      const details = context.getByRole("tab", { name: "Details" });
+      await details.focus();
+      await details.press("ArrowRight");
+      const files = context.getByRole("tab", { name: "Files" });
+      await expect(files).toBeFocused();
+      await expect(details).toHaveAttribute("aria-selected", "true");
+      await files.press("Enter");
+      await expect(page.getByRole("tabpanel", { name: "Files" })).toBeVisible();
+      await page
+        .getByRole("button", { name: "Close inspector" })
+        .last()
+        .click();
+      await expect(composer).toHaveValue(
+        "Keep this draft through panel changes",
+      );
+
+      await navigation
+        .getByRole("button", { name: "Workspace", exact: true })
+        .click();
+      const workspace = page.getByRole("tablist", { name: "Workspace views" });
+      await expect(
+        workspace.getByRole("tab", { name: "Editor" }),
+      ).toHaveAttribute("aria-selected", "true");
+      await workspace.getByRole("tab", { name: "Preview" }).click();
+      await expect(
+        page.getByRole("tabpanel", { name: "Preview" }),
+      ).toBeVisible();
+      await expect(
+        navigation.getByRole("button", { name: "Workspace", exact: true }),
+      ).toHaveAttribute("aria-current", "page");
+
+      await navigation
+        .getByRole("button", { name: "Automations", exact: true })
+        .click();
+      const work = page.getByRole("tablist", { name: "Work views" });
+      await expect(
+        work.getByRole("tab", { name: "Automations" }),
+      ).toHaveAttribute("aria-selected", "true");
+      await expect(
+        page.getByRole("heading", { name: "Scheduled work" }),
+      ).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: "New automation" }).first(),
+      ).toBeVisible();
+      await page.getByRole("button", { name: "Weekday brief" }).click();
+      await page
+        .getByRole("textbox", { name: "Name", exact: true })
+        .fill("Panel acceptance schedule");
+      await page.getByRole("button", { name: "Create automation" }).click();
+      await expect(
+        page.getByText("Panel acceptance schedule", { exact: true }),
+      ).toBeVisible();
+      await work.getByRole("tab", { name: "Queue" }).click();
+      await expect(
+        navigation.getByRole("button", { name: "Work", exact: true }),
+      ).toHaveAttribute("aria-current", "page");
+
+      await page.getByRole("button", { name: "Doolittle home" }).click();
+      await expect(composer).toHaveValue(
+        "Keep this draft through panel changes",
+      );
+      await desktop.app.evaluate(({ BrowserWindow }) =>
+        BrowserWindow.getAllWindows()[0]?.setSize(520, 780),
+      );
+      await expect.poll(() => page.evaluate(() => window.innerWidth)).toBe(520);
+      await page.getByRole("button", { name: "Open inspector" }).click();
+      await expect(context).toBeVisible();
+      await expect(context.getByRole("tab", { name: "Files" })).toHaveAttribute(
+        "aria-selected",
+        "true",
+      );
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= window.innerWidth,
+        ),
+      ).toBe(true);
+    } finally {
+      await desktop.dispose();
+    }
+  });
+
   test("creates an offline bot through the native chooser and sends its first chat", async () => {
     const desktop = await launchDesktop();
     try {

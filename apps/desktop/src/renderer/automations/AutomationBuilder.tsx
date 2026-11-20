@@ -102,10 +102,7 @@ export function AutomationBuilder({
   return (
     <form className={AUTOMATION_BUILDER_CLASS} onSubmit={onSubmit}>
       <div className={AUTOMATION_BUILDER_HEADER_CLASS}>
-        <div>
-          <span className="eyebrow">Workflow builder</span>
-          <h2>When this happens, decide, then act</h2>
-        </div>
+        <h3 className="m-0 text-sm font-semibold">New automation</h3>
         <label
           className={`automation-name-field ${AUTOMATION_FIELD_LABEL_CLASS}`}
           htmlFor="automation-name"

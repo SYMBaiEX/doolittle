@@ -52,9 +52,14 @@ when moving or closing a view.
 Inspector width is measured against its conversation pane and reserves room for
 the transcript. Narrow panes use the full-width inspector sheet without
 rewriting the preferred width. Closing the inspector retains its selected view.
-Library and Computer remember independent tabs and resource selections under
-bot, conversation, and workspace ownership. Persist presentation choices only;
-document contents, command output, and repository facts stay runtime-owned.
+The conversation inspector has one row of labeled views for details, files,
+changes, terminal history, preview, plans, run context, and environment. Resource
+selections belong to the bot, conversation, and workspace. Document contents,
+command output, and repository facts stay runtime-owned.
+
+The sidebar opens Workspace, Work, Automations, and Settings directly. Work
+uses the same tab controls as the conversation inspector. Arrow keys move focus,
+and Enter or Space opens the focused tab.
 
 Use the existing controlled context menu for app objects. Right-click,
 Shift-F10, and overflow controls should expose the same supported actions.

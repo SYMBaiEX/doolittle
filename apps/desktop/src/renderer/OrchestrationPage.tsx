@@ -1,16 +1,9 @@
 import { RefreshCw } from "lucide-react";
-import {
-  type KeyboardEvent,
-  lazy,
-  Suspense,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import type { OrchestrationFocusState } from "./app-shell/route-focus-state";
 import { ICON_BUTTON_CLASS } from "./app-shell/shell-layout";
 import type { ChatContextRequest } from "./chat-context-handoff";
+import { PanelTabs } from "./components/PanelTabs";
 import { ResourceStatusBar } from "./components/ResourceStatusBar";
 import { UiIcon } from "./components/UiIcon";
 import type { ComputerOrigin } from "./computer-origin";
@@ -67,27 +60,15 @@ export type WorkTabId =
   | "automations"
   | "inbox"
   | "review";
-export const PRIMARY_WORK_TABS: ReadonlyArray<{
-  id: WorkTabId;
-  label: string;
-}> = [
+const WORK_TABS: readonly { id: WorkTabId; label: string }[] = [
   { id: "tasks", label: "Queue" },
   { id: "runs", label: "Runs" },
   { id: "review", label: "Review" },
-];
-export const SECONDARY_WORK_TABS: ReadonlyArray<{
-  id: WorkTabId;
-  label: string;
-}> = [
+  { id: "automations", label: "Automations" },
   { id: "agents", label: "Agents" },
   { id: "plans", label: "Plans" },
-  { id: "automations", label: "Automations" },
   { id: "inbox", label: "Inbox" },
 ];
-export const WORK_TABS = [
-  ...PRIMARY_WORK_TABS,
-  ...SECONDARY_WORK_TABS,
-] as const;
 
 /** Keep healthy runtime plumbing out of the task workspace; surface only work. */
 export function shouldShowWorkResourceStatus(
@@ -164,11 +145,6 @@ export function OrchestrationPage({
   const [selectedRunId, setSelectedRunId] = useState(
     () => focusState?.selectedRunId ?? "",
   );
-  const tabRefs = useRef<Partial<Record<WorkTabId, HTMLButtonElement | null>>>(
-    {},
-  );
-  const manageMenuRef = useRef<HTMLDetailsElement | null>(null);
-  const manageTriggerRef = useRef<HTMLElement | null>(null);
   const consumedNavigationIntents = useRef(new Set<string>());
 
   useEffect(() => {
@@ -222,7 +198,6 @@ export function OrchestrationPage({
     worktrees,
     plans,
     workflows,
-    runs,
     codegenSelection,
     selectedTaskDetail,
     refreshAll,
@@ -561,45 +536,17 @@ export function OrchestrationPage({
     completed: completedCount,
   });
 
-  const selectTab = (tab: WorkTabId, focus = false) => {
+  const selectTab = (tab: WorkTabId) => {
     setActiveTab(tab);
     onSectionChange?.(tab);
-    if (focus) requestAnimationFrame(() => tabRefs.current[tab]?.focus());
-  };
-
-  const movePrimaryTab = (direction: -1 | 1) => {
-    const index = PRIMARY_WORK_TABS.findIndex(
-      (entry) => entry.id === activeTab,
-    );
-    const next =
-      PRIMARY_WORK_TABS[
-        (index + direction + PRIMARY_WORK_TABS.length) %
-          PRIMARY_WORK_TABS.length
-      ];
-    selectTab(next.id, true);
-  };
-
-  const activeSecondaryTab = SECONDARY_WORK_TABS.find(
-    (entry) => entry.id === activeTab,
-  );
-
-  const selectSecondaryTab = (tab: WorkTabId) => {
-    selectTab(tab);
-    if (manageMenuRef.current) manageMenuRef.current.open = false;
-    requestAnimationFrame(() => manageTriggerRef.current?.focus());
   };
 
   return (
     <div className={oc("orchestration-page")}>
       <header className={oc("orchestration-header")}>
         <div>
-          <h1>Operations</h1>
-          <p>
-            Run agents, review changes, and manage scheduled work
-            {projectScope === "all"
-              ? " across every project."
-              : ` for ${workspaceLabel || "the selected project"}.`}
-          </p>
+          <h1>Work</h1>
+          <p>{projectScope === "all" ? "All projects" : workspaceLabel}</p>
         </div>
         <div className={oc("orchestration-header-metrics")}>
           {showHeaderSummary ? (
@@ -643,92 +590,14 @@ export function OrchestrationPage({
       ) : null}
 
       <div className={oc("orchestration-nav-row")}>
-        <div className={oc("orchestration-nav-main")}>
-          <div
-            role="tablist"
-            aria-label="Task workflow"
-            className={oc("orchestration-tabs")}
-          >
-            {PRIMARY_WORK_TABS.map((entry) => (
-              <button
-                key={entry.id}
-                ref={(element) => {
-                  tabRefs.current[entry.id] = element;
-                }}
-                id={`orchestration-tab-${entry.id}`}
-                role="tab"
-                type="button"
-                aria-controls={`orchestration-panel-${entry.id}`}
-                aria-selected={entry.id === activeTab}
-                disabled={!active}
-                tabIndex={entry.id === activeTab ? 0 : -1}
-                className={oc(entry.id === activeTab && "selected")}
-                onClick={() => selectTab(entry.id)}
-                onKeyDown={(event: KeyboardEvent<HTMLButtonElement>) => {
-                  if (event.key === "ArrowLeft") {
-                    event.preventDefault();
-                    movePrimaryTab(-1);
-                  }
-                  if (event.key === "ArrowRight") {
-                    event.preventDefault();
-                    movePrimaryTab(1);
-                  }
-                  if (event.key === "Home") {
-                    event.preventDefault();
-                    selectTab(PRIMARY_WORK_TABS[0].id, true);
-                  }
-                  if (event.key === "End") {
-                    event.preventDefault();
-                    selectTab(PRIMARY_WORK_TABS.at(-1)?.id ?? "review", true);
-                  }
-                }}
-              >
-                {entry.label}
-                {entry.id === "tasks" && tasks.length > 0 ? (
-                  <span>{tasks.length}</span>
-                ) : null}
-                {entry.id === "runs" && runs.length > 0 ? (
-                  <span>{runs.length}</span>
-                ) : null}
-                {entry.id === "review" && approvalCount > 0 ? (
-                  <span>{approvalCount}</span>
-                ) : null}
-              </button>
-            ))}
-          </div>
-          <details
-            ref={manageMenuRef}
-            className={oc("orchestration-section-menu")}
-          >
-            <summary
-              ref={manageTriggerRef}
-              id="orchestration-tab-manage"
-              aria-current={activeSecondaryTab ? "page" : undefined}
-            >
-              {activeSecondaryTab?.label ?? "Manage"}
-            </summary>
-            <div className={oc("orchestration-section-menu__body")}>
-              {SECONDARY_WORK_TABS.map((entry) => (
-                <button
-                  key={entry.id}
-                  type="button"
-                  aria-current={entry.id === activeTab ? "page" : undefined}
-                  className={oc(entry.id === activeTab && "selected")}
-                  disabled={!active}
-                  onClick={() => selectSecondaryTab(entry.id)}
-                >
-                  <span>{entry.label}</span>
-                  {entry.id === "agents" && workers.length > 0 ? (
-                    <small>{workers.length}</small>
-                  ) : null}
-                  {entry.id === "plans" && plans.length > 0 ? (
-                    <small>{plans.length}</small>
-                  ) : null}
-                </button>
-              ))}
-            </div>
-          </details>
-        </div>
+        <PanelTabs
+          disabled={!active}
+          id="work"
+          label="Work views"
+          items={WORK_TABS}
+          selected={activeTab}
+          onSelect={selectTab}
+        />
         <div className={oc("orchestration-command-bar")}>
           {activeTab === "tasks" ? (
             <>
@@ -836,13 +705,9 @@ export function OrchestrationPage({
       ) : null}
 
       <section
-        id={`orchestration-panel-${activeTab}`}
+        id="work-panel"
         role="tabpanel"
-        aria-labelledby={
-          activeSecondaryTab
-            ? "orchestration-tab-manage"
-            : `orchestration-tab-${activeTab}`
-        }
+        aria-labelledby={`work-${activeTab}-tab`}
         className={oc("orchestration-panel")}
       >
         {activeTab === "review" ? (
@@ -887,7 +752,7 @@ export function OrchestrationPage({
               </div>
             }
           >
-            <AutomationsPage active={active} embedded />
+            <AutomationsPage active={active} />
           </Suspense>
         ) : null}
         {activeTab === "inbox" ? (

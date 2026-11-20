@@ -289,8 +289,7 @@ export function AutomationWorkspace({
         <section className="content-card automation-jobs-panel min-w-0">
           <div className="card-heading">
             <div>
-              <span className="eyebrow">Workflows</span>
-              <h2>Automations</h2>
+              <h3>Schedules</h3>
             </div>
             <Badge>{jobs.length}</Badge>
           </div>
@@ -315,54 +314,29 @@ export function AutomationWorkspace({
           )}
         </section>
       ) : builderOpen ? null : (
-        <section
-          aria-labelledby="automation-starter-title"
-          className="content-card automation-empty-panel"
-        >
-          <div className="automation-empty-starter flex items-center justify-between gap-4 px-0.5 py-0.75 text-[var(--muted)] max-[720px]:items-stretch max-[720px]:flex-col">
-            <div className="flex min-w-0 flex-col gap-1">
-              <span className="eyebrow">Start here</span>
-              <strong
-                className="text-[length:var(--text-control)] text-[var(--text-strong)]"
-                id="automation-starter-title"
-              >
-                Build your first workflow
-              </strong>
-              <p className="m-0 text-[length:var(--text-meta)] leading-[1.45]">
-                Start blank or adapt a practical local preset.
-              </p>
-            </div>
-            <Button onClick={() => onCreate("blank")} type="button">
-              Blank workflow
-            </Button>
-          </div>
-          <fieldset className="automation-starters mt-2.5 grid min-w-0 grid-cols-2 gap-1.25 border-0 p-0 max-[720px]:grid-cols-1">
-            <legend className="sr-only">Automation starters</legend>
-            <button
-              className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2.5 rounded-[var(--radius-xs)] px-2 py-2.5 text-left text-[var(--text-soft)] hover:bg-[color-mix(in_srgb,var(--accent)_4%,var(--surface-soft))] [&>span:first-child]:font-[var(--font-mono)] [&>span:first-child]:text-[length:var(--text-meta)] [&>span:first-child]:text-[var(--accent)] [&>span:nth-child(2)]:flex [&>span:nth-child(2)]:min-w-0 [&>span:nth-child(2)]:flex-col [&>span:nth-child(2)]:gap-0.5 [&_strong]:truncate [&_strong]:text-xs [&_small]:truncate [&_small]:text-[length:var(--text-meta)] [&_small]:text-[var(--muted)] [&>i]:font-[var(--font-mono)] [&>i]:text-[length:var(--text-meta)] [&>i]:not-italic [&>i]:text-[var(--accent)]"
+        <section aria-labelledby="automation-starter-title" className="min-w-0">
+          <h3
+            className="mb-3 text-sm font-medium text-[var(--muted)]"
+            id="automation-starter-title"
+          >
+            No automations yet
+          </h3>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <Button
               onClick={() => onCreate("weekday-brief")}
               type="button"
+              variant="secondary"
             >
-              <span aria-hidden="true">01</span>
-              <span>
-                <strong>Weekday brief</strong>
-                <small>9 AM weekdays → run agent</small>
-              </span>
-              <i>Use starter</i>
-            </button>
-            <button
-              className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2.5 rounded-[var(--radius-xs)] px-2 py-2.5 text-left text-[var(--text-soft)] hover:bg-[color-mix(in_srgb,var(--accent)_4%,var(--surface-soft))] [&>span:first-child]:font-[var(--font-mono)] [&>span:first-child]:text-[length:var(--text-meta)] [&>span:first-child]:text-[var(--accent)] [&>span:nth-child(2)]:flex [&>span:nth-child(2)]:min-w-0 [&>span:nth-child(2)]:flex-col [&>span:nth-child(2)]:gap-0.5 [&_strong]:truncate [&_strong]:text-xs [&_small]:truncate [&_small]:text-[length:var(--text-meta)] [&_small]:text-[var(--muted)] [&>i]:font-[var(--font-mono)] [&>i]:text-[length:var(--text-meta)] [&>i]:not-italic [&>i]:text-[var(--accent)]"
+              Weekday brief
+            </Button>
+            <Button
               onClick={() => onCreate("webhook-triage")}
               type="button"
+              variant="secondary"
             >
-              <span aria-hidden="true">02</span>
-              <span>
-                <strong>Webhook triage</strong>
-                <small>Local webhook → run agent</small>
-              </span>
-              <i>Use starter</i>
-            </button>
-          </fieldset>
+              Webhook triage
+            </Button>
+          </div>
         </section>
       )}
 

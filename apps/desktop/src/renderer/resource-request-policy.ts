@@ -58,15 +58,17 @@ export function orchestrationRequests({
   hasSelectedRun: boolean;
 }) {
   const runsVisible = activeTab === "runs";
+  const orchestrationVisible =
+    active && activeTab !== "automations" && activeTab !== "inbox";
 
   return {
-    overview: active,
+    overview: orchestrationVisible,
     // The full queue is only needed when the Queue tab is visible.
     tasks: active && activeTab === "tasks",
     workers: active && activeTab === "agents",
     worktrees: active && activeTab === "tasks",
     // This backs the persistent header's approval count.
-    plans: active,
+    plans: orchestrationVisible,
     accountPool: active && activeTab === "tasks",
     codegenRuntime: active && runsVisible,
     codegenWorkflows: active && runsVisible,

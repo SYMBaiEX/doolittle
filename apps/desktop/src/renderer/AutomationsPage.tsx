@@ -5,7 +5,6 @@ import {
   type AutomationDraft,
   buildAutomationRequest,
   createAutomationDraft,
-  summarizeAutomation,
 } from "./automation-model";
 import { AutomationBuilder } from "./automations/AutomationBuilder";
 import {
@@ -16,7 +15,6 @@ import {
 export { AutomationDeleteConfirmation } from "./automations/AutomationWorkspace";
 
 import { AUTOMATION_PAGE_CLASS } from "./automations/layout";
-import { CompactStatStrip } from "./components/CompactStatStrip";
 import { OfflineRouteState } from "./components/OfflineRouteState";
 import {
   type ActionFeedback,
@@ -26,7 +24,6 @@ import {
   desktopRequest,
   errorMessage,
   Notice,
-  PageHeader,
   useApiResource,
 } from "./lib";
 import { automationRequests } from "./resource-request-policy";
@@ -36,13 +33,7 @@ interface CronResponse {
   runs?: unknown[];
 }
 
-export function AutomationsPage({
-  active,
-  embedded = false,
-}: {
-  active: boolean;
-  embedded?: boolean;
-}) {
+export function AutomationsPage({ active }: { active: boolean }) {
   const [runsOpen, setRunsOpen] = useState(false);
   const resourcePolicy = automationRequests({ active, runsOpen });
   const jobs = useApiResource<CronResponse>(
@@ -63,23 +54,11 @@ export function AutomationsPage({
   const selectedRun =
     runEntries.find((entry) => asString(entry.id) === selectedRunId) ??
     runEntries[0];
-  const activeJobs = entries.filter(
-    (entry) => asString(entry.status, "active") === "active",
-  ).length;
-  const failedRuns = runEntries.filter(
-    (entry) => asString(entry.status, "completed") === "failed",
-  ).length;
-  const webhookJobs = entries.filter(
-    (entry) => summarizeAutomation(entry).triggerType === "webhook",
-  ).length;
   const hasJobs = entries.length > 0;
   const bots = useApiResource<BotCatalogResponse>(
     active && (showCreate || hasJobs) ? "/bots" : null,
     [active, showCreate, hasJobs],
   );
-  const showHeaderAction =
-    showCreate || hasJobs || jobs.loading || Boolean(jobs.error);
-
   useEffect(() => {
     if (
       selectedRunId &&
@@ -161,77 +140,25 @@ export function AutomationsPage({
 
   return (
     <div className={AUTOMATION_PAGE_CLASS}>
-      {!embedded ? (
-        <PageHeader
-          eyebrow="Operations"
-          title="Automations"
-          description="Build local workflows from explicit triggers, conditions, and actions."
-          actions={
-            showHeaderAction ? (
-              <Button
-                disabled={!active}
-                onClick={() => setShowCreate((value) => !value)}
-                type="button"
-                variant={showCreate ? "secondary" : "default"}
-              >
-                {showCreate ? "Close builder" : "New automation"}
-              </Button>
-            ) : null
-          }
-        />
-      ) : null}
-      {embedded && showHeaderAction ? (
-        <div className="flex justify-end">
+      <header className="flex items-center justify-between gap-3 border-b border-[var(--border)] pb-3">
+        <h2 className="m-0 text-base font-semibold">Scheduled work</h2>
+        {active ? (
           <Button
-            disabled={!active}
             onClick={() => setShowCreate((value) => !value)}
             type="button"
             variant={showCreate ? "secondary" : "default"}
+            aria-expanded={showCreate}
           >
             {showCreate ? "Close builder" : "New automation"}
           </Button>
-        </div>
-      ) : null}
+        ) : null}
+      </header>
 
       {!active ? (
         <OfflineRouteState>
           Automations stay local to the runtime and cannot be created or run
           while it is offline.
         </OfflineRouteState>
-      ) : null}
-
-      {active && hasJobs ? (
-        <CompactStatStrip
-          label="Automation summary"
-          stats={[
-            {
-              detail: `${entries.length} configured`,
-              label: "Active",
-              tone: activeJobs ? "good" : "neutral",
-              value: activeJobs,
-            },
-            {
-              detail: "Local capability URLs",
-              label: "Webhook inputs",
-              value: webhookJobs,
-            },
-            {
-              detail: runsOpen ? "Durable trace receipts" : "Open to load",
-              label: "Recent runs",
-              value: runsOpen ? runEntries.length : "—",
-            },
-            {
-              detail: runsOpen
-                ? failedRuns
-                  ? "Needs attention"
-                  : "All clear"
-                : "Trace drawer closed",
-              label: "Failures",
-              tone: runsOpen && failedRuns ? "bad" : "neutral",
-              value: runsOpen ? failedRuns : "—",
-            },
-          ]}
-        />
       ) : null}
 
       {active && showCreate ? (
