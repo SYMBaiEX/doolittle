@@ -59,7 +59,7 @@ export async function handleWebhookRoutes(
       return json({ error: "Invalid JSON body." }, 400);
     }
 
-    if (body.challenge) {
+    if (typeof body?.challenge === "string" && body.challenge) {
       return json({ challenge: body.challenge });
     }
     return handleDurableInboundWebhook("slack", context, body, request.signal);

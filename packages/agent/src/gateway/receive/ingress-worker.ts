@@ -97,10 +97,7 @@ export class GatewayIngressWorker {
           return;
         }
         try {
-          this.spool.setStatus(
-            entry,
-            result.deliveryStatus === "rejected" ? "rejected" : "completed",
-          );
+          this.spool.setStatus(entry, result.ok ? "completed" : "rejected");
         } catch (error) {
           this.safeStatus(entry, "failed", sanitizeIngressError(error));
           this.stalled = true;

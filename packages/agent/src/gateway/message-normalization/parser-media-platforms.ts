@@ -12,47 +12,53 @@ import {
   optionalNumericString,
 } from "./parser-utils";
 
+interface WhatsAppMessage {
+  id?: string;
+  from?: string;
+  timestamp?: string;
+  context?: { id?: string };
+  text?: { body?: string };
+  image?: { caption?: string; mime_type?: string; id?: string };
+  video?: { caption?: string; mime_type?: string; id?: string };
+  audio?: { mime_type?: string; id?: string };
+  document?: { filename?: string; mime_type?: string; id?: string };
+  sticker?: { id?: string };
+}
+
+interface WhatsAppPayload {
+  entry?: Array<{
+    changes?: Array<{ value?: { messages?: WhatsAppMessage[] } }>;
+  }>;
+}
+
+export function* parseWhatsAppMessages(
+  body: unknown,
+): Generator<IncomingPlatformMessage> {
+  const payload = body as WhatsAppPayload | null;
+  if (!Array.isArray(payload?.entry)) return;
+  for (const entry of payload.entry) {
+    if (!Array.isArray(entry?.changes)) continue;
+    for (const change of entry.changes) {
+      if (!Array.isArray(change?.value?.messages)) continue;
+      for (const message of change.value.messages) {
+        const normalized = normalizeWhatsAppMessage(message);
+        if (normalized) yield normalized;
+      }
+    }
+  }
+}
+
 export function parseWhatsAppMessage(
   body: unknown,
 ): IncomingPlatformMessage | null {
-  const payload = body as {
-    entry?: Array<{
-      changes?: Array<{
-        value?: {
-          messages?: Array<{
-            id?: string;
-            from?: string;
-            timestamp?: string;
-            context?: { id?: string };
-            text?: { body?: string };
-            image?: {
-              caption?: string;
-              mime_type?: string;
-              id?: string;
-              sha256?: string;
-            };
-            video?: {
-              caption?: string;
-              mime_type?: string;
-              id?: string;
-              sha256?: string;
-            };
-            audio?: { mime_type?: string; id?: string; sha256?: string };
-            document?: {
-              filename?: string;
-              mime_type?: string;
-              id?: string;
-              sha256?: string;
-            };
-            sticker?: { id?: string; sha256?: string };
-          }>;
-        };
-      }>;
-    }>;
-  };
+  for (const message of parseWhatsAppMessages(body)) return message;
+  return null;
+}
 
-  const message = payload.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
-  if (!message?.from) {
+function normalizeWhatsAppMessage(
+  message: WhatsAppMessage | null | undefined,
+): IncomingPlatformMessage | null {
+  if (typeof message?.from !== "string" || !message.from.trim()) {
     return null;
   }
 

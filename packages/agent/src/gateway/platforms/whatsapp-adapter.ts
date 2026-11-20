@@ -126,7 +126,7 @@ export class WhatsAppPlatformAdapter implements PlatformAdapter {
     }
 
     const response = await fetchPlatform(
-      `https://graph.facebook.com/v22.0/${this.config.whatsappPhoneNumberId}/messages`,
+      `https://graph.facebook.com/v27.0/${this.config.whatsappPhoneNumberId}/messages`,
       {
         method: "POST",
         headers: {

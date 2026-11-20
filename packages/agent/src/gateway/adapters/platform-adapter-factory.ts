@@ -65,13 +65,6 @@ export function createPlatformAdapter(
       platform,
       context.config,
       context.services.delivery,
-      () =>
-        getNativeMessagingTransportState(
-          context.runtime,
-          context.config,
-          context.services.gatewayConfig,
-          platform,
-        ),
     );
   }
   if (platform === "slack") {

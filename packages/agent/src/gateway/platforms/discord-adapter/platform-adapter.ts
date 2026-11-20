@@ -1,4 +1,3 @@
-import type { NativeMessagingTransportState } from "../../../runtime/native/service-bridge/transport-control/index";
 import type { DeliveryService } from "../../../services/delivery-service";
 import type {
   OutboundPlatformMessage,
@@ -7,7 +6,6 @@ import type {
 import type { EnvConfig } from "../../../types/runtime/index";
 import type { PlatformAdapter, PlatformLifecycleEvent } from "../base";
 import {
-  buildMessagingRunningDetail,
   deliverMessagingRecord,
   editMessagingRecord,
 } from "../messaging-adapter-shared";
@@ -33,9 +31,6 @@ export class DiscordPlatformAdapter implements PlatformAdapter {
     public readonly name: PlatformName,
     private readonly config: EnvConfig,
     private readonly delivery: DeliveryService,
-    private readonly nativeBridge?: () =>
-      | NativeMessagingTransportState
-      | undefined,
   ) {
     this.state = new MessagingPlatformState(name);
   }
@@ -53,20 +48,13 @@ export class DiscordPlatformAdapter implements PlatformAdapter {
   }
 
   async health() {
-    const bridge = this.nativeBridge?.();
-
     return this.state.health({
       configured: isDiscordConfigured(this.config),
       canReceive: this.canReceive(),
       configuredDetail: DISCORD_CONFIGURED_DETAIL,
       missingDetail: DISCORD_MISSING_DETAIL,
-      runningDetail: buildMessagingRunningDetail(
-        this.state,
-        DISCORD_CONFIGURED_DETAIL,
-        bridge,
-      ),
+      runningDetail: `Discord REST adapter running. Sends=${this.state.getSendCount()}.`,
       stoppedDetail: DISCORD_STOP_DETAIL,
-      bridge,
     });
   }
 

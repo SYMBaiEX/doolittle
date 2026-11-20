@@ -17,6 +17,22 @@ import {
 } from "./base";
 import { fetchPlatform, readPlatformResponseText } from "./platform-http";
 
+function responseCode(body: string): number | undefined {
+  try {
+    const value: unknown = JSON.parse(body);
+    if (
+      value &&
+      typeof value === "object" &&
+      "errcode" in value &&
+      typeof value.errcode === "number"
+    ) {
+      return value.errcode;
+    }
+  } catch {
+    return undefined;
+  }
+}
+
 export class DingtalkPlatformAdapter implements PlatformAdapter {
   private status: "idle" | "running" | "stopped" = "idle";
   private startedAt?: string;
@@ -121,8 +137,18 @@ export class DingtalkPlatformAdapter implements PlatformAdapter {
       }),
     });
 
+    const responseText = await readPlatformResponseText(response);
     if (!response.ok) {
-      this.lastError = `DingTalk send failed (${response.status}): ${await readPlatformResponseText(response)}`;
+      this.lastError = `DingTalk send failed (${response.status}): ${responseText}`;
+      this.lifecycle.record("error", this.lastError);
+      throw new Error(this.lastError);
+    }
+    const code = responseCode(responseText);
+    if (code !== 0) {
+      this.lastError =
+        typeof code === "number"
+          ? `DingTalk rejected the message (provider code ${code}).`
+          : "DingTalk returned an invalid delivery response.";
       this.lifecycle.record("error", this.lastError);
       throw new Error(this.lastError);
     }

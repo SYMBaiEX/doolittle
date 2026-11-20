@@ -1,10 +1,18 @@
 import { normalizeInboundMessage } from "../../../gateway/message-normalization/index";
-import { GatewayIngressError } from "../../../gateway/receive/ingress-spool";
+import { parseWhatsAppMessages } from "../../../gateway/message-normalization/parser-media-platforms";
+import {
+  GatewayIngressError,
+  type GatewayIngressReceipt,
+} from "../../../gateway/receive/ingress-spool";
 import type { AppContext } from "../../../runtime/bootstrap/index";
 import { json, onResponseCommitted } from "../../responses";
 
 export async function readJsonBody(request: Request): Promise<unknown | null> {
   return (await request.json().catch(() => null)) as unknown;
+}
+
+function isJsonObject(body: unknown): body is Record<string, unknown> {
+  return Boolean(body && typeof body === "object" && !Array.isArray(body));
 }
 
 export async function handleInboundWebhook(
@@ -13,6 +21,7 @@ export async function handleInboundWebhook(
   body: unknown,
   abortSignal?: AbortSignal,
 ): Promise<Response> {
+  if (!isJsonObject(body)) return json({ error: "Invalid JSON body." }, 400);
   const inbound = normalizeInboundMessage(platform, body);
   if (!inbound) {
     return json({ ok: true, ignored: true });
@@ -27,44 +36,54 @@ export async function handleInboundWebhook(
 }
 
 export async function handleDurableInboundWebhook(
-  platform: Parameters<typeof normalizeInboundMessage>[0],
+  platform: "slack" | "whatsapp",
   context: AppContext,
   body: unknown,
   abortSignal?: AbortSignal,
 ): Promise<Response> {
-  const inbound = normalizeInboundMessage(platform, body);
-  if (!inbound) return json({ ok: true, ignored: true });
+  if (!isJsonObject(body)) return json({ error: "Invalid JSON body." }, 400);
   if (abortSignal?.aborted) {
     return json({ error: "Request cancelled before inbound acceptance." }, 499);
   }
+  const inbound =
+    platform === "whatsapp"
+      ? parseWhatsAppMessages(body)
+      : [normalizeInboundMessage(platform, body)];
+  const receipts: GatewayIngressReceipt[] = [];
+  const finish = (response: Response) =>
+    receipts.length
+      ? onResponseCommitted(response, () => context.gateway.startIngress())
+      : response;
   try {
-    const receipt = context.gateway.acceptInbound(inbound, { abortSignal });
-    return onResponseCommitted(json({ ok: true, ...receipt }, 200), () => {
-      context.gateway.startIngress();
-    });
+    for (const message of inbound) {
+      if (!message) continue;
+      receipts.push(context.gateway.acceptInbound(message, { abortSignal }));
+    }
+    if (!receipts.length) return json({ ok: true, ignored: true });
+    return finish(
+      json({
+        ok: true,
+        ...receipts[0],
+        ...(receipts.length > 1 ? { receipts } : {}),
+      }),
+    );
   } catch (error) {
     if (error instanceof GatewayIngressError) {
       if (error.code === "invalid_identity")
-        return json({ error: error.message }, 422);
+        return finish(json({ error: error.message }, 422));
       if (error.code === "digest_conflict")
-        return json({ error: error.message }, 409);
-      return new Response(JSON.stringify({ error: error.message }), {
-        status: 503,
-        headers: {
-          "content-type": "application/json; charset=utf-8",
-          "retry-after": "1",
-        },
-      });
+        return finish(json({ error: error.message }, 409));
     }
-    return new Response(
-      JSON.stringify({ error: "Inbound acceptance is unavailable." }),
+    const response = json(
       {
-        status: 503,
-        headers: {
-          "content-type": "application/json; charset=utf-8",
-          "retry-after": "1",
-        },
+        error:
+          error instanceof GatewayIngressError
+            ? error.message
+            : "Inbound acceptance is unavailable.",
       },
+      503,
     );
+    response.headers.set("retry-after", "1");
+    return finish(response);
   }
 }
