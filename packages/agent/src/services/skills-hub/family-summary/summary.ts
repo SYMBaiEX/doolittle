@@ -1,84 +1,20 @@
-import type { SkillHubCatalogRecord, SkillHubFamilyRecord } from "../types";
-import { incrementGroupedCount, mapToSortedGroupedRecords } from "./grouping";
+import type { SkillHubDistributionRecord, SkillHubSummary } from "../types";
+import {
+  type GroupedSummaryCounts,
+  incrementGroupedCount,
+  mapToSortedGroupedRecords,
+} from "./grouping";
 import { rootFromSlug } from "./string-utils";
 import type { SkillHubSummaryInput } from "./types";
 
-export function buildSkillHubSummary(input: SkillHubSummaryInput): {
-  workspaceTotal: number;
-  catalogProjected: boolean;
-  catalogTotal: number;
-  generatedTotal: number;
-  installedTotal: number;
-  installable: number;
-  exportedManifests: number;
-  familyTotal: number;
-  curatedFamilyTotal: number;
-  generatedFamilyTotal: number;
-  manifestsDir: string;
-  summary: string;
-  distribution: {
-    sources: Array<{
-      source: "workspace" | "generated" | "catalog" | "installed";
-      count: number;
-    }>;
-    categories: Array<{
-      name: string;
-      count: number;
-      workspace: number;
-      generated: number;
-      catalog: number;
-      installed: number;
-    }>;
-    roots: Array<{
-      name: string;
-      count: number;
-      workspace: number;
-      generated: number;
-      catalog: number;
-      installed: number;
-    }>;
-    tags: Array<{
-      name: string;
-      count: number;
-      workspace: number;
-      generated: number;
-      catalog: number;
-      installed: number;
-    }>;
-  };
-  families: SkillHubFamilyRecord[];
-  recentWorkspace: Array<{
-    slug: string;
-    title: string;
-    category: string;
-    root: string;
-    source: "workspace" | "generated";
-    tags: string[];
-  }>;
-  recentCatalog: Array<{
-    slug: string;
-    displayName: string;
-    source: "catalog" | "workspace";
-    installed: boolean;
-    tags: string[];
-  }>;
-  recentInstalled: Array<{
-    slug: string;
-    title: string;
-    source: string;
-    category: string;
-    root: string;
-    tags: string[];
-  }>;
-} {
-  const catalog: SkillHubCatalogRecord[] = input.catalog;
+export function buildSkillHubSummary(
+  input: SkillHubSummaryInput,
+): SkillHubSummary {
+  const { catalog } = input;
   const generated = input.workspace.filter(
     (entry) => entry.source === "generated",
   );
-  const sourceSummary: Array<{
-    source: "workspace" | "generated" | "catalog" | "installed";
-    count: number;
-  }> = [
+  const sourceSummary: SkillHubDistributionRecord["sources"] = [
     {
       source: "workspace",
       count: input.workspace.filter((entry) => entry.source === "workspace")
@@ -89,36 +25,9 @@ export function buildSkillHubSummary(input: SkillHubSummaryInput): {
     { source: "installed", count: input.installed.length },
   ];
 
-  const categoryGroups = new Map<
-    string,
-    {
-      count: number;
-      workspace: number;
-      generated: number;
-      catalog: number;
-      installed: number;
-    }
-  >();
-  const rootGroups = new Map<
-    string,
-    {
-      count: number;
-      workspace: number;
-      generated: number;
-      catalog: number;
-      installed: number;
-    }
-  >();
-  const tagGroups = new Map<
-    string,
-    {
-      count: number;
-      workspace: number;
-      generated: number;
-      catalog: number;
-      installed: number;
-    }
-  >();
+  const categoryGroups = new Map<string, GroupedSummaryCounts>();
+  const rootGroups = new Map<string, GroupedSummaryCounts>();
+  const tagGroups = new Map<string, GroupedSummaryCounts>();
 
   for (const entry of input.workspace) {
     incrementGroupedCount(categoryGroups, entry.category, entry.source);

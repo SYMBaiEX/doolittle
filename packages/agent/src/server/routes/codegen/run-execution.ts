@@ -5,6 +5,13 @@ import {
   AutocoderRunCancelledError,
 } from "../../../services/autocoder-pipeline/index";
 
+import {
+  completeAutocoderWorkflowContext,
+  createAutocoderWorkflowContext,
+  failAutocoderWorkflowContext,
+} from "../../autocoder-workflow-context";
+import { json } from "../../responses";
+
 interface AutocoderRunInput {
   workflowId: string;
   kind: AutocoderPipelineRunKind;
@@ -47,7 +54,7 @@ export function withAutocoderAbortSignal(
   return cancellableRequest;
 }
 
-export async function executeTrackedAutocoderRun<T>(
+async function executeTrackedAutocoderRun<T>(
   context: AppContext,
   input: AutocoderRunInput,
   operation: (signal: AbortSignal) => Promise<T> | T,
@@ -95,8 +102,53 @@ export async function executeTrackedAutocoderRun<T>(
   }
 }
 
-export function isAutocoderCancellation(
-  error: unknown,
-): error is AutocoderRunCancelledError {
-  return error instanceof AutocoderRunCancelledError;
+type WorkflowStep = <T>(
+  input: Pick<AutocoderRunInput, "kind" | "request" | "parentRunId">,
+  operation: (signal: AbortSignal) => Promise<T> | T,
+  options?: { linkedRunIds?: string[] },
+) => Promise<CompletedAutocoderRun<T>>;
+
+export async function runCodegenWorkflow(
+  context: AppContext,
+  input: Parameters<typeof createAutocoderWorkflowContext>[1],
+  completionNote: string,
+  execute: (step: WorkflowStep) => Promise<object>,
+): Promise<Response> {
+  const workflow = await createAutocoderWorkflowContext(context, input);
+  const step: WorkflowStep = (run, operation, options) =>
+    executeTrackedAutocoderRun(
+      context,
+      {
+        ...run,
+        ...workflow,
+        projectName: input.projectName,
+        repositoryName: input.repositoryName,
+      },
+      operation,
+      options,
+    );
+  const { workflowId, taskId } = workflow;
+  try {
+    const result = await execute(step);
+    await completeAutocoderWorkflowContext(
+      context,
+      taskId,
+      workflowId,
+      completionNote,
+    );
+    return json({ workflowId, taskId, ...result });
+  } catch (error) {
+    await failAutocoderWorkflowContext(context, taskId, workflowId, error);
+    if (!(error instanceof AutocoderRunCancelledError)) throw error;
+    return json(
+      {
+        error: error.message,
+        runId: error.runId,
+        workflowId,
+        taskId,
+        cancelled: true,
+      },
+      409,
+    );
+  }
 }

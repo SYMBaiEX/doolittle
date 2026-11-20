@@ -1,23 +1,15 @@
 import type { AppContext } from "../../../runtime/bootstrap/index";
-import { handleCodegenGenerateRoutes } from "./handlers/generate";
-import { handleCodegenGithubRoutes } from "./handlers/github";
-import { handleCodegenPRDRoutes } from "./handlers/prd";
-import { handleCodegenQA } from "./handlers/qa";
-import { handleCodegenResearchRoutes } from "./handlers/research";
 import { handleCodegenRunsRoutes } from "./handlers/runs";
 import { handleCodegenRuntimeRoutes } from "./handlers/runtime";
+import { handleCodegenWorkflowSubmission } from "./handlers/submissions";
 import { handleCodegenWorkflowsRoutes } from "./handlers/workflows";
 import type { CodegenRouteHandler } from "./types";
 
 const codegenRouteHandlers: Array<CodegenRouteHandler> = [
   handleCodegenRuntimeRoutes,
-  handleCodegenGenerateRoutes,
+  handleCodegenWorkflowSubmission,
   handleCodegenRunsRoutes,
   handleCodegenWorkflowsRoutes,
-  handleCodegenResearchRoutes,
-  handleCodegenPRDRoutes,
-  handleCodegenQA,
-  handleCodegenGithubRoutes,
 ];
 
 export async function handleCodegenRoutes(

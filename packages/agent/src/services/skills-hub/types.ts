@@ -1,3 +1,5 @@
+import type { GroupedSummaryCounts } from "./family-summary/grouping";
+
 export interface SkillHubWorkspaceRecord {
   slug: string;
   title: string;
@@ -43,35 +45,16 @@ export interface SkillHubInstalledRecord {
   category: string;
 }
 
+type SkillHubGroup = GroupedSummaryCounts & { name: string };
+
 export interface SkillHubDistributionRecord {
   sources: Array<{
     source: "workspace" | "generated" | "catalog" | "installed";
     count: number;
   }>;
-  categories: Array<{
-    name: string;
-    count: number;
-    workspace: number;
-    generated: number;
-    catalog: number;
-    installed: number;
-  }>;
-  roots: Array<{
-    name: string;
-    count: number;
-    workspace: number;
-    generated: number;
-    catalog: number;
-    installed: number;
-  }>;
-  tags: Array<{
-    name: string;
-    count: number;
-    workspace: number;
-    generated: number;
-    catalog: number;
-    installed: number;
-  }>;
+  categories: SkillHubGroup[];
+  roots: SkillHubGroup[];
+  tags: SkillHubGroup[];
 }
 
 export interface SkillHubFamilyRecord {

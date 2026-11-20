@@ -1,26 +1,6 @@
 import { getNativeServices, type RuntimeLike } from "./runtime";
 
-export interface NativeE2BService {
-  capabilityDescription?: string;
-  listSandboxes?: () => Array<{
-    id?: string;
-    path?: string;
-    template?: string;
-    metadata?: Record<string, string>;
-    createdAt?: string;
-  }>;
-  createSandbox?: (options?: {
-    template?: string;
-    metadata?: Record<string, string>;
-  }) => Promise<string>;
-  getActiveSandboxId?: () => string | undefined;
-  killSandbox?: (id?: string) => Promise<void>;
-  executeCode?: (
-    code: string,
-    language?: string,
-    sandboxId?: string,
-  ) => Promise<unknown>;
-}
+export type { NativeE2BService } from "./runtime-contracts";
 
 function getSandboxRoot(
   sandboxes: Array<{ path?: string }>,
@@ -29,7 +9,7 @@ function getSandboxRoot(
 }
 
 export function getNativeE2BSandboxControlPlane(runtime: RuntimeLike) {
-  const e2b = getNativeServices(runtime).e2b as NativeE2BService | undefined;
+  const e2b = getNativeServices(runtime).e2b;
   const sandboxes = e2b?.listSandboxes?.() ?? [];
   const activeSandboxId =
     typeof e2b?.getActiveSandboxId === "function"
