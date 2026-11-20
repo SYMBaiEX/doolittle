@@ -28,6 +28,8 @@ import type { ChatRequestBody } from "./types";
 
 const RUN_ID_PATTERN = /^[a-zA-Z0-9:_-]{1,128}$/;
 const PROJECT_ID_PATTERN = /^[a-zA-Z0-9:_-]{1,128}$/;
+const NATIVE_WORKFLOW_COMMAND =
+  /^\/(?:review|security-review|release-check)(?:\s|$)/u;
 const TURN_FAILURE_MESSAGE =
   "The response could not be completed. Please try again.";
 
@@ -224,7 +226,7 @@ function resolveChatWorkspace(
 async function prepareChatRun(
   context: AppContext,
   request: Request,
-  options?: { nativeClient?: boolean },
+  options?: { nativeClient?: boolean; operatorControls?: boolean },
 ): Promise<PreparedChatRun | Response> {
   const parsed = await readJsonObjectBody(request);
   if (!parsed.ok) {
@@ -276,7 +278,8 @@ async function prepareChatRun(
     options?.nativeClient &&
     ((message.startsWith("/") &&
       message !== "/help" &&
-      message !== "/workspace tree") ||
+      message !== "/workspace tree" &&
+      !(options.operatorControls && NATIVE_WORKFLOW_COMMAND.test(message))) ||
       message.startsWith("!"))
   ) {
     return json({ error: "This native client command is unavailable." }, 403);
@@ -733,6 +736,7 @@ export async function handleChatSubmitRoute(
   request: Request,
   options?: {
     nativeClient?: boolean;
+    operatorControls?: boolean;
     nativeAdmission?: NativeWorkspaceAdmission;
   },
 ): Promise<Response> {

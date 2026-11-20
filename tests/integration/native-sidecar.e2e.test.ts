@@ -42,6 +42,7 @@ it.runIf(process.env.DOOLITTLE_RUN_RUNTIME_E2E === "1")(
           baseUrl: "",
           temperature: 0,
           maxTokens: 512,
+          excludedFixtureField: "fixture hidden by native settings projection",
         },
       }),
     );
@@ -56,6 +57,7 @@ it.runIf(process.env.DOOLITTLE_RUN_RUNTIME_E2E === "1")(
           DOOLITTLE_REPO_ROOT: sandbox,
           DOOLITTLE_WORKSPACE_DIR: workspace,
           DOOLITTLE_NATIVE_WORKSPACE_SAVE: "1",
+          DOOLITTLE_NATIVE_CONTROL_PLANE: "1",
           ELIZA_API_TOKEN: token,
         },
         stdio: ["pipe", "pipe", "pipe"],
@@ -75,7 +77,11 @@ it.runIf(process.env.DOOLITTLE_RUN_RUNTIME_E2E === "1")(
       };
       if (/^http:\/\/127\.0\.0\.1:[1-9][0-9]{0,4}$/u.test(url)) endpoint = url;
     });
-    child.stderr.resume();
+    let runtimeErrors = "";
+    child.stderr.setEncoding("utf8");
+    child.stderr.on("data", (chunk: string) => {
+      runtimeErrors = (runtimeErrors + chunk).slice(-4096);
+    });
     try {
       await vi.waitFor(
         () => {
@@ -95,6 +101,12 @@ it.runIf(process.env.DOOLITTLE_RUN_RUNTIME_E2E === "1")(
           throw new Error(`Native sidecar request failed: ${path}`, { cause });
         }
       };
+      const post = (path: string, body: Record<string, unknown>) =>
+        request(path, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(body),
+        });
 
       expect((await fetch(`${endpoint}/health`)).status).toBe(401);
       expect(
@@ -108,9 +120,119 @@ it.runIf(process.env.DOOLITTLE_RUN_RUNTIME_E2E === "1")(
       expect((await request("/repo/mutate", { method: "POST" })).status).toBe(
         404,
       );
+      expect(
+        (await post("/secrets/get", { key: "OPENAI_API_KEY" })).status,
+      ).toBe(404);
+      expect((await request("/settings")).status).toBe(200);
+      expect(await (await request("/settings")).text()).not.toContain(
+        "excludedFixtureField",
+      );
+      expect(
+        (
+          await post("/settings", {
+            path: "mcp.servers.operator.env.key",
+            value: "hidden",
+          })
+        ).status,
+      ).toBe(400);
+      const savedSettings = await post("/settings", {
+        changes: [
+          { path: "model.maxTokens", value: 640 },
+          { path: "agent.maxIterations", value: 25 },
+        ],
+      });
+      expect(savedSettings.status).toBe(200);
+      expect(await savedSettings.json()).toMatchObject({
+        settings: { model: { maxTokens: 640 }, agent: { maxIterations: 25 } },
+      });
+      expect(
+        JSON.parse(await readFile(join(profile, "settings.json"), "utf8")),
+      ).toMatchObject({ model: { maxTokens: 640 } });
+      expect(
+        (await post("/execution/approvals/unknown-local-approval/deny", {}))
+          .status,
+      ).toBe(404);
+      expect((await request("/cron/jobs")).status).toBe(200);
+      const createdJob = await post("/cron/jobs", {
+        name: "Native fixture job",
+        schedule: "0 0 * * 0",
+        prompt: "Say fixture",
+        delivery: "local",
+      });
+      expect(createdJob.status).toBe(200);
+      const { job } = (await createdJob.json()) as { job: { id: string } };
+      expect(job.id).toMatch(/^[A-Za-z0-9._-]+$/u);
+      expect((await post(`/cron/jobs/${job.id}/pause`, {})).status).toBe(200);
+      const cronList = await request("/cron/jobs");
+      expect(await cronList.json()).toMatchObject({
+        jobs: expect.arrayContaining([expect.objectContaining({ id: job.id })]),
+      });
+      expect(
+        (await request(`/cron/jobs/${job.id}`, { method: "DELETE" })).status,
+      ).toBe(200);
+      const oauth = await post("/accounts/oauth/start", {
+        provider: "claude-code",
+        label: "Fixture sign-in",
+      });
+      expect(oauth.status).toBe(200);
+      const { flow } = (await oauth.json()) as {
+        flow: { id: string; authUrl: string; status: string };
+      };
+      const authUrl = new URL(flow.authUrl);
+      expect(`${authUrl.origin}${authUrl.pathname}`).toBe(
+        "https://claude.ai/oauth/authorize",
+      );
+      expect(flow.status).toBe("pending");
+      expect(
+        (
+          await post("/accounts/oauth/code", {
+            flowId: flow.id,
+            code: "fixture#wrong-state",
+          })
+        ).status,
+      ).toBe(400);
+      expect(
+        await (
+          await request(`/accounts/oauth/status?flowId=${flow.id}`)
+        ).json(),
+      ).toMatchObject({ flow: { status: "pending" } });
+      expect(
+        await (
+          await post("/accounts/oauth/cancel", { flowId: flow.id })
+        ).json(),
+      ).toMatchObject({ flow: { status: "cancelled" } });
+      expect(
+        (await request(`/accounts/oauth/status?flowId=${randomUUID()}`)).status,
+      ).toBe(404);
       const file = await request("/workspace/read?path=native-note.txt");
       expect(file.status).toBe(200);
       expect(await file.json()).toMatchObject({ content: "workspace witness" });
+      expect((await post("/acp/session/new", { cwd: sandbox })).status).toBe(
+        400,
+      );
+      const acp = await post("/acp/session/new", { cwd: workspace });
+      expect(acp.status).toBe(200);
+      const {
+        session: { sessionId: acpId },
+      } = (await acp.json()) as { session: { sessionId: string } };
+      expect(acpId).toMatch(/^acp:/u);
+      expect(
+        await (
+          await post("/acp/fs/read", {
+            sessionId: acpId,
+            path: "native-note.txt",
+          })
+        ).json(),
+      ).toMatchObject({ content: "workspace witness" });
+      expect(
+        (
+          await post("/acp/fs/write", {
+            sessionId: acpId,
+            path: "native-note.txt",
+            content: "unexpected",
+          })
+        ).status,
+      ).toBe(404);
 
       const blockedCommand = await request("/chat/runs", {
         method: "POST",
@@ -225,6 +347,14 @@ it.runIf(process.env.DOOLITTLE_RUN_RUNTIME_E2E === "1")(
       expect(commandEvents).toContain("event: response.completed");
 
       const normalId = randomUUID();
+      const importedAttachments = await post("/media/attachments/import", {
+        paths: [join(workspace, "native-note.txt")],
+      });
+      expect(importedAttachments.status).toBe(200);
+      const { attachments } = (await importedAttachments.json()) as {
+        attachments: { id: string }[];
+      };
+      expect(attachments).toHaveLength(1);
       const conversation = await request("/chat/runs", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -232,6 +362,7 @@ it.runIf(process.env.DOOLITTLE_RUN_RUNTIME_E2E === "1")(
           roomId: sessionId,
           runId: normalId,
           message: "Say hello for native acceptance.",
+          attachmentIds: attachments.map(({ id }) => id),
         }),
       });
       expect(conversation.status).toBe(202);
@@ -240,12 +371,54 @@ it.runIf(process.env.DOOLITTLE_RUN_RUNTIME_E2E === "1")(
       const conversationEvents = await stream.text();
       expect(conversationEvents).toContain("event: response.completed");
       expect(conversationEvents).toContain("model provider is unavailable");
+      expect(
+        await (
+          await request(`/sessions/messages?sessionId=${sessionId}`)
+        ).json(),
+      ).toMatchObject({
+        messages: expect.arrayContaining([
+          expect.objectContaining({
+            attachments: expect.arrayContaining([
+              expect.objectContaining({ id: attachments[0]?.id }),
+            ]),
+          }),
+        ]),
+      });
+
+      expect(
+        (
+          await save(
+            "native-note.txt",
+            "updated witness",
+            "updated witness",
+            sessionId,
+          )
+        ).status,
+      ).toBe(200);
+
+      const credential = "fixture-key-not-a-real-api-secret";
+      const importedAccount = await post(
+        "/runtime/account-pool/openai-api/credentials",
+        {
+          accountId: "fixture-imported",
+          label: "Fixture account",
+          apiKey: credential,
+        },
+      );
+      expect(importedAccount.status).toBe(200);
+      const newAccount = await importedAccount.text();
+      expect(newAccount).toContain("fixture-imported");
+      expect(newAccount).not.toContain(credential);
+      expect(
+        await (await request("/runtime/account-pool")).text(),
+      ).not.toContain(credential);
 
       child.stdin.end();
-      await vi.waitFor(() => expect(child.exitCode).toBe(0), {
+      await vi.waitFor(() => expect(child.exitCode).not.toBeNull(), {
         timeout: 10_000,
         interval: 100,
       });
+      expect(child.exitCode, runtimeErrors).toBe(0);
       await exit;
     } finally {
       if (child.exitCode === null && child.signalCode === null)

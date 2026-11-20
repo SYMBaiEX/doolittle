@@ -1,9 +1,11 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import {
   applyCors,
+  isAllowedHost,
   isTrustedLocalRequest,
   resolveTerminalRunRejection,
   type TerminalRunRejection,
+  tokenMatches,
 } from "@elizaos/agent/api/server-helpers-auth";
 
 const DOOLITTLE_CORS_METHODS = "GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS";
@@ -16,6 +18,32 @@ const TERMINAL_MUTATION_PATHS = new Set([
   "/terminal/session/interrupt",
   "/terminal/session/close",
 ]);
+
+/** Rust-launched dedicated services own this capability outside the runtime environment. */
+export function createStrictLoopbackTokenPolicy(token: string) {
+  if (!/^[!-~]{32,4096}$/u.test(token)) {
+    throw new Error(
+      "Strict loopback API service requires a valid bearer capability.",
+    );
+  }
+  const expected = `Bearer ${token}`;
+  return (request: IncomingMessage): 401 | 403 | null => {
+    const target = request.url ?? "";
+    if (
+      !isAllowedHost(request) ||
+      request.headers.origin !== undefined ||
+      !target.startsWith("/") ||
+      target.startsWith("//") ||
+      target.includes("\\") ||
+      target.includes("#")
+    )
+      return 403;
+    const supplied = request.headers.authorization;
+    return typeof supplied === "string" && tokenMatches(expected, supplied)
+      ? null
+      : 401;
+  };
+}
 
 /**
  * The three public provider callbacks authenticate at their own protocol

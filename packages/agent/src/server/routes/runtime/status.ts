@@ -17,6 +17,26 @@ import { json } from "../../responses";
 import { runtimeInstanceId } from "../../runtime-instance-id";
 import { resolveOwnership } from "./shared";
 
+export async function stopRuntimeExecutions(
+  context: AppContext,
+): Promise<Response> {
+  const chatRuns = context.services.runController.cancelAllActiveRuns();
+  const protocolPrompts = context.services.acp.cancelAllProtocolSessions();
+  context.services.terminal.disposeInteractiveSessions();
+  const admitted = context.runtime.getService("ACP_SUBPROCESS_SERVICE") as
+    | { stopAllAdmittedSessions?: () => Promise<number> }
+    | undefined;
+  const automaticAcpSessions = admitted?.stopAllAdmittedSessions
+    ? await admitted.stopAllAdmittedSessions()
+    : 0;
+  return json({
+    stopped: true,
+    chatRuns,
+    protocolPrompts,
+    automaticAcpSessions,
+  });
+}
+
 export async function handleRuntimeStatusRoutes(
   context: AppContext,
   request: Request,
@@ -37,21 +57,7 @@ export async function handleRuntimeStatusRoutes(
     ) {
       return json({ error: "Desktop execution control is unavailable." }, 403);
     }
-    const chatRuns = context.services.runController.cancelAllActiveRuns();
-    const protocolPrompts = context.services.acp.cancelAllProtocolSessions();
-    context.services.terminal.disposeInteractiveSessions();
-    const admitted = context.runtime.getService("ACP_SUBPROCESS_SERVICE") as
-      | { stopAllAdmittedSessions?: () => Promise<number> }
-      | undefined;
-    const automaticAcpSessions = admitted?.stopAllAdmittedSessions
-      ? await admitted.stopAllAdmittedSessions()
-      : 0;
-    return json({
-      stopped: true,
-      chatRuns,
-      protocolPrompts,
-      automaticAcpSessions,
-    });
+    return stopRuntimeExecutions(context);
   }
   if (request.method === "GET" && url.pathname === "/runtime/bot-identity") {
     const workerBot = readWorkerBotProfile();

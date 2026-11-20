@@ -17,6 +17,7 @@ import {
   NativeWorkspaceAdmission,
   runWithNativeWorkspaceAdmission,
 } from "../../packages/agent/src/runtime/execution-admission";
+import { createStrictLoopbackTokenPolicy } from "../../packages/agent/src/server/auth";
 import { createNativeClientPolicy } from "../../packages/agent/src/server/native-client-policy";
 import { WorkspaceService } from "../../packages/agent/src/services/workspace-service";
 
@@ -105,6 +106,12 @@ describe("the native runtime boundary", () => {
     expect(
       allowed(request("/workspace/write", "POST"), "/workspace/write"),
     ).toBeNull();
+    expect(
+      allowed(
+        request("/media/attachments/import", "POST"),
+        "/media/attachments/import",
+      ),
+    ).toBeNull();
     for (const path of [
       "/workspace/write/child",
       "/workspace/checkpoints",
@@ -114,6 +121,100 @@ describe("the native runtime boundary", () => {
         status: 404,
       });
     }
+  });
+
+  it("admits only reviewed operator methods for a host that opted in", () => {
+    const controls = createNativeClientPolicy({
+      bearerToken: token,
+      workspaceIsCurrent: () => true,
+      controlPlane: true,
+    });
+    for (const [method, path] of [
+      ["GET", "/activity"],
+      ["GET", "/runtime/accounts"],
+      ["POST", "/settings"],
+      ["POST", "/execution/approvals/scope%3Arun/approve"],
+      ["POST", "/cron/jobs/example/trigger"],
+      ["PATCH", "/cron/jobs/example"],
+      ["POST", "/runtime/account-pool/openai-api/credentials"],
+      ["DELETE", "/runtime/account-pool/openai-api/operator-key"],
+      ["POST", "/pairing/deny"],
+    ] as const) {
+      expect(controls(request(path, method), path)).toBeNull();
+      expect(policy(request(path, method), path)).toMatchObject({
+        status: 404,
+      });
+    }
+    for (const [method, target, path] of [
+      ["POST", "/secrets/get"],
+      ["POST", "/secrets/set"],
+      ["GET", "/runtime/account-pool/openai-api/credentials"],
+      ["POST", "/runtime/account-pool/openai-codex/credentials"],
+      ["POST", "/cron/webhooks/trigger-token"],
+      ["POST", "/runtime/workspace"],
+      ["POST", "/terminal/session/start"],
+      ["POST", "/media/attachments/import"],
+      ["POST", "/repo/mutate"],
+      ["GET", "/plugin/arbitrary"],
+      ["POST", "/cron/jobs/example%2Fother/trigger"],
+      ["POST", "/execution/approvals/example%2Fother/approve"],
+      ["POST", "/settings?path=hidden", "/settings"],
+    ] as const) {
+      expect(controls(request(target, method), path ?? target)).toMatchObject({
+        status: 404,
+      });
+    }
+    expect(
+      controls(request("/anything/../settings", "POST"), "/settings"),
+    ).toMatchObject({ status: 403 });
+  });
+
+  it("admits named bot control only when the host supplied its dispatcher", () => {
+    const options = {
+      bearerToken: token,
+      workspaceIsCurrent: () => true,
+      controlPlane: true,
+    };
+    const noHost = createNativeClientPolicy(options);
+    const withHost = createNativeClientPolicy({
+      ...options,
+      dispatchNamedBotControl: async () => null,
+    });
+    expect(noHost(request("/bots"), "/bots")).toMatchObject({ status: 404 });
+    expect(withHost(request("/bots"), "/bots")).toBeNull();
+    const activate = "/bots/8efb0a77-6108-4891-a37a-c31ae7347e60/activate";
+    expect(withHost(request(activate, "POST"), activate)).toBeNull();
+    expect(withHost(request(activate), activate)).toMatchObject({
+      status: 404,
+    });
+    expect(
+      withHost(request("/bots/default/proxy", "POST"), "/bots/default/proxy"),
+    ).toMatchObject({ status: 404 });
+  });
+
+  it("enforces dedicated service bearer auth before ordinary and webhook routes", () => {
+    const strict = createStrictLoopbackTokenPolicy(token);
+    expect(strict(request("/health"))).toBeNull();
+    expect(
+      strict(request("/health", "GET", { authorization: undefined })),
+    ).toBe(401);
+    expect(
+      strict(request("/webhooks/slack", "POST", { authorization: undefined })),
+    ).toBe(401);
+    expect(
+      strict(
+        request("/health", "GET", {
+          authorization: `Bearer ${"b".repeat(64)}`,
+        }),
+      ),
+    ).toBe(401);
+    expect(
+      strict(request("/health", "GET", { origin: "http://127.0.0.1:34321" })),
+    ).toBe(403);
+    expect(
+      strict(request("/health", "GET", { host: "invalid-host.example:34321" })),
+    ).toBe(403);
+    expect(() => createStrictLoopbackTokenPolicy("short")).toThrow(/bearer/);
   });
 
   it("retains workspace ownership throughout native delegated work", async () => {

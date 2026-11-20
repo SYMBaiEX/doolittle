@@ -1,5 +1,7 @@
+import { join } from "node:path";
 import { ensureOnboarded, loadLocalRuntimeEnv } from "../cli/startup";
 import { captureBootLogs } from "./boot-logs";
+import { prepareNativeProfile } from "./native-profile";
 import { writeStderrLine } from "./output";
 import {
   createApiStartupController,
@@ -17,10 +19,36 @@ export async function prepareEntrypointRuntimeBoot(options: {
   const { startupMode, shouldUseCliSurface } =
     resolveEntrypointCommandPlan(command);
   const desktop = process.env.DOOLITTLE_DESKTOP_RUNTIME === "1";
+  const nativeService =
+    (command === "api" || command === "gateway") &&
+    process.env.DOOLITTLE_NATIVE_SERVICE === "1";
+  const strictLoopbackToken = nativeService
+    ? process.env.ELIZA_API_TOKEN
+    : undefined;
+  delete process.env.DOOLITTLE_NATIVE_SERVICE;
+  if (nativeService) {
+    if (
+      process.env.ELIZA_API_BIND !== "127.0.0.1" ||
+      !/^[!-~]{32,4096}$/u.test(strictLoopbackToken ?? "")
+    ) {
+      throw new Error("Native services require loopback authentication.");
+    }
+    const { workspace, dataDir } = prepareNativeProfile(
+      process.env.DOOLITTLE_WORKSPACE_DIR,
+      process.env.DOOLITTLE_DATA_DIR,
+    );
+    process.env.DOOLITTLE_WORKSPACE_DIR = workspace;
+    process.env.DOOLITTLE_DATA_DIR = dataDir;
+    process.env.PGLITE_DATA_DIR = join(dataDir, "pglite");
+    process.env.DOOLITTLE_MODE = "api";
+    process.env.ELIZA_API_TOKEN = "";
+    process.env.ELIZA_REQUIRE_LOCAL_AUTH = "1";
+  }
   // The desktop shell owns first-run UX. Running the wizard in its API child
   // would block the health endpoint on interactive stdin.
-  if (!desktop) await ensureOnboarded();
+  if (!desktop && !nativeService) await ensureOnboarded();
   loadLocalRuntimeEnv();
+  if (nativeService) delete process.env.ELIZA_API_TOKEN;
 
   if (shouldUseCliSurface) process.env.DOOLITTLE_MODE ??= "cli";
   const usesApi = startupMode === "api";
@@ -47,7 +75,10 @@ export async function prepareEntrypointRuntimeBoot(options: {
     command,
     shouldStartCli: runtimePlan.shouldStartCli,
     runtimeLogger,
-    startApiServer: server?.startApiServer,
+    startApiServer:
+      server && strictLoopbackToken
+        ? (context) => server.startApiServer(context, { strictLoopbackToken })
+        : server?.startApiServer,
     writeStderrLine,
     formatTopLevelError: getCliErrorMessage,
     hydrateAfterListening: desktop && usesApi,

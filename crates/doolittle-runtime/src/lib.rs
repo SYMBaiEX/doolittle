@@ -28,6 +28,7 @@ const MAX_MESSAGE_BYTES: usize = 256 * 1024;
 const MAX_WORKSPACE_FILE_BYTES: usize = 1_000_000;
 const MAX_WORKSPACE_SAVE_REQUEST_BYTES: usize = 8 * 1024 * 1024;
 const MAX_CONTROL_BODY_BYTES: usize = 1024 * 1024;
+const MAX_SESSION_IMPORT_BODY_BYTES: usize = 2_000_032;
 const MAX_EVENT_ID: u64 = (1 << 53) - 1;
 const CONVERSATION_HEADER: &str = "x-doolittle-origin-conversation";
 
@@ -160,11 +161,21 @@ impl RuntimeClient {
         if method == Method::GET && body.is_some() {
             return Err(RuntimeError::InvalidInput("control request body"));
         }
+        let session_import = method == Method::POST
+            && matches!(path, "/sessions/import" | "/sessions/import/preview");
         let mut request = self.request(method, path, None)?;
+        if matches!(path, "/acp/session/prompt") {
+            request = request.timeout(Duration::from_secs(300));
+        }
         if let Some(body) = body {
             let body = serde_json::to_vec(body)
                 .map_err(|_| RuntimeError::InvalidInput("control request body"))?;
-            if body.len() > MAX_CONTROL_BODY_BYTES {
+            let maximum = if session_import {
+                MAX_SESSION_IMPORT_BODY_BYTES
+            } else {
+                MAX_CONTROL_BODY_BYTES
+            };
+            if body.len() > maximum {
                 return Err(RuntimeError::InvalidInput("control request body size"));
             }
             request = request.header(CONTENT_TYPE, "application/json").body(body);

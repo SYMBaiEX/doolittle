@@ -109,6 +109,10 @@ impl SidecarConfig {
         &self.profile
     }
 
+    pub fn workspace(&self) -> &Path {
+        &self.workspace
+    }
+
     fn leases(&self) -> Result<(File, WorkspaceLock)> {
         let profile = File::options()
             .read(true)
@@ -167,6 +171,9 @@ impl SidecarConfig {
             command.arg(subcommand);
         }
         command.env("ELIZA_API_BIND", "127.0.0.1");
+        if matches!(mode, RuntimeService::Api | RuntimeService::Gateway) {
+            command.env("DOOLITTLE_NATIVE_SERVICE", "1");
+        }
         #[cfg(unix)]
         workspace.keep_in_child(&mut command, &profile);
         let result = command

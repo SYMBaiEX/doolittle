@@ -1,3 +1,5 @@
+import { realpathSync } from "node:fs";
+import { isAbsolute, relative, sep } from "node:path";
 import type { AppContext } from "../../runtime/bootstrap/index";
 import { isAcpSessionNotFoundError } from "../../services/acp/protocol-runtime";
 import type { AcpEditorContext } from "../../services/acp/types";
@@ -13,9 +15,15 @@ export async function handleAcpRoutes(
   context: AppContext,
   request: Request,
   url: URL,
+  options?: { nativeWorkspace?: string },
 ): Promise<Response | null> {
   try {
-    return await handleAcpRoutesImpl(context, request, url);
+    return await handleAcpRoutesImpl(
+      context,
+      request,
+      url,
+      options?.nativeWorkspace,
+    );
   } catch (error) {
     if (isAcpSessionNotFoundError(error)) {
       return json({ error: error.message, code: error.code }, 409);
@@ -24,10 +32,53 @@ export async function handleAcpRoutes(
   }
 }
 
+function isScopedNativeAcpRequest(
+  workspace: string,
+  body: JsonObject,
+): boolean {
+  if (
+    body.mcpServers !== undefined &&
+    (!Array.isArray(body.mcpServers) || body.mcpServers.length !== 0)
+  )
+    return false;
+  if (
+    body.additionalDirectories !== undefined &&
+    (!Array.isArray(body.additionalDirectories) ||
+      body.additionalDirectories.length > 16)
+  )
+    return false;
+  const paths = [
+    body.cwd ?? workspace,
+    ...(Array.isArray(body.additionalDirectories)
+      ? body.additionalDirectories
+      : []),
+  ];
+  return paths.every((path) => {
+    if (
+      typeof path !== "string" ||
+      !isAbsolute(path) ||
+      path.length > 4096 ||
+      /[\p{Cc}\p{Cf}]/u.test(path)
+    )
+      return false;
+    try {
+      const candidate = relative(workspace, realpathSync(path));
+      return (
+        !isAbsolute(candidate) &&
+        candidate !== ".." &&
+        !candidate.startsWith(`..${sep}`)
+      );
+    } catch {
+      return false;
+    }
+  });
+}
+
 async function handleAcpRoutesImpl(
   context: AppContext,
   request: Request,
   url: URL,
+  nativeWorkspace?: string,
 ): Promise<Response | null> {
   if (request.method === "POST" && url.pathname === "/acp/initialize") {
     const body = await readOptionalObject(request);
@@ -49,6 +100,11 @@ async function handleAcpRoutesImpl(
 
   if (request.method === "POST" && url.pathname === "/acp/session/new") {
     const body = await readOptionalObject(request);
+    if (nativeWorkspace && !isScopedNativeAcpRequest(nativeWorkspace, body))
+      return json(
+        { error: "ACP sessions must use the selected native workspace." },
+        400,
+      );
     const { originConversationId: _originConversationId, ...protocolBody } =
       body;
     return json({
@@ -61,6 +117,11 @@ async function handleAcpRoutesImpl(
     if (!isNonEmptyString(body.sessionId) || !isNonEmptyString(body.cwd)) {
       return json({ error: "sessionId and cwd are required" }, 400);
     }
+    if (nativeWorkspace && !isScopedNativeAcpRequest(nativeWorkspace, body))
+      return json(
+        { error: "ACP sessions must use the selected native workspace." },
+        400,
+      );
     await context.services.acp.loadProtocolSession(
       body as Parameters<typeof context.services.acp.loadProtocolSession>[0],
     );

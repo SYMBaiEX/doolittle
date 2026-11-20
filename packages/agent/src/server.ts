@@ -20,6 +20,7 @@ import { notifyEngineWorkerReady } from "./runtime/engine/worker-transport";
 import { getNativeWorkspaceAdmission } from "./runtime/execution-admission";
 import {
   applyDoolittleCors,
+  createStrictLoopbackTokenPolicy,
   isProviderAuthenticatedWebhookRequest,
   remoteTerminalMutationTokenError,
 } from "./server/auth";
@@ -29,6 +30,11 @@ import {
   NATIVE_WORKSPACE_SAVE_PATH,
   type NativeClientSecurityOptions,
 } from "./server/native-client-policy";
+import {
+  isNativeNamedBotRoute,
+  isNativeSdkControlRoute,
+} from "./server/native-control-routes";
+import { handleNativeOperatorRoute } from "./server/native-operator";
 import { dispatchRuntimePluginRoute } from "./server/plugin-routes";
 import {
   assertDeclaredRequestBodyLimit,
@@ -42,10 +48,15 @@ import { json, runResponsePostCommit } from "./server/responses";
 import { dispatchRouteHandlers } from "./server/router";
 import { handleChatSubmitRoute } from "./server/routes/conversation/chat";
 import { apiRouteHandlers } from "./server/routes/index";
+import {
+  handleNativeAttachmentRoute,
+  NATIVE_ATTACHMENT_IMPORT,
+} from "./server/routes/native-attachments";
 import { handleOperationsRoutes } from "./server/routes/operations";
 import { handleRuntimeRoutes } from "./server/routes/runtime/index";
 import { withDirectConversationWorkspace } from "./server/routes/workspace-scope";
 import { isWorkerApiRouteAllowed } from "./server/worker-route-policy";
+import { MAX_SESSION_ARCHIVE_BYTES } from "./services/session-transfer/index";
 
 const INTERACTIVE_TERMINAL_MUTATION_PATHS = new Set([
   "/terminal/session/start",
@@ -56,9 +67,11 @@ const INTERACTIVE_TERMINAL_MUTATION_PATHS = new Set([
 ]);
 const INTERACTIVE_TERMINAL_OUTPUT_PATH = "/terminal/session/output";
 const RUNTIME_IDENTITY_PATH = "/runtime/bot-identity";
+const NATIVE_SESSION_IMPORT_MAX_BODY_BYTES = MAX_SESSION_ARCHIVE_BYTES + 32;
 
 let activeApiServer: Server | null = null;
 let activeApiServerAddress: string | null = null;
+let activeApiServerStrictToken: string | undefined;
 
 export interface ApiServerAddress {
   host: string;
@@ -70,6 +83,7 @@ export interface ApiServerSecurityOptions {
   headersTimeoutMs?: number;
   maxRequestBodyBytes?: number;
   requestTimeoutMs?: number;
+  strictLoopbackToken?: string;
 }
 
 export interface OwnedApiServer {
@@ -79,6 +93,58 @@ export interface OwnedApiServer {
 
 export function internalServerErrorResponse(): Response {
   return json({ error: "Internal server error" }, 500);
+}
+
+async function dispatchOwnedNativeRequest(
+  context: AppContext,
+  request: Request,
+  url: URL,
+  options: NativeClientSecurityOptions,
+  nativeAdmission: NonNullable<ReturnType<typeof getNativeWorkspaceAdmission>>,
+): Promise<Response> {
+  if (request.method === "POST" && url.pathname === "/chat/runs") {
+    return handleChatSubmitRoute(context, request, {
+      nativeClient: true,
+      operatorControls: options.controlPlane,
+      nativeAdmission,
+    });
+  }
+  const missing = () => json({ error: "Not found" }, 404);
+  if (url.pathname === NATIVE_WORKSPACE_SAVE_PATH) {
+    return (
+      (await handleOperationsRoutes(context, request, url, {
+        nativeAdmission,
+      })) ?? missing()
+    );
+  }
+  if (url.pathname === NATIVE_ATTACHMENT_IMPORT) {
+    return (
+      (await handleNativeAttachmentRoute(context, request, url)) ?? missing()
+    );
+  }
+  if (options.controlPlane) {
+    if (isNativeNamedBotRoute(request.method, url.pathname)) {
+      return (
+        (await options.dispatchNamedBotControl?.(request, url)) ?? missing()
+      );
+    }
+    if (isNativeSdkControlRoute(request.method, url.pathname)) {
+      return (
+        (await dispatchRuntimePluginRoute({
+          runtime: context.runtime,
+          request,
+          url,
+          isAuthorized: () => true,
+        })) ?? missing()
+      );
+    }
+    const response = await handleNativeOperatorRoute(context, request, url);
+    if (response) return response;
+  }
+  return (
+    (await dispatchRouteHandlers(context, request, url, apiRouteHandlers)) ??
+    missing()
+  );
 }
 
 export function isRequestCancellation(
@@ -195,6 +261,7 @@ export async function stopApiServer(): Promise<void> {
   activeApiServer = null;
   activeApiServerAddress = null;
   activeApiServerInfo = null;
+  activeApiServerStrictToken = undefined;
   server.closeAllConnections();
   await new Promise<void>((resolve) => server.close(() => resolve()));
 }
@@ -207,6 +274,7 @@ export async function startApiServer(
   if (
     activeApiServer &&
     activeApiServerAddress === address &&
+    activeApiServerStrictToken === security.strictLoopbackToken &&
     activeApiServerInfo
   ) {
     return activeApiServerInfo;
@@ -218,6 +286,7 @@ export async function startApiServer(
   activeApiServer = owned.server;
   activeApiServerAddress = address;
   activeApiServerInfo = owned.address;
+  activeApiServerStrictToken = security.strictLoopbackToken;
   syncResolvedApiPort(process.env, owned.address.port);
   const workerBot = readWorkerBotProfile();
   if (workerBot) {
@@ -266,6 +335,20 @@ export async function createApiServer(
   const nativePolicy = security.nativeClient
     ? createNativeClientPolicy(security.nativeClient)
     : undefined;
+  const strictPolicy =
+    security.strictLoopbackToken === undefined
+      ? undefined
+      : createStrictLoopbackTokenPolicy(security.strictLoopbackToken);
+  if (
+    strictPolicy &&
+    (security.nativeClient ||
+      security.terminalOnly ||
+      context.config.host !== "127.0.0.1")
+  ) {
+    throw new Error(
+      "Strict API authentication requires a dedicated loopback listener.",
+    );
+  }
   if (
     security.terminalOnly &&
     (context.config.host !== "127.0.0.1" ||
@@ -281,7 +364,8 @@ export async function createApiServer(
   // host, auth, and CORS helpers even when a caller constructs AppContext
   // directly instead of going through loadConfig().
   process.env.ELIZA_API_BIND = context.config.host;
-  if (!security.terminalOnly) ensureApiTokenForBindHost(context.config.host);
+  if (!security.terminalOnly && !strictPolicy)
+    ensureApiTokenForBindHost(context.config.host);
 
   const server = createServer(
     {
@@ -296,6 +380,23 @@ export async function createApiServer(
         );
         requestControllers.add(requestLifecycle.controller);
         try {
+          const strictRejection = strictPolicy?.(incoming);
+          if (strictRejection) {
+            await writeEarlyResponse(
+              json(
+                {
+                  error:
+                    strictRejection === 401
+                      ? "Unauthorized"
+                      : "Forbidden service origin",
+                },
+                strictRejection,
+              ),
+              incoming,
+              outgoing,
+            );
+            return;
+          }
           const requestPath = new URL(incoming.url ?? "/", "http://localhost")
             .pathname;
           const nativeRejection = nativePolicy?.(incoming, requestPath);
@@ -313,7 +414,12 @@ export async function createApiServer(
             requestPath === NATIVE_WORKSPACE_SAVE_PATH;
           const maxRequestBody = isNativeSave
             ? NATIVE_WORKSPACE_SAVE_MAX_BODY_BYTES
-            : security.maxRequestBodyBytes;
+            : security.nativeClient?.controlPlane &&
+                incoming.method === "POST" &&
+                (requestPath === "/sessions/import" ||
+                  requestPath === "/sessions/import/preview")
+              ? NATIVE_SESSION_IMPORT_MAX_BODY_BYTES
+              : security.maxRequestBodyBytes;
           assertDeclaredRequestBodyLimit(incoming, maxRequestBody);
           if (!isAllowedHost(incoming)) {
             await writeEarlyResponse(
@@ -395,7 +501,8 @@ export async function createApiServer(
               return;
             }
           }
-          const authorized = Boolean(nativePolicy) || isAuthorized(incoming);
+          const authorized =
+            Boolean(nativePolicy || strictPolicy) || isAuthorized(incoming);
           const providerAuthenticatedWebhook =
             isProviderAuthenticatedWebhookRequest(requestPath, method);
           const bodyFraming = requestBodyFraming(incoming);
@@ -459,71 +566,67 @@ export async function createApiServer(
               requestLifecycle.controller.signal,
               body,
             );
-            if (nativePolicy) request.headers.delete("authorization");
+            if (nativePolicy || strictPolicy)
+              request.headers.delete("authorization");
             const url = new URL(request.url);
             // Provider callbacks authenticate using their own signed payload or
             // verification token. Route them straight to Doolittle's webhook
             // handlers so a runtime plugin cannot intercept a public endpoint
             // or observe a synthetic API authorization result. The native
-            // client likewise dispatches only product routes plus SDK health.
+            // client dispatches product routes and reviewed SDK controls.
             response = security.terminalOnly
               ? ((await handleOperationsRoutes(context, request, url, {
                   captureOutputRequired: true,
                   expectedTerminalToken: terminalCapability,
                 })) ?? json({ error: "Not found" }, 404))
-              : nativePolicy &&
-                  method === "POST" &&
-                  requestPath === "/chat/runs"
-                ? await handleChatSubmitRoute(context, request, {
-                    nativeClient: true,
+              : security.nativeClient &&
+                  nativeAdmission &&
+                  requestPath !== "/health"
+                ? await dispatchOwnedNativeRequest(
+                    context,
+                    request,
+                    url,
+                    security.nativeClient,
                     nativeAdmission,
-                  })
-                : isNativeSave
-                  ? ((await handleOperationsRoutes(context, request, url, {
-                      nativeAdmission,
-                    })) ?? json({ error: "Not found" }, 404))
-                  : (nativePolicy && requestPath !== "/health") ||
-                      providerAuthenticatedWebhook
-                    ? ((await dispatchRouteHandlers(
-                        context,
-                        request,
-                        url,
-                        apiRouteHandlers,
-                      )) ?? json({ error: "Not found" }, 404))
-                    : INTERACTIVE_TERMINAL_MUTATION_PATHS.has(requestPath) ||
+                  )
+                : providerAuthenticatedWebhook
+                  ? ((await dispatchRouteHandlers(
+                      context,
+                      request,
+                      url,
+                      apiRouteHandlers,
+                    )) ?? json({ error: "Not found" }, 404))
+                  : INTERACTIVE_TERMINAL_MUTATION_PATHS.has(requestPath) ||
+                      requestPath === INTERACTIVE_TERMINAL_OUTPUT_PATH
+                    ? (
                         requestPath === INTERACTIVE_TERMINAL_OUTPUT_PATH
-                      ? (
-                          requestPath === INTERACTIVE_TERMINAL_OUTPUT_PATH
-                            ? method === "GET"
-                            : method === "POST"
-                        )
-                        ? ((await withDirectConversationWorkspace(
-                            handleOperationsRoutes,
-                            () => true,
-                          )(context, request, url)) ??
+                          ? method === "GET"
+                          : method === "POST"
+                      )
+                      ? ((await withDirectConversationWorkspace(
+                          handleOperationsRoutes,
+                          () => true,
+                        )(context, request, url)) ??
+                        json({ error: "Not found" }, 404))
+                      : json({ error: "Method not allowed" }, 405)
+                    : requestPath === RUNTIME_IDENTITY_PATH
+                      ? method === "GET"
+                        ? ((await handleRuntimeRoutes(context, request, url)) ??
                           json({ error: "Not found" }, 404))
                         : json({ error: "Method not allowed" }, 405)
-                      : requestPath === RUNTIME_IDENTITY_PATH
-                        ? method === "GET"
-                          ? ((await handleRuntimeRoutes(
-                              context,
-                              request,
-                              url,
-                            )) ?? json({ error: "Not found" }, 404))
-                          : json({ error: "Method not allowed" }, 405)
-                        : ((await dispatchRuntimePluginRoute({
-                            runtime: context.runtime,
-                            request,
-                            url,
-                            isAuthorized: () => authorized,
-                          })) ??
-                          (await dispatchRouteHandlers(
-                            context,
-                            request,
-                            url,
-                            apiRouteHandlers,
-                          )) ??
-                          json({ error: "Not found" }, 404));
+                      : ((await dispatchRuntimePluginRoute({
+                          runtime: context.runtime,
+                          request,
+                          url,
+                          isAuthorized: () => authorized,
+                        })) ??
+                        (await dispatchRouteHandlers(
+                          context,
+                          request,
+                          url,
+                          apiRouteHandlers,
+                        )) ??
+                        json({ error: "Not found" }, 404));
           }
           if (security.terminalOnly)
             requestLifecycle.controller.signal.throwIfAborted();

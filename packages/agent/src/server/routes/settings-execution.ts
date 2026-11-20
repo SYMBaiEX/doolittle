@@ -53,6 +53,32 @@ function buildThemePayload(theme: string) {
   };
 }
 
+export async function applyRuntimeSettingChanges(
+  context: AppContext,
+  changes: ReadonlyArray<{ path: string; value: unknown }>,
+  signal?: AbortSignal,
+) {
+  const updatesModelRoute = changes.some(({ path }) =>
+    path.startsWith("model."),
+  );
+  const apply = async () => {
+    signal?.throwIfAborted();
+    const next = context.services.settings.setMany(changes);
+    if (updatesModelRoute) {
+      syncProviderSettings(context, next);
+      await applyAccountPoolApiCredentials({
+        activeBackend: next.model.provider,
+      });
+    }
+    return next;
+  };
+  // Active turns read a request-local snapshot. A serialized model update
+  // takes effect for future turns without shifting an in-flight provider.
+  return updatesModelRoute
+    ? withLinkedProviderMutationLock(context.runtime, apply)
+    : apply();
+}
+
 export async function handleSettingsExecutionRoutes(
   context: AppContext,
   request: Request,
@@ -196,24 +222,11 @@ export async function handleSettingsExecutionRoutes(
       path: change.path as string,
       value: change.value,
     }));
-    const updatesModelRoute = changes.some((change) =>
-      change.path.startsWith("model."),
+    const settings = await applyRuntimeSettingChanges(
+      context,
+      changes,
+      request.signal,
     );
-    const applyChanges = async () => {
-      const next = context.services.settings.setMany(changes);
-      if (updatesModelRoute) {
-        syncProviderSettings(context, next);
-        await applyAccountPoolApiCredentials({
-          activeBackend: next.model.provider,
-        });
-      }
-      return next;
-    };
-    // Active turns read a request-local settings snapshot, so this persisted
-    // route update takes effect immediately for future turns.
-    const settings = updatesModelRoute
-      ? await withLinkedProviderMutationLock(context.runtime, applyChanges)
-      : await applyChanges();
     return json({
       settings,
     });
