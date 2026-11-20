@@ -1,6 +1,7 @@
+import { randomUUID } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { buildAcpBundlePayload } from "@doolittle/acp";
+import type { AcpBundlePayload } from "@doolittle/acp";
 import { writeJsonAtomicSync } from "@elizaos/core";
 import type {
   AcpEditorSummary,
@@ -9,6 +10,7 @@ import type {
   AcpSessionSummary,
   AcpToolDefinition,
 } from "../../types/index";
+import { isRecord } from "../../utils/records";
 import type { AcpServiceStatus } from "./status";
 import type { AcpImportBundlePayload, AcpServicePaths } from "./types";
 
@@ -45,10 +47,10 @@ export class AcpPersistence {
     exportedAt: string;
   } {
     const safeLabel = sanitizeBundleLabel(input.label);
-    const fileName = `acp-export-${safeLabel}-${Date.now()}.json`;
+    const fileName = `acp-export-${safeLabel}-${Date.now()}-${randomUUID()}.json`;
     const path = join(this.paths.exportDir, fileName);
     const exportedAt = new Date().toISOString();
-    const payload = buildAcpBundlePayload({
+    const payload: AcpBundlePayload = {
       exportedAt,
       label: safeLabel,
       package: input.packageMetadata,
@@ -57,7 +59,7 @@ export class AcpPersistence {
       registry: input.registry,
       sessions: input.sessions,
       tools: input.tools,
-    });
+    };
     writeJsonAtomicSync(path, payload);
     return {
       path,
@@ -78,7 +80,7 @@ export class AcpPersistence {
   } {
     const parsed = parseImportBundlePayload(input);
     const importedAt = new Date().toISOString();
-    const fileName = `acp-import-${importedAt.replaceAll(":", "-")}.json`;
+    const fileName = `acp-import-${importedAt.replaceAll(":", "-")}-${randomUUID()}.json`;
     const path = join(this.paths.importDir, fileName);
     writeJsonAtomicSync(path, parsed);
     return {
@@ -86,7 +88,7 @@ export class AcpPersistence {
       importedAt,
       label: parsed.label,
       packageName: parsed.package?.name,
-      toolCount: Array.isArray(parsed.tools) ? parsed.tools.length : undefined,
+      toolCount: parsed.tools?.length,
     };
   }
 }
@@ -102,5 +104,19 @@ function parseImportBundlePayload(input: string): AcpImportBundlePayload {
   }
 
   const raw = existsSync(trimmed) ? readFileSync(trimmed, "utf8") : trimmed;
-  return JSON.parse(raw) as AcpImportBundlePayload;
+  const parsed: unknown = JSON.parse(raw);
+  if (!isRecord(parsed))
+    throw new Error("ACP bundles must contain a JSON object.");
+  const { label, package: metadata, tools } = parsed;
+  if (label !== undefined && typeof label !== "string")
+    throw new Error("An ACP bundle label must be text.");
+  if (
+    metadata !== undefined &&
+    (!isRecord(metadata) ||
+      (metadata.name !== undefined && typeof metadata.name !== "string"))
+  )
+    throw new Error("ACP bundle package metadata is invalid.");
+  if (tools !== undefined && !Array.isArray(tools))
+    throw new Error("ACP bundle tools must be a list.");
+  return parsed as AcpImportBundlePayload;
 }

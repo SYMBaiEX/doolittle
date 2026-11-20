@@ -176,9 +176,3 @@ export function buildAcpEditorSummary(input: {
     lastImportAt: input.lastImportAt,
   };
 }
-
-export function buildAcpBundlePayload(
-  input: AcpBundlePayload,
-): AcpBundlePayload {
-  return input;
-}
