@@ -76,6 +76,11 @@ try {
     join(resources, "Doolittle.icns"),
   );
   copyFileSync(join(repo, "LICENSE"), join(resources, "LICENSE"));
+  mkdirSync(join(resources, "licenses"));
+  copyFileSync(
+    join(repo, "apps/desktop-native/assets/Bangers-OFL.txt"),
+    join(resources, "licenses/Bangers-OFL.txt"),
+  );
 
   cpSync(prepared, runtime, { recursive: true, verbatimSymlinks: true });
   mkdirSync(join(runtime, "bin"), { recursive: true });

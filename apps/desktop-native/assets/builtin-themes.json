@@ -1,0 +1,1252 @@
+[
+  {
+    "kind": "doolittle.theme",
+    "version": 2,
+    "id": "companion",
+    "name": "Companion",
+    "description": "Warm, quiet conversations with familiar bot contacts.",
+    "layout": "companion",
+    "colors": {
+      "light": {
+        "background": "#eeeae4",
+        "navigation": "#f7f4ef",
+        "raised": "#fdfbf8",
+        "subtle": "#e9e3dc",
+        "hover": "#e1d9d0",
+        "border": "#d1c8be",
+        "borderStrong": "#b6aa9e",
+        "text": "#211d19",
+        "secondaryText": "#564e47",
+        "mutedText": "#5f554d",
+        "accent": "#df5700",
+        "accentInk": "#1b0b02",
+        "accentText": "#8a3500",
+        "success": "#3f6c34",
+        "warning": "#755318",
+        "error": "#984437"
+      },
+      "dark": {
+        "background": "#0b0b0a",
+        "navigation": "#10100f",
+        "raised": "#161614",
+        "subtle": "#1b1a18",
+        "hover": "#22211e",
+        "border": "#282622",
+        "borderStrong": "#3a3630",
+        "text": "#f4f1eb",
+        "secondaryText": "#c9c3b9",
+        "mutedText": "#a0988f",
+        "accent": "#ff6b16",
+        "accentInk": "#1b0b02",
+        "accentText": "#ff9b5c",
+        "success": "#86b875",
+        "warning": "#e7a84d",
+        "error": "#e47763"
+      }
+    },
+    "typography": {
+      "bodyFont": "avenir",
+      "codeFont": "monospace",
+      "conversationSize": 16,
+      "controlSize": 14,
+      "metadataSize": 12,
+      "lineHeight": 1.55
+    },
+    "spacing": {
+      "unit": 4,
+      "row": 8,
+      "page": 16
+    },
+    "geometry": {
+      "navigationWidth": 248,
+      "inspectorWidth": 320,
+      "readingWidth": 760,
+      "controlRadius": 8,
+      "composerRadius": 12,
+      "controlHeight": 40,
+      "touchHeight": 44,
+      "headerHeight": 48
+    },
+    "density": "comfortable",
+    "motion": {
+      "durationMs": 120,
+      "reducedMotion": "respect-system"
+    }
+  },
+  {
+    "kind": "doolittle.theme",
+    "version": 2,
+    "id": "canvas",
+    "name": "Canvas",
+    "description": "A spacious working canvas with navigation available on demand.",
+    "layout": "canvas",
+    "colors": {
+      "light": {
+        "background": "#f3f6f5",
+        "navigation": "#eaf0ee",
+        "raised": "#ffffff",
+        "subtle": "#e1ebe7",
+        "hover": "#d6e3dd",
+        "border": "#c0d1ca",
+        "borderStrong": "#8fa79c",
+        "text": "#182d27",
+        "secondaryText": "#40594f",
+        "mutedText": "#4f685e",
+        "accent": "#176858",
+        "accentInk": "#ffffff",
+        "accentText": "#175e50",
+        "success": "#3f6c34",
+        "warning": "#755318",
+        "error": "#984437"
+      },
+      "dark": {
+        "background": "#101416",
+        "navigation": "#151b1e",
+        "raised": "#1b2327",
+        "subtle": "#20292e",
+        "hover": "#29343a",
+        "border": "#303e45",
+        "borderStrong": "#485a63",
+        "text": "#edf3f3",
+        "secondaryText": "#c2cfd2",
+        "mutedText": "#9aafb5",
+        "accent": "#7ccfc6",
+        "accentInk": "#102321",
+        "accentText": "#91ded5",
+        "success": "#86b875",
+        "warning": "#e7a84d",
+        "error": "#e47763"
+      }
+    },
+    "typography": {
+      "bodyFont": "system",
+      "codeFont": "monospace",
+      "conversationSize": 16,
+      "controlSize": 14,
+      "metadataSize": 12,
+      "lineHeight": 1.55
+    },
+    "spacing": {
+      "unit": 4,
+      "row": 8,
+      "page": 16
+    },
+    "geometry": {
+      "navigationWidth": 248,
+      "inspectorWidth": 320,
+      "readingWidth": 960,
+      "controlRadius": 4,
+      "composerRadius": 8,
+      "controlHeight": 40,
+      "touchHeight": 44,
+      "headerHeight": 48
+    },
+    "density": "comfortable",
+    "motion": {
+      "durationMs": 120,
+      "reducedMotion": "respect-system"
+    }
+  },
+  {
+    "kind": "doolittle.theme",
+    "version": 2,
+    "id": "anime-atelier",
+    "name": "Anime Atelier",
+    "description": "A manga workbench: inked panels, screentone paper and bold chapter lettering.",
+    "layout": "companion",
+    "material": "cel",
+    "colors": {
+      "light": {
+        "background": "#fffbed",
+        "navigation": "#efe8d6",
+        "raised": "#fffdf5",
+        "subtle": "#eee7d7",
+        "hover": "#e5dcc8",
+        "border": "#27222d",
+        "borderStrong": "#18171c",
+        "text": "#18171c",
+        "secondaryText": "#443e49",
+        "mutedText": "#514b57",
+        "accent": "#ffdb57",
+        "accentInk": "#211b13",
+        "accentText": "#5d4400",
+        "success": "#28634f",
+        "warning": "#755018",
+        "error": "#a02e48"
+      },
+      "dark": {
+        "background": "#15151d",
+        "navigation": "#1c1b26",
+        "raised": "#252431",
+        "subtle": "#30303e",
+        "hover": "#3a3849",
+        "border": "#8e899c",
+        "borderStrong": "#d9d2e0",
+        "text": "#fff8e8",
+        "secondaryText": "#e0d9dd",
+        "mutedText": "#c1b9cc",
+        "accent": "#ffdb57",
+        "accentInk": "#211b13",
+        "accentText": "#ffe58e",
+        "success": "#91d7bd",
+        "warning": "#efcb83",
+        "error": "#ffacb2"
+      }
+    },
+    "codeColors": {
+      "light": {
+        "background": "#fffdf5",
+        "text": "#18171c"
+      },
+      "dark": {
+        "background": "#15151d",
+        "text": "#fff8e8"
+      }
+    },
+    "terminalColors": {
+      "blue": "#a4b5ff",
+      "brightBlue": "#c4ceff",
+      "cyan": "#91d7d2",
+      "magenta": "#ffdb57"
+    },
+    "typography": {
+      "bodyFont": "avenir",
+      "codeFont": "monospace",
+      "conversationSize": 16,
+      "controlSize": 14,
+      "metadataSize": 12,
+      "lineHeight": 1.55
+    },
+    "spacing": {
+      "unit": 4,
+      "row": 8,
+      "page": 16
+    },
+    "geometry": {
+      "navigationWidth": 248,
+      "inspectorWidth": 320,
+      "readingWidth": 760,
+      "controlRadius": 2,
+      "composerRadius": 2,
+      "controlHeight": 40,
+      "touchHeight": 44,
+      "headerHeight": 48
+    },
+    "density": "comfortable",
+    "motion": {
+      "durationMs": 120,
+      "reducedMotion": "respect-system"
+    }
+  },
+  {
+    "kind": "doolittle.theme",
+    "version": 2,
+    "id": "golden-gate-glass",
+    "name": "Golden Gate Glass",
+    "description": "A translucent macOS workspace over the Golden Gate, with floating glass panels.",
+    "layout": "companion",
+    "material": "glass",
+    "colors": {
+      "light": {
+        "background": "#e9eef7",
+        "navigation": "#e8eef8",
+        "raised": "#f8faff",
+        "subtle": "#e0e8f5",
+        "hover": "#d5deee",
+        "border": "#aab9cf",
+        "borderStrong": "#7588a5",
+        "text": "#152033",
+        "secondaryText": "#35435b",
+        "mutedText": "#374760",
+        "accent": "#0056c7",
+        "accentInk": "#ffffff",
+        "accentText": "#004baf",
+        "success": "#386149",
+        "warning": "#795217",
+        "error": "#9d3d35"
+      },
+      "dark": {
+        "background": "#111b2e",
+        "navigation": "#1a263d",
+        "raised": "#202e48",
+        "subtle": "#293953",
+        "hover": "#30435f",
+        "border": "#566d8c",
+        "borderStrong": "#8298b8",
+        "text": "#f7faff",
+        "secondaryText": "#d7e1f1",
+        "mutedText": "#bdcbe0",
+        "accent": "#83baff",
+        "accentInk": "#102137",
+        "accentText": "#a9d1ff",
+        "success": "#a0d7b5",
+        "warning": "#f0cf93",
+        "error": "#ffa9a2"
+      }
+    },
+    "codeColors": {
+      "light": {
+        "background": "#f8faff",
+        "text": "#152033"
+      },
+      "dark": {
+        "background": "#111b2e",
+        "text": "#f7faff"
+      }
+    },
+    "typography": {
+      "bodyFont": "system",
+      "codeFont": "monospace",
+      "conversationSize": 16,
+      "controlSize": 14,
+      "metadataSize": 12,
+      "lineHeight": 1.55
+    },
+    "spacing": {
+      "unit": 4,
+      "row": 8,
+      "page": 16
+    },
+    "geometry": {
+      "navigationWidth": 248,
+      "inspectorWidth": 320,
+      "readingWidth": 760,
+      "controlRadius": 14,
+      "composerRadius": 24,
+      "controlHeight": 40,
+      "touchHeight": 44,
+      "headerHeight": 48
+    },
+    "density": "comfortable",
+    "motion": {
+      "durationMs": 180,
+      "reducedMotion": "respect-system"
+    }
+  },
+  {
+    "kind": "doolittle.theme",
+    "version": 2,
+    "id": "orange",
+    "name": "Neon Dune",
+    "description": "Warm ignition for the operator cockpit.",
+    "layout": "companion",
+    "colors": {
+      "light": {
+        "background": "#eeeae4",
+        "navigation": "#f7f4ef",
+        "raised": "#fdfbf8",
+        "subtle": "#e9e3dc",
+        "hover": "#e1d9d0",
+        "border": "#d1c8be",
+        "borderStrong": "#b6aa9e",
+        "text": "#211d19",
+        "secondaryText": "#564e47",
+        "mutedText": "#5f554d",
+        "accent": "#ff6a00",
+        "accentHover": "#ffb000",
+        "accentInk": "#160b03",
+        "accentText": "#8a3500",
+        "success": "#3f6c34",
+        "warning": "#755318",
+        "error": "#984437"
+      },
+      "dark": {
+        "background": "#0b0b0a",
+        "navigation": "#10100f",
+        "raised": "#161614",
+        "subtle": "#1b1a18",
+        "hover": "#22211e",
+        "border": "#282622",
+        "borderStrong": "#3a3630",
+        "text": "#f4f1eb",
+        "secondaryText": "#c9c3b9",
+        "mutedText": "#a0988f",
+        "accent": "#ff6a00",
+        "accentHover": "#ffb000",
+        "accentInk": "#160b03",
+        "accentText": "#ff6a00",
+        "success": "#86b875",
+        "warning": "#ffb000",
+        "error": "#e47763"
+      }
+    },
+    "codeColors": {
+      "light": {
+        "background": "#fdfbf8",
+        "text": "#211d19"
+      },
+      "dark": {
+        "background": "#080706",
+        "text": "#f4f1eb"
+      }
+    },
+    "terminalColors": {
+      "blue": "#ff6a00",
+      "brightBlue": "#ffb000",
+      "cyan": "#63e6ff",
+      "magenta": "#ff7de8",
+      "muted": "#a0988f"
+    },
+    "typography": {
+      "bodyFont": "avenir",
+      "codeFont": "monospace",
+      "conversationSize": 16,
+      "controlSize": 14,
+      "metadataSize": 12,
+      "lineHeight": 1.55
+    },
+    "spacing": {
+      "unit": 4,
+      "row": 8,
+      "page": 16
+    },
+    "geometry": {
+      "navigationWidth": 248,
+      "inspectorWidth": 320,
+      "readingWidth": 760,
+      "controlRadius": 8,
+      "composerRadius": 12,
+      "controlHeight": 40,
+      "touchHeight": 44,
+      "headerHeight": 48
+    },
+    "density": "comfortable",
+    "motion": {
+      "durationMs": 120,
+      "reducedMotion": "respect-system"
+    }
+  },
+  {
+    "kind": "doolittle.theme",
+    "version": 2,
+    "id": "blue",
+    "name": "Blue Static",
+    "description": "Clean signal with official ElizaOS restraint.",
+    "layout": "companion",
+    "colors": {
+      "light": {
+        "background": "#eeeae4",
+        "navigation": "#f7f4ef",
+        "raised": "#fdfbf8",
+        "subtle": "#e9e3dc",
+        "hover": "#e1d9d0",
+        "border": "#d1c8be",
+        "borderStrong": "#b6aa9e",
+        "text": "#211d19",
+        "secondaryText": "#564e47",
+        "mutedText": "#5f554d",
+        "accent": "#0b35f1",
+        "accentInk": "#fffaf5",
+        "accentText": "#0b35f1",
+        "success": "#3f6c34",
+        "warning": "#755318",
+        "error": "#984437"
+      },
+      "dark": {
+        "background": "#0b0b0a",
+        "navigation": "#10100f",
+        "raised": "#161614",
+        "subtle": "#1b1a18",
+        "hover": "#22211e",
+        "border": "#282622",
+        "borderStrong": "#3a3630",
+        "text": "#f4f1eb",
+        "secondaryText": "#c9c3b9",
+        "mutedText": "#a0988f",
+        "accent": "#0b35f1",
+        "accentInk": "#fffaf5",
+        "accentText": "#ff9b5c",
+        "success": "#86b875",
+        "warning": "#e7a84d",
+        "error": "#e47763"
+      }
+    },
+    "codeColors": {
+      "light": {
+        "background": "#fdfbf8",
+        "text": "#211d19"
+      },
+      "dark": {
+        "background": "#080706",
+        "text": "#f4f1eb"
+      }
+    },
+    "terminalColors": {
+      "blue": "#0b35f1",
+      "brightBlue": "#63e6ff",
+      "cyan": "#63e6ff",
+      "magenta": "#ff7de8",
+      "muted": "#a0988f"
+    },
+    "typography": {
+      "bodyFont": "avenir",
+      "codeFont": "monospace",
+      "conversationSize": 16,
+      "controlSize": 14,
+      "metadataSize": 12,
+      "lineHeight": 1.55
+    },
+    "spacing": {
+      "unit": 4,
+      "row": 8,
+      "page": 16
+    },
+    "geometry": {
+      "navigationWidth": 248,
+      "inspectorWidth": 320,
+      "readingWidth": 760,
+      "controlRadius": 8,
+      "composerRadius": 12,
+      "controlHeight": 40,
+      "touchHeight": 44,
+      "headerHeight": 48
+    },
+    "density": "comfortable",
+    "motion": {
+      "durationMs": 120,
+      "reducedMotion": "respect-system"
+    }
+  },
+  {
+    "kind": "doolittle.theme",
+    "version": 2,
+    "id": "matrix",
+    "name": "Ghostline",
+    "description": "Low-light terminal residue with a living pulse.",
+    "layout": "companion",
+    "colors": {
+      "light": {
+        "background": "#eeeae4",
+        "navigation": "#f7f4ef",
+        "raised": "#fdfbf8",
+        "subtle": "#e9e3dc",
+        "hover": "#e1d9d0",
+        "border": "#d1c8be",
+        "borderStrong": "#b6aa9e",
+        "text": "#211d19",
+        "secondaryText": "#564e47",
+        "mutedText": "#5f554d",
+        "accent": "#00ff66",
+        "accentHover": "#7dffb3",
+        "accentInk": "#160b03",
+        "accentText": "#8a3500",
+        "success": "#3f6c34",
+        "warning": "#755318",
+        "error": "#984437"
+      },
+      "dark": {
+        "background": "#0b0b0a",
+        "navigation": "#10100f",
+        "raised": "#161614",
+        "subtle": "#1b1a18",
+        "hover": "#22211e",
+        "border": "#282622",
+        "borderStrong": "#3a3630",
+        "text": "#f4f1eb",
+        "secondaryText": "#c9c3b9",
+        "mutedText": "#a0988f",
+        "accent": "#00ff66",
+        "accentHover": "#7dffb3",
+        "accentInk": "#160b03",
+        "accentText": "#00ff66",
+        "success": "#00ff66",
+        "warning": "#c4ff00",
+        "error": "#e47763"
+      }
+    },
+    "codeColors": {
+      "light": {
+        "background": "#fdfbf8",
+        "text": "#211d19"
+      },
+      "dark": {
+        "background": "#080706",
+        "text": "#86b875"
+      }
+    },
+    "terminalColors": {
+      "blue": "#00ff66",
+      "brightBlue": "#7dffb3",
+      "cyan": "#00ffd5",
+      "magenta": "#ff4fd8",
+      "muted": "#a0988f"
+    },
+    "typography": {
+      "bodyFont": "avenir",
+      "codeFont": "monospace",
+      "conversationSize": 16,
+      "controlSize": 14,
+      "metadataSize": 12,
+      "lineHeight": 1.55
+    },
+    "spacing": {
+      "unit": 4,
+      "row": 8,
+      "page": 16
+    },
+    "geometry": {
+      "navigationWidth": 248,
+      "inspectorWidth": 320,
+      "readingWidth": 760,
+      "controlRadius": 8,
+      "composerRadius": 12,
+      "controlHeight": 40,
+      "touchHeight": 44,
+      "headerHeight": 48
+    },
+    "density": "comfortable",
+    "motion": {
+      "durationMs": 120,
+      "reducedMotion": "respect-system"
+    }
+  },
+  {
+    "kind": "doolittle.theme",
+    "version": 2,
+    "id": "synthwave",
+    "name": "Midnight Grid",
+    "description": "Soft neon geometry for long operator nights.",
+    "layout": "companion",
+    "colors": {
+      "light": {
+        "background": "#eeeae4",
+        "navigation": "#f7f4ef",
+        "raised": "#fdfbf8",
+        "subtle": "#e9e3dc",
+        "hover": "#e1d9d0",
+        "border": "#d1c8be",
+        "borderStrong": "#b6aa9e",
+        "text": "#211d19",
+        "secondaryText": "#564e47",
+        "mutedText": "#5f554d",
+        "accent": "#ff4fd8",
+        "accentHover": "#8a63ff",
+        "accentInk": "#160b03",
+        "accentText": "#8a3500",
+        "success": "#3f6c34",
+        "warning": "#755318",
+        "error": "#984437"
+      },
+      "dark": {
+        "background": "#0b0b0a",
+        "navigation": "#10100f",
+        "raised": "#161614",
+        "subtle": "#1b1a18",
+        "hover": "#22211e",
+        "border": "#282622",
+        "borderStrong": "#3a3630",
+        "text": "#f4f1eb",
+        "secondaryText": "#c9c3b9",
+        "mutedText": "#a0988f",
+        "accent": "#ff4fd8",
+        "accentHover": "#8a63ff",
+        "accentInk": "#160b03",
+        "accentText": "#ff4fd8",
+        "success": "#8bff9f",
+        "warning": "#ffb347",
+        "error": "#e47763"
+      }
+    },
+    "codeColors": {
+      "light": {
+        "background": "#fdfbf8",
+        "text": "#211d19"
+      },
+      "dark": {
+        "background": "#080706",
+        "text": "#f4f1eb"
+      }
+    },
+    "terminalColors": {
+      "blue": "#ff4fd8",
+      "brightBlue": "#8a63ff",
+      "cyan": "#30d5ff",
+      "magenta": "#ff4fd8",
+      "muted": "#a0988f"
+    },
+    "typography": {
+      "bodyFont": "avenir",
+      "codeFont": "monospace",
+      "conversationSize": 16,
+      "controlSize": 14,
+      "metadataSize": 12,
+      "lineHeight": 1.55
+    },
+    "spacing": {
+      "unit": 4,
+      "row": 8,
+      "page": 16
+    },
+    "geometry": {
+      "navigationWidth": 248,
+      "inspectorWidth": 320,
+      "readingWidth": 760,
+      "controlRadius": 8,
+      "composerRadius": 12,
+      "controlHeight": 40,
+      "touchHeight": 44,
+      "headerHeight": 48
+    },
+    "density": "comfortable",
+    "motion": {
+      "durationMs": 120,
+      "reducedMotion": "respect-system"
+    }
+  },
+  {
+    "kind": "doolittle.theme",
+    "version": 2,
+    "id": "ember",
+    "name": "Crimson Forge",
+    "description": "Redline pressure with a sharper, hotter pulse.",
+    "layout": "companion",
+    "colors": {
+      "light": {
+        "background": "#eeeae4",
+        "navigation": "#f7f4ef",
+        "raised": "#fdfbf8",
+        "subtle": "#e9e3dc",
+        "hover": "#e1d9d0",
+        "border": "#d1c8be",
+        "borderStrong": "#b6aa9e",
+        "text": "#211d19",
+        "secondaryText": "#564e47",
+        "mutedText": "#5f554d",
+        "accent": "#d7263d",
+        "accentInk": "#fffaf5",
+        "accentText": "#8a3500",
+        "success": "#3f6c34",
+        "warning": "#755318",
+        "error": "#984437"
+      },
+      "dark": {
+        "background": "#0b0b0a",
+        "navigation": "#10100f",
+        "raised": "#161614",
+        "subtle": "#1b1a18",
+        "hover": "#22211e",
+        "border": "#282622",
+        "borderStrong": "#3a3630",
+        "text": "#f4f1eb",
+        "secondaryText": "#c9c3b9",
+        "mutedText": "#a0988f",
+        "accent": "#d7263d",
+        "accentInk": "#fffaf5",
+        "accentText": "#ff9b5c",
+        "success": "#93ffb0",
+        "warning": "#ffc857",
+        "error": "#e47763"
+      }
+    },
+    "codeColors": {
+      "light": {
+        "background": "#fdfbf8",
+        "text": "#211d19"
+      },
+      "dark": {
+        "background": "#080706",
+        "text": "#f4f1eb"
+      }
+    },
+    "terminalColors": {
+      "blue": "#d7263d",
+      "brightBlue": "#ff6b6b",
+      "cyan": "#63e6ff",
+      "magenta": "#ff7de8",
+      "muted": "#a0988f"
+    },
+    "typography": {
+      "bodyFont": "avenir",
+      "codeFont": "monospace",
+      "conversationSize": 16,
+      "controlSize": 14,
+      "metadataSize": 12,
+      "lineHeight": 1.55
+    },
+    "spacing": {
+      "unit": 4,
+      "row": 8,
+      "page": 16
+    },
+    "geometry": {
+      "navigationWidth": 248,
+      "inspectorWidth": 320,
+      "readingWidth": 760,
+      "controlRadius": 8,
+      "composerRadius": 12,
+      "controlHeight": 40,
+      "touchHeight": 44,
+      "headerHeight": 48
+    },
+    "density": "comfortable",
+    "motion": {
+      "durationMs": 120,
+      "reducedMotion": "respect-system"
+    }
+  },
+  {
+    "kind": "doolittle.theme",
+    "version": 2,
+    "id": "arctic",
+    "name": "Polar Signal",
+    "description": "Cold glass clarity for high-trust focus.",
+    "layout": "companion",
+    "colors": {
+      "light": {
+        "background": "#eeeae4",
+        "navigation": "#f7f4ef",
+        "raised": "#fdfbf8",
+        "subtle": "#e9e3dc",
+        "hover": "#e1d9d0",
+        "border": "#d1c8be",
+        "borderStrong": "#b6aa9e",
+        "text": "#211d19",
+        "secondaryText": "#564e47",
+        "mutedText": "#5f554d",
+        "accent": "#7debff",
+        "accentHover": "#b7f7ff",
+        "accentInk": "#160b03",
+        "accentText": "#8a3500",
+        "success": "#3f6c34",
+        "warning": "#755318",
+        "error": "#984437"
+      },
+      "dark": {
+        "background": "#0b0b0a",
+        "navigation": "#10100f",
+        "raised": "#161614",
+        "subtle": "#1b1a18",
+        "hover": "#22211e",
+        "border": "#282622",
+        "borderStrong": "#3a3630",
+        "text": "#f4f1eb",
+        "secondaryText": "#c9c3b9",
+        "mutedText": "#a0988f",
+        "accent": "#7debff",
+        "accentHover": "#b7f7ff",
+        "accentInk": "#160b03",
+        "accentText": "#7debff",
+        "success": "#a6ffcc",
+        "warning": "#ffe38a",
+        "error": "#e47763"
+      }
+    },
+    "codeColors": {
+      "light": {
+        "background": "#fdfbf8",
+        "text": "#211d19"
+      },
+      "dark": {
+        "background": "#080706",
+        "text": "#f4f1eb"
+      }
+    },
+    "terminalColors": {
+      "blue": "#7debff",
+      "brightBlue": "#b7f7ff",
+      "cyan": "#7debff",
+      "magenta": "#e39bff",
+      "muted": "#a0988f"
+    },
+    "typography": {
+      "bodyFont": "avenir",
+      "codeFont": "monospace",
+      "conversationSize": 16,
+      "controlSize": 14,
+      "metadataSize": 12,
+      "lineHeight": 1.55
+    },
+    "spacing": {
+      "unit": 4,
+      "row": 8,
+      "page": 16
+    },
+    "geometry": {
+      "navigationWidth": 248,
+      "inspectorWidth": 320,
+      "readingWidth": 760,
+      "controlRadius": 8,
+      "composerRadius": 12,
+      "controlHeight": 40,
+      "touchHeight": 44,
+      "headerHeight": 48
+    },
+    "density": "comfortable",
+    "motion": {
+      "durationMs": 120,
+      "reducedMotion": "respect-system"
+    }
+  },
+  {
+    "kind": "doolittle.theme",
+    "version": 2,
+    "id": "toxic",
+    "name": "Acid Burn",
+    "description": "Sharp lime voltage for aggressive work.",
+    "layout": "companion",
+    "colors": {
+      "light": {
+        "background": "#eeeae4",
+        "navigation": "#f7f4ef",
+        "raised": "#fdfbf8",
+        "subtle": "#e9e3dc",
+        "hover": "#e1d9d0",
+        "border": "#d1c8be",
+        "borderStrong": "#b6aa9e",
+        "text": "#211d19",
+        "secondaryText": "#564e47",
+        "mutedText": "#5f554d",
+        "accent": "#b8ff00",
+        "accentHover": "#f0ff66",
+        "accentInk": "#160b03",
+        "accentText": "#8a3500",
+        "success": "#3f6c34",
+        "warning": "#755318",
+        "error": "#984437"
+      },
+      "dark": {
+        "background": "#0b0b0a",
+        "navigation": "#10100f",
+        "raised": "#161614",
+        "subtle": "#1b1a18",
+        "hover": "#22211e",
+        "border": "#282622",
+        "borderStrong": "#3a3630",
+        "text": "#f4f1eb",
+        "secondaryText": "#c9c3b9",
+        "mutedText": "#a0988f",
+        "accent": "#b8ff00",
+        "accentHover": "#f0ff66",
+        "accentInk": "#160b03",
+        "accentText": "#b8ff00",
+        "success": "#b8ff00",
+        "warning": "#ffd24d",
+        "error": "#e47763"
+      }
+    },
+    "codeColors": {
+      "light": {
+        "background": "#fdfbf8",
+        "text": "#211d19"
+      },
+      "dark": {
+        "background": "#080706",
+        "text": "#f4f1eb"
+      }
+    },
+    "terminalColors": {
+      "blue": "#b8ff00",
+      "brightBlue": "#f0ff66",
+      "cyan": "#40fff2",
+      "magenta": "#ff43c6",
+      "muted": "#a0988f"
+    },
+    "typography": {
+      "bodyFont": "avenir",
+      "codeFont": "monospace",
+      "conversationSize": 16,
+      "controlSize": 14,
+      "metadataSize": 12,
+      "lineHeight": 1.55
+    },
+    "spacing": {
+      "unit": 4,
+      "row": 8,
+      "page": 16
+    },
+    "geometry": {
+      "navigationWidth": 248,
+      "inspectorWidth": 320,
+      "readingWidth": 760,
+      "controlRadius": 8,
+      "composerRadius": 12,
+      "controlHeight": 40,
+      "touchHeight": 44,
+      "headerHeight": 48
+    },
+    "density": "comfortable",
+    "motion": {
+      "durationMs": 120,
+      "reducedMotion": "respect-system"
+    }
+  },
+  {
+    "kind": "doolittle.theme",
+    "version": 2,
+    "id": "rose",
+    "name": "Velvet Circuit",
+    "description": "A quieter, more theatrical control surface.",
+    "layout": "companion",
+    "colors": {
+      "light": {
+        "background": "#eeeae4",
+        "navigation": "#f7f4ef",
+        "raised": "#fdfbf8",
+        "subtle": "#e9e3dc",
+        "hover": "#e1d9d0",
+        "border": "#d1c8be",
+        "borderStrong": "#b6aa9e",
+        "text": "#211d19",
+        "secondaryText": "#564e47",
+        "mutedText": "#5f554d",
+        "accent": "#ff5c93",
+        "accentHover": "#ff9fbe",
+        "accentInk": "#160b03",
+        "accentText": "#8a3500",
+        "success": "#3f6c34",
+        "warning": "#755318",
+        "error": "#984437"
+      },
+      "dark": {
+        "background": "#0b0b0a",
+        "navigation": "#10100f",
+        "raised": "#161614",
+        "subtle": "#1b1a18",
+        "hover": "#22211e",
+        "border": "#282622",
+        "borderStrong": "#3a3630",
+        "text": "#f4f1eb",
+        "secondaryText": "#c9c3b9",
+        "mutedText": "#a0988f",
+        "accent": "#ff5c93",
+        "accentHover": "#ff9fbe",
+        "accentInk": "#160b03",
+        "accentText": "#ff5c93",
+        "success": "#7fffa7",
+        "warning": "#ffd166",
+        "error": "#e47763"
+      }
+    },
+    "codeColors": {
+      "light": {
+        "background": "#fdfbf8",
+        "text": "#211d19"
+      },
+      "dark": {
+        "background": "#080706",
+        "text": "#f4f1eb"
+      }
+    },
+    "terminalColors": {
+      "blue": "#ff5c93",
+      "brightBlue": "#ff9fbe",
+      "cyan": "#63e6ff",
+      "magenta": "#ff5c93",
+      "muted": "#a0988f"
+    },
+    "typography": {
+      "bodyFont": "avenir",
+      "codeFont": "monospace",
+      "conversationSize": 16,
+      "controlSize": 14,
+      "metadataSize": 12,
+      "lineHeight": 1.55
+    },
+    "spacing": {
+      "unit": 4,
+      "row": 8,
+      "page": 16
+    },
+    "geometry": {
+      "navigationWidth": 248,
+      "inspectorWidth": 320,
+      "readingWidth": 760,
+      "controlRadius": 8,
+      "composerRadius": 12,
+      "controlHeight": 40,
+      "touchHeight": 44,
+      "headerHeight": 48
+    },
+    "density": "comfortable",
+    "motion": {
+      "durationMs": 120,
+      "reducedMotion": "respect-system"
+    }
+  },
+  {
+    "kind": "doolittle.theme",
+    "version": 2,
+    "id": "obsidian",
+    "name": "Null Glass",
+    "description": "Dark chrome for minimal interference.",
+    "layout": "companion",
+    "colors": {
+      "light": {
+        "background": "#eeeae4",
+        "navigation": "#f7f4ef",
+        "raised": "#fdfbf8",
+        "subtle": "#e9e3dc",
+        "hover": "#e1d9d0",
+        "border": "#d1c8be",
+        "borderStrong": "#b6aa9e",
+        "text": "#211d19",
+        "secondaryText": "#564e47",
+        "mutedText": "#5f554d",
+        "accent": "#8d99ae",
+        "accentHover": "#c9d6ea",
+        "accentInk": "#160b03",
+        "accentText": "#8a3500",
+        "success": "#3f6c34",
+        "warning": "#755318",
+        "error": "#984437"
+      },
+      "dark": {
+        "background": "#0b0b0a",
+        "navigation": "#10100f",
+        "raised": "#161614",
+        "subtle": "#1b1a18",
+        "hover": "#22211e",
+        "border": "#282622",
+        "borderStrong": "#3a3630",
+        "text": "#f4f1eb",
+        "secondaryText": "#c9c3b9",
+        "mutedText": "#a0988f",
+        "accent": "#8d99ae",
+        "accentHover": "#c9d6ea",
+        "accentInk": "#160b03",
+        "accentText": "#8d99ae",
+        "success": "#8cffb5",
+        "warning": "#e7c76b",
+        "error": "#e47763"
+      }
+    },
+    "codeColors": {
+      "light": {
+        "background": "#fdfbf8",
+        "text": "#211d19"
+      },
+      "dark": {
+        "background": "#080706",
+        "text": "#f4f1eb"
+      }
+    },
+    "terminalColors": {
+      "blue": "#8d99ae",
+      "brightBlue": "#c9d6ea",
+      "cyan": "#7ee0ff",
+      "magenta": "#d78eff",
+      "muted": "#a0988f"
+    },
+    "typography": {
+      "bodyFont": "avenir",
+      "codeFont": "monospace",
+      "conversationSize": 16,
+      "controlSize": 14,
+      "metadataSize": 12,
+      "lineHeight": 1.55
+    },
+    "spacing": {
+      "unit": 4,
+      "row": 8,
+      "page": 16
+    },
+    "geometry": {
+      "navigationWidth": 248,
+      "inspectorWidth": 320,
+      "readingWidth": 760,
+      "controlRadius": 8,
+      "composerRadius": 12,
+      "controlHeight": 40,
+      "touchHeight": 44,
+      "headerHeight": 48
+    },
+    "density": "comfortable",
+    "motion": {
+      "durationMs": 120,
+      "reducedMotion": "respect-system"
+    }
+  },
+  {
+    "kind": "doolittle.theme",
+    "version": 2,
+    "id": "ivory",
+    "name": "Pale Relay",
+    "description": "Bright neutral light with a soft edge.",
+    "layout": "companion",
+    "colors": {
+      "light": {
+        "background": "#eeeae4",
+        "navigation": "#f7f4ef",
+        "raised": "#fdfbf8",
+        "subtle": "#e9e3dc",
+        "hover": "#e1d9d0",
+        "border": "#d1c8be",
+        "borderStrong": "#b6aa9e",
+        "text": "#211d19",
+        "secondaryText": "#564e47",
+        "mutedText": "#5f554d",
+        "accent": "#f2f2f2",
+        "accentHover": "#d7d7d7",
+        "accentInk": "#160b03",
+        "accentText": "#8a3500",
+        "success": "#3f6c34",
+        "warning": "#755318",
+        "error": "#984437"
+      },
+      "dark": {
+        "background": "#0b0b0a",
+        "navigation": "#10100f",
+        "raised": "#161614",
+        "subtle": "#1b1a18",
+        "hover": "#22211e",
+        "border": "#282622",
+        "borderStrong": "#3a3630",
+        "text": "#f4f1eb",
+        "secondaryText": "#c9c3b9",
+        "mutedText": "#a0988f",
+        "accent": "#f2f2f2",
+        "accentHover": "#d7d7d7",
+        "accentInk": "#160b03",
+        "accentText": "#f2f2f2",
+        "success": "#8df5a6",
+        "warning": "#ffd166",
+        "error": "#e47763"
+      }
+    },
+    "codeColors": {
+      "light": {
+        "background": "#fdfbf8",
+        "text": "#211d19"
+      },
+      "dark": {
+        "background": "#101010",
+        "text": "#f7f7f7"
+      }
+    },
+    "terminalColors": {
+      "blue": "#f2f2f2",
+      "brightBlue": "#d7d7d7",
+      "cyan": "#76e4f7",
+      "magenta": "#ff91e8",
+      "muted": "#a0988f"
+    },
+    "typography": {
+      "bodyFont": "avenir",
+      "codeFont": "monospace",
+      "conversationSize": 16,
+      "controlSize": 14,
+      "metadataSize": 12,
+      "lineHeight": 1.55
+    },
+    "spacing": {
+      "unit": 4,
+      "row": 8,
+      "page": 16
+    },
+    "geometry": {
+      "navigationWidth": 248,
+      "inspectorWidth": 320,
+      "readingWidth": 760,
+      "controlRadius": 8,
+      "composerRadius": 12,
+      "controlHeight": 40,
+      "touchHeight": 44,
+      "headerHeight": 48
+    },
+    "density": "comfortable",
+    "motion": {
+      "durationMs": 120,
+      "reducedMotion": "respect-system"
+    }
+  }
+]

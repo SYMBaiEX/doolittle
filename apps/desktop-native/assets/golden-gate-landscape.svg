@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMid slice">
+<title>Golden Gate at blue hour</title>
+<defs>
+ <linearGradient id="sky" x2=".8" y2="1"><stop stop-color="#698bfa"/><stop offset=".42" stop-color="#b9b9ed"/><stop offset=".73" stop-color="#f6c6b2"/><stop offset="1" stop-color="#ef967a"/></linearGradient>
+ <linearGradient id="sea" x2="1" y2="1"><stop stop-color="#73c6e2"/><stop offset=".6" stop-color="#256fc8"/><stop offset="1" stop-color="#234a97"/></linearGradient>
+ <linearGradient id="hills" x2="1" y2="1"><stop stop-color="#316991"/><stop offset="1" stop-color="#234c71"/></linearGradient>
+ <radialGradient id="light"><stop stop-color="#fff5da" stop-opacity=".85"/><stop offset="1" stop-color="#fff5da" stop-opacity="0"/></radialGradient>
+</defs>
+<path fill="url(#sky)" d="M0 0h1600v1000H0z"/>
+<ellipse fill="url(#light)" cx="1190" cy="410" rx="500" ry="390"/>
+<circle fill="#fff0cf" opacity=".7" cx="1190" cy="438" r="72"/>
+<path fill="#7c87ac" opacity=".6" d="M0 650 210 520 340 590 490 482 690 630 860 588 1080 680 1600 590v410H0z"/>
+<path fill="url(#sea)" d="M0 670c410-38 760 32 1600-40v370H0z"/>
+<path fill="none" stroke="#e9e3ed" opacity=".23" stroke-width="3" d="M0 770c500-55 920 30 1600-22M0 840c500-55 920 30 1600-22M0 925c500-55 920 30 1600-22"/>
+<path fill="url(#hills)" d="M0 570 135 548 244 648 340 712 470 746 512 820 310 867 170 978 0 1000z"/>
+<path fill="#315a7e" d="m1600 620-180 94-100 140-180 60-85 86h545z"/>
+<g fill="none" stroke="#c35c59" stroke-linecap="round">
+ <path stroke-width="17" d="M320 768 1480 720"/>
+ <path stroke-width="14" d="m545 800-9-325m30 324-9-325m455 304-9-373m30 371-9-373"/>
+ <path stroke-width="9" d="m539 510 22-1m-21 49 22-1m-21 50 22-1m-21 51 22-1m-21 52 22-1m450-272 24-1m-23 58 24-1m-23 58 24-1m-23 58 24-1m-23 58 24-1"/>
+ <path stroke-width="4" d="M320 750q158-10 226-267 190 476 465-69 184 340 469 290"/>
+ <path stroke-width="2" d="m405 739-2-36m59 33-3-94m144 89-2-101m69 98-2-39m66 36-1-9m67 6-2-21m68 19-5-78m68 77-7-161m154 155-2-164m69 160-1-81m67 78-1-29m66 26v-6m67 4v-4m66 1v-9"/>
+</g>
+<path fill="#e8e4ee" opacity=".18" d="M0 680c400-40 725-20 1040 16 200 22 380 19 560 3v39c-370 7-800-45-1110-7C250 760 100 733 0 743z"/>
+</svg>
