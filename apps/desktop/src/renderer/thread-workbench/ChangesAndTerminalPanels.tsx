@@ -59,6 +59,7 @@ type ChangesPanelController = Pick<
   | "remotes"
   | "stashes"
   | "worktrees"
+  | "mutateRepository"
   | "refreshGit"
   | "checkpoints"
   | "checkpointBusy"
@@ -95,6 +96,7 @@ export function ChangesPanel({
     remotes,
     stashes,
     worktrees,
+    mutateRepository,
     refreshGit,
     checkpoints,
     checkpointBusy,
@@ -157,6 +159,7 @@ export function ChangesPanel({
           branches={asArray(branches.data?.branches) as RepositoryBranch[]}
           changes={changeEntries as RepositoryControlChange[]}
           conflicts={asArray(conflicts.data?.conflicts) as RepositoryConflict[]}
+          mutate={mutateRepository}
           onRefresh={refreshGit}
           remotes={asArray(remotes.data?.remotes) as RepositoryRemote[]}
           stashes={asArray(stashes.data?.stashes) as RepositoryStash[]}

@@ -1,3 +1,4 @@
+import type { RepositoryMutationRequest } from "@doolittle/contracts/repository";
 import {
   type SetStateAction,
   useCallback,
@@ -33,6 +34,7 @@ import {
   threadWorkbenchStorageKey,
 } from "./thread-workbench";
 import type { WorkspaceTreeEntry } from "./workspace-file-tree";
+import { workspaceMutationRequest } from "./workspace-resources";
 
 interface RepositorySummaryResponse {
   summary?: {
@@ -520,6 +522,10 @@ export function useThreadWorkbenchRailController({
     worktrees.reload();
     if (currentChange) patch.reload();
   };
+  const mutateRepository = (request: RepositoryMutationRequest) =>
+    window.doolittle.mutateRepository(
+      workspaceMutationRequest(request, resourceOrigin),
+    );
   const refreshCurrent = () => {
     summary.reload();
     if (model.selectedTab === "files") {
@@ -648,6 +654,7 @@ export function useThreadWorkbenchRailController({
     file,
     patch,
     insert,
+    mutateRepository,
     refreshGit,
     refreshCurrent,
     createCheckpoint,
