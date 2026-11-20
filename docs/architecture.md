@@ -61,6 +61,10 @@ The [shared engine host](../packages/agent/src/runtime/engine/host.ts) starts na
 bot worker threads on demand. Each worker has a separate runtime, environment,
 and data directory. Threads isolate state, not operating-system authority.
 Account selection and host grants remain outside the renderer and worker.
+Electron main places lead-process supervision and named-worker supervision
+behind the shared [runtime endpoint](../apps/desktop/src/main/runtime-endpoint.ts).
+The lead owns operator inventory authorization. Quit confirms worker shutdown
+while the lead's IPC is still available.
 
 ## Canonical product primitives
 
@@ -98,6 +102,12 @@ records, and update events. Desktop records may add routing context such as a bo
 ID without redefining the underlying evidence. Persisted receipt guards retain
 their explicit shape requirements; a status guard alone is not full validation
 of an arbitrary receipt.
+
+The bounded run journal supplies live chat events and replay through the same
+cursor. A subscriber waits for new entries on its run and releases that
+subscription when the transport closes. Disconnecting a subscriber leaves the
+server-owned turn active. Replay reports expired entries so incomplete output
+can be surfaced accurately.
 
 [UI host state](../packages/contracts/src/ui-host.ts) is an explicit projection:
 for example, cancellation can appear as stopped and pending approval as attention.

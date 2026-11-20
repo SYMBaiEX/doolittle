@@ -15,6 +15,10 @@ ElizaOS 2.0 beta line.
 - Runtime routing shares model settings across provider adapters and uses
   ElizaOS turn error handling and web search results. Desktop ledgers share
   bounded reads and atomic writes.
+- CLI entry points share one shutdown lifecycle. Cockpit startup owns its
+  terminal resources, and one-shot commands finish writing output before exit.
+- Chat run replay and live streaming share a bounded journal. Stream listeners
+  subscribe to one run, and sequence numbers survive replay eviction.
 
 ### Fixed
 
@@ -24,6 +28,10 @@ ElizaOS 2.0 beta line.
   entry point and honor the configured data directory.
 - Desktop packaging verifies runtime files, source provenance, and installer
   metadata through a single build entry point.
+- Queued chats follow the bot that owns their conversation. Code, Review,
+  and Work use the conversation's repository for reads and mutations.
+- Desktop Retry coalesces repeated requests. Quit confirms named worker
+  shutdown before stopping their engine.
 
 ## [0.1.0 release candidate]
 
