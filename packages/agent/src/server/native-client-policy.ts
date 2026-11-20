@@ -1,5 +1,21 @@
 import { timingSafeEqual } from "node:crypto";
 import type { IncomingMessage } from "node:http";
+import {
+  ExecutionAdmissionLimitError,
+  NativeWorkspaceChangedError,
+} from "../runtime/execution-admission";
+import { json } from "./responses";
+
+export const NATIVE_WORKSPACE_SAVE_PATH = "/workspace/write";
+export const NATIVE_WORKSPACE_SAVE_MAX_BODY_BYTES = 8 * 1024 * 1024;
+
+export function nativeWorkspaceAdmissionError(error: unknown): Response {
+  if (error instanceof NativeWorkspaceChangedError)
+    return json({ error: error.message, code: "workspace_changed" }, 409);
+  if (error instanceof ExecutionAdmissionLimitError)
+    return json({ error: error.message, code: "workspace_busy" }, 409);
+  throw error;
+}
 
 const NATIVE_READ_ROUTES = new Set([
   "/health",
@@ -36,10 +52,15 @@ interface NativeClientRejection {
 
 export interface NativeClientSecurityOptions {
   bearerToken: string;
+  allowWorkspaceSave?: boolean;
   workspaceIsCurrent(): boolean;
 }
 
-function nativeRouteAllowed(method: string, path: string): boolean {
+function nativeRouteAllowed(
+  method: string,
+  path: string,
+  allowWorkspaceSave: boolean,
+): boolean {
   const runRoute = RUN_PATH.exec(path);
   if (method === "GET") {
     return (
@@ -49,7 +70,10 @@ function nativeRouteAllowed(method: string, path: string): boolean {
     );
   }
   return (
-    method === "POST" && (path === "/chat/runs" || runRoute?.[1] === "cancel")
+    method === "POST" &&
+    (path === "/chat/runs" ||
+      runRoute?.[1] === "cancel" ||
+      (path === NATIVE_WORKSPACE_SAVE_PATH && allowWorkspaceSave))
   );
 }
 
@@ -82,7 +106,14 @@ export function createNativeClientPolicy(options: NativeClientSecurityOptions) {
     ) {
       return { status: 401, error: "Unauthorized" };
     }
-    if (!nativeRouteAllowed(request.method ?? "GET", path)) {
+    if (
+      (path === NATIVE_WORKSPACE_SAVE_PATH && target !== path) ||
+      !nativeRouteAllowed(
+        request.method ?? "GET",
+        path,
+        options.allowWorkspaceSave === true,
+      )
+    ) {
       return { status: 404, error: "Not found" };
     }
     if (!options.workspaceIsCurrent()) {

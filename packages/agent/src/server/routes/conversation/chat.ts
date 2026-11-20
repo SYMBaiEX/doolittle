@@ -5,6 +5,7 @@ import type { AppContext } from "../../../runtime/bootstrap/index";
 import {
   acquireExecutionLease,
   ExecutionAdmissionLimitError,
+  type NativeWorkspaceAdmission,
 } from "../../../runtime/execution-admission";
 import { executeAgentTurnWithProgress } from "../../../runtime/turn-stream";
 import {
@@ -19,6 +20,7 @@ import type {
   RunReceiptEnvelope,
   TaskRunEvent,
 } from "../../../services/run-controller-service/index";
+import { nativeWorkspaceAdmissionError } from "../../native-client-policy";
 import { readJsonObjectBody } from "../../request-body";
 import { json, streamSse } from "../../responses";
 import { resolveRuntimeWorkspacePath } from "../runtime/workspace";
@@ -372,6 +374,7 @@ function conflictResponse(
 async function startServerOwnedChatRun(
   context: AppContext,
   prepared: PreparedChatRun,
+  nativeAdmission?: NativeWorkspaceAdmission,
 ): Promise<Response | undefined> {
   const { body, message, runId, responseId, roomId, sessionId, workspaceDir } =
     prepared;
@@ -386,6 +389,15 @@ async function startServerOwnedChatRun(
     return conflictResponse(claim.reason, claim.conflictingRunId);
   }
 
+  let nativeLease: Awaited<ReturnType<typeof acquireExecutionLease>> = null;
+  try {
+    if (nativeAdmission)
+      nativeLease = nativeAdmission.claim({ runId, sessionId });
+  } catch (error) {
+    context.services.runController.releaseTaskRun(runId);
+    return nativeWorkspaceAdmissionError(error);
+  }
+
   let releaseWorkspace: () => void;
   try {
     releaseWorkspace = context.services.runController.registerWorkspaceRun(
@@ -393,6 +405,7 @@ async function startServerOwnedChatRun(
       workspaceDir,
     );
   } catch {
+    await nativeLease?.release();
     context.services.runController.releaseTaskRun(runId);
     return conflictResponse("run_exists");
   }
@@ -409,6 +422,7 @@ async function startServerOwnedChatRun(
       progressMode: agentSettings?.toolProgressMode ?? "new",
     });
   } catch {
+    await nativeLease?.release();
     releaseWorkspace();
     context.services.runController.releaseTaskRun(runId);
     return json({ error: TURN_FAILURE_MESSAGE, code: "turn_failed" }, 500);
@@ -432,24 +446,32 @@ async function startServerOwnedChatRun(
       // fail explicitly with 410 until a durable boundary can be recovered.
     }
   };
-  const unregisterController =
-    context.services.runController.registerAbortController(runId, controller);
-  context.services.runController.appendTaskEvent(runId, "response.created", {
-    id: responseId,
-    run_id: runId,
-    room_id: roomId,
-    state: "accepted",
-  });
+  let unregisterController = () => {};
+  try {
+    unregisterController =
+      context.services.runController.registerAbortController(runId, controller);
+    context.services.runController.appendTaskEvent(runId, "response.created", {
+      id: responseId,
+      run_id: runId,
+      room_id: roomId,
+      state: "accepted",
+    });
+  } catch {
+    unregisterController();
+    await nativeLease?.release();
+    releaseWorkspace();
+    context.services.runController.releaseTaskRun(runId);
+    return json({ error: TURN_FAILURE_MESSAGE, code: "turn_failed" }, 500);
+  }
 
   void (async () => {
-    let admissionLease: Awaited<ReturnType<typeof acquireExecutionLease>> =
-      null;
+    let admissionLease = nativeLease;
     let textSequence = 0;
     try {
       // Persist acceptance and register cancellation before waiting for fleet
       // capacity. POST returns its durable run identity promptly; detaching a
       // viewer cannot cancel work, but Cancel/Stop All can abort queued work.
-      admissionLease = await acquireExecutionLease({
+      admissionLease ??= await acquireExecutionLease({
         runId,
         sessionId,
         kind: "foreground",
@@ -709,11 +731,18 @@ async function waitForTerminalEvent(
 export async function handleChatSubmitRoute(
   context: AppContext,
   request: Request,
-  options?: { nativeClient?: boolean },
+  options?: {
+    nativeClient?: boolean;
+    nativeAdmission?: NativeWorkspaceAdmission;
+  },
 ): Promise<Response> {
   const prepared = await prepareChatRun(context, request, options);
   if (prepared instanceof Response) return prepared;
-  const conflict = await startServerOwnedChatRun(context, prepared);
+  const conflict = await startServerOwnedChatRun(
+    context,
+    prepared,
+    options?.nativeAdmission,
+  );
   if (conflict) return conflict;
   return json(
     {

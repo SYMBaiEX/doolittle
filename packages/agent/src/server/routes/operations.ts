@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { AppContext } from "../../runtime/bootstrap/index";
+import type { NativeWorkspaceAdmission } from "../../runtime/execution-admission";
 import { getNativeResearchControlPlane } from "../../runtime/native/service-bridge/control-planes/index";
 import {
   getEffectiveShellHistory,
@@ -19,12 +20,19 @@ import {
   TerminalCreationConflictError,
   TerminalSessionNotFoundError,
 } from "../../services/terminal/session";
+import {
+  MAX_WORKSPACE_EDITOR_FILE_BYTES,
+  WorkspaceEditorSaveError,
+} from "../../services/workspace-service/editor-save";
 import { sdkTerminalRunTokenError } from "../auth";
+import {
+  NATIVE_WORKSPACE_SAVE_PATH,
+  nativeWorkspaceAdmissionError,
+} from "../native-client-policy";
 import { readRouteJsonBody } from "../request-body";
 import { json, streamSse } from "../responses";
 import { runtimeInstanceId } from "../runtime-instance-id";
 
-const MAX_WORKSPACE_FILE_BYTES = 1_000_000;
 const MAX_WORKSPACE_PATH_LENGTH = 4_096;
 const MAX_COMMAND_LENGTH = 4_096;
 const MIN_COMMAND_TIMEOUT_MS = 1_000;
@@ -232,6 +240,7 @@ export async function handleOperationsRoutes(
   options: {
     captureOutputRequired?: boolean;
     expectedTerminalToken?: string;
+    nativeAdmission?: NativeWorkspaceAdmission;
   } = {},
 ): Promise<Response | null> {
   if (request.method === "GET" && url.pathname === "/runtime/research") {
@@ -240,7 +249,10 @@ export async function handleOperationsRoutes(
     });
   }
 
-  if (request.method === "POST" && url.pathname === "/workspace/write") {
+  if (
+    request.method === "POST" &&
+    url.pathname === NATIVE_WORKSPACE_SAVE_PATH
+  ) {
     const parsed = await readRouteJsonBody(request);
     if ("response" in parsed) return parsed.response;
     const { body } = parsed;
@@ -249,7 +261,9 @@ export async function handleOperationsRoutes(
       !path ||
       path.length > MAX_WORKSPACE_PATH_LENGTH ||
       typeof body.content !== "string" ||
-      typeof body.expectedContent !== "string"
+      typeof body.expectedContent !== "string" ||
+      body.content.includes("\0") ||
+      body.expectedContent.includes("\0")
     ) {
       return json(
         { error: "path, content, and expectedContent are required" },
@@ -258,26 +272,51 @@ export async function handleOperationsRoutes(
     }
     if (
       new TextEncoder().encode(body.content).byteLength >
-        MAX_WORKSPACE_FILE_BYTES ||
+        MAX_WORKSPACE_EDITOR_FILE_BYTES ||
       new TextEncoder().encode(body.expectedContent).byteLength >
-        MAX_WORKSPACE_FILE_BYTES
+        MAX_WORKSPACE_EDITOR_FILE_BYTES
     ) {
       return json({ error: "workspace file is too large" }, 413);
     }
-    const currentContent = context.services.workspace.read(path);
-    if (currentContent !== body.expectedContent) {
-      return json(
-        {
-          error:
-            "File changed after it was opened. Reload it before saving your edits.",
-          conflict: true,
-        },
-        409,
-      );
+    const sessionId = request.headers.get("x-doolittle-origin-conversation");
+    if (
+      options.nativeAdmission &&
+      !/^[a-zA-Z0-9:_-]{1,128}$/u.test(sessionId ?? "")
+    ) {
+      return json({ error: "A valid native conversation is required." }, 400);
     }
-    return json({
-      path: await context.services.workspace.write(path, body.content),
-    });
+    let lease: ReturnType<NativeWorkspaceAdmission["claim"]> | undefined;
+    try {
+      if (options.nativeAdmission && sessionId) {
+        request.signal.throwIfAborted();
+        lease = options.nativeAdmission.claim({
+          runId: `native-save:${randomUUID()}`,
+          sessionId,
+        });
+      }
+      const saved = await context.services.workspace.saveExistingText({
+        path,
+        content: body.content,
+        expectedContent: body.expectedContent,
+        revalidate: () => {
+          request.signal.throwIfAborted();
+          options.nativeAdmission?.assertCurrent();
+        },
+      });
+      return json({ path: saved });
+    } catch (error) {
+      if (error instanceof WorkspaceEditorSaveError) {
+        if (error.code === "conflict")
+          return json({ error: error.message, conflict: true }, 409);
+        return json(
+          { error: error.message },
+          error.code === "too_large" ? 413 : 400,
+        );
+      }
+      return nativeWorkspaceAdmissionError(error);
+    } finally {
+      await lease?.release();
+    }
   }
 
   if (request.method === "GET" && url.pathname === "/deliveries") {

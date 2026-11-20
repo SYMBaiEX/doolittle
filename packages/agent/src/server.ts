@@ -17,6 +17,7 @@ import { formatLoggerError } from "./logging/logger";
 import { readWorkerBotProfile } from "./runtime/bootstrap/bot-profile";
 import type { AppContext } from "./runtime/bootstrap/index";
 import { notifyEngineWorkerReady } from "./runtime/engine/worker-transport";
+import { getNativeWorkspaceAdmission } from "./runtime/execution-admission";
 import {
   applyDoolittleCors,
   isProviderAuthenticatedWebhookRequest,
@@ -24,6 +25,8 @@ import {
 } from "./server/auth";
 import {
   createNativeClientPolicy,
+  NATIVE_WORKSPACE_SAVE_MAX_BODY_BYTES,
+  NATIVE_WORKSPACE_SAVE_PATH,
   type NativeClientSecurityOptions,
 } from "./server/native-client-policy";
 import { dispatchRuntimePluginRoute } from "./server/plugin-routes";
@@ -254,6 +257,12 @@ export async function createApiServer(
       "Native API requires an owned ephemeral loopback listener.",
     );
   }
+  const nativeAdmission = security.nativeClient
+    ? getNativeWorkspaceAdmission()
+    : undefined;
+  if (security.nativeClient && !nativeAdmission) {
+    throw new Error("Native API requires a workspace admission owner.");
+  }
   const nativePolicy = security.nativeClient
     ? createNativeClientPolicy(security.nativeClient)
     : undefined;
@@ -298,10 +307,14 @@ export async function createApiServer(
             );
             return;
           }
-          assertDeclaredRequestBodyLimit(
-            incoming,
-            security.maxRequestBodyBytes,
-          );
+          const isNativeSave =
+            nativeAdmission !== undefined &&
+            incoming.method === "POST" &&
+            requestPath === NATIVE_WORKSPACE_SAVE_PATH;
+          const maxRequestBody = isNativeSave
+            ? NATIVE_WORKSPACE_SAVE_MAX_BODY_BYTES
+            : security.maxRequestBodyBytes;
+          assertDeclaredRequestBodyLimit(incoming, maxRequestBody);
           if (!isAllowedHost(incoming)) {
             await writeEarlyResponse(
               json({ error: "Forbidden host" }, 403),
@@ -433,7 +446,7 @@ export async function createApiServer(
             }
             const body = await readBoundedRequestBody(
               incoming,
-              security.maxRequestBodyBytes,
+              maxRequestBody,
               security.requestTimeoutMs,
             );
             if (requestPath === "/chat" || requestPath === "/v1/responses") {
@@ -463,46 +476,54 @@ export async function createApiServer(
                   requestPath === "/chat/runs"
                 ? await handleChatSubmitRoute(context, request, {
                     nativeClient: true,
+                    nativeAdmission,
                   })
-                : (nativePolicy && requestPath !== "/health") ||
-                    providerAuthenticatedWebhook
-                  ? ((await dispatchRouteHandlers(
-                      context,
-                      request,
-                      url,
-                      apiRouteHandlers,
-                    )) ?? json({ error: "Not found" }, 404))
-                  : INTERACTIVE_TERMINAL_MUTATION_PATHS.has(requestPath) ||
-                      requestPath === INTERACTIVE_TERMINAL_OUTPUT_PATH
-                    ? (
+                : isNativeSave
+                  ? ((await handleOperationsRoutes(context, request, url, {
+                      nativeAdmission,
+                    })) ?? json({ error: "Not found" }, 404))
+                  : (nativePolicy && requestPath !== "/health") ||
+                      providerAuthenticatedWebhook
+                    ? ((await dispatchRouteHandlers(
+                        context,
+                        request,
+                        url,
+                        apiRouteHandlers,
+                      )) ?? json({ error: "Not found" }, 404))
+                    : INTERACTIVE_TERMINAL_MUTATION_PATHS.has(requestPath) ||
                         requestPath === INTERACTIVE_TERMINAL_OUTPUT_PATH
-                          ? method === "GET"
-                          : method === "POST"
-                      )
-                      ? ((await withDirectConversationWorkspace(
-                          handleOperationsRoutes,
-                          () => true,
-                        )(context, request, url)) ??
-                        json({ error: "Not found" }, 404))
-                      : json({ error: "Method not allowed" }, 405)
-                    : requestPath === RUNTIME_IDENTITY_PATH
-                      ? method === "GET"
-                        ? ((await handleRuntimeRoutes(context, request, url)) ??
+                      ? (
+                          requestPath === INTERACTIVE_TERMINAL_OUTPUT_PATH
+                            ? method === "GET"
+                            : method === "POST"
+                        )
+                        ? ((await withDirectConversationWorkspace(
+                            handleOperationsRoutes,
+                            () => true,
+                          )(context, request, url)) ??
                           json({ error: "Not found" }, 404))
                         : json({ error: "Method not allowed" }, 405)
-                      : ((await dispatchRuntimePluginRoute({
-                          runtime: context.runtime,
-                          request,
-                          url,
-                          isAuthorized: () => authorized,
-                        })) ??
-                        (await dispatchRouteHandlers(
-                          context,
-                          request,
-                          url,
-                          apiRouteHandlers,
-                        )) ??
-                        json({ error: "Not found" }, 404));
+                      : requestPath === RUNTIME_IDENTITY_PATH
+                        ? method === "GET"
+                          ? ((await handleRuntimeRoutes(
+                              context,
+                              request,
+                              url,
+                            )) ?? json({ error: "Not found" }, 404))
+                          : json({ error: "Method not allowed" }, 405)
+                        : ((await dispatchRuntimePluginRoute({
+                            runtime: context.runtime,
+                            request,
+                            url,
+                            isAuthorized: () => authorized,
+                          })) ??
+                          (await dispatchRouteHandlers(
+                            context,
+                            request,
+                            url,
+                            apiRouteHandlers,
+                          )) ??
+                          json({ error: "Not found" }, 404));
           }
           if (security.terminalOnly)
             requestLifecycle.controller.signal.throwIfAborted();

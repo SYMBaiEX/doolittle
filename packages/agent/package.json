@@ -69,6 +69,7 @@
     "./runtime/chat-turn/connection": "./src/runtime/chat-turn/connection.ts",
     "./runtime/chat-turn/state": "./src/runtime/chat-turn/state.ts",
     "./runtime/command-catalog": "./src/runtime/command-catalog/index.ts",
+    "./runtime/execution-admission": "./src/runtime/execution-admission.ts",
     "./runtime/engine/host": "./src/runtime/engine/host.ts",
     "./runtime/engine/worker-transport": "./src/runtime/engine/worker-transport.ts",
     "./runtime/lifecycle/shutdown": "./src/runtime/lifecycle/shutdown.ts",

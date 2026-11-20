@@ -1,4 +1,8 @@
 import { join } from "node:path";
+import {
+  NativeWorkspaceAdmission,
+  runWithNativeWorkspaceAdmission,
+} from "@doolittle/agent/runtime/execution-admission";
 import { loadLocalRuntimeEnv } from "../cli/startup";
 import { prepareNativeProfile } from "./native-profile";
 import { installRuntimeProcessLifecycle } from "./runtime-process-lifecycle";
@@ -6,6 +10,9 @@ import { installRuntimeProcessLifecycle } from "./runtime-process-lifecycle";
 /** The native launcher owns a private child and its lifetime pipe. */
 export async function runNativeApi(): Promise<void> {
   const bearerToken = process.env.ELIZA_API_TOKEN;
+  const allowWorkspaceSave =
+    process.env.DOOLITTLE_NATIVE_WORKSPACE_SAVE === "1";
+  delete process.env.DOOLITTLE_NATIVE_WORKSPACE_SAVE;
   if (!bearerToken || !/^[a-f0-9]{64}$/u.test(bearerToken)) {
     throw new Error("Native API requires a 32-byte bearer capability.");
   }
@@ -17,6 +24,17 @@ export async function runNativeApi(): Promise<void> {
     process.env.DOOLITTLE_DATA_DIR,
   );
 
+  return runWithNativeWorkspaceAdmission(
+    new NativeWorkspaceAdmission(profile.workspaceIsCurrent),
+    () => runOwnedNativeApi(profile, bearerToken, allowWorkspaceSave),
+  );
+}
+
+async function runOwnedNativeApi(
+  profile: ReturnType<typeof prepareNativeProfile>,
+  bearerToken: string,
+  allowWorkspaceSave: boolean,
+): Promise<void> {
   // The capability belongs to this listener only. Never forward it to agent tools.
   process.env.ELIZA_API_TOKEN = "";
   process.env.ELIZA_API_BIND = "127.0.0.1";
@@ -97,6 +115,7 @@ export async function runNativeApi(): Promise<void> {
     listener = await createApiServer(context, {
       nativeClient: {
         bearerToken,
+        allowWorkspaceSave,
         workspaceIsCurrent: () =>
           context.config.workspaceDir === profile.workspace &&
           profile.workspaceIsCurrent(),

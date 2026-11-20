@@ -10,6 +10,10 @@ import {
   type WorkspaceCheckpointSupport,
 } from "./checkpoints";
 import {
+  commitWorkspaceEditorSave,
+  readWorkspaceEditorSnapshot,
+} from "./editor-save";
+import {
   applyWorkspacePatch,
   createWorkspaceDirectory,
   planWorkspacePatch,
@@ -68,6 +72,31 @@ export class WorkspaceService {
 
   async write(path: string, content: string): Promise<string> {
     return (await this.writeFile(path, content)).path;
+  }
+
+  async saveExistingText(input: {
+    path: string;
+    content: string;
+    expectedContent: string;
+    revalidate?: () => void;
+  }): Promise<string> {
+    const { path, content, expectedContent, revalidate } = input;
+    const root = this.root();
+    revalidate?.();
+    const previous = readWorkspaceEditorSnapshot(root, path, expectedContent);
+    if (content === expectedContent) return previous.path;
+    await this.checkpointBeforeMutation(
+      root,
+      `Before workspace write: ${path}`,
+    );
+    revalidate?.();
+    return commitWorkspaceEditorSave(
+      root,
+      path,
+      content,
+      expectedContent,
+      previous,
+    );
   }
 
   readLines(

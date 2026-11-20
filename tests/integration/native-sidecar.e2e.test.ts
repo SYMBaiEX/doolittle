@@ -1,6 +1,14 @@
 import { spawn } from "node:child_process";
 import { randomBytes, randomUUID } from "node:crypto";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  realpath,
+  rm,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
@@ -19,6 +27,12 @@ it.runIf(process.env.DOOLITTLE_RUN_RUNTIME_E2E === "1")(
     await mkdir(profile, { mode: 0o700 });
     await mkdir(workspace);
     await writeFile(join(workspace, "native-note.txt"), "workspace witness");
+    await writeFile(join(sandbox, "outside.txt"), "do not change");
+    await writeFile(join(workspace, ".env"), "fixture-only=value");
+    await mkdir(join(workspace, "dist"));
+    await writeFile(join(workspace, "dist", "generated.txt"), "generated");
+    if (process.platform !== "win32")
+      await symlink(join(sandbox, "outside.txt"), join(workspace, "alias.txt"));
     await writeFile(
       join(profile, "settings.json"),
       JSON.stringify({
@@ -41,6 +55,7 @@ it.runIf(process.env.DOOLITTLE_RUN_RUNTIME_E2E === "1")(
           ...isolatedRuntimeEnvironment(profile),
           DOOLITTLE_REPO_ROOT: sandbox,
           DOOLITTLE_WORKSPACE_DIR: workspace,
+          DOOLITTLE_NATIVE_WORKSPACE_SAVE: "1",
           ELIZA_API_TOKEN: token,
         },
         stdio: ["pipe", "pipe", "pipe"],
@@ -90,9 +105,9 @@ it.runIf(process.env.DOOLITTLE_RUN_RUNTIME_E2E === "1")(
         ).status,
       ).toBe(403);
       expect((await request("/health")).status).toBe(200);
-      expect(
-        (await request("/workspace/write", { method: "POST" })).status,
-      ).toBe(404);
+      expect((await request("/repo/mutate", { method: "POST" })).status).toBe(
+        404,
+      );
       const file = await request("/workspace/read?path=native-note.txt");
       expect(file.status).toBe(200);
       expect(await file.json()).toMatchObject({ content: "workspace witness" });
@@ -107,6 +122,76 @@ it.runIf(process.env.DOOLITTLE_RUN_RUNTIME_E2E === "1")(
       expect(blockedCommand.status).toBe(403);
 
       const sessionId = randomUUID();
+      const save = (
+        path: string,
+        expectedContent: string,
+        content: string,
+        session?: string,
+      ) =>
+        request("/workspace/write", {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            ...(session ? { "x-doolittle-origin-conversation": session } : {}),
+          },
+          body: JSON.stringify({ path, expectedContent, content }),
+        });
+      expect(
+        (await save("native-note.txt", "workspace witness", "unused")).status,
+      ).toBe(400);
+      expect(
+        (
+          await request("/workspace/write", {
+            method: "POST",
+            headers: {
+              Authorization: "",
+              "x-doolittle-origin-conversation": sessionId,
+            },
+          })
+        ).status,
+      ).toBe(401);
+      for (const [excluded, text] of [
+        [".env", "fixture-only=value"],
+        ["dist/generated.txt", "generated"],
+        ["native-note.txt ", "workspace witness"],
+      ] as const) {
+        expect((await save(excluded, text, "unused", sessionId)).status).toBe(
+          400,
+        );
+      }
+      const stale = await save(
+        "native-note.txt",
+        "older version",
+        "unused",
+        sessionId,
+      );
+      expect(stale.status).toBe(409);
+      expect(await stale.json()).toMatchObject({ conflict: true });
+      for (const unsafePath of [
+        "../outside.txt",
+        ...(process.platform === "win32" ? [] : ["alias.txt"]),
+      ]) {
+        expect(
+          (await save(unsafePath, "do not change", "unused", sessionId)).status,
+        ).toBe(400);
+      }
+      expect(await readFile(join(sandbox, "outside.txt"), "utf8")).toBe(
+        "do not change",
+      );
+      const saved = await save(
+        "native-note.txt",
+        "workspace witness",
+        "updated witness",
+        sessionId,
+      );
+      expect(saved.status).toBe(200);
+      expect(await saved.json()).toEqual({
+        path: await realpath(join(workspace, "native-note.txt")),
+      });
+      expect(await readFile(join(workspace, "native-note.txt"), "utf8")).toBe(
+        "updated witness",
+      );
+
       const runId = randomUUID();
       const submitted = await request("/chat/runs", {
         method: "POST",

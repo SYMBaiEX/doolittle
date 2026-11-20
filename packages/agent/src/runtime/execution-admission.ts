@@ -55,6 +55,66 @@ export function getScopedExecutionLease(): ExecutionLease | null {
   return lease?.active === false ? null : (lease ?? null);
 }
 
+/** Native sidecars have one canonical workspace and one mutation-capable owner. */
+export class NativeWorkspaceAdmission {
+  private owner: symbol | undefined;
+
+  constructor(private readonly workspaceIsCurrent: () => boolean) {}
+
+  assertCurrent(): void {
+    if (!this.workspaceIsCurrent()) throw new NativeWorkspaceChangedError();
+  }
+
+  claim(input: { runId: string; sessionId: string }): ExecutionLease {
+    this.assertCurrent();
+    if (this.owner) throw new ExecutionAdmissionLimitError("mutation_conflict");
+    const ticket = Symbol();
+    this.owner = ticket;
+    const isActive = () => this.owner === ticket;
+    return {
+      ...input,
+      get active() {
+        return isActive();
+      },
+      release: async () => {
+        if (isActive()) this.owner = undefined;
+      },
+      async yieldFor<T>(
+        work: () => Promise<T>,
+        options: { deadline: number; signal?: AbortSignal },
+      ): Promise<T> {
+        if (!isActive()) throw new Error("The native workspace lease ended.");
+        options.signal?.throwIfAborted();
+        // Native managed coding runs inside the parent lease. Keep saves out
+        // for the whole delegated turn, unlike the desktop host's slot yield.
+        return work();
+      },
+    };
+  }
+}
+
+export class NativeWorkspaceChangedError extends Error {
+  constructor() {
+    super("The native workspace changed. Reopen it before continuing.");
+    this.name = "NativeWorkspaceChangedError";
+  }
+}
+
+const nativeWorkspace = new AsyncLocalStorage<NativeWorkspaceAdmission>();
+
+export function runWithNativeWorkspaceAdmission<T>(
+  admission: NativeWorkspaceAdmission,
+  work: () => Promise<T>,
+): Promise<T> {
+  return nativeWorkspace.run(admission, work);
+}
+
+export function getNativeWorkspaceAdmission():
+  | NativeWorkspaceAdmission
+  | undefined {
+  return nativeWorkspace.getStore();
+}
+
 export class ExecutionAdmissionLimitError extends Error {
   constructor(
     readonly reason:
@@ -102,6 +162,11 @@ export async function acquireExecutionLease(input: {
   parentRunId?: string;
   signal?: AbortSignal;
 }): Promise<ExecutionLease | null> {
+  const admission = getNativeWorkspaceAdmission();
+  if (admission) {
+    input.signal?.throwIfAborted();
+    return admission.claim({ runId: input.runId, sessionId: input.sessionId });
+  }
   if (process.env.DOOLITTLE_DESKTOP_RUNTIME !== "1") return null;
   if (!RUN_ID.test(input.runId)) {
     throw new Error("Execution run identity is invalid.");
