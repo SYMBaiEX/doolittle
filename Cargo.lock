@@ -1586,15 +1586,22 @@ dependencies = [
  "anyhow",
  "async-channel 2.5.0",
  "base64 0.22.1",
+ "block2",
  "directories",
  "doolittle-host",
  "doolittle-runtime",
  "gpui",
  "gpui-component",
  "markdown",
+ "objc2",
+ "objc2-app-kit",
+ "objc2-foundation",
+ "objc2-web-kit",
  "portable-pty",
+ "raw-window-handle",
  "serde",
  "serde_json",
+ "tempfile",
  "url",
  "uuid",
  "vt100",
@@ -4150,6 +4157,20 @@ dependencies = [
  "objc2-core-foundation",
  "objc2-foundation",
  "objc2-quartz-core",
+]
+
+[[package]]
+name = "objc2-web-kit"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b2e5aaab980c433cf470df9d7af96a7b46a9d892d521a2cbbb2f8a4c16751e7f"
+dependencies = [
+ "bitflags 2.13.2",
+ "block2",
+ "objc2",
+ "objc2-app-kit",
+ "objc2-core-foundation",
+ "objc2-foundation",
 ]
 
 [[package]]

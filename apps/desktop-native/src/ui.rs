@@ -13,7 +13,7 @@ use crate::{
     connections::{self, ConnectionsPage},
     navigation::DESTINATIONS,
     operations,
-    panes::{PRIMARY_PANE, SplitDirection},
+    panes::{PRIMARY_PANE, PaneResize, SplitDirection},
     session_transfer,
     themes::Surface,
     workbench::{AgentView, IdeView, NewConversation, OpenNavigation, SaveFile, View, Workbench},
@@ -56,6 +56,12 @@ impl Render for Workbench {
             || self.pane_layout.open_count() > 1;
         let reveal_sidebar = self.sidebar_open || (wide && !compact);
         let render_workbench = wide || !self.sidebar_open;
+        workspace_tools::sync_native_preview(
+            self,
+            window,
+            cx,
+            render_workbench && self.view == View::Ide,
+        );
         div()
             .id("doolittle-window")
             .key_context("Doolittle")
@@ -90,6 +96,20 @@ impl Render for Workbench {
             .text_size(colors.control_size())
             .text_color(colors.text)
             .child(self.header(wide, colors, cx))
+            .when_some(self.migration_notice.as_ref(), |this, message| {
+                this.child(
+                    notice(message.clone(), colors.muted, colors).child(
+                        Button::new("dismiss-migration")
+                            .ghost()
+                            .small()
+                            .label("Dismiss")
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.migration_notice = None;
+                                cx.notify();
+                            })),
+                    ),
+                )
+            })
             .child(
                 div()
                     .flex()
@@ -249,7 +269,9 @@ impl Workbench {
                             "Open folder"
                         })
                         .disabled(self.choosing_workspace)
-                        .on_click(cx.listener(|this, _, _, cx| this.choose_workspace(cx))),
+                        .on_click(
+                            cx.listener(|this, _, window, cx| this.choose_workspace(window, cx)),
+                        ),
                 )
             })
             .when(wide, |this| {
@@ -296,13 +318,20 @@ impl Workbench {
             }
             return self.chat(colors, window, cx);
         }
-        self.pane_layout
-            .render(self.chat(colors, window, cx), |id| {
+        let host = cx.entity().downgrade();
+        let resize: PaneResize = std::rc::Rc::new(move |split, sizes, cx| {
+            let _ = host.update(cx, |host, cx| host.resize_panes(split, sizes, cx));
+        });
+        self.pane_layout.render(
+            self.chat(colors, window, cx),
+            |id| {
                 self.pane_entities.get(&id).map_or_else(
                     || div().into_any_element(),
                     |pane| pane.clone().into_any_element(),
                 )
-            })
+            },
+            Some(&resize),
+        )
     }
 
     fn sidebar(&self, wide: bool, colors: Palette, cx: &mut Context<Self>) -> impl IntoElement {
@@ -852,7 +881,7 @@ impl Workbench {
                             notice(error.clone(), colors.danger, colors)
                                 .mt(px(8.))
                                 .child(Button::new("retry-runtime").small().outline().label("Retry runtime")
-                                    .on_click(cx.listener(|this, _, _, cx| this.connect(cx)))),
+                                    .on_click(cx.listener(|this, _, window, cx| this.connect(window, cx)))),
                         )
                     }),
             )
@@ -923,7 +952,7 @@ impl Workbench {
                 this.child(
                     notice(error.clone(), colors.danger, colors).m(px(10.))
                         .child(Button::new("retry-ide-runtime").small().outline().label("Retry runtime")
-                            .on_click(cx.listener(|this, _, _, cx| this.connect(cx)))),
+                            .on_click(cx.listener(|this, _, window, cx| this.connect(window, cx)))),
                 )
             })
             .child(

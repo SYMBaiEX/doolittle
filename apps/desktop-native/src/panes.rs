@@ -1,30 +1,36 @@
-use gpui::{AnyElement, IntoElement, ParentElement, Pixels, Styled, div, px};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    rc::Rc,
+};
+
+use gpui::{AnyElement, App, IntoElement, ParentElement, Pixels, Styled, div, px};
 use gpui_component::resizable::{h_resizable, resizable_panel, v_resizable};
+use serde::{Deserialize, Serialize};
 
 pub(crate) type PaneId = u64;
 pub(crate) const PRIMARY_PANE: PaneId = 0;
 const MAX_OPEN_PANES: usize = 12;
 const MAX_CLOSED_PANES: usize = 12;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub(crate) enum SplitDirection {
     Right,
     Down,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 enum NodeId {
     Pane(PaneId),
     Split(u64),
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 enum Side {
     Leading,
     Trailing,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 enum Node {
     Pane(PaneId),
     Split {
@@ -35,7 +41,7 @@ enum Node {
     },
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 struct ClosedPane {
     pane: PaneId,
     split: u64,
@@ -44,13 +50,18 @@ struct ClosedPane {
     anchor: NodeId,
 }
 
+#[derive(Clone, Serialize, Deserialize)]
 pub(crate) struct PaneLayout {
     root: Node,
     closed: Vec<ClosedPane>,
     focused: PaneId,
     next_pane: PaneId,
     next_split: u64,
+    #[serde(default)]
+    weights: BTreeMap<u64, [f32; 2]>,
 }
+
+pub(crate) type PaneResize = Rc<dyn Fn(u64, [f32; 2], &mut App)>;
 
 impl Default for PaneLayout {
     fn default() -> Self {
@@ -60,6 +71,7 @@ impl Default for PaneLayout {
             focused: PRIMARY_PANE,
             next_pane: 1,
             next_split: 1,
+            weights: BTreeMap::new(),
         }
     }
 }
@@ -79,6 +91,56 @@ impl PaneLayout {
 
     pub(crate) fn retains(&self, pane: PaneId) -> bool {
         self.root.contains(NodeId::Pane(pane)) || self.closed.iter().any(|item| item.pane == pane)
+    }
+
+    pub(crate) fn is_open(&self, pane: PaneId) -> bool {
+        self.root.contains(NodeId::Pane(pane))
+    }
+
+    pub(crate) fn persisted_panes(&self) -> Option<BTreeSet<PaneId>> {
+        let mut panes = BTreeSet::new();
+        let mut splits = BTreeSet::new();
+        if !self.root.validate(&mut panes, &mut splits, 0)
+            || !panes.contains(&PRIMARY_PANE)
+            || !panes.contains(&self.focused)
+            || self.closed.len() > MAX_CLOSED_PANES
+            || self.next_pane == u64::MAX
+            || self.next_split == u64::MAX
+        {
+            return None;
+        }
+        for entry in &self.closed {
+            if entry.pane == PRIMARY_PANE
+                || entry.split == 0
+                || !panes.insert(entry.pane)
+                || !splits.insert(entry.split)
+                || match entry.anchor {
+                    NodeId::Pane(pane) => pane >= self.next_pane || pane == entry.pane,
+                    NodeId::Split(split) => {
+                        split >= self.next_split || split == 0 || split == entry.split
+                    }
+                }
+            {
+                return None;
+            }
+        }
+        if panes.last().is_some_and(|pane| *pane >= self.next_pane)
+            || splits.last().is_some_and(|split| *split >= self.next_split)
+            || self
+                .weights
+                .iter()
+                .any(|(split, sizes)| !splits.contains(split) || !valid_sizes(*sizes))
+        {
+            return None;
+        }
+        Some(panes)
+    }
+
+    pub(crate) fn resize(&mut self, split: u64, sizes: [f32; 2]) -> bool {
+        if !valid_sizes(sizes) || !self.root.contains(NodeId::Split(split)) {
+            return false;
+        }
+        self.weights.insert(split, sizes) != Some(sizes)
     }
 
     pub(crate) fn focused(&self) -> PaneId {
@@ -135,7 +197,7 @@ impl PaneLayout {
                 .map_or(PRIMARY_PANE, |anchor| anchor.first_pane());
         }
         if self.closed.len() == MAX_CLOSED_PANES {
-            self.closed.remove(0);
+            self.weights.remove(&self.closed.remove(0).split);
         }
         self.closed.push(closed);
         true
@@ -164,12 +226,48 @@ impl PaneLayout {
         &self,
         primary: AnyElement,
         mut render_auxiliary: impl FnMut(PaneId) -> AnyElement,
+        on_resize: Option<&PaneResize>,
     ) -> AnyElement {
-        self.root.render(&mut Some(primary), &mut render_auxiliary)
+        self.root.render(
+            &mut Some(primary),
+            &mut render_auxiliary,
+            &self.weights,
+            on_resize,
+        )
     }
 }
 
+fn valid_sizes(sizes: [f32; 2]) -> bool {
+    sizes
+        .into_iter()
+        .all(|size| size.is_finite() && (24.0..=32_768.0).contains(&size))
+}
+
 impl Node {
+    fn validate(
+        &self,
+        panes: &mut BTreeSet<PaneId>,
+        splits: &mut BTreeSet<u64>,
+        depth: usize,
+    ) -> bool {
+        if depth >= MAX_OPEN_PANES || panes.len() >= MAX_OPEN_PANES {
+            return false;
+        }
+        match self {
+            Self::Pane(pane) => panes.insert(*pane),
+            Self::Split {
+                id,
+                leading,
+                trailing,
+                ..
+            } => {
+                *id != 0
+                    && splits.insert(*id)
+                    && leading.validate(panes, splits, depth + 1)
+                    && trailing.validate(panes, splits, depth + 1)
+            }
+        }
+    }
     fn id(&self) -> NodeId {
         match self {
             Self::Pane(pane) => NodeId::Pane(*pane),
@@ -292,6 +390,8 @@ impl Node {
         &self,
         primary: &mut Option<AnyElement>,
         render_auxiliary: &mut impl FnMut(PaneId) -> AnyElement,
+        weights: &BTreeMap<u64, [f32; 2]>,
+        on_resize: Option<&PaneResize>,
     ) -> AnyElement {
         match self {
             Self::Pane(PRIMARY_PANE) => primary.take().expect("one primary pane"),
@@ -307,19 +407,39 @@ impl Node {
                     SplitDirection::Right => h_resizable(element_id),
                     SplitDirection::Down => v_resizable(element_id),
                 };
-                let panel = |child| {
-                    resizable_panel().size_range(px(96.)..Pixels::MAX).child(
+                let group = if let Some(on_resize) = on_resize.cloned() {
+                    let split = *id;
+                    group.on_resize(move |state, _, cx| {
+                        if let [left, right] = state.read(cx).sizes().as_slice() {
+                            on_resize(split, [f32::from(*left), f32::from(*right)], cx);
+                        }
+                    })
+                } else {
+                    group
+                };
+                let panel = |child, index: usize| {
+                    let panel = resizable_panel().size_range(px(96.)..Pixels::MAX).child(
                         div()
                             .size_full()
                             .min_h_0()
                             .min_w_0()
                             .overflow_hidden()
                             .child(child),
-                    )
+                    );
+                    match weights.get(id) {
+                        Some(sizes) => panel.size(px(sizes[index])),
+                        None => panel,
+                    }
                 };
                 group
-                    .child(panel(leading.render(primary, render_auxiliary)))
-                    .child(panel(trailing.render(primary, render_auxiliary)))
+                    .child(panel(
+                        leading.render(primary, render_auxiliary, weights, on_resize),
+                        0,
+                    ))
+                    .child(panel(
+                        trailing.render(primary, render_auxiliary, weights, on_resize),
+                        1,
+                    ))
                     .into_any_element()
             }
         }
@@ -421,10 +541,14 @@ mod tests {
         assert!(layout.close(hidden));
 
         let mut rendered = Vec::new();
-        let _tree = layout.render(div().into_any_element(), |pane| {
-            rendered.push(pane);
-            div().into_any_element()
-        });
+        let _tree = layout.render(
+            div().into_any_element(),
+            |pane| {
+                rendered.push(pane);
+                div().into_any_element()
+            },
+            None,
+        );
         assert_eq!(rendered, [below, right]);
     }
 }

@@ -3,10 +3,12 @@ mod control_plane;
 mod markdown_text;
 mod navigation;
 mod operations;
+mod pane_store;
 mod panes;
 mod session_transfer;
 mod themes;
 mod ui;
+mod updater;
 mod workbench;
 mod workspace_tools;
 
@@ -29,6 +31,7 @@ struct Options {
     profile: Option<PathBuf>,
     runtime_root: Option<PathBuf>,
     offline: bool,
+    dev_reload: bool,
 }
 
 fn options() -> Result<Option<Options>> {
@@ -37,6 +40,7 @@ fn options() -> Result<Option<Options>> {
         profile: None,
         runtime_root: None,
         offline: false,
+        dev_reload: false,
     };
     let mut args = std::env::args_os().skip(1);
     while let Some(argument) = args.next() {
@@ -51,6 +55,7 @@ fn options() -> Result<Option<Options>> {
             "--profile" => options.profile = Some(path(&mut args)?),
             "--runtime-root" => options.runtime_root = Some(path(&mut args)?),
             "--offline" => options.offline = true,
+            "--dev-reload" if cfg!(debug_assertions) => options.dev_reload = true,
             "--help" | "-h" => {
                 println!(
                     "Usage: doolittle-desktop [--workspace PATH] [--profile PATH] \
@@ -114,7 +119,73 @@ fn request_quit(cx: &mut App) {
             return;
         }
     }
-    cx.quit();
+    updater::quit(cx);
+}
+
+fn start_dev_control(cx: &App) {
+    use std::io::Read as _;
+
+    let (send, receive) = async_channel::bounded(1);
+    std::thread::spawn(move || {
+        for byte in std::io::stdin().lock().bytes() {
+            match byte {
+                Ok(b'Q') => {
+                    let _ = send.try_send(());
+                }
+                _ => break,
+            }
+        }
+    });
+    cx.spawn(async move |cx| {
+        while receive.recv().await.is_ok() {
+            if cx.update(try_dev_quit).unwrap_or(true) {
+                break;
+            }
+        }
+    })
+    .detach();
+}
+
+fn try_dev_quit(cx: &mut App) -> bool {
+    fn pending(view: &Workbench, cx: &App) -> bool {
+        view.has_file_protection(cx)
+            || view.choosing_workspace
+            || view.connecting
+            || !view.composer.read(cx).value().is_empty()
+            || view.active.values().any(|conversation| {
+                !conversation.draft.is_empty()
+                    || !conversation.draft_attachments.is_empty()
+                    || conversation.choosing_attachments
+                    || conversation
+                        .active_run
+                        .as_ref()
+                        .is_some_and(|run| !run.interrupted)
+            })
+    }
+
+    let busy = cx
+        .windows()
+        .into_iter()
+        .filter_map(|handle| handle.downcast::<Root>())
+        .any(|handle| {
+            handle
+                .update(cx, |root, _, cx| {
+                    let Ok(view) = root.view().clone().downcast::<Workbench>() else {
+                        return false;
+                    };
+                    let view = view.read(cx);
+                    pending(view, cx)
+                        || view
+                            .pane_entities
+                            .values()
+                            .any(|pane| pending(pane.read(cx), cx))
+                })
+                .unwrap_or(false)
+        });
+    if !busy {
+        request_quit(cx);
+    }
+    !busy
 }
 
 fn main() -> Result<()> {
@@ -126,6 +197,7 @@ fn main() -> Result<()> {
         .run(move |cx: &mut App| {
             gpui_component::init(cx);
             themes::initialize(cx);
+            updater::initialize(cx, request_quit);
             Workbench::bind_keys(cx);
             cx.on_action(|_: &QuitDoolittle, cx| cx.defer(request_quit));
             let quit_key = if cfg!(target_os = "macos") {
@@ -138,14 +210,18 @@ fn main() -> Result<()> {
                 name: "Doolittle".into(),
                 items: vec![MenuItem::action("Quit Doolittle", QuitDoolittle)],
             }]);
+            let dev_reload = options.dev_reload;
             match open_workbench(options, cx) {
                 Ok(()) => {
                     cx.on_window_closed(|cx| {
                         if cx.windows().is_empty() {
-                            cx.quit();
+                            updater::quit(cx);
                         }
                     })
                     .detach();
+                    if dev_reload {
+                        start_dev_control(cx);
+                    }
                     cx.activate(true);
                 }
                 Err(error) => {

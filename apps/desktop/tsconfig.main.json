@@ -11,7 +11,8 @@
     "src/shared/**/*.ts",
     "vite.*.config.ts",
     "scripts/**/*.ts",
-    "../../scripts/cli-build-options.ts"
+    "../../scripts/cli-build-options.ts",
+    "../../scripts/desktop-dev-reload.ts"
   ],
   "exclude": ["src/**/*.test.ts"],
   "extends": "../../tsconfig.base.json"

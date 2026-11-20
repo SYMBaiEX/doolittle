@@ -1,3 +1,5 @@
+mod access;
+
 use serde_json::json;
 
 use super::*;
@@ -12,6 +14,7 @@ pub(super) struct AgentsState {
     action: Option<(String, &'static str)>,
     error: Option<&'static str>,
     submitted: Option<Value>,
+    access: access::AccessState,
 }
 
 enum Edit {
@@ -21,9 +24,11 @@ enum Edit {
 
 impl AgentsState {
     fn pending(&self, this: &Workbench) -> bool {
-        self.action
-            .as_ref()
-            .is_some_and(|(path, _)| this.control_action_pending(path))
+        self.access.pending
+            || self
+                .action
+                .as_ref()
+                .is_some_and(|(path, _)| this.control_action_pending(path))
     }
 }
 
@@ -37,6 +42,7 @@ pub(super) fn render(
     let persona = this
         .operations
         .input(PERSONA, "Describe this agent’s purpose", true, window, cx);
+    let model = access::model_input(this, window, cx);
     let state = &this.operations.agents;
     let busy = state.pending(this);
     let agents: Vec<_> = records(this, BOTS, "bots")
@@ -51,7 +57,7 @@ pub(super) fn render(
                         .justify_between()
                         .child(muted(
                             colors,
-                            "Named agents use private workspaces and the offline model.",
+                            "Each agent has its own chat history, model, and project access.",
                         ))
                         .child(
                             button("new-named-agent")
@@ -114,11 +120,12 @@ pub(super) fn render(
             "No named agents yet.",
             !agents.is_empty(),
         ))
-        .children(
-            agents
-                .into_iter()
-                .map(|agent| agent_row(agent, busy, colors, cx)),
-        )
+        .children(agents.into_iter().map(|agent| {
+            agent_row(agent, busy, colors, cx)
+                .when(state.access.is_open(value(agent, "id")), |row| {
+                    row.child(access::render(this, agent, &model, colors, cx))
+                })
+        }))
 }
 
 fn open_edit(
@@ -273,6 +280,17 @@ fn agent_row(agent: &Value, busy: bool, colors: &Palette, cx: &mut Context<Workb
                         )
                     },
                 );
+            })),
+    );
+    let access_id = id.to_owned();
+    actions = actions.child(
+        button(format!("access-bot-{id}"))
+            .small()
+            .ghost()
+            .label("Access")
+            .disabled(busy)
+            .on_click(cx.listener(move |this, _, window, cx| {
+                access::toggle(this, &access_id, window, cx);
             })),
     );
     item = item.child(actions);

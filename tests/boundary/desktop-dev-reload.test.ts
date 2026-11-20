@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from "vitest";
-import { DesktopDevReload } from "../../apps/desktop/scripts/dev-reload";
+import { DesktopDevReload } from "../../scripts/desktop-dev-reload";
 
 afterEach(() => vi.useRealTimers());
 

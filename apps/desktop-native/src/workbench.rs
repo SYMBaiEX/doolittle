@@ -26,6 +26,7 @@ use crate::{
     control_plane::ControlState,
     markdown_text,
     operations::{OperationsState, OpsPage},
+    pane_store::{self, PaneAgent, PaneSession, PaneSnapshot},
     panes::{PRIMARY_PANE, PaneId, PaneLayout, SplitDirection},
     session_transfer::TransferState,
     workspace_tools::WorkspaceTools,
@@ -126,6 +127,7 @@ struct LiveRuntime {
     _sidecar: RuntimeSidecar,
     client: RuntimeClient,
     workspace: std::path::PathBuf,
+    profile: std::path::PathBuf,
     #[cfg(unix)]
     workspace_identity: (u64, u64),
 }
@@ -175,6 +177,7 @@ pub struct Workbench {
     pub connecting: bool,
     pub choosing_workspace: bool,
     pub error: Option<String>,
+    pub(crate) migration_notice: Option<String>,
     pub session_error: Option<String>,
     pub sessions_loading: bool,
     pub(crate) controls: ControlState,
@@ -185,6 +188,8 @@ pub struct Workbench {
     pub(crate) pane_layout: PaneLayout,
     pub(crate) pane_entities: HashMap<PaneId, Entity<Workbench>>,
     pane_host: Option<WeakEntity<Workbench>>,
+    preserve_layout_file: bool,
+    layout_save_queued: bool,
     pub(crate) pane_id: PaneId,
     named: Option<NamedConversation>,
     runtime: Option<Rc<LiveRuntime>>,
@@ -208,7 +213,7 @@ impl Workbench {
 
     pub fn new(options: Options, window: &mut Window, cx: &mut Context<Self>) -> Self {
         let mut this = Self::build(options, window, cx);
-        this.connect(cx);
+        this.connect(window, cx);
         this
     }
 
@@ -249,6 +254,7 @@ impl Workbench {
             connecting: false,
             choosing_workspace: false,
             error: None,
+            migration_notice: None,
             session_error: None,
             sessions_loading: false,
             controls: ControlState::default(),
@@ -259,6 +265,8 @@ impl Workbench {
             pane_layout: PaneLayout::default(),
             pane_entities: HashMap::new(),
             pane_host: None,
+            preserve_layout_file: false,
+            layout_save_queued: false,
             pane_id: PRIMARY_PANE,
             named: None,
             runtime: None,
@@ -279,10 +287,10 @@ impl Workbench {
             let anchor = self.pane_id;
             let named = self.named.clone();
             let _ = host.update(cx, |parent, cx| {
-                parent.add_pane(anchor, direction, named, window, cx)
+                parent.add_pane(anchor, direction, named, None, window, cx);
             });
         } else {
-            self.add_pane(PRIMARY_PANE, direction, None, window, cx);
+            self.add_pane(PRIMARY_PANE, direction, None, None, window, cx);
         }
     }
 
@@ -293,6 +301,28 @@ impl Workbench {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        self.show_named_agent(id, name, None, window, cx);
+    }
+
+    pub(crate) fn open_named_agent_session(
+        &mut self,
+        id: String,
+        name: String,
+        session_id: String,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.show_named_agent(id, name, Some(session_id), window, cx);
+    }
+
+    fn show_named_agent(
+        &mut self,
+        id: String,
+        name: String,
+        session: Option<String>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         let Some(runtime) = &self.runtime else {
             return;
         };
@@ -300,19 +330,29 @@ impl Workbench {
             return;
         };
         let open = self.pane_entities.iter().find_map(|(pane_id, pane)| {
-            (pane.read(cx).named.as_ref()?.id == id).then_some(*pane_id)
+            (self.pane_layout.is_open(*pane_id) && pane.read(cx).named.as_ref()?.id == id)
+                .then_some(*pane_id)
         });
         self.set_view(View::Agent, window, cx);
-        if let Some(pane) = open
-            && self.pane_layout.focus(pane)
+        if let Some(pane) =
+            open.filter(|pane| self.pane_layout.focused() == *pane || self.pane_layout.focus(*pane))
         {
+            if let Some(selected) = session
+                && let Some(child) = self.pane_entities.get(&pane)
+            {
+                child.update(cx, |child, cx| {
+                    child.select_conversation(selected, None, window, cx)
+                });
+            }
             self.focus_pane_composer(pane, window, cx);
+            self.persist_layout(cx);
             cx.notify();
         } else {
             self.add_pane(
                 PRIMARY_PANE,
                 SplitDirection::Right,
                 Some(NamedConversation { id, name, client }),
+                session,
                 window,
                 cx,
             );
@@ -334,6 +374,7 @@ impl Workbench {
         anchor: PaneId,
         direction: SplitDirection,
         named: Option<NamedConversation>,
+        session: Option<String>,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
@@ -346,21 +387,39 @@ impl Workbench {
             return;
         };
         self.error = None;
+        let pane = self.build_pane(id, runtime, named, session, window, cx);
+        self.pane_entities.insert(id, pane.clone());
+        self.pane_layout.focus(id);
+        pane.update(cx, |pane, cx| pane.focus_composer(window, cx));
+        self.persist_layout(cx);
+        cx.notify();
+    }
+
+    fn build_pane(
+        &self,
+        id: PaneId,
+        runtime: Rc<LiveRuntime>,
+        named: Option<NamedConversation>,
+        session: Option<String>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Entity<Self> {
         let options = self.options.clone();
         let parent = cx.entity().downgrade();
-        let pane = cx.new(|cx| {
+        cx.new(|cx| {
             let mut pane = Self::build(options, window, cx);
             pane.runtime = Some(runtime);
             pane.pane_id = id;
             pane.pane_host = Some(parent);
             pane.named = named;
+            if let Some(session) = session {
+                pane.selected = session.clone();
+                pane.active = HashMap::from([(session, Conversation::default())]);
+                pane.load_history(false, cx);
+            }
             pane.refresh_sessions(cx);
             pane
-        });
-        self.pane_entities.insert(id, pane.clone());
-        self.pane_layout.focus(id);
-        pane.update(cx, |pane, cx| pane.focus_composer(window, cx));
-        cx.notify();
+        })
     }
 
     pub(crate) fn close_pane(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -374,6 +433,7 @@ impl Workbench {
                     .pane_entities
                     .retain(|id, _| parent.pane_layout.retains(*id));
                 parent.focus_pane_composer(parent.pane_layout.focused(), window, cx);
+                parent.persist_layout(cx);
                 cx.notify();
             }
         });
@@ -382,6 +442,7 @@ impl Workbench {
     pub(crate) fn reopen_pane(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if let Some(id) = self.pane_layout.reopen() {
             self.focus_pane_composer(id, window, cx);
+            self.persist_layout(cx);
             cx.notify();
         }
     }
@@ -399,6 +460,7 @@ impl Workbench {
         self.pane_layout.focus(anchor);
         let selected = self.pane_layout.cycle_focus();
         self.focus_pane_composer(selected, window, cx);
+        self.persist_layout(cx);
         cx.notify();
     }
 
@@ -407,6 +469,91 @@ impl Workbench {
             pane.update(cx, |pane, cx| pane.focus_composer(window, cx));
         } else {
             self.focus_composer(window, cx);
+        }
+    }
+
+    fn restore_layout(
+        &mut self,
+        snapshot: PaneSnapshot,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(runtime) = self.runtime.clone() else {
+            return;
+        };
+        self.pane_layout = snapshot.layout;
+        for (id, pane) in snapshot.sessions {
+            if id == PRIMARY_PANE {
+                let draft = self.composer.read(cx).value().to_string();
+                let entry = self.active.entry(pane.session.clone()).or_default();
+                entry.draft = draft;
+                self.selected = pane.session;
+                self.load_history(false, cx);
+                continue;
+            }
+            let named = pane.agent.and_then(|agent| {
+                let client = runtime.client.for_named_bot(&agent.id).ok()?;
+                Some(NamedConversation {
+                    id: agent.id,
+                    name: agent.name,
+                    client,
+                })
+            });
+            let pane = self.build_pane(id, runtime.clone(), named, Some(pane.session), window, cx);
+            self.pane_entities.insert(id, pane);
+        }
+    }
+
+    fn persist_layout(&mut self, cx: &mut Context<Self>) {
+        if self.preserve_layout_file {
+            return;
+        }
+        if let Some(parent) = self.pane_host.clone() {
+            cx.defer(move |cx| {
+                let _ = parent.update(cx, |host, cx| host.persist_layout(cx));
+            });
+            return;
+        }
+        if self.layout_save_queued || self.runtime.is_none() {
+            return;
+        }
+        self.layout_save_queued = true;
+        let host = cx.entity().downgrade();
+        cx.defer(move |cx| {
+            let _ = host.update(cx, |host, cx| {
+                host.layout_save_queued = false;
+                host.write_layout(cx);
+            });
+        });
+    }
+
+    fn write_layout(&mut self, cx: &mut Context<Self>) {
+        let Some(runtime) = &self.runtime else {
+            return;
+        };
+        let session = |pane: &Self| PaneSession {
+            session: pane.selected.clone(),
+            agent: pane.named.as_ref().map(|agent| PaneAgent {
+                id: agent.id.clone(),
+                name: agent.name.clone(),
+            }),
+        };
+        let sessions = std::iter::once((PRIMARY_PANE, session(self)))
+            .chain(
+                self.pane_entities
+                    .iter()
+                    .map(|(id, pane)| (*id, session(pane.read(cx)))),
+            )
+            .collect();
+        let state = PaneSnapshot::new(self.pane_layout.clone(), sessions);
+        if pane_store::save(&runtime.profile, &state).is_err() {
+            self.error = Some("Could not save this window's conversation layout.".into());
+        }
+    }
+
+    pub(crate) fn resize_panes(&mut self, split: u64, sizes: [f32; 2], cx: &mut Context<Self>) {
+        if self.pane_layout.resize(split, sizes) {
+            self.persist_layout(cx);
         }
     }
 
@@ -450,7 +597,7 @@ impl Workbench {
         Some(current)
     }
 
-    pub fn choose_workspace(&mut self, cx: &mut Context<Self>) {
+    pub fn choose_workspace(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if self.choosing_workspace || self.connecting {
             return;
         }
@@ -461,9 +608,9 @@ impl Workbench {
             multiple: false,
             prompt: Some("Open workspace".into()),
         });
-        cx.spawn(async move |this, cx| {
+        cx.spawn_in(window, async move |this, cx| {
             let selected = result.await;
-            let _ = this.update(cx, |this, cx| {
+            let _ = this.update_in(cx, |this, window, cx| {
                 this.choosing_workspace = false;
                 match selected {
                     Ok(Ok(Some(paths))) => {
@@ -479,7 +626,7 @@ impl Workbench {
                                 }
                             } else {
                                 this.options.workspace = Some(path);
-                                this.connect(cx);
+                                this.connect(window, cx);
                             }
                         }
                     }
@@ -508,7 +655,7 @@ impl Workbench {
         &self.active[&self.selected]
     }
 
-    pub fn connect(&mut self, cx: &mut Context<Self>) {
+    pub fn connect(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if self.connecting || self.runtime.is_some() {
             return;
         }
@@ -520,7 +667,7 @@ impl Workbench {
         let options = self.options.clone();
         let (tx, rx) = bounded(1);
         std::thread::spawn(move || {
-            let result = (|| -> Result<LiveRuntime> {
+            let result = (|| -> Result<(LiveRuntime, Result<Option<PaneSnapshot>>)> {
                 let config = SidecarConfig::discover(
                     &workspace,
                     options.profile.as_deref(),
@@ -530,6 +677,7 @@ impl Workbench {
                 .with_workspace_saves()
                 .with_controls();
                 let workspace = config.workspace().to_owned();
+                let profile = config.profile().to_owned();
                 #[cfg(unix)]
                 let workspace_identity = {
                     use std::os::unix::fs::MetadataExt as _;
@@ -538,23 +686,50 @@ impl Workbench {
                 };
                 let sidecar = RuntimeSidecar::launch(&config)?;
                 let client = RuntimeClient::new(sidecar.endpoint(), sidecar.token())?;
-                Ok(LiveRuntime {
-                    _sidecar: sidecar,
-                    client,
-                    workspace,
-                    #[cfg(unix)]
-                    workspace_identity,
-                })
+                let saved = pane_store::load(&profile);
+                Ok((
+                    LiveRuntime {
+                        _sidecar: sidecar,
+                        client,
+                        workspace,
+                        profile,
+                        #[cfg(unix)]
+                        workspace_identity,
+                    },
+                    saved,
+                ))
             })();
             let _ = tx.send_blocking(result);
         });
-        cx.spawn(async move |this, cx| {
+        cx.spawn_in(window, async move |this, cx| {
             let Ok(result) = rx.recv().await else { return };
-            let _ = this.update(cx, |this, cx| {
+            let _ = this.update_in(cx, |this, window, cx| {
                 this.connecting = false;
                 match result {
-                    Ok(runtime) => {
+                    Ok((runtime, saved)) => {
+                        this.migration_notice = runtime._sidecar.profile_migration().map(|report| {
+                            if report.deferred {
+                                String::from("Profile import will resume the next time you open this workspace. Close the previous app before retrying.")
+                            } else {
+                                let mut notice = format!("Imported {} conversations from your previous Doolittle profile.", report.imported_conversations);
+                                if report.settings_imported {
+                                    notice.push_str(" Compatible settings were copied.");
+                                }
+                                if report.skipped_conversations > 0 {
+                                    notice.push_str(&format!(" {} conversations were skipped.", report.skipped_conversations));
+                                }
+                                notice
+                            }
+                        });
                         this.runtime = Some(Rc::new(runtime));
+                        match saved {
+                            Ok(Some(snapshot)) => this.restore_layout(snapshot, window, cx),
+                            Ok(None) => {},
+                            Err(_) => {
+                                this.preserve_layout_file = true;
+                                this.error = Some("Saved conversation panes could not be loaded. Doolittle opened a new layout.".into());
+                            }
+                        }
                         this.refresh_sessions(cx);
                         if this.view == View::Ide {
                             this.refresh_workspace(cx);
@@ -625,6 +800,7 @@ impl Workbench {
         let new_draft = entry.draft.clone();
         let load_history = !entry.loaded;
         self.selected = id;
+        self.persist_layout(cx);
         self.composer.update(cx, |input, cx| {
             input.set_value(new_draft, window, cx);
         });

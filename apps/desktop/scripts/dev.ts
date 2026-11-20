@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { context } from "esbuild";
 import { build, createServer } from "vite";
 import { cliBuildOptions } from "../../../scripts/cli-build-options";
-import { DesktopDevReload } from "./dev-reload";
+import { DesktopDevReload } from "../../../scripts/desktop-dev-reload";
 
 const desktopRoot = fileURLToPath(new URL("..", import.meta.url));
 const repoRoot = resolve(desktopRoot, "../..");

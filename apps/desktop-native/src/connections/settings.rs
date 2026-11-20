@@ -115,9 +115,11 @@ fn desktop(workbench: &Workbench, colors: &Palette, cx: &mut Context<Workbench>)
     } else {
         "Runtime unavailable"
     };
+    let (updates, can_check) = crate::updater::status(cx);
     panel(colors, "Desktop application")
         .child(item_row(colors, "Runtime", status))
         .child(item_row(colors, "Workspace", workbench.workspace_path()))
+        .child(item_row(colors, "Updates", updates))
         .child(
             row()
                 .child(
@@ -125,7 +127,9 @@ fn desktop(workbench: &Workbench, colors: &Palette, cx: &mut Context<Workbench>)
                         .small()
                         .label("Open workspace…")
                         .disabled(workbench.choosing_workspace || workbench.connecting)
-                        .on_click(cx.listener(|this, _, _, cx| this.choose_workspace(cx))),
+                        .on_click(
+                            cx.listener(|this, _, window, cx| this.choose_workspace(window, cx)),
+                        ),
                 )
                 .when(
                     !workbench.ready() && !workbench.needs_workspace(),
@@ -135,10 +139,22 @@ fn desktop(workbench: &Workbench, colors: &Palette, cx: &mut Context<Workbench>)
                                 .small()
                                 .label("Start runtime")
                                 .disabled(workbench.connecting)
-                                .on_click(cx.listener(|this, _, _, cx| this.connect(cx))),
+                                .on_click(
+                                    cx.listener(|this, _, window, cx| this.connect(window, cx)),
+                                ),
                         )
                     },
                 )
+                .when(can_check, |actions| {
+                    actions.child(
+                        Button::new("desktop-check-updates")
+                            .small()
+                            .label("Check for updates…")
+                            .on_click(cx.listener(|_, _, _, cx| {
+                                crate::updater::check_for_updates(cx);
+                            })),
+                    )
+                })
                 .child(open_url(
                     "desktop-release-notes",
                     "View releases",
@@ -714,7 +730,9 @@ fn setup(workbench: &Workbench, colors: &Palette, cx: &mut Context<Workbench>) -
                         .small()
                         .label("Open workspace…")
                         .disabled(workbench.choosing_workspace || workbench.connecting)
-                        .on_click(cx.listener(|this, _, _, cx| this.choose_workspace(cx))),
+                        .on_click(
+                            cx.listener(|this, _, window, cx| this.choose_workspace(window, cx)),
+                        ),
                 )
                 .child(route_button(
                     "setup-open-models",
