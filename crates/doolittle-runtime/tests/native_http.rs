@@ -154,6 +154,33 @@ fn does_not_return_messages_from_a_different_conversation() {
 }
 
 #[test]
+fn named_client_scopes_session_paths_and_rejects_a_different_bot_receipt() {
+    let bot = "09fa101d-cdf9-41da-b78c-980cd7358ea7";
+    let (client, server) = serve(2, move |request| {
+        if request.target == format!("/bots/{bot}/sessions?limit=25") {
+            Reply::json(200, json!({"sessions": []}))
+        } else {
+            assert_eq!(request.target, format!("/bots/{bot}/chat/runs"));
+            Reply::json(
+                202,
+                json!({"run_id":"named-run","bot_id":"some-other-bot","response_id":"response","room_id":"my-room","events_url":"/chat/runs/named-run/events"}),
+            )
+        }
+    });
+    let named = client.for_named_bot(bot).unwrap();
+    assert!(matches!(
+        named.control(ControlMethod::Get, "/settings", None),
+        Err(RuntimeError::InvalidInput(_))
+    ));
+    assert!(named.sessions(25).unwrap().is_empty());
+    assert!(matches!(
+        named.start_chat_with_id("my-room", "/help", "named-run"),
+        Err(RuntimeError::ResponseMismatch)
+    ));
+    server.join().unwrap();
+}
+
+#[test]
 fn controls_keep_query_and_method_and_never_follow_redirects() {
     let (client, server) = serve(2, |request| match request.target.as_str() {
         "/activity?query=cli+setup&limit=30" => {

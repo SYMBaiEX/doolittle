@@ -91,6 +91,7 @@ impl RuntimeError {
 pub struct RuntimeClient {
     base: Url,
     http: Client,
+    bot: Option<Uuid>,
 }
 
 impl RuntimeClient {
@@ -132,7 +133,22 @@ impl RuntimeClient {
             .default_headers(headers)
             .build()
             .map_err(transport)?;
-        Ok(Self { base, http })
+        Ok(Self {
+            base,
+            http,
+            bot: None,
+        })
+    }
+
+    pub fn for_named_bot(&self, id: &str) -> Result<Self> {
+        let bot = Uuid::parse_str(id).map_err(|_| RuntimeError::InvalidInput("named bot ID"))?;
+        if bot.is_nil() || bot.hyphenated().to_string() != id {
+            return Err(RuntimeError::InvalidInput("named bot ID"));
+        }
+        Ok(Self {
+            bot: Some(bot),
+            ..self.clone()
+        })
     }
 
     pub fn health(&self) -> Result<Health> {
@@ -258,7 +274,10 @@ impl RuntimeClient {
             .send()
             .map_err(transport)?;
         let started: ChatRunStart = decode(response)?;
-        if started.run_id != run_id || started.room_id != session_id {
+        if started.run_id != run_id
+            || started.room_id != session_id
+            || !self.matches_bot(Some(&started.bot_id))
+        {
             return Err(RuntimeError::ResponseMismatch);
         }
         Ok(started)
@@ -439,10 +458,18 @@ impl RuntimeClient {
             .send()
             .map_err(transport)?;
         let result: RunResponse = decode(response)?;
-        if result.run.run_id != run_id || (cancelling && result.accepted != Some(true)) {
+        if result.run.run_id != run_id
+            || !self.matches_bot(result.run.bot_id.as_deref())
+            || (cancelling && result.accepted != Some(true))
+        {
             return Err(RuntimeError::ResponseMismatch);
         }
         Ok(result.run)
+    }
+
+    fn matches_bot(&self, reported: Option<&str>) -> bool {
+        self.bot
+            .is_none_or(|bot| reported.and_then(|id| Uuid::parse_str(id).ok()) == Some(bot))
     }
 
     fn request(
@@ -451,6 +478,18 @@ impl RuntimeClient {
         path: &str,
         session_id: Option<&str>,
     ) -> Result<RequestBuilder> {
+        let scoped;
+        let path = if let Some(bot) = self.bot {
+            if !matches!(path, "/sessions" | "/sessions/messages" | "/chat/runs")
+                && !path.starts_with("/chat/runs/")
+            {
+                return Err(RuntimeError::InvalidInput("named bot route"));
+            }
+            scoped = format!("/bots/{bot}{path}");
+            scoped.as_str()
+        } else {
+            path
+        };
         let target = request_url(&self.base, path)?;
         let mut request = self.http.request(method, target);
         if let Some(session_id) = session_id {

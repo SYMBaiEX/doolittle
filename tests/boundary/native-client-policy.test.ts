@@ -169,6 +169,36 @@ describe("the native runtime boundary", () => {
     ).toMatchObject({ status: 403 });
   });
 
+  it("admits Git mutations only for the desktop control profile and exact path", () => {
+    const options = {
+      bearerToken: token,
+      workspaceIsCurrent: () => true,
+      allowWorkspaceSave: true,
+      controlPlane: true,
+    };
+    const desktop = createNativeClientPolicy(options);
+    const target = "/repo/mutate";
+    expect(desktop(request(target, "POST"), target)).toBeNull();
+    expect(
+      desktop(request(`${target}?confirmed=true`, "POST"), target),
+    ).toMatchObject({ status: 404 });
+    expect(
+      desktop(request(`${target}/nested`, "POST"), `${target}/nested`),
+    ).toMatchObject({ status: 404 });
+    expect(
+      desktop(
+        request(target, "POST", { origin: "http://127.0.0.1:34321" }),
+        target,
+      ),
+    ).toMatchObject({ status: 403 });
+    expect(
+      createNativeClientPolicy({ ...options, allowWorkspaceSave: false })(
+        request(target, "POST"),
+        target,
+      ),
+    ).toMatchObject({ status: 404 });
+  });
+
   it("admits named bot control only when the host supplied its dispatcher", () => {
     const options = {
       bearerToken: token,
@@ -190,6 +220,28 @@ describe("the native runtime boundary", () => {
     expect(
       withHost(request("/bots/default/proxy", "POST"), "/bots/default/proxy"),
     ).toMatchObject({ status: 404 });
+    const named = "/bots/8efb0a77-6108-4891-a37a-c31ae7347e60";
+    for (const [method, suffix] of [
+      ["GET", "/sessions"],
+      ["GET", "/sessions/messages"],
+      ["POST", "/chat/runs"],
+      ["GET", "/chat/runs/native%3Arun"],
+      ["GET", "/chat/runs/native%3Arun/events"],
+      ["POST", "/chat/runs/native%3Arun/cancel"],
+    ] as const) {
+      const target = `${named}${suffix}`;
+      expect(withHost(request(target, method), target)).toBeNull();
+      expect(noHost(request(target, method), target)).toMatchObject({
+        status: 404,
+      });
+    }
+    for (const target of [
+      `${named}/workspace/write`,
+      `${named}/chat/runs/escape%2Frun/events`,
+      "/bots/default/sessions",
+    ]) {
+      expect(withHost(request(target), target)).toMatchObject({ status: 404 });
+    }
   });
 
   it("enforces dedicated service bearer auth before ordinary and webhook routes", () => {

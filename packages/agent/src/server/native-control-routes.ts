@@ -188,7 +188,21 @@ export function isNativeNamedBotRoute(method: string, path: string): boolean {
     /^\/bots\/(?:default|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})(?:\/(activate|stop|archive))?$/iu.exec(
       path,
     );
-  return Boolean(bot && (bot[1] ? method === "POST" : method === "PATCH"));
+  if (bot) return bot[1] ? method === "POST" : method === "PATCH";
+  const prefix =
+    /^\/bots\/[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\//iu.exec(path)?.[0];
+  if (!prefix) return false;
+  const route = path.slice(prefix.length);
+  if (route === "sessions" || route === "sessions/messages")
+    return method === "GET";
+  if (route === "chat/runs") return method === "POST";
+  const run =
+    /^chat\/runs\/(?:[A-Za-z0-9:_-]|%3A){1,128}(?:\/(events|cancel))?$/iu.exec(
+      route,
+    );
+  return Boolean(
+    run && (run[1] === "cancel" ? method === "POST" : method === "GET"),
+  );
 }
 
 export function isNativeSdkControlRoute(method: string, path: string): boolean {

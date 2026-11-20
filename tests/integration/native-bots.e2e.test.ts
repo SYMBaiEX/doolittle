@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { randomBytes } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import {
   mkdir,
   mkdtemp,
@@ -26,6 +26,7 @@ it.runIf(process.env.DOOLITTLE_RUN_RUNTIME_E2E === "1")(
     const workspace = join(sandbox, "workspace");
     const trace = join(sandbox, "owned-http-requests.jsonl");
     const observer = join(sandbox, "observe-owned-fetch.mjs");
+    const heldRun = randomUUID();
     await mkdir(profile, { mode: 0o700 });
     await mkdir(workspace, { mode: 0o700 });
     // Observe test-owned runtime endpoints without publishing a worker URL or
@@ -33,7 +34,7 @@ it.runIf(process.env.DOOLITTLE_RUN_RUNTIME_E2E === "1")(
     await writeFile(
       observer,
       `import { appendFileSync } from "node:fs";
-import { isMainThread } from "node:worker_threads";
+import { isMainThread, parentPort } from "node:worker_threads";
 if (isMainThread) {
   const fetch = globalThis.fetch;
   globalThis.fetch = async (input, init) => {
@@ -48,6 +49,15 @@ if (isMainThread) {
       }) + "\\n", { mode: 0o600 });
     }
     return response;
+  };
+} else if (parentPort) {
+  // Keep one synthetic turn in the real worker's admission wait so a cancel
+  // request exercises its active controller instead of a completed receipt.
+  const send = parentPort.postMessage.bind(parentPort);
+  parentPort.postMessage = (value, ...rest) => {
+    if (value?.message?.operation === "execution.claim" &&
+        value.message.payload?.runId === ${JSON.stringify(heldRun)}) return;
+    return send(value, ...rest);
   };
 }
 `,
@@ -202,6 +212,214 @@ if (isMainThread) {
           })
         ).status,
       ).toBe(409);
+      const second = await request("/bots", "POST", {
+        name: "Second Fixture Worker",
+        persona: "An independent private worker.",
+      });
+      expect(second.status).toBe(201);
+      const other = (await second.json()) as {
+        id: string;
+        workspacePath: string;
+      };
+      const otherStarted = await request(`/bots/${other.id}/activate`, "POST");
+      expect(otherStarted.status, await otherStarted.clone().text()).toBe(200);
+
+      const leadSession = randomUUID();
+      const leadRun = randomUUID();
+      const leadAccepted = await request("/chat/runs", "POST", {
+        roomId: leadSession,
+        runId: leadRun,
+        message: "Lead transcript witness",
+        source: "native",
+      });
+      expect(leadAccepted.status).toBe(202);
+      const leadStream = await request(`/chat/runs/${leadRun}/events?after=0`);
+      expect(await leadStream.text()).toContain("response.completed");
+
+      const roomA = randomUUID();
+      const roomB = randomUUID();
+      const runA = randomUUID();
+      const runB = randomUUID();
+      const named = (botId: string, resource: string) =>
+        `/bots/${botId}/${resource}`;
+      const start = (
+        botId: string,
+        roomId: string,
+        runId: string,
+        message: string,
+      ) =>
+        request(named(botId, "chat/runs"), "POST", {
+          roomId,
+          runId,
+          message,
+          source: "native",
+        });
+      const [forbidden, rawCommand, fresh] = await Promise.all([
+        start(
+          record.id,
+          leadSession,
+          randomUUID(),
+          "Do not claim a lead-owned conversation",
+        ),
+        start(record.id, roomA, randomUUID(), "/workspace write witness"),
+        request(
+          named(
+            record.id,
+            `sessions/messages?sessionId=${roomA}&limit=20&offset=0`,
+          ),
+        ),
+      ]);
+      expect(forbidden.status).toBe(404);
+      expect(rawCommand.status).toBe(403);
+      expect(fresh.status).toBe(200);
+      expect(await fresh.json()).toEqual({
+        messages: [],
+        hasEarlier: false,
+        nextOffset: 0,
+        totalMessages: 0,
+      });
+
+      const [submittedA, submittedB] = await Promise.all([
+        start(
+          record.id,
+          roomA,
+          runA,
+          "Only the first private transcript should contain this.",
+        ),
+        start(
+          other.id,
+          roomB,
+          runB,
+          "Only the second private transcript should contain this.",
+        ),
+      ]);
+      for (const [submitted, owner, runId, roomId] of [
+        [submittedA, record.id, runA, roomA],
+        [submittedB, other.id, runB, roomB],
+      ] as const) {
+        expect(submitted.status, await submitted.clone().text()).toBe(202);
+        expect(await submitted.json()).toMatchObject({
+          bot_id: owner,
+          run_id: runId,
+          room_id: roomId,
+          events_url: named(owner, `chat/runs/${runId}/events`),
+        });
+      }
+
+      const [streamA, streamB] = await Promise.all([
+        request(named(record.id, `chat/runs/${runA}/events?after=0`)),
+        request(named(other.id, `chat/runs/${runB}/events?after=0`)),
+      ]);
+      expect(streamA.headers.get("content-type")).toContain(
+        "text/event-stream",
+      );
+      expect(streamB.headers.get("content-type")).toContain(
+        "text/event-stream",
+      );
+      const [framesA, framesB] = await Promise.all([
+        streamA.text(),
+        streamB.text(),
+      ]);
+      expect(framesA).toContain("response.completed");
+      expect(framesA).toContain("Only the first private transcript");
+      expect(framesA).not.toContain("Only the second private transcript");
+      expect(framesB).toContain("response.completed");
+      expect(framesB).toContain("Only the second private transcript");
+      expect(framesB).not.toContain("Only the first private transcript");
+
+      const [
+        historyA,
+        historyB,
+        listA,
+        receiptA,
+        receiptB,
+        wrongHistory,
+        wrongRun,
+        wrongSse,
+        wrongCancel,
+        wrongRoom,
+        wrongRunId,
+      ] = await Promise.all([
+        request(
+          named(
+            record.id,
+            `sessions/messages?sessionId=${roomA}&limit=20&offset=0`,
+          ),
+        ),
+        request(
+          named(
+            other.id,
+            `sessions/messages?sessionId=${roomB}&limit=20&offset=0`,
+          ),
+        ),
+        request(named(record.id, "sessions?limit=100")),
+        request(named(record.id, `chat/runs/${runA}`)),
+        request(named(other.id, `chat/runs/${runB}`)),
+        request(named(other.id, `sessions/messages?sessionId=${roomA}`)),
+        request(named(other.id, `chat/runs/${runA}`)),
+        request(named(other.id, `chat/runs/${runA}/events`)),
+        request(named(other.id, `chat/runs/${runA}/cancel`), "POST"),
+        start(
+          other.id,
+          roomA,
+          randomUUID(),
+          "This room belongs to the first bot.",
+        ),
+        start(other.id, roomB, runA, "This run belongs to the first bot."),
+      ]);
+      const [transcriptA, transcriptB] = await Promise.all([
+        historyA.text(),
+        historyB.text(),
+      ]);
+      expect(transcriptA).toContain("Only the first private transcript");
+      expect(transcriptA).not.toContain("Only the second private transcript");
+      expect(transcriptB).toContain("Only the second private transcript");
+      expect(transcriptB).not.toContain("Only the first private transcript");
+      expect(await listA.json()).toMatchObject({
+        sessions: [{ sessionId: roomA, botId: record.id }],
+      });
+      expect(await receiptA.json()).toMatchObject({
+        run: { botId: record.id, sessionId: roomA, runId: runA },
+      });
+      expect(await receiptB.json()).toMatchObject({
+        run: { botId: other.id, sessionId: roomB, runId: runB },
+      });
+      for (const response of [
+        wrongHistory,
+        wrongRun,
+        wrongSse,
+        wrongCancel,
+        wrongRoom,
+        wrongRunId,
+      ])
+        expect(response.status).toBe(404);
+      const cancellation = await request(
+        named(other.id, `chat/runs/${runB}/cancel`),
+        "POST",
+      );
+      expect(await cancellation.json()).toMatchObject({
+        accepted: true,
+        run: { botId: other.id, sessionId: roomB, runId: runB },
+      });
+      const heldRoom = randomUUID();
+      const held = await start(other.id, heldRoom, heldRun, "Cancel this waiting offline fixture.");
+      expect(held.status, await held.clone().text()).toBe(202);
+      const heldReceipt = await request(named(other.id, `chat/runs/${heldRun}`));
+      expect(await heldReceipt.json()).toMatchObject({ run: { status: "waiting", botId: other.id } });
+      const activeCancellation = await request(named(other.id, `chat/runs/${heldRun}/cancel`), "POST");
+      expect(await activeCancellation.json()).toMatchObject({
+        accepted: true,
+        run: { status: "cancelled", botId: other.id, sessionId: heldRoom, runId: heldRun },
+      });
+      const cancelled = await request(named(other.id, `chat/runs/${heldRun}/events?after=0`));
+      expect(await cancelled.text()).toContain("response.cancelled");
+      expect(
+        (
+          await request(
+            named(record.id, "workspace/read?path=first-private-witness.txt"),
+          )
+        ).status,
+      ).toBe(404);
       const stop = await request(`/bots/${record.id}/stop`, "POST");
       expect(stop.status).toBe(200);
       expect((await stop.json()).state).toBe("stopped");
@@ -216,6 +434,13 @@ if (isMainThread) {
       });
       const restarted = await request(`/bots/${record.id}/activate`, "POST");
       expect(restarted.status, await restarted.clone().text()).toBe(200);
+      const restored = await request(
+        named(record.id, `sessions/messages?sessionId=${roomA}`),
+      );
+      expect(restored.status).toBe(200);
+      expect(await restored.text()).toContain(
+        "Only the first private transcript",
+      );
     } finally {
       child.stdin.end();
       const timer = setTimeout(() => child.kill("SIGKILL"), 6_000);
