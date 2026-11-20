@@ -432,16 +432,19 @@ export function App() {
     interactiveSelection: false,
   });
   const selectedSession = chatSelection.sessionId;
+  const [nativeSelectionRestored, setNativeSelectionRestored] = useState(
+    () => !window.doolittle.ui,
+  );
+  const chatSelectionRevision = useRef(0);
   const setSelectedSession = useCallback((sessionId: string) => {
+    chatSelectionRevision.current++;
+    setNativeSelectionRestored(true);
     setChatSelection((current) =>
       current.sessionId === sessionId && current.interactiveSelection
         ? current
         : { sessionId, interactiveSelection: true },
     );
   }, []);
-  const [nativeSelectionRestored, setNativeSelectionRestored] = useState(
-    () => !window.doolittle.ui,
-  );
   const [selectedBotId, setSelectedBotId] = useState("");
   const [pendingCreatedBot, setPendingCreatedBot] = useState<BotSummary | null>(
     null,
@@ -2060,10 +2063,17 @@ export function App() {
     });
     const restoreSelection = () => {
       const request = ++generation;
+      const selectionRevision = chatSelectionRevision.current;
       void bridge
         ?.getSelection()
         .then((target) => {
-          if (disposed || request !== generation || !target) return;
+          if (
+            disposed ||
+            request !== generation ||
+            selectionRevision !== chatSelectionRevision.current ||
+            !target
+          )
+            return;
           bindSessionBot(target.sessionId, target.botId);
           captureSessionProject(target.sessionId, target.projectId ?? null);
           setSelectedBotId(target.botId);
