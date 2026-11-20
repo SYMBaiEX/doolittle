@@ -56,6 +56,7 @@ export type RepositoryMutationRequest =
   | { type: "remote-remove"; name: string }
   | { type: "remote-set-url"; name: string; url: string }
   | { type: "merge-abort" }
+  | { type: "merge-continue" }
   | { type: "merge"; branch: string; noFf?: boolean }
   | { type: "rebase"; branch: string }
   | { type: "rebase-abort" }
@@ -70,21 +71,26 @@ export type RepositoryMutationRequest =
       body?: string;
       base?: string;
       draft?: boolean;
+      repository?: string;
+      head?: string;
     }
-  | { type: "pr-update"; title?: string; body?: string; base?: string }
-  | { type: "pr-ready" }
-  | {
-      type: "pr-review";
-      event: "approve" | "request-changes" | "comment";
-      body?: string;
-    }
-  | {
-      type: "pr-merge";
-      method: "merge" | "squash" | "rebase";
-      deleteBranch?: boolean;
-    }
-  | { type: "pr-close"; deleteBranch?: boolean }
-  | { type: "pr-reopen" };
+  | ((
+      | { type: "pr-update"; title?: string; body?: string; base?: string }
+      | { type: "pr-ready" }
+      | {
+          type: "pr-review";
+          event: "approve" | "request-changes" | "comment";
+          body?: string;
+        }
+      | {
+          type: "pr-merge";
+          method: "merge" | "squash" | "rebase";
+          deleteBranch?: boolean;
+          matchHead?: string;
+        }
+      | { type: "pr-close"; deleteBranch?: boolean }
+      | { type: "pr-reopen" }
+    ) & { pullRequestUrl?: string });
 
 export interface RepositoryMutationResult {
   type: RepositoryMutationRequest["type"];

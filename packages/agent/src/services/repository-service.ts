@@ -39,6 +39,7 @@ import {
   type RepositoryReviewResult,
   RepositoryReviewService,
 } from "./repository-review";
+import { parseRemote } from "./repository-review/github";
 import {
   resolveWorkspaceDirectory,
   type WorkspaceDirectorySource,
@@ -125,6 +126,22 @@ function hasValidGitMarker(directory: string): boolean {
   } catch {
     return false;
   }
+}
+
+function repositoryOperation(root: string): RepositorySummary["operation"] {
+  try {
+    const { directory } = nativeGitDirectory(root);
+    if (
+      existsSync(join(directory, "rebase-merge")) ||
+      existsSync(join(directory, "rebase-apply", "rebasing"))
+    )
+      return "rebase";
+    if (existsSync(join(directory, "CHERRY_PICK_HEAD"))) return "cherry-pick";
+    if (existsSync(join(directory, "MERGE_HEAD"))) return "merge";
+  } catch {
+    // Noncanonical worktrees may still be read, but native mutation is unavailable.
+  }
+  return undefined;
 }
 
 export class RepositoryService {
@@ -219,6 +236,7 @@ export class RepositoryService {
       this.changes(),
     ]);
     const [behindRaw, aheadRaw] = aheadBehind.split(/\s+/u);
+    const operation = repositoryOperation(root);
     return {
       isRepository: true,
       root,
@@ -229,6 +247,7 @@ export class RepositoryService {
       behind: Number.parseInt(behindRaw ?? "0", 10) || 0,
       dirty: changes.length > 0,
       changedFiles: changes.length,
+      ...(operation ? { operation } : {}),
     };
   }
 
@@ -453,7 +472,7 @@ export class RepositoryService {
       root,
       workspaceRoot: () => this.workspaceRoot(),
       runner: scope
-        ? this.nativeMutationRunner(root, scope)
+        ? this.nativeMutationRunner(root, scope, input)
         : this.mutationRunner,
       invalidateCache: () => this.invalidateCommandCache(),
       worktrees: () => this.worktrees({ fresh: true }),
@@ -464,6 +483,7 @@ export class RepositoryService {
   private nativeMutationRunner(
     root: string,
     scope: NativeRepositoryScope,
+    input: RepositoryMutationRequest,
   ): RepositoryProcessRunner {
     return async (command, args, options) => {
       scope.revalidate();
@@ -495,6 +515,41 @@ export class RepositoryService {
         after.inode !== before.inode
       )
         throw new NativeRepositoryScopeError();
+      if (command === "gh" && input.type.startsWith("pr-")) {
+        const expected =
+          input.type === "pr-create"
+            ? input.repository
+            : "pullRequestUrl" in input
+              ? input.pullRequestUrl?.split("/").slice(3, 5).join("/")
+              : undefined;
+        const remote = await this.mutationRunner(
+          "git",
+          ["remote", "get-url", "origin"],
+          { cwd: root, toolName: "doolittle.repository.verify-github-origin" },
+        );
+        scope.revalidate();
+        const repository =
+          remote.exitCode === 0 ? parseRemote(remote.stdout) : null;
+        if (
+          !expected ||
+          repository?.slug.toLowerCase() !== expected.toLowerCase()
+        )
+          throw new Error(
+            "The pull request target must match the workspace GitHub origin.",
+          );
+        if (input.type === "pr-create") {
+          const head = await this.mutationRunner(
+            "git",
+            ["symbolic-ref", "--quiet", "--short", "HEAD"],
+            { cwd: root, toolName: "doolittle.repository.verify-github-head" },
+          );
+          scope.revalidate();
+          if (head.exitCode !== 0 || head.stdout.trim() !== input.head)
+            throw new Error(
+              "The current branch changed. Refresh the pull request pane.",
+            );
+        }
+      }
       return this.mutationRunner(command, args, {
         ...options,
         cwd: root,

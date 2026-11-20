@@ -42,6 +42,7 @@ const MUTATION_FIELDS = {
   "remote-remove": [text("name")],
   "remote-set-url": [text("name"), text("url")],
   "merge-abort": [],
+  "merge-continue": [],
   merge: [text("branch"), flag("noFf")],
   rebase: [text("branch")],
   "rebase-abort": [],
@@ -50,13 +51,30 @@ const MUTATION_FIELDS = {
   "cherry-pick-continue": [],
   "cherry-pick-abort": [],
   "conflict-mark-resolved": [paths],
-  "pr-create": [text("title"), text("body"), text("base"), flag("draft")],
-  "pr-update": [text("title"), text("body"), text("base")],
-  "pr-ready": [],
-  "pr-review": [text("event"), text("body")],
-  "pr-merge": [text("method"), flag("deleteBranch")],
-  "pr-close": [flag("deleteBranch")],
-  "pr-reopen": [],
+  "pr-create": [
+    text("title"),
+    text("body"),
+    text("base"),
+    flag("draft"),
+    text("repository"),
+    text("head"),
+  ],
+  "pr-update": [
+    text("title"),
+    text("body"),
+    text("base"),
+    text("pullRequestUrl"),
+  ],
+  "pr-ready": [text("pullRequestUrl")],
+  "pr-review": [text("event"), text("body"), text("pullRequestUrl")],
+  "pr-merge": [
+    text("method"),
+    flag("deleteBranch"),
+    text("pullRequestUrl"),
+    text("matchHead"),
+  ],
+  "pr-close": [flag("deleteBranch"), text("pullRequestUrl")],
+  "pr-reopen": [text("pullRequestUrl")],
   // Removing/pruning a linked worktree requires authority over that tree too.
 } satisfies Record<
   Exclude<MutationType, "worktree-remove" | "worktree-prune">,
@@ -167,6 +185,12 @@ function readMutation(
     !validRemoteUrl(mutation.url)
   )
     return undefined;
+  if (mutation.type === "pr-create") {
+    if (!mutation.repository || !mutation.head) return undefined;
+  } else if (mutation.type.startsWith("pr-") && !mutation.pullRequestUrl) {
+    return undefined;
+  }
+  if (mutation.type === "pr-merge" && !mutation.matchHead) return undefined;
   return mutation as unknown as RepositoryMutationRequest;
 }
 

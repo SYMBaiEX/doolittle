@@ -31,7 +31,10 @@ import {
   validateMergeMethod,
   validateOptionalBoolean,
   validatePullRequestBody,
+  validatePullRequestHead,
+  validatePullRequestRepository,
   validatePullRequestTitle,
+  validatePullRequestUrl,
   validateRef,
   validateRemoteUrl,
   validateReviewEvent,
@@ -50,6 +53,7 @@ interface RepositoryMutationCommand {
   executable: "git" | "gh";
   args: string[];
   summary: string;
+  nonInteractiveEditor?: boolean;
 }
 
 type PullRequestMutation = Extract<
@@ -119,6 +123,11 @@ export class RepositoryMutationExecutor {
       {
         cwd: this.options.root,
         toolName: `doolittle.repository.${type}`,
+        ...(command.nonInteractiveEditor
+          ? { env: { GIT_EDITOR: "true" } }
+          : command.executable === "gh"
+            ? { env: { GH_PROMPT_DISABLED: "1" } }
+            : {}),
       },
     );
     const cleanStdout = cleanOutput(stdout);
@@ -137,7 +146,8 @@ export class RepositoryMutationExecutor {
               cleanStderr || cleanStdout || `Git exited with code ${exitCode}.`,
           }),
     };
-    if (result.ok) this.options.invalidateCache();
+    // Git can create conflict state or change refs before reporting failure.
+    this.options.invalidateCache();
     return result;
   }
 
@@ -371,6 +381,13 @@ export class RepositoryMutationExecutor {
       case "merge-abort":
         this.assertOperationState("MERGE_HEAD", "merge");
         return { args: ["merge", "--abort"], summary: "Aborted merge" };
+      case "merge-continue":
+        this.assertOperationState("MERGE_HEAD", "merge");
+        return {
+          args: ["merge", "--continue"],
+          summary: "Continued merge",
+          nonInteractiveEditor: true,
+        };
       case "merge": {
         const noFf = validateOptionalBoolean(input.noFf, "noFf") ?? false;
         return {
@@ -380,6 +397,7 @@ export class RepositoryMutationExecutor {
             validateRef(input.branch, "branch"),
           ],
           summary: `Merged ${input.branch}`,
+          nonInteractiveEditor: true,
         };
       }
       case "rebase":
@@ -392,7 +410,11 @@ export class RepositoryMutationExecutor {
         return { args: ["rebase", "--abort"], summary: "Aborted rebase" };
       case "rebase-continue":
         this.assertRebaseState();
-        return { args: ["rebase", "--continue"], summary: "Continued rebase" };
+        return {
+          args: ["rebase", "--continue"],
+          summary: "Continued rebase",
+          nonInteractiveEditor: true,
+        };
       case "cherry-pick":
         return {
           args: ["cherry-pick", validateRef(input.commit, "commit")],
@@ -403,6 +425,7 @@ export class RepositoryMutationExecutor {
         return {
           args: ["cherry-pick", "--continue"],
           summary: "Continued cherry-pick",
+          nonInteractiveEditor: true,
         };
       case "cherry-pick-abort":
         this.assertOperationState("CHERRY_PICK_HEAD", "cherry-pick");
@@ -466,6 +489,10 @@ export class RepositoryMutationExecutor {
   private pullRequestMutationCommand(
     input: PullRequestMutation,
   ): RepositoryMutationCommand {
+    const target =
+      input.type !== "pr-create" && input.pullRequestUrl !== undefined
+        ? [validatePullRequestUrl(input.pullRequestUrl)]
+        : [];
     switch (input.type) {
       case "pr-create": {
         const title = validatePullRequestTitle(input.title);
@@ -474,11 +501,21 @@ export class RepositoryMutationExecutor {
           ? validateRef(input.base, "base branch")
           : undefined;
         const draft = validateOptionalBoolean(input.draft, "draft") ?? false;
+        const repository =
+          input.repository === undefined
+            ? undefined
+            : validatePullRequestRepository(input.repository);
+        const head =
+          input.head === undefined
+            ? undefined
+            : validateRef(input.head, "head branch");
         return {
           executable: "gh",
           args: [
             "pr",
             "create",
+            ...(repository ? ["--repo", `github.com/${repository}`] : []),
+            ...(head ? ["--head", head] : []),
             "--title",
             title,
             "--body",
@@ -505,6 +542,7 @@ export class RepositoryMutationExecutor {
           args: [
             "pr",
             "edit",
+            ...target,
             ...(title === undefined ? [] : ["--title", title]),
             ...(body === undefined ? [] : ["--body", body]),
             ...(base ? ["--base", base] : []),
@@ -515,7 +553,7 @@ export class RepositoryMutationExecutor {
       case "pr-ready":
         return {
           executable: "gh",
-          args: ["pr", "ready"],
+          args: ["pr", "ready", ...target],
           summary: "Marked pull request ready for review",
         };
       case "pr-review": {
@@ -532,6 +570,7 @@ export class RepositoryMutationExecutor {
           args: [
             "pr",
             "review",
+            ...target,
             flag,
             ...(body === undefined ? [] : ["--body", body]),
           ],
@@ -552,7 +591,14 @@ export class RepositoryMutationExecutor {
           args: [
             "pr",
             "merge",
+            ...target,
             `--${method}`,
+            ...(input.matchHead === undefined
+              ? []
+              : [
+                  "--match-head-commit",
+                  validatePullRequestHead(input.matchHead),
+                ]),
             ...(deleteBranch ? ["--delete-branch"] : []),
           ],
           summary: `Merged pull request with ${method}`,
@@ -563,14 +609,19 @@ export class RepositoryMutationExecutor {
           validateOptionalBoolean(input.deleteBranch, "deleteBranch") ?? false;
         return {
           executable: "gh",
-          args: ["pr", "close", ...(deleteBranch ? ["--delete-branch"] : [])],
+          args: [
+            "pr",
+            "close",
+            ...target,
+            ...(deleteBranch ? ["--delete-branch"] : []),
+          ],
           summary: "Closed pull request",
         };
       }
       case "pr-reopen":
         return {
           executable: "gh",
-          args: ["pr", "reopen"],
+          args: ["pr", "reopen", ...target],
           summary: "Reopened pull request",
         };
       default:

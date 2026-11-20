@@ -232,3 +232,31 @@ export function validateWorktreePath(
   }
   return target;
 }
+
+const GITHUB_REPOSITORY_SEGMENT = "(?!\\.{1,2}(?:/|$))[A-Za-z0-9_.-]{1,100}";
+const GITHUB_REPOSITORY = new RegExp(
+  `^${GITHUB_REPOSITORY_SEGMENT}/${GITHUB_REPOSITORY_SEGMENT}$`,
+  "u",
+);
+const GITHUB_PULL_REQUEST = new RegExp(
+  `^https://github\\.com/(${GITHUB_REPOSITORY_SEGMENT}/${GITHUB_REPOSITORY_SEGMENT})/pull/[1-9][0-9]{0,9}$`,
+  "u",
+);
+
+export function validatePullRequestRepository(repository: string): string {
+  if (!GITHUB_REPOSITORY.test(repository))
+    throw new Error("Select a valid GitHub repository.");
+  return repository;
+}
+
+export function validatePullRequestUrl(url: string): string {
+  if (!GITHUB_PULL_REQUEST.test(url))
+    throw new Error("Select a valid GitHub pull request.");
+  return url;
+}
+
+export function validatePullRequestHead(value: string): string {
+  if (!/^[a-f0-9]{40}(?:[a-f0-9]{24})?$/u.test(value))
+    throw new Error("Pull request head must be a full Git object ID.");
+  return value;
+}

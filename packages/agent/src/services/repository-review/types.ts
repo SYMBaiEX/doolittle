@@ -41,6 +41,7 @@ export interface RepositoryPullRequest {
   reviewDecision?: string;
   mergeStateStatus?: string;
   headRefName?: string;
+  headRefOid?: string;
   baseRefName?: string;
   additions: number;
   deletions: number;

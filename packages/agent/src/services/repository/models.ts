@@ -18,6 +18,7 @@ export interface RepositorySummary {
   behind: number;
   dirty: boolean;
   changedFiles: number;
+  operation?: "merge" | "rebase" | "cherry-pick";
 }
 
 export interface RepositoryPatch {

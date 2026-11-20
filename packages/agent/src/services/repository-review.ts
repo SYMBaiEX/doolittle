@@ -245,7 +245,7 @@ export class RepositoryReviewService {
             "--repo",
             repository.slug,
             "--json",
-            "number,title,state,url,author,isDraft,reviewDecision,mergeStateStatus,headRefName,baseRefName,additions,deletions,changedFiles,comments,reviews,reviewRequests,labels,updatedAt,statusCheckRollup",
+            "number,title,state,url,author,isDraft,reviewDecision,mergeStateStatus,headRefName,headRefOid,baseRefName,additions,deletions,changedFiles,comments,reviews,reviewRequests,labels,updatedAt,statusCheckRollup",
           ],
           cwd: root,
           signal,

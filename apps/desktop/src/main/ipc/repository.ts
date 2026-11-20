@@ -145,6 +145,7 @@ const REPOSITORY_MUTATION_TYPES = new Set<RepositoryMutationRequest["type"]>([
   "remote-remove",
   "remote-set-url",
   "merge-abort",
+  "merge-continue",
   "merge",
   "rebase",
   "rebase-abort",
@@ -446,6 +447,7 @@ export function validateRepositoryMutationRequest(
     case "unstage-all":
     case "worktree-prune":
     case "merge-abort":
+    case "merge-continue":
     case "rebase-abort":
     case "rebase-continue":
     case "cherry-pick-continue":
@@ -480,6 +482,7 @@ export function repositoryMutationConfirmation(
     "stash-drop",
     "worktree-remove",
     "merge-abort",
+    "merge-continue",
     "rebase-abort",
     "remote-remove",
     "merge",

@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import {
   mkdirSync,
   mkdtempSync,
@@ -175,6 +175,211 @@ it("verifies actual Git worktree identity and rejects copied pointers and nested
       "fixture.txt",
     );
     expect(git(primary, ["diff", "--cached", "--name-only"]).trim()).toBe("");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+it("refreshes conflict state after a failed merge and continues after a confirmed resolution", async () => {
+  const root = realpathSync(
+    mkdtempSync(join(tmpdir(), "doolittle-git-conflict-")),
+  );
+  const fixtureEnvironment = isolatedRuntimeEnvironment(root);
+  const git = (args: readonly string[]) =>
+    execFileSync("git", [...args], {
+      cwd: root,
+      encoding: "utf8",
+      env: fixtureEnvironment,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+  try {
+    git(["init", "-qb", "main"]);
+    git(["config", "user.name", "Native Fixture"]);
+    git(["config", "user.email", "native-fixture@example.invalid"]);
+    git(["config", "commit.gpgsign", "false"]);
+    writeFileSync(join(root, "fixture.txt"), "initial\n");
+    git(["add", "fixture.txt"]);
+    git(["commit", "-qm", "Initial commit"]);
+    git(["switch", "-qc", "side"]);
+    writeFileSync(join(root, "fixture.txt"), "side\n");
+    git(["commit", "-qam", "Side commit"]);
+    git(["switch", "-q", "main"]);
+    writeFileSync(join(root, "fixture.txt"), "main\n");
+    git(["commit", "-qam", "Main commit"]);
+
+    const runner: RepositoryProcessRunner = async (command, args, options) => {
+      const result = spawnSync(command, [...args], {
+        cwd: options.cwd,
+        encoding: "utf8",
+        env: { ...fixtureEnvironment, ...options.env },
+      });
+      if (result.error) throw result.error;
+      return {
+        stdout: result.stdout,
+        stderr: result.stderr,
+        exitCode: result.status ?? 1,
+        durationMs: 0,
+        sandbox: "none",
+      };
+    };
+    const service = new RepositoryService(root, runner);
+    const context = {
+      config: { workspaceDir: root },
+      services: { repository: service },
+    } as unknown as AppContext;
+    const admission = new NativeWorkspaceAdmission(() => true);
+    const operation = (body: Record<string, unknown>) =>
+      handleNativeRepositoryMutation(
+        context,
+        request({ ...body, workspace: root }),
+        admission,
+      );
+
+    expect(await service.conflicts()).toEqual([]);
+    expect((await service.summary()).operation).toBeUndefined();
+    expect(
+      await (
+        await operation({ type: "merge", branch: "side", confirmed: true })
+      ).json(),
+    ).toMatchObject({ result: { ok: false, type: "merge" } });
+    expect((await service.summary()).operation).toBe("merge");
+    expect(await service.conflicts()).toEqual([
+      { path: "fixture.txt", stages: ["1", "2", "3"] },
+    ]);
+
+    writeFileSync(join(root, "fixture.txt"), "resolved\n");
+    expect(
+      await (
+        await operation({
+          type: "conflict-mark-resolved",
+          paths: ["fixture.txt"],
+          confirmed: true,
+        })
+      ).json(),
+    ).toMatchObject({ result: { ok: true } });
+    expect(await service.conflicts()).toEqual([]);
+    expect((await operation({ type: "merge-continue" })).status).toBe(403);
+    expect(
+      await (
+        await operation({ type: "merge-continue", confirmed: true })
+      ).json(),
+    ).toMatchObject({ result: { ok: true, type: "merge-continue" } });
+    expect((await service.summary()).operation).toBeUndefined();
+    expect(git(["show", "HEAD:fixture.txt"])).toBe("resolved\n");
+    expect(
+      git(["rev-list", "--parents", "-n", "1", "HEAD"]).trim().split(" "),
+    ).toHaveLength(3);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+it("targets confirmed GitHub writes at the reviewed origin, PR and commit", async () => {
+  const root = realpathSync(
+    mkdtempSync(join(tmpdir(), "doolittle-native-pr-")),
+  );
+  const fixtureEnvironment = isolatedRuntimeEnvironment(root);
+  const result = {
+    stdout: "",
+    stderr: "",
+    exitCode: 0,
+    durationMs: 0,
+    sandbox: "none",
+  } as const;
+  const head = "0123456789abcdef0123456789abcdef01234567";
+  const origin = "https://github.com/fixture-owner/fixture-repo";
+  const pullRequestUrl = `${origin}/pull/42`;
+  const network = vi.fn();
+  const git = (args: readonly string[]) =>
+    execFileSync("git", [...args], {
+      cwd: root,
+      encoding: "utf8",
+      env: fixtureEnvironment,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+  try {
+    git(["init", "-qb", "feature"]);
+    git(["remote", "add", "origin", `${origin}.git`]);
+    const runner: RepositoryProcessRunner = async (command, args, options) => {
+      if (command === "gh") {
+        network(args, options.env);
+        return result;
+      }
+      return { ...result, stdout: git(args) };
+    };
+    const context = {
+      config: { workspaceDir: root },
+      services: { repository: new RepositoryService(root, runner) },
+    } as unknown as AppContext;
+    const admission = new NativeWorkspaceAdmission(() => true);
+    const dispatch = (body: Record<string, unknown>) =>
+      handleNativeRepositoryMutation(
+        context,
+        request({ workspace: root, confirmed: true, ...body }),
+        admission,
+      );
+    const merge = { type: "pr-merge", method: "squash", matchHead: head };
+
+    expect((await dispatch(merge)).status).toBe(400);
+    expect(
+      (await dispatch({ ...merge, pullRequestUrl, confirmed: false })).status,
+    ).toBe(403);
+    expect(
+      (
+        await dispatch({
+          ...merge,
+          pullRequestUrl: "https://github.com/other/target/pull/42",
+        })
+      ).status,
+    ).toBe(400);
+    expect(
+      (
+        await dispatch({
+          ...merge,
+          pullRequestUrl:
+            "https://github.com.example/fixture-owner/fixture-repo/pull/42",
+        })
+      ).status,
+    ).toBe(400);
+    expect(network).not.toHaveBeenCalled();
+
+    expect(
+      await (await dispatch({ ...merge, pullRequestUrl })).json(),
+    ).toMatchObject({ result: { ok: true } });
+    expect(network).toHaveBeenCalledWith(
+      ["pr", "merge", pullRequestUrl, "--squash", "--match-head-commit", head],
+      expect.objectContaining({ GH_PROMPT_DISABLED: "1" }),
+    );
+
+    const create = {
+      type: "pr-create",
+      repository: "fixture-owner/fixture-repo",
+      head: "feature",
+      title: "Fixture PR",
+      draft: true,
+    };
+    expect((await dispatch({ ...create, head: "stale-branch" })).status).toBe(
+      400,
+    );
+    expect(await (await dispatch(create)).json()).toMatchObject({
+      result: { ok: true },
+    });
+    expect(network).toHaveBeenLastCalledWith(
+      [
+        "pr",
+        "create",
+        "--repo",
+        "github.com/fixture-owner/fixture-repo",
+        "--head",
+        "feature",
+        "--title",
+        "Fixture PR",
+        "--body",
+        "",
+        "--draft",
+      ],
+      expect.objectContaining({ GH_PROMPT_DISABLED: "1" }),
+    );
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

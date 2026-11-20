@@ -104,6 +104,8 @@ export function requestLabel(request: RepositoryMutationRequest): string {
       return "Dropping stash…";
     case "conflict-mark-resolved":
       return "Marking conflict resolved…";
+    case "merge-continue":
+      return "Continuing merge…";
     case "merge-abort":
     case "rebase-abort":
       return "Aborting Git operation…";

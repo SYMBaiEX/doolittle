@@ -1,3 +1,7 @@
+mod advanced;
+mod patch;
+mod pull_request;
+
 use std::path::Path;
 
 use doolittle_runtime::ControlMethod;
@@ -19,7 +23,16 @@ const SUMMARY: &str = "/repo/summary";
 const BRANCHES: &str = "/repo/branches";
 const STASHES: &str = "/repo/stashes";
 const REMOTES: &str = "/repo/remotes";
-pub(super) const ROUTES: &[&str] = &[SUMMARY, super::CHANGES, BRANCHES, STASHES, REMOTES];
+pub(super) const ROUTES: &[&str] = &[
+    SUMMARY,
+    super::CHANGES,
+    BRANCHES,
+    STASHES,
+    REMOTES,
+    advanced::CONFLICTS,
+    advanced::LOG,
+    advanced::WORKTREES,
+];
 
 #[derive(Clone, Copy, Default, PartialEq, Eq)]
 enum Tab {
@@ -28,6 +41,9 @@ enum Tab {
     Branches,
     Stashes,
     Remotes,
+    History,
+    Worktrees,
+    PullRequest,
 }
 
 #[derive(Default)]
@@ -41,6 +57,8 @@ pub(super) struct GitState {
     error: Option<&'static str>,
     confirming: bool,
     commit_message_sent: Option<String>,
+    advanced: advanced::State,
+    pull_request: pull_request::State,
 }
 
 pub(super) fn open(this: &mut Workbench, window: &mut Window, cx: &mut Context<Workbench>) {
@@ -61,6 +79,9 @@ fn refresh(this: &mut Workbench, cx: &mut Context<Workbench>) {
     for &route in ROUTES {
         this.control_get(route, cx);
     }
+    if this.workspace_tools.git.tab == Tab::PullRequest {
+        this.control_get(pull_request::REVIEW, cx);
+    }
 }
 
 pub(super) fn render(
@@ -70,7 +91,7 @@ pub(super) fn render(
     cx: &mut Context<Workbench>,
 ) -> AnyElement {
     if this.workspace_tools.patch.is_some() {
-        return super::changes(this, colors, cx);
+        return patch::render_patch(this, colors, cx);
     }
     let git = &this.workspace_tools.git;
     let summary = this
@@ -78,13 +99,19 @@ pub(super) fn render(
         .and_then(|result| result.get("summary"));
     let repo = summary.filter(|info| info["isRepository"].as_bool() == Some(true));
     let enabled =
-        this.ready() && repo.is_some() && !git.confirming && !this.control_action_pending(MUTATE);
+        repository_scope(this).is_some() && !git.confirming && !this.control_action_pending(MUTATE);
     let branch = repo.map(|repo| text(repo, "branch")).unwrap_or_default();
+    let operation = repo.and_then(advanced::Operation::from_summary);
     let body = match git.tab {
-        Tab::Changes => changes(this, enabled, colors, cx),
-        Tab::Branches => branches(this, enabled, colors, cx),
+        Tab::Changes => changes(this, operation, enabled, colors, cx),
+        Tab::Branches => branches(this, operation.is_none(), enabled, colors, cx),
         Tab::Stashes => stashes(this, enabled, colors, cx),
         Tab::Remotes => remotes(this, branch, enabled, colors, cx),
+        Tab::History => advanced::history(this, operation.is_none() && enabled, colors, cx),
+        Tab::Worktrees => advanced::worktrees(this, colors),
+        Tab::PullRequest => {
+            pull_request::pull_request(this, enabled && !branch.is_empty(), colors, cx)
+        }
     };
     div()
         .flex()
@@ -103,14 +130,24 @@ pub(super) fn render(
                             (Tab::Branches, "Branches"),
                             (Tab::Stashes, "Stashes"),
                             (Tab::Remotes, "Remotes"),
+                            (Tab::History, "History"),
+                            (Tab::Worktrees, "Worktrees"),
+                            (Tab::PullRequest, "Pull request"),
                         ]
                         .into_iter()
                         .map(|(tab, label)| {
                             button(label, label)
                                 .ghost()
                                 .selected(git.tab == tab)
-                                .on_click(cx.listener(move |this, _, _, cx| {
+                                .on_click(cx.listener(move |this, _, window, cx| {
                                     this.workspace_tools.git.tab = tab;
+                                    match tab {
+                                        Tab::PullRequest => {
+                                            pull_request::open_pull_request(this, window, cx)
+                                        }
+                                        Tab::History => advanced::prepare_history(this, window, cx),
+                                        _ => {}
+                                    }
                                     cx.notify();
                                 }))
                         }),
@@ -183,7 +220,13 @@ pub(super) fn render(
         .into_any_element()
 }
 
-fn changes(this: &Workbench, enabled: bool, colors: Palette, cx: &mut Context<Workbench>) -> Div {
+fn changes(
+    this: &Workbench,
+    operation: Option<advanced::Operation>,
+    enabled: bool,
+    colors: Palette,
+    cx: &mut Context<Workbench>,
+) -> Div {
     let entries = super::array(this, super::CHANGES, "changes");
     let staged = entries
         .into_iter()
@@ -191,8 +234,9 @@ fn changes(this: &Workbench, enabled: bool, colors: Palette, cx: &mut Context<Wo
         .filter(|entry| entry["staged"].as_bool() == Some(true))
         .count();
     div()
+        .children(advanced::conflicts(this, operation, enabled, colors, cx))
         .child(bar().child(input(&this.workspace_tools.git.message))
-            .child(button("repo-commit", "Commit staged").primary().disabled(!enabled || staged == 0)
+            .child(button("repo-commit", "Commit staged").primary().disabled(!enabled || operation.is_some() || staged == 0)
                 .on_click(cx.listener(move |this, _, window, cx| {
                     let message = input_value(&this.workspace_tools.git.message, cx);
                     if message.is_empty() {
@@ -282,7 +326,13 @@ fn diff(path: &str, staged: bool, cx: &mut Context<Workbench>) -> Button {
     }))
 }
 
-fn branches(this: &Workbench, enabled: bool, colors: Palette, cx: &mut Context<Workbench>) -> Div {
+fn branches(
+    this: &Workbench,
+    can_integrate: bool,
+    enabled: bool,
+    colors: Palette,
+    cx: &mut Context<Workbench>,
+) -> Div {
     let entries = super::array(this, BRANCHES, "branches");
     div()
         .child(
@@ -326,7 +376,12 @@ fn branches(this: &Workbench, enabled: bool, colors: Palette, cx: &mut Context<W
                     .child(div().flex_1().min_w_0().truncate().child(name.to_owned()))
                     .when(current, |row| row.child(notice(colors, "Current")))
                     .when(!current, |row| {
-                        row.child(mutation_button(
+                        row.children(advanced::integrate_branch(
+                            name,
+                            enabled && can_integrate,
+                            cx,
+                        ))
+                        .child(mutation_button(
                             format!("git-switch-{name}"),
                             Action::confirm(
                                 "Switch",
@@ -335,7 +390,7 @@ fn branches(this: &Workbench, enabled: bool, colors: Palette, cx: &mut Context<W
                                 json!({"type":"branch-switch","branch":name}),
                                 true,
                             ),
-                            enabled,
+                            enabled && can_integrate,
                             cx,
                         ))
                         .child(mutation_button(
@@ -705,7 +760,15 @@ fn perform(
         this.workspace_tools.git.commit_message_sent = body["message"].as_str().map(str::to_owned);
     }
     this.workspace_tools.git.error = None;
-    this.control_send(ControlMethod::Post, MUTATE, Some(body), ROUTES, cx);
+    let mut refresh = ROUTES.to_vec();
+    if this.workspace_tools.git.tab == Tab::PullRequest {
+        refresh.push(pull_request::REVIEW);
+    }
+    let patch = this.workspace_tools.patch.clone();
+    if let Some(patch) = patch.as_deref() {
+        refresh.push(patch);
+    }
+    this.control_send(ControlMethod::Post, MUTATE, Some(body), &refresh, cx);
 }
 
 fn repository_scope(this: &Workbench) -> Option<String> {

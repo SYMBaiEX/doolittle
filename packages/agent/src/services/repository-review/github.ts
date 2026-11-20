@@ -156,6 +156,11 @@ export function parsePullRequest(record: Record<string, unknown>): {
     pullRequest.mergeStateStatus = mergeStateStatus.toLowerCase();
   }
   if (headRefName) pullRequest.headRefName = headRefName;
+  if (
+    typeof record.headRefOid === "string" &&
+    /^[a-f0-9]{40}(?:[a-f0-9]{24})?$/u.test(record.headRefOid)
+  )
+    pullRequest.headRefOid = record.headRefOid;
   if (baseRefName) pullRequest.baseRefName = baseRefName;
   if (updatedAt) pullRequest.updatedAt = updatedAt;
   return { pullRequest, checks };
