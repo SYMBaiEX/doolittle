@@ -1,13 +1,20 @@
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
+  type BigIntStats,
+  closeSync,
+  constants,
+  fstatSync,
   lstatSync,
+  openSync,
   readdirSync,
-  readFileSync,
   readlinkSync,
+  readSync,
+  realpathSync,
   writeFileSync,
 } from "node:fs";
 import { basename, dirname, join, relative, resolve, sep } from "node:path";
+import { readRegularFileSync } from "@doolittle/storage";
 import {
   type DesktopSbomPlatform,
   desktopSbomName,
@@ -52,8 +59,63 @@ export type NativePackageReceipt = {
 
 const COMMIT_SHA = /^[0-9a-f]{40}$/u;
 
-function sha256File(path: string): string {
-  return createHash("sha256").update(readFileSync(path)).digest("hex");
+function sameRegularFile(expected: BigIntStats, actual: BigIntStats): boolean {
+  return (
+    actual.isFile() &&
+    expected.dev === actual.dev &&
+    expected.ino === actual.ino &&
+    expected.size === actual.size &&
+    expected.mtimeNs === actual.mtimeNs &&
+    expected.ctimeNs === actual.ctimeNs
+  );
+}
+
+function hashRegularFile(
+  path: string,
+  leaf = lstatSync(path, { bigint: true }),
+) {
+  if (!leaf.isFile() || leaf.size > BigInt(Number.MAX_SAFE_INTEGER)) {
+    throw new Error(
+      `Desktop package artifact must be a regular file of known size: ${path}`,
+    );
+  }
+  const fd = openSync(
+    path,
+    constants.O_RDONLY |
+      (constants.O_NOFOLLOW ?? 0) |
+      (constants.O_NONBLOCK ?? 0),
+  );
+  try {
+    const before = fstatSync(fd, { bigint: true });
+    if (!sameRegularFile(leaf, before))
+      throw new Error(`Desktop package artifact changed: ${path}`);
+
+    const hash = createHash("sha256");
+    const size = Number(before.size);
+    const chunk = Buffer.allocUnsafe(Math.min(size, 1024 * 1024));
+    let bytes = 0;
+    while (bytes < size) {
+      const count = readSync(
+        fd,
+        chunk,
+        0,
+        Math.min(chunk.length, size - bytes),
+        bytes,
+      );
+      if (count === 0) break;
+      hash.update(chunk.subarray(0, count));
+      bytes += count;
+    }
+    if (
+      bytes !== size ||
+      !sameRegularFile(before, fstatSync(fd, { bigint: true })) ||
+      !sameRegularFile(before, lstatSync(path, { bigint: true }))
+    )
+      throw new Error(`Desktop package artifact changed: ${path}`);
+    return { bytes, sha256: hash.digest("hex") };
+  } finally {
+    closeSync(fd);
+  }
 }
 
 export function packageProvenanceArtifact(
@@ -61,14 +123,9 @@ export function packageProvenanceArtifact(
   path: string,
 ): PackageProvenanceArtifact {
   const absolutePath = resolve(releaseDirectory, path);
-  const status = lstatSync(absolutePath);
-  if (!status.isFile()) {
-    throw new Error(`Desktop package artifact must be a regular file: ${path}`);
-  }
   return {
     path: relative(releaseDirectory, absolutePath).split(sep).join("/"),
-    bytes: status.size,
-    sha256: sha256File(absolutePath),
+    ...hashRegularFile(absolutePath),
   };
 }
 
@@ -107,16 +164,15 @@ export function packageProvenanceRuntime(
         absoluteRuntimeDirectory,
         absoluteEntry,
       );
-      const status = lstatSync(absoluteEntry);
+      const status = lstatSync(absoluteEntry, { bigint: true });
       entries += 1;
       if (status.isDirectory()) {
         records.push(`D\0${relativeEntry}\n`);
         visit(absoluteEntry);
       } else if (status.isFile()) {
-        bytes += status.size;
-        records.push(
-          `F\0${relativeEntry}\0${status.size}\0${sha256File(absoluteEntry)}\n`,
-        );
+        const file = hashRegularFile(absoluteEntry, status);
+        bytes += file.bytes;
+        records.push(`F\0${relativeEntry}\0${file.bytes}\0${file.sha256}\n`);
       } else if (status.isSymbolicLink()) {
         records.push(`L\0${relativeEntry}\0${readlinkSync(absoluteEntry)}\n`);
       } else {
@@ -253,7 +309,7 @@ export function verifyNativePackageRuntime({
   let receipt: NativePackageReceipt;
   try {
     receipt = JSON.parse(
-      readFileSync(receiptPath, "utf8"),
+      readRegularFileSync(receiptPath).toString("utf8"),
     ) as NativePackageReceipt;
   } catch {
     throw new Error(
@@ -303,17 +359,17 @@ export function verifyNativePackageRuntime({
     );
   }
   const sbomPath = resolve(releaseDirectory, desktopSbomName(platform));
-  const sbom = packageProvenanceArtifact(releaseDirectory, sbomPath);
+  const sbom = readRegularFileSync(sbomPath);
   if (
-    receipt.sbom.path !== sbom.path ||
-    receipt.sbom.bytes !== sbom.bytes ||
-    receipt.sbom.sha256 !== sbom.sha256
+    receipt.sbom.path !== desktopSbomName(platform) ||
+    receipt.sbom.bytes !== sbom.length ||
+    receipt.sbom.sha256 !== createHash("sha256").update(sbom).digest("hex")
   ) {
     throw new Error(
       `Packaged desktop SBOM does not match ${nativeReceiptName(platform)}.`,
     );
   }
-  validateDesktopSpdxDocument(JSON.parse(readFileSync(sbomPath, "utf8")), {
+  validateDesktopSpdxDocument(JSON.parse(sbom.toString("utf8")), {
     platform: platform as DesktopSbomPlatform,
     commit: receipt.commit,
     appAsarSha256: actualAppAsar.sha256,
@@ -341,10 +397,18 @@ export function gitCommitCreatedAt(
 }
 
 function runGit(repoRoot: string, args: string[]): GitCommandResult {
-  const result = spawnSync("git", args, {
-    cwd: repoRoot,
-    encoding: "utf8",
-  });
+  const env = Object.fromEntries(
+    Object.entries(process.env).filter(([key]) => !/^GIT_/iu.test(key)),
+  );
+  const result = spawnSync(
+    "git",
+    ["--no-replace-objects", "-c", "core.fsmonitor=false", ...args],
+    {
+      cwd: repoRoot,
+      env,
+      encoding: "utf8",
+    },
+  );
   return {
     status: result.status,
     stdout: result.stdout ?? "",
@@ -368,11 +432,23 @@ export function requireCleanPackageSource(
   repoRoot: string,
   runner: GitCommandRunner = (args) => runGit(repoRoot, args),
 ): string {
+  const checkout = readGitValue(
+    ["rev-parse", "--show-toplevel"],
+    runner,
+    "Unable to resolve the package source worktree.",
+  );
+  if (realpathSync(checkout) !== realpathSync(repoRoot)) {
+    throw new Error(
+      "Git resolved a different worktree than the desktop package source.",
+    );
+  }
   const commit = readGitValue(
-    ["rev-parse", "HEAD"],
+    ["rev-parse", "--verify", "HEAD^{commit}"],
     runner,
     "Unable to resolve the package source commit.",
   );
+  if (!COMMIT_SHA.test(commit))
+    throw new Error(`Invalid package source commit: ${commit}`);
   const status = runner(["status", "--porcelain=v1", "--untracked-files=all"]);
   if (status.status !== 0) {
     throw new Error("Unable to verify the package source worktree.");

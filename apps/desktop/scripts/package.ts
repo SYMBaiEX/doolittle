@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import {
   existsSync,
   readFileSync,
@@ -24,6 +23,7 @@ import {
 import {
   assertPackageSourceUnchanged,
   gitCommitCreatedAt,
+  packageProvenanceArtifact,
   requireCleanPackageSource,
   writeNativePackageReceipt,
 } from "./package-provenance";
@@ -196,7 +196,7 @@ async function packageDirectoryBuild(packageCommit: string): Promise<void> {
         { env },
       );
       assertPackageSourceUnchanged(repoRoot, packageCommit);
-      const contents = readFileSync(appAsarPath);
+      const artifact = packageProvenanceArtifact(stagingRoot, appAsarPath);
       writeFileSync(
         resolve(stagingRoot, "unpacked-manifest.json"),
         `${JSON.stringify(
@@ -204,9 +204,9 @@ async function packageDirectoryBuild(packageCommit: string): Promise<void> {
             commit: packageCommit,
             generatedAt: new Date().toISOString(),
             host: `${process.platform}-${process.arch}`,
-            appAsarPath: relative(stagingRoot, appAsarPath),
-            bytes: statSync(appAsarPath).size,
-            sha256: createHash("sha256").update(contents).digest("hex"),
+            appAsarPath: artifact.path,
+            bytes: artifact.bytes,
+            sha256: artifact.sha256,
           },
           null,
           2,
