@@ -12,11 +12,43 @@ import {
   resolveEntrypointRuntimePlan,
 } from "../../apps/cli/src/entrypoint/runtime-control";
 import { handleEntrypointRuntimeSurface } from "../../apps/cli/src/entrypoint/runtime-surface";
+import { loadProcessEnv } from "../../packages/agent/src/config/env/load";
 import { resolveApplicationRoot } from "../../packages/agent/src/config/env/paths";
 import type { AppLogger } from "../../packages/agent/src/logging/logger";
 import type { AppContext } from "../../packages/agent/src/runtime/bootstrap";
 
 describe("terminal application lifecycle", () => {
+  it("uses dotenv parsing to detect a database declaration", () => {
+    const root = mkdtempSync(resolve(tmpdir(), "doolittle-database-env-"));
+    try {
+      const env: NodeJS.ProcessEnv = { DATABASE_URL: "fixture-inherited" };
+      expect(loadProcessEnv(root, { env }).declaresDatabaseUrl).toBe(false);
+      writeFileSync(
+        resolve(root, ".env"),
+        "# DATABASE_URL=comment\nOTHER=fixture\n",
+      );
+      expect(loadProcessEnv(root, { env }).declaresDatabaseUrl).toBe(false);
+      writeFileSync(resolve(root, ".env"), "export POSTGRES_URL=fixture\n");
+      expect(loadProcessEnv(root, { env }).declaresDatabaseUrl).toBe(true);
+      expect(env.POSTGRES_URL).toBe("fixture");
+      expect(env.DATABASE_URL).toBe("fixture-inherited");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects a repository dotenv path that is not a regular file", () => {
+    const root = mkdtempSync(resolve(tmpdir(), "doolittle-invalid-env-"));
+    try {
+      mkdirSync(resolve(root, ".env"));
+      expect(() => loadProcessEnv(root, { env: {} })).toThrow(
+        "Unable to read application .env safely.",
+      );
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("settles a pending plain CLI prompt when the input reaches EOF", async () => {
     const input = new PassThrough();
     const readline = createInterface({ input });

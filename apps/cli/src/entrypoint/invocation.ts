@@ -1,3 +1,4 @@
+import { loadApplicationEnv } from "@doolittle/agent/config/env";
 import type { EntrypointCommandPlan } from "./runtime-control";
 import { resolveEntrypointCommandPlan } from "./runtime-control";
 import type { StaticResult } from "./static-prompts";
@@ -48,6 +49,7 @@ export async function resolveEntrypointInvocation(options: {
   const aliasPrompt = resolveEntrypointAliasPrompt(command, rest);
   const immediatePrompt =
     command === "exec" ? oneShot?.prompt : (aliasPrompt ?? pipedPrompt);
+  if (!options.env && immediatePrompt?.trim() === "/help") loadApplicationEnv();
 
   return {
     command,

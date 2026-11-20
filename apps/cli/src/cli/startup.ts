@@ -6,8 +6,9 @@
  * This lets the entire startup flow live in TypeScript.
  */
 
-import { existsSync, mkdirSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 import { isAbsolute, resolve } from "node:path";
+import { loadApplicationEnv } from "@doolittle/agent/config/env";
 import { getDefaultRepoRoot } from "@doolittle/agent/config/env/paths";
 import { getEntrypointLogger } from "@doolittle/agent/logging/entrypoint-logger";
 import { runInheritedTextProcess } from "@doolittle/agent/services/process-execution";
@@ -53,6 +54,7 @@ function runtimeDataDir(root: string): string {
  *   stale shell export).
  */
 export function loadLocalRuntimeEnv(): void {
+  const declaresDatabaseUrl = loadApplicationEnv();
   const root = repoRoot();
   const dataDir = runtimeDataDir(root);
 
@@ -62,31 +64,8 @@ export function loadLocalRuntimeEnv(): void {
 
   mkdirSync(process.env.PGLITE_DATA_DIR, { recursive: true });
 
-  if (process.env.DOOLITTLE_BOT_RUNTIME === "worker") {
-    // A worker must not inspect the repository .env, and may never attach to
-    // an operator's external Postgres connection through an inherited URL.
-    delete process.env.DATABASE_URL;
-    delete process.env.POSTGRES_URL;
-    return;
-  }
-
-  const envFile = resolve(root, ".env");
-  if (existsSync(envFile)) {
-    try {
-      const content = readFileSync(envFile, "utf-8");
-      const hasDatabaseUrl = /^\s*(DATABASE_URL|POSTGRES_URL)\s*=/m.test(
-        content,
-      );
-      if (!hasDatabaseUrl) {
-        delete process.env.DATABASE_URL;
-        delete process.env.POSTGRES_URL;
-      }
-    } catch {
-      // If we can't read .env, clean up stale vars to be safe
-      delete process.env.DATABASE_URL;
-      delete process.env.POSTGRES_URL;
-    }
-  } else {
+  // A worker may never attach to an inherited external Postgres connection.
+  if (process.env.DOOLITTLE_BOT_RUNTIME === "worker" || !declaresDatabaseUrl) {
     delete process.env.DATABASE_URL;
     delete process.env.POSTGRES_URL;
   }

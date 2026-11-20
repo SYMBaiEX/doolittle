@@ -27,7 +27,7 @@ export function loadProcessEnv(
     lstatSync(repoEnvPath);
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") {
-      return { parsed: {} };
+      return { declaresDatabaseUrl: false };
     }
     throw new Error(UNSAFE_ENV_ERROR);
   }
@@ -43,5 +43,9 @@ export function loadProcessEnv(
 
   const parsed = parse(contents);
   populate(env, parsed, { override: false });
-  return { parsed };
+  return {
+    declaresDatabaseUrl:
+      Object.hasOwn(parsed, "DATABASE_URL") ||
+      Object.hasOwn(parsed, "POSTGRES_URL"),
+  };
 }
