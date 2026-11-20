@@ -1,67 +1,26 @@
 use gpui::{
-    AnyElement, Context, FontWeight, Render, Rgba, SharedString, Window, div, prelude::*, px, rgb,
+    AnyElement, Context, FontWeight, Render, Rgba, SharedString, Window, div, prelude::*, px,
 };
 use gpui_component::{
-    ActiveTheme, Disableable, Selectable, Sizable,
+    Disableable, Root, Selectable, Sizable,
     button::{Button, ButtonVariants},
     input::Input,
     text::TextView,
 };
 
-use crate::workbench::{AgentView, IdeView, NewConversation, SaveFile, View, Workbench};
-
-#[derive(Clone, Copy)]
-struct Palette {
-    canvas: Rgba,
-    rail: Rgba,
-    inset: Rgba,
-    raised: Rgba,
-    divider: Rgba,
-    text: Rgba,
-    muted: Rgba,
-    accent: Rgba,
-    accent_ink: Rgba,
-    positive: Rgba,
-    danger: Rgba,
-}
-
-impl Palette {
-    fn for_mode(dark: bool) -> Self {
-        if dark {
-            Self {
-                canvas: rgb(0x141414),
-                rail: rgb(0x1d1d1d),
-                inset: rgb(0x111111),
-                raised: rgb(0x242321),
-                divider: rgb(0x363431),
-                text: rgb(0xf1eeea),
-                muted: rgb(0xb1aaa1),
-                accent: rgb(0xff782f),
-                accent_ink: rgb(0x1a120c),
-                positive: rgb(0x84ce9b),
-                danger: rgb(0xff8c83),
-            }
-        } else {
-            Self {
-                canvas: rgb(0xfdfbf8),
-                rail: rgb(0xf2eee9),
-                inset: rgb(0xf8f4ef),
-                raised: rgb(0xffffff),
-                divider: rgb(0xddd5cb),
-                text: rgb(0x24201b),
-                muted: rgb(0x655c53),
-                accent: rgb(0xa9400a),
-                accent_ink: rgb(0xffffff),
-                positive: rgb(0x22753d),
-                danger: rgb(0xa6352c),
-            }
-        }
-    }
-}
+pub(crate) use crate::themes::Palette;
+use crate::{
+    connections::{self, ConnectionsPage},
+    navigation::DESTINATIONS,
+    operations, session_transfer,
+    themes::Surface,
+    workbench::{AgentView, IdeView, NewConversation, OpenNavigation, SaveFile, View, Workbench},
+    workspace_tools,
+};
 
 impl Render for Workbench {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let colors = Palette::for_mode(cx.theme().is_dark());
+        let colors = Palette::current(cx);
         let file_dirty = self
             .workspace
             .file
@@ -69,7 +28,8 @@ impl Render for Workbench {
             .is_some_and(|file| file.is_dirty(cx));
         window.set_window_edited(file_dirty);
         let wide = window.viewport_size().width >= px(880.);
-        let reveal_sidebar = wide || self.sidebar_open;
+        let compact = self.view == View::Ide || colors.compact_navigation();
+        let reveal_sidebar = self.sidebar_open || (wide && !compact);
         let render_workbench = wide || !self.sidebar_open;
         div()
             .id("doolittle-window")
@@ -88,15 +48,27 @@ impl Render for Workbench {
                     this.save_file(cx);
                 }
             }))
+            .on_action(
+                cx.listener(|this, _: &OpenNavigation, window, cx| {
+                    this.open_navigation(window, cx)
+                }),
+            )
             .flex()
             .flex_col()
             .size_full()
+            .relative()
             .bg(colors.canvas)
+            .child(colors.canvas_backdrop())
+            .gap(colors.frame_gap())
+            .p(colors.frame_gap())
+            .font_family(colors.body_family())
+            .text_size(colors.control_size())
             .text_color(colors.text)
             .child(self.header(wide, colors, cx))
             .child(
                 div()
                     .flex()
+                    .gap(colors.frame_gap())
                     .flex_1()
                     .min_h_0()
                     .min_w_0()
@@ -104,12 +76,28 @@ impl Render for Workbench {
                         this.child(self.sidebar(wide, colors, cx))
                     })
                     .when(render_workbench, |this| {
-                        this.child(match self.view {
-                            View::Agent => self.chat(colors, window, cx),
-                            View::Ide => self.ide(colors, file_dirty, window, cx),
-                        })
+                        this.child(
+                            colors
+                                .surface(div(), Surface::Panel)
+                                .flex()
+                                .flex_1()
+                                .min_h_0()
+                                .min_w_0()
+                                .overflow_hidden()
+                                .child(match self.view {
+                                    View::Agent => self.chat(colors, window, cx),
+                                    View::Ide => self.ide(colors, file_dirty, window, cx),
+                                    View::Operations(page) => {
+                                        operations::render(page, self, &colors, window, cx)
+                                    }
+                                    View::Connections(page) => {
+                                        connections::render(page, self, &colors, window, cx)
+                                    }
+                                }),
+                        )
                     }),
             )
+            .children(Root::render_dialog_layer(window, cx))
     }
 }
 
@@ -124,35 +112,38 @@ impl Workbench {
         } else {
             "Runtime unavailable"
         };
-        div()
-            .h(px(52.))
+        colors
+            .surface(div(), Surface::Header)
+            .h(colors.header_height())
             .flex_none()
             .flex()
             .items_center()
             .gap(px(12.))
             .px(px(14.))
-            .bg(colors.rail)
             .border_b_1()
             .border_color(colors.divider)
-            .when(!wide, |this| {
-                this.child(
-                    Button::new("sidebar-toggle")
-                        .small()
-                        .ghost()
-                        .label(if self.sidebar_open {
-                            "Close chats"
-                        } else {
-                            "Chats"
-                        })
-                        .on_click(cx.listener(|this, _, window, cx| {
-                            this.sidebar_open = !this.sidebar_open;
-                            if !this.sidebar_open && this.view == View::Agent {
-                                this.focus_composer(window, cx);
-                            }
-                            cx.notify();
-                        })),
-                )
-            })
+            .when(
+                !wide || self.view == View::Ide || colors.compact_navigation(),
+                |this| {
+                    this.child(
+                        Button::new("sidebar-toggle")
+                            .small()
+                            .ghost()
+                            .label(if self.sidebar_open {
+                                "Close menu"
+                            } else {
+                                "Menu"
+                            })
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.sidebar_open = !this.sidebar_open;
+                                if !this.sidebar_open && this.view == View::Agent {
+                                    this.focus_composer(window, cx);
+                                }
+                                cx.notify();
+                            })),
+                    )
+                },
+            )
             .when(wide, |this| {
                 this.child(
                     div()
@@ -232,20 +223,33 @@ impl Workbench {
                         .on_click(cx.listener(|this, _, _, cx| this.choose_workspace(cx))),
                 )
             })
-            .child(
-                div()
-                    .flex()
-                    .items_center()
-                    .gap(px(6.))
-                    .text_size(px(12.))
-                    .text_color(colors.muted)
-                    .child(div().size(px(6.)).rounded_full().bg(if self.ready() {
-                        colors.positive
-                    } else {
-                        colors.muted
-                    }))
-                    .child(status),
-            )
+            .when(wide, |this| {
+                this.child(
+                    Button::new("open-navigation")
+                        .small()
+                        .ghost()
+                        .label("Go to…")
+                        .on_click(
+                            cx.listener(|this, _, window, cx| this.open_navigation(window, cx)),
+                        ),
+                )
+            })
+            .when(wide, |header| {
+                header.child(
+                    div()
+                        .flex()
+                        .items_center()
+                        .gap(px(6.))
+                        .text_size(px(12.))
+                        .text_color(colors.muted)
+                        .child(div().size(px(6.)).rounded_full().bg(if self.ready() {
+                            colors.positive
+                        } else {
+                            colors.muted
+                        }))
+                        .child(status),
+                )
+            })
     }
 
     fn sidebar(&self, wide: bool, colors: Palette, cx: &mut Context<Self>) -> impl IntoElement {
@@ -253,6 +257,7 @@ impl Workbench {
             *id == &self.selected
                 || entry.title.is_some()
                 || !entry.draft.is_empty()
+                || !entry.draft_attachments.is_empty()
                 || entry.active_run.is_some()
         });
         let mut locals = local_sessions
@@ -264,17 +269,18 @@ impl Workbench {
             })
             .collect::<Vec<_>>();
         locals.sort_by_key(|(id, _)| (*id).clone());
-        div()
+        colors
+            .surface(div(), Surface::Navigation)
             .id("chat-sidebar")
             .flex()
             .flex_col()
             .min_h_0()
             .flex_none()
-            .when(wide, |this| this.w(px(246.)))
+            .when(wide, |this| this.w(colors.navigation_width()))
             .when(!wide, |this| this.w_full())
-            .bg(colors.rail)
             .border_r_1()
             .border_color(colors.divider)
+            .child(self.destinations(colors, cx))
             .child(
                 div()
                     .flex()
@@ -307,7 +313,7 @@ impl Workbench {
                     .flex_1()
                     .min_h_0()
                     .overflow_y_scroll()
-                    .gap(px(4.))
+                    .gap(colors.row_space() / 2.)
                     .px(px(9.))
                     .children(locals.into_iter().map(|(id, entry)| {
                         session_button(id, entry.title.as_deref(), id == &self.selected, colors, cx)
@@ -332,6 +338,7 @@ impl Workbench {
                         .my(px(7.)),
                 )
             })
+            .child(session_transfer::controls(self, colors, cx))
             .child(
                 div()
                     .flex()
@@ -365,6 +372,30 @@ impl Workbench {
             )
     }
 
+    fn destinations(&self, colors: Palette, cx: &mut Context<Self>) -> impl IntoElement {
+        div()
+            .flex()
+            .flex_wrap()
+            .gap(px(3.))
+            .px(px(10.))
+            .py(px(10.))
+            .border_b_1()
+            .border_color(colors.divider)
+            .children(DESTINATIONS.iter().map(|&(label, view)| {
+                let selected = self.view == view
+                    || matches!(
+                        (view, self.view),
+                        (View::Connections(_), View::Connections(_))
+                    );
+                mode_button(label, label, selected, colors)
+                    .justify_start()
+                    .min_w(px(95.))
+                    .on_click(
+                        cx.listener(move |this, _, window, cx| this.set_view(view, window, cx)),
+                    )
+            }))
+    }
+
     fn chat(&self, colors: Palette, window: &mut Window, cx: &mut Context<Self>) -> AnyElement {
         let conversation = self.conversation();
         let title = conversation
@@ -374,7 +405,8 @@ impl Workbench {
         let has_run = conversation.active_run.is_some();
         let can_send = self.ready()
             && !self.composer.read(cx).value().trim().is_empty()
-            && !conversation.loading_history;
+            && !conversation.loading_history
+            && !conversation.choosing_attachments;
         let modifier = if cfg!(target_os = "macos") {
             "⌘"
         } else {
@@ -418,45 +450,44 @@ impl Workbench {
                         .child(run.status.clone()),
                 )
             });
-        let thread =
-            div()
-                .id("transcript")
-                .flex_1()
-                .min_h_0()
-                .overflow_y_scroll()
-                .track_scroll(&self.transcript_scroll)
-                .child(
-                    div()
-                        .flex()
-                        .flex_col()
-                        .mx_auto()
-                        .max_w(px(785.))
-                        .w_full()
-                        .px(px(24.))
-                        .py(px(20.))
-                        .gap(px(18.))
-                        .when(
-                            conversation.has_earlier
-                                || conversation.history_error.is_some()
-                                || conversation.loading_history,
-                            |thread| {
-                                thread.child(
-                                    Button::new("earlier-messages")
-                                        .small()
-                                        .outline()
-                                        .label(history_action)
-                                        .disabled(has_run || conversation.loading_history)
-                                        .on_click(cx.listener(|this, _, _, cx| {
-                                            this.load_history(this.conversation().has_earlier, cx);
-                                        })),
-                                )
-                            },
-                        )
-                        .when_some(conversation.history_error.as_ref(), |thread, error| {
-                            thread.child(notice(error.clone(), colors.danger, colors))
-                        })
-                        .when(conversation.messages.is_empty() && !has_run, |thread| {
+        let thread = div()
+            .id("transcript")
+            .flex_1()
+            .min_h_0()
+            .overflow_y_scroll()
+            .track_scroll(&self.transcript_scroll)
+            .child(
+                div()
+                    .flex()
+                    .flex_col()
+                    .mx_auto()
+                    .max_w(colors.reading_width())
+                    .w_full()
+                    .px(px(24.))
+                    .py(px(20.))
+                    .gap(px(18.))
+                    .when(
+                        conversation.has_earlier
+                            || conversation.history_error.is_some()
+                            || conversation.loading_history,
+                        |thread| {
                             thread.child(
+                                Button::new("earlier-messages")
+                                    .small()
+                                    .outline()
+                                    .label(history_action)
+                                    .disabled(has_run || conversation.loading_history)
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        this.load_history(this.conversation().has_earlier, cx);
+                                    })),
+                            )
+                        },
+                    )
+                    .when_some(conversation.history_error.as_ref(), |thread, error| {
+                        thread.child(notice(error.clone(), colors.danger, colors))
+                    })
+                    .when(conversation.messages.is_empty() && !has_run, |thread| {
+                        thread.child(
                             div()
                                 .flex()
                                 .flex_col()
@@ -464,6 +495,7 @@ impl Workbench {
                                 .py(px(52.))
                                 .child(
                                     div()
+                                        .font_family(colors.display_family())
                                         .font_weight(FontWeight::SEMIBOLD)
                                         .text_size(px(26.))
                                         .child("What are we working on?"),
@@ -472,60 +504,124 @@ impl Workbench {
                                     "Ask a question or give Doolittle a task in this workspace.",
                                 )),
                         )
-                        })
-                        .children(conversation.messages.iter().enumerate().map(
-                            |(index, message)| {
-                                message_row(
-                                    &message.role,
-                                    TextView::markdown(
-                                        SharedString::from(format!(
-                                            "{}:message-{index}",
-                                            self.selected
-                                        )),
-                                        SharedString::from(message.text.clone()),
-                                        window,
-                                        cx,
+                    })
+                    .children(
+                        conversation
+                            .messages
+                            .iter()
+                            .enumerate()
+                            .map(|(index, message)| {
+                                let content = div()
+                                    .flex()
+                                    .flex_col()
+                                    .gap(px(8.))
+                                    .child(
+                                        TextView::markdown(
+                                            SharedString::from(format!(
+                                                "{}:message-{index}",
+                                                self.selected
+                                            )),
+                                            SharedString::from(message.text.clone()),
+                                            window,
+                                            cx,
+                                        )
+                                        .selectable(true),
                                     )
-                                    .selectable(true),
-                                    colors,
+                                    .children(message.attachments.iter().map(|file| {
+                                        div().text_xs().text_color(colors.muted).child(format!(
+                                            "{} · {} KB",
+                                            file.name,
+                                            file.size_bytes.div_ceil(1024)
+                                        ))
+                                    }))
+                                    .children(
+                                        message.wallet_activities.iter().enumerate().filter_map(
+                                            |(receipt_index, receipt)| {
+                                                connections::wallet::render(
+                                                    receipt,
+                                                    format!("wallet:{index}:{receipt_index}"),
+                                                    &colors,
+                                                    cx,
+                                                )
+                                            },
+                                        ),
+                                    );
+                                message_row(&message.role, content, colors)
+                            }),
+                    )
+                    .when_some(conversation.active_run.as_ref(), |thread, run| {
+                        thread
+                            .child(message_row(
+                                "user",
+                                div()
+                                    .flex()
+                                    .flex_col()
+                                    .gap(px(6.))
+                                    .child(run.prompt.clone())
+                                    .children(run.attachments.iter().map(|file| {
+                                        div()
+                                            .text_xs()
+                                            .text_color(colors.muted)
+                                            .child(file.name.clone())
+                                    })),
+                                colors,
+                            ))
+                            .child(message_row(
+                                "assistant",
+                                div()
+                                    .flex()
+                                    .flex_col()
+                                    .gap(px(8.))
+                                    .child(if run.reply.is_empty() {
+                                        div()
+                                            .child(if run.interrupted {
+                                                "Run status needs confirmation"
+                                            } else {
+                                                "Working…"
+                                            })
+                                            .into_any_element()
+                                    } else {
+                                        TextView::markdown(
+                                            SharedString::from(format!("{}:live", run.id)),
+                                            SharedString::from(
+                                                crate::markdown_text::for_transcript(&run.reply),
+                                            ),
+                                            window,
+                                            cx,
+                                        )
+                                        .selectable(true)
+                                        .into_any_element()
+                                    })
+                                    .children(run.wallet_activities.iter().enumerate().filter_map(
+                                        |(index, receipt)| {
+                                            connections::wallet::render(
+                                                receipt,
+                                                format!("{}:wallet:{index}", run.id),
+                                                &colors,
+                                                cx,
+                                            )
+                                        },
+                                    )),
+                                colors,
+                            ))
+                    })
+                    .when_some(conversation.error.as_ref(), |thread, error| {
+                        thread.child(notice(error.clone(), colors.danger, colors).when(
+                            conversation.recover_prompt.is_some(),
+                            |notice| {
+                                notice.child(
+                                    Button::new("restore-prompt")
+                                        .small()
+                                        .outline()
+                                        .label("Restore prompt")
+                                        .on_click(cx.listener(|this, _, window, cx| {
+                                            this.restore_prompt(window, cx);
+                                        })),
                                 )
                             },
                         ))
-                        .when_some(conversation.active_run.as_ref(), |thread, run| {
-                            thread
-                                .child(message_row("user", div().child(run.prompt.clone()), colors))
-                                .child(message_row(
-                                    "assistant",
-                                    div().child(if run.reply.is_empty() {
-                                        if run.interrupted {
-                                            "Run status needs confirmation"
-                                        } else {
-                                            "Working…"
-                                        }
-                                        .to_owned()
-                                    } else {
-                                        run.reply.clone()
-                                    }),
-                                    colors,
-                                ))
-                        })
-                        .when_some(conversation.error.as_ref(), |thread, error| {
-                            thread.child(notice(error.clone(), colors.danger, colors).when(
-                                conversation.recover_prompt.is_some(),
-                                |notice| {
-                                    notice.child(
-                                        Button::new("restore-prompt")
-                                            .small()
-                                            .outline()
-                                            .label("Restore prompt")
-                                            .on_click(cx.listener(|this, _, window, cx| {
-                                                this.restore_prompt(window, cx);
-                                            })),
-                                    )
-                                },
-                            ))
-                        }),
-                );
+                    }),
+            );
 
         div()
             .id("agent-workbench")
@@ -540,21 +636,29 @@ impl Workbench {
                 div()
                     .flex_none()
                     .w_full()
-                    .max_w(px(785.))
+                    .max_w(colors.reading_width())
                     .mx_auto()
                     .px(px(24.))
                     .pb(px(18.))
                     .child(
-                        div()
+                        colors.surface(div(), Surface::Composer)
                             .flex()
                             .flex_col()
                             .gap(px(5.))
-                            .rounded(px(9.))
-                            .border_1()
-                            .border_color(colors.divider)
-                            .bg(colors.raised)
                             .py(px(6.))
                             .px(px(9.))
+                            .when(!conversation.draft_attachments.is_empty(), |composer| composer.child(
+                                div().flex().flex_wrap().gap(px(5.)).children(
+                                    conversation.draft_attachments.iter().map(|file| {
+                                        let id = file.id.clone();
+                                        div().flex().items_center().gap(px(5.)).px(px(7.)).rounded(px(6.))
+                                            .border_1().border_color(colors.divider)
+                                            .child(div().max_w(px(180.)).truncate().text_xs().child(file.name.clone()))
+                                            .child(Button::new(SharedString::from(format!("remove-attachment:{id}"))).small().ghost().label("Remove")
+                                                .on_click(cx.listener(move |this, _, _, cx| this.remove_draft_attachment(&id, cx))))
+                                    }),
+                                ),
+                            ))
                             .child(Input::new(&self.composer).appearance(false).focus_bordered(false))
                             .child(
                                 div()
@@ -562,6 +666,12 @@ impl Workbench {
                                     .items_center()
                                     .justify_between()
                                     .gap(px(8.))
+                                    .child(Button::new("attach-files").small().ghost()
+                                        .label(if conversation.choosing_attachments { "Attaching…" } else { "Attach" })
+                                        .disabled(has_run || !self.ready() || conversation.choosing_attachments || conversation.draft_attachments.len() >= 8)
+                                        .on_click(cx.listener(|this, _, _, cx| this.choose_attachments(cx))))
+                                    .child(Button::new("chat-model-settings").small().ghost().label("Model")
+                                        .on_click(cx.listener(|this, _, window, cx| this.set_view(View::Connections(ConnectionsPage::Models), window, cx))))
                                     .child(
                                         div()
                                             .min_w_0()
@@ -644,7 +754,7 @@ impl Workbench {
             .min_w_0()
             .min_h_0()
             .child(
-                div()
+                colors.surface(div(), Surface::Header)
                     .flex_none()
                     .flex()
                     .gap(px(9.))
@@ -653,7 +763,6 @@ impl Workbench {
                     .px(px(12.))
                     .border_b_1()
                     .border_color(colors.divider)
-                    .bg(colors.rail)
                     .child(
                         Button::new("explorer-toggle").small().ghost()
                             .label(if explorer { "Hide files" } else { "Files" })
@@ -663,6 +772,7 @@ impl Workbench {
                             })),
                     )
                     .child(div().flex_1().min_w_0().truncate().text_sm().child(self.workspace_path()))
+                    .child(workspace_tools::toolbar(self, cx))
                     .child(
                         Button::new("refresh-files").small().outline()
                             .label(if self.workspace.loading_tree { "Loading…" } else { "Refresh files" })
@@ -690,14 +800,13 @@ impl Workbench {
                     .min_w_0()
                     .min_h_0()
                     .when(explorer, |workbench| workbench.child(
-                        div()
+                        colors.surface(div(), Surface::Navigation)
                             .flex()
                             .flex_col()
                             .flex_none()
                             .min_h_0()
                             .when(narrow, |this| this.w_full())
                             .when(!narrow, |this| this.w(px(228.)))
-                            .bg(colors.rail)
                             .border_r_1()
                             .border_color(colors.divider)
                             .child(div().px(px(11.)).py(px(10.)).text_xs().text_color(colors.muted).child("Explorer"))
@@ -775,7 +884,7 @@ impl Workbench {
                                     }),
                             )
                             .child(
-                                div().id("file-document").flex_1().min_h_0().min_w_0().overflow_hidden()
+                                colors.surface(div(), Surface::Editor).id("file-document").flex_1().min_h_0().min_w_0().overflow_hidden()
                                     .when_some(file, |this, file| {
                                         this.child(
                                             Input::new(&file.editor).w_full().h_full()
@@ -790,6 +899,7 @@ impl Workbench {
                             ),
                     )),
             )
+            .children(workspace_tools::render(self, colors, window, cx))
             .into_any_element()
     }
 }
@@ -864,9 +974,9 @@ fn message_row(role: &str, content: impl IntoElement, colors: Palette) -> impl I
             div()
                 .min_w_0()
                 .map(|this| {
-                    if role == "user" {
-                        this.bg(colors.raised)
-                            .rounded(px(7.))
+                    if role == "user" || colors.has_panel_material() {
+                        colors
+                            .surface(this, Surface::Message)
                             .px(px(12.))
                             .py(px(9.))
                     } else {

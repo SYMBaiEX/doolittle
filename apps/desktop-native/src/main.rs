@@ -1,6 +1,13 @@
+mod connections;
+mod control_plane;
 mod markdown_text;
+mod navigation;
+mod operations;
+mod session_transfer;
+mod themes;
 mod ui;
 mod workbench;
+mod workspace_tools;
 
 use std::path::PathBuf;
 
@@ -66,6 +73,7 @@ fn open_workbench(options: Options, cx: &mut App) -> Result<()> {
         },
         move |window, cx| {
             window.set_window_title("Doolittle");
+            themes::observe_window(window, cx);
             let view = cx.new(|cx| Workbench::new(options, window, cx));
             let workbench = view.downgrade();
             window.on_window_should_close(cx, move |window, cx| {
@@ -112,35 +120,38 @@ fn main() -> Result<()> {
     let Some(options) = options()? else {
         return Ok(());
     };
-    Application::new().run(move |cx: &mut App| {
-        gpui_component::init(cx);
-        Workbench::bind_keys(cx);
-        cx.on_action(|_: &QuitDoolittle, cx| cx.defer(request_quit));
-        let quit_key = if cfg!(target_os = "macos") {
-            "cmd-q"
-        } else {
-            "ctrl-q"
-        };
-        cx.bind_keys([KeyBinding::new(quit_key, QuitDoolittle, None)]);
-        cx.set_menus(vec![Menu {
-            name: "Doolittle".into(),
-            items: vec![MenuItem::action("Quit Doolittle", QuitDoolittle)],
-        }]);
-        match open_workbench(options, cx) {
-            Ok(()) => {
-                cx.on_window_closed(|cx| {
-                    if cx.windows().is_empty() {
-                        cx.quit();
-                    }
-                })
-                .detach();
-                cx.activate(true);
+    Application::new()
+        .with_assets(themes::ThemeAssets)
+        .run(move |cx: &mut App| {
+            gpui_component::init(cx);
+            themes::initialize(cx);
+            Workbench::bind_keys(cx);
+            cx.on_action(|_: &QuitDoolittle, cx| cx.defer(request_quit));
+            let quit_key = if cfg!(target_os = "macos") {
+                "cmd-q"
+            } else {
+                "ctrl-q"
+            };
+            cx.bind_keys([KeyBinding::new(quit_key, QuitDoolittle, None)]);
+            cx.set_menus(vec![Menu {
+                name: "Doolittle".into(),
+                items: vec![MenuItem::action("Quit Doolittle", QuitDoolittle)],
+            }]);
+            match open_workbench(options, cx) {
+                Ok(()) => {
+                    cx.on_window_closed(|cx| {
+                        if cx.windows().is_empty() {
+                            cx.quit();
+                        }
+                    })
+                    .detach();
+                    cx.activate(true);
+                }
+                Err(error) => {
+                    eprintln!("Could not open Doolittle: {error}");
+                    cx.quit();
+                }
             }
-            Err(error) => {
-                eprintln!("Could not open Doolittle: {error}");
-                cx.quit();
-            }
-        }
-    });
+        });
     Ok(())
 }

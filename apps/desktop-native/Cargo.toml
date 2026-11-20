@@ -7,10 +7,16 @@ publish = false
 [dependencies]
 anyhow = "1"
 async-channel = "2"
+base64 = "0.22"
 doolittle-host = { path = "../../crates/doolittle-host" }
 doolittle-runtime = { path = "../../crates/doolittle-runtime" }
+directories = "6"
 gpui = "=0.2.2"
 gpui-component = { version = "=0.5.1", default-features = false, features = ["tree-sitter-languages"] }
 markdown = "1"
+portable-pty = "0.9.0"
+serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+url = "2.5"
 uuid = { version = "1", features = ["v4"] }
+vt100 = "0.18.1"

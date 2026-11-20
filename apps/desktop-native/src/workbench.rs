@@ -4,7 +4,8 @@ use anyhow::Result;
 use async_channel::{Sender, bounded};
 use doolittle_host::{RuntimeSidecar, SidecarConfig};
 use doolittle_runtime::{
-    RuntimeClient, RuntimeError, SessionSummary, WorkspaceEntry, WorkspaceSaveOutcome,
+    MessageAttachment, RuntimeClient, RuntimeError, SessionSummary, WorkspaceEntry,
+    WorkspaceSaveOutcome,
 };
 use gpui::{
     App, AppContext, Context, Entity, KeyBinding, PathPromptOptions, PromptButton, PromptLevel,
@@ -15,24 +16,44 @@ use gpui_component::{
     highlighter::Language,
     input::{InputEvent, InputState},
 };
+use serde_json::Value;
 use uuid::Uuid;
 
-use crate::{Options, markdown_text};
+use crate::{
+    Options,
+    connections::{ConnectionsPage, ConnectionsState},
+    control_plane::ControlState,
+    markdown_text,
+    operations::{OperationsState, OpsPage},
+    session_transfer::TransferState,
+    workspace_tools::WorkspaceTools,
+};
 
 actions!(
     doolittle,
-    [SendMessage, NewConversation, AgentView, IdeView, SaveFile]
+    [
+        SendMessage,
+        NewConversation,
+        AgentView,
+        IdeView,
+        SaveFile,
+        OpenNavigation
+    ]
 );
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum View {
     Agent,
     Ide,
+    Operations(OpsPage),
+    Connections(ConnectionsPage),
 }
 
 pub struct Message {
     pub role: String,
     pub text: String,
+    pub attachments: Vec<MessageAttachment>,
+    pub wallet_activities: Vec<Value>,
 }
 
 pub struct ActiveRun {
@@ -43,6 +64,8 @@ pub struct ActiveRun {
     pub interrupted: bool,
     pub started: bool,
     pub cancelling: bool,
+    pub wallet_activities: Vec<Value>,
+    pub attachments: Vec<MessageAttachment>,
     cursor: u64,
     final_response: Option<String>,
 }
@@ -51,6 +74,8 @@ pub struct ActiveRun {
 pub struct Conversation {
     pub title: Option<String>,
     pub draft: String,
+    pub draft_attachments: Vec<MessageAttachment>,
+    pub choosing_attachments: bool,
     pub messages: Vec<Message>,
     pub active_run: Option<ActiveRun>,
     pub error: Option<String>,
@@ -60,6 +85,11 @@ pub struct Conversation {
     pub loaded: bool,
     pub has_earlier: bool,
     offset: usize,
+}
+
+struct OutgoingTurn {
+    prompt: String,
+    attachment_ids: Vec<String>,
 }
 
 #[derive(Default)]
@@ -93,6 +123,9 @@ impl OpenFile {
 struct LiveRuntime {
     _sidecar: RuntimeSidecar,
     client: RuntimeClient,
+    workspace: std::path::PathBuf,
+    #[cfg(unix)]
+    workspace_identity: (u64, u64),
 }
 
 enum RunUpdate {
@@ -103,6 +136,7 @@ enum RunUpdate {
         delta: Option<String>,
         final_response: Option<String>,
         status: Option<String>,
+        wallet_activities: Option<Vec<Value>>,
     },
     Interrupted {
         cursor: u64,
@@ -110,6 +144,7 @@ enum RunUpdate {
     },
     Completed {
         detail: Option<String>,
+        wallet_activities: Vec<Value>,
     },
 }
 
@@ -123,6 +158,7 @@ pub struct Workbench {
     pub explorer_open: bool,
     pub composer: gpui::Entity<InputState>,
     _composer_events: Subscription,
+    pub(crate) navigation_updates: Option<Subscription>,
     pub transcript_scroll: ScrollHandle,
     pub workspace: Workspace,
     workspace_epoch: u64,
@@ -132,6 +168,11 @@ pub struct Workbench {
     pub error: Option<String>,
     pub session_error: Option<String>,
     pub sessions_loading: bool,
+    pub(crate) controls: ControlState,
+    pub(crate) operations: OperationsState,
+    pub(crate) transfer: TransferState,
+    pub(crate) connections: ConnectionsState,
+    pub(crate) workspace_tools: WorkspaceTools,
     runtime: Option<LiveRuntime>,
 }
 
@@ -147,6 +188,7 @@ impl Workbench {
             KeyBinding::new(&format!("{modifier}-1"), AgentView, Some("Doolittle")),
             KeyBinding::new(&format!("{modifier}-2"), IdeView, Some("Doolittle")),
             KeyBinding::new(&format!("{modifier}-s"), SaveFile, Some("Doolittle")),
+            KeyBinding::new(&format!("{modifier}-k"), OpenNavigation, Some("Doolittle")),
         ]);
     }
 
@@ -179,6 +221,7 @@ impl Workbench {
             explorer_open: true,
             composer,
             _composer_events: composer_events,
+            navigation_updates: None,
             transcript_scroll: ScrollHandle::new(),
             workspace: Workspace::default(),
             workspace_epoch: 0,
@@ -188,6 +231,11 @@ impl Workbench {
             error: None,
             session_error: None,
             sessions_loading: false,
+            controls: ControlState::default(),
+            operations: OperationsState::default(),
+            transfer: TransferState::default(),
+            connections: ConnectionsState::default(),
+            workspace_tools: WorkspaceTools::default(),
             runtime: None,
         };
         this.connect(cx);
@@ -215,6 +263,23 @@ impl Workbench {
 
     pub fn needs_workspace(&self) -> bool {
         self.options.workspace.is_none()
+    }
+
+    pub(crate) fn selected_workspace(&self) -> Option<std::path::PathBuf> {
+        let runtime = self.runtime.as_ref()?;
+        let current = runtime.workspace.canonicalize().ok()?;
+        if current != runtime.workspace {
+            return None;
+        }
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::MetadataExt as _;
+            let identity = current.metadata().ok()?;
+            if runtime.workspace_identity != (identity.dev(), identity.ino()) {
+                return None;
+            }
+        }
+        Some(current)
     }
 
     pub fn choose_workspace(&mut self, cx: &mut Context<Self>) {
@@ -264,6 +329,10 @@ impl Workbench {
         self.runtime.is_some()
     }
 
+    pub(crate) fn runtime_client(&self) -> Option<RuntimeClient> {
+        self.runtime.as_ref().map(|runtime| runtime.client.clone())
+    }
+
     pub fn conversation(&self) -> &Conversation {
         &self.active[&self.selected]
     }
@@ -287,12 +356,23 @@ impl Workbench {
                     options.runtime_root.as_deref(),
                     options.offline,
                 )?
-                .with_workspace_saves();
+                .with_workspace_saves()
+                .with_controls();
+                let workspace = config.workspace().to_owned();
+                #[cfg(unix)]
+                let workspace_identity = {
+                    use std::os::unix::fs::MetadataExt as _;
+                    let identity = workspace.metadata()?;
+                    (identity.dev(), identity.ino())
+                };
                 let sidecar = RuntimeSidecar::launch(&config)?;
                 let client = RuntimeClient::new(sidecar.endpoint(), sidecar.token())?;
                 Ok(LiveRuntime {
                     _sidecar: sidecar,
                     client,
+                    workspace,
+                    #[cfg(unix)]
+                    workspace_identity,
                 })
             })();
             let _ = tx.send_blocking(result);
@@ -308,6 +388,7 @@ impl Workbench {
                         if this.view == View::Ide {
                             this.refresh_workspace(cx);
                         }
+                        this.refresh_destination(cx);
                     }
                     Err(error) => this.error = Some(error.to_string()),
                 }
@@ -334,11 +415,17 @@ impl Workbench {
     ) {
         if self.selected == id {
             self.sidebar_open = false;
+            if !matches!(self.view, View::Agent | View::Ide) {
+                self.set_view(View::Agent, window, cx);
+            }
             cx.notify();
             return;
         }
         self.after_discard(window, cx, move |this, window, cx| {
             this.switch_conversation(id, title, window, cx);
+            if !matches!(this.view, View::Agent | View::Ide) {
+                this.set_view(View::Agent, window, cx);
+            }
         });
     }
 
@@ -381,15 +468,37 @@ impl Workbench {
     }
 
     pub fn set_view(&mut self, view: View, window: &mut Window, cx: &mut Context<Self>) {
+        if self.view != view && matches!(self.view, View::Connections(_)) {
+            self.connections.clear_sensitive_drafts();
+        }
         self.view = view;
+        self.sidebar_open = false;
         if view == View::Ide {
             if self.workspace.loaded_for.as_deref() != Some(self.selected.as_str()) {
                 self.refresh_workspace(cx);
             }
-        } else {
+        } else if view == View::Agent {
             self.focus_composer(window, cx);
         }
+        self.refresh_destination(cx);
         cx.notify();
+    }
+
+    fn refresh_destination(&mut self, cx: &mut Context<Self>) {
+        if !self.ready() {
+            return;
+        }
+        let routes = match self.view {
+            View::Operations(page) => {
+                crate::operations::refresh(page, self, cx);
+                return;
+            }
+            View::Connections(page) => page.routes(),
+            View::Agent | View::Ide => return,
+        };
+        for path in routes {
+            self.control_get(path, cx);
+        }
     }
 
     pub fn focus_composer(&self, window: &mut Window, cx: &mut Context<Self>) {
@@ -447,6 +556,8 @@ impl Workbench {
                     .map(|received| Message {
                         role: received.role,
                         text: markdown_text::for_transcript(&received.text),
+                        attachments: received.attachments,
+                        wallet_activities: Vec::new(),
                     })
                     .collect::<Vec<_>>();
                 (messages, page.has_earlier, page.next_offset)
@@ -482,6 +593,87 @@ impl Workbench {
         cx.notify();
     }
 
+    pub(crate) fn choose_attachments(&mut self, cx: &mut Context<Self>) {
+        let Some(client) = self.runtime_client() else {
+            return;
+        };
+        let session = self.selected.clone();
+        let entry = self
+            .active
+            .get_mut(&session)
+            .expect("selected conversation");
+        if entry.choosing_attachments
+            || entry.active_run.is_some()
+            || entry.draft_attachments.len() >= 8
+        {
+            return;
+        }
+        entry.error = None;
+        entry.choosing_attachments = true;
+        let remaining = 8 - entry.draft_attachments.len();
+        let selection = cx.prompt_for_paths(PathPromptOptions {
+            files: true,
+            directories: false,
+            multiple: remaining > 1,
+            prompt: Some("Attach files".into()),
+        });
+        cx.spawn(async move |this, cx| {
+            let result = match selection.await {
+                Ok(Ok(Some(paths))) if !paths.is_empty() && paths.len() <= remaining => {
+                    let (tx, rx) = bounded(1);
+                    std::thread::spawn(move || {
+                        let _ = tx.send_blocking(client.import_attachments(&paths));
+                    });
+                    match rx.recv().await {
+                        Ok(Ok(attachments)) => Ok(attachments),
+                        Ok(Err(error)) => Err(error.to_string()),
+                        Err(_) => Err("Attachment import ended without a result.".into()),
+                    }
+                }
+                Ok(Ok(Some(paths))) if paths.len() > remaining => {
+                    Err(format!("Choose at most {remaining} more files."))
+                }
+                Ok(Err(error)) => Err(error.to_string()),
+                _ => Ok(Vec::new()),
+            };
+            let _ = this.update(cx, |this, cx| {
+                let Some(entry) = this.active.get_mut(&session) else {
+                    return;
+                };
+                entry.choosing_attachments = false;
+                match result {
+                    Ok(attachments) => {
+                        let total: u64 = entry
+                            .draft_attachments
+                            .iter()
+                            .chain(&attachments)
+                            .map(|file| file.size_bytes)
+                            .sum();
+                        if total <= 50 * 1024 * 1024 {
+                            entry.draft_attachments.extend(attachments);
+                        } else {
+                            entry.error = Some(
+                                "The selected files exceed the combined 50 MB message limit."
+                                    .into(),
+                            );
+                        }
+                    }
+                    Err(error) => entry.error = Some(error),
+                }
+                cx.notify();
+            });
+        })
+        .detach();
+        cx.notify();
+    }
+
+    pub(crate) fn remove_draft_attachment(&mut self, id: &str, cx: &mut Context<Self>) {
+        if let Some(entry) = self.active.get_mut(&self.selected) {
+            entry.draft_attachments.retain(|file| file.id != id);
+            cx.notify();
+        }
+    }
+
     pub fn send(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let Some(client) = self.runtime.as_ref().map(|runtime| runtime.client.clone()) else {
             return;
@@ -489,7 +681,11 @@ impl Workbench {
         let prompt = self.composer.read(cx).value().trim().to_owned();
         let id = self.selected.clone();
         let entry = self.active.get_mut(&id).expect("selected conversation");
-        if prompt.is_empty() || entry.active_run.is_some() || entry.loading_history {
+        if prompt.is_empty()
+            || entry.active_run.is_some()
+            || entry.loading_history
+            || entry.choosing_attachments
+        {
             return;
         }
         let run_id = Uuid::new_v4().to_string();
@@ -507,6 +703,8 @@ impl Workbench {
         entry.error = None;
         entry.recover_prompt = None;
         entry.loaded = true;
+        let attachments = std::mem::take(&mut entry.draft_attachments);
+        let attachment_ids = attachments.iter().map(|file| file.id.clone()).collect();
         entry.active_run = Some(ActiveRun {
             id: run_id.clone(),
             prompt: prompt.clone(),
@@ -515,13 +713,25 @@ impl Workbench {
             interrupted: false,
             started: false,
             cancelling: false,
+            wallet_activities: Vec::new(),
+            attachments,
             cursor: 0,
             final_response: None,
         });
         self.composer
             .update(cx, |input, cx| input.set_value("", window, cx));
         self.transcript_scroll.scroll_to_bottom();
-        self.follow_run(client, id, run_id, Some(prompt), 0, cx);
+        self.follow_run(
+            client,
+            id,
+            run_id,
+            Some(OutgoingTurn {
+                prompt,
+                attachment_ids,
+            }),
+            0,
+            cx,
+        );
         cx.notify();
     }
 
@@ -530,7 +740,7 @@ impl Workbench {
         client: RuntimeClient,
         session: String,
         run_id: String,
-        prompt: Option<String>,
+        outgoing: Option<OutgoingTurn>,
         cursor: u64,
         cx: &mut Context<Self>,
     ) {
@@ -538,7 +748,7 @@ impl Workbench {
         let worker_id = run_id.clone();
         let worker_session = session.clone();
         std::thread::spawn(move || {
-            drive_run(client, &worker_session, &worker_id, prompt, cursor, tx)
+            drive_run(client, &worker_session, &worker_id, outgoing, cursor, tx)
         });
         cx.spawn(async move |this, cx| {
             while let Ok(update) = rx.recv().await {
@@ -580,6 +790,7 @@ impl Workbench {
             RunUpdate::Rejected(error) => {
                 let run = entry.active_run.take().expect("current run");
                 entry.recover_prompt = Some(run.prompt);
+                entry.draft_attachments = run.attachments;
                 entry.error = Some(error);
             }
             RunUpdate::Progress {
@@ -587,6 +798,7 @@ impl Workbench {
                 delta,
                 final_response,
                 status,
+                wallet_activities,
             } => {
                 run.cursor = run.cursor.max(cursor);
                 if let Some(delta) = delta {
@@ -598,6 +810,9 @@ impl Workbench {
                 if let Some(status) = status {
                     run.status = status;
                 }
+                if let Some(wallet_activities) = wallet_activities {
+                    run.wallet_activities = wallet_activities;
+                }
             }
             RunUpdate::Interrupted { cursor, detail } => {
                 run.cursor = run.cursor.max(cursor);
@@ -605,17 +820,24 @@ impl Workbench {
                 run.interrupted = true;
                 run.cancelling = false;
             }
-            RunUpdate::Completed { detail } => {
+            RunUpdate::Completed {
+                detail,
+                wallet_activities,
+            } => {
                 let run = entry.active_run.take().expect("current run");
                 entry.messages.push(Message {
                     role: "user".into(),
                     text: markdown_text::for_transcript(&run.prompt),
+                    attachments: run.attachments,
+                    wallet_activities: Vec::new(),
                 });
                 let reply = run.final_response.unwrap_or(run.reply);
-                if !reply.trim().is_empty() {
+                if !reply.trim().is_empty() || !wallet_activities.is_empty() {
                     entry.messages.push(Message {
                         role: "assistant".into(),
                         text: markdown_text::for_transcript(&reply),
+                        attachments: Vec::new(),
+                        wallet_activities,
                     });
                 }
                 entry.error = detail;
@@ -1042,12 +1264,17 @@ fn drive_run(
     client: RuntimeClient,
     session: &str,
     run_id: &str,
-    prompt: Option<String>,
+    outgoing: Option<OutgoingTurn>,
     mut cursor: u64,
     tx: Sender<RunUpdate>,
 ) {
-    let accepted = match prompt {
-        Some(prompt) => match client.start_chat_with_id(session, &prompt, run_id) {
+    let accepted = match outgoing {
+        Some(outgoing) => match client.start_chat_with_attachments(
+            session,
+            &outgoing.prompt,
+            run_id,
+            &outgoing.attachment_ids,
+        ) {
             Ok(start) if start.run_id == run_id => Ok(()),
             Ok(_) => Err("The runtime returned a different run ID.".to_owned()),
             Err(error) => match client.run(run_id) {
@@ -1082,6 +1309,9 @@ fn drive_run(
             delta: event.delta().map(|delta| delta.to_string()),
             final_response: event.final_response().map(|text| text.to_string()),
             status,
+            wallet_activities: (event.kind == "agent.run")
+                .then(|| event.data.get("walletActivities")?.as_array().cloned())
+                .flatten(),
         })
         .is_ok()
     });
@@ -1093,7 +1323,10 @@ fn drive_run(
                     .or(receipt.status_detail)
                     .unwrap_or_else(|| format!("Run {}", receipt.status.as_str()))
             });
-            RunUpdate::Completed { detail }
+            RunUpdate::Completed {
+                detail,
+                wallet_activities: receipt.wallet_activities,
+            }
         }
         _ => RunUpdate::Interrupted {
             cursor,
