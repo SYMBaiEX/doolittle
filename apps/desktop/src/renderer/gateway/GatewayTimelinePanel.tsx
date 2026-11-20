@@ -224,11 +224,7 @@ export function GatewayTimelinePanel({
       <ol className={GATEWAY_TIMELINE_CLASS}>
         {visibleEntries.map((entry) => (
           <li
-            className={`${GATEWAY_ENTRY_CLASS} ${
-              entry.direction === "inbox"
-                ? "border-l-2 border-l-[color-mix(in_srgb,var(--accent)_72%,transparent)] pl-2.75"
-                : ""
-            }`}
+            className={GATEWAY_ENTRY_CLASS}
             key={`${entry.direction}:${entry.id}`}
           >
             <div className="flex flex-wrap items-center gap-1.75 [&>span:not(.badge)]:font-mono [&>span:not(.badge)]:text-[length:var(--text-control)] [&>span:not(.badge)]:text-[var(--muted)] [&>time]:font-mono [&>time]:text-[length:var(--text-control)] [&>time]:text-[var(--muted)]">

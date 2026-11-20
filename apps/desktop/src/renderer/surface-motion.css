@@ -20,15 +20,17 @@
     .composer-model-trigger,
     .composer-project-trigger
   ):focus-visible {
-  outline: none;
-  outline-width: 0;
-  box-shadow: inset 1px 0 0 var(--text-soft);
-  border-color: var(--text);
+  outline: 1px solid var(--focus-ring);
+  outline-offset: -1px;
+  box-shadow: none;
+  border-color: var(--border-strong);
   background-color: var(--surface-hover);
 }
 .desktop-shell .dl-field[aria-invalid="true"]:focus-visible {
   border-color: var(--bad);
-  box-shadow: inset 1px 0 0 var(--text-soft);
+  outline: 1px solid var(--bad);
+  outline-offset: -1px;
+  box-shadow: none;
 }
 @media (forced-colors: active) {
   .desktop-shell
@@ -50,7 +52,7 @@
     box-shadow: none;
   }
   .desktop-shell .dl-field[aria-invalid="true"]:focus-visible {
-    box-shadow: none;
+    outline-color: Highlight;
   }
 }
 .chat-history-notice {

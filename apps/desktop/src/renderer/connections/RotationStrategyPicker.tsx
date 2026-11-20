@@ -4,7 +4,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@elizaos/ui/components/ui/select";
+} from "@doolittle/ui";
 import type {
   AccountPoolProvider,
   AccountPoolStrategy,
@@ -58,15 +58,23 @@ export function RotationStrategyPicker({
       }}
     >
       <SelectTrigger id={`rotation-strategy-${providerId}`} className="w-40">
-        <SelectValue />
+        <SelectValue>
+          {strategies.find((option) => option.value === value)?.label}
+        </SelectValue>
       </SelectTrigger>
       <SelectContent>
         {strategies.map((option) => (
-          <SelectItem key={option.value} value={option.value}>
-            <span>{option.label}</span>
-            <small className="block text-[var(--muted)]">
-              {option.description}
-            </small>
+          <SelectItem
+            key={option.value}
+            textValue={option.label}
+            value={option.value}
+          >
+            <span className="grid gap-0.5">
+              <span>{option.label}</span>
+              <small className="text-[var(--muted)]">
+                {option.description}
+              </small>
+            </span>
           </SelectItem>
         ))}
       </SelectContent>
