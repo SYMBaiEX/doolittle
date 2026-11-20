@@ -13,8 +13,8 @@ import { parseEnv } from "./schema";
 const repoRoot = getDefaultRepoRoot();
 let declaresDatabaseUrl: boolean | undefined;
 
-export function loadApplicationEnv(): boolean {
-  if (declaresDatabaseUrl !== undefined) return declaresDatabaseUrl;
+export function loadApplicationEnv({ reload = false } = {}): boolean {
+  if (!reload && declaresDatabaseUrl !== undefined) return declaresDatabaseUrl;
   // Workers only receive settings approved by the desktop host.
   declaresDatabaseUrl =
     process.env.DOOLITTLE_BOT_RUNTIME !== "worker" &&

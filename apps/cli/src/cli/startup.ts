@@ -76,6 +76,7 @@ export function loadLocalRuntimeEnv(): void {
  * Returns true if onboarded, false if setup is still needed.
  */
 export function isOnboarded(): boolean {
+  loadApplicationEnv();
   const root = repoRoot();
   return existsSync(resolve(runtimeDataDir(root), "onboarding.json"));
 }
@@ -142,6 +143,8 @@ export async function ensureOnboarded(): Promise<void> {
       "No onboarding state found. Beginning first contact so I can finish setup.",
     );
     await runOnboardingWizard();
+    // The wizard runs in a child process and can create the repository .env.
+    loadApplicationEnv({ reload: true });
   } else {
     logger.warn("onboarding-missing-noninteractive");
     console.error(
