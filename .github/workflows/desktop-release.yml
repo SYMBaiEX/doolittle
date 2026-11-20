@@ -34,10 +34,8 @@ jobs:
           nub-version: 0.9.7
           node-version-file: .node-version
 
-      - name: Block releases with critical repository advisories
-        run: |
-          nub audit --production --audit-level critical
-          nub run check:runtime-advisory-policy
+      - name: Require zero production dependency advisories
+        run: nub run check:runtime-advisory-policy
 
   macos:
     needs: preflight

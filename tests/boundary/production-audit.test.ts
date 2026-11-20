@@ -1,7 +1,9 @@
 import { expect, it } from "vitest";
 import { parse } from "yaml";
-import { productionAuditScopes } from "../../scripts/audit-production";
-import { assertNoRuntimeAdvisories } from "../../scripts/check-runtime-advisory-policy";
+import {
+  assertNoRuntimeAdvisories,
+  productionAuditScopes,
+} from "../../scripts/audit-production";
 
 it("audits workspace production roots when the root package contains only tools", () => {
   const source = `lockfileVersion: '9.0'

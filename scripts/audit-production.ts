@@ -10,13 +10,46 @@ type Importer = {
   dependencies?: Record<string, LockedDependency>;
   optionalDependencies?: Record<string, LockedDependency>;
 };
+type ProductionAdvisory = {
+  severity?: string;
+  url?: string;
+  vulnerable_versions?: string;
+};
+type AdvisoryInventory = {
+  error?: unknown;
+  advisories?: Record<string, ProductionAdvisory>;
+};
 export interface ProductionAuditReport {
   error?: unknown;
-  advisories: Record<
-    string,
-    { severity?: string; url?: string; vulnerable_versions?: string }
-  >;
+  advisories: Record<string, ProductionAdvisory>;
   metadata: { dependencies: number; totalDependencies?: number };
+}
+
+function advisoryFindings(report: AdvisoryInventory): ProductionAdvisory[] {
+  if (
+    report.error ||
+    !report.advisories ||
+    typeof report.advisories !== "object" ||
+    Array.isArray(report.advisories)
+  ) {
+    throw new Error(
+      "Production audit did not provide a valid advisory inventory.",
+    );
+  }
+  return Object.values(report.advisories);
+}
+
+/** Release dependencies must be clean at every severity. */
+export function assertNoRuntimeAdvisories(report: AdvisoryInventory): void {
+  const findings = advisoryFindings(report);
+  if (findings.length) {
+    throw new Error(
+      `Production dependency advisories must be resolved: ${findings
+        .map((finding) => finding?.url ?? "INVALID-ADVISORY")
+        .sort()
+        .join(", ")}`,
+    );
+  }
 }
 
 /** Nub audits only the current lockfile importer. Preserve exact snapshots while
@@ -129,11 +162,8 @@ export function auditProductionWorkspaces(
           `Workspace production audit failed: ${result.error?.message ?? result.stderr.trim()}`,
         );
       const report = JSON.parse(result.stdout) as ProductionAuditReport;
-      if (
-        report.error ||
-        !report.advisories ||
-        !(report.metadata?.dependencies > 0)
-      )
+      advisoryFindings(report);
+      if (!(report.metadata?.dependencies > 0))
         throw new Error(
           "Production audit did not inspect a nonempty dependency graph.",
         );
@@ -147,17 +177,27 @@ export function auditProductionWorkspaces(
   });
 }
 
-if (import.meta.main) {
+function run(): void {
   const level = process.argv[2] ?? "critical";
   const levels = ["info", "low", "moderate", "high", "critical"];
-  if (!levels.includes(level)) throw new Error(`Invalid audit level: ${level}`);
-  const findings = auditProductionWorkspaces(process.cwd(), level)
-    .flatMap((report) => Object.values(report.advisories))
-    .filter(
-      (advisory) =>
-        levels.indexOf(advisory.severity ?? "critical") >=
-        levels.indexOf(level),
+  const strict = level === "all";
+  const cutoff = levels.indexOf(level);
+  if (!strict && cutoff < 0) throw new Error(`Invalid audit level: ${level}`);
+  const reports = auditProductionWorkspaces(
+    process.cwd(),
+    strict ? "low" : level,
+  );
+  if (strict) {
+    for (const report of reports) assertNoRuntimeAdvisories(report);
+    console.log(
+      "Production dependency audit clean: zero advisories at every severity.",
     );
+    return;
+  }
+  const findings = reports.flatMap(advisoryFindings).filter((advisory) => {
+    const severity = levels.indexOf(advisory?.severity ?? "");
+    return severity < 0 || severity >= cutoff;
+  });
   if (findings.length) {
     console.error(
       `${findings.length} production advisories at or above ${level}.`,
@@ -165,3 +205,5 @@ if (import.meta.main) {
     process.exitCode = 1;
   } else console.log(`No production advisories at or above ${level}.`);
 }
+
+if (import.meta.main) run();
