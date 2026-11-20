@@ -1,6 +1,6 @@
 import { ContextActionMenu } from "@doolittle/ui";
 import { FileStack, GitCompareArrows, Search } from "lucide-react";
-import { type FormEvent, useId } from "react";
+import { type FormEvent, type ReactNode, useId } from "react";
 import { PanelResizeHandle } from "../components/PanelResizeHandle";
 import { WorkspaceFileTree } from "../components/WorkspaceFileTree";
 import { copyContextText } from "../context-menu-clipboard";
@@ -17,8 +17,11 @@ import {
   CODING_CHANGE_PATH_CLASS,
   CODING_EXPLORER_CLASS,
   CODING_EXPLORER_RESIZER_CLASS,
+  CODING_EXPLORER_TABS_CLASS,
   CODING_PANE_BODY_CLASS,
   CODING_PANE_CLASS,
+  CODING_PANE_OVERLAY_CLASS,
+  CODING_PANE_TABS_CLASS,
   CODING_SEARCH_CLASS,
   CODING_SEARCH_MATCH_CLASS,
   CODING_SEARCH_PATH_CLASS,
@@ -39,6 +42,8 @@ import { PaneTabs, paneTabId } from "./PaneTabs";
 
 export function CodingWorkspaceExplorer({
   width,
+  dismissControl,
+  inert,
   resizeBounds = CODE_EXPLORER_WIDTH,
   onResize,
   leftPane,
@@ -58,6 +63,8 @@ export function CodingWorkspaceExplorer({
   contextScope = "",
 }: {
   width: number;
+  dismissControl?: ReactNode;
+  inert?: boolean;
   resizeBounds?: { default: number; min: number; max: number };
   onResize: (value: number) => void;
   leftPane: LeftPane;
@@ -80,34 +87,45 @@ export function CodingWorkspaceExplorer({
   const panelId = `coding-explorer-${useId().replace(/:/gu, "")}`;
   return (
     <aside
+      aria-label="Workspace explorer"
+      data-code-pane="explorer"
+      data-overlay={Boolean(dismissControl)}
       id={`${panelId}-container`}
-      className={`${CODING_PANE_CLASS} ${CODING_EXPLORER_CLASS}`}
+      inert={inert}
+      className={`${CODING_PANE_CLASS} ${CODING_PANE_OVERLAY_CLASS} ${CODING_EXPLORER_CLASS}`}
     >
-      <PanelResizeHandle
-        bounds={resizeBounds}
-        className={CODING_EXPLORER_RESIZER_CLASS}
-        controls={`${panelId}-container`}
-        direction="grow-right"
-        label="Resize code explorer"
-        onResize={onResize}
-        value={width}
-      />
-      <PaneTabs<LeftPane>
-        label="Explorer views"
-        options={[
-          { id: "files", label: "Files", icon: FileStack },
-          {
-            id: "changes",
-            label: "Changes",
-            count: changes.length,
-            icon: GitCompareArrows,
-          },
-          { id: "search", label: "Search", icon: Search },
-        ]}
-        panelId={panelId}
-        value={leftPane}
-        onChange={onLeftPaneChange}
-      />
+      {!dismissControl && (
+        <PanelResizeHandle
+          bounds={resizeBounds}
+          className={CODING_EXPLORER_RESIZER_CLASS}
+          controls={`${panelId}-container`}
+          direction="grow-right"
+          label="Resize code explorer"
+          onResize={onResize}
+          value={width}
+        />
+      )}
+      <div
+        className={`${CODING_PANE_TABS_CLASS} ${CODING_EXPLORER_TABS_CLASS}`}
+        data-compact={Boolean(dismissControl)}
+      >
+        <PaneTabs<LeftPane>
+          label="Explorer views"
+          options={[
+            { id: "files", label: "Files", icon: FileStack },
+            {
+              id: "changes",
+              label: "Changes",
+              icon: GitCompareArrows,
+            },
+            { id: "search", label: "Search", icon: Search },
+          ]}
+          panelId={panelId}
+          value={leftPane}
+          onChange={onLeftPaneChange}
+        />
+        {dismissControl}
+      </div>
 
       <div
         aria-labelledby={paneTabId(panelId, leftPane)}

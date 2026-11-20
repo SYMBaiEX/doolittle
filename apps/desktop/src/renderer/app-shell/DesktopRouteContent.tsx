@@ -11,7 +11,11 @@ import type {
   ChatContextHandoff,
   ChatContextRequest,
 } from "../chat-context-handoff";
-import { type ComputerOrigin, computerOriginKey } from "../computer-origin";
+import {
+  type ComputerOrigin,
+  computerOriginKey,
+  sameComputerOrigin,
+} from "../computer-origin";
 import { renderedViewForView, type View } from "../desktop-navigation";
 import type { DesktopNavigationIntent } from "../desktop-navigation-intent";
 import { type ApiResource, LoadingBlock } from "../lib";
@@ -45,7 +49,10 @@ export interface DesktopRouteNavigation {
   openSession: (sessionId: string) => void;
   chooseRepositoryForConversation: (
     targetSessionId?: string,
-  ) => void | Promise<void>;
+    destination?: "chat" | "code",
+    hasUnsavedChanges?: boolean,
+    expectedWorkspacePath?: string,
+  ) => Promise<BotConversationScope | undefined>;
   createConversation: () => void;
   startChatInProject: (
     projectId: string | null,
@@ -62,7 +69,7 @@ export interface DesktopRouteNavigation {
   consumeNavigationIntent: (id: string) => void;
   openChatWithContext: (request: ChatContextRequest) => Promise<boolean>;
   openProjectManager: () => void;
-  openWorkspaceFile: (path: string) => void;
+  openWorkspaceFile: (path: string, origin?: ComputerOrigin) => void;
 }
 
 export interface DesktopRouteContentProps {
@@ -98,12 +105,11 @@ export interface DesktopRouteContentProps {
   pendingNavigationIntent: DesktopNavigationIntent | null;
   pendingContextHandoff: ChatContextHandoff | null;
   onConsumeContextHandoff: (id: string) => void;
-  onChooseWorkspace: () => Promise<WorkspacePickResult>;
-  onOpenWorkspacePath: (path: string) => Promise<WorkspacePickResult>;
   onCodeWorkspaceDirtyChange?: (dirty: boolean) => void;
   codeEditingLocked: boolean;
   chatChromeHost: HTMLElement | null;
   chatRouteActive?: boolean;
+  routeVisible?: boolean;
   workspacePath: string;
   computerOrigin?: ComputerOrigin;
   approvalsResource: ApiResource<{ approvals?: unknown[] }>;
@@ -120,11 +126,10 @@ export function DesktopRouteContent({
   backend,
   chatChromeHost,
   chatRouteActive = true,
+  routeVisible = true,
   codeEditingLocked,
   navigation,
-  onChooseWorkspace,
   onConsumeContextHandoff,
-  onOpenWorkspacePath,
   onCodeWorkspaceDirtyChange,
   pendingApprovals,
   pendingContextHandoff,
@@ -153,12 +158,12 @@ export function DesktopRouteContent({
   computerOrigin,
 }: DesktopRouteContentProps): ReactNode {
   const routeCapabilities = desktopRouteCapabilities(view, backend.phase);
-  const active = routeCapabilities.apiRead;
+  const active = routeVisible && routeCapabilities.apiRead;
   const routeOwner = renderedViewForView(view);
   const Route = getDesktopRouteComponent(routeOwner);
   const focusScope = desktopRouteFocusScope(
     computerOrigin?.workspacePath ?? workspacePath,
-    projectScope,
+    routeOwner === "code" ? "all" : projectScope,
     routeOwner === "code" ? computerOriginKey(computerOrigin) : undefined,
   );
   const focusForScope = routeFocus.get(focusScope);
@@ -264,33 +269,59 @@ export function DesktopRouteContent({
             workspacePath={workspacePath}
           />
         );
-      case "code":
+      case "code": {
         if (!computerOrigin)
           return (
             <LoadingBlock label="Resolving this conversation’s Computer access…" />
           );
+        const chooseRepository = async (
+          hasUnsavedChanges?: boolean,
+          expectedWorkspacePath?: string,
+        ): Promise<WorkspacePickResult> => {
+          const conversation = await navigation.chooseRepositoryForConversation(
+            computerOrigin.originConversationId,
+            "code",
+            hasUnsavedChanges,
+            expectedWorkspacePath,
+          );
+          return {
+            canceled: !conversation,
+            state: {
+              currentPath:
+                conversation?.workspacePath ?? computerOrigin.workspacePath,
+              recentPaths: [],
+            },
+          };
+        };
         return (
           <Route
             active={active}
             editingLocked={codeEditingLocked}
             key={focusScope}
             origin={computerOrigin}
+            previewEvidenceAvailable={
+              computerOrigin.botId === defaultBotId ||
+              computerOrigin.botId === "default"
+            }
             focusState={focusForScope?.code}
             onFocusStateChange={(state: CodingWorkspaceFocusState) => {
               const current = routeFocus.get(focusScope) ?? {};
               routeFocus.set(focusScope, { ...current, code: state });
             }}
-            navigationIntent={pendingNavigationIntent}
-            onAcknowledgeNavigationIntent={navigation.consumeNavigationIntent}
-            onChooseWorkspace={
-              computerOrigin.workspacePath
-                ? onChooseWorkspace
-                : () =>
-                    navigation.chooseRepositoryForConversation(
-                      computerOrigin.originConversationId,
-                    )
+            navigationIntent={
+              pendingNavigationIntent?.kind === "workspace-file" &&
+              sameComputerOrigin(
+                pendingNavigationIntent.target.origin,
+                computerOrigin,
+              )
+                ? pendingNavigationIntent
+                : null
             }
-            onOpenWorkspacePath={onOpenWorkspacePath}
+            onAcknowledgeNavigationIntent={navigation.consumeNavigationIntent}
+            onChooseWorkspace={(dirty?: boolean) => chooseRepository(dirty)}
+            onOpenWorkspacePath={(path: string, dirty?: boolean) =>
+              chooseRepository(dirty, path)
+            }
             onOpenChatTerminal={navigation.openChatTerminal}
             onDirtyChange={onCodeWorkspaceDirtyChange}
             onSendToChat={navigation.openChatWithContext}
@@ -301,6 +332,7 @@ export function DesktopRouteContent({
             }
           />
         );
+      }
       case "orchestration": {
         const workScope = scopeForSession?.(selectedSession);
         const workOrigin =

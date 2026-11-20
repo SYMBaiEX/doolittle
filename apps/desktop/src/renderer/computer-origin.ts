@@ -94,3 +94,13 @@ export function computerOriginKey(origin?: ComputerOrigin): string {
     ? JSON.stringify([origin.botId, origin.originConversationId])
     : "";
 }
+
+export function sameComputerOrigin(
+  left?: ComputerOrigin,
+  right?: ComputerOrigin,
+): boolean {
+  return (
+    computerOriginKey(left) === computerOriginKey(right) &&
+    left?.workspacePath === right?.workspacePath
+  );
+}

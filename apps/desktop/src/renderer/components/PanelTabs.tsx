@@ -11,7 +11,12 @@ export function PanelTabs<T extends string>({
 }: {
   id: string;
   label: string;
-  items: readonly { id: T; label: ReactNode; panelId?: string }[];
+  items: readonly {
+    id: T;
+    label: ReactNode;
+    panelId?: string;
+    title?: string;
+  }[];
   selected: T;
   onSelect: (id: T) => void;
   variant?: "section" | "pane";

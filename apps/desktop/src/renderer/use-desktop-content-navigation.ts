@@ -12,6 +12,7 @@ import {
 } from "./chat-context-handoff";
 import type { CommandGroup } from "./components/CommandPalette";
 import type { ToastInput } from "./components/ToastRegion";
+import type { ComputerOrigin } from "./computer-origin";
 import type { View } from "./desktop-navigation";
 import {
   acknowledgeNavigationIntent,
@@ -50,6 +51,10 @@ export function createNavigationTransitionCoordinator(): NavigationTransitionCoo
 interface GlobalSearchNavigationActions {
   readonly openProjectManager: () => void;
   readonly openSession: (sessionId: string, projectId?: string) => void;
+  readonly openWorkspaceFile: (
+    path: string,
+    expectedWorkspacePath: string,
+  ) => Promise<void>;
   readonly pathsEqual: (left: string | undefined, right: string) => boolean;
   readonly selectProjectScope: (scope: ProjectScope) => void;
   readonly setNavigationIntent: (intent: DesktopNavigationIntent) => void;
@@ -79,10 +84,7 @@ export async function navigateGlobalSearchTarget(
       actions.openProjectManager();
       return;
     case "workspace":
-      actions.setView("code");
-      actions.setNavigationIntent(
-        createWorkspaceFileNavigationIntent(target.path),
-      );
+      await actions.openWorkspaceFile(target.path, actions.workspacePath);
       return;
     case "task": {
       if (
@@ -96,7 +98,7 @@ export async function navigateGlobalSearchTarget(
         if (!switched || !coordinator.isCurrent(transition)) return;
       }
       if (!coordinator.isCurrent(transition)) return;
-      actions.setView("orchestration");
+      if (actions.setView("orchestration") === false) return;
       actions.setNavigationIntent(
         createOrchestrationTaskNavigationIntent(target.taskId),
       );
@@ -204,6 +206,10 @@ export function resolveChatContextHandoff({
 }
 
 interface UseDesktopContentNavigationOptions {
+  readonly openWorkspaceFileOrigin: (
+    origin?: ComputerOrigin,
+    expectedWorkspacePath?: string,
+  ) => Promise<ComputerOrigin | undefined>;
   readonly openScopedContextChat?: (
     resolution: Extract<ChatContextHandoffResolution, { status: "ready" }>,
     onActivated: () => boolean,
@@ -239,6 +245,7 @@ interface UseDesktopContentNavigationOptions {
 }
 
 export function useDesktopContentNavigation({
+  openWorkspaceFileOrigin,
   openScopedContextChat,
   botIdForSession,
   backendReady,
@@ -264,6 +271,7 @@ export function useDesktopContentNavigation({
     useState<ChatContextHandoff | null>(null);
   const [pendingNavigationIntent, setPendingNavigationIntent] =
     useState<DesktopNavigationIntent | null>(null);
+  const fileNavigationRevision = useRef(0);
   const navigationCoordinatorRef =
     useRef<NavigationTransitionCoordinator | null>(null);
   navigationCoordinatorRef.current ??= createNavigationTransitionCoordinator();
@@ -375,16 +383,25 @@ export function useDesktopContentNavigation({
   }, []);
 
   const openWorkspaceFile = useCallback(
-    (path: string) => {
+    async (
+      path: string,
+      origin?: ComputerOrigin,
+      expectedWorkspacePath?: string,
+    ) => {
       const normalizedPath = path.trim();
       if (!normalizedPath) return;
+      const revision = ++fileNavigationRevision.current;
+      const openedOrigin = await openWorkspaceFileOrigin(
+        origin,
+        expectedWorkspacePath,
+      );
+      if (!openedOrigin || revision !== fileNavigationRevision.current) return;
       closeUtilities();
       setPendingNavigationIntent(
-        createWorkspaceFileNavigationIntent(normalizedPath),
+        createWorkspaceFileNavigationIntent(normalizedPath, openedOrigin),
       );
-      setView("code");
     },
-    [closeUtilities, setView],
+    [closeUtilities, openWorkspaceFileOrigin],
   );
 
   const globalSearch = useGlobalSearch(
@@ -397,6 +414,8 @@ export function useDesktopContentNavigation({
       void navigateGlobalSearchTarget(target, navigationCoordinator, {
         openProjectManager: () => setProjectManagerOpen(true),
         openSession,
+        openWorkspaceFile: (path, expectedWorkspacePath) =>
+          openWorkspaceFile(path, undefined, expectedWorkspacePath),
         pathsEqual,
         selectProjectScope,
         setNavigationIntent: setPendingNavigationIntent,
@@ -408,6 +427,7 @@ export function useDesktopContentNavigation({
     [
       navigationCoordinator,
       openSession,
+      openWorkspaceFile,
       pathsEqual,
       selectProjectScope,
       setProjectManagerOpen,

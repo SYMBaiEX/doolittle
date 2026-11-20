@@ -41,6 +41,16 @@ A late reply must not mutate a newly selected conversation. Revoke stale menus
 and intents when ownership changes. Closing a view removes presentation;
 execution stops only through the explicit runtime cancellation flow.
 
+The shell's Workbench view switch changes between Agent View and IDE View for the
+same conversation. The IDE uses the host-confirmed bot and workspace. Returning
+to Agent View keeps one editor mounted with its unsaved buffer and pauses its
+workspace requests. Confirm before replacing that editor with a different
+origin. Use **Change repository** in the IDE to open a new, separately scoped
+conversation once project access is confirmed. The IDE starts with a compact
+application sidebar. File navigation docks when space permits, and tools stay
+closed by default. At narrow widths the editor keeps its height while the
+explorer and tools open over the workspace.
+
 Workspace views keep the saved arrangement when the window temporarily requires
 one visible conversation. Canvas supports balanced side-by-side and stacked
 arrangements, nested splits, physical reordering, size balancing, and temporary

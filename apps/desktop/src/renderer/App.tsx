@@ -70,6 +70,10 @@ import {
   applyShellOverlayState,
   utilityReturnFocusTarget,
 } from "./app-shell/shell-overlay-state";
+import {
+  type WorkbenchView,
+  WorkbenchViewSwitch,
+} from "./app-shell/WorkbenchViewSwitch";
 import { BotCreationConversation } from "./bots/BotCreationConversation";
 import { BotCreationDialog } from "./bots/BotCreationDialog";
 import { shouldReportBotActivationFailure } from "./bots/bot-activation-feedback";
@@ -95,6 +99,7 @@ import {
   computerOriginKey,
   ensureComputerOriginOwnerBinding,
   resolveTerminalConversationOrigin,
+  sameComputerOrigin,
 } from "./computer-origin";
 import { observeContextMenuCopy } from "./context-menu-clipboard";
 import { newConversationId } from "./conversation-id";
@@ -110,6 +115,7 @@ import {
   renderedViewForView,
   resolveDesktopHash,
   type View,
+  workspaceName,
 } from "./desktop-navigation";
 import {
   loadStoredThemeManifest,
@@ -370,6 +376,11 @@ export function App() {
   }));
   const routeRef = useRef(route);
   const { view, computerOrigin } = route;
+  const renderedView = renderedViewForView(view);
+  const ideNavigation = renderedView === "code";
+  const [ideNavigationExpanded, setIdeNavigationExpanded] = useState(false);
+  const [parkedEditor, setParkedEditor] =
+    useState<DesktopNavigationEntry | null>(null);
   const [navigationHistory, setNavigationHistory] = useState(() =>
     createDesktopNavigationHistory(route),
   );
@@ -425,12 +436,12 @@ export function App() {
     currentPath: "",
     recentPaths: [],
   });
-  const [codeWorkspaceDirty, setCodeWorkspaceDirty] = useState(false);
+  const codeWorkspaceDirty = useRef(false);
+  const setCodeWorkspaceDirty = useCallback((dirty: boolean) => {
+    codeWorkspaceDirty.current = dirty;
+  }, []);
   const [codeEditingLocked, setCodeEditingLocked] = useState(false);
-  const restoreCodeDirtyAfterFailedWorkspaceTransition = useCallback(
-    () => setCodeWorkspaceDirty(codeWorkspaceDirty),
-    [codeWorkspaceDirty],
-  );
+
   const [chatSelection, setChatSelection] = useState({
     sessionId: initialConversation,
     interactiveSelection: false,
@@ -536,11 +547,11 @@ export function App() {
   }, []);
   useEffect(() => {
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
-      guardDirtyCodeWorkspaceClose(event, codeWorkspaceDirty);
+      guardDirtyCodeWorkspaceClose(event, codeWorkspaceDirty.current);
     };
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [codeWorkspaceDirty]);
+  }, []);
   const {
     toasts,
     push: pushToast,
@@ -698,7 +709,7 @@ export function App() {
   } = resolveUtilityPanelLayout({
     isMobileSidebarMode,
     utilityOpen,
-    navCollapsed,
+    navCollapsed: ideNavigation ? !ideNavigationExpanded : navCollapsed,
     canDockWithExpandedNavigation,
     canDockWithCollapsedNavigation,
     // Settings keeps its geometry; utilities become a sheet before borrowing
@@ -948,26 +959,23 @@ export function App() {
     return () => window.clearTimeout(timer);
   }, [chatTerminalMounted, chatTerminalOpen]);
 
-  const confirmViewChange = useCallback(
-    (next: View) => {
-      if (
-        primaryViewForView(routeRef.current.view) === "code" &&
-        primaryViewForView(next) !== "code" &&
-        !confirmDirtyNavigation({
-          dirty: codeWorkspaceDirty,
-          confirm: () =>
-            window.confirm(
-              "This coding workspace has unsaved edits. Leave and discard them?",
-            ),
-          discard: () => setCodeWorkspaceDirty(false),
-        })
-      ) {
-        return false;
-      }
-      return true;
-    },
-    [codeWorkspaceDirty],
-  );
+  const confirmViewChange = useCallback((next: View) => {
+    if (
+      primaryViewForView(routeRef.current.view) === "code" &&
+      primaryViewForView(next) !== "code" &&
+      !confirmDirtyNavigation({
+        dirty: codeWorkspaceDirty.current,
+        confirm: () =>
+          window.confirm(
+            "This coding workspace has unsaved edits. Leave and discard them?",
+          ),
+        discard: () => undefined,
+      })
+    ) {
+      return false;
+    }
+    return true;
+  }, []);
 
   const applyViewTransition = useCallback(
     (
@@ -982,7 +990,7 @@ export function App() {
       const computer = renderedViewForView(next) === "code";
       const wasComputer = renderedViewForView(previous.view) === "code";
       let origin = computer ? suppliedOrigin : undefined;
-      if (computer && wasComputer && previous.view !== next && !skipDirtyCheck)
+      if (computer && wasComputer && !skipDirtyCheck)
         origin ??= previous.computerOrigin;
       if (computer && !origin) {
         const owner = sessionBotId(
@@ -1003,17 +1011,20 @@ export function App() {
           };
         }
       }
-      const originChanged =
-        computerOriginKey(previous.computerOrigin) !==
-          computerOriginKey(origin) ||
-        previous.computerOrigin?.workspacePath !== origin?.workspacePath;
+      const originChanged = !sameComputerOrigin(
+        previous.computerOrigin,
+        origin,
+      );
+      const previousEditorOrigin = wasComputer
+        ? previous.computerOrigin
+        : parkedEditor?.computerOrigin;
       if (
         !skipDirtyCheck &&
         computer &&
-        wasComputer &&
-        originChanged &&
+        (wasComputer || parkedEditor) &&
+        !sameComputerOrigin(previousEditorOrigin, origin) &&
         !confirmDirtyNavigation({
-          dirty: codeWorkspaceDirty,
+          dirty: codeWorkspaceDirty.current,
           confirm: () =>
             window.confirm(
               "This coding workspace has unsaved edits. Change its owner and discard them?",
@@ -1027,6 +1038,7 @@ export function App() {
         routeRef.current = nextRoute;
         setRoute(nextRoute);
       }
+      if (computer && parkedEditor) setParkedEditor(null);
       void warmDesktopRoute(next, backend.phase, workspace.currentPath).catch(
         () => undefined,
       );
@@ -1046,7 +1058,8 @@ export function App() {
       localBotBindings,
       defaultBotId,
       scopeForSession,
-      codeWorkspaceDirty,
+      setCodeWorkspaceDirty,
+      parkedEditor,
     ],
   );
 
@@ -1071,6 +1084,117 @@ export function App() {
       return true;
     },
     [applyViewTransition, recordNavigation],
+  );
+
+  const openComputerView = useCallback(
+    async (next: View, origin?: ComputerOrigin) => {
+      const selectionAtRequest = { ...newChatNavigationRef.current };
+      const selectionToken = chatSelectionRevision.current;
+      const routeAtRequest = routeRef.current;
+      const stillCurrent = () =>
+        routeRef.current === routeAtRequest &&
+        selectionToken === chatSelectionRevision.current &&
+        newChatNavigationRef.current.revision === selectionAtRequest.revision &&
+        newChatNavigationRef.current.selectedSession ===
+          selectionAtRequest.selectedSession;
+      const scope = origin && scopeForSession(origin.originConversationId);
+      if (
+        !origin ||
+        scope?.kind !== "confirmed" ||
+        scope.conversation.botId !== origin.botId ||
+        scope.conversation.workspacePath !== origin.workspacePath
+      ) {
+        pushToast({
+          tone: "warning",
+          title: "Choose a workspace for this chat",
+          message:
+            "Open a chat in the intended repository, then switch to IDE View.",
+        });
+        return false;
+      }
+      const { projectId } = scope.conversation;
+      try {
+        await ensureComputerOriginOwnerBinding(origin, {
+          savedSessionIds: new Set(
+            sessions.map((session) => session.sessionId),
+          ),
+          localBotBindings,
+          projectId,
+          bind: async (botId, sessionId, boundProjectId) => {
+            const { conversation } =
+              await desktopRequest<BotConversationScopeResponse>(
+                `/bots/${encodeURIComponent(botId)}/conversations`,
+                "POST",
+                {
+                  sessionId,
+                  ...(boundProjectId ? { projectId: boundProjectId } : {}),
+                },
+              );
+            if (
+              conversation.botId !== botId ||
+              conversation.sessionId !== sessionId ||
+              conversation.workspacePath !== origin.workspacePath ||
+              conversation.projectId !== boundProjectId
+            )
+              throw new Error("Conversation scope changed");
+          },
+        });
+        if (!stillCurrent()) return false;
+        return setView(next, { computerOrigin: origin });
+      } catch {
+        if (stillCurrent())
+          pushToast({
+            tone: "error",
+            title: "IDE access could not be confirmed",
+            message: "Your chat was kept. Reopen it and try IDE View again.",
+          });
+        return false;
+      }
+    },
+    [localBotBindings, pushToast, scopeForSession, sessions, setView],
+  );
+
+  const changeWorkbenchView = useCallback(
+    (next: WorkbenchView) => {
+      const current = routeRef.current;
+      if (next === "ide") {
+        const origin = scopeForSession(selectedSession);
+        void openComputerView(
+          "code",
+          origin.kind === "confirmed"
+            ? {
+                botId: origin.conversation.botId,
+                originConversationId: selectedSession,
+                workspacePath: origin.conversation.workspacePath,
+              }
+            : undefined,
+        );
+        return;
+      }
+      if (renderedViewForView(current.view) !== "code") {
+        setView("chat");
+        return;
+      }
+      const origin = current.computerOrigin;
+      if (!origin?.workspacePath) {
+        setView("chat");
+        return;
+      }
+      // Keep the exact editor owner mounted, while its requests and shortcuts
+      // are suspended. A later editor for a different origin still checks dirtiness.
+      if (setView("chat", { skipDirtyCheck: true })) {
+        setParkedEditor(current);
+        if (origin.originConversationId !== selectedSession)
+          setSelectedSession(origin.originConversationId);
+      }
+    },
+    [
+      openComputerView,
+      scopeForSession,
+      selectedSession,
+      setSelectedSession,
+      setView,
+    ],
   );
 
   useEffect(() => {
@@ -1223,9 +1347,11 @@ export function App() {
       closeUtilities();
       return;
     }
-    setNavCollapsed((value) => !value);
+    if (ideNavigation) setIdeNavigationExpanded((value) => !value);
+    else setNavCollapsed((value) => !value);
   }, [
     closeUtilities,
+    ideNavigation,
     isMobileSidebarMode,
     mobileSidebarOpen,
     navigationAutoCollapsed,
@@ -1239,9 +1365,7 @@ export function App() {
   }, []);
 
   const {
-    chooseWorkspace,
     handleWorkspaceState,
-    openWorkspacePath,
     switchToRecentWorkspace,
     transitionToProjectScope,
   } = useWorkspaceProjectNavigation({
@@ -1249,7 +1373,6 @@ export function App() {
     confirmViewChange,
     createSessionId: newConversationId,
     setCodeEditingLocked,
-    restoreCodeDirtyAfterFailedWorkspaceTransition,
     pathsEqual,
     projects,
     projectScope,
@@ -1264,12 +1387,14 @@ export function App() {
     workspace,
     confirmWorkspaceChange: () =>
       confirmDirtyNavigation({
-        dirty: codeWorkspaceDirty,
+        dirty:
+          renderedViewForView(routeRef.current.view) === "code" &&
+          codeWorkspaceDirty.current,
         confirm: () =>
           window.confirm(
             "This coding workspace has unsaved edits. Change workspace and discard them?",
           ),
-        discard: () => setCodeWorkspaceDirty(false),
+        discard: () => undefined,
       }),
   });
 
@@ -1582,10 +1707,15 @@ export function App() {
   );
 
   const startChatInProject = useCallback(
-    async (projectId: string | null, sourceSessionId = selectedSession) => {
+    async (
+      projectId: string | null,
+      sourceSessionId = selectedSession,
+      destination: "chat" | "code" = "chat",
+      expectedWorkspacePath?: string,
+    ) => {
       if (newChatBusyRef.current)
         throw new Error("A chat is already being opened.");
-      if (!confirmViewChange("chat"))
+      if (destination === "chat" && !confirmViewChange("chat"))
         throw new Error("Navigation canceled; the current chat was kept.");
       const navigationAtChoice = { ...newChatNavigationRef.current };
       const botId = sessionBotId(
@@ -1606,7 +1736,12 @@ export function App() {
         if (
           response.conversation.sessionId !== sessionId ||
           response.conversation.botId !== botId ||
-          response.conversation.projectId !== (projectId ?? undefined)
+          response.conversation.projectId !== (projectId ?? undefined) ||
+          (expectedWorkspacePath &&
+            !pathsEqual(
+              response.conversation.workspacePath,
+              expectedWorkspacePath,
+            ))
         )
           throw new Error("Conversation scope mismatch");
         if (
@@ -1659,7 +1794,19 @@ export function App() {
         setSelectedSession(sessionId);
         setSelectedBotId(botId);
         setProjectScope(projectId ?? "unscoped");
-        setView("chat", { skipDirtyCheck: true });
+        setView(destination, {
+          skipDirtyCheck: true,
+          ...(destination === "code"
+            ? {
+                computerOrigin: {
+                  botId,
+                  originConversationId: sessionId,
+                  workspacePath: response.conversation.workspacePath,
+                },
+              }
+            : {}),
+        });
+        return response.conversation;
       } finally {
         newChatBusyRef.current = false;
       }
@@ -1719,6 +1866,33 @@ export function App() {
     pendingNavigationIntent,
     searchCommandGroups,
   } = useDesktopContentNavigation({
+    openWorkspaceFileOrigin: async (requestedOrigin, expectedWorkspacePath) => {
+      const scope = scopeForSession(selectedSession);
+      const origin =
+        requestedOrigin ??
+        routeRef.current.computerOrigin ??
+        (scope.kind === "confirmed"
+          ? {
+              botId: scope.conversation.botId,
+              originConversationId: selectedSession,
+              workspacePath: scope.conversation.workspacePath,
+            }
+          : undefined);
+      if (
+        expectedWorkspacePath &&
+        (!origin?.workspacePath ||
+          !pathsEqual(origin.workspacePath, expectedWorkspacePath))
+      ) {
+        pushToast({
+          tone: "warning",
+          title: "Open the chat for this repository first",
+          message:
+            "Workspace search and the current chat point to different folders.",
+        });
+        return undefined;
+      }
+      return (await openComputerView("code", origin)) ? origin : undefined;
+    },
     openScopedContextChat: async (resolution, onActivated) => {
       if (!confirmViewChange("chat")) return false;
       const selection = { ...newChatNavigationRef.current };
@@ -1796,6 +1970,19 @@ export function App() {
     botIdForSession: (id) =>
       sessionBotId(id, sessions, localBotBindings, defaultBotId),
   });
+
+  useEffect(() => {
+    if (
+      pendingNavigationIntent?.kind === "workspace-file" &&
+      (renderedViewForView(view) !== "code" ||
+        !sameComputerOrigin(
+          pendingNavigationIntent.target.origin,
+          computerOrigin,
+        ))
+    ) {
+      consumeNavigationIntent(pendingNavigationIntent.id);
+    }
+  }, [pendingNavigationIntent, computerOrigin, consumeNavigationIntent, view]);
 
   const botIdForSession = useCallback(
     (sessionId: string) =>
@@ -2177,7 +2364,6 @@ export function App() {
   );
 
   const navigationView = primaryViewForView(view);
-  const renderedView = renderedViewForView(view);
   const foregroundNamedBotId =
     nativeSelectionRestored && renderedView === "chat" && !botCreationOpen
       ? bots.find((bot) => bot.id === selectedSessionOwner && !bot.isDefault)
@@ -2326,7 +2512,11 @@ export function App() {
     return items.slice(0, 5);
   }, [scopedSessions, selectedSession]);
 
-  const routeContent = (routeView: View) => (
+  const routeContent = (
+    routeView: View,
+    routeOrigin = computerOrigin,
+    routeVisible = true,
+  ) => (
     <DesktopRouteContent
       activeProject={activeProject}
       approvalsResource={approvalsResource}
@@ -2336,7 +2526,32 @@ export function App() {
       chatRouteActive={chatRouteActive}
       codeEditingLocked={codeEditingLocked}
       navigation={{
-        chooseRepositoryForConversation,
+        chooseRepositoryForConversation: (
+          sessionId,
+          destination,
+          hasUnsavedChanges,
+          expectedWorkspacePath,
+        ) => {
+          if (
+            destination === "code" &&
+            (hasUnsavedChanges || codeWorkspaceDirty.current) &&
+            !window.confirm(
+              "This file has unsaved edits. Open a different repository and discard them?",
+            )
+          ) {
+            return Promise.resolve(undefined);
+          }
+          const revision = newChatNavigationRef.current.revision;
+          const currentRoute = routeRef.current;
+          return chooseRepositoryForConversation(
+            sessionId,
+            destination,
+            () =>
+              routeRef.current === currentRoute &&
+              newChatNavigationRef.current.revision === revision,
+            expectedWorkspacePath,
+          );
+        },
         consumeNavigationIntent,
         createConversation,
         startChatInProject: async (projectId, sourceSessionId) => {
@@ -2357,67 +2572,10 @@ export function App() {
         openWorkspaceFile,
         selectSession: setSelectedSession,
         setView,
-        openComputerView: (next, origin) => {
-          if (!origin) {
-            pushToast({
-              tone: "error",
-              title: "Computer is unavailable",
-              message: "Select a bot conversation before opening Computer.",
-            });
-            return;
-          }
-          const originScope = scopeForSession(origin.originConversationId);
-          if (
-            originScope.kind !== "confirmed" ||
-            origin.workspacePath !== originScope.conversation.workspacePath
-          ) {
-            pushToast({
-              tone: "error",
-              title: "Computer is unavailable",
-              message:
-                "This chat has no confirmed workspace. Start a new chat in the intended project.",
-            });
-            return;
-          }
-          const projectId = originScope.conversation.projectId;
-          void ensureComputerOriginOwnerBinding(origin, {
-            savedSessionIds: new Set(
-              sessions.map((session) => session.sessionId),
-            ),
-            localBotBindings,
-            ...(projectId ? { projectId } : {}),
-            bind: async (botId, sessionId, boundProjectId) => {
-              const response =
-                await desktopRequest<BotConversationScopeResponse>(
-                  `/bots/${encodeURIComponent(botId)}/conversations`,
-                  "POST",
-                  {
-                    sessionId,
-                    ...(boundProjectId ? { projectId: boundProjectId } : {}),
-                  },
-                );
-              if (
-                response.conversation.workspacePath !== origin.workspacePath ||
-                response.conversation.projectId !== boundProjectId
-              )
-                throw new Error("Conversation scope changed");
-            },
-          })
-            .then(() => setView(next, { computerOrigin: origin }))
-            .catch(() => {
-              pushToast({
-                tone: "error",
-                title: "Computer is unavailable",
-                message:
-                  "This draft’s bot ownership could not be confirmed. The draft was kept.",
-              });
-            });
-        },
+        openComputerView,
         transitionToProjectScope,
       }}
-      onChooseWorkspace={chooseWorkspace}
       onConsumeContextHandoff={consumeChatContext}
-      onOpenWorkspacePath={openWorkspacePath}
       onCodeWorkspaceDirtyChange={setCodeWorkspaceDirty}
       pendingApprovals={pendingApprovals}
       pendingContextHandoff={pendingChatContext}
@@ -2448,8 +2606,9 @@ export function App() {
       onCaptureSessionProject={captureSessionProject}
       onActivateBot={activateBot}
       view={routeView}
+      routeVisible={routeVisible}
       workspacePath={workspace.currentPath}
-      computerOrigin={computerOrigin}
+      computerOrigin={routeOrigin}
     />
   );
   const chatRouteActive = renderedView === "chat" && !botCreationOpen;
@@ -2457,6 +2616,44 @@ export function App() {
   // that owner mounted while Settings, Code, or another route is visible so a
   // route transition cannot turn ordinary navigation into an interrupted run.
   const persistentChatView: View = chatRouteActive ? view : "chat";
+  const editorVisible = renderedView === "code";
+  const editorRoute = editorVisible ? route : parkedEditor;
+  const renderSecondaryRoute = (
+    entry: DesktopNavigationEntry,
+    visible: boolean,
+  ) => {
+    const owner = renderedViewForView(entry.view);
+    const label = labelForView(entry.view) ?? "View";
+    return (
+      <div
+        aria-hidden={!visible}
+        className={`${VIEW_CONTAINER_CLASS} view-${entry.view}${
+          owner === "code" || owner === "orchestration"
+            ? ` ${VIEW_CONTAINER_WORKSPACE_CLASS}`
+            : ""
+        }`}
+        data-view={visible ? entry.view : undefined}
+        data-view-owner={owner}
+        hidden={!visible}
+        inert={!visible}
+        key={owner}
+      >
+        <DesktopRouteErrorBoundary
+          label={label}
+          onReturnToChat={() => setView("chat")}
+          onRetry={() => {
+            resetDesktopRoute(owner);
+            setRouteRetryNonce((current) => current + 1);
+          }}
+          resetKey={`${entry.view}\u0000${owner === "code" ? "" : projectScope}\u0000${entry.computerOrigin?.workspacePath ?? workspace.currentPath}\u0000${computerOriginKey(entry.computerOrigin)}\u0000${routeRetryNonce}`}
+        >
+          <Suspense fallback={<DesktopRouteLoadingFallback label={label} />}>
+            {routeContent(entry.view, entry.computerOrigin, visible)}
+          </Suspense>
+        </DesktopRouteErrorBoundary>
+      </div>
+    );
+  };
 
   return (
     <WorkspaceShell
@@ -2499,7 +2696,9 @@ export function App() {
             navCollapsed={
               isMobileSidebarMode ? !mobileSidebarOpen : effectiveNavCollapsed
             }
-            onChooseRepository={chooseRepositoryForConversation}
+            onChooseRepository={() => {
+              void chooseRepositoryForConversation();
+            }}
             onClose={() => {
               setPaletteOpen(false);
               setPaletteQuery("");
@@ -2657,6 +2856,12 @@ export function App() {
               forceVisible={canvasLayout}
               onOpen={openSidebarForMobile}
             />
+            {(chatRouteActive || editorVisible) && (
+              <WorkbenchViewSwitch
+                view={editorVisible ? "ide" : "agent"}
+                onChange={changeWorkbenchView}
+              />
+            )}
             <div
               className={`${WINDOW_CONTEXT_CLASS} flex min-w-0 items-center gap-2 [-webkit-app-region:no-drag]`}
             >
@@ -2683,6 +2888,14 @@ export function App() {
                     {currentRouteLabel}
                   </span>
                 ) : null}
+                {editorVisible && computerOrigin?.workspacePath ? (
+                  <span
+                    className="truncate text-sm text-[var(--muted)]"
+                    title={computerOrigin.workspacePath}
+                  >
+                    {workspaceName(computerOrigin.workspacePath)}
+                  </span>
+                ) : null}
               </div>
             </div>
             <span aria-live="polite" className="sr-only">
@@ -2702,7 +2915,7 @@ export function App() {
                   <DesktopWindowTools
                     onOpenSettings={() => setView("settings")}
                     backend={backend}
-                    compactCommand={false}
+                    compactCommand={editorVisible}
                     onOpenPalette={openCommandPalette}
                     onRefresh={() => void refreshWithFeedback()}
                     onToggleUtilities={toggleUtilities}
@@ -2768,38 +2981,10 @@ export function App() {
             </Suspense>
           </DesktopRouteErrorBoundary>
         </div>
-        {renderedView !== "chat" ? (
-          <div
-            className={`${VIEW_CONTAINER_CLASS} view-${view}${
-              ["code", "orchestration"].includes(renderedView)
-                ? ` ${VIEW_CONTAINER_WORKSPACE_CLASS}`
-                : ""
-            }`}
-            data-view={view}
-            data-view-owner={renderedView}
-            key={renderedView}
-          >
-            <DesktopRouteErrorBoundary
-              label={activeItem?.label ?? "View"}
-              onReturnToChat={() => setView("chat")}
-              onRetry={() => {
-                resetDesktopRoute(renderedView);
-                setRouteRetryNonce((current) => current + 1);
-              }}
-              resetKey={`${view}\u0000${projectScope}\u0000${workspace.currentPath}\u0000${routeRetryNonce}`}
-            >
-              <Suspense
-                fallback={
-                  <DesktopRouteLoadingFallback
-                    label={activeItem?.label ?? "view"}
-                  />
-                }
-              >
-                {routeContent(view)}
-              </Suspense>
-            </DesktopRouteErrorBoundary>
-          </div>
-        ) : null}
+        {editorRoute ? renderSecondaryRoute(editorRoute, editorVisible) : null}
+        {renderedView !== "chat" && !editorVisible
+          ? renderSecondaryRoute(route, true)
+          : null}
         {chatTerminalMounted ? (
           <Suspense fallback={null}>
             <ChatTerminalPanel

@@ -95,8 +95,8 @@ export function ReviewPage({
   computerOrigin?: ComputerOrigin;
   /** Optional immutable bot/conversation origin supplied by the owning host. */
   contextScope?: string;
-  onOpenWorkspaceFile?: (path: string) => void;
-  onSendToChat: (request: ChatContextRequest) => void;
+  onOpenWorkspaceFile?: (path: string, origin: ComputerOrigin) => void;
+  onSendToChat: (request: ChatContextRequest) => Promise<boolean>;
   projectScope: string;
   workspacePath: string;
 }) {
@@ -517,14 +517,19 @@ export function ReviewPage({
 
   const sendReviewFeedback = async () => {
     if (!active || !repositoryOrigin || openCommentCount === 0) return;
-    onSendToChat({
-      text: compileReviewFeedback({
-        identity: commentIdentity,
-        comments,
-      }),
-      workspacePath,
+    const accepted = await onSendToChat({
+      text: compileReviewFeedback({ identity: commentIdentity, comments }),
+      workspacePath: repositoryOrigin.workspacePath,
       projectScope,
-    });
+      origin: repositoryOrigin,
+    }).catch(() => false);
+    if (!accepted) {
+      setFeedback({
+        tone: "warn",
+        message: "Review feedback was kept. The original chat did not open.",
+      });
+      return;
+    }
     try {
       applyDurableRecord(
         await desktopRequest<ReviewRecordResponse>(
@@ -733,16 +738,17 @@ export function ReviewPage({
             commentEditorRef={commentEditorRef}
             editingCommentId={editingCommentId}
             onAskDoolittle={() => {
-              if (!selected?.path) return;
-              onSendToChat({
+              if (!repositoryOrigin || !selected?.path) return;
+              void onSendToChat({
                 text: [
                   `Review and improve the change in ${selected.path}.`,
                   `<review_context path="${selected.path}">`,
                   (patch.data?.patch?.patch ?? "").slice(0, 12_000),
                   "</review_context>",
                 ].join("\n"),
-                workspacePath,
+                workspacePath: repositoryOrigin.workspacePath,
                 projectScope,
+                origin: repositoryOrigin,
               });
             }}
             onCancelComment={cancelComment}
@@ -750,8 +756,8 @@ export function ReviewPage({
             onDelete={(commentId) => void deleteComment(commentId)}
             onDraftChange={setCommentDraft}
             onOpenWorkspace={() => {
-              if (selected?.path) {
-                onOpenWorkspaceFile?.(selected.path);
+              if (repositoryOrigin && selected?.path) {
+                onOpenWorkspaceFile?.(selected.path, repositoryOrigin);
               }
             }}
             onSaveComment={() => void saveComment()}

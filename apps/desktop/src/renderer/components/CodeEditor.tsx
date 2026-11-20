@@ -21,6 +21,7 @@ import {
 import { doolittleEditorTheme } from "./code-editor-theme";
 
 const DOOLITTLE_EDITOR_THEME = "doolittle-ember";
+const MINIMAP_MIN_WIDTH = 720;
 const editorLogger = createLogger({
   namespace: "doolittle.desktop.code-editor",
   __forceType: "browser",
@@ -199,6 +200,7 @@ export function CodeEditor({
       originConversationId,
     );
     const model = monaco.editor.createModel(valueRef.current, language.id, uri);
+    let minimapVisible = !compact && host.clientWidth >= MINIMAP_MIN_WIDTH;
     const editor = monaco.editor.create(host, {
       model,
       theme: DOOLITTLE_EDITOR_THEME,
@@ -209,7 +211,7 @@ export function CodeEditor({
       cursorSmoothCaretAnimation: "on",
       fontFamily: "var(--font-mono)",
       fontLigatures: true,
-      fontSize: compact ? 11 : 12,
+      fontSize: compact ? 11 : 13,
       folding: true,
       foldingHighlight: true,
       glyphMargin: false,
@@ -221,13 +223,13 @@ export function CodeEditor({
       lineHeight: compact ? 18 : 20,
       lineNumbersMinChars: compact ? 2 : 3,
       minimap: {
-        enabled: !compact,
+        enabled: minimapVisible,
         maxColumn: 90,
         renderCharacters: false,
         scale: 1,
         showSlider: "mouseover",
       },
-      padding: compact ? { top: 8, bottom: 16 } : { top: 12, bottom: 32 },
+      padding: compact ? { top: 8, bottom: 16 } : { top: 8, bottom: 20 },
       readOnly: disabledRef.current,
       domReadOnly: disabledRef.current,
       renderLineHighlight: "line",
@@ -286,9 +288,15 @@ export function CodeEditor({
       editor.onDidFocusEditorText(scheduleState),
       editor.onDidBlurEditorText(scheduleState),
       editor.onDidScrollChange(scheduleState),
+      editor.onDidLayoutChange(({ width }) => {
+        const visible = !compact && width >= MINIMAP_MIN_WIDTH;
+        if (minimapVisible === visible) return;
+        minimapVisible = visible;
+        editor.updateOptions({ minimap: { enabled: visible } });
+      }),
     ];
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
-      emitSave();
+      if (!disabledRef.current) emitSave();
     });
     editorRef.current = editor;
     modelRef.current = model;
@@ -503,19 +511,19 @@ export function CodeEditor({
   );
 
   return (
-    <div className="doolittle-code-editor absolute inset-0 min-h-0 min-w-0 overflow-hidden bg-[var(--canvas-bg)]">
+    <div className="doolittle-code-editor absolute inset-0 flex min-h-0 min-w-0 flex-col overflow-hidden bg-[var(--canvas-bg)]">
       <div
-        className="absolute inset-0 [&_.margin]:!bg-[var(--canvas-bg)] [&_.monaco-editor-background]:!bg-[var(--canvas-bg)] [&_.monaco-editor]:!bg-[var(--canvas-bg)] [&_.sticky-widget]:!border-b [&_.sticky-widget]:!border-[var(--canvas-border)] [&_.sticky-widget]:!shadow-[var(--shell-shadow-md)] [&_.monaco-hover]:!rounded-[var(--radius-xs)] [&_.monaco-hover]:!shadow-[var(--shell-shadow-lg)] [&_.suggest-widget]:!rounded-[var(--radius-xs)] [&_.suggest-widget]:!shadow-[var(--shell-shadow-lg)]"
+        className="relative min-h-0 min-w-0 flex-1 [&_.margin]:!bg-[var(--canvas-bg)] [&_.monaco-editor-background]:!bg-[var(--canvas-bg)] [&_.monaco-editor]:!bg-[var(--canvas-bg)] [&_.sticky-widget]:!border-b [&_.sticky-widget]:!border-[var(--canvas-border)] [&_.sticky-widget]:!shadow-[var(--shell-shadow-md)] [&_.monaco-hover]:!rounded-[var(--radius-xs)] [&_.monaco-hover]:!shadow-[var(--shell-shadow-lg)] [&_.suggest-widget]:!rounded-[var(--radius-xs)] [&_.suggest-widget]:!shadow-[var(--shell-shadow-lg)]"
         ref={hostRef}
       />
       {projectSupportNotice ? (
-        <div
-          className="absolute right-2 bottom-2 z-5 flex min-h-6 items-center gap-2 rounded-[var(--radius-xs)] border border-[var(--canvas-border)] bg-[color-mix(in_srgb,var(--canvas-bg)_94%,var(--canvas-text))] px-2 py-1 font-[var(--font-mono)] text-[length:var(--text-meta)] leading-[var(--line-meta)] text-[var(--canvas-text-soft)] shadow-[var(--shell-shadow-md)]"
-          role="status"
-        >
-          <span>{projectSupportNotice}</span>
+        <div className="flex min-h-7 min-w-0 shrink-0 items-center justify-end gap-2 border-[var(--canvas-border)] border-t px-2 font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--canvas-text-soft)]">
+          <span className="truncate" role="status" title={projectSupportNotice}>
+            {projectSupportNotice}
+          </span>
           <button
-            className="border-0 bg-transparent p-0 font-inherit text-[var(--accent)]"
+            aria-label="Reload project types"
+            className="min-h-6 shrink-0 rounded-[var(--radius-xs)] border-0 bg-transparent px-1.5 text-[var(--accent-text)] hover:bg-[var(--surface-hover)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--focus-ring)]"
             onClick={() => setProjectSupportRefresh((value) => value + 1)}
             type="button"
           >

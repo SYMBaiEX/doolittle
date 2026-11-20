@@ -6,6 +6,7 @@ interface PanelTab<T> {
   label: ReactNode;
   buttonId: string;
   panelId: string;
+  title?: string;
 }
 
 export function PanelTabList<T extends string>({
@@ -38,6 +39,7 @@ export function PanelTabList<T extends string>({
               className={`focus-visible:ring-0 focus-visible:ring-offset-0 data-[state=active]:bg-transparent data-[state=active]:text-inherit ${tabClassName}`}
               id={item.buttonId}
               key={item.id}
+              title={item.title}
               // Radix handles focus. Native click also covers touch, keyboard,
               // and assistive activation without selecting on pointer press.
               onClick={(event) => {

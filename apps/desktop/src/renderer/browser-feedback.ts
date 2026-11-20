@@ -1,20 +1,16 @@
 import { hasRenderedBrowserEvidence } from "@doolittle/contracts/browser";
-import { getBrowserEvidenceMetadata } from "./browser-result-model";
+import {
+  type BrowserResult,
+  getBrowserEvidenceMetadata,
+} from "./browser-result-model";
 import { escapeXml } from "./xml-escape";
 
 export const BROWSER_FEEDBACK_COMMENT_LIMIT = 2_000;
 export const BROWSER_FEEDBACK_CONTEXT_LIMIT = 8_000;
 
-export interface BrowserEvidenceResult {
-  action: string;
-  title: string;
-  payload: unknown;
-}
-
 export interface BrowserEvidenceContextInput {
-  result: BrowserEvidenceResult;
-  url: string;
-  viewport: string;
+  result: BrowserResult;
+  viewportNote?: string;
   comment?: string;
   selector?: string;
   region?: string;
@@ -41,7 +37,7 @@ export function compileBrowserEvidenceContext(
 ): string {
   const limit = Math.max(1_000, input.limit ?? BROWSER_FEEDBACK_CONTEXT_LIMIT);
   const metadata = getBrowserEvidenceMetadata(input.result.payload);
-  const url = bounded(input.url || metadata.url, 140);
+  const url = bounded(metadata.url || input.result.requestedUrl, 140);
   const title = bounded(metadata.pageTitle, 120);
   const captureMode = bounded(metadata.captureMode, 60);
   const hasPixelEvidence = hasRenderedBrowserEvidence(metadata);
@@ -49,7 +45,7 @@ export function compileBrowserEvidenceContext(
     `action="${escapedBounded(input.result.action, 60)}"`,
     `title="${escapedBounded(input.result.title, 100)}"`,
     `url="${escapedBounded(url, 140)}"`,
-    `viewport="${escapedBounded(input.viewport, 40)}"`,
+    `preview_size="${escapedBounded(input.result.previewSize, 40)}"`,
     `capture_mode="${escapedBounded(captureMode, 60)}"`,
     `pixel_evidence="${hasPixelEvidence ? "available" : "false"}"`,
   ];
@@ -69,6 +65,8 @@ export function compileBrowserEvidenceContext(
     length += block.length;
   };
   append("page_title", title, 300);
+  append("comparison_url", input.result.comparisonUrl ?? "", 500);
+  append("viewport_note", input.viewportNote ?? "", 500);
   append(
     "capture",
     hasPixelEvidence

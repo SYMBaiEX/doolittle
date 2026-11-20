@@ -32,7 +32,7 @@ export function PaneTabs<T extends string>({
         label: (
           <>
             {option.icon ? <UiIcon icon={option.icon} size="xs" /> : null}
-            {option.label}
+            <span className="coding-tab-label">{option.label}</span>
             {option.count === undefined ? null : (
               <span className="text-xs text-[var(--muted)] tabular-nums">
                 {option.count}
@@ -40,6 +40,7 @@ export function PaneTabs<T extends string>({
             )}
           </>
         ),
+        title: option.label,
       }))}
       selected={value}
       onSelect={onChange}

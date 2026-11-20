@@ -5,7 +5,7 @@ import type {
   RepositoryStash,
 } from "@doolittle/contracts/repository";
 import { GitBranch, GitCommit, GitFork, SquareTerminal } from "lucide-react";
-import { useId } from "react";
+import { type ReactNode, useId } from "react";
 import type { WorkspacePickResult } from "../../shared/contracts";
 import { ExecutionEnvironmentPanel } from "../components/ExecutionEnvironmentPanel";
 import {
@@ -27,6 +27,8 @@ import {
   CODING_COMMIT_SUBJECT_CLASS,
   CODING_PANE_BODY_CLASS,
   CODING_PANE_CLASS,
+  CODING_PANE_OVERLAY_CLASS,
+  CODING_PANE_TABS_CLASS,
   CODING_UTILITY_CLASS,
   CODING_UTILITY_RESIZER_CLASS,
 } from "./layout";
@@ -51,6 +53,7 @@ export function CodingWorkspaceUtility({
   utilityPane,
   onUtilityPaneChange,
   width,
+  dismissControl,
   resizeBounds = CODE_UTILITY_WIDTH,
   onResize,
   commits,
@@ -73,6 +76,7 @@ export function CodingWorkspaceUtility({
   utilityPane: UtilityPane;
   onUtilityPaneChange: (value: UtilityPane) => void;
   width: number;
+  dismissControl?: ReactNode;
   resizeBounds?: { default: number; min: number; max: number };
   onResize: (value: number) => void;
   commits: CommitRow[];
@@ -93,45 +97,53 @@ export function CodingWorkspaceUtility({
   const panelId = `coding-utility-${useId().replace(/:/gu, "")}`;
   return (
     <aside
+      aria-label="Workspace tools"
+      data-code-pane="utility"
+      data-overlay={Boolean(dismissControl)}
       id={`${panelId}-container`}
-      className={`${CODING_PANE_CLASS} ${CODING_UTILITY_CLASS}`}
+      className={`${CODING_PANE_CLASS} ${CODING_PANE_OVERLAY_CLASS} ${CODING_UTILITY_CLASS}`}
     >
-      <PanelResizeHandle
-        bounds={resizeBounds}
-        className={CODING_UTILITY_RESIZER_CLASS}
-        controls={`${panelId}-container`}
-        direction="grow-left"
-        label="Resize code utility panel"
-        onResize={onResize}
-        value={width}
-      />
-      <PaneTabs<UtilityPane>
-        label="Workspace utilities"
-        options={[
-          { id: "terminal", label: "Shell", icon: SquareTerminal },
-          {
-            id: "commits",
-            label: "Log",
-            count: commits.length,
-            icon: GitCommit,
-          },
-          {
-            id: "source-control",
-            label: "Git",
-            count: changes.length,
-            icon: GitBranch,
-          },
-          {
-            id: "worktrees",
-            label: "Trees",
-            count: asArray(worktreeResource.data?.worktrees).length,
-            icon: GitFork,
-          },
-        ]}
-        panelId={panelId}
-        value={utilityPane}
-        onChange={onUtilityPaneChange}
-      />
+      {!dismissControl && (
+        <PanelResizeHandle
+          bounds={resizeBounds}
+          className={CODING_UTILITY_RESIZER_CLASS}
+          controls={`${panelId}-container`}
+          direction="grow-left"
+          label="Resize code utility panel"
+          onResize={onResize}
+          value={width}
+        />
+      )}
+      <div className={CODING_PANE_TABS_CLASS}>
+        <PaneTabs<UtilityPane>
+          label="Workspace utilities"
+          options={[
+            { id: "terminal", label: "Shell", icon: SquareTerminal },
+            {
+              id: "commits",
+              label: "Log",
+              count: commits.length,
+              icon: GitCommit,
+            },
+            {
+              id: "source-control",
+              label: "Git",
+              count: changes.length,
+              icon: GitBranch,
+            },
+            {
+              id: "worktrees",
+              label: "Trees",
+              count: asArray(worktreeResource.data?.worktrees).length,
+              icon: GitFork,
+            },
+          ]}
+          panelId={panelId}
+          value={utilityPane}
+          onChange={onUtilityPaneChange}
+        />
+        {dismissControl}
+      </div>
       <div
         aria-labelledby={paneTabId(panelId, utilityPane)}
         className={CODING_PANE_BODY_CLASS}

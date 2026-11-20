@@ -1,8 +1,10 @@
+import type { ComputerOrigin } from "./computer-origin";
+
 export type DesktopNavigationIntent =
   | {
       id: string;
       kind: "workspace-file";
-      target: { path: string };
+      target: { path: string; origin: ComputerOrigin };
     }
   | {
       id: string;
@@ -12,11 +14,12 @@ export type DesktopNavigationIntent =
 
 export function createWorkspaceFileNavigationIntent(
   path: string,
+  origin: ComputerOrigin,
 ): DesktopNavigationIntent {
   return {
     id: crypto.randomUUID(),
     kind: "workspace-file",
-    target: { path },
+    target: { path, origin },
   };
 }
 

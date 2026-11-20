@@ -1,7 +1,28 @@
 import type { RepositoryMutationRequest } from "@doolittle/contracts/repository";
-import { type ContextAction, ContextActionMenu } from "@doolittle/ui";
-import { FileText, GitCompareArrows, X } from "lucide-react";
-import { type FormEvent, lazy, Suspense } from "react";
+import {
+  type ContextAction,
+  ContextActionMenu,
+  PanelTabList,
+} from "@doolittle/ui";
+import {
+  Bot,
+  FileText,
+  GitCompareArrows,
+  MessageSquarePlus,
+  Minus,
+  MoreHorizontal,
+  Plus,
+  Save,
+  X,
+} from "lucide-react";
+import {
+  type FormEvent,
+  lazy,
+  Suspense,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import type { CodeLanguage } from "../code-language";
 import type { CodeEditorStateSnapshot } from "../components/CodeEditor";
 import { UiIcon } from "../components/UiIcon";
@@ -13,29 +34,19 @@ import type {
 } from "../desktop-acp-client";
 import { type ApiResource, EmptyBlock, ErrorBlock, LoadingBlock } from "../lib";
 import {
-  CODING_ACP_STATUS_CLASS,
   CODING_ACP_TASK_CLASS,
   CODING_ACP_TASK_CLOSE_CLASS,
   CODING_ACP_TASK_LABEL_CLASS,
   CODING_ACP_TASK_OUTPUT_CLASS,
   CODING_ACP_TASK_ROW_CLASS,
-  CODING_ACTION_NOTICE_CLASS,
-  CODING_BREADCRUMB_CLASS,
   CODING_DIFF_LINE_CLASS,
-  CODING_DIFF_SOURCE_CLASS,
-  CODING_DIFF_SOURCE_SELECTED_CLASS,
-  CODING_EDITOR_ACTIONS_CLASS,
   CODING_EDITOR_CLASS,
-  CODING_EDITOR_STATUS_CLASS,
   CODING_EDITOR_SURFACE_CLASS,
-  CODING_EDITOR_TOOLBAR_CLASS,
   CODING_INLINE_STATE_CLASS,
   CODING_INLINE_WARN_CLASS,
   CODING_PANE_CLASS,
   CODING_PATCH_CLASS,
   CODING_SOURCE_CLASS,
-  CODING_STATUS_ACTION_CLASS,
-  CODING_UNSAVED_CLASS,
   codingActionNoticeTone,
   codingDiffLineTone,
 } from "./layout";
@@ -47,9 +58,45 @@ import type {
   WorkspaceReadResponse,
 } from "./models";
 import { fileName, patchLines, statusLabel } from "./models";
-import { PaneTabs, paneTabId } from "./PaneTabs";
+import { paneTabId } from "./PaneTabs";
 
 const EDITOR_PANEL_ID = "coding-editor-panel";
+const ACP_TASK_ID = "coding-acp-task";
+
+const EDITOR_TABS = [
+  {
+    id: "file",
+    buttonId: paneTabId(EDITOR_PANEL_ID, "file"),
+    panelId: EDITOR_PANEL_ID,
+    label: (
+      <>
+        <UiIcon icon={FileText} size="xs" />
+        <span className="@max-[450px]/code:sr-only">File</span>
+      </>
+    ),
+  },
+  {
+    id: "diff",
+    buttonId: paneTabId(EDITOR_PANEL_ID, "diff"),
+    panelId: EDITOR_PANEL_ID,
+    label: (
+      <>
+        <UiIcon icon={GitCompareArrows} size="xs" />
+        <span className="@max-[450px]/code:sr-only">Diff</span>
+      </>
+    ),
+  },
+] as const;
+
+const EDITOR_CONTROL_CLASS =
+  "inline-flex min-h-7 min-w-7 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-[var(--radius-xs)] border border-transparent px-1.5 font-[var(--font-sans)] text-[length:var(--text-meta)] font-medium text-[var(--text-soft)] enabled:hover:bg-[var(--surface-hover)] enabled:hover:text-[var(--text)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--focus-ring)] disabled:opacity-45";
+
+const ACP_STATUS_LABELS = {
+  idle: "ACP idle",
+  connecting: "ACP linking",
+  connected: "ACP live",
+  degraded: "ACP offline",
+} satisfies Record<DesktopAcpPhase, string>;
 
 const CodeEditor = lazy(async () => {
   const module = await import("../components/CodeEditor");
@@ -137,14 +184,29 @@ export function CodingWorkspaceEditor({
   onSubmitAcpTask: (event: FormEvent<HTMLFormElement>) => void | Promise<void>;
   onSendSelectedContext: () => void;
 }) {
-  const scopeKey = JSON.stringify([
+  const documentScope = JSON.stringify([
     botId,
     originConversationId,
     workspacePath,
     selectedPath,
-    editorPane,
-    stagedPatch,
   ]);
+  const scopeKey = JSON.stringify([documentScope, editorPane, stagedPatch]);
+  const [cursor, setCursor] = useState({ scope: "", label: "" });
+  const acpTaskInputRef = useRef<HTMLInputElement>(null);
+  const acpTaskToggleRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (acpTaskOpen) acpTaskInputRef.current?.focus({ preventScroll: true });
+  }, [acpTaskOpen]);
+  const showCursor = editorPane === "file" && cursor.scope === documentScope;
+  const name = fileName(selectedPath);
+  const directory = selectedPath.slice(0, -name.length).replace(/\/$/u, "");
+  const fileActionsDisabled = editingLocked || !fileDirty || savingFile;
+  const selectedPatch = patchResource.data?.patch;
+  const canMutatePatch = Boolean(
+    selectedPatch?.patch && !selectedPatch.truncated,
+  );
+  const patchAction = stagedPatch ? "unstage-hunk" : "stage-hunk";
+  const patchActionLabel = stagedPatch ? "Unstage patch" : "Stage patch";
   const editorActions: ContextAction[] = [
     {
       id: "show-file",
@@ -171,14 +233,14 @@ export function CodingWorkspaceEditor({
         label: savingFile ? "Saving…" : "Save file",
         shortcut: "⌘/Ctrl S",
         separatorBefore: true,
-        disabled: editingLocked || !fileDirty || savingFile,
+        disabled: fileActionsDisabled,
         onSelect: onSave,
       },
       {
         id: "discard-draft",
         label: "Discard unsaved edits",
         destructive: true,
-        disabled: editingLocked || !fileDirty || savingFile,
+        disabled: fileActionsDisabled,
         onSelect: onDiscard,
       },
     );
@@ -199,17 +261,13 @@ export function CodingWorkspaceEditor({
         onSelect: () => onSetStagedPatch(true),
       });
     }
-    if (
-      patchResource.data?.patch?.patch &&
-      !patchResource.data.patch.truncated
-    ) {
+    if (canMutatePatch) {
       editorActions.push({
         id: "stage-patch",
-        label: stagedPatch ? "Unstage patch" : "Stage patch",
+        label: patchActionLabel,
         separatorBefore: true,
         disabled: editingLocked,
-        onSelect: () =>
-          onMutateVisiblePatch(stagedPatch ? "unstage-hunk" : "stage-hunk"),
+        onSelect: () => onMutateVisiblePatch(patchAction),
       });
       if (!stagedPatch && !selectedChange.untracked)
         editorActions.push({
@@ -224,123 +282,114 @@ export function CodingWorkspaceEditor({
   return (
     <main className={`${CODING_PANE_CLASS} ${CODING_EDITOR_CLASS}`}>
       <ContextActionMenu
-        label="Editor actions"
+        className="coding-editor-toolbar flex min-h-9 min-w-0 shrink-0 items-center gap-1 border-[var(--border)] border-b bg-[var(--surface)] px-1.5"
+        label="More editor actions"
         scopeKey={scopeKey}
         items={editorActions}
+        trigger={
+          <button
+            className={EDITOR_CONTROL_CLASS}
+            title="More editor actions"
+            type="button"
+          >
+            <UiIcon icon={MoreHorizontal} size="xs" />
+          </button>
+        }
       >
-        <div className={CODING_EDITOR_TOOLBAR_CLASS}>
-          <PaneTabs<EditorPane>
-            label="Editor views"
-            options={[
-              { id: "file", label: "File", icon: FileText },
-              { id: "diff", label: "Diff", icon: GitCompareArrows },
-            ]}
-            panelId={EDITOR_PANEL_ID}
-            value={editorPane}
-            onChange={onEditorPaneChange}
-          />
-          <div className={CODING_BREADCRUMB_CLASS} title={selectedPath}>
-            <span>{selectedPath || "Select a file"}</span>
-            {selectedPath ? <small>{selectedLanguage.label}</small> : null}
-          </div>
-          {editorPane === "file" && selectedPath ? (
-            <div className={CODING_EDITOR_ACTIONS_CLASS}>
-              {fileDirty ? (
-                <span className={CODING_UNSAVED_CLASS} role="status">
-                  Unsaved
-                </span>
-              ) : null}
-              <button
-                className="secondary-button"
-                disabled={editingLocked || !fileDirty || savingFile}
-                onClick={onDiscard}
-                type="button"
-              >
-                Discard
-              </button>
-              <button
-                className="primary-button"
-                disabled={editingLocked || !fileDirty || savingFile}
-                onClick={onSave}
-                type="button"
-              >
-                {savingFile ? "Saving…" : "Save"}
-              </button>
-            </div>
-          ) : editorPane === "diff" && selectedChange ? (
-            <div className={CODING_EDITOR_ACTIONS_CLASS}>
-              {selectedChange.staged ? (
-                <fieldset
-                  aria-label="Diff source"
-                  className={CODING_DIFF_SOURCE_CLASS}
-                >
-                  <legend className="sr-only">Diff source</legend>
-                  {selectedChange.unstaged ? (
-                    <button
-                      aria-pressed={!stagedPatch}
-                      className={
-                        !stagedPatch ? CODING_DIFF_SOURCE_SELECTED_CLASS : ""
-                      }
-                      disabled={editingLocked}
-                      onClick={() => onSetStagedPatch(false)}
-                      type="button"
-                    >
-                      Working
-                    </button>
-                  ) : null}
-                  <button
-                    aria-pressed={stagedPatch}
-                    className={
-                      stagedPatch ? CODING_DIFF_SOURCE_SELECTED_CLASS : ""
-                    }
-                    disabled={editingLocked}
-                    onClick={() => onSetStagedPatch(true)}
-                    type="button"
-                  >
-                    Staged
-                  </button>
-                </fieldset>
-              ) : null}
-              {patchResource.data?.patch?.patch &&
-              !patchResource.data.patch.truncated ? (
-                stagedPatch ? (
-                  <button
-                    className="secondary-button"
-                    disabled={editingLocked}
-                    onClick={() => void onMutateVisiblePatch("unstage-hunk")}
-                    type="button"
-                  >
-                    Unstage patch
-                  </button>
-                ) : (
-                  <>
-                    {!selectedChange.untracked ? (
-                      <button
-                        className="danger-button"
-                        disabled={editingLocked}
-                        onClick={() =>
-                          void onMutateVisiblePatch("discard-hunk")
-                        }
-                        type="button"
-                      >
-                        Discard patch
-                      </button>
-                    ) : null}
-                    <button
-                      className="primary-button"
-                      disabled={editingLocked}
-                      onClick={() => void onMutateVisiblePatch("stage-hunk")}
-                      type="button"
-                    >
-                      Stage patch
-                    </button>
-                  </>
-                )
-              ) : null}
-            </div>
+        <div
+          className="flex min-w-0 flex-1 items-center gap-1.5 pl-1"
+          title={selectedPath || undefined}
+        >
+          <strong className="shrink truncate font-[var(--font-mono)] text-[length:var(--text-control)] font-semibold text-[var(--text)]">
+            {name || "Editor"}
+          </strong>
+          {fileDirty ? (
+            <span
+              className="size-1.5 shrink-0 rounded-full bg-[var(--warn)]"
+              role="status"
+            >
+              <span className="sr-only">Unsaved edits</span>
+            </span>
+          ) : null}
+          {directory ? (
+            <span className="min-w-0 truncate font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--muted)] @max-[620px]/code:hidden">
+              {directory}
+            </span>
           ) : null}
         </div>
+        <PanelTabList
+          className="shrink-0 gap-0.5 px-0.5 py-0"
+          items={EDITOR_TABS}
+          label="Editor views"
+          onSelect={onEditorPaneChange}
+          selected={editorPane}
+          tabClassName={`${EDITOR_CONTROL_CLASS} aria-selected:border-[var(--border)] data-[state=active]:bg-[var(--surface-raised)] data-[state=active]:text-[var(--text)]`}
+        />
+        {editorPane === "file" && selectedPath ? (
+          <button
+            aria-keyshortcuts="Meta+S Control+S"
+            aria-label={savingFile ? "Saving file" : "Save file"}
+            className={EDITOR_CONTROL_CLASS}
+            disabled={fileActionsDisabled}
+            onClick={onSave}
+            title={savingFile ? "Saving…" : "Save file (⌘/Ctrl+S)"}
+            type="button"
+          >
+            <UiIcon icon={Save} size="xs" />
+            <span className="@max-[560px]/code:hidden">
+              {savingFile ? "Saving…" : "Save"}
+            </span>
+          </button>
+        ) : editorPane === "diff" && selectedChange ? (
+          <>
+            {selectedChange.staged && selectedChange.unstaged ? (
+              <select
+                aria-label="Diff source"
+                className="min-h-7 w-21 shrink-0 cursor-pointer rounded-[var(--radius-xs)] border border-[var(--border)] bg-[var(--surface)] pl-1.5 font-[var(--font-sans)] text-[length:var(--text-meta)] text-[var(--text-soft)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--focus-ring)] disabled:opacity-45"
+                disabled={editingLocked}
+                onChange={(event) =>
+                  onSetStagedPatch(event.target.value === "staged")
+                }
+                value={stagedPatch ? "staged" : "working"}
+              >
+                <option value="working">Working</option>
+                <option value="staged">Staged</option>
+              </select>
+            ) : null}
+            {canMutatePatch ? (
+              <button
+                aria-label={patchActionLabel}
+                className={EDITOR_CONTROL_CLASS}
+                disabled={editingLocked}
+                onClick={() => void onMutateVisiblePatch(patchAction)}
+                title={patchActionLabel}
+                type="button"
+              >
+                <UiIcon icon={stagedPatch ? Minus : Plus} size="xs" />
+                <span className="@max-[560px]/code:hidden">
+                  {stagedPatch ? "Unstage" : "Stage"}
+                </span>
+              </button>
+            ) : null}
+          </>
+        ) : null}
       </ContextActionMenu>
+      {editingLocked ? (
+        <p
+          className="m-0 border-[var(--border)] border-b px-2.5 py-1 text-[length:var(--text-meta)] text-[var(--muted)]"
+          role="status"
+        >
+          Switching workspace. Editing is temporarily locked.
+        </p>
+      ) : null}
+      {selectedPath && fileNotice ? (
+        <p
+          className={`m-0 border-[var(--border)] border-b px-2.5 py-1 text-[length:var(--text-meta)] text-[var(--text-soft)] ${codingActionNoticeTone(fileNotice.tone)}`}
+          role={fileNotice.tone === "bad" ? "alert" : "status"}
+        >
+          {fileNotice.message}
+        </p>
+      ) : null}
 
       <section
         aria-label={
@@ -353,64 +402,52 @@ export function CodingWorkspaceEditor({
         id={EDITOR_PANEL_ID}
         role="tabpanel"
       >
-        {editingLocked ? (
-          <div className={CODING_INLINE_STATE_CLASS} role="status">
-            Switching workspace. Code edits are temporarily locked.
-          </div>
-        ) : null}
         {!selectedPath ? (
           <EmptyBlock title="Choose a file">
             Select a workspace file or changed file to inspect it here.
           </EmptyBlock>
         ) : editorPane === "file" ? (
           fileResource.loading ? (
-            <LoadingBlock label={`Opening ${fileName(selectedPath)}…`} />
+            <LoadingBlock label={`Opening ${name}…`} />
           ) : fileResource.error ? (
             <ErrorBlock
               error={fileResource.error}
               retry={fileResource.reload}
             />
           ) : (
-            <>
-              {fileNotice ? (
-                <div
-                  aria-live="polite"
-                  className={`${CODING_ACTION_NOTICE_CLASS} ${codingActionNoticeTone(fileNotice.tone)}`}
-                  role="status"
-                >
-                  {fileNotice.message}
-                </div>
-              ) : null}
-              <Suspense
-                fallback={
-                  <LoadingBlock
-                    label={`Loading editor ${fileName(selectedPath)}…`}
-                  />
-                }
-              >
-                <CodeEditor
-                  botId={botId}
-                  originConversationId={originConversationId}
-                  disabled={editingLocked || savingFile}
-                  language={selectedLanguage}
-                  onChange={onDraftChange}
-                  onEditorStateChange={onEditorStateChange}
-                  onSave={onSave}
-                  path={selectedPath}
-                  value={draftContent}
-                  workspacePath={workspacePath}
-                />
-              </Suspense>
-            </>
+            <Suspense
+              fallback={<LoadingBlock label={`Loading editor ${name}…`} />}
+            >
+              <CodeEditor
+                botId={botId}
+                originConversationId={originConversationId}
+                disabled={editingLocked || savingFile}
+                language={selectedLanguage}
+                onChange={onDraftChange}
+                onEditorStateChange={(snapshot) => {
+                  const label = snapshot.cursor
+                    ? `Ln ${snapshot.cursor.line}, Col ${snapshot.cursor.column}`
+                    : "";
+                  setCursor((current) =>
+                    current.scope === documentScope && current.label === label
+                      ? current
+                      : { scope: documentScope, label },
+                  );
+                  onEditorStateChange(snapshot);
+                }}
+                onSave={onSave}
+                path={selectedPath}
+                value={draftContent}
+                workspacePath={workspacePath}
+              />
+            </Suspense>
           )
         ) : !selectedChange ? (
           <EmptyBlock title="No Git change for this file">
             Choose a changed file from the Changes pane to inspect its patch.
           </EmptyBlock>
         ) : patchResource.loading ? (
-          <LoadingBlock
-            label={`Building patch for ${fileName(selectedPath)}…`}
-          />
+          <LoadingBlock label={`Building patch for ${name}…`} />
         ) : patchResource.error ? (
           <ErrorBlock
             error={patchResource.error}
@@ -418,15 +455,6 @@ export function CodingWorkspaceEditor({
           />
         ) : patchResource.data?.patch?.patch ? (
           <>
-            {fileNotice ? (
-              <div
-                aria-live="polite"
-                className={`${CODING_ACTION_NOTICE_CLASS} ${codingActionNoticeTone(fileNotice.tone)}`}
-                role="status"
-              >
-                {fileNotice.message}
-              </div>
-            ) : null}
             {patchResource.data.patch.truncated ? (
               <div
                 className={`${CODING_INLINE_STATE_CLASS} ${CODING_INLINE_WARN_CLASS}`}
@@ -458,6 +486,7 @@ export function CodingWorkspaceEditor({
       {acpTaskOpen ? (
         <form
           aria-label="ACP editor task"
+          id={ACP_TASK_ID}
           className={CODING_ACP_TASK_CLASS}
           onSubmit={(event) => void onSubmitAcpTask(event)}
         >
@@ -468,9 +497,7 @@ export function CodingWorkspaceEditor({
             >
               <span>ACP task</span>
               <small>
-                {selectedPath
-                  ? `Current Monaco context · ${fileName(selectedPath)}`
-                  : "Workspace context"}
+                {selectedPath ? `Current file · ${name}` : "Workspace context"}
               </small>
             </label>
             <input
@@ -478,6 +505,7 @@ export function CodingWorkspaceEditor({
               id="coding-acp-task-input"
               onChange={(event) => onAcpTaskDraftChange(event.target.value)}
               placeholder="Inspect, edit, test, or explain…"
+              ref={acpTaskInputRef}
               value={acpTaskDraft}
             />
             {acpEditor.promptBusy ? (
@@ -510,7 +538,10 @@ export function CodingWorkspaceEditor({
               aria-label="Close ACP editor task"
               className={`ghost-button ${CODING_ACP_TASK_CLOSE_CLASS}`}
               disabled={editingLocked}
-              onClick={() => onAcpTaskOpenChange(false)}
+              onClick={() => {
+                onAcpTaskOpenChange(false);
+                acpTaskToggleRef.current?.focus({ preventScroll: true });
+              }}
               type="button"
             >
               <UiIcon icon={X} size="xs" />
@@ -577,63 +608,47 @@ export function CodingWorkspaceEditor({
           },
         ]}
       >
-        <footer className={CODING_EDITOR_STATUS_CLASS}>
-          <span
-            className={
-              fileDirty
-                ? "coding-modified-status text-[var(--warn)]"
-                : "coding-editable-status text-[var(--accent)]"
-            }
-          >
-            {editorPane === "diff"
-              ? "REVIEW"
-              : fileDirty
-                ? "MODIFIED"
-                : "EDITABLE"}
-          </span>
-          <span>{selectedLanguage.label}</span>
-          <span>UTF-8</span>
-          {editorPane === "file" ? <span>⌘/Ctrl S to save</span> : null}
-          <span
-            className={`${CODING_ACP_STATUS_CLASS} ${acpEditor.phase} ${
-              acpEditor.phase === "connected"
-                ? "text-[var(--good)]"
-                : acpEditor.phase === "connecting"
-                  ? "text-[var(--accent)]"
+        <footer className="coding-editor-status flex min-h-8 min-w-0 shrink-0 items-center gap-0.5 border-[var(--border)] border-t bg-[var(--surface)] px-1.5 font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--muted)]">
+          <div className="flex min-w-0 flex-1 items-center gap-2 truncate px-1">
+            {showCursor && cursor.label ? (
+              <span className="shrink-0 tabular-nums">{cursor.label}</span>
+            ) : null}
+            {editorPane === "diff" && selectedChange ? (
+              <span className="truncate">{statusLabel(selectedChange)}</span>
+            ) : null}
+            {selectedPath && editorPane === "file" ? (
+              <span className="truncate @max-[340px]/code:hidden">
+                {selectedLanguage.label}
+              </span>
+            ) : null}
+          </div>
+          {acpEditor.phase !== "idle" ? (
+            <span
+              className={`flex shrink-0 items-center gap-1 whitespace-nowrap px-1.5 ${
+                acpEditor.phase === "connected"
+                  ? "text-[var(--good)]"
                   : acpEditor.phase === "degraded"
                     ? "text-[var(--bad)]"
-                    : ""
-            }`}
-            title={
-              acpEditor.error ||
-              (acpEditor.sessionId
-                ? `ACP session ${acpEditor.sessionId}`
-                : "ACP editor context")
-            }
-          >
-            <i aria-hidden="true" />
-            ACP{" "}
-            {acpEditor.phase === "connected"
-              ? "live"
-              : acpEditor.phase === "degraded"
-                ? "offline"
-                : acpEditor.phase === "connecting"
-                  ? "linking"
-                  : "idle"}
-          </span>
-          {acpEditor.updates.length > 0 ? (
-            <span
-              className="coding-acp-progress font-[var(--font-mono)] text-[10px] tracking-[0.04em] text-[var(--muted)] uppercase"
+                    : "text-[var(--muted)]"
+              }`}
               title={
-                acpEditor.lastUpdateLabel || "Structured ACP session updates"
+                acpEditor.error ||
+                acpEditor.lastUpdateLabel ||
+                (acpEditor.sessionId
+                  ? `ACP session ${acpEditor.sessionId}`
+                  : "ACP editor context")
               }
             >
-              {acpEditor.lastUpdateLabel || "ACP"} · {acpEditor.updates.length}
+              <span
+                aria-hidden="true"
+                className="size-1.5 rounded-full bg-current"
+              />
+              {ACP_STATUS_LABELS[acpEditor.phase]}
             </span>
           ) : null}
           {acpEditor.promptBusy && !acpTaskOpen ? (
             <button
-              className={`${CODING_STATUS_ACTION_CLASS} coding-acp-cancel`}
+              className={EDITOR_CONTROL_CLASS}
               disabled={editingLocked}
               onClick={() => void acpEditor.cancel()}
               type="button"
@@ -643,7 +658,7 @@ export function CodingWorkspaceEditor({
           ) : null}
           {acpEditor.phase === "degraded" ? (
             <button
-              className={`${CODING_STATUS_ACTION_CLASS} coding-acp-retry`}
+              className={EDITOR_CONTROL_CLASS}
               disabled={editingLocked}
               onClick={() => void acpEditor.retryConnection()}
               type="button"
@@ -651,32 +666,33 @@ export function CodingWorkspaceEditor({
               Retry ACP
             </button>
           ) : null}
-          <span className="coding-spacer flex-1" />
           <button
+            aria-controls={acpTaskOpen ? ACP_TASK_ID : undefined}
             aria-expanded={acpTaskOpen}
-            className={`${CODING_STATUS_ACTION_CLASS} coding-acp-task-toggle aria-expanded:shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--accent-ink)_24%,transparent)]`}
+            aria-label="ACP task"
+            className={`${EDITOR_CONTROL_CLASS} aria-expanded:bg-[var(--surface-hover)] aria-expanded:text-[var(--text)]`}
             disabled={editingLocked}
             onClick={() => onAcpTaskOpenChange(!acpTaskOpen)}
+            ref={acpTaskToggleRef}
+            title="ACP task"
             type="button"
           >
-            ACP task
+            <UiIcon icon={Bot} size="xs" />
+            <span className="@max-[510px]/code:hidden">ACP task</span>
           </button>
           {selectedPath ? (
             <button
-              className={CODING_STATUS_ACTION_CLASS}
+              aria-label="Ask Doolittle"
+              className={EDITOR_CONTROL_CLASS}
+              disabled={editingLocked}
               onClick={onSendSelectedContext}
+              title="Ask Doolittle about this file"
               type="button"
             >
-              Ask Doolittle
+              <UiIcon icon={MessageSquarePlus} size="xs" />
+              <span className="@max-[510px]/code:hidden">Ask Doolittle</span>
             </button>
           ) : null}
-          <span>
-            {!selectedPath
-              ? "No file selected"
-              : selectedChange
-                ? statusLabel(selectedChange)
-                : "File selected"}
-          </span>
         </footer>
       </ContextActionMenu>
     </main>

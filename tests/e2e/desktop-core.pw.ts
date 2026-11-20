@@ -82,9 +82,26 @@ test.describe("fresh native desktop", () => {
         .getByRole("button", { name: "Choose a project folder" })
         .click();
       await expect.poll(() => projectDialogCount(desktop.app)).toBe(1);
+      await expect(page.locator('[data-view="code"]')).toBeVisible();
+      const origin = await page.evaluate(() =>
+        window.doolittle.ui?.getSelection(),
+      );
+      const viewSwitcher = page.getByRole("group", {
+        name: "Workbench view",
+      });
+      await viewSwitcher.getByRole("button", { name: "Agent View" }).click();
       const composer = page.getByRole("textbox", { name: "Message Doolittle" });
       await expect(composer).toBeEnabled({ timeout: 15_000 });
       await composer.fill("Keep this draft through panel changes");
+      await viewSwitcher.getByRole("button", { name: "IDE View" }).click();
+      await expect(page.locator('[data-view="code"]')).toBeVisible();
+      expect(
+        await page.evaluate(() => window.doolittle.ui?.getSelection()),
+      ).toEqual(origin);
+      await viewSwitcher.getByRole("button", { name: "Agent View" }).click();
+      await expect(composer).toHaveValue(
+        "Keep this draft through panel changes",
+      );
 
       await page.getByRole("button", { name: "Open inspector" }).click();
       const context = page.getByRole("tablist", {
@@ -148,6 +165,28 @@ test.describe("fresh native desktop", () => {
       ).toHaveAttribute("aria-current", "page");
 
       await page.getByRole("button", { name: "Doolittle home" }).click();
+      await expect(
+        page.getByRole("heading", { name: "Dashboard" }),
+      ).toBeVisible();
+      const search = page.getByRole("button", { name: "Search", exact: true });
+      const commandMenu = page.getByRole("dialog", { name: "Command menu" });
+      await search.click();
+      await commandMenu.getByRole("option", { name: /^Activity\b/ }).click();
+      await expect(
+        page.getByRole("heading", { name: "Activity", exact: true }),
+      ).toBeVisible();
+      await search.click();
+      await commandMenu.getByRole("combobox").fill("insights");
+      await commandMenu.getByRole("option", { name: /^Insights\b/ }).click();
+      await expect(
+        page.getByRole("heading", { name: "Analytics" }),
+      ).toBeVisible();
+      await search.click();
+      await commandMenu.getByRole("combobox").fill("conversation");
+      await commandMenu
+        .getByRole("option")
+        .filter({ hasText: "Start or continue a conversation" })
+        .click();
       await expect(composer).toHaveValue(
         "Keep this draft through panel changes",
       );

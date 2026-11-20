@@ -110,8 +110,8 @@ export function OrchestrationPage({
   navigationIntent: DesktopNavigationIntent | null;
   onAcknowledgeNavigationIntent: (id: string) => void;
   onSectionChange: (section: WorkTabId) => void;
-  onSendToChat: (request: ChatContextRequest) => void;
-  onOpenWorkspaceFile?: (path: string) => void;
+  onSendToChat: (request: ChatContextRequest) => Promise<boolean>;
+  onOpenWorkspaceFile?: (path: string, origin?: ComputerOrigin) => void;
   projectScope?: string;
   requestedTab?: LinkedWorkTab;
   focusState?: OrchestrationFocusState;

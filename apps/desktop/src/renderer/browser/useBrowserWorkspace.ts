@@ -35,6 +35,7 @@ export const BROWSER_ACTIONS: Array<{
 
 export function useBrowserWorkspace(
   active: boolean,
+  evidenceAvailable: boolean,
   botId?: string,
   origin?: ComputerOrigin,
 ) {
@@ -48,6 +49,7 @@ export function useBrowserWorkspace(
     useState<BrowserPreviewSize>("responsive");
   const [compareUrl, setCompareUrl] = useState("");
   const [busy, setBusy] = useState("");
+  const actionInFlight = useRef(false);
   const [error, setError] = useState("");
   const [errorField, setErrorField] = useState<BrowserErrorField>(null);
   const [result, setResult] = useState<BrowserResult | null>(null);
@@ -90,9 +92,14 @@ export function useBrowserWorkspace(
     if (!active) return;
     clearError();
     try {
+      const url = normalizeBrowserUrl(navigation.address);
+      if (!evidenceAvailable && !isLocalPreviewUrl(url))
+        throw new Error(
+          "Open a localhost URL here. External evidence is available from the lead bot’s chat.",
+        );
       dispatchNavigation({
         type: "show-url",
-        url: normalizeBrowserUrl(navigation.address),
+        url,
         recordHistory: true,
       });
     } catch (navigationError) {
@@ -122,7 +129,7 @@ export function useBrowserWorkspace(
   };
 
   const runAction = async (action: BrowserAction) => {
-    if (!active) return;
+    if (!active || !evidenceAvailable || actionInFlight.current) return;
     clearError();
     let url = "";
     try {
@@ -132,6 +139,7 @@ export function useBrowserWorkspace(
       return;
     }
     const navigationAtStart = navigation;
+    actionInFlight.current = true;
     setBusy(action);
     try {
       const payload =
@@ -158,19 +166,23 @@ export function useBrowserWorkspace(
         dispatchNavigation({ type: "show-url", url, recordHistory: true });
       }
       setResult({
+        id: crypto.randomUUID(),
         action,
         title: `${BROWSER_ACTIONS.find((entry) => entry.id === action)?.label ?? action} result`,
         payload,
+        requestedUrl: url,
+        previewSize,
       });
     } catch (actionError) {
       fail(actionError);
     } finally {
+      actionInFlight.current = false;
       setBusy("");
     }
   };
 
   const compare = async (analyze: boolean) => {
-    if (!active) return;
+    if (!active || !evidenceAvailable || actionInFlight.current) return;
     clearError();
     let leftUrl = "";
     let rightUrl = "";
@@ -189,6 +201,7 @@ export function useBrowserWorkspace(
       return;
     }
     const action = analyze ? "compare-analyze" : "compare";
+    actionInFlight.current = true;
     setBusy(action);
     try {
       const payload = await desktopRequest<unknown>(
@@ -201,13 +214,18 @@ export function useBrowserWorkspace(
         origin,
       );
       setResult({
+        id: crypto.randomUUID(),
         action,
         title: analyze ? "Comparison analysis" : "Comparison bundle",
         payload,
+        requestedUrl: leftUrl,
+        comparisonUrl: rightUrl,
+        previewSize,
       });
     } catch (compareError) {
       fail(compareError);
     } finally {
+      actionInFlight.current = false;
       setBusy("");
     }
   };

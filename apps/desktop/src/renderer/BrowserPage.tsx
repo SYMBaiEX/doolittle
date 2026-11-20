@@ -56,16 +56,18 @@ export function BrowserEmptyEvidence() {
 
 export function BrowserPage({
   active,
+  evidenceAvailable,
   onSendToChat,
   botId,
   origin,
 }: {
   active: boolean;
+  evidenceAvailable: boolean;
   onSendToChat?: (text: string) => boolean | Promise<boolean>;
   botId?: string;
   origin?: ComputerOrigin;
 }) {
-  const browser = useBrowserWorkspace(active, botId, origin);
+  const browser = useBrowserWorkspace(active, evidenceAvailable, botId, origin);
   const {
     address,
     busy,
@@ -125,13 +127,15 @@ export function BrowserPage({
       disabled: !active || Boolean(busy) || previewSize === size,
       onSelect: () => setPreviewSize(size),
     })),
-    ...BROWSER_ACTIONS.map((action, index) => ({
-      id: action.id,
-      label: action.label,
-      separatorBefore: index === 0,
-      disabled: !active || Boolean(busy),
-      onSelect: () => void runAction(action.id),
-    })),
+    ...(evidenceAvailable
+      ? BROWSER_ACTIONS.map((action, index) => ({
+          id: action.id,
+          label: action.label,
+          separatorBefore: index === 0,
+          disabled: !active || Boolean(busy),
+          onSelect: () => void runAction(action.id),
+        }))
+      : []),
   ];
 
   if (!active) {
@@ -248,7 +252,11 @@ export function BrowserPage({
                 </select>
               </label>
               <Badge tone={embedded ? "good" : "neutral"}>
-                {embedded ? "Live localhost" : "Capture mode"}
+                {embedded
+                  ? "Live localhost"
+                  : evidenceAvailable
+                    ? "Capture mode"
+                    : "Local preview"}
               </Badge>
             </div>
             {embedded ? (
@@ -282,7 +290,7 @@ export function BrowserPage({
                     ? "For safety, remote sites are inspected through Doolittle’s browser service instead of being embedded."
                     : "Start your development server, enter its local URL, and preview it inside the coding workspace."}
                 </p>
-                {currentUrl ? (
+                {currentUrl && evidenceAvailable ? (
                   <Button
                     disabled={!active || Boolean(busy)}
                     onClick={() => void runAction("capture")}
@@ -315,94 +323,101 @@ export function BrowserPage({
             ) : null}
           </div>
 
-          <div className={BROWSER_ACTIONS_CLASS}>
-            {BROWSER_ACTIONS.map((action) => (
-              <button
-                aria-label={`${action.label}: ${action.detail}`}
-                className={`${BROWSER_ACTION_CLASS} ${
-                  action.id === "analyze"
-                    ? "col-span-full border-[var(--accent-border)] bg-[color-mix(in_srgb,var(--accent)_6%,var(--surface-soft))]"
-                    : ""
-                }`}
-                data-browser-action={action.id}
-                disabled={!active || Boolean(busy)}
-                key={action.id}
-                onClick={() => void runAction(action.id)}
-                title={action.detail}
-                type="button"
-              >
-                <span>{action.label}</span>
-                <i>
-                  {busy === action.id ? (
-                    "…"
-                  ) : (
-                    <UiIcon icon={ArrowUpRight} size="xs" />
-                  )}
-                </i>
-              </button>
-            ))}
-          </div>
-
-          <details className="group border-[var(--border)] border-b">
-            <summary className={BROWSER_COMPARE_SUMMARY_CLASS}>
-              <span>Compare versions</span>
-              <small>Optional</small>
-            </summary>
-            <div className="grid gap-2 px-3.5 pb-3.5">
-              <label
-                htmlFor="browser-compare-url"
-                className="grid gap-1.25 font-[var(--font-mono)] text-[length:var(--text-control)] text-[var(--muted)]"
-              >
-                Compare with
-                <Input
-                  id="browser-compare-url"
-                  aria-describedby={
-                    error && errorField === "compare"
-                      ? "browser-url-error"
-                      : undefined
-                  }
-                  aria-invalid={errorField === "compare" ? true : undefined}
-                  className="font-[var(--font-mono)]"
-                  onChange={(event) => updateCompareUrl(event.target.value)}
-                  placeholder="https://staging.example.com"
-                  spellCheck={false}
-                  value={compareUrl}
-                />
-              </label>
-              <div className="flex gap-1.5">
-                <Button
-                  disabled={!active || Boolean(busy) || !compareUrl.trim()}
-                  onClick={() => void compare(false)}
-                  size="sm"
-                  type="button"
-                  variant="secondary"
-                >
-                  {busy === "compare" ? "Comparing…" : "Compare"}
-                </Button>
-                <Button
-                  disabled={!active || Boolean(busy) || !compareUrl.trim()}
-                  onClick={() => void compare(true)}
-                  size="sm"
-                  type="button"
-                  variant="secondary"
-                >
-                  {busy === "compare-analyze" ? "Analyzing…" : "AI review"}
-                </Button>
-              </div>
-            </div>
-          </details>
-
-          {result ? (
-            <BrowserResultPanel
-              address={address}
-              currentUrl={currentUrl}
-              onError={(message) => fail(message)}
-              onSendToChat={onSendToChat}
-              previewSize={previewSize}
-              result={result}
-            />
+          {!evidenceAvailable ? (
+            <p className="m-0 px-3.5 py-3 text-sm text-[var(--muted)]">
+              You can preview localhost apps in this chat. Open Preview from the
+              lead bot’s chat to inspect, capture, or compare pages.
+            </p>
           ) : (
-            <BrowserEmptyEvidence />
+            <>
+              <div className={BROWSER_ACTIONS_CLASS}>
+                {BROWSER_ACTIONS.map((action) => (
+                  <button
+                    aria-label={`${action.label}: ${action.detail}`}
+                    className={`${BROWSER_ACTION_CLASS} ${
+                      action.id === "analyze"
+                        ? "col-span-full border-[var(--accent-border)] bg-[color-mix(in_srgb,var(--accent)_6%,var(--surface-soft))]"
+                        : ""
+                    }`}
+                    data-browser-action={action.id}
+                    disabled={!active || Boolean(busy)}
+                    key={action.id}
+                    onClick={() => void runAction(action.id)}
+                    title={action.detail}
+                    type="button"
+                  >
+                    <span>{action.label}</span>
+                    <i>
+                      {busy === action.id ? (
+                        "…"
+                      ) : (
+                        <UiIcon icon={ArrowUpRight} size="xs" />
+                      )}
+                    </i>
+                  </button>
+                ))}
+              </div>
+
+              <details className="group border-[var(--border)] border-b">
+                <summary className={BROWSER_COMPARE_SUMMARY_CLASS}>
+                  <span>Compare versions</span>
+                  <small>Optional</small>
+                </summary>
+                <div className="grid gap-2 px-3.5 pb-3.5">
+                  <label
+                    htmlFor="browser-compare-url"
+                    className="grid gap-1.25 font-[var(--font-mono)] text-[length:var(--text-control)] text-[var(--muted)]"
+                  >
+                    Compare with
+                    <Input
+                      id="browser-compare-url"
+                      aria-describedby={
+                        error && errorField === "compare"
+                          ? "browser-url-error"
+                          : undefined
+                      }
+                      aria-invalid={errorField === "compare" ? true : undefined}
+                      className="font-[var(--font-mono)]"
+                      onChange={(event) => updateCompareUrl(event.target.value)}
+                      placeholder="https://staging.example.com"
+                      spellCheck={false}
+                      value={compareUrl}
+                    />
+                  </label>
+                  <div className="flex gap-1.5">
+                    <Button
+                      disabled={!active || Boolean(busy) || !compareUrl.trim()}
+                      onClick={() => void compare(false)}
+                      size="sm"
+                      type="button"
+                      variant="secondary"
+                    >
+                      {busy === "compare" ? "Comparing…" : "Compare"}
+                    </Button>
+                    <Button
+                      disabled={!active || Boolean(busy) || !compareUrl.trim()}
+                      onClick={() => void compare(true)}
+                      size="sm"
+                      type="button"
+                      variant="secondary"
+                    >
+                      {busy === "compare-analyze" ? "Analyzing…" : "AI review"}
+                    </Button>
+                  </div>
+                </div>
+              </details>
+
+              {result ? (
+                <BrowserResultPanel
+                  key={result.id}
+                  onError={(message) => fail(message)}
+                  onSendToChat={onSendToChat}
+                  result={result}
+                />
+              ) : (
+                <BrowserEmptyEvidence />
+              )}
+            </>
           )}
         </aside>
       </div>

@@ -1,5 +1,6 @@
 import { ContextActionMenu } from "@doolittle/ui";
 import {
+  FolderOpen,
   GitBranch,
   Maximize2,
   PanelLeft,
@@ -11,15 +12,11 @@ import { UiIcon } from "../components/UiIcon";
 import { copyContextText } from "../context-menu-clipboard";
 import { workspaceName } from "../desktop-navigation";
 import { Badge, ErrorBlock } from "../lib";
-import { compactWorkspacePath } from "../workspace-path";
 import {
   CODING_GLOBAL_NOTICE_CLASS,
   CODING_LAYOUT_BUTTON_CLASS,
   CODING_REPO_HEADER_CLASS,
-  CODING_REPO_IDENTITY_CLASS,
-  CODING_REPO_PATH_CLASS,
   CODING_REPO_STATE_CLASS,
-  CODING_REPO_TITLE_CLASS,
 } from "./layout";
 import type { RepositorySummary } from "./models";
 
@@ -39,6 +36,8 @@ export function CodingWorkspaceHeader({
   hasSummary,
   summaryLoading,
   summaryError,
+  workspacePath,
+  onChangeRepository,
   onRefresh,
   onToggleExplorer,
   onToggleUtility,
@@ -55,6 +54,8 @@ export function CodingWorkspaceHeader({
   hasSummary: boolean;
   summaryLoading: boolean;
   summaryError: string;
+  workspacePath: string;
+  onChangeRepository: () => void;
   onRefresh: () => void;
   onToggleExplorer: () => void;
   onToggleUtility: () => void;
@@ -64,7 +65,7 @@ export function CodingWorkspaceHeader({
 }) {
   const hasRepository = hasSummary && summary.isRepository;
   const repositoryReady = hasRepository && !summaryLoading && !summaryError;
-  const path = summary.root ?? "Local workspace";
+  const path = summary.root ?? workspacePath;
   const divergence = [
     summary.ahead ? `${summary.ahead} ahead` : null,
     summary.behind ? `${summary.behind} behind` : null,
@@ -73,6 +74,7 @@ export function CodingWorkspaceHeader({
     .join(" · ");
   const tools = [
     {
+      pane: "explorer",
       label: "Explorer",
       hint: "Toggle explorer (⌘/Ctrl B)",
       icon: PanelLeft,
@@ -80,6 +82,7 @@ export function CodingWorkspaceHeader({
       onClick: onToggleExplorer,
     },
     {
+      pane: "utility",
       label: "Tools",
       hint: "Toggle utility rail (⌘/Ctrl J)",
       icon: PanelRight,
@@ -87,19 +90,26 @@ export function CodingWorkspaceHeader({
       onClick: onToggleUtility,
     },
     {
+      pane: undefined,
       label: "Focus mode",
       hint: "Toggle focus mode (⌘/Ctrl Shift Z)",
       icon: Maximize2,
       pressed: zenMode,
       onClick: onToggleZen,
     },
-  ];
+  ].filter((tool) => surface === "workspace" || !tool.pane);
   return (
     <>
       <ContextActionMenu
         label="Code workspace"
         scopeKey={summary.root ?? ""}
         items={[
+          {
+            id: "change-repository",
+            label: "Change repository",
+            disabled: !active,
+            onSelect: onChangeRepository,
+          },
           {
             id: "refresh",
             label: "Refresh workspace",
@@ -120,12 +130,14 @@ export function CodingWorkspaceHeader({
           {
             id: "explorer",
             label: explorerVisible ? "Hide explorer" : "Show explorer",
+            disabled: surface !== "workspace",
             shortcut: "⌘/Ctrl B",
             onSelect: onToggleExplorer,
           },
           {
             id: "utility",
             label: utilityVisible ? "Hide utility rail" : "Show utility rail",
+            disabled: surface !== "workspace",
             shortcut: "⌘/Ctrl J",
             onSelect: onToggleUtility,
           },
@@ -151,16 +163,20 @@ export function CodingWorkspaceHeader({
         ]}
       >
         <header className={CODING_REPO_HEADER_CLASS}>
-          <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-4 gap-y-2 px-3 pt-2">
-            <div className={CODING_REPO_IDENTITY_CLASS}>
-              <h1 className={CODING_REPO_TITLE_CLASS}>
-                {summary.root ? workspaceName(path) : "Workspace"}
-              </h1>
-              <p className={CODING_REPO_PATH_CLASS} title={path}>
-                {compactWorkspacePath(path)}
-              </p>
-            </div>
-            <div className={CODING_REPO_STATE_CLASS}>
+          <h1 className="sr-only">
+            {path ? workspaceName(path) : "Workspace"}
+          </h1>
+          <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-2 px-1">
+            <PanelTabs
+              id="code-surface"
+              label="Workspace views"
+              items={SURFACES}
+              selected={surface}
+              onSelect={onSurfaceChange}
+            />
+            <div
+              className={`${CODING_REPO_STATE_CLASS} shrink min-w-0 justify-center px-1.5 max-[720px]:hidden`}
+            >
               {repositoryReady ? (
                 <>
                   <span
@@ -185,17 +201,19 @@ export function CodingWorkspaceHeader({
                 <Badge>No Git repository</Badge>
               ) : null}
             </div>
-          </div>
-          <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-2 px-1">
-            <PanelTabs
-              id="code-surface"
-              label="Workspace views"
-              items={SURFACES}
-              selected={surface}
-              onSelect={onSurfaceChange}
-            />
-            <fieldset className="m-0 flex min-w-0 shrink-0 items-center gap-1 border-0 px-1 py-0">
+            <fieldset className="m-0 ml-auto flex min-w-0 shrink-0 items-center gap-1 border-0 px-1 py-0">
               <legend className="sr-only">Workspace controls</legend>
+              <button
+                aria-label="Change repository"
+                className="secondary-button inline-flex min-h-9 shrink-0 items-center gap-1.5 px-2 text-xs max-[760px]:min-h-11 max-[760px]:min-w-11"
+                disabled={!active}
+                onClick={onChangeRepository}
+                title="Open a new chat and IDE in another folder"
+                type="button"
+              >
+                <UiIcon icon={FolderOpen} size="sm" />
+                <span className="max-[760px]:sr-only">Change repository</span>
+              </button>
               <button
                 aria-label="Refresh workspace"
                 className={CODING_LAYOUT_BUTTON_CLASS}
@@ -211,6 +229,7 @@ export function CodingWorkspaceHeader({
                   aria-label={tool.label}
                   aria-pressed={tool.pressed}
                   className={CODING_LAYOUT_BUTTON_CLASS}
+                  data-code-pane-toggle={tool.pane}
                   key={tool.label}
                   onClick={tool.onClick}
                   title={tool.hint}

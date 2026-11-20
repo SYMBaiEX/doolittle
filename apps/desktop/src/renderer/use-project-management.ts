@@ -1,5 +1,6 @@
 import { type Dispatch, type SetStateAction, useCallback } from "react";
 import type {
+  BotConversationScope,
   Project,
   ProjectResponse,
   ProjectsResponse,
@@ -69,7 +70,9 @@ interface UseProjectManagementOptions {
   readonly startChatInProject?: (
     projectId: string | null,
     sourceSessionId?: string,
-  ) => Promise<void>;
+    destination?: "chat" | "code",
+    expectedWorkspacePath?: string,
+  ) => Promise<BotConversationScope>;
   readonly setProjectScope: Dispatch<SetStateAction<ProjectScope>>;
   readonly setProjects: Dispatch<SetStateAction<Project[]>>;
   readonly setSelectedSession: (sessionId: string) => void;
@@ -96,7 +99,10 @@ export interface ProjectManagementActions {
   ) => Promise<void>;
   readonly chooseRepositoryForConversation: (
     targetSessionId?: string,
-  ) => Promise<void>;
+    destination?: "chat" | "code",
+    stillCurrent?: () => boolean,
+    expectedWorkspacePath?: string,
+  ) => Promise<BotConversationScope | undefined>;
   readonly createProject: (draft: ProjectDraft) => Promise<void>;
   readonly moveCurrentChat: (projectId: string | null) => Promise<void>;
   readonly pinProject: (project: ProjectLike, pinned: boolean) => Promise<void>;
@@ -155,17 +161,29 @@ export function useProjectManagement({
   );
 
   const chooseRepositoryForConversation = useCallback(
-    async (targetSessionId?: string) => {
+    async (
+      targetSessionId?: string,
+      destination: "chat" | "code" = "chat",
+      stillCurrent: () => boolean = () => true,
+      expectedWorkspacePath?: string,
+    ) => {
       try {
         // Picking a chat project must not switch or restart the shared engine.
         const result = await window.doolittle.pickProjectFolders();
-        if (result.canceled) return;
+        if (result.canceled || !stillCurrent()) return;
         if (result.paths.length !== 1)
           throw new Error("Choose one project folder for this chat.");
         const repositoryPath = result.paths[0];
         if (!repositoryPath) return;
+        if (
+          expectedWorkspacePath &&
+          !pathsEqual(repositoryPath, expectedWorkspacePath)
+        )
+          throw new Error(
+            "Choose the exact worktree folder to open it in the IDE.",
+          );
         let project = projects.find((entry) =>
-          projectUsesPath(entry, repositoryPath, pathsEqual),
+          pathsEqual(entry.primaryPath, repositoryPath),
         );
 
         if (project?.archivedAt) {
@@ -192,15 +210,22 @@ export function useProjectManagement({
 
         const selectedProject = project;
         setProjects((current) => upsertProject(current, selectedProject));
+        if (!stillCurrent()) return;
         if (!startChatInProject)
           throw new Error("New chat action is unavailable.");
-        await startChatInProject(selectedProject.id, targetSessionId);
+        const conversation = await startChatInProject(
+          selectedProject.id,
+          targetSessionId,
+          destination,
+          repositoryPath,
+        );
         pushToast({
           tone: "success",
           title: `Ready in ${selectedProject.name}`,
           message:
             "A new chat uses this repository. The earlier chat is unchanged.",
         });
+        return conversation;
       } catch (error) {
         pushToast({
           tone: "error",

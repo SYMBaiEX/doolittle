@@ -119,8 +119,6 @@ interface UseWorkspaceProjectNavigationOptions {
   readonly backendReady: boolean;
   /** Disables Code mutations while an approved workspace switch is pending. */
   readonly setCodeEditingLocked: (locked: boolean) => void;
-  /** Restores Code's dirty guard if an approved switch leaves the editor mounted. */
-  readonly restoreCodeDirtyAfterFailedWorkspaceTransition: () => void;
   readonly createSessionId: () => string;
   readonly pathsEqual: (left: string | undefined, right: string) => boolean;
   readonly projects: readonly Project[];
@@ -172,7 +170,6 @@ export interface WorkspaceProjectNavigation {
 export function useWorkspaceProjectNavigation({
   backendReady,
   setCodeEditingLocked,
-  restoreCodeDirtyAfterFailedWorkspaceTransition,
   createSessionId,
   pathsEqual,
   projects,
@@ -423,7 +420,6 @@ export function useWorkspaceProjectNavigation({
           : (confirmWorkspaceChange?.() ?? true);
         if (!approved) {
           coordinator.clearPending(transition);
-          restoreCodeDirtyAfterFailedWorkspaceTransition();
           return Promise.resolve(false);
         }
       }
@@ -447,9 +443,6 @@ export function useWorkspaceProjectNavigation({
             }
             coordinator.clearPending(transition);
             if (!activated) {
-              if (workspaceSwitchWasPreflighted) {
-                restoreCodeDirtyAfterFailedWorkspaceTransition();
-              }
               setCodeEditingLocked(false);
               resolve(false);
               return;
@@ -460,9 +453,6 @@ export function useWorkspaceProjectNavigation({
                 ? setView(nextView, { skipDirtyCheck: true })
                 : setView(nextView);
             if (!committed) {
-              if (workspaceSwitchWasPreflighted) {
-                restoreCodeDirtyAfterFailedWorkspaceTransition();
-              }
               setCodeEditingLocked(false);
               resolve(false);
               return;
@@ -478,9 +468,6 @@ export function useWorkspaceProjectNavigation({
           } catch {
             if (coordinator.isCurrent(transition)) {
               coordinator.clearPending(transition);
-              if (workspaceSwitchWasPreflighted) {
-                restoreCodeDirtyAfterFailedWorkspaceTransition();
-              }
               setCodeEditingLocked(false);
             }
             resolve(false);
@@ -505,7 +492,6 @@ export function useWorkspaceProjectNavigation({
       setSelectedSession,
       setCodeEditingLocked,
       setView,
-      restoreCodeDirtyAfterFailedWorkspaceTransition,
       workspace.currentPath,
     ],
   );

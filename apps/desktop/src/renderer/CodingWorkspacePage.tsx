@@ -1,4 +1,5 @@
 import type { RepositoryMutationRequest } from "@doolittle/contracts/repository";
+import { Minimize2, X } from "lucide-react";
 import {
   type CSSProperties,
   type FormEvent,
@@ -21,8 +22,9 @@ import type { CodeSurface } from "./coding-workspace/CodingWorkspaceHeader";
 import { CodingWorkspaceHeader } from "./coding-workspace/CodingWorkspaceHeader";
 import { CodingWorkspaceUtility } from "./coding-workspace/CodingWorkspaceUtility";
 import {
+  CODING_LAYOUT_BUTTON_CLASS,
+  CODING_PANE_DISMISS_CLASS,
   CODING_WORKSPACE_PAGE_CLASS,
-  CODING_WORKSPACE_ZEN_CLASS,
   codingGridClass,
 } from "./coding-workspace/layout";
 import {
@@ -43,6 +45,7 @@ import {
 } from "./coding-workspace/models";
 import type { CodeEditorStateSnapshot } from "./components/CodeEditor";
 import { OfflineRouteState } from "./components/OfflineRouteState";
+import { UiIcon } from "./components/UiIcon";
 import type { ComputerOrigin } from "./computer-origin";
 import { useDesktopAcpEditorBridge } from "./desktop-acp-client";
 import type { DesktopNavigationIntent } from "./desktop-navigation-intent";
@@ -72,6 +75,13 @@ import {
   workspaceMutationRequest,
 } from "./workspace-resources";
 
+const PANEL_DOCK_WIDTH = { explorer: 560, utility: 1000 };
+type SidePane = keyof typeof PANEL_DOCK_WIDTH;
+
+function paneToggleSelector(pane: SidePane) {
+  return `[data-code-pane-toggle="${pane}"]`;
+}
+
 export function CodingWorkspacePage({
   active,
   editingLocked,
@@ -82,6 +92,7 @@ export function CodingWorkspacePage({
   onOpenChatTerminal,
   onSendToChat,
   onDirtyChange,
+  previewEvidenceAvailable,
   focusState,
   onFocusStateChange,
   projectScope,
@@ -93,11 +104,17 @@ export function CodingWorkspacePage({
   editingLocked: boolean;
   navigationIntent: DesktopNavigationIntent | null;
   onAcknowledgeNavigationIntent: (id: string) => void;
-  onChooseWorkspace: () => Promise<WorkspacePickResult>;
-  onOpenWorkspacePath: (path: string) => Promise<WorkspacePickResult>;
+  onChooseWorkspace: (
+    hasUnsavedChanges?: boolean,
+  ) => Promise<WorkspacePickResult>;
+  onOpenWorkspacePath: (
+    path: string,
+    hasUnsavedChanges?: boolean,
+  ) => Promise<WorkspacePickResult>;
   onOpenChatTerminal: () => void;
-  onSendToChat: (request: ChatContextRequest) => void;
+  onSendToChat: (request: ChatContextRequest) => Promise<boolean>;
   onDirtyChange?: (dirty: boolean) => void;
+  previewEvidenceAvailable: boolean;
   focusState?: CodingWorkspaceFocusState;
   onFocusStateChange?: (state: CodingWorkspaceFocusState) => void;
   projectScope: ProjectScope;
@@ -110,14 +127,22 @@ export function CodingWorkspacePage({
   const [layout, setLayout] = useState(() =>
     loadCodeWorkspaceLayout(localStorage, workspacePath),
   );
-  const { explorerVisible, utilityVisible, zenMode } = layout;
-  const toggleLayout = useCallback(
-    (control: "explorerVisible" | "utilityVisible" | "zenMode") =>
-      setLayout((current) => ({ ...current, [control]: !current[control] })),
-    [],
-  );
+  const { zenMode } = layout;
+  const workspacePageRef = useRef<HTMLDivElement>(null);
   const codeGridRef = useRef<HTMLDivElement>(null);
+  const pendingFocus = useRef<string | null>(null);
   const [codeGridWidth, setCodeGridWidth] = useState(0);
+  const [overlayPane, setOverlayPane] = useState<SidePane | null>(null);
+  const explorerFits =
+    !codeGridWidth || codeGridWidth >= PANEL_DOCK_WIDTH.explorer;
+  const utilityFits =
+    !codeGridWidth || codeGridWidth >= PANEL_DOCK_WIDTH.utility;
+  const activeOverlay =
+    !zenMode && surface === "workspace" ? overlayPane : null;
+  const explorerDocked = !zenMode && explorerFits && layout.explorerVisible;
+  const utilityDocked = !zenMode && utilityFits && layout.utilityVisible;
+  const explorerVisible = explorerDocked || activeOverlay === "explorer";
+  const utilityVisible = utilityDocked || activeOverlay === "utility";
   const [leftPane, setLeftPane] = useState<LeftPane>(
     () => focusState?.leftPane ?? "files",
   );
@@ -153,23 +178,111 @@ export function CodingWorkspacePage({
   const consumedNavigationIntents = useRef(new Set<string>());
   const hasWorkspace = Boolean(workspacePath.trim());
   const workspaceActive = active && hasWorkspace;
+  const focusWorkspaceControl = useCallback((selector: string) => {
+    workspacePageRef.current?.querySelector<HTMLElement>(selector)?.focus();
+  }, []);
   useLayoutEffect(() => {
     const grid = codeGridRef.current;
-    if (!grid || !active || !hasWorkspace || surface !== "workspace") return;
+    if (!grid || !workspaceActive || surface !== "workspace") return;
     const measure = () => {
-      if (grid.clientWidth > 0) setCodeGridWidth(grid.clientWidth);
+      const width = grid.clientWidth;
+      if (!width) return;
+      const focusedPane =
+        document.activeElement?.closest<HTMLElement>("[data-code-pane]");
+      const pane = focusedPane?.dataset.codePane;
+      if (
+        (pane === "explorer" || pane === "utility") &&
+        grid.contains(focusedPane ?? null) &&
+        (focusedPane?.dataset.overlay === "true") !==
+          width < PANEL_DOCK_WIDTH[pane]
+      ) {
+        focusWorkspaceControl(paneToggleSelector(pane));
+      }
+      setCodeGridWidth(width);
+      setOverlayPane((pane) =>
+        pane && width < PANEL_DOCK_WIDTH[pane] ? pane : null,
+      );
     };
     measure();
     if (typeof ResizeObserver === "undefined") return;
     const observer = new ResizeObserver(measure);
     observer.observe(grid);
     return () => observer.disconnect();
-  }, [active, hasWorkspace, surface]);
-  const displayedWidths = codeWorkspaceWidthBudget(codeGridWidth, layout);
-  const resizeCodePane = (pane: "explorer" | "utility", value: number) => {
+  }, [focusWorkspaceControl, workspaceActive, surface]);
+  useLayoutEffect(() => {
+    if (surface !== "workspace" && overlayPane) setOverlayPane(null);
+    const selector = pendingFocus.current;
+    if (!selector) return;
+    pendingFocus.current = null;
+    focusWorkspaceControl(selector);
+  });
+
+  const dismissOverlay = useCallback((pane: SidePane) => {
+    pendingFocus.current = paneToggleSelector(pane);
+    setOverlayPane(null);
+  }, []);
+
+  const togglePane = useCallback(
+    (pane: SidePane) => {
+      if (surface !== "workspace" || zenMode) return;
+      if (codeGridWidth && codeGridWidth < PANEL_DOCK_WIDTH[pane]) {
+        if (activeOverlay === pane) {
+          dismissOverlay(pane);
+        } else {
+          pendingFocus.current = `[data-code-pane="${pane}"] [role="tab"][aria-selected="true"]`;
+          setOverlayPane(pane);
+        }
+        return;
+      }
+      if (
+        workspacePageRef.current
+          ?.querySelector(`[data-code-pane="${pane}"]`)
+          ?.contains(document.activeElement)
+      ) {
+        focusWorkspaceControl(paneToggleSelector(pane));
+      }
+      const key = pane === "explorer" ? "explorerVisible" : "utilityVisible";
+      setLayout((current) => ({ ...current, [key]: !current[key] }));
+    },
+    [
+      activeOverlay,
+      codeGridWidth,
+      dismissOverlay,
+      focusWorkspaceControl,
+      surface,
+      zenMode,
+    ],
+  );
+  const toggleZen = useCallback(() => {
+    pendingFocus.current = zenMode
+      ? "#code-surface-workspace-tab[aria-selected=true], #code-surface-preview-tab[aria-selected=true]"
+      : "[data-code-focus-exit]";
+    setOverlayPane(null);
+    setLayout((current) => ({ ...current, zenMode: !current.zenMode }));
+  }, [zenMode]);
+
+  const widthPreferences = {
+    ...layout,
+    explorerVisible: explorerDocked,
+    utilityVisible: utilityDocked,
+  };
+  const displayedWidths = codeWorkspaceWidthBudget(
+    codeGridWidth,
+    widthPreferences,
+  );
+  const resizeCodePane = (pane: SidePane, value: number) => {
     setLayout((current) => ({
       ...current,
-      ...resizeCodeWorkspaceWidths(codeGridWidth, current, pane, value),
+      ...resizeCodeWorkspaceWidths(
+        codeGridWidth,
+        {
+          ...current,
+          explorerVisible: explorerDocked,
+          utilityVisible: utilityDocked,
+        },
+        pane,
+        value,
+      ),
     }));
   };
   const acpEditor = useDesktopAcpEditorBridge({
@@ -332,11 +445,11 @@ export function CodingWorkspacePage({
     );
   }, [loadedContent, selectedPath]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     onDirtyChange?.(fileDirty);
   }, [fileDirty, onDirtyChange]);
 
-  useEffect(() => () => onDirtyChange?.(false), [onDirtyChange]);
+  useLayoutEffect(() => () => onDirtyChange?.(false), [onDirtyChange]);
 
   const openPath = useCallback(
     (path: string, destination: EditorPane = "file") => {
@@ -372,6 +485,16 @@ export function CodingWorkspacePage({
     }
   }, [active, navigationIntent, onAcknowledgeNavigationIntent, openPath]);
 
+  const openExplorerPath = (path: string, destination?: EditorPane) => {
+    const opened = openPath(path, destination);
+    if (activeOverlay === "explorer" && (opened || fileDirty)) {
+      pendingFocus.current =
+        '[data-code-editor] [role="tab"][aria-selected="true"]';
+      setOverlayPane(null);
+    }
+    return opened;
+  };
+
   useEffect(() => {
     try {
       saveCodeWorkspaceLayout(localStorage, workspacePath, layout);
@@ -383,14 +506,30 @@ export function CodingWorkspacePage({
   useEffect(() => {
     if (!active) return;
     const handleWorkspaceShortcut = (event: globalThis.KeyboardEvent) => {
+      if (event.defaultPrevented || event.isComposing || event.repeat) return;
+      if (activeOverlay && event.key === "Escape") {
+        event.preventDefault();
+        dismissOverlay(activeOverlay);
+        return;
+      }
       if (!event.metaKey && !event.ctrlKey) return;
       const key = event.key.toLowerCase();
-      if (key === "b" && !event.shiftKey) {
+      if (
+        surface === "workspace" &&
+        !zenMode &&
+        key === "b" &&
+        !event.shiftKey
+      ) {
         event.preventDefault();
-        toggleLayout("explorerVisible");
-      } else if (key === "j" && !event.shiftKey) {
+        togglePane("explorer");
+      } else if (
+        surface === "workspace" &&
+        !zenMode &&
+        key === "j" &&
+        !event.shiftKey
+      ) {
         event.preventDefault();
-        toggleLayout("utilityVisible");
+        togglePane("utility");
       } else if (key === "z" && event.shiftKey) {
         const target = event.target;
         if (
@@ -400,12 +539,20 @@ export function CodingWorkspacePage({
           return;
         }
         event.preventDefault();
-        toggleLayout("zenMode");
+        toggleZen();
       }
     };
     window.addEventListener("keydown", handleWorkspaceShortcut);
     return () => window.removeEventListener("keydown", handleWorkspaceShortcut);
-  }, [active, toggleLayout]);
+  }, [
+    active,
+    activeOverlay,
+    dismissOverlay,
+    surface,
+    togglePane,
+    toggleZen,
+    zenMode,
+  ]);
 
   const refreshAll = () => {
     if (active) void refreshWorkspaceResources(resourceOrigin);
@@ -512,7 +659,7 @@ export function CodingWorkspacePage({
     void acpEditor.flushEditorState();
     if (editorPane === "diff") {
       const patch = patchResource.data?.patch?.patch ?? "";
-      onSendToChat({
+      void onSendToChat({
         text: [
           `Review and improve the change in ${selectedPath}.`,
           `<review_context path="${selectedPath}" source="${stagedPatch ? "staged" : "working-tree"}">`,
@@ -525,7 +672,7 @@ export function CodingWorkspacePage({
       });
       return;
     }
-    onSendToChat({
+    void onSendToChat({
       text: [
         `Help me work on ${selectedPath}.`,
         `<file_context path="${selectedPath}">`,
@@ -553,7 +700,9 @@ export function CodingWorkspacePage({
 
   if (!workspaceActive) {
     return (
-      <div className={CODING_WORKSPACE_PAGE_CLASS}>
+      <div
+        className={`page ${CODING_WORKSPACE_PAGE_CLASS} overflow-y-auto px-3 py-2`}
+      >
         <PageHeader
           description="Inspect files, changes, and workspace operations."
           eyebrow="Workspace"
@@ -586,29 +735,59 @@ export function CodingWorkspacePage({
     );
   }
 
-  return (
-    <div
-      className={`${CODING_WORKSPACE_PAGE_CLASS} ${zenMode ? CODING_WORKSPACE_ZEN_CLASS : ""}`}
+  const overlayDismiss = activeOverlay ? (
+    <button
+      aria-label={
+        activeOverlay === "explorer"
+          ? "Close explorer"
+          : "Close workspace tools"
+      }
+      className={CODING_PANE_DISMISS_CLASS}
+      onClick={() => dismissOverlay(activeOverlay)}
+      type="button"
     >
-      {!zenMode ? (
+      <UiIcon icon={X} size="sm" />
+    </button>
+  ) : null;
+
+  return (
+    <div className={CODING_WORKSPACE_PAGE_CLASS} ref={workspacePageRef}>
+      {zenMode ? (
+        <div className="flex shrink-0 justify-end border-[var(--border)] border-b px-1">
+          <button
+            className={`${CODING_LAYOUT_BUTTON_CLASS} !h-8 !w-auto gap-1.5 px-2 [display:inline-flex] text-xs`}
+            data-code-focus-exit
+            onClick={toggleZen}
+            type="button"
+          >
+            <UiIcon icon={Minimize2} size="xs" />
+            Exit focus mode
+          </button>
+        </div>
+      ) : (
         <CodingWorkspaceHeader
           active={active}
+          onChangeRepository={() => void onChooseWorkspace(fileDirty)}
           explorerVisible={explorerVisible}
           surface={surface}
           onRefresh={refreshAll}
           onRetrySummary={summaryResource.reload}
-          onSurfaceChange={onSurfaceChange}
-          onToggleExplorer={() => toggleLayout("explorerVisible")}
-          onToggleUtility={() => toggleLayout("utilityVisible")}
-          onToggleZen={() => toggleLayout("zenMode")}
+          onSurfaceChange={(next) => {
+            if (next === "preview") setOverlayPane(null);
+            onSurfaceChange(next);
+          }}
+          onToggleExplorer={() => togglePane("explorer")}
+          onToggleUtility={() => togglePane("utility")}
+          onToggleZen={toggleZen}
           hasSummary={Boolean(summaryResource.data?.summary)}
           summary={summary}
           summaryError={summaryResource.error}
           summaryLoading={summaryResource.loading}
           utilityVisible={utilityVisible}
+          workspacePath={workspacePath}
           zenMode={zenMode}
         />
-      ) : null}
+      )}
       <div
         aria-label={zenMode ? "Code workspace" : undefined}
         aria-labelledby={zenMode ? undefined : "code-surface-workspace-tab"}
@@ -618,7 +797,7 @@ export function CodingWorkspacePage({
         ref={codeGridRef}
         inert={surface !== "workspace"}
         role="tabpanel"
-        className={codingGridClass(explorerVisible, utilityVisible, zenMode)}
+        className={codingGridClass(explorerDocked, utilityDocked)}
         style={
           {
             "--coding-explorer-width": `${displayedWidths.explorerWidth}px`,
@@ -635,9 +814,13 @@ export function CodingWorkspacePage({
             ])}
             changes={changes}
             changesResource={changesResource}
+            dismissControl={
+              activeOverlay === "explorer" ? overlayDismiss : null
+            }
+            inert={activeOverlay === "utility"}
             leftPane={leftPane}
             onLeftPaneChange={setLeftPane}
-            onOpenPath={openPath}
+            onOpenPath={openExplorerPath}
             onResize={(value) => resizeCodePane("explorer", value)}
             resizeBounds={displayedWidths.explorerBounds}
             onSearchDraftChange={setSearchDraft}
@@ -653,55 +836,61 @@ export function CodingWorkspacePage({
           />
         ) : null}
 
-        <CodingWorkspaceEditor
-          botId={botId}
-          originConversationId={originConversationId}
-          acpEditor={acpEditor}
-          acpTaskDraft={acpTaskDraft}
-          acpTaskOpen={acpTaskOpen}
-          draftContent={draftContent}
-          editingLocked={editingLocked}
-          editorPane={editorPane}
-          fileDirty={fileDirty}
-          fileNotice={fileNotice}
-          fileResource={fileResource}
-          onAcpTaskDraftChange={(value) => {
-            if (!editingLocked) setAcpTaskDraft(value);
-          }}
-          onAcpTaskOpenChange={(open) => {
-            if (!editingLocked) setAcpTaskOpen(open);
-          }}
-          onDiscard={discardFile}
-          onDraftChange={(value) => {
-            if (editingLocked) return;
-            setFileEdit(
-              value === originalContent
-                ? null
-                : {
-                    path: selectedPath,
-                    baseline: originalContent,
-                    content: value,
-                  },
-            );
-            if (fileNotice?.tone !== "bad") setFileNotice(null);
-          }}
-          onEditorPaneChange={setEditorPane}
-          onEditorStateChange={(snapshot: CodeEditorStateSnapshot) =>
-            acpEditor.publishEditorState(snapshot, fileDirty)
-          }
-          onMutateVisiblePatch={mutateVisiblePatch}
-          onSave={() => void saveFile()}
-          onSendSelectedContext={sendSelectedContext}
-          onSetStagedPatch={setStagedPatch}
-          onSubmitAcpTask={submitAcpTask}
-          patchResource={patchResource}
-          savingFile={savingFile}
-          selectedChange={selectedChange}
-          selectedLanguage={selectedLanguage}
-          selectedPath={selectedPath}
-          stagedPatch={stagedPatch}
-          workspacePath={workspacePath}
-        />
+        <div
+          className="isolate flex min-h-0 min-w-0 flex-col"
+          data-code-editor
+          inert={Boolean(activeOverlay)}
+        >
+          <CodingWorkspaceEditor
+            botId={botId}
+            originConversationId={originConversationId}
+            acpEditor={acpEditor}
+            acpTaskDraft={acpTaskDraft}
+            acpTaskOpen={acpTaskOpen}
+            draftContent={draftContent}
+            editingLocked={editingLocked}
+            editorPane={editorPane}
+            fileDirty={fileDirty}
+            fileNotice={fileNotice}
+            fileResource={fileResource}
+            onAcpTaskDraftChange={(value) => {
+              if (!editingLocked) setAcpTaskDraft(value);
+            }}
+            onAcpTaskOpenChange={(open) => {
+              if (!editingLocked) setAcpTaskOpen(open);
+            }}
+            onDiscard={discardFile}
+            onDraftChange={(value) => {
+              if (editingLocked) return;
+              setFileEdit(
+                value === originalContent
+                  ? null
+                  : {
+                      path: selectedPath,
+                      baseline: originalContent,
+                      content: value,
+                    },
+              );
+              if (fileNotice?.tone !== "bad") setFileNotice(null);
+            }}
+            onEditorPaneChange={setEditorPane}
+            onEditorStateChange={(snapshot: CodeEditorStateSnapshot) =>
+              acpEditor.publishEditorState(snapshot, fileDirty)
+            }
+            onMutateVisiblePatch={mutateVisiblePatch}
+            onSave={() => void saveFile()}
+            onSendSelectedContext={sendSelectedContext}
+            onSetStagedPatch={setStagedPatch}
+            onSubmitAcpTask={submitAcpTask}
+            patchResource={patchResource}
+            savingFile={savingFile}
+            selectedChange={selectedChange}
+            selectedLanguage={selectedLanguage}
+            selectedPath={selectedPath}
+            stagedPatch={stagedPatch}
+            workspacePath={workspacePath}
+          />
+        </div>
 
         {utilityVisible ? (
           <CodingWorkspaceUtility
@@ -710,11 +899,12 @@ export function CodingWorkspacePage({
             changes={changes}
             conflictsResource={conflictsResource}
             commits={commits}
+            dismissControl={activeOverlay === "utility" ? overlayDismiss : null}
             logResource={logResource}
             mutateRepository={mutateRepository}
             origin={resourceOrigin}
-            onChooseWorkspace={onChooseWorkspace}
-            onOpenWorkspacePath={onOpenWorkspacePath}
+            onChooseWorkspace={() => onChooseWorkspace(fileDirty)}
+            onOpenWorkspacePath={(path) => onOpenWorkspacePath(path, fileDirty)}
             onOpenTerminal={onOpenChatTerminal}
             onRefresh={refreshAll}
             onResize={(value) => resizeCodePane("utility", value)}
@@ -726,6 +916,15 @@ export function CodingWorkspacePage({
             onUtilityPaneChange={handleUtilityPaneChange}
             width={displayedWidths.utilityWidth}
             worktreeResource={worktreeResource}
+          />
+        ) : null}
+        {activeOverlay ? (
+          <button
+            aria-label="Dismiss workspace pane"
+            className="absolute inset-0 z-45 bg-[color-mix(in_srgb,var(--bg)_65%,transparent)]"
+            onClick={() => dismissOverlay(activeOverlay)}
+            tabIndex={-1}
+            type="button"
           />
         ) : null}
       </div>
@@ -742,16 +941,16 @@ export function CodingWorkspacePage({
         <BrowserPage
           botId={botId}
           active={active && surface === "preview"}
+          evidenceAvailable={previewEvidenceAvailable}
           origin={resourceOrigin}
-          onSendToChat={(text) => {
+          onSendToChat={(text) =>
             onSendToChat({
               text,
               workspacePath,
               projectScope,
               origin: resourceOrigin,
-            });
-            return true;
-          }}
+            })
+          }
         />
       </div>
     </div>

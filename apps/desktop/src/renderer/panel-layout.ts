@@ -21,8 +21,8 @@ export const UTILITY_DRAWER_WIDTH = {
 } as const;
 
 export const CODE_EXPLORER_WIDTH = {
-  default: 280,
-  min: 210,
+  default: 212,
+  min: 176,
   max: 520,
 } as const;
 

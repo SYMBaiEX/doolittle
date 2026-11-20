@@ -1,3 +1,4 @@
+import type { BrowserPreviewSize } from "./browser/browser-navigation";
 import { asRecord, asString, displayTimestamp, titleCase } from "./lib";
 
 export type BrowserAction =
@@ -8,9 +9,13 @@ export type BrowserAction =
   | "analyze";
 
 export interface BrowserResult {
+  id: string;
   action: BrowserAction | "compare" | "compare-analyze";
   title: string;
   payload: unknown;
+  requestedUrl: string;
+  comparisonUrl?: string;
+  previewSize: BrowserPreviewSize;
 }
 
 export interface BrowserResultCard {

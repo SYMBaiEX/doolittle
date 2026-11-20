@@ -151,7 +151,7 @@ function defaultLayout(
   try {
     return {
       explorerVisible: readBoolean(storage, LEGACY_EXPLORER_VISIBLE_KEY, true),
-      utilityVisible: readBoolean(storage, LEGACY_UTILITY_VISIBLE_KEY, true),
+      utilityVisible: readBoolean(storage, LEGACY_UTILITY_VISIBLE_KEY, false),
       zenMode: readBoolean(storage, LEGACY_ZEN_MODE_KEY, false),
       explorerWidth: loadPanelWidth(
         storage,
@@ -167,7 +167,7 @@ function defaultLayout(
   } catch {
     return {
       explorerVisible: true,
-      utilityVisible: true,
+      utilityVisible: false,
       zenMode: false,
       explorerWidth: CODE_EXPLORER_WIDTH.default,
       utilityWidth: CODE_UTILITY_WIDTH.default,

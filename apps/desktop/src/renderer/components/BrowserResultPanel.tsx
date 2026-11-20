@@ -16,6 +16,7 @@ import {
 import {
   type BrowserResult,
   buildBrowserResultViewModel,
+  getBrowserEvidenceMetadata,
 } from "../browser-result-model";
 import { copyContextText } from "../context-menu-clipboard";
 import { Badge, errorMessage } from "../lib";
@@ -24,20 +25,14 @@ export const BROWSER_RESULT_IMAGE_CANVAS_CLASS =
   "aspect-4/3 w-full rounded-[var(--radius-xs)] border border-[var(--canvas-border)] bg-[var(--canvas-bg)] object-cover";
 
 interface BrowserResultPanelProps {
-  address: string;
-  currentUrl: string;
   onError: (message: string) => void;
   onSendToChat?: (text: string) => boolean | Promise<boolean>;
-  previewSize: string;
   result: BrowserResult;
 }
 
 export function BrowserResultPanel({
-  address,
-  currentUrl,
   onError,
   onSendToChat,
-  previewSize,
   result,
 }: BrowserResultPanelProps) {
   const [comment, setComment] = useState("");
@@ -52,20 +47,21 @@ export function BrowserResultPanel({
     () => buildBrowserResultViewModel(result),
     [result],
   );
+  const evidenceUrl =
+    getBrowserEvidenceMetadata(result.payload).url || result.requestedUrl;
   const viewport = viewportNote.trim()
-    ? `${previewSize} · ${viewportNote.trim()}`
-    : previewSize;
+    ? `${result.previewSize} · ${viewportNote.trim()}`
+    : result.previewSize;
   const evidenceContext = useMemo(
     () =>
       compileBrowserEvidenceContext({
         result,
-        url: currentUrl || address,
-        viewport,
+        viewportNote,
         comment,
         selector,
         region,
       }),
-    [address, comment, currentUrl, region, result, selector, viewport],
+    [comment, region, result, selector, viewportNote],
   );
   const currentEvidenceContextRef = useRef(evidenceContext);
   currentEvidenceContextRef.current = evidenceContext;
@@ -83,6 +79,8 @@ export function BrowserResultPanel({
     setSending(true);
     try {
       const sent = await onSendToChat(submittedContext);
+      if (!sent)
+        onError("The original chat did not open. Browser evidence was kept.");
       setSentResult(
         sent && currentEvidenceContextRef.current === submittedContext
           ? result
@@ -274,8 +272,8 @@ export function BrowserResultPanel({
           </details>
           <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-2 gap-y-1 rounded-[var(--radius-xs)] border border-[var(--border)] bg-[color-mix(in_srgb,var(--bg)_58%,transparent)] p-2 [&>code]:truncate [&>code]:text-[length:var(--text-control)] [&>code]:text-[var(--text-soft)] [&>span]:font-mono [&>span]:text-[length:var(--text-meta)] [&>span]:text-[var(--muted)] [&>span]:uppercase">
             <span>URL</span>
-            <code>{currentUrl || address}</code>
-            <span>Viewport</span>
+            <code>{evidenceUrl}</code>
+            <span>Preview size</span>
             <code>{viewport}</code>
             <span>Capture</span>
             <code>{capture}</code>

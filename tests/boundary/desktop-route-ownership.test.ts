@@ -5,6 +5,7 @@ import {
   pushDesktopNavigationHistory,
   replaceDesktopNavigationEntry,
 } from "../../apps/desktop/src/renderer/app-shell/desktop-navigation-history";
+import { sameComputerOrigin } from "../../apps/desktop/src/renderer/computer-origin";
 import {
   desktopHashForView,
   renderedViewForView,
@@ -17,6 +18,29 @@ import {
 } from "../../apps/desktop/src/renderer/settings/settings-sections";
 
 describe("desktop route ownership", () => {
+  it("retains an editor only for the same bot, conversation, and workspace", () => {
+    const origin = {
+      botId: "lead",
+      originConversationId: "active-chat",
+      workspacePath: "/projects/first",
+    };
+    expect(sameComputerOrigin(origin, { ...origin })).toBe(true);
+    expect(
+      sameComputerOrigin(origin, { ...origin, botId: "another-bot" }),
+    ).toBe(false);
+    expect(
+      sameComputerOrigin(origin, {
+        ...origin,
+        originConversationId: "another-chat",
+      }),
+    ).toBe(false);
+    expect(
+      sameComputerOrigin(origin, {
+        ...origin,
+        workspacePath: "/projects/other",
+      }),
+    ).toBe(false);
+  });
   it("keeps aliases in the same mounted workspace", () => {
     expect(resolveDesktopHash("#browser")).toMatchObject({
       view: "browser",
