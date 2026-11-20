@@ -14,7 +14,6 @@ CHECK_ONLY=0
 ASSUME_YES=0
 LAUNCH_DESKTOP=0
 PACKAGE_INSTALLER=0
-NUB_VERSION="0.9.7"
 REQUIRED_NODE_VERSION="$(tr -d '\r\n' < "${ROOT}/.node-version")"
 REQUIRED_NODE_MAJOR="${REQUIRED_NODE_VERSION%%.*}"
 LOCAL_BIN_DIR="${HOME}/.local/bin"
@@ -26,6 +25,10 @@ DOOLITTLE_BIN_SOURCE="${ROOT}/apps/cli/src/index.ts"
 DOOLITTLE_SHORT_LINK="${LOCAL_BIN_DIR}/dl"
 OS_NAME="unknown"
 UPDATED_SHELL_CONFIGS=()
+LOCAL_BIN_ON_PATH=0
+case ":$PATH:" in
+  *":${LOCAL_BIN_DIR}:"*) LOCAL_BIN_ON_PATH=1 ;;
+esac
 
 detect_os() {
   case "$(uname -s)" in
@@ -56,6 +59,10 @@ windows_installer_notice() {
   printf "%s\n" "  4) See docs/releases.md for Windows packaging requirements."
 }
 
+print_usage() {
+  echo "Usage: bash scripts/install.sh [--headless] [--skip-wizard] [--desktop] [--no-desktop] [--check] [--yes] [--package-installer]"
+}
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --headless|--non-interactive)
@@ -79,9 +86,13 @@ while [[ $# -gt 0 ]]; do
     --package-installer)
       PACKAGE_INSTALLER=1
       ;;
+    --help|-h)
+      print_usage
+      exit 0
+      ;;
     *)
-      echo "Unknown option: $1"
-      echo "Usage: bash scripts/install.sh [--headless] [--skip-wizard] [--desktop] [--no-desktop] [--check] [--yes] [--package-installer]"
+      echo "Unknown option: $1" >&2
+      print_usage >&2
       exit 1
       ;;
   esac
@@ -139,7 +150,7 @@ if [[ "$OS_NAME" == "windows" ]]; then
     windows_args+=("-PackageInstaller")
   fi
 
-  "${powershell}" -NoProfile -ExecutionPolicy Bypass -File "scripts/install.ps1" "${windows_args[@]}"
+  "${powershell}" -NoProfile -ExecutionPolicy Bypass -File "scripts/install.ps1" ${windows_args[@]+"${windows_args[@]}"}
   exit $?
 fi
 if [[ "$OS_NAME" == "macos" ]]; then
@@ -149,7 +160,6 @@ elif [[ "$OS_NAME" == "linux" ]]; then
 fi
 
 ensure_nub() {
-  mkdir -p "$LOCAL_BIN_DIR"
   export PATH="${NUB_TOOL_ROOT}/bin:${LOCAL_BIN_DIR}:$PATH"
 
   if ! command -v node >/dev/null 2>&1 || ! command -v npm >/dev/null 2>&1; then
@@ -166,6 +176,7 @@ ensure_nub() {
     echo "Doolittle requires Node.js ${REQUIRED_NODE_MAJOR}+ (the repository pins ${REQUIRED_NODE_VERSION}); found ${node_version:-unknown}."
     exit 1
   fi
+  NUB_VERSION="$(node -p 'require("./package.json").packageManager.match(/^nub@(.+)$/)[1]')"
 
   local installed_version=""
   if [[ -x "$NUB_BIN" ]]; then
@@ -209,11 +220,12 @@ ensure_nub() {
 ensure_nub
 
 if [[ "$CHECK_ONLY" -eq 0 ]]; then
-  printf "%s\n" "${amber}Feeding the body with workspace dependencies...${reset}"
-  "$NUB_COMMAND" scripts/prepare-eliza-source.ts
-  "$NUB_COMMAND" install --frozen-lockfile --ignore-scripts
-  printf "%s\n" "${amber}Installing Electron's standalone desktop runtime...${reset}"
-  "$NUB_COMMAND" run desktop:runtime:install
+  printf "%s\n" "${amber}Installing workspace dependencies…${reset}"
+  "$NUB_COMMAND" scripts/prepare-eliza-source.ts --install --frozen-lockfile --ignore-scripts
+  if [[ "$LAUNCH_DESKTOP" -eq 1 || "$PACKAGE_INSTALLER" -eq 1 ]]; then
+    printf "%s\n" "${amber}Installing the Electron runtime…${reset}"
+    "$NUB_COMMAND" run desktop:runtime:install
+  fi
 else
   printf "%s\n" "${amber}Skipping dependency install because this is a dry run.${reset}"
 fi
@@ -225,11 +237,11 @@ setup_path() {
   {
     printf '%s\n' '#!/usr/bin/env bash'
     printf '%s\n' 'set -euo pipefail'
-    printf 'exec %q %q "$@"\n' "$NUB_BIN" "$DOOLITTLE_BIN_SOURCE"
+    printf 'exec %q %q "$@"\n' "$NUB_COMMAND" "$DOOLITTLE_BIN_SOURCE"
   } > "$DOOLITTLE_BIN_LINK"
   chmod +x "$DOOLITTLE_BIN_LINK"
 
-  if ! echo "$PATH" | tr ':' '\n' | grep -qx "$LOCAL_BIN_DIR"; then
+  if [[ "$LOCAL_BIN_ON_PATH" -eq 0 ]]; then
     local path_line='export PATH="$HOME/.local/bin:$PATH"'
     local shell_configs=()
     case "$(basename "${SHELL:-/bin/bash}")" in
@@ -332,7 +344,6 @@ if [[ "$ASSUME_YES" -eq 1 ]]; then
   BOOTSTRAP_ARGS+=("--yes")
 fi
 
-  printf "%s\n" "${amber}Beginning the awakening sequence...${reset}"
 if [[ "$CHECK_ONLY" -eq 1 ]]; then
   printf "%s\n" "${dim}  Dry run: skipping symlink and shell profile writes.${reset}"
   printf "%s\n" "${dim}  Would create: ${DOOLITTLE_BIN_LINK}${reset}"
@@ -343,7 +354,12 @@ if [[ "$CHECK_ONLY" -eq 1 ]]; then
 else
   setup_path
 fi
-"$NUB_COMMAND" scripts/bootstrap.ts "${BOOTSTRAP_ARGS[@]}"
+if [[ "$CHECK_ONLY" -eq 1 && ! -f "${ROOT}/node_modules/@elizaos/core/package.json" ]]; then
+  printf "%s\n" "${dim}  Workspace dependencies are missing. Setup checks are available after dependency installation.${reset}"
+else
+  printf "%s\n" "${amber}Checking local configuration…${reset}"
+  "$NUB_COMMAND" scripts/bootstrap.ts ${BOOTSTRAP_ARGS[@]+"${BOOTSTRAP_ARGS[@]}"}
+fi
 
 if [[ "$PACKAGE_INSTALLER" -eq 1 && "$CHECK_ONLY" -eq 0 ]]; then
   printf "%s\n" "${amber}Building the standalone Windows installer...${reset}"
@@ -367,14 +383,13 @@ if [[ -L "$DOOLITTLE_SHORT_LINK" ]]; then
 fi
 printf "%s\n" "  doolittle cockpit"
 printf "%s\n" "  doolittle desktop"
-printf "%s\n" "  doolittle plain"
 printf "%s\n" "  doolittle exec -p \"summarize this repo\""
 printf "%s\n" "  doolittle setup"
 printf "%s\n" "  doolittle doctor"
 printf "%s\n" "${dim}  Try: summarize this repo and tell me where to start${reset}"
 printf "%s\n" "${dim}  Or run a shell action directly: !git status${reset}"
 
-if [[ "$CHECK_ONLY" -eq 0 && "$HEADLESS" -eq 0 ]]; then
+if [[ "$HEADLESS" -eq 0 ]]; then
   printf "\n%s\n" "${amber}Launching Doolittle now...${reset}"
   printf "%s\n" "${dim}  Press Ctrl-C to return to your shell.${reset}"
   launch_status=0
@@ -389,7 +404,7 @@ if [[ "$CHECK_ONLY" -eq 0 && "$HEADLESS" -eq 0 ]]; then
   printf "\n%s\n" "${orange}${bold}The first launch tripped over something local.${reset}"
   printf "%s\n" "${dim}  Your install is still in place. The fastest recovery steps are below.${reset}"
   printf "%s\n" "  doolittle doctor"
-  printf "%s\n" "  doolittle plain"
+  printf "%s\n" "  doolittle"
   printf "%s\n" "  doolittle setup"
   printf "%s\n" "${dim}  If this was only a shell PATH refresh issue, restart the terminal or source your profile.${reset}"
   exit 1

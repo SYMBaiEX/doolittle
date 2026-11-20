@@ -42,10 +42,5 @@ export function renderTopLevelHelp(): string {
     '  doolittle exec -p "review the repo" --background',
     "  doolittle jobs attach <job-id>",
     "  doolittle cockpit",
-    "",
-    "Legacy aliases:",
-    "  doolittle plain",
-    "  doolittle --cockpit",
-    "  doolittle --plain-cli",
   ].join("\n");
 }

@@ -55,6 +55,7 @@
   "exports": {
     "./config/env": "./src/config/env/index.ts",
     "./config/env/directories": "./src/config/env/directories.ts",
+    "./config/env/load": "./src/config/env/load.ts",
     "./config/env/paths": "./src/config/env/paths.ts",
     "./config/env/schema": "./src/config/env/schema.ts",
     "./gateway/transport": "./src/gateway/transport/index.ts",

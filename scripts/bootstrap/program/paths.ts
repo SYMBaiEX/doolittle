@@ -1,56 +1,49 @@
 import { existsSync, mkdirSync } from "node:fs";
-import { join } from "node:path";
+import { join, relative } from "node:path";
+import { resolveManagedDirectories } from "@doolittle/agent/config/env/directories";
+import { parseEnv } from "@doolittle/agent/config/env/schema";
 import type { BootstrapPersistencePaths } from "../persistence/types";
 
-export interface BootstrapPaths extends BootstrapPersistencePaths {
-  envExamplePath: string;
-}
-
-export function resolveBootstrapDirectories(): string[] {
-  return [
-    ".doolittle",
-    ".doolittle/gateway",
-    ".doolittle/hooks",
-    ".doolittle/remote-artifacts",
-    ".doolittle/trajectories",
-    "packages/skills/.generated",
-  ];
-}
-
-export function resolveBootstrapPaths(root: string): BootstrapPaths {
+export function resolveBootstrapPaths(
+  root: string,
+  env: NodeJS.ProcessEnv,
+): BootstrapPersistencePaths & { directories: string[] } {
+  const directories = resolveManagedDirectories(
+    root,
+    parseEnv({
+      DOOLITTLE_DATA_DIR: env.DOOLITTLE_DATA_DIR,
+      DOOLITTLE_SKILLS_DIR: env.DOOLITTLE_SKILLS_DIR,
+      DOOLITTLE_GATEWAY_DATA_DIR: env.DOOLITTLE_GATEWAY_DATA_DIR,
+      DOOLITTLE_HOOKS_DIR: env.DOOLITTLE_HOOKS_DIR,
+    }),
+  );
+  const { dataDir, gatewayDataDir, hooksDir, skillsDir } = directories;
   return {
     envPath: join(root, ".env"),
-    envExamplePath: join(root, ".env.example"),
-    settingsPath: join(root, ".doolittle", "settings.json"),
-    gatewayPath: join(root, ".doolittle", "gateway", "gateway.json"),
-    onboardingPath: join(root, ".doolittle", "onboarding.json"),
+    settingsPath: join(dataDir, "settings.json"),
+    gatewayPath: join(gatewayDataDir, "gateway.json"),
+    onboardingPath: join(dataDir, "onboarding.json"),
+    directories: [
+      dataDir,
+      gatewayDataDir,
+      hooksDir,
+      join(dataDir, "remote-artifacts"),
+      join(dataDir, "trajectories"),
+      join(skillsDir, ".generated"),
+    ],
   };
 }
 
-function ensureBootstrapDirectory(path: string, checkOnly: boolean): void {
-  if (existsSync(path) || checkOnly) {
-    return;
-  }
-  mkdirSync(path, { recursive: true });
-}
-
-export function ensureBootstrapDirectories(options: {
-  root: string;
-  directories: string[];
-  checkOnly: boolean;
-}): string[] {
-  const createdDirs: string[] = [];
-  for (const dir of options.directories) {
-    const absolute = join(options.root, dir);
-    const existed = existsSync(absolute);
-    ensureBootstrapDirectory(absolute, options.checkOnly);
-    if (existed) {
-      createdDirs.push(`${dir} (exists)`);
-    } else if (options.checkOnly) {
-      createdDirs.push(`${dir} (missing)`);
-    } else {
-      createdDirs.push(dir);
-    }
-  }
-  return createdDirs;
+export function ensureBootstrapDirectories(
+  root: string,
+  directories: readonly string[],
+  checkOnly: boolean,
+): string[] {
+  return [...new Set(directories)].map((path) => {
+    const label = relative(root, path) || ".";
+    if (existsSync(path)) return `${label} (exists)`;
+    if (checkOnly) return `${label} (missing)`;
+    mkdirSync(path, { recursive: true });
+    return label;
+  });
 }

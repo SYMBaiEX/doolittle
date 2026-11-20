@@ -1,4 +1,6 @@
-import { relative } from "node:path";
+import { join, relative } from "node:path";
+import { loadProcessEnv } from "@doolittle/agent/config/env/load";
+import { getDefaultRepoRoot } from "@doolittle/agent/config/env/paths";
 import { ensureEnvFile, readEnvEntries } from "../core/env-file";
 import { applyBootstrapAnswers } from "../persistence/apply";
 import { buildBootstrapCheckSummary } from "../summary";
@@ -7,48 +9,43 @@ import { getDependencyProbes } from "../wizard/dependencies";
 import { runWizard } from "../wizard-flow";
 import { createBootstrapProgramContext } from "./context";
 import { resolveBootstrapOptions } from "./options";
-import {
-  ensureBootstrapDirectories,
-  resolveBootstrapDirectories,
-  resolveBootstrapPaths,
-} from "./paths";
+import { ensureBootstrapDirectories, resolveBootstrapPaths } from "./paths";
 import { assertHeadlessProviderAvailable } from "./provider-guard";
 import { printBootstrapSummary } from "./summary";
 
 export async function runBootstrapProgram(
   options: { args?: string[]; root?: string } = {},
 ): Promise<number> {
-  const root = options.root ?? process.cwd();
+  const root = options.root ?? getDefaultRepoRoot();
   const args = options.args ?? process.argv.slice(2);
   const bootstrapOptions = resolveBootstrapOptions(args);
-  const directories = resolveBootstrapDirectories();
-  const paths = resolveBootstrapPaths(root);
   const { wizardContext, section, isAbortError } =
     createBootstrapProgramContext({
       root,
       bootstrapOptions,
     });
 
-  const createdDirs = ensureBootstrapDirectories({
-    root,
-    directories,
-    checkOnly: bootstrapOptions.checkOnly,
-  });
+  const envPath = join(root, ".env");
   const initialEnvMessages = ensureEnvFile({
-    envPath: paths.envPath,
-    envExamplePath: paths.envExamplePath,
+    envPath,
+    envExamplePath: join(root, ".env.example"),
     checkOnly: bootstrapOptions.checkOnly,
   });
-  const dependencyProbes = getDependencyProbes(
+  const runtimeEnv = { ...process.env };
+  loadProcessEnv(root, { env: runtimeEnv });
+  const paths = resolveBootstrapPaths(root, runtimeEnv);
+  const existingEnv = readEnvEntries(envPath);
+  const createdDirs = ensureBootstrapDirectories(
     root,
-    readEnvEntries(paths.envPath),
+    paths.directories,
+    bootstrapOptions.checkOnly,
   );
 
   if (bootstrapOptions.checkOnly) {
     console.log(
       buildBootstrapCheckSummary({
         createdDirs,
-        dependencyProbes,
+        dependencyProbes: getDependencyProbes(root, existingEnv),
         envMessages: initialEnvMessages,
         files: [
           paths.envPath,
@@ -61,7 +58,6 @@ export async function runBootstrapProgram(
     return 0;
   }
 
-  const existingEnv = readEnvEntries(paths.envPath);
   if (bootstrapOptions.headless || bootstrapOptions.skipWizard) {
     assertHeadlessProviderAvailable(paths.settingsPath);
   }
@@ -77,12 +73,7 @@ export async function runBootstrapProgram(
 
   const { envMessages, onboarding } = await applyBootstrapAnswers(
     answers,
-    {
-      envPath: paths.envPath,
-      settingsPath: paths.settingsPath,
-      gatewayPath: paths.gatewayPath,
-      onboardingPath: paths.onboardingPath,
-    },
+    paths,
     bootstrapOptions,
   );
 

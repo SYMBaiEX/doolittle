@@ -3,8 +3,22 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, it } from "vitest";
 import { resolveHeadlessProviderMode } from "../../scripts/bootstrap/answers/headless";
+import { resolveBootstrapPaths } from "../../scripts/bootstrap/program/paths";
 import { assertHeadlessProviderAvailable } from "../../scripts/bootstrap/program/provider-guard";
 import { resolveInteractiveProviderDefault } from "../../scripts/bootstrap/wizard/state";
+
+it("writes onboarding to the runtime's configured profile and gateway", () => {
+  const root = join(tmpdir(), "doolittle-source");
+  const data = join(tmpdir(), "doolittle-profile");
+  const paths = resolveBootstrapPaths(root, {
+    DOOLITTLE_DATA_DIR: data,
+    DOOLITTLE_GATEWAY_DATA_DIR: "local-gateway",
+  });
+  expect(paths.envPath).toBe(join(root, ".env"));
+  expect(paths.settingsPath).toBe(join(data, "settings.json"));
+  expect(paths.onboardingPath).toBe(join(data, "onboarding.json"));
+  expect(paths.gatewayPath).toBe(join(root, "local-gateway", "gateway.json"));
+});
 
 it("keeps legacy Devin-only configurations dormant rather than choosing a new provider", () => {
   const env = new Map([["DOOLITTLE_USE_LINKED_DEVIN_AUTH", "true"]]);

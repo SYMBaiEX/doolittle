@@ -9,8 +9,12 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$NubVersion = "0.9.5"
 $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+$PackageManager = (Get-Content (Join-Path $Root "package.json") -Raw | ConvertFrom-Json).packageManager
+if ($PackageManager -notmatch '^nub@(.+)$') {
+  throw "package.json does not declare a Nub version."
+}
+$NubVersion = $Matches[1]
 $RequiredNodeVersion = (Get-Content (Join-Path $Root ".node-version") -Raw).Trim()
 $RequiredNodeMajor = [int]($RequiredNodeVersion.Split(".")[0])
 $ToolRoot = Join-Path $env:LOCALAPPDATA "Doolittle\tooling"
@@ -39,7 +43,15 @@ The standalone Doolittle Desktop .exe does not require Node.js or Nub.
     throw "Doolittle requires Node.js $RequiredNodeMajor+ (the repository pins $RequiredNodeVersion); found $nodeVersion."
   }
 
-  $existing = Get-Command nub -ErrorAction SilentlyContinue
+  $installed = Join-Path $ToolRoot "nub.cmd"
+  if (Test-Path $installed -PathType Leaf) {
+    $versionLine = (& $installed --version 2>$null | Select-Object -First 1)
+    if ($versionLine -and $versionLine.TrimStart("v") -eq $NubVersion) {
+      return $installed
+    }
+  }
+
+  $existing = Get-Command nub.cmd -CommandType Application -ErrorAction SilentlyContinue
   if ($existing) {
     $versionLine = (& $existing.Source --version 2>$null | Select-Object -First 1)
     if ($versionLine -and $versionLine.TrimStart("v") -eq $NubVersion) {
@@ -57,7 +69,6 @@ The standalone Doolittle Desktop .exe does not require Node.js or Nub.
     throw "Nub installation failed with exit code $LASTEXITCODE."
   }
 
-  $installed = Join-Path $ToolRoot "nub.cmd"
   if (-not (Test-Path $installed -PathType Leaf)) {
     throw "Nub installed, but its launcher was not found at $installed."
   }
@@ -78,9 +89,12 @@ function Add-UserPath([string]$PathToAdd) {
 
 function Install-Launchers([string]$NubCommand) {
   New-Item -ItemType Directory -Force -Path $LocalBinDir | Out-Null
-  $entrypoint = Join-Path $Root "packages\agent\src\index.ts"
+  $entrypoint = Join-Path $Root "apps\cli\src\index.ts"
+  $nubDirectory = Split-Path -Parent $NubCommand
   $launcherBody = @"
 @echo off
+setlocal
+set "PATH=$nubDirectory;%PATH%"
 "$NubCommand" "$entrypoint" %*
 "@
   Set-Content -Path $DoolittleLauncher -Value $launcherBody -Encoding Ascii
@@ -95,19 +109,25 @@ Write-Host "Nub-powered source bootstrap and standalone desktop builder"
 Set-Location $Root
 
 $Nub = Resolve-Nub
+$env:Path = "$(Split-Path -Parent $Nub);$env:Path"
 
 if (-not $Check) {
   Write-Section "Installing workspace dependencies..."
   & $Nub scripts/prepare-eliza-source.ts
+  if ($LASTEXITCODE -ne 0) {
+    throw "SDK preparation failed with exit code $LASTEXITCODE."
+  }
   & $Nub install --frozen-lockfile --ignore-scripts
   if ($LASTEXITCODE -ne 0) {
     throw "Dependency installation failed with exit code $LASTEXITCODE."
   }
 
-  Write-Section "Installing Electron's standalone desktop runtime..."
-  & $Nub run desktop:runtime:install
-  if ($LASTEXITCODE -ne 0) {
-    throw "Electron runtime installation failed with exit code $LASTEXITCODE."
+  if ($Desktop -or $PackageInstaller) {
+    Write-Section "Installing the Electron runtime..."
+    & $Nub run desktop:runtime:install
+    if ($LASTEXITCODE -ne 0) {
+      throw "Electron runtime installation failed with exit code $LASTEXITCODE."
+    }
   }
 
   Install-Launchers $Nub
@@ -122,10 +142,14 @@ if ($SkipWizard) { $BootstrapArgs += "--skip-wizard" }
 if ($Check) { $BootstrapArgs += "--check" }
 if ($Yes) { $BootstrapArgs += "--yes" }
 
-Write-Section "Beginning the awakening sequence..."
-& $Nub "scripts/bootstrap.ts" @BootstrapArgs
-if ($LASTEXITCODE -ne 0) {
-  throw "Doolittle bootstrap failed with exit code $LASTEXITCODE."
+if ($Check -and -not (Test-Path (Join-Path $Root "node_modules/@elizaos/core/package.json"))) {
+  Write-Host "Workspace dependencies are missing. Setup checks are available after dependency installation."
+} else {
+  Write-Section "Checking local configuration..."
+  & $Nub "scripts/bootstrap.ts" @BootstrapArgs
+  if ($LASTEXITCODE -ne 0) {
+    throw "Doolittle bootstrap failed with exit code $LASTEXITCODE."
+  }
 }
 
 if ($PackageInstaller -and -not $Check) {
