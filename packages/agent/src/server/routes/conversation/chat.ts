@@ -639,6 +639,12 @@ export function handleChatRunEventsRoute(
           }
           for (const event of events) {
             if (detached) return;
+            if (event.id > cursor + 1) {
+              await emit("response.notice", {
+                code: "replay_gap",
+                message: "Some earlier response updates expired.",
+              });
+            }
             const data =
               event.data && typeof event.data === "object"
                 ? event.data

@@ -7,7 +7,10 @@ import { RunControllerService } from "../../packages/agent/src/services/run-cont
 
 it("waits for a reader and releases a blocked producer on cancel", async () => {
   const frames: number[] = [];
-  const producer = Promise.withResolvers<void>();
+  let finishProducer!: () => void;
+  const producerFinished = new Promise<void>((resolve) => {
+    finishProducer = resolve;
+  });
   const onCancel = vi.fn();
   const response = streamSse(
     async (emit) => {
@@ -15,7 +18,7 @@ it("waits for a reader and releases a blocked producer on cancel", async () => {
         await emit("progress", { id });
         frames.push(id);
       }
-      producer.resolve();
+      finishProducer();
     },
     { onCancel },
   );
@@ -28,7 +31,7 @@ it("waits for a reader and releases a blocked producer on cancel", async () => {
   await setImmediate();
   expect(frames).toEqual([1, 2]);
   await reader?.cancel();
-  await producer.promise;
+  await producerFinished;
   expect(onCancel).toHaveBeenCalledOnce();
 });
 
