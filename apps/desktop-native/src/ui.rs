@@ -8,7 +8,7 @@ use gpui_component::{
     text::TextView,
 };
 
-use crate::workbench::{AgentView, IdeView, NewConversation, View, Workbench};
+use crate::workbench::{AgentView, IdeView, NewConversation, SaveFile, View, Workbench};
 
 #[derive(Clone, Copy)]
 struct Palette {
@@ -62,6 +62,12 @@ impl Palette {
 impl Render for Workbench {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let colors = Palette::for_mode(cx.theme().is_dark());
+        let file_dirty = self
+            .workspace
+            .file
+            .as_ref()
+            .is_some_and(|file| file.is_dirty(cx));
+        window.set_window_edited(file_dirty);
         let wide = window.viewport_size().width >= px(880.);
         let reveal_sidebar = wide || self.sidebar_open;
         let render_workbench = wide || !self.sidebar_open;
@@ -76,6 +82,11 @@ impl Render for Workbench {
             }))
             .on_action(cx.listener(|this, _: &IdeView, window, cx| {
                 this.set_view(View::Ide, window, cx);
+            }))
+            .on_action(cx.listener(|this, _: &SaveFile, _, cx| {
+                if this.view == View::Ide {
+                    this.save_file(cx);
+                }
             }))
             .flex()
             .flex_col()
@@ -95,7 +106,7 @@ impl Render for Workbench {
                     .when(render_workbench, |this| {
                         this.child(match self.view {
                             View::Agent => self.chat(colors, window, cx),
-                            View::Ide => self.ide(colors, window, cx),
+                            View::Ide => self.ide(colors, file_dirty, window, cx),
                         })
                     }),
             )
@@ -605,10 +616,18 @@ impl Workbench {
             .into_any_element()
     }
 
-    fn ide(&self, colors: Palette, window: &mut Window, cx: &mut Context<Self>) -> AnyElement {
+    fn ide(
+        &self,
+        colors: Palette,
+        dirty: bool,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
         let narrow = window.viewport_size().width < px(700.);
         let explorer = self.explorer_open;
-        let current = self.workspace.selected.clone();
+        let file = self.workspace.file.as_ref();
+        let current = file.map(|file| file.path.as_str());
+        let loading = self.workspace.loading_file.is_some();
         let shown_entries = self.workspace.entries.iter().filter(|entry| {
             !self.workspace.collapsed.iter().any(|folder| {
                 entry
@@ -646,12 +665,15 @@ impl Workbench {
                     .child(div().flex_1().min_w_0().truncate().text_sm().child(self.workspace_path()))
                     .child(
                         Button::new("refresh-files").small().outline()
-                            .label(if self.workspace.loading_tree { "Loading…" } else { "Refresh" })
+                            .label(if self.workspace.loading_tree { "Loading…" } else { "Refresh files" })
                             .disabled(!self.ready() || self.workspace.loading_tree)
                             .on_click(cx.listener(|this, _, _, cx| this.refresh_workspace(cx))),
                     ),
             )
             .when_some(self.workspace.error.as_ref(), |this, error| {
+                this.child(notice(error.clone(), colors.danger, colors).m(px(10.)))
+            })
+            .when_some(self.workspace.file_error.as_ref(), |this, error| {
                 this.child(notice(error.clone(), colors.danger, colors).m(px(10.)))
             })
             .when_some(self.error.as_ref(), |this, error| {
@@ -688,23 +710,21 @@ impl Workbench {
                                             format!("{} {leaf}", if self.workspace.collapsed.contains(&entry.path) { "›" } else { "⌄" })
                                         } else { leaf.to_owned() };
                                         let path = entry.path.clone();
-                                        let selected = current.as_deref() == Some(entry.path.as_str());
+                                        let selected = current == Some(entry.path.as_str());
                                         div().pl(px(6. + f32::from(entry.depth.min(10)) * 12.))
                                             .pr(px(6.))
                                             .child(
                                                 Button::new(("workspace-entry", index)).small().ghost().w_full().justify_start()
                                                     .selected(selected).label(SharedString::from(label))
-                                                    .on_click(cx.listener(move |this, _, _, cx| {
+                                                    .disabled(loading && !folder)
+                                                    .on_click(cx.listener(move |this, _, window, cx| {
                                                         if folder {
                                                             if !this.workspace.collapsed.remove(&path) {
                                                                 this.workspace.collapsed.insert(path.clone());
                                                             }
                                                             cx.notify();
                                                         } else {
-                                                            if narrow {
-                                                                this.explorer_open = false;
-                                                            }
-                                                            this.open_file(path.clone(), cx);
+                                                            this.open_file(path.clone(), narrow, window, cx);
                                                         }
                                                     })),
                                             )
@@ -737,26 +757,34 @@ impl Workbench {
                                     .px(px(14.))
                                     .border_b_1()
                                     .border_color(colors.divider)
-                                    .child(div().flex_1().truncate().text_sm().child(current.clone().unwrap_or_else(|| "No open file".into())))
-                                    .child(div().text_xs().text_color(colors.muted).child("Read only")),
+                                    .child(div().flex_1().truncate().text_sm().child(current.unwrap_or("No open file").to_owned()))
+                                    .when_some(file, |header, file| {
+                                        header
+                                            .when(dirty || file.stale || loading, |header| {
+                                                header.child(div().text_xs().text_color(colors.muted)
+                                                    .child(if loading { "Reading…" } else if file.stale { "Changed on disk" } else { "Unsaved" }))
+                                            })
+                                            .child(Button::new("reload-file").small().ghost()
+                                                .label("Reload file")
+                                                .disabled(loading || file.saving)
+                                                .on_click(cx.listener(|this, _, window, cx| this.reload_file(window, cx))))
+                                            .child(Button::new("save-file").small().outline()
+                                                .label(if file.saving { "Saving…" } else { "Save" })
+                                                .disabled(loading || !dirty || file.saving || file.stale)
+                                                .on_click(cx.listener(|this, _, _, cx| this.save_file(cx))))
+                                    }),
                             )
                             .child(
-                                div().id("file-document").flex_1().min_h_0().min_w_0().overflow_y_scroll()
-                                    .p(px(12.))
-                                    .when_some(self.workspace.file.as_ref(), |this, source| {
+                                div().id("file-document").flex_1().min_h_0().min_w_0().overflow_hidden()
+                                    .when_some(file, |this, file| {
                                         this.child(
-                                            TextView::markdown(
-                                                SharedString::from(format!("{}:open:{}", self.selected, current.as_deref().unwrap_or(""))),
-                                                fence_code(source, current.as_deref().unwrap_or("")),
-                                                window,
-                                                cx,
-                                            )
-                                            .selectable(true),
+                                            Input::new(&file.editor).w_full().h_full()
+                                                .appearance(false).focus_bordered(false).disabled(loading),
                                         )
                                     })
-                                    .when(self.workspace.file.is_none(), |this| {
-                                        this.child(div().text_color(colors.muted).text_sm().child(
-                                            if self.workspace.loading_file { "Reading file…" } else { "Choose a file from Explorer." },
+                                    .when(file.is_none(), |this| {
+                                        this.child(div().p(px(12.)).text_color(colors.muted).text_sm().child(
+                                            if loading { "Reading file…" } else { "Choose a file from Explorer." },
                                         ))
                                     }),
                             ),
@@ -861,44 +889,4 @@ fn notice(message: String, color: Rgba, palette: Palette) -> gpui::Div {
         .text_color(color)
         .bg(palette.inset)
         .child(div().text_sm().flex_1().min_w_0().child(message))
-}
-
-fn fence_code(text: &str, path: &str) -> SharedString {
-    let language = match path.rsplit('.').next().unwrap_or("") {
-        "rs" => "rust",
-        "ts" | "tsx" => "typescript",
-        "js" | "jsx" | "mjs" => "javascript",
-        "json" => "json",
-        "py" => "python",
-        "yaml" | "yml" => "yaml",
-        "css" => "css",
-        "sh" => "bash",
-        _ => "text",
-    };
-    let longest = text
-        .split(|c| c != '`')
-        .map(str::len)
-        .max()
-        .unwrap_or_default();
-    let fence = "`".repeat((longest + 1).max(3));
-    SharedString::from(format!("{fence}{language}\n{text}\n{fence}"))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::fence_code;
-    use markdown::{ParseOptions, mdast::Node, to_mdast};
-
-    #[test]
-    fn source_with_backticks_cannot_end_its_code_block() {
-        let source = "`````\n![tracker](https://example.test/remote)\n```";
-        let rendered = fence_code(source, "example.rs");
-        let Node::Root(root) = to_mdast(rendered.as_ref(), &ParseOptions::gfm()).unwrap() else {
-            panic!("expected Markdown document");
-        };
-        let [Node::Code(code)] = root.children.as_slice() else {
-            panic!("source escaped the code block");
-        };
-        assert_eq!(code.value, source);
-    }
 }

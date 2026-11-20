@@ -3,19 +3,25 @@ use std::collections::{HashMap, HashSet};
 use anyhow::Result;
 use async_channel::{Sender, bounded};
 use doolittle_host::{RuntimeSidecar, SidecarConfig};
-use doolittle_runtime::{RuntimeClient, SessionSummary, WorkspaceEntry};
-use gpui::{
-    App, AppContext, Context, KeyBinding, PathPromptOptions, ScrollHandle, Subscription, Window,
-    actions, px,
+use doolittle_runtime::{
+    RuntimeClient, RuntimeError, SessionSummary, WorkspaceEntry, WorkspaceSaveOutcome,
 };
-use gpui_component::input::{InputEvent, InputState};
+use gpui::{
+    App, AppContext, Context, Entity, KeyBinding, PathPromptOptions, PromptButton, PromptLevel,
+    ScrollHandle, SharedString, Subscription, Window, actions, px,
+};
+use gpui_component::{
+    Rope,
+    highlighter::Language,
+    input::{InputEvent, InputState},
+};
 use uuid::Uuid;
 
 use crate::{Options, markdown_text};
 
 actions!(
     doolittle,
-    [SendMessage, NewConversation, AgentView, IdeView]
+    [SendMessage, NewConversation, AgentView, IdeView, SaveFile]
 );
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -60,14 +66,28 @@ pub struct Conversation {
 pub struct Workspace {
     pub entries: Vec<WorkspaceEntry>,
     pub collapsed: HashSet<String>,
-    pub selected: Option<String>,
-    pub file: Option<String>,
+    pub file: Option<OpenFile>,
     pub error: Option<String>,
+    pub file_error: Option<String>,
     pub loading_tree: bool,
-    pub loading_file: bool,
+    pub loading_file: Option<String>,
     pub truncated: bool,
     loaded_for: Option<String>,
-    revision: u64,
+}
+
+pub struct OpenFile {
+    pub path: String,
+    pub editor: Entity<InputState>,
+    base: SharedString,
+    pub saving: bool,
+    pub stale: bool,
+    _editor_events: Subscription,
+}
+
+impl OpenFile {
+    pub fn is_dirty(&self, cx: &App) -> bool {
+        !same_file_contents(self.editor.read(cx).text(), self.base.as_str())
+    }
 }
 
 struct LiveRuntime {
@@ -106,6 +126,7 @@ pub struct Workbench {
     pub transcript_scroll: ScrollHandle,
     pub workspace: Workspace,
     workspace_epoch: u64,
+    confirming_discard: bool,
     pub connecting: bool,
     pub choosing_workspace: bool,
     pub error: Option<String>,
@@ -125,6 +146,7 @@ impl Workbench {
             KeyBinding::new(&format!("{modifier}-n"), NewConversation, Some("Doolittle")),
             KeyBinding::new(&format!("{modifier}-1"), AgentView, Some("Doolittle")),
             KeyBinding::new(&format!("{modifier}-2"), IdeView, Some("Doolittle")),
+            KeyBinding::new(&format!("{modifier}-s"), SaveFile, Some("Doolittle")),
         ]);
     }
 
@@ -160,6 +182,7 @@ impl Workbench {
             transcript_scroll: ScrollHandle::new(),
             workspace: Workspace::default(),
             workspace_epoch: 0,
+            confirming_discard: false,
             connecting: false,
             choosing_workspace: false,
             error: None,
@@ -263,7 +286,8 @@ impl Workbench {
                     options.profile.as_deref(),
                     options.runtime_root.as_deref(),
                     options.offline,
-                )?;
+                )?
+                .with_workspace_saves();
                 let sidecar = RuntimeSidecar::launch(&config)?;
                 let client = RuntimeClient::new(sidecar.endpoint(), sidecar.token())?;
                 Ok(LiveRuntime {
@@ -295,9 +319,10 @@ impl Workbench {
     }
 
     pub fn start_conversation(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let id = Uuid::new_v4().to_string();
-        self.select_conversation(id, None, window, cx);
-        self.set_view(View::Agent, window, cx);
+        self.after_discard(window, cx, |this, window, cx| {
+            this.switch_conversation(Uuid::new_v4().to_string(), None, window, cx);
+            this.set_view(View::Agent, window, cx);
+        });
     }
 
     pub fn select_conversation(
@@ -312,6 +337,18 @@ impl Workbench {
             cx.notify();
             return;
         }
+        self.after_discard(window, cx, move |this, window, cx| {
+            this.switch_conversation(id, title, window, cx);
+        });
+    }
+
+    fn switch_conversation(
+        &mut self,
+        id: String,
+        title: Option<String>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         let draft = self.composer.read(cx).value().to_string();
         self.active
             .get_mut(&self.selected)
@@ -725,11 +762,6 @@ impl Workbench {
                         this.workspace.entries = tree.entries;
                         this.workspace.truncated = tree.truncated;
                         this.workspace.loaded_for = Some(session);
-                        if !this.workspace.loading_file
-                            && let Some(path) = this.workspace.selected.clone()
-                        {
-                            this.open_file(path, cx);
-                        }
                     }
                     Err(error) => this.workspace.error = Some(error.to_string()),
                 }
@@ -740,42 +772,269 @@ impl Workbench {
         cx.notify();
     }
 
-    pub fn open_file(&mut self, path: String, cx: &mut Context<Self>) {
+    pub fn open_file(
+        &mut self,
+        path: String,
+        hide_explorer: bool,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self
+            .workspace
+            .file
+            .as_ref()
+            .is_some_and(|file| file.path == path)
+        {
+            if hide_explorer {
+                self.explorer_open = false;
+                cx.notify();
+            }
+            return;
+        }
+        self.after_discard(window, cx, move |this, window, cx| {
+            this.read_file(path, hide_explorer, window, cx);
+        });
+    }
+
+    pub fn reload_file(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(path) = self.workspace.file.as_ref().map(|file| file.path.clone()) else {
+            return;
+        };
+        self.after_discard(window, cx, move |this, window, cx| {
+            this.read_file(path, false, window, cx);
+        });
+    }
+
+    fn read_file(
+        &mut self,
+        path: String,
+        hide_explorer: bool,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         let Some(client) = self.runtime.as_ref().map(|runtime| runtime.client.clone()) else {
             return;
         };
-        self.workspace.revision += 1;
-        let revision = self.workspace.revision;
+        if self.workspace.loading_file.is_some() {
+            return;
+        }
         let epoch = self.workspace_epoch;
-        self.workspace.selected = Some(path.clone());
-        self.workspace.file = None;
-        self.workspace.loading_file = true;
-        self.workspace.error = None;
+        self.workspace.loading_file = Some(path.clone());
+        self.workspace.file_error = None;
         let session = self.selected.clone();
         let request_session = session.clone();
+        let request_path = path.clone();
         let (tx, rx) = bounded(1);
         std::thread::spawn(move || {
-            let _ = tx.send_blocking(client.read_file(&request_session, &path));
+            let _ = tx.send_blocking(client.read_file(&request_session, &request_path));
         });
-        cx.spawn(async move |this, cx| {
+        cx.spawn_in(window, async move |this, cx| {
             let Ok(result) = rx.recv().await else { return };
-            let _ = this.update(cx, |this, cx| {
+            let _ = this.update_in(cx, |this, window, cx| {
                 if this.selected != session
                     || this.workspace_epoch != epoch
-                    || this.workspace.revision != revision
+                    || this.workspace.loading_file.as_deref() != Some(&path)
                 {
                     return;
                 }
-                this.workspace.loading_file = false;
+                this.workspace.loading_file = None;
                 match result {
-                    Ok(file) => this.workspace.file = Some(file.content),
-                    Err(error) => this.workspace.error = Some(error.to_string()),
+                    Ok(file) => {
+                        let base = SharedString::from(file.content);
+                        let editor = cx.new(|cx| {
+                            InputState::new(window, cx)
+                                .code_editor(file_language(&path))
+                                .line_number(true)
+                                .soft_wrap(false)
+                                .default_value(base.clone())
+                        });
+                        let editor_events = cx.subscribe(&editor, |_, _, event, cx| {
+                            if matches!(event, InputEvent::Change) {
+                                cx.notify();
+                            }
+                        });
+                        if hide_explorer {
+                            this.explorer_open = false;
+                        }
+                        if this.view == View::Ide && !this.sidebar_open && !this.confirming_discard
+                        {
+                            editor.update(cx, |input, cx| input.focus(window, cx));
+                        }
+                        this.workspace.file = Some(OpenFile {
+                            path,
+                            editor,
+                            base,
+                            saving: false,
+                            stale: false,
+                            _editor_events: editor_events,
+                        });
+                    }
+                    Err(error) => this.workspace.file_error = Some(error.to_string()),
                 }
                 cx.notify();
             });
         })
         .detach();
         cx.notify();
+    }
+
+    pub fn save_file(&mut self, cx: &mut Context<Self>) {
+        if self.confirming_discard || self.workspace.loading_file.is_some() {
+            return;
+        }
+        let Some(client) = self.runtime.as_ref().map(|runtime| runtime.client.clone()) else {
+            return;
+        };
+        let Some(file) = self.workspace.file.as_mut() else {
+            return;
+        };
+        let submitted = file.editor.read(cx).value();
+        if file.saving || file.stale || submitted == file.base {
+            return;
+        }
+        file.saving = true;
+        self.workspace.file_error = None;
+        let base = file.base.clone();
+        let path = file.path.clone();
+        let editor_id = file.editor.entity_id();
+        let epoch = self.workspace_epoch;
+        let session = self.selected.clone();
+        let request_text = submitted.clone();
+        let (tx, rx) = bounded(1);
+        std::thread::spawn(move || {
+            let _ = tx.send_blocking(client.save_file(
+                &session,
+                &path,
+                base.as_str(),
+                request_text.as_str(),
+            ));
+        });
+        cx.spawn(async move |this, cx| {
+            let Ok(result) = rx.recv().await else { return };
+            let _ = this.update(cx, |this, cx| {
+                if this.workspace_epoch != epoch {
+                    return;
+                }
+                let Some(file) = this.workspace.file.as_mut().filter(|file| {
+                    file.editor.entity_id() == editor_id
+                }) else {
+                    return;
+                };
+                file.saving = false;
+                match result {
+                    Ok(WorkspaceSaveOutcome::Saved { .. }) => file.base = submitted,
+                    Ok(WorkspaceSaveOutcome::Conflict { .. }) => {
+                        file.stale = true;
+                        this.workspace.file_error = Some(
+                            "The file changed on disk. Copy your edits if you want to keep them, then reload the file.".into(),
+                        );
+                    }
+                    Err(RuntimeError::Http { code: Some(code), .. }) if code == "workspace_busy" => {
+                        this.workspace.file_error = Some(
+                            "The workspace is busy. Save again when the current action finishes.".into(),
+                        );
+                    }
+                    Err(error) => {
+                        this.workspace.file_error = Some(save_error_message(error));
+                    }
+                }
+                cx.notify();
+            });
+        })
+        .detach();
+        cx.notify();
+    }
+
+    pub fn has_file_protection(&self, cx: &App) -> bool {
+        self.confirming_discard
+            || self
+                .workspace
+                .file
+                .as_ref()
+                .is_some_and(|file| file.saving || file.is_dirty(cx))
+    }
+
+    pub fn confirm_close(&mut self, window: &mut Window, cx: &mut Context<Self>) -> bool {
+        if !self.has_file_protection(cx) {
+            return true;
+        }
+        self.after_discard(window, cx, |_, window, _| window.remove_window());
+        false
+    }
+
+    pub fn after_discard(
+        &mut self,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+        proceed: impl FnOnce(&mut Self, &mut Window, &mut Context<Self>) + 'static,
+    ) {
+        if self.confirming_discard {
+            return;
+        }
+        if self.workspace.loading_file.is_some() && self.has_file_protection(cx) {
+            return;
+        }
+        if let Some(file) = self.workspace.file.as_ref() {
+            if file.saving {
+                self.explorer_open = false;
+                self.set_view(View::Ide, window, cx);
+                return;
+            }
+            if file.is_dirty(cx) {
+                self.confirming_discard = true;
+                let result = window.prompt(
+                    PromptLevel::Warning,
+                    "Discard unsaved changes?",
+                    Some(&file.path),
+                    &[
+                        PromptButton::ok("Keep editing"),
+                        PromptButton::new("Discard changes"),
+                    ],
+                    cx,
+                );
+                cx.spawn_in(window, async move |this, cx| {
+                    let result = result.await;
+                    let _ = this.update_in(cx, |this, window, cx| {
+                        this.confirming_discard = false;
+                        if result == Ok(1) {
+                            proceed(this, window, cx);
+                        }
+                        cx.notify();
+                    });
+                })
+                .detach();
+                return;
+            }
+        }
+        proceed(self, window, cx);
+    }
+}
+
+fn file_language(path: &str) -> &'static str {
+    let path = std::path::Path::new(path);
+    let language = match path.extension().and_then(|ext| ext.to_str()) {
+        Some("jsx" | "mjs" | "cjs") => Language::JavaScript,
+        Some(extension) => Language::from_str(extension),
+        None if path.file_name().is_some_and(|name| name == "Makefile") => Language::Make,
+        _ => Language::Plain,
+    };
+    language.name()
+}
+
+fn same_file_contents(buffer: &Rope, base: &str) -> bool {
+    if buffer.len() != base.len() {
+        return false;
+    }
+    buffer.bytes().eq(base.bytes())
+}
+
+fn save_error_message(error: RuntimeError) -> String {
+    match error {
+        RuntimeError::SaveTooLarge | RuntimeError::InvalidInput(_) => error.to_string(),
+        RuntimeError::Http {
+            status: 400..=499, ..
+        } => error.to_string(),
+        _ => format!("Save could not be confirmed. Your edits are still here. {error}"),
     }
 }
 
@@ -856,5 +1115,27 @@ fn progress_label(kind: &str, data: &serde_json::Value) -> Option<String> {
             .or_else(|| data.get("status").and_then(|status| status.as_str()))
             .map(str::to_owned),
         _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn file_baseline_compares_exact_utf8_and_line_endings() {
+        let original = "café\r\nfn main() {}\r\n";
+        let buffer = Rope::from(original);
+        assert_eq!(buffer.to_string(), original);
+        assert!(same_file_contents(&buffer, original));
+        assert!(!same_file_contents(&buffer, "café\nfn main() {}\n"));
+        assert!(!same_file_contents(&buffer, "cafá\r\nfn main() {}\r\n"));
+    }
+
+    #[test]
+    fn invalid_save_receipt_leaves_write_outcome_unconfirmed() {
+        let message = save_error_message(RuntimeError::SaveReceiptMismatch);
+        assert!(message.contains("Save could not be confirmed"));
+        assert!(message.contains("Your edits are still here"));
     }
 }

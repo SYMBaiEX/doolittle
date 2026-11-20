@@ -5,10 +5,15 @@ mod workbench;
 use std::path::PathBuf;
 
 use anyhow::{Context as _, Result, bail};
-use gpui::{App, AppContext, Application, Bounds, WindowBounds, WindowOptions, px, size};
+use gpui::{
+    App, AppContext, Application, Bounds, KeyBinding, Menu, MenuItem, WindowBounds, WindowOptions,
+    actions, px, size,
+};
 use gpui_component::Root;
 
 use workbench::Workbench;
+
+actions!(doolittle, [QuitDoolittle]);
 
 #[derive(Clone)]
 struct Options {
@@ -62,10 +67,45 @@ fn open_workbench(options: Options, cx: &mut App) -> Result<()> {
         move |window, cx| {
             window.set_window_title("Doolittle");
             let view = cx.new(|cx| Workbench::new(options, window, cx));
+            let workbench = view.downgrade();
+            window.on_window_should_close(cx, move |window, cx| {
+                workbench
+                    .update(cx, |view, cx| view.confirm_close(window, cx))
+                    .unwrap_or(true)
+            });
             cx.new(|cx| Root::new(view, window, cx))
         },
     )?;
     Ok(())
+}
+
+fn request_quit(cx: &mut App) {
+    for handle in cx
+        .windows()
+        .into_iter()
+        .filter_map(|handle| handle.downcast::<Root>())
+    {
+        let protected = handle.update(cx, |root, window, cx| {
+            let Ok(workbench) = root.view().clone().downcast::<Workbench>() else {
+                return false;
+            };
+            if !workbench.read(cx).has_file_protection(cx) {
+                return false;
+            }
+            window.activate_window();
+            workbench.update(cx, |view, cx| {
+                view.after_discard(window, cx, |_, window, cx| {
+                    window.remove_window();
+                    cx.defer(request_quit);
+                });
+            });
+            true
+        });
+        if matches!(protected, Ok(true)) {
+            return;
+        }
+    }
+    cx.quit();
 }
 
 fn main() -> Result<()> {
@@ -75,6 +115,17 @@ fn main() -> Result<()> {
     Application::new().run(move |cx: &mut App| {
         gpui_component::init(cx);
         Workbench::bind_keys(cx);
+        cx.on_action(|_: &QuitDoolittle, cx| cx.defer(request_quit));
+        let quit_key = if cfg!(target_os = "macos") {
+            "cmd-q"
+        } else {
+            "ctrl-q"
+        };
+        cx.bind_keys([KeyBinding::new(quit_key, QuitDoolittle, None)]);
+        cx.set_menus(vec![Menu {
+            name: "Doolittle".into(),
+            items: vec![MenuItem::action("Quit Doolittle", QuitDoolittle)],
+        }]);
         match open_workbench(options, cx) {
             Ok(()) => {
                 cx.on_window_closed(|cx| {
