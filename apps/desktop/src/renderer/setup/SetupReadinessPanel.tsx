@@ -1,3 +1,4 @@
+import { Button } from "@doolittle/ui";
 import {
   SETUP_READINESS_CLASS,
   SETUP_READINESS_HEADING_CLASS,
@@ -8,8 +9,10 @@ import type { SetupReadinessView } from "./setup-model";
 
 export function SetupReadinessPanel({
   readiness,
+  onOpenProviders,
 }: {
   readiness: SetupReadinessView;
+  onOpenProviders?: () => void;
 }) {
   return (
     <section
@@ -31,6 +34,16 @@ export function SetupReadinessPanel({
       <p className="m-0 max-w-[82ch] text-[length:var(--text-control)] leading-[1.45] text-[var(--text-soft)]">
         {readiness.detail}
       </p>
+      {readiness.needsModelProvider && onOpenProviders ? (
+        <Button
+          className="justify-self-start"
+          onClick={onOpenProviders}
+          size="sm"
+          type="button"
+        >
+          Connect a model provider
+        </Button>
+      ) : null}
     </section>
   );
 }

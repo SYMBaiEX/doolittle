@@ -116,6 +116,12 @@ export function DesktopSettingsPanel({
                 value={Math.min(100, Math.max(0, update.progress))}
               />
             ) : null}
+            {update?.phase === "downloaded" ? (
+              <small id="desktop-install-description">
+                Save your work before opening the native installer. Doolittle
+                will close and reopen when installation finishes.
+              </small>
+            ) : null}
             {update?.phase === "downloading" &&
             update.progress !== undefined ? (
               <small>
@@ -157,6 +163,7 @@ export function DesktopSettingsPanel({
               ) : null}
               {update?.phase === "downloaded" ? (
                 <button
+                  aria-describedby="desktop-install-description"
                   className="primary-button"
                   disabled={updateBusy}
                   onClick={onInstallUpdate}

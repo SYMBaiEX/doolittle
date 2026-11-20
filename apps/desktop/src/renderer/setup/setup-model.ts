@@ -19,6 +19,7 @@ export interface SetupReadinessView {
   detail: string;
   label: string;
   level: "ready" | "needs-attention" | "blocked" | "unknown";
+  needsModelProvider: boolean;
   title: string;
   tone: SetupSnapshotRow["tone"];
 }
@@ -38,7 +39,8 @@ function readinessLabel(value: string): string {
 export function normalizeSetupReadiness(
   value: unknown,
 ): SetupReadinessView | null {
-  const readiness = asRecord(asRecord(asRecord(value).summary).readiness);
+  const summary = asRecord(asRecord(value).summary);
+  const readiness = asRecord(summary.readiness);
   const rawLevel = asString(readiness.level).trim().toLowerCase();
   const level: SetupReadinessView["level"] =
     rawLevel === "ready" ||
@@ -56,6 +58,9 @@ export function normalizeSetupReadiness(
       "Setup readiness is available for inspection.",
     label: readinessLabel(rawLevel),
     level,
+    needsModelProvider:
+      Array.isArray(summary.providers) &&
+      !summary.providers.some((entry) => asRecord(entry).ready === true),
     title:
       level === "ready"
         ? "Ready for local work"

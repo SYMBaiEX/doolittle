@@ -104,7 +104,10 @@ export function SetupPage({
             <ErrorBlock error={summary.error} retry={summary.reload} />
           ) : readiness ? (
             <>
-              <SetupReadinessPanel readiness={readiness} />
+              <SetupReadinessPanel
+                onOpenProviders={onOpenProviders}
+                readiness={readiness}
+              />
               {primarySummaryEntries.length ? (
                 <CompactStatStrip
                   label="Core readiness"
