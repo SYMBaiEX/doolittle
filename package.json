@@ -193,7 +193,7 @@
     "esbuild@>=0.27.3 <0.28.1": "0.28.2",
     "@ai-sdk/provider-utils@>=4.0.0 <4.0.33": "4.0.67",
     "lodash@>=4.0.0 <4.18.0": "4.18.1",
-    "ws@>=8.0.0 <8.21.0": "8.22.1",
+    "ws@>=8.0.0 <8.23.0": "8.23.0",
     "handlebars": "4.7.10",
     "@elizaos/plugin-computeruse": "2.0.3-beta.7",
     "@elizaos/plugin-elizacloud>undici": "8.12.4",
