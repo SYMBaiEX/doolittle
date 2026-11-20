@@ -23,10 +23,7 @@ export interface EntrypointCommandPlan {
   shouldSetCliMode: boolean;
 }
 
-export interface EntrypointRuntimePlan extends EntrypointCommandPlan {
-  wantsCli: boolean;
-  wantsApi: boolean;
-  shouldCaptureBootLogs: boolean;
+export interface EntrypointRuntimePlan {
   shouldStartCli: boolean;
   shouldStartApi: boolean;
   shouldStartApiImmediately: boolean;
@@ -58,15 +55,12 @@ export function resolveEntrypointRuntimePlan(options: {
   command: EntrypointSubcommand;
   shellIsInteractive: boolean;
   mode: "cli" | "api" | "both";
-  stdinIsTTY: boolean;
   immediatePrompt?: string;
 }): EntrypointRuntimePlan {
   const commandPlan = resolveEntrypointCommandPlan(options.command);
-  const wantsCli = options.mode === "cli" || options.mode === "both";
   const wantsApi = options.mode === "api" || options.mode === "both";
   const shouldStartCli =
-    options.shellIsInteractive &&
-    (commandPlan.shouldUseCliSurface || (wantsCli && options.stdinIsTTY));
+    options.shellIsInteractive && commandPlan.shouldUseCliSurface;
   const isOneShot =
     Boolean(options.immediatePrompt?.trim()) &&
     (options.command === "exec" ||
@@ -78,13 +72,6 @@ export function resolveEntrypointRuntimePlan(options: {
     shouldStartApi && (commandPlan.shouldUseApiSurface || !shouldStartCli);
 
   return {
-    ...commandPlan,
-    wantsCli,
-    wantsApi,
-    shouldCaptureBootLogs:
-      commandPlan.shouldUseCockpitSplash ||
-      ((options.command === "start" || options.command === "plain") &&
-        options.shellIsInteractive),
     shouldStartCli,
     shouldStartApi,
     shouldStartApiImmediately,
@@ -107,8 +94,9 @@ interface ApiStartupControllerOptions {
 export function createApiStartupController(
   options: ApiStartupControllerOptions,
 ): {
-  startServer: () => Promise<void>;
+  startServer: () => Promise<boolean>;
   startServerWhenShellReady: () => void;
+  apiOwnsRuntimeAfterCli: () => Promise<boolean>;
 } {
   const {
     context,
@@ -121,19 +109,28 @@ export function createApiStartupController(
     hydrateAfterListening = false,
   } = options;
 
-  let backgroundServerStarted = false;
-  const startServer = async () => {
+  let backgroundStartup: Promise<boolean> | undefined;
+  let shellClosed = false;
+  let listenerRequested = false;
+  const startServer = async (fromCli = false): Promise<boolean> => {
     try {
       if (!hydrateAfterListening) {
         await context.ensureDeferredHydration("api");
       }
-      if (!readWorkerBotProfile()) context.gateway.startIngress();
-      let serverAddress: ApiServerAddress | undefined;
-      if (!startApiServer) {
-        const server = await import("@doolittle/agent/server");
-        serverAddress = await server.startApiServer(context);
-      } else {
-        serverAddress = await startApiServer(context);
+      if (fromCli && shellClosed) return false;
+      const listen =
+        startApiServer ??
+        (await import("@doolittle/agent/server")).startApiServer;
+      if (fromCli && shellClosed) return false;
+      listenerRequested = true;
+      const serverAddress = await listen(context);
+      if (!readWorkerBotProfile()) {
+        try {
+          context.gateway.startIngress();
+        } catch (error) {
+          // The listener still owns the runtime if ingress cannot start.
+          runtimeLogger.captureError("gateway-ingress-startup-failed", error);
+        }
       }
       const host = serverAddress?.host ?? context.config.host;
       const port = serverAddress?.port ?? context.config.port;
@@ -162,6 +159,7 @@ export function createApiStartupController(
         }, DESKTOP_DEFERRED_HYDRATION_DELAY_MS);
         hydrationTimer.unref();
       }
+      return true;
     } catch (error) {
       const code =
         error instanceof Error && "code" in error ? String(error.code) : "";
@@ -170,8 +168,11 @@ export function createApiStartupController(
           port: context.config.port,
         });
         writeStderrLine(
-          `API port ${context.config.port} is already in use. Continuing with local CLI only.`,
+          shouldStartCli
+            ? `API port ${context.config.port} is already in use. Continuing with local CLI only.`
+            : `API port ${context.config.port} is already in use.`,
         );
+        return false;
       } else {
         throw error;
       }
@@ -179,19 +180,27 @@ export function createApiStartupController(
   };
 
   const startServerWhenShellReady = () => {
-    if (backgroundServerStarted || !shouldStartCli) {
+    if (backgroundStartup || shellClosed || !shouldStartCli) {
       return;
     }
-    backgroundServerStarted = true;
-    void startServer().catch((error) => {
+    backgroundStartup = startServer(true).catch((error) => {
+      if (shellClosed && !listenerRequested) return false;
       runtimeLogger.captureError("background-api-startup-failed", error, {
         port: context.config.port,
       });
       writeStderrLine(
         `Background API startup failed: ${formatTopLevelError(error)}`,
       );
+      return false;
     });
   };
 
-  return { startServer, startServerWhenShellReady };
+  const apiOwnsRuntimeAfterCli = async () => {
+    shellClosed = true;
+    // An API request still hydrating the runtime needs no listener after EOF.
+    // Once binding has begun, wait for its result before transferring ownership.
+    return listenerRequested && ((await backgroundStartup) ?? false);
+  };
+
+  return { startServer, startServerWhenShellReady, apiOwnsRuntimeAfterCli };
 }

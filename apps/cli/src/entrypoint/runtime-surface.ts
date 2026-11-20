@@ -32,6 +32,7 @@ type RunCliPromptWithEvents = Parameters<
 export interface EntrypointRuntimeSurfaceResult {
   handled: boolean;
   exitCode?: number;
+  apiOwnsRuntime?: boolean;
 }
 
 export async function handleEntrypointRuntimeSurface(input: {
@@ -45,6 +46,7 @@ export async function handleEntrypointRuntimeSurface(input: {
   runtimeLogger: AppLogger;
   startCli?: StartCli;
   startServerWhenShellReady: () => void;
+  apiOwnsRuntimeAfterCli: () => Promise<boolean>;
   runCliPrompt?: RunCliPrompt;
   runCliPromptWithEvents?: RunCliPromptWithEvents;
   bootLogs: BootLogEntry[];
@@ -160,10 +162,8 @@ export async function handleEntrypointRuntimeSurface(input: {
           : undefined,
         bootLogs: input.bootLogs,
       })) ?? 0;
-    // EOF used to close readline but leave the CLI-only runtime's service
-    // timers and database alive, so `doolittle` never returned to the shell.
-    // An explicitly shared API keeps ownership until its own lifecycle ends.
-    if (!input.runtimePlan.shouldStartApi) {
+    const apiOwnsRuntime = await input.apiOwnsRuntimeAfterCli();
+    if (!apiOwnsRuntime) {
       await (input.shutdownRuntime ?? shutdownApplicationRuntime)(
         input.context.runtime as AgentRuntime,
         "Doolittle CLI completion",
@@ -171,15 +171,20 @@ export async function handleEntrypointRuntimeSurface(input: {
       );
       (input.exit ?? process.exit)(exitCode);
     }
-    return { handled: true, exitCode };
+    return { handled: true, exitCode, apiOwnsRuntime };
   }
 
-  if (!input.runtimePlan.wantsApi && input.command !== "api") {
+  if (!input.runtimePlan.shouldStartApi) {
     input.runtimeLogger.info("runtime-initialized-no-surface", {
       mode: input.context.config.mode,
     });
     printLine(
       `${input.context.config.agentName} initialized with no active shell or API surface. Start with "doolittle", "doolittle cockpit", or "doolittle status", or set DOOLITTLE_MODE=cli|api|both for a persistent default.`,
+    );
+    await (input.shutdownRuntime ?? shutdownApplicationRuntime)(
+      input.context.runtime as AgentRuntime,
+      "Doolittle CLI completion",
+      { fast: true },
     );
     return { handled: true };
   }

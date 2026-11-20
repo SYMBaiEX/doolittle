@@ -14,7 +14,6 @@ export interface EntrypointInvocation {
   command: EntrypointSubcommand;
   rest: string[];
   repoRoot: string;
-  stdinIsTTY: boolean;
   shellIsInteractive: boolean;
   commandPlan: EntrypointCommandPlan;
   oneShot?: OneShotOptions;
@@ -54,7 +53,6 @@ export async function resolveEntrypointInvocation(options: {
     command,
     rest,
     repoRoot: options.repoRoot,
-    stdinIsTTY,
     shellIsInteractive,
     commandPlan: resolveEntrypointCommandPlan(command),
     oneShot,

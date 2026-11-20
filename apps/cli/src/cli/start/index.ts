@@ -42,25 +42,11 @@ export async function startCli(
     deps.importTui ?? (async () => await import("../tui-start/index"));
   const warn = deps.warn ?? console.warn;
 
-  await initializeRuntime();
-
+  let tuiResult: Awaited<ReturnType<TuiModule["startTui"]>>;
   try {
+    await initializeRuntime();
     const { startTui } = await importTui();
-    const tuiResult = await startTui(context, options);
-    if (typeof tuiResult === "number") {
-      return tuiResult;
-    }
-    if (tuiResult === "too-small") {
-      return await startPlain(context, options);
-    }
-    if (tuiResult === "unexpected") {
-      cliLogger.warn("tui closed unexpectedly; falling back to plain cli");
-      warn(
-        `${context.config.agentName} TUI closed unexpectedly. Falling back to plain CLI.`,
-      );
-      return await startPlain(context, options);
-    }
-    return 0;
+    tuiResult = await startTui(context, options);
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
     cliLogger.warn("tui startup failed; falling back to plain cli", {
@@ -69,6 +55,15 @@ export async function startCli(
     warn(
       `${context.config.agentName} TUI failed to start (${detail}). Falling back to plain CLI.`,
     );
-    return await startPlain(context, options);
+    return startPlain(context, options);
   }
+
+  if (typeof tuiResult === "number") return tuiResult;
+  if (tuiResult === "unexpected") {
+    cliLogger.warn("tui closed unexpectedly; falling back to plain cli");
+    warn(
+      `${context.config.agentName} TUI closed unexpectedly. Falling back to plain CLI.`,
+    );
+  }
+  return startPlain(context, options);
 }

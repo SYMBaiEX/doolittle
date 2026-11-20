@@ -1,15 +1,40 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
+import { createInterface } from "node:readline/promises";
+import { PassThrough } from "node:stream";
 import { pathToFileURL } from "node:url";
 import { describe, expect, it, vi } from "vitest";
-import { resolveEntrypointRuntimePlan } from "../../apps/cli/src/entrypoint/runtime-control";
+import { readPlainLoopLine } from "../../apps/cli/src/cli/plain-loop/input";
+import { startCli } from "../../apps/cli/src/cli/start/index";
+import {
+  createApiStartupController,
+  resolveEntrypointRuntimePlan,
+} from "../../apps/cli/src/entrypoint/runtime-control";
 import { handleEntrypointRuntimeSurface } from "../../apps/cli/src/entrypoint/runtime-surface";
 import { resolveApplicationRoot } from "../../packages/agent/src/config/env/paths";
 import type { AppLogger } from "../../packages/agent/src/logging/logger";
 import type { AppContext } from "../../packages/agent/src/runtime/bootstrap";
 
 describe("terminal application lifecycle", () => {
+  it("settles a pending plain CLI prompt when the input reaches EOF", async () => {
+    const input = new PassThrough();
+    const readline = createInterface({ input });
+    const pending = readPlainLoopLine({
+      rl: readline,
+      context: {} as AppContext,
+      state: { activeSessionId: "cli:session", notices: [] },
+      interactiveShell: false,
+      lifecycleState: {
+        closed: false,
+        activeTurnAbortController: null,
+        turnCancellationPending: false,
+      },
+    });
+    input.end();
+    await expect(pending).resolves.toBeNull();
+  });
+
   it.each(["cli", "both"] as const)(
     "only starts an API listener when mode=%s requests it",
     async (mode) => {
@@ -20,7 +45,6 @@ describe("terminal application lifecycle", () => {
         command: "start",
         shellIsInteractive: true,
         mode,
-        stdinIsTTY: true,
       });
       await handleEntrypointRuntimeSurface({
         command: "start",
@@ -29,6 +53,7 @@ describe("terminal application lifecycle", () => {
         context: { runtime: {}, config: { mode } } as AppContext,
         runtimeLogger: { info: vi.fn() } as unknown as AppLogger,
         startServerWhenShellReady: startServer,
+        apiOwnsRuntimeAfterCli: async () => mode === "both",
         startCli: async (_context, options) => {
           options?.onReady?.();
           return 0;
@@ -42,6 +67,123 @@ describe("terminal application lifecycle", () => {
       expect(exit).toHaveBeenCalledTimes(mode === "cli" ? 1 : 0);
     },
   );
+
+  it("does not attach an interactive shell to an explicit API command", () => {
+    expect(
+      resolveEntrypointRuntimePlan({
+        command: "api",
+        shellIsInteractive: true,
+        mode: "both",
+      }),
+    ).toEqual({
+      shouldStartCli: false,
+      shouldStartApi: true,
+      shouldStartApiImmediately: true,
+    });
+  });
+
+  it("shuts down the runtime when the shared API could not bind", async () => {
+    const shutdown = vi.fn();
+    const exit = vi.fn();
+    const writeStderrLine = vi.fn();
+    const startIngress = vi.fn();
+    const runtimeLogger = { warn: vi.fn() } as unknown as AppLogger;
+    const context = {
+      runtime: {},
+      config: { mode: "both", port: 31337 },
+      gateway: { startIngress },
+      ensureDeferredHydration: async () => undefined,
+    } as unknown as AppContext;
+    const api = createApiStartupController({
+      context,
+      command: "start",
+      runtimeLogger,
+      shouldStartCli: true,
+      startApiServer: async () => {
+        throw Object.assign(new Error("port in use"), { code: "EADDRINUSE" });
+      },
+      writeStderrLine,
+      formatTopLevelError: String,
+    });
+
+    await handleEntrypointRuntimeSurface({
+      command: "start",
+      shellIsInteractive: true,
+      runtimePlan: resolveEntrypointRuntimePlan({
+        command: "start",
+        shellIsInteractive: true,
+        mode: "both",
+      }),
+      context,
+      runtimeLogger,
+      ...api,
+      startCli: async (_context, options) => {
+        options?.onReady?.();
+        await Promise.resolve();
+        return 0;
+      },
+      shutdownRuntime: shutdown,
+      exit,
+      bootLogs: [],
+    });
+
+    expect(writeStderrLine).toHaveBeenCalledWith(
+      "API port 31337 is already in use. Continuing with local CLI only.",
+    );
+    expect(startIngress).not.toHaveBeenCalled();
+    expect(shutdown).toHaveBeenCalledTimes(1);
+    expect(exit).toHaveBeenCalledWith(0);
+  });
+
+  it("does not bind an API after the terminal closes during hydration", async () => {
+    let finishHydration!: () => void;
+    const hydration = new Promise<void>(
+      (resolve) => (finishHydration = resolve),
+    );
+    const listen = vi.fn();
+    const api = createApiStartupController({
+      context: { ensureDeferredHydration: () => hydration } as AppContext,
+      command: "start",
+      runtimeLogger: {} as AppLogger,
+      shouldStartCli: true,
+      startApiServer: listen,
+      writeStderrLine: vi.fn(),
+      formatTopLevelError: String,
+    });
+
+    api.startServerWhenShellReady();
+    expect(await api.apiOwnsRuntimeAfterCli()).toBe(false);
+    finishHydration();
+    await hydration;
+    expect(listen).not.toHaveBeenCalled();
+  });
+
+  it("falls back once when cockpit initialization fails", async () => {
+    const launchFailure = new Error("unable to initialize cockpit");
+    const shellFailure = new Error("unable to start readline");
+    const plain = vi.fn().mockRejectedValue(shellFailure);
+    const importTui = vi.fn();
+    const warn = vi.fn();
+    const context = {
+      config: { agentName: "Eliza" },
+      services: { logger: { child: () => ({ warn }) } },
+    } as unknown as AppContext;
+    await expect(
+      startCli(context, undefined, {
+        argv: ["--cockpit"],
+        stdinIsTTY: true,
+        stdoutIsTTY: true,
+        ensureCliRuntimeInitialized: async () => {
+          throw launchFailure;
+        },
+        startPlainCli: plain,
+        importTui,
+        warn,
+      }),
+    ).rejects.toThrow(shellFailure);
+    expect(plain).toHaveBeenCalledTimes(1);
+    expect(importTui).not.toHaveBeenCalled();
+  });
 
   it("finds the application root from both source modules and a bundled CLI", () => {
     const root = mkdtempSync(resolve(tmpdir(), "doolittle-root-discovery-"));

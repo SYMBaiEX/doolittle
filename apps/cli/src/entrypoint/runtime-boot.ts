@@ -22,16 +22,15 @@ export interface PreparedEntrypointRuntimeBoot {
   startCli: CliModule["startCli"] | undefined;
   runCliPrompt: CliModule["runCliPrompt"] | undefined;
   runCliPromptWithEvents: CliModule["runCliPromptWithEvents"] | undefined;
-  startApiServer: ServerModule["startApiServer"] | undefined;
-  startServer: () => Promise<void>;
+  startServer: () => Promise<boolean>;
   startServerWhenShellReady: () => void;
+  apiOwnsRuntimeAfterCli: () => Promise<boolean>;
 }
 
 export interface EntrypointRuntimeBootOptions {
   command: EntrypointSubcommand;
   commandPlan: EntrypointCommandPlan;
   shellIsInteractive: boolean;
-  stdinIsTTY: boolean;
   immediatePrompt?: string;
   writeStderrLine: (message: string) => void;
   formatTopLevelError: (error: unknown) => string;
@@ -113,11 +112,10 @@ export async function prepareEntrypointRuntimeBoot(
     command: options.command,
     shellIsInteractive: options.shellIsInteractive,
     mode: context.config.mode,
-    stdinIsTTY: options.stdinIsTTY,
     immediatePrompt: options.immediatePrompt,
   });
   const runtimeLogger = context.services.logger.child("entrypoint.index");
-  const { startServer, startServerWhenShellReady } = createStartupController({
+  const apiStartup = createStartupController({
     context,
     command: options.command,
     shouldStartCli: runtimePlan.shouldStartCli,
@@ -136,8 +134,6 @@ export async function prepareEntrypointRuntimeBoot(
     startCli: cliModule?.startCli,
     runCliPrompt: cliModule?.runCliPrompt,
     runCliPromptWithEvents: cliModule?.runCliPromptWithEvents,
-    startApiServer: serverModule?.startApiServer,
-    startServer,
-    startServerWhenShellReady,
+    ...apiStartup,
   };
 }

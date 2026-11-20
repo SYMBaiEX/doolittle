@@ -3,6 +3,7 @@ import "./entrypoint/host-execution";
 import { pathToFileURL } from "node:url";
 import { getDefaultRepoRoot } from "@doolittle/agent/config/env/paths";
 import { getEntrypointLogger } from "@doolittle/agent/logging/entrypoint-logger";
+import { shutdownApplicationRuntime } from "@doolittle/agent/runtime/application";
 import { installSharedEngineHost } from "@doolittle/agent/runtime/engine/host";
 import { installEngineWorkerTransport } from "@doolittle/agent/runtime/engine/worker-transport";
 import type { AgentRuntime } from "@elizaos/core";
@@ -36,7 +37,6 @@ async function main(): Promise<number> {
     rest,
     commandPlan,
     shellIsInteractive,
-    stdinIsTTY,
     oneShot,
     immediatePrompt,
     staticPromptResult,
@@ -72,17 +72,17 @@ async function main(): Promise<number> {
     runCliPromptWithEvents,
     startServer,
     startServerWhenShellReady,
+    apiOwnsRuntimeAfterCli,
   } = await prepareEntrypointRuntimeBoot({
     command,
     commandPlan,
     shellIsInteractive,
-    stdinIsTTY,
     immediatePrompt,
     writeStderrLine,
     formatTopLevelError,
   });
 
-  if (commandPlan.shouldUseApiSurface) {
+  const installApiLifecycle = () =>
     installRuntimeProcessLifecycle({
       runtime: context.runtime as AgentRuntime,
       label: `${context.config.agentName} ${command}`,
@@ -96,10 +96,18 @@ async function main(): Promise<number> {
         });
       },
     });
-  }
 
-  if (runtimePlan.shouldStartApi && runtimePlan.shouldStartApiImmediately) {
-    await startServer();
+  if (runtimePlan.shouldStartApiImmediately) {
+    const lifecycle = installApiLifecycle();
+    if (!(await startServer())) {
+      lifecycle.dispose();
+      await shutdownApplicationRuntime(
+        context.runtime as AgentRuntime,
+        "Doolittle API unavailable",
+        { fast: true },
+      );
+      return 1;
+    }
   }
 
   const runtimeSurface = await handleEntrypointRuntimeSurface({
@@ -113,11 +121,13 @@ async function main(): Promise<number> {
     runtimeLogger,
     startCli,
     startServerWhenShellReady,
+    apiOwnsRuntimeAfterCli,
     runCliPrompt,
     runCliPromptWithEvents,
     bootLogs,
   });
 
+  if (runtimeSurface.apiOwnsRuntime) installApiLifecycle();
   if (runtimeSurface.handled) {
     return runtimeSurface.exitCode ?? 0;
   }
