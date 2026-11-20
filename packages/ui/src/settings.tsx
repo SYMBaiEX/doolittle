@@ -3,10 +3,10 @@ import {
   type ReactNode,
   useId,
   useRef,
-  useState,
 } from "react";
 import { type ContextAction, ContextActionMenu } from "./context-action-menu";
 import { Input, NativeSelect } from "./controls";
+import { PanelTabList } from "./panel-tab-list";
 
 export interface SettingsMenuItem {
   id: string;
@@ -241,46 +241,20 @@ export function SettingsTabs({
   panelId: string;
   label?: string;
 }) {
-  const [focusedId, setFocusedId] = useState<string | null>(null);
-  const tabStop =
-    items.find((item) => item.id === focusedId)?.id ??
-    items.find((item) => item.id === value)?.id ??
-    items[0]?.id;
   return (
-    <div
-      role="tablist"
-      aria-label={label}
-      className="dl-settings-tabs"
-      onBlur={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget)) {
-          setFocusedId(null);
-        }
-      }}
-      onKeyDown={(event) => {
-        if (!(event.target instanceof HTMLButtonElement)) return;
-        const tabs = [
-          ...event.currentTarget.querySelectorAll<HTMLButtonElement>(
-            'button[role="tab"]',
-          ),
-        ];
-        const index = tabs.indexOf(event.target);
-        if (index < 0) return;
-        const next =
-          event.key === "ArrowRight"
-            ? (index + 1) % tabs.length
-            : event.key === "ArrowLeft"
-              ? (index + tabs.length - 1) % tabs.length
-              : event.key === "Home"
-                ? 0
-                : event.key === "End"
-                  ? tabs.length - 1
-                  : undefined;
-        if (next === undefined) return;
-        event.preventDefault();
-        tabs[next]?.focus();
-      }}
-    >
-      {items.map((item) => (
+    <PanelTabList
+      className="dl-settings-tabs p-0"
+      items={items.map((item) => ({
+        id: item.id,
+        label: item.label,
+        panelId,
+        buttonId: `${panelId}-tab-${item.id}`,
+      }))}
+      label={label}
+      onSelect={onChange}
+      selected={value}
+      tabClassName="font-normal"
+      wrapTab={(item, trigger) => (
         <ContextActionMenu
           key={item.id}
           label={`${item.label} tab actions`}
@@ -293,20 +267,9 @@ export function SettingsTabs({
             },
           ]}
         >
-          <button
-            id={`${panelId}-tab-${item.id}`}
-            role="tab"
-            type="button"
-            aria-controls={panelId}
-            aria-selected={value === item.id}
-            tabIndex={tabStop === item.id ? 0 : -1}
-            onFocus={() => setFocusedId(item.id)}
-            onClick={() => onChange(item.id)}
-          >
-            {item.label}
-          </button>
+          {trigger}
         </ContextActionMenu>
-      ))}
-    </div>
+      )}
+    />
   );
 }
