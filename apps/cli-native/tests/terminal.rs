@@ -63,7 +63,10 @@ fn accept(listener: &TcpListener) -> TcpStream {
     let deadline = Instant::now() + Duration::from_secs(10);
     loop {
         match listener.accept() {
-            Ok((socket, _)) => return socket,
+            Ok((socket, _)) => {
+                socket.set_nonblocking(false).unwrap();
+                return socket;
+            }
             Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
                 assert!(Instant::now() < deadline, "CLI did not contact its fixture");
                 thread::sleep(Duration::from_millis(10));
