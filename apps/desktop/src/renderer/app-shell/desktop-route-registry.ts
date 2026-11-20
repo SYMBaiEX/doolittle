@@ -1,5 +1,5 @@
-import { type ComponentType, type LazyExoticComponent, lazy } from "react";
-import { type View, views } from "../desktop-navigation";
+import { type ComponentType, lazy } from "react";
+import { renderedViewForView, type View } from "../desktop-navigation";
 import {
   cancelDesktopRouteResourcePrefetchIntent,
   prefetchDesktopRouteResources,
@@ -7,138 +7,59 @@ import {
   scheduleDesktopRouteResourcePrefetch,
 } from "./desktop-route-prefetch";
 
-type RouteLoader = () => Promise<unknown>;
-type RegisteredRouteProps = Record<string, unknown>;
-type ComponentExportKey<Module> = {
-  [Key in keyof Module]-?: Module[Key] extends ComponentType<infer _Props>
-    ? Key
-    : never;
-}[keyof Module];
-type RouteComponent<Module, Key extends keyof Module> =
-  Module[Key] extends ComponentType<infer Props> ? ComponentType<Props> : never;
+type DesktopRouteComponent = ComponentType<Record<string, unknown>>;
 
-const registeredRouteLoaders: Partial<Record<View, RouteLoader>> = {};
-const registeredRouteComponents: Partial<
-  Record<View, ComponentType<RegisteredRouteProps>>
-> = {};
-const registeredRouteResetters: Partial<Record<View, () => void>> = {};
-
-/** Register lazy rendering and module preloading from one loader declaration. */
-function lazyNamedRoute<Module extends object, Key extends keyof Module>(
-  routeViews: readonly View[],
+function lazyRoute<Module, Props extends object>(
   load: () => Promise<Module>,
-  exportName: Key & ComponentExportKey<Module>,
-): LazyExoticComponent<RouteComponent<Module, Key>> {
-  const createComponent = () =>
-    lazy(async () => {
-      const module = await load();
-      const component = module[exportName];
-      if (typeof component !== "function") {
-        throw new Error(
-          `Missing route component export: ${String(exportName)}`,
-        );
-      }
-      return { default: component } as {
-        default: RouteComponent<Module, Key>;
-      };
-    });
-  const component = createComponent();
-  const reset = () => {
-    const nextComponent =
-      createComponent() as unknown as ComponentType<RegisteredRouteProps>;
-    for (const view of routeViews) {
-      registeredRouteComponents[view] = nextComponent;
-    }
-  };
-  for (const view of routeViews) {
-    registeredRouteLoaders[view] = load;
-    registeredRouteComponents[view] =
-      component as unknown as ComponentType<RegisteredRouteProps>;
-    registeredRouteResetters[view] = reset;
-  }
-  return component;
+  page: (module: Module) => ComponentType<Props>,
+) {
+  // The shell supplies the props for each route in DesktopRouteContent.
+  const loader = async () => ({
+    default: page(await load()) as unknown as DesktopRouteComponent,
+  });
+  return { load: loader, component: lazy(loader) };
 }
 
-/** Return the current route component, including any post-failure reset. */
-export function getDesktopRouteComponent(
-  view: View,
-): ComponentType<RegisteredRouteProps> {
-  const component = registeredRouteComponents[view];
-  if (!component) throw new Error(`Missing desktop route component: ${view}`);
-  return component;
+const routes = {
+  dashboard: lazyRoute(
+    () => import("../DashboardPage"),
+    (page) => page.DashboardPage,
+  ),
+  chat: lazyRoute(
+    () => import("../ChatPage"),
+    (page) => page.ChatPage,
+  ),
+  code: lazyRoute(
+    () => import("../CodingWorkspacePage"),
+    (page) => page.CodingWorkspacePage,
+  ),
+  orchestration: lazyRoute(
+    () => import("../OrchestrationPage"),
+    (page) => page.OrchestrationPage,
+  ),
+  analytics: lazyRoute(
+    () => import("../analytics/AnalyticsPage"),
+    (page) => page.AnalyticsPage,
+  ),
+  activity: lazyRoute(
+    () => import("../ActivityPage"),
+    (page) => page.ActivityPage,
+  ),
+  settings: lazyRoute(
+    () => import("../SettingsPage"),
+    (page) => page.SettingsPage,
+  ),
+};
+
+export function getDesktopRouteComponent(view: View): DesktopRouteComponent {
+  return routes[renderedViewForView(view)].component;
 }
 
-/** Replace a rejected lazy component so a user retry can request its chunk again. */
+/** Replace a rejected lazy component so the user can retry its chunk. */
 export function resetDesktopRoute(view: View): void {
-  registeredRouteResetters[view]?.();
+  const route = routes[renderedViewForView(view)];
+  route.component = lazy(route.load);
 }
-
-export const DashboardPage = lazyNamedRoute(
-  ["dashboard"],
-  () => import("../DashboardPage"),
-  "DashboardPage",
-);
-export const ChatPage = lazyNamedRoute(
-  ["chat", "sessions", "media"],
-  () => import("../ChatPage"),
-  "ChatPage",
-);
-export const CodingWorkspacePage = lazyNamedRoute(
-  ["code", "browser"],
-  () => import("../CodingWorkspacePage"),
-  "CodingWorkspacePage",
-);
-export const OrchestrationPage = lazyNamedRoute(
-  ["gateway", "review", "orchestration", "automations", "agents"],
-  () => import("../OrchestrationPage"),
-  "OrchestrationPage",
-);
-export const AnalyticsPage = lazyNamedRoute(
-  ["analytics"],
-  () => import("../analytics/AnalyticsPage"),
-  "AnalyticsPage",
-);
-export const ActivityPage = lazyNamedRoute(
-  ["activity"],
-  () => import("../ActivityPage"),
-  "ActivityPage",
-);
-export const SettingsPage = lazyNamedRoute(
-  [
-    "settings",
-    "interfaces",
-    "desktop",
-    "execution",
-    "advanced",
-    "models",
-    "connections",
-    "tools",
-    "skills",
-    "plugins",
-    "memory",
-    "profiles",
-    "logs",
-    "keys",
-    "docs",
-    "runtime",
-    "compatibility",
-    "registry",
-    "operatorSetup",
-  ],
-  () => import("../SettingsPage"),
-  "SettingsPage",
-);
-
-function completeRouteLoaderRegistry(): Readonly<Record<View, RouteLoader>> {
-  for (const view of views) {
-    if (!registeredRouteLoaders[view]) {
-      throw new Error(`Missing desktop route loader: ${view}`);
-    }
-  }
-  return registeredRouteLoaders as Record<View, RouteLoader>;
-}
-
-export const DESKTOP_ROUTE_PRELOADERS = completeRouteLoaderRegistry();
 
 /** Warm the route module and its first-view resources once navigation commits. */
 export async function warmDesktopRoute(
@@ -148,7 +69,7 @@ export async function warmDesktopRoute(
 ): Promise<void> {
   cancelDesktopRouteResourcePrefetchIntent();
   await Promise.all([
-    DESKTOP_ROUTE_PRELOADERS[view](),
+    routes[renderedViewForView(view)].load(),
     prefetchDesktopRouteResources(view, runtimeReady, workspacePath),
   ]);
 }
@@ -162,6 +83,6 @@ export function preloadDesktopRoute(
   runtimeReady: RouteReadiness = true,
   workspacePath = "",
 ): void {
-  void DESKTOP_ROUTE_PRELOADERS[view]().catch(() => undefined);
+  void routes[renderedViewForView(view)].load().catch(() => undefined);
   scheduleDesktopRouteResourcePrefetch(view, runtimeReady, workspacePath);
 }

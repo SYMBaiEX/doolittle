@@ -1,63 +1,53 @@
-import type { ComputerOrigin } from "../computer-origin";
+import { type ComputerOrigin, computerOriginKey } from "../computer-origin";
 import type { View } from "../desktop-navigation";
 
-export interface DesktopNavigationHistory {
-  readonly entries: readonly View[];
+export interface DesktopNavigationEntry {
+  readonly view: View;
+  readonly computerOrigin?: ComputerOrigin;
+}
+
+interface DesktopNavigationHistory {
+  readonly entries: readonly DesktopNavigationEntry[];
   readonly index: number;
-  readonly computerOrigins?: Readonly<Record<number, ComputerOrigin>>;
 }
 
 export function createDesktopNavigationHistory(
-  initialView: View,
+  initial: DesktopNavigationEntry,
 ): DesktopNavigationHistory {
-  return { entries: [initialView], index: 0 };
+  return { entries: [initial], index: 0 };
 }
 
 export function pushDesktopNavigationHistory(
   history: DesktopNavigationHistory,
-  view: View,
-  computerOrigin?: ComputerOrigin,
+  next: DesktopNavigationEntry,
 ): DesktopNavigationHistory {
+  const current = history.entries[history.index];
   if (
-    history.entries[history.index] === view &&
-    JSON.stringify(history.computerOrigins?.[history.index]) ===
-      JSON.stringify(computerOrigin)
+    current?.view === next.view &&
+    current.computerOrigin?.workspacePath ===
+      next.computerOrigin?.workspacePath &&
+    computerOriginKey(current.computerOrigin) ===
+      computerOriginKey(next.computerOrigin)
   )
     return history;
-  const index = history.index + 1;
-  const computerOrigins =
-    history.computerOrigins || computerOrigin
-      ? Object.fromEntries(
-          Object.entries(history.computerOrigins ?? {}).filter(
-            ([key]) => Number(key) < index,
-          ),
-        )
-      : undefined;
-  if (computerOrigin && computerOrigins)
-    computerOrigins[index] = { ...computerOrigin };
-  return {
-    entries: [...history.entries.slice(0, history.index + 1), view],
-    index,
-    ...(computerOrigins ? { computerOrigins } : {}),
-  };
+  const entries = [...history.entries.slice(0, history.index + 1), next];
+  return { entries, index: entries.length - 1 };
+}
+
+export function replaceDesktopNavigationEntry(
+  history: DesktopNavigationHistory,
+  entry: DesktopNavigationEntry,
+): DesktopNavigationHistory {
+  const entries = [...history.entries];
+  entries[history.index] = entry;
+  return { entries, index: history.index };
 }
 
 export function desktopNavigationTarget(
   history: DesktopNavigationHistory,
   offset: -1 | 1,
-): {
-  history: DesktopNavigationHistory;
-  view: View;
-  computerOrigin?: ComputerOrigin;
-} | null {
+) {
   const index = history.index + offset;
-  const view = history.entries[index];
-  if (!view) return null;
-  return {
-    history: { ...history, index },
-    view,
-    ...(history.computerOrigins?.[index]
-      ? { computerOrigin: { ...history.computerOrigins[index] } }
-      : {}),
-  };
+  const entry = history.entries[index];
+  return entry ? { history: { ...history, index }, ...entry } : null;
 }

@@ -38,8 +38,10 @@ import { DesktopRouteLoadingFallback } from "./app-shell/DesktopRouteLoadingFall
 import { DesktopRuntimeNotices } from "./app-shell/DesktopRuntimeNotices";
 import {
   createDesktopNavigationHistory,
+  type DesktopNavigationEntry,
   desktopNavigationTarget,
   pushDesktopNavigationHistory,
+  replaceDesktopNavigationEntry,
 } from "./app-shell/desktop-navigation-history";
 import {
   resetDesktopRoute,
@@ -363,9 +365,13 @@ export function App() {
     }
   }, []);
   const routeFocus = useRef<DesktopRouteFocusStore>(new Map());
-  const [view, setViewState] = useState<View>(() => resolveDesktopHash().view);
+  const [route, setRoute] = useState<DesktopNavigationEntry>(() => ({
+    view: resolveDesktopHash().view,
+  }));
+  const routeRef = useRef(route);
+  const { view, computerOrigin } = route;
   const [navigationHistory, setNavigationHistory] = useState(() =>
-    createDesktopNavigationHistory(resolveDesktopHash().view),
+    createDesktopNavigationHistory(route),
   );
   const [routeRetryNonce, setRouteRetryNonce] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -376,8 +382,6 @@ export function App() {
   const [utilityOpen, setUtilityOpen] = useState(false);
   const [chatTerminalOpen, setChatTerminalOpen] = useState(false);
   const [chatTerminalMounted, setChatTerminalMounted] = useState(false);
-  const [computerOrigin, setComputerOrigin] = useState<ComputerOrigin>();
-  const computerOriginRef = useRef<ComputerOrigin | undefined>(undefined);
   const [terminalOrigin, setTerminalOrigin] = useState<ComputerOrigin>();
   const terminalOpenIntent = useRef(createTerminalOpenIntent());
   const [navCollapsed, setNavCollapsed] = useState(
@@ -828,10 +832,7 @@ export function App() {
     );
     const scope = scopeForSession(selectedSession);
     const origin =
-      (renderedViewForView(view) === "code" ||
-      renderedViewForView(view) === "browser"
-        ? computerOrigin
-        : undefined) ??
+      (renderedViewForView(view) === "code" ? computerOrigin : undefined) ??
       (owner
         ? {
             botId: owner,
@@ -953,7 +954,7 @@ export function App() {
   const confirmViewChange = useCallback(
     (next: View) => {
       if (
-        primaryViewForView(view) === "code" &&
+        primaryViewForView(routeRef.current.view) === "code" &&
         primaryViewForView(next) !== "code" &&
         !confirmDirtyNavigation({
           dirty: codeWorkspaceDirty,
@@ -968,7 +969,7 @@ export function App() {
       }
       return true;
     },
-    [codeWorkspaceDirty, view],
+    [codeWorkspaceDirty],
   );
 
   const applyViewTransition = useCallback(
@@ -980,34 +981,40 @@ export function App() {
       }: { skipDirtyCheck?: boolean; computerOrigin?: ComputerOrigin } = {},
     ) => {
       if (!skipDirtyCheck && !confirmViewChange(next)) return false;
-      const computer =
-        renderedViewForView(next) === "code" ||
-        renderedViewForView(next) === "browser";
-      const owner = sessionBotId(
-        selectedSession,
-        sessions,
-        localBotBindings,
-        defaultBotId,
-      );
-      const selectedScope = scopeForSession(selectedSession);
-      const origin = computer
-        ? (suppliedOrigin ??
-          (owner
-            ? {
-                botId: owner,
-                originConversationId: selectedSession,
-                workspacePath:
-                  selectedScope.kind === "confirmed"
-                    ? selectedScope.conversation.workspacePath
-                    : "",
-              }
-            : undefined))
-        : undefined;
+      const previous = routeRef.current;
+      const computer = renderedViewForView(next) === "code";
+      const wasComputer = renderedViewForView(previous.view) === "code";
+      let origin = computer ? suppliedOrigin : undefined;
+      if (computer && wasComputer && previous.view !== next && !skipDirtyCheck)
+        origin ??= previous.computerOrigin;
+      if (computer && !origin) {
+        const owner = sessionBotId(
+          selectedSession,
+          sessions,
+          localBotBindings,
+          defaultBotId,
+        );
+        const scope = scopeForSession(selectedSession);
+        if (owner) {
+          origin = {
+            botId: owner,
+            originConversationId: selectedSession,
+            workspacePath:
+              scope.kind === "confirmed"
+                ? scope.conversation.workspacePath
+                : "",
+          };
+        }
+      }
+      const originChanged =
+        computerOriginKey(previous.computerOrigin) !==
+          computerOriginKey(origin) ||
+        previous.computerOrigin?.workspacePath !== origin?.workspacePath;
       if (
         !skipDirtyCheck &&
         computer &&
-        renderedViewForView(view) === "code" &&
-        JSON.stringify(computerOriginRef.current) !== JSON.stringify(origin) &&
+        wasComputer &&
+        originChanged &&
         !confirmDirtyNavigation({
           dirty: codeWorkspaceDirty,
           confirm: () =>
@@ -1018,12 +1025,14 @@ export function App() {
         })
       )
         return false;
-      computerOriginRef.current = origin && { ...origin };
-      setComputerOrigin(computerOriginRef.current);
+      if (previous.view !== next || originChanged) {
+        const nextRoute = { view: next, computerOrigin: origin };
+        routeRef.current = nextRoute;
+        setRoute(nextRoute);
+      }
       void warmDesktopRoute(next, backend.phase, workspace.currentPath).catch(
         () => undefined,
       );
-      setViewState(next);
       setMobileSidebarOpen(false);
       if (utilityModalMode) closeUtilities();
       return true;
@@ -1040,25 +1049,16 @@ export function App() {
       localBotBindings,
       defaultBotId,
       scopeForSession,
-      view,
       codeWorkspaceDirty,
     ],
   );
 
-  // Keep one hashchange listener for the lifetime of the shell. Re-registering
-  // it on every view render leaves a narrow gap where rapid browser history or
-  // compact-layout navigation can update the hash without updating the view.
-  const recordNavigation = useCallback((next: View) => {
+  const recordNavigation = useCallback(() => {
+    const entry = routeRef.current;
     setNavigationHistory((current) =>
-      pushDesktopNavigationHistory(current, next, computerOriginRef.current),
+      pushDesktopNavigationHistory(current, entry),
     );
   }, []);
-  const hashNavigationRef = useRef({
-    applyViewTransition,
-    recordNavigation,
-    view,
-  });
-  hashNavigationRef.current = { applyViewTransition, recordNavigation, view };
 
   const setView = useCallback(
     (
@@ -1068,10 +1068,8 @@ export function App() {
         readonly computerOrigin?: ComputerOrigin;
       },
     ) => {
-      if (options?.skipDirtyCheck) {
-        if (!applyViewTransition(next, options)) return false;
-      } else if (!applyViewTransition(next, options)) return false;
-      recordNavigation(next);
+      if (!applyViewTransition(next, options)) return false;
+      recordNavigation();
       window.location.hash = desktopHashForView(next);
       return true;
     },
@@ -1082,19 +1080,14 @@ export function App() {
     if (
       !computerOrigin &&
       defaultBotId &&
-      (renderedViewForView(view) === "code" ||
-        renderedViewForView(view) === "browser")
+      renderedViewForView(view) === "code"
     ) {
       applyViewTransition(view, { skipDirtyCheck: true });
-      setNavigationHistory((current) => ({
-        ...current,
-        computerOrigins: computerOriginRef.current
-          ? {
-              ...current.computerOrigins,
-              [current.index]: { ...computerOriginRef.current },
-            }
-          : current.computerOrigins,
-      }));
+      const entry = routeRef.current;
+      if (entry.computerOrigin)
+        setNavigationHistory((current) =>
+          replaceDesktopNavigationEntry(current, entry),
+        );
     }
   }, [computerOrigin, defaultBotId, view, applyViewTransition]);
 
@@ -1931,27 +1924,25 @@ export function App() {
     utilityOpen,
   ]);
 
-  useEffect(() => {
-    const onHashChange = () => {
-      const resolved = resolveDesktopHash();
-      const next = resolved.view;
-      const current = hashNavigationRef.current;
-      if (
-        !current.applyViewTransition(next) &&
-        window.location.hash !== desktopHashForView(current.view)
-      ) {
-        window.history.replaceState(null, "", desktopHashForView(current.view));
+  const syncRouteFromHash = useEffectEvent(() => {
+    const resolved = resolveDesktopHash();
+    const currentView = routeRef.current.view;
+    // A programmatic transition already applied its conversation origin.
+    if (resolved.view !== currentView) {
+      if (!applyViewTransition(resolved.view)) {
+        window.history.replaceState(null, "", desktopHashForView(currentView));
         return;
       }
-      current.recordNavigation(next);
-      if (window.location.hash !== resolved.canonicalHash) {
-        window.history.replaceState(null, "", resolved.canonicalHash);
-      }
-    };
+      recordNavigation();
+    }
+    if (window.location.hash !== resolved.canonicalHash) {
+      window.history.replaceState(null, "", resolved.canonicalHash);
+    }
+  });
+  useEffect(() => {
+    const onHashChange = () => syncRouteFromHash();
     window.addEventListener("hashchange", onHashChange);
-    if (!window.location.hash)
-      window.location.hash = desktopHashForView("chat");
-    else onHashChange();
+    onHashChange();
     return () => window.removeEventListener("hashchange", onHashChange);
   }, []);
 
@@ -2669,7 +2660,7 @@ export function App() {
             >
               {renderedView !== "chat" && navigationHistory.index > 0 ? (
                 <button
-                  aria-label={`Back to ${labelForView(navigationHistory.entries[navigationHistory.index - 1]) ?? "previous view"}`}
+                  aria-label={`Back to ${labelForView(navigationHistory.entries[navigationHistory.index - 1]?.view) ?? "previous view"}`}
                   className="grid size-10 shrink-0 place-items-center rounded-[var(--radius-md)] text-[var(--muted)] hover:bg-[var(--surface-hover)]"
                   onClick={() => traverseNavigationHistory(-1)}
                   type="button"

@@ -15,6 +15,7 @@ import { type ComputerOrigin, computerOriginKey } from "../computer-origin";
 import { renderedViewForView, type View } from "../desktop-navigation";
 import type { DesktopNavigationIntent } from "../desktop-navigation-intent";
 import { type ApiResource, LoadingBlock } from "../lib";
+import type { LinkedWorkTab, WorkTabId } from "../OrchestrationPage";
 import type { ProjectLike, ProjectScope } from "../project-manager/models";
 import type { SessionConversationScope } from "../session-conversation-scope";
 import {
@@ -30,6 +31,13 @@ import {
   type OrchestrationFocusState,
 } from "./route-focus-state";
 import { VIEW_PRIMITIVES_CLASS } from "./view-layout";
+
+const LINKED_WORK_VIEWS = [
+  ["review", "review"],
+  ["automations", "automations"],
+  ["agents", "agents"],
+  ["inbox", "gateway"],
+] as const satisfies ReadonlyArray<readonly [LinkedWorkTab, View]>;
 
 export interface DesktopRouteNavigation {
   setView: (view: View) => void;
@@ -146,19 +154,17 @@ export function DesktopRouteContent({
 }: DesktopRouteContentProps): ReactNode {
   const routeCapabilities = desktopRouteCapabilities(view, backend.phase);
   const active = routeCapabilities.apiRead;
-  const settingsSection = settingsSectionForView(view);
-  const Route = getDesktopRouteComponent(renderedViewForView(view));
+  const routeOwner = renderedViewForView(view);
+  const Route = getDesktopRouteComponent(routeOwner);
   const focusScope = desktopRouteFocusScope(
     computerOrigin?.workspacePath ?? workspacePath,
     projectScope,
-    view === "code" || view === "browser"
-      ? computerOriginKey(computerOrigin)
-      : undefined,
+    routeOwner === "code" ? computerOriginKey(computerOrigin) : undefined,
   );
   const focusForScope = routeFocus.get(focusScope);
 
   const content = (() => {
-    switch (view) {
+    switch (routeOwner) {
       case "dashboard":
         return (
           <Route
@@ -180,8 +186,6 @@ export function DesktopRouteContent({
           />
         );
       case "chat":
-      case "sessions":
-      case "media":
         return (
           <Route
             activeProject={activeProject}
@@ -261,7 +265,6 @@ export function DesktopRouteContent({
           />
         );
       case "code":
-      case "browser":
         if (!computerOrigin)
           return (
             <LoadingBlock label="Resolving this conversation’s Computer access…" />
@@ -271,8 +274,8 @@ export function DesktopRouteContent({
             active={active}
             editingLocked={codeEditingLocked}
             key={focusScope}
-            botId={computerOrigin?.botId}
-            originConversationId={computerOrigin?.originConversationId}
+            botId={computerOrigin.botId}
+            originConversationId={computerOrigin.originConversationId}
             focusState={focusForScope?.code}
             onFocusStateChange={(state: CodingWorkspaceFocusState) => {
               const current = routeFocus.get(focusScope) ?? {};
@@ -284,7 +287,9 @@ export function DesktopRouteContent({
               computerOrigin.workspacePath
                 ? onChooseWorkspace
                 : () =>
-                    navigation.chooseRepositoryForConversation(selectedSession)
+                    navigation.chooseRepositoryForConversation(
+                      computerOrigin.originConversationId,
+                    )
             }
             onOpenWorkspacePath={onOpenWorkspacePath}
             onOpenChatTerminal={navigation.openChatTerminal}
@@ -295,13 +300,9 @@ export function DesktopRouteContent({
             onSurfaceChange={(surface: string) =>
               navigation.setView(surface === "preview" ? "browser" : "code")
             }
-            workspacePath={computerOrigin?.workspacePath ?? workspacePath}
+            workspacePath={computerOrigin.workspacePath}
           />
         );
-      case "gateway":
-      case "automations":
-      case "agents":
-      case "review":
       case "orchestration": {
         const workScope = scopeForSession?.(selectedSession);
         const workOrigin =
@@ -327,26 +328,17 @@ export function DesktopRouteContent({
             }}
             navigationIntent={pendingNavigationIntent}
             onAcknowledgeNavigationIntent={navigation.consumeNavigationIntent}
-            onSectionChange={(section: string) => {
+            onSectionChange={(section: WorkTabId) => {
               const targetView =
-                section === "review" ||
-                section === "automations" ||
-                section === "agents"
-                  ? section
-                  : section === "inbox"
-                    ? "gateway"
-                    : "orchestration";
+                LINKED_WORK_VIEWS.find(([tab]) => tab === section)?.[1] ??
+                "orchestration";
               if (targetView !== view) navigation.setView(targetView);
             }}
             onSendToChat={navigation.openChatWithContext}
             onOpenWorkspaceFile={navigation.openWorkspaceFile}
             projectScope={projectScope}
             requestedTab={
-              view === "review" || view === "automations" || view === "agents"
-                ? view
-                : view === "gateway"
-                  ? "inbox"
-                  : undefined
+              LINKED_WORK_VIEWS.find(([, target]) => target === view)?.[0]
             }
             workspaceLabel={
               activeProject?.name ??
@@ -367,24 +359,6 @@ export function DesktopRouteContent({
           />
         );
       case "settings":
-      case "interfaces":
-      case "desktop":
-      case "execution":
-      case "advanced":
-      case "models":
-      case "connections":
-      case "keys":
-      case "tools":
-      case "skills":
-      case "plugins":
-      case "memory":
-      case "profiles":
-      case "logs":
-      case "runtime":
-      case "compatibility":
-      case "registry":
-      case "operatorSetup":
-      case "docs":
         return (
           <Route
             active={active}
@@ -393,12 +367,10 @@ export function DesktopRouteContent({
             }
             refreshRuntime={refreshRuntime}
             runtime={runtime}
-            section={settingsSection}
+            section={settingsSectionForView(view) ?? "appearance"}
             writesAllowed={routeCapabilities.writes}
           />
         );
-      default:
-        return null;
     }
   })();
 

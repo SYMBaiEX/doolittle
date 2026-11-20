@@ -69,7 +69,6 @@ import {
   loadCodeWorkspaceLayout,
   resizeCodeWorkspaceWidths,
   saveCodeWorkspaceLayout,
-  workspaceLayoutScope,
 } from "./workspace-layout-state";
 
 /** Keep cached coding resources isolated when the runtime workspace changes. */
@@ -94,7 +93,7 @@ export function CodingWorkspacePage({
   focusState,
   onFocusStateChange,
   projectScope,
-  surface: controlledSurface,
+  surface,
   onSurfaceChange,
   workspacePath,
   botId,
@@ -112,8 +111,8 @@ export function CodingWorkspacePage({
   focusState?: CodingWorkspaceFocusState;
   onFocusStateChange?: (state: CodingWorkspaceFocusState) => void;
   projectScope: ProjectScope;
-  surface?: CodeSurface;
-  onSurfaceChange?: (surface: CodeSurface) => void;
+  surface: CodeSurface;
+  onSurfaceChange: (surface: CodeSurface) => void;
   workspacePath: string;
   botId?: string;
   originConversationId?: string;
@@ -122,40 +121,18 @@ export function CodingWorkspacePage({
     botId && originConversationId
       ? { botId, originConversationId, workspacePath }
       : undefined;
-  const initialLayoutRef = useRef<ReturnType<
-    typeof loadCodeWorkspaceLayout
-  > | null>(null);
-  if (!initialLayoutRef.current) {
-    initialLayoutRef.current = loadCodeWorkspaceLayout(
-      localStorage,
-      workspacePath,
-    );
-  }
-  const initialLayout = initialLayoutRef.current;
-  const [explorerVisible, setExplorerVisible] = useState(
-    initialLayout.explorerVisible,
+  // DesktopRouteContent keys this editor by its workspace and conversation owner.
+  const [layout, setLayout] = useState(() =>
+    loadCodeWorkspaceLayout(localStorage, workspacePath),
   );
-  const [utilityVisible, setUtilityVisible] = useState(
-    initialLayout.utilityVisible,
+  const { explorerVisible, utilityVisible, zenMode } = layout;
+  const toggleLayout = useCallback(
+    (control: "explorerVisible" | "utilityVisible" | "zenMode") =>
+      setLayout((current) => ({ ...current, [control]: !current[control] })),
+    [],
   );
-  const [zenMode, setZenMode] = useState(initialLayout.zenMode);
-  const [explorerWidth, setExplorerWidth] = useState(
-    initialLayout.explorerWidth,
-  );
-  const [utilityWidth, setUtilityWidth] = useState(initialLayout.utilityWidth);
   const codeGridRef = useRef<HTMLDivElement>(null);
   const [codeGridWidth, setCodeGridWidth] = useState(0);
-  const [localSurface, setLocalSurface] = useState<CodeSurface>("workspace");
-  const surface = controlledSurface ?? localSurface;
-  const setSurface = useCallback(
-    (next: CodeSurface) => {
-      setLocalSurface(next);
-      onSurfaceChange?.(next);
-    },
-    [onSurfaceChange],
-  );
-  const layoutScopeRef = useRef(workspaceLayoutScope(workspacePath));
-  const hydratingLayoutRef = useRef(false);
   const [leftPane, setLeftPane] = useState<LeftPane>(
     () => focusState?.leftPane ?? "files",
   );
@@ -175,8 +152,11 @@ export function CodingWorkspacePage({
   const [searchQuery, setSearchQuery] = useState(
     () => focusState?.searchQuery ?? "",
   );
-  const [originalContent, setOriginalContent] = useState("");
-  const [draftContent, setDraftContent] = useState("");
+  const [fileEdit, setFileEdit] = useState<{
+    path: string;
+    baseline: string;
+    content: string;
+  } | null>(null);
   const [fileNotice, setFileNotice] = useState<ActionNotice | null>(null);
   const [savingFile, setSavingFile] = useState(false);
   const [acpTaskOpen, setAcpTaskOpen] = useState(
@@ -185,7 +165,6 @@ export function CodingWorkspacePage({
   const [acpTaskDraft, setAcpTaskDraft] = useState(
     () => focusState?.acpTaskDraft ?? "",
   );
-  const fileDirtyRef = useRef(false);
   const consumedNavigationIntents = useRef(new Set<string>());
   const hasWorkspace = Boolean(workspacePath.trim());
   const workspaceActive = active && hasWorkspace;
@@ -201,25 +180,12 @@ export function CodingWorkspacePage({
     observer.observe(grid);
     return () => observer.disconnect();
   }, [active, hasWorkspace, surface]);
-  const widthPreferences = {
-    explorerVisible,
-    utilityVisible,
-    explorerWidth,
-    utilityWidth,
-  };
-  const displayedWidths = codeWorkspaceWidthBudget(
-    codeGridWidth,
-    widthPreferences,
-  );
+  const displayedWidths = codeWorkspaceWidthBudget(codeGridWidth, layout);
   const resizeCodePane = (pane: "explorer" | "utility", value: number) => {
-    const next = resizeCodeWorkspaceWidths(
-      codeGridWidth,
-      widthPreferences,
-      pane,
-      value,
-    );
-    setExplorerWidth(next.explorerWidth);
-    setUtilityWidth(next.utilityWidth);
+    setLayout((current) => ({
+      ...current,
+      ...resizeCodeWorkspaceWidths(codeGridWidth, current, pane, value),
+    }));
   };
   const acpEditor = useDesktopAcpEditorBridge({
     active: workspaceActive,
@@ -423,27 +389,25 @@ export function CodingWorkspacePage({
     setStagedPatch(selectedChange.staged && !selectedChange.unstaged);
   }, [selectedChange]);
 
-  useEffect(() => {
-    if (
-      fileResource.loading ||
-      fileResource.data?.path !== selectedPath ||
-      typeof fileResource.data.content !== "string" ||
-      fileDirtyRef.current
-    ) {
-      return;
-    }
-    setOriginalContent(fileResource.data.content);
-    setDraftContent(fileResource.data.content);
-    setFileNotice(null);
-  }, [
-    fileResource.data?.content,
-    fileResource.data?.path,
-    fileResource.loading,
-    selectedPath,
-  ]);
-
+  const loadedContent =
+    fileResource.data?.path === selectedPath &&
+    typeof fileResource.data.content === "string"
+      ? fileResource.data.content
+      : undefined;
+  const currentEdit = fileEdit?.path === selectedPath ? fileEdit : null;
+  const originalContent = currentEdit?.baseline ?? loadedContent ?? "";
+  const draftContent = currentEdit?.content ?? originalContent;
   const fileDirty = draftContent !== originalContent;
-  fileDirtyRef.current = fileDirty;
+
+  useEffect(() => {
+    if (loadedContent === undefined) return;
+    // After saving, use the authoritative read again when its cache refreshes.
+    setFileEdit((current) =>
+      current?.path === selectedPath && current.content === current.baseline
+        ? null
+        : current,
+    );
+  }, [loadedContent, selectedPath]);
 
   useEffect(() => {
     onDirtyChange?.(fileDirty);
@@ -460,6 +424,10 @@ export function CodingWorkspacePage({
           message: "Save or discard this file before opening another one.",
         });
         return false;
+      }
+      if (path !== selectedPath) {
+        setFileEdit(null);
+        setFileNotice(null);
       }
       setSelectedPath(path);
       setEditorPane(destination);
@@ -482,43 +450,12 @@ export function CodingWorkspacePage({
   }, [active, navigationIntent, onAcknowledgeNavigationIntent, openPath]);
 
   useEffect(() => {
-    const nextScope = workspaceLayoutScope(workspacePath);
-    if (layoutScopeRef.current === nextScope) return;
-    layoutScopeRef.current = nextScope;
-    hydratingLayoutRef.current = true;
-    const next = loadCodeWorkspaceLayout(localStorage, workspacePath);
-    setExplorerVisible(next.explorerVisible);
-    setUtilityVisible(next.utilityVisible);
-    setZenMode(next.zenMode);
-    setExplorerWidth(next.explorerWidth);
-    setUtilityWidth(next.utilityWidth);
-  }, [workspacePath]);
-
-  useEffect(() => {
-    if (hydratingLayoutRef.current) {
-      hydratingLayoutRef.current = false;
-      return;
-    }
     try {
-      saveCodeWorkspaceLayout(localStorage, workspacePath, {
-        explorerVisible,
-        utilityVisible,
-        zenMode,
-        explorerWidth,
-        utilityWidth,
-      });
+      saveCodeWorkspaceLayout(localStorage, workspacePath, layout);
     } catch {
-      // Layout persistence is a convenience; keep the editor usable when the
-      // browser profile refuses local storage writes.
+      // The editor still works when the browser profile denies storage.
     }
-  }, [
-    explorerVisible,
-    explorerWidth,
-    utilityVisible,
-    utilityWidth,
-    workspacePath,
-    zenMode,
-  ]);
+  }, [layout, workspacePath]);
 
   useEffect(() => {
     if (!active) return;
@@ -527,10 +464,10 @@ export function CodingWorkspacePage({
       const key = event.key.toLowerCase();
       if (key === "b" && !event.shiftKey) {
         event.preventDefault();
-        setExplorerVisible((current) => !current);
+        toggleLayout("explorerVisible");
       } else if (key === "j" && !event.shiftKey) {
         event.preventDefault();
-        setUtilityVisible((current) => !current);
+        toggleLayout("utilityVisible");
       } else if (key === "z" && event.shiftKey) {
         const target = event.target;
         if (
@@ -540,12 +477,12 @@ export function CodingWorkspacePage({
           return;
         }
         event.preventDefault();
-        setZenMode((current) => !current);
+        toggleLayout("zenMode");
       }
     };
     window.addEventListener("keydown", handleWorkspaceShortcut);
     return () => window.removeEventListener("keydown", handleWorkspaceShortcut);
-  }, [active]);
+  }, [active, toggleLayout]);
 
   const refreshAll = () => {
     if (!active) return;
@@ -574,7 +511,7 @@ export function CodingWorkspacePage({
 
   const discardFile = () => {
     if (editingLocked) return;
-    setDraftContent(originalContent);
+    setFileEdit(null);
     setFileNotice({
       tone: "neutral",
       message: "Local edits discarded. The workspace file was not changed.",
@@ -607,7 +544,12 @@ export function CodingWorkspacePage({
       } else if (result.status === "conflict") {
         setFileNotice({ tone: "bad", message: result.message });
       } else {
-        setOriginalContent(draftContent);
+        setFileEdit({
+          path: selectedPath,
+          baseline: draftContent,
+          content: draftContent,
+        });
+        fileResource.reload();
         setFileNotice({
           tone: "good",
           message: "Saved after native confirmation.",
@@ -673,10 +615,7 @@ export function CodingWorkspacePage({
         ].join("\n"),
         workspacePath,
         projectScope,
-        origin:
-          botId && originConversationId
-            ? { botId, originConversationId, workspacePath }
-            : undefined,
+        origin: resourceOrigin,
       });
       return;
     }
@@ -684,15 +623,12 @@ export function CodingWorkspacePage({
       text: [
         `Help me work on ${selectedPath}.`,
         `<file_context path="${selectedPath}">`,
-        boundedContext(draftContent || originalContent),
+        boundedContext(draftContent),
         "</file_context>",
       ].join("\n"),
       workspacePath,
       projectScope,
-      origin:
-        botId && originConversationId
-          ? { botId, originConversationId, workspacePath }
-          : undefined,
+      origin: resourceOrigin,
     });
   };
 
@@ -709,60 +645,37 @@ export function CodingWorkspacePage({
     if (nextPane === "terminal") onOpenChatTerminal();
   };
 
-  if (!active) {
+  if (!workspaceActive) {
     return (
-      <div
-        className={`${CODING_WORKSPACE_PAGE_CLASS} ${zenMode ? CODING_WORKSPACE_ZEN_CLASS : ""}`}
-      >
+      <div className={CODING_WORKSPACE_PAGE_CLASS}>
         <PageHeader
-          actions={
-            <button
-              className="secondary-button"
-              disabled
-              onClick={refreshAll}
-              type="button"
-            >
-              Refresh
-            </button>
-          }
-          description="Inspect files, changes, and workspace operations without leaving the desktop."
+          description="Inspect files, changes, and workspace operations."
           eyebrow="Workspace"
           title="Code"
         />
-        <OfflineRouteState>
-          Workspace files, repository state, and coding actions are unavailable
-          until the local runtime is ready.
-        </OfflineRouteState>
-      </div>
-    );
-  }
-
-  if (!hasWorkspace) {
-    return (
-      <div
-        className={`${CODING_WORKSPACE_PAGE_CLASS} ${zenMode ? CODING_WORKSPACE_ZEN_CLASS : ""}`}
-      >
-        <PageHeader
-          description="Inspect files, changes, and workspace operations without leaving the desktop."
-          eyebrow="Workspace"
-          title="Code"
-        />
-        <EmptyBlock
-          actions={
-            <button
-              className="primary-button"
-              onClick={() => void onChooseWorkspace()}
-              type="button"
-            >
-              Choose a project folder
-            </button>
-          }
-          density="compact"
-          title="Start a project conversation"
-        >
-          Choose a folder and confirm access for this bot. Doolittle opens a
-          conversation with that project’s files and tools.
-        </EmptyBlock>
+        {active ? (
+          <EmptyBlock
+            actions={
+              <button
+                className="primary-button"
+                onClick={() => void onChooseWorkspace()}
+                type="button"
+              >
+                Choose a project folder
+              </button>
+            }
+            density="compact"
+            title="Start a project conversation"
+          >
+            Choose a folder and confirm access for this bot. Doolittle opens a
+            conversation with that project’s files and tools.
+          </EmptyBlock>
+        ) : (
+          <OfflineRouteState>
+            Workspace files, repository state, and coding actions are
+            unavailable until the local runtime is ready.
+          </OfflineRouteState>
+        )}
       </div>
     );
   }
@@ -778,10 +691,10 @@ export function CodingWorkspacePage({
           surface={surface}
           onRefresh={refreshAll}
           onRetrySummary={summaryResource.reload}
-          onSurfaceChange={setSurface}
-          onToggleExplorer={() => setExplorerVisible((current) => !current)}
-          onToggleUtility={() => setUtilityVisible((current) => !current)}
-          onToggleZen={() => setZenMode((current) => !current)}
+          onSurfaceChange={onSurfaceChange}
+          onToggleExplorer={() => toggleLayout("explorerVisible")}
+          onToggleUtility={() => toggleLayout("utilityVisible")}
+          onToggleZen={() => toggleLayout("zenMode")}
           hasSummary={Boolean(summaryResource.data?.summary)}
           summary={summary}
           summaryError={summaryResource.error}
@@ -855,12 +768,20 @@ export function CodingWorkspacePage({
           onDiscard={discardFile}
           onDraftChange={(value) => {
             if (editingLocked) return;
-            setDraftContent(value);
+            setFileEdit(
+              value === originalContent
+                ? null
+                : {
+                    path: selectedPath,
+                    baseline: originalContent,
+                    content: value,
+                  },
+            );
             if (fileNotice?.tone !== "bad") setFileNotice(null);
           }}
           onEditorPaneChange={setEditorPane}
           onEditorStateChange={(snapshot: CodeEditorStateSnapshot) =>
-            acpEditor.publishEditorState(snapshot, fileDirtyRef.current)
+            acpEditor.publishEditorState(snapshot, fileDirty)
           }
           onMutateVisiblePatch={mutateVisiblePatch}
           onSave={() => void saveFile()}

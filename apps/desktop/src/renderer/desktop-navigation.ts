@@ -2,109 +2,11 @@ import type { SessionSummary } from "../shared/contracts";
 import type { ProjectScope } from "./project-manager/models";
 import { compactSessionPreview } from "./session-preview";
 
-export type View =
-  | "dashboard"
-  | "chat"
-  | "code"
-  | "browser"
-  | "gateway"
-  | "review"
-  | "orchestration"
-  | "agents"
-  | "sessions"
-  | "activity"
-  | "analytics"
-  | "media"
-  | "models"
-  | "connections"
-  | "tools"
-  | "skills"
-  | "plugins"
-  | "memory"
-  | "automations"
-  | "profiles"
-  | "logs"
-  | "keys"
-  | "settings"
-  | "interfaces"
-  | "desktop"
-  | "execution"
-  | "advanced"
-  | "docs"
-  | "runtime"
-  | "compatibility"
-  | "registry"
-  | "operatorSetup";
+type DesktopDestination = "home" | "chat" | "code" | "work" | "settings";
 
-export const views = new Set<View>([
-  "dashboard",
-  "chat",
-  "code",
-  "browser",
-  "gateway",
-  "review",
-  "orchestration",
-  "agents",
-  "sessions",
-  "activity",
-  "analytics",
-  "media",
-  "models",
-  "connections",
-  "tools",
-  "skills",
-  "plugins",
-  "memory",
-  "automations",
-  "profiles",
-  "logs",
-  "keys",
-  "settings",
-  "interfaces",
-  "desktop",
-  "execution",
-  "advanced",
-  "docs",
-  "runtime",
-  "compatibility",
-  "registry",
-  "operatorSetup",
-]);
-
-export type DesktopDestination = "home" | "chat" | "code" | "work" | "settings";
-
-export type DesktopSection =
-  | "activity"
-  | "insights"
-  | "history"
-  | "media"
-  | "preview"
-  | "review"
-  | "agents"
-  | "automations"
-  | "inbox"
-  | "models"
-  | "accounts"
-  | "credentials"
-  | "tools"
-  | "skills"
-  | "plugins"
-  | "memory"
-  | "profiles"
-  | "logs"
-  | "runtime"
-  | "compatibility"
-  | "registry"
-  | "setup"
-  | "about"
-  | "interfaces"
-  | "desktop"
-  | "execution"
-  | "advanced";
-
-export interface DesktopLocation {
+interface DesktopLocation {
   destination: DesktopDestination;
-  section?: DesktopSection;
+  section?: string;
 }
 
 interface DesktopRouteLocation extends DesktopLocation {
@@ -116,9 +18,7 @@ interface DesktopRouteLocation extends DesktopLocation {
  * destination-first desktop. Internal feature pages remain lazy while the
  * visible shell stays focused on Chat, Code, and Settings.
  */
-export const DESKTOP_ROUTE_LOCATIONS: Readonly<
-  Record<View, DesktopRouteLocation>
-> = {
+const DESKTOP_ROUTE_LOCATIONS = {
   dashboard: { destination: "home", primaryView: "dashboard" },
   activity: {
     destination: "home",
@@ -255,14 +155,18 @@ export const DESKTOP_ROUTE_LOCATIONS: Readonly<
     section: "about",
     primaryView: "settings",
   },
-};
+} as const satisfies Record<string, DesktopRouteLocation>;
 
-const CANONICAL_VIEW_BY_PATH = new Map<string, View>(
-  Object.entries(DESKTOP_ROUTE_LOCATIONS).map(([view, location]) => [
-    desktopLocationPath(location),
-    view as View,
+export type View = keyof typeof DESKTOP_ROUTE_LOCATIONS;
+const views = Object.keys(DESKTOP_ROUTE_LOCATIONS) as View[];
+
+const CANONICAL_VIEW_BY_PATH = new Map(
+  views.map((view) => [
+    desktopLocationPath(DESKTOP_ROUTE_LOCATIONS[view]),
+    view,
   ]),
 );
+const LEGACY_VIEWS = new Set<string>(views);
 
 export interface ResolvedDesktopHash {
   location: DesktopLocation;
@@ -271,7 +175,7 @@ export interface ResolvedDesktopHash {
   legacy: boolean;
 }
 
-export function desktopLocationPath(location: DesktopLocation): string {
+function desktopLocationPath(location: DesktopLocation): string {
   return `/${location.destination}${location.section ? `/${location.section}` : ""}`;
 }
 
@@ -290,10 +194,9 @@ export function primaryViewForView(
  * pages as independent section owners; Chat, Code, Work, and Settings keep one
  * mounted owner while their contextual section changes.
  */
-export function renderedViewForView(view: View): View {
-  const primary = primaryViewForView(view);
-  if (primary === "dashboard" && view !== "dashboard") return view;
-  return primary;
+export function renderedViewForView(view: View) {
+  if (view === "activity" || view === "analytics") return view;
+  return primaryViewForView(view);
 }
 
 export function resolveDesktopHash(
@@ -303,8 +206,9 @@ export function resolveDesktopHash(
   const canonicalView = CANONICAL_VIEW_BY_PATH.get(rawPath);
   const legacyCandidate = rawPath.replace(/^\//u, "") as View;
   const view =
-    canonicalView ?? (views.has(legacyCandidate) ? legacyCandidate : "chat");
-  const location = DESKTOP_ROUTE_LOCATIONS[view];
+    canonicalView ??
+    (LEGACY_VIEWS.has(legacyCandidate) ? legacyCandidate : "chat");
+  const location: DesktopRouteLocation = DESKTOP_ROUTE_LOCATIONS[view];
   const canonicalHash = desktopHashForView(view);
   return {
     location: { destination: location.destination, section: location.section },
@@ -448,10 +352,6 @@ export function loadProjectScope(
 ): ProjectScope {
   const stored = storage.getItem(PROJECT_SCOPE_KEY)?.trim();
   return stored || "all";
-}
-
-export function viewFromHash(hash = window.location.hash): View {
-  return resolveDesktopHash(hash).view;
 }
 
 export function workspaceName(path: string): string {

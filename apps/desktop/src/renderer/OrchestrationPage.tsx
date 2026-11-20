@@ -52,15 +52,7 @@ const TeamManagementPanel = lazy(() =>
   })),
 );
 
-export type WorkTabId =
-  | "tasks"
-  | "agents"
-  | "plans"
-  | "runs"
-  | "automations"
-  | "inbox"
-  | "review";
-const WORK_TABS: readonly { id: WorkTabId; label: string }[] = [
+const WORK_TABS = [
   { id: "tasks", label: "Queue" },
   { id: "runs", label: "Runs" },
   { id: "review", label: "Review" },
@@ -68,7 +60,11 @@ const WORK_TABS: readonly { id: WorkTabId; label: string }[] = [
   { id: "agents", label: "Agents" },
   { id: "plans", label: "Plans" },
   { id: "inbox", label: "Inbox" },
-];
+] as const;
+
+export type WorkTabId = (typeof WORK_TABS)[number]["id"];
+type LocalWorkTab = "tasks" | "runs" | "plans";
+export type LinkedWorkTab = Exclude<WorkTabId, LocalWorkTab>;
 
 /** Keep healthy runtime plumbing out of the task workspace; surface only work. */
 export function shouldShowWorkResourceStatus(
@@ -104,7 +100,6 @@ export function OrchestrationPage({
   onOpenWorkspaceFile,
   projectScope = "all",
   requestedTab,
-  reviewMode = false,
   focusState,
   onFocusStateChange,
   workspaceLabel,
@@ -114,22 +109,24 @@ export function OrchestrationPage({
   active: boolean;
   navigationIntent: DesktopNavigationIntent | null;
   onAcknowledgeNavigationIntent: (id: string) => void;
-  onSectionChange?: (section: WorkTabId) => void;
+  onSectionChange: (section: WorkTabId) => void;
   onSendToChat: (request: ChatContextRequest) => void;
   onOpenWorkspaceFile?: (path: string) => void;
   projectScope?: string;
-  requestedTab?: WorkTabId;
-  reviewMode?: boolean;
+  requestedTab?: LinkedWorkTab;
   focusState?: OrchestrationFocusState;
   onFocusStateChange?: (state: OrchestrationFocusState) => void;
   workspaceLabel?: string;
   workspacePath?: string;
   computerOrigin?: ComputerOrigin;
 }) {
-  const [activeTab, setActiveTab] = useState<WorkTabId>(
-    requestedTab ??
-      (reviewMode ? "review" : (focusState?.activeTab ?? "tasks")),
-  );
+  const [localTab, setLocalTab] = useState<LocalWorkTab>(() => {
+    const restored = focusState?.activeTab;
+    return !requestedTab && (restored === "runs" || restored === "plans")
+      ? restored
+      : "tasks";
+  });
+  const activeTab = requestedTab ?? localTab;
   const [selectedTaskId, setSelectedTaskId] = useState(
     () => focusState?.selectedTaskId ?? "",
   );
@@ -167,18 +164,9 @@ export function OrchestrationPage({
   ]);
 
   useEffect(() => {
-    if (requestedTab) {
-      setActiveTab(requestedTab);
-    } else if (reviewMode) {
-      setActiveTab("review");
-    } else {
-      setActiveTab((current) =>
-        ["review", "automations", "inbox", "agents"].includes(current)
-          ? "tasks"
-          : current,
-      );
-    }
-  }, [requestedTab, reviewMode]);
+    // The base Work destination opens its queue after a linked view.
+    if (requestedTab) setLocalTab("tasks");
+  }, [requestedTab]);
 
   const {
     overviewResource,
@@ -493,8 +481,8 @@ export function OrchestrationPage({
       return;
     }
     consumedNavigationIntents.current.add(navigationIntent.id);
-    setActiveTab("tasks");
-    onSectionChange?.("tasks");
+    setLocalTab("tasks");
+    onSectionChange("tasks");
     setSelectedTaskId(resolution.taskId);
     onAcknowledgeNavigationIntent(navigationIntent.id);
   }, [
@@ -539,9 +527,10 @@ export function OrchestrationPage({
   });
 
   const selectTab = (tab: WorkTabId) => {
-    setActiveTab(tab);
-    onSectionChange?.(tab);
+    if (tab === "tasks" || tab === "runs" || tab === "plans") setLocalTab(tab);
+    onSectionChange(tab);
   };
+  const activeTabLabel = WORK_TABS.find((tab) => tab.id === activeTab)?.label;
 
   return (
     <div className={oc("orchestration-page")}>
@@ -704,18 +693,14 @@ export function OrchestrationPage({
         aria-labelledby={`work-${activeTab}-tab`}
         className={oc("orchestration-panel")}
       >
-        {activeTab === "review" ? (
-          <Suspense
-            fallback={
-              <div
-                aria-live="polite"
-                className={oc("orchestration-loading")}
-                role="status"
-              >
-                Loading review tools…
-              </div>
-            }
-          >
+        <Suspense
+          fallback={
+            <div className={oc("orchestration-loading")} role="status">
+              Loading {activeTabLabel?.toLowerCase() ?? "work"}…
+            </div>
+          }
+        >
+          {activeTab === "review" ? (
             <ReviewPage
               active={active}
               computerOrigin={computerOrigin}
@@ -732,129 +717,93 @@ export function OrchestrationPage({
               projectScope={projectScope}
               workspacePath={workspacePath ?? ""}
             />
-          </Suspense>
-        ) : null}
-        {activeTab === "automations" ? (
-          <Suspense
-            fallback={
-              <div
-                aria-live="polite"
-                className={oc("orchestration-loading")}
-                role="status"
-              >
-                Loading automations…
-              </div>
-            }
-          >
+          ) : null}
+          {activeTab === "automations" ? (
             <AutomationsPage active={active} />
-          </Suspense>
-        ) : null}
-        {activeTab === "inbox" ? (
-          <Suspense
-            fallback={
-              <div
-                aria-live="polite"
-                className={oc("orchestration-loading")}
-                role="status"
-              >
-                Loading inbox…
-              </div>
-            }
-          >
+          ) : null}
+          {activeTab === "inbox" ? (
             <GatewayPage active={active} embedded />
-          </Suspense>
-        ) : null}
-        {activeTab === "tasks" ? (
-          <TaskQueuePanel
-            active={active}
-            projectScope={projectScope}
-            workspaceLabel={workspaceLabel}
-            effectiveOverview={effectiveOverview}
-            tasksResource={tasksResource}
-            taskDetailReady={selectedTaskDetail?.id === selectedTask?.id}
-            tasks={tasks}
-            selectedTask={selectedTask}
-            busyKeys={busyKeys}
-            selectedTaskNote={selectedTaskNote}
-            showChildCreate={showChildCreate}
-            childTitle={childTitle}
-            childObjective={childObjective}
-            childWorkspaceRoot={childWorkspaceRoot}
-            worktrees={worktrees}
-            confirmedAction={confirmedAction}
-            confirmDialogRef={confirmDialogRef}
-            onSelectTask={(task) => {
-              setSelectedTaskId(task.id);
-              setConfirmedAction(null);
-              setShowChildCreate(false);
-            }}
-            onRunTaskAction={runTaskAction}
-            onRunBulkTaskAction={runBulkTaskAction}
-            onRequestDestructiveAction={requestDestructiveTaskAction}
-            onCloseConfirmation={closeTaskConfirmation}
-            onToggleChildCreate={(task) =>
-              setShowChildCreate((current) => {
-                const next = !current;
-                if (next) setChildWorkspaceRoot(asString(task.workspaceRoot));
-                return next;
-              })
-            }
-            onChildTitleChange={setChildTitle}
-            onChildObjectiveChange={setChildObjective}
-            onChildWorkspaceRootChange={setChildWorkspaceRoot}
-            onSubmitSpawn={onSubmitSpawn}
-            onTaskNoteChange={(value, taskId) =>
-              setTaskNotes((current) => ({ ...current, [taskId]: value }))
-            }
-            onSubmitNote={(event) => {
-              event.preventDefault();
-              if (selectedTask) void runTaskAction(selectedTask, "note");
-            }}
-          />
-        ) : null}
-        {activeTab === "agents" ? (
-          <div className="grid gap-6">
-            <Suspense fallback={<p role="status">Loading bot teams…</p>}>
-              <TeamManagementPanel active={active} />
-            </Suspense>
-            <AgentRosterPanel
-              workersResource={workersResource}
-              workers={workers}
-              workerOverview={workerOverview}
-              selectedWorker={selectedWorker}
-              onSelectWorker={(worker) => setSelectedWorkerId(worker.id)}
+          ) : null}
+          {activeTab === "tasks" ? (
+            <TaskQueuePanel
+              active={active}
+              projectScope={projectScope}
+              workspaceLabel={workspaceLabel}
+              effectiveOverview={effectiveOverview}
+              tasksResource={tasksResource}
+              taskDetailReady={selectedTaskDetail?.id === selectedTask?.id}
+              tasks={tasks}
+              selectedTask={selectedTask}
+              busyKeys={busyKeys}
+              selectedTaskNote={selectedTaskNote}
+              showChildCreate={showChildCreate}
+              childTitle={childTitle}
+              childObjective={childObjective}
+              childWorkspaceRoot={childWorkspaceRoot}
+              worktrees={worktrees}
+              confirmedAction={confirmedAction}
+              confirmDialogRef={confirmDialogRef}
+              onSelectTask={(task) => {
+                setSelectedTaskId(task.id);
+                setConfirmedAction(null);
+                setShowChildCreate(false);
+              }}
+              onRunTaskAction={runTaskAction}
+              onRunBulkTaskAction={runBulkTaskAction}
+              onRequestDestructiveAction={requestDestructiveTaskAction}
+              onCloseConfirmation={closeTaskConfirmation}
+              onToggleChildCreate={(task) =>
+                setShowChildCreate((current) => {
+                  const next = !current;
+                  if (next) setChildWorkspaceRoot(asString(task.workspaceRoot));
+                  return next;
+                })
+              }
+              onChildTitleChange={setChildTitle}
+              onChildObjectiveChange={setChildObjective}
+              onChildWorkspaceRootChange={setChildWorkspaceRoot}
+              onSubmitSpawn={onSubmitSpawn}
+              onTaskNoteChange={(value, taskId) =>
+                setTaskNotes((current) => ({ ...current, [taskId]: value }))
+              }
+              onSubmitNote={(event) => {
+                event.preventDefault();
+                if (selectedTask) void runTaskAction(selectedTask, "note");
+              }}
             />
-          </div>
-        ) : null}
-        {activeTab === "plans" ? (
-          <PlanPanel
-            active={active}
-            plansResource={plansResource}
-            plans={plans}
-            selectedPlan={selectedPlan}
-            linkedPlanTask={linkedPlanTask}
-            planCanSteer={planCanSteer}
-            planMetaLines={planMetaLines}
-            busyKeys={busyKeys}
-            planSteerInstruction={planSteerInstruction}
-            onSelectPlan={(plan) => setSelectedPlanId(plan.id)}
-            onApprovePlan={approvePlan}
-            onSteerPlan={steerPlan}
-            onPlanSteerInstructionChange={setPlanSteerInstruction}
-          />
-        ) : null}
-        {activeTab === "runs" ? (
-          <Suspense
-            fallback={
-              <div
-                aria-live="polite"
-                className={oc("orchestration-loading")}
-                role="status"
-              >
-                Loading workflow tools…
-              </div>
-            }
-          >
+          ) : null}
+          {activeTab === "agents" ? (
+            <div className="grid gap-6">
+              <Suspense fallback={<p role="status">Loading bot teams…</p>}>
+                <TeamManagementPanel active={active} />
+              </Suspense>
+              <AgentRosterPanel
+                workersResource={workersResource}
+                workers={workers}
+                workerOverview={workerOverview}
+                selectedWorker={selectedWorker}
+                onSelectWorker={(worker) => setSelectedWorkerId(worker.id)}
+              />
+            </div>
+          ) : null}
+          {activeTab === "plans" ? (
+            <PlanPanel
+              active={active}
+              plansResource={plansResource}
+              plans={plans}
+              selectedPlan={selectedPlan}
+              linkedPlanTask={linkedPlanTask}
+              planCanSteer={planCanSteer}
+              planMetaLines={planMetaLines}
+              busyKeys={busyKeys}
+              planSteerInstruction={planSteerInstruction}
+              onSelectPlan={(plan) => setSelectedPlanId(plan.id)}
+              onApprovePlan={approvePlan}
+              onSteerPlan={steerPlan}
+              onPlanSteerInstructionChange={setPlanSteerInstruction}
+            />
+          ) : null}
+          {activeTab === "runs" ? (
             <OrchestrationRunsPanel
               active={active}
               workspaceLabel={workspaceLabel}
@@ -895,8 +844,8 @@ export function OrchestrationPage({
               onLoadBundle={loadBundle}
               onCancelRun={cancelCodegenRun}
             />
-          </Suspense>
-        ) : null}
+          ) : null}
+        </Suspense>
       </section>
     </div>
   );

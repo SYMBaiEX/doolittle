@@ -49,21 +49,8 @@ import {
 } from "./lib";
 import { DesktopSettingsPanel } from "./settings/DesktopSettingsPanel";
 import {
-  LazyCompatibilityPage,
-  LazyConnectionsPage,
-  LazyDocsPage,
-  LazyInterfacePanel,
-  LazyKeysPage,
-  LazyLogsPage,
-  LazyMemoryPage,
-  LazyModelsPage,
-  LazyPluginsPage,
-  LazyProfilesPage,
-  LazyRegistryPage,
-  LazyRuntimePage,
-  LazySetupPage,
-  LazySkillsPage,
-  LazyToolsPage,
+  isEmbeddedSettingsFeature,
+  settingsPanels,
 } from "./settings/lazy-panels";
 import { SettingsAppearancePanel } from "./settings/SettingsAppearancePanel";
 import { SettingsExecutionStatusPanel } from "./settings/SettingsExecutionStatusPanel";
@@ -79,7 +66,6 @@ import {
   SETTINGS_PAGE_CLASS,
 } from "./settings/settings-layout";
 import {
-  isEmbeddedSettingsFeature,
   SETTINGS_CATEGORIES,
   SETTINGS_SHELL_SECTIONS,
   type SettingsCategoryId,
@@ -138,20 +124,19 @@ export function settingsCategoryOffline(category: string, active: boolean) {
 
 export function SettingsPage({
   active,
-  section,
+  section: category,
   onSectionChange,
   writesAllowed = active,
   runtime,
   refreshRuntime,
 }: {
   active: boolean;
-  section?: SettingsShellSection;
-  onSectionChange?: (section: SettingsShellSection) => void;
+  section: SettingsShellSection;
+  onSectionChange: (section: SettingsShellSection) => void;
   writesAllowed?: boolean;
   runtime?: RuntimeStatus | null;
   refreshRuntime?: () => void;
 }) {
-  const [category, setCategory] = useState<string>(section ?? "appearance");
   const panelId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
   const selections = useRef<
@@ -222,13 +207,8 @@ export function SettingsPage({
     };
   }, []);
   useEffect(() => {
-    if (!section) return;
-    setCategory(section);
     setQuery("");
-  }, [section]);
-  useEffect(() => {
-    selections.current[settingsCategoryForSection(category).id] =
-      category as SettingsShellSection;
+    selections.current[settingsCategoryForSection(category).id] = category;
     const content = panelRef.current?.parentElement;
     if (content) content.scrollTop = 0;
   }, [category]);
@@ -315,9 +295,11 @@ export function SettingsPage({
         }
       : { role: "region" as const, "aria-label": activeCategory.label };
   const selectSection = (id: string) => {
-    setCategory(id);
-    setQuery("");
-    onSectionChange?.(id as SettingsShellSection);
+    const nextSection = SETTINGS_SHELL_SECTIONS.find(
+      (section) => section.id === id,
+    );
+    if (!nextSection) return;
+    onSectionChange(nextSection.id);
   };
   const showPreferences = settingsPreferencesVisible(category);
 
@@ -502,6 +484,10 @@ export function SettingsPage({
     });
   };
   const runtimeCategoryOffline = settingsCategoryOffline(category, active);
+  const EmbeddedPanel =
+    !runtimeCategoryOffline && isEmbeddedSettingsFeature(category)
+      ? settingsPanels[category]
+      : null;
   return (
     <SettingsFrame
       className={SETTINGS_PAGE_CLASS}
@@ -606,97 +592,22 @@ export function SettingsPage({
             onThemeReload={themes.reload}
           />
         ) : null}
-        {category === "interfaces" ? (
-          <Suspense fallback={<LoadingBlock label="Loading interfaces…" />}>
-            <LazyInterfacePanel />
-          </Suspense>
-        ) : null}
-        {!runtimeCategoryOffline && category === "model" ? (
-          <Suspense fallback={<LoadingBlock label="Loading model settings…" />}>
-            <LazyModelsPage
-              active={active}
-              embedded
-              refreshRuntime={() => {
-                refreshRuntime?.();
-              }}
-              runtime={runtime ?? null}
-            />
-          </Suspense>
-        ) : null}
-        {!runtimeCategoryOffline && category === "accounts" ? (
+        {EmbeddedPanel ? (
           <Suspense
-            fallback={<LoadingBlock label="Loading provider accounts…" />}
+            fallback={
+              <LoadingBlock
+                label={`Loading ${activeSection?.label.toLowerCase() ?? "settings"}…`}
+              />
+            }
           >
-            <LazyConnectionsPage active={active} embedded />
-          </Suspense>
-        ) : null}
-        {!runtimeCategoryOffline && category === "credentials" ? (
-          <Suspense fallback={<LoadingBlock label="Loading credentials…" />}>
-            <LazyKeysPage active={active} embedded />
-          </Suspense>
-        ) : null}
-        {!runtimeCategoryOffline && category === "tools" ? (
-          <Suspense fallback={<LoadingBlock label="Loading tools…" />}>
-            <LazyToolsPage active={active} embedded />
-          </Suspense>
-        ) : null}
-        {!runtimeCategoryOffline && category === "skills" ? (
-          <Suspense fallback={<LoadingBlock label="Loading skills…" />}>
-            <LazySkillsPage active={active} embedded />
-          </Suspense>
-        ) : null}
-        {!runtimeCategoryOffline && category === "plugins" ? (
-          <Suspense fallback={<LoadingBlock label="Loading plugins…" />}>
-            <LazyPluginsPage active={active} embedded />
-          </Suspense>
-        ) : null}
-        {!runtimeCategoryOffline && category === "memory" ? (
-          <Suspense fallback={<LoadingBlock label="Loading memory…" />}>
-            <LazyMemoryPage active={active} embedded />
-          </Suspense>
-        ) : null}
-        {!runtimeCategoryOffline && category === "profiles" ? (
-          <Suspense fallback={<LoadingBlock label="Loading profiles…" />}>
-            <LazyProfilesPage active={active} embedded />
-          </Suspense>
-        ) : null}
-        {!runtimeCategoryOffline && category === "logs" ? (
-          <Suspense fallback={<LoadingBlock label="Loading logs…" />}>
-            <LazyLogsPage active={active} embedded />
-          </Suspense>
-        ) : null}
-        {!runtimeCategoryOffline && category === "runtime" ? (
-          <Suspense fallback={<LoadingBlock label="Loading runtime…" />}>
-            <LazyRuntimePage
+            <EmbeddedPanel
               active={active}
               embedded
               onOpenProviders={() => selectSection("accounts")}
               readOnly={!writesAllowed}
+              refreshRuntime={() => refreshRuntime?.()}
+              runtime={runtime ?? null}
             />
-          </Suspense>
-        ) : null}
-        {!runtimeCategoryOffline && category === "compatibility" ? (
-          <Suspense fallback={<LoadingBlock label="Loading compatibility…" />}>
-            <LazyCompatibilityPage active={active} embedded />
-          </Suspense>
-        ) : null}
-        {!runtimeCategoryOffline && category === "registry" ? (
-          <Suspense fallback={<LoadingBlock label="Loading registry…" />}>
-            <LazyRegistryPage active={active} embedded />
-          </Suspense>
-        ) : null}
-        {!runtimeCategoryOffline && category === "setup" ? (
-          <Suspense fallback={<LoadingBlock label="Loading setup…" />}>
-            <LazySetupPage
-              active={active}
-              embedded
-              onOpenProviders={() => selectSection("accounts")}
-            />
-          </Suspense>
-        ) : null}
-        {!runtimeCategoryOffline && category === "about" ? (
-          <Suspense fallback={<LoadingBlock label="Loading documentation…" />}>
-            <LazyDocsPage active={active} embedded />
           </Suspense>
         ) : null}
         {showPreferences ? (
