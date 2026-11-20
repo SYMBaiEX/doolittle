@@ -33,10 +33,10 @@ export interface GlobalSearchResult {
 
 interface SearchPayloads {
   projects?: unknown;
-  sessions: unknown;
-  workspace: unknown;
-  tasks: unknown;
-  logs: unknown;
+  sessions?: unknown;
+  workspace?: unknown;
+  tasks?: unknown;
+  logs?: unknown;
 }
 
 const GROUP_ORDER: GlobalSearchResult["group"][] = [
@@ -292,6 +292,7 @@ export function useGlobalSearch(
     workspacePath: string;
     results: GlobalSearchResult[];
     error: string;
+    loading: boolean;
   } | null>(null);
   const sequence = useRef(0);
   const trimmedQuery = query.trim();
@@ -305,63 +306,47 @@ export function useGlobalSearch(
 
     const controller = new AbortController();
     const timer = window.setTimeout(() => {
-      void Promise.allSettled([
-        desktopRequest<unknown>(
-          "/projects?includeArchived=true",
-          "GET",
-          undefined,
-          controller.signal,
-        ),
-        desktopRequest<unknown>(
-          `/sessions/search?query=${encodeURIComponent(trimmedQuery)}&limit=8`,
-          "GET",
-          undefined,
-          controller.signal,
-        ),
-        desktopRequest<unknown>(
-          `/workspace/search?query=${encodeURIComponent(trimmedQuery)}`,
-          "GET",
-          undefined,
-          controller.signal,
-        ),
-        desktopRequest<unknown>(
-          "/delegation/tasks?limit=50",
-          "GET",
-          undefined,
-          controller.signal,
-        ),
-        desktopRequest<unknown>(
-          `/logs?limit=100&query=${encodeURIComponent(trimmedQuery)}`,
-          "GET",
-          undefined,
-          controller.signal,
-        ),
-      ]).then((responses) => {
+      const encoded = encodeURIComponent(trimmedQuery);
+      const sources = [
+        ["projects", "/projects?includeArchived=true"],
+        ["sessions", `/sessions/search?query=${encoded}&limit=8`],
+        ["workspace", `/workspace/search?query=${encoded}`],
+        ["tasks", "/delegation/tasks?limit=50"],
+        ["logs", `/logs?limit=100&query=${encoded}`],
+      ] as const;
+      const payloads: SearchPayloads = {};
+      let remaining = sources.length;
+      let failures = 0;
+      const publish = () => {
         if (sequence.current !== requestSequence) return;
-        const [projects, sessions, workspace, tasks, logs] = responses;
-        const failures = responses.filter(
-          (response) =>
-            response.status === "rejected" && !isAbortError(response.reason),
-        );
+        remaining -= 1;
         setSnapshot({
           query: trimmedQuery,
           workspacePath,
-          results: normalizeGlobalSearchResults(
-            {
-              projects: projects.status === "fulfilled" ? projects.value : {},
-              sessions: sessions.status === "fulfilled" ? sessions.value : {},
-              workspace:
-                workspace.status === "fulfilled" ? workspace.value : {},
-              tasks: tasks.status === "fulfilled" ? tasks.value : {},
-              logs: logs.status === "fulfilled" ? logs.value : {},
-            },
-            trimmedQuery,
-          ),
-          error: failures.length
-            ? `Some local search sources are unavailable (${failures.length}/5).`
+          results: normalizeGlobalSearchResults(payloads, trimmedQuery),
+          error: failures
+            ? `Some local search sources are unavailable (${failures}/${sources.length}).`
             : "",
+          loading: remaining > 0,
         });
-      });
+      };
+      for (const [source, path] of sources) {
+        void desktopRequest<unknown>(
+          path,
+          "GET",
+          undefined,
+          controller.signal,
+        ).then(
+          (value) => {
+            payloads[source] = value;
+            publish();
+          },
+          (error: unknown) => {
+            if (!isAbortError(error)) failures += 1;
+            publish();
+          },
+        );
+      }
     }, 180);
 
     return () => {
@@ -382,7 +367,7 @@ export function useGlobalSearch(
     return {
       results: current?.results ?? [],
       error: current?.error ?? "",
-      loading: eligible && !current,
+      loading: eligible && (current?.loading ?? true),
     };
   }, [active, snapshot, trimmedQuery, workspacePath]);
 }
