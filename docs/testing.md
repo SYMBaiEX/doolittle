@@ -66,6 +66,23 @@ real ownership and transport behavior with offline model conditions; they do
 not measure live-provider quality. A skipped or environment-gated case does
 not count as passed coverage.
 
+## Privileged and external actions
+
+| Area | Local acceptance | Live verification |
+| --- | --- | --- |
+| Connectors | Signed and authenticated fixture events travel through routing, delivery adapters, and durable receipts for Telegram, Discord, Slack, WhatsApp, Signal, Matrix, email, SMS, Mattermost, Home Assistant, and DingTalk. | Each deployment still needs an account, matching permissions, and a controlled recipient. |
+| Wallet | Disposable EVM and Solana chains verify approvals, cancellation, signed transfers, amount, and receipts. Swap simulation uses a stub quote and a real local RPC. | Live swaps, bridge settlement, and exchange or wallet accounts need their respective test environments. |
+| Automation | Native Desktop verifies schedule edits, pause and resume, loopback HTTP delivery, trace retention, deletion, and approval for named bot jobs. | External delivery requires a configured endpoint or account. |
+| Privileged actions | Native Desktop verifies project grants and Git confirmation. Real workers verify scoped writes and staging, including denied read-only and cross-chat attempts. | Device-specific permission dialogs and hosted execution depend on each environment. |
+
+The wallet tests require `anvil` and `solana-test-validator` on `PATH`. They
+generate disposable signers and use loopback RPC endpoints.
+
+```sh
+nub run test:scope tests/boundary/gateway-connector-delivery.test.ts tests/boundary/execution-approval-flow.test.ts
+DOOLITTLE_WALLET_LOCALNET=1 nubx vitest run --config vitest.integration.config.ts tests/integration/wallet-localnets.e2e.test.ts
+```
+
 For reload-supervisor changes, use:
 
 ```sh
