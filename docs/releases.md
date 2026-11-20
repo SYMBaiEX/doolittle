@@ -76,10 +76,31 @@ The packaged test runner checks the repository artifact against clean HEAD and
 its `app.asar` hash. Use the target platform's native tools to verify release
 signatures, installation, launch, and update metadata as separate steps.
 
-On macOS, `nub run desktop:install:mac` explicitly allows an ad-hoc development
-install. Release installation uses the stricter installer script without
-`--allow-ad-hoc` and requires its signature and notarization checks to succeed.
-Do not describe an ad-hoc install as release-signing evidence.
+### Install on macOS
+
+`nub run desktop:install:mac` installs a release bundle after verifying the
+Doolittle signing team, nested runtime signatures, notarization, and Gatekeeper.
+Use `--source /path/to/Doolittle.app` to select an unpacked bundle.
+
+For a local signed build, use an existing Developer ID Application identity.
+Replace the placeholders with the certificate SHA-1 and the ten-character
+Apple Team ID. Run from a clean checkout.
+
+```sh
+CSC_NAME="CERTIFICATE_SHA1" nub run --cwd apps/desktop package:dir -- --config.forceCodeSigning=true
+nub run desktop:install:mac -- --team-id TEAMID1234
+```
+
+The installer preserves the bundle's signature and verifies the Apple signing
+requirement for the chosen team and Doolittle bundle identifier. Reuse the same
+signing identity and team across local updates for consistent login Keychain
+access. This mode verifies local code signing. Release installs also require
+notarization and Gatekeeper assessment.
+
+`nub run desktop:install:mac:ad-hoc` is the explicit development fallback when
+a certificate is unavailable. It preserves a signed source, and refuses to
+replace a signed app with an ad-hoc build or an app signed by another team.
+Use `--destination /path/to/Doolittle.app` for a separate development copy.
 
 ## Assemble and publish
 

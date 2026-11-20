@@ -99,17 +99,23 @@ profiles and the source checkout's `.doolittle/` state are separate. Supply
 
 ### macOS saved accounts
 
-Opening the desktop does not migrate saved accounts or start credential refresh
-scans. Account discovery and legacy migration run when account controls are
-opened; API credentials are loaded at boot only for a selected direct API provider.
+On macOS, opening the desktop and browsing connection status use cached account
+information. In Connections, choose **Check saved accounts** to read the vault
+and verify what's available. Connecting an account or using a model that needs a
+saved key can also open the vault.
 
 macOS may request access to the existing `eliza` Keychain item when encrypted
-credentials are used. This requires the Mac login Keychain password, not an Apple
-ID password. Doolittle never collects that password. Locked or denied access must
-not replace the existing encryption key or delete saved accounts. After unlocking
-the login Keychain, retry the operation. Replacing an ad-hoc signed development
-build can cause macOS to ask again; a stable signed release identity is needed
-for consistent trust across updates.
+credentials are used. The system prompt asks for your Mac login Keychain
+password. Doolittle never collects it. If access is locked or denied, Doolittle
+preserves the encryption key and saved accounts. Unlock the login Keychain,
+then retry the operation.
+
+Use consistently signed desktop builds so macOS can recognize Doolittle across
+updates. Switching from an ad-hoc build or changing signing teams can require
+approval again. Use a notarized release, or follow the
+[local signing instructions](releases.md#install-on-macos) if you already have
+a Developer ID Application certificate. `nub run desktop:dev` remains the
+source editing workflow and uses a separate profile by default.
 
 ## Confirm the checkout
 

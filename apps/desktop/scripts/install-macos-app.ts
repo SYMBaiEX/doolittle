@@ -21,6 +21,7 @@ const verifierPath = fileURLToPath(
 );
 const bundleIdentifier = "ai.doolittle.desktop";
 const releaseTeamIdentifier = "3VZKJ253J2";
+const teamIdentifierPattern = /^[A-Z0-9]{10}$/u;
 
 type FileSystem = Pick<
   typeof import("node:fs"),
@@ -36,7 +37,13 @@ type FileSystem = Pick<
   | "writeFileSync"
 >;
 
-export type MacOSInstallTrustMode = "ad-hoc" | "release";
+export type MacOSInstallTrustMode = "ad-hoc" | "local-signed" | "release";
+type MacOSBundleSignature =
+  | { kind: "ad-hoc" | "unsigned" }
+  | { kind: "signed"; teamIdentifier?: string };
+type MacOSInstallTrust =
+  | { mode: "ad-hoc" | "release" }
+  | { mode: "local-signed"; teamIdentifier: string };
 export type MacOSInstallOptions = {
   allowAdHoc?: boolean;
   destination?: string;
@@ -46,12 +53,15 @@ export type MacOSInstallOptions = {
     trustMode: MacOSInstallTrustMode,
   ) => void;
   source?: string;
+  teamIdentifier?: string;
   readMetadata?: (appBundlePath: string) => AppMetadata;
+  readSignature?: (appBundlePath: string) => MacOSBundleSignature;
   quiesce?: (destination: string) => void;
   verifyPackage?: (appBundlePath: string) => void;
   verifyTrust?: (
     appBundlePath: string,
     trustMode: MacOSInstallTrustMode,
+    teamIdentifier?: string,
   ) => void;
 };
 export type MacOSInstallResult = {
@@ -279,9 +289,40 @@ function runRequired(
   return `${result.stdout ?? ""}\n${result.stderr ?? ""}`;
 }
 
+function signatureTeamIdentifier(metadata: string): string | undefined {
+  return metadata.match(/^TeamIdentifier=(.+)$/mu)?.[1]?.trim();
+}
+
+function defaultReadSignature(appBundlePath: string): MacOSBundleSignature {
+  const result = spawnSync("codesign", ["-dvv", appBundlePath], {
+    encoding: "utf8",
+    env: { ...process.env, LC_ALL: "C" },
+  });
+  const output = `${result.stdout ?? ""}\n${result.stderr ?? ""}`;
+  if (result.status !== 0) {
+    if (
+      result.status === 1 &&
+      /: code object is not signed at all\s*$/u.test(output)
+    ) {
+      return { kind: "unsigned" };
+    }
+    throw new Error(
+      `Could not inspect the app signature for ${appBundlePath}: ${output.trim() || "no output"}`,
+      { cause: result.error },
+    );
+  }
+  if (/^Signature=adhoc\s*$/mu.test(output)) return { kind: "ad-hoc" };
+  const teamIdentifier = signatureTeamIdentifier(output);
+  return {
+    kind: "signed",
+    teamIdentifier: teamIdentifier === "not set" ? undefined : teamIdentifier,
+  };
+}
+
 function defaultVerifyTrust(
   appBundlePath: string,
   trustMode: MacOSInstallTrustMode,
+  localTeamIdentifier?: string,
 ): void {
   const signatureMetadata = runRequired(
     "codesign",
@@ -294,17 +335,26 @@ function defaultVerifyTrust(
     appBundlePath,
   );
   if (trustMode === "ad-hoc") return;
-  const teamIdentifier = signatureMetadata
-    .match(/^TeamIdentifier=(.+)$/mu)?.[1]
-    ?.trim();
+  const teamIdentifier = signatureTeamIdentifier(signatureMetadata);
+  const release = trustMode === "release";
+  const label = release ? "Release" : "Local";
+  const expectedTeam = release ? releaseTeamIdentifier : localTeamIdentifier;
   if (!teamIdentifier || teamIdentifier === "not set") {
     throw new Error(
-      `Release app code signature has no TeamIdentifier: ${appBundlePath}`,
+      `${label} app code signature has no TeamIdentifier: ${appBundlePath}`,
     );
   }
-  if (teamIdentifier !== releaseTeamIdentifier) {
+  if (teamIdentifier !== expectedTeam) {
     throw new Error(
-      `Release app TeamIdentifier mismatch for ${appBundlePath}: expected ${releaseTeamIdentifier}, received ${teamIdentifier}.`,
+      `${label} app TeamIdentifier mismatch for ${appBundlePath}: expected ${expectedTeam}, received ${teamIdentifier}.`,
+    );
+  }
+  if (!release) {
+    const requirement = `anchor apple generic and identifier "${bundleIdentifier}" and certificate leaf[subject.OU] = "${teamIdentifier}"`;
+    runRequired(
+      "codesign",
+      ["--verify", "-R", `=${requirement}`, appBundlePath],
+      appBundlePath,
     );
   }
   const verifier = spawnSync(
@@ -320,6 +370,7 @@ function defaultVerifyTrust(
       `Nested runtime signature verification failed for ${appBundlePath}.`,
     );
   }
+  if (!release) return;
   runRequired("xcrun", ["stapler", "validate", appBundlePath], appBundlePath);
   runRequired(
     "spctl",
@@ -343,6 +394,44 @@ function defaultPrepareTrust(
       `Ad-hoc signing failed for ${appBundlePath}: ${(result.stderr || result.stdout || "no output").trim()}`,
     );
   }
+}
+
+function signedLocalTrust(
+  teamIdentifier: string | undefined,
+): MacOSInstallTrust {
+  if (!teamIdentifier || !teamIdentifierPattern.test(teamIdentifier)) {
+    throw new Error(
+      "Local macOS signing requires a ten-character Apple Team ID.",
+    );
+  }
+  return { mode: "local-signed", teamIdentifier };
+}
+
+function developmentTrust(
+  source: string,
+  readSignature: (appBundlePath: string) => MacOSBundleSignature,
+): MacOSInstallTrust {
+  const signature = readSignature(source);
+  return signature.kind === "signed"
+    ? signedLocalTrust(signature.teamIdentifier)
+    : { mode: "ad-hoc" };
+}
+
+function protectSignedDestination(
+  destination: string,
+  trust: MacOSInstallTrust,
+  readSignature: (appBundlePath: string) => MacOSBundleSignature,
+): void {
+  const installed = readSignature(destination);
+  if (installed.kind !== "signed") return;
+  if (
+    trust.mode === "local-signed" &&
+    installed.teamIdentifier === trust.teamIdentifier
+  )
+    return;
+  throw new Error(
+    `The development installer cannot replace the signed app at ${destination} with an ad-hoc build or an app from another team. Use a separate destination or explicitly select the signing team with --team-id.`,
+  );
 }
 
 function uniqueSiblingPath(
@@ -495,9 +584,22 @@ function assertNoSymlink(
 export function installMacOSApp(
   options: MacOSInstallOptions = {},
 ): MacOSInstallResult {
+  if (options.allowAdHoc && options.teamIdentifier !== undefined) {
+    throw new Error("Choose either --team-id or --allow-ad-hoc.");
+  }
   const fileSystem = options.fileSystem ?? nodeFileSystem;
+  const platformSource = resolve(
+    desktopRoot,
+    `release/mac-${process.arch}/Doolittle.app`,
+  );
+  const genericSource = resolve(desktopRoot, "release/mac/Doolittle.app");
+  const defaultSource =
+    !fileSystem.existsSync(platformSource) &&
+    fileSystem.existsSync(genericSource)
+      ? genericSource
+      : platformSource;
   const paths = resolveInstallPaths(
-    options.source ?? resolve(desktopRoot, "release/mac-arm64/Doolittle.app"),
+    options.source ?? defaultSource,
     options.destination ?? "/Applications/Doolittle.app",
     fileSystem,
   );
@@ -511,9 +613,17 @@ export function installMacOSApp(
     options.prepareTrust ??
     (options.verifyTrust ? () => undefined : defaultPrepareTrust);
   const readMetadata = options.readMetadata ?? defaultReadMetadata;
-  const trustMode: MacOSInstallTrustMode = options.allowAdHoc
-    ? "ad-hoc"
-    : "release";
+  const readSignature = options.readSignature ?? defaultReadSignature;
+  let trust: MacOSInstallTrust =
+    options.teamIdentifier === undefined
+      ? { mode: "release" }
+      : signedLocalTrust(options.teamIdentifier);
+  const verifyAppTrust = (path: string) =>
+    verifyTrust(
+      path,
+      trust.mode,
+      trust.mode === "local-signed" ? trust.teamIdentifier : undefined,
+    );
   let destinationMoved = false;
   let stagePromoted = false;
   let failurePreserved = false;
@@ -544,7 +654,13 @@ export function installMacOSApp(
       readMetadata,
     );
     verifyPackage(paths.source);
-    if (trustMode === "release") verifyTrust(paths.source, trustMode);
+    if (options.allowAdHoc) {
+      trust = developmentTrust(paths.source, readSignature);
+      if (fileSystem.existsSync(paths.destination)) {
+        protectSignedDestination(paths.destination, trust, readSignature);
+      }
+    }
+    if (trust.mode !== "ad-hoc") verifyAppTrust(paths.source);
     if (process.platform === "darwin" && !options.fileSystem) {
       copyMacOSApp(paths.source, stage);
     } else {
@@ -561,10 +677,14 @@ export function installMacOSApp(
       inspectMacOSAppIdentity(stage, fileSystem, readMetadata),
       "staged",
     );
-    prepareTrust(stage, trustMode);
-    verifyTrust(stage, trustMode);
+    if (trust.mode === "ad-hoc") prepareTrust(stage, trust.mode);
+    verifyAppTrust(stage);
     (options.quiesce ?? defaultQuiesce)(paths.destination);
-    if (fileSystem.existsSync(paths.destination)) {
+    if (lstatOrNull(paths.destination, fileSystem)) {
+      assertSafeAppBundle(paths.destination, "destination", fileSystem, true);
+      if (options.allowAdHoc) {
+        protectSignedDestination(paths.destination, trust, readSignature);
+      }
       journal.phase = "backup";
       writeJournal(lock, journal, fileSystem);
       fileSystem.renameSync(paths.destination, backup);
@@ -584,7 +704,7 @@ export function installMacOSApp(
       inspectMacOSAppIdentity(paths.destination, fileSystem, readMetadata),
       "promoted",
     );
-    verifyTrust(paths.destination, trustMode);
+    verifyAppTrust(paths.destination);
   } catch (error) {
     const rollbackErrors: unknown[] = [];
     if (stagePromoted && fileSystem.existsSync(paths.destination)) {
@@ -641,15 +761,19 @@ export function installMacOSApp(
       );
     }
   }
-  return { ...paths, signatureVerified: true, trustMode };
+  return { ...paths, signatureVerified: true, trustMode: trust.mode };
 }
 
-function argumentValue(args: string[], name: string): string | undefined {
+function argumentValue(
+  args: string[],
+  name: string,
+  label = "a path",
+): string | undefined {
   const index = args.indexOf(name);
   if (index === -1) return undefined;
   const value = args[index + 1];
   if (!value || value.startsWith("--"))
-    throw new Error(`${name} requires a path.`);
+    throw new Error(`${name} requires ${label}.`);
   return value;
 }
 
@@ -661,6 +785,7 @@ function main(): void {
     allowAdHoc: args.includes("--allow-ad-hoc"),
     source: argumentValue(args, "--source"),
     destination: argumentValue(args, "--destination"),
+    teamIdentifier: argumentValue(args, "--team-id", "an Apple Team ID"),
   });
   console.log(
     `Installed ${result.trustMode} verified Doolittle.app from ${result.source} to ${result.destination}.`,
