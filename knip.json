@@ -12,6 +12,7 @@
       "project": ["src/**/*.ts", "src/**/*.tsx"]
     },
     "packages/agent": {
+      "entry": ["src/native-tools/doolittle-probe.ts"],
       "ignoreDependencies": ["sharp"],
       "ignoreBinaries": ["const", "mkfifo"]
     },
@@ -28,6 +29,7 @@
       "entry": [
         "src/main/index.ts",
         "src/preload/index.ts",
+        "src/preload/extension-bridge.ts",
         "src/renderer/main.tsx",
         "vite.*.config.ts",
         "scripts/**/*.ts"
