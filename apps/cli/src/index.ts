@@ -77,11 +77,20 @@ async function main(): Promise<number> {
 
   const installApiLifecycle = () =>
     installRuntimeProcessLifecycle({
-      runtime: context.runtime as AgentRuntime,
       label: `${context.config.agentName} ${command}`,
-      beforeShutdown: sharedEngineHost
-        ? () => sharedEngineHost.stopAll()
-        : undefined,
+      async close(reason) {
+        try {
+          await sharedEngineHost?.stopAll();
+        } finally {
+          await shutdownApplicationRuntime(
+            context.runtime as AgentRuntime,
+            reason,
+            {
+              fast: true,
+            },
+          );
+        }
+      },
       captureFatal: (error, origin) => {
         entryLogger.captureError("runtime-process-fatal", error, {
           command,

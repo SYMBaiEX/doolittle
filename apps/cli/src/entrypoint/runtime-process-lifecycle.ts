@@ -1,10 +1,5 @@
-import { shutdownApplicationRuntime } from "@doolittle/agent/runtime/application";
-import type { disposeRuntime } from "@doolittle/agent/runtime/bootstrap/runtime/initialization";
-import type { AgentRuntime } from "@elizaos/core";
-
-export type RuntimeShutdownSignal = "SIGINT" | "SIGTERM";
-export type RuntimeShutdownReason = RuntimeShutdownSignal | "disconnect";
-export type RuntimeFatalOrigin = "uncaughtException" | "unhandledRejection";
+type RuntimeShutdownReason = "SIGINT" | "SIGTERM" | "disconnect";
+type RuntimeFatalOrigin = "uncaughtException" | "unhandledRejection";
 
 type RuntimeFatalListener = (error: Error, origin: RuntimeFatalOrigin) => void;
 
@@ -23,47 +18,23 @@ export interface RuntimeSignalHost {
 }
 
 interface RuntimeProcessLifecycleOptions {
-  runtime: AgentRuntime;
   label: string;
   signalHost?: RuntimeSignalHost;
-  shutdownRuntime?: typeof disposeRuntime;
+  close: (reason: string) => Promise<void>;
   onExit?: (exitCode: number) => void;
   writeError?: (message: string) => void;
   captureFatal?: (error: Error, origin: RuntimeFatalOrigin) => void;
-  beforeShutdown?: () => Promise<void>;
   /** Only IPC-owned desktop children must die with their host; standalone APIs remain alive. */
   watchHostDisconnect?: boolean;
 }
 
-export interface RuntimeProcessLifecycle {
-  shutdown(signal: RuntimeShutdownReason): Promise<void>;
-  dispose(): void;
-}
-
-/**
- * Give long-lived API/gateway hosts one idempotent process boundary.
- *
- * Electron owns the child process and sends SIGTERM. Loss of its IPC channel
- * also ends a desktop-owned runtime, including host loss during boot. Doolittle owns only the
- * signal-to-runtime handoff; Eliza owns service shutdown and database-adapter
- * closure through `shutdownRuntime`.
- */
-const shutdownOwnedRuntime: typeof disposeRuntime = (
-  runtime,
-  context,
-  _lifecycle,
-  options,
-) =>
-  shutdownApplicationRuntime(runtime, context ?? "process shutdown", options);
-
+/** Translate process signals into one close operation owned by the caller. */
 export function installRuntimeProcessLifecycle({
-  runtime,
   label,
+  close,
   signalHost = process,
-  shutdownRuntime = shutdownOwnedRuntime,
   onExit = (exitCode) => process.exit(exitCode),
   writeError = (message) => process.stderr.write(`${message}\n`),
-  beforeShutdown,
   watchHostDisconnect = process.env.DOOLITTLE_DESKTOP_RUNTIME === "1" &&
     typeof process.send === "function",
   captureFatal = (error, origin) => {
@@ -71,7 +42,7 @@ export function installRuntimeProcessLifecycle({
       `[doolittle] runtime fatal (${origin}): ${error.stack || error.message}`,
     );
   },
-}: RuntimeProcessLifecycleOptions): RuntimeProcessLifecycle {
+}: RuntimeProcessLifecycleOptions) {
   let shutdownPromise: Promise<void> | undefined;
 
   const dispose = () => {
@@ -86,29 +57,23 @@ export function installRuntimeProcessLifecycle({
   const shutdown = (signal: RuntimeShutdownReason): Promise<void> => {
     if (!shutdownPromise) {
       dispose();
-      let exitCode =
+      const exitCode =
         signal === "SIGINT" ? 130 : signal === "disconnect" ? 1 : 0;
       shutdownPromise = Promise.resolve()
-        .then(async () => {
-          try {
-            await beforeShutdown?.();
-          } finally {
-            await shutdownRuntime(
-              runtime,
-              `${label} received ${signal === "disconnect" ? "host IPC disconnect" : signal}`,
-              undefined,
-              { fast: true },
-            );
-          }
-        })
-        .catch((error) => {
-          if (beforeShutdown) exitCode = 1;
-          const detail = error instanceof Error ? error.message : String(error);
-          writeError(`[doolittle] runtime shutdown failed: ${detail}`);
-        })
-        .then(() => {
-          onExit(exitCode);
-        });
+        .then(() =>
+          close(
+            `${label} received ${signal === "disconnect" ? "host IPC disconnect" : signal}`,
+          ),
+        )
+        .then(
+          () => onExit(exitCode),
+          (error) => {
+            const detail =
+              error instanceof Error ? error.message : String(error);
+            writeError(`[doolittle] ${label} shutdown failed: ${detail}`);
+            onExit(1);
+          },
+        );
     }
     return shutdownPromise;
   };
@@ -144,5 +109,10 @@ export function installRuntimeProcessLifecycle({
     if (signalHost.connected === false) handleHostDisconnect();
   }
 
-  return { shutdown, dispose };
+  return {
+    dispose,
+    get closing() {
+      return shutdownPromise;
+    },
+  };
 }

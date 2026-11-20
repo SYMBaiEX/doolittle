@@ -1,3 +1,4 @@
+import { EventEmitter } from "node:events";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
@@ -11,6 +12,7 @@ import {
   createApiStartupController,
   resolveEntrypointRuntimePlan,
 } from "../../apps/cli/src/entrypoint/runtime-control";
+import { installRuntimeProcessLifecycle } from "../../apps/cli/src/entrypoint/runtime-process-lifecycle";
 import { handleEntrypointRuntimeSurface } from "../../apps/cli/src/entrypoint/runtime-surface";
 import { loadProcessEnv } from "../../packages/agent/src/config/env/load";
 import { resolveApplicationRoot } from "../../packages/agent/src/config/env/paths";
@@ -18,6 +20,49 @@ import type { AppLogger } from "../../packages/agent/src/logging/logger";
 import type { AppContext } from "../../packages/agent/src/runtime/bootstrap";
 
 describe("terminal application lifecycle", () => {
+  it("closes the session immediately when the IPC host has already disconnected", async () => {
+    const signalHost = Object.assign(new EventEmitter(), { connected: false });
+    const close = vi.fn(async () => undefined);
+    const onExit = vi.fn();
+    const lifecycle = installRuntimeProcessLifecycle({
+      label: "ACP",
+      signalHost,
+      watchHostDisconnect: true,
+      close,
+      onExit,
+    });
+
+    expect(lifecycle.closing).toBeDefined();
+    signalHost.emit("SIGTERM");
+    await lifecycle.closing;
+    expect(close).toHaveBeenCalledExactlyOnceWith(
+      "ACP received host IPC disconnect",
+    );
+    expect(onExit).toHaveBeenCalledExactlyOnceWith(1);
+  });
+
+  it("reports a failed shutdown as an unsuccessful process exit", async () => {
+    const signalHost = new EventEmitter();
+    const writeError = vi.fn();
+    const onExit = vi.fn();
+    const lifecycle = installRuntimeProcessLifecycle({
+      label: "API",
+      signalHost,
+      close: async () => {
+        throw new Error("unable to close adapter");
+      },
+      writeError,
+      onExit,
+    });
+
+    signalHost.emit("SIGTERM");
+    await lifecycle.closing;
+    expect(writeError).toHaveBeenCalledWith(
+      "[doolittle] API shutdown failed: unable to close adapter",
+    );
+    expect(onExit).toHaveBeenCalledExactlyOnceWith(1);
+  });
+
   it("uses dotenv parsing to detect a database declaration", () => {
     const root = mkdtempSync(resolve(tmpdir(), "doolittle-database-env-"));
     try {

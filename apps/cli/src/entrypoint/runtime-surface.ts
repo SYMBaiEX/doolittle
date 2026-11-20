@@ -46,11 +46,14 @@ export async function handleEntrypointRuntimeSurface(input: {
     try {
       const endpoint = await acquireCliTerminalEndpoint(context);
       const lifecycle = installRuntimeProcessLifecycle({
-        runtime,
         label: "Doolittle one-shot",
-        beforeShutdown: async () => {
+        async close(reason) {
           controller.abort();
-          await endpoint.close();
+          try {
+            await endpoint.close();
+          } finally {
+            await shutdown(reason);
+          }
         },
         onExit: input.exit,
       });
