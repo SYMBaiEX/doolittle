@@ -12,6 +12,7 @@ import { json } from "./responses";
 import { NATIVE_ATTACHMENT_IMPORT } from "./routes/native-attachments";
 
 export const NATIVE_WORKSPACE_SAVE_PATH = "/workspace/write";
+export const NATIVE_REPOSITORY_MUTATION_PATH = "/repo/mutate";
 export const NATIVE_WORKSPACE_SAVE_MAX_BODY_BYTES = 8 * 1024 * 1024;
 
 export function nativeWorkspaceAdmissionError(error: unknown): Response {
@@ -99,6 +100,9 @@ function nativeRouteAllowed(
     method === "POST" &&
     (path === "/chat/runs" ||
       runRoute?.[1] === "cancel" ||
+      (path === NATIVE_REPOSITORY_MUTATION_PATH &&
+        options.allowWorkspaceSave === true &&
+        options.controlPlane === true) ||
       ((path === NATIVE_WORKSPACE_SAVE_PATH ||
         path === NATIVE_ATTACHMENT_IMPORT) &&
         options.allowWorkspaceSave === true))
@@ -139,7 +143,8 @@ export function createNativeClientPolicy(options: NativeClientSecurityOptions) {
           isNativeNamedBotRoute(method, path)));
     if (
       ((path === NATIVE_WORKSPACE_SAVE_PATH ||
-        path === NATIVE_ATTACHMENT_IMPORT) &&
+        path === NATIVE_ATTACHMENT_IMPORT ||
+        path === NATIVE_REPOSITORY_MUTATION_PATH) &&
         target !== path) ||
       (controlRoute && method !== "GET" && target !== path) ||
       !nativeRouteAllowed(method, path, options, controlRoute)

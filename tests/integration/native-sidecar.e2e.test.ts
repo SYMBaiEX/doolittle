@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { randomBytes, randomUUID } from "node:crypto";
 import {
   mkdir,
@@ -27,6 +27,25 @@ it.runIf(process.env.DOOLITTLE_RUN_RUNTIME_E2E === "1")(
     await mkdir(profile, { mode: 0o700 });
     await mkdir(workspace);
     await writeFile(join(workspace, "native-note.txt"), "workspace witness");
+    await writeFile(join(workspace, "[ab].txt"), "literal index fixture\n");
+    await writeFile(join(workspace, "a.txt"), "untouched index fixture\n");
+    const git = (...args: string[]) =>
+      execFileSync("git", ["-C", workspace, ...args], {
+        env: isolatedRuntimeEnvironment(profile),
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "pipe"],
+      }).trim();
+    git("init", "-q");
+    git("config", "user.name", "Native Fixture");
+    git("config", "user.email", "native-fixture@example.invalid");
+    await writeFile(
+      join(workspace, ".git", "info", "exclude"),
+      "/.env\n/dist/\n/alias.txt\n",
+    );
+    git("add", "--", "native-note.txt", "[ab].txt", "a.txt");
+    git("commit", "-qm", "Initialize native fixture");
+    await writeFile(join(workspace, "[ab].txt"), "literal changed\n");
+    await writeFile(join(workspace, "a.txt"), "wildcard changed\n");
     await writeFile(join(sandbox, "outside.txt"), "do not change");
     await writeFile(join(workspace, ".env"), "fixture-only=value");
     await mkdir(join(workspace, "dist"));
@@ -117,9 +136,7 @@ it.runIf(process.env.DOOLITTLE_RUN_RUNTIME_E2E === "1")(
         ).status,
       ).toBe(403);
       expect((await request("/health")).status).toBe(200);
-      expect((await request("/repo/mutate", { method: "POST" })).status).toBe(
-        404,
-      );
+      expect((await post("/repo/mutate", {})).status).toBe(400);
       expect(
         (await post("/secrets/get", { key: "OPENAI_API_KEY" })).status,
       ).toBe(404);
@@ -313,6 +330,66 @@ it.runIf(process.env.DOOLITTLE_RUN_RUNTIME_E2E === "1")(
       expect(await readFile(join(workspace, "native-note.txt"), "utf8")).toBe(
         "updated witness",
       );
+
+      const repository = await realpath(workspace);
+      const repositoryMutation = (mutation: Record<string, unknown>) =>
+        post("/repo/mutate", { workspace: repository, ...mutation });
+      expect(await (await request("/repo/summary")).json()).toMatchObject({
+        summary: { root: repository },
+      });
+      expect(
+        await (
+          await repositoryMutation({
+            type: "stage",
+            paths: ["[ab].txt"],
+            workspace: sandbox,
+          })
+        ).json(),
+      ).toMatchObject({ code: "repository_scope_mismatch" });
+      expect(
+        (await repositoryMutation({ type: "stage", paths: [":(glob)*"] }))
+          .status,
+      ).toBe(400);
+      const commitWithoutConfirmation = await repositoryMutation({
+        type: "commit",
+        message: "No confirmation",
+      });
+      expect(commitWithoutConfirmation.status).toBe(403);
+      expect(await commitWithoutConfirmation.json()).toMatchObject({
+        code: "repository_confirmation_required",
+      });
+      expect((await repositoryMutation({ type: "fetch" })).status).toBe(403);
+      expect(
+        await (
+          await repositoryMutation({ type: "stage", paths: ["[ab].txt"] })
+        ).json(),
+      ).toMatchObject({ result: { type: "stage", ok: true } });
+      expect(git("diff", "--cached", "--name-only")).toBe("[ab].txt");
+      expect(
+        await (
+          await repositoryMutation({ type: "unstage", paths: ["[ab].txt"] })
+        ).json(),
+      ).toMatchObject({ result: { type: "unstage", ok: true } });
+      expect(git("diff", "--cached", "--name-only")).toBe("");
+      expect(
+        await (
+          await repositoryMutation({
+            type: "stage",
+            paths: ["native-note.txt"],
+          })
+        ).json(),
+      ).toMatchObject({ result: { type: "stage", ok: true } });
+      expect(
+        await (
+          await repositoryMutation({
+            type: "commit",
+            message: "Native Git fixture commit",
+            confirmed: true,
+          })
+        ).json(),
+      ).toMatchObject({ result: { type: "commit", ok: true } });
+      expect(git("log", "-1", "--format=%s")).toBe("Native Git fixture commit");
+      expect(git("status", "--short")).toContain("a.txt");
 
       const runId = randomUUID();
       const submitted = await request("/chat/runs", {

@@ -1,3 +1,4 @@
+mod git;
 mod terminal;
 
 use gpui::{AnyElement, AppContext, Context, Window, div, prelude::*, px};
@@ -16,7 +17,7 @@ use crate::{
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Panel {
     Search,
-    Changes,
+    Git,
     Terminal,
     Preview,
 }
@@ -27,6 +28,7 @@ pub(crate) struct WorkspaceTools {
     query: Option<gpui::Entity<InputState>>,
     results: Option<String>,
     patch: Option<String>,
+    git: git::GitState,
     preview: Option<gpui::Entity<InputState>>,
     preview_error: Option<&'static str>,
     pub terminal: terminal::TerminalState,
@@ -39,7 +41,7 @@ pub(crate) fn toolbar(workbench: &Workbench, cx: &mut Context<Workbench>) -> imp
     div().flex().gap(px(2.)).children(
         [
             ("Search", Panel::Search),
-            ("Changes", Panel::Changes),
+            ("Git", Panel::Git),
             ("Terminal", Panel::Terminal),
             ("Preview", Panel::Preview),
         ]
@@ -61,7 +63,7 @@ pub(crate) fn toolbar(workbench: &Workbench, cx: &mut Context<Workbench>) -> imp
                             });
                             input.update(cx, |input, cx| input.focus(window, cx));
                         }
-                        Some(Panel::Changes) => this.control_get(CHANGES, cx),
+                        Some(Panel::Git) => git::open(this, window, cx),
                         Some(Panel::Preview) => {
                             let input = this.workspace_tools.preview.get_or_insert_with(|| {
                                 cx.new(|cx| {
@@ -87,7 +89,7 @@ pub(crate) fn render(
     let panel = workbench.workspace_tools.panel?;
     let body = match panel {
         Panel::Search => search(workbench, colors, cx),
-        Panel::Changes => changes(workbench, colors, cx),
+        Panel::Git => git::render(workbench, colors, window, cx),
         Panel::Terminal => terminal::render(workbench, colors, window, cx),
         Panel::Preview => preview(workbench, colors, cx),
     };

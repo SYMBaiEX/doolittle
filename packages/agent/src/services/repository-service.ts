@@ -1,5 +1,12 @@
-import { existsSync, realpathSync } from "node:fs";
-import { dirname, isAbsolute, join, relative, resolve } from "node:path";
+import { existsSync, realpathSync, statSync } from "node:fs";
+import {
+  basename,
+  dirname,
+  isAbsolute,
+  join,
+  relative,
+  resolve,
+} from "node:path";
 import type {
   RepositoryBranch,
   RepositoryConflict,
@@ -8,8 +15,9 @@ import type {
   RepositoryRemote,
   RepositoryStash,
 } from "@doolittle/contracts/repository";
+import { readRegularFileSync } from "@doolittle/storage";
 import { runTextProcess } from "./process-execution";
-import { readGitMarker } from "./repository/git-marker";
+import { MAX_GIT_MARKER_BYTES, readGitMarker } from "./repository/git-marker";
 import type {
   CreateRepositoryWorktreeInput,
   RepositoryChange,
@@ -50,6 +58,62 @@ export type {
 } from "./repository/models";
 
 const MAX_PATCH_CHARACTERS = 240_000;
+
+export class NativeRepositoryScopeError extends Error {
+  constructor() {
+    super("Git operations require the selected canonical repository worktree.");
+    this.name = "NativeRepositoryScopeError";
+  }
+}
+
+interface NativeRepositoryScope {
+  workspaceRoot: string;
+  revalidate(): void;
+}
+
+const GIT_REPOSITORY_REDIRECT_ENV = [
+  "GIT_DIR",
+  "GIT_WORK_TREE",
+  "GIT_COMMON_DIR",
+  "GIT_INDEX_FILE",
+  "GIT_OBJECT_DIRECTORY",
+  "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+  "GIT_NAMESPACE",
+] as const;
+
+function nativeGitDirectory(worktree: string) {
+  try {
+    if (GIT_REPOSITORY_REDIRECT_ENV.some((key) => process.env[key]))
+      throw new NativeRepositoryScopeError();
+    const marker = join(worktree, ".git");
+    const reference = readGitMarker(marker);
+    const directory = realpathSync(
+      reference ? resolve(worktree, reference) : marker,
+    );
+    let commonDirectory = directory;
+    if (reference !== null) {
+      // A copied .git pointer must not authorize a different worktree's index.
+      const worktreesDirectory = dirname(directory);
+      if (basename(worktreesDirectory) !== "worktrees")
+        throw new NativeRepositoryScopeError();
+      commonDirectory = dirname(worktreesDirectory);
+      const backlink = readRegularFileSync(
+        join(directory, "gitdir"),
+        MAX_GIT_MARKER_BYTES,
+        { singleLink: true },
+      )
+        .toString("utf8")
+        .trim();
+      if (!backlink || realpathSync(resolve(directory, backlink)) !== marker)
+        throw new NativeRepositoryScopeError();
+    }
+    const stat = statSync(directory);
+    if (!stat.isDirectory()) throw new NativeRepositoryScopeError();
+    return { directory, commonDirectory, device: stat.dev, inode: stat.ino };
+  } catch {
+    throw new NativeRepositoryScopeError();
+  }
+}
 
 function hasValidGitMarker(directory: string): boolean {
   const marker = join(directory, ".git");
@@ -379,17 +443,68 @@ export class RepositoryService {
 
   async mutate(
     input: RepositoryMutationRequest,
+    scope?: NativeRepositoryScope,
   ): Promise<RepositoryMutationResult> {
     const root = this.gitRoot();
+    if (scope && root !== scope.workspaceRoot)
+      throw new NativeRepositoryScopeError();
     if (!root) throw new Error("Workspace is not inside a Git repository.");
     return new RepositoryMutationExecutor({
       root,
       workspaceRoot: () => this.workspaceRoot(),
-      runner: this.mutationRunner,
+      runner: scope
+        ? this.nativeMutationRunner(root, scope)
+        : this.mutationRunner,
       invalidateCache: () => this.invalidateCommandCache(),
       worktrees: () => this.worktrees({ fresh: true }),
       conflicts: () => this.conflicts(),
     }).execute(input);
+  }
+
+  private nativeMutationRunner(
+    root: string,
+    scope: NativeRepositoryScope,
+  ): RepositoryProcessRunner {
+    return async (command, args, options) => {
+      scope.revalidate();
+      const before = nativeGitDirectory(root);
+      const verified = await this.mutationRunner(
+        "git",
+        [
+          "rev-parse",
+          "--path-format=absolute",
+          "--show-toplevel",
+          "--absolute-git-dir",
+          "--git-common-dir",
+        ],
+        { cwd: root, toolName: "doolittle.repository.verify-native-root" },
+      );
+      scope.revalidate();
+      const after = nativeGitDirectory(root);
+      const [worktree, directory, commonDirectory, extra] = verified.stdout
+        .trimEnd()
+        .split(/\r?\n/u);
+      if (
+        verified.exitCode !== 0 ||
+        worktree !== root ||
+        directory !== before.directory ||
+        commonDirectory !== before.commonDirectory ||
+        extra !== undefined ||
+        after.directory !== before.directory ||
+        after.device !== before.device ||
+        after.inode !== before.inode
+      )
+        throw new NativeRepositoryScopeError();
+      return this.mutationRunner(command, args, {
+        ...options,
+        cwd: root,
+        env: {
+          ...options.env,
+          GIT_LITERAL_PATHSPECS: "1",
+          GIT_ALLOW_PROTOCOL: "https:http:ssh:git",
+        },
+      });
+    };
   }
   private async runGit(
     args: string[],

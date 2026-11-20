@@ -26,6 +26,7 @@ import {
 } from "./server/auth";
 import {
   createNativeClientPolicy,
+  NATIVE_REPOSITORY_MUTATION_PATH,
   NATIVE_WORKSPACE_SAVE_MAX_BODY_BYTES,
   NATIVE_WORKSPACE_SAVE_PATH,
   type NativeClientSecurityOptions,
@@ -52,6 +53,7 @@ import {
   handleNativeAttachmentRoute,
   NATIVE_ATTACHMENT_IMPORT,
 } from "./server/routes/native-attachments";
+import { handleNativeRepositoryMutation } from "./server/routes/native-repository";
 import { handleOperationsRoutes } from "./server/routes/operations";
 import { handleRuntimeRoutes } from "./server/routes/runtime/index";
 import { withDirectConversationWorkspace } from "./server/routes/workspace-scope";
@@ -121,6 +123,9 @@ async function dispatchOwnedNativeRequest(
     return (
       (await handleNativeAttachmentRoute(context, request, url)) ?? missing()
     );
+  }
+  if (url.pathname === NATIVE_REPOSITORY_MUTATION_PATH) {
+    return handleNativeRepositoryMutation(context, request, nativeAdmission);
   }
   if (options.controlPlane) {
     if (isNativeNamedBotRoute(request.method, url.pathname)) {
