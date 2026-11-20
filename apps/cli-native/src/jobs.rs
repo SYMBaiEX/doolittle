@@ -1,6 +1,6 @@
 use std::env;
 use std::fs::{self, DirBuilder, File, OpenOptions};
-use std::io::{self, BufRead as _, BufReader, Read as _, Seek as _, Write as _};
+use std::io::{self, BufRead as _, BufReader, Read as _, Write as _};
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode, Stdio};
 use std::thread;
@@ -15,6 +15,7 @@ use uuid::Uuid;
 use crate::{Args, Connection, checked_prompt, new_id, operator, print_json, terminal_text, turn};
 
 const EVENT_LIMIT: u64 = 32 * 1024 * 1024;
+const REPLAY_TEXT_LIMIT: usize = 4 * 1024 * 1024;
 const WORKER_START_WINDOW: Duration = Duration::from_secs(2);
 
 #[derive(Subcommand)]
@@ -172,55 +173,25 @@ impl StoredJob {
     }
 
     fn replay(&self, follow: bool, as_json: bool) -> Result<()> {
-        let mut file = BufReader::new(File::open(self.directory.join("events.ndjson"))?);
-        let mut emitted_final = false;
-        loop {
-            let offset = file.stream_position()?;
-            let mut line = Vec::new();
-            if file
-                .by_ref()
-                .take(EVENT_LIMIT + 1)
-                .read_until(b'\n', &mut line)?
-                > 0
-            {
-                ensure!(
-                    line.len() as u64 <= EVENT_LIMIT,
-                    "Background event exceeded the display limit"
-                );
-                if line.last() == Some(&b'\n') {
-                    let event: Value =
-                        serde_json::from_slice(&line).context("Invalid background run event")?;
-                    if as_json {
-                        print_json(&event)?;
-                    } else if event.get("type").and_then(Value::as_str) == Some("result") {
-                        emitted_final = true;
-                        if let Some(text) = event
-                            .pointer("/outcome/text")
-                            .and_then(Value::as_str)
-                            .filter(|text| !text.is_empty())
-                        {
-                            println!("{}", terminal_text(text));
-                        }
-                    } else if follow
-                        && let Some(delta) = event.pointer("/data/delta").and_then(Value::as_str)
-                    {
-                        print!("{}", terminal_text(delta));
-                        io::stdout().flush()?;
-                    }
-                    continue;
+        let file = BufReader::new(File::open(self.directory.join("events.ndjson"))?);
+        let mut terminal = TerminalReplay::default();
+        replay_events(
+            file,
+            follow,
+            || Ok(self.outcome()?.is_some() || !self.worker_active()?),
+            |event| {
+                if as_json {
+                    print_json(&event)
+                } else {
+                    terminal.write_event(&event, follow, &mut io::stdout().lock())
                 }
-                file.seek(io::SeekFrom::Start(offset))?;
-            }
-            if !follow || self.outcome()?.is_some() || !self.worker_active()? {
-                break;
-            }
-            thread::sleep(Duration::from_millis(100));
-        }
+            },
+        )?;
         let summary = self.summary()?;
         if as_json {
             print_json(&serde_json::json!({"type": "job", "job": summary}))?;
         } else {
-            if follow && !emitted_final {
+            if terminal.line_open {
                 println!();
             }
             print_job(&summary);
@@ -238,6 +209,99 @@ impl StoredJob {
             Some(turn::OutcomeStatus::Cancelled) => ExitCode::from(130),
             _ => ExitCode::FAILURE,
         })
+    }
+}
+
+fn replay_events(
+    mut file: impl io::BufRead + io::Seek,
+    follow: bool,
+    mut worker_finished: impl FnMut() -> Result<bool>,
+    mut emit: impl FnMut(Value) -> Result<()>,
+) -> Result<()> {
+    let mut draining = false;
+    let mut line = Vec::new();
+    loop {
+        let offset = file.stream_position()?;
+        line.clear();
+        if file
+            .by_ref()
+            .take(EVENT_LIMIT + 1)
+            .read_until(b'\n', &mut line)?
+            > 0
+        {
+            ensure!(
+                line.len() as u64 <= EVENT_LIMIT,
+                "Background event exceeded the display limit"
+            );
+            if line.last() == Some(&b'\n') {
+                emit(serde_json::from_slice(&line).context("Invalid background run event")?)?;
+                continue;
+            }
+            file.seek(io::SeekFrom::Start(offset))?;
+        }
+        if !follow || draining {
+            break;
+        }
+        // The outcome is published after the result event is flushed. Read to
+        // EOF again after observing completion in case it followed our read.
+        draining = worker_finished()?;
+        if !draining {
+            thread::sleep(Duration::from_millis(100));
+        }
+    }
+    Ok(())
+}
+
+#[derive(Default)]
+struct TerminalReplay {
+    streamed: String,
+    line_open: bool,
+}
+
+impl TerminalReplay {
+    fn write_event(
+        &mut self,
+        event: &Value,
+        follow: bool,
+        output: &mut impl io::Write,
+    ) -> Result<()> {
+        if event.get("type").and_then(Value::as_str) == Some("result") {
+            let Some(text) = event
+                .pointer("/outcome/text")
+                .and_then(Value::as_str)
+                .filter(|text| !text.is_empty())
+            else {
+                return Ok(());
+            };
+            if let Some(remainder) = text.strip_prefix(&self.streamed) {
+                self.write_text(remainder, output)?;
+            } else {
+                if self.line_open {
+                    writeln!(output)?;
+                }
+                writeln!(output, "\nFinal response")?;
+                self.line_open = false;
+                self.write_text(text, output)?;
+            }
+        } else if follow
+            && event.get("event").and_then(Value::as_str) == Some("response.output_text.delta")
+            && let Some(delta) = event.pointer("/data/delta").and_then(Value::as_str)
+            && self.streamed.len().saturating_add(delta.len()) <= REPLAY_TEXT_LIMIT
+        {
+            self.streamed.push_str(delta);
+            self.write_text(delta, output)?;
+        }
+        Ok(())
+    }
+
+    fn write_text(&mut self, text: &str, output: &mut impl io::Write) -> Result<()> {
+        let text = terminal_text(text);
+        if !text.is_empty() {
+            self.line_open = !text.ends_with('\n');
+            output.write_all(text.as_bytes())?;
+            output.flush()?;
+        }
+        Ok(())
     }
 }
 
@@ -465,4 +529,54 @@ fn print_job(job: &Value) {
         .and_then(Value::as_str)
         .unwrap_or("unconfirmed");
     println!("{}  {}", operator::one_line(id), operator::one_line(status));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn terminal_replay_only_prints_unseen_response_text() -> Result<()> {
+        let record = json!({"type": "result", "outcome": {"text": "Review complete"}});
+        let delta = json!({"event": "response.output_text.delta", "data": {"delta": "Review"}});
+        let tool_delta = json!({"event": "tool.progress", "data": {"delta": "hidden"}});
+        for follow in [false, true] {
+            let mut output = Vec::new();
+            let mut replay = TerminalReplay::default();
+            replay.write_event(&delta, follow, &mut output)?;
+            replay.write_event(&tool_delta, follow, &mut output)?;
+            replay.write_event(&record, follow, &mut output)?;
+            assert_eq!(output, b"Review complete");
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn follows_result_appended_between_eof_and_worker_completion() -> Result<()> {
+        let path = env::temp_dir().join(format!("doolittle-events-{}", new_id()));
+        let mut writer = private_file(&path)?;
+        writer.write_all(b"{\"type\":\"start\"}\n{\"type\":\"res")?;
+        let reader = BufReader::new(File::open(&path)?);
+        let mut seen = Vec::new();
+        let result = replay_events(
+            reader,
+            true,
+            || {
+                // The partial read happened first. The worker completes the
+                // result immediately before publishing its outcome.
+                writer.write_all(b"ult\"}\n")?;
+                Ok(true)
+            },
+            |event| {
+                seen.push(event);
+                Ok(())
+            },
+        );
+        drop(writer);
+        fs::remove_file(path)?;
+        result?;
+        assert_eq!(seen, [json!({"type": "start"}), json!({"type": "result"})]);
+        Ok(())
+    }
 }
