@@ -19,10 +19,10 @@ nub run native:chat -- --workspace /absolute/path/to/project chat
 ```
 
 The desktop asks you to open a folder when launched without `--workspace`.
-**New workspace** opens a separate window and preserves the original draft.
-For model setup, see [account and provider configuration](setup.md). Launch the
-source build from a shell with the provider environment already configured, or
-open a native profile with its own model settings.
+**New workspace** opens a separate window and preserves the original draft. Open
+**Settings → Models** to pick a model, **Settings → Accounts** to connect an
+account, or **Settings → Credentials** to enter a direct API key. See
+[account and provider configuration](setup.md) for supported providers.
 Use `--offline` to defer optional runtime initialization. For an offline
 acceptance fixture, also select the offline model in the isolated profile and
 launch without provider credentials. The clients choose a private profile keyed
@@ -32,12 +32,32 @@ runtime keeps an exclusive lease on its workspace and blocks both duplicate and
 nested workspace launches even with different profiles. Avoid sharing a live
 Electron or TypeScript CLI data directory with the native sidecar.
 
-The native desktop uses the full workbench outside Chat. Agent and IDE views
-share the selected conversation. In IDE view, open an existing text file and use
-**Save** or Command-S to write changes. The editor holds onto your draft if a
-turn is using the workspace or the file has changed on disk. Switching files,
-reloading a file, and closing the window prompt before discarding edits. Native
-app restart and runtime failure remain visible in the workbench.
+Agent and IDE views share the selected conversation. Use Command-K to find a
+destination. The chat composer can import files through the system picker, and
+the transcript shows wallet and trading receipts recorded by ElizaOS. In IDE
+view, use **Search** for workspace text, **Changes** for repository diffs and
+**Terminal** for a manually operated local shell, and **Preview** to open a
+loopback development server in the system browser. Save existing text files with
+**Save** or Command-S. Switching files, reloading a file, and closing the window
+prompt before discarding local edits. A busy workspace or changed file leaves
+the draft in the editor.
+
+**Appearance** supports Companion, Canvas, Anime Atelier, Golden Gate Glass,
+and the ten runtime palettes, with light, dark, system, and density controls.
+The desktop imports and exports Doolittle theme bundles. The Rust CLI uses its
+runtime profile's theme settings.
+
+Open **Work**, **Review**, **Automations**, **Agents**, and **Inbox** to inspect
+or act on the runtime's work. **Home**, **Activity**, **Insights**, and
+**Assets** are native views of runtime status, activity, usage, and managed
+media. Named agents can be created, renamed, started, stopped, and archived in
+private offline workspaces. The chat sidebar imports and exports individual
+conversation archives between profiles.
+
+For terminal use, run `nub run native:chat -- --help` to see one-shot runs,
+the cockpit, accounts, approvals, automations, and background jobs. The `acp`
+subcommand starts the existing ElizaOS ACP stdio service. Explicit `api` and
+`gateway` launches bind to loopback and require a configured `ELIZA_API_TOKEN`.
 
 ## Runtime boundary
 
@@ -47,13 +67,16 @@ reports readiness on its private stdout pipe. Every request carries the runtime
 credential. The host does not attach the credential to an arbitrary origin or
 redirect. Closing the owner ends the pipe and requests normal ElizaOS shutdown.
 
-The sidecar exposes lead chat, session history, run events, cancellation, and
-scoped workspace reads. The desktop opts into saving existing workspace text
-files. Saves compare the original editor buffer with the current file and use the
-same workspace admission as native agent turns. Electron-managed named workers,
-approval decisions, terminal and Git controls, wallets, connector configuration,
-automation editors, and ACP parity are separate cutover requirements. Existing
-clients remain available for those workflows during the migration.
+The native control plane permits individual methods and routes for each
+operator capability. Desktop file imports and saves require desktop opt-in.
+Saves compare the original editor buffer with the current file and use the same
+workspace admission as native agent turns. Wallet tools still execute inside
+ElizaOS, subject to its existing permissions and approval flow.
+
+The remaining Electron cutover includes nested Canvas splits, embedded browser
+preview, the full Git workflow, named-agent chat and project grants, public
+connector ingress, and the updater. Native profiles use their own data folders.
+Individual conversation archives are available for manual transfer.
 
 ## Verify and package
 
