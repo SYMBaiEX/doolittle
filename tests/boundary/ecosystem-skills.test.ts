@@ -32,7 +32,7 @@ it("discovers the optional packs in the bundled skills workspace", () => {
 });
 
 it("keeps optional packs out of the SDK workspace loader", async () => {
-  const require = createRequire(resolve("packages/agent/package.json"));
+  const require = createRequire(import.meta.url);
   const { loadSkillsFromDir } = await import(
     /* @vite-ignore */ pathToFileURL(require.resolve("@elizaos/skills/index"))
       .href
