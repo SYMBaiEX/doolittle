@@ -1,5 +1,5 @@
 import {
-  type MutableRefObject,
+  type RefObject,
   type SetStateAction,
   useCallback,
   useEffect,
@@ -42,8 +42,9 @@ import type {
   ChatContextMessageCapsule,
   ConversationStore,
   DisplayMessage,
-  Role,
 } from "./models";
+
+import type { RunClaims } from "./run-claim-reconciliation";
 
 const CHAT_STORAGE_KEY = "doolittle.desktop.conversations.v2";
 const MAX_CHAT_STORAGE_CHARS = 3_500_000;
@@ -90,7 +91,7 @@ function boundedStoredMessages(
 }
 
 /** Persist chat history as a bounded, best-effort cache; the server remains canonical. */
-export function saveStoredChatMessages(
+function saveStoredChatMessages(
   storage: StorageLike,
   messages: ConversationStore,
   protectedSessionId?: string,
@@ -173,14 +174,51 @@ function isStoredDisplayMessage(value: unknown): value is DisplayMessage {
   );
 }
 
-function toMessageCapsule(
-  capsule: ReturnType<typeof splitChatContext>["capsule"],
-): ChatContextMessageCapsule | undefined {
-  if (!capsule) return undefined;
+const EMPTY_DRAFT: ConversationDraft = {
+  text: "",
+  capsule: null,
+  attachments: [],
+};
+
+async function fetchHistoryPage(
+  sessionId: string,
+  owner: string | undefined,
+  offset: number,
+  signal?: AbortSignal,
+): Promise<{ messages: DisplayMessage[]; page: HistoryPageState }> {
+  const response = await desktopRequest<PagedSessionMessagesResponse>(
+    `/sessions/messages?sessionId=${encodeURIComponent(sessionId)}&limit=${HISTORY_PAGE_SIZE}&offset=${offset}`,
+    "GET",
+    undefined,
+    signal,
+    undefined,
+    owner,
+  );
+  const messages: DisplayMessage[] = [];
+  for (const { id, role, text, attachments, createdAt } of response.messages) {
+    if (role !== "user" && role !== "assistant") continue;
+    const handoff = role === "user" ? splitChatContext(text) : undefined;
+    const capsule = handoff?.capsule ?? undefined;
+    const contextCapsule: ChatContextMessageCapsule | undefined = capsule && {
+      kind: capsule.kind,
+      path: capsule.path,
+      ...(capsule.source ? { source: capsule.source } : {}),
+    };
+    messages.push({
+      id,
+      role,
+      content: handoff?.prompt ?? text,
+      attachments,
+      createdAt,
+      ...(contextCapsule ? { contextCapsule } : {}),
+    });
+  }
   return {
-    kind: capsule.kind,
-    path: capsule.path,
-    ...(capsule.source ? { source: capsule.source } : {}),
+    messages,
+    page: {
+      hasEarlier: Boolean(response.hasEarlier),
+      nextOffset: response.nextOffset ?? offset + response.messages.length,
+    },
   };
 }
 
@@ -207,24 +245,6 @@ export function loadStoredChatMessages(
   } catch {
     return {};
   }
-}
-
-/**
- * Local assistant placeholders only represent an in-flight IPC request. Once
- * history has hydrated after a reload, an unclaimed placeholder must not stay
- * in the transcript as an empty, permanently-working response.
- */
-export function reconcileOrphanedPendingMessages(
-  localMessages: readonly DisplayMessage[],
-  history: readonly DisplayMessage[],
-  activeRequestIds: ReadonlySet<string>,
-): DisplayMessage[] {
-  return reconcilePendingMessages(
-    localMessages,
-    history,
-    activeRequestIds,
-    new Map(),
-  );
 }
 
 function canonicalReplyIndexAfter(
@@ -420,7 +440,7 @@ function matchLocalRowsToHistory(
  * one-to-one match preserves intentionally repeated prompts while preventing a
  * completed turn from rendering twice when history refreshes.
  */
-export function mergeConversationHistory(
+function mergeConversationHistory(
   localMessages: readonly DisplayMessage[],
   history: readonly DisplayMessage[],
   activeRequestIds: ReadonlySet<string>,
@@ -456,18 +476,15 @@ export function mergeConversationHistory(
   ].sort((left, right) => left.createdAt.localeCompare(right.createdAt));
 }
 
-export function projectChatSessions({
+function projectChatSessions({
   messages,
   pinnedSessions,
-  query,
   remoteSessions,
 }: {
   messages: ConversationStore;
   pinnedSessions: Readonly<Record<string, boolean>>;
-  query: string;
   remoteSessions: readonly SessionSummary[];
 }): ChatSessionForRender[] {
-  const normalizedQuery = query.trim().toLowerCase();
   const byId = new Map(
     remoteSessions.map((session) => [session.sessionId, session]),
   );
@@ -491,17 +508,6 @@ export function projectChatSessions({
   }
 
   return [...byId.values()]
-    .filter((session) => {
-      if (!normalizedQuery) return true;
-      return [
-        session.title ?? "",
-        session.sessionId,
-        session.preview?.[0] ?? "",
-      ]
-        .join(" ")
-        .toLowerCase()
-        .includes(normalizedQuery);
-    })
     .map((session) => ({
       ...session,
       pinned: Boolean(pinnedSessions[session.sessionId]),
@@ -517,7 +523,7 @@ export function useChatConversationState({
   backendReady,
   onSelect,
   remoteSessions,
-  requestSession,
+  runClaims,
   selectedId,
   persistenceOwner = true,
   botIdForSession,
@@ -527,13 +533,10 @@ export function useChatConversationState({
   backendReady: boolean;
   onSelect: (sessionId: string) => void;
   remoteSessions: readonly SessionSummary[];
-  requestSession: MutableRefObject<Record<string, string>>;
+  runClaims: RefObject<RunClaims>;
   selectedId: string;
   persistenceOwner?: boolean;
   botIdForSession?: (sessionId: string) => string;
-  projectTargetForSession?: (
-    sessionId: string,
-  ) => { projectId?: string } | undefined;
   nativeHostReady?: boolean;
 }) {
   const initialId = useMemo(
@@ -596,9 +599,30 @@ export function useChatConversationState({
     },
     [draftRevisions],
   );
-  const localDraftOwner = useRef({ botIdForSession, remoteSessions });
+  const localDraftOwner = useRef(botIdForSession);
+  localDraftOwner.current = botIdForSession;
   const nativeDraftBridge = useRef<NativeDraftBridge | undefined>(undefined);
-  localDraftOwner.current = { botIdForSession, remoteSessions };
+
+  const updateDraft = useCallback(
+    (
+      sessionId: string,
+      update: (previous: ConversationDraft) => ConversationDraft,
+    ) => {
+      const revision = bumpDraftRevision(sessionId);
+      setConversationDrafts((current) => {
+        const next = update(current[sessionId] ?? EMPTY_DRAFT);
+        if (next.text || next.capsule || next.attachments.length) {
+          return { ...current, [sessionId]: next };
+        }
+        if (!Object.hasOwn(current, sessionId)) return current;
+        const { [sessionId]: _removed, ...remaining } = current;
+        return remaining;
+      });
+      return revision;
+    },
+    [bumpDraftRevision, setConversationDrafts],
+  );
+
   const nativeDraftsEnabled = persistenceOwner && !!botIdForSession;
   useEffect(() => {
     if (!nativeDraftsEnabled || !window.doolittle?.ui) return;
@@ -617,28 +641,16 @@ export function useChatConversationState({
       },
       revision: (sessionId) => draftRevisions.current[sessionId] ?? 0,
       apply: (target, text) => {
-        if (
-          localDraftOwner.current.botIdForSession?.(target.sessionId) !==
-          target.botId
-        )
+        if (localDraftOwner.current?.(target.sessionId) !== target.botId)
           return;
-        bumpDraftRevision(target.sessionId);
-        setConversationDrafts((current) => {
-          const previous = current[target.sessionId] ?? {
-            text: "",
-            capsule: null,
-            attachments: [],
-          };
-          return { ...current, [target.sessionId]: { ...previous, text } };
-        });
+        updateDraft(target.sessionId, (previous) => ({ ...previous, text }));
       },
     });
     nativeDraftBridge.current = drafts;
     host.subscribe((event) => {
       if (
         event.type === "draft.changed" &&
-        localDraftOwner.current.botIdForSession?.(event.target.sessionId) ===
-          event.target.botId
+        localDraftOwner.current?.(event.target.sessionId) === event.target.botId
       )
         void drafts.refresh(event.target).catch(() => undefined);
     });
@@ -646,12 +658,7 @@ export function useChatConversationState({
       nativeDraftBridge.current = undefined;
       host.dispose();
     };
-  }, [
-    nativeDraftsEnabled,
-    draftRevisions,
-    bumpDraftRevision,
-    setConversationDrafts,
-  ]);
+  }, [nativeDraftsEnabled, draftRevisions, updateDraft]);
   useEffect(() => {
     if (
       !persistenceOwner ||
@@ -703,153 +710,59 @@ export function useChatConversationState({
     setDraftStorageWarning,
   ]);
 
-  const draftState = conversationDrafts[draftSessionId] ?? {
-    text: "",
-    capsule: null,
-    attachments: [],
-    attachmentCleanup: {},
-  };
-  const draft = draftState.text;
-  const chatContextCapsule = draftState.capsule;
-  const draftAttachments = draftState.attachments;
+  const {
+    text: draft,
+    capsule: chatContextCapsule,
+    attachments: draftAttachments,
+    attachmentCleanup,
+  } = conversationDrafts[draftSessionId] ?? EMPTY_DRAFT;
   const draftAttachmentCleanup = pruneAttachmentCleanup(
     draftAttachments,
-    draftState.attachmentCleanup,
+    attachmentCleanup,
   );
   const setDraft = useCallback(
-    (nextValue: SetStateAction<string>) => {
-      bumpDraftRevision(draftSessionId);
-      setConversationDrafts((current) => {
-        const previous = current[draftSessionId] ?? {
-          text: "",
-          capsule: null,
-          attachments: [],
-          attachmentCleanup: {},
-        };
-        const next =
-          typeof nextValue === "function"
-            ? nextValue(previous.text)
-            : nextValue;
-        if (!next && !previous.capsule && previous.attachments.length === 0) {
-          if (!Object.hasOwn(current, draftSessionId)) return current;
-          const updated = { ...current };
-          delete updated[draftSessionId];
-          return updated;
-        }
-        return {
-          ...current,
-          [draftSessionId]: { ...previous, text: next },
-        };
-      });
-    },
-    [bumpDraftRevision, draftSessionId, setConversationDrafts],
+    (next: SetStateAction<string>) =>
+      updateDraft(draftSessionId, (previous) => ({
+        ...previous,
+        text: typeof next === "function" ? next(previous.text) : next,
+      })),
+    [draftSessionId, updateDraft],
   );
 
   const setDraftForSession = useCallback(
     (
       sessionId: string,
-      value: string,
+      text: string,
       attachments: ManagedAttachmentDescriptor[] = [],
-      attachmentCleanup: AttachmentCleanupMap = {},
-    ) => {
-      bumpDraftRevision(sessionId);
-      setConversationDrafts((current) => ({
-        ...current,
-        [sessionId]: {
-          text: value,
-          capsule: null,
-          attachments,
-          ...(Object.keys(
-            pruneAttachmentCleanup(attachments, attachmentCleanup),
-          ).length > 0
-            ? {
-                attachmentCleanup: pruneAttachmentCleanup(
-                  attachments,
-                  attachmentCleanup,
-                ),
-              }
-            : {}),
-        },
-      }));
-    },
-    [bumpDraftRevision, setConversationDrafts],
+    ) => updateDraft(sessionId, () => ({ text, capsule: null, attachments })),
+    [updateDraft],
   );
 
   const setChatContextCapsule = useCallback(
-    (capsule: ChatContextCapsule | null) => {
-      bumpDraftRevision(draftSessionId);
-      setConversationDrafts((current) => {
-        const previous = current[draftSessionId] ?? {
-          text: "",
-          capsule: null,
-          attachments: [],
-          attachmentCleanup: {},
-        };
-        if (!previous.text && !capsule && previous.attachments.length === 0) {
-          if (!Object.hasOwn(current, draftSessionId)) return current;
-          const updated = { ...current };
-          delete updated[draftSessionId];
-          return updated;
-        }
-        return {
-          ...current,
-          [draftSessionId]: { ...previous, capsule },
-        };
-      });
-    },
-    [bumpDraftRevision, draftSessionId, setConversationDrafts],
+    (capsule: ChatContextCapsule | null) =>
+      updateDraft(draftSessionId, (previous) => ({ ...previous, capsule })),
+    [draftSessionId, updateDraft],
   );
 
   const setDraftAttachments = useCallback(
     (
       attachments: ManagedAttachmentDescriptor[],
-      attachmentCleanup?: AttachmentCleanupMap,
-    ) => {
-      bumpDraftRevision(draftSessionId);
-      setConversationDrafts((current) => {
-        const previous = current[draftSessionId] ?? {
-          text: "",
-          capsule: null,
-          attachments: [],
-          attachmentCleanup: {},
-        };
-        if (!previous.text && !previous.capsule && attachments.length === 0) {
-          if (!Object.hasOwn(current, draftSessionId)) return current;
-          const updated = { ...current };
-          delete updated[draftSessionId];
-          return updated;
-        }
-        const nextCleanup = pruneAttachmentCleanup(
+      cleanup?: AttachmentCleanupMap,
+    ) =>
+      updateDraft(draftSessionId, (previous) => ({
+        ...previous,
+        attachments,
+        attachmentCleanup: pruneAttachmentCleanup(
           attachments,
-          attachmentCleanup ?? previous.attachmentCleanup,
-        );
-        return {
-          ...current,
-          [draftSessionId]: {
-            ...previous,
-            attachments,
-            ...(Object.keys(nextCleanup).length > 0
-              ? { attachmentCleanup: nextCleanup }
-              : { attachmentCleanup: undefined }),
-          },
-        };
-      });
-    },
-    [bumpDraftRevision, draftSessionId, setConversationDrafts],
+          cleanup ?? previous.attachmentCleanup,
+        ),
+      })),
+    [draftSessionId, updateDraft],
   );
 
   const clearDraftForDispatch = useCallback(
-    (sessionId: string) => {
-      const revision = bumpDraftRevision(sessionId);
-      setConversationDrafts((current) => {
-        if (!Object.hasOwn(current, sessionId)) return current;
-        const updated = { ...current };
-        delete updated[sessionId];
-        return updated;
-      });
-      return revision;
-    },
-    [bumpDraftRevision, setConversationDrafts],
+    (sessionId: string) => updateDraft(sessionId, () => EMPTY_DRAFT),
+    [updateDraft],
   );
   const getDraftRevision = useCallback(
     (sessionId: string) => draftRevisions.current[sessionId] ?? 0,
@@ -866,14 +779,10 @@ export function useChatConversationState({
       ) {
         return false;
       }
-      bumpDraftRevision(recovery.sessionId);
-      setConversationDrafts((current) => ({
-        ...current,
-        [recovery.sessionId]: recovery.draft satisfies ConversationDraft,
-      }));
+      updateDraft(recovery.sessionId, () => recovery.draft);
       return true;
     },
-    [bumpDraftRevision, setConversationDrafts, draftRevisions],
+    [updateDraft, draftRevisions],
   );
 
   const togglePin = useCallback(
@@ -953,9 +862,10 @@ export function useChatConversationState({
       (session) => session.sessionId === selectedId,
     );
     const owner = botIdForSession?.(selectedId);
-    const selectedRequestIsActive =
-      Boolean(activeRequest) &&
-      requestSession.current[activeRequest ?? ""] === selectedId;
+    const selectedRequestIsActive = Boolean(
+      activeRequest &&
+        runClaims.current.get(activeRequest)?.sessionId === selectedId,
+    );
     if (
       !backendReady ||
       !selectedId ||
@@ -981,47 +891,14 @@ export function useChatConversationState({
       return next;
     });
     const controller = new AbortController();
-    let cancelled = false;
     let settled = false;
-    const path =
-      `/sessions/messages?sessionId=${encodeURIComponent(selectedId)}&limit=${HISTORY_PAGE_SIZE}&offset=0` as const;
-    void desktopRequest<PagedSessionMessagesResponse>(
-      path,
-      "GET",
-      undefined,
-      controller.signal,
-      undefined,
-      owner,
-    )
-      .then((response) => {
-        if (cancelled || controller.signal.aborted) return;
+    void fetchHistoryPage(selectedId, owner, 0, controller.signal)
+      .then(({ messages: history, page }) => {
+        if (controller.signal.aborted) return;
         settled = true;
-        const history = response.messages
-          .filter(
-            (message) =>
-              message.role === "user" || message.role === "assistant",
-          )
-          .map<DisplayMessage>((message) => {
-            const handoff =
-              message.role === "user" ? splitChatContext(message.text) : null;
-            return {
-              id: message.id,
-              role: message.role as Role,
-              content: handoff?.prompt ?? message.text,
-              attachments: message.attachments,
-              createdAt: message.createdAt,
-              ...(handoff?.capsule
-                ? { contextCapsule: toMessageCapsule(handoff.capsule) }
-                : {}),
-            };
-          });
         setMessages((current) => {
           const currentMessages = current[selectedId] ?? [];
-          const activeRequestIds = new Set(
-            Object.entries(requestSession.current)
-              .filter(([, sessionId]) => sessionId === selectedId)
-              .map(([requestId]) => requestId),
-          );
+          const activeRequestIds = runClaims.current.activeIds(selectedId);
           return {
             ...current,
             [selectedId]: mergeConversationHistory(
@@ -1031,16 +908,10 @@ export function useChatConversationState({
             ),
           };
         });
-        setHistoryPages((current) => ({
-          ...current,
-          [selectedId]: {
-            hasEarlier: Boolean(response.hasEarlier),
-            nextOffset: response.nextOffset ?? response.messages.length,
-          },
-        }));
+        setHistoryPages((current) => ({ ...current, [selectedId]: page }));
       })
       .catch((error) => {
-        if (cancelled || controller.signal.aborted) return;
+        if (controller.signal.aborted) return;
         settled = true;
         requestedHistory.current.delete(historyVersion);
         setHistoryErrors((current) => ({
@@ -1048,21 +919,21 @@ export function useChatConversationState({
           [selectedId]: errorMessage(error),
         }));
       })
-      .finally(() =>
-        setLoadingHistory((current) => (current === selectedId ? "" : current)),
-      );
+      .finally(() => {
+        if (!controller.signal.aborted) setLoadingHistory("");
+      });
 
     return () => {
-      cancelled = true;
       controller.abort();
       if (!settled) requestedHistory.current.delete(historyVersion);
+      setLoadingHistory("");
     };
   }, [
     activeRequest,
     backendReady,
     historyRetryVersion,
     remoteSessions,
-    requestSession,
+    runClaims,
     selectedId,
     botIdForSession,
   ]);
@@ -1104,37 +975,12 @@ export function useChatConversationState({
         return;
       }
       setLoadingEarlierHistory(sessionId);
-      const controller = new AbortController();
       try {
-        const path =
-          `/sessions/messages?sessionId=${encodeURIComponent(sessionId)}&limit=${HISTORY_PAGE_SIZE}&offset=${page.nextOffset}` as const;
-        const response = await desktopRequest<PagedSessionMessagesResponse>(
-          path,
-          "GET",
-          undefined,
-          controller.signal,
-          undefined,
+        const { messages: older, page: nextPage } = await fetchHistoryPage(
+          sessionId,
           owner,
+          page.nextOffset,
         );
-        const older = response.messages
-          .filter(
-            (message) =>
-              message.role === "user" || message.role === "assistant",
-          )
-          .map<DisplayMessage>((message) => {
-            const handoff =
-              message.role === "user" ? splitChatContext(message.text) : null;
-            return {
-              id: message.id,
-              role: message.role as Role,
-              content: handoff?.prompt ?? message.text,
-              attachments: message.attachments,
-              createdAt: message.createdAt,
-              ...(handoff?.capsule
-                ? { contextCapsule: toMessageCapsule(handoff.capsule) }
-                : {}),
-            };
-          });
         setMessages((current) => {
           const existing = current[sessionId] ?? [];
           const existingIds = new Set(existing.map((message) => message.id));
@@ -1146,21 +992,12 @@ export function useChatConversationState({
           );
           return { ...current, [sessionId]: merged };
         });
-        setHistoryPages((current) => ({
-          ...current,
-          [sessionId]: {
-            hasEarlier: Boolean(response.hasEarlier),
-            nextOffset:
-              response.nextOffset ?? page.nextOffset + response.messages.length,
-          },
-        }));
+        setHistoryPages((current) => ({ ...current, [sessionId]: nextPage }));
       } catch (error) {
-        if (!controller.signal.aborted) {
-          setHistoryErrors((current) => ({
-            ...current,
-            [sessionId]: errorMessage(error),
-          }));
-        }
+        setHistoryErrors((current) => ({
+          ...current,
+          [sessionId]: errorMessage(error),
+        }));
       } finally {
         setLoadingEarlierHistory((current) =>
           current === sessionId ? "" : current,
@@ -1184,7 +1021,6 @@ export function useChatConversationState({
       projectChatSessions({
         messages,
         pinnedSessions,
-        query: "",
         remoteSessions,
       }),
     [messages, pinnedSessions, remoteSessions],

@@ -1,11 +1,13 @@
 import type { ChatEvent } from "../../shared/contracts";
-import type { DisplayMessage } from "./models";
 
-type UpdateAssistant = (
-  sessionId: string,
-  requestId: string,
-  update: (message: DisplayMessage) => DisplayMessage,
-) => void;
+export function chatFailureDisposition(
+  event: ChatEvent,
+): "terminal" | "disconnected" | "submission" | undefined {
+  if (event.event === "response.failed") return "terminal";
+  if (event.event !== "error") return undefined;
+  if (event.eventId !== undefined) return "terminal";
+  return event.transportError ? "disconnected" : "submission";
+}
 
 function terminalFailureText(data: unknown): string {
   if (!data || typeof data !== "object") return "";
@@ -24,30 +26,11 @@ function terminalFailureNotice(data: unknown): string {
   return `${summary} Retry to continue.`;
 }
 
-function failedResponseContent(content: string, data: unknown): string {
+export function failedResponseContent(content: string, data: unknown): string {
   const notice = terminalFailureNotice(data);
   if (!content.trim()) return notice;
 
   // A replayed terminal event must not turn a useful partial response into a
   // stack of identical failure notices.
   return content.endsWith(notice) ? content : `${content}\n\n${notice}`;
-}
-
-export function handleFailedChatTerminalEvent(
-  event: ChatEvent,
-  sessionId: string,
-  updateAssistant: UpdateAssistant,
-  finishRequest: (requestId: string) => void,
-): boolean {
-  if (event.event !== "response.failed" && event.event !== "error") {
-    return false;
-  }
-  updateAssistant(sessionId, event.requestId, (message) => ({
-    ...message,
-    content: failedResponseContent(message.content, event.data),
-    pending: false,
-    error: true,
-  }));
-  finishRequest(event.requestId);
-  return true;
 }

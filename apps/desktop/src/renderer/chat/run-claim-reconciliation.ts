@@ -1,10 +1,92 @@
-import { historicalRunReceipt, type RunReceipt, runEventKey } from "./models";
+import { isTerminalRunStatus } from "@doolittle/contracts/run";
+import { type RunReceipt, runEventKey } from "./models";
 
 export interface RunClaim {
-  runId: string;
-  sessionId: string;
-  botId: string;
-  generation: number;
+  readonly runId: string;
+  readonly sessionId: string;
+  readonly botId: string;
+  active: boolean;
+}
+
+/** Synchronous admission shared by all desktop conversation panels. */
+export class RunClaims {
+  private claims = new Map<string, RunClaim>();
+  private settled = new Set<string>();
+
+  get(runId: string): RunClaim | undefined {
+    return this.claims.get(runId);
+  }
+
+  forSession(sessionId: string, except?: RunClaim): RunClaim | undefined {
+    for (const claim of this.claims.values()) {
+      if (claim.sessionId === sessionId && claim !== except) return claim;
+    }
+  }
+
+  activeIds(sessionId: string): Set<string> {
+    const ids = new Set<string>();
+    for (const claim of this.claims.values()) {
+      if (claim.active && claim.sessionId === sessionId) ids.add(claim.runId);
+    }
+    return ids;
+  }
+
+  reserve(
+    runId: string,
+    sessionId: string,
+    botId: string,
+  ): RunClaim | undefined {
+    if (
+      this.settled.has(runId) ||
+      this.claims.has(runId) ||
+      this.forSession(sessionId)
+    )
+      return;
+    const claim = { runId, sessionId, botId, active: false };
+    this.claims.set(runId, claim);
+    return claim;
+  }
+
+  activate(claim: RunClaim): boolean {
+    if (
+      this.get(claim.runId) !== claim ||
+      this.forSession(claim.sessionId, claim)
+    )
+      return false;
+    claim.active = true;
+    return true;
+  }
+
+  recover(runId: string, sessionId: string, botId: string): boolean {
+    if (this.settled.has(runId)) return false;
+    const existing = this.get(runId);
+    if (existing) {
+      // Repeating inventory cannot invalidate a pending Stop receipt for this run.
+      return (
+        existing.active &&
+        existing.sessionId === sessionId &&
+        existing.botId === botId
+      );
+    }
+    this.claims.set(runId, { runId, sessionId, botId, active: true });
+    return true;
+  }
+
+  release(claim: RunClaim): boolean {
+    if (this.get(claim.runId) !== claim) return false;
+    return this.claims.delete(claim.runId);
+  }
+
+  settle(claim: RunClaim): boolean {
+    if (!this.release(claim)) return false;
+    // A run inventory request can finish after a newer targeted Stop receipt.
+    this.settled.add(claim.runId);
+    if (this.settled.size > 500) {
+      const oldest = this.settled.values().next().value;
+      if (oldest !== undefined) this.settled.delete(oldest);
+    }
+    return true;
+  }
 }
 
 export function mergeTerminalRunReceipt(
@@ -22,32 +104,19 @@ export function mergeTerminalRunReceipt(
 }
 
 /** A terminal receipt can release only the exact claim that requested it. */
-export function matchingTerminalClaimReceipt(
-  run: unknown,
+export function isTerminalClaimReceipt(
+  receipt: RunReceipt,
   claim: RunClaim,
-  current: {
-    sessions: Readonly<Record<string, string>>;
-    bots: Readonly<Record<string, string>>;
-    generations: Readonly<Record<string, number>>;
-    claimedSessions: Readonly<Record<string, true>>;
-  },
-  persistedUpdates?: unknown,
-): RunReceipt | null {
-  if (!run || typeof run !== "object" || Array.isArray(run)) return null;
-  const candidate = run as Record<string, unknown>;
-  if (
-    candidate.runId !== claim.runId ||
-    candidate.sessionId !== claim.sessionId ||
-    candidate.botId !== claim.botId ||
-    current.sessions[claim.runId] !== claim.sessionId ||
-    current.bots[claim.runId] !== claim.botId ||
-    current.generations[claim.runId] !== claim.generation ||
-    !current.claimedSessions[claim.sessionId] ||
-    Object.entries(current.sessions).some(
-      ([runId, sessionId]) =>
-        runId !== claim.runId && sessionId === claim.sessionId,
-    )
-  )
-    return null;
-  return historicalRunReceipt(candidate, persistedUpdates);
+  claims: RunClaims,
+): boolean {
+  const { run } = receipt.latest;
+  return (
+    isTerminalRunStatus(run.status) &&
+    run.runId === claim.runId &&
+    run.sessionId === claim.sessionId &&
+    run.botId === claim.botId &&
+    claims.get(claim.runId) === claim &&
+    claim.active &&
+    !claims.forSession(claim.sessionId, claim)
+  );
 }

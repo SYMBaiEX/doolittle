@@ -15,23 +15,30 @@ export function streamedResponseFrameKey(
     : undefined;
 }
 
-/**
- * Reconcile streamed prose with the server's authoritative response snapshot.
- * Older desktop/agent pairs only send `delta`, so that path remains append-only.
- */
-export function reconcileStreamedResponse(
-  current: string,
+export interface BufferedResponse {
+  replace: boolean;
+  text: string;
+}
+
+/** Preserve an authoritative snapshot and any following append-only frames. */
+export function bufferStreamedResponse(
+  previous: BufferedResponse | undefined,
   payload: StreamedResponsePayload,
-): string {
-  if (typeof payload.response === "string") return payload.response;
-  return `${current}${typeof payload.delta === "string" ? payload.delta : ""}`;
+): BufferedResponse {
+  if (typeof payload.response === "string")
+    return { replace: true, text: payload.response };
+  const delta = typeof payload.delta === "string" ? payload.delta : "";
+  return {
+    replace: previous?.replace ?? false,
+    text: (previous?.text ?? "") + delta,
+  };
 }
 
 export function completedResponseText(
   current: string,
-  payload: { response?: unknown },
+  response: unknown,
 ): string {
-  return typeof payload.response === "string" && payload.response
-    ? payload.response
+  return typeof response === "string" && response
+    ? response
     : current || "Done.";
 }

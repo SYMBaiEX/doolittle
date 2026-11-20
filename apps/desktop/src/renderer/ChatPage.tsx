@@ -22,6 +22,7 @@ import type {
   BotConversationScope,
   BotConversationScopeResponse,
   ChatEvent,
+  ManagedAttachmentDescriptor,
   RuntimeStatus,
   SessionForkResponse,
   SessionSummary,
@@ -35,7 +36,10 @@ import {
   type InspectorTab,
 } from "./chat/CompanionInspector";
 import { isChatNearBottom, scheduleChatScroll } from "./chat/chat-scroll";
-import { handleFailedChatTerminalEvent } from "./chat/chat-terminal-events";
+import {
+  chatFailureDisposition,
+  failedResponseContent,
+} from "./chat/chat-terminal-events";
 import { addUnreadMessageIds, appendedMessageIds } from "./chat/chat-unread";
 import {
   botAcceptsDispatch,
@@ -59,14 +63,16 @@ import {
   type DisplayMessage,
   historicalRunReceipt,
   isDesktopRunUpdate,
+  type RunReceipt,
   type RunReceiptStore,
   runEventKey,
 } from "./chat/models";
 import { useChatAttachments } from "./chat/page/useChatAttachments";
 import {
-  matchingTerminalClaimReceipt,
+  isTerminalClaimReceipt,
   mergeTerminalRunReceipt,
   type RunClaim,
+  RunClaims,
 } from "./chat/run-claim-reconciliation";
 import {
   effectiveRunHydration,
@@ -76,8 +82,10 @@ import {
 } from "./chat/run-hydration-scope";
 import { sessionPendingApprovalCount } from "./chat/session-approvals";
 import {
+  type BufferedResponse,
+  bufferStreamedResponse,
   completedResponseText,
-  reconcileStreamedResponse,
+  type StreamedResponsePayload,
   streamedResponseFrameKey,
 } from "./chat/streamed-response";
 import { useChatComposerSupport } from "./chat/useChatComposerSupport";
@@ -93,6 +101,7 @@ import { RouteControlDialog } from "./components/RouteControlDialog";
 import { useModalFocusBoundary } from "./components/useModalFocusBoundary";
 import { newConversationId } from "./conversation-id";
 import {
+  type AttachmentCleanupMap,
   composeQueuedMessage,
   loadConversationQueue,
   type PersistedQueuedMessage,
@@ -127,10 +136,7 @@ const ATTACHMENT_ONLY_MESSAGE = "Review the attached files.";
 export type ChatSurface = "conversation" | "history" | "media";
 
 /** The transcript needs a useful user intent even when file context is the only input. */
-export function chatSubmissionContent(
-  draft: string,
-  attachmentCount: number,
-): string {
+function chatSubmissionContent(draft: string, attachmentCount: number): string {
   const trimmed = draft.trim();
   return trimmed || attachmentCount > 0
     ? trimmed || ATTACHMENT_ONLY_MESSAGE
@@ -138,7 +144,7 @@ export function chatSubmissionContent(
 }
 
 /** Progress belongs to its originating conversation, not whichever view is selected. */
-export function setSessionProgress(
+function setSessionProgress(
   progressBySession: Readonly<Record<string, string>>,
   sessionId: string,
   progress: string,
@@ -147,7 +153,7 @@ export function setSessionProgress(
   return { ...progressBySession, [sessionId]: progress };
 }
 
-export function clearSessionProgress(
+function clearSessionProgress(
   progressBySession: Readonly<Record<string, string>>,
   sessionId: string,
 ): Record<string, string> {
@@ -369,23 +375,7 @@ export function ChatSessionPanel({
   const [dispatchFeedback, setDispatchFeedback] = useWorkspaceState<
     Record<string, string>
   >("run.dispatch-feedback", {});
-  const activeRequestSessionsRef = useWorkspaceRef<Record<string, true>>(
-    "run.claims",
-    {},
-  );
-  const requestSession = useWorkspaceRef<Record<string, string>>(
-    "run.sessions",
-    {},
-  );
-  const requestBot = useWorkspaceRef<Record<string, string>>(
-    "run.bot-owners",
-    {},
-  );
-  const requestGeneration = useWorkspaceRef<Record<string, number>>(
-    "run.claim-generations",
-    {},
-  );
-  const nextRequestGeneration = useWorkspaceRef("run.next-claim-generation", 0);
+  const runClaims = useWorkspaceRef("run.claim-registry", new RunClaims());
   const activeRequest = activeRequests[selectedId] ?? null;
   const [runHydrationSnapshot, setRunHydrationSnapshot] =
     useWorkspaceState<RunHydrationSnapshot>("run.hydration", {
@@ -476,12 +466,11 @@ export function ChatSessionPanel({
     backendReady: backend.phase === "ready" && !coordinator && visible,
     onSelect,
     remoteSessions,
-    requestSession,
+    runClaims,
     selectedId,
     persistenceOwner: coordinator,
     nativeHostReady: backend.phase === "ready",
     botIdForSession,
-    projectTargetForSession,
   });
   const latestSelectedMessage = selectedMessages.at(-1);
   const workspaceBinding = sessionWorkspaceBinding(
@@ -656,6 +645,27 @@ export function ChatSessionPanel({
     "run.receipts",
     {},
   );
+  const [runConnections, setRunConnections] = useWorkspaceState<
+    Record<string, "disconnected" | "reconnecting">
+  >("run.connections", {});
+  const reconnectAttempts = useWorkspaceRef(
+    "run.reconnect-attempts",
+    new Set<RunClaim>(),
+  );
+  const runConnection = activeRequest
+    ? runConnections[activeRequest]
+    : undefined;
+  const setRunConnection = (
+    requestId: string,
+    status?: "disconnected" | "reconnecting",
+  ) => {
+    setRunConnections((current) => {
+      if (current[requestId] === status) return current;
+      if (status) return { ...current, [requestId]: status };
+      const { [requestId]: _removed, ...remaining } = current;
+      return remaining;
+    });
+  };
   const [cancellingRequests, setCancellingRequests] = useWorkspaceState<
     Record<string, boolean>
   >("run.cancelling", {});
@@ -668,14 +678,11 @@ export function ChatSessionPanel({
       return remaining;
     });
   };
-  const runCursors = useWorkspaceRef<Record<string, number>>(
+  const runCursors = useWorkspaceRef<Record<string, number> | null>(
     "run.cursors",
-    loadRunCursors(),
+    null,
   );
-  const seenRunEvents = useWorkspaceRef<Record<string, Set<number>>>(
-    "run.seen-events",
-    {},
-  );
+  runCursors.current ??= loadRunCursors();
   const seenStreamParts = useWorkspaceRef<Record<string, Set<string>>>(
     "run.seen-parts",
     {},
@@ -685,7 +692,7 @@ export function ChatSessionPanel({
     {},
   );
   const pendingDeltas = useWorkspaceRef<
-    Record<string, { sessionId: string; delta: unknown }>
+    Record<string, { claim: RunClaim; update: BufferedResponse }>
   >("run.pending-deltas", {});
   const deltaFrame = useWorkspaceRef<number | null>("run.delta-frame", null);
   const [forkingMessageId, setForkingMessageId] = useState("");
@@ -992,10 +999,12 @@ export function ChatSessionPanel({
     loadingHistory === selectedId
       ? "Loading conversation."
       : queueAnnouncement ||
-        progress ||
-        (latestAssistant && !latestAssistant.pending
-          ? `${currentBot?.name ?? "Doolittle"} ${latestAssistant.error ? "response failed." : "replied."}`
-          : "");
+        (runConnection
+          ? ""
+          : progress ||
+            (latestAssistant && !latestAssistant.pending
+              ? `${currentBot?.name ?? "Doolittle"} ${latestAssistant.error ? "response failed." : "replied."}`
+              : ""));
 
   const updateAssistant = useCallback(
     (
@@ -1020,67 +1029,68 @@ export function ChatSessionPanel({
     }
     const pending = pendingDeltas.current;
     pendingDeltas.current = {};
-    for (const [requestId, item] of Object.entries(pending)) {
-      updateAssistant(item.sessionId, requestId, (message) => ({
-        ...message,
-        content: reconcileStreamedResponse(
-          message.content,
-          item.delta as { delta?: unknown; response?: unknown },
-        ),
-      }));
-    }
-  }, [updateAssistant, pendingDeltas, deltaFrame]);
-
-  const capturedRunClaim = (requestId: string): RunClaim | null => {
-    const sessionId = requestSession.current[requestId];
-    const botId = requestBot.current[requestId];
-    const generation = requestGeneration.current[requestId];
-    return sessionId && botId && generation !== undefined
-      ? { runId: requestId, sessionId, botId, generation }
-      : null;
-  };
-
-  const currentTerminalReceipt = (
-    run: unknown,
-    claim: RunClaim,
-    persistedUpdates?: unknown,
-  ) =>
-    matchingTerminalClaimReceipt(
-      run,
-      claim,
-      {
-        sessions: requestSession.current,
-        bots: requestBot.current,
-        generations: requestGeneration.current,
-        claimedSessions: activeRequestSessionsRef.current,
-      },
-      persistedUpdates,
+    const updates = Object.values(pending).filter(
+      ({ claim }) => runClaims.current.get(claim.runId) === claim,
     );
+    if (!updates.length) return;
+    setMessages((current) => {
+      const next = { ...current };
+      for (const { claim, update } of updates) {
+        const { sessionId, runId } = claim;
+        next[sessionId] = (next[sessionId] ?? []).map((message) =>
+          message.id === `assistant:${runId}`
+            ? {
+                ...message,
+                content: (update.replace ? "" : message.content) + update.text,
+              }
+            : message,
+        );
+      }
+      return next;
+    });
+  }, [setMessages, pendingDeltas, deltaFrame, runClaims]);
 
-  const finishRequest = (requestId: string) => {
+  const settleRequest = (
+    claim: RunClaim,
+    type: "completed" | "cancelled" | "error",
+    content?: (previous: string) => string,
+    durable = true,
+  ) => {
+    if (runClaims.current.get(claim.runId) !== claim) return;
+    const { runId: requestId, sessionId: completedSessionId } = claim;
+    flushPendingDeltas();
+    updateAssistant(completedSessionId, requestId, (message) => ({
+      ...message,
+      content: content
+        ? content(message.content)
+        : type === "cancelled"
+          ? message.content || "Response stopped."
+          : message.content,
+      pending: false,
+      ...(type === "error" ? { error: true } : {}),
+    }));
+    if (durable) runClaims.current.settle(claim);
+    else runClaims.current.release(claim);
+    const remainingRuns = runClaims.current.activeIds(completedSessionId);
+    const nextRequestId = remainingRuns.values().next().value;
     const cancellationTimer = cancellationTimers.current[requestId];
     if (cancellationTimer !== undefined) {
       window.clearTimeout(cancellationTimer);
       delete cancellationTimers.current[requestId];
     }
     clearCancellingRequest(requestId);
+    setRunConnection(requestId);
     delete seenStreamParts.current[requestId];
-    const completedSessionId = requestSession.current[requestId];
-    const anotherRunClaimsSession = Object.entries(requestSession.current).some(
-      ([otherRequestId, sessionId]) =>
-        otherRequestId !== requestId && sessionId === completedSessionId,
-    );
-    if (completedSessionId && !anotherRunClaimsSession) {
-      delete activeRequestSessionsRef.current[completedSessionId];
-    }
     setActiveRequests((current) => {
-      if (!completedSessionId || current[completedSessionId] !== requestId) {
+      if (current[completedSessionId] !== requestId) {
         return current;
       }
+      if (nextRequestId)
+        return { ...current, [completedSessionId]: nextRequestId };
       const { [completedSessionId]: _completed, ...remaining } = current;
       return remaining;
     });
-    if (completedSessionId && !anotherRunClaimsSession) {
+    if (!runClaims.current.forSession(completedSessionId)) {
       setProgressBySession((current) =>
         clearSessionProgress(current, completedSessionId),
       );
@@ -1090,26 +1100,82 @@ export function ChatSessionPanel({
           : current,
       );
     }
-    delete requestSession.current[requestId];
-    delete requestBot.current[requestId];
-    delete requestGeneration.current[requestId];
     refreshRuntime();
-    if (completedSessionId) {
-      void refreshSessionUsage(completedSessionId);
+    void refreshSessionUsage(completedSessionId);
+  };
+
+  const acceptTerminalReceipt = (receipt: RunReceipt) => {
+    const { type, run } = receipt.latest;
+    setRunReceipts((current) => ({
+      ...current,
+      [run.runId]: mergeTerminalRunReceipt(current[run.runId], receipt),
+    }));
+    const claim = runClaims.current.get(run.runId);
+    if (
+      claim &&
+      (type === "completed" || type === "cancelled" || type === "error") &&
+      isTerminalClaimReceipt(receipt, claim, runClaims.current)
+    ) {
+      settleRequest(claim, type);
+    }
+  };
+
+  const reconcileRunClaim = async (claim: RunClaim): Promise<void> => {
+    if (!claim.botId || runClaims.current.get(claim.runId) !== claim) return;
+    const payload = await desktopRequest<{ run?: unknown }>(
+      `/chat/runs/${encodeURIComponent(claim.runId)}`,
+      "GET",
+      undefined,
+      undefined,
+      undefined,
+      claim.botId,
+    );
+    const receipt = historicalRunReceipt(payload.run, undefined);
+    if (receipt && isTerminalClaimReceipt(receipt, claim, runClaims.current)) {
+      acceptTerminalReceipt(receipt);
+    }
+  };
+
+  const subscribeToRun = async (requestId: string) => {
+    const claim = runClaims.current.get(requestId);
+    if (!claim?.active) return;
+    try {
+      await window.doolittle.subscribeChat({
+        requestId,
+        after: runCursors.current?.[requestId] ?? 0,
+        ...(claim.botId ? { botId: claim.botId } : {}),
+      });
+    } catch {
+      if (runClaims.current.get(requestId) === claim)
+        setRunConnection(requestId, "disconnected");
+    }
+  };
+
+  const reconnectRequest = async (requestId: string) => {
+    const claim = runClaims.current.get(requestId);
+    const attempts = reconnectAttempts.current;
+    if (!claim?.active || attempts.has(claim)) return;
+    attempts.add(claim);
+    setRunConnection(requestId, "reconnecting");
+    try {
+      await reconcileRunClaim(claim).catch(() => undefined);
+      if (runClaims.current.get(requestId) === claim) {
+        await subscribeToRun(requestId);
+      }
+    } finally {
+      attempts.delete(claim);
     }
   };
 
   const cancelRequest = async (requestId: string) => {
     if (cancellingRequests[requestId]) return;
-    const claim = capturedRunClaim(requestId);
+    const claim = runClaims.current.get(requestId);
+    if (!claim?.active) return;
     setCancellingRequests((current) => ({ ...current, [requestId]: true }));
     setQueueAnnouncement("Stopping the current response…");
     try {
-      await window.doolittle.cancelChat(
-        requestId,
-        requestBot.current[requestId],
-      );
-      if (requestSession.current[requestId]) {
+      await window.doolittle.cancelChat(requestId, claim.botId || undefined);
+      if (runClaims.current.get(requestId) === claim) {
         cancellationTimers.current[requestId] = window.setTimeout(() => {
           delete cancellationTimers.current[requestId];
           clearCancellingRequest(requestId);
@@ -1120,72 +1186,44 @@ export function ChatSessionPanel({
       }
     } catch {
       clearCancellingRequest(requestId);
-      const sessionId = requestSession.current[requestId];
-      if (!sessionId) return;
+      if (runClaims.current.get(requestId) !== claim) return;
       // An unconfirmed stop is not a terminal run receipt. Retain the owned
       // request/session claim so another send cannot duplicate a live turn.
       setDispatchFeedback((current) =>
-        retainCancellationFailureFeedback(current, sessionId),
+        retainCancellationFailureFeedback(current, claim.sessionId),
       );
-      return;
     }
-    if (!claim) return;
-    try {
-      const payload = await desktopRequest<{ run?: unknown }>(
-        `/chat/runs/${encodeURIComponent(requestId)}`,
-        "GET",
-        undefined,
-        undefined,
-        undefined,
-        claim.botId,
-      );
-      const receipt = currentTerminalReceipt(payload.run, claim);
-      if (!receipt) return;
-      setRunReceipts((current) => ({
-        ...current,
-        [requestId]: mergeTerminalRunReceipt(current[requestId], receipt),
-      }));
-      flushPendingDeltas();
-      updateAssistant(claim.sessionId, requestId, (message) => ({
-        ...message,
-        content:
-          receipt.latest.type === "cancelled"
-            ? message.content || "Response stopped."
-            : message.content,
-        pending: false,
-        ...(receipt.latest.type === "error" ? { error: true } : {}),
-      }));
-      finishRequest(requestId);
-    } catch {
-      // An acknowledged Stop without a verified terminal receipt is still
-      // uncertain. Keep the claim until an event or later hydration confirms it.
-    }
+    // An acknowledged Stop without a verified terminal receipt is still
+    // uncertain. Keep the claim until an event or later hydration confirms it.
+    await reconcileRunClaim(claim).catch(() => undefined);
   };
 
   const handleChatEvent = useEffectEvent((event: ChatEvent) => {
-    const sessionId = requestSession.current[event.requestId];
-    if (!sessionId) return;
-    const eventId =
-      event.eventId ??
-      (event.data &&
-      typeof event.data === "object" &&
-      Number.isSafeInteger((event.data as { event_id?: unknown }).event_id)
-        ? Number((event.data as { event_id: number }).event_id)
-        : undefined);
-    if (eventId !== undefined) {
-      let seen = seenRunEvents.current[event.requestId];
-      if (!seen) {
-        seen = new Set();
-        seenRunEvents.current[event.requestId] = seen;
-      }
-      if (seen.has(eventId)) return;
-      seen.add(eventId);
-      if (seen.size > 200) seen.delete(Math.min(...seen));
-      runCursors.current[event.requestId] = eventId;
-      saveRunCursors(runCursors.current);
+    const claim = runClaims.current.get(event.requestId);
+    if (!claim?.active) return;
+    const failure = chatFailureDisposition(event);
+    // The matching startChat rejection owns pre-acceptance draft recovery.
+    if (failure === "submission") return;
+    if (failure === "disconnected") {
+      flushPendingDeltas();
+      setRunConnection(claim.runId, "disconnected");
+      void reconcileRunClaim(claim).catch(() => undefined);
+      return;
+    }
+    const { sessionId } = claim;
+    const { eventId } = event;
+    const cursors = runCursors.current;
+    if (eventId !== undefined && cursors) {
+      const previous = cursors[event.requestId];
+      if (previous !== undefined && eventId <= previous) return;
+      cursors[event.requestId] = eventId;
+      saveRunCursors(cursors);
+      setRunConnection(claim.runId);
     }
     if (event.event === "agent.run" && isDesktopRunUpdate(event.data)) {
       const update = event.data;
+      if (update.run.runId !== claim.runId || update.sessionId !== sessionId)
+        return;
       setRunReceipts((current) => {
         const prior = current[event.requestId];
         const nextKey = runEventKey(update);
@@ -1207,12 +1245,7 @@ export function ChatSessionPanel({
     if (event.event === "response.output_text.delta") {
       const payload =
         event.data && typeof event.data === "object"
-          ? (event.data as {
-              delta?: unknown;
-              response?: unknown;
-              part_id?: unknown;
-              sequence?: unknown;
-            })
+          ? (event.data as StreamedResponsePayload)
           : {};
       const frameKey = streamedResponseFrameKey(payload);
       if (frameKey) {
@@ -1227,13 +1260,11 @@ export function ChatSessionPanel({
       }
       const prior = pendingDeltas.current[event.requestId];
       pendingDeltas.current[event.requestId] = {
-        sessionId,
-        delta: prior
-          ? {
-              ...payload,
-              delta: `${String(prior.delta && typeof prior.delta === "object" ? ((prior.delta as { delta?: unknown }).delta ?? "") : "")}${String(payload.delta ?? "")}`,
-            }
-          : payload,
+        claim,
+        update: bufferStreamedResponse(
+          prior?.claim === claim ? prior.update : undefined,
+          payload,
+        ),
       };
       if (deltaFrame.current === null) {
         deltaFrame.current = requestAnimationFrame(flushPendingDeltas);
@@ -1252,44 +1283,28 @@ export function ChatSessionPanel({
           eventText(event.data) ||
             (event.event === "attachment.warning"
               ? "Attachment cleanup needs attention. Your response is still running."
-              : `${bots?.find((bot) => bot.id === resolveSessionBot(sessionId))?.name ?? "Doolittle"} is working…`),
+              : `${bots?.find((bot) => bot.id === claim.botId)?.name ?? "Doolittle"} is working…`),
         ),
       );
       return;
     }
     if (event.event === "response.completed") {
-      flushPendingDeltas();
       const response =
         event.data && typeof event.data === "object"
-          ? String((event.data as { response?: unknown }).response ?? "")
-          : "";
-      updateAssistant(sessionId, event.requestId, (message) => ({
-        ...message,
-        content: completedResponseText(message.content, { response }),
-        pending: false,
-      }));
-      finishRequest(event.requestId);
-      return;
-    }
-    flushPendingDeltas();
-    if (
-      handleFailedChatTerminalEvent(
-        event,
-        sessionId,
-        updateAssistant,
-        finishRequest,
-      )
+          ? (event.data as { response?: unknown }).response
+          : undefined;
+      settleRequest(claim, "completed", (content) =>
+        completedResponseText(content, response),
+      );
+    } else if (failure === "terminal") {
+      settleRequest(claim, "error", (content) =>
+        failedResponseContent(content, event.data),
+      );
+    } else if (
+      event.event === "cancelled" ||
+      event.event === "response.cancelled"
     ) {
-      return;
-    }
-    if (event.event === "cancelled" || event.event === "response.cancelled") {
-      flushPendingDeltas();
-      updateAssistant(sessionId, event.requestId, (message) => ({
-        ...message,
-        content: message.content || "Response stopped.",
-        pending: false,
-      }));
-      finishRequest(event.requestId);
+      settleRequest(claim, "cancelled");
     }
   });
 
@@ -1308,19 +1323,6 @@ export function ChatSessionPanel({
       .then((payload) => {
         if (disposed) return;
         setRunHydrationWarnings(payload.warnings);
-        if (!Array.isArray(payload.runs)) {
-          setRunHydrationSnapshot({
-            scope: recoveryScope,
-            status: "unavailable",
-          });
-          return;
-        }
-        const persistedUpdates =
-          payload.updates &&
-          typeof payload.updates === "object" &&
-          !Array.isArray(payload.updates)
-            ? (payload.updates as Record<string, unknown>)
-            : {};
         for (const value of payload.runs) {
           if (!value || typeof value !== "object") continue;
           const run = value as Record<string, unknown>;
@@ -1340,38 +1342,12 @@ export function ChatSessionPanel({
             continue;
           if (!runId || !sessionId) continue;
           if (["complete", "cancelled", "error"].includes(status)) {
-            const receipt = historicalRunReceipt(run, persistedUpdates[runId]);
-            if (!receipt) continue;
-            setRunReceipts((current) => ({
-              ...current,
-              [runId]: mergeTerminalRunReceipt(current[runId], receipt),
-            }));
-            const claim = capturedRunClaim(runId);
-            if (
-              claim &&
-              currentTerminalReceipt(run, claim, persistedUpdates[runId])
-            ) {
-              flushPendingDeltas();
-              updateAssistant(sessionId, runId, (message) => ({
-                ...message,
-                content:
-                  status === "cancelled"
-                    ? message.content || "Response stopped."
-                    : message.content,
-                pending: false,
-                ...(status === "error" ? { error: true } : {}),
-              }));
-              finishRequest(runId);
-            }
+            const receipt = historicalRunReceipt(run, payload.updates[runId]);
+            if (receipt) acceptTerminalReceipt(receipt);
             continue;
           }
-          requestSession.current[runId] = sessionId;
-          requestGeneration.current[runId] = ++nextRequestGeneration.current;
-          if (botId) {
-            requestBot.current[runId] = botId;
-            onBindSessionBot?.(sessionId, botId);
-          }
-          activeRequestSessionsRef.current[sessionId] = true;
+          if (!runClaims.current.recover(runId, sessionId, botId)) continue;
+          if (botId) onBindSessionBot?.(sessionId, botId);
           setActiveRequests((current) =>
             current[sessionId] ? current : { ...current, [sessionId]: runId },
           );
@@ -1397,13 +1373,7 @@ export function ChatSessionPanel({
               ],
             };
           });
-          void window.doolittle
-            .subscribeChat({
-              requestId: runId,
-              after: runCursors.current[runId] ?? 0,
-              ...(botId ? { botId } : {}),
-            } as Parameters<typeof window.doolittle.subscribeChat>[0])
-            .catch(() => undefined);
+          void subscribeToRun(runId);
         }
         setRunHydrationSnapshot({
           scope: recoveryScope,
@@ -1430,29 +1400,37 @@ export function ChatSessionPanel({
     setRunHydrationSnapshot,
     setRunHydrationWarnings,
     setRunReceipts,
-    activeRequestSessionsRef,
-    requestSession,
+    runClaims,
     setActiveRequests,
     runCursors,
     runHydrationRetry,
     defaultBotId,
     onBindSessionBot,
-    requestBot,
     recoveryBotIds,
     recoveryScope,
   ]);
 
-  const sendMessage = async (
-    input: string,
-    attachments = attachedFiles,
-    attachmentCleanup = draftAttachmentCleanup,
-    sessionId = selectedId,
-    clearComposer = true,
-    memoryMatchOverride?: MemoryMatchSnapshot,
-    projectIdOverride?: string | null,
-    contextCapsule: ChatContextCapsule | null = chatContextCapsule,
-    composedContentOverride?: string,
-  ) => {
+  const sendMessage = async ({
+    input,
+    attachments,
+    attachmentCleanup = {},
+    sessionId,
+    clearComposer = false,
+    memoryMatchOverride,
+    projectIdOverride,
+    contextCapsule = null,
+    composedContentOverride,
+  }: {
+    input: string;
+    attachments: ManagedAttachmentDescriptor[];
+    attachmentCleanup?: AttachmentCleanupMap;
+    sessionId: string;
+    clearComposer?: boolean;
+    memoryMatchOverride?: MemoryMatchSnapshot;
+    projectIdOverride?: string | null;
+    contextCapsule?: ChatContextCapsule | null;
+    composedContentOverride?: string;
+  }) => {
     if (attachmentImportPending) {
       setAttachmentValidationError(
         "Wait for file import to finish before sending this message.",
@@ -1483,10 +1461,7 @@ export function ChatSessionPanel({
       hasContent: Boolean(content),
       sessionId,
       workspaceKind: targetScope?.kind === "confirmed" ? "current" : "unbound",
-      alreadyClaimed: Boolean(
-        activeRequestSessionsRef.current[sessionId] ||
-          activeRequests[sessionId],
-      ),
+      alreadyClaimed: Boolean(runClaims.current.forSession(sessionId)),
       ownerResolved: !botIdForSession || Boolean(botId),
       ownerReady: botAcceptsDispatch(owner, botId, defaultBotId),
       backendReady: hostBackend.phase === "ready",
@@ -1508,7 +1483,8 @@ export function ChatSessionPanel({
       return false;
     }
     const messageAttachments = attachments;
-    if (projectTargetForSession && !projectTargetForSession(sessionId)) {
+    const projectTarget = projectTargetForSession?.(sessionId);
+    if (projectTargetForSession && !projectTarget) {
       setDispatchFeedback((current) => ({
         ...current,
         [sessionId]:
@@ -1523,7 +1499,7 @@ export function ChatSessionPanel({
         ? targetScope.conversation.projectId
         : projectIdOverride === undefined
           ? projectTargetForSession
-            ? projectTargetForSession(sessionId)?.projectId
+            ? projectTarget?.projectId
             : (remoteSessions.find((session) => session.sessionId === sessionId)
                 ?.projectId ?? activeProject?.id)
           : (projectIdOverride ?? undefined);
@@ -1533,14 +1509,9 @@ export function ChatSessionPanel({
         ? targetScope.conversation.workspacePath
         : "";
     const dispatchedDraftRevision = getDraftRevision(sessionId);
-    if (botIdForSession && !botId) {
-      setQueueAnnouncement(
-        "This conversation's owner is unavailable. Select its bot before sending.",
-      );
-      return false;
-    }
+    const claim = runClaims.current.reserve(requestId, sessionId, botId);
+    if (!claim) return false;
     if (botId) {
-      activeRequestSessionsRef.current[sessionId] = true;
       setDispatchPending((current) => ({ ...current, [sessionId]: true }));
       try {
         const response = await desktopRequest<BotConversationScopeResponse>(
@@ -1569,7 +1540,7 @@ export function ChatSessionPanel({
           onConfirmConversationScope?.(confirmed);
         } else if (!scopeForSession) dispatchWorkspacePath = workspacePath;
       } catch {
-        delete activeRequestSessionsRef.current[sessionId];
+        runClaims.current.release(claim);
         setDispatchFeedback((current) => ({
           ...current,
           [sessionId]:
@@ -1579,6 +1550,15 @@ export function ChatSessionPanel({
       } finally {
         setDispatchPending((current) => ({ ...current, [sessionId]: false }));
       }
+    }
+    if (!runClaims.current.activate(claim)) {
+      runClaims.current.release(claim);
+      setDispatchFeedback((current) => ({
+        ...current,
+        [sessionId]:
+          "A running response was recovered. Your draft has been kept.",
+      }));
+      return false;
     }
     if (botId) onBindSessionBot?.(sessionId, botId);
     const createdAt = new Date().toISOString();
@@ -1591,10 +1571,6 @@ export function ChatSessionPanel({
             capsule: contextCapsule,
           }
         : null;
-    requestSession.current[requestId] = sessionId;
-    requestGeneration.current[requestId] = ++nextRequestGeneration.current;
-    if (botId) requestBot.current[requestId] = botId;
-    activeRequestSessionsRef.current[sessionId] = true;
     // A user's own dispatch should remain visible even if they were reading history.
     forceTranscriptFollowRef.current = true;
     setMessages((current) => ({
@@ -1661,14 +1637,8 @@ export function ChatSessionPanel({
       } as Parameters<typeof window.doolittle.startChat>[0]);
       return true;
     } catch (error) {
-      if (!requestSession.current[requestId]) return false;
-      updateAssistant(sessionId, requestId, (message) => ({
-        ...message,
-        content: errorMessage(error),
-        pending: false,
-        error: true,
-      }));
-      finishRequest(requestId);
+      if (runClaims.current.get(requestId) !== claim) return false;
+      settleRequest(claim, "error", () => errorMessage(error), false);
       if (dispatchRecovery) {
         const restored = restoreDraftAfterRejectedDispatch(dispatchRecovery);
         if (!restored && Object.keys(attachmentCleanup).length > 0) {
@@ -1766,15 +1736,13 @@ export function ChatSessionPanel({
       onSelect(fork.sessionId);
 
       if (mode === "retry" && retryPrompt) {
-        const accepted = await sendMessage(
-          retryPrompt.content,
-          retryPrompt.attachments ?? [],
-          {},
-          fork.sessionId,
-          false,
-          retryPrompt.memoryMatch,
-          fork.projectId ?? null,
-        );
+        const accepted = await sendMessage({
+          input: retryPrompt.content,
+          attachments: retryPrompt.attachments ?? [],
+          sessionId: fork.sessionId,
+          memoryMatchOverride: retryPrompt.memoryMatch,
+          projectIdOverride: fork.projectId ?? null,
+        });
         setQueueAnnouncement(
           accepted
             ? "Retry started in a new branch. The original response is unchanged."
@@ -1801,6 +1769,21 @@ export function ChatSessionPanel({
     }
   }
 
+  const queuedDeliveryStatus = (message: PersistedQueuedMessage) =>
+    scopeForSession
+      ? queuedMessageMatchesConfirmedScope(
+          message,
+          scopeForSession(message.sessionId),
+          window.doolittle.platform,
+        )
+        ? "ready"
+        : "different-workspace"
+      : queuedMessageWorkspaceStatus(
+          message,
+          workspacePath,
+          window.doolittle.platform,
+        );
+
   // biome-ignore lint/correctness/useExhaustiveDependencies: sendMessage intentionally consumes the current request state after each queue transition.
   useEffect(() => {
     if (
@@ -1815,25 +1798,8 @@ export function ChatSessionPanel({
     }
     const [next] = queuedMessages;
     if (!next) return;
-    if (
-      activeRequests[next.sessionId] ||
-      activeRequestSessionsRef.current[next.sessionId]
-    )
-      return;
-    const queuedScope = scopeForSession?.(next.sessionId);
-    const workspaceStatus = !scopeForSession
-      ? queuedMessageWorkspaceStatus(
-          next,
-          workspacePath,
-          window.doolittle.platform,
-        )
-      : queuedMessageMatchesConfirmedScope(
-            next,
-            queuedScope,
-            window.doolittle.platform,
-          )
-        ? "ready"
-        : "different-workspace";
+    if (runClaims.current.forSession(next.sessionId)) return;
+    const workspaceStatus = queuedDeliveryStatus(next);
     if (workspaceStatus !== "ready") {
       setQueuePaused(true);
       setQueueAnnouncement(
@@ -1844,18 +1810,16 @@ export function ChatSessionPanel({
       return;
     }
     queueDispatchRef.current = next.id;
-    const queuedContent = composeQueuedMessage(next);
-    void sendMessage(
-      next.content,
-      next.attachments,
-      next.attachmentCleanup ?? {},
-      next.sessionId,
-      false,
-      next.memoryMatch,
-      next.projectId ?? null,
-      next.capsule ?? null,
-      queuedContent,
-    )
+    void sendMessage({
+      input: next.content,
+      attachments: next.attachments,
+      attachmentCleanup: next.attachmentCleanup,
+      sessionId: next.sessionId,
+      memoryMatchOverride: next.memoryMatch,
+      projectIdOverride: next.projectId ?? null,
+      contextCapsule: next.capsule,
+      composedContentOverride: composeQueuedMessage(next),
+    })
       .then((accepted) => {
         if (accepted) {
           setQueuedMessages((current) =>
@@ -1935,29 +1899,14 @@ export function ChatSessionPanel({
     ]);
     setQueuePaused(false);
     setQueueAnnouncement("Message added to the queue.");
-    setDraft("");
-    setDraftAttachments([], {});
-    setChatContextCapsule(null);
+    clearDraftForDispatch(selectedId);
     composerRef.current?.focus();
   };
 
   const resumeQueuedMessages = () => {
     const [next] = queuedMessages;
     if (!next) return;
-    const resumeScope = scopeForSession?.(next.sessionId);
-    const workspaceStatus = !scopeForSession
-      ? queuedMessageWorkspaceStatus(
-          next,
-          workspacePath,
-          window.doolittle.platform,
-        )
-      : queuedMessageMatchesConfirmedScope(
-            next,
-            resumeScope,
-            window.doolittle.platform,
-          )
-        ? "ready"
-        : "different-workspace";
+    const workspaceStatus = queuedDeliveryStatus(next);
     if (workspaceStatus === "different-workspace") {
       setQueuePaused(true);
       setQueueAnnouncement(
@@ -1991,7 +1940,14 @@ export function ChatSessionPanel({
       queueCurrentDraft();
       return;
     }
-    await sendMessage(draft);
+    await sendMessage({
+      input: draft,
+      attachments: attachedFiles,
+      attachmentCleanup: draftAttachmentCleanup,
+      sessionId: selectedId,
+      clearComposer: true,
+      contextCapsule: chatContextCapsule,
+    });
   };
 
   const createConversation = () => {
@@ -2223,7 +2179,7 @@ export function ChatSessionPanel({
               requestAnimationFrame(() => composerRef.current?.focus());
             }}
             onStopReading={stopSpeaking}
-            progress={progress}
+            progress={runConnection ? "" : progress}
             projectName={activeProject?.name}
             runReceipts={runReceipts}
             speakingMessageId={speakingMessageId}
@@ -2280,6 +2236,23 @@ export function ChatSessionPanel({
             approvalsVisible={approvalsVisible}
             workspaceNotice={
               <>
+                {activeRequest && runConnection ? (
+                  <div className="chat-bot-start-notice">
+                    <span role="status">
+                      {runConnection === "reconnecting"
+                        ? "Waiting for the response stream to reconnect…"
+                        : "Response stream disconnected. The run may still be active."}
+                    </span>
+                    <button
+                      className="secondary-button shrink-0"
+                      disabled={runConnection === "reconnecting"}
+                      onClick={() => void reconnectRequest(activeRequest)}
+                      type="button"
+                    >
+                      Reconnect
+                    </button>
+                  </div>
+                ) : null}
                 {dispatchFeedback[selectedId] ? (
                   <p
                     role="alert"
