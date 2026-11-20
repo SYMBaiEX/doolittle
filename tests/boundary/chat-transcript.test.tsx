@@ -13,7 +13,7 @@ const response: DisplayMessage = {
   createdAt: "2026-11-20T10:00:00Z",
 };
 
-it("keeps the reader's scroll movement when earlier messages arrive", async () => {
+it("retries the earlier page without replacing the current transcript or losing its scroll position", async () => {
   const environment = globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean };
   const previousActEnvironment = environment.IS_REACT_ACT_ENVIRONMENT;
   environment.IS_REACT_ACT_ENVIRONMENT = true;
@@ -27,6 +27,11 @@ it("keeps the reader's scroll movement when earlier messages arrive", async () =
   const page = new Promise<void>((resolve) => {
     completePage = resolve;
   });
+  const onLoadEarlier = vi
+    .fn<() => Promise<void>>()
+    .mockRejectedValueOnce(new Error("History service unavailable"))
+    .mockReturnValue(page);
+  const onRetryHistory = vi.fn();
   const props = {
     sessionId: "conversation-a",
     backendReady: true,
@@ -43,10 +48,10 @@ it("keeps the reader's scroll movement when earlier messages arrive", async () =
     onBranch: noop,
     onCopy: noop,
     onRead: noop,
-    onRetryHistory: noop,
+    onRetryHistory,
     onStopReading: noop,
     onSelectPrompt: noop,
-    onLoadEarlier: () => page,
+    onLoadEarlier,
   };
 
   try {
@@ -65,6 +70,15 @@ it("keeps the reader's scroll movement when earlier messages arrive", async () =
     transcript.scrollTop = 20;
     vi.spyOn(row, "getBoundingClientRect").mockImplementation(
       () => new DOMRect(0, 50 + insertedHeight - transcript.scrollTop, 100, 80),
+    );
+
+    await act(async () => button.click());
+    expect(transcript.textContent).toContain(response.content);
+    expect(transcript.querySelector('[role="alert"]')?.textContent).toBe(
+      "Earlier messages could not be loaded.",
+    );
+    expect(button.getAttribute("aria-label")).toBe(
+      "Retry loading earlier messages",
     );
 
     act(() => button.click());
@@ -90,6 +104,8 @@ it("keeps the reader's scroll movement when earlier messages arrive", async () =
 
     expect(transcript.scrollTop).toBe(130);
     expect(transcript.style.getPropertyValue("overflow-anchor")).toBe("");
+    expect(onLoadEarlier).toHaveBeenCalledTimes(2);
+    expect(onRetryHistory).not.toHaveBeenCalled();
   } finally {
     act(() => root.unmount());
     container.remove();

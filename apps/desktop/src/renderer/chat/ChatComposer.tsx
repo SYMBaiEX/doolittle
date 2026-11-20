@@ -140,6 +140,7 @@ export interface ChatComposerProps {
   composerRef: RefObject<HTMLTextAreaElement | null>;
   queueRef: RefObject<HTMLDivElement | null>;
   queuedMessages: PersistedQueuedMessage[];
+  queueDispatchingId: string | null;
   queuePaused: boolean;
   resumeQueuedMessages: () => void;
   setQueueAnnouncement: Dispatch<SetStateAction<string>>;
@@ -147,6 +148,7 @@ export interface ChatComposerProps {
   removeQueuedMessage: (id: string) => void;
   attachedFiles: ManagedAttachmentDescriptor[];
   attachmentImporting: boolean;
+  attachmentNotice: string;
   chatContextCapsule: ChatContextCapsule | null;
   removeChatContext: () => void;
   attachmentTotalBytes: number;
@@ -207,6 +209,7 @@ export function ChatComposer({
   composerRef,
   queueRef,
   queuedMessages,
+  queueDispatchingId,
   queuePaused,
   resumeQueuedMessages,
   setQueueAnnouncement,
@@ -214,6 +217,7 @@ export function ChatComposer({
   removeQueuedMessage,
   attachedFiles,
   attachmentImporting,
+  attachmentNotice,
   chatContextCapsule,
   removeChatContext,
   attachmentTotalBytes,
@@ -447,16 +451,21 @@ export function ChatComposer({
       pendingApprovals > 0 ||
       (bot && !bot.isDefault && bot.state !== "ready"),
   );
+  const dispatchingQueueItem = queuedMessages.some(
+    (message) => message.id === queueDispatchingId,
+  );
   const operationalLabel = isCancellingActive
     ? "Stopping"
-    : bot &&
-        !bot.isDefault &&
-        ["stopped", "waiting", "error", "archived"].includes(bot.state)
-      ? `${bot.name} ${bot.state}`
-      : activeRequest
-        ? pendingApprovals > 0
-          ? `${bot?.name ?? "Doolittle"} waiting`
+    : activeRequest
+      ? pendingApprovals > 0 || bot?.state === "waiting"
+        ? `${bot?.name ?? "Doolittle"} waiting`
+        : bot && (bot.state === "stopped" || bot.state === "starting")
+          ? `Starting ${bot.name}`
           : `${bot?.name ?? "Doolittle"} working`
+      : bot &&
+          !bot.isDefault &&
+          ["stopped", "waiting", "error", "archived"].includes(bot.state)
+        ? `${bot.name} ${bot.state}`
         : bot && !bot.isDefault && bot.state === "starting"
           ? `${bot.name} starting`
           : bot && !bot.isDefault && bot.state === "busy"
@@ -561,8 +570,12 @@ export function ChatComposer({
                   Resume queue
                 </button>
               ) : null}
-              <button onClick={clearQueuedMessages} type="button">
-                Clear queue
+              <button
+                disabled={dispatchingQueueItem && queuedMessages.length === 1}
+                onClick={clearQueuedMessages}
+                type="button"
+              >
+                {dispatchingQueueItem ? "Clear waiting" : "Clear queue"}
               </button>
             </span>
           </div>
@@ -574,9 +587,13 @@ export function ChatComposer({
                 {message.attachments.length > 0 ? (
                   <small>{message.attachments.length} files</small>
                 ) : null}
+                {message.id === queueDispatchingId ? (
+                  <small role="status">Delivery in progress</small>
+                ) : null}
                 <button
                   aria-label={`Remove queued message ${index + 1}`}
                   data-queue-remove
+                  disabled={message.id === queueDispatchingId}
                   onClick={() => removeQueuedMessage(message.id)}
                   type="button"
                 >
@@ -642,6 +659,11 @@ export function ChatComposer({
             <UiIcon icon={X} size="xs" />
           </button>
         </div>
+      ) : null}
+      {attachmentNotice ? (
+        <p className="px-2 text-sm text-[var(--text-soft)]" role="status">
+          {attachmentNotice}
+        </p>
       ) : null}
       {composerValidationError ? (
         <div

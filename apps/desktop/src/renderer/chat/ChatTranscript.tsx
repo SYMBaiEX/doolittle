@@ -150,13 +150,17 @@ export function ChatTranscript({
 }: ChatTranscriptProps) {
   const transcriptRef = useRef<HTMLDivElement>(null);
   const [anchorSession, setAnchorSession] = useState<string | null>(null);
+  const [earlierErrorSession, setEarlierErrorSession] = useState<string | null>(
+    null,
+  );
+  const earlierHistoryError = earlierErrorSession === sessionId;
   const anchoredHistoryPending = anchorSession === sessionId;
   const historyAnchorRef = useRef<{
     sessionId: string;
     messageId: string;
     row: Element;
     contentTop: number;
-    restoreFocus: boolean;
+    focusedTrigger: HTMLButtonElement | null;
   } | null>(null);
 
   useLayoutEffect(() => {
@@ -173,23 +177,19 @@ export function ChatTranscript({
         return;
       }
       if (
-        !hasEarlierMessages &&
-        anchor.restoreFocus &&
+        anchor.focusedTrigger &&
         transcript.ownerDocument.activeElement === transcript.ownerDocument.body
       ) {
-        transcript.focus({ preventScroll: true });
+        const target = anchor.focusedTrigger.isConnected
+          ? anchor.focusedTrigger
+          : transcript;
+        target.focus({ preventScroll: true });
       }
     }
 
     transcript.style.removeProperty("overflow-anchor");
     historyAnchorRef.current = null;
-  }, [
-    anchoredHistoryPending,
-    hasEarlierMessages,
-    loadingEarlierHistory,
-    messages,
-    sessionId,
-  ]);
+  }, [anchoredHistoryPending, loadingEarlierHistory, messages, sessionId]);
 
   const latestMessage = messages.at(-1);
   const latestRunId = latestMessage ? messageRunId(latestMessage) : undefined;
@@ -253,7 +253,11 @@ export function ChatTranscript({
                 aria-busy={
                   loadingEarlierHistory || anchoredHistoryPending || undefined
                 }
-                aria-label="Load earlier messages"
+                aria-label={
+                  earlierHistoryError
+                    ? "Retry loading earlier messages"
+                    : "Load earlier messages"
+                }
                 className="text-button"
                 disabled={loadingEarlierHistory || anchoredHistoryPending}
                 onClick={async (event) => {
@@ -270,14 +274,19 @@ export function ChatTranscript({
                       row,
                       contentTop:
                         row.getBoundingClientRect().top + transcript.scrollTop,
-                      restoreFocus:
+                      focusedTrigger:
                         transcript.ownerDocument.activeElement ===
-                        event.currentTarget,
+                        event.currentTarget
+                          ? event.currentTarget
+                          : null,
                     };
                   }
                   setAnchorSession(sessionId);
+                  setEarlierErrorSession(null);
                   try {
                     await onLoadEarlier();
+                  } catch {
+                    setEarlierErrorSession(sessionId);
                   } finally {
                     setAnchorSession((current) =>
                       current === sessionId ? null : current,
@@ -288,8 +297,13 @@ export function ChatTranscript({
               >
                 {loadingEarlierHistory || anchoredHistoryPending
                   ? "Loading earlier messages…"
-                  : "Load earlier messages"}
+                  : earlierHistoryError
+                    ? "Retry loading earlier messages"
+                    : "Load earlier messages"}
               </button>
+              {earlierHistoryError ? (
+                <p role="alert">Earlier messages could not be loaded.</p>
+              ) : null}
             </div>
           ) : null}
           {messages.map((message) => {

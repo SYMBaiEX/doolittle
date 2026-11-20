@@ -4,6 +4,7 @@ import {
   markChatReplayGap,
 } from "../../apps/desktop/src/renderer/chat/chat-terminal-events";
 import type { RunReceipt } from "../../apps/desktop/src/renderer/chat/models";
+import { queuedMessageRemovalTargets } from "../../apps/desktop/src/renderer/chat/queued-message-removal";
 import {
   isTerminalClaimReceipt,
   RunClaims,
@@ -13,6 +14,7 @@ import {
   type RunHydrationScope,
 } from "../../apps/desktop/src/renderer/chat/run-hydration-scope";
 import { pendingApprovalsForSession } from "../../apps/desktop/src/renderer/chat/session-approvals";
+import type { PersistedQueuedMessage } from "../../apps/desktop/src/renderer/conversation-persistence";
 import { ChatWorkspaceStore } from "../../apps/desktop/src/renderer/session-workspace/chat-workspace-store";
 import type { ChatEvent } from "../../apps/desktop/src/shared/contracts";
 
@@ -72,6 +74,34 @@ it("keeps a recovered run in control when it appears during pending scope confir
   expect(claims.release(pending)).toBe(true);
   expect([...claims.activeIds(sessionId)]).toEqual(["recovered"]);
   expect(claims.reserve("another-run", sessionId, botId)).toBeUndefined();
+});
+
+it("preserves a dispatching queue item and cleans only waiting items in their saved scope", () => {
+  const item = { content: "Review the changes", attachments: [], sessionId };
+  const dispatching = { ...item, id: "sending", botId: "original" };
+  const waiting = { ...item, id: "awaiting", botId: "original" };
+  const legacy = { ...item, id: "legacy" };
+  const otherChat = { ...item, id: "other", sessionId: "elsewhere" };
+  const queue: PersistedQueuedMessage[] = [
+    dispatching,
+    waiting,
+    legacy,
+    otherChat,
+  ];
+  const scope = {
+    sessionId,
+    dispatchingId: dispatching.id,
+    resolveSessionBot: () => "current",
+  };
+  expect(queuedMessageRemovalTargets(queue, scope)).toEqual([
+    { message: waiting, botId: "original" },
+    { message: legacy, botId: "current" },
+  ]);
+  for (const messageId of [dispatching.id, otherChat.id]) {
+    expect(queuedMessageRemovalTargets(queue, { ...scope, messageId })).toEqual(
+      [],
+    );
+  }
 });
 
 it("distinguishes an accepted stream disconnect from the owned terminal events", () => {

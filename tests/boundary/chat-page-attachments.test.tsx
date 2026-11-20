@@ -177,6 +177,30 @@ it("keeps accepted file context and discards only files rejected by the count li
   expect(view.current.attachmentValidationError).toContain("Up to 8 files");
 });
 
+it("keeps valid file context when cleanup of rejected files fails", async () => {
+  const accepted = attachment("accepted");
+  bridge.pickChatAttachments.mockResolvedValue({
+    canceled: false,
+    attachments: [
+      accepted,
+      { ...attachment("overflow"), sizeBytes: 51 * 1024 * 1024 },
+    ],
+    cleanupCapability: "lease-a",
+  });
+  bridge.discardChatAttachments.mockRejectedValueOnce(new Error("Unavailable"));
+  const view = renderAttachments();
+
+  await act(async () => view.current.pickContextFiles());
+
+  expect(view.options.setDraftAttachments).toHaveBeenCalledWith([accepted], {
+    accepted: "lease-a",
+  });
+  expect(view.current.attachmentImportPending).toBe(false);
+  expect(view.current.attachmentValidationError).toContain(
+    "Files in your draft are ready to send.",
+  );
+});
+
 it("groups managed cleanup by capability and retains an explicit queued-message bot", async () => {
   const view = renderAttachments({ currentBotId: "selected-bot" });
   await view.current.cleanupManagedAttachments(

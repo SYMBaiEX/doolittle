@@ -994,11 +994,6 @@ export function useChatConversationState({
           return { ...current, [sessionId]: merged };
         });
         setHistoryPages((current) => ({ ...current, [sessionId]: nextPage }));
-      } catch (error) {
-        setHistoryErrors((current) => ({
-          ...current,
-          [sessionId]: errorMessage(error),
-        }));
       } finally {
         setLoadingEarlierHistory((current) =>
           current === sessionId ? "" : current,
@@ -1012,7 +1007,6 @@ export function useChatConversationState({
       setMessages,
       setLoadingEarlierHistory,
       setHistoryPages,
-      setHistoryErrors,
       botIdForSession,
     ],
   );

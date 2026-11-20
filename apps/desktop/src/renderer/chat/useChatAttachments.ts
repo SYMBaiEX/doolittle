@@ -124,15 +124,6 @@ export function useChatAttachments({
       const rejectedIds = result.attachments
         .map((attachment) => attachment.id)
         .filter((id) => !acceptedIds.has(id));
-      if (cleanupCapability) {
-        if (rejectedIds.length > 0) {
-          await window.doolittle.discardChatAttachments({
-            ...(botId ? { botId } : {}),
-            attachmentIds: rejectedIds,
-            cleanupCapability,
-          });
-        }
-      }
       attachmentRevisionRef.current += 1;
       setDraftAttachments(next, nextCleanup);
       if (skipped > 0) {
@@ -141,6 +132,19 @@ export function useChatAttachments({
         );
       } else {
         setAttachmentValidationError("");
+      }
+      if (cleanupCapability && rejectedIds.length > 0) {
+        await window.doolittle
+          .discardChatAttachments({
+            ...(botId ? { botId } : {}),
+            attachmentIds: rejectedIds,
+            cleanupCapability,
+          })
+          .catch(() => {
+            setAttachmentValidationError(
+              "Some files exceeded the attachment limit and could not be cleaned up. Files in your draft are ready to send.",
+            );
+          });
       }
     } catch (error) {
       setAttachmentValidationError(

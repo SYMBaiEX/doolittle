@@ -54,6 +54,7 @@ import {
   type DisplayMessage,
   isCommandMessage,
 } from "./chat/models";
+import { queuedMessageRemovalTargets } from "./chat/queued-message-removal";
 import { useChatAttachments } from "./chat/useChatAttachments";
 import { useChatComposerSupport } from "./chat/useChatComposerSupport";
 import { useChatMessageActions } from "./chat/useChatMessageActions";
@@ -1306,8 +1307,12 @@ export function ChatSessionPanel({
         memoryMatch: freezeMemoryMatchSnapshot(content, memoryMatches),
       },
     ]);
-    setQueuePaused(false);
-    setQueueAnnouncement("Message added to the queue.");
+    if (queuedMessages.length === 0) setQueuePaused(false);
+    setQueueAnnouncement(
+      queuePaused && queuedMessages.length > 0
+        ? "Message added. The queue is still paused."
+        : "Message added to the queue.",
+    );
     clearDraftForDispatch(selectedId);
     composerRef.current?.focus();
   };
@@ -1403,50 +1408,50 @@ export function ChatSessionPanel({
     [selectedId, setDraft],
   );
 
-  const removeQueuedMessage = (id: string) => {
-    const index = queuedMessages.findIndex((message) => message.id === id);
-    if (index < 0) return;
-    const removed = queuedMessages[index];
-    const remaining = queuedMessages.filter((message) => message.id !== id);
-    setQueuedMessages(remaining);
-    setQueueAnnouncement(
-      `Queued message removed. ${remaining.length} ${
-        remaining.length === 1 ? "message remains" : "messages remain"
-      }.`,
-    );
-    void cleanupManagedAttachments(
-      removed?.attachments.map((attachment) => attachment.id) ?? [],
-      removed?.attachmentCleanup ?? {},
-    ).catch(() => undefined);
-    requestAnimationFrame(() => {
-      const buttons = queueRef.current?.querySelectorAll<HTMLButtonElement>(
-        "[data-queue-remove]",
-      );
-      const nextButton = buttons?.[Math.min(index, remaining.length - 1)];
-      if (nextButton) nextButton.focus();
-      else composerRef.current?.focus();
-    });
-  };
+  const visibleQueuedMessages = queuedMessages.filter(
+    (message) => message.sessionId === selectedId,
+  );
 
-  const clearQueuedMessages = () => {
-    const removed = queuedMessages.filter(
-      (message) => message.sessionId === selectedId,
-    );
-    const count = removed.length;
-    if (!count) return;
+  const removeQueuedMessages = (messageId?: string) => {
+    const dispatchingId = queueDispatchRef.current;
+    const removed = queuedMessageRemovalTargets(queuedMessages, {
+      sessionId: selectedId,
+      dispatchingId,
+      messageId,
+      resolveSessionBot,
+    });
+    if (removed.length === 0) return;
+    const removedIds = new Set(removed.map(({ message }) => message.id));
     setQueuedMessages((current) =>
-      current.filter((message) => message.sessionId !== selectedId),
+      current.filter(
+        (message) =>
+          message.sessionId !== selectedId || !removedIds.has(message.id),
+      ),
     );
+    const { length: count } = removed;
     setQueueAnnouncement(
-      `${count} queued ${count === 1 ? "message" : "messages"} cleared.`,
+      `${count} queued ${count === 1 ? "message" : "messages"} removed.`,
     );
-    for (const message of removed) {
+    for (const { message, botId } of removed) {
       void cleanupManagedAttachments(
         message.attachments.map((attachment) => attachment.id),
         message.attachmentCleanup ?? {},
+        botId,
       ).catch(() => undefined);
     }
-    requestAnimationFrame(() => composerRef.current?.focus());
+    const index = visibleQueuedMessages
+      .filter((message) => message.id !== dispatchingId)
+      .findIndex((message) => message.id === messageId);
+    requestAnimationFrame(() => {
+      if (selectedIdRef.current !== selectedId) return;
+      const buttons = queueRef.current?.querySelectorAll<HTMLButtonElement>(
+        "[data-queue-remove]:enabled",
+      );
+      const nextButton =
+        index >= 0 && buttons?.[Math.min(index, buttons.length - 1)];
+      if (nextButton) nextButton.focus();
+      else composerRef.current?.focus();
+    });
   };
 
   const toggleInspector = () => {
@@ -1463,10 +1468,9 @@ export function ChatSessionPanel({
     0,
   );
   const composerValidationError =
-    attachmentValidationError ||
-    (isCommandMessage(draft.trim()) && attachedFiles.length > 0
+    isCommandMessage(draft.trim()) && attachedFiles.length > 0
       ? "Commands cannot be sent with file context. Remove the attachments or send a normal message."
-      : "");
+      : "";
   const canSubmit =
     Boolean(draft.trim() || attachedFiles.length > 0) &&
     hostBackend.phase === "ready" &&
@@ -1779,16 +1783,16 @@ export function ChatSessionPanel({
             onSubmit={submit}
             composerRef={composerRef}
             queueRef={queueRef}
-            queuedMessages={queuedMessages.filter(
-              (message) => message.sessionId === selectedId,
-            )}
+            queuedMessages={visibleQueuedMessages}
+            queueDispatchingId={queueDispatchRef.current}
             queuePaused={queuePaused}
             resumeQueuedMessages={resumeQueuedMessages}
             setQueueAnnouncement={setQueueAnnouncement}
-            clearQueuedMessages={clearQueuedMessages}
-            removeQueuedMessage={removeQueuedMessage}
+            clearQueuedMessages={() => removeQueuedMessages()}
+            removeQueuedMessage={removeQueuedMessages}
             attachedFiles={attachedFiles}
             attachmentImporting={attachmentImportPending}
+            attachmentNotice={attachmentValidationError}
             chatContextCapsule={chatContextCapsule}
             removeChatContext={() => setChatContextCapsule(null)}
             attachmentTotalBytes={attachmentTotalBytes}
@@ -1829,8 +1833,11 @@ export function ChatSessionPanel({
           active={backend.phase === "ready" && surface === "history"}
           embedded
           onNewConversation={() => {
-            if (onRequestNewConversation) onRequestNewConversation();
-            else createConversation();
+            if (onRequestNewConversation) {
+              onRequestNewConversation();
+              return;
+            }
+            createConversation();
             onSurfaceChange?.("conversation");
             requestAnimationFrame(() => composerRef.current?.focus());
           }}
