@@ -1,3 +1,5 @@
+mod workspace_lock;
+
 use std::{
     env,
     fs::{DirBuilder, File},
@@ -12,8 +14,8 @@ use std::{
 use anyhow::{Context, Result, bail, ensure};
 use directories::ProjectDirs;
 use serde::Deserialize;
-use sha2::{Digest, Sha256};
 use url::Url;
+use workspace_lock::{WorkspaceLock, workspace_key};
 
 const READY_PREFIX: &[u8] = b"DOOLITTLE_NATIVE_READY ";
 const READY_TIMEOUT: Duration = Duration::from_secs(90);
@@ -27,6 +29,7 @@ pub struct SidecarConfig {
     runtime_root: PathBuf,
     node: PathBuf,
     offline: bool,
+    allow_workspace_saves: bool,
 }
 
 impl SidecarConfig {
@@ -80,7 +83,13 @@ impl SidecarConfig {
             runtime_root,
             node,
             offline,
+            allow_workspace_saves: false,
         })
+    }
+
+    pub fn with_workspace_saves(mut self) -> Self {
+        self.allow_workspace_saves = true;
+        self
     }
 
     pub fn profile(&self) -> &Path {
@@ -154,14 +163,16 @@ fn discover_node(runtime_root: &Path) -> Result<PathBuf> {
     which::which("node").context("Node.js is required to start the ElizaOS runtime")
 }
 
-fn default_profile(workspace: &Path) -> Result<PathBuf> {
+fn native_data_root() -> Result<PathBuf> {
     let locations = ProjectDirs::from("", "Doolittle", "Doolittle Native")
         .context("Could not determine the native Doolittle data directory")?;
-    let scope = format!(
-        "{:x}",
-        Sha256::digest(workspace.as_os_str().as_encoded_bytes())
-    );
-    Ok(locations.data_local_dir().join("profiles").join(scope))
+    Ok(locations.data_local_dir().to_path_buf())
+}
+
+fn default_profile(workspace: &Path) -> Result<PathBuf> {
+    Ok(native_data_root()?
+        .join("profiles")
+        .join(workspace_key(workspace)))
 }
 
 pub struct RuntimeSidecar {
@@ -170,6 +181,7 @@ pub struct RuntimeSidecar {
     child: Child,
     input: Option<ChildStdin>,
     _profile_lock: File,
+    _workspace_lock: WorkspaceLock,
 }
 
 impl RuntimeSidecar {
@@ -184,6 +196,10 @@ impl RuntimeSidecar {
         profile_lock
             .try_lock()
             .context("The native profile is already open or cannot be locked")?;
+        let workspace_lock = WorkspaceLock::acquire(
+            &native_data_root()?.join("workspace-locks"),
+            &config.workspace,
+        )?;
 
         let entry =
             runtime_entry(&config.runtime_root).context("The built ElizaOS runtime is missing")?;
@@ -202,6 +218,14 @@ impl RuntimeSidecar {
             .current_dir(&config.runtime_root)
             .env("DOOLITTLE_REPO_ROOT", &config.runtime_root)
             .env("DOOLITTLE_MODE", "api")
+            .env(
+                "DOOLITTLE_NATIVE_WORKSPACE_SAVE",
+                if config.allow_workspace_saves {
+                    "1"
+                } else {
+                    "0"
+                },
+            )
             .env("DOOLITTLE_WORKSPACE_DIR", &config.workspace)
             .env("DOOLITTLE_DATA_DIR", &config.profile)
             .env("DOOLITTLE_GATEWAY_DATA_DIR", config.profile.join("gateway"))
@@ -244,6 +268,7 @@ impl RuntimeSidecar {
         {
             use std::os::unix::process::CommandExt as _;
             command.process_group(0);
+            workspace_lock.keep_in_child(&mut command, &profile_lock);
         }
         let mut child = command
             .spawn()
@@ -257,6 +282,7 @@ impl RuntimeSidecar {
             child,
             input,
             _profile_lock: profile_lock,
+            _workspace_lock: workspace_lock,
         };
         thread::Builder::new()
             .name("eliza-runtime-output".into())
