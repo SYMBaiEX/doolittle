@@ -175,13 +175,3 @@ export function parseOneShotOptions(args: string[]): OneShotOptions {
     sessionId,
   };
 }
-
-export function shouldLoadLocalRuntimeEnvForEntrypoint(
-  command: EntrypointSubcommand,
-  oneShot?: OneShotOptions,
-): boolean {
-  return Boolean(
-    command === "jobs" ||
-      (command === "exec" && (oneShot?.background || oneShot?.jsonStream)),
-  );
-}

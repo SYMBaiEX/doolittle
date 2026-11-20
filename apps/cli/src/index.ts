@@ -35,7 +35,6 @@ async function main(): Promise<number> {
   const {
     command,
     rest,
-    commandPlan,
     shellIsInteractive,
     oneShot,
     immediatePrompt,
@@ -67,19 +66,13 @@ async function main(): Promise<number> {
     bootLogs,
     runtimePlan,
     runtimeLogger,
-    startCli,
-    runCliPrompt,
-    runCliPromptWithEvents,
     startServer,
     startServerWhenShellReady,
     apiOwnsRuntimeAfterCli,
   } = await prepareEntrypointRuntimeBoot({
     command,
-    commandPlan,
     shellIsInteractive,
     immediatePrompt,
-    writeStderrLine,
-    formatTopLevelError,
   });
 
   const installApiLifecycle = () =>
@@ -112,27 +105,18 @@ async function main(): Promise<number> {
 
   const runtimeSurface = await handleEntrypointRuntimeSurface({
     command,
-    shellIsInteractive,
-    immediatePrompt,
     oneShot,
     jobControlDir,
     context,
     runtimePlan,
     runtimeLogger,
-    startCli,
     startServerWhenShellReady,
     apiOwnsRuntimeAfterCli,
-    runCliPrompt,
-    runCliPromptWithEvents,
     bootLogs,
   });
 
   if (runtimeSurface.apiOwnsRuntime) installApiLifecycle();
-  if (runtimeSurface.handled) {
-    return runtimeSurface.exitCode ?? 0;
-  }
-
-  return 0;
+  return runtimeSurface.exitCode;
 }
 
 // Keep one lightweight handle alive while long-lived TUI/server startup

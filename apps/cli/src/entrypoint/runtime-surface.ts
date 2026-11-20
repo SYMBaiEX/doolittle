@@ -2,192 +2,113 @@ import type { AppLogger } from "@doolittle/agent/logging/logger";
 import { shutdownApplicationRuntime } from "@doolittle/agent/runtime/application";
 import type { AppContext } from "@doolittle/agent/runtime/bootstrap";
 import type { AgentRuntime } from "@elizaos/core";
+import type { startCli } from "../cli/start/index";
+import type { captureBootLogs } from "./boot-logs";
 import { acquireCliTerminalEndpoint } from "./cli-terminal-endpoint";
-import { handleRuntimePromptCommand } from "./prompt-command";
 import type { EntrypointRuntimePlan } from "./runtime-control";
 import { installRuntimeProcessLifecycle } from "./runtime-process-lifecycle";
-import {
-  type EntrypointSubcommand,
-  isEntrypointAliasCommand,
-  type OneShotOptions,
-} from "./subcommand";
-
-type BootLogEntry = { source: "stdout" | "stderr"; text: string };
-
-type StartCli = (
-  context: AppContext,
-  options?: {
-    onReady?: () => void;
-    bootLogs?: BootLogEntry[];
-  },
-) => Promise<number> | number;
-
-type RunCliPrompt = Parameters<
-  typeof handleRuntimePromptCommand
->[0]["runCliPrompt"];
-type RunCliPromptWithEvents = Parameters<
-  typeof handleRuntimePromptCommand
->[0]["runCliPromptWithEvents"];
-
-export interface EntrypointRuntimeSurfaceResult {
-  handled: boolean;
-  exitCode?: number;
-  apiOwnsRuntime?: boolean;
-}
+import type { EntrypointSubcommand, OneShotOptions } from "./subcommand";
 
 export async function handleEntrypointRuntimeSurface(input: {
   command: EntrypointSubcommand;
-  shellIsInteractive: boolean;
-  immediatePrompt?: string;
   oneShot?: OneShotOptions;
   jobControlDir?: string;
   context: AppContext;
   runtimePlan: EntrypointRuntimePlan;
   runtimeLogger: AppLogger;
-  startCli?: StartCli;
+  startCli?: typeof startCli;
   startServerWhenShellReady: () => void;
   apiOwnsRuntimeAfterCli: () => Promise<boolean>;
-  runCliPrompt?: RunCliPrompt;
-  runCliPromptWithEvents?: RunCliPromptWithEvents;
-  bootLogs: BootLogEntry[];
+  bootLogs: Awaited<ReturnType<typeof captureBootLogs>>["logs"];
   printLine?: (message: string) => void;
-  pushArg?: (arg: string) => void;
   shutdownRuntime?: typeof shutdownApplicationRuntime;
   exit?: (code: number) => void;
-  acquireTerminalEndpoint?: typeof acquireCliTerminalEndpoint;
-}): Promise<EntrypointRuntimeSurfaceResult> {
+}): Promise<{ exitCode: number; apiOwnsRuntime?: boolean }> {
+  const { command, context, runtimeLogger, runtimePlan } = input;
+  const { agentName, mode } = context.config;
+  const runtime = context.runtime as AgentRuntime;
   const printLine = input.printLine ?? console.log;
-  const pushArg = input.pushArg ?? ((arg: string) => process.argv.push(arg));
-
-  if (input.command === "gateway") {
-    await input.context.gateway.start();
-    input.runtimeLogger.info("gateway-started", {
-      agentName: input.context.config.agentName,
+  const exit = input.exit ?? process.exit;
+  const shutdown = (reason: string) =>
+    (input.shutdownRuntime ?? shutdownApplicationRuntime)(runtime, reason, {
+      fast: true,
     });
-    printLine(`${input.context.config.agentName} gateway started.`);
+
+  if (command === "gateway") {
+    await context.gateway.start();
+    runtimeLogger.info("gateway-started", { agentName });
+    printLine(`${agentName} gateway started.`);
   }
 
-  const needsTerminalEndpoint =
-    Boolean(input.immediatePrompt?.trim()) &&
-    (input.command === "exec" ||
-      isEntrypointAliasCommand(input.command) ||
-      !input.shellIsInteractive);
-  let endpoint:
-    | Awaited<ReturnType<typeof acquireCliTerminalEndpoint>>
-    | undefined;
-  try {
-    endpoint = needsTerminalEndpoint
-      ? await (input.acquireTerminalEndpoint ?? acquireCliTerminalEndpoint)(
-          input.context,
-        )
-      : undefined;
-  } catch (error) {
-    await (input.shutdownRuntime ?? shutdownApplicationRuntime)(
-      input.context.runtime as AgentRuntime,
-      "Doolittle one-shot startup failure",
-      { fast: true },
-    );
-    throw error;
-  }
-  const ownedEndpoint = endpoint;
-  const promptController = new AbortController();
-  const signalLifecycle = ownedEndpoint
-    ? installRuntimeProcessLifecycle({
-        runtime: input.context.runtime as AgentRuntime,
+  if (runtimePlan.oneShotPrompt) {
+    const controller = new AbortController();
+    let exitCode: number;
+    try {
+      const endpoint = await acquireCliTerminalEndpoint(context);
+      const lifecycle = installRuntimeProcessLifecycle({
+        runtime,
         label: "Doolittle one-shot",
         beforeShutdown: async () => {
-          promptController.abort();
-          await ownedEndpoint.close();
+          controller.abort();
+          await endpoint.close();
         },
         onExit: input.exit,
-      })
-    : undefined;
-  let handledPrompt: boolean;
-  let requestedExitCode: number | undefined;
-  try {
-    try {
-      handledPrompt = await handleRuntimePromptCommand({
-        command: input.command,
-        shellIsInteractive: input.shellIsInteractive,
-        immediatePrompt: input.immediatePrompt,
-        oneShot: input.oneShot,
-        jobControlDir: input.jobControlDir,
-        context: input.context,
-        runCliPrompt: input.runCliPrompt,
-        runCliPromptWithEvents: input.runCliPromptWithEvents,
-        abortSignal: promptController.signal,
-        onCancelRequested: () => promptController.abort(),
-        exit: (code) => {
-          requestedExitCode = code;
-        },
       });
-    } finally {
-      await endpoint?.close();
+      try {
+        const { runRuntimePromptCommand } = await import("./prompt-command");
+        exitCode = await runRuntimePromptCommand({
+          prompt: runtimePlan.oneShotPrompt,
+          oneShot: input.oneShot,
+          jobControlDir: input.jobControlDir,
+          context,
+          controller,
+        });
+      } finally {
+        try {
+          await endpoint.close();
+        } finally {
+          lifecycle.dispose();
+        }
+      }
+    } catch (error) {
+      await shutdown("Doolittle one-shot failure");
+      throw error;
     }
-  } catch (error) {
-    await (input.shutdownRuntime ?? shutdownApplicationRuntime)(
-      input.context.runtime as AgentRuntime,
-      "Doolittle one-shot failure",
-      { fast: true },
-    );
-    throw error;
-  } finally {
-    signalLifecycle?.dispose();
-  }
-  if (handledPrompt) {
-    await (input.shutdownRuntime ?? shutdownApplicationRuntime)(
-      input.context.runtime as AgentRuntime,
-      "Doolittle one-shot completion",
-      { fast: true },
-    );
-    const exitCode =
-      requestedExitCode ??
-      (typeof process.exitCode === "number"
-        ? process.exitCode
-        : Number(process.exitCode ?? 0));
-    (input.exit ?? process.exit)(exitCode);
-    return { handled: true };
+    await shutdown("Doolittle one-shot completion");
+    exit(exitCode);
+    return { exitCode };
   }
 
-  if (input.runtimePlan.shouldStartCli) {
-    if (input.command === "plain") {
-      pushArg("--plain-cli");
-    } else if (input.command === "cockpit") {
-      pushArg("--cockpit");
-    }
-    const exitCode =
-      (await input.startCli?.(input.context, {
-        onReady: input.runtimePlan.shouldStartApi
-          ? input.startServerWhenShellReady
-          : undefined,
-        bootLogs: input.bootLogs,
-      })) ?? 0;
+  if (runtimePlan.shouldStartCli) {
+    const startShell =
+      input.startCli ?? (await import("../cli/start/index")).startCli;
+    const exitCode = await startShell(context, {
+      mode:
+        command === "plain"
+          ? "plain"
+          : command === "cockpit"
+            ? "tui"
+            : undefined,
+      onReady: runtimePlan.shouldStartApi
+        ? input.startServerWhenShellReady
+        : undefined,
+      bootLogs: input.bootLogs,
+    });
     const apiOwnsRuntime = await input.apiOwnsRuntimeAfterCli();
     if (!apiOwnsRuntime) {
-      await (input.shutdownRuntime ?? shutdownApplicationRuntime)(
-        input.context.runtime as AgentRuntime,
-        "Doolittle CLI completion",
-        { fast: true },
-      );
-      (input.exit ?? process.exit)(exitCode);
+      await shutdown("Doolittle CLI completion");
+      exit(exitCode);
     }
-    return { handled: true, exitCode, apiOwnsRuntime };
+    return { exitCode, apiOwnsRuntime };
   }
 
-  if (!input.runtimePlan.shouldStartApi) {
-    input.runtimeLogger.info("runtime-initialized-no-surface", {
-      mode: input.context.config.mode,
-    });
+  if (!runtimePlan.shouldStartApi) {
+    runtimeLogger.info("runtime-initialized-no-surface", { mode });
     printLine(
-      `${input.context.config.agentName} initialized with no active shell or API surface. Start with "doolittle", "doolittle cockpit", or "doolittle status", or set DOOLITTLE_MODE=cli|api|both for a persistent default.`,
+      `${agentName} initialized with no active shell or API surface. Start with "doolittle", "doolittle cockpit", or "doolittle status", or set DOOLITTLE_MODE=cli|api|both for a persistent default.`,
     );
-    await (input.shutdownRuntime ?? shutdownApplicationRuntime)(
-      input.context.runtime as AgentRuntime,
-      "Doolittle CLI completion",
-      { fast: true },
-    );
-    return { handled: true };
+    await shutdown("Doolittle CLI completion");
   }
 
-  return { handled: false };
+  return { exitCode: 0 };
 }

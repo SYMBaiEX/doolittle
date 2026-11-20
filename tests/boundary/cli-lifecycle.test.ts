@@ -80,7 +80,6 @@ describe("terminal application lifecycle", () => {
       });
       await handleEntrypointRuntimeSurface({
         command: "start",
-        shellIsInteractive: true,
         runtimePlan,
         context: { runtime: {}, config: { mode } } as AppContext,
         runtimeLogger: { info: vi.fn() } as unknown as AppLogger,
@@ -114,6 +113,22 @@ describe("terminal application lifecycle", () => {
     });
   });
 
+  it("selects the one-shot surface before an interactive shell or shared API", () => {
+    expect(
+      resolveEntrypointRuntimePlan({
+        command: "exec",
+        shellIsInteractive: true,
+        mode: "both",
+        immediatePrompt: "  Inspect the current workspace.  ",
+      }),
+    ).toEqual({
+      shouldStartCli: false,
+      shouldStartApi: false,
+      shouldStartApiImmediately: false,
+      oneShotPrompt: "Inspect the current workspace.",
+    });
+  });
+
   it("shuts down the runtime when the shared API could not bind", async () => {
     const shutdown = vi.fn();
     const exit = vi.fn();
@@ -140,7 +155,6 @@ describe("terminal application lifecycle", () => {
 
     await handleEntrypointRuntimeSurface({
       command: "start",
-      shellIsInteractive: true,
       runtimePlan: resolveEntrypointRuntimePlan({
         command: "start",
         shellIsInteractive: true,
@@ -194,27 +208,28 @@ describe("terminal application lifecycle", () => {
     const launchFailure = new Error("unable to initialize cockpit");
     const shellFailure = new Error("unable to start readline");
     const plain = vi.fn().mockRejectedValue(shellFailure);
-    const importTui = vi.fn();
+    const importTui = vi.fn().mockRejectedValue(launchFailure);
     const warn = vi.fn();
     const context = {
       config: { agentName: "Eliza" },
       services: { logger: { child: () => ({ warn }) } },
     } as unknown as AppContext;
     await expect(
-      startCli(context, undefined, {
-        argv: ["--cockpit"],
-        stdinIsTTY: true,
-        stdoutIsTTY: true,
-        ensureCliRuntimeInitialized: async () => {
-          throw launchFailure;
+      startCli(
+        context,
+        { mode: "tui" },
+        {
+          argv: [],
+          stdinIsTTY: true,
+          stdoutIsTTY: true,
+          startPlainCli: plain,
+          importTui,
+          warn,
         },
-        startPlainCli: plain,
-        importTui,
-        warn,
-      }),
+      ),
     ).rejects.toThrow(shellFailure);
     expect(plain).toHaveBeenCalledTimes(1);
-    expect(importTui).not.toHaveBeenCalled();
+    expect(importTui).toHaveBeenCalledTimes(1);
   });
 
   it("finds the application root from both source modules and a bundled CLI", () => {

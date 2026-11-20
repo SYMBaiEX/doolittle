@@ -5,6 +5,7 @@ import { stdin as input, stdout as output } from "node:process";
 import type { AppContext } from "@doolittle/agent/runtime/bootstrap";
 import { getTuiTheme } from "@doolittle/agent/runtime/theme-catalog";
 import blessed from "blessed";
+import { installBlessedTextboxGuard } from "../blessed-guards";
 import {
   buildCockpitBootMessage,
   buildCockpitTipMessage,
@@ -17,6 +18,7 @@ import {
   isBenignCliShutdownError,
   isRecoverableProviderError,
 } from "../runtime-errors";
+import type { StartCliOptions } from "../start/types";
 import { truncate } from "../text-utils";
 import { createBlessedOutputProxy } from "../tui-output-proxy";
 import {
@@ -27,10 +29,6 @@ import {
 import { createTuiState } from "../tui-state";
 import { createTuiWidgets } from "../tui-widget-factory/index";
 import { assembleTuiStartRuntime } from "./assembly";
-
-import type { StartCliOptions } from "./types";
-
-export type { StartCliOptions } from "./types";
 
 const IS_MACOS = platform() === "darwin";
 
@@ -43,6 +41,7 @@ export async function startTui(
   context: AppContext,
   options?: StartCliOptions,
 ): Promise<number | "unexpected" | "too-small"> {
+  installBlessedTextboxGuard(blessed);
   const tuiOutput = createBlessedOutputProxy(output);
   const screen = blessed.screen({
     input,

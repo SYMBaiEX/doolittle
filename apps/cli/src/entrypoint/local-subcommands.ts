@@ -4,135 +4,66 @@ import type { AppLogger } from "@doolittle/agent/logging/logger";
 import { renderCommandCatalog } from "@doolittle/agent/runtime/command-catalog";
 import { runInheritedTextProcess } from "@doolittle/agent/services/process-execution";
 import { DOOLITTLE_VERSION } from "@doolittle/agent/version";
-import { runDesktopCommand } from "./desktop-command";
-import { runNativeToolCommand } from "./native-tool-command";
 import type { EntrypointSubcommand } from "./subcommand";
 
-interface LocalSubcommandDeps {
-  existsSync: typeof existsSync;
-  resolve: typeof resolve;
-  runProcess: typeof runInheritedTextProcess;
-  renderCommandCatalog: typeof renderCommandCatalog;
-  runDesktopCommand: typeof runDesktopCommand;
-  runNativeToolCommand: typeof runNativeToolCommand;
-  runAcpServer: () => Promise<void>;
-}
-
-const localSubcommandDeps: LocalSubcommandDeps = {
-  existsSync,
-  resolve,
-  runProcess: runInheritedTextProcess,
-  renderCommandCatalog,
-  runDesktopCommand,
-  runNativeToolCommand,
-  runAcpServer: async () => (await import("./acp-server")).startAcpServer(),
-};
-
-export async function handleLocalEntrypointSubcommand(
-  input: {
-    command: EntrypointSubcommand;
-    rest: string[];
-    repoRoot: string;
-    renderTopLevelHelp: () => string;
-    entryLogger: AppLogger;
-    runOnboardingWizard: (args: string[]) => Promise<void>;
-    printLine?: (message: string) => void;
-    writeStderrLine?: (message: string) => void;
-    exit?: (code: number) => void;
-  },
-  deps: LocalSubcommandDeps = localSubcommandDeps,
-): Promise<boolean> {
-  const printLine = input.printLine ?? console.log;
-  const writeStderrLine =
-    input.writeStderrLine ??
-    ((message) => process.stderr.write(`${message}\n`));
-  const exit = input.exit ?? process.exit;
-
-  if (input.command === "help") {
-    printLine(input.renderTopLevelHelp());
-    return true;
-  }
-
-  if (input.command === "version") {
-    printLine(`Doolittle ${DOOLITTLE_VERSION}`);
-    return true;
-  }
-
-  if (input.command === "commands") {
-    printLine(
-      deps.renderCommandCatalog(
-        input.rest.join(" ").trim() || undefined,
-        80,
-        input.repoRoot,
-      ),
-    );
-    return true;
-  }
-
-  if (input.command === "setup") {
-    await input.runOnboardingWizard(input.rest);
-    return true;
-  }
-
-  if (input.command === "doctor") {
-    await input.runOnboardingWizard(["--check", ...input.rest]);
-    return true;
-  }
-
-  if (input.command === "desktop") {
-    const result = await deps.runDesktopCommand({
-      repoRoot: input.repoRoot,
-      args: input.rest,
-      launchCwd: process.cwd(),
-      printLine,
-    });
-    if (result.message) {
-      writeStderrLine(result.message);
+export async function handleLocalEntrypointSubcommand(input: {
+  command: EntrypointSubcommand;
+  rest: string[];
+  repoRoot: string;
+  renderTopLevelHelp: () => string;
+  entryLogger: AppLogger;
+  runOnboardingWizard: (args: string[]) => Promise<void>;
+  writeStderrLine: (message: string) => void;
+}): Promise<number | undefined> {
+  const { command, rest, repoRoot, writeStderrLine } = input;
+  switch (command) {
+    case "help":
+      console.log(input.renderTopLevelHelp());
+      return 0;
+    case "version":
+      console.log(`Doolittle ${DOOLITTLE_VERSION}`);
+      return 0;
+    case "commands":
+      console.log(
+        renderCommandCatalog(rest.join(" ").trim() || undefined, 80, repoRoot),
+      );
+      return 0;
+    case "setup":
+    case "doctor":
+      await input.runOnboardingWizard(
+        command === "doctor" ? ["--check", ...rest] : rest,
+      );
+      return 0;
+    case "desktop":
+    case "native": {
+      const args = { repoRoot, args: rest };
+      const result =
+        command === "desktop"
+          ? await (await import("./desktop-command")).runDesktopCommand(args)
+          : await (await import("./native-tool-command")).runNativeToolCommand(
+              args,
+            );
+      if (result.message) writeStderrLine(result.message);
+      return result.exitCode;
     }
-    exit(result.exitCode);
-    return true;
-  }
-
-  if (input.command === "native") {
-    const result = await deps.runNativeToolCommand({
-      repoRoot: input.repoRoot,
-      args: input.rest,
-      printLine,
-    });
-    if (result.message) {
-      writeStderrLine(result.message);
+    case "acp":
+      await (await import("./acp-server")).startAcpServer();
+      return 0;
+    case "install": {
+      const installScript = resolve(repoRoot, "scripts", "install.sh");
+      if (!existsSync(installScript)) {
+        input.entryLogger.error("install-script-missing", { installScript });
+        writeStderrLine("Install script not found at scripts/install.sh.");
+        return 1;
+      }
+      const result = await runInheritedTextProcess(
+        "bash",
+        [installScript, ...rest],
+        { cwd: repoRoot, toolName: "doolittle.cli.install" },
+      );
+      return result.exitCode;
     }
-    exit(result.exitCode);
-    return true;
+    default:
+      return undefined;
   }
-
-  if (input.command === "acp") {
-    await deps.runAcpServer();
-    return true;
-  }
-
-  if (input.command === "install") {
-    const installScript = deps.resolve(input.repoRoot, "scripts", "install.sh");
-    if (!deps.existsSync(installScript)) {
-      input.entryLogger.error("install-script-missing", {
-        installScript,
-      });
-      writeStderrLine("Install script not found at scripts/install.sh.");
-      exit(1);
-      return true;
-    }
-
-    const result = await deps.runProcess(
-      "bash",
-      [installScript, ...input.rest],
-      {
-        cwd: input.repoRoot,
-        toolName: "doolittle.cli.install",
-      },
-    );
-    exit(result.exitCode);
-    return true;
-  }
-
-  return false;
 }

@@ -12,7 +12,7 @@ import {
   renderPlainStartup,
   schedulePlainDeferredHydration,
 } from "../plain-startup";
-import type { StartCliOptions } from "../tui-start/index";
+import type { StartCliOptions } from "./types";
 
 export async function startPlainCli(
   context: AppContext,

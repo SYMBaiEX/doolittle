@@ -7,8 +7,6 @@ import {
   isEntrypointAliasCommand,
 } from "./subcommand";
 
-export type ApiStartupContext = AppContext;
-
 // BackendManager polls health every 250ms. Reserve two poll windows so the
 // desktop can observe a live listener before optional plugin registration does
 // synchronous work. A conversation can request its tools before this timer.
@@ -16,17 +14,14 @@ export const DESKTOP_DEFERRED_HYDRATION_DELAY_MS = 500;
 
 export interface EntrypointCommandPlan {
   startupMode: "api" | "cli";
-  eagerDeferredHydration: boolean;
   shouldUseCliSurface: boolean;
-  shouldUseApiSurface: boolean;
-  shouldUseCockpitSplash: boolean;
-  shouldSetCliMode: boolean;
 }
 
 export interface EntrypointRuntimePlan {
   shouldStartCli: boolean;
   shouldStartApi: boolean;
   shouldStartApiImmediately: boolean;
+  oneShotPrompt?: string;
 }
 
 export function resolveEntrypointCommandPlan(
@@ -43,11 +38,7 @@ export function resolveEntrypointCommandPlan(
 
   return {
     startupMode: shouldUseApiSurface ? "api" : "cli",
-    eagerDeferredHydration: shouldUseApiSurface,
     shouldUseCliSurface,
-    shouldUseApiSurface,
-    shouldUseCockpitSplash: command === "cockpit",
-    shouldSetCliMode: shouldUseCliSurface,
   };
 }
 
@@ -59,32 +50,35 @@ export function resolveEntrypointRuntimePlan(options: {
 }): EntrypointRuntimePlan {
   const commandPlan = resolveEntrypointCommandPlan(options.command);
   const wantsApi = options.mode === "api" || options.mode === "both";
+  const oneShotPrompt =
+    options.command === "exec" ||
+    isEntrypointAliasCommand(options.command) ||
+    !options.shellIsInteractive
+      ? options.immediatePrompt?.trim() || undefined
+      : undefined;
   const shouldStartCli =
-    options.shellIsInteractive && commandPlan.shouldUseCliSurface;
-  const isOneShot =
-    Boolean(options.immediatePrompt?.trim()) &&
-    (options.command === "exec" ||
-      isEntrypointAliasCommand(options.command) ||
-      !options.shellIsInteractive);
+    !oneShotPrompt &&
+    options.shellIsInteractive &&
+    commandPlan.shouldUseCliSurface;
   const shouldStartApi =
-    !isOneShot && (wantsApi || commandPlan.shouldUseApiSurface);
-  const shouldStartApiImmediately =
-    shouldStartApi && (commandPlan.shouldUseApiSurface || !shouldStartCli);
+    !oneShotPrompt && (wantsApi || commandPlan.startupMode === "api");
+  const shouldStartApiImmediately = shouldStartApi && !shouldStartCli;
 
   return {
     shouldStartCli,
     shouldStartApi,
     shouldStartApiImmediately,
+    oneShotPrompt,
   };
 }
 
 interface ApiStartupControllerOptions {
-  context: ApiStartupContext;
+  context: AppContext;
   command: EntrypointSubcommand;
   shouldStartCli: boolean;
   runtimeLogger: AppLogger;
   startApiServer?: (
-    context: ApiStartupContext,
+    context: AppContext,
   ) => ApiServerAddress | undefined | Promise<ApiServerAddress | undefined>;
   writeStderrLine: (message: string) => void;
   formatTopLevelError: (error: unknown) => string;

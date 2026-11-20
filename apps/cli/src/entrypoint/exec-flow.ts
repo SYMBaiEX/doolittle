@@ -1,101 +1,53 @@
 import { loadConfig } from "@doolittle/agent/config/env";
-import { launchCliBackgroundJob, summarizeCliJob } from "../cli/jobs/index";
+import type { AppLogger } from "@doolittle/agent/logging/logger";
+import { launchCliBackgroundJob } from "../cli/jobs/index";
 import { ensureOnboarded, loadLocalRuntimeEnv } from "../cli/startup";
-import { printCliJobRecord, writeStderrLine } from "./output";
-import type { EntrypointSubcommand, OneShotOptions } from "./subcommand";
+import { writeStderrLine } from "./output";
+import type { OneShotOptions } from "./subcommand";
 
-interface BackgroundExecLogger {
-  warn(event: string, fields?: Record<string, unknown>): void;
-  error(event: string, fields?: Record<string, unknown>): void;
-}
-
-export async function handleBackgroundExec(options: {
-  command: EntrypointSubcommand;
-  oneShot?: OneShotOptions;
-  immediatePrompt?: string;
+export async function handleBackgroundExec(input: {
+  oneShot: OneShotOptions;
+  prompt?: string;
   jobControlDir?: string;
   launcherPath?: string;
-  sessionId?: string;
-  entryLogger: BackgroundExecLogger;
-  ensureOnboarded?: typeof ensureOnboarded;
-  loadLocalRuntimeEnv?: typeof loadLocalRuntimeEnv;
-  loadConfig?: typeof loadConfig;
-  launchCliBackgroundJob?: typeof launchCliBackgroundJob;
-  printCliJobRecord?: typeof printCliJobRecord;
-  summarizeCliJob?: typeof summarizeCliJob;
-  writeStderrLine?: typeof writeStderrLine;
-  printLine?: (message: string) => void;
-  exit?: (code: number) => void;
-}): Promise<boolean> {
-  const {
-    command,
-    oneShot,
-    immediatePrompt,
-    jobControlDir,
-    launcherPath,
-    sessionId,
-    entryLogger,
-  } = options;
-
-  if (command !== "exec" || !oneShot?.background) {
-    return false;
-  }
-
-  const ensureOnboardedFn = options.ensureOnboarded ?? ensureOnboarded;
-  const loadLocalRuntimeEnvFn =
-    options.loadLocalRuntimeEnv ?? loadLocalRuntimeEnv;
-  const loadConfigFn = options.loadConfig ?? loadConfig;
-  const launchCliBackgroundJobFn =
-    options.launchCliBackgroundJob ?? launchCliBackgroundJob;
-  const printCliJobRecordFn = options.printCliJobRecord ?? printCliJobRecord;
-  const summarizeCliJobFn = options.summarizeCliJob ?? summarizeCliJob;
-  const writeStderrLineFn = options.writeStderrLine ?? writeStderrLine;
-  const printLineFn = options.printLine ?? console.log;
-  const exitFn = options.exit ?? process.exit;
-
-  if (!immediatePrompt?.trim()) {
+  entryLogger: AppLogger;
+}): Promise<number> {
+  const { oneShot, launcherPath, entryLogger, prompt } = input;
+  if (!prompt?.trim()) {
     entryLogger.warn("exec-background-usage");
-    writeStderrLineFn(
+    writeStderrLine(
       'Usage: doolittle exec --prompt "your request" --background',
     );
-    exitFn(1);
-    return true;
+    return 1;
   }
   if (oneShot.jsonStream) {
     entryLogger.warn("exec-background-json-stream-conflict");
-    writeStderrLineFn("Cannot combine --background with --json-stream.");
-    exitFn(1);
-    return true;
+    writeStderrLine("Cannot combine --background with --json-stream.");
+    return 1;
   }
 
-  await ensureOnboardedFn();
-  loadLocalRuntimeEnvFn();
-  const config = loadConfigFn();
+  await ensureOnboarded();
+  loadLocalRuntimeEnv();
+  const config = loadConfig();
 
   if (!launcherPath) {
     entryLogger.error("exec-background-missing-launcher");
-    writeStderrLineFn("The launcher path is unavailable for background runs.");
-    exitFn(1);
-    return true;
+    writeStderrLine("The launcher path is unavailable for background runs.");
+    return 1;
   }
 
-  const job = await launchCliBackgroundJobFn({
-    config: {
-      ...config,
-      dataDir: jobControlDir || config.dataDir,
-    },
+  const job = await launchCliBackgroundJob({
+    config: { ...config, dataDir: input.jobControlDir || config.dataDir },
     launcherPath,
-    prompt: immediatePrompt,
-    sessionId,
+    prompt,
+    sessionId: oneShot.sessionId,
   });
-
   if (oneShot.json) {
-    printCliJobRecordFn(job, true, summarizeCliJobFn);
+    console.log(JSON.stringify(job));
   } else {
-    printLineFn(
+    console.log(
       `Started background job ${job.id}. Use "doolittle jobs attach ${job.id}" to follow it live.`,
     );
   }
-
-  return true;
+  return 0;
 }

@@ -1,139 +1,57 @@
-import type { AppLogger } from "@doolittle/agent/logging/logger";
-import type { AppContext } from "@doolittle/agent/runtime/bootstrap";
 import { ensureOnboarded, loadLocalRuntimeEnv } from "../cli/startup";
 import { captureBootLogs } from "./boot-logs";
+import { writeStderrLine } from "./output";
 import {
   createApiStartupController,
-  type EntrypointCommandPlan,
-  type EntrypointRuntimePlan,
+  resolveEntrypointCommandPlan,
   resolveEntrypointRuntimePlan,
 } from "./runtime-control";
+import { formatTopLevelError } from "./static-prompts";
 import type { EntrypointSubcommand } from "./subcommand";
 
-type BootstrapModule = typeof import("@doolittle/agent/runtime/bootstrap");
-type CliModule = typeof import("../cli");
-type ServerModule = typeof import("@doolittle/agent/server");
-
-export interface PreparedEntrypointRuntimeBoot {
-  context: AppContext;
-  bootLogs: Awaited<ReturnType<typeof captureBootLogs>>["logs"];
-  runtimePlan: EntrypointRuntimePlan;
-  runtimeLogger: AppLogger;
-  startCli: CliModule["startCli"] | undefined;
-  runCliPrompt: CliModule["runCliPrompt"] | undefined;
-  runCliPromptWithEvents: CliModule["runCliPromptWithEvents"] | undefined;
-  startServer: () => Promise<boolean>;
-  startServerWhenShellReady: () => void;
-  apiOwnsRuntimeAfterCli: () => Promise<boolean>;
-}
-
-export interface EntrypointRuntimeBootOptions {
+export async function prepareEntrypointRuntimeBoot(options: {
   command: EntrypointSubcommand;
-  commandPlan: EntrypointCommandPlan;
   shellIsInteractive: boolean;
   immediatePrompt?: string;
-  writeStderrLine: (message: string) => void;
-  formatTopLevelError: (error: unknown) => string;
-}
+}) {
+  const { command, shellIsInteractive } = options;
+  const { startupMode, shouldUseCliSurface } =
+    resolveEntrypointCommandPlan(command);
+  const desktop = process.env.DOOLITTLE_DESKTOP_RUNTIME === "1";
+  // The desktop shell owns first-run UX. Running the wizard in its API child
+  // would block the health endpoint on interactive stdin.
+  if (!desktop) await ensureOnboarded();
+  loadLocalRuntimeEnv();
 
-interface EntrypointRuntimeBootDeps {
-  ensureOnboarded?: typeof ensureOnboarded;
-  loadLocalRuntimeEnv?: typeof loadLocalRuntimeEnv;
-  importBootstrap?: () => Promise<Pick<BootstrapModule, "getAppContext">>;
-  importCli?: () => Promise<
-    Pick<CliModule, "startCli" | "runCliPrompt" | "runCliPromptWithEvents">
-  >;
-  importServer?: () => Promise<Pick<ServerModule, "startApiServer">>;
-  captureBootLogs?: typeof captureBootLogs;
-  resolveEntrypointRuntimePlan?: typeof resolveEntrypointRuntimePlan;
-  createApiStartupController?: typeof createApiStartupController;
-}
-
-export async function prepareEntrypointRuntimeBoot(
-  options: EntrypointRuntimeBootOptions,
-  deps: EntrypointRuntimeBootDeps = {},
-): Promise<PreparedEntrypointRuntimeBoot> {
-  const ensureReady = deps.ensureOnboarded ?? ensureOnboarded;
-  const loadRuntimeEnv = deps.loadLocalRuntimeEnv ?? loadLocalRuntimeEnv;
-  const importBootstrap =
-    deps.importBootstrap ??
-    (async () => import("@doolittle/agent/runtime/bootstrap"));
-  const importCli = deps.importCli ?? (async () => import("../cli"));
-  const importServer =
-    deps.importServer ?? (async () => import("@doolittle/agent/server"));
-  const captureLogs = deps.captureBootLogs ?? captureBootLogs;
-  const resolveRuntimePlan =
-    deps.resolveEntrypointRuntimePlan ?? resolveEntrypointRuntimePlan;
-  const createStartupController =
-    deps.createApiStartupController ?? createApiStartupController;
-
-  // The desktop shell owns first-run UX and launches the API without an
-  // interactive stdin. Requiring the terminal wizard here deadlocks the
-  // packaged backend before its health endpoint can become available.
-  if (process.env.DOOLITTLE_DESKTOP_RUNTIME !== "1") {
-    await ensureReady();
-  }
-  loadRuntimeEnv();
-
-  const bootstrapModulePromise = importBootstrap();
-  const cliModulePromise = options.commandPlan.shouldUseCliSurface
-    ? importCli()
-    : undefined;
-  const serverModulePromise = options.commandPlan.shouldUseApiSurface
-    ? importServer()
-    : undefined;
-
-  const [{ getAppContext }, cliModule, serverModule] = await Promise.all([
-    bootstrapModulePromise,
-    cliModulePromise,
-    serverModulePromise,
+  if (shouldUseCliSurface) process.env.DOOLITTLE_MODE ??= "cli";
+  const usesApi = startupMode === "api";
+  const [{ getAppContext }, server] = await Promise.all([
+    import("@doolittle/agent/runtime/bootstrap"),
+    usesApi ? import("@doolittle/agent/server") : undefined,
   ]);
-
-  if (options.commandPlan.shouldSetCliMode) {
-    process.env.DOOLITTLE_MODE ??= "cli";
-  }
-
-  const hydrateAfterListening =
-    process.env.DOOLITTLE_DESKTOP_RUNTIME === "1" &&
-    options.commandPlan.shouldUseApiSurface;
-
-  const { result: context, logs: bootLogs } = await captureLogs(
-    options.commandPlan.shouldUseCockpitSplash ||
-      ((options.command === "start" || options.command === "plain") &&
-        options.shellIsInteractive),
-    async () =>
+  const { result: context, logs: bootLogs } = await captureBootLogs(
+    command === "cockpit" ||
+      ((command === "start" || command === "plain") && shellIsInteractive),
+    () =>
       getAppContext({
-        startupMode: options.commandPlan.startupMode,
-        eagerDeferredHydration:
-          options.commandPlan.eagerDeferredHydration && !hydrateAfterListening,
+        startupMode,
+        eagerDeferredHydration: usesApi && !desktop,
       }),
   );
-  const runtimePlan = resolveRuntimePlan({
-    command: options.command,
-    shellIsInteractive: options.shellIsInteractive,
+  const runtimePlan = resolveEntrypointRuntimePlan({
+    ...options,
     mode: context.config.mode,
-    immediatePrompt: options.immediatePrompt,
   });
   const runtimeLogger = context.services.logger.child("entrypoint.index");
-  const apiStartup = createStartupController({
+  const apiStartup = createApiStartupController({
     context,
-    command: options.command,
+    command,
     shouldStartCli: runtimePlan.shouldStartCli,
     runtimeLogger,
-    startApiServer: serverModule?.startApiServer,
-    writeStderrLine: options.writeStderrLine,
-    formatTopLevelError: options.formatTopLevelError,
-    hydrateAfterListening,
+    startApiServer: server?.startApiServer,
+    writeStderrLine,
+    formatTopLevelError,
+    hydrateAfterListening: desktop && usesApi,
   });
-
-  return {
-    context,
-    bootLogs,
-    runtimePlan,
-    runtimeLogger,
-    startCli: cliModule?.startCli,
-    runCliPrompt: cliModule?.runCliPrompt,
-    runCliPromptWithEvents: cliModule?.runCliPromptWithEvents,
-    ...apiStartup,
-  };
+  return { context, bootLogs, runtimePlan, runtimeLogger, ...apiStartup };
 }

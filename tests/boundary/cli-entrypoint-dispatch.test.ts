@@ -69,7 +69,7 @@ describe("CLI entrypoint dispatch", () => {
       ).toBe(`/${command} inspect  scope`);
       expect(resolveEntrypointCommandPlan(command)).toMatchObject({
         shouldUseCliSurface: true,
-        shouldSetCliMode: true,
+        startupMode: "cli",
       });
     },
   );

@@ -1,6 +1,4 @@
 import { loadApplicationEnv } from "@doolittle/agent/config/env";
-import type { EntrypointCommandPlan } from "./runtime-control";
-import { resolveEntrypointCommandPlan } from "./runtime-control";
 import type { StaticResult } from "./static-prompts";
 import { resolveStaticPrompt } from "./static-prompts";
 import { readEntrypointStdinText } from "./stdin";
@@ -14,9 +12,7 @@ import {
 export interface EntrypointInvocation {
   command: EntrypointSubcommand;
   rest: string[];
-  repoRoot: string;
   shellIsInteractive: boolean;
-  commandPlan: EntrypointCommandPlan;
   oneShot?: OneShotOptions;
   immediatePrompt?: string;
   staticPromptResult?: StaticResult;
@@ -54,9 +50,7 @@ export async function resolveEntrypointInvocation(options: {
   return {
     command,
     rest,
-    repoRoot: options.repoRoot,
     shellIsInteractive,
-    commandPlan: resolveEntrypointCommandPlan(command),
     oneShot,
     immediatePrompt,
     staticPromptResult: resolveStaticPrompt(

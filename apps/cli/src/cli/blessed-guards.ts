@@ -7,6 +7,7 @@ type BlessedTextboxPrototype = {
 
 type BlessedLike = {
   textbox?: {
+    (...args: never[]): unknown;
     prototype?: BlessedTextboxPrototype;
   };
 };

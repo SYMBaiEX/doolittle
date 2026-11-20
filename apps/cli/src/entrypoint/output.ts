@@ -2,7 +2,6 @@ import {
   type CliExecutionResult,
   getCliResultStatus,
 } from "../cli/execution/types";
-import type { CliJobRecord } from "../cli/jobs/index";
 import type { CliTurnEvent } from "../cli/turn-events";
 import { encodeCliTurnEvent } from "../cli/turn-events";
 import type { StaticResult } from "./static-prompts";
@@ -29,23 +28,6 @@ export function printOneShotResult(
   if (result.text) {
     console.log(result.text);
   }
-}
-
-export function printCliJobRecord(
-  job: CliJobRecord | undefined,
-  json: boolean,
-  renderSummary: (job: CliJobRecord) => string,
-): void {
-  if (!job) {
-    return;
-  }
-
-  if (json) {
-    console.log(JSON.stringify(job));
-    return;
-  }
-
-  console.log(renderSummary(job));
 }
 
 export async function emitStaticPromptEvents(

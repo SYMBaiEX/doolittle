@@ -1,19 +1,15 @@
 import { stdin as input, stdout as output } from "node:process";
 import type { AppContext } from "@doolittle/agent/runtime/bootstrap";
-import { ensureCliRuntimeInitialized } from "./init";
 import { resolveCliStartMode } from "./mode";
 import { startPlainCli } from "./plain";
+import type { StartCliOptions } from "./types";
 
-export type { StartCliOptions } from "../tui-start/index";
-
-type StartCliOptions = import("../tui-start/index").StartCliOptions;
 type TuiModule = Pick<typeof import("../tui-start/index"), "startTui">;
 
 interface StartCliDeps {
   argv?: string[];
   stdinIsTTY?: boolean | undefined;
   stdoutIsTTY?: boolean | undefined;
-  ensureCliRuntimeInitialized?: typeof ensureCliRuntimeInitialized;
   startPlainCli?: typeof startPlainCli;
   importTui?: () => Promise<TuiModule>;
   warn?: (message?: unknown, ...optionalParams: unknown[]) => void;
@@ -27,6 +23,7 @@ export async function startCli(
   const cliLogger = context.services.logger.child("cli");
   const mode = resolveCliStartMode({
     argv: deps.argv ?? process.argv,
+    requestedMode: options?.mode,
     stdinIsTTY: deps.stdinIsTTY ?? input.isTTY,
     stdoutIsTTY: deps.stdoutIsTTY ?? output.isTTY,
   });
@@ -36,15 +33,12 @@ export async function startCli(
     return await startPlain(context, options);
   }
 
-  const initializeRuntime =
-    deps.ensureCliRuntimeInitialized ?? ensureCliRuntimeInitialized;
   const importTui =
     deps.importTui ?? (async () => await import("../tui-start/index"));
   const warn = deps.warn ?? console.warn;
 
   let tuiResult: Awaited<ReturnType<TuiModule["startTui"]>>;
   try {
-    await initializeRuntime();
     const { startTui } = await importTui();
     tuiResult = await startTui(context, options);
   } catch (error) {
