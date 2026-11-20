@@ -30,16 +30,20 @@
   outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
-.dl-field:focus-visible {
-  outline: none;
-  outline-width: 0;
-  box-shadow: inset 1px 0 0 var(--text-soft);
+.dl-control:not(.dl-field):is(
+  [aria-haspopup="menu"],
+  [aria-haspopup="listbox"]
+):focus-visible {
+  outline: 1px solid var(--text-soft);
+  outline-offset: -1px;
 }
-.dl-field:focus-visible:not([aria-invalid="true"]) {
-  border-color: var(--text);
+.dl-field:focus-visible {
+  outline: 1px solid var(--text-soft);
+  outline-offset: -1px;
+  box-shadow: none;
 }
 .dl-field[aria-invalid="true"]:focus-visible {
-  box-shadow: inset 1px 0 0 var(--text-soft);
+  outline-offset: 2px;
 }
 .dl-button {
   transition-property: background-color, border-color, color;
@@ -132,6 +136,7 @@
   color: var(--text);
 }
 .dl-settings-menu-group button[aria-current] {
+  background: var(--surface-soft);
   color: var(--text);
   font-weight: 600;
 }
@@ -153,8 +158,8 @@
   min-width: 0;
 }
 .dl-settings-menu-group button:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: -2px;
+  outline: 1px solid var(--text-soft);
+  outline-offset: -1px;
 }
 .dl-settings-mobile-select {
   display: none;
@@ -396,12 +401,13 @@
   background: var(--surface-hover);
 }
 .dl-settings-tabs [role="tab"][aria-selected="true"] {
+  background: var(--surface-soft);
   color: var(--text);
   font-weight: 600;
 }
 .dl-settings-tabs [role="tab"]:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 2px;
+  outline: 1px solid var(--text-soft);
+  outline-offset: -1px;
 }
 @container dl-settings-content (max-width: 600px) {
   .dl-settings-field-row {
@@ -710,14 +716,11 @@
 }
 .dl-composer textarea:focus-visible {
   outline: none;
-  box-shadow: inset 2px 0 0 var(--text-soft);
+  box-shadow: none;
 }
-@media (forced-colors: active) {
-  .dl-composer textarea:focus-visible {
-    box-shadow: none;
-    outline: 1px solid Highlight;
-    outline-offset: 0;
-  }
+.dl-composer:has(textarea:focus-visible) {
+  outline: 1px solid var(--text-soft);
+  outline-offset: -1px;
 }
 .dl-composer-actions {
   display: flex;
@@ -821,18 +824,13 @@
 .dl-action-menu-item {
   display: flex;
   align-items: center;
-  min-height: 40px;
+  min-height: var(--control-height, 40px);
   gap: 16px;
   border-radius: max(6px, var(--radius-sm, 6px));
   padding-inline: 10px;
   color: var(--text);
   font-size: var(--text-control, 14px);
   cursor: pointer;
-}
-.dl-action-menu-item[data-highlighted] {
-  background: var(--surface-hover);
-  color: var(--text);
-  outline: none;
 }
 .dl-action-menu-item > span:first-child {
   min-width: 0;
@@ -859,33 +857,6 @@
   opacity: 1;
   white-space: nowrap;
 }
-@media (pointer: coarse), (max-width: 760px) {
-  .dl-action-menu-item {
-    min-height: 44px;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .dl-action-menu,
-  .dl-action-menu * {
-    animation: none;
-    transition: none;
-  }
-}
-@media (forced-colors: active) {
-  .dl-action-menu {
-    border-color: CanvasText;
-    background: Canvas;
-    color: CanvasText;
-  }
-  .dl-action-menu-item[data-highlighted] {
-    outline: 2px solid Highlight;
-    outline-offset: -2px;
-  }
-  .dl-action-menu-item[data-disabled] {
-    color: GrayText;
-  }
-}
-
 /* Portaled SDK menus keep collision and keyboard ownership in the SDK. */
 .dl-select-content,
 .dl-dialog {
@@ -904,17 +875,25 @@
 .dl-select-item {
   min-height: var(--control-height, 40px);
   border-radius: var(--radius-sm, 6px);
+  color: var(--text);
   line-height: 1.4;
   padding-inline: 10px;
 }
-.dl-select-item[data-highlighted] {
-  background: var(--surface-hover);
-  color: var(--text);
-}
 .dl-select-item[data-state="checked"] {
+  background: var(--surface-soft);
   font-weight: 600;
 }
+.dl-action-menu-item[data-highlighted],
+.dl-select-item[data-highlighted] {
+  background: var(--surface-hover);
+}
+.dl-action-menu-item:focus-visible,
+.dl-select-item:focus-visible {
+  outline: 1px solid var(--text-soft);
+  outline-offset: -1px;
+}
 @media (pointer: coarse), (max-width: 760px) {
+  .dl-action-menu-item,
   .dl-select-item {
     min-height: var(--touch-height, 44px);
   }
@@ -988,7 +967,9 @@
   .dl-settings-menu-group button,
   .dl-settings-tabs [role="tab"],
   .dl-action-menu,
+  .dl-action-menu-item,
   .dl-select-content,
+  .dl-select-item,
   .dl-dialog,
   .dl-dialog-backdrop,
   .dl-state-surface,
@@ -1010,24 +991,27 @@
 }
 @media (forced-colors: active) {
   .dl-control:focus-visible,
+  .dl-control:not(.dl-field):is(
+    [aria-haspopup="menu"],
+    [aria-haspopup="listbox"]
+  ):focus-visible,
   .dl-contact:focus-visible,
   .dl-settings-menu-group button:focus-visible,
   .dl-settings-tabs [role="tab"]:focus-visible,
   .dl-settings-choice:focus-visible,
-  .dl-settings-theme-choice:focus-visible {
+  .dl-settings-theme-choice:focus-visible,
+  .dl-composer:has(textarea:focus-visible) {
     outline-color: Highlight;
   }
+  .dl-action-menu-item[data-highlighted],
   .dl-select-item[data-highlighted] {
-    outline: 2px solid Highlight;
-    outline-offset: -2px;
-  }
-  .dl-field:focus-visible {
     outline: 1px solid Highlight;
-    outline-offset: 0;
-    box-shadow: none;
+    outline-offset: -1px;
   }
-  .dl-field[aria-invalid="true"]:focus-visible {
-    box-shadow: none;
+  .dl-action-menu-item[data-disabled],
+  .dl-select-item[data-disabled] {
+    color: GrayText;
+    opacity: 1;
   }
   .dl-action-menu,
   .dl-select-content,

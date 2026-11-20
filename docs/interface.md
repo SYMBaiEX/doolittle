@@ -19,11 +19,11 @@ are presentations of the same underlying sessions and capabilities.
 - Use real control states for checked, pressed, loading, disabled, and invalid values.
 - Do not apply text-field dimensions to native checkbox, radio, range, file, or color controls.
 
-Message inputs and dropdown triggers must never gain a thick focus frame, orange
-outline, or glow. Use the existing thin neutral edge, small neutral background,
-or inset cue. Keyboard focus must remain visible, including when custom theme
-colors coincide. Preserve the system focus outline in forced-color mode.
-Validation errors may use their existing semantic treatment.
+Use a thin neutral outline or subtle fill for keyboard focus in message inputs,
+dropdown triggers, and menu rows. Keep focus distinct from selection. Show the
+selected option with text emphasis or a trailing checkmark where appropriate.
+Preserve the system focus outline in forced-color mode and semantic colors for
+validation errors.
 
 Keep the composer mounted while it moves from the welcome layout to the bottom
 dock. Transcript history scrolls independently. Small heights and split views

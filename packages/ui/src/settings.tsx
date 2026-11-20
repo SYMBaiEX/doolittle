@@ -3,6 +3,7 @@ import {
   type ReactNode,
   useId,
   useRef,
+  useState,
 } from "react";
 import { type ContextAction, ContextActionMenu } from "./context-action-menu";
 import { Input, NativeSelect } from "./controls";
@@ -13,6 +14,17 @@ export interface SettingsMenuItem {
   description: string;
   group?: string;
   icon?: ReactNode;
+}
+
+function groupSettingsSections(items: readonly SettingsMenuItem[]) {
+  const groups = new Map<string, SettingsMenuItem[]>();
+  for (const item of items) {
+    const group = item.group ?? "Settings";
+    const entries = groups.get(group);
+    if (entries) entries.push(item);
+    else groups.set(group, [item]);
+  }
+  return [...groups];
 }
 
 /** Controlled composition; the host owns routes, fetching and durable state. */
@@ -64,11 +76,9 @@ export function SettingsMenu({
     `${item.label} ${item.description} ${item.group ?? ""}`
       .toLowerCase()
       .includes(normalizedQuery);
-  const visible = items.filter((item) => item.id === value || matches(item));
-  const groups = [...new Set(items.map((item) => item.group ?? "Settings"))];
-  const pickerGroups = [
-    ...new Set(pickerItems.map((item) => item.group ?? "Settings")),
-  ];
+  const groups = groupSettingsSections(items);
+  const showGroupLabels = groups.length > 1 || items.some((item) => item.group);
+  const pickerGroups = groupSettingsSections(pickerItems);
   return (
     <aside
       className="settings-nav dl-settings-menu"
@@ -81,19 +91,16 @@ export function SettingsMenu({
         <span>Settings section</span>
         <NativeSelect
           id={`${id}-section`}
-          aria-label="Settings section"
           value={pickerValue}
           onChange={(event) => onPickerChange(event.target.value)}
         >
-          {pickerGroups.map((group) => (
+          {pickerGroups.map(([group, entries]) => (
             <optgroup key={group} label={group}>
-              {pickerItems
-                .filter((item) => (item.group ?? "Settings") === group)
-                .map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.label}
-                  </option>
-                ))}
+              {entries.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.label}
+                </option>
+              ))}
             </optgroup>
           ))}
         </NativeSelect>
@@ -145,8 +152,10 @@ export function SettingsMenu({
         }}
       >
         {normalizedQuery && !items.some(matches) ? (
-          <div role="status" className="dl-settings-search-empty">
-            <p>No matching sections. Your current section stays available.</p>
+          <div className="dl-settings-search-empty">
+            <p role="status">
+              No matching sections. Your current section stays available.
+            </p>
             {onQueryChange ? (
               <button
                 type="button"
@@ -160,20 +169,17 @@ export function SettingsMenu({
             ) : null}
           </div>
         ) : null}
-        {groups.map((group) => {
-          const entries = visible.filter(
-            (item) => (item.group ?? "Settings") === group,
+        {groups.map(([group, sections]) => {
+          const entries = sections.filter(
+            (item) => item.id === value || matches(item),
           );
           if (!entries.length) return null;
           return (
-            <section
+            <div
               key={group}
               className="settings-nav-group dl-settings-menu-group"
-              aria-label={group}
             >
-              {groups.length > 1 || items.some((item) => item.group) ? (
-                <h3>{group}</h3>
-              ) : null}
+              {showGroupLabels ? <h3>{group}</h3> : null}
               {entries.map((item) => (
                 <ContextActionMenu
                   key={item.id}
@@ -192,7 +198,6 @@ export function SettingsMenu({
                   <button
                     type="button"
                     data-settings-section={item.id}
-                    aria-label={`${item.label}: ${item.description}`}
                     aria-current={value === item.id ? "page" : undefined}
                     title={item.description}
                     onClick={() => onChange(item.id)}
@@ -209,7 +214,7 @@ export function SettingsMenu({
                   </button>
                 </ContextActionMenu>
               ))}
-            </section>
+            </div>
           );
         })}
       </nav>
@@ -236,11 +241,21 @@ export function SettingsTabs({
   panelId: string;
   label?: string;
 }) {
+  const [focusedId, setFocusedId] = useState<string | null>(null);
+  const tabStop =
+    items.find((item) => item.id === focusedId)?.id ??
+    items.find((item) => item.id === value)?.id ??
+    items[0]?.id;
   return (
     <div
       role="tablist"
       aria-label={label}
       className="dl-settings-tabs"
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) {
+          setFocusedId(null);
+        }
+      }}
       onKeyDown={(event) => {
         if (!(event.target instanceof HTMLButtonElement)) return;
         const tabs = [
@@ -284,7 +299,8 @@ export function SettingsTabs({
             type="button"
             aria-controls={panelId}
             aria-selected={value === item.id}
-            tabIndex={value === item.id ? 0 : -1}
+            tabIndex={tabStop === item.id ? 0 : -1}
+            onFocus={() => setFocusedId(item.id)}
             onClick={() => onChange(item.id)}
           >
             {item.label}

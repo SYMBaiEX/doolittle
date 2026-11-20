@@ -1,8 +1,9 @@
-import type {
-  ComponentPropsWithRef,
-  HTMLAttributes,
-  ReactNode,
-  Ref,
+import {
+  type ComponentPropsWithRef,
+  type HTMLAttributes,
+  type ReactNode,
+  type Ref,
+  useId,
 } from "react";
 import type { UiRunState } from "./host";
 
@@ -69,11 +70,13 @@ export function ContactRow({
   detail,
   onSelect,
 }: ContactRowProps) {
+  const detailId = useId();
   return (
     <button
       type="button"
       className="dl-contact"
       aria-label={state ? `${name}, ${stateLabels[state]}` : name}
+      aria-describedby={detail ? detailId : undefined}
       title={name}
       aria-current={selected ? "page" : undefined}
       onClick={onSelect}
@@ -83,7 +86,11 @@ export function ContactRow({
       </span>
       <span className="dl-contact-copy">
         <span className="dl-contact-name">{name}</span>
-        {detail && <span className="dl-meta">{detail}</span>}
+        {detail && (
+          <span className="dl-meta" id={detailId}>
+            {detail}
+          </span>
+        )}
       </span>
       {state && <RunState state={state} compact />}
     </button>
@@ -209,14 +216,11 @@ export function StateSurface({
   action?: ReactNode;
 }) {
   return (
-    <section
-      className="dl-state-surface"
-      data-kind={kind}
-      role={kind === "error" ? "alert" : "status"}
-      aria-busy={kind === "loading" || undefined}
-    >
-      <h2>{title}</h2>
-      {children && <div className="dl-meta">{children}</div>}
+    <section className="dl-state-surface" data-kind={kind}>
+      <div role={kind === "error" ? "alert" : "status"}>
+        <h2>{title}</h2>
+        {children && <div className="dl-meta">{children}</div>}
+      </div>
       {action && <div className="dl-state-action">{action}</div>}
     </section>
   );

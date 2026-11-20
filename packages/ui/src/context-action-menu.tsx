@@ -9,6 +9,8 @@ import {
 } from "@elizaos/ui/dropdown-menu";
 import {
   cloneElement,
+  Fragment,
+  type HTMLAttributes,
   type KeyboardEvent,
   type MouseEvent,
   type ReactElement,
@@ -34,17 +36,21 @@ export interface ContextActionMenuProps {
   items: readonly ContextAction[];
   children: ReactNode;
   /** A dedicated overflow button: do not reuse a primary-action button. */
-  trigger?: ReactElement;
+  trigger?: ReactElement<OverflowTriggerProps>;
   scopeKey?: string;
   disabled?: boolean;
   /** Defaults to display:contents so existing row/tab geometry is unchanged. */
   className?: string;
 }
 
+type OverflowTriggerProps = Pick<
+  HTMLAttributes<HTMLElement>,
+  "onClick" | "aria-label" | "aria-haspopup" | "aria-expanded" | "aria-controls"
+> & { disabled?: boolean };
+
 interface MenuAnchor {
   x: number;
   y: number;
-  invoker: HTMLElement | null;
 }
 
 const NATIVE_CONTEXT_SELECTOR =
@@ -87,13 +93,11 @@ export function ContextActionMenu({
     const wrapper = wrapperRef.current;
     const document = wrapper?.ownerDocument;
     if (!wrapper || !document) return;
+    const invoker = invokerRef.current;
     const Observer = document.defaultView?.MutationObserver;
     if (!Observer) return;
     const observer = new Observer(() => {
-      if (
-        !wrapper.isConnected ||
-        (anchor.invoker && !anchor.invoker.isConnected)
-      ) {
+      if (!wrapper.isConnected || (invoker && !invoker.isConnected)) {
         restoreFocusRef.current = false;
         setAnchor(null);
       }
@@ -102,15 +106,14 @@ export function ContextActionMenu({
     return () => observer.disconnect();
   }, [anchor]);
 
-  function preserveNativeContext(target: EventTarget | null) {
-    if (!(target instanceof Element)) return true;
+  function preserveNativeContext(target: Element) {
     return Boolean(
       target.closest(NATIVE_CONTEXT_SELECTOR) ||
         target.ownerDocument.getSelection()?.toString(),
     );
   }
 
-  function invokingElement(target: HTMLElement) {
+  function invokingElement(target: Element) {
     const wrapper = wrapperRef.current;
     const nearest = target.closest<HTMLElement>(FOCUSABLE_SELECTOR);
     if (nearest && wrapper?.contains(nearest)) return nearest;
@@ -125,23 +128,26 @@ export function ContextActionMenu({
     openScopeRef.current = scopeKey;
     restoreFocusRef.current = true;
     invokerRef.current = invoker;
-    setAnchor({ x, y, invoker });
+    setAnchor({ x, y });
   }
 
   function onContextMenu(event: MouseEvent<HTMLDivElement>) {
+    const target = event.target;
     if (
       event.defaultPrevented ||
       !enabled ||
-      preserveNativeContext(event.target)
+      !(target instanceof Element) ||
+      !event.currentTarget.contains(target) ||
+      preserveNativeContext(target)
     ) {
       return;
     }
     event.preventDefault();
-    const target = event.target as HTMLElement;
     show(event.clientX, event.clientY, invokingElement(target));
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    const target = event.target;
     if (
       event.defaultPrevented ||
       !enabled ||
@@ -149,50 +155,35 @@ export function ContextActionMenu({
         event.key === "ContextMenu" ||
         (event.key === "F10" && event.shiftKey)
       ) ||
-      preserveNativeContext(event.target)
+      !(target instanceof Element) ||
+      !event.currentTarget.contains(target) ||
+      preserveNativeContext(target)
     ) {
       return;
     }
     event.preventDefault();
-    const target = event.target as HTMLElement;
     const bounds = target.getBoundingClientRect();
     show(bounds.left, bounds.bottom, invokingElement(target));
   }
 
   const overflowTrigger = trigger
-    ? cloneElement(
-        trigger as ReactElement<{
-          onClick?: (event: MouseEvent<HTMLElement>) => void;
-          "aria-label"?: string;
-          "aria-haspopup"?: "menu";
-          "aria-expanded"?: boolean;
-          "aria-controls"?: string;
-          disabled?: boolean;
-        }>,
-        {
-          "aria-label":
-            (trigger.props as { "aria-label"?: string })["aria-label"] ?? label,
-          "aria-haspopup": "menu",
-          "aria-expanded": Boolean(anchor),
-          "aria-controls": anchor ? contentId : undefined,
-          disabled:
-            !enabled || (trigger.props as { disabled?: boolean }).disabled,
-          onClick: (event) => {
-            (
-              trigger.props as {
-                onClick?: (event: MouseEvent<HTMLElement>) => void;
-              }
-            ).onClick?.(event);
-            if (event.defaultPrevented || !enabled) return;
-            if (anchor) {
-              setAnchor(null);
-              return;
-            }
-            const bounds = event.currentTarget.getBoundingClientRect();
-            show(bounds.left, bounds.bottom, event.currentTarget);
-          },
+    ? cloneElement(trigger, {
+        "aria-label": trigger.props["aria-label"] ?? label,
+        "aria-haspopup": "menu",
+        "aria-expanded": Boolean(anchor),
+        "aria-controls": anchor ? contentId : undefined,
+        disabled: !enabled || trigger.props.disabled,
+        onClick: (event) => {
+          trigger.props.onClick?.(event);
+          if (event.defaultPrevented || !enabled) return;
+          if (anchor) {
+            setAnchor(null);
+            return;
+          }
+          const bounds = event.currentTarget.getBoundingClientRect();
+          show(bounds.left, bounds.bottom, event.currentTarget);
         },
-      )
+      })
     : null;
 
   return (
@@ -215,18 +206,19 @@ export function ContextActionMenu({
         {children}
         {overflowTrigger}
       </div>
-      <DropdownMenuPortal forceMount>
-        <DropdownMenuTrigger asChild>
-          <button
-            aria-hidden="true"
-            className="dl-action-menu-anchor"
-            disabled={!enabled}
-            style={{ left: anchor?.x ?? 0, top: anchor?.y ?? 0 }}
-            tabIndex={-1}
-            type="button"
-          />
-        </DropdownMenuTrigger>
-      </DropdownMenuPortal>
+      {anchor && (
+        <DropdownMenuPortal>
+          <DropdownMenuTrigger asChild>
+            <button
+              aria-hidden="true"
+              className="dl-action-menu-anchor"
+              style={{ left: anchor.x, top: anchor.y }}
+              tabIndex={-1}
+              type="button"
+            />
+          </DropdownMenuTrigger>
+        </DropdownMenuPortal>
+      )}
       <DropdownMenuContent
         align="start"
         aria-label={label}
@@ -258,10 +250,18 @@ export function ContextActionMenu({
         onInteractOutside={() => {
           restoreFocusRef.current = false;
         }}
+        onKeyDownCapture={(event) => {
+          if (event.key !== "Tab") return;
+          // Resume native Tab order at the invoker instead of inside the portal.
+          event.stopPropagation();
+          restoreFocusRef.current = false;
+          setAnchor(null);
+          invokerRef.current?.focus({ preventScroll: true });
+        }}
         sideOffset={0}
       >
         {items.map((item) => (
-          <div className="contents" key={item.id}>
+          <Fragment key={item.id}>
             {item.separatorBefore ? (
               <DropdownMenuSeparator className="dl-action-menu-separator" />
             ) : null}
@@ -294,7 +294,7 @@ export function ContextActionMenu({
                 </DropdownMenuShortcut>
               ) : null}
             </DropdownMenuItem>
-          </div>
+          </Fragment>
         ))}
       </DropdownMenuContent>
     </DropdownMenu>
