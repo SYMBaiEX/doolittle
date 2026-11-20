@@ -5,10 +5,6 @@ import {
   type TuiThemeProfile,
 } from "@doolittle/agent/runtime/theme-catalog";
 import type blessed from "blessed";
-import {
-  renderExecutionContent,
-  renderTransportContent,
-} from "../../control-deck/index";
 import type { CliState } from "../../execution/index";
 import { applyTuiLayout } from "../../tui-layout";
 import type { TuiStateStore } from "../../tui-state";
@@ -37,9 +33,6 @@ export interface TuiStartPresentationOptions {
 }
 
 export interface TuiStartPresentationResult {
-  renderCurrentControlDeck: () => Promise<void>;
-  renderTransportPanel: () => Promise<string>;
-  renderExecutionPanel: () => Promise<string>;
   renderFooterContent: () => string;
   setFooterHint: (hint: string, options?: { render?: boolean }) => void;
   refreshPanels: () => Promise<void>;
@@ -122,9 +115,6 @@ export function createTuiStartPresentation(
   };
 
   return {
-    renderCurrentControlDeck: () => controlDeck.renderCurrentControlDeck(),
-    renderTransportPanel: async () => renderTransportContent(context),
-    renderExecutionPanel: async () => renderExecutionContent(context),
     renderFooterContent: () => controlDeck.renderFooterContent(),
     setFooterHint: (hint, options) => {
       controlDeck.setFooterHint(hint, options);

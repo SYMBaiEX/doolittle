@@ -55,9 +55,6 @@ export function createTuiStartSetup(
     flushDeferredForeignActivity: surfaces.flushDeferredForeignActivity,
     scheduleDeferredForeignRefresh: surfaces.scheduleDeferredForeignRefresh,
     routeForeignActivity: surfaces.routeForeignActivity,
-    renderCurrentControlDeck: presentation.renderCurrentControlDeck,
-    renderTransportPanel: presentation.renderTransportPanel,
-    renderExecutionPanel: presentation.renderExecutionPanel,
     renderFooterContent: presentation.renderFooterContent,
     setFooterHint: (hint: string, setupOptions?: { render?: boolean }) => {
       presentation.setFooterHint(hint, setupOptions);

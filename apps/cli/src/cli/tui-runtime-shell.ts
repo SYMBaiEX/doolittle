@@ -42,11 +42,6 @@ interface RunTuiBootSequenceOptions {
     tone: "info" | "success" | "warning" | "error" | "agent" | undefined,
   ) => void;
   pushResponseEntry: (label: string, body: string) => void;
-  transportBox: { hidden: boolean; setContent(content: string): void };
-  executionBox: { hidden: boolean; setContent(content: string): void };
-  renderTransportPanel: () => Promise<string>;
-  renderExecutionPanel: () => Promise<string>;
-  renderCurrentControlDeck: () => Promise<void>;
   applyTheme: () => void;
   appendTrace: (label: string, detail?: string) => void;
   refreshPanels: () => Promise<void>;
@@ -73,6 +68,7 @@ export function scheduleTuiDeferredHydration(
   } = options;
 
   setTimeout(() => {
+    if (isScreenDestroyed()) return;
     void context.ensureDeferredHydration("tui").catch((error) => {
       if (isScreenDestroyed() && isBenignShutdownError(error)) {
         return;
@@ -112,11 +108,6 @@ export async function runTuiBootSequence(
     bootLogs,
     appendActivity,
     pushResponseEntry,
-    transportBox,
-    executionBox,
-    renderTransportPanel,
-    renderExecutionPanel,
-    renderCurrentControlDeck,
     applyTheme,
     appendTrace,
     refreshPanels,
@@ -137,14 +128,6 @@ export async function runTuiBootSequence(
     );
   }
   pushResponseEntry("Helm Ready", welcomeBody);
-  if (!transportBox.hidden) {
-    transportBox.setContent(await renderTransportPanel());
-  }
-  if (!executionBox.hidden) {
-    executionBox.setContent(await renderExecutionPanel());
-  }
-  await renderCurrentControlDeck();
-
   applyTheme();
   appendTrace("tui:before-refresh");
   await refreshPanels();
@@ -174,9 +157,7 @@ export function waitForTuiDestroy(
   } = options;
 
   return new Promise<number | "unexpected">((resolve) => {
-    const tuiKeepAlive = setInterval(() => {}, 60_000);
-    screen.on("destroy", () => {
-      clearInterval(tuiKeepAlive);
+    screen.once("destroy", () => {
       markScreenDestroyed();
       cleanup();
       if (!isShuttingDown()) {

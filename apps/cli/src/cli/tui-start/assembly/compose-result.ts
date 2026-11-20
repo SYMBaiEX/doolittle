@@ -25,9 +25,6 @@ export function composeTuiStartAssemblyResult({
       surfaces.updateFooterHint(options);
     },
     syncLayout: surfaces.syncLayout,
-    renderCurrentControlDeck: surfaces.renderCurrentControlDeck,
-    renderTransportPanel: surfaces.renderTransportPanel,
-    renderExecutionPanel: surfaces.renderExecutionPanel,
     applyTheme: surfaces.applyTheme,
     activatePrimaryInput: surfaces.activatePrimaryInput,
     logFatal: surfaces.logFatal,

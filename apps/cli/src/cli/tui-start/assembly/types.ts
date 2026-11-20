@@ -46,9 +46,6 @@ export interface TuiStartAssemblyResult {
   scheduleRefreshPanels: (delayMs?: number) => void;
   updateFooterHint: (options?: TuiStartAssemblyHintOptions) => void;
   syncLayout: () => void;
-  renderCurrentControlDeck: () => Promise<void>;
-  renderTransportPanel: () => Promise<string>;
-  renderExecutionPanel: () => Promise<string>;
   applyTheme: () => void;
   activatePrimaryInput: () => void;
   logFatal: (label: string, error: unknown) => void;

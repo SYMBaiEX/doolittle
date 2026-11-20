@@ -43,12 +43,6 @@ export async function startTui(
   context: AppContext,
   options?: StartCliOptions,
 ): Promise<number | "unexpected" | "too-small"> {
-  const tuiLogger = context.services.logger.child("cli.tui");
-  const state: CliState = {
-    activeSessionId: createCliSessionId("cli"),
-    notices: [],
-  };
-  let activeTheme = getTuiTheme(context.services.settings.get().ui.theme);
   const tuiOutput = createBlessedOutputProxy(output);
   const screen = blessed.screen({
     input,
@@ -58,12 +52,22 @@ export async function startTui(
     title: `${context.config.agentName} TUI`,
     dockBorders: true,
   });
-  const tuiWidgets = createTuiWidgets({
-    screen,
-    theme: activeTheme,
-    agentName: context.config.agentName,
+  let screenDestroyed = false;
+  screen.once("destroy", () => {
+    screenDestroyed = true;
   });
+  try {
+    return await startCockpit(context, screen, options);
+  } finally {
+    if (!screenDestroyed) screen.destroy();
+  }
+}
 
+async function startCockpit(
+  context: AppContext,
+  screen: blessed.Widgets.Screen,
+  options?: StartCliOptions,
+): Promise<number | "unexpected" | "too-small"> {
   const MIN_COLS = 80;
   const MIN_ROWS = 24;
 
@@ -79,6 +83,17 @@ export async function startTui(
     return "too-small";
   }
 
+  const tuiLogger = context.services.logger.child("cli.tui");
+  const state: CliState = {
+    activeSessionId: createCliSessionId("cli"),
+    notices: [],
+  };
+  let activeTheme = getTuiTheme(context.services.settings.get().ui.theme);
+  const tuiWidgets = createTuiWidgets({
+    screen,
+    theme: activeTheme,
+    agentName: context.config.agentName,
+  });
   const crashLogPath = tuiLogger.getCrashLogPath();
   mkdirSync(context.config.dataDir, { recursive: true });
   appendCliTrace(tuiLogger, "tui:start");
@@ -124,6 +139,21 @@ export async function startTui(
     canCopyToClipboard: IS_MACOS,
   });
 
+  const finished = waitForTuiDestroy({
+    screen,
+    markScreenDestroyed: () => {
+      tuiState.screenDestroyed = true;
+    },
+    cleanup: tuiAssembly.dispose,
+    isShuttingDown: () => tuiState.shuttingDown,
+    getExitCode: () => tuiState.requestedExitCode,
+    onUnexpectedDestroy: () => {
+      tuiLogger.recordCrash(
+        "unexpected-screen-destroy",
+        "TUI screen destroyed before an explicit shutdown path.",
+      );
+    },
+  });
   await runTuiBootSequence({
     bootMessage: buildCockpitBootMessage(context.config.agentName),
     tipMessage: buildCockpitTipMessage(),
@@ -134,11 +164,6 @@ export async function startTui(
     })),
     appendActivity: tuiAssembly.appendActivity,
     pushResponseEntry: tuiAssembly.pushResponseEntry,
-    transportBox: tuiWidgets.transportBox,
-    executionBox: tuiWidgets.executionBox,
-    renderTransportPanel: tuiAssembly.renderTransportPanel,
-    renderExecutionPanel: tuiAssembly.renderExecutionPanel,
-    renderCurrentControlDeck: tuiAssembly.renderCurrentControlDeck,
     applyTheme: tuiAssembly.applyTheme,
     appendTrace: (label, detail) => {
       appendCliTrace(tuiLogger.child("boot"), label, detail);
@@ -162,20 +187,5 @@ export async function startTui(
     pushNotice: tuiAssembly.pushNotice,
     scheduleRefreshPanels: tuiAssembly.scheduleRefreshPanels,
   });
-
-  return await waitForTuiDestroy({
-    screen,
-    markScreenDestroyed: () => {
-      tuiState.screenDestroyed = true;
-    },
-    cleanup: tuiAssembly.dispose,
-    isShuttingDown: () => tuiState.shuttingDown,
-    getExitCode: () => tuiState.requestedExitCode,
-    onUnexpectedDestroy: () => {
-      tuiLogger.recordCrash(
-        "unexpected-screen-destroy",
-        "TUI screen destroyed before an explicit shutdown path.",
-      );
-    },
-  });
+  return await finished;
 }

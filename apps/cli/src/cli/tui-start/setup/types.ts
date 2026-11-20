@@ -65,9 +65,6 @@ export interface TuiStartSetupResult {
     source: "stdout" | "stderr" | "console",
     text: string,
   ) => void;
-  renderCurrentControlDeck: () => Promise<void>;
-  renderTransportPanel: () => Promise<string>;
-  renderExecutionPanel: () => Promise<string>;
   renderFooterContent: () => string;
   setFooterHint: (hint: string, options?: { render?: boolean }) => void;
   refreshPanels: () => Promise<void>;
