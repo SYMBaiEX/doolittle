@@ -1,10 +1,11 @@
 import type { BotSummary } from "@doolittle/contracts/bots";
 import { InspectorFrame, StateSurface } from "@doolittle/ui";
-import { X } from "lucide-react";
+import { PanelRight, X } from "lucide-react";
 import { lazy, Suspense, useId } from "react";
 import { BotActions } from "../bots/BotActions";
 import { PanelResizeHandle } from "../components/PanelResizeHandle";
-import { PanelTabs } from "../components/PanelTabs";
+import { PanelTabs, panelTabId } from "../components/PanelTabs";
+import { UiIcon } from "../components/UiIcon";
 import {
   THREAD_WORKBENCH_TABS,
   type ThreadWorkbenchTab,
@@ -87,15 +88,18 @@ export function CompanionInspector({
           value={resize.value}
         />
       ) : null}
-      <header className="flex min-h-12 items-center justify-between border-b border-[var(--border)] px-3">
-        <strong className="text-sm font-semibold">Conversation context</strong>
+      <header className="chat-inspector-heading">
+        <span>
+          <UiIcon icon={PanelRight} size="sm" />
+          <h2>Conversation context</h2>
+        </span>
         <button
           aria-label="Close inspector"
-          className="grid size-10 place-items-center rounded-[var(--radius-md)] hover:bg-[var(--surface-hover)] max-[760px]:size-11"
+          className="chat-header-action"
           onClick={onClose}
           type="button"
         >
-          <X aria-hidden size={16} />
+          <UiIcon icon={X} size="sm" />
         </button>
       </header>
       <div className="shrink-0 border-b border-[var(--border)]">
@@ -108,7 +112,7 @@ export function CompanionInspector({
         />
       </div>
       <section
-        aria-labelledby={`${id}-${tab}-tab`}
+        aria-labelledby={panelTabId(id, tab)}
         className="min-h-0 flex-1 overflow-y-auto"
         id={`${id}-panel`}
         role="tabpanel"
@@ -117,16 +121,20 @@ export function CompanionInspector({
       >
         {tab === "details" ? (
           <>
-            <dl className="chat-inspector-details grid gap-4 p-4 text-sm [&_dd]:mt-1 [&_dd]:min-w-0 [&_dd]:break-words [&_dd]:text-[var(--text)] [&_dt]:text-[length:var(--text-meta)] [&_dt]:text-[var(--muted)]">
+            <dl className="chat-inspector-details">
               <div>
                 <dt>Conversation</dt>
                 <dd>{title}</dd>
               </div>
               <div>
-                <dt>Bot</dt>
+                <dt>Agent</dt>
                 <dd>
                   {bot?.name ?? "Doolittle"}
-                  {bot ? ` · ${bot.state}` : ""}
+                  {bot ? (
+                    <span className="chat-inspector-agent-status">
+                      {bot.state}
+                    </span>
+                  ) : null}
                 </dd>
               </div>
               <div>

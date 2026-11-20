@@ -11,12 +11,17 @@ import {
 } from "lucide-react";
 import {
   type ComponentProps,
+  memo,
   useEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
-import { Streamdown, type UrlTransform } from "streamdown";
+import {
+  Streamdown,
+  type StreamdownProps,
+  type UrlTransform,
+} from "streamdown";
 import {
   MESSAGE_AGENT_STEPS_CLASS,
   MESSAGE_RESPONSE_CLASS,
@@ -107,6 +112,13 @@ function MessageImage({
     />
   );
 }
+
+const MARKDOWN_IMAGES = { img: MessageImage };
+const MARKDOWN_CONTROLS: StreamdownProps["controls"] = {
+  code: { copy: true, download: false },
+  table: { copy: true, download: false, fullscreen: false },
+};
+const MARKDOWN_LINK_SAFETY = { enabled: true };
 
 function statusLabel(status: ToolActivityStatus): string {
   switch (status) {
@@ -496,16 +508,13 @@ function AgentSteps({
         ) : null}
         {finished > 0 ? <p>{finished} completion signal recorded.</p> : null}
         {failed > 0 ? <p>{failed} evaluation failure recorded.</p> : null}
-        <small>
-          Internal reasoning is intentionally not displayed. Open Activity for
-          full operator telemetry.
-        </small>
+        <small>Open Activity for the full run timeline.</small>
       </div>
     </details>
   );
 }
 
-export function MessageContent({
+export const MessageContent = memo(function MessageContent({
   content,
   pending = false,
   parsedAgentMessage,
@@ -532,17 +541,14 @@ export function MessageContent({
       {parsed.text ? (
         <Streamdown
           animated={false}
-          caret="block"
-          className={MESSAGE_RESPONSE_CLASS}
-          components={{ img: MessageImage }}
-          controls={{
-            code: { copy: true, download: false },
-            table: { copy: true, download: false, fullscreen: false },
-          }}
+          caret="circle"
+          className={`chat-message-prose ${MESSAGE_RESPONSE_CLASS}`}
+          components={MARKDOWN_IMAGES}
+          controls={MARKDOWN_CONTROLS}
           dir="auto"
           isAnimating={pending}
           lineNumbers={false}
-          linkSafety={{ enabled: true }}
+          linkSafety={MARKDOWN_LINK_SAFETY}
           mode={pending ? "streaming" : "static"}
           normalizeHtmlIndentation
           urlTransform={safeMessageUrl}
@@ -564,4 +570,4 @@ export function MessageContent({
       <AgentSteps {...parsed.steps} />
     </div>
   );
-}
+});

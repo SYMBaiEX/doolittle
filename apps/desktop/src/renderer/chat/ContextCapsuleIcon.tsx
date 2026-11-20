@@ -11,20 +11,24 @@ import {
 import type { ChatContextCapsule } from "../chat-context-handoff";
 import { UiIcon } from "../components/UiIcon";
 
-const capsuleIcons = {
-  brief: NotebookText,
-  browser: Globe2,
-  diff: GitCompareArrows,
-  file: FileText,
-  plan: ClipboardList,
-  review: MessageSquareText,
-  terminal: Terminal,
+const capsules = {
+  brief: { icon: NotebookText, label: "Brief" },
+  browser: { icon: Globe2, label: "Browser" },
+  diff: { icon: GitCompareArrows, label: "Diff" },
+  file: { icon: FileText, label: "Source" },
+  plan: { icon: ClipboardList, label: "Plan" },
+  review: { icon: MessageSquareText, label: "Review" },
+  terminal: { icon: Terminal, label: "Terminal" },
 } as const;
+
+export function contextCapsuleLabel(kind: ChatContextCapsule["kind"]): string {
+  return capsules[kind]?.label ?? "Source";
+}
 
 export function ContextCapsuleIcon({
   kind,
 }: {
   kind: ChatContextCapsule["kind"];
 }) {
-  return <UiIcon icon={capsuleIcons[kind] ?? Link2} size="sm" />;
+  return <UiIcon icon={capsules[kind]?.icon ?? Link2} size="sm" />;
 }

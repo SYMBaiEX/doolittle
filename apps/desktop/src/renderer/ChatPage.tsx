@@ -53,6 +53,7 @@ import {
   saveInspectorWidth,
 } from "./chat/inspector-layout";
 import { CHAT_WORKSPACE_CLASS } from "./chat/layout";
+import "./chat/chat-surface.css";
 import {
   type BranchMode,
   type DisplayMessage,
@@ -509,9 +510,8 @@ export function ChatSessionPanel({
   );
   const canDraft =
     backend.phase === "ready" ||
-    (hostBackend.phase === "ready" &&
-      currentBot?.isDefault === false &&
-      currentBot.state === "stopped");
+    hostBackend.phase === "ready" ||
+    hostBackend.phase === "booting";
   const [progressBySession, setProgressBySession] = useWorkspaceState<
     Record<string, string>
   >("run.progress", {});
@@ -1882,14 +1882,13 @@ export function ChatSessionPanel({
     workspacePath,
   ]);
 
-  const queueCurrentDraft = async () => {
-    const queueScope = scopeForSession?.(selectedId);
-    if (
-      runHydration !== "ready" ||
-      workspaceBindingBlocked ||
-      (scopeForSession && queueScope?.kind !== "confirmed")
-    )
-      return;
+  const queueScope = scopeForSession?.(selectedId);
+  const queueScopeReady =
+    runHydration === "ready" &&
+    !workspaceBindingBlocked &&
+    (!scopeForSession || queueScope?.kind === "confirmed");
+  const queueCurrentDraft = () => {
+    if (!queueScopeReady) return;
     if (attachmentImportPending) {
       setAttachmentValidationError(
         "Wait for file import to finish before queueing this message.",
@@ -1989,7 +1988,7 @@ export function ChatSessionPanel({
       return;
     }
     if (activeRequest) {
-      await queueCurrentDraft();
+      queueCurrentDraft();
       return;
     }
     await sendMessage(draft);
@@ -2113,6 +2112,14 @@ export function ChatSessionPanel({
     runHydration === "ready" &&
     !attachmentImportPending &&
     !composerValidationError;
+  const canQueue =
+    queueScopeReady &&
+    Boolean(
+      selectedId &&
+        (draft.trim() || attachedFiles.length || chatContextCapsule),
+    ) &&
+    !attachmentImportPending &&
+    !composerValidationError;
   const isNewConversation =
     selectedMessages.length === 0 &&
     (selectedSession?.messageCount ?? 0) === 0 &&
@@ -2185,6 +2192,7 @@ export function ChatSessionPanel({
       >
         <div className="chat-transcript-region">
           <ChatTranscript
+            sessionId={selectedId}
             botName={currentBot?.name}
             activeRequest={activeRequest}
             backendReady={backend.phase === "ready"}
@@ -2359,8 +2367,8 @@ export function ChatSessionPanel({
                     className="border-b border-[var(--border)] px-3 py-2 text-sm text-[var(--bad)]"
                     role="alert"
                   >
-                    This conversation’s bot is unavailable. The draft is
-                    retained; refresh the bot list before sending.
+                    This conversation’s bot is unavailable. Refresh the bot list
+                    to continue.
                   </p>
                 ) : null}
               </>
@@ -2384,6 +2392,7 @@ export function ChatSessionPanel({
             cancellingRequest={cancellingRequest}
             onCancelRequest={(requestId) => void cancelRequest(requestId)}
             canSubmit={canSubmit}
+            canQueue={canQueue}
             canDraft={canDraft}
             draft={draft}
             setDraft={setDraft}

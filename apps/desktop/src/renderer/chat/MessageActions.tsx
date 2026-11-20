@@ -4,6 +4,7 @@ import {
   Check,
   Copy,
   GitFork,
+  type LucideIcon,
   Pencil,
   RotateCcw,
   Volume2,
@@ -12,10 +13,7 @@ import {
 import { UiIcon } from "../components/UiIcon";
 import type { BranchMode, CopyState, DisplayMessage } from "./models";
 
-const MESSAGE_ACTION_CLASS =
-  "chat-message-action-button !size-10 !min-h-10 !min-w-10 max-[760px]:!size-11 max-[760px]:!min-h-11 max-[760px]:!min-w-11 !border-0 !bg-transparent !p-0 !text-[var(--muted)] hover:!bg-[var(--surface-hover)] hover:!text-[var(--text)] focus-visible:!bg-[var(--surface-hover)] focus-visible:!text-[var(--text)] motion-reduce:transition-none";
-
-export interface MessageActionsProps {
+interface MessageActionsProps {
   message: DisplayMessage;
   backendReady: boolean;
   activeRequest: string | null;
@@ -30,83 +28,14 @@ export interface MessageActionsProps {
   onPromote?: (message: DisplayMessage) => void;
 }
 
-function isBranchDisabled(props: MessageActionsProps): boolean {
-  return (
-    !props.backendReady ||
-    Boolean(props.activeRequest) ||
-    Boolean(props.message.pending) ||
-    (Boolean(props.message.error) && props.message.role !== "assistant") ||
-    Boolean(props.forkingMessageId)
-  );
+interface MessageAction extends ContextAction {
+  icon: LucideIcon;
+  buttonLabel?: string;
+  title?: string;
+  tone?: "success" | "error";
 }
 
-/** Context menus reuse exactly the same owned actions and guards as the toolbar. */
-export function messageContextActions(
-  props: MessageActionsProps,
-): ContextAction[] {
-  const { message } = props;
-  const branchDisabled = isBranchDisabled(props);
-  const branch = (mode: BranchMode) => {
-    if (!isBranchDisabled(props)) props.onBranch(message, mode);
-  };
-  const items: ContextAction[] = [
-    {
-      id: "copy",
-      label: "Copy message",
-      onSelect: () => props.onCopy(message),
-    },
-    {
-      id: "fork",
-      label: "Fork from this message",
-      disabled: branchDisabled,
-      onSelect: () => branch("fork"),
-    },
-  ];
-  if (message.role === "user") {
-    items.push({
-      id: "edit",
-      label: "Edit in a new branch",
-      disabled: branchDisabled,
-      onSelect: () => branch("edit"),
-    });
-  } else if (!message.pending) {
-    items.push({
-      id: "retry",
-      label: "Retry in a new branch",
-      disabled: branchDisabled,
-      onSelect: () => branch("retry"),
-    });
-  }
-  if (message.role === "assistant" && !message.pending && !message.error) {
-    const speaking = props.speakingMessageId === message.id;
-    const speechDisabled = !props.speechSupported || !message.content.trim();
-    items.push({
-      id: "read",
-      label: speaking ? "Stop reading response" : "Read response aloud",
-      disabled: speechDisabled,
-      separatorBefore: true,
-      onSelect: () => {
-        if (speechDisabled) return;
-        if (speaking) props.onStopReading();
-        else props.onRead(message);
-      },
-    });
-  }
-  if (props.onPromote && !message.pending && !message.error && message.runId) {
-    items.push({
-      id: "promote",
-      label: "Save to project knowledge…",
-      disabled: !props.backendReady,
-      separatorBefore: true,
-      onSelect: () => {
-        if (props.backendReady) props.onPromote?.(message);
-      },
-    });
-  }
-  return items;
-}
-
-export function MessageActions({
+export function getMessageActions({
   message,
   backendReady,
   activeRequest,
@@ -119,134 +48,129 @@ export function MessageActions({
   onRead,
   onStopReading,
   onPromote,
-}: MessageActionsProps) {
-  const label = copyState === "copied" ? "Copied" : "Copy";
-  const failed = copyState === "failed";
-  const branchDisabled = isBranchDisabled({
-    message,
-    backendReady,
-    activeRequest,
-    forkingMessageId,
-    speechSupported,
-    speakingMessageId,
-    onBranch,
-    onCopy,
-    onRead,
-    onStopReading,
-    onPromote,
-  });
+}: MessageActionsProps): MessageAction[] {
+  const branchDisabled =
+    !backendReady ||
+    Boolean(activeRequest || forkingMessageId || message.pending) ||
+    Boolean(message.error && message.role !== "assistant");
+  const branch = (mode: BranchMode) => () => {
+    if (!branchDisabled) onBranch(message, mode);
+  };
+  const items: MessageAction[] = [
+    {
+      id: "copy",
+      label: "Copy message",
+      buttonLabel: copyState === "failed" ? "Copy failed" : undefined,
+      icon: copyState === "copied" ? Check : Copy,
+      title: copyState === "copied" ? "Copied" : undefined,
+      tone:
+        copyState === "copied"
+          ? "success"
+          : copyState === "failed"
+            ? "error"
+            : undefined,
+      onSelect: () => onCopy(message),
+    },
+    {
+      id: "fork",
+      icon: GitFork,
+      label: "Fork from this message",
+      buttonLabel: "Fork conversation from this message",
+      title:
+        forkingMessageId === message.id
+          ? "Creating branch…"
+          : "Continue in a new branch from this message",
+      disabled: branchDisabled || Boolean(message.error),
+      onSelect: branch("fork"),
+    },
+  ];
+  if (message.role === "user") {
+    items.push({
+      id: "edit",
+      icon: Pencil,
+      label: "Edit in a new branch",
+      buttonLabel: "Edit this message in a new branch",
+      disabled: branchDisabled,
+      onSelect: branch("edit"),
+    });
+  } else if (!message.pending) {
+    items.push({
+      id: "retry",
+      icon: RotateCcw,
+      label: "Retry in a new branch",
+      buttonLabel: "Retry this response in a new branch",
+      disabled: branchDisabled,
+      onSelect: branch("retry"),
+    });
+  }
+  if (message.role === "assistant" && !message.pending && !message.error) {
+    const speaking = speakingMessageId === message.id;
+    const speechDisabled = !speechSupported || !message.content.trim();
+    items.push({
+      id: "read",
+      icon: speaking ? VolumeX : Volume2,
+      label: speaking ? "Stop reading response" : "Read response aloud",
+      buttonLabel: speechSupported
+        ? undefined
+        : "Read aloud is unavailable on this device",
+      disabled: speechDisabled,
+      separatorBefore: true,
+      onSelect: () => {
+        if (speechDisabled) return;
+        if (speaking) onStopReading();
+        else onRead(message);
+      },
+    });
+  }
+  if (onPromote && !message.pending && !message.error && message.runId) {
+    items.push({
+      id: "promote",
+      icon: BookmarkPlus,
+      label: "Save to project knowledge…",
+      buttonLabel: "Promote message to project knowledge",
+      title: "Save to project knowledge; sharing requires a separate grant",
+      disabled: !backendReady,
+      separatorBefore: true,
+      onSelect: () => {
+        if (backendReady) onPromote(message);
+      },
+    });
+  }
+  return items;
+}
+
+export function MessageActions({
+  items,
+  copyState,
+}: {
+  items: MessageAction[];
+  copyState?: CopyState;
+}) {
   return (
-    <fieldset
-      aria-label="Message actions"
-      className="chat-message-actions pointer-coarse:pointer-events-auto pointer-coarse:translate-y-0 pointer-coarse:opacity-100 pointer-fine:pointer-events-none pointer-fine:translate-y-0.5 pointer-fine:opacity-0 pointer-fine:transition-[opacity,transform] pointer-fine:duration-150 pointer-fine:group-hover:pointer-events-auto pointer-fine:group-hover:translate-y-0 pointer-fine:group-hover:opacity-100 pointer-fine:focus-within:pointer-events-auto pointer-fine:focus-within:translate-y-0 pointer-fine:focus-within:opacity-100 static flex min-w-0 max-w-full flex-wrap items-center justify-end gap-0.5 motion-reduce:transition-none motion-reduce:transform-none"
-      style={{ margin: 0, padding: 0, border: 0 }}
-    >
-      <ElizaButton
-        className={MESSAGE_ACTION_CLASS}
-        aria-label="Fork conversation from this message"
-        disabled={branchDisabled}
-        onClick={() => onBranch(message, "fork")}
-        title="Keep this transcript unchanged and continue in a new branch"
-        type="button"
-        size="sm"
-        variant="ghost"
-      >
-        <UiIcon icon={GitFork} size="xs" />
-        <span className="sr-only">
-          {forkingMessageId === message.id ? "Branching…" : "Fork"}
-        </span>
-      </ElizaButton>
-      {onPromote && !message.pending && !message.error && message.runId ? (
+    <fieldset aria-label="Message actions" className="chat-message-actions">
+      {items.map((item) => (
         <ElizaButton
-          className={MESSAGE_ACTION_CLASS}
-          aria-label="Promote message to project knowledge"
-          title="Save this message as project knowledge; sharing requires a separate grant"
-          disabled={!backendReady}
-          onClick={() => onPromote(message)}
-          type="button"
-          variant="ghost"
-        >
-          <UiIcon icon={BookmarkPlus} size="xs" />
-        </ElizaButton>
-      ) : null}
-      {message.role === "user" ? (
-        <ElizaButton
-          className={MESSAGE_ACTION_CLASS}
-          aria-label="Edit this message in a new branch"
-          disabled={branchDisabled}
-          onClick={() => onBranch(message, "edit")}
-          title="Create a branch before this turn and restore the prompt for editing"
-          type="button"
+          aria-label={item.buttonLabel ?? item.label}
+          className="chat-message-action-button"
+          data-tone={item.tone}
+          disabled={item.disabled}
+          key={item.id}
+          onClick={item.onSelect}
           size="sm"
-          variant="ghost"
-        >
-          <UiIcon icon={Pencil} size="xs" />
-          <span className="sr-only">Edit</span>
-        </ElizaButton>
-      ) : !message.pending ? (
-        <ElizaButton
-          className={MESSAGE_ACTION_CLASS}
-          aria-label="Retry this response in a new branch"
-          disabled={branchDisabled}
-          onClick={() => onBranch(message, "retry")}
-          title="Regenerate the preceding prompt without deleting this response"
+          title={item.title ?? item.buttonLabel ?? item.label}
           type="button"
-          size="sm"
           variant="ghost"
         >
-          <UiIcon icon={RotateCcw} size="xs" />
-          <span className="sr-only">Retry</span>
+          <UiIcon icon={item.icon} size="xs" />
         </ElizaButton>
-      ) : null}
-      {message.role === "assistant" && !message.pending && !message.error ? (
-        <ElizaButton
-          className={MESSAGE_ACTION_CLASS}
-          aria-label={
-            speechSupported
-              ? speakingMessageId === message.id
-                ? "Stop reading response"
-                : "Read response aloud"
-              : "Read aloud is unavailable on this device"
-          }
-          disabled={!speechSupported || !message.content.trim()}
-          onClick={() =>
-            speakingMessageId === message.id ? onStopReading() : onRead(message)
-          }
-          title={
-            speechSupported
-              ? speakingMessageId === message.id
-                ? "Stop reading response"
-                : "Read response aloud"
-              : "Read aloud is not supported by this system."
-          }
-          type="button"
-          size="sm"
-          variant="ghost"
-        >
-          <UiIcon
-            icon={speakingMessageId === message.id ? VolumeX : Volume2}
-            size="xs"
-          />
-          <span className="sr-only">
-            {speakingMessageId === message.id ? "Stop" : "Read"}
-          </span>
-        </ElizaButton>
-      ) : null}
-      <ElizaButton
-        className={MESSAGE_ACTION_CLASS}
-        aria-label={failed ? "Copy failed" : "Copy message"}
-        title={failed ? "Copy failed" : label}
-        onClick={(event) => {
-          onCopy(message);
-          if (event.detail > 0) event.currentTarget.blur();
-        }}
-        type="button"
-        size="sm"
-        variant="ghost"
-      >
-        <UiIcon icon={copyState === "copied" ? Check : Copy} size="xs" />
-        <span className="sr-only">{failed ? "Copy failed" : label}</span>
-      </ElizaButton>
+      ))}
+      <span className="sr-only" role="status">
+        {copyState === "copied"
+          ? "Message copied"
+          : copyState === "failed"
+            ? "Copy failed"
+            : ""}
+      </span>
     </fieldset>
   );
 }

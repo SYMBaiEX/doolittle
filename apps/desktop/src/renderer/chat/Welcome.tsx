@@ -1,4 +1,14 @@
-import { ArrowUpRight, Command, Sparkles } from "lucide-react";
+import {
+  ArrowUpRight,
+  Bug,
+  Command,
+  Compass,
+  FileCode2,
+  GitPullRequest,
+  ListChecks,
+  Search,
+  Sparkles,
+} from "lucide-react";
 import { useSyncExternalStore } from "react";
 import { UiIcon } from "../components/UiIcon";
 import { THEME_MANIFEST_CHANGE_EVENT } from "../desktop-theme";
@@ -31,37 +41,47 @@ export function Welcome({
     ? [
         {
           prompt: "Explain this project",
-          detail: "Summarize its structure and important files",
+          icon: FileCode2,
+          detail: "Map its structure and important files",
         },
         {
           prompt: "Plan a change",
-          detail: "Break a feature or refactor into concrete steps",
+          icon: ListChecks,
+          detail: "Sketch the implementation and checks",
         },
         {
           prompt: "Investigate a bug",
-          detail: "Trace a failure from evidence to a likely cause",
+          icon: Bug,
+          detail: "Trace the failure to a likely cause",
         },
         {
           prompt: "Review my changes",
-          detail: "Inspect the diff for bugs, missing tests and risks",
+          icon: GitPullRequest,
+          detail: "Look for regressions in the diff",
         },
       ]
     : [
         {
           prompt: "Help me think something through",
-          detail: "Make a decision, find an approach, or untangle an idea",
+          icon: Compass,
+          detail: "Work through a decision or idea",
         },
         {
           prompt: "Research a question",
-          detail: "Gather evidence and explain what matters",
+          icon: Search,
+          detail: "Find sources and explain what matters",
         },
         {
           prompt: "Plan my next steps",
-          detail: "Turn a goal into something manageable",
+          icon: ListChecks,
+          detail: "Break a goal into manageable steps",
         },
       ];
   return (
-    <div className="chat-welcome">
+    <div
+      className="chat-welcome"
+      data-composition={illustrated ? "illustrated" : "plain"}
+    >
       {illustrated ? (
         <div className="welcome-edition">
           <span>
@@ -118,23 +138,20 @@ export function Welcome({
           aria-label="Conversation starters"
           className="starter-grid chat-welcome-starters"
         >
-          {prompts.map(({ prompt, detail }, index) => (
+          {prompts.map(({ prompt, detail, icon }, index) => (
             <li key={prompt}>
               <button
                 className="chat-welcome-starter"
-                onClick={(event) => {
-                  onSelect(prompt);
-                  const ideas = event.currentTarget.closest("details");
-                  if (!illustrated) ideas?.removeAttribute("open");
-                  if (!illustrated) ideas?.querySelector("summary")?.focus();
-                }}
+                onClick={() => onSelect(prompt)}
                 type="button"
               >
                 {illustrated ? (
                   <span className="welcome-card-index" aria-hidden="true">
                     {String(index + 1).padStart(2, "0")}
                   </span>
-                ) : null}
+                ) : (
+                  <UiIcon className="welcome-card-icon" icon={icon} size="sm" />
+                )}
                 <strong>{prompt}</strong>
                 <small>{detail}</small>
                 <UiIcon

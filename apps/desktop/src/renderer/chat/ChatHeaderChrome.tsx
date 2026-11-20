@@ -15,8 +15,6 @@ export interface ChatHeaderChromeProps {
   onToggleInspector: () => void;
   onTogglePin: () => void;
   selectedSession?: ChatSessionForRender;
-  selectedUpdatedAt?: string;
-  selectedUsageError?: string;
   surface: ChatSurface;
   workbenchToggleRef: RefObject<HTMLButtonElement | null>;
 }
@@ -79,7 +77,7 @@ export function ChatHeaderChrome({
       <button
         aria-expanded={inspectorVisible}
         aria-label={inspectorVisible ? "Close inspector" : "Open inspector"}
-        className="chat-header-action grid size-10 place-items-center rounded-[var(--radius-md)] text-[var(--text-soft)] hover:bg-[var(--surface-hover)] max-[760px]:size-11"
+        className="chat-header-action"
         onClick={onToggleInspector}
         ref={workbenchToggleRef}
         title={inspectorVisible ? "Close inspector" : "Open inspector"}
@@ -90,7 +88,7 @@ export function ChatHeaderChrome({
       {onOpenSettings ? (
         <button
           aria-label="Open settings"
-          className="chat-header-action grid size-10 place-items-center rounded-[var(--radius-md)] text-[var(--text-soft)] hover:bg-[var(--surface-hover)] max-[760px]:size-11"
+          className="chat-header-action"
           onClick={onOpenSettings}
           title="Settings"
           type="button"
@@ -105,7 +103,7 @@ export function ChatHeaderChrome({
         trigger={
           <button
             aria-label="Conversation options"
-            className="chat-header-action grid size-10 place-items-center rounded-[var(--radius-md)] text-[var(--text-soft)] hover:bg-[var(--surface-hover)] max-[760px]:size-11"
+            className="chat-header-action"
             title="Conversation options"
             type="button"
           >

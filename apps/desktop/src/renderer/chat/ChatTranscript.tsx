@@ -1,7 +1,7 @@
 import { ContextActionMenu, StateSurface } from "@doolittle/ui";
-import { memo, type RefObject } from "react";
+import { memo, type RefObject, useLayoutEffect, useRef, useState } from "react";
 import { ChatMessage } from "./ChatMessage";
-import { MessageActions, messageContextActions } from "./MessageActions";
+import { getMessageActions, MessageActions } from "./MessageActions";
 import type {
   BranchMode,
   CopyState,
@@ -11,6 +11,7 @@ import type {
 import { Welcome } from "./Welcome";
 
 export interface ChatTranscriptProps {
+  sessionId: string;
   loading: boolean;
   historyError: string;
   messages: DisplayMessage[];
@@ -56,9 +57,24 @@ interface TranscriptMessageRowProps {
   speechSupported: boolean;
 }
 
-const TranscriptMessageRow = memo(
-  function TranscriptMessageRow({
-    botName,
+const TranscriptMessageRow = memo(function TranscriptMessageRow({
+  botName,
+  activeRequest,
+  backendReady,
+  copyState,
+  forkingMessageId,
+  message,
+  onBranch,
+  onCopy,
+  onRead,
+  onStopReading,
+  onPromote,
+  onRetryMessage,
+  receipt,
+  speakingMessageId,
+  speechSupported,
+}: TranscriptMessageRowProps) {
+  const actions = getMessageActions({
     activeRequest,
     backendReady,
     copyState,
@@ -69,80 +85,43 @@ const TranscriptMessageRow = memo(
     onRead,
     onStopReading,
     onPromote,
-    onRetryMessage,
-    receipt,
     speakingMessageId,
     speechSupported,
-  }: TranscriptMessageRowProps) {
-    const contextActions = messageContextActions({
-      activeRequest,
-      backendReady,
-      copyState,
-      forkingMessageId,
-      message,
-      onBranch,
-      onCopy,
-      onRead,
-      onStopReading,
-      onPromote,
-      speakingMessageId,
-      speechSupported,
-    });
-    return (
-      <ContextActionMenu
-        label={
-          message.role === "assistant" ? "Response actions" : "Message actions"
+  });
+  return (
+    <ContextActionMenu
+      label={
+        message.role === "assistant" ? "Response actions" : "Message actions"
+      }
+      items={actions}
+      scopeKey={message.id}
+    >
+      <ChatMessage
+        botName={botName}
+        actions={<MessageActions copyState={copyState} items={actions} />}
+        message={message}
+        onRetry={onRetryMessage ? () => onRetryMessage(message) : undefined}
+        receipt={receipt}
+        retryDisabled={
+          !backendReady || Boolean(activeRequest) || Boolean(forkingMessageId)
         }
-        items={contextActions}
-        scopeKey={message.id}
-      >
-        <ChatMessage
-          botName={botName}
-          actions={
-            <MessageActions
-              activeRequest={activeRequest}
-              backendReady={backendReady}
-              copyState={copyState}
-              forkingMessageId={forkingMessageId}
-              message={message}
-              onBranch={onBranch}
-              onCopy={onCopy}
-              onRead={onRead}
-              onStopReading={onStopReading}
-              onPromote={onPromote}
-              speakingMessageId={speakingMessageId}
-              speechSupported={speechSupported}
-            />
-          }
-          message={message}
-          onRetry={onRetryMessage ? () => onRetryMessage(message) : undefined}
-          receipt={receipt}
-          retryDisabled={
-            !backendReady || Boolean(activeRequest) || Boolean(forkingMessageId)
-          }
-        />
-      </ContextActionMenu>
-    );
-  },
-  (previous, next) =>
-    previous.botName === next.botName &&
-    previous.activeRequest === next.activeRequest &&
-    previous.backendReady === next.backendReady &&
-    previous.copyState === next.copyState &&
-    previous.forkingMessageId === next.forkingMessageId &&
-    previous.message === next.message &&
-    previous.receipt === next.receipt &&
-    previous.speakingMessageId === next.speakingMessageId &&
-    previous.speechSupported === next.speechSupported &&
-    previous.onBranch === next.onBranch &&
-    previous.onCopy === next.onCopy &&
-    previous.onRead === next.onRead &&
-    previous.onStopReading === next.onStopReading &&
-    previous.onPromote === next.onPromote &&
-    previous.onRetryMessage === next.onRetryMessage,
-);
+      />
+    </ContextActionMenu>
+  );
+});
+
+function messageRunId(message: DisplayMessage): string | undefined {
+  if (message.role !== "assistant") return undefined;
+  return (
+    message.runId ??
+    (message.id.startsWith("assistant:")
+      ? message.id.slice("assistant:".length)
+      : undefined)
+  );
+}
 
 export function ChatTranscript({
+  sessionId,
   loading,
   historyError,
   messages,
@@ -169,16 +148,58 @@ export function ChatTranscript({
   loadingEarlierHistory = false,
   onLoadEarlier,
 }: ChatTranscriptProps) {
+  const transcriptRef = useRef<HTMLDivElement>(null);
+  const [anchorSession, setAnchorSession] = useState<string | null>(null);
+  const anchoredHistoryPending = anchorSession === sessionId;
+  const historyAnchorRef = useRef<{
+    sessionId: string;
+    messageId: string;
+    row: Element;
+    contentTop: number;
+    restoreFocus: boolean;
+  } | null>(null);
+
+  useLayoutEffect(() => {
+    const anchor = historyAnchorRef.current;
+    const transcript = transcriptRef.current;
+    if (!anchor || !transcript) return;
+
+    if (anchor.sessionId === sessionId && anchor.row.isConnected) {
+      if (messages[0]?.id !== anchor.messageId) {
+        const contentTop =
+          anchor.row.getBoundingClientRect().top + transcript.scrollTop;
+        transcript.scrollTop += contentTop - anchor.contentTop;
+      } else if (anchoredHistoryPending || loadingEarlierHistory) {
+        return;
+      }
+      if (
+        !hasEarlierMessages &&
+        anchor.restoreFocus &&
+        transcript.ownerDocument.activeElement === transcript.ownerDocument.body
+      ) {
+        transcript.focus({ preventScroll: true });
+      }
+    }
+
+    transcript.style.removeProperty("overflow-anchor");
+    historyAnchorRef.current = null;
+  }, [
+    anchoredHistoryPending,
+    hasEarlierMessages,
+    loadingEarlierHistory,
+    messages,
+    sessionId,
+  ]);
+
   const latestMessage = messages.at(-1);
-  const latestRunId =
-    latestMessage?.role === "assistant"
-      ? (latestMessage.runId ??
-        (latestMessage.id.startsWith("assistant:")
-          ? latestMessage.id.slice("assistant:".length)
-          : undefined))
-      : undefined;
-  const latestRunReceipt = latestRunId ? runReceipts[latestRunId] : undefined;
-  const showStandaloneProgress = Boolean(progress && !latestRunReceipt);
+  const latestRunId = latestMessage ? messageRunId(latestMessage) : undefined;
+  const showStandaloneProgress = Boolean(
+    progress &&
+      (!activeRequest ||
+        !latestRunId ||
+        latestRunId !== activeRequest ||
+        !runReceipts[latestRunId]),
+  );
 
   return (
     <div
@@ -186,7 +207,9 @@ export function ChatTranscript({
       aria-relevant="additions"
       aria-label={projectName ? `${projectName} conversation` : "Conversation"}
       className="chat-messages"
+      ref={transcriptRef}
       role="log"
+      tabIndex={-1}
     >
       {loading && !messages.length ? (
         <StateSurface kind="loading" title="Loading conversation…" />
@@ -227,55 +250,71 @@ export function ChatTranscript({
           {hasEarlierMessages && onLoadEarlier ? (
             <div className="chat-load-earlier">
               <button
+                aria-busy={
+                  loadingEarlierHistory || anchoredHistoryPending || undefined
+                }
                 aria-label="Load earlier messages"
                 className="text-button"
-                disabled={loadingEarlierHistory}
+                disabled={loadingEarlierHistory || anchoredHistoryPending}
                 onClick={async (event) => {
-                  const transcript =
-                    event.currentTarget.closest<HTMLElement>(".chat-messages");
-                  const previousHeight = transcript?.scrollHeight ?? 0;
-                  const previousTop = transcript?.scrollTop ?? 0;
-                  await onLoadEarlier();
-                  if (transcript) {
-                    transcript.scrollTop =
-                      previousTop + (transcript.scrollHeight - previousHeight);
+                  const transcript = transcriptRef.current;
+                  const row = transcript?.querySelector("[data-message-role]");
+                  const firstMessage = messages[0];
+                  if (transcript && row && firstMessage) {
+                    // Apply only the displacement caused by prepended rows.
+                    // The reader can keep scrolling while history loads.
+                    transcript.style.setProperty("overflow-anchor", "none");
+                    historyAnchorRef.current = {
+                      sessionId,
+                      messageId: firstMessage.id,
+                      row,
+                      contentTop:
+                        row.getBoundingClientRect().top + transcript.scrollTop,
+                      restoreFocus:
+                        transcript.ownerDocument.activeElement ===
+                        event.currentTarget,
+                    };
+                  }
+                  setAnchorSession(sessionId);
+                  try {
+                    await onLoadEarlier();
+                  } finally {
+                    setAnchorSession((current) =>
+                      current === sessionId ? null : current,
+                    );
                   }
                 }}
                 type="button"
               >
-                {loadingEarlierHistory
+                {loadingEarlierHistory || anchoredHistoryPending
                   ? "Loading earlier messages…"
                   : "Load earlier messages"}
               </button>
             </div>
           ) : null}
-          {messages.map((message) => (
-            <TranscriptMessageRow
-              botName={botName}
-              activeRequest={activeRequest}
-              backendReady={backendReady}
-              copyState={copyStates[message.id]}
-              forkingMessageId={forkingMessageId}
-              key={message.id}
-              message={message}
-              onBranch={onBranch}
-              onCopy={onCopy}
-              onPromote={onPromote}
-              onRead={onRead}
-              onRetryMessage={onRetryMessage}
-              onStopReading={onStopReading}
-              receipt={
-                message.role === "assistant" &&
-                (message.runId || message.id.startsWith("assistant:"))
-                  ? runReceipts[
-                      message.runId ?? message.id.slice("assistant:".length)
-                    ]
-                  : undefined
-              }
-              speakingMessageId={speakingMessageId}
-              speechSupported={speechSupported}
-            />
-          ))}
+          {messages.map((message) => {
+            const runId = messageRunId(message);
+            return (
+              <TranscriptMessageRow
+                botName={botName}
+                activeRequest={activeRequest}
+                backendReady={backendReady}
+                copyState={copyStates[message.id]}
+                forkingMessageId={forkingMessageId}
+                key={message.id}
+                message={message}
+                onBranch={onBranch}
+                onCopy={onCopy}
+                onPromote={onPromote}
+                onRead={onRead}
+                onRetryMessage={onRetryMessage}
+                onStopReading={onStopReading}
+                receipt={runId ? runReceipts[runId] : undefined}
+                speakingMessageId={speakingMessageId}
+                speechSupported={speechSupported}
+              />
+            );
+          })}
         </>
       ) : (
         <Welcome

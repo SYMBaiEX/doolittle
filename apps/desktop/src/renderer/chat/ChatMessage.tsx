@@ -1,5 +1,5 @@
 import { parseWalletActivityReceipt } from "@doolittle/contracts/wallet-activity";
-import type { ReactNode } from "react";
+import { type ReactNode, useMemo } from "react";
 import { MessageContent } from "../components/MessageContent";
 import {
   type ParsedAgentMessage,
@@ -7,7 +7,7 @@ import {
 } from "../components/message-output";
 import { WalletActivityCard } from "../components/WalletActivityCard";
 import { displayTimestamp } from "../lib";
-import { ContextCapsuleIcon } from "./ContextCapsuleIcon";
+import { ContextCapsuleIcon, contextCapsuleLabel } from "./ContextCapsuleIcon";
 import { MessageAttachmentList } from "./MessageAttachmentList";
 import type { DisplayMessage, RunReceipt } from "./models";
 import { RunReceiptView } from "./RunReceiptView";
@@ -93,11 +93,16 @@ export function ChatMessage({
   retryDisabled?: boolean;
   onRetry?: () => void;
 }) {
+  const author = message.role === "assistant" ? botName : "You";
   const visibleContent = messageContentAfterReceipt(message, receipt);
-  const parsedAgentMessage: ParsedAgentMessage | undefined =
-    message.role === "assistant" && visibleContent
-      ? parseAgentMessage(visibleContent)
-      : undefined;
+  const parseEvents = message.role === "assistant";
+  const parsedAgentMessage = useMemo<ParsedAgentMessage | undefined>(
+    () =>
+      parseEvents && visibleContent
+        ? parseAgentMessage(visibleContent)
+        : undefined,
+    [parseEvents, visibleContent],
+  );
   const hasToolActivity = Boolean(parsedAgentMessage?.tools.length);
   const receiptNeedsAttention = Boolean(
     receipt &&
@@ -134,9 +139,9 @@ export function ChatMessage({
       <div className="chat-message-label">
         <strong>
           <span aria-hidden="true" className="chat-message-avatar">
-            {message.role === "assistant" ? botName.slice(0, 1) : "Y"}
+            {Array.from(author.trim())[0] ?? "D"}
           </span>
-          <span>{message.role === "assistant" ? botName : "You"}</span>
+          <span>{author}</span>
         </strong>
         <time dateTime={message.createdAt}>
           {displayTimestamp(message.createdAt)}
@@ -211,20 +216,8 @@ export function ChatMessage({
               <ContextCapsuleIcon kind={message.contextCapsule.kind} />
             </span>
             <span>
-              {message.contextCapsule.kind === "diff"
-                ? "Diff"
-                : message.contextCapsule.kind === "review"
-                  ? "Review"
-                  : message.contextCapsule.kind === "brief"
-                    ? "Brief"
-                    : message.contextCapsule.kind === "plan"
-                      ? "Plan"
-                      : message.contextCapsule.kind === "terminal"
-                        ? "Terminal"
-                        : message.contextCapsule.kind === "browser"
-                          ? "Browser"
-                          : "Source"}{" "}
-              · {message.contextCapsule.path}
+              {contextCapsuleLabel(message.contextCapsule.kind)} ·{" "}
+              {message.contextCapsule.path}
             </span>
             {message.contextCapsule.source ? (
               <small>{message.contextCapsule.source}</small>
