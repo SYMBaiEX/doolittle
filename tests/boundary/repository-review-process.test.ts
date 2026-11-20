@@ -5,9 +5,13 @@ import {
   runRepositoryReviewProcess,
 } from "../../packages/agent/src/services/repository-review";
 
-vi.mock("../../packages/agent/src/services/process-execution", () => ({
-  runTextProcess: vi.fn(),
-}));
+vi.mock(
+  import("../../packages/agent/src/services/process-execution"),
+  async (original) => ({
+    ...(await original()),
+    runTextProcess: vi.fn(),
+  }),
+);
 
 const request = { command: "gh", args: ["--version"], cwd: "/review-root" };
 const success = {

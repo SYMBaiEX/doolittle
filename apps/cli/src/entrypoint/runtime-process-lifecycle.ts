@@ -53,7 +53,8 @@ const shutdownOwnedRuntime: typeof disposeRuntime = (
   context,
   _lifecycle,
   options,
-) => shutdownApplicationRuntime(runtime, context, options);
+) =>
+  shutdownApplicationRuntime(runtime, context ?? "process shutdown", options);
 
 export function installRuntimeProcessLifecycle({
   runtime,

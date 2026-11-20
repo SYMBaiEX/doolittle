@@ -59,6 +59,7 @@ it("runs the real SDK terminal action in its verified desktop workspace without 
   } as unknown as IAgentRuntime;
   const services = {
     terminal: {
+      assertExecutionAvailable: () => undefined,
       recent: () => [record],
       preflightProductionBuild: () => undefined,
     },

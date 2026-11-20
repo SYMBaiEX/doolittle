@@ -91,6 +91,7 @@ it("binds SDK run identities to command, timeout and workspace and replays their
     vi.stubEnv("ELIZA_TERMINAL_RUN_TOKEN", "fixture-terminal-capability");
     vi.stubEnv("ELIZA_RUNTIME_MODE", "local-yolo");
     const context = {
+      services: { terminal: { assertExecutionAvailable: () => undefined } },
       runtime: {
         getService: (type: string) =>
           type === DOOLITTLE_SHELL_SERVICE
