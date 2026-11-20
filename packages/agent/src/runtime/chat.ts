@@ -71,13 +71,17 @@ function runInRoomQueue<T>(
   context: AgentExecutionContext,
   roomId: string,
   operation: () => Promise<T>,
+  signal?: AbortSignal,
 ): Promise<T> {
   const queue = context.runtime.roomHandlerQueue;
-  // beta.7 production runtimes expose the official room queue. Keep narrow
-  // CLI/test/compatible runtime hosts operational when they intentionally
-  // provide only the message-service surface.
+  // The SDK both serializes turns and amends room evidence during ingestion.
+  // Carry its ambient room lease so an attachment edit can reuse ownership
+  // instead of queuing behind the very turn that is waiting on that edit.
+  if (queue && typeof queue.withLease === "function") {
+    return queue.withLease(roomId, operation, { signal });
+  }
   return queue && typeof queue.runWith === "function"
-    ? queue.runWith(roomId, operation)
+    ? queue.runWith(roomId, operation, { signal })
     : operation();
 }
 
@@ -189,14 +193,19 @@ async function handleAdmittedAgentTurn(
   const perf = new TurnPerfTrace();
   const trimmedMessage = input.message.trim();
   const runQueued = (operation: () => Promise<string>): Promise<string> =>
-    runInRoomQueue(context, String(preparedTurn.turn.roomId), async () => {
-      if (!isDesktopWorkspaceRuntime()) return operation();
-      const scope = await resolveConversationWorkspace(
-        options?.originConversationId ?? preparedTurn.turn.sessionId,
-        options?.abortSignal,
-      );
-      return runWithConversationWorkspace(scope, operation);
-    });
+    runInRoomQueue(
+      context,
+      String(preparedTurn.turn.roomId),
+      async () => {
+        if (!isDesktopWorkspaceRuntime()) return operation();
+        const scope = await resolveConversationWorkspace(
+          options?.originConversationId ?? preparedTurn.turn.sessionId,
+          options?.abortSignal,
+        );
+        return runWithConversationWorkspace(scope, operation);
+      },
+      options?.abortSignal,
+    );
   return runQueued(async () => {
     // Share tools across desktop, local CLI, gateway, and ACP turns while
     // keeping connector activation and operator services off the response path.
