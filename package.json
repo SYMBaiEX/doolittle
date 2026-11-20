@@ -329,7 +329,8 @@
     "@types/blessed": "^0.1.27",
     "@lydell/node-pty": "1.1.0",
     "ethers": "6.17.0",
-    "@solana/buffer-layout-utils": "link:packages/solana-layouts"
+    "@solana/buffer-layout-utils": "link:packages/solana-layouts",
+    "@solana/web3.js": "1.99.0"
   },
   "allowScripts": {
     "@nubjs/nub": true,
