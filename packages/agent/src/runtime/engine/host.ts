@@ -56,13 +56,21 @@ interface Resident {
   diagnosticCode?: "module-resolution" | "worker-error" | "worker-exit";
 }
 
+interface EngineHostTransport {
+  on(
+    event: "message" | "disconnect",
+    listener: (value: unknown) => void,
+  ): unknown;
+  send?: (message: unknown) => boolean;
+}
+
 export interface SharedEngineHostOptions {
   workerFactory?: WorkerFactory;
   maxWorkers?: number;
   maxConcurrentStarts?: number;
   startupTimeoutMs?: number;
   stopTimeoutMs?: number;
-  ipc?: Pick<NodeJS.Process, "on" | "send">;
+  ipc?: EngineHostTransport;
   enabled?: boolean;
   onDiagnostic?: (diagnostic: { botId: string; code: string }) => void;
 }
@@ -106,7 +114,7 @@ export function installSharedEngineHost(
   entryUrl: string | URL,
   options: SharedEngineHostOptions = {},
 ): { stopAll: () => Promise<void> } | undefined {
-  const ipc = options.ipc ?? process;
+  const ipc: EngineHostTransport = options.ipc ?? process;
   if (
     !(
       options.enabled ??

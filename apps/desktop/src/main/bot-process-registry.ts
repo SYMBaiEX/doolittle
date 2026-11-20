@@ -73,6 +73,9 @@ export interface BotProcessRegistryOptions {
   ) => RuntimeEndpoint;
 }
 
+type LeadRuntimeEndpoint = RuntimeEndpoint &
+  Pick<BackendManager, "getEngineClient" | "getRuntimeDataDirectory">;
+
 export class BotActivationCancelledError extends Error {
   constructor() {
     super(
@@ -117,7 +120,7 @@ export class BotProcessRegistry {
   constructor(
     private readonly target: BackendLaunchTarget,
     private readonly dataDir: string,
-    private readonly defaultBackend: BackendManager,
+    private readonly defaultBackend: LeadRuntimeEndpoint,
     defaultWorkspacePath: string,
     options: BotProcessRegistryOptions = {},
   ) {

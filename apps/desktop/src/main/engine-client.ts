@@ -1,4 +1,4 @@
-import type { ChildProcess } from "node:child_process";
+import type { Serializable } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { EventEmitter } from "node:events";
 import {
@@ -39,6 +39,14 @@ type HostBinding = {
   stopPromise?: Promise<void>;
 };
 
+export type EngineTransport = EventEmitter & {
+  readonly connected: boolean;
+  send(
+    message: Serializable,
+    callback?: (error: Error | null) => void,
+  ): boolean;
+};
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
@@ -69,7 +77,7 @@ class VirtualWorkerChild extends EventEmitter {
   connected = true;
 
   constructor(
-    private readonly engine: ChildProcess,
+    private readonly engine: EngineTransport,
     private readonly botId: string,
   ) {
     super();
@@ -106,7 +114,7 @@ export class EngineClient {
   private disconnected = false;
 
   constructor(
-    private readonly child: ChildProcess,
+    private readonly child: EngineTransport,
     private readonly timeoutMs = SHARED_ENGINE_STOP_CONTROL_TIMEOUT_MS,
   ) {
     child.on("message", this.onMessage);

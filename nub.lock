@@ -272,6 +272,9 @@ importers:
       '@doolittle/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@doolittle/desktop':
+        specifier: workspace:*
+        version: link:../desktop
       '@doolittle/storage':
         specifier: workspace:*
         version: link:../../packages/storage

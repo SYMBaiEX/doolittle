@@ -11,6 +11,9 @@
   "private": true,
   "type": "module",
   "main": "dist/main/main.mjs",
+  "exports": {
+    "./named-bot-host": "./src/main/named-bot-host.ts"
+  },
   "scripts": {
     "dev": "nub scripts/dev.ts",
     "build": "nub run build:main && nub run build:renderer",

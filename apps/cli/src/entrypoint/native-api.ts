@@ -3,6 +3,7 @@ import {
   NativeWorkspaceAdmission,
   runWithNativeWorkspaceAdmission,
 } from "@doolittle/agent/runtime/execution-admission";
+import { createNativeBotHost } from "@doolittle/desktop/named-bot-host";
 import { loadLocalRuntimeEnv } from "../cli/startup";
 import { prepareNativeProfile } from "./native-profile";
 import { installRuntimeProcessLifecycle } from "./runtime-process-lifecycle";
@@ -12,7 +13,9 @@ export async function runNativeApi(): Promise<void> {
   const bearerToken = process.env.ELIZA_API_TOKEN;
   const allowWorkspaceSave =
     process.env.DOOLITTLE_NATIVE_WORKSPACE_SAVE === "1";
+  const controlPlane = process.env.DOOLITTLE_NATIVE_CONTROL_PLANE === "1";
   delete process.env.DOOLITTLE_NATIVE_WORKSPACE_SAVE;
+  delete process.env.DOOLITTLE_NATIVE_CONTROL_PLANE;
   if (!bearerToken || !/^[a-f0-9]{64}$/u.test(bearerToken)) {
     throw new Error("Native API requires a 32-byte bearer capability.");
   }
@@ -26,14 +29,18 @@ export async function runNativeApi(): Promise<void> {
 
   return runWithNativeWorkspaceAdmission(
     new NativeWorkspaceAdmission(profile.workspaceIsCurrent),
-    () => runOwnedNativeApi(profile, bearerToken, allowWorkspaceSave),
+    () =>
+      runOwnedNativeApi(profile, bearerToken, {
+        allowWorkspaceSave,
+        controlPlane,
+      }),
   );
 }
 
 async function runOwnedNativeApi(
   profile: ReturnType<typeof prepareNativeProfile>,
   bearerToken: string,
-  allowWorkspaceSave: boolean,
+  capabilities: { allowWorkspaceSave: boolean; controlPlane: boolean },
 ): Promise<void> {
   // The capability belongs to this listener only. Never forward it to agent tools.
   process.env.ELIZA_API_TOKEN = "";
@@ -95,6 +102,7 @@ async function runOwnedNativeApi(
         typeof import("@doolittle/agent/runtime/application").getApplicationSession
       >
     | undefined;
+  let botHost: ReturnType<typeof createNativeBotHost> | undefined;
   let hydrationTimer: ReturnType<typeof setTimeout> | undefined;
   let cancelActiveRuns: (() => number) | undefined;
   try {
@@ -112,10 +120,21 @@ async function runOwnedNativeApi(
     cancelActiveRuns = () =>
       context.services.runController.cancelAllActiveRuns();
     if (closingReason) return;
+    if (capabilities.controlPlane) {
+      botHost = createNativeBotHost({
+        endpoint: () => listener?.address.url,
+        agentId: context.runtime.agentId,
+        name: context.config.agentName,
+        dataDir: profile.dataDir,
+        workspace: profile.workspace,
+        bearerToken,
+      });
+    }
     listener = await createApiServer(context, {
       nativeClient: {
         bearerToken,
-        allowWorkspaceSave,
+        ...capabilities,
+        dispatchNamedBotControl: botHost?.dispatch,
         workspaceIsCurrent: () =>
           context.config.workspaceDir === profile.workspace &&
           profile.workspaceIsCurrent(),
@@ -147,10 +166,16 @@ async function runOwnedNativeApi(
     process.stdin.removeListener("error", onPipeClose);
     process.stdin.pause();
     try {
+      // Let lead turns begin unwinding while the bot host and HTTP listener
+      // close. The application still verifies runtime drain before exiting.
+      cancelActiveRuns?.();
       try {
-        await listener?.close();
+        try {
+          await botHost?.close();
+        } finally {
+          await listener?.close();
+        }
       } finally {
-        cancelActiveRuns?.();
         await application?.dispose(closingReason, { fast: true });
       }
     } finally {
