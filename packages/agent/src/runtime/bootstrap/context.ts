@@ -18,7 +18,8 @@ export async function configureBootstrapContext({
   config,
   services,
   runtime,
-  loadDeferredPlugins,
+  loadTurnPlugins,
+  loadMessagingPlugins,
   bindRuntime,
   workerBot,
 }: BootstrapContextParams): Promise<BootstrapContext> {
@@ -36,34 +37,44 @@ export async function configureBootstrapContext({
     services,
     runtime,
   });
-  const hostDeferredHydration = createDeferredHydrator({
-    services,
-    loadDeferredPlugins,
-    registerPlugin: async (plugin) => {
-      await runtime.registerPlugin(plugin);
-      installNativeDiscordInboundHandoff(runtime, gateway.get());
-      installNativeSlackInboundHandoff(runtime, gateway.get());
-      installNativeTelegramInboundHandoff(runtime, gateway.get());
-      installNativeSignalInboundHandoff(runtime, gateway.get());
-      installNativeWhatsAppInboundHandoff(runtime, gateway.get());
-    },
-    ensureGateway: () => {
-      gateway.get();
-    },
-    startScheduler: async () => {
-      await schedulerService?.startScheduler();
-    },
-    warmSupportServices: () => {
-      services.diagnostics;
-      services.operator;
-      services.ecosystem;
-      services.skills;
-    },
-  });
-  const ensureDeferredHydration = workerBot
-    ? async () => undefined
-    : hostDeferredHydration;
-  gateway.setDeferredHydration(ensureDeferredHydration);
+  const { ensureTurnPlugins, ensureDeferredHydration } = workerBot
+    ? {
+        ensureTurnPlugins: async () => undefined,
+        ensureDeferredHydration: async () => undefined,
+      }
+    : createDeferredHydrator({
+        services,
+        loadTurnPlugins,
+        loadMessagingPlugins,
+        registerTurnPlugin: (plugin) => runtime.registerPlugin(plugin),
+        ensureGateway: () => {
+          gateway.get();
+        },
+        registerMessagingPlugin: async (plugin) => {
+          if (!runtime.plugins.includes(plugin)) {
+            await runtime.registerPlugin(plugin);
+          }
+          if (
+            plugin.services?.some(
+              (service) => service.serviceType === plugin.name,
+            )
+          ) {
+            // SDK registration starts services asynchronously. Install our
+            // inbound policy as soon as this configured connector is available.
+            await runtime.getServiceLoadPromise(plugin.name);
+          }
+          const runner = gateway.get();
+          installNativeDiscordInboundHandoff(runtime, runner);
+          installNativeSlackInboundHandoff(runtime, runner);
+          installNativeTelegramInboundHandoff(runtime, runner);
+          installNativeSignalInboundHandoff(runtime, runner);
+          installNativeWhatsAppInboundHandoff(runtime, runner);
+        },
+        startScheduler: async () => {
+          await schedulerService?.startScheduler();
+        },
+      });
+  gateway.setTurnPluginReadiness(ensureTurnPlugins);
 
   const context: BootstrapContext = {
     config,
@@ -72,6 +83,7 @@ export async function configureBootstrapContext({
     get gateway() {
       return gateway.get();
     },
+    ensureTurnPlugins,
     ensureDeferredHydration,
   };
   // Rebind every runtime-aware service on each successful activation.
@@ -79,6 +91,9 @@ export async function configureBootstrapContext({
   services.acp.bindRuntimeTools(() =>
     getRuntimeToolProjection(runtime).tools.filter((tool) => tool.enabled),
   );
+  if (workerBot) {
+    services.startupState.markReady("tools", "worker tools ready");
+  }
   services.startupState.markReady("runtime", "runtime ready");
   return context;
 }

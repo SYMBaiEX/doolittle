@@ -1,4 +1,5 @@
 import type { AwarenessContributor } from "@elizaos/shared/contracts/awareness";
+import { formatStartupStatus } from "../startup-state-service";
 import type { AppServices } from "../types";
 
 export function createRuntimeContributor(): AwarenessContributor {
@@ -41,7 +42,7 @@ export function createStartupContributor(
     cacheTtl: 10_000,
     summary: async () => {
       const snapshot = services.startupState.getSnapshot();
-      return `startup hot=${snapshot.hotPathReady ? "ready" : "warming"} deferred=${snapshot.deferredReady ? "ready" : "warming"}`;
+      return `startup ${formatStartupStatus(snapshot)}`;
     },
     detail: async () => {
       const snapshot = services.startupState.getSnapshot();

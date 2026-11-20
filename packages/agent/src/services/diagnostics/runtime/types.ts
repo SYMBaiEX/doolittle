@@ -33,6 +33,8 @@ export interface DiagnosticsStartupSnapshotLike {
   deferredReady: boolean;
   phases: {
     runtime: { status: string };
+    tools?: { status: string };
+    messaging?: { status: string };
     gateway: { status: string };
     cron: { status: string };
     diagnostics: { status: string };

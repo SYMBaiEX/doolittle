@@ -2,6 +2,7 @@ import { DOOLITTLE_GATEWAY_SERVICE } from "@doolittle/contracts";
 import type { IAgentRuntime } from "@elizaos/core";
 import type { GatewayRunner } from "../../../gateway/runner/index";
 import type { AppServices } from "../../../services/index";
+import type { AppContext } from "../types";
 import { requireRuntimeService } from "./required-service";
 
 export function createGatewayAccessor(params: {
@@ -9,44 +10,35 @@ export function createGatewayAccessor(params: {
   runtime: IAgentRuntime;
 }): {
   get(): GatewayRunner;
-  setDeferredHydration(
-    ensureDeferredHydration: (reason?: string) => Promise<void>,
+  setTurnPluginReadiness(
+    ensureTurnPlugins: AppContext["ensureTurnPlugins"],
   ): void;
 } {
-  const { services, runtime } = params;
+  const { startupState } = params.services;
   let gatewayInstance: GatewayRunner | undefined;
-  let ensureDeferredHydration: ((reason?: string) => Promise<void>) | undefined;
-
-  const bindDeferredHydration = (runner: GatewayRunner): GatewayRunner => {
-    if (ensureDeferredHydration) {
-      runner.setDeferredHydration(ensureDeferredHydration);
-    }
-    return runner;
-  };
+  let ensureTurnPlugins: AppContext["ensureTurnPlugins"] | undefined;
 
   return {
     get(): GatewayRunner {
-      if (!gatewayInstance) {
+      if (gatewayInstance) return gatewayInstance;
+      startupState.markWarming("gateway", "preparing messaging gateway");
+      try {
         const gatewayService = requireRuntimeService<{
-          runner?: GatewayRunner;
           ensureRunner(): GatewayRunner;
-        }>(runtime, DOOLITTLE_GATEWAY_SERVICE, ["ensureRunner"]);
-        gatewayInstance = gatewayService.runner;
-        if (gatewayInstance) return bindDeferredHydration(gatewayInstance);
-        services.startupState.markWarming(
-          "gateway",
-          "preparing messaging gateway",
-        );
-        gatewayInstance = gatewayService.ensureRunner();
-        services.startupState.markReady("gateway", "gateway runner ready");
+        }>(params.runtime, DOOLITTLE_GATEWAY_SERVICE, ["ensureRunner"]);
+        const runner = gatewayService.ensureRunner();
+        if (ensureTurnPlugins) runner.setTurnPluginReadiness(ensureTurnPlugins);
+        gatewayInstance = runner;
+        startupState.markReady("gateway", "gateway runner ready");
+        return runner;
+      } catch (error) {
+        startupState.markError("gateway", "Messaging gateway could not start.");
+        throw error;
       }
-      return bindDeferredHydration(gatewayInstance);
     },
-    setDeferredHydration(nextEnsureDeferredHydration): void {
-      ensureDeferredHydration = nextEnsureDeferredHydration;
-      if (gatewayInstance) {
-        gatewayInstance.setDeferredHydration(nextEnsureDeferredHydration);
-      }
+    setTurnPluginReadiness(nextEnsureTurnPlugins): void {
+      ensureTurnPlugins = nextEnsureTurnPlugins;
+      gatewayInstance?.setTurnPluginReadiness(nextEnsureTurnPlugins);
     },
   };
 }

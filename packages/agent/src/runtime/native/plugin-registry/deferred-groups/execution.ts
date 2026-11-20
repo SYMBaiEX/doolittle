@@ -13,16 +13,16 @@ import {
 } from "./shared";
 
 /** The upstream form plugin keeps its planner action separate by design. */
-export function createNativeFormPlugin(): Plugin {
+function createNativeFormPlugin(): Plugin {
   return {
     ...formPlugin,
     actions: [...(formPlugin.actions ?? []), formAction],
   };
 }
 
-export async function loadDeferredExecutionPlugins({
+export function loadDeferredExecutionPlugins({
   config,
-}: DeferredPluginGroupContext): Promise<Plugin[]> {
+}: DeferredPluginGroupContext): Plugin[] {
   return [
     normalizePlugin(mcpPlugin, "official MCP plugin"),
     normalizePlugin(localSandboxPlugin),

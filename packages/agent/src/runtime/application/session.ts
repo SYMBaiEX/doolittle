@@ -34,10 +34,10 @@ export class ApplicationSession {
   private currentPhase: ApplicationSessionPhase = "idle";
 
   constructor(private readonly configuration?: EnvConfig) {
-    this.contextManager = new AppContextManager(async (options) => {
+    this.contextManager = new AppContextManager(async () => {
       this.currentPhase = "activating";
       try {
-        return await buildAppContext(options, this.serviceGraph(), {
+        return await buildAppContext(this.serviceGraph(), {
           acquired: (runtime) => {
             this.ownedRuntime = runtime;
           },
@@ -48,7 +48,13 @@ export class ApplicationSession {
       } catch (error) {
         // An incomplete rollback retains its owner and blocks replacement.
         if (this.ownedRuntime) this.activationFailure = { error };
-        if (!this.disposalRequested) this.currentPhase = "failed";
+        if (!this.disposalRequested) {
+          this.graph?.services.startupState.markError(
+            "runtime",
+            "Eliza runtime activation failed.",
+          );
+          this.currentPhase = "failed";
+        }
         throw error;
       }
     });

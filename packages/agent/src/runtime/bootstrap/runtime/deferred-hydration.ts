@@ -1,146 +1,184 @@
+import { addAbortListener } from "node:events";
 import type { Plugin } from "@elizaos/core";
 import type { AppServices } from "../../../services/index";
-import { formatError } from "../recovery/error-format";
 
-const MAX_DEFERRED_PLUGIN_ATTEMPTS = 3;
+const MAX_PLUGIN_ATTEMPTS = 3;
+const supportServices = [
+  "diagnostics",
+  "operator",
+  "ecosystem",
+  "skills",
+] as const;
 
-type DeferredPluginState = {
-  attempts: number;
+interface PluginAttempt {
+  failures: number;
   registered: boolean;
-  detail?: string;
-};
-
-function pluginLabel(plugin: Plugin, index: number): string {
-  return plugin.name?.trim() || `deferred-plugin-${index + 1}`;
 }
 
 export function createDeferredHydrator(params: {
-  services: AppServices;
-  loadDeferredPlugins(): Promise<Plugin[]>;
-  registerPlugin(plugin: Plugin): Promise<void>;
+  services: Pick<
+    AppServices,
+    "startupState" | "logger" | (typeof supportServices)[number]
+  >;
+  loadTurnPlugins(): Promise<Plugin[]>;
+  loadMessagingPlugins(): Promise<Plugin[]>;
+  registerTurnPlugin(plugin: Plugin): Promise<void>;
+  registerMessagingPlugin(plugin: Plugin): Promise<void>;
   ensureGateway(): void;
   startScheduler(): Promise<void>;
-  warmSupportServices(): void;
 }) {
-  const {
-    services,
-    loadDeferredPlugins,
-    registerPlugin,
-    ensureGateway,
-    startScheduler,
-    warmSupportServices,
-  } = params;
+  const { startupState, logger } = params.services;
 
-  const pluginStates = new Map<string, DeferredPluginState>();
-  let deferredPluginsSettled = false;
-  let deferredHydrationComplete = false;
-  let deferredHydrationPromise: Promise<void> | undefined;
+  function createPluginPhase(
+    phase: "tools" | "messaging",
+    loadPlugins: () => Promise<Plugin[]>,
+    registerPlugin: (plugin: Plugin) => Promise<void>,
+  ) {
+    const attempts = new Map<Plugin, PluginAttempt>();
+    let plugins: Plugin[] | undefined;
+    let pending: Promise<void> | undefined;
+    let settled = false;
 
-  const ensureDeferredPlugins = async (): Promise<void> => {
-    if (deferredPluginsSettled) {
+    return (): Promise<void> => {
+      if (settled) return Promise.resolve();
+      if (pending) return pending;
+      pending = Promise.resolve()
+        .then(async () => {
+          startupState.markWarming(phase, `loading ${phase} plugins`);
+          try {
+            plugins ??= await loadPlugins();
+          } catch {
+            startupState.markError(phase, `Could not load ${phase} plugins.`);
+            logger.warn("deferred-plugin-load-failed", { phase });
+            return;
+          }
+
+          const unavailable: string[] = [];
+          for (const plugin of plugins) {
+            const attempt = attempts.get(plugin) ?? {
+              failures: 0,
+              registered: false,
+            };
+            attempts.set(plugin, attempt);
+            if (attempt.registered) continue;
+            if (attempt.failures < MAX_PLUGIN_ATTEMPTS) {
+              try {
+                await registerPlugin(plugin);
+                attempt.registered = true;
+                continue;
+              } catch {
+                attempt.failures += 1;
+                logger.warn("deferred-plugin-registration-failed", {
+                  phase,
+                  plugin: plugin.name,
+                  attempt: attempt.failures,
+                  limit: MAX_PLUGIN_ATTEMPTS,
+                });
+              }
+            }
+            unavailable.push(plugin.name);
+          }
+
+          const ready = unavailable.length === 0;
+          settled =
+            ready ||
+            [...attempts.values()].every(
+              ({ failures, registered }) =>
+                registered || failures >= MAX_PLUGIN_ATTEMPTS,
+            );
+          if (ready) {
+            startupState.markReady(phase, `${phase} plugins registered`);
+          } else {
+            startupState.markError(
+              phase,
+              `Unavailable ${phase} plugins: ${unavailable.join(", ")}`,
+            );
+          }
+        })
+        .finally(() => {
+          pending = undefined;
+        });
+      return pending;
+    };
+  }
+
+  const warmTurnPlugins = createPluginPhase(
+    "tools",
+    params.loadTurnPlugins,
+    params.registerTurnPlugin,
+  );
+  const warmMessagingPlugins = createPluginPhase(
+    "messaging",
+    params.loadMessagingPlugins,
+    params.registerMessagingPlugin,
+  );
+  let hydration: Promise<void> | undefined;
+
+  async function ensureTurnPlugins(signal?: AbortSignal): Promise<void> {
+    signal?.throwIfAborted();
+    const warming = warmTurnPlugins();
+    if (!signal) {
+      await warming;
       return;
     }
-
-    services.startupState.markWarming(
-      "runtime",
-      "registering deferred runtime plugins",
-    );
-    const deferredPlugins = await loadDeferredPlugins();
-    const failures: string[] = [];
-    for (const [index, plugin] of deferredPlugins.entries()) {
-      const label = pluginLabel(plugin, index);
-      const state = pluginStates.get(label) ?? {
-        attempts: 0,
-        registered: false,
-      };
-      if (state.registered || state.attempts >= MAX_DEFERRED_PLUGIN_ATTEMPTS) {
-        if (!state.registered && state.detail) failures.push(state.detail);
-        continue;
-      }
-      try {
-        await registerPlugin(plugin);
-        pluginStates.set(label, {
-          attempts: state.attempts + 1,
-          registered: true,
-        });
-      } catch (error) {
-        const attempts = state.attempts + 1;
-        const detail = `${label}: ${formatError(error)} (attempt ${attempts}/${MAX_DEFERRED_PLUGIN_ATTEMPTS})`;
-        pluginStates.set(label, {
-          attempts,
-          registered: false,
-          detail,
-        });
-        failures.push(detail);
-        process.stderr.write(
-          `[doolittle] deferred plugin failed — ${detail}\n`,
-        );
-      }
-    }
-    deferredPluginsSettled = [...pluginStates.values()].every(
-      (state) =>
-        state.registered || state.attempts >= MAX_DEFERRED_PLUGIN_ATTEMPTS,
-    );
-    services.startupState.markReady(
-      "runtime",
-      failures.length > 0
-        ? `runtime ready; deferred plugin degradation: ${failures.join("; ")}`
-        : "runtime ready",
-    );
-  };
-
-  return async (reason?: string): Promise<void> => {
-    if (deferredHydrationComplete) return;
-    if (!deferredHydrationPromise) {
-      const attempt = (async () => {
-        const phaseSuffix = reason ? ` (${reason})` : "";
-
-        await ensureDeferredPlugins();
-
-        if (
-          services.startupState.getSnapshot().phases.gateway.status !== "ready"
-        ) {
-          ensureGateway();
-        }
-
-        if (
-          services.startupState.getSnapshot().phases.cron.status !== "ready"
-        ) {
-          services.startupState.markWarming(
-            "cron",
-            `starting scheduler${phaseSuffix}`,
-          );
-          await startScheduler();
-          services.startupState.markReady("cron", "scheduler ready");
-        }
-
-        warmSupportServices();
-        deferredHydrationComplete = deferredPluginsSettled;
-      })();
-      deferredHydrationPromise = attempt.catch((error) => {
-        const detail = formatError(error);
-        if (
-          services.startupState.getSnapshot().phases.gateway.status ===
-          "warming"
-        ) {
-          services.startupState.markError("gateway", detail);
-        }
-        if (
-          services.startupState.getSnapshot().phases.cron.status === "warming"
-        ) {
-          services.startupState.markError("cron", detail);
-        }
-        throw error;
-      });
-    }
-
-    const currentAttempt = deferredHydrationPromise;
+    let listener: ReturnType<typeof addAbortListener> | undefined;
+    const cancelled = new Promise<never>((_, reject) => {
+      listener = addAbortListener(signal, () => reject(signal.reason));
+    });
     try {
-      await currentAttempt;
+      await Promise.race([warming, cancelled]);
     } finally {
-      if (deferredHydrationPromise === currentAttempt) {
-        deferredHydrationPromise = undefined;
-      }
+      listener?.[Symbol.dispose]();
     }
-  };
+  }
+
+  async function warmSessionMaintenance(reason?: string): Promise<void> {
+    if (startupState.getSnapshot().phases.cron.status === "ready") return;
+    startupState.markWarming(
+      "cron",
+      reason ? `starting scheduler (${reason})` : "starting scheduler",
+    );
+    try {
+      await params.startScheduler();
+      startupState.markReady("cron", "scheduler ready");
+    } catch (error) {
+      startupState.markError("cron", "Session maintenance could not start.");
+      throw error;
+    }
+  }
+
+  async function hydrate(reason?: string): Promise<void> {
+    // Finish core turn-tool registration before a connector can receive a turn.
+    await ensureTurnPlugins();
+
+    const results = await Promise.allSettled([
+      Promise.resolve().then(() => {
+        params.ensureGateway();
+        return warmMessagingPlugins();
+      }),
+      warmSessionMaintenance(reason),
+      ...supportServices.map((service) =>
+        Promise.resolve().then(() => params.services[service]),
+      ),
+    ]);
+    const failures = results
+      .filter((result) => result.status === "rejected")
+      .map((result) => result.reason);
+    if (failures.length > 0) {
+      throw new AggregateError(
+        failures,
+        "Startup services could not be warmed.",
+      );
+    }
+  }
+
+  function ensureDeferredHydration(reason?: string): Promise<void> {
+    if (startupState.getSnapshot().deferredReady) return Promise.resolve();
+    hydration ??= hydrate(reason).finally(() => {
+      hydration = undefined;
+    });
+    return hydration;
+  }
+
+  return { ensureTurnPlugins, ensureDeferredHydration };
 }

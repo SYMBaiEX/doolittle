@@ -9,6 +9,7 @@ export interface AppContext {
   services: AppServices;
   runtime: IAgentRuntime;
   gateway: GatewayRunner;
+  ensureTurnPlugins(signal?: AbortSignal): Promise<void>;
   ensureDeferredHydration(reason?: string): Promise<void>;
 }
 
@@ -25,12 +26,8 @@ export interface BootstrapContextParams {
   config: EnvConfig;
   services: AppServices;
   runtime: AgentRuntime;
-  loadDeferredPlugins(): Promise<Plugin[]>;
+  loadTurnPlugins(): Promise<Plugin[]>;
+  loadMessagingPlugins(): Promise<Plugin[]>;
   bindRuntime(runtime: IAgentRuntime): void;
   workerBot: BotDefinition | null;
-}
-
-export interface AppContextBuildOptions {
-  startupMode?: "cli" | "api" | "worker";
-  eagerDeferredHydration: boolean;
 }

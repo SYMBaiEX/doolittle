@@ -1,3 +1,4 @@
+import { formatStartupStatus } from "../../../services/startup-state-service";
 import type { ChatTurnRequest } from "../../../types/runtime/index";
 import {
   getAutonomousControlPlane,
@@ -78,8 +79,8 @@ function buildCommonStatusLines(
       `Run depth: ${settings.agent.runDepth}`,
       `Run cap: ${settings.agent.maxIterations}`,
       `Tool progress: ${settings.agent.toolProgressMode}`,
-      `Startup: hotPath=${startup.hotPathReady ? "ready" : "warming"} deferred=${startup.deferredReady ? "ready" : "warming"}`,
-      `Hydration: gateway=${startup.phases.gateway.status} cron=${startup.phases.cron.status} diagnostics=${startup.phases.diagnostics.status} operator=${startup.phases.operator.status} skills=${startup.phases.skills.status}`,
+      `Startup: ${formatStartupStatus(startup)}`,
+      `Hydration: tools=${startup.phases.tools.status} messaging=${startup.phases.messaging.status} gateway=${startup.phases.gateway.status} cron=${startup.phases.cron.status} diagnostics=${startup.phases.diagnostics.status} operator=${startup.phases.operator.status} skills=${startup.phases.skills.status}`,
       `Fallback: ${context.config.offlineBootstrapMode ? "offline-bootstrap" : "disabled"}`,
       activeRun
         ? `Observed run: ${activeRun.status} steps=${activeRun.observedActionCount}${activeRun.activeAction ? ` active=${activeRun.activeAction}` : ""}`

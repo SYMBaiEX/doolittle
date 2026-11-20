@@ -1,3 +1,4 @@
+import type { AppContext } from "../../runtime/bootstrap/types";
 import type {
   DeliveredMessageRecord,
   IncomingPlatformMessage,
@@ -52,12 +53,10 @@ export class GatewayRunner {
     this.api = wireGatewayRunnerRuntime(context, runtimeState);
   }
 
-  setDeferredHydration(
-    ensureDeferredHydration: NonNullable<
-      GatewayRunnerContext["ensureDeferredHydration"]
-    >,
+  setTurnPluginReadiness(
+    ensureTurnPlugins: AppContext["ensureTurnPlugins"],
   ): void {
-    this.context.ensureDeferredHydration = ensureDeferredHydration;
+    this.context.ensureTurnPlugins = ensureTurnPlugins;
   }
 
   async start(): Promise<void> {

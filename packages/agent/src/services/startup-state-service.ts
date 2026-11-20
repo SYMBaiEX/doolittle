@@ -2,6 +2,8 @@ import { EventEmitter } from "node:events";
 
 export type StartupPhaseId =
   | "runtime"
+  | "tools"
+  | "messaging"
   | "gateway"
   | "cron"
   | "diagnostics"
@@ -26,6 +28,8 @@ export interface StartupStateSnapshot {
 }
 
 const DEFERRED_PHASES: StartupPhaseId[] = [
+  "tools",
+  "messaging",
   "gateway",
   "cron",
   "diagnostics",
@@ -33,6 +37,18 @@ const DEFERRED_PHASES: StartupPhaseId[] = [
   "ecosystem",
   "skills",
 ];
+
+export function formatStartupStatus(snapshot: StartupStateSnapshot): string {
+  const degraded = DEFERRED_PHASES.some(
+    (id) => snapshot.phases[id].status === "error",
+  );
+  const deferred = snapshot.deferredReady
+    ? "ready"
+    : degraded
+      ? "degraded"
+      : "warming";
+  return `runtime=${snapshot.phases.runtime.status} deferred=${deferred}`;
+}
 
 function nowIso(): string {
   return new Date().toISOString();
@@ -50,6 +66,8 @@ export class StartupStateService {
   private readonly events = new EventEmitter();
   private readonly phases: Record<StartupPhaseId, StartupPhaseSnapshot> = {
     runtime: buildPhase("runtime"),
+    tools: buildPhase("tools"),
+    messaging: buildPhase("messaging"),
     gateway: buildPhase("gateway"),
     cron: buildPhase("cron"),
     diagnostics: buildPhase("diagnostics"),

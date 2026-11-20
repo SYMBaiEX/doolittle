@@ -12,6 +12,10 @@ import {
   applyAccountPoolApiCredentials,
   initializeDoolittleAccountPool,
 } from "../native/account-pool/index";
+import {
+  loadDeferredMessagingPlugins,
+  loadDeferredTurnPlugins,
+} from "../native/plugin-registry/deferred-groups";
 import { buildNativePluginAssembly } from "../native/plugin-registry/index";
 import { normalizePlugin } from "../native/plugin-registry/support";
 import { composeWorkerCharacter } from "./bot-profile";
@@ -27,10 +31,9 @@ import {
   type RuntimeOwnershipObserver,
 } from "./runtime/initialization";
 import { appendBootstrapTrace } from "./trace";
-import type { AppContext, AppContextBuildOptions } from "./types";
+import type { AppContext } from "./types";
 
 export async function buildAppContext(
-  { eagerDeferredHydration }: AppContextBuildOptions,
   graph: ApplicationServiceGraph = createApplicationServiceGraph(),
   ownership?: RuntimeOwnershipObserver,
 ): Promise<AppContext> {
@@ -78,6 +81,7 @@ export async function buildAppContext(
       get gateway(): never {
         throw new Error("The private document worker has no gateway.");
       },
+      ensureTurnPlugins: async () => undefined,
       ensureDeferredHydration: async () => undefined,
     };
   }
@@ -105,37 +109,12 @@ export async function buildAppContext(
   const nativePluginAssembly = await buildNativePluginAssembly(
     services,
     config,
-    {
-      hotOnly: !eagerDeferredHydration,
-      workerBot,
-    },
+    workerBot,
   );
   appendBootstrapTrace(
     "phase:buildNativePluginAssembly:done",
-    `initial=${String(nativePluginAssembly.initial.length)} deferred=${String(nativePluginAssembly.deferred.length)}`,
+    `initial=${String(nativePluginAssembly.initial.length)}`,
   );
-
-  let deferredPluginsPromise:
-    | Promise<typeof nativePluginAssembly.deferred>
-    | undefined;
-  const loadDeferredPlugins = async () => {
-    if (nativePluginAssembly.deferred.length > 0) {
-      return nativePluginAssembly.deferred;
-    }
-    if (!deferredPluginsPromise) {
-      const attempt = buildNativePluginAssembly(services, config, {
-        workerBot,
-      }).then((assembly) => assembly.deferred);
-      const retryableAttempt = attempt.catch((error) => {
-        if (deferredPluginsPromise === retryableAttempt) {
-          deferredPluginsPromise = undefined;
-        }
-        throw error;
-      });
-      deferredPluginsPromise = retryableAttempt;
-    }
-    return deferredPluginsPromise;
-  };
 
   const createRuntime = () =>
     new AgentRuntime({
@@ -175,7 +154,9 @@ export async function buildAppContext(
       config,
       services,
       runtime,
-      loadDeferredPlugins,
+      loadTurnPlugins: () => loadDeferredTurnPlugins({ services, config }),
+      loadMessagingPlugins: () =>
+        loadDeferredMessagingPlugins({ services, config }),
       bindRuntime,
       workerBot,
     });

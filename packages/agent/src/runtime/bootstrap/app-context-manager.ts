@@ -1,13 +1,7 @@
 import { appendBootstrapTrace } from "./trace";
-import type {
-  AppContext,
-  AppContextBuildOptions,
-  AppContextOptions,
-} from "./types";
+import type { AppContext, AppContextOptions } from "./types";
 
-export type AppContextBuilder = (
-  options: AppContextBuildOptions,
-) => Promise<AppContext>;
+type AppContextBuilder = () => Promise<AppContext>;
 
 export class AppContextManager {
   private contextPromise: Promise<AppContext> | undefined;
@@ -32,10 +26,7 @@ export class AppContextManager {
     }
 
     if (!this.contextPromise) {
-      this.contextPromise = this.buildContext({
-        startupMode: options.startupMode,
-        eagerDeferredHydration,
-      });
+      this.contextPromise = this.buildContext();
     }
 
     const attempt = this.contextPromise;

@@ -13,5 +13,5 @@ export interface GatewayRunnerContext {
   services: AppContext["services"];
   runtime: AppContext["runtime"];
   gateway?: GatewayRunnerSurface;
-  ensureDeferredHydration?: (reason?: string) => Promise<void>;
+  ensureTurnPlugins?: AppContext["ensureTurnPlugins"];
 }

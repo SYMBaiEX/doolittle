@@ -1,124 +1,31 @@
 import type { BotDefinition } from "@doolittle/contracts/bots";
-import type { Plugin } from "@elizaos/core";
 import type { AppServices } from "../../../services";
 import type { EnvConfig } from "../../../types/runtime";
-import {
-  getNativePluginCatalog,
-  groupNativePluginCatalog,
-  type NativePluginCatalog,
-  type NativePluginCatalogGroups,
-} from "../plugin-catalog";
-import {
-  createEmptyDeferredPluginGroups,
-  loadDeferredPluginGroups,
-} from "./deferred-groups";
+import { getNativePluginCatalog } from "../plugin-catalog";
 import { loadFoundationPlugins } from "./foundation";
 import { loadHotExecutionPlugins } from "./hot-execution";
 import { loadHotIdentityPlugins } from "./hot-identity";
 import { createDoolittleProductPlugin } from "./product";
 import { loadProviderPlugins } from "./providers";
 
-export interface NativePluginAssembly {
-  catalog: NativePluginCatalog;
-  groupedCatalog: NativePluginCatalogGroups;
-  foundation: Plugin[];
-  providers: Plugin[];
-  messaging: Plugin[];
-  identity: Plugin[];
-  research: Plugin[];
-  execution: Plugin[];
-  product: Plugin[];
-  initial: Plugin[];
-  deferred: Plugin[];
-  all: Plugin[];
-}
-
-export interface NativePluginAssemblyOptions {
-  hotOnly?: boolean;
-  workerBot?: BotDefinition | null;
-}
-
 export async function buildNativePluginAssembly(
   services: AppServices,
   config: EnvConfig,
-  options: NativePluginAssemblyOptions = {},
-): Promise<NativePluginAssembly> {
-  const catalog = getNativePluginCatalog(config);
-  const groupedCatalog = groupNativePluginCatalog(catalog);
-  const foundation = loadFoundationPlugins(Boolean(options.workerBot));
-  const providers = await loadProviderPlugins(config, options.workerBot);
-  const identity = await loadHotIdentityPlugins(services);
-  const execution = options.workerBot
-    ? []
-    : await loadHotExecutionPlugins(services, config);
-  const product: Plugin[] = [
-    createDoolittleProductPlugin(services, config, options.workerBot),
-  ];
-  const initial = [
-    ...foundation,
-    ...providers,
-    ...identity,
-    ...execution,
-    ...product,
-  ];
-  const emptyDeferred = createEmptyDeferredPluginGroups();
-
-  if (options.hotOnly) {
-    return {
-      catalog,
-      groupedCatalog,
-      foundation,
-      providers,
-      messaging: emptyDeferred.messaging,
-      identity,
-      research: emptyDeferred.research,
-      execution,
-      product,
-      initial,
-      deferred: [],
-      all: initial,
-    };
-  }
-
-  if (options.workerBot) {
-    // Named bots do not mount messaging connectors, the shared orchestrator,
-    // or scheduler-owned deferred plugins, even after the first chat turn.
-    return {
-      catalog,
-      groupedCatalog,
-      foundation,
-      providers,
-      messaging: [],
-      identity,
-      research: [],
-      execution,
-      product,
-      initial,
-      deferred: [],
-      all: initial,
-    };
-  }
-
-  const deferredGroups = await loadDeferredPluginGroups(services, config);
-  const deferred = [
-    ...deferredGroups.messaging,
-    ...deferredGroups.research,
-    ...deferredGroups.execution,
-  ];
-  const all = [...initial, ...deferred];
-
+  workerBot: BotDefinition | null,
+) {
+  const [providers, identity, execution] = await Promise.all([
+    loadProviderPlugins(config, workerBot),
+    loadHotIdentityPlugins(services),
+    workerBot ? [] : loadHotExecutionPlugins(services, config),
+  ]);
   return {
-    catalog,
-    groupedCatalog,
-    foundation,
-    providers,
-    identity,
-    messaging: deferredGroups.messaging,
-    research: deferredGroups.research,
-    execution: [...execution, ...deferredGroups.execution],
-    product,
-    initial,
-    deferred,
-    all,
+    catalog: getNativePluginCatalog(config),
+    initial: [
+      ...loadFoundationPlugins(Boolean(workerBot)),
+      ...providers,
+      ...identity,
+      ...execution,
+      createDoolittleProductPlugin(services, config, workerBot),
+    ],
   };
 }

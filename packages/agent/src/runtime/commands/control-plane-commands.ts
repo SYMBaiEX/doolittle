@@ -1,4 +1,5 @@
 import type { AppServices } from "../../services/index";
+import { formatStartupStatus } from "../../services/startup-state-service";
 import type { ChatTurnRequest } from "../../types/runtime/index";
 import type { AgentExecutionContext } from "../chat";
 import { renderCommandCatalog } from "../command-catalog/index";
@@ -89,7 +90,7 @@ function renderOperatorPulse(
   const runCap = settings?.agent.maxIterations ?? "unknown";
   const progress = settings?.agent.toolProgressMode ?? "unknown";
   const startupLine = startup
-    ? `Startup: hotPath=${startup.hotPathReady ? "ready" : "warming"} deferred=${startup.deferredReady ? "ready" : "warming"}`
+    ? `Startup: ${formatStartupStatus(startup)}`
     : "Startup: unknown";
   const runLine = activeRun
     ? `Run: ${activeRun.status} steps=${activeRun.observedActionCount}${activeRun.activeAction ? ` active=${activeRun.activeAction}` : ""}`

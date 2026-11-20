@@ -25,7 +25,7 @@ export function createApplicationAcpHost(application: ApplicationSession) {
       signal.throwIfAborted();
       const context = await application.ensureRuntime({
         startupMode: "api",
-        eagerDeferredHydration: true,
+        eagerDeferredHydration: false,
       });
       signal.throwIfAborted();
       const result = await executeAgentTurnWithProgress(

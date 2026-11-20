@@ -1,9 +1,11 @@
 import { randomUUID } from "node:crypto";
 import type { RunUpdateEvent } from "../services/run-controller-service/index";
 import type { ChatTurnRequest } from "../types/runtime/index";
-import type { AppContext } from "./bootstrap/index";
-import type { AgentTurnHooks } from "./chat";
-import { handleAgentTurn } from "./chat";
+import {
+  type AgentExecutionContext,
+  type AgentTurnHooks,
+  handleAgentTurn,
+} from "./chat";
 import type {
   ExecutionAdmissionKind,
   ExecutionLease,
@@ -45,7 +47,7 @@ function resolveDelta(previous: string, next: string, chunk: string): string {
 
 export async function executeAgentTurnWithProgress(
   input: ChatTurnRequest,
-  context: Pick<AppContext, "services" | "runtime" | "config">,
+  context: AgentExecutionContext,
   handlers?: StreamedTurnHandlers,
 ): Promise<{ response: string; sessionId: string }> {
   const sessionId = resolveSessionId(input);

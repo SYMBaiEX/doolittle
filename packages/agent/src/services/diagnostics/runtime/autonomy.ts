@@ -39,7 +39,9 @@ export function buildAutonomyChecks(
           : "warn",
       summary: "Startup hydration state",
       detail: startupSnapshot
-        ? `hotPath=${startupSnapshot.hotPathReady ? "ready" : "warming"} runtime=${startupSnapshot.phases.runtime.status} gateway=${startupSnapshot.phases.gateway.status} cron=${startupSnapshot.phases.cron.status} diagnostics=${startupSnapshot.phases.diagnostics.status} operator=${startupSnapshot.phases.operator.status} ecosystem=${startupSnapshot.phases.ecosystem.status} skills=${startupSnapshot.phases.skills.status}`
+        ? Object.entries(startupSnapshot.phases)
+            .map(([id, phase]) => `${id}=${phase.status}`)
+            .join(" ")
         : "Startup hydration state is unavailable.",
     },
     {

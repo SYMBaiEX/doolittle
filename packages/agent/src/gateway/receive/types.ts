@@ -19,7 +19,7 @@ export interface GatewayRuntimeContext {
   config: AppContext["config"];
   runtime: AppContext["runtime"];
   services: AppContext["services"];
-  ensureDeferredHydration?: (reason?: string) => Promise<void>;
+  ensureTurnPlugins?: AppContext["ensureTurnPlugins"];
 }
 
 export interface GatewayReceiveOptions {

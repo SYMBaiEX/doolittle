@@ -43,6 +43,7 @@ export type AgentExecutionContext = Pick<
   "config" | "services" | "runtime"
 > & {
   gateway?: AppContext["gateway"];
+  ensureTurnPlugins?: AppContext["ensureTurnPlugins"];
 };
 
 export interface AgentTurnHooks extends TurnCommandHooks {
@@ -197,6 +198,10 @@ async function handleAdmittedAgentTurn(
       return runWithConversationWorkspace(scope, operation);
     });
   return runQueued(async () => {
+    // Share tools across desktop, local CLI, gateway, and ACP turns while
+    // keeping connector activation and operator services off the response path.
+    await context.ensureTurnPlugins?.(options?.abortSignal);
+    throwIfTurnAborted(options?.abortSignal);
     const workflowCommand = trimmedMessage.startsWith("/")
       ? resolveWorkflowCommandPrompt({
           message: trimmedMessage,

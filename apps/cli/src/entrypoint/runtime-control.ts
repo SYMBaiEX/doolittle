@@ -11,7 +11,7 @@ export type ApiStartupContext = AppContext;
 
 // BackendManager polls health every 250ms. Reserve two poll windows so the
 // desktop can observe a live listener before optional plugin registration does
-// synchronous work; guarded turns still trigger hydration immediately.
+// synchronous work. A conversation can request its tools before this timer.
 export const DESKTOP_DEFERRED_HYDRATION_DELAY_MS = 500;
 
 export interface EntrypointCommandPlan {
@@ -147,7 +147,7 @@ export function createApiStartupController(
         // Give the desktop's first health request an actual I/O turn before
         // optional plugin registration begins. Some Eliza plugin starts do
         // synchronous work before yielding even though their API is async.
-        // Turns still join this same hydration promise at their route guard.
+        // Conversation turns only await their own tool readiness.
         const hydrationTimer = setTimeout(() => {
           void context.ensureDeferredHydration("desktop-api").catch((error) => {
             runtimeLogger.captureError(
