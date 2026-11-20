@@ -179,9 +179,10 @@ export function DesktopSidebar({
           className={`flex min-h-14 shrink-0 items-center gap-2 px-2 [-webkit-app-region:no-drag] ${compact ? "flex-col px-0 py-2" : ""}`}
         >
           <button
+            aria-current={navigationView === "dashboard" ? "page" : undefined}
             aria-label="Doolittle home"
             className="grid size-8 place-items-center rounded-[var(--radius-md)] bg-[var(--accent)] font-semibold text-[var(--accent-ink)]"
-            onClick={() => onSetView("chat")}
+            onClick={() => onSetView("dashboard")}
             type="button"
           >
             D

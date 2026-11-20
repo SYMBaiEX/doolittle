@@ -65,6 +65,23 @@ interface PairingApprovedResponse {
   truncated?: boolean;
 }
 
+export function gatewayReplayFeedback(payload: unknown): ActionFeedback {
+  const result = asRecord(asRecord(payload).result);
+  if (result.ok !== true) {
+    return gatewayActionFeedback(
+      "replay",
+      asString(result.deliveryFailure).trim() ||
+        asString(result.response).trim() ||
+        "The gateway did not report a successful outcome.",
+    );
+  }
+  return {
+    message:
+      "Replay completed. Review message history for the delivery outcome.",
+    tone: "good",
+  };
+}
+
 function stateSummary(state: unknown) {
   const record = asRecord(state);
   const totals = asRecord(record.totals);
@@ -206,8 +223,10 @@ export function GatewayPage({ active }: { active: boolean }) {
     setReplayingId(recordId);
     setFeedback(null);
     try {
-      await desktopRequest("/gateway/replay", "POST", { recordId });
-      setFeedback(gatewayActionFeedback("replay"));
+      const response = await desktopRequest("/gateway/replay", "POST", {
+        recordId,
+      });
+      setFeedback(gatewayReplayFeedback(response));
       refresh();
     } catch (error) {
       setFeedback(gatewayActionFeedback("replay", errorMessage(error)));

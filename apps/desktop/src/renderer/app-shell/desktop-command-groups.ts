@@ -130,6 +130,17 @@ export function buildDesktopCommandGroups({
       onSelect: () => onSetView("orchestration"),
     },
   ];
+  const navigationGroups = navigation.map((section) => ({
+    id: section.id,
+    label: section.label,
+    items: section.items.map((item) => ({
+      id: `view-${item.id}`,
+      label: item.label,
+      description: VIEW_DESCRIPTIONS[item.id],
+      keywords: [section.label, item.id],
+      onSelect: () => onSetView(item.id),
+    })),
+  }));
 
   if (!paletteQuery.trim()) {
     return [
@@ -137,6 +148,7 @@ export function buildDesktopCommandGroups({
         ? [{ id: "recents", label: "Continue", items: recentItems }]
         : []),
       { id: "quick-actions", label: "Quick actions", items: quickActions },
+      ...navigationGroups.filter((section) => section.id === "home"),
       {
         id: "projects",
         label: "Projects",
@@ -219,18 +231,6 @@ export function buildDesktopCommandGroups({
         },
       ],
     },
-    ...navigation
-      .filter((section) => section.id !== "home")
-      .map((section) => ({
-        id: section.id,
-        label: section.label,
-        items: section.items.map((item) => ({
-          id: `view-${item.id}`,
-          label: item.label,
-          description: VIEW_DESCRIPTIONS[item.id],
-          keywords: [section.label, item.id],
-          onSelect: () => onSetView(item.id),
-        })),
-      })),
+    ...navigationGroups,
   ];
 }
