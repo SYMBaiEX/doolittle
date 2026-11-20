@@ -16,12 +16,15 @@ use std::path::PathBuf;
 
 use anyhow::{Context as _, Result, bail};
 use gpui::{
-    App, AppContext, Application, Bounds, KeyBinding, Menu, MenuItem, WindowBounds, WindowOptions,
-    actions, px, size,
+    App, AppContext, Application, Bounds, KeyBinding, Menu, MenuItem, WindowBounds, WindowId,
+    WindowOptions, actions, px, size,
 };
 use gpui_component::Root;
 
-use workbench::Workbench;
+use workbench::{
+    AgentView, IdeView, NewConversation, OpenNavigation, OpenSettings, OpenWorkspace, SaveFile,
+    ToggleSidebar, Workbench,
+};
 
 actions!(doolittle, [QuitDoolittle]);
 
@@ -78,7 +81,13 @@ fn open_workbench(options: Options, cx: &mut App) -> Result<()> {
             ..WindowOptions::default()
         },
         move |window, cx| {
-            window.set_window_title("Doolittle");
+            let title = options
+                .workspace
+                .as_ref()
+                .and_then(|path| path.file_name())
+                .map(|name| format!("Doolittle — {}", name.to_string_lossy()))
+                .unwrap_or_else(|| "Doolittle".to_owned());
+            window.set_window_title(&title);
             themes::observe_window(window, cx);
             let view = cx.new(|cx| Workbench::new(options, window, cx));
             let workbench = view.downgrade();
@@ -91,6 +100,31 @@ fn open_workbench(options: Options, cx: &mut App) -> Result<()> {
         },
     )?;
     Ok(())
+}
+
+fn activate_workbench(path: &std::path::Path, current: WindowId, cx: &mut App) -> bool {
+    cx.windows()
+        .into_iter()
+        .filter(|handle| handle.window_id() != current)
+        .filter_map(|handle| handle.downcast::<Root>())
+        .any(|handle| {
+            handle
+                .update(cx, |root, window, cx| {
+                    let Ok(view) = root.view().clone().downcast::<Workbench>() else {
+                        return false;
+                    };
+                    let matches = view
+                        .read(cx)
+                        .requested_workspace()
+                        .and_then(|path| path.canonicalize().ok())
+                        .is_some_and(|existing| existing == path);
+                    if matches {
+                        window.activate_window();
+                    }
+                    matches
+                })
+                .unwrap_or(false)
+        })
 }
 
 fn request_quit(cx: &mut App) {
@@ -108,7 +142,7 @@ fn request_quit(cx: &mut App) {
             }
             window.activate_window();
             workbench.update(cx, |view, cx| {
-                view.after_discard(window, cx, |_, window, cx| {
+                view.after_close_confirmation(window, cx, |_, window, cx| {
                     window.remove_window();
                     cx.defer(request_quit);
                 });
@@ -199,6 +233,7 @@ fn main() -> Result<()> {
             themes::initialize(cx);
             updater::initialize(cx, request_quit);
             Workbench::bind_keys(cx);
+            navigation::bind_keys(cx);
             cx.on_action(|_: &QuitDoolittle, cx| cx.defer(request_quit));
             let quit_key = if cfg!(target_os = "macos") {
                 "cmd-q"
@@ -206,10 +241,32 @@ fn main() -> Result<()> {
                 "ctrl-q"
             };
             cx.bind_keys([KeyBinding::new(quit_key, QuitDoolittle, None)]);
-            cx.set_menus(vec![Menu {
-                name: "Doolittle".into(),
-                items: vec![MenuItem::action("Quit Doolittle", QuitDoolittle)],
-            }]);
+            cx.set_menus(vec![
+                Menu {
+                    name: "Doolittle".into(),
+                    items: vec![
+                        MenuItem::action("Settings…", OpenSettings),
+                        MenuItem::action("Quit Doolittle", QuitDoolittle),
+                    ],
+                },
+                Menu {
+                    name: "File".into(),
+                    items: vec![
+                        MenuItem::action("New Chat", NewConversation),
+                        MenuItem::action("Open Folder…", OpenWorkspace),
+                        MenuItem::action("Save File", SaveFile),
+                    ],
+                },
+                Menu {
+                    name: "View".into(),
+                    items: vec![
+                        MenuItem::action("Agent", AgentView),
+                        MenuItem::action("IDE", IdeView),
+                        MenuItem::action("Toggle Sidebar", ToggleSidebar),
+                        MenuItem::action("Go to…", OpenNavigation),
+                    ],
+                },
+            ]);
             let dev_reload = options.dev_reload;
             match open_workbench(options, cx) {
                 Ok(()) => {

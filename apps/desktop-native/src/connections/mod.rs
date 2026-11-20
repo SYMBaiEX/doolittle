@@ -29,7 +29,7 @@ use crate::{
 const PROVIDER_ACCOUNTS: &str = "/runtime/accounts";
 const ACCOUNT_POOLS: &str = "/runtime/account-pool";
 const RUNTIME: &str = "/runtime/status";
-const SETTINGS: &str = "/settings";
+pub(crate) const SETTINGS: &str = "/settings";
 const MODELS: &str = "/runtime/models?refresh=false";
 const LIVE_MODELS: &str = "/runtime/models?refresh=true";
 const MEMORY_SHARED: &str = "/memory?target=memory";

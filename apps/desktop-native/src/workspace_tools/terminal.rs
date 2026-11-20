@@ -2,15 +2,15 @@ use std::{
     io::{Read, Write},
     num::NonZeroU16,
     path::Path,
-    sync::mpsc,
+    sync::{Arc, Mutex, mpsc},
     time::Duration,
 };
 
 use anyhow::Result;
 use async_channel::{Sender, bounded};
 use gpui::{
-    AnyElement, AppContext, ClipboardItem, Context, Entity, ScrollHandle, Subscription, Window,
-    div, prelude::*, px,
+    AnyElement, AppContext, ClipboardItem, Context, Entity, Pixels, ScrollHandle, Size,
+    Subscription, Window, canvas, div, font, prelude::*, px,
 };
 use gpui_component::{
     Disableable, Sizable,
@@ -31,6 +31,7 @@ pub(crate) struct TerminalState {
     generation: u64,
     scroll: ScrollHandle,
     closing: bool,
+    viewport: Arc<Mutex<PtySize>>,
 }
 
 enum Update {
@@ -52,18 +53,13 @@ impl Drop for TerminalHandle {
 
 fn launch(
     workspace: &Path,
-    cols: u16,
+    viewport: Arc<Mutex<PtySize>>,
     updates: Sender<Update>,
     mut command: CommandBuilder,
 ) -> Result<TerminalHandle> {
-    const ROWS: u16 = 24;
     const HISTORY: usize = 192;
-    let pty = native_pty_system().openpty(PtySize {
-        rows: ROWS,
-        cols,
-        pixel_width: 0,
-        pixel_height: 0,
-    })?;
+    let initial = *viewport.lock().unwrap();
+    let pty = native_pty_system().openpty(initial)?;
     command.cwd(workspace);
     command.env("TERM", "xterm-256color");
     command.env_remove("ELIZA_API_TOKEN");
@@ -75,10 +71,13 @@ fn launch(
     let (input, pending_input) = mpsc::sync_channel::<Vec<u8>>(32);
     let (stop, stopped) = mpsc::channel();
     let output = updates.clone();
+    let applied_size = Arc::new(Mutex::new(initial));
+    let screen_viewport = applied_size.clone();
     std::thread::spawn(move || {
+        let mut size = initial;
         let mut screen = vt100::Parser::new(
-            NonZeroU16::new(ROWS).unwrap(),
-            NonZeroU16::new(cols).unwrap(),
+            NonZeroU16::new(size.rows).unwrap(),
+            NonZeroU16::new(size.cols).unwrap(),
             HISTORY,
         );
         let mut bytes = [0; 8192];
@@ -86,14 +85,22 @@ fn launch(
             if length == 0 {
                 break;
             }
+            let next = *screen_viewport.lock().unwrap();
+            if size != next {
+                size = next;
+                screen.set_size(
+                    NonZeroU16::new(size.rows).unwrap(),
+                    NonZeroU16::new(size.cols).unwrap(),
+                );
+            }
             screen.process(&bytes[..length]);
             let screen = screen.screen_mut();
             let mut contents = String::new();
             let mut offset = screen.scrollback_len();
             while offset != 0 {
                 screen.set_scrollback(offset);
-                let count = offset.min(usize::from(ROWS));
-                for row in screen.rows(0, cols).take(count) {
+                let count = offset.min(usize::from(size.rows));
+                for row in screen.rows(0, size.cols).take(count) {
                     contents.push_str(row.trim_end());
                     contents.push('\n');
                 }
@@ -116,6 +123,7 @@ fn launch(
         }
     });
     std::thread::spawn(move || {
+        let mut last_requested = initial;
         let mut close_requested = false;
         let mut next_notice = None;
         let exit = loop {
@@ -134,13 +142,22 @@ fn launch(
                     next_notice = None;
                 }
                 std::thread::sleep(Duration::from_millis(50));
-            } else if !matches!(
-                stopped.recv_timeout(Duration::from_millis(100)),
-                Err(mpsc::RecvTimeoutError::Timeout)
-            ) {
-                close_requested = true;
-                next_notice = Some(std::time::Instant::now() + Duration::from_secs(2));
-                let _ = child.kill();
+            } else {
+                let requested = *viewport.lock().unwrap();
+                if requested != last_requested {
+                    if pty.master.resize(requested).is_ok() {
+                        *applied_size.lock().unwrap() = requested;
+                    }
+                    last_requested = requested;
+                }
+                if !matches!(
+                    stopped.recv_timeout(Duration::from_millis(100)),
+                    Err(mpsc::RecvTimeoutError::Timeout)
+                ) {
+                    close_requested = true;
+                    next_notice = Some(std::time::Instant::now() + Duration::from_secs(2));
+                    let _ = child.kill();
+                }
             }
         };
         let _master = pty.master;
@@ -156,13 +173,17 @@ fn start(workbench: &mut Workbench, window: &mut Window, cx: &mut Context<Workbe
         cx.notify();
         return;
     };
-    let cols = (f32::from(window.viewport_size().width) / 8.).clamp(40., 160.) as u16;
     let (tx, rx) = bounded(8);
     let terminal = &mut workbench.workspace_tools.terminal;
     terminal.output.clear();
     terminal.generation += 1;
     let generation = terminal.generation;
-    match launch(&workspace, cols, tx, CommandBuilder::new_default_prog()) {
+    match launch(
+        &workspace,
+        terminal.viewport.clone(),
+        tx,
+        CommandBuilder::new_default_prog(),
+    ) {
         Ok(process) => terminal.process = Some(process),
         Err(error) => {
             terminal.status = Some(format!("Terminal could not start. {error}"));
@@ -225,6 +246,8 @@ fn send_line(workbench: &mut Workbench, window: &mut Window, cx: &mut Context<Wo
     };
     let text = input.read(cx).value();
     if text.len() > 4096 {
+        terminal.status = Some("Command input is limited to 4096 bytes.".into());
+        cx.notify();
         return;
     }
     if process
@@ -233,28 +256,70 @@ fn send_line(workbench: &mut Workbench, window: &mut Window, cx: &mut Context<Wo
         .is_ok()
     {
         input.update(cx, |input, cx| input.set_value("", window, cx));
+        terminal.status = None;
+        cx.notify();
     } else {
         terminal.status = Some("The terminal has not accepted input yet.".into());
         cx.notify();
     }
 }
 
+pub(super) fn focus(workbench: &Workbench, window: &mut Window, cx: &mut Context<Workbench>) {
+    let terminal = &workbench.workspace_tools.terminal;
+    if let Some(input) = terminal
+        .input
+        .as_ref()
+        .filter(|_| terminal.process.is_some())
+    {
+        input.update(cx, |input, cx| input.focus(window, cx));
+    }
+}
+
+fn viewport_size(size: Size<Pixels>, cell_width: Pixels, line_height: Pixels) -> PtySize {
+    let columns = (f32::from((size.width - px(16.)).max(px(0.))) / f32::from(cell_width)).floor();
+    let rows = (f32::from((size.height - px(12.)).max(px(0.))) / f32::from(line_height)).floor();
+    PtySize {
+        cols: columns.clamp(18., 240.) as u16,
+        rows: rows.clamp(3., 90.) as u16,
+        ..PtySize::default()
+    }
+}
+
 pub(super) fn render(
     workbench: &Workbench,
     colors: Palette,
-    _window: &mut Window,
+    window: &mut Window,
     cx: &mut Context<Workbench>,
 ) -> AnyElement {
     let terminal = &workbench.workspace_tools.terminal;
     let running = terminal.process.is_some();
+    let has_output = !terminal.output.is_empty();
+    let viewport = terminal.viewport.clone();
+    let monospace = if cfg!(target_os = "macos") {
+        "Menlo"
+    } else {
+        "monospace"
+    };
+    let font_size = px(12.);
+    let line_height = px(17.);
+    let font_id = window.text_system().resolve_font(&font(monospace));
+    let cell_width = window
+        .text_system()
+        .advance(font_id, font_size, 'M')
+        .ok()
+        .map(|advance| advance.width)
+        .unwrap_or(px(8.))
+        .max(px(2.));
     div()
         .flex()
         .flex_col()
         .flex_1()
         .min_h_0()
+        .min_w_0()
         .child(
             div()
                 .flex()
+                .flex_wrap()
                 .items_center()
                 .gap(px(5.))
                 .px(px(8.))
@@ -268,8 +333,18 @@ pub(super) fn render(
                         .text_color(colors.muted)
                         .child(workbench.workspace_title()),
                 )
-                .when(!terminal.output.is_empty(), |row| {
+                .when(has_output, |row| {
                     row.child(
+                        Button::new("terminal-latest-output")
+                            .small()
+                            .ghost()
+                            .label("Latest")
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.workspace_tools.terminal.scroll.scroll_to_bottom();
+                                cx.notify();
+                            })),
+                    )
+                    .child(
                         Button::new("copy-terminal-output")
                             .small()
                             .ghost()
@@ -307,7 +382,7 @@ pub(super) fn render(
                         Button::new("close-terminal-shell")
                             .small()
                             .ghost()
-                            .label("Close shell")
+                            .label("Stop shell")
                             .on_click(cx.listener(|this, _, _, cx| {
                                 let terminal = &mut this.workspace_tools.terminal;
                                 terminal.process = None;
@@ -320,23 +395,45 @@ pub(super) fn render(
         )
         .child(
             div()
-                .id("terminal-screen")
+                .relative()
                 .flex_1()
                 .min_h_0()
-                .overflow_y_scroll()
-                .track_scroll(&terminal.scroll)
+                .min_w_0()
                 .bg(colors.inset)
-                .p(px(7.))
-                .font_family(if cfg!(target_os = "macos") {
-                    "Menlo"
-                } else {
-                    "monospace"
-                })
-                .children(
-                    terminal
-                        .output
-                        .lines()
-                        .map(|line| div().text_sm().whitespace_nowrap().child(line.to_owned())),
+                .child(
+                    canvas(
+                        |_, _, _| (),
+                        move |bounds, _, _, _| {
+                            if let Ok(mut current) = viewport.try_lock() {
+                                *current = viewport_size(bounds.size, cell_width, line_height);
+                            }
+                        },
+                    )
+                    .absolute()
+                    .inset_0(),
+                )
+                .child(
+                    div()
+                        .id("terminal-screen")
+                        .size_full()
+                        .overflow_scroll()
+                        .track_scroll(&terminal.scroll)
+                        .px(px(8.))
+                        .py(px(6.))
+                        .font_family(monospace)
+                        .text_size(font_size)
+                        .line_height(line_height)
+                        .when(!running && !has_output && !terminal.closing, |screen| {
+                            screen
+                                .text_color(colors.muted)
+                                .child("Start a shell in this workspace.")
+                        })
+                        .children(
+                            terminal
+                                .output
+                                .lines()
+                                .map(|line| div().whitespace_nowrap().child(line.to_owned())),
+                        ),
                 ),
         )
         .when_some(terminal.status.as_ref(), |panel, status| {
@@ -344,7 +441,16 @@ pub(super) fn render(
         })
         .when_some(
             terminal.input.as_ref().filter(|_| running),
-            |panel, input| panel.child(Input::new(input).focus_bordered(false)),
+            |panel, input| {
+                panel.child(
+                    div()
+                        .px(px(8.))
+                        .py(px(6.))
+                        .border_t_1()
+                        .border_color(colors.divider)
+                        .child(Input::new(input).w_full().focus_bordered(false)),
+                )
+            },
         )
         .into_any_element()
 }
@@ -359,7 +465,15 @@ mod tests {
         let mut command = CommandBuilder::new("/bin/sh");
         command.args(["-c", "read -r line; [ \"$line\" = 'test input' ] || exit 3; printf 'native-shell-witness\\n'; pwd"]);
         let workspace = Path::new(env!("CARGO_MANIFEST_DIR")).canonicalize()?;
-        let process = launch(&workspace, 120, tx, command)?;
+        let process = launch(
+            &workspace,
+            Arc::new(Mutex::new(PtySize {
+                cols: 120,
+                ..PtySize::default()
+            })),
+            tx,
+            command,
+        )?;
         process.input.send(b"test input\r".to_vec())?;
         let deadline = std::time::Instant::now() + Duration::from_secs(5);
         let mut observed_output = false;
@@ -388,7 +502,12 @@ mod tests {
         let (tx, rx) = bounded(8);
         let mut command = CommandBuilder::new("/bin/sleep");
         command.arg("60");
-        let process = launch(Path::new(env!("CARGO_MANIFEST_DIR")), 80, tx, command)?;
+        let process = launch(
+            Path::new(env!("CARGO_MANIFEST_DIR")),
+            Arc::new(Mutex::new(PtySize::default())),
+            tx,
+            command,
+        )?;
         process.input.send(vec![b'x'; 128 * 1024])?;
         std::thread::sleep(Duration::from_millis(25));
         drop(process);
@@ -404,5 +523,50 @@ mod tests {
             }
         }
         anyhow::bail!("PTY shutdown was blocked by terminal input")
+    }
+
+    #[test]
+    fn measures_terminal_cells_from_the_dock_viewport() {
+        use gpui::size;
+
+        let compact = viewport_size(size(px(0.), px(0.)), px(8.), px(17.));
+        assert_eq!((compact.cols, compact.rows), (18, 3));
+        let normal = viewport_size(size(px(656.), px(420.)), px(8.), px(17.));
+        assert_eq!((normal.cols, normal.rows), (80, 24));
+        let wide = viewport_size(size(px(4000.), px(2000.)), px(8.), px(17.));
+        assert_eq!((wide.cols, wide.rows), (240, 90));
+    }
+
+    #[test]
+    fn running_shell_receives_the_resized_viewport() -> Result<()> {
+        let viewport = Arc::new(Mutex::new(PtySize::default()));
+        let (tx, rx) = bounded(8);
+        let mut command = CommandBuilder::new("/bin/sh");
+        command.args([
+            "-c",
+            r#"while [ "$(stty size)" != "16 60" ]; do sleep 0.05; done; printf 'dock-resize-observed\n'"#,
+        ]);
+        let process = launch(
+            Path::new(env!("CARGO_MANIFEST_DIR")),
+            viewport.clone(),
+            tx,
+            command,
+        )?;
+        *viewport.lock().unwrap() = PtySize {
+            rows: 16,
+            cols: 60,
+            ..PtySize::default()
+        };
+        let deadline = std::time::Instant::now() + Duration::from_secs(5);
+        while std::time::Instant::now() < deadline {
+            if let Ok(Update::Screen(text)) = rx.try_recv()
+                && text.contains("dock-resize-observed")
+            {
+                drop(process);
+                return Ok(());
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        anyhow::bail!("shell did not observe the resized dock")
     }
 }

@@ -129,13 +129,14 @@ pub(super) fn render(
     cx: &mut Context<Workbench>,
 ) -> AnyElement {
     let preview = &workbench.workspace_tools.preview;
+    let page = page_surface(preview);
     div()
         .flex()
         .flex_col()
         .flex_1()
         .min_h_0()
-        .gap(px(6.))
-        .p(px(8.))
+        .min_w_0()
+        .overflow_hidden()
         .child(
             div()
                 .flex_none()
@@ -143,6 +144,10 @@ pub(super) fn render(
                 .flex_wrap()
                 .items_center()
                 .gap(px(6.))
+                .px(px(8.))
+                .py(px(6.))
+                .border_b_1()
+                .border_color(colors.divider)
                 .when_some(preview.address.as_ref(), |row, address| {
                     row.child(
                         div()
@@ -186,9 +191,31 @@ pub(super) fn render(
                 #[cfg(target_os = "macos")]
                 Status::Error(message) => (message, colors.danger),
             };
-            body.child(div().text_sm().text_color(color).child(message))
+            body.child(
+                div()
+                    .px(px(10.))
+                    .py(px(7.))
+                    .text_sm()
+                    .text_color(color)
+                    .child(message),
+            )
         })
-        .children(page_surface(preview))
+        .when(page.is_none() && preview.status.is_none(), |this| {
+            this.child(
+                div()
+                    .flex()
+                    .flex_1()
+                    .min_h_0()
+                    .items_center()
+                    .justify_center()
+                    .text_center()
+                    .text_sm()
+                    .text_color(colors.muted)
+                    .px(px(16.))
+                    .child("Start your dev server, then enter its local URL."),
+            )
+        })
+        .children(page)
         .into_any_element()
 }
 

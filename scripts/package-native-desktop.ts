@@ -70,6 +70,10 @@ try {
     join(repo, "apps/desktop-native/assets/Bangers-OFL.txt"),
     join(resources, "licenses/Bangers-OFL.txt"),
   );
+  copyFileSync(
+    join(repo, "apps/desktop-native/assets/GPUI-Component-Assets-NOTICE.txt"),
+    join(resources, "licenses/GPUI-Component-Assets-NOTICE.txt"),
+  );
 
   installRuntime(runtime);
 

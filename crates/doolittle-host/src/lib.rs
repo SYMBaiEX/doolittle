@@ -316,6 +316,44 @@ fn native_data_root() -> Result<PathBuf> {
     Ok(locations.data_local_dir().to_path_buf())
 }
 
+/// Create a workspace for conversations that do not need access to a project.
+pub fn personal_workspace() -> Result<PathBuf> {
+    prepare_personal_workspace(native_data_root()?.join("Personal"))
+}
+
+fn prepare_personal_workspace(workspace: PathBuf) -> Result<PathBuf> {
+    let mut builder = DirBuilder::new();
+    builder.recursive(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::DirBuilderExt as _;
+        builder.mode(0o700);
+    }
+    builder
+        .create(&workspace)
+        .context("Could not create the personal workspace")?;
+    let metadata = workspace.symlink_metadata()?;
+    ensure!(
+        metadata.is_dir(),
+        "The personal workspace must be a local directory"
+    );
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt as _;
+        // SAFETY: geteuid reads the effective uid of the current process.
+        let owner = unsafe { nix::libc::geteuid() };
+        ensure!(
+            metadata.uid() == owner && metadata.mode() & 0o077 == 0,
+            "The personal workspace must be private to the current user"
+        );
+    }
+    Ok(workspace.canonicalize()?)
+}
+
+#[cfg(test)]
+#[path = "../../../tests/native/personal_workspace.rs"]
+mod personal_workspace_tests;
+
 fn default_profile(workspace: &Path) -> Result<PathBuf> {
     Ok(native_data_root()?
         .join("profiles")

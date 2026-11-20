@@ -9,8 +9,9 @@ use doolittle_runtime::{
     WorkspaceSaveOutcome,
 };
 use gpui::{
-    App, AppContext, Context, Entity, KeyBinding, PathPromptOptions, PromptButton, PromptLevel,
-    ScrollHandle, SharedString, Subscription, WeakEntity, Window, actions, px,
+    App, AppContext, Context, Entity, FocusHandle, Focusable, KeyBinding, PathPromptOptions,
+    PromptButton, PromptLevel, ScrollHandle, SharedString, Subscription, WeakEntity, Window,
+    actions, px,
 };
 use gpui_component::{
     Rope,
@@ -40,7 +41,10 @@ actions!(
         AgentView,
         IdeView,
         SaveFile,
-        OpenNavigation
+        OpenNavigation,
+        OpenWorkspace,
+        OpenSettings,
+        ToggleSidebar
     ]
 );
 
@@ -165,13 +169,17 @@ pub struct Workbench {
     pub selected: String,
     pub active: HashMap<String, Conversation>,
     pub sessions: Vec<SessionSummary>,
-    pub sidebar_open: bool,
+    sidebar_preference: Option<bool>,
+    compact_sidebar_open: bool,
+    pub(crate) show_tools: bool,
+    pub(crate) shell_focus: FocusHandle,
     pub explorer_open: bool,
     pub composer: gpui::Entity<InputState>,
     _composer_events: Subscription,
     pub(crate) navigation_updates: Option<Subscription>,
     pub transcript_scroll: ScrollHandle,
     pub workspace: Workspace,
+    editors: HashMap<String, Workspace>,
     workspace_epoch: u64,
     confirming_discard: bool,
     pub connecting: bool,
@@ -208,11 +216,24 @@ impl Workbench {
             KeyBinding::new(&format!("{modifier}-2"), IdeView, Some("Doolittle")),
             KeyBinding::new(&format!("{modifier}-s"), SaveFile, Some("Doolittle")),
             KeyBinding::new(&format!("{modifier}-k"), OpenNavigation, Some("Doolittle")),
+            KeyBinding::new(&format!("{modifier}-o"), OpenWorkspace, Some("Doolittle")),
+            KeyBinding::new(&format!("{modifier}-,"), OpenSettings, Some("Doolittle")),
+            KeyBinding::new(
+                &format!("{modifier}-shift-b"),
+                ToggleSidebar,
+                Some("Doolittle"),
+            ),
+            KeyBinding::new(
+                "secondary-enter",
+                SendMessage,
+                Some("DoolittleComposer > Input"),
+            ),
         ]);
     }
 
     pub fn new(options: Options, window: &mut Window, cx: &mut Context<Self>) -> Self {
         let mut this = Self::build(options, window, cx);
+        this.shell_focus.focus(window);
         this.connect(window, cx);
         this
     }
@@ -223,18 +244,11 @@ impl Workbench {
                 .placeholder("Message Doolittle")
                 .auto_grow(2, 8)
         });
-        let composer_events =
-            cx.subscribe_in(
-                &composer,
-                window,
-                |this, _, event, window, cx| match event {
-                    InputEvent::Change => cx.notify(),
-                    InputEvent::PressEnter { secondary: true } if this.view == View::Agent => {
-                        this.send(window, cx);
-                    }
-                    _ => {}
-                },
-            );
+        let composer_events = cx.subscribe(&composer, |_, _, event, cx| {
+            if matches!(event, InputEvent::Change) {
+                cx.notify();
+            }
+        });
         let selected = Uuid::new_v4().to_string();
         Self {
             options,
@@ -242,13 +256,17 @@ impl Workbench {
             selected: selected.clone(),
             active: HashMap::from([(selected, Conversation::default())]),
             sessions: Vec::new(),
-            sidebar_open: false,
+            sidebar_preference: None,
+            compact_sidebar_open: false,
+            show_tools: false,
+            shell_focus: cx.focus_handle(),
             explorer_open: true,
             composer,
             _composer_events: composer_events,
             navigation_updates: None,
             transcript_scroll: ScrollHandle::new(),
             workspace: Workspace::default(),
+            editors: HashMap::new(),
             workspace_epoch: 0,
             confirming_discard: false,
             connecting: false,
@@ -275,6 +293,45 @@ impl Workbench {
 
     pub(crate) fn is_auxiliary_pane(&self) -> bool {
         self.pane_host.is_some()
+    }
+
+    pub(crate) fn wide_sidebar(&self, window: &Window) -> bool {
+        window.viewport_size().width >= px(820.)
+    }
+
+    pub(crate) fn sidebar_visible(&self, window: &Window) -> bool {
+        if self.wide_sidebar(window) {
+            self.sidebar_preference
+                .unwrap_or(self.ready() && matches!(self.view, View::Agent | View::Operations(_)))
+        } else {
+            self.compact_sidebar_open
+        }
+    }
+
+    pub(crate) fn content_width(&self, window: &Window, cx: &App) -> gpui::Pixels {
+        let width = window.viewport_size().width;
+        if self.wide_sidebar(window) && self.sidebar_visible(window) {
+            width - crate::themes::Palette::current(cx).navigation_width()
+        } else {
+            width
+        }
+    }
+
+    pub(crate) fn toggle_sidebar(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let open = !self.sidebar_visible(window);
+        if self.wide_sidebar(window) {
+            self.sidebar_preference = Some(open);
+        } else {
+            self.compact_sidebar_open = open;
+        }
+        self.shell_focus.focus(window);
+        cx.notify();
+    }
+
+    pub(crate) fn send_from_composer(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if self.view == View::Agent && self.composer.read(cx).focus_handle(cx).is_focused(window) {
+            self.send(window, cx);
+        }
     }
 
     pub(crate) fn split_pane(
@@ -615,19 +672,7 @@ impl Workbench {
                 match selected {
                     Ok(Ok(Some(paths))) => {
                         if let Some(path) = paths.into_iter().next() {
-                            if let Some(current) = &this.options.workspace {
-                                if current != &path {
-                                    let mut options = this.options.clone();
-                                    options.workspace = Some(path);
-                                    options.profile = None;
-                                    if let Err(error) = crate::open_workbench(options, cx) {
-                                        this.error = Some(error.to_string());
-                                    }
-                                }
-                            } else {
-                                this.options.workspace = Some(path);
-                                this.connect(window, cx);
-                            }
+                            this.open_workspace_path(path, window, cx);
                         }
                     }
                     Ok(Err(error)) => this.error = Some(error.to_string()),
@@ -638,6 +683,67 @@ impl Workbench {
         })
         .detach();
         cx.notify();
+    }
+
+    pub(crate) fn open_personal_workspace(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if self.choosing_workspace || self.connecting {
+            return;
+        }
+        match doolittle_host::personal_workspace() {
+            Ok(path) => self.open_workspace_path(path, window, cx),
+            Err(error) => self.error = Some(error.to_string()),
+        }
+        cx.notify();
+    }
+
+    fn open_workspace_path(
+        &mut self,
+        path: std::path::PathBuf,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let path = match path.canonicalize() {
+            Ok(path) if path.is_dir() => path,
+            _ => {
+                self.error =
+                    Some("This folder is no longer available. Choose another workspace.".into());
+                return;
+            }
+        };
+        let current = self
+            .options
+            .workspace
+            .as_deref()
+            .and_then(|path| path.canonicalize().ok());
+        if current.as_ref() == Some(&path) {
+            self.connect(window, cx);
+            return;
+        }
+        if crate::activate_workbench(&path, window.window_handle().window_id(), cx) {
+            return;
+        }
+        if self.ready() {
+            let mut options = self.options.clone();
+            options.workspace = Some(path);
+            options.profile = None;
+            if let Err(error) = crate::open_workbench(options, cx) {
+                self.error = Some(error.to_string());
+            }
+        } else {
+            if self.options.workspace.is_some() {
+                self.options.profile = None;
+            }
+            if let Some(name) = path.file_name() {
+                window.set_window_title(&format!("Doolittle — {}", name.to_string_lossy()));
+            }
+            self.options.workspace = Some(path);
+            self.compact_sidebar_open = false;
+            self.connect(window, cx);
+        }
+    }
+
+    pub(crate) fn requested_workspace(&self) -> Option<&std::path::Path> {
+        self.options.workspace.as_deref()
     }
 
     pub fn ready(&self) -> bool {
@@ -653,6 +759,28 @@ impl Workbench {
 
     pub fn conversation(&self) -> &Conversation {
         &self.active[&self.selected]
+    }
+
+    pub(crate) fn session_title<'a>(&'a self, session: &'a SessionSummary) -> Option<&'a str> {
+        self.active
+            .get(&session.session_id)
+            .and_then(|entry| entry.title.as_deref())
+            .or(session.title.as_deref())
+            .or_else(|| {
+                let preview = session.preview.first()?.trim();
+                Some(preview.strip_prefix("[user] ").unwrap_or(preview))
+            })
+            .filter(|label| !label.trim().is_empty())
+    }
+
+    pub(crate) fn editor_file_name(&self, session: &str) -> Option<&str> {
+        let workspace = if session == self.selected {
+            &self.workspace
+        } else {
+            self.editors.get(session)?
+        };
+        let path = std::path::Path::new(&workspace.file.as_ref()?.path);
+        path.file_name()?.to_str()
     }
 
     pub fn connect(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -731,10 +859,14 @@ impl Workbench {
                             }
                         }
                         this.refresh_sessions(cx);
+                        this.control_get(crate::connections::SETTINGS, cx);
                         if this.view == View::Ide {
                             this.refresh_workspace(cx);
                         }
                         this.refresh_destination(cx);
+                        if this.view == View::Agent && this.shell_focus.is_focused(window) {
+                            this.focus_pane_composer(this.pane_layout.focused(), window, cx);
+                        }
                     }
                     Err(error) => this.error = Some(error.to_string()),
                 }
@@ -746,10 +878,19 @@ impl Workbench {
     }
 
     pub fn start_conversation(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.after_discard(window, cx, |this, window, cx| {
-            this.switch_conversation(Uuid::new_v4().to_string(), None, window, cx);
-            this.set_view(View::Agent, window, cx);
-        });
+        self.show_tools = false;
+        let current = self.conversation();
+        let empty = current.title.is_none()
+            && current.messages.is_empty()
+            && current.active_run.is_none()
+            && current.draft_attachments.is_empty()
+            && self.composer.read(cx).value().is_empty();
+        if empty
+            || !self.ready()
+            || self.switch_conversation(Uuid::new_v4().to_string(), None, window, cx)
+        {
+            self.set_view(View::Agent, window, cx);
+        }
     }
 
     pub fn select_conversation(
@@ -759,23 +900,17 @@ impl Workbench {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        self.show_tools = false;
         if self.selected == id {
-            self.sidebar_open = false;
             if !self.is_auxiliary_pane() {
                 self.pane_layout.focus(PRIMARY_PANE);
             }
-            if !matches!(self.view, View::Agent | View::Ide) {
-                self.set_view(View::Agent, window, cx);
-            }
-            cx.notify();
+            self.set_view(View::Agent, window, cx);
             return;
         }
-        self.after_discard(window, cx, move |this, window, cx| {
-            this.switch_conversation(id, title, window, cx);
-            if !matches!(this.view, View::Agent | View::Ide) {
-                this.set_view(View::Agent, window, cx);
-            }
-        });
+        if self.switch_conversation(id, title, window, cx) {
+            self.set_view(View::Agent, window, cx);
+        }
     }
 
     fn switch_conversation(
@@ -784,7 +919,16 @@ impl Workbench {
         title: Option<String>,
         window: &mut Window,
         cx: &mut Context<Self>,
-    ) {
+    ) -> bool {
+        if self.confirming_discard {
+            return false;
+        }
+        if self.workspace.file.as_ref().is_some_and(|file| file.saving) {
+            self.workspace.file_error =
+                Some("Wait for the file save to finish before switching chats.".into());
+            self.set_view(View::Ide, window, cx);
+            return false;
+        }
         if !self.is_auxiliary_pane() {
             self.pane_layout.focus(PRIMARY_PANE);
         }
@@ -799,25 +943,25 @@ impl Workbench {
         }
         let new_draft = entry.draft.clone();
         let load_history = !entry.loaded;
-        self.selected = id;
+        let previous = std::mem::replace(&mut self.selected, id);
+        let restored = self.editors.remove(&self.selected).unwrap_or_default();
+        let mut previous_workspace = std::mem::replace(&mut self.workspace, restored);
+        previous_workspace.loading_tree = false;
+        previous_workspace.loading_file = None;
+        if previous_workspace.file.is_some() || previous_workspace.loaded_for.is_some() {
+            self.editors.insert(previous, previous_workspace);
+        }
         self.persist_layout(cx);
         self.composer.update(cx, |input, cx| {
             input.set_value(new_draft, window, cx);
         });
-        self.sidebar_open = false;
-        self.workspace = Workspace::default();
         self.workspace_epoch += 1;
-        self.explorer_open = true;
         self.transcript_scroll.scroll_to_bottom();
         if load_history {
             self.load_history(false, cx);
         }
-        if self.view == View::Ide {
-            self.refresh_workspace(cx);
-        } else {
-            self.focus_composer(window, cx);
-        }
         cx.notify();
+        true
     }
 
     pub fn set_view(&mut self, view: View, window: &mut Window, cx: &mut Context<Self>) {
@@ -829,13 +973,19 @@ impl Workbench {
             self.connections.clear_sensitive_drafts();
         }
         self.view = view;
-        self.sidebar_open = false;
+        if matches!(view, View::Operations(_)) {
+            self.show_tools = true;
+        }
+        self.compact_sidebar_open = false;
         if view == View::Ide {
             if self.workspace.loaded_for.as_deref() != Some(self.selected.as_str()) {
                 self.refresh_workspace(cx);
             }
-        } else if view == View::Agent {
-            self.focus_composer(window, cx);
+            self.shell_focus.focus(window);
+        } else if view == View::Agent && self.ready() {
+            self.focus_pane_composer(self.pane_layout.focused(), window, cx);
+        } else {
+            self.shell_focus.focus(window);
         }
         self.refresh_destination(cx);
         cx.notify();
@@ -861,6 +1011,13 @@ impl Workbench {
     pub fn focus_composer(&self, window: &mut Window, cx: &mut Context<Self>) {
         self.composer
             .update(cx, |input, cx| input.focus(window, cx));
+    }
+
+    pub(crate) fn has_unsaved_files(&self, cx: &App) -> bool {
+        std::iter::once(&self.workspace)
+            .chain(self.editors.values())
+            .filter_map(|workspace| workspace.file.as_ref())
+            .any(|file| file.is_dirty(cx))
     }
 
     pub fn refresh_sessions(&mut self, cx: &mut Context<Self>) {
@@ -1369,8 +1526,14 @@ impl Workbench {
         {
             if hide_explorer {
                 self.explorer_open = false;
-                cx.notify();
             }
+            crate::workspace_tools::reveal_editor(self, window, cx);
+            if self.view == View::Ide
+                && let Some(file) = &self.workspace.file
+            {
+                file.editor.update(cx, |input, cx| input.focus(window, cx));
+            }
+            cx.notify();
             return;
         }
         self.after_discard(window, cx, move |this, window, cx| {
@@ -1438,7 +1601,10 @@ impl Workbench {
                         if hide_explorer {
                             this.explorer_open = false;
                         }
-                        if this.view == View::Ide && !this.sidebar_open && !this.confirming_discard
+                        crate::workspace_tools::reveal_editor(this, window, cx);
+                        if this.view == View::Ide
+                            && !this.compact_sidebar_open
+                            && !this.confirming_discard
                         {
                             editor.update(cx, |input, cx| input.focus(window, cx));
                         }
@@ -1528,20 +1694,50 @@ impl Workbench {
     }
 
     pub fn has_file_protection(&self, cx: &App) -> bool {
-        self.confirming_discard
-            || self
-                .workspace
-                .file
-                .as_ref()
-                .is_some_and(|file| file.saving || file.is_dirty(cx))
+        self.confirming_discard || self.current_file_busy() || self.has_unsaved_files(cx)
+    }
+
+    fn current_file_busy(&self) -> bool {
+        self.workspace.file.as_ref().is_some_and(|file| file.saving)
     }
 
     pub fn confirm_close(&mut self, window: &mut Window, cx: &mut Context<Self>) -> bool {
         if !self.has_file_protection(cx) {
             return true;
         }
-        self.after_discard(window, cx, |_, window, _| window.remove_window());
+        self.after_close_confirmation(window, cx, |_, window, _| window.remove_window());
         false
+    }
+
+    pub(crate) fn after_close_confirmation(
+        &mut self,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+        proceed: impl FnOnce(&mut Self, &mut Window, &mut Context<Self>) + 'static,
+    ) {
+        if self.confirming_discard {
+            return;
+        }
+        if self.current_file_busy() {
+            self.workspace.file_error =
+                Some("Wait for the file save to finish before closing.".into());
+            self.set_view(View::Ide, window, cx);
+            crate::workspace_tools::reveal_editor(self, window, cx);
+            return;
+        }
+        let mut paths = std::iter::once(&self.workspace)
+            .chain(self.editors.values())
+            .filter_map(|workspace| workspace.file.as_ref())
+            .filter(|file| file.is_dirty(cx))
+            .map(|file| file.path.as_str())
+            .collect::<Vec<_>>();
+        paths.sort_unstable();
+        paths.dedup();
+        if paths.is_empty() {
+            proceed(self, window, cx);
+        } else {
+            self.confirm_discard(paths.join("\n"), window, cx, proceed);
+        }
     }
 
     pub fn after_discard(
@@ -1553,7 +1749,7 @@ impl Workbench {
         if self.confirming_discard {
             return;
         }
-        if self.workspace.loading_file.is_some() && self.has_file_protection(cx) {
+        if self.workspace.loading_file.is_some() {
             return;
         }
         if let Some(file) = self.workspace.file.as_ref() {
@@ -1563,32 +1759,42 @@ impl Workbench {
                 return;
             }
             if file.is_dirty(cx) {
-                self.confirming_discard = true;
-                let result = window.prompt(
-                    PromptLevel::Warning,
-                    "Discard unsaved changes?",
-                    Some(&file.path),
-                    &[
-                        PromptButton::ok("Keep editing"),
-                        PromptButton::new("Discard changes"),
-                    ],
-                    cx,
-                );
-                cx.spawn_in(window, async move |this, cx| {
-                    let result = result.await;
-                    let _ = this.update_in(cx, |this, window, cx| {
-                        this.confirming_discard = false;
-                        if result == Ok(1) {
-                            proceed(this, window, cx);
-                        }
-                        cx.notify();
-                    });
-                })
-                .detach();
+                self.confirm_discard(file.path.clone(), window, cx, proceed);
                 return;
             }
         }
         proceed(self, window, cx);
+    }
+
+    fn confirm_discard(
+        &mut self,
+        files: String,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+        proceed: impl FnOnce(&mut Self, &mut Window, &mut Context<Self>) + 'static,
+    ) {
+        self.confirming_discard = true;
+        let result = window.prompt(
+            PromptLevel::Warning,
+            "Discard unsaved changes?",
+            Some(&files),
+            &[
+                PromptButton::ok("Keep editing"),
+                PromptButton::new("Discard changes"),
+            ],
+            cx,
+        );
+        cx.spawn_in(window, async move |this, cx| {
+            let result = result.await;
+            let _ = this.update_in(cx, |this, window, cx| {
+                this.confirming_discard = false;
+                if result == Ok(1) {
+                    proceed(this, window, cx);
+                }
+                cx.notify();
+            });
+        })
+        .detach();
     }
 }
 

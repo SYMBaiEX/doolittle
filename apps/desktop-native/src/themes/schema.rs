@@ -74,6 +74,15 @@ impl Hex {
         rgb(self.0)
     }
 
+    pub(super) fn mix(self, other: Self, amount: f64) -> Self {
+        let channel = |shift| {
+            let original = f64::from((self.0 >> shift) & 0xffu32);
+            let target = f64::from((other.0 >> shift) & 0xffu32);
+            (original + (target - original) * amount).round() as u32
+        };
+        Self::new((channel(16) << 16) | (channel(8) << 8) | channel(0))
+    }
+
     fn luminance(self) -> f64 {
         let [r, g, b] = [16, 8, 0].map(|shift| {
             let n = f64::from((self.0 >> shift) & 0xff) / 255.;

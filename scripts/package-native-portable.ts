@@ -52,6 +52,10 @@ try {
     join(repo, "apps/desktop-native/assets/Bangers-OFL.txt"),
     join(staging, "Bangers-OFL.txt"),
   );
+  copyFileSync(
+    join(repo, "apps/desktop-native/assets/GPUI-Component-Assets-NOTICE.txt"),
+    join(staging, "GPUI-Component-Assets-NOTICE.txt"),
+  );
   installRuntime(join(staging, "runtime"));
   const archive = join(output, `${product}.${windows ? "zip" : "tar.gz"}`);
   run("tar", [windows ? "-acf" : "-czf", archive, product], output);

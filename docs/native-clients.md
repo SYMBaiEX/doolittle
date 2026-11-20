@@ -18,8 +18,9 @@ nub run desktop:dev -- --workspace /absolute/path/to/project
 nub run dev -- --workspace /absolute/path/to/project chat
 ```
 
-The desktop asks you to open a folder when launched without `--workspace`.
-**New workspace** opens a separate window and preserves the original draft. Open
+The desktop offers **Open folder** for project work and **Use personal workspace**
+for everyday chat. Opening a different folder from an active workspace creates
+a separate window. Choosing an already open workspace focuses its window. Open
 **Settings → Models** to pick a model, **Settings → Accounts** to connect an
 account, or **Settings → Credentials** to enter a direct API key. See
 [account and provider configuration](setup.md) for supported providers.

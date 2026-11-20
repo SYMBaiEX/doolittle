@@ -21,7 +21,8 @@ use gpui::{
 };
 use gpui_component::{Theme, ThemeMode, highlighter::HighlightTheme};
 use schema::{
-    Appearance, BUNDLE_KIND, BodyFont, Bundle, Density, Geometry, Layout, Manifest, Material,
+    Appearance, BUNDLE_KIND, BodyFont, Bundle, Density, Geometry, Hex, Layout, Manifest, Material,
+    SemanticPalette,
 };
 use uuid::Uuid;
 
@@ -39,8 +40,14 @@ struct ThemeState {
     active: Bundle,
     system_mode: ThemeMode,
     has_comic_font: bool,
-    importing: bool,
+    file_transfer: Option<ThemeFileTransfer>,
     feedback: Option<(String, bool)>,
+}
+
+#[derive(Clone, Copy)]
+enum ThemeFileTransfer {
+    Import,
+    Export,
 }
 
 impl Global for ThemeState {}
@@ -49,15 +56,21 @@ pub struct ThemeAssets;
 
 impl AssetSource for ThemeAssets {
     fn load(&self, path: &str) -> gpui::Result<Option<Cow<'static, [u8]>>> {
-        Ok((path == BRIDGE_PATH).then_some(Cow::Borrowed(BRIDGE)))
+        if path == BRIDGE_PATH {
+            Ok(Some(Cow::Borrowed(BRIDGE)))
+        } else if path.starts_with("icons/") {
+            gpui_component_assets::Assets.load(path)
+        } else {
+            Ok(None)
+        }
     }
 
     fn list(&self, path: &str) -> gpui::Result<Vec<SharedString>> {
-        Ok(if path == "theme-assets" {
-            vec![BRIDGE_PATH.into()]
-        } else {
-            Vec::new()
-        })
+        let mut assets = gpui_component_assets::Assets.list(path)?;
+        if BRIDGE_PATH.starts_with(path) {
+            assets.push(BRIDGE_PATH.into());
+        }
+        Ok(assets)
     }
 }
 
@@ -85,7 +98,7 @@ pub fn initialize(cx: &mut App) {
             .text_system()
             .add_fonts(vec![Cow::Borrowed(BANGERS)])
             .is_ok(),
-        importing: false,
+        file_transfer: None,
         feedback,
     });
     apply(None, cx);
@@ -184,7 +197,7 @@ fn apply(window: Option<&mut Window>, cx: &mut App) {
     Theme::change(mode, None, cx);
     let theme = Theme::global_mut(cx);
     theme.font_family = colors.body_family().into();
-    theme.font_size = colors.conversation_size();
+    theme.font_size = colors.control_size();
     theme.radius = colors.control_radius();
     theme.radius_lg = colors.composer_radius();
     theme.background = colors.canvas.into();
@@ -204,7 +217,7 @@ fn apply(window: Option<&mut Window>, cx: &mut App) {
     theme.muted = colors.inset.into();
     theme.muted_foreground = colors.muted.into();
     theme.caret = colors.text.into();
-    theme.ring = colors.accent_text.into();
+    theme.ring = colors.strong.into();
     theme.link = colors.accent_text.into();
     theme.link_active = colors.accent_text.into();
     theme.link_hover = colors.accent_text.into();
@@ -272,8 +285,13 @@ pub enum Surface {
     Panel,
     Composer,
     Message,
-    Control,
     Editor,
+}
+
+impl Surface {
+    fn is_shell(self) -> bool {
+        matches!(self, Self::Navigation | Self::Header | Self::Panel)
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -335,9 +353,9 @@ impl Palette {
             muted: c.muted_text.rgb(),
             accent: c.accent.rgb(),
             accent_ink: c.accent_ink.rgb(),
-            positive: c.success.rgb(),
-            danger: c.error.rgb(),
-            warning: c.warning.rgb(),
+            positive: readable_mark(c.success, c).rgb(),
+            danger: readable_mark(c.error, c).rgb(),
+            warning: readable_mark(c.warning, c).rgb(),
             accent_text: c.accent_text.rgb(),
             editor: editor.map_or(c.raised, |color| color.background).rgb(),
             editor_text: editor.map_or(c.text, |color| color.text).rgb(),
@@ -439,24 +457,12 @@ impl Palette {
         self.layout == Layout::Canvas
     }
 
-    pub fn frame_gap(&self) -> Pixels {
-        px(match self.material {
-            Material::Flat => 0.,
-            Material::Cel => 8.,
-            Material::Glass => 12.,
-        })
-    }
-
-    pub fn has_panel_material(&self) -> bool {
-        self.material != Material::Flat
-    }
-
     pub fn canvas_backdrop(&self) -> Div {
         let fill = div().absolute().inset_0().overflow_hidden().bg(self.canvas);
         match self.material {
             Material::Flat => fill,
             Material::Cel => fill.child(div().absolute().inset_0().bg(pattern_slash(
-                Hsla::from(self.text).opacity(if self.dark { 0.07 } else { 0.09 }),
+                Hsla::from(self.text).opacity(if self.dark { 0.05 } else { 0.07 }),
                 1.,
                 7.,
             ))),
@@ -468,29 +474,17 @@ impl Palette {
                         .size_full()
                         .object_fit(ObjectFit::Cover),
                 )
-                .child(
-                    div().absolute().inset_0().bg(linear_gradient(
-                        135.,
-                        linear_color_stop(
-                            Hsla::from(if self.dark {
-                                rgb(0x141c3e)
-                            } else {
-                                rgb(0xc3d9ff)
-                            })
-                            .opacity(0.54),
-                            0.,
-                        ),
-                        linear_color_stop(
-                            Hsla::from(if self.dark {
-                                rgb(0x101728)
-                            } else {
-                                rgb(0xc9dbff)
-                            })
-                            .opacity(0.17),
-                            1.,
-                        ),
-                    )),
-                ),
+                .child(div().absolute().inset_0().bg(linear_gradient(
+                    155.,
+                    linear_color_stop(
+                        Hsla::from(self.canvas).opacity(if self.dark { 0.83 } else { 0.62 }),
+                        0.,
+                    ),
+                    linear_color_stop(
+                        Hsla::from(self.canvas).opacity(if self.dark { 0.54 } else { 0.31 }),
+                        1.,
+                    ),
+                ))),
         }
     }
 
@@ -499,12 +493,11 @@ impl Palette {
             Surface::Navigation | Surface::Header => self.rail,
             Surface::Panel => self.canvas,
             Surface::Editor => self.editor,
-            Surface::Control => self.inset,
             Surface::Composer | Surface::Message => self.raised,
         };
         let rounded = match role {
             Surface::Composer => self.composer_radius(),
-            Surface::Message | Surface::Control => self.control_radius(),
+            Surface::Message => self.control_radius(),
             _ => px(0.),
         };
         if role == Surface::Editor {
@@ -512,73 +505,136 @@ impl Palette {
         }
         match self.material {
             Material::Flat => element.bg(fill).rounded(rounded),
-            Material::Cel => {
-                let edge = if role == Surface::Control { 1. } else { 2. };
-                let offset = if role == Surface::Control { 2. } else { 4. };
-                element
-                    .bg(fill)
-                    .rounded(px(1.))
-                    .border(px(edge))
-                    .border_color(self.strong)
-                    .shadow(vec![BoxShadow {
-                        color: self.strong.into(),
-                        offset: point(px(offset), px(offset)),
-                        blur_radius: px(0.),
-                        spread_radius: px(0.),
-                    }])
+            Material::Cel if role == Surface::Panel => element.bg(Hsla::from(fill).opacity(0.52)),
+            Material::Cel if role.is_shell() => element.bg(fill),
+            Material::Cel => element
+                .bg(fill)
+                .rounded(rounded)
+                .border_1()
+                .border_color(Hsla::from(self.strong).opacity(if self.dark { 0.68 } else { 0.90 }))
+                .shadow(vec![BoxShadow {
+                    color: Hsla::from(self.strong).opacity(if self.dark { 0.31 } else { 0.74 }),
+                    offset: point(px(2.), px(2.)),
+                    blur_radius: px(0.),
+                    spread_radius: px(0.),
+                }]),
+            Material::Glass if role.is_shell() => {
+                let base = Hsla::from(fill);
+                let (top, bottom) = match role {
+                    Surface::Header => (0.98, 0.89),
+                    Surface::Navigation => (0.94, 0.82),
+                    _ => (0.94, 0.84),
+                };
+                element.bg(linear_gradient(
+                    155.,
+                    linear_color_stop(base.opacity(top), 0.),
+                    linear_color_stop(base.opacity(bottom), 1.),
+                ))
             }
             Material::Glass => {
-                let size = match role {
-                    Surface::Header => 16.,
-                    Surface::Navigation | Surface::Panel => 22.,
-                    Surface::Message => 20.,
-                    Surface::Composer => self.geometry.composer_radius,
-                    _ => self.geometry.control_radius,
-                };
                 let base = Hsla::from(fill);
-                let upper = if self.dark {
-                    base.opacity(0.91)
+                let light = Hsla::from(rgb(0xffffff));
+                let edge = if self.dark {
+                    Hsla::from(self.strong)
                 } else {
-                    Hsla::from(rgb(0xffffff)).opacity(0.83)
+                    light
                 };
                 element
                     .bg(linear_gradient(
-                        145.,
-                        linear_color_stop(upper, 0.),
-                        linear_color_stop(base.opacity(if self.dark { 0.96 } else { 0.87 }), 1.),
+                        160.,
+                        linear_color_stop(if self.dark { base } else { light.opacity(0.94) }, 0.),
+                        linear_color_stop(base.opacity(0.92), 1.),
                     ))
-                    .rounded(px(size))
+                    .rounded(rounded)
                     .border_1()
-                    .border_color(
-                        Hsla::from(if self.dark {
-                            rgb(0xd1e4ff)
-                        } else {
-                            rgb(0xffffff)
-                        })
-                        .opacity(0.76),
-                    )
+                    .border_color(edge.opacity(if self.dark { 0.34 } else { 0.84 }))
                     .shadow(vec![
                         BoxShadow {
-                            color: Hsla::from(rgb(0xffffff)).opacity(if self.dark {
-                                0.12
-                            } else {
-                                0.50
-                            }),
+                            color: light.opacity(if self.dark { 0.14 } else { 0.72 }),
                             offset: point(px(0.), px(-1.)),
                             blur_radius: px(0.),
                             spread_radius: px(0.),
                         },
                         BoxShadow {
                             color: Hsla::from(rgb(0x102246)).opacity(if self.dark {
-                                0.43
+                                0.32
                             } else {
-                                0.20
+                                0.14
                             }),
-                            offset: point(px(0.), px(8.)),
-                            blur_radius: px(22.),
+                            offset: point(px(0.), px(3.)),
+                            blur_radius: px(11.),
                             spread_radius: px(0.),
                         },
                     ])
+            }
+        }
+    }
+}
+
+fn readable_mark(color: Hex, palette: &SemanticPalette) -> Hex {
+    let backgrounds = [
+        palette.background,
+        palette.navigation,
+        palette.raised,
+        palette.subtle,
+        palette.hover,
+    ];
+    [0., 0.12, 0.25, 0.50, 0.75, 1.]
+        .into_iter()
+        .map(|amount| color.mix(palette.text, amount))
+        .find(|color| backgrounds.iter().all(|&base| color.contrast(base) >= 4.5))
+        .unwrap_or(palette.text)
+}
+
+#[cfg(test)]
+mod tests {
+    use gpui_component::{IconName, IconNamed};
+
+    use super::*;
+
+    #[test]
+    fn native_control_icons_are_available_alongside_theme_assets() {
+        let source = ThemeAssets;
+        let paths = source.list("icons/").expect("list embedded icon assets");
+        for icon in [
+            IconName::PanelLeft,
+            IconName::PanelLeftClose,
+            IconName::PanelRightOpen,
+            IconName::FolderOpen,
+            IconName::Search,
+            IconName::Plus,
+            IconName::Close,
+            IconName::Check,
+            IconName::ChevronDown,
+            IconName::ChevronRight,
+            IconName::ChevronsUpDown,
+        ] {
+            let path = icon.path();
+            assert!(paths.contains(&path), "{path} is missing");
+            let asset = source.load(&path).expect("load icon").expect("icon exists");
+            assert!(std::str::from_utf8(&asset).unwrap().contains("<svg"));
+        }
+        assert!(source.list("").unwrap().contains(&BRIDGE_PATH.into()));
+        assert!(source.load(BRIDGE_PATH).unwrap().is_some());
+    }
+
+    #[test]
+    fn status_marks_stay_readable_on_shipped_surfaces() {
+        for theme in BUILTINS.iter() {
+            for dark in [false, true] {
+                let palette = theme.colors.for_mode(dark);
+                for raw in [palette.success, palette.warning, palette.error] {
+                    let readable = readable_mark(raw, palette);
+                    for background in [
+                        palette.background,
+                        palette.navigation,
+                        palette.raised,
+                        palette.subtle,
+                        palette.hover,
+                    ] {
+                        assert!(readable.contrast(background) >= 4.5, "{}", theme.id);
+                    }
+                }
             }
         }
     }
