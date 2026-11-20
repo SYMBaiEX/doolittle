@@ -26,15 +26,7 @@ export function PanelTabList<T extends string>({
   wrapTab?: (item: PanelTab<T>, trigger: ReactElement) => ReactElement;
 }) {
   return (
-    <Tabs
-      activationMode="manual"
-      asChild
-      onValueChange={(value) => {
-        const item = items.find(({ id }) => id === value);
-        if (item) onSelect(item.id);
-      }}
-      value={selected}
-    >
+    <Tabs activationMode="manual" asChild value={selected}>
       <TabsList
         aria-label={label}
         className={`h-auto justify-start rounded-none bg-transparent ${className}`}
@@ -46,6 +38,11 @@ export function PanelTabList<T extends string>({
               className={`focus-visible:ring-0 focus-visible:ring-offset-0 data-[state=active]:bg-transparent data-[state=active]:text-inherit ${tabClassName}`}
               id={item.buttonId}
               key={item.id}
+              // Radix handles focus. Native click also covers touch, keyboard,
+              // and assistive activation without selecting on pointer press.
+              onClick={(event) => {
+                if (item.id !== selected && !event.ctrlKey) onSelect(item.id);
+              }}
               value={item.id}
             >
               {item.label}

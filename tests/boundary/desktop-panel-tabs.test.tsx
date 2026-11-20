@@ -46,11 +46,40 @@ it("moves workspace tab focus without replacing the selected panel", async () =>
     expect(queue?.getAttribute("aria-selected")).toBe("true");
     expect(onSelect).not.toHaveBeenCalled();
 
-    act(() =>
+    act(() => {
+      expect(
+        runs?.dispatchEvent(
+          new KeyboardEvent("keydown", {
+            bubbles: true,
+            cancelable: true,
+            key: "Enter",
+          }),
+        ),
+      ).toBe(true);
+    });
+    expect(onSelect).not.toHaveBeenCalled();
+
+    // jsdom does not synthesize the native button click after Enter.
+    act(() => runs?.click());
+    expect(onSelect).toHaveBeenCalledExactlyOnceWith("runs");
+    onSelect.mockClear();
+
+    act(() => {
       runs?.dispatchEvent(
-        new KeyboardEvent("keydown", { bubbles: true, key: "Enter" }),
-      ),
-    );
+        new MouseEvent("mousedown", {
+          bubbles: true,
+          cancelable: true,
+          button: 0,
+        }),
+      );
+    });
+    expect(onSelect).not.toHaveBeenCalled();
+
+    act(() => {
+      runs?.dispatchEvent(
+        new MouseEvent("click", { bubbles: true, button: 0, detail: 1 }),
+      );
+    });
     expect(onSelect).toHaveBeenCalledExactlyOnceWith("runs");
   } finally {
     act(() => root.unmount());
