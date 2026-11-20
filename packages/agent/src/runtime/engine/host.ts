@@ -10,6 +10,7 @@ import {
   WORKER_HOST_MAX_PENDING_REQUESTS,
   WORKER_HOST_PROTOCOL,
 } from "@doolittle/contracts/worker-host";
+import { isRecord } from "../../utils/records";
 import {
   BOT_ID_PATTERN,
   boundedMessage,
@@ -20,7 +21,6 @@ import {
   type EngineRequest,
   isEngineReady,
   isEngineRequest,
-  isRecord,
   isWorkerHostRequest,
   isWorkerHostResponse,
   MAX_HOST_MESSAGE_BYTES,

@@ -54,7 +54,7 @@ export interface ActionOutcomes {
 // workspace-action/wiring.ts, repository-action.ts, shell-command-action.ts,
 // app-server-action.ts, browser-analysis-action.ts, research-action.ts and
 // session-search-action.ts. TASKS_SPAWN_AGENT and WEB_SEARCH are SDK action
-// names referenced by coding-action.ts and doolittle-plugin/sdk-native-surface.ts.
+// names referenced by coding-action.ts and doolittle-plugin/web-search-action.ts.
 const CATEGORY_BY_ACTION: ReadonlyMap<string, ActionCategory> = new Map([
   ["DOOLITTLE_CODING", "coding"],
   ["TASKS_SPAWN_AGENT", "delegation"],

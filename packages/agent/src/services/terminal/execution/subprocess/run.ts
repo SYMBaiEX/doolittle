@@ -1,9 +1,5 @@
 import { runTextProcess } from "../../../process-execution";
-import type {
-  TerminalRunOptions,
-  TerminalRunResult,
-  TerminalStreamingRunOptions,
-} from "./types";
+import type { TerminalRunOptions, TerminalRunResult } from "./types";
 
 const ROUTER_TIMEOUT_MARKER = "[shell-router] command timed out";
 
@@ -17,9 +13,9 @@ function cancelledResult(): TerminalRunResult {
   };
 }
 
-async function execute(
+export async function runCommand(
   cmd: string[],
-  options: TerminalStreamingRunOptions,
+  options: TerminalRunOptions,
 ): Promise<TerminalRunResult> {
   if (options.abortSignal?.aborted) {
     return cancelledResult();
@@ -28,8 +24,6 @@ async function execute(
   const result = await runTextProcess(cmd[0] ?? "", cmd.slice(1), {
     cwd: options.cwd,
     timeoutMs: options.timeoutMs,
-    onStdout: options.onStdout,
-    onStderr: options.onStderr,
     abortSignal: options.abortSignal,
     toolName: options.toolName ?? "doolittle.terminal",
   });
@@ -42,18 +36,4 @@ async function execute(
     durationMs: result.durationMs,
     sandbox: result.sandbox,
   };
-}
-
-export async function runCommand(
-  cmd: string[],
-  options: TerminalRunOptions,
-): Promise<TerminalRunResult> {
-  return execute(cmd, options);
-}
-
-export async function runCommandStreaming(
-  cmd: string[],
-  options: TerminalStreamingRunOptions,
-): Promise<TerminalRunResult> {
-  return execute(cmd, options);
 }

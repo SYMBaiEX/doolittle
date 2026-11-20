@@ -1,5 +1,8 @@
 import { sdkModelProviderForRoute } from "@doolittle/contracts/model-route";
-import { createElizaTextGenerationModelHandlers } from "@doolittle/provider-transport";
+import {
+  createElizaTextGenerationModelHandlers,
+  getRuntimeModelSettings,
+} from "@doolittle/provider-transport";
 import {
   type GenerateTextParams,
   type IAgentRuntime,
@@ -10,7 +13,6 @@ import {
   type TextGenerationModelType,
 } from "@elizaos/core";
 import { requirePostToolAssessment } from "./planner-completion";
-import { readRuntimeModelSettings } from "./runtime-settings";
 
 export const DOOLITTLE_MODEL_ROUTER_PRIORITY = 1_000;
 
@@ -27,14 +29,12 @@ function resolveRuntimeModelProviderPlugin(
   runtime: IAgentRuntime,
 ): string | undefined {
   return resolveSelectedModelProviderPlugin(
-    readRuntimeModelSettings(runtime)?.provider,
+    getRuntimeModelSettings(runtime).provider,
     runtime.getSetting("ANTHROPIC_AUTH_MODE"),
   );
 }
 
-export function createSelectedProviderTextModel(
-  modelType: TextGenerationModelType,
-) {
+function createSelectedProviderTextModel(modelType: TextGenerationModelType) {
   return async (
     runtime: IAgentRuntime,
     params: GenerateTextParams,
@@ -66,13 +66,13 @@ export function createSelectedProviderTextModel(
  * registry. Explicit provider dispatch prevents this default router from
  * recursively selecting itself.
  */
-export function createSelectedProviderTextModels() {
+function createSelectedProviderTextModels() {
   return createElizaTextGenerationModelHandlers((runtime, params, modelType) =>
     createSelectedProviderTextModel(modelType)(runtime, params),
   );
 }
 
-export function createSelectedProviderResearchModel() {
+function createSelectedProviderResearchModel() {
   return async (
     runtime: IAgentRuntime,
     params: ResearchParams,

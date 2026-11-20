@@ -16,8 +16,3 @@ export interface TerminalRunOptions {
   abortSignal?: AbortSignal;
   toolName?: string;
 }
-
-export interface TerminalStreamingRunOptions extends TerminalRunOptions {
-  onStdout?: (chunk: string) => void;
-  onStderr?: (chunk: string) => void;
-}

@@ -21,7 +21,7 @@
     "./doolittle-plugin/plugin": "./doolittle-plugin/plugin.ts",
     "./doolittle-plugin/routes": "./doolittle-plugin/routes.ts",
     "./doolittle-plugin/sdk-capabilities": "./doolittle-plugin/sdk-capabilities.ts",
-    "./doolittle-plugin/sdk-native-surface": "./doolittle-plugin/sdk-native-surface.ts",
+    "./doolittle-plugin/web-search-action": "./doolittle-plugin/web-search-action.ts",
     "./doolittle-plugin/secrets-vault": "./doolittle-plugin/secrets-vault/index.ts"
   },
   "scripts": {

@@ -10,6 +10,7 @@ import {
   type Service,
   type ServiceClass,
 } from "@elizaos/core";
+import { formatError } from "@elizaos/core/protocol";
 import type { AppServices } from "../../../services/index";
 import type { RunSnapshot } from "../../../services/run-controller-service/index";
 import type { ToolProgressMode } from "../../../types/runtime/index";
@@ -20,7 +21,6 @@ import {
   extractLocalMutationsFromActionResult,
 } from "../../action-result-metadata";
 import { resolveRunTerminalWriter } from "../../chat-turn/post-provider/types";
-import { formatError } from "../recovery/error-format";
 import {
   CodingVerificationReceiptTracker,
   type CodingVerificationRunIdentity,

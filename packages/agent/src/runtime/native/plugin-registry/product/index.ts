@@ -6,8 +6,8 @@ import {
   createSdkCapabilitiesRuntimeService,
   createSdkCapabilityEvents,
 } from "@doolittle/plugins/doolittle-plugin/sdk-capabilities";
-import { createShortcutCompatibleWebSearchAction } from "@doolittle/plugins/doolittle-plugin/sdk-native-surface";
 import { createSecretsVaultPersistenceService } from "@doolittle/plugins/doolittle-plugin/secrets-vault";
+import { createShortcutCompatibleWebSearchAction } from "@doolittle/plugins/doolittle-plugin/web-search-action";
 import { triggerAction } from "@elizaos/agent/actions/trigger";
 import { webFetch } from "@elizaos/agent/runtime/actions/web-fetch";
 import type { Evaluator, Provider } from "@elizaos/core";

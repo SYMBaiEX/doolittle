@@ -1,9 +1,9 @@
 import { isMainThread, parentPort, workerData } from "node:worker_threads";
+import { isRecord } from "../../utils/records";
 import {
   BOT_ID_PATTERN,
   ENGINE_WORKER_PROTOCOL,
   type EngineReady,
-  isRecord,
   isWorkerHostRequest,
   isWorkerHostResponse,
 } from "./protocol";

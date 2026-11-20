@@ -31,10 +31,6 @@ export function resolveNativeMessagePolicy(
     runDepth,
     maxIterations,
     toolProgressMode: agent.toolProgressMode,
-    // Retained for pre-v5 message-service compatibility. Eliza v5 owns routing
-    // through Stage 1 regardless of this legacy flag; Doolittle's completion
-    // safety is enforced by native response routing plus mutation receipts.
-    useMultiStep: runDepth !== "quick" && maxIterations > 1,
   };
 }
 
@@ -63,17 +59,18 @@ export async function prepareNativeTurnSetup(input: {
       recentMessages,
     ),
   );
+  const routingOwner = matchesRegisteredClientControl(
+    input.context.runtime,
+    input.effectiveInput.message,
+  )
+    ? "doolittle"
+    : "eliza-message-service";
   await startTrackedTurn(
     input.input,
     input.context,
     turn,
     messagePolicy,
-    matchesRegisteredClientControl(
-      input.context.runtime,
-      input.effectiveInput.message,
-    )
-      ? "doolittle"
-      : "eliza-message-service",
+    routingOwner,
   );
   const modelSettings = turn.settings?.model ?? {};
   recordEvaluationTraceEvent(input.context, {
@@ -85,13 +82,11 @@ export async function prepareNativeTurnSetup(input: {
     source: input.input.source ?? "cli",
     provider: modelSettings.provider ?? "unknown",
     model: modelSettings.model ?? "unknown",
-    text: `[turn:routed] owner=eliza-message-service mode=${
-      messagePolicy.useMultiStep ? "native-planner" : "direct"
-    }`,
+    text: `[turn:routed] owner=${routingOwner} depth=${messagePolicy.runDepth}`,
     metadata: {
       originalMessage: input.input.message,
       effectiveMessage: input.effectiveInput.message,
-      routingOwner: "eliza-message-service",
+      routingOwner,
       messagePolicy,
     },
   });

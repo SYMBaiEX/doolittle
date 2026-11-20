@@ -104,7 +104,6 @@ type ProviderMessageExecutionInput = {
   runId?: string;
   streamState: StreamingOutputModel;
   messagePolicy: {
-    useMultiStep: boolean;
     maxIterations: number;
   };
   abortSignal: AbortSignal | undefined;
@@ -220,10 +219,7 @@ export async function executeProviderMessageTurn(
           trajectoryStepId: readSdkTrajectoryStepId(input.memory.metadata),
           prompt,
           promptChars: prompt.length,
-          useMultiStep: input.messagePolicy.useMultiStep,
-          maxIterations: input.messagePolicy.useMultiStep
-            ? input.messagePolicy.maxIterations
-            : 1,
+          maxIterations: input.messagePolicy.maxIterations,
           baseUrl: input.settingsDuring.model.baseUrl,
           temperature: input.settingsDuring.model.temperature,
           maxTokens: input.settingsDuring.model.maxTokens,
@@ -314,12 +310,6 @@ export async function executeProviderMessageTurn(
             messageMemory,
             input.streamState.onCallbackContent,
             {
-              useMultiStep: input.messagePolicy.useMultiStep,
-              maxMultiStepIterations: mutationObligation
-                ? 1
-                : input.messagePolicy.useMultiStep
-                  ? input.messagePolicy.maxIterations
-                  : 1,
               // Let the client inspect committed effects before continuing a
               // mutation turn through the SDK planner.
               continueAfterActions: !mutationObligation,

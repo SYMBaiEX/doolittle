@@ -1,6 +1,10 @@
 import { type IAgentRuntime, ModelType } from "@elizaos/core";
 import { expect, it, vi } from "vitest";
 import { createOfflineBootstrapTextModel } from "../../packages/plugins/doolittle-plugin/model-fallback";
+import {
+  probeOllamaModel,
+  resolveOllamaTagsUrl,
+} from "../../packages/plugins/provider-transport/src";
 
 it("keeps assembled prompts private when the selected provider is unavailable", async () => {
   const useModel = vi.fn().mockRejectedValue(new Error("offline"));
@@ -22,4 +26,26 @@ it("keeps assembled prompts private when the selected provider is unavailable", 
   expect(await model(runtime, { prompt })).toBe(
     "The provider's actual answer.",
   );
+});
+
+it("resolves and probes the same Ollama catalog for native and compatibility URLs", async () => {
+  const fetchImpl = vi.fn(async () =>
+    Response.json({ models: [{ name: "granite:latest" }] }),
+  );
+  const endpoint = "https://example.org/proxy/ollama/v1/models?debug=1#section";
+  expect(resolveOllamaTagsUrl(endpoint)).toBe(
+    "https://example.org/proxy/ollama/api/tags",
+  );
+  await expect(
+    probeOllamaModel(endpoint, "granite", fetchImpl as typeof fetch),
+  ).resolves.toEqual({ state: "ready" });
+  expect(fetchImpl).toHaveBeenCalledOnce();
+  await expect(
+    probeOllamaModel(
+      "file:///tmp/ollama",
+      "granite",
+      fetchImpl as typeof fetch,
+    ),
+  ).resolves.toEqual({ state: "invalid_endpoint" });
+  expect(fetchImpl).toHaveBeenCalledOnce();
 });

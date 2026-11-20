@@ -23,7 +23,6 @@ export type NativeMessagePolicy = {
   runDepth: RunDepth;
   maxIterations: number;
   toolProgressMode: ToolProgressMode;
-  useMultiStep: boolean;
 };
 
 export type NativeTurnSetup = {

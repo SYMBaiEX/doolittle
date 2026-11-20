@@ -1,4 +1,5 @@
 import { activateLinkedProvider } from "./activation";
+import { describeElizaCloudDoctorState } from "./cloud-doctor";
 import { connectLinkedProvider, refreshLinkedAccounts } from "./connect";
 import {
   formatAccountsOverview,
@@ -19,10 +20,6 @@ import {
 } from "./model-settings";
 import { withLinkedProviderMutationLock } from "./mutation-lock";
 import { resolveLinkedProviderName } from "./provider-name";
-import {
-  describeElizaCloudDoctorState,
-  getProviderReadinessMessage,
-} from "./readiness";
 
 export type { LinkedProviderName } from "./types";
 export type { ProviderRuntimeSettingsContext };
@@ -38,7 +35,6 @@ export {
   formatLinkedAccountSummary,
   formatLinkedProviderAdviceAlternate,
   formatLinkedProviderAdviceNextStep,
-  getProviderReadinessMessage,
   normalizeElizaCloudBaseUrl,
   refreshLinkedAccounts,
   resolveLinkedProviderName,

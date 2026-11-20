@@ -12,6 +12,11 @@ export {
   type ProviderTransportErrorOptions,
   providerErrorCodeForStatus,
 } from "./errors";
+export {
+  type OllamaModelStatus,
+  probeOllamaModel,
+  resolveOllamaTagsUrl,
+} from "./ollama-catalog";
 export { resolveModelPromptText } from "./prompt";
 export {
   getRuntimeModelSettings,

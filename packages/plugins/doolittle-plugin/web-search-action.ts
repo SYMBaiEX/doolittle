@@ -70,98 +70,6 @@ type WebSearchResult = {
   snippet?: unknown;
 };
 
-function readJsonStringProperty(
-  input: string,
-  property: string,
-  fromIndex: number,
-  allowTruncated = false,
-): { value: string; end: number } | undefined {
-  const marker = `"${property}"`;
-  const propertyIndex = input.indexOf(marker, fromIndex);
-  if (propertyIndex < 0) return undefined;
-  const colonIndex = input.indexOf(":", propertyIndex + marker.length);
-  if (colonIndex < 0) return undefined;
-  const quoteIndex = input.indexOf('"', colonIndex + 1);
-  if (quoteIndex < 0) return undefined;
-
-  let escaped = false;
-  for (let index = quoteIndex + 1; index < input.length; index += 1) {
-    const character = input[index];
-    if (escaped) {
-      escaped = false;
-      continue;
-    }
-    if (character === "\\") {
-      escaped = true;
-      continue;
-    }
-    if (character !== '"') continue;
-    try {
-      return {
-        value: JSON.parse(input.slice(quoteIndex, index + 1)) as string,
-        end: index + 1,
-      };
-    } catch {
-      return undefined;
-    }
-  }
-
-  if (!allowTruncated) return undefined;
-  const partial = input
-    .slice(quoteIndex + 1)
-    .replace(/\\u[0-9a-fA-F]{0,3}$/, "")
-    .replace(/\\$/, "");
-  try {
-    return {
-      // The prefix is already JSON-encoded; re-escaping quotes corrupts its
-      // existing backslash escapes. Decode as data, never executable source.
-      value: JSON.parse(`"${partial}"`) as string,
-      end: input.length,
-    };
-  } catch {
-    return {
-      value: partial
-        .replaceAll("\\n", "\n")
-        .replaceAll('\\"', '"')
-        .replaceAll("\\\\", "\\"),
-      end: input.length,
-    };
-  }
-}
-
-/**
- * The bundled SDK intentionally caps the search payload before returning it.
- * A long first excerpt can therefore cut the JSON document mid-string. Recover
- * complete URL/title fields and the available excerpt prefix instead of
- * discarding an otherwise successful search result.
- */
-function recoverTruncatedSearchResults(input: string): WebSearchResult[] {
-  const results: WebSearchResult[] = [];
-  let cursor = input.indexOf('"results"');
-  if (cursor < 0) return results;
-
-  while (results.length < 5) {
-    const url = readJsonStringProperty(input, "url", cursor);
-    if (!url) break;
-    const title = readJsonStringProperty(input, "title", url.end);
-    const nextUrlIndex = input.indexOf('"url"', url.end);
-    const excerptMarker = input.indexOf('"excerpts"', title?.end ?? url.end);
-    const excerpt =
-      excerptMarker >= 0 && (nextUrlIndex < 0 || excerptMarker < nextUrlIndex)
-        ? readJsonStringProperty(input, "excerpts", excerptMarker, true)
-        : undefined;
-    results.push({
-      url: url.value,
-      title: title?.value,
-      excerpts: excerpt?.value ? [excerpt.value] : undefined,
-    });
-    cursor = nextUrlIndex;
-    if (cursor < 0) break;
-  }
-
-  return results;
-}
-
 function cleanSearchText(value: string, maxChars: number): string {
   const clean = value
     .replace(/<[^>]*>/g, " ")
@@ -176,7 +84,9 @@ function safeResultUrl(value: unknown): string | undefined {
   if (typeof value !== "string") return undefined;
   try {
     const url = new URL(value);
-    return url.protocol === "http:" || url.protocol === "https:"
+    return (url.protocol === "http:" || url.protocol === "https:") &&
+      !url.username &&
+      !url.password
       ? url.toString()
       : undefined;
   } catch {
@@ -196,7 +106,9 @@ function webSearchFallbackText(
       parsedResults = parsed.results;
     }
   } catch {
-    parsedResults = recoverTruncatedSearchResults(result.text);
+    // Current Eliza search providers return a complete payload. Unstructured
+    // provider text belongs to the SDK's synthesis path.
+    return undefined;
   }
   if (!parsedResults?.length) return undefined;
   const rows = parsedResults.slice(0, 5).flatMap((candidate, index) => {
@@ -264,10 +176,12 @@ export function createShortcutCompatibleWebSearchAction(
           : undefined,
         responses,
       );
-      const fallback = result
-        ? webSearchFallbackText(query ?? messageText(message), result)
-        : undefined;
-      if (!result || !fallback || result.userFacingText) return result;
+      if (!result || result.userFacingText) return result;
+      const fallback = webSearchFallbackText(
+        query ?? messageText(message),
+        result,
+      );
+      if (!fallback) return result;
       return {
         ...result,
         userFacingText: fallback,

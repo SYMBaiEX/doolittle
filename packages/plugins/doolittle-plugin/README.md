@@ -21,7 +21,7 @@ Consume the parent workspace's declared exports:
 import { createDoolittlePlugin } from "@doolittle/plugins/doolittle-plugin/plugin";
 ```
 
-Other subpaths expose `routes`, `sdk-capabilities`, `sdk-native-surface`, and
+Other subpaths expose `routes`, `sdk-capabilities`, `web-search-action`, and
 `secrets-vault`; see the [parent manifest](../package.json). Keep dependencies
 pointing toward SDK and shared contract types, never back into the hosting
 application. Offline bootstrap behavior must remain explicitly configured.

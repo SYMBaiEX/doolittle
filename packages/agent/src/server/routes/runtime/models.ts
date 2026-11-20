@@ -11,6 +11,7 @@ import {
   type RuntimeModelsResponse,
   type RuntimeReasoningEffort,
 } from "@doolittle/contracts/model-route";
+import { resolveOllamaTagsUrl } from "@doolittle/provider-transport";
 import { readRegularFileSync } from "@doolittle/storage";
 import { getModelOptions } from "@elizaos/agent/api/model-provider-helpers";
 import type { AppContext } from "../../../runtime/bootstrap/index";
@@ -566,18 +567,13 @@ function parseCodexReasoningCapability(
 }
 
 function modelListUrl(provider: string, baseUrl: string): string | undefined {
+  if (provider === "ollama") return resolveOllamaTagsUrl(baseUrl);
   try {
     const url = new URL(baseUrl);
     const path = url.pathname.replace(/\/+$/u, "");
-    if (provider === "ollama") {
-      const apiBoundary = path.match(/^(.*?)(?:\/api|\/v1)(?:\/.*)?$/u);
-      const prefix = apiBoundary?.[1] ?? path;
-      url.pathname = `${prefix}/api/tags`.replace(/\/{2,}/gu, "/");
-    } else {
-      url.pathname = path.endsWith("/v1")
-        ? `${path}/models`
-        : `${path}/v1/models`;
-    }
+    url.pathname = path.endsWith("/v1")
+      ? `${path}/models`
+      : `${path}/v1/models`;
     url.search = "";
     url.hash = "";
     return url.toString();

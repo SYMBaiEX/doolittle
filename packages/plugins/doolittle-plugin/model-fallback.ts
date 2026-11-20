@@ -1,4 +1,8 @@
 import {
+  getRuntimeModelSettings,
+  probeOllamaModel,
+} from "@doolittle/provider-transport";
+import {
   type GenerateTextParams,
   type IAgentRuntime,
   ModelType,
@@ -6,66 +10,24 @@ import {
   type TextGenerationModelType,
 } from "@elizaos/core";
 import { resolveSelectedModelProviderPlugin } from "./model-router";
-import { readRuntimeModelSettings } from "./runtime-settings";
+
 import type { DoolittlePluginConfig } from "./types";
 
 const DEFAULT_OFFLINE_EMBEDDING_DIMENSIONS = 768;
-const OLLAMA_PREFLIGHT_TIMEOUT_MS = 750;
-
-function ollamaTagsUrl(baseUrl: string): string | undefined {
-  try {
-    const url = new URL(baseUrl);
-    const path = url.pathname.replace(/\/+$/, "");
-    url.pathname = path.endsWith("/api") ? `${path}/tags` : `${path}/api/tags`;
-    return url.toString();
-  } catch {
-    return undefined;
-  }
-}
 
 async function selectedOllamaIsReachable(
   runtime: IAgentRuntime,
 ): Promise<boolean> {
-  const settings = readRuntimeModelSettings(runtime);
-  if (settings?.provider?.trim() !== "ollama") {
-    return true;
-  }
-
-  const tagsUrl = ollamaTagsUrl(settings.baseUrl?.trim() ?? "");
-  if (!tagsUrl) {
-    return false;
-  }
-
-  try {
-    const response = await fetch(tagsUrl, {
-      signal: AbortSignal.timeout(OLLAMA_PREFLIGHT_TIMEOUT_MS),
-    });
-    if (!response.ok) {
-      return false;
-    }
-
-    const requestedModel = settings.model?.trim();
-    if (!requestedModel) {
-      return true;
-    }
-
-    const payload = (await response.json()) as {
-      models?: Array<{ model?: string; name?: string }>;
-    };
-    if (!Array.isArray(payload.models)) {
-      return true;
-    }
-    const requestedWithoutLatest = requestedModel.replace(/:latest$/, "");
-    return payload.models.some((entry) => {
-      const candidate = (entry.name ?? entry.model ?? "").trim();
-      return (
-        candidate === requestedModel ||
-        candidate.replace(/:latest$/, "") === requestedWithoutLatest
-      );
-    });
-  } catch {
-    return false;
-  }
+  const settings = getRuntimeModelSettings(runtime);
+  if (settings.provider?.trim() !== "ollama") return true;
+  const result = await probeOllamaModel(
+    settings.baseUrl?.trim() ?? "",
+    settings.model?.trim() ?? "",
+    runtime.fetch ?? fetch,
+  );
+  // The opt-in offline route allows the provider to decide if a reachable
+  // proxy answers the catalog request without inventory metadata.
+  return result.state === "ready" || result.state === "missing_catalog";
 }
 
 /**
@@ -79,8 +41,7 @@ export function createOfflineBootstrapTextModel(
     runtime: IAgentRuntime,
     params: GenerateTextParams,
   ): Promise<string> => {
-    const selectedProvider =
-      readRuntimeModelSettings(runtime)?.provider?.trim();
+    const selectedProvider = getRuntimeModelSettings(runtime).provider?.trim();
     const provider = resolveSelectedModelProviderPlugin(
       selectedProvider,
       runtime.getSetting("ANTHROPIC_AUTH_MODE"),
@@ -135,7 +96,7 @@ function hashEmbeddingText(text: string): number {
  * Generates a deterministic local embedding solely for keeping an explicitly
  * offline runtime bootable. It is not a semantic replacement for a provider.
  */
-export function createDeterministicOfflineEmbedding(
+function createDeterministicOfflineEmbedding(
   params: TextEmbeddingParams | string | null,
   config: DoolittlePluginConfig,
 ): number[] {
@@ -170,7 +131,7 @@ export function createOfflineBootstrapEmbeddingModel(
     params: TextEmbeddingParams | string | null,
   ): Promise<number[]> => {
     const provider = resolveSelectedModelProviderPlugin(
-      readRuntimeModelSettings(runtime)?.provider,
+      getRuntimeModelSettings(runtime).provider,
       runtime.getSetting("ANTHROPIC_AUTH_MODE"),
     );
     if (provider) {

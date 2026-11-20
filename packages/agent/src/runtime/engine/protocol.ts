@@ -7,6 +7,8 @@ import {
   type WorkerHostResponseMessage,
 } from "@doolittle/contracts/worker-host";
 
+import { isRecord } from "../../utils/records";
+
 export {
   WORKER_HOST_MAX_MESSAGE_BYTES as MAX_HOST_MESSAGE_BYTES,
   WORKER_HOST_PROTOCOL,
@@ -35,10 +37,6 @@ export interface EngineRequest {
   operation: EngineOperation;
   botId: string;
   environment?: Record<string, string>;
-}
-
-export function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 export function boundedMessage(value: unknown, limit = 256_000): boolean {

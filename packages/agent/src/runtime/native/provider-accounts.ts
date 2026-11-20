@@ -99,15 +99,6 @@ export function probeRuntimeProviderAccounts(
   return snapshot;
 }
 
-export function getRuntimeProviderAccountStatus(
-  runtime: ProviderAccountRuntime | null | undefined,
-  provider: LinkedProviderName,
-): LinkedProviderAccountStatus {
-  return probeRuntimeProviderAccounts(runtime, [provider])[
-    SNAPSHOT_KEY_BY_PROVIDER[provider]
-  ];
-}
-
 export async function refreshRuntimeProviderAccount(
   runtime: ProviderAccountRuntime | null | undefined,
   provider: LinkedProviderName,
