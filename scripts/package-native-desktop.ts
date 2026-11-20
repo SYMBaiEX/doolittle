@@ -27,8 +27,11 @@ if (process.platform !== "darwin") {
 }
 
 const args = process.argv.slice(process.argv[2] === "--" ? 3 : 2);
-if (args.length > 1 || (args.length === 1 && args[0] !== "--release")) {
-  throw new Error("Usage: nub run native:package:mac [--release]");
+if (
+  args.length > 1 ||
+  (args.length === 1 && !["--release", "--smoke"].includes(args[0]))
+) {
+  throw new Error("Usage: nub run native:package:mac [--release | --smoke]");
 }
 const release =
   args[0] === "--release" ? releaseConfig(process.env) : undefined;
@@ -112,6 +115,9 @@ try {
   } else {
     run("/usr/bin/codesign", ["--force", "--deep", "--sign", "-", artifact]);
     run("/usr/bin/codesign", ["--verify", "--deep", "--strict", artifact]);
+  }
+  if (args[0] === "--smoke") {
+    run("python3", ["tests/native/packaged-macos.py", artifact]);
   }
   console.log(`Native macOS bundle ready at ${artifact}`);
 } catch (error) {

@@ -13,8 +13,6 @@ Update manifests and the lockfile together, then install the frozen graph:
 
 ```sh
 nub run deps:install -- --frozen-lockfile --ignore-scripts
-nub run desktop:runtime:install
-nubx playwright install chromium
 ```
 
 Record user-visible changes, compatibility requirements, and known limits in
@@ -26,10 +24,12 @@ the changelog. Check platform prerequisites before building installers.
 nub run check:release
 ```
 
-The complete gate runs builds, dependency and security checks, SDK integrity,
-desktop runtime preparation and audit, and real runtime, Electron, and packaged
-acceptance. Its package stages require clean HEAD. Run the optional
-`nub run check:release:static` for build and policy feedback before the full gate.
+The complete gate builds the native clients, audits their ElizaOS runtime,
+and runs Rust tests, TypeScript boundary tests, and real ElizaOS integration
+tests. Its final step smokes the packaged app and CLI on macOS, or extracts
+the portable archive and checks its two executables on Linux and Windows.
+The macOS smoke uses Python 3. Use `nub run check:release:static` for build
+and policy feedback without the integration or packaged smoke checks.
 
 A green local gate establishes only the coverage it ran. Track separate evidence
 for native installation, update behavior, signatures, notarization, and any live
@@ -52,6 +52,9 @@ Developer ID and notarized ZIP for distribution. See the
 [native macOS signing and update process](native-macos-release.md).
 
 ### Electron compatibility artifacts
+
+Electron compatibility packaging and tests use their own runtime and license
+checks.
 
 ```sh
 nub run legacy:desktop:package:dir

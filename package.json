@@ -135,7 +135,7 @@
     "test:e2e:release:source": "nub run test:integration",
     "test:e2e:release:workbench-core": "nub run test:e2e:desktop-workbench",
     "test:e2e:release:packaged-core": "DOOLITTLE_DESKTOP_EXECUTABLE= nub scripts/run-desktop-packaged-tests.ts",
-    "test:e2e:release": "nub run test:e2e && nub run legacy:desktop:package:dir && DOOLITTLE_DESKTOP_EXECUTABLE= nub run test:e2e:desktop-packaged",
+    "test:e2e:release": "nub run test:integration && nub scripts/verify-native-package.ts --smoke",
     "check:repo-hygiene": "nub scripts/check-repo-hygiene.ts",
     "check:workflow-security": "nub scripts/check-workflow-security.ts",
     "check:plugin-boundaries": "nub scripts/check-plugin-boundaries.ts",
@@ -145,7 +145,7 @@
     "check:acceptance": "nub run check:monorepo && nub run check:repo-hygiene && nub run check:workflow-security && nub run check:plugin-boundaries && nub run check:eliza-sdk && nub run check:local-links && nub run knip:check && nub run check:runtime-advisory-policy",
     "check": "nub run test",
     "check:all": "nub run check:release",
-    "check:release:static": "nub run lint:check && nub run typecheck && nub run build && nub run check:acceptance && nub run desktop:runtime:prepare && nub run desktop:runtime:audit",
+    "check:release:static": "nub run lint:check && nub run typecheck && nub run build && nub run check:acceptance && nub run native:runtime:prepare && nub run native:runtime:audit",
     "check:release": "nub run check:release:static && nub run native:test && nub run test && nub run test:e2e:release",
     "publish:claude-code:dry-run": "nub run publish:providers -- --provider claude-code",
     "publish:provider-transport:dry-run": "nub run publish:providers -- --provider provider-transport",
@@ -164,6 +164,8 @@
     "native:dev": "nub scripts/native-desktop-dev.ts",
     "native:chat": "nub run cli:build && cargo run --locked -p doolittle-cli-native --",
     "native:check": "cargo check --workspace --locked",
+    "native:runtime:prepare": "nub run --cwd apps/desktop runtime:prepare --standalone-node",
+    "native:runtime:audit": "nub apps/desktop/scripts/verify-package.ts --runtime-manifest target/native-runtime/runtime-manifest.json",
     "native:package:mac": "nub scripts/package-native-desktop.ts"
   },
   "overrides": {
