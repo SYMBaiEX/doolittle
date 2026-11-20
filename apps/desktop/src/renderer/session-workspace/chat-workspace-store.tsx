@@ -15,12 +15,18 @@ import {
 export class ChatWorkspaceStore {
   private values = new Map<string, unknown>();
   private references = new Map<string, RefObject<unknown>>();
-  private listeners = new Set<() => void>();
+  private listeners = new Map<string, Set<() => void>>();
 
-  subscribe = (listener: () => void) => {
-    this.listeners.add(listener);
-    return () => this.listeners.delete(listener);
-  };
+  subscribe(key: string, listener: () => void): () => void {
+    const subscribers = this.listeners.get(key) ?? new Set();
+    this.listeners.set(key, subscribers);
+    subscribers.add(listener);
+    return () => {
+      subscribers.delete(listener);
+      if (subscribers.size === 0 && this.listeners.get(key) === subscribers)
+        this.listeners.delete(key);
+    };
+  }
 
   read<T>(key: string, initial: T | (() => T)): T {
     if (!this.values.has(key)) {
@@ -38,7 +44,7 @@ export class ChatWorkspaceStore {
       typeof next === "function" ? (next as (value: T) => T)(previous) : next;
     if (Object.is(previous, value)) return;
     this.values.set(key, value);
-    for (const listener of this.listeners) listener();
+    for (const listener of this.listeners.get(key) ?? []) listener();
   }
 
   reference<T>(key: string, initial: T): RefObject<T> {
@@ -73,7 +79,11 @@ export function useWorkspaceState<T>(
         ? (initial as () => T)()
         : initial,
   );
-  const value = useSyncExternalStore(store?.subscribe ?? noSubscribe, () =>
+  const subscribe = useCallback(
+    (listener: () => void) => store?.subscribe(key, listener) ?? noSubscribe(),
+    [key, store],
+  );
+  const value = useSyncExternalStore(subscribe, () =>
     store ? store.read(key, initial) : local,
   );
   const update = useCallback<Dispatch<SetStateAction<T>>>(

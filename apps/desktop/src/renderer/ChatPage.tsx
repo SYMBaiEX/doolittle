@@ -4,7 +4,6 @@ import {
   useSurfacePresence,
 } from "@doolittle/ui";
 import { useMediaQuery } from "@doolittle/ui/environment";
-import { asRecordOrUndefined } from "@elizaos/shared/type-guards";
 import {
   type FormEvent,
   lazy,
@@ -13,7 +12,6 @@ import {
   useEffect,
   useEffectEvent,
   useLayoutEffect,
-  useMemo,
   useRef,
   useState,
 } from "react";
@@ -22,7 +20,6 @@ import type {
   BackendState,
   BotConversationScope,
   BotConversationScopeResponse,
-  ChatEvent,
   ManagedAttachmentDescriptor,
   RuntimeStatus,
   SessionForkResponse,
@@ -30,23 +27,16 @@ import type {
 } from "../shared/contracts";
 import { BotRuntimeNotice } from "./bots/BotRuntimeNotice";
 import type { KnowledgePromotionSource } from "./bots/KnowledgePromotionDialog";
-import { liveBotIds, loadOwnedRunInventory } from "./bots/run-inventory";
 import { ChatHeaderChrome } from "./chat/ChatHeaderChrome";
 import {
   CompanionInspector,
   type InspectorTab,
 } from "./chat/CompanionInspector";
 import { isChatNearBottom, scheduleChatScroll } from "./chat/chat-scroll";
-import {
-  chatFailureDisposition,
-  failedResponseContent,
-} from "./chat/chat-terminal-events";
 import { addUnreadMessageIds, appendedMessageIds } from "./chat/chat-unread";
 import {
   botAcceptsDispatch,
-  CANCELLATION_UNCONFIRMED_MESSAGE,
   chatDispatchBlockReason,
-  retainCancellationFailureFeedback,
 } from "./chat/dispatch-readiness";
 import { snapshotDraftForDispatch } from "./chat/draft-dispatch-recovery";
 import {
@@ -62,29 +52,12 @@ import "./chat/chat-surface.css";
 import {
   type BranchMode,
   type DisplayMessage,
-  historicalRunReceipt,
   isCommandMessage,
-  isDesktopRunUpdate,
-  type RunReceipt,
-  type RunReceiptStore,
-  runEventKey,
 } from "./chat/models";
-import {
-  isTerminalClaimReceipt,
-  mergeTerminalRunReceipt,
-  type RunClaim,
-  RunClaims,
-} from "./chat/run-claim-reconciliation";
-import {
-  effectiveRunHydration,
-  type RunHydrationScope,
-  type RunHydrationSnapshot,
-  sameRunHydrationScope,
-} from "./chat/run-hydration-scope";
 import { useChatAttachments } from "./chat/useChatAttachments";
 import { useChatComposerSupport } from "./chat/useChatComposerSupport";
-import { useChatConversationState } from "./chat/useChatConversationState";
 import { useChatMessageActions } from "./chat/useChatMessageActions";
+import { useChatRunLifecycle } from "./chat/useChatRunLifecycle";
 import type {
   ChatContextCapsule,
   ChatContextHandoff,
@@ -100,10 +73,8 @@ import {
   loadConversationQueue,
   type PersistedQueuedMessage,
   queuedMessageWorkspaceStatus,
-  safeSetStorageItem,
   saveConversationQueue,
 } from "./conversation-persistence";
-import { NativeUiHost } from "./interfaces/native-ui-host";
 import { desktopRequest, errorMessage } from "./lib";
 import {
   freezeMemoryMatchSnapshot,
@@ -123,7 +94,6 @@ import { sessionWorkspaceBinding } from "./session-workspace/session-workspace-b
 import type { ThreadWorkbenchFullView } from "./thread-workbench/models";
 import { workspacePathsEqual } from "./workspace-path";
 
-const RUN_CURSOR_STORAGE_KEY = "doolittle.desktop.chat-run-cursors.v1";
 const NARROW_WORKBENCH_QUERY = "(max-width: 720px)";
 const ATTACHMENT_ONLY_MESSAGE = "Review the attached files.";
 
@@ -137,51 +107,6 @@ function chatSubmissionContent(draft: string, attachmentCount: number): string {
     : "";
 }
 
-/** Progress belongs to its originating conversation, not whichever view is selected. */
-function setSessionProgress(
-  progressBySession: Readonly<Record<string, string>>,
-  sessionId: string,
-  progress: string,
-): Record<string, string> {
-  if (progressBySession[sessionId] === progress) return progressBySession;
-  return { ...progressBySession, [sessionId]: progress };
-}
-
-function clearSessionProgress(
-  progressBySession: Readonly<Record<string, string>>,
-  sessionId: string,
-): Record<string, string> {
-  if (!(sessionId in progressBySession)) return progressBySession;
-  const { [sessionId]: _cleared, ...remaining } = progressBySession;
-  return remaining;
-}
-
-function loadRunCursors(): Record<string, number> {
-  try {
-    const raw = sessionStorage.getItem(RUN_CURSOR_STORAGE_KEY);
-    const parsed = raw ? JSON.parse(raw) : {};
-    if (!parsed || typeof parsed !== "object") return {};
-    return Object.fromEntries(
-      Object.entries(parsed).filter(
-        ([id, cursor]) =>
-          /^[a-zA-Z0-9:_-]{1,128}$/u.test(id) &&
-          Number.isSafeInteger(cursor) &&
-          Number(cursor) >= 0,
-      ),
-    ) as Record<string, number>;
-  } catch {
-    return {};
-  }
-}
-
-function saveRunCursors(cursors: Record<string, number>): void {
-  const bounded = Object.fromEntries(Object.entries(cursors).slice(-100));
-  safeSetStorageItem(
-    sessionStorage,
-    RUN_CURSOR_STORAGE_KEY,
-    JSON.stringify(bounded),
-  );
-}
 const ChatComposer = lazy(async () => {
   const module = await import("./chat/ChatComposer");
   return { default: module.ChatComposer };
@@ -202,16 +127,6 @@ const SessionsPage = lazy(async () => {
   const module = await import("./sessions/SessionsPage");
   return { default: module.SessionsPage };
 });
-function eventText(data: unknown): string {
-  if (!data || typeof data !== "object") return "";
-  const record = data as Record<string, unknown>;
-  return (
-    ([record.detail, record.message, record.event].find(
-      (value) => typeof value === "string",
-    ) as string | undefined) ?? ""
-  );
-}
-
 export function ChatPage(props: ChatPageProps) {
   return (
     <SessionWorkspace
@@ -357,77 +272,59 @@ export function ChatSessionPanel({
           }
         : undefined,
     );
-  const [activeRequests, setActiveRequests] = useWorkspaceState<
-    Record<string, string>
-  >("run.active-requests", {});
-  const [dispatchPending, setDispatchPending] = useWorkspaceState<
-    Record<string, boolean>
-  >("run.dispatch-pending", {});
-  const [dispatchFeedback, setDispatchFeedback] = useWorkspaceState<
-    Record<string, string>
-  >("run.dispatch-feedback", {});
-  const runClaims = useWorkspaceRef("run.claim-registry", new RunClaims());
-  const activeRequest = activeRequests[selectedId] ?? null;
-  const [runHydrationSnapshot, setRunHydrationSnapshot] =
-    useWorkspaceState<RunHydrationSnapshot>("run.hydration", {
-      scope: null,
-      status: "checking",
-    });
-  const [runHydrationRetry, setRunHydrationRetry] = useWorkspaceState(
-    "run.hydration-retry",
-    0,
+  const [queuedMessages, setQueuedMessages] = useWorkspaceState<
+    PersistedQueuedMessage[]
+  >("run.queue", () => loadConversationQueue(localStorage));
+  const [queuePaused, setQueuePaused] = useWorkspaceState(
+    "run.queue-paused",
+    () => queuedMessages.length > 0,
   );
-  const [runHydrationWarnings, setRunHydrationWarnings] = useWorkspaceState<
-    string[]
-  >("run.hydration-warnings", []);
-  const recoveryBotIds = liveBotIds(bots).join(",");
-  const botIdForSessionRef = useRef(botIdForSession);
-  botIdForSessionRef.current = botIdForSession;
-  // App may recreate the owner resolver after a sessions poll; compare its
-  // resolved owners instead of treating callback identity as a new inventory.
-  const recoverySessionOwners = remoteSessions
-    .map((session) => [session.sessionId, botIdForSession?.(session.sessionId)])
-    .sort(([left], [right]) => String(left).localeCompare(String(right)));
-  const recoverySessionOwnerKey = JSON.stringify(recoverySessionOwners);
-  const inventoryIdentityPath = inventoryWorkspacePath ?? hostWorkspacePath;
-  const recoveryScope: RunHydrationScope = useMemo(
-    () => ({
-      backend: hostBackend,
-      workspacePath: inventoryIdentityPath,
-      botIds: recoveryBotIds,
-      defaultBotId,
-      sessionOwners: recoverySessionOwnerKey,
-      retry: runHydrationRetry,
-    }),
-    [
-      hostBackend,
-      inventoryIdentityPath,
-      recoveryBotIds,
-      defaultBotId,
-      recoverySessionOwnerKey,
-      runHydrationRetry,
-    ],
+  const [queueAnnouncement, setQueueAnnouncement] = useWorkspaceState(
+    "run.queue-announcement",
+    () =>
+      queuedMessages.length > 0
+        ? `${queuedMessages.length} queued ${queuedMessages.length === 1 ? "message was" : "messages were"} recovered. Review and resume when ready.`
+        : "",
   );
-  const runHydration = effectiveRunHydration(
-    runHydrationSnapshot,
-    recoveryScope,
+  const {
+    activeRequest,
+    activeRequests,
+    setActiveRequests,
+    dispatchPending,
+    setDispatchPending,
+    dispatchFeedback,
+    setDispatchFeedback,
+    runClaims,
+    runHydration,
+    runHydrationForBot,
+    visibleRunHydrationWarnings,
+    retryRunHydration,
+    conversation,
+    progress,
+    publishProgress,
+    runReceipts,
+    runConnection,
+    cancellingRequest,
+    settleRequest,
+    reconnectRequest,
+    cancelRequest,
+  } = useChatRunLifecycle({
+    coordinator,
+    paneReady: backend.phase === "ready" && !coordinator && visible,
+    nativeHostReady: backend.phase === "ready",
+    selectedId,
+    hostBackend,
+    inventoryIdentityPath: inventoryWorkspacePath ?? hostWorkspacePath,
+    bots,
     currentBotId,
-  );
-  const visibleRunHydrationWarnings = sameRunHydrationScope(
-    runHydrationSnapshot.scope,
-    recoveryScope,
-  )
-    ? runHydrationWarnings
-    : [];
-  useEffect(() => {
-    if (!coordinator || !window.doolittle.ui) return;
-    const host = new NativeUiHost(window.doolittle.ui);
-    host.subscribe((event) => {
-      if (event.type === "run.state")
-        setRunHydrationRetry((current) => current + 1);
-    });
-    return () => host.dispose();
-  }, [coordinator, setRunHydrationRetry]);
+    defaultBotId,
+    botIdForSession,
+    remoteSessions,
+    onSelect,
+    onBindSessionBot,
+    refreshRuntime,
+    setQueueAnnouncement,
+  });
   const {
     draft,
     draftAttachments,
@@ -452,17 +349,7 @@ export function ChatSessionPanel({
     retryHistory,
     restoreDraftAfterRejectedDispatch,
     togglePin,
-  } = useChatConversationState({
-    activeRequest,
-    backendReady: backend.phase === "ready" && !coordinator && visible,
-    onSelect,
-    remoteSessions,
-    runClaims,
-    selectedId,
-    persistenceOwner: coordinator,
-    nativeHostReady: backend.phase === "ready",
-    botIdForSession,
-  });
+  } = conversation;
   const latestSelectedMessage = selectedMessages.at(-1);
   const workspaceBinding = sessionWorkspaceBinding(
     selectedSession,
@@ -492,10 +379,6 @@ export function ChatSessionPanel({
     backend.phase === "ready" ||
     hostBackend.phase === "ready" ||
     hostBackend.phase === "booting";
-  const [progressBySession, setProgressBySession] = useWorkspaceState<
-    Record<string, string>
-  >("run.progress", {});
-  const progress = progressBySession[selectedId] ?? "";
   const panelViewSnapshots = useWorkspaceRef<
     Record<string, ChatPanelViewState>
   >("view.snapshots", {});
@@ -600,72 +483,6 @@ export function ChatSessionPanel({
     "(prefers-reduced-motion: reduce)",
   );
   const attachedFiles = draftAttachments;
-  const recoveredQueue = useMemo(() => loadConversationQueue(localStorage), []);
-  const [queuedMessages, setQueuedMessages] = useWorkspaceState<
-    PersistedQueuedMessage[]
-  >("run.queue", recoveredQueue);
-  const [queuePaused, setQueuePaused] = useWorkspaceState(
-    "run.queue-paused",
-    recoveredQueue.length > 0,
-  );
-  const [queueAnnouncement, setQueueAnnouncement] = useWorkspaceState(
-    "run.queue-announcement",
-    recoveredQueue.length > 0
-      ? `${recoveredQueue.length} queued ${
-          recoveredQueue.length === 1 ? "message was" : "messages were"
-        } recovered. Review and resume when ready.`
-      : "",
-  );
-  const [runReceipts, setRunReceipts] = useWorkspaceState<RunReceiptStore>(
-    "run.receipts",
-    {},
-  );
-  const [runConnections, setRunConnections] = useWorkspaceState<
-    Record<string, "disconnected" | "reconnecting">
-  >("run.connections", {});
-  const reconnectAttempts = useWorkspaceRef(
-    "run.reconnect-attempts",
-    new Set<RunClaim>(),
-  );
-  const runConnection = activeRequest
-    ? runConnections[activeRequest]
-    : undefined;
-  const setRunConnection = (
-    requestId: string,
-    status?: "disconnected" | "reconnecting",
-  ) => {
-    setRunConnections((current) => {
-      if (current[requestId] === status) return current;
-      if (status) return { ...current, [requestId]: status };
-      const { [requestId]: _removed, ...remaining } = current;
-      return remaining;
-    });
-  };
-  const [cancellingRequests, setCancellingRequests] = useWorkspaceState<
-    Record<string, boolean>
-  >("run.cancelling", {});
-  const cancellingRequest =
-    activeRequest && cancellingRequests[activeRequest] ? activeRequest : null;
-  const clearCancellingRequest = (requestId: string) => {
-    setCancellingRequests((current) => {
-      if (!current[requestId]) return current;
-      const { [requestId]: _removed, ...remaining } = current;
-      return remaining;
-    });
-  };
-  const runCursors = useWorkspaceRef<Record<string, number> | null>(
-    "run.cursors",
-    null,
-  );
-  runCursors.current ??= loadRunCursors();
-  const cancellationTimers = useWorkspaceRef<Record<string, number>>(
-    "run.cancel-timers",
-    {},
-  );
-  const pendingDeltas = useWorkspaceRef<
-    Record<string, { claim: RunClaim; text: string }>
-  >("run.pending-deltas", {});
-  const deltaFrame = useWorkspaceRef<number | null>("run.delta-frame", null);
   const [forkingMessageId, setForkingMessageId] = useState("");
   const [promotionFeedback, setPromotionFeedback] = useWorkspaceState<
     Record<string, { busy: boolean; error?: string; message: string }>
@@ -911,14 +728,14 @@ export function ChatSessionPanel({
   }, [latestSelectedMessage, prefersReducedMotion]);
 
   useEffect(() => {
-    saveConversationQueue(localStorage, queuedMessages);
-  }, [queuedMessages]);
+    if (coordinator) saveConversationQueue(localStorage, queuedMessages);
+  }, [coordinator, queuedMessages]);
 
   useEffect(() => {
-    if (!queueAnnouncement) return;
+    if (!coordinator || !queueAnnouncement) return;
     const timeout = window.setTimeout(() => setQueueAnnouncement(""), 2_500);
     return () => window.clearTimeout(timeout);
-  }, [queueAnnouncement, setQueueAnnouncement]);
+  }, [coordinator, queueAnnouncement, setQueueAnnouncement]);
 
   useEffect(() => {
     if (coordinator || !focused) return;
@@ -977,392 +794,6 @@ export function ChatSessionPanel({
               ? `${currentBot?.name ?? "Doolittle"} ${latestAssistant.error ? "response failed." : "replied."}`
               : ""));
 
-  const updateAssistant = useCallback(
-    (
-      sessionId: string,
-      requestId: string,
-      update: (message: DisplayMessage) => DisplayMessage,
-    ) => {
-      setMessages((current) => ({
-        ...current,
-        [sessionId]: (current[sessionId] ?? []).map((message) =>
-          message.id === `assistant:${requestId}` ? update(message) : message,
-        ),
-      }));
-    },
-    [setMessages],
-  );
-
-  const flushPendingDeltas = useCallback(() => {
-    if (deltaFrame.current !== null) {
-      cancelAnimationFrame(deltaFrame.current);
-      deltaFrame.current = null;
-    }
-    const pending = pendingDeltas.current;
-    pendingDeltas.current = {};
-    const updates = Object.values(pending).filter(
-      ({ claim }) => runClaims.current.get(claim.runId) === claim,
-    );
-    if (!updates.length) return;
-    setMessages((current) => {
-      const next = { ...current };
-      for (const { claim, text } of updates) {
-        const { sessionId, runId } = claim;
-        next[sessionId] = (next[sessionId] ?? []).map((message) =>
-          message.id === `assistant:${runId}`
-            ? { ...message, content: message.content + text }
-            : message,
-        );
-      }
-      return next;
-    });
-  }, [setMessages, pendingDeltas, deltaFrame, runClaims]);
-
-  const settleRequest = (
-    claim: RunClaim,
-    type: "completed" | "cancelled" | "error",
-    content?: (previous: string) => string,
-    durable = true,
-  ) => {
-    if (runClaims.current.get(claim.runId) !== claim) return;
-    const { runId: requestId, sessionId: completedSessionId } = claim;
-    flushPendingDeltas();
-    updateAssistant(completedSessionId, requestId, (message) => ({
-      ...message,
-      content: content
-        ? content(message.content)
-        : type === "cancelled"
-          ? message.content || "Response stopped."
-          : message.content,
-      pending: false,
-      ...(type === "error" ? { error: true } : {}),
-    }));
-    if (durable) runClaims.current.settle(claim);
-    else runClaims.current.release(claim);
-    const remainingRuns = runClaims.current.activeIds(completedSessionId);
-    const nextRequestId = remainingRuns.values().next().value;
-    const cancellationTimer = cancellationTimers.current[requestId];
-    if (cancellationTimer !== undefined) {
-      window.clearTimeout(cancellationTimer);
-      delete cancellationTimers.current[requestId];
-    }
-    clearCancellingRequest(requestId);
-    setRunConnection(requestId);
-    setActiveRequests((current) => {
-      if (current[completedSessionId] !== requestId) {
-        return current;
-      }
-      if (nextRequestId)
-        return { ...current, [completedSessionId]: nextRequestId };
-      const { [completedSessionId]: _completed, ...remaining } = current;
-      return remaining;
-    });
-    if (!runClaims.current.forSession(completedSessionId)) {
-      setProgressBySession((current) =>
-        clearSessionProgress(current, completedSessionId),
-      );
-      setDispatchFeedback((current) =>
-        current[completedSessionId] === CANCELLATION_UNCONFIRMED_MESSAGE
-          ? { ...current, [completedSessionId]: "" }
-          : current,
-      );
-    }
-    refreshRuntime();
-    void refreshSessionUsage(completedSessionId);
-  };
-
-  const acceptTerminalReceipt = (receipt: RunReceipt) => {
-    const { type, run } = receipt.latest;
-    setRunReceipts((current) => ({
-      ...current,
-      [run.runId]: mergeTerminalRunReceipt(current[run.runId], receipt),
-    }));
-    const claim = runClaims.current.get(run.runId);
-    if (
-      claim &&
-      (type === "completed" || type === "cancelled" || type === "error") &&
-      isTerminalClaimReceipt(receipt, claim, runClaims.current)
-    ) {
-      settleRequest(claim, type);
-    }
-  };
-
-  const reconcileRunClaim = async (claim: RunClaim): Promise<void> => {
-    if (!claim.botId || runClaims.current.get(claim.runId) !== claim) return;
-    const payload = await desktopRequest<{ run?: unknown }>(
-      `/chat/runs/${encodeURIComponent(claim.runId)}`,
-      "GET",
-      undefined,
-      undefined,
-      undefined,
-      claim.botId,
-    );
-    const receipt = historicalRunReceipt(payload.run, undefined);
-    if (receipt && isTerminalClaimReceipt(receipt, claim, runClaims.current)) {
-      acceptTerminalReceipt(receipt);
-    }
-  };
-
-  const subscribeToRun = async (requestId: string) => {
-    const claim = runClaims.current.get(requestId);
-    if (!claim?.active) return;
-    try {
-      await window.doolittle.subscribeChat({
-        requestId,
-        after: runCursors.current?.[requestId] ?? 0,
-        ...(claim.botId ? { botId: claim.botId } : {}),
-      });
-    } catch {
-      if (runClaims.current.get(requestId) === claim)
-        setRunConnection(requestId, "disconnected");
-    }
-  };
-
-  const reconnectRequest = async (requestId: string) => {
-    const claim = runClaims.current.get(requestId);
-    const attempts = reconnectAttempts.current;
-    if (!claim?.active || attempts.has(claim)) return;
-    attempts.add(claim);
-    setRunConnection(requestId, "reconnecting");
-    try {
-      await reconcileRunClaim(claim).catch(() => undefined);
-      if (runClaims.current.get(requestId) === claim) {
-        await subscribeToRun(requestId);
-      }
-    } finally {
-      attempts.delete(claim);
-    }
-  };
-
-  const cancelRequest = async (requestId: string) => {
-    if (cancellingRequests[requestId]) return;
-    const claim = runClaims.current.get(requestId);
-    if (!claim?.active) return;
-    setCancellingRequests((current) => ({ ...current, [requestId]: true }));
-    setQueueAnnouncement("Stopping the current response…");
-    try {
-      await window.doolittle.cancelChat(requestId, claim.botId || undefined);
-      if (runClaims.current.get(requestId) === claim) {
-        cancellationTimers.current[requestId] = window.setTimeout(() => {
-          delete cancellationTimers.current[requestId];
-          clearCancellingRequest(requestId);
-          setQueueAnnouncement(
-            "Stopping is taking longer than expected. You can try stopping again while the runtime reconnects.",
-          );
-        }, 8_000);
-      }
-    } catch {
-      clearCancellingRequest(requestId);
-      if (runClaims.current.get(requestId) !== claim) return;
-      // An unconfirmed stop is not a terminal run receipt. Retain the owned
-      // request/session claim so another send cannot duplicate a live turn.
-      setDispatchFeedback((current) =>
-        retainCancellationFailureFeedback(current, claim.sessionId),
-      );
-    }
-    // An acknowledged Stop without a verified terminal receipt is still
-    // uncertain. Keep the claim until an event or later hydration confirms it.
-    await reconcileRunClaim(claim).catch(() => undefined);
-  };
-
-  const handleChatEvent = useEffectEvent((event: ChatEvent) => {
-    const claim = runClaims.current.get(event.requestId);
-    if (!claim?.active) return;
-    const failure = chatFailureDisposition(event);
-    // The matching startChat rejection owns pre-acceptance draft recovery.
-    if (failure === "submission") return;
-    if (failure === "disconnected") {
-      flushPendingDeltas();
-      setRunConnection(claim.runId, "disconnected");
-      void reconcileRunClaim(claim).catch(() => undefined);
-      return;
-    }
-    const { sessionId } = claim;
-    const { eventId } = event;
-    const cursors = runCursors.current;
-    if (eventId !== undefined && cursors) {
-      const previous = cursors[event.requestId];
-      if (previous !== undefined && eventId <= previous) return;
-      cursors[event.requestId] = eventId;
-      saveRunCursors(cursors);
-      setRunConnection(claim.runId);
-    }
-    if (event.event === "agent.run" && isDesktopRunUpdate(event.data)) {
-      const update = event.data;
-      if (update.run.runId !== claim.runId || update.sessionId !== sessionId)
-        return;
-      setRunReceipts((current) => {
-        const prior = current[event.requestId];
-        const nextKey = runEventKey(update);
-        const lastEvent = prior?.events.at(-1);
-        const events =
-          lastEvent && runEventKey(lastEvent) === nextKey
-            ? prior.events
-            : [...(prior?.events ?? []), update].slice(-30);
-        return {
-          ...current,
-          [event.requestId]: {
-            latest: update,
-            events,
-          },
-        };
-      });
-      return;
-    }
-    if (event.event === "response.output_text.delta") {
-      // Only the durable journal emits append-only text frames. Its cursor
-      // already suppresses duplicates across reconnects and replay.
-      const delta = asRecordOrUndefined(event.data)?.delta;
-      if (eventId === undefined || typeof delta !== "string" || !delta) return;
-      const prior = pendingDeltas.current[event.requestId];
-      pendingDeltas.current[event.requestId] = {
-        claim,
-        text: (prior?.claim === claim ? prior.text : "") + delta,
-      };
-      if (deltaFrame.current === null) {
-        deltaFrame.current = requestAnimationFrame(flushPendingDeltas);
-      }
-      return;
-    }
-    if (
-      event.event === "agent.progress" ||
-      event.event === "response.notice" ||
-      event.event === "attachment.warning"
-    ) {
-      setProgressBySession((current) =>
-        setSessionProgress(
-          current,
-          sessionId,
-          eventText(event.data) ||
-            (event.event === "attachment.warning"
-              ? "Attachment cleanup needs attention. Your response is still running."
-              : `${bots?.find((bot) => bot.id === claim.botId)?.name ?? "Doolittle"} is working…`),
-        ),
-      );
-      return;
-    }
-    if (event.event === "response.completed") {
-      const response = asRecordOrUndefined(event.data)?.response;
-      settleRequest(
-        claim,
-        "completed",
-        (content) =>
-          (typeof response === "string" && response) || content || "Done.",
-      );
-    } else if (failure === "terminal") {
-      settleRequest(claim, "error", (content) =>
-        failedResponseContent(content, event.data),
-      );
-    } else if (
-      event.event === "cancelled" ||
-      event.event === "response.cancelled"
-    ) {
-      settleRequest(claim, "cancelled");
-    }
-  });
-
-  useEffect(() => {
-    if (!coordinator) return;
-    const unsubscribe = window.doolittle.onChatEvent(handleChatEvent);
-    return unsubscribe;
-  }, [coordinator]);
-
-  // biome-ignore lint/correctness/useExhaustiveDependencies: retry nonce deliberately reruns run recovery without changing the host backend phase.
-  useEffect(() => {
-    if (!coordinator || hostBackend.phase !== "ready") return;
-    setRunHydrationSnapshot({ scope: recoveryScope, status: "checking" });
-    let disposed = false;
-    void loadOwnedRunInventory(recoveryBotIds ? recoveryBotIds.split(",") : [])
-      .then((payload) => {
-        if (disposed) return;
-        setRunHydrationWarnings(payload.warnings);
-        for (const value of payload.runs) {
-          if (!value || typeof value !== "object") continue;
-          const run = value as Record<string, unknown>;
-          const runId = typeof run.runId === "string" ? run.runId : "";
-          const sessionId =
-            typeof run.sessionId === "string" ? run.sessionId : "";
-          const status = typeof run.status === "string" ? run.status : "";
-          const botId =
-            typeof run.botId === "string"
-              ? run.botId
-              : botIdForSessionRef.current?.(sessionId) || defaultBotId;
-          if (
-            !["desktop", "desktop-ui", "desktop-consultation"].includes(
-              String(run.source),
-            )
-          )
-            continue;
-          if (!runId || !sessionId) continue;
-          if (["complete", "cancelled", "error"].includes(status)) {
-            const receipt = historicalRunReceipt(run, payload.updates[runId]);
-            if (receipt) acceptTerminalReceipt(receipt);
-            continue;
-          }
-          if (!runClaims.current.recover(runId, sessionId, botId)) continue;
-          if (botId) onBindSessionBot?.(sessionId, botId);
-          setActiveRequests((current) =>
-            current[sessionId] ? current : { ...current, [sessionId]: runId },
-          );
-          setMessages((current) => {
-            const messages = current[sessionId] ?? [];
-            if (messages.some((message) => message.id === `assistant:${runId}`))
-              return current;
-            return {
-              ...current,
-              [sessionId]: [
-                ...messages,
-                {
-                  id: `assistant:${runId}`,
-                  runId,
-                  role: "assistant",
-                  content: "",
-                  createdAt:
-                    typeof run.startedAt === "string"
-                      ? run.startedAt
-                      : new Date().toISOString(),
-                  pending: true,
-                },
-              ],
-            };
-          });
-          void subscribeToRun(runId);
-        }
-        setRunHydrationSnapshot({
-          scope: recoveryScope,
-          status: "ready",
-          failedBotIds: payload.failedBotIds,
-        });
-      })
-      .catch(() => {
-        if (!disposed) {
-          setRunHydrationSnapshot({
-            scope: recoveryScope,
-            status: "unavailable",
-          });
-          setRunHydrationWarnings([]);
-        }
-      });
-    return () => {
-      disposed = true;
-    };
-  }, [
-    hostBackend.phase,
-    coordinator,
-    setMessages,
-    setRunHydrationSnapshot,
-    setRunHydrationWarnings,
-    setRunReceipts,
-    runClaims,
-    setActiveRequests,
-    runCursors,
-    runHydrationRetry,
-    defaultBotId,
-    onBindSessionBot,
-    recoveryBotIds,
-    recoveryScope,
-  ]);
-
   const sendMessage = async ({
     input,
     attachments,
@@ -1384,7 +815,7 @@ export function ChatSessionPanel({
     contextCapsule?: ChatContextCapsule | null;
     composedContentOverride?: string;
   }) => {
-    if (attachmentImportPending) {
+    if (clearComposer && attachmentImportPending) {
       setAttachmentValidationError(
         "Wait for file import to finish before sending this message.",
       );
@@ -1418,7 +849,7 @@ export function ChatSessionPanel({
       ownerResolved: !botIdForSession || Boolean(botId),
       ownerReady: botAcceptsDispatch(owner, botId, defaultBotId),
       backendReady: hostBackend.phase === "ready",
-      hydration: runHydration,
+      hydration: runHydrationForBot(botId),
     });
     if (blockedReason) {
       setDispatchFeedback((current) => ({
@@ -1446,7 +877,10 @@ export function ChatSessionPanel({
       return false;
     }
     const memoryMatch =
-      memoryMatchOverride ?? freezeMemoryMatchSnapshot(content, memoryMatches);
+      memoryMatchOverride ??
+      (clearComposer
+        ? freezeMemoryMatchSnapshot(content, memoryMatches)
+        : undefined);
     const requestProjectId =
       targetScope?.kind === "confirmed"
         ? targetScope.conversation.projectId
@@ -1525,7 +959,8 @@ export function ChatSessionPanel({
           }
         : null;
     // A user's own dispatch should remain visible even if they were reading history.
-    forceTranscriptFollowRef.current = true;
+    if (!coordinator && sessionId === selectedId)
+      forceTranscriptFollowRef.current = true;
     setMessages((current) => ({
       ...current,
       [sessionId]: [
@@ -1567,12 +1002,9 @@ export function ChatSessionPanel({
           clearDraftForDispatch(sessionId),
         )
       : null;
-    setProgressBySession((current) =>
-      setSessionProgress(
-        current,
-        sessionId,
-        `${owner?.name ?? "Doolittle"} is considering the request…`,
-      ),
+    publishProgress(
+      sessionId,
+      `${owner?.name ?? "Doolittle"} is considering the request…`,
     );
     setActiveRequests((current) => ({ ...current, [sessionId]: requestId }));
     try {
@@ -1737,43 +1169,29 @@ export function ChatSessionPanel({
           window.doolittle.platform,
         );
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: sendMessage intentionally consumes the current request state after each queue transition.
-  useEffect(() => {
-    if (
-      !coordinator ||
-      runHydration !== "ready" ||
-      backend.phase !== "ready" ||
-      queuePaused ||
-      queuedMessages.length === 0 ||
-      queueDispatchRef.current
-    ) {
-      return;
-    }
-    const [next] = queuedMessages;
-    if (!next) return;
-    if (runClaims.current.forSession(next.sessionId)) return;
-    const workspaceStatus = queuedDeliveryStatus(next);
-    if (workspaceStatus !== "ready") {
-      setQueuePaused(true);
-      setQueueAnnouncement(
-        workspaceStatus === "different-workspace"
-          ? "Queued delivery is paused because its saved chat scope differs or is unavailable. The message is retained."
-          : "Queued delivery is paused because this recovered message has no confirmed workspace. The message is retained.",
-      );
-      return;
-    }
-    queueDispatchRef.current = next.id;
-    void sendMessage({
-      input: next.content,
-      attachments: next.attachments,
-      attachmentCleanup: next.attachmentCleanup,
-      sessionId: next.sessionId,
-      memoryMatchOverride: next.memoryMatch,
-      projectIdOverride: next.projectId ?? null,
-      contextCapsule: next.capsule,
-      composedContentOverride: composeQueuedMessage(next),
-    })
-      .then((accepted) => {
+  const dispatchQueuedMessage = useEffectEvent(
+    async (next: PersistedQueuedMessage) => {
+      queueDispatchRef.current = next.id;
+      let accepted = false;
+      try {
+        accepted = await sendMessage({
+          input: next.content,
+          attachments: next.attachments,
+          attachmentCleanup: next.attachmentCleanup,
+          sessionId: next.sessionId,
+          memoryMatchOverride: next.memoryMatch,
+          projectIdOverride: next.projectId ?? null,
+          contextCapsule: next.capsule,
+          composedContentOverride: composeQueuedMessage(next),
+        });
+      } catch (error) {
+        setDispatchFeedback((current) => ({
+          ...current,
+          [next.sessionId]: errorMessage(error),
+        }));
+      } finally {
+        // Publishing the next queue state can synchronously wake subscribers.
+        queueDispatchRef.current = null;
         if (accepted) {
           setQueuedMessages((current) =>
             current.filter((message) => message.id !== next.id),
@@ -1784,19 +1202,52 @@ export function ChatSessionPanel({
             "Queued delivery failed and was paused for review.",
           );
         }
-      })
-      .finally(() => {
-        queueDispatchRef.current = null;
-      });
+      }
+    },
+  );
+
+  const queueHead = coordinator ? queuedMessages[0] : undefined;
+  const queueRun = queueHead && activeRequests[queueHead.sessionId];
+  const queueDispatchPending =
+    queueHead && dispatchPending[queueHead.sessionId];
+  const queueTargetReady =
+    hostBackend.phase === "ready" &&
+    queueHead &&
+    runHydrationForBot(resolveSessionBot(queueHead.sessionId)) === "ready";
+  const queueWorkspaceStatus = queueHead && queuedDeliveryStatus(queueHead);
+  useEffect(() => {
+    if (
+      !queueHead ||
+      !queueTargetReady ||
+      queuePaused ||
+      queueRun ||
+      queueDispatchPending ||
+      queueDispatchRef.current ||
+      runClaims.current.forSession(queueHead.sessionId)
+    ) {
+      return;
+    }
+    if (queueWorkspaceStatus !== "ready") {
+      setQueuePaused(true);
+      setQueueAnnouncement(
+        queueWorkspaceStatus === "different-workspace"
+          ? "Queued delivery is paused because its saved chat scope differs or is unavailable. The message is retained."
+          : "Queued delivery is paused because this recovered message has no confirmed workspace. The message is retained.",
+      );
+      return;
+    }
+    void dispatchQueuedMessage(queueHead);
   }, [
-    activeRequest,
-    coordinator,
-    runHydration,
-    activeRequests,
-    backend.phase,
+    queueDispatchPending,
+    queueDispatchRef,
+    queueHead,
     queuePaused,
-    queuedMessages,
-    workspacePath,
+    queueRun,
+    queueTargetReady,
+    queueWorkspaceStatus,
+    runClaims,
+    setQueuePaused,
+    setQueueAnnouncement,
   ]);
 
   const queueScope = scopeForSession?.(selectedId);
@@ -2235,9 +1686,7 @@ export function ChatSessionPanel({
                     {runHydration === "unavailable" ? (
                       <button
                         className="secondary-button"
-                        onClick={() =>
-                          setRunHydrationRetry((current) => current + 1)
-                        }
+                        onClick={retryRunHydration}
                         type="button"
                       >
                         Retry run list

@@ -17,6 +17,10 @@ export class RunClaims {
     return this.claims.get(runId);
   }
 
+  isSettled(runId: string): boolean {
+    return this.settled.has(runId);
+  }
+
   forSession(sessionId: string, except?: RunClaim): RunClaim | undefined {
     for (const claim of this.claims.values()) {
       if (claim.sessionId === sessionId && claim !== except) return claim;

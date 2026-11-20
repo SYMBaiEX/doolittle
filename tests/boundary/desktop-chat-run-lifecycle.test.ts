@@ -5,8 +5,12 @@ import {
   isTerminalClaimReceipt,
   RunClaims,
 } from "../../apps/desktop/src/renderer/chat/run-claim-reconciliation";
-
+import {
+  effectiveRunHydration,
+  type RunHydrationScope,
+} from "../../apps/desktop/src/renderer/chat/run-hydration-scope";
 import { pendingApprovalsForSession } from "../../apps/desktop/src/renderer/chat/session-approvals";
+import { ChatWorkspaceStore } from "../../apps/desktop/src/renderer/session-workspace/chat-workspace-store";
 import type { ChatEvent } from "../../apps/desktop/src/shared/contracts";
 
 const runId = "run-a";
@@ -115,4 +119,45 @@ it("admits only pending approvals for the current conversation and saved scope",
       sessionId,
     ),
   ).toEqual([own]);
+});
+
+it("reports run recovery against the bot that owns the queued turn", () => {
+  const scope: RunHydrationScope = {
+    backend: { phase: "ready", message: "Runtime ready" },
+    botIds: "bot-a,bot-unavailable",
+    defaultBotId: "bot-a",
+    workspacePath: "/workspace",
+    sessionOwners: "",
+    retry: 0,
+  };
+  const snapshot = {
+    scope,
+    status: "ready",
+    failedBotIds: ["bot-unavailable"],
+  } as const;
+  expect(effectiveRunHydration(snapshot, scope, "bot-unavailable")).toBe(
+    "unavailable",
+  );
+  expect(effectiveRunHydration(snapshot, scope, botId)).toBe("ready");
+});
+
+it("only notifies the workspace subscribers that read the changed key", () => {
+  const store = new ChatWorkspaceStore();
+  store.read("conversation.messages", 0);
+  store.read("draft", "");
+  const updates: string[] = [];
+  const unsubscribe = store.subscribe("conversation.messages", () =>
+    updates.push("messages"),
+  );
+  const unsubscribeDraft = store.subscribe("draft", () =>
+    updates.push("draft"),
+  );
+  store.update("conversation.messages", 1);
+  store.update("conversation.messages", 1);
+  unsubscribe();
+  store.update("conversation.messages", 2);
+  store.update("draft", "draft body");
+  unsubscribeDraft();
+
+  expect(updates).toEqual(["messages", "draft"]);
 });
