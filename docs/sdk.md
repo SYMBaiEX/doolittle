@@ -72,6 +72,13 @@ SQL, tools, and coding orchestration. Prefer public SDK primitives over copied
 implementation or dependency patches. Doolittle-owned compatibility packages
 must be explicit, narrow, and covered by their real consuming behavior.
 
+The agent workspace uses the SDK runtime and message service for turns, the
+official discovery and connector services for tools, and the auth API for
+explicit vault access. Doolittle owns transport, workspace admission,
+approvals, and presentation of action results. Desktop state uses the SDK's
+atomic JSON writer with Doolittle's bounded reads and revision recovery, and
+panel navigation uses the published Eliza UI Tabs primitive.
+
 The desktop runtime preparation traces actual SDK and native-module dependencies
 with Node File Trace. The [runtime packaging scripts](../apps/desktop/scripts/prepare-runtime.ts)
 preserve package identities and worker entrypoints. A source upgrade can change

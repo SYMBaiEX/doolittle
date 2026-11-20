@@ -6,9 +6,26 @@ ElizaOS 2.0 beta line.
 
 ## [Unreleased]
 
-No unreleased changes are currently queued beyond the v0.1.0 release candidate.
+### Changed
 
-## [0.1.0] - 2026-08-21
+- Desktop chat follows the shared runtime's ordered run stream and resumes from
+  the last received event after a disconnect.
+- Desktop settings and workspace panels share keyboard-accessible tabs. Unused
+  standalone panel variants were removed.
+- Runtime routing shares model settings across provider adapters and uses
+  ElizaOS turn error handling and web search results. Desktop ledgers share
+  bounded reads and atomic writes.
+
+### Fixed
+
+- Desktop startup and ordinary chat avoid opening the Eliza credential vault.
+  Explicit account connections load credentials when needed.
+- macOS and Windows source installers bootstrap the CLI from the same workspace
+  entry point and honor the configured data directory.
+- Desktop packaging verifies runtime files, source provenance, and installer
+  metadata through a single build entry point.
+
+## [0.1.0 release candidate]
 
 ### Desktop release
 
