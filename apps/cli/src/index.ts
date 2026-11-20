@@ -7,6 +7,7 @@ import { shutdownApplicationRuntime } from "@doolittle/agent/runtime/application
 import { installSharedEngineHost } from "@doolittle/agent/runtime/engine/host";
 import { installEngineWorkerTransport } from "@doolittle/agent/runtime/engine/worker-transport";
 import type { AgentRuntime } from "@elizaos/core";
+import { getCliErrorMessage } from "./cli/execution/types";
 import { restoreTerminalState } from "./cli/render-utils";
 import { isCliStartupExitError, runOnboardingWizard } from "./cli/startup";
 import { renderTopLevelHelp } from "./entrypoint/help";
@@ -14,12 +15,9 @@ import { handleEntrypointInitialCommandFlow } from "./entrypoint/initial-command
 import { resolveEntrypointInvocation } from "./entrypoint/invocation";
 import { writeStderrLine } from "./entrypoint/output";
 import { prepareEntrypointRuntimeBoot } from "./entrypoint/runtime-boot";
+import { isRecoverableTopLevelRuntimeError } from "./entrypoint/runtime-errors";
 import { installRuntimeProcessLifecycle } from "./entrypoint/runtime-process-lifecycle";
 import { handleEntrypointRuntimeSurface } from "./entrypoint/runtime-surface";
-import {
-  formatTopLevelError,
-  isRecoverableTopLevelRuntimeError,
-} from "./entrypoint/static-prompts";
 
 installEngineWorkerTransport();
 const sharedEngineHost = installSharedEngineHost(
@@ -145,7 +143,7 @@ main()
     }
     entryLogger.captureError("entrypoint-main-failed", error);
     if (isRecoverableTopLevelRuntimeError(error)) {
-      writeStderrLine(formatTopLevelError(error));
+      writeStderrLine(getCliErrorMessage(error));
     } else {
       writeStderrLine(String(error));
     }

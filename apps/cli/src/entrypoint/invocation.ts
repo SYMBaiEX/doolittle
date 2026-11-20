@@ -1,6 +1,7 @@
 import { loadApplicationEnv } from "@doolittle/agent/config/env";
-import type { StaticResult } from "./static-prompts";
-import { resolveStaticPrompt } from "./static-prompts";
+import { normalizeSlashCommandSyntax } from "@doolittle/agent/runtime/command-catalog";
+import { resolveStaticCliInput } from "../cli/execution/static";
+import type { CliExecutionResult } from "../cli/execution/types";
 import { readEntrypointStdinText } from "./stdin";
 import type { EntrypointSubcommand, OneShotOptions } from "./subcommand";
 import {
@@ -15,7 +16,7 @@ export interface EntrypointInvocation {
   shellIsInteractive: boolean;
   oneShot?: OneShotOptions;
   immediatePrompt?: string;
-  staticPromptResult?: StaticResult;
+  staticPromptResult?: CliExecutionResult;
   jobControlDir?: string;
 }
 
@@ -45,7 +46,8 @@ export async function resolveEntrypointInvocation(options: {
   const aliasPrompt = resolveEntrypointAliasPrompt(command, rest);
   const immediatePrompt =
     command === "exec" ? oneShot?.prompt : (aliasPrompt ?? pipedPrompt);
-  if (!options.env && immediatePrompt?.trim() === "/help") loadApplicationEnv();
+  const builtin = normalizeSlashCommandSyntax(immediatePrompt ?? "");
+  if (!options.env && builtin === "/help") loadApplicationEnv();
 
   return {
     command,
@@ -53,11 +55,10 @@ export async function resolveEntrypointInvocation(options: {
     shellIsInteractive,
     oneShot,
     immediatePrompt,
-    staticPromptResult: resolveStaticPrompt(
-      immediatePrompt,
-      env.DOOLITTLE_NAME?.trim() || "Eliza",
-      options.repoRoot,
-    ),
+    staticPromptResult: resolveStaticCliInput(builtin, {
+      agentName: env.DOOLITTLE_NAME?.trim() || "Eliza",
+      workspaceDir: options.repoRoot,
+    }),
     jobControlDir: env.DOOLITTLE_JOB_CONTROL_DIR?.trim() || undefined,
   };
 }

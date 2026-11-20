@@ -17,11 +17,11 @@ export async function executeCliInput(
 ): Promise<CliExecutionResult> {
   const normalizedTrimmed = normalizeSlashCommandSyntax(line.trim());
   const isExplicitSlashCommand = normalizedTrimmed.startsWith("/");
-  const staticResult = resolveStaticCliInput(
-    line,
-    context.config.agentName,
-    context.config.workspaceDir,
-  );
+  const staticResult = resolveStaticCliInput(normalizedTrimmed, {
+    agentName: context.config.agentName,
+    workspaceDir: context.config.workspaceDir,
+    sessionOpen: true,
+  });
   if (staticResult) {
     return staticResult;
   }

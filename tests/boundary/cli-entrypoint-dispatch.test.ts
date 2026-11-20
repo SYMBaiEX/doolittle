@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { resolveStaticCliInput } from "../../apps/cli/src/cli/execution/static";
+import { resolveEntrypointInvocation } from "../../apps/cli/src/entrypoint/invocation";
 import { resolveEntrypointCommandPlan } from "../../apps/cli/src/entrypoint/runtime-control";
 import {
   type EntrypointSubcommand,
@@ -8,6 +10,23 @@ import {
 } from "../../apps/cli/src/entrypoint/subcommand";
 
 describe("CLI entrypoint dispatch", () => {
+  it("uses the interactive command-search response for a pre-boot alias", async () => {
+    const invocation = await resolveEntrypointInvocation({
+      argv: ["exec", "-p", "/commands-search"],
+      env: {},
+      repoRoot: process.cwd(),
+    });
+    expect(invocation.staticPromptResult).toEqual(
+      resolveStaticCliInput("/commands search", {
+        agentName: "Eliza",
+        sessionOpen: true,
+      }),
+    );
+    expect(invocation.staticPromptResult?.text).toBe(
+      "Usage: /commands search <query>",
+    );
+  });
+
   it.each([
     ["tui", "cockpit"],
     ["gui", "desktop"],

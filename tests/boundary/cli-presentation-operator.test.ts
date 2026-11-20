@@ -15,6 +15,7 @@ import {
   renderPlainEntry,
   renderResponseTranscript,
 } from "../../apps/cli/src/cli/transcript-renderer/index";
+import { emitStaticPromptEvents } from "../../apps/cli/src/entrypoint/output";
 
 function fixture(
   options: {
@@ -100,6 +101,29 @@ function fixture(
 }
 
 describe("CLI operator presentation", () => {
+  it("waits for a stream event to be delivered before sending later events", async () => {
+    let release!: () => void;
+    const paused = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const events: string[] = [];
+    const writing = emitStaticPromptEvents(
+      "/help",
+      { text: "Help" },
+      {
+        async onEvent(event) {
+          events.push(event.type);
+          if (event.type === "start") await paused;
+        },
+      },
+    );
+
+    expect(events).toEqual(["start"]);
+    release();
+    await writing;
+    expect(events).toEqual(["start", "result", "completed"]);
+  });
+
   it("keeps long code tokens intact and removes transcript label controls", () => {
     const path = `packages/${"workspace-name/".repeat(16)}index.ts`;
     const entry = {

@@ -1,20 +1,19 @@
 import { loadConfig } from "@doolittle/agent/config/env";
+import type { CliExecutionResult } from "../cli/execution/types";
 import { monitorJobCancel } from "../cli/jobs/control";
 import { appendCliJobEvent, finalizeCliJob } from "../cli/jobs/index";
 import { emitStaticPromptEvents, printOneShotResult } from "./output";
-import type { StaticResult } from "./static-prompts";
 import type { OneShotOptions } from "./subcommand";
 
 export async function handleStaticPromptCommand(input: {
-  result: StaticResult;
+  result: CliExecutionResult;
   prompt: string;
   oneShot?: OneShotOptions;
   jobControlDir?: string;
 }): Promise<void> {
   const { result, prompt, oneShot } = input;
   if (!oneShot?.jsonStream) {
-    printOneShotResult(result, Boolean(oneShot?.json));
-    return;
+    return printOneShotResult(result, Boolean(oneShot?.json));
   }
 
   const activeJobId = oneShot.jobId?.trim();

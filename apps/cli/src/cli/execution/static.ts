@@ -1,38 +1,38 @@
-import {
-  normalizeSlashCommandSyntax,
-  renderCommandCatalog,
-} from "@doolittle/agent/runtime/command-catalog";
+import { renderCommandCatalog } from "@doolittle/agent/runtime/command-catalog";
 import { buildHelpText } from "../help-text";
 import type { CliExecutionResult } from "./types";
 
+/** Static built-ins shared by pre-boot and interactive prompt dispatch. */
 export function resolveStaticCliInput(
-  line: string,
-  agentName: string,
-  workspaceDir?: string,
+  input: string,
+  options: {
+    agentName: string;
+    workspaceDir?: string;
+    sessionOpen?: boolean;
+  },
 ): CliExecutionResult | undefined {
-  const trimmed = line.trim();
-  if (!trimmed) {
-    return { text: "", tone: "info" };
+  const { agentName, workspaceDir, sessionOpen } = options;
+  if (!input) {
+    return sessionOpen ? { text: "", tone: "info" } : undefined;
   }
-  const normalizedTrimmed = normalizeSlashCommandSyntax(trimmed);
-  if (trimmed === "exit" || trimmed === "quit") {
+  if (input === "exit" || input === "quit") {
     return {
-      text: `Closing ${agentName}.`,
-      tone: "success",
+      text: `Closing ${sessionOpen ? agentName : "Doolittle"}.`,
+      tone: sessionOpen ? "success" : "info",
       shouldExit: true,
     };
   }
-  if (normalizedTrimmed === "/help") {
+  if (input === "/help") {
     return { text: buildHelpText(agentName), tone: "info" };
   }
-  if (normalizedTrimmed === "/commands") {
+  if (input === "/commands") {
     return {
       text: renderCommandCatalog(undefined, 80, workspaceDir),
       tone: "info",
     };
   }
-  if (normalizedTrimmed.startsWith("/commands search ")) {
-    const query = normalizedTrimmed.replace("/commands search ", "").trim();
+  if (input === "/commands search" || input.startsWith("/commands search ")) {
+    const query = input.slice("/commands search".length).trim();
     return {
       text: query
         ? renderCommandCatalog(query, 80, workspaceDir)

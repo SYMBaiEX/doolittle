@@ -18,7 +18,7 @@ interface DeferredHydrationOptions {
 }
 
 interface WaitForTuiDestroyOptions {
-  screen: Pick<blessed.Widgets.Screen, "once">;
+  screen: { once(event: "destroy", listener: () => void): unknown };
   markScreenDestroyed: () => void;
   cleanup: () => void;
   isShuttingDown: () => boolean;

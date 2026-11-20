@@ -4,60 +4,63 @@ import {
 } from "../cli/execution/types";
 import type { CliTurnEvent } from "../cli/turn-events";
 import { encodeCliTurnEvent } from "../cli/turn-events";
-import type { StaticResult } from "./static-prompts";
 
 export function writeStderrLine(message: string): void {
   process.stderr.write(`${message}\n`);
 }
 
-export function printOneShotResult(
+export function writeStdout(message: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    process.stdout.write(message, (error) => {
+      if (error) reject(error);
+      else resolve();
+    });
+  });
+}
+
+export async function printOneShotResult(
   result: CliExecutionResult,
   json: boolean,
-): void {
+): Promise<void> {
   if (json) {
-    console.log(
-      JSON.stringify({
+    return writeStdout(
+      `${JSON.stringify({
         ok: getCliResultStatus(result) === "completed",
         tone: result.tone ?? "info",
         text: result.text,
-      }),
+      })}\n`,
     );
-    return;
   }
 
-  if (result.text) {
-    console.log(result.text);
-  }
+  if (result.text) await writeStdout(`${result.text}\n`);
 }
 
 export async function emitStaticPromptEvents(
   prompt: string,
-  result: StaticResult,
+  result: CliExecutionResult,
   options?: {
     sessionId?: string;
-    onEvent?: (event: CliTurnEvent) => void;
+    onEvent?: (event: CliTurnEvent) => void | Promise<void>;
   },
 ): Promise<void> {
   const timestamp = new Date().toISOString();
   const sessionId = options?.sessionId?.trim() || `static:${Date.now()}`;
-  const emit = (event: CliTurnEvent) => {
-    options?.onEvent?.(event);
-    process.stdout.write(encodeCliTurnEvent(event));
-  };
-  emit({
+  const emit =
+    options?.onEvent ?? ((event) => writeStdout(encodeCliTurnEvent(event)));
+  await emit({
     type: "start",
     timestamp,
     sessionId,
     command: prompt,
   });
-  emit({
+  await emit({
     type: "result",
     timestamp: new Date().toISOString(),
     text: result.text,
     tone: result.tone ?? "info",
     shouldExit: result.shouldExit ?? false,
   });
-  emit({
+  await emit({
     type: "completed",
     timestamp: new Date().toISOString(),
     status: getCliResultStatus(result),

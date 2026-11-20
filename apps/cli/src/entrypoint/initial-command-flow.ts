@@ -1,11 +1,11 @@
 import type { AppLogger } from "@doolittle/agent/logging/logger";
+import type { CliExecutionResult } from "../cli/execution/types";
 import { loadLocalRuntimeEnv, type runOnboardingWizard } from "../cli/startup";
 import { handleBackgroundExec } from "./exec-flow";
 import { handleJobsSubcommand } from "./jobs-command";
 import { handleLocalEntrypointSubcommand } from "./local-subcommands";
 import type { writeStderrLine } from "./output";
 import { handleStaticPromptCommand } from "./static-prompt-command";
-import type { StaticResult } from "./static-prompts";
 import type { EntrypointSubcommand, OneShotOptions } from "./subcommand";
 
 export async function handleEntrypointInitialCommandFlow(input: {
@@ -16,7 +16,7 @@ export async function handleEntrypointInitialCommandFlow(input: {
   entryLogger: AppLogger;
   oneShot?: OneShotOptions;
   immediatePrompt?: string;
-  staticPromptResult?: StaticResult;
+  staticPromptResult?: CliExecutionResult;
   jobControlDir?: string;
   launcherPath?: string;
   writeStderrLine: typeof writeStderrLine;

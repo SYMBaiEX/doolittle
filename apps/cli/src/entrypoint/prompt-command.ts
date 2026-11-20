@@ -11,7 +11,7 @@ import {
   markCliJobStarted,
 } from "../cli/jobs/index";
 import { encodeCliTurnEvent } from "../cli/turn-events";
-import { printOneShotResult } from "./output";
+import { printOneShotResult, writeStdout } from "./output";
 import type { OneShotOptions } from "./subcommand";
 
 function exitCodeForStatus(status: ReturnType<typeof getCliResultStatus>) {
@@ -35,7 +35,7 @@ export async function runRuntimePromptCommand(input: {
       abortSignal: signal,
     });
     const status = getCliResultStatus(result, signal);
-    printOneShotResult({ ...result, status }, Boolean(oneShot?.json));
+    await printOneShotResult({ ...result, status }, Boolean(oneShot?.json));
     return exitCodeForStatus(status);
   }
 
@@ -60,7 +60,7 @@ export async function runRuntimePromptCommand(input: {
       {
         onEvent(event) {
           if (!activeJobId) {
-            process.stdout.write(encodeCliTurnEvent(event));
+            return writeStdout(encodeCliTurnEvent(event));
           } else if (event.type !== "coding-verification") {
             appendCliJobEvent(dataDir, activeJobId, event);
           }

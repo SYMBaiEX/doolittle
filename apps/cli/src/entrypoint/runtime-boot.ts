@@ -6,7 +6,6 @@ import {
   resolveEntrypointCommandPlan,
   resolveEntrypointRuntimePlan,
 } from "./runtime-control";
-import { formatTopLevelError } from "./static-prompts";
 import type { EntrypointSubcommand } from "./subcommand";
 
 export async function prepareEntrypointRuntimeBoot(options: {
@@ -50,8 +49,10 @@ export async function prepareEntrypointRuntimeBoot(options: {
     runtimeLogger,
     startApiServer: server?.startApiServer,
     writeStderrLine,
-    formatTopLevelError,
+    formatTopLevelError: getCliErrorMessage,
     hydrateAfterListening: desktop && usesApi,
   });
   return { context, bootLogs, runtimePlan, runtimeLogger, ...apiStartup };
 }
+
+import { getCliErrorMessage } from "../cli/execution/types";
