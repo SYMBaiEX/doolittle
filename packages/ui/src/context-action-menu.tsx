@@ -106,13 +106,6 @@ export function ContextActionMenu({
     return () => observer.disconnect();
   }, [anchor]);
 
-  function preserveNativeContext(target: Element) {
-    return Boolean(
-      target.closest(NATIVE_CONTEXT_SELECTOR) ||
-        target.ownerDocument.getSelection()?.toString(),
-    );
-  }
-
   function invokingElement(target: Element) {
     const wrapper = wrapperRef.current;
     const nearest = target.closest<HTMLElement>(FOCUSABLE_SELECTOR);
@@ -131,36 +124,39 @@ export function ContextActionMenu({
     setAnchor({ x, y });
   }
 
-  function onContextMenu(event: MouseEvent<HTMLDivElement>) {
+  function contextTarget(
+    event: MouseEvent<HTMLDivElement> | KeyboardEvent<HTMLDivElement>,
+  ) {
     const target = event.target;
     if (
       event.defaultPrevented ||
       !enabled ||
       !(target instanceof Element) ||
       !event.currentTarget.contains(target) ||
-      preserveNativeContext(target)
+      target.closest(NATIVE_CONTEXT_SELECTOR) ||
+      target.ownerDocument.getSelection()?.toString()
     ) {
-      return;
+      return null;
     }
+    return target;
+  }
+
+  function onContextMenu(event: MouseEvent<HTMLDivElement>) {
+    const target = contextTarget(event);
+    if (!target) return;
     event.preventDefault();
     show(event.clientX, event.clientY, invokingElement(target));
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-    const target = event.target;
     if (
-      event.defaultPrevented ||
-      !enabled ||
-      !(
-        event.key === "ContextMenu" ||
-        (event.key === "F10" && event.shiftKey)
-      ) ||
-      !(target instanceof Element) ||
-      !event.currentTarget.contains(target) ||
-      preserveNativeContext(target)
+      event.key !== "ContextMenu" &&
+      !(event.key === "F10" && event.shiftKey)
     ) {
       return;
     }
+    const target = contextTarget(event);
+    if (!target) return;
     event.preventDefault();
     const bounds = target.getBoundingClientRect();
     show(bounds.left, bounds.bottom, invokingElement(target));

@@ -15,8 +15,8 @@ import type { UiHostV1 } from "@doolittle/ui/host";
 
 The root export includes controls, surfaces, context menus, settings, themes,
 and motion helpers. Dedicated subpaths expose `controls`, `surfaces`, `host`,
-`themes`, `ag-ui`, `environment`, and `styles.css`. Import only the surface a
-consumer needs. React is a peer dependency supplied by the host application.
+`themes`, `environment`, and `styles.css`. Import only the surface a consumer
+needs. React is a peer dependency supplied by the host application.
 
 The host subpath re-exports the serializable UI-host contracts from
 `@doolittle/contracts`; it does not provide a native host implementation.

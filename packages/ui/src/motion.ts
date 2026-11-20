@@ -9,8 +9,15 @@ import {
 const LIQUID_EASE = "cubic-bezier(0.22, 1, 0.36, 1)";
 type Position = Pick<DOMRect, "left" | "top" | "width" | "height">;
 
+function motionDuration(element: HTMLElement) {
+  const configured = Number.parseFloat(
+    getComputedStyle(element).getPropertyValue("--motion-duration"),
+  );
+  return Number.isFinite(configured) ? Math.max(0, configured) : 120;
+}
+
 /** Moves the existing surface, never a screenshot or a second interactive copy. */
-export function createLayoutMotion(element: HTMLElement) {
+function createLayoutMotion(element: HTMLElement) {
   let previous: Position | undefined;
   let scope: string | undefined;
   let animation: Animation | undefined;
@@ -77,14 +84,7 @@ export function useSurfacePresence(open: boolean) {
     }
     if (!retained) return;
     const query = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const configured = Number.parseFloat(
-      getComputedStyle(document.documentElement).getPropertyValue(
-        "--motion-duration",
-      ),
-    );
-    const delay = Number.isFinite(configured)
-      ? Math.min(180, Math.max(0, configured * 1.5))
-      : 180;
+    const delay = Math.min(180, motionDuration(document.documentElement) * 1.5);
     if (query.matches || delay === 0) {
       setRetained(false);
       return;
@@ -137,16 +137,10 @@ export function useLiquidLayout(
   useLayoutEffect(() => {
     const element = ref.current;
     if (!element) return;
-    const configured = Number.parseFloat(
-      getComputedStyle(element).getPropertyValue("--motion-duration"),
-    );
-    const duration = Number.isFinite(configured)
-      ? Math.min(420, Math.max(0, configured * 3))
-      : 360;
     controller.current?.update(
       scopeKey,
       preference.current?.matches ?? true,
-      duration,
+      Math.min(420, motionDuration(element) * 3),
     );
     // The key explicitly declares the presentation transitions that may move.
     void layoutKey;

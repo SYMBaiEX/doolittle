@@ -323,7 +323,14 @@ export function themeCssVariables(
   const p = theme.colors[appearance];
   const t = theme.typography;
   const g = theme.geometry;
+  const code = theme.codeColors?.[appearance];
+  const terminal = theme.terminalColors;
   const compact = density === "compact";
+  const pageSpacing = compact
+    ? Math.max(8, theme.spacing.page - 4)
+    : theme.spacing.page;
+  const softStatus = (color: string) =>
+    `color-mix(in srgb, ${color} 14%, ${p.navigation})`;
   const variables: Record<string, string> = {
     "--bg": p.background,
     "--surface": p.navigation,
@@ -365,20 +372,17 @@ export function themeCssVariables(
     "--radius-md": `${g.controlRadius}px`,
     "--radius-lg": `${g.composerRadius}px`,
     "--radius-xl": `${g.composerRadius}px`,
-    "--page-gap": `${compact ? Math.max(8, theme.spacing.page - 4) : theme.spacing.page}px`,
-    "--card-pad": `${compact ? Math.max(8, theme.spacing.page - 4) : theme.spacing.page}px`,
+    "--page-gap": `${pageSpacing}px`,
+    "--card-pad": `${pageSpacing}px`,
     "--row-pad": `${compact ? Math.max(6, theme.spacing.row - 2) : theme.spacing.row}px`,
     "--motion-duration": `${theme.motion.durationMs}ms`,
     "--focus-ring": p.accentText,
     // Legacy consumers must not turn current navigation into a tinted card.
     "--surface-selected": "transparent",
-    "--canvas-bg": theme.codeColors?.[appearance].background ?? p.background,
-    "--canvas-text": theme.codeColors?.[appearance].text ?? p.text,
+    "--canvas-bg": code?.background ?? p.background,
+    "--canvas-text": code?.text ?? p.text,
     "--canvas-text-soft": p.secondaryText,
     "--canvas-border": p.borderStrong,
-  };
-  const terminal = theme.terminalColors;
-  for (const [token, value] of Object.entries({
     "--terminal-blue": terminal?.blue ?? p.accent,
     "--terminal-bright-blue": terminal?.brightBlue ?? p.accent,
     "--terminal-cyan": terminal?.cyan ?? p.accentText,
@@ -388,20 +392,13 @@ export function themeCssVariables(
     "--theme-cyan": terminal?.cyan ?? p.accentText,
     "--theme-magenta": terminal?.magenta ?? p.accentText,
     "--theme-muted": terminal?.muted ?? p.mutedText,
-  }))
-    variables[token] = value;
-  for (const [name, color] of [
-    ["accent", p.accent],
-    ["good", p.success],
-    ["warn", p.warning],
-    ["bad", p.error],
-  ]) {
-    variables[`--${name}-soft`] =
-      `color-mix(in srgb, ${color} 14%, ${p.navigation})`;
-  }
-  for (let n = 1; n <= 5; n++)
-    variables[`--space-${n}`] =
-      `${theme.spacing.unit * [1, 2, 3, 4, 6][n - 1]}px`;
+    "--accent-soft": softStatus(p.accent),
+    "--good-soft": softStatus(p.success),
+    "--warn-soft": softStatus(p.warning),
+    "--bad-soft": softStatus(p.error),
+  };
+  for (const [index, scale] of [1, 2, 3, 4, 6].entries())
+    variables[`--space-${index + 1}`] = `${theme.spacing.unit * scale}px`;
   return variables;
 }
 
@@ -422,7 +419,7 @@ const legacyNames: Record<string, string> = {
 export function legacyThemeColor(value: unknown): string | undefined {
   if (typeof value !== "string" || value.length > 240) return undefined;
   const text = value.trim().toLowerCase();
-  if (legacyNames[text]) return legacyNames[text];
+  if (Object.hasOwn(legacyNames, text)) return legacyNames[text];
   const hex = /^#([\da-f]{3}|[\da-f]{4}|[\da-f]{6}|[\da-f]{8})$/u.exec(
     text,
   )?.[1];
@@ -512,12 +509,16 @@ export function migrateLegacyThemeBundle(
     throw new Error("Invalid legacy theme profile.");
   const colors = structuredClone(COMPANION_THEME.colors);
   const secondary = legacyThemeColor(profile.secondary) ?? primary;
+  const success = legacyThemeColor(profile.greenGlow);
+  const warning = legacyThemeColor(profile.amberGlow);
+  const muted = legacyThemeColor(profile.muted);
+  const accentInk =
+    themeContrast("#160b03", primary) >= 4.5 ? "#160b03" : "#fffaf5";
+  const accentHover = themeContrast(accentInk, secondary) >= 4.5;
   for (const palette of Object.values(colors)) {
     palette.accent = primary;
-    palette.accentInk =
-      themeContrast("#160b03", primary) >= 4.5 ? "#160b03" : "#fffaf5";
-    if (themeContrast(palette.accentInk, secondary) >= 4.5)
-      palette.accentHover = secondary;
+    palette.accentInk = accentInk;
+    if (accentHover) palette.accentHover = secondary;
     const surfaces = [
       palette.background,
       palette.navigation,
@@ -525,14 +526,11 @@ export function migrateLegacyThemeBundle(
       palette.subtle,
       palette.hover,
     ];
-    const readable = (candidate: string | undefined) =>
-      candidate &&
+    const readable = (candidate: string) =>
       surfaces.every((surface) => themeContrast(candidate, surface) >= 4.5);
     if (readable(primary)) palette.accentText = primary;
-    const success = legacyThemeColor(profile.greenGlow);
-    const warning = legacyThemeColor(profile.amberGlow);
-    if (readable(success) && success) palette.success = success;
-    if (readable(warning) && warning) palette.warning = warning;
+    if (success && readable(success)) palette.success = success;
+    if (warning && readable(warning)) palette.warning = warning;
   }
   const theme = parseThemeManifestV2({
     ...COMPANION_THEME,
@@ -558,9 +556,7 @@ export function migrateLegacyThemeBundle(
       brightBlue: secondary,
       cyan: legacyThemeColor(profile.cyanGlow) ?? secondary,
       magenta: legacyThemeColor(profile.magentaGlow) ?? secondary,
-      ...(legacyThemeColor(profile.muted)
-        ? { muted: legacyThemeColor(profile.muted) }
-        : {}),
+      ...(muted ? { muted } : {}),
     },
     density: bundle.density,
   });

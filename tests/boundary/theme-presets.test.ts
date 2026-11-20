@@ -7,6 +7,7 @@ import {
 import { parseThemeManifestV2 } from "../../packages/contracts/src/theme";
 import {
   BUILT_IN_THEMES,
+  legacyThemeColor,
   themeContrast,
   themeCssVariables,
   validateThemeAccessibility,
@@ -48,6 +49,12 @@ it("limits imported materials to declarative built-in treatments", () => {
     parseThemeManifestV2({ ...BUILT_IN_THEMES[0], material: undefined })
       .material,
   ).toBeUndefined();
+});
+
+it("only reads supported names when migrating legacy colors", () => {
+  expect(legacyThemeColor(" BLUE ")).toBe("#4f7cff");
+  expect(legacyThemeColor("constructor")).toBeUndefined();
+  expect(legacyThemeColor("__proto__")).toBeUndefined();
 });
 
 it("offers matching CLI palettes and keeps terminal header text readable", () => {

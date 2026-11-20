@@ -51,8 +51,7 @@ export class NativeUiHost implements UiHostV1 {
         throw error;
       });
     Object.defineProperty(unsubscribe, "ready", { value: ready });
-    // Simple UI consumers may only use unsubscribe. AG-UI and submission paths
-    // await the original promise and receive the transport error before sending.
+    // Submission paths await readiness and receive transport errors before sending.
     void ready.catch(() => undefined);
     return unsubscribe;
   }

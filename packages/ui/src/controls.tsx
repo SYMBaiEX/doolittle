@@ -1,4 +1,4 @@
-import { type ButtonProps, Button as ElizaButton } from "@elizaos/ui/button";
+import { Button as ElizaButton } from "@elizaos/ui/button";
 import {
   SelectContent as ElizaSelectContent,
   SelectItem as ElizaSelectItem,
@@ -11,13 +11,10 @@ import {
   SelectSeparator,
   SelectValue,
 } from "@elizaos/ui/components/ui/select";
-import {
-  Textarea as ElizaTextarea,
-  type TextareaProps,
-} from "@elizaos/ui/components/ui/textarea";
-import { Input as ElizaInput, type InputProps } from "@elizaos/ui/input";
+import { Textarea as ElizaTextarea } from "@elizaos/ui/components/ui/textarea";
+import { Input as ElizaInput } from "@elizaos/ui/input";
 import { cn } from "@elizaos/ui/lib/utils";
-import { type ComponentPropsWithoutRef, forwardRef } from "react";
+import type { ComponentPropsWithRef } from "react";
 
 /**
  * Browser-safe density bridge for the official Eliza controls.
@@ -30,14 +27,11 @@ import { type ComponentPropsWithoutRef, forwardRef } from "react";
 const standardControlClass =
   "!h-[var(--control-height)] !min-h-[var(--control-height)] !text-[length:var(--text-control)] max-[760px]:!h-11 max-[760px]:!min-h-11";
 
-const focusControlClass =
-  "dl-control rounded-[var(--radius-md)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] transition-[background-color,border-color,color,box-shadow] duration-150 ease-[var(--ease-out)] motion-reduce:transition-none disabled:cursor-not-allowed";
-
-const fieldFocusControlClass =
+const controlClass =
   "dl-control rounded-[var(--radius-md)] transition-[background-color,border-color,color] duration-150 ease-[var(--ease-out)] motion-reduce:transition-none disabled:cursor-not-allowed";
 
-const fieldControlClass =
-  "dl-field border-[var(--border-strong)] bg-[var(--surface-raised)] text-[var(--text)] placeholder:text-[var(--muted)] aria-invalid:border-[var(--bad)]";
+const fieldControlClass = `${controlClass} dl-field border-[var(--border-strong)] bg-[var(--surface-raised)] text-[var(--text)] placeholder:text-[var(--muted)] aria-invalid:border-[var(--bad)]`;
+const invalidFieldClass = "border-[var(--bad)] bg-[var(--bad-soft)]";
 
 // Text entry needs room to compose; do not collapse it to a one-line control.
 const textareaControlClass =
@@ -45,150 +39,146 @@ const textareaControlClass =
 
 export const ELIZA_SELECT_TEXT_CLASS = "!text-[length:var(--text-control)]";
 
-export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, size, variant = "default", ...props }, ref) => {
-    const standard = size === undefined || size === "default";
-    const quiet = variant === "ghost" || variant === "link";
-    return (
-      <ElizaButton
-        {...props}
-        className={cn(
-          "dl-button",
-          focusControlClass,
-          standard ? standardControlClass : undefined,
-          !quiet && "border border-[var(--border)]",
-          variant === "default" &&
-            "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-ink)] hover:bg-[var(--accent-hover)]",
-          variant === "destructive" &&
-            "bg-[var(--bad)] text-[var(--destructive-foreground)] hover:border-[var(--bad)] hover:bg-[var(--bad)]",
-          className,
-        )}
-        ref={ref}
-        size={size}
-        variant={variant}
-      />
-    );
-  },
-);
-Button.displayName = "DoolittleButton";
+export function Button({
+  className,
+  size,
+  variant = "default",
+  ...props
+}: ComponentPropsWithRef<typeof ElizaButton>) {
+  const standard = size === undefined || size === "default";
+  const quiet = variant === "ghost" || variant === "link";
+  return (
+    <ElizaButton
+      {...props}
+      className={cn(
+        "dl-button",
+        controlClass,
+        standard && standardControlClass,
+        !quiet && "border border-[var(--border)]",
+        variant === "default" &&
+          "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-ink)] hover:bg-[var(--accent-hover)]",
+        variant === "destructive" &&
+          "bg-[var(--bad)] text-[var(--destructive-foreground)] hover:border-[var(--bad)] hover:bg-[var(--bad)]",
+        className,
+      )}
+      size={size}
+      variant={variant}
+    />
+  );
+}
 
-export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ className, density, hasError, ...props }, ref) => {
-    const standard = density === undefined || density === "default";
-    return (
-      <ElizaInput
-        {...props}
-        aria-invalid={props["aria-invalid"] ?? (hasError || undefined)}
-        className={cn(
-          fieldFocusControlClass,
-          fieldControlClass,
-          standard ? standardControlClass : undefined,
-          hasError && "border-[var(--bad)] bg-[var(--bad-soft)]",
-          className,
-        )}
-        density={density}
-        hasError={hasError}
-        ref={ref}
-      />
-    );
-  },
-);
-Input.displayName = "DoolittleInput";
-
-export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
-  ({ className, density, hasError, ...props }, ref) => (
-    <ElizaTextarea
+export function Input({
+  className,
+  density,
+  hasError,
+  ...props
+}: ComponentPropsWithRef<typeof ElizaInput>) {
+  return (
+    <ElizaInput
       {...props}
       aria-invalid={props["aria-invalid"] ?? (hasError || undefined)}
       className={cn(
-        fieldFocusControlClass,
         fieldControlClass,
-        density === undefined || density === "default"
-          ? textareaControlClass
-          : undefined,
-        hasError && "border-[var(--bad)] bg-[var(--bad-soft)]",
+        (density === undefined || density === "default") &&
+          standardControlClass,
+        hasError && invalidFieldClass,
         className,
       )}
       density={density}
       hasError={hasError}
-      ref={ref}
     />
-  ),
-);
-Textarea.displayName = "DoolittleTextarea";
+  );
+}
+
+export function Textarea({
+  className,
+  density,
+  hasError,
+  ...props
+}: ComponentPropsWithRef<typeof ElizaTextarea>) {
+  return (
+    <ElizaTextarea
+      {...props}
+      aria-invalid={props["aria-invalid"] ?? (hasError || undefined)}
+      className={cn(
+        fieldControlClass,
+        (density === undefined || density === "default") &&
+          textareaControlClass,
+        hasError && invalidFieldClass,
+        className,
+      )}
+      density={density}
+      hasError={hasError}
+    />
+  );
+}
 
 /** Native select for host-owned menus; retains OS keyboard and accessibility behavior. */
-export const NativeSelect = forwardRef<
-  HTMLSelectElement,
-  ComponentPropsWithoutRef<"select">
->(({ className, ...props }, ref) => (
-  <select
-    {...props}
-    className={cn(
-      fieldFocusControlClass,
-      fieldControlClass,
-      standardControlClass,
-      "border px-2",
-      className,
-    )}
-    ref={ref}
-  />
-));
-NativeSelect.displayName = "DoolittleNativeSelect";
+export function NativeSelect({
+  className,
+  ...props
+}: ComponentPropsWithRef<"select">) {
+  return (
+    <select
+      {...props}
+      className={cn(
+        fieldControlClass,
+        standardControlClass,
+        "border px-2",
+        className,
+      )}
+    />
+  );
+}
 
-export const SelectTrigger = forwardRef<
-  HTMLButtonElement,
-  ComponentPropsWithoutRef<typeof ElizaSelectTrigger>
->(({ className, ...props }, ref) => (
-  <ElizaSelectTrigger
-    {...props}
-    className={cn(
-      fieldFocusControlClass,
-      fieldControlClass,
-      standardControlClass,
-      className,
-    )}
-    ref={ref}
-  />
-));
-SelectTrigger.displayName = "DoolittleSelectTrigger";
+export function SelectTrigger({
+  className,
+  ...props
+}: ComponentPropsWithRef<typeof ElizaSelectTrigger>) {
+  return (
+    <ElizaSelectTrigger
+      {...props}
+      className={cn(fieldControlClass, standardControlClass, className)}
+    />
+  );
+}
 
-export const SelectItem = forwardRef<
-  HTMLDivElement,
-  ComponentPropsWithoutRef<typeof ElizaSelectItem>
->(({ className, ...props }, ref) => (
-  <ElizaSelectItem
-    {...props}
-    className={cn("dl-select-item", ELIZA_SELECT_TEXT_CLASS, className)}
-    ref={ref}
-  />
-));
-SelectItem.displayName = "DoolittleSelectItem";
+export function SelectItem({
+  className,
+  ...props
+}: ComponentPropsWithRef<typeof ElizaSelectItem>) {
+  return (
+    <ElizaSelectItem
+      {...props}
+      className={cn("dl-select-item", ELIZA_SELECT_TEXT_CLASS, className)}
+    />
+  );
+}
 
-export const SelectLabel = forwardRef<
-  HTMLDivElement,
-  ComponentPropsWithoutRef<typeof ElizaSelectLabel>
->(({ className, ...props }, ref) => (
-  <ElizaSelectLabel
-    {...props}
-    className={cn(ELIZA_SELECT_TEXT_CLASS, className)}
-    ref={ref}
-  />
-));
-SelectLabel.displayName = "DoolittleSelectLabel";
+export function SelectLabel({
+  className,
+  ...props
+}: ComponentPropsWithRef<typeof ElizaSelectLabel>) {
+  return (
+    <ElizaSelectLabel
+      {...props}
+      className={cn(ELIZA_SELECT_TEXT_CLASS, className)}
+    />
+  );
+}
 
 /** Keep SDK collision, portal and keyboard behavior with Doolittle's material. */
-export const SelectContent = forwardRef<
-  HTMLDivElement,
-  ComponentPropsWithoutRef<typeof ElizaSelectContent>
->(({ className, ...props }, ref) => (
-  <ElizaSelectContent
-    {...props}
-    className={cn("dl-select-content", className)}
-    ref={ref}
-  />
-));
-SelectContent.displayName = "DoolittleSelectContent";
+export function SelectContent({
+  className,
+  ...props
+}: ComponentPropsWithRef<typeof ElizaSelectContent>) {
+  return (
+    <ElizaSelectContent
+      {...props}
+      className={cn("dl-select-content", className)}
+    />
+  );
+}
 
 export {
   Select,

@@ -302,13 +302,9 @@
   padding: 0;
   border: 0;
 }
-.dl-settings-content .dl-settings-choice,
-.dl-settings-content .dl-settings-theme-choice {
-  display: inline-flex;
+.dl-settings-content :is(.dl-settings-choice, .dl-settings-theme-choice),
+.dl-settings-tabs [role="tab"] {
   min-height: 40px;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
   padding: 8px 12px;
   border: 1px solid transparent;
   border-radius: var(--radius-sm, 6px);
@@ -317,23 +313,29 @@
   font-size: 14px;
   line-height: 1.4;
 }
-.dl-settings-content .dl-settings-choice:hover,
-.dl-settings-content .dl-settings-theme-choice:hover {
+.dl-settings-content :is(.dl-settings-choice, .dl-settings-theme-choice) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.dl-settings-content :is(.dl-settings-choice, .dl-settings-theme-choice):hover {
   background: var(--surface-hover);
   color: var(--text);
 }
-.dl-settings-content .dl-settings-choice[aria-pressed="true"],
-.dl-settings-content .dl-settings-theme-choice[aria-pressed="true"] {
+.dl-settings-content
+  :is(.dl-settings-choice, .dl-settings-theme-choice)[aria-pressed="true"] {
   color: var(--text);
   font-weight: 600;
 }
-.dl-settings-content .dl-settings-choice:focus-visible,
-.dl-settings-content .dl-settings-theme-choice:focus-visible {
+.dl-settings-content
+  :is(.dl-settings-choice, .dl-settings-theme-choice):focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
-.dl-settings-content .dl-settings-choice strong,
-.dl-settings-content .dl-settings-theme-choice strong {
+.dl-settings-content
+  :is(.dl-settings-choice, .dl-settings-theme-choice)
+  strong {
   font-size: 14px;
   font-weight: inherit;
 }
@@ -384,15 +386,7 @@
   border-bottom: 1px solid var(--border);
 }
 .dl-settings-tabs [role="tab"] {
-  min-height: 40px;
   max-width: 100%;
-  padding: 8px 12px;
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm, 6px);
-  background: transparent;
-  color: var(--text-soft);
-  font-size: 14px;
-  line-height: 1.4;
   transition:
     background-color var(--motion-feedback) var(--ease-liquid),
     color var(--motion-feedback) var(--ease-liquid);
@@ -798,37 +792,51 @@
   visibility: hidden;
   pointer-events: none;
 }
+.dl-action-menu,
+.dl-select-content,
+.dl-dialog {
+  border-color: var(--material-edge);
+  border-radius: var(--radius-floating);
+  background: var(--material-floating);
+  box-shadow: var(--material-shadow);
+  backdrop-filter: blur(20px);
+}
+.dl-action-menu,
+.dl-select-content {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  font-family: var(--font-sans);
+}
+.dl-action-menu,
+.dl-dialog {
+  animation: dl-surface-in var(--motion-surface) var(--ease-liquid) backwards;
+}
 .dl-action-menu {
   min-width: 180px;
   max-width: calc(100vw - 24px);
   max-height: var(--radix-dropdown-menu-content-available-height);
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  border: 1px solid var(--material-edge);
-  border-radius: var(--radius-floating);
-  background: var(--material-floating);
+  border-width: 1px;
+  border-style: solid;
   color: var(--text);
   padding: 6px;
-  box-shadow: var(--material-shadow);
-  backdrop-filter: blur(20px);
-  font-family: var(--font-sans);
   font-size: var(--text-control, 14px);
   line-height: var(--line-control, 1.4);
   transform-origin: var(
     --radix-dropdown-menu-content-transform-origin,
     top left
   );
-  animation: dl-surface-in var(--motion-surface, 240ms) var(--ease-liquid)
-    backwards;
+}
+.dl-action-menu-item,
+.dl-select-item {
+  min-height: var(--control-height, 40px);
+  padding-inline: 10px;
+  color: var(--text);
 }
 .dl-action-menu-item {
   display: flex;
   align-items: center;
-  min-height: var(--control-height, 40px);
   gap: 16px;
   border-radius: max(6px, var(--radius-sm, 6px));
-  padding-inline: 10px;
-  color: var(--text);
   font-size: var(--text-control, 14px);
   cursor: pointer;
 }
@@ -857,27 +865,12 @@
   opacity: 1;
   white-space: nowrap;
 }
-/* Portaled SDK menus keep collision and keyboard ownership in the SDK. */
-.dl-select-content,
-.dl-dialog {
-  border-color: var(--material-edge);
-  border-radius: var(--radius-floating);
-  background: var(--material-floating);
-  box-shadow: var(--material-shadow);
-  backdrop-filter: blur(20px);
-}
 .dl-select-content {
   max-height: min(384px, var(--radix-select-content-available-height, 384px));
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  font-family: var(--font-sans);
 }
 .dl-select-item {
-  min-height: var(--control-height, 40px);
   border-radius: var(--radius-sm, 6px);
-  color: var(--text);
   line-height: 1.4;
-  padding-inline: 10px;
 }
 .dl-select-item[data-state="checked"] {
   background: var(--surface-soft);
@@ -900,9 +893,6 @@
 }
 .dl-action-menu[data-state="closed"] {
   animation: dl-surface-out var(--motion-dismiss) var(--ease-liquid) both;
-}
-.dl-dialog {
-  animation: dl-surface-in var(--motion-surface) var(--ease-liquid) backwards;
 }
 .dl-dialog-backdrop {
   animation: dl-backdrop-in var(--motion-surface) var(--ease-liquid) backwards;
