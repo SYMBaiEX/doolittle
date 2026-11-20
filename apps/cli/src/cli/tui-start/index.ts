@@ -152,6 +152,8 @@ async function startCockpit(
         "TUI screen destroyed before an explicit shutdown path.",
       );
     },
+    onCleanupFailure: (error) =>
+      tuiLogger.captureError("tui-screen-cleanup-failed", error),
   });
   await runTuiBootSequence({
     bootMessage: buildCockpitBootMessage(context.config.agentName),

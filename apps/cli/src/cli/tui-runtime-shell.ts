@@ -18,12 +18,13 @@ interface DeferredHydrationOptions {
 }
 
 interface WaitForTuiDestroyOptions {
-  screen: blessed.Widgets.Screen;
+  screen: Pick<blessed.Widgets.Screen, "once">;
   markScreenDestroyed: () => void;
   cleanup: () => void;
   isShuttingDown: () => boolean;
   getExitCode: () => number;
   onUnexpectedDestroy: () => void;
+  onCleanupFailure: (error: unknown) => void;
 }
 
 interface TuiBootLogEntry {
@@ -154,16 +155,23 @@ export function waitForTuiDestroy(
     isShuttingDown,
     getExitCode,
     onUnexpectedDestroy,
+    onCleanupFailure,
   } = options;
 
   return new Promise<number | "unexpected">((resolve) => {
     screen.once("destroy", () => {
       markScreenDestroyed();
-      cleanup();
-      if (!isShuttingDown()) {
-        onUnexpectedDestroy();
+      let code: number | "unexpected" = "unexpected";
+      try {
+        cleanup();
+        if (isShuttingDown()) code = getExitCode();
+        else onUnexpectedDestroy();
+      } catch (error) {
+        if (isShuttingDown()) code = 1;
+        onCleanupFailure(error);
+      } finally {
+        resolve(code);
       }
-      resolve(isShuttingDown() ? getExitCode() : "unexpected");
     });
   });
 }

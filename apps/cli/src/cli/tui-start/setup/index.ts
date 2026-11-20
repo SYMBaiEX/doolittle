@@ -2,8 +2,8 @@ import {
   createTuiStartAssemblyState,
   type TuiStartAssemblyHintOptions,
 } from "../assembly-state";
+import { createTuiStartPresentation } from "../boot/presentation";
 import { createTuiStartInputSetup } from "./input";
-import { createTuiStartPresentationSetup } from "./presentation";
 import { createTuiStartRuntimeSurfaces } from "./runtime-surfaces";
 import type { TuiStartSetupOptions, TuiStartSetupResult } from "./types";
 
@@ -33,12 +33,15 @@ export function createTuiStartSetup(
     textEntryFocused: () => input.textEntryFocused(),
   });
 
-  const presentation = createTuiStartPresentationSetup({
-    options,
-    assemblyState,
+  const presentation = createTuiStartPresentation({
+    ...options,
+    logger: options.logger.child("presentation"),
     appendActivity: surfaces.appendActivity,
     flushDeferredForeignActivity: surfaces.flushDeferredForeignActivity,
   });
+  assemblyState.setUpdateFooterHint(presentation.updateFooterHint);
+  assemblyState.setRefreshPanels(presentation.refreshPanels);
+  assemblyState.setScheduleRefreshPanels(presentation.scheduleRefreshPanels);
 
   return {
     assemblyState,
@@ -56,9 +59,7 @@ export function createTuiStartSetup(
     scheduleDeferredForeignRefresh: surfaces.scheduleDeferredForeignRefresh,
     routeForeignActivity: surfaces.routeForeignActivity,
     renderFooterContent: presentation.renderFooterContent,
-    setFooterHint: (hint: string, setupOptions?: { render?: boolean }) => {
-      presentation.setFooterHint(hint, setupOptions);
-    },
+    setFooterHint: presentation.setFooterHint,
     refreshPanels: presentation.refreshPanels,
     scheduleRefreshPanels: presentation.scheduleRefreshPanels,
     updateFooterHint: (setupOptions?: TuiStartAssemblyHintOptions) => {

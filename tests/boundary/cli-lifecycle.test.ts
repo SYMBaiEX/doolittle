@@ -8,6 +8,7 @@ import { pathToFileURL } from "node:url";
 import { describe, expect, it, vi } from "vitest";
 import { readPlainLoopLine } from "../../apps/cli/src/cli/plain-loop/input";
 import { startCli } from "../../apps/cli/src/cli/start/index";
+import { waitForTuiDestroy } from "../../apps/cli/src/cli/tui-runtime-shell";
 import {
   createApiStartupController,
   resolveEntrypointRuntimePlan,
@@ -20,6 +21,25 @@ import type { AppLogger } from "../../packages/agent/src/logging/logger";
 import type { AppContext } from "../../packages/agent/src/runtime/bootstrap";
 
 describe("terminal application lifecycle", () => {
+  it("settles the cockpit lifecycle when screen cleanup fails", async () => {
+    const screen = new EventEmitter();
+    const failure = new Error("unable to restore console");
+    const onCleanupFailure = vi.fn();
+    const closed = waitForTuiDestroy({
+      screen,
+      markScreenDestroyed: vi.fn(),
+      cleanup: () => {
+        throw failure;
+      },
+      isShuttingDown: () => true,
+      getExitCode: () => 0,
+      onUnexpectedDestroy: vi.fn(),
+      onCleanupFailure,
+    });
+    screen.emit("destroy");
+    await expect(closed).resolves.toBe(1);
+    expect(onCleanupFailure).toHaveBeenCalledWith(failure);
+  });
   it("closes the session immediately when the IPC host has already disconnected", async () => {
     const signalHost = Object.assign(new EventEmitter(), { connected: false });
     const close = vi.fn(async () => undefined);

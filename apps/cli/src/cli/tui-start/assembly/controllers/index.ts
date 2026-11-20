@@ -19,24 +19,33 @@ export function installTuiStartControllers(
 ): TuiStartControllersResult {
   const tuiLifecycle = installTuiStartLifecycle(options);
 
-  const tuiCommandQueue = installTuiStartCommandQueue(options, (exitCode) => {
-    tuiLifecycle.exitCli(exitCode);
-  });
+  try {
+    const tuiCommandQueue = installTuiStartCommandQueue(
+      options,
+      tuiLifecycle.exitCli,
+    );
 
-  options.surfaces.assemblyState.setQueueCommand((line: string) => {
-    tuiCommandQueue.queueCommand(line);
-  });
+    options.surfaces.assemblyState.setQueueCommand(
+      tuiCommandQueue.queueCommand,
+    );
 
-  installTuiStartInputBindings(options, tuiCommandQueue);
-  installTuiStartScreenBindings(options, tuiLifecycle);
-  installTuiStartScreenEvents(options);
+    installTuiStartInputBindings(options, tuiCommandQueue);
+    installTuiStartScreenBindings(options, tuiLifecycle);
+    installTuiStartScreenEvents(options);
 
-  const disposeObservers = installTuiStartRuntimeObservers(options);
+    const disposeObservers = installTuiStartRuntimeObservers(options);
 
-  return {
-    dispose: () => {
-      tuiLifecycle.dispose();
-      disposeObservers();
-    },
-  };
+    return {
+      dispose: () => {
+        try {
+          tuiLifecycle.dispose();
+        } finally {
+          disposeObservers();
+        }
+      },
+    };
+  } catch (error) {
+    tuiLifecycle.dispose();
+    throw error;
+  }
 }

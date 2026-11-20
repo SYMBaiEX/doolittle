@@ -1,40 +1,60 @@
-import { bootstrapTuiStartRuntime } from "./bootstrap";
-import { composeTuiStartAssemblyResult } from "./compose-result";
+import { installTuiForeignOutput } from "../../tui-foreign-output";
+import { installTuiInputLifecycle } from "../../tui-input-lifecycle";
+import { createTuiStartSetup } from "../setup";
 import { installTuiStartControllers } from "./controllers";
-import type { TuiStartAssemblyOptions, TuiStartAssemblyResult } from "./types";
+import type { TuiStartAssemblyOptions } from "./types";
 
-export type { TuiStartAssemblyOptions, TuiStartAssemblyResult };
+export function assembleTuiStartRuntime(options: TuiStartAssemblyOptions) {
+  const { logger, screen, widgets, tuiState } = options;
+  const surfaces = createTuiStartSetup(options);
+  let detachOutput: (() => void) | undefined;
 
-export function assembleTuiStartRuntime(
-  options: TuiStartAssemblyOptions,
-): TuiStartAssemblyResult {
-  const bootstrap = bootstrapTuiStartRuntime({
-    ...options,
-    isScreenDestroyed: () => options.tuiState.screenDestroyed,
-    isShuttingDown: () => options.tuiState.shuttingDown,
-    scheduleRefreshPanels: (delayMs) =>
-      bootstrap.surfaces.scheduleRefreshPanels(delayMs),
-    updateFooterHint: () => {
-      bootstrap.surfaces.updateFooterHint();
-    },
-  });
+  try {
+    detachOutput = installTuiForeignOutput({
+      logger: logger.child("foreign-output"),
+      isScreenDestroyed: () => tuiState.screenDestroyed,
+      isShuttingDown: () => tuiState.shuttingDown,
+      routeForeignActivity: surfaces.routeForeignActivity,
+      flushDeferredForeignActivity: surfaces.flushDeferredForeignActivity,
+      scheduleDeferredForeignRefresh: surfaces.scheduleDeferredForeignRefresh,
+      scheduleRefreshPanels: surfaces.scheduleRefreshPanels,
+      textEntryFocused: surfaces.textEntryFocused,
+      overlaysOpen: () => tuiState.paletteOpen || tuiState.composerOpen,
+    });
 
-  const controllers = installTuiStartControllers({
-    ...options,
-    surfaces: bootstrap.surfaces,
-    tuiInputLifecycle: {
-      resetInputAfterQueue: () =>
-        bootstrap.tuiInputLifecycle.resetInputAfterQueue(),
-      restoreInputAfterRun: () =>
-        bootstrap.tuiInputLifecycle.restoreInputAfterRun(),
-      handleEmptyQueueSubmit: () =>
-        bootstrap.tuiInputLifecycle.handleEmptyQueueSubmit(),
-    },
-  });
+    const controllers = installTuiStartControllers({
+      ...options,
+      surfaces,
+      tuiInputLifecycle: installTuiInputLifecycle({
+        inputBox: widgets.inputBox,
+        activateTextEntry: surfaces.activatePrimaryInput,
+        screen,
+        refreshPanels: surfaces.refreshPanels,
+        renderAssistSuggestions: surfaces.renderAssistSuggestions,
+        updateFooterHint: surfaces.updateFooterHint,
+      }),
+    });
 
-  return composeTuiStartAssemblyResult({
-    surfaces: bootstrap.surfaces,
-    disposeControllers: controllers.dispose,
-    bootstrapUnsubscribers: bootstrap.unsubscribers,
-  });
+    return {
+      ...surfaces,
+      dispose() {
+        try {
+          surfaces.dispose();
+        } finally {
+          try {
+            controllers.dispose();
+          } finally {
+            detachOutput?.();
+          }
+        }
+      },
+    };
+  } catch (error) {
+    try {
+      detachOutput?.();
+    } finally {
+      surfaces.dispose();
+    }
+    throw error;
+  }
 }
