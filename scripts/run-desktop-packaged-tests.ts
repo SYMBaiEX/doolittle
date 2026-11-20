@@ -59,7 +59,7 @@ export function resolvePackagedTestExecutable({
   const selected = candidates.find(isExecutable);
   if (!selected) {
     throw new Error(
-      "No packaged Doolittle executable was found. Run `nub run desktop:package:dir` for this host, `nub run desktop:package:all` for the release matrix, or set DOOLITTLE_DESKTOP_EXECUTABLE.",
+      "No packaged Doolittle executable was found. Run `nub run legacy:desktop:package:dir` for this host, `nub run legacy:desktop:package:all` for the release matrix, or set DOOLITTLE_DESKTOP_EXECUTABLE.",
     );
   }
   return selected;
@@ -156,7 +156,7 @@ export function verifyAutomaticRepositoryPackage(executable: string): string {
   ].filter(existsSync);
   if (manifestPaths.length === 0) {
     throw new Error(
-      "The desktop package manifest is missing. Run `nub run desktop:package:dir` before automatic packaged tests, or pass an explicit DOOLITTLE_DESKTOP_EXECUTABLE.",
+      "The desktop package manifest is missing. Run `nub run legacy:desktop:package:dir` before automatic packaged tests, or pass an explicit DOOLITTLE_DESKTOP_EXECUTABLE.",
     );
   }
   const appAsar = realpathSync(packagedAppAsarPath(executable));

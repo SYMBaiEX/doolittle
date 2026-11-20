@@ -89,7 +89,7 @@ jobs:
         run: xvfb-run -a nub run test:e2e:release:workbench-core
 
       - name: Build clean-HEAD desktop directory package
-        run: nub run desktop:package:dir
+        run: nub run legacy:desktop:package:dir
 
       - name: Exercise packaged offline chat with verified provenance
         run: xvfb-run -a nub run test:e2e:release:packaged-core

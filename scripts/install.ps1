@@ -32,7 +32,7 @@ function Resolve-Nub {
     throw @"
 The source installer needs Node.js $RequiredNodeMajor+ to install Nub.
 Install Node.js, then rerun scripts/install.ps1.
-The standalone Doolittle Desktop .exe does not require Node.js or Nub.
+The portable Doolittle archive bundles its own Node runtime.
 "@
   }
 
@@ -89,7 +89,7 @@ function Add-UserPath([string]$PathToAdd) {
 
 function Install-Launchers([string]$NubCommand) {
   New-Item -ItemType Directory -Force -Path $LocalBinDir | Out-Null
-  $entrypoint = Join-Path $Root "apps\cli\src\index.ts"
+  $entrypoint = Join-Path $Root "scripts\doolittle.ts"
   $nubDirectory = Split-Path -Parent $NubCommand
   $launcherBody = @"
 @echo off
@@ -108,26 +108,31 @@ Write-Host "DOOLITTLE // WINDOWS INSTALLER" -ForegroundColor DarkYellow
 Write-Host "Nub-powered source bootstrap and standalone desktop builder"
 Set-Location $Root
 
+if (-not (Get-Command cargo -ErrorAction SilentlyContinue)) {
+  throw "The source installer needs Cargo and Rust (see the minimum version in Cargo.toml)."
+}
 $Nub = Resolve-Nub
 $env:Path = "$(Split-Path -Parent $Nub);$env:Path"
 
 if (-not $Check) {
   Write-Section "Installing workspace dependencies..."
-  & $Nub scripts/prepare-eliza-source.ts
-  if ($LASTEXITCODE -ne 0) {
-    throw "SDK preparation failed with exit code $LASTEXITCODE."
-  }
-  & $Nub install --frozen-lockfile --ignore-scripts
+  & $Nub scripts/prepare-eliza-source.ts --install --frozen-lockfile --ignore-scripts
   if ($LASTEXITCODE -ne 0) {
     throw "Dependency installation failed with exit code $LASTEXITCODE."
   }
 
-  if ($Desktop -or $PackageInstaller) {
-    Write-Section "Installing the Electron runtime..."
-    & $Nub run desktop:runtime:install
-    if ($LASTEXITCODE -ne 0) {
-      throw "Electron runtime installation failed with exit code $LASTEXITCODE."
-    }
+  Write-Section "Building the ElizaOS runtime and Rust CLI..."
+  & $Nub run cli:build
+  if ($LASTEXITCODE -ne 0) {
+    throw "ElizaOS runtime build failed with exit code $LASTEXITCODE."
+  }
+  $CargoArgs = @("build", "--release", "--locked", "-p", "doolittle-cli-native")
+  if ($Desktop -and -not $PackageInstaller) {
+    $CargoArgs += @("-p", "doolittle-desktop")
+  }
+  & cargo @CargoArgs
+  if ($LASTEXITCODE -ne 0) {
+    throw "Native client build failed with exit code $LASTEXITCODE."
   }
 
   Install-Launchers $Nub
@@ -153,10 +158,10 @@ if ($Check -and -not (Test-Path (Join-Path $Root "node_modules/@elizaos/core/pac
 }
 
 if ($PackageInstaller -and -not $Check) {
-  Write-Section "Building the standalone Windows installer..."
+  Write-Section "Packaging the native desktop and CLI..."
   & $Nub run desktop:package:win
   if ($LASTEXITCODE -ne 0) {
-    throw "Windows installer build failed with exit code $LASTEXITCODE."
+    throw "Native packaging failed with exit code $LASTEXITCODE."
   }
 }
 

@@ -11,7 +11,7 @@ From the repository root:
 
 ```sh
 nub run desktop:runtime:install
-nub run desktop:dev
+nub run legacy:desktop:dev
 nub run desktop:typecheck
 nub run test:scope tests/boundary/desktop-model-routing.test.tsx
 ```
@@ -42,8 +42,8 @@ asynchronous work. UI selection alone never grants filesystem access. Follow the
 ## Build and package
 
 ```sh
-nub run desktop:build
-nub run desktop:package:dir
+nub run legacy:desktop:build
+nub run legacy:desktop:package:dir
 nub run test:e2e:desktop-packaged
 ```
 

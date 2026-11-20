@@ -1,60 +1,42 @@
-import { execFileSync } from "node:child_process";
 import {
   copyFileSync,
-  cpSync,
-  existsSync,
   mkdirSync,
   mkdtempSync,
-  readFileSync,
-  realpathSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
-import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
+import {
+  cargoTarget,
+  desktop,
+  prepareNativeRuntime,
+  productVersion,
+  repo,
+  run,
+} from "./native-package-runtime";
+import {
+  notarizeRelease,
+  releaseBundleId,
+  releaseConfig,
+  releasePlist,
+  signReleaseBundle,
+} from "./package-native-macos-release";
 
-const repo = fileURLToPath(new URL("../", import.meta.url));
 if (process.platform !== "darwin") {
   throw new Error("The GPUI application bundle target requires macOS.");
 }
 
-const product = "Doolittle Native";
-const manifest = JSON.parse(
-  readFileSync(join(repo, "package.json"), "utf8"),
-) as {
-  version: string;
-};
-if (!/^\d+\.\d+\.\d+$/u.test(manifest.version)) {
-  throw new Error("The app bundle requires a numeric product version.");
+const args = process.argv.slice(process.argv[2] === "--" ? 3 : 2);
+if (args.length > 1 || (args.length === 1 && args[0] !== "--release")) {
+  throw new Error("Usage: nub run native:package:mac [--release]");
 }
+const release =
+  args[0] === "--release" ? releaseConfig(process.env) : undefined;
+const product = release ? "Doolittle" : "Doolittle Native";
+const bundleId = release ? releaseBundleId : "org.doolittle.native";
+const version = productVersion();
+const installRuntime = prepareNativeRuntime(Boolean(release));
 
-const node = realpathSync(process.execPath);
-const nodeLicense = resolve(dirname(node), "../LICENSE");
-if (!existsSync(nodeLicense)) {
-  throw new Error(
-    "Use the repository-pinned Node distribution with its included LICENSE.",
-  );
-}
-
-function run(command: string, args: string[], cwd = repo): void {
-  execFileSync(command, args, { cwd, stdio: "inherit" });
-}
-
-run("cargo", ["build", "--locked", "--release", "-p", "doolittle-desktop"]);
-const desktop = join(repo, "apps/desktop");
-const prepared = join(repo, "target/native-runtime");
-run("nub", ["scripts/prepare-runtime.ts", "--standalone-node"], desktop);
-run(
-  "nub",
-  [
-    "scripts/verify-package.ts",
-    "--runtime-manifest",
-    join(prepared, "runtime-manifest.json"),
-  ],
-  desktop,
-);
-
-const cargoTarget = resolve(repo, process.env.CARGO_TARGET_DIR || "target");
 const packages = join(cargoTarget, "native-packages");
 mkdirSync(packages, { recursive: true });
 const output = mkdtempSync(join(packages, "mac-"));
@@ -72,6 +54,10 @@ try {
     join(binaries, "Doolittle"),
   );
   copyFileSync(
+    join(cargoTarget, "release", "doolittle-native"),
+    join(binaries, "doolittle-native"),
+  );
+  copyFileSync(
     join(repo, "apps/desktop/assets/icon.icns"),
     join(resources, "Doolittle.icns"),
   );
@@ -82,15 +68,7 @@ try {
     join(resources, "licenses/Bangers-OFL.txt"),
   );
 
-  cpSync(prepared, runtime, { recursive: true, verbatimSymlinks: true });
-  mkdirSync(join(runtime, "bin"), { recursive: true });
-  copyFileSync(node, join(runtime, "bin/node"));
-  copyFileSync(nodeLicense, join(runtime, "bin/LICENSE.node"));
-  cpSync(join(repo, "packages/skills"), join(runtime, "packages/skills"), {
-    recursive: true,
-    filter: (path) =>
-      !path.includes("/node_modules") && !path.includes("/.git"),
-  });
+  installRuntime(runtime);
 
   writeFileSync(
     join(contents, "Info.plist"),
@@ -100,20 +78,41 @@ try {
 <dict>
   <key>CFBundleName</key><string>${product}</string>
   <key>CFBundleDisplayName</key><string>${product}</string>
-  <key>CFBundleIdentifier</key><string>org.doolittle.native</string>
+  <key>CFBundleIdentifier</key><string>${bundleId}</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleExecutable</key><string>Doolittle</string>
   <key>CFBundleIconFile</key><string>Doolittle.icns</string>
-  <key>CFBundleShortVersionString</key><string>${manifest.version}</string>
-  <key>CFBundleVersion</key><string>${manifest.version}</string>
+  <key>CFBundleShortVersionString</key><string>${version}</string>
+  <key>CFBundleVersion</key><string>${version}</string>
   <key>NSHighResolutionCapable</key><true/>
+  <key>NSAppTransportSecurity</key>
+  <dict><key>NSAllowsLocalNetworking</key><true/></dict>${release ? releasePlist(release) : ""}
 </dict>
 </plist>
 `,
   );
 
-  run("/usr/bin/codesign", ["--force", "--deep", "--sign", "-", artifact]);
-  run("/usr/bin/codesign", ["--verify", "--deep", "--strict", artifact]);
+  if (release) {
+    signReleaseBundle(
+      release,
+      artifact,
+      join(desktop, "entitlements.mac.plist"),
+    );
+    run(
+      "nub",
+      ["scripts/verify-package.ts", "--verify-signature", artifact],
+      desktop,
+    );
+    const archive = join(
+      output,
+      `Doolittle-mac-${process.arch}-${version}.zip`,
+    );
+    notarizeRelease(release, artifact, archive);
+    console.log(`Native macOS release archive ready at ${archive}`);
+  } else {
+    run("/usr/bin/codesign", ["--force", "--deep", "--sign", "-", artifact]);
+    run("/usr/bin/codesign", ["--verify", "--deep", "--strict", artifact]);
+  }
   console.log(`Native macOS bundle ready at ${artifact}`);
 } catch (error) {
   rmSync(output, { recursive: true, force: true });

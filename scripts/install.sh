@@ -21,7 +21,7 @@ NUB_TOOL_ROOT="${HOME}/.local/share/doolittle/tooling"
 NUB_BIN="${NUB_TOOL_ROOT}/bin/nub"
 NUB_COMMAND=""
 DOOLITTLE_BIN_LINK="${LOCAL_BIN_DIR}/doolittle"
-DOOLITTLE_BIN_SOURCE="${ROOT}/apps/cli/src/index.ts"
+DOOLITTLE_BIN_SOURCE="${ROOT}/scripts/doolittle.ts"
 DOOLITTLE_SHORT_LINK="${LOCAL_BIN_DIR}/dl"
 OS_NAME="unknown"
 UPDATED_SHELL_CONFIGS=()
@@ -49,14 +49,8 @@ detect_os() {
 
 windows_installer_notice() {
   printf "%s\n" "${amber}Windows detected.${reset}"
-  printf "%s\n" "This installer is a Unix-style bootstrap for source checkouts; use the standalone Windows installer for production installs."
-  printf "%s\n" "On Windows, use scripts/install.ps1 for equivalent bootstrap behavior."
-  printf "%s\n" "To build/download it:"
-  printf "%s\n" "  1) Ensure changes are committed/pushed and tag a release, or run locally:"
-  printf "%s\n" "     nub run desktop:package:win"
-  printf "%s\n" "  2) Copy apps/desktop/release/Doolittle-<version>-win-x64.exe to Windows."
-  printf "%s\n" "  3) Run the .exe, then launch 'Doolittle Desktop' or use 'doolittle.exe' from Start Menu."
-  printf "%s\n" "  4) See docs/releases.md for Windows packaging requirements."
+  printf "%s\n" "Use PowerShell to run scripts/install.ps1 on Windows."
+  printf "%s\n" "To create a portable desktop and CLI archive, run nub run desktop:package:win on Windows."
 }
 
 print_usage() {
@@ -219,13 +213,21 @@ ensure_nub() {
 
 ensure_nub
 
+if ! command -v cargo >/dev/null 2>&1; then
+  echo "The source installer needs Cargo and Rust (see the minimum version in Cargo.toml)." >&2
+  exit 1
+fi
+
 if [[ "$CHECK_ONLY" -eq 0 ]]; then
   printf "%s\n" "${amber}Installing workspace dependencies…${reset}"
   "$NUB_COMMAND" scripts/prepare-eliza-source.ts --install --frozen-lockfile --ignore-scripts
-  if [[ "$LAUNCH_DESKTOP" -eq 1 || "$PACKAGE_INSTALLER" -eq 1 ]]; then
-    printf "%s\n" "${amber}Installing the Electron runtime…${reset}"
-    "$NUB_COMMAND" run desktop:runtime:install
+  printf "%s\n" "${amber}Building the ElizaOS runtime and Rust CLI…${reset}"
+  "$NUB_COMMAND" run cli:build
+  cargo_args=(build --release --locked -p doolittle-cli-native)
+  if [[ "$LAUNCH_DESKTOP" -eq 1 && "$PACKAGE_INSTALLER" -eq 0 ]]; then
+    cargo_args+=(-p doolittle-desktop)
   fi
+  cargo "${cargo_args[@]}"
 else
   printf "%s\n" "${amber}Skipping dependency install because this is a dry run.${reset}"
 fi
@@ -362,8 +364,12 @@ else
 fi
 
 if [[ "$PACKAGE_INSTALLER" -eq 1 && "$CHECK_ONLY" -eq 0 ]]; then
-  printf "%s\n" "${amber}Building the standalone Windows installer...${reset}"
-  "$NUB_COMMAND" run desktop:package:win
+  printf "%s\n" "${amber}Packaging the native desktop and CLI…${reset}"
+  case "$OS_NAME" in
+    macos) "$NUB_COMMAND" run desktop:package:mac ;;
+    linux) "$NUB_COMMAND" run desktop:package:linux ;;
+    *) echo "Native desktop packaging is unavailable on this host." >&2; exit 1 ;;
+  esac
 fi
 
 if [[ "$CHECK_ONLY" -eq 1 ]]; then
@@ -383,7 +389,7 @@ if [[ -L "$DOOLITTLE_SHORT_LINK" ]]; then
 fi
 printf "%s\n" "  doolittle cockpit"
 printf "%s\n" "  doolittle desktop"
-printf "%s\n" "  doolittle exec -p \"summarize this repo\""
+printf "%s\n" "  doolittle run \"summarize this repo\""
 printf "%s\n" "  doolittle setup"
 printf "%s\n" "  doolittle doctor"
 printf "%s\n" "${dim}  Try: summarize this repo and tell me where to start${reset}"

@@ -123,7 +123,7 @@ jobs:
           }
 
       - name: Build Windows installer
-        run: nub run desktop:package:win
+        run: nub run legacy:desktop:package:win
         env:
           WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
           WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
