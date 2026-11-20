@@ -1,0 +1,21 @@
+[workspace]
+resolver = "3"
+members = [
+    "apps/cli-native",
+    "apps/desktop-native",
+    "crates/doolittle-host",
+    "crates/doolittle-runtime",
+]
+
+[workspace.package]
+edition = "2024"
+rust-version = "1.95"
+license = "MIT"
+version = "0.1.0"
+
+[workspace.dependencies]
+anyhow = "1"
+doolittle-host = { path = "crates/doolittle-host" }
+doolittle-runtime = { path = "crates/doolittle-runtime" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

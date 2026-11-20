@@ -24,3 +24,6 @@ tmp/
 !vendor/elizaos/*-b2dbeff3.tgz
 vendor/elizaos/packages/*/**
 !vendor/elizaos/packages/*/package.json
+
+# Cargo workspace builds
+/target/

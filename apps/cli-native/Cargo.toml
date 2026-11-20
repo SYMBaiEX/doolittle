@@ -1,0 +1,22 @@
+[package]
+name = "doolittle-cli-native"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[[bin]]
+name = "doolittle-native"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+clap = { version = "4.6", features = ["derive"] }
+ctrlc = "3.5"
+doolittle-host.workspace = true
+doolittle-runtime.workspace = true
+rustyline = { version = "19", default-features = false }
+serde.workspace = true
+serde_json.workspace = true
+uuid = { version = "1", features = ["v4"] }

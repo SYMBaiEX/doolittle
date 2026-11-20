@@ -1,0 +1,16 @@
+[package]
+name = "doolittle-desktop"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+anyhow = "1"
+async-channel = "2"
+doolittle-host = { path = "../../crates/doolittle-host" }
+doolittle-runtime = { path = "../../crates/doolittle-runtime" }
+gpui = "=0.2.2"
+gpui-component = { version = "=0.5.1", default-features = false, features = ["tree-sitter-languages"] }
+markdown = "1"
+serde_json = "1"
+uuid = { version = "1", features = ["v4"] }

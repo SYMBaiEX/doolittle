@@ -1,0 +1,22 @@
+[package]
+name = "doolittle-host"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+directories = "6"
+getrandom = "0.4"
+serde.workspace = true
+serde_json.workspace = true
+sha2 = "0.10"
+url = "2.5"
+which = "8"
+
+[target.'cfg(unix)'.dependencies]
+nix = { version = "0.31", features = ["signal"] }
+
+[dev-dependencies]
+tempfile = "3"

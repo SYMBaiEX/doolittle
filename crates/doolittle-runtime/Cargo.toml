@@ -1,0 +1,14 @@
+[package]
+name = "doolittle-runtime"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+description = "Authenticated loopback client for Doolittle's ElizaOS runtime"
+
+[dependencies]
+reqwest = { version = "0.13.5", default-features = false, features = ["blocking", "json", "query"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "2.0.21"
+url = "2.5"
+uuid = { version = "1.29.3", features = ["v4"] }
