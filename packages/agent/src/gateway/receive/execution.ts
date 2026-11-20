@@ -1,11 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
-import {
-  formatRunEvent,
-  shouldRenderRunEvent,
-} from "../../runtime/run-progress";
 import { hasGlobalSessionOperatorAccess } from "../../runtime/session-operator-policy";
 import { executeAgentTurnWithProgress } from "../../runtime/turn-stream";
-import type { RunUpdateEvent } from "../../services/run-controller-service/index";
 import type { SessionRoute } from "../../types/gateway";
 import { createProgressiveDeliveryQueue } from "../outbound/builders";
 import { gatewayInboundIdempotencyKey } from "./idempotency";
@@ -119,15 +114,8 @@ export async function executeGatewayReceiveTurn(
             phase,
           });
         },
-        onRunEvent: async (event: RunUpdateEvent) => {
-          void options?.onRunUpdate?.(event);
-          if (!shouldRenderRunEvent(event.run.progressMode, event)) {
-            return;
-          }
-          const detail = formatRunEvent(event, 120);
-          if (!detail) {
-            return;
-          }
+        onRunEvent: async (event, detail) => {
+          await options?.onRunEvent?.(event, detail);
           await progressiveQueue.queueProgressFlush(`[run] ${detail}`, false);
         },
       },

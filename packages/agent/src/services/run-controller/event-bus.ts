@@ -29,13 +29,14 @@ export class RunUpdateEventBus {
 export class TaskRunEventBus {
   private readonly events = new EventEmitter();
 
-  onEvent(listener: (event: TaskRunEvent) => void): () => void {
-    this.events.on("event", listener);
-    return () => this.events.off("event", listener);
+  onEvent(runId: string, listener: (event: TaskRunEvent) => void): () => void {
+    const channel = `run:${runId}`;
+    this.events.on(channel, listener);
+    return () => this.events.off(channel, listener);
   }
 
   emit(event: TaskRunEvent): void {
-    this.events.emit("event", structuredClone(event));
+    this.events.emit(`run:${event.runId}`, structuredClone(event));
   }
 }
 

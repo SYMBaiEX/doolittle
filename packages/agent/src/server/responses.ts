@@ -24,85 +24,80 @@ export function json(body: unknown, status = 200): Response {
   });
 }
 
-export function sse(events: Array<{ event: string; data: unknown }>): Response {
-  const encoder = new TextEncoder();
-  const stream = new ReadableStream<Uint8Array>({
-    start(controller) {
-      for (const entry of events) {
-        controller.enqueue(
-          encoder.encode(
-            `event: ${entry.event}\ndata: ${JSON.stringify(entry.data)}\n\n`,
-          ),
-        );
-      }
-      controller.close();
-    },
-  });
-
-  return new Response(stream, {
-    headers: {
-      "content-type": "text/event-stream; charset=utf-8",
-      "cache-control": "no-cache",
-      connection: "keep-alive",
-    },
-  });
-}
-
 export function streamSse(
   stream: (
     emit: (event: string, data: unknown) => Promise<void>,
   ) => Promise<void>,
   options?: {
+    signal?: AbortSignal;
     /** Abort server-side work when the client abandons the stream. */
     onCancel?: () => void;
   },
 ): Response {
   const encoder = new TextEncoder();
   let closed = false;
-  let cancelled = false;
-  const cancel = () => {
+  let writable: Promise<void> | undefined;
+  let resume: (() => void) | undefined;
+  let removeAbortListener: (() => void) | undefined;
+
+  function wake(): void {
+    const resolve = resume;
+    writable = undefined;
+    resume = undefined;
+    resolve?.();
+  }
+
+  function close(cancelled: boolean): boolean {
+    if (closed) return false;
     closed = true;
-    if (!cancelled) {
-      cancelled = true;
-      options?.onCancel?.();
-    }
-  };
+    removeAbortListener?.();
+    wake();
+    if (cancelled) options?.onCancel?.();
+    return true;
+  }
+
   return new Response(
     new ReadableStream<Uint8Array>({
-      async start(controller) {
-        const emit = async (event: string, data: unknown): Promise<void> => {
-          if (closed) return;
-          try {
-            controller.enqueue(
-              encoder.encode(
-                `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`,
-              ),
-            );
-          } catch {
-            // Node cancels the stream when a client disconnects. A model or
-            // tool callback can race that cancellation; do not turn it into
-            // an uncaught process-level failure.
-            closed = true;
-          }
+      start(controller) {
+        const signal = options?.signal;
+        const abort = () => {
+          if (close(true)) controller.close();
         };
-        try {
-          await stream(emit);
-        } catch {
-          await emit("error", {
-            message: "Stream failed.",
-          });
-        } finally {
-          if (!closed) {
-            try {
-              controller.close();
-            } catch {
-              closed = true;
-            }
-          }
+        if (signal?.aborted) {
+          abort();
+          return;
         }
+        signal?.addEventListener("abort", abort, { once: true });
+        removeAbortListener = () => signal?.removeEventListener("abort", abort);
+        const emit = async (event: string, data: unknown): Promise<void> => {
+          while (!closed && (controller.desiredSize ?? 0) <= 0) {
+            writable ??= new Promise<void>((resolve) => {
+              resume = resolve;
+            });
+            await writable;
+          }
+          if (closed) return;
+          controller.enqueue(
+            encoder.encode(
+              `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`,
+            ),
+          );
+        };
+        // Do not return the producer promise from start. The consumer must
+        // be able to trigger pull while the producer waits for capacity.
+        void (async () => {
+          try {
+            await stream(emit);
+          } catch {
+            await emit("error", { message: "Stream failed." });
+          } finally {
+            if (close(false)) controller.close();
+          }
+        })();
       },
+      pull: wake,
       cancel() {
-        cancel();
+        close(true);
       },
     }),
     {

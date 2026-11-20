@@ -19,17 +19,7 @@ export interface ChatRequestBody {
 }
 
 export interface ResponsesRequestBody {
-  input?:
-    | string
-    | Array<{
-        role?: string;
-        content?:
-          | string
-          | Array<{
-              type?: string;
-              text?: string;
-            }>;
-      }>;
+  input?: unknown;
   previous_response_id?: string;
   stream?: boolean;
   user?: string;

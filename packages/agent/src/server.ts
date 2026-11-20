@@ -144,7 +144,10 @@ export async function writeWebResponse(
       callback();
     };
     const onBodyError = (error: Error) => settle(() => reject(error));
-    const onOutputError = (error: Error) => settle(() => reject(error));
+    const onOutputError = (error: Error) => {
+      body.destroy();
+      settle(() => reject(error));
+    };
     const onFinish = () => settle(resolve);
     const onClose = () => {
       if (outgoing.writableFinished) {

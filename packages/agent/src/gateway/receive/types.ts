@@ -32,7 +32,7 @@ export interface GatewayReceiveOptions {
     response: string;
     phase: "command" | "readiness" | "model";
   }) => void | Promise<void>;
-  onRunUpdate?: (event: RunUpdateEvent) => void | Promise<void>;
+  onRunEvent?: (event: RunUpdateEvent, detail: string) => void | Promise<void>;
 }
 
 export interface GatewayReceiveDependencies {

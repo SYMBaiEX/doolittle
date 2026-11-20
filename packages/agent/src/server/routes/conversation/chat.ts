@@ -614,68 +614,50 @@ export function handleChatRunEventsRoute(
   runId: string,
   url?: URL,
 ): Response {
-  if (context.services.runController.getTaskEvents(runId).length === 0) {
-    return json({ error: "run not found" }, 404);
-  }
+  const runs = context.services.runController;
+  if (!runs.hasTaskEvents(runId)) return json({ error: "run not found" }, 404);
   const after = resolveAfterCursor(request, url);
-  let detach = false;
+  let detached = false;
   let wake: (() => void) | undefined;
-  const detachSubscriber = () => {
-    detach = true;
-    wake?.();
-  };
-  if (request.signal.aborted) {
-    detachSubscriber();
-  } else {
-    request.signal.addEventListener("abort", detachSubscriber, { once: true });
-  }
   return streamSse(
     async (emit) => {
-      const queue: TaskRunEvent[] = [];
-      const unsubscribe = context.services.runController.onTaskEvent(
-        (event) => {
-          if (event.runId !== runId || event.id <= after) return;
-          queue.push(event);
-          wake?.();
-        },
-      );
       let cursor = after;
-      const send = async (event: TaskRunEvent): Promise<boolean> => {
-        if (event.id <= cursor) return event.terminal;
-        cursor = event.id;
-        const data =
-          event.data && typeof event.data === "object"
-            ? event.data
-            : { value: event.data };
-        await emit(event.type, { event_id: event.id, ...data });
-        return event.terminal;
-      };
+      // Replay and live delivery use the same bounded journal. A slow reader
+      // may fall behind the replay window without pinning another event queue.
+      const unsubscribe = runs.onTaskEvent(runId, () => wake?.());
       try {
-        for (const event of context.services.runController.getTaskEvents(
-          runId,
-          after,
-        )) {
-          if (await send(event)) return;
-        }
-        while (!detach) {
-          while (queue.length > 0) {
-            const event = queue.shift();
-            if (event && (await send(event))) return;
+        while (!detached) {
+          const events = runs.getTaskEvents(runId, cursor);
+          if (events.length === 0) {
+            if (!runs.hasTaskEvents(runId) || runs.getTerminalTaskEvent(runId))
+              return;
+            await new Promise<void>((resolve) => {
+              wake = resolve;
+            });
+            wake = undefined;
+            continue;
           }
-          if (context.services.runController.getTerminalTaskEvent(runId))
-            return;
-          await new Promise<void>((resolve) => {
-            wake = resolve;
-          });
-          wake = undefined;
+          for (const event of events) {
+            if (detached) return;
+            const data =
+              event.data && typeof event.data === "object"
+                ? event.data
+                : { value: event.data };
+            await emit(event.type, { ...data, event_id: event.id });
+            cursor = event.id;
+            if (event.terminal) return;
+          }
         }
       } finally {
         unsubscribe();
-        request.signal.removeEventListener("abort", detachSubscriber);
       }
     },
     {
-      onCancel: detachSubscriber,
+      signal: request.signal,
+      onCancel: () => {
+        detached = true;
+        wake?.();
+      },
     },
   );
 }
@@ -683,15 +665,23 @@ export function handleChatRunEventsRoute(
 async function waitForTerminalEvent(
   context: AppContext,
   runId: string,
-): Promise<TaskRunEvent> {
-  const existing = context.services.runController.getTerminalTaskEvent(runId);
+  signal: AbortSignal,
+): Promise<TaskRunEvent | undefined> {
+  const runs = context.services.runController;
+  const existing = runs.getTerminalTaskEvent(runId);
   if (existing) return existing;
+  if (signal.aborted) return undefined;
   return new Promise((resolve) => {
-    const unsubscribe = context.services.runController.onTaskEvent((event) => {
-      if (event.runId !== runId || !event.terminal) return;
+    const finish = (event?: TaskRunEvent) => {
       unsubscribe();
+      signal.removeEventListener("abort", cancel);
       resolve(event);
+    };
+    const cancel = () => finish();
+    const unsubscribe = runs.onTaskEvent(runId, (event) => {
+      if (event.terminal) finish(event);
     });
+    signal.addEventListener("abort", cancel, { once: true });
   });
 }
 
@@ -731,7 +721,12 @@ export async function handleChatRoute(
       new URL(request.url),
     );
   }
-  const terminal = await waitForTerminalEvent(context, prepared.runId);
+  const terminal = await waitForTerminalEvent(
+    context,
+    prepared.runId,
+    request.signal,
+  );
+  if (!terminal) return new Response(null, { status: 499 });
   if (terminal.type === "response.completed") {
     const data = terminal.data as {
       response?: string;

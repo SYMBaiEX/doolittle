@@ -157,6 +157,10 @@ export class RunControllerStore {
       .map(cloneTaskEvent);
   }
 
+  hasEvents(runId: string): boolean {
+    return (this.eventJournals.get(runId)?.length ?? 0) > 0;
+  }
+
   getTerminalEvent(runId: string): TaskRunEvent | undefined {
     const event = this.eventJournals
       .get(runId)

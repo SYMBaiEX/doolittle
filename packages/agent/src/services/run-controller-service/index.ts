@@ -277,12 +277,19 @@ export class RunControllerService {
     return this.store.listEvents(runId, after);
   }
 
+  hasTaskEvents(runId: string): boolean {
+    return this.store.hasEvents(runId);
+  }
+
   getTerminalTaskEvent(runId: string): TaskRunEvent | undefined {
     return this.store.getTerminalEvent(runId);
   }
 
-  onTaskEvent(listener: (event: TaskRunEvent) => void): () => void {
-    return this.taskEvents.onEvent(listener);
+  onTaskEvent(
+    runId: string,
+    listener: (event: TaskRunEvent) => void,
+  ): () => void {
+    return this.taskEvents.onEvent(runId, listener);
   }
 
   /** Flushes the short-tail event journal debounce during an orderly shutdown. */

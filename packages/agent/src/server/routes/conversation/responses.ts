@@ -1,13 +1,12 @@
 import { randomUUID } from "node:crypto";
+import type { GatewayReceiveResult } from "../../../gateway/receive/types";
 import type { AppContext } from "../../../runtime/bootstrap/index";
 import {
   createResponseTextAccumulator,
-  formatRunEvent,
   nextResponseTextFrame,
-  shouldRenderRunEvent,
 } from "../../../runtime/run-progress";
 import { createApiResponseId } from "../../../services/api-transport-service";
-import type { RunUpdateEvent } from "../../../services/run-controller-service/index";
+import type { IncomingPlatformMessage } from "../../../types/gateway";
 import { invalidJsonObjectBody, readJsonObjectBody } from "../../request-body";
 import { json, streamSse } from "../../responses";
 import { buildResponsePayload } from "./payload";
@@ -28,38 +27,6 @@ const UNSUPPORTED_RESPONSES_FIELDS = [
   "parallel_tool_calls",
   "background",
 ] as const;
-
-function responseInputText(body: ResponsesRequestBody): string | undefined {
-  if (typeof body.input === "string") {
-    return body.input.trim() || undefined;
-  }
-  if (!Array.isArray(body.input)) {
-    return undefined;
-  }
-
-  const text = body.input
-    .flatMap((entry) => {
-      if (typeof entry.content === "string") {
-        return [entry.content];
-      }
-      if (!Array.isArray(entry.content)) {
-        return [];
-      }
-      return entry.content
-        .filter(
-          (part) =>
-            part.type === undefined ||
-            part.type === "input_text" ||
-            part.type === "text",
-        )
-        .map((part) => part.text ?? "");
-    })
-    .map((entry) => entry.trim())
-    .filter(Boolean)
-    .join("\n");
-
-  return text || undefined;
-}
 
 export async function handleResponsesRoute(
   context: AppContext,
@@ -122,15 +89,9 @@ export async function handleResponsesRoute(
   ) {
     return json({ error: "previous_response_id must be a string" }, 400);
   }
-  const inputError = validateResponseInput(body.input);
-  if (inputError) {
-    return json({ error: inputError }, 400);
-  }
-  const inputText = responseInputText(body);
-
-  if (!inputText) {
-    return json({ error: "input is required" }, 400);
-  }
+  const input = readResponseInput(body.input);
+  if ("error" in input) return json({ error: input.error }, 400);
+  const inputText = input.text;
 
   const userId = body.user ?? "api-user";
   const continuation = context.services.apiTransport.resolveContinuation(
@@ -147,7 +108,31 @@ export async function handleResponsesRoute(
     );
   }
   const roomId = continuation.roomId;
-  const gatewayMessageId = `api-msg-${randomUUID()}`;
+  const message: IncomingPlatformMessage = {
+    platform: "api",
+    userId,
+    roomId,
+    text: inputText,
+    messageId: `api-msg-${randomUUID()}`,
+    replyToMessageId: body.previous_response_id,
+    metadata: { ...body.metadata, apiTransport: "responses" },
+  };
+  const storeResponse = (result: GatewayReceiveResult, id?: string) =>
+    buildResponsePayload(
+      context.services.apiTransport.create({
+        id,
+        input: inputText,
+        outputText: result.response,
+        userId,
+        roomId,
+        previousResponseId: body.previous_response_id,
+        metadata: {
+          ...body.metadata,
+          traceId: result.traceId ?? "",
+          deliveryId: result.deliveryId ?? "",
+        },
+      }),
+    );
 
   if (body.stream) {
     const streamResponseId = createApiResponseId();
@@ -167,40 +152,11 @@ export async function handleResponsesRoute(
         ) => {
           await emit(type, {
             type,
-            sequence_number: sequenceNumber,
+            sequence_number: sequenceNumber++,
             ...data,
           });
-          sequenceNumber += 1;
         };
         const responseAccumulator = createResponseTextAccumulator();
-        let observedRunSessionId: string | undefined;
-        const emitRunUpdates = async (event: RunUpdateEvent): Promise<void> => {
-          if (
-            observedRunSessionId &&
-            event.sessionId !== observedRunSessionId
-          ) {
-            return;
-          }
-          if (!observedRunSessionId) {
-            if (event.run.source === "api" && event.run.message === inputText) {
-              observedRunSessionId = event.sessionId;
-            } else {
-              return;
-            }
-          }
-          if (!shouldRenderRunEvent(event.run.progressMode, event)) {
-            return;
-          }
-          const detail = formatRunEvent(event);
-          if (!detail) {
-            return;
-          }
-          await emitResponseEvent("agent.progress", {
-            event: event.type,
-            detail: `[run] ${detail}`,
-            sessionId: event.sessionId,
-          });
-        };
         const pendingResponse = {
           ...buildResponsePayload({
             id: streamResponseId,
@@ -239,39 +195,31 @@ export async function handleResponsesRoute(
         });
 
         try {
-          const result = await context.gateway.receive(
-            {
-              platform: "api",
-              userId,
-              roomId,
-              text: inputText,
-              messageId: gatewayMessageId,
-              replyToMessageId: body.previous_response_id,
-              metadata: {
-                ...(body.metadata ?? {}),
-                apiTransport: "responses",
-              },
+          const result = await context.gateway.receive(message, {
+            abortSignal,
+            onRunEvent: async (event, detail) => {
+              await emitResponseEvent("agent.progress", {
+                event: event.type,
+                detail: `[run] ${detail}`,
+                sessionId: event.sessionId,
+              });
             },
-            {
-              abortSignal,
-              onRunUpdate: emitRunUpdates,
-              onResponseProgress: async ({ response }) => {
-                const frame = nextResponseTextFrame(
-                  responseAccumulator,
-                  response,
-                );
-                if (!frame?.delta) {
-                  return;
-                }
-                await emitResponseEvent("response.output_text.delta", {
-                  item_id: outputItemId,
-                  output_index: 0,
-                  content_index: 0,
-                  delta: frame.delta,
-                });
-              },
+            onResponseProgress: async ({ response }) => {
+              const frame = nextResponseTextFrame(
+                responseAccumulator,
+                response,
+              );
+              if (!frame?.delta) {
+                return;
+              }
+              await emitResponseEvent("response.output_text.delta", {
+                item_id: outputItemId,
+                output_index: 0,
+                content_index: 0,
+                delta: frame.delta,
+              });
             },
-          );
+          });
           const outputText = result.response;
           const finalFrame = nextResponseTextFrame(
             responseAccumulator,
@@ -285,20 +233,7 @@ export async function handleResponsesRoute(
               delta: finalFrame.delta,
             });
           }
-          const record = context.services.apiTransport.create({
-            id: streamResponseId,
-            input: inputText,
-            outputText,
-            userId,
-            roomId,
-            previousResponseId: body.previous_response_id,
-            metadata: {
-              ...(body.metadata ?? {}),
-              traceId: result.traceId ?? "",
-              deliveryId: result.deliveryId ?? "",
-            },
-          });
-          const responsePayload = buildResponsePayload(record);
+          const responsePayload = storeResponse(result, streamResponseId);
           if (!result.ok) {
             const deliveryFailed =
               result.agentCompleted && result.deliveryStatus === "rejected";
@@ -366,6 +301,7 @@ export async function handleResponsesRoute(
         }
       },
       {
+        signal: request.signal,
         onCancel: () => {
           streamAbortController.abort(
             new DOMException(
@@ -378,73 +314,67 @@ export async function handleResponsesRoute(
     );
   }
 
-  const result = await context.gateway.receive(
-    {
-      platform: "api",
-      userId,
-      roomId,
-      text: inputText,
-      messageId: gatewayMessageId,
-      replyToMessageId: body.previous_response_id,
-      metadata: {
-        ...(body.metadata ?? {}),
-        apiTransport: "responses",
-      },
-    },
-    { abortSignal: request.signal },
-  );
+  const result = await context.gateway.receive(message, {
+    abortSignal: request.signal,
+  });
   if (!result.ok) {
     const status =
       result.agentCompleted && result.deliveryStatus === "rejected" ? 502 : 403;
     return json(result, status);
   }
-  const record = context.services.apiTransport.create({
-    input: inputText,
-    outputText: result.response,
-    userId,
-    roomId,
-    previousResponseId: body.previous_response_id,
-    metadata: {
-      ...(body.metadata ?? {}),
-      traceId: result.traceId ?? "",
-      deliveryId: result.deliveryId ?? "",
-    },
-  });
-  const responsePayload = buildResponsePayload(record);
-
-  return json(responsePayload);
+  return json(storeResponse(result));
 }
 
-function validateResponseInput(input: unknown): string | undefined {
-  if (input === undefined || typeof input === "string") return undefined;
-  if (!Array.isArray(input)) return "input must be a string or message array";
+function readResponseInput(
+  input: unknown,
+): { text: string } | { error: string } {
+  if (input === undefined || typeof input === "string") {
+    const text = input?.trim();
+    return text ? { text } : { error: "input is required" };
+  }
+  if (!Array.isArray(input))
+    return { error: "input must be a string or message array" };
 
+  const lines: string[] = [];
   for (const [index, entry] of input.entries()) {
     if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
-      return `input[${index}] must be an object`;
+      return { error: `input[${index}] must be an object` };
     }
-    const record = entry as Record<string, unknown>;
-    const content = record.content;
-    if (content === undefined || typeof content === "string") continue;
+    const content = (entry as Record<string, unknown>).content;
+    if (content === undefined) continue;
+    if (typeof content === "string") {
+      const text = content.trim();
+      if (text) lines.push(text);
+      continue;
+    }
     if (!Array.isArray(content)) {
-      return `input[${index}].content must be a string or content-part array`;
+      return {
+        error: `input[${index}].content must be a string or content-part array`,
+      };
     }
     for (const [partIndex, part] of content.entries()) {
       if (!part || typeof part !== "object" || Array.isArray(part)) {
-        return `input[${index}].content[${partIndex}] must be an object`;
+        return {
+          error: `input[${index}].content[${partIndex}] must be an object`,
+        };
       }
-      const partRecord = part as Record<string, unknown>;
-      const type = partRecord.type;
+      const { type, text } = part as Record<string, unknown>;
       if (type !== undefined && type !== "input_text" && type !== "text") {
-        return `input content type ${String(type)} is not supported by this text-only Responses endpoint`;
+        return {
+          error: `input content type ${String(type)} is not supported by this text-only Responses endpoint`,
+        };
       }
-      if (
-        partRecord.text !== undefined &&
-        typeof partRecord.text !== "string"
-      ) {
-        return `input[${index}].content[${partIndex}].text must be a string`;
+      if (text === undefined) continue;
+      if (typeof text !== "string") {
+        return {
+          error: `input[${index}].content[${partIndex}].text must be a string`,
+        };
       }
+      const trimmed = text.trim();
+      if (trimmed) lines.push(trimmed);
     }
   }
-  return undefined;
+  return lines.length
+    ? { text: lines.join("\n") }
+    : { error: "input is required" };
 }
