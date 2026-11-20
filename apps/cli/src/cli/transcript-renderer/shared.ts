@@ -72,7 +72,7 @@ export function normalizeTranscriptSections(
 }
 
 export function renderPlainBody(entry: ResponseTranscriptEntry): string {
-  const safeBody = sanitizeTerminalText(entry.body);
+  const safeBody = sanitizeTranscriptBody(entry.body);
   if (safeBody.trim()) {
     return safeBody.trim();
   }
@@ -80,11 +80,16 @@ export function renderPlainBody(entry: ResponseTranscriptEntry): string {
 }
 
 export function renderBlessedBody(entry: ResponseTranscriptEntry): string {
-  const safeBody = sanitizeTerminalText(entry.body);
+  const safeBody = sanitizeTranscriptBody(entry.body);
   if (safeBody.trim()) {
     return escapeBlessed(safeBody);
   }
   return entry.pending ? "{gray-fg}thinking…{/}" : "{gray-fg}waiting…{/}";
+}
+
+function sanitizeTranscriptBody(body: string): string {
+  // Paths, diffs, and code can contain tokens much longer than a status label.
+  return sanitizeTerminalText(body, { maxTokenLength: 4_000 });
 }
 
 export function renderNormalizedLabel(label: string): string {

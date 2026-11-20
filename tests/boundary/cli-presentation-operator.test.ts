@@ -11,6 +11,10 @@ import {
   shortModelId,
   shortSessionLabel,
 } from "../../apps/cli/src/cli/terminal-labels";
+import {
+  renderPlainEntry,
+  renderResponseTranscript,
+} from "../../apps/cli/src/cli/transcript-renderer/index";
 
 function fixture(
   options: {
@@ -96,6 +100,20 @@ function fixture(
 }
 
 describe("CLI operator presentation", () => {
+  it("keeps long code tokens intact and removes transcript label controls", () => {
+    const path = `packages/${"workspace-name/".repeat(16)}index.ts`;
+    const entry = {
+      label: "\u001b[31mCoding\nassistant",
+      at: "08:00",
+      body: path,
+      kind: "assistant" as const,
+    };
+    const plain = stripVTControlCharacters(renderPlainEntry(entry));
+    expect(plain).toContain("Coding assistant\n");
+    expect(plain).toContain(path);
+    expect(renderResponseTranscript([entry])).toContain(path);
+  });
+
   it("uses the same live-run priority in plain and cockpit guidance", () => {
     const { context, state, dependencies } = fixture({
       active: true,

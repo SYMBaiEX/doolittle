@@ -59,11 +59,15 @@ export function renderPlainEntry(
   tone?: CliTone,
 ): string {
   const accent = resolveAccent(entry.kind);
-  const label = paint(entry.label, accent, output.isTTY);
+  const label = paint(renderNormalizedLabel(entry.label), accent, output.isTTY);
   const badge = paint(asciiRoleBadge(entry.kind), ANSI.gray, output.isTTY);
-  const at = paint(entry.at, ANSI.gray, output.isTTY);
+  const at = paint(renderNormalizedLabel(entry.at), ANSI.gray, output.isTTY);
   const elapsed = entry.elapsed
-    ? paint(`· ${entry.elapsed}`, ANSI.gray, output.isTTY)
+    ? paint(
+        `· ${renderNormalizedLabel(entry.elapsed)}`,
+        ANSI.gray,
+        output.isTTY,
+      )
     : "";
   const pending = entry.pending
     ? ` ${paint("…", ANSI.gray, output.isTTY)}`
@@ -78,8 +82,7 @@ export function renderPlainEntry(
 
   return [
     `${at}  ${badge} ${label}${elapsed ? ` ${elapsed}` : ""}${pending}${prefix ? `  ${prefix}` : ""}`,
-    sanitizeTerminalText(entry.body).trim() ||
-      (entry.pending ? "thinking..." : "waiting..."),
+    renderPlainBody(entry),
     liveActivity,
   ]
     .filter(Boolean)
