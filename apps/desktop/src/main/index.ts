@@ -687,6 +687,14 @@ function createWindow(): BrowserWindow {
     rendererFile: resolve(mainBundleDirectory, "../renderer/index.html"),
     rendererUrl,
     startMaximized: savedState.isMaximized,
+  }).catch(() => {
+    if (window.isDestroyed()) return;
+    dialog.showErrorBox(
+      "Doolittle could not open its window",
+      rendererUrl
+        ? "Check that the desktop development server is running, then reopen Doolittle."
+        : "Close and reopen Doolittle. Your local conversations are saved.",
+    );
   });
 
   const windowState = createWindowStatePersistenceController(
@@ -710,7 +718,10 @@ function createWindow(): BrowserWindow {
     if (desktopPreferences)
       handleWindowClose(window, event, desktopPreferences.getState(), quitting);
   });
-  window.on("closed", () => windowState.stop());
+  window.on("closed", () => {
+    windowState.stop();
+    if (mainWindow === window) mainWindow = null;
+  });
   return window;
 }
 
@@ -1090,18 +1101,8 @@ if (ownsSingleInstance)
       workspaceState.getState().currentPath || fallbackWorkspace,
       { admission: executionAdmission, confirmAutomation: nativeConfirm },
     );
-    // Start the bundled Eliza runtime as soon as its immutable launch inputs
-    // are ready. Window construction, menus, tray wiring, and IPC registration
-    // do not depend on the listener, so let that UI work overlap the backend's
-    // database and plugin bootstrap instead of delaying process spawn.
+    // Start the runtime while preparing the window and its IPC handlers.
     void backend.start();
-    // The packaged app is a normal foreground APPL. Let Electron/AppKit own its
-    // activation policy and construct the first window immediately. Explicit
-    // Dock registration here can leave newly installed builds without a
-    // WindowServer connection on recent macOS releases.
-    mainWindow = createWindow();
-    desktopInitialized = true;
-    if (secondInstanceRequested) showMainWindow();
     const providerAuth = new ProviderAuthController({
       openExternal: (url) => shell.openExternal(url),
       readClipboardText: () => clipboard.readText(),
@@ -1349,15 +1350,25 @@ if (ownsSingleInstance)
         providerAuth,
       },
     });
-    mainWindow.on("closed", () => {
-      mainWindow = null;
-    });
+    // The renderer reads the runtime and native selection on its first frame.
+    // Create the window once both IPC surfaces can answer those reads.
+    mainWindow = createWindow();
+    uiInterfaces.attachWindow(mainWindow);
+    desktopInitialized = true;
+    if (secondInstanceRequested) showMainWindow();
     app.on("activate", () => {
       mainWindow = ensureDesktopWindow(mainWindow, createWindow);
       uiInterfaces?.attachWindow(mainWindow);
       showMainWindow();
     });
   });
+void desktopStartup.catch(() => {
+  dialog.showErrorBox(
+    "Doolittle could not start",
+    "Close other Doolittle windows and try reopening the app.",
+  );
+  app.quit();
+});
 
 const handleDesktopQuit = createDesktopQuitHandler({
   holdRuntimeStarts,

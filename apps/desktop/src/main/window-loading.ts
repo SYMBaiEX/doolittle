@@ -1,5 +1,6 @@
 export interface DesktopWindowLoader {
   once(event: "ready-to-show", listener: () => void): unknown;
+  isDestroyed?(): boolean;
   loadFile(path: string): Promise<void>;
   loadURL(url: string): Promise<void>;
   maximize(): void;
@@ -24,6 +25,7 @@ export function loadDesktopWindow(
     if (revealed) return;
     revealed = true;
     if (revealTimer) clearTimeout(revealTimer);
+    if (window.isDestroyed?.()) return;
     if (options.startMaximized) window.maximize();
     window.show();
     window.focus();

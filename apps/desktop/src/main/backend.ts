@@ -374,9 +374,26 @@ export class BackendManager {
     }
     if (this.state.phase === "ready") return Promise.resolve(this.getState());
     if (this.startup) return this.startup;
-    this.startup = this.startImpl().finally(() => {
-      this.startup = null;
-    });
+    this.startup = this.startImpl()
+      .catch((error: unknown) => {
+        if (this.stopping) return this.getState();
+        const next: BackendState = {
+          phase: "degraded",
+          message: "Doolittle could not start its local runtime.",
+          detail: sanitizeBackendDiagnostic(
+            error instanceof Error ? error.message : String(error),
+            this.options.isolatedEnvironment ?? {
+              ...process.env,
+              ...this.target.environment,
+            },
+          ),
+        };
+        this.update(next);
+        return next;
+      })
+      .finally(() => {
+        this.startup = null;
+      });
     return this.startup;
   }
 
@@ -458,6 +475,16 @@ export class BackendManager {
     pgliteRecoveryAttempted = false,
   ): Promise<BackendState> {
     this.stopping = false;
+    if (this.child) {
+      // A failed cleanup can leave the old process holding the database lock.
+      // Do not spawn a second runtime until that process has exited.
+      try {
+        await this.stopChild(false);
+      } catch {
+        return this.getState();
+      }
+      if (this.stopping || !runtimeStartsAllowed()) return this.getState();
+    }
     this.update({
       phase: "booting",
       message: "Starting the private Doolittle runtime…",
@@ -521,7 +548,16 @@ export class BackendManager {
     };
     child.stdout?.on("data", consume);
     child.stderr?.on("data", consume);
-    child.once("error", (error) => rejectUrl?.(error));
+    child.once("error", (error) => {
+      if (child.pid === undefined && this.child === child) {
+        // A spawn error has no process to reap and may never emit exit.
+        this.child = null;
+        engineClient?.dispose();
+        if (this.engineClient === engineClient) this.engineClient = null;
+        detachWorkerHost();
+      }
+      rejectUrl?.(error);
+    });
     child.once("exit", (code, signal) => {
       engineClient?.dispose();
       if (this.engineClient === engineClient) this.engineClient = null;
@@ -530,7 +566,7 @@ export class BackendManager {
       if (this.child === child) this.child = null;
       const detail = backendExitDetail(code, signal, recentOutput, environment);
       rejectUrl?.(new Error(detail));
-      if (!this.stopping) {
+      if (!this.stopping && this.state.phase === "ready") {
         recordUnexpectedBackendExit(this.runtimeDataDir, detail, code, signal);
         this.update({
           phase: "degraded",
@@ -566,7 +602,11 @@ export class BackendManager {
     } catch (error) {
       // This stop is startup cleanup, not a shutdown request. Preserve an
       // already-requested shutdown so recovery cannot relaunch the backend.
-      await this.stopChild(false);
+      try {
+        await this.stopChild(false);
+      } catch {
+        return this.getState();
+      }
       const detail = error instanceof Error ? error.message : String(error);
       if (this.stopping) return this.getState();
       if (
