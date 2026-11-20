@@ -1,6 +1,6 @@
 {
   "name": "@elizaos/plugin-maps",
-  "version": "2.0.12-beta.0",
+  "version": "2.0.5",
   "type": "module",
   "description": "Provider-neutral place search, routing, saved places, sharing, and navigation handoffs for Eliza agents.",
   "main": "./dist/index.js",
@@ -48,8 +48,8 @@
     "dist"
   ],
   "dependencies": {
-    "@elizaos/core": "2.0.12-beta.0",
-    "@elizaos/ui": "2.0.12-beta.0",
+    "@elizaos/core": "2.0.5",
+    "@elizaos/ui": "2.0.5",
     "lucide-react": "^1.0.0",
     "react": "^19.3.1",
     "zod": "^4.6.5"
@@ -86,7 +86,7 @@
   },
   "doolittleSourceBuild": {
     "repository": "https://github.com/elizaos/eliza",
-    "commit": "b2dbeff3ab689a69f7e518deb7d608d1c4607790",
+    "commit": "c094a549fee09f6e06911b8486b9789b536401aa",
     "package": "plugins/plugin-maps",
     "bun": "1.4.2",
     "node": "26.5.0",

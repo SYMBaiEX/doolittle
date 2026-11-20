@@ -1,6 +1,6 @@
 {
   "name": "@elizaos/voice",
-  "version": "2.0.12-beta.0",
+  "version": "2.0.5",
   "description": "Portable voice turn analysis, acoustic processing and speech metrics.",
   "type": "module",
   "license": "MIT",
@@ -46,6 +46,18 @@
       "import": "./dist/native-speech-request.js",
       "default": "./dist/native-speech-request.js"
     },
+    "./native-cloud-speech": {
+      "eliza-source": "./src/native-cloud-speech.ts",
+      "types": "./dist/native-cloud-speech.d.ts",
+      "import": "./dist/native-cloud-speech.js",
+      "default": "./dist/native-cloud-speech.js"
+    },
+    "./cloud-speech-chunks": {
+      "eliza-source": "./src/cloud-speech-chunks.ts",
+      "types": "./dist/cloud-speech-chunks.d.ts",
+      "import": "./dist/cloud-speech-chunks.js",
+      "default": "./dist/cloud-speech-chunks.js"
+    },
     "./turn-routes": {
       "eliza-source": "./src/voice-turn-routes.ts",
       "types": "./dist/voice-turn-routes.d.ts",
@@ -84,7 +96,7 @@
     }
   },
   "dependencies": {
-    "@elizaos/core": "2.0.12-beta.0"
+    "@elizaos/core": "2.0.5"
   },
   "publishConfig": {
     "access": "public"
@@ -100,7 +112,7 @@
   "sideEffects": false,
   "doolittleSourceBuild": {
     "repository": "https://github.com/elizaos/eliza",
-    "commit": "b2dbeff3ab689a69f7e518deb7d608d1c4607790",
+    "commit": "c094a549fee09f6e06911b8486b9789b536401aa",
     "package": "packages/voice",
     "bun": "1.4.2",
     "node": "26.5.0",

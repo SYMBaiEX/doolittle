@@ -1,6 +1,6 @@
 {
   "name": "@elizaos/plugin-sql",
-  "version": "2.0.12-beta.0",
+  "version": "2.0.5",
   "description": "",
   "type": "module",
   "main": "dist/index.js",
@@ -44,10 +44,10 @@
     "drizzle-orm": "0.45.4",
     "pg": "^8.23.1",
     "uuid": "^14.0.0",
-    "@elizaos/core": "2.0.12-beta.0"
+    "@elizaos/core": "2.0.5"
   },
   "peerDependencies": {
-    "@elizaos/core": "2.0.12-beta.0"
+    "@elizaos/core": "2.0.5"
   },
   "gitHead": "05d4ca11d769db8c7f54a722ee24b2ce2b951543",
   "publishConfig": {
@@ -72,7 +72,7 @@
   },
   "doolittleSourceBuild": {
     "repository": "https://github.com/elizaos/eliza",
-    "commit": "b2dbeff3ab689a69f7e518deb7d608d1c4607790",
+    "commit": "c094a549fee09f6e06911b8486b9789b536401aa",
     "package": "plugins/plugin-sql",
     "bun": "1.4.2",
     "node": "26.5.0",

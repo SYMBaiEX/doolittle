@@ -86,9 +86,9 @@ const expectedPackageVersion = (name: string) =>
   );
 const productVersion = rootPackage.version;
 const channel = rootPackage.elizaSdk?.channel;
-if (!expectedVersion || channel !== "beta") {
+if (!expectedVersion || (channel !== "beta" && channel !== "stable")) {
   throw new Error(
-    "package.json must declare elizaSdk.channel=beta and an exact elizaSdk.version.",
+    "package.json must declare elizaSdk.channel=beta or stable and an exact elizaSdk.version.",
   );
 }
 if (!productVersion) {

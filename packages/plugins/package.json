@@ -6,15 +6,15 @@
   "description": "Local Doolittle plugin workspace.",
   "dependencies": {
     "@doolittle/contracts": "workspace:*",
-    "@elizaos/agent": "workspace:2.0.12-beta.0",
-    "@elizaos/core": "workspace:2.0.12-beta.0",
-    "@elizaos/plugin-form": "workspace:2.0.12-beta.0",
+    "@elizaos/agent": "workspace:2.0.5",
+    "@elizaos/core": "workspace:2.0.5",
+    "@elizaos/plugin-form": "workspace:2.0.5",
     "@doolittle/provider-transport": "workspace:*",
     "@elizaos/shared": "2.0.11-beta.7",
-    "@elizaos/host": "workspace:2.0.12-beta.0",
-    "@elizaos/plugin-assistant": "workspace:2.0.12-beta.0",
+    "@elizaos/host": "workspace:2.0.5",
+    "@elizaos/plugin-assistant": "workspace:2.0.5",
     "@doolittle/storage": "workspace:*",
-    "@elizaos/auth": "workspace:2.0.12-beta.0"
+    "@elizaos/auth": "workspace:2.0.5"
   },
   "exports": {
     "./doolittle-plugin": "./doolittle-plugin/index.ts",

@@ -1,8 +1,8 @@
-FROM node:26.5.0-bookworm-slim@sha256:2d49d876e96237d76de412761cf05dbfe5aee325cc4406a4d41d5824c5bb8beb
+FROM node:26.13.1-bookworm-slim@sha256:5df79989ed685e09f0a98019db4cebfb22fb9df1a53c0161664a011f7ff6b0f1
 
 RUN apt-get update \
   && apt-get install --no-install-recommends -y bash python3 \
-  && npm install --global @nubjs/nub@0.9.5 \
+  && npm install --global @nubjs/nub@0.11.1 \
   && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /workspace

@@ -1,6 +1,6 @@
 {
   "name": "@elizaos/plugin-discord",
-  "version": "2.0.12-beta.0",
+  "version": "2.0.5",
   "description": "",
   "type": "module",
   "main": "dist/index.js",
@@ -36,11 +36,11 @@
     "@discordjs/util": "^1.2.0",
     "@discordjs/voice": "^0.19.2",
     "@discordjs/ws": "^1.2.3",
-    "@elizaos/core": "2.0.12-beta.0",
-    "@elizaos/host": "2.0.12-beta.0",
-    "@elizaos/plugin-assistant": "2.0.12-beta.0",
-    "@elizaos/plugin-browser": "2.0.12-beta.0",
-    "@elizaos/plugin-meetings": "2.0.12-beta.0",
+    "@elizaos/core": "2.0.5",
+    "@elizaos/host": "2.0.5",
+    "@elizaos/plugin-assistant": "2.0.5",
+    "@elizaos/plugin-browser": "2.0.5",
+    "@elizaos/plugin-meetings": "2.0.5",
     "@sapphire/snowflake": "3.5.5",
     "discord-api-types": "^0.38.0",
     "discord.js": "^14.26.4",
@@ -59,7 +59,7 @@
     "zod": "^4.6.5"
   },
   "peerDependencies": {
-    "@elizaos/core": "2.0.12-beta.0"
+    "@elizaos/core": "2.0.5"
   },
   "publishConfig": {
     "access": "public"
@@ -238,7 +238,7 @@
   "gitHead": "05d4ca11d769db8c7f54a722ee24b2ce2b951543",
   "doolittleSourceBuild": {
     "repository": "https://github.com/elizaos/eliza",
-    "commit": "b2dbeff3ab689a69f7e518deb7d608d1c4607790",
+    "commit": "c094a549fee09f6e06911b8486b9789b536401aa",
     "package": "plugins/plugin-discord",
     "bun": "1.4.2",
     "node": "26.5.0",

@@ -37,6 +37,20 @@ the selected source baseline. Record each exception explicitly in `elizaSdk`
 and overrides. Prefer a usable official package to a local compatibility shim;
 reserve Doolittle packages for product behavior or a demonstrated upstream gap.
 
+The current source baseline comes from the verified ElizaOS stable release
+commit. Its release number is lower than the preceding beta pin, but the
+release commit descends from that beta source. GitHub, Slack, PDF, and Video
+use their separately qualified published releases. The published UI stays on
+the beta with supported leaf entrypoints. Importing the stable UI barrel
+breaks the desktop build because its archive references a missing `.css.js`
+module. The newer Agent Skills packages reference a core export that moved.
+[ElizaOS stable release](https://github.com/elizaOS/eliza/releases/tag/v2.0.5)
+
+The wallet graph uses the maintained Solana web3.js 1.x line, which preserves
+shared `PublicKey` types across the current ElizaOS and SPL Token packages.
+Upgrade the wallet graph together when adopting the rebuilt 3.x API.
+[Solana web3.js release notes](https://github.com/solana-foundation/solana-web3.js/releases)
+
 ## Qualifying an upgrade
 
 1. Inspect the candidate's public exports and the Doolittle consumers that need them.

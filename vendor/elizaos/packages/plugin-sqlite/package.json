@@ -1,6 +1,6 @@
 {
   "name": "@elizaos/plugin-sqlite",
-  "version": "2.0.12-beta.0",
+  "version": "2.0.5",
   "type": "module",
   "main": "dist/index.js",
   "module": "dist/index.js",
@@ -30,7 +30,7 @@
     "dist"
   ],
   "dependencies": {
-    "@elizaos/core": "2.0.12-beta.0",
+    "@elizaos/core": "2.0.5",
     "devalue": "6.0.1",
     "sql.js": "1.14.2"
   },
@@ -45,7 +45,7 @@
   },
   "doolittleSourceBuild": {
     "repository": "https://github.com/elizaos/eliza",
-    "commit": "b2dbeff3ab689a69f7e518deb7d608d1c4607790",
+    "commit": "c094a549fee09f6e06911b8486b9789b536401aa",
     "package": "plugins/plugin-sqlite",
     "bun": "1.4.2",
     "node": "26.5.0",

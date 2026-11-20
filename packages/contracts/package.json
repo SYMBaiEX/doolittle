@@ -20,7 +20,7 @@
     "./execution": "./src/execution.ts"
   },
   "dependencies": {
-    "@elizaos/core": "workspace:2.0.12-beta.0",
+    "@elizaos/core": "workspace:2.0.5",
     "zod": "^4.6.7"
   },
   "scripts": {

@@ -154,6 +154,15 @@ const CHECKED_IN_SPDX_LICENSE_ASSETS: Readonly<Record<string, string>> = {
 const REVIEWED_SHARED_LICENSE_PACKAGE_PREFIXES = ["@elizaos/"] as const;
 const REVIEWED_ELIZAOS_LICENSE_VERSION = "2.0.3-beta.7";
 
+// These exact published packages come from v2.0.5 (c094a549). GitHub and
+// video omit license text. Slack declares MIT, but its LICENSE is a GitHub
+// 404 response. Use the verified root license from that release instead.
+const REVIEWED_ELIZAOS_STABLE_LICENSE_PACKAGES = new Set([
+  "@elizaos/plugin-github@2.0.5",
+  "@elizaos/plugin-slack@2.0.5",
+  "@elizaos/plugin-video@2.0.5",
+]);
+
 function declaredLicense(value: unknown): string | undefined {
   if (typeof value === "string" && value.trim()) return value.trim();
   if (
@@ -173,6 +182,13 @@ function licenseFile(
   metadataLicense: string | undefined,
   sourceBuild?: PackageLicenseManifest["doolittleSourceBuild"],
 ): { displayName: string; path: string } | undefined {
+  const packageIdentity = packageKey.replace("\u0000", "@");
+  if (REVIEWED_ELIZAOS_STABLE_LICENSE_PACKAGES.has(packageIdentity)) {
+    return {
+      displayName: "LICENSE (verified ElizaOS v2.0.5 source tag)",
+      path: fileURLToPath(new URL("./licenses/eliza-MIT.txt", import.meta.url)),
+    };
+  }
   const localName = readdirSync(directory)
     .filter((name) => /^licen[cs]e(?:\..+)?$/iu.test(name))
     .sort((left, right) => left.localeCompare(right))[0];
@@ -183,13 +199,12 @@ function licenseFile(
   if (
     !metadataLicense &&
     sourceBuild?.repository === "https://github.com/elizaos/eliza" &&
-    sourceBuild.commit === "b2dbeff3ab689a69f7e518deb7d608d1c4607790"
+    sourceBuild.commit === "c094a549fee09f6e06911b8486b9789b536401aa"
   )
     return {
       displayName: "LICENSE (verified upstream source commit)",
       path: fileURLToPath(new URL("./licenses/eliza-MIT.txt", import.meta.url)),
     };
-  const packageIdentity = packageKey.replace("\u0000", "@");
   const checkedInAsset = CHECKED_IN_LICENSE_ASSETS[packageIdentity];
   if (checkedInAsset) {
     return {

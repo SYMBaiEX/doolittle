@@ -29,7 +29,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@elizaos/core": "workspace:2.0.12-beta.0",
+    "@elizaos/core": "workspace:2.0.5",
     "@doolittle/provider-transport": "0.1.0"
   },
   "scripts": {

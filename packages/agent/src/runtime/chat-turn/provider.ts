@@ -1,8 +1,6 @@
 import {
   type ActionResult,
   ChannelType,
-  createSessionEntry,
-  extractSessionContext,
   type Media,
   type MessageMetadata,
   type SessionContext,
@@ -41,29 +39,6 @@ function resolveSdkSessionKey(
   }
 }
 
-function createSdkSessionEntry(input: {
-  turn: TurnState;
-  settingsDuring: ModelSettingsSnapshot;
-}): SessionEntry {
-  return createSessionEntry({
-    sessionId: input.turn.sessionId,
-    label: input.turn.sessionId,
-    displayName: input.turn.sessionId,
-    chatType: "dm",
-    channel: input.turn.connectionSource,
-    origin: {
-      provider: "doolittle",
-      surface: input.turn.localInteractive
-        ? "cli"
-        : input.turn.connectionSource,
-      chatType: "dm",
-    },
-    modelProvider: input.settingsDuring.model.provider,
-    model: input.settingsDuring.model.model,
-    sendPolicy: "allow",
-  });
-}
-
 function attachSdkSessionContext(input: {
   memory: ReturnType<ProviderModelTurnExecutionContext["createMessageMemory"]>;
   turn: TurnState;
@@ -72,21 +47,26 @@ function attachSdkSessionContext(input: {
   userId: string;
   effectiveMessage: string;
 }): void {
-  const sessionEntry = createSdkSessionEntry(input);
   const sessionContext: SessionContext &
     Pick<SessionEntry, "displayName" | "model" | "modelProvider" | "origin"> = {
-    sessionId: sessionEntry.sessionId,
+    sessionId: input.turn.sessionId,
     sessionKey: input.sessionKey,
     isNewSession: false,
-    updatedAt: sessionEntry.updatedAt,
-    label: sessionEntry.label,
-    sendPolicy: sessionEntry.sendPolicy,
-    chatType: sessionEntry.chatType,
-    channel: sessionEntry.channel,
-    displayName: sessionEntry.displayName,
-    model: sessionEntry.model,
-    modelProvider: sessionEntry.modelProvider,
-    origin: sessionEntry.origin,
+    updatedAt: Date.now(),
+    label: input.turn.sessionId,
+    sendPolicy: "allow",
+    chatType: "dm",
+    channel: input.turn.connectionSource,
+    displayName: input.turn.sessionId,
+    model: input.settingsDuring.model.model,
+    modelProvider: input.settingsDuring.model.provider,
+    origin: {
+      provider: "doolittle",
+      surface: input.turn.localInteractive
+        ? "cli"
+        : input.turn.connectionSource,
+      chatType: "dm",
+    },
   };
   const memoryRecord = input.memory as typeof input.memory & {
     sessionId?: string;
@@ -108,8 +88,6 @@ function attachSdkSessionContext(input: {
     },
   };
   input.memory.metadata = metadata;
-
-  extractSessionContext(input.memory);
 }
 
 export function createProviderMessageMemory(

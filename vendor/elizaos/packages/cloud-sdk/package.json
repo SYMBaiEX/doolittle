@@ -1,6 +1,6 @@
 {
   "name": "@elizaos/cloud-sdk",
-  "version": "2.0.12-beta.0",
+  "version": "2.0.5",
   "description": "TypeScript SDK for Eliza Cloud API, auth, and agent management.",
   "license": "MIT",
   "repository": {
@@ -24,12 +24,15 @@
     "native-host/document-image-describer.mjs",
     "native-host/managed-google-read-port.mjs",
     "native-host/mailbox-read-port.mjs",
+    "native-host/mail-fields.mjs",
     "native-host/errors.mjs",
     "native-host/subscription-review.mjs",
     "native-host/plan-change.mjs",
     "native-host/timed-speech.mjs",
     "native-host/clef-decisions.mjs",
-    "native-host/clef-decisions.d.mts"
+    "native-host/clef-decisions.d.mts",
+    "native-host/subscription-grant.mjs",
+    "native-host/subscription-grant.d.mts"
   ],
   "sideEffects": false,
   "exports": {
@@ -197,7 +200,7 @@
   },
   "doolittleSourceBuild": {
     "repository": "https://github.com/elizaos/eliza",
-    "commit": "b2dbeff3ab689a69f7e518deb7d608d1c4607790",
+    "commit": "c094a549fee09f6e06911b8486b9789b536401aa",
     "package": "packages/cloud/sdk",
     "bun": "1.4.2",
     "node": "26.5.0",

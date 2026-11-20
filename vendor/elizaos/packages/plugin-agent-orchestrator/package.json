@@ -1,6 +1,6 @@
 {
   "name": "@elizaos/plugin-agent-orchestrator",
-  "version": "2.0.12-beta.0",
+  "version": "2.0.5",
   "description": "Canonical ElizaOS plugin for spawning and orchestrating coding agents via native Agent Client Protocol transports — combined with workspace lifecycle, GitHub integration, task share, runtime-driven sub-agent routing, and supporting services.",
   "type": "module",
   "main": "dist/node/index.node.js",
@@ -86,14 +86,14 @@
     "node": ">=24"
   },
   "peerDependencies": {
-    "@elizaos/core": "2.0.12-beta.0"
+    "@elizaos/core": "2.0.5"
   },
   "dependencies": {
-    "@elizaos/auth": "2.0.12-beta.0",
-    "@elizaos/host": "2.0.12-beta.0",
-    "@elizaos/plugin-assistant": "2.0.12-beta.0",
-    "@elizaos/plugin-elizacloud": "2.0.12-beta.0",
-    "@elizaos/ui": "2.0.12-beta.0",
+    "@elizaos/auth": "2.0.5",
+    "@elizaos/host": "2.0.5",
+    "@elizaos/plugin-assistant": "2.0.5",
+    "@elizaos/plugin-elizacloud": "2.0.5",
+    "@elizaos/ui": "2.0.5",
     "@octokit/rest": "^22.0.0",
     "@xterm/addon-fit": "^0.10.0",
     "@xterm/xterm": "^5.5.0",
@@ -106,7 +106,7 @@
     "react-dom": "^19.3.1",
     "smol-toml": "^1.8.0",
     "smthrs": "0.35.0",
-    "@elizaos/contracts": "2.0.12-beta.0"
+    "@elizaos/contracts": "2.0.5"
   },
   "publishConfig": {
     "access": "public"
@@ -295,7 +295,7 @@
   },
   "doolittleSourceBuild": {
     "repository": "https://github.com/elizaos/eliza",
-    "commit": "b2dbeff3ab689a69f7e518deb7d608d1c4607790",
+    "commit": "c094a549fee09f6e06911b8486b9789b536401aa",
     "package": "plugins/plugin-agent-orchestrator",
     "bun": "1.4.2",
     "node": "26.5.0",

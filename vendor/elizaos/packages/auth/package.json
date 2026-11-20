@@ -1,6 +1,6 @@
 {
   "name": "@elizaos/auth",
-  "version": "2.0.12-beta.0",
+  "version": "2.0.5",
   "description": "Browser login, identity sessions, Node account authentication and encrypted credential storage for elizaOS.",
   "type": "module",
   "license": "MIT",
@@ -346,13 +346,13 @@
     }
   },
   "dependencies": {
-    "@elizaos/core": "^2.0.12-beta.0",
+    "@elizaos/core": "^2.0.5",
     "@electric-sql/pglite": "^0.4.2",
     "@napi-rs/keyring": "^1.1.6",
     "bs58": "^6.0.0",
     "@simplewebauthn/browser": "^14.0.0",
     "drizzle-orm": "0.45.4",
-    "postgres": "^3.4.7",
+    "postgres": "^4.0.0",
     "@upstash/redis": "^1.34.3",
     "ioredis": "^5.6.1",
     "@noble/curves": "^1.6.0",
@@ -370,8 +370,8 @@
     "@node-saml/node-saml": "5.1.0",
     "@simplewebauthn/server": "^14.0.3",
     "resend": "^6.9.4",
-    "@elizaos/host": "^2.0.12-beta.0",
-    "@elizaos/contracts": "^2.0.12-beta.0",
+    "@elizaos/host": "^2.0.5",
+    "@elizaos/contracts": "^2.0.5",
     "@cloudflare/containers": "^0.3.7"
   },
   "elizaos": {
@@ -387,7 +387,7 @@
   },
   "doolittleSourceBuild": {
     "repository": "https://github.com/elizaos/eliza",
-    "commit": "b2dbeff3ab689a69f7e518deb7d608d1c4607790",
+    "commit": "c094a549fee09f6e06911b8486b9789b536401aa",
     "package": "packages/auth",
     "bun": "1.4.2",
     "node": "26.5.0",

@@ -1,6 +1,6 @@
 {
   "name": "@elizaos/plugin-scheduling",
-  "version": "2.0.12-beta.0",
+  "version": "2.0.5",
   "type": "module",
   "description": "Scheduling spine for elizaOS agents: the storage-agnostic ScheduledTask state machine — trigger evaluation (cron/interval/once/event/after_task/relative_to_anchor/during_window), gate + completion-check + escalation-ladder + anchor + consolidation registries, the due/next-fire-at math, and the runner. Persistence + owner/channel/connector deps are injected by the host (e.g. @elizaos/plugin-personal-assistant). Reminders register a tick-hook via the ports here.",
   "main": "./dist/index.js",
@@ -14,15 +14,15 @@
     }
   },
   "dependencies": {
-    "@elizaos/core": "2.0.12-beta.0",
-    "@elizaos/host": "2.0.12-beta.0",
+    "@elizaos/core": "2.0.5",
+    "@elizaos/host": "2.0.5",
     "drizzle-orm": "0.45.4",
     "zod": "^4.6.5",
-    "@elizaos/contracts": "2.0.12-beta.0"
+    "@elizaos/contracts": "2.0.5"
   },
   "peerDependencies": {
-    "@elizaos/plugin-sql": "2.0.12-beta.0",
-    "@elizaos/ui": "2.0.12-beta.0",
+    "@elizaos/plugin-sql": "2.0.5",
+    "@elizaos/ui": "2.0.5",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
   },
@@ -36,7 +36,7 @@
   ],
   "doolittleSourceBuild": {
     "repository": "https://github.com/elizaos/eliza",
-    "commit": "b2dbeff3ab689a69f7e518deb7d608d1c4607790",
+    "commit": "c094a549fee09f6e06911b8486b9789b536401aa",
     "package": "plugins/plugin-scheduling",
     "bun": "1.4.2",
     "node": "26.5.0",

@@ -1,6 +1,6 @@
 {
   "name": "@elizaos/plugin-native-wifi",
-  "version": "2.0.12-beta.0",
+  "version": "2.0.5",
   "type": "module",
   "description": "Wi-Fi overlay app for the Eliza Android build — scan, inspect, and connect to nearby networks via @elizaos/plugin-native-wifi/bridge.",
   "main": "./dist/index.js",
@@ -33,9 +33,9 @@
     }
   },
   "dependencies": {
-    "@elizaos/capacitor-system": "2.0.12-beta.0",
-    "@elizaos/core": "2.0.12-beta.0",
-    "@elizaos/ui": "2.0.12-beta.0",
+    "@elizaos/capacitor-system": "2.0.5",
+    "@elizaos/core": "2.0.5",
+    "@elizaos/ui": "2.0.5",
     "lucide-react": "^1.0.0",
     "@capacitor/core": "8.4.0"
   },
@@ -72,7 +72,7 @@
   },
   "doolittleSourceBuild": {
     "repository": "https://github.com/elizaos/eliza",
-    "commit": "b2dbeff3ab689a69f7e518deb7d608d1c4607790",
+    "commit": "c094a549fee09f6e06911b8486b9789b536401aa",
     "package": "plugins/plugin-native-wifi",
     "bun": "1.4.2",
     "node": "26.5.0",

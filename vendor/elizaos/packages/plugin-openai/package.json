@@ -1,6 +1,6 @@
 {
   "name": "@elizaos/plugin-openai",
-  "version": "2.0.12-beta.0",
+  "version": "2.0.5",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -23,6 +23,12 @@
       "types": "./dist/direct-media.d.ts",
       "import": "./dist/direct-media.js",
       "default": "./dist/direct-media.js"
+    },
+    "./config": {
+      "eliza-source": "./utils/config.ts",
+      "types": "./dist/config.d.ts",
+      "import": "./dist/config.js",
+      "default": "./dist/config.js"
     }
   },
   "files": [
@@ -55,11 +61,11 @@
     "ai": "^6.0.30",
     "js-tiktoken": "^1.0.21",
     "gpt-tokenizer": "^4.0.0",
-    "@elizaos/host": "2.0.12-beta.0",
-    "@elizaos/contracts": "2.0.12-beta.0"
+    "@elizaos/host": "2.0.5",
+    "@elizaos/contracts": "2.0.5"
   },
   "peerDependencies": {
-    "@elizaos/core": "2.0.12-beta.0",
+    "@elizaos/core": "2.0.5",
     "zod": "^4.6.5"
   },
   "publishConfig": {
@@ -226,7 +232,7 @@
   },
   "doolittleSourceBuild": {
     "repository": "https://github.com/elizaos/eliza",
-    "commit": "b2dbeff3ab689a69f7e518deb7d608d1c4607790",
+    "commit": "c094a549fee09f6e06911b8486b9789b536401aa",
     "package": "plugins/plugin-openai",
     "bun": "1.4.2",
     "node": "26.5.0",

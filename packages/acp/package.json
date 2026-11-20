@@ -8,7 +8,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@agentclientprotocol/sdk": "2.0.2"
+    "@agentclientprotocol/sdk": "2.8.0"
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json"

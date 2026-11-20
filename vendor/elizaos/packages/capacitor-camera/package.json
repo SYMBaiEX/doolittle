@@ -1,6 +1,6 @@
 {
   "name": "@elizaos/capacitor-camera",
-  "version": "2.0.12-beta.0",
+  "version": "2.0.5",
   "description": "Captures photos, records video, and streams camera preview with manual controls.",
   "keywords": [
     "camera",
@@ -66,7 +66,7 @@
   },
   "doolittleSourceBuild": {
     "repository": "https://github.com/elizaos/eliza",
-    "commit": "b2dbeff3ab689a69f7e518deb7d608d1c4607790",
+    "commit": "c094a549fee09f6e06911b8486b9789b536401aa",
     "package": "plugins/plugin-native-camera",
     "bun": "1.4.2",
     "node": "26.5.0",

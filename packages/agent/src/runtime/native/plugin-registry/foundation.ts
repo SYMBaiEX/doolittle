@@ -58,11 +58,14 @@ const MediaGenerationServiceClass =
  */
 export function loadFoundationPlugins(worker = false): Plugin[] {
   return [
-    ...createAssistantPlugins({
-      ...character,
-      advancedMemory: true,
-      advancedPlanning: true,
-    }),
+    ...createAssistantPlugins(
+      {
+        ...character,
+        advancedMemory: true,
+        advancedPlanning: true,
+      },
+      {},
+    ),
     {
       name: "doolittle-eliza-foundation",
       description:

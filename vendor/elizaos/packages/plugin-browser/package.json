@@ -1,6 +1,6 @@
 {
   "name": "@elizaos/plugin-browser",
-  "version": "2.0.12-beta.0",
+  "version": "2.0.5",
   "type": "module",
   "description": "Browser automation through the embedded desktop workspace, JSDOM, and optional Stagehand targets.",
   "main": "./dist/index.js",
@@ -56,14 +56,14 @@
     }
   },
   "dependencies": {
-    "@elizaos/auth": "2.0.12-beta.0",
-    "@elizaos/core": "2.0.12-beta.0",
-    "@elizaos/host": "2.0.12-beta.0",
-    "@elizaos/plugin-assistant": "2.0.12-beta.0",
-    "@elizaos/plugin-elizacloud": "2.0.12-beta.0",
+    "@elizaos/auth": "2.0.5",
+    "@elizaos/core": "2.0.5",
+    "@elizaos/host": "2.0.5",
+    "@elizaos/plugin-assistant": "2.0.5",
+    "@elizaos/plugin-elizacloud": "2.0.5",
     "drizzle-orm": "0.45.4",
     "linkify-it": "5.0.2",
-    "@elizaos/contracts": "2.0.12-beta.0"
+    "@elizaos/contracts": "2.0.5"
   },
   "agentConfig": {
     "pluginType": "elizaos:plugin:1.0.0",
@@ -88,7 +88,7 @@
   ],
   "doolittleSourceBuild": {
     "repository": "https://github.com/elizaos/eliza",
-    "commit": "b2dbeff3ab689a69f7e518deb7d608d1c4607790",
+    "commit": "c094a549fee09f6e06911b8486b9789b536401aa",
     "package": "plugins/plugin-browser",
     "bun": "1.4.2",
     "node": "26.5.0",

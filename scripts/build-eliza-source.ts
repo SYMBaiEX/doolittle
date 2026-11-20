@@ -106,6 +106,8 @@ try {
   for (const file of ["package.json", "nub.lock"])
     cpSync(join(root, "tooling/eliza-source", file), join(tools, file));
   run(nub, ["install", "--frozen-lockfile", "--ignore-scripts"], tools);
+  // Some upstream packages invoke tsc while the pinned tool provides tsc6.
+  symlinkSync(join(tools, "node_modules/.bin/tsc6"), join(bin, "tsc"));
   if (!existsSync(join(cache, ".git"))) {
     run("git", ["init"]);
     run("git", ["remote", "add", "origin", config.repository]);

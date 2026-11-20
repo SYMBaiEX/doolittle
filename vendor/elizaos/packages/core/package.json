@@ -1,6 +1,6 @@
 {
   "name": "@elizaos/core",
-  "version": "2.0.12-beta.0",
+  "version": "2.0.5",
   "description": "Core runtime, plugin abstractions, and AgentRuntime for elizaOS — actions, providers, evaluators, services, models, and types.",
   "homepage": "https://github.com/elizaOS/eliza",
   "repository": {
@@ -91,6 +91,12 @@
       "import": "./dist/speech.js",
       "default": "./dist/speech.js"
     },
+    "./task-events": {
+      "eliza-source": "./src/messaging/task-events.ts",
+      "types": "./dist/messaging/task-events.d.ts",
+      "import": "./dist/messaging/task-events.js",
+      "default": "./dist/messaging/task-events.js"
+    },
     "./task-widgets": {
       "eliza-source": "./src/messaging/task-widgets.ts",
       "types": "./dist/messaging/task-widgets.d.ts",
@@ -138,7 +144,7 @@
   },
   "doolittleSourceBuild": {
     "repository": "https://github.com/elizaos/eliza",
-    "commit": "b2dbeff3ab689a69f7e518deb7d608d1c4607790",
+    "commit": "c094a549fee09f6e06911b8486b9789b536401aa",
     "package": "packages/core",
     "bun": "1.4.2",
     "node": "26.5.0",

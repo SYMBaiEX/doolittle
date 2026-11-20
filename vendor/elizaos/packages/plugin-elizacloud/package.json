@@ -1,6 +1,6 @@
 {
   "name": "@elizaos/plugin-elizacloud",
-  "version": "2.0.12-beta.0",
+  "version": "2.0.5",
   "type": "module",
   "main": "dist/node/index.node.js",
   "module": "dist/node/index.node.js",
@@ -128,12 +128,12 @@
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.9",
-    "@ai-sdk/provider": "4.0.29",
+    "@ai-sdk/provider": "4.0.36",
     "@ai-sdk/provider-utils": "5.0.68",
-    "@elizaos/cloud-sdk": "2.0.12-beta.0",
-    "@elizaos/core": "2.0.12-beta.0",
-    "@elizaos/host": "2.0.12-beta.0",
-    "@elizaos/plugin-assistant": "2.0.12-beta.0",
+    "@elizaos/cloud-sdk": "2.0.5",
+    "@elizaos/core": "2.0.5",
+    "@elizaos/host": "2.0.5",
+    "@elizaos/plugin-assistant": "2.0.5",
     "@noble/curves": "2.2.0",
     "@noble/hashes": "1.8.0",
     "@opentelemetry/api": "1.9.1",
@@ -148,11 +148,11 @@
     "ox": "1.8.1",
     "undici": "8.12.2",
     "viem": "^2.56.9",
-    "ws": "8.21.3",
-    "@elizaos/contracts": "2.0.12-beta.0"
+    "ws": "8.22.1",
+    "@elizaos/contracts": "2.0.5"
   },
   "peerDependencies": {
-    "@elizaos/ui": "2.0.12-beta.0",
+    "@elizaos/ui": "2.0.5",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "zod": "^4.6.5"
@@ -362,7 +362,7 @@
   },
   "doolittleSourceBuild": {
     "repository": "https://github.com/elizaos/eliza",
-    "commit": "b2dbeff3ab689a69f7e518deb7d608d1c4607790",
+    "commit": "c094a549fee09f6e06911b8486b9789b536401aa",
     "package": "plugins/plugin-elizacloud",
     "bun": "1.4.2",
     "node": "26.5.0",

@@ -1,6 +1,6 @@
 {
   "name": "@elizaos/contracts",
-  "version": "2.0.12-beta.0",
+  "version": "2.0.5",
   "description": "Browser-safe shared domain contracts and validation for Eliza hosts, plugins and renderers.",
   "type": "module",
   "license": "MIT",
@@ -118,6 +118,12 @@
       "import": "./dist/phone-dial.js",
       "default": "./dist/phone-dial.js"
     },
+    "./telephony-actions": {
+      "eliza-source": "./src/telephony-actions.ts",
+      "types": "./dist/telephony-actions.d.ts",
+      "import": "./dist/telephony-actions.js",
+      "default": "./dist/telephony-actions.js"
+    },
     "./mms-send": {
       "eliza-source": "./src/mms-send.ts",
       "types": "./dist/mms-send.d.ts",
@@ -129,6 +135,12 @@
       "types": "./dist/native-telephony.d.ts",
       "import": "./dist/native-telephony.js",
       "default": "./dist/native-telephony.js"
+    },
+    "./native-address-book": {
+      "eliza-source": "./src/native-address-book.ts",
+      "types": "./dist/native-address-book.d.ts",
+      "import": "./dist/native-address-book.js",
+      "default": "./dist/native-address-book.js"
     },
     "./native-telephony-session": {
       "eliza-source": "./src/native-telephony-session.ts",
@@ -162,7 +174,7 @@
     }
   },
   "dependencies": {
-    "@elizaos/core": "2.0.12-beta.0",
+    "@elizaos/core": "2.0.5",
     "zod": "^4.6.5"
   },
   "publishConfig": {
@@ -178,7 +190,7 @@
   },
   "doolittleSourceBuild": {
     "repository": "https://github.com/elizaos/eliza",
-    "commit": "b2dbeff3ab689a69f7e518deb7d608d1c4607790",
+    "commit": "c094a549fee09f6e06911b8486b9789b536401aa",
     "package": "packages/contracts",
     "bun": "1.4.2",
     "node": "26.5.0",

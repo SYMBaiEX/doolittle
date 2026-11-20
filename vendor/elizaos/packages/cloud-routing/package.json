@@ -1,6 +1,6 @@
 {
   "name": "@elizaos/cloud-routing",
-  "version": "2.0.12-beta.0",
+  "version": "2.0.5",
   "type": "module",
   "main": "./index.js",
   "module": "./index.js",
@@ -27,7 +27,7 @@
   },
   "doolittleSourceBuild": {
     "repository": "https://github.com/elizaos/eliza",
-    "commit": "b2dbeff3ab689a69f7e518deb7d608d1c4607790",
+    "commit": "c094a549fee09f6e06911b8486b9789b536401aa",
     "package": "packages/cloud/routing",
     "bun": "1.4.2",
     "node": "26.5.0",

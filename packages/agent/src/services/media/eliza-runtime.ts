@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import type { IAgentRuntime, IMediaGenerationService } from "@elizaos/core";
-import { isAudioStreamResult, ModelType, ServiceType } from "@elizaos/core";
+import { ModelType, ServiceType } from "@elizaos/core";
 import { isMediaAbort, raceMediaAbort, throwIfMediaAborted } from "./abort";
 import type { MediaTranscriptionOptions } from "./types";
 
@@ -103,9 +103,6 @@ export async function synthesizeSpeechWithEliza(
   );
   throwIfMediaAborted(options.signal);
 
-  if (isAudioStreamResult(result)) {
-    return result.bytes;
-  }
   if (result instanceof Uint8Array) {
     return result;
   }
