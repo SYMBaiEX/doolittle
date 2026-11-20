@@ -59,3 +59,16 @@ it("replays recent events and wakes only for the requested run", async () => {
       'event: response.completed\ndata: {"response":"hello","event_id":3}\n\n',
   );
 });
+
+it("preserves the next cursor after oversized progress falls out of the journal", () => {
+  const runs = new RunControllerService();
+  runs.appendTaskEvent("mine", "response.created", {});
+  const progress = runs.appendTaskEvent("mine", "agent.progress", {
+    detail: "x".repeat(512 * 1024),
+  });
+  expect(runs.getTaskEvents("mine")).toEqual([]);
+  expect(runs.hasTaskJournal("mine")).toBe(true);
+  const terminal = runs.appendTaskEvent("mine", "response.completed", {}, true);
+  expect(terminal.id).toBe(progress.id + 1);
+  expect(runs.getTaskEvents("mine", progress.id)).toEqual([terminal]);
+});

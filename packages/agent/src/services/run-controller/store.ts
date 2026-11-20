@@ -22,6 +22,12 @@ export interface RunControllerStoreOptions {
   writer?: PersistedRunWriter;
 }
 
+interface TaskRunJournal {
+  events: TaskRunEvent[];
+  bytes: number;
+  lastId: number;
+}
+
 const MAX_DELTA_EVENT_BYTES = 32 * 1024;
 const MAX_JOURNAL_BYTES_PER_RUN = 512 * 1024;
 
@@ -33,7 +39,7 @@ export class RunControllerStore {
   private static readonly DEFAULT_PERSISTENCE_DEBOUNCE_MS = 50;
   private readonly activeRuns = new Map<string, RunSnapshot>();
   private readonly receipts = new Map<string, RunReceiptEnvelope>();
-  private readonly eventJournals = new Map<string, TaskRunEvent[]>();
+  private readonly eventJournals = new Map<string, TaskRunJournal>();
   private readonly roomIndex = new Map<string, string>();
   private readonly filePath?: string;
   private readonly persistenceDebounceMs: number;
@@ -126,20 +132,26 @@ export class RunControllerStore {
     data: unknown,
     terminal = false,
   ): { event: TaskRunEvent; appended: boolean } {
-    const journal = this.eventJournals.get(runId) ?? [];
-    const existingTerminal = journal.find((event) => event.terminal);
+    const journal = this.eventJournals.get(runId) ?? {
+      events: [],
+      bytes: 2,
+      lastId: 0,
+    };
+    const existingTerminal = journal.events.find((event) => event.terminal);
     if (existingTerminal) {
       return { event: cloneTaskEvent(existingTerminal), appended: false };
     }
     const event: TaskRunEvent = {
-      id: (journal.at(-1)?.id ?? 0) + 1,
+      id: journal.lastId + 1,
       runId,
       type,
       data: normalizeEventData(type, data, terminal),
       createdAt: new Date().toISOString(),
       terminal,
     };
-    journal.push(event);
+    journal.bytes += eventBytes(event) + (journal.events.length ? 1 : 0);
+    journal.lastId = event.id;
+    journal.events.push(event);
     this.trimJournal(journal);
     this.eventJournals.set(runId, journal);
     this.persistenceDirty = true;
@@ -152,19 +164,19 @@ export class RunControllerStore {
   }
 
   listEvents(runId: string, after = 0): TaskRunEvent[] {
-    return (this.eventJournals.get(runId) ?? [])
+    return (this.eventJournals.get(runId)?.events ?? [])
       .filter((event) => event.id > after)
       .map(cloneTaskEvent);
   }
 
-  hasEvents(runId: string): boolean {
-    return (this.eventJournals.get(runId)?.length ?? 0) > 0;
+  hasJournal(runId: string): boolean {
+    return this.eventJournals.has(runId);
   }
 
   getTerminalEvent(runId: string): TaskRunEvent | undefined {
     const event = this.eventJournals
       .get(runId)
-      ?.find((entry) => entry.terminal);
+      ?.events.find((entry) => entry.terminal);
     return event ? cloneTaskEvent(event) : undefined;
   }
 
@@ -215,12 +227,16 @@ export class RunControllerStore {
     }
   }
 
-  private trimJournal(journal: TaskRunEvent[]): void {
-    while (journal.length > RunControllerStore.MAX_EVENTS_PER_RUN) {
-      if (!removeOldestReplayableEvent(journal)) break;
-    }
-    while (estimateJournalBytes(journal) > MAX_JOURNAL_BYTES_PER_RUN) {
-      if (!removeOldestReplayableEvent(journal)) break;
+  private trimJournal(journal: TaskRunJournal): void {
+    const { events } = journal;
+    while (
+      events.length > RunControllerStore.MAX_EVENTS_PER_RUN ||
+      journal.bytes > MAX_JOURNAL_BYTES_PER_RUN
+    ) {
+      const oldest = events.findIndex((event) => !event.terminal);
+      if (oldest < 0) return;
+      const [removed] = events.splice(oldest, 1);
+      journal.bytes -= eventBytes(removed) + (events.length ? 1 : 0);
     }
   }
 
@@ -248,7 +264,15 @@ export class RunControllerStore {
           .filter(isTaskRunEvent)
           .slice(-RunControllerStore.MAX_EVENTS_PER_RUN)
           .map(cloneTaskEvent);
-        if (validEvents.length > 0) this.eventJournals.set(runId, validEvents);
+        if (validEvents.length > 0) {
+          const journal = {
+            events: validEvents,
+            bytes: Buffer.byteLength(JSON.stringify(validEvents), "utf8"),
+            lastId: validEvents.at(-1)?.id ?? 0,
+          };
+          this.trimJournal(journal);
+          this.eventJournals.set(runId, journal);
+        }
       }
     }
     for (const receipt of parsed.receipts
@@ -286,7 +310,7 @@ export class RunControllerStore {
         );
       }
     }
-    for (const [runId, events] of this.eventJournals) {
+    for (const [runId, { events }] of this.eventJournals) {
       if (events.some((event) => event.terminal)) continue;
       const created = events.find((event) => event.type === "response.created");
       this.appendEvent(
@@ -319,7 +343,7 @@ export class RunControllerStore {
         structuredClone(receipt),
       ),
       events: Object.fromEntries(
-        Array.from(this.eventJournals, ([runId, events]) => [
+        Array.from(this.eventJournals, ([runId, { events }]) => [
           runId,
           events.map(cloneTaskEvent),
         ]),
@@ -418,15 +442,8 @@ function truncateUtf8(value: string, maxBytes: number): string {
   return value.slice(0, low);
 }
 
-function estimateJournalBytes(journal: TaskRunEvent[]): number {
-  return Buffer.byteLength(JSON.stringify(journal), "utf8");
-}
-
-function removeOldestReplayableEvent(journal: TaskRunEvent[]): boolean {
-  const removableIndex = journal.findIndex((event) => !event.terminal);
-  if (removableIndex === -1) return false;
-  journal.splice(removableIndex, 1);
-  return true;
+function eventBytes(event: TaskRunEvent): number {
+  return Buffer.byteLength(JSON.stringify(event), "utf8");
 }
 
 function cloneTaskEvent(event: TaskRunEvent): TaskRunEvent {

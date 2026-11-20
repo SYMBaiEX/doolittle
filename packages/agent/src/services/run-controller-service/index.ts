@@ -277,8 +277,8 @@ export class RunControllerService {
     return this.store.listEvents(runId, after);
   }
 
-  hasTaskEvents(runId: string): boolean {
-    return this.store.hasEvents(runId);
+  hasTaskJournal(runId: string): boolean {
+    return this.store.hasJournal(runId);
   }
 
   getTerminalTaskEvent(runId: string): TaskRunEvent | undefined {

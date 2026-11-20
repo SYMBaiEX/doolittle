@@ -615,7 +615,7 @@ export function handleChatRunEventsRoute(
   url?: URL,
 ): Response {
   const runs = context.services.runController;
-  if (!runs.hasTaskEvents(runId)) return json({ error: "run not found" }, 404);
+  if (!runs.hasTaskJournal(runId)) return json({ error: "run not found" }, 404);
   const after = resolveAfterCursor(request, url);
   let detached = false;
   let wake: (() => void) | undefined;
@@ -629,7 +629,7 @@ export function handleChatRunEventsRoute(
         while (!detached) {
           const events = runs.getTaskEvents(runId, cursor);
           if (events.length === 0) {
-            if (!runs.hasTaskEvents(runId) || runs.getTerminalTaskEvent(runId))
+            if (!runs.hasTaskJournal(runId) || runs.getTerminalTaskEvent(runId))
               return;
             await new Promise<void>((resolve) => {
               wake = resolve;
