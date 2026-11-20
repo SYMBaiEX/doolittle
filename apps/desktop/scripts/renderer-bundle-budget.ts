@@ -96,12 +96,6 @@ export const RENDERER_BUNDLE_BUDGETS: readonly BundleBudget[] = [
     maxBytes: 20_000,
     required: true,
   },
-  {
-    label: "lazy mobile conversations",
-    pattern: /^MobileConversationsDialog-[^.]+\.js$/u,
-    maxBytes: 8_000,
-    required: true,
-  },
 ];
 
 export function rendererBundleBudgetFailures(

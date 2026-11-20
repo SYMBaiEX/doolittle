@@ -428,14 +428,10 @@ export const MOBILE_SIDEBAR_QUERY = "(max-width: 940px)";
 export const PROJECT_SCOPE_KEY = "doolittle.desktop.project-scope.v1";
 export const PROJECT_SWITCH_DEBOUNCE_MS = 120;
 
-export const PRIMARY_NAV_ITEMS: Array<{
-  id: "chat" | "code";
-  label: string;
-  description: string;
-}> = [
-  { id: "chat", label: "Chat", description: "Conversations" },
-  { id: "code", label: "Code", description: "Workspace" },
-];
+export function desktopWorkspaceArea(view: View) {
+  if (view === "automations") return view;
+  return primaryViewForView(view);
+}
 
 export function loadProjectScope(
   storage: Pick<Storage, "getItem"> = localStorage,

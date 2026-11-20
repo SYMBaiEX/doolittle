@@ -1,13 +1,15 @@
 import type { BotSummary } from "@doolittle/contracts/bots";
 import { ContactRow, ContextActionMenu, StateSurface } from "@doolittle/ui";
 import {
+  CalendarClock,
+  Files,
+  ListTodo,
   MoreHorizontal,
   PanelLeftClose,
   PanelLeftOpen,
-  Plug,
   Plus,
   Search,
-  Users,
+  Settings,
   X,
 } from "lucide-react";
 import type { KeyboardEvent as ReactKeyboardEvent, RefObject } from "react";
@@ -18,7 +20,7 @@ import type {
 import { PanelResizeHandle } from "../components/PanelResizeHandle";
 import { UiIcon } from "../components/UiIcon";
 import { copyContextText } from "../context-menu-clipboard";
-import type { View } from "../desktop-navigation";
+import { desktopWorkspaceArea, type View } from "../desktop-navigation";
 import { APP_SIDEBAR_WIDTH } from "../panel-layout";
 import type { ProjectScope } from "../project-manager/models";
 import {
@@ -45,7 +47,6 @@ export interface DesktopSidebarProps {
   isMobileSidebarMode: boolean;
   mobileSidebarOpen: boolean;
   navCollapsed: boolean;
-  sidebarOpen: boolean;
   sidebarWidth: number;
   selectedBotId: string;
   defaultBotId: string;
@@ -113,6 +114,7 @@ export function DesktopSidebar({
   onSetView,
   navigationView,
 }: DesktopSidebarProps) {
+  const area = desktopWorkspaceArea(navigationView);
   const compact = navCollapsed && !isMobileSidebarMode;
   const botSessions = [...sessions]
     .filter((session) => (session.botId ?? defaultBotId) === selectedBotId)
@@ -432,18 +434,20 @@ export function DesktopSidebar({
           )}
         </nav>
         <nav
-          aria-label="Other areas"
+          aria-label="Workspace navigation"
           className="grid shrink-0 gap-1 border-t border-[var(--border)] px-1 py-2 [-webkit-app-region:no-drag]"
         >
           {(
             [
-              ["orchestration", "Team & work", Users],
-              ["connections", "Connections", Plug],
+              ["code", "Workspace", Files],
+              ["orchestration", "Work", ListTodo],
+              ["automations", "Automations", CalendarClock],
+              ["settings", "Settings", Settings],
             ] as const
           ).map(([target, label, icon]) => (
             <button
-              aria-current={navigationView === target ? "page" : undefined}
-              className={`flex min-h-10 items-center gap-2 rounded-[var(--radius-md)] px-2 text-left text-sm text-[var(--text-soft)] hover:bg-[var(--surface-hover)] aria-current:font-semibold aria-current:text-[var(--text)] max-[760px]:min-h-11 ${compact ? "justify-center" : ""}`}
+              aria-current={area === target ? "page" : undefined}
+              className={`flex min-h-10 items-center gap-2 rounded-[var(--radius-md)] px-2 text-left text-sm text-[var(--text-soft)] hover:bg-[var(--surface-hover)] aria-current:bg-[var(--surface-hover)] aria-current:font-semibold aria-current:text-[var(--text)] max-[760px]:min-h-11 ${compact ? "justify-center" : ""}`}
               key={target}
               onClick={() => onSetView(target)}
               type="button"

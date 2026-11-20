@@ -754,14 +754,14 @@ export function CodingWorkspacePage({
               onClick={() => void onChooseWorkspace()}
               type="button"
             >
-              Choose workspace
+              Choose a project folder
             </button>
           }
           density="compact"
-          title="Choose a workspace"
+          title="Start a project conversation"
         >
-          Select a local project before Doolittle reads files or opens a
-          workspace terminal.
+          Choose a folder and confirm access for this bot. Doolittle opens a
+          conversation with that project’s files and tools.
         </EmptyBlock>
       </div>
     );
@@ -791,7 +791,8 @@ export function CodingWorkspacePage({
         />
       ) : null}
       <div
-        aria-label="Code workspace"
+        aria-label={zenMode ? "Code workspace" : undefined}
+        aria-labelledby={zenMode ? undefined : "code-surface-workspace-tab"}
         aria-hidden={surface !== "workspace"}
         hidden={surface !== "workspace"}
         id="coding-workspace-surface"
@@ -900,7 +901,9 @@ export function CodingWorkspacePage({
         ) : null}
       </div>
       <div
-        aria-label="Local preview"
+        aria-label={zenMode ? "Local preview" : undefined}
+        aria-labelledby={zenMode ? undefined : "code-surface-preview-tab"}
+        id="coding-preview-surface"
         aria-hidden={surface !== "preview"}
         className="flex min-h-0 min-w-0 flex-1"
         hidden={surface !== "preview"}

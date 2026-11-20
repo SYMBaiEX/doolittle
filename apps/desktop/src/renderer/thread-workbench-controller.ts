@@ -28,12 +28,9 @@ import {
   buildBriefPlanSummary,
   loadThreadWorkbenchState,
   saveThreadWorkbenchState,
-  selectThreadWorkbenchTab,
-  type ThreadWorkbenchGroup,
   type ThreadWorkbenchState,
   type ThreadWorkbenchTab,
   threadWorkbenchStorageKey,
-  threadWorkbenchTabForGroup,
 } from "./thread-workbench";
 import type { WorkspaceTreeEntry } from "./workspace-file-tree";
 
@@ -241,14 +238,14 @@ export function workbenchResourceDependencies(
 
 export function useThreadWorkbenchRailController({
   active,
-  group = "all",
+  selectedTab,
   botId,
   sessionId,
   workspacePath,
   onInsertContext,
 }: {
   active: boolean;
-  group?: ThreadWorkbenchGroup;
+  selectedTab: ThreadWorkbenchTab;
   botId?: string;
   sessionId: string;
   workspacePath: string;
@@ -272,7 +269,7 @@ export function useThreadWorkbenchRailController({
   if (!ownsModel) setStoredModel(hydrated);
   const model = {
     ...ownedModel,
-    selectedTab: threadWorkbenchTabForGroup(ownedModel, group),
+    selectedTab,
   };
   const setModel = useCallback(
     (update: SetStateAction<ThreadWorkbenchState>) => {
@@ -509,8 +506,6 @@ export function useThreadWorkbenchRailController({
     const timeout = window.setTimeout(() => setCopiedLabel(""), 1_800);
     return () => window.clearTimeout(timeout);
   }, [copiedLabel]);
-  const selectTab = (tab: ThreadWorkbenchTab) =>
-    setModel((current) => selectThreadWorkbenchTab(current, group, tab));
   const insert = (label: string, value: string) => {
     onInsertContext(value);
     setCopiedLabel(label);
@@ -609,7 +604,6 @@ export function useThreadWorkbenchRailController({
   return {
     acpEditor,
     model,
-    setModel,
     selectedFile,
     setSelectedFile,
     selectedChange,
@@ -650,10 +644,9 @@ export function useThreadWorkbenchRailController({
     currentFileLanguage,
     currentChange,
     currentCommand,
+    repositorySummary,
     file,
     patch,
-    repositorySummary,
-    selectTab,
     insert,
     refreshGit,
     refreshCurrent,

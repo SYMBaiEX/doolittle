@@ -4,15 +4,26 @@ import { X } from "lucide-react";
 import { lazy, Suspense, useId } from "react";
 import { BotActions } from "../bots/BotActions";
 import { PanelResizeHandle } from "../components/PanelResizeHandle";
-import type { ThreadWorkbenchFullView } from "../components/ThreadWorkbenchRail";
+import { PanelTabs } from "../components/PanelTabs";
+import {
+  THREAD_WORKBENCH_TABS,
+  type ThreadWorkbenchTab,
+} from "../thread-workbench";
+import {
+  TAB_LABELS,
+  type ThreadWorkbenchFullView,
+} from "../thread-workbench/models";
 
 const ThreadWorkbenchRail = lazy(async () => {
   const module = await import("../components/ThreadWorkbenchRail");
   return { default: module.ThreadWorkbenchRail };
 });
 
-export type InspectorTab = "details" | "library" | "computer";
-const views: readonly InspectorTab[] = ["details", "library", "computer"];
+export type InspectorTab = "details" | ThreadWorkbenchTab;
+const views = [
+  { id: "details" as const, label: "Details" },
+  ...THREAD_WORKBENCH_TABS.map((id) => ({ id, label: TAB_LABELS[id] })),
+];
 
 export interface CompanionInspectorProps {
   active: boolean;
@@ -77,7 +88,7 @@ export function CompanionInspector({
         />
       ) : null}
       <header className="flex min-h-12 items-center justify-between border-b border-[var(--border)] px-3">
-        <strong className="text-sm font-semibold">Inspector</strong>
+        <strong className="text-sm font-semibold">Conversation context</strong>
         <button
           aria-label="Close inspector"
           className="grid size-10 place-items-center rounded-[var(--radius-md)] hover:bg-[var(--surface-hover)] max-[760px]:size-11"
@@ -87,35 +98,20 @@ export function CompanionInspector({
           <X aria-hidden size={16} />
         </button>
       </header>
-      <div className="flex items-center gap-2 border-b border-[var(--border)] px-3 py-1">
-        <label
-          className="text-[length:var(--text-meta)] text-[var(--muted)]"
-          htmlFor={`${id}-view`}
-        >
-          View
-        </label>
-        <select
-          className="dl-field min-h-10 min-w-0 flex-1 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] px-2 text-[length:var(--text-control)] text-[var(--text)] max-[760px]:min-h-11"
-          id={`${id}-view`}
-          onChange={(event) => {
-            const next = event.currentTarget.value;
-            if (views.includes(next as InspectorTab))
-              onTabChange(next as InspectorTab);
-          }}
-          value={tab}
-        >
-          {views.map((view) => (
-            <option key={view} value={view}>
-              {view[0]?.toUpperCase()}
-              {view.slice(1)}
-            </option>
-          ))}
-        </select>
+      <div className="shrink-0 border-b border-[var(--border)]">
+        <PanelTabs
+          id={id}
+          label="Conversation context views"
+          items={views}
+          selected={tab}
+          onSelect={onTabChange}
+        />
       </div>
       <section
-        aria-label={`${tab[0]?.toUpperCase()}${tab.slice(1)}`}
+        aria-labelledby={`${id}-${tab}-tab`}
         className="min-h-0 flex-1 overflow-y-auto"
-        id={`${id}-${tab}`}
+        id={`${id}-panel`}
+        role="tabpanel"
         // biome-ignore lint/a11y/noNoninteractiveTabindex: Details needs a reading focus target when it contains no interactive controls.
         tabIndex={0}
       >
@@ -163,11 +159,9 @@ export function CompanionInspector({
             <ThreadWorkbenchRail
               botId={bot?.id}
               active={active}
-              group={tab}
-              minimal
+              tab={tab}
               onInsertContext={onInsertContext}
               onOpenFullView={onOpenFullView}
-              onRequestClose={onClose}
               sessionId={sessionId}
               workspacePath={workspacePath}
             />

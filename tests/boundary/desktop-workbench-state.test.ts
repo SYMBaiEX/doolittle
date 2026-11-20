@@ -1,18 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   buildBriefPlanSummary,
-  clampThreadWorkbenchWidth,
   createThreadWorkbenchState,
   loadThreadWorkbenchState,
   parseThreadWorkbenchState,
   saveThreadWorkbenchState,
-  selectThreadWorkbenchTab,
-  THREAD_WORKBENCH_DEFAULT_WIDTH,
-  THREAD_WORKBENCH_MAX_WIDTH,
-  THREAD_WORKBENCH_MIN_WIDTH,
   type ThreadWorkbenchStorage,
   threadWorkbenchStorageKey,
-  threadWorkbenchTabForGroup,
   workspaceNameFromPath,
 } from "../../apps/desktop/src/renderer/thread-workbench";
 
@@ -46,50 +40,10 @@ describe("thread workbench state", () => {
       branch: "",
       head: "",
       lifecycle: "idle",
-      selectedTab: "files",
-      groupTabs: { all: "files", library: "files", computer: "terminal" },
       selectedFile: "",
       selectedChange: "",
       selectedCommand: "",
-      railWidth: THREAD_WORKBENCH_DEFAULT_WIDTH,
     });
-  });
-
-  it("persists independent rail preferences for each session", () => {
-    const storage = memoryStorage();
-    const first = createThreadWorkbenchState({
-      sessionId: "first",
-      workspacePath: "/work/alpha",
-    });
-    saveThreadWorkbenchState(
-      {
-        ...first,
-        selectedTab: "terminal",
-        groupTabs: { ...first.groupTabs, all: "terminal" },
-        railWidth: 444,
-      },
-      storage,
-    );
-
-    expect(
-      loadThreadWorkbenchState(
-        { sessionId: "first", workspacePath: "/work/alpha" },
-        storage,
-      ),
-    ).toMatchObject({
-      selectedTab: "terminal",
-      railWidth: 444,
-    });
-    expect(
-      loadThreadWorkbenchState(
-        { sessionId: "second", workspacePath: "/work/beta" },
-        storage,
-      ),
-    ).toMatchObject({
-      selectedTab: "files",
-      railWidth: THREAD_WORKBENCH_DEFAULT_WIDTH,
-    });
-    expect(storage.values.has(threadWorkbenchStorageKey(first))).toBe(true);
   });
 
   it("sanitizes corrupted persisted values and keeps current identity", () => {
@@ -105,11 +59,8 @@ describe("thread workbench state", () => {
         workspacePath: "/current/workspace",
         workspaceName: "stale-workspace",
         environment: "cloud",
-        selectedTab: "unknown",
         lifecycle: "destroyed",
-        railWidth: 9_999,
         selectedFile: 123,
-        groupTabs: { library: "terminal", computer: "files", all: "unknown" },
       },
       fallback,
     );
@@ -119,36 +70,26 @@ describe("thread workbench state", () => {
       workspacePath: "/current/workspace",
       workspaceName: "workspace",
       environment: "local-v1",
-      selectedTab: "files",
       lifecycle: "active",
-      railWidth: THREAD_WORKBENCH_MAX_WIDTH,
       selectedFile: "",
-      groupTabs: { all: "files", library: "files", computer: "terminal" },
     });
   });
 
-  it("remembers Library and Computer independently across saving and remounting", () => {
+  it("keeps file, change and command selections across inspector remounts", () => {
     const storage = memoryStorage();
     const identity = {
       botId: "bot-a",
       sessionId: "session",
       workspacePath: "/a",
     };
-    let state = createThreadWorkbenchState(identity);
-    state = selectThreadWorkbenchTab(state, "library", "changes");
-    state = selectThreadWorkbenchTab(state, "computer", "preview");
-    state = {
-      ...state,
+    const state = {
+      ...createThreadWorkbenchState(identity),
       selectedFile: "src/a.ts",
       selectedChange: "src/b.ts",
       selectedCommand: "command-1",
     };
-    expect(threadWorkbenchTabForGroup(state, "library")).toBe("changes");
-    expect(threadWorkbenchTabForGroup(state, "computer")).toBe("preview");
-    expect(selectThreadWorkbenchTab(state, "library", "terminal")).toBe(state);
     saveThreadWorkbenchState(state, storage);
     expect(loadThreadWorkbenchState(identity, storage)).toMatchObject({
-      groupTabs: { library: "changes", computer: "preview" },
       selectedFile: "src/a.ts",
       selectedChange: "src/b.ts",
       selectedCommand: "command-1",
@@ -230,15 +171,6 @@ describe("thread workbench state", () => {
     expect(saved.branch).toBeUndefined();
     expect(saved.head).toBeUndefined();
     expect(saved.worktreePath).toBeUndefined();
-  });
-
-  it("clamps rail width to usable compact bounds", () => {
-    expect(clampThreadWorkbenchWidth(100)).toBe(THREAD_WORKBENCH_MIN_WIDTH);
-    expect(clampThreadWorkbenchWidth(401.6)).toBe(402);
-    expect(clampThreadWorkbenchWidth(Number.NaN)).toBe(
-      THREAD_WORKBENCH_DEFAULT_WIDTH,
-    );
-    expect(clampThreadWorkbenchWidth(900)).toBe(THREAD_WORKBENCH_MAX_WIDTH);
   });
 
   it("builds a brief plan summary from active and draft plans", () => {
@@ -330,6 +262,6 @@ describe("thread workbench state", () => {
     );
 
     expect(state.workspaceName).toBe("broken");
-    expect(state.selectedTab).toBe("files");
+    expect(state.selectedFile).toBe("");
   });
 });

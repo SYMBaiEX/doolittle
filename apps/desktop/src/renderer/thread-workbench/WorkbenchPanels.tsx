@@ -1,5 +1,5 @@
 import { Globe2 } from "lucide-react";
-import { type ReactNode, useId } from "react";
+import type { ReactNode } from "react";
 import { UiIcon } from "../components/UiIcon";
 import {
   asArray,
@@ -55,7 +55,6 @@ export interface WorkbenchPanelsProps {
   botId?: string;
   sessionId?: string;
   controller: WorkbenchController;
-  idPrefix?: string;
   workspacePath: string;
   onOpenFullView: (view: ThreadWorkbenchFullView) => void;
 }
@@ -547,16 +546,10 @@ export function WorkbenchPanels({
   botId,
   sessionId,
   controller,
-  idPrefix,
   workspacePath,
   onOpenFullView,
 }: WorkbenchPanelsProps) {
-  const instanceId = useId();
-  const panelPrefix =
-    idPrefix ?? `thread-workbench-${instanceId.replace(/:/g, "")}`;
   const { model } = controller;
-  const panelId = `${panelPrefix}-${model.selectedTab}-panel`;
-  const tabId = `${panelPrefix}-${model.selectedTab}-tab`;
   const previewRecord = asRecord(controller.preview.data?.browser);
   const previewMode =
     asString(previewRecord.mode) ||
@@ -575,13 +568,7 @@ export function WorkbenchPanels({
   });
 
   return (
-    <section
-      aria-labelledby={tabId}
-      className={WORKBENCH_PANEL_CLASS}
-      data-thread-workbench="panel"
-      id={panelId}
-      role="tabpanel"
-    >
+    <section className={WORKBENCH_PANEL_CLASS} data-thread-workbench="panel">
       <div className={WORKBENCH_PANEL_HEADING_CLASS}>
         <div>
           <span className={WORKBENCH_PANEL_TITLE_CLASS}>
@@ -589,15 +576,24 @@ export function WorkbenchPanels({
           </span>
           <small>{panelMeta}</small>
         </div>
-        {selectedFullView ? (
+        <div>
           <button
             className={WORKBENCH_TEXT_BUTTON_CLASS}
-            onClick={() => onOpenFullView(selectedFullView)}
             type="button"
+            onClick={controller.refreshCurrent}
           >
-            Open full view
+            Refresh
           </button>
-        ) : null}
+          {selectedFullView ? (
+            <button
+              className={WORKBENCH_TEXT_BUTTON_CLASS}
+              onClick={() => onOpenFullView(selectedFullView)}
+              type="button"
+            >
+              Open full view
+            </button>
+          ) : null}
+        </div>
       </div>
 
       {model.selectedTab === "files" ? (

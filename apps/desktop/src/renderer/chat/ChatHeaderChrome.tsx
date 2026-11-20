@@ -3,36 +3,22 @@ import { MoreHorizontal, PanelRight, Settings } from "lucide-react";
 import type { RefObject } from "react";
 import type { ChatSurface } from "../ChatPage";
 import { UiIcon } from "../components/UiIcon";
-import type { ContextPressureTone } from "../context-pressure";
 import type { ChatSessionForRender } from "./useChatConversationState";
 
 export interface ChatHeaderChromeProps {
   selectedId?: string;
   inspectorVisible: boolean;
   isNewConversation: boolean;
-  mobileConversationsButtonRef: RefObject<HTMLButtonElement | null>;
-  mobileConversationsOpen: boolean;
-  modelRouteLabel: string;
-  onOpenMobileConversations: () => void;
-  onOpenRouteControls: () => void;
   onOpenWorkspace: () => void;
   onOpenSettings?: () => void;
-  onPrepareCompression: () => void;
   onSurfaceChange?: (surface: ChatSurface) => void;
   onToggleInspector: () => void;
-  onOpenInspectorTab?: (tab: "details" | "library" | "computer") => void;
   onTogglePin: () => void;
-  selectedContextLabel: string;
-  selectedContextPercent: number;
-  selectedContextTone: ContextPressureTone;
-  selectedMessageCount: number;
   selectedSession?: ChatSessionForRender;
   selectedUpdatedAt?: string;
   selectedUsageError?: string;
-  sessionsCount: number;
   surface: ChatSurface;
   workbenchToggleRef: RefObject<HTMLButtonElement | null>;
-  workspacePath: string;
 }
 
 /** The app supplies identity and title; this portal supplies only conversation actions. */

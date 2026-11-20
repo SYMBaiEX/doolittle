@@ -38,9 +38,6 @@ export const CODING_REPO_HEADER_CLASS =
 export const CODING_REPO_IDENTITY_CLASS =
   "coding-repo-identity flex min-w-0 flex-[1_1_18rem] items-center gap-2.25 [&_.eyebrow]:hidden [&>div:last-child]:min-w-0 [&>div:last-child]:flex-1";
 
-export const CODING_REPO_MARK_CLASS =
-  "coding-repo-mark grid size-6.75 shrink-0 place-items-center rounded-[4px] border border-[var(--accent)] bg-[var(--accent)] font-[var(--font-mono)] text-[length:var(--text-meta)] font-black text-[var(--accent-ink)]";
-
 export const CODING_REPO_TITLE_CLASS =
   "coding-repo-title flex min-w-0 flex-wrap items-center gap-1.75 [&_h1]:m-0 [&_h1]:min-w-0 [&_h1]:max-w-full [&_h1]:truncate [&_h1]:font-[var(--font-display)] [&_h1]:text-sm [&_h1]:font-[680] [&_h1]:tracking-[-0.02em] [&_code]:min-w-0 [&_code]:max-w-full [&_code]:truncate [&_code]:rounded-[3px] [&_code]:bg-[var(--surface-soft)] [&_code]:px-1.25 [&_code]:py-0.5 [&_code]:text-[length:var(--text-meta)] [&_code]:text-[var(--muted)] [&_.badge]:shrink-0";
 
@@ -49,9 +46,6 @@ export const CODING_REPO_PATH_CLASS =
 
 export const CODING_REPO_STATE_CLASS =
   "coding-repo-state flex min-w-0 max-w-full flex-[0_1_auto] flex-wrap items-center justify-end gap-2.75 [&>span]:flex [&>span]:flex-col [&>span]:gap-0.5 [&>span]:font-[var(--font-mono)] [&>span]:text-[length:var(--text-meta)] [&>span]:tracking-[0.03em] [&>span]:text-[var(--muted)] [&>span]:uppercase";
-
-export const CODING_REPO_STATE_VALUE_CLASS =
-  "coding-repo-state-value inline-flex items-center justify-end gap-0.5 text-[length:var(--text-meta)] text-[var(--text-soft)]";
 
 export const CODING_LAYOUT_CONTROLS_CLASS =
   "coding-layout-controls flex flex-wrap gap-1";

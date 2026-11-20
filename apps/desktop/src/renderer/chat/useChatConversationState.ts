@@ -5,7 +5,6 @@ import {
   useEffect,
   useMemo,
   useRef,
-  useState,
 } from "react";
 import type {
   ManagedAttachmentDescriptor,
@@ -559,7 +558,6 @@ export function useChatConversationState({
     "conversation.pins",
     () => loadConversationPins(localStorage),
   );
-  const [sessionSearch, setSessionSearch] = useState("");
   const [historyErrors, setHistoryErrors] = useWorkspaceState<
     Record<string, string>
   >("conversation.history-errors", {});
@@ -1181,7 +1179,7 @@ export function useChatConversationState({
     ],
   );
 
-  const allSessions = useMemo(
+  const sessions = useMemo(
     () =>
       projectChatSessions({
         messages,
@@ -1191,19 +1189,6 @@ export function useChatConversationState({
       }),
     [messages, pinnedSessions, remoteSessions],
   );
-  const sessions = useMemo(
-    () =>
-      sessionSearch
-        ? projectChatSessions({
-            messages,
-            pinnedSessions,
-            query: sessionSearch,
-            remoteSessions,
-          })
-        : allSessions,
-    [allSessions, messages, pinnedSessions, remoteSessions, sessionSearch],
-  );
-
   return {
     chatContextCapsule,
     clearDraftForDispatch,
@@ -1220,18 +1205,15 @@ export function useChatConversationState({
     retryHistory,
     restoreDraftAfterRejectedDispatch,
     selectedMessages: messages[selectedId] ?? [],
-    selectedSession: allSessions.find(
+    selectedSession: sessions.find(
       (session) => session.sessionId === selectedId,
     ),
-    sessionsCount: allSessions.length,
-    sessionSearch,
     sessions,
     setDraft,
     setDraftAttachments,
     setChatContextCapsule,
     setDraftForSession,
     setMessages,
-    setSessionSearch,
     togglePin,
   };
 }

@@ -7,7 +7,6 @@ import { useMediaQuery } from "@doolittle/ui/environment";
 import {
   type FormEvent,
   lazy,
-  type RefObject,
   Suspense,
   useCallback,
   useEffect,
@@ -53,12 +52,7 @@ import {
   observeInspectorGeometry,
   saveInspectorWidth,
 } from "./chat/inspector-layout";
-import {
-  CHAT_WORKSPACE_CLASS,
-  MOBILE_CONVERSATIONS_BACKDROP_CLASS,
-  MOBILE_CONVERSATIONS_DIALOG_CLASS,
-  MOBILE_CONVERSATIONS_DISMISS_CLASS,
-} from "./chat/layout";
+import { CHAT_WORKSPACE_CLASS } from "./chat/layout";
 import {
   type BranchMode,
   type DisplayMessage,
@@ -95,7 +89,6 @@ import type {
 import { composeChatContextMessage } from "./chat-context-handoff";
 import { visibleAssistantText } from "./components/message-output";
 import { RouteControlDialog } from "./components/RouteControlDialog";
-import type { ThreadWorkbenchFullView } from "./components/ThreadWorkbenchRail";
 import { useModalFocusBoundary } from "./components/useModalFocusBoundary";
 import { newConversationId } from "./conversation-id";
 import {
@@ -123,6 +116,7 @@ import {
 import type { ChatPanelViewState } from "./session-workspace/panel-view-state";
 import { SessionWorkspace } from "./session-workspace/SessionWorkspace";
 import { sessionWorkspaceBinding } from "./session-workspace/session-workspace-binding";
+import type { ThreadWorkbenchFullView } from "./thread-workbench/models";
 import { workspacePathsEqual } from "./workspace-path";
 
 const RUN_CURSOR_STORAGE_KEY = "doolittle.desktop.chat-run-cursors.v1";
@@ -207,60 +201,6 @@ const SessionsPage = lazy(async () => {
   const module = await import("./sessions/SessionsPage");
   return { default: module.SessionsPage };
 });
-const MobileConversationsDialog = lazy(async () => {
-  const module = await import("./chat/MobileConversationsDialog");
-  return { default: module.MobileConversationsDialog };
-});
-
-function MobileConversationsDialogFallback({
-  selectedId,
-  backdropRef,
-  dialogRef,
-  onClose,
-}: {
-  selectedId: string;
-  backdropRef: RefObject<HTMLDivElement | null>;
-  dialogRef: RefObject<HTMLDivElement | null>;
-  onClose: () => void;
-}) {
-  return (
-    <div className={MOBILE_CONVERSATIONS_BACKDROP_CLASS} ref={backdropRef}>
-      <button
-        aria-label="Close conversations"
-        className={MOBILE_CONVERSATIONS_DISMISS_CLASS}
-        onClick={onClose}
-        type="button"
-      />
-      <div
-        aria-label="Conversations"
-        aria-modal="true"
-        className={MOBILE_CONVERSATIONS_DIALOG_CLASS}
-        id={`mobile-conversations-${selectedId}`}
-        ref={dialogRef}
-        role="dialog"
-        tabIndex={-1}
-      >
-        <div
-          aria-live="polite"
-          className="grid min-h-32 place-items-center gap-2 text-[var(--muted)]"
-          role="status"
-        >
-          <button
-            aria-label="Close conversations"
-            className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-soft)] px-2.5 py-1.5 text-[var(--text-soft)]"
-            data-mobile-conversation
-            onClick={onClose}
-            type="button"
-          >
-            Close
-          </button>
-          Loading conversations…
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function eventText(data: unknown): string {
   if (!data || typeof data !== "object") return "";
   const record = data as Record<string, unknown>;
@@ -325,7 +265,6 @@ export interface ChatPageProps {
     primaryPath?: string | null;
   } | null;
   projects?: readonly ProjectLike[];
-  projectLabels?: Readonly<Record<string, string>>;
   onChooseRepository?: (sessionId?: string) => void | Promise<void>;
   onOpenProjectManager?: () => void;
   onSelectProjectForNewChat?: (
@@ -369,7 +308,6 @@ export function ChatSessionPanel({
   onConsumeContextHandoff,
   activeProject,
   projects,
-  projectLabels,
   onChooseRepository,
   onOpenProjectManager,
   onSelectProjectForNewChat,
@@ -522,8 +460,6 @@ export function ChatSessionPanel({
     loadingHistory,
     selectedMessages,
     selectedSession,
-    sessionSearch,
-    sessionsCount,
     storageWarning,
     sessions,
     setDraft,
@@ -533,7 +469,6 @@ export function ChatSessionPanel({
     setMessages,
     retryHistory,
     restoreDraftAfterRejectedDispatch,
-    setSessionSearch,
     togglePin,
   } = useChatConversationState({
     activeRequest,
@@ -611,7 +546,7 @@ export function ChatSessionPanel({
     let disposed = false;
     const applySurface = (request: {
       target: { botId: string; sessionId: string };
-      surface: InspectorTab;
+      surface: "details" | "library" | "computer";
     }) => {
       if (
         disposed ||
@@ -619,7 +554,13 @@ export function ChatSessionPanel({
         request.target.botId !== currentBotId
       )
         return;
-      setInspectorTab(request.surface);
+      setInspectorTab(
+        request.surface === "library"
+          ? "files"
+          : request.surface === "computer"
+            ? "terminal"
+            : "details",
+      );
       setInspectorVisible(true);
     };
     const detach = window.doolittle.ui.onSurface(applySurface);
@@ -784,7 +725,6 @@ export function ChatSessionPanel({
   const [unreadMessageIdsBySession, setUnreadMessageIdsBySession] = useState<
     Record<string, string[]>
   >(() => (savedView ? { [selectedId]: savedView.unreadMessageIds } : {}));
-  const [mobileConversationsOpen, setMobileConversationsOpen] = useState(false);
   const [commandSelection, setCommandSelection] = useState(0);
   const [commandMenuDismissed, setCommandMenuDismissed] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
@@ -807,8 +747,6 @@ export function ChatSessionPanel({
     routeActive &&
     surface === "conversation" &&
     !(inspectorVisible && isNarrowWorkbench);
-  const mobileConversationsButtonRef = useRef<HTMLButtonElement>(null);
-  const mobileConversationsBackdropRef = useRef<HTMLDivElement>(null);
   const workbenchToggleRef = useRef<HTMLButtonElement>(null);
   const closeInspector = useCallback(() => {
     setInspectorVisible(false);
@@ -816,15 +754,6 @@ export function ChatSessionPanel({
       workbenchToggleRef.current?.focus({ preventScroll: true }),
     );
   }, []);
-  const mobileConversationsDialogRef = useModalFocusBoundary({
-    active: mobileConversationsOpen && visible && focused && !coordinator,
-    initialFocusSelector: "[data-mobile-conversations-search]",
-    isolationBoundaryRef: mobileConversationsBackdropRef,
-    isolateBackground: true,
-    onClose: () => setMobileConversationsOpen(false),
-    restoreFocus: true,
-    restoreFocusRef: mobileConversationsButtonRef,
-  });
   const workbenchDialogRef = useModalFocusBoundary({
     active:
       inspectorVisible &&
@@ -1054,10 +983,6 @@ export function ChatSessionPanel({
     setChatContextCapsule,
   ]);
 
-  const selectedUpdatedAt =
-    selectedSession?.endedAt ??
-    selectedMessages.at(-1)?.createdAt ??
-    selectedSession?.startedAt;
   const selectedMessageCount =
     selectedSession?.messageCount ?? selectedMessages.length;
   const latestAssistant = [...selectedMessages]
@@ -2163,10 +2088,6 @@ export function ChatSessionPanel({
   const toggleInspector = () => {
     setInspectorVisible((current) => !current);
   };
-  const openInspectorTab = (tab: InspectorTab) => {
-    setInspectorTab(tab);
-    setInspectorVisible(true);
-  };
 
   const runtimeProvider =
     currentBot?.model.provider ?? runtime?.provider ?? "Loading provider";
@@ -2234,34 +2155,14 @@ export function ChatSessionPanel({
               selectedId={selectedId}
               inspectorVisible={inspectorVisible}
               isNewConversation={isNewConversation}
-              mobileConversationsButtonRef={mobileConversationsButtonRef}
-              mobileConversationsOpen={mobileConversationsOpen}
-              modelRouteLabel={modelRouteLabel}
-              onOpenMobileConversations={() => setMobileConversationsOpen(true)}
-              onOpenRouteControls={() => setRouteDialogOpen(true)}
               onOpenWorkspace={() => openComputerView("code")}
               onOpenSettings={onOpenSettings}
-              onPrepareCompression={() => {
-                setDraft((current) =>
-                  current.trim() ? current : "/compress ",
-                );
-                requestAnimationFrame(() => composerRef.current?.focus());
-              }}
               onToggleInspector={toggleInspector}
-              onOpenInspectorTab={openInspectorTab}
               onTogglePin={() => togglePin(selectedId)}
               onSurfaceChange={onSurfaceChange}
-              selectedContextLabel={selectedContextLabel}
-              selectedContextPercent={selectedContextPercent}
-              selectedContextTone={selectedContextTone}
-              selectedMessageCount={selectedMessageCount}
               selectedSession={selectedSession}
-              selectedUpdatedAt={selectedUpdatedAt}
-              selectedUsageError={selectedUsageError}
-              sessionsCount={sessionsCount}
               surface={surface}
               workbenchToggleRef={workbenchToggleRef}
-              workspacePath={workspacePath}
             />,
             chromeHost,
           )
@@ -2568,36 +2469,6 @@ export function ChatSessionPanel({
           embedded
         />
       </section>
-      {mobileConversationsOpen ? (
-        <Suspense
-          fallback={
-            <MobileConversationsDialogFallback
-              selectedId={selectedId}
-              backdropRef={mobileConversationsBackdropRef}
-              dialogRef={mobileConversationsDialogRef}
-              onClose={() => setMobileConversationsOpen(false)}
-            />
-          }
-        >
-          <MobileConversationsDialog
-            activeProjectName={activeProject?.name}
-            backdropRef={mobileConversationsBackdropRef}
-            dialogRef={mobileConversationsDialogRef}
-            onClose={() => setMobileConversationsOpen(false)}
-            onNewConversation={() => {
-              if (onRequestNewConversation) onRequestNewConversation();
-              else createConversation();
-              setMobileConversationsOpen(false);
-            }}
-            onSearchChange={setSessionSearch}
-            onSelect={onSelect}
-            projectLabels={projectLabels}
-            search={sessionSearch}
-            selectedId={selectedId}
-            sessions={sessions}
-          />
-        </Suspense>
-      ) : null}
       {inspectorPresence.present ? (
         <div
           {...workbenchAccessibilityProps}

@@ -38,19 +38,9 @@ export const TAB_LABELS: Record<ThreadWorkbenchTab, string> = {
   changes: "Changes",
   terminal: "Terminal",
   plans: "Plans",
-  brief: "Brief",
-  settings: "Settings",
+  brief: "Run context",
+  settings: "Environment",
   preview: "Preview",
-};
-
-export const TAB_MARKS: Record<ThreadWorkbenchTab, string> = {
-  files: "F",
-  changes: "Δ",
-  terminal: ">_",
-  plans: "P",
-  brief: "⚡",
-  settings: "▦",
-  preview: "◎",
 };
 
 export const FULL_VIEW: Partial<

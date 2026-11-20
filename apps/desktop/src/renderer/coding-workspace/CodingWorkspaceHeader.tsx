@@ -1,6 +1,5 @@
 import { ContextActionMenu } from "@doolittle/ui";
-import { ArrowDown, ArrowUp } from "lucide-react";
-import { UiIcon } from "../components/UiIcon";
+import { PanelTabs } from "../components/PanelTabs";
 import { copyContextText } from "../context-menu-clipboard";
 import { Badge, ErrorBlock } from "../lib";
 import { compactWorkspacePath } from "../workspace-path";
@@ -12,15 +11,17 @@ import {
   CODING_LAYOUT_CONTROLS_CLASS,
   CODING_REPO_HEADER_CLASS,
   CODING_REPO_IDENTITY_CLASS,
-  CODING_REPO_MARK_CLASS,
   CODING_REPO_PATH_CLASS,
   CODING_REPO_STATE_CLASS,
-  CODING_REPO_STATE_VALUE_CLASS,
   CODING_REPO_TITLE_CLASS,
 } from "./layout";
 import type { RepositorySummary } from "./models";
 
 export type CodeSurface = "workspace" | "preview";
+const SURFACES = [
+  { id: "workspace", label: "Editor", panelId: "coding-workspace-surface" },
+  { id: "preview", label: "Preview", panelId: "coding-preview-surface" },
+] as const;
 
 export function CodingWorkspaceHeader({
   active,
@@ -115,11 +116,7 @@ export function CodingWorkspaceHeader({
       >
         <header className={CODING_REPO_HEADER_CLASS}>
           <div className={CODING_REPO_IDENTITY_CLASS}>
-            <div className={CODING_REPO_MARK_CLASS} aria-hidden="true">
-              &gt;_
-            </div>
             <div>
-              <span className="eyebrow">Workspace</span>
               <div className={CODING_REPO_TITLE_CLASS}>
                 <h1>{(hasRepository && summary.branch) || "Workspace"}</h1>
                 {hasRepository && summary.head ? (
@@ -144,31 +141,13 @@ export function CodingWorkspaceHeader({
               </p>
             </div>
           </div>
-          <div
-            className={CODING_REPO_STATE_CLASS}
-            aria-label="Repository status"
-            role="status"
-          >
-            <span>
-              <strong className={CODING_REPO_STATE_VALUE_CLASS}>
-                {repositoryReady ? summary.changedFiles : "—"}
-              </strong>{" "}
-              changed
-            </span>
-            <span>
-              <strong className={CODING_REPO_STATE_VALUE_CLASS}>
-                <UiIcon icon={ArrowUp} size="xs" />
-                {repositoryReady ? summary.ahead : "—"}
-              </strong>{" "}
-              ahead
-            </span>
-            <span>
-              <strong className={CODING_REPO_STATE_VALUE_CLASS}>
-                <UiIcon icon={ArrowDown} size="xs" />
-                {repositoryReady ? summary.behind : "—"}
-              </strong>{" "}
-              behind
-            </span>
+          <div className={CODING_REPO_STATE_CLASS}>
+            {repositoryReady ? (
+              <span aria-label="Repository status" role="status">
+                {summary.changedFiles} changed · {summary.ahead} ahead ·{" "}
+                {summary.behind} behind
+              </span>
+            ) : null}
             <button
               className="secondary-button"
               disabled={!active}
@@ -182,28 +161,6 @@ export function CodingWorkspaceHeader({
               className={CODING_LAYOUT_CONTROLS_CLASS}
               role="toolbar"
             >
-              <div
-                aria-label="Code surface"
-                className={CODING_LAYOUT_CONTROLS_CLASS}
-                role="toolbar"
-              >
-                <button
-                  aria-pressed={surface === "workspace"}
-                  className={`${CODING_LAYOUT_BUTTON_CLASS} ${surface === "workspace" ? CODING_LAYOUT_BUTTON_SELECTED_CLASS : ""}`}
-                  onClick={() => onSurfaceChange("workspace")}
-                  type="button"
-                >
-                  Code
-                </button>
-                <button
-                  aria-pressed={surface === "preview"}
-                  className={`${CODING_LAYOUT_BUTTON_CLASS} ${surface === "preview" ? CODING_LAYOUT_BUTTON_SELECTED_CLASS : ""}`}
-                  onClick={() => onSurfaceChange("preview")}
-                  type="button"
-                >
-                  Preview
-                </button>
-              </div>
               <button
                 aria-pressed={explorerVisible}
                 className={`${CODING_LAYOUT_BUTTON_CLASS} ${explorerVisible ? CODING_LAYOUT_BUTTON_SELECTED_CLASS : ""}`}
@@ -220,7 +177,7 @@ export function CodingWorkspaceHeader({
                 title="Toggle utility rail (⌘/Ctrl J)"
                 type="button"
               >
-                Utility
+                Tools
               </button>
               <button
                 aria-pressed={zenMode}
@@ -235,6 +192,15 @@ export function CodingWorkspaceHeader({
           </div>
         </header>
       </ContextActionMenu>
+      <div className="shrink-0 border-b border-[var(--border)]">
+        <PanelTabs
+          id="code-surface"
+          label="Workspace views"
+          items={SURFACES}
+          selected={surface}
+          onSelect={onSurfaceChange}
+        />
+      </div>
 
       {summaryError ? (
         <div className={CODING_GLOBAL_NOTICE_CLASS}>

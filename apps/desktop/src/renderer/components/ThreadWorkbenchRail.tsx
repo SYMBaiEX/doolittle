@@ -1,318 +1,43 @@
-import {
-  Activity,
-  FileCode2,
-  GitBranch,
-  GitCompareArrows,
-  ListTodo,
-  type LucideIcon,
-  MonitorPlay,
-  RefreshCw,
-  Settings2,
-  SquareTerminal,
-  X,
-} from "lucide-react";
-import { type CSSProperties, type KeyboardEvent, useId, useRef } from "react";
-import { asNumber, Badge } from "../lib";
-import {
-  clampThreadWorkbenchWidth,
-  THREAD_WORKBENCH_DEFAULT_WIDTH,
-  THREAD_WORKBENCH_GROUP_TABS,
-  THREAD_WORKBENCH_MAX_WIDTH,
-  THREAD_WORKBENCH_MIN_WIDTH,
-  type ThreadWorkbenchGroup,
-  type ThreadWorkbenchTab,
-} from "../thread-workbench";
-import {
-  WORKBENCH_CONTEXT_COPY_CLASS,
-  WORKBENCH_CONTEXT_META_CLASS,
-  WORKBENCH_CONTEXT_PRIMARY_CLASS,
-  WORKBENCH_CONTEXT_ROW_CLASS,
-  WORKBENCH_FOOTER_CLASS,
-  WORKBENCH_HEADER_CLASS,
-  WORKBENCH_HEADING_CLASS,
-  WORKBENCH_ICON_BUTTON_CLASS,
-  WORKBENCH_KICKER_CLASS,
-  WORKBENCH_LOCKUP_CLASS,
-  WORKBENCH_MARK_CLASS,
-  WORKBENCH_RAIL_CLASS,
-  WORKBENCH_REPO_MARK_CLASS,
-  WORKBENCH_RESIZER_CLASS,
-  WORKBENCH_TAB_CLASS,
-  WORKBENCH_TAB_MARK_CLASS,
-  WORKBENCH_TAB_SELECTED_CLASS,
-  WORKBENCH_TAB_SIGNAL_CLASS,
-  WORKBENCH_TABS_CLASS,
-} from "../thread-workbench/layout";
-import {
-  branchHeadLabel,
-  compactRailLabel,
-  TAB_LABELS,
-  type ThreadWorkbenchFullView,
-} from "../thread-workbench/models";
+import type { ThreadWorkbenchTab } from "../thread-workbench";
+import type { ThreadWorkbenchFullView } from "../thread-workbench/models";
 import { WorkbenchPanels } from "../thread-workbench/WorkbenchPanels";
 import { useThreadWorkbenchRailController } from "../thread-workbench-controller";
-import { PanelResizeHandle } from "./PanelResizeHandle";
-import { UiIcon } from "./UiIcon";
-
-export type { ThreadWorkbenchFullView } from "../thread-workbench/models";
-
-export interface ThreadWorkbenchRailProps {
-  botId?: string;
-  group?: ThreadWorkbenchGroup;
-  minimal?: boolean;
-  active: boolean;
-  sessionId: string;
-  workspacePath: string;
-  onInsertContext: (text: string) => void;
-  onOpenFullView: (view: ThreadWorkbenchFullView) => void;
-  onRequestClose: () => void;
-}
-
-const WORKBENCH_TAB_ICONS: Record<ThreadWorkbenchTab, LucideIcon> = {
-  files: FileCode2,
-  changes: GitCompareArrows,
-  terminal: SquareTerminal,
-  plans: ListTodo,
-  brief: Activity,
-  settings: Settings2,
-  preview: MonitorPlay,
-};
 
 export function ThreadWorkbenchRail({
-  group = "all",
-  minimal = false,
   active,
   botId,
+  tab,
   sessionId,
   workspacePath,
   onInsertContext,
   onOpenFullView,
-  onRequestClose,
-}: ThreadWorkbenchRailProps) {
-  const instanceId = useId();
-  const idPrefix = `thread-workbench-${instanceId.replace(/:/g, "")}`;
+}: {
+  active: boolean;
+  botId?: string;
+  tab: ThreadWorkbenchTab;
+  sessionId: string;
+  workspacePath: string;
+  onInsertContext: (text: string) => void;
+  onOpenFullView: (view: ThreadWorkbenchFullView) => void;
+}) {
   const controller = useThreadWorkbenchRailController({
     active,
-    group,
+    selectedTab: tab,
     botId,
     sessionId,
     workspacePath,
     onInsertContext,
   });
-  const {
-    model,
-    setModel,
-    copiedLabel,
-    repositorySummary,
-    selectTab,
-    refreshCurrent,
-  } = controller;
-  const visibleTabs = THREAD_WORKBENCH_GROUP_TABS[group];
-  const tabRefs = useRef<Record<ThreadWorkbenchTab, HTMLButtonElement | null>>({
-    files: null,
-    changes: null,
-    terminal: null,
-    plans: null,
-    brief: null,
-    settings: null,
-    preview: null,
-  });
-  if (!active) return null;
-  const navigateTabs = (
-    event: KeyboardEvent<HTMLButtonElement>,
-    index: number,
-  ) => {
-    let target = index;
-    if (event.key === "ArrowRight" || event.key === "ArrowDown") {
-      target = (index + 1) % visibleTabs.length;
-    } else if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
-      target = (index - 1 + visibleTabs.length) % visibleTabs.length;
-    } else if (event.key === "Home") {
-      target = 0;
-    } else if (event.key === "End") {
-      target = visibleTabs.length - 1;
-    } else {
-      return;
-    }
-    event.preventDefault();
-    const tab = visibleTabs[target];
-    if (!tab) return;
-    selectTab(tab);
-    requestAnimationFrame(() => tabRefs.current[tab]?.focus());
-  };
-
   return (
-    <aside
-      id={`${idPrefix}-rail`}
-      aria-label="Thread context"
-      className={WORKBENCH_RAIL_CLASS}
-      data-thread-workbench="rail"
-      style={
-        minimal
-          ? {
-              width: "100%",
-              minWidth: 0,
-              maxWidth: "none",
-              flex: "1 1 auto",
-              border: 0,
-              boxShadow: "none",
-              gridTemplateRows: "auto minmax(0,1fr)",
-            }
-          : ({
-              "--thread-workbench-width": `${model.railWidth}px`,
-            } as CSSProperties)
-      }
-    >
-      {!minimal ? (
-        <PanelResizeHandle
-          bounds={{
-            default: THREAD_WORKBENCH_DEFAULT_WIDTH,
-            min: THREAD_WORKBENCH_MIN_WIDTH,
-            max: THREAD_WORKBENCH_MAX_WIDTH,
-          }}
-          className={WORKBENCH_RESIZER_CLASS}
-          controls={`${idPrefix}-rail`}
-          direction="grow-left"
-          label="Resize thread context"
-          onResize={(railWidth) =>
-            setModel((current) => ({
-              ...current,
-              railWidth: clampThreadWorkbenchWidth(railWidth),
-            }))
-          }
-          value={model.railWidth}
-        />
-      ) : null}
-
-      {!minimal ? (
-        <header className={WORKBENCH_HEADER_CLASS}>
-          <div className={WORKBENCH_HEADING_CLASS}>
-            <div className={WORKBENCH_LOCKUP_CLASS}>
-              <span aria-hidden="true" className={WORKBENCH_MARK_CLASS}>
-                <i />
-                <span>WB</span>
-              </span>
-              <div>
-                <span className={WORKBENCH_KICKER_CLASS}>Thread context</span>
-                <strong>{model.workspaceName}</strong>
-                <small>Files, changes, and run context</small>
-              </div>
-            </div>
-            <button
-              aria-label="Close thread context"
-              className={WORKBENCH_ICON_BUTTON_CLASS}
-              onClick={onRequestClose}
-              title="Close context"
-              type="button"
-            >
-              <UiIcon icon={X} size="sm" />
-            </button>
-          </div>
-          <div
-            className={WORKBENCH_CONTEXT_ROW_CLASS}
-            data-thread-workbench="context"
-          >
-            <div className={WORKBENCH_CONTEXT_PRIMARY_CLASS}>
-              <span className={WORKBENCH_REPO_MARK_CLASS} aria-hidden="true">
-                <UiIcon icon={GitBranch} size="sm" />
-              </span>
-              <div className={WORKBENCH_CONTEXT_COPY_CLASS}>
-                <strong>{branchHeadLabel(model.branch, model.head)}</strong>
-                <small title={model.worktreePath || model.workspacePath}>
-                  {model.worktreePath
-                    ? `Worktree · ${compactRailLabel(model.worktreePath)}`
-                    : `Local · ${compactRailLabel(model.workspacePath)}`}
-                </small>
-              </div>
-            </div>
-            <div
-              className={WORKBENCH_CONTEXT_META_CLASS}
-              data-thread-workbench="status"
-              aria-label="Thread context status"
-              role="status"
-            >
-              <Badge
-                tone={
-                  repositorySummary?.dirty
-                    ? "warn"
-                    : repositorySummary?.isRepository
-                      ? "good"
-                      : "neutral"
-                }
-              >
-                {repositorySummary?.dirty
-                  ? `${asNumber(repositorySummary.changedFiles)} changed`
-                  : repositorySummary?.isRepository
-                    ? "clean"
-                    : "workspace"}
-              </Badge>
-              <span>
-                <i aria-hidden="true" /> {model.lifecycle}
-              </span>
-            </div>
-          </div>
-        </header>
-      ) : null}
-
-      <div
-        aria-label="Thread context views"
-        className={WORKBENCH_TABS_CLASS}
-        role="tablist"
-      >
-        {visibleTabs.map((tab, index) => (
-          <button
-            aria-label={TAB_LABELS[tab]}
-            aria-controls={`${idPrefix}-${tab}-panel`}
-            aria-selected={model.selectedTab === tab}
-            id={`${idPrefix}-${tab}-tab`}
-            key={tab}
-            className={`${WORKBENCH_TAB_CLASS} group ${
-              model.selectedTab === tab ? WORKBENCH_TAB_SELECTED_CLASS : ""
-            }`}
-            onClick={() => selectTab(tab)}
-            onKeyDown={(event) => navigateTabs(event, index)}
-            ref={(node) => {
-              tabRefs.current[tab] = node;
-            }}
-            role="tab"
-            tabIndex={model.selectedTab === tab ? 0 : -1}
-            title={TAB_LABELS[tab]}
-            type="button"
-          >
-            <span className={WORKBENCH_TAB_MARK_CLASS} aria-hidden="true">
-              <UiIcon icon={WORKBENCH_TAB_ICONS[tab]} size="xs" />
-            </span>
-            <small className="sr-only">{TAB_LABELS[tab]}</small>
-            <i aria-hidden="true" className={WORKBENCH_TAB_SIGNAL_CLASS} />
-          </button>
-        ))}
-      </div>
-
+    <div className="thread-workbench flex h-full min-h-0 flex-col overflow-hidden">
       <WorkbenchPanels
-        botId={botId}
-        sessionId={sessionId}
-        controller={controller}
-        idPrefix={idPrefix}
-        onOpenFullView={onOpenFullView}
-        workspacePath={workspacePath}
+        {...{ botId, controller, onOpenFullView, sessionId, workspacePath }}
       />
-
-      {!minimal ? (
-        <footer className={WORKBENCH_FOOTER_CLASS}>
-          <span aria-live="polite">
-            {copiedLabel || `${model.environment} · ${model.lifecycle}`}
-          </span>
-          <button
-            aria-label="Refresh current context view"
-            className={WORKBENCH_ICON_BUTTON_CLASS}
-            onClick={refreshCurrent}
-            title="Refresh"
-            type="button"
-          >
-            <UiIcon icon={RefreshCw} size="sm" />
-          </button>
-        </footer>
-      ) : null}
-    </aside>
+      <span aria-live="polite" className="sr-only">
+        {controller.copiedLabel
+          ? `Added ${controller.copiedLabel} to the draft`
+          : ""}
+      </span>
+    </div>
   );
 }

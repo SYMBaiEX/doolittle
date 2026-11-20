@@ -7,22 +7,13 @@ export const THREAD_WORKBENCH_TABS = [
   "files",
   "changes",
   "terminal",
+  "preview",
   "plans",
   "brief",
   "settings",
-  "preview",
 ] as const;
 
 export type ThreadWorkbenchTab = (typeof THREAD_WORKBENCH_TABS)[number];
-export type ThreadWorkbenchGroup = "all" | "library" | "computer";
-export const THREAD_WORKBENCH_GROUP_TABS: Record<
-  ThreadWorkbenchGroup,
-  readonly ThreadWorkbenchTab[]
-> = {
-  all: THREAD_WORKBENCH_TABS,
-  library: ["files", "changes", "plans"],
-  computer: ["terminal", "preview", "brief", "settings"],
-};
 export type ThreadWorkbenchEnvironment = "local-v1";
 export type ThreadWorkbenchLifecycle =
   | "idle"
@@ -41,12 +32,9 @@ export interface ThreadWorkbenchState {
   head: string;
   worktreePath?: string;
   lifecycle: ThreadWorkbenchLifecycle;
-  selectedTab: ThreadWorkbenchTab;
-  groupTabs: Record<ThreadWorkbenchGroup, ThreadWorkbenchTab>;
   selectedFile: string;
   selectedChange: string;
   selectedCommand: string;
-  railWidth: number;
 }
 
 export interface ThreadWorkbenchStateInput {
@@ -129,28 +117,9 @@ export function buildBriefPlanSummary(
   };
 }
 
-export const THREAD_WORKBENCH_DEFAULT_WIDTH = 336;
-export const THREAD_WORKBENCH_MIN_WIDTH = 280;
-export const THREAD_WORKBENCH_MAX_WIDTH = 520;
-
-function isWorkbenchTab(value: unknown): value is ThreadWorkbenchTab {
-  return (
-    typeof value === "string" &&
-    THREAD_WORKBENCH_TABS.includes(value as ThreadWorkbenchTab)
-  );
-}
-
 export function workspaceNameFromPath(workspacePath: string): string {
   const normalized = workspacePath.replaceAll("\\", "/").replace(/\/+$/u, "");
   return normalized.split("/").filter(Boolean).at(-1) ?? "Workspace";
-}
-
-export function clampThreadWorkbenchWidth(value: number): number {
-  if (!Number.isFinite(value)) return THREAD_WORKBENCH_DEFAULT_WIDTH;
-  return Math.min(
-    THREAD_WORKBENCH_MAX_WIDTH,
-    Math.max(THREAD_WORKBENCH_MIN_WIDTH, Math.round(value)),
-  );
 }
 
 export function threadWorkbenchStorageKey(
@@ -161,26 +130,6 @@ export function threadWorkbenchStorageKey(
     input.sessionId.trim() || "local",
     input.workspacePath.trim(),
   ])}`;
-}
-
-export function threadWorkbenchTabForGroup(
-  state: ThreadWorkbenchState,
-  group: ThreadWorkbenchGroup,
-): ThreadWorkbenchTab {
-  return state.groupTabs[group];
-}
-
-export function selectThreadWorkbenchTab(
-  state: ThreadWorkbenchState,
-  group: ThreadWorkbenchGroup,
-  tab: ThreadWorkbenchTab,
-): ThreadWorkbenchState {
-  if (!THREAD_WORKBENCH_GROUP_TABS[group].includes(tab)) return state;
-  return {
-    ...state,
-    selectedTab: tab,
-    groupTabs: { ...state.groupTabs, [group]: tab },
-  };
 }
 
 export function createThreadWorkbenchState(
@@ -203,12 +152,9 @@ export function createThreadWorkbenchState(
       ? { worktreePath: input.worktreePath.trim() }
       : {}),
     lifecycle: input.lifecycle ?? "idle",
-    selectedTab: "files",
-    groupTabs: { all: "files", library: "files", computer: "terminal" },
     selectedFile: "",
     selectedChange: "",
     selectedCommand: "",
-    railWidth: THREAD_WORKBENCH_DEFAULT_WIDTH,
   };
 }
 
@@ -224,37 +170,15 @@ export function parseThreadWorkbenchState(
     value.workspacePath !== fallback.workspacePath
   )
     return fallback;
-  const groupTabs = { ...fallback.groupTabs };
-  if (isPlainObject(value.groupTabs)) {
-    for (const group of Object.keys(groupTabs) as ThreadWorkbenchGroup[]) {
-      const tab = value.groupTabs[group];
-      if (
-        isWorkbenchTab(tab) &&
-        THREAD_WORKBENCH_GROUP_TABS[group].includes(tab)
-      ) {
-        groupTabs[group] = tab;
-      }
-    }
-  }
-
   return {
     ...fallback,
     // Repository and execution facts are fresh data, not saved presentation.
-    groupTabs,
     selectedFile:
       typeof value.selectedFile === "string" ? value.selectedFile : "",
     selectedChange:
       typeof value.selectedChange === "string" ? value.selectedChange : "",
     selectedCommand:
       typeof value.selectedCommand === "string" ? value.selectedCommand : "",
-    selectedTab: isWorkbenchTab(value.selectedTab)
-      ? value.selectedTab
-      : fallback.selectedTab,
-    railWidth: clampThreadWorkbenchWidth(
-      typeof value.railWidth === "number"
-        ? value.railWidth
-        : fallback.railWidth,
-    ),
   };
 }
 
@@ -286,12 +210,9 @@ export function saveThreadWorkbenchState(
         botId: state.botId,
         sessionId: state.sessionId,
         workspacePath: state.workspacePath,
-        selectedTab: state.selectedTab,
-        groupTabs: state.groupTabs,
         selectedFile: state.selectedFile,
         selectedChange: state.selectedChange,
         selectedCommand: state.selectedCommand,
-        railWidth: clampThreadWorkbenchWidth(state.railWidth),
       }),
     );
   } catch {

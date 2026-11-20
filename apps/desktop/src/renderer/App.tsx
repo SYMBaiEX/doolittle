@@ -2239,11 +2239,7 @@ export function App() {
       })),
     [projects, sessions],
   );
-  const projectLabels = useMemo(
-    () =>
-      Object.fromEntries(projects.map((project) => [project.id, project.name])),
-    [projects],
-  );
+
   const unscopedChatCount = sessions.filter(
     (session) => !session.projectId,
   ).length;
@@ -2380,7 +2376,6 @@ export function App() {
       pendingContextHandoff={pendingChatContext}
       pendingNavigationIntent={pendingNavigationIntent}
       projectCards={projectCards}
-      projectLabels={projectLabels}
       projectScope={projectScope}
       refreshRuntime={async () => {
         const refreshed = await refreshRuntime();
@@ -2572,7 +2567,6 @@ export function App() {
           isMobileSidebarMode={isMobileSidebarMode}
           mobileSidebarOpen={mobileSidebarOpen}
           navCollapsed={effectiveNavCollapsed}
-          sidebarOpen={sidebarOpen}
           projectScope={projectScope}
           sidebarWidth={sidebarWidth}
           selectedBotId={selectedBot?.id ?? ""}

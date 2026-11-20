@@ -66,7 +66,6 @@ export interface DesktopRouteContentProps {
     "id" | "name" | "color" | "primaryPath"
   > | null;
   projectCards: readonly ProjectLike[];
-  projectLabels: Readonly<Record<string, string>>;
   projectScope: ProjectScope;
   scopedSessions: SessionSummary[];
   sessionMetadata?: SessionSummary[];
@@ -123,7 +122,6 @@ export function DesktopRouteContent({
   pendingContextHandoff,
   pendingNavigationIntent,
   projectCards,
-  projectLabels,
   projectScope,
   refreshRuntime,
   runtime,
@@ -225,7 +223,6 @@ export function DesktopRouteContent({
             pendingApprovals={pendingApprovals}
             pendingContextHandoff={pendingContextHandoff}
             projects={projectCards}
-            projectLabels={projectLabels}
             refreshRuntime={refreshRuntime}
             remoteSessions={scopedSessions}
             routeActive={chatRouteActive}
@@ -283,7 +280,12 @@ export function DesktopRouteContent({
             }}
             navigationIntent={pendingNavigationIntent}
             onAcknowledgeNavigationIntent={navigation.consumeNavigationIntent}
-            onChooseWorkspace={onChooseWorkspace}
+            onChooseWorkspace={
+              computerOrigin.workspacePath
+                ? onChooseWorkspace
+                : () =>
+                    navigation.chooseRepositoryForConversation(selectedSession)
+            }
             onOpenWorkspacePath={onOpenWorkspacePath}
             onOpenChatTerminal={navigation.openChatTerminal}
             onDirtyChange={onCodeWorkspaceDirtyChange}
