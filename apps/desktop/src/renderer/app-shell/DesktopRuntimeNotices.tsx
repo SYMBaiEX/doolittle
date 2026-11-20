@@ -1,3 +1,4 @@
+import { AlertCircle, LoaderCircle, RotateCcw } from "lucide-react";
 import type { BackendState } from "../../shared/contracts";
 
 export interface DesktopRuntimeNoticesProps {
@@ -8,11 +9,11 @@ export interface DesktopRuntimeNoticesProps {
 }
 
 const NOTICE_ACTION =
-  "inline-flex min-h-10 shrink-0 items-center justify-center rounded-[var(--radius-md)] border border-current bg-transparent px-3 text-sm font-medium hover:bg-[var(--surface-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] max-[760px]:min-h-11";
+  "secondary-button inline-flex min-h-8 shrink-0 items-center gap-1.5 text-xs";
 
 function runtimeRecoveryMessage(diagnostic: string): string {
   if (/OS Keychain|master key unavailable/iu.test(diagnostic)) {
-    return "Your saved accounts are locked. Unlock your Mac’s login Keychain, then retry. If macOS asks, use your Mac login password, not your Apple ID password. Your saved credentials have not been replaced.";
+    return "Your saved accounts are locked. If macOS asks to unlock the login keychain, enter your Mac login password, then restart the runtime.";
   }
   if (
     /acquireDataDirLockIfNeeded|data.directory.*(?:lock|in use)|already.*(?:running|locked)/iu.test(
@@ -50,58 +51,64 @@ export function DesktopRuntimeNotices({
   onRestart,
   onRefresh,
 }: DesktopRuntimeNoticesProps) {
-  return (
-    <>
-      {backend.phase === "booting" ? (
-        <div
-          aria-live="polite"
-          className="shrink-0 border-b border-[var(--border)] px-4 py-2 text-sm text-[var(--muted)]"
-          role="status"
-        >
-          Starting Doolittle… Your conversations will appear when it’s ready.
-        </div>
-      ) : null}
-      {backend.phase === "degraded" ? (
-        <section className="shrink-0 border-b border-[var(--border)] bg-[var(--warn-soft)] px-4 py-2 text-[var(--warn)]">
-          <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
-            <div
-              aria-atomic="true"
-              aria-label="Local runtime unavailable"
-              aria-live="polite"
-              className="min-w-0 flex-1 basis-60 text-sm leading-5"
-              role="status"
-            >
-              <strong className="font-semibold">
-                The local runtime is unavailable.
-              </strong>
-              <p className="m-0 mt-1 text-[var(--text-soft)]">
-                {runtimeRecoveryMessage(
-                  `${backend.message}\n${backend.detail ?? ""}`,
-                )}
-              </p>
-            </div>
-            <button className={NOTICE_ACTION} onClick={onRestart} type="button">
-              Restart runtime
-            </button>
+  if (backend.phase === "booting")
+    return (
+      <div
+        className="flex shrink-0 items-center gap-2 border-b border-[var(--border)] px-4 py-2 text-xs text-[var(--muted)]"
+        role="status"
+      >
+        <LoaderCircle
+          aria-hidden="true"
+          className="size-3.5 shrink-0 motion-safe:animate-spin"
+        />
+        {backend.message}
+      </div>
+    );
+  if (backend.phase !== "ready") {
+    const stopped = backend.phase === "stopped";
+    return (
+      <section className="shrink-0 border-b border-[var(--border)] bg-[var(--surface)] px-4 py-2.5">
+        <div className="flex min-w-0 flex-wrap items-start gap-3">
+          <AlertCircle
+            aria-hidden="true"
+            className="mt-1 size-4 shrink-0 text-[var(--warn)]"
+          />
+          <div
+            aria-atomic="true"
+            className="min-w-0 flex-1 text-sm leading-5"
+            role="status"
+          >
+            <strong className="font-semibold">
+              {stopped ? "Local runtime stopped" : "Local runtime unavailable"}
+            </strong>
+            <p className="m-0 mt-1 text-[var(--text-soft)]">
+              {runtimeRecoveryMessage(
+                `${backend.message}\n${backend.detail ?? ""}`,
+              )}
+            </p>
           </div>
-          <TechnicalDetails diagnostic={backend.detail || backend.message} />
-        </section>
-      ) : null}
-      {globalError ? (
-        <div
-          aria-atomic="true"
-          aria-label="Application error"
-          className="flex min-h-10 shrink-0 flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] bg-[var(--bad-soft)] px-4 py-2 text-sm leading-5 text-[var(--bad)]"
-          role="alert"
-        >
-          <span className="min-w-0 flex-1 basis-60 break-words">
-            {globalError}
-          </span>
-          <button className={NOTICE_ACTION} onClick={onRefresh} type="button">
-            Retry
+          <button className={NOTICE_ACTION} onClick={onRestart} type="button">
+            <RotateCcw aria-hidden="true" className="size-3.5" />
+            {stopped ? "Start runtime" : "Restart runtime"}
           </button>
         </div>
-      ) : null}
-    </>
-  );
+        {backend.detail ? (
+          <TechnicalDetails diagnostic={backend.detail} />
+        ) : null}
+      </section>
+    );
+  }
+  return globalError ? (
+    <div
+      aria-atomic="true"
+      aria-label="Application error"
+      className="flex min-h-10 shrink-0 flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] bg-[var(--bad-soft)] px-4 py-2 text-sm leading-5 text-[var(--bad)]"
+      role="alert"
+    >
+      <span className="min-w-0 flex-1 basis-60 break-words">{globalError}</span>
+      <button className={NOTICE_ACTION} onClick={onRefresh} type="button">
+        Retry
+      </button>
+    </div>
+  ) : null;
 }

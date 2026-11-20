@@ -35,6 +35,7 @@ import {
 } from "./app-shell/command-palette-loading-layout";
 import { DesktopMobileMenuButton } from "./app-shell/DesktopMobileMenuButton";
 import { DesktopRouteLoadingFallback } from "./app-shell/DesktopRouteLoadingFallback";
+import { DesktopRuntimeNotices } from "./app-shell/DesktopRuntimeNotices";
 import {
   createDesktopNavigationHistory,
   desktopNavigationTarget,
@@ -231,12 +232,6 @@ function DesktopSidebarLoadingFallback({
   );
 }
 
-const DesktopRuntimeNotices = lazy(() =>
-  import("./app-shell/DesktopRuntimeNotices").then((module) => ({
-    default: module.DesktopRuntimeNotices,
-  })),
-);
-
 const DesktopWindowTools = lazy(() =>
   import("./app-shell/DesktopWindowTools").then((module) => ({
     default: module.DesktopWindowTools,
@@ -432,7 +427,18 @@ export function App() {
     () => setCodeWorkspaceDirty(codeWorkspaceDirty),
     [codeWorkspaceDirty],
   );
-  const [selectedSession, setSelectedSession] = useState(initialConversation);
+  const [chatSelection, setChatSelection] = useState({
+    sessionId: initialConversation,
+    interactiveSelection: false,
+  });
+  const selectedSession = chatSelection.sessionId;
+  const setSelectedSession = useCallback((sessionId: string) => {
+    setChatSelection((current) =>
+      current.sessionId === sessionId && current.interactiveSelection
+        ? current
+        : { sessionId, interactiveSelection: true },
+    );
+  }, []);
   const [nativeSelectionRestored, setNativeSelectionRestored] = useState(
     () => !window.doolittle.ui,
   );
@@ -1453,6 +1459,7 @@ export function App() {
       newChatScope,
       captureSessionProject,
       scopeForSession,
+      setSelectedSession,
       setView,
       botCreationOpen,
       botCreationDirty,
@@ -1475,7 +1482,14 @@ export function App() {
         setSelectedSession(id);
       }
     },
-    [bots, defaultBotId, sessions, setView, captureSessionProject],
+    [
+      bots,
+      defaultBotId,
+      sessions,
+      setSelectedSession,
+      setView,
+      captureSessionProject,
+    ],
   );
 
   const openCreateBot = useCallback(() => {
@@ -1495,7 +1509,7 @@ export function App() {
   }, [newChatOpen, setView, botCreationOpen]);
 
   const activateBot = useCallback(
-    async (botId: string) => {
+    async (botId: string, announce = true) => {
       try {
         const startup = desktopRequest<BotSummary>(
           `/bots/${encodeURIComponent(botId)}/activate`,
@@ -1506,7 +1520,10 @@ export function App() {
         setPendingCreatedBot((current) =>
           current?.id === botId ? activated : current,
         );
-        if (["ready", "busy", "waiting"].includes(activated.state)) {
+        if (
+          announce &&
+          ["ready", "busy", "waiting"].includes(activated.state)
+        ) {
           pushToast({
             tone: "success",
             title: `${activated.name} ready`,
@@ -1567,11 +1584,8 @@ export function App() {
         message:
           "Starting in its private scratch chat. Project access can be chosen for another chat.",
       });
-      // Save and bind the conversation first. A failed warm-up must not lose
-      // the character or trigger unrelated, manually stopped bots.
-      void activateBot(bot.id);
     },
-    [activateBot, pushToast, setView, captureSessionProject],
+    [pushToast, setSelectedSession, setView, captureSessionProject],
   );
 
   const startChatInProject = useCallback(
@@ -1666,6 +1680,7 @@ export function App() {
       recordConversationScope,
       scopeForSession,
       captureSessionProject,
+      setSelectedSession,
       setView,
     ],
   );
@@ -2022,11 +2037,11 @@ export function App() {
   });
   const revealNativeSurface = useEffectEvent(
     (target: { botId: string; sessionId: string; projectId?: string }) => {
+      if (!setView("chat")) return;
       bindSessionBot(target.sessionId, target.botId);
       captureSessionProject(target.sessionId, target.projectId ?? null);
       setSelectedBotId(target.botId);
       setSelectedSession(target.sessionId);
-      setView("chat");
     },
   );
   useEffect(() => {
@@ -2035,12 +2050,14 @@ export function App() {
     if (document.documentElement.dataset.interfaceSettings === "true") {
       openInterfaces();
     }
-    const detach = window.doolittle.ui?.onSurface(({ target }) => {
-      revealNativeSurface(target);
-    });
     const bridge = window.doolittle.ui;
     let disposed = false;
     let generation = 0;
+    const detach = bridge?.onSurface(({ target }) => {
+      generation++;
+      revealNativeSurface(target);
+      setNativeSelectionRestored(true);
+    });
     const restoreSelection = () => {
       const request = ++generation;
       void bridge
@@ -2050,7 +2067,10 @@ export function App() {
           bindSessionBot(target.sessionId, target.botId);
           captureSessionProject(target.sessionId, target.projectId ?? null);
           setSelectedBotId(target.botId);
-          setSelectedSession(target.sessionId);
+          setChatSelection({
+            sessionId: target.sessionId,
+            interactiveSelection: false,
+          });
         })
         .catch(() => undefined)
         .finally(() => {
@@ -2160,6 +2180,30 @@ export function App() {
 
   const navigationView = primaryViewForView(view);
   const renderedView = renderedViewForView(view);
+  const foregroundNamedBotId =
+    nativeSelectionRestored && renderedView === "chat" && !botCreationOpen
+      ? bots.find((bot) => bot.id === selectedSessionOwner && !bot.isDefault)
+          ?.id
+      : undefined;
+  const warmForegroundBot = useEffectEvent(
+    (botId: string, interactive: boolean) => {
+      if (document.documentElement.dataset.nativeInterfaceVisible === "false")
+        return;
+      const bot = bots.find((entry) => entry.id === botId);
+      if (bot?.state !== "stopped") return;
+      // Only a deliberate selection may prompt macOS to unlock an account vault.
+      if (interactive || bot.model.provider === "offline")
+        void activateBot(botId, false);
+    },
+  );
+  useEffect(() => {
+    if (backend.phase === "ready" && foregroundNamedBotId)
+      warmForegroundBot(
+        foregroundNamedBotId,
+        chatSelection.interactiveSelection,
+      );
+    // A catalog refresh after an explicit Stop must not start the bot again.
+  }, [backend.phase, foregroundNamedBotId, chatSelection]);
   const activeSection = navigation.find((section) =>
     section.items.some((item) => item.id === view),
   );
@@ -2378,8 +2422,10 @@ export function App() {
       projectCards={projectCards}
       projectScope={projectScope}
       refreshRuntime={async () => {
-        const refreshed = await refreshRuntime();
-        await botResource.reload();
+        const [refreshed] = await Promise.all([
+          refreshRuntime(),
+          botResource.reload(),
+        ]);
         return refreshed;
       }}
       routeFocus={routeFocus.current}
@@ -2665,14 +2711,12 @@ export function App() {
             ) : null}
           </div>
         </div>
-        <Suspense fallback={null}>
-          <DesktopRuntimeNotices
-            backend={backend}
-            globalError={globalError}
-            onRefresh={() => void refreshWithFeedback()}
-            onRestart={() => void restartRuntime()}
-          />
-        </Suspense>
+        <DesktopRuntimeNotices
+          backend={backend}
+          globalError={globalError}
+          onRefresh={refreshWithFeedback}
+          onRestart={restartRuntime}
+        />
         {botCreationOpen ? (
           <div
             className={`${VIEW_CONTAINER_CLASS} ${VIEW_CONTAINER_WORKSPACE_CLASS}`}
@@ -2713,9 +2757,11 @@ export function App() {
             <Suspense
               fallback={<DesktopRouteLoadingFallback label="conversation" />}
             >
-              {nativeSelectionRestored
-                ? routeContent(persistentChatView)
-                : null}
+              {nativeSelectionRestored ? (
+                routeContent(persistentChatView)
+              ) : (
+                <DesktopRouteLoadingFallback label="conversation" />
+              )}
             </Suspense>
           </DesktopRouteErrorBoundary>
         </div>

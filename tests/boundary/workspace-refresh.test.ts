@@ -86,6 +86,19 @@ async function mount() {
     listener(ready);
   });
 }
+it("shows runtime status and projects while conversation history is still loading", async () => {
+  const history = pending<{ sessions: [] }>();
+  request.mockImplementation(async (path: string) => {
+    if (path === "/runtime/status")
+      return { provider: "offline", model: "local", plugins: {} };
+    if (path.startsWith("/sessions")) return history.promise;
+    return { projects: [{ id: "project" }] };
+  });
+  await mount();
+  expect(value.runtime?.model).toBe("local");
+  expect(value.projects[0]?.id).toBe("project");
+  await act(async () => history.resolve({ sessions: [] }));
+});
 it("keeps the newest refresh and retains usable rows while reporting a real failure", async () => {
   const first = batch("old");
   const second = batch("new");

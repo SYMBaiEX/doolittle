@@ -7,8 +7,6 @@ import type {
 import { desktopQueryClient, desktopRequest } from "../lib";
 import { confirmedConversationSummary } from "../session-conversation-scope";
 
-type OwnedConversation = BotConversationScope;
-
 /** Discover stopped workers through the authoritative ledger; never start one to list chats. */
 export async function loadBotSessionCatalog(
   lead: SessionsResponse,
@@ -28,23 +26,25 @@ export async function loadBotSessionCatalog(
       { ...session, botId: session.botId ?? catalog.defaultBotId },
     ]),
   );
+  const previousById = new Map(
+    previous.map((session) => [session.sessionId, session]),
+  );
   const warnings: string[] = [];
   await Promise.all(
     catalog.bots.map(async (bot) => {
       const ledger = await desktopRequest<{
-        conversations: OwnedConversation[];
+        conversations: BotConversationScope[];
       }>(`/bots/${encodeURIComponent(bot.id)}/conversations`);
       const byId = new Map<string, SessionSummary>();
       for (const owner of ledger.conversations) {
         if (owner.botId !== bot.id)
           throw new Error("Conversation ownership is inconsistent.");
+        const previousSession = previousById.get(owner.sessionId);
         const cached =
           (bot.isDefault ? sessions.get(owner.sessionId) : undefined) ??
-          previous.find(
-            (session) =>
-              session.sessionId === owner.sessionId &&
-              session.botId === owner.botId,
-          );
+          (previousSession?.botId === owner.botId
+            ? previousSession
+            : undefined);
         byId.set(owner.sessionId, confirmedConversationSummary(owner, cached));
       }
       if (!bot.isDefault && ["ready", "busy", "waiting"].includes(bot.state)) {

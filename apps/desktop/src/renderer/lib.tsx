@@ -7,6 +7,7 @@ import { ChevronRight } from "lucide-react";
 import {
   type DependencyList,
   type ReactNode,
+  useCallback,
   useEffect,
   useState,
 } from "react";
@@ -132,7 +133,7 @@ export function useApiResource<T>(
   dependencies: DependencyList = [],
   botId?: string,
   origin?: ComputerOrigin,
-): ApiResource<T> {
+) {
   const key = apiResourceCacheKey(
     path,
     botId || origin
@@ -174,17 +175,19 @@ export function useApiResource<T>(
         : hasData
           ? "ready"
           : "loading";
+  const { refetch } = query;
+  const reload = useCallback(async () => {
+    if (key) await refetch();
+  }, [key, refetch]);
   return {
     data: query.data ?? null,
     error: query.error ? errorMessage(query.error) : "",
     loading: status === "loading",
-    reload: () => {
-      if (key) void query.refetch();
-    },
+    reload,
     status,
     isValidating: query.isFetching,
     hasData,
-  };
+  } satisfies ApiResource<T>;
 }
 
 export function useDebouncedValue<T>(value: T, delayMs = 250): T {

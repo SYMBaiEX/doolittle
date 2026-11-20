@@ -72,7 +72,7 @@ interface UseProjectManagementOptions {
   ) => Promise<void>;
   readonly setProjectScope: Dispatch<SetStateAction<ProjectScope>>;
   readonly setProjects: Dispatch<SetStateAction<Project[]>>;
-  readonly setSelectedSession: Dispatch<SetStateAction<string>>;
+  readonly setSelectedSession: (sessionId: string) => void;
   readonly setSessions: Dispatch<SetStateAction<SessionSummary[]>>;
   readonly setView: (view: View) => void;
   readonly setWorkspace: Dispatch<SetStateAction<WorkspaceState>>;

@@ -17,7 +17,7 @@ it("explains locked credentials before generic timeout advice and keeps recovery
     }),
   );
   expect(markup).toContain("Your saved accounts are locked");
-  expect(markup).toContain("Mac login password, not your Apple ID password");
+  expect(markup).toContain("enter your Mac login password");
   expect(markup).toContain("Restart runtime");
   expect(markup).not.toContain("The runtime did not become ready in time");
 });
@@ -31,6 +31,6 @@ it("announces startup without asking the user to restart a healthy launch", () =
       onRefresh: () => {},
     }),
   );
-  expect(markup).toContain("Starting Doolittle");
+  expect(markup).toContain("Starting private runtime");
   expect(markup).not.toContain("Restart runtime");
 });

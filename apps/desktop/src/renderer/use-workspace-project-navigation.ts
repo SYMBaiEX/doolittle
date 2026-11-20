@@ -129,7 +129,7 @@ interface UseWorkspaceProjectNavigationOptions {
   readonly selectedSession: string;
   readonly sessions: readonly SessionSummary[];
   readonly setProjectScope: Dispatch<SetStateAction<ProjectScope>>;
-  readonly setSelectedSession: Dispatch<SetStateAction<string>>;
+  readonly setSelectedSession: (sessionId: string) => void;
   readonly captureSessionProject?: (
     sessionId: string,
     projectId: string | null,

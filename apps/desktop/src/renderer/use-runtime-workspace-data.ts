@@ -13,53 +13,6 @@ import type { ToastInput } from "./components/ToastRegion";
 import { desktopRequest } from "./lib";
 import { confirmedConversationSummary } from "./session-conversation-scope";
 
-type RuntimeWorkspaceResults = readonly [
-  PromiseSettledResult<RuntimeStatus>,
-  PromiseSettledResult<SessionsResponse & { warnings?: string[] }>,
-  PromiseSettledResult<ProjectsResponse>,
-];
-
-export interface RuntimeWorkspaceSnapshot {
-  runtime?: RuntimeStatus;
-  sessions?: SessionSummary[];
-  projects?: Project[];
-  error: string;
-  succeeded: boolean;
-}
-
-function resultError(result: PromiseRejectedResult): string {
-  return result.reason instanceof Error
-    ? result.reason.message
-    : String(result.reason);
-}
-
-export function resolveRuntimeWorkspaceResults(
-  results: RuntimeWorkspaceResults,
-): RuntimeWorkspaceSnapshot {
-  const [runtimeResult, sessionsResult, projectsResult] = results;
-  const errors = results
-    .filter(
-      (result): result is PromiseRejectedResult => result.status === "rejected",
-    )
-    .map(resultError);
-  if (sessionsResult.status === "fulfilled")
-    errors.push(...(sessionsResult.value.warnings ?? []));
-
-  return {
-    ...(runtimeResult.status === "fulfilled"
-      ? { runtime: runtimeResult.value }
-      : {}),
-    ...(sessionsResult.status === "fulfilled"
-      ? { sessions: sessionsResult.value.sessions }
-      : {}),
-    ...(projectsResult.status === "fulfilled"
-      ? { projects: projectsResult.value.projects }
-      : {}),
-    error: errors.at(-1) ?? "",
-    succeeded: errors.length === 0,
-  };
-}
-
 export function useRuntimeWorkspaceData(
   pushToast: (toast: ToastInput) => string,
 ) {
@@ -74,15 +27,17 @@ export function useRuntimeWorkspaceData(
   const [projects, setProjects] = useState<Project[]>([]);
   const [globalError, setGlobalError] = useState("");
   const backendPhaseRef = useRef(backend.phase);
-  const previousBackendPhaseRef = useRef(backend.phase);
   const backendSubscriptionUpdateRef = useRef(0);
   const refreshRequestRef = useRef(0);
+  const sessionInventoryRevision = useRef(0);
   const mountedRef = useRef(true);
-  if (previousBackendPhaseRef.current !== backend.phase) {
-    previousBackendPhaseRef.current = backend.phase;
-    refreshRequestRef.current += 1;
-  }
-  backendPhaseRef.current = backend.phase;
+  const applyBackend = useCallback((state: BackendState) => {
+    if (backendPhaseRef.current !== state.phase) {
+      backendPhaseRef.current = state.phase;
+      refreshRequestRef.current++;
+    }
+    setBackend(state);
+  }, []);
 
   const publishConfirmedConversation = useCallback(
     (scope: BotConversationScope) => {
@@ -101,7 +56,7 @@ export function useRuntimeWorkspaceData(
       )
         return;
       // An inventory started before this host commit cannot erase or move its row.
-      refreshRequestRef.current++;
+      sessionInventoryRevision.current++;
       setSessions((current) => {
         const existing = current.find(
           (row) => row.sessionId === scope.sessionId,
@@ -118,31 +73,61 @@ export function useRuntimeWorkspaceData(
   );
 
   const refreshRuntime = useCallback(async () => {
-    if (backend.phase !== "ready") return false;
+    if (backendPhaseRef.current !== "ready") return false;
     const requestId = ++refreshRequestRef.current;
+    const sessionRevision = sessionInventoryRevision.current;
+    const isCurrent = () =>
+      mountedRef.current && requestId === refreshRequestRef.current;
     setGlobalError("");
-    const snapshot = resolveRuntimeWorkspaceResults(
-      await Promise.allSettled([
-        desktopRequest<RuntimeStatus>("/runtime/status"),
-        desktopRequest<SessionsResponse>("/sessions?limit=200").then((lead) =>
-          loadBotSessionCatalog(lead, sessionsRef.current),
-        ),
-        desktopRequest<ProjectsResponse>("/projects?includeArchived=true"),
-      ]),
-    );
-    if (
-      !mountedRef.current ||
-      requestId !== refreshRequestRef.current ||
-      backendPhaseRef.current !== "ready"
-    ) {
-      return false;
-    }
-    if (snapshot.runtime) setRuntime(snapshot.runtime);
-    if (snapshot.sessions) setSessions(snapshot.sessions);
-    if (snapshot.projects) setProjects(snapshot.projects);
-    setGlobalError(snapshot.error);
-    return snapshot.succeeded;
-  }, [backend.phase]);
+    const [status, inventory, projectList] = await Promise.allSettled([
+      desktopRequest<RuntimeStatus>("/runtime/status").then((value) => {
+        if (isCurrent()) setRuntime(value);
+      }),
+      desktopRequest<SessionsResponse>("/sessions?limit=200").then(
+        async (lead) => {
+          if (
+            !isCurrent() ||
+            sessionRevision !== sessionInventoryRevision.current
+          )
+            return;
+          const result = await loadBotSessionCatalog(lead, sessionsRef.current);
+          if (
+            !isCurrent() ||
+            sessionRevision !== sessionInventoryRevision.current
+          )
+            return;
+          setSessions(result.sessions);
+          return result.warnings?.at(-1);
+        },
+      ),
+      desktopRequest<ProjectsResponse>("/projects?includeArchived=true").then(
+        (value) => {
+          if (isCurrent()) setProjects(value.projects);
+        },
+      ),
+    ]);
+    if (!isCurrent()) return false;
+    const sessionResultIsCurrent =
+      sessionRevision === sessionInventoryRevision.current;
+    const failure = [
+      projectList,
+      sessionResultIsCurrent ? inventory : null,
+      status,
+    ].find((result) => result?.status === "rejected");
+    const warning =
+      sessionResultIsCurrent && inventory.status === "fulfilled"
+        ? inventory.value
+        : undefined;
+    const error =
+      warning ??
+      (failure?.status === "rejected"
+        ? failure.reason instanceof Error
+          ? failure.reason.message
+          : String(failure.reason)
+        : "");
+    setGlobalError(error);
+    return !failure && !warning;
+  }, []);
 
   const refreshWithFeedback = useCallback(async () => {
     const succeeded = await refreshRuntime();
@@ -157,8 +142,11 @@ export function useRuntimeWorkspaceData(
 
   const restartRuntime = useCallback(async () => {
     try {
+      const subscriptionRevision = backendSubscriptionUpdateRef.current;
       const next = await window.doolittle.retryBackend();
-      setBackend(next);
+      if (!mountedRef.current) return;
+      if (subscriptionRevision === backendSubscriptionUpdateRef.current)
+        applyBackend(next);
       pushToast({
         tone: next.phase === "ready" ? "success" : "warning",
         title:
@@ -174,7 +162,7 @@ export function useRuntimeWorkspaceData(
         message: error instanceof Error ? error.message : String(error),
       });
     }
-  }, [pushToast]);
+  }, [applyBackend, pushToast]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -187,23 +175,29 @@ export function useRuntimeWorkspaceData(
   useEffect(() => {
     let disposed = false;
     const subscriptionUpdateAtStart = backendSubscriptionUpdateRef.current;
-    void window.doolittle.getBackendState().then((state) => {
+    const applyInitial = (state: BackendState) => {
       if (
         !disposed &&
         backendSubscriptionUpdateRef.current === subscriptionUpdateAtStart
       ) {
-        setBackend(state);
+        applyBackend(state);
       }
-    });
+    };
     const detach = window.doolittle.onBackendState((state) => {
       backendSubscriptionUpdateRef.current += 1;
-      setBackend(state);
+      applyBackend(state);
+    });
+    void window.doolittle.getBackendState().then(applyInitial, () => {
+      applyInitial({
+        phase: "degraded",
+        message: "The desktop could not connect to the local runtime.",
+      });
     });
     return () => {
       disposed = true;
       detach();
     };
-  }, []);
+  }, [applyBackend]);
 
   useEffect(() => {
     if (backend.phase === "ready") {
