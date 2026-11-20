@@ -22,8 +22,9 @@ behavioral — never a log or memory dump.
 - `apps/desktop-native` and `apps/cli-native` — Rust/GPUI desktop and Rust terminal client.
   `crates/doolittle-{host,runtime}` supervise and connect to the existing ElizaOS process.
   See [native clients](docs/native-clients.md) for development and cutover scope.
-- `apps/cli` — terminal chat, cockpit, process entrypoints and commands.
-  `apps/desktop` — Electron desktop client. `packages/agent` — shared runtime
+- `apps/cli` — ElizaOS sidecar, API, gateway, and ACP entrypoints.
+  `apps/desktop` — Electron migration source and shared worker host code.
+  `packages/agent` — shared runtime
   (chat-turn, services, providers), API and gateway. `packages/plugins/*` — Doolittle provider bridges and `doolittle-plugin` source.
   `packages/{acp,contracts,characters,skills}` — supporting workspaces.
 - Runtime: prefer the newest usable ElizaOS packages. The root `elizaSdk`

@@ -1,13 +1,14 @@
 # Doolittle
 
-Desktop and CLI clients for ElizaOS coding and daily assistance. Doolittle owns
-client UX, transport, workspace access, and product integrations; ElizaOS owns
-the agent engine.
+Rust and GPUI desktop and terminal clients for ElizaOS coding and daily
+assistance. Doolittle owns the interface, transport, workspace access, and
+product integrations. ElizaOS runs the agents.
 
 ## Get started
 
-Install the Node version in [`.node-version`](.node-version), clone this
-repository, and run the source installer from the checkout root.
+Install the Node version in [`.node-version`](.node-version) and a Rust
+toolchain compatible with [`Cargo.toml`](Cargo.toml). Run the source installer
+from the checkout root.
 
 ```sh
 git clone https://github.com/SYMBaiEX/doolittle.git
@@ -15,7 +16,7 @@ cd doolittle
 bash scripts/install.sh
 ```
 
-Use `--desktop` to start the Electron desktop development app during setup.
+Use `--desktop` to build and open the GPUI desktop during setup.
 On Windows, run `pwsh -File scripts/install.ps1` with optional `-Desktop`.
 Onboarding configures a model route for chat and coding. See the
 [setup guide](docs/setup.md) for provider credentials and platform requirements.
@@ -28,14 +29,13 @@ Use the Node version in [`.node-version`](.node-version) and Nub version in
 ```sh
 nub run deps:install -- --frozen-lockfile --ignore-scripts
 nub run bootstrap
-nub run desktop:runtime:install
 nub run desktop:dev
 ```
 
 For terminal development, run `nub run dev`.
 
-The [native client guide](docs/native-clients.md) covers the GPUI desktop and
-Rust CLI on the native migration branch.
+The [native client guide](docs/native-clients.md) covers workspace profiles,
+desktop controls, terminal commands, and standalone packages.
 
 ## Developer documentation
 
@@ -56,22 +56,23 @@ sources instead of copying their inventories.
 
 ## Workspaces
 
-| Workspace             | Guide                                                               |
-| --------------------- | ------------------------------------------------------------------- |
-| Desktop client        | [apps/desktop](apps/desktop/README.md)                              |
-| Terminal client       | [apps/cli](apps/cli/README.md)                                      |
-| Shared runtime        | [packages/agent](packages/agent/README.md)                          |
-| ACP adapter           | [packages/acp](packages/acp/README.md)                              |
-| Shared contracts      | [packages/contracts](packages/contracts/README.md)                  |
-| Browser controls      | [packages/ui](packages/ui/README.md)                                |
-| Evaluations           | [packages/evals](packages/evals/README.md)                          |
-| Product plugins       | [packages/plugins](packages/plugins/README.md)                      |
-| Claude CLI fallback   | [plugin-claude-code](packages/plugins/plugin-claude-code/README.md) |
-| Provider transport    | [provider-transport](packages/plugins/provider-transport/README.md) |
-| Skill documents       | [packages/skills](packages/skills/README.md)                        |
-| Character definitions | [packages/characters](packages/characters/README.md)                |
-| Shared state I/O      | [packages/storage](packages/storage/README.md)                      |
-| Solana compatibility  | [packages/solana-layouts](packages/solana-layouts/README.md)        |
+| Workspace                 | Guide                                                               |
+| ------------------------- | ------------------------------------------------------------------- |
+| GPUI desktop and Rust CLI | [Native clients](docs/native-clients.md)                            |
+| ElizaOS entrypoints       | [apps/cli](apps/cli/README.md)                                      |
+| Electron migration source | [apps/desktop](apps/desktop/README.md)                              |
+| Shared runtime            | [packages/agent](packages/agent/README.md)                          |
+| ACP adapter               | [packages/acp](packages/acp/README.md)                              |
+| Shared contracts          | [packages/contracts](packages/contracts/README.md)                  |
+| Browser controls          | [packages/ui](packages/ui/README.md)                                |
+| Evaluations               | [packages/evals](packages/evals/README.md)                          |
+| Product plugins           | [packages/plugins](packages/plugins/README.md)                      |
+| Claude CLI fallback       | [plugin-claude-code](packages/plugins/plugin-claude-code/README.md) |
+| Provider transport        | [provider-transport](packages/plugins/provider-transport/README.md) |
+| Skill documents           | [packages/skills](packages/skills/README.md)                        |
+| Character definitions     | [packages/characters](packages/characters/README.md)                |
+| Shared state I/O          | [packages/storage](packages/storage/README.md)                      |
+| Solana compatibility      | [packages/solana-layouts](packages/solana-layouts/README.md)        |
 
 Upstream SDK packages under `vendor/elizaos` are qualified artifacts; use the
 [source-build tools guide](tooling/eliza-source/README.md) when changing them.

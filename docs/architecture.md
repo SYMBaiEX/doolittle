@@ -7,13 +7,14 @@ compose those SDK owners rather than implementing a second agent engine.
 
 ## Layers and dependency direction
 
-| Layer                    | Owner                                                              | Responsibility                                                                              |
-| ------------------------ | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------- |
-| Process and presentation | `apps/cli`, `apps/desktop`                                         | Stdio, process signals, Electron lifecycle, preload, and UI.                                |
-| Application composition  | `packages/agent/src/runtime/application`                           | One configuration/service graph per application session and lazy SDK runtime activation.    |
-| Product services         | `packages/agent/src/services`, `packages/plugins/doolittle-plugin` | Workspace, conversations, approvals, execution admission, and product projections.          |
-| Product contracts        | `packages/contracts`                                               | Serializable records, identity vocabulary, and boundary guards shared by hosts and clients. |
-| Engine and integrations  | Official ElizaOS packages                                          | Runtime execution, models, plugins, account stores, SQL, and orchestration.                 |
+| Layer                     | Owner                                                              | Responsibility                                                                                 |
+| ------------------------- | ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------- |
+| Process and presentation  | `apps/cli-native`, `apps/desktop-native`                           | Rust terminal presentation and GPUI workbench.                                                 |
+| Native host and transport | `crates/doolittle-host`, `crates/doolittle-runtime`, `apps/cli`    | Workspace and profile leases, private ElizaOS child, typed requests, events, ACP, and gateway. |
+| Application composition   | `packages/agent/src/runtime/application`                           | One configuration/service graph per application session and lazy SDK runtime activation.       |
+| Product services          | `packages/agent/src/services`, `packages/plugins/doolittle-plugin` | Workspace, conversations, approvals, execution admission, and product projections.             |
+| Product contracts         | `packages/contracts`                                               | Serializable records, identity vocabulary, and boundary guards shared by hosts and clients.    |
+| Engine and integrations   | Official ElizaOS packages                                          | Runtime execution, models, plugins, account stores, SQL, and orchestration.                    |
 
 Shared packages do not import application source. Browser-safe contracts do not
 own Node processes, filesystem access, timers, credentials, or runtime service
@@ -23,14 +24,16 @@ than adding a generic utility, event-bus, or dependency-injection framework.
 
 ```mermaid
 flowchart TD
-  CLI[CLI and API process adapters] --> App[ApplicationSession]
+  CLI[Rust CLI] --> Host[Native host and transport]
+  Desktop[GPUI desktop] --> Host
+  Host --> Adapter[ElizaOS sidecar]
+  Adapter --> App[ApplicationSession]
   ACP[ACP stdio adapter] --> App
-  Desktop[Desktop host and worker entrypoints] --> App
   App --> Graph[One profile service graph]
   App --> SDK[Lazy official SDK runtime lifecycle]
-  Contracts[Canonical product contracts] -.-> CLI
+  Contracts[Canonical product contracts] -.-> Adapter
   Contracts -.-> ACP
-  Contracts -.-> Desktop
+  Contracts -.-> Host
   Contracts -.-> Graph
   Graph --> Ports[Workspace, approvals, terminal and session ports]
 ```

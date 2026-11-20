@@ -1,7 +1,7 @@
 # Native Doolittle clients
 
-Doolittle's native branch puts the desktop workbench in Rust and GPUI and the
-terminal entrypoint in Rust. The shared ElizaOS runtime still owns model routing,
+Doolittle's desktop workbench uses Rust and GPUI, and its terminal client uses
+Rust. The shared ElizaOS runtime owns model routing,
 tool execution, sessions, memory, and providers. The native clients start the
 same ElizaOS runtime through the existing CLI build, then exchange typed
 requests and run events with it.
@@ -14,8 +14,8 @@ Xcode toolchain with Metal.
 
 ```sh
 nub run deps:install -- --frozen-lockfile --ignore-scripts
-nub run native:dev -- --workspace /absolute/path/to/project
-nub run native:chat -- --workspace /absolute/path/to/project chat
+nub run desktop:dev -- --workspace /absolute/path/to/project
+nub run dev -- --workspace /absolute/path/to/project chat
 ```
 
 The desktop asks you to open a folder when launched without `--workspace`.
@@ -34,12 +34,14 @@ Electron or TypeScript CLI data directory with the native sidecar.
 
 Agent and IDE views share the selected conversation. Use Command-K to find a
 destination. Conversation panes can split right or below, resize, and reopen in
-the same window. A narrow window shows one pane at a time and preserves the
-split layout. The chat composer can import files through the system picker, and
+the same window. A narrow window shows one pane at a time. The profile restores
+split sizes, selected conversations, and recently closed panes on restart.
+The chat composer can import files through the system picker, and
 the transcript shows wallet and trading receipts recorded by ElizaOS. In IDE
 view, use **Search** for workspace text, **Git** for diffs, staging, commits,
 branches, stashes, and remotes, and **Terminal** for a manually operated shell.
-**Preview** opens a loopback development server in the system browser. Save existing text files with
+On macOS, **Preview** embeds a loopback development server and keeps browsing
+within the selected origin. Other platforms open the system browser. Save existing text files with
 **Save** or Command-S. Switching files, reloading a file, and closing the window
 prompt before discarding local edits. A busy workspace or changed file leaves
 the draft in the editor.
@@ -53,16 +55,36 @@ Open **Work**, **Review**, **Automations**, **Agents**, and **Inbox** to inspect
 or act on the runtime's work. **Home**, **Activity**, **Insights**, and
 **Assets** are native views of runtime status, activity, usage, and managed
 media. Named agents can be created, renamed, started, chatted with, stopped,
-and archived in private offline workspaces. Their conversation histories are
-separate. The chat sidebar imports and exports individual
+and archived in private workspaces. **Agents → Access** can attach a linked
+provider route and open a separately scoped, read-only project chat. Revoke
+those grants from the same panel. Conversation histories remain separate.
+The chat sidebar imports and exports individual
 conversation archives between profiles.
 
-For terminal use, run `nub run native:chat -- --help` to see one-shot runs,
+For terminal use, run `doolittle --help` to see one-shot runs,
 the cockpit, accounts, approvals, automations, and background jobs. The `acp`
 subcommand starts the existing ElizaOS ACP stdio service. Explicit `api` and
 `gateway` launches bind to loopback and require a configured `ELIZA_API_TOKEN`.
 Use `--bot <uuid>` with `chat`, `run`, `sessions`, `history`, `receipt`, or
 `cancel` to operate on an existing private named agent in the selected profile.
+
+### Connector callbacks
+
+Run a dedicated native gateway for Slack Events API or WhatsApp Cloud API
+webhooks. Export `ELIZA_API_TOKEN` for its owner API, plus `SLACK_SIGNING_SECRET`
+for Slack or `WHATSAPP_APP_SECRET` and `WHATSAPP_VERIFY_TOKEN` for WhatsApp.
+
+```sh
+doolittle --workspace /absolute/path/to/project gateway --ingress-port 10443
+```
+
+The gateway listens on `127.0.0.1:10443` for `POST /webhooks/slack`,
+`POST /webhooks/whatsapp`, and `GET /webhooks/whatsapp`. Point an HTTPS reverse
+proxy at that callback port. Preserve each signed request body and keep the
+WhatsApp verification query out of proxy request logs. The owner API stays on
+its own authenticated loopback address. The gateway holds the workspace and
+profile lease until it stops. Other connector transports use their existing
+ElizaOS gateway configuration.
 
 ## Runtime boundary
 
@@ -78,21 +100,33 @@ Saves compare the original editor buffer with the current file and use the same
 workspace admission as native agent turns. Wallet tools still execute inside
 ElizaOS, subject to its existing permissions and approval flow.
 
-The remaining Electron cutover includes saved pane layouts across restarts,
-embedded browser preview, advanced Git panels, provider and project grants for
-named agents, public connector ingress, and the updater. Native profiles use
-their own data folders. Individual conversation archives are available for
-manual transfer.
+The default native profile checks the previous desktop profile on first use.
+Doolittle imports histories associated with the exact workspace and compatible
+settings for the last workspace. It reads the previous profile in place.
+Configure credentials, account connections, connectors, and project permissions
+in the native profile. An explicit `--profile` starts with isolated state.
+Individual conversation archives are available for manual transfer.
 
 ## Verify and package
 
 ```sh
 nub run native:check
 nub run native:test
-nub run native:package:mac
+nub run desktop:package:mac   # macOS
+nub run desktop:package:linux # Linux
+nub run desktop:package:win   # Windows
 ```
 
-The macOS command builds an ad-hoc signed app in `target/native-packages`. Its
-resources contain Node.js and the verified ElizaOS runtime closure. Production
-signing, notarization, installation behavior, and other desktop platforms need
-their own release verification.
+The macOS command builds an ad-hoc signed `Doolittle Native.app` in
+`target/native-packages`. The bundle includes the desktop, CLI, Node.js and the
+verified ElizaOS runtime. For the signed packaging workflow and staged updater
+acceptance, see [native macOS releases](native-macos-release.md).
+Linux and Windows builds create a portable archive on their respective hosts.
+Keep its `runtime/` directory beside the desktop and CLI executables.
+
+On macOS, verify the bundled Node runtime, CLI connectivity, and desktop
+startup and shutdown using an isolated offline profile:
+
+```sh
+python3 tests/native/packaged-macos.py "/path/to/Doolittle Native.app"
+```

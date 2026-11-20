@@ -100,7 +100,7 @@ Commit the verified source before building and testing an automatic repository
 package:
 
 ```sh
-nub run desktop:package:dir
+nub run legacy:desktop:package:dir
 nub run test:e2e:desktop-packaged
 ```
 

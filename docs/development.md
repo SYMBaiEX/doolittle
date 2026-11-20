@@ -33,34 +33,33 @@ work. `nub run lint:check` checks formatting and lint without modifying files.
 ## Desktop reload
 
 ```sh
-nub run desktop:dev
+nub run desktop:dev -- --workspace /absolute/path/to/project
 ```
 
-The supervisor serves the renderer through Vite and watches the Electron
-main/preload and CLI runtime builds. Shared imported source changes rebuild
-the affected entries. Character and skill assets also trigger reloads.
-Compile failures keep the running app alive until the next successful build.
+The supervisor watches the Rust and GPUI code, ElizaOS runtime sources,
+characters, and skills. A successful build restarts the development app
+without a new install. The running app stays available during a compile failure.
 
-A restart asks the dev app to shut down normally and waits before relaunching.
-If shutdown stalls or is refused, quit that dev app normally and restart the
-command. Do not force-kill a process with open runtime state as a normal reload
-strategy.
+A restart uses the app's normal shutdown. Finish active turns, send or clear
+composer drafts, and save editor changes to let the app restart.
 
-Choose a separate profile or port when running more than one dev instance:
+Each workspace uses a separate profile under `var/desktop-native-dev`.
+You can also choose a profile:
 
 ```sh
-DOOLITTLE_DEV_PORT=5174 nub run desktop:dev -- --user-data-dir=/absolute/private/dev-profile
+nub run desktop:dev -- --workspace /absolute/path/to/project --profile /absolute/private/dev-profile
 ```
 
-The default profile is `var/desktop-dev/profile`. Restart the supervisor after
-changing its configuration or installing dependencies. Packaging and local
-app installation are separate workflows from this reload loop.
+Restart the supervisor after changing its configuration or installing
+dependencies. For the Electron compatibility client, use
+`nub run legacy:desktop:dev`.
 
 ## Implement a feature
 
-Put shared runtime behavior in `packages/agent`; put terminal presentation in
-`apps/cli` and Electron or renderer behavior in `apps/desktop`. Keep shared API
-records in `packages/contracts` and reusable browser controls in `packages/ui`.
+Put shared runtime behavior in `packages/agent`, terminal presentation in
+`apps/cli-native`, and GPUI behavior in `apps/desktop-native`. Keep the
+ElizaOS process entrypoints in `apps/cli` and shared API records in
+`packages/contracts`.
 Import other workspaces through their declared exports. Shared run, model-route,
 execution, and worker-host records belong in `packages/contracts`; extend those
 records with local routing context instead of copying them into a client.

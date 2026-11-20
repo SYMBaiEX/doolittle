@@ -1,7 +1,7 @@
 # Development setup
 
-Doolittle is a TypeScript monorepo managed with Nub. Run repository commands
-from its root unless a command explicitly selects a workspace.
+Doolittle uses Cargo for its Rust clients and Nub for the ElizaOS runtime.
+Run repository commands from the root unless a command selects a workspace.
 
 ## Prerequisites
 
@@ -10,8 +10,9 @@ in the root [`package.json`](../package.json). The source installer can provisio
 the repository's Nub toolchain. Git and `tar` are required to materialize the
 checked ElizaOS source archives.
 
-Electron development requires a graphical desktop. Native packaging and
-signing have additional platform requirements described in [releases](releases.md).
+Install the Rust version declared in [`Cargo.toml`](../Cargo.toml). GPUI desktop
+builds require a graphical platform toolchain, including Xcode and Metal on
+macOS. See [releases](releases.md) for packaging requirements.
 
 ## Install
 
@@ -28,9 +29,9 @@ On Windows, use PowerShell:
 pwsh scripts/install.ps1
 ```
 
-Include `--desktop` on macOS or Linux or `-Desktop` on Windows to install the
-Electron runtime during setup. You can also install it later with
-`nub run desktop:runtime:install` before developing or packaging the desktop app.
+Include `--desktop` on macOS or Linux or `-Desktop` on Windows to build the GPUI
+desktop during setup. The default source install builds the Rust CLI and ElizaOS
+runtime. Run `doolittle desktop` to open the desktop from the CLI.
 
 For an existing toolchain, install the exact dependency graph directly:
 
@@ -82,7 +83,7 @@ The current environment schema is
 ## Start the applications
 
 ```sh
-nub run dev                 # watched terminal entrypoint
+nub run dev                 # build and start the Rust CLI
 nub run start               # terminal session
 nub run start cockpit       # fullscreen terminal interface
 nub run start api           # loopback API process
@@ -91,24 +92,22 @@ nub run start api           # loopback API process
 The default API address is `http://127.0.0.1:3000`; host and port are configurable.
 Check startup with `curl http://127.0.0.1:3000/health` after the API reports ready.
 
-For Electron, install its runtime once after a scriptless dependency install:
+For desktop development:
 
 ```sh
-nub run desktop:runtime:install
 nub run desktop:dev
 ```
 
-Desktop development uses `var/desktop-dev/profile` by default. Installed app
-profiles and the source checkout's `.doolittle/` state are separate. Supply
-`--user-data-dir` when you need another isolated desktop profile; see
-[development](development.md).
+Native clients select a profile for the workspace folder. Use `--profile PATH`
+for isolated development data. See [development](development.md) for the
+reload workflow and [native clients](native-clients.md) for profile import.
 
 ### macOS saved accounts
 
 On macOS, opening the desktop and browsing connection status use cached account
-information. In Connections, choose **Check saved accounts** to read the vault
-and verify what's available. Connecting an account or using a model that needs a
-saved key can also open the vault.
+information. Use **Settings → Accounts** to connect an account, or
+**Settings → Credentials** to save a direct key. Existing ElizaOS accounts
+can still open their provider's existing vault when selected.
 
 macOS may request access to the existing `eliza` Keychain item when encrypted
 credentials are used. The system prompt asks for your Mac login Keychain
@@ -119,9 +118,8 @@ then retry the operation.
 Use consistently signed desktop builds so macOS can recognize Doolittle across
 updates. Switching from an ad-hoc build or changing signing teams can require
 approval again. Use a notarized release, or follow the
-[local signing instructions](releases.md#install-on-macos) if you already have
-a Developer ID Application certificate. `nub run desktop:dev` remains the
-source editing workflow and uses a separate profile by default.
+[native release signing instructions](native-macos-release.md) if you already
+have a Developer ID Application certificate.
 
 ## Confirm the checkout
 

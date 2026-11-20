@@ -37,11 +37,27 @@ provider validation required by the release.
 
 ## Build artifacts
 
+Build the GPUI desktop and Rust CLI on the matching target host.
+
 ```sh
-nub run desktop:package:dir
 nub run desktop:package:mac
-nub run desktop:package:win
 nub run desktop:package:linux
+nub run desktop:package:win
+```
+
+Native artifacts are written to `target/native-packages`. Each contains the
+desktop, CLI, bundled Node, and verified ElizaOS runtime. Linux and Windows use
+portable archives. macOS uses an ad-hoc app for local use and an optional
+Developer ID and notarized ZIP for distribution. See the
+[native macOS signing and update process](native-macos-release.md).
+
+### Electron compatibility artifacts
+
+```sh
+nub run legacy:desktop:package:dir
+nub run --cwd apps/desktop package:mac
+nub run legacy:desktop:package:win
+nub run --cwd apps/desktop package:linux
 ```
 
 Outputs go to `apps/desktop/release`. The desktop packages contain their runtime;
@@ -60,7 +76,7 @@ provenance receipt and SBOM. The wrappers disable electron-builder publication.
 Inspect [`apps/desktop/package.json`](../apps/desktop/package.json) and
 [`package.ts`](../apps/desktop/scripts/package.ts) for current options.
 
-`nub run desktop:package:all` is the supported local cross-package helper for
+`nub run legacy:desktop:package:all` is the local Electron cross-package helper for
 Apple Silicon macOS with Wine. It installs the frozen dependency graph with the
 checked ElizaOS archives, verifies the required target-native packages, and
 builds the matrix transactionally. Its `unpacked-manifest.json` records local
@@ -86,9 +102,9 @@ nub apps/desktop/scripts/package-provenance.ts --verify-runtime-tree --release-d
 Use the target platform's native tools to verify release signatures,
 installation, launch, and update metadata as separate steps.
 
-### Install on macOS
+### Install an Electron compatibility bundle on macOS
 
-`nub run desktop:install:mac` installs a release bundle after verifying the
+`nub run legacy:desktop:install:mac` installs a release bundle after verifying the
 Doolittle signing team, nested runtime signatures, notarization, and Gatekeeper.
 Use `--source /path/to/Doolittle.app` to select an unpacked bundle.
 
@@ -98,7 +114,7 @@ Apple Team ID. Run from a clean checkout.
 
 ```sh
 CSC_NAME="CERTIFICATE_SHA1" nub run --cwd apps/desktop package:dir -- --config.forceCodeSigning=true
-nub run desktop:install:mac -- --team-id TEAMID1234
+nub run legacy:desktop:install:mac -- --team-id TEAMID1234
 ```
 
 The installer preserves the bundle's signature and verifies the Apple signing
@@ -107,7 +123,7 @@ signing identity and team across local updates for consistent login Keychain
 access. This mode verifies local code signing. Release installs also require
 notarization and Gatekeeper assessment.
 
-`nub run desktop:install:mac:ad-hoc` is the explicit development fallback when
+`nub run legacy:desktop:install:mac:ad-hoc` is the development fallback when
 a certificate is unavailable. It preserves a signed source, and refuses to
 replace a signed app with an ad-hoc build or an app signed by another team.
 Use `--destination /path/to/Doolittle.app` for a separate development copy.
