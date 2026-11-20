@@ -7,7 +7,7 @@ import {
   getOfficialOrchestrator,
   retryEffectiveDelegationTask,
 } from "../../runtime/native/service-bridge/delegation/index";
-import { readJsonObjectBody } from "../request-body";
+import { invalidJsonObjectBody, readJsonObjectBody } from "../request-body";
 import { json } from "../responses";
 
 const MAX_BULK_TASK_MUTATIONS = 500;
@@ -70,17 +70,7 @@ export async function handleDelegationMutationRoutes(
 
   if (url.pathname === "/delegation/tasks/bulk") {
     const parsed = await readJsonObjectBody(request);
-    if (!parsed.ok) {
-      return json(
-        {
-          error:
-            parsed.reason === "invalid_json"
-              ? "Invalid JSON body"
-              : "JSON body must be an object",
-        },
-        400,
-      );
-    }
+    if (!parsed.ok) return invalidJsonObjectBody(parsed.reason);
     const body = parsed.value as {
       action?: unknown;
       ids?: unknown;
@@ -165,17 +155,7 @@ export async function handleDelegationMutationRoutes(
     return json({ error: "task id and action are required" }, 400);
   }
   const parsed = await readJsonObjectBody(request);
-  if (!parsed.ok) {
-    return json(
-      {
-        error:
-          parsed.reason === "invalid_json"
-            ? "Invalid JSON body"
-            : "JSON body must be an object",
-      },
-      400,
-    );
-  }
+  if (!parsed.ok) return invalidJsonObjectBody(parsed.reason);
   const body = parsed.value as {
     note?: string;
     cascadeChildren?: boolean;

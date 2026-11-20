@@ -20,7 +20,7 @@ import {
 } from "../../../runtime/native/account-pool/index";
 import { ensureDoolittleDirectApiPlugins } from "../../../runtime/native/plugin-registry/providers";
 import { getEffectiveSecret } from "../../../runtime/native/service-bridge/autocoder/index";
-import { readJsonObjectBody } from "../../request-body";
+import { readRouteJsonBody } from "../../request-body";
 import { json } from "../../responses";
 import {
   activateAccount,
@@ -32,24 +32,6 @@ import {
   readLinkedProvider,
   refreshAccounts,
 } from "./shared";
-
-type ParsedBody = { body: Record<string, unknown> } | { response: Response };
-
-async function readBody(request: Request): Promise<ParsedBody> {
-  const parsed = await readJsonObjectBody(request);
-  if (parsed.ok) return { body: parsed.value };
-  return {
-    response: json(
-      {
-        error:
-          parsed.reason === "invalid_json"
-            ? "Invalid JSON body"
-            : "JSON body must be an object",
-      },
-      400,
-    ),
-  };
-}
 
 export async function handleRuntimeAccountRoutes(
   context: AppContext,
@@ -97,7 +79,7 @@ export async function handleRuntimeAccountRoutes(
     }
 
     if (request.method === "POST" && accountId === "import") {
-      const parsed = await readBody(request);
+      const parsed = await readRouteJsonBody(request);
       if ("response" in parsed) return parsed.response;
       const body = parsed.body as {
         accountId?: unknown;
@@ -183,7 +165,7 @@ export async function handleRuntimeAccountRoutes(
     }
 
     if (request.method === "POST" && accountId === "strategy") {
-      const parsed = await readBody(request);
+      const parsed = await readRouteJsonBody(request);
       if ("response" in parsed) return parsed.response;
       const body = parsed.body as {
         strategy?: unknown;
@@ -204,7 +186,7 @@ export async function handleRuntimeAccountRoutes(
     }
 
     if (request.method === "POST" && accountId === "select") {
-      const parsed = await readBody(request);
+      const parsed = await readRouteJsonBody(request);
       if ("response" in parsed) return parsed.response;
       const body = parsed.body as {
         strategy?: unknown;
@@ -216,7 +198,7 @@ export async function handleRuntimeAccountRoutes(
     }
 
     if (request.method === "PATCH" && accountId) {
-      const parsed = await readBody(request);
+      const parsed = await readRouteJsonBody(request);
       if ("response" in parsed) return parsed.response;
       const body = parsed.body as {
         label?: unknown;
@@ -282,7 +264,7 @@ export async function handleRuntimeAccountRoutes(
   }
 
   if (request.method === "POST" && url.pathname === "/accounts/refresh") {
-    const parsed = await readBody(request);
+    const parsed = await readRouteJsonBody(request);
     if ("response" in parsed) return parsed.response;
     const body = parsed.body as {
       provider?: string;
@@ -344,7 +326,7 @@ export async function handleRuntimeAccountRoutes(
   }
 
   if (request.method === "POST" && url.pathname === "/accounts/use") {
-    const parsed = await readBody(request);
+    const parsed = await readRouteJsonBody(request);
     if ("response" in parsed) return parsed.response;
     const body = parsed.body as {
       provider?: string;
@@ -364,7 +346,7 @@ export async function handleRuntimeAccountRoutes(
   }
 
   if (request.method === "POST" && url.pathname === "/accounts/connect") {
-    const parsed = await readBody(request);
+    const parsed = await readRouteJsonBody(request);
     if ("response" in parsed) return parsed.response;
     const body = parsed.body as {
       provider?: string;
@@ -393,7 +375,7 @@ export async function handleRuntimeAccountRoutes(
   }
 
   if (request.method === "POST" && url.pathname === "/accounts/login") {
-    const parsed = await readBody(request);
+    const parsed = await readRouteJsonBody(request);
     if ("response" in parsed) return parsed.response;
     const body = parsed.body as {
       provider?: string;
@@ -409,7 +391,7 @@ export async function handleRuntimeAccountRoutes(
   }
 
   if (request.method === "POST" && url.pathname === "/accounts/setup-token") {
-    const parsed = await readBody(request);
+    const parsed = await readRouteJsonBody(request);
     if ("response" in parsed) return parsed.response;
     const body = parsed.body as {
       provider?: string;

@@ -1,6 +1,7 @@
 import { Buffer } from "node:buffer";
 import type { IncomingMessage } from "node:http";
 import { isPlainObject } from "@elizaos/shared/type-guards";
+import { json } from "./responses";
 
 /** Match Eliza's image-capable request ceiling while bounding every route. */
 export const MAX_REQUEST_BODY_BYTES = 20 * 1024 * 1024;
@@ -117,4 +118,27 @@ export async function readJsonObjectBody(
   return isPlainObject(value)
     ? { ok: true, value }
     : { ok: false, reason: "not_object" };
+}
+
+export function invalidJsonObjectBody(
+  reason: Extract<JsonObjectReadResult, { ok: false }>["reason"],
+): Response {
+  return json(
+    {
+      error:
+        reason === "invalid_json"
+          ? "Invalid JSON body"
+          : "JSON body must be an object",
+    },
+    400,
+  );
+}
+
+export async function readRouteJsonBody(
+  request: Request,
+): Promise<{ body: JsonObject } | { response: Response }> {
+  const parsed = await readJsonObjectBody(request);
+  return parsed.ok
+    ? { body: parsed.value }
+    : { response: invalidJsonObjectBody(parsed.reason) };
 }

@@ -4,22 +4,10 @@ import {
   SessionForkError,
   SessionRunBoundaryUnavailableError,
 } from "../../services/session/service/index";
-import { readJsonObjectBody } from "../request-body";
+import { invalidJsonObjectBody, readJsonObjectBody } from "../request-body";
 import { json } from "../responses";
 
 const ID_PATTERN = /^[a-zA-Z0-9:_-]{1,128}$/;
-
-function bodyError(reason: "invalid_json" | "not_object"): Response {
-  return json(
-    {
-      error:
-        reason === "invalid_json"
-          ? "Invalid JSON body"
-          : "JSON body must be an object",
-    },
-    400,
-  );
-}
 
 function optionalProjectId(url: URL): string | Response | undefined {
   const value = url.searchParams.get("projectId");
@@ -67,7 +55,7 @@ export async function handleSessionRoutes(
 
   if (request.method === "POST" && url.pathname === "/sessions/title") {
     const parsed = await readJsonObjectBody(request);
-    if (!parsed.ok) return bodyError(parsed.reason);
+    if (!parsed.ok) return invalidJsonObjectBody(parsed.reason);
     const body = parsed.value as {
       sessionId?: string;
       title?: string;
@@ -82,7 +70,7 @@ export async function handleSessionRoutes(
 
   if (request.method === "POST" && url.pathname === "/sessions/fork") {
     const parsed = await readJsonObjectBody(request);
-    if (!parsed.ok) return bodyError(parsed.reason);
+    if (!parsed.ok) return invalidJsonObjectBody(parsed.reason);
     const body = parsed.value as {
       sourceSessionId?: unknown;
       throughMessageId?: unknown;
@@ -138,7 +126,7 @@ export async function handleSessionRoutes(
 
   if (request.method === "POST" && url.pathname === "/sessions/project") {
     const parsed = await readJsonObjectBody(request);
-    if (!parsed.ok) return bodyError(parsed.reason);
+    if (!parsed.ok) return invalidJsonObjectBody(parsed.reason);
     const body = parsed.value as {
       sessionId?: unknown;
       projectId?: unknown;

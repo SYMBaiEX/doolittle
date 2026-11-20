@@ -7,7 +7,10 @@ import {
   performEffectiveCodeQa,
   performEffectiveCodeResearch,
 } from "../../../../runtime/native/service-bridge/autocoder";
-import { readJsonObjectBody } from "../../../request-body";
+import {
+  invalidJsonObjectBody,
+  readJsonObjectBody,
+} from "../../../request-body";
 import { json } from "../../../responses";
 import { runCodegenWorkflow, withAutocoderAbortSignal } from "../run-execution";
 import type { CodegenRouteHandler } from "../types";
@@ -41,17 +44,7 @@ export const handleCodegenWorkflowSubmission: CodegenRouteHandler = async (
   if (request.method !== "POST" || !SUBMISSIONS.has(path)) return null;
 
   const parsed = await readJsonObjectBody(request);
-  if (!parsed.ok) {
-    return json(
-      {
-        error:
-          parsed.reason === "invalid_json"
-            ? "Invalid JSON body"
-            : "JSON body must be an object",
-      },
-      400,
-    );
-  }
+  if (!parsed.ok) return invalidJsonObjectBody(parsed.reason);
   const body = parsed.value;
 
   if (path === "/github/create" || path === "/github/delete") {

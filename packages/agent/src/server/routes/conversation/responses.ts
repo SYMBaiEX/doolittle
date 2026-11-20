@@ -8,7 +8,7 @@ import {
 } from "../../../runtime/run-progress";
 import { createApiResponseId } from "../../../services/api-transport-service";
 import type { RunUpdateEvent } from "../../../services/run-controller-service/index";
-import { readJsonObjectBody } from "../../request-body";
+import { invalidJsonObjectBody, readJsonObjectBody } from "../../request-body";
 import { json, streamSse } from "../../responses";
 import { buildResponsePayload } from "./payload";
 import type { ResponsesRequestBody } from "./types";
@@ -97,17 +97,7 @@ export async function handleResponsesRoute(
   }
 
   const parsed = await readJsonObjectBody(request);
-  if (!parsed.ok) {
-    return json(
-      {
-        error:
-          parsed.reason === "invalid_json"
-            ? "Invalid JSON body"
-            : "JSON body must be an object",
-      },
-      400,
-    );
-  }
+  if (!parsed.ok) return invalidJsonObjectBody(parsed.reason);
   const body = parsed.value as ResponsesRequestBody;
   const unsupportedField = UNSUPPORTED_RESPONSES_FIELDS.find((field) =>
     Object.hasOwn(parsed.value, field),

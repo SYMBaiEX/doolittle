@@ -1,28 +1,10 @@
 import type { AppContext } from "../../../runtime/bootstrap/index";
-import { readJsonObjectBody } from "../../request-body";
+import { readRouteJsonBody } from "../../request-body";
 import { json } from "../../responses";
 import {
   normalizeGatewayReason,
   resolveGatewayPlatformSelection,
 } from "./selection";
-
-type ParsedBody = { body: Record<string, unknown> } | { response: Response };
-
-async function readBody(request: Request): Promise<ParsedBody> {
-  const parsed = await readJsonObjectBody(request);
-  if (parsed.ok) return { body: parsed.value };
-  return {
-    response: json(
-      {
-        error:
-          parsed.reason === "invalid_json"
-            ? "Invalid JSON body"
-            : "JSON body must be an object",
-      },
-      400,
-    ),
-  };
-}
 
 export async function handleGatewayControlRoutes(
   context: AppContext,
@@ -40,7 +22,7 @@ export async function handleGatewayControlRoutes(
   }
 
   if (request.method === "POST" && url.pathname === "/gateway/watchdog") {
-    const parsed = await readBody(request);
+    const parsed = await readRouteJsonBody(request);
     if ("response" in parsed) return parsed.response;
     const body = parsed.body as {
       reason?: string;
@@ -54,7 +36,7 @@ export async function handleGatewayControlRoutes(
   }
 
   if (request.method === "POST" && url.pathname === "/gateway/watch") {
-    const parsed = await readBody(request);
+    const parsed = await readRouteJsonBody(request);
     if ("response" in parsed) return parsed.response;
     const body = parsed.body as {
       platform?: string;
@@ -74,7 +56,7 @@ export async function handleGatewayControlRoutes(
   }
 
   if (request.method === "POST" && url.pathname === "/gateway/restart") {
-    const parsed = await readBody(request);
+    const parsed = await readRouteJsonBody(request);
     if ("response" in parsed) return parsed.response;
     const body = parsed.body as {
       platform?: string;

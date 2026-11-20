@@ -1,7 +1,12 @@
 import type { AppContext } from "../../runtime/bootstrap/index";
 import { isAcpSessionNotFoundError } from "../../services/acp/protocol-runtime";
 import type { AcpEditorContext } from "../../services/acp/types";
-import { readJsonObjectBody } from "../request-body";
+import {
+  invalidJsonObjectBody,
+  type JsonObject,
+  readJsonObjectBody,
+  readRouteJsonBody,
+} from "../request-body";
 import { json } from "../responses";
 
 export async function handleAcpRoutes(
@@ -232,7 +237,7 @@ async function handleAcpRoutesImpl(
 
   if (request.method === "POST" && url.pathname === "/acp/export") {
     const parsed = await readOptionalMutationObject(request);
-    if (parsed.error) return parsed.error;
+    if ("response" in parsed) return parsed.response;
     const body = parsed.body;
     if (body.label !== undefined && typeof body.label !== "string") {
       return json({ error: "label must be a string" }, 400);
@@ -244,7 +249,7 @@ async function handleAcpRoutesImpl(
 
   if (request.method === "POST" && url.pathname === "/acp/import") {
     const parsed = await readOptionalMutationObject(request);
-    if (parsed.error) return parsed.error;
+    if ("response" in parsed) return parsed.response;
     const body = parsed.body;
     if (
       (body.path !== undefined && typeof body.path !== "string") ||
@@ -288,17 +293,7 @@ async function handleAcpRoutesImpl(
 
   if (request.method === "POST" && url.pathname === "/acp/invoke") {
     const parsed = await readJsonObjectBody(request);
-    if (!parsed.ok) {
-      return json(
-        {
-          error:
-            parsed.reason === "invalid_json"
-              ? "Invalid JSON body"
-              : "JSON body must be an object",
-        },
-        400,
-      );
-    }
+    if (!parsed.ok) return invalidJsonObjectBody(parsed.reason);
     const body = parsed.value as { input?: unknown };
     if (!isNonEmptyString(body.input)) {
       return json({ error: "input is required" }, 400);
@@ -310,7 +305,7 @@ async function handleAcpRoutesImpl(
 
   if (request.method === "POST" && url.pathname === "/acp/call") {
     const parsed = await readOptionalMutationObject(request);
-    if (parsed.error) return parsed.error;
+    if ("response" in parsed) return parsed.response;
     const body = parsed.body;
     if (typeof body.tool !== "string" || !body.tool.trim()) {
       return json({ error: "tool is required" }, 400);
@@ -343,24 +338,10 @@ async function readOptionalObject(
     : {};
 }
 
-async function readOptionalMutationObject(
-  request: Request,
-): Promise<{ body: Record<string, unknown>; error?: Response }> {
-  if (request.body === null) return { body: {} };
-  const parsed = await readJsonObjectBody(request);
-  if (parsed.ok) return { body: parsed.value };
-  return {
-    body: {},
-    error: json(
-      {
-        error:
-          parsed.reason === "invalid_json"
-            ? "Invalid JSON body"
-            : "JSON body must be an object",
-      },
-      400,
-    ),
-  };
+function readOptionalMutationObject(request: Request) {
+  return request.body === null
+    ? Promise.resolve({ body: {} as JsonObject })
+    : readRouteJsonBody(request);
 }
 
 function isNonEmptyString(value: unknown): value is string {

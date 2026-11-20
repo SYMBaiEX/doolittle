@@ -6,7 +6,7 @@ import {
   currentConversationWorkspace,
   isDesktopWorkspaceRuntime,
 } from "../../../runtime/workspace-scope";
-import { readJsonObjectBody } from "../../request-body";
+import { invalidJsonObjectBody, readJsonObjectBody } from "../../request-body";
 import { json } from "../../responses";
 import { hasDesktopControlCapability } from "../workspace-scope";
 
@@ -94,17 +94,7 @@ export async function handleRuntimeWorkspaceRoutes(
   }
 
   const parsed = await readJsonObjectBody(request);
-  if (!parsed.ok) {
-    return json(
-      {
-        error:
-          parsed.reason === "invalid_json"
-            ? "Invalid JSON body"
-            : "JSON body must be an object",
-      },
-      400,
-    );
-  }
+  if (!parsed.ok) return invalidJsonObjectBody(parsed.reason);
   try {
     const workspaceDir = switchRuntimeWorkspace(
       context,

@@ -5,7 +5,7 @@ import type {
   ReviewRecordComment,
   ReviewRecordScope,
 } from "../../services/review-record/index";
-import { readJsonObjectBody } from "../request-body";
+import { readRouteJsonBody } from "../request-body";
 import { json } from "../responses";
 
 const MAX_COMMENT_BODY_LENGTH = 2_000;
@@ -96,24 +96,6 @@ function responseError(error: unknown): Response {
   );
 }
 
-async function readMutationBody(
-  request: Request,
-): Promise<{ body?: Record<string, unknown>; error?: Response }> {
-  const parsed = await readJsonObjectBody(request);
-  if (parsed.ok) return { body: parsed.value };
-  return {
-    error: json(
-      {
-        error:
-          parsed.reason === "invalid_json"
-            ? "Invalid JSON body"
-            : "JSON body must be an object",
-      },
-      400,
-    ),
-  };
-}
-
 export async function handleReviewRecordRoutes(
   context: AppContext,
   request: Request,
@@ -140,9 +122,9 @@ export async function handleReviewRecordRoutes(
       request.method === "POST" &&
       url.pathname === "/review-record/comments"
     ) {
-      const parsed = await readMutationBody(request);
-      if (parsed.error) return parsed.error;
-      const body = parsed.body ?? {};
+      const parsed = await readRouteJsonBody(request);
+      if ("response" in parsed) return parsed.response;
+      const body = parsed.body;
       const comment = requestComment(body.comment);
       if (!comment)
         return json({ error: "A valid review comment is required." }, 400);
@@ -158,9 +140,9 @@ export async function handleReviewRecordRoutes(
       request.method === "POST" &&
       url.pathname === "/review-record/comments/migrate"
     ) {
-      const parsed = await readMutationBody(request);
-      if (parsed.error) return parsed.error;
-      const body = parsed.body ?? {};
+      const parsed = await readRouteJsonBody(request);
+      if ("response" in parsed) return parsed.response;
+      const body = parsed.body;
       const comments = Array.isArray(body.comments)
         ? body.comments.slice(-MAX_MIGRATION_COMMENTS).flatMap((value) => {
             const comment = requestComment(value);
@@ -188,9 +170,9 @@ export async function handleReviewRecordRoutes(
       url.pathname,
     );
     if (commentMatch && request.method === "PATCH") {
-      const parsed = await readMutationBody(request);
-      if (parsed.error) return parsed.error;
-      const body = parsed.body ?? {};
+      const parsed = await readRouteJsonBody(request);
+      if ("response" in parsed) return parsed.response;
+      const body = parsed.body;
       const id = decodeCommentId(commentMatch[1]);
       if (!id) {
         return json({ error: "Review comment identifier is invalid." }, 400);

@@ -20,7 +20,7 @@ import {
   TerminalSessionNotFoundError,
 } from "../../services/terminal/session";
 import { sdkTerminalRunTokenError } from "../auth";
-import { readJsonObjectBody } from "../request-body";
+import { readRouteJsonBody } from "../request-body";
 import { json, streamSse } from "../responses";
 import { runtimeInstanceId } from "../runtime-instance-id";
 
@@ -50,24 +50,6 @@ type TerminalCommandInput =
       error: string;
       status: number;
     };
-
-type ParsedBody = { body: Record<string, unknown> } | { response: Response };
-
-async function readBody(request: Request): Promise<ParsedBody> {
-  const parsed = await readJsonObjectBody(request);
-  if (parsed.ok) return { body: parsed.value };
-  return {
-    response: json(
-      {
-        error:
-          parsed.reason === "invalid_json"
-            ? "Invalid JSON body"
-            : "JSON body must be an object",
-      },
-      400,
-    ),
-  };
-}
 
 function parseTerminalCommandInput(
   body: Record<string, unknown>,
@@ -259,7 +241,7 @@ export async function handleOperationsRoutes(
   }
 
   if (request.method === "POST" && url.pathname === "/workspace/write") {
-    const parsed = await readBody(request);
+    const parsed = await readRouteJsonBody(request);
     if ("response" in parsed) return parsed.response;
     const { body } = parsed;
     const path = typeof body.path === "string" ? body.path : "";
@@ -357,7 +339,7 @@ export async function handleOperationsRoutes(
   }
 
   if (request.method === "POST" && url.pathname === "/terminal/run") {
-    const parsed = await readBody(request);
+    const parsed = await readRouteJsonBody(request);
     if ("response" in parsed) return parsed.response;
     const { body } = parsed;
     const input = parseTerminalCommandInput(body);
@@ -381,7 +363,7 @@ export async function handleOperationsRoutes(
   }
 
   if (request.method === "POST" && url.pathname === "/api/terminal/run") {
-    const parsed = await readBody(request);
+    const parsed = await readRouteJsonBody(request);
     if ("response" in parsed) return parsed.response;
     const { body } = parsed;
     if (
@@ -459,7 +441,7 @@ export async function handleOperationsRoutes(
   }
 
   if (request.method === "POST" && url.pathname === "/terminal/run/stream") {
-    const parsed = await readBody(request);
+    const parsed = await readRouteJsonBody(request);
     if ("response" in parsed) return parsed.response;
     const { body } = parsed;
     const input = parseTerminalCommandInput(body);
@@ -547,7 +529,7 @@ export async function handleOperationsRoutes(
   }
 
   if (request.method === "POST" && url.pathname === "/terminal/session/start") {
-    const parsed = await readBody(request);
+    const parsed = await readRouteJsonBody(request);
     if ("response" in parsed) return parsed.response;
     const { body } = parsed;
     if (typeof body.creationId !== "string") {
@@ -568,7 +550,7 @@ export async function handleOperationsRoutes(
   }
 
   if (request.method === "POST" && url.pathname === "/terminal/session/input") {
-    const parsed = await readBody(request);
+    const parsed = await readRouteJsonBody(request);
     if ("response" in parsed) return parsed.response;
     const { body } = parsed;
     try {
@@ -587,7 +569,7 @@ export async function handleOperationsRoutes(
     request.method === "POST" &&
     url.pathname === "/terminal/session/resize"
   ) {
-    const parsed = await readBody(request);
+    const parsed = await readRouteJsonBody(request);
     if ("response" in parsed) return parsed.response;
     const { body } = parsed;
     try {
@@ -607,7 +589,7 @@ export async function handleOperationsRoutes(
     request.method === "POST" &&
     url.pathname === "/terminal/session/interrupt"
   ) {
-    const parsed = await readBody(request);
+    const parsed = await readRouteJsonBody(request);
     if ("response" in parsed) return parsed.response;
     const { body } = parsed;
     try {
@@ -622,7 +604,7 @@ export async function handleOperationsRoutes(
   }
 
   if (request.method === "POST" && url.pathname === "/terminal/session/close") {
-    const parsed = await readBody(request);
+    const parsed = await readRouteJsonBody(request);
     if ("response" in parsed) return parsed.response;
     const { body } = parsed;
     try {

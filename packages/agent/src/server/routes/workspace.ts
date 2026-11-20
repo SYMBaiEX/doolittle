@@ -1,24 +1,6 @@
 import type { AppContext } from "../../runtime/bootstrap/index";
-import { readJsonObjectBody } from "../request-body";
+import { readRouteJsonBody } from "../request-body";
 import { json } from "../responses";
-
-type ParsedBody = { body: Record<string, unknown> } | { response: Response };
-
-async function readBody(request: Request): Promise<ParsedBody> {
-  const parsed = await readJsonObjectBody(request);
-  if (parsed.ok) return { body: parsed.value };
-  return {
-    response: json(
-      {
-        error:
-          parsed.reason === "invalid_json"
-            ? "Invalid JSON body"
-            : "JSON body must be an object",
-      },
-      400,
-    ),
-  };
-}
 
 export async function handleWorkspaceRoutes(
   context: AppContext,
@@ -65,7 +47,7 @@ export async function handleWorkspaceRoutes(
   }
 
   if (request.method === "POST" && url.pathname === "/workspace/checkpoints") {
-    const parsed = await readBody(request);
+    const parsed = await readRouteJsonBody(request);
     if ("response" in parsed) return parsed.response;
     const body = parsed.body as {
       label?: unknown;
@@ -105,7 +87,7 @@ export async function handleWorkspaceRoutes(
     } catch {
       return json({ error: "Checkpoint id contains invalid encoding." }, 400);
     }
-    const parsed = await readBody(request);
+    const parsed = await readRouteJsonBody(request);
     if ("response" in parsed) return parsed.response;
     const body = parsed.body as {
       confirmCheckpointId?: unknown;

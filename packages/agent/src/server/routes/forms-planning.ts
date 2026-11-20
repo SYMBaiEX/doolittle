@@ -15,27 +15,9 @@ import {
   getNativeFormsControlPlane,
   getNativePlanningControlPlane,
 } from "../../runtime/native/service-bridge/control-planes/index";
-import { readJsonObjectBody } from "../request-body";
+import { readRouteJsonBody } from "../request-body";
 import { json } from "../responses";
 import { parseOpaqueRouteId } from "./parse-opaque-id";
-
-type ParsedBody = { body: Record<string, unknown> } | { response: Response };
-
-async function readBody(request: Request): Promise<ParsedBody> {
-  const parsed = await readJsonObjectBody(request);
-  if (parsed.ok) return { body: parsed.value };
-  return {
-    response: json(
-      {
-        error:
-          parsed.reason === "invalid_json"
-            ? "Invalid JSON body"
-            : "JSON body must be an object",
-      },
-      400,
-    ),
-  };
-}
 
 export async function handleFormsPlanningRoutes(
   context: AppContext,
@@ -76,7 +58,7 @@ export async function handleFormsPlanningRoutes(
   }
 
   if (request.method === "POST" && url.pathname === "/forms/create") {
-    const parsed = await readBody(request);
+    const parsed = await readRouteJsonBody(request);
     if ("response" in parsed) return parsed.response;
     const body = parsed.body as {
       template?: string;
@@ -96,7 +78,7 @@ export async function handleFormsPlanningRoutes(
   }
 
   if (request.method === "POST" && url.pathname === "/plans/create") {
-    const parsed = await readBody(request);
+    const parsed = await readRouteJsonBody(request);
     if ("response" in parsed) return parsed.response;
     const body = parsed.body as {
       title?: string;
@@ -154,7 +136,7 @@ export async function handleFormsPlanningRoutes(
       }
     }
 
-    const parsed = await readBody(request);
+    const parsed = await readRouteJsonBody(request);
     if ("response" in parsed) return parsed.response;
     const body = parsed.body as { instruction?: unknown };
     const instruction =

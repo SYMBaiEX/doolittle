@@ -1,24 +1,14 @@
 import type { AppContext } from "../../runtime/bootstrap/index";
 import { getNativeMediaControlPlane } from "../../runtime/native/service-bridge/control-planes/index";
 import { MediaLibraryError } from "../../services/media/library";
-import { readJsonObjectBody } from "../request-body";
+import { invalidJsonObjectBody, readJsonObjectBody } from "../request-body";
 import { json } from "../responses";
 
 async function readMediaBody(
   request: Request,
 ): Promise<Record<string, unknown> | Response> {
   const parsed = await readJsonObjectBody(request);
-  if (!parsed.ok) {
-    return json(
-      {
-        error:
-          parsed.reason === "invalid_json"
-            ? "Invalid JSON body"
-            : "JSON body must be an object",
-      },
-      400,
-    );
-  }
+  if (!parsed.ok) return invalidJsonObjectBody(parsed.reason);
   return parsed.value;
 }
 

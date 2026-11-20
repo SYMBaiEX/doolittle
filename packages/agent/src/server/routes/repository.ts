@@ -1,6 +1,6 @@
 import type { RepositoryMutationRequest } from "@doolittle/contracts/repository";
 import type { AppContext } from "../../runtime/bootstrap/index";
-import { readJsonObjectBody } from "../request-body";
+import { invalidJsonObjectBody, readJsonObjectBody } from "../request-body";
 import { json } from "../responses";
 
 async function readMutationRequest(
@@ -107,17 +107,7 @@ export async function handleRepositoryRoutes(
 
   if (request.method === "POST" && url.pathname === "/repo/worktrees/create") {
     const parsed = await readJsonObjectBody(request);
-    if (!parsed.ok) {
-      return json(
-        {
-          error:
-            parsed.reason === "invalid_json"
-              ? "Invalid JSON body"
-              : "JSON body must be an object",
-        },
-        400,
-      );
-    }
+    if (!parsed.ok) return invalidJsonObjectBody(parsed.reason);
     const branch = parsed.value.branch;
     const path = parsed.value.path;
     if (typeof branch !== "string" || typeof path !== "string") {

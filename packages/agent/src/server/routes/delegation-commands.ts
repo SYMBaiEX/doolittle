@@ -10,7 +10,7 @@ import {
   superviseEffectiveDelegationQueue,
 } from "../../runtime/native/service-bridge/delegation/index";
 import { currentConversationWorkspace } from "../../runtime/workspace-scope";
-import { readJsonObjectBody } from "../request-body";
+import { readRouteJsonBody } from "../request-body";
 import { json } from "../responses";
 
 type DelegationTaskBody = {
@@ -64,24 +64,6 @@ type DelegationCommandRouteOptions = {
   runDelegationTaskInWorker?: DelegationWorkerRunner;
   runAgentTurn?: DelegationAgentTurnRunner;
 };
-
-type ParsedBody = { body: Record<string, unknown> } | { response: Response };
-
-async function readBody(request: Request): Promise<ParsedBody> {
-  const parsed = await readJsonObjectBody(request);
-  if (parsed.ok) return { body: parsed.value };
-  return {
-    response: json(
-      {
-        error:
-          parsed.reason === "invalid_json"
-            ? "Invalid JSON body"
-            : "JSON body must be an object",
-      },
-      400,
-    ),
-  };
-}
 
 const GUIDED_CODING_FIELDS = new Set([
   "title",
@@ -491,7 +473,7 @@ export async function handleDelegationCommandRoutes(
   }
 
   if (request.method === "POST" && url.pathname === "/delegation/tasks") {
-    const parsed = await readBody(request);
+    const parsed = await readRouteJsonBody(request);
     if ("response" in parsed) return parsed.response;
     const body = parsed.body as DelegationTaskBody;
     if (!body.title || !body.objective) {
@@ -528,7 +510,7 @@ export async function handleDelegationCommandRoutes(
     url.pathname === "/delegation/tasks/start-coding"
   ) {
     try {
-      const parsed = await readBody(request);
+      const parsed = await readRouteJsonBody(request);
       if ("response" in parsed) return parsed.response;
       const body = parseGuidedCodingLaunchBody(parsed.body);
       return json({
@@ -557,7 +539,7 @@ export async function handleDelegationCommandRoutes(
       return json({ error: "task id is required" }, 400);
     }
 
-    const parsed = await readBody(request);
+    const parsed = await readRouteJsonBody(request);
     if ("response" in parsed) return parsed.response;
     const body = parsed.body as DelegationTaskBody;
     if (!body.objective) {

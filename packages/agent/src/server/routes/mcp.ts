@@ -13,7 +13,7 @@ import {
   searchEffectiveMcpMarketplace,
 } from "../../runtime/native/service-bridge/tooling/index";
 import { hasAsciiControlCharacters } from "../../utils/text-validation";
-import { readJsonObjectBody } from "../request-body";
+import { invalidJsonObjectBody, readJsonObjectBody } from "../request-body";
 import { json } from "../responses";
 
 const MAX_MARKETPLACE_QUERY_LENGTH = 128;
@@ -179,17 +179,7 @@ export async function handleMcpRoutes(
 
   if (request.method === "POST" && url.pathname === "/mcp/invoke") {
     const parsed = await readJsonObjectBody(request);
-    if (!parsed.ok) {
-      return json(
-        {
-          error:
-            parsed.reason === "invalid_json"
-              ? "Invalid JSON body"
-              : "JSON body must be an object",
-        },
-        400,
-      );
-    }
+    if (!parsed.ok) return invalidJsonObjectBody(parsed.reason);
     const body = parsed.value as { input?: string };
     if (!body.input) {
       return json({ error: "input is required" }, 400);
@@ -201,17 +191,7 @@ export async function handleMcpRoutes(
 
   if (request.method === "POST" && url.pathname === "/mcp/invoke-tool") {
     const parsed = await readJsonObjectBody(request);
-    if (!parsed.ok) {
-      return json(
-        {
-          error:
-            parsed.reason === "invalid_json"
-              ? "Invalid JSON body"
-              : "JSON body must be an object",
-        },
-        400,
-      );
-    }
+    if (!parsed.ok) return invalidJsonObjectBody(parsed.reason);
     const body = parsed.value as {
       tool?: string;
       input?: Record<string, unknown>;

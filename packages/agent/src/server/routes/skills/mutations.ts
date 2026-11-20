@@ -6,26 +6,8 @@ import {
   installEffectiveSkill,
   syncEffectiveSkillCatalog,
 } from "../../../runtime/native/service-bridge/skill-hub/index";
-import { readJsonObjectBody } from "../../request-body";
+import { readRouteJsonBody } from "../../request-body";
 import { json } from "../../responses";
-
-type ParsedBody = { body: Record<string, unknown> } | { response: Response };
-
-async function readBody(request: Request): Promise<ParsedBody> {
-  const parsed = await readJsonObjectBody(request);
-  if (parsed.ok) return { body: parsed.value };
-  return {
-    response: json(
-      {
-        error:
-          parsed.reason === "invalid_json"
-            ? "Invalid JSON body"
-            : "JSON body must be an object",
-      },
-      400,
-    ),
-  };
-}
 
 export async function handleSkillsMutationRoutes(
   context: AppContext,
@@ -43,7 +25,7 @@ export async function handleSkillsMutationRoutes(
   }
 
   if (url.pathname === "/skills/export") {
-    const parsed = await readBody(request);
+    const parsed = await readRouteJsonBody(request);
     if ("response" in parsed) return parsed.response;
     const body = parsed.body as {
       slug?: string;
@@ -72,7 +54,7 @@ export async function handleSkillsMutationRoutes(
   }
 
   if (url.pathname === "/skills/import") {
-    const parsed = await readBody(request);
+    const parsed = await readRouteJsonBody(request);
     if ("response" in parsed) return parsed.response;
     const body = parsed.body as {
       sourcePath?: string;
@@ -89,7 +71,7 @@ export async function handleSkillsMutationRoutes(
   }
 
   if (url.pathname === "/skills/install") {
-    const parsed = await readBody(request);
+    const parsed = await readRouteJsonBody(request);
     if ("response" in parsed) return parsed.response;
     const body = parsed.body as {
       slug?: string;

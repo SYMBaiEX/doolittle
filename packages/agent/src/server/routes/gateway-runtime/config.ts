@@ -1,7 +1,7 @@
 import { loadGatewayConfig, saveGatewayConfig } from "../../../config/gateway";
 import type { AppContext } from "../../../runtime/bootstrap/index";
 import type { GatewayConfig } from "../../../types/index";
-import { readJsonObjectBody } from "../../request-body";
+import { invalidJsonObjectBody, readJsonObjectBody } from "../../request-body";
 import { json } from "../../responses";
 
 function applyGatewayConfig(
@@ -30,17 +30,7 @@ export async function handleGatewayConfigRoutes(
 
   if (request.method === "POST" && url.pathname === "/gateway/config") {
     const parsed = await readJsonObjectBody(request);
-    if (!parsed.ok) {
-      return json(
-        {
-          error:
-            parsed.reason === "invalid_json"
-              ? "Invalid JSON body"
-              : "JSON body must be an object",
-        },
-        400,
-      );
-    }
+    if (!parsed.ok) return invalidJsonObjectBody(parsed.reason);
     const body = parsed.value as unknown as GatewayConfig;
     saveGatewayConfig(context.config, body);
     applyGatewayConfig(context, body);

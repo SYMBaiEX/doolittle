@@ -1,7 +1,7 @@
 import { readWorkerBotProfile } from "../../runtime/bootstrap/bot-profile";
 import type { AppContext } from "../../runtime/bootstrap/index";
 import { currentConversationWorkspace } from "../../runtime/workspace-scope";
-import { readJsonObjectBody } from "../request-body";
+import { invalidJsonObjectBody, readJsonObjectBody } from "../request-body";
 import { json } from "../responses";
 
 export async function handleMigrationRoutes(
@@ -48,17 +48,7 @@ export async function handleMigrationRoutes(
 
   if (request.method === "POST" && url.pathname === "/migrate/apply") {
     const parsed = await readJsonObjectBody(request);
-    if (!parsed.ok) {
-      return json(
-        {
-          error:
-            parsed.reason === "invalid_json"
-              ? "Invalid JSON body"
-              : "JSON body must be an object",
-        },
-        400,
-      );
-    }
+    if (!parsed.ok) return invalidJsonObjectBody(parsed.reason);
     const path = parsed.value.path;
     if (typeof path !== "string" || !path.trim()) {
       return json({ error: "path is required" }, 400);

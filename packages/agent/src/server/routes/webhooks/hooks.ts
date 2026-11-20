@@ -1,6 +1,6 @@
 import type { AppContext } from "../../../runtime/bootstrap/index";
 import { resolveHookEventBinding } from "../../../services/hook-projection-service";
-import { readJsonObjectBody } from "../../request-body";
+import { invalidJsonObjectBody, readJsonObjectBody } from "../../request-body";
 import { json } from "../../responses";
 
 export async function handleHookRoutes(
@@ -17,17 +17,7 @@ export async function handleHookRoutes(
 
   if (request.method === "POST" && url.pathname === "/hooks") {
     const parsed = await readJsonObjectBody(request);
-    if (!parsed.ok) {
-      return json(
-        {
-          error:
-            parsed.reason === "invalid_json"
-              ? "Invalid JSON body"
-              : "JSON body must be an object",
-        },
-        400,
-      );
-    }
+    if (!parsed.ok) return invalidJsonObjectBody(parsed.reason);
     const body = parsed.value;
     if (
       typeof body.event !== "string" ||
