@@ -35,11 +35,11 @@ entire prompt without a reliable stable split, use no stable blocks.
 
 [`provider-policy.ts`](provider-policy.ts) classifies current handlers:
 
-| Mode | Provider family | Output |
-| --- | --- | --- |
-| Explicit | Anthropic/linked Claude OAuth, OpenAI | Stable segments and supported provider options. |
-| Implicit | Ollama/local | Unchanged plain prompt; the provider may reuse prefix state. |
-| None | Codex, Eliza Cloud, unknown | Unchanged plain prompt without cache hints. |
+| Mode     | Provider family                       | Output                                                       |
+| -------- | ------------------------------------- | ------------------------------------------------------------ |
+| Explicit | Anthropic/linked Claude OAuth, OpenAI | Stable segments and supported provider options.              |
+| Implicit | Ollama/local                          | Unchanged plain prompt; the provider may reuse prefix state. |
+| None     | Codex, Eliza Cloud, unknown           | Unchanged plain prompt without cache hints.                  |
 
 Explicit Claude CLI fallback receives the same plain prompt and ignores native
 cache hints. Cache eligibility is not proof that a provider used its cache.

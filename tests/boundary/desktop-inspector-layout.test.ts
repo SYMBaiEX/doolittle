@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 
 import { describe, expect, it, vi } from "vitest";
-import { THEME_MANIFEST_CHANGE_EVENT } from "../../apps/desktop/src/renderer/desktop-theme";
 import {
   INSPECTOR_WIDTH_KEY,
   inspectorResizeBounds,
@@ -9,6 +8,7 @@ import {
   observeInspectorGeometry,
   saveInspectorWidth,
 } from "../../apps/desktop/src/renderer/chat/inspector-layout";
+import { THEME_MANIFEST_CHANGE_EVENT } from "../../apps/desktop/src/renderer/desktop-theme";
 
 describe("conversation inspector layout", () => {
   it("refreshes theme geometry without a pane resize and cleans up its listeners", () => {

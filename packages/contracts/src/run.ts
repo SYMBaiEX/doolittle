@@ -9,7 +9,11 @@ export type ToolProgressMode = (typeof TOOL_PROGRESS_MODES)[number];
 
 export const ACTIVE_RUN_STATUSES = ["thinking", "acting", "waiting"] as const;
 export type ActiveRunStatus = (typeof ACTIVE_RUN_STATUSES)[number];
-export const TERMINAL_RUN_STATUSES = ["complete", "cancelled", "error"] as const;
+export const TERMINAL_RUN_STATUSES = [
+  "complete",
+  "cancelled",
+  "error",
+] as const;
 export type TerminalRunStatus = (typeof TERMINAL_RUN_STATUSES)[number];
 export const RUN_STATUSES = [
   ...ACTIVE_RUN_STATUSES,

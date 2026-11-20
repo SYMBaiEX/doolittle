@@ -60,7 +60,9 @@ function elapsedFrom(startedAt: string, endedAt?: string): number {
 }
 
 /** Stable terminal evidence for desktop, CLI, and API clients. */
-export function summarizeChatRun(run: RunReceiptEnvelope): ChatRunResultSummary {
+export function summarizeChatRun(
+  run: RunReceiptEnvelope,
+): ChatRunResultSummary {
   const changedFiles = new Set<string>();
   let failedChanges = 0;
   for (const mutation of run.localMutations) {
@@ -78,8 +80,7 @@ export function summarizeChatRun(run: RunReceiptEnvelope): ChatRunResultSummary 
     }
     if (mutation.success !== true) continue;
     const resolvedPath =
-      "resolvedPath" in mutation &&
-      typeof mutation.resolvedPath === "string"
+      "resolvedPath" in mutation && typeof mutation.resolvedPath === "string"
         ? mutation.resolvedPath
         : undefined;
     const requestedPath =
@@ -106,7 +107,9 @@ export function summarizeChatRun(run: RunReceiptEnvelope): ChatRunResultSummary 
     lastAction: typeof run.lastAction === "string" ? run.lastAction : undefined,
     durationMs: elapsedFrom(
       run.startedAt,
-      typeof run.endedAt === "string" && run.endedAt ? run.endedAt : run.updatedAt,
+      typeof run.endedAt === "string" && run.endedAt
+        ? run.endedAt
+        : run.updatedAt,
     ),
     timeToFirstMessageMs: timing(run.firstMessageAt),
     timeToFirstActionMs: timing(run.firstActionAt),

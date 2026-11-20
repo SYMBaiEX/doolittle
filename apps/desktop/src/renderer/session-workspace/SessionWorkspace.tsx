@@ -1002,7 +1002,10 @@ function SessionWorkspaceContent({ renderPanel, ...props }: WorkspaceProps) {
                     className={CONTROL}
                     ref={panelsButtonRef}
                     title={
-                      isCanvas && layout.mode === "split" && tabbed && !focusView
+                      isCanvas &&
+                      layout.mode === "split" &&
+                      tabbed &&
+                      !focusView
                         ? "Panels · arrangement saved; tabs shown to fit this window"
                         : "Manage conversation panels"
                     }

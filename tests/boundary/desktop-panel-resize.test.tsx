@@ -3,13 +3,13 @@
 import { act, useState, useSyncExternalStore } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { PanelResizeHandle } from "../../apps/desktop/src/renderer/components/PanelResizeHandle";
 import {
   dockedPanelResizeBounds,
   shellViewportWidth,
   subscribeShellViewportWidth,
   UTILITY_DRAWER_WIDTH,
 } from "../../apps/desktop/src/renderer/panel-layout";
-import { PanelResizeHandle } from "../../apps/desktop/src/renderer/components/PanelResizeHandle";
 
 (
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }

@@ -18,7 +18,10 @@ export function createApplicationAcpHost(application: ApplicationSession) {
       return application.workerBotId ?? String(context.runtime.agentId);
     },
     executeTurn: async (input) => {
-      const signal = AbortSignal.any([input.signal, application.shutdownSignal]);
+      const signal = AbortSignal.any([
+        input.signal,
+        application.shutdownSignal,
+      ]);
       signal.throwIfAborted();
       const context = await application.ensureRuntime({
         startupMode: "api",

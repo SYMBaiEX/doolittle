@@ -97,7 +97,9 @@ async function runOwnedTextProcess(
   const controller = new AbortController();
   let stopReason: "aborted" | "timeout" | undefined;
   let settlementTimer: ReturnType<typeof setTimeout> | undefined;
-  let rejectSettlement!: (error: TextProcessTerminationUnconfirmedError) => void;
+  let rejectSettlement!: (
+    error: TextProcessTerminationUnconfirmedError,
+  ) => void;
   const settlement = new Promise<never>((_resolve, reject) => {
     rejectSettlement = reject;
   });

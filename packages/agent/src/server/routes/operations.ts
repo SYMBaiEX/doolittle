@@ -10,11 +10,11 @@ import {
   resolveConversationWorkspace,
   runWithConversationWorkspace,
 } from "../../runtime/workspace-scope";
+import { TextProcessTerminationUnconfirmedError } from "../../services/process-execution";
 import {
   ExecutionBackendUnavailableError,
   TerminalCancellationUnavailableError,
 } from "../../services/terminal/command/orchestrator/index";
-import { TextProcessTerminationUnconfirmedError } from "../../services/process-execution";
 import {
   TerminalCreationConflictError,
   TerminalSessionNotFoundError,

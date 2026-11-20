@@ -13,11 +13,11 @@ import type {
   WaitForTerminalExitRequest,
   WaitForTerminalExitResponse,
 } from "@doolittle/acp";
+import type { AppServices } from "../types";
 import {
   assertWorkspacePathResolvesInside,
   resolveWorkspacePath,
 } from "../workspace-service/path";
-import type { AppServices } from "../types";
 import type { AcpProtocolHost } from "./types";
 
 interface AcpTerminalState {
@@ -35,7 +35,10 @@ export interface AcpHostDependencies {
   workspace: Pick<AppServices["workspace"], "root" | "read" | "write">;
   terminal: Pick<AppServices["terminal"], "runStreamingLocal">;
   runController: Pick<AppServices["runController"], "getActive">;
-  executionApprovals: Pick<AppServices["executionApprovals"], "request" | "get">;
+  executionApprovals: Pick<
+    AppServices["executionApprovals"],
+    "request" | "get"
+  >;
   actorId(): Promise<string>;
   executeTurn: AcpProtocolHost["executeTurn"];
 }

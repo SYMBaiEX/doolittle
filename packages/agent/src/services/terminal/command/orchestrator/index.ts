@@ -40,10 +40,9 @@ export class TerminalServiceCommandOrchestrator {
   ) {}
 
   /** Admit the configured target before choosing background or streamed delivery. */
-  assertExecutionAvailable(options: {
-    requireCancellation?: boolean;
-    abortSignal?: AbortSignal;
-  } = {}): void {
+  assertExecutionAvailable(
+    options: { requireCancellation?: boolean; abortSignal?: AbortSignal } = {},
+  ): void {
     const backend = resolveConfiguredBackend(
       this.options.backends,
       this.options.getSettings(),

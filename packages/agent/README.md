@@ -28,17 +28,17 @@ Use the [CLI entrypoints](../../apps/cli/README.md) to run the application.
 
 ## Source map
 
-| Source | Responsibility |
-| --- | --- |
-| [config](src/config) | Environment parsing, defaults, and runtime configuration. |
-| [runtime/application](src/runtime/application) | Configuration/service ownership, lazy runtime activation, and disposal. |
-| [runtime/bootstrap](src/runtime/bootstrap) | SDK composition and activation inside the application owner. |
-| [runtime/chat-turn](src/runtime/chat-turn) | Turn execution, receipts, cancellation, and continuation. |
-| [runtime/engine](src/runtime/engine) | Shared host and named-bot worker lifecycle. |
-| [runtime/native/plugin-registry](src/runtime/native/plugin-registry) | Official plugins and product action/provider assembly. |
-| [actions](src/actions) and [providers](src/providers) | Doolittle actions and prompt-context projections. |
-| [services](src/services) | Product state, workspace tools, and service composition. |
-| [server](src/server) and [gateway](src/gateway) | HTTP routes and delivery transports. |
+| Source                                                               | Responsibility                                                          |
+| -------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| [config](src/config)                                                 | Environment parsing, defaults, and runtime configuration.               |
+| [runtime/application](src/runtime/application)                       | Configuration/service ownership, lazy runtime activation, and disposal. |
+| [runtime/bootstrap](src/runtime/bootstrap)                           | SDK composition and activation inside the application owner.            |
+| [runtime/chat-turn](src/runtime/chat-turn)                           | Turn execution, receipts, cancellation, and continuation.               |
+| [runtime/engine](src/runtime/engine)                                 | Shared host and named-bot worker lifecycle.                             |
+| [runtime/native/plugin-registry](src/runtime/native/plugin-registry) | Official plugins and product action/provider assembly.                  |
+| [actions](src/actions) and [providers](src/providers)                | Doolittle actions and prompt-context projections.                       |
+| [services](src/services)                                             | Product state, workspace tools, and service composition.                |
+| [server](src/server) and [gateway](src/gateway)                      | HTTP routes and delivery transports.                                    |
 
 Shared packages must not import application source. Use `packages/contracts`
 for serializable cross-client records. Keep bot, conversation, request, and

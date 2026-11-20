@@ -2,9 +2,9 @@ import {
   isWorkerHostClientMessage,
   isWorkerHostMessageWithinLimit,
   isWorkerHostResponseMessage,
+  WORKER_HOST_BOT_ID_PATTERN,
   type WorkerHostClientMessage,
   type WorkerHostResponseMessage,
-  WORKER_HOST_BOT_ID_PATTERN,
 } from "@doolittle/contracts/worker-host";
 
 export {

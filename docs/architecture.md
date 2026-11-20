@@ -7,13 +7,13 @@ compose those SDK owners rather than implementing a second agent engine.
 
 ## Layers and dependency direction
 
-| Layer | Owner | Responsibility |
-| --- | --- | --- |
-| Process and presentation | `apps/cli`, `apps/desktop` | Stdio, process signals, Electron lifecycle, preload, and UI. |
-| Application composition | `packages/agent/src/runtime/application` | One configuration/service graph per application session and lazy SDK runtime activation. |
-| Product services | `packages/agent/src/services`, `packages/plugins/doolittle-plugin` | Workspace, conversations, approvals, execution admission, and product projections. |
-| Product contracts | `packages/contracts` | Serializable records, identity vocabulary, and boundary guards shared by hosts and clients. |
-| Engine and integrations | Official ElizaOS packages | Runtime execution, models, plugins, account stores, SQL, and orchestration. |
+| Layer                    | Owner                                                              | Responsibility                                                                              |
+| ------------------------ | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------- |
+| Process and presentation | `apps/cli`, `apps/desktop`                                         | Stdio, process signals, Electron lifecycle, preload, and UI.                                |
+| Application composition  | `packages/agent/src/runtime/application`                           | One configuration/service graph per application session and lazy SDK runtime activation.    |
+| Product services         | `packages/agent/src/services`, `packages/plugins/doolittle-plugin` | Workspace, conversations, approvals, execution admission, and product projections.          |
+| Product contracts        | `packages/contracts`                                               | Serializable records, identity vocabulary, and boundary guards shared by hosts and clients. |
+| Engine and integrations  | Official ElizaOS packages                                          | Runtime execution, models, plugins, account stores, SQL, and orchestration.                 |
 
 Shared packages do not import application source. Browser-safe contracts do not
 own Node processes, filesystem access, timers, credentials, or runtime service
@@ -64,12 +64,12 @@ Account selection and host grants remain outside the renderer and worker.
 
 ## Canonical product primitives
 
-| Contract | Source | Consumers |
-| --- | --- | --- |
-| Worker-host protocol | [worker-host.ts](../packages/contracts/src/worker-host.ts) | Desktop host RPC, worker requests, shared-engine transport. |
-| Run evidence | [run.ts](../packages/contracts/src/run.ts) | Agent run controller, persistence, desktop transport and status admission. |
-| Model routes and catalog | [model-route.ts](../packages/contracts/src/model-route.ts) | Runtime settings, model API, desktop selection, provider adapters. |
-| Execution targets and capabilities | [execution.ts](../packages/contracts/src/execution.ts) | Terminal backend selection, admission, previews, and execution records. |
+| Contract                           | Source                                                     | Consumers                                                                  |
+| ---------------------------------- | ---------------------------------------------------------- | -------------------------------------------------------------------------- |
+| Worker-host protocol               | [worker-host.ts](../packages/contracts/src/worker-host.ts) | Desktop host RPC, worker requests, shared-engine transport.                |
+| Run evidence                       | [run.ts](../packages/contracts/src/run.ts)                 | Agent run controller, persistence, desktop transport and status admission. |
+| Model routes and catalog           | [model-route.ts](../packages/contracts/src/model-route.ts) | Runtime settings, model API, desktop selection, provider adapters.         |
+| Execution targets and capabilities | [execution.ts](../packages/contracts/src/execution.ts)     | Terminal backend selection, admission, previews, and execution records.    |
 
 Keep these concepts separate:
 

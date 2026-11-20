@@ -22,9 +22,10 @@ export async function startAcpServer(): Promise<void> {
   });
   const shutdown = (signal: "SIGINT" | "SIGTERM" | "disconnect") => {
     void application.dispose(`ACP received ${signal}`, { fast: true }).then(
-      () => process.exit(
-        signal === "SIGINT" ? 130 : signal === "disconnect" ? 1 : 0,
-      ),
+      () =>
+        process.exit(
+          signal === "SIGINT" ? 130 : signal === "disconnect" ? 1 : 0,
+        ),
       (error) => {
         const detail = error instanceof Error ? error.message : String(error);
         process.stderr.write(`ACP shutdown failed: ${detail}\n`);

@@ -19,13 +19,13 @@ paths from another workspace.
 
 ## Canonical primitives
 
-| Contract | Ownership |
-| --- | --- |
-| [worker-host](src/worker-host.ts) | RPC envelopes, operation vocabulary, request identity, and framing limits. |
-| [run](src/run.ts) | Serializable run evidence, lifecycle status vocabulary, and receipt admission. |
-| [model-route](src/model-route.ts) | Product provider identities, reasoning vocabulary, settings, and model catalog. |
-| [execution](src/execution.ts) | Execution targets, supported capabilities, and execution records. |
-| [bots](src/bots.ts) and [ui-host](src/ui-host.ts) | Bot definitions and explicitly projected client interactions. |
+| Contract                                          | Ownership                                                                       |
+| ------------------------------------------------- | ------------------------------------------------------------------------------- |
+| [worker-host](src/worker-host.ts)                 | RPC envelopes, operation vocabulary, request identity, and framing limits.      |
+| [run](src/run.ts)                                 | Serializable run evidence, lifecycle status vocabulary, and receipt admission.  |
+| [model-route](src/model-route.ts)                 | Product provider identities, reasoning vocabulary, settings, and model catalog. |
+| [execution](src/execution.ts)                     | Execution targets, supported capabilities, and execution records.               |
+| [bots](src/bots.ts) and [ui-host](src/ui-host.ts) | Bot definitions and explicitly projected client interactions.                   |
 
 Contracts describe evidence and boundary shapes. They do not attest a sender,
 grant workspace access, run processes, or own application/service lifetimes.

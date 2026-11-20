@@ -1,8 +1,8 @@
 import { getApplicationSession } from "../application/index";
 import type { AppContext, AppContextOptions } from "./types";
 
-export { validateCriticalRuntimeServices } from "./runtime";
 export { getApplicationSession } from "../application/index";
+export { validateCriticalRuntimeServices } from "./runtime";
 export type { AppContext, AppContextOptions } from "./types";
 
 /** Compatibility entrypoint backed by the process-owned application session. */

@@ -13,14 +13,14 @@ export interface RuntimeStatus {
 }
 
 export type {
-  RuntimeReasoningEffort,
-  RuntimeModelReasoningOption,
-  RuntimeModelReasoningCapability,
+  RuntimeModelCapability,
+  RuntimeModelCapabilityId,
   RuntimeModelOption,
   RuntimeModelProvider,
-  RuntimeModelCapabilityId,
-  RuntimeModelCapability,
+  RuntimeModelReasoningCapability,
+  RuntimeModelReasoningOption,
   RuntimeModelsResponse,
+  RuntimeReasoningEffort,
 } from "@doolittle/contracts/model-route";
 export interface PluginsResponse {
   catalog?: unknown[];

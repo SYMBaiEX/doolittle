@@ -896,8 +896,7 @@ export class BotProcessRegistry {
           if (typeof run.runId !== "string" || typeof run.status !== "string") {
             throw new Error("Bot run status is invalid.");
           }
-          if (isActiveRunStatus(run.status))
-            active.add(run.runId);
+          if (isActiveRunStatus(run.status)) active.add(run.runId);
         }
         // Do not reintroduce a stopped or replaced runtime's stale receipts.
         const current = backend?.getState();

@@ -90,10 +90,9 @@ export class TerminalService {
   }
 
   /** Admission is separate from delivery; execution rechecks the live policy. */
-  assertExecutionAvailable(options: {
-    requireCancellation?: boolean;
-    abortSignal?: AbortSignal;
-  } = {}): void {
+  assertExecutionAvailable(
+    options: { requireCancellation?: boolean; abortSignal?: AbortSignal } = {},
+  ): void {
     this.commandOrchestrator.assertExecutionAvailable(options);
   }
 

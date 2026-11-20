@@ -2,12 +2,12 @@ import type { ChildProcess } from "node:child_process";
 import {
   isWorkerHostClientMessage,
   isWorkerHostMessageWithinLimit,
-  type WorkerHostRequest,
-  type WorkerHostResponseMessage,
+  WORKER_HOST_PROTOCOL as PROTOCOL,
   WORKER_HOST_MAX_PENDING_EXECUTION_CLAIMS,
   WORKER_HOST_MAX_PENDING_REQUESTS,
-  WORKER_HOST_PROTOCOL as PROTOCOL,
   WORKER_HOST_RECEIPT_TIMEOUT_MS,
+  type WorkerHostRequest,
+  type WorkerHostResponseMessage,
 } from "@doolittle/contracts/worker-host";
 
 export type { WorkerHostRequest } from "@doolittle/contracts/worker-host";

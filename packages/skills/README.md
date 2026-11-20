@@ -22,6 +22,7 @@ Create `<skill-name>/SKILL.md` with YAML frontmatter:
 
 ```md
 ---
+
 name: example
 description: Explain the concrete request that should route to this skill.
 ---

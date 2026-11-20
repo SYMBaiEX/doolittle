@@ -135,7 +135,11 @@ export function RouteControlDialog({
   const effectiveDraft =
     draft ?? draftFromSettings(settings.data, runtime, models.data);
   const activeProvider = effectiveDraft.provider;
-  const readiness = providerReadiness(activeProvider, linkedAccounts, models.data);
+  const readiness = providerReadiness(
+    activeProvider,
+    linkedAccounts,
+    models.data,
+  );
   const selectedModel = useMemo(
     () =>
       models.data?.providers

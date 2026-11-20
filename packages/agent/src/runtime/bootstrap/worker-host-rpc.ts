@@ -3,21 +3,21 @@ import {
   isWorkerHostMessageWithinLimit,
   isWorkerHostOperation,
   isWorkerHostResponseMessage,
-  type WorkerHostAcknowledgement,
-  type WorkerHostCallMessage,
-  type WorkerHostCancelMessage,
-  type WorkerHostOperation,
   WORKER_HOST_BOT_ID_PATTERN,
   WORKER_HOST_DEFAULT_REQUEST_TIMEOUT_MS,
   WORKER_HOST_MAX_PENDING_EXECUTION_CLAIMS,
   WORKER_HOST_MAX_PENDING_REQUESTS,
   WORKER_HOST_PROTOCOL as WORKER_HOST_RPC_PROTOCOL,
+  type WorkerHostAcknowledgement,
+  type WorkerHostCallMessage,
+  type WorkerHostCancelMessage,
+  type WorkerHostOperation,
 } from "@doolittle/contracts/worker-host";
 import { readWorkerBotProfile } from "./bot-profile";
 
 export {
-  type WorkerHostOperation,
   WORKER_HOST_PROTOCOL as WORKER_HOST_RPC_PROTOCOL,
+  type WorkerHostOperation,
 } from "@doolittle/contracts/worker-host";
 
 interface PendingRequest {
@@ -207,17 +207,14 @@ export function requestWorkerHost(
       sendCancel();
       return;
     }
-    process.send?.(
-      message,
-      (error) => {
-        if (!error) return;
-        const request = pending.get(id);
-        if (!request) return;
-        pending.delete(id);
-        clearTimeout(request.timeout);
-        request.removeAbortListener();
-        reject(new Error("The approved host connection is unavailable."));
-      },
-    );
+    process.send?.(message, (error) => {
+      if (!error) return;
+      const request = pending.get(id);
+      if (!request) return;
+      pending.delete(id);
+      clearTimeout(request.timeout);
+      request.removeAbortListener();
+      reject(new Error("The approved host connection is unavailable."));
+    });
   });
 }

@@ -1,8 +1,8 @@
-import type { ModelProviderId } from "@doolittle/contracts/model-route";
 import type { TuiThemeName } from "@doolittle/agent/runtime/theme-catalog";
 import type { ElizaMcpSettings } from "@doolittle/agent/services/mcp/settings";
 import type { RuntimeSettings as ServiceRuntimeSettings } from "@doolittle/agent/services/settings/runtime-settings";
 import type { RunDepth, ToolProgressMode } from "@doolittle/agent/types";
+import type { ModelProviderId } from "@doolittle/contracts/model-route";
 
 export type ExecutionBackendName =
   | "local"

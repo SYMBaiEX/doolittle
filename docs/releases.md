@@ -48,11 +48,11 @@ nub run desktop:package:linux
 Outputs go to `apps/desktop/release`. The desktop packages contain their runtime;
 end users do not need the source checkout, Nub, or a separate Node installation.
 
-| Target | Artifacts | Additional requirements |
-| --- | --- | --- |
-| macOS | DMG and ZIP | macOS signing tools; release distribution needs Developer ID signing and notarization. |
-| Windows | x64 NSIS installer | Windows signing credentials and the exact Authenticode publisher identity for trusted updates. |
-| Linux | x64 AppImage and DEB | Target-compatible native dependencies and package tooling. |
+| Target  | Artifacts            | Additional requirements                                                                        |
+| ------- | -------------------- | ---------------------------------------------------------------------------------------------- |
+| macOS   | DMG and ZIP          | macOS signing tools; release distribution needs Developer ID signing and notarization.         |
+| Windows | x64 NSIS installer   | Windows signing credentials and the exact Authenticode publisher identity for trusted updates. |
+| Linux   | x64 AppImage and DEB | Target-compatible native dependencies and package tooling.                                     |
 
 The packaging wrappers validate source identity and preserve release provenance.
 They prepare runtime dependencies, legal notices, artifact inventories, and

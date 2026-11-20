@@ -1,6 +1,6 @@
 import type { AppLogger } from "@doolittle/agent/logging/logger";
-import type { AppContext } from "@doolittle/agent/runtime/bootstrap";
 import { shutdownApplicationRuntime } from "@doolittle/agent/runtime/application";
+import type { AppContext } from "@doolittle/agent/runtime/bootstrap";
 import type { AgentRuntime } from "@elizaos/core";
 import { acquireCliTerminalEndpoint } from "./cli-terminal-endpoint";
 import { handleRuntimePromptCommand } from "./prompt-command";
