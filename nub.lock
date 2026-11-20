@@ -6,6 +6,7 @@ settings:
 
 overrides:
   '@ai-sdk/provider-utils@>=4.0.0 <4.0.33': 4.0.57
+  '@effect/platform@<0.97.1': 0.97.2
   '@electron/asar': 4.3.1
   '@electron/universal': 3.0.6
   '@elizaos/agent': workspace:2.0.12-beta.0
@@ -102,6 +103,7 @@ overrides:
   '@elizaos/ui>wagmi': '-'
   '@elizaos/voice': workspace:2.0.12-beta.0
   '@ethersproject/hash>@ethersproject/abstract-signer': npm:ethers@6.17.0
+  '@hono/node-server@>=2.0.0 <2.1.6': 2.1.9
   '@nut-tree-fork/provider-interfaces': npm:@dyw1234/nut-provider-interfaces@4.2.7
   '@nut-tree-fork/shared': npm:@dyw1234/nut-shared@4.2.7
   '@solana/buffer-layout-utils': link:packages/solana-layouts
@@ -854,7 +856,7 @@ importers:
         version: link:../plugin-web-search
       '@elizaos/plugin-workflow':
         specifier: 2.0.3-beta.7
-        version: 2.0.3-beta.7(464d1bdd4cc3d035640620ec1d8baad9)
+        version: 2.0.3-beta.7(8d3ac8ccd60e7c812da82a2b1f9d4833)
       '@noble/curves':
         specifier: 2.2.0
         version: 2.2.0
@@ -2680,10 +2682,10 @@ packages:
     peerDependencies:
       effect: ^4.0.0-beta.105
 
-  '@effect/platform@0.96.3':
-    resolution: {integrity: sha512-LzvIj4HYE++TcTv/cVTCI/GRvQTV0ymwRmgjZMzNB5dU4OS05pTN36RKN0npiOm5orLJgw4yjIv1dNZoYGh/vg==}
+  '@effect/platform@0.97.2':
+    resolution: {integrity: sha512-fof9J+pId374/b1WAt0P1H8QmvulzpHTjS6SUHiG20U/sFjkBUS5vGMy1/XfdTAVKX1IY+Z87dFhi/RFDfgBPQ==}
     peerDependencies:
-      effect: ^3.21.5
+      effect: ^3.22.2
 
   '@effect/rpc@0.75.1':
     resolution: {integrity: sha512-8yxF8+mMGGEbF8BUCp34HjdJj7CvTpGeZxBcpsDF6v7zPiGbJL1UDLzA8ZqYjmcngBHhPecbmeONTk/LiLAaEg==}
@@ -3199,8 +3201,8 @@ packages:
   '@hexagon/base64@1.1.28':
     resolution: {integrity: sha512-lhqDEAvWixy3bZ+UOYbPwUbBkwBq5C1LAJ/xPC8Oi+lL54oyakv/npbA0aU2hgCsx/1NUd4IBvV03+aUBWxerw==}
 
-  '@hono/node-server@2.1.5':
-    resolution: {integrity: sha512-MgP/I06GdvsilDspMk/qmRzpk8LOUStP6jFAbSRi40W09DhoyUn+Mj7eyKICPqeYKybOjVFLVIAQzvu1bfIa7Q==}
+  '@hono/node-server@2.1.9':
+    resolution: {integrity: sha512-Sk4NQd3GFY0WZWCzndwFMPwJhtD0y9qjsQ+pjID0/03nK9pxyBCUoUHCho8QYBLBVhi0ssL8UkNPHqbgSOFPIQ==}
     engines: {node: '>=20'}
     peerDependencies:
       hono: ^4 || ^5.0.0-0
@@ -13520,24 +13522,24 @@ snapshots:
       - bufferutil
       - utf-8-validate
 
-  '@effect/cluster@0.58.2(@effect/platform@0.96.3(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/sql@0.51.1(@effect/experimental@0.60.0(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/workflow@0.18.2(@effect/experimental@0.60.0(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.96.3(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(effect@3.22.4))(effect@3.22.4)':
+  '@effect/cluster@0.58.2(@effect/platform@0.97.2(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/sql@0.51.1(@effect/experimental@0.60.0(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/workflow@0.18.2(@effect/experimental@0.60.0(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.97.2(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(effect@3.22.4))(effect@3.22.4)':
     dependencies:
-      '@effect/platform': 0.96.3(effect@3.22.4)
-      '@effect/rpc': 0.75.1(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4)
-      '@effect/sql': 0.51.1(@effect/experimental@0.60.0(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4)
-      '@effect/workflow': 0.18.2(@effect/experimental@0.60.0(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.96.3(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(effect@3.22.4)
+      '@effect/platform': 0.97.2(effect@3.22.4)
+      '@effect/rpc': 0.75.1(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4)
+      '@effect/sql': 0.51.1(@effect/experimental@0.60.0(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4)
+      '@effect/workflow': 0.18.2(@effect/experimental@0.60.0(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.97.2(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(effect@3.22.4)
       effect: 3.22.4
       kubernetes-types: 1.30.0
 
-  '@effect/experimental@0.60.0(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4)':
+  '@effect/experimental@0.60.0(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4)':
     dependencies:
-      '@effect/platform': 0.96.3(effect@3.22.4)
+      '@effect/platform': 0.97.2(effect@3.22.4)
       effect: 3.22.4
       uuid: 11.1.1
 
-  '@effect/opentelemetry@0.63.0(@effect/platform@0.96.3(effect@3.22.4))(@opentelemetry/api@1.9.1)(@opentelemetry/resources@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-logs@0.223.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-metrics@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-node@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-web@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/semantic-conventions@1.44.0)(effect@3.22.4)':
+  '@effect/opentelemetry@0.63.0(@effect/platform@0.97.2(effect@3.22.4))(@opentelemetry/api@1.9.1)(@opentelemetry/resources@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-logs@0.223.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-metrics@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-node@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-web@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/semantic-conventions@1.44.0)(effect@3.22.4)':
     dependencies:
-      '@effect/platform': 0.96.3(effect@3.22.4)
+      '@effect/platform': 0.97.2(effect@3.22.4)
       '@opentelemetry/api': 1.9.1
       '@opentelemetry/resources': 2.12.0(@opentelemetry/api@1.9.1)
       '@opentelemetry/sdk-logs': 0.223.0(@opentelemetry/api@1.9.1)
@@ -13553,13 +13555,13 @@ snapshots:
       '@opentelemetry/semantic-conventions': 1.44.0
       effect: 4.0.0-beta.105
 
-  '@effect/platform-bun@0.89.0(@effect/cluster@0.58.2(@effect/platform@0.96.3(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/sql@0.51.1(@effect/experimental@0.60.0(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/workflow@0.18.2(@effect/experimental@0.60.0(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.96.3(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.96.3(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/sql@0.51.1(@effect/experimental@0.60.0(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(effect@3.22.4)':
+  '@effect/platform-bun@0.89.0(@effect/cluster@0.58.2(@effect/platform@0.97.2(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/sql@0.51.1(@effect/experimental@0.60.0(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/workflow@0.18.2(@effect/experimental@0.60.0(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.97.2(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.97.2(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/sql@0.51.1(@effect/experimental@0.60.0(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(effect@3.22.4)':
     dependencies:
-      '@effect/cluster': 0.58.2(@effect/platform@0.96.3(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/sql@0.51.1(@effect/experimental@0.60.0(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/workflow@0.18.2(@effect/experimental@0.60.0(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.96.3(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(effect@3.22.4))(effect@3.22.4)
-      '@effect/platform': 0.96.3(effect@3.22.4)
-      '@effect/platform-node-shared': 0.59.0(@effect/cluster@0.58.2(@effect/platform@0.96.3(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/sql@0.51.1(@effect/experimental@0.60.0(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/workflow@0.18.2(@effect/experimental@0.60.0(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.96.3(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.96.3(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/sql@0.51.1(@effect/experimental@0.60.0(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(effect@3.22.4)
-      '@effect/rpc': 0.75.1(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4)
-      '@effect/sql': 0.51.1(@effect/experimental@0.60.0(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4)
+      '@effect/cluster': 0.58.2(@effect/platform@0.97.2(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/sql@0.51.1(@effect/experimental@0.60.0(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/workflow@0.18.2(@effect/experimental@0.60.0(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.97.2(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(effect@3.22.4))(effect@3.22.4)
+      '@effect/platform': 0.97.2(effect@3.22.4)
+      '@effect/platform-node-shared': 0.59.0(@effect/cluster@0.58.2(@effect/platform@0.97.2(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/sql@0.51.1(@effect/experimental@0.60.0(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/workflow@0.18.2(@effect/experimental@0.60.0(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.97.2(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.97.2(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/sql@0.51.1(@effect/experimental@0.60.0(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(effect@3.22.4)
+      '@effect/rpc': 0.75.1(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4)
+      '@effect/sql': 0.51.1(@effect/experimental@0.60.0(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4)
       effect: 3.22.4
       multipasta: 0.2.9
     transitivePeerDependencies:
@@ -13574,12 +13576,12 @@ snapshots:
       - bufferutil
       - utf-8-validate
 
-  '@effect/platform-node-shared@0.59.0(@effect/cluster@0.58.2(@effect/platform@0.96.3(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/sql@0.51.1(@effect/experimental@0.60.0(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/workflow@0.18.2(@effect/experimental@0.60.0(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.96.3(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.96.3(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/sql@0.51.1(@effect/experimental@0.60.0(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(effect@3.22.4)':
+  '@effect/platform-node-shared@0.59.0(@effect/cluster@0.58.2(@effect/platform@0.97.2(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/sql@0.51.1(@effect/experimental@0.60.0(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/workflow@0.18.2(@effect/experimental@0.60.0(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.97.2(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.97.2(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/sql@0.51.1(@effect/experimental@0.60.0(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(effect@3.22.4)':
     dependencies:
-      '@effect/cluster': 0.58.2(@effect/platform@0.96.3(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/sql@0.51.1(@effect/experimental@0.60.0(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/workflow@0.18.2(@effect/experimental@0.60.0(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.96.3(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(effect@3.22.4))(effect@3.22.4)
-      '@effect/platform': 0.96.3(effect@3.22.4)
-      '@effect/rpc': 0.75.1(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4)
-      '@effect/sql': 0.51.1(@effect/experimental@0.60.0(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4)
+      '@effect/cluster': 0.58.2(@effect/platform@0.97.2(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/sql@0.51.1(@effect/experimental@0.60.0(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/workflow@0.18.2(@effect/experimental@0.60.0(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.97.2(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(effect@3.22.4))(effect@3.22.4)
+      '@effect/platform': 0.97.2(effect@3.22.4)
+      '@effect/rpc': 0.75.1(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4)
+      '@effect/sql': 0.51.1(@effect/experimental@0.60.0(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4)
       '@parcel/watcher': 2.6.0
       effect: 3.22.4
       multipasta: 0.2.9
@@ -13597,7 +13599,7 @@ snapshots:
       - bufferutil
       - utf-8-validate
 
-  '@effect/platform@0.96.3(effect@3.22.4)':
+  '@effect/platform@0.97.2(effect@3.22.4)':
     dependencies:
       effect: 3.22.4
       find-my-way-ts: 0.1.6
@@ -13606,37 +13608,37 @@ snapshots:
     transitivePeerDependencies:
       - node-gyp
 
-  '@effect/rpc@0.75.1(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4)':
+  '@effect/rpc@0.75.1(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4)':
     dependencies:
-      '@effect/platform': 0.96.3(effect@3.22.4)
+      '@effect/platform': 0.97.2(effect@3.22.4)
       effect: 3.22.4
       msgpackr: 1.12.1
     transitivePeerDependencies:
       - node-gyp
 
-  '@effect/sql-sqlite-bun@0.52.0(@effect/experimental@0.60.0(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.96.3(effect@3.22.4))(@effect/sql@0.51.1(@effect/experimental@0.60.0(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(effect@3.22.4)':
+  '@effect/sql-sqlite-bun@0.52.0(@effect/experimental@0.60.0(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.97.2(effect@3.22.4))(@effect/sql@0.51.1(@effect/experimental@0.60.0(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(effect@3.22.4)':
     dependencies:
-      '@effect/experimental': 0.60.0(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4)
-      '@effect/platform': 0.96.3(effect@3.22.4)
-      '@effect/sql': 0.51.1(@effect/experimental@0.60.0(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4)
+      '@effect/experimental': 0.60.0(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4)
+      '@effect/platform': 0.97.2(effect@3.22.4)
+      '@effect/sql': 0.51.1(@effect/experimental@0.60.0(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4)
       effect: 3.22.4
 
   '@effect/sql-sqlite-bun@4.0.0-beta.105(effect@4.0.0-beta.105)':
     dependencies:
       effect: 4.0.0-beta.105
 
-  '@effect/sql@0.51.1(@effect/experimental@0.60.0(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4)':
+  '@effect/sql@0.51.1(@effect/experimental@0.60.0(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4)':
     dependencies:
-      '@effect/experimental': 0.60.0(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4)
-      '@effect/platform': 0.96.3(effect@3.22.4)
+      '@effect/experimental': 0.60.0(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4)
+      '@effect/platform': 0.97.2(effect@3.22.4)
       effect: 3.22.4
       uuid: 11.1.1
 
-  '@effect/workflow@0.18.2(@effect/experimental@0.60.0(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.96.3(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(effect@3.22.4)':
+  '@effect/workflow@0.18.2(@effect/experimental@0.60.0(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.97.2(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(effect@3.22.4)':
     dependencies:
-      '@effect/experimental': 0.60.0(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4)
-      '@effect/platform': 0.96.3(effect@3.22.4)
-      '@effect/rpc': 0.75.1(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4)
+      '@effect/experimental': 0.60.0(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4)
+      '@effect/platform': 0.97.2(effect@3.22.4)
+      '@effect/rpc': 0.75.1(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4)
       effect: 3.22.4
 
   '@electric-sql/client@1.5.28':
@@ -13945,12 +13947,12 @@ snapshots:
       - node
       - supports-color
 
-  '@elizaos/plugin-workflow@2.0.3-beta.7(464d1bdd4cc3d035640620ec1d8baad9)':
+  '@elizaos/plugin-workflow@2.0.3-beta.7(8d3ac8ccd60e7c812da82a2b1f9d4833)':
     dependencies:
       drizzle-orm: 0.45.4(@electric-sql/pglite@0.4.6(ws@8.21.3))(@opentelemetry/api@1.9.1)(pg@8.23.1)(react@19.3.1)
       effect: 3.22.4
       quickjs-emscripten: 0.32.0
-      smithers-orchestrator: 0.22.0(430aace8f95ed8a5c36ed711b56ad4c5)
+      smithers-orchestrator: 0.22.0(6638af3c149dbf5b9e4bc83c95599c4c)
     transitivePeerDependencies:
       - '@aws-sdk/client-rds-data'
       - '@cfworker/json-schema'
@@ -14422,7 +14424,7 @@ snapshots:
 
   '@hexagon/base64@1.1.28': {}
 
-  '@hono/node-server@2.1.5(hono@4.13.16)':
+  '@hono/node-server@2.1.9(hono@4.13.16)':
     dependencies:
       hono: 4.13.16
 
@@ -15541,7 +15543,7 @@ snapshots:
 
   '@modelcontextprotocol/sdk@1.32.2(zod@4.6.7)':
     dependencies:
-      '@hono/node-server': 2.1.5(hono@4.13.16)
+      '@hono/node-server': 2.1.9(hono@4.13.16)
       ajv: 8.20.0
       ajv-formats: 3.0.1(ajv@8.20.0)
       content-type: 1.0.5
@@ -17577,13 +17579,13 @@ snapshots:
     dependencies:
       '@smithers-orchestrator/errors': 0.22.0
 
-  '@smithers-orchestrator/agents@0.22.0(40f540734e508fd030cc3d1b821beec7)':
+  '@smithers-orchestrator/agents@0.22.0(fc92235ae7bc1351a080d35af6499e33)':
     dependencies:
       '@ai-sdk/anthropic': 3.0.137(zod@4.6.7)
       '@ai-sdk/openai': 3.0.135(zod@4.6.7)
-      '@smithers-orchestrator/driver': 0.22.0(40f540734e508fd030cc3d1b821beec7)
+      '@smithers-orchestrator/driver': 0.22.0(fc92235ae7bc1351a080d35af6499e33)
       '@smithers-orchestrator/errors': 0.22.0
-      '@smithers-orchestrator/observability': 0.22.0(40c7988a1abdc56c8e54523b95357e4e)
+      '@smithers-orchestrator/observability': 0.22.0(8cfb9e7855e09828d9914beaa53fce0e)
       ai: 6.0.320(zod@4.6.7)
       effect: 3.22.4
       zod: 4.6.7
@@ -17623,27 +17625,27 @@ snapshots:
       - sqlite3
       - utf-8-validate
 
-  '@smithers-orchestrator/cli@0.22.0(31b49ff4e7b181503e6f69cf21c5be2c)':
+  '@smithers-orchestrator/cli@0.22.0(1251040ec7fbd5ac43edcb2be14b362c)':
     dependencies:
       '@clack/prompts': 0.10.1
-      '@effect/workflow': 0.18.2(@effect/experimental@0.60.0(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.96.3(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(effect@3.22.4)
+      '@effect/workflow': 0.18.2(@effect/experimental@0.60.0(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.97.2(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(effect@3.22.4)
       '@mdx-js/esbuild': 3.1.1(esbuild@0.28.2)
       '@modelcontextprotocol/sdk': 1.32.2(zod@4.6.7)
       '@smithers-orchestrator/accounts': 0.22.0
-      '@smithers-orchestrator/agents': 0.22.0(40f540734e508fd030cc3d1b821beec7)
-      '@smithers-orchestrator/components': 0.22.0(bfbbc5a1a02a784b65c207d36281664d)
-      '@smithers-orchestrator/db': 0.22.0(78afa89240fb5567108fad54ce477b66)
+      '@smithers-orchestrator/agents': 0.22.0(fc92235ae7bc1351a080d35af6499e33)
+      '@smithers-orchestrator/components': 0.22.0(592c84fd639a061bd044381f156796ac)
+      '@smithers-orchestrator/db': 0.22.0(6b6504ba01344e1c59dad8f7b758a416)
       '@smithers-orchestrator/devtools': 0.22.0
-      '@smithers-orchestrator/driver': 0.22.0(40f540734e508fd030cc3d1b821beec7)
-      '@smithers-orchestrator/engine': 0.22.0(@effect/platform@0.96.3(effect@3.22.4))(@electric-sql/pglite@0.4.6(ws@8.21.3))(@opentelemetry/api@1.9.1)(@opentelemetry/resources@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-logs@0.223.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-metrics@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-node@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-web@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/semantic-conventions@1.44.0)(pg@8.23.1)
+      '@smithers-orchestrator/driver': 0.22.0(fc92235ae7bc1351a080d35af6499e33)
+      '@smithers-orchestrator/engine': 0.22.0(@effect/platform@0.97.2(effect@3.22.4))(@electric-sql/pglite@0.4.6(ws@8.21.3))(@opentelemetry/api@1.9.1)(@opentelemetry/resources@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-logs@0.223.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-metrics@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-node@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-web@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/semantic-conventions@1.44.0)(pg@8.23.1)
       '@smithers-orchestrator/errors': 0.22.0
-      '@smithers-orchestrator/memory': 0.22.0(40f540734e508fd030cc3d1b821beec7)
-      '@smithers-orchestrator/observability': 0.22.0(40c7988a1abdc56c8e54523b95357e4e)
-      '@smithers-orchestrator/openapi': 0.22.0(0265e348ceae15b4580024c88126a9b7)
+      '@smithers-orchestrator/memory': 0.22.0(fc92235ae7bc1351a080d35af6499e33)
+      '@smithers-orchestrator/observability': 0.22.0(8cfb9e7855e09828d9914beaa53fce0e)
+      '@smithers-orchestrator/openapi': 0.22.0(ab00a03f150188009525fbdbd247096a)
       '@smithers-orchestrator/protocol': 0.22.0
       '@smithers-orchestrator/scheduler': 0.22.0(@electric-sql/pglite@0.4.6(ws@8.21.3))(@opentelemetry/api@1.9.1)(pg@8.23.1)(react@19.3.1)
-      '@smithers-orchestrator/server': 0.22.0(9cbc62d0ca944f4913ff02b0aae54cfe)
-      '@smithers-orchestrator/time-travel': 0.22.0(0265e348ceae15b4580024c88126a9b7)
+      '@smithers-orchestrator/server': 0.22.0(5dcfc318b5ddecb80288e93385b2748f)
+      '@smithers-orchestrator/time-travel': 0.22.0(ab00a03f150188009525fbdbd247096a)
       cron-parser: 5.10.3
       drizzle-orm: 0.45.4(@electric-sql/pglite@0.4.6(ws@8.21.3))(@opentelemetry/api@1.9.1)(pg@8.23.1)(react@19.3.1)
       effect: 3.22.4
@@ -17692,16 +17694,16 @@ snapshots:
       - supports-color
       - utf-8-validate
 
-  '@smithers-orchestrator/components@0.22.0(bfbbc5a1a02a784b65c207d36281664d)':
+  '@smithers-orchestrator/components@0.22.0(592c84fd639a061bd044381f156796ac)':
     dependencies:
-      '@smithers-orchestrator/agents': 0.22.0(40f540734e508fd030cc3d1b821beec7)
-      '@smithers-orchestrator/db': 0.22.0(78afa89240fb5567108fad54ce477b66)
-      '@smithers-orchestrator/driver': 0.22.0(40f540734e508fd030cc3d1b821beec7)
+      '@smithers-orchestrator/agents': 0.22.0(fc92235ae7bc1351a080d35af6499e33)
+      '@smithers-orchestrator/db': 0.22.0(6b6504ba01344e1c59dad8f7b758a416)
+      '@smithers-orchestrator/driver': 0.22.0(fc92235ae7bc1351a080d35af6499e33)
       '@smithers-orchestrator/errors': 0.22.0
       '@smithers-orchestrator/graph': 0.22.0(@electric-sql/pglite@0.4.6(ws@8.21.3))(@opentelemetry/api@1.9.1)(pg@8.23.1)(react@19.3.1)
-      '@smithers-orchestrator/memory': 0.22.0(40f540734e508fd030cc3d1b821beec7)
-      '@smithers-orchestrator/observability': 0.22.0(40c7988a1abdc56c8e54523b95357e4e)
-      '@smithers-orchestrator/react-reconciler': 0.22.0(bfbbc5a1a02a784b65c207d36281664d)
+      '@smithers-orchestrator/memory': 0.22.0(fc92235ae7bc1351a080d35af6499e33)
+      '@smithers-orchestrator/observability': 0.22.0(8cfb9e7855e09828d9914beaa53fce0e)
+      '@smithers-orchestrator/react-reconciler': 0.22.0(592c84fd639a061bd044381f156796ac)
       '@smithers-orchestrator/scheduler': 0.22.0(@electric-sql/pglite@0.4.6(ws@8.21.3))(@opentelemetry/api@1.9.1)(pg@8.23.1)(react@19.3.1)
       bippy: 0.5.43(react@19.3.1)
       react: 19.3.1
@@ -17747,13 +17749,13 @@ snapshots:
     dependencies:
       '@smithers-orchestrator/errors': 0.22.0
 
-  '@smithers-orchestrator/db@0.22.0(78afa89240fb5567108fad54ce477b66)':
+  '@smithers-orchestrator/db@0.22.0(6b6504ba01344e1c59dad8f7b758a416)':
     dependencies:
-      '@effect/experimental': 0.60.0(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4)
-      '@effect/sql': 0.51.1(@effect/experimental@0.60.0(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4)
+      '@effect/experimental': 0.60.0(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4)
+      '@effect/sql': 0.51.1(@effect/experimental@0.60.0(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4)
       '@smithers-orchestrator/errors': 0.22.0
       '@smithers-orchestrator/graph': 0.22.0(@electric-sql/pglite@0.4.6(ws@8.21.3))(@opentelemetry/api@1.9.1)(pg@8.23.1)(react@19.3.1)
-      '@smithers-orchestrator/observability': 0.22.0(40c7988a1abdc56c8e54523b95357e4e)
+      '@smithers-orchestrator/observability': 0.22.0(8cfb9e7855e09828d9914beaa53fce0e)
       '@smithers-orchestrator/scheduler': 0.22.0(@electric-sql/pglite@0.4.6(ws@8.21.3))(@opentelemetry/api@1.9.1)(pg@8.23.1)(react@19.3.1)
       drizzle-orm: 0.45.4(@electric-sql/pglite@0.4.6(ws@8.21.3))(@opentelemetry/api@1.9.1)(pg@8.23.1)(react@19.3.1)
       drizzle-zod: 0.8.3(drizzle-orm@0.45.4(@electric-sql/pglite@0.4.6(ws@8.21.3))(@opentelemetry/api@1.9.1)(pg@8.23.1)(react@19.3.1))(zod@4.6.7)
@@ -17797,12 +17799,12 @@ snapshots:
 
   '@smithers-orchestrator/devtools@0.22.0': {}
 
-  '@smithers-orchestrator/driver@0.22.0(40f540734e508fd030cc3d1b821beec7)':
+  '@smithers-orchestrator/driver@0.22.0(fc92235ae7bc1351a080d35af6499e33)':
     dependencies:
-      '@smithers-orchestrator/db': 0.22.0(78afa89240fb5567108fad54ce477b66)
+      '@smithers-orchestrator/db': 0.22.0(6b6504ba01344e1c59dad8f7b758a416)
       '@smithers-orchestrator/errors': 0.22.0
       '@smithers-orchestrator/graph': 0.22.0(@electric-sql/pglite@0.4.6(ws@8.21.3))(@opentelemetry/api@1.9.1)(pg@8.23.1)(react@19.3.1)
-      '@smithers-orchestrator/observability': 0.22.0(40c7988a1abdc56c8e54523b95357e4e)
+      '@smithers-orchestrator/observability': 0.22.0(8cfb9e7855e09828d9914beaa53fce0e)
       '@smithers-orchestrator/scheduler': 0.22.0(@electric-sql/pglite@0.4.6(ws@8.21.3))(@opentelemetry/api@1.9.1)(pg@8.23.1)(react@19.3.1)
       effect: 3.22.4
       zod: 4.6.7
@@ -17842,28 +17844,28 @@ snapshots:
       - sqlite3
       - utf-8-validate
 
-  '@smithers-orchestrator/engine@0.22.0(@effect/platform@0.96.3(effect@3.22.4))(@electric-sql/pglite@0.4.6(ws@8.21.3))(@opentelemetry/api@1.9.1)(@opentelemetry/resources@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-logs@0.223.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-metrics@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-node@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-web@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/semantic-conventions@1.44.0)(pg@8.23.1)':
+  '@smithers-orchestrator/engine@0.22.0(@effect/platform@0.97.2(effect@3.22.4))(@electric-sql/pglite@0.4.6(ws@8.21.3))(@opentelemetry/api@1.9.1)(@opentelemetry/resources@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-logs@0.223.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-metrics@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-node@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-web@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/semantic-conventions@1.44.0)(pg@8.23.1)':
     dependencies:
-      '@effect/cluster': 0.58.2(@effect/platform@0.96.3(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/sql@0.51.1(@effect/experimental@0.60.0(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/workflow@0.18.2(@effect/experimental@0.60.0(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.96.3(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(effect@3.22.4))(effect@3.22.4)
-      '@effect/experimental': 0.60.0(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4)
-      '@effect/platform-bun': 0.89.0(@effect/cluster@0.58.2(@effect/platform@0.96.3(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/sql@0.51.1(@effect/experimental@0.60.0(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/workflow@0.18.2(@effect/experimental@0.60.0(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.96.3(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.96.3(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/sql@0.51.1(@effect/experimental@0.60.0(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(effect@3.22.4)
-      '@effect/rpc': 0.75.1(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4)
-      '@effect/sql': 0.51.1(@effect/experimental@0.60.0(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4)
-      '@effect/sql-sqlite-bun': 0.52.0(@effect/experimental@0.60.0(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.96.3(effect@3.22.4))(@effect/sql@0.51.1(@effect/experimental@0.60.0(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(effect@3.22.4)
-      '@effect/workflow': 0.18.2(@effect/experimental@0.60.0(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.96.3(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(effect@3.22.4)
-      '@smithers-orchestrator/agents': 0.22.0(40f540734e508fd030cc3d1b821beec7)
-      '@smithers-orchestrator/components': 0.22.0(bfbbc5a1a02a784b65c207d36281664d)
-      '@smithers-orchestrator/db': 0.22.0(78afa89240fb5567108fad54ce477b66)
-      '@smithers-orchestrator/driver': 0.22.0(40f540734e508fd030cc3d1b821beec7)
+      '@effect/cluster': 0.58.2(@effect/platform@0.97.2(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/sql@0.51.1(@effect/experimental@0.60.0(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/workflow@0.18.2(@effect/experimental@0.60.0(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.97.2(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(effect@3.22.4))(effect@3.22.4)
+      '@effect/experimental': 0.60.0(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4)
+      '@effect/platform-bun': 0.89.0(@effect/cluster@0.58.2(@effect/platform@0.97.2(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/sql@0.51.1(@effect/experimental@0.60.0(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/workflow@0.18.2(@effect/experimental@0.60.0(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.97.2(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.97.2(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/sql@0.51.1(@effect/experimental@0.60.0(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(effect@3.22.4)
+      '@effect/rpc': 0.75.1(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4)
+      '@effect/sql': 0.51.1(@effect/experimental@0.60.0(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4)
+      '@effect/sql-sqlite-bun': 0.52.0(@effect/experimental@0.60.0(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.97.2(effect@3.22.4))(@effect/sql@0.51.1(@effect/experimental@0.60.0(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(effect@3.22.4)
+      '@effect/workflow': 0.18.2(@effect/experimental@0.60.0(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.97.2(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(effect@3.22.4)
+      '@smithers-orchestrator/agents': 0.22.0(fc92235ae7bc1351a080d35af6499e33)
+      '@smithers-orchestrator/components': 0.22.0(592c84fd639a061bd044381f156796ac)
+      '@smithers-orchestrator/db': 0.22.0(6b6504ba01344e1c59dad8f7b758a416)
+      '@smithers-orchestrator/driver': 0.22.0(fc92235ae7bc1351a080d35af6499e33)
       '@smithers-orchestrator/errors': 0.22.0
       '@smithers-orchestrator/graph': 0.22.0(@electric-sql/pglite@0.4.6(ws@8.21.3))(@opentelemetry/api@1.9.1)(pg@8.23.1)(react@19.3.1)
-      '@smithers-orchestrator/observability': 0.22.0(40c7988a1abdc56c8e54523b95357e4e)
-      '@smithers-orchestrator/react-reconciler': 0.22.0(bfbbc5a1a02a784b65c207d36281664d)
-      '@smithers-orchestrator/sandbox': 0.22.0(@effect/platform@0.96.3(effect@3.22.4))(@effect/sql@0.51.1(@effect/experimental@0.60.0(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/workflow@0.18.2(@effect/experimental@0.60.0(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.96.3(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(effect@3.22.4))(@electric-sql/pglite@0.4.6(ws@8.21.3))(@opentelemetry/api@1.9.1)(@opentelemetry/resources@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-logs@0.223.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-metrics@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-node@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-web@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/semantic-conventions@1.44.0)(pg@8.23.1)(react@19.3.1)
+      '@smithers-orchestrator/observability': 0.22.0(8cfb9e7855e09828d9914beaa53fce0e)
+      '@smithers-orchestrator/react-reconciler': 0.22.0(592c84fd639a061bd044381f156796ac)
+      '@smithers-orchestrator/sandbox': 0.22.0(@effect/platform@0.97.2(effect@3.22.4))(@effect/sql@0.51.1(@effect/experimental@0.60.0(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/workflow@0.18.2(@effect/experimental@0.60.0(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.97.2(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(effect@3.22.4))(@electric-sql/pglite@0.4.6(ws@8.21.3))(@opentelemetry/api@1.9.1)(@opentelemetry/resources@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-logs@0.223.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-metrics@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-node@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-web@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/semantic-conventions@1.44.0)(pg@8.23.1)(react@19.3.1)
       '@smithers-orchestrator/scheduler': 0.22.0(@electric-sql/pglite@0.4.6(ws@8.21.3))(@opentelemetry/api@1.9.1)(pg@8.23.1)(react@19.3.1)
-      '@smithers-orchestrator/scorers': 0.22.0(40f540734e508fd030cc3d1b821beec7)
-      '@smithers-orchestrator/time-travel': 0.22.0(0265e348ceae15b4580024c88126a9b7)
-      '@smithers-orchestrator/vcs': 0.22.0(40c7988a1abdc56c8e54523b95357e4e)
+      '@smithers-orchestrator/scorers': 0.22.0(fc92235ae7bc1351a080d35af6499e33)
+      '@smithers-orchestrator/time-travel': 0.22.0(ab00a03f150188009525fbdbd247096a)
+      '@smithers-orchestrator/vcs': 0.22.0(8cfb9e7855e09828d9914beaa53fce0e)
       diff: 9.0.0
       drizzle-orm: 0.45.4(@electric-sql/pglite@0.4.6(ws@8.21.3))(@opentelemetry/api@1.9.1)(pg@8.23.1)(react@19.3.1)
       effect: 3.22.4
@@ -17959,12 +17961,12 @@ snapshots:
       - sql.js
       - sqlite3
 
-  '@smithers-orchestrator/memory@0.22.0(40f540734e508fd030cc3d1b821beec7)':
+  '@smithers-orchestrator/memory@0.22.0(fc92235ae7bc1351a080d35af6499e33)':
     dependencies:
-      '@smithers-orchestrator/db': 0.22.0(78afa89240fb5567108fad54ce477b66)
+      '@smithers-orchestrator/db': 0.22.0(6b6504ba01344e1c59dad8f7b758a416)
       '@smithers-orchestrator/errors': 0.22.0
       '@smithers-orchestrator/graph': 0.22.0(@electric-sql/pglite@0.4.6(ws@8.21.3))(@opentelemetry/api@1.9.1)(pg@8.23.1)(react@19.3.1)
-      '@smithers-orchestrator/observability': 0.22.0(40c7988a1abdc56c8e54523b95357e4e)
+      '@smithers-orchestrator/observability': 0.22.0(8cfb9e7855e09828d9914beaa53fce0e)
       '@smithers-orchestrator/scheduler': 0.22.0(@electric-sql/pglite@0.4.6(ws@8.21.3))(@opentelemetry/api@1.9.1)(pg@8.23.1)(react@19.3.1)
       drizzle-orm: 0.45.4(@electric-sql/pglite@0.4.6(ws@8.21.3))(@opentelemetry/api@1.9.1)(pg@8.23.1)(react@19.3.1)
       effect: 3.22.4
@@ -18005,12 +18007,12 @@ snapshots:
       - sqlite3
       - utf-8-validate
 
-  '@smithers-orchestrator/observability@0.22.0(40c7988a1abdc56c8e54523b95357e4e)':
+  '@smithers-orchestrator/observability@0.22.0(8cfb9e7855e09828d9914beaa53fce0e)':
     dependencies:
-      '@effect/opentelemetry': 0.63.0(@effect/platform@0.96.3(effect@3.22.4))(@opentelemetry/api@1.9.1)(@opentelemetry/resources@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-logs@0.223.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-metrics@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-node@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-web@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/semantic-conventions@1.44.0)(effect@3.22.4)
-      '@effect/platform': 0.96.3(effect@3.22.4)
-      '@effect/platform-bun': 0.89.0(@effect/cluster@0.58.2(@effect/platform@0.96.3(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/sql@0.51.1(@effect/experimental@0.60.0(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/workflow@0.18.2(@effect/experimental@0.60.0(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.96.3(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.96.3(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/sql@0.51.1(@effect/experimental@0.60.0(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(effect@3.22.4)
-      '@smithers-orchestrator/agents': 0.22.0(40f540734e508fd030cc3d1b821beec7)
+      '@effect/opentelemetry': 0.63.0(@effect/platform@0.97.2(effect@3.22.4))(@opentelemetry/api@1.9.1)(@opentelemetry/resources@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-logs@0.223.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-metrics@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-node@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-web@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/semantic-conventions@1.44.0)(effect@3.22.4)
+      '@effect/platform': 0.97.2(effect@3.22.4)
+      '@effect/platform-bun': 0.89.0(@effect/cluster@0.58.2(@effect/platform@0.97.2(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/sql@0.51.1(@effect/experimental@0.60.0(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/workflow@0.18.2(@effect/experimental@0.60.0(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.97.2(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.97.2(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/sql@0.51.1(@effect/experimental@0.60.0(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(effect@3.22.4)
+      '@smithers-orchestrator/agents': 0.22.0(fc92235ae7bc1351a080d35af6499e33)
       effect: 3.22.4
     transitivePeerDependencies:
       - '@aws-sdk/client-rds-data'
@@ -18048,10 +18050,10 @@ snapshots:
       - sqlite3
       - utf-8-validate
 
-  '@smithers-orchestrator/openapi@0.22.0(0265e348ceae15b4580024c88126a9b7)':
+  '@smithers-orchestrator/openapi@0.22.0(ab00a03f150188009525fbdbd247096a)':
     dependencies:
       '@smithers-orchestrator/errors': 0.22.0
-      '@smithers-orchestrator/observability': 0.22.0(40c7988a1abdc56c8e54523b95357e4e)
+      '@smithers-orchestrator/observability': 0.22.0(8cfb9e7855e09828d9914beaa53fce0e)
       '@smithers-orchestrator/scheduler': 0.22.0(@electric-sql/pglite@0.4.6(ws@8.21.3))(@opentelemetry/api@1.9.1)(pg@8.23.1)(react@19.3.1)
       ai: 6.0.320(zod@4.6.7)
       effect: 3.22.4
@@ -18095,10 +18097,10 @@ snapshots:
 
   '@smithers-orchestrator/protocol@0.22.0': {}
 
-  '@smithers-orchestrator/react-reconciler@0.22.0(bfbbc5a1a02a784b65c207d36281664d)':
+  '@smithers-orchestrator/react-reconciler@0.22.0(592c84fd639a061bd044381f156796ac)':
     dependencies:
       '@smithers-orchestrator/devtools': 0.22.0
-      '@smithers-orchestrator/driver': 0.22.0(40f540734e508fd030cc3d1b821beec7)
+      '@smithers-orchestrator/driver': 0.22.0(fc92235ae7bc1351a080d35af6499e33)
       '@smithers-orchestrator/errors': 0.22.0
       '@smithers-orchestrator/graph': 0.22.0(@electric-sql/pglite@0.4.6(ws@8.21.3))(@opentelemetry/api@1.9.1)(pg@8.23.1)(react@19.3.1)
       bippy: 0.5.43(react@19.3.1)
@@ -18140,14 +18142,14 @@ snapshots:
       - sqlite3
       - utf-8-validate
 
-  '@smithers-orchestrator/sandbox@0.22.0(@effect/platform@0.96.3(effect@3.22.4))(@effect/sql@0.51.1(@effect/experimental@0.60.0(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/workflow@0.18.2(@effect/experimental@0.60.0(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.96.3(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(effect@3.22.4))(@electric-sql/pglite@0.4.6(ws@8.21.3))(@opentelemetry/api@1.9.1)(@opentelemetry/resources@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-logs@0.223.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-metrics@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-node@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-web@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/semantic-conventions@1.44.0)(pg@8.23.1)(react@19.3.1)':
+  '@smithers-orchestrator/sandbox@0.22.0(@effect/platform@0.97.2(effect@3.22.4))(@effect/sql@0.51.1(@effect/experimental@0.60.0(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/workflow@0.18.2(@effect/experimental@0.60.0(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.97.2(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(effect@3.22.4))(@electric-sql/pglite@0.4.6(ws@8.21.3))(@opentelemetry/api@1.9.1)(@opentelemetry/resources@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-logs@0.223.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-metrics@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-node@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-web@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/semantic-conventions@1.44.0)(pg@8.23.1)(react@19.3.1)':
     dependencies:
-      '@effect/cluster': 0.58.2(@effect/platform@0.96.3(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/sql@0.51.1(@effect/experimental@0.60.0(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/workflow@0.18.2(@effect/experimental@0.60.0(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.96.3(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(effect@3.22.4))(effect@3.22.4)
-      '@effect/rpc': 0.75.1(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4)
-      '@smithers-orchestrator/db': 0.22.0(78afa89240fb5567108fad54ce477b66)
-      '@smithers-orchestrator/driver': 0.22.0(40f540734e508fd030cc3d1b821beec7)
+      '@effect/cluster': 0.58.2(@effect/platform@0.97.2(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/sql@0.51.1(@effect/experimental@0.60.0(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/workflow@0.18.2(@effect/experimental@0.60.0(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.97.2(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(effect@3.22.4))(effect@3.22.4)
+      '@effect/rpc': 0.75.1(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4)
+      '@smithers-orchestrator/db': 0.22.0(6b6504ba01344e1c59dad8f7b758a416)
+      '@smithers-orchestrator/driver': 0.22.0(fc92235ae7bc1351a080d35af6499e33)
       '@smithers-orchestrator/errors': 0.22.0
-      '@smithers-orchestrator/observability': 0.22.0(40c7988a1abdc56c8e54523b95357e4e)
+      '@smithers-orchestrator/observability': 0.22.0(8cfb9e7855e09828d9914beaa53fce0e)
       '@smithers-orchestrator/scheduler': 0.22.0(@electric-sql/pglite@0.4.6(ws@8.21.3))(@opentelemetry/api@1.9.1)(pg@8.23.1)(react@19.3.1)
       effect: 3.22.4
     transitivePeerDependencies:
@@ -18222,13 +18224,13 @@ snapshots:
       - sql.js
       - sqlite3
 
-  '@smithers-orchestrator/scorers@0.22.0(40f540734e508fd030cc3d1b821beec7)':
+  '@smithers-orchestrator/scorers@0.22.0(fc92235ae7bc1351a080d35af6499e33)':
     dependencies:
-      '@smithers-orchestrator/agents': 0.22.0(40f540734e508fd030cc3d1b821beec7)
-      '@smithers-orchestrator/db': 0.22.0(78afa89240fb5567108fad54ce477b66)
+      '@smithers-orchestrator/agents': 0.22.0(fc92235ae7bc1351a080d35af6499e33)
+      '@smithers-orchestrator/db': 0.22.0(6b6504ba01344e1c59dad8f7b758a416)
       '@smithers-orchestrator/errors': 0.22.0
       '@smithers-orchestrator/graph': 0.22.0(@electric-sql/pglite@0.4.6(ws@8.21.3))(@opentelemetry/api@1.9.1)(pg@8.23.1)(react@19.3.1)
-      '@smithers-orchestrator/observability': 0.22.0(40c7988a1abdc56c8e54523b95357e4e)
+      '@smithers-orchestrator/observability': 0.22.0(8cfb9e7855e09828d9914beaa53fce0e)
       '@smithers-orchestrator/scheduler': 0.22.0(@electric-sql/pglite@0.4.6(ws@8.21.3))(@opentelemetry/api@1.9.1)(pg@8.23.1)(react@19.3.1)
       drizzle-orm: 0.45.4(@electric-sql/pglite@0.4.6(ws@8.21.3))(@opentelemetry/api@1.9.1)(pg@8.23.1)(react@19.3.1)
       effect: 3.22.4
@@ -18269,20 +18271,20 @@ snapshots:
       - sqlite3
       - utf-8-validate
 
-  '@smithers-orchestrator/server@0.22.0(9cbc62d0ca944f4913ff02b0aae54cfe)':
+  '@smithers-orchestrator/server@0.22.0(5dcfc318b5ddecb80288e93385b2748f)':
     dependencies:
-      '@effect/workflow': 0.18.2(@effect/experimental@0.60.0(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.96.3(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(effect@3.22.4)
-      '@smithers-orchestrator/components': 0.22.0(bfbbc5a1a02a784b65c207d36281664d)
-      '@smithers-orchestrator/db': 0.22.0(78afa89240fb5567108fad54ce477b66)
+      '@effect/workflow': 0.18.2(@effect/experimental@0.60.0(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.97.2(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(effect@3.22.4)
+      '@smithers-orchestrator/components': 0.22.0(592c84fd639a061bd044381f156796ac)
+      '@smithers-orchestrator/db': 0.22.0(6b6504ba01344e1c59dad8f7b758a416)
       '@smithers-orchestrator/devtools': 0.22.0
-      '@smithers-orchestrator/driver': 0.22.0(40f540734e508fd030cc3d1b821beec7)
-      '@smithers-orchestrator/engine': 0.22.0(@effect/platform@0.96.3(effect@3.22.4))(@electric-sql/pglite@0.4.6(ws@8.21.3))(@opentelemetry/api@1.9.1)(@opentelemetry/resources@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-logs@0.223.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-metrics@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-node@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-web@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/semantic-conventions@1.44.0)(pg@8.23.1)
+      '@smithers-orchestrator/driver': 0.22.0(fc92235ae7bc1351a080d35af6499e33)
+      '@smithers-orchestrator/engine': 0.22.0(@effect/platform@0.97.2(effect@3.22.4))(@electric-sql/pglite@0.4.6(ws@8.21.3))(@opentelemetry/api@1.9.1)(@opentelemetry/resources@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-logs@0.223.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-metrics@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-node@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-web@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/semantic-conventions@1.44.0)(pg@8.23.1)
       '@smithers-orchestrator/errors': 0.22.0
       '@smithers-orchestrator/gateway': 0.22.0
-      '@smithers-orchestrator/observability': 0.22.0(40c7988a1abdc56c8e54523b95357e4e)
+      '@smithers-orchestrator/observability': 0.22.0(8cfb9e7855e09828d9914beaa53fce0e)
       '@smithers-orchestrator/protocol': 0.22.0
       '@smithers-orchestrator/scheduler': 0.22.0(@electric-sql/pglite@0.4.6(ws@8.21.3))(@opentelemetry/api@1.9.1)(pg@8.23.1)(react@19.3.1)
-      '@smithers-orchestrator/time-travel': 0.22.0(0265e348ceae15b4580024c88126a9b7)
+      '@smithers-orchestrator/time-travel': 0.22.0(ab00a03f150188009525fbdbd247096a)
       cron-parser: 5.10.3
       drizzle-orm: 0.45.4(@electric-sql/pglite@0.4.6(ws@8.21.3))(@opentelemetry/api@1.9.1)(pg@8.23.1)(react@19.3.1)
       effect: 3.22.4
@@ -18324,15 +18326,15 @@ snapshots:
       - sqlite3
       - utf-8-validate
 
-  '@smithers-orchestrator/time-travel@0.22.0(0265e348ceae15b4580024c88126a9b7)':
+  '@smithers-orchestrator/time-travel@0.22.0(ab00a03f150188009525fbdbd247096a)':
     dependencies:
-      '@effect/platform': 0.96.3(effect@3.22.4)
-      '@effect/platform-bun': 0.89.0(@effect/cluster@0.58.2(@effect/platform@0.96.3(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/sql@0.51.1(@effect/experimental@0.60.0(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/workflow@0.18.2(@effect/experimental@0.60.0(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.96.3(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.96.3(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/sql@0.51.1(@effect/experimental@0.60.0(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(effect@3.22.4)
-      '@smithers-orchestrator/db': 0.22.0(78afa89240fb5567108fad54ce477b66)
+      '@effect/platform': 0.97.2(effect@3.22.4)
+      '@effect/platform-bun': 0.89.0(@effect/cluster@0.58.2(@effect/platform@0.97.2(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/sql@0.51.1(@effect/experimental@0.60.0(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/workflow@0.18.2(@effect/experimental@0.60.0(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.97.2(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.97.2(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/sql@0.51.1(@effect/experimental@0.60.0(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(effect@3.22.4)
+      '@smithers-orchestrator/db': 0.22.0(6b6504ba01344e1c59dad8f7b758a416)
       '@smithers-orchestrator/errors': 0.22.0
-      '@smithers-orchestrator/observability': 0.22.0(40c7988a1abdc56c8e54523b95357e4e)
+      '@smithers-orchestrator/observability': 0.22.0(8cfb9e7855e09828d9914beaa53fce0e)
       '@smithers-orchestrator/scheduler': 0.22.0(@electric-sql/pglite@0.4.6(ws@8.21.3))(@opentelemetry/api@1.9.1)(pg@8.23.1)(react@19.3.1)
-      '@smithers-orchestrator/vcs': 0.22.0(40c7988a1abdc56c8e54523b95357e4e)
+      '@smithers-orchestrator/vcs': 0.22.0(8cfb9e7855e09828d9914beaa53fce0e)
       drizzle-orm: 0.45.4(@electric-sql/pglite@0.4.6(ws@8.21.3))(@opentelemetry/api@1.9.1)(pg@8.23.1)(react@19.3.1)
       effect: 3.22.4
       picocolors: 1.1.1
@@ -18372,10 +18374,10 @@ snapshots:
       - sqlite3
       - utf-8-validate
 
-  '@smithers-orchestrator/vcs@0.22.0(40c7988a1abdc56c8e54523b95357e4e)':
+  '@smithers-orchestrator/vcs@0.22.0(8cfb9e7855e09828d9914beaa53fce0e)':
     dependencies:
-      '@effect/platform': 0.96.3(effect@3.22.4)
-      '@smithers-orchestrator/observability': 0.22.0(40c7988a1abdc56c8e54523b95357e4e)
+      '@effect/platform': 0.97.2(effect@3.22.4)
+      '@smithers-orchestrator/observability': 0.22.0(8cfb9e7855e09828d9914beaa53fce0e)
       effect: 3.22.4
     transitivePeerDependencies:
       - '@aws-sdk/client-rds-data'
@@ -25694,30 +25696,30 @@ snapshots:
 
   smart-buffer@4.2.0: {}
 
-  smithers-orchestrator@0.22.0(430aace8f95ed8a5c36ed711b56ad4c5):
+  smithers-orchestrator@0.22.0(6638af3c149dbf5b9e4bc83c95599c4c):
     dependencies:
       '@mdx-js/esbuild': 3.1.1(esbuild@0.28.2)
-      '@smithers-orchestrator/agents': 0.22.0(40f540734e508fd030cc3d1b821beec7)
-      '@smithers-orchestrator/cli': 0.22.0(31b49ff4e7b181503e6f69cf21c5be2c)
-      '@smithers-orchestrator/components': 0.22.0(bfbbc5a1a02a784b65c207d36281664d)
+      '@smithers-orchestrator/agents': 0.22.0(fc92235ae7bc1351a080d35af6499e33)
+      '@smithers-orchestrator/cli': 0.22.0(1251040ec7fbd5ac43edcb2be14b362c)
+      '@smithers-orchestrator/components': 0.22.0(592c84fd639a061bd044381f156796ac)
       '@smithers-orchestrator/control-plane': 0.22.0
-      '@smithers-orchestrator/db': 0.22.0(78afa89240fb5567108fad54ce477b66)
-      '@smithers-orchestrator/driver': 0.22.0(40f540734e508fd030cc3d1b821beec7)
-      '@smithers-orchestrator/engine': 0.22.0(@effect/platform@0.96.3(effect@3.22.4))(@electric-sql/pglite@0.4.6(ws@8.21.3))(@opentelemetry/api@1.9.1)(@opentelemetry/resources@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-logs@0.223.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-metrics@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-node@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-web@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/semantic-conventions@1.44.0)(pg@8.23.1)
+      '@smithers-orchestrator/db': 0.22.0(6b6504ba01344e1c59dad8f7b758a416)
+      '@smithers-orchestrator/driver': 0.22.0(fc92235ae7bc1351a080d35af6499e33)
+      '@smithers-orchestrator/engine': 0.22.0(@effect/platform@0.97.2(effect@3.22.4))(@electric-sql/pglite@0.4.6(ws@8.21.3))(@opentelemetry/api@1.9.1)(@opentelemetry/resources@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-logs@0.223.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-metrics@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-node@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-web@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/semantic-conventions@1.44.0)(pg@8.23.1)
       '@smithers-orchestrator/errors': 0.22.0
       '@smithers-orchestrator/gateway-client': 0.22.0
       '@smithers-orchestrator/gateway-react': 0.22.0(react@19.3.1)(react-dom@19.3.1(react@19.3.1))
       '@smithers-orchestrator/graph': 0.22.0(@electric-sql/pglite@0.4.6(ws@8.21.3))(@opentelemetry/api@1.9.1)(pg@8.23.1)(react@19.3.1)
-      '@smithers-orchestrator/memory': 0.22.0(40f540734e508fd030cc3d1b821beec7)
-      '@smithers-orchestrator/observability': 0.22.0(40c7988a1abdc56c8e54523b95357e4e)
-      '@smithers-orchestrator/openapi': 0.22.0(0265e348ceae15b4580024c88126a9b7)
-      '@smithers-orchestrator/react-reconciler': 0.22.0(bfbbc5a1a02a784b65c207d36281664d)
-      '@smithers-orchestrator/sandbox': 0.22.0(@effect/platform@0.96.3(effect@3.22.4))(@effect/sql@0.51.1(@effect/experimental@0.60.0(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/workflow@0.18.2(@effect/experimental@0.60.0(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.96.3(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.96.3(effect@3.22.4))(effect@3.22.4))(effect@3.22.4))(@electric-sql/pglite@0.4.6(ws@8.21.3))(@opentelemetry/api@1.9.1)(@opentelemetry/resources@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-logs@0.223.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-metrics@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-node@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-web@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/semantic-conventions@1.44.0)(pg@8.23.1)(react@19.3.1)
+      '@smithers-orchestrator/memory': 0.22.0(fc92235ae7bc1351a080d35af6499e33)
+      '@smithers-orchestrator/observability': 0.22.0(8cfb9e7855e09828d9914beaa53fce0e)
+      '@smithers-orchestrator/openapi': 0.22.0(ab00a03f150188009525fbdbd247096a)
+      '@smithers-orchestrator/react-reconciler': 0.22.0(592c84fd639a061bd044381f156796ac)
+      '@smithers-orchestrator/sandbox': 0.22.0(@effect/platform@0.97.2(effect@3.22.4))(@effect/sql@0.51.1(@effect/experimental@0.60.0(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/workflow@0.18.2(@effect/experimental@0.60.0(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(@effect/platform@0.97.2(effect@3.22.4))(@effect/rpc@0.75.1(@effect/platform@0.97.2(effect@3.22.4))(effect@3.22.4))(effect@3.22.4))(@electric-sql/pglite@0.4.6(ws@8.21.3))(@opentelemetry/api@1.9.1)(@opentelemetry/resources@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-logs@0.223.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-metrics@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-node@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-web@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/semantic-conventions@1.44.0)(pg@8.23.1)(react@19.3.1)
       '@smithers-orchestrator/scheduler': 0.22.0(@electric-sql/pglite@0.4.6(ws@8.21.3))(@opentelemetry/api@1.9.1)(pg@8.23.1)(react@19.3.1)
-      '@smithers-orchestrator/scorers': 0.22.0(40f540734e508fd030cc3d1b821beec7)
-      '@smithers-orchestrator/server': 0.22.0(9cbc62d0ca944f4913ff02b0aae54cfe)
-      '@smithers-orchestrator/time-travel': 0.22.0(0265e348ceae15b4580024c88126a9b7)
-      '@smithers-orchestrator/vcs': 0.22.0(40c7988a1abdc56c8e54523b95357e4e)
+      '@smithers-orchestrator/scorers': 0.22.0(fc92235ae7bc1351a080d35af6499e33)
+      '@smithers-orchestrator/server': 0.22.0(5dcfc318b5ddecb80288e93385b2748f)
+      '@smithers-orchestrator/time-travel': 0.22.0(ab00a03f150188009525fbdbd247096a)
+      '@smithers-orchestrator/vcs': 0.22.0(8cfb9e7855e09828d9914beaa53fce0e)
       ai: 6.0.320(zod@4.6.7)
       diff: 9.0.0
       drizzle-orm: 0.45.4(@electric-sql/pglite@0.4.6(ws@8.21.3))(@opentelemetry/api@1.9.1)(pg@8.23.1)(react@19.3.1)

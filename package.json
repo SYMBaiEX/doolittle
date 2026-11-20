@@ -187,6 +187,8 @@
     "@elizaos/plugin-wechat": "2.0.3-beta.7",
     "@elizaos/shared": "2.0.11-beta.7",
     "@elizaos/ui": "2.0.11-beta.7",
+    "@effect/platform@<0.97.1": "0.97.2",
+    "@hono/node-server@>=2.0.0 <2.1.6": "2.1.9",
     "fast-uri": "3.1.9",
     "cookie@<0.7.0": "0.7.2",
     "esbuild@>=0.27.3 <0.28.1": "0.28.2",
