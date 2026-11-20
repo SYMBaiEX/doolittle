@@ -1,4 +1,6 @@
+use std::collections::HashSet;
 use std::io::{self, Write};
+use std::path::Path;
 use std::process::ExitCode;
 use std::sync::{
     Arc,
@@ -10,9 +12,11 @@ use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result, bail};
 use doolittle_runtime::{RunEvent, RunStatus, RuntimeClient, RuntimeError};
+use rustyline::{DefaultEditor, error::ReadlineError};
 use serde::Serialize;
+use serde_json::{Value, json};
 
-use crate::{new_id, terminal_text};
+use crate::{new_id, operator, print_json, terminal_text};
 
 const POLL_INTERVAL: Duration = Duration::from_millis(100);
 const CANCELLATION_WAIT: Duration = Duration::from_secs(15);
@@ -29,7 +33,7 @@ pub fn interrupts() -> Result<Arc<AtomicUsize>> {
     Ok(signals)
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum OutcomeStatus {
     Complete,
@@ -64,15 +68,79 @@ enum Delivery {
     Closed(Result<u64, RuntimeError>),
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum Output {
+    Silent,
+    Terminal,
+    JsonLines,
+}
+
 pub fn send(
     client: &RuntimeClient,
     session: &str,
     prompt: &str,
     signals: &AtomicUsize,
-    stream_output: bool,
+    output: Output,
+) -> Result<Outcome> {
+    send_with_approvals(client, session, prompt, signals, output, None, None)
+}
+
+pub fn send_interactive(
+    client: &RuntimeClient,
+    session: &str,
+    prompt: &str,
+    signals: &AtomicUsize,
+    editor: &mut DefaultEditor,
+) -> Result<Outcome> {
+    send_with_approvals(
+        client,
+        session,
+        prompt,
+        signals,
+        Output::Terminal,
+        Some(editor),
+        None,
+    )
+}
+
+pub(crate) fn send_background(
+    client: &RuntimeClient,
+    session: &str,
+    prompt: &str,
+    signals: &AtomicUsize,
+    cancellation: &Path,
+) -> Result<Outcome> {
+    send_with_approvals(
+        client,
+        session,
+        prompt,
+        signals,
+        Output::JsonLines,
+        None,
+        Some(cancellation),
+    )
+}
+
+fn send_with_approvals(
+    client: &RuntimeClient,
+    session: &str,
+    prompt: &str,
+    signals: &AtomicUsize,
+    output: Output,
+    mut editor: Option<&mut DefaultEditor>,
+    cancellation_marker: Option<&Path>,
 ) -> Result<Outcome> {
     let start_signal = signals.load(Ordering::Relaxed);
     let run_id = new_id();
+    if cancellation_marker.is_some_and(Path::is_file) {
+        return Ok(Outcome {
+            session_id: session.to_owned(),
+            run_id,
+            status: OutcomeStatus::Cancelled,
+            text: String::new(),
+            error: None,
+        });
+    }
     match client.start_chat_with_id(session, prompt, &run_id) {
         Ok(start) if start.run_id == run_id => {}
         Ok(_) => {
@@ -89,6 +157,10 @@ pub fn send(
                     .context(format!("Could not confirm submission for run {run_id}"));
             }
         }
+    }
+
+    if output == Output::JsonLines {
+        print_json(&json!({"type": "start", "runId": run_id, "sessionId": session}))?;
     }
 
     let (sender, receiver) = sync_channel(64);
@@ -125,9 +197,12 @@ pub fn send(
     };
     let mut cancellation = None;
     let mut announced_approval = false;
+    let mut reviewed = HashSet::new();
     loop {
         let signal_count = signals.load(Ordering::Relaxed);
-        if signal_count > start_signal && cancellation.is_none() {
+        if cancellation.is_none()
+            && (signal_count > start_signal || cancellation_marker.is_some_and(Path::is_file))
+        {
             cancellation = Some(Instant::now());
             match client.cancel_run(&outcome.run_id) {
                 Ok(receipt) if receipt.status == RunStatus::Cancelled => {
@@ -154,6 +229,15 @@ pub fn send(
 
         match receiver.recv_timeout(POLL_INTERVAL) {
             Ok(Delivery::Event(event)) => {
+                if output == Output::JsonLines {
+                    print_json(&json!({
+                        "type": "event",
+                        "runId": outcome.run_id,
+                        "event": event.kind,
+                        "cursor": event.cursor,
+                        "data": event.data,
+                    }))?;
+                }
                 if let Some(delta) = event.delta() {
                     if outcome.text.len().saturating_add(delta.len()) > MAX_RETAINED_TEXT_BYTES {
                         outcome.error = Some(format!(
@@ -162,23 +246,36 @@ pub fn send(
                         ));
                         break;
                     }
-                    if stream_output {
+                    if output == Output::Terminal {
                         write_terminal(delta)?;
                     }
                     outcome.text.push_str(delta);
                 }
-                if stream_output && let Some(action) = started_action(&event) {
+                if output == Output::Terminal
+                    && let Some(action) = started_action(&event)
+                {
                     eprintln!("\nUsing {}", terminal_text(action));
                 }
-                if !announced_approval && needs_approval(&event) {
-                    eprintln!(
-                        "\nRun {} is waiting for execution approval.",
-                        outcome.run_id
-                    );
-                    announced_approval = true;
+                if !event.is_terminal() && needs_approval(&event) {
+                    if output != Output::JsonLines && !announced_approval {
+                        eprintln!(
+                            "\nRun {} is waiting for execution approval.",
+                            outcome.run_id
+                        );
+                        announced_approval = true;
+                    }
+                    if let Some(editor) = editor.as_deref_mut()
+                        && let Err(error) =
+                            review_pending(client, session, &outcome.run_id, editor, &mut reviewed)
+                    {
+                        eprintln!(
+                            "Approval update failed: {}",
+                            terminal_text(&format!("{error:#}"))
+                        );
+                    }
                 }
                 if event.is_terminal() {
-                    apply_terminal(&mut outcome, &event, stream_output)?;
+                    apply_terminal(&mut outcome, &event, output == Output::Terminal)?;
                     break;
                 }
             }
@@ -198,10 +295,57 @@ pub fn send(
         }
     }
 
-    if stream_output && !outcome.text.is_empty() && !outcome.text.ends_with('\n') {
+    if output == Output::Terminal && !outcome.text.is_empty() && !outcome.text.ends_with('\n') {
         write_terminal("\n")?;
     }
     Ok(outcome)
+}
+
+fn review_pending(
+    client: &RuntimeClient,
+    session: &str,
+    run_id: &str,
+    editor: &mut DefaultEditor,
+    reviewed: &mut HashSet<String>,
+) -> Result<()> {
+    let pending = client.get_json("/execution/approvals?status=pending", None)?;
+    let approvals = pending
+        .get("approvals")
+        .and_then(Value::as_array)
+        .context("Runtime approval list is malformed")?;
+    for approval in approvals {
+        let Some(id) = approval.get("id").and_then(Value::as_str) else {
+            continue;
+        };
+        if approval.get("sessionId").and_then(Value::as_str) != Some(session)
+            || approval.get("runId").and_then(Value::as_str) != Some(run_id)
+            || !reviewed.insert(id.to_owned())
+        {
+            continue;
+        }
+        let Some(command) = approval.get("command").and_then(Value::as_str) else {
+            continue;
+        };
+        println!("\nExecution approval {}", operator::one_line(id));
+        println!("  {}", operator::one_line(command));
+        if let Some(reason) = approval.get("reason").and_then(Value::as_str) {
+            println!("  {}", operator::one_line(reason));
+        }
+        let decision =
+            match editor.readline("Type approve, deny, or press Enter to leave pending › ") {
+                Ok(decision) => decision,
+                Err(ReadlineError::Interrupted | ReadlineError::Eof) => continue,
+                Err(error) => return Err(error).context("Read execution approval decision"),
+            };
+        let decision = decision.trim();
+        if matches!(decision, "approve" | "deny") {
+            let _ = operator::approval(client, id, decision)?;
+            println!("Approval updated.");
+        } else {
+            println!("Approval remains pending.");
+        }
+    }
+    Ok(())
 }
 
 fn apply_terminal(outcome: &mut Outcome, event: &RunEvent, stream_output: bool) -> Result<()> {

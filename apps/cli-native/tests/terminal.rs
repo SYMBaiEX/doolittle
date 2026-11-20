@@ -162,6 +162,170 @@ fn piped_prompt_resumes_event_stream_without_repeating_submission() {
     );
 }
 
+#[test]
+fn exec_alias_streams_a_result_and_one_event_per_cursor() {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    listener.set_nonblocking(true).unwrap();
+    let endpoint = format!("http://{}", listener.local_addr().unwrap());
+    let server = thread::spawn(move || {
+        let submit = accept(&listener);
+        let input = request(&submit);
+        assert_eq!(input.line, "POST /chat/runs HTTP/1.1");
+        assert_eq!(input.body["roomId"], SESSION);
+        assert_eq!(input.body["message"], "Explain the fixture");
+        let run = input.body["runId"].as_str().unwrap();
+        respond(submit, "202 Accepted", "application/json", &json!({
+            "run_id": run, "bot_id": "default", "response_id": "fixture-response", "room_id": SESSION,
+            "events_url": format!("/chat/runs/{run}/events")
+        }).to_string());
+        let events = accept(&listener);
+        assert!(request(&events).line.contains("/events?after=0"));
+        respond(
+            events,
+            "200 OK",
+            "text/event-stream",
+            concat!(
+                "event: response.output_text.delta\ndata: {\"event_id\":1,\"delta\":\"Fixture\"}\n\n",
+                "event: response.completed\ndata: {\"event_id\":2,\"response\":\"Fixture explained\"}\n\n"
+            ),
+        );
+    });
+    let result = attached_cli(&endpoint)
+        .args([
+            "exec",
+            "--json-stream",
+            "--session-id",
+            SESSION,
+            "-p",
+            "Explain the fixture",
+        ])
+        .output()
+        .unwrap();
+    server.join().unwrap();
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    let stdout = String::from_utf8(result.stdout).unwrap();
+    let output = stdout
+        .lines()
+        .map(|line| serde_json::from_str::<Value>(line).unwrap())
+        .collect::<Vec<_>>();
+    assert_eq!(output.len(), 4);
+    assert_eq!(output[0]["type"], "start");
+    assert_eq!(output[1]["cursor"], 1);
+    assert_eq!(output[2]["cursor"], 2);
+    assert_eq!(output[3]["outcome"]["text"], "Fixture explained");
+    assert_eq!(output[3]["outcome"]["runId"], output[0]["runId"]);
+}
+
+#[test]
+fn operator_approval_is_an_exact_authenticated_request() {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    listener.set_nonblocking(true).unwrap();
+    let endpoint = format!("http://{}", listener.local_addr().unwrap());
+    let server = thread::spawn(move || {
+        let decide = accept(&listener);
+        assert_eq!(
+            request(&decide).line,
+            "POST /execution/approvals/approval-12/deny HTTP/1.1"
+        );
+        respond(
+            decide,
+            "200 OK",
+            "application/json",
+            r#"{"approval":{"id":"approval-12","status":"denied"}}"#,
+        );
+    });
+    let result = attached_cli(&endpoint)
+        .args(["approval", "--json", "deny", "approval-12"])
+        .output()
+        .unwrap();
+    server.join().unwrap();
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    let value: Value = serde_json::from_slice(&result.stdout).unwrap();
+    assert_eq!(value["approval"]["status"], "denied");
+}
+
+#[test]
+fn codex_sign_in_uses_the_provider_flow_and_reports_only_account_metadata() {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    listener.set_nonblocking(true).unwrap();
+    let endpoint = format!("http://{}", listener.local_addr().unwrap());
+    let server = thread::spawn(move || {
+        let start = accept(&listener);
+        let input = request(&start);
+        assert_eq!(input.line, "POST /accounts/oauth/start HTTP/1.1");
+        assert_eq!(input.body, json!({"provider": "codex"}));
+        respond(
+            start,
+            "200 OK",
+            "application/json",
+            &json!({"flow": {
+                "id": SESSION, "status": "pending", "needsCodeSubmission": false,
+                "authUrl": "https://auth.openai.com/oauth/authorize?state=fixture"
+            }})
+            .to_string(),
+        );
+        let status = accept(&listener);
+        assert_eq!(
+            request(&status).line,
+            format!("GET /accounts/oauth/status?flowId={SESSION} HTTP/1.1")
+        );
+        respond(status, "200 OK", "application/json", &json!({"flow": {
+            "id": SESSION, "status": "success", "account": {"id": "codex-fixture", "label": "Codex"}
+        }}).to_string());
+    });
+    let result = attached_cli(&endpoint)
+        .args(["accounts", "connect", "codex", "--json"])
+        .output()
+        .unwrap();
+    server.join().unwrap();
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    let payload: Value = serde_json::from_slice(&result.stdout).unwrap();
+    assert_eq!(payload["account"]["id"], "codex-fixture");
+    assert!(!String::from_utf8_lossy(&result.stdout).contains("fixture&"));
+    assert!(
+        String::from_utf8_lossy(&result.stderr)
+            .contains("https://auth.openai.com/oauth/authorize?state=fixture")
+    );
+}
+
+#[test]
+fn provider_key_is_rejected_in_noninteractive_terminal_input() {
+    let mut child = attached_cli("http://127.0.0.1:49158")
+        .args([
+            "accounts",
+            "add-key",
+            "openai-api",
+            "--id",
+            "fixture",
+            "--label",
+            "Fixture",
+        ])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let _ = child.stdin.take().unwrap().write_all(b"synthetic-secret\n");
+    let result = child.wait_with_output().unwrap();
+    assert!(!result.status.success());
+    assert!(result.stdout.is_empty());
+    let error = String::from_utf8_lossy(&result.stderr);
+    assert!(error.contains("requires an interactive terminal"));
+    assert!(!error.contains("synthetic-secret"));
+}
+
 #[cfg(unix)]
 #[test]
 fn ctrl_c_requests_cancellation_of_the_active_run() {

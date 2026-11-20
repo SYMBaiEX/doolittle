@@ -1,15 +1,19 @@
-use std::io::{self, Read};
+use std::io::{self, IsTerminal, Read};
 use std::path::PathBuf;
 use std::process::ExitCode;
 
 use anyhow::{Context, Result, ensure};
 use clap::{Parser, Subcommand};
-use doolittle_host::{RuntimeSidecar, SidecarConfig};
+use doolittle_host::{RuntimeService, RuntimeSidecar, SidecarConfig};
 use doolittle_runtime::{RunStatus, RuntimeClient, SessionSummary};
 use serde::Serialize;
 use serde_json::{Value, json};
 use uuid::Uuid;
 
+mod accounts;
+mod jobs;
+mod launcher;
+mod operator;
 mod repl;
 mod turn;
 
@@ -36,12 +40,19 @@ struct Args {
     /// Defer optional runtime initialization during startup
     #[arg(long, global = true)]
     offline: bool,
+    /// Open the fullscreen operator cockpit
+    #[arg(long = "cli", alias = "cockpit")]
+    cockpit: bool,
     #[command(subcommand)]
     command: Option<Command>,
 }
 
 impl Args {
     fn validate_runtime_target(&self) -> Result<()> {
+        ensure!(
+            !self.cockpit || self.command.is_none(),
+            "--cli cannot be combined with a command"
+        );
         ensure!(
             self.url.is_none()
                 || (self.workspace.is_none()
@@ -52,29 +63,61 @@ impl Args {
         );
         Ok(())
     }
+
+    fn sidecar_config(&self) -> Result<SidecarConfig> {
+        let current = std::env::current_dir().context("Determine the working directory")?;
+        SidecarConfig::discover(
+            self.workspace.as_deref().unwrap_or(current.as_path()),
+            self.profile.as_deref(),
+            self.runtime_root.as_deref(),
+            self.offline,
+        )
+    }
 }
 
 #[derive(Subcommand)]
 enum Command {
     /// Start an interactive conversation
+    #[command(visible_aliases = ["start", "plain", "plain-cli"])]
     Chat {
         /// Resume an existing session
-        #[arg(long)]
+        #[arg(long, alias = "session-id")]
+        session: Option<String>,
+    },
+    /// Open the fullscreen operator cockpit
+    #[command(visible_alias = "tui")]
+    Cockpit {
+        #[arg(long, alias = "session-id")]
         session: Option<String>,
     },
     /// Run one prompt and print its final response
+    #[command(visible_alias = "exec")]
     Run {
         /// Resume an existing session
-        #[arg(long)]
+        #[arg(long, alias = "session-id")]
         session: Option<String>,
         /// Print one JSON result containing the run identity and outcome
-        #[arg(long)]
+        #[arg(long, conflicts_with = "json_stream")]
         json: bool,
+        /// Stream one JSON object per runtime event followed by the result
+        #[arg(long)]
+        json_stream: bool,
+        /// Run in a detached local worker and retain the job record
+        #[arg(long, conflicts_with = "json_stream")]
+        background: bool,
         /// Read the prompt from standard input
-        #[arg(long, conflicts_with = "prompt", required_unless_present = "prompt")]
+        #[arg(long, alias = "prompt-stdin", conflicts_with_all = ["prompt", "prompt_option"], required_unless_present_any = ["prompt", "prompt_option"])]
         stdin: bool,
-        #[arg(required_unless_present = "stdin")]
-        prompt: Option<String>,
+        /// Pass a prompt explicitly, including a prompt starting with a dash
+        #[arg(
+            short = 'p',
+            long = "prompt",
+            conflicts_with = "prompt",
+            allow_hyphen_values = true
+        )]
+        prompt_option: Option<String>,
+        /// Prompt words
+        prompt: Vec<String>,
     },
     /// List recent conversations
     Sessions {
@@ -83,7 +126,7 @@ enum Command {
         #[arg(long)]
         json: bool,
     },
-    /// Show the runtime health response
+    /// Show runtime, provider and startup status
     Status {
         #[arg(long)]
         json: bool,
@@ -93,6 +136,138 @@ enum Command {
         #[arg(long)]
         json: bool,
     },
+    /// Decide an execution approval on a running runtime
+    Approval {
+        #[arg(long)]
+        json: bool,
+        #[command(subcommand)]
+        action: operator::ApprovalCommand,
+    },
+    /// Browse recent runtime runs and their execution state
+    Progress {
+        #[arg(long)]
+        json: bool,
+        #[arg(value_parser = ["all"])]
+        view: Vec<String>,
+    },
+    /// Browse tool summary, list, search, category, detail and transports
+    Tools {
+        #[arg(long)]
+        json: bool,
+        view: Vec<String>,
+    },
+    /// Browse active, installed and generated skills and the skill catalog
+    Skills {
+        #[arg(long)]
+        json: bool,
+        view: Vec<String>,
+    },
+    /// Inspect status, transports, plugins, registry, ecosystem and models
+    Runtime {
+        #[arg(long)]
+        json: bool,
+        view: Vec<String>,
+    },
+    /// Browse Doolittle's command catalog by name or keyword
+    Commands {
+        #[arg(long)]
+        json: bool,
+        filter: Vec<String>,
+    },
+    /// Check local runtime readiness
+    #[command(visible_alias = "check")]
+    Doctor {
+        #[arg(long)]
+        json: bool,
+    },
+    /// Review setup or select the provider and model for future turns
+    #[command(visible_aliases = ["onboard", "bootstrap"])]
+    Setup {
+        #[arg(long)]
+        json: bool,
+        /// Display the full readiness checklist
+        #[arg(long, conflicts_with = "provider")]
+        checklist: bool,
+        #[arg(long, requires = "model")]
+        provider: Option<String>,
+        #[arg(long, requires = "provider")]
+        model: Option<String>,
+    },
+    /// List model providers and models
+    Models {
+        #[arg(long)]
+        json: bool,
+    },
+    /// Inspect linked provider accounts
+    Accounts {
+        #[arg(long, global = true)]
+        json: bool,
+        #[command(subcommand)]
+        action: Option<accounts::AccountCommand>,
+    },
+    /// List terminal themes, set a theme, or switch to next or previous
+    Theme {
+        #[arg(long)]
+        json: bool,
+        action: Vec<String>,
+    },
+    /// Show execution settings and backend readiness
+    Execution {
+        #[arg(long)]
+        json: bool,
+    },
+    /// See gateway readiness or installed transports
+    GatewayStatus {
+        #[arg(long)]
+        json: bool,
+        view: Vec<String>,
+    },
+    /// View recent agent activity
+    Activity {
+        #[arg(long)]
+        json: bool,
+    },
+    /// List and manage profile automations
+    Automations {
+        #[arg(long, global = true)]
+        json: bool,
+        #[command(subcommand)]
+        action: Option<operator::AutomationCommand>,
+    },
+    /// Print the Doolittle product version
+    Version,
+    /// Build or open the native GPUI desktop
+    #[command(visible_alias = "gui")]
+    Desktop {
+        #[arg(long)]
+        source: bool,
+        #[arg(long)]
+        build_only: bool,
+        #[arg(long, conflicts_with = "force_build")]
+        skip_build: bool,
+        #[arg(long)]
+        force_build: bool,
+    },
+    /// Serve the ElizaOS ACP protocol over standard input and output
+    Acp,
+    /// Start the ElizaOS gateway on loopback using ELIZA_API_TOKEN
+    Gateway,
+    /// Start the ElizaOS API on loopback using ELIZA_API_TOKEN
+    Api,
+    /// Check the bundled Rust tool and runtime probe
+    Native {
+        #[command(subcommand)]
+        action: Option<launcher::NativeCommand>,
+    },
+    /// List, show, attach to, or cancel locally managed background jobs
+    Jobs {
+        #[arg(long, global = true)]
+        json: bool,
+        #[command(subcommand)]
+        action: Option<jobs::JobCommand>,
+    },
+    #[command(hide = true)]
+    JobWorker { id: String },
     /// Inspect a run on an existing runtime
     Receipt {
         run: String,
@@ -132,14 +307,8 @@ impl Connection {
             });
         }
 
-        let current = std::env::current_dir().context("Determine the working directory")?;
-        let config = SidecarConfig::discover(
-            args.workspace.as_deref().unwrap_or(current.as_path()),
-            args.profile.as_deref(),
-            args.runtime_root.as_deref(),
-            args.offline,
-        )?;
-        let sidecar = RuntimeSidecar::launch(&config)?;
+        let config = args.sidecar_config()?;
+        let sidecar = RuntimeSidecar::launch(&config.with_controls())?;
         let client = RuntimeClient::new(sidecar.endpoint(), sidecar.token())?;
         Ok(Self {
             client,
@@ -160,33 +329,105 @@ fn main() -> ExitCode {
 
 fn execute(mut args: Args) -> Result<ExitCode> {
     args.validate_runtime_target()?;
-    let command = args
-        .command
-        .take()
-        .unwrap_or(Command::Chat { session: None });
-    if matches!(&command, Command::Cancel { .. } | Command::Receipt { .. }) {
+    let command = args.command.take().unwrap_or(if args.cockpit {
+        Command::Cockpit { session: None }
+    } else {
+        Command::Chat { session: None }
+    });
+    let command = match command {
+        Command::Version => {
+            println!("Doolittle {}", env!("CARGO_PKG_VERSION"));
+            return Ok(ExitCode::SUCCESS);
+        }
+        Command::Desktop {
+            source,
+            build_only,
+            skip_build,
+            force_build,
+        } => {
+            return launcher::desktop(&args, source, build_only, skip_build, force_build);
+        }
+        Command::Acp => return launcher::serve(&args, RuntimeService::Acp),
+        Command::Gateway => return launcher::serve(&args, RuntimeService::Gateway),
+        Command::Api => return launcher::serve(&args, RuntimeService::Api),
+        Command::Native { action } => {
+            return launcher::native(&args, action.unwrap_or(launcher::NativeCommand::Status));
+        }
+        Command::Jobs { json, action } => {
+            return action
+                .unwrap_or(jobs::JobCommand::List)
+                .execute(&args, json);
+        }
+        Command::JobWorker { id } => return jobs::worker(&args, &id),
+        other => other,
+    };
+    if matches!(&command, Command::Cancel { .. } | Command::Approval { .. }) {
         ensure!(args.url.is_some(), "Specify --url for the running runtime");
+    }
+    if matches!(&command, Command::Cockpit { .. }) {
+        ensure!(
+            io::stdin().is_terminal() && io::stdout().is_terminal(),
+            "The cockpit needs an interactive terminal"
+        );
     }
 
     // Read and validate prompt input before starting a managed agent.
-    let prompt = if let Command::Run { stdin, prompt, .. } = &command {
-        Some(if *stdin {
-            read_prompt(io::stdin().lock())?
-        } else {
-            checked_prompt(prompt.as_deref().unwrap_or_default().to_owned())?
-        })
-    } else {
-        None
+    let prompt = match &command {
+        Command::Run { stdin: true, .. } | Command::Chat { .. } if !io::stdin().is_terminal() => {
+            Some(read_prompt(io::stdin().lock())?)
+        }
+        Command::Run { stdin: true, .. } => {
+            anyhow::bail!("--prompt-stdin requires non-interactive stdin")
+        }
+        Command::Run {
+            prompt_option,
+            prompt,
+            ..
+        } => Some(checked_prompt(
+            prompt_option.clone().unwrap_or_else(|| prompt.join(" ")),
+        )?),
+        _ => None,
     };
+    if let Command::Run {
+        background: true,
+        session,
+        json,
+        ..
+    } = &command
+    {
+        return jobs::launch(
+            &args,
+            session.clone().unwrap_or_else(new_id),
+            prompt.unwrap_or_default(),
+            *json,
+        );
+    }
     let connection = Connection::open(&args)?;
     let client = &connection.client;
 
     match command {
         Command::Chat { session } => {
             let signals = turn::interrupts()?;
-            repl::run(client, session.unwrap_or_else(new_id), &signals)?;
+            let session = session.unwrap_or_else(new_id);
+            if let Some(prompt) = prompt {
+                return finish_turn(
+                    &turn::send(client, &session, &prompt, &signals, turn::Output::Silent)?,
+                    false,
+                    false,
+                );
+            }
+            repl::run(client, session, &signals, false)?;
         }
-        Command::Run { session, json, .. } => {
+        Command::Cockpit { session } => {
+            let signals = turn::interrupts()?;
+            repl::run(client, session.unwrap_or_else(new_id), &signals, true)?;
+        }
+        Command::Run {
+            session,
+            json,
+            json_stream,
+            ..
+        } => {
             let session = session.unwrap_or_else(new_id);
             let signals = turn::interrupts()?;
             let result = turn::send(
@@ -194,22 +435,13 @@ fn execute(mut args: Args) -> Result<ExitCode> {
                 &session,
                 prompt.as_deref().unwrap_or_default(),
                 &signals,
-                false,
+                if json_stream {
+                    turn::Output::JsonLines
+                } else {
+                    turn::Output::Silent
+                },
             )?;
-            if json {
-                print_json(&result)?;
-            } else {
-                match result.status {
-                    turn::OutcomeStatus::Complete => println!("{}", terminal_text(&result.text)),
-                    turn::OutcomeStatus::Cancelled => eprintln!("Cancelled {}", result.run_id),
-                    _ => {
-                        if let Some(error) = &result.error {
-                            eprintln!("{}", terminal_text(error));
-                        }
-                    }
-                }
-            }
-            return Ok(result.exit_code());
+            return finish_turn(&result, json, json_stream);
         }
         Command::Sessions { limit, json } => {
             let sessions = client.sessions(usize::from(limit))?;
@@ -219,19 +451,48 @@ fn execute(mut args: Args) -> Result<ExitCode> {
                 print_sessions(&sessions);
             }
         }
-        Command::Status { json } => {
-            let health = client.get_json("/health", None)?;
-            if json {
-                print_json(&health)?;
+        Command::Status { json } => operator::inspect(client, "status", &[], json)?,
+        Command::Progress { json, view } => operator::inspect(client, "progress", &view, json)?,
+        Command::Tools { json, view } => operator::inspect(client, "tools", &view, json)?,
+        Command::Skills { json, view } => operator::inspect(client, "skills", &view, json)?,
+        Command::Runtime { json, view } => operator::inspect(client, "runtime", &view, json)?,
+        Command::Commands { json, filter } => operator::inspect(client, "commands", &filter, json)?,
+        Command::Doctor { json } => operator::inspect(client, "doctor", &[], json)?,
+        Command::Models { json } => operator::inspect(client, "models", &[], json)?,
+        Command::Accounts { json, action } => action
+            .unwrap_or(accounts::AccountCommand::List)
+            .execute(client, json)?,
+        Command::Theme { json, action } => operator::theme(client, &action.join(" "), json)?,
+        Command::Execution { json } => operator::inspect(client, "execution", &[], json)?,
+        Command::GatewayStatus { json, view } => operator::inspect(client, "gateway", &view, json)?,
+        Command::Activity { json } => operator::inspect(client, "activity", &[], json)?,
+        Command::Automations { json, action } => action
+            .unwrap_or(operator::AutomationCommand::List)
+            .execute(client, json)?,
+        Command::Setup {
+            json,
+            checklist,
+            provider,
+            model,
+        } => {
+            if let Some((provider, model)) = provider.zip(model) {
+                operator::select_model(client, provider, model, json)?;
             } else {
-                let status = health
-                    .get("status")
-                    .and_then(Value::as_str)
-                    .unwrap_or("reachable");
-                println!("Runtime {}", terminal_text(status));
+                let args = if checklist {
+                    vec!["checklist".into()]
+                } else {
+                    vec![]
+                };
+                operator::inspect(client, "setup", &args, json)?;
             }
         }
         Command::Approvals { json } => print_approvals(client, json)?,
+        Command::Approval { action, json } => operator::present(
+            &action.execute(client)?,
+            json,
+            "Approval updated",
+            Some("approval"),
+        )?,
         Command::Receipt { run, json } => {
             let receipt = client.run(&run)?;
             if json {
@@ -270,16 +531,45 @@ fn execute(mut args: Args) -> Result<ExitCode> {
         }
         Command::Tree { session, depth } => print_tree(client, &session, depth)?,
         Command::Read { session, path } => print_file(client, &session, &path)?,
+        Command::Version
+        | Command::Desktop { .. }
+        | Command::Acp
+        | Command::Gateway
+        | Command::Api
+        | Command::Native { .. }
+        | Command::Jobs { .. }
+        | Command::JobWorker { .. } => unreachable!("this command is handled before startup"),
     }
 
     Ok(ExitCode::SUCCESS)
 }
 
+fn finish_turn(result: &turn::Outcome, json: bool, json_stream: bool) -> Result<ExitCode> {
+    if json_stream {
+        print_json(&json!({"type": "result", "outcome": result}))?;
+    } else if json {
+        print_json(result)?;
+    } else {
+        match result.status {
+            turn::OutcomeStatus::Complete => println!("{}", terminal_text(&result.text)),
+            turn::OutcomeStatus::Cancelled => eprintln!("Cancelled {}", result.run_id),
+            _ => {
+                if let Some(error) = &result.error {
+                    eprintln!("{}", terminal_text(error));
+                }
+            }
+        }
+    }
+    Ok(result.exit_code())
+}
+
 fn print_json(value: &impl Serialize) -> Result<()> {
+    use std::io::Write as _;
+
     let mut stdout = io::stdout().lock();
     serde_json::to_writer(&mut stdout, value)?;
-    use std::io::Write;
     writeln!(stdout)?;
+    stdout.flush()?;
     Ok(())
 }
 
