@@ -8,7 +8,7 @@ use anyhow::{Context, Result, bail, ensure};
 use clap::{Subcommand, ValueEnum};
 use doolittle_runtime::{ControlMethod, RuntimeClient};
 use rustyline::{
-    ColorMode, Config, Editor, Helper,
+    Behavior, ColorMode, Config, Editor, Helper,
     completion::Completer,
     highlight::{CmdKind, Highlighter},
     hint::Hinter,
@@ -261,14 +261,19 @@ fn hidden_input(prompt: &str) -> Result<String> {
         std::io::stdin().is_terminal() && std::io::stderr().is_terminal(),
         "Provider authorization requires an interactive terminal"
     );
-    #[cfg(unix)]
-    let _echo = NoEcho::enter()?;
-    #[cfg(not(unix))]
     ensure!(
-        std::env::var("TERM").as_deref() != Ok("dumb"),
+        !std::env::var("TERM").is_ok_and(|term| ["dumb", "cons25", "emacs"]
+            .iter()
+            .any(|unsupported| term.eq_ignore_ascii_case(unsupported))),
         "Provider authorization needs terminal input masking"
     );
-    let config = Config::builder().color_mode(ColorMode::Forced).build();
+    #[cfg(unix)]
+    let _echo = NoEcho::enter()?;
+    let config = Config::builder()
+        .behavior(Behavior::PreferTerm)
+        .color_mode(ColorMode::Forced)
+        .auto_add_history(false)
+        .build();
     let mut editor = Editor::<SecretMask, MemHistory>::with_config(config)?;
     editor.set_helper(Some(SecretMask));
     let code = editor
@@ -286,12 +291,19 @@ fn hidden_input(prompt: &str) -> Result<String> {
 struct NoEcho {
     tool: &'static str,
     mode: String,
+    terminal: std::fs::File,
 }
 
 #[cfg(unix)]
 impl NoEcho {
     fn enter() -> Result<Self> {
-        use std::process::{Command, Stdio};
+        use std::process::Command;
+
+        let terminal = std::fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open("/dev/tty")
+            .context("Provider authorization requires a controlling terminal")?;
 
         let tool = ["/bin/stty", "/usr/bin/stty"]
             .into_iter()
@@ -299,15 +311,22 @@ impl NoEcho {
             .context("Cannot mask input on this terminal")?;
         let original = Command::new(tool)
             .arg("-g")
-            .stdin(Stdio::inherit())
+            .stdin(terminal.try_clone()?)
             .output()?;
         ensure!(
             original.status.success(),
             "Cannot read protected terminal input settings"
         );
         let mode = String::from_utf8(original.stdout)?.trim().to_owned();
-        let guard = Self { tool, mode };
-        let status = Command::new(tool).arg("-echo").status()?;
+        let guard = Self {
+            tool,
+            mode,
+            terminal,
+        };
+        let status = Command::new(tool)
+            .arg("-echo")
+            .stdin(guard.terminal.try_clone()?)
+            .status()?;
         ensure!(status.success(), "Cannot mask protected terminal input");
         Ok(guard)
     }
@@ -316,9 +335,12 @@ impl NoEcho {
 #[cfg(unix)]
 impl Drop for NoEcho {
     fn drop(&mut self) {
-        let _ = std::process::Command::new(self.tool)
-            .arg(&self.mode)
-            .status();
+        if let Ok(terminal) = self.terminal.try_clone() {
+            let _ = std::process::Command::new(self.tool)
+                .arg(&self.mode)
+                .stdin(terminal)
+                .status();
+        }
     }
 }
 
