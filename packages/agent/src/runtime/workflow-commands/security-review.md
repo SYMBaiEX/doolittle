@@ -10,6 +10,7 @@ Review {{TARGET}} for security issues and operational hardening gaps.
 Inspect first. Findings come first.
 
 Return:
+
 - the most important findings ordered by severity
 - the exact files or subsystems involved
 - exploitability or likely impact

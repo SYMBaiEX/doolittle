@@ -10,6 +10,7 @@ Review {{TARGET}} in the local workspace.
 Inspect first, then answer directly.
 
 Return:
+
 - a short overview of what the repo is for
 - the top-level structure that matters
 - the key entrypoints, scripts, and packages
