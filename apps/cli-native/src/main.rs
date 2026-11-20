@@ -33,7 +33,7 @@ struct Args {
     /// Source checkout or packaged runtime directory for a managed runtime
     #[arg(long, global = true, value_name = "DIRECTORY")]
     runtime_root: Option<PathBuf>,
-    /// Start a managed runtime without live model credentials
+    /// Defer optional runtime initialization during startup
     #[arg(long, global = true)]
     offline: bool,
     #[command(subcommand)]
