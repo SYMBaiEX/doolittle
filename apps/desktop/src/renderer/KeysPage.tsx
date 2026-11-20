@@ -5,6 +5,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { OfflineRouteState } from "./components/OfflineRouteState";
@@ -47,7 +48,10 @@ export function KeysPage({ active }: { active: boolean }) {
   const [valueVisible, setValueVisible] = useState(false);
   const [busy, setBusy] = useState<"load" | "save" | "">("");
   const [feedback, setFeedback] = useState<ActionFeedback | null>(null);
+  const operationInFlight = useRef(false);
+  const revealRevision = useRef(0);
   const clearSensitiveValue = useCallback(() => {
+    revealRevision.current += 1;
     setDraftValue("");
     setRevealedValue("");
     setValueVisible(false);
@@ -74,14 +78,18 @@ export function KeysPage({ active }: { active: boolean }) {
   useEffect(() => {
     if (!revealedValue) return;
     const timeout = window.setTimeout(clearSensitiveValue, 60_000);
+    return () => window.clearTimeout(timeout);
+  }, [clearSensitiveValue, revealedValue]);
+
+  useEffect(() => {
     const clearWhenHidden = () => {
-      if (document.visibilityState === "hidden") clearSensitiveValue();
+      if (document.visibilityState !== "hidden") return;
+      if (revealedValue) clearSensitiveValue();
+      else revealRevision.current += 1;
     };
     document.addEventListener("visibilitychange", clearWhenHidden);
-    return () => {
-      window.clearTimeout(timeout);
+    return () =>
       document.removeEventListener("visibilitychange", clearWhenHidden);
-    };
   }, [clearSensitiveValue, revealedValue]);
 
   useEffect(() => {
@@ -89,7 +97,9 @@ export function KeysPage({ active }: { active: boolean }) {
   }, [active, clearSensitiveValue]);
 
   const loadValue = async (key = draftKey.trim()) => {
-    if (!active || !key) return;
+    if (!active || !key || operationInFlight.current) return;
+    operationInFlight.current = true;
+    const revision = revealRevision.current;
     setBusy("load");
     setFeedback(null);
     try {
@@ -98,15 +108,28 @@ export function KeysPage({ active }: { active: boolean }) {
         "POST",
         { key },
       );
+      if (
+        revision !== revealRevision.current ||
+        document.visibilityState === "hidden"
+      )
+        return;
+      if (typeof response.value !== "string") {
+        setFeedback({
+          message: `No stored value for ${key}.`,
+          tone: "neutral",
+        });
+        return;
+      }
       setSelectedKey(key);
       setDraftKey(key);
-      setRevealedValue(asString(response.value));
-      setDraftValue(asString(response.value));
+      setRevealedValue(response.value);
+      setDraftValue(response.value);
       setValueVisible(true);
       setFeedback({ message: `Loaded ${key}.`, tone: "good" });
     } catch (error) {
       setFeedback({ message: errorMessage(error), tone: "bad" });
     } finally {
+      operationInFlight.current = false;
       setBusy("");
     }
   };
@@ -114,7 +137,8 @@ export function KeysPage({ active }: { active: boolean }) {
   const saveValue = async (event: FormEvent) => {
     event.preventDefault();
     const key = draftKey.trim();
-    if (!active || !key) return;
+    if (!active || !key || operationInFlight.current) return;
+    operationInFlight.current = true;
     setBusy("save");
     setFeedback(null);
     try {
@@ -129,6 +153,7 @@ export function KeysPage({ active }: { active: boolean }) {
     } catch (error) {
       setFeedback({ message: errorMessage(error), tone: "bad" });
     } finally {
+      operationInFlight.current = false;
       setBusy("");
     }
   };
@@ -192,13 +217,12 @@ export function KeysPage({ active }: { active: boolean }) {
                           ? "font-semibold [&_strong]:font-semibold text-[var(--text)]"
                           : "bg-transparent hover:bg-[var(--surface-hover)]"
                       }`}
+                      disabled={Boolean(busy)}
                       key={key}
                       onClick={() => {
                         setSelectedKey(key);
                         setDraftKey(key);
-                        setDraftValue("");
-                        setRevealedValue("");
-                        setValueVisible(false);
+                        clearSensitiveValue();
                         setFeedback(null);
                       }}
                       type="button"
@@ -238,6 +262,7 @@ export function KeysPage({ active }: { active: boolean }) {
               </div>
             </div>
             <form
+              aria-busy={Boolean(busy)}
               className={`keys-editor-form bg-transparent py-4 ${
                 inventoryEmpty
                   ? "col-start-2 row-start-1 @max-[700px]/keys:col-start-1 @max-[700px]/keys:row-auto"
@@ -249,16 +274,23 @@ export function KeysPage({ active }: { active: boolean }) {
                 <label className={KEYS_FIELD_CLASS} htmlFor="secret-key-name">
                   <span>Key name</span>
                   <Input
+                    disabled={Boolean(busy)}
                     id="secret-key-name"
                     placeholder="OPENAI_API_KEY"
                     value={draftKey}
-                    onChange={(event) => setDraftKey(event.target.value)}
+                    onChange={(event) => {
+                      const nextKey = event.target.value;
+                      if (revealedValue && nextKey.trim() !== draftKey.trim())
+                        clearSensitiveValue();
+                      setDraftKey(nextKey);
+                    }}
                   />
                 </label>
                 <label className={KEYS_FIELD_CLASS} htmlFor="secret-key-value">
                   <span>Value</span>
                   <Input
                     autoComplete="off"
+                    disabled={Boolean(busy)}
                     id="secret-key-value"
                     placeholder="Paste the local secret value"
                     type={valueVisible ? "text" : "password"}
@@ -269,7 +301,7 @@ export function KeysPage({ active }: { active: boolean }) {
               </div>
               <div className="mt-5 flex flex-wrap items-center justify-end gap-2 border-t border-[var(--border)] pt-4">
                 <Button
-                  disabled={busy === "load" || !draftKey.trim()}
+                  disabled={Boolean(busy) || !draftKey.trim()}
                   onClick={() => void loadValue()}
                   type="button"
                   variant="secondary"
@@ -277,7 +309,7 @@ export function KeysPage({ active }: { active: boolean }) {
                   {busy === "load" ? "Loading…" : "Reveal value"}
                 </Button>
                 <Button
-                  disabled={busy === "save" || !draftKey.trim()}
+                  disabled={Boolean(busy) || !draftKey.trim()}
                   type="submit"
                 >
                   {busy === "save" ? "Saving…" : "Save key"}

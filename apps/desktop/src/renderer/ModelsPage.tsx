@@ -125,7 +125,32 @@ export function ModelsPage({
 
   const save = async (event: FormEvent) => {
     event.preventDefault();
-    if (!active) return;
+    if (!active || saving) return;
+    const submittedDraft = draft;
+    const temperatureInput = fieldValue("temperature", model?.temperature);
+    const temperature = Number(temperatureInput);
+    const maxTokens = Number(fieldValue("maxTokens", model?.maxTokens));
+    if (
+      temperatureInput === "" ||
+      !Number.isFinite(temperature) ||
+      temperature < 0 ||
+      temperature > 2
+    ) {
+      setTuningOpen(true);
+      setFeedback({
+        message: "Enter a temperature between 0 and 2.",
+        tone: "bad",
+      });
+      return;
+    }
+    if (!Number.isSafeInteger(maxTokens) || maxTokens < 1) {
+      setTuningOpen(true);
+      setFeedback({
+        message: "Enter a positive whole number for maximum tokens.",
+        tone: "bad",
+      });
+      return;
+    }
     setSaving(true);
     setFeedback(null);
     try {
@@ -142,11 +167,11 @@ export function ModelsPage({
           },
           {
             path: "model.temperature",
-            value: Number(fieldValue("temperature", model?.temperature)),
+            value: temperature,
           },
           {
             path: "model.maxTokens",
-            value: Number(fieldValue("maxTokens", model?.maxTokens)),
+            value: maxTokens,
           },
           {
             path: "model.reasoningEffort",
@@ -154,7 +179,7 @@ export function ModelsPage({
           },
         ],
       });
-      setDraft({});
+      setDraft((current) => (current === submittedDraft ? {} : current));
       setFeedback({
         message: "Model settings saved. New turns will use this selection.",
         tone: "good",
@@ -244,7 +269,12 @@ export function ModelsPage({
             <ErrorBlock error={settings.error} retry={settings.reload} />
           ) : settings.data ? (
             <div className={MODELS_WORKSPACE_CLASS}>
-              <form className={MODELS_FORM_CLASS} onSubmit={save}>
+              <form
+                aria-busy={saving}
+                className={MODELS_FORM_CLASS}
+                noValidate
+                onSubmit={save}
+              >
                 <div className="card-heading">
                   <div>
                     <span className="eyebrow">Primary inference</span>
@@ -384,7 +414,7 @@ export function ModelsPage({
                         type="number"
                         min="0"
                         max="2"
-                        step="0.05"
+                        step="any"
                         value={fieldValue("temperature", model?.temperature)}
                         onChange={(event) =>
                           setDraft((current) => ({
@@ -398,8 +428,7 @@ export function ModelsPage({
                       <span>Maximum tokens</span>
                       <input
                         type="number"
-                        min="128"
-                        step="128"
+                        min="1"
                         value={fieldValue("maxTokens", model?.maxTokens)}
                         onChange={(event) =>
                           setDraft((current) => ({

@@ -2,13 +2,23 @@
 
 import { act, createElement } from "react";
 import { createRoot } from "react-dom/client";
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
+import { desktopRequest } from "../../apps/desktop/src/renderer/eliza-client";
+import {
+  apiResourceCacheKey,
+  desktopQueryClient,
+} from "../../apps/desktop/src/renderer/lib";
+import { ModelsPage } from "../../apps/desktop/src/renderer/ModelsPage";
 import {
   linkedProviderAccess,
   providerReadiness,
   ROUTE_PROVIDER_OPTIONS,
 } from "../../apps/desktop/src/renderer/model-routing";
 import { SettingControl } from "../../apps/desktop/src/renderer/settings/SettingsFields";
+
+vi.mock("../../apps/desktop/src/renderer/eliza-client", () => ({
+  desktopRequest: vi.fn(),
+}));
 
 it("presents passive credential status as unchecked until the user verifies it", () => {
   const codex = { checked: false, nativeReady: false };
@@ -21,6 +31,65 @@ it("presents passive credential status as unchecked until the user verifies it",
     label: "Not checked",
     mode: "unchecked",
   });
+});
+
+it("saves a valid existing token budget from closed generation controls", async () => {
+  (
+    globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
+  ).IS_REACT_ACT_ENVIRONMENT = true;
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  const settings = {
+    settings: {
+      model: {
+        provider: "codex",
+        model: "coding-model",
+        temperature: 0.4,
+        maxTokens: 1200,
+      },
+    },
+  };
+  desktopQueryClient.setQueryData(
+    [apiResourceCacheKey("/settings", [true])],
+    settings,
+  );
+  desktopQueryClient.setQueryData(
+    [apiResourceCacheKey("/runtime/models?refresh=false", [true, false])],
+    { providers: [], capabilities: [] },
+  );
+  vi.mocked(desktopRequest).mockResolvedValue(settings);
+
+  try {
+    act(() =>
+      root.render(
+        <ModelsPage active runtime={null} refreshRuntime={() => {}} />,
+      ),
+    );
+    expect(
+      container.querySelector<HTMLDetailsElement>("[data-model-tuning]")?.open,
+    ).toBe(false);
+    expect(
+      container
+        .querySelectorAll<HTMLInputElement>('input[type="number"]')[1]
+        ?.checkValidity(),
+    ).toBe(true);
+    await act(async () =>
+      container
+        .querySelector<HTMLButtonElement>('button[type="submit"]')
+        ?.click(),
+    );
+    expect(desktopRequest).toHaveBeenCalledWith("/settings", "POST", {
+      changes: expect.arrayContaining([
+        { path: "model.maxTokens", value: 1200 },
+      ]),
+    });
+  } finally {
+    act(() => root.unmount());
+    container.remove();
+    desktopQueryClient.clear();
+    vi.mocked(desktopRequest).mockReset();
+  }
 });
 
 it("keeps a removed saved provider visible but unavailable until another route is selected", () => {

@@ -195,7 +195,7 @@ export function BotCreationDialog({
       <section
         aria-labelledby={titleId}
         aria-modal="true"
-        className="w-[min(100%,520px)] rounded-[var(--radius-xl)] border border-[var(--border-strong)] bg-[var(--surface-raised)] p-5 text-[var(--text)] shadow-[var(--shell-shadow-lg)]"
+        className="max-h-[calc(100dvh-32px)] w-[min(100%,520px)] overflow-y-auto rounded-[var(--radius-xl)] border border-[var(--border-strong)] bg-[var(--surface-raised)] p-5 text-[var(--text)] shadow-[var(--shell-shadow-lg)]"
         ref={dialogRef}
         role="dialog"
         tabIndex={-1}

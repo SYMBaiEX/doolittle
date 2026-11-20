@@ -1,17 +1,11 @@
 import { Button } from "@doolittle/ui";
-import {
-  type KeyboardEvent,
-  lazy,
-  Suspense,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import type { SkillsResponse } from "../shared/contracts";
 import { buildSkillCatalogEntries } from "./catalog-entry-models";
 import { CatalogFilterBar } from "./components/CatalogFilterBar";
 import { CompactStatStrip } from "./components/CompactStatStrip";
 import { OfflineRouteState } from "./components/OfflineRouteState";
+import { PanelTabs } from "./components/PanelTabs";
 import { ResourceStatusBar } from "./components/ResourceStatusBar";
 import {
   asArray,
@@ -29,26 +23,11 @@ const LazySkillWorkshopPanel = lazy(async () => {
   return { default: module.SkillWorkshopPanel };
 });
 
-type SkillsSection = "catalog" | "workshop";
-const SKILLS_SECTIONS: readonly SkillsSection[] = ["catalog", "workshop"];
-const SKILLS_TAB_CLASS =
-  "flex min-h-10 shrink-0 items-center rounded-md px-3 py-2 text-left text-[length:var(--text-control)] font-medium text-[var(--muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] aria-selected:font-semibold aria-selected:text-[var(--text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--focus-ring)] max-[760px]:min-h-11";
-
-export function skillsSectionForKey(
-  current: SkillsSection,
-  key: string,
-): SkillsSection | undefined {
-  const index = SKILLS_SECTIONS.indexOf(current);
-  if (key === "ArrowLeft") {
-    return SKILLS_SECTIONS[(index - 1 + SKILLS_SECTIONS.length) % 2];
-  }
-  if (key === "ArrowRight") {
-    return SKILLS_SECTIONS[(index + 1) % SKILLS_SECTIONS.length];
-  }
-  if (key === "Home") return SKILLS_SECTIONS[0];
-  if (key === "End") return SKILLS_SECTIONS.at(-1);
-  return undefined;
-}
+const SKILLS_TABS = [
+  { id: "catalog", label: "Catalog", panelId: "skills-catalog-panel" },
+  { id: "workshop", label: "Workshop", panelId: "skills-workshop-panel" },
+] as const;
+type SkillsSection = (typeof SKILLS_TABS)[number]["id"];
 
 export function SkillsPage({ active }: { active: boolean }) {
   const skills = useApiResource<SkillsResponse>(active ? "/skills" : null, [
@@ -64,10 +43,7 @@ export function SkillsPage({ active }: { active: boolean }) {
   };
   const [query, setQuery] = useState("");
   const [section, setSection] = useState<SkillsSection>("catalog");
-  const tabRefs = useRef<Record<SkillsSection, HTMLButtonElement | null>>({
-    catalog: null,
-    workshop: null,
-  });
+  const [workshopOpened, setWorkshopOpened] = useState(false);
   if (!active) {
     return (
       <div className="settings-skills-section flex min-w-0 flex-col gap-2">
@@ -115,16 +91,6 @@ export function SkillsPage({ active }: { active: boolean }) {
   });
   const summaryValue = catalogData?.summary ?? {};
   const installedValues = asArray(catalogData?.installed);
-  const selectSectionWithKeyboard = (
-    event: KeyboardEvent<HTMLButtonElement>,
-  ) => {
-    const target = skillsSectionForKey(section, event.key);
-    if (!target) return;
-    event.preventDefault();
-    setSection(target);
-    requestAnimationFrame(() => tabRefs.current[target]?.focus());
-  };
-
   return (
     <div className="settings-skills-section flex min-w-0 flex-col gap-2">
       <header className="settings-section-header">
@@ -161,43 +127,17 @@ export function SkillsPage({ active }: { active: boolean }) {
       <ResourceStatusBar
         resources={[{ label: "Skill catalog", resource: skills }]}
       />
-      <div
-        aria-label="Skills views"
-        className="flex flex-wrap gap-2 border-b border-[var(--border)]"
-        role="tablist"
-      >
-        <button
-          aria-controls="skills-catalog-panel"
-          aria-selected={section === "catalog"}
-          className={SKILLS_TAB_CLASS}
-          id="skills-catalog-tab"
-          onClick={() => setSection("catalog")}
-          onKeyDown={selectSectionWithKeyboard}
-          ref={(node) => {
-            tabRefs.current.catalog = node;
+      <div className="border-b border-[var(--border)]">
+        <PanelTabs
+          id="skills"
+          items={SKILLS_TABS}
+          label="Skills views"
+          onSelect={(nextSection) => {
+            if (nextSection === "workshop") setWorkshopOpened(true);
+            setSection(nextSection);
           }}
-          role="tab"
-          tabIndex={section === "catalog" ? 0 : -1}
-          type="button"
-        >
-          <span>Catalog</span>
-        </button>
-        <button
-          aria-controls="skills-workshop-panel"
-          aria-selected={section === "workshop"}
-          className={SKILLS_TAB_CLASS}
-          id="skills-workshop-tab"
-          onClick={() => setSection("workshop")}
-          onKeyDown={selectSectionWithKeyboard}
-          ref={(node) => {
-            tabRefs.current.workshop = node;
-          }}
-          role="tab"
-          tabIndex={section === "workshop" ? 0 : -1}
-          type="button"
-        >
-          <span>Workshop</span>
-        </button>
+          selected={section}
+        />
       </div>
       <section
         aria-labelledby="skills-catalog-tab"
@@ -259,9 +199,9 @@ export function SkillsPage({ active }: { active: boolean }) {
         id="skills-workshop-panel"
         role="tabpanel"
       >
-        {section === "workshop" ? (
+        {workshopOpened ? (
           <Suspense fallback={<LoadingBlock label="Loading skill workshop…" />}>
-            <LazySkillWorkshopPanel active={active} />
+            <LazySkillWorkshopPanel active={section === "workshop"} />
           </Suspense>
         ) : null}
       </div>

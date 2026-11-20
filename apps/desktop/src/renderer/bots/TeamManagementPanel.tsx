@@ -92,66 +92,75 @@ function TeamEditor({
         </Button>
       }
     >
-      <p className="m-0 text-sm text-[var(--muted)]">
-        Choose members explicitly. Team membership does not share private
-        histories or automatically grant access to findings.
-      </p>
-      <label className="grid gap-2 text-sm" htmlFor={nameId}>
-        Team name
-        <Input
-          id={nameId}
-          value={name}
-          maxLength={100}
-          required
-          disabled={busy}
-          onChange={(event) => setName(event.target.value)}
-        />
-      </label>
-      <fieldset className="m-0 grid gap-1 border-0 p-0">
-        <legend className="mb-2 text-sm font-medium">Members</legend>
-        {activeBots.map((bot) => (
-          <label
-            key={bot.id}
-            className="flex min-h-11 cursor-pointer items-center gap-3 text-sm"
-          >
-            <input
-              type="checkbox"
-              disabled={busy}
-              checked={members.has(bot.id)}
-              onChange={(event) =>
-                setMembers((current) => {
-                  const next = new Set(current);
-                  if (event.target.checked) next.add(bot.id);
-                  else next.delete(bot.id);
-                  return next;
-                })
-              }
-            />
-            {bot.name}
-          </label>
-        ))}
-      </fieldset>
-      {team?.memberBotIds.some(
-        (id) => !activeBots.some((bot) => bot.id === id),
-      ) ? (
+      <form
+        aria-busy={busy}
+        className="grid gap-4"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void save();
+        }}
+      >
         <p className="m-0 text-sm text-[var(--muted)]">
-          Archived or unavailable bots are excluded from the saved membership.
-          The native confirmation shows the exact change.
+          Choose members explicitly. Team membership does not share private
+          histories or automatically grant access to findings.
         </p>
-      ) : null}
-      <p className="m-0 text-sm text-[var(--muted)]">
-        Separately approved team findings can cross project boundaries. Changes
-        apply to future retrieval; information already delivered cannot be
-        erased.
-      </p>
-      {error ? (
-        <StateSurface kind="error" title="Team was not saved">
-          {error} Close and refresh if another window changed membership.
-        </StateSurface>
-      ) : null}
-      <Button disabled={busy || !name.trim()} onClick={() => void save()}>
-        {busy ? "Saving…" : "Save team"}
-      </Button>
+        <label className="grid gap-2 text-sm" htmlFor={nameId}>
+          Team name
+          <Input
+            id={nameId}
+            value={name}
+            maxLength={100}
+            required
+            disabled={busy}
+            onChange={(event) => setName(event.target.value)}
+          />
+        </label>
+        <fieldset className="m-0 grid gap-1 border-0 p-0">
+          <legend className="mb-2 text-sm font-medium">Members</legend>
+          {activeBots.map((bot) => (
+            <label
+              key={bot.id}
+              className="flex min-h-11 cursor-pointer items-center gap-3 text-sm"
+            >
+              <input
+                type="checkbox"
+                disabled={busy}
+                checked={members.has(bot.id)}
+                onChange={(event) =>
+                  setMembers((current) => {
+                    const next = new Set(current);
+                    if (event.target.checked) next.add(bot.id);
+                    else next.delete(bot.id);
+                    return next;
+                  })
+                }
+              />
+              {bot.name}
+            </label>
+          ))}
+        </fieldset>
+        {team?.memberBotIds.some(
+          (id) => !activeBots.some((bot) => bot.id === id),
+        ) ? (
+          <p className="m-0 text-sm text-[var(--muted)]">
+            Archived or unavailable bots are excluded from the saved membership.
+            The native confirmation shows the exact change.
+          </p>
+        ) : null}
+        <p className="m-0 text-sm text-[var(--muted)]">
+          Separately approved team findings can cross project boundaries.
+          Changes apply to future retrieval; information already delivered
+          cannot be erased.
+        </p>
+        {error ? (
+          <StateSurface kind="error" title="Team was not saved">
+            {error} Close and refresh if another window changed membership.
+          </StateSurface>
+        ) : null}
+        <Button disabled={busy || !name.trim()} type="submit">
+          {busy ? "Saving…" : "Save team"}
+        </Button>
+      </form>
     </DialogFrame>
   );
 }
@@ -243,8 +252,13 @@ export function TeamManagementPanel({ active }: { active: boolean }) {
           {teams.error || catalog.error}
         </StateSurface>
       ) : null}
-      {teams.loading && !teams.data ? (
-        <StateSurface kind="loading" title="Loading teams" />
+      {(teams.loading && !teams.data) || (catalog.loading && !catalog.data) ? (
+        <StateSurface
+          kind="loading"
+          title={
+            teams.loading && !teams.data ? "Loading teams" : "Loading bots"
+          }
+        />
       ) : null}
       {error ? (
         <StateSurface kind="error" title="Team change failed">
