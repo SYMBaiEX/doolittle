@@ -2,8 +2,8 @@ import { randomUUID } from "node:crypto";
 import { chmodSync, existsSync, mkdirSync, rmSync } from "node:fs";
 import { basename, dirname, resolve } from "node:path";
 import { readOptionalJson } from "@doolittle/storage";
+import type { ManagedAttachmentDescriptor } from "@doolittle/storage/attachment-import";
 import { writeJsonAtomicSync } from "@elizaos/core";
-import type { ManagedAttachmentDescriptor } from "./attachment-import";
 
 const ATTACHMENT_ID =
   /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;

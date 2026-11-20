@@ -12,8 +12,11 @@ import {
   RegularFileError,
   readRegularFileSync,
   writeVerifiedFileSync,
-} from "@doolittle/storage";
-import { hasFilenameControlCharacters } from "./ipc/input-validation";
+} from "./regular-file";
+
+export function hasFilenameControlCharacters(value: string): boolean {
+  return /\p{Cc}/u.test(value);
+}
 
 export const ATTACHMENT_IMPORT_LIMITS = {
   maxCount: 8,

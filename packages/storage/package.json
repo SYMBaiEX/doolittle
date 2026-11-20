@@ -5,7 +5,8 @@
   "type": "module",
   "description": "Strict state reads and bounded regular-file I/O for Doolittle's Node workspaces.",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./attachment-import": "./src/attachment-import.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json"

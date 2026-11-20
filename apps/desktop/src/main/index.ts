@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { homedir } from "node:os";
 import { resolve } from "node:path";
+import { importSelectedAttachments } from "@doolittle/storage/attachment-import";
 import {
   app,
   BrowserWindow,
@@ -18,7 +19,6 @@ import {
 import type { DesktopCommand, WorkspacePickResult } from "../shared/contracts";
 import { desktopIpcChannels } from "../shared/ipc-channels";
 import { uiInterfaceChannels } from "../shared/ui-interface";
-import { importSelectedAttachments } from "./attachment-import";
 import {
   BackendManager,
   findPackagedRuntime,
