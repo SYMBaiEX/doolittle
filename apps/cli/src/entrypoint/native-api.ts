@@ -135,6 +135,7 @@ async function runOwnedNativeApi(
         bearerToken,
         ...capabilities,
         dispatchNamedBotControl: botHost?.dispatch,
+        reserveLeadConversation: botHost?.reserveLeadConversation,
         workspaceIsCurrent: () =>
           context.config.workspaceDir === profile.workspace &&
           profile.workspaceIsCurrent(),

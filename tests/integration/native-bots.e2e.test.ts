@@ -26,15 +26,18 @@ it.runIf(process.env.DOOLITTLE_RUN_RUNTIME_E2E === "1")(
     const workspace = join(sandbox, "workspace");
     const trace = join(sandbox, "owned-http-requests.jsonl");
     const observer = join(sandbox, "observe-owned-fetch.mjs");
-    const heldRun = randomUUID();
+    const raceRoom = randomUUID();
+    const leadLookupDone = join(sandbox, "lead-lookup-done");
+    const leadLookupRelease = join(sandbox, "lead-lookup-release");
     await mkdir(profile, { mode: 0o700 });
     await mkdir(workspace, { mode: 0o700 });
     // Observe test-owned runtime endpoints without publishing a worker URL or
     // capability in the product API. The trace stores only origins and status.
     await writeFile(
       observer,
-      `import { appendFileSync } from "node:fs";
-import { isMainThread, parentPort } from "node:worker_threads";
+      `import { appendFileSync, existsSync, writeFileSync } from "node:fs";
+import { setTimeout as delay } from "node:timers/promises";
+import { isMainThread } from "node:worker_threads";
 if (isMainThread) {
   const fetch = globalThis.fetch;
   globalThis.fetch = async (input, init) => {
@@ -48,16 +51,14 @@ if (isMainThread) {
         bearerSet: new Headers(init?.headers).has("authorization"),
       }) + "\\n", { mode: 0o600 });
     }
+    if (url.pathname === "/sessions/summary" && url.searchParams.get("sessionId") === ${JSON.stringify(raceRoom)}) {
+      // Deliver the actual stale lead lookup only after the lead wins ownership.
+      writeFileSync(${JSON.stringify(leadLookupDone)}, "1", { mode: 0o600 });
+      const deadline = Date.now() + 8_000;
+      while (!existsSync(${JSON.stringify(leadLookupRelease)}) && Date.now() < deadline)
+        await delay(10);
+    }
     return response;
-  };
-} else if (parentPort) {
-  // Keep one synthetic turn in the real worker's admission wait so a cancel
-  // request exercises its active controller instead of a completed receipt.
-  const send = parentPort.postMessage.bind(parentPort);
-  parentPort.postMessage = (value, ...rest) => {
-    if (value?.message?.operation === "execution.claim" &&
-        value.message.payload?.runId === ${JSON.stringify(heldRun)}) return;
-    return send(value, ...rest);
   };
 }
 `,
@@ -393,6 +394,48 @@ if (isMainThread) {
         wrongRunId,
       ])
         expect(response.status).toBe(404);
+      for (const [roomId, runId] of [
+        [roomA, randomUUID()],
+        [randomUUID(), runA],
+      ]) {
+        const wrongLead = await request("/chat/runs", "POST", {
+          roomId,
+          runId,
+          message: "Named IDs are reserved.",
+          source: "native",
+        });
+        expect(wrongLead.status).toBe(409);
+        expect(await wrongLead.json()).toMatchObject({
+          code: "conversation_owner_conflict",
+        });
+      }
+      const loseRace = start(
+        other.id,
+        raceRoom,
+        randomUUID(),
+        "Named loses to a durable lead reservation.",
+      );
+      const raceLeadRun = randomUUID();
+      try {
+        await vi.waitFor(() => stat(leadLookupDone), {
+          timeout: 5_000,
+          interval: 50,
+        });
+        const winsRace = await request("/chat/runs", "POST", {
+          roomId: raceRoom,
+          runId: raceLeadRun,
+          message: "Lead owns this room.",
+          source: "native",
+        });
+        expect(winsRace.status, await winsRace.clone().text()).toBe(202);
+      } finally {
+        await writeFile(leadLookupRelease, "1", { mode: 0o600 });
+      }
+      expect((await loseRace).status).toBe(404);
+      const raceStream = await request(
+        `/chat/runs/${raceLeadRun}/events?after=0`,
+      );
+      expect(await raceStream.text()).toContain("response.completed");
       const cancellation = await request(
         named(other.id, `chat/runs/${runB}/cancel`),
         "POST",
@@ -401,18 +444,6 @@ if (isMainThread) {
         accepted: true,
         run: { botId: other.id, sessionId: roomB, runId: runB },
       });
-      const heldRoom = randomUUID();
-      const held = await start(other.id, heldRoom, heldRun, "Cancel this waiting offline fixture.");
-      expect(held.status, await held.clone().text()).toBe(202);
-      const heldReceipt = await request(named(other.id, `chat/runs/${heldRun}`));
-      expect(await heldReceipt.json()).toMatchObject({ run: { status: "waiting", botId: other.id } });
-      const activeCancellation = await request(named(other.id, `chat/runs/${heldRun}/cancel`), "POST");
-      expect(await activeCancellation.json()).toMatchObject({
-        accepted: true,
-        run: { status: "cancelled", botId: other.id, sessionId: heldRoom, runId: heldRun },
-      });
-      const cancelled = await request(named(other.id, `chat/runs/${heldRun}/events?after=0`));
-      expect(await cancelled.text()).toContain("response.cancelled");
       expect(
         (
           await request(
@@ -423,6 +454,24 @@ if (isMainThread) {
       const stop = await request(`/bots/${record.id}/stop`, "POST");
       expect(stop.status).toBe(200);
       expect((await stop.json()).state).toBe("stopped");
+      const passiveStopped = await Promise.all([
+        request(named(record.id, "sessions")),
+        request(named(record.id, `sessions/messages?sessionId=${roomA}`)),
+        request(named(record.id, `chat/runs/${runA}`)),
+        start(record.id, roomA, randomUUID(), "Keep this worker stopped."),
+      ]);
+      for (const response of passiveStopped) {
+        expect(response.status).toBe(409);
+        expect(await response.json()).toMatchObject({
+          code: "named_bot_stopped",
+        });
+      }
+      const idleList = await request("/bots");
+      expect(
+        (await idleList.json()).bots.find(
+          (bot: { id: string }) => bot.id === record.id,
+        )?.state,
+      ).toBe("stopped");
       const persisted = JSON.parse(
         await readFile(join(profile, "bots/catalog.json"), "utf8"),
       );

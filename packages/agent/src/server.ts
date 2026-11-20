@@ -109,6 +109,7 @@ async function dispatchOwnedNativeRequest(
       nativeClient: true,
       operatorControls: options.controlPlane,
       nativeAdmission,
+      reserveLeadConversation: options.reserveLeadConversation,
     });
   }
   const missing = () => json({ error: "Not found" }, 404);

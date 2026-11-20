@@ -20,7 +20,10 @@ import type {
   RunReceiptEnvelope,
   TaskRunEvent,
 } from "../../../services/run-controller-service/index";
-import { nativeWorkspaceAdmissionError } from "../../native-client-policy";
+import {
+  nativeWorkspaceAdmissionError,
+  type ReserveNativeLeadConversation,
+} from "../../native-client-policy";
 import { readJsonObjectBody } from "../../request-body";
 import { json, streamSse } from "../../responses";
 import { resolveRuntimeWorkspacePath } from "../runtime/workspace";
@@ -42,6 +45,7 @@ interface PreparedChatRun {
   responseId: string;
   roomId: string;
   sessionId: string;
+  pendingProjectId?: string;
 }
 
 interface ChatRunResultSummary {
@@ -226,7 +230,11 @@ function resolveChatWorkspace(
 async function prepareChatRun(
   context: AppContext,
   request: Request,
-  options?: { nativeClient?: boolean; operatorControls?: boolean },
+  options?: {
+    nativeClient?: boolean;
+    operatorControls?: boolean;
+    reserveLeadConversation?: ReserveNativeLeadConversation;
+  },
 ): Promise<PreparedChatRun | Response> {
   const parsed = await readJsonObjectBody(request);
   if (!parsed.ok) {
@@ -304,6 +312,7 @@ async function prepareChatRun(
   }
   const roomId = resolveRoomId(body);
   let workspaceDir: string;
+  let pendingProjectId: string | undefined;
   if (isDesktopWorkspaceRuntime()) {
     try {
       const scope = await resolveConversationWorkspace(roomId, request.signal);
@@ -339,6 +348,16 @@ async function prepareChatRun(
         workspaceDir,
       );
       if (conflict) return conflict;
+    } else if (options?.reserveLeadConversation) {
+      if (
+        body.projectId &&
+        context.services.sessions.countBySessionRole(roomId) === 0
+      ) {
+        const project = context.services.sessions.getProject(body.projectId);
+        if (!project || project.archivedAt)
+          return json({ error: "project not found or archived" }, 404);
+        pendingProjectId = body.projectId;
+      }
     } else if (!assignProjectForNewSession(context, roomId, body.projectId)) {
       return json({ error: "project not found or archived" }, 404);
     }
@@ -352,6 +371,7 @@ async function prepareChatRun(
     responseId: randomUUID(),
     roomId,
     sessionId: roomId,
+    pendingProjectId,
   };
 }
 
@@ -378,6 +398,7 @@ async function startServerOwnedChatRun(
   context: AppContext,
   prepared: PreparedChatRun,
   nativeAdmission?: NativeWorkspaceAdmission,
+  reserveLeadConversation?: ReserveNativeLeadConversation,
 ): Promise<Response | undefined> {
   const { body, message, runId, responseId, roomId, sessionId, workspaceDir } =
     prepared;
@@ -411,6 +432,46 @@ async function startServerOwnedChatRun(
     await nativeLease?.release();
     context.services.runController.releaseTaskRun(runId);
     return conflictResponse("run_exists");
+  }
+
+  // The ownership reservation and run admission are synchronous. A named
+  // submission cannot claim either ID in between reservation and acceptance.
+  let ownershipRejection: Response | undefined;
+  try {
+    if (
+      reserveLeadConversation &&
+      !reserveLeadConversation({ sessionId, runId, workspaceDir })
+    ) {
+      ownershipRejection = json(
+        {
+          error: "This conversation or run belongs to a different owner.",
+          code: "conversation_owner_conflict",
+        },
+        409,
+      );
+    } else if (
+      prepared.pendingProjectId &&
+      !assignProjectForNewSession(context, sessionId, prepared.pendingProjectId)
+    ) {
+      ownershipRejection = json(
+        { error: "project not found or archived" },
+        404,
+      );
+    }
+  } catch {
+    ownershipRejection = json(
+      {
+        error: "Conversation ownership could not be saved.",
+        code: "conversation_owner_unavailable",
+      },
+      503,
+    );
+  }
+  if (ownershipRejection) {
+    await nativeLease?.release();
+    releaseWorkspace();
+    context.services.runController.releaseTaskRun(runId);
+    return ownershipRejection;
   }
 
   try {
@@ -738,6 +799,7 @@ export async function handleChatSubmitRoute(
     nativeClient?: boolean;
     operatorControls?: boolean;
     nativeAdmission?: NativeWorkspaceAdmission;
+    reserveLeadConversation?: ReserveNativeLeadConversation;
   },
 ): Promise<Response> {
   const prepared = await prepareChatRun(context, request, options);
@@ -746,6 +808,7 @@ export async function handleChatSubmitRoute(
     context,
     prepared,
     options?.nativeAdmission,
+    options?.reserveLeadConversation,
   );
   if (conflict) return conflict;
   return json(

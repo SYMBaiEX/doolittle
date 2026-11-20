@@ -67,6 +67,12 @@ interface NativeClientRejection {
   error: string;
 }
 
+export type ReserveNativeLeadConversation = (input: {
+  sessionId: string;
+  runId: string;
+  workspaceDir: string;
+}) => boolean;
+
 export interface NativeClientSecurityOptions {
   bearerToken: string;
   allowWorkspaceSave?: boolean;
@@ -75,6 +81,7 @@ export interface NativeClientSecurityOptions {
     request: Request,
     url: URL,
   ) => Promise<Response | null>;
+  reserveLeadConversation?: ReserveNativeLeadConversation;
   workspaceIsCurrent(): boolean;
 }
 

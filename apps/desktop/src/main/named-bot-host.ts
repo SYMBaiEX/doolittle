@@ -300,6 +300,17 @@ async function dispatchNamedChat(
       { status: 400 },
     );
 
+  const stopped = () =>
+    Response.json(
+      {
+        error: "Start this named bot before opening its chats.",
+        code: "named_bot_stopped",
+      },
+      { status: 409 },
+    );
+  const backend = registry.readyBackendFor(botId);
+  const workerOrigin = backend?.getState().url;
+  if (!backend || !workerOrigin) return stopped();
   const scratch = registry.privateBotWorkspace(botId);
   const isOwned = (sessionId: string) => {
     const owner = registry.resolveSavedConversationOwner(sessionId);
@@ -393,7 +404,20 @@ async function dispatchNamedChat(
         summary.summary.projectId
       )
         return namedNotFound();
-      registry.bindConversationWorkspace(botId, sessionId);
+    }
+    if (submissionId && sessionId) {
+      if (registry.readyBackendFor(botId) !== backend) return stopped();
+      const current = registry.resolveSavedConversationOwner(sessionId);
+      const claim = registry.conversations.getRun(submissionId);
+      if (
+        (current && !isOwned(sessionId)) ||
+        (claim && (claim.botId !== botId || claim.sessionId !== sessionId))
+      )
+        return namedNotFound();
+      // The lead lookup above may have raced a local lead submission. Recheck
+      // and reserve both IDs in the shared durable ledger before yielding.
+      if (!current) registry.bindConversationWorkspace(botId, sessionId);
+      registry.bindRun(botId, sessionId, submissionId);
     }
     if (runId) {
       const owner = registry.conversations.getRun(runId);
@@ -403,24 +427,11 @@ async function dispatchNamedChat(
     }
     if (sessionId)
       await registry.resolveVerifiedConversationWorkspace(botId, sessionId);
-    const backend = runId
-      ? registry.readyBackendFor(botId)
-      : await registry.backendFor(botId);
-    const endpoint = backend?.getState().url;
-    if (!endpoint)
-      return Response.json(
-        { error: "Start this named bot to access its saved runs." },
-        { status: 409 },
-      );
-    if (submissionId && sessionId) {
-      // Publish ownership first so a detached POST can still recover its exact
-      // worker receipt. Reusing an ID for a different owner remains impossible.
-      registry.bindRun(botId, sessionId, submissionId);
-    }
+    if (registry.readyBackendFor(botId) !== backend) return stopped();
     const workerPath = runId
       ? `/chat/runs/${encodeURIComponent(runId)}${suffix ? `/${suffix}` : ""}`
       : path;
-    const target = new URL(workerPath, endpoint);
+    const target = new URL(workerPath, workerOrigin);
     target.search = query.toString();
     const signal = events
       ? request.signal
@@ -587,6 +598,41 @@ export function createNativeBotHost(lead: OwnedLead) {
   );
   let closing = false;
   return {
+    reserveLeadConversation(input: {
+      sessionId: string;
+      runId: string;
+      workspaceDir: string;
+    }): boolean {
+      const { sessionId, runId, workspaceDir } = input;
+      if (
+        closing ||
+        workspaceDir !== lead.workspace ||
+        !CHAT_ID.test(sessionId) ||
+        !CHAT_ID.test(runId)
+      )
+        return false;
+      const botId = registry.catalog.stableDefaultBotId();
+      const owner = registry.resolveSavedConversationOwner(sessionId);
+      const claim = registry.conversations.getRun(runId);
+      if (
+        (owner &&
+          (owner.botId !== botId ||
+            (owner.workspacePath !== undefined &&
+              owner.workspacePath !== workspaceDir))) ||
+        (claim && (claim.botId !== botId || claim.sessionId !== sessionId))
+      )
+        return false;
+      if (!owner)
+        registry.conversations.bind(botId, sessionId, undefined, workspaceDir);
+      else if (!owner.workspacePath)
+        registry.conversations.bindLegacyWorkspace(
+          botId,
+          sessionId,
+          workspaceDir,
+        );
+      registry.bindRun(botId, sessionId, runId);
+      return true;
+    },
     async dispatch(request: Request, url: URL): Promise<Response | null> {
       if (closing)
         return Response.json(
