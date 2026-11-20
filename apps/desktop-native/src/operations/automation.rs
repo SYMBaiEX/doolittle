@@ -15,7 +15,15 @@ const FIELDS: &[(&str, &str, bool)] = &[
     ("automation-condition-value", "ready", false),
 ];
 
+#[derive(Clone, Copy, Default, PartialEq, Eq)]
+enum AutomationTab {
+    #[default]
+    Jobs,
+    Runs,
+}
+
 pub(super) struct AutomationState {
+    tab: AutomationTab,
     builder_open: bool,
     editing: Option<String>,
     initial_definition: Option<Value>,
@@ -31,6 +39,7 @@ pub(super) struct AutomationState {
 impl Default for AutomationState {
     fn default() -> Self {
         Self {
+            tab: AutomationTab::Jobs,
             builder_open: false,
             editing: None,
             initial_definition: None,
@@ -67,79 +76,118 @@ pub(super) fn render(
     let jobs = records(this, JOBS, "jobs");
     let runs = records(this, RUNS, "runs");
     let pending = state.pending(this);
-    scroll("automation-content")
-        .child(
-            row(colors).child(
-                group()
-                    .justify_between()
-                    .child(heading("Scheduled work"))
-                    .child(
-                        button("new-automation")
-                            .small()
-                            .outline()
-                            .disabled(pending)
-                            .label(if state.builder_open {
-                                "Close builder"
-                            } else {
-                                "New automation"
-                            })
-                            .on_click(cx.listener(|this, _, window, cx| {
-                                let open = !this.operations.automation.builder_open;
-                                edit(this, None, window, cx);
-                                this.operations.automation.builder_open = open;
-                                cx.notify();
-                            })),
-                    ),
+    let list = match state.tab {
+        AutomationTab::Jobs => div()
+            .when(state.builder_open, |page| {
+                page.child(builder(this, colors, pending, cx))
+            })
+            .children(load_state(
+                this,
+                JOBS,
+                colors,
+                "No automations yet. Create one to run a prompt or webhook.",
+                !jobs.is_empty(),
+            ))
+            .children(jobs.iter().map(|job| job_row(job, pending, colors, cx))),
+        AutomationTab::Runs => div()
+            .children(load_state(
+                this,
+                RUNS,
+                colors,
+                "Runs will appear after an automation executes.",
+                !runs.is_empty(),
+            ))
+            .children(
+                runs.iter()
+                    .map(|run| run_row(run, state.selected_run.as_deref(), colors, cx)),
             ),
-        )
-        .when(state.builder_open, |page| {
-            page.child(builder(this, colors, pending, cx))
-        })
-        .children(state.mutation.as_ref().map(|(path, caption)| {
+    };
+    div()
+        .flex()
+        .flex_col()
+        .flex_1()
+        .min_h_0()
+        .child(
             row(colors)
-                .children(action_error(this, path, colors))
-                .when(this.control_action_pending(path), |row| {
-                    row.child(muted(colors, "Working…"))
-                })
-                .when_some(this.control_action_value(path), |row, receipt| {
-                    let outcome = receipt.get("run").map(|run| value(run, "status"));
-                    let message = match outcome {
-                        Some("completed") => "Automation completed.",
-                        Some("failed") => "Automation failed. Open its run trace for details.",
-                        Some("skipped") => "Automation was skipped by its condition.",
-                        _ => caption,
-                    };
-                    row.child(if outcome == Some("failed") {
-                        error(colors, message)
-                    } else {
-                        muted(colors, message)
-                    })
-                })
-        }))
-        .child(
-            panel(colors, "Jobs")
-                .children(load_state(
-                    this,
-                    JOBS,
-                    colors,
-                    "No automations yet.",
-                    !jobs.is_empty(),
-                ))
-                .children(jobs.iter().map(|job| job_row(job, pending, colors, cx))),
+                .child(
+                    group()
+                        .justify_between()
+                        .child(
+                            group().children(
+                                [
+                                    (AutomationTab::Jobs, "Automations"),
+                                    (AutomationTab::Runs, "Run history"),
+                                ]
+                                .into_iter()
+                                .map(|(next, label)| {
+                                    tab(("automation-tab", label), label, state.tab == next)
+                                        .on_click(cx.listener(move |this, _, _, cx| {
+                                            this.operations.automation.tab = next;
+                                            this.control_get(
+                                                if next == AutomationTab::Jobs {
+                                                    JOBS
+                                                } else {
+                                                    RUNS
+                                                },
+                                                cx,
+                                            );
+                                            cx.notify();
+                                        }))
+                                }),
+                            ),
+                        )
+                        .when(state.tab == AutomationTab::Jobs, |bar| {
+                            bar.child(
+                                button("new-automation")
+                                    .small()
+                                    .primary()
+                                    .disabled(pending)
+                                    .label(if state.builder_open {
+                                        "Close form"
+                                    } else {
+                                        "New automation"
+                                    })
+                                    .on_click(cx.listener(|this, _, window, cx| {
+                                        if this.operations.automation.builder_open {
+                                            this.operations.automation.builder_open = false;
+                                        } else {
+                                            edit(this, None, window, cx);
+                                        }
+                                        cx.notify();
+                                    })),
+                            )
+                        }),
+                )
+                .children(state.mutation.as_ref().map(|(path, caption)| {
+                    div()
+                        .children(action_error(this, path, colors))
+                        .when(this.control_action_pending(path), |row| {
+                            row.child(muted(colors, "Working…"))
+                        })
+                        .when_some(this.control_action_value(path), |row, receipt| {
+                            let outcome = receipt.get("run").map(|run| value(run, "status"));
+                            let message = match outcome {
+                                Some("completed") => "Automation completed.",
+                                Some("failed") => {
+                                    "Automation failed. Open its run trace for details."
+                                }
+                                Some("skipped") => "Automation was skipped by its condition.",
+                                _ => caption,
+                            };
+                            row.child(if outcome == Some("failed") {
+                                error(colors, message)
+                            } else {
+                                muted(colors, message)
+                            })
+                        })
+                })),
         )
         .child(
-            panel(colors, "Run history")
-                .children(load_state(
-                    this,
-                    RUNS,
-                    colors,
-                    "No automation runs yet.",
-                    !runs.is_empty(),
-                ))
-                .children(
-                    runs.iter()
-                        .map(|run| run_row(run, state.selected_run.as_deref(), colors, cx)),
-                ),
+            scroll(match state.tab {
+                AutomationTab::Jobs => "automation-jobs",
+                AutomationTab::Runs => "automation-runs",
+            })
+            .child(list),
         )
         .into_any_element()
 }
@@ -309,6 +357,9 @@ fn edit(
         this.operations
             .set_value(field, content.to_owned(), window, cx);
     }
+    if let Some(input) = this.operations.inputs.get("automation-name") {
+        input.update(cx, |state, cx| state.focus(window, cx));
+    }
     cx.notify();
 }
 
@@ -421,6 +472,7 @@ fn save(this: &mut Workbench, window: &mut Window, cx: &mut Context<Workbench>) 
             .map(|endpoint| endpoint.origin().ascii_serialization())
             .unwrap_or_default();
         confirm(
+            this,
             "Save automation",
             "Allow scheduled webhook delivery?",
             &origin,
@@ -532,9 +584,10 @@ fn job_row(job: &Value, pending: bool, colors: &Palette, cx: &mut Context<Workbe
                     .outline()
                     .disabled(pending)
                     .label("Run now")
-                    .on_click(cx.listener(move |_, _, window, cx| {
+                    .on_click(cx.listener(move |this, _, window, cx| {
                         let path = trigger_path.clone();
                         confirm(
+                            this,
                             "Run now",
                             "Run this automation?",
                             "Its saved action will execute immediately.",
@@ -586,9 +639,10 @@ fn job_row(job: &Value, pending: bool, colors: &Palette, cx: &mut Context<Workbe
                     .ghost()
                     .disabled(pending)
                     .label("Delete")
-                    .on_click(cx.listener(move |_, _, window, cx| {
+                    .on_click(cx.listener(move |this, _, window, cx| {
                         let path = delete.clone();
                         confirm(
+                            this,
                             "Delete automation",
                             "Delete the scheduled job?",
                             &label,

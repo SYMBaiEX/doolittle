@@ -20,6 +20,7 @@ pub(super) struct ActivityState {
     query: String,
     shown: usize,
     export_result: Option<Result<String, String>>,
+    export_pending: bool,
 }
 
 impl ActivityState {
@@ -52,15 +53,13 @@ pub(super) fn render(
     window: &mut Window,
     cx: &mut Context<Workbench>,
 ) -> AnyElement {
-    let search = this
-        .operations
-        .input("activity-search", "Search events", false, window, cx);
+    let search =
+        this.operations
+            .search("activity-search", "Search events", apply_search, window, cx);
     let activity = &this.operations.activity;
     let path = activity.path(false);
-    let export_path = activity.path(true);
     let events = records(this, &path, "events");
     let displayed = activity.shown.max(35);
-    let can_save = this.control_value(&export_path).is_some();
     div()
         .flex()
         .flex_col()
@@ -70,43 +69,25 @@ pub(super) fn render(
             row(colors)
                 .child(
                     group()
-                        .child(div().flex_1().min_w(px(170.)).child(Input::new(&search)))
+                        .child(search_field(&search))
                         .child(
                             button("activity-search-apply")
                                 .small()
                                 .outline()
                                 .label("Search")
-                                .on_click(cx.listener(|this, _, _, cx| {
-                                    let query = this.operations.value("activity-search", cx);
-                                    let state = &mut this.operations.activity;
-                                    state.query = query
-                                        .chars()
-                                        .take(128)
-                                        .filter(|ch| !ch.is_control())
-                                        .collect();
-                                    state.shown = 35;
-                                    state.export_result = None;
-                                    refresh(this, cx);
-                                })),
+                                .on_click(cx.listener(|this, _, _, cx| apply_search(this, cx))),
                         )
                         .child(
                             button("activity-export")
                                 .small()
                                 .outline()
-                                .label(if can_save {
-                                    "Save JSON"
+                                .label(if activity.export_pending {
+                                    "Preparing…"
                                 } else {
-                                    "Prepare export"
+                                    "Export JSON"
                                 })
-                                .disabled(events.is_empty() || this.control_pending(&export_path))
-                                .on_click(cx.listener(move |this, _, _, cx| {
-                                    let path = this.operations.activity.path(true);
-                                    if !can_save {
-                                        this.control_get(&path, cx);
-                                    } else if let Some(data) = this.control_value(&path) {
-                                        save_json(data.clone(), cx);
-                                    }
-                                })),
+                                .disabled(events.is_empty() || activity.export_pending)
+                                .on_click(cx.listener(|this, _, _, cx| export(this, cx))),
                         ),
                 )
                 .child(group().children(FILTERS.iter().map(|&(kind, label)| {
@@ -119,10 +100,6 @@ pub(super) fn render(
                         }),
                     )
                 })))
-                .children(
-                    this.control_error(&export_path)
-                        .map(|message| error(colors, message.to_owned())),
-                )
                 .children(activity.export_result.as_ref().map(|result| match result {
                     Ok(message) => muted(colors, message.clone()),
                     Err(message) => error(colors, message.clone()),
@@ -134,7 +111,11 @@ pub(super) fn render(
                     this,
                     &path,
                     colors,
-                    "No matching events.",
+                    if activity.kind.is_empty() && activity.query.is_empty() {
+                        "Run activity, workspace changes, and deliveries will appear here."
+                    } else {
+                        "No events match these filters."
+                    },
                     !events.is_empty(),
                 ))
                 .children(events.iter().take(displayed).map(|event| {
@@ -178,12 +159,66 @@ pub(super) fn render(
         .into_any_element()
 }
 
+fn apply_search(this: &mut Workbench, cx: &mut Context<Workbench>) {
+    let query = this.operations.query("activity-search", cx);
+    let state = &mut this.operations.activity;
+    if state.query != query {
+        state.query = query;
+        state.shown = 35;
+        state.export_result = None;
+        refresh(this, cx);
+    }
+}
+
+fn export(this: &mut Workbench, cx: &mut Context<Workbench>) {
+    if this.operations.activity.export_pending {
+        return;
+    }
+    let Some(client) = this.runtime_client() else {
+        return;
+    };
+    let state = &mut this.operations.activity;
+    let requested = state.path(true);
+    state.export_pending = true;
+    state.export_result = None;
+
+    let (send, receive) = async_channel::bounded(1);
+    let path = requested.clone();
+    std::thread::spawn(move || {
+        let _ = send.send_blocking(client.control(ControlMethod::Get, &path, None));
+    });
+    cx.spawn(async move |this, cx| {
+        let receipt = receive.recv().await;
+        let _ = this.update(cx, |this, cx| {
+            let state = &mut this.operations.activity;
+            state.export_pending = false;
+            if this.view == crate::workbench::View::Operations(OpsPage::Activity)
+                && state.path(true) == requested
+            {
+                match receipt {
+                    Ok(Ok(data)) => {
+                        state.export_pending = true;
+                        save_json(data, cx);
+                    }
+                    Ok(Err(reason)) => state.export_result = Some(Err(reason.to_string())),
+                    Err(_) => {
+                        state.export_result = Some(Err("The export request ended early.".into()))
+                    }
+                }
+            }
+            cx.notify();
+        });
+    })
+    .detach();
+    cx.notify();
+}
+
 fn save_json(data: Value, cx: &mut Context<Workbench>) {
     let directory = std::env::current_dir().unwrap_or_else(|_| std::env::temp_dir());
     let path = cx.prompt_for_new_path(&directory, Some("doolittle-activity.json"));
     cx.spawn(async move |this, cx| {
         let result = match path.await {
-            Ok(Ok(Some(path))) => {
+            Ok(Ok(Some(path))) => Some(
                 cx.background_executor()
                     .spawn(async move {
                         let mut contents =
@@ -192,13 +227,15 @@ fn save_json(data: Value, cx: &mut Context<Workbench>) {
                         std::fs::write(path, contents).map_err(|error| error.to_string())?;
                         Ok("Activity export saved.".to_owned())
                     })
-                    .await
-            }
-            Ok(Err(error)) => Err(error.to_string()),
-            _ => return,
+                    .await,
+            ),
+            Ok(Err(error)) => Some(Err(error.to_string())),
+            _ => None,
         };
         let _ = this.update(cx, |this, cx| {
-            this.operations.activity.export_result = Some(result);
+            let state = &mut this.operations.activity;
+            state.export_pending = false;
+            state.export_result = result;
             cx.notify();
         });
     })

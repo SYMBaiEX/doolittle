@@ -1,6 +1,7 @@
 use serde_json::json;
 
 use super::*;
+use gpui_component::ActiveTheme as _;
 
 pub(super) const OVERVIEW: &str = "/delegation/overview-snapshot";
 pub(super) const TASKS: &str = "/delegation/tasks";
@@ -30,12 +31,45 @@ impl WorkTab {
     }
 }
 
+#[derive(Clone, Copy, Default, PartialEq, Eq)]
+enum ReviewTab {
+    #[default]
+    Approvals,
+    Changes,
+    Runs,
+}
+
+impl ReviewTab {
+    fn routes(self) -> &'static [&'static str] {
+        match self {
+            Self::Approvals => &[APPROVALS],
+            Self::Changes => &[
+                super::review::RECORD,
+                super::review::CHANGES,
+                super::review::REPOSITORY,
+            ],
+            Self::Runs => &[CHAT_RUNS],
+        }
+    }
+}
+
+fn queue_counts(payload: &Value) -> Option<String> {
+    let summary = payload.pointer("/overview/native")?;
+    let total = summary.get("total")?.as_u64()?;
+    Some(format!(
+        "{total} tasks · {} pending · {} running",
+        summary["pending"].as_u64().unwrap_or(0),
+        summary["running"].as_u64().unwrap_or(0)
+    ))
+}
+
 #[derive(Default)]
 pub(super) struct WorkState {
     tab: WorkTab,
     builder: bool,
     selected_task: Option<String>,
-    approval_pending_only: bool,
+    review_tab: ReviewTab,
+    show_resolved: bool,
     action: Option<(String, &'static str)>,
     approval_action: Option<(String, &'static str)>,
     validation: Option<&'static str>,
@@ -114,17 +148,7 @@ fn queue(
 ) -> Div {
     let state = &this.operations.work;
     let selected_id = state.selected_task.clone();
-    let summary = this
-        .control_value(OVERVIEW)
-        .and_then(|data| data.get("overview"));
-    let counts = summary.and_then(|summary| {
-        let totals = summary.get("total")?.as_u64()?;
-        Some(format!(
-            "{totals} tasks · {} pending · {} running",
-            summary["pending"].as_u64().unwrap_or(0),
-            summary["running"].as_u64().unwrap_or(0)
-        ))
-    });
+    let counts = this.control_value(OVERVIEW).and_then(queue_counts);
     let builder = state.builder;
     let form = builder.then(|| objective_form(this, "task", colors, window, cx));
     let tasks = records(this, TASKS, "tasks");
@@ -342,8 +366,9 @@ fn task_row(
                             .on_click(cx.listener(move |this, _, window, cx| {
                                 let path = endpoint.clone();
                                 let detail_route = detail_route.clone();
-                                if operation == "cancel" {
+                                if matches!(operation, "cancel" | "start") {
                                     confirm(
+                                        this,
                                         label,
                                         if operation == "cancel" {
                                             "Cancel delegated task?"
@@ -457,9 +482,10 @@ fn plans(
                                         .outline()
                                         .label("Approve plan")
                                         .disabled(busy)
-                                        .on_click(cx.listener(move |_, _, window, cx| {
+                                        .on_click(cx.listener(move |this, _, window, cx| {
                                             let path = path.clone();
                                             confirm(
+                                                this,
                                                 "Approve plan",
                                                 "Approve this execution plan?",
                                                 &description,
@@ -574,7 +600,12 @@ pub(super) fn agents(
                                         .outline()
                                         .label("Open lead chat")
                                         .on_click(cx.listener(|this, _, window, cx| {
-                                            this.set_view(crate::workbench::View::Agent, window, cx)
+                                            this.select_conversation(
+                                                this.selected.clone(),
+                                                None,
+                                                window,
+                                                cx,
+                                            )
                                         })),
                                 ),
                             ),
@@ -621,69 +652,120 @@ pub(super) fn agents(
         .into_any_element()
 }
 
+pub(super) fn refresh_review(this: &mut Workbench, cx: &mut Context<Workbench>) {
+    let tab = this.operations.work.review_tab;
+    for path in tab.routes() {
+        this.control_get(path, cx);
+    }
+    if tab == ReviewTab::Changes {
+        super::review::refresh(this, cx);
+    }
+}
+
+pub(super) fn show_approvals(this: &mut Workbench) {
+    this.operations.work.review_tab = ReviewTab::Approvals;
+    this.operations.work.show_resolved = false;
+}
+
 pub(super) fn review(
     this: &mut Workbench,
     colors: &Palette,
     window: &mut Window,
     cx: &mut Context<Workbench>,
 ) -> AnyElement {
-    let changes = super::review::render(this, colors, window, cx);
-    let entries = records(this, APPROVALS, "approvals");
-    let pending = this.operations.work.approval_pending_only;
-    let visible: Vec<_> = entries
-        .iter()
-        .filter(|approval| !pending || value(approval, "status") == "pending")
-        .collect();
-    let review_action = this.operations.work.approval_action.as_ref();
-    let busy = action_pending(this, review_action);
-    scroll("review-operations-list")
-        .child(
-            row(colors)
-                .child(
-                    group().children(
-                        [(false, "All requests"), (true, "Pending")]
-                            .into_iter()
-                            .map(|(filter, label)| {
-                                tab(("approval-filter", label), label, pending == filter).on_click(
-                                    cx.listener(move |this, _, _, cx| {
-                                        this.operations.work.approval_pending_only = filter;
-                                        cx.notify();
-                                    }),
-                                )
-                            }),
-                    ),
-                )
-                .children(show_outcome(this, review_action, colors)),
-        )
-        .child(
-            panel(colors, "Execution approvals")
-                .children(load_state(
-                    this,
-                    APPROVALS,
-                    colors,
-                    if pending {
-                        "No pending approval requests."
-                    } else {
-                        "No execution approvals yet."
-                    },
-                    !visible.is_empty(),
-                ))
-                .children(
-                    visible
-                        .into_iter()
-                        .map(|approval| approval_row(approval, busy, colors, cx)),
-                ),
-        )
-        .child(changes)
-        .child(run_list(
+    let tab = this.operations.work.review_tab;
+    let content = match tab {
+        ReviewTab::Approvals => approvals(this, colors, cx),
+        ReviewTab::Changes => super::review::render(this, colors, window, cx),
+        ReviewTab::Runs => run_list(
             this,
             CHAT_RUNS,
             "runs",
             "Recent chat runs",
             "No chat runs yet.",
             colors,
-        ))
+        ),
+    };
+    div()
+        .flex()
+        .flex_col()
+        .flex_1()
+        .min_h_0()
+        .child(
+            row(colors).child(
+                group().children(
+                    [
+                        (ReviewTab::Approvals, "Approvals"),
+                        (ReviewTab::Changes, "Changes and notes"),
+                        (ReviewTab::Runs, "Run history"),
+                    ]
+                    .into_iter()
+                    .map(|(next, label)| {
+                        super::tab(("review-section", label), label, tab == next).on_click(
+                            cx.listener(move |this, _, _, cx| {
+                                this.operations.work.review_tab = next;
+                                refresh_review(this, cx);
+                                cx.notify();
+                            }),
+                        )
+                    }),
+                ),
+            ),
+        )
+        .child(
+            scroll(match tab {
+                ReviewTab::Approvals => "review-approval-list",
+                ReviewTab::Changes => super::review::scroll_id(this),
+                ReviewTab::Runs => "review-run-list",
+            })
+            .child(content),
+        )
         .into_any_element()
+}
+
+fn approvals(this: &Workbench, colors: &Palette, cx: &mut Context<Workbench>) -> Div {
+    let entries = records(this, APPROVALS, "approvals");
+    let show_resolved = this.operations.work.show_resolved;
+    let review_action = this.operations.work.approval_action.as_ref();
+    let busy = action_pending(this, review_action);
+    let visible: Vec<_> = entries
+        .iter()
+        .filter(|approval| show_resolved || value(approval, "status") == "pending")
+        .collect();
+    div()
+        .child(
+            row(colors)
+                .child(
+                    group().children(
+                        [(false, "Pending"), (true, "All requests")]
+                            .into_iter()
+                            .map(|(filter, label)| {
+                                tab(("approval-filter", label), label, show_resolved == filter)
+                                    .on_click(cx.listener(move |this, _, _, cx| {
+                                        this.operations.work.show_resolved = filter;
+                                        cx.notify();
+                                    }))
+                            }),
+                    ),
+                )
+                .children(show_outcome(this, review_action, colors)),
+        )
+        .children(load_state(
+            this,
+            APPROVALS,
+            colors,
+            if show_resolved {
+                "No execution approvals yet."
+            } else {
+                "You’re caught up. New requests will appear here."
+            },
+            !visible.is_empty(),
+        ))
+        .children(
+            visible
+                .into_iter()
+                .map(|approval| approval_row(approval, busy, colors, cx)),
+        )
 }
 
 fn approval_row(
@@ -699,8 +781,18 @@ fn approval_row(
         .child(
             group()
                 .justify_between()
-                .child(heading(command.to_owned()))
+                .child(heading(
+                    title(approval, "platform", "Execution request").to_owned(),
+                ))
                 .child(status(colors, state)),
+        )
+        .child(
+            div()
+                .bg(colors.inset)
+                .p(px(9.))
+                .font_family(cx.theme().mono_font_family.clone())
+                .text_size(px(12.))
+                .child(command.to_owned()),
         )
         .when(!value(approval, "reason").is_empty(), |row| {
             row.child(value(approval, "reason").to_owned())
@@ -721,7 +813,13 @@ fn approval_row(
                     .into_iter()
                     .map(|(action, label, feedback)| {
                         let path = format!("{APPROVALS}/{id}/{action}");
-                        let description = command.to_owned();
+                        let description = format!(
+                            "{}
+
+Source: {}",
+                            command,
+                            title(approval, "platform", "Local workspace"),
+                        );
                         button(path.clone())
                             .small()
                             .outline()
@@ -736,6 +834,7 @@ fn approval_row(
                                     return;
                                 }
                                 confirm(
+                                    this,
                                     label,
                                     if action == "approve" {
                                         "Approve this execution?"
@@ -801,3 +900,7 @@ fn operate(
     send(this, &path, Some(body), refresh, cx);
     cx.notify();
 }
+
+#[cfg(test)]
+#[path = "../../../../tests/native/operations_work.rs"]
+mod tests;

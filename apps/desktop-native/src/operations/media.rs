@@ -11,7 +11,7 @@ const MAX_ENCODED_BYTES: usize = MAX_ASSET_BYTES.div_ceil(3) * 4;
 
 #[derive(Default)]
 pub(super) struct MediaState {
-    all_chats: bool,
+    this_chat: bool,
     kind: Option<&'static str>,
     query: String,
     selected: Option<String>,
@@ -81,7 +81,7 @@ impl Preview {
 }
 
 fn path(this: &Workbench) -> String {
-    if this.operations.media.all_chats || !segment(&this.selected) {
+    if !this.operations.media.this_chat || !segment(&this.selected) {
         LIBRARY.to_owned()
     } else {
         format!("{LIBRARY}?sessionId={}", encode_query(&this.selected))
@@ -99,13 +99,9 @@ pub(super) fn render(
     window: &mut Window,
     cx: &mut Context<Workbench>,
 ) -> AnyElement {
-    let search = this.operations.input(
-        "media-filter",
-        "Search asset names and prompts",
-        false,
-        window,
-        cx,
-    );
+    let search = this
+        .operations
+        .search("media-filter", "Search assets", apply_search, window, cx);
     let route = path(this);
     let media = &this.operations.media;
     let assets: Vec<_> = records(this, &route, "assets")
@@ -124,6 +120,46 @@ pub(super) fn render(
             .find(|asset| value(asset, "id") == id)
             .copied()
     });
+    let wide = this.content_width(window, cx) >= px(880.);
+    let library = scroll("media-asset-library")
+        .children(load_state(
+            this,
+            &route,
+            colors,
+            if !media.query.is_empty() || media.kind.is_some() {
+                "No assets match these filters."
+            } else if media.this_chat {
+                "No assets in the selected chat."
+            } else {
+                "Images, audio, and video created here will appear in your library."
+            },
+            !assets.is_empty(),
+        ))
+        .children(assets.iter().map(|asset| asset_row(asset, colors, cx)));
+    let body = if let Some(asset) = selected {
+        let detail = scroll("media-asset-preview").child(details(this, asset, colors, cx));
+        if wide {
+            div()
+                .flex()
+                .flex_1()
+                .min_h_0()
+                .child(
+                    div()
+                        .flex()
+                        .flex_col()
+                        .w(gpui::relative(0.45))
+                        .min_w_0()
+                        .border_r_1()
+                        .border_color(colors.divider)
+                        .child(library),
+                )
+                .child(div().flex().flex_col().flex_1().min_w_0().child(detail))
+        } else {
+            div().flex().flex_col().flex_1().min_h_0().child(detail)
+        }
+    } else {
+        div().flex().flex_col().flex_1().min_h_0().child(library)
+    };
     div()
         .flex()
         .flex_col()
@@ -133,41 +169,26 @@ pub(super) fn render(
             row(colors)
                 .child(
                     group()
-                        .child(div().min_w(px(170.)).flex_1().child(Input::new(&search)))
+                        .child(search_field(&search))
                         .child(
                             button("media-search")
                                 .small()
                                 .outline()
                                 .label("Search")
-                                .on_click(cx.listener(|this, _, _, cx| {
-                                    this.operations.media.query = this
-                                        .operations
-                                        .value("media-filter", cx)
-                                        .chars()
-                                        .take(128)
-                                        .collect::<String>()
-                                        .to_lowercase();
-                                    cx.notify();
-                                })),
+                                .on_click(cx.listener(|this, _, _, cx| apply_search(this, cx))),
                         )
-                        .child(
-                            button("media-scope")
-                                .small()
-                                .outline()
-                                .label(if media.all_chats {
-                                    "Show this chat"
-                                } else {
-                                    "Show all chats"
-                                })
-                                .on_click(cx.listener(|this, _, _, cx| {
-                                    let media = &mut this.operations.media;
-                                    media.all_chats = !media.all_chats;
-                                    media.selected = None;
-                                    media.preview = None;
-                                    refresh(this, cx);
-                                    cx.notify();
-                                })),
-                        ),
+                        .children([(false, "All chats"), (true, "This chat")].into_iter().map(
+                            |(scope, label)| {
+                                tab(("media-scope", label), label, media.this_chat == scope)
+                                    .on_click(cx.listener(move |this, _, _, cx| {
+                                        if this.operations.media.this_chat != scope {
+                                            this.operations.media.this_chat = scope;
+                                            close_asset(this, cx);
+                                            refresh(this, cx);
+                                        }
+                                    }))
+                            },
+                        )),
                 )
                 .child(
                     group().children(
@@ -181,59 +202,70 @@ pub(super) fn render(
                         .map(|(kind, label)| {
                             tab(("media-kind", label), label, media.kind == kind).on_click(
                                 cx.listener(move |this, _, _, cx| {
-                                    this.operations.media.kind = kind;
-                                    cx.notify();
+                                    if this.operations.media.kind != kind {
+                                        this.operations.media.kind = kind;
+                                        close_asset(this, cx);
+                                    }
                                 }),
                             )
                         }),
                     ),
                 ),
         )
-        .child(
-            scroll("media-asset-library")
-                .children(selected.map(|asset| details(this, asset, colors, cx)))
-                .child(
-                    panel(colors, "Asset library")
-                        .children(load_state(
-                            this,
-                            &route,
-                            colors,
-                            "No matching assets.",
-                            !assets.is_empty(),
-                        ))
-                        .children(assets.iter().map(|asset| asset_row(asset, colors, cx))),
-                ),
-        )
+        .child(body)
         .into_any_element()
+}
+
+fn apply_search(this: &mut Workbench, cx: &mut Context<Workbench>) {
+    let query = this.operations.query("media-filter", cx).to_lowercase();
+    if this.operations.media.query != query {
+        this.operations.media.query = query;
+        close_asset(this, cx);
+    }
+}
+
+fn close_asset(this: &mut Workbench, cx: &mut Context<Workbench>) {
+    let media = &mut this.operations.media;
+    media.selected = None;
+    media.preview = None;
+    media.export_result = None;
+    cx.notify();
 }
 
 fn asset_row(asset: &Value, colors: &Palette, cx: &mut Context<Workbench>) -> Div {
     let id = value(asset, "id").to_owned();
     let bytes = asset["sizeBytes"].as_u64().unwrap_or_default();
     row(colors).child(
-        group()
-            .justify_between()
-            .child(heading(title(asset, "name", "Asset").to_owned()))
+        div()
+            .flex()
+            .items_center()
+            .gap(px(12.))
+            .child(
+                div()
+                    .flex_1()
+                    .min_w_0()
+                    .child(heading(title(asset, "name", "Asset").to_owned()))
+                    .child(muted(
+                        colors,
+                        format!(
+                            "{} · {} KiB · {}",
+                            title(asset, "kind", "media"),
+                            bytes.div_ceil(1024),
+                            value(asset, "createdAt")
+                        ),
+                    )),
+            )
             .when(asset_id(&id), |row| {
                 row.child(
                     button(format!("asset-{id}"))
                         .small()
-                        .outline()
-                        .label("View asset")
+                        .ghost()
+                        .label("View")
                         .on_click(
                             cx.listener(move |this, _, _, cx| load_preview(this, id.clone(), cx)),
                         ),
                 )
-            })
-            .child(muted(
-                colors,
-                format!(
-                    "{} · {} KiB · {}",
-                    title(asset, "kind", "media"),
-                    bytes.div_ceil(1024),
-                    value(asset, "createdAt")
-                ),
-            )),
+            }),
     )
 }
 
@@ -290,7 +322,14 @@ fn details(this: &Workbench, asset: &Value, colors: &Palette, cx: &mut Context<W
             .child(
                 group()
                     .justify_between()
-                    .child(heading(title(asset, "name", "Managed asset").to_owned())),
+                    .child(heading(title(asset, "name", "Managed asset").to_owned()))
+                    .child(
+                        button("close-asset")
+                            .small()
+                            .ghost()
+                            .label("Back to library")
+                            .on_click(cx.listener(|this, _, _, cx| close_asset(this, cx))),
+                    ),
             )
             .when(!prompt.is_empty(), |row| row.child(prompt.clone()))
             .child(muted(
@@ -330,7 +369,18 @@ fn details(this: &Workbench, asset: &Value, colors: &Palette, cx: &mut Context<W
     match selection.preview.as_ref() {
         None => detail = detail.child(empty(colors, "Loading asset…")),
         Some(Err(message)) => {
-            detail = detail.child(row(colors).child(error(colors, message.clone())))
+            let asset_id = value(asset, "id").to_owned();
+            detail = detail.child(
+                row(colors).child(error(colors, message.clone())).child(
+                    button("retry-asset-preview")
+                        .small()
+                        .outline()
+                        .label("Reload asset")
+                        .on_click(cx.listener(move |this, _, _, cx| {
+                            load_preview(this, asset_id.clone(), cx)
+                        })),
+                ),
+            )
         }
         Some(Ok(data)) => {
             let data = data.clone();

@@ -11,12 +11,13 @@ use std::collections::HashMap;
 
 use doolittle_runtime::ControlMethod;
 use gpui::{
-    AnyElement, App, AppContext as _, Context, Div, Entity, FontWeight, Window, div, prelude::*, px,
+    AnyElement, App, AppContext as _, Context, Div, Entity, FontWeight, Subscription, Window, div,
+    prelude::*, px,
 };
 use gpui_component::{
     Disableable as _, Selectable as _, Sizable as _,
     button::{Button, ButtonVariants as _},
-    input::{Input, InputState},
+    input::{Input, InputEvent, InputState},
 };
 use serde_json::Value;
 
@@ -38,7 +39,7 @@ pub(crate) enum OpsPage {
 impl OpsPage {
     pub(crate) const fn label(self) -> &'static str {
         match self {
-            Self::Home => "Home",
+            Self::Home => "Overview",
             Self::Activity => "Activity",
             Self::Insights => "Insights",
             Self::Media => "Assets",
@@ -49,45 +50,12 @@ impl OpsPage {
             Self::Inbox => "Inbox",
         }
     }
-
-    pub(crate) const fn routes(self) -> &'static [&'static str] {
-        match self {
-            Self::Home => home::HOME_ROUTES,
-            Self::Activity => &[activity::FEED],
-            Self::Insights => home::INSIGHTS_ROUTES,
-            Self::Media => &[media::LIBRARY],
-            Self::Work => &[work::OVERVIEW, work::TASKS],
-            Self::Review => &[
-                work::APPROVALS,
-                work::CHAT_RUNS,
-                review::RECORD,
-                review::CHANGES,
-                review::REPOSITORY,
-            ],
-            Self::Automations => &[automation::JOBS, automation::RUNS],
-            Self::Agents => &[work::IDENTITY, agents::BOTS, work::WORKERS],
-            Self::Inbox => &[inbox::HEALTH, inbox::INBOX],
-        }
-    }
-
-    fn detail(self) -> &'static str {
-        match self {
-            Self::Home => "Pick up recent work and check what needs attention.",
-            Self::Activity => "Run outcomes, workspace changes, and runtime events.",
-            Self::Insights => "Local conversation usage and runtime inventory.",
-            Self::Media => "Images, recordings, and videos created in your workspace.",
-            Self::Work => "Queue objectives and follow their execution.",
-            Self::Review => "Inspect execution requests and completed runs.",
-            Self::Automations => "Manage triggers and inspect their runs.",
-            Self::Agents => "Manage isolated agents and inspect delegated work.",
-            Self::Inbox => "Track incoming messages and delivery outcomes.",
-        }
-    }
 }
 
 #[derive(Default)]
 pub(crate) struct OperationsState {
     inputs: HashMap<&'static str, Entity<InputState>>,
+    search_keys: HashMap<&'static str, Subscription>,
     activity: activity::ActivityState,
     agents: agents::AgentsState,
     automation: automation::AutomationState,
@@ -95,9 +63,29 @@ pub(crate) struct OperationsState {
     media: media::MediaState,
     review: review::ReviewState,
     work: work::WorkState,
+    confirming: bool,
 }
 
 impl OperationsState {
+    fn search(
+        &mut self,
+        name: &'static str,
+        placeholder: &'static str,
+        apply: fn(&mut Workbench, &mut Context<Workbench>),
+        window: &mut Window,
+        cx: &mut Context<Workbench>,
+    ) -> Entity<InputState> {
+        let input = self.input(name, placeholder, false, window, cx);
+        self.search_keys.entry(name).or_insert_with(|| {
+            cx.subscribe_in(&input, window, move |workbench, _, event, _, cx| {
+                if matches!(event, InputEvent::PressEnter { .. }) {
+                    apply(workbench, cx);
+                }
+            })
+        });
+        input
+    }
+
     fn input(
         &mut self,
         name: &'static str,
@@ -128,6 +116,14 @@ impl OperationsState {
             .unwrap_or_default()
     }
 
+    fn query(&self, name: &'static str, cx: &App) -> String {
+        self.value(name, cx)
+            .chars()
+            .filter(|ch| !ch.is_control())
+            .take(128)
+            .collect()
+    }
+
     fn set_value(
         &self,
         name: &'static str,
@@ -148,11 +144,12 @@ pub(crate) fn render(
     window: &mut Window,
     cx: &mut Context<Workbench>,
 ) -> AnyElement {
-    let body = if this.ready() {
+    let ready = this.ready();
+    let body = if ready {
         match page {
-            OpsPage::Home => home::render(this, colors, cx),
+            OpsPage::Home => home::render(this, colors, window, cx),
             OpsPage::Activity => activity::render(this, colors, window, cx),
-            OpsPage::Insights => home::insights(this, colors, cx),
+            OpsPage::Insights => home::insights(this, colors, window, cx),
             OpsPage::Media => media::render(this, colors, window, cx),
             OpsPage::Work => work::render(this, colors, window, cx),
             OpsPage::Review => work::review(this, colors, window, cx),
@@ -161,7 +158,7 @@ pub(crate) fn render(
             OpsPage::Inbox => inbox::render(this, colors, window, cx),
         }
     } else {
-        empty(colors, "This workspace needs a running ElizaOS runtime.").into_any_element()
+        unavailable(this, colors, cx).into_any_element()
     };
     div()
         .id(gpui::SharedString::from(format!(
@@ -176,54 +173,105 @@ pub(crate) fn render(
         .child(
             div()
                 .flex()
-                .items_center()
+                .items_start()
                 .justify_between()
                 .gap(px(12.))
                 .py(px(12.))
-                .px(px(16.))
+                .px(px(18.))
                 .border_b_1()
                 .border_color(colors.divider)
-                .child(
-                    div()
-                        .flex()
-                        .flex_col()
-                        .min_w_0()
-                        .gap(px(2.))
-                        .child(
-                            div()
-                                .text_size(px(20.))
-                                .font_weight(FontWeight::SEMIBOLD)
-                                .child(page.label()),
-                        )
-                        .child(muted(colors, page.detail())),
-                )
-                .child(
-                    Button::new("ops-refresh")
-                        .small()
-                        .outline()
-                        .label("Refresh")
-                        .disabled(!this.ready())
-                        .on_click(cx.listener(move |this, _, _, cx| refresh(page, this, cx))),
-                ),
+                .child(heading(page.label()).text_size(px(18.)))
+                .when(ready, |header| {
+                    header.child(
+                        Button::new("ops-refresh")
+                            .small()
+                            .ghost()
+                            .label("Refresh")
+                            .on_click(cx.listener(move |this, _, _, cx| refresh(page, this, cx))),
+                    )
+                }),
         )
         .child(body)
         .into_any_element()
 }
 
+fn unavailable(this: &Workbench, colors: &Palette, cx: &mut Context<Workbench>) -> Div {
+    let missing_workspace = this.needs_workspace();
+    let (title, detail) = if missing_workspace {
+        (
+            "Open a workspace",
+            "Choose a folder to see its activity and controls.",
+        )
+    } else if this.connecting {
+        (
+            "Starting ElizaOS",
+            "Workspace controls will be available when the runtime is ready.",
+        )
+    } else {
+        (
+            "ElizaOS is offline",
+            "Start the workspace runtime to use this page.",
+        )
+    };
+    div()
+        .flex()
+        .flex_col()
+        .flex_1()
+        .min_h_0()
+        .justify_center()
+        .items_center()
+        .px(px(18.))
+        .child(
+            div()
+                .flex()
+                .flex_col()
+                .items_start()
+                .gap(px(8.))
+                .max_w(px(420.))
+                .child(heading(title))
+                .child(muted(colors, detail))
+                .when_some(this.error.as_ref(), |state, message| {
+                    state.child(error(colors, message.clone()))
+                })
+                .when(!this.connecting, |state| {
+                    state.child(
+                        button("ops-start")
+                            .small()
+                            .primary()
+                            .label(if missing_workspace {
+                                "Open folder…"
+                            } else {
+                                "Start ElizaOS"
+                            })
+                            .on_click(cx.listener(move |this, _, window, cx| {
+                                if missing_workspace {
+                                    this.choose_workspace(window, cx);
+                                } else {
+                                    this.connect(window, cx);
+                                }
+                            })),
+                    )
+                }),
+        )
+}
+
 pub(crate) fn refresh(page: OpsPage, this: &mut Workbench, cx: &mut Context<Workbench>) {
-    match page {
-        OpsPage::Activity => activity::refresh(this, cx),
-        OpsPage::Media => media::refresh(this, cx),
-        OpsPage::Work => work::refresh(this, cx),
-        OpsPage::Inbox => inbox::refresh(this, cx),
-        _ => {
-            for path in page.routes() {
-                this.control_get(path, cx);
-            }
+    let routes: &[&str] = match page {
+        OpsPage::Home => {
+            this.refresh_sessions(cx);
+            home::HOME_ROUTES
         }
-    }
-    if page == OpsPage::Review {
-        review::refresh(this, cx);
+        OpsPage::Activity => return activity::refresh(this, cx),
+        OpsPage::Insights => home::INSIGHTS_ROUTES,
+        OpsPage::Media => return media::refresh(this, cx),
+        OpsPage::Work => return work::refresh(this, cx),
+        OpsPage::Review => return work::refresh_review(this, cx),
+        OpsPage::Automations => &[automation::JOBS, automation::RUNS],
+        OpsPage::Agents => &[work::IDENTITY, agents::BOTS, work::WORKERS],
+        OpsPage::Inbox => return inbox::refresh(this, cx),
+    };
+    for &path in routes {
+        this.control_get(path, cx);
     }
 }
 
@@ -237,13 +285,13 @@ fn scroll(id: &'static str) -> gpui::Stateful<Div> {
 }
 
 fn panel(colors: &Palette, title: &'static str) -> Div {
-    div().child(
+    div().min_w_0().child(
         div()
-            .px(px(16.))
-            .py(px(9.))
+            .px(px(18.))
+            .pt(px(12.))
+            .pb(px(7.))
             .border_b_1()
             .border_color(colors.divider)
-            .bg(colors.rail)
             .font_weight(FontWeight::SEMIBOLD)
             .text_size(px(13.))
             .child(title),
@@ -254,15 +302,17 @@ fn row(colors: &Palette) -> Div {
     div()
         .flex()
         .flex_col()
-        .gap(px(5.))
-        .px(px(16.))
-        .py(px(11.))
+        .min_w_0()
+        .gap(px(6.))
+        .px(px(18.))
+        .py(px(10.))
         .border_b_1()
         .border_color(colors.divider)
 }
 
 fn heading(title: impl Into<gpui::SharedString>) -> Div {
     div()
+        .min_w_0()
         .text_size(px(14.))
         .font_weight(FontWeight::SEMIBOLD)
         .child(title.into())
@@ -276,7 +326,7 @@ fn muted(colors: &Palette, text: impl Into<gpui::SharedString>) -> Div {
 }
 
 fn empty(colors: &Palette, text: impl Into<gpui::SharedString>) -> Div {
-    muted(colors, text).px(px(16.)).py(px(18.))
+    muted(colors, text).px(px(18.)).py(px(18.))
 }
 
 fn error(colors: &Palette, text: impl Into<gpui::SharedString>) -> Div {
@@ -306,7 +356,12 @@ fn status(colors: &Palette, value: &str) -> Div {
 }
 
 fn group() -> Div {
-    div().flex().flex_wrap().items_center().gap(px(6.))
+    div()
+        .flex()
+        .flex_wrap()
+        .items_center()
+        .min_w_0()
+        .gap(px(6.))
 }
 
 fn button(id: impl Into<gpui::SharedString>) -> Button {
@@ -314,11 +369,19 @@ fn button(id: impl Into<gpui::SharedString>) -> Button {
 }
 
 fn tab(id: (&str, &str), label: &'static str, selected: bool) -> Button {
-    button(format!("{}-{}", id.0, id.1))
-        .small()
-        .ghost()
-        .selected(selected)
-        .label(label)
+    let control = button(format!("{}-{}", id.0, id.1)).small().label(label);
+    if selected {
+        control.outline().selected(true)
+    } else {
+        control.ghost()
+    }
+}
+
+fn search_field(state: &Entity<InputState>) -> Div {
+    div()
+        .min_w(px(170.))
+        .flex_1()
+        .child(Input::new(state).focus_bordered(false).w_full())
 }
 
 fn field(state: &Entity<InputState>, label: &'static str, colors: &Palette) -> Div {
@@ -328,7 +391,7 @@ fn field(state: &Entity<InputState>, label: &'static str, colors: &Palette) -> D
         .gap(px(4.))
         .min_w_0()
         .child(muted(colors, label))
-        .child(Input::new(state).w_full())
+        .child(Input::new(state).focus_bordered(false).w_full())
 }
 
 fn value<'a>(record: &'a Value, key: &str) -> &'a str {
@@ -366,8 +429,10 @@ fn load_state(
     if has_items {
         return None;
     }
-    let message = if this.control_pending(path) || this.control_value(path).is_none() {
+    let message = if this.control_pending(path) {
         "Loading…"
+    } else if this.control_value(path).is_none() {
+        "This section hasn’t loaded. Refresh to try again."
     } else {
         no_items
     };
@@ -402,6 +467,7 @@ fn encode_query(query: &str) -> String {
 }
 
 fn confirm(
+    this: &mut Workbench,
     label: &'static str,
     title: &'static str,
     detail: &str,
@@ -409,6 +475,13 @@ fn confirm(
     cx: &mut Context<Workbench>,
     apply: impl FnOnce(&mut Workbench, &mut Context<Workbench>) + 'static,
 ) {
+    let Some(workspace) = this
+        .selected_workspace()
+        .filter(|_| !this.operations.confirming)
+    else {
+        return;
+    };
+    this.operations.confirming = true;
     let decision = window.prompt(
         gpui::PromptLevel::Warning,
         title,
@@ -420,9 +493,14 @@ fn confirm(
         cx,
     );
     cx.spawn(async move |this, cx| {
-        if decision.await == Ok(1) {
-            let _ = this.update(cx, apply);
-        }
+        let accepted = decision.await == Ok(1);
+        let _ = this.update(cx, |this, cx| {
+            this.operations.confirming = false;
+            if accepted && this.selected_workspace().as_ref() == Some(&workspace) {
+                apply(this, cx);
+            }
+            cx.notify();
+        });
     })
     .detach();
 }

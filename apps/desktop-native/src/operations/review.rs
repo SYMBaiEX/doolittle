@@ -81,27 +81,50 @@ pub(super) fn render(
         this.operations.review.note(&file, window, cx);
     }
     let changes = records(this, CHANGES, "changes");
-    let state = &this.operations.review;
-    div()
-        .child(repository(this, colors, cx))
-        .child(
-            panel(colors, "Changed files")
-                .children(load_state(
-                    this,
-                    CHANGES,
-                    colors,
-                    "No workspace changes.",
-                    !changes.is_empty(),
-                ))
-                .children(changes.iter().map(|record| change_row(record, colors, cx))),
-        )
-        .children(
-            state
-                .selected
-                .as_ref()
-                .map(|selected| patch(this, selected, colors, cx)),
-        )
-        .child(comments(this, colors, cx))
+    let wide = this.content_width(window, cx) >= px(880.);
+    let files = panel(colors, "Changed files")
+        .children(load_state(
+            this,
+            CHANGES,
+            colors,
+            "No workspace changes.",
+            !changes.is_empty(),
+        ))
+        .children(changes.iter().map(|record| change_row(record, colors, cx)));
+    if let Some(selected) = this.operations.review.selected.as_ref() {
+        let detail = div()
+            .min_w_0()
+            .child(patch(this, selected, colors, cx))
+            .child(comments(this, colors, cx));
+        if wide {
+            div().child(repository(this, colors, cx)).child(
+                div()
+                    .flex()
+                    .child(
+                        files
+                            .w(gpui::relative(0.34))
+                            .border_r_1()
+                            .border_color(colors.divider),
+                    )
+                    .child(detail.flex_1()),
+            )
+        } else {
+            detail
+        }
+    } else {
+        div()
+            .child(files)
+            .child(repository(this, colors, cx))
+            .child(comments(this, colors, cx))
+    }
+}
+
+pub(super) fn scroll_id(this: &Workbench) -> &'static str {
+    if this.operations.review.selected.is_some() {
+        "review-file-detail"
+    } else {
+        "review-change-list"
+    }
 }
 
 fn repository(this: &Workbench, colors: &Palette, cx: &mut Context<Workbench>) -> Div {
@@ -222,6 +245,7 @@ fn patch(
         250
     };
     let path = selected.path.clone();
+    let draft_empty = this.composer.read(cx).value().trim().is_empty();
     let chat_hint = format!(
         "Review the current changes in `{}` and flag any issues.",
         selected.path.replace('`', "")
@@ -231,9 +255,33 @@ fn patch(
             row(colors).child(
                 group()
                     .justify_between()
-                    .child(heading(path.clone()))
+                    .child(
+                        div()
+                            .flex()
+                            .flex_col()
+                            .child(heading(path.clone()))
+                            .child(muted(
+                                colors,
+                                if selected.staged {
+                                    "Staged diff"
+                                } else {
+                                    "Working tree diff"
+                                },
+                            )),
+                    )
                     .child(
                         group()
+                            .child(
+                                button("return-to-changed-files")
+                                    .small()
+                                    .ghost()
+                                    .label("Back to files")
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        this.operations.review.selected = None;
+                                        this.operations.review.validation = None;
+                                        cx.notify();
+                                    })),
+                            )
                             .child(
                                 button("review-open-file")
                                     .small()
@@ -248,9 +296,18 @@ fn patch(
                                 button("review-ask-agent")
                                     .small()
                                     .outline()
-                                    .label("Ask Doolittle")
+                                    .label(if draft_empty {
+                                        "Draft review prompt"
+                                    } else {
+                                        "Open lead chat"
+                                    })
                                     .on_click(cx.listener(move |this, _, window, cx| {
-                                        this.set_view(crate::workbench::View::Agent, window, cx);
+                                        this.select_conversation(
+                                            this.selected.clone(),
+                                            None,
+                                            window,
+                                            cx,
+                                        );
                                         if this.composer.read(cx).value().trim().is_empty() {
                                             this.composer.update(cx, |composer, cx| {
                                                 composer.set_value(chat_hint.clone(), window, cx)
@@ -275,6 +332,7 @@ fn patch(
                     .id("selected-diff")
                     .max_h(px(440.))
                     .overflow_y_scroll()
+                    .overflow_x_scroll()
                     .bg(colors.inset)
                     .children(text.lines().take(count).map(|line| {
                         let ink = if line.starts_with('+') && !line.starts_with("+++") {
@@ -343,7 +401,11 @@ fn comments(this: &Workbench, colors: &Palette, cx: &mut Context<Workbench>) -> 
             this,
             RECORD,
             colors,
-            "No review comments.",
+            if state.selected.is_none() {
+                "Open a changed file to leave a review comment."
+            } else {
+                "No review comments on this file."
+            },
             !entries.is_empty(),
         ))
         .children(
@@ -456,9 +518,10 @@ fn comment_row(comment: &Value, busy: bool, colors: &Palette, cx: &mut Context<W
                             .ghost()
                             .disabled(busy)
                             .label("Delete")
-                            .on_click(cx.listener(move |_, _, window, cx| {
+                            .on_click(cx.listener(move |this, _, window, cx| {
                                 let route = endpoint.clone();
                                 confirm(
+                                    this,
                                     "Delete comment",
                                     "Delete this review comment?",
                                     &description,

@@ -15,6 +15,7 @@ pub(super) struct AgentsState {
     error: Option<&'static str>,
     submitted: Option<Value>,
     access: access::AccessState,
+    show_archived: bool,
 }
 
 enum Edit {
@@ -49,6 +50,7 @@ pub(super) fn render(
         .iter()
         .filter(|bot| bot["isDefault"].as_bool() == Some(false))
         .collect();
+    let archived_count = agents.iter().filter(|agent| archived(agent)).count();
     panel(colors, "Named agents")
         .child(
             row(colors)
@@ -70,6 +72,25 @@ pub(super) fn render(
                                 })),
                         ),
                 )
+                .when(archived_count > 0, |row| {
+                    row.child(
+                        button("named-agents-archive")
+                            .small()
+                            .ghost()
+                            .label(if state.show_archived {
+                                "Hide archived".into()
+                            } else {
+                                gpui::SharedString::from(format!(
+                                    "Show archived ({archived_count})"
+                                ))
+                            })
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                let state = &mut this.operations.agents;
+                                state.show_archived = !state.show_archived;
+                                cx.notify();
+                            })),
+                    )
+                })
                 .children(state.action.as_ref().and_then(|(path, label)| {
                     action_error(this, path, colors).or_else(|| {
                         if busy {
@@ -117,15 +138,20 @@ pub(super) fn render(
             this,
             BOTS,
             colors,
-            "No named agents yet.",
-            !agents.is_empty(),
+            "Create a named agent to keep its work and conversations separate.",
+            state.show_archived && !agents.is_empty() || agents.len() > archived_count,
         ))
-        .children(agents.into_iter().map(|agent| {
-            agent_row(agent, busy, colors, cx)
-                .when(state.access.is_open(value(agent, "id")), |row| {
-                    row.child(access::render(this, agent, &model, colors, cx))
-                })
-        }))
+        .children(
+            agents
+                .into_iter()
+                .filter(|agent| state.show_archived || !archived(agent))
+                .map(|agent| {
+                    agent_row(agent, busy, colors, cx)
+                        .when(state.access.is_open(value(agent, "id")), |row| {
+                            row.child(access::render(this, agent, &model, colors, cx))
+                        })
+                }),
+        )
 }
 
 fn open_edit(
@@ -184,12 +210,16 @@ fn save(this: &mut Workbench, cx: &mut Context<Workbench>) {
     submit(this, method, path, Some(body), label, cx);
 }
 
+fn archived(agent: &Value) -> bool {
+    !value(agent, "archivedAt").is_empty() || value(agent, "state") == "archived"
+}
+
 fn agent_row(agent: &Value, busy: bool, colors: &Palette, cx: &mut Context<Workbench>) -> Div {
     let name = title(agent, "name", "Named agent");
     let persona = value(agent, "persona");
     let id = value(agent, "id");
     let state = title(agent, "state", "unknown");
-    let archived = !value(agent, "archivedAt").is_empty() || state == "archived";
+    let archived = archived(agent);
     let mut item = row(colors)
         .child(
             group()
@@ -213,7 +243,7 @@ fn agent_row(agent: &Value, busy: bool, colors: &Palette, cx: &mut Context<Workb
         actions = actions.child(
             button(format!("chat-bot-{id}"))
                 .small()
-                .primary()
+                .outline()
                 .label("Chat")
                 .disabled(busy)
                 .on_click(cx.listener(move |this, _, window, cx| {
@@ -222,20 +252,37 @@ fn agent_row(agent: &Value, busy: bool, colors: &Palette, cx: &mut Context<Workb
         );
     }
     let available = match state {
-        "stopped" | "error" | "failed" => Some(("activate", "Start", "Agent started.")),
+        "stopped" | "error" | "failed" => Some(("activate", "Start", "Agent start requested.")),
         "ready" | "starting" | "busy" | "waiting" => Some(("stop", "Stop", "Agent stopped.")),
         _ => None,
     };
     if let Some((verb, label, outcome)) = available {
         let path = format!("{BOTS}/{id}/{verb}");
+        let agent_name = name.to_owned();
         actions = actions.child(
             button(path.clone())
                 .small()
                 .outline()
                 .label(label)
                 .disabled(busy)
-                .on_click(cx.listener(move |this, _, _, cx| {
-                    submit(this, ControlMethod::Post, path.clone(), None, outcome, cx)
+                .on_click(cx.listener(move |this, _, window, cx| {
+                    if verb == "stop" {
+                        let route = path.clone();
+                        let detail = format!("{agent_name}’s active work may be interrupted.");
+                        confirm(
+                            this,
+                            "Stop agent",
+                            "Stop this agent?",
+                            &detail,
+                            window,
+                            cx,
+                            move |this, cx| {
+                                submit(this, ControlMethod::Post, route, None, outcome, cx)
+                            },
+                        );
+                    } else {
+                        submit(this, ControlMethod::Post, path.clone(), None, outcome, cx);
+                    }
                 })),
         );
     }
@@ -261,9 +308,10 @@ fn agent_row(agent: &Value, busy: bool, colors: &Palette, cx: &mut Context<Workb
             .ghost()
             .label("Archive")
             .disabled(busy)
-            .on_click(cx.listener(move |_, _, window, cx| {
+            .on_click(cx.listener(move |this, _, window, cx| {
                 let route = archive.clone();
                 confirm(
+                    this,
                     "Archive agent",
                     "Archive this named agent?",
                     &description,

@@ -49,10 +49,10 @@ pub(super) fn render(
     window: &mut Window,
     cx: &mut Context<Workbench>,
 ) -> AnyElement {
-    let search = this.operations.input(
+    let search = this.operations.search(
         "inbox-filter",
         "Search messages or connectors",
-        false,
+        apply_search,
         window,
         cx,
     );
@@ -61,7 +61,8 @@ pub(super) fn render(
     let pending = latest.is_some_and(|(path, _)| this.control_action_pending(path));
     let gateway = this
         .control_value(HEALTH)
-        .and_then(|payload| payload.get("state"));
+        .and_then(|payload| payload.get("state"))
+        .filter(|state| state.is_object());
     let body = match active {
         InboxTab::Incoming => message_list(this, colors, INBOX, "inbox", pending, cx),
         InboxTab::Outgoing => message_list(this, colors, OUTBOX, "outbox", pending, cx),
@@ -101,28 +102,20 @@ pub(super) fn render(
                     gateway.and_then(|state| state["running"].as_bool()),
                     |row, running| row.child(gateway_controls(running, pending, colors, cx)),
                 )
+                .when(gateway.is_none() && this.control_pending(HEALTH), |row| {
+                    row.child(muted(colors, "Checking gateway status…"))
+                })
                 .when(
                     matches!(active, InboxTab::Incoming | InboxTab::Outgoing),
                     |row| {
                         row.child(
-                            group()
-                                .child(div().min_w(px(190.)).flex_1().child(Input::new(&search)))
-                                .child(
-                                    button("inbox-search-apply")
-                                        .small()
-                                        .outline()
-                                        .label("Search")
-                                        .on_click(cx.listener(|this, _, _, cx| {
-                                            this.operations.inbox.query = this
-                                                .operations
-                                                .value("inbox-filter", cx)
-                                                .chars()
-                                                .take(128)
-                                                .collect::<String>()
-                                                .to_lowercase();
-                                            cx.notify();
-                                        })),
-                                ),
+                            group().child(search_field(&search)).child(
+                                button("inbox-search-apply")
+                                    .small()
+                                    .outline()
+                                    .label("Search")
+                                    .on_click(cx.listener(|this, _, _, cx| apply_search(this, cx))),
+                            ),
                         )
                     },
                 )
@@ -143,6 +136,11 @@ pub(super) fn render(
         )
         .child(scroll("gateway-operations-list").child(body))
         .into_any_element()
+}
+
+fn apply_search(this: &mut Workbench, cx: &mut Context<Workbench>) {
+    this.operations.inbox.query = this.operations.query("inbox-filter", cx).to_lowercase();
+    cx.notify();
 }
 
 fn gateway_controls(
@@ -167,11 +165,16 @@ fn gateway_controls(
                 .outline()
                 .label(label)
                 .disabled(pending)
-                .on_click(cx.listener(move |_, _, window, cx| {
+                .on_click(cx.listener(move |this, _, window, cx| {
                     confirm(
+                        this,
                         label,
-                        "Change gateway state?",
-                        "This affects connectors for this native profile.",
+                        match label {
+                            "Start" => "Start the gateway?",
+                            "Stop" => "Stop the gateway?",
+                            _ => "Restart the gateway?",
+                        },
+                        "This changes connector availability for this workspace profile.",
                         window,
                         cx,
                         move |this, cx| action(this, path, json!({}), receipt, &[HEALTH], cx),
@@ -233,7 +236,17 @@ fn message_list(
                 "Delivery retry requested.",
             )
         };
-        let prompt = format!("{platform} · {state} · {}", value(entry, "at"));
+        let consequence = if incoming {
+            "The agent will process this message again and may reply."
+        } else {
+            "This will attempt to send the delivery again."
+        };
+        let prompt = format!(
+            "{platform} · {state} · {}
+
+{consequence}",
+            value(entry, "at")
+        );
         let record_id = id.to_owned();
         row(colors)
             .child(
@@ -255,9 +268,10 @@ fn message_list(
                             .outline()
                             .disabled(pending)
                             .label(label)
-                            .on_click(cx.listener(move |_, _, window, cx| {
+                            .on_click(cx.listener(move |this, _, window, cx| {
                                 let id = record_id.clone();
                                 confirm(
+                                    this,
                                     label,
                                     if incoming {
                                         "Replay incoming message?"
@@ -386,23 +400,31 @@ fn pairing_row(
                         .outline()
                         .disabled(pending)
                         .label(label)
-                        .on_click(cx.listener(move |_, _, window, cx| {
+                        .on_click(cx.listener(move |this, _, window, cx| {
                             let body = body.clone();
                             let title = match label {
                                 "Approve" => "Approve sender?",
                                 "Deny" => "Deny pairing request?",
                                 _ => "Revoke sender access?",
                             };
-                            confirm(label, title, &description, window, cx, move |this, cx| {
-                                action(
-                                    this,
-                                    path,
-                                    body,
-                                    outcome,
-                                    &[PAIRING_PENDING, PAIRING_APPROVED],
-                                    cx,
-                                )
-                            });
+                            confirm(
+                                this,
+                                label,
+                                title,
+                                &description,
+                                window,
+                                cx,
+                                move |this, cx| {
+                                    action(
+                                        this,
+                                        path,
+                                        body,
+                                        outcome,
+                                        &[PAIRING_PENDING, PAIRING_APPROVED],
+                                        cx,
+                                    )
+                                },
+                            );
                         }))
                 })),
             )
