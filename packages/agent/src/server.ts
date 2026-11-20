@@ -25,6 +25,10 @@ import {
   remoteTerminalMutationTokenError,
 } from "./server/auth";
 import {
+  type ConnectorIngressOptions,
+  startConnectorIngress,
+} from "./server/connector-ingress";
+import {
   createNativeClientPolicy,
   NATIVE_REPOSITORY_MUTATION_PATH,
   NATIVE_WORKSPACE_SAVE_MAX_BODY_BYTES,
@@ -56,9 +60,22 @@ import {
 import { handleNativeRepositoryMutation } from "./server/routes/native-repository";
 import { handleOperationsRoutes } from "./server/routes/operations";
 import { handleRuntimeRoutes } from "./server/routes/runtime/index";
+import type { ProviderWebhookContext } from "./server/routes/webhooks/provider";
 import { withDirectConversationWorkspace } from "./server/routes/workspace-scope";
 import { isWorkerApiRouteAllowed } from "./server/worker-route-policy";
 import { MAX_SESSION_ARCHIVE_BYTES } from "./services/session-transfer/index";
+
+export {
+  type OwnedConnectorIngress,
+  parseConnectorIngressPort,
+} from "./server/connector-ingress";
+
+export function createConnectorIngressServer(
+  context: ProviderWebhookContext,
+  options: ConnectorIngressOptions,
+) {
+  return startConnectorIngress(context, options, writeWebResponse);
+}
 
 const INTERACTIVE_TERMINAL_MUTATION_PATHS = new Set([
   "/terminal/session/start",

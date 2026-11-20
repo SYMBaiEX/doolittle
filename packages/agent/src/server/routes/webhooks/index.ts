@@ -1,13 +1,9 @@
 import type { AppContext } from "../../../runtime/bootstrap/index";
 import { json } from "../../responses";
 import { handleHookRoutes } from "./hooks";
-import {
-  handleDurableInboundWebhook,
-  handleInboundWebhook,
-  readJsonBody,
-} from "./inbound";
+import { handleInboundWebhook, readJsonBody } from "./inbound";
 import { handlePairingRoutes } from "./pairing";
-import { verifySlackSignature, verifyWhatsAppSignature } from "./signature";
+import { handleProviderWebhookRoute } from "./provider";
 
 export async function handleWebhookRoutes(
   context: AppContext,
@@ -30,88 +26,12 @@ export async function handleWebhookRoutes(
     return handleInboundWebhook("discord", context, body, request.signal);
   }
 
-  if (request.method === "POST" && url.pathname === "/webhooks/slack") {
-    if (!context.config.slackSigningSecret) {
-      return json(
-        { error: "Slack signature verification is not configured." },
-        503,
-      );
-    }
-    const rawBody = await request.text();
-    if (
-      !verifySlackSignature(
-        rawBody,
-        request.headers.get("x-slack-request-timestamp"),
-        request.headers.get("x-slack-signature"),
-        context.config.slackSigningSecret,
-      )
-    ) {
-      return json({ error: "Invalid Slack signature." }, 403);
-    }
-
-    let body: {
-      challenge?: string;
-      event?: unknown;
-    };
-    try {
-      body = JSON.parse(rawBody) as typeof body;
-    } catch {
-      return json({ error: "Invalid JSON body." }, 400);
-    }
-
-    if (typeof body?.challenge === "string" && body.challenge) {
-      return json({ challenge: body.challenge });
-    }
-    return handleDurableInboundWebhook("slack", context, body, request.signal);
-  }
-
-  if (request.method === "GET" && url.pathname === "/webhooks/whatsapp") {
-    const mode = url.searchParams.get("hub.mode");
-    const token = url.searchParams.get("hub.verify_token");
-    const challenge = url.searchParams.get("hub.challenge");
-    if (
-      mode === "subscribe" &&
-      token &&
-      challenge &&
-      token === context.config.whatsappVerifyToken
-    ) {
-      return new Response(challenge, { status: 200 });
-    }
-    return json({ error: "WhatsApp verification failed." }, 403);
-  }
-
-  if (request.method === "POST" && url.pathname === "/webhooks/whatsapp") {
-    if (!context.config.whatsappAppSecret) {
-      return json(
-        { error: "WhatsApp signature verification is not configured." },
-        503,
-      );
-    }
-
-    const rawBody = await request.text();
-    if (
-      !verifyWhatsAppSignature(
-        rawBody,
-        request.headers.get("x-hub-signature-256"),
-        context.config.whatsappAppSecret,
-      )
-    ) {
-      return json({ error: "Invalid WhatsApp signature." }, 403);
-    }
-
-    let body: unknown;
-    try {
-      body = JSON.parse(rawBody);
-    } catch {
-      return json({ error: "Invalid JSON body." }, 400);
-    }
-    return handleDurableInboundWebhook(
-      "whatsapp",
-      context,
-      body,
-      request.signal,
-    );
-  }
+  const providerResponse = await handleProviderWebhookRoute(
+    context,
+    request,
+    url,
+  );
+  if (providerResponse) return providerResponse;
 
   if (request.method === "POST" && url.pathname === "/webhooks/signal") {
     return handleInboundWebhook(

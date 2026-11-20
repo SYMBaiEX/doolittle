@@ -106,8 +106,12 @@ impl WorkspaceLock {
 mod tests {
     use super::*;
 
+    // The subprocess fixture temporarily inherits descriptors across fork.
+    static WORKSPACE_TESTS: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
     #[test]
     fn sibling_workspaces_can_open_but_overlapping_workspaces_are_exclusive() -> Result<()> {
+        let _serial = WORKSPACE_TESTS.lock().unwrap();
         let root = tempfile::tempdir()?;
         let locks = root.path().join("locks");
         let workspace = root.path().join("work");
@@ -136,6 +140,7 @@ mod tests {
     fn workspace_stays_locked_until_the_child_exits() -> Result<()> {
         use std::process::{Command, Stdio};
 
+        let _serial = WORKSPACE_TESTS.lock().unwrap();
         let root = tempfile::tempdir()?;
         let locks = root.path().join("locks");
         let profile = File::create(root.path().join("profile.lock"))?;

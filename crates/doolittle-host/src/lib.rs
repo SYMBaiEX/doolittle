@@ -21,7 +21,9 @@ const READY_PREFIX: &[u8] = b"DOOLITTLE_NATIVE_READY ";
 const READY_TIMEOUT: Duration = Duration::from_secs(90);
 const CLEAN_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(3);
 const MAX_STDOUT_LINE_BYTES: usize = 8 * 1024;
+const MIGRATE_LEGACY_PROFILE: &str = "DOOLITTLE_NATIVE_MIGRATE_LEGACY";
 const DEVELOPMENT_ROOT: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../..");
+const CONNECTOR_INGRESS_PORT: &str = "DOOLITTLE_CONNECTOR_INGRESS_PORT";
 
 pub struct SidecarConfig {
     workspace: PathBuf,
@@ -31,12 +33,13 @@ pub struct SidecarConfig {
     offline: bool,
     allow_workspace_saves: bool,
     allow_controls: bool,
+    migrate_legacy_profile: bool,
 }
 
 pub enum RuntimeService {
     Acp,
     Api,
-    Gateway,
+    Gateway { ingress_port: Option<u16> },
 }
 
 impl SidecarConfig {
@@ -56,12 +59,20 @@ impl SidecarConfig {
             "The selected workspace must be a directory"
         );
         let runtime_root = find_runtime_root(runtime_root)?;
+        let migrate_legacy_profile = profile.is_none();
         let profile = match profile {
             Some(path) => path.to_path_buf(),
             None => default_profile(&workspace)?,
         };
         let node = discover_node(&runtime_root)?;
-        Self::prepare(workspace, profile, runtime_root, node, offline)
+        Self::prepare(
+            workspace,
+            profile,
+            runtime_root,
+            node,
+            offline,
+            migrate_legacy_profile,
+        )
     }
 
     fn prepare(
@@ -70,6 +81,7 @@ impl SidecarConfig {
         runtime_root: PathBuf,
         node: PathBuf,
         offline: bool,
+        migrate_legacy_profile: bool,
     ) -> Result<Self> {
         let mut builder = DirBuilder::new();
         builder.recursive(true);
@@ -92,6 +104,7 @@ impl SidecarConfig {
             offline,
             allow_workspace_saves: false,
             allow_controls: false,
+            migrate_legacy_profile,
         })
     }
 
@@ -146,7 +159,7 @@ impl SidecarConfig {
                     )
                 }
             }
-            RuntimeService::Api | RuntimeService::Gateway => {
+            RuntimeService::Api | RuntimeService::Gateway { .. } => {
                 let token = env::var("ELIZA_API_TOKEN")
                     .context("Set ELIZA_API_TOKEN before starting this service")?;
                 ensure!(
@@ -171,8 +184,14 @@ impl SidecarConfig {
             command.arg(subcommand);
         }
         command.env("ELIZA_API_BIND", "127.0.0.1");
-        if matches!(mode, RuntimeService::Api | RuntimeService::Gateway) {
+        if matches!(mode, RuntimeService::Api | RuntimeService::Gateway { .. }) {
             command.env("DOOLITTLE_NATIVE_SERVICE", "1");
+        }
+        if let RuntimeService::Gateway {
+            ingress_port: Some(port),
+        } = mode
+        {
+            command.env(CONNECTOR_INGRESS_PORT, port.to_string());
         }
         #[cfg(unix)]
         workspace.keep_in_child(&mut command, &profile);
@@ -208,6 +227,8 @@ impl SidecarConfig {
             .env("DATABASE_URL", "")
             .env("POSTGRES_URL", "");
         for variable in [
+            MIGRATE_LEGACY_PROFILE,
+            CONNECTOR_INGRESS_PORT,
             "NODE_OPTIONS",
             "NODE_PATH",
             "DOOLITTLE_DESKTOP_RUNTIME",
@@ -303,11 +324,27 @@ fn default_profile(workspace: &Path) -> Result<PathBuf> {
 
 pub struct RuntimeSidecar {
     endpoint: String,
+    profile_migration: Option<ProfileMigration>,
     token: String,
     child: Child,
     input: Option<ChildStdin>,
     _profile_lock: File,
     _workspace_lock: WorkspaceLock,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProfileMigration {
+    pub imported_conversations: usize,
+    pub skipped_conversations: usize,
+    pub settings_imported: bool,
+    pub deferred: bool,
+}
+
+#[derive(Deserialize)]
+struct ReadyEvent {
+    url: String,
+    migration: Option<ProfileMigration>,
 }
 
 impl RuntimeSidecar {
@@ -328,6 +365,14 @@ impl RuntimeSidecar {
         command
             .arg("native-api")
             .env("DOOLITTLE_MODE", "api")
+            .env(
+                MIGRATE_LEGACY_PROFILE,
+                if config.migrate_legacy_profile {
+                    "1"
+                } else {
+                    "0"
+                },
+            )
             .env(
                 "DOOLITTLE_NATIVE_CONTROL_PLANE",
                 if config.allow_controls { "1" } else { "0" },
@@ -361,6 +406,7 @@ impl RuntimeSidecar {
         let (sender, receiver) = mpsc::sync_channel(1);
         let mut sidecar = Self {
             endpoint: String::new(),
+            profile_migration: None,
             token,
             child,
             input,
@@ -372,7 +418,7 @@ impl RuntimeSidecar {
             .spawn(move || read_runtime_output(output, sender))
             .context("Could not listen for ElizaOS startup")?;
 
-        sidecar.endpoint = match receiver.recv_timeout(READY_TIMEOUT) {
+        let ready = match receiver.recv_timeout(READY_TIMEOUT) {
             Ok(endpoint) => endpoint?,
             Err(RecvTimeoutError::Timeout) => bail!(
                 "ElizaOS did not report readiness within the startup window. Check the native profile logs."
@@ -387,11 +433,17 @@ impl RuntimeSidecar {
                 )
             }
         };
+        sidecar.endpoint = ready.url;
+        sidecar.profile_migration = ready.migration;
         Ok(sidecar)
     }
 
     pub fn endpoint(&self) -> &str {
         &self.endpoint
+    }
+
+    pub fn profile_migration(&self) -> Option<&ProfileMigration> {
+        self.profile_migration.as_ref()
     }
 
     pub fn token(&self) -> &str {
@@ -422,7 +474,7 @@ impl Drop for RuntimeSidecar {
     }
 }
 
-fn read_runtime_output(output: impl Read, sender: SyncSender<Result<String>>) {
+fn read_runtime_output(output: impl Read, sender: SyncSender<Result<ReadyEvent>>) {
     let mut buffer = BufReader::new(output);
     let mut line = Vec::new();
     let mut oversized = false;
@@ -452,14 +504,10 @@ fn read_runtime_output(output: impl Read, sender: SyncSender<Result<String>>) {
     }
 }
 
-fn decode_endpoint(payload: &[u8]) -> Result<String> {
-    #[derive(Deserialize)]
-    struct ReadyEvent {
-        url: String,
-    }
-    let ReadyEvent { url } =
+fn decode_endpoint(payload: &[u8]) -> Result<ReadyEvent> {
+    let mut ready: ReadyEvent =
         serde_json::from_slice(payload).context("ElizaOS returned an invalid readiness record")?;
-    let url = Url::parse(&url).context("ElizaOS returned an invalid endpoint")?;
+    let url = Url::parse(&ready.url).context("ElizaOS returned an invalid endpoint")?;
     ensure!(
         url.scheme() == "http"
             && url.host_str() == Some("127.0.0.1")
@@ -471,5 +519,6 @@ fn decode_endpoint(payload: &[u8]) -> Result<String> {
             && url.fragment().is_none(),
         "ElizaOS did not report the private loopback endpoint"
     );
-    Ok(url.to_string().trim_end_matches('/').to_string())
+    ready.url = url.to_string().trim_end_matches('/').to_string();
+    Ok(ready)
 }

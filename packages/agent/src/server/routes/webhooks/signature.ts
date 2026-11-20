@@ -3,7 +3,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 const SLACK_SIGNATURE_MAX_AGE_SECONDS = 5 * 60;
 
 export function verifySlackSignature(
-  rawBody: string,
+  rawBody: string | Uint8Array,
   timestamp: string | null,
   signature: string | null,
   signingSecret?: string,
@@ -32,8 +32,10 @@ export function verifySlackSignature(
     return false;
   }
 
-  const base = `v0:${timestamp}:${rawBody}`;
-  const expected = `v0=${createHmac("sha256", signingSecret).update(base).digest("hex")}`;
+  const expected = `v0=${createHmac("sha256", signingSecret)
+    .update(`v0:${timestamp}:`)
+    .update(rawBody)
+    .digest("hex")}`;
 
   try {
     return timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
@@ -48,7 +50,7 @@ export function verifySlackSignature(
  * use authenticated application routes instead of exposing this callback.
  */
 export function verifyWhatsAppSignature(
-  rawBody: string,
+  rawBody: string | Uint8Array,
   signature: string | null,
   appSecret?: string,
 ): boolean {

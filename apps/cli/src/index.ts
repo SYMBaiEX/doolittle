@@ -67,6 +67,7 @@ async function main(): Promise<number> {
     startServer,
     startServerWhenShellReady,
     apiOwnsRuntimeAfterCli,
+    closeConnectorIngress,
   } = await prepareEntrypointRuntimeBoot({
     command,
     shellIsInteractive,
@@ -78,7 +79,11 @@ async function main(): Promise<number> {
       label: `${context.config.agentName} ${command}`,
       async close(reason) {
         try {
-          await sharedEngineHost?.stopAll();
+          try {
+            await closeConnectorIngress();
+          } finally {
+            await sharedEngineHost?.stopAll();
+          }
         } finally {
           await shutdownApplicationRuntime(
             context.runtime as AgentRuntime,

@@ -7,6 +7,10 @@ import {
 import type { AppContext } from "../../../runtime/bootstrap/index";
 import { json, onResponseCommitted } from "../../responses";
 
+export interface DurableInboundContext {
+  gateway: Pick<AppContext["gateway"], "acceptInbound" | "startIngress">;
+}
+
 export async function readJsonBody(request: Request): Promise<unknown | null> {
   return (await request.json().catch(() => null)) as unknown;
 }
@@ -37,7 +41,7 @@ export async function handleInboundWebhook(
 
 export async function handleDurableInboundWebhook(
   platform: "slack" | "whatsapp",
-  context: AppContext,
+  context: DurableInboundContext,
   body: unknown,
   abortSignal?: AbortSignal,
 ): Promise<Response> {

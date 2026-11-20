@@ -290,7 +290,11 @@ enum Command {
     /// Serve the ElizaOS ACP protocol over standard input and output
     Acp,
     /// Start the ElizaOS gateway on loopback using ELIZA_API_TOKEN
-    Gateway,
+    Gateway {
+        /// Listen separately for signed Slack and WhatsApp callbacks
+        #[arg(long, value_parser = clap::value_parser!(u16).range(1024..=65535))]
+        ingress_port: Option<u16>,
+    },
     /// Start the ElizaOS API on loopback using ELIZA_API_TOKEN
     Api,
     /// Check the bundled Rust tool and runtime probe
@@ -358,7 +362,13 @@ impl Connection {
 }
 
 fn main() -> ExitCode {
-    match execute(Args::parse()) {
+    let mut arguments = std::env::args_os().peekable();
+    let program = arguments.next();
+    // Nub forwards the separator used by its run command.
+    if arguments.peek().is_some_and(|value| value == "--") {
+        arguments.next();
+    }
+    match execute(Args::parse_from(program.into_iter().chain(arguments))) {
         Ok(code) => code,
         Err(error) => {
             eprintln!("Doolittle: {}", terminal_text(&format!("{error:#}")));
@@ -388,7 +398,9 @@ fn execute(mut args: Args) -> Result<ExitCode> {
             return launcher::desktop(&args, source, build_only, skip_build, force_build);
         }
         Command::Acp => return launcher::serve(&args, RuntimeService::Acp),
-        Command::Gateway => return launcher::serve(&args, RuntimeService::Gateway),
+        Command::Gateway { ingress_port } => {
+            return launcher::serve(&args, RuntimeService::Gateway { ingress_port });
+        }
         Command::Api => return launcher::serve(&args, RuntimeService::Api),
         Command::Native { action } => {
             return launcher::native(&args, action.unwrap_or(launcher::NativeCommand::Status));
@@ -594,7 +606,7 @@ fn execute(mut args: Args) -> Result<ExitCode> {
         Command::Version
         | Command::Desktop { .. }
         | Command::Acp
-        | Command::Gateway
+        | Command::Gateway { .. }
         | Command::Api
         | Command::Native { .. }
         | Command::Jobs { .. }
