@@ -1119,10 +1119,11 @@ void desktopStartup.catch(() => {
 
 const handleDesktopQuit = createDesktopQuitHandler({
   holdRuntimeStarts,
-  stopOwnedRuntimes: () => [
-    async () => backend?.stop(),
-    async () => bots?.stopAll(),
-  ],
+  stopOwnedRuntimes: async () => {
+    // The lead's IPC must stay alive while named runtimes confirm their stop.
+    await bots?.stopAll();
+    await backend?.stop();
+  },
   setQuitting: (value) => {
     quitting = value;
   },

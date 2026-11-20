@@ -55,6 +55,7 @@ import { BotTeamCatalog } from "./bot-team-catalog";
 import { EngineBotBackend } from "./engine-bot-backend";
 import type { DesktopExecutionAdmission } from "./execution-admission";
 import { readBoundedResponseText } from "./ipc/runtime-http";
+import type { RuntimeEndpoint } from "./runtime-endpoint";
 
 export interface BotProcessRegistryOptions {
   confirmAutomation?: (request: AutomationNativeConsent) => Promise<boolean>;
@@ -69,7 +70,7 @@ export interface BotProcessRegistryOptions {
     workspacePath: string,
     runtimeFetch: typeof fetch,
     options: BackendManagerOptions,
-  ) => BackendManager;
+  ) => RuntimeEndpoint;
 }
 
 export class BotActivationCancelledError extends Error {
@@ -91,7 +92,7 @@ export class BotProcessRegistry {
   readonly knowledge: BotKnowledgeBroker;
   readonly automations: BotAutomationBroker;
   readonly teams: BotTeamCatalog;
-  private readonly backends = new Map<string, BackendManager>();
+  private readonly backends = new Map<string, RuntimeEndpoint>();
   private readonly activeRuns = new Map<string, Set<string>>();
   private runsRefresh: Promise<void> | null = null;
   private readonly activationGeneration = new Map<string, number>();
@@ -176,7 +177,7 @@ export class BotProcessRegistry {
         managerOptions,
       ) =>
         new EngineBotBackend(
-          launchTarget,
+          launchTarget.repoRoot,
           botDataDir,
           workspacePath,
           runtimeFetch,
@@ -1110,7 +1111,7 @@ export class BotProcessRegistry {
     return this.summary(botId);
   }
 
-  async backendFor(botId?: string): Promise<BackendManager> {
+  async backendFor(botId?: string): Promise<RuntimeEndpoint> {
     const definition = this.get(botId);
     if (definition.isDefault) return this.defaultBackend;
     if (this.backends.get(definition.id)?.getState().phase !== "ready") {
@@ -1123,7 +1124,7 @@ export class BotProcessRegistry {
   }
 
   /** Inspect an already-running bot without activating a stopped worker. */
-  readyBackendFor(botId?: string): BackendManager | null {
+  readyBackendFor(botId?: string): RuntimeEndpoint | null {
     const definition = this.get(botId);
     const backend = definition.isDefault
       ? this.defaultBackend

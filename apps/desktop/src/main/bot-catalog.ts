@@ -14,7 +14,7 @@ import {
 import { normalizeBotCharacter } from "@doolittle/contracts/bot-character";
 import { readRegularFileSync } from "@doolittle/storage";
 import { writeJsonAtomicSync } from "@elizaos/core";
-import type { BackendManager } from "./backend";
+import type { RuntimeEndpoint } from "./runtime-endpoint";
 
 const BOT_ID_PATTERN = /^[a-z0-9][a-z0-9_-]{0,63}$/u;
 // AgentRuntime derives this id from the unmodified Doolittle character name.
@@ -216,7 +216,7 @@ function isStoredBotDefinition(value: unknown): value is BotDefinition {
 
 function publicState(
   definition: BotDefinition,
-  backend?: BackendManager,
+  backend?: RuntimeEndpoint,
 ): BotSummary {
   const state = backend?.getState();
   return {
@@ -244,7 +244,7 @@ export class BotCatalog {
 
   constructor(
     private readonly dataDir: string,
-    private readonly defaultBackend: BackendManager,
+    private readonly defaultBackend: RuntimeEndpoint,
     private readonly defaultWorkspacePath: string,
   ) {
     this.filePath = resolve(dataDir, "bots", "catalog.json");
@@ -351,7 +351,7 @@ export class BotCatalog {
       : this.stored.bots.find((bot) => bot.id === id);
   }
 
-  list(backends: ReadonlyMap<string, BackendManager>): BotCatalogResponse {
+  list(backends: ReadonlyMap<string, RuntimeEndpoint>): BotCatalogResponse {
     const defaultBot = this.defaultBot();
     return {
       version: 1,

@@ -1,8 +1,91 @@
 import { expect, it, vi } from "vitest";
 import { createWorkerHostBridge } from "../../apps/desktop/src/main/bot-process/host-bridge";
 import type { BotProcessRegistry } from "../../apps/desktop/src/main/bot-process-registry";
+import { createDesktopQuitHandler } from "../../apps/desktop/src/main/desktop-quit";
+import { EngineBotBackend } from "../../apps/desktop/src/main/engine-bot-backend";
+import type { EngineClient } from "../../apps/desktop/src/main/engine-client";
 import { DesktopExecutionAdmission } from "../../apps/desktop/src/main/execution-admission";
 import { followChatEventStream } from "../../apps/desktop/src/main/ipc/chat-event-stream";
+
+it("uses the isolate's private token to stop work without granting lead inventory access", async () => {
+  const engine = {
+    startBot: vi.fn<EngineClient["startBot"]>().mockResolvedValue({
+      url: "http://127.0.0.1:9001",
+      agentId: "agent",
+      botId: "worker",
+      name: "Worker",
+    }),
+    stopBot: vi.fn<EngineClient["stopBot"]>().mockResolvedValue(),
+  };
+  const fetchRuntime = vi
+    .fn<typeof fetch>()
+    .mockImplementation(async () => Response.json({ stopped: false }));
+  const runtime = new EngineBotBackend(
+    process.cwd(),
+    process.cwd(),
+    process.cwd(),
+    fetchRuntime,
+    {
+      expectedBotId: "worker",
+      expectedAgentId: "agent",
+      workerHostHandler: async () => undefined,
+      isolatedEnvironment: {},
+    },
+    () => engine as unknown as EngineClient,
+  );
+  const phases: string[] = [];
+  const unsubscribe = runtime.subscribe((state) => phases.push(state.phase));
+
+  await expect(runtime.start()).resolves.toMatchObject({ phase: "ready" });
+  const token =
+    engine.startBot.mock.calls[0][1].DOOLITTLE_DESKTOP_CONTROL_TOKEN;
+  expect(token).toMatch(/^[0-9a-f]{64}$/u);
+  expect(runtime.operatorInventoryHeaders()).toEqual({});
+  await expect(runtime.stopAllOwnedExecutions()).rejects.toThrow(
+    "did not confirm execution stop",
+  );
+  expect(fetchRuntime).toHaveBeenCalledWith(
+    "http://127.0.0.1:9001/runtime/executions/stop-all",
+    expect.objectContaining({
+      method: "POST",
+      headers: { "x-doolittle-desktop-control-token": token },
+    }),
+  );
+  await runtime.stop();
+  expect(engine.stopBot).toHaveBeenCalledOnce();
+  expect(phases).toEqual(["booting", "ready", "stopped"]);
+  unsubscribe();
+});
+
+it("keeps the app open and releases the startup hold when shutdown is unconfirmed", async () => {
+  const allowStarts = vi.fn();
+  const stopOwnedRuntimes = vi
+    .fn()
+    .mockRejectedValueOnce(new Error("Worker stop unconfirmed"))
+    .mockResolvedValueOnce(undefined);
+  const afterStopped = vi.fn(async () => undefined);
+  const quit = vi.fn();
+  const onFailure = vi.fn();
+  const handleQuit = createDesktopQuitHandler({
+    stopOwnedRuntimes,
+    holdRuntimeStarts: () => allowStarts,
+    afterStopped,
+    setQuitting: vi.fn(),
+    quit,
+    onFailure,
+  });
+  const event = { preventDefault: vi.fn() };
+  await handleQuit(event);
+  expect(event.preventDefault).toHaveBeenCalledOnce();
+  expect(allowStarts).toHaveBeenCalledOnce();
+  expect(onFailure).toHaveBeenCalledOnce();
+  expect(afterStopped).not.toHaveBeenCalled();
+  expect(quit).not.toHaveBeenCalled();
+
+  await handleQuit(event);
+  expect(afterStopped).toHaveBeenCalledOnce();
+  expect(quit).toHaveBeenCalledOnce();
+});
 
 it("cannot admit ACP work after its foreground claim receipt is abandoned", async () => {
   const scope = { sessionId: "conversation", workspacePath: "/workspace" };

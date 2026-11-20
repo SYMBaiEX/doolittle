@@ -1,5 +1,7 @@
+import type { Event } from "electron";
+
 interface DesktopQuitOptions {
-  stopOwnedRuntimes(): ReadonlyArray<() => Promise<unknown>>;
+  stopOwnedRuntimes(): Promise<void>;
   holdRuntimeStarts?(): () => void;
   afterStopped(): Promise<void>;
   setQuitting(quitting: boolean): void;
@@ -11,24 +13,15 @@ interface DesktopQuitOptions {
 export function createDesktopQuitHandler(options: DesktopQuitOptions) {
   let allowQuit = false;
   let pending: Promise<void> | undefined;
-  return (event: Pick<Electron.Event, "preventDefault">): Promise<void> => {
+  return (event: Pick<Event, "preventDefault">): Promise<void> => {
     if (allowQuit) return Promise.resolve();
     event.preventDefault();
     if (pending) return pending;
     const releaseRuntimeStarts = options.holdRuntimeStarts?.();
     options.setQuitting(true);
     pending = Promise.resolve()
-      .then(() =>
-        Promise.allSettled(
-          options
-            .stopOwnedRuntimes()
-            .map((stop) => Promise.resolve().then(stop)),
-        ),
-      )
-      .then(async (results) => {
-        if (results.some((result) => result.status === "rejected")) {
-          throw new Error("Owned runtime shutdown was not confirmed.");
-        }
+      .then(() => options.stopOwnedRuntimes())
+      .then(async () => {
         await options.afterStopped();
         allowQuit = true;
         options.quit();

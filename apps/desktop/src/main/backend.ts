@@ -1,5 +1,4 @@
 import { type ChildProcess, spawn } from "node:child_process";
-import { randomBytes } from "node:crypto";
 import { appendFileSync, existsSync, mkdirSync, renameSync } from "node:fs";
 import { homedir } from "node:os";
 import { delimiter, dirname, resolve } from "node:path";
@@ -7,7 +6,9 @@ import { fileURLToPath } from "node:url";
 import type { BackendState } from "../shared/contracts";
 import { BackendUrlParser } from "./backend-url";
 import { EngineClient } from "./engine-client";
+import { readBoundedResponseText } from "./ipc/runtime-http";
 import { providerAuthExecutableCandidates } from "./provider-auth";
+import { RuntimeEndpoint } from "./runtime-endpoint";
 import { runtimeStartsAllowed } from "./runtime-start-admission";
 import {
   attachWorkerHostRpc,
@@ -285,16 +286,12 @@ export function sourceRuntimeTarget(repoRoot: string): BackendLaunchTarget {
   };
 }
 
-export class BackendManager {
-  private readonly desktopControlToken = randomBytes(32).toString("hex");
+export class BackendManager extends RuntimeEndpoint {
   private child: ChildProcess | null = null;
   private engineClient: EngineClient | null = null;
-  private state: BackendState = {
-    phase: "stopped",
-    message: "The local runtime is stopped.",
-  };
-  private readonly listeners = new Set<(state: BackendState) => void>();
   private startup: Promise<BackendState> | null = null;
+  private restartInFlight: Promise<BackendState> | null = null;
+  private childStop: { child: ChildProcess; done: Promise<void> } | null = null;
   private stopping = false;
   private activeStops = 0;
 
@@ -302,12 +299,13 @@ export class BackendManager {
     private readonly target: BackendLaunchTarget,
     private readonly runtimeDataDir: string,
     private workspaceDir: string,
-    private readonly runtimeFetch: typeof fetch = fetch,
+    runtimeFetch: typeof fetch = fetch,
     private readonly options: BackendManagerOptions = {},
-  ) {}
-
-  getState(): BackendState {
-    return { ...this.state };
+  ) {
+    super(
+      { phase: "stopped", message: "The local runtime is stopped." },
+      runtimeFetch,
+    );
   }
 
   getRuntimeDataDirectory(): string {
@@ -319,10 +317,10 @@ export class BackendManager {
   }
 
   /** Private main-process authorization for the lead's read-only inventory. */
-  operatorInventoryHeaders(): Record<string, string> {
+  override operatorInventoryHeaders(): Record<string, string> {
     return this.options.expectedBotId
       ? {}
-      : { "x-doolittle-desktop-control-token": this.desktopControlToken };
+      : { "x-doolittle-desktop-control-token": this.controlToken };
   }
 
   /** A degraded state alone does not attest process or database termination. */
@@ -336,36 +334,6 @@ export class BackendManager {
       throw new Error("The shared agent engine is not ready.");
     }
     return this.engineClient;
-  }
-
-  /** Host-only operation; the token never crosses renderer IPC. */
-  async stopAllOwnedExecutions(): Promise<void> {
-    const state = this.getState();
-    if (!this.hasLiveRuntime() && state.phase !== "ready") return;
-    if (!state.url)
-      throw new Error("Runtime execution stop could not be confirmed.");
-    const response = await this.runtimeFetch(
-      `${state.url}/runtime/executions/stop-all`,
-      {
-        method: "POST",
-        headers: {
-          "x-doolittle-desktop-control-token": this.desktopControlToken,
-        },
-        signal: AbortSignal.timeout(5_000),
-      },
-    );
-    if (!response.ok)
-      throw new Error(
-        `Runtime execution stop failed (HTTP ${response.status}).`,
-      );
-    const payload = (await response.json()) as { stopped?: unknown };
-    if (payload.stopped !== true)
-      throw new Error("Runtime did not confirm execution stop.");
-  }
-
-  subscribe(listener: (state: BackendState) => void): () => void {
-    this.listeners.add(listener);
-    return () => this.listeners.delete(listener);
   }
 
   start(): Promise<BackendState> {
@@ -397,20 +365,29 @@ export class BackendManager {
     return this.startup;
   }
 
-  async restart(
+  restart(
     message = "Restarting the private Doolittle runtime…",
   ): Promise<BackendState> {
+    if (this.restartInFlight) return this.restartInFlight;
+    const stop = this.stopRuntime(false);
+    const restart = stop
+      .then(async () => {
+        await this.startup;
+        return this.start();
+      })
+      .finally(() => {
+        if (this.restartInFlight === restart) this.restartInFlight = null;
+      });
+    this.restartInFlight = restart;
     // Publish the transition before terminating the old process. Renderer
     // requests made during a workspace handoff can then wait for the next
-    // runtime instead of racing the socket that is about to close.
+    // runtime instead of racing the socket that is about to close. The stop
+    // captures the prior socket for authenticated execution cancellation.
     this.update({
       phase: "booting",
       message,
     });
-    await this.stop(false);
-    const pendingStartup = this.startup;
-    if (pendingStartup) await pendingStartup;
-    return this.start();
+    return restart;
   }
 
   async switchWorkspace(workspaceDir: string): Promise<BackendState> {
@@ -489,6 +466,7 @@ export class BackendManager {
       phase: "booting",
       message: "Starting the private Doolittle runtime…",
     });
+    const deadline = Date.now() + STARTUP_TIMEOUT_MS;
 
     let recentOutput = "";
     const urlParser = new BackendUrlParser();
@@ -508,7 +486,7 @@ export class BackendManager {
         ...this.target.environment,
       },
     );
-    environment.DOOLITTLE_DESKTOP_CONTROL_TOKEN = this.desktopControlToken;
+    environment.DOOLITTLE_DESKTOP_CONTROL_TOKEN = this.controlToken;
     if (this.options.sharedEngine) {
       environment.DOOLITTLE_SHARED_ENGINE = "1";
       delete environment.DOOLITTLE_ENGINE_WORKER_ENTRY;
@@ -576,19 +554,27 @@ export class BackendManager {
       }
     });
 
-    const timeout = setTimeout(() => {
-      rejectUrl?.(
-        new Error(
-          `Timed out waiting for the runtime listening URL.${recentOutput ? `\n${sanitizeBackendDiagnostic(recentOutput, environment)}` : ""}`,
-        ),
-      );
-    }, STARTUP_TIMEOUT_MS);
+    const timeout = setTimeout(
+      () => {
+        rejectUrl?.(
+          new Error(
+            `Timed out waiting for the runtime listening URL.${recentOutput ? `\n${sanitizeBackendDiagnostic(recentOutput, environment)}` : ""}`,
+          ),
+        );
+      },
+      Math.max(0, deadline - Date.now()),
+    );
 
     try {
       const url = await urlPromise;
       this.assertStartingChild(child);
-      await this.waitForHealth(url, child);
-      const identity = await this.readBotIdentity(url);
+      await this.waitForHealth(url, child, deadline);
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) throw new Error("Runtime identity check timed out.");
+      const identity = await this.readBotIdentity(
+        url,
+        Math.min(5_000, remaining),
+      );
       this.assertStartingChild(child);
       const next: BackendState = {
         phase: "ready",
@@ -649,14 +635,18 @@ export class BackendManager {
 
   private async readBotIdentity(
     url: string,
+    timeoutMs: number,
   ): Promise<{ botId: string; agentId: string; name: string }> {
+    const signal = AbortSignal.timeout(timeoutMs);
     const response = await this.runtimeFetch(`${url}/runtime/bot-identity`, {
-      signal: AbortSignal.timeout(5_000),
+      signal,
     });
     if (!response.ok) {
       throw new Error("The local runtime did not confirm its bot identity.");
     }
-    const value = (await response.json()) as {
+    const value = JSON.parse(
+      await readBoundedResponseText(response, 16_384, signal),
+    ) as {
       botId?: unknown;
       agentId?: unknown;
       name?: unknown;
@@ -681,14 +671,18 @@ export class BackendManager {
     }
   }
 
-  private async waitForHealth(url: string, child: ChildProcess): Promise<void> {
-    const deadline = Date.now() + STARTUP_TIMEOUT_MS;
+  private async waitForHealth(
+    url: string,
+    child: ChildProcess,
+    deadline: number,
+  ): Promise<void> {
     let lastError = "Health endpoint did not respond.";
-    while (Date.now() < deadline) {
+    let remaining = deadline - Date.now();
+    while (remaining > 0) {
       this.assertStartingChild(child);
       try {
         const response = await this.runtimeFetch(`${url}/health`, {
-          signal: AbortSignal.timeout(2_000),
+          signal: AbortSignal.timeout(Math.min(2_000, remaining)),
         });
         this.assertStartingChild(child);
         if (response.ok) return;
@@ -696,14 +690,22 @@ export class BackendManager {
       } catch (error) {
         lastError = error instanceof Error ? error.message : String(error);
       }
-      await new Promise((resolvePromise) =>
-        setTimeout(resolvePromise, HEALTH_POLL_MS),
-      );
+      remaining = deadline - Date.now();
+      if (remaining > 0) {
+        await new Promise((resolvePromise) =>
+          setTimeout(resolvePromise, Math.min(HEALTH_POLL_MS, remaining)),
+        );
+      }
+      remaining = deadline - Date.now();
     }
     throw new Error(`Runtime health check timed out: ${lastError}`);
   }
 
-  async stop(updateState = true): Promise<void> {
+  stop(): Promise<void> {
+    return this.stopRuntime(true);
+  }
+
+  private async stopRuntime(updateState: boolean): Promise<void> {
     this.stopping = true;
     this.activeStops += 1;
     try {
@@ -715,17 +717,29 @@ export class BackendManager {
 
   private async stopChild(updateState = true): Promise<void> {
     const child = this.child;
-    if (!child) {
-      if (updateState) {
-        this.update({
-          phase: "stopped",
-          message: "The local runtime is stopped.",
+    if (child) {
+      if (this.childStop?.child !== child) {
+        const done = this.terminateChild(child, this.state.url).finally(() => {
+          if (this.childStop?.done === done) this.childStop = null;
         });
+        this.childStop = { child, done };
       }
-      return;
+      await this.childStop.done;
     }
+    if (updateState) {
+      this.update({
+        phase: "stopped",
+        message: "The local runtime is stopped.",
+      });
+    }
+  }
+
+  private async terminateChild(
+    child: ChildProcess,
+    url: string | undefined,
+  ): Promise<void> {
     try {
-      await this.stopAllOwnedExecutions();
+      if (url) await this.stopExecutionsAt(url);
     } catch {
       // SIGTERM still invokes the SDK service cleanup; a stale listener must
       // never prevent the host from terminating its owned child process.
@@ -742,17 +756,6 @@ export class BackendManager {
       throw error;
     }
     if (this.child === child) this.child = null;
-    if (updateState) {
-      this.update({
-        phase: "stopped",
-        message: "The local runtime is stopped.",
-      });
-    }
-  }
-
-  private update(state: BackendState): void {
-    this.state = state;
-    for (const listener of this.listeners) listener(this.getState());
   }
 }
 

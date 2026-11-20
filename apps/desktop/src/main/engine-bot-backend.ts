@@ -1,40 +1,30 @@
-import { randomBytes } from "node:crypto";
-import { resolve } from "node:path";
 import type { BackendState } from "../shared/contracts";
-import {
-  type BackendLaunchTarget,
-  BackendManager,
-  type BackendManagerOptions,
-  buildBackendEnvironment,
-} from "./backend";
+import { type BackendManagerOptions, buildBackendEnvironment } from "./backend";
 import type { EngineClient } from "./engine-client";
+import { RuntimeEndpoint } from "./runtime-endpoint";
 import { runtimeStartsAllowed } from "./runtime-start-admission";
 
-/** BackendManager-compatible named bot facade; it never launches an OS child. */
-export class EngineBotBackend extends BackendManager {
+/** Runtime endpoint for one isolate owned by the shared engine. */
+export class EngineBotBackend extends RuntimeEndpoint {
   private readonly botId: string;
   private readonly agentId: string;
-  private readonly controlToken = randomBytes(32).toString("hex");
-  private readonly botListeners = new Set<(state: BackendState) => void>();
-  private readonly workspaceDirectory: string;
-  private botState: BackendState = {
-    phase: "stopped",
-    message: "The named bot is stopped.",
-  };
   private botStartup: Promise<BackendState> | null = null;
   private botStopping: Promise<void> | null = null;
   private generation = 0;
   private owner: EngineClient | null = null;
 
   constructor(
-    private readonly launchTarget: BackendLaunchTarget,
+    private readonly repoRoot: string,
     private readonly botDataDir: string,
-    workspaceDir: string,
-    private readonly botFetch: typeof fetch,
+    private readonly workspaceDirectory: string,
+    runtimeFetch: typeof fetch,
     private readonly botOptions: BackendManagerOptions,
     private readonly currentEngine: () => EngineClient,
   ) {
-    super(launchTarget, botDataDir, workspaceDir, botFetch, botOptions);
+    super(
+      { phase: "stopped", message: "The named bot is stopped." },
+      runtimeFetch,
+    );
     if (
       !botOptions.expectedBotId ||
       !botOptions.expectedAgentId ||
@@ -45,11 +35,6 @@ export class EngineBotBackend extends BackendManager {
     }
     this.botId = botOptions.expectedBotId;
     this.agentId = botOptions.expectedAgentId;
-    this.workspaceDirectory = workspaceDir;
-  }
-
-  override getState(): BackendState {
-    return { ...this.botState };
   }
 
   override getWorkspaceDirectory(): string {
@@ -60,15 +45,9 @@ export class EngineBotBackend extends BackendManager {
     return this.owner !== null || this.botStartup !== null;
   }
 
-  override subscribe(listener: (state: BackendState) => void): () => void {
-    this.botListeners.add(listener);
-    return () => this.botListeners.delete(listener);
-  }
-
   override start(): Promise<BackendState> {
     if (!runtimeStartsAllowed()) return Promise.resolve(this.getState());
-    if (this.botState.phase === "ready")
-      return Promise.resolve(this.getState());
+    if (this.state.phase === "ready") return Promise.resolve(this.getState());
     if (this.botStopping) return this.botStopping.then(() => this.start());
     if (this.botStartup) return this.botStartup;
     const generation = ++this.generation;
@@ -80,7 +59,7 @@ export class EngineBotBackend extends BackendManager {
   }
 
   private async startNamed(generation: number): Promise<BackendState> {
-    this.publishBotState({
+    this.update({
       phase: "booting",
       message: "Starting the named bot…",
     });
@@ -91,7 +70,7 @@ export class EngineBotBackend extends BackendManager {
       const engine = this.currentEngine();
       const environment = buildBackendEnvironment(
         this.botDataDir,
-        this.launchTarget.repoRoot,
+        this.repoRoot,
         this.workspaceDirectory,
         this.botOptions.isolatedEnvironment,
       );
@@ -112,7 +91,7 @@ export class EngineBotBackend extends BackendManager {
           if (this.owner !== engine) return;
           this.owner = null;
           this.botOptions.onHostDisconnect?.();
-          this.publishBotState({
+          this.update({
             phase: "degraded",
             message: "The named bot lost its shared engine connection.",
           });
@@ -122,7 +101,7 @@ export class EngineBotBackend extends BackendManager {
       if (this.owner !== engine)
         throw new Error("The shared engine disconnected.");
       if (generation !== this.generation) return this.getState();
-      return this.publishBotState({
+      return this.update({
         phase: "ready",
         url: result.url,
         agentId: result.agentId,
@@ -135,7 +114,7 @@ export class EngineBotBackend extends BackendManager {
         this.owner = null;
         this.botOptions.onHostDisconnect?.();
       }
-      return this.publishBotState({
+      return this.update({
         phase: "degraded",
         message: "The named bot could not start.",
         detail: "The shared engine could not start or verify this named bot.",
@@ -143,16 +122,16 @@ export class EngineBotBackend extends BackendManager {
     }
   }
 
-  override async stop(updateState = true): Promise<void> {
+  override async stop(): Promise<void> {
     if (this.botStopping) return this.botStopping;
     this.generation++;
-    this.botStopping = this.stopNamed(updateState).finally(() => {
+    this.botStopping = this.stopNamed().finally(() => {
       this.botStopping = null;
     });
     return this.botStopping;
   }
 
-  private async stopNamed(updateState: boolean): Promise<void> {
+  private async stopNamed(): Promise<void> {
     const startup = this.botStartup;
     const engine = this.owner;
     if (engine) {
@@ -164,7 +143,7 @@ export class EngineBotBackend extends BackendManager {
       try {
         await engine.stopBot(this.botId);
       } catch {
-        this.publishBotState({
+        this.update({
           phase: "degraded",
           message: "The named bot could not be stopped.",
           detail: "The shared engine did not confirm this bot stopped.",
@@ -177,48 +156,9 @@ export class EngineBotBackend extends BackendManager {
     // A confirmed stop invalidates the old bootstrap even if its response is
     // delayed; its generation cannot publish over a later start.
     if (this.botStartup === startup) this.botStartup = null;
-    if (updateState)
-      this.publishBotState({
-        phase: "stopped",
-        message: "The named bot is stopped.",
-      });
-  }
-
-  override async stopAllOwnedExecutions(): Promise<void> {
-    const state = this.getState();
-    if (!this.hasLiveRuntime() && state.phase !== "ready") return;
-    if (!state.url)
-      throw new Error("Named bot execution stop could not be confirmed.");
-    const response = await this.botFetch(
-      `${state.url}/runtime/executions/stop-all`,
-      {
-        method: "POST",
-        headers: { "x-doolittle-desktop-control-token": this.controlToken },
-        signal: AbortSignal.timeout(5_000),
-      },
-    );
-    if (!response.ok) throw new Error("Named bot execution stop was rejected.");
-    const result = (await response.json()) as { stopped?: unknown };
-    if (result.stopped !== true)
-      throw new Error("Named bot execution stop was not confirmed.");
-  }
-
-  override async restart(): Promise<BackendState> {
-    await this.stop();
-    return this.start();
-  }
-
-  override async switchWorkspace(workspaceDir: string): Promise<BackendState> {
-    if (resolve(workspaceDir) !== resolve(this.workspaceDirectory))
-      throw new Error(
-        "Stop and update the named bot before changing its workspace.",
-      );
-    return this.getState();
-  }
-
-  private publishBotState(state: BackendState): BackendState {
-    this.botState = state;
-    for (const listener of this.botListeners) listener(this.getState());
-    return this.getState();
+    this.update({
+      phase: "stopped",
+      message: "The named bot is stopped.",
+    });
   }
 }

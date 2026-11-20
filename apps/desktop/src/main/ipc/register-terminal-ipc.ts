@@ -15,8 +15,8 @@ import {
   desktopIpcChannels,
 } from "../../shared/ipc-channels";
 import { SseParser } from "../../shared/sse";
-import type { BackendManager } from "../backend";
 import type { BotProcessRegistry } from "../bot-process-registry";
+import type { RuntimeEndpoint } from "../runtime-endpoint";
 import { isRecord } from "./input-validation";
 import type {
   DesktopBackgroundNotification,
@@ -95,7 +95,7 @@ type RegisterHandler = (
 ) => void;
 
 export interface TerminalIpcRegistrationContext {
-  backend: BackendManager;
+  backend: RuntimeEndpoint;
   bots?: BotProcessRegistry;
   registerHandler: RegisterHandler;
   activeTerminalRuns: Map<string, ActiveTerminalRun>;
@@ -134,7 +134,7 @@ export function registerTerminalIpcHandlers(
       botId: string;
       originConversationId: string;
       workspacePath: string;
-      backend: BackendManager;
+      backend: RuntimeEndpoint;
       url: string;
       processId: number;
       runtimeInstanceId: string;
@@ -146,7 +146,7 @@ export function registerTerminalIpcHandlers(
       createdAt: number;
       request: InteractiveTerminalStartRequest;
       creationId: string;
-      backend?: BackendManager;
+      backend?: RuntimeEndpoint;
       url?: string;
       processId?: number;
       runtimeInstanceId?: string;
@@ -157,7 +157,7 @@ export function registerTerminalIpcHandlers(
   const interactiveBackendFor = async (
     botId: string,
     allowActivation = false,
-  ): Promise<BackendManager> => {
+  ): Promise<RuntimeEndpoint> => {
     if (!bots) {
       if (botId !== "default") throw new Error("Named bots are unavailable.");
       if (backend.getState().phase !== "ready")
@@ -216,7 +216,7 @@ export function registerTerminalIpcHandlers(
     method: "GET" | "POST",
     body?: object,
     timeoutMs = API_TIMEOUT_MS,
-    expected?: { backend: BackendManager; url: string },
+    expected?: { backend: RuntimeEndpoint; url: string },
     beforeFetch?: () => void,
     startOriginConversationId?: string,
   ): Promise<unknown> => {
@@ -768,7 +768,7 @@ export function registerTerminalIpcHandlers(
         // Named-bot activation is a separate startup operation; bound only the
         // HTTP identity, creation, and reconciliation sequence that follows it.
         let deadline = 0;
-        let target: BackendManager;
+        let target: RuntimeEndpoint;
         let url: string;
         const sameReadyBackend = (): boolean => {
           try {

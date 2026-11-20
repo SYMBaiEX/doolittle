@@ -3,7 +3,7 @@ import type {
   BackendState,
 } from "../../shared/contracts";
 import { desktopRequestTimeoutMs } from "../../shared/contracts";
-import type { BackendManager } from "../backend";
+import type { RuntimeEndpoint } from "../runtime-endpoint";
 import {
   apiResponseLimit,
   parseApiPath,
@@ -47,7 +47,7 @@ export function isRecoverableRuntimeFetchError(error: unknown): boolean {
 }
 
 export async function waitForReadyBackend(
-  backend: BackendManager,
+  backend: RuntimeEndpoint,
   timeoutMs = RUNTIME_TRANSITION_TIMEOUT_MS,
   signal?: AbortSignal,
 ): Promise<ReadyBackendState> {
@@ -107,7 +107,7 @@ export async function waitForReadyBackend(
 }
 
 export async function fetchBackendApi(
-  backend: BackendManager,
+  backend: RuntimeEndpoint,
   fetchImplementation: typeof fetch,
   path: string,
   init: RequestInit,
@@ -172,7 +172,7 @@ export async function fetchBackendApi(
 }
 
 export async function requestAgentTransport(
-  backend: BackendManager,
+  backend: RuntimeEndpoint,
   fetchImplementation: typeof fetch,
   unsafeRequest: unknown,
   signal?: AbortSignal,
