@@ -136,6 +136,8 @@ export interface ChatEvent {
   requestId: string;
   /** Monotonic server event id. Undefined only for local transport failures. */
   eventId?: number;
+  /** The stream disconnected after the run was accepted. Ownership is unchanged. */
+  transportError?: true;
   event:
     | "response.created"
     | "response.output_text.delta"

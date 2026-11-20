@@ -7,7 +7,7 @@ export function releaseAbandonedExecutionClaim(
   botId: string,
   request: WorkerHostRequest,
   result: unknown,
-): void {
+): { runId: string; leaseId: string } | undefined {
   if (!admission || request.operation !== "execution.claim") return;
   const payload = request.payload as { runId?: unknown } | null;
   const decision = result as { accepted?: unknown; leaseId?: unknown } | null;
@@ -18,4 +18,5 @@ export function releaseAbandonedExecutionClaim(
   )
     return;
   admission.release({ botId, runId: payload.runId, leaseId: decision.leaseId });
+  return { runId: payload.runId, leaseId: decision.leaseId };
 }

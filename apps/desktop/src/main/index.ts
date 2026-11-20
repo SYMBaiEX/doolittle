@@ -25,7 +25,7 @@ import {
   findRepoRoot,
   sourceRuntimeTarget,
 } from "./backend";
-import type { BotConsultationDispatchInput } from "./bot-consultation-broker";
+import { createWorkerHostBridge } from "./bot-process/host-bridge";
 import { BotProcessRegistry } from "./bot-process-registry";
 import { isActiveManagedRenderUrl } from "./browser-render-targets";
 import {
@@ -49,12 +49,6 @@ import { DesktopPreferences } from "./desktop-preferences";
 import { createDesktopQuitHandler } from "./desktop-quit";
 import { DesktopExecutionAdmission } from "./execution-admission";
 import { readExecutionCapacity } from "./execution-capacity";
-import {
-  type ForegroundParentWitness,
-  matchesAutomaticAcpParent,
-  sameExecutionWorkspace,
-} from "./execution-parent-witness";
-import { releaseAbandonedExecutionClaim } from "./execution-receipt";
 import { type DesktopBackgroundNotification, registerIpc } from "./ipc";
 import { readBoundedResponseText } from "./ipc/runtime-http";
 import { ProviderAuthController } from "./provider-auth";
@@ -832,7 +826,6 @@ if (ownsSingleInstance)
     const executionAdmission = new DesktopExecutionAdmission(
       readExecutionCapacity(),
     );
-    const foregroundParents = new Map<string, ForegroundParentWitness>();
     backend = new BackendManager(
       target,
       runtimeDataDir,
@@ -841,257 +834,11 @@ if (ownsSingleInstance)
       {
         sharedEngine: true,
         hostRpcBotId: "default",
-        workerHostHandler: async (request, signal) => {
-          if (request.operation === "workspace.resolve") {
-            const payload = request.payload as {
-              sessionId?: unknown;
-              acpSessionId?: unknown;
-            } | null;
-            if (
-              !bots ||
-              !payload ||
-              typeof payload.sessionId !== "string" ||
-              Object.keys(payload).some(
-                (key) => key !== "sessionId" && key !== "acpSessionId",
-              ) ||
-              (payload.acpSessionId !== undefined &&
-                typeof payload.acpSessionId !== "string")
-            )
-              throw new Error("Conversation workspace scope is unavailable.");
-            if (payload.sessionId.startsWith("automation:"))
-              await bots.ensureDefaultAutomationConversation(payload.sessionId);
-            const scope = await bots.resolveVerifiedConversationWorkspace(
-              "default",
-              payload.sessionId,
-            );
-            if (payload.acpSessionId !== undefined) {
-              const owner = bots.assertAcpSessionOwner(
-                "default",
-                payload.acpSessionId,
-              );
-              if (
-                owner.originConversationId !== payload.sessionId ||
-                owner.workspacePath !== scope.workspacePath
-              )
-                throw new Error(
-                  "ACP session does not belong to this conversation workspace.",
-                );
-            }
-            if (signal.aborted) throw new Error("Host request was cancelled.");
-            return scope;
-          }
-          if (
-            request.operation === "execution.claim" ||
-            request.operation === "execution.release"
-          ) {
-            const payload = request.payload as {
-              sessionId?: unknown;
-              runId?: unknown;
-              leaseId?: unknown;
-              parentRunId?: unknown;
-              kind?: unknown;
-              yielding?: unknown;
-            } | null;
-            if (
-              request.operation === "execution.claim" &&
-              bots &&
-              typeof payload?.sessionId === "string" &&
-              payload.sessionId.startsWith("automation:")
-            )
-              await bots.ensureDefaultAutomationConversation(payload.sessionId);
-            const scope =
-              request.operation === "execution.claim" &&
-              bots &&
-              typeof payload?.sessionId === "string"
-                ? await bots.resolveVerifiedConversationWorkspace(
-                    "default",
-                    payload.sessionId,
-                  )
-                : null;
-            if (request.operation === "execution.claim" && !scope)
-              throw new Error("Conversation workspace scope is unavailable.");
-            const parentMatches = (candidate: typeof scope) =>
-              Boolean(
-                bots &&
-                  matchesAutomaticAcpParent(
-                    payload?.parentRunId,
-                    candidate,
-                    bots.catalog.stableDefaultBotId(),
-                    foregroundParents,
-                    (runId) => bots?.conversations.getRun(runId) ?? null,
-                  ),
-              );
-            if (
-              request.operation === "execution.claim" &&
-              payload?.kind === "automatic-acp"
-            ) {
-              if (!bots || !parentMatches(scope))
-                throw new Error(
-                  "An active, matching foreground run is required for ACP execution.",
-                );
-              await bots.assertRunOwner(
-                "default",
-                payload.parentRunId as string,
-              );
-            }
-            if (
-              request.operation === "execution.claim" &&
-              payload?.kind === "foreground" &&
-              scope
-            ) {
-              if (typeof payload.runId !== "string")
-                throw new Error("Foreground run identity is invalid.");
-              const existing = foregroundParents.get(payload.runId);
-              if (
-                existing &&
-                (existing.sessionId !== scope.sessionId ||
-                  existing.workspacePath !== scope.workspacePath ||
-                  existing.projectId !== scope.projectId)
-              )
-                throw new Error(
-                  "Foreground run changed its approved conversation.",
-                );
-            }
-            const result = await executionAdmission.handle(
-              "default",
-              request.operation,
-              request.payload,
-              {
-                mutationRoot: scope?.workspacePath,
-              },
-              signal,
-            );
-            if (
-              request.operation === "execution.claim" &&
-              (result as { accepted?: boolean }).accepted === true
-            ) {
-              const leaseId = (result as { leaseId: string }).leaseId;
-              try {
-                if (!bots || typeof payload?.sessionId !== "string")
-                  throw new Error(
-                    "Conversation workspace scope is unavailable.",
-                  );
-                const fresh = await bots.resolveVerifiedConversationWorkspace(
-                  "default",
-                  payload.sessionId,
-                );
-                if (!sameExecutionWorkspace(scope, fresh) || signal.aborted)
-                  throw new Error(
-                    "Conversation workspace changed while awaiting execution admission.",
-                  );
-                if (payload.kind === "automatic-acp" && !parentMatches(fresh))
-                  throw new Error(
-                    "The ACP parent run expired while awaiting execution admission.",
-                  );
-                if (payload.kind === "foreground") {
-                  bots.bindRun(
-                    "default",
-                    fresh.sessionId,
-                    payload.runId as string,
-                  );
-                  foregroundParents.set(payload.runId as string, {
-                    sessionId: fresh.sessionId,
-                    workspacePath: fresh.workspacePath,
-                    projectId: fresh.projectId,
-                    leaseId,
-                  });
-                }
-              } catch (error) {
-                await executionAdmission.handle(
-                  "default",
-                  "execution.release",
-                  {
-                    runId: payload?.runId,
-                    leaseId,
-                  },
-                );
-                throw error;
-              }
-            }
-            if (
-              request.operation === "execution.release" &&
-              payload?.yielding !== true &&
-              typeof payload?.runId === "string" &&
-              foregroundParents.get(payload.runId)?.leaseId === payload.leaseId
-            )
-              foregroundParents.delete(payload.runId);
-            return result;
-          }
-          if (!bots) throw new Error("The consultation broker is unavailable.");
-          if (request.operation === "automation.validate")
-            return bots.automations.validate(
-              "default",
-              (
-                request.payload as {
-                  job: import("@doolittle/contracts").AutomationJobRecord;
-                }
-              ).job,
-              signal,
-            );
-          if (request.operation === "automation.dispatch")
-            return bots.automations.dispatch(
-              "default",
-              request.payload as Parameters<
-                typeof bots.automations.dispatch
-              >[1],
-              signal,
-            );
-          if (request.operation === "automation.status")
-            return bots.automations.status(
-              "default",
-              request.payload as Parameters<typeof bots.automations.status>[1],
-            );
-          if (
-            request.operation === "automation.wait" ||
-            request.operation === "automation.cancel"
-          ) {
-            const payload = request.payload as { fireId?: unknown } | null;
-            if (!payload || typeof payload.fireId !== "string")
-              throw new Error("Automation fire identity is invalid.");
-            return request.operation === "automation.wait"
-              ? bots.automations.wait("default", payload.fireId, signal)
-              : bots.automations.cancel("default", payload.fireId);
-          }
-          if (request.operation === "consult.dispatch") {
-            return bots.consultations.dispatch(
-              "default",
-              request.payload as BotConsultationDispatchInput,
-              signal,
-            );
-          }
-          if (
-            request.operation === "consult.wait" ||
-            request.operation === "consult.cancel"
-          ) {
-            const payload = request.payload as {
-              dispatchId?: unknown;
-            } | null;
-            if (
-              !payload ||
-              typeof payload.dispatchId !== "string" ||
-              !/^[0-9a-f-]{36}$/iu.test(payload.dispatchId)
-            ) {
-              throw new Error("Consultation ID is invalid.");
-            }
-            return request.operation === "consult.wait"
-              ? bots.consultations.wait("default", payload.dispatchId, signal)
-              : bots.consultations.cancel("default", payload.dispatchId);
-          }
-          throw new Error(
-            "This host operation is not available to the lead runtime.",
-          );
-        },
-        onHostDisconnect: () => {
-          foregroundParents.clear();
-          executionAdmission.releaseBot("default");
-        },
-        workerHostOnAbandonedResult: (request, result) =>
-          releaseAbandonedExecutionClaim(
-            executionAdmission,
-            "default",
-            request,
-            result,
-          ),
+        ...createWorkerHostBridge({
+          getRegistry: () => bots,
+          botId: "default",
+          admission: executionAdmission,
+        }),
       },
     );
     bots = new BotProcessRegistry(

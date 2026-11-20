@@ -14,7 +14,6 @@ import {
   type DesktopIpcInvokeChannel,
   desktopIpcChannels,
 } from "../shared/ipc-channels";
-import { SseParser } from "../shared/sse";
 import { handleBotApiRequest } from "./bot-api";
 import {
   assertBotSessionRequest,
@@ -29,6 +28,7 @@ import {
   validateAgentTransportRequest,
 } from "./ipc/agent-api-policy";
 import { requestAgentTransport } from "./ipc/agent-transport";
+import { followChatEventStream } from "./ipc/chat-event-stream";
 import {
   authorizeComputerRequest,
   isWorkspaceTransportMutation,
@@ -93,19 +93,6 @@ export {
 
 const API_TIMEOUT_MS = 15_000;
 const MAX_SENSITIVE_RESPONSE_BYTES = 2_000_000;
-const CHAT_STREAM_MAX_ATTEMPTS = 3;
-const CHAT_STREAM_RETRY_DELAY_MS = 25;
-
-class ChatStreamResponseError extends Error {
-  constructor(
-    message: string,
-    readonly retryable: boolean,
-  ) {
-    super(message);
-    this.name = "ChatStreamResponseError";
-  }
-}
-
 export function isTrustedDesktopIpcSender(
   event: Pick<IpcMainInvokeEvent, "sender">,
   mainWindow: Pick<BrowserWindow, "isDestroyed" | "webContents"> | null,
@@ -776,10 +763,10 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
       }
 
       const controller = new AbortController();
+      let accepted = false;
       let terminalEventEmitted = false;
-      let lastReceivedEventId = 0;
       const emitEvent = (
-        payload: { event: string; data: unknown },
+        payload: { event: string; data: unknown; transportError?: true },
         eventId?: number,
       ) => {
         if (!event.sender.isDestroyed()) {
@@ -790,26 +777,6 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
             ...(eventId === undefined ? {} : { eventId }),
           });
         }
-      };
-      const emitChatEvent = (
-        payload: { event: string; data: unknown },
-        eventId?: number,
-      ) => {
-        const terminal =
-          payload.event === "response.completed" ||
-          payload.event === "response.failed" ||
-          payload.event === "error" ||
-          payload.event === "cancelled" ||
-          payload.event === "response.cancelled";
-        if (terminal && terminalEventEmitted) {
-          return false;
-        }
-        if (terminal) {
-          terminalEventEmitted = true;
-          bots?.endRun(botId, request.requestId);
-        }
-        emitEvent(payload, eventId);
-        return terminal;
       };
       const notifyChatTerminalEvent = (eventName: string) => {
         if (eventName === "response.completed") {
@@ -871,56 +838,6 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
         throw error;
       }
 
-      const streamEvents = async () => {
-        const response = await sensitiveFetch(
-          `${runtimeUrl}/chat/runs/${encodeURIComponent(request.requestId)}/events?after=${lastReceivedEventId}`,
-          { signal: controller.signal },
-        );
-        if (!response.ok) {
-          throw new ChatStreamResponseError(
-            await parseRequestError(response),
-            response.status >= 500,
-          );
-        }
-        if (!response.body)
-          throw new Error("The runtime returned an empty stream.");
-        const parser = new SseParser();
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        const consume = (payload: { event: string; data: unknown }) => {
-          const data = payload.data;
-          const eventId =
-            data &&
-            typeof data === "object" &&
-            Number.isSafeInteger((data as { event_id?: unknown }).event_id)
-              ? Number((data as { event_id: number }).event_id)
-              : undefined;
-          if (eventId !== undefined) {
-            if (eventId <= lastReceivedEventId) return;
-            lastReceivedEventId = eventId;
-          }
-          if (emitChatEvent(payload, eventId)) {
-            notifyChatTerminalEvent(payload.event);
-          }
-        };
-        while (true) {
-          const result = await reader.read();
-          if (result.done) break;
-          for (const frame of parser.push(
-            decoder.decode(result.value, { stream: true }),
-          )) {
-            consume(frame);
-          }
-        }
-        for (const frame of parser.push(decoder.decode())) consume(frame);
-        for (const frame of parser.finish()) consume(frame);
-        if (!terminalEventEmitted) {
-          throw new Error(
-            "The runtime closed the chat stream before completing the response.",
-          );
-        }
-      };
-
       let settleSubmission: () => void = () => undefined;
       try {
         const active = activeChats.get(key);
@@ -962,6 +879,7 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
         ) {
           throw new Error("The runtime returned an invalid chat run receipt.");
         }
+        accepted = true;
         bots?.bindRun(botId, request.roomId, request.requestId);
         bots?.beginRun(botId, request.requestId);
         if (active?.controller === controller) active.phase = "accepted";
@@ -987,36 +905,20 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
             }
           }
         }
-        let lastStreamError: unknown;
-        for (
-          let attempt = 0;
-          attempt < CHAT_STREAM_MAX_ATTEMPTS;
-          attempt += 1
-        ) {
-          try {
-            await streamEvents();
-            break;
-          } catch (error) {
-            if (
-              terminalEventEmitted ||
-              controller.signal.aborted ||
-              (error instanceof ChatStreamResponseError && !error.retryable)
-            ) {
-              throw error;
+        await followChatEventStream({
+          runtimeUrl,
+          requestId: request.requestId,
+          signal: controller.signal,
+          fetchRuntime: sensitiveFetch,
+          onEvent(frame, id, terminal) {
+            if (terminal) {
+              terminalEventEmitted = true;
+              bots?.endRun(botId, request.requestId);
             }
-            lastStreamError = error;
-            if (attempt === CHAT_STREAM_MAX_ATTEMPTS - 1) {
-              throw new Error(
-                `Unable to reconnect to the chat response after ${CHAT_STREAM_MAX_ATTEMPTS - 1} retries. Please try again.`,
-                { cause: lastStreamError },
-              );
-            }
-            await new Promise<void>((resolve) => {
-              setTimeout(resolve, CHAT_STREAM_RETRY_DELAY_MS * (attempt + 1));
-            });
-            if (controller.signal.aborted) throw lastStreamError;
-          }
-        }
+            emitEvent(frame, id);
+            if (terminal) notifyChatTerminalEvent(frame.event);
+          },
+        });
       } catch (error) {
         settleSubmission();
         // A terminal event is authoritative. A transport failure after it
@@ -1029,10 +931,12 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
         } else {
           emitEvent({
             event: "error",
+            ...(accepted ? { transportError: true } : {}),
             data: {
               message: error instanceof Error ? error.message : String(error),
             },
           });
+          if (accepted) return;
           notifyBackground({
             title: "Doolittle needs attention",
             body: "A response stopped with an error.",
@@ -1087,8 +991,6 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
         return;
       }
       const controller = new AbortController();
-      let terminalEventEmitted = false;
-      let lastReceivedEventId = typeof after === "number" ? after : 0;
       let stopTrackingSender: () => void = () => undefined;
       const cleanup = () => {
         activeChats.delete(key);
@@ -1097,111 +999,31 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
       };
       activeChats.set(key, { controller, botId, phase: "accepted" });
       stopTrackingSender = trackSenderCleanup(event.sender, cleanup);
-      const streamEvents = async () => {
-        const response = await sensitiveFetch(
-          `${state.url}/chat/runs/${encodeURIComponent(requestId)}/events?after=${lastReceivedEventId}`,
-          { signal: controller.signal },
-        );
-        if (!response.ok) {
-          throw new ChatStreamResponseError(
-            await parseRequestError(response),
-            response.status >= 500,
-          );
-        }
-        if (!response.body)
-          throw new Error("The runtime returned an empty stream.");
-        const parser = new SseParser();
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        const consume = (frame: { event: string; data: unknown }) => {
-          const data = frame.data;
-          const eventId =
-            data &&
-            typeof data === "object" &&
-            Number.isSafeInteger((data as { event_id?: unknown }).event_id)
-              ? Number((data as { event_id: number }).event_id)
-              : undefined;
-          if (eventId !== undefined) {
-            if (eventId <= lastReceivedEventId) return;
-            lastReceivedEventId = eventId;
-          }
-          const terminal = [
-            "response.completed",
-            "response.failed",
-            "response.cancelled",
-            "cancelled",
-            "error",
-          ].includes(frame.event);
-          if (terminal && terminalEventEmitted) return;
-          if (terminal) {
-            terminalEventEmitted = true;
-            bots?.endRun(botId, requestId);
-          }
-          if (!event.sender.isDestroyed())
-            event.sender.send(eventChannels.chatEvent, {
-              requestId,
-              ...(unsafeRequest.botId ? { botId } : {}),
-              ...frame,
-              ...(eventId === undefined ? {} : { eventId }),
-            });
-        };
-        while (true) {
-          const chunk = await reader.read();
-          if (chunk.done) break;
-          for (const frame of parser.push(
-            decoder.decode(chunk.value, { stream: true }),
-          ))
-            consume(frame);
-        }
-        for (const frame of parser.push(decoder.decode())) consume(frame);
-        for (const frame of parser.finish()) consume(frame);
-        if (!terminalEventEmitted) {
-          throw new Error(
-            "The runtime closed the chat stream before completing the response.",
-          );
-        }
-      };
       try {
-        let lastStreamError: unknown;
-        for (
-          let attempt = 0;
-          attempt < CHAT_STREAM_MAX_ATTEMPTS;
-          attempt += 1
-        ) {
-          try {
-            await streamEvents();
-            break;
-          } catch (error) {
-            if (
-              terminalEventEmitted ||
-              controller.signal.aborted ||
-              (error instanceof ChatStreamResponseError && !error.retryable)
-            ) {
-              throw error;
-            }
-            lastStreamError = error;
-            if (attempt === CHAT_STREAM_MAX_ATTEMPTS - 1) {
-              throw new Error(
-                `Unable to reconnect to the chat response after ${CHAT_STREAM_MAX_ATTEMPTS - 1} retries. Please try again.`,
-                { cause: lastStreamError },
-              );
-            }
-            await new Promise<void>((resolve) => {
-              setTimeout(resolve, CHAT_STREAM_RETRY_DELAY_MS * (attempt + 1));
-            });
-            if (controller.signal.aborted) throw lastStreamError;
-          }
-        }
+        await followChatEventStream({
+          runtimeUrl: state.url,
+          requestId,
+          after,
+          signal: controller.signal,
+          fetchRuntime: sensitiveFetch,
+          onEvent(frame, id, terminal) {
+            if (terminal) bots?.endRun(botId, requestId);
+            if (!event.sender.isDestroyed())
+              event.sender.send(eventChannels.chatEvent, {
+                requestId,
+                ...(unsafeRequest.botId ? { botId } : {}),
+                ...frame,
+                ...(id === undefined ? {} : { eventId: id }),
+              });
+          },
+        });
       } catch (error) {
-        if (
-          !terminalEventEmitted &&
-          !controller.signal.aborted &&
-          !event.sender.isDestroyed()
-        ) {
+        if (!controller.signal.aborted && !event.sender.isDestroyed()) {
           event.sender.send(eventChannels.chatEvent, {
             requestId,
             ...(unsafeRequest.botId ? { botId } : {}),
             event: "error",
+            transportError: true,
             data: {
               message: error instanceof Error ? error.message : String(error),
             },

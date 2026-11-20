@@ -34,7 +34,6 @@ import {
 import { BotCatalog } from "./bot-catalog";
 import {
   BotConsultationBroker,
-  type BotConsultationDispatchInput,
   effectivePermissions,
 } from "./bot-consultation-broker";
 import {
@@ -42,6 +41,8 @@ import {
   type BoundConversation,
 } from "./bot-conversation-ledger";
 import { BotKnowledgeBroker } from "./bot-knowledge-broker";
+import type { NamedWorkerAccess } from "./bot-process/host-bridge";
+import { createWorkerHostBridge } from "./bot-process/host-bridge";
 import {
   assertClaudeSubscriptionAvailable,
   codexAccountId,
@@ -57,14 +58,7 @@ import {
 import { BotTeamCatalog } from "./bot-team-catalog";
 import { EngineBotBackend } from "./engine-bot-backend";
 import type { DesktopExecutionAdmission } from "./execution-admission";
-import {
-  type ForegroundParentWitness,
-  matchesAutomaticAcpParent,
-  sameExecutionWorkspace,
-} from "./execution-parent-witness";
-import { releaseAbandonedExecutionClaim } from "./execution-receipt";
 import { readBoundedResponseText } from "./ipc/runtime-http";
-import type { WorkerHostHandler } from "./worker-host-rpc";
 
 async function officialTokenResolver(
   provider: "openai-api" | "anthropic-api" | "openai-codex",
@@ -1078,7 +1072,6 @@ export class BotProcessRegistry {
       grant,
       this.target.environment,
     );
-    const foregroundParents = new Map<string, ForegroundParentWitness>();
     const backend = this.createBackend(
       this.target,
       botDataDir,
@@ -1088,22 +1081,12 @@ export class BotProcessRegistry {
         isolatedEnvironment: environment,
         expectedBotId: definition.id,
         expectedAgentId: definition.agentId,
-        workerHostHandler: this.hostHandler(
-          definition,
-          grant,
-          foregroundParents,
-        ),
-        onHostDisconnect: () => {
-          foregroundParents.clear();
-          this.admission?.releaseBot(definition.id);
-        },
-        workerHostOnAbandonedResult: (request, result) =>
-          releaseAbandonedExecutionClaim(
-            this.admission,
-            definition.id,
-            request,
-            result,
-          ),
+        ...createWorkerHostBridge({
+          getRegistry: () => this,
+          admission: this.admission,
+          botId,
+          worker: this.workerAccess(definition, grant, generation),
+        }),
       },
     );
     this.backends.set(botId, backend);
@@ -1261,238 +1244,80 @@ export class BotProcessRegistry {
       throw new Error("The automation bot's connection grant changed.");
   }
 
-  private hostHandler(
+  private workerAccess(
     definition: BotDefinition,
     grant: ProviderGrant,
-    foregroundParents: Map<string, ForegroundParentWitness>,
-  ): WorkerHostHandler {
-    const generation = this.activationGeneration.get(definition.id) ?? 0;
-    return async (request, signal) => {
-      const current = this.catalog.get(definition.id);
-      if (
-        !current ||
-        current.archivedAt ||
-        current.updatedAt !== definition.updatedAt ||
-        (this.activationGeneration.get(definition.id) ?? 0) !== generation
-      ) {
-        throw new Error("The bot configuration changed. Reactivate it.");
-      }
-      const resolveSessionWorkspace = async (sessionId: unknown) => {
-        if (typeof sessionId !== "string")
-          throw new Error("Conversation scope is required.");
-        const owner = await this.resolveVerifiedConversationWorkspace(
-          definition.id,
-          sessionId,
-        );
-        if (signal.aborted) throw new Error("Host request was cancelled.");
-        return owner;
-      };
-      if (request.operation === "workspace.resolve") {
-        const payload = request.payload as {
-          sessionId?: unknown;
-          acpSessionId?: unknown;
-        } | null;
+    generation: number,
+  ): NamedWorkerAccess {
+    return {
+      allowMutation: definition.permissions.allowMutation,
+      assertCurrent: () => {
+        const current = this.catalog.get(definition.id);
         if (
-          !payload ||
-          Object.keys(payload).some(
-            (key) => key !== "sessionId" && key !== "acpSessionId",
-          ) ||
-          (payload.acpSessionId !== undefined &&
-            typeof payload.acpSessionId !== "string")
+          !current ||
+          current.archivedAt ||
+          current.updatedAt !== definition.updatedAt ||
+          (this.activationGeneration.get(definition.id) ?? 0) !== generation
         )
-          throw new Error("Conversation scope request is invalid.");
-        const scope = await resolveSessionWorkspace(payload.sessionId);
-        if (payload.acpSessionId !== undefined) {
-          const owner = this.assertAcpSessionOwner(
-            definition.id,
-            payload.acpSessionId,
+          throw new Error("The bot configuration changed. Reactivate it.");
+      },
+      handleProvider: async (request, signal, resolveWorkspace) => {
+        if (
+          request.operation === "codex.auth" &&
+          grant.kind === "native" &&
+          grant.provider === "openai-codex"
+        ) {
+          const token = await this.tokenResolver(
+            "openai-codex",
+            grant.accountId,
           );
+          if (signal.aborted || !token)
+            throw new Error("The selected Codex account is unavailable.");
+          return { accessToken: token, accountId: codexAccountId(token) };
+        }
+        if (
+          request.operation === "claude.invoke" &&
+          grant.kind === "native" &&
+          grant.provider === "anthropic-subscription"
+        ) {
+          assertClaudeSubscriptionAvailable(
+            grant.accountId,
+            this.subscriptionStatus,
+          );
+          const payload = request.payload;
+          if (!payload || typeof payload !== "object" || Array.isArray(payload))
+            throw new Error("Invalid Claude request.");
+          const input = payload as Record<string, unknown>;
           if (
-            owner.originConversationId !== payload.sessionId ||
-            owner.workspacePath !== scope.workspacePath
-          )
-            throw new Error(
-              "ACP session does not belong to this conversation workspace.",
-            );
-        }
-        return scope;
-      }
-      if (
-        request.operation === "execution.claim" ||
-        request.operation === "execution.release"
-      ) {
-        if (!this.admission) {
-          throw new Error("Global execution admission is unavailable.");
-        }
-        const payload = request.payload as {
-          sessionId?: unknown;
-          runId?: unknown;
-          leaseId?: unknown;
-          parentRunId?: unknown;
-          kind?: unknown;
-          yielding?: unknown;
-        } | null;
-        const scope =
-          request.operation === "execution.claim"
-            ? await resolveSessionWorkspace(payload?.sessionId)
-            : null;
-        const mutationRoot =
-          definition.permissions.allowMutation && scope
-            ? scope.workspacePath
-            : undefined;
-        const parentMatches = (candidate: typeof scope) =>
-          matchesAutomaticAcpParent(
-            payload?.parentRunId,
-            candidate,
-            definition.id,
-            foregroundParents,
-            (runId) => this.conversations.getRun(runId),
-          );
-        if (
-          request.operation === "execution.claim" &&
-          payload?.kind === "automatic-acp" &&
-          !parentMatches(scope)
-        )
-          throw new Error(
-            "An active, matching foreground run is required for ACP execution.",
-          );
-        const effectivePayload =
-          request.operation === "execution.claim"
-            ? this.automations.admission(
-                definition.id,
-                this.consultations.admission(definition.id, request.payload),
-              )
-            : request.payload;
-        const result = await this.admission.handle(
-          definition.id,
-          request.operation,
-          effectivePayload,
-          { mutationRoot },
-          signal,
-        );
-        if (
-          request.operation === "execution.claim" &&
-          (result as { accepted?: boolean }).accepted === true
-        ) {
-          const leaseId = (result as { leaseId: string }).leaseId;
-          try {
-            const fresh = await resolveSessionWorkspace(payload?.sessionId);
-            if (
-              !sameExecutionWorkspace(scope, fresh) ||
-              (this.activationGeneration.get(definition.id) ?? 0) !==
-                generation ||
-              this.catalog.get(definition.id)?.updatedAt !==
-                definition.updatedAt
-            )
-              throw new Error(
-                "Conversation workspace changed while awaiting execution admission.",
-              );
-            if (payload?.kind === "automatic-acp" && !parentMatches(fresh))
-              throw new Error(
-                "The ACP parent run expired while awaiting execution admission.",
-              );
-            if (payload?.kind === "foreground") {
-              if (typeof payload.runId !== "string")
-                throw new Error("Foreground run identity is invalid.");
-              this.bindRun(definition.id, fresh.sessionId, payload.runId);
-              foregroundParents.set(payload.runId, {
-                sessionId: fresh.sessionId,
-                workspacePath: fresh.workspacePath,
-                projectId: fresh.projectId,
-                leaseId,
-              });
-            }
-          } catch (error) {
-            await this.admission.handle(definition.id, "execution.release", {
-              runId: payload?.runId,
-              leaseId,
-            });
-            throw error;
+            typeof input.prompt !== "string" ||
+            input.prompt.length > 250_000 ||
+            typeof input.model !== "string" ||
+            input.model !== resolveClaudeCliModel(definition.model.model) ||
+            typeof input.sessionId !== "string" ||
+            (input.systemPrompt !== undefined &&
+              (typeof input.systemPrompt !== "string" ||
+                input.systemPrompt.length > 100_000)) ||
+            (input.effort !== undefined && typeof input.effort !== "string") ||
+            (input.jsonSchema !== undefined &&
+              (typeof input.jsonSchema !== "object" ||
+                input.jsonSchema === null ||
+                Array.isArray(input.jsonSchema)))
+          ) {
+            throw new Error("Invalid Claude request.");
           }
+          const scope = await resolveWorkspace(input.sessionId);
+          return this.invokeClaudeCli({
+            prompt: input.prompt,
+            model: input.model,
+            systemPrompt: input.systemPrompt as string | undefined,
+            effort: input.effort as string | undefined,
+            jsonSchema: input.jsonSchema as Record<string, unknown> | undefined,
+            cwd: scope.workspacePath,
+            signal,
+          });
         }
-        if (
-          request.operation === "execution.release" &&
-          payload?.yielding !== true &&
-          typeof payload?.runId === "string" &&
-          foregroundParents.get(payload.runId)?.leaseId === payload.leaseId
-        )
-          foregroundParents.delete(payload.runId);
-        return result;
-      }
-      if (request.operation === "consult.dispatch") {
-        return this.consultations.dispatch(
-          definition.id,
-          request.payload as BotConsultationDispatchInput,
-          signal,
-        );
-      }
-      if (
-        request.operation === "consult.wait" ||
-        request.operation === "consult.cancel"
-      ) {
-        const payload = request.payload as { dispatchId?: unknown } | null;
-        if (
-          !payload ||
-          typeof payload.dispatchId !== "string" ||
-          !/^[0-9a-f-]{36}$/iu.test(payload.dispatchId)
-        )
-          throw new Error("Consultation ID is invalid.");
-        return request.operation === "consult.wait"
-          ? this.consultations.wait(definition.id, payload.dispatchId, signal)
-          : this.consultations.cancel(definition.id, payload.dispatchId);
-      }
-      if (
-        request.operation === "codex.auth" &&
-        grant.kind === "native" &&
-        grant.provider === "openai-codex"
-      ) {
-        const token = await this.tokenResolver("openai-codex", grant.accountId);
-        if (signal.aborted || !token)
-          throw new Error("The selected Codex account is unavailable.");
-        return { accessToken: token, accountId: codexAccountId(token) };
-      }
-      if (
-        request.operation === "claude.invoke" &&
-        grant.kind === "native" &&
-        grant.provider === "anthropic-subscription"
-      ) {
-        assertClaudeSubscriptionAvailable(
-          grant.accountId,
-          this.subscriptionStatus,
-        );
-        const payload = request.payload;
-        if (!payload || typeof payload !== "object" || Array.isArray(payload))
-          throw new Error("Invalid Claude request.");
-        const input = payload as Record<string, unknown>;
-        if (
-          typeof input.prompt !== "string" ||
-          input.prompt.length > 250_000 ||
-          typeof input.model !== "string" ||
-          input.model !== resolveClaudeCliModel(definition.model.model) ||
-          typeof input.sessionId !== "string" ||
-          (input.systemPrompt !== undefined &&
-            (typeof input.systemPrompt !== "string" ||
-              input.systemPrompt.length > 100_000)) ||
-          (input.effort !== undefined && typeof input.effort !== "string") ||
-          (input.jsonSchema !== undefined &&
-            (typeof input.jsonSchema !== "object" ||
-              input.jsonSchema === null ||
-              Array.isArray(input.jsonSchema)))
-        ) {
-          throw new Error("Invalid Claude request.");
-        }
-        const scope = await resolveSessionWorkspace(input.sessionId);
-        return this.invokeClaudeCli({
-          prompt: input.prompt,
-          model: input.model,
-          systemPrompt: input.systemPrompt as string | undefined,
-          effort: input.effort as string | undefined,
-          jsonSchema: input.jsonSchema as Record<string, unknown> | undefined,
-          cwd: scope.workspacePath,
-          signal,
-        });
-      }
-      throw new Error("The bot is not approved for this host operation.");
+        throw new Error("The bot is not approved for this host operation.");
+      },
     };
   }
 }
