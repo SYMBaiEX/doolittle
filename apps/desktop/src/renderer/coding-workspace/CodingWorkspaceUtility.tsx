@@ -8,8 +8,12 @@ import { GitBranch, GitCommit, GitFork, SquareTerminal } from "lucide-react";
 import { useId } from "react";
 import type { WorkspacePickResult } from "../../shared/contracts";
 import { ExecutionEnvironmentPanel } from "../components/ExecutionEnvironmentPanel";
-import { GitControlPanel } from "../components/GitControlPanel";
+import {
+  GitControlPanel,
+  type GitControlPanelProps,
+} from "../components/GitControlPanel";
 import { PanelResizeHandle } from "../components/PanelResizeHandle";
+import type { ComputerOrigin } from "../computer-origin";
 import {
   type ApiResource,
   asArray,
@@ -52,6 +56,8 @@ export function CodingWorkspaceUtility({
   commits,
   changes,
   logResource,
+  mutateRepository,
+  origin,
   branchesResource,
   remotesResource,
   stashesResource,
@@ -72,6 +78,8 @@ export function CodingWorkspaceUtility({
   commits: CommitRow[];
   changes: RepositoryChange[];
   logResource: ApiResource<RepositoryLogResponse>;
+  mutateRepository: NonNullable<GitControlPanelProps["mutate"]>;
+  origin: ComputerOrigin;
   branchesResource: ApiResource<RepositoryBranchesResponse>;
   remotesResource: ApiResource<RepositoryRemotesResponse>;
   stashesResource: ApiResource<RepositoryStashesResponse>;
@@ -186,6 +194,7 @@ export function CodingWorkspaceUtility({
               conflictsResource.data?.conflicts,
             )}
             onRefresh={onRefresh}
+            mutate={mutateRepository}
             remotes={records<RepositoryRemote>(remotesResource.data?.remotes)}
             stashes={records<RepositoryStash>(stashesResource.data?.stashes)}
             variant="compact"
@@ -207,6 +216,7 @@ export function CodingWorkspaceUtility({
             onChooseWorkspace={onChooseWorkspace}
             onOpenWorkspacePath={onOpenWorkspacePath}
             onRefresh={onRefresh}
+            origin={origin}
             workspaceRoot={summary.root ?? ""}
             worktrees={worktreeResource.data?.worktrees}
           />

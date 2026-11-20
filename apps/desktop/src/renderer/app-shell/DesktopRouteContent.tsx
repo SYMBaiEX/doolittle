@@ -274,8 +274,7 @@ export function DesktopRouteContent({
             active={active}
             editingLocked={codeEditingLocked}
             key={focusScope}
-            botId={computerOrigin.botId}
-            originConversationId={computerOrigin.originConversationId}
+            origin={computerOrigin}
             focusState={focusForScope?.code}
             onFocusStateChange={(state: CodingWorkspaceFocusState) => {
               const current = routeFocus.get(focusScope) ?? {};
@@ -300,7 +299,6 @@ export function DesktopRouteContent({
             onSurfaceChange={(surface: string) =>
               navigation.setView(surface === "preview" ? "browser" : "code")
             }
-            workspacePath={computerOrigin.workspacePath}
           />
         );
       case "orchestration": {

@@ -4,7 +4,7 @@ import type {
   RepositoryWorkflowRun,
 } from "../../shared/contracts";
 import { asArray, asRecord, asString } from "../lib";
-import type { RepositoryControlChange } from "../repository-control";
+import type { RepositoryChangesResponse } from "../repository-resource-models";
 
 export type {
   RepositoryBranchesResponse,
@@ -42,47 +42,12 @@ export interface ApprovalResponse {
   approvals?: unknown[];
 }
 
-export interface ChangesResponse {
-  changes?: unknown[];
-}
-
 export interface RunsResponse {
   runs?: unknown[];
 }
 
-export interface PatchResponse {
-  patch?: {
-    patch?: string;
-    truncated?: boolean;
-  };
-}
-
 export function recordEventLabel(type: string): string {
   return type.replaceAll("_", " ");
-}
-
-export function gitChanges(
-  value: ChangesResponse | null,
-): RepositoryControlChange[] {
-  return asArray(value?.changes).flatMap((entry) => {
-    const record = asRecord(entry);
-    const path = asString(record.path);
-    if (!path) return [];
-    return [
-      {
-        path,
-        status:
-          `${asString(record.indexStatus)}${asString(record.worktreeStatus)}`.trim(),
-        staged: Boolean(record.staged),
-        unstaged: Boolean(record.unstaged),
-        untracked: Boolean(record.untracked),
-      },
-    ];
-  });
-}
-
-export function gitRecords<T>(value: unknown[] | undefined): T[] {
-  return asArray(value) as T[];
 }
 
 /** Keep local, GitHub check, and workflow status mappings distinct. */
@@ -147,7 +112,7 @@ function compactCommand(command: string): string {
 
 export function reviewItems(
   approvals: ApprovalResponse | null,
-  changes: ChangesResponse | null,
+  changes: RepositoryChangesResponse | null,
   repositoryReview: RepositoryReview | undefined,
 ): ReviewItem[] {
   const approvalItems = asArray(approvals?.approvals).map((value, index) => {

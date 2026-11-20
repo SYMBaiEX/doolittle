@@ -20,6 +20,10 @@ import {
   orchestrationRequests,
 } from "./resource-request-policy";
 import { type DesktopPlatform, workspacePathsEqual } from "./workspace-path";
+import {
+  useWorkspaceResource,
+  workspaceResourceOrigin,
+} from "./workspace-resources";
 
 export type DelegationOverview = {
   total?: number;
@@ -357,16 +361,11 @@ export function useOrchestrationResources(input: {
     hasSelectedWorkflow: Boolean(input.selectedWorkflowId),
     hasSelectedRun: Boolean(input.selectedRunId),
   });
-  const worktreeOrigin =
-    input.computerOrigin &&
-    input.workspacePath &&
-    workspacePathsEqual(
-      input.computerOrigin.workspacePath,
-      input.workspacePath,
-      input.platform,
-    )
-      ? input.computerOrigin
-      : undefined;
+  const worktreeOrigin = workspaceResourceOrigin(
+    input.computerOrigin,
+    input.workspacePath,
+    input.platform,
+  );
   const overviewResource = useApiResource<DelegationOverviewResponse>(
     requestPolicy.overview ? orchestrationResourcePaths.overview : null,
     orchestrationResourceDependencies({
@@ -408,17 +407,8 @@ export function useOrchestrationResources(input: {
       workspacePath: input.workspacePath,
     }),
   );
-  const worktreesResource = useApiResource<RepositoryWorktreesResponse>(
-    requestPolicy.worktrees && worktreeOrigin
-      ? orchestrationResourcePaths.worktrees
-      : null,
-    orchestrationResourceDependencies({
-      enabled: requestPolicy.worktrees,
-      scope: "workspace",
-      projectScope: input.projectScope,
-      workspacePath: input.workspacePath,
-    }),
-    worktreeOrigin?.botId,
+  const worktreesResource = useWorkspaceResource<RepositoryWorktreesResponse>(
+    requestPolicy.worktrees ? orchestrationResourcePaths.worktrees : null,
     worktreeOrigin,
   );
   const plansResource = useApiResource<PlansResponse>(

@@ -133,6 +133,7 @@ export function useApiResource<T>(
   dependencies: DependencyList = [],
   botId?: string,
   origin?: ComputerOrigin,
+  meta?: Record<string, unknown>,
 ) {
   const key = apiResourceCacheKey(
     path,
@@ -150,6 +151,7 @@ export function useApiResource<T>(
     {
       queryKey: [key],
       enabled: key !== null,
+      meta,
       queryFn: ({ signal }) =>
         desktopRequest<T>(
           path ?? "",

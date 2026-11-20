@@ -1,13 +1,22 @@
 import { asArray, asRecord, asString } from "../lib";
+import type { RepositoryChange } from "../repository-resource-models";
 import type { WorkspaceTreeEntry } from "../workspace-file-tree";
 
 export type {
   RepositoryBranchesResponse,
+  RepositoryChange,
+  RepositoryChangesResponse,
   RepositoryConflictsResponse,
+  RepositoryPatchResponse,
   RepositoryRemotesResponse,
   RepositoryStashesResponse,
   RepositoryWorktreesResponse,
   WorkspaceReadResponse,
+} from "../repository-resource-models";
+export {
+  controlChanges,
+  records,
+  toChanges,
 } from "../repository-resource-models";
 
 export interface RepositorySummary {
@@ -24,29 +33,6 @@ export interface RepositorySummary {
 
 export interface RepositorySummaryResponse {
   summary?: RepositorySummary;
-}
-
-export interface RepositoryChange {
-  path: string;
-  previousPath?: string;
-  indexStatus: string;
-  worktreeStatus: string;
-  staged: boolean;
-  unstaged: boolean;
-  untracked: boolean;
-}
-
-export interface RepositoryChangesResponse {
-  changes?: RepositoryChange[];
-}
-
-export interface RepositoryPatchResponse {
-  patch?: {
-    path?: string;
-    staged?: boolean;
-    patch?: string;
-    truncated?: boolean;
-  };
 }
 
 export interface WorkspaceTreeResponse {
@@ -107,47 +93,6 @@ export function fileName(path: string): string {
 export function boundedContext(value: string, limit = 12_000): string {
   if (value.length <= limit) return value;
   return `${value.slice(0, limit)}\n[…context truncated by Doolittle…]`;
-}
-
-export function toChanges(
-  value: RepositoryChangesResponse | null,
-): RepositoryChange[] {
-  return asArray(value?.changes)
-    .map((item): RepositoryChange | null => {
-      const record = asRecord(item);
-      const path = asString(record.path);
-      if (!path) return null;
-      return {
-        path,
-        previousPath: asString(record.previousPath) || undefined,
-        indexStatus: asString(record.indexStatus, " "),
-        worktreeStatus: asString(record.worktreeStatus, " "),
-        staged: Boolean(record.staged),
-        unstaged: Boolean(record.unstaged),
-        untracked: Boolean(record.untracked),
-      };
-    })
-    .filter((item): item is RepositoryChange => item !== null);
-}
-
-export function controlChanges(changes: readonly RepositoryChange[]): Array<{
-  path: string;
-  status: string;
-  staged: boolean;
-  unstaged: boolean;
-  untracked: boolean;
-}> {
-  return changes.map((change) => ({
-    path: change.path,
-    status: `${change.indexStatus}${change.worktreeStatus}`.trim(),
-    staged: change.staged,
-    unstaged: change.unstaged,
-    untracked: change.untracked,
-  }));
-}
-
-export function records<T>(value: unknown[] | undefined): T[] {
-  return asArray(value) as T[];
 }
 
 export function toSearchResult(value: unknown): SearchResult | null {

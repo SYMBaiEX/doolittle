@@ -2,6 +2,7 @@ import { Button } from "@elizaos/ui/button";
 import { Input } from "@elizaos/ui/input";
 import { type FormEvent, useMemo, useState } from "react";
 import type { WorkspacePickResult } from "../../shared/contracts";
+import type { ComputerOrigin } from "../computer-origin";
 import {
   asArray,
   asRecord,
@@ -11,6 +12,7 @@ import {
   errorMessage,
 } from "../lib";
 import { compactWorkspacePath } from "../workspace-path";
+import { workspaceMutationRequest } from "../workspace-resources";
 import {
   EXECUTION_CARD_CLASS,
   EXECUTION_DESCRIPTION_CLASS,
@@ -79,6 +81,7 @@ export function ExecutionEnvironmentPanel({
   onChooseWorkspace,
   onOpenWorkspacePath,
   onRefresh,
+  origin,
 }: {
   active: boolean;
   isRepository: boolean;
@@ -89,6 +92,7 @@ export function ExecutionEnvironmentPanel({
   onChooseWorkspace: () => Promise<WorkspacePickResult>;
   onOpenWorkspacePath: (path: string) => Promise<WorkspacePickResult>;
   onRefresh: () => void;
+  origin: ComputerOrigin;
 }) {
   const [branch, setBranch] = useState("");
   const [path, setPath] = useState("");
@@ -165,10 +169,12 @@ export function ExecutionEnvironmentPanel({
         "Review the branch and contained path in the native confirmation dialog.",
     });
     try {
-      const result = await window.doolittle.createWorktree({
-        branch: nextBranch,
-        path: nextPath,
-      });
+      const result = await window.doolittle.createWorktree(
+        workspaceMutationRequest(
+          { branch: nextBranch, path: nextPath },
+          origin,
+        ),
+      );
       if (result.status === "cancelled") {
         setNotice({
           tone: "neutral",

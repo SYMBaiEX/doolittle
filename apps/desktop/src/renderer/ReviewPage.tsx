@@ -1,6 +1,7 @@
 import type {
   RepositoryBranch,
   RepositoryConflict,
+  RepositoryMutationRequest,
   RepositoryRemote,
   RepositoryStash,
 } from "@doolittle/contracts/repository";
@@ -21,21 +22,17 @@ import {
   Notice,
   useApiResource,
 } from "./lib";
+import {
+  controlChanges,
+  records,
+  toChanges,
+} from "./repository-resource-models";
 import { reviewRequests } from "./resource-request-policy";
 import { REVIEW_PAGE_CLASS, REVIEW_WORKSPACE_CLASS } from "./review/layout";
 import {
   type ApprovalResponse,
-  type ChangesResponse,
   checkDisplayStatus,
   filterReviewItems,
-  gitChanges,
-  gitRecords,
-  type PatchResponse,
-  type RepositoryBranchesResponse,
-  type RepositoryConflictsResponse,
-  type RepositoryRemotesResponse,
-  type RepositoryStashesResponse,
-  type RepositoryWorktreesResponse,
   type ReviewFilter,
   type RunsResponse,
   reviewItems,
@@ -58,7 +55,14 @@ import {
   saveReviewComments,
 } from "./review-comments";
 import { reviewWorkState } from "./review-work-state";
-import { workspacePathsEqual } from "./workspace-path";
+import {
+  refreshWorkspaceResources,
+  useRepositoryPatch,
+  useRepositoryResources,
+  useWorkspaceResource,
+  workspaceMutationRequest,
+  workspaceResourceOrigin,
+} from "./workspace-resources";
 
 export function reviewWorkspaceScopeKey(
   workspacePath: string,
@@ -72,16 +76,6 @@ export function reviewWorkspaceScopeKey(
     origin?.originConversationId ?? "",
     origin?.workspacePath ?? "",
   ]);
-}
-
-export function reviewPatchResourceDependencies(
-  active: boolean,
-  scopeKey: string,
-  selectedId?: string,
-  selectedPath?: string,
-  staged = false,
-): readonly unknown[] {
-  return [active, scopeKey, selectedId ?? "", selectedPath ?? "", staged];
 }
 
 export function shouldShowReviewWorkspace(itemCount: number): boolean {
@@ -111,15 +105,12 @@ export function ReviewPage({
     projectScope,
     computerOrigin,
   );
-  const repositoryEnabled = Boolean(
-    computerOrigin &&
-      workspacePath &&
-      workspacePathsEqual(
-        computerOrigin.workspacePath,
-        workspacePath,
-        window.doolittle.platform,
-      ),
+  const repositoryOrigin = workspaceResourceOrigin(
+    computerOrigin,
+    workspacePath,
+    window.doolittle.platform,
   );
+  const repositoryEnabled = Boolean(repositoryOrigin);
   const [filter, setFilter] = useState<ReviewFilter>("all");
   const [query, setQuery] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
@@ -149,56 +140,25 @@ export function ReviewPage({
     computerOrigin?.botId,
     computerOrigin,
   );
-  const changes = useApiResource<ChangesResponse>(
-    requestPolicy.primary && repositoryEnabled ? "/repo/changes" : null,
-    [requestPolicy.primary, scopeKey],
-    computerOrigin?.botId,
-    computerOrigin,
-  );
-  const branches = useApiResource<RepositoryBranchesResponse>(
-    requestPolicy.sourceControl && repositoryEnabled ? "/repo/branches" : null,
-    [requestPolicy.sourceControl, scopeKey],
-    computerOrigin?.botId,
-    computerOrigin,
-  );
-  const remotes = useApiResource<RepositoryRemotesResponse>(
-    requestPolicy.sourceControl && repositoryEnabled ? "/repo/remotes" : null,
-    [requestPolicy.sourceControl, scopeKey],
-    computerOrigin?.botId,
-    computerOrigin,
-  );
-  const stashes = useApiResource<RepositoryStashesResponse>(
-    requestPolicy.sourceControl && repositoryEnabled ? "/repo/stashes" : null,
-    [requestPolicy.sourceControl, scopeKey],
-    computerOrigin?.botId,
-    computerOrigin,
-  );
-  const conflicts = useApiResource<RepositoryConflictsResponse>(
-    requestPolicy.sourceControl && repositoryEnabled ? "/repo/conflicts" : null,
-    [requestPolicy.sourceControl, scopeKey],
-    computerOrigin?.botId,
-    computerOrigin,
-  );
-  const worktrees = useApiResource<RepositoryWorktreesResponse>(
-    requestPolicy.sourceControl && repositoryEnabled ? "/repo/worktrees" : null,
-    [requestPolicy.sourceControl, scopeKey],
-    computerOrigin?.botId,
-    computerOrigin,
-  );
+  const { branches, changes, conflicts, remotes, stashes, worktrees } =
+    useRepositoryResources({
+      origin: repositoryOrigin,
+      changes: requestPolicy.primary,
+      sourceControl: requestPolicy.sourceControl,
+      worktrees: requestPolicy.sourceControl,
+    });
   const runs = useApiResource<RunsResponse>(
     requestPolicy.primary ? "/codegen/runs" : null,
     [requestPolicy.primary, scopeKey],
     computerOrigin?.botId,
     computerOrigin,
   );
-  const repositoryReview = useApiResource<RepositoryReviewResponse>(
-    requestPolicy.primary && repositoryEnabled ? "/repo/review" : null,
-    [requestPolicy.primary, scopeKey],
-    computerOrigin?.botId,
-    computerOrigin,
+  const repositoryReview = useWorkspaceResource<RepositoryReviewResponse>(
+    requestPolicy.primary ? "/repo/review" : null,
+    repositoryOrigin,
   );
   const branchRecord = useApiResource<ReviewRecordResponse>(
-    requestPolicy.primary && repositoryEnabled
+    requestPolicy.primary && repositoryOrigin
       ? "/review-record?limit=80"
       : null,
     [requestPolicy.primary, scopeKey],
@@ -234,21 +194,10 @@ export function ReviewPage({
     visibleItems.find((item) => item.id === selectedId) ?? visibleItems[0];
   const activeCommentTarget =
     commentTarget?.path === selected?.path ? commentTarget : null;
-  const patch = useApiResource<PatchResponse>(
-    active && repositoryEnabled && selected?.kind === "changes" && selected.path
-      ? `/repo/patch?path=${encodeURIComponent(selected.path)}&staged=${
-          selected.status === "staged"
-        }`
-      : null,
-    reviewPatchResourceDependencies(
-      active,
-      scopeKey,
-      selected?.id,
-      selected?.path,
-      selected?.status === "staged",
-    ),
-    computerOrigin?.botId,
-    computerOrigin,
+  const patch = useRepositoryPatch(
+    active && selected?.kind === "changes" ? selected.path : undefined,
+    selected?.status === "staged",
+    repositoryOrigin,
   );
   const pendingCount = items.filter(
     (item) => item.kind === "approvals" && item.status === "pending",
@@ -263,7 +212,8 @@ export function ReviewPage({
     },
     { passing: 0, failing: 0, pending: 0 },
   );
-  const changedFileCount = gitChanges(changes.data).length;
+  const changedFiles = controlChanges(toChanges(changes.data));
+  const changedFileCount = changedFiles.length;
   const agentRunCount = asArray(runs.data?.runs).length;
   const workState = reviewWorkState({
     failingChecks: checkSummary.failing,
@@ -397,20 +347,14 @@ export function ReviewPage({
   const reload = () => {
     if (!active) return;
     approvals.reload();
-    changes.reload();
     runs.reload();
-    repositoryReview.reload();
     branchRecord.reload();
-    if (requestPolicy.sourceControl) {
-      branches.reload();
-      remotes.reload();
-      stashes.reload();
-      conflicts.reload();
-      worktrees.reload();
-    }
-    if (selected?.kind === "changes") patch.reload();
+    void refreshWorkspaceResources(repositoryOrigin);
   };
-
+  const mutateRepository = (request: RepositoryMutationRequest) =>
+    window.doolittle.mutateRepository(
+      workspaceMutationRequest(request, repositoryOrigin),
+    );
   const persistComments = (nextComments: ReviewComment[]) => {
     setComments(nextComments);
     return saveReviewComments(
@@ -452,7 +396,7 @@ export function ReviewPage({
   };
 
   const saveComment = async () => {
-    if (!active || !repositoryEnabled || !commentTarget || !commentDraft.trim())
+    if (!active || !repositoryOrigin || !commentTarget || !commentDraft.trim())
       return;
     const now = new Date().toISOString();
     if (editingCommentId) {
@@ -512,7 +456,7 @@ export function ReviewPage({
   };
 
   const toggleCommentResolved = async (commentId: string) => {
-    if (!active || !repositoryEnabled) return;
+    if (!active || !repositoryOrigin) return;
     const now = new Date().toISOString();
     const selectedComment = comments.find(
       (comment) => comment.id === commentId,
@@ -549,7 +493,7 @@ export function ReviewPage({
   };
 
   const deleteComment = async (commentId: string) => {
-    if (!active || !repositoryEnabled) return;
+    if (!active || !repositoryOrigin) return;
     try {
       applyDurableRecord(
         await desktopRequest<ReviewRecordResponse>(
@@ -572,7 +516,7 @@ export function ReviewPage({
   };
 
   const sendReviewFeedback = async () => {
-    if (!active || !repositoryEnabled || openCommentCount === 0) return;
+    if (!active || !repositoryOrigin || openCommentCount === 0) return;
     onSendToChat({
       text: compileReviewFeedback({
         identity: commentIdentity,
@@ -685,7 +629,7 @@ export function ReviewPage({
           Durable review notes are unavailable: {branchRecord.error}
         </Notice>
       ) : null}
-      {!repositoryEnabled ? (
+      {!repositoryOrigin ? (
         <Notice tone="warn">
           Repository review is unavailable until this project has a confirmed
           chat and workspace origin.
@@ -703,29 +647,30 @@ export function ReviewPage({
         workState={workState}
       />
       <ReviewEvidence
-        active={active}
+        active={active && repositoryEnabled}
         agentRunCount={agentRunCount}
         branchEvents={branchEvents}
         branchRecordError={branchRecord.error}
         branchScope={branchScope}
-        branches={gitRecords<RepositoryBranch>(branches.data?.branches)}
+        branches={records<RepositoryBranch>(branches.data?.branches)}
         changedFileCount={changedFileCount}
-        changes={gitChanges(changes.data)}
+        changes={changedFiles}
         checkSummary={checkSummary}
-        conflicts={gitRecords<RepositoryConflict>(conflicts.data?.conflicts)}
+        conflicts={records<RepositoryConflict>(conflicts.data?.conflicts)}
         evidenceOpen={evidenceOpen}
         onEvidenceOpenChange={(open) => {
           setEvidenceOpen(open);
           if (!open) setSourceControlOpen(false);
         }}
+        mutateRepository={mutateRepository}
         onRefresh={reload}
         onSourceControlOpenChange={setSourceControlOpen}
         openCommentCount={openCommentCount}
         pendingCount={pendingCount}
-        remotes={gitRecords<RepositoryRemote>(remotes.data?.remotes)}
+        remotes={records<RepositoryRemote>(remotes.data?.remotes)}
         repositoryReviewError={repositoryReview.error}
         review={review}
-        stashes={gitRecords<RepositoryStash>(stashes.data?.stashes)}
+        stashes={records<RepositoryStash>(stashes.data?.stashes)}
         sourceControlErrorCount={
           [
             branches.error,
@@ -743,7 +688,7 @@ export function ReviewPage({
           worktrees.loading
         }
         sourceControlOpen={sourceControlOpen}
-        worktrees={gitRecords<{
+        worktrees={records<{
           path: string;
           branch?: string;
           current?: boolean;

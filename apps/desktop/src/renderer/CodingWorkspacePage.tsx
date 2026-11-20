@@ -32,15 +32,8 @@ import {
   type EditorPane,
   EMPTY_SUMMARY,
   type LeftPane,
-  type RepositoryBranchesResponse,
-  type RepositoryChangesResponse,
-  type RepositoryConflictsResponse,
   type RepositoryLogResponse,
-  type RepositoryPatchResponse,
-  type RepositoryRemotesResponse,
-  type RepositoryStashesResponse,
   type RepositorySummaryResponse,
-  type RepositoryWorktreesResponse,
   toChanges,
   toSearchResult,
   type UtilityPane,
@@ -50,6 +43,7 @@ import {
 } from "./coding-workspace/models";
 import type { CodeEditorStateSnapshot } from "./components/CodeEditor";
 import { OfflineRouteState } from "./components/OfflineRouteState";
+import type { ComputerOrigin } from "./computer-origin";
 import { useDesktopAcpEditorBridge } from "./desktop-acp-client";
 import type { DesktopNavigationIntent } from "./desktop-navigation-intent";
 import {
@@ -60,7 +54,6 @@ import {
   EmptyBlock,
   errorMessage,
   PageHeader,
-  useApiResource as useApplicationResource,
 } from "./lib";
 import type { ProjectScope } from "./project-manager/models";
 import { codingWorkspaceRequests } from "./resource-request-policy";
@@ -71,14 +64,13 @@ import {
   saveCodeWorkspaceLayout,
 } from "./workspace-layout-state";
 
-/** Keep cached coding resources isolated when the runtime workspace changes. */
-export function codingWorkspaceResourceDependencies(
-  enabled: boolean,
-  workspacePath: string,
-  ...dependencies: readonly unknown[]
-): readonly unknown[] {
-  return [enabled, workspacePath, ...dependencies];
-}
+import {
+  refreshWorkspaceResources,
+  useRepositoryPatch,
+  useRepositoryResources,
+  useWorkspaceResource,
+  workspaceMutationRequest,
+} from "./workspace-resources";
 
 export function CodingWorkspacePage({
   active,
@@ -95,9 +87,7 @@ export function CodingWorkspacePage({
   projectScope,
   surface,
   onSurfaceChange,
-  workspacePath,
-  botId,
-  originConversationId,
+  origin: resourceOrigin,
 }: {
   active: boolean;
   editingLocked: boolean;
@@ -113,14 +103,9 @@ export function CodingWorkspacePage({
   projectScope: ProjectScope;
   surface: CodeSurface;
   onSurfaceChange: (surface: CodeSurface) => void;
-  workspacePath: string;
-  botId?: string;
-  originConversationId?: string;
+  origin: ComputerOrigin;
 }) {
-  const resourceOrigin =
-    botId && originConversationId
-      ? { botId, originConversationId, workspacePath }
-      : undefined;
+  const { botId, originConversationId, workspacePath } = resourceOrigin;
   // DesktopRouteContent keys this editor by its workspace and conversation owner.
   const [layout, setLayout] = useState(() =>
     loadCodeWorkspaceLayout(localStorage, workspacePath),
@@ -228,82 +213,35 @@ export function CodingWorkspacePage({
     utilityPane,
   ]);
 
-  const summaryResource = useApplicationResource<RepositorySummaryResponse>(
+  const {
+    changes: changesResource,
+    branches: branchesResource,
+    conflicts: conflictsResource,
+    remotes: remotesResource,
+    stashes: stashesResource,
+    worktrees: worktreeResource,
+  } = useRepositoryResources({
+    origin: resourceOrigin,
+    changes: requestPolicy.changes,
+    sourceControl: requestPolicy.sourceControl,
+    worktrees: requestPolicy.worktrees,
+  });
+  const summaryResource = useWorkspaceResource<RepositorySummaryResponse>(
     requestPolicy.summary ? "/repo/summary" : null,
-    codingWorkspaceResourceDependencies(requestPolicy.summary, workspacePath),
-    botId,
     resourceOrigin,
   );
-  const treeResource = useApplicationResource<WorkspaceTreeResponse>(
+  const treeResource = useWorkspaceResource<WorkspaceTreeResponse>(
     requestPolicy.tree ? "/workspace/tree?depth=12" : null,
-    codingWorkspaceResourceDependencies(requestPolicy.tree, workspacePath),
-    botId,
     resourceOrigin,
   );
-  const changesResource = useApplicationResource<RepositoryChangesResponse>(
-    requestPolicy.changes ? "/repo/changes" : null,
-    codingWorkspaceResourceDependencies(requestPolicy.changes, workspacePath),
-    botId,
-    resourceOrigin,
-  );
-  const logResource = useApplicationResource<RepositoryLogResponse>(
+  const logResource = useWorkspaceResource<RepositoryLogResponse>(
     requestPolicy.log ? "/repo/log" : null,
-    codingWorkspaceResourceDependencies(requestPolicy.log, workspacePath),
-    botId,
     resourceOrigin,
   );
-  const worktreeResource = useApplicationResource<RepositoryWorktreesResponse>(
-    requestPolicy.worktrees ? "/repo/worktrees" : null,
-    codingWorkspaceResourceDependencies(requestPolicy.worktrees, workspacePath),
-    botId,
-    resourceOrigin,
-  );
-  const branchesResource = useApplicationResource<RepositoryBranchesResponse>(
-    requestPolicy.sourceControl ? "/repo/branches" : null,
-    codingWorkspaceResourceDependencies(
-      requestPolicy.sourceControl,
-      workspacePath,
-    ),
-    botId,
-    resourceOrigin,
-  );
-  const remotesResource = useApplicationResource<RepositoryRemotesResponse>(
-    requestPolicy.sourceControl ? "/repo/remotes" : null,
-    codingWorkspaceResourceDependencies(
-      requestPolicy.sourceControl,
-      workspacePath,
-    ),
-    botId,
-    resourceOrigin,
-  );
-  const stashesResource = useApplicationResource<RepositoryStashesResponse>(
-    requestPolicy.sourceControl ? "/repo/stashes" : null,
-    codingWorkspaceResourceDependencies(
-      requestPolicy.sourceControl,
-      workspacePath,
-    ),
-    botId,
-    resourceOrigin,
-  );
-  const conflictsResource = useApplicationResource<RepositoryConflictsResponse>(
-    requestPolicy.sourceControl ? "/repo/conflicts" : null,
-    codingWorkspaceResourceDependencies(
-      requestPolicy.sourceControl,
-      workspacePath,
-    ),
-    botId,
-    resourceOrigin,
-  );
-  const searchResource = useApplicationResource<WorkspaceSearchResponse>(
+  const searchResource = useWorkspaceResource<WorkspaceSearchResponse>(
     requestPolicy.search
       ? `/workspace/search?query=${encodeURIComponent(searchQuery)}`
       : null,
-    codingWorkspaceResourceDependencies(
-      requestPolicy.search,
-      workspacePath,
-      searchQuery,
-    ),
-    botId,
     resourceOrigin,
   );
 
@@ -341,30 +279,15 @@ export function CodingWorkspacePage({
     () => detectCodeLanguage(selectedPath),
     [selectedPath],
   );
-  const fileResource = useApplicationResource<WorkspaceReadResponse>(
+  const fileResource = useWorkspaceResource<WorkspaceReadResponse>(
     requestPolicy.file
       ? `/workspace/read?path=${encodeURIComponent(selectedPath)}`
       : null,
-    codingWorkspaceResourceDependencies(
-      requestPolicy.file,
-      workspacePath,
-      selectedPath,
-    ),
-    botId,
     resourceOrigin,
   );
-  const patchResource = useApplicationResource<RepositoryPatchResponse>(
-    requestPolicy.patch && selectedChange
-      ? `/repo/patch?path=${encodeURIComponent(selectedPath)}&staged=${stagedPatch}`
-      : null,
-    codingWorkspaceResourceDependencies(
-      requestPolicy.patch,
-      workspacePath,
-      selectedPath,
-      stagedPatch,
-      selectedChange?.path,
-    ),
-    botId,
+  const patchResource = useRepositoryPatch(
+    requestPolicy.patch && selectedChange ? selectedPath : undefined,
+    stagedPatch,
     resourceOrigin,
   );
   const summary = summaryResource.data?.summary ?? EMPTY_SUMMARY;
@@ -485,20 +408,12 @@ export function CodingWorkspacePage({
   }, [active, toggleLayout]);
 
   const refreshAll = () => {
-    if (!active) return;
-    summaryResource.reload();
-    treeResource.reload();
-    changesResource.reload();
-    logResource.reload();
-    worktreeResource.reload();
-    branchesResource.reload();
-    remotesResource.reload();
-    stashesResource.reload();
-    conflictsResource.reload();
-    if (searchQuery) searchResource.reload();
-    if (selectedPath) fileResource.reload();
-    if (selectedChange) patchResource.reload();
+    if (active) void refreshWorkspaceResources(resourceOrigin);
   };
+  const mutateRepository = (request: RepositoryMutationRequest) =>
+    window.doolittle.mutateRepository(
+      workspaceMutationRequest(request, resourceOrigin),
+    );
 
   const submitSearch = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -549,14 +464,11 @@ export function CodingWorkspacePage({
           baseline: draftContent,
           content: draftContent,
         });
-        fileResource.reload();
         setFileNotice({
           tone: "good",
           message: "Saved after native confirmation.",
         });
-        summaryResource.reload();
-        changesResource.reload();
-        patchResource.reload();
+        refreshAll();
       }
     } catch (error) {
       setFileNotice({ tone: "bad", message: errorMessage(error) });
@@ -579,13 +491,7 @@ export function CodingWorkspacePage({
       message: "Review the selected patch operation in the native dialog.",
     });
     try {
-      const result = await window.doolittle.mutateRepository({
-        botId,
-        originConversationId,
-        workspacePath,
-        type,
-        patch: patch.patch,
-      });
+      const result = await mutateRepository({ type, patch: patch.patch });
       if (result.status === "cancelled") {
         setFileNotice({ tone: "neutral", message: "Git operation cancelled." });
         return;
@@ -805,6 +711,8 @@ export function CodingWorkspacePage({
             conflictsResource={conflictsResource}
             commits={commits}
             logResource={logResource}
+            mutateRepository={mutateRepository}
+            origin={resourceOrigin}
             onChooseWorkspace={onChooseWorkspace}
             onOpenWorkspacePath={onOpenWorkspacePath}
             onOpenTerminal={onOpenChatTerminal}
@@ -834,15 +742,13 @@ export function CodingWorkspacePage({
         <BrowserPage
           botId={botId}
           active={active && surface === "preview"}
+          origin={resourceOrigin}
           onSendToChat={(text) => {
             onSendToChat({
               text,
               workspacePath,
               projectScope,
-              origin:
-                botId && originConversationId
-                  ? { botId, originConversationId, workspacePath }
-                  : undefined,
+              origin: resourceOrigin,
             });
             return true;
           }}

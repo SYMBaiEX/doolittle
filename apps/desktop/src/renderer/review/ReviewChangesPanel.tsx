@@ -1,6 +1,7 @@
 import type { RefObject } from "react";
 import type { ApiResource } from "../lib";
 import { EmptyBlock, ErrorBlock, LoadingBlock } from "../lib";
+import type { RepositoryPatchResponse } from "../repository-resource-models";
 import {
   parseReviewPatchLines,
   type ReviewComment,
@@ -12,7 +13,7 @@ import {
   REVIEW_PATCH_GUTTER_CLASS,
   reviewPatchLineClass,
 } from "./layout";
-import type { PatchResponse, ReviewItem } from "./models";
+import type { ReviewItem } from "./models";
 import {
   ReviewCommentsPanel,
   type ReviewCommentTarget,
@@ -21,7 +22,7 @@ import {
 export interface ReviewChangesPanelProps {
   contextScope?: string;
   selected: ReviewItem;
-  patch: ApiResource<PatchResponse>;
+  patch: ApiResource<RepositoryPatchResponse>;
   selectedPathComments: ReviewComment[];
   activeCommentTarget: ReviewCommentTarget | null;
   commentDraft: string;

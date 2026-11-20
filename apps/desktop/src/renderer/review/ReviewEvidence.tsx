@@ -6,7 +6,10 @@ import type {
 } from "@doolittle/contracts/repository";
 import { ChevronRight } from "lucide-react";
 import type { RepositoryReview } from "../../shared/contracts";
-import { GitControlPanel } from "../components/GitControlPanel";
+import {
+  GitControlPanel,
+  type GitControlPanelProps,
+} from "../components/GitControlPanel";
 import { GitHubPullRequestPanel } from "../components/GitHubPullRequestPanel";
 import { UiIcon } from "../components/UiIcon";
 import { LoadingBlock, Notice } from "../lib";
@@ -27,6 +30,7 @@ export interface ReviewEvidenceProps {
   active: boolean;
   review?: RepositoryReview;
   repositoryReviewError: string;
+  mutateRepository: NonNullable<GitControlPanelProps["mutate"]>;
   onRefresh: () => void;
   branchScope?: ReviewRecordSnapshot["scope"];
   branchEvents: ReviewRecordEvent[];
@@ -59,6 +63,7 @@ export function ReviewEvidence({
   active,
   review,
   repositoryReviewError,
+  mutateRepository,
   onRefresh,
   branchScope,
   branchEvents,
@@ -111,6 +116,7 @@ export function ReviewEvidence({
           ) : (
             <GitHubPullRequestPanel
               active={active}
+              mutate={mutateRepository}
               onRefresh={onRefresh}
               review={review}
             />
@@ -155,6 +161,7 @@ export function ReviewEvidence({
                     branches={branches}
                     changes={changes}
                     conflicts={conflicts}
+                    mutate={mutateRepository}
                     onRefresh={onRefresh}
                     remotes={remotes}
                     stashes={stashes}
