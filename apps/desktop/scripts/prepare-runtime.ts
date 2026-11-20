@@ -30,7 +30,10 @@ const repoRequire = createRequire(resolve(repoRoot, "package.json"));
 // Qualify the real published CJS entrypoints before producing the artifact.
 import.meta.resolve("chromium-bidi/lib/cjs/bidiMapper/BidiMapper");
 import.meta.resolve("chromium-bidi/lib/cjs/cdp/CdpConnection");
-const outputDir = resolve(desktopRoot, "build", "runtime");
+const standaloneNode = process.argv.includes("--standalone-node");
+const outputDir = standaloneNode
+  ? resolve(repoRoot, "target", "native-runtime")
+  : resolve(desktopRoot, "build", "runtime");
 const outputPath = resolve(outputDir, "doolittle-runtime.mjs");
 const acpOutputPath = resolve(outputDir, "doolittle-acp.mjs");
 const runtimeNodeModulesDir = resolve(outputDir, "node_modules");
@@ -212,7 +215,7 @@ const thirdPartyNotices = {
 };
 
 // Source entrypoints use `#!/usr/bin/env nub` for source-checkout launches.
-// Packaged apps execute these bundles through Electron's embedded Node, so
+// Packaged apps execute these bundles with a Node host, so
 // retaining that source-only launcher hint is misleading and unnecessary.
 const bundledEntries = [outputPath, acpOutputPath].map((entry) => {
   const bundle = readFileSync(entry, "utf8");
@@ -256,7 +259,7 @@ writeFileSync(
       runtime: "node",
       entry: basename(outputPath),
       acpEntry: basename(acpOutputPath),
-      node: "electron-embedded",
+      node: standaloneNode ? process.versions.node : "electron-embedded",
       assets: [...new Set(tracedSdk.files)].sort((a, b) => a.localeCompare(b)),
       tracedPackages: tracedSdk.packages,
       nativeEntryPackages: [...nativeExternalPackages].sort(),

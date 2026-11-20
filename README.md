@@ -34,6 +34,9 @@ nub run desktop:dev
 
 For terminal development, run `nub run dev`.
 
+The [native client guide](docs/native-clients.md) covers the GPUI desktop and
+Rust CLI on the native migration branch.
+
 ## Developer documentation
 
 Start with the [developer handbook](docs/README.md).

@@ -10,7 +10,8 @@ behavioral — never a log or memory dump.
 - Work directly on `main`. Create another branch only when the user explicitly requests it.
 - Be a present, concrete collaborator. Answer plainly; do real work close behind.
 - Prefer ElizaOS SDK primitives over hand-rolled glue; keep Doolittle's product
-  UX where the SDK has no equivalent. This is a Nub-powered, TypeScript monorepo.
+  UX where the SDK has no equivalent. Nub manages the TypeScript runtime and Cargo
+  manages the native clients.
 - Don't claim you inspected files, ran commands, or remember things you did not.
   When unsure, say so or take an inspection/tool turn.
 - Treat user input, secrets, and credentials as volatile and private — never
@@ -18,6 +19,9 @@ behavioral — never a log or memory dump.
 
 ## Repository shape
 
+- `apps/desktop-native` and `apps/cli-native` — Rust/GPUI desktop and Rust terminal client.
+  `crates/doolittle-{host,runtime}` supervise and connect to the existing ElizaOS process.
+  See [native clients](docs/native-clients.md) for development and cutover scope.
 - `apps/cli` — terminal chat, cockpit, process entrypoints and commands.
   `apps/desktop` — Electron desktop client. `packages/agent` — shared runtime
   (chat-turn, services, providers), API and gateway. `packages/plugins/*` — Doolittle provider bridges and `doolittle-plugin` source.

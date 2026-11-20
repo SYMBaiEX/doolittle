@@ -86,7 +86,7 @@
     "native:status": "nub apps/cli/src/index.ts native status",
     "native:coverage": "nub apps/cli/src/index.ts native coverage",
     "native:build": "nub apps/cli/src/index.ts native build",
-    "native:test": "nub run native:build && nub scripts/test-native-probe.ts",
+    "native:test": "cargo test --workspace --locked",
     "native:verify": "nub run native:coverage && nub run native:test",
     "desktop:dev": "nub run --cwd apps/desktop dev",
     "desktop:build": "nub run --cwd apps/desktop build",
@@ -158,7 +158,11 @@
     "test:dev:desktop": "nubx playwright test --config playwright.dev.config.ts",
     "sdk:source:build": "nub scripts/build-eliza-source.ts",
     "sdk:source:prepare": "nub scripts/prepare-eliza-source.ts",
-    "deps:install": "nub scripts/prepare-eliza-source.ts --install"
+    "deps:install": "nub scripts/prepare-eliza-source.ts --install",
+    "native:dev": "nub run cli:build && cargo run --locked -p doolittle-desktop --",
+    "native:chat": "nub run cli:build && cargo run --locked -p doolittle-cli-native --",
+    "native:check": "cargo check --workspace --locked",
+    "native:package:mac": "nub scripts/package-native-desktop.ts"
   },
   "overrides": {
     "@elizaos/agent": "workspace:2.0.5",
