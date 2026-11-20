@@ -16,7 +16,7 @@ signing have additional platform requirements described in [releases](releases.m
 ## Install
 
 The source installer installs dependencies, initializes local configuration,
-and runs onboarding:
+and runs CLI onboarding:
 
 ```sh
 bash scripts/install.sh
@@ -27,6 +27,10 @@ On Windows, use PowerShell:
 ```powershell
 pwsh scripts/install.ps1
 ```
+
+Include `--desktop` on macOS or Linux or `-Desktop` on Windows to install the
+Electron runtime during setup. You can also install it later with
+`nub run desktop:runtime:install` before developing or packaging the desktop app.
 
 For an existing toolchain, install the exact dependency graph directly:
 
@@ -47,8 +51,10 @@ Inspect bootstrap prerequisites without applying onboarding changes:
 nub run bootstrap:check
 ```
 
-The installer also supports `--headless`, `--skip-wizard`, and `--check`; inspect
-[`scripts/install.sh`](../scripts/install.sh) before using these in automation.
+The installer also supports `--headless`, `--skip-wizard`, and `--check`.
+On a clean checkout, `--check` validates the host toolchain and reports missing
+dependencies. With dependencies installed, it also previews configuration.
+See [`scripts/install.sh`](../scripts/install.sh) for automation options.
 
 ## Configure a provider
 

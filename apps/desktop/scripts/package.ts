@@ -1,4 +1,3 @@
-import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
   existsSync,
@@ -12,11 +11,14 @@ import { fileURLToPath } from "node:url";
 import { prepareDesktopArtifact } from "./desktop-artifact";
 import { desktopSbomName } from "./desktop-sbom";
 import {
+  buildDesktopPackageInputs,
   macAppBundlePath,
+  packageBuilderArgs,
   type ReleaseTarget,
   releaseTargetReceipt,
   releaseTargets,
   resolveSingleExistingPath,
+  runPackagingTool,
   withTransactionalReleaseDirectory,
 } from "./package-all";
 import {
@@ -28,7 +30,7 @@ import {
 
 const desktopRoot = fileURLToPath(new URL("..", import.meta.url));
 const repoRoot = fileURLToPath(new URL("../../..", import.meta.url));
-const args = process.argv.slice(2);
+const args = process.argv.slice(2).filter((arg) => arg !== "--");
 const env = { ...process.env };
 const unpackedDirectories =
   process.platform === "darwin"
@@ -45,34 +47,6 @@ const unpackedDirectories =
           resolve(desktopRoot, "release", `linux-${process.arch}-unpacked`),
           resolve(desktopRoot, "release", "linux-unpacked"),
         ];
-
-export function directoryBuildArgs(
-  builderArgs: readonly string[],
-  stagingRoot: string,
-): string[] {
-  return [...builderArgs, `--config.directories.output=${stagingRoot}`];
-}
-
-export function directoryBuildInvalidatedMetadataPaths(): string[] {
-  return ["release-manifest.json"];
-}
-
-export function nativeBuildArgs(
-  builderArgs: readonly string[],
-  stagingRoot: string,
-  environment: NodeJS.ProcessEnv = process.env,
-): string[] {
-  const windowsPublisherName = environment.WIN_PUBLISHER_NAME?.trim();
-  return [
-    ...builderArgs,
-    ...(builderArgs.includes("--win") && windowsPublisherName
-      ? [`--config.win.signtoolOptions.publisherName=${windowsPublisherName}`]
-      : []),
-    `--config.directories.output=${stagingRoot}`,
-    "--publish",
-    "never",
-  ];
-}
 
 function selectedPlatform(
   builderArgs: readonly string[],
@@ -187,48 +161,8 @@ if (
   env.CSC_IDENTITY_AUTO_DISCOVERY = "false";
 }
 
-const localNubx = resolve(
-  repoRoot,
-  "node_modules",
-  ".bin",
-  process.platform === "win32" ? "nubx.cmd" : "nubx",
-);
-function verifyPackagedApp(appAsarPath?: string): number | null {
-  const localNub = resolve(
-    repoRoot,
-    "node_modules",
-    ".bin",
-    process.platform === "win32" ? "nub.cmd" : "nub",
-  );
-  const verification = spawnSync(
-    existsSync(localNub) ? localNub : "nub",
-    [
-      "scripts/verify-package.ts",
-      ...(appAsarPath ? ["--app-asar", appAsarPath] : []),
-    ],
-    { cwd: desktopRoot, env, stdio: "inherit" },
-  );
-  return verification.status;
-}
-
-function verifyPackagedAppSignature(appBundlePath: string): number | null {
-  const localNub = resolve(
-    repoRoot,
-    "node_modules",
-    ".bin",
-    process.platform === "win32" ? "nub.cmd" : "nub",
-  );
-  const verification = spawnSync(
-    existsSync(localNub) ? localNub : "nub",
-    ["scripts/verify-package.ts", "--verify-signature", appBundlePath],
-    { cwd: desktopRoot, env, stdio: "inherit" },
-  );
-  return verification.status;
-}
-
-async function packageDirectoryBuild(): Promise<void> {
+async function packageDirectoryBuild(packageCommit: string): Promise<void> {
   const releaseRoot = resolve(desktopRoot, "release");
-  const packageCommit = requireCleanPackageSource(repoRoot);
   await withTransactionalReleaseDirectory(
     releaseRoot,
     async (stagingRoot) => {
@@ -236,20 +170,14 @@ async function packageDirectoryBuild(): Promise<void> {
         rmSync(directory, { force: true, recursive: true });
       }
       rmSync(resolve(stagingRoot, "unpacked-manifest.json"), { force: true });
-      for (const path of directoryBuildInvalidatedMetadataPaths()) {
-        rmSync(resolve(stagingRoot, path), { force: true });
-      }
+      rmSync(resolve(stagingRoot, "release-manifest.json"), { force: true });
+      rmSync(resolve(stagingRoot, "SHA256SUMS.txt"), { force: true });
       prepareDesktopArtifact({ desktopRoot, repoRoot });
-      const result = spawnSync(
-        existsSync(localNubx) ? localNubx : "nubx",
-        ["electron-builder", ...directoryBuildArgs(args, stagingRoot)],
-        { cwd: desktopRoot, env, stdio: "inherit" },
+      runPackagingTool(
+        "electron-builder",
+        packageBuilderArgs(args, stagingRoot),
+        { env },
       );
-      if (result.status !== 0) {
-        throw new Error(
-          `electron-builder directory build failed with exit code ${result.status ?? "unknown"}.`,
-        );
-      }
       const appAsarCandidates = unpackedDirectoriesFor(stagingRoot).map(
         (directory) =>
           process.platform === "darwin"
@@ -262,9 +190,11 @@ async function packageDirectoryBuild(): Promise<void> {
           "Packaged app.asar is missing after the directory build.",
         );
       }
-      if (verifyPackagedApp(appAsarPath) !== 0) {
-        throw new Error("Directory package verification failed.");
-      }
+      runPackagingTool(
+        "nub",
+        ["scripts/verify-package.ts", "--app-asar", appAsarPath],
+        { env },
+      );
       assertPackageSourceUnchanged(repoRoot, packageCommit);
       const contents = readFileSync(appAsarPath);
       writeFileSync(
@@ -312,9 +242,8 @@ function desktopPackageVersion(): string {
   return manifest.version;
 }
 
-async function packageNativeBuild(): Promise<void> {
+async function packageNativeBuild(packageCommit: string): Promise<void> {
   const releaseRoot = resolve(desktopRoot, "release");
-  const packageCommit = requireCleanPackageSource(repoRoot);
   const target = nativeReleaseTargetForArgs(
     args,
     desktopPackageVersion(),
@@ -325,28 +254,30 @@ async function packageNativeBuild(): Promise<void> {
     target,
     async (stagingRoot) => {
       prepareDesktopArtifact({ desktopRoot, repoRoot });
-      const result = spawnSync(
-        existsSync(localNubx) ? localNubx : "nubx",
-        ["electron-builder", ...nativeBuildArgs(args, stagingRoot)],
-        { cwd: desktopRoot, env, stdio: "inherit" },
+      runPackagingTool(
+        "electron-builder",
+        packageBuilderArgs(args, stagingRoot, target.id),
+        { env },
       );
-      if (result.status !== 0) {
-        throw new Error(
-          `electron-builder native package build failed with exit code ${result.status ?? "unknown"}.`,
-        );
-      }
       const appAsarPath = resolveSingleExistingPath(
         stagingRoot,
         target.appAsarCandidates,
       );
-      if (verifyPackagedApp(appAsarPath) !== 0) {
-        throw new Error("Native package verification failed.");
-      }
-      if (
-        target.id === "mac" &&
-        verifyPackagedAppSignature(macAppBundlePath(appAsarPath)) !== 0
-      ) {
-        throw new Error("Native macOS signature verification failed.");
+      runPackagingTool(
+        "nub",
+        ["scripts/verify-package.ts", "--app-asar", appAsarPath],
+        { env },
+      );
+      if (target.id === "mac") {
+        runPackagingTool(
+          "nub",
+          [
+            "scripts/verify-package.ts",
+            "--verify-signature",
+            macAppBundlePath(appAsarPath),
+          ],
+          { env },
+        );
       }
       assertPackageSourceUnchanged(repoRoot, packageCommit);
       const receipt = releaseTargetReceipt(target);
@@ -364,11 +295,13 @@ async function packageNativeBuild(): Promise<void> {
 }
 
 async function main(): Promise<void> {
+  const packageCommit = requireCleanPackageSource(repoRoot);
+  buildDesktopPackageInputs(packageCommit);
   if (args.includes("--dir")) {
-    await packageDirectoryBuild();
+    await packageDirectoryBuild(packageCommit);
     return;
   }
-  await packageNativeBuild();
+  await packageNativeBuild(packageCommit);
 }
 
 const invokedPath = process.argv[1] ? resolve(process.argv[1]) : undefined;

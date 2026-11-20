@@ -5,7 +5,6 @@ import {
   readdirSync,
   readFileSync,
   readlinkSync,
-  statSync,
   writeFileSync,
 } from "node:fs";
 import { basename, dirname, join, relative, resolve, sep } from "node:path";
@@ -53,7 +52,7 @@ export type NativePackageReceipt = {
 
 const COMMIT_SHA = /^[0-9a-f]{40}$/u;
 
-export function sha256File(path: string): string {
+function sha256File(path: string): string {
   return createHash("sha256").update(readFileSync(path)).digest("hex");
 }
 
@@ -62,9 +61,13 @@ export function packageProvenanceArtifact(
   path: string,
 ): PackageProvenanceArtifact {
   const absolutePath = resolve(releaseDirectory, path);
+  const status = lstatSync(absolutePath);
+  if (!status.isFile()) {
+    throw new Error(`Desktop package artifact must be a regular file: ${path}`);
+  }
   return {
-    path: relative(releaseDirectory, absolutePath),
-    bytes: statSync(absolutePath).size,
+    path: relative(releaseDirectory, absolutePath).split(sep).join("/"),
+    bytes: status.size,
     sha256: sha256File(absolutePath),
   };
 }
@@ -273,11 +276,11 @@ export function verifyNativePackageRuntime({
     );
   }
   const resourcesDirectory = dirname(
-    resolve(releaseDirectory, receipt.appAsar.path),
+    resolve(releaseDirectory, runtimeDirectory),
   );
   const actualAppAsar = packageProvenanceArtifact(
     releaseDirectory,
-    receipt.appAsar.path,
+    resolve(resourcesDirectory, "app.asar"),
   );
   if (
     receipt.appAsar.bytes !== actualAppAsar.bytes ||
@@ -291,6 +294,14 @@ export function verifyNativePackageRuntime({
     releaseDirectory,
     resolve(resourcesDirectory, "desktop-artifact-manifest.json"),
   );
+  if (
+    receipt.desktopManifest.bytes !== desktopManifest.bytes ||
+    receipt.desktopManifest.sha256 !== desktopManifest.sha256
+  ) {
+    throw new Error(
+      `Packaged desktop manifest does not match ${nativeReceiptName(platform)}.`,
+    );
+  }
   const sbomPath = resolve(releaseDirectory, desktopSbomName(platform));
   const sbom = packageProvenanceArtifact(releaseDirectory, sbomPath);
   if (
@@ -404,5 +415,7 @@ if (process.argv.includes("--verify-runtime-tree")) {
     ) as NativePackageReceipt["platform"],
     runtimeDirectory: requiredArgument(args, "--runtime-directory"),
   });
-  console.log(`Verified ${runtime.entries} packaged runtime entries.`);
+  console.log(
+    `Verified the packaged app, desktop manifest, and ${runtime.entries} runtime entries.`,
+  );
 }

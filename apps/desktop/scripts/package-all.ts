@@ -12,6 +12,7 @@ import {
   statSync,
   writeFileSync,
 } from "node:fs";
+import { createRequire } from "node:module";
 import { basename, dirname, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { prepareDesktopArtifact } from "./desktop-artifact";
@@ -27,15 +28,32 @@ import {
 const desktopRoot = fileURLToPath(new URL("..", import.meta.url));
 const repoRoot = fileURLToPath(new URL("../../..", import.meta.url));
 const releaseRoot = resolve(desktopRoot, "release");
+const desktopRequire = createRequire(resolve(desktopRoot, "package.json"));
 const wineCheckArgs = ["--version"] as const;
 const versionedReleaseArtifact =
   /^Doolittle-\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?-(?:mac|win|linux)-(?:arm64|x64|x86_64|amd64|ia32)\.(?:AppImage|deb|dmg|exe|zip)(?:\.blockmap)?$/u;
+const reservedBuilderFlags = new Set([
+  "--",
+  "--publish",
+  "--no-publish",
+  "--p",
+  "--no-p",
+  "--prepackaged",
+  "--pd",
+  "--project",
+  "--projectDir",
+  "--project-dir",
+  "--config.directories.output",
+  "-c.directories.output",
+]);
 
 type DesktopManifest = { version: string };
 type RuntimeManifest = { nativePackages?: string[] };
 
 export const allPlatformInstallArgs = [
-  "install",
+  "run",
+  "deps:install",
+  "--",
   "--frozen-lockfile",
   "--ignore-scripts",
   "--os",
@@ -45,6 +63,33 @@ export const allPlatformInstallArgs = [
   "--libc",
   "glibc",
 ] as const;
+
+export function packageBuilderArgs(
+  args: readonly string[],
+  stagingRoot: string,
+  target?: ReleaseTarget["id"],
+): string[] {
+  if (
+    args.some(
+      (arg) =>
+        reservedBuilderFlags.has(arg.split("=", 1)[0]) || arg.startsWith("-p"),
+    )
+  ) {
+    throw new Error(
+      "Desktop packaging owns the project, staged output, and publication policy.",
+    );
+  }
+  const windowsPublisherName = process.env.WIN_PUBLISHER_NAME?.trim();
+  return [
+    ...args,
+    ...(target === "win" && windowsPublisherName
+      ? [`--config.win.signtoolOptions.publisherName=${windowsPublisherName}`]
+      : []),
+    `--config.directories.output=${stagingRoot}`,
+    "--publish",
+    "never",
+  ];
+}
 
 export type ReleaseTarget = {
   id: "mac" | "win" | "linux";
@@ -82,14 +127,6 @@ export function releaseTargetReceipt(target: ReleaseTarget): {
     platform: "linux",
     artifacts: [...target.artifacts, "latest-linux.yml"],
   };
-}
-
-export function releaseChecksumText(
-  artifacts: readonly { path: string; sha256: string }[],
-): string {
-  return `${artifacts
-    .map((artifact) => `${artifact.sha256}  ${artifact.path}`)
-    .join("\n")}\n`;
 }
 
 export function releaseTargets(
@@ -208,17 +245,32 @@ export function macAppBundlePath(appAsarPath: string): string {
   return resolve(dirname(appAsarPath), "../..");
 }
 
-function run(command: string, args: string[], cwd = repoRoot): void {
-  console.log(`\n> ${[command, ...args].join(" ")}`);
-  const result = spawnSync(command, args, {
+export function runPackagingTool(
+  tool: "nub" | "electron-builder",
+  args: readonly string[],
+  { cwd = desktopRoot, env = process.env } = {},
+): void {
+  // Use lockfile-installed launchers, including on Windows where shims are .cmd files.
+  const entry = desktopRequire.resolve(
+    tool === "nub" ? "@nubjs/nub/bin/nub" : "electron-builder/cli.js",
+  );
+  const result = spawnSync(process.execPath, [entry, ...args], {
     cwd,
-    env: { ...process.env },
+    env,
     stdio: "inherit",
   });
   if (result.status !== 0) {
     throw new Error(
-      `${command} ${args.join(" ")} failed with exit code ${result.status ?? "unknown"}.`,
+      `Packaging command ${tool} ${args[0] ?? ""} failed with exit code ${result.status ?? "unknown"}.`,
+      { cause: result.error },
     );
+  }
+}
+
+export function buildDesktopPackageInputs(commit: string): void {
+  for (const script of ["build", "runtime:prepare"]) {
+    runPackagingTool("nub", ["run", script]);
+    assertPackageSourceUnchanged(repoRoot, commit);
   }
 }
 
@@ -305,7 +357,10 @@ function preserveOperatorReleaseEntries(
     if (isManagedReleaseEntry(entry)) continue;
     const destination = resolve(stagingRoot, entry);
     if (existsSync(destination)) continue;
-    cpSync(resolve(currentRoot, entry), destination, { recursive: true });
+    cpSync(resolve(currentRoot, entry), destination, {
+      recursive: true,
+      verbatimSymlinks: true,
+    });
   }
 }
 
@@ -317,6 +372,7 @@ function seedStagingReleaseEntries(
   for (const entry of readdirSync(currentRoot)) {
     cpSync(resolve(currentRoot, entry), resolve(stagingRoot, entry), {
       recursive: true,
+      verbatimSymlinks: true,
     });
   }
 }
@@ -387,8 +443,6 @@ async function main(): Promise<void> {
   ) as DesktopManifest;
   const targets = releaseTargets(manifest.version, process.arch);
   const requiredNativePackages = requiredNativeTargetPackages(process.arch);
-  const nub = resolve(repoRoot, "node_modules", ".bin", "nub");
-  const nubx = resolve(repoRoot, "node_modules", ".bin", "nubx");
 
   const result = await withTransactionalReleaseDirectory(
     releaseRoot,
@@ -397,6 +451,7 @@ async function main(): Promise<void> {
       for (const target of targets) cleanTarget(stagingRoot, target);
       rmSync(resolve(stagingRoot, "release-manifest.json"), { force: true });
       rmSync(resolve(stagingRoot, "SHA256SUMS.txt"), { force: true });
+      rmSync(resolve(stagingRoot, "unpacked-manifest.json"), { force: true });
       for (const platform of ["linux", "macos", "windows"] as const) {
         rmSync(resolve(stagingRoot, nativeReceiptName(platform)), {
           force: true,
@@ -406,9 +461,9 @@ async function main(): Promise<void> {
         });
       }
 
-      run(nub, [...allPlatformInstallArgs]);
-      run(nub, ["run", "build"], desktopRoot);
-      run(nub, ["run", "runtime:prepare"], desktopRoot);
+      runPackagingTool("nub", allPlatformInstallArgs, { cwd: repoRoot });
+      assertPackageSourceUnchanged(repoRoot, packageCommit);
+      buildDesktopPackageInputs(packageCommit);
       const runtimeManifest = JSON.parse(
         readFileSync(
           resolve(desktopRoot, "build/runtime/runtime-manifest.json"),
@@ -440,37 +495,26 @@ async function main(): Promise<void> {
       }> = [];
       for (const target of targets) {
         assertPackageSourceUnchanged(repoRoot, packageCommit);
-        run(
-          nubx,
-          [
-            "electron-builder",
-            ...target.builderArgs,
-            `--config.directories.output=${stagingRoot}`,
-            "--publish",
-            "never",
-          ],
-          desktopRoot,
+        runPackagingTool(
+          "electron-builder",
+          packageBuilderArgs(target.builderArgs, stagingRoot, target.id),
         );
         assertPackageSourceUnchanged(repoRoot, packageCommit);
         const appAsarPath = resolveSingleExistingPath(
           stagingRoot,
           target.appAsarCandidates,
         );
-        run(
-          nub,
-          ["scripts/verify-package.ts", "--app-asar", appAsarPath],
-          desktopRoot,
-        );
+        runPackagingTool("nub", [
+          "scripts/verify-package.ts",
+          "--app-asar",
+          appAsarPath,
+        ]);
         if (target.id === "mac") {
-          run(
-            nub,
-            [
-              "scripts/verify-package.ts",
-              "--verify-signature",
-              macAppBundlePath(appAsarPath),
-            ],
-            desktopRoot,
-          );
+          runPackagingTool("nub", [
+            "scripts/verify-package.ts",
+            "--verify-signature",
+            macAppBundlePath(appAsarPath),
+          ]);
         }
         unpackedPackages.push({
           target: target.id,
@@ -508,7 +552,7 @@ async function main(): Promise<void> {
 
       assertPackageSourceUnchanged(repoRoot, packageCommit);
       writeFileSync(
-        resolve(stagingRoot, "release-manifest.json"),
+        resolve(stagingRoot, "unpacked-manifest.json"),
         `${JSON.stringify(
           {
             version: manifest.version,
@@ -523,10 +567,6 @@ async function main(): Promise<void> {
           2,
         )}\n`,
       );
-      writeFileSync(
-        resolve(stagingRoot, "SHA256SUMS.txt"),
-        releaseChecksumText(releaseArtifacts),
-      );
       return { releaseArtifacts };
     },
   );
@@ -538,10 +578,7 @@ async function main(): Promise<void> {
     );
   }
   console.log(
-    `  manifest ${relative(repoRoot, resolve(releaseRoot, "release-manifest.json"))}`,
-  );
-  console.log(
-    `  checksums ${relative(repoRoot, resolve(releaseRoot, "SHA256SUMS.txt"))}`,
+    `  local build manifest ${relative(repoRoot, resolve(releaseRoot, "unpacked-manifest.json"))}`,
   );
 }
 

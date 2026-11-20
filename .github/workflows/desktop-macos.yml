@@ -125,8 +125,6 @@ jobs:
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
-          nub run desktop:build
-          nub run --cwd apps/desktop runtime:prepare
           nub apps/desktop/scripts/package.ts --mac dmg zip --arm64 --config.mac.notarize=true
           nub apps/desktop/scripts/verify-package.ts
 

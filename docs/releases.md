@@ -23,14 +23,13 @@ the changelog. Check platform prerequisites before building installers.
 ## Verify
 
 ```sh
-nub run check:release:static
 nub run check:release
 ```
 
-The static gate includes builds, dependency/security checks, SDK integrity,
-and desktop runtime preparation/audit. The complete gate adds real runtime,
-Electron, and packaged acceptance. Its package stages require clean HEAD;
-commit any source changes before running them.
+The complete gate runs builds, dependency and security checks, SDK integrity,
+desktop runtime preparation and audit, and real runtime, Electron, and packaged
+acceptance. Its package stages require clean HEAD. Run the optional
+`nub run check:release:static` for build and policy feedback before the full gate.
 
 A green local gate establishes only the coverage it ran. Track separate evidence
 for native installation, update behavior, signatures, notarization, and any live
@@ -54,16 +53,19 @@ end users do not need the source checkout, Nub, or a separate Node installation.
 | Windows | x64 NSIS installer   | Windows signing credentials and the exact Authenticode publisher identity for trusted updates. |
 | Linux   | x64 AppImage and DEB | Target-compatible native dependencies and package tooling.                                     |
 
-The packaging wrappers validate source identity and preserve release provenance.
-They prepare runtime dependencies, legal notices, artifact inventories, and
-SBOMs; do not bypass them with an unverified direct builder invocation.
+The packaging wrappers require a clean commit before compiling and prepare the
+renderer, runtime dependencies, and legal notices in one command. They verify
+source identity again before promoting output. Native packaging also produces a
+provenance receipt and SBOM. The wrappers disable electron-builder publication.
 Inspect [`apps/desktop/package.json`](../apps/desktop/package.json) and
 [`package.ts`](../apps/desktop/scripts/package.ts) for current options.
 
 `nub run desktop:package:all` is the supported local cross-package helper for
-Apple Silicon macOS with Wine. It verifies required target-native packages and
-builds the release matrix transactionally. It does not replace native testing
-on Windows and Linux.
+Apple Silicon macOS with Wine. It installs the frozen dependency graph with the
+checked ElizaOS archives, verifies the required target-native packages, and
+builds the matrix transactionally. Its `unpacked-manifest.json` records local
+build outputs. Native installation and update verification still requires each
+target platform.
 
 ## Verify a package
 
@@ -73,8 +75,16 @@ nub run test:e2e:desktop-packaged
 ```
 
 The packaged test runner checks the repository artifact against clean HEAD and
-its `app.asar` hash. Use the target platform's native tools to verify release
-signatures, installation, launch, and update metadata as separate steps.
+its `app.asar` hash. Verify an extracted or installed package against the source
+platform receipt by pointing the verifier at its `resources/runtime` directory.
+That also checks the adjacent `app.asar` and desktop artifact manifest.
+
+```sh
+nub apps/desktop/scripts/package-provenance.ts --verify-runtime-tree --release-directory apps/desktop/release --platform macos --runtime-directory /path/to/Doolittle.app/Contents/Resources/runtime
+```
+
+Use the target platform's native tools to verify release signatures,
+installation, launch, and update metadata as separate steps.
 
 ### Install on macOS
 

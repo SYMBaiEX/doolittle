@@ -53,8 +53,6 @@ jobs:
 
       - name: Build Linux packages
         run: |
-          nub run desktop:build
-          nub run --cwd apps/desktop runtime:prepare
           nub apps/desktop/scripts/package.ts --linux AppImage deb --x64
           nub apps/desktop/scripts/verify-package.ts
 
