@@ -116,3 +116,47 @@ for (const ledger of ledgers)
         expect(() => ledger.open(f.dir)).not.toThrow();
       });
   });
+
+it("uses the newer team catalog when a mirrored write was interrupted", () => {
+  const f = fixture("teams");
+  writeFileSync(
+    f.primary,
+    JSON.stringify({ version: 1, revision: 3, teams: [] }),
+  );
+  writeFileSync(
+    f.backup,
+    JSON.stringify({ version: 1, revision: 4, teams: [] }),
+  );
+  expect(
+    new BotTeamCatalog(f.dir, () => {
+      throw new Error("unexpected bot lookup");
+    }).list().revision,
+  ).toBe(4);
+});
+
+it("rejects conflicting team catalogs at the same revision", () => {
+  const f = fixture("teams");
+  const catalog = { version: 1, revision: 4, teams: [] };
+  writeFileSync(f.primary, JSON.stringify(catalog));
+  writeFileSync(
+    f.backup,
+    JSON.stringify({
+      ...catalog,
+      teams: [
+        {
+          id: "96fa23eb-1103-4b10-bb46-40b387ae1692",
+          name: "Coding",
+          memberBotIds: [],
+          createdAt: "2026-11-20T00:00:00.000Z",
+          updatedAt: "2026-11-20T00:00:00.000Z",
+        },
+      ],
+    }),
+  );
+  expect(
+    () =>
+      new BotTeamCatalog(f.dir, () => {
+        throw new Error("unexpected bot lookup");
+      }),
+  ).toThrow("Team catalog copies disagree.");
+});

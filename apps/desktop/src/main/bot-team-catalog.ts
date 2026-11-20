@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { chmodSync, existsSync, mkdirSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
 import type {
   BotDefinition,
   BotTeam,
@@ -9,7 +9,7 @@ import type {
   UpdateBotTeamInput,
 } from "@doolittle/contracts/bots";
 import { readRegularFileSync } from "@doolittle/storage";
-import { writeJsonAtomicSync } from "@elizaos/core";
+import { readLedgerCopies, writeLedgerCopies } from "./revisioned-ledger";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
 const MAX_BYTES = 1_000_000;
@@ -63,34 +63,12 @@ export class BotTeamCatalog {
   ) {
     this.path = resolve(dataDir, "bots", "teams.json");
     this.backupPath = resolve(dataDir, "bots", "teams.backup.json");
-    let primary: BotTeamCatalogResponse | null = null;
-    let backup: BotTeamCatalogResponse | null = null;
-    let failure: unknown;
-    try {
-      primary = parse(this.path);
-    } catch (error) {
-      failure = error;
-    }
-    try {
-      backup = parse(this.backupPath);
-    } catch (error) {
-      failure ??= error;
-    }
-    if (failure && !primary && !backup)
-      throw new Error("Both team catalog copies are unavailable.", {
-        cause: failure,
-      });
-    if (
-      primary &&
-      backup &&
-      primary.revision === backup.revision &&
-      JSON.stringify(primary) !== JSON.stringify(backup)
-    )
-      throw new Error("Team catalog copies disagree.");
-    this.stored =
-      primary && (!backup || primary.revision >= backup.revision)
-        ? primary
-        : (backup ?? { version: 1, revision: 0, teams: [] });
+    this.stored = readLedgerCopies(
+      this.path,
+      this.backupPath,
+      parse,
+      "team catalog",
+    ) ?? { version: 1, revision: 0, teams: [] };
   }
 
   list(): BotTeamCatalogResponse {
@@ -158,11 +136,7 @@ export class BotTeamCatalog {
     if (Buffer.byteLength(JSON.stringify(next, null, 2)) + 1 > MAX_BYTES)
       throw new Error("Team catalog is full.");
     try {
-      mkdirSync(dirname(this.path), { recursive: true, mode: 0o700 });
-      writeJsonAtomicSync(this.path, next, { trailingNewline: true });
-      chmodSync(this.path, 0o600);
-      writeJsonAtomicSync(this.backupPath, next, { trailingNewline: true });
-      chmodSync(this.backupPath, 0o600);
+      writeLedgerCopies(this.path, this.backupPath, next);
       this.stored = next;
     } catch (error) {
       this.failed = true;

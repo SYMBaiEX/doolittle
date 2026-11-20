@@ -1,7 +1,7 @@
-import { chmodSync, existsSync, mkdirSync } from "node:fs";
-import { dirname, isAbsolute, resolve } from "node:path";
+import { existsSync } from "node:fs";
+import { isAbsolute, resolve } from "node:path";
 import { readRegularFileSync } from "@doolittle/storage";
-import { writeJsonAtomicSync } from "@elizaos/core";
+import { readLedgerCopies, writeLedgerCopies } from "./revisioned-ledger";
 
 const ID = /^[A-Za-z0-9:_-]{1,128}$/u;
 const MAX_BYTES = 2_000_000;
@@ -64,35 +64,12 @@ export class BotAcpSessionLedger {
       "bots",
       "acp-session-owners.backup.json",
     );
-    let primary: StoredAcpSessions | null = null;
-    let backup: StoredAcpSessions | null = null;
-    let firstError: unknown;
-    try {
-      primary = parse(this.path);
-    } catch (error) {
-      firstError = error;
-    }
-    try {
-      backup = parse(this.backupPath);
-    } catch (error) {
-      firstError ??= error;
-    }
-    if (firstError && !primary && !backup)
-      throw new Error("Both ACP owner ledger copies are unavailable.", {
-        cause: firstError,
-      });
-    if (
-      primary &&
-      backup &&
-      primary.revision === backup.revision &&
-      JSON.stringify(primary) !== JSON.stringify(backup)
-    ) {
-      throw new Error("ACP owner ledger copies disagree.");
-    }
-    this.stored =
-      primary && (!backup || primary.revision >= backup.revision)
-        ? primary
-        : (backup ?? { version: 1, revision: 0, sessions: [] });
+    this.stored = readLedgerCopies(
+      this.path,
+      this.backupPath,
+      parse,
+      "ACP owner ledger",
+    ) ?? { version: 1, revision: 0, sessions: [] };
   }
 
   get(sessionId: string): BoundAcpSession | null {
@@ -136,11 +113,7 @@ export class BotAcpSessionLedger {
       throw new Error("ACP owner ledger is full.");
     }
     try {
-      mkdirSync(dirname(this.path), { recursive: true, mode: 0o700 });
-      writeJsonAtomicSync(this.path, next, { trailingNewline: true });
-      chmodSync(this.path, 0o600);
-      writeJsonAtomicSync(this.backupPath, next, { trailingNewline: true });
-      chmodSync(this.backupPath, 0o600);
+      writeLedgerCopies(this.path, this.backupPath, next);
       this.stored = next;
     } catch (error) {
       this.failed = true;

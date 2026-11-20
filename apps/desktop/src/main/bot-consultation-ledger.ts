@@ -1,4 +1,4 @@
-import { chmodSync, existsSync, mkdirSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { isAbsolute, resolve } from "node:path";
 import type {
   BotConsultationResult,
@@ -6,7 +6,7 @@ import type {
   BotRunOwner,
 } from "@doolittle/contracts/bots";
 import { readRegularFileSync } from "@doolittle/storage";
-import { writeJsonAtomicSync } from "@elizaos/core";
+import { readLedgerCopies, writeLedgerCopies } from "./revisioned-ledger";
 
 const ID = /^[A-Za-z0-9:_-]{1,128}$/u;
 const MAX_LEDGER_BYTES = 8_000_000;
@@ -102,37 +102,12 @@ export class BotConsultationLedger {
   constructor(dataDir: string) {
     this.path = resolve(dataDir, "bots", "consultations.json");
     this.backupPath = resolve(dataDir, "bots", "consultations.backup.json");
-    let primary: StoredConsultations | null = null;
-    let backup: StoredConsultations | null = null;
-    let primaryError: unknown;
-    let backupError: unknown;
-    try {
-      primary = parse(this.path);
-    } catch (error) {
-      primaryError = error;
-    }
-    try {
-      backup = parse(this.backupPath);
-    } catch (error) {
-      backupError = error;
-    }
-    if ((primaryError || backupError) && !primary && !backup) {
-      throw new Error("Both consultation ledger copies are unavailable.", {
-        cause: primaryError ?? backupError,
-      });
-    }
-    if (
-      primary &&
-      backup &&
-      primary.revision === backup.revision &&
-      JSON.stringify(primary) !== JSON.stringify(backup)
-    ) {
-      throw new Error("Consultation ledger copies disagree.");
-    }
-    this.stored =
-      primary && (!backup || primary.revision >= backup.revision)
-        ? primary
-        : (backup ?? { version: 1, revision: 0, records: [] });
+    this.stored = readLedgerCopies(
+      this.path,
+      this.backupPath,
+      parse,
+      "consultation ledger",
+    ) ?? { version: 1, revision: 0, records: [] };
   }
 
   private save(): void {
@@ -148,11 +123,7 @@ export class BotConsultationLedger {
       throw new Error("The consultation ledger is full.");
     }
     try {
-      mkdirSync(resolve(this.path, ".."), { recursive: true, mode: 0o700 });
-      writeJsonAtomicSync(this.path, next, { trailingNewline: true });
-      chmodSync(this.path, 0o600);
-      writeJsonAtomicSync(this.backupPath, next, { trailingNewline: true });
-      chmodSync(this.backupPath, 0o600);
+      writeLedgerCopies(this.path, this.backupPath, next);
       this.stored = next;
     } catch (error) {
       this.failed = true;

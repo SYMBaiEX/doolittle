@@ -1,11 +1,15 @@
-import { chmodSync, existsSync, mkdirSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
 import type {
   KnowledgeGrant,
   SharedKnowledgeRecord,
 } from "@doolittle/contracts/bots";
 import { readRegularFileSync } from "@doolittle/storage";
-import { writeJsonAtomicSync } from "@elizaos/core";
+import {
+  readLedgerCopies,
+  writeLedgerCopies,
+  writeLedgerCopy,
+} from "./revisioned-ledger";
 
 const ID = /^[A-Za-z0-9:_-]{1,128}$/u;
 const UUID = /^[0-9a-f-]{36}$/iu;
@@ -104,35 +108,12 @@ export class BotKnowledgeLedger {
   constructor(dataDir: string) {
     this.path = resolve(dataDir, "bots", "knowledge.json");
     this.backupPath = resolve(dataDir, "bots", "knowledge.backup.json");
-    let primary: StoredKnowledge | null = null;
-    let backup: StoredKnowledge | null = null;
-    let failure: unknown;
-    try {
-      primary = parse(this.path);
-    } catch (error) {
-      failure = error;
-    }
-    try {
-      backup = parse(this.backupPath);
-    } catch (error) {
-      failure ??= error;
-    }
-    if (failure && !primary && !backup)
-      throw new Error("Both knowledge ledger copies are unavailable.", {
-        cause: failure,
-      });
-    if (
-      primary &&
-      backup &&
-      primary.revision === backup.revision &&
-      JSON.stringify(primary) !== JSON.stringify(backup)
-    ) {
-      throw new Error("Knowledge ledger copies disagree.");
-    }
-    this.stored =
-      primary && (!backup || primary.revision >= backup.revision)
-        ? primary
-        : (backup ?? { version: 2, revision: 0, records: [], grants: [] });
+    this.stored = readLedgerCopies(
+      this.path,
+      this.backupPath,
+      parse,
+      "knowledge ledger",
+    ) ?? { version: 2, revision: 0, records: [], grants: [] };
     if (this.stored.version === 1) {
       const migrationBackup = resolve(
         dataDir,
@@ -141,11 +122,7 @@ export class BotKnowledgeLedger {
       );
       // Preserve the original schema once; restart never overwrites the rollback copy.
       if (!existsSync(migrationBackup)) {
-        mkdirSync(dirname(this.path), { recursive: true, mode: 0o700 });
-        writeJsonAtomicSync(migrationBackup, this.stored, {
-          trailingNewline: true,
-        });
-        chmodSync(migrationBackup, 0o600);
+        writeLedgerCopy(migrationBackup, this.stored);
       }
       this.save({ ...this.stored, version: 2 });
     }
@@ -157,11 +134,7 @@ export class BotKnowledgeLedger {
     if (Buffer.byteLength(JSON.stringify(value, null, 2)) + 1 > MAX_BYTES)
       throw new Error("Knowledge ledger is full.");
     try {
-      mkdirSync(dirname(this.path), { recursive: true, mode: 0o700 });
-      writeJsonAtomicSync(this.path, value, { trailingNewline: true });
-      chmodSync(this.path, 0o600);
-      writeJsonAtomicSync(this.backupPath, value, { trailingNewline: true });
-      chmodSync(this.backupPath, 0o600);
+      writeLedgerCopies(this.path, this.backupPath, value);
       this.stored = value;
     } catch (error) {
       this.failed = true;

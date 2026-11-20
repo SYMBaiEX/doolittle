@@ -1,9 +1,9 @@
-import { chmodSync, existsSync, mkdirSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { isAbsolute, resolve } from "node:path";
 import type { BotPermissions } from "@doolittle/contracts/bots";
 import { readRegularFileSync } from "@doolittle/storage";
-import { writeJsonAtomicSync } from "@elizaos/core";
 import { BotAutomationHistory } from "./bot-automation-history";
+import { readLedgerCopies, writeLedgerCopies } from "./revisioned-ledger";
 
 export interface AutomationTargetApproval {
   id: string;
@@ -130,35 +130,12 @@ export class BotAutomationLedger {
     );
     this.path = resolve(dataDir, "bots", "automation-dispatches.json");
     this.backup = resolve(dataDir, "bots", "automation-dispatches.backup.json");
-    let primary: Stored | null = null;
-    let secondary: Stored | null = null;
-    let failure: unknown;
-    try {
-      primary = parse(this.path);
-    } catch (error) {
-      failure = error;
-    }
-    try {
-      secondary = parse(this.backup);
-    } catch (error) {
-      failure ??= error;
-    }
-    if (failure && !primary && !secondary)
-      throw new Error(
-        "Both automation dispatch ledger copies are unavailable.",
-        { cause: failure },
-      );
-    if (
-      primary &&
-      secondary &&
-      primary.revision === secondary.revision &&
-      JSON.stringify(primary) !== JSON.stringify(secondary)
-    )
-      throw new Error("Automation dispatch ledger copies disagree.");
-    this.stored =
-      primary && (!secondary || primary.revision >= secondary.revision)
-        ? primary
-        : (secondary ?? { version: 1, revision: 0, approvals: [], fires: [] });
+    this.stored = readLedgerCopies(
+      this.path,
+      this.backup,
+      parse,
+      "automation dispatch ledger",
+    ) ?? { version: 1, revision: 0, approvals: [], fires: [] };
     this.history.setRecoveryRequirement(this.stored.historyRequired === true);
     if (this.stored.historyRequired && !this.history.exists())
       throw new Error("Automation history is missing. Recovery is required.");
@@ -211,11 +188,7 @@ export class BotAutomationLedger {
     try {
       // Commit immutable replay receipts before removing them from either hot copy.
       this.history.retire(retired, archivedApprovals);
-      mkdirSync(resolve(this.path, ".."), { recursive: true, mode: 0o700 });
-      writeJsonAtomicSync(this.path, value, { trailingNewline: true });
-      chmodSync(this.path, 0o600);
-      writeJsonAtomicSync(this.backup, value, { trailingNewline: true });
-      chmodSync(this.backup, 0o600);
+      writeLedgerCopies(this.path, this.backup, value);
       this.stored = value;
     } catch (error) {
       this.failed = true;
