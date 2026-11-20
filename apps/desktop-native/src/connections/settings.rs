@@ -1,6 +1,9 @@
 use doolittle_runtime::ControlMethod;
 use gpui::{AnyElement, Context, Div, FontWeight, Window, div, prelude::*, px};
-use gpui_component::{Disableable, Sizable, button::Button, input::Input};
+use gpui_component::{
+    Disableable, Selectable, Sizable,
+    button::{Button, ButtonVariants},
+};
 use serde_json::{Value, json};
 
 use super::{
@@ -16,6 +19,7 @@ use crate::{
 const RELEASES: &str = "https://github.com/SYMBaiEX/doolittle/releases";
 const DOCUMENTATION: &str = "https://github.com/SYMBaiEX/doolittle#readme";
 const ISSUES: &str = "https://github.com/SYMBaiEX/doolittle/issues";
+pub(super) const SETUP_SUMMARY: &str = "/setup/summary";
 
 pub(super) fn render(
     page: ConnectionsPage,
@@ -25,25 +29,41 @@ pub(super) fn render(
     cx: &mut Context<Workbench>,
 ) -> AnyElement {
     let body = match page {
-        ConnectionsPage::Interfaces => column(16.)
+        ConnectionsPage::Interfaces => column(0.)
             .child(interfaces(colors, cx))
-            .child(super::acp::render(workbench, colors, window, cx)),
+            .when(workbench.ready(), |body| {
+                body.child(super::acp::render(workbench, colors, window, cx))
+            })
+            .when(!workbench.ready(), |body| {
+                body.child(super::runtime_required(workbench, colors, cx))
+            }),
         ConnectionsPage::Desktop => desktop(workbench, colors, cx),
         ConnectionsPage::Tools => tools(workbench, colors, window, cx),
         ConnectionsPage::Skills => {
-            let inventory = catalog(
-                workbench,
+            let proposals = workbench.connections.show_skill_workshop;
+            let tabs = subsection_tabs(
+                "skill-section",
+                "Skill catalog",
+                "Proposals",
+                proposals,
                 colors,
-                "/skills",
-                &["skills"],
-                "skill-filter",
-                window,
                 cx,
+                |this, alternate| this.connections.show_skill_workshop = alternate,
             );
-            let workshop = super::skills::workshop(workbench, colors, window, cx);
-            column(16.)
-                .child(panel(colors, "Skill catalog").child(inventory))
-                .child(workshop)
+            let content = if proposals {
+                super::skills::workshop(workbench, colors, window, cx)
+            } else {
+                panel(colors, "Available skills").child(catalog(
+                    workbench,
+                    colors,
+                    "/skills",
+                    &["skills"],
+                    "skill-filter",
+                    window,
+                    cx,
+                ))
+            };
+            column(0.).child(tabs).child(content)
         }
         ConnectionsPage::Plugins => panel(colors, "Plugin catalog").child(catalog(
             workbench,
@@ -112,6 +132,8 @@ fn desktop(workbench: &Workbench, colors: &Palette, cx: &mut Context<Workbench>)
         "Runtime ready"
     } else if workbench.connecting {
         "Starting ElizaOS…"
+    } else if workbench.needs_workspace() {
+        "Choose a workspace to start"
     } else {
         "Runtime unavailable"
     };
@@ -119,6 +141,11 @@ fn desktop(workbench: &Workbench, colors: &Palette, cx: &mut Context<Workbench>)
     panel(colors, "Desktop application")
         .child(item_row(colors, "Runtime", status))
         .child(item_row(colors, "Workspace", workbench.workspace_path()))
+        .when(!workbench.ready() && !workbench.connecting, |section| {
+            section.when_some(workbench.error.as_deref(), |section, error| {
+                section.child(notice(colors, error.to_owned(), true))
+            })
+        })
         .child(item_row(colors, "Updates", updates))
         .child(
             row()
@@ -137,7 +164,7 @@ fn desktop(workbench: &Workbench, colors: &Palette, cx: &mut Context<Workbench>)
                         actions.child(
                             Button::new("desktop-connect-runtime")
                                 .small()
-                                .label("Start runtime")
+                                .label("Retry startup")
                                 .disabled(workbench.connecting)
                                 .on_click(
                                     cx.listener(|this, _, window, cx| this.connect(window, cx)),
@@ -170,18 +197,61 @@ fn tools(
     window: &mut Window,
     cx: &mut Context<Workbench>,
 ) -> Div {
-    let inventory = catalog(
-        workbench,
+    let mcp = workbench.connections.show_mcp;
+    let tabs = subsection_tabs(
+        "tool-section",
+        "Registered tools",
+        "MCP servers",
+        mcp,
         colors,
-        "/tools",
-        &["tools"],
-        "tool-filter",
-        window,
         cx,
+        |this, alternate| this.connections.show_mcp = alternate,
     );
-    column(16.)
-        .child(panel(colors, "Registered tools").child(inventory))
-        .child(super::extensions::mcp(workbench, colors, window, cx))
+    let content = if mcp {
+        super::extensions::mcp(workbench, colors, window, cx)
+    } else {
+        panel(colors, "Registered tools").child(catalog(
+            workbench,
+            colors,
+            "/tools",
+            &["tools"],
+            "tool-filter",
+            window,
+            cx,
+        ))
+    };
+    column(0.).child(tabs).child(content)
+}
+
+fn subsection_tabs(
+    id: &'static str,
+    first: &'static str,
+    second: &'static str,
+    alternate: bool,
+    colors: &Palette,
+    cx: &mut Context<Workbench>,
+    select: fn(&mut Workbench, bool),
+) -> Div {
+    row()
+        .px(px(12.))
+        .py(px(6.))
+        .border_b_1()
+        .border_color(colors.divider)
+        .children(
+            [(false, first), (true, second)]
+                .into_iter()
+                .map(|(which, label)| {
+                    Button::new((id, usize::from(which)))
+                        .small()
+                        .ghost()
+                        .label(label)
+                        .selected(which == alternate)
+                        .on_click(cx.listener(move |this, _, _, cx| {
+                            select(this, which);
+                            cx.notify();
+                        }))
+                }),
+        )
 }
 
 fn memory(workbench: &Workbench, colors: &Palette) -> Div {
@@ -208,7 +278,7 @@ fn memory(workbench: &Workbench, colors: &Palette) -> Div {
                 |section| section.child(muted(colors, "No entries yet.")),
             )
     };
-    column(16.)
+    column(0.)
         .child(memory_panel("Shared memory", MEMORY_SHARED))
         .child(memory_panel("Personal memory", MEMORY_USER))
         .child(details(
@@ -330,7 +400,9 @@ fn advanced(
 ) -> Div {
     if workbench.connections.advanced_pending && !workbench.control_action_pending(SETTINGS) {
         workbench.connections.advanced_pending = false;
-        if workbench.control_action_value(SETTINGS).is_some() {
+        if workbench.connections.settings_writer == Some(ConnectionsPage::Advanced)
+            && workbench.control_action_value(SETTINGS).is_some()
+        {
             workbench.connections.advanced_edit = None;
             workbench.connections.fields.remove("advanced-edit-value");
         }
@@ -356,7 +428,7 @@ fn advanced(
         flatten("", settings, 0, &mut fields);
     }
     let mut section = panel(colors, "Effective configuration")
-        .child(Input::new(&search).w_full())
+        .child(field("Filter settings", &search, colors, true).max_w(px(440.)))
         .when_some(
             read_status(workbench, SETTINGS, colors),
             |section, status| section.child(status),
@@ -380,9 +452,14 @@ fn advanced(
                 .border_color(colors.divider)
                 .child(div().font_weight(FontWeight::SEMIBOLD).child(path.clone()))
                 .child(field("New value", &draft, colors, !busy))
-                .when_some(
-                    action_status(workbench, SETTINGS, "Setting saved.", colors),
-                    |editor, status| editor.child(status),
+                .when(
+                    workbench.connections.settings_writer == Some(ConnectionsPage::Advanced),
+                    |editor| {
+                        editor.when_some(
+                            action_status(workbench, SETTINGS, "Setting saved.", colors),
+                            |editor, status| editor.child(status),
+                        )
+                    },
                 )
                 .child(
                     row()
@@ -411,6 +488,7 @@ fn advanced(
         );
     }
     if workbench.connections.advanced_edit.is_none()
+        && workbench.connections.settings_writer == Some(ConnectionsPage::Advanced)
         && workbench.control_action_value(SETTINGS).is_some()
     {
         section = section.child(notice(colors, "Runtime settings are up to date.", false));
@@ -509,6 +587,7 @@ fn save_advanced(
         .feedback
         .remove(&ConnectionsPage::Advanced);
     workbench.connections.advanced_pending = true;
+    workbench.connections.settings_writer = Some(ConnectionsPage::Advanced);
     workbench.control_send(
         ControlMethod::Post,
         SETTINGS,
@@ -537,10 +616,10 @@ fn logs(
         .trim()
         .to_lowercase();
     let logs = values(workbench.control_value(LOGS), "logs");
-    column(16.)
+    column(0.)
         .child(
             panel(colors, "Runtime events")
-                .child(Input::new(&query).w_full())
+                .child(field("Filter events", &query, colors, true).max_w(px(440.)))
                 .when_some(read_status(workbench, LOGS, colors), |section, status| {
                     section.child(status)
                 })
@@ -603,7 +682,7 @@ fn history_panel(
 }
 
 fn runtime(workbench: &Workbench, colors: &Palette, cx: &mut Context<Workbench>) -> Div {
-    column(16.)
+    column(0.)
         .child(details(workbench, colors, RUNTIME, "Runtime status", &[]))
         .child(details(
             workbench,
@@ -716,59 +795,133 @@ fn autonomy(workbench: &Workbench, colors: &Palette, cx: &mut Context<Workbench>
 }
 
 fn setup(workbench: &Workbench, colors: &Palette, cx: &mut Context<Workbench>) -> Div {
-    let checklist = "/setup/checklist";
-    let summary = "/setup/summary";
-    let overview = panel(colors, "Get ready to use Doolittle")
-        .child(muted(
-            colors,
-            "Open a workspace and choose a model or link a provider account.",
-        ))
-        .child(
-            row()
-                .child(
+    let summary = workbench
+        .control_value(SETUP_SUMMARY)
+        .and_then(|value| value.get("summary"));
+    let model = workbench
+        .control_value(SETTINGS)
+        .and_then(|value| value.pointer("/settings/model"));
+    let provider = text_at(model, "provider");
+    let model_id = text_at(model, "model");
+    let route = provider.zip(model_id);
+    let discovered = values(summary, "providers");
+    let connected = provider
+        .and_then(|provider| {
+            discovered
+                .iter()
+                .find(|entry| text_at(Some(entry), "id") == Some(provider))
+        })
+        .and_then(|entry| entry.get("ready"))
+        .and_then(Value::as_bool);
+    let (provider_status, provider_tone) = match (route, connected) {
+        (Some(_), Some(true)) => ("Ready", colors.positive),
+        (Some(_), Some(false)) => ("Needs setup", colors.warning),
+        (Some(_), None) => ("Selected", colors.muted),
+        (None, _) if workbench.control_pending(SETTINGS) => ("Checking…", colors.muted),
+        _ => ("Choose a provider", colors.muted),
+    };
+    let workspace = workbench.workspace_path();
+    let mut first = panel(colors, "Workspace");
+    if workbench.ready() {
+        first = first.child(item_row(colors, workspace, "Runtime ready"));
+    } else if workbench.needs_workspace() {
+        first = first
+            .child(muted(
+                colors,
+                "Choose the folder where you want Doolittle to work.",
+            ))
+            .child(
+                row().child(
                     Button::new("setup-choose-workspace")
+                        .primary()
                         .small()
                         .label("Open workspace…")
-                        .disabled(workbench.choosing_workspace || workbench.connecting)
+                        .disabled(workbench.choosing_workspace)
                         .on_click(
                             cx.listener(|this, _, window, cx| this.choose_workspace(window, cx)),
                         ),
+                ),
+            );
+    } else if workbench.connecting {
+        first = first.child(item_row(colors, workspace, "Starting ElizaOS…"));
+    } else {
+        first = first
+            .child(item_row(colors, workspace, "Runtime unavailable"))
+            .when_some(workbench.error.as_deref(), |section, error| {
+                section.child(notice(colors, error.to_owned(), true))
+            })
+            .child(
+                row().child(
+                    Button::new("setup-retry-runtime")
+                        .primary()
+                        .small()
+                        .label("Retry startup")
+                        .on_click(cx.listener(|this, _, window, cx| this.connect(window, cx))),
+                ),
+            );
+    }
+
+    let route_name = route
+        .map(|(provider, model)| format!("{} · {model}", super::accounts::provider_name(provider)))
+        .unwrap_or_else(|| "No model selected".into());
+    let second = panel(colors, "Model provider")
+        .when(workbench.ready(), |section| {
+            section
+                .child(
+                    row()
+                        .justify_between()
+                        .child(div().text_sm().min_w_0().child(route_name))
+                        .child(
+                            div()
+                                .text_sm()
+                                .text_color(provider_tone)
+                                .child(provider_status),
+                        ),
                 )
-                .child(route_button(
-                    "setup-open-models",
-                    "Choose model",
-                    ConnectionsPage::Models,
-                    cx,
-                ))
-                .child(route_button(
-                    "setup-open-credentials",
-                    "Add API credential",
-                    ConnectionsPage::Credentials,
-                    cx,
-                ))
-                .child(route_button(
-                    "setup-open-accounts",
-                    "Providers & accounts",
-                    ConnectionsPage::Accounts,
-                    cx,
-                )),
-        );
-    column(16.)
-        .child(overview)
-        .child(details(
-            workbench,
-            colors,
-            checklist,
-            "Setup checklist",
-            &["checklist"],
-        ))
-        .child(details(
-            workbench,
-            colors,
-            summary,
-            "Workspace readiness",
-            &["summary"],
-        ))
+                .when_some(
+                    read_status(workbench, SETTINGS, colors),
+                    |section, status| section.child(status),
+                )
+                .child(
+                    row()
+                        .child(route_button(
+                            "setup-open-accounts",
+                            "Connect an account",
+                            ConnectionsPage::Accounts,
+                            cx,
+                        ))
+                        .child(route_button(
+                            "setup-open-credentials",
+                            "Add an API key",
+                            ConnectionsPage::Credentials,
+                            cx,
+                        ))
+                        .child(route_button(
+                            "setup-open-models",
+                            "Choose model",
+                            ConnectionsPage::Models,
+                            cx,
+                        )),
+                )
+        })
+        .when(!workbench.ready(), |section| {
+            section.child(muted(
+                colors,
+                "After the workspace opens, connect a provider or choose a local model.",
+            ))
+        });
+    column(0.)
+        .child(first)
+        .child(second)
+        .when(workbench.ready(), |body| {
+            body.child(panel(colors, "First conversation")
+                .when(connected == Some(false), |section| {
+                    section.child(muted(colors, "Finish setting up the selected provider before sending your first message."))
+                })
+                .child(row().child(Button::new("setup-start-chat").primary().small()
+                    .label("New chat")
+                    .on_click(cx.listener(|this, _, window, cx| this.start_conversation(window, cx))))))
+        })
 }
 
 fn about(colors: &Palette, cx: &mut Context<Workbench>) -> Div {
@@ -798,7 +951,7 @@ fn open_url(
         .on_click(cx.listener(move |_, _, _, cx| cx.open_url(url)))
 }
 
-fn route_button(
+pub(super) fn route_button(
     id: &'static str,
     label: &'static str,
     page: ConnectionsPage,
@@ -860,17 +1013,23 @@ fn catalog(
         .take(400)
         .collect::<Vec<_>>();
     column(8.)
-        .child(Input::new(&search).w_full())
+        .child(field("Search", &search, colors, true).max_w(px(440.)))
         .when_some(read_status(workbench, path, colors), |section, status| {
             section.child(status)
         })
         .when(known.is_some(), |section| {
             section.child(muted(
                 colors,
-                if rows.is_empty() {
-                    "No matching entries.".to_owned()
+                if entries.is_empty() {
+                    "This catalog has no entries yet.".to_owned()
+                } else if rows.is_empty() {
+                    "No matches. Try a different search.".to_owned()
                 } else {
-                    format!("{} entries", rows.len())
+                    format!(
+                        "{} {}",
+                        rows.len(),
+                        if rows.len() == 1 { "result" } else { "results" }
+                    )
                 },
             ))
         })

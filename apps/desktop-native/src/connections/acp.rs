@@ -86,6 +86,7 @@ pub(super) fn render(
     let list = workbench
         .control_value(SESSIONS)
         .and_then(|value| value.get("sessions"));
+    let list_loaded = list.is_some();
     let ready = workbench.ready() && !workbench.needs_workspace();
     let can_change = ready
         && workbench.connections.acp.choosing.is_none()
@@ -107,13 +108,17 @@ pub(super) fn render(
         .and_then(Value::as_u64)
         .map(|version| format!("Protocol {version}"))
         .unwrap_or_else(|| "Awaiting runtime".into());
-    let mut overview = panel(colors, "Agent Client Protocol")
+    let mut overview = panel(colors, "ACP sessions")
         .child(
             row().justify_between().child(muted(colors, profile)).child(
                 Button::new("acp-session-new")
                     .small()
                     .primary()
-                    .label("New ACP session")
+                    .label(if workbench.connections.acp.choosing.is_some() {
+                        "Opening…"
+                    } else {
+                        "New ACP session"
+                    })
                     .disabled(!can_change)
                     .on_click(cx.listener(|this, _, _, cx| open(this, OpenSession::New, cx))),
             ),
@@ -125,15 +130,20 @@ pub(super) fn render(
         .when_some(read_status(workbench, STATUS, colors), |section, status| {
             section.child(status)
         })
-        .child(request_action(
-            "probe-acp",
-            "Probe ACP connection",
-            ready && !workbench.control_action_pending(PROBE),
-            (ControlMethod::Post, PROBE),
-            Some(json!({})),
-            &[STATUS],
-            cx,
-        ))
+        .child(
+            row().child(
+                request_action(
+                    "probe-acp",
+                    "Probe ACP connection",
+                    ready && !workbench.control_action_pending(PROBE),
+                    (ControlMethod::Post, PROBE),
+                    Some(json!({})),
+                    &[STATUS],
+                    cx,
+                )
+                .ghost(),
+            ),
+        )
         .when_some(
             action_status(workbench, PROBE, "ACP probe completed.", colors),
             |section, status| section.child(status),
@@ -150,10 +160,15 @@ pub(super) fn render(
         window,
         cx,
     );
-    let mut recent = panel(colors, "Recent sessions")
+    let mut recent = panel(colors, "Recent ACP sessions")
         .child(
             row()
-                .child(Input::new(&resume).flex_1().disabled(!can_change))
+                .items_end()
+                .child(
+                    super::field("ACP or conversation ID", &resume, colors, can_change)
+                        .flex_1()
+                        .min_w(px(180.)),
+                )
                 .child(
                     Button::new("acp-resume-by-id")
                         .small()
@@ -177,7 +192,10 @@ pub(super) fn render(
         .when_some(
             read_status(workbench, SESSIONS, colors),
             |section, status| section.child(status),
-        );
+        )
+        .when(ids.is_empty() && list_loaded, |section| {
+            section.child(muted(colors, "No ACP sessions yet."))
+        });
     for id in ids {
         let chosen = session.as_deref() == Some(id.as_str());
         let title = if chosen { "Current" } else { "Resume" };
@@ -198,12 +216,12 @@ pub(super) fn render(
         );
     }
     let conversation = session.map(|session| conversation(workbench, &session, colors, window, cx));
-    column(16.)
+    column(0.)
         .child(overview)
-        .child(recent)
         .when_some(conversation, |section, conversation| {
             section.child(conversation)
         })
+        .child(recent)
 }
 
 fn conversation(
@@ -229,9 +247,10 @@ fn conversation(
         window,
         cx,
     );
-    let can_send = workbench.ready()
+    let can_edit = workbench.ready()
         && workbench.connections.acp.turn == Turn::Idle
         && workbench.connections.acp.choosing.is_none();
+    let can_send = can_edit && !input.read(cx).value().trim().is_empty();
     let pending = workbench.connections.acp.turn == Turn::Running;
     let uncertain = workbench.connections.acp.turn == Turn::Unconfirmed;
     let updates = update_path(id);
@@ -286,6 +305,12 @@ fn conversation(
             );
         }
     }
+    if transcript.is_none_or(|transcript| transcript.lines.is_empty()) && !pending && !uncertain {
+        section = section.child(muted(
+            colors,
+            "Send a message to start this ACP conversation.",
+        ));
+    }
     if let Some(outcome) = workbench.connections.acp.outcome {
         section = section.child(muted(colors, outcome));
     }
@@ -300,7 +325,12 @@ fn conversation(
     }
     section = section.child(
         row()
-            .child(Input::new(&input).flex_1().disabled(!can_send))
+            .child(
+                Input::new(&input)
+                    .focus_bordered(false)
+                    .flex_1()
+                    .disabled(!can_edit),
+            )
             .child(
                 Button::new("send-acp-prompt")
                     .small()

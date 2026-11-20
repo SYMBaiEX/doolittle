@@ -3,9 +3,9 @@ use gpui::{
     Context, Div, Entity, PromptButton, PromptLevel, SharedString, Window, div, prelude::*, px,
 };
 use gpui_component::{
-    Disableable, Sizable,
+    Disableable, Selectable, Sizable,
     button::{Button, ButtonVariants},
-    input::{Input, InputState},
+    input::InputState,
 };
 use serde_json::{Value, json};
 
@@ -21,6 +21,7 @@ const AFTER_DECISION: &[&str] = &[PROPOSALS, "/skills"];
 #[derive(Default)]
 pub(super) struct WorkshopState {
     content: Option<Entity<InputState>>,
+    composing: bool,
     selection: Option<String>,
     state_filter: ProposalFilter,
     submitting_slug: Option<String>,
@@ -56,6 +57,7 @@ pub(super) fn workshop(
             if previous.as_deref() == Some(value(workbench, "skill-proposal-slug", cx).trim()) {
                 workbench.connections.fields.remove("skill-proposal-slug");
                 workbench.connections.workshop.content = None;
+                workbench.connections.workshop.composing = false;
             }
             workbench.connections.workshop.state_filter = ProposalFilter::Pending;
         }
@@ -82,19 +84,21 @@ pub(super) fn workshop(
     let query = value(workbench, "skill-proposal-search", cx)
         .trim()
         .to_lowercase();
-    let content = workbench
-        .connections
-        .workshop
-        .content
-        .get_or_insert_with(|| {
-            cx.new(|cx| {
-                InputState::new(window, cx)
-                    .multi_line(true)
-                    .rows(6)
-                    .placeholder("Add the SKILL.md body")
+    let content = workbench.connections.workshop.composing.then(|| {
+        workbench
+            .connections
+            .workshop
+            .content
+            .get_or_insert_with(|| {
+                cx.new(|cx| {
+                    InputState::new(window, cx)
+                        .multi_line(true)
+                        .rows(6)
+                        .placeholder("Add the SKILL.md body")
+                })
             })
-        })
-        .clone();
+            .clone()
+    });
     let detail = review_detail(workbench, colors, window, cx);
     let selected = workbench.connections.workshop.selection.as_deref();
     let state_filter = workbench.connections.workshop.state_filter;
@@ -122,25 +126,52 @@ pub(super) fn workshop(
                         .any(|text| text.to_lowercase().contains(&query)))
         })
         .collect::<Vec<_>>();
-    panel(colors, "Skill workshop")
-        .child(muted(
-            colors,
-            "Draft a SKILL.md and review the safety scan before activation.",
-        ))
-        .child(field("Skill name", &slug, colors, ready))
+    panel(colors, "Skill proposals")
         .child(
-            column(4.)
-                .child(muted(colors, "SKILL.md"))
-                .child(Input::new(&content).disabled(!ready).w_full()),
+            row()
+                .justify_between()
+                .child(muted(
+                    colors,
+                    "Review the safety scan before activating a skill.",
+                ))
+                .child(
+                    Button::new("toggle-skill-proposal")
+                        .small()
+                        .ghost()
+                        .label(if content.is_some() {
+                            "Hide draft"
+                        } else {
+                            "New proposal…"
+                        })
+                        .disabled(!ready)
+                        .on_click(cx.listener(|this, _, _, cx| {
+                            this.connections.workshop.composing =
+                                !this.connections.workshop.composing;
+                            cx.notify();
+                        })),
+                ),
         )
-        .child(
-            Button::new("new-skill-proposal")
-                .small()
-                .primary()
-                .label("Create proposal")
-                .disabled(!ready)
-                .on_click(cx.listener(|this, _, _, cx| create_proposal(this, cx))),
-        )
+        .when_some(content, |section, content| {
+            section.child(
+                column(8.)
+                    .child(field("Skill name", &slug, colors, ready))
+                    .child(field("SKILL.md", &content, colors, ready))
+                    .child(
+                        row().child(
+                            Button::new("new-skill-proposal")
+                                .small()
+                                .primary()
+                                .label("Submit for review")
+                                .disabled(
+                                    !ready
+                                        || slug.read(cx).value().trim().is_empty()
+                                        || content.read(cx).value().trim().is_empty(),
+                                )
+                                .on_click(cx.listener(|this, _, _, cx| create_proposal(this, cx))),
+                        ),
+                    ),
+            )
+        })
         .when_some(
             action_status(
                 workbench,
@@ -150,6 +181,7 @@ pub(super) fn workshop(
             ),
             |section, status| section.child(status),
         )
+        .when_some(detail, |section, detail| section.child(detail))
         .child(
             column(7.)
                 .pt(px(10.))
@@ -160,26 +192,32 @@ pub(super) fn workshop(
                         let button =
                             Button::new(SharedString::from(format!("skill-proposals-filter-{id}")))
                                 .small()
-                                .label(label);
-                        let button = if choice == state_filter {
-                            button.outline()
-                        } else {
-                            button.ghost()
-                        };
+                                .label(label)
+                                .ghost()
+                                .selected(choice == state_filter);
                         button.on_click(cx.listener(move |this, _, _, cx| {
                             this.connections.workshop.state_filter = choice;
                             cx.notify();
                         }))
                     })),
                 )
-                .child(Input::new(&filter).w_full())
+                .child(field("Filter proposals", &filter, colors, true).max_w(px(440.)))
                 .when_some(
                     read_status(workbench, PROPOSALS, colors),
                     |section, status| section.child(status),
                 )
                 .when(
                     filtered.is_empty() && workbench.control_value(PROPOSALS).is_some(),
-                    |section| section.child(muted(colors, "No matching proposals.")),
+                    |section| {
+                        section.child(muted(
+                            colors,
+                            if query.is_empty() {
+                                "No proposals in this view."
+                            } else {
+                                "No proposals match your search."
+                            },
+                        ))
+                    },
                 )
                 .children(filtered.into_iter().filter_map(|proposal| {
                     let id = text_at(Some(proposal), "id")
@@ -214,7 +252,6 @@ pub(super) fn workshop(
                     )
                 })),
         )
-        .when_some(detail, |section, detail| section.child(detail))
 }
 
 fn create_proposal(workbench: &mut Workbench, cx: &mut Context<Workbench>) {

@@ -9,8 +9,8 @@ use gpui_component::{
 use serde_json::{Value, json};
 
 use super::{
-    ACCOUNT_POOLS, ConnectionsPage, PROVIDER_ACCOUNTS, RUNTIME, accounts::LinkedProvider, field,
-    input_field, muted, notice, panel, row, text_at, value,
+    ACCOUNT_POOLS, ConnectionsPage, PROVIDER_ACCOUNTS, RUNTIME, SETTINGS, accounts::LinkedProvider,
+    field, input_field, muted, notice, panel, row, text_at, value,
 };
 use crate::{ui::Palette, workbench::Workbench};
 
@@ -21,17 +21,29 @@ const CANCEL: &str = "/accounts/oauth/cancel";
 pub(super) fn sign_in(
     workbench: &Workbench,
     provider: LinkedProvider,
+    connected: bool,
+    busy: bool,
     cx: &mut Context<Workbench>,
 ) -> Button {
     let available = workbench.ready()
+        && !busy
         && !workbench.control_action_pending(START)
         && active_flow(workbench)
             .is_none_or(|flow| text_at(Some(flow), "status") != Some("pending"));
-    Button::new(SharedString::from(format!("oauth-start-{}", provider.id())))
+    let button = Button::new(SharedString::from(format!("oauth-start-{}", provider.id())))
         .small()
-        .label("Sign in")
+        .label(if connected {
+            "Link another account"
+        } else {
+            "Sign in"
+        })
         .disabled(!available)
-        .on_click(cx.listener(move |this, _, _, cx| start(this, provider, cx)))
+        .on_click(cx.listener(move |this, _, _, cx| start(this, provider, cx)));
+    if connected {
+        button.ghost()
+    } else {
+        button.primary()
+    }
 }
 
 fn start(workbench: &mut Workbench, provider: LinkedProvider, cx: &mut Context<Workbench>) {
@@ -39,11 +51,13 @@ fn start(workbench: &mut Workbench, provider: LinkedProvider, cx: &mut Context<W
         return;
     };
     workbench.connections.fields.remove("provider-oauth-code");
+    workbench.connections.linked_provider = None;
     workbench
         .connections
         .feedback
         .remove(&ConnectionsPage::Accounts);
     workbench.connections.oauth_provider = Some(provider);
+    workbench.connections.oauth_browser_requested = false;
     workbench.connections.oauth_generation = workbench.connections.oauth_generation.wrapping_add(1);
     let generation = workbench.connections.oauth_generation;
     workbench.control_send(
@@ -68,13 +82,23 @@ fn start(workbench: &mut Workbench, provider: LinkedProvider, cx: &mut Context<W
                 };
                 match text_at(Some(flow), "status") {
                     Some("pending") => {
-                        if let Some(id) = flow_id(flow) {
-                            this.control_get(&status_path(id), cx);
+                        let path = flow_id(flow).map(status_path);
+                        if !this.connections.oauth_browser_requested
+                            && let Some(url) = start_flow(this)
+                                .and_then(|flow| text_at(Some(flow), "authUrl"))
+                                .filter(|url| trusted_oauth_url(provider, url))
+                                .map(str::to_owned)
+                        {
+                            this.connections.oauth_browser_requested = true;
+                            cx.open_url(&url);
+                        }
+                        if let Some(path) = path {
+                            this.control_get(&path, cx);
                         }
                         true
                     }
                     Some("success") => {
-                        for path in [ACCOUNT_POOLS, PROVIDER_ACCOUNTS, RUNTIME] {
+                        for path in [ACCOUNT_POOLS, PROVIDER_ACCOUNTS, SETTINGS, RUNTIME] {
                             this.control_get(path, cx);
                         }
                         this.connections.fields.remove("provider-oauth-code");
@@ -160,8 +184,11 @@ pub(super) fn panel_content(
     });
     content = content
         .child(muted(colors,if code_submitted {"Callback received. Finishing sign-in…"} else {"Continue on the provider’s sign-in page. This window checks for completion automatically."}))
-        .when_some(launch, |section,url| section.child(Button::new("oauth-open-browser").small().primary().label("Open provider sign-in")
-            .on_click(cx.listener(move |_, _, _, cx| cx.open_url(&url)))))
+        .when_some(launch, |section,url| section.child(Button::new("oauth-open-browser").small().ghost().label("Open sign-in page")
+            .on_click(cx.listener(move |this, _, _, cx| {
+                this.connections.oauth_browser_requested = true;
+                cx.open_url(&url);
+            }))))
         .when_some(workbench.control_error(&status_route), |section,error| section.child(notice(colors,error.to_owned(),true)))
         .when_some(workbench.control_action_error(SUBMIT), |section,error| section.child(notice(colors,error.to_owned(),true)))
         .when_some(workbench.control_action_error(CANCEL), |section,error| section.child(notice(colors,error.to_owned(),true)));

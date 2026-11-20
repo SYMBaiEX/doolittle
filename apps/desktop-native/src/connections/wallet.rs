@@ -42,6 +42,13 @@ pub(crate) fn render(
         .get("transactionId")
         .and_then(Value::as_str)
         .filter(|value| transaction_id(value));
+    let state_color = if transaction.is_some()
+        && receipt.get("status").and_then(Value::as_str) == Some("submitted")
+    {
+        colors.warning
+    } else {
+        colors.muted
+    };
     Some(
         div()
             .flex()
@@ -50,7 +57,7 @@ pub(crate) fn render(
             .gap(px(6.))
             .my(px(4.))
             .p(px(10.))
-            .rounded(px(6.))
+            .rounded(colors.control_radius())
             .border_1()
             .border_color(colors.divider)
             .bg(colors.inset)
@@ -65,7 +72,7 @@ pub(crate) fn render(
                             .font_weight(FontWeight::SEMIBOLD)
                             .child(format!("{title} · {chain}")),
                     )
-                    .child(div().text_sm().text_color(colors.muted).child(state)),
+                    .child(div().text_sm().text_color(state_color).child(state)),
             )
             .when(!tokens.is_empty(), |card| {
                 card.child(div().text_sm().child(tokens))
@@ -84,13 +91,14 @@ pub(crate) fn render(
                                 .truncate()
                                 .text_sm()
                                 .text_color(colors.muted)
-                                .child(format!("Transaction · {transaction}")),
+                                .child(format!("Transaction ID: {transaction}")),
                         )
                         .child(
                             Button::new(gpui::SharedString::from(id))
                                 .ghost()
                                 .small()
-                                .label("Copy transaction")
+                                .label("Copy ID")
+                                .tooltip("Copy transaction ID")
                                 .on_click(cx.listener(move |_, _, _, cx| {
                                     cx.write_to_clipboard(ClipboardItem::new_string(copy.clone()));
                                 })),

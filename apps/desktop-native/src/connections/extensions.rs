@@ -3,12 +3,12 @@ use gpui::{Context, Div, Window, prelude::*};
 use gpui_component::{
     Disableable, Sizable,
     button::{Button, ButtonVariants},
-    input::Input,
 };
 use serde_json::Value;
 
 use super::{
-    ConnectionsPage, column, input_field, muted, notice, panel, read_status, request_action, row,
+    ConnectionsPage, column, field, input_field, muted, notice, panel, read_status, request_action,
+    row,
     settings::{catalog_row, item_row},
     text_at, value, values,
 };
@@ -77,7 +77,11 @@ pub(super) fn mcp(
                 .child(muted(colors, status_chip))
                 .child(request_action(
                     "mcp-probe-now",
-                    "Check MCP connection",
+                    if probing {
+                        "Checking…"
+                    } else {
+                        "Check connection"
+                    },
                     ready && !probing,
                     (ControlMethod::Post, MCP_PROBE),
                     None,
@@ -85,15 +89,14 @@ pub(super) fn mcp(
                     cx,
                 )),
         )
-        .child(item_row(
-            colors,
-            "Connected servers",
+        .when_some(
             status
                 .and_then(|data| data.get("connectedServers"))
-                .and_then(Value::as_u64)
-                .unwrap_or_default()
-                .to_string(),
-        ))
+                .and_then(Value::as_u64),
+            |section, connected| {
+                section.child(item_row(colors, "Connected servers", connected.to_string()))
+            },
+        )
         .when_some(
             read_status(workbench, MCP_STATUS, colors),
             |section, state| section.child(state),
@@ -112,30 +115,40 @@ pub(super) fn mcp(
             ))
         })
         .children(servers.iter().map(|server| catalog_row(colors, server)));
+    let visible_tools = tools
+        .iter()
+        .filter_map(|tool| {
+            let name = text_at(Some(tool), "name")?;
+            let descriptions_match = text_at(Some(tool), "description")
+                .is_some_and(|value| value.to_lowercase().contains(&filter));
+            (filter.is_empty() || name.to_lowercase().contains(&filter) || descriptions_match)
+                .then_some((name, tool))
+        })
+        .collect::<Vec<_>>();
     let cached_list = panel(colors, "Cached MCP tools")
-        .child(Input::new(&cached).w_full())
+        .child(field("Filter cached tools", &cached, colors, ready).max_w(gpui::px(440.)))
         .when_some(
             read_status(workbench, MCP_CACHED, colors),
             |section, state| section.child(state),
         )
         .when(
-            tools.is_empty() && workbench.control_value(MCP_CACHED).is_some(),
-            |section| section.child(muted(colors, "No tools are cached for configured servers.")),
+            visible_tools.is_empty() && workbench.control_value(MCP_CACHED).is_some(),
+            |section| {
+                section.child(muted(
+                    colors,
+                    if tools.is_empty() {
+                        "No MCP tools have been cached yet."
+                    } else {
+                        "No tools match your search."
+                    },
+                ))
+            },
         )
         .children(
-            tools
-                .iter()
+            visible_tools
+                .into_iter()
                 .enumerate()
-                .filter_map(|(index, tool)| {
-                    let name = text_at(Some(tool), "name")?;
-                    let description = text_at(Some(tool), "description").unwrap_or_default();
-                    if !filter.is_empty()
-                        && !format!("{name} {description}")
-                            .to_lowercase()
-                            .contains(&filter)
-                    {
-                        return None;
-                    }
+                .map(|(index, (name, tool))| {
                     let name = name.to_owned();
                     let button = Button::new(("mcp-tool-open", index))
                         .small()
@@ -147,12 +160,10 @@ pub(super) fn mcp(
                             this.connections.catalog.mcp_detail = Some(path.clone());
                             this.control_get(&path, cx);
                         }));
-                    Some(
-                        row()
-                            .justify_between()
-                            .child(catalog_row(colors, tool))
-                            .child(button),
-                    )
+                    row()
+                        .justify_between()
+                        .child(catalog_row(colors, tool).flex_1())
+                        .child(button)
                 })
                 .take(120),
         )
@@ -166,15 +177,22 @@ pub(super) fn mcp(
     let pending = query_path.is_some_and(|path| workbench.control_pending(path));
     let market = panel(colors, "MCP marketplace")
         .child(
-            row().child(Input::new(&marketplace).flex_1()).child(
-                Button::new("mcp-market-search")
-                    .small()
-                    .label("Search")
-                    .disabled(!ready || pending)
-                    .on_click(
-                        cx.listener(|this, _, _, cx| search(this, SearchArea::Marketplace, cx)),
-                    ),
-            ),
+            row()
+                .items_end()
+                .child(
+                    field("Find an MCP server", &marketplace, colors, ready)
+                        .flex_1()
+                        .min_w(gpui::px(165.)),
+                )
+                .child(
+                    Button::new("mcp-market-search")
+                        .small()
+                        .label(if pending { "Searching…" } else { "Search" })
+                        .disabled(!ready || pending)
+                        .on_click(
+                            cx.listener(|this, _, _, cx| search(this, SearchArea::Marketplace, cx)),
+                        ),
+                ),
         )
         .when_some(
             query_path.and_then(|path| read_status(workbench, path, colors)),
@@ -206,7 +224,7 @@ pub(super) fn mcp(
                     Some(
                         row()
                             .justify_between()
-                            .child(catalog_row(colors, server))
+                            .child(catalog_row(colors, server).flex_1())
                             .child(button),
                     )
                 }),
@@ -214,7 +232,7 @@ pub(super) fn mcp(
         .when_some(mcp_market_detail(workbench, colors), |section, detail| {
             section.child(detail)
         });
-    column(16.).child(response).child(cached_list).child(market)
+    column(0.).child(response).child(cached_list).child(market)
 }
 
 fn mcp_tool_detail(workbench: &Workbench, colors: &Palette) -> Option<Div> {
@@ -317,7 +335,12 @@ pub(super) fn registry(
     panel(colors, "Registry packages")
         .child(
             row()
-                .child(Input::new(&input).flex_1())
+                .items_end()
+                .child(
+                    field("Find a package", &input, colors, true)
+                        .flex_1()
+                        .min_w(gpui::px(165.)),
+                )
                 .child(
                     Button::new("registry-run-search")
                         .small()
@@ -344,7 +367,14 @@ pub(super) fn registry(
             section.child(status)
         })
         .when(result.is_some(), |section| {
-            section.child(muted(colors, format!("{} entries", entries.len())))
+            section.child(muted(
+                colors,
+                if entries.is_empty() {
+                    "No packages found.".into()
+                } else {
+                    format!("{} packages", entries.len())
+                },
+            ))
         })
         .children(entries.iter().take(350).map(|entry| {
             let reasons = values(entry.get("policy"), "reasons");

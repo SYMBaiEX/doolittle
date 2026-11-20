@@ -1,9 +1,10 @@
 use doolittle_runtime::ControlMethod;
 use gpui::{
-    AnyElement, ClipboardItem, Context, PromptButton, PromptLevel, Window, div, prelude::*, px,
+    AnyElement, ClipboardItem, Context, FontWeight, PromptButton, PromptLevel, Window, div,
+    prelude::*, px,
 };
 use gpui_component::{
-    Disableable, Sizable,
+    Disableable, Selectable, Sizable,
     button::{Button, ButtonVariants},
 };
 use serde_json::{Value, json};
@@ -29,6 +30,19 @@ const STRATEGIES: [(&str, &str); 4] = [
     ("least-used", "Least used"),
     ("quota-aware", "Quota aware"),
 ];
+
+pub(super) fn provider_name(id: &str) -> &str {
+    match id {
+        "codex" | "openai-codex" => "Codex",
+        "claude-code" | "anthropic-subscription" => "Claude Code",
+        "elizacloud" | "eliza-cloud" => "Eliza Cloud",
+        "openai" | "openai-api" => "OpenAI",
+        "anthropic" | "anthropic-api" => "Anthropic",
+        "ollama" => "Ollama",
+        "offline" => "Offline",
+        _ => id,
+    }
+}
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(super) enum LinkedProvider {
@@ -106,7 +120,7 @@ pub(super) fn render(
     cx: &mut Context<Workbench>,
 ) -> AnyElement {
     let snapshot = workbench.control_value(PROVIDER_ACCOUNTS);
-    let active = text_at(snapshot, "activeProvider").unwrap_or("Not configured");
+    let active = text_at(snapshot, "activeProvider");
     let ready = workbench.ready();
     let busy = [
         "/accounts/refresh",
@@ -126,17 +140,18 @@ pub(super) fn render(
                 .iter()
                 .any(|key| flag(status, key));
             let readiness = if route_available {
-                "Ready"
-            } else if status
-                .and_then(|status| status.get("checked"))
-                .and_then(Value::as_bool)
-                == Some(false)
+                "Connected"
+            } else if status.is_none()
+                || status
+                    .and_then(|status| status.get("checked"))
+                    .and_then(Value::as_bool)
+                    == Some(false)
             {
-                "Unchecked"
+                "Not checked"
             } else {
                 "Needs sign-in"
             };
-            let selected = active == provider.id();
+            let selected = active.is_some_and(|id| provider_name(id) == provider.name());
             let command = || json!({"provider":provider.id()});
             column(7.)
                 .py(px(8.))
@@ -145,38 +160,60 @@ pub(super) fn render(
                 .child(
                     row()
                         .justify_between()
-                        .child(div().child(provider.name()))
-                        .child(muted(
-                            colors,
-                            if selected && route_available {
-                                "Default · Ready"
-                            } else {
-                                readiness
-                            },
-                        )),
+                        .child(div().font_weight(FontWeight::MEDIUM).child(provider.name()))
+                        .child(
+                            div()
+                                .text_sm()
+                                .text_color(if route_available {
+                                    colors.positive
+                                } else {
+                                    colors.muted
+                                })
+                                .child(if selected && route_available {
+                                    "Connected · Default"
+                                } else {
+                                    readiness
+                                }),
+                        ),
                 )
                 .child(
                     row()
-                        .child(request_action(
-                            format!("connect-{}", provider.id()),
-                            "Use saved sign-in",
-                            ready && !busy,
-                            (ControlMethod::Post, "/accounts/connect"),
-                            Some(command()),
-                            ACCOUNT_REFRESH,
-                            cx,
-                        ))
-                        .child(request_action(
-                            format!("activate-{}", provider.id()),
-                            "Set default",
-                            ready && !busy && route_available && !selected,
-                            (ControlMethod::Post, "/accounts/use"),
-                            Some(command()),
-                            ACCOUNT_REFRESH,
-                            cx,
-                        ))
+                        .when(route_available && !selected, |actions| {
+                            actions.child(
+                                request_action(
+                                    format!("activate-{}", provider.id()),
+                                    "Use for new chats",
+                                    ready && !busy,
+                                    (ControlMethod::Post, "/accounts/use"),
+                                    Some(command()),
+                                    ACCOUNT_REFRESH,
+                                    cx,
+                                )
+                                .primary(),
+                            )
+                        })
                         .when(provider.oauth_id().is_some(), |actions| {
-                            actions.child(super::oauth::sign_in(workbench, provider, cx))
+                            actions.child(super::oauth::sign_in(
+                                workbench,
+                                provider,
+                                route_available,
+                                busy,
+                                cx,
+                            ))
+                        })
+                        .when(!route_available, |actions| {
+                            actions.child(
+                                request_action(
+                                    format!("connect-{}", provider.id()),
+                                    "Use saved sign-in",
+                                    ready && !busy,
+                                    (ControlMethod::Post, "/accounts/connect"),
+                                    Some(command()),
+                                    ACCOUNT_REFRESH,
+                                    cx,
+                                )
+                                .ghost(),
+                            )
                         })
                         .child(
                             Button::new(gpui::SharedString::from(format!(
@@ -185,7 +222,11 @@ pub(super) fn render(
                             )))
                             .small()
                             .ghost()
-                            .label("Sign-in instructions")
+                            .label(if provider.oauth_id().is_some() {
+                                "Other sign-in options"
+                            } else {
+                                "How to sign in"
+                            })
                             .disabled(!ready || busy)
                             .on_click(cx.listener(
                                 move |this, _, _, cx| {
@@ -208,7 +249,13 @@ pub(super) fn render(
         .child(
             row()
                 .justify_between()
-                .child(muted(colors, format!("Default route · {active}")))
+                .child(muted(
+                    colors,
+                    format!(
+                        "Current default: {}",
+                        active.map(provider_name).unwrap_or("Not selected")
+                    ),
+                ))
                 .child(request_action(
                     "check-saved-accounts",
                     "Check saved accounts",
@@ -258,12 +305,25 @@ pub(super) fn render(
     }
     let auth = super::oauth::panel_content(workbench, colors, window, cx);
     let account_edit = edit_account_panel(workbench, colors, window, cx);
-    column(16.)
-        .child(roster)
+    column(0.)
         .when_some(auth, |body, panel| body.child(panel))
         .when_some(
             sign_in_instructions(workbench, colors, cx),
             |body, instructions| body.child(instructions),
+        )
+        .child(roster)
+        .child(
+            panel(colors, "API keys")
+                .child(muted(
+                    colors,
+                    "Connect directly to OpenAI or Anthropic with an API key.",
+                ))
+                .child(row().child(super::settings::route_button(
+                    "accounts-open-credentials",
+                    "Add an API key",
+                    ConnectionsPage::Credentials,
+                    cx,
+                ))),
         )
         .when_some(account_edit, |body, editor| body.child(editor))
         .child(pool_directory(workbench, colors, cx))
@@ -666,15 +726,17 @@ pub(super) fn credentials(
         window,
         cx,
     );
-    let account_id = input_field(
-        workbench,
-        "provider-account-id",
-        "",
-        "Optional stable account ID",
-        false,
-        window,
-        cx,
-    );
+    let account_id = workbench.connections.credential_options_open.then(|| {
+        input_field(
+            workbench,
+            "provider-account-id",
+            "",
+            "Optional stable account ID",
+            false,
+            window,
+            cx,
+        )
+    });
     let key = input_field(
         workbench,
         "provider-api-key",
@@ -689,6 +751,7 @@ pub(super) fn credentials(
         .into_iter()
         .any(|provider| workbench.control_action_pending(provider.route()));
     let ready = workbench.ready() && !busy;
+    let complete = !key.read(cx).value().trim().is_empty();
     let directory = workbench.control_value(ACCOUNT_POOLS);
     let saved = workbench.control_action_value(provider.route());
     let saved_applied = saved
@@ -703,7 +766,11 @@ pub(super) fn credentials(
     panel(colors, "Add an API credential")
         .child(muted(
             colors,
-            format!("{} · {count} saved accounts", provider.name()),
+            format!(
+                "{} · {count} saved {}",
+                provider.name(),
+                if count == 1 { "account" } else { "accounts" }
+            ),
         ))
         .child(
             row().children(DirectProvider::ALL.into_iter().map(|choice| {
@@ -713,15 +780,14 @@ pub(super) fn credentials(
                 )))
                 .small()
                 .label(choice.name())
+                .ghost()
+                .selected(choice == provider)
                 .disabled(busy);
-                let button = if choice == provider {
-                    button.outline()
-                } else {
-                    button.ghost()
-                };
                 button.on_click(cx.listener(move |this, _, _, cx| {
                     if choice != this.connections.credential_provider {
                         this.connections.clear_sensitive_drafts();
+                        this.connections.credential_options_open = false;
+                        this.connections.fields.remove("provider-account-id");
                         this.connections
                             .feedback
                             .remove(&ConnectionsPage::Credentials);
@@ -731,9 +797,28 @@ pub(super) fn credentials(
                 }))
             })),
         )
-        .child(field("Display name", &label, colors, ready))
-        .child(field("Account ID", &account_id, colors, ready))
-        .child(field("API key", &key, colors, ready))
+        .child(field("API key", &key, colors, ready).max_w(px(580.)))
+        .child(field("Display name (optional)", &label, colors, ready).max_w(px(580.)))
+        .child(
+            row().child(
+                Button::new("credential-id-options")
+                    .small()
+                    .ghost()
+                    .label(if account_id.is_some() {
+                        "Hide account ID"
+                    } else {
+                        "Set a custom account ID…"
+                    })
+                    .on_click(cx.listener(|this, _, _, cx| {
+                        this.connections.credential_options_open =
+                            !this.connections.credential_options_open;
+                        cx.notify();
+                    })),
+            ),
+        )
+        .when_some(account_id, |section, id| {
+            section.child(field("Account ID", &id, colors, ready).max_w(px(580.)))
+        })
         .when_some(
             action_status(
                 workbench,
@@ -748,23 +833,44 @@ pub(super) fn credentials(
             |section, status| section.child(status),
         )
         .child(
-            row().child(
-                Button::new("store-provider-key")
-                    .small()
-                    .primary()
-                    .label("Store API credential")
-                    .disabled(!ready)
-                    .on_click(cx.listener(|this, _, _, cx| save_credential(this, cx))),
-            ),
+            row()
+                .child(
+                    Button::new("store-provider-key")
+                        .small()
+                        .primary()
+                        .label(if busy { "Saving…" } else { "Save API key" })
+                        .disabled(!ready || !complete)
+                        .on_click(cx.listener(|this, _, _, cx| save_credential(this, cx))),
+                )
+                .when(saved.is_some(), |actions| {
+                    actions.child(super::settings::route_button(
+                        "credentials-open-models",
+                        "Choose a model",
+                        ConnectionsPage::Models,
+                        cx,
+                    ))
+                }),
         )
         .into_any_element()
 }
 
 fn save_credential(workbench: &mut Workbench, cx: &mut Context<Workbench>) {
     let label = value(workbench, "provider-account-label", cx);
-    let id = value(workbench, "provider-account-id", cx);
+    let id = if workbench.connections.credential_options_open {
+        value(workbench, "provider-account-id", cx)
+    } else {
+        String::new()
+    };
     let api_key = value(workbench, "provider-api-key", cx);
-    let label = label.trim();
+    let suggested_label = format!(
+        "{} API key",
+        workbench.connections.credential_provider.name()
+    );
+    let label = if label.trim().is_empty() {
+        suggested_label.as_str()
+    } else {
+        label.trim()
+    };
     let id = id.trim();
     let id = if id.is_empty() {
         uuid::Uuid::new_v4().to_string()
@@ -772,8 +878,7 @@ fn save_credential(workbench: &mut Workbench, cx: &mut Context<Workbench>) {
         id.to_owned()
     };
     let api_key = api_key.trim();
-    if label.is_empty()
-        || label.encode_utf16().count() > 120
+    if label.encode_utf16().count() > 120
         || label.chars().any(char::is_control)
         || !valid_account_id(&id)
         || id.len() > 120
@@ -783,7 +888,7 @@ fn save_credential(workbench: &mut Workbench, cx: &mut Context<Workbench>) {
     {
         workbench.connections.set_feedback(
             ConnectionsPage::Credentials,
-            "Enter a display name, a valid account ID if needed, and an API key.",
+            "Check the API key and any custom display name or account ID.",
         );
         cx.notify();
         return;
