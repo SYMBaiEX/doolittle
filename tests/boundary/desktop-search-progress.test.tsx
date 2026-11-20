@@ -17,11 +17,21 @@ function SearchProbe({
   return <output>{JSON.stringify(search)}</output>;
 }
 
+function deferred() {
+  let resolve!: (value: unknown) => void;
+  let reject!: (error: Error) => void;
+  const promise = new Promise<unknown>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, resolve, reject };
+}
+
 it("publishes available project sources while slow search requests remain pending", async () => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   vi.useFakeTimers();
-  const slow = Promise.withResolvers<unknown>();
-  const stale = Promise.withResolvers<unknown>();
+  const slow = deferred();
+  const stale = deferred();
   const request = vi
     .spyOn(rendererTransport, "desktopRequest")
     .mockImplementation((path) => {
