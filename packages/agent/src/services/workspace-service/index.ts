@@ -12,6 +12,7 @@ import {
 } from "./checkpoints";
 import {
   applyWorkspacePatch,
+  captureWorkspaceWriteExpectation,
   createWorkspaceDirectory,
   planWorkspacePatch,
   readWorkspaceLines,
@@ -42,6 +43,7 @@ export type {
   WorkspaceReadLinesResult,
   WorkspaceWriteResult,
 } from "./file-operations";
+export { WorkspaceWriteConflictError } from "./file-operations";
 
 export class WorkspaceService {
   constructor(private readonly workspaceDirectory: WorkspaceDirectorySource) {}
@@ -82,8 +84,12 @@ export class WorkspaceService {
     return readFileSync(resolvedPath, "utf8");
   }
 
-  async write(path: string, content: string): Promise<string> {
-    return (await this.writeFile(path, content)).path;
+  async write(
+    path: string,
+    content: string,
+    options?: { expectedContent?: string },
+  ): Promise<string> {
+    return (await this.writeFile(path, content, options)).path;
   }
 
   readLines(
@@ -97,16 +103,24 @@ export class WorkspaceService {
   async writeFile(
     path: string,
     content: string,
+    options: { expectedContent?: string } = {},
   ): Promise<WorkspaceWriteResult> {
     const root = this.root();
     // Validate before creating a checkpoint so rejected paths cannot create
     // unrelated repository history.
-    resolveWorkspaceServicePath(root, path, "write");
+    const resolvedPath = resolveWorkspaceServicePath(root, path, "write");
+    const expected =
+      options.expectedContent === undefined
+        ? undefined
+        : captureWorkspaceWriteExpectation(
+            resolvedPath,
+            options.expectedContent,
+          );
     await this.checkpointBeforeMutation(
       root,
       `Before workspace write: ${path}`,
     );
-    return writeWorkspaceFile(root, path, content);
+    return writeWorkspaceFile(root, path, content, expected);
   }
 
   createDirectory(path: string): WorkspaceDirectoryResult {

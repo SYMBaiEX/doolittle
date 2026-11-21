@@ -1,9 +1,14 @@
 import {
+  closeSync,
+  constants,
   existsSync,
+  ftruncateSync,
   lstatSync,
   mkdirSync,
+  openSync,
   readdirSync,
   readFileSync,
+  realpathSync,
   writeFileSync,
 } from "node:fs";
 import { dirname, join, relative } from "node:path";
@@ -16,7 +21,11 @@ import type {
   WorkspaceReadLinesResult,
   WorkspaceWriteResult,
 } from "@doolittle/contracts";
-import { readRegularFileSync } from "@doolittle/storage";
+import {
+  RegularFileError,
+  readRegularFileDescriptorSync,
+  readRegularFileSync,
+} from "@doolittle/storage";
 import { resolveWorkspaceServicePath } from "./path";
 import { workspaceRelativePath } from "./path-format";
 import { isWorkspacePathVisible } from "./policy";
@@ -30,6 +39,51 @@ export interface WorkspacePatchPlan {
   path: string;
   content: string;
   replacements: number;
+}
+
+interface WorkspaceWriteExpectation {
+  target: string;
+  bytes: Buffer;
+}
+
+export class WorkspaceWriteConflictError extends Error {
+  constructor() {
+    super(
+      "File changed after it was opened. Reload it before saving your edits.",
+    );
+    this.name = "WorkspaceWriteConflictError";
+  }
+}
+
+function checkWorkspaceWriteTarget<T>(check: () => T): T {
+  try {
+    return check();
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (
+      error instanceof RegularFileError ||
+      code === "ENOENT" ||
+      code === "ENOTDIR" ||
+      code === "ELOOP"
+    ) {
+      throw new WorkspaceWriteConflictError();
+    }
+    throw error;
+  }
+}
+
+export function captureWorkspaceWriteExpectation(
+  resolvedPath: string,
+  expectedContent: string,
+): WorkspaceWriteExpectation {
+  return checkWorkspaceWriteTarget(() => {
+    const target = realpathSync(resolvedPath);
+    const bytes = Buffer.from(expectedContent, "utf8");
+    if (!readRegularFileSync(target, bytes.byteLength).equals(bytes)) {
+      throw new WorkspaceWriteConflictError();
+    }
+    return { target, bytes };
+  });
 }
 
 export type {
@@ -131,14 +185,38 @@ export function writeWorkspaceFile(
   workspaceDir: string,
   path: string,
   content: string,
+  expected?: WorkspaceWriteExpectation,
 ): WorkspaceWriteResult {
   const resolvedPath = resolveWorkspaceServicePath(workspaceDir, path, "write");
-  mkdirSync(dirname(resolvedPath), { recursive: true });
-  writeFileSync(resolvedPath, content, "utf8");
-  return {
-    path: resolvedPath,
-    bytes: Buffer.byteLength(content, "utf8"),
-  };
+  const bytes = Buffer.byteLength(content, "utf8");
+  if (expected) {
+    checkWorkspaceWriteTarget(() => {
+      const target = realpathSync(resolvedPath);
+      if (target !== expected.target) throw new WorkspaceWriteConflictError();
+      const fd = openSync(
+        target,
+        constants.O_RDWR |
+          (constants.O_NOFOLLOW ?? 0) |
+          (constants.O_NONBLOCK ?? 0),
+      );
+      try {
+        const current = readRegularFileDescriptorSync(
+          fd,
+          expected.bytes.byteLength,
+        );
+        if (!current.equals(expected.bytes))
+          throw new WorkspaceWriteConflictError();
+        writeFileSync(fd, content, "utf8");
+        ftruncateSync(fd, bytes);
+      } finally {
+        closeSync(fd);
+      }
+    });
+  } else {
+    mkdirSync(dirname(resolvedPath), { recursive: true });
+    writeFileSync(resolvedPath, content, "utf8");
+  }
+  return { path: resolvedPath, bytes };
 }
 
 export function searchWorkspaceFiles(

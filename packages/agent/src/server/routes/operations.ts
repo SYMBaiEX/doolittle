@@ -30,6 +30,7 @@ import {
   TerminalCreationConflictError,
   TerminalSessionNotFoundError,
 } from "../../services/terminal/session";
+import { WorkspaceWriteConflictError } from "../../services/workspace-service";
 import { sdkTerminalRunTokenError } from "../auth";
 import { readRouteJsonBody } from "../request-body";
 import { json, streamSse } from "../responses";
@@ -309,20 +310,16 @@ export async function handleOperationsRoutes(
     ) {
       return json({ error: "workspace file is too large" }, 413);
     }
-    const currentContent = context.services.workspace.read(path);
-    if (currentContent !== body.expectedContent) {
-      return json(
-        {
-          error:
-            "File changed after it was opened. Reload it before saving your edits.",
-          conflict: true,
-        },
-        409,
-      );
+    try {
+      return json({
+        path: await context.services.workspace.write(path, body.content, {
+          expectedContent: body.expectedContent,
+        }),
+      });
+    } catch (error) {
+      if (!(error instanceof WorkspaceWriteConflictError)) throw error;
+      return json({ error: error.message, conflict: true }, 409);
     }
-    return json({
-      path: await context.services.workspace.write(path, body.content),
-    });
   }
 
   if (request.method === "GET" && url.pathname === "/deliveries") {
