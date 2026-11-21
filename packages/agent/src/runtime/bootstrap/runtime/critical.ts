@@ -36,8 +36,6 @@ const CHARACTER_MANAGEMENT_SERVICE_TYPE = "CHARACTER_MANAGEMENT";
 const PERSONALITY_STORE_SERVICE_TYPE = "PERSONALITY_STORE";
 
 const CRITICAL_RUNTIME_SERVICES = [
-  EXPERIENCE_SERVICE_TYPE,
-  CHARACTER_MANAGEMENT_SERVICE_TYPE,
   PERSONALITY_STORE_SERVICE_TYPE,
   DocumentService.serviceType,
   RelationshipsService.serviceType,
@@ -78,10 +76,7 @@ const WORKER_CRITICAL_RUNTIME_SERVICES = [
 export async function validateCriticalRuntimeServices(
   runtime: AgentRuntime,
 ): Promise<void> {
-  const requiredServices = readWorkerBotProfile()
-    ? WORKER_CRITICAL_RUNTIME_SERVICES
-    : CRITICAL_RUNTIME_SERVICES;
-  for (const serviceType of requiredServices) {
+  const loadService = async (serviceType: string) => {
     appendBootstrapTrace(`phase:${serviceType}:load:start`);
     if (!runtime.hasService(serviceType)) {
       throw new Error(
@@ -90,7 +85,26 @@ export async function validateCriticalRuntimeServices(
     }
     await runtime.getServiceLoadPromise(serviceType);
     appendBootstrapTrace(`phase:${serviceType}:load:done`);
+  };
+
+  const worker = readWorkerBotProfile();
+  if (!worker) {
+    // Eliza loads experience memories from the initialized database while
+    // character management discovers local files. Wait for both before loading
+    // dependents and retain the original diagnostic priority on failure.
+    const results = await Promise.allSettled([
+      loadService(EXPERIENCE_SERVICE_TYPE),
+      loadService(CHARACTER_MANAGEMENT_SERVICE_TYPE),
+    ]);
+    for (const result of results) {
+      if (result.status === "rejected") throw result.reason;
+    }
   }
+
+  const requiredServices = worker
+    ? WORKER_CRITICAL_RUNTIME_SERVICES
+    : CRITICAL_RUNTIME_SERVICES;
+  for (const serviceType of requiredServices) await loadService(serviceType);
   appendBootstrapTrace("phase:worldRooms:probe:start");
   await runtime.getRooms(stringToUuid(`world-${runtime.agentId}`));
   appendBootstrapTrace("phase:worldRooms:probe:done");
