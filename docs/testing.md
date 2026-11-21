@@ -159,6 +159,27 @@ sources, checks that the agent runs the scoped test successfully, and reruns
 the tests independently. Set `DOOLITTLE_LIVE_CODEX_MODEL` to select a different
 linked Codex model.
 
+The installed multi-file journey uses a caller-prepared clone with dependencies
+installed. Use an absolute, canonical `doolittle-fresh-workspace-*` directory
+under the system temporary directory. The clone must match this checkout's
+committed HEAD and have a clean working tree, zero remotes, and no local
+environment files. The clone remains available for inspecting the edits.
+
+```sh
+DOOLITTLE_RUN_LIVE_CODING=true \
+DOOLITTLE_LIVE_CODEX_MODEL=gpt-6.2-sol \
+DOOLITTLE_DESKTOP_EXECUTABLE=/Applications/Doolittle.app/Contents/MacOS/Doolittle \
+DOOLITTLE_LIVE_CODING_WORKSPACE="$scratch" \
+nubx playwright test --config playwright.live.config.ts --grep 'desktop cleans up multiple'
+```
+
+One chat uses **This computer** to edit three renderer test files and run the
+stock `nub run test` command through ElizaOS's terminal action. The verifier
+checks the local command receipt, confirms the test bodies were preserved,
+reruns the suite independently, and records peak PGlite and WAL allocation
+while the desktop is active. It uses the installed app's default command
+timeout.
+
 Evaluation tools under `packages/evals` compare task evidence and reports.
 Follow their [package guide](../packages/evals/README.md) and the
 [evaluation guide](evaluations.md). Keep fixture identity, suite/evaluator
