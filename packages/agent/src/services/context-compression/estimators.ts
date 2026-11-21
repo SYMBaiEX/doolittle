@@ -4,7 +4,9 @@ export function estimateTokens(text: string): number {
   return Math.ceil(text.length / 4);
 }
 
-export function estimateMessagesTokens(messages: StoredMessage[]): number {
+export function estimateMessagesTokens(
+  messages: readonly Pick<StoredMessage, "role" | "text">[],
+): number {
   return messages.reduce(
     (sum, message) =>
       sum + estimateTokens(`[${message.role}] ${message.text}`) + 8,

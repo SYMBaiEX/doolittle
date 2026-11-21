@@ -46,26 +46,27 @@ export async function emitPostProviderNotices(input: {
   options?: AgentTurnHooks;
   turn: TurnState;
 }): Promise<void> {
-  const usageWarning = input.turn.localInteractive
-    ? getContextUsageWarning(input.context, input.turn.sessionId)
-    : undefined;
-
-  const sessionTurnCount = input.context.services.sessions.countBySessionRole(
+  const onNotice = input.options?.onNotice;
+  if (!onNotice || !input.turn.localInteractive) return;
+  const usageWarning = getContextUsageWarning(
+    input.context,
     input.turn.sessionId,
-    "assistant",
   );
   const skillNudge =
-    input.turn.localInteractive && (input.input.source ?? "cli") !== "cron"
+    (input.input.source ?? "cli") !== "cron"
       ? maybeGetSkillSynthesisNudge(
           input.context,
           input.turn.sessionId,
-          sessionTurnCount,
+          input.context.services.sessions.countBySessionRole(
+            input.turn.sessionId,
+            "assistant",
+          ),
         )
       : undefined;
 
   if (usageWarning) {
     try {
-      await input.options?.onNotice?.({
+      await onNotice({
         kind: "context",
         message: usageWarning.trim(),
       });
@@ -79,7 +80,7 @@ export async function emitPostProviderNotices(input: {
 
   if (skillNudge) {
     try {
-      await input.options?.onNotice?.({
+      await onNotice({
         kind: "skills",
         message: skillNudge.trim(),
       });

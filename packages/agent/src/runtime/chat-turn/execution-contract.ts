@@ -3,7 +3,10 @@ import {
   actionResultMutationActionName,
   extractVerifiedLocalMutationFromActionResult,
 } from "../action-result-metadata";
-import { hasWorkspaceMutationObligation } from "../workspace-mutation-intent";
+import {
+  hasWorkspaceMutationObligation,
+  type MutationIntentHistory,
+} from "../workspace-mutation-intent";
 import {
   verifyWorkspaceNoopCompletion,
   type WorkspaceNoopRequirements,
@@ -46,7 +49,7 @@ function selectedLocalMutationActions(
 
 export function buildTurnExecutionContract(input: {
   actionResults?: ActionResult[];
-  recentMessages?: Array<{ role?: string; text?: string }>;
+  recentMessages?: MutationIntentHistory;
   userRequest?: string;
 }): TurnExecutionContract {
   return {

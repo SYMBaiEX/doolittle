@@ -1,5 +1,9 @@
-import { expect, it } from "vitest";
-import { hasExplicitWorkspaceMutationIntent } from "../../packages/agent/src/runtime/workspace-mutation-intent";
+import { expect, it, vi } from "vitest";
+import {
+  hasExplicitWorkspaceMutationIntent,
+  hasWorkspaceMutationObligation,
+  recentMutationHistory,
+} from "../../packages/agent/src/runtime/workspace-mutation-intent";
 
 it.each([
   'The file says "write App.tsx".',
@@ -41,3 +45,22 @@ it("handles long escaped and unterminated quotes without regex backtracking", ()
     ).toBe(false);
   }
 }, 2_000);
+
+it("reads history only when a request can resume an unfinished mutation", () => {
+  const recentBySession = vi.fn(() => [
+    { role: "assistant", text: "REQUESTED_LOCAL_MUTATION" },
+  ]);
+  const history = recentMutationHistory({ recentBySession }, "active-chat");
+  expect(hasWorkspaceMutationObligation("Explain App.tsx", history)).toBe(
+    false,
+  );
+  expect(hasWorkspaceMutationObligation("Edit App.tsx", history)).toBe(true);
+  expect(recentBySession).not.toHaveBeenCalled();
+  expect(hasWorkspaceMutationObligation("Continue.", history)).toBe(true);
+  expect(recentBySession).toHaveBeenCalledExactlyOnceWith("active-chat", 6);
+
+  recentBySession.mockImplementationOnce(() => {
+    throw new Error("No history available");
+  });
+  expect(hasWorkspaceMutationObligation("Try again.", history)).toBe(false);
+});

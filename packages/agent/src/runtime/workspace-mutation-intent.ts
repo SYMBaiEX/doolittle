@@ -78,6 +78,25 @@ interface MutationIntentMessage {
   text?: string;
 }
 
+export type MutationIntentHistory =
+  | readonly MutationIntentMessage[]
+  | (() => readonly MutationIntentMessage[]);
+
+export function recentMutationHistory(
+  sessions: {
+    recentBySession(sessionId: string, limit: number): MutationIntentMessage[];
+  },
+  sessionId: string,
+): () => readonly MutationIntentMessage[] {
+  return () => {
+    try {
+      return sessions.recentBySession(sessionId, 6);
+    } catch {
+      return [];
+    }
+  };
+}
+
 /**
  * Conservative deterministic gate for requests that explicitly require a
  * local workspace mutation. It deliberately excludes advice and hypothetical
@@ -109,10 +128,12 @@ export function hasExplicitWorkspaceMutationIntent(message: string): boolean {
 
 export function continuesWorkspaceMutationIntent(
   message: string,
-  recentMessages: readonly MutationIntentMessage[],
+  recentMessages: MutationIntentHistory,
 ): boolean {
   if (!CONTINUATION_REQUEST.test(message.trim())) return false;
-  return recentMessages.some(
+  const history =
+    typeof recentMessages === "function" ? recentMessages() : recentMessages;
+  return history.some(
     (entry) =>
       entry.role === "assistant" &&
       UNFINISHED_MUTATION_MARKER.test(entry.text ?? ""),
@@ -121,7 +142,7 @@ export function continuesWorkspaceMutationIntent(
 
 export function hasWorkspaceMutationObligation(
   message: string,
-  recentMessages: readonly MutationIntentMessage[] = [],
+  recentMessages: MutationIntentHistory = [],
 ): boolean {
   return (
     hasExplicitWorkspaceMutationIntent(message) ||
@@ -131,7 +152,7 @@ export function hasWorkspaceMutationObligation(
 
 export function renderWorkspaceMutationExecutionContract(
   message: string,
-  recentMessages: readonly MutationIntentMessage[] = [],
+  recentMessages: MutationIntentHistory = [],
 ): string[] {
   if (!hasWorkspaceMutationObligation(message, recentMessages)) return [];
   return [

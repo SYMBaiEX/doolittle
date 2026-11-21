@@ -21,7 +21,10 @@ import {
   resolveScopedTurnActionResult,
   TurnContinuationBudget,
 } from "../turn-runtime-scope";
-import { hasWorkspaceMutationObligation } from "../workspace-mutation-intent";
+import {
+  hasWorkspaceMutationObligation,
+  recentMutationHistory,
+} from "../workspace-mutation-intent";
 import {
   CONSTRAINED_FRONTEND_REVIEW_FAILURE,
   frontendRequirements,
@@ -130,20 +133,6 @@ function memoryText(memory: Memory): string {
 const MAX_MUTATION_CONTINUATION_PASSES = 12;
 
 const MAX_CONSECUTIVE_NO_ACTION_PASSES = 2;
-
-function hasMutationObligation(
-  context: AgentExecutionContext,
-  sessionId: string,
-  prompt: string,
-): boolean {
-  let recentMessages: Array<{ role?: string; text?: string }> = [];
-  try {
-    recentMessages = context.services.sessions.recentBySession(sessionId, 6);
-  } catch {
-    // The explicit request still provides a reliable signal when history is unavailable.
-  }
-  return hasWorkspaceMutationObligation(prompt, recentMessages);
-}
 
 function hasPendingApproval(context: AgentExecutionContext, sessionId: string) {
   try {
@@ -286,10 +275,9 @@ export async function executeProviderMessageTurn(
           // failure into a canned successful reply and retries other slots.
           if (!availability.ready) throw new Error(availability.detail);
         }
-        mutationObligation = hasMutationObligation(
-          input.context,
-          sessionId,
+        mutationObligation = hasWorkspaceMutationObligation(
           prompt,
+          recentMutationHistory(input.context.services.sessions, sessionId),
         );
         let messageMemory = input.memory;
         let messageResult:
@@ -320,12 +308,21 @@ export async function executeProviderMessageTurn(
               // available. Run and tool progress still
               // streams; post-provider emits the selected final answer once.
               onStreamChunk: async (chunk: string) => {
-                const streamResults = [
-                  ...actionResults,
-                  ...settledActionResults,
-                  ...getScopedTurnActionResults(input.context.runtime),
-                ];
-                if (completedManagedDelegationResponse(streamResults)) return;
+                const scopedResults = getScopedTurnActionResults(
+                  input.context.runtime,
+                );
+                if (
+                  (actionResults.length ||
+                    settledActionResults.length ||
+                    scopedResults.length) &&
+                  completedManagedDelegationResponse([
+                    ...actionResults,
+                    ...settledActionResults,
+                    ...scopedResults,
+                  ])
+                ) {
+                  return;
+                }
                 await input.streamState.onStreamChunk(chunk);
               },
               // Keep committed action evidence if a later planner stage fails.

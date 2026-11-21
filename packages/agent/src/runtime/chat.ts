@@ -198,9 +198,11 @@ async function handleAdmittedAgentTurn(
       return runWithConversationWorkspace(scope, operation);
     });
   return runQueued(async () => {
+    perf.mark("conversation-admission");
     // Share tools across desktop, local CLI, gateway, and ACP turns while
     // keeping connector activation and operator services off the response path.
     await context.ensureTurnPlugins?.(options?.abortSignal);
+    perf.mark("turn-plugins");
     throwIfTurnAborted(options?.abortSignal);
     const workflowCommand = trimmedMessage.startsWith("/")
       ? resolveWorkflowCommandPrompt({

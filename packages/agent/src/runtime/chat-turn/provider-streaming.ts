@@ -39,6 +39,9 @@ function isInternalCallbackEventType(value: unknown): boolean {
 function parseInternalCallbackEnvelope(
   text: string,
 ): Record<string, unknown> | null {
+  // Only JSON objects can carry an event envelope. Ordinary text tokens
+  // should never allocate a JSON parser exception on the streaming path.
+  if (!/^\s*\{/u.test(text)) return null;
   try {
     const envelope: unknown = JSON.parse(text);
     return typeof envelope === "object" &&
@@ -88,7 +91,6 @@ export type ProviderModelStreamingContext = {
 };
 
 export type ProviderStreamState = {
-  appendIncomingText: (incoming: string) => Promise<void>;
   onCallbackContent: (
     content: Content,
     actionName?: string,
@@ -111,20 +113,6 @@ export function createProviderStreamState(
    * call can make it stale or explicitly supersede it with the final planner
    * response. The terminal delivery happens in post-provider/finalize.ts.
    */
-  const appendProvisionalText = async (chunk: string): Promise<void> => {
-    if (!chunk) {
-      return;
-    }
-    response += chunk;
-  };
-
-  const replaceProvisionalText = async (text: string): Promise<void> => {
-    if (!text) {
-      return;
-    }
-    response = text;
-  };
-
   const claimStreamSource = (
     source: Exclude<ProviderStreamSource, "unset">,
   ) => {
@@ -135,20 +123,19 @@ export function createProviderStreamState(
     return activeStreamSource === source;
   };
 
-  const appendIncomingText = async (incoming: string): Promise<void> => {
+  const appendIncomingText = (incoming: string): void => {
     const update = context.resolveStreamingUpdate(response, incoming);
     if (update.kind === "unchanged") {
       return;
     }
     if (update.kind === "append") {
-      await appendProvisionalText(update.emittedText);
+      response += update.emittedText;
       return;
     }
-    await replaceProvisionalText(update.nextText);
+    if (update.nextText) response = update.nextText;
   };
 
   return {
-    appendIncomingText,
     onCallbackContent: async (content: Content, actionName?: string) => {
       if (
         isInternalModelStream() ||
@@ -160,7 +147,7 @@ export function createProviderStreamState(
       if (!chunk || !claimStreamSource("callback")) {
         return [];
       }
-      await appendIncomingText(chunk);
+      appendIncomingText(chunk);
       return [];
     },
     onStreamChunk: async (chunk: string) => {
@@ -180,7 +167,7 @@ export function createProviderStreamState(
         return;
       }
       const previousResponse = response;
-      await appendIncomingText(chunk);
+      appendIncomingText(chunk);
       if (response === previousResponse) {
         return;
       }

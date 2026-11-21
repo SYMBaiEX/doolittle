@@ -1,7 +1,10 @@
 import type { ChatTurnRequest } from "../../../types/runtime/index";
 import type { AgentExecutionContext } from "../../chat";
 import { matchesRegisteredClientControl } from "../../command-shortcut-match";
-import { hasWorkspaceMutationObligation } from "../../workspace-mutation-intent";
+import {
+  hasWorkspaceMutationObligation,
+  recentMutationHistory,
+} from "../../workspace-mutation-intent";
 import {
   type PreparedTurnState,
   prepareTurnState,
@@ -10,13 +13,10 @@ import {
 import { recordEvaluationTraceEvent } from "../trajectory";
 import type { NativeMessagePolicy, NativeTurnSetup } from "./types";
 
-export function resolveNativeMessagePolicy(
+function resolveNativeMessagePolicy(
   agent: NativeTurnSetup["turn"]["settings"]["agent"],
-  userRequest = "",
-  continuesMutation = false,
+  requiresWorkspaceMutation: boolean,
 ): NativeMessagePolicy {
-  const requiresWorkspaceMutation =
-    hasWorkspaceMutationObligation(userRequest) || continuesMutation;
   const runDepth =
     requiresWorkspaceMutation && agent.runDepth === "quick"
       ? "standard"
@@ -42,21 +42,11 @@ export async function prepareNativeTurnSetup(input: {
 }): Promise<NativeTurnSetup> {
   const { turn, scheduleProfileObservation } =
     input.preparedTurn ?? prepareTurnState(input.input, input.context);
-  let recentMessages: Array<{ role?: string; text?: string }> = [];
-  try {
-    recentMessages = input.context.services.sessions.recentBySession(
-      turn.sessionId,
-      6,
-    );
-  } catch {
-    // Session history is supplementary. A new session can route without it.
-  }
   const messagePolicy = resolveNativeMessagePolicy(
     turn.settings.agent,
-    input.effectiveInput.message,
     hasWorkspaceMutationObligation(
       input.effectiveInput.message,
-      recentMessages,
+      recentMutationHistory(input.context.services.sessions, turn.sessionId),
     ),
   );
   const routingOwner = matchesRegisteredClientControl(

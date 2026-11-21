@@ -17,7 +17,9 @@ export class ContextCompressionService {
     return resolveContextWindow(modelId);
   }
 
-  measure(messages: StoredMessage[]): UsageStats {
+  measure(
+    messages: readonly Pick<StoredMessage, "role" | "text">[],
+  ): UsageStats {
     const estimatedTokens = estimateMessagesTokens(messages);
     const usageFraction = estimatedTokens / this.contextWindowTokens;
     return {

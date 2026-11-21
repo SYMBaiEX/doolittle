@@ -20,7 +20,10 @@ import { getEffectiveToolInventory } from "../../runtime/native/service-bridge/s
 import { getEffectiveShellHistory } from "../../runtime/native/service-bridge/tooling/index";
 import { buildProjectPromptContext } from "../../runtime/prompt-cache/index";
 import { renderDoolittleSoulContext } from "../../runtime/soul";
-import { renderWorkspaceMutationExecutionContract } from "../../runtime/workspace-mutation-intent";
+import {
+  recentMutationHistory,
+  renderWorkspaceMutationExecutionContract,
+} from "../../runtime/workspace-mutation-intent";
 import {
   buildDelegationProjectionOverview,
   buildDelegationProjectionWorkers,
@@ -190,6 +193,16 @@ function coreContextResult(
   };
 }
 
+async function renderRepositoryStatus(services: AppServices): Promise<string> {
+  try {
+    return await services.repository.status();
+  } catch (error) {
+    return `Repository status unavailable: ${
+      error instanceof Error ? error.message : String(error)
+    }`;
+  }
+}
+
 async function workspaceContextResult(
   services: AppServices,
   runtime: IAgentRuntime,
@@ -197,37 +210,24 @@ async function workspaceContextResult(
 ): Promise<ProviderResult> {
   const skillEntries = getEffectiveSkills(runtime, services);
   const recentTerminal = getEffectiveShellHistory(runtime, 5);
-  let repoSummary = "";
-  let recentMessages: Array<{ role?: string; text?: string }> = [];
-  try {
-    repoSummary = await services.repository.status();
-  } catch (error) {
-    repoSummary = `Repository status unavailable: ${
-      error instanceof Error ? error.message : String(error)
-    }`;
-  }
-  try {
-    recentMessages = services.sessions.recentBySession(
-      sessionIdFor(message),
-      6,
-    );
-  } catch {
-    // The workspace provider remains useful before session storage is ready.
-  }
+  const [repoSummary, workspaceSummary] = await Promise.all([
+    renderRepositoryStatus(services),
+    Promise.resolve(services.workspace.summaryAsync?.(16)).then(
+      (summary) => summary ?? services.workspace.summary(16),
+    ),
+  ]);
 
   return {
     text: [
       renderRecentRunFailureContext(services.runController, message),
       ...renderWorkspaceMutationExecutionContract(
         getMemoryText(message),
-        recentMessages,
+        recentMutationHistory(services.sessions, sessionIdFor(message)),
       ),
       ...renderWorkspaceSections({
         contextFiles: services.contextFiles.render(),
         skillEntries,
-        workspaceSummary:
-          (await services.workspace.summaryAsync?.(16)) ??
-          services.workspace.summary(16),
+        workspaceSummary,
         recentTerminal,
         repoSummary,
       }),
@@ -251,12 +251,14 @@ async function operationsContextResult(
     if (!cron) {
       throw new Error("Trigger runtime service is not ready.");
     }
-    const cronJobs = await cron.list();
+    const [cronJobs, delegationTasks] = await Promise.all([
+      cron.list(),
+      getEffectiveDelegationTasks(runtime),
+    ]);
     const enabledTools = getEffectiveToolInventory(
       runtime,
       services,
     ).tools.filter((tool) => tool.enabled);
-    const delegationTasks = await getEffectiveDelegationTasks(runtime);
     const delegationOverview = buildDelegationProjectionOverview(
       delegationTasks,
       delegationTasks.filter((task) => task.status === "running").length,

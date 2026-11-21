@@ -1,4 +1,5 @@
 import { summarizeActionResults } from "../action-result-metadata";
+import { recentMutationHistory } from "../workspace-mutation-intent";
 import {
   assessTurnExecutionContract,
   buildTurnExecutionContract,
@@ -16,18 +17,12 @@ import type {
 export async function runPostProviderTurn(
   input: PostProviderTurnInput,
 ): Promise<PostProviderTurnResult> {
-  let recentMessages: Array<{ role?: string; text?: string }> = [];
-  try {
-    recentMessages = input.context.services.sessions.recentBySession(
-      input.turn.sessionId,
-      6,
-    );
-  } catch {
-    // Completion can still be assessed from the current request and receipts.
-  }
   const executionContract = buildTurnExecutionContract({
     actionResults: input.actionResults,
-    recentMessages,
+    recentMessages: recentMutationHistory(
+      input.context.services.sessions,
+      input.turn.sessionId,
+    ),
     userRequest: input.effectiveInput.message,
   });
   const activeRun = input.context.services.runController.getActive(

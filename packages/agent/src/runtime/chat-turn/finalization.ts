@@ -14,15 +14,8 @@ export function getContextUsageWarning(
       200,
     );
     if (sessionMsgs.length < 4) return undefined;
-    if (
-      compression.isApproachingLimit(
-        sessionMsgs as Parameters<typeof compression.isApproachingLimit>[0],
-        0.75,
-      )
-    ) {
-      const stats = compression.measure(
-        sessionMsgs as Parameters<typeof compression.measure>[0],
-      );
+    const stats = compression.measure(sessionMsgs);
+    if (stats.usageFraction >= 0.75) {
       const pct = Math.round(stats.usageFraction * 100);
       if (pct >= 85) {
         return `\n\n⚠️ Context window at ${pct}% capacity (~${stats.estimatedTokens.toLocaleString()} tokens). Run \`/compress\` to summarize earlier turns and preserve context.`;

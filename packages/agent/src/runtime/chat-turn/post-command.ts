@@ -48,7 +48,9 @@ export async function runPostCommandTurn(
       channelId: turn.localInteractive ? turn.sessionId : turn.worldId,
       messageServerId: turn.messageServerId,
     });
+    perf.mark("sdk-connection");
     await ensureLocalInteractiveSettingsState(context, turn);
+    perf.mark("sdk-local-settings");
 
     const nativeTurnSetup = await runner.prepareNativeTurnSetup({
       input,
@@ -56,6 +58,7 @@ export async function runPostCommandTurn(
       context,
       preparedTurn: prepared,
     });
+    perf.mark("persist-user-turn");
     const settingsDuring = applyRuntimeOverrides(
       nativeTurnSetup.settingsBefore,
       options?.runtimeOverrides,
