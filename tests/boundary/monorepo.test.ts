@@ -63,6 +63,18 @@ describe("monorepo ownership", () => {
     expect(failures).toContain("shared packages cannot depend on applications");
     expect(failures).toContain("Workspace dependency cycle");
   });
+  it("ignores transient desktop packages while scanning source ownership", () => {
+    for (const directory of [
+      ".release-staging-fixture",
+      "release.backup-10-20",
+    ]) {
+      write(
+        `apps/desktop/${directory}/Doolittle.app/Contents/Resources/runtime/bin/app.mjs`,
+        'import "@elizaos/core";',
+      );
+    }
+    expect(checkMonorepo(root)).toEqual([]);
+  });
   it("rejects cross-workspace relative imports, undeclared packages and private subpaths", () => {
     write(
       "apps/cli/src/index.ts",

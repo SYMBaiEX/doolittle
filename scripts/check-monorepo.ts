@@ -28,6 +28,11 @@ function sourceFiles(directory: string): string[] {
   if (!existsSync(directory)) return [];
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     if (ignored.has(entry.name)) return [];
+    if (
+      entry.isDirectory() &&
+      /^(?:\.release-staging-[\w-]+|release\.backup-\d+-\d+)$/u.test(entry.name)
+    )
+      return [];
     const path = resolve(directory, entry.name);
     return entry.isDirectory()
       ? sourceFiles(path)
