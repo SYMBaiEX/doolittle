@@ -3,11 +3,14 @@ import { expect, it, vi } from "vitest";
 import {
   configuredUpdater,
   DesktopUpdateController,
+  type UpdateProvider,
 } from "../../apps/desktop/src/main/update-state";
 
 function updateProvider() {
   const events = new EventEmitter();
-  return Object.assign(events, {
+  return {
+    // The controller subscribes without chaining AppUpdater's fluent return.
+    on: events.on.bind(events) as UpdateProvider["on"],
     checkForUpdates: vi.fn(async () => {
       events.emit("update-available", { version: "1.0.0" });
       return null;
@@ -17,7 +20,7 @@ function updateProvider() {
       return [];
     }),
     quitAndInstall: vi.fn(),
-  });
+  };
 }
 
 it("loads the packaged updater only on explicit check and retains update events", async () => {

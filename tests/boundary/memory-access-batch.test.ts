@@ -1,7 +1,7 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { UUID } from "@elizaos/core";
+import { LongTermMemoryCategory, type UUID } from "@elizaos/core";
 import { expect, it } from "vitest";
 import { ElizaMemoryStorageStore } from "../../packages/agent/src/runtime/native/plugin-registry/product/memory-storage-store";
 
@@ -15,19 +15,19 @@ it("touches only the returned Eliza memories and persists every access count", a
     await store.storeLongTermMemory({
       agentId,
       entityId,
-      category: "fact",
+      category: LongTermMemoryCategory.SEMANTIC,
       content: "First fact",
     });
     await store.storeLongTermMemory({
       agentId,
       entityId,
-      category: "fact",
+      category: LongTermMemoryCategory.SEMANTIC,
       content: "Second fact",
     });
     await store.storeLongTermMemory({
       agentId,
       entityId: otherEntity,
-      category: "fact",
+      category: LongTermMemoryCategory.SEMANTIC,
       content: "Separate conversation",
     });
     const first = await store.getLongTermMemories(agentId, entityId, {
