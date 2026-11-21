@@ -37,6 +37,8 @@ export async function loadProviderPlugins(
     { default: anthropicPlugin },
     { createClaudeCodePlugin },
     { default: elizaCloudPlugin },
+    ollamaProviders,
+    openAiProvider,
   ] = await Promise.all([
     import("@elizaos/plugin-sql"),
     import("@elizaos/plugin-pdf"),
@@ -44,6 +46,8 @@ export async function loadProviderPlugins(
     import("@elizaos/plugin-anthropic"),
     import("@doolittle/plugin-claude-code"),
     import("@elizaos/plugin-elizacloud"),
+    loadOllamaProviders(config),
+    loadConfiguredOpenAiProvider(config),
   ]);
 
   const providers: Plugin[] = [
@@ -170,40 +174,32 @@ export async function loadProviderPlugins(
     normalizePlugin(elizaCloudPlugin),
   ];
 
-  if (config.ollamaApiEndpoint?.trim()) {
-    const { default: ollamaPlugin } = await import("@elizaos/plugin-ollama");
-    const normalizedOllamaPlugin = await withOllamaEmbeddingStartupReadiness(
-      withOllamaEmbeddingReadiness(
-        withOllamaTextReadiness(normalizePlugin(ollamaPlugin), config),
-        config,
-      ),
-      config,
-    );
-    providers.push(
-      normalizedOllamaPlugin,
-      createDoolittleOllamaUxPlugin(config),
-    );
-  }
+  providers.push(...ollamaProviders);
+  if (openAiProvider) providers.push(openAiProvider);
+  return providers;
+}
 
-  const optionalProviderImports: Promise<Plugin | null>[] = [];
+async function loadConfiguredOpenAiProvider(config: EnvConfig) {
   // Direct API accounts are materialized into the process environment by the
   // official Eliza account-pool adapter before plugin assembly. Treat that
   // native credential path the same as an explicit config key so the OpenAI
   // plugin is registered even when the key never came from `.env`.
-  if (config.openAiApiKey || process.env.OPENAI_API_KEY?.trim()) {
-    optionalProviderImports.push(
-      import("@elizaos/plugin-openai").then(({ openaiPlugin }) =>
-        normalizePlugin(openaiPlugin),
-      ),
-    );
-  }
-  providers.push(
-    ...(await Promise.all(optionalProviderImports)).filter(
-      (plugin): plugin is Plugin => Boolean(plugin),
-    ),
-  );
+  if (!config.openAiApiKey && !process.env.OPENAI_API_KEY?.trim()) return;
+  const { openaiPlugin } = await import("@elizaos/plugin-openai");
+  return normalizePlugin(openaiPlugin);
+}
 
-  return providers;
+async function loadOllamaProviders(config: EnvConfig): Promise<Plugin[]> {
+  if (!config.ollamaApiEndpoint?.trim()) return [];
+  const { default: ollamaPlugin } = await import("@elizaos/plugin-ollama");
+  const embeddingReadyPlugin = await withOllamaEmbeddingStartupReadiness(
+    withOllamaEmbeddingReadiness(
+      withOllamaTextReadiness(normalizePlugin(ollamaPlugin), config),
+      config,
+    ),
+    config,
+  );
+  return [embeddingReadyPlugin, createDoolittleOllamaUxPlugin(config)];
 }
 
 /**

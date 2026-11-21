@@ -1,5 +1,4 @@
 import { createAcpProtocolHost } from "../../services/acp/host";
-import { executeAgentTurnWithProgress } from "../turn-stream";
 import type { ApplicationSession } from "./session";
 
 /** Bind ACP once; its protocol sessions and turn execution share one graph. */
@@ -23,10 +22,13 @@ export function createApplicationAcpHost(application: ApplicationSession) {
         application.shutdownSignal,
       ]);
       signal.throwIfAborted();
-      const context = await application.ensureRuntime({
-        startupMode: "api",
-        eagerDeferredHydration: false,
-      });
+      const [context, { executeAgentTurnWithProgress }] = await Promise.all([
+        application.ensureRuntime({
+          startupMode: "api",
+          eagerDeferredHydration: false,
+        }),
+        import("../turn-stream"),
+      ]);
       signal.throwIfAborted();
       const result = await executeAgentTurnWithProgress(
         {

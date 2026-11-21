@@ -1,5 +1,4 @@
 import type { AgentRuntime } from "@elizaos/core";
-import { shutdownElizaRuntime } from "../lifecycle/shutdown";
 import { ApplicationSession } from "./session";
 
 export { ApplicationSession, type ApplicationSessionPhase } from "./session";
@@ -22,5 +21,6 @@ export async function shutdownApplicationRuntime(
     await applicationSession.dispose(reason, options);
     return;
   }
+  const { shutdownElizaRuntime } = await import("../lifecycle/shutdown");
   await shutdownElizaRuntime(runtime, reason, options);
 }

@@ -1,9 +1,7 @@
 import type { AgentRuntime, IAgentRuntime } from "@elizaos/core";
 import type { OwnedAcpProtocolHost } from "../../services/acp/host";
 import type { EnvConfig } from "../../types/runtime/index";
-import { buildAppContext } from "../bootstrap/app-context";
 import { AppContextManager } from "../bootstrap/app-context-manager";
-import { disposeRuntime } from "../bootstrap/runtime/initialization";
 import type { AppContext, AppContextOptions } from "../bootstrap/types";
 import { createApplicationAcpHost } from "./acp-host";
 import {
@@ -37,7 +35,10 @@ export class ApplicationSession {
     this.contextManager = new AppContextManager(async () => {
       this.currentPhase = "activating";
       try {
-        return await buildAppContext(this.serviceGraph(), {
+        const graph = this.serviceGraph();
+        const { buildAppContext } = await import("../bootstrap/app-context");
+        this.shutdownSignal.throwIfAborted();
+        return await buildAppContext(graph, {
           acquired: (runtime) => {
             this.ownedRuntime = runtime;
           },
@@ -140,6 +141,9 @@ export class ApplicationSession {
       if (this.ownedRuntime) {
         const runtime = this.ownedRuntime;
         try {
+          const { disposeRuntime } = await import(
+            "../bootstrap/runtime/initialization"
+          );
           await disposeRuntime(runtime, reason, undefined, options);
           this.ownedRuntime = undefined;
         } catch (error) {

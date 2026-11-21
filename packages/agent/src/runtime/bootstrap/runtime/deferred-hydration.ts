@@ -1,6 +1,7 @@
 import { addAbortListener } from "node:events";
 import type { Plugin } from "@elizaos/core";
 import type { AppServices } from "../../../services/index";
+import { appendBootstrapTrace } from "../trace";
 
 const MAX_PLUGIN_ATTEMPTS = 3;
 const supportServices = [
@@ -46,8 +47,13 @@ export function createDeferredHydrator(params: {
         .then(async () => {
           startupState.markWarming(phase, `loading ${phase} plugins`);
           try {
-            plugins ??= await loadPlugins();
+            if (!plugins) {
+              appendBootstrapTrace(`phase:${phase}:imports:start`);
+              plugins = await loadPlugins();
+              appendBootstrapTrace(`phase:${phase}:imports:done`);
+            }
           } catch {
+            appendBootstrapTrace(`phase:${phase}:imports:error`);
             startupState.markError(phase, `Could not load ${phase} plugins.`);
             logger.warn("deferred-plugin-load-failed", { phase });
             return;
@@ -63,10 +69,22 @@ export function createDeferredHydrator(params: {
             if (attempt.registered) continue;
             if (attempt.failures < MAX_PLUGIN_ATTEMPTS) {
               try {
+                appendBootstrapTrace(
+                  `phase:${phase}:registration:start`,
+                  plugin.name,
+                );
                 await registerPlugin(plugin);
+                appendBootstrapTrace(
+                  `phase:${phase}:registration:done`,
+                  plugin.name,
+                );
                 attempt.registered = true;
                 continue;
               } catch {
+                appendBootstrapTrace(
+                  `phase:${phase}:registration:error`,
+                  plugin.name,
+                );
                 attempt.failures += 1;
                 logger.warn("deferred-plugin-registration-failed", {
                   phase,
