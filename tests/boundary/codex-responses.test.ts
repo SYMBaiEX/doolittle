@@ -89,6 +89,106 @@ it("uses the official Responses client for text, image, reasoning, tools and usa
   });
   expect(delta).toHaveBeenCalledWith("Verified");
 });
+
+it("round-trips strict tool placeholders using the original required fields", async () => {
+  const tasks = {
+    type: "array",
+    items: {
+      type: "object",
+      required: ["kind", "path"],
+      properties: {
+        kind: { type: "string" },
+        path: { type: "string" },
+        query: { type: "string" },
+        fromLine: { type: "integer" },
+        label: { type: ["string", "null"] },
+      },
+    },
+  };
+  const parameters = {
+    type: "object",
+    required: ["eliza_turn_scope", "tasks"],
+    properties: {
+      eliza_turn_scope: { type: "object" },
+      names: { type: "array", items: { type: "string" } },
+      contexts: { type: "array", items: { type: "string" } },
+      spawn: { type: "boolean" },
+      arguments: { anyOf: [{ type: "object" }, { type: "string" }] },
+      nullable: { anyOf: [{ type: "integer" }, { type: "null" }] },
+      tasks,
+    },
+  };
+  const data = {
+    eliza_turn_scope: null,
+    names: null,
+    contexts: null,
+    spawn: null,
+    arguments: null,
+    nullable: null,
+    unknown: null,
+    tasks: [
+      {
+        kind: "read",
+        path: "sum.mjs",
+        query: null,
+        fromLine: null,
+        label: null,
+      },
+      { kind: "search", path: null, query: "sum", fromLine: null },
+      null,
+    ],
+  };
+  const malformed = '{"names":null,';
+  const raw = JSON.stringify(data);
+  const output = [
+    ["inspect", raw],
+    ["inspect", malformed],
+    ["unknown-tool", raw],
+  ].map(([name, args], index) => ({
+    type: "function_call",
+    call_id: String(index),
+    name,
+    arguments: args,
+  }));
+  const backend = new CodexResponsesBackend({
+    jitterMaxMs: 0,
+    loadAuth: async () => auth,
+    fetchImpl: async (_url, init) => {
+      const { tools } = JSON.parse(String(init?.body));
+      expect(tools[0].parameters.required).toContain("names");
+      expect(tools[0].parameters.properties.names.type).toEqual([
+        "array",
+        "null",
+      ]);
+      expect(tools[0].parameters.properties.tasks.items.required).toContain(
+        "query",
+      );
+      return response(output);
+    },
+  });
+
+  const result = await backend.generate({
+    prompt: "Inspect this",
+    tools: [{ name: "inspect", strict: true, parameters }],
+  });
+  expect(result.toolCalls.map((call) => call.arguments)).toEqual([
+    JSON.stringify({
+      eliza_turn_scope: null,
+      nullable: null,
+      unknown: null,
+      tasks: [
+        { kind: "read", path: "sum.mjs", label: null },
+        { kind: "search", path: null, query: "sum" },
+        null,
+      ],
+    }),
+    malformed,
+    raw,
+  ]);
+  expect(parameters.required).toEqual(["eliza_turn_scope", "tasks"]);
+  expect(tasks.items.required).toEqual(["kind", "path"]);
+});
+
 it("preserves optional SDK response fields through the supported non-strict schema mode", async () => {
   let body: Record<string, unknown> = {};
   const schema = {

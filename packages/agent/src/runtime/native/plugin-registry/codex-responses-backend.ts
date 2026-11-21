@@ -16,6 +16,7 @@ import type {
   ResponseCreateParamsStreaming,
 } from "openai/resources/responses/responses";
 import { codexMessageText, codexResponsesInput } from "./codex-responses-input";
+import { normalizeCodexToolArguments } from "./codex-tool-arguments";
 
 export class CodexResponsesBackend {
   private tail: Promise<void> = Promise.resolve();
@@ -166,9 +167,21 @@ export class CodexResponsesBackend {
         }
         if (!completed)
           throw new Error("Codex stream ended before completion.");
+        const schemas = new Map(
+          params.tools?.map(({ name, parameters }) => [name, parameters]),
+        );
         const toolCalls = completed.output.flatMap((item) =>
           item.type === "function_call"
-            ? [{ id: item.call_id, name: item.name, arguments: item.arguments }]
+            ? [
+                {
+                  id: item.call_id,
+                  name: item.name,
+                  arguments: normalizeCodexToolArguments(
+                    item.arguments,
+                    schemas.get(item.name),
+                  ),
+                },
+              ]
             : [],
         );
         return {
