@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import {
   existsSync,
   mkdirSync,
+  mkdtempSync,
   readFileSync,
   rmSync,
   writeFileSync,
@@ -11,6 +12,7 @@ import { createRequire } from "node:module";
 import { basename, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  archiveClosedPgliteDataDirectory,
   DESKTOP_PGLITE_SEED_FILE,
   type DesktopPgliteSeedReceipt,
   desktopPgliteRuntimeDigest,
@@ -198,49 +200,53 @@ const tracedSdk = await copySdkRuntimePackages(
 // Generate a data-free schema snapshot with the actual copied SDK and PGlite
 // versions. A new process keeps live databases, accounts, and user settings
 // outside the artifact build.
-const seed = spawnSync(
-  process.execPath,
-  [
-    "--input-type=module",
-    "--eval",
-    `import { writeFileSync } from "node:fs";
-     import { createMigratedSnapshot, plugin } from "@elizaos/plugin-sql";
-     if (!plugin.schema) throw new Error("Packaged SQL schema missing");
-     writeFileSync(process.argv[1], await createMigratedSnapshot([
-       { name: plugin.name, schema: plugin.schema },
-     ]));`,
-    DESKTOP_PGLITE_SEED_FILE,
-  ],
-  {
-    cwd: outputDir,
-    env: {
-      LOG_LEVEL: "error",
-      PGLITE_MIGRATED_SNAPSHOT: "0",
-      ...(process.platform === "win32"
-        ? { SystemRoot: process.env.SystemRoot }
-        : {}),
-    },
-    encoding: "utf8",
-    timeout: 60_000,
-  },
-);
-if (seed.status !== 0) {
-  throw new Error(
-    `Packaged PGlite seed generation failed. ${seed.stderr ?? ""}`,
+const seedDataDir = mkdtempSync(resolve(outputDir, ".pglite-build-"));
+const seedPath = resolve(outputDir, DESKTOP_PGLITE_SEED_FILE);
+try {
+  const seed = spawnSync(
+    process.execPath,
+    [
+      "--input-type=module",
+      "--eval",
+      `import { createDatabaseAdapter, plugin } from "@elizaos/plugin-sql";
+       if (!plugin.schema) throw new Error("Packaged SQL schema missing");
+       const adapter = createDatabaseAdapter(
+         { dataDir: process.argv[1] }, "00000000-0000-0000-0000-000000000000"
+       );
+       try {
+         await adapter.initialize();
+         await adapter.runPluginMigrations([{ name: plugin.name, schema: plugin.schema }]);
+       } finally {
+         await adapter.close();
+       }`,
+      seedDataDir,
+    ],
     {
-      cause: seed.error,
+      cwd: outputDir,
+      env: {
+        LOG_LEVEL: "error",
+        ...(process.platform === "win32"
+          ? { SystemRoot: process.env.SystemRoot }
+          : {}),
+      },
+      encoding: "utf8",
+      timeout: 60_000,
     },
   );
+  if (seed.status !== 0) {
+    throw new Error(
+      `Packaged PGlite seed generation failed. ${seed.stderr ?? ""}`,
+      { cause: seed.error },
+    );
+  }
+  await archiveClosedPgliteDataDirectory(seedDataDir, seedPath);
+} finally {
+  rmSync(seedDataDir, { recursive: true, force: true });
 }
 const pgliteSeed: DesktopPgliteSeedReceipt = {
   file: DESKTOP_PGLITE_SEED_FILE,
   sha256: createHash("sha256")
-    .update(
-      readRegularFileSync(
-        resolve(outputDir, DESKTOP_PGLITE_SEED_FILE),
-        MAX_PGLITE_SEED_BYTES,
-      ),
-    )
+    .update(readRegularFileSync(seedPath, MAX_PGLITE_SEED_BYTES))
     .digest("hex"),
   runtimeSha256: desktopPgliteRuntimeDigest(runtimeManifestPath),
 };

@@ -43,7 +43,8 @@
     "@elizaos/plugin-assistant": "workspace:2.0.5",
     "semver": "7.8.6",
     "@doolittle/storage": "workspace:*",
-    "@elizaos/plugin-sql": "workspace:2.0.5"
+    "@elizaos/plugin-sql": "workspace:2.0.5",
+    "tar": "7.5.23"
   },
   "devDependencies": {
     "sharp": "0.35.5",

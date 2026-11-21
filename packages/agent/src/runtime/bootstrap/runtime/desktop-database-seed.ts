@@ -4,11 +4,22 @@ import { lstat, mkdtemp, readdir, rename, rm } from "node:fs/promises";
 import { findPackageJSON } from "node:module";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { promisify } from "node:util";
+import { gunzip } from "node:zlib";
 import { readRegularFile, readRegularFileSync } from "@doolittle/storage";
 
-export const DESKTOP_PGLITE_SEED_FILE = "pglite-seed.bin";
+export const DESKTOP_PGLITE_SEED_FILE = "pglite-seed.tar.gz";
 export const MAX_PGLITE_SEED_BYTES = 16 * 1024 * 1024;
+const MAX_UNPACKED_SEED_BYTES = 64 * 1024 * 1024;
+const MAX_SEED_ENTRIES = 2_048;
 const STAGED_SEED = /^\.pglite-seed-v1-([1-9][0-9]{0,9})-[A-Za-z0-9]{6}$/u;
+const SEED_PATH = /^(?:[A-Za-z0-9_][A-Za-z0-9_.-]*(?:\/|$))+$/u;
+const RUNTIME_FILES = new Set([
+  "eliza-pglite.lock",
+  "postmaster.opts",
+  "postmaster.pid",
+]);
+const gunzipSeed = promisify(gunzip);
 
 export interface DesktopPgliteSeedReceipt {
   file: typeof DESKTOP_PGLITE_SEED_FILE;
@@ -81,6 +92,25 @@ export function verifyDesktopPgliteSeed(
   }
 }
 
+/** Package the file-backed cluster only after the SDK adapter is closed. */
+export async function archiveClosedPgliteDataDirectory(
+  dataDir: string,
+  archive: string,
+): Promise<void> {
+  const { create } = await import("tar");
+  await create(
+    {
+      cwd: dataDir,
+      file: archive,
+      gzip: true,
+      noMtime: true,
+      portable: true,
+      strict: true,
+    },
+    (await readdir(dataDir)).sort(),
+  );
+}
+
 async function pathIsMissing(path: string): Promise<boolean> {
   try {
     await lstat(path);
@@ -120,32 +150,75 @@ async function discardAbandonedSeeds(parent: string): Promise<void> {
   }
 }
 
-/** Restore with the SDK inside a private sibling and publish only after close. */
+/** Unpack the signed, closed SDK database into a private sibling before use. */
 export async function seedPgliteDataDirectory(
   dataDir: string,
-  archive: Uint8Array<ArrayBuffer>,
+  archive: Uint8Array,
 ): Promise<boolean> {
   if (!(await pathIsMissing(dataDir))) return false;
-  if (archive[0] !== 0x1f || archive[1] !== 0x8b) {
-    throw new Error("The PGlite seed archive is not a gzip file.");
+  if (
+    archive.byteLength > MAX_PGLITE_SEED_BYTES ||
+    archive[0] !== 0x1f ||
+    archive[1] !== 0x8b
+  ) {
+    throw new Error("The PGlite seed must be a bounded gzip archive.");
   }
 
   const parent = dirname(dataDir);
-  const [{ PGliteClientManager }] = await Promise.all([
-    import("@elizaos/plugin-sql"),
+  const [{ extract }] = await Promise.all([
+    import("tar"),
     discardAbandonedSeeds(parent),
   ]);
   const staged = await mkdtemp(join(parent, `.pglite-seed-v1-${process.pid}-`));
   let published = false;
   try {
-    const manager = new PGliteClientManager({
-      dataDir: staged,
-      loadDataDir: new Blob([archive], { type: "application/gzip" }),
+    const paths = new Set<string>();
+    let totalBytes = 0;
+    let rejected = false;
+    const contents = await gunzipSeed(archive, {
+      maxOutputLength: MAX_UNPACKED_SEED_BYTES,
     });
-    try {
-      await manager.initialize();
-    } finally {
-      await manager.close();
+    // The first tar path is a file name, never nested compression.
+    if (!/^[A-Za-z0-9_]/u.test(contents.subarray(0, 1).toString("latin1"))) {
+      throw new Error("The PGlite seed does not contain a closed database.");
+    }
+    // Finish writes before proceeding or removing a failed staging directory.
+    const unpack = extract({
+      cwd: staged,
+      keep: true,
+      maxDepth: 4,
+      noMtime: true,
+      preserveOwner: false,
+      strict: true,
+      sync: true,
+      filter: (path, entry) => {
+        const key = path.replace(/\/$/u, "").toLowerCase();
+        if (
+          !("type" in entry) ||
+          !SEED_PATH.test(path) ||
+          RUNTIME_FILES.has(key) ||
+          paths.has(key) ||
+          (entry.type !== "File" && entry.type !== "Directory") ||
+          !Number.isSafeInteger(entry.size) ||
+          entry.size < 0 ||
+          paths.size >= MAX_SEED_ENTRIES ||
+          totalBytes + entry.size > MAX_UNPACKED_SEED_BYTES
+        ) {
+          rejected = true;
+          return false;
+        }
+        paths.add(key);
+        totalBytes += entry.size;
+        return true;
+      },
+    });
+    unpack.end(contents);
+    if (
+      rejected ||
+      !(await lstat(join(staged, "PG_VERSION"))).isFile() ||
+      !(await lstat(join(staged, "global", "pg_control"))).isFile()
+    ) {
+      throw new Error("The PGlite seed does not contain a closed database.");
     }
 
     if (!(await pathIsMissing(dataDir))) return false;

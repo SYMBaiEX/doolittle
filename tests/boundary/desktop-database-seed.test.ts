@@ -1,15 +1,21 @@
 import { spawnSync } from "node:child_process";
-import { mkdtemp, readdir, rm } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readdir,
+  readFile,
+  rm,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
+import { gzipSync } from "node:zlib";
 import type { UUID } from "@elizaos/core";
-import {
-  createDatabaseAdapter,
-  createMigratedSnapshot,
-  plugin,
-} from "@elizaos/plugin-sql";
+import { createDatabaseAdapter, plugin } from "@elizaos/plugin-sql";
 import { expect, it } from "vitest";
 import {
+  archiveClosedPgliteDataDirectory,
   DESKTOP_PGLITE_SEED_FILE,
   seedPackagedDesktopPglite,
   seedPgliteDataDirectory,
@@ -30,7 +36,17 @@ it("recovers an abandoned seed and retains a saved agent on reopen", async () =>
       join(directory, `.pglite-seed-v1-${process.pid}-`),
     );
     const olderStage = await mkdtemp(join(directory, ".pglite-seed-"));
-    const archive = new Uint8Array(await createMigratedSnapshot(schema));
+    const source = join(directory, "source");
+    const seed = createDatabaseAdapter({ dataDir: source }, agentId);
+    try {
+      await seed.initialize();
+      await seed.runPluginMigrations?.(schema);
+    } finally {
+      await seed.close();
+    }
+    const archivePath = join(directory, "seed.tar.gz");
+    await archiveClosedPgliteDataDirectory(source, archivePath);
+    const archive = await readFile(archivePath);
     expect(await seedPgliteDataDirectory(database, archive)).toBe(true);
 
     const adapter = createDatabaseAdapter({ dataDir: database }, agentId);
@@ -57,12 +73,63 @@ it("recovers an abandoned seed and retains a saved agent on reopen", async () =>
       await reopened.close();
     }
     expect((await readdir(directory)).sort()).toEqual(
-      [basename(activeStage), basename(olderStage), "pglite"].sort(),
+      [
+        basename(activeStage),
+        basename(olderStage),
+        "pglite",
+        "seed.tar.gz",
+        "source",
+      ].sort(),
     );
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
 }, 20_000);
+
+it("leaves the profile untouched if a seed contains a link", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "doolittle-seed-test-"));
+  try {
+    const source = join(directory, "source");
+    await mkdir(join(source, "global"), { recursive: true });
+    await writeFile(join(source, "global", "pg_control"), "test header");
+    await writeFile(join(source, "PG_VERSION"), "17");
+    await symlink("../untouched", join(source, "outside"), "file");
+    const archivePath = join(directory, "seed.tar.gz");
+    await archiveClosedPgliteDataDirectory(source, archivePath);
+    await expect(
+      seedPgliteDataDirectory(
+        join(directory, "pglite"),
+        await readFile(archivePath),
+      ),
+    ).rejects.toThrow("does not contain a closed database");
+    expect((await readdir(directory)).sort()).toEqual([
+      "seed.tar.gz",
+      "source",
+    ]);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+it("bounds decompression and discards failed staging directories", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "doolittle-seed-test-"));
+  const dataDir = join(directory, "pglite");
+  try {
+    const oversized = gzipSync(Buffer.alloc(64 * 1024 * 1024 + 1));
+    await expect(
+      seedPgliteDataDirectory(dataDir, oversized),
+    ).rejects.toMatchObject({ code: "ERR_BUFFER_TOO_LARGE" });
+    await expect(
+      seedPgliteDataDirectory(dataDir, oversized.subarray(0, 32)),
+    ).rejects.toMatchObject({ code: "Z_BUF_ERROR" });
+    await expect(
+      seedPgliteDataDirectory(dataDir, gzipSync(oversized)),
+    ).rejects.toThrow("does not contain a closed database");
+    expect(await readdir(directory)).toEqual([]);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
 
 it("falls back to standard initialization when there is no packaged seed", async () => {
   const directory = await mkdtemp(join(tmpdir(), "doolittle-seed-test-"));
