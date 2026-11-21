@@ -252,9 +252,11 @@ async function handleAdmittedAgentTurn(
             attachmentIds: replayUserMessage.attachments.map(
               (attachment) => attachment.id,
             ),
+            signal: options?.abortSignal,
           });
         } catch {
           restoreReplayProjection();
+          throwIfTurnAborted(options?.abortSignal);
           return "The previous turn used attachments that are no longer available, so it was not retried.";
         }
       }

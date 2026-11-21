@@ -109,6 +109,7 @@ export async function handleManagedMediaRoutes(
     const attachment = await resolveManagedAttachmentPath({
       dataDir: context.config.dataDir,
       attachmentId,
+      signal: request.signal,
     });
     if (attachment.descriptor.kind !== "audio") {
       return json(

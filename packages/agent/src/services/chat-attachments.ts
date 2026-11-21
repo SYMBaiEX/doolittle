@@ -1,7 +1,7 @@
-import { createHash } from "node:crypto";
-import { realpathSync, statSync } from "node:fs";
+import { createHash, subtle } from "node:crypto";
+import { realpath, stat } from "node:fs/promises";
 import { basename, join } from "node:path";
-import { readRegularFileSync } from "@doolittle/storage";
+import { readRegularFile } from "@doolittle/storage";
 import type { ContentType, Media } from "@elizaos/core";
 import { isStrictlyContainedPath } from "../utils/path-containment";
 import { hasAsciiControlCharacters } from "../utils/text-validation";
@@ -11,6 +11,8 @@ export const MAX_CHAT_ATTACHMENT_BYTES = 20 * 1024 * 1024;
 export const MAX_CHAT_ATTACHMENTS_TOTAL_BYTES = 50 * 1024 * 1024;
 
 const MAX_SIDECAR_BYTES = 16 * 1024;
+const ATTACHMENT_READ_CONCURRENCY = 2;
+const ASYNC_ATTACHMENT_HASH_BYTES = 2 * 1024 * 1024;
 const MAX_ATTACHMENT_TEXT_BYTES = 256 * 1024;
 const MAX_ATTACHMENT_NAME_LENGTH = 180;
 const MAX_MIME_TYPE_LENGTH = 127;
@@ -50,11 +52,13 @@ export type ManagedElizaMedia = Media & {
 export interface ResolveManagedChatAttachmentsInput {
   dataDir: string;
   attachmentIds: readonly string[];
+  signal?: AbortSignal;
 }
 
 export interface ResolveManagedAttachmentPathInput {
   dataDir: string;
   attachmentId: string;
+  signal?: AbortSignal;
 }
 
 export interface ResolvedManagedAttachmentPath {
@@ -62,9 +66,8 @@ export interface ResolvedManagedAttachmentPath {
   path: string;
 }
 
-interface ManagedAttachmentSidecar extends ManagedAttachmentDescriptor {
-  version: 1;
-  sha256: string;
+interface ManagedAttachmentSidecar {
+  descriptor: ManagedAttachmentDescriptor;
   storedName: string;
 }
 
@@ -151,13 +154,14 @@ function parseSidecar(
   }
 
   return {
-    version: 1,
-    id: requestedId,
-    name,
-    kind: kind as ManagedAttachmentKind,
-    mimeType,
-    sizeBytes,
-    sha256,
+    descriptor: {
+      id: requestedId,
+      name,
+      kind: kind as ManagedAttachmentKind,
+      mimeType,
+      sizeBytes,
+      sha256,
+    },
     storedName,
   };
 }
@@ -181,46 +185,52 @@ function attachmentText(
   return `[Attached ${metadata.kind}: ${metadata.name} (${metadata.mimeType})]`;
 }
 
-function canonicalAttachmentsRoot(dataDir: string): string {
+async function canonicalAttachmentsRoot(
+  dataDir: string,
+  signal?: AbortSignal,
+): Promise<string> {
   try {
-    const dataRoot = realpathSync(dataDir);
-    const attachmentsRoot = realpathSync(join(dataRoot, "attachments"));
+    signal?.throwIfAborted();
+    const dataRoot = await realpath(dataDir);
+    signal?.throwIfAborted();
+    const attachmentsRoot = await realpath(join(dataRoot, "attachments"));
+    signal?.throwIfAborted();
     if (!isStrictlyContainedPath(dataRoot, attachmentsRoot)) {
       fail("invalid_request", undefined, "storage is unavailable");
     }
     return attachmentsRoot;
   } catch (error) {
+    signal?.throwIfAborted();
     if (error instanceof ManagedAttachmentError) throw error;
     fail("invalid_request", undefined, "storage is unavailable");
   }
 }
 
-function canonicalContainedFile(
+async function canonicalContainedFile(
   attachmentsRoot: string,
   candidatePath: string,
   id: string,
   kind: "metadata" | "file",
-): string {
+  signal?: AbortSignal,
+): Promise<string> {
   try {
-    const canonicalPath = realpathSync(candidatePath);
+    signal?.throwIfAborted();
+    const canonicalPath = await realpath(candidatePath);
+    signal?.throwIfAborted();
     if (!isStrictlyContainedPath(attachmentsRoot, canonicalPath)) {
       fail("invalid_metadata", id, `has unsafe ${kind}`);
     }
-    const fileStat = statSync(canonicalPath);
+    const fileStat = await stat(canonicalPath);
+    signal?.throwIfAborted();
     if (!fileStat.isFile()) {
       fail("invalid_metadata", id, `has invalid ${kind}`);
     }
     return canonicalPath;
   } catch (error) {
+    signal?.throwIfAborted();
     if (error instanceof ManagedAttachmentError) throw error;
     fail("not_found", id, "is unavailable");
   }
-}
-
-interface ValidatedManagedAttachment {
-  descriptor: ManagedAttachmentDescriptor;
-  bytes: Buffer;
-  path: string;
 }
 
 function validateAttachmentId(value: unknown): string {
@@ -234,70 +244,80 @@ function validateAttachmentId(value: unknown): string {
   return value;
 }
 
-function validateOne(
+async function readAttachmentSidecar(
   attachmentsRoot: string,
   id: string,
-): ValidatedManagedAttachment {
+  signal?: AbortSignal,
+): Promise<ManagedAttachmentSidecar> {
   const sidecarPath = join(attachmentsRoot, `${id}.meta.json`);
-  const canonicalSidecar = canonicalContainedFile(
+  const canonicalSidecar = await canonicalContainedFile(
     attachmentsRoot,
     sidecarPath,
     id,
     "metadata",
+    signal,
   );
 
-  let metadata: ManagedAttachmentSidecar;
   try {
-    metadata = parseSidecar(
-      readRegularFileSync(canonicalSidecar, MAX_SIDECAR_BYTES).toString("utf8"),
-      id,
-    );
+    const bytes = await readRegularFile(canonicalSidecar, MAX_SIDECAR_BYTES, {
+      signal,
+    });
+    signal?.throwIfAborted();
+    return parseSidecar(bytes.toString("utf8"), id);
   } catch (error) {
+    signal?.throwIfAborted();
     if (error instanceof ManagedAttachmentError) throw error;
     fail("invalid_metadata", id, "has invalid metadata");
   }
+}
 
-  const canonicalFile = canonicalContainedFile(
+async function readAttachmentPayload(
+  attachmentsRoot: string,
+  { descriptor, storedName }: ManagedAttachmentSidecar,
+  signal?: AbortSignal,
+): Promise<{ bytes: Buffer; path: string }> {
+  const { id, sizeBytes, sha256 } = descriptor;
+  const canonicalFile = await canonicalContainedFile(
     attachmentsRoot,
-    join(attachmentsRoot, metadata.storedName),
+    join(attachmentsRoot, storedName),
     id,
     "file",
+    signal,
   );
-  let bytes: Buffer;
   try {
-    bytes = readRegularFileSync(canonicalFile, metadata.sizeBytes);
-    if (
-      bytes.byteLength !== metadata.sizeBytes ||
-      createHash("sha256").update(bytes).digest("hex") !== metadata.sha256
-    ) {
+    const bytes = await readRegularFile(canonicalFile, sizeBytes, { signal });
+    signal?.throwIfAborted();
+    if (bytes.byteLength !== sizeBytes)
       fail("integrity_failed", id, "failed integrity validation");
-    }
+    // Run larger checksums off the runtime thread without an application worker.
+    const digest =
+      sizeBytes < ASYNC_ATTACHMENT_HASH_BYTES
+        ? createHash("sha256").update(bytes).digest("hex")
+        : Buffer.from(await subtle.digest("SHA-256", bytes)).toString("hex");
+    signal?.throwIfAborted();
+    if (digest !== sha256)
+      fail("integrity_failed", id, "failed integrity validation");
+    return { bytes, path: canonicalFile };
   } catch (error) {
+    signal?.throwIfAborted();
     if (error instanceof ManagedAttachmentError) throw error;
     fail("integrity_failed", id, "failed integrity validation");
   }
-
-  const descriptor: ManagedAttachmentDescriptor = {
-    id,
-    name: metadata.name,
-    kind: metadata.kind,
-    mimeType: metadata.mimeType,
-    sizeBytes: metadata.sizeBytes,
-    sha256: metadata.sha256,
-  };
-
-  return {
-    descriptor,
-    bytes,
-    path: canonicalFile,
-  };
 }
 
 async function resolveOne(
   attachmentsRoot: string,
-  id: string,
+  sidecar: ManagedAttachmentSidecar,
+  signal?: AbortSignal,
 ): Promise<ResolvedManagedAttachment> {
-  const { bytes, descriptor } = validateOne(attachmentsRoot, id);
+  const { descriptor } = sidecar;
+  const { id } = descriptor;
+  const { bytes } = await readAttachmentPayload(
+    attachmentsRoot,
+    sidecar,
+    signal,
+  );
+  signal?.throwIfAborted();
   return {
     descriptor,
     media: {
@@ -313,6 +333,29 @@ async function resolveOne(
   };
 }
 
+async function readAttachmentBatches<Input, Output>(
+  inputs: readonly Input[],
+  read: (input: Input) => Promise<Output>,
+): Promise<Output[]> {
+  const outputs: Output[] = [];
+  for (
+    let index = 0;
+    index < inputs.length;
+    index += ATTACHMENT_READ_CONCURRENCY
+  ) {
+    // Drain all in-flight descriptors before returning the first failure in
+    // request order. Never start the next batch after a failure.
+    const batch = await Promise.allSettled(
+      inputs.slice(index, index + ATTACHMENT_READ_CONCURRENCY).map(read),
+    );
+    for (const result of batch) {
+      if (result.status === "rejected") throw result.reason;
+      outputs.push(result.value);
+    }
+  }
+  return outputs;
+}
+
 /**
  * Resolves one managed attachment to its canonical on-disk path for trusted
  * server-side consumers. The path is returned only after the sidecar,
@@ -322,14 +365,29 @@ export async function resolveManagedAttachmentPath(
   input: ResolveManagedAttachmentPathInput,
 ): Promise<ResolvedManagedAttachmentPath> {
   const id = validateAttachmentId(input.attachmentId);
-  const attachmentsRoot = canonicalAttachmentsRoot(input.dataDir);
-  const { descriptor, path } = validateOne(attachmentsRoot, id);
-  return { descriptor, path };
+  const attachmentsRoot = await canonicalAttachmentsRoot(
+    input.dataDir,
+    input.signal,
+  );
+  const sidecar = await readAttachmentSidecar(
+    attachmentsRoot,
+    id,
+    input.signal,
+  );
+  const { path } = await readAttachmentPayload(
+    attachmentsRoot,
+    sidecar,
+    input.signal,
+  );
+  input.signal?.throwIfAborted();
+  return { descriptor: sidecar.descriptor, path };
 }
 
 export async function resolveManagedChatAttachments(
   input: ResolveManagedChatAttachmentsInput,
 ): Promise<ResolvedManagedAttachment[]> {
+  const { signal } = input;
+  signal?.throwIfAborted();
   if (!Array.isArray(input.attachmentIds)) {
     fail("invalid_request", undefined, "must provide attachment IDs");
   }
@@ -347,12 +405,14 @@ export async function resolveManagedChatAttachments(
     fail("invalid_request", undefined, "contains duplicate attachment IDs");
   }
 
-  const attachmentsRoot = canonicalAttachmentsRoot(input.dataDir);
-  const resolved: ResolvedManagedAttachment[] = [];
+  const attachmentsRoot = await canonicalAttachmentsRoot(input.dataDir, signal);
+  const sidecars = await readAttachmentBatches(ids, (id) =>
+    readAttachmentSidecar(attachmentsRoot, id, signal),
+  );
+  signal?.throwIfAborted();
   let totalBytes = 0;
-  for (const id of ids) {
-    const attachment = await resolveOne(attachmentsRoot, id);
-    totalBytes += attachment.descriptor.sizeBytes;
+  for (const { descriptor } of sidecars) {
+    totalBytes += descriptor.sizeBytes;
     if (totalBytes > MAX_CHAT_ATTACHMENTS_TOTAL_BYTES) {
       fail(
         "limit_exceeded",
@@ -360,7 +420,10 @@ export async function resolveManagedChatAttachments(
         `exceeds the ${MAX_CHAT_ATTACHMENTS_TOTAL_BYTES} byte total limit`,
       );
     }
-    resolved.push(attachment);
   }
+  const resolved = await readAttachmentBatches(sidecars, (sidecar) =>
+    resolveOne(attachmentsRoot, sidecar, signal),
+  );
+  signal?.throwIfAborted();
   return resolved;
 }

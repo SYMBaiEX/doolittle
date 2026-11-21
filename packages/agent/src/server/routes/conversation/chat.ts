@@ -269,6 +269,7 @@ async function prepareChatRun(
     attachments = await resolveManagedChatAttachments({
       dataDir: context.config.dataDir,
       attachmentIds: body.attachmentIds ?? [],
+      signal: request.signal,
     });
   } catch (error) {
     if (error instanceof ManagedAttachmentError) {
