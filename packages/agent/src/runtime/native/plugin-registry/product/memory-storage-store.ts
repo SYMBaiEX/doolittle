@@ -200,13 +200,15 @@ export class ElizaMemoryStorageStore {
             )
             .all(agentId, entityId, limit)
     ) as LongTermMemoryRow[];
+    if (rows.length === 0) return [];
     const touchedAt = new Date().toISOString();
-    const touch = this.db.query(
-      `UPDATE long_term_memories
-       SET last_accessed_at = ?1, access_count = COALESCE(access_count, 0) + 1
-       WHERE id = ?2`,
-    );
-    for (const row of rows) touch.run(touchedAt, row.id);
+    this.db
+      .query(
+        `UPDATE long_term_memories
+         SET last_accessed_at = ?1, access_count = COALESCE(access_count, 0) + 1
+         WHERE id IN (SELECT value FROM json_each(?2))`,
+      )
+      .run(touchedAt, JSON.stringify(rows.map(({ id }) => id)));
     return rows.map((row) => mapLongTermMemory(row, touchedAt));
   }
 
