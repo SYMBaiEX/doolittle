@@ -1,9 +1,13 @@
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
+import type { AppContext } from "../../packages/agent/src/runtime/bootstrap";
+import { handleWorkspaceRoutes } from "../../packages/agent/src/server/routes/workspace";
+import { WorkspaceService } from "../../packages/agent/src/services/workspace-service";
 import {
   listCompleteWorkspaceTreeAsync,
+  listWorkspaceTree,
   listWorkspaceTreeAsync,
 } from "../../packages/agent/src/services/workspace-service/tree";
 
@@ -37,9 +41,41 @@ it("continues a bounded workspace walk after yielding while respecting file visi
       "src",
     ]);
     expect(full.entries.at(-1)?.path).toBe("src/module-259.ts");
+    expect(listWorkspaceTree(workspace, 1, 3)).toEqual(
+      full.entries.slice(0, 3),
+    );
     await expect(
       listWorkspaceTreeAsync(join(workspace, "missing"), 1),
     ).rejects.toMatchObject({ code: "ENOENT" });
+  } finally {
+    await rm(workspace, { recursive: true, force: true });
+  }
+});
+
+it("caps the summary and cancels an API tree read with its request", async () => {
+  const workspace = await mkdtemp(join(tmpdir(), "doolittle-workspace-tree-"));
+  try {
+    await mkdir(join(workspace, "docs"));
+    await mkdir(join(workspace, "src"));
+    await writeFile(join(workspace, ".env"), "hidden");
+    await writeFile(join(workspace, "docs", "index.md"), "");
+    await writeFile(join(workspace, "src", "index.ts"), "");
+    const service = new WorkspaceService(workspace);
+    expect(service.summary(2)).toBe("- docs/\n  - docs/index.md");
+    expect(service.summary(0)).toBe("(empty workspace)");
+
+    const treeAsync = vi.spyOn(service, "treeAsync");
+    const context = {
+      services: { workspace: service },
+    } as unknown as AppContext;
+    const controller = new AbortController();
+    const url = new URL("http://localhost/workspace/tree?depth=12");
+    const request = new Request(url, { signal: controller.signal });
+    const result = handleWorkspaceRoutes(context, request, url);
+    controller.abort(new Error("The UI moved to another project."));
+
+    await expect(result).rejects.toThrow("The UI moved to another project.");
+    expect(treeAsync).toHaveBeenCalledWith(12, undefined, request.signal);
   } finally {
     await rm(workspace, { recursive: true, force: true });
   }

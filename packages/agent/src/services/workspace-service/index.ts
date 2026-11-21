@@ -54,8 +54,12 @@ export class WorkspaceService {
     return listWorkspaceTree(this.root(), maxDepth);
   }
 
-  treeAsync(maxDepth = 2, maxEntries?: number): Promise<WorkspaceTreeSnapshot> {
-    return listWorkspaceTreeAsync(this.root(), maxDepth, maxEntries);
+  treeAsync(
+    maxDepth = 2,
+    maxEntries?: number,
+    signal?: AbortSignal,
+  ): Promise<WorkspaceTreeSnapshot> {
+    return listWorkspaceTreeAsync(this.root(), maxDepth, maxEntries, signal);
   }
 
   read(path: string): string {
@@ -132,7 +136,11 @@ export class WorkspaceService {
   }
 
   summary(maxEntries = 20): string {
-    const entries = this.tree(2);
+    const entries = listWorkspaceTree(
+      this.root(),
+      2,
+      Math.max(0, Math.trunc(maxEntries) || 0),
+    );
     return summarizeWorkspaceTree(entries, maxEntries);
   }
 

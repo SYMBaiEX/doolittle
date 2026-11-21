@@ -1,4 +1,4 @@
-import { lstatSync, readdirSync } from "node:fs";
+import { type Dirent, readdirSync } from "node:fs";
 import { readdir, realpath } from "node:fs/promises";
 import { join, relative } from "node:path";
 import { setImmediate } from "node:timers/promises";
@@ -16,9 +16,10 @@ export interface WorkspaceTreeSnapshot {
 export function listWorkspaceTree(
   workspaceDir: string,
   maxDepth: number,
+  maxEntries = Number.POSITIVE_INFINITY,
 ): WorkspaceEntry[] {
   const entries: WorkspaceEntry[] = [];
-  walkWorkspaceTree(workspaceDir, workspaceDir, 0, maxDepth, entries);
+  walkWorkspaceTree(workspaceDir, "", 0, maxDepth, maxEntries, entries);
   return entries;
 }
 
@@ -33,10 +34,13 @@ export async function listWorkspaceTreeAsync(
   workspaceDir: string,
   maxDepth: number,
   maxEntries = DEFAULT_ASYNC_WORKSPACE_TREE_LIMIT,
+  signal?: AbortSignal,
 ): Promise<WorkspaceTreeSnapshot> {
   const entries: WorkspaceEntry[] = [];
   const limit = Math.max(0, Math.floor(maxEntries));
-  for await (const entry of iterateWorkspaceTree(workspaceDir, maxDepth)) {
+  for await (const entry of iterateWorkspaceTree(workspaceDir, maxDepth, {
+    signal,
+  })) {
     if (entries.length >= limit) return { entries, truncated: true };
     entries.push(entry);
   }
@@ -62,6 +66,7 @@ export function iterateWorkspaceTree(
     startDir?: string;
     signal?: AbortSignal;
     requireCanonicalDirectories?: boolean;
+    includeName?: (name: string) => boolean;
   } = {},
 ): AsyncGenerator<WorkspaceEntry> {
   const currentDir = options.startDir ?? workspaceDir;
@@ -83,6 +88,7 @@ async function* walkWorkspaceTreeAsync(
     visited: number;
     signal?: AbortSignal;
     requireCanonicalDirectories?: boolean;
+    includeName?: (name: string) => boolean;
   },
 ): AsyncGenerator<WorkspaceEntry> {
   const { signal } = state;
@@ -95,32 +101,23 @@ async function* walkWorkspaceTreeAsync(
     return;
 
   const dirEntries = (await readdir(currentDir, { withFileTypes: true })).sort(
-    (left, right) => left.name.localeCompare(right.name),
+    compareEntries,
   );
+  signal?.throwIfAborted();
   for (const dirEntry of dirEntries) {
     if (++state.visited % 256 === 0) {
       await setImmediate(undefined, { signal });
     }
     signal?.throwIfAborted();
-    const directory = dirEntry.isDirectory();
-    if (!directory && !dirEntry.isFile()) continue;
-    const name = workspaceRelativePath(dirEntry.name);
-    // A literal backslash on POSIX would otherwise be rendered as a path
-    // separator and resolve to a different entry on the operator surface.
-    if (name.includes("/")) continue;
-    const relativePath = relativeDir ? `${relativeDir}/${name}` : name;
-    if (!isWorkspacePathVisible(relativePath)) continue;
+    if (state.includeName && !state.includeName(dirEntry.name)) continue;
+    const entry = workspaceEntry(dirEntry, relativeDir, depth);
+    if (!entry) continue;
+    yield entry;
 
-    yield {
-      path: relativePath,
-      type: directory ? "directory" : "file",
-      depth,
-    };
-
-    if (directory) {
+    if (entry.type === "directory") {
       yield* walkWorkspaceTreeAsync(
         join(currentDir, dirEntry.name),
-        relativePath,
+        entry.path,
         depth + 1,
         maxDepth,
         state,
@@ -130,53 +127,51 @@ async function* walkWorkspaceTreeAsync(
 }
 
 function walkWorkspaceTree(
-  workspaceDir: string,
   currentDir: string,
+  relativeDir: string,
   depth: number,
   maxDepth: number,
+  maxEntries: number,
   entries: WorkspaceEntry[],
 ): void {
-  if (depth > maxDepth) {
-    return;
-  }
-
-  const dirEntries = readdirSync(currentDir).sort((left, right) =>
-    left.localeCompare(right),
+  if (depth > maxDepth || entries.length >= maxEntries) return;
+  const dirEntries = readdirSync(currentDir, { withFileTypes: true }).sort(
+    compareEntries,
   );
-  for (const name of dirEntries) {
-    const absolutePath = join(currentDir, name);
-    const relativePath = workspaceRelativePath(
-      relative(workspaceDir, absolutePath),
-    );
-    if (!isWorkspacePathVisible(relativePath)) {
-      continue;
-    }
-
-    const stat = lstatSync(absolutePath);
-    if (stat.isSymbolicLink()) {
-      continue;
-    }
-
-    if (stat.isDirectory()) {
-      entries.push({
-        path: relativePath,
-        type: "directory",
-        depth,
-      });
+  for (const dirEntry of dirEntries) {
+    const entry = workspaceEntry(dirEntry, relativeDir, depth);
+    if (!entry) continue;
+    entries.push(entry);
+    if (entries.length >= maxEntries) return;
+    if (entry.type === "directory") {
       walkWorkspaceTree(
-        workspaceDir,
-        absolutePath,
+        join(currentDir, dirEntry.name),
+        entry.path,
         depth + 1,
         maxDepth,
+        maxEntries,
         entries,
       );
-      continue;
+      if (entries.length >= maxEntries) return;
     }
-
-    entries.push({
-      path: relativePath,
-      type: "file",
-      depth,
-    });
   }
+}
+
+function compareEntries(left: Dirent, right: Dirent): number {
+  return left.name.localeCompare(right.name);
+}
+
+function workspaceEntry(
+  dirEntry: Dirent,
+  relativeDir: string,
+  depth: number,
+): WorkspaceEntry | undefined {
+  const directory = dirEntry.isDirectory();
+  if (!directory && !dirEntry.isFile()) return;
+  const name = workspaceRelativePath(dirEntry.name);
+  // Do not present a POSIX name that would resolve to a different path.
+  if (name.includes("/")) return;
+  const path = relativeDir ? `${relativeDir}/${name}` : name;
+  if (!isWorkspacePathVisible(path)) return;
+  return { path, type: directory ? "directory" : "file", depth };
 }

@@ -11,6 +11,8 @@ export async function handleWorkspaceRoutes(
     const depth = Number(url.searchParams.get("depth") ?? "2");
     const snapshot = await context.services.workspace.treeAsync(
       Number.isNaN(depth) ? 2 : depth,
+      undefined,
+      request.signal,
     );
     return json({
       entries: snapshot.entries,
