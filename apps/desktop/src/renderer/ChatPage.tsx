@@ -149,6 +149,7 @@ export interface ChatPageProps {
   ) => { projectId?: string } | undefined;
   scopeForSession?: (sessionId: string) => SessionConversationScope;
   onConfirmConversationScope?: (scope: BotConversationScope) => void;
+  onSessionSummary?: (summary: SessionSummary) => void;
   onBindSessionBot?: (sessionId: string, botId: string) => void;
   onCaptureSessionProject?: (
     sessionId: string,
@@ -205,6 +206,7 @@ export function ChatSessionPanel({
   projectTargetForSession,
   scopeForSession,
   onConfirmConversationScope,
+  onSessionSummary,
   onBindSessionBot,
   onCaptureSessionProject,
   onActivateBot,
@@ -331,8 +333,10 @@ export function ChatSessionPanel({
     defaultBotId,
     botIdForSession,
     remoteSessions,
+    sessionMetadata,
     onSelect,
     onBindSessionBot,
+    onSessionSummary,
     refreshRuntime,
     setQueueAnnouncement,
   });

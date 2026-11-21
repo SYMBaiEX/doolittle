@@ -18,12 +18,9 @@ import {
 import { newConversationId } from "../conversation-id";
 import {
   type AttachmentCleanupMap,
-  CONVERSATION_PINS_EVENT,
   type ConversationDraft,
   loadConversationDrafts,
-  loadConversationPins,
   saveConversationDrafts,
-  saveConversationPins,
 } from "../conversation-persistence";
 import { NativeDraftBridge } from "../interfaces/native-draft-bridge";
 import { NativeUiHost } from "../interfaces/native-ui-host";
@@ -55,6 +52,7 @@ import {
   createTranscriptCacheWriter,
   loadStoredChatMessages,
 } from "./transcript-cache";
+import { useConversationPins } from "./useConversationPins";
 
 const MAX_RECENT_HISTORY_FETCH_SIZE = 500;
 
@@ -218,10 +216,7 @@ export function useChatConversationState({
     CHAT_DRAFTS_STATE_KEY,
     () => loadConversationDrafts(localStorage),
   );
-  const [pinnedSessions, setPinnedSessions] = useWorkspaceState(
-    "conversation.pins",
-    () => loadConversationPins(localStorage),
-  );
+  const { pinnedSessions, togglePin } = useConversationPins(persistenceOwner);
   const [historyErrors, setHistoryErrors] = useWorkspaceState<
     Record<string, string>
   >("conversation.history-errors", {});
@@ -455,20 +450,6 @@ export function useChatConversationState({
     [updateDraft, draftRevisions],
   );
 
-  const togglePin = useCallback(
-    (sessionId: string) => {
-      setPinnedSessions((current) => {
-        const next = { ...current };
-        if (next[sessionId]) delete next[sessionId];
-        else next[sessionId] = true;
-        saveConversationPins(localStorage, next);
-        window.dispatchEvent(new Event(CONVERSATION_PINS_EVENT));
-        return next;
-      });
-    },
-    [setPinnedSessions],
-  );
-
   useEffect(() => {
     if (!selectedId) onSelect(initialId);
   }, [initialId, onSelect, selectedId]);
@@ -499,11 +480,6 @@ export function useChatConversationState({
 
   useEffect(() => {
     if (!persistenceOwner) return;
-    saveConversationPins(localStorage, pinnedSessions);
-  }, [pinnedSessions, persistenceOwner]);
-
-  useEffect(() => {
-    if (!persistenceOwner) return;
     const persisted = saveConversationDrafts(localStorage, conversationDrafts);
     setDraftStorageWarning(
       persisted
@@ -515,14 +491,6 @@ export function useChatConversationState({
   const storageWarning = [transcriptStorageWarning, draftStorageWarning]
     .filter(Boolean)
     .join(" ");
-
-  useEffect(() => {
-    if (!persistenceOwner) return;
-    const syncPins = () =>
-      setPinnedSessions(loadConversationPins(localStorage));
-    window.addEventListener(CONVERSATION_PINS_EVENT, syncPins);
-    return () => window.removeEventListener(CONVERSATION_PINS_EVENT, syncPins);
-  }, [setPinnedSessions, persistenceOwner]);
 
   useEffect(() => {
     const selectedIsRemote = remoteSessions.some(

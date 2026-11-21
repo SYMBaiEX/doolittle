@@ -95,6 +95,7 @@ export interface DesktopRouteContentProps {
   ) => { projectId?: string } | undefined;
   scopeForSession?: (sessionId: string) => SessionConversationScope;
   onConfirmConversationScope?: (scope: BotConversationScope) => void;
+  onSessionSummary?: (summary: SessionSummary) => void;
   onBindSessionBot: (sessionId: string, botId: string) => void;
   onCaptureSessionProject?: (
     sessionId: string,
@@ -151,6 +152,7 @@ export function DesktopRouteContent({
   projectTargetForSession,
   scopeForSession,
   onConfirmConversationScope,
+  onSessionSummary,
   onBindSessionBot,
   onCaptureSessionProject,
   onActivateBot,
@@ -247,6 +249,7 @@ export function DesktopRouteContent({
             projectTargetForSession={projectTargetForSession}
             scopeForSession={scopeForSession}
             onConfirmConversationScope={onConfirmConversationScope}
+            onSessionSummary={onSessionSummary}
             onBindSessionBot={onBindSessionBot}
             onCaptureSessionProject={onCaptureSessionProject}
             onActivateBot={onActivateBot}

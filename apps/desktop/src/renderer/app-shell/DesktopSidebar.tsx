@@ -1,19 +1,12 @@
 import type { BotSummary } from "@doolittle/contracts/bots";
-import {
-  ContextActionMenu,
-  NativeSelect,
-  RunState,
-  StateSurface,
-} from "@doolittle/ui";
+import { StateSurface } from "@doolittle/ui";
 import {
   AlertCircle,
   CalendarClock,
-  ChevronDown,
   Files,
   ListTodo,
   LoaderCircle,
   MessageSquare,
-  MoreHorizontal,
   PanelLeftClose,
   PanelLeftOpen,
   Plus,
@@ -28,6 +21,7 @@ import {
   type RefObject,
   useMemo,
   useRef,
+  useState,
 } from "react";
 import type {
   DoolittleDesktopBridge,
@@ -35,10 +29,11 @@ import type {
 } from "../../shared/contracts";
 import { PanelResizeHandle } from "../components/PanelResizeHandle";
 import { UiIcon } from "../components/UiIcon";
-import { copyContextText } from "../context-menu-clipboard";
 import { desktopWorkspaceArea, type View } from "../desktop-navigation";
 import { APP_SIDEBAR_WIDTH } from "../panel-layout";
 import type { ProjectScope } from "../project-manager/models";
+import { ChatHistorySidebar } from "./ChatHistorySidebar";
+import { ChatProjectFilter, ChatScopePicker } from "./ChatSidebarControls";
 import {
   APP_SIDEBAR_CLASS,
   APP_SIDEBAR_COLLAPSED_CLASS,
@@ -71,7 +66,12 @@ export interface DesktopSidebarProps {
   botError: string;
   sessions: readonly SessionSummary[];
   selectedSession: string;
-  projectScope: ProjectScope;
+  projects: readonly {
+    id: string;
+    name: string;
+    color?: string | null;
+    archivedAt?: string | null;
+  }[];
   platform: DoolittleDesktopBridge["platform"];
   sidebarRef: RefObject<HTMLElement | null>;
   onSidebarKeyDown: (event: ReactKeyboardEvent<HTMLElement>) => void;
@@ -91,16 +91,6 @@ export interface DesktopSidebarProps {
   navigationView: View;
 }
 
-function botRunState(bot: BotSummary) {
-  if (bot.state === "error") return "error" as const;
-  if (bot.state === "waiting") return "waiting" as const;
-  if (bot.activeRunCount > 0 || bot.state === "busy") return "running" as const;
-  return undefined;
-}
-
-const ROW_MENU_TRIGGER_CLASS =
-  "grid size-10 shrink-0 place-items-center rounded-[var(--radius-md)] text-[var(--muted)] hover:bg-[var(--surface-hover)] focus-visible:bg-[var(--surface-hover)] max-[760px]:size-11 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 pointer-coarse:opacity-100";
-
 const SIDEBAR_ACTION_CLASS =
   "flex min-h-10 items-center gap-2 rounded-[var(--radius-md)] px-2 text-left text-sm text-[var(--text-soft)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] aria-current:bg-[var(--surface-hover)] aria-current:font-semibold aria-current:text-[var(--text)] disabled:cursor-default disabled:opacity-50 max-[760px]:min-h-11";
 
@@ -116,7 +106,7 @@ export function DesktopSidebar({
   botError,
   sessions,
   selectedSession,
-  projectScope,
+  projects,
   platform,
   sidebarRef,
   onSidebarKeyDown,
@@ -138,61 +128,41 @@ export function DesktopSidebar({
   const area = desktopWorkspaceArea(navigationView);
   const compact = navCollapsed && !isMobileSidebarMode;
   const sidebarAction = `${SIDEBAR_ACTION_CLASS}${compact ? " justify-center" : ""}`;
-  const scopePickerRef = useRef<HTMLSelectElement>(null);
+  const scopePickerRef = useRef<HTMLButtonElement>(null);
   const showingGroups = chatScope === "groups";
   const selectedBot = bots.find((bot) => bot.id === selectedBotId);
-  const scopedBot = showingGroups ? undefined : selectedBot;
-  const scopedBotState = scopedBot ? botRunState(scopedBot) : undefined;
-  const canStartConversation = Boolean(scopedBot);
-  const sortedSessions = useMemo(
+  const canStartConversation = !showingGroups && Boolean(selectedBot);
+  const canManageBots = botStatus === "ready" || botStatus === "refreshing";
+  const [projectFilter, setProjectFilter] = useState<ProjectScope>("all");
+  const projectOptions = useMemo(() => {
+    const historyProjects = new Map<string, string>();
+    for (const { projectId, projectContext } of sessions) {
+      if (projectId) historyProjects.set(projectId, projectContext?.name ?? "");
+    }
+    const options = projects.filter(
+      ({ id, archivedAt }) => !archivedAt || historyProjects.has(id),
+    );
+    const known = new Set(options.map(({ id }) => id));
+    for (const [id, name] of historyProjects) {
+      if (name && !known.has(id)) options.push({ id, name });
+    }
+    return options.sort((left, right) => left.name.localeCompare(right.name));
+  }, [projects, sessions]);
+  const activeFilter =
+    projectFilter === "unscoped" ||
+    projectOptions.some(({ id }) => id === projectFilter)
+      ? projectFilter
+      : "all";
+  const filteredSessions = useMemo(
     () =>
-      [...sessions].sort((left, right) =>
-        (right.endedAt ?? right.startedAt ?? "").localeCompare(
-          left.endedAt ?? left.startedAt ?? "",
-        ),
-      ),
-    [sessions],
-  );
-  const scopePicker = (
-    <div className="relative min-w-0 flex-1">
-      <NativeSelect
-        aria-label="Chat scope"
-        className="w-full cursor-pointer appearance-none truncate border-[var(--border)] bg-[var(--surface-raised)] pl-8 pr-8 font-medium hover:bg-[var(--surface-hover)]"
-        onChange={(event) => {
-          const scope = event.currentTarget.value;
-          if (scope === "groups") onSelectGroups();
-          else if (scope.startsWith("bot:")) onSelectBot(scope.slice(4));
-        }}
-        ref={scopePickerRef}
-        value={
-          showingGroups ? "groups" : selectedBot ? `bot:${selectedBotId}` : ""
-        }
-      >
-        <option disabled value="">
-          Choose a bot
-        </option>
-        {bots.length ? (
-          <optgroup label="Bots">
-            {bots.map((bot) => (
-              <option key={bot.id} value={`bot:${bot.id}`}>
-                {bot.name}
-              </option>
-            ))}
-          </optgroup>
-        ) : null}
-        <option value="groups">Groups</option>
-      </NativeSelect>
-      <div className="pointer-events-none absolute inset-y-0 left-2.5 flex items-center text-[var(--muted)]">
-        {scopedBotState ? (
-          <RunState compact state={scopedBotState} />
-        ) : (
-          <UiIcon icon={showingGroups ? Users : MessageSquare} />
-        )}
-      </div>
-      <div className="pointer-events-none absolute inset-y-0 right-2.5 flex items-center text-[var(--muted)]">
-        <UiIcon icon={ChevronDown} />
-      </div>
-    </div>
+      activeFilter === "all"
+        ? sessions
+        : sessions.filter(({ projectId }) =>
+            activeFilter === "unscoped"
+              ? !projectId
+              : projectId === activeFilter,
+          ),
+    [activeFilter, sessions],
   );
 
   return (
@@ -271,17 +241,17 @@ export function DesktopSidebar({
             />
           </button>
         </div>
-        <div className="grid shrink-0 gap-1 px-1 pb-3 [-webkit-app-region:no-drag]">
-          <button
-            className={sidebarAction}
-            onClick={onOpenPalette}
-            title={compact ? "Search" : undefined}
-            type="button"
-          >
-            <UiIcon icon={Search} size="sm" />
-            <span className={compact ? "sr-only" : ""}>Search</span>
-          </button>
-          {compact ? (
+        {compact ? (
+          <div className="grid shrink-0 gap-1 px-1 pb-3 [-webkit-app-region:no-drag]">
+            <button
+              className={sidebarAction}
+              onClick={onOpenPalette}
+              title="Search"
+              type="button"
+            >
+              <UiIcon icon={Search} />
+              <span className="sr-only">Search</span>
+            </button>
             <button
               aria-controls="desktop-sidebar"
               aria-expanded={false}
@@ -296,67 +266,59 @@ export function DesktopSidebar({
               <UiIcon icon={showingGroups ? Users : MessageSquare} />
               <span className="sr-only">Show chats</span>
             </button>
-          ) : (
-            <ContextActionMenu
-              className="group flex min-w-0 items-center gap-1"
-              items={
-                scopedBot
-                  ? [
-                      {
-                        id: "manage",
-                        label: "Manage bots…",
-                        onSelect: () => onSetView("agents"),
-                      },
-                      {
-                        id: "copy-name",
-                        label: "Copy bot name",
-                        separatorBefore: true,
-                        onSelect: () => void copyContextText(scopedBot.name),
-                      },
-                      {
-                        id: "copy-id",
-                        label: "Copy bot ID",
-                        onSelect: () => void copyContextText(scopedBot.id),
-                      },
-                    ]
-                  : []
-              }
-              label={`${scopedBot?.name ?? "Chat scope"} actions`}
-              scopeKey={scopedBot?.id}
-              trigger={
-                scopedBot ? (
-                  <button
-                    aria-label={`${scopedBot.name} actions`}
-                    className={ROW_MENU_TRIGGER_CLASS}
-                    type="button"
-                  >
-                    <UiIcon icon={MoreHorizontal} />
-                  </button>
-                ) : undefined
-              }
+            <button
+              className={sidebarAction}
+              disabled={!canStartConversation}
+              onClick={() => onStartConversation(activeFilter)}
+              title="New conversation"
+              type="button"
             >
-              {scopePicker}
-            </ContextActionMenu>
-          )}
-          <button
-            className={sidebarAction}
-            disabled={!canStartConversation}
-            onClick={() => onStartConversation(projectScope)}
-            type="button"
-            title={
-              !canStartConversation
-                ? "Choose a bot to start a conversation"
-                : compact
-                  ? "New conversation"
-                  : undefined
-            }
-          >
-            <UiIcon icon={Plus} size="sm" />
-            <span className={compact ? "sr-only" : ""}>New conversation</span>
-          </button>
-        </div>
+              <UiIcon icon={Plus} />
+              <span className="sr-only">New conversation</span>
+            </button>
+          </div>
+        ) : (
+          <div className="chat-sidebar-controls">
+            <ChatScopePicker
+              bots={bots}
+              selectedBotId={selectedBotId}
+              showingGroups={showingGroups}
+              canManageBots={canManageBots}
+              onSelectBot={onSelectBot}
+              onSelectGroups={onSelectGroups}
+              onAddBot={onAddBot}
+              onManageBots={() => onSetView("agents")}
+              triggerRef={scopePickerRef}
+            />
+            <div className="chat-sidebar-primary-actions">
+              <button
+                className="chat-sidebar-new"
+                disabled={!canStartConversation}
+                onClick={() => onStartConversation(activeFilter)}
+                type="button"
+              >
+                <UiIcon icon={Plus} />
+                <span className="truncate">New conversation</span>
+              </button>
+              <button
+                aria-label="Search"
+                className="chat-sidebar-search"
+                onClick={onOpenPalette}
+                title="Search"
+                type="button"
+              >
+                <UiIcon icon={Search} />
+              </button>
+            </div>
+            <ChatProjectFilter
+              onChange={setProjectFilter}
+              projects={projectOptions}
+              value={activeFilter}
+            />
+          </div>
+        )}
         <nav
-          aria-label="Bots and conversations"
+          aria-label="Chat history"
           className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-3 [-webkit-app-region:no-drag]"
         >
           {compact && botStatus === "error" ? (
@@ -438,104 +400,33 @@ export function DesktopSidebar({
               The local runtime has not returned a bot catalog.
             </StateSurface>
           ) : null}
-          {!compact &&
-          (showingGroups || selectedBot || sortedSessions.length > 0) ? (
-            <section
-              aria-label={
-                showingGroups ? "Group chats" : "Recent conversations"
-              }
-            >
-              <h2 className="px-3 pb-1 text-xs font-medium text-[var(--muted)]">
-                {showingGroups ? "Group chats" : "Chats"}
-              </h2>
-              {sortedSessions.length ? (
-                sortedSessions.map((session) => (
-                  <ContextActionMenu
-                    className="group flex min-w-0 items-center"
-                    items={[
-                      {
-                        id: "open",
-                        label: "Open conversation",
-                        onSelect: () => onOpenSession(session.sessionId),
-                      },
-                      {
-                        id: "copy-title",
-                        label: "Copy conversation title",
-                        disabled: !session.title,
-                        separatorBefore: true,
-                        onSelect: () =>
-                          void copyContextText(session.title || ""),
-                      },
-                      {
-                        id: "copy-id",
-                        label: "Copy conversation ID",
-                        onSelect: () => void copyContextText(session.sessionId),
-                      },
-                    ]}
-                    label={`${session.title || "New conversation"} actions`}
-                    scopeKey={`conversation:${session.sessionId}`}
-                    key={session.sessionId}
-                    trigger={
-                      <button
-                        aria-label={`${session.title || "New conversation"} actions`}
-                        className={ROW_MENU_TRIGGER_CLASS}
-                        type="button"
-                      >
-                        <UiIcon icon={MoreHorizontal} size="sm" />
-                      </button>
-                    }
-                  >
-                    <button
-                      aria-current={
-                        navigationView === "chat" &&
-                        session.sessionId === selectedSession
-                          ? "page"
-                          : undefined
-                      }
-                      className={`${SIDEBAR_ACTION_CLASS} min-w-0 flex-1 px-3`}
-                      onClick={() => onOpenSession(session.sessionId)}
-                      title={session.title || "New conversation"}
-                      type="button"
-                    >
-                      <span className="min-w-0 truncate">
-                        {session.title || "New conversation"}
-                      </span>
-                    </button>
-                  </ContextActionMenu>
-                ))
-              ) : (
-                <p className="px-2 py-2 text-xs text-[var(--muted)]">
-                  {showingGroups
-                    ? "No group chats yet."
-                    : "No conversations yet."}
-                </p>
-              )}
+          {!compact && (showingGroups || selectedBot || sessions.length > 0) ? (
+            <>
+              <ChatHistorySidebar
+                filtered={activeFilter !== "all"}
+                onOpenSession={onOpenSession}
+                projects={projects}
+                selectedSession={
+                  navigationView === "chat" ? selectedSession : undefined
+                }
+                sessions={filteredSessions}
+                showingGroups={showingGroups}
+              />
               {!showingGroups ? (
                 <button
                   aria-current={
                     navigationView === "sessions" ? "page" : undefined
                   }
-                  className="min-h-10 w-full rounded-[var(--radius-md)] px-3 text-left text-sm text-[var(--muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] aria-current:font-semibold aria-current:text-[var(--text)] max-[760px]:min-h-11"
+                  className="min-h-9 w-full rounded-[var(--radius-md)] px-2 text-left text-xs text-[var(--muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] aria-current:font-semibold aria-current:text-[var(--text)] max-[760px]:min-h-11"
                   onClick={() => onSetView("sessions")}
                   type="button"
                 >
                   All conversations
                 </button>
               ) : null}
-            </section>
+            </>
           ) : null}
         </nav>
-        {botStatus === "ready" || botStatus === "refreshing" ? (
-          <button
-            className={`${sidebarAction} mx-1 mb-2 shrink-0 [-webkit-app-region:no-drag]`}
-            onClick={onAddBot}
-            title={compact ? "Add bot" : undefined}
-            type="button"
-          >
-            <UiIcon icon={Plus} size="sm" />
-            <span className={compact ? "sr-only" : ""}>Add bot</span>
-          </button>
-        ) : null}
         <nav
           aria-label="Workspace navigation"
           className="grid shrink-0 gap-1 border-t border-[var(--border)] px-1 py-2 [-webkit-app-region:no-drag]"

@@ -1,4 +1,5 @@
 import type { ManagedAttachmentDescriptor } from "../shared/contracts";
+import { isTranscriptId } from "../shared/transcript-id";
 import {
   CHAT_CONTEXT_CAPSULE_KINDS,
   type ChatContextCapsule,
@@ -323,7 +324,7 @@ export function loadConversationPins(storage: StorageLike): ConversationPins {
     Object.entries(record)
       .filter(
         (entry): entry is [string, boolean] =>
-          validSessionId(entry[0]) && entry[1] === true,
+          isTranscriptId(entry[0]) && entry[1] === true,
       )
       .slice(0, MAX_PERSISTED_SESSIONS),
   );
@@ -335,7 +336,7 @@ export function saveConversationPins(
 ): boolean {
   const bounded = Object.fromEntries(
     Object.entries(pins)
-      .filter(([sessionId, pinned]) => validSessionId(sessionId) && pinned)
+      .filter(([sessionId, pinned]) => isTranscriptId(sessionId) && pinned)
       .slice(0, MAX_PERSISTED_SESSIONS),
   );
   return safeSetStorageItem(

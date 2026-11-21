@@ -296,3 +296,44 @@ it("publishes a host-confirmed chat immediately and rejects an older inventory c
   });
   expect(value.sessions[0]?.sessionId).toBe("created");
 });
+
+it("publishes the first saved title for the confirmed owner without letting a stale inventory undo it", async () => {
+  const scope = {
+    sessionId: "started",
+    botId: "lead",
+    projectId: "project",
+    workspacePath: "/owned/project",
+    createdAt: "2026-11-02T00:00:00Z",
+    updatedAt: "2026-11-02T00:00:00Z",
+  };
+  request.mockResolvedValue({ sessions: [], projects: [] });
+  await mount();
+  act(() => value.publishConfirmedConversation(scope));
+  const placeholder = value.sessions[0];
+  const stale = createDeferred<SessionsResponse>();
+  request.mockImplementation(async (path: string) =>
+    path.startsWith("/sessions") ? stale.promise : { projects: [] },
+  );
+  let refreshing: Promise<boolean>;
+  act(() => {
+    refreshing = value.refreshRuntime();
+  });
+  const summary: SessionSummary = {
+    ...placeholder,
+    title: "Fix deploy script",
+    messageCount: 1,
+    endedAt: "2026-11-02T00:01:00Z",
+  };
+  act(() => {
+    value.publishSessionSummary({ ...summary, botId: "unrelated" });
+    value.publishSessionSummary({ ...summary, projectId: "unrelated" });
+  });
+  expect(value.sessions[0]).toEqual(placeholder);
+  act(() => value.publishSessionSummary(summary));
+  expect(value.sessions[0]).toMatchObject(summary);
+  await act(async () => {
+    stale.resolve({ sessions: [placeholder] });
+    await refreshing;
+  });
+  expect(value.sessions[0]).toMatchObject(summary);
+});

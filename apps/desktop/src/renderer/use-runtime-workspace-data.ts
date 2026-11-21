@@ -87,6 +87,46 @@ export function useRuntimeWorkspaceData(
     [],
   );
 
+  const publishSessionSummary = useCallback((summary: SessionSummary) => {
+    if (
+      !mountedRef.current ||
+      backendPhaseRef.current !== "ready" ||
+      !summary.title ||
+      !summary.botId ||
+      !summary.workspacePath ||
+      !summary.messageCount
+    )
+      return;
+    const matchesUntitledOwner = (row: SessionSummary) =>
+      row.sessionId === summary.sessionId &&
+      row.botId === summary.botId &&
+      row.projectId === summary.projectId &&
+      row.workspacePath === summary.workspacePath &&
+      row.messageCount === 0;
+    if (!sessionsRef.current.some(matchesUntitledOwner)) return;
+
+    // A catalog started before the first prompt must not restore its
+    // ledger-only placeholder after an owner-verified summary arrives.
+    sessionInventoryRevision.current++;
+    setSessions((current) => {
+      const next = current.map((row) =>
+        matchesUntitledOwner(row)
+          ? {
+              ...row,
+              title: summary.title,
+              messageCount: summary.messageCount,
+              startedAt: summary.startedAt ?? row.startedAt,
+              endedAt: summary.endedAt,
+              participants: summary.participants,
+              preview: summary.preview,
+            }
+          : row,
+      );
+      sessionsRef.current = next;
+      return next;
+    });
+  }, []);
+
   const refreshRuntimeData = useCallback(
     async (reuseFreshCatalog: boolean) => {
       if (backendPhaseRef.current !== "ready") return false;
@@ -266,6 +306,7 @@ export function useRuntimeWorkspaceData(
     globalError,
     projects,
     publishConfirmedConversation,
+    publishSessionSummary,
     refreshRuntime,
     refreshWithFeedback,
     restartRuntime,

@@ -14,10 +14,12 @@ import type { BotConversationScope } from "../../apps/desktop/src/shared/contrac
 import { stableRuntimeUuid } from "../../packages/agent/src/runtime/stable-runtime-uuid";
 import { GatewaySessionService } from "../../packages/agent/src/services/gateway-session-service";
 import { SessionMessageStore } from "../../packages/agent/src/services/session/messages";
+import { ProjectStore } from "../../packages/agent/src/services/session/projects/store";
 import { createSessionDatabase } from "../../packages/agent/src/services/session/service/support";
 import { themeContrast } from "../../packages/ui/src/themes";
 import {
   agentRequest,
+  chooseSidebarChatScope,
   installProjectDialog,
   launchDesktop,
   makeProject,
@@ -407,9 +409,9 @@ test.describe("fresh native desktop", () => {
     const desktop = await launchDesktop();
     try {
       const page = desktop.page;
+      await sidebarChatScope(page).click();
       await page
-        .getByRole("complementary", { name: "Navigation and bots" })
-        .getByRole("button", { name: "Add bot", exact: true })
+        .getByRole("menuitem", { name: "Add bot", exact: true })
         .click();
       const chooser = page.getByRole("dialog", {
         name: "Start a chat with Fresh Scout",
@@ -455,12 +457,11 @@ test.describe("fresh native desktop", () => {
       // five-second assertion budget; the journey still has its 60s deadline.
       await expect(composer).toBeEnabled({ timeout: 30_000 });
       await composer.fill("A short offline hello");
-      const scope = sidebarChatScope(page);
-      await scope.selectOption({ label: "Doolittle" });
+      await chooseSidebarChatScope(page, "Doolittle");
       await expect(
         page.getByRole("textbox", { name: "Message Doolittle" }),
       ).toBeVisible();
-      await scope.selectOption({ label: "Fresh Scout" });
+      await chooseSidebarChatScope(page, "Fresh Scout");
       await expect(composer).toHaveValue("A short offline hello");
       const conversation = page.getByLabel("Conversation detail").filter({
         has: composer,
@@ -503,6 +504,14 @@ test.describe("fresh native desktop", () => {
       });
       await openNavigation.click();
       const drawer = page.getByRole("dialog", { name: "Navigation and bots" });
+      const mobileScope = drawer.getByRole("button", { name: /^Chat scope:/u });
+      await mobileScope.click();
+      await expect(
+        page.getByRole("menuitemradio", { name: "Fresh Scout", exact: true }),
+      ).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(drawer).toBeVisible();
+      await expect(mobileScope).toBeFocused();
       const newConversation = drawer
         .getByRole("button", { name: "New conversation", exact: true })
         .filter({ has: page.locator("svg") });
@@ -518,6 +527,164 @@ test.describe("fresh native desktop", () => {
       await expect(
         page.getByRole("textbox", { name: /^Message /u }),
       ).toBeVisible();
+    } finally {
+      await desktop.dispose();
+    }
+  });
+
+  test("organizes chat history with project filters, collapsible sections and persistent pins", async () => {
+    const desktop = await launchDesktop(
+      process.env.DOOLITTLE_DESKTOP_EXECUTABLE?.trim() || undefined,
+    );
+    try {
+      await desktop.close();
+      const runtime = join(desktop.profile, "runtime");
+      const database = createSessionDatabase(runtime);
+      const projectName = "Ocean client";
+      const projectTitle = "Review the release plan";
+      const recentTitle = "Summarize this week's changes";
+      const generalTitle = "Collect old notes";
+      const projectId = randomUUID();
+      try {
+        const projects = new ProjectStore(database);
+        projects.create({
+          id: projectId,
+          name: projectName,
+          primaryPath: desktop.workspace,
+        });
+        const messages = new SessionMessageStore(database, new EventEmitter());
+        const recentAt = new Date().toISOString();
+        const olderAt = new Date(
+          Date.now() - 30 * 24 * 60 * 60 * 1000,
+        ).toISOString();
+        for (const [title, createdAt, project] of [
+          [projectTitle, recentAt, projectId],
+          [recentTitle, recentAt],
+          [generalTitle, olderAt],
+        ] as const) {
+          const sessionId = randomUUID();
+          messages.storeMessage({
+            id: randomUUID(),
+            sessionId,
+            roomId: stableRuntimeUuid(sessionId),
+            entityId: "fixture-user",
+            role: "user",
+            text: title,
+            createdAt,
+          });
+          database
+            .query(
+              "INSERT INTO session_metadata (session_id, title, updated_at) VALUES (?1, ?2, ?3)",
+            )
+            .run(sessionId, title, createdAt);
+          if (project)
+            expect(projects.assignSession(sessionId, project)).toBe(true);
+        }
+      } finally {
+        database.close();
+      }
+
+      await desktop.restart();
+      let { page } = desktop;
+      const sidebar = () =>
+        page.getByRole("complementary", { name: "Navigation and bots" });
+      const history = () =>
+        sidebar().getByRole("navigation", { name: "Chat history" });
+      const section = (name: string) =>
+        history().getByRole("region", { name, exact: true });
+      const chat = (root: Locator, name: string) =>
+        root.getByRole("button", { name, exact: true });
+      const filter = () =>
+        sidebar().getByRole("button", { name: /^Filter chats:/u });
+      const chooseFilter = async (name: string) => {
+        await filter().click();
+        await page.getByRole("menuitemradio", { name, exact: true }).click();
+        await expect(filter()).toHaveAccessibleName(`Filter chats: ${name}`);
+      };
+      const scope = sidebarChatScope(page);
+      await scope.focus();
+      await scope.press("ArrowDown");
+      await expect(
+        page.getByRole("menuitemradio", { name: "Doolittle", exact: true }),
+      ).toHaveAttribute("aria-checked", "true");
+      await page.keyboard.press("Escape");
+      await expect(scope).toBeFocused();
+      await expect(
+        page.getByRole("menuitemradio", { name: "Doolittle", exact: true }),
+      ).toBeHidden();
+      await scope.press("ArrowDown");
+      await page.keyboard.press("Tab");
+      const newConversation = chat(sidebar(), "New conversation");
+      await expect(newConversation).toBeFocused();
+      await expect(scope).toHaveAttribute("aria-expanded", "false");
+
+      const projectDisclosure = chat(section("Projects"), projectName);
+      const projectChat = chat(section("Projects"), projectTitle);
+      await expect(projectChat).toBeVisible();
+      await expect(chat(section("Recent"), recentTitle)).toBeVisible();
+      await expect(chat(section("General"), generalTitle)).toBeVisible();
+      await projectDisclosure.click();
+      await expect(projectDisclosure).toHaveAttribute("aria-expanded", "false");
+      await expect(projectChat).toBeHidden();
+      await projectDisclosure.click();
+      await expect(projectChat).toBeVisible();
+      await projectChat.focus();
+      await expect(page.getByRole("tooltip")).toContainText(projectName);
+      await projectChat.click();
+      await expect(projectChat).toHaveAttribute("aria-current", "page");
+
+      await chooseFilter(projectName);
+      await expect(projectChat).toBeVisible();
+      await expect(chat(history(), recentTitle)).toBeHidden();
+      await expect(chat(history(), generalTitle)).toBeHidden();
+      await newConversation.click();
+      const chooser = page.getByRole("dialog", {
+        name: "Start a chat with Doolittle",
+      });
+      await expect(
+        chooser.getByRole("combobox", { name: "Project for new chat" }),
+      ).toHaveValue(projectId);
+      await page.keyboard.press("Escape");
+      await expect(chooser).toBeHidden();
+      await expect(newConversation).toBeFocused();
+
+      await chooseFilter("General");
+      await expect(projectChat).toBeHidden();
+      await expect(chat(section("General"), generalTitle)).toBeVisible();
+      await expect(
+        page
+          .getByLabel("Conversation detail")
+          .getByText(projectTitle, { exact: true }),
+      ).toBeVisible();
+      await chooseFilter("All projects");
+      await projectChat.hover();
+      await chat(section("Projects"), `${projectTitle} actions`).click();
+      await page
+        .getByRole("menuitem", { name: "Pin conversation", exact: true })
+        .click();
+      await expect(chat(section("Pinned"), projectTitle)).toBeVisible();
+      await expect(chat(history(), projectTitle)).toHaveCount(1);
+      await chat(section("Recent"), "Recent").click();
+      await expect(chat(history(), recentTitle)).toBeHidden();
+
+      await desktop.restart();
+      page = desktop.page;
+      const pinnedChat = chat(section("Pinned"), projectTitle);
+      await expect(pinnedChat).toBeVisible();
+      await expect(chat(section("Recent"), "Recent")).toHaveAttribute(
+        "aria-expanded",
+        "false",
+      );
+      await expect(chat(history(), recentTitle)).toBeHidden();
+      await pinnedChat.hover();
+      await chat(section("Pinned"), `${projectTitle} actions`).click();
+      await page
+        .getByRole("menuitem", { name: "Unpin conversation", exact: true })
+        .click();
+      await expect(pinnedChat).toBeHidden();
+      await expect(chat(section("Projects"), projectTitle)).toBeVisible();
+      await chat(section("Recent"), "Recent").click();
+      await expect(chat(section("Recent"), recentTitle)).toBeVisible();
     } finally {
       await desktop.dispose();
     }
@@ -550,7 +717,7 @@ test.describe("fresh native desktop", () => {
       await bindConversation(defaultBotId);
       for (let index = 0; index < 10; index += 1)
         await bindConversation(scout.id);
-      await sidebarChatScope(page).selectOption({ label: "Groups" });
+      await chooseSidebarChatScope(page, "Groups");
       await expect(
         page.getByRole("heading", { name: "No group chats yet", exact: true }),
       ).toBeVisible();
@@ -600,10 +767,7 @@ test.describe("fresh native desktop", () => {
         name: "Navigation and bots",
       });
       const scope = sidebarChatScope(page);
-      const history = sidebar.getByRole("region", {
-        name: "Recent conversations",
-      });
-      const historyRows = history.getByRole("button", {
+      const historyRows = sidebar.getByRole("button", {
         name: "Conversation",
         exact: true,
       });
@@ -612,22 +776,18 @@ test.describe("fresh native desktop", () => {
         exact: true,
       });
       await expect(scope).toBeVisible();
-      await scope.selectOption({ label: "Doolittle" });
+      await chooseSidebarChatScope(page, "Doolittle");
       await expect(historyRows).toHaveCount(1);
-      await scope.selectOption({ label: "Inventory Scout" });
+      await chooseSidebarChatScope(page, "Inventory Scout");
       await expect(historyRows).toHaveCount(10);
 
-      await scope.selectOption({ label: "Groups" });
-      const groups = sidebar.getByRole("region", { name: "Group chats" });
-      const groupChat = groups.getByRole("button", {
+      await chooseSidebarChatScope(page, "Groups");
+      const groupChat = sidebar.getByRole("button", {
         name: groupTitle,
         exact: true,
       });
       await expect(groupChat).toHaveCount(1);
-      await expect(
-        groups.getByRole("button", { name: "Conversation", exact: true }),
-      ).toHaveCount(0);
-      await expect(history).toBeHidden();
+      await expect(historyRows).toHaveCount(0);
       await expect(newConversation).toBeDisabled();
       await groupChat.click();
       const groupTranscript = page.getByLabel("Conversation detail").filter({
@@ -641,8 +801,9 @@ test.describe("fresh native desktop", () => {
       ).toBeVisible();
       await expect(groupTranscript.getByRole("textbox")).toHaveCount(0);
 
-      await scope.selectOption({ label: "Inventory Scout" });
+      await chooseSidebarChatScope(page, "Inventory Scout");
       await expect(historyRows).toHaveCount(10);
+      await expect(groupChat).toHaveCount(0);
       const previous = await page.evaluate(() =>
         window.doolittle.ui?.getSelection(),
       );
@@ -677,7 +838,7 @@ test.describe("fresh native desktop", () => {
         `/bots/conversations/owner?sessionId=${encodeURIComponent(selected?.sessionId ?? "")}`,
       );
       expect(ownership.conversation.botId).toBe(scout.id);
-      await scope.selectOption({ label: "Doolittle" });
+      await chooseSidebarChatScope(page, "Doolittle");
       await expect(historyRows).toHaveCount(1);
     } finally {
       await desktop.dispose();
@@ -1091,10 +1252,21 @@ test.describe("fresh native desktop", () => {
       const sidebar = page.getByRole("complementary", {
         name: "Navigation and bots",
       });
-      const row = sidebar.locator(
-        'section[aria-label="Recent conversations"] button[aria-current="page"]',
-      );
+      const row = sidebar
+        .getByRole("button", { name: "Stable sidebar marker", exact: true })
+        .and(sidebar.locator('[aria-current="page"]'));
       await expect(row).toBeVisible();
+      await expect
+        .poll(async () => {
+          const { summary } = await agentRequest<{
+            summary: { title?: string };
+          }>(
+            page,
+            `/sessions/summary?sessionId=${encodeURIComponent(sessionId)}`,
+          );
+          return summary.title;
+        })
+        .toBe("Stable sidebar marker");
       const beforeBox = await row.boundingBox();
       const before = await page.evaluate(() => {
         const ui = window.doolittle.ui;
@@ -1103,30 +1275,30 @@ test.describe("fresh native desktop", () => {
       });
       expect(before.selected?.sessionId).toBe(sessionId);
       await page.evaluate(() => {
-        const sidebar = document.querySelector("#desktop-sidebar");
-        const current = sidebar?.querySelector(
-          'section[aria-label="Recent conversations"] button[aria-current="page"]',
+        const history = document.querySelector(
+          'nav[aria-label="Chat history"]',
         );
-        if (!sidebar || !current)
+        const current = history?.querySelector('[aria-current="page"]');
+        if (!history || !current)
           throw new Error("Selected sidebar row is unavailable");
         const state = { removedRows: 0 };
         const observer = new MutationObserver(() => {
-          const row = sidebar.querySelector(
-            'section[aria-label="Recent conversations"] button[aria-current="page"]',
-          );
+          const row = history.querySelector('[aria-current="page"]');
           if (row !== current || !current.isConnected) state.removedRows++;
         });
-        observer.observe(sidebar, { childList: true, subtree: true });
+        observer.observe(history, { childList: true, subtree: true });
         Object.assign(window, { __freshSidebarObservation: state });
       });
       // A main-process API update emits no renderer catalog-change event. Seeing
       // both names proves two real periodic reads without modifying frozen IPC.
+      await sidebarChatScope(page).click();
       for (const name of ["Poll witness first", "Poll witness second"]) {
         await agentRequest(page, `/bots/${pulse.id}`, "PATCH", { name });
         await expect(
-          sidebarChatScope(page).locator(`option[value="bot:${pulse.id}"]`),
-        ).toHaveText(name, { timeout: 15_000 });
+          page.getByRole("menuitemradio", { name, exact: true }),
+        ).toBeVisible({ timeout: 15_000 });
       }
+      await page.keyboard.press("Escape");
       const after = await page.evaluate(() => {
         const ui = window.doolittle.ui;
         if (!ui) throw new Error("Native UI bridge unavailable");

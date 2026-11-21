@@ -1,0 +1,191 @@
+.chat-sidebar-controls {
+  display: grid;
+  flex-shrink: 0;
+  gap: 8px;
+  padding: 0 2px 10px;
+  -webkit-app-region: no-drag;
+}
+
+.chat-sidebar-primary-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 5px;
+}
+
+.chat-sidebar-picker,
+.chat-sidebar-new,
+.chat-sidebar-search {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: var(--radius-md);
+  color: var(--text-soft);
+  text-align: left;
+  font-size: var(--text-control, 13px);
+  line-height: 1.2;
+  padding: 0 8px;
+  min-height: 32px;
+}
+
+.chat-sidebar-picker {
+  width: 100%;
+  border: 1px solid transparent;
+  background: transparent;
+}
+
+.chat-sidebar-picker > svg:first-child,
+.chat-sidebar-picker > svg:last-child {
+  color: var(--muted);
+}
+
+.chat-sidebar-picker--profile {
+  min-height: 48px;
+  gap: 9px;
+  padding: 5px 8px;
+  color: var(--text);
+  border-color: var(--border);
+  background: var(--surface-soft);
+  box-shadow: inset 0 1px color-mix(in srgb, var(--text) 5%, transparent);
+}
+
+.chat-sidebar-new,
+.chat-sidebar-search {
+  min-height: 34px;
+  border: 1px solid var(--border);
+}
+
+.chat-sidebar-new {
+  font-weight: 600;
+  background: var(--surface-raised);
+  color: var(--text);
+}
+
+.chat-sidebar-new:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.chat-sidebar-search {
+  justify-content: center;
+  padding: 0;
+  width: 34px;
+}
+
+.chat-sidebar-controls
+  :is(button:hover:not(:disabled), button[data-state="open"]) {
+  color: var(--text);
+  background: var(--surface-hover);
+}
+
+.chat-sidebar-controls button:focus-visible {
+  outline: 1px solid var(--text-soft);
+  outline-offset: -2px;
+}
+
+.chat-sidebar-identity {
+  display: grid;
+  flex: 0 0 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface-raised);
+  color: var(--text-soft);
+  font-weight: 650;
+  line-height: 1;
+}
+
+.chat-sidebar-choice-copy {
+  display: grid;
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
+}
+
+.chat-sidebar-choice-copy > span:first-child,
+.chat-sidebar-choice-detail > span:last-child {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chat-sidebar-picker--profile .chat-sidebar-choice-copy > span:first-child {
+  font-weight: 650;
+}
+
+.chat-sidebar-choice-detail {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--muted);
+  font-size: var(--text-meta, 11px);
+  line-height: 1.2;
+}
+
+.chat-sidebar-picker-menu.dl-action-menu {
+  z-index: 60;
+  width: var(--radix-dropdown-menu-trigger-width);
+  min-width: min(176px, calc(100vw - 24px));
+  padding: 4px;
+}
+
+.chat-sidebar-picker-menu.dl-action-menu[data-state="closed"] {
+  /* Release the old dismiss layer before another picker opens. */
+  animation: none;
+}
+
+.chat-sidebar-picker-menu .chat-sidebar-choice {
+  display: flex;
+  align-items: center;
+  min-height: 33px;
+  gap: 8px;
+  padding: 4px 7px;
+  border-radius: var(--radius-sm);
+  color: var(--text-soft);
+  font-size: var(--text-control, 13px);
+  cursor: default;
+  -webkit-app-region: no-drag;
+}
+
+.chat-sidebar-choice[role="menuitemradio"] > span:first-child {
+  display: none;
+}
+
+.chat-sidebar-picker-menu .chat-sidebar-choice[data-state="checked"] {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.chat-sidebar-picker-menu .chat-sidebar-choice[data-highlighted] {
+  color: var(--text);
+  background: var(--surface-hover);
+  outline: none;
+}
+
+.chat-sidebar-choice-check {
+  margin-inline-start: auto;
+  color: var(--text-soft);
+}
+
+@media (pointer: coarse) {
+  .chat-sidebar-picker,
+  .chat-sidebar-new,
+  .chat-sidebar-search,
+  .chat-sidebar-picker-menu .chat-sidebar-choice {
+    min-height: 44px;
+  }
+
+  .chat-sidebar-search {
+    width: 44px;
+  }
+}
+
+@media (forced-colors: active) {
+  .chat-sidebar-controls button:focus-visible,
+  .chat-sidebar-picker-menu .chat-sidebar-choice[data-highlighted] {
+    outline: 1px solid Highlight;
+    outline-offset: -1px;
+  }
+}

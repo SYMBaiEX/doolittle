@@ -376,7 +376,7 @@ export async function openProjectChat(
   const sidebar = page.getByRole("complementary", {
     name: "Navigation and bots",
   });
-  await sidebarChatScope(page).selectOption({ label: botName });
+  await chooseSidebarChatScope(page, botName);
   await sidebar
     .getByRole("button", { name: "New conversation", exact: true })
     .click();
@@ -424,7 +424,12 @@ export async function openProjectChat(
 export function sidebarChatScope(page: Page) {
   return page
     .getByRole("complementary", { name: "Navigation and bots" })
-    .getByRole("combobox", { name: "Chat scope", exact: true });
+    .getByRole("button", { name: /^Chat scope:/u });
+}
+
+export async function chooseSidebarChatScope(page: Page, label: string) {
+  await sidebarChatScope(page).click();
+  await page.getByRole("menuitemradio", { name: label, exact: true }).click();
 }
 
 /** Count only native project prompts for this fixture root; no real user folder can be approved. */

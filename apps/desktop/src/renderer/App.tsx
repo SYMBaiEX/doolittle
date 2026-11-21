@@ -615,6 +615,7 @@ export function App() {
     globalError,
     projects,
     publishConfirmedConversation,
+    publishSessionSummary,
     refreshRuntime,
     refreshWithFeedback,
     restartRuntime,
@@ -1298,7 +1299,15 @@ export function App() {
     (event: KeyboardEvent<HTMLElement>) => {
       // The chooser owns keyboard input as soon as it opens, including the
       // frame before focus leaves its navigation trigger.
-      if (newChatOpen || !mobileSidebarOpen || !isMobileSidebarMode) return;
+      if (
+        newChatOpen ||
+        !mobileSidebarOpen ||
+        !isMobileSidebarMode ||
+        event.defaultPrevented ||
+        (event.target instanceof Element &&
+          event.target.closest('[role="menu"]'))
+      )
+        return;
 
       if (event.key === "Escape") {
         event.preventDefault();
@@ -2699,6 +2708,7 @@ export function App() {
         transitionToProjectScope,
       }}
       onConsumeContextHandoff={consumeChatContext}
+      onSessionSummary={publishSessionSummary}
       onCodeWorkspaceDirtyChange={setCodeWorkspaceDirty}
       pendingApprovals={pendingApprovals}
       pendingContextHandoff={pendingChatContext}
@@ -2906,7 +2916,11 @@ export function App() {
             setNewChatBotId(null);
             const trigger = newChatTriggerRef.current;
             requestAnimationFrame(() => {
-              if (trigger?.isConnected) trigger.focus({ preventScroll: true });
+              if (
+                trigger?.isConnected &&
+                document.activeElement === document.body
+              )
+                trigger.focus({ preventScroll: true });
             });
           }}
           projects={projectCards}
@@ -2947,7 +2961,7 @@ export function App() {
           isMobileSidebarMode={isMobileSidebarMode}
           mobileSidebarOpen={mobileSidebarOpen}
           navCollapsed={effectiveNavCollapsed}
-          projectScope={projectScope}
+          projects={projects}
           sidebarWidth={sidebarWidth}
           chatScope={viewingGroups ? "groups" : "bot"}
           selectedBotId={selectedBot?.id ?? ""}
@@ -2966,7 +2980,11 @@ export function App() {
           onResizeActiveChange={shellResizeActiveChange}
           onToggleNavigation={toggleNavigation}
           onOpenPalette={openCommandPalette}
-          onStartConversation={createConversation}
+          onStartConversation={(scope) => {
+            if (!selectedBot || viewingGroups) return;
+            if (scope === "all") createConversation();
+            else startConversation(scope, selectedBot.id);
+          }}
           onOpenSession={openSession}
           onSelectBot={openBot}
           onSelectGroups={openGroups}

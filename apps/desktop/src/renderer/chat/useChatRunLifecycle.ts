@@ -123,8 +123,10 @@ interface ChatRunLifecycleOptions {
   defaultBotId: string;
   botIdForSession?: (sessionId: string) => string;
   remoteSessions: readonly SessionSummary[];
+  sessionMetadata?: readonly SessionSummary[];
   onSelect: (sessionId: string) => void;
   onBindSessionBot?: (sessionId: string, botId: string) => void;
+  onSessionSummary?: (summary: SessionSummary) => void;
   refreshRuntime: () => void;
   setQueueAnnouncement: Dispatch<SetStateAction<string>>;
 }
@@ -142,8 +144,10 @@ export function useChatRunLifecycle({
   defaultBotId,
   botIdForSession,
   remoteSessions,
+  sessionMetadata = remoteSessions,
   onSelect,
   onBindSessionBot,
+  onSessionSummary,
   refreshRuntime,
   setQueueAnnouncement,
 }: ChatRunLifecycleOptions) {
@@ -499,6 +503,30 @@ export function useChatRunLifecycle({
       const update = event.data;
       if (update.run.runId !== claim.runId || update.sessionId !== sessionId)
         return;
+      // The runtime emits "started" only after persisting the user's message.
+      // Refresh just this newly named chat, without waiting for the model.
+      if (update.type === "started" && onSessionSummary && claim.botId) {
+        const botId = claim.botId;
+        const known = sessionMetadata.find(
+          (session) =>
+            session.sessionId === sessionId && session.botId === botId,
+        );
+        if (!known?.messageCount) {
+          void desktopRequest<{ summary: SessionSummary }>(
+            `/sessions/summary?sessionId=${encodeURIComponent(sessionId)}`,
+            "GET",
+            undefined,
+            undefined,
+            undefined,
+            botId,
+          )
+            .then(({ summary }) => {
+              if (summary?.sessionId === sessionId && summary.botId === botId)
+                onSessionSummary(summary);
+            })
+            .catch(() => undefined);
+        }
+      }
       setRunReceipts((current) => {
         const prior = current[event.requestId];
         const nextKey = runEventKey(update);

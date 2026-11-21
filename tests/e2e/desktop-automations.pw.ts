@@ -6,10 +6,10 @@ import type {
 import { expect, test } from "@playwright/test";
 import {
   agentRequest,
+  chooseSidebarChatScope,
   installProjectDialog,
   launchDesktop,
   makeProject,
-  sidebarChatScope,
 } from "../support/desktop-core";
 
 test("automation schedules can be edited, paused, run, and deleted", async () => {
@@ -163,7 +163,7 @@ test("delegation unlocks after confirming a Lead workspace chat and applies bulk
     await page.evaluate(() =>
       window.dispatchEvent(new Event("doolittle:bot-catalog-changed")),
     );
-    await sidebarChatScope(page).selectOption({ label: botName });
+    await chooseSidebarChatScope(page, botName);
     const openWork = () =>
       page
         .getByRole("navigation", { name: "Workspace navigation" })
