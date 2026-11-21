@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { realpathSync } from "node:fs";
-import { lstat, mkdtemp, rename, rm } from "node:fs/promises";
+import { lstat, mkdtemp, readdir, rename, rm } from "node:fs/promises";
 import { findPackageJSON } from "node:module";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -8,6 +8,7 @@ import { readRegularFile, readRegularFileSync } from "@doolittle/storage";
 
 export const DESKTOP_PGLITE_SEED_FILE = "pglite-seed.bin";
 export const MAX_PGLITE_SEED_BYTES = 16 * 1024 * 1024;
+const STAGED_SEED = /^\.pglite-seed-v1-([1-9][0-9]{0,9})-[A-Za-z0-9]{6}$/u;
 
 export interface DesktopPgliteSeedReceipt {
   file: typeof DESKTOP_PGLITE_SEED_FILE;
@@ -89,6 +90,36 @@ async function pathIsMissing(path: string): Promise<boolean> {
   }
 }
 
+function seedOwnerExited(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return false;
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === "ESRCH";
+  }
+}
+
+async function discardAbandonedSeeds(parent: string): Promise<void> {
+  const entries = await readdir(parent, { withFileTypes: true }).catch(
+    () => [],
+  );
+  for (const entry of entries) {
+    const owner = entry.isDirectory() && STAGED_SEED.exec(entry.name);
+    if (!owner || !seedOwnerExited(Number(owner[1]))) continue;
+
+    const path = join(parent, entry.name);
+    const stat = await lstat(path).catch(() => undefined);
+    const uid = process.getuid?.();
+    if (
+      !stat?.isDirectory() ||
+      (uid !== undefined && (stat.uid !== uid || (stat.mode & 0o077) !== 0))
+    ) {
+      continue;
+    }
+    await rm(path, { recursive: true, force: true }).catch(() => undefined);
+  }
+}
+
 /** Restore with the SDK inside a private sibling and publish only after close. */
 export async function seedPgliteDataDirectory(
   dataDir: string,
@@ -99,9 +130,13 @@ export async function seedPgliteDataDirectory(
     throw new Error("The PGlite seed archive is not a gzip file.");
   }
 
-  const { PGliteClientManager } = await import("@elizaos/plugin-sql");
-  const temporary = await mkdtemp(join(dirname(dataDir), ".pglite-seed-"));
-  const staged = join(temporary, "data");
+  const parent = dirname(dataDir);
+  const [{ PGliteClientManager }] = await Promise.all([
+    import("@elizaos/plugin-sql"),
+    discardAbandonedSeeds(parent),
+  ]);
+  const staged = await mkdtemp(join(parent, `.pglite-seed-v1-${process.pid}-`));
+  let published = false;
   try {
     const manager = new PGliteClientManager({
       dataDir: staged,
@@ -117,9 +152,10 @@ export async function seedPgliteDataDirectory(
     // An initialized cluster or an SDK lock makes the destination non-empty.
     // Rename then fails atomically even if another startup raced the check.
     await rename(staged, dataDir);
+    published = true;
     return true;
   } finally {
-    await rm(temporary, { recursive: true, force: true });
+    if (!published) await rm(staged, { recursive: true, force: true });
   }
 }
 

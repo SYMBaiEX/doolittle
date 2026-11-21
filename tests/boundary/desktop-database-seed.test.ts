@@ -1,6 +1,7 @@
+import { spawnSync } from "node:child_process";
 import { mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import type { UUID } from "@elizaos/core";
 import {
   createDatabaseAdapter,
@@ -15,13 +16,20 @@ import {
   verifyDesktopPgliteSeed,
 } from "../../packages/agent/src/runtime/bootstrap/runtime/desktop-database-seed";
 
-it("publishes a schema seed once and retains a saved agent on reopen", async () => {
+it("recovers an abandoned seed and retains a saved agent on reopen", async () => {
   const directory = await mkdtemp(join(tmpdir(), "doolittle-seed-test-"));
   const database = join(directory, "pglite");
   const agentId = "49426934-63c4-4c9b-8a79-850aa6fc9cb5" as UUID;
   const schema = [{ name: plugin.name, schema: plugin.schema ?? {} }];
 
   try {
+    const exited = spawnSync(process.execPath, ["-e", ""]);
+    expect(exited.status).toBe(0);
+    await mkdtemp(join(directory, `.pglite-seed-v1-${exited.pid}-`));
+    const activeStage = await mkdtemp(
+      join(directory, `.pglite-seed-v1-${process.pid}-`),
+    );
+    const olderStage = await mkdtemp(join(directory, ".pglite-seed-"));
     const archive = new Uint8Array(await createMigratedSnapshot(schema));
     expect(await seedPgliteDataDirectory(database, archive)).toBe(true);
 
@@ -48,7 +56,9 @@ it("publishes a schema seed once and retains a saved agent on reopen", async () 
     } finally {
       await reopened.close();
     }
-    expect(await readdir(directory)).toEqual(["pglite"]);
+    expect((await readdir(directory)).sort()).toEqual(
+      [basename(activeStage), basename(olderStage), "pglite"].sort(),
+    );
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
