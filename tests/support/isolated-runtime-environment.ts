@@ -3,6 +3,16 @@ import { delimiter, dirname, isAbsolute, join, parse } from "node:path";
 
 const fixtureVaultKey = randomBytes(32);
 
+export function liveCodexModel() {
+  return {
+    provider: "codex",
+    model: process.env.DOOLITTLE_LIVE_CODEX_MODEL?.trim() || "gpt-6-luna",
+    reasoningEffort: "medium",
+    baseUrl: "https://chatgpt.com/backend-api/codex",
+    maxTokens: 8192,
+  };
+}
+
 // Explicit empty values prevent dotenv's override:false from activating a
 // connector whose credentials were absent from the parent process environment.
 const OFFLINE_CREDENTIAL_AND_CONNECTOR_KEYS = [

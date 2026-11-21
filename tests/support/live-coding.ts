@@ -14,7 +14,11 @@ const target = "packages/agent/src/utils/workspace-commands.ts";
 const testFile = "tests/nub-workspace.test.mjs";
 const snapshots = new Map<
   string,
-  { implementation: string; protectedFiles: Map<string, string> }
+  {
+    implementation: string;
+    protectedFiles: Map<string, string>;
+    revision?: string;
+  }
 >();
 const verifier = `import {test} from 'node:test';
 import assert from 'node:assert/strict';
@@ -44,8 +48,29 @@ function filesIn(directory: string): string[] {
   });
 }
 /** A private copy of real Doolittle code, never a task against the user's checkout. */
-export function seedLiveCodingProject(workspace: string) {
-  const source = readFileSync(join(repo, target), "utf8");
+export function seedLiveCodingProject(
+  workspace: string,
+  options: { copyRepository?: boolean } = {},
+) {
+  const revision = options.copyRepository
+    ? execFileSync("git", ["rev-parse", "HEAD"], {
+        cwd: repo,
+        encoding: "utf8",
+      }).trim()
+    : undefined;
+  if (revision) {
+    // An archive contains the committed sources and no credentials, ignored
+    // builds, user edits, or Git remotes. Only the verifier's dependency is copied.
+    const archive = execFileSync("git", ["archive", revision], {
+      cwd: repo,
+      maxBuffer: 128 * 1024 * 1024,
+    });
+    execFileSync("tar", ["-xf", "-", "-C", workspace], { input: archive });
+  }
+  const source = readFileSync(
+    join(revision ? workspace : repo, target),
+    "utf8",
+  );
   const dispatch = 'runner === "bun" || runner === "nub"';
   if (!source.includes(dispatch))
     throw new Error(
@@ -57,13 +82,19 @@ export function seedLiveCodingProject(workspace: string) {
   mkdirSync(join(workspace, "node_modules"), { recursive: true });
   writeFileSync(join(workspace, target), implementation);
   writeFileSync(join(workspace, testFile), verifier);
+  const manifestPath = join(workspace, "package.json");
+  const manifest = revision
+    ? JSON.parse(readFileSync(manifestPath, "utf8"))
+    : {
+        name: "doolittle-self-hosting-fixture",
+        private: true,
+        type: "module",
+      };
   writeFileSync(
-    join(workspace, "package.json"),
+    manifestPath,
     JSON.stringify({
-      name: "doolittle-self-hosting-fixture",
-      private: true,
-      type: "module",
-      scripts: { "test:scope": `node --test ${testFile}` },
+      ...manifest,
+      scripts: { ...manifest.scripts, "test:scope": `node --test ${testFile}` },
     }),
   );
   writeFileSync(
@@ -76,17 +107,14 @@ export function seedLiveCodingProject(workspace: string) {
     { recursive: true },
   );
   const protectedFiles = new Map(
-    [
-      "package.json",
-      "AGENTS.md",
-      testFile,
-      ...filesIn(join(workspace, "node_modules")),
-    ].map((path) => {
-      const absolute = resolve(workspace, path);
-      return [absolute, hash(readFileSync(absolute))];
-    }),
+    filesIn(workspace)
+      .filter((path) => path !== join(workspace, target))
+      .map((path) => {
+        const absolute = resolve(workspace, path);
+        return [absolute, hash(readFileSync(absolute))];
+      }),
   );
-  snapshots.set(workspace, { implementation, protectedFiles });
+  snapshots.set(workspace, { implementation, protectedFiles, revision });
   return `Work only in ${workspace}. This workspace contains a private copy of Doolittle's real TypeScript workspace-command parser. It stopped recognizing Nub, the package runner used to build Doolittle. Repair ${target} so it recognizes Nub build, typecheck and scoped-test commands while preserving Bun behavior, exact scoped test identity, workspace directories and rejection of masked failures. You have permission to edit only that TypeScript file and run nub run test:scope. Do not modify package.json, AGENTS.md, tests or dependencies. Read the code, make the change using workspace tools, run the test command and report the actual result.`;
 }
 export function verifyLiveCodingProject(workspace: string) {
@@ -98,6 +126,13 @@ export function verifyLiveCodingProject(workspace: string) {
   for (const [path, digest] of snapshot.protectedFiles)
     if (hash(readFileSync(path)) !== digest)
       throw new Error("A protected self-hosting fixture file was changed.");
+  if (
+    filesIn(workspace).some(
+      (path) =>
+        path !== join(workspace, target) && !snapshot.protectedFiles.has(path),
+    )
+  )
+    throw new Error("The coding task created an unexpected file.");
   if (
     hash(readFileSync(join(workspace, target))) ===
     hash(snapshot.implementation)
@@ -111,6 +146,7 @@ export function verifyLiveCodingProject(workspace: string) {
   snapshots.delete(workspace);
   return {
     task: "doolittle-nub-self-hosting-v1",
+    ...(snapshot.revision ? { revision: snapshot.revision } : {}),
     implementationChanged: true,
     verifierUnchanged: true,
     dependenciesUnchanged: true,

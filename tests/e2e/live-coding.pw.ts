@@ -2,6 +2,7 @@ import { execFile } from "node:child_process";
 import {
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   realpathSync,
   rmSync,
   writeFileSync,
@@ -9,16 +10,18 @@ import {
 import { homedir, tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { promisify } from "node:util";
+import type { CommandResult } from "@doolittle/contracts";
 import { expect, test } from "@playwright/test";
 import { createEvalRuntimeEnvironment } from "../../packages/evals/src/runtime-environment";
 import {
   agentRequest,
   installProjectDialog,
   launchDesktop,
-  makeProject,
-  openProjectChat,
 } from "../support/desktop-core";
-import { isolatedRuntimeEnvironment } from "../support/isolated-runtime-environment";
+import {
+  isolatedRuntimeEnvironment,
+  liveCodexModel,
+} from "../support/isolated-runtime-environment";
 import {
   seedLiveCodingProject,
   verifyLiveCodingProject,
@@ -39,15 +42,7 @@ test("CLI repairs Doolittle code with the real linked Codex provider", async () 
   writeFileSync(join(root, "data/onboarding.json"), "{}\n");
   writeFileSync(
     join(root, "data/settings.json"),
-    JSON.stringify({
-      model: {
-        provider: "codex",
-        model: "gpt-6-luna",
-        reasoningEffort: "medium",
-        baseUrl: "https://chatgpt.com/backend-api/codex",
-        maxTokens: 8192,
-      },
-    }),
+    JSON.stringify({ model: liveCodexModel() }),
   );
   const env = createEvalRuntimeEnvironment({
     repoRoot,
@@ -100,36 +95,55 @@ test("CLI repairs Doolittle code with the real linked Codex provider", async () 
   }
 });
 test("desktop chat repairs Doolittle code through ElizaOS with real linked Codex", async () => {
-  const desktop = await launchDesktop(undefined, { liveCoding: true });
+  const executable =
+    process.env.DOOLITTLE_DESKTOP_EXECUTABLE?.trim() || undefined;
+  const desktop = await launchDesktop(executable, { liveCoding: true });
   let passed = false;
   try {
-    const prompt = seedLiveCodingProject(desktop.workspace);
-    const projectId = await makeProject(
-      desktop.page,
-      "Live coding acceptance",
-      desktop.workspace,
+    const { app, page, workspace } = desktop;
+    const prompt = seedLiveCodingProject(workspace, {
+      copyRepository: Boolean(executable),
+    });
+    await installProjectDialog(app, workspace);
+    await app.evaluate(({ dialog }, fixtureRoot) => {
+      dialog.showOpenDialog = (async (...args) => {
+        const options = args.at(-1) as Electron.OpenDialogOptions;
+        if (options.title !== "Choose a local folder for this chat")
+          throw new Error("Expected the This computer folder picker.");
+        return { canceled: false, filePaths: [fixtureRoot] };
+      }) as typeof dialog.showOpenDialog;
+    }, workspace);
+    const picker = page.getByRole("button", { name: /^Choose workspace\./u });
+    await picker.click();
+    await page
+      .getByRole("dialog", { name: "Choose a workspace for a new chat" })
+      .getByRole("button", { name: /^Choose local folder/u })
+      .click();
+    await expect(picker).toHaveAccessibleName(
+      /Current workspace This computer/u,
     );
-    await installProjectDialog(desktop.app, desktop.workspace);
-    const sessionId = await openProjectChat(desktop.page, projectId);
-    const composer = desktop.page.getByRole("textbox", {
+    await expect(picker).toHaveAttribute("title", workspace);
+    const selection = await page.evaluate(() =>
+      window.doolittle.ui?.getSelection(),
+    );
+    if (!selection?.projectId)
+      throw new Error("The live coding chat has no confirmed project.");
+    const { sessionId, botId } = selection;
+    const composer = page.getByRole("textbox", {
       name: "Message Doolittle",
     });
     await composer.fill(prompt);
+    await expect(
+      page.getByRole("button", { name: "Send message" }),
+    ).toBeEnabled({ timeout: 30_000 });
     await composer.press("Enter");
-    const catalog = await agentRequest<{
-      bots: { id: string; name: string }[];
-    }>(desktop.page, "/bots");
-    const bot = catalog.bots.find(
-      (candidate) => candidate.name === "Doolittle",
-    );
-    expect(bot).toBeTruthy();
     let status = "pending";
     await expect
       .poll(
         async () => {
           const { runs } = await agentRequest<{
             runs: { sessionId: string; status: string }[];
-          }>(desktop.page, "/chat/runs", "GET", undefined, bot?.id);
+          }>(page, "/chat/runs", "GET", undefined, botId);
           status =
             runs.find((run) => run.sessionId === sessionId)?.status ??
             "pending";
@@ -140,11 +154,33 @@ test("desktop chat repairs Doolittle code through ElizaOS with real linked Codex
       .toBe(true);
     expect(status).toBe("complete");
     const summary = verifyLiveCodingProject(desktop.workspace);
-    expect(await agentRequest(desktop.page, "/runtime/status")).toBeTruthy();
+    const providerCalls = readJsonLines<{
+      provider: string;
+      completed: boolean;
+    }>(join(desktop.profile, "runtime/eval-model-calls.jsonl")).filter(
+      (call) => call.provider === "codex" && call.completed,
+    );
+    expect(providerCalls.length).toBeGreaterThan(0);
+    const completedTurn = readJsonLines<{
+      event: string;
+      sessionId: string;
+      model: string;
+      metadata?: { commandResults?: CommandResult[] };
+    }>(
+      join(desktop.profile, "runtime/trajectories/trajectory-events.jsonl"),
+    ).find(
+      (event) =>
+        event.event === "turn.completed" && event.sessionId === sessionId,
+    );
+    expect(completedTurn?.metadata?.commandResults).toContainEqual(
+      expect.objectContaining({ command: "nub run test:scope", exitCode: 0 }),
+    );
     await test.info().attach("independent-verification", {
       body: JSON.stringify({
         ...summary,
-        sessionCreated: Boolean(sessionId),
+        model: completedTurn?.model,
+        completedProviderCalls: providerCalls.length,
+        verificationCommand: "nub run test:scope",
       }),
       contentType: "application/json",
     });
@@ -157,3 +193,10 @@ test("desktop chat repairs Doolittle code through ElizaOS with real linked Codex
     }
   }
 });
+
+function readJsonLines<T>(path: string): T[] {
+  return readFileSync(path, "utf8")
+    .trim()
+    .split("\n")
+    .map((line) => JSON.parse(line));
+}

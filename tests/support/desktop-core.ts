@@ -16,7 +16,10 @@ import {
 } from "@playwright/test";
 import { DESKTOP_REQUEST_TIMEOUT_MS } from "../../apps/desktop/src/shared/contracts/transport";
 import type { StartupStateSnapshot } from "../../packages/agent/src/services/startup-state-service";
-import { isolatedRuntimeEnvironment } from "./isolated-runtime-environment";
+import {
+  isolatedRuntimeEnvironment,
+  liveCodexModel,
+} from "./isolated-runtime-environment";
 
 const repoRoot = resolve(import.meta.dirname, "../..");
 const offlineModel = {
@@ -104,7 +107,7 @@ export async function launchDesktop(
   }
   writeFileSync(
     join(runtime, "settings.json"),
-    `${JSON.stringify({ model: options.liveCoding ? { provider: "codex", model: "gpt-6-luna", reasoningEffort: "medium", baseUrl: "https://chatgpt.com/backend-api/codex", maxTokens: 8192 } : offlineModel })}\n`,
+    `${JSON.stringify({ model: options.liveCoding ? liveCodexModel() : offlineModel })}\n`,
   );
   writeFileSync(
     join(profile, "workspace-state.json"),

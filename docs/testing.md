@@ -146,6 +146,19 @@ quota. It is separate from the offline release gate. Traces, screenshots, and
 video are disabled for this journey; failed private fixtures may remain for
 diagnosis.
 
+To test the installed desktop without rebuilding it:
+
+```sh
+DOOLITTLE_RUN_LIVE_CODING=true \
+DOOLITTLE_DESKTOP_EXECUTABLE=/Applications/Doolittle.app/Contents/MacOS/Doolittle \
+nubx playwright test --config playwright.live.config.ts --grep 'desktop chat repairs'
+```
+
+This uses **This computer** to open a temporary copy of committed Doolittle
+sources, checks that the agent runs the scoped test successfully, and reruns
+the tests independently. Set `DOOLITTLE_LIVE_CODEX_MODEL` to select a different
+linked Codex model.
+
 Evaluation tools under `packages/evals` compare task evidence and reports.
 Follow their [package guide](../packages/evals/README.md) and the
 [evaluation guide](evaluations.md). Keep fixture identity, suite/evaluator
