@@ -6,7 +6,6 @@ import {
   acquireExecutionLease,
   ExecutionAdmissionLimitError,
 } from "../../../runtime/execution-admission";
-import { executeAgentTurnWithProgress } from "../../../runtime/turn-stream";
 import {
   isDesktopWorkspaceRuntime,
   resolveConversationWorkspace,
@@ -446,6 +445,10 @@ async function startServerOwnedChatRun(
       const attachmentDescriptors = prepared.attachments.map(
         (entry) => entry.descriptor,
       );
+      const { executeAgentTurnWithProgress } = await import(
+        "../../../runtime/turn-stream"
+      );
+      controller.signal.throwIfAborted();
       const { response } = await executeAgentTurnWithProgress(
         {
           message,
