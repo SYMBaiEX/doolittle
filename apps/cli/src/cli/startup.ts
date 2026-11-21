@@ -6,7 +6,7 @@
  * This lets the entire startup flow live in TypeScript.
  */
 
-import { existsSync, mkdirSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { isAbsolute, resolve } from "node:path";
 import { loadApplicationEnv } from "@doolittle/agent/config/env";
 import { getDefaultRepoRoot } from "@doolittle/agent/config/env/paths";
@@ -46,7 +46,7 @@ function runtimeDataDir(root: string): string {
  * Set up the local runtime environment variables that the bash wrapper
  * previously handled in `load_local_runtime_env()`.
  *
- * - Ensures PGLITE_DATA_DIR exists
+ * - Sets the default path for the SDK-owned PGlite database
  * - Sets LOG_LEVEL / DEFAULT_LOG_LEVEL defaults
  * - Unsets DATABASE_URL / POSTGRES_URL if they aren't explicitly declared
  *   in the project .env file (prevents PGLite from being bypassed by a
@@ -60,8 +60,6 @@ export function loadLocalRuntimeEnv(): void {
   process.env.PGLITE_DATA_DIR ??= resolve(dataDir, "pglite");
   process.env.LOG_LEVEL ??= "error";
   process.env.DEFAULT_LOG_LEVEL ??= process.env.LOG_LEVEL;
-
-  mkdirSync(process.env.PGLITE_DATA_DIR, { recursive: true });
 
   // A worker may never attach to an inherited external Postgres connection.
   if (process.env.DOOLITTLE_BOT_RUNTIME === "worker" || !declaresDatabaseUrl) {

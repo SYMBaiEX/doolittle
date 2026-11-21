@@ -1,5 +1,5 @@
 import type { EnvConfig } from "../../../types/runtime/index";
-import { getPgliteDataDir, preparePgliteRuntime } from "./pglite";
+import { getPgliteDataDir } from "./pglite";
 import { ensureSecretSalt } from "./secret-salt";
 
 export function bootstrapRuntimeEnvironment(config: EnvConfig): void {
@@ -9,5 +9,4 @@ export function bootstrapRuntimeEnvironment(config: EnvConfig): void {
   process.env.SECRET_SALT ||= stableSecretSalt;
   process.env.ENCRYPTION_SALT ||= stableSecretSalt;
   process.env.PGLITE_DATA_DIR ||= getPgliteDataDir(config);
-  preparePgliteRuntime(config);
 }

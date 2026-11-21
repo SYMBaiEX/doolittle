@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
   existsSync,
@@ -9,7 +10,14 @@ import {
 import { createRequire } from "node:module";
 import { basename, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { readRegularFileSync } from "@doolittle/storage";
 import { build, type Metafile } from "esbuild";
+import {
+  DESKTOP_PGLITE_SEED_FILE,
+  type DesktopPgliteSeedReceipt,
+  desktopPgliteRuntimeDigest,
+  MAX_PGLITE_SEED_BYTES,
+} from "../../../packages/agent/src/runtime/bootstrap/runtime/desktop-database-seed";
 import {
   assertDesktopDistributionLicensePolicy,
   discoverDynamicCommonJsPackages,
@@ -31,6 +39,7 @@ const repoRequire = createRequire(resolve(repoRoot, "package.json"));
 import.meta.resolve("chromium-bidi/lib/cjs/bidiMapper/BidiMapper");
 import.meta.resolve("chromium-bidi/lib/cjs/cdp/CdpConnection");
 const outputDir = resolve(desktopRoot, "build", "runtime");
+const runtimeManifestPath = resolve(outputDir, "runtime-manifest.json");
 const outputPath = resolve(outputDir, "doolittle-runtime.mjs");
 const acpOutputPath = resolve(outputDir, "doolittle-acp.mjs");
 const runtimeNodeModulesDir = resolve(outputDir, "node_modules");
@@ -185,6 +194,56 @@ const tracedSdk = await copySdkRuntimePackages(
     ),
   ],
 );
+
+// Generate a data-free schema snapshot with the actual copied SDK and PGlite
+// versions. A new process keeps live databases, accounts, and user settings
+// outside the artifact build.
+const seed = spawnSync(
+  process.execPath,
+  [
+    "--input-type=module",
+    "--eval",
+    `import { writeFileSync } from "node:fs";
+     import { createMigratedSnapshot, plugin } from "@elizaos/plugin-sql";
+     if (!plugin.schema) throw new Error("Packaged SQL schema missing");
+     writeFileSync(process.argv[1], await createMigratedSnapshot([
+       { name: plugin.name, schema: plugin.schema },
+     ]));`,
+    DESKTOP_PGLITE_SEED_FILE,
+  ],
+  {
+    cwd: outputDir,
+    env: {
+      LOG_LEVEL: "error",
+      PGLITE_MIGRATED_SNAPSHOT: "0",
+      ...(process.platform === "win32"
+        ? { SystemRoot: process.env.SystemRoot }
+        : {}),
+    },
+    encoding: "utf8",
+    timeout: 60_000,
+  },
+);
+if (seed.status !== 0) {
+  throw new Error(
+    `Packaged PGlite seed generation failed. ${seed.stderr ?? ""}`,
+    {
+      cause: seed.error,
+    },
+  );
+}
+const pgliteSeed: DesktopPgliteSeedReceipt = {
+  file: DESKTOP_PGLITE_SEED_FILE,
+  sha256: createHash("sha256")
+    .update(
+      readRegularFileSync(
+        resolve(outputDir, DESKTOP_PGLITE_SEED_FILE),
+        MAX_PGLITE_SEED_BYTES,
+      ),
+    )
+    .digest("hex"),
+  runtimeSha256: desktopPgliteRuntimeDigest(runtimeManifestPath),
+};
 const copiedNativePackages = [...nativeExternalPackages].sort((a, b) =>
   a.localeCompare(b),
 );
@@ -261,7 +320,7 @@ if (missingRuntimeAssets.length > 0) {
 }
 
 writeFileSync(
-  resolve(outputDir, "runtime-manifest.json"),
+  runtimeManifestPath,
   `${JSON.stringify(
     {
       schema: 1,
@@ -269,7 +328,10 @@ writeFileSync(
       entry: basename(outputPath),
       acpEntry: basename(acpOutputPath),
       node: "electron-embedded",
-      assets: [...new Set(tracedSdk.files)].sort((a, b) => a.localeCompare(b)),
+      assets: [...new Set([...tracedSdk.files, pgliteSeed.file])].sort((a, b) =>
+        a.localeCompare(b),
+      ),
+      pgliteSeed,
       bundles: bundles.map(({ file, sha256 }) => ({ file, sha256 })),
       tracedPackages: tracedSdk.packages,
       nativeEntryPackages: [...nativeExternalPackages].sort(),

@@ -21,7 +21,7 @@ import { buildNativePluginAssembly } from "../native/plugin-registry/index";
 import { normalizePlugin } from "../native/plugin-registry/support";
 import { composeWorkerCharacter } from "./bot-profile";
 import { configureBootstrapContext } from "./context";
-import { buildPluginSettings } from "./env/index";
+import { buildPluginSettings, getPgliteDataDir } from "./env/index";
 import { DOOLITTLE_RUNTIME_CAPABILITY_OPTIONS } from "./runtime/capability-options";
 import {
   createProviderFailureTemplates,
@@ -109,16 +109,38 @@ export async function buildAppContext(
       });
     }
   }
+  const databasePreparation =
+    process.env.DOOLITTLE_DISTRIBUTED_DESKTOP_RUNTIME === "1" &&
+    process.env.DOOLITTLE_DESKTOP_RUNTIME === "1"
+      ? import("./runtime/desktop-database-seed")
+          .then(async ({ seedPackagedDesktopPglite }) => {
+            appendBootstrapTrace("phase:pglite-seed:start");
+            const published = await seedPackagedDesktopPglite(
+              config.dataDir,
+              getPgliteDataDir(config),
+            );
+            appendBootstrapTrace(
+              published
+                ? "phase:pglite-seed:published"
+                : "phase:pglite-seed:skipped",
+            );
+          })
+          .catch(() => appendBootstrapTrace("phase:pglite-seed:unavailable"))
+      : undefined;
   appendBootstrapTrace("phase:buildNativePluginAssembly:start");
   const nativePluginAssembly = await buildNativePluginAssembly(
     services,
     config,
     workerBot,
-  );
-  appendBootstrapTrace(
-    "phase:buildNativePluginAssembly:done",
-    `initial=${String(nativePluginAssembly.initial.length)}`,
-  );
+  )
+    .then((assembly) => {
+      appendBootstrapTrace(
+        "phase:buildNativePluginAssembly:done",
+        `initial=${String(assembly.initial.length)}`,
+      );
+      return assembly;
+    })
+    .finally(() => databasePreparation);
 
   const createRuntime = () =>
     new AgentRuntime({

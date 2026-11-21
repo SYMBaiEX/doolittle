@@ -6,6 +6,12 @@ import { dirname, isAbsolute, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { readRegularFileSync } from "@doolittle/storage";
 import { extractFile, listPackage } from "@electron/asar";
+import {
+  type DesktopPgliteSeedReceipt,
+  MAX_PGLITE_SEED_BYTES,
+  validateDesktopPgliteSeedReceipt,
+  verifyDesktopPgliteSeed,
+} from "../../../packages/agent/src/runtime/bootstrap/runtime/desktop-database-seed";
 import { assertOptionalDependencyEntry } from "./dependency-key";
 import {
   DESKTOP_ARTIFACT_FILES,
@@ -38,6 +44,7 @@ type RuntimeManifest = {
   nativePackageClosure: RuntimeDependencyInventoryEntry[];
   nativePackages: string[];
   node: string;
+  pgliteSeed?: DesktopPgliteSeedReceipt;
   runtime: string;
   schema: 1;
   thirdPartyNotices: {
@@ -465,6 +472,12 @@ export function validateRuntimeManifest(value: unknown): RuntimeManifest {
       "Packaged runtime manifest has an invalid asset inventory.",
     );
   }
+  const pgliteSeed = validateDesktopPgliteSeedReceipt(manifest.pgliteSeed);
+  if (pgliteSeed && !manifest.assets.includes(pgliteSeed.file)) {
+    throw new Error(
+      "Packaged PGlite seed is missing from the asset inventory.",
+    );
+  }
   if (
     !isSortedUniqueStringList(manifest.nativeEntryPackages) ||
     !isSortedUniqueStringList(manifest.nativePackages)
@@ -523,7 +536,18 @@ export function verifyRuntimeManifestFile(
   ) {
     throw new Error(`Packaged runtime manifest was tampered with: ${path}`);
   }
-  return validateRuntimeManifest(JSON.parse(bytes.toString("utf8")));
+  const manifest = validateRuntimeManifest(JSON.parse(bytes.toString("utf8")));
+  if (manifest.pgliteSeed) {
+    verifyDesktopPgliteSeed(
+      path,
+      manifest.pgliteSeed,
+      readRegularFileSync(
+        resolve(dirname(path), manifest.pgliteSeed.file),
+        MAX_PGLITE_SEED_BYTES,
+      ),
+    );
+  }
+  return manifest;
 }
 
 function runtimePath(runtimeBin: string, value: string): string {
