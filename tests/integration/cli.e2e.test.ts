@@ -94,10 +94,10 @@ describe("built CLI product acceptance", () => {
     expect(help.stderr).toBe("");
     const commands = await execute(
       process.execPath,
-      [entry, "commands", "help"],
+      [entry, "commands", "theme list"],
       options,
     );
-    expect(commands.stdout).toContain("/help");
+    expect(commands.stdout).toContain("/theme list");
     expect(commands.stderr).toBe("");
     expect(readdirSync(resolve(profile, "data")).sort()).toEqual(initialData);
     const result = await execute(
