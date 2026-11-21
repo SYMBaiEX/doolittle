@@ -1,13 +1,11 @@
 import { pathToFileURL } from "node:url";
 import type { AppLogger } from "@doolittle/agent/logging/logger";
-import { shutdownApplicationRuntime } from "@doolittle/agent/runtime/application";
 import { installSharedEngineHost } from "@doolittle/agent/runtime/engine/host";
 import { installEngineWorkerTransport } from "@doolittle/agent/runtime/engine/worker-transport";
 import type { AgentRuntime } from "@elizaos/core";
 import type { EntrypointInvocation } from "./invocation";
 import { prepareEntrypointRuntimeBoot } from "./runtime-boot";
 import { installRuntimeProcessLifecycle } from "./runtime-process-lifecycle";
-import { handleEntrypointRuntimeSurface } from "./runtime-surface";
 
 export async function runEntrypointRuntime(
   invocation: EntrypointInvocation,
@@ -30,6 +28,14 @@ export async function runEntrypointRuntime(
     apiOwnsRuntimeAfterCli,
   } = await prepareEntrypointRuntimeBoot(invocation);
 
+  const shutdown = async (reason: string) => {
+    const { shutdownApplicationRuntime } = await import(
+      "@doolittle/agent/runtime/application"
+    );
+    await shutdownApplicationRuntime(context.runtime as AgentRuntime, reason, {
+      fast: true,
+    });
+  };
   const installApiLifecycle = () =>
     installRuntimeProcessLifecycle({
       label: `${context.config.agentName} ${command}`,
@@ -37,11 +43,7 @@ export async function runEntrypointRuntime(
         try {
           await sharedEngineHost?.stopAll();
         } finally {
-          await shutdownApplicationRuntime(
-            context.runtime as AgentRuntime,
-            reason,
-            { fast: true },
-          );
+          await shutdown(reason);
         }
       },
       captureFatal: (error, origin) => {
@@ -56,15 +58,13 @@ export async function runEntrypointRuntime(
     const lifecycle = installApiLifecycle();
     if (!(await startServer())) {
       lifecycle.dispose();
-      await shutdownApplicationRuntime(
-        context.runtime as AgentRuntime,
-        "Doolittle API unavailable",
-        { fast: true },
-      );
+      await shutdown("Doolittle API unavailable");
       return 1;
     }
+    if (command === "api") return 0;
   }
 
+  const { handleEntrypointRuntimeSurface } = await import("./runtime-surface");
   const runtimeSurface = await handleEntrypointRuntimeSurface({
     command,
     oneShot,

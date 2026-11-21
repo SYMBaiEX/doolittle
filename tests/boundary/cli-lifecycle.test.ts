@@ -276,10 +276,11 @@ describe("terminal application lifecycle", () => {
       vi.useFakeTimers();
       const log = vi.spyOn(console, "log").mockImplementation(() => {});
       const hydrate = vi.fn(async () => undefined);
+      const startIngress = vi.fn();
       const api = createApiStartupController({
         context: {
           config: { agentName: "Fixture", host: "127.0.0.1", port: 1234 },
-          gateway: { startIngress: vi.fn() },
+          gateway: { startIngress },
           ensureDeferredHydration: hydrate,
         } as unknown as AppContext,
         command: "api",
@@ -293,9 +294,13 @@ describe("terminal application lifecycle", () => {
       const listeners = process.listenerCount("message");
       try {
         await expect(api.startServer()).resolves.toBe(true);
+        expect(log).toHaveBeenCalledWith(
+          "Fixture API listening on http://127.0.0.1:1234",
+        );
         process.emit("message", "another IPC message");
         await vi.advanceTimersByTimeAsync(1);
         expect(hydrate).not.toHaveBeenCalled();
+        expect(startIngress).not.toHaveBeenCalled();
         if (acknowledged) {
           process.emit("message", DESKTOP_RUNTIME_READY_ACK);
           await vi.advanceTimersByTimeAsync(1);
@@ -303,6 +308,7 @@ describe("terminal application lifecycle", () => {
         }
         await vi.runAllTimersAsync();
         expect(hydrate).toHaveBeenCalledExactlyOnceWith("desktop-api");
+        expect(startIngress).toHaveBeenCalledOnce();
         expect(process.listenerCount("message")).toBe(listeners);
       } finally {
         await vi.runAllTimersAsync();

@@ -11,6 +11,7 @@
     "src",
     "dist/index.js",
     "dist/acp-server.js",
+    "dist/managed-runtime.js",
     "dist/doolittle-*.js"
   ],
   "scripts": {

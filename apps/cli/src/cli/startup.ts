@@ -11,7 +11,6 @@ import { isAbsolute, resolve } from "node:path";
 import { loadApplicationEnv } from "@doolittle/agent/config/env";
 import { getDefaultRepoRoot } from "@doolittle/agent/config/env/paths";
 import { getEntrypointLogger } from "@doolittle/agent/logging/entrypoint-logger";
-import { runInheritedTextProcess } from "@doolittle/agent/services/process-execution";
 
 export class CliStartupExitError extends Error {
   readonly exitCode: number;
@@ -107,6 +106,9 @@ export async function runOnboardingWizard(args: string[] = []): Promise<void> {
     "node_modules",
     ".bin",
     process.platform === "win32" ? "nub.cmd" : "nub",
+  );
+  const { runInheritedTextProcess } = await import(
+    "@doolittle/agent/services/process-execution"
   );
   const result = await runInheritedTextProcess(
     existsSync(localNub) ? localNub : "nub",

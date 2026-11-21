@@ -20,10 +20,11 @@ nub run cli:typecheck
 
 [`src/index.ts`](src/index.ts) is the source executable. The source installer
 links `doolittle` to it. The CLI build emits `dist/index.js`,
-`dist/acp-server.js`, and their shared chunks. After stopping compiled CLI
-and desktop development processes, run `nub run cli:build --clean` to prune
-chunks from earlier builds. Application-root discovery works from any project
-directory. Packaged hosts can provide `DOOLITTLE_REPO_ROOT`.
+`dist/acp-server.js`, the desktop's `dist/managed-runtime.js`, and shared chunks.
+After stopping compiled CLI and desktop development processes, run
+`nub run cli:build --clean` to prune chunks from earlier builds.
+Application-root discovery works from any project directory. Packaged hosts
+can provide `DOOLITTLE_REPO_ROOT`.
 
 ## Ownership
 

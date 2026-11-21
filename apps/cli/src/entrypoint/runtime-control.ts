@@ -2,7 +2,10 @@ import type { AppLogger } from "@doolittle/agent/logging/logger";
 import type { AppContext } from "@doolittle/agent/runtime/bootstrap";
 import { readWorkerBotProfile } from "@doolittle/agent/runtime/bootstrap/bot-profile";
 import type { ApiServerAddress } from "@doolittle/agent/server";
-import { DESKTOP_RUNTIME_READY_ACK } from "@doolittle/contracts/engine";
+import {
+  DESKTOP_RUNTIME_LISTENING,
+  DESKTOP_RUNTIME_READY_ACK,
+} from "@doolittle/contracts/engine";
 import {
   type EntrypointSubcommand,
   isEntrypointAliasCommand,
@@ -119,6 +122,15 @@ export function createApiStartupController(
   let backgroundStartup: Promise<boolean> | undefined;
   let shellClosed = false;
   let listenerRequested = false;
+  const startIngress = () => {
+    if (readWorkerBotProfile()) return;
+    try {
+      context.gateway.startIngress();
+    } catch (error) {
+      // The listener still owns the runtime if ingress cannot start.
+      runtimeLogger.captureError("gateway-ingress-startup-failed", error);
+    }
+  };
   const startServer = async (fromCli = false): Promise<boolean> => {
     try {
       if (!hydrateAfterListening) {
@@ -131,24 +143,14 @@ export function createApiStartupController(
       if (fromCli && shellClosed) return false;
       listenerRequested = true;
       const serverAddress = await listen(context);
-      if (!readWorkerBotProfile()) {
-        try {
-          context.gateway.startIngress();
-        } catch (error) {
-          // The listener still owns the runtime if ingress cannot start.
-          runtimeLogger.captureError("gateway-ingress-startup-failed", error);
-        }
-      }
       const host = serverAddress?.host ?? context.config.host;
       const port = serverAddress?.port ?? context.config.port;
       const url = serverAddress?.url ?? `http://${host}:${port}`;
-      runtimeLogger.info("api-server-started", {
-        host,
-        port,
-        command,
-      });
       if (hydrateAfterListening) {
+        // The host acknowledges after health and identity checks. Register
+        // before publishing the address so we cannot miss the acknowledgement.
         scheduleDesktopHydration(() => {
+          startIngress();
           void context.ensureDeferredHydration("desktop-api").catch((error) => {
             runtimeLogger.captureError(
               "background-deferred-hydration-failed",
@@ -157,10 +159,20 @@ export function createApiStartupController(
             );
           });
         });
+        if (process.connected) {
+          try {
+            process.send?.({ type: DESKTOP_RUNTIME_LISTENING, url }, () => {});
+          } catch {
+            // stdout is still available when IPC closes during publication.
+          }
+        }
+      } else {
+        startIngress();
       }
       if (!shouldStartCli || command === "api" || command === "gateway") {
         console.log(`${context.config.agentName} API listening on ${url}`);
       }
+      runtimeLogger.info("api-server-started", { host, port, command });
       return true;
     } catch (error) {
       const code =

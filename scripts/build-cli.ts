@@ -39,7 +39,7 @@ const outputs = result.outputFiles.map((output) => ({
   ...output,
   name: basename(output.path),
 }));
-// Publish content-addressed chunks before replacing either entrypoint.
+// Publish content-addressed chunks before replacing entrypoints.
 outputs.sort(
   (a, b) =>
     Number(CLI_CHUNK_PATTERN.test(b.name)) -

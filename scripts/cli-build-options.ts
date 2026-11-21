@@ -9,13 +9,18 @@ export const CLI_CHUNK_PATTERN = /^doolittle-[a-z0-9_-]+-[a-z0-9]{8}\.js$/iu;
 export function cliBuildOptions(): BuildOptions {
   return {
     absWorkingDir: fileURLToPath(new URL("../apps/cli/", import.meta.url)),
-    entryPoints: ["src/index.ts", "src/acp-server.ts"],
+    entryPoints: [
+      "src/index.ts",
+      "src/acp-server.ts",
+      "src/managed-runtime.ts",
+    ],
     bundle: true,
     splitting: true,
     chunkNames: "doolittle-[name]-[hash]",
     platform: "node",
     format: "esm",
-    target: "node26",
+    // This build also serves the desktop's Electron-embedded Node worker.
+    target: "node24",
     outdir: CLI_OUTPUT_DIRECTORY,
     external: ["sharp", "term.js", "pty.js", "@elizaos/*"],
     banner: {

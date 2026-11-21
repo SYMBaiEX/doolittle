@@ -44,7 +44,7 @@
       "ignoreDependencies": ["scriptc", "@elizaos/plugin-sql"]
     },
     "apps/cli": {
-      "entry": ["src/index.ts", "src/acp-server.ts"],
+      "entry": ["src/index.ts", "src/acp-server.ts", "src/managed-runtime.ts"],
       "project": ["src/**/*.ts"],
       "ignoreDependencies": [
         "acpx",
