@@ -11,6 +11,7 @@
     "src/shared/**/*.ts",
     "vite.*.config.ts",
     "scripts/**/*.ts",
+    "../../packages/agent/src/runtime/bootstrap/runtime/desktop-database-seed.ts",
     "../../scripts/cli-build-options.ts"
   ],
   "exclude": ["src/**/*.test.ts"],
