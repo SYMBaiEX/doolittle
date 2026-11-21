@@ -22,6 +22,7 @@ import {
   type RepositoryProcessRunner,
 } from "./repository/mutations";
 import { parseRepositoryStatus, parseWorktrees } from "./repository/parsing";
+import { runGitPatchPreview } from "./repository/patch-preview";
 import {
   MAX_WORKTREE_PATH_LENGTH,
   validateBranchName,
@@ -192,6 +193,7 @@ export class RepositoryService {
       args,
       `git patch:${staged ? "staged" : "unstaged"}:${scopedPath ?? "*"}`,
       "",
+      MAX_PATCH_CHARACTERS,
     );
     const truncated = output.length > MAX_PATCH_CHARACTERS;
     return {
@@ -401,6 +403,7 @@ export class RepositoryService {
     args: string[],
     cacheKey: string,
     emptyValue = "(no output)",
+    maxPatchCharacters?: number,
   ): Promise<string> {
     const cwd = this.gitRoot() ?? this.workspaceRoot();
     const scopedCacheKey = `${cwd}\0${cacheKey}`;
@@ -418,14 +421,16 @@ export class RepositoryService {
     }
 
     const promise = (async () => {
-      const { stdout, stderr, exitCode } = await this.mutationRunner(
-        "git",
-        args,
-        {
-          cwd,
-          toolName: "doolittle.repository.git",
-        },
-      );
+      const options = { cwd, toolName: "doolittle.repository.git" };
+      const { stdout, stderr, exitCode } =
+        maxPatchCharacters === undefined
+          ? await this.mutationRunner("git", args, options)
+          : await runGitPatchPreview(
+              this.mutationRunner,
+              args,
+              options,
+              maxPatchCharacters,
+            );
 
       if (exitCode !== 0) {
         throw new Error(
@@ -433,7 +438,11 @@ export class RepositoryService {
         );
       }
 
-      const value = stdout.replace(/\r?\n$/u, "") || emptyValue;
+      const text = stdout.replace(/\r?\n$/u, "");
+      const value =
+        (maxPatchCharacters === undefined
+          ? text
+          : text.slice(0, maxPatchCharacters + 1)) || emptyValue;
       if (this.commandCacheGeneration === cacheGeneration) {
         this.commandCache.set(scopedCacheKey, {
           capturedAt: Date.now(),
