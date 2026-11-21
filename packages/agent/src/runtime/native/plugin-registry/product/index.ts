@@ -21,6 +21,10 @@ import { createCommandAction } from "../../../../actions/command-action";
 import { createConsultBotAction } from "../../../../actions/consult-bot-action";
 import { createFileActions } from "../../../../actions/file-action/index";
 import { createMediaActions } from "../../../../actions/media-action";
+import {
+  createParallelWorkspaceInspectionAction,
+  PARALLEL_WORKSPACE_INSPECTION,
+} from "../../../../actions/parallel-workspace-inspection";
 import { createRepositoryAction } from "../../../../actions/repository-action";
 import { createResearchAction } from "../../../../actions/research-action";
 import { createSdkTerminalAction } from "../../../../actions/sdk-terminal-action";
@@ -68,6 +72,7 @@ export function createDoolittleProductPlugin(
     memoryAction,
     triggerAction,
     ...createFileActions(),
+    createParallelWorkspaceInspectionAction(services.workspace),
     createWorkspaceAction(),
     createSdkTerminalAction(services),
     createRepositoryAction(),
@@ -81,7 +86,8 @@ export function createDoolittleProductPlugin(
         (action) =>
           (action.name === "DOOLITTLE_CONSULT_BOT"
             ? workerBot.permissions.allowDelegation
-            : workerBot.permissions.allowMutation) &&
+            : action.name === PARALLEL_WORKSPACE_INSPECTION ||
+              workerBot.permissions.allowMutation) &&
           workerBot.permissions.toolIds.includes(action.name) &&
           action !== triggerAction,
       )

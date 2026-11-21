@@ -1,4 +1,5 @@
 import type { Action, ActionResult } from "@elizaos/core";
+import { PARALLEL_WORKSPACE_INSPECTION } from "./parallel-workspace-inspection";
 
 export const DOOLITTLE_CODING_ACTION = "DOOLITTLE_CODING";
 
@@ -12,6 +13,7 @@ export const DOOLITTLE_CODING_SUBACTIONS = [
   // post-delegation verification.
   "TASKS_SPAWN_AGENT",
   "DOOLITTLE_WORKSPACE",
+  PARALLEL_WORKSPACE_INSPECTION,
   "READ_FILE",
   "SEARCH_FILES",
   "WRITE_FILE",
@@ -39,7 +41,7 @@ export function createCodingAction(): Action {
       "Plan and execute a coding task end to end. For requests to create, edit, fix, or build code, delegate the complete implementation once to TASKS_SPAWN_AGENT in the exact requested workspace. If the user says current or selected workspace without naming a path, omit workdir so Doolittle resolves its configured workspace root; never guess /workspace or another placeholder. Never repeat a same-workspace delegation during one turn, whether the first worker completed or failed. If the worker exits unsuccessfully without the parent turn being cancelled, inspect its recorded activity and current files, then recover with native workspace and shell actions in the exact workspace; the worker's failure is not completion evidence. Surface authentication, model compatibility, explicit approval, security, path, or permission blockers without changing credentials, provider, target, or policy. If the delegate reports zero changed files, inspect the existing workspace and verify the full request; report a no-op only when every requirement is already satisfied, otherwise fix the concrete gap with native tools. Afterward use native workspace, file, and shell tools for remaining verification. The delegated agent must not run a production build or start the app; the parent runs any required Bun install and production build through Doolittle's shell tools after delegation completes. Run production builds before starting a managed dev server; never run a build that rewrites framework output (such as Next.js .next) while that server is running. After the final build, start or check the managed app and require its ready state; ready means its own HTTP GET probe succeeded. If a no-op is otherwise verified, do not repeat delegation or add a redundant curl after that readiness probe. Finish as soon as the completion contract is met, then give the user the verified URL and stop instructions. Do not stop after preliminary reads or present raw tool output as the final answer." +
       FRONTEND_REVIEW_INSTRUCTION,
     descriptionCompressed:
-      "Implement code requests through TASKS_SPAWN_AGENT. If the user says current or selected workspace without naming a path, omit workdir; Doolittle resolves its configured root. Never guess /workspace or another placeholder. Then verify with workspace and app tools.",
+      "Implement code requests through TASKS_SPAWN_AGENT. If the user says current or selected workspace without naming a path, omit workdir; Doolittle resolves its configured root. Never guess /workspace or another placeholder. Use INSPECT_WORKSPACE_IN_PARALLEL for independent reads or test discovery, then verify with workspace and app tools.",
     routingHint:
       "multi-step implementation, debugging, refactoring, or code verification -> DOOLITTLE_CODING",
     contexts: ["code", "files"],

@@ -103,6 +103,36 @@ describe("fresh shared-engine source runtime acceptance", () => {
     expect((await fetch(`${urlB}/runtime/bots/${a.id}`)).status).toBe(404);
   }, 60_000);
 
+  it("registers batch inspection and scopes literal search to the approved conversation", async () => {
+    const inspection = await json<{ tool?: { id: string; name: string } }>(
+      h.leadUrl,
+      "/tools/detail?id=INSPECT_WORKSPACE_IN_PARALLEL",
+    );
+    expect(inspection.tool?.name).toBe("INSPECT_WORKSPACE_IN_PARALLEL");
+
+    const [url] = h.urls;
+    const [sessionA, sessionB, sessionOther] = h.sessions;
+    const search = (session: string) =>
+      fetch(`${url}/workspace/search?query=scope`, {
+        headers: { "x-doolittle-origin-conversation": session },
+        redirect: "error",
+      });
+    const [a, b, denied] = await Promise.all([
+      search(sessionA),
+      search(sessionB),
+      search(sessionOther),
+    ]);
+    expect(a.status).toBe(200);
+    expect(b.status).toBe(200);
+    expect(denied.status).toBe(409);
+    expect(await a.json()).toEqual({
+      results: [{ path: "scope.txt", matches: ["scope-0"] }],
+    });
+    expect(await b.json()).toEqual({
+      results: [{ path: "scope.txt", matches: ["scope-1"] }],
+    });
+  }, 30_000);
+
   it("limits workspace writes and Git staging to an authorized conversation and worker", async () => {
     const [urlA, urlB] = h.urls;
     const [sessionA, , sessionOther] = h.sessions;

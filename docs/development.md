@@ -104,6 +104,16 @@ errors by replacing data with an empty default.
 Preserve unrelated edits during development. Keep local runtime artifacts in
 ignored locations and inspect `git diff` before staging explicit paths.
 
+## Parallel code inspection
+
+The ElizaOS coding planner can call `INSPECT_WORKSPACE_IN_PARALLEL` to read
+implementation files and find related tests in one batch. It accepts two to six
+targeted text reads and literal searches, keeps two inspections in flight, and
+returns bounded evidence in task order. A desktop batch uses the current
+conversation's authorized workspace, and all inspections share its cancellation
+signal. For example, ask Doolittle to read `src/router.ts` while looking for
+`createRouter` in `tests/`, then compare the findings.
+
 ## Finish a change
 
 Run the smallest relevant tests and required typecheck once the implementation
