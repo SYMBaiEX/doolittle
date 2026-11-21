@@ -1,8 +1,7 @@
-import { Terminal } from "lucide-react";
+import { AlertCircle, Terminal } from "lucide-react";
 import type { RefObject } from "react";
 import { InlineActionConfirmation } from "./InlineActionConfirmation";
 import { INTERACTIVE_TERMINAL_PRIMARY_BUTTON_CLASS } from "./interactive-terminal-layout";
-import { terminalTabLabelId } from "./interactive-terminal-state";
 import type { InteractiveTerminalTabState } from "./interactive-terminal-store";
 import { UiIcon } from "./UiIcon";
 
@@ -17,6 +16,7 @@ export function InteractiveTerminalSurface({
   discardConfirmation,
   running,
   starting,
+  panelId,
   viewportRef,
 }: {
   active: boolean;
@@ -33,35 +33,63 @@ export function InteractiveTerminalSurface({
   } | null;
   running: boolean;
   starting: boolean;
+  panelId: string;
   viewportRef: RefObject<HTMLDivElement | null>;
 }) {
+  const outputNotice =
+    notice ||
+    (activeTab?.stale
+      ? "Shell unavailable. Open a new shell to continue."
+      : "");
   return (
-    <div className="relative min-h-0 min-w-0 overflow-hidden bg-[var(--canvas-bg)]">
+    <div className="interactive-terminal-surface">
+      {discardConfirmation ? (
+        <div className="interactive-terminal-confirmation">
+          <InlineActionConfirmation
+            busy={false}
+            busyLabel="Discarding…"
+            confirmLabel="Discard tab only"
+            detail="This removes the tab and its recovery ID, not the shell. The shell may still be running. Use Stop work or quit Doolittle to shut it down."
+            onCancel={discardConfirmation.onCancel}
+            onConfirm={discardConfirmation.onConfirm}
+            title={`Discard ${discardConfirmation.tabName} tab only?`}
+          />
+        </div>
+      ) : outputNotice ? (
+        <div className="interactive-terminal-notice" role="status">
+          <UiIcon icon={AlertCircle} size="xs" />
+          <span
+            className="interactive-terminal-notice-label"
+            title={outputNotice}
+          >
+            {outputNotice}
+          </span>
+          {canRetryOutput ? (
+            <button
+              className="interactive-terminal-retry"
+              onClick={onRetryOutput}
+              type="button"
+            >
+              Retry output
+            </button>
+          ) : null}
+        </div>
+      ) : null}
       <div
-        aria-label="Terminal output"
+        aria-label={activeTab ? undefined : "Terminal output"}
         aria-labelledby={
-          activeTab ? terminalTabLabelId(activeTab.id) : undefined
+          activeTab ? `${panelId}-${activeTab.id}-tab` : undefined
         }
         aria-live="off"
-        className="absolute inset-0 z-2 m-0 min-h-0 min-w-0 overflow-hidden border-0 bg-transparent p-0 font-mono text-[var(--canvas-text)] outline-0 [scrollbar-color:var(--accent-border)_transparent] [scrollbar-width:thin] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-[-1px] focus-visible:outline-[var(--focus-ring)] [&_.xterm]:box-border [&_.xterm]:h-full [&_.xterm]:w-full [&_.xterm]:px-1.5 [&_.xterm]:pt-0.75 [&_.xterm]:pb-1.25 [&_.xterm-helper-textarea]:opacity-[0.01] [&_.xterm-screen]:will-change-auto [&_.xterm-screen]:pb-1 [&_.xterm-viewport]:!bg-[var(--canvas-bg)] [&_.xterm-viewport]:overscroll-contain [&_.xterm-viewport]:pr-0.5 [&_.xterm-viewport]:[scrollbar-color:var(--accent-border)_transparent] [&_.xterm-viewport]:[scrollbar-width:thin]"
-        id={
-          activeTab ? `interactive-terminal-${activeTab.id}-panel` : undefined
-        }
+        className="interactive-terminal-viewport"
+        id={panelId}
         ref={viewportRef}
         role="tabpanel"
       />
       {!running && !activeTab?.output ? (
-        <div className="absolute inset-0 z-4 flex flex-col items-center justify-center bg-[var(--canvas-bg)] p-6 text-center text-[var(--muted)]">
-          <span className="mb-2.5 grid size-9 place-items-center rounded-[var(--radius-xs)] border border-[var(--accent-border)] bg-[var(--accent-soft)] text-[var(--accent)]">
-            <UiIcon icon={Terminal} size="md" />
-          </span>
-          <strong className="text-[length:var(--text-body)] text-[var(--text)]">
-            Workspace shell
-          </strong>
-          <p className="mt-1 mb-3 max-w-64 text-[length:var(--text-control)] leading-normal">
-            Native {activeTab?.shell || "shell"} PTY · output and tabs stay with
-            this workspace.
-          </p>
+        <div className="interactive-terminal-empty">
+          <UiIcon icon={Terminal} />
+          <span>Workspace shell</span>
           <button
             className={INTERACTIVE_TERMINAL_PRIMARY_BUTTON_CLASS}
             disabled={!active || starting}
@@ -74,40 +102,6 @@ export function InteractiveTerminalSurface({
                 ? "Retry shell request"
                 : "Open shell"}
           </button>
-        </div>
-      ) : null}
-      {discardConfirmation ? (
-        <div className="absolute inset-x-2 top-2 z-10">
-          <InlineActionConfirmation
-            busy={false}
-            busyLabel="Discarding…"
-            confirmLabel="Discard tab only"
-            detail="This removes the tab and its recovery ID, not the shell. The shell may still be running. Use Stop work or quit Doolittle to shut it down."
-            onCancel={discardConfirmation.onCancel}
-            onConfirm={discardConfirmation.onConfirm}
-            title={`Discard ${discardConfirmation.tabName} tab only?`}
-          />
-        </div>
-      ) : null}
-      {notice || activeTab?.stale ? (
-        <div
-          className="absolute right-1.5 bottom-1.5 z-4 m-0 max-w-[min(30rem,calc(100%-1rem))] rounded-[var(--radius-xs)] border border-[var(--warn)] bg-[var(--warn-soft)] px-2 py-1 font-mono text-[length:var(--text-meta)] text-[var(--warn)]"
-          role="status"
-          title={notice}
-        >
-          <span>
-            {notice ||
-              "Session ended on workspace change. Open a new shell to continue."}
-          </span>
-          {canRetryOutput ? (
-            <button
-              className="ml-2 underline underline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
-              onClick={onRetryOutput}
-              type="button"
-            >
-              Retry output
-            </button>
-          ) : null}
         </div>
       ) : null}
     </div>

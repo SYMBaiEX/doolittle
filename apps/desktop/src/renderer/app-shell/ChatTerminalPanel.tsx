@@ -1,11 +1,13 @@
-import { Button } from "@doolittle/ui";
+import { ArrowLeft, PanelBottomClose, Terminal } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { DoolittleDesktopBridge } from "../../shared/contracts";
 import { InteractiveTerminal } from "../components/InteractiveTerminal";
 import { PanelResizeHandle } from "../components/PanelResizeHandle";
+import { UiIcon } from "../components/UiIcon";
 import { useModalFocusBoundary } from "../components/useModalFocusBoundary";
 import { type ComputerOrigin, computerOriginKey } from "../computer-origin";
 import { CHAT_TERMINAL_HEIGHT, clampPanelSize } from "../panel-layout";
+import "./chat-terminal-dock.css";
 
 const SHORT_VIEWPORT_MAX_HEIGHT = 640;
 const CHAT_TERMINAL_TALL_VIEWPORT_RATIO = 0.58;
@@ -52,6 +54,7 @@ export interface ChatTerminalPanelProps {
   active: boolean;
   height: number;
   open: boolean;
+  focusRequest?: number;
   onClose: () => void;
   onResize: (height: number) => void;
   onSendToChat: (text: string) => void;
@@ -65,6 +68,7 @@ export function ChatTerminalPanel({
   active,
   height,
   open,
+  focusRequest,
   onClose,
   onResize,
   onSendToChat,
@@ -88,6 +92,7 @@ export function ChatTerminalPanel({
   );
   const compact = heightBounds.max < CHAT_TERMINAL_HEIGHT.min;
   const modalOpen = open && compact && expanded;
+  const terminalVisible = open && (!compact || modalOpen);
   const dialogRef = useModalFocusBoundary({
     active: modalOpen,
     initialFocusSelector: "[data-terminal-return]",
@@ -98,14 +103,23 @@ export function ChatTerminalPanel({
   });
 
   useIsomorphicLayoutEffect(() => {
+    if (!open) return;
     const panel = panelRef.current;
     const main = panel?.parentElement;
     if (!panel || !main) return;
+    let frame: number | null = null;
     const observed = new Set<Element>();
     const observer =
       typeof ResizeObserver === "undefined"
         ? null
-        : new ResizeObserver(measure);
+        : new ResizeObserver(scheduleMeasure);
+    function scheduleMeasure() {
+      if (frame !== null) return;
+      frame = requestAnimationFrame(() => {
+        frame = null;
+        measure();
+      });
+    }
     function observe(element: Element) {
       if (observed.has(element)) return;
       observed.add(element);
@@ -166,20 +180,24 @@ export function ChatTerminalPanel({
     }
     observe(main);
     measure();
-    const mutations = new MutationObserver(measure);
+    const mutations = new MutationObserver((entries) => {
+      if (entries.some(({ target }) => !panel.contains(target)))
+        scheduleMeasure();
+    });
     mutations.observe(main, {
       attributeFilter: ["data-view", "hidden", "inert"],
       attributes: true,
       childList: true,
       subtree: true,
     });
-    window.addEventListener("resize", measure);
+    window.addEventListener("resize", scheduleMeasure);
     return () => {
+      if (frame !== null) cancelAnimationFrame(frame);
       observer?.disconnect();
       mutations.disconnect();
-      window.removeEventListener("resize", measure);
+      window.removeEventListener("resize", scheduleMeasure);
     };
-  }, []);
+  }, [open]);
 
   useEffect(() => {
     if (!compact || !open) setExpanded(false);
@@ -195,13 +213,11 @@ export function ChatTerminalPanel({
   return (
     <section
       aria-label="Chat terminal panel"
-      className={`relative min-h-0 min-w-0 shrink-0 border-t bg-[var(--canvas-bg)] ${compact ? (modalOpen ? "z-110 overflow-visible" : "z-12 overflow-hidden") : "z-12 origin-bottom overflow-hidden transition-[height,opacity,transform,border-color,visibility] duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] contain-[layout_paint_style] backface-hidden will-change-[transform,opacity] [@media(max-height:640px)]:max-h-[48vh] motion-reduce:transform-none motion-reduce:duration-[0.01ms] motion-reduce:delay-0"} ${
-        open
-          ? `visible border-[var(--border-strong)] opacity-100 pointer-events-auto ${compact ? "" : "max-h-[58vh] translate-y-0 scale-y-100 shadow-[0_-12px_32px_color-mix(in_srgb,var(--shadow)_18%,transparent)]"}`
-          : `invisible border-transparent opacity-0 pointer-events-none ${compact ? "" : "translate-y-3 scale-y-[0.985]"}`
-      }`}
+      aria-hidden={!open || undefined}
+      className="chat-terminal-dock"
       data-compact={compact}
       data-chat-terminal-panel=""
+      data-expanded={modalOpen}
       data-open={open}
       inert={!open}
       ref={panelRef}
@@ -210,27 +226,28 @@ export function ChatTerminalPanel({
       }}
     >
       {compact ? (
-        <div className="flex h-11 items-center gap-1 px-1">
-          <Button
+        <div className="chat-terminal-compact-toolbar">
+          <button
             aria-expanded={modalOpen}
             aria-haspopup="dialog"
-            className="!h-11 !min-h-11 min-w-0 flex-1 justify-start !text-[var(--canvas-text)] hover:!bg-[var(--canvas-border)]"
+            aria-label="Open terminal"
+            className="chat-terminal-expand"
             onClick={() => setExpanded(true)}
             ref={openerRef}
             type="button"
-            variant="ghost"
           >
-            Open terminal <span className="ml-auto">{shortcut}</span>
-          </Button>
-          <Button
+            <UiIcon icon={Terminal} />
+            <span>Open terminal</span>
+            <kbd>{shortcut}</kbd>
+          </button>
+          <button
             aria-label="Close terminal panel"
-            className="!h-11 !min-h-11 min-w-11 !text-[var(--canvas-text)] hover:!bg-[var(--canvas-border)]"
             onClick={onClose}
+            title="Hide terminal"
             type="button"
-            variant="ghost"
           >
-            Close
-          </Button>
+            <UiIcon icon={PanelBottomClose} />
+          </button>
         </div>
       ) : (
         <PanelResizeHandle
@@ -253,38 +270,36 @@ export function ChatTerminalPanel({
               tabIndex: -1,
             }
           : { "aria-label": "Chat terminal", role: "region" })}
-        className={
-          compact
-            ? modalOpen
-              ? "fixed inset-0 flex min-h-0 flex-col bg-[var(--canvas-bg)] text-[var(--canvas-text)]"
-              : "hidden"
-            : "h-full min-h-0 [&>[data-interactive-terminal]]:min-h-0"
-        }
+        className="chat-terminal-workbench"
+        data-modal={modalOpen || undefined}
+        hidden={compact && !modalOpen}
         inert={compact && !modalOpen}
         ref={dialogRef}
       >
         {modalOpen ? (
-          <Button
-            className="!h-11 !min-h-11 shrink-0 self-start !text-[var(--canvas-text)] hover:!bg-[var(--canvas-border)]"
+          <button
+            className="chat-terminal-return"
             data-terminal-return
             onClick={() => setExpanded(false)}
             type="button"
-            variant="ghost"
           >
+            <UiIcon icon={ArrowLeft} />
             Back to workspace
-          </Button>
+          </button>
         ) : null}
-        <div className="min-h-0 flex-1 h-full [&>[data-interactive-terminal]]:min-h-0">
+        <div className="chat-terminal-shell">
           <InteractiveTerminal
             key={`${computerOriginKey(origin)}:${workspacePath}`}
-            active={active && open && (!compact || modalOpen)}
+            active={active && terminalVisible}
             autoStart
             dismissShortcut={shortcut}
+            focusRequest={compact ? undefined : focusRequest}
             onDismiss={compact ? () => setExpanded(false) : onClose}
             onSendToChat={onSendToChat}
             workspacePath={workspacePath}
             origin={origin}
             allowLegacy={allowLegacy}
+            visible={terminalVisible}
           />
         </div>
       </div>

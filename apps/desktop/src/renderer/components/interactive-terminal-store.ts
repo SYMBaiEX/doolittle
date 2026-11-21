@@ -153,6 +153,13 @@ export function parseInteractiveTerminalState(
       if (!isPlainObject(entry)) return null;
       const id = trimString(entry.id, "").trim();
       if (!id) return null;
+      // Older docks discovered managed applications without a conversation
+      // owner. Those IDs were never attachable through the native PTY bridge.
+      if (
+        typeof entry.sessionId === "string" &&
+        id === `app-${entry.sessionId}`
+      )
+        return null;
       const name = trimString(entry.name, "Terminal").slice(
         0,
         MAX_TAB_NAME_LENGTH,

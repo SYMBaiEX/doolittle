@@ -1,0 +1,344 @@
+.interactive-terminal {
+  --terminal-control: 28px;
+  container: terminal / inline-size;
+  display: grid;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  overflow: hidden;
+  background: var(--canvas-bg);
+  color: var(--canvas-text-soft);
+}
+
+.interactive-terminal-header {
+  display: grid;
+  min-width: 0;
+  min-height: 36px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 6px 2px 10px;
+  border-block-end: 1px solid var(--border);
+  background: var(--surface-raised);
+  color: var(--text-soft);
+}
+
+.interactive-terminal-heading,
+.interactive-terminal-tabs,
+.interactive-terminal-actions,
+.interactive-terminal-tab,
+.interactive-terminal-tab-select,
+.interactive-terminal-cwd {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+}
+
+.interactive-terminal-heading {
+  gap: 6px;
+  font-size: var(--text-meta);
+  font-weight: 650;
+}
+
+.interactive-terminal-tabs {
+  gap: 2px;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scrollbar-width: none;
+  padding-inline: 1px;
+}
+
+.interactive-terminal-actions {
+  align-self: stretch;
+  gap: 1px;
+  padding-inline-start: 5px;
+  border-inline-start: 1px solid var(--border);
+}
+
+.interactive-terminal-tab {
+  position: relative;
+  flex: none;
+  min-width: 0;
+  max-width: 15rem;
+  min-height: var(--terminal-control);
+  border-radius: var(--radius-xs);
+  color: var(--muted);
+}
+
+.interactive-terminal-tab:has([aria-selected="true"]) {
+  color: var(--text);
+  background: var(--surface-soft);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+.interactive-terminal-tab-select,
+.interactive-terminal-icon-button,
+.interactive-terminal-open,
+.interactive-terminal-retry {
+  min-height: var(--terminal-control);
+  border: 1px solid transparent;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.interactive-terminal-tab-select {
+  flex: 1 1 auto;
+  justify-content: flex-start;
+  gap: 7px;
+  padding-inline: 8px;
+  font-size: var(--text-meta);
+  text-align: start;
+}
+
+.interactive-terminal-tab-select[aria-selected="true"] {
+  font-weight: 630;
+}
+
+.interactive-terminal-tab-select[data-renaming] {
+  visibility: hidden;
+}
+
+.interactive-terminal-tab-marker {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  color: var(--muted);
+}
+
+.interactive-terminal-tab-select[data-pty-state="running"]
+  .interactive-terminal-tab-marker {
+  background: var(--good);
+  border-color: var(--good);
+}
+
+.interactive-terminal-tab-select[data-awaiting]
+  .interactive-terminal-tab-marker {
+  background: var(--warn);
+  border-color: var(--warn);
+}
+
+.interactive-terminal-name,
+.interactive-terminal-cwd > span {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.interactive-terminal-icon-button {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: var(--terminal-control);
+  padding: 0;
+}
+
+.interactive-terminal-tab-close {
+  margin-inline-end: 1px;
+}
+
+.interactive-terminal-open,
+.interactive-terminal-retry {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-color: var(--border);
+  padding: 4px 10px;
+  background: var(--surface-soft);
+  color: var(--text);
+  font-size: var(--text-meta);
+  font-weight: 620;
+}
+
+.interactive-terminal :is(button, input):focus-visible {
+  outline: 1px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
+.interactive-terminal
+  :is(
+    .interactive-terminal-icon-button,
+    .interactive-terminal-tab-select,
+    .interactive-terminal-open,
+    .interactive-terminal-retry
+  ):hover:not(:disabled) {
+  color: var(--text);
+  background: var(--surface-hover);
+}
+
+.interactive-terminal :is(button, input):disabled {
+  cursor: default;
+  opacity: 0.48;
+}
+
+.interactive-terminal-rename {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  min-width: 4rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-xs);
+  padding-inline: 7px;
+  background: var(--surface-raised);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-meta);
+}
+
+.interactive-terminal-status {
+  display: grid;
+  min-width: 0;
+  min-height: 25px;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 11px;
+  padding-inline: 8px;
+  border-block-start: 1px solid var(--border);
+  background: var(--surface-raised);
+  color: var(--muted);
+  font-size: var(--text-meta);
+}
+
+.interactive-terminal-cwd {
+  gap: 5px;
+  font-family: var(--font-mono);
+}
+
+.interactive-terminal-mode {
+  color: var(--text-soft);
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.interactive-terminal-surface {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+}
+
+.interactive-terminal-viewport,
+.interactive-terminal-empty {
+  grid-area: 2 / 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.interactive-terminal-viewport {
+  overflow: hidden;
+  color: var(--canvas-text);
+  font-family: var(--font-mono);
+}
+
+.interactive-terminal-viewport .xterm {
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  padding: 7px 8px 5px;
+}
+
+.interactive-terminal-viewport .xterm-helper-textarea {
+  opacity: 0.01;
+}
+
+.interactive-terminal-viewport .xterm-viewport {
+  overscroll-behavior: contain;
+  scrollbar-color: var(--border-strong) transparent;
+  scrollbar-width: thin;
+}
+
+.interactive-terminal-empty {
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 6px 8px;
+  overflow: auto;
+  background: var(--canvas-bg);
+  color: var(--canvas-text-soft);
+  font-size: var(--text-control);
+  text-align: center;
+}
+
+.interactive-terminal-confirmation,
+.interactive-terminal-notice {
+  grid-area: 1 / 1;
+  min-width: 0;
+}
+
+.interactive-terminal-notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 8px;
+  border-block-end: 1px solid var(--border);
+  background: var(--surface-soft);
+  color: var(--text-soft);
+  font-size: var(--text-meta);
+}
+
+.interactive-terminal-notice-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.interactive-terminal-confirmation {
+  max-height: 8rem;
+  overflow: auto;
+  padding: 4px;
+}
+
+@container terminal (max-width: 520px) {
+  .interactive-terminal-heading > span,
+  .interactive-terminal-state,
+  .interactive-terminal-shell-name {
+    display: none;
+  }
+
+  .interactive-terminal-header {
+    gap: 4px;
+    padding-inline-start: 6px;
+  }
+}
+
+@container terminal (max-width: 330px) {
+  .interactive-terminal-header {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .interactive-terminal-heading {
+    display: none;
+  }
+}
+
+@media (pointer: coarse) {
+  .interactive-terminal {
+    --terminal-control: 40px;
+  }
+}
+
+@media (forced-colors: active) {
+  .interactive-terminal-tab:has([aria-selected="true"]) {
+    color: HighlightText;
+    background: Highlight;
+  }
+
+  .interactive-terminal :is(button, input):focus-visible {
+    outline-color: Highlight;
+  }
+}

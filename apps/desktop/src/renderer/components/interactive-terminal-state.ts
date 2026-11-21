@@ -20,10 +20,6 @@ export function terminalLifecycleChanged(
   );
 }
 
-export function terminalTabLabelId(tabId: string): string {
-  return `interactive-terminal-${tabId}-label`;
-}
-
 export function isCurrentTerminalSession(
   tabs: InteractiveTerminalTabState[],
   tabId: string,

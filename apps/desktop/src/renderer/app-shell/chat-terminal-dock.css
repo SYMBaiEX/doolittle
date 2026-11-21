@@ -1,0 +1,115 @@
+.chat-terminal-dock {
+  position: relative;
+  z-index: 12;
+  flex: none;
+  min-width: 0;
+  min-height: 0;
+  border-block-start: 1px solid var(--border-strong);
+  background: var(--canvas-bg);
+}
+
+.chat-terminal-dock[data-open="false"] {
+  visibility: hidden;
+  pointer-events: none;
+  border-color: transparent;
+}
+
+.chat-terminal-dock[data-expanded="true"] {
+  z-index: 110;
+}
+
+.chat-terminal-workbench,
+.chat-terminal-shell {
+  display: flex;
+  min-height: 0;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.chat-terminal-workbench {
+  height: 100%;
+}
+
+.chat-terminal-workbench[hidden] {
+  display: none;
+}
+
+.chat-terminal-workbench[data-modal] {
+  position: fixed;
+  inset: 0;
+  background: var(--canvas-bg);
+}
+
+.chat-terminal-shell {
+  flex: 1;
+  overflow: hidden;
+}
+
+.chat-terminal-compact-toolbar,
+.chat-terminal-compact-toolbar button,
+.chat-terminal-return {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.chat-terminal-compact-toolbar {
+  height: 100%;
+  justify-content: space-between;
+  padding-inline: 6px;
+  color: var(--text-soft);
+  background: var(--surface-raised);
+}
+
+.chat-terminal-compact-toolbar button,
+.chat-terminal-return {
+  min-height: 36px;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: var(--radius-xs);
+  padding-inline: 9px;
+  font-size: var(--text-control);
+}
+
+.chat-terminal-compact-toolbar button:hover,
+.chat-terminal-return:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.chat-terminal-compact-toolbar .chat-terminal-expand {
+  flex: 1;
+  justify-content: flex-start;
+  min-width: 0;
+}
+
+.chat-terminal-expand kbd {
+  margin-inline-start: auto;
+  color: var(--muted);
+  font-size: var(--text-meta);
+}
+
+.chat-terminal-return {
+  align-self: flex-start;
+  flex: none;
+  margin: 4px;
+  min-height: 40px;
+  color: var(--text-soft);
+}
+
+.chat-terminal-dock
+  :is(
+    .chat-terminal-compact-toolbar button,
+    .chat-terminal-return
+  ):focus-visible {
+  outline: 1px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
+@media (pointer: coarse) {
+  .chat-terminal-compact-toolbar button,
+  .chat-terminal-return {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}

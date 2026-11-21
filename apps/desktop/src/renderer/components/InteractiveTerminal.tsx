@@ -5,6 +5,7 @@ import {
   type MouseEvent,
   useCallback,
   useEffect,
+  useId,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -17,9 +18,12 @@ import type {
 } from "../../shared/contracts";
 import { type ComputerOrigin, computerOriginKey } from "../computer-origin";
 import { APPEARANCE_APPLIED_EVENT, THEME_CHANGE_EVENT } from "../desktop-theme";
-import { desktopRequest, errorMessage } from "../lib";
+import { errorMessage } from "../lib";
 import { compactWorkspacePath } from "../workspace-path";
-import { InteractiveTerminalHeader } from "./InteractiveTerminalHeader";
+import {
+  InteractiveTerminalHeader,
+  InteractiveTerminalStatus,
+} from "./InteractiveTerminalHeader";
 import { InteractiveTerminalSurface } from "./InteractiveTerminalSurface";
 import { INTERACTIVE_TERMINAL_ROOT_CLASS } from "./interactive-terminal-layout";
 import {
@@ -47,7 +51,6 @@ import {
   resolveInteractiveTerminalWorkspaceState,
   saveInteractiveTerminalState,
 } from "./interactive-terminal-store";
-import { mergeManagedApplicationTabs } from "./managed-application-tabs";
 
 type TerminalPollResult = { hadOutput: boolean; nextDelay: number | null };
 
@@ -186,21 +189,26 @@ export function InteractiveTerminal({
   active,
   autoStart = false,
   dismissShortcut,
+  focusRequest,
   onDismiss,
   onSendToChat,
   workspacePath,
   origin,
   allowLegacy = false,
+  visible = true,
 }: {
   active: boolean;
   autoStart?: boolean;
   dismissShortcut?: string;
+  focusRequest?: number;
   onDismiss?: () => void;
   onSendToChat: (text: string) => void;
   workspacePath: string;
   origin?: ComputerOrigin;
   allowLegacy?: boolean;
+  visible?: boolean;
 }) {
+  const panelId = `interactive-terminal-${useId()}-panel`;
   const ownerKey = computerOriginKey(origin);
   const botId = origin?.botId;
   const storage = useMemo(() => browserInteractiveTerminalStorage(), []);
@@ -269,6 +277,7 @@ export function InteractiveTerminal({
   const loadedWorkspaceRef = useRef(workspacePath);
   const loadedOwnerKeyRef = useRef(ownerKey);
   const autoStartedTabRef = useRef<string | null>(null);
+  const lastTerminalFocusRequest = useRef<number | undefined>(undefined);
   const focusContextRef = useRef({ active, workspacePath });
   focusContextRef.current = { active, workspacePath };
   const startRequestRef = useRef(0);
@@ -307,48 +316,17 @@ export function InteractiveTerminal({
     };
   }, []);
 
-  useEffect(() => {
-    if (!active) return;
-    const controller = new AbortController();
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const discover = async () => {
-      try {
-        const result = await desktopRequest<{
-          sessions: InteractiveTerminalSession[];
-        }>(
-          "/terminal/sessions",
-          "GET",
-          undefined,
-          controller.signal,
-          undefined,
-          botId,
-        );
-        if (controller.signal.aborted) return;
-        setTabs((current) => {
-          const next = mergeManagedApplicationTabs(
-            current,
-            result.sessions ?? [],
-          );
-          tabsRef.current = next;
-          return next;
-        });
-      } catch {
-        // Discovery is supplementary; ordinary terminal tabs stay usable offline.
-      } finally {
-        if (!controller.signal.aborted) timer = setTimeout(discover, 2_000);
-      }
-    };
-    void discover();
-    return () => {
-      controller.abort();
-      if (timer) clearTimeout(timer);
-    };
-  }, [active, botId]);
-
   const fitTerminalToViewport = useCallback(() => {
     const terminal = xtermRef.current;
     const fitAddon = fitAddonRef.current;
-    if (!terminal || !fitAddon) return dimensionsRef.current;
+    const viewport = viewportRef.current;
+    if (
+      !terminal ||
+      !fitAddon ||
+      !viewport?.clientWidth ||
+      !viewport.clientHeight
+    )
+      return dimensionsRef.current;
     try {
       fitAddon.fit();
     } catch {
@@ -555,10 +533,10 @@ export function InteractiveTerminal({
       // Canvas font setters reject unresolved CSS variables; use the browser's
       // resolved mono stack so glyph atlases do not fall back to 10px sans-serif.
       fontFamily: getComputedStyle(viewport).fontFamily.trim() || "monospace",
-      fontSize: 11.25,
+      fontSize: 12.5,
       fontWeight: 500,
       letterSpacing: 0,
-      lineHeight: 1.12,
+      lineHeight: 1.18,
       macOptionClickForcesSelection: true,
       minimumContrastRatio: 4.5,
       rightClickSelectsWord: true,
@@ -594,10 +572,16 @@ export function InteractiveTerminal({
     }
 
     const disposable = terminal.onData((data) => {
+      if (!focusContextRef.current.active) return;
       const activeTab = tabsRef.current.find(
         (candidate) => candidate.id === activeTabIdRef.current,
       );
-      if (!activeTab?.sessionId || activeTab.state !== "running") return;
+      if (
+        !activeTab?.sessionId ||
+        activeTab.state !== "running" ||
+        xtermTabIdRef.current !== activeTab.id
+      )
+        return;
       const sessionId = activeTab.sessionId;
       const operation = ownsSessionOperation(activeTab.id, sessionId);
       inputSequenceRef.current = inputSequenceRef.current
@@ -1161,6 +1145,8 @@ export function InteractiveTerminal({
     }
     const hasClose = isClosingTab[target.id] ?? false;
     if (hasClose) return;
+    const previousFocus = document.activeElement;
+    const generation = workspaceGenerationRef.current;
 
     const operation = target.sessionId
       ? ownsSessionOperation(target.id, target.sessionId)
@@ -1212,7 +1198,21 @@ export function InteractiveTerminal({
     setTabs(nextTabs);
     setActiveTabId(reconciled.activeTabId);
     setIsClosingTab((current) => ({ ...current, [tabId]: false }));
-    if (closingActiveTab) setNotice(`Closed terminal ${target.name}.`);
+    if (closingActiveTab) {
+      setNotice(`Closed terminal ${target.name}.`);
+      requestAnimationFrame(() => {
+        const focusNow = document.activeElement;
+        if (
+          focusContextRef.current.active &&
+          workspaceGenerationRef.current === generation &&
+          activeTabIdRef.current === reconciled.activeTabId &&
+          (focusNow === previousFocus || focusNow === document.body)
+        )
+          tabRefs.current[reconciled.activeTabId]?.focus({
+            preventScroll: true,
+          });
+      });
+    }
   };
 
   const confirmDiscardPendingTab = () => {
@@ -1428,15 +1428,24 @@ export function InteractiveTerminal({
 
   useEffect(() => {
     if (!active) return;
-    const frame = requestAnimationFrame(() => {
-      fitTerminalToViewport();
-      xtermRef.current?.focus();
-    });
+    const frame = requestAnimationFrame(fitTerminalToViewport);
     return () => cancelAnimationFrame(frame);
   }, [active, fitTerminalToViewport]);
 
   useEffect(() => {
-    if (!viewportRef.current) return;
+    if (
+      !active ||
+      focusRequest === undefined ||
+      focusRequest === lastTerminalFocusRequest.current
+    )
+      return;
+    lastTerminalFocusRequest.current = focusRequest;
+    const frame = requestAnimationFrame(() => xtermRef.current?.focus());
+    return () => cancelAnimationFrame(frame);
+  }, [active, focusRequest]);
+
+  useEffect(() => {
+    if (!active || !viewportRef.current) return;
     const viewport = viewportRef.current;
     const resizeSessionId = activeSessionId;
     const resizeTabId = activeTab?.id;
@@ -1450,6 +1459,7 @@ export function InteractiveTerminal({
       if (!entry) return;
       if (settledResizeTimer) clearTimeout(settledResizeTimer);
       settledResizeTimer = setTimeout(() => {
+        if (!viewport.clientWidth || !viewport.clientHeight) return;
         const dimensions = fitTerminalToViewport();
         if (
           !running ||
@@ -1498,6 +1508,7 @@ export function InteractiveTerminal({
       if (settledResizeTimer) clearTimeout(settledResizeTimer);
     };
   }, [
+    active,
     activeTab?.id,
     activeTab?.cols,
     activeTab?.rows,
@@ -1510,25 +1521,16 @@ export function InteractiveTerminal({
     syncSession,
   ]);
 
-  const currentStatus = activeTab
-    ? `${activeTab.pty ? "PTY" : "PIPE"} · ${terminalSize.cols}×${terminalSize.rows}`
-    : "No terminal";
-
   return (
     <section
       aria-label="Interactive terminal"
       className={INTERACTIVE_TERMINAL_ROOT_CLASS}
       data-interactive-terminal=""
+      data-terminal-state={activeTab?.state}
     >
       <InteractiveTerminalHeader
         active={active}
-        activeCwdLabel={
-          activeTab ? compactWorkspacePath(activeTab.cwd, 3) : "Local workspace"
-        }
-        activeCwdTitle={activeTab?.cwd}
-        activeShell={activeTab?.shell || "shell"}
         activeTabId={activeTabId}
-        currentStatus={currentStatus}
         dismissShortcut={dismissShortcut}
         hasPriorOutput={Boolean(activeTab?.output)}
         isClosingTab={isClosingTab}
@@ -1537,6 +1539,7 @@ export function InteractiveTerminal({
         onCancelRename={cancelRename}
         onClearOutput={() => {
           if (!activeTab) return;
+          pendingTerminalWriteRef.current = "";
           xtermRef.current?.clear();
           updateTab(activeTab.id, (tab) => ({ ...tab, output: "" }));
         }}
@@ -1562,8 +1565,10 @@ export function InteractiveTerminal({
         outputAvailable={Boolean(activeTab?.output)}
         starting={starting}
         pendingStart={Boolean(activeTab?.pendingStart)}
+        panelId={panelId}
         tabRefs={tabRefs}
         tabs={tabs}
+        visible={visible}
       />
       <InteractiveTerminalSurface
         active={active}
@@ -1592,7 +1597,14 @@ export function InteractiveTerminal({
         running={running}
         starting={starting}
         pendingStart={Boolean(activeTab?.pendingStart)}
+        panelId={panelId}
         viewportRef={viewportRef}
+      />
+      <InteractiveTerminalStatus
+        activeTab={activeTab}
+        cwdLabel={compactWorkspacePath(activeTab?.cwd || workspacePath, 3)}
+        dimensions={`${terminalSize.cols}×${terminalSize.rows}`}
+        starting={starting}
       />
     </section>
   );
