@@ -5,7 +5,7 @@ import type {
   StoredMessage,
   StoredMessageAttachment,
 } from "../../../types/index";
-import type { SessionDatabase } from "../database";
+import type { SessionDatabase, SessionStatement } from "../database";
 
 export interface SessionMessageActivityEvent {
   kind: "message";
@@ -36,6 +36,9 @@ export class SessionRunBoundaryUnavailableError extends Error {
 }
 
 export class SessionMessageStore {
+  private insertMessageStatement?: SessionStatement;
+  private insertSearchStatement?: SessionStatement;
+
   constructor(
     private readonly db: SessionDatabase,
     private readonly events: Pick<EventEmitter, "emit" | "on" | "off">,
@@ -51,33 +54,23 @@ export class SessionMessageStore {
     const inserted: StoredMessage[] = [];
     this.db.exec("BEGIN IMMEDIATE");
     try {
-      const rows = this.db
+      this.db
         .query(
-          `
-            SELECT rowid
-            FROM messages
-            WHERE session_id = ?1
-          `,
+          `DELETE FROM message_origins WHERE message_id IN (
+            SELECT id FROM messages WHERE session_id = ?1
+          )`,
         )
-        .all(sessionId) as Array<{ rowid: number }>;
-
-      if (rows.length) {
-        const placeholders = rows.map(() => "?").join(", ");
-        const rowIds = rows.map((row) => row.rowid);
-        this.db
-          .query(
-            `DELETE FROM message_origins WHERE message_id IN (
-              SELECT id FROM messages WHERE rowid IN (${placeholders})
-            )`,
-          )
-          .run(...rowIds);
-        this.db
-          .query(`DELETE FROM messages_fts WHERE rowid IN (${placeholders})`)
-          .run(...rowIds);
-        this.db
-          .query(`DELETE FROM messages WHERE rowid IN (${placeholders})`)
-          .run(...rowIds);
-      }
+        .run(sessionId);
+      this.db
+        .query(
+          `DELETE FROM messages_fts WHERE rowid IN (
+            SELECT rowid FROM messages WHERE session_id = ?1
+          )`,
+        )
+        .run(sessionId);
+      this.db
+        .query("DELETE FROM messages WHERE session_id = ?1")
+        .run(sessionId);
 
       for (const message of messages) {
         const replacement = {
@@ -105,43 +98,37 @@ export class SessionMessageStore {
   }
 
   private insertMessage(message: StoredMessage): boolean {
-    const insert = this.db
-      .query(
-        `
-          INSERT OR IGNORE INTO messages (
-            id, session_id, room_id, entity_id, role, text,
-            attachments_json, created_at
-          )
-          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
-        `,
+    this.insertMessageStatement ??= this.db.query(`
+      INSERT OR IGNORE INTO messages (
+        id, session_id, room_id, entity_id, role, text,
+        attachments_json, created_at
       )
-      .run(
-        message.id,
-        message.sessionId,
-        message.roomId,
-        message.entityId,
-        message.role,
-        message.text,
-        serializeAttachments(message.attachments),
-        message.createdAt,
-      );
+      VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+    `);
+    const insert = this.insertMessageStatement.run(
+      message.id,
+      message.sessionId,
+      message.roomId,
+      message.entityId,
+      message.role,
+      message.text,
+      serializeAttachments(message.attachments),
+      message.createdAt,
+    );
     if (insert.changes === 0) return false;
 
-    this.db
-      .query(
-        `
-          INSERT INTO messages_fts (rowid, session_id, room_id, entity_id, role, text, created_at)
-          VALUES (last_insert_rowid(), ?1, ?2, ?3, ?4, ?5, ?6)
-        `,
-      )
-      .run(
-        message.sessionId,
-        message.roomId,
-        message.entityId,
-        message.role,
-        message.text,
-        message.createdAt,
-      );
+    this.insertSearchStatement ??= this.db.query(`
+      INSERT INTO messages_fts (rowid, session_id, room_id, entity_id, role, text, created_at)
+      VALUES (last_insert_rowid(), ?1, ?2, ?3, ?4, ?5, ?6)
+    `);
+    this.insertSearchStatement.run(
+      message.sessionId,
+      message.roomId,
+      message.entityId,
+      message.role,
+      message.text,
+      message.createdAt,
+    );
 
     return true;
   }

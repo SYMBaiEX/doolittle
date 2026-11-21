@@ -585,6 +585,30 @@ function nativeMemoryFromProjection(
   };
 }
 
+function unchangedProjection(
+  existing: readonly StoredMessage[],
+  incoming: readonly StoredMessage[],
+): boolean {
+  return (
+    existing.length === incoming.length &&
+    incoming.every((message, index) => {
+      const previous = existing[index];
+      return (
+        previous.id === message.id &&
+        previous.sessionId === message.sessionId &&
+        previous.roomId === message.roomId &&
+        previous.entityId === message.entityId &&
+        previous.role === message.role &&
+        previous.text === message.text &&
+        previous.createdAt === message.createdAt &&
+        previous.originMessageId === message.originMessageId &&
+        // Reconciliation copies descriptors by reference from these rows.
+        previous.attachments === message.attachments
+      );
+    })
+  );
+}
+
 /**
  * One-time bridge for pre-migration and forked transcripts. New turns already
  * write to Eliza first, but a fork begins as Doolittle product metadata. Before
@@ -631,6 +655,13 @@ async function hydrateNativeRoomFromProjection(
         attachmentsById.get(attachmentSource),
       );
     });
+    // A normal reopen already has the full transcript indexed in SQLite.
+    // Keep its FTS rows and saved run boundaries when native order and content
+    // agree, while still replacing the projection if any row drifted.
+    if (unchangedProjection(existing, projected)) {
+      markNativeRoomHydrated(context, turn);
+      return;
+    }
     if (
       typeof context.services.sessions.replaceSessionMessages === "function"
     ) {
