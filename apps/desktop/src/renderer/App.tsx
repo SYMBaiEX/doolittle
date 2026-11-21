@@ -539,6 +539,13 @@ export function App() {
         : 0),
   };
   const [newChatScope, setNewChatScope] = useState<ProjectScope>(projectScope);
+  const newChatFolder = useRef<{ projectId: string; path: string } | null>(
+    null,
+  );
+  const changeNewChatScope = useCallback((scope: ProjectScope) => {
+    newChatFolder.current = null;
+    setNewChatScope(scope);
+  }, []);
   const newChatTriggerRef = useRef<HTMLElement | null>(null);
   const [editingBot, setEditingBot] = useState<BotSummary | undefined>();
   const botCreationTriggerRef = useRef<HTMLElement | null>(null);
@@ -1323,27 +1330,39 @@ export function App() {
     [closeUtilities, utilityModalMode, utilityOpen],
   );
 
+  const startConversation = useCallback(
+    (scope: ProjectScope) => {
+      if (newChatBusyRef.current) return;
+      newChatTriggerRef.current =
+        document.activeElement instanceof HTMLElement
+          ? document.activeElement
+          : null;
+      changeNewChatScope(
+        scope !== "all" &&
+          scope !== "unscoped" &&
+          projects.some(
+            (project) =>
+              project.id === scope &&
+              project.primaryPath &&
+              !project.archivedAt,
+          )
+          ? scope
+          : "unscoped",
+      );
+      setNewChatError("");
+      setNewChatOpen(true);
+    },
+    [changeNewChatScope, projects],
+  );
+
   const createConversation = useCallback(() => {
-    if (newChatBusyRef.current) return;
-    newChatTriggerRef.current =
-      document.activeElement instanceof HTMLElement
-        ? document.activeElement
-        : null;
-    setNewChatScope(
-      projectScope !== "all" &&
-        projectScope !== "unscoped" &&
-        projects.some(
-          (project) =>
-            project.id === projectScope &&
-            project.primaryPath &&
-            !project.archivedAt,
-        )
-        ? projectScope
-        : "unscoped",
-    );
-    setNewChatError("");
-    setNewChatOpen(true);
-  }, [projectScope, projects]);
+    const current = scopeForSession(selectedSession);
+    const scope =
+      view === "chat" && current.kind === "confirmed"
+        ? (current.conversation.projectId ?? "unscoped")
+        : projectScope;
+    startConversation(scope);
+  }, [projectScope, scopeForSession, selectedSession, startConversation, view]);
 
   useEffect(() => {
     window.addEventListener("doolittle:new-chat", createConversation);
@@ -1454,31 +1473,6 @@ export function App() {
     [sessions, transitionToProjectScope],
   );
 
-  const startConversation = useCallback(
-    (scope: ProjectScope) => {
-      if (newChatBusyRef.current) return;
-      newChatTriggerRef.current =
-        document.activeElement instanceof HTMLElement
-          ? document.activeElement
-          : null;
-      setNewChatScope(
-        scope !== "all" &&
-          scope !== "unscoped" &&
-          projects.some(
-            (project) =>
-              project.id === scope &&
-              project.primaryPath &&
-              !project.archivedAt,
-          )
-          ? scope
-          : "unscoped",
-      );
-      setNewChatError("");
-      setNewChatOpen(true);
-    },
-    [projects],
-  );
-
   const chooseChatBot = useCallback(
     async (botId: string) => {
       if (newChatBusyRef.current) return;
@@ -1506,6 +1500,7 @@ export function App() {
       try {
         const projectId =
           scope === "all" || scope === "unscoped" ? undefined : scope;
+        const folder = newChatFolder.current;
         const bound = await desktopRequest<BotConversationScopeResponse>(
           `/bots/${encodeURIComponent(bot.id)}/conversations`,
           "POST",
@@ -1522,6 +1517,12 @@ export function App() {
           throw new Error("Binding mismatch");
         if (bound.conversation.projectId !== projectId)
           throw new Error("Binding mismatch");
+        if (
+          folder &&
+          folder.projectId === projectId &&
+          !pathsEqual(bound.conversation.workspacePath, folder.path)
+        )
+          throw new Error("Selected folder changed before the chat opened.");
         if (
           newChatNavigationRef.current.selectedSession !==
             navigationAtChoice.selectedSession ||
@@ -1864,6 +1865,8 @@ export function App() {
               }
             : {}),
         });
+        if (destination === "chat")
+          chatStore?.update(CHAT_COMPOSER_FOCUS_STATE_KEY, sessionId);
         return response.conversation;
       } finally {
         newChatBusyRef.current = false;
@@ -1875,6 +1878,7 @@ export function App() {
       sessions,
       localBotBindings,
       defaultBotId,
+      chatStore,
       recordConversationScope,
       scopeForSession,
       captureSessionProject,
@@ -1887,6 +1891,7 @@ export function App() {
     addProjectResources,
     archiveProject,
     chooseRepositoryForConversation,
+    pickLocalProject,
     createProject,
     moveCurrentChat,
     pinProject,
@@ -1912,6 +1917,33 @@ export function App() {
     transitionToProjectScope,
     workspace,
   });
+
+  const chooseNewChatLocalFolder = useCallback(async () => {
+    if (newChatBusyRef.current) return;
+    const revision = newChatNavigationRef.current.revision;
+    const stillCurrent = () =>
+      newChatNavigationRef.current.revision === revision;
+    newChatBusyRef.current = true;
+    setNewChatBusy(true);
+    setNewChatError("");
+    try {
+      const selected = await pickLocalProject(stillCurrent);
+      if (!selected || !stillCurrent()) return;
+      const { project, path } = selected;
+      newChatFolder.current = { projectId: project.id, path };
+      setNewChatScope(project.id);
+    } catch (error) {
+      if (stillCurrent())
+        setNewChatError(
+          error instanceof Error
+            ? error.message
+            : "Could not open that folder.",
+        );
+    } finally {
+      newChatBusyRef.current = false;
+      setNewChatBusy(false);
+    }
+  }, [pickLocalProject]);
 
   const {
     consumeChatContext,
@@ -2824,7 +2856,8 @@ export function App() {
           onRetry={botResource.reload}
           projects={projectCards}
           scope={newChatScope}
-          onScopeChange={setNewChatScope}
+          onScopeChange={changeNewChatScope}
+          onChooseLocalFolder={() => void chooseNewChatLocalFolder()}
         />
       ) : null}
       {editingBot ? (

@@ -97,6 +97,10 @@ export interface ProjectManagementActions {
     project: ProjectLike,
     archived: boolean,
   ) => Promise<void>;
+  readonly pickLocalProject: (
+    stillCurrent: () => boolean,
+    expectedWorkspacePath?: string,
+  ) => Promise<{ project: Project; path: string } | undefined>;
   readonly chooseRepositoryForConversation: (
     targetSessionId?: string,
     destination?: "chat" | "code",
@@ -160,6 +164,50 @@ export function useProjectManagement({
     [pushToast, reloadProjects, workspace.currentPath],
   );
 
+  const pickLocalProject = useCallback(
+    async (stillCurrent: () => boolean, expectedWorkspacePath?: string) => {
+      const result = await window.doolittle.pickProjectFolders("chat");
+      if (result.canceled || !stillCurrent()) return;
+      if (result.paths.length !== 1)
+        throw new Error("Choose one local folder for this chat.");
+      const path = result.paths[0];
+      if (!path) return;
+      if (expectedWorkspacePath && !pathsEqual(path, expectedWorkspacePath))
+        throw new Error(
+          "Choose the exact worktree folder to open it in the IDE.",
+        );
+      let project = projects.find((entry) =>
+        pathsEqual(entry.primaryPath, path),
+      );
+
+      if (project?.archivedAt) {
+        const restored = await desktopRequest<ProjectResponse>(
+          `/projects/${encodeURIComponent(project.id)}/archive`,
+          "POST",
+          { archived: false },
+        );
+        project = restored.project;
+      }
+
+      if (!project) {
+        const created = await desktopRequest<ProjectResponse>(
+          "/projects",
+          "POST",
+          {
+            name: workspaceName(path),
+            primaryPath: path,
+          },
+        );
+        project = created.project;
+      }
+
+      const selected = project;
+      setProjects((current) => upsertProject(current, selected));
+      return stillCurrent() ? { project: selected, path } : undefined;
+    },
+    [pathsEqual, projects, setProjects],
+  );
+
   const chooseRepositoryForConversation = useCallback(
     async (
       targetSessionId?: string,
@@ -168,73 +216,35 @@ export function useProjectManagement({
       expectedWorkspacePath?: string,
     ) => {
       try {
-        // Picking a chat project must not switch or restart the shared engine.
-        const result = await window.doolittle.pickProjectFolders();
-        if (result.canceled || !stillCurrent()) return;
-        if (result.paths.length !== 1)
-          throw new Error("Choose one project folder for this chat.");
-        const repositoryPath = result.paths[0];
-        if (!repositoryPath) return;
-        if (
-          expectedWorkspacePath &&
-          !pathsEqual(repositoryPath, expectedWorkspacePath)
-        )
-          throw new Error(
-            "Choose the exact worktree folder to open it in the IDE.",
-          );
-        let project = projects.find((entry) =>
-          pathsEqual(entry.primaryPath, repositoryPath),
+        // Picking a chat folder must not switch or restart the shared engine.
+        const selected = await pickLocalProject(
+          stillCurrent,
+          expectedWorkspacePath,
         );
-
-        if (project?.archivedAt) {
-          const restored = await desktopRequest<ProjectResponse>(
-            `/projects/${encodeURIComponent(project.id)}/archive`,
-            "POST",
-            { archived: false },
-          );
-          project = restored.project;
-        }
-
-        if (!project) {
-          const created = await desktopRequest<ProjectResponse>(
-            "/projects",
-            "POST",
-            {
-              name: workspaceName(repositoryPath),
-              description: "Local repository workspace",
-              primaryPath: repositoryPath,
-            },
-          );
-          project = created.project;
-        }
-
-        const selectedProject = project;
-        setProjects((current) => upsertProject(current, selectedProject));
-        if (!stillCurrent()) return;
+        if (!selected) return;
         if (!startChatInProject)
           throw new Error("New chat action is unavailable.");
         const conversation = await startChatInProject(
-          selectedProject.id,
+          selected.project.id,
           targetSessionId,
           destination,
-          repositoryPath,
+          selected.path,
         );
         pushToast({
           tone: "success",
-          title: `Ready in ${selectedProject.name}`,
-          message:
-            "A new chat uses this repository. The earlier chat is unchanged.",
+          title: `Ready in ${selected.project.name}`,
+          message: "Your new chat is using this local folder.",
         });
         return conversation;
       } catch (error) {
         pushToast({
           tone: "error",
-          title: "Repository could not be opened",
+          title: "Local folder could not be opened",
           message: error instanceof Error ? error.message : String(error),
         });
       }
     },
-    [pathsEqual, projects, pushToast, setProjects, startChatInProject],
+    [pickLocalProject, pushToast, startChatInProject],
   );
 
   const updateProject = useCallback(
@@ -387,6 +397,7 @@ export function useProjectManagement({
     addProjectResources,
     archiveProject,
     chooseRepositoryForConversation,
+    pickLocalProject,
     createProject,
     moveCurrentChat,
     pinProject,

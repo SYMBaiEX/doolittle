@@ -3,7 +3,15 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@elizaos/ui/components/ui/popover";
-import { Check, ChevronDown, MessageCircle, Plus, Search } from "lucide-react";
+import {
+  Check,
+  ChevronDown,
+  Folder,
+  FolderOpen,
+  type LucideIcon,
+  Monitor,
+  Search,
+} from "lucide-react";
 import {
   type CSSProperties,
   useEffect,
@@ -28,7 +36,18 @@ import {
   COMPOSER_SELECTOR_ROOT_CLASS,
 } from "./layout";
 
-function ProjectGlyph({ project }: { project?: ProjectLike }) {
+export type ChatWorkspaceTarget =
+  | { kind: "local"; projectId: string; name: string; path: string }
+  | { kind: "private" }
+  | { kind: "unconfirmed" };
+
+function ProjectGlyph({
+  icon = Folder,
+  project,
+}: {
+  icon?: LucideIcon;
+  project?: ProjectLike;
+}) {
   return (
     <span
       aria-hidden="true"
@@ -36,25 +55,27 @@ function ProjectGlyph({ project }: { project?: ProjectLike }) {
       data-project-glyph="true"
       style={
         {
-          "--composer-project-color": projectAccentColor(project?.color),
+          "--composer-project-color": project
+            ? projectAccentColor(project.color)
+            : "var(--text-soft)",
         } as CSSProperties
       }
     >
       {project?.icon?.trim() || project?.name.slice(0, 1).toUpperCase() || (
-        <UiIcon icon={MessageCircle} size="xs" />
+        <UiIcon icon={icon} size="xs" />
       )}
     </span>
   );
 }
 
 export function ComposerProjectSelector({
-  activeProjectId,
+  target,
   onChooseRepository,
   onManageProjects,
   onSelectProject,
   projects,
 }: {
-  activeProjectId?: string;
+  target: ChatWorkspaceTarget;
   onChooseRepository: () => void | Promise<void>;
   onManageProjects: () => void;
   onSelectProject: (scope: ProjectScope) => void;
@@ -66,30 +87,33 @@ export function ComposerProjectSelector({
   const [query, setQuery] = useState("");
   const rootRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
-  const searchRef = useRef<HTMLInputElement | null>(null);
+  const localFolderRef = useRef<HTMLButtonElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
 
-  const activeProject = projects.find(
-    (project) => project.id === activeProjectId,
+  const label =
+    target.kind === "local"
+      ? `This computer · ${target.name}`
+      : target.kind === "private"
+        ? "Private workspace"
+        : "Workspace not confirmed";
+  const savedFolders = useMemo(
+    () =>
+      projects
+        .filter((project) => !project.archived && project.primaryPath?.trim())
+        .sort((left, right) => {
+          if (Boolean(left.pinned) !== Boolean(right.pinned)) {
+            return left.pinned ? -1 : 1;
+          }
+          return (right.updatedAt ?? "").localeCompare(left.updatedAt ?? "");
+        }),
+    [projects],
   );
-  const visibleProjects = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    return projects
-      .filter(
-        (project) =>
-          !project.archived &&
-          (!needle ||
-            `${project.name} ${project.primaryPath ?? ""}`
-              .toLowerCase()
-              .includes(needle)),
+  const needle = query.trim().toLowerCase();
+  const visibleProjects = needle
+    ? savedFolders.filter((project) =>
+        `${project.name} ${project.primaryPath}`.toLowerCase().includes(needle),
       )
-      .sort((left, right) => {
-        if (Boolean(left.pinned) !== Boolean(right.pinned)) {
-          return left.pinned ? -1 : 1;
-        }
-        return (right.updatedAt ?? "").localeCompare(left.updatedAt ?? "");
-      });
-  }, [projects, query]);
+    : savedFolders;
 
   useEffect(() => {
     if (!open) {
@@ -125,32 +149,29 @@ export function ComposerProjectSelector({
       <div className={COMPOSER_SELECTOR_ROOT_CLASS} ref={rootRef}>
         <PopoverTrigger asChild>
           <button
-            aria-label={`Choose project. Current project ${activeProject?.name ?? "General"}.`}
+            aria-label={`Choose workspace. Current workspace ${label}.`}
             aria-expanded={open}
             aria-haspopup="dialog"
             className={COMPOSER_PROJECT_TRIGGER_CLASS}
             ref={triggerRef}
-            title={
-              activeProject?.primaryPath ??
-              "General conversation without project context"
-            }
+            title={target.kind === "local" ? target.path : label}
             type="button"
           >
-            <ProjectGlyph project={activeProject} />
-            <span>{activeProject?.name ?? "General"}</span>
+            <ProjectGlyph icon={target.kind === "local" ? Monitor : Folder} />
+            <span>{label}</span>
             <UiIcon icon={ChevronDown} size="xs" />
           </button>
         </PopoverTrigger>
         {open ? (
           <PopoverContent
-            aria-label="Choose a project for this new conversation"
+            aria-label="Choose a workspace for a new chat"
             align="end"
             avoidCollisions
             className={COMPOSER_PROJECT_POPOVER_CLASS}
             collisionPadding={12}
             onOpenAutoFocus={(event) => {
               event.preventDefault();
-              searchRef.current?.focus({ preventScroll: true });
+              localFolderRef.current?.focus({ preventScroll: true });
             }}
             onCloseAutoFocus={(event) => {
               if (openRef.current) {
@@ -173,74 +194,97 @@ export function ComposerProjectSelector({
             sideOffset={9}
           >
             <header className={COMPOSER_POPOVER_HEADER_CLASS}>
-              <span>
-                <strong>Conversation project</strong>
-                <small>Choose what Doolittle can see and work in.</small>
+              <span className="min-w-0">
+                <strong>Chat workspace</strong>
+                <small>Your current chat keeps its workspace.</small>
+                {target.kind === "local" ? (
+                  <small className="truncate" title={target.path}>
+                    {target.path}
+                  </small>
+                ) : null}
               </span>
             </header>
-            <label className={`${COMPOSER_SEARCH_CLASS} m-2`}>
-              <UiIcon icon={Search} size="sm" />
-              <input
-                aria-label="Search projects"
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search projects"
-                ref={searchRef}
-                value={query}
-              />
-            </label>
-            <div className={COMPOSER_PROJECT_LIST_CLASS}>
-              <button
-                aria-current={!activeProject ? "true" : undefined}
-                onClick={() => select("unscoped")}
-                type="button"
+            <div className="min-h-0 overflow-y-auto p-1.75">
+              <section
+                aria-label="This computer"
+                className={COMPOSER_PROJECT_LIST_CLASS}
               >
-                <ProjectGlyph />
-                <span>
-                  <strong>General</strong>
-                  <small>No repository context</small>
-                </span>
-                {!activeProject ? <UiIcon icon={Check} size="xs" /> : null}
-              </button>
-              {visibleProjects.map((project) => (
+                <h3 className="m-0 px-1.75 pt-1 pb-0.5 text-[length:var(--text-control)] font-semibold text-[var(--text)]">
+                  This computer
+                </h3>
                 <button
-                  aria-current={
-                    activeProjectId === project.id ? "true" : undefined
-                  }
-                  key={project.id}
-                  onClick={() => select(project.id)}
+                  onClick={() => {
+                    setOpen(false);
+                    void onChooseRepository();
+                  }}
+                  ref={localFolderRef}
                   type="button"
                 >
-                  <ProjectGlyph project={project} />
+                  <ProjectGlyph icon={FolderOpen} />
                   <span>
-                    <strong>{project.name}</strong>
-                    <small>
-                      {project.primaryPath
-                        ? project.primaryPath.split(/[/\\]+/u).pop()
-                        : "Project context"}
-                    </small>
+                    <strong>Choose local folder</strong>
+                    <small>Open a project on this computer.</small>
                   </span>
-                  {activeProjectId === project.id ? (
+                </button>
+                {savedFolders.length > 0 ? (
+                  <label className={`${COMPOSER_SEARCH_CLASS} mx-1.75 my-1`}>
+                    <UiIcon icon={Search} size="sm" />
+                    <input
+                      aria-label="Search saved folders"
+                      onChange={(event) => setQuery(event.target.value)}
+                      placeholder="Search saved folders"
+                      value={query}
+                    />
+                  </label>
+                ) : null}
+                {visibleProjects.map((project) => {
+                  const current =
+                    target.kind === "local" &&
+                    target.projectId === project.id &&
+                    target.path === project.primaryPath;
+                  return (
+                    <button
+                      aria-current={current ? "true" : undefined}
+                      key={project.id}
+                      onClick={() => select(project.id)}
+                      title={project.primaryPath}
+                      type="button"
+                    >
+                      <ProjectGlyph project={project} />
+                      <span>
+                        <strong>{project.name}</strong>
+                        <small>{project.primaryPath}</small>
+                      </span>
+                      {current ? <UiIcon icon={Check} size="xs" /> : null}
+                    </button>
+                  );
+                })}
+                {!visibleProjects.length && needle ? (
+                  <p className="m-0 p-2 text-[length:var(--text-control)] text-[var(--faint)]">
+                    No matching folders.
+                  </p>
+                ) : null}
+              </section>
+              <div
+                className={`${COMPOSER_PROJECT_LIST_CLASS} mt-1 border-[var(--border)] border-t pt-1`}
+              >
+                <button
+                  aria-current={target.kind === "private" ? "true" : undefined}
+                  onClick={() => select("unscoped")}
+                  type="button"
+                >
+                  <ProjectGlyph />
+                  <span>
+                    <strong>Private workspace</strong>
+                    <small>Use Doolittle’s own folder.</small>
+                  </span>
+                  {target.kind === "private" ? (
                     <UiIcon icon={Check} size="xs" />
                   ) : null}
                 </button>
-              ))}
-              {!visibleProjects.length && query ? (
-                <p className="p-3 text-[length:var(--text-control)] text-[var(--faint)]">
-                  No matching projects.
-                </p>
-              ) : null}
+              </div>
             </div>
             <footer className={COMPOSER_ACTIONS_CLASS}>
-              <button
-                onClick={() => {
-                  setOpen(false);
-                  void onChooseRepository();
-                }}
-                type="button"
-              >
-                <UiIcon icon={Plus} size="xs" />
-                Add repository
-              </button>
               <button
                 onClick={() => {
                   setOpen(false);

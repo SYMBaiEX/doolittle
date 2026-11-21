@@ -72,7 +72,7 @@ export interface DoolittleDesktopBridge {
   onUpdateState(listener: (state: DesktopUpdateState) => void): () => void;
   pickFiles(): Promise<FileSelection>;
   pickProjectFiles(): Promise<ProjectResourceSelection>;
-  pickProjectFolders(): Promise<ProjectResourceSelection>;
+  pickProjectFolders(purpose?: "chat"): Promise<ProjectResourceSelection>;
   pickChatAttachments(botId?: string): Promise<AttachmentSelection>;
   discardChatAttachments(request: AttachmentCleanupRequest): Promise<void>;
   commitChatAttachments(request: AttachmentCleanupRequest): Promise<void>;

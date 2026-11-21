@@ -54,6 +54,7 @@ import {
 } from "./chat/inspector-layout";
 import { CHAT_WORKSPACE_CLASS } from "./chat/layout";
 import "./chat/chat-surface.css";
+import type { ChatWorkspaceTarget } from "./chat/ChatComposer";
 import {
   type BranchMode,
   type DisplayMessage,
@@ -82,6 +83,7 @@ import {
   queuedMessageWorkspaceStatus,
   saveConversationQueue,
 } from "./conversation-persistence";
+import { workspaceName } from "./desktop-navigation";
 import { desktopRequest, errorMessage } from "./lib";
 import {
   freezeMemoryMatchSnapshot,
@@ -363,6 +365,23 @@ export function ChatSessionPanel({
       ? workspaceBinding.project
       : undefined;
   const selectedScope = scopeForSession?.(selectedId);
+  const confirmedWorkspace =
+    selectedScope?.kind === "confirmed"
+      ? selectedScope.conversation
+      : undefined;
+  const workspaceTarget: ChatWorkspaceTarget = confirmedWorkspace?.projectId
+    ? {
+        kind: "local",
+        projectId: confirmedWorkspace.projectId,
+        name:
+          confirmedWorkspace.projectContext?.name ??
+          workspaceName(confirmedWorkspace.workspacePath),
+        path: confirmedWorkspace.workspacePath,
+      }
+    : confirmedWorkspace ||
+        (selectedScope?.kind === "pending" && !selectedScope.projectId)
+      ? { kind: "private" }
+      : { kind: "unconfirmed" };
   const workspaceBindingBlocked = selectedScope
     ? selectedScope.kind === "unknown" ||
       (selectedScope.kind === "pending" && Boolean(selectedScope.projectId))
@@ -1787,7 +1806,7 @@ export function ChatSessionPanel({
                 ) : null}
               </>
             }
-            activeProject={activeProject}
+            workspaceTarget={workspaceTarget}
             projects={projects}
             onChooseRepository={() => onChooseRepository?.(selectedId)}
             onOpenProjectManager={onOpenProjectManager}
@@ -1796,7 +1815,6 @@ export function ChatSessionPanel({
                 ? (scope) => onSelectProjectForNewChat(scope, selectedId)
                 : undefined
             }
-            isNewConversation={isNewConversation}
             backend={backend}
             runtime={runtime}
             refreshRuntime={refreshRuntime}

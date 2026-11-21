@@ -244,12 +244,18 @@ async function pickProjectFiles() {
   };
 }
 
-async function pickProjectFolders() {
+async function pickProjectFolders(purpose?: "chat") {
   const options: Electron.OpenDialogOptions = {
-    title: "Add folders to this project",
-    buttonLabel: "Add to project",
+    title:
+      purpose === "chat"
+        ? "Choose a local folder for this chat"
+        : "Add folders to this project",
+    buttonLabel: purpose === "chat" ? "Choose folder" : "Add to project",
     defaultPath: currentWorkspaceDialogPath(),
-    properties: ["openDirectory", "multiSelections", "dontAddToRecent"],
+    properties:
+      purpose === "chat"
+        ? ["openDirectory", "dontAddToRecent"]
+        : ["openDirectory", "multiSelections", "dontAddToRecent"],
   };
   const result = await nativeOpenDialog(options);
   return {

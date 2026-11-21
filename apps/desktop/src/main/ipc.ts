@@ -418,7 +418,11 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
   }
   registerHandler(invokeChannels.dialogPickFiles, pickFiles);
   registerHandler(invokeChannels.dialogPickProjectFiles, pickProjectFiles);
-  registerHandler(invokeChannels.dialogPickProjectFolders, pickProjectFolders);
+  registerHandler(
+    invokeChannels.dialogPickProjectFolders,
+    (_event, purpose: unknown) =>
+      pickProjectFolders(purpose === "chat" ? "chat" : undefined),
+  );
   registerHandler(
     invokeChannels.dialogPickChatAttachments,
     (_event, unsafeBotId?: unknown) => {

@@ -1,5 +1,5 @@
 import type { BotSummary } from "@doolittle/contracts/bots";
-import { Plus, Search, X } from "lucide-react";
+import { FolderOpen, Plus, Search, X } from "lucide-react";
 import { useId, useRef, useState } from "react";
 import { useModalFocusBoundary } from "../components/useModalFocusBoundary";
 import type { ProjectLike, ProjectScope } from "../project-manager/models";
@@ -17,6 +17,7 @@ export function NewChatChooser({
   projects = [],
   scope = "unscoped",
   onScopeChange,
+  onChooseLocalFolder,
 }: {
   bots: readonly BotSummary[];
   loading: boolean;
@@ -30,9 +31,12 @@ export function NewChatChooser({
   projects?: readonly ProjectLike[];
   scope?: ProjectScope;
   onScopeChange?: (scope: ProjectScope) => void;
+  onChooseLocalFolder?: () => void;
 }) {
   const [query, setQuery] = useState("");
   const titleId = useId();
+  const workspaceId = useId();
+  const workspaceDetailId = useId();
   const backdropRef = useRef<HTMLDivElement>(null);
   const dialogRef = useModalFocusBoundary({
     active: true,
@@ -49,6 +53,14 @@ export function NewChatChooser({
       !bot.archivedAt &&
       bot.name.toLowerCase().includes(query.trim().toLowerCase()),
   );
+  const localProjects = projects.filter(
+    (project) => !project.archived && project.primaryPath,
+  );
+  const selectedScope = scope === "all" ? "unscoped" : scope;
+  const activeProject = localProjects.find(
+    (project) => project.id === selectedScope,
+  );
+  const workspaceUnavailable = selectedScope !== "unscoped" && !activeProject;
   return (
     <div className="new-chat-backdrop" ref={backdropRef}>
       <div
@@ -81,29 +93,62 @@ export function NewChatChooser({
             value={query}
           />
         </label>
-        <label className="block px-3 py-2 text-sm">
-          Project for this new chat
+        <div className="mx-2 mb-2 grid gap-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-soft)] p-2.5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <label
+              className="text-[length:var(--text-control)] font-medium"
+              htmlFor={workspaceId}
+            >
+              Project for new chat
+            </label>
+            {onChooseLocalFolder ? (
+              <button
+                className="inline-flex min-h-8 items-center gap-1.5 rounded-[var(--radius-sm)] px-2 text-[length:var(--text-control)] text-[var(--text-soft)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+                disabled={busy}
+                onClick={onChooseLocalFolder}
+                type="button"
+              >
+                <FolderOpen aria-hidden size={14} />
+                Choose local folder…
+              </button>
+            ) : null}
+          </div>
           <select
-            aria-label="Project for new chat"
-            className="mt-1 w-full rounded border border-[var(--border)] bg-[var(--surface)] px-2 py-1 text-[var(--text)] focus:outline-none focus:border-[var(--border-strong)]"
+            aria-describedby={workspaceDetailId}
+            className="w-full rounded border border-[var(--border)] bg-[var(--surface)] px-2 py-1 text-[length:var(--text-control)] text-[var(--text)] focus:outline-none focus:border-[var(--border-strong)]"
             disabled={busy}
-            onChange={(event) =>
-              onScopeChange?.(event.target.value as ProjectScope)
-            }
-            value={scope === "all" ? "unscoped" : scope}
+            id={workspaceId}
+            onChange={(event) => onScopeChange?.(event.target.value)}
+            value={selectedScope}
           >
-            <option value="unscoped">
-              Private scratch (no project access)
-            </option>
-            {projects
-              .filter((project) => !project.archived && project.primaryPath)
-              .map((project) => (
-                <option key={project.id} value={project.id}>
-                  {project.name}
-                </option>
-              ))}
+            <option value="unscoped">Private workspace</option>
+            {workspaceUnavailable ? (
+              <option disabled value={selectedScope}>
+                Project unavailable
+              </option>
+            ) : null}
+            {localProjects.length > 0 ? (
+              <optgroup label="This computer">
+                {localProjects.map((project) => (
+                  <option key={project.id} value={project.id}>
+                    {project.name}
+                  </option>
+                ))}
+              </optgroup>
+            ) : null}
           </select>
-        </label>
+          <p
+            className="m-0 min-w-0 truncate text-[length:var(--text-meta)] text-[var(--muted)]"
+            id={workspaceDetailId}
+            title={activeProject?.primaryPath}
+          >
+            {activeProject
+              ? `This computer · ${activeProject.primaryPath}`
+              : workspaceUnavailable
+                ? "Choose an available workspace to continue."
+                : "No local project access."}
+          </p>
+        </div>
         <button
           className="new-chat-choice"
           disabled={busy}
@@ -122,7 +167,7 @@ export function NewChatChooser({
           {matches.map((bot) => (
             <button
               className="new-chat-choice"
-              disabled={busy}
+              disabled={busy || workspaceUnavailable}
               key={bot.id}
               onClick={() => onChoose(bot.id)}
               type="button"

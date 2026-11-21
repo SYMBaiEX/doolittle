@@ -41,6 +41,7 @@ import {
   VoiceComposerButton,
   type VoiceRecorderMime,
 } from "../components/VoiceComposerButton";
+import type { ChatWorkspaceTarget } from "../composer-selectors/ComposerProjectSelector";
 import type {
   ContextPressureSnapshot,
   ContextPressureTone,
@@ -106,6 +107,8 @@ export function chatApprovalHeightBudget(
   );
 }
 
+export type { ChatWorkspaceTarget };
+
 export interface ChatComposerProps {
   bot?: import("@doolittle/contracts/bots").BotSummary;
   approvalBotId: string;
@@ -121,7 +124,7 @@ export interface ChatComposerProps {
   onChooseRepository?: () => void | Promise<void>;
   onOpenProjectManager?: () => void;
   onSelectProjectForNewChat?: (scope: ProjectScope) => void;
-  isNewConversation: boolean;
+  workspaceTarget?: ChatWorkspaceTarget;
   backend: BackendState;
   runtime: RuntimeStatus | null;
   refreshRuntime: () => void;
@@ -193,7 +196,7 @@ export function ChatComposer({
   onChooseRepository,
   onOpenProjectManager,
   onSelectProjectForNewChat,
-  isNewConversation,
+  workspaceTarget,
   backend,
   runtime,
   refreshRuntime,
@@ -525,13 +528,20 @@ export function ChatComposer({
     );
     requestAnimationFrame(() => composerRef.current?.focus());
   };
-  const showProjectSelector = Boolean(
-    isNewConversation &&
-      projects &&
-      onChooseRepository &&
-      onOpenProjectManager &&
-      onSelectProjectForNewChat,
-  );
+  const workspaceSelector =
+    projects &&
+    onChooseRepository &&
+    onOpenProjectManager &&
+    onSelectProjectForNewChat ? (
+      <ComposerProjectSelector
+        key={selectedId}
+        target={workspaceTarget ?? { kind: "unconfirmed" }}
+        onChooseRepository={onChooseRepository}
+        onManageProjects={onOpenProjectManager}
+        onSelectProject={onSelectProjectForNewChat}
+        projects={projects}
+      />
+    ) : null;
 
   useEffect(() => {
     if (hasMemoryMatches || hasContextDetails) return;
@@ -957,21 +967,9 @@ export function ChatComposer({
         <div className="chat-composer-footer-right">
           <div
             className="chat-composer-routing flex items-center justify-end gap-1.5"
-            data-has-project={showProjectSelector ? "true" : undefined}
+            data-has-project={workspaceSelector ? "true" : undefined}
           >
-            {showProjectSelector &&
-            projects &&
-            onChooseRepository &&
-            onOpenProjectManager &&
-            onSelectProjectForNewChat ? (
-              <ComposerProjectSelector
-                activeProjectId={activeProject?.id}
-                onChooseRepository={onChooseRepository}
-                onManageProjects={onOpenProjectManager}
-                onSelectProject={onSelectProjectForNewChat}
-                projects={projects}
-              />
-            ) : null}
+            {workspaceSelector}
             <ComposerModelSelector
               bot={bot && !bot.isDefault ? bot : undefined}
               active={backend.phase === "ready"}

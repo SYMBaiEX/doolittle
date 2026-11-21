@@ -138,8 +138,11 @@ const bridge: DoolittleDesktopBridge = {
     ipcRenderer.invoke(desktopIpcChannels.invoke.dialogPickFiles),
   pickProjectFiles: () =>
     ipcRenderer.invoke(desktopIpcChannels.invoke.dialogPickProjectFiles),
-  pickProjectFolders: () =>
-    ipcRenderer.invoke(desktopIpcChannels.invoke.dialogPickProjectFolders),
+  pickProjectFolders: (purpose) =>
+    ipcRenderer.invoke(
+      desktopIpcChannels.invoke.dialogPickProjectFolders,
+      purpose,
+    ),
   pickChatAttachments: (botId?: string) =>
     ipcRenderer.invoke(
       desktopIpcChannels.invoke.dialogPickChatAttachments,

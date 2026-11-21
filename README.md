@@ -20,6 +20,15 @@ On Windows, run `pwsh -File scripts/install.ps1` with optional `-Desktop`.
 Onboarding configures a model route for chat and coding. See the
 [setup guide](docs/setup.md) for provider credentials and platform requirements.
 
+## Code in a local folder
+
+In Desktop, open the workspace picker next to the chat composer. Under
+**This computer**, choose a local folder or select a saved one and approve
+access for the bot. Changing folders opens a new chat so the earlier conversation
+and draft stay with their original workspace. **Private workspace** starts in
+Doolittle’s own folder. For shell commands on this computer, use the **Local**
+backend in **Settings → Execution**.
+
 ## Development
 
 Use the Node version in [`.node-version`](.node-version) and Nub version in

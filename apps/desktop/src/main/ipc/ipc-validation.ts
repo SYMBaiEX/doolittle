@@ -102,7 +102,7 @@ export interface RegisterIpcDependencies {
   sensitiveActionDependencies?: SensitiveActionIpcDependencies;
   pickChatAttachments?: (botId?: string) => Promise<AttachmentSelection>;
   pickProjectFiles?: () => Promise<ProjectResourceSelection>;
-  pickProjectFolders?: () => Promise<ProjectResourceSelection>;
+  pickProjectFolders?: (purpose?: "chat") => Promise<ProjectResourceSelection>;
   importRecordedAudio?: (
     request: RecordedAudioImportRequest,
   ) => AttachmentSelection["attachments"][number];
